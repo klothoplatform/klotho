@@ -1,0 +1,74 @@
+name: Update klotho's homebrew formula
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      klotho-tap:
+        description: 'klotho homebrew tap repository'
+        required: false
+        default: 'KlothoPlatform/homebrew-klotho'
+      klotho-release:
+        description: 'the klotho release that the formula will point to'
+        required: false
+jobs:
+  update-brew-formula:
+    runs-on: ubuntu-latest
+    steps:
+      - name: get release name
+        id: releaseName
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "${{ github.event.inputs.klotho-release }}" ]; then
+            tag_name="$(echo "$GITHUB_REF" | cut -d/ -f3)"  # e.g. "v0.5.16"
+            release_name=$(gh release -R ${GITHUB_REPOSITORY} view ${tag_name} --json "name,body" | jq -r '.name')
+            echo "using release ${release_name}"
+          else
+            release_name="${{ github.event.inputs.klotho-release }}"
+          fi
+
+          
+          printf 'release_name=%s\n' "$release_name" >> $GITHUB_OUTPUT
+
+      - name: clone klotho tap
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh repo clone ${{ github.event.inputs.klotho-tap || 'KlothoPlatform/homebrew-klotho' }} tap -- -b main --depth 1
+
+      - name: download release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd tap
+          gh release download ${{ steps.releaseName.outputs.release_name }} -R "${GITHUB_REPOSITORY}" -p 'klotho_*'
+
+      - name: update klotho brew formula
+        run: |
+          cd tap
+          export VERSION=${{ steps.releaseName.outputs.release_name }}
+          
+          echo "Preparing formula for klotho release: ${VERSION}"
+          
+          export BINARY_BASE_URL="https://github.com/klothoplatform/klotho/releases/download"
+          ./update_formula.sh
+
+      - name: setup git config
+        run: |
+          cd tap
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git remote set-url origin https://x-access-token:${{ secrets.HOMEBREW_KLOTHO_MODIFY_TOKEN }}@github.com/${{ github.event.inputs.klotho-tap || 'KlothoPlatform/homebrew-klotho' }}
+
+      - name: push updated formula
+        run: |
+          cd tap
+          echo "Pushing updated formula to ${{ github.event.inputs.klotho-tap || 'KlothoPlatform/homebrew-klotho' }}/main"
+          
+          git add Formula/klotho.rb
+          git commit -m "Updates klotho formula to ${{ steps.releaseName.outputs.release_name }}"
+          git push origin main
+
+          
