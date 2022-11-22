@@ -9,9 +9,9 @@ on:
       klotho-tap:
         description: 'klotho homebrew tap repository'
         required: false
-        default: 'KlothoPlatform/homebrew-klotho'
+        default: 'KlothoPlatform/homebrew-tap'
       klotho-release:
-        description: 'the klotho release that the formula will point to'
+        description: 'the klotho release that the formula will point to (e.g. v0.5.15)'
         required: false
 jobs:
   update-brew-formula:
@@ -36,7 +36,7 @@ jobs:
       - name: clone klotho tap
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh repo clone ${{ github.event.inputs.klotho-tap || 'KlothoPlatform/homebrew-klotho' }} tap -- -b main --depth 1
+        run: gh repo clone ${{ github.event.inputs.klotho-tap || 'KlothoPlatform/homebrew-tap' }} tap -- -b main --depth 1
 
       - name: download release artifacts
         env:
@@ -60,12 +60,12 @@ jobs:
           cd tap
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
-          git remote set-url origin https://x-access-token:${{ secrets.HOMEBREW_KLOTHO_MODIFY_TOKEN }}@github.com/${{ github.event.inputs.klotho-tap || 'KlothoPlatform/homebrew-klotho' }}
+          git remote set-url origin https://x-access-token:${{ secrets.HOMEBREW_KLOTHO_MODIFY_TOKEN }}@github.com/${{ github.event.inputs.klotho-tap || 'KlothoPlatform/homebrew-tap' }}
 
       - name: push updated formula
         run: |
           cd tap
-          echo "Pushing updated formula to ${{ github.event.inputs.klotho-tap || 'KlothoPlatform/homebrew-klotho' }}/main"
+          echo "Pushing updated formula to ${{ github.event.inputs.klotho-tap || 'KlothoPlatform/homebrew-tap' }}/main"
           
           git add Formula/klotho.rb
           git commit -m "Updates klotho formula to ${{ steps.releaseName.outputs.release_name }}"
