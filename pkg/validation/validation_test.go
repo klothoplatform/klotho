@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -277,6 +278,74 @@ func Test_validation_handleProviderValidation(t *testing.T) {
 			err := p.handleProviderValidation(&result)
 			if tt.wantErr {
 				assert.Error(err)
+				return
+			} else {
+				assert.NoError(err)
+				return
+			}
+		})
+	}
+}
+
+func Test_validation_handleResources(t *testing.T) {
+	tests := []struct {
+		name    string
+		result  []core.CloudResource
+		wantErr bool
+	}{
+		{
+			name: "diff resources duplicate ids",
+			result: []core.CloudResource{
+				&core.ExecutionUnit{
+					Name: "test",
+				},
+				&core.Gateway{
+					Name: "test",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "persist different ids",
+			result: []core.CloudResource{
+				&core.Persist{
+					Name: "test",
+					Kind: core.PersistFileKind,
+				},
+				&core.Persist{
+					Name: "another",
+					Kind: core.PersistORMKind,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "persist duplicate ids",
+			result: []core.CloudResource{
+				&core.Persist{
+					Name: "test",
+					Kind: core.PersistFileKind,
+				},
+				&core.Persist{
+					Name: "test",
+					Kind: core.PersistORMKind,
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			p := Plugin{}
+			result := core.CompilationResult{}
+			result.AddAll(tt.result)
+
+			err := p.handleResources(&result)
+			if tt.wantErr {
+				assert.Error(err)
+				fmt.Println(err.Error())
 				return
 			} else {
 				assert.NoError(err)
