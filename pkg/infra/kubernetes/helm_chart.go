@@ -193,6 +193,13 @@ func (chart *KlothoHelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.E
 		return nil, err
 	}
 	values = append(values, upstreamValues...)
+
+	persistValues, err := unit.handlePersistForExecUnit(deps)
+	if err != nil {
+		return nil, err
+	}
+	values = append(values, persistValues...)
+
 	return values, nil
 }
 

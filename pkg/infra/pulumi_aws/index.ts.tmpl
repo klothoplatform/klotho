@@ -105,11 +105,11 @@ export = async () => {
     {{range $unit := .ExecUnits -}}
 
     {{- if eq $unit.Type "fargate"}}
-    cloudLib.createEcsService("{{$unit.Name}}",{{jsonPretty $unit.Params | indent 4}} as Partial<awsx.ecs.Container>);
+    cloudLib.createEcsService("{{$unit.Name}}",{{jsonPretty $unit.Params | indent 4}} as Partial<awsx.ecs.Container>, {{- if $unit.EnvironmentVariables}} , {{jsonPretty $unit.EnvironmentVariables | indent 4}} {{end}});
     {{else if eq $unit.Type "eks"}}
-    eksUnits.push({name: "{{$unit.Name}}", params: {{jsonPretty $unit.Params | indent 4}}, helmOptions: {{jsonPretty $unit.HelmOptions | indent 4}}})
+    eksUnits.push({name: "{{$unit.Name}}", params: {{jsonPretty $unit.Params | indent 4}}, helmOptions: {{jsonPretty $unit.HelmOptions | indent 4}}, {{- if $unit.EnvironmentVariables}} envVars: {{jsonPretty $unit.EnvironmentVariables | indent 4}} {{end}}})
     {{else if eq $unit.Type "apprunner"}}
-    arUrls.push(cloudLib.createDockerAppRunner("{{$unit.Name}}"))
+    arUrls.push(cloudLib.createDockerAppRunner("{{$unit.Name}}", {{- if $unit.EnvironmentVariables}} , {{jsonPretty $unit.EnvironmentVariables | indent 4}} {{end}}))
     {{else}}
     cloudLib.createDockerLambda("{{$unit.Name}}", {{jsonPretty $unit.Params | indent 4}} as Partial<aws.lambda.FunctionArgs> {{- if $unit.EnvironmentVariables}} , {{jsonPretty $unit.EnvironmentVariables | indent 4}} {{end}});
     {{end}}

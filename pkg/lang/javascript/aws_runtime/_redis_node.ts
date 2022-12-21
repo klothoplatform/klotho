@@ -1,13 +1,17 @@
 //@ts-nocheck
 'use strict'
 
-export function getParams(dbName: string, params: { [key: string]: any }): dict {
+export function getParams(
+    hostEnvVarName: string,
+    portEnvVarName: string,
+    params: { [key: string]: any }
+): dict {
     let newParams = {
         ...params,
         socket: {
             ...params['socket'],
-            host: process.env[`${dbName.toUpperCase()}_PERSIST_REDIS_NODE_HOST`],
-            port: process.env[`${dbName.toUpperCase()}_PERSIST_REDIS_NODE_PORT`],
+            host: process.env[hostEnvVarName],
+            port: process.env[portEnvVarName],
         },
     }
     return {

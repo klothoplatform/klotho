@@ -85,12 +85,6 @@ func (p Kubernetes) Transform(result *core.CompilationResult, deps *core.Depende
 			}
 			khChart.Values = append(khChart.Values, execUnitValues...)
 
-			persistValues, err := unit.handlePersistForExecUnit(result, deps)
-			if err != nil {
-				errs.Append(err)
-			}
-			khChart.Values = append(khChart.Values, persistValues...)
-
 		}
 		output, err := yaml.Marshal(metadata)
 		if err != nil {
