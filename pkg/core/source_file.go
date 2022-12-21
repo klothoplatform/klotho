@@ -28,7 +28,7 @@ type SourceLanguage struct {
 type LanguageId string
 
 type CapabilityFinder interface {
-	FindAllCapabilities(*SourceFile) []Annotation
+	FindAllCapabilities(*SourceFile) ([]Annotation, error)
 }
 
 type Commenter func(string) string
@@ -45,7 +45,7 @@ func (f *SourceFile) Reparse(newProgram []byte) (err error) {
 	f.program = newProgram
 	f.tree, err = f.parser.ParseCtx(context.TODO(), nil, f.program)
 	if err == nil {
-		f.caps = f.Language.CapabilityFinder.FindAllCapabilities(f)
+		f.caps, err = f.Language.CapabilityFinder.FindAllCapabilities(f)
 	} else {
 		err = WrapErrf(err, "could not reparse %s", f.Path())
 	}

@@ -144,7 +144,7 @@ var testLang = SourceLanguage{
 	CapabilityFinder: &testCapabilityFinder{},
 }
 
-func (t *testCapabilityFinder) FindAllCapabilities(sf *SourceFile) []Annotation {
+func (t *testCapabilityFinder) FindAllCapabilities(sf *SourceFile) ([]Annotation, error) {
 	body := string(sf.Program())
 	annots := []Annotation{
 		{Capability: &annotation.Capability{
@@ -153,5 +153,5 @@ func (t *testCapabilityFinder) FindAllCapabilities(sf *SourceFile) []Annotation 
 			Directives: annotation.Directives{"id": body},
 		}},
 	}
-	return annots
+	return annots, nil
 }

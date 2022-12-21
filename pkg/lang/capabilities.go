@@ -7,7 +7,9 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/query"
+	"github.com/pkg/errors"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -65,18 +67,23 @@ func NewCapabilityFinder(sitterQuery string, preprocessor CommentPreprocessor) c
 }
 
 // FindAllCapabilities finds all of the annotations (ie, capabilities) in a SourceFile.
-func (c *capabilityFinder) FindAllCapabilities(f *core.SourceFile) []core.Annotation {
+func (c *capabilityFinder) FindAllCapabilities(f *core.SourceFile) ([]core.Annotation, error) {
+	var merr multierr.Error
 	capabilities := []core.Annotation{}
 	for _, block := range c.findAllCommentsBlocks(f) {
 		cap, err := annotation.ParseCapability(block.comment)
-		if err != nil || cap == nil {
+		if cap == nil {
 			continue
 		}
-		capability := core.Annotation{Capability: cap, Node: block.node}
-		capabilities = append(capabilities, capability)
+		annotation := core.Annotation{Capability: cap, Node: block.node}
+		if err != nil {
+			merr.Append(core.NewCompilerError(f, annotation, errors.Wrap(err, "error parsing annotation")))
+			continue
+		}
+		capabilities = append(capabilities, annotation)
 
 	}
-	return capabilities
+	return capabilities, merr.ErrOrNil()
 }
 
 func (c *capabilityFinder) findAllCommentsBlocks(f *core.SourceFile) []*commentBlock {
