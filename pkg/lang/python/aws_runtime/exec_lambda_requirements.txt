@@ -1,0 +1,3 @@
+# klotho::execution_unit (lambda)
+mangum>=0.15.1, <1.0.0
+requests>=2.24.0,<3.0.0

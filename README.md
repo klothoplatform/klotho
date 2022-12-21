@@ -1,6 +1,10 @@
 # Welcome to [Klotho](https://klo.dev)
-
-This repo is the placeholder for our upcoming open source release and will be used for external issue tracking.
+[![test badge](https://github.com/klothoplatform/klotho/actions/workflows/test.yaml/badge.svg)](https://github.com/klothoplatform/klotho/actions/workflows/test.yaml)
+[![formatting badge](https://github.com/klothoplatform/klotho/actions/workflows/prettier.yaml/badge.svg)](https://github.com/klothoplatform/klotho/actions/workflows/prettier.yaml)
+[![linter badge](https://github.com/klothoplatform/klotho/actions/workflows/lint.yaml/badge.svg)](https://github.com/klothoplatform/klotho/actions/workflows/lint.yaml)
+[![staticcheck badge](https://github.com/klothoplatform/klotho/actions/workflows/staticcheck.yaml/badge.svg)](https://github.com/klothoplatform/klotho/actions/workflows/staticcheck.yaml)
+[![integ tests badge](https://github.com/klothoplatform/klotho/actions/workflows/integtest.yaml/badge.svg)](https://github.com/klothoplatform/klotho/actions/workflows/integtest.yaml)
+[![release badge](https://github.com/klothoplatform/klotho/actions/workflows/release.yaml/badge.svg)](https://github.com/klothoplatform/klotho/actions/workflows/release.yaml)
 
 ## Introduction
 
@@ -40,3 +44,12 @@ We look forward to sharing more details in the coming weeks. Please reach out wi
 
 [![Twitter](https://img.shields.io/badge/Twitter-%231DA1F2.svg?style=for-the-badge&logo=Twitter&logoColor=white)](https://twitter.com/GetKlotho) [![LinkedIn](https://img.shields.io/badge/linkedin-%230077B5.svg?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/company/klothoplatform/)
 [![Discord](https://img.shields.io/badge/%3CServer%3E-%237289DA.svg?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/4z2jwRvnyM)
+
+## Developing
+* build: `go build ./...`
+* test: `go test ./...`
+* run without separate build: `go run ./cmd/klotho`
+* to run CI checks on `git push`:
+```
+git config --local core.hooksPath .githooks/
+```

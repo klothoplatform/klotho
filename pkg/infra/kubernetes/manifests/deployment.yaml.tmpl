@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    execUnit: {{ .ExecUnitName }}
+  name: {{ .ExecUnitName }}
+  namespace: {{ .Namespace }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      execUnit: {{ .ExecUnitName }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        execUnit: {{ .ExecUnitName }}
+        klotho-fargate-enabled: "false"
+    spec:
+      containers:
+      - image: REPLACE_ME
+        name: {{ .ExecUnitName }}
+      serviceAccount: {{ .ServiceAccountName }}
+      serviceAccountName: {{ .ServiceAccountName }}

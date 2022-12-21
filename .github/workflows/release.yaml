@@ -1,0 +1,46 @@
+name: Generate Release Artifacts
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  generate:
+    name: Generate Release Artifacts
+    runs-on: macos-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '>=1.18.0'
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v1
+        with:
+          version: 0.9.1
+
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
+
+      - name: Build
+        run: |
+          npm install -g typescript
+          mkdir dist
+          go generate ./...
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 CC="zig cc -target x86_64-linux-musl" CXX="zig c++ -target x86_64-linux-musl" go build --tags extended -o dist/klotho_linux_amd64 -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" ./cmd/klotho
+          CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC="zig cc -target x86_64-windows-gnu" CXX="zig c++ -target x86_64-windows-gnu" go build --tags extended -o dist/klotho_windows_amd64.exe -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" ./cmd/klotho
+          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build --tags extended -o dist/klotho_darwin_amd64 -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" ./cmd/klotho
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build --tags extended -o dist/klotho_darwin_arm64 -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" ./cmd/klotho
+          chmod +x dist
+
+      - name: Upload build-artifacts
+        uses: alexellis/upload-assets@0.2.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          asset_paths: '["dist/*"]'

@@ -1,0 +1,53 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.proxyCall = void 0;
+const axios = require('axios');
+const ar_client = require("@aws-sdk/client-apprunner");
+const { APP_NAME } = process.env;
+async function proxyCall(callType, execGroupName, moduleName, functionToCall, params) {
+    try {
+        const hostname = await getExecFargateInstance(execGroupName);
+        const res = await axios({
+            method: 'post',
+            url: `https://${hostname}`,
+            data: {
+                callType,
+                execGroupName,
+                functionToCall,
+                moduleName,
+                params,
+            },
+        });
+        return res.data;
+    }
+    catch (error) {
+        console.log(error);
+        throw error;
+    }
+}
+exports.proxyCall = proxyCall;
+async function getExecFargateInstance(logicalName) {
+    try {
+        const serviceName = `${APP_NAME}-${logicalName}-apprunner`;
+        const client = new ar_client.AppRunnerClient();
+        const command = new ar_client.ListServicesCommand({MaxResults: 10});
+        const response = await client.send(command);
+
+        const urls = [];
+        response.ServiceSummaryList?.forEach( service => {
+            if (service.ServiceName == serviceName && service.ServiceUrl != undefined) {
+                urls.push(service.ServiceUrl);
+            }
+        });
+        if (urls.length == 0) {
+            throw new Error(`No URLs found for ${logicalName}`);
+        } else if (urls.length > 1) {
+            console.log(`Found multiple URLs for ${serviceName}`);
+        }
+        return urls[0];
+    }
+    catch (e) {
+        console.log(e);
+        throw e;
+    }
+}

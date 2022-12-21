@@ -1,0 +1,49 @@
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+concurrency:
+  cancel-in-progress: true
+  group: prettier-${{ github.ref }}
+name: formatting checks
+jobs:
+  gofmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.18.x
+      - uses: actions/checkout@v3
+      - name: List files to check
+        run: |
+          set -euo pipefail
+          function on_gos() { find . -name '*.go' -exec "$@" \; ; }
+          echo '::group::Go files'
+          # This is just a sanity check, to ensure that the on_gos function works as expected
+          on_gos echo {}
+          echo '::endgroup::'
+      - name: Run gofmt
+        run: |
+          on_gos gofmt -l {} | tee "$RUNNER_TEMP/misformatted"
+          if [[ -s "$RUNNER_TEMP/misformatted" ]]; then
+            while read filename ; do
+              gofmt -d "$filename" | grep '^@@' | while read diffline ; do
+                line_info="$(echo "$diffline" | sed 's/^@@ [-+]\([^ ]*\).*/\1/')"
+                start_line="$(echo "$line_info" | sed 's/,.*//')"
+                line_counts="$(echo "$line_info" | sed 's/.*,//')"
+                end_line="$(( $start_line + $line_counts ))"
+                printf '::error file=%s,line=%s,endLine=%s,title=go fmt::Incorrect formatting\n' "$filename" "$start_line" "$end_line"
+              done
+            done < "$RUNNER_TEMP/misformatted"
+            exit 1
+          fi
+  ts-prettier:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install
+        run: npm install -g prettier
+      - uses: actions/checkout@v3
+      - name: Run
+        run: prettier -c pkg/**/*.ts
+

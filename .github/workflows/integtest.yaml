@@ -1,0 +1,334 @@
+on:
+  schedule:
+    # 7am Mon - Fri, UTC: https://crontab.guru/#0_7_*_*_1-5
+    # This corresponds to 2-3am us/eastern (depending on daylight savings), or 11pm - midnight pacific
+    - cron: '0 7 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      sample-apps-git-ref:
+        description: Git SHA or branch name of the sample-apps repo
+        required: false
+        type: string
+      sample-app-names:
+        description: Comma-delimited list of apps within the sample-apps repo
+        required: false
+        type: string
+concurrency:
+  group: integ-tests
+env:
+  SAMPLE_APPS_GIT_REF: main
+  KLOTHO_LOGIN: klotho-engineering@klo.dev
+  AWS_REGION: us-east-1
+  INTEG_TEST_ATTEMPTS: 3 # how many times we'll try to run "npm run integ-test" before we mark it as failed. See klothoplatform/sample-apps#44
+name: integration tests
+jobs:
+  list-apps:
+    runs-on: ubuntu-latest
+    outputs:
+      to_test: ${{ steps.find_dirs.outputs.to_test }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: KlothoPlatform/sample-apps
+          ref: ${{ inputs.sample-apps-git-ref || env.SAMPLE_APPS_GIT_REF }}
+      - name: find test dirs
+        id: find_dirs
+        run: |
+          dirs_with_tests="$(
+            for d in $(find * -type d -maxdepth 0 || printf ''); do
+              jq &>/dev/null -e '.scripts."integ-test"' $d/package.json && echo "$d"
+            done
+            exit 0 # otherwise, will fail if the last dir failed the jq match
+          )"
+          if [[ -n "$APP_NAME_OVERRIDES" ]]; then
+            echo "Applying overrides: $APP_NAME_OVERRIDES"
+            dirs_with_tests="$(echo "$dirs_with_tests" | grep -Ff <(echo "$APP_NAME_OVERRIDES" | tr , "\n"))"
+          else
+            echo "No app name overrides."
+          fi
+          test_cases="$(echo "$dirs_with_tests" | jq -c -R --slurp 'split("\n") | map(select(length > 0))')"
+          if [[ "$as_json" == '[]' ]]; then
+            echo "::error ::No tests found"
+            exit 1
+          fi
+          echo "$test_cases" | jq .
+          echo "to_test=$test_cases" > $GITHUB_OUTPUT
+        env:
+          APP_NAME_OVERRIDES: ${{ inputs.sample-app-names }}
+  build-klotho:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout klotho
+        uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.18.x
+      - name: build
+        run: |
+          go generate ./...
+          go build ./cmd/klotho
+      - name: upload artifact
+        uses: actions/upload-artifact@v3
+        with: 
+          name: klotho
+          path: klotho
+          retention-days: 1
+  sample-app:
+    needs: [build-klotho, list-apps]
+    runs-on: ubuntu-latest
+    environment: integ_test
+    strategy:
+      max-parallel: 2 # each service can have up to 2 EIPs (one per private + public subnet), and we're capped at 5 total. See #613
+      fail-fast: false
+      matrix:
+        app_to_test: ${{ fromJson(needs.list-apps.outputs.to_test) }}
+        mode: [fresh, upgrade]
+        exclude:
+          - # issue $618
+            app_to_test: ts-eks
+            mode: upgrade
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: KlothoPlatform/sample-apps
+          ref: ${{ inputs.sample-apps-git-ref || env.SAMPLE_APPS_GIT_REF }}
+      - name: Use Node.js 16.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: "npm"
+          cache-dependency-path: '**/package-lock.json'
+      - name: set up PATH
+        run: |
+          mkdir $RUNNER_TEMP/bin
+          echo $RUNNER_TEMP/bin
+          echo $RUNNER_TEMP/bin >> $GITHUB_PATH
+      - name: Install Public Klotho (old version)
+        if: matrix.mode == 'upgrade'
+        run: |
+          curl -fsSL http://srv.klo.dev/update/latest/linux/amd64 -o "$RUNNER_TEMP/klotho-old"
+          chmod +x "$RUNNER_TEMP/klotho-old"
+          "$RUNNER_TEMP/klotho-old" --login "$KLOTHO_LOGIN"
+      - name: download klotho
+        uses: actions/download-artifact@v3
+        with:
+          name: klotho
+          path: ${{ runner.temp }}
+      - name: initialize symlink
+        run : |
+          if [[ ${{ matrix.mode }} == upgrade ]] ; then
+            ln -s $RUNNER_TEMP/klotho-old $RUNNER_TEMP/bin/klotho
+          else
+            ln -s $RUNNER_TEMP/klotho $RUNNER_TEMP/bin/klotho
+          fi
+      - name: install klotho
+        run: |
+          chmod +x $RUNNER_TEMP/klotho
+          klotho --login $KLOTHO_LOGIN
+      - name: typescript compilation
+        working-directory: ${{ matrix.app_to_test }}
+        run: |
+          npm install
+          npx tsc
+      - name: run klotho
+        working-directory: ${{ matrix.app_to_test }}
+        run: |
+          mode="${{ matrix.mode }}"
+          mode="${mode:0:1}" # just use the first letter ("f" for "fresh" or "u" for "upgrade")
+          STACK_NAME="${{ matrix.app_to_test }}-$mode-$GITHUB_RUN_ID"
+          echo "STACK_NAME=$STACK_NAME" >> $GITHUB_ENV
+          if [[ -f test/klotho.yaml ]]; then 
+            klotho --app $STACK_NAME -p aws -c test/klotho.yaml #need app name to always be consistent for pre deploy hooks
+          else
+            klotho . --app $STACK_NAME -p aws
+          fi
+      - name: pulumi npm install
+        working-directory: ${{ matrix.app_to_test }}
+        run: |
+          npm install --prefix compiled
+      - name: pulumi stack options
+        working-directory: ${{ matrix.app_to_test }}
+        run: |
+          set -u
+          if [[ -e test/pulumi ]]; then
+            echo "POLICY_PACK=$(readlink -f test/pulumi)" >> $GITHUB_ENV
+          fi
+          # Configure the hooks here, too. This lets us conditionally run them in later steps, which is a nice visual
+          if [[ -f test/integ_test_hooks/pre-deploy.sh ]]; then
+            echo "BEFORE_DEPLOY_HOOK=$(readlink -f test/integ_test_hooks/pre-deploy.sh)" >> $GITHUB_ENV
+          fi
+          echo '::group::Configuration'
+          pulumi -C compiled -s "$STACK_NAME" stack select --create
+          pulumi -C compiled -s "$STACK_NAME" stack tag set usage integ-test
+          pulumi -C compiled -s "$STACK_NAME" config refresh || true # refresh the stack, just in case it exists from a previous attempt. Ignore if that fails
+          echo "(It's fine if this said 'error: no previous deployment'.)"
+          if echo "$NOT_DEFAULT_REGION_APPS" | grep -q --line-regexp '${{ matrix.app_to_test }}' ; then
+            echo "deploying to us-east-2"
+            pulumi -C compiled -s "$STACK_NAME" config set aws:region us-east-2 
+          else
+            echo "deploying to $AWS_REGION"
+            pulumi -C compiled -s "$STACK_NAME" config set aws:region "$AWS_REGION" 
+          fi
+          echo '::endgroup'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ""
+          NOT_DEFAULT_REGION_APPS: |
+            ts-redis-cluster
+      - name: pre-deploy hook
+        working-directory: ${{ matrix.app_to_test }}
+        if: env.BEFORE_DEPLOY_HOOK
+        run: |
+          echo Running pre deploy hook: $BEFORE_DEPLOY_HOOK
+          bash "$BEFORE_DEPLOY_HOOK"
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ""
+      - name: pulumi up (upgrade path)
+        if: matrix.mode == 'upgrade'
+        uses: CloudCompilers/gh-action-retry@v1
+        with:
+          description: pulumi up (upgrade path)
+          working-directory: ${{ matrix.app_to_test }}
+          script: |
+            pulumi -C compiled -s "$STACK_NAME" up --refresh --yes
+            pulumi_out="$(pulumi -C compiled -s "$STACK_NAME" stack output --json)"
+            echo "$pulumi_out" | jq .
+            API_ENDPOINT="$(echo "$pulumi_out" | jq -er '.apiUrls[0]')"
+            echo "API_ENDPOINT=$API_ENDPOINT" >> $GITHUB_ENV # used by npm run integ-test below
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ""
+      - name:  change symlink (upgrade path)
+        if: matrix.mode == 'upgrade'
+        run : |
+            ln -sf $RUNNER_TEMP/klotho $RUNNER_TEMP/bin/klotho
+      - name: run klotho (upgrade path)
+        if: matrix.mode == 'upgrade'
+        working-directory: ${{ matrix.app_to_test }}
+        run: |
+          if [[ -f test/klotho.yaml ]]; then 
+            klotho --app $STACK_NAME -p aws -c test/klotho.yaml #need app name to always be consistent for pre deploy hooks
+          else
+            klotho . --app $STACK_NAME -p aws
+          fi
+      - name: pulumi npm install (upgrade path)
+        if: matrix.mode == 'upgrade'
+        working-directory: ${{ matrix.app_to_test }}
+        run: |
+          npm install --prefix compiled
+      - name: pulumi policy-pack
+        if: env.POLICY_PACK
+        working-directory: ${{ matrix.app_to_test }}
+        run: |
+          npm install --prefix test/pulumi
+          pulumi -C compiled -s "$STACK_NAME" preview --policy-pack "$POLICY_PACK"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ""
+      - name: pulumi up
+        uses: CloudCompilers/gh-action-retry@v1
+        with:
+          description: pulumi up
+          working-directory: ${{ matrix.app_to_test }}
+          script: |
+            pulumi -C compiled -s "$STACK_NAME" up --refresh --yes
+            pulumi_out="$(pulumi -C compiled -s "$STACK_NAME" stack output --json)"
+            echo "$pulumi_out" | jq .
+            API_ENDPOINT="$(echo "$pulumi_out" | jq -er '.apiUrls[0]')"
+            echo "API_ENDPOINT=$API_ENDPOINT" >> $GITHUB_ENV # used by npm run integ-test below
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ""
+      - name: wait a bit for pulumi to settle
+        run: |
+          if echo "$SLOW_APPS" | grep -q --line-regexp '${{ matrix.app_to_test }}' ; then
+            sleep_amount=600
+          else
+            sleep_amount=30
+          fi
+          echo "sleeping for $sleep_amount seconds"
+          sleep "$sleep_amount"
+        env:
+          SLOW_APPS: |
+            ts-nestjs-sequelize
+            ts-sequelize
+            ts-typeorm
+            ts-redis
+            ts-eks
+        working-directory: ${{ matrix.app_to_test }}
+      - name: run integ tests
+        uses: CloudCompilers/gh-action-retry@v1
+        with:
+          description: npm run integ-test
+          working-directory: ${{ matrix.app_to_test }}
+          script: npm run integ-test
+      - name: wait a bit for logs to propagate
+        if: always()
+        run: sleep 15
+      - name: gather logs
+        if: failure()
+        working-directory: ${{ matrix.app_to_test }}
+        run: |
+          mkdir "$RUNNER_TEMP/cw-logs"
+          echo "Writing logs to $RUNNER_TEMP/cw-logs"
+          cw_logs="$(pulumi -C compiled -s "$STACK_NAME" stack export | jq -r '.deployment.resources[] | select(.type == "aws:cloudwatch/logGroup:LogGroup") | .outputs.id')"
+          for log_group in $cw_logs ; do
+            log_to="$RUNNER_TEMP/cw-logs/logs-$(basename "$log_group").txt"
+            touch "$log_to"
+            echo "::group::Gathering streams for $log_group"
+            for stream in $(aws logs describe-log-streams --log-group-name "$log_group" --query 'logStreams[].logStreamName' --output text) ; do
+              echo >&2 "reading stream $stream"
+              aws logs get-log-events --log-group-name "$log_group" --log-stream-name "$stream" | jq -r '.events[] | [.timestamp, .message] | join(" ")' >> "$log_to"
+            done
+            echo "::endgroup::"
+            sort -u -o "$log_to" "$log_to"
+          done
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ""
+      - name: upload logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: cloudwatch-logs-${{ matrix.app_to_test }}
+          path: ${{ runner.temp }}/cw-logs/
+      - name: pulumi destroy
+        if: always()
+        uses: CloudCompilers/gh-action-retry@v1
+        with:
+          description: pulumi destroy
+          working-directory: ${{ matrix.app_to_test }}
+          script: |
+            echo "::group::pulumi destroy"
+            if pulumi -C compiled -s "$STACK_NAME" destroy --refresh --yes ; then
+              echo "::endgroup::"
+              echo "::group::stack rm"
+              pulumi -C compiled -s "$STACK_NAME" stack rm --yes # omitting --force intentionally: if this fails, we want the stack around so we can fix it
+              echo "::endgroup::"
+            else
+              echo "::endgroup::"
+              if [[ -f test/integ_test_hooks/between-destroy-retries.sh ]]; then
+                pulumi -C compiled -s "$STACK_NAME" refresh --yes
+                echo "::group::between-destroy-attempts hook"
+                bash test/integ_test_hooks/between-destroy-retries.sh
+                echo "::endgroup::"
+              fi
+              exit 1
+            fi
+        env:
+          STACK_NAME: ${{ env.STACK_NAME }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ""

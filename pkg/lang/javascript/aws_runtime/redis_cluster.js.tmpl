@@ -1,0 +1,36 @@
+//@ts-nocheck
+'use strict';
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getParams = void 0;
+// The cluster client requires root nodes and defaults to be able to properly connect and get redirected to new slots in memorydb
+function getParams(dbName, params) {
+    const socketDefaults = {};
+    if (params['defaults']?.socket) {
+        socketDefaults = params['defaults'].socket;
+    }
+    let newParams = {
+        ...params,
+        rootNodes: [
+            {
+                socket: {
+                    host: `${process.env[`${dbName.toUpperCase()}_PERSIST_REDIS_CLUSTER_HOST`]}`,
+                    port: `${process.env[`${dbName.toUpperCase()}_PERSIST_REDIS_CLUSTER_PORT`]}`,
+                    tls: true,
+                },
+            },
+        ],
+        defaults: {
+            ...params['defaults'],
+            socket: {
+                ...socketDefaults,
+                host: `${process.env[`${dbName.toUpperCase()}_PERSIST_REDIS_CLUSTER_HOST`]}`,
+                port: `${process.env[`${dbName.toUpperCase()}_PERSIST_REDIS_CLUSTER_PORT`]}`,
+                tls: true,
+            },
+        },
+    };
+    return {
+        ...newParams,
+    };
+}
+exports.getParams = getParams;

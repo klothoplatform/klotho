@@ -1,0 +1,38 @@
+ARG WORK_DIR="/usr/src/app"
+
+#########################################
+##           Builder Image             ##
+#########################################
+FROM python:alpine as builder
+ARG WORK_DIR
+
+WORKDIR ${WORK_DIR}
+
+RUN apk --update add cmake autoconf automake libtool binutils gcc make g++ zlib-dev --no-cache
+
+RUN mkdir -p ${WORK_DIR}
+
+COPY . ${WORK_DIR}
+
+# TODO: look into a cleaner location to install dependencies
+RUN pip install \
+        --target ${WORK_DIR} \
+        -r ${WORK_DIR}/{{.ProjectFilePath}}
+
+
+#########################################
+##            Runtime image            ##
+#########################################
+FROM python:alpine
+ARG WORK_DIR
+
+WORKDIR ${WORK_DIR}
+COPY . ./
+
+COPY --from=builder ${WORK_DIR} ${WORK_DIR}
+
+ENV PYTHONPATH=${WORK_DIR}:${PYTHONPATH}
+
+EXPOSE 3000
+ENTRYPOINT ["python"]
+CMD [ "klotho_runtime/dispatcher.py" ]

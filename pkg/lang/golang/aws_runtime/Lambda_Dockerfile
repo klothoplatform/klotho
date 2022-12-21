@@ -1,0 +1,13 @@
+FROM public.ecr.aws/lambda/provided:al2 
+
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+RUN yum install -y golang
+RUN go env -w GOPROXY=direct
+
+COPY . .
+RUN env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 
+RUN go mod tidy
+RUN go build -o=/main
+
+ENTRYPOINT ["/main"]

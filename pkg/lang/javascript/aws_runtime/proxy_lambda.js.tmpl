@@ -1,0 +1,42 @@
+const s3fs = require('./fs');
+const uuid = require('uuid').v4;
+const {clients} = require('./clients');
+
+const { lambda } = clients;
+
+const { APP_NAME } = process.env;
+
+async function proxyCall(callType, execGroupName, moduleName, functionName, params) {
+    let payloadKey = uuid()
+    await s3fs.saveParametersToS3(payloadKey, params);
+    let physicalAddress = getExecUnitLambdaFunctionName(execGroupName)
+    console.info(`CALLING ${execGroupName} || ${moduleName} || ${functionName} || PayloadKey: ${payloadKey}`)
+    const payloadToSend = {
+        "__moduleName": moduleName,
+        "__functionToCall": functionName,
+        "__params": payloadKey,
+        "__callType" : callType
+    }
+    
+    let invokeParams = {
+        FunctionName: physicalAddress,
+        InvocationType: callType == "emitter"? "Event" : "RequestResponse",
+        Payload: JSON.stringify(payloadToSend)
+    }        
+
+    let result = await lambda.invoke(invokeParams).promise()
+    
+    
+    if (callType == "emitter") {
+        return
+    }  else {
+        let dispatcherParamKeyResult = JSON.parse(result.Payload)
+        return await s3fs.getCallParameters(dispatcherParamKeyResult, "rpc")
+    }
+}
+
+function getExecUnitLambdaFunctionName(logicalName) {
+    return `${APP_NAME}-${logicalName}`
+}
+
+exports.proxyCall = proxyCall

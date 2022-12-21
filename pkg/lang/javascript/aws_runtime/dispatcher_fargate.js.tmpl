@@ -1,0 +1,40 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express = require("express");
+const path = require("path");
+{{if .Expose.AppModule}}
+require('../{{.Expose.AppModule}}');
+{{end}}
+{{if .MainModule}}
+require('../{{.MainModule}}');
+{{end}}
+const app = express();
+const port = 3001;
+app.use(express.json());
+app.get('/', (req, res) => {
+    res.sendStatus(200);
+});
+app.post('/', async (req, res) => {
+    const params = req.body;
+    console.info(`Dispatched:`, params);
+    try {
+        const mode = parseMode(params.callType);
+        switch (mode) {
+            case 'rpc':
+                const result = await require(path.join('../', params.moduleName))[params.functionToCall].apply(null, params.params);
+                res.send(result);
+                break;
+        }
+    }
+    catch (err) {
+        console.error(`Dispatcher Failed`, err);
+        throw err;
+    }
+});
+function parseMode(__callType) {
+    if (__callType === 'rpc')
+        return 'rpc';
+}
+app.listen(port, () => {
+    console.log(`Klotho RPC Proxy listening on: ${port}`);
+});
