@@ -168,12 +168,11 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 			continue
 		}
 
-		if annot.Capability.Directives.Object(core.EnvironmentVariableDirective) != nil {
-			continue
-		}
-
 		keyType, pResult := p.determinePersistType(f, annot)
 		if pResult == nil {
+			if annot.Capability.Directives.Object(core.EnvironmentVariableDirective) != nil {
+				continue
+			}
 			log.Warn("Could not determine persist type")
 			continue
 		}

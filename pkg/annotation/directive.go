@@ -87,7 +87,7 @@ func (d Directives) Int(key string) (int, bool) {
 func (d Directives) Object(key string) Directives {
 	v, ok := d[key]
 	if !ok {
-		return make(Directives)
+		return nil
 	}
 	m, ok := v.(map[string]interface{})
 	if !ok {
