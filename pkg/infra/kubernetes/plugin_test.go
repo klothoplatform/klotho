@@ -201,7 +201,7 @@ var testLang = core.SourceLanguage{
 	CapabilityFinder: &testCapabilityFinder{},
 }
 
-func (t *testCapabilityFinder) FindAllCapabilities(sf *core.SourceFile) []core.Annotation {
+func (t *testCapabilityFinder) FindAllCapabilities(sf *core.SourceFile) ([]core.Annotation, error) {
 	body := string(sf.Program())
 	annots := []core.Annotation{}
 	if body != "" {
@@ -213,7 +213,7 @@ func (t *testCapabilityFinder) FindAllCapabilities(sf *core.SourceFile) []core.A
 			}},
 		}
 	}
-	return annots
+	return annots, nil
 }
 
 func Test_getKlothoCharts(t *testing.T) {

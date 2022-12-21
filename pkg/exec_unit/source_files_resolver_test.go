@@ -131,12 +131,12 @@ var testAnnotationLang = core.SourceLanguage{
 	CapabilityFinder: &testMultipleCapabilityFinder{},
 }
 
-func (t *testMultipleCapabilityFinder) FindAllCapabilities(sf *core.SourceFile) []core.Annotation {
+func (t *testMultipleCapabilityFinder) FindAllCapabilities(sf *core.SourceFile) ([]core.Annotation, error) {
 	body := string(sf.Program())
 	rawAnnots := strings.SplitN(body, "|", 2)
 	var annots []core.Annotation
 	if body == "" {
-		return []core.Annotation{}
+		return []core.Annotation{}, nil
 	}
 	for _, rawAnnot := range rawAnnots {
 		annotParts := strings.SplitN(rawAnnot, ":", 2)
@@ -149,5 +149,5 @@ func (t *testMultipleCapabilityFinder) FindAllCapabilities(sf *core.SourceFile) 
 		}})
 
 	}
-	return annots
+	return annots, nil
 }

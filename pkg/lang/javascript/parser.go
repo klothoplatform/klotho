@@ -48,7 +48,3 @@ var Language = core.SourceLanguage{
 func NewFile(path string, content io.Reader) (f *core.SourceFile, err error) {
 	return core.NewSourceFile(path, content, Language)
 }
-
-func FindAllCapabilities(f *core.SourceFile) []core.Annotation {
-	return Language.CapabilityFinder.FindAllCapabilities(f)
-}

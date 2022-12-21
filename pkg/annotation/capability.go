@@ -2,6 +2,8 @@ package annotation
 
 import (
 	"regexp"
+
+	"github.com/pkg/errors"
 )
 
 type Capability struct {
@@ -26,7 +28,7 @@ func ParseCapability(s string) (*Capability, error) {
 		var err error
 		cap.Directives, err = ParseDirectives(matches[2])
 		if err != nil {
-			return cap, err
+			return cap, errors.Wrap(err, "could not parse directives")
 		}
 		cap.ID, _ = cap.Directives.String("id")
 	}
