@@ -714,8 +714,7 @@ export class CloudCCLib {
                 ],
                 hashKey: 'pk',
                 rangeKey: 'sk',
-                readCapacity: 1,
-                writeCapacity: 1,
+                billingMode: 'PAY_PER_REQUEST',
                 ttl: {
                     // 'expiration' will only be set on items if TTL is enabled via annotation.
                     // At IaC-level, blanket enable and it will be ignored if not present on the item(s).
