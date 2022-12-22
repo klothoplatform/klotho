@@ -1030,7 +1030,7 @@ export class CloudCCLib {
                 triggers: {
                     routes: sha256.sync(
                         routes
-                            .map((r) => r.path)
+                            .map((r) => `${r.execUnitName}:${r.path}:${r.verb}`)
                             .sort()
                             .join()
                     ),
