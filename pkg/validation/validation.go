@@ -116,32 +116,32 @@ func (p *Plugin) validateConfigOverrideResourcesExist(result *core.CompilationRe
 		}
 	}
 
-	for unit := range p.UserConfigOverrides.Persisted {
+	for persistResource := range p.UserConfigOverrides.Persisted {
 		resources := result.GetResourcesOfType(string(core.PersistFileKind))
 		resources = append(result.GetResourcesOfType(string(core.PersistKVKind)), resources...)
 		resources = append(result.GetResourcesOfType(string(core.PersistORMKind)), resources...)
 		resources = append(result.GetResourcesOfType(string(core.PersistRedisClusterKind)), resources...)
 		resources = append(result.GetResourcesOfType(string(core.PersistRedisNodeKind)), resources...)
 		resources = append(result.GetResourcesOfType(string(core.PersistSecretKind)), resources...)
-		resource := getResourceById(unit, resources)
+		resource := getResourceById(persistResource, resources)
 		if resource == (core.ResourceKey{}) {
-			log.Warnf("Unknown persist in config override, \"%s\".", unit)
+			log.Warnf("Unknown persist in config override, \"%s\".", persistResource)
 		}
 
 	}
-	for unit := range p.UserConfigOverrides.Exposed {
+	for exposeResource := range p.UserConfigOverrides.Exposed {
 		resources := result.GetResourcesOfType(core.GatewayKind)
-		resource := getResourceById(unit, resources)
+		resource := getResourceById(exposeResource, resources)
 		if resource == (core.ResourceKey{}) {
-			log.Warnf("Unknown expose in config override, \"%s\".", unit)
+			log.Warnf("Unknown expose in config override, \"%s\".", exposeResource)
 		}
 	}
 
-	for unit := range p.UserConfigOverrides.PubSub {
+	for pubsubResource := range p.UserConfigOverrides.PubSub {
 		resources := result.GetResourcesOfType(core.PubSubKind)
-		resource := getResourceById(unit, resources)
+		resource := getResourceById(pubsubResource, resources)
 		if resource == (core.ResourceKey{}) {
-			log.Warnf("Unknown pubsub in config override, \"%s\".", unit)
+			log.Warnf("Unknown pubsub in config override, \"%s\".", pubsubResource)
 		}
 	}
 
@@ -202,9 +202,8 @@ func validateNoDuplicateIds[T core.CloudResource](result *core.CompilationResult
 	unitIds := make(map[string]struct{})
 	units := core.GetResourcesOfType[T](result)
 	for _, unit := range units {
-		fmt.Println(unit)
-		if id, ok := unitIds[unit.Key().Name]; ok {
-			return fmt.Errorf("Multiple Persist objects with the same name, '%s'", id)
+		if _, ok := unitIds[unit.Key().Name]; ok {
+			return fmt.Errorf(`multiple Persist objects with the same name, "%s"`, unit.Key().Name)
 		}
 		unitIds[unit.Key().Name] = struct{}{}
 	}
