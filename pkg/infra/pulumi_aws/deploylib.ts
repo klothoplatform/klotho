@@ -1,7 +1,6 @@
-import { Region } from '@pulumi/aws'
 import * as aws from '@pulumi/aws'
+import {Region} from '@pulumi/aws'
 import * as awsx from '@pulumi/awsx'
-import * as k8s from '@pulumi/kubernetes'
 
 import * as pulumi from '@pulumi/pulumi'
 import * as sha256 from 'simple-sha256'
@@ -11,6 +10,14 @@ import * as crypto from 'crypto'
 import { setupElasticacheCluster } from './iac/elasticache'
 import * as analytics from './iac/analytics'
 
+import {
+    generateValidResourceName,
+    shortenName
+} from "./iac/sanitization/sanitizer";
+import ServiceDiscoverySanitizer from "./iac/sanitization/resources/service_discovery";
+import IamSanitizer from "./iac/sanitization/resources/iam";
+import {cluster as EcsClusterSanitizer} from "./iac/sanitization/resources/ecs";
+import {logGroup as LogGroupSanitizer} from "./iac/sanitization/resources/cloudwatch";
 import { LoadBalancerPlugin } from './iac/load_balancing'
 import { DefaultEksClusterOptions, Eks, EksExecUnit, HelmChart } from './iac/eks'
 import { setupMemoryDbCluster } from './iac/memorydb'
@@ -1477,8 +1484,9 @@ export class CloudCCLib {
     }
 
     createRoleForName(name: string): aws.iam.Role {
-        const role: aws.iam.Role = this.createExecutionRole(name)
-        this.execUnitToRole.set(name, role)
+        const roleName = generateValidResourceName(name, IamSanitizer.roleNameValidation())
+        const role: aws.iam.Role = this.createExecutionRole(roleName)
+        this.execUnitToRole.set(roleName, role)
         return role
     }
 
@@ -1488,9 +1496,10 @@ export class CloudCCLib {
     }
 
     createEcsCluster() {
-        const providedClustername = kloConfig.get<string>('cluster')
-
+        let providedClustername = kloConfig.get<string>('cluster')
         if (providedClustername != undefined) {
+            providedClustername = generateValidResourceName(providedClustername, EcsClusterSanitizer.nameValidation())
+
             // Since we use awsx clusters, we cannot just use the cluster retrieved from this get cluster call.
             // instead, this serves as a way to validate a cluster with the provided name actually exists.
             // Pulumi will error if a cluster with the provided name doesn't exist while the awsx's cluster create will
@@ -1503,7 +1512,11 @@ export class CloudCCLib {
         this.privateDnsNamespace = new aws.servicediscovery.PrivateDnsNamespace(
             `${this.name}-privateDns`,
             {
-                name: `${this.name}-privateDns`,
+                name: generateValidResourceName(
+                    {name: this.name, suffix: "privateDns", separator: "-"}, {
+                        ...ServiceDiscoverySanitizer.privateDnsNamespace.nameValidation(),
+                        shorteningStrategy: shortenName
+                    }),
                 description: 'Used for service discovery',
                 vpc: this.klothoVPC.id,
             }
@@ -1590,7 +1603,15 @@ export class CloudCCLib {
             Resource: '*',
         })
 
-        const logGroupName = `/aws/fargate/${this.name}-${execUnitName}-task`
+        const logGroupName = generateValidResourceName({
+            prefix: "/aws/fargate/",
+            name: `${this.name}-${execUnitName}`,
+            suffix: "-task"},
+            {
+                ...LogGroupSanitizer.NameValidation(),
+                shorteningStrategy: shortenName
+            }
+        );
         let cloudwatchGroup = new aws.cloudwatch.LogGroup(`${this.name}-${execUnitName}-lg`, {
             name: `${logGroupName}`,
             retentionInDays: 1,
