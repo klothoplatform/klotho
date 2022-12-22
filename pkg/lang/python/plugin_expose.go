@@ -1,7 +1,6 @@
 package python
 
 import (
-	"fmt"
 	"path"
 	"regexp"
 	"strings"
@@ -128,8 +127,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 	}
 
 	for spec, routes := range h.RoutesByGateway {
-		gwName := fmt.Sprintf("%s#%s", spec.FilePath, spec.AppVarName)
-		gw := core.NewGateway(gwName)
+		gw := core.NewGateway(spec.AppVarName)
 		if existing := h.Result.Get(gw.Key()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
@@ -217,7 +215,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 
 		gwSpec := gatewaySpec{
 			FilePath:   f.Path(),
-			AppVarName: appName,
+			AppVarName: cap.ID,
 		}
 
 		log = log.With(zap.String("var", appName))
