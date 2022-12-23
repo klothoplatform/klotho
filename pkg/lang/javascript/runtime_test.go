@@ -69,6 +69,6 @@ func (NoopRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType stri
 func (NoopRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
 	return nil
 }
-func (NoopRuntime) TransformPersist(file *core.SourceFile, annot core.Annotation, kind core.PersistKind, content string) (TransformResult, error) {
+func (NoopRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotation, kind core.PersistKind, content string) (TransformResult, error) {
 	return TransformResult{NewFileContent: content, NewAnnotationContent: annot.Node.Content(file.Program())}, nil
 }

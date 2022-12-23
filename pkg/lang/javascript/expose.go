@@ -30,7 +30,7 @@ type exposeListenResult struct {
 	Identifier *sitter.Node // Identifier of the listen result (app)
 }
 
-func findListener(cap core.Annotation, source []byte) exposeListenResult {
+func findListener(cap *core.Annotation, source []byte) exposeListenResult {
 
 	nextMatch := DoQuery(cap.Node, exposeListener)
 	for {

@@ -67,7 +67,7 @@ func (p Persist) Transform(result *core.CompilationResult, deps *core.Dependenci
 	return errs.ErrOrNil()
 }
 
-func (p *persister) findKvAnnotation(declaringFile *core.SourceFile, annot core.Annotation) bool {
+func (p *persister) findKvAnnotation(declaringFile *core.SourceFile, annot *core.Annotation) bool {
 	if annot.Capability.Name != annotation.PersistCapability {
 		return false
 	}
@@ -181,7 +181,7 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 			errs.Append(core.NewCompilerError(f, annot, errors.New("'id' is required")))
 		}
 
-		var doTransform func(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, result *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error)
+		var doTransform func(original *core.SourceFile, modified *core.SourceFile, cap *core.Annotation, result *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error)
 		var err error
 		switch keyType {
 		case core.PersistKVKind:
@@ -226,7 +226,7 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 	return resources, errs.ErrOrNil()
 }
 
-func (p *persister) transformSecret(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, secretR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
+func (p *persister) transformSecret(original *core.SourceFile, modified *core.SourceFile, cap *core.Annotation, secretR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 	replaceString := "secretRuntime"
 	modifiedSrc := string(modified.Program())
 
@@ -261,7 +261,7 @@ func (p *persister) transformSecret(original *core.SourceFile, modified *core.So
 	return result, nil
 }
 
-func (p *persister) transformFS(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, fsR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
+func (p *persister) transformFS(original *core.SourceFile, modified *core.SourceFile, cap *core.Annotation, fsR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 	replaceString := "fsRuntime.fs"
 	modifiedSrc := string(modified.Program())
 
@@ -287,7 +287,7 @@ func (p *persister) transformFS(original *core.SourceFile, modified *core.Source
 	return result, nil
 }
 
-func (p *persister) transformKV(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, kvR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
+func (p *persister) transformKV(original *core.SourceFile, modified *core.SourceFile, cap *core.Annotation, kvR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 	directives := cap.Capability.Directives
 
 	mapString := "new keyvalueRuntime.dMap("
@@ -323,7 +323,7 @@ func (p *persister) transformKV(original *core.SourceFile, modified *core.Source
 	return result, nil
 }
 
-func (p *persister) transformORM(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, ormR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
+func (p *persister) transformORM(original *core.SourceFile, modified *core.SourceFile, cap *core.Annotation, ormR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 	modifiedSrc := string(modified.Program())
 
 	runtimeResult, err := p.runtime.TransformPersist(original, cap, core.PersistORMKind, modifiedSrc)
@@ -362,7 +362,7 @@ func (p *persister) transformORM(original *core.SourceFile, modified *core.Sourc
 	return result, nil
 }
 
-func (p *persister) transformRedis(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, redisR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
+func (p *persister) transformRedis(original *core.SourceFile, modified *core.SourceFile, cap *core.Annotation, redisR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 	modifiedSrc := string(modified.Program())
 
 	runtimeResult, err := p.runtime.TransformPersist(original, cap, redisR.kind, modifiedSrc)
@@ -422,7 +422,7 @@ type persistResult struct {
 	kind       core.PersistKind
 }
 
-func (p *persister) queryKV(file *core.SourceFile, annotation core.Annotation, enableWarnings bool) *persistResult {
+func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, enableWarnings bool) *persistResult {
 	log := zap.L().With(logging.FileField(file), logging.AnnotationField(annotation))
 
 	nextMatch := DoQuery(annotation.Node, persistKV)
@@ -459,7 +459,7 @@ func (p *persister) queryKV(file *core.SourceFile, annotation core.Annotation, e
 	}
 }
 
-func (p *persister) queryFS(file *core.SourceFile, annotation core.Annotation) *persistResult {
+func (p *persister) queryFS(file *core.SourceFile, annotation *core.Annotation) *persistResult {
 	imports := FindNextImportStatement(annotation.Node, file.Program())
 	if len(imports) == 0 {
 		return nil
@@ -522,7 +522,7 @@ func (p *persister) querySecretName(file *core.SourceFile, fsName string) ([]str
 	return secrets, nil
 }
 
-func (p *persister) queryORM(file *core.SourceFile, annotation core.Annotation, enableWarnings bool) *persistResult {
+func (p *persister) queryORM(file *core.SourceFile, annotation *core.Annotation, enableWarnings bool) *persistResult {
 	nextMatch := DoQuery(annotation.Node, persistORM)
 
 	match, found := nextMatch()
@@ -556,7 +556,7 @@ func (p *persister) queryORM(file *core.SourceFile, annotation core.Annotation, 
 	}
 }
 
-func (p *persister) queryRedis(file *core.SourceFile, annotation core.Annotation, enableWarnings bool) *persistResult {
+func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotation, enableWarnings bool) *persistResult {
 	nextMatch := DoQuery(annotation.Node, persistRedis)
 
 	match, found := nextMatch()
@@ -588,7 +588,7 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation core.Annotation
 	}
 }
 
-func (p *persister) determinePersistType(f *core.SourceFile, annotation core.Annotation) (core.PersistKind, *persistResult) {
+func (p *persister) determinePersistType(f *core.SourceFile, annotation *core.Annotation) (core.PersistKind, *persistResult) {
 	log := zap.L().With(logging.FileField(f), logging.AnnotationField(annotation))
 
 	kvR := p.queryKV(f, annotation, false)
