@@ -70,7 +70,7 @@ func (p *Expose) transformSingle(result *core.CompilationResult, deps *core.Depe
 	return err
 }
 
-func (h *restAPIHandler) findFastAPIAppDefinition(cap core.Annotation, f *core.SourceFile) (fastapiDefResult, error) {
+func (h *restAPIHandler) findFastAPIAppDefinition(cap *core.Annotation, f *core.SourceFile) (fastapiDefResult, error) {
 
 	nextMatch := DoQuery(cap.Node, exposeFastAPIAssignment)
 	for {

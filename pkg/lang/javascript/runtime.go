@@ -40,7 +40,7 @@ type TransformResult struct {
 
 type Runtime interface {
 	// TransformPersist applies any runtime-specific transformations to the given file for the annotation. Returns the modified source code, to be `Reparse`d by the caller.
-	TransformPersist(file *core.SourceFile, annot core.Annotation, kind core.PersistKind, content string) (TransformResult, error)
+	TransformPersist(file *core.SourceFile, annot *core.Annotation, kind core.PersistKind, content string) (TransformResult, error)
 	AddKvRuntimeFiles(unit *core.ExecutionUnit) error
 	AddFsRuntimeFiles(unit *core.ExecutionUnit) error
 	AddSecretRuntimeFiles(unit *core.ExecutionUnit) error
