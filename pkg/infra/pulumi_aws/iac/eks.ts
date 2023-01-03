@@ -46,6 +46,7 @@ export interface EksExecUnit {
     name: string
     params: EksExecUnitArgs
     helmOptions?: HelmOptions
+    envVars?: any
     image?: pulumi.Output<String>
 }
 
@@ -494,7 +495,9 @@ export class Eks {
         let role
 
         let additionalEnvVars: { name: string; value: pulumi.Input<string> }[] = []
-        for (const [name, value] of Object.entries(lib.generateExecUnitEnvVars(execUnit))) {
+        for (const [name, value] of Object.entries(
+            lib.generateExecUnitEnvVars(execUnit, unit.envVars)
+        )) {
             additionalEnvVars.push({ name, value })
         }
         let nodeSelector: { [key: string]: pulumi.Output<string> } | undefined = undefined

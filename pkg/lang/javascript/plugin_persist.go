@@ -181,7 +181,7 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 			errs.Append(core.NewCompilerError(f, annot, errors.New("'id' is required")))
 		}
 
-		var doTransform func(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, result *persistResult) (core.CloudResource, error)
+		var doTransform func(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, result *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error)
 		var err error
 		switch keyType {
 		case core.PersistKVKind:
@@ -212,7 +212,7 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 		}
 		errs.Append(err)
 
-		resource, err := doTransform(f, newFile, annot, pResult)
+		resource, err := doTransform(f, newFile, annot, pResult, unit)
 		if err != nil {
 			errs.Append(err)
 		} else {
@@ -226,7 +226,7 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 	return resources, errs.ErrOrNil()
 }
 
-func (p *persister) transformSecret(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, secretR *persistResult) (core.CloudResource, error) {
+func (p *persister) transformSecret(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, secretR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 	replaceString := "secretRuntime"
 	modifiedSrc := string(modified.Program())
 
@@ -261,7 +261,7 @@ func (p *persister) transformSecret(original *core.SourceFile, modified *core.So
 	return result, nil
 }
 
-func (p *persister) transformFS(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, fsR *persistResult) (core.CloudResource, error) {
+func (p *persister) transformFS(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, fsR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 	replaceString := "fsRuntime.fs"
 	modifiedSrc := string(modified.Program())
 
@@ -287,7 +287,7 @@ func (p *persister) transformFS(original *core.SourceFile, modified *core.Source
 	return result, nil
 }
 
-func (p *persister) transformKV(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, kvR *persistResult) (core.CloudResource, error) {
+func (p *persister) transformKV(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, kvR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 	directives := cap.Capability.Directives
 
 	mapString := "new keyvalueRuntime.dMap("
@@ -323,7 +323,7 @@ func (p *persister) transformKV(original *core.SourceFile, modified *core.Source
 	return result, nil
 }
 
-func (p *persister) transformORM(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, kvR *persistResult) (core.CloudResource, error) {
+func (p *persister) transformORM(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, ormR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 	modifiedSrc := string(modified.Program())
 
 	runtimeResult, err := p.runtime.TransformPersist(original, cap, core.PersistORMKind, modifiedSrc)
@@ -332,17 +332,19 @@ func (p *persister) transformORM(original *core.SourceFile, modified *core.Sourc
 	}
 	modifiedSrc = runtimeResult.NewFileContent
 
+	envVar := core.GenerateOrmConnStringEnvVar(cap.Capability.ID, string(ormR.kind))
+
 	var replaceContent string
-	switch kvR.ormType {
+	switch ormR.ormType {
 	case TypeOrmKind:
-		replaceContent = fmt.Sprintf(`ormRuntime.getDataSourceParams("%s", %s)`, cap.Capability.ID, kvR.expression)
+		replaceContent = fmt.Sprintf(`ormRuntime.getDataSourceParams("%s", %s)`, envVar.Name, ormR.expression)
 	case SequelizeKind:
-		replaceContent = fmt.Sprintf(`ormRuntime.getDBConn("%s")`, cap.Capability.ID)
+		replaceContent = fmt.Sprintf(`ormRuntime.getDBConn("%s")`, envVar.Name)
 	default:
 		return nil, errors.New("unrecognized")
 	}
 
-	expression := strings.ReplaceAll(runtimeResult.NewAnnotationContent, kvR.expression, replaceContent)
+	expression := strings.ReplaceAll(runtimeResult.NewAnnotationContent, ormR.expression, replaceContent)
 	modifiedSrc = strings.ReplaceAll(modifiedSrc, runtimeResult.NewAnnotationContent, expression)
 
 	err = modified.Reparse([]byte(modifiedSrc))
@@ -355,10 +357,12 @@ func (p *persister) transformORM(original *core.SourceFile, modified *core.Sourc
 		Name: cap.Capability.ID,
 	}
 
+	unit.EnvironmentVariables = append(unit.EnvironmentVariables, envVar)
+
 	return result, nil
 }
 
-func (p *persister) transformRedis(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, redisR *persistResult) (core.CloudResource, error) {
+func (p *persister) transformRedis(original *core.SourceFile, modified *core.SourceFile, cap core.Annotation, redisR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 	modifiedSrc := string(modified.Program())
 
 	runtimeResult, err := p.runtime.TransformPersist(original, cap, redisR.kind, modifiedSrc)
@@ -380,8 +384,10 @@ func (p *persister) transformRedis(original *core.SourceFile, modified *core.Sou
 	if redisR.kind == core.PersistRedisClusterKind {
 		importName = "redis_cluster"
 	}
+	hostEnvVar := core.GenerateRedisHostEnvVar(cap.Capability.ID, string(redisR.kind))
+	portEnvVar := core.GenerateRedisPortEnvVar(cap.Capability.ID, string(redisR.kind))
 
-	replaceContent := fmt.Sprintf(`(%sRuntime.getParams("%s", %s))`, importName, cap.Capability.ID, newExpression)
+	replaceContent := fmt.Sprintf(`(%sRuntime.getParams("%s", "%s", %s))`, importName, hostEnvVar.Name, portEnvVar.Name, newExpression)
 
 	expression := strings.ReplaceAll(runtimeResult.NewAnnotationContent, redisR.expression, replaceContent)
 	modifiedSrc = strings.ReplaceAll(modifiedSrc, runtimeResult.NewAnnotationContent, expression)
@@ -395,6 +401,9 @@ func (p *persister) transformRedis(original *core.SourceFile, modified *core.Sou
 		Kind: redisR.kind,
 		Name: cap.Capability.ID,
 	}
+
+	unit.EnvironmentVariables = append(unit.EnvironmentVariables, hostEnvVar)
+	unit.EnvironmentVariables = append(unit.EnvironmentVariables, portEnvVar)
 
 	return result, nil
 }
@@ -542,6 +551,7 @@ func (p *persister) queryORM(file *core.SourceFile, annotation core.Annotation, 
 	return &persistResult{
 		name:       name.Content(file.Program()),
 		expression: argstring.Content(file.Program()),
+		kind:       core.PersistORMKind,
 		ormType:    ormKind,
 	}
 }

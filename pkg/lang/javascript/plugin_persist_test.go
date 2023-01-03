@@ -252,7 +252,8 @@ const m = new keyvalueRuntime.dMap({"versioned":true})`,
 				return
 			}
 
-			_, err = p.transformKV(f, newF, cap, pres)
+			unit := core.ExecutionUnit{}
+			_, err = p.transformKV(f, newF, cap, pres, &unit)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -565,7 +566,7 @@ const client = createClient({ socket: {
 *   id = "redis"
 * }
 */
-const client = createClient(redis_nodeRuntime.getParams("redis", { socket: {
+const client = createClient(redis_nodeRuntime.getParams("REDIS_PERSIST_REDIS_HOST", "REDIS_PERSIST_REDIS_PORT", { socket: {
 	host: process.env.REDIS_HOST,
 	port: port,
 	keepAlive: 5000
@@ -592,7 +593,7 @@ const client = createCluster({
 *   id = "redis"
 * }
 */
-const client = createCluster(redis_clusterRuntime.getParams("redis", {
+const client = createCluster(redis_clusterRuntime.getParams("REDIS_PERSIST_REDIS_HOST", "REDIS_PERSIST_REDIS_PORT", {
 	rootNodes:[
 		{
 			url: 'redis://127.0.0.1:8001'
@@ -618,14 +619,15 @@ const client = createCluster(redis_clusterRuntime.getParams("redis", {
 			}
 
 			_, pres := p.determinePersistType(f, cap)
-
-			_, err = p.transformRedis(f, newF, cap, pres)
+			unit := &core.ExecutionUnit{}
+			_, err = p.transformRedis(f, newF, cap, pres, unit)
 			if tt.wantErr {
 				assert.Error(err)
 				return
 			}
 			assert.NoError(err)
 			assert.Equal(tt.want, string(newF.Program()))
+			assert.Len(unit.EnvironmentVariables, 2)
 		})
 	}
 }

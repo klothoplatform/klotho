@@ -1,5 +1,10 @@
 package core
 
+import (
+	"fmt"
+	"strings"
+)
+
 type (
 	Persist struct {
 		Name        string
@@ -29,5 +34,32 @@ func (p *Persist) Key() ResourceKey {
 	return ResourceKey{
 		Name: p.Name,
 		Kind: string(p.Kind),
+	}
+}
+
+func GenerateRedisHostEnvVar(id string, kind string) EnvironmentVariable {
+	return EnvironmentVariable{
+		Name:       fmt.Sprintf("%s%s", strings.ToUpper(id), REDIS_HOST_ENV_VAR_NAME_SUFFIX),
+		Kind:       kind,
+		ResourceID: id,
+		Value:      string(HOST),
+	}
+}
+
+func GenerateRedisPortEnvVar(id string, kind string) EnvironmentVariable {
+	return EnvironmentVariable{
+		Name:       fmt.Sprintf("%s%s", strings.ToUpper(id), REDIS_PORT_ENV_VAR_NAME_SUFFIX),
+		Kind:       kind,
+		ResourceID: id,
+		Value:      string(PORT),
+	}
+}
+
+func GenerateOrmConnStringEnvVar(id string, kind string) EnvironmentVariable {
+	return EnvironmentVariable{
+		Name:       fmt.Sprintf("%s%s", strings.ToUpper(id), ORM_ENV_VAR_NAME_SUFFIX),
+		Kind:       kind,
+		ResourceID: id,
+		Value:      string(CONNECTION_STRING),
 	}
 }

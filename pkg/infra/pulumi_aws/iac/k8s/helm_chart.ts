@@ -8,6 +8,7 @@ export class Value {
     public Kind: string
     public Type: string
     public Key: string
+    public EnvironmentVariable: any
 }
 
 enum ValueTypes {
@@ -42,7 +43,7 @@ export const getChartValues = (
             case ValueTypes.EnvironmentVariableTransformation:
                 // Currently the only env vars we set are persist related
                 // This will need to be changed to be more extensible
-                values[t.Key] = lib.connectionString.get(t.Key)
+                values[t.Key] = lib.getEnvVarForDependency(t.EnvironmentVariable)[1]
                 break
             default:
                 throw new Error(`Unsupported Transformation Type ${t.Key}`)
