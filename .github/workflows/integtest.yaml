@@ -188,7 +188,7 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE: ""
       - name: pulumi up (upgrade path)
         if: matrix.mode == 'upgrade'
-        uses: CloudCompilers/gh-action-retry@v1
+        uses: klothoplatform/gh-action-retry@v1
         with:
           description: pulumi up (upgrade path)
           working-directory: ${{ matrix.app_to_test }}
@@ -233,7 +233,7 @@ jobs:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ""
       - name: pulumi up
-        uses: CloudCompilers/gh-action-retry@v1
+        uses: klothoplatform/gh-action-retry@v1
         with:
           description: pulumi up
           working-directory: ${{ matrix.app_to_test }}
@@ -266,7 +266,7 @@ jobs:
             ts-eks
         working-directory: ${{ matrix.app_to_test }}
       - name: run integ tests
-        uses: CloudCompilers/gh-action-retry@v1
+        uses: klothoplatform/gh-action-retry@v1
         with:
           description: npm run integ-test
           working-directory: ${{ matrix.app_to_test }}
@@ -305,7 +305,7 @@ jobs:
           path: ${{ runner.temp }}/cw-logs/
       - name: pulumi destroy
         if: always()
-        uses: CloudCompilers/gh-action-retry@v1
+        uses: klothoplatform/gh-action-retry@v1
         with:
           description: pulumi destroy
           working-directory: ${{ matrix.app_to_test }}
