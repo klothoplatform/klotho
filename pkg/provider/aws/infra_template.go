@@ -6,23 +6,19 @@ import (
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
 )
 
 func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
 	var errs multierr.Error
-	data := &TemplateData{
-		TemplateConfig: TemplateConfig{
-			TemplateConfig: provider.TemplateConfig{
-				AppName: a.Config.AppName,
-			},
-			PayloadsBucketName: SanitizeS3BucketName(a.Config.AppName),
-		},
-	}
+	data := NewTemplateData(a.Config)
 
 	a.Config.UpdateForResources(result.Resources())
 
 	data.Results = result
+
+	a.GenerateCloudfrontDistributions(data, result)
 
 	helmCharts := result.GetResourcesOfType(kubernetes.HelmChartKind)
 
@@ -171,4 +167,41 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 
 	result.Add(data)
 	return errs.ErrOrNil()
+}
+
+func (a *AWS) GenerateCloudfrontDistributions(data *TemplateData, result *core.CompilationResult) {
+	cloudfrontMap := make(map[string][]core.CloudResource)
+	for _, res := range result.Resources() {
+		key := res.Key()
+		switch res.(type) {
+		case *core.Gateway:
+			cfg := a.Config.GetExposed(key.Name)
+			cfId := cfg.CdnId
+			if cfId != "" {
+				cf, ok := cloudfrontMap[cfId]
+				if ok {
+					cloudfrontMap[cfId] = append(cf, res)
+				} else {
+					cloudfrontMap[cfId] = []core.CloudResource{res}
+				}
+			}
+		case *core.StaticUnit:
+			cfg := a.Config.GetStaticUnit(key.Name)
+			cfId := cfg.CdnId
+			if cfId != "" {
+				cf, ok := cloudfrontMap[cfId]
+				if ok {
+					cloudfrontMap[cfId] = append(cf, res)
+				} else {
+					cloudfrontMap[cfId] = []core.CloudResource{res}
+				}
+			}
+		}
+	}
+
+	for name, keys := range cloudfrontMap {
+		cf := resources.CreateCloudfrontDistribution(keys)
+		cf.Id = a.Config.AppName + "-" + name
+		data.CloudfrontDistributions = append(data.CloudfrontDistributions, cf)
+	}
 }

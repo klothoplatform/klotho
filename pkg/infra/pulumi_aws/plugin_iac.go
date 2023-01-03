@@ -119,6 +119,14 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 		}
 	}
 
+	if len(data.CloudfrontDistributions) > 0 {
+		addFile("iac/cloudfront.ts")
+	}
+
+	if len(data.StaticUnits) > 0 {
+		addFile("iac/static_s3_website.ts")
+	}
+
 	addFile("deploylib.ts")
 	addFile("package.json")
 	addFile("tsconfig.json")
@@ -126,7 +134,6 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 	addFile("iac/memorydb.ts")
 	addFile("iac/eks.ts")
 	addFile("iac/kubernetes.ts")
-	addFile("iac/static_s3_website.ts")
 	addFile("iac/cockroachdb.ts")
 	addFile("iac/analytics.ts")
 	addFile("iac/load_balancing.ts")

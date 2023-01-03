@@ -31,6 +31,7 @@ type (
 	}
 	Expose struct {
 		Type        string      `json:"type" yaml:"type" toml:"type"`
+		CdnId       string      `json:"cdn_id,omitempty" yaml:"cdn_id,omitempty" toml:"cdn_id,omitempty"`
 		InfraParams InfraParams `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
 	}
 
@@ -60,6 +61,7 @@ type (
 	StaticUnit struct {
 		Type        string      `json:"type" yaml:"type" toml:"type"`
 		InfraParams InfraParams `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
+		CdnId       string      `json:"cdn_id,omitempty" yaml:"cdn_id,omitempty" toml:"cdn_id,omitempty"`
 	}
 
 	Defaults struct {
@@ -150,6 +152,7 @@ func (cfg *Expose) Merge(other Expose) {
 	if other.Type != "" {
 		cfg.Type = other.Type
 	}
+	cfg.CdnId = other.CdnId
 	cfg.InfraParams.Merge(other.InfraParams)
 }
 
@@ -171,6 +174,7 @@ func (cfg *StaticUnit) Merge(other StaticUnit) {
 	if other.Type != "" {
 		cfg.Type = other.Type
 	}
+	cfg.CdnId = other.CdnId
 	cfg.InfraParams.Merge(other.InfraParams)
 }
 

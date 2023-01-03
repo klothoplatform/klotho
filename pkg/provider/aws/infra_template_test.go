@@ -7,6 +7,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/provider"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -123,6 +124,200 @@ func TestInfraTemplateModification(t *testing.T) {
 			assert.Equal(tt.data.ExecUnits, awsData.ExecUnits)
 			assert.Equal(tt.data.Gateways, awsData.Gateways)
 			assert.Equal(tt.data.UseVPC, awsData.UseVPC)
+		})
+	}
+}
+
+func Test_GenerateCloudfrontDistributions(t *testing.T) {
+	cases := []struct {
+		name    string
+		results []core.CloudResource
+		cfg     config.Application
+		data    TemplateData
+		want    []*resources.CloudfrontDistribution
+	}{
+		{
+			name: "simple gateway test",
+			results: []core.CloudResource{
+				&core.Gateway{
+					Name:   "gw",
+					GWType: core.GatewayKind,
+					Routes: []core.Route{{Path: "/"}},
+				},
+			},
+			cfg: config.Application{
+				Provider: "aws",
+				AppName:  "app",
+				Exposed: map[string]*config.Expose{
+					"gw": {
+						Type:  "apigateway",
+						CdnId: "distro",
+					},
+				},
+			},
+			data: TemplateData{
+				TemplateData: provider.TemplateData{
+					Gateways: []provider.Gateway{
+						{Name: "gw"},
+					},
+				},
+			},
+			want: []*resources.CloudfrontDistribution{
+				{
+					Id: "app-distro",
+					Origins: []core.ResourceKey{
+						{Kind: core.GatewayKind, Name: "gw"},
+					},
+				},
+			},
+		},
+		{
+			name: "simple static unit test",
+			results: []core.CloudResource{
+				&core.StaticUnit{
+					Name: "su",
+				},
+			},
+			cfg: config.Application{
+				Provider: "aws",
+				AppName:  "app",
+				StaticUnit: map[string]*config.StaticUnit{
+					"su": {
+						Type:  "apigateway",
+						CdnId: "distro",
+					},
+				},
+			},
+			data: TemplateData{
+				TemplateData: provider.TemplateData{
+					StaticUnits: []provider.StaticUnit{
+						{Name: "su"},
+					},
+				},
+			},
+			want: []*resources.CloudfrontDistribution{
+				{
+					Id: "app-distro",
+					Origins: []core.ResourceKey{
+						{Kind: core.StaticUnitKind, Name: "su"},
+					},
+				},
+			},
+		},
+		{
+			name: "simple static unit with index document test",
+			results: []core.CloudResource{
+				&core.StaticUnit{
+					Name:          "su",
+					IndexDocument: "index.html",
+				},
+			},
+			cfg: config.Application{
+				Provider: "aws",
+				AppName:  "app",
+				StaticUnit: map[string]*config.StaticUnit{
+					"su": {
+						Type:  "apigateway",
+						CdnId: "distro",
+					},
+				},
+			},
+			data: TemplateData{
+				TemplateData: provider.TemplateData{
+					StaticUnits: []provider.StaticUnit{
+						{Name: "su"},
+					},
+				},
+			},
+			want: []*resources.CloudfrontDistribution{
+				{
+					Id: "app-distro",
+					Origins: []core.ResourceKey{
+						{Kind: core.StaticUnitKind, Name: "su"},
+					},
+					DefaultRootObject: "index.html",
+				},
+			},
+		},
+		{
+			name: "static unit and gw test",
+			results: []core.CloudResource{
+				&core.StaticUnit{
+					Name: "su",
+				},
+				&core.Gateway{
+					Name:   "gw",
+					GWType: core.GatewayKind,
+					Routes: []core.Route{{Path: "/"}},
+				},
+			},
+			cfg: config.Application{
+				Provider: "aws",
+				AppName:  "app",
+				StaticUnit: map[string]*config.StaticUnit{
+					"su": {
+						Type:  "apigateway",
+						CdnId: "distro",
+					},
+				},
+				Exposed: map[string]*config.Expose{
+					"gw": {
+						Type:  "apigateway",
+						CdnId: "distro",
+					},
+				},
+			},
+			data: TemplateData{
+				TemplateData: provider.TemplateData{
+					StaticUnits: []provider.StaticUnit{
+						{Name: "su"},
+					},
+					Gateways: []provider.Gateway{
+						{Name: "gw"},
+					},
+				},
+			},
+			want: []*resources.CloudfrontDistribution{
+				{
+					Id: "app-distro",
+					Origins: []core.ResourceKey{
+						{Kind: core.GatewayKind, Name: "gw"},
+						{Kind: core.StaticUnitKind, Name: "su"},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			result := core.CompilationResult{}
+
+			result.AddAll(tt.results)
+
+			aws := AWS{
+				Config: &tt.cfg,
+			}
+			aws.GenerateCloudfrontDistributions(&tt.data, &result)
+			for _, cf := range tt.want {
+				found := false
+				for _, gotCf := range tt.data.CloudfrontDistributions {
+					if gotCf.Id == cf.Id {
+						found = true
+						assert.Equal(cf.DefaultRootObject, gotCf.DefaultRootObject)
+						for _, cfOrigin := range cf.Origins {
+							originFound := false
+							for _, gotCfOrigin := range gotCf.Origins {
+								if cfOrigin.String() == gotCfOrigin.String() {
+									originFound = true
+								}
+							}
+							assert.True(originFound)
+						}
+					}
+				}
+				assert.True(found)
+			}
 		})
 	}
 }

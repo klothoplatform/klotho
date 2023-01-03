@@ -4,6 +4,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
 type (
@@ -15,7 +16,8 @@ type (
 	TemplateData struct {
 		provider.TemplateData
 		TemplateConfig
-		UseVPC bool
+		UseVPC                  bool
+		CloudfrontDistributions []*resources.CloudfrontDistribution
 	}
 )
 
@@ -27,6 +29,17 @@ func (t *TemplateData) Key() core.ResourceKey {
 	return core.ResourceKey{
 		Name: t.AppName,
 		Kind: AwsTemplateDataKind,
+	}
+}
+
+func NewTemplateData(config *config.Application) *TemplateData {
+	return &TemplateData{
+		TemplateConfig: TemplateConfig{
+			TemplateConfig: provider.TemplateConfig{
+				AppName: config.AppName,
+			},
+			PayloadsBucketName: SanitizeS3BucketName(config.AppName),
+		},
 	}
 }
 
