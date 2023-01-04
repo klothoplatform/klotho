@@ -1,6 +1,9 @@
 package execunit
 
 import (
+	"path/filepath"
+	"strings"
+
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -43,6 +46,12 @@ func (p Assets) Transform(result *core.CompilationResult, deps *core.Dependencie
 			matcher.include, _ = annot.Capability.Directives.StringArray("include")
 			matcher.exclude, _ = annot.Capability.Directives.StringArray("exclude")
 
+			err := matcher.ModifyPathsForAnnotatedFile(f.Path())
+			if err != nil {
+				errs.Append(err)
+				break
+			}
+
 			matchCount := 0
 			for _, asset := range input.Files() {
 				if matcher.Matches(asset.Path()) {
@@ -73,6 +82,45 @@ type assetPathMatcher struct {
 	include []string
 	exclude []string
 	err     error
+}
+
+func (m *assetPathMatcher) ModifyPathsForAnnotatedFile(path string) error {
+	newInclude := []string{}
+	for _, pattern := range m.include {
+		absPath, err := filepath.Abs(pattern)
+		if err != nil {
+			return err
+		}
+		if absPath == pattern {
+			newInclude = append(newInclude, strings.TrimPrefix(pattern, "/"))
+			continue
+		}
+		relPath, err := filepath.Rel(filepath.Dir("."), filepath.Join(filepath.Dir(path), pattern))
+		if err != nil {
+			return err
+		}
+		newInclude = append(newInclude, relPath)
+	}
+	m.include = newInclude
+
+	newExclude := []string{}
+	for _, pattern := range m.exclude {
+		absPath, err := filepath.Abs(pattern)
+		if err != nil {
+			return err
+		}
+		if absPath == pattern {
+			newExclude = append(newExclude, strings.TrimPrefix(pattern, "/"))
+			continue
+		}
+		relPath, err := filepath.Rel(filepath.Dir("."), filepath.Join(filepath.Dir(path), pattern))
+		if err != nil {
+			return err
+		}
+		newExclude = append(newExclude, relPath)
+	}
+	m.exclude = newExclude
+	return nil
 }
 
 func (m *assetPathMatcher) Matches(p string) bool {
