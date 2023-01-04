@@ -30,9 +30,9 @@ type (
 		PubSub         map[string]*PubSub        `json:"pubsub,omitempty" yaml:"pubsub,omitempty" toml:"pubsub,omitempty"`
 	}
 	Expose struct {
-		Type        string      `json:"type" yaml:"type" toml:"type"`
-		CdnId       string      `json:"cdn_id,omitempty" yaml:"cdn_id,omitempty" toml:"cdn_id,omitempty"`
-		InfraParams InfraParams `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
+		Type                   string                 `json:"type" yaml:"type" toml:"type"`
+		ContentDeliveryNetwork ContentDeliveryNetwork `json:"content_delivery_network,omitempty" yaml:"content_delivery_network,omitempty" toml:"content_delivery_network,omitempty"`
+		InfraParams            InfraParams            `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
 	}
 
 	Persist struct {
@@ -59,9 +59,9 @@ type (
 	}
 
 	StaticUnit struct {
-		Type        string      `json:"type" yaml:"type" toml:"type"`
-		InfraParams InfraParams `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
-		CdnId       string      `json:"cdn_id,omitempty" yaml:"cdn_id,omitempty" toml:"cdn_id,omitempty"`
+		Type                   string                 `json:"type" yaml:"type" toml:"type"`
+		InfraParams            InfraParams            `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
+		ContentDeliveryNetwork ContentDeliveryNetwork `json:"content_delivery_network,omitempty" yaml:"content_delivery_network,omitempty" toml:"content_delivery_network,omitempty"`
 	}
 
 	Defaults struct {
@@ -84,6 +84,10 @@ type (
 		ORM          KindDefaults `json:"orm" yaml:"orm" toml:"orm"`
 		RedisNode    KindDefaults `json:"redis_node" yaml:"redis_node" toml:"redis_node"`
 		RedisCluster KindDefaults `json:"redis_cluster" yaml:"redis_cluster" toml:"redis_cluster"`
+	}
+
+	ContentDeliveryNetwork struct {
+		Id string `json:"id,omitempty" yaml:"id,omitempty" toml:"id,omitempty"`
 	}
 
 	// InfraParams are passed as-is to the generated IaC
@@ -152,7 +156,7 @@ func (cfg *Expose) Merge(other Expose) {
 	if other.Type != "" {
 		cfg.Type = other.Type
 	}
-	cfg.CdnId = other.CdnId
+	cfg.ContentDeliveryNetwork = other.ContentDeliveryNetwork
 	cfg.InfraParams.Merge(other.InfraParams)
 }
 
@@ -174,7 +178,7 @@ func (cfg *StaticUnit) Merge(other StaticUnit) {
 	if other.Type != "" {
 		cfg.Type = other.Type
 	}
-	cfg.CdnId = other.CdnId
+	cfg.ContentDeliveryNetwork = other.ContentDeliveryNetwork
 	cfg.InfraParams.Merge(other.InfraParams)
 }
 

@@ -23,7 +23,6 @@ export class Cloudfront {
             let targetOrigin: TargetOrigin = {}
             const indexDocument = dist.DefaultRootObject == '' ? undefined : dist.DefaultRootObject
             for (const origin of dist.Origins) {
-                console.log(origin.Name)
                 if (origin.Kind == Resource.gateway) {
                     origins.push(
                         this.createCustomOrigin(origin.Name, lib.gatewayToUrl.get(origin.Name)!)
@@ -51,7 +50,6 @@ export class Cloudfront {
         name: string,
         domainName: pulumi.Output<string>
     ): aws.types.input.cloudfront.DistributionOrigin {
-        console.log(domainName.apply((d) => d.split('//')[1]))
         const origin: aws.types.input.cloudfront.DistributionOrigin = {
             originId: name,
             customOriginConfig: {
@@ -61,6 +59,7 @@ export class Cloudfront {
                 originSslProtocols: ['SSLv3', 'TLSv1', 'TLSv1.1', 'TLSv1.2'],
             },
             domainName: domainName.apply((d) => d.split('//')[1].split('/')[0]),
+            originPath: domainName.apply((d) => '/' + d.split('//')[1].split('/')[1]),
         }
         return origin
     }

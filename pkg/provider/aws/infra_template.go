@@ -176,7 +176,7 @@ func (a *AWS) GenerateCloudfrontDistributions(data *TemplateData, result *core.C
 		switch res.(type) {
 		case *core.Gateway:
 			cfg := a.Config.GetExposed(key.Name)
-			cfId := cfg.CdnId
+			cfId := cfg.ContentDeliveryNetwork.Id
 			if cfId != "" {
 				cf, ok := cloudfrontMap[cfId]
 				if ok {
@@ -187,7 +187,7 @@ func (a *AWS) GenerateCloudfrontDistributions(data *TemplateData, result *core.C
 			}
 		case *core.StaticUnit:
 			cfg := a.Config.GetStaticUnit(key.Name)
-			cfId := cfg.CdnId
+			cfId := cfg.ContentDeliveryNetwork.Id
 			if cfId != "" {
 				cf, ok := cloudfrontMap[cfId]
 				if ok {

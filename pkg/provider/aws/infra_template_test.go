@@ -150,8 +150,8 @@ func Test_GenerateCloudfrontDistributions(t *testing.T) {
 				AppName:  "app",
 				Exposed: map[string]*config.Expose{
 					"gw": {
-						Type:  "apigateway",
-						CdnId: "distro",
+						Type:                   "apigateway",
+						ContentDeliveryNetwork: config.ContentDeliveryNetwork{Id: "distro"},
 					},
 				},
 			},
@@ -183,8 +183,8 @@ func Test_GenerateCloudfrontDistributions(t *testing.T) {
 				AppName:  "app",
 				StaticUnit: map[string]*config.StaticUnit{
 					"su": {
-						Type:  "apigateway",
-						CdnId: "distro",
+						Type:                   "apigateway",
+						ContentDeliveryNetwork: config.ContentDeliveryNetwork{Id: "distro"},
 					},
 				},
 			},
@@ -217,8 +217,8 @@ func Test_GenerateCloudfrontDistributions(t *testing.T) {
 				AppName:  "app",
 				StaticUnit: map[string]*config.StaticUnit{
 					"su": {
-						Type:  "apigateway",
-						CdnId: "distro",
+						Type:                   "apigateway",
+						ContentDeliveryNetwork: config.ContentDeliveryNetwork{Id: "distro"},
 					},
 				},
 			},
@@ -256,14 +256,14 @@ func Test_GenerateCloudfrontDistributions(t *testing.T) {
 				AppName:  "app",
 				StaticUnit: map[string]*config.StaticUnit{
 					"su": {
-						Type:  "apigateway",
-						CdnId: "distro",
+						Type:                   "apigateway",
+						ContentDeliveryNetwork: config.ContentDeliveryNetwork{Id: "distro"},
 					},
 				},
 				Exposed: map[string]*config.Expose{
 					"gw": {
-						Type:  "apigateway",
-						CdnId: "distro",
+						Type:                   "apigateway",
+						ContentDeliveryNetwork: config.ContentDeliveryNetwork{Id: "distro"},
 					},
 				},
 			},
