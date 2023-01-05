@@ -54,6 +54,13 @@ type (
 		Verb string
 		Path string
 	}
+
+	routerMount struct {
+		Path     string
+		PkgAlias string
+		PkgName  string
+		FuncName string
+	}
 )
 
 func (p *Expose) Name() string { return "Expose" }
@@ -177,7 +184,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 			log.Warn("No http listen found")
 			continue
 		}
-		appName := listener.Identifier.Content(f.Program())
+		routerName := listener.Identifier.Content(f.Program())
 
 		importsNode, err := h.FindImports(f)
 		if err != nil {
@@ -189,7 +196,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 			//TODO: Will likely need to move this into a separate plugin of some sort
 			// Instead of having a dispatcher file, the dipatcher logic is injected into the main.go file. By having that
 			// logic in the expose plugin though, it will only happen if they use the expose annotation for the lambda case.
-			updatedListenContent := UpdateListenWithHandlerCode(string(f.Program()), listener.Expression.Content(f.Program()), appName)
+			updatedListenContent := UpdateListenWithHandlerCode(string(f.Program()), listener.Expression.Content(f.Program()), routerName)
 
 			updatedImportContent := UpdateImportWithHandlerRequirements(updatedListenContent, importsNode, f)
 
@@ -204,7 +211,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 			}
 		}
 
-		router, err := h.findChiRouterDefinition(f, appName)
+		router, err := h.findChiRouterDefinition(f, nil, routerName)
 		if err != nil {
 			return nil, core.NewCompilerError(f, capNode, err)
 		}
@@ -217,27 +224,46 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 
 		gwSpec := gatewaySpec{
 			FilePath:   f.Path(),
-			AppVarName: appName,
+			AppVarName: routerName,
 			Id:         cap.ID,
 		}
 
-		log = log.With(zap.String("var", appName))
+		log = log.With(zap.String("var", routerName))
 
-		localRoutes, err := h.findChiRoutesForVar(f, appName, "")
+		localRoutes, err := h.findChiRoutesForVar(f, routerName, "")
 		if err != nil {
 			return nil, core.NewCompilerError(f, capNode, err)
 		}
 
 		if len(localRoutes) > 0 {
-			log.Sugar().Infof("Found %d route(s) on app '%s'", len(localRoutes), appName)
+			log.Sugar().Infof("Found %d route(s) on app '%s'", len(localRoutes), routerName)
 			h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], localRoutes...)
+		}
+
+		// For external routes, we work back from the mount() call to get the package being called. Then
+		// we find the function which defines the extra routes within the specified package
+
+		routerMounts := h.findChiRouterMounts(f, routerName)
+		for _, m := range routerMounts {
+			h.findChiRouterMountPackage(f, &m)
+			filesForPackage := h.findFilesForPackageName(m.PkgName)
+			file, funcNode := h.findFileForFunctionName(filesForPackage, m.FuncName)
+			mountedRoutes := h.findChiRoutesInFunction(file, funcNode, m)
+
+			if len(mountedRoutes) > 0 {
+				log.Sugar().Infof("Found %d route(s) on mounted router '%s.%s'", len(mountedRoutes), m.PkgAlias, m.FuncName)
+				h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], mountedRoutes...)
+			}
 		}
 	}
 	return f, nil
 }
 
-func (h *restAPIHandler) findChiRouterDefinition(f *core.SourceFile, appName string) (chiRouterDefResult, error) {
-	nextMatch := doQuery(f.Tree().RootNode(), findRouterAssignment)
+func (h *restAPIHandler) findChiRouterDefinition(f *core.SourceFile, optionalNode *sitter.Node, appName string) (chiRouterDefResult, error) {
+	if optionalNode == nil {
+		optionalNode = f.Tree().RootNode()
+	}
+	nextMatch := doQuery(optionalNode, findRouterAssignment)
 	for {
 		match, found := nextMatch()
 		if !found {
@@ -292,7 +318,6 @@ func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, varName string,
 	var routes = make([]gatewayRouteDefinition, 0)
 	log := h.log.With(logging.FileField(f))
 
-	//TODO: This is looking for routes defined in the file. In the multi exec case will need to look for 'Mount' as well.
 	verbFuncs, err := h.findVerbFuncs(f.Tree().RootNode(), f.Program(), varName)
 	if err != nil {
 		return routes, err
@@ -367,4 +392,159 @@ func (h *restAPIHandler) FindImports(f *core.SourceFile) (*sitter.Node, error) {
 		}
 	}
 	return imports, err
+}
+
+func (h *restAPIHandler) findChiRouterMounts(f *core.SourceFile, routerName string) []routerMount {
+	source := f.Program()
+	nextMatch := doQuery(f.Tree().RootNode(), findRouterMounts)
+	var mounts []routerMount
+
+	for {
+		match, found := nextMatch()
+		if !found {
+			break
+		}
+
+		router_name, mount, path, package_name, package_func := match["router_name"], match["mount"], match["path"], match["package_name"], match["package_func"]
+
+		if !query.NodeContentEquals(router_name, f.Program(), routerName) ||
+			!query.NodeContentEquals(mount, f.Program(), "Mount") {
+			continue
+		}
+
+		mounts = append(mounts, routerMount{
+			Path:     path.Content(source),
+			PkgAlias: package_name.Content(source),
+			FuncName: package_func.Content(source),
+		})
+	}
+
+	return mounts
+}
+
+func (h *restAPIHandler) findChiRouterMountPackage(f *core.SourceFile, mount *routerMount) error {
+	source := f.Program()
+	nextMatch := doQuery(f.Tree().RootNode(), findImports)
+	for {
+		match, found := nextMatch()
+		if !found {
+			break
+		}
+
+		package_id, package_path := match["package_id"], match["package_path"]
+
+		if package_path == nil {
+			continue
+		}
+
+		p := strings.Split(package_path.Content(source), "/")
+		package_name := p[len(p)-1]
+
+		if package_id != nil {
+			if !query.NodeContentEquals(package_id, source, mount.PkgAlias) {
+				continue
+			}
+			mount.PkgName = package_name
+			return nil
+		}
+
+		if package_name == mount.PkgAlias {
+			mount.PkgName = package_name
+			return nil
+		}
+
+	}
+
+	return errors.Errorf("No import package found with name or alias [%s]", mount.PkgAlias)
+}
+
+func (h *restAPIHandler) findFilesForPackageName(pkgName string) []*core.SourceFile {
+	var packageFiles []*core.SourceFile
+	for _, f := range h.Unit.Files() {
+		src, ok := goLang.CastFile(f)
+		if !ok {
+			continue
+		}
+
+		nextMatch := doQuery(src.Tree().RootNode(), findPackage)
+		for {
+			match, found := nextMatch()
+			if !found {
+				break
+			}
+			package_name := match["package_name"]
+			if query.NodeContentEquals(package_name, src.Program(), pkgName) {
+				packageFiles = append(packageFiles, src)
+			}
+		}
+	}
+
+	return packageFiles
+}
+
+func (h *restAPIHandler) findFileForFunctionName(files []*core.SourceFile, funcName string) (f *core.SourceFile, functionNode *sitter.Node) {
+	for _, f := range files {
+		nextMatch := doQuery(f.Tree().RootNode(), findFunction)
+		for {
+			match, found := nextMatch()
+			if !found {
+				break
+			}
+			function_name, function := match["func_name"], match["func"]
+			if query.NodeContentEquals(function_name, f.Program(), funcName) {
+				return f, function
+			}
+		}
+	}
+	return
+}
+
+func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *sitter.Node, m routerMount) []gatewayRouteDefinition {
+	source := f.Program()
+	var gatewayRoutes = make([]gatewayRouteDefinition, 0)
+	log := h.log.With(logging.FileField(f))
+
+	// This is very similar in logic to how we find the local router and verbs. The difference is for external routers, we are starting from
+	// the node of the specified function and don't care about what the router name is so long as the router methods are declared in this function node
+	nextMatch := doQuery(funcNode, findExposeVerb)
+	var routes []routeMethodPath
+	for {
+		match, found := nextMatch()
+		if !found {
+			break
+		}
+
+		verb := match["verb"]
+		routePath := match["path"]
+
+		funcName := verb.Content(source)
+
+		if _, supported := core.Verbs[core.Verb(strings.ToUpper(funcName))]; !supported {
+			continue // unsupported verb
+		}
+
+		pathContent := stringLiteralContent(routePath, source)
+
+		routes = append(routes, routeMethodPath{
+			Verb: verb.Content(source),
+			Path: pathContent,
+		})
+	}
+	log.Sugar().Debugf("Found %d verb functions from '%s.%s'", len(routes), m.PkgAlias, m.FuncName)
+
+	for _, vfunc := range routes {
+		route := core.Route{
+			Verb:          core.Verb(vfunc.Verb),
+			Path:          path.Join(h.RootPath, m.Path, vfunc.Path), //TODO: Handle Chi router path parameters conversion to express for pulumi logic
+			ExecUnitName:  h.Unit.Name,
+			HandledInFile: f.Path(),
+		}
+		log.Sugar().Debugf("Found route function %s %s from '%s.%s'", route.Verb, route.Path, m.PkgAlias, m.FuncName)
+		gatewayRoutes = append(gatewayRoutes, gatewayRouteDefinition{
+			Route:         route,
+			DefinedInPath: f.Path(),
+		})
+	}
+
+	return gatewayRoutes
 }
