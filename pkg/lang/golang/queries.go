@@ -19,9 +19,6 @@ var findImports string
 //go:embed queries/expose/router_mounts.scm
 var findRouterMounts string
 
-//go:embed queries/expose/router_mount_function.scm
-var findMountFunctionByNameAndPackage string
-
 //go:embed queries/expose/function.scm
 var findFunction string
 

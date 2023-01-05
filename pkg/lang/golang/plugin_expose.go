@@ -211,7 +211,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 			}
 		}
 
-		router, err := h.findChiRouterDefinition(f, nil, routerName)
+		router, err := h.findChiRouterDefinition(f, routerName)
 		if err != nil {
 			return nil, core.NewCompilerError(f, capNode, err)
 		}
@@ -247,9 +247,14 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 		for _, m := range routerMounts {
 			h.findChiRouterMountPackage(f, &m)
 			filesForPackage := h.findFilesForPackageName(m.PkgName)
+			if len(filesForPackage) == 0 {
+				continue
+			}
 			file, funcNode := h.findFileForFunctionName(filesForPackage, m.FuncName)
+			if file == nil {
+				continue
+			}
 			mountedRoutes := h.findChiRoutesInFunction(file, funcNode, m)
-
 			if len(mountedRoutes) > 0 {
 				log.Sugar().Infof("Found %d route(s) on mounted router '%s.%s'", len(mountedRoutes), m.PkgAlias, m.FuncName)
 				h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], mountedRoutes...)
@@ -259,11 +264,8 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 	return f, nil
 }
 
-func (h *restAPIHandler) findChiRouterDefinition(f *core.SourceFile, optionalNode *sitter.Node, appName string) (chiRouterDefResult, error) {
-	if optionalNode == nil {
-		optionalNode = f.Tree().RootNode()
-	}
-	nextMatch := doQuery(optionalNode, findRouterAssignment)
+func (h *restAPIHandler) findChiRouterDefinition(f *core.SourceFile, appName string) (chiRouterDefResult, error) {
+	nextMatch := doQuery(f.Tree().RootNode(), findRouterAssignment)
 	for {
 		match, found := nextMatch()
 		if !found {
@@ -413,7 +415,7 @@ func (h *restAPIHandler) findChiRouterMounts(f *core.SourceFile, routerName stri
 		}
 
 		mounts = append(mounts, routerMount{
-			Path:     path.Content(source),
+			Path:     stringLiteralContent(path, source),
 			PkgAlias: package_name.Content(source),
 			FuncName: package_func.Content(source),
 		})
@@ -437,9 +439,8 @@ func (h *restAPIHandler) findChiRouterMountPackage(f *core.SourceFile, mount *ro
 			continue
 		}
 
-		p := strings.Split(package_path.Content(source), "/")
+		p := strings.Split(stringLiteralContent(package_path, source), "/")
 		package_name := p[len(p)-1]
-
 		if package_id != nil {
 			if !query.NodeContentEquals(package_id, source, mount.PkgAlias) {
 				continue
@@ -490,7 +491,8 @@ func (h *restAPIHandler) findFileForFunctionName(files []*core.SourceFile, funcN
 			if !found {
 				break
 			}
-			function_name, function := match["func_name"], match["func"]
+			function_name, function := match["function_name"], match["function"]
+
 			if query.NodeContentEquals(function_name, f.Program(), funcName) {
 				return f, function
 			}
