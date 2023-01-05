@@ -105,6 +105,8 @@ type staticAssetPathMatcher struct {
 	err         error
 }
 
+// ModifyPathsForAnnotatedFile transforms the staticAssetPathMatcher sharedFiles and staticFiles to be absolute paths from the klotho project root, without the prefix '/'.
+// This is done to conform to the file path structure of input files.
 func (m *staticAssetPathMatcher) ModifyPathsForAnnotatedFile(path string) error {
 	newInclude := []string{}
 	for _, pattern := range m.staticFiles {
