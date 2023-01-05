@@ -143,7 +143,7 @@ export = async () => {
 
     {{range $unit := .StaticUnits}}
     staticUnitUrls.push(createStaticS3Website(
-    "{{$unit.Name}}", "{{$unit.IndexDocument}}", cloudLib
+    "{{$unit.Name}}", "{{$unit.IndexDocument}}", "{{$unit.ContentDeliveryNetwork.Id}}", cloudLib
     ))
     {{end}}
 

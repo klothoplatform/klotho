@@ -8,13 +8,14 @@ import { CloudCCLib } from '../deploylib'
 export const createStaticS3Website = (
     staticUnit: string,
     indexDocument: string,
+    contentDeliveryNetworkId: string,
     lib: CloudCCLib
 ) => {
     // Create an S3 bucket
 
     const bucketArgs: aws.s3.BucketArgs = {}
 
-    if (indexDocument != '') {
+    if (indexDocument != '' && contentDeliveryNetworkId == '') {
         bucketArgs['website'] = {
             indexDocument: indexDocument,
         }

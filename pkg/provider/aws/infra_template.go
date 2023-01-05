@@ -89,10 +89,10 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 		case *core.StaticUnit:
 			cfg := a.Config.GetStaticUnit(key.Name)
 			unit := provider.StaticUnit{
-				Name:          res.Name,
-				Type:          res.Type(),
-				IndexDocument: res.IndexDocument,
-				Params:        cfg.InfraParams,
+				Name:                   res.Name,
+				Type:                   res.Type(),
+				IndexDocument:          res.IndexDocument,
+				ContentDeliveryNetwork: cfg.ContentDeliveryNetwork,
 			}
 			data.StaticUnits = append(data.StaticUnits, unit)
 
