@@ -2,7 +2,9 @@ package staticunit
 
 import (
 	"errors"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -63,11 +65,16 @@ func (p StaticUnitSplit) Transform(result *core.CompilationResult, deps *core.De
 				matcher := staticAssetPathMatcher{}
 				matcher.staticFiles, _ = cap.Directives.StringArray("static_files")
 				matcher.sharedFiles, _ = cap.Directives.StringArray("shared_files")
-
+				err := matcher.ModifyPathsForAnnotatedFile(f.Path())
+				if err != nil {
+					errs.Append(err)
+					break
+				}
 				matchCount := 0
 				for _, asset := range input.Files() {
 					ref := &core.FileRef{
-						FPath: asset.Path(),
+						FPath:          asset.Path(),
+						RootConfigPath: p.Config.Path,
 					}
 					static, shared := matcher.Matches(asset.Path())
 					if shared {
@@ -96,6 +103,45 @@ type staticAssetPathMatcher struct {
 	staticFiles []string
 	sharedFiles []string
 	err         error
+}
+
+func (m *staticAssetPathMatcher) ModifyPathsForAnnotatedFile(path string) error {
+	newInclude := []string{}
+	for _, pattern := range m.staticFiles {
+		absPath, err := filepath.Abs(pattern)
+		if err != nil {
+			return err
+		}
+		if absPath == pattern {
+			newInclude = append(newInclude, strings.TrimPrefix(pattern, "/"))
+			continue
+		}
+		relPath, err := filepath.Rel(filepath.Dir("."), filepath.Join(filepath.Dir(path), pattern))
+		if err != nil {
+			return err
+		}
+		newInclude = append(newInclude, relPath)
+	}
+	m.staticFiles = newInclude
+
+	newExclude := []string{}
+	for _, pattern := range m.sharedFiles {
+		absPath, err := filepath.Abs(pattern)
+		if err != nil {
+			return err
+		}
+		if absPath == pattern {
+			newExclude = append(newExclude, strings.TrimPrefix(pattern, "/"))
+			continue
+		}
+		relPath, err := filepath.Rel(filepath.Dir("."), filepath.Join(filepath.Dir(path), pattern))
+		if err != nil {
+			return err
+		}
+		newExclude = append(newExclude, relPath)
+	}
+	m.sharedFiles = newExclude
+	return nil
 }
 
 func (m *staticAssetPathMatcher) Matches(p string) (bool, bool) {
