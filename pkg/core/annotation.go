@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/CloudCompilers/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/pelletier/go-toml/v2"
 	sitter "github.com/smacker/go-tree-sitter"
@@ -85,9 +84,9 @@ func (m AnnotationMap) Add(a *Annotation) {
 
 // InSourceOrder returns a list of annotations in the order they are defined.
 func (m AnnotationMap) InSourceOrder() []*Annotation {
-	var list []*core.Annotation
+	var list []*Annotation
 	for _, v := range m {
-		list = append(list, *v)
+		list = append(list, v)
 	}
 	sort.Slice(list, func(i, j int) bool {
 		startI := 0
