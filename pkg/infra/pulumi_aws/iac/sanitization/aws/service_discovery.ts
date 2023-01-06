@@ -1,7 +1,7 @@
 import {regexpMatch, SanitizationOptions} from "../sanitizer";
 
-export default {
-    privateDnsNamespace: {
+export const
+    privateDnsNamespace = {
         nameValidation(): SanitizationOptions {
             return {
                 minLength: 1,
@@ -12,4 +12,3 @@ export default {
             }
         }
     }
-}

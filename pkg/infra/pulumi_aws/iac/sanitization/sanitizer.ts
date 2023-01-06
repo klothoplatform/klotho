@@ -1,4 +1,5 @@
 import {json} from "stream/consumers";
+import * as crypto from 'crypto'
 
 export interface SanitizationOptions {
     maxLength: number
@@ -103,37 +104,93 @@ interface ResourceNameOptions extends Partial<SanitizationOptions> {
 }
 
 
-export function shortenPrefix(resourceName: ResourceName, maxLength: number): ResourceName {
-    const prefix = resourceName.prefix ? resourceName.prefix : ""
-    const name = resourceName.name ? resourceName.name : ""
-    const suffix = resourceName.suffix ? resourceName.suffix : ""
-    const separator = resourceName.separator ? resourceName.separator : ""
-    const separatorCount = prefix && suffix ? 2 : (prefix || suffix ? 1 : 0)
-    const maxPrefixLength = maxLength - name.length - suffix.length - (separator.length * separatorCount)
+export function truncatePrefix(resourceName: ResourceName, maxLength: number): ResourceName {
+    const prefix = resourceName.prefix ? resourceName.prefix : "";
+    const name = resourceName.name ? resourceName.name : "";
+    const suffix = resourceName.suffix ? resourceName.suffix : "";
+    const separator = resourceName.separator ? resourceName.separator : "";
+    const separatorCount = prefix && suffix ? 2 : (prefix || suffix ? 1 : 0);
+    const maxPrefixLength = maxLength - name.length - suffix.length - (separator.length * separatorCount);
     const prefixLength = prefix.length > maxPrefixLength ? maxPrefixLength : prefix.length;
-    return {...resourceName, prefix: prefix?.substring(0, prefixLength)}
+    return {...resourceName, prefix: prefix?.substring(0, prefixLength)};
 }
 
-export function shortenName(resourceName: ResourceName, maxLength: number): ResourceName {
-    const prefix = resourceName.prefix ? resourceName.prefix : ""
-    const name = resourceName.name ? resourceName.name : ""
-    const suffix = resourceName.suffix ? resourceName.suffix : ""
-    const separator = resourceName.separator ? resourceName.separator : ""
-    const separatorCount = prefix && suffix ? 2 : (prefix || suffix ? 1 : 0)
-    const maxNameLength = maxLength - prefix.length - suffix.length - (separator.length * separatorCount)
+export function truncateName(resourceName: ResourceName, maxLength: number): ResourceName {
+    const prefix = resourceName.prefix ? resourceName.prefix : "";
+    const name = resourceName.name ? resourceName.name : "";
+    const suffix = resourceName.suffix ? resourceName.suffix : "";
+    const separator = resourceName.separator ? resourceName.separator : "";
+    const separatorCount = prefix && suffix ? 2 : (prefix || suffix ? 1 : 0);
+    const maxNameLength = maxLength - prefix.length - suffix.length - (separator.length * separatorCount);
     let nameLength = name.length > maxNameLength ? maxNameLength : name.length;
-    return {...resourceName, name: name.substring(0, nameLength)}
+    return {...resourceName, name: name.substring(0, nameLength)};
 }
 
-export function shortenSuffix(resourceName: ResourceName, maxLength: number): ResourceName {
-    const prefix = resourceName.prefix ? resourceName.prefix : ""
-    const name = resourceName.name ? resourceName.name : ""
-    const suffix = resourceName.suffix ? resourceName.suffix : ""
-    const separator = resourceName.separator ? resourceName.separator : ""
-    const separatorCount = prefix && suffix ? 2 : (prefix || suffix ? 1 : 0)
-    const maxSuffixLength = maxLength - prefix.length - name.length - (separator.length * separatorCount)
+export function truncateNameComponents(splitterPattern ?: RegExp): ShorteningStrategy {
+    return function (resourceName: ResourceName, maxLength: number): ResourceName {
+        const prefix = resourceName.prefix ? resourceName.prefix : "";
+        const name = resourceName.name ? resourceName.name : "";
+        const suffix = resourceName.suffix ? resourceName.suffix : "";
+        const resourceComponentSeparator = resourceName.separator ? resourceName.separator : "";
+        const separatorCount = prefix && suffix ? 2 : (prefix || suffix ? 1 : 0);
+        const maxNameLength = maxLength - prefix.length - suffix.length - (resourceComponentSeparator.length * separatorCount);
+
+        let separator = resourceComponentSeparator || "";
+        const splitter = splitterPattern || separator;
+        let nameComponents = splitterPattern || separator ? name?.split(splitter) : [name];
+        if (!nameComponents || nameComponents.length == 1) {
+            return {...resourceName};
+        }
+
+        let excessChars = name.length - maxNameLength;
+        for (let i = nameComponents.length - 1; excessChars > 0 && (i != 0 || Math.max(...nameComponents.map(c => c.length)) > 1); --i) {
+            if (i < 0) {
+                i = nameComponents.length - 1;
+            }
+
+            const c = nameComponents[i];
+
+            if (!c) {
+                nameComponents.splice(i - 1, 2); // drop empty component (should only happen if the original name includes a sequence of multiple separators)
+            } else if (c.length == 1) {
+                continue; // don't remove the first character in a component
+            } else {
+                nameComponents[i] = c.substring(0, c.length - 1);
+            }
+            --excessChars;
+        }
+        const shortenedName = nameComponents.join("");
+        if (shortenedName.length > maxNameLength) {
+            throw new Error(`Minimum shortened length ${shortenedName.length} exceeds maximum length of ${maxNameLength}`);
+        }
+        return {...resourceName, name: shortenedName};
+    }
+}
+
+export function truncateSuffix(resourceName: ResourceName, maxLength: number): ResourceName {
+    const prefix = resourceName.prefix ? resourceName.prefix : "";
+    const name = resourceName.name ? resourceName.name : "";
+    const suffix = resourceName.suffix ? resourceName.suffix : "";
+    const separator = resourceName.separator ? resourceName.separator : "";
+    const separatorCount = prefix && suffix ? 2 : (prefix || suffix ? 1 : 0);
+    const maxSuffixLength = maxLength - prefix.length - name.length - (separator.length * separatorCount);
     const suffixLength = suffix.length > maxSuffixLength ? maxSuffixLength : suffix.length;
-    return {...resourceName, suffix: suffix.substring(0, suffixLength)}
+    return {...resourceName, suffix: suffix.substring(0, suffixLength)};
+}
+
+export function hashNameSha256(resourceName: ResourceName, maxLength: number): ResourceName {
+    const prefix = resourceName.prefix ? resourceName.prefix : "";
+    const name = resourceName.name ? resourceName.name : "";
+    const suffix = resourceName.suffix ? resourceName.suffix : "";
+    const separator = resourceName.separator ? resourceName.separator : "";
+    const separatorCount = prefix && suffix ? 2 : (prefix || suffix ? 1 : 0);
+    const maxNameLength = maxLength - prefix.length - suffix.length - (separator.length * separatorCount);
+    let nameLength = name.length > maxNameLength ? maxNameLength : name.length;
+
+    const hash = crypto.createHash('sha256');
+    hash.update(name);
+    const digest = hash.digest('hex');
+    return {...resourceName, name: digest.substring(0, nameLength)};
 }
 
 export function regexpMatch(description: string, pattern: RegExp, fix: FixFunc | undefined = undefined): SanitizationRule {

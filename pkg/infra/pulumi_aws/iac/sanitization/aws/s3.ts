@@ -1,7 +1,7 @@
 import {regexpMatch, regexpNotMatch, SanitizationOptions} from "../sanitizer";
 
-export default {
-    bucketNameValidation(): SanitizationOptions {
+export const bucket = {
+    nameValidation(): SanitizationOptions {
         return {
             minLength: 3,
             maxLength: 63,
@@ -9,7 +9,7 @@ export default {
                 regexpMatch(
                     "Bucket names can consist only of lowercase letters, numbers, dots (.), and hyphens (-).",
                     /^[a-z\d.-]+$/,
-                    n => n.toLowerCase().replace(/[^a-z0-9-.]+/g, "-")
+                    n => n.toLowerCase().replace(/[^a-z\d-.]+/g, "-")
                 ),
                 {
                     description: 'Bucket names must not start with the prefix "xn--".',
@@ -24,7 +24,7 @@ export default {
                 regexpMatch(
                     "Bucket names must begin and end with a letter or number.",
                     /^[a-z\d].+[a-z\d]$/,
-                    n => n.replace(/^[^a-zA-Z0-9]+/, "").replace(/[^a-zA-Z0-9]+$/g, "")
+                    n => n.replace(/^[^a-zA-Z\d]+/, "").replace(/[^a-zA-Z\d]+$/g, "")
                 ),
                 {
                     description: "Bucket names must not contain two adjacent periods.",
