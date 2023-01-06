@@ -127,7 +127,10 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 			// (so './dist/index.js' becomes 'index.js')
 			relPath = info.Name()
 		}
-		var f core.File = &core.FileRef{FPath: relPath}
+		var f core.File = &core.FileRef{
+			FPath:          relPath,
+			RootConfigPath: cfg.Path,
+		}
 
 		if info.IsDir() {
 			switch info.Name() {
