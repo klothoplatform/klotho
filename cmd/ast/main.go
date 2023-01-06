@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sort"
 
-	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	sitter "github.com/smacker/go-tree-sitter"
@@ -104,21 +102,7 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		var caps []core.Annotation
-		for _, v := range annots {
-			caps = append(caps, *v)
-		}
-		sort.Slice(caps, func(i, j int) bool {
-			startI := 0
-			if caps[i].Node != nil {
-				startI = int(caps[i].Node.StartByte())
-			}
-			startJ := 0
-			if caps[j].Node != nil {
-				startJ = int(caps[j].Node.StartByte())
-			}
-			return startI < startJ
-		})
+		caps := annots.InSourceOrder()
 		return enc.Encode(caps)
 	}
 

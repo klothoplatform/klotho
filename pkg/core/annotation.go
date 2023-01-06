@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
+	"github.com/CloudCompilers/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/pelletier/go-toml/v2"
 	sitter "github.com/smacker/go-tree-sitter"
@@ -79,4 +81,25 @@ func (m AnnotationMap) Update(other AnnotationMap) {
 
 func (m AnnotationMap) Add(a *Annotation) {
 	m[a.Key()] = a
+}
+
+// InSourceOrder returns a list of annotations in the order they are defined.
+func (m AnnotationMap) InSourceOrder() []*Annotation {
+	var list []*core.Annotation
+	for _, v := range m {
+		list = append(list, *v)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		startI := 0
+		if list[i].Node != nil {
+			startI = int(list[i].Node.StartByte())
+		}
+		startJ := 0
+		if list[j].Node != nil {
+			startJ = int(list[j].Node.StartByte())
+		}
+		return startI < startJ
+	})
+
+	return list
 }
