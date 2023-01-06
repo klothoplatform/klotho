@@ -47,10 +47,11 @@ var cfg struct {
 }
 
 var hadWarnings = atomic.NewBool(false)
+var hadErrors = atomic.NewBool(false)
 
 func init() {
 	err := zap.RegisterEncoder("klotho-cli", func(zcfg zapcore.EncoderConfig) (zapcore.Encoder, error) {
-		return logging.NewConsoleEncoder(cfg.verbose, hadWarnings), nil
+		return logging.NewConsoleEncoder(cfg.verbose, hadWarnings, hadErrors), nil
 	})
 
 	if err != nil {
@@ -264,7 +265,7 @@ func run(cmd *cobra.Command, args []string) (err error) {
 	analyticsClient.Info("klotho compiling")
 
 	result, err := compiler.Compile(input)
-	if err != nil {
+	if err != nil || hadErrors.Load() {
 		errHandler.PrintErr(err)
 		analyticsClient.Error("klotho compiling failed")
 
