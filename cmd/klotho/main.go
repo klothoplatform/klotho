@@ -81,9 +81,13 @@ func main() {
 	flags.BoolVar(&cfg.version, "version", false, "Print the version")
 	flags.BoolVar(&cfg.update, "update", false, "update the cli to the latest version")
 	flags.StringVar(&cfg.login, "login", "", "Login to Klotho with email. For anonymous login, use 'local'")
+	_ = flags.MarkHidden("internalDebug")
 
 	err := root.Execute()
 	if err != nil {
+		if cfg.internalDebug {
+			zap.S().Errorf("%+v", err)
+		}
 		zap.S().Error("Klotho compilation failed")
 		os.Exit(1)
 	}
@@ -264,12 +268,14 @@ func run(cmd *cobra.Command, args []string) (err error) {
 	if err != nil || hadErrors.Load() {
 		if err != nil {
 			errHandler.PrintErr(err)
+		} else {
+			err = errors.New("Failed run of klotho invocation")
 		}
 		analyticsClient.Error("klotho compiling failed")
 
 		cmd.SilenceErrors = true
 		cmd.SilenceUsage = true
-		return errors.New("Failed run of klotho invocation")
+		return err
 	}
 
 	if cfg.uploadSource {
