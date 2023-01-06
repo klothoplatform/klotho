@@ -84,11 +84,7 @@ func main() {
 
 	err := root.Execute()
 	if err != nil {
-		if cfg.internalDebug {
-			zap.S().Errorf("%+v", err)
-		} else if !root.SilenceErrors {
-			zap.S().Errorf("%v", err)
-		}
+		zap.S().Error("Klotho compilation failed")
 		os.Exit(1)
 	}
 	if hadWarnings.Load() && cfg.strict {
@@ -266,12 +262,14 @@ func run(cmd *cobra.Command, args []string) (err error) {
 
 	result, err := compiler.Compile(input)
 	if err != nil || hadErrors.Load() {
-		errHandler.PrintErr(err)
+		if err != nil {
+			errHandler.PrintErr(err)
+		}
 		analyticsClient.Error("klotho compiling failed")
 
 		cmd.SilenceErrors = true
 		cmd.SilenceUsage = true
-		return err
+		return errors.New("Failed run of klotho invocation")
 	}
 
 	if cfg.uploadSource {
