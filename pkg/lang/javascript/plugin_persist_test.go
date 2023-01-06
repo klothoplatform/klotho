@@ -192,7 +192,7 @@ func Test_queryKV(t *testing.T) {
 
 			if tt.matchExpression != "" || tt.matchName != "" {
 				if assert.NotNil(kvResult) {
-					assert.Equal(tt.matchExpression, kvResult.expression)
+					assert.Equal(tt.matchExpression, kvResult.expression.Content(f.Program()))
 					assert.Equal(tt.matchName, kvResult.name)
 				}
 			} else {
@@ -238,7 +238,6 @@ const m = new keyvalueRuntime.dMap({"versioned":true})`,
 			if !assert.NoError(err) {
 				return
 			}
-			newF := f.CloneSourceFile()
 
 			var cap *core.Annotation
 			for _, v := range f.Annotations() {
@@ -256,14 +255,13 @@ const m = new keyvalueRuntime.dMap({"versioned":true})`,
 				return
 			}
 
-			unit := core.ExecutionUnit{}
-			_, err = p.transformKV(f, newF, cap, pres, &unit)
+			_, err = p.transformKV(f, cap, pres)
 			if tt.wantErr {
 				assert.Error(err)
 				return
 			}
 			assert.NoError(err)
-			assert.Equal(tt.want, string(newF.Program()))
+			assert.Equal(tt.want, string(f.Program()))
 		})
 	}
 }
@@ -354,7 +352,7 @@ func Test_queryFS(t *testing.T) {
 				if !assert.NotNil(fsResult) {
 					return
 				}
-				assert.Equal(tt.matchExpression, fsResult.expression)
+				assert.Equal(tt.matchExpression, fsResult.expression.Content(f.Program()))
 				assert.Equal(tt.matchName, fsResult.name)
 			} else {
 				assert.Nil(fsResult)
@@ -430,7 +428,7 @@ func Test_queryORM(t *testing.T) {
 			}, true)
 			if tt.matchExpression != "" {
 				assert.NotNil(fsResult)
-				assert.Equal(tt.matchExpression, fsResult.expression)
+				assert.Equal(tt.matchExpression, fsResult.expression.Content(f.Program()))
 				assert.Equal(tt.matchName, fsResult.name)
 			} else {
 				assert.Nil(fsResult)
@@ -530,12 +528,12 @@ func Test_queryRedis(t *testing.T) {
 
 			p := persister{}
 
-			fsResult := p.queryRedis(f, &core.Annotation{
+			_, fsResult := p.queryRedis(f, &core.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			}, true)
 			if tt.matchExpression != "" {
-				assert.Equal(tt.matchExpression, fsResult.expression)
+				assert.Equal(tt.matchExpression, fsResult.expression.Content(f.Program()))
 				assert.Equal(tt.matchName, fsResult.name)
 			} else {
 				assert.Nil(fsResult)
@@ -614,7 +612,6 @@ const client = createCluster(redis_clusterRuntime.getParams("REDIS_PERSIST_REDIS
 			if !assert.NoError(err) {
 				return
 			}
-			newF := f.CloneSourceFile()
 
 			var cap *core.Annotation
 			for _, v := range f.Annotations() {
@@ -626,15 +623,15 @@ const client = createCluster(redis_clusterRuntime.getParams("REDIS_PERSIST_REDIS
 				runtime: NoopRuntime{},
 			}
 
-			_, pres := p.determinePersistType(f, cap)
+			pKind, pres := p.determinePersistType(f, cap)
 			unit := &core.ExecutionUnit{}
-			_, err = p.transformRedis(f, newF, cap, pres, unit)
+			_, err = p.transformRedis(unit, f, cap, pres, pKind)
 			if tt.wantErr {
 				assert.Error(err)
 				return
 			}
 			assert.NoError(err)
-			assert.Equal(tt.want, string(newF.Program()))
+			assert.Equal(tt.want, string(f.Program()))
 			assert.Len(unit.EnvironmentVariables, 2)
 		})
 	}
