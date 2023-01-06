@@ -68,10 +68,10 @@ type (
 	}
 
 	StaticUnit struct {
-		Name          string
-		Type          string
-		IndexDocument string
-		Params        config.InfraParams
+		Name                   string
+		Type                   string
+		IndexDocument          string
+		ContentDeliveryNetwork config.ContentDeliveryNetwork
 	}
 
 	Gateway struct {

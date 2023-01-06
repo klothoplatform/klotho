@@ -9,22 +9,15 @@ import * as fs from 'fs'
 import * as requestRetry from 'requestretry'
 import * as crypto from 'crypto'
 import { setupElasticacheCluster } from './iac/elasticache'
-
 import * as analytics from './iac/analytics'
 
 import { LoadBalancerPlugin } from './iac/load_balancing'
-import {
-    DefaultEksClusterOptions,
-    Eks,
-    EksExecUnit,
-    EksExecUnitArgs,
-    HelmChart,
-    plugins as EksPlugins,
-} from './iac/eks'
+import { DefaultEksClusterOptions, Eks, EksExecUnit, HelmChart } from './iac/eks'
 import { setupMemoryDbCluster } from './iac/memorydb'
 
 export enum Resource {
     exec_unit = 'exec_unit',
+    static_unit = 'static_unit',
     gateway = 'gateway',
     kv = 'persist_kv',
     fs = 'persist_fs',
@@ -33,6 +26,11 @@ export enum Resource {
     redis_node = 'persist_redis_node',
     redis_cluster = 'persist_redis_cluster',
     pubsub = 'pubsub',
+}
+
+export interface ResourceKey {
+    Kind: string
+    Name: string
 }
 
 interface ResourceInfo {
@@ -72,6 +70,9 @@ export class CloudCCLib {
     execUnitToRole = new Map<string, aws.iam.Role>()
     execUnitToPolicyStatements = new Map<string, aws.iam.PolicyStatement[]>()
     execUnitToImage = new Map<string, pulumi.Output<String>>()
+
+    gatewayToUrl = new Map<string, pulumi.Output<string>>()
+    siteBuckets = new Map<string, aws.s3.Bucket>()
 
     topologySpecOutputs: pulumi.Output<ResourceInfo>[] = []
     connectionString = new Map<string, pulumi.Output<string>>()
@@ -1032,6 +1033,8 @@ export class CloudCCLib {
                 url: `https://console.aws.amazon.com/apigateway/home?region=${this.region}#/apis/${id}/resources/`,
             }))
         )
+
+        this.gatewayToUrl.set(providedName, stage.invokeUrl)
 
         return stage.invokeUrl
     }
