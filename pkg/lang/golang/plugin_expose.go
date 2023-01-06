@@ -245,14 +245,17 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 
 		routerMounts := h.findChiRouterMounts(f, routerName)
 		for _, m := range routerMounts {
-			h.findChiRouterMountPackage(f, &m)
+			err := h.findChiRouterMountPackage(f, &m)
+			if err != nil {
+				return nil, core.NewCompilerError(f, capNode, err)
+			}
 			filesForPackage := h.findFilesForPackageName(m.PkgName)
 			if len(filesForPackage) == 0 {
-				continue
+				return nil, core.NewCompilerError(f, capNode, errors.Errorf("No files found for package [%s]", m.PkgName))
 			}
 			file, funcNode := h.findFileForFunctionName(filesForPackage, m.FuncName)
 			if file == nil {
-				continue
+				return nil, core.NewCompilerError(f, capNode, errors.Errorf("No file found with function named [%s]", m.FuncName))
 			}
 			mountedRoutes := h.findChiRoutesInFunction(file, funcNode, m)
 			if len(mountedRoutes) > 0 {
