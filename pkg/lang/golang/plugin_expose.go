@@ -399,7 +399,7 @@ func (h *restAPIHandler) FindImports(f *core.SourceFile) (*sitter.Node, error) {
 func (h *restAPIHandler) findChiRouterMounts(f *core.SourceFile, routerName string) []routerMount {
 	source := f.Program()
 	nextMatch := doQuery(f.Tree().RootNode(), findRouterMounts)
-	var mounts []routerMount
+	var mounts = make([]routerMount, 0)
 
 	for {
 		match, found := nextMatch()
@@ -507,7 +507,7 @@ func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *s
 	log := h.log.With(logging.FileField(f))
 
 	// This is very similar in logic to how we find the local router and verbs. The difference is for external routers, we are starting from
-	// the node of the specified function and don't care about what the router name is so long as the router methods are declared in this function node
+	// the node of the specified function and don't care about what the router name is so long as the router methods are declared within this function node
 	nextMatch := doQuery(funcNode, findExposeVerb)
 	var routes []routeMethodPath
 	for {
