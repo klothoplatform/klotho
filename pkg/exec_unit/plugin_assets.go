@@ -1,6 +1,7 @@
 package execunit
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
 
@@ -44,6 +45,11 @@ func (p Assets) Transform(result *core.CompilationResult, deps *core.Dependencie
 
 			includes, _ := annot.Capability.Directives.StringArray("include")
 			excludes, _ := annot.Capability.Directives.StringArray("exclude")
+
+			if len(includes) == 0 {
+				errs.Append(core.NewCompilerError(astF, annot, errors.New("include directive must contain at least 1 path")))
+				break
+			}
 
 			matcher, err := NewAssetPathMatcher(includes, excludes, f.Path())
 			if err != nil {
