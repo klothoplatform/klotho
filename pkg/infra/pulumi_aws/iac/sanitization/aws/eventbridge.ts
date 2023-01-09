@@ -1,15 +1,14 @@
 import {regexpMatch} from "../sanitizer";
 
-export const lambdaFunction = {
+export const rule = {
     nameValidation() {
         return {
             minLength: 1,
             maxLength: 64,
             rules: [
-                regexpMatch(
-                    "",
-                    /^[\w-]+$/,
-                    s => s.replace(/[^\w-]/g, "_")
+                regexpMatch("",
+                    /^[\w-.]+$/,
+                    n => n.replace(/[^\w-.]/g, "_"),
                 )
             ]
         }

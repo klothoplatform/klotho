@@ -1,6 +1,9 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
-import { Resource } from '../deploylib'
+import {Resource} from '../deploylib'
+import {generateValidResourceName} from "./sanitization/sanitizer";
+import {cacheCluster} from "./sanitization/aws/memorydb";
+
 
 const sanitizeClusterName = (appName: string, dbName: string): string => {
     let cluster = `${appName}-${dbName}`
@@ -37,7 +40,8 @@ export const setupMemoryDbCluster = (
     securityGroupIds: pulumi.Output<string>[],
     appName: string
 ) => {
-    const clusterName = sanitizeClusterName(appName, dbName)
+    // TODO: look into removing sanitizeClusterName when making other breaking changes to resource names
+    const clusterName = generateValidResourceName(sanitizeClusterName(appName, dbName), cacheCluster.clusterNameValidation())
     const memdbCluster = new aws.memorydb.Cluster(
         clusterName,
         {

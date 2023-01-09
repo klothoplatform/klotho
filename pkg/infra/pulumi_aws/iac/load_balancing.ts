@@ -1,19 +1,8 @@
-import { Region } from '@pulumi/aws'
 import * as aws from '@pulumi/aws'
-import * as awsx from '@pulumi/awsx'
-import * as k8s from '@pulumi/kubernetes'
-
-import * as pulumi from '@pulumi/pulumi'
-import * as sha256 from 'simple-sha256'
-import * as fs from 'fs'
-import * as requestRetry from 'requestretry'
-import * as crypto from 'crypto'
-
-import * as eks from '@pulumi/eks'
 import {
     ListenerArgs,
-    TargetGroupArgs,
     LoadBalancerArgs,
+    TargetGroupArgs,
     TargetGroupAttachmentArgs,
 } from '@pulumi/aws/lb'
 import { ListenerRuleArgs } from '@pulumi/aws/alb'
