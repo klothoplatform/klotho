@@ -11,6 +11,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - run: echo "About to start unit tests"
       - uses: actions/setup-go@v3
         with:
           go-version: 1.18.x
