@@ -3,6 +3,7 @@ on:
     # 7am Mon - Fri, UTC: https://crontab.guru/#0_7_*_*_1-5
     # This corresponds to 2-3am us/eastern (depending on daylight savings), or 11pm - midnight pacific
     - cron: '0 7 * * 1-5'
+  workflow_dispatch: null
 name: integration tests
 concurrency: integ-tests
 jobs:
