@@ -116,6 +116,12 @@ func Test_assetPathMatcher_ModifyPathsForAnnotatedFile(t *testing.T) {
 			path:    "dir/file.txt",
 			want:    testResult{include: []string{"dir/file.txt", "dir/other.txt"}, exclude: []string{"dir/notfile.txt", "dir/notother.txt"}},
 		},
+		{
+			name:    "mix relative and absolute match",
+			matcher: assetPathMatcher{include: []string{"../otherdir/file.txt", "other.txt"}, exclude: []string{"../otherdir/notfile.txt", "notother.txt"}},
+			path:    "dir/file.txt",
+			want:    testResult{include: []string{"otherdir/file.txt", "dir/other.txt"}, exclude: []string{"otherdir/notfile.txt", "dir/notother.txt"}},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

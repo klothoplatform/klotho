@@ -93,33 +93,21 @@ func NewAssetPathMatcher(include []string, exclude []string, filePath string) (a
 	matcher := assetPathMatcher{}
 	filePath = filepath.ToSlash(filePath)
 	for _, pattern := range include {
-		newPath, err := modifyPathIfRelative(pattern, filePath)
-		if err != nil {
-			return matcher, err
-		}
-		matcher.include = append(matcher.include, newPath)
+		matcher.include = append(matcher.include, modifyPathIfRelative(pattern, filePath))
 	}
 
 	for _, pattern := range exclude {
-		newPath, err := modifyPathIfRelative(pattern, filePath)
-		if err != nil {
-			return matcher, err
-		}
-		matcher.exclude = append(matcher.exclude, newPath)
+		matcher.exclude = append(matcher.exclude, modifyPathIfRelative(pattern, filePath))
 	}
 	return matcher, nil
 
 }
 
-func modifyPathIfRelative(path string, currentPath string) (string, error) {
+func modifyPathIfRelative(path string, currentPath string) string {
 	if filepath.IsAbs(path) {
-		return strings.TrimPrefix(path, "/"), nil
+		return strings.TrimPrefix(path, "/")
 	}
-	relPath, err := filepath.Rel(filepath.Dir("."), filepath.Join(filepath.Dir(currentPath), path))
-	if err != nil {
-		return "", err
-	}
-	return relPath, nil
+	return filepath.Join(filepath.Dir(currentPath), path)
 }
 
 func (m *assetPathMatcher) Matches(p string) bool {
