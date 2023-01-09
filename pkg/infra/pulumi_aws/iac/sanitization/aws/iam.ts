@@ -9,7 +9,7 @@ export const role = {
                 regexpMatch(
                     "",
                     /^[\w+=,.@-]+$/,
-                    s => s.replace(/[^\w+=,.@-]/g)
+                    s => s.replace(/[^\w+=,.@-]/g, "_")
                 )
             ]
         }

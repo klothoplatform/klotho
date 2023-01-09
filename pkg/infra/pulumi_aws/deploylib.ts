@@ -15,7 +15,7 @@ import {DefaultEksClusterOptions, Eks, EksExecUnit, HelmChart,} from './iac/eks'
 import {setupMemoryDbCluster} from './iac/memorydb'
 import {
     generateValidResourceName, hashNameSha256,
-    truncateNameComponents
+    truncateNameComponents, validateResourceName
 } from "./iac/sanitization/sanitizer";
 import AwsSanitizer from "./iac/sanitization/aws" ;
 import Aws from "./iac/sanitization/aws";
@@ -111,10 +111,8 @@ export class CloudCCLib {
         }
         const resolvedBucketName = this.account.accountId.apply(accountId =>
             generateValidResourceName(
-                {prefix: accountId, name: "physicalPayloadsBucketName"}, {
-                    ...AwsSanitizer.S3.bucket.nameValidation(),
-                    shorteningStrategy: truncateNameComponents(/([.-])/)
-                }))
+                {prefix: accountId, name: "physicalPayloadsBucketName"}, AwsSanitizer.S3.bucket.nameValidation()
+            ))
         this.createBuckets([resolvedBucketName], true)
         this.addSharedPolicyStatement({
             Effect: 'Allow',
@@ -312,10 +310,7 @@ export class CloudCCLib {
             if (combinedPolicyStatements.size > 0) {
                 const policyName = generateValidResourceName(
                     {prefix: this.name, name: physicalName, suffix: "exec", separator: "-"},
-                    {
-                        ...AwsSanitizer.IAM.policy.nameValidation(),
-                        shorteningStrategy: truncateNameComponents(/([=,.@_-])/)
-                    }
+                    AwsSanitizer.IAM.policy.nameValidation()
                 )
                 const policy = new aws.iam.Policy(
                     policyName,
@@ -354,11 +349,10 @@ export class CloudCCLib {
         })
 
         const accessRole = new aws.iam.Role(
-            generateValidResourceName({prefix: this.name, name: execUnitName, suffix: "ar-access-role", separator: "-"},
-                {
-                    ...AwsSanitizer.IAM.role.nameValidation(),
-                    shorteningStrategy: truncateNameComponents(/([=,.@_-])/)
-                }),
+            generateValidResourceName(
+                {prefix: this.name, name: execUnitName, suffix: "ar-access-role", separator: "-"},
+                AwsSanitizer.IAM.role.nameValidation()
+            ),
             {
                 assumeRolePolicy: {
                     Version: '2012-10-17',
@@ -376,14 +370,13 @@ export class CloudCCLib {
 
         const policy = new aws.iam.Policy(
             generateValidResourceName({
-                prefix: this.name,
-                name: execUnitName,
-                suffix: "ar-access-policy",
-                separator: "-"
-            }, {
-                ...AwsSanitizer.IAM.policy.nameValidation(),
-                shorteningStrategy: truncateNameComponents(/([=,.@_-])/)
-            }),
+                    prefix: this.name,
+                    name: execUnitName,
+                    suffix: "ar-access-policy",
+                    separator: "-"
+                },
+                AwsSanitizer.IAM.policy.nameValidation()
+            ),
             {
                 description: 'Role to grant AppRunner service access to ECR',
                 policy: {
@@ -434,10 +427,8 @@ export class CloudCCLib {
             {
                 prefix: "/aws/apprunner/", name: `${this.name}-${execUnitName}`, suffix: "-apprunner"
             },
-            {
-                ...AwsSanitizer.CloudWatch.logGroup.nameValidation(),
-                shorteningStrategy: truncateNameComponents(/([-._\/#])/)
-            })
+            AwsSanitizer.CloudWatch.logGroup.nameValidation()
+        )
         let cloudwatchGroup = new aws.cloudwatch.LogGroup(`${this.name}-${execUnitName}-lg`, {
             name: logGroupName,
             retentionInDays: 1,
@@ -452,11 +443,10 @@ export class CloudCCLib {
             }
         })
 
-        const serviceName = generateValidResourceName({prefix: this.name, name: execUnitName, suffix: "apprunner"},
-            {
-                ...AwsSanitizer.AppRunner.service.nameValidation(),
-                shorteningStrategy: truncateNameComponents(/([-_])/)
-            })
+        const serviceName = generateValidResourceName(
+            {prefix: this.name, name: execUnitName, suffix: "apprunner"},
+            AwsSanitizer.AppRunner.service.nameValidation()
+        )
 
         const service = new aws.apprunner.Service(serviceName, {
             serviceName: serviceName,
@@ -496,11 +486,10 @@ export class CloudCCLib {
             extraOptions: ['--platform', 'linux/amd64', '--quiet'],
         })
 
-        const lambdaName = generateValidResourceName({prefix: `${this.name}-`, name: execUnitName},
-            {
-                ...AwsSanitizer.Lambda.lambdaFunction.nameValidation(),
-                shorteningStrategy: truncateNameComponents(/([-_])/)
-            })
+        const lambdaName = generateValidResourceName(
+            {prefix: `${this.name}-`, name: execUnitName},
+            AwsSanitizer.Lambda.lambdaFunction.nameValidation()
+        )
         const lambdaRole = this.createRoleForName(lambdaName)
 
         const lambdaConfig: aws.lambda.FunctionArgs = {
@@ -528,10 +517,8 @@ export class CloudCCLib {
 
         const logGroupName = generateValidResourceName(
             {prefix: "/aws/lambda", name: lambdaName, suffix: "-function-api-lg"},
-            {
-                ...AwsSanitizer.CloudWatch.logGroup.nameValidation(),
-                shorteningStrategy: truncateNameComponents(/([/_-])/)
-            })
+            AwsSanitizer.CloudWatch.logGroup.nameValidation()
+        )
         let cloudwatchGroup = new aws.cloudwatch.LogGroup(`${execUnitName}-function-api-lg`, {
             name: logGroupName,
             retentionInDays: 1,
@@ -757,8 +744,9 @@ export class CloudCCLib {
     }
 
     setupKV(): aws.dynamodb.Table {
+        const tableName = generateValidResourceName(this.name, AwsSanitizer.DynamoDB.table.nameValidation())
         const db = new aws.dynamodb.Table(
-            `KV_${this.name}`,
+            `KV_${tableName}`,
             {
                 attributes: [
                     {name: 'pk', type: 'S'},
@@ -773,7 +761,7 @@ export class CloudCCLib {
                     attributeName: 'expiration',
                     enabled: true,
                 },
-                name: this.name,
+                name: tableName,
             },
             {protect: this.protect}
         )
@@ -853,8 +841,13 @@ export class CloudCCLib {
     }
 
     private createExecutionRole(execUnitPhysicalName: string) {
-        const lambdaExecRole = new aws.iam.Role(
-            `${this.name}_${this.generateHashFromPhysicalName(execUnitPhysicalName)}_LambdaExec`,
+        const roleName = generateValidResourceName({
+                prefix: `${this.name}_`,
+                name: `${this.generateHashFromPhysicalName(execUnitPhysicalName)}`,
+                suffix: "_LambdaExec"
+            },
+            AwsSanitizer.IAM.role.nameValidation())
+        const lambdaExecRole = new aws.iam.Role(roleName,
             {
                 assumeRolePolicy: {
                     Version: '2012-10-17',
@@ -1132,8 +1125,12 @@ export class CloudCCLib {
 
         const warmerRole = this.createRoleForName(name)
 
+        const warmerFuncName = generateValidResourceName(
+            {name: this.name, suffix: "-lambdaWarmer"},
+            AwsSanitizer.Lambda.lambdaFunction.nameValidation())
+
         let warmerLambda = new aws.lambda.CallbackFunction(name, {
-            name: `${this.name}-lambdaWarmer`,
+            name: warmerFuncName,
             memorySize: 128 /*MB*/,
             timeout: 60,
             runtime: 'nodejs14.x',
@@ -1186,8 +1183,15 @@ export class CloudCCLib {
         const name = `${execGroupName}.${functionName}:${key}`
         const scheduleRole = this.createRoleForName(name)
 
+        const schedulerFuncName = generateValidResourceName(
+            {
+                name: `${execGroupName}_${functionName}`,
+                suffix: `-${key}`
+            },
+            AwsSanitizer.Lambda.lambdaFunction.nameValidation())
+
         let lambdaScheduler = new aws.lambda.CallbackFunction(name, {
-            name: `${this.name}-${execGroupName}_${functionName}-${key}`,
+            name: schedulerFuncName,
             memorySize: 128 /*MB*/,
             timeout: 300,
             runtime: 'nodejs14.x',
@@ -1224,15 +1228,20 @@ export class CloudCCLib {
             })
         }
 
-        let cloudwatchLogs = new aws.cloudwatch.LogGroup(`${name}-function-api-lg`, {
-            name: pulumi.interpolate`/aws/lambda/${lambdaScheduler.id}`,
+        let cloudwatchLogs = new aws.cloudwatch.LogGroup(`${name}`, {
+            name: lambdaScheduler.id.apply(id => generateValidResourceName(
+                {prefix: "/aws/lambda/", name, suffix: "-function-api-lg"},
+                AwsSanitizer.CloudWatch.logGroup.nameValidation()
+            )),
             retentionInDays: 1,
         })
 
         const schedulerLambda: aws.cloudwatch.EventRuleEventHandler = lambdaScheduler
         const warmUpLambdaSchedule: aws.cloudwatch.EventRuleEventSubscription =
             aws.cloudwatch.onSchedule(
-                `${execGroupName}_${functionName}_act`,
+                generateValidResourceName(
+                    {name: `${execGroupName}_${functionName}`, suffix: "_act"},
+                    AwsSanitizer.EventBridge.rule.nameValidation()),
                 `cron(${cronExpression})`,
                 schedulerLambda
             )
@@ -1240,6 +1249,8 @@ export class CloudCCLib {
 
     public setupSecrets(secrets: string[]) {
         for (const secret of secrets) {
+            const secretName = `${this.name}-${secret}`
+            validateResourceName(secretName, AwsSanitizer.SecretsManager.secret.nameValidation())
             let awsSecret: aws.secretsmanager.Secret
             if (this.secrets.has(secret)) {
                 awsSecret = this.secrets.get(secret)!
@@ -1247,7 +1258,7 @@ export class CloudCCLib {
                 awsSecret = new aws.secretsmanager.Secret(
                     `${secret}`,
                     {
-                        name: `${this.name}-${secret}`,
+                        name: secretName,
                         recoveryWindowInDays: 0,
                     },
                     {protect: this.protect}
@@ -1285,7 +1296,8 @@ export class CloudCCLib {
 
     public setupRDS(orm: string, args: Partial<aws.rds.InstanceArgs>) {
         if (!this.subnetGroup) {
-            this.subnetGroup = new aws.rds.SubnetGroup(this.name, {
+            const subnetGroupName = generateValidResourceName(this.name, AwsSanitizer.RDS.dbSubnetGroup.nameValidation())
+            this.subnetGroup = new aws.rds.SubnetGroup(subnetGroupName, {
                 subnetIds: this.privateSubnetIds,
                 tags: {
                     Name: 'Klotho DB subnet group',
@@ -1293,12 +1305,18 @@ export class CloudCCLib {
             })
         }
 
-        const dbName = orm.toLowerCase()
+        const dbName = generateValidResourceName(orm.toLowerCase(), AwsSanitizer.RDS.engine.pg.database.nameValidation())
         const config = new pulumi.Config()
         const username = config.require(`${dbName}_username`)
         const password = config.requireSecret(`${dbName}_password`)
 
         // create the db resources
+
+        // TODO: take control over instanceId -- the current implementation delegates to Pulumi
+        //       which uses the pulumi resource name + a random suffix
+
+        // this is only partial validation since Pulumi appends its own instanceId suffix
+        validateResourceName(dbName, AwsSanitizer.RDS.instance.nameValidation())
         const rds = new aws.rds.Instance(
             dbName,
             {
@@ -1317,9 +1335,10 @@ export class CloudCCLib {
 
         // setup secrets for the proxy
         const secretName = `${dbName}_secret`
-
+        const ssmSecretName = `${this.name}-${secretName}`
+        validateResourceName(ssmSecretName, AwsSanitizer.SecretsManager.secret.nameValidation())
         let rdsSecret = new aws.secretsmanager.Secret(`${secretName}`, {
-            name: `${this.name}-${secretName}`,
+            name: ssmSecretName,
             recoveryWindowInDays: 0,
         })
 
@@ -1356,8 +1375,13 @@ export class CloudCCLib {
             }
         })
 
+        const ormRoleName = generateValidResourceName(
+            {name: dbName, suffix: "-ormsecretrole"},
+            AwsSanitizer.IAM.role.nameValidation()
+        )
         //setup role for proxy
         const role = new aws.iam.Role(`${dbName}-ormsecretrole`, {
+            name: ormRoleName,
             assumeRolePolicy: {
                 Version: '2012-10-17',
                 Statement: [
@@ -1372,7 +1396,12 @@ export class CloudCCLib {
             },
         })
 
+        const ormPolicyName = generateValidResourceName(
+            {name: dbName, suffix: "-ormsecretpolicy"},
+            AwsSanitizer.IAM.policy.nameValidation()
+        )
         const policy = new aws.iam.Policy(`${dbName}-ormsecretpolicy`, {
+            name: ormPolicyName,
             description: 'klotho orm secret policy',
             policy: {
                 Version: '2012-10-17',
@@ -1392,7 +1421,8 @@ export class CloudCCLib {
         })
 
         // setup the rds proxy
-        const proxy = new aws.rds.Proxy(`${dbName}`, {
+        const proxyName = generateValidResourceName(dbName, AwsSanitizer.RDS.dbProxy.nameValidation())
+        const proxy = new aws.rds.Proxy(proxyName, {
             debugLogging: false,
             engineFamily: 'POSTGRESQL',
             idleClientTimeout: 1800,
@@ -1566,11 +1596,7 @@ export class CloudCCLib {
         if (!name.startsWith(this.name)) {
             name = `${this.name}-${name}`
         }
-        const roleName = generateValidResourceName(name,
-            {
-                ...AwsSanitizer.IAM.role.nameValidation(),
-                shorteningStrategy: truncateNameComponents(/([=,.@_-])/)
-            })
+        const roleName = generateValidResourceName(name, AwsSanitizer.IAM.role.nameValidation())
         const role: aws.iam.Role = this.createExecutionRole(roleName)
         this.execUnitToRole.set(roleName, role)
         return role
@@ -1598,21 +1624,17 @@ export class CloudCCLib {
             `${this.name}-privateDns`,
             {
                 name: generateValidResourceName(
-                    {name: this.name, suffix: "-privateDns"}, {
-                        ...AwsSanitizer.ServiceDiscovery.privateDnsNamespace.nameValidation(),
-                        shorteningStrategy: truncateNameComponents(/([-_.~:|;+=\/\\])/)
-                    }),
+                    {name: this.name, suffix: "-privateDns"},
+                    AwsSanitizer.ServiceDiscovery.privateDnsNamespace.nameValidation()
+                ),
                 description: 'Used for service discovery',
                 vpc: this.klothoVPC.id,
             }
         )
 
         this.cluster = new awsx.ecs.Cluster(
-            generateValidResourceName({name: this.name, suffix: "-cluster"},
-                {
-                    ...AwsSanitizer.ECS.cluster.nameValidation(),
-                    shorteningStrategy: truncateNameComponents(/([ _.-])/)
-                }), {
+            generateValidResourceName({name: this.name, suffix: "-cluster"}, AwsSanitizer.ECS.cluster.nameValidation()),
+            {
                 vpc: this.klothoVPC,
                 cluster: providedClustername,
                 securityGroups: [], // otherwise, awsx creates a default one with 0.0.0.0/0. See #314
@@ -1620,11 +1642,10 @@ export class CloudCCLib {
     }
 
     createEksResources = async (execUnits: EksExecUnit[], charts?: HelmChart[]) => {
-        let clusterName = generateValidResourceName({name: this.name, suffix: "-eks-cluster"},
-            {
-                ...AwsSanitizer.EKS.cluster.nameValidation(),
-                shorteningStrategy: truncateNameComponents(/(-)/)
-            })
+        let clusterName = generateValidResourceName(
+            {name: this.name, suffix: "-eks-cluster"},
+            AwsSanitizer.EKS.cluster.nameValidation()
+        )
         const providedClustername = kloConfig.get<string>('eks-cluster')
         const existingCluster = undefined
         for (const execUnit of execUnits) {
@@ -1655,11 +1676,10 @@ export class CloudCCLib {
 
     createNlb(execUnitName: string) {
         const nlb = new awsx.lb.NetworkLoadBalancer(
-            generateValidResourceName({name: execUnitName, suffix: "-nlb"},
-                {
-                    ...AwsSanitizer.ELB.loadBalancer.nameValidation(),
-                    shorteningStrategy: truncateNameComponents(/(-)/)
-                }),
+            generateValidResourceName({
+                name: execUnitName,
+                suffix: "-nlb"
+            }, AwsSanitizer.ELB.loadBalancer.nameValidation()),
             {
                 external: false,
                 vpc: this.klothoVPC,
@@ -1668,11 +1688,10 @@ export class CloudCCLib {
         this.execUnitToNlb.set(execUnitName, nlb)
 
         const targetGroup: awsx.elasticloadbalancingv2.NetworkTargetGroup = nlb.createTargetGroup(
-            generateValidResourceName({name: execUnitName, suffix: "-tg"},
-                {
-                    ...AwsSanitizer.ELB.targetGroup.nameValidation(),
-                    shorteningStrategy: truncateNameComponents(/(-)/)
-                }),
+            generateValidResourceName({
+                name: execUnitName,
+                suffix: "-tg"
+            }, AwsSanitizer.ELB.targetGroup.nameValidation()),
             {
                 port: 3000,
             }
@@ -1707,15 +1726,13 @@ export class CloudCCLib {
             Resource: '*',
         })
 
-        const logGroupName = generateValidResourceName({
+        const logGroupName = generateValidResourceName(
+            {
                 prefix: "/aws/fargate/",
                 name: `${this.name}-${execUnitName}`,
                 suffix: "-task"
             },
-            {
-                ...AwsSanitizer.CloudWatch.logGroup.nameValidation(),
-                shorteningStrategy: truncateNameComponents(/([/_-])/)
-            }
+            AwsSanitizer.CloudWatch.logGroup.nameValidation()
         );
         let cloudwatchGroup = new aws.cloudwatch.LogGroup(`${this.name}-${execUnitName}-lg`, {
             name: `${logGroupName}`,
@@ -1730,7 +1747,8 @@ export class CloudCCLib {
 
         const task = new awsx.ecs.FargateTaskDefinition(`${execUnitName}-task`, {
             logGroup: cloudwatchGroup,
-            family: `${execUnitName}-family`,
+            family: generateValidResourceName(
+                {name: execUnitName, suffix: "-family"}, AwsSanitizer.ECS.taskDefinition.familyValidation()),
             executionRole: role,
             taskRole: role,
 
@@ -1762,7 +1780,7 @@ export class CloudCCLib {
         })
 
         const discoveryService = new aws.servicediscovery.Service(execUnitName, {
-            name: execUnitName,
+            name: generateValidResourceName(execUnitName, AwsSanitizer.ServiceDiscovery.service.nameValidation()),
             dnsConfig: {
                 namespaceId: this.privateDnsNamespace.id,
                 dnsRecords: [
@@ -1787,6 +1805,10 @@ export class CloudCCLib {
         const service = new awsx.ecs.FargateService(
             `${execUnitName}-service`,
             {
+                name: generateValidResourceName({
+                    name: execUnitName,
+                    suffix: "-service"
+                }, AwsSanitizer.ECS.service.nameValidation()),
                 cluster: this.cluster,
                 taskDefinition: task,
                 desiredCount: 1,
@@ -1809,7 +1831,10 @@ export class CloudCCLib {
     ) => {
         if (type === 'elasticache') {
             const subnetGroup = new aws.elasticache.SubnetGroup(
-                `${this.name}-${name}-subnetgroup`.replace('_', '-').toLocaleLowerCase(),
+                generateValidResourceName(
+                    {prefix: `${this.name}-`, name, suffix: "-subnetgroup"},
+                    AwsSanitizer.Elasticache.cacheSubnetGroup.cacheSubnetGroupNameValidation()
+                ),
                 {
                     subnetIds: this.privateSubnetIds,
                     tags: {
@@ -1858,7 +1883,10 @@ export class CloudCCLib {
             }
 
             const subnetGroup = new aws.memorydb.SubnetGroup(
-                `${this.name}-${name}-subnetgroup`.replace('_', '-').toLocaleLowerCase(),
+                generateValidResourceName(
+                    {prefix: `${this.name}-`, name, suffix: "-subnetgroup"},
+                    AwsSanitizer.MemoryDB.subnetGroup.subnetGroupNameValidation()
+                ),
                 {
                     subnetIds: subnets,
                     tags: {

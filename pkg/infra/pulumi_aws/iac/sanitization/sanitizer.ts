@@ -1,13 +1,11 @@
-import {json} from "stream/consumers";
 import * as crypto from 'crypto'
 
 export interface SanitizationOptions {
-    maxLength: number
-    minLength: number
+    maxLength?: number
+    minLength?: number
     rules: Array<SanitizationRule>
     maxPasses?: number
 }
-
 
 interface ResourceName {
     prefix?: string
@@ -17,12 +15,43 @@ interface ResourceName {
 }
 
 
+export interface SanitizationResult {
+    result: string
+    violations: Array<string>
+}
+
+
+export interface SanitizationRule extends ValidationRule {
+    fix?: FixFunc
+}
+
+type FixFunc = (string) => string
+
+export interface ValidationRule {
+    description: string
+
+    validate(string): boolean
+}
+
+type NamingStrategy = (resourceName: ResourceName) => string
+type ShorteningStrategy = (name: ResourceName, maxLength: number) => ResourceName
+
+interface ResourceNameOptions extends SanitizationOptions {
+    namingStrategy?: NamingStrategy
+    shorteningStrategy?: ShorteningStrategy
+}
+
+
+export let defaultShorteningStrategy = truncateNameComponents(/([-_+=@#$,./\\<>()|\[\]{}:;])/);
+
 export function generateValidResourceName(name: ResourceName | string, options: ResourceNameOptions): string {
     if (typeof name === "string") {
         name = {name}
     }
 
-    const shortenedName = options.maxLength && options.shorteningStrategy ? options.shorteningStrategy(name, options.maxLength) : name;
+    const shortenedName = options.maxLength && options.shorteningStrategy
+        ? options.shorteningStrategy(name, options.maxLength)
+        : (options.maxLength ? defaultShorteningStrategy(name, options.maxLength): name);
     const resolvedName = options.namingStrategy?.apply(this, [shortenedName]) || simpleMerge(shortenedName);
 
     const {result: sanitizedName, violations} = sanitizeResourceName(resolvedName, options)
@@ -30,11 +59,6 @@ export function generateValidResourceName(name: ResourceName | string, options: 
         throw new Error(`Resource name generation failed:\n\t${violations.join("\n\t")}`);
     }
     return sanitizedName;
-}
-
-export interface SanitizationResult {
-    result: string
-    violations: Array<string>
 }
 
 export function sanitizeResourceName(s: string, options: Partial<SanitizationOptions>): SanitizationResult {
@@ -62,7 +86,13 @@ export function sanitizeResourceName(s: string, options: Partial<SanitizationOpt
     return {result, violations: failedRules.map(r => r.description)};
 }
 
-export function validateResourceName(name: string, options: Partial<SanitizationOptions>): Array<string> {
+export function validateResourceName(name: string, options: Partial<SanitizationOptions>) {
+    const violations = doValidateResourceName(name, options);
+    if (violations.length > 0) {
+        throw new Error(`Invalid resource name '${name}':\n\t${violations.join("\n\t")}`)
+    }
+}
+function doValidateResourceName(name: string, options: Partial<SanitizationOptions>): Array<string> {
     const violations = new Array<string>();
     if (options.minLength != null && name.length < options.minLength) {
         violations.push(`Invalid resource name: "${name}": length < minLength (${options.minLength})`)
@@ -75,6 +105,8 @@ export function validateResourceName(name: string, options: Partial<Sanitization
     return violations;
 }
 
+
+
 function simpleMerge(resourceName: ResourceName): string {
     const prefix = resourceName.prefix ? resourceName.prefix : "";
     const name = resourceName.name ? resourceName.name : "";
@@ -82,27 +114,6 @@ function simpleMerge(resourceName: ResourceName): string {
     const separator = resourceName.separator ? resourceName.separator : "";
     return `${prefix}${prefix ? separator : ""}${name}${suffix ? separator : ""}${suffix}`
 }
-
-export interface SanitizationRule extends ValidationRule {
-    fix?: FixFunc
-}
-
-type FixFunc = (string) => string
-
-export interface ValidationRule {
-    description: string
-
-    validate(string): boolean
-}
-
-type NamingStrategy = (resourceName: ResourceName) => string
-type ShorteningStrategy = (name: ResourceName, maxLength: number) => ResourceName
-
-interface ResourceNameOptions extends Partial<SanitizationOptions> {
-    namingStrategy?: NamingStrategy
-    shorteningStrategy?: ShorteningStrategy
-}
-
 
 export function truncatePrefix(resourceName: ResourceName, maxLength: number): ResourceName {
     const prefix = resourceName.prefix ? resourceName.prefix : "";
