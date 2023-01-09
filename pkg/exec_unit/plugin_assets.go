@@ -42,11 +42,10 @@ func (p Assets) Transform(result *core.CompilationResult, deps *core.Dependencie
 				continue
 			}
 
-			matcher := assetPathMatcher{}
-			matcher.include, _ = annot.Capability.Directives.StringArray("include")
-			matcher.exclude, _ = annot.Capability.Directives.StringArray("exclude")
+			includes, _ := annot.Capability.Directives.StringArray("include")
+			excludes, _ := annot.Capability.Directives.StringArray("exclude")
 
-			err := matcher.ModifyPathsForAnnotatedFile(f.Path())
+			matcher, err := NewAssetPathMatcher(includes, excludes, f.Path())
 			if err != nil {
 				errs.Append(err)
 				break
@@ -84,54 +83,49 @@ type assetPathMatcher struct {
 	err     error
 }
 
-func (m *assetPathMatcher) ModifyPathsForAnnotatedFile(path string) error {
-	newInclude := []string{}
-	for _, pattern := range m.include {
-		absPath, err := filepath.Abs(pattern)
+func NewAssetPathMatcher(include []string, exclude []string, filePath string) (assetPathMatcher, error) {
+	matcher := assetPathMatcher{}
+	filePath = filepath.ToSlash(filePath)
+	for _, pattern := range include {
+		newPath, err := modifyPathIfRelative(pattern, filePath)
 		if err != nil {
-			return err
+			return matcher, err
 		}
-		if absPath == pattern {
-			newInclude = append(newInclude, strings.TrimPrefix(pattern, "/"))
-			continue
-		}
-		relPath, err := filepath.Rel(filepath.Dir("."), filepath.Join(filepath.Dir(path), pattern))
-		if err != nil {
-			return err
-		}
-		newInclude = append(newInclude, relPath)
+		matcher.include = append(matcher.include, newPath)
 	}
-	m.include = newInclude
 
-	newExclude := []string{}
-	for _, pattern := range m.exclude {
-		absPath, err := filepath.Abs(pattern)
+	for _, pattern := range exclude {
+		newPath, err := modifyPathIfRelative(pattern, filePath)
 		if err != nil {
-			return err
+			return matcher, err
 		}
-		if absPath == pattern {
-			newExclude = append(newExclude, strings.TrimPrefix(pattern, "/"))
-			continue
-		}
-		relPath, err := filepath.Rel(filepath.Dir("."), filepath.Join(filepath.Dir(path), pattern))
-		if err != nil {
-			return err
-		}
-		newExclude = append(newExclude, relPath)
+		matcher.exclude = append(matcher.exclude, newPath)
 	}
-	m.exclude = newExclude
-	return nil
+	return matcher, nil
+
+}
+
+func modifyPathIfRelative(path string, currentPath string) (string, error) {
+	if filepath.IsAbs(path) {
+		return strings.TrimPrefix(path, "/"), nil
+	}
+	relPath, err := filepath.Rel(filepath.Dir("."), filepath.Join(filepath.Dir(currentPath), path))
+	if err != nil {
+		return "", err
+	}
+	return relPath, nil
 }
 
 func (m *assetPathMatcher) Matches(p string) bool {
 	if m.err != nil {
 		return false
 	}
+	p = filepath.ToSlash(p)
 	//! Implementation note: use `doublestar` package over stdlib `filepath`
 	//! because the std version doesn't support '**' (globstar)
 	toInclude := false
 	for _, pattern := range m.include {
-		toInclude, m.err = doublestar.PathMatch(pattern, p)
+		toInclude, m.err = doublestar.Match(pattern, p)
 		if m.err != nil {
 			return false
 		}
@@ -145,7 +139,7 @@ func (m *assetPathMatcher) Matches(p string) bool {
 
 	toExclude := false
 	for _, pattern := range m.exclude {
-		toExclude, m.err = doublestar.PathMatch(pattern, p)
+		toExclude, m.err = doublestar.Match(pattern, p)
 		if m.err != nil {
 			return false
 		}

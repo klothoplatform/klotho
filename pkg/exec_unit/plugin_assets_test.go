@@ -1,7 +1,6 @@
 package execunit
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -111,19 +110,25 @@ func Test_assetPathMatcher_ModifyPathsForAnnotatedFile(t *testing.T) {
 			path:    "dir/file.txt",
 			want:    testResult{include: []string{"dir/file.txt", "dir/other.txt"}, exclude: []string{"dir/notfile.txt", "dir/notother.txt"}},
 		},
+		{
+			name:    "mix relative and absolute match",
+			matcher: assetPathMatcher{include: []string{"/dir/file.txt", "other.txt"}, exclude: []string{"/dir/notfile.txt", "notother.txt"}},
+			path:    "dir/file.txt",
+			want:    testResult{include: []string{"dir/file.txt", "dir/other.txt"}, exclude: []string{"dir/notfile.txt", "dir/notother.txt"}},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			err := tt.matcher.ModifyPathsForAnnotatedFile(tt.path)
+			matcher, err := NewAssetPathMatcher(tt.matcher.include, tt.matcher.exclude, tt.path)
 			if !assert.NoError(err) {
 				return
 			}
 
 			for _, wantPath := range tt.want.include {
 				found := false
-				for _, path := range tt.matcher.include {
+				for _, path := range matcher.include {
 					if wantPath == path {
 						found = true
 					}
@@ -133,11 +138,10 @@ func Test_assetPathMatcher_ModifyPathsForAnnotatedFile(t *testing.T) {
 
 			for _, wantPath := range tt.want.exclude {
 				found := false
-				for _, path := range tt.matcher.exclude {
+				for _, path := range matcher.exclude {
 					if wantPath == path {
 						found = true
 					}
-					fmt.Println(path)
 				}
 				assert.True(found)
 			}
