@@ -125,9 +125,15 @@ jobs:
         app_to_test: ${{ fromJson(needs.list-apps.outputs.to_test) }}
         mode: [fresh, upgrade]
         exclude:
-          - # issue $618
+          - # issue #618
             app_to_test: ts-eks
             mode: upgrade
+          - # issue 259
+            app_to_test: ts-eks-helm
+            mode: upgrade
+          - # issue 259
+            app_to_test: ts-eks-helm
+            mode: fresh
     steps:
       - uses: actions/checkout@v3
         with:
