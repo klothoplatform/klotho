@@ -5,28 +5,26 @@ on:
         description: The repo of the app to test, in Organization/Repo format
         required: true
         type: string
+        default: klothoplatform/sample-apps
       test-app-ref:
         description: Git SHA or branch name of test-app-repo
         required: false
         type: string
         default: main
       test-app-overrides:
-        description: comma-delimited list of dirs within test-app-repo
+        description: comma-delimited list of dirs within test-app-repo to run (if empty, runs all)
         required: false
         type: string
       klotho-login:
         description: email address to log into Klotho
         required: true
         type: string
+        default: klotho-engineering@klo.dev
       region:
         description: the AWS region to deploy to
         required: false
         type: string
         default: us-east-1
-      klotho-repo:
-        description: org/repo of the Klotho source
-        required: false
-        type: string
   workflow_call:
     # same inputs as workflow_dispatch
     inputs:
@@ -52,10 +50,6 @@ on:
         required: false
         type: string
         default: us-east-1
-      klotho-repo:
-        description: org/repo of the Klotho source
-        required: false
-        type: string
 env:
   INTEG_TEST_ATTEMPTS: 3 # how many times we'll try to run "npm run integ-test" before we mark it as failed. See klothoplatform/sample-apps#44
 name: run integration tests
@@ -99,8 +93,6 @@ jobs:
     steps:
       - name: checkout klotho
         uses: actions/checkout@v3
-        with:
-          repository: ${{ inputs.klotho-repo }}
       - uses: actions/setup-go@v3
         with:
           go-version: 1.18.x
