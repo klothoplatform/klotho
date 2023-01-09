@@ -202,6 +202,9 @@ These providers are not yet supported but are in design and development
 * test: `go test ./...`
 * run without separate build: `go run ./cmd/klotho`
 * to run CI checks on `git push`:
-```
-git config --local core.hooksPath .githooks/
-```
+  ```
+  git config --local core.hooksPath .githooks/
+  ```
+* to run integration tests against a branch, navigate to the [run-integ-tests.yaml](https://github.com/klothoplatform/klotho/actions/workflows/run-integ-tests.yaml) action and click the "run workflow ▾" button. Select your branch, optionally fill in or change any of the parameters, and then click the "run workflow" button.
+  * For security reasons, only authorized members of the team may do this. You can run integration tests on your own fork, providing your own AWS and Pulumi credentials.
+  * Note that the nightly integration tests are [a different workflow](https://github.com/klothoplatform/klotho/actions/workflows/nightly-integ-tests.yaml). Authorized members of the team can manually kick off a run of that workflow, but it doesn't take any inputs. The nightly integration tests workflow simply invokes the run-integ-tests.yaml workflow, so they effectively do the same thing.
