@@ -12,7 +12,6 @@
 [![formatting badge](https://github.com/klothoplatform/klotho/actions/workflows/prettier.yaml/badge.svg)](https://github.com/klothoplatform/klotho/actions/workflows/prettier.yaml)
 [![linter badge](https://github.com/klothoplatform/klotho/actions/workflows/lint.yaml/badge.svg)](https://github.com/klothoplatform/klotho/actions/workflows/lint.yaml)
 [![staticcheck badge](https://github.com/klothoplatform/klotho/actions/workflows/staticcheck.yaml/badge.svg)](https://github.com/klothoplatform/klotho/actions/workflows/staticcheck.yaml)
-[![integ tests badge](https://github.com/klothoplatform/klotho/actions/workflows/integtest.yaml/badge.svg)](https://github.com/klothoplatform/klotho/actions/workflows/integtest.yaml)
 [![release badge](https://github.com/klothoplatform/klotho/actions/workflows/release.yaml/badge.svg)](https://github.com/klothoplatform/klotho/actions/workflows/release.yaml)
 
 Klotho is an open source tool that transforms plain code into cloud native code.
