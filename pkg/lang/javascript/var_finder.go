@@ -33,7 +33,7 @@ type (
 		requireExport bool
 	}
 
-	AnnotationFilter func(declaringFile *core.SourceFile, annot core.Annotation) bool
+	AnnotationFilter func(declaringFile *core.SourceFile, annot *core.Annotation) bool
 
 	VarDeclarations map[VarSpec]*VarParseStructs
 
@@ -54,7 +54,7 @@ type (
 	// VarSpecStructs often come paired with a `VarSpec`, which tells you the variable name within the file.
 	VarParseStructs struct {
 		File       *core.SourceFile
-		Annotation core.Annotation
+		Annotation *core.Annotation
 	}
 )
 
@@ -74,7 +74,7 @@ func (v VarDeclarations) SplitByFile() map[string]VarDeclarations {
 }
 
 func FilterByCapability(capability string) AnnotationFilter {
-	return func(_ *core.SourceFile, annot core.Annotation) bool {
+	return func(_ *core.SourceFile, annot *core.Annotation) bool {
 		return annot.Capability.Name == capability
 	}
 }
@@ -134,7 +134,7 @@ func (vf *varFinder) discoverFileDeclarations(f *core.SourceFile) VarDeclaration
 	return vars
 }
 
-func (vf *varFinder) parseNode(f *core.SourceFile, annot core.Annotation) (internalName string, exportName string, err error) {
+func (vf *varFinder) parseNode(f *core.SourceFile, annot *core.Annotation) (internalName string, exportName string, err error) {
 	next := DoQuery(annot.Node, declareAndInstantiate)
 
 	for {

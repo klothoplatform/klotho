@@ -264,7 +264,7 @@ func (h *restAPIHandler) findChiRouterDefinition(f *core.SourceFile, appName str
 	return chiRouterDefResult{}, nil
 }
 
-func (h *restAPIHandler) findHttpListenAndServe(cap core.Annotation, f *core.SourceFile) (httpListener, error) {
+func (h *restAPIHandler) findHttpListenAndServe(cap *core.Annotation, f *core.SourceFile) (httpListener, error) {
 	nextMatch := doQuery(cap.Node, findHttpListen)
 	for {
 		match, found := nextMatch()

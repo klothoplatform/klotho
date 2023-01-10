@@ -44,7 +44,7 @@ func Test_persister_queryKV(t *testing.T) {
 				return
 			}
 
-			cap := core.Annotation{
+			cap := &core.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			}
@@ -131,7 +131,11 @@ myCache = Cache(cache_class=keyvalue.KVStore, my_arg="value", serializer=keyvalu
 			}
 			newF := f.CloneSourceFile()
 
-			cap := f.Annotations()[0]
+			var cap *core.Annotation
+			for _, v := range f.Annotations() {
+				cap = v
+				break
+			}
 
 			p := persister{
 				runtime: NoopRuntime{},
@@ -189,7 +193,7 @@ func Test_persister_queryFs(t *testing.T) {
 				return
 			}
 
-			cap := core.Annotation{
+			cap := &core.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			}
@@ -254,7 +258,11 @@ import klotho_runtime.fs as fs`,
 			}
 			newF := f.CloneSourceFile()
 
-			cap := f.Annotations()[0]
+			var cap *core.Annotation
+			for _, v := range f.Annotations() {
+				cap = v
+				break
+			}
 
 			p := persister{
 				runtime: NoopRuntime{},
@@ -423,7 +431,11 @@ import klotho_runtime.fs as fs`,
 			}
 			newF := f.CloneSourceFile()
 
-			cap := f.Annotations()[0]
+			var cap *core.Annotation
+			for _, v := range f.Annotations() {
+				cap = v
+				break
+			}
 
 			p := persister{
 				runtime: NoopRuntime{},
@@ -552,7 +564,7 @@ func Test_persister_queryOrm(t *testing.T) {
 				return
 			}
 
-			cap := core.Annotation{
+			cap := &core.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			}
@@ -677,7 +689,11 @@ engine = create_engine(os.environ.get("SQLALCHEMY_PERSIST_ORM_CONNECTION"))`,
 			}
 			newF := f.CloneSourceFile()
 
-			cap := f.Annotations()[0]
+			var cap *core.Annotation
+			for _, v := range f.Annotations() {
+				cap = v
+				break
+			}
 
 			p := persister{
 				runtime: NoopRuntime{},
@@ -875,7 +891,7 @@ func Test_persister_queryRedis(t *testing.T) {
 				return
 			}
 
-			cap := core.Annotation{
+			cap := &core.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "redis"},
 				Node:       f.Tree().RootNode(),
 			}
@@ -1007,7 +1023,11 @@ client = RedisCluster(host=os.environ.get("REDIS_PERSIST_REDIS_HOST"), port=os.e
 			}
 			newF := f.CloneSourceFile()
 
-			cap := f.Annotations()[0]
+			var cap *core.Annotation
+			for _, v := range f.Annotations() {
+				cap = v
+				break
+			}
 
 			p := persister{
 				runtime: NoopRuntime{},

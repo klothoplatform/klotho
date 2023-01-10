@@ -67,21 +67,20 @@ func NewCapabilityFinder(sitterQuery string, preprocessor CommentPreprocessor) c
 }
 
 // FindAllCapabilities finds all of the annotations (ie, capabilities) in a SourceFile.
-func (c *capabilityFinder) FindAllCapabilities(f *core.SourceFile) ([]core.Annotation, error) {
+func (c *capabilityFinder) FindAllCapabilities(f *core.SourceFile) (core.AnnotationMap, error) {
 	var merr multierr.Error
-	capabilities := []core.Annotation{}
+	capabilities := make(core.AnnotationMap)
 	for _, block := range c.findAllCommentsBlocks(f) {
 		cap, err := annotation.ParseCapability(block.comment)
 		if cap == nil {
 			continue
 		}
-		annotation := core.Annotation{Capability: cap, Node: block.node}
+		annotation := &core.Annotation{Capability: cap, Node: block.node}
 		if err != nil {
 			merr.Append(core.NewCompilerError(f, annotation, errors.Wrap(err, "error parsing annotation")))
 			continue
 		}
-		capabilities = append(capabilities, annotation)
-
+		capabilities.Add(annotation)
 	}
 	return capabilities, merr.ErrOrNil()
 }
@@ -119,7 +118,7 @@ func (c *capabilityFinder) findAllCommentsBlocks(f *core.SourceFile) []*commentB
 	return blocks
 }
 
-func PrintCapabilities(program []byte, caps []core.Annotation, out io.Writer) error {
+func PrintCapabilities(program []byte, caps core.AnnotationMap, out io.Writer) error {
 	for _, cap := range caps {
 		fmt.Fprintln(out, cap.Capability, cap.Node.Content(program))
 	}

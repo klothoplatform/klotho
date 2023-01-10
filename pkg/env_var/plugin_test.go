@@ -302,7 +302,12 @@ const a = 1`,
 			if !assert.NoError(err) {
 				return
 			}
-			cap := f.Annotations()[0].Capability
+			var annot *core.Annotation
+			for _, v := range f.Annotations() {
+				annot = v
+				break
+			}
+			cap := annot.Capability
 			result, err := ParseDirectiveToEnvVars(cap)
 			if tt.wantErr {
 				assert.Error(err)

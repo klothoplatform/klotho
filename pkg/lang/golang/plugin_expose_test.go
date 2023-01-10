@@ -53,7 +53,12 @@ func Test_findHttpListenServe(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			listener, err := testRestAPIHandler.findHttpListenAndServe(f.Annotations()[0], f)
+			var annot *core.Annotation
+			for _, v := range f.Annotations() {
+				annot = v
+				break
+			}
+			listener, err := testRestAPIHandler.findHttpListenAndServe(annot, f)
 
 			if tt.expectErr {
 				assert.Error(err)

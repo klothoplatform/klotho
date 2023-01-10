@@ -201,17 +201,17 @@ var testLang = core.SourceLanguage{
 	CapabilityFinder: &testCapabilityFinder{},
 }
 
-func (t *testCapabilityFinder) FindAllCapabilities(sf *core.SourceFile) ([]core.Annotation, error) {
+func (t *testCapabilityFinder) FindAllCapabilities(sf *core.SourceFile) (core.AnnotationMap, error) {
 	body := string(sf.Program())
-	annots := []core.Annotation{}
+	annots := make(core.AnnotationMap)
 	if body != "" {
-		annots = []core.Annotation{
-			{Capability: &annotation.Capability{
+		annots.Add(&core.Annotation{
+			Capability: &annotation.Capability{
 				Name:       annotation.ExecutionUnitCapability,
 				ID:         body,
 				Directives: annotation.Directives{"id": body},
-			}},
-		}
+			},
+		})
 	}
 	return annots, nil
 }

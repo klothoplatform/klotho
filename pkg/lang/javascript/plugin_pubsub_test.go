@@ -43,8 +43,13 @@ func TestPubSub_rewriteFileEmitters(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
+			var annot *core.Annotation
+			for _, v := range f.Annotations() {
+				annot = v
+				break
+			}
 
-			varDec := VarDeclarations{tt.varSpec: &VarParseStructs{Annotation: f.Annotations()[0]}}
+			varDec := VarDeclarations{tt.varSpec: &VarParseStructs{Annotation: annot}}
 			got := p.rewriteFileEmitters(f, varDec)
 			assert.Equal(tt.want, got)
 			assert.Contains(string(f.Program()), `exports.MyEmitter = new emitterRuntime.Emitter("test.js", "MyEmitter", "myEmitter");`)

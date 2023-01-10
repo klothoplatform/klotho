@@ -58,10 +58,10 @@ exports.a = e`,
 		{
 			name: "two emitters one file",
 			sources: map[string]string{
-				"test.js": `// @klotho::pubsub
+				"test.js": `// @klotho::pubsub { id = "e" }
 exports.e = new EventEmitter()
 
-// @klotho::pubsub
+// @klotho::pubsub { id = "e2" }
 exports.e2 = new EventEmitter()`,
 			},
 			want: []VarSpec{
@@ -174,7 +174,7 @@ exports.e1 = new something.EventEmitter()`,
 				return
 			}
 
-			var annots []core.Annotation
+			var annots []*core.Annotation
 			for _, a := range f.Annotations() {
 				if a.Capability.Name == core.PubSubKind {
 					annots = append(annots, a)

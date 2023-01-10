@@ -51,7 +51,12 @@ func Test_findFastApiApp(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			app, _ := testRestAPIHandler.findFastAPIAppDefinition(f.Annotations()[0], f)
+			var annot *core.Annotation
+			for _, v := range f.Annotations() {
+				annot = v
+				break
+			}
+			app, _ := testRestAPIHandler.findFastAPIAppDefinition(annot, f)
 			if !assert.NotNil(app.Expression, "error in test source app definition function") {
 				return
 			}

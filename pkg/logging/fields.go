@@ -39,7 +39,7 @@ func FileField(f core.File) zap.Field {
 }
 
 type annotationField struct {
-	a core.Annotation
+	a *core.Annotation
 }
 
 func (field annotationField) MarshalLogObject(enc zapcore.ObjectEncoder) error {
@@ -59,7 +59,7 @@ func (field annotationField) Sanitize(hasher func(any) string) SanitizedField {
 	}
 }
 
-func AnnotationField(a core.Annotation) zap.Field {
+func AnnotationField(a *core.Annotation) zap.Field {
 	return zap.Object("annotation", annotationField{a: a})
 }
 

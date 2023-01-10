@@ -92,7 +92,7 @@ var dockerfileFargate []byte
 
 var sequelizeReplaceRE = regexp.MustCompile(`new (\w+\.|\b)Sequelize\(`)
 
-func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot core.Annotation, kind core.PersistKind, content string) (javascript.TransformResult, error) {
+func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotation, kind core.PersistKind, content string) (javascript.TransformResult, error) {
 	result := javascript.TransformResult{
 		NewFileContent:       content,
 		NewAnnotationContent: annot.Node.Content(file.Program()),

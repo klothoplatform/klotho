@@ -17,7 +17,7 @@ type (
 
 	CompileError struct {
 		File       *SourceFile
-		Annotation Annotation
+		Annotation *Annotation
 		Cause      error
 	}
 
@@ -62,7 +62,7 @@ func (err *PluginError) Unwrap() error {
 	return err.Cause
 }
 
-func NewCompilerError(f *SourceFile, annotation Annotation, cause error) *CompileError {
+func NewCompilerError(f *SourceFile, annotation *Annotation, cause error) *CompileError {
 	return &CompileError{
 		File:       f,
 		Annotation: annotation,
