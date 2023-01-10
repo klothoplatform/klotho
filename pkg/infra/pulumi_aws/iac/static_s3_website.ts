@@ -9,21 +9,24 @@ export const createStaticS3Website = (
     staticUnit: string,
     indexDocument: string,
     contentDeliveryNetworkId: string,
-    lib: CloudCCLib
+    lib: CloudCCLib,
+    appName: string
 ) => {
     // Create an S3 bucket
 
-    const bucketArgs: aws.s3.BucketArgs = {}
-
-    if (indexDocument != '' && contentDeliveryNetworkId == '') {
-        bucketArgs['website'] = {
-            indexDocument: indexDocument,
+    lib.account.accountId.apply((accountId) => {
+        const bucket = `${accountId}-${appName}-${staticUnit}`
+        const bucketArgs: aws.s3.BucketArgs = { bucket }
+        if (indexDocument != '' && contentDeliveryNetworkId == '') {
+            bucketArgs['website'] = {
+                indexDocument: indexDocument,
+            }
         }
-    }
 
-    let siteBucket = new aws.s3.Bucket(`static-website-${staticUnit}`, bucketArgs)
-    lib.siteBuckets.set(staticUnit, siteBucket)
-    createAllObjects(staticUnit, siteBucket)
+        let siteBucket = new aws.s3.Bucket(bucket, bucketArgs)
+        lib.siteBuckets.set(staticUnit, siteBucket)
+        createAllObjects(staticUnit, siteBucket)
+    })
 }
 
 const createAllObjects = (staticUnit, siteBucket, prefixPath = '') => {
