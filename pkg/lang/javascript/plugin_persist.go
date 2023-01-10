@@ -287,7 +287,7 @@ func (p *persister) transformORM(unit *core.ExecutionUnit, file *core.SourceFile
 	var replaceContent string
 	switch ormR.ormType {
 	case TypeOrmKind:
-		replaceContent = fmt.Sprintf(`ormRuntime.getDataSourceParams("%s", %s)`, envVar.Name, ormR.expression)
+		replaceContent = fmt.Sprintf(`ormRuntime.getDataSourceParams("%s", %s)`, envVar.Name, ormR.expression.Content(file.Program()))
 	case SequelizeKind:
 		replaceContent = fmt.Sprintf(`ormRuntime.getDBConn("%s")`, envVar.Name)
 	default:
