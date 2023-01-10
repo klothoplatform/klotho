@@ -1,6 +1,10 @@
 package execunit
 
 import (
+	"errors"
+	"path/filepath"
+	"strings"
+
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -39,9 +43,19 @@ func (p Assets) Transform(result *core.CompilationResult, deps *core.Dependencie
 				continue
 			}
 
-			matcher := assetPathMatcher{}
-			matcher.include, _ = annot.Capability.Directives.StringArray("include")
-			matcher.exclude, _ = annot.Capability.Directives.StringArray("exclude")
+			includes, _ := annot.Capability.Directives.StringArray("include")
+			excludes, _ := annot.Capability.Directives.StringArray("exclude")
+
+			if len(includes) == 0 {
+				errs.Append(core.NewCompilerError(astF, annot, errors.New("include directive must contain at least 1 path")))
+				break
+			}
+
+			matcher, err := NewAssetPathMatcher(includes, excludes, f.Path())
+			if err != nil {
+				errs.Append(err)
+				break
+			}
 
 			matchCount := 0
 			for _, asset := range input.Files() {
@@ -75,15 +89,37 @@ type assetPathMatcher struct {
 	err     error
 }
 
+func NewAssetPathMatcher(include []string, exclude []string, filePath string) (assetPathMatcher, error) {
+	matcher := assetPathMatcher{}
+	filePath = filepath.ToSlash(filePath)
+	for _, pattern := range include {
+		matcher.include = append(matcher.include, modifyPathIfRelative(pattern, filePath))
+	}
+
+	for _, pattern := range exclude {
+		matcher.exclude = append(matcher.exclude, modifyPathIfRelative(pattern, filePath))
+	}
+	return matcher, nil
+
+}
+
+func modifyPathIfRelative(path string, currentPath string) string {
+	if filepath.IsAbs(path) {
+		return strings.TrimPrefix(path, "/")
+	}
+	return filepath.Join(filepath.Dir(currentPath), path)
+}
+
 func (m *assetPathMatcher) Matches(p string) bool {
 	if m.err != nil {
 		return false
 	}
+	p = filepath.ToSlash(p)
 	//! Implementation note: use `doublestar` package over stdlib `filepath`
 	//! because the std version doesn't support '**' (globstar)
 	toInclude := false
 	for _, pattern := range m.include {
-		toInclude, m.err = doublestar.PathMatch(pattern, p)
+		toInclude, m.err = doublestar.Match(pattern, p)
 		if m.err != nil {
 			return false
 		}
@@ -97,7 +133,7 @@ func (m *assetPathMatcher) Matches(p string) bool {
 
 	toExclude := false
 	for _, pattern := range m.exclude {
-		toExclude, m.err = doublestar.PathMatch(pattern, p)
+		toExclude, m.err = doublestar.Match(pattern, p)
 		if m.err != nil {
 			return false
 		}
