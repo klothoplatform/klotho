@@ -15,3 +15,12 @@ var findExposeVerb string
 
 //go:embed queries/expose/imports.scm
 var findImports string
+
+//go:embed queries/expose/router_mounts.scm
+var findRouterMounts string
+
+//go:embed queries/expose/function.scm
+var findFunction string
+
+//go:embed queries/expose/package.scm
+var findPackage string
