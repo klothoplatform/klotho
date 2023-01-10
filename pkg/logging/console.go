@@ -176,7 +176,7 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 	}
 
 	node := nodeField.n
-	if node == nil {
+	if node == nil && annotation != nil {
 		node = annotation.Node
 	}
 
