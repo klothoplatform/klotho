@@ -1,0 +1,15 @@
+on:
+  schedule:
+    # 7am Mon - Fri, UTC: https://crontab.guru/#0_7_*_*_1-5
+    # This corresponds to 2-3am us/eastern (depending on daylight savings), or 11pm - midnight pacific
+    - cron: '0 7 * * 1-5'
+  workflow_dispatch: null
+name: nightly integration tests
+concurrency: integ-tests
+jobs:
+  javascript:
+    uses: ./.github/workflows/run-integ-tests.yaml
+    with:
+      test-app-repo: klothoplatform/sample-apps
+      klotho-login: klotho-engineering@klo.dev
+    secrets: inherit

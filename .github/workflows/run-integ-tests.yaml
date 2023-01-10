@@ -1,26 +1,58 @@
 on:
-  schedule:
-    # 7am Mon - Fri, UTC: https://crontab.guru/#0_7_*_*_1-5
-    # This corresponds to 2-3am us/eastern (depending on daylight savings), or 11pm - midnight pacific
-    - cron: '0 7 * * 1-5'
   workflow_dispatch:
     inputs:
-      sample-apps-git-ref:
-        description: Git SHA or branch name of the sample-apps repo
+      test-app-repo:
+        description: The repo of the app to test, in Organization/Repo format
+        required: true
+        type: string
+        default: klothoplatform/sample-apps
+      test-app-ref:
+        description: Git SHA or branch name of test-app-repo
         required: false
         type: string
-      sample-app-names:
-        description: Comma-delimited list of apps within the sample-apps repo
+        default: main
+      test-app-overrides:
+        description: comma-delimited list of dirs within test-app-repo to run (if empty, runs all)
         required: false
         type: string
-concurrency:
-  group: integ-tests
+      klotho-login:
+        description: email address to log into Klotho
+        required: true
+        type: string
+        default: klotho-engineering@klo.dev
+      region:
+        description: the AWS region to deploy to
+        required: false
+        type: string
+        default: us-east-1
+  workflow_call:
+    # same inputs as workflow_dispatch
+    inputs:
+      test-app-repo:
+        description: The repo of the app to test, in Organization/Repo format
+        required: true
+        type: string
+      test-app-ref:
+        description: Git SHA or branch name of test-app-repo
+        required: false
+        type: string
+        default: main
+      test-app-overrides:
+        description: comma-delimited list of dirs within test-app-repo
+        required: false
+        type: string
+      klotho-login:
+        description: email address to log into Klotho
+        required: true
+        type: string
+      region:
+        description: the AWS region to deploy to
+        required: false
+        type: string
+        default: us-east-1
 env:
-  SAMPLE_APPS_GIT_REF: main
-  KLOTHO_LOGIN: klotho-engineering@klo.dev
-  AWS_REGION: us-east-1
   INTEG_TEST_ATTEMPTS: 3 # how many times we'll try to run "npm run integ-test" before we mark it as failed. See klothoplatform/sample-apps#44
-name: integration tests
+name: run integration tests
 jobs:
   list-apps:
     runs-on: ubuntu-latest
@@ -29,11 +61,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          repository: KlothoPlatform/sample-apps
-          ref: ${{ inputs.sample-apps-git-ref || env.SAMPLE_APPS_GIT_REF }}
+          repository: ${{ inputs.test-app-repo }}
+          ref: ${{ inputs.test-app-ref }}
       - name: find test dirs
         id: find_dirs
         run: |
+          set -x
           dirs_with_tests="$(
             for d in $(find * -type d -maxdepth 0 || printf ''); do
               jq &>/dev/null -e '.scripts."integ-test"' $d/package.json && echo "$d"
@@ -54,7 +87,7 @@ jobs:
           echo "$test_cases" | jq .
           echo "to_test=$test_cases" > $GITHUB_OUTPUT
         env:
-          APP_NAME_OVERRIDES: ${{ inputs.sample-app-names }}
+          APP_NAME_OVERRIDES: ${{ inputs.test-app-overrides }}
   build-klotho:
     runs-on: ubuntu-latest
     steps:
@@ -84,14 +117,20 @@ jobs:
         app_to_test: ${{ fromJson(needs.list-apps.outputs.to_test) }}
         mode: [fresh, upgrade]
         exclude:
-          - # issue $618
+          - # issue #48
             app_to_test: ts-eks
             mode: upgrade
+          - # issue #49
+            app_to_test: ts-eks-helm
+            mode: upgrade
+          - # issue #49
+            app_to_test: ts-eks-helm
+            mode: fresh
     steps:
       - uses: actions/checkout@v3
         with:
-          repository: KlothoPlatform/sample-apps
-          ref: ${{ inputs.sample-apps-git-ref || env.SAMPLE_APPS_GIT_REF }}
+          repository: ${{ inputs.test-app-repo }}
+          ref: ${{ inputs.test-app-ref }}
       - name: Use Node.js 16.x
         uses: actions/setup-node@v3
         with:
@@ -109,6 +148,8 @@ jobs:
           curl -fsSL http://srv.klo.dev/update/latest/linux/amd64 -o "$RUNNER_TEMP/klotho-old"
           chmod +x "$RUNNER_TEMP/klotho-old"
           "$RUNNER_TEMP/klotho-old" --login "$KLOTHO_LOGIN"
+        env:
+          KLOTHO_LOGIN: ${{ inputs.klotho-login }}
       - name: download klotho
         uses: actions/download-artifact@v3
         with:
@@ -125,6 +166,8 @@ jobs:
         run: |
           chmod +x $RUNNER_TEMP/klotho
           klotho --login $KLOTHO_LOGIN
+        env:
+          KLOTHO_LOGIN: ${{ inputs.klotho-login }}
       - name: typescript compilation
         working-directory: ${{ matrix.app_to_test }}
         run: |
@@ -171,6 +214,7 @@ jobs:
           fi
           echo '::endgroup'
         env:
+          AWS_REGION: ${{ inputs.region }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
