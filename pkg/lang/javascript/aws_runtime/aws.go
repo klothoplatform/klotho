@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-//go:generate ./compile_template.sh proxy_fargate proxy_eks dispatcher_lambda dispatcher_fargate secret keyvalue orm emitter redis_node redis_cluster
+//go:generate ./compile_template.sh proxy_fargate proxy_eks dispatcher_lambda dispatcher_fargate secret keyvalue orm emitter redis_node redis_cluster fs
 
 type (
 	AwsRuntime struct {

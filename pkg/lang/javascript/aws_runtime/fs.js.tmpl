@@ -1,135 +1,146 @@
-const S3FS = require("@hasnat/s3fs");
-const flatted = require("flatted");
-const _ = require("lodash");
-const path = require("path")
-
-const endpoint = process.env["AWS_ENDPOINT"] ? `http://${process.env["AWS_ENDPOINT"]}` : null;
-const payloadBucketPhysicalName = process.env.KLOTHO_S3_PREFIX + "{{.PayloadsBucketName}}";
-const targetRegion = process.env["AWS_TARGET_REGION"];
-
-const { userFS, runtimeFS } = getS3FileSystemAbstraction();
-
-//TODO: Implement Delete
-exports.fs = {
-    writeFile: s3_writeFile,
-    readFile: s3_readFile,
-    readdir: s3_readdir,
-    access: s3_exists,
-};
-exports.fs.promises = exports.fs;
-
-function getS3FileSystemAbstraction() {
-    let s3Func = (bucketName) =>
-        new S3FS(`${bucketName}`, {
-            apiVersion: "2006-03-01",
-            region: targetRegion,
-            s3ForcePathStyle: true,
-            endpoint: endpoint,
-        });
-
-    let runtimeFS = s3Func(payloadBucketPhysicalName);
-    let userFS = s3Func(`${payloadBucketPhysicalName}/files`);
-    return { runtimeFS, userFS: userFS };
-}
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const flatted = require('flatted');
+const _ = require('lodash');
+const path = require('path');
+const client_s3_1 = require("@aws-sdk/client-s3");
+const payloadBucketPhysicalName = process.env.KLOTHO_S3_PREFIX + '{{.PayloadsBucketName}}';
+const targetRegion = process.env['AWS_TARGET_REGION'];
+const userBucketPath = '/files';
+const s3Client = new client_s3_1.S3Client({ region: targetRegion });
+const streamToString = (stream) => new Promise((resolve, reject) => {
+    const chunks = [];
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+});
 async function getCallParameters(paramKey, dispatcherMode) {
-    let isEmitter = dispatcherMode === "emitter" ? true : false;
+    let isEmitter = dispatcherMode === 'emitter' ? true : false;
     try {
-        let parameters = await runtimeFS.readFile(paramKey);
-        parameters = flatted.parse((parameters.Body) || "");
-
+        const bucketParams = {
+            Bucket: payloadBucketPhysicalName,
+            Key: paramKey,
+        };
+        const result = await s3Client.send(new client_s3_1.GetObjectCommand(bucketParams));
+        let parameters = '';
+        if (result.Body) {
+            parameters = await streamToString(result.Body);
+        }
         if (isEmitter && Array.isArray(parameters)) {
             // Emitters only have 1 parameter - the runtime saves an array, so we
             // normalize the parameter
-            parameters = _.get(parameters, "[0]");
+            parameters = _.get(parameters, '[0]');
             if (Array.isArray(parameters)) {
                 let paramPairs = _.toPairs(parameters);
                 paramPairs = paramPairs.map((x) => {
-                    if (_.get(x, "[1].type") == "Buffer") {
-                        return [x[0], Buffer.from(_.get(x, "[1].data"))];
-                    } else {
+                    if (_.get(x, '[1].type') == 'Buffer') {
+                        return [x[0], Buffer.from(_.get(x, '[1].data'))];
+                    }
+                    else {
                         return x;
                     }
                 });
-
                 parameters = _.fromPairs(paramPairs);
             }
         }
-
         return parameters || {};
-    } catch (e) {
+    }
+    catch (e) {
         console.error(e);
         return;
     }
 }
 exports.getCallParameters = getCallParameters;
-
 async function saveParametersToS3(paramsS3Key, params) {
     try {
-        await runtimeFS.writeFile(paramsS3Key, flatted.stringify(params));
-    } catch (e) {
+        const bucketParams = {
+            Bucket: payloadBucketPhysicalName,
+            Key: paramsS3Key,
+            Body: flatted.stringify(params),
+        };
+        await s3Client.send(new client_s3_1.PutObjectCommand(bucketParams));
+    }
+    catch (e) {
         console.error(e);
         return;
     }
 }
 exports.saveParametersToS3 = saveParametersToS3;
-
 async function s3_writeFile(...args) {
+    const bucketParams = {
+        Bucket: payloadBucketPhysicalName,
+        Key: `${userBucketPath}/${args[0]}`,
+        Body: args[1],
+    };
     try {
-        let indexOfFlag = _.findIndex(args, (x) => _.get(x, "flag"));
-        let getUrl = false;
-        if (indexOfFlag >= 0) {
-            getUrl = _.get(args[indexOfFlag], "flag").indexOf("w+") >= 0;
-            _.pullAt(args, indexOfFlag);
-        }
-
-        if (getUrl) {
-            await userFS.writeFile(args[0], args[1], {
-                ACL: "public-read",
-            });
-            let pathToUse = args[0];
-            pathToUse[0] == "." ? (pathToUse = pathToUse.substring(1)) : "";
-            return getUrlFromFilename(pathToUse);
-        }
-        await userFS.writeFile(...args);
-        return;
-    } catch (err) {
-        console.error(err);
-        return;
+        await s3Client.send(new client_s3_1.PutObjectCommand(bucketParams));
+        console.log('Successfully uploaded object: ' + bucketParams.Bucket + '/' + bucketParams.Key);
+    }
+    catch (err) {
+        console.log('Error', err);
     }
 }
-
 async function s3_readFile(...args) {
-    let result = await userFS.readFile(...args);
-    if (result.ContentEncoding) {
-        return result.Body.toString(result.ContentEncoding);
-    } else {
-        return result.Body;
-    }
-}
-
-async function s3_readdir(path) {
+    const bucketParams = {
+        Bucket: payloadBucketPhysicalName,
+        Key: `${userBucketPath}/${args[0]}`,
+    };
     try {
-        return await userFS.readdir(path);
-    } catch (e) {
-        console.error(`s3fs couldn't readdir ${path}`);
-        console.error(e);
-        return;
+        // Get the object from the Amazon S3 bucket. It is returned as a ReadableStream.
+        const data = await s3Client.send(new client_s3_1.GetObjectCommand(bucketParams));
+        if (data.Body) {
+            return await streamToString(data.Body);
+        }
+        return '';
+    }
+    catch (err) {
+        console.log('Error', err);
     }
 }
-
+async function s3_readdir(path) {
+    const bucketParams = {
+        Bucket: payloadBucketPhysicalName,
+        Prefix: `${userBucketPath}/${path}`,
+    };
+    try {
+        const data = await s3Client.send(new client_s3_1.ListObjectsCommand(bucketParams));
+        if (data.Contents) {
+            const objectKeys = data.Contents.map((c) => c.Key);
+            console.log('Success', objectKeys);
+            return objectKeys;
+        }
+    }
+    catch (err) {
+        console.log('Error', err);
+    }
+}
 async function s3_exists(fpath) {
-    if (await userFS.exists(fpath)) {
-        return;
-    } else {
-        throw new Error(`${fpath} does not exist in ${path.join(userFS.bucket, userFS.path)}`);
+    const bucketParams = { Bucket: payloadBucketPhysicalName, Key: `${userBucketPath}/${path}` };
+    try {
+        const data = await s3Client.send(new client_s3_1.HeadObjectCommand(bucketParams));
+        console.log('Success. Object deleted.', data);
+        return data; // For unit tests.
+    }
+    catch (err) {
+        console.log('Error', err);
     }
 }
-
-function getUrlFromFilename(fileName) {
-    if (endpoint?.indexOf("localstack") >= 0) {
-        return `${endpoint.replace("localstack", "localhost")}/${payloadBucketPhysicalName}/files${fileName}`;
-    } else {
-        return `https://${payloadBucketPhysicalName}.s3.amazonaws.com/files${fileName}`;
+async function s3_deleteFile(fpath) {
+    const bucketParams = { Bucket: payloadBucketPhysicalName, Key: `${userBucketPath}/${path}` };
+    try {
+        const data = await s3Client.send(new client_s3_1.DeleteObjectCommand(bucketParams));
+        console.log('Success. Object deleted.', data);
+        return data; // For unit tests.
+    }
+    catch (err) {
+        console.log('Error', err);
     }
 }
+exports.fs = {
+    writeFile: s3_writeFile,
+    readFile: s3_readFile,
+    readdir: s3_readdir,
+    access: s3_exists,
+    unlink: s3_deleteFile,
+};
+exports.fs.promises = exports.fs;
