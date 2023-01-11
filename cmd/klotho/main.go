@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/klothoplatform/klotho/pkg/updater"
 
@@ -219,7 +220,16 @@ func run(cmd *cobra.Command, args []string) (err error) {
 
 	if appCfg.AppName == "" {
 		return errors.New("'app' required")
+	} else if len(appCfg.AppName) > 20 {
+		return fmt.Errorf("'app' must be less than 20 characters in length. 'app' was %s", cfg.appName)
 	}
+	match, err := regexp.MatchString(`^[A-Za-z0-9-_]+$`, cfg.appName)
+	if err != nil {
+		return err
+	} else if !match {
+		return fmt.Errorf("'app' can only contain alphanumeric, -, and _. 'app' was %s", cfg.appName)
+	}
+
 	if appCfg.Provider == "" {
 		return errors.New("'provider' required")
 	}
