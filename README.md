@@ -29,6 +29,7 @@ Klotho allows you to quickly and reliably add cloud functionality to your applic
 * [Adaptive Architectures](#adaptive-architectures)
 * [Infrastructure-from-Code](#infrastructure-from-code)
 * [Installation](#installation)
+* [IDE Plugins & Extensions](#ide-plugins--extensions)
 * [Getting Started](#getting-started)
 * [Example usage](#example-usage)
 * [Additional Resources](#additional-resources)
@@ -89,7 +90,12 @@ Linux/WSL2:
 curl -fsSL "https://github.com/klothoplatform/klotho/releases/latest/download/klotho_linux_amd64" -o klotho
 chmod +x klotho
   ```
+## IDE Plugins & Extensions
 
+Get syntax highlighting and snippets for Klotho annotations in your favorite IDE.
+
+- [Visual Studio Code](https://github.com/klothoplatform/Klotho-vscode)
+- Intellij IDEA (coming soon)
 
 ## Getting Started
 
