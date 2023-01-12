@@ -633,16 +633,21 @@ export class Eks {
         const config = new pulumi.Config('aws')
         const profile = config.get('profile')
 
-        let args = ['eks', 'get-token', '--cluster-name', this.cluster.name, '--profile', profile]
-        const env: ExecEnvVar[] = [
-            {
-                name: 'KUBERNETES_EXEC_INFO',
-                value: `{"apiVersion": "client.authentication.k8s.io/v1beta1"}`,
-            },
+        let args = [
+            'eks',
+            'get-token',
+            '--cluster-name',
+            this.cluster.name,
+            '--region',
+            this.region,
         ]
+        if (profile) {
+            args.push('--profile', profile)
+        }
+        console.log(profile)
         return pulumi
-            .all([args, env, this.cluster.endpoint, this.cluster.certificateAuthorities[0].data])
-            .apply(([tokenArgs, envvars, clusterEndpoint, certData]) => {
+            .all([args, this.cluster.endpoint, this.cluster.certificateAuthorities[0].data])
+            .apply(([tokenArgs, clusterEndpoint, certData]) => {
                 return {
                     apiVersion: 'v1',
                     clusters: [
@@ -673,7 +678,6 @@ export class Eks {
                                     apiVersion: 'client.authentication.k8s.io/v1beta1',
                                     command: 'aws',
                                     args: tokenArgs,
-                                    env: envvars,
                                 },
                             },
                         },
