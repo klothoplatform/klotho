@@ -53,7 +53,7 @@ export interface EksExecUnit {
 export interface HelmChart {
     Name: string
     Directory: string
-    Values: Value[]
+    Values: Value[] | null
 }
 
 interface FargateProfileSelector {
@@ -385,7 +385,7 @@ export class Eks {
             this.setupExecUnit(lib, unit)
         }
         for (const chart of charts) {
-            this.setupKlothoHelmChart(lib, chart.Name, chart.Values)
+            this.setupKlothoHelmChart(lib, chart.Name, chart.Values || [])
         }
     }
 
