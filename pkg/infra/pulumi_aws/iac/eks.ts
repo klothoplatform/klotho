@@ -589,7 +589,7 @@ export class Eks {
                 })
                 this.execUnitToTargetGroupArn.set(execUnit, targetGroup.arn)
 
-                lib.lbPlugin.createListener(execUnit, {
+                lib.lbPlugin.createListener(lib.name, execUnit, {
                     port: 80,
                     protocol: 'TCP',
                     loadBalancerArn: lb.arn,

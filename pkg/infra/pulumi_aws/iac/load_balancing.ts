@@ -34,7 +34,7 @@ export class LoadBalancerPlugin {
         let lb: aws.lb.LoadBalancer
         switch (params.loadBalancerType) {
             case 'application':
-                lb = new aws.lb.LoadBalancer(`${resourceId}-alb`, {
+                lb = new aws.lb.LoadBalancer(`${appName}-${resourceId}-alb`, {
                     name: `${appName}-${resourceId}`,
                     internal: params.internal || false,
                     loadBalancerType: 'application',
@@ -45,7 +45,7 @@ export class LoadBalancerPlugin {
                 })
                 break
             case 'network':
-                lb = new aws.lb.LoadBalancer(`${resourceId}-nlb`, {
+                lb = new aws.lb.LoadBalancer(`${appName}-${resourceId}-nlb`, {
                     name: `${appName}-${resourceId}`,
                     internal: params.internal || true,
                     loadBalancerType: 'network',
@@ -61,8 +61,12 @@ export class LoadBalancerPlugin {
         return lb
     }
 
-    public createListener = (resourceId: string, params: ListenerArgs): aws.lb.Listener => {
-        return new aws.lb.Listener(`${resourceId}-listener`, {
+    public createListener = (
+        appName: string,
+        resourceId: string,
+        params: ListenerArgs
+    ): aws.lb.Listener => {
+        return new aws.lb.Listener(`${appName}-${resourceId}-listener`, {
             loadBalancerArn: params.loadBalancerArn,
             defaultActions: params.defaultActions,
             port: params.port,
@@ -71,10 +75,11 @@ export class LoadBalancerPlugin {
     }
 
     public createListenerRule = (
+        appName: string,
         resourceId: string,
         params: ListenerRuleArgs
     ): aws.lb.ListenerRule => {
-        return new aws.lb.ListenerRule(`${resourceId}-listenerRule`, {
+        return new aws.lb.ListenerRule(`${appName}-${resourceId}-listenerRule`, {
             listenerArn: params.listenerArn,
             actions: params.actions,
             conditions: params.conditions,
@@ -93,7 +98,7 @@ export class LoadBalancerPlugin {
         }
         switch (params.targetType) {
             case 'ip':
-                targetGroup = new aws.lb.TargetGroup(`${resourceId}-targetGroup`, {
+                targetGroup = new aws.lb.TargetGroup(`${appName}-${resourceId}-targetGroup`, {
                     name: `${appName}-${resourceId}`,
                     port: params.port,
                     protocol: params.protocol,
@@ -103,7 +108,7 @@ export class LoadBalancerPlugin {
                 })
                 break
             case 'instance':
-                targetGroup = new aws.lb.TargetGroup(`${resourceId}-targetGroup`, {
+                targetGroup = new aws.lb.TargetGroup(`${appName}-${resourceId}-targetGroup`, {
                     name: `${appName}-${resourceId}`,
                     port: params.port,
                     protocol: params.protocol,
@@ -112,7 +117,7 @@ export class LoadBalancerPlugin {
                 })
                 break
             case 'alb':
-                targetGroup = new aws.lb.TargetGroup(`${resourceId}-targetGroup`, {
+                targetGroup = new aws.lb.TargetGroup(`${appName}-${resourceId}-targetGroup`, {
                     name: `${appName}-${resourceId}`,
                     targetType: 'alb',
                     port: params.port,
@@ -123,7 +128,7 @@ export class LoadBalancerPlugin {
                 })
                 break
             case 'lambda':
-                targetGroup = new aws.lb.TargetGroup(`${resourceId}-targetGroup`, {
+                targetGroup = new aws.lb.TargetGroup(`${appName}-${resourceId}-targetGroup`, {
                     name: `${appName}-${resourceId}`,
                     targetType: 'lambda',
                     tags: params.tags,
@@ -136,10 +141,11 @@ export class LoadBalancerPlugin {
     }
 
     public attachTargetGroupToResource = (
+        appName: string,
         resourceId: string,
         params: TargetGroupAttachmentArgs
     ): aws.lb.TargetGroupAttachment => {
-        return new aws.lb.TargetGroupAttachment(`${resourceId}-targetGroupAttachment`, {
+        return new aws.lb.TargetGroupAttachment(`${appName}-${resourceId}-targetGroupAttachment`, {
             targetGroupArn: params.targetGroupArn,
             targetId: params.targetId,
             port: params.port,
