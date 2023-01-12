@@ -167,6 +167,17 @@ func OutputResources(result *core.CompilationResult, outDir string) (resourceCou
 	return
 }
 
+func GetLanguagesUsed(result *core.CompilationResult) map[core.ExecutableType]bool {
+	executableLangs := make(map[core.ExecutableType]bool)
+	for _, res := range result.Resources() {
+		switch r := res.(type) {
+		case *core.ExecutionUnit:
+			executableLangs[r.Executable.Type] = true
+		}
+	}
+	return executableLangs
+}
+
 func CloseTreeSitter(result *core.CompilationResult) {
 	for _, res := range result.Resources() {
 		if eu, ok := res.(*core.ExecutionUnit); ok {

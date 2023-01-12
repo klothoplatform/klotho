@@ -283,7 +283,7 @@ func run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	cli.CloseTreeSitter(result)
-
+	analyticsClient.AppendProperties(map[string]interface{}{"languages": cli.GetLanguagesUsed(result)})
 	analyticsClient.AppendProperties(map[string]interface{}{"resources": resourceCounts})
 	analyticsClient.Info("klotho compile complete")
 
