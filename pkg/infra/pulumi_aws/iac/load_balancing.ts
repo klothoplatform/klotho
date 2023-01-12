@@ -35,7 +35,7 @@ export class LoadBalancerPlugin {
         switch (params.loadBalancerType) {
             case 'application':
                 lb = new aws.lb.LoadBalancer(`${resourceId}-alb`, {
-                    name: `${appName}-${resourceId}-alb`,
+                    name: `${appName}-${resourceId}`,
                     internal: params.internal || false,
                     loadBalancerType: 'application',
                     securityGroups: params.securityGroups,
@@ -46,7 +46,7 @@ export class LoadBalancerPlugin {
                 break
             case 'network':
                 lb = new aws.lb.LoadBalancer(`${resourceId}-nlb`, {
-                    name: `${appName}-${resourceId}-nlb`,
+                    name: `${appName}-${resourceId}`,
                     internal: params.internal || true,
                     loadBalancerType: 'network',
                     subnets: params.subnets,
@@ -94,7 +94,7 @@ export class LoadBalancerPlugin {
         switch (params.targetType) {
             case 'ip':
                 targetGroup = new aws.lb.TargetGroup(`${resourceId}-targetGroup`, {
-                    name: `${appName}-${resourceId}-targetGroup`,
+                    name: `${appName}-${resourceId}`,
                     port: params.port,
                     protocol: params.protocol,
                     targetType: 'ip',
@@ -104,7 +104,7 @@ export class LoadBalancerPlugin {
                 break
             case 'instance':
                 targetGroup = new aws.lb.TargetGroup(`${resourceId}-targetGroup`, {
-                    name: `${appName}-${resourceId}-targetGroup`,
+                    name: `${appName}-${resourceId}`,
                     port: params.port,
                     protocol: params.protocol,
                     vpcId: params.vpcId,
@@ -113,7 +113,7 @@ export class LoadBalancerPlugin {
                 break
             case 'alb':
                 targetGroup = new aws.lb.TargetGroup(`${resourceId}-targetGroup`, {
-                    name: `${appName}-${resourceId}-targetGroup`,
+                    name: `${appName}-${resourceId}`,
                     targetType: 'alb',
                     port: params.port,
                     protocol: params.protocol,
@@ -124,7 +124,7 @@ export class LoadBalancerPlugin {
                 break
             case 'lambda':
                 targetGroup = new aws.lb.TargetGroup(`${resourceId}-targetGroup`, {
-                    name: `${appName}-${resourceId}-targetGroup`,
+                    name: `${appName}-${resourceId}`,
                     targetType: 'lambda',
                     tags: params.tags,
                 })
