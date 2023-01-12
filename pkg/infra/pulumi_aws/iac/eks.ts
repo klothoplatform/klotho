@@ -576,12 +576,12 @@ export class Eks {
             })
 
             if (needsGatewayLink) {
-                const lb = lib.lbPlugin.createLoadBalancer(execUnit, {
+                const lb = lib.lbPlugin.createLoadBalancer(lib.name, execUnit, {
                     subnets: lib.privateSubnetIds,
                     loadBalancerType: 'network',
                 })
 
-                const targetGroup = lib.lbPlugin.createTargetGroup(execUnit, {
+                const targetGroup = lib.lbPlugin.createTargetGroup(lib.name, execUnit, {
                     port: 3000,
                     protocol: 'TCP',
                     vpcId: lib.klothoVPC.id,
