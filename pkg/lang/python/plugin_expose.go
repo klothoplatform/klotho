@@ -22,6 +22,7 @@ type (
 	gatewaySpec struct {
 		FilePath   string
 		AppVarName string
+		gatewayId  string
 	}
 
 	gatewayRouteDefinition struct {
@@ -127,7 +128,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 	}
 
 	for spec, routes := range h.RoutesByGateway {
-		gw := core.NewGateway(spec.AppVarName)
+		gw := core.NewGateway(spec.gatewayId)
 		if existing := h.Result.Get(gw.Key()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
@@ -216,6 +217,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 		gwSpec := gatewaySpec{
 			FilePath:   f.Path(),
 			AppVarName: appVarName,
+			gatewayId:  cap.ID,
 		}
 
 		log = log.With(zap.String("var", appVarName))
