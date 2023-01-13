@@ -35,7 +35,7 @@ async function getCallParameters(paramKey, dispatcherMode) {
         }
         const result = await s3Client.send(new GetObjectCommand(bucketParams))
 
-        let parameters = ''
+        let parameters: any = ''
         if (result.Body) {
             parameters = await streamToString(result.Body as Readable)
             console.log(parameters)
@@ -50,16 +50,16 @@ async function getCallParameters(paramKey, dispatcherMode) {
             // normalize the parameter
             parameters = parameters[0]
             if (Array.isArray(parameters)) {
-                let paramPairs = _.toPairs(parameters)
+                let paramPairs = Object.entries(parameters)
                 paramPairs = paramPairs.map((x) => {
                     if (x[1].type == 'Buffer') {
-                        return [x[0], Buffer.from(x[1].data)]
+                        return [x[0], x[1].data]
                     } else {
                         return x
                     }
                 })
 
-                parameters = _.toPairs(paramPairs)
+                parameters = Object.entries(paramPairs)
             }
         }
 
