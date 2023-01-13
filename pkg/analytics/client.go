@@ -6,21 +6,24 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/klothoplatform/klotho/pkg/cli"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
-type Client struct {
-	UserId     string                 `json:"id"`
-	Event      string                 `json:"event"`
-	Source     []byte                 `json:"source,omitempty"`
-	Properties map[string]interface{} `json:"properties,omitempty"`
-}
-
-type LogLevel string
+type (
+	Client struct {
+		UserId     string                 `json:"id"`
+		Event      string                 `json:"event"`
+		Source     []byte                 `json:"source,omitempty"`
+		Properties map[string]interface{} `json:"properties,omitempty"`
+	}
+	ErrorHandler interface {
+		PrintErr(err error)
+	}
+	LogLevel string
+)
 
 var (
 	Panic LogLevel = "panic"
@@ -131,7 +134,7 @@ func (t *Client) Hash(value any) string {
 	return fmt.Sprintf("sha256:%x", h.Sum(nil))
 }
 
-func (t *Client) PanicHandler(err *error, errHandler cli.ErrorHandler) {
+func (t *Client) PanicHandler(err *error, errHandler ErrorHandler) {
 	if r := recover(); r != nil {
 		rerr, ok := r.(error)
 		if !ok {
