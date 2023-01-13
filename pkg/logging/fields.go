@@ -68,6 +68,10 @@ type astNodeField struct {
 	content string
 }
 
+func SilentAnalytics(message string) zap.Field {
+	return zap.String("silentAnalytics", message)
+}
+
 // DescribeKlothoFields is intended for unit testing expected log lines.
 //
 // This returns a map whose keys are the field keys, and whose values are descriptions of the Klotho-provided zap fields.

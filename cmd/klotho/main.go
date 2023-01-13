@@ -220,14 +220,16 @@ func run(cmd *cobra.Command, args []string) (err error) {
 
 	if appCfg.AppName == "" {
 		return errors.New("'app' required")
-	} else if len(appCfg.AppName) > 20 {
-		return fmt.Errorf("'app' must be less than 20 characters in length. 'app' was %s", cfg.appName)
+	} else if len(appCfg.AppName) > 25 {
+		zap.S().With(logging.SilentAnalytics(fmt.Sprintf("'app' must be less than 20 characters in length. 'app' was %s", cfg.appName)))
+		return fmt.Errorf("'app' must be less than 25 characters in length. 'app' was %s", cfg.appName)
 	}
-	match, err := regexp.MatchString(`^[A-Za-z0-9-_]+$`, cfg.appName)
+	match, err := regexp.MatchString(`^[\w-.:/]+$`, cfg.appName)
 	if err != nil {
 		return err
 	} else if !match {
-		return fmt.Errorf("'app' can only contain alphanumeric, -, and _. 'app' was %s", cfg.appName)
+		zap.S().With(logging.SilentAnalytics(fmt.Sprintf("'app' can only contain alphanumeric, -, and _. 'app' was %s", cfg.appName)))
+		return fmt.Errorf("'app' can only contain alphanumeric, -, _, ., :, and /. 'app' was %s", cfg.appName)
 	}
 
 	if appCfg.Provider == "" {

@@ -33,14 +33,14 @@ func ParseCapability(s string) (*Capability, error) {
 		}
 		id, _ := cap.Directives.String("id")
 		if id != "" {
-			if len(id) > 20 {
-				return cap, fmt.Errorf("'id' must be less than 20 characters in length. 'id' was %s", id)
+			if len(id) > 25 {
+				return cap, fmt.Errorf("'id' must be less than 25 characters in length. 'id' was %s", id)
 			}
-			match, err := regexp.MatchString(`^[A-Za-z0-9-_]+$`, id)
+			match, err := regexp.MatchString(`^[\w-_.:/]+$`, id)
 			if err != nil {
 				return cap, errors.Wrap(err, "could not parse 'id' directive")
 			} else if !match {
-				return cap, fmt.Errorf("'id' can only contain alphanumeric, -, and _. 'id' was %s", id)
+				return cap, fmt.Errorf("'id' can only contain alphanumeric, -, _, ., :, and /. 'id' was %s", id)
 			}
 		}
 		cap.ID = id
