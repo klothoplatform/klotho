@@ -178,6 +178,17 @@ func GetLanguagesUsed(result *core.CompilationResult) map[core.ExecutableType]bo
 	return executableLangs
 }
 
+func GetResourceTypeCount(result *core.CompilationResult) (resourceCounts map[string]map[string]int) {
+	resourceCounts = make(map[string]map[string]int)
+	for _, res := range result.Resources() {
+		if _, ok := resourceCounts[res.Key().Kind]; !ok {
+			resourceCounts[res.Key().Kind] = make(map[string]int)
+		}
+		resourceCounts[res.Key().Kind][res.Type()] = resourceCounts[res.Key().Kind][res.Type()] + 1
+	}
+	return
+}
+
 func CloseTreeSitter(result *core.CompilationResult) {
 	for _, res := range result.Resources() {
 		if eu, ok := res.(*core.ExecutionUnit); ok {
