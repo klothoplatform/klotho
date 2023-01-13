@@ -305,6 +305,7 @@ jobs:
             ts-typeorm
             ts-redis
             ts-eks
+            ts-eks-helm
         working-directory: ${{ matrix.app_to_test }}
       - name: run integ tests
         uses: klothoplatform/gh-action-retry@v1
