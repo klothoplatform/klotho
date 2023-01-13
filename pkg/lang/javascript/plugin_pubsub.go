@@ -24,7 +24,8 @@ type (
 		result *core.CompilationResult
 		deps   *core.Dependencies
 
-		emitters map[VarSpec]*emitterValue
+		emitters             map[VarSpec]*emitterValue
+		proxyGenerationCalls []proxyGenerationCall
 	}
 
 	emitterValue struct {
@@ -36,6 +37,12 @@ type (
 	emitterUsage struct {
 		filePath string
 		event    string
+		unitId   string
+	}
+
+	proxyGenerationCall struct {
+		filepath string
+		emitters []EmitterSubscriberProxyEntry
 	}
 )
 
@@ -61,20 +68,36 @@ func (p Pubsub) Transform(result *core.CompilationResult, deps *core.Dependencie
 			if value.Annotation.Capability.ID == "" {
 				errs.Append(core.NewCompilerError(value.File, value.Annotation, errors.New("'id' is required")))
 			}
-			resource := core.PubSub{
-				Path: spec.DefinedIn,
-				Name: value.Annotation.Capability.ID,
-			}
-			p.emitters[spec] = &emitterValue{
-				Resource: &resource,
+			if _, ok := p.emitters[spec]; !ok {
+				resource := core.PubSub{
+					Path: spec.DefinedIn,
+					Name: value.Annotation.Capability.ID,
+				}
+				p.emitters[spec] = &emitterValue{
+					Resource: &resource,
+				}
 			}
 		}
+
+		err := p.processFiles(unit)
+		if err != nil {
+			errs.Append(err)
+		}
+
 		varsByFile := vars.SplitByFile()
 		if len(vars) == 0 {
 			continue
 		}
 
-		err := p.rewriteEmitters(unit, varsByFile)
+		err = p.rewriteEmitters(unit, varsByFile)
+		if err != nil {
+			errs.Append(err)
+		}
+
+	}
+
+	for _, call := range p.proxyGenerationCalls {
+		err := p.generateProxies(call.filepath, call.emitters)
 		if err != nil {
 			errs.Append(err)
 		}
@@ -82,18 +105,6 @@ func (p Pubsub) Transform(result *core.CompilationResult, deps *core.Dependencie
 
 	for _, v := range p.emitters {
 		p.result.Add(v.Resource)
-	}
-
-	for _, res := range result.Resources() {
-		unit, ok := res.(*core.ExecutionUnit)
-		if !ok {
-			continue
-		}
-
-		err := p.processFiles(unit)
-		if err != nil {
-			errs.Append(err)
-		}
 	}
 
 	err := p.generateEmitterDefinitions()
@@ -161,11 +172,12 @@ func (p *Pubsub) processFiles(unit *core.ExecutionUnit) error {
 			if !ok {
 				continue
 			}
+
 			pEvents := p.findPublisherTopics(js, spec)
 			if len(pEvents) > 0 {
 				for _, event := range pEvents {
 					value.Resource.AddPublisher(event, unit.Key())
-					value.Publishers = append(value.Publishers, emitterUsage{filePath: f.Path(), event: event})
+					value.Publishers = append(value.Publishers, emitterUsage{filePath: f.Path(), event: event, unitId: unit.Name})
 					log.Debugf("Adding publisher to '%s'", event)
 				}
 				p.deps.Add(unit.Key(), value.Resource.Key())
@@ -175,7 +187,7 @@ func (p *Pubsub) processFiles(unit *core.ExecutionUnit) error {
 			if len(sEvents) > 0 {
 				for _, event := range sEvents {
 					value.Resource.AddSubscriber(event, unit.Key())
-					value.Subscribers = append(value.Subscribers, emitterUsage{filePath: f.Path(), event: event})
+					value.Subscribers = append(value.Subscribers, emitterUsage{filePath: f.Path(), event: event, unitId: unit.Name})
 					log.Debugf("Adding subscriber to '%s'", event)
 				}
 				p.deps.Add(value.Resource.Key(), unit.Key())
@@ -203,9 +215,10 @@ func (p *Pubsub) processFiles(unit *core.ExecutionUnit) error {
 			}
 		}
 
-		if err := p.generateProxies(f.Path(), emitters); err != nil {
-			errs.Append(err)
-		}
+		p.proxyGenerationCalls = append(p.proxyGenerationCalls, proxyGenerationCall{
+			filepath: f.Path(),
+			emitters: emitters,
+		})
 	}
 	return errs.ErrOrNil()
 }
@@ -214,6 +227,7 @@ func (p *Pubsub) generateProxies(filepath string, emitters []EmitterSubscriberPr
 	if len(emitters) == 0 {
 		return nil
 	}
+
 	tData := EmitterSubscriberProxy{
 		Path:    filepath,
 		Entries: emitters,
@@ -243,6 +257,7 @@ func (p *Pubsub) generateProxies(filepath string, emitters []EmitterSubscriberPr
 		if !ok {
 			continue
 		}
+
 		if existing := unit.Get(filepath); existing != nil {
 			existing := existing.(*core.SourceFile)
 			if bytes.Contains(existing.Program(), []byte(emitters[0].VarName)) {
@@ -360,7 +375,14 @@ func (p *Pubsub) generateEmitterDefinitions() (err error) {
 }
 
 func findTopics(f *core.SourceFile, spec VarSpec, query string, methodName string) (topics []string) {
-	varName := findVarName(f, spec)
+	relPath, _ := filepath.Rel(filepath.Dir(f.Path()), spec.DefinedIn)
+	newSpec := VarSpec{
+		DefinedIn:    relPath,
+		InternalName: spec.InternalName,
+		VarName:      spec.VarName,
+	}
+
+	varName := findVarName(f, newSpec)
 	if varName == "" {
 		return
 	}
