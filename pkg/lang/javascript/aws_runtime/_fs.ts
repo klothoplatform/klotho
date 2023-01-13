@@ -1,4 +1,3 @@
-const flatted = require('flatted')
 const _ = require('lodash')
 const path = require('path')
 import { Readable } from 'stream'
@@ -40,29 +39,30 @@ async function getCallParameters(paramKey, dispatcherMode) {
         if (result.Body) {
             parameters = await streamToString(result.Body as Readable)
         }
+        parameters = JSON.parse(parameters)
 
         if (isEmitter && Array.isArray(parameters)) {
             // Emitters only have 1 parameter - the runtime saves an array, so we
             // normalize the parameter
-            parameters = _.get(parameters, '[0]')
+            parameters = parameters[0]
             if (Array.isArray(parameters)) {
                 let paramPairs = _.toPairs(parameters)
                 paramPairs = paramPairs.map((x) => {
-                    if (_.get(x, '[1].type') == 'Buffer') {
-                        return [x[0], Buffer.from(_.get(x, '[1].data'))]
+                    if (x[1].type == 'Buffer') {
+                        return [x[0], Buffer.from(x[1].data)]
                     } else {
                         return x
                     }
                 })
 
-                parameters = _.fromPairs(paramPairs)
+                parameters = _.toPairs(paramPairs)
             }
         }
 
         return parameters || {}
     } catch (e) {
         console.error(e)
-        return
+        throw e
     }
 }
 exports.getCallParameters = getCallParameters
@@ -72,12 +72,12 @@ async function saveParametersToS3(paramsS3Key, params) {
         const bucketParams = {
             Bucket: payloadBucketPhysicalName,
             Key: paramsS3Key,
-            Body: flatted.stringify(params),
+            Body: JSON.stringify(params),
         }
         await s3Client.send(new PutObjectCommand(bucketParams))
     } catch (e) {
         console.error(e)
-        return
+        throw e
     }
 }
 exports.saveParametersToS3 = saveParametersToS3
@@ -90,9 +90,12 @@ async function s3_writeFile(...args) {
     }
     try {
         await s3Client.send(new PutObjectCommand(bucketParams))
-        console.log('Successfully uploaded object: ' + bucketParams.Bucket + '/' + bucketParams.Key)
+        console.debug(
+            'Successfully uploaded object: ' + bucketParams.Bucket + '/' + bucketParams.Key
+        )
     } catch (err) {
         console.log('Error', err)
+        throw err
     }
 }
 
@@ -110,6 +113,7 @@ async function s3_readFile(...args) {
         return ''
     } catch (err) {
         console.log('Error', err)
+        throw err
     }
 }
 
@@ -123,11 +127,12 @@ async function s3_readdir(path) {
         const data = await s3Client.send(new ListObjectsCommand(bucketParams))
         if (data.Contents) {
             const objectKeys: string[] = data.Contents.map((c) => c.Key!)
-            console.log('Success', objectKeys)
+            console.debug('Success', objectKeys)
             return objectKeys
         }
     } catch (err) {
         console.log('Error', err)
+        throw err
     }
 }
 
@@ -135,10 +140,11 @@ async function s3_exists(fpath) {
     const bucketParams = { Bucket: payloadBucketPhysicalName, Key: `${userBucketPath}/${path}` }
     try {
         const data = await s3Client.send(new HeadObjectCommand(bucketParams))
-        console.log('Success. Object deleted.', data)
+        console.debug('Success. Object deleted.', data)
         return data // For unit tests.
     } catch (err) {
         console.log('Error', err)
+        throw err
     }
 }
 
@@ -146,10 +152,11 @@ async function s3_deleteFile(fpath) {
     const bucketParams = { Bucket: payloadBucketPhysicalName, Key: `${userBucketPath}/${path}` }
     try {
         const data = await s3Client.send(new DeleteObjectCommand(bucketParams))
-        console.log('Success. Object deleted.', data)
+        console.debug('Success. Object deleted.', data)
         return data // For unit tests.
     } catch (err) {
         console.log('Error', err)
+        throw err
     }
 }
 
@@ -158,6 +165,6 @@ exports.fs = {
     readFile: s3_readFile,
     readdir: s3_readdir,
     access: s3_exists,
-    unlink: s3_deleteFile,
+    rm: s3_deleteFile,
 }
 exports.fs.promises = exports.fs
