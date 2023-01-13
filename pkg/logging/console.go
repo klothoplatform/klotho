@@ -154,6 +154,10 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 		f.AddTo(&bufferEncoder{b: fields})
 	}
 
+	if annotation == nil {
+		annotation = &core.Annotation{}
+	}
+
 	writeFields := func() {
 		if fields.Len() == 0 {
 			return
@@ -181,7 +185,7 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 	}
 
 	node := nodeField.n
-	if node == nil && annotation != nil {
+	if node == nil {
 		node = annotation.Node
 	}
 
