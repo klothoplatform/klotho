@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/cli_config"
 	"net/http"
 	"net/mail"
 	"os"
 
 	"github.com/fatih/color"
 	"github.com/google/uuid"
-	"github.com/klothoplatform/klotho/pkg/cli"
 	"go.uber.org/zap"
 )
 
@@ -90,7 +90,7 @@ func CreateUser(email string) error {
 		}
 	}
 
-	configPath, err := cli.KlothoConfigPath(analyticsFile)
+	configPath, err := cli_config.KlothoConfigPath(analyticsFile)
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/cli_config"
 	"os"
 
 	"github.com/klothoplatform/klotho/pkg/updater"
@@ -157,7 +158,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 
 	// create config directory if necessary, must run
 	// before calling analytics for first time
-	if err := CreateKlothoConfigPath(); err != nil {
+	if err := cli_config.CreateKlothoConfigPath(); err != nil {
 		zap.S().Warnf("failed to create .klotho directory: %v", err)
 	}
 

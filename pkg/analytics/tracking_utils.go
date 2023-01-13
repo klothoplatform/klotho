@@ -5,12 +5,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/cli_config"
 	"math"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/klothoplatform/klotho/pkg/cli"
 	"github.com/klothoplatform/klotho/pkg/core"
 )
 
@@ -74,7 +74,7 @@ func CompressFiles(input *core.InputFiles) ([]byte, error) {
 }
 
 func getTrackingFileContents(file string) (AnalyticsFile, error) {
-	configPath, err := cli.KlothoConfigPath(file)
+	configPath, err := cli_config.KlothoConfigPath(file)
 	result := AnalyticsFile{}
 
 	if err != nil {
