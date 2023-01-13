@@ -47,10 +47,11 @@ var cfg struct {
 }
 
 var hadWarnings = atomic.NewBool(false)
+var hadErrors = atomic.NewBool(false)
 
 func init() {
 	err := zap.RegisterEncoder("klotho-cli", func(zcfg zapcore.EncoderConfig) (zapcore.Encoder, error) {
-		return logging.NewConsoleEncoder(cfg.verbose, hadWarnings), nil
+		return logging.NewConsoleEncoder(cfg.verbose, hadWarnings, hadErrors), nil
 	})
 
 	if err != nil {
@@ -80,6 +81,7 @@ func main() {
 	flags.BoolVar(&cfg.version, "version", false, "Print the version")
 	flags.BoolVar(&cfg.update, "update", false, "update the cli to the latest version")
 	flags.StringVar(&cfg.login, "login", "", "Login to Klotho with email. For anonymous login, use 'local'")
+	_ = flags.MarkHidden("internalDebug")
 
 	err := root.Execute()
 	if err != nil {
@@ -88,6 +90,7 @@ func main() {
 		} else if !root.SilenceErrors {
 			zap.S().Errorf("%v", err)
 		}
+		zap.S().Error("Klotho compilation failed")
 		os.Exit(1)
 	}
 	if hadWarnings.Load() && cfg.strict {
@@ -264,8 +267,12 @@ func run(cmd *cobra.Command, args []string) (err error) {
 	analyticsClient.Info("klotho compiling")
 
 	result, err := compiler.Compile(input)
-	if err != nil {
-		errHandler.PrintErr(err)
+	if err != nil || hadErrors.Load() {
+		if err != nil {
+			errHandler.PrintErr(err)
+		} else {
+			err = errors.New("Failed run of klotho invocation")
+		}
 		analyticsClient.Error("klotho compiling failed")
 
 		cmd.SilenceErrors = true
