@@ -87,6 +87,8 @@ func main() {
 	if err != nil {
 		if cfg.internalDebug {
 			zap.S().Errorf("%+v", err)
+		} else if !root.SilenceErrors {
+			zap.S().Errorf("%v", err)
 		}
 		zap.S().Error("Klotho compilation failed")
 		os.Exit(1)
