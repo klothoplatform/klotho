@@ -254,7 +254,7 @@ func (p *persister) transformFS(original *core.SourceFile, modified *core.Source
 	}
 
 	result := &core.Persist{
-		Kind: core.PersistSecretKind,
+		Kind: core.PersistFileKind,
 		Name: cap.Capability.ID,
 	}
 
