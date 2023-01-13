@@ -123,9 +123,6 @@ jobs:
           - # issue #49
             app_to_test: ts-eks-helm
             mode: upgrade
-          - # issue #49
-            app_to_test: ts-eks-helm
-            mode: fresh
     steps:
       - uses: actions/checkout@v3
         with:
