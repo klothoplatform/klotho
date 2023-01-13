@@ -2,8 +2,10 @@ package cli
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/cli_config"
 	"os"
+	"regexp"
+
+	"github.com/klothoplatform/klotho/pkg/cli_config"
 
 	"github.com/klothoplatform/klotho/pkg/updater"
 
@@ -238,7 +240,18 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 
 	if appCfg.AppName == "" {
 		return errors.New("'app' required")
+	} else if len(appCfg.AppName) > 25 {
+		analyticsClient.Error("Klotho parameter check failed. 'app' must be less than 20 characters in length")
+		return fmt.Errorf("'app' must be less than 25 characters in length. 'app' was %s", cfg.appName)
 	}
+	match, err := regexp.MatchString(`^[\w-.:/]+$`, cfg.appName)
+	if err != nil {
+		return err
+	} else if !match {
+		analyticsClient.Error("Klotho parameter check failed. 'app' can only contain alphanumeric, -, _, ., :, and /.")
+		return fmt.Errorf("'app' can only contain alphanumeric, -, _, ., :, and /. 'app' was %s", cfg.appName)
+	}
+
 	if appCfg.Provider == "" {
 		return errors.New("'provider' required")
 	}
