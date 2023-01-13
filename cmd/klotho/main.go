@@ -21,9 +21,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var root = &cobra.Command{
-	Use:  "klotho [path to source]",
-	RunE: run,
+type KlothoMain struct {
+	UpdateStream     string
+	VersionQualifier string
+	PluginSetup      func(*cli.PluginSetBuilder) error
 }
 
 var klothoUpdater = updater.Updater{ServerURL: updater.DefaultServer, Stream: updater.DefaultStream}
@@ -64,6 +65,22 @@ const (
 )
 
 func main() {
+	km := KlothoMain{
+		UpdateStream: updater.DefaultStream,
+		PluginSetup: func(psb *cli.PluginSetBuilder) error {
+			return psb.AddAll()
+		},
+	}
+	km.main()
+}
+
+func (km KlothoMain) main() {
+
+	var root = &cobra.Command{
+		Use:  "klotho [path to source]",
+		RunE: km.run,
+	}
+
 	flags := root.Flags()
 
 	flags.BoolVarP(&cfg.verbose, "verbose", "v", false, "Verbose flag")
@@ -140,7 +157,7 @@ func readConfig(args []string) (appCfg config.Application, err error) {
 	return
 }
 
-func run(cmd *cobra.Command, args []string) (err error) {
+func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	// color.NoColor is set if we're not a terminal that
 	// supports color
 	if !color.NoColor && !cfg.disableLogo {
@@ -186,28 +203,36 @@ func run(cmd *cobra.Command, args []string) (err error) {
 	defer analyticsClient.PanicHandler(&err, errHandler)
 
 	if cfg.version {
-		zap.S().Infof("Version: %s-%s-%s", Version, updater.OS, updater.Arch)
+		var versionQualifier string
+		if km.VersionQualifier != "" {
+			versionQualifier = fmt.Sprintf("(%s)", km.VersionQualifier)
+		}
+		zap.S().Infof("Version: %s-%s-%s%s", Version, updater.OS, updater.Arch, versionQualifier)
 		return nil
+	}
+	klothoName := "klotho"
+	if km.VersionQualifier != "" {
+		klothoName += " " + km.VersionQualifier
 	}
 
 	// if update is specified do the update in place
 	if cfg.update {
 		if err := klothoUpdater.Update(Version); err != nil {
-			analyticsClient.Error("klotho failed to update")
+			analyticsClient.Error(klothoName + " failed to update")
 			return err
 		}
-		analyticsClient.Info("klotho was updated successfully")
+		analyticsClient.Info(klothoName + " was updated successfully")
 		return nil
 	}
 
 	// check daily for new updates and notify users if found
 	needsUpdate, err := klothoUpdater.CheckUpdate(Version)
 	if err != nil {
-		analyticsClient.Error(fmt.Sprintf("klotho failed to check for updates: %v", err))
+		analyticsClient.Error(fmt.Sprintf(klothoName+"failed to check for updates: %v", err))
 		zap.S().Warnf("failed to check for updates: %v", err)
 	}
 	if needsUpdate {
-		analyticsClient.Info("klotho update is available")
+		analyticsClient.Info(klothoName + "update is available")
 		zap.L().Info("new update is available, please run klotho --update to get the latest version")
 	}
 
@@ -233,7 +258,7 @@ func run(cmd *cobra.Command, args []string) (err error) {
 		"app":      appCfg.AppName,
 	})
 
-	analyticsClient.Info("klotho pre-compile")
+	analyticsClient.Info(klothoName + "pre-compile")
 
 	input, err := input.ReadOSDir(appCfg, cfg.config)
 	if err != nil {
@@ -254,8 +279,8 @@ func run(cmd *cobra.Command, args []string) (err error) {
 	plugins := &cli.PluginSetBuilder{
 		Cfg: &appCfg,
 	}
+	err = km.PluginSetup(plugins)
 
-	err = plugins.AddAll()
 	if err != nil {
 		return err
 	}
@@ -264,7 +289,7 @@ func run(cmd *cobra.Command, args []string) (err error) {
 		Plugins: plugins.Plugins(),
 	}
 
-	analyticsClient.Info("klotho compiling")
+	analyticsClient.Info(klothoName + "compiling")
 
 	result, err := compiler.Compile(input)
 	if err != nil || hadErrors.Load() {
@@ -273,7 +298,7 @@ func run(cmd *cobra.Command, args []string) (err error) {
 		} else {
 			err = errors.New("Failed run of klotho invocation")
 		}
-		analyticsClient.Error("klotho compiling failed")
+		analyticsClient.Error(klothoName + "compiling failed")
 
 		cmd.SilenceErrors = true
 		cmd.SilenceUsage = true
@@ -293,7 +318,7 @@ func run(cmd *cobra.Command, args []string) (err error) {
 	analyticsClient.AppendProperties(map[string]interface{}{"resource_types": cli.GetResourceTypeCount(result)})
 	analyticsClient.AppendProperties(map[string]interface{}{"languages": cli.GetLanguagesUsed(result)})
 	analyticsClient.AppendProperties(map[string]interface{}{"resources": resourceCounts})
-	analyticsClient.Info("klotho compile complete")
+	analyticsClient.Info(klothoName + "compile complete")
 
 	return nil
 }
