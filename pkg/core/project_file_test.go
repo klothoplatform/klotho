@@ -144,14 +144,16 @@ var testLang = SourceLanguage{
 	CapabilityFinder: &testCapabilityFinder{},
 }
 
-func (t *testCapabilityFinder) FindAllCapabilities(sf *SourceFile) ([]Annotation, error) {
+func (t *testCapabilityFinder) FindAllCapabilities(sf *SourceFile) (AnnotationMap, error) {
 	body := string(sf.Program())
-	annots := []Annotation{
-		{Capability: &annotation.Capability{
-			Name:       annotation.ExecutionUnitCapability,
-			ID:         body,
-			Directives: annotation.Directives{"id": body},
-		}},
+	annots := AnnotationMap{
+		AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: body}: &Annotation{
+			Capability: &annotation.Capability{
+				Name:       annotation.ExecutionUnitCapability,
+				ID:         body,
+				Directives: annotation.Directives{"id": body},
+			},
+		},
 	}
 	return annots, nil
 }

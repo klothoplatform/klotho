@@ -1,6 +1,7 @@
 package aws_runtime
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -92,12 +93,7 @@ var dockerfileFargate []byte
 
 var sequelizeReplaceRE = regexp.MustCompile(`new (\w+\.|\b)Sequelize\(`)
 
-func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot core.Annotation, kind core.PersistKind, content string) (javascript.TransformResult, error) {
-	result := javascript.TransformResult{
-		NewFileContent:       content,
-		NewAnnotationContent: annot.Node.Content(file.Program()),
-	}
-
+func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotation, kind core.PersistKind) error {
 	importModule := ""
 	switch kind {
 	case core.PersistFileKind:
@@ -113,31 +109,39 @@ func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot core.Annotati
 	case core.PersistRedisNodeKind:
 		importModule = "redis_node"
 	default:
-		return result, fmt.Errorf("could not get runtime import file name for persist type: %v", kind)
+		return fmt.Errorf("could not get runtime import file name for persist type: %v", kind)
 	}
 
-	var err error
-	result.NewFileContent, err = javascript.EnsureRuntimeImport(file.Path(), importModule, importModule, result.NewFileContent)
+	err := javascript.EnsureRuntimeImportFile(importModule, importModule, file)
 	if err != nil {
-		return result, err
+		return err
 	}
 
 	switch kind {
 	case core.PersistORMKind:
 		cfg := r.Config.GetPersisted(annot.Capability.ID, kind)
 		if cfg.Type == "cockroachdb_serverless" {
-			importLine := `const cockroachdbSequelize = require('sequelize-cockroachdb');`
-			if !strings.Contains(result.NewFileContent, importLine) {
-				result.NewFileContent = importLine + "\n" + result.NewFileContent
-			}
-			oldNodeContent := result.NewAnnotationContent
-			result.NewAnnotationContent = sequelizeReplaceRE.ReplaceAllString(oldNodeContent, "new cockroachdbSequelize.Sequelize(")
+			oldNodeContent := annot.Node.Content(file.Program())
+			newNodeContent := sequelizeReplaceRE.ReplaceAllString(oldNodeContent, "new cockroachdbSequelize.Sequelize(")
 
-			result.NewFileContent = strings.ReplaceAll(result.NewFileContent, oldNodeContent, result.NewAnnotationContent)
+			if err := file.ReplaceNodeContent(annot.Node, newNodeContent); err != nil {
+				return err
+			}
+
+			importLine := `const cockroachdbSequelize = require('sequelize-cockroachdb');`
+			if !strings.Contains(string(file.Program()), importLine) {
+				buf := new(bytes.Buffer)
+				buf.WriteString(importLine)
+				buf.WriteRune('\n')
+				buf.Write(file.Program())
+				if err := file.Reparse(buf.Bytes()); err != nil {
+					return err
+				}
+			}
 		}
 	}
 
-	return result, nil
+	return nil
 }
 
 func (r *AwsRuntime) AddKvRuntimeFiles(unit *core.ExecutionUnit) error {

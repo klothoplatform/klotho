@@ -69,7 +69,13 @@ jobs:
           set -x
           dirs_with_tests="$(
             for d in $(find * -type d -maxdepth 0 || printf ''); do
-              jq &>/dev/null -e '.scripts."integ-test"' $d/package.json && echo "$d"
+              TESTABLE_APP=$(jq &>/dev/null -e '.scripts."integ-test"' $d/package.json && echo "$d")
+              if grep -s "^integ-test:" "${d}/Makefile"; then
+                TESTABLE_APP=$d
+              fi
+              if [[ -n "${TESTABLE_APP}" ]]; then
+                echo $TESTABLE_APP
+              fi
             done
             exit 0 # otherwise, will fail if the last dir failed the jq match
           )"
@@ -123,9 +129,6 @@ jobs:
           - # issue #49
             app_to_test: ts-eks-helm
             mode: upgrade
-          - # issue #49
-            app_to_test: ts-eks-helm
-            mode: fresh
     steps:
       - uses: actions/checkout@v3
         with:
@@ -142,6 +145,9 @@ jobs:
           mkdir $RUNNER_TEMP/bin
           echo $RUNNER_TEMP/bin
           echo $RUNNER_TEMP/bin >> $GITHUB_PATH
+      - name: get sample app language
+        id: get_language
+        run: echo language=$(echo "${{ matrix.app_to_test }}" | cut -d "-" -f 1) >> $GITHUB_OUTPUT
       - name: Install Public Klotho (old version)
         if: matrix.mode == 'upgrade'
         run: |
@@ -169,6 +175,7 @@ jobs:
         env:
           KLOTHO_LOGIN: ${{ inputs.klotho-login }}
       - name: typescript compilation
+        if: steps.get_language.outputs.language == 'ts'
         working-directory: ${{ matrix.app_to_test }}
         run: |
           npm install
@@ -241,7 +248,7 @@ jobs:
             pulumi_out="$(pulumi -C compiled -s "$STACK_NAME" stack output --json)"
             echo "$pulumi_out" | jq .
             API_ENDPOINT="$(echo "$pulumi_out" | jq -er '.apiUrls[0]')"
-            echo "API_ENDPOINT=$API_ENDPOINT" >> $GITHUB_ENV # used by npm run integ-test below
+            echo "API_ENDPOINT=$API_ENDPOINT" >> $GITHUB_ENV # used by integ-test runners below
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -286,7 +293,7 @@ jobs:
             pulumi_out="$(pulumi -C compiled -s "$STACK_NAME" stack output --json)"
             echo "$pulumi_out" | jq .
             API_ENDPOINT="$(echo "$pulumi_out" | jq -er '.apiUrls[0]')"
-            echo "API_ENDPOINT=$API_ENDPOINT" >> $GITHUB_ENV # used by npm run integ-test below
+            echo "API_ENDPOINT=$API_ENDPOINT" >> $GITHUB_ENV # used by integ-test runners below
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -308,13 +315,22 @@ jobs:
             ts-typeorm
             ts-redis
             ts-eks
+            ts-eks-helm
         working-directory: ${{ matrix.app_to_test }}
-      - name: run integ tests
+      - name: TypeScript - run integ tests
+        if: steps.get_language.outputs.language == 'ts'
         uses: klothoplatform/gh-action-retry@v1
         with:
           description: npm run integ-test
           working-directory: ${{ matrix.app_to_test }}
           script: npm run integ-test
+      - name: Python - run integ tests
+        if: steps.get_language.outputs.language == 'py'
+        uses: klothoplatform/gh-action-retry@v1
+        with:
+          description: make integ-test
+          working-directory: ${{ matrix.app_to_test }}
+          script: make install integ-test
       - name: wait a bit for logs to propagate
         if: always()
         run: sleep 15

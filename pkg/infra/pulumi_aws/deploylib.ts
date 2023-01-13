@@ -100,7 +100,7 @@ export class CloudCCLib {
         private sharedRepo: awsx.ecr.Repository,
         private stage: string,
         private region: Region,
-        private name: string,
+        public readonly name: string,
         private namespace: string,
         private datadogEnabled: boolean,
         physicalPayloadsBucketName: string,

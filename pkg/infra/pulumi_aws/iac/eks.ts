@@ -53,7 +53,7 @@ export interface EksExecUnit {
 export interface HelmChart {
     Name: string
     Directory: string
-    Values: Value[]
+    Values: Value[] | null
 }
 
 interface FargateProfileSelector {
@@ -385,7 +385,7 @@ export class Eks {
             this.setupExecUnit(lib, unit)
         }
         for (const chart of charts) {
-            this.setupKlothoHelmChart(lib, chart.Name, chart.Values)
+            this.setupKlothoHelmChart(lib, chart.Name, chart.Values || [])
         }
     }
 
@@ -576,12 +576,12 @@ export class Eks {
             })
 
             if (needsGatewayLink) {
-                const lb = lib.lbPlugin.createLoadBalancer(execUnit, {
+                const lb = lib.lbPlugin.createLoadBalancer(lib.name, execUnit, {
                     subnets: lib.privateSubnetIds,
                     loadBalancerType: 'network',
                 })
 
-                const targetGroup = lib.lbPlugin.createTargetGroup(execUnit, {
+                const targetGroup = lib.lbPlugin.createTargetGroup(lib.name, execUnit, {
                     port: 3000,
                     protocol: 'TCP',
                     vpcId: lib.klothoVPC.id,
@@ -589,7 +589,7 @@ export class Eks {
                 })
                 this.execUnitToTargetGroupArn.set(execUnit, targetGroup.arn)
 
-                lib.lbPlugin.createListener(execUnit, {
+                lib.lbPlugin.createListener(lib.name, execUnit, {
                     port: 80,
                     protocol: 'TCP',
                     loadBalancerArn: lb.arn,
@@ -633,16 +633,21 @@ export class Eks {
         const config = new pulumi.Config('aws')
         const profile = config.get('profile')
 
-        let args = ['eks', 'get-token', '--cluster-name', this.cluster.name, '--profile', profile]
-        const env: ExecEnvVar[] = [
-            {
-                name: 'KUBERNETES_EXEC_INFO',
-                value: `{"apiVersion": "client.authentication.k8s.io/v1beta1"}`,
-            },
+        let args = [
+            'eks',
+            'get-token',
+            '--cluster-name',
+            this.cluster.name,
+            '--region',
+            this.region,
         ]
+        if (profile) {
+            args.push('--profile', profile)
+        }
+        console.log(profile)
         return pulumi
-            .all([args, env, this.cluster.endpoint, this.cluster.certificateAuthorities[0].data])
-            .apply(([tokenArgs, envvars, clusterEndpoint, certData]) => {
+            .all([args, this.cluster.endpoint, this.cluster.certificateAuthorities[0].data])
+            .apply(([tokenArgs, clusterEndpoint, certData]) => {
                 return {
                     apiVersion: 'v1',
                     clusters: [
@@ -673,7 +678,6 @@ export class Eks {
                                     apiVersion: 'client.authentication.k8s.io/v1beta1',
                                     command: 'aws',
                                     args: tokenArgs,
-                                    env: envvars,
                                 },
                             },
                         },

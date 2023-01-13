@@ -112,7 +112,7 @@ export = async () => {
     {{range $unit := .ExecUnits -}}
 
     {{- if eq $unit.Type "fargate"}}
-    cloudLib.createEcsService("{{$unit.Name}}",{{jsonPretty $unit.Params | indent 4}} as Partial<awsx.ecs.Container>, {{- if $unit.EnvironmentVariables}} , {{jsonPretty $unit.EnvironmentVariables | indent 4}} {{end}});
+    cloudLib.createEcsService("{{$unit.Name}}",{{jsonPretty $unit.Params | indent 4}} as Partial<awsx.ecs.Container>, {{jsonPretty $unit.EnvironmentVariables | indent 4}});
     {{else if eq $unit.Type "eks"}}
     eksUnits.push({name: "{{$unit.Name}}", params: {{jsonPretty $unit.Params | indent 4}}, helmOptions: {{jsonPretty $unit.HelmOptions | indent 4}}, {{- if $unit.EnvironmentVariables}} envVars: {{jsonPretty $unit.EnvironmentVariables | indent 4}} {{end}}})
     {{else if eq $unit.Type "apprunner"}}
@@ -173,8 +173,16 @@ export = async () => {
     {{range $event := .PubSubs}}
     cloudLib.createTopic(
         "{{$event.Path}}", "{{$event.VarName}}", "{{$event.EventName}}",
+        {{if $event.Publishers }}
         {{json (keyNames $event.Publishers)}},
+        {{else}}
+        [],
+        {{end}}
+        {{if $event.Subscribers }}
         {{json (keyNames $event.Subscribers)}},
+        {{else}}
+        [],
+        {{end}}
     )
     {{- end}}
 
