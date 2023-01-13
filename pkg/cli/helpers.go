@@ -184,7 +184,7 @@ func GetResourceTypeCount(result *core.CompilationResult) (resourceCounts map[st
 		if _, ok := resourceCounts[res.Key().Kind]; !ok {
 			resourceCounts[res.Key().Kind] = make(map[string]int)
 		}
-		resourceCounts[res.Key().Kind][res.Type()] = resourceCounts[res.Key().Kind][res.Type()] + 1
+		resourceCounts[res.Key().Kind][res.Type()]++
 	}
 	return
 }
