@@ -200,7 +200,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 
 		}
 
-		var appName string
+		var appVarName string
 		app, err := h.findFastAPIAppDefinition(capNode, f)
 		if err != nil {
 			return nil, core.NewCompilerError(f, capNode, err)
@@ -210,23 +210,23 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 			continue
 		}
 
-		appName = app.Identifier.Content(f.Program())
+		appVarName = app.Identifier.Content(f.Program())
 		h.RootPath = app.RootPath
 
 		gwSpec := gatewaySpec{
 			FilePath:   f.Path(),
-			AppVarName: cap.ID,
+			AppVarName: appVarName,
 		}
 
-		log = log.With(zap.String("var", appName))
+		log = log.With(zap.String("var", appVarName))
 
-		localRoutes, err := h.findFastAPIRoutesForVar(f, appName, "")
+		localRoutes, err := h.findFastAPIRoutesForVar(f, appVarName, "")
 		if err != nil {
 			return nil, core.NewCompilerError(f, capNode, err)
 		}
 
 		if len(localRoutes) > 0 {
-			log.Sugar().Infof("Found %d route(s) on app '%s'", len(localRoutes), appName)
+			log.Sugar().Infof("Found %d route(s) on app '%s'", len(localRoutes), appVarName)
 			h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], localRoutes...)
 		}
 
