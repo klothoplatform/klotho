@@ -1,4 +1,4 @@
-package klothocommon
+package cli
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/updater"
 
-	"github.com/klothoplatform/klotho/pkg/cli"
 	"github.com/klothoplatform/klotho/pkg/input"
 
 	"github.com/fatih/color"
@@ -25,7 +24,7 @@ type KlothoMain struct {
 	UpdateStream     string
 	Version          string
 	VersionQualifier string
-	PluginSetup      func(*cli.PluginSetBuilder) error
+	PluginSetup      func(*PluginSetBuilder) error
 }
 
 var klothoUpdater = updater.Updater{ServerURL: updater.DefaultServer, Stream: updater.DefaultStream}
@@ -152,13 +151,13 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	// color.NoColor is set if we're not a terminal that
 	// supports color
 	if !color.NoColor && !cfg.disableLogo {
-		color.New(color.FgHiGreen).Println(cli.Logo)
+		color.New(color.FgHiGreen).Println(Logo)
 		fmt.Println()
 	}
 
 	// create config directory if necessary, must run
 	// before calling analytics for first time
-	if err := cli.CreateKlothoConfigPath(); err != nil {
+	if err := CreateKlothoConfigPath(); err != nil {
 		zap.S().Warnf("failed to create .klotho directory: %v", err)
 	}
 
@@ -186,7 +185,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	defer z.Sync() // nolint:errcheck
 	zap.ReplaceGlobals(z)
 
-	errHandler := cli.ErrorHandler{
+	errHandler := ErrorHandler{
 		InternalDebug: cfg.internalDebug,
 		Verbose:       cfg.verbose,
 	}
@@ -257,17 +256,17 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	if cfg.ast {
-		if err = cli.OutputAST(input, appCfg.OutDir); err != nil {
+		if err = OutputAST(input, appCfg.OutDir); err != nil {
 			return errors.Wrap(err, "could not output helpers")
 		}
 	}
 	if cfg.caps {
-		if err = cli.OutputCapabilities(input, appCfg.OutDir); err != nil {
+		if err = OutputCapabilities(input, appCfg.OutDir); err != nil {
 			return errors.Wrap(err, "could not output helpers")
 		}
 	}
 
-	plugins := &cli.PluginSetBuilder{
+	plugins := &PluginSetBuilder{
 		Cfg: &appCfg,
 	}
 	err = km.PluginSetup(plugins)
@@ -300,14 +299,14 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		analyticsClient.UploadSource(input)
 	}
 
-	resourceCounts, err := cli.OutputResources(result, appCfg.OutDir)
+	resourceCounts, err := OutputResources(result, appCfg.OutDir)
 	if err != nil {
 		return err
 	}
 
-	cli.CloseTreeSitter(result)
-	analyticsClient.AppendProperties(map[string]interface{}{"resource_types": cli.GetResourceTypeCount(result)})
-	analyticsClient.AppendProperties(map[string]interface{}{"languages": cli.GetLanguagesUsed(result)})
+	CloseTreeSitter(result)
+	analyticsClient.AppendProperties(map[string]interface{}{"resource_types": GetResourceTypeCount(result)})
+	analyticsClient.AppendProperties(map[string]interface{}{"languages": GetLanguagesUsed(result)})
 	analyticsClient.AppendProperties(map[string]interface{}{"resources": resourceCounts})
 	analyticsClient.Info(klothoName + "compile complete")
 
