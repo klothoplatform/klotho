@@ -193,7 +193,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		Verbose:       cfg.verbose,
 	}
 
-	// defer analyticsClient.PanicHandler(&err, errHandler)
+	defer analyticsClient.PanicHandler(&err, errHandler)
 
 	if cfg.version {
 		var versionQualifier string
