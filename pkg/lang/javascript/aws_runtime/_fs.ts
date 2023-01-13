@@ -38,8 +38,12 @@ async function getCallParameters(paramKey, dispatcherMode) {
         let parameters = ''
         if (result.Body) {
             parameters = await streamToString(result.Body as Readable)
+            console.log(parameters)
         }
-        parameters = JSON.parse(parameters)
+        if (parameters != '') {
+            parameters = JSON.parse(parameters)
+        }
+        console.log(parameters)
 
         if (isEmitter && Array.isArray(parameters)) {
             // Emitters only have 1 parameter - the runtime saves an array, so we
