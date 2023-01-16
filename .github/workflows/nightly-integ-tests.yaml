@@ -7,7 +7,7 @@ on:
 name: nightly integration tests
 concurrency: integ-tests
 jobs:
-  javascript:
+  all-tests:
     uses: ./.github/workflows/run-integ-tests.yaml
     with:
       test-app-repo: klothoplatform/sample-apps

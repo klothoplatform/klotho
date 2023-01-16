@@ -70,7 +70,7 @@ jobs:
           dirs_with_tests="$(
             for d in $(find * -type d -maxdepth 0 || printf ''); do
               TESTABLE_APP=$(jq &>/dev/null -e '.scripts."integ-test"' $d/package.json && echo "$d")
-              if grep -s "^integ-test:" "${d}/Makefile"; then
+              if grep -s -q "^integ-test:" "${d}/Makefile"; then
                 TESTABLE_APP=$d
               fi
               if [[ -n "${TESTABLE_APP}" ]]; then
