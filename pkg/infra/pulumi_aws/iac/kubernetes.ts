@@ -71,9 +71,22 @@ export const createService = (
     k8sProvider: k8s.Provider,
     appLabels: { [key: string]: string },
     annotations,
+    stickinessTimeout: number,
     parent,
     dependsOn
 ): k8s.core.v1.Service => {
+    let sessionAffinityFields = {}
+    if (stickinessTimeout > 0) {
+        sessionAffinityFields = {
+            sessionAffinity: 'ClientIP',
+            sessionAffinityConfig: {
+                clientIP: {
+                    timeoutSeconds: stickinessTimeout,
+                },
+            },
+        }
+    }
+
     return new k8s.core.v1.Service(
         execUnit.replace('-', '').toLowerCase(),
         {
@@ -91,6 +104,7 @@ export const createService = (
                     },
                 ],
                 selector: appLabels,
+                ...sessionAffinityFields,
             },
         },
         { provider: k8sProvider, parent, dependsOn }
