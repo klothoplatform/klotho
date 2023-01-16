@@ -34,6 +34,7 @@ export interface EksExecUnitArgs {
         memoryUtilization?: number // Differs from ephemeral-storage resource request (stable in k8s 1.25)
         maxReplicas?: number
     }
+    stickinessTimeout?: number
 }
 
 export interface HelmOptions {
@@ -546,7 +547,7 @@ export class Eks {
                     dependsOn: [deployment],
                 })
             }
-            const service = this.createService(execUnit, lib.klothoVPC, args.nodeType, deployment)
+            const service = this.createService(execUnit, lib.klothoVPC, args, deployment)
             serviceName = service.metadata.name
             dependencyParent = service
         }
@@ -941,7 +942,7 @@ export class Eks {
     public createService(
         execUnit: string,
         vpc: awsx.ec2.Vpc,
-        nodeType: 'fargate' | 'node',
+        args: EksExecUnitArgs,
         parent,
         dependsOn: (pulumi.Resource | pulumi.Output<pulumi.CustomResource[]>)[] = [],
         serviceDiscoveryDomain?: pulumi.Output<string>,
@@ -976,8 +977,9 @@ export class Eks {
         return k8s.createService(
             execUnit,
             this.provider,
-            generateLabels(execUnit, nodeType === 'fargate'),
+            generateLabels(execUnit, args.nodeType === 'fargate'),
             metadataAnnotations,
+            args.stickinessTimeout ? args.stickinessTimeout : 0,
             parent,
             dependsOn
         )
