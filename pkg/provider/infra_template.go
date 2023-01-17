@@ -55,6 +55,7 @@ type (
 		Type                 string
 		MemReqMB             int
 		KeepWarm             bool
+		NetworkPlacement     string
 		Schedules            []Schedule
 		HelmOptions          config.HelmChartOptions
 		Params               config.InfraParams

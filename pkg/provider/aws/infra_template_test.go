@@ -44,7 +44,7 @@ func TestInfraTemplateModification(t *testing.T) {
 						{Name: "gw", Routes: []provider.Route{{ExecUnitName: "", Path: "/", Verb: ""}}, Targets: map[string]core.GatewayTarget(nil)},
 					},
 					ExecUnits: []provider.ExecUnit{
-						{Name: "unit", Type: "eks", MemReqMB: 0, KeepWarm: false, Schedules: []provider.Schedule(nil), Params: config.InfraParams{}},
+						{Name: "unit", Type: "eks", NetworkPlacement: "private", MemReqMB: 0, KeepWarm: false, Schedules: []provider.Schedule(nil), Params: config.InfraParams{}},
 					},
 				},
 				UseVPC: true,
@@ -65,14 +65,14 @@ func TestInfraTemplateModification(t *testing.T) {
 			cfg: config.Application{
 				Provider: "aws",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"unit": {Type: eks, HelmChartOptions: &config.HelmChartOptions{Install: true}},
+					"unit": {Type: eks, HelmChartOptions: &config.HelmChartOptions{Install: true}, NetworkPlacement: "public"},
 				},
 			},
 			dependencies: []core.Dependency{},
 			data: TemplateData{
 				TemplateData: provider.TemplateData{
 					ExecUnits: []provider.ExecUnit{
-						{Name: "unit", Type: "eks", MemReqMB: 0, KeepWarm: false, Schedules: []provider.Schedule(nil),
+						{Name: "unit", Type: "eks", NetworkPlacement: "public", MemReqMB: 0, KeepWarm: false, Schedules: []provider.Schedule(nil),
 							Params: config.InfraParams{}, HelmOptions: config.HelmChartOptions{Install: true}},
 					},
 				},
