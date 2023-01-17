@@ -34,7 +34,7 @@ type (
 		Subscribers []core.ResourceKey
 		Path        string
 		EventName   string
-		VarName     string
+		Name        string
 		Params      config.InfraParams
 	}
 

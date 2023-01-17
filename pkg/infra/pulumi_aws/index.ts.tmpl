@@ -172,7 +172,7 @@ export = async () => {
 
     {{range $event := .PubSubs}}
     cloudLib.createTopic(
-        "{{$event.Path}}", "{{$event.VarName}}", "{{$event.EventName}}",
+        "{{$event.Path}}", "{{$event.Name}}", "{{$event.EventName}}",
         {{if $event.Publishers }}
         {{json (keyNames $event.Publishers)}},
         {{else}}

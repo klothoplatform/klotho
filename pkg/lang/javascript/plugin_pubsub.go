@@ -79,9 +79,10 @@ func (p Pubsub) Transform(result *core.CompilationResult, deps *core.Dependencie
 			}
 		}
 
-		err := p.processFiles(unit)
+		err := p.findProxiesNeeded(unit)
 		if err != nil {
 			errs.Append(err)
+			continue
 		}
 
 		varsByFile := vars.SplitByFile()
@@ -161,7 +162,7 @@ func (p *Pubsub) rewriteFileEmitters(f *core.SourceFile, vars VarDeclarations) e
 	return errs.ErrOrNil()
 }
 
-func (p *Pubsub) processFiles(unit *core.ExecutionUnit) error {
+func (p *Pubsub) findProxiesNeeded(unit *core.ExecutionUnit) error {
 	var errs multierr.Error
 	for _, f := range unit.Files() {
 		var emitters []EmitterSubscriberProxyEntry
@@ -375,14 +376,7 @@ func (p *Pubsub) generateEmitterDefinitions() (err error) {
 }
 
 func findTopics(f *core.SourceFile, spec VarSpec, query string, methodName string) (topics []string) {
-	relPath, _ := filepath.Rel(filepath.Dir(f.Path()), spec.DefinedIn)
-	newSpec := VarSpec{
-		DefinedIn:    relPath,
-		InternalName: spec.InternalName,
-		VarName:      spec.VarName,
-	}
-
-	varName := findVarName(f, newSpec)
+	varName := findVarName(f, spec)
 	if varName == "" {
 		return
 	}
