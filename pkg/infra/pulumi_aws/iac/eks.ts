@@ -45,6 +45,7 @@ export interface HelmOptions {
 
 export interface EksExecUnit {
     name: string
+    network_placement?: string
     params: EksExecUnitArgs
     helmOptions?: HelmOptions
     envVars?: any
@@ -143,6 +144,11 @@ export const DefaultEksClusterOptions: EksClusterOptions = {
     createNodeGroup: true,
 }
 
+interface NodeGroupSpecs {
+    diskSize?: number
+    instanceType?: string
+}
+
 const KUBE_SYSTEM_NAMESPACE = 'kube-system'
 const CLOUD_MAP_NAMESPACE = 'cloud-map-mcs-system'
 // This is temporary until we expand EKS functionality
@@ -172,7 +178,9 @@ export class Eks {
     private pluginFargateProfile: aws.eks.FargateProfile
     private execUnitFargateProfile: aws.eks.FargateProfile
 
-    private nodeGroups: Map<string, aws.eks.NodeGroup> = new Map<string, aws.eks.NodeGroup>()
+    private privateNodeGroups: Map<string, aws.eks.NodeGroup> = new Map<string, aws.eks.NodeGroup>()
+    private publicNodeGroups: Map<string, aws.eks.NodeGroup> = new Map<string, aws.eks.NodeGroup>()
+
     private clusterSet: pulumi_k8s.yaml.ConfigFile
 
     private cluster: aws.eks.Cluster
@@ -180,6 +188,7 @@ export class Eks {
     private k8sAdminRole: aws.iam.Role
     private provider: pulumi_k8s.Provider
     private serverSideApplyProvider: pulumi_k8s.Provider
+    private readonly lib: CloudCCLib
 
     public readonly clusterName: string
     public readonly region: string
@@ -193,6 +202,7 @@ export class Eks {
         charts: HelmChart[],
         existingCluster?: aws.eks.GetClusterResult
     ) {
+        this.lib = lib
         this.options = options
         const config = new pulumi.Config('aws')
         this.region = config.get('region')!
@@ -200,11 +210,21 @@ export class Eks {
         const securityGroupIds = lib.sgs
 
         this.clusterName = clusterName
+
+        let clusterSubnetIds: pulumi.Input<pulumi.Input<string>[]> = lib.privateSubnetIds
+        if (execUnits.filter((unit) => unit.network_placement === 'public').length > 0) {
+            clusterSubnetIds = pulumi
+                .all([lib.publicSubnetIds || [], lib.privateSubnetIds || []])
+                .apply(([publicIds, privateIds]) => {
+                    return [...publicIds, ...privateIds]
+                })
+        }
+
         if (!existingCluster) {
             this.k8sAdminRole = createAdminRole(clusterName)
             const args: ClusterArgs = {
                 vpcConfig: {
-                    subnetIds: pulumi.output(vpc.privateSubnetIds),
+                    subnetIds: clusterSubnetIds,
                     securityGroupIds,
                 },
                 roleArn: this.k8sAdminRole.arn,
@@ -241,7 +261,7 @@ export class Eks {
         this.oidcProvider = this.setupOidc()
 
         if (options.initializePluginsOnFargate) {
-            const podExecutionRole = createPodExecutionRole(`${clusterName}-plugin`)
+            const podExecutionRole = this.createPodExecutionRole(`${clusterName}-plugin`)
             const selectors = [
                 {
                     namespace: KUBE_SYSTEM_NAMESPACE,
@@ -256,7 +276,7 @@ export class Eks {
             this.patchCoreDNSDeployment()
         }
 
-        this.createNodeGroups(execUnits, vpc.privateSubnetIds)
+        this.createNodeGroups(execUnits)
 
         if (options.enableFargateLogging) {
             this.enableFargateLogging()
@@ -366,7 +386,7 @@ export class Eks {
             }
         }
 
-        const podExecutionRole = createPodExecutionRole(`${clusterName}-default`)
+        const podExecutionRole = this.createPodExecutionRole(`${clusterName}-default`)
         const selectors = [
             {
                 namespace: 'default',
@@ -390,16 +410,32 @@ export class Eks {
         }
     }
 
-    private createNodeGroups(
-        execUnits: EksExecUnit[],
-        privateSubnetIds: Promise<pulumi.Output<string>[]> | string[] | pulumi.Output<string>[]
-    ) {
-        let nodeGroupSpecs: Map<string, { diskSize?: number }> = new Map<
-            string,
-            { diskSize?: number }
-        >()
+    private determineNodeGroupSpecs(execUnits: EksExecUnit[]): Map<string, NodeGroupSpecs> {
+        let nodeGroupSpecs: Map<string, NodeGroupSpecs> = new Map<string, NodeGroupSpecs>()
+        const defaultDiskSize = 20
+        const defaultInstanceType = 't3.medium'
+        let diskSizeMin = defaultDiskSize
 
-        let diskSizeMin = 20
+        if (execUnits.length == 0) {
+            return nodeGroupSpecs
+        }
+
+        for (const unit of execUnits) {
+            if (
+                unit.params.nodeType === 'fargate' ||
+                unit.params.nodeConstraints?.instanceType !== undefined
+            ) {
+                continue
+            }
+            if (unit.params.nodeConstraints?.diskSize !== undefined) {
+                diskSizeMin =
+                    diskSizeMin < unit.params.nodeConstraints.diskSize
+                        ? unit.params.nodeConstraints.diskSize
+                        : diskSizeMin
+            }
+        }
+
+        console.log(diskSizeMin)
         for (const unit of execUnits) {
             if (unit.params.nodeType === 'fargate') {
                 continue
@@ -408,63 +444,94 @@ export class Eks {
                 const instanceType = unit.params.nodeConstraints.instanceType
                 const diskSize = unit.params.nodeConstraints.diskSize
 
-                if (instanceType === undefined && diskSize !== undefined) {
-                    diskSizeMin = diskSize
-                } else if (instanceType) {
-                    const currentDiskSize = nodeGroupSpecs.get(instanceType)?.diskSize
+                if (instanceType) {
+                    const key = instanceType
+                    const currentDiskSize = nodeGroupSpecs.get(key)?.diskSize
+
                     if (!currentDiskSize && diskSize) {
-                        nodeGroupSpecs.set(instanceType, {
-                            ...nodeGroupSpecs[instanceType],
-                            diskSize,
+                        nodeGroupSpecs.set(key, {
+                            ...nodeGroupSpecs[key],
+                            diskSize: diskSize > diskSizeMin ? diskSize : diskSizeMin,
+                            instanceType,
                         })
                     } else if (currentDiskSize && diskSize) {
-                        if (currentDiskSize < diskSize) {
-                            nodeGroupSpecs.set(instanceType, {
-                                ...nodeGroupSpecs[instanceType],
-                                diskSize,
-                            })
-                        }
+                        nodeGroupSpecs.set(key, {
+                            ...nodeGroupSpecs[key],
+                            diskSize: diskSize > currentDiskSize ? diskSize : currentDiskSize,
+                            instanceType,
+                        })
                     } else if (!currentDiskSize && !diskSize) {
-                        nodeGroupSpecs.set(instanceType, {
-                            ...nodeGroupSpecs.get(instanceType),
+                        nodeGroupSpecs.set(key, {
+                            ...nodeGroupSpecs.get(key),
                             diskSize: diskSizeMin,
+                            instanceType,
                         })
                     }
                 }
             }
         }
-
         // if there are no node group specs, create our default node group as t3.medium
         nodeGroupSpecs.size === 0
-            ? nodeGroupSpecs.set('t3.medium', { diskSize: diskSizeMin })
+            ? nodeGroupSpecs.set(defaultInstanceType, { diskSize: diskSizeMin })
             : null
 
-        for (const instanceType of nodeGroupSpecs.keys()) {
-            let diskSize = nodeGroupSpecs.get(instanceType)!.diskSize
-            if (diskSize === undefined || diskSize < diskSizeMin) {
-                diskSize = diskSizeMin
-            }
+        return nodeGroupSpecs
+    }
 
-            const nodeGroupName = instanceType.replace('.', '-')
-            const nodeRole = createNodeIamRole(nodeGroupName)
-            // Add sessions manager role
-            const nodeGroup = new aws.eks.NodeGroup(`${nodeGroupName}-NodeGroup`, {
-                clusterName: this.cluster.name,
-                nodeRoleArn: nodeRole.arn,
-                subnetIds: privateSubnetIds,
-                scalingConfig: {
-                    desiredSize: 2,
-                    maxSize: 2,
-                    minSize: 1,
-                },
-                updateConfig: {
-                    maxUnavailable: 1,
-                },
-                diskSize,
-                instanceTypes: [instanceType],
-            })
-            this.nodeGroups.set(instanceType, nodeGroup)
-        }
+    private createNodeGroups(execUnits: EksExecUnit[]) {
+        const privateNodeGroupSpecs = this.determineNodeGroupSpecs(
+            execUnits.filter((unit) => unit.network_placement !== 'public')
+        )
+        const publicNodeGroupSpecs = this.determineNodeGroupSpecs(
+            execUnits.filter((unit) => unit.network_placement === 'public')
+        )
+
+        privateNodeGroupSpecs.forEach((specs, name) => {
+            const nodeGroup = this.createNodeGroup(
+                `private-${name}`.replace('.', '-'),
+                this.lib.privateSubnetIds,
+                specs,
+                { network_placement: 'private' }
+            )
+            this.privateNodeGroups.set(name, nodeGroup)
+        })
+
+        publicNodeGroupSpecs.forEach((specs, name) => {
+            const nodeGroup = this.createNodeGroup(
+                `public-${name}`.replace('.', '-'),
+                this.lib.publicSubnetIds,
+                specs,
+                { network_placement: 'public' }
+            )
+            this.publicNodeGroups.set(name, nodeGroup)
+        })
+    }
+
+    private createNodeGroup(
+        nodeGroupName: string,
+        subnetIds: Promise<pulumi.Output<string>[]> | string[],
+        specs: NodeGroupSpecs,
+        labels?: pulumi.Input<{
+            [key: string]: pulumi.Input<string>
+        }>
+    ): aws.eks.NodeGroup {
+        const nodeRole = this.createNodeIamRole(nodeGroupName)
+        return new aws.eks.NodeGroup(`${nodeGroupName}-NodeGroup`, {
+            clusterName: this.cluster.name,
+            nodeRoleArn: nodeRole.arn,
+            subnetIds,
+            scalingConfig: {
+                desiredSize: 2,
+                maxSize: 2,
+                minSize: 1,
+            },
+            updateConfig: {
+                maxUnavailable: 1,
+            },
+            diskSize: specs.diskSize!,
+            instanceTypes: [specs.instanceType!],
+            labels,
+        })
     }
 
     public setupKlothoHelmChart(lib: CloudCCLib, name: string, values: Value[]) {
@@ -501,12 +568,18 @@ export class Eks {
         )) {
             additionalEnvVars.push({ name, value })
         }
-        let nodeSelector: { [key: string]: pulumi.Output<string> } | undefined = undefined
+        let nodeSelector: { [key: string]: pulumi.Output<string> | string } = {}
+
+        nodeSelector['network_placement'] = unit.network_placement!
         if (args.nodeConstraints?.instanceType) {
-            nodeSelector = {
-                'eks.amazonaws.com/nodegroup': this.nodeGroups.get(
-                    args.nodeConstraints.instanceType
-                )!.nodeGroupName,
+            if (unit.network_placement === 'public') {
+                nodeSelector['eks.amazonaws.com/nodegroup'] = this.publicNodeGroups.get(
+                    `${args.nodeConstraints.instanceType}`
+                )!.nodeGroupName
+            } else {
+                nodeSelector['eks.amazonaws.com/nodegroup'] = this.privateNodeGroups.get(
+                    `${args.nodeConstraints.instanceType}`
+                )!.nodeGroupName
             }
         }
 
@@ -645,7 +718,6 @@ export class Eks {
         if (profile) {
             args.push('--profile', profile)
         }
-        console.log(profile)
         return pulumi
             .all([args, this.cluster.endpoint, this.cluster.certificateAuthorities[0].data])
             .apply(([tokenArgs, clusterEndpoint, certData]) => {
@@ -1034,69 +1106,69 @@ export class Eks {
             [sleep, ...dependsOn]
         )
     }
-}
 
-export const createPodExecutionRole = (execUnit: string): aws.iam.Role => {
-    const podExecutionRole = new aws.iam.Role(`${execUnit}-fargate`, {
-        assumeRolePolicy: {
-            Version: '2012-10-17',
-            Statement: [
-                {
-                    Action: 'sts:AssumeRole',
-                    Principal: {
-                        Service: 'eks-fargate-pods.amazonaws.com',
+    private createPodExecutionRole(roleName: string): aws.iam.Role {
+        const podExecutionRole = new aws.iam.Role(`${roleName}-fargate`, {
+            assumeRolePolicy: {
+                Version: '2012-10-17',
+                Statement: [
+                    {
+                        Action: 'sts:AssumeRole',
+                        Principal: {
+                            Service: 'eks-fargate-pods.amazonaws.com',
+                        },
+                        Effect: 'Allow',
+                        Sid: '',
                     },
-                    Effect: 'Allow',
-                    Sid: '',
-                },
-            ],
-        },
-        managedPolicyArns: ['arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy'],
-    })
+                ],
+            },
+            managedPolicyArns: ['arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy'],
+        })
 
-    new aws.iam.RolePolicy(`${execUnit}-fargateloggingpolicy`, {
-        role: podExecutionRole,
-        policy: JSON.stringify({
-            Version: '2012-10-17',
-            Statement: [
-                {
-                    Effect: 'Allow',
-                    Action: [
-                        'logs:CreateLogStream',
-                        'logs:CreateLogGroup',
-                        'logs:DescribeLogStreams',
-                        'logs:PutLogEvents',
-                    ],
-                    Resource: '*',
-                },
-            ],
-        }),
-    })
-    return podExecutionRole
-}
-
-export const createNodeIamRole = (clusterName: string): aws.iam.Role => {
-    return new aws.iam.Role(`${clusterName}-EksNodeRole`, {
-        assumeRolePolicy: {
-            Version: '2012-10-17',
-            Statement: [
-                {
-                    Action: 'sts:AssumeRole',
-                    Principal: {
-                        Service: 'ec2.amazonaws.com',
+        new aws.iam.RolePolicy(`${roleName}-fargateloggingpolicy`, {
+            role: podExecutionRole,
+            policy: JSON.stringify({
+                Version: '2012-10-17',
+                Statement: [
+                    {
+                        Effect: 'Allow',
+                        Action: [
+                            'logs:CreateLogStream',
+                            'logs:CreateLogGroup',
+                            'logs:DescribeLogStreams',
+                            'logs:PutLogEvents',
+                        ],
+                        Resource: '*',
                     },
-                    Effect: 'Allow',
-                    Sid: '',
-                },
+                ],
+            }),
+        })
+        return podExecutionRole
+    }
+
+    private createNodeIamRole(name: string): aws.iam.Role {
+        return new aws.iam.Role(`${this.clusterName}-${name}-EksNodeRole`, {
+            assumeRolePolicy: {
+                Version: '2012-10-17',
+                Statement: [
+                    {
+                        Action: 'sts:AssumeRole',
+                        Principal: {
+                            Service: 'ec2.amazonaws.com',
+                        },
+                        Effect: 'Allow',
+                        Sid: '',
+                    },
+                ],
+            },
+            managedPolicyArns: [
+                'arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy',
+                'arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly',
+                'arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy',
+                'arn:aws:iam::aws:policy/AWSCloudMapFullAccess',
             ],
-        },
-        managedPolicyArns: [
-            'arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy',
-            'arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly',
-            'arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy',
-            'arn:aws:iam::aws:policy/AWSCloudMapFullAccess',
-        ],
-    })
+        })
+    }
 }
 
 export const createAdminRole = (clusterName: string): aws.iam.Role => {

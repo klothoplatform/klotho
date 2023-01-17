@@ -31,6 +31,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 				Name:                 res.Name,
 				Type:                 res.Type(),
 				EnvironmentVariables: res.EnvironmentVariables,
+				NetworkPlacement:     cfg.NetworkPlacement,
 			}
 
 			buildImage := true

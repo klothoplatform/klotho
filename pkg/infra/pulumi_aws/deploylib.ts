@@ -452,11 +452,19 @@ export class CloudCCLib {
         }
     }
 
-    createDockerLambda(execUnitName, baseArgs: Partial<aws.lambda.FunctionArgs>, env_vars?: any[]) {
+    createDockerLambda(
+        execUnitName,
+        baseArgs: Partial<aws.lambda.FunctionArgs>,
+        network_placement: 'private' | 'public',
+        env_vars?: any[]
+    ) {
         const image = this.sharedRepo.buildAndPushImage({
             context: `./${execUnitName}`,
             extraOptions: ['--platform', 'linux/amd64', '--quiet'],
         })
+
+        const subnetIds =
+            network_placement === 'public' ? this.publicSubnetIds : this.privateSubnetIds
 
         const lambdaRole = this.createRoleForName(execUnitName)
         const lambdaConfig: aws.lambda.FunctionArgs = {
@@ -472,7 +480,7 @@ export class CloudCCLib {
             vpcConfig: this.createVPC
                 ? {
                       securityGroupIds: this.sgs,
-                      subnetIds: this.privateSubnetIds,
+                      subnetIds,
                   }
                 : undefined,
         }
@@ -1572,7 +1580,12 @@ export class CloudCCLib {
         this.execUnitToVpcLink.set(execUnitName, vpcLink)
     }
 
-    createEcsService(execUnitName, baseArgs: Partial<awsx.ecs.Container>, envVars: any) {
+    createEcsService(
+        execUnitName,
+        baseArgs: Partial<awsx.ecs.Container>,
+        network_placement: 'public' | 'private',
+        envVars: any
+    ) {
         if (this.cluster == undefined) {
             this.createEcsCluster()
         }
@@ -1660,13 +1673,15 @@ export class CloudCCLib {
             policyArn: 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy',
         })
 
+        const subnets =
+            network_placement === 'public' ? this.publicSubnetIds : this.privateSubnetIds
         const service = new awsx.ecs.FargateService(
             `${execUnitName}-service`,
             {
                 cluster: this.cluster,
                 taskDefinition: task,
                 desiredCount: 1,
-                subnets: this.privateSubnetIds,
+                subnets,
                 securityGroups: this.sgs,
                 serviceRegistries: {
                     registryArn: discoveryService.arn,
