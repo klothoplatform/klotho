@@ -45,6 +45,13 @@ func (fl *fieldListener) Write(entry zapcore.Entry, fields []zapcore.Field) erro
 	allFields = append(allFields, fields...)
 
 	safeLogsStr := logging.SanitizeFields(allFields, fl.client.Hash)
+
+	for _, f := range allFields {
+		if f.Key == logging.EntryMessageField {
+			safeLogsStr = entry.Message
+		}
+	}
+
 	switch entry.Level {
 	case zapcore.DebugLevel:
 		fl.client.Debug(safeLogsStr)

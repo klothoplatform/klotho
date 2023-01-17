@@ -34,6 +34,7 @@ var (
 )
 
 var datadogLogLevel = "_logLevel"
+var datadogStatus = "status"
 
 func NewClient(properties map[string]interface{}) (*Client, error) {
 	result, err := getTrackingFileContents(analyticsFile)
@@ -81,16 +82,20 @@ func (t *Client) Debug(event string) {
 
 func (t *Client) Warn(event string) {
 	t.Properties[datadogLogLevel] = Warn
+	t.Properties[datadogStatus] = Warn
 	t.track(event)
 }
 
 func (t *Client) Error(event string) {
 	t.Properties[datadogLogLevel] = Error
+	t.Properties[datadogStatus] = Error
 	t.track(event)
 }
 
 func (t *Client) Panic(event string) {
 	t.Properties[datadogLogLevel] = Panic
+	// Using error since datadog does not support panic for the reserved status field
+	t.Properties[datadogStatus] = Error
 	t.track(event)
 }
 
