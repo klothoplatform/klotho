@@ -428,7 +428,7 @@ func Test_addEnvVarToDeployment(t *testing.T) {
 	tests := []struct {
 		name    string
 		file    string
-		envVars []string
+		envVars []core.EnvironmentVariable
 		want    result
 		wantErr bool
 	}{
@@ -451,14 +451,15 @@ spec:
       containers:
       - name: nginx
         image: nginx:1.14.2`,
-			envVars: []string{"SEQUELIZEDB_PERSIST_ORM_CONNECTION"},
+			envVars: []core.EnvironmentVariable{{Name: "SEQUELIZEDB_PERSIST_ORM_CONNECTION"}},
 			want: result{
 				values: []Value{
 					{
-						ExecUnitName: "testUnit",
-						Kind:         "Deployment",
-						Type:         string(EnvironmentVariableTransformation),
-						Key:          "SEQUELIZEDBPERSISTORMCONNECTION",
+						ExecUnitName:        "testUnit",
+						Kind:                "Deployment",
+						Type:                string(EnvironmentVariableTransformation),
+						Key:                 "SEQUELIZEDBPERSISTORMCONNECTION",
+						EnvironmentVariable: core.EnvironmentVariable{Name: "SEQUELIZEDB_PERSIST_ORM_CONNECTION"},
 					},
 				},
 				newFile: `apiVersion: apps/v1
@@ -545,13 +546,13 @@ func Test_addEnvVarToPod(t *testing.T) {
 	tests := []struct {
 		name    string
 		file    string
-		envVars []string
+		envVars []core.EnvironmentVariable
 		want    result
 		wantErr bool
 	}{
 		{
 			name:    "Basic Pod",
-			envVars: []string{"SEQUELIZEDB_PERSIST_ORM_CONNECTION"},
+			envVars: []core.EnvironmentVariable{{Name: "SEQUELIZEDB_PERSIST_ORM_CONNECTION"}},
 			file: `apiVersion: v1
 kind: Pod
 metadata:
@@ -563,10 +564,11 @@ spec:
 			want: result{
 				values: []Value{
 					{
-						ExecUnitName: "testUnit",
-						Kind:         "Pod",
-						Type:         string(EnvironmentVariableTransformation),
-						Key:          "SEQUELIZEDBPERSISTORMCONNECTION",
+						ExecUnitName:        "testUnit",
+						Kind:                "Pod",
+						Type:                string(EnvironmentVariableTransformation),
+						Key:                 "SEQUELIZEDBPERSISTORMCONNECTION",
+						EnvironmentVariable: core.EnvironmentVariable{Name: "SEQUELIZEDB_PERSIST_ORM_CONNECTION"},
 					},
 				},
 				newFile: `apiVersion: v1
@@ -934,55 +936,6 @@ spec:
 			}
 			name := testUnit.getServiceName()
 			assert.Equal(tt.want, name)
-		})
-	}
-}
-
-func Test_generateEnvVarsForPersist(t *testing.T) {
-	tests := []struct {
-		name     string
-		unit     *core.ExecutionUnit
-		resource core.CloudResource
-		values   []string
-	}{
-		{
-			name:     "Wrong dependencies",
-			unit:     &core.ExecutionUnit{Name: "main", ExecType: "exec_unit"},
-			resource: &core.Persist{Name: "file", Kind: core.PersistFileKind},
-			values:   []string{},
-		},
-		{
-			name:     "orm dependency",
-			unit:     &core.ExecutionUnit{Name: "main", ExecType: "exec_unit"},
-			resource: &core.Persist{Name: "orm", Kind: core.PersistORMKind},
-			values:   []string{"ORM_PERSIST_ORM_CONNECTION"},
-		},
-		{
-			name:     "redis node dependency",
-			unit:     &core.ExecutionUnit{Name: "main", ExecType: "exec_unit"},
-			resource: &core.Persist{Name: "redisNode", Kind: core.PersistRedisNodeKind},
-			values:   []string{"REDISNODE_PERSIST_REDIS_NODE_HOST", "REDISNODE_PERSIST_REDIS_NODE_PORT"},
-		},
-		{
-			name:     "redis cluster dependency",
-			unit:     &core.ExecutionUnit{Name: "main", ExecType: "exec_unit"},
-			resource: &core.Persist{Name: "redisCluster", Kind: core.PersistRedisClusterKind},
-			values:   []string{"REDISCLUSTER_PERSIST_REDIS_CLUSTER_HOST", "REDISCLUSTER_PERSIST_REDIS_CLUSTER_PORT"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			assert := assert.New(t)
-
-			results := &core.CompilationResult{}
-			results.Add(tt.resource)
-
-			deps := &core.Dependencies{}
-			deps.Add(tt.unit.Key(), tt.resource.Key())
-			envVars := generateEnvVars(results, deps, tt.unit.Name)
-
-			assert.Equal(tt.values, envVars)
 		})
 	}
 }

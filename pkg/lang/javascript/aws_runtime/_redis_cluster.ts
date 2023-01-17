@@ -2,7 +2,11 @@
 'use strict'
 
 // The cluster client requires root nodes and defaults to be able to properly connect and get redirected to new slots in memorydb
-export function getParams(dbName: string, params: { [key: string]: any }): dict {
+export function getParams(
+    hostEnvVarName: string,
+    portEnvVarName: string,
+    params: { [key: string]: any }
+): dict {
     const socketDefaults = {}
     if (params['defaults']?.socket) {
         socketDefaults = params['defaults'].socket
@@ -12,8 +16,8 @@ export function getParams(dbName: string, params: { [key: string]: any }): dict 
         rootNodes: [
             {
                 socket: {
-                    host: `${process.env[`${dbName.toUpperCase()}_PERSIST_REDIS_CLUSTER_HOST`]}`,
-                    port: `${process.env[`${dbName.toUpperCase()}_PERSIST_REDIS_CLUSTER_PORT`]}`,
+                    host: `${process.env[hostEnvVarName]}`,
+                    port: `${process.env[portEnvVarName]}`,
                     tls: true,
                 },
             },
@@ -22,8 +26,8 @@ export function getParams(dbName: string, params: { [key: string]: any }): dict 
             ...params['defaults'],
             socket: {
                 ...socketDefaults,
-                host: `${process.env[`${dbName.toUpperCase()}_PERSIST_REDIS_CLUSTER_HOST`]}`,
-                port: `${process.env[`${dbName.toUpperCase()}_PERSIST_REDIS_CLUSTER_PORT`]}`,
+                host: `${process.env[hostEnvVarName]}`,
+                port: `${process.env[portEnvVarName]}`,
                 tls: true,
             },
         },

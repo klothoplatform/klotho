@@ -13,9 +13,16 @@ import * as awsx from '@pulumi/awsx'
 import * as k8s from '@pulumi/kubernetes'
 import { v4 as uuidv4 } from "uuid";
 import {CloudCCLib, kloConfig} from './deploylib'
-import {createStaticS3Website} from './iac/static_s3_website'
 import {EksExecUnitArgs, EksExecUnit} from './iac/eks'
 import {CockroachDB} from './iac/cockroachdb'
+
+{{- if .StaticUnits}}
+import {createStaticS3Website} from './iac/static_s3_website'
+{{end}}
+
+{{- if .CloudfrontDistributions}}
+import { Cloudfront } from './iac/cloudfront'
+{{end}}
 
 export = async () => {
     const minimumNodeVersion = 16
@@ -105,11 +112,11 @@ export = async () => {
     {{range $unit := .ExecUnits -}}
 
     {{- if eq $unit.Type "fargate"}}
-    cloudLib.createEcsService("{{$unit.Name}}",{{jsonPretty $unit.Params | indent 4}} as Partial<awsx.ecs.Container>);
+    cloudLib.createEcsService("{{$unit.Name}}",{{jsonPretty $unit.Params | indent 4}} as Partial<awsx.ecs.Container>, {{jsonPretty $unit.EnvironmentVariables | indent 4}});
     {{else if eq $unit.Type "eks"}}
-    eksUnits.push({name: "{{$unit.Name}}", params: {{jsonPretty $unit.Params | indent 4}}, helmOptions: {{jsonPretty $unit.HelmOptions | indent 4}}})
+    eksUnits.push({name: "{{$unit.Name}}", params: {{jsonPretty $unit.Params | indent 4}}, helmOptions: {{jsonPretty $unit.HelmOptions | indent 4}}, {{- if $unit.EnvironmentVariables}} envVars: {{jsonPretty $unit.EnvironmentVariables | indent 4}} {{end}}})
     {{else if eq $unit.Type "apprunner"}}
-    arUrls.push(cloudLib.createDockerAppRunner("{{$unit.Name}}"))
+    arUrls.push(cloudLib.createDockerAppRunner("{{$unit.Name}}", {{- if $unit.EnvironmentVariables}} , {{jsonPretty $unit.EnvironmentVariables | indent 4}} {{end}}))
     {{else}}
     cloudLib.createDockerLambda("{{$unit.Name}}", {{jsonPretty $unit.Params | indent 4}} as Partial<aws.lambda.FunctionArgs> {{- if $unit.EnvironmentVariables}} , {{jsonPretty $unit.EnvironmentVariables | indent 4}} {{end}});
     {{end}}
@@ -136,12 +143,13 @@ export = async () => {
 
     {{range $unit := .StaticUnits}}
     staticUnitUrls.push(createStaticS3Website(
-    "{{$unit.Name}}", "{{$unit.IndexDocument}}", {{jsonPretty $unit.Params | indent 4}})
-    )
+    "{{$unit.Name}}", "{{$unit.IndexDocument}}", "{{$unit.ContentDeliveryNetwork.Id}}", cloudLib
+    ))
     {{end}}
 
-    const apprunnerUrls = arUrls.filter(url => { return url != null});;
     const frontendUrls = staticUnitUrls;
+
+    const apprunnerUrls = arUrls.filter(url => { return url != null});;
 
 
     const gatewayUrls: any[] = [];
@@ -158,12 +166,23 @@ export = async () => {
 
     const apiUrls = gatewayUrls;
 
+    {{- if .CloudfrontDistributions}}
+        new Cloudfront(cloudLib, {{jsonPretty .CloudfrontDistributions | indent 4}})
+    {{end}}
 
     {{range $event := .PubSubs}}
     cloudLib.createTopic(
         "{{$event.Path}}", "{{$event.VarName}}", "{{$event.EventName}}",
+        {{if $event.Publishers }}
         {{json (keyNames $event.Publishers)}},
+        {{else}}
+        [],
+        {{end}}
+        {{if $event.Subscribers }}
         {{json (keyNames $event.Subscribers)}},
+        {{else}}
+        [],
+        {{end}}
     )
     {{- end}}
 

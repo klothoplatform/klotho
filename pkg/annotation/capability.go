@@ -1,6 +1,7 @@
 package annotation
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/pkg/errors"
@@ -30,7 +31,19 @@ func ParseCapability(s string) (*Capability, error) {
 		if err != nil {
 			return cap, errors.Wrap(err, "could not parse directives")
 		}
-		cap.ID, _ = cap.Directives.String("id")
+		id, _ := cap.Directives.String("id")
+		if id != "" {
+			if len(id) > 25 {
+				return cap, fmt.Errorf("'id' must be less than 25 characters in length. 'id' was %s", id)
+			}
+			match, err := regexp.MatchString(`^[\w-_.:/]+$`, id)
+			if err != nil {
+				return cap, errors.Wrap(err, "could not parse 'id' directive")
+			} else if !match {
+				return cap, fmt.Errorf("'id' can only contain alphanumeric, -, _, ., :, and /. 'id' was %s", id)
+			}
+		}
+		cap.ID = id
 	}
 
 	return cap, nil

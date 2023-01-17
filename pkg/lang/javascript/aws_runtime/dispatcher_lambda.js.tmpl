@@ -14,7 +14,7 @@ const lumigo = require('@lumigo/tracer')({ token: process.env['LUMIGO_KEY'] });
 {{end}}
 const inflight = new Set();
 /**
- * Use this to attach background processes that need to be awaited before the lambda exists.
+ * Use this to attach background processes that need to be awaited before the lambda exits.
  * This is especially useful for cleanup tasks or to bridge between synchronous APIs.
  */
 function addInflight(p) {

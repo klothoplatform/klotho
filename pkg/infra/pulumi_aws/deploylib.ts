@@ -9,22 +9,15 @@ import * as fs from 'fs'
 import * as requestRetry from 'requestretry'
 import * as crypto from 'crypto'
 import { setupElasticacheCluster } from './iac/elasticache'
-
 import * as analytics from './iac/analytics'
 
 import { LoadBalancerPlugin } from './iac/load_balancing'
-import {
-    DefaultEksClusterOptions,
-    Eks,
-    EksExecUnit,
-    EksExecUnitArgs,
-    HelmChart,
-    plugins as EksPlugins,
-} from './iac/eks'
+import { DefaultEksClusterOptions, Eks, EksExecUnit, HelmChart } from './iac/eks'
 import { setupMemoryDbCluster } from './iac/memorydb'
 
 export enum Resource {
     exec_unit = 'exec_unit',
+    static_unit = 'static_unit',
     gateway = 'gateway',
     kv = 'persist_kv',
     fs = 'persist_fs',
@@ -33,6 +26,11 @@ export enum Resource {
     redis_node = 'persist_redis_node',
     redis_cluster = 'persist_redis_cluster',
     pubsub = 'pubsub',
+}
+
+export interface ResourceKey {
+    Kind: string
+    Name: string
 }
 
 interface ResourceInfo {
@@ -73,6 +71,9 @@ export class CloudCCLib {
     execUnitToPolicyStatements = new Map<string, aws.iam.PolicyStatement[]>()
     execUnitToImage = new Map<string, pulumi.Output<String>>()
 
+    gatewayToUrl = new Map<string, pulumi.Output<string>>()
+    siteBuckets = new Map<string, aws.s3.Bucket>()
+
     topologySpecOutputs: pulumi.Output<ResourceInfo>[] = []
     connectionString = new Map<string, pulumi.Output<string>>()
 
@@ -99,7 +100,7 @@ export class CloudCCLib {
         private sharedRepo: awsx.ecr.Repository,
         private stage: string,
         private region: Region,
-        private name: string,
+        public readonly name: string,
         private namespace: string,
         private datadogEnabled: boolean,
         physicalPayloadsBucketName: string,
@@ -329,7 +330,7 @@ export class CloudCCLib {
         }
     }
 
-    createDockerAppRunner(execUnitName) {
+    createDockerAppRunner(execUnitName, envVars: any) {
         const image = this.sharedRepo.buildAndPushImage({
             context: `./${execUnitName}`,
             extraOptions: ['--platform', 'linux/amd64', '--quiet'],
@@ -399,12 +400,8 @@ export class CloudCCLib {
             await new Promise((f) => setTimeout(f, 8000))
         })
 
-        const additionalEnvVars: { [key: string]: pulumi.Input<string> } = {
-            APP_NAME: this.name,
-            CLOUDCC_NAMESPACE: this.namespace,
-            EXECUNIT_NAME: execUnitName,
-            KLOTHO_S3_PREFIX: this.account.accountId,
-        }
+        const additionalEnvVars: { [key: string]: pulumi.Input<string> } =
+            this.generateExecUnitEnvVars(execUnitName, envVars)
 
         const logGroupName = `/aws/apprunner/${this.name}-${execUnitName}-apprunner`
         let cloudwatchGroup = new aws.cloudwatch.LogGroup(`${this.name}-${execUnitName}-lg`, {
@@ -517,6 +514,30 @@ export class CloudCCLib {
         return createdFunction
     }
 
+    getEnvVarForDependency(v: any): [string, pulumi.Input<string>] {
+        switch (v.Kind) {
+            case Resource.orm:
+                const connStr = this.connectionString.get(`${v.ResourceID}_${v.Kind}`)!
+                return [v.Name, connStr]
+                break
+            case Resource.redis_node:
+            // intentional fall-through: redis-node and redis_cluster get configured the same way
+            case Resource.redis_cluster:
+                if (v.Value === 'host') {
+                    return [v.Name, this.connectionString.get(`${v.ResourceID}_${v.Kind}_host`)!]
+                } else if (v.Value === 'port') {
+                    return [v.Name, this.connectionString.get(`${v.ResourceID}_${v.Kind}_port`)!]
+                }
+                break
+            case Resource.secret:
+                const secret: aws.secretsmanager.Secret = this.secrets.get(v.ResourceID)!
+                return [v.Name, secret.name]
+            default:
+                throw new Error('unsupported kind')
+        }
+        return ['', '']
+    }
+
     generateExecUnitEnvVars(
         execUnitName: string,
         env_vars?: any[]
@@ -534,64 +555,8 @@ export class CloudCCLib {
 
         if (env_vars) {
             for (const v of env_vars) {
-                switch (v.Kind) {
-                    case Resource.orm:
-                        const connStr = this.connectionString.get(`${v.ResourceID}_${v.Kind}`)
-                        if (connStr) {
-                            additionalEnvVars[v.Name] = connStr
-                        }
-                        break
-                    case Resource.redis_node:
-                    // intentional fall-through: redis-node and redis_cluster get configured the same way
-                    case Resource.redis_cluster:
-                        if (v.Value === 'host') {
-                            additionalEnvVars[v.Name] = this.connectionString.get(
-                                `${v.ResourceID}_${v.Kind}_host`
-                            )!
-                        } else if (v.Value === 'port') {
-                            additionalEnvVars[v.Name] = this.connectionString.get(
-                                `${v.ResourceID}_${v.Kind}_port`
-                            )!
-                        }
-                        break
-                    case Resource.secret:
-                        const secret: aws.secretsmanager.Secret = this.secrets.get(v.ResourceID)!
-                        additionalEnvVars[v.Name] = secret.name
-                    default:
-                        break
-                }
-            }
-        }
-
-        for (const edge of this.topology.topologyEdgeData) {
-            if (edge.source != execEdgeID) {
-                continue
-            }
-
-            const resource = this.topology.topologyIconData.find((r) => edge.target == r.id)!
-
-            switch (resource.kind) {
-                case Resource.orm:
-                    const connStr = this.connectionString.get(edge.target)
-                    if (connStr) {
-                        additionalEnvVars[`${edge.target.toUpperCase()}_CONNECTION`] = connStr
-                    } else {
-                        throw new Error(
-                            `no conn string found for '${
-                                edge.target
-                            }' in ${this.connectionString.keys()}`
-                        )
-                    }
-                    break
-                case Resource.redis_node:
-                case Resource.redis_cluster:
-                    additionalEnvVars[`${edge.target.toUpperCase()}_HOST`] =
-                        this.connectionString.get(`${edge.target}_host`)!
-                    additionalEnvVars[`${edge.target.toUpperCase()}_PORT`] =
-                        this.connectionString.get(`${edge.target}_port`)!
-                    break
-                default:
-                    break
+                const result = this.getEnvVarForDependency(v)
+                additionalEnvVars[result[0]] = result[1]
             }
         }
 
@@ -1068,6 +1033,8 @@ export class CloudCCLib {
                 url: `https://console.aws.amazon.com/apigateway/home?region=${this.region}#/apis/${id}/resources/`,
             }))
         )
+
+        this.gatewayToUrl.set(providedName, stage.invokeUrl)
 
         return stage.invokeUrl
     }
@@ -1605,7 +1572,7 @@ export class CloudCCLib {
         this.execUnitToVpcLink.set(execUnitName, vpcLink)
     }
 
-    createEcsService(execUnitName, baseArgs: Partial<awsx.ecs.Container>) {
+    createEcsService(execUnitName, baseArgs: Partial<awsx.ecs.Container>, envVars: any) {
         if (this.cluster == undefined) {
             this.createEcsCluster()
         }
@@ -1631,7 +1598,9 @@ export class CloudCCLib {
 
         const nlb = this.execUnitToNlb.get(execUnitName)!
         let additionalEnvVars: { name: string; value: pulumi.Input<string> }[] = []
-        for (const [name, value] of Object.entries(this.generateExecUnitEnvVars(execUnitName))) {
+        for (const [name, value] of Object.entries(
+            this.generateExecUnitEnvVars(execUnitName, envVars)
+        )) {
             additionalEnvVars.push({ name, value })
         }
 

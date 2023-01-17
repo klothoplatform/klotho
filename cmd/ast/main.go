@@ -98,10 +98,11 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		caps, err := javascript.Language.CapabilityFinder.FindAllCapabilities(jsFile)
+		annots, err := javascript.Language.CapabilityFinder.FindAllCapabilities(jsFile)
 		if err != nil {
 			return err
 		}
+		caps := annots.InSourceOrder()
 		return enc.Encode(caps)
 	}
 

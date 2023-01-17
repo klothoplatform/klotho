@@ -51,14 +51,16 @@ type ConsoleEncoder struct {
 	Annotation  annotationField
 	Node        astNodeField
 	HadWarnings *atomic.Bool
+	HadErrors   *atomic.Bool
 
 	*bufferEncoder
 }
 
-func NewConsoleEncoder(verbose bool, hadWarnings *atomic.Bool) *ConsoleEncoder {
+func NewConsoleEncoder(verbose bool, hadWarnings *atomic.Bool, hadErrors *atomic.Bool) *ConsoleEncoder {
 	return &ConsoleEncoder{
 		Verbose:       verbose,
 		HadWarnings:   hadWarnings,
+		HadErrors:     hadErrors,
 		bufferEncoder: &bufferEncoder{b: pool.Get()},
 	}
 }
@@ -68,9 +70,9 @@ func (enc *ConsoleEncoder) Clone() zapcore.Encoder {
 		bufferEncoder: &bufferEncoder{b: pool.Get()},
 		Verbose:       enc.Verbose,
 		HadWarnings:   enc.HadWarnings,
-
-		File:       enc.File,
-		Annotation: enc.Annotation,
+		HadErrors:     enc.HadErrors,
+		File:          enc.File,
+		Annotation:    enc.Annotation,
 	}
 	_, _ = ne.bufferEncoder.b.Write(enc.b.Bytes())
 
@@ -110,6 +112,9 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 	if ent.Level >= zapcore.WarnLevel {
 		enc.HadWarnings.Store(true)
 	}
+	if ent.Level >= zapcore.ErrorLevel {
+		enc.HadErrors.Store(true)
+	}
 
 	var (
 		file        = enc.File.f
@@ -147,6 +152,10 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 		}
 		fieldCount++
 		f.AddTo(&bufferEncoder{b: fields})
+	}
+
+	if annotation == nil {
+		annotation = &core.Annotation{}
 	}
 
 	writeFields := func() {

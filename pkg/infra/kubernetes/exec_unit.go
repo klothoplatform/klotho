@@ -326,11 +326,11 @@ func (unit *HelmExecUnit) getServiceName() string {
 	return unit.Name
 }
 
-func (unit *HelmExecUnit) addEnvsVarToDeployment(envVarNames []string) ([]Value, error) {
+func (unit *HelmExecUnit) addEnvsVarToDeployment(envVars []core.EnvironmentVariable) ([]Value, error) {
 	values := []Value{}
 
 	log := zap.L().Sugar().With(logging.FileField(unit.Deployment), zap.String("unit", unit.Name))
-	log.Infof("Adding environment variables to file, %s, for exec unit, %s", unit.Deployment.Path(), unit.Name)
+	log.Debugf("Adding environment variables to file, %s, for exec unit, %s", unit.Deployment.Path(), unit.Name)
 	obj, err := readFile(unit.Deployment)
 	if err != nil {
 		return nil, err
@@ -344,9 +344,9 @@ func (unit *HelmExecUnit) addEnvsVarToDeployment(envVarNames []string) ([]Value,
 	if len(deployment.Spec.Template.Spec.Containers) != 1 {
 		return nil, errors.New("expected one container in deployment spec, cannot add environment variable")
 	} else {
-		for _, name := range envVarNames {
+		for _, envVar := range envVars {
 
-			k, v := GenerateEnvVarKeyValue(name)
+			k, v := GenerateEnvVarKeyValue(envVar.Name)
 
 			newEv := corev1.EnvVar{
 				Name:  k,
@@ -355,10 +355,11 @@ func (unit *HelmExecUnit) addEnvsVarToDeployment(envVarNames []string) ([]Value,
 
 			deployment.Spec.Template.Spec.Containers[0].Env = append(deployment.Spec.Template.Spec.Containers[0].Env, newEv)
 			values = append(values, Value{
-				ExecUnitName: unit.Name,
-				Kind:         deployment.Kind,
-				Type:         string(EnvironmentVariableTransformation),
-				Key:          v,
+				ExecUnitName:        unit.Name,
+				Kind:                deployment.Kind,
+				Type:                string(EnvironmentVariableTransformation),
+				Key:                 v,
+				EnvironmentVariable: envVar,
 			})
 		}
 	}
@@ -375,11 +376,11 @@ func (unit *HelmExecUnit) addEnvsVarToDeployment(envVarNames []string) ([]Value,
 	return values, nil
 }
 
-func (unit *HelmExecUnit) addEnvVarToPod(envVarNames []string) ([]Value, error) {
+func (unit *HelmExecUnit) addEnvVarToPod(envVars []core.EnvironmentVariable) ([]Value, error) {
 	values := []Value{}
 
 	log := zap.L().Sugar().With(logging.FileField(unit.Pod), zap.String("unit", unit.Name))
-	log.Infof("Adding environment variables to file, %s, for exec unit, %s", unit.Pod.Path(), unit.Name)
+	log.Debugf("Adding environment variables to file, %s, for exec unit, %s", unit.Pod.Path(), unit.Name)
 	obj, err := readFile(unit.Pod)
 	if err != nil {
 		return nil, err
@@ -393,9 +394,9 @@ func (unit *HelmExecUnit) addEnvVarToPod(envVarNames []string) ([]Value, error) 
 	if len(pod.Spec.Containers) != 1 {
 		return nil, errors.New("expected one container in Pod spec, cannot add environment variable")
 	} else {
-		for _, name := range envVarNames {
+		for _, envVar := range envVars {
 
-			k, v := GenerateEnvVarKeyValue(name)
+			k, v := GenerateEnvVarKeyValue(envVar.Name)
 
 			newEv := corev1.EnvVar{
 				Name:  k,
@@ -404,10 +405,11 @@ func (unit *HelmExecUnit) addEnvVarToPod(envVarNames []string) ([]Value, error) 
 
 			pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, newEv)
 			values = append(values, Value{
-				ExecUnitName: unit.Name,
-				Kind:         pod.Kind,
-				Type:         string(EnvironmentVariableTransformation),
-				Key:          v,
+				ExecUnitName:        unit.Name,
+				Kind:                pod.Kind,
+				Type:                string(EnvironmentVariableTransformation),
+				Key:                 v,
+				EnvironmentVariable: envVar,
 			})
 		}
 	}

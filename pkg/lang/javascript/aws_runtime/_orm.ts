@@ -3,12 +3,12 @@
 
 const ormPrefix = '{{.AppName}}'
 
-export function getDBConn(dbName: string): string {
-    const conn = process.env[`${dbName.toUpperCase()}_PERSIST_ORM_CONNECTION`]
+export function getDBConn(dbNameEnvVar: string): string {
+    const conn = process.env[dbNameEnvVar]
     return conn
 }
 
-export function getDataSourceParams(dbName: string, params: { [key: string]: number }): dict {
+export function getDataSourceParams(dbNameEnvVar: string, params: { [key: string]: number }): dict {
     let newParams = { ...params }
     const fieldsToDelete = ['host', 'type', 'port', 'username', 'passowrd', 'database']
     for (const field of fieldsToDelete) {
@@ -18,6 +18,6 @@ export function getDataSourceParams(dbName: string, params: { [key: string]: num
     return {
         ...newParams,
         type: 'postgres',
-        url: getDBConn(dbName),
+        url: getDBConn(dbNameEnvVar),
     }
 }

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -124,7 +125,12 @@ async function setup() {
 			if !assert.NoError(err) {
 				return
 			}
-			listen := findListener(f.Annotations()[0], f.Program())
+			var annot *core.Annotation
+			for _, v := range f.Annotations() {
+				annot = v
+				break
+			}
+			listen := findListener(annot, f.Program())
 			if !assert.NotNil(listen.Expression, "error in test source listen function") {
 				return
 			}

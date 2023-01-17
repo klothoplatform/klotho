@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -26,6 +27,8 @@ func (p Plugin) Name() string { return "Validation" }
 func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
 	var errs multierr.Error
 	err := p.handleAnnotations(result)
+	errs.Append(err)
+	err = p.handleResources(result)
 	errs.Append(err)
 	err = p.handleProviderValidation(result)
 	errs.Append(err)
@@ -82,9 +85,25 @@ func (p *Plugin) handleAnnotations(result *core.CompilationResult) error {
 
 		for _, annot := range ast.Annotations() {
 			log = log.With(logging.AnnotationField(annot))
-			p.checkAnnotationForResource(&annot, result, log)
+			p.checkAnnotationForResource(annot, result, log)
 		}
 	}
+	return errs.ErrOrNil()
+}
+
+// handleResources ensures that every resource has a unique id and capability pair.
+func (p *Plugin) handleResources(result *core.CompilationResult) error {
+	var errs multierr.Error
+	err := validateNoDuplicateIds[*core.Persist](result)
+	errs.Append(err)
+	err = validateNoDuplicateIds[*core.Gateway](result)
+	errs.Append(err)
+	err = validateNoDuplicateIds[*core.ExecutionUnit](result)
+	errs.Append(err)
+	err = validateNoDuplicateIds[*core.PubSub](result)
+	errs.Append(err)
+	err = validateNoDuplicateIds[*core.StaticUnit](result)
+	errs.Append(err)
 	return errs.ErrOrNil()
 }
 
@@ -97,32 +116,32 @@ func (p *Plugin) validateConfigOverrideResourcesExist(result *core.CompilationRe
 		}
 	}
 
-	for unit := range p.UserConfigOverrides.Persisted {
+	for persistResource := range p.UserConfigOverrides.Persisted {
 		resources := result.GetResourcesOfType(string(core.PersistFileKind))
 		resources = append(result.GetResourcesOfType(string(core.PersistKVKind)), resources...)
 		resources = append(result.GetResourcesOfType(string(core.PersistORMKind)), resources...)
 		resources = append(result.GetResourcesOfType(string(core.PersistRedisClusterKind)), resources...)
 		resources = append(result.GetResourcesOfType(string(core.PersistRedisNodeKind)), resources...)
 		resources = append(result.GetResourcesOfType(string(core.PersistSecretKind)), resources...)
-		resource := getResourceById(unit, resources)
+		resource := getResourceById(persistResource, resources)
 		if resource == (core.ResourceKey{}) {
-			log.Warnf("Unknown persist in config override, \"%s\".", unit)
+			log.Warnf("Unknown persist in config override, \"%s\".", persistResource)
 		}
 
 	}
-	for unit := range p.UserConfigOverrides.Exposed {
+	for exposeResource := range p.UserConfigOverrides.Exposed {
 		resources := result.GetResourcesOfType(core.GatewayKind)
-		resource := getResourceById(unit, resources)
+		resource := getResourceById(exposeResource, resources)
 		if resource == (core.ResourceKey{}) {
-			log.Warnf("Unknown expose in config override, \"%s\".", unit)
+			log.Warnf("Unknown expose in config override, \"%s\".", exposeResource)
 		}
 	}
 
-	for unit := range p.UserConfigOverrides.PubSub {
+	for pubsubResource := range p.UserConfigOverrides.PubSub {
 		resources := result.GetResourcesOfType(core.PubSubKind)
-		resource := getResourceById(unit, resources)
+		resource := getResourceById(pubsubResource, resources)
 		if resource == (core.ResourceKey{}) {
-			log.Warnf("Unknown pubsub in config override, \"%s\".", unit)
+			log.Warnf("Unknown pubsub in config override, \"%s\".", pubsubResource)
 		}
 	}
 
@@ -177,4 +196,16 @@ func getResourceById(id string, resources []core.CloudResource) core.ResourceKey
 		}
 	}
 	return resource
+}
+
+func validateNoDuplicateIds[T core.CloudResource](result *core.CompilationResult) error {
+	unitIds := make(map[string]struct{})
+	units := core.GetResourcesOfType[T](result)
+	for _, unit := range units {
+		if _, ok := unitIds[unit.Key().Name]; ok {
+			return fmt.Errorf(`multiple Persist objects with the same name, "%s"`, unit.Key().Name)
+		}
+		unitIds[unit.Key().Name] = struct{}{}
+	}
+	return nil
 }

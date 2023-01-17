@@ -15,7 +15,7 @@ type SourceFile struct {
 	parser   *sitter.Parser
 	program  []byte
 	tree     *sitter.Tree
-	caps     []Annotation
+	caps     AnnotationMap
 }
 
 type SourceLanguage struct {
@@ -28,7 +28,7 @@ type SourceLanguage struct {
 type LanguageId string
 
 type CapabilityFinder interface {
-	FindAllCapabilities(*SourceFile) ([]Annotation, error)
+	FindAllCapabilities(*SourceFile) (AnnotationMap, error)
 }
 
 type Commenter func(string) string
@@ -45,7 +45,11 @@ func (f *SourceFile) Reparse(newProgram []byte) (err error) {
 	f.program = newProgram
 	f.tree, err = f.parser.ParseCtx(context.TODO(), nil, f.program)
 	if err == nil {
-		f.caps, err = f.Language.CapabilityFinder.FindAllCapabilities(f)
+		caps, err := f.Language.CapabilityFinder.FindAllCapabilities(f)
+		if err != nil {
+			return err
+		}
+		f.caps.Update(caps)
 	} else {
 		err = WrapErrf(err, "could not reparse %s", f.Path())
 	}
@@ -59,6 +63,7 @@ func (f *SourceFile) CloneSourceFile() *SourceFile {
 		Language: f.Language,
 		path:     f.path,
 		parser:   sitter.NewParser(),
+		caps:     make(AnnotationMap),
 	}
 	nf.parser.SetLanguage(f.Language.Sitter)
 	nf.program = make([]byte, len(f.program))
@@ -91,7 +96,7 @@ func (f *SourceFile) Program() []byte {
 	return f.program
 }
 
-func (f *SourceFile) Annotations() []Annotation {
+func (f *SourceFile) Annotations() AnnotationMap {
 	return f.caps
 }
 
@@ -104,10 +109,19 @@ func (f *SourceFile) IsAnnotatedWith(capability string) bool {
 	return false
 }
 
+func (f *SourceFile) ReplaceNodeContent(node *sitter.Node, content string) error {
+	buf := new(bytes.Buffer)
+	buf.Write(f.program[:node.StartByte()])
+	buf.WriteString(content)
+	buf.Write(f.program[node.EndByte():])
+	return f.Reparse(buf.Bytes())
+}
+
 func NewSourceFile(path string, content io.Reader, language SourceLanguage) (f *SourceFile, err error) {
 	f = &SourceFile{
 		Language: language,
 		path:     path,
+		caps:     make(AnnotationMap),
 	}
 
 	buf := new(bytes.Buffer)

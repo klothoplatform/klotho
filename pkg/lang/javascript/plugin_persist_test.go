@@ -181,7 +181,7 @@ func Test_queryKV(t *testing.T) {
 				return
 			}
 
-			cap := core.Annotation{
+			cap := &core.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			}
@@ -192,7 +192,7 @@ func Test_queryKV(t *testing.T) {
 
 			if tt.matchExpression != "" || tt.matchName != "" {
 				if assert.NotNil(kvResult) {
-					assert.Equal(tt.matchExpression, kvResult.expression)
+					assert.Equal(tt.matchExpression, kvResult.expression.Content(f.Program()))
 					assert.Equal(tt.matchName, kvResult.name)
 				}
 			} else {
@@ -238,9 +238,12 @@ const m = new keyvalueRuntime.dMap({"versioned":true})`,
 			if !assert.NoError(err) {
 				return
 			}
-			newF := f.CloneSourceFile()
 
-			cap := f.Annotations()[0]
+			var cap *core.Annotation
+			for _, v := range f.Annotations() {
+				cap = v
+				break
+			}
 			// assuming aws runtime
 			p := persister{
 				runtime: NoopRuntime{},
@@ -252,13 +255,13 @@ const m = new keyvalueRuntime.dMap({"versioned":true})`,
 				return
 			}
 
-			_, err = p.transformKV(f, newF, cap, pres)
+			_, err = p.transformKV(f, cap, pres)
 			if tt.wantErr {
 				assert.Error(err)
 				return
 			}
 			assert.NoError(err)
-			assert.Equal(tt.want, string(newF.Program()))
+			assert.Equal(tt.want, string(f.Program()))
 		})
 	}
 }
@@ -341,7 +344,7 @@ func Test_queryFS(t *testing.T) {
 
 			p := persister{}
 
-			fsResult := p.queryFS(f, core.Annotation{
+			fsResult := p.queryFS(f, &core.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			})
@@ -349,7 +352,7 @@ func Test_queryFS(t *testing.T) {
 				if !assert.NotNil(fsResult) {
 					return
 				}
-				assert.Equal(tt.matchExpression, fsResult.expression)
+				assert.Equal(tt.matchExpression, fsResult.expression.Content(f.Program()))
 				assert.Equal(tt.matchName, fsResult.name)
 			} else {
 				assert.Nil(fsResult)
@@ -419,13 +422,13 @@ func Test_queryORM(t *testing.T) {
 
 			p := persister{}
 
-			fsResult := p.queryORM(f, core.Annotation{
+			fsResult := p.queryORM(f, &core.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			}, true)
 			if tt.matchExpression != "" {
 				assert.NotNil(fsResult)
-				assert.Equal(tt.matchExpression, fsResult.expression)
+				assert.Equal(tt.matchExpression, fsResult.expression.Content(f.Program()))
 				assert.Equal(tt.matchName, fsResult.name)
 			} else {
 				assert.Nil(fsResult)
@@ -525,12 +528,12 @@ func Test_queryRedis(t *testing.T) {
 
 			p := persister{}
 
-			fsResult := p.queryRedis(f, core.Annotation{
+			_, fsResult := p.queryRedis(f, &core.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			}, true)
 			if tt.matchExpression != "" {
-				assert.Equal(tt.matchExpression, fsResult.expression)
+				assert.Equal(tt.matchExpression, fsResult.expression.Content(f.Program()))
 				assert.Equal(tt.matchName, fsResult.name)
 			} else {
 				assert.Nil(fsResult)
@@ -565,7 +568,7 @@ const client = createClient({ socket: {
 *   id = "redis"
 * }
 */
-const client = createClient(redis_nodeRuntime.getParams("redis", { socket: {
+const client = createClient(redis_nodeRuntime.getParams("REDIS_PERSIST_REDIS_HOST", "REDIS_PERSIST_REDIS_PORT", { socket: {
 	host: process.env.REDIS_HOST,
 	port: port,
 	keepAlive: 5000
@@ -592,7 +595,7 @@ const client = createCluster({
 *   id = "redis"
 * }
 */
-const client = createCluster(redis_clusterRuntime.getParams("redis", {
+const client = createCluster(redis_clusterRuntime.getParams("REDIS_PERSIST_REDIS_HOST", "REDIS_PERSIST_REDIS_PORT", {
 	rootNodes:[
 		{
 			url: 'redis://127.0.0.1:8001'
@@ -609,23 +612,27 @@ const client = createCluster(redis_clusterRuntime.getParams("redis", {
 			if !assert.NoError(err) {
 				return
 			}
-			newF := f.CloneSourceFile()
 
-			cap := f.Annotations()[0]
+			var cap *core.Annotation
+			for _, v := range f.Annotations() {
+				cap = v
+				break
+			}
 			// assuming aws runtime
 			p := persister{
 				runtime: NoopRuntime{},
 			}
 
-			_, pres := p.determinePersistType(f, cap)
-
-			_, err = p.transformRedis(f, newF, cap, pres)
+			pKind, pres := p.determinePersistType(f, cap)
+			unit := &core.ExecutionUnit{}
+			_, err = p.transformRedis(unit, f, cap, pres, pKind)
 			if tt.wantErr {
 				assert.Error(err)
 				return
 			}
 			assert.NoError(err)
-			assert.Equal(tt.want, string(newF.Program()))
+			assert.Equal(tt.want, string(f.Program()))
+			assert.Len(unit.EnvironmentVariables, 2)
 		})
 	}
 }
@@ -736,7 +743,7 @@ func Test_inferType(t *testing.T) {
 			}
 			p := persister{}
 
-			fsResult := p.queryFS(f, core.Annotation{
+			fsResult := p.queryFS(f, &core.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			})
