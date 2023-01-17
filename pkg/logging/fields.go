@@ -76,6 +76,7 @@ func (field entryMessage) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
+// SendEntryMessage adds the entryMessage field to the logger in order to bypass sanitization and allow for the raw message to be logged.
 var SendEntryMessage = zap.Object("entryMessage", entryMessage{})
 
 // DescribeKlothoFields is intended for unit testing expected log lines.
