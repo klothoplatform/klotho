@@ -96,11 +96,11 @@ func (km KlothoMain) Main() {
 	err := root.Execute()
 	if err != nil {
 		if cfg.internalDebug {
-			zap.S().With(logging.SendEntryMessage()).Errorf("%+v", err)
+			zap.S().With(logging.SendEntryMessage).Errorf("%+v", err)
 		} else if !root.SilenceErrors {
-			zap.S().With(logging.SendEntryMessage()).Errorf("%v", err)
+			zap.S().With(logging.SendEntryMessage).Errorf("%v", err)
 		}
-		zap.S().With(logging.SendEntryMessage()).Error("Klotho compilation failed")
+		zap.S().With(logging.SendEntryMessage).Error("Klotho compilation failed")
 		os.Exit(1)
 	}
 	if hadWarnings.Load() && cfg.strict {

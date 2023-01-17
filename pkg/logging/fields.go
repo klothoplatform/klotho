@@ -76,9 +76,7 @@ func (field entryMessage) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
-func SendEntryMessage() zap.Field {
-	return zap.Object(EntryMessageField, entryMessage{})
-}
+var SendEntryMessage = zap.Object("entryMessage", entryMessage{})
 
 // DescribeKlothoFields is intended for unit testing expected log lines.
 //
