@@ -10,6 +10,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+var EntryMessageField = "entryMessage"
+
 type fileField struct {
 	f core.File
 }
@@ -66,6 +68,16 @@ func AnnotationField(a *core.Annotation) zap.Field {
 type astNodeField struct {
 	n       *sitter.Node
 	content string
+}
+
+type entryMessage struct{}
+
+func (field entryMessage) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return nil
+}
+
+func SendEntryMessage() zap.Field {
+	return zap.Object(EntryMessageField, entryMessage{})
 }
 
 // DescribeKlothoFields is intended for unit testing expected log lines.

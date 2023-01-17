@@ -94,7 +94,7 @@ func (t *Client) Error(event string) {
 
 func (t *Client) Panic(event string) {
 	t.Properties[datadogLogLevel] = Panic
-	// Using error since datadog does not support panic forr the reserved status field
+	// Using error since datadog does not support panic for the reserved status field
 	t.Properties[datadogStatus] = Error
 	t.track(event)
 }
