@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 	"gopkg.in/yaml.v3"
 	"os"
 	"testing"
@@ -62,13 +63,21 @@ func TestSetOptions(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			logger := mockedLogger{}
 			options := map[string]string{
 				tt.set: tt.to,
 			}
 
-			result, err := setOptions([]byte(tt.originalYaml), options, &logger)
-			assert.Equal(tt.expectWarns, logger.warns)
+			observedZapCore, observedLogs := observer.New(zap.WarnLevel)
+			observedLogger := zap.New(observedZapCore)
+			defer zap.ReplaceGlobals(observedLogger)()
+
+			result, err := setOptions([]byte(tt.originalYaml), options)
+
+			var seenLogs []string
+			for _, entry := range observedLogs.All() {
+				seenLogs = append(seenLogs, entry.Message)
+			}
+			assert.Equal(tt.expectWarns, seenLogs)
 			assert.Equal(tt.expectErr, err != nil)
 			if err != nil {
 				return
@@ -76,14 +85,6 @@ func TestSetOptions(t *testing.T) {
 			assert.Equal(tt.expectYaml, string(result))
 		})
 	}
-}
-
-type mockedLogger struct {
-	warns []string
-}
-
-func (ml *mockedLogger) Warn(msg string, fields ...zap.Field) {
-	ml.warns = append(ml.warns, msg)
 }
 
 func TestCliSerialization(t *testing.T) {

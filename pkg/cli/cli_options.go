@@ -21,10 +21,6 @@ type (
 	UpdateOptions struct {
 		Stream string `yaml:",omitempty"`
 	}
-
-	mockableLog interface {
-		Warn(string, ...zap.Field)
-	}
 )
 
 func ReadOptions() (Options, error) {
@@ -48,7 +44,10 @@ func SetOptions(options map[string]string) error {
 	if err != nil {
 		return err
 	}
-	optionsYaml, err = setOptions(optionsYaml, options, zap.L())
+	optionsYaml, err = setOptions(optionsYaml, options)
+	if err != nil {
+		return nil
+	}
 
 	err = os.WriteFile(filePath, optionsYaml, 0600)
 	if err != nil {
@@ -59,14 +58,15 @@ func SetOptions(options map[string]string) error {
 
 // setOptions inserts the given options into the yaml, validating along the way that the options still form a valid
 // Options.
-func setOptions(optionsYaml []byte, options map[string]string, logger mockableLog) ([]byte, error) {
+func setOptions(optionsYaml []byte, options map[string]string) ([]byte, error) {
+	logger := zap.S()
 	// First, a warning if the original file isn't valid
 	if err := yaml_util.CheckValid[Options](optionsYaml, yaml_util.Lenient); err != nil {
 		return nil, errors.Wrap(err, "existing options file is invalid")
 	} else if warns := yaml_util.CheckValid[Options](optionsYaml, yaml_util.Strict); warns != nil {
 		logger.Warn(`Existing options contain extra parameters:`)
 		for _, e := range yaml_util.YamlErrors(warns) {
-			logger.Warn(fmt.Sprintf(`▸ %s`, e))
+			logger.Warnf(`▸ %s`, e)
 		}
 	}
 
