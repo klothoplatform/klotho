@@ -11,11 +11,9 @@ export const cluster = {
                     /^[a-zA-Z\d-]+$/,
                     (s) => s.replace(/[^a-zA-Z\d-]/g, '_')
                 ),
-                {
-                    description: 'The name must start with an alphabetic character',
-                    validate: (s) => !s.startsWith('-'),
-                    fix: (s) => s.replace(/^-+/, ''),
-                },
+                regexpMatch('The name must start with an alphabetic character', /^[a-zA-Z]/, (s) =>
+                    s.replace(/^[^a-zA-Z]+/, '')
+                ),
             ],
         }
     },
