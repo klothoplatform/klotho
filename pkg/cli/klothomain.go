@@ -24,13 +24,11 @@ import (
 )
 
 type KlothoMain struct {
-	UpdateStream     string
-	Version          string
-	VersionQualifier string
-	PluginSetup      func(*PluginSetBuilder) error
+	DefaultUpdateStream string
+	Version             string
+	VersionQualifier    string
+	PluginSetup         func(*PluginSetBuilder) error
 }
-
-var klothoUpdater = updater.Updater{ServerURL: updater.DefaultServer, Stream: updater.DefaultStream}
 
 var cfg struct {
 	verbose       bool
@@ -48,6 +46,7 @@ var cfg struct {
 	update        bool
 	cfgFormat     string
 	login         string
+	setOption     map[string]string
 }
 
 var hadWarnings = atomic.NewBool(false)
@@ -91,6 +90,7 @@ func (km KlothoMain) Main() {
 	flags.BoolVar(&cfg.version, "version", false, "Print the version")
 	flags.BoolVar(&cfg.update, "update", false, "update the cli to the latest version")
 	flags.StringVar(&cfg.login, "login", "", "Login to Klotho with email. For anonymous login, use 'local'")
+	flags.StringToStringVar(&cfg.setOption, "set-option", nil, "Sets a CLI option")
 	_ = flags.MarkHidden("internalDebug")
 
 	err := root.Execute()
@@ -192,8 +192,18 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		InternalDebug: cfg.internalDebug,
 		Verbose:       cfg.verbose,
 	}
-
 	defer analyticsClient.PanicHandler(&err, errHandler)
+
+	// Save any config options. This should go before anything else, so that it always takes effect before any code
+	// that uses it (for example, we should save an update.stream option before we use it below to perform the update).
+	err = SetOptions(cfg.setOption)
+	if err != nil {
+		return err
+	}
+	options, err := ReadOptions()
+	if err != nil {
+		return err
+	}
 
 	if cfg.version {
 		var versionQualifier string
@@ -209,6 +219,12 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// if update is specified do the update in place
+	updateStream := OptionOrDefault(options.Update.Stream, km.DefaultUpdateStream)
+	var klothoUpdater = updater.Updater{
+		ServerURL:     updater.DefaultServer,
+		Stream:        updateStream,
+		CurrentStream: km.DefaultUpdateStream,
+	}
 	if cfg.update {
 		if err := klothoUpdater.Update(km.Version); err != nil {
 			analyticsClient.Error(klothoName + " failed to update")
@@ -227,6 +243,12 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	if needsUpdate {
 		analyticsClient.Info(klothoName + "update is available")
 		zap.L().Info("new update is available, please run klotho --update to get the latest version")
+	}
+
+	if len(cfg.setOption) > 0 {
+		// Options were set above, and used to perform or check for update. Nothing else to do.
+		// We want to exit early, so that the user doesn't get an error about path not being provided.
+		return nil
 	}
 
 	appCfg, err := readConfig(args)

@@ -23,12 +23,14 @@ var (
 
 var (
 	DefaultServer string = "http://srv.klo.dev"
-	DefaultStream string = "oss:latest"
 )
 
 type Updater struct {
 	ServerURL string
-	Stream    string
+	// Stream is the update stream to check
+	Stream string
+	// CurrentStream is the stream this binary came from
+	CurrentStream string
 }
 
 func selfUpdate(data io.ReadCloser) error {
@@ -75,11 +77,7 @@ func (u *Updater) CheckUpdate(currentVersion string) (bool, error) {
 		return false, fmt.Errorf("invalid version %s: %v", currentVersion, err)
 	}
 
-	if currVersion.LessThan(*latestVersion) {
-		return true, nil
-	}
-
-	return false, nil
+	return currVersion.LessThan(*latestVersion) || u.CurrentStream != u.Stream, nil
 }
 
 // Update performs an update if a newer version is
@@ -87,12 +85,12 @@ func (u *Updater) CheckUpdate(currentVersion string) (bool, error) {
 func (u *Updater) Update(currentVersion string) error {
 	doUpdate, err := u.CheckUpdate(currentVersion)
 	if err != nil {
-		zap.S().Errorf("error checking for updates: %v", err)
+		zap.S().Errorf(`error checking for updates on stream "%s": %v`, u.Stream, err)
 		return err
 	}
 
 	if !doUpdate {
-		zap.S().Info("already up to date.")
+		zap.S().Infof(`already up to date on stream "%s".`, u.Stream)
 		return nil
 	}
 
@@ -107,7 +105,7 @@ func (u *Updater) Update(currentVersion string) error {
 	if err := selfUpdate(body); err != nil {
 		return errors.Wrapf(err, "failed to update klotho")
 	}
-	zap.L().Info("updated to the latest version.")
+	zap.S().Infof(`updated to the latest version on stream "%s"`, u.Stream)
 	return nil
 }
 
