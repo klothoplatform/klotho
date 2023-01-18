@@ -5,34 +5,32 @@ const SNS = require('aws-sdk/clients/sns')
 const Dynamo = require('aws-sdk/clients/dynamodb')
 const AWSXRay = require('aws-xray-sdk-core')
 
-const endpoint = process.env['AWS_ENDPOINT'] ? `http://${process.env['AWS_ENDPOINT']}` : null
+const endpoint = process.env['AWS_ENDPOINT']
+    ? `http://${process.env['AWS_ENDPOINT']}`
+    : process.env['AWS_ENDPOINT_URL']
 const targetRegion = process.env['AWS_TARGET_REGION']
 
+exports.AWSConfig = {
+    region: targetRegion,
+    s3ForcePathStyle: true,
+    signatureVersion: 'v4',
+    ...(endpoint
+        ? {
+              accessKeyId: 'test',
+              secretAccessKey: 'test',
+              skipMetadataApiCheck: true,
+              endpoint,
+          }
+        : {}),
+}
+
 exports.clients = (() => {
-    let sharedAWSConfig = {
-        region: targetRegion,
-        s3ForcePathStyle: true,
-        signatureVersion: 'v4',
-    }
+    let secrets = new Secrets(exports.AWSConfig)
 
-    if (endpoint) {
-        sharedAWSConfig = {
-            ...sharedAWSConfig,
-            ...{
-                accessKeyId: 'test',
-                secretAccessKey: 'test',
-                skipMetadataApiCheck: true,
-                endpoint: endpoint,
-            },
-        }
-    }
-
-    let secrets = new Secrets(sharedAWSConfig)
-
-    let s3 = new S3(sharedAWSConfig)
-    let lambda = new Lambda(sharedAWSConfig)
-    let sns = new SNS(sharedAWSConfig)
-    let dynamo = new Dynamo(sharedAWSConfig)
+    let s3 = new S3(exports.AWSConfig)
+    let lambda = new Lambda(exports.AWSConfig)
+    let sns = new SNS(exports.AWSConfig)
+    let dynamo = new Dynamo(exports.AWSConfig)
 
     s3 = AWSXRay.captureAWSClient(s3)
     lambda = AWSXRay.captureAWSClient(lambda)
