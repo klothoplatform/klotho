@@ -1,4 +1,4 @@
-import {regexpMatch} from "../sanitizer";
+import { regexpMatch } from '../sanitizer'
 
 export const vpc = {
     securityGroup: {
@@ -7,13 +7,15 @@ export const vpc = {
                 minLength: 1,
                 maxLength: 255,
                 rules: [
-                    regexpMatch("a-z, A-Z, 0-9, spaces, and ._-:/()#,@[]+=&;{}!$*",
+                    regexpMatch(
+                        'a-z, A-Z, 0-9, spaces, and ._-:/()#,@[]+=&;{}!$*',
                         /^[\w -.:/()#,@\[\]+=&;{}!$*]+$/,
-                        s => s.replace(/[^\w -.:/()#,@\[\]+=&;{}!$*]/g, "_"))
-                ]
+                        (s) => s.replace(/[^\w -.:/()#,@\[\]+=&;{}!$*]/g, '_')
+                    ),
+                ],
             }
-        }
-    }
+        },
+    },
 }
 
 export const classic = {
@@ -23,16 +25,16 @@ export const classic = {
                 minLength: 1,
                 maxLength: 255,
                 rules: [
-                    regexpMatch("Must only containASCII characters",
-                        /^[[:ascii:]]+$/,
-                        s => s.replace(/[^[:ascii:]]/g, "_")),
+                    regexpMatch('Must only containASCII characters', /^[[:ascii:]]+$/, (s) =>
+                        s.replace(/[^[:ascii:]]/g, '_')
+                    ),
                     {
                         description: "Cannot start with 'sg-'",
-                        validate: s => !s.startsWith("sg-"),
-                        fix: s => s.substring(3)
-                    }
-                ]
+                        validate: (s) => !s.startsWith('sg-'),
+                        fix: (s) => s.substring(3),
+                    },
+                ],
             }
-        }
-    }
+        },
+    },
 }
