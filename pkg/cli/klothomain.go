@@ -220,7 +220,11 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 
 	// if update is specified do the update in place
 	updateStream := OptionOrDefault(options.Update.Stream, km.DefaultUpdateStream)
-	var klothoUpdater = updater.Updater{ServerURL: updater.DefaultServer, Stream: updateStream}
+	var klothoUpdater = updater.Updater{
+		ServerURL:     updater.DefaultServer,
+		Stream:        updateStream,
+		CurrentStream: km.DefaultUpdateStream,
+	}
 	if cfg.update {
 		if err := klothoUpdater.Update(km.Version); err != nil {
 			analyticsClient.Error(klothoName + " failed to update")

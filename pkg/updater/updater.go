@@ -27,7 +27,10 @@ var (
 
 type Updater struct {
 	ServerURL string
-	Stream    string
+	// Stream is the update stream to check
+	Stream string
+	// CurrentStream is the stream this binary came from
+	CurrentStream string
 }
 
 func selfUpdate(data io.ReadCloser) error {
@@ -74,11 +77,7 @@ func (u *Updater) CheckUpdate(currentVersion string) (bool, error) {
 		return false, fmt.Errorf("invalid version %s: %v", currentVersion, err)
 	}
 
-	if currVersion.LessThan(*latestVersion) {
-		return true, nil
-	}
-
-	return false, nil
+	return currVersion.LessThan(*latestVersion) || u.CurrentStream != u.Stream, nil
 }
 
 // Update performs an update if a newer version is
