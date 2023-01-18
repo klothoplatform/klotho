@@ -4,8 +4,10 @@ import _ = require('lodash')
 
 import moment = require('moment')
 
+import { AWSConfig } from './clients'
+
 import DynamoDB = require('aws-sdk/clients/dynamodb')
-const docClient = new DynamoDB.DocumentClient()
+const docClient = new DynamoDB.DocumentClient(AWSConfig)
 
 let alldMaps: dMap[] = []
 
@@ -51,13 +53,6 @@ const KVStore = new Entity(
     { table: '{{.AppName}}', client: docClient }
 )
 
-import { fs as cloudFS } from './fs'
-
-import localFS = require('fs-extra')
-
-if (process.env['CLOUDCC'] != 'true') {
-    localFS.ensureDirSync(`/tmp/dMapBatches/`)
-}
 interface MapOptions {
     id: string
 

@@ -4,8 +4,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.dMap = void 0;
 const _ = require("lodash");
 const moment = require("moment");
+const clients_1 = require("./clients");
 const DynamoDB = require("aws-sdk/clients/dynamodb");
-const docClient = new DynamoDB.DocumentClient();
+const docClient = new DynamoDB.DocumentClient(clients_1.AWSConfig);
 let alldMaps = [];
 const electrodb_1 = require("electrodb");
 const KVStore = new electrodb_1.Entity({
@@ -44,10 +45,6 @@ const KVStore = new electrodb_1.Entity({
     },
     filters: {},
 }, { table: '{{.AppName}}', client: docClient });
-const localFS = require("fs-extra");
-if (process.env['CLOUDCC'] != 'true') {
-    localFS.ensureDirSync(`/tmp/dMapBatches/`);
-}
 class dMap {
     constructor(opts) {
         this.dynamoCalls = 0;
