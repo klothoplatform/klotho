@@ -210,6 +210,7 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, result 
 			AppVarName: listener.appName,
 			gatewayId:  listener.annotationId,
 		}
+		info.RoutesByGateway[gwSpec] = []gatewayRouteDefinition{}
 
 		localRoutes := h.handleLocalRoutes(listener.f, listenVarName, "", info.Unit.Name)
 		if len(localRoutes) > 0 {
