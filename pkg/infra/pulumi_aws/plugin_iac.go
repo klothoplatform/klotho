@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/bmatcuk/doublestar/v4"
 	"io"
+	"io/fs"
 	"os"
 	"strings"
 	"text/template"
@@ -147,6 +149,50 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 	addFile("iac/k8s/add_ons/cloud_map_controller/index.ts")
 	addFile("iac/k8s/add_ons/external_dns/index.ts")
 	addFile("iac/k8s/add_ons/index.ts")
+
+	addDir := func(dir string, exclusions ...string) {
+		var unreadEntries []string
+		dirContents, err := files.ReadDir(dir)
+
+		addEntries := func(parentDir string, entries []fs.DirEntry) {
+			for _, entry := range entries {
+				dirSuffix := ""
+				if entry.IsDir() {
+					dirSuffix = "/"
+				}
+				path := strings.TrimSuffix(parentDir, "/") + "/" + entry.Name() + dirSuffix
+				shouldInclude := true
+				for _, exclusion := range exclusions {
+					if shouldExclude, _ := doublestar.Match(exclusion, path); shouldExclude {
+						shouldInclude = false
+					}
+				}
+				if shouldInclude {
+					unreadEntries = append(unreadEntries, path)
+				}
+			}
+		}
+		addEntries(dir, dirContents)
+
+		for len(unreadEntries) > 0 {
+			if err != nil {
+				return
+			}
+
+			entry := unreadEntries[0]
+			unreadEntries = unreadEntries[1:]
+			if strings.HasSuffix(entry, "/") {
+				var childEntries []os.DirEntry
+				childEntries, err = files.ReadDir(strings.TrimSuffix(entry, "/"))
+				addEntries(entry, childEntries)
+
+			} else {
+				addFile(entry)
+			}
+		}
+	}
+
+	addDir("iac/sanitization", "**/*.{test,spec}.{ts,js}")
 
 	if err != nil {
 		return err
