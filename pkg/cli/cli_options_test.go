@@ -1,12 +1,10 @@
 package cli
 
 import (
-	"errors"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 	"gopkg.in/yaml.v3"
-	"os"
 	"testing"
 )
 
@@ -88,9 +86,6 @@ func TestSetOptions(t *testing.T) {
 }
 
 func TestCliSerialization(t *testing.T) {
-	_, err := os.ReadFile("adslkfjadsf")
-	errors.Is(err, os.ErrNotExist)
-	println("%s", err)
 	cases := []struct {
 		name   string
 		given  Options
