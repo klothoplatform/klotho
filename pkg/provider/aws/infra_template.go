@@ -143,7 +143,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 					Publishers:  event.Publishers,
 					Subscribers: event.Subscribers,
 					Path:        res.Path,
-					VarName:     res.Name,
+					Name:        res.Name,
 					EventName:   name,
 				}
 				data.PubSubs = append(data.PubSubs, ps)

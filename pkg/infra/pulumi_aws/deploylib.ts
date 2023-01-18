@@ -615,12 +615,12 @@ export class CloudCCLib {
 
     createTopic(
         path: string,
-        varName: string,
+        name: string,
         event: string,
         publishers: string[],
         subscribers: string[]
     ): aws.sns.Topic {
-        let topic = `${this.name}_${path.replace(/[^0-9a-zA-Z_-]/g, '-')}_${varName}_${event}`
+        let topic = `${this.name}_${name}_${event}`
         if (topic.length > 256) {
             const hash = crypto.createHash('sha256')
             hash.update(topic)

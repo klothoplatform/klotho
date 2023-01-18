@@ -2,6 +2,7 @@ package javascript
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/filter"
@@ -206,12 +207,16 @@ func (vf *varFinder) parseNode(f *core.SourceFile, annot *core.Annotation) (inte
 // findVarName finds the internal name for the given `varSpec` within the given file. Returns "" if the var isn't defined in the file.
 func findVarName(f *core.SourceFile, spec VarSpec) string {
 	log := zap.L().With(logging.FileField(f)).Sugar()
+	relPath, err := filepath.Rel(filepath.Dir(f.Path()), spec.DefinedIn)
+	if err != nil {
+		panic(err)
+	}
 
 	varName := spec.InternalName
 	if f.Path() != spec.DefinedIn {
 		filteredImports := FindImportsInFile(f).Filter(
 			filter.NewSimpleFilter(
-				IsRelativeImportOfModule(spec.DefinedIn),
+				IsRelativeImportOfModule(relPath),
 				predicate.AnyOf(
 					IsImportOfType(ImportTypeNamespace),
 					predicate.AllOf(
