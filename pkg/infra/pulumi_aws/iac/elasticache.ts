@@ -1,8 +1,8 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 import { Resource } from '../deploylib'
-import { generateValidResourceName } from './sanitization/sanitizer'
 import * as validators from './sanitization/aws/elasticache'
+import { resourceName } from './sanitization/sanitizer'
 
 const ELASTICACHE_ENGINE = 'redis'
 
@@ -48,10 +48,9 @@ export const setupElasticacheCluster = (
     })
 
     // TODO: look into removing sanitizeClusterName when making other breaking changes to resource names
-    const clusterName = generateValidResourceName(
-        sanitizeClusterName(appName, dbName),
+    const clusterName = resourceName(
         validators.cacheCluster.cacheClusterIdValidation()
-    )
+    )`${sanitizeClusterName(appName, dbName)}`
     // create the db resources
     const redis = new aws.elasticache.Cluster(
         clusterName,
