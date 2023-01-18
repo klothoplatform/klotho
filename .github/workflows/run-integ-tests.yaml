@@ -228,6 +228,7 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE: ""
           NOT_DEFAULT_REGION_APPS: |
             ts-redis-cluster
+            py-redis-cluster
       - name: pre-deploy hook
         working-directory: ${{ matrix.app_to_test }}
         if: env.BEFORE_DEPLOY_HOOK
@@ -316,6 +317,8 @@ jobs:
             ts-redis
             ts-eks
             ts-eks-helm
+            py-orm
+            py-redis
         working-directory: ${{ matrix.app_to_test }}
       - name: TypeScript - run integ tests
         if: steps.get_language.outputs.language == 'ts'
