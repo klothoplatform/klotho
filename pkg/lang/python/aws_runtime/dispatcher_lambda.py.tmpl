@@ -5,6 +5,7 @@ import logging
 import os
 import types
 import uuid
+import inspect
 
 log_level = os.getenv("KLOTHO_LOG_LEVEL", "DEBUG").upper()
 
@@ -52,7 +53,14 @@ async def rpc_handler(event, _context):
     if not module_obj:
         raise Exception("couldn't find module for path: {module_path}")
     function = getattr(module_obj, event.get('function_to_call'))
-    result = function(*params)
+    param_args = ()
+    param_kwargs = {}
+    args_spec = inspect.getfullargspec(function)
+    if args_spec.varkw:
+        param_kwargs, params = params[-1], params[:-1]
+    if args_spec.varargs:
+        param_args, params = params[-1], params[:-1]
+    result = function(*params, *param_args, **param_kwargs)
     if isinstance(result, types.CoroutineType):
         result = await result
 
