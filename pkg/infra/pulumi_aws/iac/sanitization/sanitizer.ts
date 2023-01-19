@@ -33,7 +33,7 @@ export function sanitize(s: string, options: Partial<SanitizationOptions>): Sani
         failedRules?.forEach((f) => console.debug(f))
         if (options.minLength != null && result.length < options.minLength) {
             throw new Error(
-                `The sanitized value, "${result}", is shorten than minLength: ${options.minLength}`
+                `The sanitized value, "${result}", is shorter than minLength: ${options.minLength}`
             )
         }
         if (options.maxLength != null && result.length > options.maxLength) {
