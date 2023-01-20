@@ -24,7 +24,7 @@ async def proxy_call(exec_group_name, module_name, function_name, params):
         Payload=json.dumps(payload_to_send))
     dispatcher_param_key_result = json.load(result["Payload"])
     async with s3fs.open(dispatcher_param_key_result) as f:
-        return json.load(await f.read())
+        return json.loads(await f.read())
 
 
 def get_exec_unit_lambda_function_name(logical_name):

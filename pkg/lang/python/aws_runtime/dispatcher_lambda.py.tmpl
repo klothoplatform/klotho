@@ -48,7 +48,7 @@ def init_asgi_handler():
 async def rpc_handler(event, _context):
     payload_key = event.get('params')
     async with s3fs.open(payload_key) as f:
-        params = json.load(await f.read())
+        params = json.loads(await f.read())
     module_obj = try_import(event.get('module_name'))
     if not module_obj:
         raise Exception("couldn't find module for path: {module_path}")
@@ -65,7 +65,7 @@ async def rpc_handler(event, _context):
         result = await result
 
     result_payload_key = str(uuid.uuid4())
-    async with s3fs.open(result_payload_key) as f:
+    async with s3fs.open(result_payload_key, mode='w') as f:
         await f.write(json.dumps(result))
     return result_payload_key
 
