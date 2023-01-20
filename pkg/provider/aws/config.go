@@ -18,6 +18,8 @@ type (
 		TemplateConfig
 		UseVPC                  bool
 		CloudfrontDistributions []*resources.CloudfrontDistribution
+		APIGateways             []provider.Gateway
+		ALBs                    []provider.Gateway
 	}
 )
 
@@ -45,19 +47,22 @@ func NewTemplateData(config *config.Application) *TemplateData {
 
 func (c *AWS) Name() string { return "aws" }
 
+type GatewayType string
+
 // Enums for the types we allow in the aws provider so that we can reuse the same string within the provider
 const (
-	eks                    = "eks"
-	fargate                = "fargate"
-	lambda                 = "lambda"
-	apigateway             = "apigateway"
-	rds_postgres           = "rds_postgres"
-	s3                     = "s3"
-	dynamodb               = "dynamodb"
-	elasticache            = "elasticache"
-	memorydb               = "memorydb"
-	sns                    = "sns"
-	cockroachdb_serverless = "cockroachdb_serverless"
+	eks                                = "eks"
+	fargate                            = "fargate"
+	lambda                             = "lambda"
+	rds_postgres                       = "rds_postgres"
+	s3                                 = "s3"
+	dynamodb                           = "dynamodb"
+	elasticache                        = "elasticache"
+	memorydb                           = "memorydb"
+	sns                                = "sns"
+	cockroachdb_serverless             = "cockroachdb_serverless"
+	ApiGateway             GatewayType = "apigateway"
+	Alb                    GatewayType = "alb"
 )
 
 var defaultConfig = config.Defaults{
@@ -87,7 +92,7 @@ var defaultConfig = config.Defaults{
 		},
 	},
 	Expose: config.KindDefaults{
-		Type: apigateway,
+		Type: string(ApiGateway),
 	},
 	PubSub: config.KindDefaults{
 		Type: sns,
@@ -146,7 +151,7 @@ func (a *AWS) GetKindTypeMappings(kind string) ([]string, bool) {
 	case core.ExecutionUnitKind:
 		return []string{eks, fargate, lambda}, true
 	case core.GatewayKind:
-		return []string{apigateway}, true
+		return []string{string(ApiGateway), string(Alb)}, true
 	case core.StaticUnitKind:
 		return []string{s3}, true
 	case string(core.PersistFileKind):
