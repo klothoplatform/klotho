@@ -654,7 +654,6 @@ export class Eks {
         }
 
         if (image) {
-            console.log(needsLoadBalancer)
             if (needsGatewayLink) {
                 if (!this.lbPlugin) {
                     throw new Error(

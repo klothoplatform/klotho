@@ -41,11 +41,7 @@ export class ApiGateway {
         }
 
         gateways.forEach((gateway) => {
-            //   if (gateway.ProtocolType === "websocket") {
-            this.createWebSocketGateway(gateway)
-            //   } else if (gateway.ProtocolType === "http") {
-            //     this.createDockerBasedAPIGateway(gateway.Routes, gateway.Name)
-            //   }
+            this.createDockerBasedAPIGateway(gateway.Routes, gateway.Name)
         })
     }
 
