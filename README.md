@@ -47,7 +47,6 @@ Its design principles are an outcome of industry collaborations focused on mid-s
 ## Adaptive Architectures
 
 Klotho builds on a new architecture called [Adaptive Architecutes](https://www.youtube.com/watch?v=GHt3FAEDfII&t=40392s). 
-![diagram3(1)]()
 
 ![image](https://user-images.githubusercontent.com/96867907/213884373-6b33a3e8-c00b-4c86-91c4-f89220f79ba5.png)
 
