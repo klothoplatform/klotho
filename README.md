@@ -47,8 +47,9 @@ Its design principles are an outcome of industry collaborations focused on mid-s
 ## Adaptive Architectures
 
 Klotho builds on a new architecture called [Adaptive Architecutes](https://www.youtube.com/watch?v=GHt3FAEDfII&t=40392s). 
+![diagram3(1)]()
 
-![image](https://user-images.githubusercontent.com/69910109/209458345-261875db-7168-4570-86ac-f43fe37f78c6.png)
+![image](https://user-images.githubusercontent.com/96867907/213884373-6b33a3e8-c00b-4c86-91c4-f89220f79ba5.png)
 
 It's a superset of monoliths, microservices and serverless architectures, combining their benefits like a stellar developer experience, immediate productivity, scalability and autonomy of development and deployment as well as a spectrum of NoOps to FullOps. It also introduces a host of [new capabilities](https://klo.dev/) that have been out of reach do to their implementation complexity. 
 
