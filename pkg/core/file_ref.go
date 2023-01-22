@@ -21,7 +21,11 @@ func (r *FileRef) Path() string {
 }
 
 func (r *FileRef) WriteTo(w io.Writer) (int64, error) {
-	f, err := os.Open(filepath.Join(r.RootConfigPath, r.FPath))
+	pathToOpen := r.FPath
+	if r.RootConfigPath != "" {
+		pathToOpen = filepath.Join(r.RootConfigPath, r.FPath)
+	}
+	f, err := os.Open(pathToOpen)
 	if err != nil {
 		return 0, err
 	}
