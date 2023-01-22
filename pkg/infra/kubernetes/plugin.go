@@ -51,8 +51,8 @@ func (p Kubernetes) Transform(result *core.CompilationResult, deps *core.Depende
 		metadata := chart.Metadata
 		khChart.Name = chart.Name()
 		values := make(map[string]interface{})
-		if khChart.ValuesFile != "" {
-			values, err = helm.GetValues(khChart.ValuesFile)
+		if len(khChart.ValuesFiles) > 0 {
+			values, err = helm.MergeValues(khChart.ValuesFiles)
 			if err != nil {
 				errs.Append(err)
 				continue
@@ -128,13 +128,13 @@ func (p *Kubernetes) setValuesFile(path string, cfg *config.ExecutionUnit, unitN
 	}
 	relPath := strings.TrimSuffix(path, extension)
 	if strings.HasSuffix(relPath, "values") &&
-		(cfg.HelmChartOptions.Install && cfg.HelmChartOptions.ValuesFile == "") {
+		(cfg.HelmChartOptions.Install && len(cfg.HelmChartOptions.ValuesFiles) == 0) {
 		valuesFile, err := filepath.Rel(p.Config.Path, path)
 		if err != nil {
 			return err
 		}
 		p.log.Infof("Setting values file as %s, for execution unit %s", valuesFile, unitName)
-		cfg.HelmChartOptions.ValuesFile = valuesFile
+		cfg.HelmChartOptions.ValuesFiles = []string{valuesFile}
 	}
 	return nil
 }
@@ -179,17 +179,17 @@ func (p *Kubernetes) getKlothoCharts(result *core.CompilationResult) (map[string
 			}
 		}
 
-		if cfg.HelmChartOptions.ValuesFile == "" {
-			for _, f := range inputF.Files() {
-				chartDir := filepath.Clean(cfg.HelmChartOptions.Directory) + string(os.PathSeparator)
-				if strings.HasPrefix(f.Path(), chartDir) {
+		for _, f := range inputF.Files() {
+			chartDir := filepath.Clean(cfg.HelmChartOptions.Directory) + string(os.PathSeparator)
+			if strings.HasPrefix(f.Path(), chartDir) {
+				if len(cfg.HelmChartOptions.ValuesFiles) == 0 {
 					err := p.setValuesFile(f.Path(), &cfg, u.Name)
 					if err != nil {
 						errs.Append(err)
 					}
-					// We are removing any remaining chart files from the execution unit, since they are not necessary for our executable code and will be added to our generated helm chart.
-					u.Remove(f.Path())
 				}
+				// We are removing any remaining chart files from the execution unit, since they are not necessary for our executable code and will be added to our generated helm chart.
+				u.Remove(f.Path())
 			}
 		}
 
@@ -197,14 +197,26 @@ func (p *Kubernetes) getKlothoCharts(result *core.CompilationResult) (map[string
 			khChart, ok := klothoCharts[cfg.HelmChartOptions.Directory]
 			if !ok {
 				klothoCharts[cfg.HelmChartOptions.Directory] = KlothoHelmChart{
-					ValuesFile:     cfg.HelmChartOptions.ValuesFile,
+					ValuesFiles:    cfg.HelmChartOptions.ValuesFiles,
 					ExecutionUnits: []*HelmExecUnit{{Name: u.Name, Namespace: "default"}},
 					Directory:      cfg.HelmChartOptions.Directory,
 				}
 			} else {
-				if khChart.ValuesFile != cfg.HelmChartOptions.ValuesFile {
+				foundDifference := false
+				for _, chartFile := range khChart.ValuesFiles {
+					fileFound := false
+					for _, cfgFile := range cfg.HelmChartOptions.ValuesFiles {
+						if cfgFile == chartFile {
+							fileFound = true
+						}
+					}
+					if !fileFound {
+						foundDifference = true
+					}
+				}
+				if !foundDifference {
 					p.log.Warn("Found Conflicting Helm Values files, %s and %s, for helm chart in directory %s. Using %s",
-						khChart.ValuesFile, cfg.HelmChartOptions.ValuesFile, cfg.HelmChartOptions.Directory, khChart.ValuesFile)
+						khChart.ValuesFiles, cfg.HelmChartOptions.ValuesFiles, cfg.HelmChartOptions.Directory, khChart.ValuesFiles)
 				}
 				khChart.ExecutionUnits = append(khChart.ExecutionUnits, &HelmExecUnit{Name: u.Name, Namespace: "default"})
 				klothoCharts[cfg.HelmChartOptions.Directory] = khChart

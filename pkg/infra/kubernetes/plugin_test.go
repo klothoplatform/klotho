@@ -101,14 +101,14 @@ func Test_setHelmChartDirectory(t *testing.T) {
 	}
 }
 
-func Test_setValuesFile(t *testing.T) {
+func Test_setValuesFiles(t *testing.T) {
 
 	tests := []struct {
 		name     string
 		path     string
 		cfg      *config.ExecutionUnit
 		unitName string
-		want     string
+		want     []string
 	}{
 		{
 			name: "happy path yaml",
@@ -120,7 +120,7 @@ func Test_setValuesFile(t *testing.T) {
 				},
 			},
 			unitName: "testUnit",
-			want:     "somedir/values.yaml",
+			want:     []string{"somedir/values.yaml"},
 		},
 		{
 			name: "happy path yml",
@@ -132,7 +132,7 @@ func Test_setValuesFile(t *testing.T) {
 				},
 			},
 			unitName: "testUnit",
-			want:     "somedir/values.yml",
+			want:     []string{"somedir/values.yml"},
 		},
 		{
 			name: "happy path no directory",
@@ -143,7 +143,7 @@ func Test_setValuesFile(t *testing.T) {
 				},
 			},
 			unitName: "testUnit",
-			want:     "somedir/values.yml",
+			want:     []string{"somedir/values.yml"},
 		},
 		{
 			name: "no install",
@@ -152,19 +152,18 @@ func Test_setValuesFile(t *testing.T) {
 				HelmChartOptions: &config.HelmChartOptions{},
 			},
 			unitName: "testUnit",
-			want:     "",
 		},
 		{
 			name: "values override",
 			path: "somedir/values.yaml",
 			cfg: &config.ExecutionUnit{
 				HelmChartOptions: &config.HelmChartOptions{
-					ValuesFile: "override/values.yaml",
-					Install:    true,
+					ValuesFiles: []string{"override/values.yaml"},
+					Install:     true,
 				},
 			},
 			unitName: "testUnit",
-			want:     "override/values.yaml",
+			want:     []string{"override/values.yaml"},
 		},
 		{
 			name: "non yaml file no action",
@@ -175,7 +174,6 @@ func Test_setValuesFile(t *testing.T) {
 				},
 			},
 			unitName: "testUnit",
-			want:     "",
 		},
 	}
 	for _, tt := range tests {
@@ -188,7 +186,7 @@ func Test_setValuesFile(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			assert.Equal(tt.want, tt.cfg.HelmChartOptions.ValuesFile)
+			assert.Equal(tt.want, tt.cfg.HelmChartOptions.ValuesFiles)
 		})
 	}
 }
@@ -239,8 +237,8 @@ func Test_getKlothoCharts(t *testing.T) {
 			want: result{
 				klothoCharts: map[string]KlothoHelmChart{
 					"chart": {
-						Directory:  "chart",
-						ValuesFile: "chart/values.yaml",
+						Directory:   "chart",
+						ValuesFiles: []string{"chart/values.yaml"},
 					},
 				},
 				chartsUnits: map[string][]string{
@@ -276,8 +274,8 @@ func Test_getKlothoCharts(t *testing.T) {
 			want: result{
 				klothoCharts: map[string]KlothoHelmChart{
 					"chart": {
-						Directory:  "chart",
-						ValuesFile: "chart/values.yaml",
+						Directory:   "chart",
+						ValuesFiles: []string{"chart/values.yaml"},
 					},
 				},
 				chartsUnits: map[string][]string{
@@ -387,11 +385,10 @@ func Test_getKlothoCharts(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			fmt.Println(klothoCharts)
 			for dir, c := range tt.want.klothoCharts {
 				resultChart := klothoCharts[dir]
 				assert.Equal(c.Directory, resultChart.Directory)
-				assert.Equal(c.ValuesFile, resultChart.ValuesFile)
+				assert.Equal(c.ValuesFiles, resultChart.ValuesFiles)
 
 				assert.Len(resultChart.ExecutionUnits, len(tt.want.chartsUnits[dir]))
 				for _, u := range resultChart.ExecutionUnits {

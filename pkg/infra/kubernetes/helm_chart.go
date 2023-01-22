@@ -15,7 +15,7 @@ import (
 
 type KlothoHelmChart struct {
 	Name           string
-	ValuesFile     string
+	ValuesFiles    []string
 	ExecutionUnits []*HelmExecUnit
 	Directory      string
 	Files          []core.File
