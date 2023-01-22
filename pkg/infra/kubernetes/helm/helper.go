@@ -60,6 +60,40 @@ func GetValues(valuesFile string) (map[string]interface{}, error) {
 	return values.AsMap(), nil
 }
 
+func MergeValues(valuesFiles []string) (map[string]interface{}, error) {
+	base := map[string]interface{}{}
+
+	// User specified a values files via -f/--values
+	for _, filePath := range valuesFiles {
+		currentMap, err := GetValues(filePath)
+		if err != nil {
+			return nil, err
+		}
+		// Merge with the previous map
+		base = mergeMaps(base, currentMap)
+	}
+	return base, nil
+}
+
+func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{}, len(a))
+	for k, v := range a {
+		out[k] = v
+	}
+	for k, v := range b {
+		if v, ok := v.(map[string]interface{}); ok {
+			if bv, ok := out[k]; ok {
+				if bv, ok := bv.(map[string]interface{}); ok {
+					out[k] = mergeMaps(bv, v)
+					continue
+				}
+			}
+		}
+		out[k] = v
+	}
+	return out
+}
+
 func (h *HelmHelper) GetRenderedTemplates(ch *chart.Chart, vals map[string]interface{}, namespace string) ([]core.File, error) {
 
 	renderedFiles := []core.File{}

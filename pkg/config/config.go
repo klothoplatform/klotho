@@ -49,9 +49,9 @@ type (
 
 	// A HelmChartOptions represents configuration for execution units attempting to generate helm charts
 	HelmChartOptions struct {
-		Directory  string `json:"directory,omitempty" yaml:"directory,omitempty" toml:"directory,omitempty"` // Directory signals the directory which will contain the helm chart outputs
-		Install    bool   `json:"install,omitempty" yaml:"install,omitempty" toml:"install,omitempty"`
-		ValuesFile string `json:"values_file,omitempty" yaml:"values_file,omitempty" toml:"values_file,omitempty"`
+		Directory   string   `json:"directory,omitempty" yaml:"directory,omitempty" toml:"directory,omitempty"` // Directory signals the directory which will contain the helm chart outputs
+		Install     bool     `json:"install,omitempty" yaml:"install,omitempty" toml:"install,omitempty"`
+		ValuesFiles []string `json:"values_files,omitempty" yaml:"values_files,omitempty" toml:"values_files,omitempty"`
 	}
 
 	PubSub struct {
