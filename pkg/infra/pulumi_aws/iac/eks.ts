@@ -435,7 +435,6 @@ export class Eks {
             }
         }
 
-        console.log(diskSizeMin)
         for (const unit of execUnits) {
             if (unit.params.nodeType === 'fargate') {
                 continue
@@ -485,6 +484,9 @@ export class Eks {
         const publicNodeGroupSpecs = this.determineNodeGroupSpecs(
             execUnits.filter((unit) => unit.network_placement === 'public')
         )
+        if (privateNodeGroupSpecs.size == 0 && publicNodeGroupSpecs.size == 0) {
+            privateNodeGroupSpecs.set('t3.medium', { diskSize: 20, instanceType: 't3.medium' })
+        }
 
         privateNodeGroupSpecs.forEach((specs, name) => {
             const nodeGroup = this.createNodeGroup(
@@ -1147,7 +1149,11 @@ export class Eks {
     }
 
     private createNodeIamRole(name: string): aws.iam.Role {
-        return new aws.iam.Role(`${this.clusterName}-${name}-EksNodeRole`, {
+        let roleName = `${this.clusterName}-${name}-EksNodeRole`
+        if (roleName.length > 63) {
+            roleName = roleName.substring(0, 63)
+        }
+        return new aws.iam.Role(roleName, {
             assumeRolePolicy: {
                 Version: '2012-10-17',
                 Statement: [
