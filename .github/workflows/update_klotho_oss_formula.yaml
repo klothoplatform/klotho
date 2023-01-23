@@ -1,4 +1,4 @@
-name: Update klotho's homebrew formula
+name: Update the klotho-oss homebrew formula
 
 on:
   release:
@@ -11,7 +11,7 @@ on:
         required: false
         default: 'KlothoPlatform/homebrew-tap'
       klotho-release:
-        description: 'the klotho release that the formula will point to (e.g. v0.5.15)'
+        description: 'the klotho (OSS) release that the formula will point to (e.g. v0.5.15)'
         required: false
 jobs:
   update-brew-formula:
@@ -52,6 +52,8 @@ jobs:
           
           echo "Preparing formula for klotho release: ${VERSION}"
           
+          export FORMULA_NAME=KlothoOSS
+          export OUTPUT_FILE_NAME=klotho-oss.rb
           export BINARY_BASE_URL="https://github.com/klothoplatform/klotho/releases/download"
           ./update_formula.sh
 
@@ -65,10 +67,10 @@ jobs:
       - name: push updated formula
         run: |
           cd tap
-          echo "Pushing updated formula to ${{ github.event.inputs.klotho-tap || 'KlothoPlatform/homebrew-tap' }}/main"
+          echo "Pushing updated klotho-oss formula to ${{ github.event.inputs.klotho-tap || 'KlothoPlatform/homebrew-tap' }}/main"
           
           git add Formula/klotho.rb
-          git commit -m "Updates klotho formula to ${{ steps.releaseName.outputs.release_name }}"
+          git commit -m "Updates klotho-oss formula to ${{ steps.releaseName.outputs.release_name }}"
           git push origin main
 
           
