@@ -129,6 +129,9 @@ jobs:
           - # issue #49
             app_to_test: ts-eks-helm
             mode: upgrade
+          - 
+            app_to_test: ts-events
+            mode: upgrade
     steps:
       - uses: actions/checkout@v3
         with:
