@@ -90,7 +90,7 @@ jobs:
           )"
           if [[ -n "$APP_NAME_OVERRIDES" ]]; then
             echo "Applying overrides: $APP_NAME_OVERRIDES"
-            dirs_with_tests="$(echo "$dirs_with_tests" | grep -Ff <(echo "$APP_NAME_OVERRIDES" | tr , "\n"))"
+            dirs_with_tests="$(echo "$dirs_with_tests" | grep -xFf <(echo "$APP_NAME_OVERRIDES" | tr , "\n"))"
           else
             echo "No app name overrides."
           fi
