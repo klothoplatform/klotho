@@ -5,7 +5,6 @@ on:
     - cron: '0 7 * * 1-5'
   workflow_dispatch: null
 name: nightly integration tests
-concurrency: integ-tests
 jobs:
   all-tests:
     uses: ./.github/workflows/run-integ-tests.yaml
