@@ -1150,8 +1150,8 @@ export class Eks {
 
     private createNodeIamRole(name: string): aws.iam.Role {
         let roleName = `${this.clusterName}-${name}-EksNodeRole`
-        if (roleName.length > 63) {
-            roleName = roleName.substring(0, 63)
+        if (roleName.length > 55) {
+            roleName = roleName.substring(0, 55)
         }
         return new aws.iam.Role(roleName, {
             assumeRolePolicy: {
