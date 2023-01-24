@@ -21,10 +21,15 @@ on:
         type: string
         default: klotho-engineering@klo.dev
       region:
-        description: the AWS region to deploy to
+        description: the AWS region to deploy to, other than redis tests
         required: false
         type: string
         default: us-east-1
+      region-redis-cluster:
+        description: the AWS region to deploy redis tests to
+        required: false
+        type: string
+        default: us-east-2
   workflow_call:
     # same inputs as workflow_dispatch
     inputs:
@@ -50,8 +55,7 @@ on:
         required: false
         type: string
         default: us-east-1
-env:
-  INTEG_TEST_ATTEMPTS: 3 # how many times we'll try to run "npm run integ-test" before we mark it as failed. See klothoplatform/sample-apps#44
+concurrency: integ-tests
 name: run integration tests
 jobs:
   list-apps:
@@ -216,8 +220,8 @@ jobs:
           pulumi -C compiled -s "$STACK_NAME" config refresh || true # refresh the stack, just in case it exists from a previous attempt. Ignore if that fails
           echo "(It's fine if this said 'error: no previous deployment'.)"
           if echo "$NOT_DEFAULT_REGION_APPS" | grep -q --line-regexp '${{ matrix.app_to_test }}' ; then
-            echo "deploying to us-east-2"
-            pulumi -C compiled -s "$STACK_NAME" config set aws:region us-east-2 
+            echo "deploying to $AWS_REGION_REDIS"
+            pulumi -C compiled -s "$STACK_NAME" config set aws:region "$AWS_REGION_REDIS"
           else
             echo "deploying to $AWS_REGION"
             pulumi -C compiled -s "$STACK_NAME" config set aws:region "$AWS_REGION" 
@@ -225,6 +229,7 @@ jobs:
           echo '::endgroup'
         env:
           AWS_REGION: ${{ inputs.region }}
+          AWS_REGION_REDIS: ${{ inputs.region-redis-cluster }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
