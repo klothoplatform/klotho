@@ -55,6 +55,11 @@ on:
         required: false
         type: string
         default: us-east-1
+      region-redis-cluster:
+        description: the AWS region to deploy redis tests to
+        required: false
+        type: string
+        default: us-east-2
 concurrency: integ-tests
 name: run integration tests
 jobs:
