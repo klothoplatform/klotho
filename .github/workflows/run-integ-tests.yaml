@@ -142,6 +142,9 @@ jobs:
             app_to_test: ts-events
             mode: upgrade
     steps:
+      - name: versions
+        run: |
+          echo "pulumi $(pulumi version)"
       - uses: actions/checkout@v3
         with:
           repository: ${{ inputs.test-app-repo }}
