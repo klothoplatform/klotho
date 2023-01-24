@@ -176,6 +176,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	analyticsClient, err := analytics.NewClient(map[string]interface{}{
 		"version": km.Version,
 		"strict":  cfg.strict,
+		"edition": km.DefaultUpdateStream,
 	})
 	if err != nil {
 		return errors.New(fmt.Sprintf("Issue retrieving user info: %s. \nYou may need to run: klotho --login <email>", err))
@@ -204,6 +205,8 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	if err != nil {
 		return err
 	}
+	updateStream := OptionOrDefault(options.Update.Stream, km.DefaultUpdateStream)
+	analyticsClient.Properties["updateStream"] = updateStream
 
 	if cfg.version {
 		var versionQualifier string
@@ -219,7 +222,6 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// if update is specified do the update in place
-	updateStream := OptionOrDefault(options.Update.Stream, km.DefaultUpdateStream)
 	var klothoUpdater = updater.Updater{
 		ServerURL:     updater.DefaultServer,
 		Stream:        updateStream,
