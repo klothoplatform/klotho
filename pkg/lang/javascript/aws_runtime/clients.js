@@ -32,10 +32,10 @@ exports.clients = (() => {
     let sns = new SNSClient(exports.AWSConfig)
     let dynamo = new DynamoDBClient(exports.AWSConfig)
 
-    s3 = AWSXRay.captureAWSClient(s3)
-    lambda = AWSXRay.captureAWSClient(lambda)
-    dynamo = AWSXRay.captureAWSClient(dynamo)
-    secrets = AWSXRay.captureAWSClient(secrets)
+    s3 = AWSXRay.captureAWSv3Client(s3)
+    lambda = AWSXRay.captureAWSv3Client(lambda)
+    dynamo = AWSXRay.captureAWSv3Client(dynamo)
+    secrets = AWSXRay.captureAWSv3Client(secrets)
 
     return { lambda, s3, secrets, sns, dynamo }
 })()
