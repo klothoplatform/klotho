@@ -129,15 +129,15 @@ func OptionOrDefault(given string, defaultValue string) string {
 	return given
 }
 
-func ShouldCheckForUpdate(given string, defaultValue string, currVersion string) bool {
-	if given == "" || given == defaultValue {
+func ShouldCheckForUpdate(updateStreamOverride string, defaultUpdateStream string, currVersion string) bool {
+	if updateStreamOverride == "" || updateStreamOverride == defaultUpdateStream {
 		return true
 	}
 
-	givenParts := strings.Split(given, ":")
-	if len(givenParts) == 2 {
-		givenVersion := givenParts[1]
-		if givenVersion != currVersion {
+	streamOverrideParts := strings.Split(updateStreamOverride, ":")
+	if len(streamOverrideParts) == 2 {
+		streamOverrideVersion := streamOverrideParts[1]
+		if streamOverrideVersion != currVersion {
 			return true
 		}
 	}
