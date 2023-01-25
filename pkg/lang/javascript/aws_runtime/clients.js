@@ -1,8 +1,8 @@
-const S3 = require('aws-sdk/clients/s3')
-const Lambda = require('aws-sdk/clients/lambda')
-const Secrets = require('aws-sdk/clients/secretsmanager')
-const SNS = require('aws-sdk/clients/sns')
-const Dynamo = require('aws-sdk/clients/dynamodb')
+const {S3Client} = require('@aws-sdk/client-s3')
+const {LambdaClient}  = require('@aws-sdk/client-lambda')
+const {SecretsManagerClient}  = require('@aws-sdk/client-secrets-manager')
+const { SNSClient }  = require('@aws-sdk/client-sns')
+const {DynamoDBClient}  = require('@aws-sdk/client-dynamodb')
 const AWSXRay = require('aws-xray-sdk-core')
 
 const endpoint = process.env['AWS_ENDPOINT']
@@ -25,17 +25,17 @@ exports.AWSConfig = {
 }
 
 exports.clients = (() => {
-    let secrets = new Secrets(exports.AWSConfig)
+    let secrets = new SecretsManagerClient(exports.AWSConfig)
 
-    let s3 = new S3(exports.AWSConfig)
-    let lambda = new Lambda(exports.AWSConfig)
-    let sns = new SNS(exports.AWSConfig)
-    let dynamo = new Dynamo(exports.AWSConfig)
+    let s3 = new S3Client(exports.AWSConfig)
+    let lambda = new LambdaClient(exports.AWSConfig)
+    let sns = new SNSClient(exports.AWSConfig)
+    let dynamo = new DynamoDBClient(exports.AWSConfig)
 
-    s3 = AWSXRay.captureAWSClient(s3)
-    lambda = AWSXRay.captureAWSClient(lambda)
-    dynamo = AWSXRay.captureAWSClient(dynamo)
-    secrets = AWSXRay.captureAWSClient(secrets)
+    s3 = AWSXRay.captureAWSv3Client(s3)
+    lambda = AWSXRay.captureAWSv3Client(lambda)
+    dynamo = AWSXRay.captureAWSv3Client(dynamo)
+    secrets = AWSXRay.captureAWSv3Client(secrets)
 
     return { lambda, s3, secrets, sns, dynamo }
 })()
