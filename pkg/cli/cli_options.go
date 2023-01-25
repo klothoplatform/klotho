@@ -2,13 +2,15 @@ package cli
 
 import (
 	"fmt"
+	"io/fs"
+	"os"
+	"strings"
+
 	"github.com/klothoplatform/klotho/pkg/cli_config"
 	"github.com/klothoplatform/klotho/pkg/yaml_util"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
-	"io/fs"
-	"os"
 )
 
 const configFileName = "options.yaml"
@@ -125,4 +127,20 @@ func OptionOrDefault(given string, defaultValue string) string {
 		return defaultValue
 	}
 	return given
+}
+
+func ShouldCheckForUpdate(given string, defaultValue string, currVersion string) bool {
+	if given == "" || given == defaultValue {
+		return true
+	}
+
+	givenParts := strings.Split(given, ":")
+	if len(givenParts) == 2 {
+		givenVersion := givenParts[1]
+		if givenVersion != currVersion {
+			return true
+		}
+	}
+
+	return false
 }

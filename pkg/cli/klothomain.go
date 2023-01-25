@@ -236,15 +236,19 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		return nil
 	}
 
-	// check daily for new updates and notify users if found
-	needsUpdate, err := klothoUpdater.CheckUpdate(km.Version)
-	if err != nil {
-		analyticsClient.Error(fmt.Sprintf(klothoName+"failed to check for updates: %v", err))
-		zap.S().Warnf("failed to check for updates: %v", err)
-	}
-	if needsUpdate {
-		analyticsClient.Info(klothoName + "update is available")
-		zap.L().Info("new update is available, please run klotho --update to get the latest version")
+	if ShouldCheckForUpdate(options.Update.Stream, km.DefaultUpdateStream, km.Version) {
+		// check daily for new updates and notify users if found
+		needsUpdate, err := klothoUpdater.CheckUpdate(km.Version)
+		if err != nil {
+			analyticsClient.Error(fmt.Sprintf(klothoName+"failed to check for updates: %v", err))
+			zap.S().Warnf("failed to check for updates: %v", err)
+		}
+		if needsUpdate {
+			analyticsClient.Info(klothoName + "update is available")
+			zap.L().Info("new update is available, please run klotho --update to get the latest version")
+		}
+	} else {
+		zap.S().Infof("Klotho is pinned to version: %s", options.Update.Stream)
 	}
 
 	if len(cfg.setOption) > 0 {
