@@ -572,16 +572,18 @@ export class Eks {
         }
         let nodeSelector: { [key: string]: pulumi.Output<string> | string } = {}
 
-        nodeSelector['network_placement'] = unit.network_placement!
-        if (args.nodeConstraints?.instanceType) {
-            if (unit.network_placement === 'public') {
-                nodeSelector['eks.amazonaws.com/nodegroup'] = this.publicNodeGroups.get(
-                    `${args.nodeConstraints.instanceType}`
-                )!.nodeGroupName
-            } else {
-                nodeSelector['eks.amazonaws.com/nodegroup'] = this.privateNodeGroups.get(
-                    `${args.nodeConstraints.instanceType}`
-                )!.nodeGroupName
+        if (unit.params.nodeType !== 'fargate') {
+            nodeSelector['network_placement'] = unit.network_placement!
+            if (args.nodeConstraints?.instanceType) {
+                if (unit.network_placement === 'public') {
+                    nodeSelector['eks.amazonaws.com/nodegroup'] = this.publicNodeGroups.get(
+                        `${args.nodeConstraints.instanceType}`
+                    )!.nodeGroupName
+                } else {
+                    nodeSelector['eks.amazonaws.com/nodegroup'] = this.privateNodeGroups.get(
+                        `${args.nodeConstraints.instanceType}`
+                    )!.nodeGroupName
+                }
             }
         }
 
