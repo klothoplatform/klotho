@@ -5,10 +5,11 @@ import _ = require('lodash')
 import moment = require('moment')
 
 import { AWSConfig } from './clients'
+import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb'
 
-import DynamoDB = require('aws-sdk/clients/dynamodb')
-const docClient = new DynamoDB.DocumentClient(AWSConfig)
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb')
 
+const docClient = new DynamoDBDocumentClient(new DynamoDBClient(AWSConfig))
 let alldMaps: dMap[] = []
 
 import { Entity } from 'electrodb'
