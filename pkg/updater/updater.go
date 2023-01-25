@@ -77,7 +77,7 @@ func (u *Updater) CheckUpdate(currentVersion string) (bool, error) {
 		return false, fmt.Errorf("invalid version %s: %v", currentVersion, err)
 	}
 
-	return currVersion.LessThan(*latestVersion) || u.CurrentStream != u.Stream, nil
+	return currVersion.LessThan(*latestVersion) || strings.Split(u.CurrentStream, ":")[0] != strings.Split(u.Stream, ":")[0], nil
 }
 
 // Update performs an update if a newer version is
