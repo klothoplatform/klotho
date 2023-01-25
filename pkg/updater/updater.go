@@ -44,7 +44,6 @@ func selfUpdate(data io.ReadCloser) error {
 func (u *Updater) CheckUpdate(currentVersion string) (bool, error) {
 	timeout := 10 * time.Second
 	cli := httpclient.NewClient(httpclient.WithHTTPTimeout(timeout))
-
 	endpoint := fmt.Sprintf("%s/update/check-latest-version?stream=%s", u.ServerURL, u.Stream)
 	res, err := cli.Get(endpoint, nil)
 	if err != nil {
@@ -77,7 +76,7 @@ func (u *Updater) CheckUpdate(currentVersion string) (bool, error) {
 		return false, fmt.Errorf("invalid version %s: %v", currentVersion, err)
 	}
 
-	return currVersion.LessThan(*latestVersion) || u.CurrentStream != u.Stream, nil
+	return currVersion.LessThan(*latestVersion), nil
 }
 
 // Update performs an update if a newer version is
