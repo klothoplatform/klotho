@@ -1,8 +1,8 @@
-import {S3Client} from '@aws-sdk/client-s3'
-import {LambdaClient} from '@aws-sdk/client-lambda'
-import {SecretsManagerClient} from '@aws-sdk/client-secrets-manager'
-import { SNSClient } from '@aws-sdk/client-sns'
-import {DynamoDBClient} from '@aws-sdk/client-dynamodb'
+const {S3Client} = require('@aws-sdk/client-s3')
+const {LambdaClient}  = require('@aws-sdk/client-lambda')
+const {SecretsManagerClient}  = require('@aws-sdk/client-secrets-manager')
+const { SNSClient }  = require('@aws-sdk/client-sns')
+const {DynamoDBClient}  = require('@aws-sdk/client-dynamodb')
 const AWSXRay = require('aws-xray-sdk-core')
 
 const endpoint = process.env['AWS_ENDPOINT']
