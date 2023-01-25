@@ -116,8 +116,11 @@ export class LoadBalancerPlugin {
                     loadBalancerArn: alb.arn,
                     defaultActions: [
                         {
-                            type: 'forward',
-                            targetGroupArn: targetGroup.arn,
+                            type: 'fixed-response',
+                            fixedResponse: {
+                                contentType: 'application/json',
+                                statusCode: '4XX',
+                            },
                         },
                     ],
                 })
