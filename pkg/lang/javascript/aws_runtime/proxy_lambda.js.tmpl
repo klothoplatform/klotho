@@ -1,6 +1,7 @@
 const s3fs = require('./fs');
 const uuid = require('uuid').v4;
 const {clients} = require('./clients');
+const {InvokeCommand}  = require('@aws-sdk/client-lambda')
 
 const { lambda } = clients;
 
@@ -22,15 +23,17 @@ async function proxyCall(callType, execGroupName, moduleName, functionName, para
         FunctionName: physicalAddress,
         InvocationType: callType == "emitter"? "Event" : "RequestResponse",
         Payload: JSON.stringify(payloadToSend)
-    }        
+    }     
 
-    let result = await lambda.invoke(invokeParams).promise()
+    const command = new InvokeCommand(invokeParams);
+
+    let result = await  await lambda.send(command)
     
     
     if (callType == "emitter") {
         return
     }  else {
-        let dispatcherParamKeyResult = JSON.parse(result.Payload)
+        let dispatcherParamKeyResult = JSON.parse(String.fromCharCode(...result.Payload))
         return await s3fs.getCallParameters(dispatcherParamKeyResult, "rpc")
     }
 }
