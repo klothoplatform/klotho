@@ -52,7 +52,7 @@ jobs:
           
           echo "Preparing formula for klotho release: ${VERSION}"
           
-          export FORMULA_NAME=KlothoOSS
+          export FORMULA_NAME=KlothoOss
           export OUTPUT_FILE_NAME=klotho-oss.rb
           export BINARY_BASE_URL="https://github.com/klothoplatform/klotho/releases/download"
           ./update_formula.sh
