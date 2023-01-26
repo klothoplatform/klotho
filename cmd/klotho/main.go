@@ -6,7 +6,7 @@ import (
 
 func main() {
 	km := cli.KlothoMain{
-		DefaultUpdateStream: "oss:latest",
+		DefaultUpdateStream: "open:latest",
 		Version:             Version,
 		PluginSetup: func(psb *cli.PluginSetBuilder) error {
 			return psb.AddAll()
