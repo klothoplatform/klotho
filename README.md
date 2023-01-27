@@ -80,17 +80,28 @@ Klotho ensures that developers/operators are able to select and adapt the underl
 
 To install the latest Klotho release, run the following (see [full installation instructions](https://klo.dev/docs/download-klotho) for additional installation options):
 
-Mac:
+**Mac:**
 
 ```sh
 brew install klothoplatform/tap/klotho
 ```
 
-Linux/WSL2:
+**Linux/WSL2:**
+
 ```sh
 curl -fsSL "https://github.com/klothoplatform/klotho/releases/latest/download/klotho_linux_amd64" -o klotho
 chmod +x klotho
-  ```
+```
+
+**Arch Linux (from AUR):**
+
+Install the `klotho` package from AUR using your favourite AUR helper -
+
+```
+yay -S klotho
+paru -S klotho
+```
+
 ## IDE Plugins & Extensions
 
 Get syntax highlighting and snippets for Klotho annotations in your favorite IDE.
