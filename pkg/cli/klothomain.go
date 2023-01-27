@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 
+	"github.com/klothoplatform/klotho/pkg/auth"
 	"github.com/klothoplatform/klotho/pkg/cli_config"
 
 	"github.com/klothoplatform/klotho/pkg/updater"
@@ -45,8 +46,9 @@ var cfg struct {
 	uploadSource  bool
 	update        bool
 	cfgFormat     string
-	login         string
 	setOption     map[string]string
+	login         bool
+	logout        bool
 }
 
 const defaultDisableLogo = false
@@ -91,8 +93,9 @@ func (km KlothoMain) Main() {
 	flags.BoolVar(&cfg.internalDebug, "internalDebug", false, "Enable debugging for compiler")
 	flags.BoolVar(&cfg.version, "version", false, "Print the version")
 	flags.BoolVar(&cfg.update, "update", false, "update the cli to the latest version")
-	flags.StringVar(&cfg.login, "login", "", "Login to Klotho with email. For anonymous login, use 'local'")
 	flags.StringToStringVar(&cfg.setOption, "set-option", nil, "Sets a CLI option")
+	flags.BoolVar(&cfg.login, "login", false, "Login to Klotho with email. For anonymous login, use 'local'")
+	flags.BoolVar(&cfg.logout, "logout", false, "Logout of current klotho account.")
 	_ = flags.MarkHidden("internalDebug")
 
 	err := root.Execute()
@@ -108,6 +111,7 @@ func (km KlothoMain) Main() {
 	if hadWarnings.Load() && cfg.strict {
 		os.Exit(1)
 	}
+	//finished <- true
 }
 
 func setupLogger(analyticsClient *analytics.Client) (*zap.Logger, error) {
@@ -169,7 +173,6 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	// supports color
 	if !color.NoColor && showLogo {
 		color.New(color.FgHiGreen).Println(Logo)
-		fmt.Println()
 	}
 
 	// create config directory if necessary, must run
@@ -179,13 +182,34 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// Set up user if login is specified
-	if cfg.login != "" {
-		if err := analytics.CreateUser(cfg.login); err != nil {
-			return errors.Wrapf(err, "could not configure user '%s'", cfg.login)
+	if cfg.login {
+		err := auth.Login()
+		if err != nil {
+			return err
+		}
+		email, err := auth.GetUserEmail()
+		if err != nil {
+			return err
+		}
+		if err := analytics.CreateUser(email); err != nil {
+			return errors.Wrapf(err, "could not configure user '%s'", email)
+		}
+		return nil
+	}
+	// Set up user if login is specified
+	if cfg.logout {
+		err := auth.CallLogoutEndpoint()
+		if err != nil {
+			return err
 		}
 		return nil
 	}
 
+	err = auth.Authorize(false)
+	if err != nil {
+		return err
+
+	}
 	// Set up analytics
 	analyticsClient, err := analytics.NewClient(map[string]interface{}{
 		"version": km.Version,
