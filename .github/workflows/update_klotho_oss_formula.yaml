@@ -3,7 +3,7 @@ name: Update the klotho-oss homebrew formula
 on:
   release:
     types:
-      - published
+      - released
   workflow_dispatch:
     inputs:
       klotho-tap:
