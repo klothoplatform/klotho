@@ -1,0 +1,47 @@
+package auth
+
+import (
+	"encoding/json"
+	"os"
+
+	"github.com/klothoplatform/klotho/pkg/cli_config"
+)
+
+type Credentials struct {
+	IdToken      string
+	RefreshToken string
+}
+
+func WriteIDToken(token string) error {
+
+	configPath, err := cli_config.KlothoConfigPath("credentials.json")
+	if err != nil {
+		return err
+	}
+	err = cli_config.CreateKlothoConfigPath()
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(configPath, []byte(token), 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetIDToken() (*Credentials, error) {
+	configPath, err := cli_config.KlothoConfigPath("credentials.json")
+	result := Credentials{}
+
+	if err != nil {
+		return &result, err
+	}
+
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		return &result, err
+	}
+	err = json.Unmarshal(content, &result)
+
+	return &result, err
+}
