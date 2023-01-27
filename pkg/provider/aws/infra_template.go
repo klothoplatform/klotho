@@ -98,6 +98,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 			data.StaticUnits = append(data.StaticUnits, unit)
 
 		case *core.Gateway:
+			cfg := a.Config.GetExposed(key.Name)
 			gw := provider.Gateway{
 				Name:    res.Name,
 				Targets: res.Targets,
@@ -109,7 +110,11 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 					Verb:         string(route.Verb),
 				})
 			}
-			data.Gateways = append(data.Gateways, gw)
+			if cfg.Type == string(Alb) {
+				data.ALBs = append(data.ALBs, gw)
+			} else if cfg.Type == string(ApiGateway) {
+				data.APIGateways = append(data.APIGateways, gw)
+			}
 
 		case *core.Persist:
 			cfg := a.Config.GetPersisted(key.Name, res.Kind)

@@ -127,6 +127,10 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 		addFile("iac/static_s3_website.ts")
 	}
 
+	if len(data.APIGateways) > 0 {
+		addFile("iac/api_gateway.ts")
+	}
+
 	addFile("deploylib.ts")
 	addFile("package.json")
 	addFile("tsconfig.json")

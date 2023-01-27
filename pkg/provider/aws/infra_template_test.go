@@ -36,16 +36,19 @@ func TestInfraTemplateModification(t *testing.T) {
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"unit": {Type: eks},
 				},
+				Exposed: map[string]*config.Expose{
+					"gw": {Type: string(ApiGateway)},
+				},
 			},
 			dependencies: []core.Dependency{},
 			data: TemplateData{
 				TemplateData: provider.TemplateData{
-					Gateways: []provider.Gateway{
-						{Name: "gw", Routes: []provider.Route{{ExecUnitName: "", Path: "/", Verb: ""}}, Targets: map[string]core.GatewayTarget(nil)},
-					},
 					ExecUnits: []provider.ExecUnit{
 						{Name: "unit", Type: "eks", NetworkPlacement: "private", MemReqMB: 0, KeepWarm: false, Schedules: []provider.Schedule(nil), Params: config.InfraParams{}},
 					},
+				},
+				APIGateways: []provider.Gateway{
+					{Name: "gw", Routes: []provider.Route{{ExecUnitName: "", Path: "/", Verb: ""}}, Targets: map[string]core.GatewayTarget(nil)},
 				},
 				UseVPC: true,
 			},
@@ -122,6 +125,7 @@ func TestInfraTemplateModification(t *testing.T) {
 				return
 			}
 			assert.Equal(tt.data.ExecUnits, awsData.ExecUnits)
+			assert.Equal(tt.data.APIGateways, awsData.APIGateways)
 			assert.Equal(tt.data.Gateways, awsData.Gateways)
 			assert.Equal(tt.data.UseVPC, awsData.UseVPC)
 		})

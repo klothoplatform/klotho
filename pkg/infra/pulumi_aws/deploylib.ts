@@ -94,12 +94,11 @@ export class CloudCCLib {
     protect = kloConfig.getBoolean('protect') ?? false
     execUnitToNlb = new Map<string, awsx.lb.NetworkLoadBalancer>()
     execUnitToVpcLink = new Map<string, aws.apigateway.VpcLink>()
-    lbPlugin = new LoadBalancerPlugin()
 
     constructor(
         private sharedRepo: awsx.ecr.Repository,
-        private stage: string,
-        private region: Region,
+        public readonly stage: string,
+        public readonly region: Region,
         public readonly name: string,
         private namespace: string,
         private datadogEnabled: boolean,
@@ -212,7 +211,19 @@ export class CloudCCLib {
 
         pulumi.output(this.klothoVPC.privateSubnets).apply((ps) => {
             const cidrBlocks: any = ps.map((subnet) => subnet.subnet.cidrBlock)
-            new aws.ec2.SecurityGroupRule(`${this.name}-ingress`, {
+            new aws.ec2.SecurityGroupRule(`${this.name}-private-ingress`, {
+                type: 'ingress',
+                cidrBlocks: cidrBlocks,
+                fromPort: 0,
+                protocol: '-1',
+                toPort: 0,
+                securityGroupId: klothoSG.id,
+            })
+        })
+
+        pulumi.output(this.klothoVPC.publicSubnets).apply((ps) => {
+            const cidrBlocks: any = ps.map((subnet) => subnet.subnet.cidrBlock)
+            new aws.ec2.SecurityGroupRule(`${this.name}-public-ingress`, {
                 type: 'ingress',
                 cidrBlocks: cidrBlocks,
                 fromPort: 0,
@@ -815,238 +826,6 @@ export class CloudCCLib {
         return lambdaExecRole
     }
 
-    createDockerBasedAPIGateway(routes, providedName = '') {
-        let gwName: string = providedName != '' ? providedName : routes[0].gatewayAppName
-        gwName = gwName.replace(/[^a-zA-Z0-9_-]/g, '-')
-        const restAPI: aws.apigateway.RestApi = new aws.apigateway.RestApi(gwName, {
-            binaryMediaTypes: ['application/octet-stream', 'image/*'],
-        })
-        const resourceMap = new Map<string, aws.apigateway.Resource>()
-        const methods: aws.apigateway.Method[] = []
-        const integrations: aws.apigateway.Integration[] = []
-        const integrationNames: string[] = []
-        const permissions: aws.lambda.Permission[] = []
-        // create the resources and methods needed for the provided routes
-        for (const r of routes) {
-            const execUnit = this.resourceIdToResource.get(`${r.execUnitName}_exec_unit`)
-            const pathSegments = r.path.split('/').filter(Boolean)
-            let methodPathLastPart = pathSegments.at(-1) ?? '/' // get the last part of the path
-            let routeAndHash = `${methodPathLastPart.replace(':', '').replace('*', '')}-${sha256
-                .sync(r.path)
-                .slice(0, 5)}`
-            // create the resources first
-            // parent resource starts off null since we don't create the root resource
-            let parentResource: aws.apigateway.Resource | null = null
-            const methodRequestParams = {}
-            const integrationRequestParams = {}
-            let currPathSegments = ''
-            for (let segment of pathSegments) {
-                // Handle path parameters defined in express as :<param>
-                if (segment.includes(':')) {
-                    const pathParam = `request.path.${segment.replace(':', '').replace('*', '')}`
-                    methodRequestParams[`method.${pathParam}`] = true
-                    integrationRequestParams[`integration.${pathParam}`] = `method.${pathParam}`
-                }
-
-                segment = segment
-                    .replace(/:([^/]+)/g, '{$1}') // convert express params :arg to AWS gateway {arg}
-                    .replace(/[*]\}/g, '+}') // convert express greedy flag {arg*} to AWS gateway {arg+}
-                    .replace(/\/\//g, '/') // collapse double '//' to single '/'
-                currPathSegments += `${segment}/`
-                if (resourceMap.has(currPathSegments)) {
-                    parentResource = resourceMap.get(currPathSegments)!
-                } else {
-                    const resource = new aws.apigateway.Resource(
-                        gwName + currPathSegments,
-                        {
-                            restApi: restAPI.id,
-                            parentId:
-                                parentResource == null ? restAPI.rootResourceId : parentResource.id,
-                            pathPart: segment,
-                        },
-                        {
-                            parent: restAPI,
-                        }
-                    )
-                    resourceMap.set(currPathSegments, resource)
-                    parentResource = resource
-                }
-            }
-
-            //create the methods
-            // We use the combination of the aws method property operationName alongside pulumi properties
-            // replaceOnChanges and deleteBeforeReplace in order to correctly trigger swapping integrations
-            // when infra is changed, for example from lambda to fargate. All three properties are required
-            // to trigger a replace action of the method, which is required to correctly swap integrations
-            // while preventing resource collisions on the method.
-            const method = new aws.apigateway.Method(
-                `${r.verb.toUpperCase()}-${routeAndHash}`,
-                {
-                    restApi: restAPI.id,
-                    resourceId: parentResource?.id ?? restAPI.rootResourceId,
-                    httpMethod: r.verb.toUpperCase(),
-                    authorization: 'NONE',
-                    operationName: `${execUnit.type}-${r.verb.toUpperCase()}-${routeAndHash}`,
-                    requestParameters:
-                        Object.keys(methodRequestParams).length == 0
-                            ? undefined
-                            : methodRequestParams,
-                },
-                {
-                    parent: parentResource ?? restAPI,
-                    replaceOnChanges: ['*'],
-                    deleteBeforeReplace: true,
-                }
-            )
-            methods.push(method)
-
-            const integrationName = `${execUnit.type}-${r.verb.toUpperCase()}-${routeAndHash}`
-            integrationNames.push(integrationName)
-            if (execUnit.type == 'fargate') {
-                const nlb = this.execUnitToNlb.get(r.execUnitName)!
-                const vpcLink = this.execUnitToVpcLink.get(r.execUnitName)!
-                integrations.push(
-                    new aws.apigateway.Integration(
-                        integrationName,
-                        {
-                            restApi: restAPI.id,
-                            resourceId:
-                                parentResource == null ? restAPI.rootResourceId : parentResource.id,
-                            httpMethod: method.httpMethod,
-                            integrationHttpMethod: method.httpMethod,
-                            type: 'HTTP_PROXY',
-                            connectionType: 'VPC_LINK',
-                            connectionId: vpcLink.id,
-                            uri: pulumi.interpolate`http://${nlb.loadBalancer.dnsName}${r.path
-                                .replace(/:([^/]+)/g, '{$1}')
-                                .replace(/[*]\}/g, '+}')}`,
-                            requestParameters:
-                                Object.keys(integrationRequestParams).length == 0
-                                    ? undefined
-                                    : integrationRequestParams,
-                        },
-                        {
-                            parent: method,
-                        }
-                    )
-                )
-            } else if (execUnit.type == 'eks') {
-                const nlb = this.lbPlugin.getExecUnitLoadBalancer(r.execUnitName)!
-                const vpcLink = this.execUnitToVpcLink.get(r.execUnitName)!
-                integrations.push(
-                    new aws.apigateway.Integration(
-                        integrationName,
-                        {
-                            restApi: restAPI.id,
-                            resourceId:
-                                parentResource == null ? restAPI.rootResourceId : parentResource.id,
-                            httpMethod: method.httpMethod,
-                            integrationHttpMethod: method.httpMethod,
-                            type: 'HTTP_PROXY',
-                            connectionType: 'VPC_LINK',
-                            connectionId: vpcLink.id,
-                            uri: pulumi.interpolate`http://${nlb.dnsName}${r.path
-                                .replace(/:([^/]+)/g, '{$1}')
-                                .replace(/[*]\}/g, '+}')}`,
-                            requestParameters:
-                                Object.keys(integrationRequestParams).length == 0
-                                    ? undefined
-                                    : integrationRequestParams,
-                        },
-                        {
-                            parent: method,
-                        }
-                    )
-                )
-            } else if (execUnit.type == 'lambda') {
-                const lambda = this.execUnitToFunctions.get(r.execUnitName)!
-                integrations.push(
-                    new aws.apigateway.Integration(
-                        integrationName,
-                        {
-                            restApi: restAPI.id,
-                            resourceId:
-                                parentResource == null ? restAPI.rootResourceId : parentResource.id,
-                            httpMethod: method.httpMethod,
-                            integrationHttpMethod: 'POST',
-                            type: 'AWS_PROXY',
-                            uri: lambda.invokeArn,
-                        },
-                        {
-                            parent: method,
-                        }
-                    )
-                )
-
-                const permissionName = `${r.verb}-${r.path.replace(/[^a-z0-9]/gi, '')}-permission`
-                permissions.push(
-                    new aws.lambda.Permission(permissionName, {
-                        action: 'lambda:InvokeFunction',
-                        function: lambda.name,
-                        principal: 'apigateway.amazonaws.com',
-                        sourceArn: pulumi.interpolate`arn:aws:execute-api:${this.region}:${
-                            this.account.accountId
-                        }:${restAPI.id}/*/${
-                            r.verb.toUpperCase() === 'ANY' ? '*' : r.verb.toUpperCase()
-                        }${parentResource == null ? '/' : parentResource.path}`,
-                    })
-                )
-            }
-        }
-
-        // Create the deployment and stage
-        const deployment = new aws.apigateway.Deployment(
-            `${providedName}-deployment`,
-            {
-                restApi: restAPI,
-                triggers: {
-                    routes: sha256.sync(
-                        routes
-                            .map((r) => `${r.execUnitName}:${r.path}:${r.verb}`)
-                            .sort()
-                            .join()
-                    ),
-                    integrations: sha256.sync(
-                        integrationNames
-                            .map((i) => i)
-                            .sort()
-                            .join()
-                    ),
-                },
-            },
-            {
-                dependsOn: [...methods, ...integrations, ...permissions],
-                parent: restAPI,
-            }
-        )
-
-        const stage = new aws.apigateway.Stage(
-            `${providedName}-stage`,
-            {
-                deployment: deployment.id,
-                restApi: restAPI.id,
-                stageName: this.stage,
-            },
-            {
-                parent: deployment,
-            }
-        )
-
-        this.topologySpecOutputs.push(
-            pulumi.all([restAPI.id, restAPI.urn]).apply(([id, urn]) => ({
-                id: id,
-                urn: urn,
-                kind: '', // TODO
-                type: 'AWS API Gateway',
-                url: `https://console.aws.amazon.com/apigateway/home?region=${this.region}#/apis/${id}/resources/`,
-            }))
-        )
-
-        this.gatewayToUrl.set(providedName, stage.invokeUrl)
-
-        return stage.invokeUrl
-    }
-
     public installLambdaWarmer(execUnitNames) {
         let region = this.region
         const name = 'lambdaWarmer'
@@ -1524,7 +1303,11 @@ export class CloudCCLib {
         })
     }
 
-    createEksResources = async (execUnits: EksExecUnit[], charts?: HelmChart[]) => {
+    createEksResources = async (
+        execUnits: EksExecUnit[],
+        charts?: HelmChart[],
+        lbPlugin?: LoadBalancerPlugin
+    ) => {
         let clusterName = `${this.name}-eks-cluster`
         const providedClustername = kloConfig.get<string>('eks-cluster')
         const existingCluster = undefined
@@ -1550,7 +1333,8 @@ export class CloudCCLib {
             this,
             execUnits,
             charts || [],
-            existingCluster
+            existingCluster,
+            lbPlugin
         )
     }
 
