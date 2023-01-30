@@ -66,7 +66,7 @@ func (p Plugin) generateIconsAndEdges(resource core.CloudResource, dependencies 
 		Title: resource.Key().Name,
 		Image: p.getImagePath(resource),
 		Kind:  resource.Key().Kind,
-		Type:  resource.Type(),
+		Type:  p.Config.GetResourceType(resource),
 	})
 
 	for _, dependency := range dependencies {

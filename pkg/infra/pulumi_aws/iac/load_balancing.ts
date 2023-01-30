@@ -118,14 +118,14 @@ export class LoadBalancerPlugin {
                             type: 'fixed-response',
                             fixedResponse: {
                                 contentType: 'application/json',
-                                statusCode: '4XX',
+                                statusCode: '404',
                             },
                         },
                     ],
                 })
             }
 
-            this.createListenerRule(this.lib.name, route.execUnitName + route.path, {
+            this.createListenerRule(this.lib.name, route.execUnitName + route.path + route.verb, {
                 listenerArn: listener!.arn,
                 actions: [
                     {
@@ -137,6 +137,9 @@ export class LoadBalancerPlugin {
                     {
                         pathPattern: {
                             values: [route.path],
+                        },
+                        httpRequestMethod: {
+                            values: [route.verb],
                         },
                     },
                 ],
