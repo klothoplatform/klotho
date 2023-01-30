@@ -1,3 +1,4 @@
+import * as pulumi from '@pulumi/pulumi'
 import * as aws from '@pulumi/aws'
 import * as validators from './sanitization/aws/elb'
 import {
