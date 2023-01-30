@@ -1,4 +1,4 @@
-import { regexpMatch } from '../sanitizer'
+import { regexpMatch, regexpNotMatch } from '../sanitizer'
 
 export const dbSubnetGroup = {
     nameValidation() {
@@ -47,7 +47,7 @@ export const dbProxy = {
                     validate: (s) => !s.endsWith('-'),
                     fix: (s) => s.replace(/-+$/, ''),
                 },
-                regexpMatch('Identifier must not contain consecutive hyphens', /--/, (s) =>
+                regexpNotMatch('Identifier must not contain consecutive hyphens', /--/, (s) =>
                     s.replace(/--+/g, '-')
                 ),
             ],
@@ -70,7 +70,7 @@ export const instance = {
                     validate: (s) => !s.endsWith('-'),
                     fix: (s) => s.replace(/-+$/, ''),
                 },
-                regexpMatch('Identifier must not contain consecutive hyphens', /--/, (s) =>
+                regexpNotMatch('Identifier must not contain consecutive hyphens', /--/, (s) =>
                     s.replace(/--+/g, '-')
                 ),
             ],
