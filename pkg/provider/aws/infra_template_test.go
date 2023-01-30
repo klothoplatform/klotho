@@ -23,7 +23,6 @@ func TestInfraTemplateModification(t *testing.T) {
 			name: "simple test",
 			results: []core.CloudResource{&core.Gateway{
 				Name:   "gw",
-				GWType: core.GatewayKind,
 				Routes: []core.Route{{Path: "/"}},
 			},
 				&core.ExecutionUnit{
@@ -145,7 +144,6 @@ func Test_GenerateCloudfrontDistributions(t *testing.T) {
 			results: []core.CloudResource{
 				&core.Gateway{
 					Name:   "gw",
-					GWType: core.GatewayKind,
 					Routes: []core.Route{{Path: "/"}},
 				},
 			},
@@ -251,7 +249,6 @@ func Test_GenerateCloudfrontDistributions(t *testing.T) {
 				},
 				&core.Gateway{
 					Name:   "gw",
-					GWType: core.GatewayKind,
 					Routes: []core.Route{{Path: "/"}},
 				},
 			},

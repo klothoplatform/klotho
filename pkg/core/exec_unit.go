@@ -74,8 +74,6 @@ var (
 	ExecutableTypeGolang = ExecutableType("Golang")
 )
 
-func (unit *ExecutionUnit) Type() string { return unit.ExecType }
-
 func (unit *ExecutionUnit) Key() ResourceKey {
 	return ResourceKey{
 		Name: unit.Name,

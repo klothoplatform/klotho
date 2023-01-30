@@ -84,7 +84,7 @@ func generateIconID(resource core.ResourceKey) string {
 	return fmt.Sprintf("%s_%s", resource.Name, resource.Kind)
 }
 func (p Plugin) getImagePath(resource core.CloudResource) string {
-	imgPath, _ := core.DiagramEntityToImgPath.Get(resource.Key().Kind, resource.Type(), p.Config.Provider)
+	imgPath, _ := core.DiagramEntityToImgPath.Get(resource.Key().Kind, p.Config.GetResourceType(resource), p.Config.Provider)
 	return baseIconUrl + imgPath
 }
 

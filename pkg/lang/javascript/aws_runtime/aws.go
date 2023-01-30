@@ -174,6 +174,7 @@ func (r *AwsRuntime) AddPubsubRuntimeFiles(unit *core.ExecutionUnit) error {
 
 func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error {
 	var proxyFile []byte
+	unitType := r.Config.GetResourceType(unit)
 	switch proxyType {
 	case "eks":
 		proxyFile = proxyEks
@@ -184,7 +185,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	case "lambda":
 		proxyFile = proxyLambda
 	default:
-		return errors.Errorf("unsupported exceution unit type: '%s'", unit.Type())
+		return errors.Errorf("unsupported exceution unit type: '%s'", unitType)
 	}
 
 	err := r.AddRuntimeFile(unit, proxyType+"_proxy.js.tmpl", proxyFile)
@@ -201,7 +202,8 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 
 func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
 	var DockerFile, Dispatcher []byte
-	switch unit.Type() {
+	unitType := r.Config.GetResourceType(unit)
+	switch unitType {
 	case "ecs", "eks", "apprunner":
 		DockerFile = dockerfileFargate
 		Dispatcher = dispatcherFargate
@@ -209,7 +211,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		DockerFile = dockerfileLambda
 		Dispatcher = dispatcherLambda
 	default:
-		return errors.Errorf("unsupported execution unit type: '%s'", unit.Type())
+		return errors.Errorf("unsupported execution unit type: '%s'", unitType)
 	}
 
 	templateData := TemplateData{

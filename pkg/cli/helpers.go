@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
@@ -167,24 +168,20 @@ func OutputResources(result *core.CompilationResult, outDir string) (resourceCou
 	return
 }
 
-func GetLanguagesUsed(result *core.CompilationResult) map[core.ExecutableType]bool {
-	executableLangs := make(map[core.ExecutableType]bool)
+func GetLanguagesUsed(result *core.CompilationResult) []core.ExecutableType {
+	executableLangs := []core.ExecutableType{}
 	for _, res := range result.Resources() {
 		switch r := res.(type) {
 		case *core.ExecutionUnit:
-			executableLangs[r.Executable.Type] = true
+			executableLangs = append(executableLangs, r.Executable.Type)
 		}
 	}
 	return executableLangs
 }
 
-func GetResourceTypeCount(result *core.CompilationResult) (resourceCounts map[string]map[string]int) {
-	resourceCounts = make(map[string]map[string]int)
+func GetResourceTypeCount(result *core.CompilationResult, cfg *config.Application) (resourceCounts []string) {
 	for _, res := range result.Resources() {
-		if _, ok := resourceCounts[res.Key().Kind]; !ok {
-			resourceCounts[res.Key().Kind] = make(map[string]int)
-		}
-		resourceCounts[res.Key().Kind][res.Type()]++
+		resourceCounts = append(resourceCounts, cfg.GetResourceType(res))
 	}
 	return
 }

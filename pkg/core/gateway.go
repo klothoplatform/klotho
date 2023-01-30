@@ -3,7 +3,6 @@ package core
 type (
 	Gateway struct {
 		Name   string
-		GWType string
 		Routes []Route
 		// Map of gateway targets with the exec unit name as the key
 		DefinedIn     string
@@ -41,7 +40,6 @@ var (
 	}
 )
 
-func (gw *Gateway) Type() string { return gw.GWType }
 func NewGateway(name string) *Gateway {
 	return &Gateway{
 		Name: name,

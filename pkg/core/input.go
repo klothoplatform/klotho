@@ -6,8 +6,6 @@ type (
 
 var InputFilesKind = "input_files"
 
-func (*InputFiles) Type() string { return "" }
-
 func (*InputFiles) Key() ResourceKey {
 	return ResourceKey{
 		Kind: InputFilesKind,

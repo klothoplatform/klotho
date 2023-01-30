@@ -12,8 +12,6 @@ type InfraFiles struct {
 
 var InfraAsCodeKind = "infra_as_code"
 
-func (*InfraFiles) Type() string { return "" }
-
 func (iac *InfraFiles) Key() ResourceKey {
 	return ResourceKey{
 		Name: iac.Name,
