@@ -574,8 +574,12 @@ export class CloudCCLib {
 
         if (env_vars) {
             for (const v of env_vars) {
-                const result = this.getEnvVarForDependency(v)
-                additionalEnvVars[result[0]] = result[1]
+                if (v.Kind == '') {
+                    additionalEnvVars[v.Name] = v.Value
+                } else {
+                    const result = this.getEnvVarForDependency(v)
+                    additionalEnvVars[result[0]] = result[1]
+                }
             }
         }
 
