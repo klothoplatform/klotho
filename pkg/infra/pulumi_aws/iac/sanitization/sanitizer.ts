@@ -1,6 +1,9 @@
 import Multimap = require('multimap')
 import * as sha256 from 'simple-sha256'
 
+// Resource name length offset required to account for IAC-added suffixes
+const reservedCharCount = 8
+
 export interface SanitizationOptions {
     maxLength?: number
     minLength?: number
@@ -36,8 +39,8 @@ export function sanitize(s: string, options: Partial<SanitizationOptions>): Sani
                 `The sanitized value, "${result}", is shorter than minLength: ${options.minLength}`
             )
         }
-        if (options.maxLength != null && result.length > options.maxLength) {
-            result = result.substring(0, options.maxLength)
+        if (options.maxLength != null && result.length > options.maxLength - reservedCharCount) {
+            result = result.substring(0, options.maxLength - reservedCharCount)
         }
         if (failedRules?.length === 0) {
             return { result: result, violations: [] }
@@ -64,8 +67,12 @@ function doValidate(input: string, options: Partial<SanitizationOptions>): Array
     if (options.minLength != null && input.length < options.minLength) {
         violations.push(`Invalid input: "${input}": length < minLength (${options.minLength})`)
     }
-    if (options.maxLength != null && input.length > options.maxLength) {
-        violations.push(`Invalid input: "${input}": length > maxLength (${options.maxLength})`)
+    if (options.maxLength != null && input.length > options.maxLength - reservedCharCount) {
+        violations.push(
+            `Invalid input: "${input}": length > maxLength (${
+                options.maxLength - reservedCharCount
+            })`
+        )
     }
 
     violations.push(
@@ -135,20 +142,19 @@ function shortenString(
     const sorted = [...componentsByPriority.keys()].sort()
 
     if (options.maxLength != null) {
+        const maxLength =
+            options.maxLength - reservedCharCount < 1 ? 1 : options.maxLength - reservedCharCount
         for (const p of sorted) {
-            if (length <= options.maxLength) {
+            if (length <= maxLength) {
                 break
             }
             for (const c of componentsByPriority.get(p)) {
-                if (length <= options.maxLength) {
+                if (length <= maxLength) {
                     break
                 }
                 const oldCLen = c.content.length
                 c.content = c.shorteningStrategy
-                    ? c.shorteningStrategy(
-                          c.content,
-                          options.maxLength - (length - c.content.length)
-                      )
+                    ? c.shorteningStrategy(c.content, maxLength - (length - c.content.length))
                     : c.content
                 length -= oldCLen - c.content.length
             }
@@ -180,18 +186,10 @@ function arrTextLen<T>(arr: Array<T>, lenFunc: (arg0: T) => number): number {
     return arr.reduce((p, c, i) => p + lenFunc(c), 0)
 }
 
-export function h(content: string, priority: number | undefined = undefined): Component {
+export function hash(content: string, priority: number | undefined = undefined): Component {
     return {
         content,
         priority,
         shorteningStrategy: hashComponent,
-    }
-}
-
-export function t(content: string, priority: number | undefined = undefined): Component {
-    return {
-        content,
-        priority,
-        shorteningStrategy: (t, m) => t.substring(0, m),
     }
 }

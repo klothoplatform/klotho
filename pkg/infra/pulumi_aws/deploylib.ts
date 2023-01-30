@@ -10,7 +10,7 @@ import * as crypto from 'crypto'
 import { setupElasticacheCluster } from './iac/elasticache'
 import * as analytics from './iac/analytics'
 
-import { h, sanitized, validate } from './iac/sanitization/sanitizer'
+import { hash as h, sanitized, validate } from './iac/sanitization/sanitizer'
 import { LoadBalancerPlugin } from './iac/load_balancing'
 import { DefaultEksClusterOptions, Eks, EksExecUnit, HelmChart } from './iac/eks'
 import { setupMemoryDbCluster } from './iac/memorydb'

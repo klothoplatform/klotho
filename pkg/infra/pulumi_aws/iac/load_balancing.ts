@@ -8,7 +8,7 @@ import {
     TargetGroupAttachmentArgs,
 } from '@pulumi/aws/lb'
 import { ListenerRuleArgs } from '@pulumi/aws/alb'
-import { h, sanitized } from './sanitization/sanitizer'
+import { hash as h, sanitized } from './sanitization/sanitizer'
 import { CloudCCLib } from '../deploylib'
 
 export interface Route {
