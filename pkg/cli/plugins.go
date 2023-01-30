@@ -7,6 +7,8 @@ import (
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/infra/pulumi_aws"
+	"github.com/klothoplatform/klotho/pkg/lang/csharp"
+	csRuntimes "github.com/klothoplatform/klotho/pkg/lang/csharp/runtimes"
 	"github.com/klothoplatform/klotho/pkg/lang/golang"
 	goRuntimes "github.com/klothoplatform/klotho/pkg/lang/golang/runtimes"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
@@ -51,6 +53,7 @@ func (b *PluginSetBuilder) AddAll() error {
 		b.AddJavascript,
 		b.AddPython,
 		b.AddGo,
+		b.AddCSharp,
 		b.AddPulumi,
 		b.AddPostCompilation,
 	} {
@@ -110,6 +113,15 @@ func (b *PluginSetBuilder) AddGo() error {
 	}
 
 	b.Transform = append(b.Transform, golang.NewGoPlugins(b.Cfg, goRuntime))
+	return nil
+}
+
+func (b *PluginSetBuilder) AddCSharp() error {
+	csRuntime, err := csRuntimes.GetRuntime(b.Cfg)
+	if err != nil {
+		return err
+	}
+	b.Transform = append(b.Transform, csharp.NewCSharpPlugins(b.Cfg, csRuntime))
 	return nil
 }
 
