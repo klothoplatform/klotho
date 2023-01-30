@@ -53,7 +53,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 				unit.HelmOptions = *cfg.HelmChartOptions
 			}
 
-			if cfg.Type == "fargate" || cfg.Type == "eks" {
+			if cfg.Type == "ecs" || cfg.Type == "eks" {
 				data.UseVPC = true
 			}
 
@@ -100,8 +100,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 		case *core.Gateway:
 			cfg := a.Config.GetExposed(key.Name)
 			gw := provider.Gateway{
-				Name:    res.Name,
-				Targets: res.Targets,
+				Name: res.Name,
 			}
 			for _, route := range res.Routes {
 				gw.Routes = append(gw.Routes, provider.Route{

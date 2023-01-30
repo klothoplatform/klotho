@@ -102,13 +102,6 @@ export = async () => {
     let keepWarm: string[] = [];
 
     {{- $cfg := . }}
-    {{- range .Gateways}}
-    {{- range $key, $value := .Targets}}
-    {{- if eq $value.Kind "nlb"}}
-    cloudLib.createNlb("{{$key}}")
-    {{- end}}
-    {{- end}}
-    {{- end}}
 
     const lbPlugin = new LoadBalancerPlugin(cloudLib)
 
@@ -117,8 +110,8 @@ export = async () => {
     const arUrls: any[] = [];
     {{range $unit := .ExecUnits -}}
 
-    {{- if eq $unit.Type "fargate"}}
-    cloudLib.createEcsService("{{$unit.Name}}",{{jsonPretty $unit.Params | indent 4}} as Partial<awsx.ecs.Container>, "{{ $unit.NetworkPlacement }}", {{jsonPretty $unit.EnvironmentVariables | indent 4}});
+    {{- if eq $unit.Type "ecs"}}
+    cloudLib.createEcsService("{{$unit.Name}}",{{jsonPretty $unit.Params | indent 4}} as Partial<awsx.ecs.Container>, "{{ $unit.NetworkPlacement }}", {{jsonPretty $unit.EnvironmentVariables | indent 4}}, lbPlugin);
     {{else if eq $unit.Type "eks"}}
     eksUnits.push({name: "{{$unit.Name}}", params: {{jsonPretty $unit.Params | indent 4}}, helmOptions: {{jsonPretty $unit.HelmOptions | indent 4}}, network_placement: "{{ $unit.NetworkPlacement }}" {{- if $unit.EnvironmentVariables}}, envVars: {{jsonPretty $unit.EnvironmentVariables | indent 4}} {{end}}})
     {{else if eq $unit.Type "apprunner"}}

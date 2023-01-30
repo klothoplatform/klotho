@@ -177,7 +177,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	switch proxyType {
 	case "eks":
 		proxyFile = proxyEks
-	case "fargate":
+	case "ecs":
 		proxyFile = proxyFargate
 	case "apprunner":
 		proxyFile = proxyApprunner
@@ -202,7 +202,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
 	var DockerFile, Dispatcher []byte
 	switch unit.Type() {
-	case "fargate", "eks", "apprunner":
+	case "ecs", "eks", "apprunner":
 		DockerFile = dockerfileFargate
 		Dispatcher = dispatcherFargate
 	case "lambda":

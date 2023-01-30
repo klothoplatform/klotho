@@ -76,9 +76,8 @@ type (
 	}
 
 	Gateway struct {
-		Name    string
-		Routes  []Route
-		Targets map[string]core.GatewayTarget
+		Name   string
+		Routes []Route
 	}
 
 	Route struct {

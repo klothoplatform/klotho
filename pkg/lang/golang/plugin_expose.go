@@ -113,7 +113,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 		}
 
 		for _, route := range routes {
-			existsInUnit, it := gw.AddRoute(route.Route, h.Unit, "")
+			existsInUnit := gw.AddRoute(route.Route, h.Unit)
 			if existsInUnit != "" {
 				h.log.Sugar().Infof("Not adding duplicate route %v for %v. Exists in %v", route.Path, route.ExecUnitName, existsInUnit)
 				continue
@@ -130,16 +130,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
 				targetUnit = unit.Name
 			}
-			if it.ExecUnitName == "" {
-				h.Deps.Add(gw.Key(), core.ResourceKey{Name: targetUnit, Kind: core.ExecutionUnitKind})
-			} else {
-				// If an integration target exists for an exec unit, create the cloud resource and set the deps as gw -> it -> route exec unit
-				if existing := h.Result.Get(it.Key()); existing == nil {
-					h.Result.Add(it)
-				}
-				h.Deps.Add(gw.Key(), it.Key())
-				h.Deps.Add(it.Key(), core.ResourceKey{Name: targetUnit, Kind: core.ExecutionUnitKind})
-			}
+			h.Deps.Add(gw.Key(), core.ResourceKey{Name: targetUnit, Kind: core.ExecutionUnitKind})
 		}
 	}
 

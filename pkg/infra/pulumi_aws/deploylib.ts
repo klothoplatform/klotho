@@ -608,7 +608,7 @@ export class CloudCCLib {
                                         this.execUnitToFunctions.get(targetResource.title)!.arn,
                                     ],
                                 })
-                            } else if (['fargate', 'eks'].includes(targetResource.type)) {
+                            } else if (['ecs', 'eks'].includes(targetResource.type)) {
                                 this.addPolicyStatementForName(resource.title, {
                                     Effect: 'Allow',
                                     Action: ['servicediscovery:DiscoverInstances'],
@@ -1338,37 +1338,12 @@ export class CloudCCLib {
         )
     }
 
-    createNlb(execUnitName: string) {
-        const nlb = new awsx.lb.NetworkLoadBalancer(`${execUnitName}-nlb`, {
-            external: false,
-            vpc: this.klothoVPC,
-            subnets: this.privateSubnetIds,
-        })
-        this.execUnitToNlb.set(execUnitName, nlb)
-
-        const targetGroup: awsx.elasticloadbalancingv2.NetworkTargetGroup = nlb.createTargetGroup(
-            `${execUnitName}-tg`,
-            {
-                port: 3000,
-            }
-        )
-
-        const listener = targetGroup.createListener(`${execUnitName}-listener`, {
-            port: 80,
-        })
-
-        const vpcLink = new aws.apigateway.VpcLink(`${execUnitName}-vpc-link`, {
-            targetArn: nlb.loadBalancer.arn,
-        })
-
-        this.execUnitToVpcLink.set(execUnitName, vpcLink)
-    }
-
     createEcsService(
         execUnitName,
         baseArgs: Partial<awsx.ecs.Container>,
         network_placement: 'public' | 'private',
-        envVars: any
+        envVars: any,
+        lbPlugin?: LoadBalancerPlugin
     ) {
         if (this.cluster == undefined) {
             this.createEcsCluster()
@@ -1387,13 +1362,57 @@ export class CloudCCLib {
             Resource: '*',
         })
 
+        let needsLoadBalancer = false
+        this.topology.topologyIconData.forEach((resource) => {
+            if (resource.kind === Resource.gateway) {
+                this.topology.topologyEdgeData.forEach((edge) => {
+                    if (edge.source == resource.id && edge.target === `${execUnitName}_exec_unit`) {
+                        needsLoadBalancer = true
+                    }
+                })
+            }
+        })
+
+        let nlb: aws.lb.LoadBalancer | undefined = undefined
+        let listener
+        if (needsLoadBalancer) {
+            const nlb = lbPlugin!.createLoadBalancer(this.name, execUnitName, {
+                subnets: this.privateSubnetIds,
+                loadBalancerType: 'network',
+            })
+            const targetGroup = lbPlugin!.createTargetGroup(this.name, execUnitName, {
+                port: 3000,
+                protocol: 'TCP',
+                vpcId: this.klothoVPC.id,
+                targetType: 'ip',
+            })
+
+            listener = lbPlugin!.createListener(this.name, execUnitName, {
+                port: 80,
+                protocol: 'TCP',
+                loadBalancerArn: nlb.arn,
+                defaultActions: [
+                    {
+                        type: 'forward',
+                        targetGroupArn: targetGroup.arn,
+                    },
+                ],
+            })
+
+            const vpcLink = new aws.apigateway.VpcLink(`${execUnitName}-vpc-link`, {
+                targetArn: nlb.arn,
+            })
+            this.execUnitToVpcLink.set(execUnitName, vpcLink)
+        } else {
+            throw new Error('Unsupported connector to ECS Fargate Task')
+        }
+
         const logGroupName = `/aws/fargate/${this.name}-${execUnitName}-task`
         let cloudwatchGroup = new aws.cloudwatch.LogGroup(`${this.name}-${execUnitName}-lg`, {
             name: `${logGroupName}`,
             retentionInDays: 1,
         })
 
-        const nlb = this.execUnitToNlb.get(execUnitName)!
         let additionalEnvVars: { name: string; value: pulumi.Input<string> }[] = []
         for (const [name, value] of Object.entries(
             this.generateExecUnitEnvVars(execUnitName, envVars)
@@ -1411,8 +1430,8 @@ export class CloudCCLib {
                 ...baseArgs,
                 image: image,
                 portMappings:
-                    nlb != undefined
-                        ? nlb.listeners
+                    listener != undefined
+                        ? [listener]
                         : [
                               {
                                   containerPort: 3000,

@@ -7,6 +7,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/pelletier/go-toml/v2"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -148,6 +149,10 @@ func (cfg *KindDefaults) Merge(other KindDefaults) {
 func (cfg *ExecutionUnit) Merge(other ExecutionUnit) {
 	if other.Type != "" {
 		cfg.Type = other.Type
+	}
+	if cfg.Type == "fargate" {
+		zap.S().Warn("Execution unit type 'fargate' is now renamed to 'ecs'")
+		cfg.Type = "ecs"
 	}
 	cfg.NetworkPlacement = other.NetworkPlacement
 	if other.NetworkPlacement == "" {

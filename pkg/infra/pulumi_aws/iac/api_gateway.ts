@@ -13,7 +13,6 @@ export interface Route {
 export interface Gateway {
     Name: string
     Routes: Route[]
-    Targets: any
 }
 
 export class ApiGateway {
@@ -180,7 +179,7 @@ export class ApiGateway {
         }
         for (const route of gateway.Routes) {
             const execUnit = this.lib.resourceIdToResource.get(`${route.execUnitName}_exec_unit`)
-            if (execUnit.type == 'fargate') {
+            if (execUnit.type == 'ecs') {
                 let integration: aws.apigatewayv2.Integration | undefined =
                     this.execUnitToIntegration.get(route.execUnitName)
                 if (!integration) {
@@ -348,8 +347,8 @@ export class ApiGateway {
 
             const integrationName = `${execUnit.type}-${r.verb.toUpperCase()}-${routeAndHash}`
             integrationNames.push(integrationName)
-            if (execUnit.type == 'fargate') {
-                const nlb = this.lib.execUnitToNlb.get(r.execUnitName)!
+            if (execUnit.type == 'ecs') {
+                const nlb = this.lbPlugin.getExecUnitLoadBalancer(r.execUnitName)!
                 const vpcLink = this.lib.execUnitToVpcLink.get(r.execUnitName)!
                 integrations.push(
                     new aws.apigateway.Integration(
@@ -363,7 +362,7 @@ export class ApiGateway {
                             type: 'HTTP_PROXY',
                             connectionType: 'VPC_LINK',
                             connectionId: vpcLink.id,
-                            uri: pulumi.interpolate`http://${nlb.loadBalancer.dnsName}${r.path
+                            uri: pulumi.interpolate`http://${nlb.dnsName}${r.path
                                 .replace(/:([^/]+)/g, '{$1}')
                                 .replace(/[*]\}/g, '+}')}`,
                             requestParameters:

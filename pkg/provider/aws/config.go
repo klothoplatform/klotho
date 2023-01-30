@@ -52,6 +52,7 @@ type GatewayType string
 // Enums for the types we allow in the aws provider so that we can reuse the same string within the provider
 const (
 	eks                                = "eks"
+	ecs                                = "ecs"
 	fargate                            = "fargate"
 	lambda                             = "lambda"
 	rds_postgres                       = "rds_postgres"
@@ -73,7 +74,7 @@ var defaultConfig = config.Defaults{
 				"memorySize": 512,
 				"timeout":    180,
 			},
-			fargate: {
+			ecs: {
 				"memory": 512,
 				"cpu":    256,
 			},
@@ -149,7 +150,7 @@ func (a *AWS) GetDefaultConfig() config.Defaults {
 func (a *AWS) GetKindTypeMappings(kind string) ([]string, bool) {
 	switch kind {
 	case core.ExecutionUnitKind:
-		return []string{eks, fargate, lambda}, true
+		return []string{eks, ecs, fargate, lambda}, true
 	case core.GatewayKind:
 		return []string{string(ApiGateway), string(Alb)}, true
 	case core.StaticUnitKind:

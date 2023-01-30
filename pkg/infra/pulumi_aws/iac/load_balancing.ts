@@ -28,7 +28,6 @@ export interface Route {
 export interface Gateway {
     Name: string
     Routes: Route[]
-    Targets: any
 }
 
 export class LoadBalancerPlugin {
@@ -93,7 +92,7 @@ export class LoadBalancerPlugin {
                 const execUnit = this.lib.resourceIdToResource.get(
                     `${route.execUnitName}_exec_unit`
                 )
-                if (['fargate', 'eks'].includes(execUnit.type)) {
+                if (['ecs', 'eks'].includes(execUnit.type)) {
                     targetGroup = this.createTargetGroup(this.lib.name, route.execUnitName, {
                         port: 3000,
                         protocol: 'HTTP',
