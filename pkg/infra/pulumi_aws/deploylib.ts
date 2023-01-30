@@ -1429,15 +1429,12 @@ export class CloudCCLib {
             container: {
                 ...baseArgs,
                 image: image,
-                portMappings:
-                    listener != undefined
-                        ? [listener]
-                        : [
-                              {
-                                  containerPort: 3000,
-                                  protocol: 'tcp',
-                              },
-                          ],
+                portMappings: [
+                    {
+                        containerPort: 3000,
+                        protocol: 'tcp',
+                    },
+                ],
                 environment: [
                     { name: 'AWS_XRAY_CONTEXT_MISSING', value: 'LOG_ERROR' },
                     ...additionalEnvVars,
