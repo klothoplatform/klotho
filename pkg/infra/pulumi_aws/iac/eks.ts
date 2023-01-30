@@ -576,7 +576,7 @@ export class Eks {
                     if (edge.source == resource.id && edge.target === execUnitEdgeId) {
                         // We know that this exec unit is exposed and must create the necessary resources
                         needsGatewayLink = true
-                        if (resource.type == 'apigateway') {
+                        if (resource.image.includes('api-gateway')) {
                             needsLoadBalancer = true
                         }
                     }
