@@ -2,6 +2,7 @@ package input
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/lang/csharp"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 	"github.com/klothoplatform/klotho/pkg/lang/golang"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
@@ -45,6 +47,7 @@ const (
 	JavaScript languageName = "JavaScript"
 	Python     languageName = "Python"
 	Go         languageName = "Go"
+	CSharp     languageName = "C#"
 	Yaml       languageName = "Yaml"
 	DockerFile languageName = "Dockerfile"
 )
@@ -110,6 +113,13 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 	jsLang := &languageFiles{name: JavaScript, packageFileName: "package.json", packageFileOpener: Upcast(javascript.NewPackageFile)}
 	pyLang := &languageFiles{name: Python, packageFileName: "requirements.txt", packageFileOpener: Upcast(python.NewRequirementsTxt)}
 	goLang := &languageFiles{name: Go, packageFileName: "go.mod", packageFileOpener: Upcast(golang.NewGoMod)}
+	csLang := &languageFiles{
+		name: CSharp,
+		// TODO: Since C# projects don't have a specific named project file, we'll need to update how looking for the project file works.
+		packageFileName: fmt.Sprintf("%s.csproj", cfg.AppName),
+		// TODO: package files in C# are currently unused, so no need to open & parse them.
+		packageFileOpener: func(path string, content io.Reader) (f core.File, err error) { return &core.FileRef{FPath: path}, nil },
+	}
 	yamlLang := &languageFiles{name: Yaml}
 	dockerfileLang := &languageFiles{name: DockerFile}
 	allLangs := []*languageFiles{jsLang, pyLang, goLang, yamlLang}
@@ -180,13 +190,14 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 				f, err = addFile(fsys, path, relPath, javascript.NewFile)
 				jsLang.foundSources = true
 			case ".py":
-				// TODO we may need to do something similar to the js stuff above
 				f, err = addFile(fsys, path, relPath, python.NewFile)
 				pyLang.foundSources = true
 			case ".go":
-				// TODO we may need to do something similar to the js stuff above
 				f, err = addFile(fsys, path, relPath, golang.NewFile)
 				goLang.foundSources = true
+			case ".cs":
+				f, err = addFile(fsys, path, relPath, csharp.NewFile)
+				csLang.foundSources = true
 			case ".yaml", ".yml":
 				if path == cfgFilePath {
 					return nil
