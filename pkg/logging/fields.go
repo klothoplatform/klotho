@@ -18,8 +18,8 @@ type fileField struct {
 
 func (field fileField) Sanitize(hasher func(any) string) SanitizedField {
 	extension := "unknown"
-	if ext := filepath.Ext(field.f.Path()); len(ext) <= 5 {
-		extension = ext
+	if _, isFileRef := field.f.(*core.FileRef); !isFileRef {
+		extension = filepath.Ext(field.f.Path())
 	}
 	return SanitizedField{
 		Key: "FileExtension",
