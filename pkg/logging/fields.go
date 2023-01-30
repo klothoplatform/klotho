@@ -18,8 +18,7 @@ type fileField struct {
 
 func (field fileField) Sanitize(hasher func(any) string) SanitizedField {
 	extension := "unknown"
-	switch ext := filepath.Ext(field.f.Path()); ext {
-	case ".json", ".js", ".ts", ".yaml":
+	if ext := filepath.Ext(field.f.Path()); len(ext) <= 5 {
 		extension = ext
 	}
 	return SanitizedField{
