@@ -1443,7 +1443,7 @@ export class CloudCCLib {
                 ...baseArgs,
                 image: image,
                 portMappings:
-                    nlb.listeners != undefined
+                    nlb != undefined
                         ? nlb.listeners
                         : [
                               {
