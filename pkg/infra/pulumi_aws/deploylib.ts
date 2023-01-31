@@ -1365,30 +1365,44 @@ export class CloudCCLib {
             Action: ['ssm:GetParameters', 'secretsmanager:GetSecretValue', 'kms:Decrypt', 'ecr:*'],
             Resource: '*',
         })
-
-        const nlb = new awsx.lb.NetworkLoadBalancer(`${execUnitName}-nlb`, {
-            external: false,
-            vpc: this.klothoVPC,
-            subnets: this.privateSubnetIds,
-        })
-        this.execUnitToNlb.set(execUnitName, nlb)
-
-        const targetGroup: awsx.elasticloadbalancingv2.NetworkTargetGroup = nlb.createTargetGroup(
-            `${execUnitName}-tg`,
-            {
-                port: 3000,
+        let needsLoadBalancer = false
+        this.topology.topologyIconData.forEach((resource) => {
+            if (resource.kind === Resource.gateway) {
+                this.topology.topologyEdgeData.forEach((edge) => {
+                    if (edge.source == resource.id && edge.target === `${execUnitName}_exec_unit`) {
+                        // We know that this exec unit is exposed and must create the necessary resources
+                        if (resource.type == 'apigateway') {
+                            needsLoadBalancer = true
+                        }
+                    }
+                })
             }
-        )
-
-        const listener = targetGroup.createListener(`${execUnitName}-listener`, {
-            port: 80,
         })
 
-        const vpcLink = new aws.apigateway.VpcLink(`${execUnitName}-vpc-link`, {
-            targetArn: nlb.loadBalancer.arn,
-        })
+        let nlb
+        if (needsLoadBalancer) {
+            nlb = new awsx.lb.NetworkLoadBalancer(`${execUnitName}-nlb`, {
+                external: false,
+                vpc: this.klothoVPC,
+                subnets: this.privateSubnetIds,
+            })
+            this.execUnitToNlb.set(execUnitName, nlb)
 
-        this.execUnitToVpcLink.set(execUnitName, vpcLink)
+            const targetGroup: awsx.elasticloadbalancingv2.NetworkTargetGroup =
+                nlb.createTargetGroup(`${execUnitName}-tg`, {
+                    port: 3000,
+                })
+
+            const listener = targetGroup.createListener(`${execUnitName}-listener`, {
+                port: 80,
+            })
+
+            const vpcLink = new aws.apigateway.VpcLink(`${execUnitName}-vpc-link`, {
+                targetArn: nlb.loadBalancer.arn,
+            })
+
+            this.execUnitToVpcLink.set(execUnitName, vpcLink)
+        }
 
         const logGroupName = `/aws/fargate/${this.name}-${execUnitName}-task`
         let cloudwatchGroup = new aws.cloudwatch.LogGroup(`${this.name}-${execUnitName}-lg`, {
@@ -1429,7 +1443,7 @@ export class CloudCCLib {
                 ...baseArgs,
                 image: image,
                 portMappings:
-                    nlb.listeners != undefined
+                    nlb != undefined
                         ? nlb.listeners
                         : [
                               {
