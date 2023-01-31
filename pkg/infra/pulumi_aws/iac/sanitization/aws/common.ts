@@ -23,7 +23,7 @@ export const tag = {
                 ),
                 {
                     description:
-                        "The aws: prefix is prohibited for tags; it's reserved for AWS use.",
+                        "The \"aws:\" prefix is prohibited for tags; it's reserved for AWS use.",
                     apply: (v) => !v.startsWith('aws:'),
                     fix: (v) => v.replace(/^aws:/, ''),
                 },
