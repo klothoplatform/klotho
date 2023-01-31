@@ -49,11 +49,11 @@ func localImports(input map[string]core.File, f *core.SourceFile) (execunit.Impo
 			continue
 		}
 
-		uses := ImportUsageQuery(f.Tree().RootNode(), f.Program(), imp.ImportedAs())
+		uses := ImportUsageQuery(f.Tree().RootNode(), imp.ImportedAs())
 
 		useNames := make(execunit.References)
 		for _, use := range uses {
-			name := use.Content(f.Program())
+			name := use.Content()
 			useNames.Add(name)
 		}
 		refs, ok := imports[importFile.Path()]

@@ -72,7 +72,7 @@ func Test_getNextCallDetails(t *testing.T) {
 				return
 			}
 
-			details, found := getNextCallDetails(f.Tree().RootNode(), f.Program())
+			details, found := getNextCallDetails(f.Tree().RootNode())
 
 			assert.Equal(tt.wantCallDetails, details)
 			assert.Equal(tt.wantFound, found)

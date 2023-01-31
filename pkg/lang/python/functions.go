@@ -25,7 +25,7 @@ func (a FunctionArg) String() string {
 	return a.Value
 }
 
-func getNextCallDetails(node *sitter.Node, program []byte) (callDetails FunctionCallDetails, found bool) {
+func getNextCallDetails(node *sitter.Node) (callDetails FunctionCallDetails, found bool) {
 	fnName := ""
 	nextMatch := DoQuery(node, findFunctionCalls)
 	callDetails = FunctionCallDetails{Arguments: []FunctionArg{}}
@@ -39,20 +39,20 @@ func getNextCallDetails(node *sitter.Node, program []byte) (callDetails Function
 		argName := match["argName"]
 		arg := match["arg"]
 
-		if fnName != "" && !query.NodeContentEquals(fn, program, fnName) {
+		if fnName != "" && !query.NodeContentEquals(fn, fnName) {
 			break
 		}
 
-		fnName = fn.Content(program)
+		fnName = fn.Content()
 		argNameContent := ""
 		argContent := ""
 		callDetails.Name = fnName
 
 		if argName != nil {
-			argNameContent = argName.Content(program)
+			argNameContent = argName.Content()
 		}
 		if arg != nil {
-			argContent = arg.Content(program)
+			argContent = arg.Content()
 		}
 
 		// ignore overlapping pattern that captures keyword_argument nodes as standard aguments

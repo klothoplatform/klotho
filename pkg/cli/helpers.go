@@ -31,7 +31,7 @@ func OutputAST(input *core.InputFiles, outDir string) error {
 			if err != nil {
 				return errors.Wrapf(err, "could not create ast file %s", efile.Path())
 			}
-			err = lang.WriteAST(astFile.Tree().RootNode(), astFile.Program(), f)
+			err = lang.WriteAST(astFile.Tree().RootNode(), f)
 			f.Close()
 			if err != nil {
 				return errors.Wrapf(err, "could not write ast file content for %s", efile.Path())

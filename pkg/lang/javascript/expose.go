@@ -30,7 +30,7 @@ type exposeListenResult struct {
 	Identifier *sitter.Node // Identifier of the listen result (app)
 }
 
-func findListener(cap *core.Annotation, source []byte) exposeListenResult {
+func findListener(cap *core.Annotation) exposeListenResult {
 
 	nextMatch := DoQuery(cap.Node, exposeListener)
 	for {
@@ -41,7 +41,7 @@ func findListener(cap *core.Annotation, source []byte) exposeListenResult {
 
 		prop := match["prop"]
 
-		if prop.Content(source) == "listen" {
+		if prop.Content() == "listen" {
 			return exposeListenResult{
 				Expression: match["expression"],
 				Identifier: match["identifier"],
@@ -114,8 +114,8 @@ func handleGatewayRoutes(info *execUnitExposeInfo, result *core.CompilationResul
 }
 
 // findApp finds the variable containing the listen call for the purpose of adding the export statement
-func findApp(source []byte, listener exposeListenResult) (name string, err error) {
-	listenName := listener.Identifier.Content(source)
+func findApp(listener exposeListenResult) (name string, err error) {
+	listenName := listener.Identifier.Content()
 
 	if listener.Expression.Parent().Type() == "program" {
 		// app is use top-level, and is not a promise
@@ -131,11 +131,11 @@ func findApp(source []byte, listener exposeListenResult) (name string, err error
 				continue
 			}
 			prop := fn.ChildByFieldName("property")
-			if prop.Content(source) != "then" {
+			if prop.Content() != "then" {
 				continue
 			}
 			obj := fn.ChildByFieldName("object")
-			name = obj.Content(source)
+			name = obj.Content()
 
 			return
 		}
@@ -146,7 +146,7 @@ func findApp(source []byte, listener exposeListenResult) (name string, err error
 			program = program.Parent()
 		}
 
-		funcName := fdecl.ChildByFieldName("name").Content(source)
+		funcName := fdecl.ChildByFieldName("name").Content()
 
 		next := DoQuery(program, `(variable_declarator
 			name: (identifier) @name
@@ -160,10 +160,10 @@ func findApp(source []byte, listener exposeListenResult) (name string, err error
 				err = errors.Errorf("no variable declarators for listen in function %s", funcName)
 				return
 			}
-			if match["func"].Content(source) != funcName {
+			if match["func"].Content() != funcName {
 				continue
 			}
-			name = match["name"].Content(source)
+			name = match["name"].Content()
 
 			break
 		}

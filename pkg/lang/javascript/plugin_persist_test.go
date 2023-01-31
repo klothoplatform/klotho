@@ -192,7 +192,7 @@ func Test_queryKV(t *testing.T) {
 
 			if tt.matchExpression != "" || tt.matchName != "" {
 				if assert.NotNil(kvResult) {
-					assert.Equal(tt.matchExpression, kvResult.expression.Content(f.Program()))
+					assert.Equal(tt.matchExpression, kvResult.expression.Content())
 					assert.Equal(tt.matchName, kvResult.name)
 				}
 			} else {
@@ -352,7 +352,7 @@ func Test_queryFS(t *testing.T) {
 				if !assert.NotNil(fsResult) {
 					return
 				}
-				assert.Equal(tt.matchExpression, fsResult.expression.Content(f.Program()))
+				assert.Equal(tt.matchExpression, fsResult.expression.Content())
 				assert.Equal(tt.matchName, fsResult.name)
 			} else {
 				assert.Nil(fsResult)
@@ -428,7 +428,7 @@ func Test_queryORM(t *testing.T) {
 			}, true)
 			if tt.matchExpression != "" {
 				assert.NotNil(fsResult)
-				assert.Equal(tt.matchExpression, fsResult.expression.Content(f.Program()))
+				assert.Equal(tt.matchExpression, fsResult.expression.Content())
 				assert.Equal(tt.matchName, fsResult.name)
 			} else {
 				assert.Nil(fsResult)
@@ -533,7 +533,7 @@ func Test_queryRedis(t *testing.T) {
 				Node:       f.Tree().RootNode(),
 			}, true)
 			if tt.matchExpression != "" {
-				assert.Equal(tt.matchExpression, fsResult.expression.Content(f.Program()))
+				assert.Equal(tt.matchExpression, fsResult.expression.Content())
 				assert.Equal(tt.matchName, fsResult.name)
 			} else {
 				assert.Nil(fsResult)

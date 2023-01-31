@@ -38,7 +38,7 @@ func FindAllCommentBlocksForTest(language core.SourceLanguage, source string) ([
 	for _, block := range blocks {
 		found = append(found, FindAllCommentBlocksExpected{
 			Comment: block.comment,
-			Node:    block.node.Content([]byte(source))})
+			Node:    block.node.Content()})
 	}
 	return found, nil
 

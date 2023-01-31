@@ -149,7 +149,7 @@ func (p *Pubsub) rewriteFileEmitters(f *core.SourceFile, vars VarDeclarations) e
 	}
 
 	for spec, varReference := range vars {
-		expr := varReference.Annotation.Node.Content(f.Program())
+		expr := varReference.Annotation.Node.Content()
 		newExpr := emitterRE.ReplaceAllString(
 			expr,
 			fmt.Sprintf(`%sRuntime.Emitter("%s", "%s", "%s")`, emitterRTName, f.Path(), spec.VarName, varReference.Annotation.Capability.ID),
@@ -330,7 +330,7 @@ func (p *Pubsub) generateEmitterDefinitions() (err error) {
 			additional := "// klotho generated\n"
 			hasAdditional := false
 			for spec, emitter := range emitters {
-				emitterExport := FindExportForVar(js.Tree().RootNode(), js.Program(), spec.VarName)
+				emitterExport := FindExportForVar(js.Tree().RootNode(), spec.VarName)
 				if emitterExport == nil {
 					// If the file already existed as original, the export should already be there
 					// If the file already existed but was a proxy, we need to add the emitter creation & export
@@ -387,11 +387,11 @@ func findTopics(f *core.SourceFile, spec VarSpec, query string, methodName strin
 			break
 		}
 		switch {
-		case match["func"].Content(f.Program()) != methodName,
-			match["emitter"].Content(f.Program()) != varName:
+		case match["func"].Content() != methodName,
+			match["emitter"].Content() != varName:
 			continue
 		}
-		topic := StringLiteralContent(match["topic"], f.Program())
+		topic := StringLiteralContent(match["topic"])
 		topics = append(topics, topic)
 	}
 

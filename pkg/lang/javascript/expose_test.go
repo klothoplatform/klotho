@@ -130,12 +130,12 @@ async function setup() {
 				annot = v
 				break
 			}
-			listen := findListener(annot, f.Program())
+			listen := findListener(annot)
 			if !assert.NotNil(listen.Expression, "error in test source listen function") {
 				return
 			}
 
-			got, err := findApp(f.Program(), listen)
+			got, err := findApp(listen)
 			if tt.expectErr {
 				assert.Error(err)
 				return

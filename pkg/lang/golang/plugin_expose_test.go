@@ -70,7 +70,7 @@ func Test_findHttpListenServe(t *testing.T) {
 				return
 			}
 
-			assert.Equal(tt.expectAppVar, listener.Identifier.Content(f.Program()))
+			assert.Equal(tt.expectAppVar, listener.Identifier.Content())
 		})
 	}
 }
@@ -111,7 +111,7 @@ func Test_findChiRouterDefinition(t *testing.T) {
 				return
 			}
 
-			assert.Equal(tt.expectAppVar, router.Identifier.Content(f.Program()))
+			assert.Equal(tt.expectAppVar, router.Identifier.Content())
 		})
 	}
 }

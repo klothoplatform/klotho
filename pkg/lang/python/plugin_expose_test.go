@@ -61,7 +61,7 @@ func Test_findFastApiApp(t *testing.T) {
 				return
 			}
 
-			assert.Equal(tt.expectAppVar, app.Identifier.Content(f.Program()))
+			assert.Equal(tt.expectAppVar, app.Identifier.Content())
 			assert.Equal(tt.expectRootPath, app.RootPath)
 		})
 	}
@@ -218,7 +218,7 @@ func Test_fastapiHandler_findVerbFuncs(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			got, _ := testRestAPIHandler.findVerbFuncs(f.Tree().RootNode(), f.Program(), tt.varName)
+			got, _ := testRestAPIHandler.findVerbFuncs(f.Tree().RootNode(), tt.varName)
 			assert.Equal(tt.expect, got)
 			assert.Equal(len(tt.expect), len(got))
 		})
