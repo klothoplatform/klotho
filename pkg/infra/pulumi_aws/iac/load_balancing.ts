@@ -53,6 +53,19 @@ export class LoadBalancerPlugin {
         })
     }
 
+    private subPathParametersForWildcard(route: string): string {
+        const segments = route.split('/')
+        const newRoute: string[] = []
+        segments.forEach((seg) => {
+            if (seg.startsWith(':')) {
+                newRoute.push('*')
+            } else {
+                newRoute.push(seg)
+            }
+        })
+        return newRoute.join('/')
+    }
+
     private createALBasGateway = (gateway: Gateway): pulumi.Output<string> => {
         const albSG = new aws.ec2.SecurityGroup(`${this.lib.name}-${gateway.Name}`, {
             name: `${this.lib.name}-${gateway.Name}`,
@@ -136,7 +149,10 @@ export class LoadBalancerPlugin {
                 conditions: [
                     {
                         pathPattern: {
-                            values: [route.path],
+                            values: [
+                                this.subPathParametersForWildcard(route.path),
+                                `${this.subPathParametersForWildcard(route.path)}/`,
+                            ],
                         },
                     },
                     {
