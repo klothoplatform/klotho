@@ -964,13 +964,12 @@ export class CloudCCLib {
                 Resource: [this.execUnitToFunctions.get(execGroupName)!.arn],
             })
         }
-
-        let cloudwatchLogs = new aws.cloudwatch.LogGroup(`${name}`, {
+        let cloudwatchLogs = new aws.cloudwatch.LogGroup(`${name}-function-api-lg`, {
             name: lambdaScheduler.id.apply(
                 (id) =>
                     sanitized(AwsSanitizer.CloudWatch.logGroup.nameValidation())`/aws/lambda/${h(
-                        name
-                    )}-function-api-lg`
+                        id
+                    )}`
             ),
             retentionInDays: 1,
         })
@@ -1116,8 +1115,7 @@ export class CloudCCLib {
         // prettier-ignore
         const ormRoleName = sanitized(AwsSanitizer.IAM.role.nameValidation())`${h(dbName)}-ormsecretrole`
         //setup role for proxy
-        const role = new aws.iam.Role(`${dbName}-ormsecretrole`, {
-            name: ormRoleName,
+        const role = new aws.iam.Role(ormRoleName, {
             assumeRolePolicy: {
                 Version: '2012-10-17',
                 Statement: [
