@@ -1,0 +1,4 @@
+dispatcher_fargate.py.tmpl
+dispatcher_lambda.py.tmpl
+fs.py.tmpl
+secret.py.tmpl

@@ -1,1 +1,12 @@
 /node_modules/
+dispatcher_fargate.js.tmpl
+dispatcher_lambda.js.tmpl
+emitter.js.tmpl
+fs.js.tmpl
+keyvalue.js.tmpl
+orm.js.tmpl
+proxy_eks.js.tmpl
+proxy_fargate.js.tmpl
+redis_cluster.js.tmpl
+redis_node.js.tmpl
+secret.js.tmpl
