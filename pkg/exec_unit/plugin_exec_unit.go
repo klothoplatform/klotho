@@ -24,7 +24,6 @@ func (p ExecUnitPlugin) Transform(result *core.CompilationResult, deps *core.Dep
 		Executable: core.NewExecutable(),
 	}
 	cfg := p.Config.GetExecutionUnit(unit.Name)
-	unit.ExecType = cfg.Type
 
 	for key, value := range cfg.EnvironmentVariables {
 		unit.EnvironmentVariables = append(unit.EnvironmentVariables, core.EnvironmentVariable{

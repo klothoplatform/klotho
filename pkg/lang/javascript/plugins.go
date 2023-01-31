@@ -15,8 +15,8 @@ type (
 func NewJavascriptPlugins(cfg *config.Application, runtime Runtime) *JavascriptPlugins {
 	return &JavascriptPlugins{
 		Plugins: []core.Plugin{
-			ExpressHandler{},
-			NestJsHandler{},
+			ExpressHandler{Config: cfg},
+			NestJsHandler{Config: cfg},
 			AddExecRuntimeFiles{runtime: runtime},
 			Persist{runtime: runtime},
 			Pubsub{runtime: runtime},

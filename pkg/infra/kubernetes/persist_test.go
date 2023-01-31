@@ -288,19 +288,19 @@ func Test_generateEnvVarsForPersist(t *testing.T) {
 	}{
 		{
 			name:     "Wrong dependencies",
-			unit:     &core.ExecutionUnit{Name: "main", ExecType: "exec_unit"},
+			unit:     &core.ExecutionUnit{Name: "main"},
 			resource: &core.Persist{Name: "file", Kind: core.PersistFileKind},
 			values:   []core.EnvironmentVariable{},
 		},
 		{
 			name:     "orm dependency",
-			unit:     &core.ExecutionUnit{Name: "main", ExecType: "exec_unit"},
+			unit:     &core.ExecutionUnit{Name: "main"},
 			resource: &core.Persist{Name: "orm", Kind: core.PersistORMKind},
 			values:   []core.EnvironmentVariable{{Name: "ORM_PERSIST_ORM_CONNECTION", Kind: "persist_orm", ResourceID: "orm", Value: string(core.CONNECTION_STRING)}},
 		},
 		{
 			name:     "redis node dependency",
-			unit:     &core.ExecutionUnit{Name: "main", ExecType: "exec_unit"},
+			unit:     &core.ExecutionUnit{Name: "main"},
 			resource: &core.Persist{Name: "redisNode", Kind: core.PersistRedisNodeKind},
 			values: []core.EnvironmentVariable{
 				{Name: "REDISNODE_PERSIST_REDIS_HOST", Kind: "persist_redis_node", ResourceID: "redisNode", Value: string(core.HOST)},
@@ -309,7 +309,7 @@ func Test_generateEnvVarsForPersist(t *testing.T) {
 		},
 		{
 			name:     "redis cluster dependency",
-			unit:     &core.ExecutionUnit{Name: "main", ExecType: "exec_unit"},
+			unit:     &core.ExecutionUnit{Name: "main"},
 			resource: &core.Persist{Name: "redisCluster", Kind: core.PersistRedisClusterKind},
 			values: []core.EnvironmentVariable{
 				{Name: "REDISCLUSTER_PERSIST_REDIS_HOST", Kind: "persist_redis_cluster", ResourceID: "redisCluster", Value: string(core.HOST)},

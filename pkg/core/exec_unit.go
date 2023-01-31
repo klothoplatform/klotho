@@ -15,7 +15,6 @@ import (
 
 type (
 	ExecutionUnit struct {
-		ExecType             string
 		Name                 string
 		files                ConcurrentMap[string, File]
 		Executable           Executable
