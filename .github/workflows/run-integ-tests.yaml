@@ -139,16 +139,6 @@ jobs:
       matrix:
         app_to_test: ${{ fromJson(needs.list-apps.outputs.to_test) }}
         mode: [fresh, upgrade]
-        exclude:
-          - # issue #48
-            app_to_test: ts-eks
-            mode: upgrade
-          - # issue #49
-            app_to_test: ts-eks-helm
-            mode: upgrade
-          - 
-            app_to_test: ts-events
-            mode: upgrade
     steps:
       - name: versions
         run: |
