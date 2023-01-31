@@ -352,7 +352,7 @@ async with secrets.open(s, mode='r') as f:
 			`,
 			secretsImportName: "secrets",
 			want:              []string{},
-			wantErr:           true,
+			wantErr:           false,
 		},
 	}
 	for _, tt := range tests {

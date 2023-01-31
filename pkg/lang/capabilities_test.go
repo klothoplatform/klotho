@@ -64,6 +64,7 @@ const y = 456`,
 			assert.Equal(tt.Want, found)
 		})
 	}
+
 	t.Run("sitter query has capture", func(t *testing.T) {
 		assert := assert.New(t)
 

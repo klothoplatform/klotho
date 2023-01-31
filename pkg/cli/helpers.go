@@ -55,7 +55,7 @@ func OutputCapabilities(input *core.InputFiles, outDir string) error {
 			return errors.Wrapf(err, "could not create caps file %s", efile.Path())
 		}
 		if astFile, ok := efile.(*core.SourceFile); ok {
-			err = lang.PrintCapabilities(astFile.Program(), astFile.Annotations(), f)
+			err = lang.PrintCapabilities(astFile.Annotations(), f)
 		}
 		f.Close()
 		if err != nil {

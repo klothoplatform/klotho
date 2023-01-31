@@ -6,7 +6,7 @@
     )
 		right: (_) @right
 	) @assign
-  (#match? @obj "^exports$") ;; not supported in go-tree-sitter
+  ;;(#match? @obj "^exports$") ;; not supported in go-tree-sitter
 )
 
 ;; TODO: not supported syntaxes:
