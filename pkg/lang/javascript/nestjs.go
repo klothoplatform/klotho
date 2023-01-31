@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
 
@@ -22,6 +23,7 @@ import (
 type NestJsHandler struct {
 	output nestJsOutput
 	log    *zap.Logger
+	Config *config.Application
 }
 
 type nestJsOutput struct {
@@ -122,7 +124,7 @@ func (p *NestJsHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit)
 			return nil, core.NewCompilerError(f, annot, errors.New("Couldnt find expose app creation"))
 		}
 
-		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, unit.ExecType, cap.ID)
+		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, p.Config.GetResourceType(unit), cap.ID)
 		if actedOn {
 			fileContent = newfileContent
 			err := f.Reparse([]byte(fileContent))

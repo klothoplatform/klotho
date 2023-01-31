@@ -62,7 +62,8 @@ var DiagramEntityToImgPath = TopoMap{
 	{Kind: PubSubKind}:                      "generic/blank/blank.png",
 
 	// Use AWS as the ultimate fallback for the Kind, so don't specify Provider.
-	{Kind: GatewayKind, Provider: ProviderAWS}:                          "aws/network/api-gateway.png",
+	{Kind: GatewayKind, Provider: ProviderAWS, Type: "apigateway"}:      "aws/network/api-gateway.png",
+	{Kind: GatewayKind, Provider: ProviderAWS, Type: "alb"}:             "aws/network/elb-application-load-balancer.png",
 	{Kind: ExecutionUnitKind, Provider: ProviderAWS}:                    "aws/compute/lambda.png",
 	{Kind: string(PersistKVKind), Provider: ProviderAWS}:                "aws/database/dynamodb.png",
 	{Kind: string(PersistFileKind), Provider: ProviderAWS}:              "aws/compute/simple-storage-service-s3.png",
@@ -109,7 +110,9 @@ var DiagramEntityToCode = TopoMap{
 	{Kind: PubSubKind}:                      `generic_blank.Blank("%s")`,
 
 	// Use AWS as the ultimate fallback for the Kind, so don't specify Provider.
-	{Kind: GatewayKind, Provider: ProviderAWS}:                     `aws_network.APIGateway("%s")`,
+	{Kind: GatewayKind, Provider: ProviderAWS, Type: "apigateway"}: `aws_network.APIGateway("%s")`,
+	{Kind: GatewayKind, Provider: ProviderAWS, Type: "alb"}:        `aws_network.ElbNetworkLoadBalancer("%s")`,
+
 	{Kind: ExecutionUnitKind, Provider: ProviderAWS}:               `aws_compute.Lambda("%s")`,
 	{Kind: string(PersistKVKind), Provider: ProviderAWS}:           `aws_database.Dynamodb("%s")`,
 	{Kind: string(PersistFileKind), Provider: ProviderAWS}:         `aws_storage.S3("%s")`,

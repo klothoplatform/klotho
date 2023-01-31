@@ -18,8 +18,6 @@ type (
 	}
 
 	CloudResource interface {
-		// Type returns the provider-specific type (implementation) of the resource's kind (`Key().Kind`)
-		Type() string
 		// Key returns the unique identifier for the resource.
 		Key() ResourceKey
 	}

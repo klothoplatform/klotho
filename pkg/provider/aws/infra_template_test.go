@@ -23,12 +23,10 @@ func TestInfraTemplateModification(t *testing.T) {
 			name: "simple test",
 			results: []core.CloudResource{&core.Gateway{
 				Name:   "gw",
-				GWType: core.GatewayKind,
 				Routes: []core.Route{{Path: "/"}},
 			},
 				&core.ExecutionUnit{
-					Name:     "unit",
-					ExecType: eks,
+					Name: "unit",
 				},
 			},
 			cfg: config.Application{
@@ -57,8 +55,7 @@ func TestInfraTemplateModification(t *testing.T) {
 			name: "helm chart test",
 			results: []core.CloudResource{
 				&core.ExecutionUnit{
-					Name:     "unit",
-					ExecType: eks,
+					Name: "unit",
 				},
 				&kubernetes.KlothoHelmChart{Values: []kubernetes.Value{{
 					Type: string(kubernetes.ImageTransformation),
@@ -145,7 +142,6 @@ func Test_GenerateCloudfrontDistributions(t *testing.T) {
 			results: []core.CloudResource{
 				&core.Gateway{
 					Name:   "gw",
-					GWType: core.GatewayKind,
 					Routes: []core.Route{{Path: "/"}},
 				},
 			},
@@ -251,7 +247,6 @@ func Test_GenerateCloudfrontDistributions(t *testing.T) {
 				},
 				&core.Gateway{
 					Name:   "gw",
-					GWType: core.GatewayKind,
 					Routes: []core.Route{{Path: "/"}},
 				},
 			},

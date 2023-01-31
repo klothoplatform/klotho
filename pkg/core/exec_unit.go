@@ -15,7 +15,6 @@ import (
 
 type (
 	ExecutionUnit struct {
-		ExecType             string
 		Name                 string
 		files                ConcurrentMap[string, File]
 		Executable           Executable
@@ -73,8 +72,6 @@ var (
 	ExecutableTypePython = ExecutableType("Python")
 	ExecutableTypeGolang = ExecutableType("Golang")
 )
-
-func (unit *ExecutionUnit) Type() string { return unit.ExecType }
 
 func (unit *ExecutionUnit) Key() ResourceKey {
 	return ResourceKey{

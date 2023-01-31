@@ -53,6 +53,19 @@ export class LoadBalancerPlugin {
         })
     }
 
+    private subPathParametersForWildcard(route: string): string {
+        const segments = route.split('/')
+        const newRoute: string[] = []
+        segments.forEach((seg) => {
+            if (seg.startsWith(':')) {
+                newRoute.push('*')
+            } else {
+                newRoute.push(seg)
+            }
+        })
+        return newRoute.join('/')
+    }
+
     private createALBasGateway = (gateway: Gateway): pulumi.Output<string> => {
         const albSG = new aws.ec2.SecurityGroup(`${this.lib.name}-${gateway.Name}`, {
             name: `${this.lib.name}-${gateway.Name}`,
@@ -118,14 +131,14 @@ export class LoadBalancerPlugin {
                             type: 'fixed-response',
                             fixedResponse: {
                                 contentType: 'application/json',
-                                statusCode: '4XX',
+                                statusCode: '404',
                             },
                         },
                     ],
                 })
             }
 
-            this.createListenerRule(this.lib.name, route.execUnitName + route.path, {
+            this.createListenerRule(this.lib.name, route.execUnitName + route.path + route.verb, {
                 listenerArn: listener!.arn,
                 actions: [
                     {
@@ -136,7 +149,15 @@ export class LoadBalancerPlugin {
                 conditions: [
                     {
                         pathPattern: {
-                            values: [route.path],
+                            values: [
+                                this.subPathParametersForWildcard(route.path),
+                                `${this.subPathParametersForWildcard(route.path)}/`,
+                            ],
+                        },
+                    },
+                    {
+                        httpRequestMethod: {
+                            values: [route.verb.toUpperCase()],
                         },
                     },
                 ],

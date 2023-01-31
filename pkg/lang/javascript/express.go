@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -20,6 +21,7 @@ import (
 type ExpressHandler struct {
 	output expressOutput
 	log    *zap.Logger
+	Config *config.Application
 }
 
 type expressMiddleware struct {
@@ -140,7 +142,7 @@ func (p *ExpressHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit
 			return nil, core.NewCompilerError(f, annot, errors.New("Couldnt find expose app creation"))
 		}
 
-		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, unit.ExecType, cap.ID)
+		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, p.Config.GetResourceType(unit), cap.ID)
 		if actedOn {
 			fileContent = newfileContent
 			err := f.Reparse([]byte(fileContent))

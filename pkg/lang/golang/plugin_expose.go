@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -16,7 +17,9 @@ import (
 )
 
 type (
-	Expose struct{}
+	Expose struct {
+		Config *config.Application
+	}
 
 	gatewaySpec struct {
 		FilePath   string
@@ -80,14 +83,14 @@ func (p Expose) Transform(result *core.CompilationResult, deps *core.Dependencie
 
 func (p *Expose) transformSingle(result *core.CompilationResult, deps *core.Dependencies, unit *core.ExecutionUnit) error {
 	h := &restAPIHandler{Result: result, Deps: deps, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
-	err := h.handle(unit)
+	err := h.handle(unit, p.Config.GetResourceType(unit))
 	if err != nil {
 		err = core.WrapErrf(err, "Chi handler failure for %s", unit.Name)
 	}
 	return err
 }
 
-func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
+func (h *restAPIHandler) handle(unit *core.ExecutionUnit, unitType string) error {
 	h.Unit = unit
 	h.log = zap.L().With(zap.String("unit", unit.Name))
 
@@ -98,7 +101,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 			continue
 		}
 
-		newF, err := h.handleFile(src)
+		newF, err := h.handleFile(src, unitType)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -144,7 +147,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 	return errs.ErrOrNil()
 }
 
-func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error) {
+func (h *restAPIHandler) handleFile(f *core.SourceFile, unitType string) (*core.SourceFile, error) {
 
 	caps := f.Annotations()
 	for _, capNode := range caps {
@@ -183,7 +186,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 		}
 
 		//TODO: Move comment listen code to library logic like JS does eventually
-		if h.Unit.ExecType == "lambda" {
+		if unitType == "lambda" {
 			//TODO: Will likely need to move this into a separate plugin of some sort
 			// Instead of having a dispatcher file, the dipatcher logic is injected into the main.go file. By having that
 			// logic in the expose plugin though, it will only happen if they use the expose annotation for the lambda case.

@@ -7,7 +7,6 @@ import (
 
 type (
 	StaticUnit struct {
-		StaticType    string
 		Name          string
 		IndexDocument string
 		StaticFiles   ConcurrentMap[string, File]
@@ -16,8 +15,6 @@ type (
 )
 
 var StaticUnitKind = "static_unit"
-
-func (unit *StaticUnit) Type() string { return unit.StaticType }
 
 func (unit *StaticUnit) Key() ResourceKey {
 	return ResourceKey{

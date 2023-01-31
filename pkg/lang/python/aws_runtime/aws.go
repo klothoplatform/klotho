@@ -94,7 +94,8 @@ func (r *AwsRuntime) GetAppName() string {
 func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
 	var dockerFile, dispatcher []byte
 	var requirements string
-	switch unit.Type() {
+	unitType := r.Cfg.GetResourceType(unit)
+	switch unitType {
 	case "lambda":
 		dockerFile = dockerfileLambda
 		dispatcher = dispatcherLambda
@@ -104,7 +105,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		dispatcher = dispatcherFargate
 		requirements = execRequirementsFargate
 	default:
-		return errors.Errorf("unsupported execution unit type: '%s'", unit.Type())
+		return errors.Errorf("unsupported execution unit type: '%s'", unitType)
 	}
 
 	templateData := TemplateData{
@@ -242,7 +243,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	case "lambda":
 		fileContents = proxyLambdaContents
 	default:
-		return errors.Errorf("unsupported exceution unit type: '%s'", unit.Type())
+		return errors.Errorf("unsupported exceution unit type: '%s'", r.Cfg.GetResourceType(unit))
 	}
 	err := r.AddRuntimeFile(unit, proxyType+"_proxy.py", []byte(fileContents))
 	if err != nil {

@@ -26,7 +26,6 @@ func (p *AddExecRuntimeFiles) Transform(result *core.CompilationResult, deps *co
 			continue
 		}
 
-		unit.ExecType = p.cfg.GetExecutionUnit(unit.Name).Type
 		errs.Append(p.runtime.AddExecRuntimeFiles(unit, result, deps))
 	}
 

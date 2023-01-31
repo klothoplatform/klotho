@@ -29,7 +29,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 			cfg := a.Config.GetExecutionUnit(key.Name)
 			unit := provider.ExecUnit{
 				Name:                 res.Name,
-				Type:                 res.Type(),
+				Type:                 cfg.Type,
 				EnvironmentVariables: res.EnvironmentVariables,
 				NetworkPlacement:     cfg.NetworkPlacement,
 			}
@@ -91,7 +91,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 			cfg := a.Config.GetStaticUnit(key.Name)
 			unit := provider.StaticUnit{
 				Name:                   res.Name,
-				Type:                   res.Type(),
+				Type:                   cfg.Type,
 				IndexDocument:          res.IndexDocument,
 				ContentDeliveryNetwork: cfg.ContentDeliveryNetwork,
 			}

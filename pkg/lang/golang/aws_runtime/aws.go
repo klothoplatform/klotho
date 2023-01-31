@@ -34,11 +34,12 @@ var dockerfileLambda []byte
 
 func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
 	var DockerFile []byte
-	switch unit.Type() {
+	unitType := r.Cfg.GetResourceType(unit)
+	switch unitType {
 	case "lambda":
 		DockerFile = dockerfileLambda
 	default:
-		return errors.Errorf("unsupported execution unit type: '%s'", unit.Type())
+		return errors.Errorf("unsupported execution unit type: '%s'", unitType)
 	}
 
 	templateData := TemplateData{

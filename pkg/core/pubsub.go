@@ -4,7 +4,6 @@ type (
 	PubSub struct {
 		Path   string
 		Name   string
-		PSType string
 		Events map[string]*Event
 	}
 
@@ -21,8 +20,6 @@ type (
 )
 
 const PubSubKind = "pubsub"
-
-func (p PubSub) Type() string { return p.PSType }
 
 func (p PubSub) Key() ResourceKey {
 	return ResourceKey{
