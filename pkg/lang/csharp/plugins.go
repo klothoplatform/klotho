@@ -7,20 +7,20 @@ import (
 )
 
 type (
-	PythonPlugins struct {
+	CSharpPlugins struct {
 		Plugins []core.Plugin
 	}
 )
 
-func NewCSharpPlugins(cfg *config.Application, runtime Runtime) *PythonPlugins {
-	return &PythonPlugins{
+func NewCSharpPlugins(cfg *config.Application, runtime Runtime) *CSharpPlugins {
+	return &CSharpPlugins{
 		Plugins: []core.Plugin{},
 	}
 }
 
-func (c PythonPlugins) Name() string { return "python" }
+func (c CSharpPlugins) Name() string { return "C#" }
 
-func (c PythonPlugins) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (c CSharpPlugins) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
 	for _, p := range c.Plugins {
 		log := zap.L().With(zap.String("plugin", p.Name()))
 		log.Debug("starting")

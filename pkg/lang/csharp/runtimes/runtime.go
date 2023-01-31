@@ -27,5 +27,5 @@ func GetRuntime(cfg *config.Application) (csharp.Runtime, error) {
 		}, nil
 	}
 
-	return nil, fmt.Errorf("could not get Go runtime for provider: %v", cfg.Provider)
+	return nil, fmt.Errorf("could not get C# runtime for provider: %v", cfg.Provider)
 }
