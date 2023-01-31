@@ -99,7 +99,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		dockerFile = dockerfileLambda
 		dispatcher = dispatcherLambda
 		requirements = execRequirementsLambda
-	case "fargate", "eks", "apprunner":
+	case "ecs", "eks", "apprunner":
 		dockerFile = dockerfileFargate
 		dispatcher = dispatcherFargate
 		requirements = execRequirementsFargate
@@ -162,8 +162,6 @@ func shouldAddExposeRuntimeFiles(unit *core.ExecutionUnit, result *core.Compilat
 	for _, dep := range deps.Upstream(unit.Key()) {
 		res := result.Get(dep)
 		if _, ok := res.(*core.Gateway); ok {
-			return true
-		} else if _, ok := res.(*core.GatewayTarget); ok {
 			return true
 		}
 	}
@@ -239,7 +237,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	switch proxyType {
 	case "eks":
 		fileContents = proxyEksContents
-	case "fargate":
+	case "ecs":
 		fileContents = proxyFargateContents
 	case "lambda":
 		fileContents = proxyLambdaContents

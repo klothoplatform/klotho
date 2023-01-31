@@ -48,7 +48,7 @@ func TestInfraTemplateModification(t *testing.T) {
 					},
 				},
 				APIGateways: []provider.Gateway{
-					{Name: "gw", Routes: []provider.Route{{ExecUnitName: "", Path: "/", Verb: ""}}, Targets: map[string]core.GatewayTarget(nil)},
+					{Name: "gw", Routes: []provider.Route{{ExecUnitName: "", Path: "/", Verb: ""}}},
 				},
 				UseVPC: true,
 			},

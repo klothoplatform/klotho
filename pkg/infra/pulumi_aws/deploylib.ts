@@ -612,7 +612,7 @@ export class CloudCCLib {
                                         this.execUnitToFunctions.get(targetResource.title)!.arn,
                                     ],
                                 })
-                            } else if (['fargate', 'eks'].includes(targetResource.type)) {
+                            } else if (['ecs', 'eks'].includes(targetResource.type)) {
                                 this.addPolicyStatementForName(resource.title, {
                                     Effect: 'Allow',
                                     Action: ['servicediscovery:DiscoverInstances'],
@@ -1342,7 +1342,30 @@ export class CloudCCLib {
         )
     }
 
-    createNlb(execUnitName: string) {
+    createEcsService(
+        execUnitName,
+        baseArgs: Partial<awsx.ecs.Container>,
+        network_placement: 'public' | 'private',
+        envVars: any,
+        lbPlugin?: LoadBalancerPlugin
+    ) {
+        if (this.cluster == undefined) {
+            this.createEcsCluster()
+        }
+
+        const image = this.sharedRepo.buildAndPushImage({
+            context: `./${execUnitName}`,
+            extraOptions: ['--platform', 'linux/amd64', '--quiet'],
+        })
+
+        const role = this.createRoleForName(execUnitName)
+
+        this.addPolicyStatementForName(execUnitName, {
+            Effect: 'Allow',
+            Action: ['ssm:GetParameters', 'secretsmanager:GetSecretValue', 'kms:Decrypt', 'ecr:*'],
+            Resource: '*',
+        })
+
         const nlb = new awsx.lb.NetworkLoadBalancer(`${execUnitName}-nlb`, {
             external: false,
             vpc: this.klothoVPC,
@@ -1366,30 +1389,6 @@ export class CloudCCLib {
         })
 
         this.execUnitToVpcLink.set(execUnitName, vpcLink)
-    }
-
-    createEcsService(
-        execUnitName,
-        baseArgs: Partial<awsx.ecs.Container>,
-        network_placement: 'public' | 'private',
-        envVars: any
-    ) {
-        if (this.cluster == undefined) {
-            this.createEcsCluster()
-        }
-
-        const image = this.sharedRepo.buildAndPushImage({
-            context: `./${execUnitName}`,
-            extraOptions: ['--platform', 'linux/amd64', '--quiet'],
-        })
-
-        const role = this.createRoleForName(execUnitName)
-
-        this.addPolicyStatementForName(execUnitName, {
-            Effect: 'Allow',
-            Action: ['ssm:GetParameters', 'secretsmanager:GetSecretValue', 'kms:Decrypt', 'ecr:*'],
-            Resource: '*',
-        })
 
         const logGroupName = `/aws/fargate/${this.name}-${execUnitName}-task`
         let cloudwatchGroup = new aws.cloudwatch.LogGroup(`${this.name}-${execUnitName}-lg`, {
@@ -1397,7 +1396,6 @@ export class CloudCCLib {
             retentionInDays: 1,
         })
 
-        const nlb = this.execUnitToNlb.get(execUnitName)!
         let additionalEnvVars: { name: string; value: pulumi.Input<string> }[] = []
         for (const [name, value] of Object.entries(
             this.generateExecUnitEnvVars(execUnitName, envVars)
@@ -1405,17 +1403,33 @@ export class CloudCCLib {
             additionalEnvVars.push({ name, value })
         }
 
+        const discoveryService = new aws.servicediscovery.Service(execUnitName, {
+            name: execUnitName,
+            dnsConfig: {
+                namespaceId: this.privateDnsNamespace.id,
+                dnsRecords: [
+                    {
+                        ttl: 10,
+                        type: 'A',
+                    },
+                ],
+                routingPolicy: 'MULTIVALUE',
+            },
+            healthCheckCustomConfig: {
+                failureThreshold: 1,
+            },
+        })
+
         const task = new awsx.ecs.FargateTaskDefinition(`${execUnitName}-task`, {
             logGroup: cloudwatchGroup,
             family: `${execUnitName}-family`,
             executionRole: role,
             taskRole: role,
-
             container: {
                 ...baseArgs,
                 image: image,
                 portMappings:
-                    nlb != undefined
+                    nlb.listeners != undefined
                         ? nlb.listeners
                         : [
                               {
@@ -1438,23 +1452,6 @@ export class CloudCCLib {
             },
         })
 
-        const discoveryService = new aws.servicediscovery.Service(execUnitName, {
-            name: execUnitName,
-            dnsConfig: {
-                namespaceId: this.privateDnsNamespace.id,
-                dnsRecords: [
-                    {
-                        ttl: 10,
-                        type: 'A',
-                    },
-                ],
-                routingPolicy: 'MULTIVALUE',
-            },
-            healthCheckCustomConfig: {
-                failureThreshold: 1,
-            },
-        })
-
         // This is done here for now because of a potential deletion race condition mentioned on the pulumi site
         const attach = new aws.iam.RolePolicyAttachment(`${execUnitName}-fargateAttach`, {
             role: role.name,
@@ -1463,6 +1460,7 @@ export class CloudCCLib {
 
         const subnets =
             network_placement === 'public' ? this.publicSubnetIds : this.privateSubnetIds
+
         const service = new awsx.ecs.FargateService(
             `${execUnitName}-service`,
             {

@@ -86,15 +86,7 @@ func handleGatewayRoutes(info *execUnitExposeInfo, result *core.CompilationResul
 			}
 		}
 		for _, route := range routes {
-			// determine if a target is needed and which
-			targetKind := ""
-			switch info.Unit.Type() {
-			// TODO: move these out of expose into runtime somehow
-			case "fargate":
-				targetKind = core.NetworkLoadBalancerKind
-			}
-
-			existsInUnit, it := gw.AddRoute(route.Route, info.Unit, targetKind)
+			existsInUnit := gw.AddRoute(route.Route, info.Unit)
 			if existsInUnit != "" {
 				log.Sugar().Infof("Not adding duplicate route %v for %v. Exists in %v", route.Path, route.ExecUnitName, existsInUnit)
 				continue
@@ -110,22 +102,13 @@ func handleGatewayRoutes(info *execUnitExposeInfo, result *core.CompilationResul
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
 				targetUnit = info.Unit.Name
 			}
-			if it.Kind == "" {
-				depKey := core.ResourceKey{Name: targetUnit, Kind: core.ExecutionUnitKind}
-				if result.Get(depKey) == nil {
-					// The unit defined in the target does not exist, fall back to current one (for running in single-exec mode).
-					// TODO when there are ways to combine units, we'll need a more sophisticated way to see which unit the target maps to.
-					depKey.Name = info.Unit.Name
-				}
-				deps.Add(gw.Key(), depKey)
-			} else {
-				// If an integration target exists for an exec unit, create the cloud resource and set the deps as gw -> it -> route exec unit
-				if existing := result.Get(it.Key()); existing == nil {
-					result.Add(it)
-				}
-				deps.Add(gw.Key(), it.Key())
-				deps.Add(it.Key(), core.ResourceKey{Name: targetUnit, Kind: core.ExecutionUnitKind})
+			depKey := core.ResourceKey{Name: targetUnit, Kind: core.ExecutionUnitKind}
+			if result.Get(depKey) == nil {
+				// The unit defined in the target does not exist, fall back to current one (for running in single-exec mode).
+				// TODO when there are ways to combine units, we'll need a more sophisticated way to see which unit the target maps to.
+				depKey.Name = info.Unit.Name
 			}
+			deps.Add(gw.Key(), depKey)
 		}
 	}
 }
