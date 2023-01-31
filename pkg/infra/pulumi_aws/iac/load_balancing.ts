@@ -141,7 +141,7 @@ export class LoadBalancerPlugin {
                     },
                     {
                         httpRequestMethod: {
-                            values: [route.verb],
+                            values: [route.verb.toUpperCase()],
                         },
                     },
                 ],
