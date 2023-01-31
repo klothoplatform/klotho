@@ -12,5 +12,5 @@
       (string) @topic
     )
   )
-  ;;(#match? @func "^emit$") ;; not supported in go-tree-sitter
+  (#match? @func "^emit$") ;; not supported in go-tree-sitter
 )

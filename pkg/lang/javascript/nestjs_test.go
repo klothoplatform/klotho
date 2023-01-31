@@ -33,7 +33,7 @@ func Test_nestHandler_QueryResources(t *testing.T) {
 				})
 			], AppModule);`,
 			numResources: map[string]int{
-				"modules":     3, // We actually match 3 here because we look for each match of pairs that are member expressions. Then in the code we check the key of that pair to ensure its controllers
+				"modules":     2, // UsersController & OrgController
 				"controllers": 0,
 				"routes":      0,
 			},
