@@ -181,7 +181,10 @@ func GetLanguagesUsed(result *core.CompilationResult) []core.ExecutableType {
 
 func GetResourceTypeCount(result *core.CompilationResult, cfg *config.Application) (resourceCounts []string) {
 	for _, res := range result.Resources() {
-		resourceCounts = append(resourceCounts, cfg.GetResourceType(res))
+		resType := cfg.GetResourceType(res)
+		if resType != "" {
+			resourceCounts = append(resourceCounts, resType)
+		}
 	}
 	return
 }
