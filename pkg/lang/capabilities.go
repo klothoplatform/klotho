@@ -101,7 +101,7 @@ func (c *capabilityFinder) findAllCommentsBlocks(f *core.SourceFile) []*commentB
 		comment := capture.Content()
 		comment = c.preprocessor(comment)
 
-		combineWithNext := capture.NextSibling() != nil && capture.NextSibling().Type() == capture.Type()
+		combineWithNext := capture.NextSibling() != nil && capture.NextNamedSibling().Type() == capture.Type()
 		node := capture.NextNamedSibling()
 		if node == nil {
 			continue // this is the last node in the AST, so it's effectively a break :)
@@ -118,7 +118,7 @@ func (c *capabilityFinder) findAllCommentsBlocks(f *core.SourceFile) []*commentB
 	return blocks
 }
 
-func PrintCapabilities(program []byte, caps core.AnnotationMap, out io.Writer) error {
+func PrintCapabilities(caps core.AnnotationMap, out io.Writer) error {
 	for _, cap := range caps {
 		fmt.Fprintln(out, cap.Capability, cap.Node.Content())
 	}
