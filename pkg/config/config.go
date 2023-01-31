@@ -118,6 +118,16 @@ func ReadConfig(fpath string) (Application, error) {
 		err = toml.NewDecoder(f).Decode(&appCfg)
 		appCfg.Format = "toml"
 	}
+	postWarning := false
+	for _, unit := range appCfg.ExecutionUnits {
+		if unit.Type == "fargate" {
+			postWarning = true
+		}
+	}
+
+	if postWarning {
+		zap.S().Warn("Execution unit type 'fargate' is now renamed to 'ecs'")
+	}
 	return appCfg, err
 }
 
@@ -151,7 +161,6 @@ func (cfg *ExecutionUnit) Merge(other ExecutionUnit) {
 		cfg.Type = other.Type
 	}
 	if cfg.Type == "fargate" {
-		zap.S().Warn("Execution unit type 'fargate' is now renamed to 'ecs'")
 		cfg.Type = "ecs"
 	}
 	cfg.NetworkPlacement = other.NetworkPlacement

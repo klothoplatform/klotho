@@ -348,7 +348,7 @@ export class ApiGateway {
             const integrationName = `${execUnit.type}-${r.verb.toUpperCase()}-${routeAndHash}`
             integrationNames.push(integrationName)
             if (execUnit.type == 'ecs') {
-                const nlb = this.lbPlugin.getExecUnitLoadBalancer(r.execUnitName)!
+                const nlb = this.lib.execUnitToNlb.get(r.execUnitName)!
                 const vpcLink = this.lib.execUnitToVpcLink.get(r.execUnitName)!
                 integrations.push(
                     new aws.apigateway.Integration(
@@ -362,7 +362,7 @@ export class ApiGateway {
                             type: 'HTTP_PROXY',
                             connectionType: 'VPC_LINK',
                             connectionId: vpcLink.id,
-                            uri: pulumi.interpolate`http://${nlb.dnsName}${r.path
+                            uri: pulumi.interpolate`http://${nlb.loadBalancer.dnsName}${r.path
                                 .replace(/:([^/]+)/g, '{$1}')
                                 .replace(/[*]\}/g, '+}')}`,
                             requestParameters:

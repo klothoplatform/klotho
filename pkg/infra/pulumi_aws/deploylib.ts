@@ -1362,50 +1362,29 @@ export class CloudCCLib {
             Resource: '*',
         })
 
-        let needsLoadBalancer = false
-        this.topology.topologyIconData.forEach((resource) => {
-            if (resource.kind === Resource.gateway) {
-                this.topology.topologyEdgeData.forEach((edge) => {
-                    if (edge.source == resource.id && edge.target === `${execUnitName}_exec_unit`) {
-                        needsLoadBalancer = true
-                    }
-                })
+        const nlb = new awsx.lb.NetworkLoadBalancer(`${execUnitName}-nlb`, {
+            external: false,
+            vpc: this.klothoVPC,
+            subnets: this.privateSubnetIds,
+        })
+        this.execUnitToNlb.set(execUnitName, nlb)
+
+        const targetGroup: awsx.elasticloadbalancingv2.NetworkTargetGroup = nlb.createTargetGroup(
+            `${execUnitName}-tg`,
+            {
+                port: 3000,
             }
+        )
+
+        const listener = targetGroup.createListener(`${execUnitName}-listener`, {
+            port: 80,
         })
 
-        let nlb: aws.lb.LoadBalancer | undefined = undefined
-        let listener
-        if (needsLoadBalancer) {
-            const nlb = lbPlugin!.createLoadBalancer(this.name, execUnitName, {
-                subnets: this.privateSubnetIds,
-                loadBalancerType: 'network',
-            })
-            const targetGroup = lbPlugin!.createTargetGroup(this.name, execUnitName, {
-                port: 3000,
-                protocol: 'TCP',
-                vpcId: this.klothoVPC.id,
-                targetType: 'ip',
-            })
+        const vpcLink = new aws.apigateway.VpcLink(`${execUnitName}-vpc-link`, {
+            targetArn: nlb.loadBalancer.arn,
+        })
 
-            listener = lbPlugin!.createListener(this.name, execUnitName, {
-                port: 80,
-                protocol: 'TCP',
-                loadBalancerArn: nlb.arn,
-                defaultActions: [
-                    {
-                        type: 'forward',
-                        targetGroupArn: targetGroup.arn,
-                    },
-                ],
-            })
-
-            const vpcLink = new aws.apigateway.VpcLink(`${execUnitName}-vpc-link`, {
-                targetArn: nlb.arn,
-            })
-            this.execUnitToVpcLink.set(execUnitName, vpcLink)
-        } else {
-            throw new Error('Unsupported connector to ECS Fargate Task')
-        }
+        this.execUnitToVpcLink.set(execUnitName, vpcLink)
 
         const logGroupName = `/aws/fargate/${this.name}-${execUnitName}-task`
         let cloudwatchGroup = new aws.cloudwatch.LogGroup(`${this.name}-${execUnitName}-lg`, {
@@ -1419,36 +1398,6 @@ export class CloudCCLib {
         )) {
             additionalEnvVars.push({ name, value })
         }
-
-        const task = new awsx.ecs.FargateTaskDefinition(`${execUnitName}-task`, {
-            logGroup: cloudwatchGroup,
-            family: `${execUnitName}-family`,
-            executionRole: role,
-            taskRole: role,
-
-            container: {
-                ...baseArgs,
-                image: image,
-                portMappings: [
-                    {
-                        containerPort: 3000,
-                        protocol: 'tcp',
-                    },
-                ],
-                environment: [
-                    { name: 'AWS_XRAY_CONTEXT_MISSING', value: 'LOG_ERROR' },
-                    ...additionalEnvVars,
-                ],
-                logConfiguration: {
-                    logDriver: 'awslogs',
-                    options: {
-                        'awslogs-group': `${logGroupName}`,
-                        'awslogs-region': `${this.region}`,
-                        'awslogs-stream-prefix': '/ecs',
-                    },
-                },
-            },
-        })
 
         const discoveryService = new aws.servicediscovery.Service(execUnitName, {
             name: execUnitName,
@@ -1467,6 +1416,38 @@ export class CloudCCLib {
             },
         })
 
+        const task = new awsx.ecs.FargateTaskDefinition(`${execUnitName}-task`, {
+            logGroup: cloudwatchGroup,
+            family: `${execUnitName}-family`,
+            executionRole: role,
+            taskRole: role,
+            container: {
+                ...baseArgs,
+                image: image,
+                portMappings:
+                    nlb.listeners != undefined
+                        ? nlb.listeners
+                        : [
+                              {
+                                  containerPort: 3000,
+                                  protocol: 'tcp',
+                              },
+                          ],
+                environment: [
+                    { name: 'AWS_XRAY_CONTEXT_MISSING', value: 'LOG_ERROR' },
+                    ...additionalEnvVars,
+                ],
+                logConfiguration: {
+                    logDriver: 'awslogs',
+                    options: {
+                        'awslogs-group': `${logGroupName}`,
+                        'awslogs-region': `${this.region}`,
+                        'awslogs-stream-prefix': '/ecs',
+                    },
+                },
+            },
+        })
+
         // This is done here for now because of a potential deletion race condition mentioned on the pulumi site
         const attach = new aws.iam.RolePolicyAttachment(`${execUnitName}-fargateAttach`, {
             role: role.name,
@@ -1475,6 +1456,7 @@ export class CloudCCLib {
 
         const subnets =
             network_placement === 'public' ? this.publicSubnetIds : this.privateSubnetIds
+
         const service = new awsx.ecs.FargateService(
             `${execUnitName}-service`,
             {

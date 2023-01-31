@@ -53,7 +53,6 @@ type GatewayType string
 const (
 	eks                                = "eks"
 	ecs                                = "ecs"
-	fargate                            = "fargate"
 	lambda                             = "lambda"
 	rds_postgres                       = "rds_postgres"
 	s3                                 = "s3"
@@ -150,7 +149,7 @@ func (a *AWS) GetDefaultConfig() config.Defaults {
 func (a *AWS) GetKindTypeMappings(kind string) ([]string, bool) {
 	switch kind {
 	case core.ExecutionUnitKind:
-		return []string{eks, ecs, fargate, lambda}, true
+		return []string{eks, ecs, lambda}, true
 	case core.GatewayKind:
 		return []string{string(ApiGateway), string(Alb)}, true
 	case core.StaticUnitKind:
