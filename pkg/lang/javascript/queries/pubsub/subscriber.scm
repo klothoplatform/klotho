@@ -12,5 +12,5 @@
       (string) @topic
     )
   )
-  ;;(#match? @func "^on$") ;; not supported in go-tree-sitter
+  (#match? @func "^on$") ;; not supported in go-tree-sitter
 )
