@@ -138,6 +138,8 @@ export class LoadBalancerPlugin {
                         pathPattern: {
                             values: [route.path],
                         },
+                    },
+                    {
                         httpRequestMethod: {
                             values: [route.verb],
                         },
