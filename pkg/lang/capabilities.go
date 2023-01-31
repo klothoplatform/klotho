@@ -98,7 +98,7 @@ func (c *capabilityFinder) findAllCommentsBlocks(f *core.SourceFile) []*commentB
 			break
 		}
 		capture := match[fullCaptureName]
-		comment := capture.Content(f.Program())
+		comment := capture.Content()
 		comment = c.preprocessor(comment)
 
 		combineWithNext := capture.NextSibling() != nil && capture.NextSibling().Type() == capture.Type()
@@ -120,7 +120,7 @@ func (c *capabilityFinder) findAllCommentsBlocks(f *core.SourceFile) []*commentB
 
 func PrintCapabilities(program []byte, caps core.AnnotationMap, out io.Writer) error {
 	for _, cap := range caps {
-		fmt.Fprintln(out, cap.Capability, cap.Node.Content(program))
+		fmt.Fprintln(out, cap.Capability, cap.Node.Content())
 	}
 	return nil
 }

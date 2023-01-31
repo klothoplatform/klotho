@@ -218,9 +218,9 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 					fmt.Fprintf(indentWriter, "in %s", ast.Path())
 				}
 
-				nodeContent := nodeField.content
+				nodeContent := nodeField.n.Content()
 				if nodeContent == "" {
-					nodeContent = node.Content(ast.Program())
+					nodeContent = node.Content()
 				}
 				line.AppendString("\n")
 				fmt.Fprintf(indentWriter, "%+v", &core.NodeContent{

@@ -109,7 +109,7 @@ func warnIfContainsES6Import(file core.File) {
 
 	for _, p := range FindImportsInFile(jsF).Filter(filter.NewSimpleFilter(IsImportOfKind(ImportKindES))) {
 		if p.Kind == ImportKindES {
-			zap.L().Sugar().With(logging.FileField(jsF), logging.NodeField(p.ImportNode, jsF.Program())).Warn(
+			zap.L().Sugar().With(logging.FileField(jsF), logging.NodeField(p.ImportNode)).Warn(
 				"ES6 import statements are not yet supported: please use CommonJS 'require()' syntax instead")
 		}
 	}

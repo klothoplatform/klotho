@@ -53,7 +53,7 @@ func FindFileForImport(files map[string]core.File, importingFilePath string, mod
 	return nil, nil
 }
 
-func FindDefaultExport(n *sitter.Node, source []byte) *sitter.Node {
+func FindDefaultExport(n *sitter.Node) *sitter.Node {
 	nextMatch := DoQuery(n, modulesDefault)
 	var last *sitter.Node
 	for {
@@ -63,11 +63,11 @@ func FindDefaultExport(n *sitter.Node, source []byte) *sitter.Node {
 		}
 
 		obj, prop := match["obj"], match["prop"]
-		if obj != nil && !query.NodeContentEquals(obj, source, "module") {
+		if obj != nil && !query.NodeContentEquals(obj, "module") {
 			continue
 		}
 
-		if !query.NodeContentEquals(prop, source, "exports") {
+		if !query.NodeContentEquals(prop, "exports") {
 			continue
 		}
 		last = match["last"]
@@ -77,7 +77,7 @@ func FindDefaultExport(n *sitter.Node, source []byte) *sitter.Node {
 }
 
 // FindExportForVar returns the local variable that is exported as 'varName' (to handle cases where they don't match).
-func FindExportForVar(n *sitter.Node, source []byte, varName string) *sitter.Node {
+func FindExportForVar(n *sitter.Node, varName string) *sitter.Node {
 	nextMatch := DoQuery(n, modulesExport)
 	var last *sitter.Node
 	for {
@@ -88,10 +88,10 @@ func FindExportForVar(n *sitter.Node, source []byte, varName string) *sitter.Nod
 
 		obj, prop, right := match["obj"], match["prop"], match["right"]
 
-		if !query.NodeContentEquals(obj, source, "exports") {
+		if !query.NodeContentEquals(obj, "exports") {
 			continue
 		}
-		if !query.NodeContentEquals(prop, source, varName) {
+		if !query.NodeContentEquals(prop, varName) {
 			continue
 		}
 		if right.Type() == "identifier" {

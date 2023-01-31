@@ -11,20 +11,18 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
-func WriteAST(node *sitter.Node, program []byte, out io.Writer) error {
+func WriteAST(node *sitter.Node, out io.Writer) error {
 	w := ASTWriter{
-		program: program,
-		node:    node,
-		out:     out,
+		node: node,
+		out:  out,
 	}
 	w.WriteAST()
 	return w.Err()
 }
 
 type ASTWriter struct {
-	program []byte
-	out     io.Writer
-	node    *sitter.Node
+	out  io.Writer
+	node *sitter.Node
 
 	errors multierr.Error
 }
@@ -101,7 +99,7 @@ func (w *ASTWriter) WriteAST() {
 			w.writeLine(n, fmt.Sprintf("%s: (%s)", name, n.Type()))
 		} else {
 			if n.Parent() != nil && n.Parent().NamedChildCount() > 0 {
-				content := n.Content(w.program)
+				content := n.Content()
 				if n.Type() == content {
 					w.writeLine(n, fmt.Sprintf("%s = %s", name, content))
 				} else {

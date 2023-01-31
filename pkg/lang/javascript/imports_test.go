@@ -728,7 +728,7 @@ func TestFindImportForVar(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			p := FindImportForVar(f.Tree().RootNode(), f.Program(), tt.varName)
+			p := FindImportForVar(f.Tree().RootNode(), tt.varName)
 			assert.Equal(tt.want, p.Source)
 		})
 	}

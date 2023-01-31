@@ -84,7 +84,7 @@ func (p *persister) findUnawaitedCalls(unit *core.ExecutionUnit) {
 		}
 		for spec := range vars {
 			for _, node := range p.findUnwaitedCallsInFile(js, spec) {
-				log := zap.L().With(logging.NodeField(node, js.Program()), logging.FileField(js)).Sugar()
+				log := zap.L().With(logging.NodeField(node), logging.FileField(js)).Sugar()
 				log.Warnf("%s", errors.Errorf("Call is async, but is missing \"await\""))
 			}
 		}
@@ -99,11 +99,11 @@ func (p *persister) findUnwaitedCallsInFile(js *core.SourceFile, spec VarSpec) (
 		if !found {
 			break
 		}
-		if match["var.name"].Content(js.Program()) != specVarName {
+		if match["var.name"].Content() != specVarName {
 			continue
 		}
 
-		methodName := match["method.name"].Content(js.Program())
+		methodName := match["method.name"].Content()
 		_, methodNeedsAwait := persistMethodsThatNeedAwait[methodName]
 		callIsAwaited := (match["full"].Parent().Type() == "await_expression")
 		if methodNeedsAwait && !callIsAwaited {
@@ -287,7 +287,7 @@ func (p *persister) transformORM(unit *core.ExecutionUnit, file *core.SourceFile
 	var replaceContent string
 	switch ormR.ormType {
 	case TypeOrmKind:
-		replaceContent = fmt.Sprintf(`ormRuntime.getDataSourceParams("%s", %s)`, envVar.Name, ormR.expression.Content(file.Program()))
+		replaceContent = fmt.Sprintf(`ormRuntime.getDataSourceParams("%s", %s)`, envVar.Name, ormR.expression.Content())
 	case SequelizeKind:
 		replaceContent = fmt.Sprintf(`ormRuntime.getDBConn("%s")`, envVar.Name)
 	default:
@@ -311,7 +311,7 @@ func (p *persister) transformORM(unit *core.ExecutionUnit, file *core.SourceFile
 func (p *persister) transformRedis(unit *core.ExecutionUnit, file *core.SourceFile, cap *core.Annotation, redisR *persistResult, kind core.PersistKind) (core.CloudResource, error) {
 	// Because the redis client can be initialized with () or ({...}) we have to have the expression match it all.
 	// We need to remove the outer () so that the runtime will process these correctly.
-	newExpression := strings.TrimLeft(redisR.expression.Content(file.Program()), "(")
+	newExpression := strings.TrimLeft(redisR.expression.Content(), "(")
 	newExpression = strings.TrimRight(newExpression, ")")
 
 	if newExpression == "" {
@@ -368,11 +368,11 @@ func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, 
 
 		name, constructor, object, expression := match["name"], match["constructor"], match["object"], match["expression"]
 
-		if !query.NodeContentEquals(constructor, file.Program(), "Map") {
+		if !query.NodeContentEquals(constructor, "Map") {
 			continue
 		}
 
-		if object != nil && !query.NodeContentEquals(object, file.Program(), "exports") {
+		if object != nil && !query.NodeContentEquals(object, "exports") {
 			if enableWarnings {
 				log.Warn("expected object of assignment to be 'exports'")
 			}
@@ -386,14 +386,14 @@ func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, 
 			return nil
 		}
 		return &persistResult{
-			name:       name.Content(file.Program()),
+			name:       name.Content(),
 			expression: expression,
 		}
 	}
 }
 
 func (p *persister) queryFS(file *core.SourceFile, annotation *core.Annotation) *persistResult {
-	imports := FindNextImportStatement(annotation.Node, file.Program())
+	imports := FindNextImportStatement(annotation.Node)
 	if len(imports) == 0 {
 		return nil
 	}
@@ -439,10 +439,10 @@ func (p *persister) querySecretName(file *core.SourceFile, fsName string) ([]str
 		}
 
 		secretName, object, property := match["secretName"], match["object"], match["property"]
-		if object != nil && property != nil && query.NodeContentEquals(object, file.Program(), fsName) {
-			if query.NodeContentEquals(property, file.Program(), "readFile") {
+		if object != nil && property != nil && query.NodeContentEquals(object, fsName) {
+			if query.NodeContentEquals(property, "readFile") {
 				if secretName != nil {
-					sn := StringLiteralContent(secretName, file.Program())
+					sn := StringLiteralContent(secretName)
 					secrets = append(secrets, sn)
 				} else {
 					return nil, errors.New("must supply static string for secret path")
@@ -465,7 +465,7 @@ func (p *persister) queryORM(file *core.SourceFile, annotation *core.Annotation,
 
 	name, argstring := match["name"], match["argstring"]
 
-	ormtype := match["type"].Content(file.Program())
+	ormtype := match["type"].Content()
 	var ormKind OrmKind
 	switch ormtype {
 	case "Sequelize":
@@ -476,13 +476,13 @@ func (p *persister) queryORM(file *core.SourceFile, annotation *core.Annotation,
 		return nil
 	}
 	if obj := match["var.obj"]; obj != nil {
-		if !query.NodeContentEquals(obj, file.Program(), "exports") {
+		if !query.NodeContentEquals(obj, "exports") {
 			return nil
 		}
 	}
 
 	return &persistResult{
-		name:       name.Content(file.Program()),
+		name:       name.Content(),
 		expression: argstring,
 		ormType:    ormKind,
 	}
@@ -499,22 +499,22 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 	name, argstring, method := match["name"], match["argstring"], match["method"]
 
 	kind := core.PersistRedisNodeKind
-	if method.Content(file.Program()) == "createCluster" {
+	if method.Content() == "createCluster" {
 		kind = core.PersistRedisClusterKind
 	}
 
-	if method.Content(file.Program()) != "createClient" && method.Content(file.Program()) != "createCluster" {
+	if method.Content() != "createClient" && method.Content() != "createCluster" {
 		return "", nil
 	}
 
 	if obj := match["var.obj"]; obj != nil {
-		if !query.NodeContentEquals(obj, file.Program(), "exports") {
+		if !query.NodeContentEquals(obj, "exports") {
 			return "", nil
 		}
 	}
 
 	return kind, &persistResult{
-		name:       name.Content(file.Program()),
+		name:       name.Content(),
 		expression: argstring,
 	}
 }

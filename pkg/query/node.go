@@ -7,8 +7,8 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
-func NodeContentStartWith(node *sitter.Node, src []byte, s string) bool {
-	content := node.Content(src)
+func NodeContentStartWith(node *sitter.Node, s string) bool {
+	content := node.Content()
 
 	if s != "" && strings.HasPrefix(content, s) {
 		return true
@@ -16,16 +16,16 @@ func NodeContentStartWith(node *sitter.Node, src []byte, s string) bool {
 	return false
 }
 
-func NodeContentEquals(node *sitter.Node, src []byte, s string) bool {
-	content := node.Content(src)
+func NodeContentEquals(node *sitter.Node, s string) bool {
+	content := node.Content()
 	if s != "" && content == s {
 		return true
 	}
 	return false
 }
 
-func NodeContentRegex(node *sitter.Node, src []byte, regex *regexp.Regexp) bool {
-	content := node.Content(src)
+func NodeContentRegex(node *sitter.Node, regex *regexp.Regexp) bool {
+	content := node.Content()
 	return regex.MatchString(content)
 }
 

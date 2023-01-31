@@ -65,8 +65,7 @@ func AnnotationField(a *core.Annotation) zap.Field {
 }
 
 type astNodeField struct {
-	n       *sitter.Node
-	content string
+	n *sitter.Node
 }
 
 type entryMessage struct{}
@@ -115,7 +114,7 @@ func (field astNodeField) Sanitize(hasher func(any) string) SanitizedField {
 		Key: "AstNodeType",
 		Content: map[string]any{
 			"type":    field.n.Type(),
-			"content": hasher(field.content),
+			"content": hasher(field.n.Content()),
 		},
 	}
 }
@@ -132,11 +131,10 @@ func (field astNodeField) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
-func NodeField(n *sitter.Node, source []byte) zap.Field {
+func NodeField(n *sitter.Node) zap.Field {
 	return zap.Object("node", astNodeField{
-		n:       n,
-		content: n.Content(source)},
-	)
+		n: n,
+	})
 }
 
 type postLogMessage struct {

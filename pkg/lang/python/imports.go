@@ -84,7 +84,7 @@ func FindImports(file *core.SourceFile) Imports {
 
 		prefixContent := ""
 		if importPrefix != nil {
-			prefixContent = importPrefix.Content(file.Program())
+			prefixContent = importPrefix.Content()
 		}
 
 		moduleContent := ""
@@ -93,7 +93,7 @@ func FindImports(file *core.SourceFile) Imports {
 		aliasName := ""
 
 		if module != nil {
-			moduleContent = module.Content(file.Program())
+			moduleContent = module.Content()
 			lastPeriod := strings.LastIndex(moduleContent, ".")
 
 			if lastPeriod != -1 {
@@ -103,7 +103,7 @@ func FindImports(file *core.SourceFile) Imports {
 				moduleName = moduleContent
 			}
 		} else if aliasedModule != nil {
-			moduleContent = aliasedModule.Content(file.Program())
+			moduleContent = aliasedModule.Content()
 			lastPeriod := strings.LastIndex(moduleContent, ".")
 
 			if lastPeriod != -1 {
@@ -112,7 +112,7 @@ func FindImports(file *core.SourceFile) Imports {
 			} else {
 				moduleName = moduleContent
 			}
-			aliasName = alias.Content(file.Program())
+			aliasName = alias.Content()
 		}
 
 		parent = prefixContent + parent
@@ -129,14 +129,14 @@ func FindImports(file *core.SourceFile) Imports {
 		i := fileImports[qualifiedModuleName]
 		// technically, this may be a submodule, but we can't tell without deeper analysis of the imported file
 		if attribute != nil {
-			attributeName := attribute.Content(file.Program())
+			attributeName := attribute.Content()
 			ia := i.ImportedAttributes
 			if ia == nil {
 				ia = map[string]Attribute{}
 			}
 			aliasFrom := ""
 			if alias != nil {
-				aliasFrom = alias.Content(file.Program())
+				aliasFrom = alias.Content()
 			}
 			ia[attributeName] = Attribute{
 				Name:  attributeName,
@@ -198,8 +198,8 @@ func ResolveFileDependencies(files map[string]core.File) (execunit.FileDependenc
 							break
 						}
 						objName, attrName := attrUsage["obj_name"], attrUsage["attr_name"]
-						if query.NodeContentEquals(objName, pyFile.Program(), importSpec.ImportedAs()) {
-							attrNameStr := attrName.Content(pyFile.Program())
+						if query.NodeContentEquals(objName, importSpec.ImportedAs()) {
+							attrNameStr := attrName.Content()
 							refs[attrNameStr] = struct{}{}
 						}
 					}

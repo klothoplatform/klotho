@@ -83,12 +83,12 @@ func (h *restAPIHandler) findFastAPIAppDefinition(cap *core.Annotation, f *core.
 		identifier, function, expression, arg, val :=
 			match["identifier"], match["function"], match["expression"], match["arg"], match["val"]
 
-		if function.Content(f.Program()) == "FastAPI" {
+		if function.Content() == "FastAPI" {
 
 			rootPath := ""
-			if arg != nil && arg.Content(f.Program()) == "root_path" {
+			if arg != nil && arg.Content() == "root_path" {
 				var err error
-				rootPath, err = stringLiteralContent(val, f.Program())
+				rootPath, err = stringLiteralContent(val)
 				if err != nil {
 					return fastapiDefResult{}, errors.Wrap(err, "invalid root_path detected")
 				}
@@ -195,7 +195,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 			continue
 		}
 
-		appVarName = app.Identifier.Content(f.Program())
+		appVarName = app.Identifier.Content()
 		h.RootPath = app.RootPath
 
 		gwSpec := gatewaySpec{
@@ -226,7 +226,7 @@ type routeMethodPath struct {
 	Path string
 }
 
-func (h *restAPIHandler) findVerbFuncs(root *sitter.Node, source []byte, varName string) ([]routeMethodPath, error) {
+func (h *restAPIHandler) findVerbFuncs(root *sitter.Node, varName string) ([]routeMethodPath, error) {
 	nextMatch := DoQuery(root, exposeVerb)
 	var route []routeMethodPath
 	var err error
@@ -240,27 +240,27 @@ func (h *restAPIHandler) findVerbFuncs(root *sitter.Node, source []byte, varName
 		verb := match["verb"]
 		routePath := match["path"]
 
-		if !query.NodeContentEquals(appName, source, varName) {
+		if !query.NodeContentEquals(appName, varName) {
 			continue // wrong var (not the FastAPI app we're looking for)
 		}
 
-		if argname := match["argname"]; argname != nil && !query.NodeContentEquals(argname, source, "path") {
+		if argname := match["argname"]; argname != nil && !query.NodeContentEquals(argname, "path") {
 			continue // wrong kwarg (i.e. not 'path')
 		}
 
-		funcName := verb.Content(source)
+		funcName := verb.Content()
 		if _, supported := core.Verbs[core.Verb(strings.ToUpper(funcName))]; !supported {
 			continue // unsupported verb
 		}
 
 		var pathContent string
-		pathContent, err = stringLiteralContent(routePath, source)
+		pathContent, err = stringLiteralContent(routePath)
 		if err != nil {
 			return []routeMethodPath{}, errors.Wrap(err, "invalid verb path")
 		}
 
 		route = append(route, routeMethodPath{
-			Verb: verb.Content(source),
+			Verb: verb.Content(),
 			Path: pathContent,
 		})
 	}
@@ -273,7 +273,7 @@ func (h *restAPIHandler) findFastAPIRoutesForVar(f *core.SourceFile, varName str
 	var routes = make([]gatewayRouteDefinition, 0)
 	log := h.log.With(logging.FileField(f))
 
-	verbFuncs, err := h.findVerbFuncs(f.Tree().RootNode(), f.Program(), varName)
+	verbFuncs, err := h.findVerbFuncs(f.Tree().RootNode(), varName)
 
 	log.Sugar().Debugf("Got %d verb functions for '%s'", len(verbFuncs), varName)
 

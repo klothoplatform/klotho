@@ -121,7 +121,7 @@ func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotat
 	case core.PersistORMKind:
 		cfg := r.Config.GetPersisted(annot.Capability.ID, kind)
 		if cfg.Type == "cockroachdb_serverless" {
-			oldNodeContent := annot.Node.Content(file.Program())
+			oldNodeContent := annot.Node.Content()
 			newNodeContent := sequelizeReplaceRE.ReplaceAllString(oldNodeContent, "new cockroachdbSequelize.Sequelize(")
 
 			if err := file.ReplaceNodeContent(annot.Node, newNodeContent); err != nil {

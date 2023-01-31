@@ -85,14 +85,14 @@ func run(cmd *cobra.Command, args []string) error {
 			}
 			for i, capture := range match.Captures {
 				fmt.Printf("[%d.%d] ", matchNum, i)
-				err := lang.WriteAST(capture.Node, jsFile.Program(), os.Stdout)
+				err := lang.WriteAST(capture.Node, os.Stdout)
 				if err != nil {
 					return err
 				}
 			}
 		}
 	} else {
-		err := lang.WriteAST(jsFile.Tree().RootNode(), jsFile.Program(), os.Stdout)
+		err := lang.WriteAST(jsFile.Tree().RootNode(), os.Stdout)
 		if err != nil {
 			return err
 		}

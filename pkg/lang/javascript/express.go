@@ -130,14 +130,14 @@ func (p *ExpressHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit
 			return nil, core.NewCompilerError(f, annot, errors.New("expose capability must specify target = \"public\""))
 		}
 
-		listen := findListener(annot, f.Program())
+		listen := findListener(annot)
 
 		if listen.Expression == nil {
 			log.Debug("No listener found")
 			continue
 		}
 
-		appName, err := findApp(f.Program(), listen)
+		appName, err := findApp(listen)
 		if err != nil {
 			return nil, core.NewCompilerError(f, annot, errors.New("Couldnt find expose app creation"))
 		}
@@ -158,7 +158,7 @@ func (p *ExpressHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit
 func (h *ExpressHandler) actOnAnnotation(f *core.SourceFile, listen *exposeListenResult, fileContent string, appName string, unitType string, id string) (actedOn bool, newfileContent string) {
 
 	varName := h.findExpress(f)
-	listenVarName := listen.Identifier.Content(f.Program())
+	listenVarName := listen.Identifier.Content()
 	actedOn = false
 	newfileContent = fileContent
 	if varName != listenVarName {
@@ -166,7 +166,7 @@ func (h *ExpressHandler) actOnAnnotation(f *core.SourceFile, listen *exposeListe
 	}
 	//TODO: look into moving this runtime-specific logic elsewhere
 	if unitType == "lambda" {
-		newfileContent = CommentNodes(fileContent, listen.Expression.Content(f.Program()))
+		newfileContent = CommentNodes(fileContent, listen.Expression.Content())
 	}
 	h.output.listeners = append(h.output.listeners, expressListner{varName: listenVarName, f: f, appName: appName, annotationId: id})
 	newfileContent += fmt.Sprintf(`
@@ -186,16 +186,16 @@ func (h *ExpressHandler) findExpress(f *core.SourceFile) string {
 
 		varName, expressName, exports := match["var"], match["express"], match["exports"]
 
-		if exports != nil && !query.NodeContentEquals(exports, f.Program(), "exports") {
+		if exports != nil && !query.NodeContentEquals(exports, "exports") {
 			continue
 		}
 
-		imp := FindImportForVar(f.Tree().RootNode(), f.Program(), expressName.Content(f.Program()))
+		imp := FindImportForVar(f.Tree().RootNode(), expressName.Content())
 		if imp.Source != `express` {
 			continue
 		}
 
-		return varName.Content(f.Program())
+		return varName.Content()
 	}
 	return ""
 }
@@ -228,9 +228,9 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, result 
 			mwImportName := listenVarName
 			if mw.ObjectName != "" {
 				mwImportName = mw.ObjectName
-				h.log = h.log.With(logging.NodeField(mw.UseExpr, f.Program()))
+				h.log = h.log.With(logging.NodeField(mw.UseExpr))
 			}
-			imp := FindImportForVar(f.Tree().RootNode(), f.Program(), mwImportName)
+			imp := FindImportForVar(f.Tree().RootNode(), mwImportName)
 
 			var routes []gatewayRouteDefinition
 			if imp == (Import{}) {
@@ -248,24 +248,23 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, result 
 				var exportName string
 				if mw.PropertyName == "" {
 					h.log.Debug("Looking for default export")
-					exportNode := FindDefaultExport(mwFile.Tree().RootNode(), mwFile.Program())
+					exportNode := FindDefaultExport(mwFile.Tree().RootNode())
 					if exportNode == nil {
 						h.log.Sugar().Warnf("Could not find default export in '%s'", mwFile.Path())
 						continue
 					}
-					exportName = exportNode.Content(mwFile.Program())
+					exportName = exportNode.Content()
 				} else {
 					h.log.Sugar().Debugf("Looking for export of %s", mw.PropertyName)
 					exportNode := FindExportForVar(
 						mwFile.Tree().RootNode(),
-						mwFile.Program(),
 						mw.PropertyName,
 					)
 					if exportNode == nil {
 						h.log.Sugar().Warnf("Could not find export for '%s' in '%s'", mw.PropertyName, mwFile.Path())
 						continue
 					}
-					exportName = exportNode.Content(mwFile.Program())
+					exportName = exportNode.Content()
 				}
 
 				if mwUnit := core.FileExecUnitName(mwFile); mwUnit != "" && info.Unit.Name != mwUnit {
@@ -277,7 +276,7 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, result 
 						fileContent = string(mw.f.Program())
 					}
 
-					fileContent = CommentNodes(fileContent, importAssign.Content(mw.f.Program()), mwUse.Content(mw.f.Program()))
+					fileContent = CommentNodes(fileContent, importAssign.Content(), mwUse.Content())
 					fileContentUpdate[mw.f] = fileContent
 					continue // we have no routes to add, and make sure we don't log the "no routes" warning
 				} else {
@@ -393,17 +392,16 @@ func (h *ExpressHandler) findAllRouterMWs(listenerName string, listnerImportPath
 	for _, res := range h.output.middleware {
 		f := res.File
 		match := res.QueryResult
-		source := f.Program()
 
 		if f.Path() == listnerImportPath {
-			if !query.NodeContentEquals(match["obj"], f.Program(), listenerName) {
+			if !query.NodeContentEquals(match["obj"], listenerName) {
 				continue
 			}
 		} else {
-			obj := strings.Split(match["obj"].Content(f.Program()), ".")
+			obj := strings.Split(match["obj"].Content(), ".")
 			importVar := obj[0]
 
-			imp := FindImportForVar(f.Tree().RootNode(), f.Program(), importVar)
+			imp := FindImportForVar(f.Tree().RootNode(), importVar)
 
 			relPath, err := filepath.Rel(filepath.Dir(f.Path()), listnerImportPath)
 			if err != nil {
@@ -417,16 +415,16 @@ func (h *ExpressHandler) findAllRouterMWs(listenerName string, listnerImportPath
 
 		m := expressMiddleware{
 			UseExpr:    match["expr"],
-			ObjectName: match["mwObj"].Content(source),
+			ObjectName: match["mwObj"].Content(),
 			f:          f,
 		}
 
 		if mwProp := match["mwProp"]; mwProp != nil {
-			m.PropertyName = mwProp.Content(source)
+			m.PropertyName = mwProp.Content()
 		}
 
 		if path := match["path"]; path != nil {
-			m.Path = StringLiteralContent(path, source)
+			m.Path = StringLiteralContent(path)
 		}
 
 		mw = append(mw, m)
@@ -441,22 +439,21 @@ func (h *ExpressHandler) findVerbFuncs(varName string) []routeMethodPath {
 
 		file := res.File
 		match := res.QueryResult
-		source := file.Program()
 
 		obj, prop, path := match["obj"], match["prop"], match["path"]
 
-		if !query.NodeContentEquals(obj, source, varName) {
+		if !query.NodeContentEquals(obj, varName) {
 			continue
 		}
 
-		verb := prop.Content(source)
+		verb := prop.Content()
 		if verb == "all" {
 			verb = "any"
 		}
 
 		mw = append(mw, routeMethodPath{
 			Verb: verb,
-			Path: StringLiteralContent(path, source),
+			Path: StringLiteralContent(path),
 			f:    file,
 		})
 	}
@@ -467,7 +464,7 @@ func (h *ExpressHandler) findVerbFuncs(varName string) []routeMethodPath {
 
 func validateVerbs(match map[string]*sitter.Node, f *core.SourceFile) bool {
 	prop := match["prop"]
-	funcName := prop.Content(f.Program())
+	funcName := prop.Content()
 	if funcName == "all" {
 		funcName = "any"
 	}
@@ -479,7 +476,7 @@ func validateMw(match map[string]*sitter.Node, f *core.SourceFile) bool {
 	prop := match["prop"]
 
 	switch {
-	case !query.NodeContentEquals(prop, f.Program(), "use"):
+	case !query.NodeContentEquals(prop, "use"):
 		return false
 	}
 

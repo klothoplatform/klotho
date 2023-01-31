@@ -178,7 +178,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile, unitType string) (*core.
 			log.Warn("No http listen found")
 			continue
 		}
-		routerName := listener.Identifier.Content(f.Program())
+		routerName := listener.Identifier.Content()
 
 		importsNode, err := h.FindImports(f)
 		if err != nil {
@@ -190,7 +190,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile, unitType string) (*core.
 			//TODO: Will likely need to move this into a separate plugin of some sort
 			// Instead of having a dispatcher file, the dipatcher logic is injected into the main.go file. By having that
 			// logic in the expose plugin though, it will only happen if they use the expose annotation for the lambda case.
-			updatedListenContent := UpdateListenWithHandlerCode(string(f.Program()), listener.Expression.Content(f.Program()), routerName)
+			updatedListenContent := UpdateListenWithHandlerCode(string(f.Program()), listener.Expression.Content(), routerName)
 
 			updatedImportContent := UpdateImportWithHandlerRequirements(updatedListenContent, importsNode, f)
 
@@ -271,8 +271,8 @@ func (h *restAPIHandler) findChiRouterDefinition(f *core.SourceFile, appName str
 
 		identifier, definition, declaration := match["identifier"], match["definition"], match["declaration"]
 
-		if definition.Content(f.Program()) == "chi.NewRouter()" {
-			foundName := identifier.Content(f.Program())
+		if definition.Content() == "chi.NewRouter()" {
+			foundName := identifier.Content()
 			if foundName == appName {
 				rootPath := ""
 				return chiRouterDefResult{
@@ -299,14 +299,14 @@ func (h *restAPIHandler) findHttpListenAndServe(cap *core.Annotation, f *core.So
 
 		listenExp, addr, router, expression := match["sel_exp"], match["addr"], match["router"], match["expression"]
 
-		if listenExp.Content(f.Program()) == "http.ListenAndServe" {
+		if listenExp.Content() == "http.ListenAndServe" {
 			return httpListener{
 				Identifier: router,
 				Expression: expression,
 				Address:    addr,
 			}, nil
 		} else {
-			return httpListener{}, errors.Errorf("Expected http.ListenAndServe but found %s", listenExp.Content(f.Program()))
+			return httpListener{}, errors.Errorf("Expected http.ListenAndServe but found %s", listenExp.Content())
 		}
 	}
 
@@ -317,7 +317,7 @@ func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, varName string,
 	var routes = make([]gatewayRouteDefinition, 0)
 	log := h.log.With(logging.FileField(f))
 
-	verbFuncs, err := h.findVerbFuncs(f.Tree().RootNode(), f.Program(), varName)
+	verbFuncs, err := h.findVerbFuncs(f.Tree().RootNode(), varName)
 	if err != nil {
 		return routes, err
 	}
@@ -340,7 +340,7 @@ func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, varName string,
 	return routes, err
 }
 
-func (h *restAPIHandler) findVerbFuncs(root *sitter.Node, source []byte, varName string) ([]routeMethodPath, error) {
+func (h *restAPIHandler) findVerbFuncs(root *sitter.Node, varName string) ([]routeMethodPath, error) {
 	nextMatch := doQuery(root, findExposeVerb)
 	var route []routeMethodPath
 	var err error
@@ -354,20 +354,20 @@ func (h *restAPIHandler) findVerbFuncs(root *sitter.Node, source []byte, varName
 		verb := match["verb"]
 		routePath := match["path"]
 
-		if !query.NodeContentEquals(appName, source, varName) {
+		if !query.NodeContentEquals(appName, varName) {
 			continue // wrong var (not the Chi router we're looking for)
 		}
 
-		funcName := verb.Content(source)
+		funcName := verb.Content()
 
 		if _, supported := core.Verbs[core.Verb(strings.ToUpper(funcName))]; !supported {
 			continue // unsupported verb
 		}
 
-		pathContent := stringLiteralContent(routePath, source)
+		pathContent := stringLiteralContent(routePath)
 
 		route = append(route, routeMethodPath{
-			Verb: verb.Content(source),
+			Verb: verb.Content(),
 			Path: pathContent,
 		})
 	}
@@ -394,7 +394,6 @@ func (h *restAPIHandler) FindImports(f *core.SourceFile) (*sitter.Node, error) {
 }
 
 func (h *restAPIHandler) findChiRouterMounts(f *core.SourceFile, routerName string) []routerMount {
-	source := f.Program()
 	nextMatch := doQuery(f.Tree().RootNode(), findRouterMounts)
 	var mounts = make([]routerMount, 0)
 
@@ -406,15 +405,15 @@ func (h *restAPIHandler) findChiRouterMounts(f *core.SourceFile, routerName stri
 
 		router_name, mount, path, package_name, package_func := match["router_name"], match["mount"], match["path"], match["package_name"], match["package_func"]
 
-		if !query.NodeContentEquals(router_name, f.Program(), routerName) ||
-			!query.NodeContentEquals(mount, f.Program(), "Mount") {
+		if !query.NodeContentEquals(router_name, routerName) ||
+			!query.NodeContentEquals(mount, "Mount") {
 			continue
 		}
 
 		mounts = append(mounts, routerMount{
-			Path:     stringLiteralContent(path, source),
-			PkgAlias: package_name.Content(source),
-			FuncName: package_func.Content(source),
+			Path:     stringLiteralContent(path),
+			PkgAlias: package_name.Content(),
+			FuncName: package_func.Content(),
 		})
 	}
 
@@ -422,7 +421,6 @@ func (h *restAPIHandler) findChiRouterMounts(f *core.SourceFile, routerName stri
 }
 
 func (h *restAPIHandler) findChiRouterMountPackage(f *core.SourceFile, mount *routerMount) error {
-	source := f.Program()
 	nextMatch := doQuery(f.Tree().RootNode(), findImports)
 	for {
 		match, found := nextMatch()
@@ -436,10 +434,10 @@ func (h *restAPIHandler) findChiRouterMountPackage(f *core.SourceFile, mount *ro
 			continue
 		}
 
-		p := strings.Split(stringLiteralContent(package_path, source), "/")
+		p := strings.Split(stringLiteralContent(package_path), "/")
 		package_name := p[len(p)-1]
 		if package_id != nil {
-			if !query.NodeContentEquals(package_id, source, mount.PkgAlias) {
+			if !query.NodeContentEquals(package_id, mount.PkgAlias) {
 				continue
 			}
 			mount.PkgName = package_name
@@ -471,7 +469,7 @@ func (h *restAPIHandler) findFilesForPackageName(pkgName string) []*core.SourceF
 				break
 			}
 			package_name := match["package_name"]
-			if query.NodeContentEquals(package_name, src.Program(), pkgName) {
+			if query.NodeContentEquals(package_name, pkgName) {
 				packageFiles = append(packageFiles, src)
 			}
 		}
@@ -490,7 +488,7 @@ func (h *restAPIHandler) findFileForFunctionName(files []*core.SourceFile, funcN
 			}
 			function_name, function := match["function_name"], match["function"]
 
-			if query.NodeContentEquals(function_name, f.Program(), funcName) {
+			if query.NodeContentEquals(function_name, funcName) {
 				return f, function
 			}
 		}
@@ -499,7 +497,6 @@ func (h *restAPIHandler) findFileForFunctionName(files []*core.SourceFile, funcN
 }
 
 func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *sitter.Node, m routerMount) []gatewayRouteDefinition {
-	source := f.Program()
 	var gatewayRoutes = make([]gatewayRouteDefinition, 0)
 	log := h.log.With(logging.FileField(f))
 
@@ -516,16 +513,16 @@ func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *s
 		verb := match["verb"]
 		routePath := match["path"]
 
-		funcName := verb.Content(source)
+		funcName := verb.Content()
 
 		if _, supported := core.Verbs[core.Verb(strings.ToUpper(funcName))]; !supported {
 			continue // unsupported verb
 		}
 
-		pathContent := stringLiteralContent(routePath, source)
+		pathContent := stringLiteralContent(routePath)
 
 		routes = append(routes, routeMethodPath{
-			Verb: verb.Content(source),
+			Verb: verb.Content(),
 			Path: pathContent,
 		})
 	}

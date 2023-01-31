@@ -106,8 +106,8 @@ func (imports FileImports) AsSlice() []Import {
 
 // FindImportForVar returns the import assigned to the supplied variable name starting from the *sitter.Node 'n' in the source
 // and a boolean reflecting whether an appropriate import was found or not.
-func FindImportForVar(n *sitter.Node, source []byte, varName string) Import {
-	imports := FindImportsAtNode(n, source)
+func FindImportForVar(n *sitter.Node, varName string) Import {
+	imports := FindImportsAtNode(n)
 	if filteredImports := imports.Filter(filter.NewSimpleFilter(ImportedAs(varName))); len(filteredImports) == 1 {
 		return filteredImports[0]
 	}
@@ -116,15 +116,15 @@ func FindImportForVar(n *sitter.Node, source []byte, varName string) Import {
 
 // FindImportsInFile returns a map containing a list of imports for each import source referenced within the file.
 func FindImportsInFile(file *core.SourceFile) FileImports {
-	return FindImportsAtNode(file.Tree().RootNode(), file.Program())
+	return FindImportsAtNode(file.Tree().RootNode())
 }
 
 // FindImportsAtNode returns a map containing a list of imports for each import source starting from the supplied node.
-func FindImportsAtNode(node *sitter.Node, program []byte) FileImports {
+func FindImportsAtNode(node *sitter.Node) FileImports {
 	fileImports := FileImports{}
-	matches := queryImports(node, program)
+	matches := queryImports(node)
 	for _, match := range matches {
-		if parsedImport, ok := parseImport(match, program); ok {
+		if parsedImport, ok := parseImport(match); ok {
 			i := fileImports[parsedImport.Source]
 			fileImports[parsedImport.Source] = append(i, parsedImport)
 		}
@@ -132,7 +132,7 @@ func FindImportsAtNode(node *sitter.Node, program []byte) FileImports {
 	return fileImports
 }
 
-func queryImports(node *sitter.Node, program []byte) []query.MatchNodes {
+func queryImports(node *sitter.Node) []query.MatchNodes {
 	nextMatch := DoQuery(node, modulesImport)
 	handledNodes := map[*sitter.Node]struct{}{}
 
@@ -206,16 +206,16 @@ func queryImports(node *sitter.Node, program []byte) []query.MatchNodes {
 
 // FindNextImportStatement returns the imports associated with the next import statement/expression
 // starting at the supplied node (typically starting from an annotation comment node).
-func FindNextImportStatement(node *sitter.Node, program []byte) []Import {
+func FindNextImportStatement(node *sitter.Node) []Import {
 	var imports []Import
-	matches := queryImports(node, program)
+	matches := queryImports(node)
 	var previousNode *sitter.Node
 	for _, match := range matches {
 		if len(match) == 0 {
 			continue
 		}
 
-		if imp, ok := parseImport(match, program); ok && (previousNode == nil || imp.ImportNode == previousNode) {
+		if imp, ok := parseImport(match); ok && (previousNode == nil || imp.ImportNode == previousNode) {
 			imports = append(imports, imp)
 			previousNode = imp.ImportNode
 		} else {
@@ -225,7 +225,7 @@ func FindNextImportStatement(node *sitter.Node, program []byte) []Import {
 	return imports
 }
 
-func parseImport(match query.MatchNodes, program []byte) (Import, bool) {
+func parseImport(match query.MatchNodes) (Import, bool) {
 	esImportStatement := match["es.importStatement"]
 	cjsRequireStatement := match["cjs.requireStatement"]
 	cjsSideEffectRequireStatement := match["cjs.sideEffect.requireStatement"]
@@ -233,14 +233,14 @@ func parseImport(match query.MatchNodes, program []byte) (Import, bool) {
 	fnWrapper := match["func.wrapper"]
 
 	looksLikeCJSImport := cjsSideEffectRequireStatement != nil || cjsRequireStatement != nil
-	invokesRequire := fn != nil && fn.Content(program) == "require"
-	isNestedMemberExprContainingRequire := fnWrapper != nil && strings.Contains(fnWrapper.Content(program), "require")
+	invokesRequire := fn != nil && fn.Content() == "require"
+	isNestedMemberExprContainingRequire := fnWrapper != nil && strings.Contains(fnWrapper.Content(), "require")
 
 	var parsedImport Import
 	if (looksLikeCJSImport && invokesRequire) || isNestedMemberExprContainingRequire {
-		parsedImport = parseCjsImport(match, program)
+		parsedImport = parseCjsImport(match)
 	} else if esImportStatement != nil {
-		parsedImport = parseESImport(match, program)
+		parsedImport = parseESImport(match)
 	}
 
 	if parsedImport.Type == "" {
@@ -250,7 +250,7 @@ func parseImport(match query.MatchNodes, program []byte) (Import, bool) {
 	return parsedImport, true
 }
 
-func parseESImport(match query.MatchNodes, content []byte) Import {
+func parseESImport(match query.MatchNodes) Import {
 
 	esImportStatement := match["es.importStatement"]
 	source := match["source"]
@@ -258,7 +258,7 @@ func parseESImport(match query.MatchNodes, content []byte) Import {
 	export := match["export"]
 
 	esImport := Import{Kind: ImportKindES, ImportNode: esImportStatement, SourceNode: source}
-	esImport.Source = StringLiteralContent(source, content)
+	esImport.Source = StringLiteralContent(source)
 
 	if esImportStatement.Parent().Type() == "program" {
 		esImport.Scope = ImportScopeModule
@@ -267,7 +267,7 @@ func parseESImport(match query.MatchNodes, content []byte) Import {
 	}
 
 	if alias != nil {
-		aliasContent := alias.Content(content)
+		aliasContent := alias.Content()
 		esImport.Alias = aliasContent
 
 		aliasParentType := alias.Parent().Type()
@@ -284,9 +284,9 @@ func parseESImport(match query.MatchNodes, content []byte) Import {
 	exportContent := ""
 	if export != nil {
 		if export.Type() == "string" {
-			exportContent = StringLiteralContent(export, content)
+			exportContent = StringLiteralContent(export)
 		} else {
-			exportContent = export.Content(content)
+			exportContent = export.Content()
 		}
 		esImport.Name = exportContent
 
@@ -304,7 +304,7 @@ func parseESImport(match query.MatchNodes, content []byte) Import {
 	return esImport
 }
 
-func parseCjsImport(match query.MatchNodes, content []byte) Import {
+func parseCjsImport(match query.MatchNodes) Import {
 	cjsDeclarativeRequireStatement := match["cjs.requireStatement"]
 	cjsSideEffectRequireStatement := match["cjs.sideEffect.requireStatement"]
 	fnWrapper := match["func.wrapper"]
@@ -331,7 +331,7 @@ func parseCjsImport(match query.MatchNodes, content []byte) Import {
 	cjsImport := Import{Kind: ImportKindCommonJS}
 	if fnExpr != nil {
 		cjsImport.SourceNode = fnExpr
-		cjsImport.Source = StringLiteralContent(source, content)
+		cjsImport.Source = StringLiteralContent(source)
 	}
 
 	importNode := ascendWhile(requireStatement,
@@ -344,7 +344,7 @@ func parseCjsImport(match query.MatchNodes, content []byte) Import {
 		// handle assignment expressions by checking the parent of a detected side effect import
 		// rather than duplicating the entire query again.
 		// e.g. x = require('module');
-		cjsImport.Alias = StringLiteralContent(importNode.ChildByFieldName("left"), content)
+		cjsImport.Alias = StringLiteralContent(importNode.ChildByFieldName("left"))
 	}
 	if importNode.Parent().Type() == "sequence_expression" { // e.g. x = require("y"), z = require("a")
 		importNode = ascendWhile(importNode.Parent(), nodeTypeIs("sequence_expression"))
@@ -357,7 +357,7 @@ func parseCjsImport(match query.MatchNodes, content []byte) Import {
 	}
 
 	if alias != nil {
-		aliasContent := alias.Content(content)
+		aliasContent := alias.Content()
 		cjsImport.Alias = aliasContent
 
 		if alias.Type() == "property_identifier" {
@@ -400,28 +400,28 @@ func parseCjsImport(match query.MatchNodes, content []byte) Import {
 		fnArgs := nestedMatch["function.args"]
 		fnArg := nestedMatch["function.arg"]
 
-		if !(fnWrapperName.Content(content) == "require" &&
+		if !(fnWrapperName.Content() == "require" &&
 			fnArgs != nil &&
 			fnArgs.NamedChildCount() == 1 &&
 			fnArg.Type() == "string") {
 			return Import{}
 		}
-		cjsImport.Source = StringLiteralContent(fnArg, content)
+		cjsImport.Source = StringLiteralContent(fnArg)
 		cjsImport.SourceNode = fnArg
 
 		// resolve the path to the field being accessed on the import
 		var accessChain []string
 		if memberNode == fnExpr && exportedName != nil {
-			accessChain = []string{exportedName.Content(content)}
+			accessChain = []string{exportedName.Content()}
 		}
 		for node := memberNode; node.Type() == "member_expression"; node = node.ChildByFieldName("object") {
 			if node == nil {
 				break
 			}
-			accessChain = append([]string{node.ChildByFieldName("property").Content(content)}, accessChain...)
+			accessChain = append([]string{node.ChildByFieldName("property").Content()}, accessChain...)
 		}
 		if destructuredExportedName != nil {
-			accessChain = append(accessChain, destructuredExportedName.Content(content))
+			accessChain = append(accessChain, destructuredExportedName.Content())
 		}
 		name := strings.Join(accessChain, ".")
 		cjsImport.Name = name
@@ -446,7 +446,7 @@ func parseCjsImport(match query.MatchNodes, content []byte) Import {
 
 	// handle import types for TypeScript's esModuleInterop config: https://www.typescriptlang.org/tsconfig#esModuleInterop
 	if tsWrapper != nil {
-		tsWrapperContent := tsWrapper.Content(content)
+		tsWrapperContent := tsWrapper.Content()
 		if tsWrapperContent == "__importStar" {
 			cjsImport.Type = ImportTypeNamespace
 			cjsImport.Name = "*"
@@ -462,7 +462,7 @@ func parseCjsImport(match query.MatchNodes, content []byte) Import {
 
 	// make a best-effort guess at the correct import type
 	if nameNode != nil {
-		exportContent := nameNode.Content(content)
+		exportContent := nameNode.Content()
 		cjsImport.Name = exportContent
 
 		if exportContent == "default" {

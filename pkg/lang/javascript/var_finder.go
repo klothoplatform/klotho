@@ -143,24 +143,24 @@ func (vf *varFinder) parseNode(f *core.SourceFile, annot *core.Annotation) (inte
 		if !found {
 			break
 		}
-		if match["type"].Content(f.Program()) != vf.queryMatchType {
+		if match["type"].Content() != vf.queryMatchType {
 			continue
 		}
-		internalName = match["name"].Content(f.Program())
+		internalName = match["name"].Content()
 
 		if module := match["ctor.obj"]; module != nil {
-			moduleStr := module.Content(f.Program())
+			moduleStr := module.Content()
 			if moduleStr != vf.queryMatchTypeModule {
 				return "", "", errors.Errorf("ignoring export because its qualified module name is not \"%s\"", vf.queryMatchTypeModule)
 			}
 		}
 		if obj := match["var.obj"]; obj != nil {
-			objStr := obj.Content(f.Program())
+			objStr := obj.Content()
 			if objStr != "exports" {
 				return "", "", errors.Errorf(`unsupported: non-"exports" object property assignment (%s.%s)`, objStr, internalName)
 			}
 			exportName = internalName
-			internalName = match["var"].Content(f.Program()) // use fully-qualified object & property
+			internalName = match["var"].Content() // use fully-qualified object & property
 			return
 		}
 
@@ -171,17 +171,17 @@ func (vf *varFinder) parseNode(f *core.SourceFile, annot *core.Annotation) (inte
 				break
 			}
 
-			if exportMatch["obj"].Content(f.Program()) != "exports" {
+			if exportMatch["obj"].Content() != "exports" {
 				continue
 			}
 
-			if exportMatch["right"].Content(f.Program()) != internalName {
+			if exportMatch["right"].Content() != internalName {
 				continue
 			}
 
-			exportName = exportMatch["prop"].Content(f.Program())
+			exportName = exportMatch["prop"].Content()
 			if exportName != internalName {
-				zap.S().Debugf(`found export of '%s' as '%s': "%s"`, internalName, exportName, exportMatch["assign"].Content(f.Program()))
+				zap.S().Debugf(`found export of '%s' as '%s': "%s"`, internalName, exportName, exportMatch["assign"].Content())
 			}
 			return
 		}

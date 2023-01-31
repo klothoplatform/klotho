@@ -2,20 +2,21 @@ package python
 
 import (
 	"fmt"
-	sitter "github.com/smacker/go-tree-sitter"
 	"strings"
+
+	sitter "github.com/smacker/go-tree-sitter"
 )
 
 // stringLiteralContent returns the string literal content of the supplied node
 // after stripping any enclosing quotes and un-escaping any quotes of the same type inside the string.
 //
 // Passing in a Node that references a b-string will result in an error.
-func stringLiteralContent(node *sitter.Node, program []byte) (string, error) {
+func stringLiteralContent(node *sitter.Node) (string, error) {
 	if node.Type() != "string" {
 		return "", fmt.Errorf("node of type %s cannot be parsed as string literal content", node.Type())
 	}
 
-	nodeContent := node.Content(program)
+	nodeContent := node.Content()
 	if nodeContent == "" {
 		return "", nil
 	}

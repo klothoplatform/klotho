@@ -8,12 +8,12 @@ import (
 )
 
 // stringLiteralContent returns the node content with outter quotes removed
-func stringLiteralContent(node *sitter.Node, program []byte) string {
+func stringLiteralContent(node *sitter.Node) string {
 	if node.Type() != "interpreted_string_literal" {
 		panic(fmt.Errorf("node of type %s cannot be parsed as interpreted string literal content", node.Type()))
 	}
 
-	nodeContent := node.Content(program)
+	nodeContent := node.Content()
 	if nodeContent == "" {
 		return ""
 	}
