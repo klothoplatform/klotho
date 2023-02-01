@@ -1,0 +1,53 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.proxyCall = void 0;
+const axios = require('axios');
+const client_servicediscovery_1 = require("@aws-sdk/client-servicediscovery");
+const { APP_NAME } = process.env;
+async function proxyCall(callType, execGroupName, moduleName, functionToCall, params) {
+    try {
+        const hostname = await getExecFargateInstance(execGroupName);
+        const res = await axios({
+            method: 'post',
+            url: `http://${hostname}:3001`,
+            data: {
+                callType,
+                execGroupName,
+                functionToCall,
+                moduleName,
+                params,
+            },
+        });
+        return res.data;
+    }
+    catch (error) {
+        console.log(error);
+        throw error;
+    }
+}
+exports.proxyCall = proxyCall;
+async function getExecFargateInstance(logicalName) {
+    try {
+        const client = new client_servicediscovery_1.ServiceDiscoveryClient({});
+        const command = new client_servicediscovery_1.DiscoverInstancesCommand({
+            NamespaceName: `${APP_NAME}-privateDns`,
+            ServiceName: logicalName,
+        });
+        const response = await client.send(command);
+        const ips = response.Instances?.reduce((ips, instance) => {
+            const ip = instance.Attributes?.AWS_INSTANCE_IPV4;
+            if (ip) {
+                ips.push(ip);
+            }
+            return ips;
+        }, []);
+        if (ips == undefined || ips.length == 0) {
+            throw new Error(`No IPs found for ${logicalName}`);
+        }
+        return ips[0];
+    }
+    catch (e) {
+        console.log(e);
+        throw e;
+    }
+}

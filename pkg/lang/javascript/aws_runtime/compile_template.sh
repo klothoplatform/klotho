@@ -16,8 +16,4 @@ do
     mv _${var}.js ${var}.js.tmpl
     ksed 's://TMPL ::g' ${var}.js.tmpl
     echo "generated ${var}.js.tmpl"
-    echo ${var}.js.tmpl >> .gitignore
 done
-
-sort -u .gitignore > gitignore-tmp
-mv gitignore-tmp .gitignore

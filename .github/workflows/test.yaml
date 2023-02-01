@@ -26,9 +26,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Go generate
-        run: go generate ./...
-
       - name: Run test
         run: go test -race -v -coverprofile=coverage.out ./...
 

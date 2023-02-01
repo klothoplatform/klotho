@@ -1,0 +1,23 @@
+//@ts-nocheck
+'use strict';
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getDataSourceParams = exports.getDBConn = void 0;
+const ormPrefix = '{{.AppName}}';
+function getDBConn(dbNameEnvVar) {
+    const conn = process.env[dbNameEnvVar];
+    return conn;
+}
+exports.getDBConn = getDBConn;
+function getDataSourceParams(dbNameEnvVar, params) {
+    let newParams = { ...params };
+    const fieldsToDelete = ['host', 'type', 'port', 'username', 'passowrd', 'database'];
+    for (const field of fieldsToDelete) {
+        delete newParams[field];
+    }
+    return {
+        ...newParams,
+        type: 'postgres',
+        url: getDBConn(dbNameEnvVar),
+    };
+}
+exports.getDataSourceParams = getDataSourceParams;

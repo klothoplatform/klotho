@@ -27,7 +27,5 @@ jobs:
             ${{ runner.os }}-go-
       - name: Install
         run: go install honnef.co/go/tools/cmd/staticcheck@latest
-      - name: Go generate
-        run: go generate ./...
       - name: Run
         run: staticcheck ./...
