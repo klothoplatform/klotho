@@ -101,11 +101,7 @@ func (c *capabilityFinder) findAllCommentsBlocks(f *core.SourceFile) []*commentB
 		comment := capture.Content()
 		comment = c.preprocessor(comment)
 
-		combineWithNext := capture.NextSibling() != nil && capture.NextNamedSibling().Type() == capture.Type()
 		node := capture.NextNamedSibling()
-		if node == nil {
-			continue // this is the last node in the AST, so it's effectively a break :)
-		}
 		if combineWithPrevious {
 			prevBlock := blocks[len(blocks)-1]
 			prevBlock.comment = prevBlock.comment + "\n" + comment
@@ -113,7 +109,7 @@ func (c *capabilityFinder) findAllCommentsBlocks(f *core.SourceFile) []*commentB
 		} else {
 			blocks = append(blocks, &commentBlock{comment: comment, node: node})
 		}
-		combineWithPrevious = combineWithNext
+		combineWithPrevious = node != nil && node.Type() == capture.Type()
 	}
 	return blocks
 }
