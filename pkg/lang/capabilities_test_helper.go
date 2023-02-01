@@ -36,9 +36,14 @@ func FindAllCommentBlocksForTest(language core.SourceLanguage, source string) ([
 	blocks := capFinder.findAllCommentsBlocks(f)
 	found := []FindAllCommentBlocksExpected{}
 	for _, block := range blocks {
+		content := ""
+		if block.node != nil {
+			content = block.node.Content()
+		}
 		found = append(found, FindAllCommentBlocksExpected{
 			Comment: block.comment,
-			Node:    block.node.Content()})
+			Node:    content,
+		})
 	}
 	return found, nil
 
