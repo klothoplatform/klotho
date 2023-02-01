@@ -105,6 +105,6 @@ func (hp HasParent) Test(node *sitter.Node) bool {
 
 type Type string
 
-func (ot Type) Test(node *sitter.Node, _ []byte) bool {
+func (ot Type) Test(node *sitter.Node) bool {
 	return node.Type() == string(ot)
 }
