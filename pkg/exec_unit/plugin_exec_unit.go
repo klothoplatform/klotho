@@ -3,6 +3,7 @@ package execunit
 import (
 	"errors"
 
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 )
@@ -33,11 +34,15 @@ func (p ExecUnitPlugin) Transform(result *core.CompilationResult, deps *core.Dep
 	}
 
 	for _, f := range inputR.(*core.InputFiles).Files() {
-		if _, ok := f.(*core.SourceFile); ok {
+		if sf, ok := f.(*core.SourceFile); ok {
 			// Only add source files by default.
 			// Plugins are responsible for adding in non-source files
 			// as required by its features.
-			unit.Add(f.Clone())
+			if sf.IsAnnotatedWith(annotation.ExecutionUnitCapability) {
+				unit.AddEntrypoint(f.Clone())
+			} else {
+				unit.Add(f.Clone())
+			}
 		}
 	}
 
