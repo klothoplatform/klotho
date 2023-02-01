@@ -192,6 +192,10 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	errHandler := ErrorHandler{
 		InternalDebug: cfg.internalDebug,
 		Verbose:       cfg.verbose,
+		PostPrintHook: func() {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+		},
 	}
 	defer analyticsClient.PanicHandler(&err, errHandler)
 
@@ -332,8 +336,6 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		}
 		analyticsClient.Error(klothoName + " compiling failed")
 
-		cmd.SilenceErrors = true
-		cmd.SilenceUsage = true
 		return err
 	}
 
