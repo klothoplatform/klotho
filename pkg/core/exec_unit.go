@@ -19,6 +19,7 @@ type (
 		files                ConcurrentMap[string, File]
 		Executable           Executable
 		EnvironmentVariables []EnvironmentVariable
+		DockerfilePath       string
 	}
 
 	// Executable represents the slice of a project that is deployed to and executed on an ExecutionUnit

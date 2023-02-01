@@ -348,12 +348,15 @@ export class CloudCCLib {
         }
     }
 
-    createDockerAppRunner(execUnitName, envVars: any) {
+    createImage(execUnitName: string, dockerfilePath: string) {
         const image = this.sharedRepo.buildAndPushImage({
-            context: `./${execUnitName}`,
+            context: `./${execUnitName}/${dockerfilePath}`,
             extraOptions: ['--platform', 'linux/amd64', '--quiet'],
         })
+        this.execUnitToImage.set(execUnitName, image)
+    }
 
+    createDockerAppRunner(execUnitName, envVars: any) {
         const instanceRole = this.createRoleForName(execUnitName)
 
         this.addPolicyStatementForName(execUnitName, {
@@ -458,7 +461,7 @@ export class CloudCCLib {
                         port: isProxied ? '3001' : '3000',
                         runtimeEnvironmentVariables: additionalEnvVars,
                     },
-                    imageIdentifier: image,
+                    imageIdentifier: this.execUnitToImage.get(execUnitName)!,
                     imageRepositoryType: 'ECR',
                 },
             },
@@ -484,10 +487,7 @@ export class CloudCCLib {
         network_placement: 'private' | 'public',
         env_vars?: any[]
     ) {
-        const image = this.sharedRepo.buildAndPushImage({
-            context: `./${execUnitName}`,
-            extraOptions: ['--platform', 'linux/amd64', '--quiet'],
-        })
+        const image = this.execUnitToImage.get(execUnitName)!
 
         const subnetIds =
             network_placement === 'public' ? this.publicSubnetIds : this.privateSubnetIds
@@ -1375,14 +1375,6 @@ export class CloudCCLib {
         )}-eks-cluster`
         const providedClustername = kloConfig.get<string>('eks-cluster')
         const existingCluster = undefined
-        for (const execUnit of execUnits) {
-            const image: pulumi.Output<String> = this.sharedRepo.buildAndPushImage({
-                context: `./${execUnit.name}`,
-                extraOptions: ['--platform', 'linux/amd64', '--quiet'],
-            })
-            execUnit['image'] = image
-            this.execUnitToImage.set(execUnit.name, image)
-        }
         if (this.eks == undefined) {
             if (providedClustername != undefined) {
                 const existingCluster: aws.eks.GetClusterResult = await aws.eks.getCluster({
@@ -1413,10 +1405,7 @@ export class CloudCCLib {
             this.createEcsCluster()
         }
 
-        const image = this.sharedRepo.buildAndPushImage({
-            context: `./${execUnitName}`,
-            extraOptions: ['--platform', 'linux/amd64', '--quiet'],
-        })
+        const image = this.execUnitToImage.get(execUnitName)!
 
         const role = this.createRoleForName(execUnitName)
 

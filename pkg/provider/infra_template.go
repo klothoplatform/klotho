@@ -60,6 +60,7 @@ type (
 		HelmOptions          config.HelmChartOptions
 		Params               config.InfraParams
 		EnvironmentVariables []core.EnvironmentVariable
+		DockerfilePath       string
 	}
 
 	HelmChart struct {

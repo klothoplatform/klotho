@@ -105,6 +105,10 @@ export = async () => {
 
     const lbPlugin = new LoadBalancerPlugin(cloudLib)
 
+    {{range $unit := .ExecUnits -}}
+    cloudLib.createImage("{{$unit.Name}}","{{$unit.DockerfilePath}}")
+    {{end -}}
+
 
     const eksUnits: EksExecUnit[] = []
     const arUrls: any[] = [];

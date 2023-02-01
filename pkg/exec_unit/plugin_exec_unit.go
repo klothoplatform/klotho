@@ -39,7 +39,7 @@ func (p ExecUnitPlugin) Transform(result *core.CompilationResult, deps *core.Dep
 			// Plugins are responsible for adding in non-source files
 			// as required by its features.
 			if sf.IsAnnotatedWith(annotation.ExecutionUnitCapability) {
-				unit.AddEntrypoint(f.Clone())
+				unit.AddSourceFile(f.Clone())
 			} else {
 				unit.Add(f.Clone())
 			}
