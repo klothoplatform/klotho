@@ -152,6 +152,5 @@ func (t *Client) PanicHandler(err *error, errHandler ErrorHandler) {
 		}
 		t.Panic(rerr.Error())
 		errHandler.PrintErr(*err)
-		*err = nil
 	}
 }

@@ -13,10 +13,14 @@ import (
 type ErrorHandler struct {
 	InternalDebug bool
 	Verbose       bool
+	PostPrintHook func()
 }
 
 func (h ErrorHandler) PrintErr(err error) {
 	h.printErr(err, 0)
+	if h.PostPrintHook != nil {
+		h.PostPrintHook()
+	}
 }
 
 func (h ErrorHandler) printErr(err error, num int) (nextNum int) {
