@@ -154,9 +154,13 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 	addFile("iac/k8s/add_ons/external_dns/index.ts")
 	addFile("iac/k8s/add_ons/index.ts")
 
-	addDir := func(dir string, exclusions ...string) {
+	addDir := func(dir string, exclusions ...string) error {
 		var unreadEntries []string
 		dirContents, err := files.ReadDir(dir)
+
+		if err != nil {
+			return err
+		}
 
 		addEntries := func(parentDir string, entries []fs.DirEntry) {
 			for _, entry := range entries {
@@ -169,6 +173,7 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 				for _, exclusion := range exclusions {
 					if shouldExclude, _ := doublestar.Match(exclusion, path); shouldExclude {
 						shouldInclude = false
+						break
 					}
 				}
 				if shouldInclude {
@@ -179,24 +184,26 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 		addEntries(dir, dirContents)
 
 		for len(unreadEntries) > 0 {
-			if err != nil {
-				return
-			}
-
 			entry := unreadEntries[0]
 			unreadEntries = unreadEntries[1:]
 			if strings.HasSuffix(entry, "/") {
 				var childEntries []os.DirEntry
 				childEntries, err = files.ReadDir(strings.TrimSuffix(entry, "/"))
+
+				if err != nil {
+					return err
+				}
+
 				addEntries(entry, childEntries)
 
 			} else {
 				addFile(entry)
 			}
 		}
+		return nil
 	}
 
-	addDir("iac/sanitization", "**/*.{test,spec}.{ts,js}")
+	err = addDir("iac/sanitization", "**/*.{test,spec}.{ts,js}")
 
 	if err != nil {
 		return err
