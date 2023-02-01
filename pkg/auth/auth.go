@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/spf13/pflag"
 	"io"
 	"log"
 	"net/http"
@@ -20,6 +21,28 @@ import (
 type LoginResponse struct {
 	Url   string
 	State string
+}
+
+type Authorizer interface {
+	SetUpCliFlags(flags *pflag.FlagSet)
+	Authorize() error
+}
+
+func DefaultIfNil(auth Authorizer) Authorizer {
+	if auth == nil {
+		return standardAuthorizer{}
+	}
+	return auth
+}
+
+type standardAuthorizer struct{}
+
+func (s standardAuthorizer) SetUpCliFlags(_ *pflag.FlagSet) {
+	// nothing
+}
+
+func (s standardAuthorizer) Authorize() error {
+	return Authorize()
 }
 
 func Login() error {
@@ -126,7 +149,11 @@ type MyCustomClaims struct {
 	jwt.StandardClaims
 }
 
-func Authorize(tokenRefreshed bool) error {
+func Authorize() error {
+	return authorize(false)
+}
+
+func authorize(tokenRefreshed bool) error {
 	creds, err := GetIDToken()
 	if err != nil {
 		return errors.New("failed to get credentials for user, please login")
@@ -147,7 +174,7 @@ func Authorize(tokenRefreshed bool) error {
 			if err != nil {
 				return err
 			}
-			err = Authorize(true)
+			err = authorize(true)
 			if err != nil {
 				return err
 			}
@@ -161,7 +188,7 @@ func Authorize(tokenRefreshed bool) error {
 			if err != nil {
 				return err
 			}
-			err = Authorize(true)
+			err = authorize(true)
 			if err != nil {
 				return err
 			}

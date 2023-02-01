@@ -29,6 +29,7 @@ type KlothoMain struct {
 	Version             string
 	VersionQualifier    string
 	PluginSetup         func(*PluginSetBuilder) error
+	Authorizer          auth.Authorizer
 }
 
 var cfg struct {
@@ -69,6 +70,7 @@ const (
 )
 
 func (km KlothoMain) Main() {
+	km.Authorizer = auth.DefaultIfNil(km.Authorizer)
 
 	var root = &cobra.Command{
 		Use:  "klotho [path to source]",
@@ -92,8 +94,11 @@ func (km KlothoMain) Main() {
 	flags.BoolVar(&cfg.version, "version", false, "Print the version")
 	flags.BoolVar(&cfg.update, "update", false, "update the cli to the latest version")
 	flags.StringToStringVar(&cfg.setOption, "set-option", nil, "Sets a CLI option")
-	flags.BoolVar(&cfg.login, "login", false, "Login to Klotho with email. For anonymous login, use 'local'")
+	flags.BoolVar(&cfg.login, "login", false, "Login to Klotho with email.")
 	flags.BoolVar(&cfg.logout, "logout", false, "Logout of current klotho account.")
+
+	km.Authorizer.SetUpCliFlags(flags)
+
 	_ = flags.MarkHidden("internalDebug")
 
 	err := root.Execute()
@@ -168,6 +173,14 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// Set up user if login is specified
+	if cfg.logout {
+		err := auth.CallLogoutEndpoint()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	// Set up user if login is specified
 	if cfg.login {
 		err := auth.Login()
 		if err != nil {
@@ -182,20 +195,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		}
 		return nil
 	}
-	// Set up user if login is specified
-	if cfg.logout {
-		err := auth.CallLogoutEndpoint()
-		if err != nil {
-			return err
-		}
-		return nil
-	}
 
-	err = auth.Authorize(false)
-	if err != nil {
-		return err
-
-	}
 	// Set up analytics
 	analyticsClient, err := analytics.NewClient(map[string]interface{}{
 		"version": km.Version,
@@ -247,6 +247,12 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	klothoName := "klotho"
 	if km.VersionQualifier != "" {
 		analyticsClient.Properties[km.VersionQualifier] = true
+	}
+
+	// Needs to go after the --version and --update checks
+	err = km.Authorizer.Authorize()
+	if err != nil {
+		return err
 	}
 
 	// if update is specified do the update in place
