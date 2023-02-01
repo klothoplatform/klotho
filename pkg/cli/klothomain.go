@@ -173,14 +173,6 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// Set up user if login is specified
-	if cfg.logout {
-		err := auth.CallLogoutEndpoint()
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	// Set up user if login is specified
 	if cfg.login {
 		err := auth.Login()
 		if err != nil {
@@ -192,6 +184,14 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		}
 		if err := analytics.CreateUser(email); err != nil {
 			return errors.Wrapf(err, "could not configure user '%s'", email)
+		}
+		return nil
+	}
+	// Set up user if login is specified
+	if cfg.logout {
+		err := auth.CallLogoutEndpoint()
+		if err != nil {
+			return err
 		}
 		return nil
 	}
