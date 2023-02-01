@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/spf13/pflag"
 	"os"
 	"regexp"
 
@@ -29,7 +30,12 @@ type KlothoMain struct {
 	Version             string
 	VersionQualifier    string
 	PluginSetup         func(*PluginSetBuilder) error
-	Authorizer          auth.Authorizer
+	// Authorizer is an optional authorizer override. If this also conforms to FlagsProvider, those flags will be added.
+	Authorizer auth.Authorizer
+}
+
+type FlagsProvider interface {
+	SetUpCliFlags(flags *pflag.FlagSet)
 }
 
 var cfg struct {
@@ -97,7 +103,9 @@ func (km KlothoMain) Main() {
 	flags.BoolVar(&cfg.login, "login", false, "Login to Klotho with email.")
 	flags.BoolVar(&cfg.logout, "logout", false, "Logout of current klotho account.")
 
-	km.Authorizer.SetUpCliFlags(flags)
+	if authFlags, hasFlags := km.Authorizer.(FlagsProvider); hasFlags {
+		authFlags.SetUpCliFlags(flags)
+	}
 
 	_ = flags.MarkHidden("internalDebug")
 

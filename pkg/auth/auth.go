@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/spf13/pflag"
 	"io"
 	"log"
 	"net/http"
@@ -24,7 +23,6 @@ type LoginResponse struct {
 }
 
 type Authorizer interface {
-	SetUpCliFlags(flags *pflag.FlagSet)
 	Authorize() error
 }
 
@@ -36,10 +34,6 @@ func DefaultIfNil(auth Authorizer) Authorizer {
 }
 
 type standardAuthorizer struct{}
-
-func (s standardAuthorizer) SetUpCliFlags(_ *pflag.FlagSet) {
-	// nothing
-}
 
 func (s standardAuthorizer) Authorize() error {
 	return Authorize()
