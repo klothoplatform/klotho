@@ -23,7 +23,14 @@ func (p ExecUnitPlugin) Transform(result *core.CompilationResult, deps *core.Dep
 		Name:       "main",
 		Executable: core.NewExecutable(),
 	}
-	unit.ExecType = p.Config.GetExecutionUnit(unit.Name).Type
+	cfg := p.Config.GetExecutionUnit(unit.Name)
+
+	for key, value := range cfg.EnvironmentVariables {
+		unit.EnvironmentVariables = append(unit.EnvironmentVariables, core.EnvironmentVariable{
+			Name:  key,
+			Value: value,
+		})
+	}
 
 	for _, f := range inputR.(*core.InputFiles).Files() {
 		if _, ok := f.(*core.SourceFile); ok {

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
 
@@ -22,6 +23,7 @@ import (
 type NestJsHandler struct {
 	output nestJsOutput
 	log    *zap.Logger
+	Config *config.Application
 }
 
 type nestJsOutput struct {
@@ -110,19 +112,19 @@ func (p *NestJsHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit)
 
 		}
 
-		listen := findListener(annot, f.Program())
+		listen := findListener(annot)
 
 		if listen.Expression == nil {
 			log.Debug("No listener found")
 			continue
 		}
 
-		appName, err := findApp(f.Program(), listen)
+		appName, err := findApp(listen)
 		if err != nil {
 			return nil, core.NewCompilerError(f, annot, errors.New("Couldnt find expose app creation"))
 		}
 
-		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, unit.ExecType, cap.ID)
+		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, p.Config.GetResourceType(unit), cap.ID)
 		if actedOn {
 			fileContent = newfileContent
 			err := f.Reparse([]byte(fileContent))
@@ -176,7 +178,7 @@ func (h *NestJsHandler) actOnAnnotation(f *core.SourceFile, listen *exposeListen
 		return
 	}
 
-	if listen.Identifier.Content(f.Program()) != nestFactory.varName {
+	if listen.Identifier.Content() != nestFactory.varName {
 		return
 	}
 
@@ -184,9 +186,9 @@ func (h *NestJsHandler) actOnAnnotation(f *core.SourceFile, listen *exposeListen
 	if unitType == "lambda" {
 		// After CommentNode, `listen` is not a valid node
 		if listen.Expression.Parent().Parent().Type() == "await_expression" {
-			newfileContent = CommentNodes(fileContent, listen.Expression.Parent().Parent().Content(f.Program()))
+			newfileContent = CommentNodes(fileContent, listen.Expression.Parent().Parent().Content())
 		} else {
-			newfileContent = CommentNodes(fileContent, listen.Expression.Content(f.Program()))
+			newfileContent = CommentNodes(fileContent, listen.Expression.Content())
 		}
 	}
 
@@ -224,11 +226,11 @@ func (h *NestJsHandler) findNestFactory(f *core.SourceFile) nestFactoryResult {
 			continue
 		}
 
-		imp := FindImportForVar(f.Tree().RootNode(), f.Program(), moduleImportId.Content(f.Program()))
+		imp := FindImportForVar(f.Tree().RootNode(), moduleImportId.Content())
 		return nestFactoryResult{
 			f:                f,
-			varName:          varName.Content(f.Program()),
-			moduleImportName: moduleProp.Content(f.Program()),
+			varName:          varName.Content(),
+			moduleImportName: moduleProp.Content(),
 			moduleImportPath: imp.Source,
 		}
 	}
@@ -270,9 +272,9 @@ func (h *NestJsHandler) findControllers(unitName string) map[string]nestControll
 
 		varName, basePath := result["name"], result["basePath"]
 
-		controllerName := varName.Content(f.Program())
+		controllerName := varName.Content()
 
-		routes := h.findRoutesForController(controllerName, StringLiteralContent(basePath, f.Program()), unitName)
+		routes := h.findRoutesForController(controllerName, StringLiteralContent(basePath), unitName)
 
 		controllers[controllerName] = nestController{
 			f:      f,
@@ -292,17 +294,17 @@ func (h *NestJsHandler) findRoutesForController(controllerName string, basePath 
 
 		controller, method, routePath := result["controller"], result["method"], result["path"]
 
-		if controller.Content(f.Program()) != controllerName {
+		if controller.Content() != controllerName {
 			continue
 		}
 
 		methodPath := basePath
 
 		if routePath != nil {
-			methodPath = path.Join(basePath, StringLiteralContent(routePath, f.Program()))
+			methodPath = path.Join(basePath, StringLiteralContent(routePath))
 		}
 
-		verb := method.Content(f.Program())
+		verb := method.Content()
 		if verb == "All" {
 			verb = "Any"
 		}
@@ -332,12 +334,12 @@ func (h *NestJsHandler) findModules(controllers map[string]nestController) map[s
 		result := ref.QueryResult
 
 		varName, pairKey, controllerName, controllerImport := result["name"], result["pairKey"], result["controllerName"], result["controllerImport"]
-		moduleName := varName.Content(f.Program())
+		moduleName := varName.Content()
 
 		var moduleControllers []nestController
-		controllersImport := controllerImport.Content(f.Program())
-		controllersName := controllerName.Content(f.Program())
-		key := pairKey.Content(f.Program())
+		controllersImport := controllerImport.Content()
+		controllersName := controllerName.Content()
+		key := pairKey.Content()
 		if key == "controllers" {
 			controller, ok := controllers[controllersName]
 			if !ok {
@@ -375,25 +377,25 @@ func (h *NestJsHandler) findModules(controllers map[string]nestController) map[s
 
 func validateController(match map[string]*sitter.Node, f *core.SourceFile) bool {
 	importName, method := match["import"], match["method"]
-	imp := FindImportForVar(f.Tree().RootNode(), f.Program(), importName.Content(f.Program()))
-	return imp.Source == "@nestjs/common" && method.Content(f.Program()) == "Controller"
+	imp := FindImportForVar(f.Tree().RootNode(), importName.Content())
+	return imp.Source == "@nestjs/common" && method.Content() == "Controller"
 }
 
 func ValidateModule(match map[string]*sitter.Node, f *core.SourceFile) bool {
 	importName, method := match["import"], match["method"]
-	imp := FindImportForVar(f.Tree().RootNode(), f.Program(), importName.Content(f.Program()))
-	return imp.Source == "@nestjs/common" && method.Content(f.Program()) == "Module"
+	imp := FindImportForVar(f.Tree().RootNode(), importName.Content())
+	return imp.Source == "@nestjs/common" && method.Content() == "Module"
 }
 
 func validateRoute(match map[string]*sitter.Node, f *core.SourceFile) bool {
 	importName := match["import"]
-	imp := FindImportForVar(f.Tree().RootNode(), f.Program(), importName.Content(f.Program()))
+	imp := FindImportForVar(f.Tree().RootNode(), importName.Content())
 	return imp.Source == "@nestjs/common"
 }
 
 func validateNestFactory(match map[string]*sitter.Node, f *core.SourceFile) bool {
 	importName, call := match["import"], match["call"]
-	importedName := importName.Content(f.Program())
-	imp := FindImportForVar(f.Tree().RootNode(), f.Program(), importName.Content(f.Program()))
-	return imp.Source == "@nestjs/core" && call.Content(f.Program()) == importedName+".NestFactory.create"
+	importedName := importName.Content()
+	imp := FindImportForVar(f.Tree().RootNode(), importName.Content())
+	return imp.Source == "@nestjs/core" && call.Content() == importedName+".NestFactory.create"
 }

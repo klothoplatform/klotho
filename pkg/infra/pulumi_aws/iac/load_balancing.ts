@@ -17,10 +17,154 @@ import {
     TargetGroupAttachmentArgs,
 } from '@pulumi/aws/lb'
 import { ListenerRuleArgs } from '@pulumi/aws/alb'
+import { CloudCCLib } from '../deploylib'
+
+export interface Route {
+    verb: string
+    path: string
+    execUnitName: string
+}
+
+export interface Gateway {
+    Name: string
+    Routes: Route[]
+}
 
 export class LoadBalancerPlugin {
     // A map of all resources which are going to be fronted by a load balancer
     private resourceIdToLB = new Map<string, aws.lb.LoadBalancer>()
+    // A map of exec units to their target groups
+    public readonly execUnitToTargetGroup: Map<string, aws.lb.TargetGroup> = new Map<
+        string,
+        aws.lb.TargetGroup
+    >()
+
+    public readonly execUnitToListner: Map<string, aws.lb.Listener> = new Map<
+        string,
+        aws.lb.Listener
+    >()
+    public readonly invokeUrls: pulumi.Output<string>[] = []
+
+    constructor(private readonly lib: CloudCCLib) {}
+
+    public createALBasGateways = (gateways: Gateway[]) => {
+        gateways.forEach((gateway) => {
+            this.invokeUrls.push(this.createALBasGateway(gateway))
+        })
+    }
+
+    private subPathParametersForWildcard(route: string): string {
+        const segments = route.split('/')
+        const newRoute: string[] = []
+        segments.forEach((seg) => {
+            if (seg.startsWith(':')) {
+                newRoute.push('*')
+            } else {
+                newRoute.push(seg)
+            }
+        })
+        return newRoute.join('/')
+    }
+
+    private createALBasGateway = (gateway: Gateway): pulumi.Output<string> => {
+        const albSG = new aws.ec2.SecurityGroup(`${this.lib.name}-${gateway.Name}`, {
+            name: `${this.lib.name}-${gateway.Name}`,
+            vpcId: this.lib.klothoVPC.id,
+            egress: [
+                {
+                    cidrBlocks: ['0.0.0.0/0'],
+                    description: 'Allows all outbound IPv4 traffic.',
+                    fromPort: 0,
+                    protocol: '-1',
+                    toPort: 0,
+                },
+            ],
+            ingress: [
+                {
+                    cidrBlocks: ['0.0.0.0/0'],
+                    description: 'Allows all inbound IPv4 traffic.',
+                    fromPort: 0,
+                    protocol: '-1',
+                    toPort: 0,
+                },
+            ],
+        })
+
+        const alb = this.createLoadBalancer(this.lib.name, gateway.Name, {
+            internal: false,
+            loadBalancerType: 'application',
+            tags: { AppName: this.lib.name },
+            subnets: this.lib.publicSubnetIds,
+            securityGroups: [albSG.id],
+        })
+
+        for (const route of gateway.Routes) {
+            let targetGroup = this.execUnitToTargetGroup.get(route.execUnitName)
+            let listener = this.execUnitToListner.get(route.execUnitName)
+            if (!targetGroup) {
+                const execUnit = this.lib.resourceIdToResource.get(
+                    `${route.execUnitName}_exec_unit`
+                )
+                if (['ecs', 'eks'].includes(execUnit.type)) {
+                    targetGroup = this.createTargetGroup(this.lib.name, route.execUnitName, {
+                        port: 3000,
+                        protocol: 'HTTP',
+                        vpcId: this.lib.klothoVPC.id,
+                        targetType: 'ip',
+                        tags: { AppName: this.lib.name },
+                    })
+                } else if (execUnit.type == 'lambda') {
+                    targetGroup = this.createTargetGroup(this.lib.name, route.execUnitName, {
+                        tags: { AppName: this.lib.name },
+                    })
+                } else {
+                    throw new Error('unsupported execution unit type for ALB Gateway')
+                }
+            }
+            if (!listener) {
+                listener = this.createListener(this.lib.name, route.execUnitName, {
+                    port: 80,
+                    protocol: 'HTTP',
+                    loadBalancerArn: alb.arn,
+                    defaultActions: [
+                        {
+                            type: 'fixed-response',
+                            fixedResponse: {
+                                contentType: 'application/json',
+                                statusCode: '404',
+                            },
+                        },
+                    ],
+                })
+            }
+
+            this.createListenerRule(this.lib.name, route.execUnitName + route.path + route.verb, {
+                listenerArn: listener!.arn,
+                actions: [
+                    {
+                        type: 'forward',
+                        targetGroupArn: targetGroup.arn,
+                    },
+                ],
+                conditions: [
+                    {
+                        pathPattern: {
+                            values: [
+                                this.subPathParametersForWildcard(route.path),
+                                `${this.subPathParametersForWildcard(route.path)}/`,
+                            ],
+                        },
+                    },
+                    {
+                        httpRequestMethod: {
+                            values: [route.verb.toUpperCase()],
+                        },
+                    },
+                ],
+            })
+        }
+        return alb.dnsName
+    }
 
     public getExecUnitLoadBalancer = (execUnit: string): aws.lb.LoadBalancer | undefined => {
         return this.resourceIdToLB.get(execUnit)
@@ -34,8 +178,7 @@ export class LoadBalancerPlugin {
         let lb: aws.lb.LoadBalancer
         switch (params.loadBalancerType) {
             case 'application':
-                lb = new aws.lb.LoadBalancer(`${appName}-${resourceId}-alb`, {
-                    name: `${appName}-${resourceId}`,
+                lb = new aws.lb.LoadBalancer(`${appName}-${resourceId}`, {
                     internal: params.internal || false,
                     loadBalancerType: 'application',
                     securityGroups: params.securityGroups,
@@ -45,8 +188,7 @@ export class LoadBalancerPlugin {
                 })
                 break
             case 'network':
-                lb = new aws.lb.LoadBalancer(`${appName}-${resourceId}-nlb`, {
-                    name: `${appName}-${resourceId}`,
+                lb = new aws.lb.LoadBalancer(`${appName}-${resourceId}`, {
                     internal: params.internal || true,
                     loadBalancerType: 'network',
                     subnets: params.subnets,
@@ -66,12 +208,14 @@ export class LoadBalancerPlugin {
         resourceId: string,
         params: ListenerArgs
     ): aws.lb.Listener => {
-        return new aws.lb.Listener(`${appName}-${resourceId}-listener`, {
+        const listener = new aws.lb.Listener(`${appName}-${resourceId}`, {
             loadBalancerArn: params.loadBalancerArn,
             defaultActions: params.defaultActions,
             port: params.port,
             protocol: params.protocol,
         })
+        this.execUnitToListner.set(resourceId, listener)
+        return listener
     }
 
     public createListenerRule = (
@@ -79,7 +223,7 @@ export class LoadBalancerPlugin {
         resourceId: string,
         params: ListenerRuleArgs
     ): aws.lb.ListenerRule => {
-        return new aws.lb.ListenerRule(`${appName}-${resourceId}-listenerRule`, {
+        return new aws.lb.ListenerRule(`${appName}-${resourceId}`, {
             listenerArn: params.listenerArn,
             actions: params.actions,
             conditions: params.conditions,
@@ -89,7 +233,7 @@ export class LoadBalancerPlugin {
 
     public createTargetGroup = (
         appName: string,
-        resourceId,
+        execUnitName: string,
         params: TargetGroupArgs
     ): aws.lb.TargetGroup => {
         let targetGroup: aws.lb.TargetGroup
@@ -98,8 +242,7 @@ export class LoadBalancerPlugin {
         }
         switch (params.targetType) {
             case 'ip':
-                targetGroup = new aws.lb.TargetGroup(`${appName}-${resourceId}-targetGroup`, {
-                    name: `${appName}-${resourceId}`,
+                targetGroup = new aws.lb.TargetGroup(`${appName}-${execUnitName}`, {
                     port: params.port,
                     protocol: params.protocol,
                     targetType: 'ip',
@@ -108,8 +251,7 @@ export class LoadBalancerPlugin {
                 })
                 break
             case 'instance':
-                targetGroup = new aws.lb.TargetGroup(`${appName}-${resourceId}-targetGroup`, {
-                    name: `${appName}-${resourceId}`,
+                targetGroup = new aws.lb.TargetGroup(`${appName}-${execUnitName}`, {
                     port: params.port,
                     protocol: params.protocol,
                     vpcId: params.vpcId,
@@ -117,8 +259,7 @@ export class LoadBalancerPlugin {
                 })
                 break
             case 'alb':
-                targetGroup = new aws.lb.TargetGroup(`${appName}-${resourceId}-targetGroup`, {
-                    name: `${appName}-${resourceId}`,
+                targetGroup = new aws.lb.TargetGroup(`${appName}-${execUnitName}`, {
                     targetType: 'alb',
                     port: params.port,
                     protocol: params.protocol,
@@ -128,8 +269,7 @@ export class LoadBalancerPlugin {
                 })
                 break
             case 'lambda':
-                targetGroup = new aws.lb.TargetGroup(`${appName}-${resourceId}-targetGroup`, {
-                    name: `${appName}-${resourceId}`,
+                targetGroup = new aws.lb.TargetGroup(`${appName}-${execUnitName}`, {
                     targetType: 'lambda',
                     tags: params.tags,
                 })
@@ -137,6 +277,7 @@ export class LoadBalancerPlugin {
             default:
                 throw new Error('Unsupported target group target type')
         }
+        this.execUnitToTargetGroup.set(execUnitName, targetGroup)
         return targetGroup
     }
 
@@ -145,7 +286,7 @@ export class LoadBalancerPlugin {
         resourceId: string,
         params: TargetGroupAttachmentArgs
     ): aws.lb.TargetGroupAttachment => {
-        return new aws.lb.TargetGroupAttachment(`${appName}-${resourceId}-targetGroupAttachment`, {
+        return new aws.lb.TargetGroupAttachment(`${appName}-${resourceId}`, {
             targetGroupArn: params.targetGroupArn,
             targetId: params.targetId,
             port: params.port,

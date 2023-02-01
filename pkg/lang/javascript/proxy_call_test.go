@@ -64,9 +64,9 @@ func TestSpecificExportQuery(t *testing.T) {
 				return
 			}
 
-			node := SpecificExportQuery(tree.RootNode(), []byte(tt.source), tt.queryName)
+			node := SpecificExportQuery(tree.RootNode(), tt.queryName)
 			if tt.matchString != "" && assert.NotNil(node) {
-				str := node.Content([]byte(tt.source))
+				str := node.Content()
 				assert.Equal(tt.matchString, str)
 			} else {
 				assert.Nil(node)

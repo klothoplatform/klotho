@@ -94,12 +94,11 @@ export class CloudCCLib {
     protect = kloConfig.getBoolean('protect') ?? false
     execUnitToNlb = new Map<string, awsx.lb.NetworkLoadBalancer>()
     execUnitToVpcLink = new Map<string, aws.apigateway.VpcLink>()
-    lbPlugin = new LoadBalancerPlugin()
 
     constructor(
         private sharedRepo: awsx.ecr.Repository,
-        private stage: string,
-        private region: Region,
+        public readonly stage: string,
+        public readonly region: Region,
         public readonly name: string,
         private namespace: string,
         private datadogEnabled: boolean,
@@ -212,7 +211,19 @@ export class CloudCCLib {
 
         pulumi.output(this.klothoVPC.privateSubnets).apply((ps) => {
             const cidrBlocks: any = ps.map((subnet) => subnet.subnet.cidrBlock)
-            new aws.ec2.SecurityGroupRule(`${this.name}-ingress`, {
+            new aws.ec2.SecurityGroupRule(`${this.name}-private-ingress`, {
+                type: 'ingress',
+                cidrBlocks: cidrBlocks,
+                fromPort: 0,
+                protocol: '-1',
+                toPort: 0,
+                securityGroupId: klothoSG.id,
+            })
+        })
+
+        pulumi.output(this.klothoVPC.publicSubnets).apply((ps) => {
+            const cidrBlocks: any = ps.map((subnet) => subnet.subnet.cidrBlock)
+            new aws.ec2.SecurityGroupRule(`${this.name}-public-ingress`, {
                 type: 'ingress',
                 cidrBlocks: cidrBlocks,
                 fromPort: 0,
@@ -563,8 +574,12 @@ export class CloudCCLib {
 
         if (env_vars) {
             for (const v of env_vars) {
-                const result = this.getEnvVarForDependency(v)
-                additionalEnvVars[result[0]] = result[1]
+                if (v.Kind == '') {
+                    additionalEnvVars[v.Name] = v.Value
+                } else {
+                    const result = this.getEnvVarForDependency(v)
+                    additionalEnvVars[result[0]] = result[1]
+                }
             }
         }
 
@@ -597,7 +612,7 @@ export class CloudCCLib {
                                         this.execUnitToFunctions.get(targetResource.title)!.arn,
                                     ],
                                 })
-                            } else if (['fargate', 'eks'].includes(targetResource.type)) {
+                            } else if (['ecs', 'eks'].includes(targetResource.type)) {
                                 this.addPolicyStatementForName(resource.title, {
                                     Effect: 'Allow',
                                     Action: ['servicediscovery:DiscoverInstances'],
@@ -813,238 +828,6 @@ export class CloudCCLib {
         })
 
         return lambdaExecRole
-    }
-
-    createDockerBasedAPIGateway(routes, providedName = '') {
-        let gwName: string = providedName != '' ? providedName : routes[0].gatewayAppName
-        gwName = gwName.replace(/[^a-zA-Z0-9_-]/g, '-')
-        const restAPI: aws.apigateway.RestApi = new aws.apigateway.RestApi(gwName, {
-            binaryMediaTypes: ['application/octet-stream', 'image/*'],
-        })
-        const resourceMap = new Map<string, aws.apigateway.Resource>()
-        const methods: aws.apigateway.Method[] = []
-        const integrations: aws.apigateway.Integration[] = []
-        const integrationNames: string[] = []
-        const permissions: aws.lambda.Permission[] = []
-        // create the resources and methods needed for the provided routes
-        for (const r of routes) {
-            const execUnit = this.resourceIdToResource.get(`${r.execUnitName}_exec_unit`)
-            const pathSegments = r.path.split('/').filter(Boolean)
-            let methodPathLastPart = pathSegments.at(-1) ?? '/' // get the last part of the path
-            let routeAndHash = `${methodPathLastPart.replace(':', '').replace('*', '')}-${sha256
-                .sync(r.path)
-                .slice(0, 5)}`
-            // create the resources first
-            // parent resource starts off null since we don't create the root resource
-            let parentResource: aws.apigateway.Resource | null = null
-            const methodRequestParams = {}
-            const integrationRequestParams = {}
-            let currPathSegments = ''
-            for (let segment of pathSegments) {
-                // Handle path parameters defined in express as :<param>
-                if (segment.includes(':')) {
-                    const pathParam = `request.path.${segment.replace(':', '').replace('*', '')}`
-                    methodRequestParams[`method.${pathParam}`] = true
-                    integrationRequestParams[`integration.${pathParam}`] = `method.${pathParam}`
-                }
-
-                segment = segment
-                    .replace(/:([^/]+)/g, '{$1}') // convert express params :arg to AWS gateway {arg}
-                    .replace(/[*]\}/g, '+}') // convert express greedy flag {arg*} to AWS gateway {arg+}
-                    .replace(/\/\//g, '/') // collapse double '//' to single '/'
-                currPathSegments += `${segment}/`
-                if (resourceMap.has(currPathSegments)) {
-                    parentResource = resourceMap.get(currPathSegments)!
-                } else {
-                    const resource = new aws.apigateway.Resource(
-                        gwName + currPathSegments,
-                        {
-                            restApi: restAPI.id,
-                            parentId:
-                                parentResource == null ? restAPI.rootResourceId : parentResource.id,
-                            pathPart: segment,
-                        },
-                        {
-                            parent: restAPI,
-                        }
-                    )
-                    resourceMap.set(currPathSegments, resource)
-                    parentResource = resource
-                }
-            }
-
-            //create the methods
-            // We use the combination of the aws method property operationName alongside pulumi properties
-            // replaceOnChanges and deleteBeforeReplace in order to correctly trigger swapping integrations
-            // when infra is changed, for example from lambda to fargate. All three properties are required
-            // to trigger a replace action of the method, which is required to correctly swap integrations
-            // while preventing resource collisions on the method.
-            const method = new aws.apigateway.Method(
-                `${r.verb.toUpperCase()}-${routeAndHash}`,
-                {
-                    restApi: restAPI.id,
-                    resourceId: parentResource?.id ?? restAPI.rootResourceId,
-                    httpMethod: r.verb.toUpperCase(),
-                    authorization: 'NONE',
-                    operationName: `${execUnit.type}-${r.verb.toUpperCase()}-${routeAndHash}`,
-                    requestParameters:
-                        Object.keys(methodRequestParams).length == 0
-                            ? undefined
-                            : methodRequestParams,
-                },
-                {
-                    parent: parentResource ?? restAPI,
-                    replaceOnChanges: ['*'],
-                    deleteBeforeReplace: true,
-                }
-            )
-            methods.push(method)
-
-            const integrationName = `${execUnit.type}-${r.verb.toUpperCase()}-${routeAndHash}`
-            integrationNames.push(integrationName)
-            if (execUnit.type == 'fargate') {
-                const nlb = this.execUnitToNlb.get(r.execUnitName)!
-                const vpcLink = this.execUnitToVpcLink.get(r.execUnitName)!
-                integrations.push(
-                    new aws.apigateway.Integration(
-                        integrationName,
-                        {
-                            restApi: restAPI.id,
-                            resourceId:
-                                parentResource == null ? restAPI.rootResourceId : parentResource.id,
-                            httpMethod: method.httpMethod,
-                            integrationHttpMethod: method.httpMethod,
-                            type: 'HTTP_PROXY',
-                            connectionType: 'VPC_LINK',
-                            connectionId: vpcLink.id,
-                            uri: pulumi.interpolate`http://${nlb.loadBalancer.dnsName}${r.path
-                                .replace(/:([^/]+)/g, '{$1}')
-                                .replace(/[*]\}/g, '+}')}`,
-                            requestParameters:
-                                Object.keys(integrationRequestParams).length == 0
-                                    ? undefined
-                                    : integrationRequestParams,
-                        },
-                        {
-                            parent: method,
-                        }
-                    )
-                )
-            } else if (execUnit.type == 'eks') {
-                const nlb = this.lbPlugin.getExecUnitLoadBalancer(r.execUnitName)!
-                const vpcLink = this.execUnitToVpcLink.get(r.execUnitName)!
-                integrations.push(
-                    new aws.apigateway.Integration(
-                        integrationName,
-                        {
-                            restApi: restAPI.id,
-                            resourceId:
-                                parentResource == null ? restAPI.rootResourceId : parentResource.id,
-                            httpMethod: method.httpMethod,
-                            integrationHttpMethod: method.httpMethod,
-                            type: 'HTTP_PROXY',
-                            connectionType: 'VPC_LINK',
-                            connectionId: vpcLink.id,
-                            uri: pulumi.interpolate`http://${nlb.dnsName}${r.path
-                                .replace(/:([^/]+)/g, '{$1}')
-                                .replace(/[*]\}/g, '+}')}`,
-                            requestParameters:
-                                Object.keys(integrationRequestParams).length == 0
-                                    ? undefined
-                                    : integrationRequestParams,
-                        },
-                        {
-                            parent: method,
-                        }
-                    )
-                )
-            } else if (execUnit.type == 'lambda') {
-                const lambda = this.execUnitToFunctions.get(r.execUnitName)!
-                integrations.push(
-                    new aws.apigateway.Integration(
-                        integrationName,
-                        {
-                            restApi: restAPI.id,
-                            resourceId:
-                                parentResource == null ? restAPI.rootResourceId : parentResource.id,
-                            httpMethod: method.httpMethod,
-                            integrationHttpMethod: 'POST',
-                            type: 'AWS_PROXY',
-                            uri: lambda.invokeArn,
-                        },
-                        {
-                            parent: method,
-                        }
-                    )
-                )
-
-                const permissionName = `${r.verb}-${r.path.replace(/[^a-z0-9]/gi, '')}-permission`
-                permissions.push(
-                    new aws.lambda.Permission(permissionName, {
-                        action: 'lambda:InvokeFunction',
-                        function: lambda.name,
-                        principal: 'apigateway.amazonaws.com',
-                        sourceArn: pulumi.interpolate`arn:aws:execute-api:${this.region}:${
-                            this.account.accountId
-                        }:${restAPI.id}/*/${
-                            r.verb.toUpperCase() === 'ANY' ? '*' : r.verb.toUpperCase()
-                        }${parentResource == null ? '/' : parentResource.path}`,
-                    })
-                )
-            }
-        }
-
-        // Create the deployment and stage
-        const deployment = new aws.apigateway.Deployment(
-            `${providedName}-deployment`,
-            {
-                restApi: restAPI,
-                triggers: {
-                    routes: sha256.sync(
-                        routes
-                            .map((r) => `${r.execUnitName}:${r.path}:${r.verb}`)
-                            .sort()
-                            .join()
-                    ),
-                    integrations: sha256.sync(
-                        integrationNames
-                            .map((i) => i)
-                            .sort()
-                            .join()
-                    ),
-                },
-            },
-            {
-                dependsOn: [...methods, ...integrations, ...permissions],
-                parent: restAPI,
-            }
-        )
-
-        const stage = new aws.apigateway.Stage(
-            `${providedName}-stage`,
-            {
-                deployment: deployment.id,
-                restApi: restAPI.id,
-                stageName: this.stage,
-            },
-            {
-                parent: deployment,
-            }
-        )
-
-        this.topologySpecOutputs.push(
-            pulumi.all([restAPI.id, restAPI.urn]).apply(([id, urn]) => ({
-                id: id,
-                urn: urn,
-                kind: '', // TODO
-                type: 'AWS API Gateway',
-                url: `https://console.aws.amazon.com/apigateway/home?region=${this.region}#/apis/${id}/resources/`,
-            }))
-        )
-
-        this.gatewayToUrl.set(providedName, stage.invokeUrl)
-
-        return stage.invokeUrl
     }
 
     public installLambdaWarmer(execUnitNames) {
@@ -1524,7 +1307,11 @@ export class CloudCCLib {
         })
     }
 
-    createEksResources = async (execUnits: EksExecUnit[], charts?: HelmChart[]) => {
+    createEksResources = async (
+        execUnits: EksExecUnit[],
+        charts?: HelmChart[],
+        lbPlugin?: LoadBalancerPlugin
+    ) => {
         let clusterName = `${this.name}-eks-cluster`
         const providedClustername = kloConfig.get<string>('eks-cluster')
         const existingCluster = undefined
@@ -1550,41 +1337,17 @@ export class CloudCCLib {
             this,
             execUnits,
             charts || [],
-            existingCluster
+            existingCluster,
+            lbPlugin
         )
-    }
-
-    createNlb(execUnitName: string) {
-        const nlb = new awsx.lb.NetworkLoadBalancer(`${execUnitName}-nlb`, {
-            external: false,
-            vpc: this.klothoVPC,
-            subnets: this.privateSubnetIds,
-        })
-        this.execUnitToNlb.set(execUnitName, nlb)
-
-        const targetGroup: awsx.elasticloadbalancingv2.NetworkTargetGroup = nlb.createTargetGroup(
-            `${execUnitName}-tg`,
-            {
-                port: 3000,
-            }
-        )
-
-        const listener = targetGroup.createListener(`${execUnitName}-listener`, {
-            port: 80,
-        })
-
-        const vpcLink = new aws.apigateway.VpcLink(`${execUnitName}-vpc-link`, {
-            targetArn: nlb.loadBalancer.arn,
-        })
-
-        this.execUnitToVpcLink.set(execUnitName, vpcLink)
     }
 
     createEcsService(
         execUnitName,
         baseArgs: Partial<awsx.ecs.Container>,
         network_placement: 'public' | 'private',
-        envVars: any
+        envVars: any,
+        lbPlugin?: LoadBalancerPlugin
     ) {
         if (this.cluster == undefined) {
             this.createEcsCluster()
@@ -1602,6 +1365,44 @@ export class CloudCCLib {
             Action: ['ssm:GetParameters', 'secretsmanager:GetSecretValue', 'kms:Decrypt', 'ecr:*'],
             Resource: '*',
         })
+        let needsLoadBalancer = false
+        this.topology.topologyIconData.forEach((resource) => {
+            if (resource.kind === Resource.gateway) {
+                this.topology.topologyEdgeData.forEach((edge) => {
+                    if (edge.source == resource.id && edge.target === `${execUnitName}_exec_unit`) {
+                        // We know that this exec unit is exposed and must create the necessary resources
+                        if (resource.type == 'apigateway') {
+                            needsLoadBalancer = true
+                        }
+                    }
+                })
+            }
+        })
+
+        let nlb
+        if (needsLoadBalancer) {
+            nlb = new awsx.lb.NetworkLoadBalancer(`${execUnitName}-nlb`, {
+                external: false,
+                vpc: this.klothoVPC,
+                subnets: this.privateSubnetIds,
+            })
+            this.execUnitToNlb.set(execUnitName, nlb)
+
+            const targetGroup: awsx.elasticloadbalancingv2.NetworkTargetGroup =
+                nlb.createTargetGroup(`${execUnitName}-tg`, {
+                    port: 3000,
+                })
+
+            const listener = targetGroup.createListener(`${execUnitName}-listener`, {
+                port: 80,
+            })
+
+            const vpcLink = new aws.apigateway.VpcLink(`${execUnitName}-vpc-link`, {
+                targetArn: nlb.loadBalancer.arn,
+            })
+
+            this.execUnitToVpcLink.set(execUnitName, vpcLink)
+        }
 
         const logGroupName = `/aws/fargate/${this.name}-${execUnitName}-task`
         let cloudwatchGroup = new aws.cloudwatch.LogGroup(`${this.name}-${execUnitName}-lg`, {
@@ -1609,7 +1410,6 @@ export class CloudCCLib {
             retentionInDays: 1,
         })
 
-        const nlb = this.execUnitToNlb.get(execUnitName)!
         let additionalEnvVars: { name: string; value: pulumi.Input<string> }[] = []
         for (const [name, value] of Object.entries(
             this.generateExecUnitEnvVars(execUnitName, envVars)
@@ -1617,12 +1417,28 @@ export class CloudCCLib {
             additionalEnvVars.push({ name, value })
         }
 
+        const discoveryService = new aws.servicediscovery.Service(execUnitName, {
+            name: execUnitName,
+            dnsConfig: {
+                namespaceId: this.privateDnsNamespace.id,
+                dnsRecords: [
+                    {
+                        ttl: 10,
+                        type: 'A',
+                    },
+                ],
+                routingPolicy: 'MULTIVALUE',
+            },
+            healthCheckCustomConfig: {
+                failureThreshold: 1,
+            },
+        })
+
         const task = new awsx.ecs.FargateTaskDefinition(`${execUnitName}-task`, {
             logGroup: cloudwatchGroup,
             family: `${execUnitName}-family`,
             executionRole: role,
             taskRole: role,
-
             container: {
                 ...baseArgs,
                 image: image,
@@ -1650,23 +1466,6 @@ export class CloudCCLib {
             },
         })
 
-        const discoveryService = new aws.servicediscovery.Service(execUnitName, {
-            name: execUnitName,
-            dnsConfig: {
-                namespaceId: this.privateDnsNamespace.id,
-                dnsRecords: [
-                    {
-                        ttl: 10,
-                        type: 'A',
-                    },
-                ],
-                routingPolicy: 'MULTIVALUE',
-            },
-            healthCheckCustomConfig: {
-                failureThreshold: 1,
-            },
-        })
-
         // This is done here for now because of a potential deletion race condition mentioned on the pulumi site
         const attach = new aws.iam.RolePolicyAttachment(`${execUnitName}-fargateAttach`, {
             role: role.name,
@@ -1675,6 +1474,7 @@ export class CloudCCLib {
 
         const subnets =
             network_placement === 'public' ? this.publicSubnetIds : this.privateSubnetIds
+
         const service = new awsx.ecs.FargateService(
             `${execUnitName}-service`,
             {

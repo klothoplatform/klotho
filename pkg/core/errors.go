@@ -93,7 +93,7 @@ func (err *CompileError) Format(s fmt.State, verb rune) {
 			fmt.Fprintf(s, "\nin %s\n", err.File.Path())
 			fnode := &NodeContent{
 				Endpoints: err.Annotation.Node,
-				Content:   err.Annotation.Node.Content(err.File.Program()),
+				Content:   err.Annotation.Node.Content(),
 			}
 			fnode.Format(s, verb)
 		}

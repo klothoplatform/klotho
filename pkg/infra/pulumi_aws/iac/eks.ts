@@ -17,6 +17,7 @@ import {
 } from './k8s/horizontal-pod-autoscaling'
 import { installMetricsServer } from './k8s/add_ons/metrics_server'
 import { applyChart, Value } from './k8s/helm_chart'
+import { LoadBalancerPlugin } from './load_balancing'
 
 export interface EksExecUnitArgs {
     nodeType: 'fargate' | 'node'
@@ -200,7 +201,8 @@ export class Eks {
         lib: CloudCCLib,
         execUnits: EksExecUnit[],
         charts: HelmChart[],
-        existingCluster?: aws.eks.GetClusterResult
+        existingCluster?: aws.eks.GetClusterResult,
+        private readonly lbPlugin?: LoadBalancerPlugin
     ) {
         this.lib = lib
         this.options = options
@@ -563,6 +565,33 @@ export class Eks {
         let dependencyParent
         let serviceName
         let role
+        const execUnitEdgeId = `${execUnit}_exec_unit`
+        let needsProxy = false
+        let needsGatewayLink = false
+        let needsLoadBalancer = false
+
+        lib.topology.topologyIconData.forEach((resource) => {
+            if (resource.kind === Resource.gateway) {
+                lib.topology.topologyEdgeData.forEach((edge) => {
+                    if (edge.source == resource.id && edge.target === execUnitEdgeId) {
+                        // We know that this exec unit is exposed and must create the necessary resources
+                        needsGatewayLink = true
+                        if (resource.type == 'apigateway') {
+                            needsLoadBalancer = true
+                        }
+                    }
+                })
+            }
+            if (resource.kind === Resource.exec_unit) {
+                lib.topology.topologyEdgeData.forEach((edge) => {
+                    if (edge.source == resource.id && edge.target === execUnitEdgeId) {
+                        // We know that this exec unit is proxied to from another exec unit and must create the necessary resources
+                        needsProxy = true
+                    }
+                })
+            }
+        })
+        const protocol = needsLoadBalancer ? 'TCP' : 'HTTP'
 
         let additionalEnvVars: { name: string; value: pulumi.Input<string> }[] = []
         for (const [name, value] of Object.entries(
@@ -630,64 +659,69 @@ export class Eks {
         }
 
         if (image) {
-            const execUnitEdgeId = `${execUnit}_exec_unit`
-            let needsProxy = false
-            let needsGatewayLink = false
-
-            lib.topology.topologyIconData.forEach((resource) => {
-                if (resource.kind === Resource.gateway) {
-                    lib.topology.topologyEdgeData.forEach((edge) => {
-                        if (edge.source == resource.id && edge.target === execUnitEdgeId) {
-                            // We know that this exec unit is exposed and must create the necessary resources
-                            needsGatewayLink = true
-                        }
-                    })
-                }
-                if (resource.kind === Resource.exec_unit) {
-                    lib.topology.topologyEdgeData.forEach((edge) => {
-                        if (edge.source == resource.id && edge.target === execUnitEdgeId) {
-                            // We know that this exec unit is proxied to from another exec unit and must create the necessary resources
-                            needsProxy = true
-                        }
-                    })
-                }
-            })
-
             if (needsGatewayLink) {
-                const lb = lib.lbPlugin.createLoadBalancer(lib.name, execUnit, {
-                    subnets: lib.privateSubnetIds,
-                    loadBalancerType: 'network',
-                })
+                if (!this.lbPlugin) {
+                    throw new Error(
+                        'EKS Plugin needs the LoadBalancer Plugin to connect expose with execution units.'
+                    )
+                }
+                if (needsLoadBalancer) {
+                    const lb = this.lbPlugin!.createLoadBalancer(lib.name, execUnit, {
+                        subnets: lib.privateSubnetIds,
+                        loadBalancerType: 'network',
+                    })
+                    const targetGroup = this.lbPlugin!.createTargetGroup(lib.name, execUnit, {
+                        port: 3000,
+                        protocol,
+                        vpcId: lib.klothoVPC.id,
+                        targetType: 'ip',
+                    })
 
-                const targetGroup = lib.lbPlugin.createTargetGroup(lib.name, execUnit, {
-                    port: 3000,
-                    protocol: 'TCP',
-                    vpcId: lib.klothoVPC.id,
-                    targetType: 'ip',
-                })
-                this.execUnitToTargetGroupArn.set(execUnit, targetGroup.arn)
+                    this.lbPlugin!.createListener(lib.name, execUnit, {
+                        port: 80,
+                        protocol,
+                        loadBalancerArn: lb.arn,
+                        defaultActions: [
+                            {
+                                type: 'forward',
+                                targetGroupArn: targetGroup.arn,
+                            },
+                        ],
+                    })
 
-                lib.lbPlugin.createListener(lib.name, execUnit, {
-                    port: 80,
-                    protocol: 'TCP',
-                    loadBalancerArn: lb.arn,
-                    defaultActions: [
-                        {
-                            type: 'forward',
-                            targetGroupArn: targetGroup.arn,
-                        },
-                    ],
-                })
+                    const vpcLink = new aws.apigateway.VpcLink(`${execUnit}-vpc-link`, {
+                        targetArn: lb.arn,
+                    })
+                    lib.execUnitToVpcLink.set(execUnit, vpcLink)
+                } else {
+                    this.lbPlugin!.createTargetGroup(lib.name, execUnit, {
+                        port: 3000,
+                        protocol,
+                        vpcId: lib.klothoVPC.id,
+                        targetType: 'ip',
+                    })
 
-                const vpcLink = new aws.apigateway.VpcLink(`${execUnit}-vpc-link`, {
-                    targetArn: lb.arn,
-                })
-                lib.execUnitToVpcLink.set(execUnit, vpcLink)
+                    pulumi.output(this.lib.klothoVPC.publicSubnets).apply((ps) => {
+                        const cidrBlocks: any = ps.map((subnet) => subnet.subnet.cidrBlock)
+                        new aws.ec2.SecurityGroupRule(
+                            `${this.lib.name}-${this.clusterName}-public-ingress`,
+                            {
+                                type: 'ingress',
+                                cidrBlocks: cidrBlocks,
+                                fromPort: 0,
+                                protocol: '-1',
+                                toPort: 0,
+                                securityGroupId: this.cluster.vpcConfig.clusterSecurityGroupId,
+                            }
+                        )
+                    })
+                }
 
                 if (
                     this.installedPlugins.get(plugins.AWS_LOAD_BALANCER_CONTROLLER) &&
                     !unit.helmOptions?.install
                 ) {
+                    const targetGroup = this.lbPlugin!.execUnitToTargetGroup.get(execUnit)!
                     this.createTargetBinding(execUnit, serviceName, targetGroup.arn, [
                         targetGroup,
                         dependencyParent,

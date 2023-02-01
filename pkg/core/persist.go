@@ -7,9 +7,8 @@ import (
 
 type (
 	Persist struct {
-		Name        string
-		PersistType string
-		Kind        PersistKind
+		Name string
+		Kind PersistKind
 	}
 	Secrets struct {
 		Persist
@@ -27,8 +26,6 @@ const (
 	PersistRedisNodeKind    PersistKind = "persist_redis_node"
 	PersistRedisClusterKind PersistKind = "persist_redis_cluster"
 )
-
-func (p *Persist) Type() string { return p.PersistType }
 
 func (p *Persist) Key() ResourceKey {
 	return ResourceKey{

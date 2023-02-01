@@ -51,7 +51,22 @@ const y = 456`,
 		},
 		{"comment is last node",
 			`// only line in source`,
-			[]FindAllCommentBlocksExpected{},
+			[]FindAllCommentBlocksExpected{
+				{
+					"only line in source",
+					"",
+				},
+			},
+		},
+		{"multi-line comment is last node",
+			`// first line
+// second line`,
+			[]FindAllCommentBlocksExpected{
+				{
+					"first line\nsecond line",
+					"",
+				},
+			},
 		},
 	}
 	for _, tt := range cases {
@@ -64,6 +79,7 @@ const y = 456`,
 			assert.Equal(tt.Want, found)
 		})
 	}
+
 	t.Run("sitter query has capture", func(t *testing.T) {
 		assert := assert.New(t)
 

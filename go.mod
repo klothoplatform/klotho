@@ -33,6 +33,8 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
+replace github.com/smacker/go-tree-sitter => github.com/klothoplatform/go-tree-sitter v0.1.0
+
 require (
 	github.com/auth0/go-jwt-middleware/v2 v2.1.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.3 // indirect

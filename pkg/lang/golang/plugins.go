@@ -15,7 +15,7 @@ type (
 func NewGoPlugins(cfg *config.Application, runtime Runtime) *GoPlugins {
 	return &GoPlugins{
 		Plugins: []core.Plugin{
-			&Expose{},
+			&Expose{Config: cfg},
 			&AddExecRuntimeFiles{cfg: cfg, runtime: runtime},
 		},
 	}

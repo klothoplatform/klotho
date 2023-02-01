@@ -41,11 +41,11 @@ func TestFindDefaultExport(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			got := FindDefaultExport(f.Tree().RootNode(), f.Program())
+			got := FindDefaultExport(f.Tree().RootNode())
 			if tt.want == "" {
 				assert.Nil(got)
 			} else if assert.NotNil(got) {
-				assert.Equal(tt.want, got.Content(f.Program()))
+				assert.Equal(tt.want, got.Content())
 			}
 		})
 	}
@@ -85,11 +85,11 @@ func TestFindExportForVar(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			got := FindExportForVar(f.Tree().RootNode(), f.Program(), tt.varName)
+			got := FindExportForVar(f.Tree().RootNode(), tt.varName)
 			if tt.want == "" {
 				assert.Nil(got)
 			} else if assert.NotNil(got) {
-				assert.Equal(tt.want, got.Content(f.Program()))
+				assert.Equal(tt.want, got.Content())
 			}
 		})
 	}

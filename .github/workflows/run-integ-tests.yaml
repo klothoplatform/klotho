@@ -60,6 +60,11 @@ on:
         required: false
         type: string
         default: us-east-2
+      pre-build-script: # This input is intentionally NOT in workflow_dispatch
+        description: path to a script (within the caller's repo) to invoke before `go build`. must be executable.
+        required: false
+        type: string
+        default: ''
 concurrency: integ-tests
 name: run integration tests
 jobs:
@@ -111,6 +116,9 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: 1.19.x
+      - name: pre-build
+        if: ${{ inputs.pre-build-script }}
+        run: ${{ inputs.pre-build-script }}
       - name: build
         run: |
           go generate ./...
@@ -131,16 +139,6 @@ jobs:
       matrix:
         app_to_test: ${{ fromJson(needs.list-apps.outputs.to_test) }}
         mode: [fresh, upgrade]
-        exclude:
-          - # issue #48
-            app_to_test: ts-eks
-            mode: upgrade
-          - # issue #49
-            app_to_test: ts-eks-helm
-            mode: upgrade
-          - 
-            app_to_test: ts-events
-            mode: upgrade
     steps:
       - name: versions
         run: |

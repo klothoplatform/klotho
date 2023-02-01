@@ -121,7 +121,7 @@ func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotat
 	case core.PersistORMKind:
 		cfg := r.Config.GetPersisted(annot.Capability.ID, kind)
 		if cfg.Type == "cockroachdb_serverless" {
-			oldNodeContent := annot.Node.Content(file.Program())
+			oldNodeContent := annot.Node.Content()
 			newNodeContent := sequelizeReplaceRE.ReplaceAllString(oldNodeContent, "new cockroachdbSequelize.Sequelize(")
 
 			if err := file.ReplaceNodeContent(annot.Node, newNodeContent); err != nil {
@@ -174,17 +174,18 @@ func (r *AwsRuntime) AddPubsubRuntimeFiles(unit *core.ExecutionUnit) error {
 
 func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error {
 	var proxyFile []byte
+	unitType := r.Config.GetResourceType(unit)
 	switch proxyType {
 	case "eks":
 		proxyFile = proxyEks
-	case "fargate":
+	case "ecs":
 		proxyFile = proxyFargate
 	case "apprunner":
 		proxyFile = proxyApprunner
 	case "lambda":
 		proxyFile = proxyLambda
 	default:
-		return errors.Errorf("unsupported exceution unit type: '%s'", unit.Type())
+		return errors.Errorf("unsupported exceution unit type: '%s'", unitType)
 	}
 
 	err := r.AddRuntimeFile(unit, proxyType+"_proxy.js.tmpl", proxyFile)
@@ -201,15 +202,16 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 
 func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
 	var DockerFile, Dispatcher []byte
-	switch unit.Type() {
-	case "fargate", "eks", "apprunner":
+	unitType := r.Config.GetResourceType(unit)
+	switch unitType {
+	case "ecs", "eks", "apprunner":
 		DockerFile = dockerfileFargate
 		Dispatcher = dispatcherFargate
 	case "lambda":
 		DockerFile = dockerfileLambda
 		Dispatcher = dispatcherLambda
 	default:
-		return errors.Errorf("unsupported execution unit type: '%s'", unit.Type())
+		return errors.Errorf("unsupported execution unit type: '%s'", unitType)
 	}
 
 	templateData := TemplateData{

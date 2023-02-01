@@ -167,7 +167,7 @@ func (p *persister) transformKV(original *core.SourceFile, modified *core.Source
 	}
 
 	// replace the aiocache.Cache() invocation's arguments with those required for the runtime
-	nodeContent := cap.Node.Content(original.Program())
+	nodeContent := cap.Node.Content()
 	directives := cap.Capability.Directives
 	id, found := directives.String("id")
 	if !found {
@@ -232,7 +232,7 @@ func (p *persister) transformKV(original *core.SourceFile, modified *core.Source
 
 func (p *persister) transformFS(original *core.SourceFile, modified *core.SourceFile, cap *core.Annotation, fsR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 
-	nodeContent := cap.Node.Content(original.Program())
+	nodeContent := cap.Node.Content()
 
 	replaceString := p.runtime.GetFsRuntimeImportClass(fsR.name)
 
@@ -263,7 +263,7 @@ func (p *persister) transformFS(original *core.SourceFile, modified *core.Source
 
 func (p *persister) transformSecret(original *core.SourceFile, modified *core.SourceFile, cap *core.Annotation, secretR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 
-	nodeContent := cap.Node.Content(original.Program())
+	nodeContent := cap.Node.Content()
 
 	replaceString := p.runtime.GetSecretRuntimeImportClass(secretR.name)
 
@@ -302,7 +302,7 @@ func (p *persister) transformSecret(original *core.SourceFile, modified *core.So
 
 func (p *persister) transformORM(original *core.SourceFile, modified *core.SourceFile, cap *core.Annotation, ormR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 
-	nodeContent := cap.Node.Content(original.Program())
+	nodeContent := cap.Node.Content()
 
 	newContent := nodeContent
 	err := AddRuntimeImport("import os", modified)
@@ -340,7 +340,7 @@ func (p *persister) transformORM(original *core.SourceFile, modified *core.Sourc
 
 func (p *persister) transformRedis(original *core.SourceFile, modified *core.SourceFile, cap *core.Annotation, redisR *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 
-	nodeContent := cap.Node.Content(original.Program())
+	nodeContent := cap.Node.Content()
 
 	err := AddRuntimeImport("import os", modified)
 	if err != nil {
@@ -439,12 +439,12 @@ func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, 
 	expression, name, functionHost, function := match["expression"], match["name"], match["functionHost"], match["function"]
 
 	// this assignment/invocation is unrelated to aiocache.Cache instantiation
-	if !aiocacheImported && !query.NodeContentEquals(function, file.Program(), cacheFunction) {
+	if !aiocacheImported && !query.NodeContentEquals(function, cacheFunction) {
 		return nil
 	}
 
 	// this Cache() invocation belongs to an object other the aiocache module
-	if aiocacheImported && functionHost != nil && !query.NodeContentEquals(functionHost, file.Program(), functionHostName) {
+	if aiocacheImported && functionHost != nil && !query.NodeContentEquals(functionHost, functionHostName) {
 		return nil
 	}
 
@@ -453,7 +453,7 @@ func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, 
 		return nil
 	}
 
-	callDetails, found := getNextCallDetails(parentOfType(function, "call"), file.Program())
+	callDetails, found := getNextCallDetails(parentOfType(function, "call"))
 	if !found {
 		if enableWarnings {
 			log.Warn("function call details not found")
@@ -470,8 +470,8 @@ func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, 
 	}
 
 	return &persistResult{
-		name:       name.Content(file.Program()),
-		expression: expression.Content(file.Program()),
+		name:       name.Content(),
+		expression: expression.Content(),
 		args:       args,
 	}
 }
@@ -506,10 +506,10 @@ func (p *persister) queryFS(file *core.SourceFile, annotation *core.Annotation, 
 
 	// this assignment/invocation is unrelated to aiofile instantiation found from the matching import
 	if aliasedModule != nil {
-		if !query.NodeContentEquals(alias, file.Program(), varName) {
+		if !query.NodeContentEquals(alias, varName) {
 			return nil
 		}
-	} else if !query.NodeContentEquals(module, file.Program(), varName) {
+	} else if !query.NodeContentEquals(module, varName) {
 		return nil
 	}
 
@@ -522,7 +522,7 @@ func (p *persister) queryFS(file *core.SourceFile, annotation *core.Annotation, 
 
 	return &persistResult{
 		name:       varName,
-		expression: importStatement.Content(file.Program()),
+		expression: importStatement.Content(),
 	}
 }
 
@@ -556,12 +556,12 @@ func (p *persister) queryORM(file *core.SourceFile, annotation *core.Annotation,
 	engineVar, funcCall, connString, module := match["engineVar"], match["funcCall"], match["connString"], match["module"]
 
 	// this assignment/invocation is unrelated to sqlAlchemy.create_engine instantiation
-	if !sqlalchemyImported && !query.NodeContentEquals(funcCall, file.Program(), engineFunction) {
+	if !sqlalchemyImported && !query.NodeContentEquals(funcCall, engineFunction) {
 		return nil
 	}
 
 	// this create_engine() invocation belongs to an object other the aiocache module
-	if sqlalchemyImported && module != nil && !query.NodeContentEquals(module, file.Program(), sqlalchemyImportName) {
+	if sqlalchemyImported && module != nil && !query.NodeContentEquals(module, sqlalchemyImportName) {
 		return nil
 	}
 
@@ -578,8 +578,8 @@ func (p *persister) queryORM(file *core.SourceFile, annotation *core.Annotation,
 	}
 
 	return &persistResult{
-		name:       engineVar.Content(file.Program()),
-		expression: connString.Content(file.Program()),
+		name:       engineVar.Content(),
+		expression: connString.Content(),
 		kind:       core.PersistORMKind,
 	}
 }
@@ -597,30 +597,30 @@ func (p *persister) querySecret(file *core.SourceFile, name string) ([]string, e
 		}
 		module, moduleMethod, varOut, varIn, funcCall, path := match["module"], match["moduleMethod"], match["varOut"], match["varIn"], match["func"], match["path"]
 
-		if !query.NodeContentEquals(module, file.Program(), name) {
+		if !query.NodeContentEquals(module, name) {
 			continue
 		}
 
-		if !query.NodeContentEquals(moduleMethod, file.Program(), "open") {
+		if !query.NodeContentEquals(moduleMethod, "open") {
 			continue
 		}
 
-		if varIn.Content(file.Program()) != varOut.Content(file.Program()) {
+		if varIn.Content() != varOut.Content() {
 			continue
 		}
 
-		if query.NodeContentEquals(funcCall, file.Program(), "read") {
+		if query.NodeContentEquals(funcCall, "read") {
 			if path != nil {
-				sn, err := stringLiteralContent(path, file.Program())
+				sn, err := stringLiteralContent(path)
 				if err != nil {
-					return nil, errors.Errorf("'%s' unable to get path from.", path.Content(file.Program()))
+					return nil, errors.Errorf("'%s' unable to get path from.", path.Content())
 				}
 				secrets = append(secrets, sn)
 			} else {
 				return nil, errors.New("must supply static string for secret path")
 			}
 		} else {
-			return nil, errors.Errorf("'%s' not implemented for secrets persist.", funcCall.Content(file.Program()))
+			return nil, errors.Errorf("'%s' not implemented for secrets persist.", funcCall.Content())
 		}
 	}
 	return secrets, nil
@@ -673,17 +673,17 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 	redisVar, funcCall, args, module, subModule := match["redisVar"], match["funcCall"], match["args"], match["module"], match["subModule"]
 
 	// this Redis() or RedisCluster() invocation belongs to an object other the redis module
-	if redisImported && !clusterModuleImported && module != nil && !query.NodeContentEquals(module, file.Program(), redisImportName) {
+	if redisImported && !clusterModuleImported && module != nil && !query.NodeContentEquals(module, redisImportName) {
 		return nil
 	}
 
 	// import is similar to `from redis import cluster` and the RedisCluster call does not use cluster module
-	if clusterModuleImported && !query.NodeContentEquals(module, file.Program(), clustermoduleImportName) {
+	if clusterModuleImported && !query.NodeContentEquals(module, clustermoduleImportName) {
 		return nil
 	}
 
 	// Redis is not self imported and the function call does not match the redis or redis cluster function call from the import
-	if !redisImported && (!query.NodeContentEquals(funcCall, file.Program(), redisFunction) && (!query.NodeContentEquals(funcCall, file.Program(), clusterRedisFunction))) {
+	if !redisImported && (!query.NodeContentEquals(funcCall, redisFunction) && (!query.NodeContentEquals(funcCall, clusterRedisFunction))) {
 		return nil
 	}
 
@@ -693,16 +693,16 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 	}
 
 	// the redis.cluster.RedisCluster has an incorrect submodule for cluster
-	if redisImported && subModule != nil && !query.NodeContentEquals(subModule, file.Program(), "cluster") {
+	if redisImported && subModule != nil && !query.NodeContentEquals(subModule, "cluster") {
 		return nil
 	}
 
 	kind := core.PersistRedisNodeKind
-	if funcCall.Content(file.Program()) == clusterRedisFunction {
+	if funcCall.Content() == clusterRedisFunction {
 		kind = core.PersistRedisClusterKind
 	}
 
-	callDetails, found := getNextCallDetails(parentOfType(funcCall, "call"), file.Program())
+	callDetails, found := getNextCallDetails(parentOfType(funcCall, "call"))
 	if !found {
 		if enableWarnings {
 			log.Warn("function call details not found")
@@ -719,8 +719,8 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 	}
 
 	return &persistResult{
-		name:       redisVar.Content(file.Program()),
-		expression: args.Content(file.Program()),
+		name:       redisVar.Content(),
+		expression: args.Content(),
 		args:       functionArgs,
 		kind:       kind,
 	}

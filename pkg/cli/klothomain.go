@@ -216,6 +216,10 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	errHandler := ErrorHandler{
 		InternalDebug: cfg.internalDebug,
 		Verbose:       cfg.verbose,
+		PostPrintHook: func() {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+		},
 	}
 	defer analyticsClient.PanicHandler(&err, errHandler)
 
@@ -242,7 +246,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 	klothoName := "klotho"
 	if km.VersionQualifier != "" {
-		klothoName += " " + km.VersionQualifier
+		analyticsClient.Properties[km.VersionQualifier] = true
 	}
 
 	// if update is specified do the update in place
@@ -314,7 +318,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		"app":      appCfg.AppName,
 	})
 
-	analyticsClient.Info(klothoName + "pre-compile")
+	analyticsClient.Info(klothoName + " pre-compile")
 
 	input, err := input.ReadOSDir(appCfg, cfg.config)
 	if err != nil {
@@ -345,7 +349,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		Plugins: plugins.Plugins(),
 	}
 
-	analyticsClient.Info(klothoName + "compiling")
+	analyticsClient.Info(klothoName + " compiling")
 
 	result, err := compiler.Compile(input)
 	if err != nil || hadErrors.Load() {
@@ -354,10 +358,8 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		} else {
 			err = errors.New("Failed run of klotho invocation")
 		}
-		analyticsClient.Error(klothoName + "compiling failed")
+		analyticsClient.Error(klothoName + " compiling failed")
 
-		cmd.SilenceErrors = true
-		cmd.SilenceUsage = true
 		return err
 	}
 
@@ -371,10 +373,10 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	CloseTreeSitter(result)
-	analyticsClient.AppendProperties(map[string]interface{}{"resource_types": GetResourceTypeCount(result)})
+	analyticsClient.AppendProperties(map[string]interface{}{"resource_types": GetResourceTypeCount(result, &appCfg)})
 	analyticsClient.AppendProperties(map[string]interface{}{"languages": GetLanguagesUsed(result)})
 	analyticsClient.AppendProperties(map[string]interface{}{"resources": resourceCounts})
-	analyticsClient.Info(klothoName + "compile complete")
+	analyticsClient.Info(klothoName + " compile complete")
 
 	return nil
 }

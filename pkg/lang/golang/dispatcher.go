@@ -55,7 +55,7 @@ func UpdateImportWithHandlerRequirements(oldFileContent string, imports *sitter.
 
 	newFileContent := oldFileContent
 	var importsToAdd []string
-	importsCode := imports.Content(f.Program())
+	importsCode := imports.Content()
 	// Determine which imports already exist and which we need to add
 	for _, i := range handlerRequirements {
 		if !strings.Contains(importsCode, i) {
@@ -72,7 +72,7 @@ func UpdateImportWithHandlerRequirements(oldFileContent string, imports *sitter.
 	newImportCode = newImportCode + "\n)"
 
 	// Specifically handle removing the old chi import to ensure we only use chi/v5
-	oldNodeContent := imports.Content(f.Program())
+	oldNodeContent := imports.Content()
 	newNodeContent := strings.ReplaceAll(oldNodeContent, "\"github.com/go-chi/chi\"", "")
 
 	newNodeContent = newNodeContent + newImportCode

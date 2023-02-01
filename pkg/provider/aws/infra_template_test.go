@@ -23,12 +23,10 @@ func TestInfraTemplateModification(t *testing.T) {
 			name: "simple test",
 			results: []core.CloudResource{&core.Gateway{
 				Name:   "gw",
-				GWType: core.GatewayKind,
 				Routes: []core.Route{{Path: "/"}},
 			},
 				&core.ExecutionUnit{
-					Name:     "unit",
-					ExecType: eks,
+					Name: "unit",
 				},
 			},
 			cfg: config.Application{
@@ -36,16 +34,19 @@ func TestInfraTemplateModification(t *testing.T) {
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"unit": {Type: eks},
 				},
+				Exposed: map[string]*config.Expose{
+					"gw": {Type: string(ApiGateway)},
+				},
 			},
 			dependencies: []core.Dependency{},
 			data: TemplateData{
 				TemplateData: provider.TemplateData{
-					Gateways: []provider.Gateway{
-						{Name: "gw", Routes: []provider.Route{{ExecUnitName: "", Path: "/", Verb: ""}}, Targets: map[string]core.GatewayTarget(nil)},
-					},
 					ExecUnits: []provider.ExecUnit{
 						{Name: "unit", Type: "eks", NetworkPlacement: "private", MemReqMB: 0, KeepWarm: false, Schedules: []provider.Schedule(nil), Params: config.InfraParams{}},
 					},
+				},
+				APIGateways: []provider.Gateway{
+					{Name: "gw", Routes: []provider.Route{{ExecUnitName: "", Path: "/", Verb: ""}}},
 				},
 				UseVPC: true,
 			},
@@ -54,8 +55,7 @@ func TestInfraTemplateModification(t *testing.T) {
 			name: "helm chart test",
 			results: []core.CloudResource{
 				&core.ExecutionUnit{
-					Name:     "unit",
-					ExecType: eks,
+					Name: "unit",
 				},
 				&kubernetes.KlothoHelmChart{Values: []kubernetes.Value{{
 					Type: string(kubernetes.ImageTransformation),
@@ -122,6 +122,7 @@ func TestInfraTemplateModification(t *testing.T) {
 				return
 			}
 			assert.Equal(tt.data.ExecUnits, awsData.ExecUnits)
+			assert.Equal(tt.data.APIGateways, awsData.APIGateways)
 			assert.Equal(tt.data.Gateways, awsData.Gateways)
 			assert.Equal(tt.data.UseVPC, awsData.UseVPC)
 		})
@@ -141,7 +142,6 @@ func Test_GenerateCloudfrontDistributions(t *testing.T) {
 			results: []core.CloudResource{
 				&core.Gateway{
 					Name:   "gw",
-					GWType: core.GatewayKind,
 					Routes: []core.Route{{Path: "/"}},
 				},
 			},
@@ -247,7 +247,6 @@ func Test_GenerateCloudfrontDistributions(t *testing.T) {
 				},
 				&core.Gateway{
 					Name:   "gw",
-					GWType: core.GatewayKind,
 					Routes: []core.Route{{Path: "/"}},
 				},
 			},

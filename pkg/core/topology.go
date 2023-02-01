@@ -62,7 +62,8 @@ var DiagramEntityToImgPath = TopoMap{
 	{Kind: PubSubKind}:                      "generic/blank/blank.png",
 
 	// Use AWS as the ultimate fallback for the Kind, so don't specify Provider.
-	{Kind: GatewayKind, Provider: ProviderAWS}:                          "aws/network/api-gateway.png",
+	{Kind: GatewayKind, Provider: ProviderAWS, Type: "apigateway"}:      "aws/network/api-gateway.png",
+	{Kind: GatewayKind, Provider: ProviderAWS, Type: "alb"}:             "aws/network/elb-application-load-balancer.png",
 	{Kind: ExecutionUnitKind, Provider: ProviderAWS}:                    "aws/compute/lambda.png",
 	{Kind: string(PersistKVKind), Provider: ProviderAWS}:                "aws/database/dynamodb.png",
 	{Kind: string(PersistFileKind), Provider: ProviderAWS}:              "aws/compute/simple-storage-service-s3.png",
@@ -72,7 +73,7 @@ var DiagramEntityToImgPath = TopoMap{
 	{Kind: string(PersistRedisClusterKind), Provider: ProviderAWS}:      "aws/database/elasticache-for-redis.png", // Theres no memoryDB at the moment
 	{Kind: PubSubKind, Provider: ProviderAWS}:                           "aws/integration/simple-notification-service-sns.png",
 	{Kind: NetworkLoadBalancerKind, Provider: ProviderAWS}:              "aws/network/elb-network-load-balancer.png",
-	{Kind: ExecutionUnitKind, Type: "fargate", Provider: ProviderAWS}:   "aws/compute/fargate.png",
+	{Kind: ExecutionUnitKind, Type: "ecs", Provider: ProviderAWS}:       "aws/compute/fargate.png",
 	{Kind: ExecutionUnitKind, Type: "eks", Provider: ProviderAWS}:       "aws/compute/elastic-kubernetes-service.png",
 	{Kind: ExecutionUnitKind, Type: "apprunner", Provider: ProviderAWS}: "aws/compute/app-runner.png",
 
@@ -109,7 +110,9 @@ var DiagramEntityToCode = TopoMap{
 	{Kind: PubSubKind}:                      `generic_blank.Blank("%s")`,
 
 	// Use AWS as the ultimate fallback for the Kind, so don't specify Provider.
-	{Kind: GatewayKind, Provider: ProviderAWS}:                     `aws_network.APIGateway("%s")`,
+	{Kind: GatewayKind, Provider: ProviderAWS, Type: "apigateway"}: `aws_network.APIGateway("%s")`,
+	{Kind: GatewayKind, Provider: ProviderAWS, Type: "alb"}:        `aws_network.ElbNetworkLoadBalancer("%s")`,
+
 	{Kind: ExecutionUnitKind, Provider: ProviderAWS}:               `aws_compute.Lambda("%s")`,
 	{Kind: string(PersistKVKind), Provider: ProviderAWS}:           `aws_database.Dynamodb("%s")`,
 	{Kind: string(PersistFileKind), Provider: ProviderAWS}:         `aws_storage.S3("%s")`,
@@ -119,7 +122,7 @@ var DiagramEntityToCode = TopoMap{
 	{Kind: string(PersistRedisClusterKind), Provider: ProviderAWS}: `aws_database.ElasticacheForRedis("%s")`, // Theres no memoryDB at the moment
 	{Kind: string(PubSubKind), Provider: ProviderAWS}:              `aws_integration.SNS("%s")`,
 
-	{Kind: ExecutionUnitKind, Type: "fargate", Provider: ProviderAWS}:   `aws_compute.Fargate("%s")`,
+	{Kind: ExecutionUnitKind, Type: "ecs", Provider: ProviderAWS}:       `aws_compute.Fargate("%s")`,
 	{Kind: ExecutionUnitKind, Type: "eks", Provider: ProviderAWS}:       `aws_compute.EKS("%s")`,
 	{Kind: ExecutionUnitKind, Type: "apprunner", Provider: ProviderAWS}: `generic_compute.Rack("AR: %s")`, // Using generic until mingrammer cuts a release with AppRunner
 	{Kind: NetworkLoadBalancerKind, Provider: ProviderAWS}:              `aws_network.ElbNetworkLoadBalancer("%s")`,

@@ -15,6 +15,10 @@ import { v4 as uuidv4 } from "uuid";
 import {CloudCCLib, kloConfig} from './deploylib'
 import {EksExecUnitArgs, EksExecUnit} from './iac/eks'
 import {CockroachDB} from './iac/cockroachdb'
+{{- if .APIGateways}}
+import {ApiGateway, Gateway, Route } from './iac/api_gateway'
+{{end}}
+import { LoadBalancerPlugin } from './iac/load_balancing'
 
 {{- if .StaticUnits}}
 import {createStaticS3Website} from './iac/static_s3_website'
@@ -98,21 +102,16 @@ export = async () => {
     let keepWarm: string[] = [];
 
     {{- $cfg := . }}
-    {{- range .Gateways}}
-    {{- range $key, $value := .Targets}}
-    {{- if eq $value.Kind "nlb"}}
-    cloudLib.createNlb("{{$key}}")
-    {{- end}}
-    {{- end}}
-    {{- end}}
+
+    const lbPlugin = new LoadBalancerPlugin(cloudLib)
 
 
     const eksUnits: EksExecUnit[] = []
     const arUrls: any[] = [];
     {{range $unit := .ExecUnits -}}
 
-    {{- if eq $unit.Type "fargate"}}
-    cloudLib.createEcsService("{{$unit.Name}}",{{jsonPretty $unit.Params | indent 4}} as Partial<awsx.ecs.Container>, "{{ $unit.NetworkPlacement }}", {{jsonPretty $unit.EnvironmentVariables | indent 4}});
+    {{- if eq $unit.Type "ecs"}}
+    cloudLib.createEcsService("{{$unit.Name}}",{{jsonPretty $unit.Params | indent 4}} as Partial<awsx.ecs.Container>, "{{ $unit.NetworkPlacement }}", {{jsonPretty $unit.EnvironmentVariables | indent 4}}, lbPlugin);
     {{else if eq $unit.Type "eks"}}
     eksUnits.push({name: "{{$unit.Name}}", params: {{jsonPretty $unit.Params | indent 4}}, helmOptions: {{jsonPretty $unit.HelmOptions | indent 4}}, network_placement: "{{ $unit.NetworkPlacement }}" {{- if $unit.EnvironmentVariables}}, envVars: {{jsonPretty $unit.EnvironmentVariables | indent 4}} {{end}}})
     {{else if eq $unit.Type "apprunner"}}
@@ -130,10 +129,10 @@ export = async () => {
     {{end -}}
 
     {{- if .HelmCharts }}
-        await cloudLib.createEksResources(eksUnits, {{jsonPretty .HelmCharts | indent 4}});
+        await cloudLib.createEksResources(eksUnits, {{jsonPretty .HelmCharts | indent 4}}, lbPlugin);
     {{else}}
     if (eksUnits.length > 0 ) {
-        await cloudLib.createEksResources(eksUnits);
+        await cloudLib.createEksResources(eksUnits, [], lbPlugin);
     }
     {{end}}
 
@@ -151,18 +150,15 @@ export = async () => {
 
     const apprunnerUrls = arUrls.filter(url => { return url != null});;
 
-
     const gatewayUrls: any[] = [];
-    {{- range .Gateways}}
-    gatewayUrls.push(cloudLib.createDockerBasedAPIGateway(
-        [
-        {{- range .Routes}}
-            {{json .}},
-        {{- end}}
-        ],
-        "{{.Name}}",
-    ));
-    {{- end}}
+    {{- if .ALBs}}
+    lbPlugin.createALBasGateways({{ jsonPretty .ALBs | indent 4}})
+    gatewayUrls.push(...lbPlugin.invokeUrls)
+    {{end}}
+    {{- if .APIGateways}}
+    const apiGatewayUrls = new ApiGateway(cloudLib, lbPlugin, {{ jsonPretty .APIGateways | indent 4}})
+    gatewayUrls.push(...apiGatewayUrls.invokeUrls)
+    {{end}}
 
     const apiUrls = gatewayUrls;
 

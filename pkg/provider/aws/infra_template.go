@@ -29,7 +29,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 			cfg := a.Config.GetExecutionUnit(key.Name)
 			unit := provider.ExecUnit{
 				Name:                 res.Name,
-				Type:                 res.Type(),
+				Type:                 cfg.Type,
 				EnvironmentVariables: res.EnvironmentVariables,
 				NetworkPlacement:     cfg.NetworkPlacement,
 			}
@@ -53,7 +53,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 				unit.HelmOptions = *cfg.HelmChartOptions
 			}
 
-			if cfg.Type == "fargate" || cfg.Type == "eks" {
+			if cfg.Type == "ecs" || cfg.Type == "eks" {
 				data.UseVPC = true
 			}
 
@@ -91,16 +91,16 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 			cfg := a.Config.GetStaticUnit(key.Name)
 			unit := provider.StaticUnit{
 				Name:                   res.Name,
-				Type:                   res.Type(),
+				Type:                   cfg.Type,
 				IndexDocument:          res.IndexDocument,
 				ContentDeliveryNetwork: cfg.ContentDeliveryNetwork,
 			}
 			data.StaticUnits = append(data.StaticUnits, unit)
 
 		case *core.Gateway:
+			cfg := a.Config.GetExposed(key.Name)
 			gw := provider.Gateway{
-				Name:    res.Name,
-				Targets: res.Targets,
+				Name: res.Name,
 			}
 			for _, route := range res.Routes {
 				gw.Routes = append(gw.Routes, provider.Route{
@@ -109,7 +109,11 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 					Verb:         string(route.Verb),
 				})
 			}
-			data.Gateways = append(data.Gateways, gw)
+			if cfg.Type == string(Alb) {
+				data.ALBs = append(data.ALBs, gw)
+			} else if cfg.Type == string(ApiGateway) {
+				data.APIGateways = append(data.APIGateways, gw)
+			}
 
 		case *core.Persist:
 			cfg := a.Config.GetPersisted(key.Name, res.Kind)

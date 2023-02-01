@@ -1,6 +1,7 @@
 package golang
 
 import (
+	"sort"
 	"strings"
 	"testing"
 
@@ -69,7 +70,7 @@ func Test_findHttpListenServe(t *testing.T) {
 				return
 			}
 
-			assert.Equal(tt.expectAppVar, listener.Identifier.Content(f.Program()))
+			assert.Equal(tt.expectAppVar, listener.Identifier.Content())
 		})
 	}
 }
@@ -110,7 +111,7 @@ func Test_findChiRouterDefinition(t *testing.T) {
 				return
 			}
 
-			assert.Equal(tt.expectAppVar, router.Identifier.Content(f.Program()))
+			assert.Equal(tt.expectAppVar, router.Identifier.Content())
 		})
 	}
 }
@@ -143,6 +144,320 @@ func Test_findImports(t *testing.T) {
 			importsNode, _ := testRestAPIHandler.FindImports(f)
 
 			assert.NotNil(importsNode)
+		})
+	}
+}
+
+func Test_findChiRouterMounts(t *testing.T) {
+	tests := []struct {
+		name       string
+		source     string
+		routerName string
+		want       []routerMount
+	}{
+		{
+			name:       "Basic single mount",
+			source:     `r.Mount("/test", routes.TestRoutes())`,
+			routerName: "r",
+			want: []routerMount{
+				{
+					Path:     "/test",
+					FuncName: "TestRoutes",
+					PkgAlias: "routes",
+				},
+			},
+		},
+		{
+			name:       "Incorrect router name",
+			source:     `wrong.Mount("/test", routes.TestRoutes())`,
+			routerName: "r",
+			want:       []routerMount{},
+		},
+		{
+			name: "Multiple router mount",
+			source: `
+			r.Mount("/test", routes.TestRoutes())
+			r.Mount("/test2", routes.TestRoutes2())
+			`,
+			routerName: "r",
+			want: []routerMount{
+				{
+					Path:     "/test",
+					FuncName: "TestRoutes",
+					PkgAlias: "routes",
+				},
+				{
+					Path:     "/test2",
+					FuncName: "TestRoutes2",
+					PkgAlias: "routes",
+				},
+			},
+		},
+		{
+			name: "Multiple router wrong router mount",
+			source: `
+			r.Mount("/test", routes.TestRoutes())
+			wrong.Mount("/test2", routes.TestRoutes2())
+			`,
+			routerName: "r",
+			want: []routerMount{
+				{
+					Path:     "/test",
+					FuncName: "TestRoutes",
+					PkgAlias: "routes",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), language)
+			if !assert.NoError(err) {
+				return
+			}
+			mounts := testRestAPIHandler.findChiRouterMounts(f, tt.routerName)
+
+			assert.Equal(tt.want, mounts)
+		})
+	}
+}
+
+func Test_findChiRouterMountPackage(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		mount   routerMount
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "Block import no alias",
+			source: `
+			import (
+				"fmt"
+				"net/http"
+			
+				"github.com/go-chi/chi/v5"
+				"github.com/go-chi/chi/v5/middleware"
+				"github.com/klothoplatform/demo-app/pkg/routes"
+			)`,
+			mount: routerMount{PkgAlias: "routes"},
+			want:  "routes",
+		},
+		{
+			name: "Block import with matching alias",
+			source: `
+			import (
+				"fmt"
+				"net/http"
+			
+				"github.com/go-chi/chi/v5"
+				"github.com/go-chi/chi/v5/middleware"
+				routes "github.com/klothoplatform/demo-app/pkg/routes"
+			)`,
+			mount: routerMount{PkgAlias: "routes"},
+			want:  "routes",
+		},
+		{
+			name: "Block import with non matching alias",
+			source: `
+			import (
+				"fmt"
+				"net/http"
+			
+				"github.com/go-chi/chi/v5"
+				"github.com/go-chi/chi/v5/middleware"
+				test "github.com/klothoplatform/demo-app/pkg/routes"
+			)`,
+			mount: routerMount{PkgAlias: "test"},
+			want:  "routes",
+		},
+		{
+			name: "Block import missing import",
+			source: `
+			import (
+				"fmt"
+				"net/http"
+			)`,
+			mount:   routerMount{PkgAlias: "routes"},
+			want:    "",
+			wantErr: true,
+		},
+		{
+			name: "Block import with non multi alias",
+			source: `
+			import (
+				"fmt"
+				"net/http"
+			
+				chi "github.com/go-chi/chi/v5"
+				middleware "github.com/go-chi/chi/v5/middleware"
+				test "github.com/klothoplatform/demo-app/pkg/routes"
+			)`,
+			mount: routerMount{PkgAlias: "test"},
+			want:  "routes",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), language)
+			if !assert.NoError(err) {
+				return
+			}
+			err = testRestAPIHandler.findChiRouterMountPackage(f, &tt.mount)
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
+
+			assert.Equal(tt.want, tt.mount.PkgName)
+		})
+	}
+}
+
+func Test_findFilesForPackage(t *testing.T) {
+	tests := []struct {
+		name    string
+		sources map[string]string
+		pkgName string
+		want    []string
+	}{
+		{
+			name: "Single file correct package",
+			sources: map[string]string{
+				"file1.go": `package test`,
+			},
+			pkgName: "test",
+			want:    []string{"file1.go"},
+		},
+		{
+			name: "Multiple files correct package",
+			sources: map[string]string{
+				"file1.go": `package test`,
+				"file2.go": `package test`,
+				"file3.go": `package test`,
+			},
+			pkgName: "test",
+			want:    []string{"file1.go", "file2.go", "file3.go"},
+		},
+		{
+			name: "Mutliple files with different packages",
+			sources: map[string]string{
+				"file1.go": `package test`,
+				"file2.go": `package wrong`,
+				"file3.go": `package wrong2`,
+			},
+			pkgName: "test",
+			want:    []string{"file1.go"},
+		},
+		{
+			name: "No files with correct packages",
+			sources: map[string]string{
+				"file1.go": `package wrong`,
+				"file2.go": `package wrong`,
+				"file3.go": `package wrong`,
+			},
+			pkgName: "test",
+			want:    []string{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			restAPIHandler := &restAPIHandler{
+				log:  zap.L(),
+				Unit: &core.ExecutionUnit{Name: "testUnit", Executable: core.NewExecutable()},
+			}
+
+			for path, src := range tt.sources {
+				f, err := core.NewSourceFile(path, strings.NewReader(src), language)
+				if !assert.NoError(err) {
+					return
+				}
+				restAPIHandler.Unit.AddSourceFile(f)
+			}
+
+			foundFiles := restAPIHandler.findFilesForPackageName(tt.pkgName)
+			var filePaths = make([]string, 0)
+			for _, f := range foundFiles {
+				filePaths = append(filePaths, f.Path())
+			}
+			sort.Strings(filePaths)
+			assert.Equal(tt.want, filePaths)
+		})
+	}
+}
+
+func Test_findFilesForFunctionName(t *testing.T) {
+	tests := []struct {
+		name     string
+		sources  map[string]string
+		funcName string
+		wantErr  bool
+	}{
+		{
+			name: "One file with function",
+			sources: map[string]string{
+				"file1.go": `func TestRoutes() chi.Router {}`,
+			},
+			funcName: "TestRoutes",
+		},
+		{
+			name: "One file with multiple functions",
+			sources: map[string]string{
+				"file1.go": `
+				func TestRoutes() chi.Router {}
+				func WrongRoutes() chi.Router {}
+				func MoreWrongRoutes() chi.Router {}`,
+			},
+			funcName: "TestRoutes",
+		},
+		{
+			name: "Multiple files",
+			sources: map[string]string{
+				"file1.go": `func WrongRoutes() chi.Router {}`,
+				"file2.go": `func MoreWrongRoutes() chi.Router {}`,
+				"file3.go": `func TestRoutes() chi.Router {}`,
+			},
+			funcName: "TestRoutes",
+		},
+		{
+			name: "Multiple files no matching function",
+			sources: map[string]string{
+				"file1.go": `func WrongRoutes() chi.Router {}`,
+				"file2.go": `func MoreWrongRoutes() chi.Router {}`,
+				"file3.go": `func EvenMoreWrongRoutes() chi.Router {}`,
+			},
+			funcName: "TestRoutes",
+			wantErr:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			var files = make([]*core.SourceFile, 0)
+			for path, src := range tt.sources {
+				f, err := core.NewSourceFile(path, strings.NewReader(src), language)
+				if !assert.NoError(err) {
+					return
+				}
+				files = append(files, f)
+			}
+
+			file, node := testRestAPIHandler.findFileForFunctionName(files, tt.funcName)
+			if tt.wantErr {
+				assert.Nil(file)
+				assert.Nil(node)
+				return
+			}
+			assert.NotNil(file)
+			assert.NotNil(node)
 		})
 	}
 }

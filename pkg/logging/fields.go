@@ -18,9 +18,8 @@ type fileField struct {
 
 func (field fileField) Sanitize(hasher func(any) string) SanitizedField {
 	extension := "unknown"
-	switch ext := filepath.Ext(field.f.Path()); ext {
-	case ".json", ".js", ".ts", ".yaml":
-		extension = ext
+	if _, isFileRef := field.f.(*core.FileRef); !isFileRef {
+		extension = filepath.Ext(field.f.Path())
 	}
 	return SanitizedField{
 		Key: "FileExtension",
@@ -66,8 +65,7 @@ func AnnotationField(a *core.Annotation) zap.Field {
 }
 
 type astNodeField struct {
-	n       *sitter.Node
-	content string
+	n *sitter.Node
 }
 
 type entryMessage struct{}
@@ -116,7 +114,7 @@ func (field astNodeField) Sanitize(hasher func(any) string) SanitizedField {
 		Key: "AstNodeType",
 		Content: map[string]any{
 			"type":    field.n.Type(),
-			"content": hasher(field.content),
+			"content": hasher(field.n.Content()),
 		},
 	}
 }
@@ -133,11 +131,10 @@ func (field astNodeField) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
-func NodeField(n *sitter.Node, source []byte) zap.Field {
+func NodeField(n *sitter.Node) zap.Field {
 	return zap.Object("node", astNodeField{
-		n:       n,
-		content: n.Content(source)},
-	)
+		n: n,
+	})
 }
 
 type postLogMessage struct {

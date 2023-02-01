@@ -5,18 +5,18 @@ import (
 )
 
 // Selector takes a MatchNodes and the program source, and optionally returns some value.
-type Selector[T any] func(MatchNodes, []byte) (T, bool)
+type Selector[T any] func(MatchNodes) (T, bool)
 
 // Predicate takes some value and the program source, and returns a bool.
 type Predicate[T any] interface {
-	Test(input T, source []byte) bool
+	Test(input T) bool
 }
 
-func Select[T any](source []byte, query NextFunc[MatchNodes], selector Selector[T]) NextFunc[T] {
-	return SelectIf(source, query, selector, Is[MatchNodes](true))
+func Select[T any](query NextFunc[MatchNodes], selector Selector[T]) NextFunc[T] {
+	return SelectIf(query, selector, Is[MatchNodes](true))
 }
 
-func SelectIf[T any](source []byte, query NextFunc[MatchNodes], selector Selector[T], predicate Predicate[MatchNodes]) NextFunc[T] {
+func SelectIf[T any](query NextFunc[MatchNodes], selector Selector[T], predicate Predicate[MatchNodes]) NextFunc[T] {
 	return func() (T, bool) {
 		var zero T
 		for {
@@ -24,10 +24,10 @@ func SelectIf[T any](source []byte, query NextFunc[MatchNodes], selector Selecto
 			if !found {
 				return zero, false
 			}
-			if !predicate.Test(match, source) {
+			if !predicate.Test(match) {
 				continue
 			}
-			if selected, found := selector(match, source); found {
+			if selected, found := selector(match); found {
 				return selected, true
 			}
 		}
@@ -35,19 +35,19 @@ func SelectIf[T any](source []byte, query NextFunc[MatchNodes], selector Selecto
 }
 
 func ContentOf(filter Selector[*sitter.Node]) Selector[string] {
-	return func(match MatchNodes, source []byte) (string, bool) {
-		elem, found := filter(match, source)
+	return func(match MatchNodes) (string, bool) {
+		elem, found := filter(match)
 		if !found {
 			return "", false
 		}
-		elemContent := elem.Content(source)
+		elemContent := elem.Content()
 		return elemContent, true
 	}
 }
 
 // ParamNamed is a Selector that returns a param from the MatchNodes by name, if such a param exists.
 func ParamNamed(paramName string) Selector[*sitter.Node] {
-	return func(match MatchNodes, source []byte) (*sitter.Node, bool) {
+	return func(match MatchNodes) (*sitter.Node, bool) {
 		if paramNode, found := match[paramName]; found {
 			return paramNode, true
 		} else {
@@ -58,7 +58,7 @@ func ParamNamed(paramName string) Selector[*sitter.Node] {
 
 type Is[T any] bool
 
-func (a Is[T]) Test(_ T, _ []byte) bool {
+func (a Is[T]) Test(_ T) bool {
 	return bool(a)
 }
 
@@ -67,18 +67,18 @@ type Param struct {
 	Matches Predicate[*sitter.Node]
 }
 
-func (wp Param) Test(nodes MatchNodes, source []byte) bool {
+func (wp Param) Test(nodes MatchNodes) bool {
 	if paramNode, found := nodes[wp.Named]; found {
-		return wp.Matches.Test(paramNode, source)
+		return wp.Matches.Test(paramNode)
 	}
 	return false
 }
 
 type AllOf[T any] []Predicate[T]
 
-func (a AllOf[T]) Test(input T, source []byte) bool {
+func (a AllOf[T]) Test(input T) bool {
 	for _, condition := range a {
-		if !condition.Test(input, source) {
+		if !condition.Test(input) {
 			return false
 		}
 	}
@@ -87,24 +87,24 @@ func (a AllOf[T]) Test(input T, source []byte) bool {
 
 type HasContent string
 
-func (hc HasContent) Test(node *sitter.Node, source []byte) bool {
-	return node.Content(source) == string(hc)
+func (hc HasContent) Test(node *sitter.Node) bool {
+	return node.Content() == string(hc)
 }
 
 type HasParent struct {
 	With Predicate[*sitter.Node]
 }
 
-func (hp HasParent) Test(node *sitter.Node, source []byte) bool {
+func (hp HasParent) Test(node *sitter.Node) bool {
 	parent := node.Parent()
 	if parent == nil {
 		return false
 	}
-	return hp.With.Test(parent, source)
+	return hp.With.Test(parent)
 }
 
 type Type string
 
-func (ot Type) Test(node *sitter.Node, _ []byte) bool {
+func (ot Type) Test(node *sitter.Node) bool {
 	return node.Type() == string(ot)
 }

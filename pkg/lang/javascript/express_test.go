@@ -84,7 +84,7 @@ app.use(router);`,
 			for i, expected := range tt.expect {
 				got := got[i]
 				gotMw := mw{
-					UseExpr:      got.UseExpr.Content(f.Program()),
+					UseExpr:      got.UseExpr.Content(),
 					ObjectName:   got.ObjectName,
 					PropertyName: got.PropertyName,
 					Path:         got.Path,

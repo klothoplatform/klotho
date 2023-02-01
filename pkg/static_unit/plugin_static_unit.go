@@ -53,8 +53,7 @@ func (p StaticUnitSplit) Transform(result *core.CompilationResult, deps *core.De
 					errs.Append(cause)
 				}
 				newUnit := &core.StaticUnit{
-					StaticType: p.Config.GetStaticUnit(cap.ID).Type,
-					Name:       cap.ID,
+					Name: cap.ID,
 				}
 
 				indexDocument, ok := cap.Directives.String("index_document")
