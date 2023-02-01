@@ -81,6 +81,7 @@ func (b *PluginSetBuilder) AddExecUnit() error {
 		javascript.NodeJSExecutable{},
 		python.PythonExecutable{},
 		golang.GolangExecutable{},
+		csharp.CSharpExecutable{Config: b.Cfg},
 		execunit.PruneUncategorizedFiles{},
 		execunit.Assets{})
 	return nil

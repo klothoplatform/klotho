@@ -37,3 +37,10 @@ func FirstAncestorOfType(node *sitter.Node, ptype string) *sitter.Node {
 	}
 	return nil
 }
+
+func NodeContentOrEmpty(node *sitter.Node) string {
+	if node == nil {
+		return ""
+	}
+	return node.Content()
+}
