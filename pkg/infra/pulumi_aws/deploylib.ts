@@ -1444,17 +1444,25 @@ export class CloudCCLib {
 
         let nlb
         if (needsLoadBalancer) {
-            nlb = new awsx.lb.NetworkLoadBalancer(`${execUnitName}-nlb`, {
-                external: false,
-                vpc: this.klothoVPC,
-                subnets: this.privateSubnetIds,
-            })
+            nlb = new awsx.lb.NetworkLoadBalancer(
+                sanitized(AwsSanitizer.ELB.loadBalancer.nameValidation())`${h(execUnitName)}-nlb`,
+                {
+                    external: false,
+                    vpc: this.klothoVPC,
+                    subnets: this.privateSubnetIds,
+                }
+            )
             this.execUnitToNlb.set(execUnitName, nlb)
 
             const targetGroup: awsx.elasticloadbalancingv2.NetworkTargetGroup =
-                nlb.createTargetGroup(`${execUnitName}-tg`, {
-                    port: 3000,
-                })
+                nlb.createTargetGroup(
+                    sanitized(AwsSanitizer.ELB.targetGroup.nameValidation())`${h(
+                        execUnitName
+                    )})-tg`,
+                    {
+                        port: 3000,
+                    }
+                )
 
             const listener = targetGroup.createListener(`${execUnitName}-listener`, {
                 port: 80,
@@ -1483,8 +1491,11 @@ export class CloudCCLib {
             additionalEnvVars.push({ name, value })
         }
 
-        const discoveryService = new aws.servicediscovery.Service(execUnitName, {
-            name: execUnitName,
+        const serviceName = sanitized(AwsSanitizer.ServiceDiscovery.service.nameValidation())`${h(
+            execUnitName
+        )}`
+        const discoveryService = new aws.servicediscovery.Service(serviceName, {
+            name: serviceName,
             dnsConfig: {
                 namespaceId: this.privateDnsNamespace.id,
                 dnsRecords: [
