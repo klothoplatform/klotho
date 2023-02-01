@@ -6,18 +6,13 @@ if [ 'Darwin' = "$(uname -s)" ]; then
 fi
 
 npm install
-
-echo "$*" | jq -R '. | split(" ") | map("_" + . + ".ts") | {extends: "./tsconfig.json", include: .}' > tmp_tsconfig.json
-npx tsc --project tmp_tsconfig.json
-rm tmp_tsconfig.json
-
 for var in "$@"
 do
-    mv _${var}.js ${var}.js.tmpl
-    ksed 's://TMPL ::g' ${var}.js.tmpl
-    echo "generated ${var}.js.tmpl"
-    echo ${var}.js.tmpl >> .gitignore
-done
+    echo '{"extends": "./tsconfig.json", "include": ["'_${var}.ts'"]}' > tmp_tsconfig.json
+    tsc --project tmp_tsconfig.json
+    rm tmp_tsconfig.json
 
-sort -u .gitignore > gitignore-tmp
-mv gitignore-tmp .gitignore
+    mv _${var}.js ${var}.js.tmpl
+    ksed 's://TMPL ::g' ${var}.js.tmpl 
+    echo "generated ${var}.js.tmpl"
+done
