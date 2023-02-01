@@ -22,6 +22,23 @@ type LoginResponse struct {
 	State string
 }
 
+type Authorizer interface {
+	Authorize() error
+}
+
+func DefaultIfNil(auth Authorizer) Authorizer {
+	if auth == nil {
+		return standardAuthorizer{}
+	}
+	return auth
+}
+
+type standardAuthorizer struct{}
+
+func (s standardAuthorizer) Authorize() error {
+	return Authorize()
+}
+
 func Login() error {
 	state, err := CallLoginEndpoint()
 	if err != nil {
@@ -126,7 +143,11 @@ type MyCustomClaims struct {
 	jwt.StandardClaims
 }
 
-func Authorize(tokenRefreshed bool) error {
+func Authorize() error {
+	return authorize(false)
+}
+
+func authorize(tokenRefreshed bool) error {
 	creds, err := GetIDToken()
 	if err != nil {
 		return errors.New("failed to get credentials for user, please login")
@@ -147,7 +168,7 @@ func Authorize(tokenRefreshed bool) error {
 			if err != nil {
 				return err
 			}
-			err = Authorize(true)
+			err = authorize(true)
 			if err != nil {
 				return err
 			}
@@ -161,7 +182,7 @@ func Authorize(tokenRefreshed bool) error {
 			if err != nil {
 				return err
 			}
-			err = Authorize(true)
+			err = authorize(true)
 			if err != nil {
 				return err
 			}
