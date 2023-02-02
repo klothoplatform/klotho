@@ -45,12 +45,12 @@ export const targetGroup = {
                 {
                     description: 'The name must not begin with a hyphen',
                     validate: (s) => !s.startsWith('-'),
-                    fix: (s) => s.replace(/^-/, ''),
+                    fix: (s) => s.replace(/^-+/, ''),
                 },
                 {
                     description: 'The name must not end with a hyphen',
                     validate: (s) => !s.endsWith('-'),
-                    fix: (s) => s.replace(/-$/, ''),
+                    fix: (s) => s.replace(/-+$/, ''),
                 },
             ],
         }
