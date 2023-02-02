@@ -18,7 +18,7 @@ export const createTargetBinding = (
     dependsOn
 ) => {
     return new pulumi_k8s.yaml.ConfigFile(
-        `${execUnit}-tgb`,
+        `${execUnit}-${port}-tgb`,
         {
             file: './iac/k8s/add_ons/alb_controller/target_group_binding.yaml',
             transformations: [
