@@ -55,6 +55,7 @@ export function sanitize(s: string, options: Partial<SanitizationOptions>): Sani
         if (debug) {
             failedRules?.forEach((f) => console.debug(f))
         }
+
         if (failedRules?.length === 0) {
             return { result, violations: [] }
         }

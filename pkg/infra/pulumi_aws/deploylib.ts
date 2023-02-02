@@ -115,6 +115,7 @@ export class CloudCCLib {
         }
         // Right now we sanitize this bucket name in the compiler go code so we do not need to here  (issue #188 & pro#51)
         const resolvedBucketName = pulumi.interpolate`${this.account.accountId}${physicalPayloadsBucketName}`
+
         this.createBuckets([resolvedBucketName], true)
         this.addSharedPolicyStatement({
             Effect: 'Allow',
@@ -1389,8 +1390,7 @@ export class CloudCCLib {
             this,
             execUnits,
             charts || [],
-            existingCluster,
-            lbPlugin
+            existingCluster
         )
     }
 
