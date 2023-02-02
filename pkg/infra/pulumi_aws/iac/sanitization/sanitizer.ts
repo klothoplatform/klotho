@@ -104,12 +104,14 @@ export function regexpMatch(
 }
 
 export function regexpNotMatch(
-    input: string,
+    description: string,
     pattern: RegExp,
     fix: FixFunc | undefined = undefined
 ): SanitizationRule {
     return {
-        description: input,
+        description: description
+            ? description
+            : `The supplied string must not match the following pattern: ${pattern.source}`,
         validate: (input) => !pattern.test(input),
         fix,
     }

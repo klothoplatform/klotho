@@ -7,7 +7,7 @@ export const tag = {
             maxLength: 128,
             rules: [
                 regexpMatch('', /^[\p{L}\p{Z}\p{N}_.:/=+\-@]+$/u, (n) =>
-                    n.replace(/[\p{L}\p{Z}\p{N}_.:/=+\-@]/gu, '_')
+                    n.replace(/[^\p{L}\p{Z}\p{N}_.:/=+\-@]/gu, '_')
                 ),
             ],
         }
@@ -19,7 +19,7 @@ export const tag = {
             maxLength: 256,
             rules: [
                 regexpMatch('', /^[\p{L}\p{Z}\p{N}_.:/=+\-@]+$/u, (n) =>
-                    n.replace(/[\p{L}\p{Z}\p{N}_.:/=+\-@]/gu, '_')
+                    n.replace(/[^\p{L}\p{Z}\p{N}_.:/=+\-@]/gu, '_')
                 ),
                 {
                     description:
