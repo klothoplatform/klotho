@@ -6,7 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/templateutils"
 )
 
-//go:embed *.tmpl *.ts *.json iac/*.ts iac/k8s/*
+//go:embed *.tmpl *.ts *.json iac/*.ts iac/k8s/* iac/sanitization/*
 var files embed.FS
 
 var index = templateutils.MustTemplate(files, "index.ts.tmpl")
