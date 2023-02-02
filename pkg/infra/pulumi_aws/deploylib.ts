@@ -70,7 +70,7 @@ export class CloudCCLib {
     execUnitToFunctions = new Map<string, aws.lambda.Function>()
     execUnitToRole = new Map<string, aws.iam.Role>()
     execUnitToPolicyStatements = new Map<string, aws.iam.PolicyStatement[]>()
-    execUnitToImage = new Map<string, pulumi.Output<String>>()
+    execUnitToImage = new Map<string, pulumi.Output<string>>()
 
     gatewayToUrl = new Map<string, pulumi.Output<string>>()
     siteBuckets = new Map<string, aws.s3.Bucket>()
