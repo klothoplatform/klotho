@@ -41,13 +41,16 @@ func (s standardAuthorizer) Authorize() error {
 	return Authorize()
 }
 
-func Login() error {
+func Login(onError func(error)) error {
 	state, err := CallLoginEndpoint()
 	if err != nil {
 		return err
 	}
-	err = retry(20, time.Duration(5)*time.Second, CallGetTokenEndpoint, state)
-	return err
+	err = CallGetTokenEndpoint(state)
+	if err != nil {
+		onError(err)
+	}
+	return nil
 }
 
 func CallLoginEndpoint() (string, error) {
@@ -211,23 +214,6 @@ func GetUserEmail() (string, error) {
 	} else {
 		return "", errors.New("failed to authorize user")
 	}
-}
-
-func retry(attempts int, sleep time.Duration, f func(state string) error, state string) (err error) {
-	for i := 0; ; i++ {
-		err = f(state)
-		if err == nil {
-			return
-		}
-
-		if i >= (attempts - 1) {
-			break
-		}
-
-		time.Sleep(sleep)
-		sleep *= 2
-	}
-	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
 }
 
 func getAuthUrlBase() string {
