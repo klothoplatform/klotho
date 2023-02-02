@@ -194,9 +194,21 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		zap.S().Warnf("failed to create .klotho directory: %v", err)
 	}
 
+	analyticsClientProperties := map[string]interface{}{
+		"version": km.Version,
+		"strict":  cfg.strict,
+		"edition": km.DefaultUpdateStream,
+	}
+
 	// Set up user if login is specified
 	if cfg.login {
-		err := auth.Login()
+		err := auth.Login(func(err error) {
+			// We don't have the analytics client set up to the logger yet, so the warn message won't send any
+			//analytics. Manually create a client and send the tracking.
+			zap.L().Warn(`Couldn't log in. You may be able to continue using klotho without logging in for now, but this may break in the future. Please contact us if this continues.'`)
+			client := &analytics.Client{Properties: analyticsClientProperties}
+			client.Warn("login failed")
+		})
 		if err != nil {
 			return err
 		}
@@ -219,11 +231,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// Set up analytics
-	analyticsClient, err := analytics.NewClient(map[string]interface{}{
-		"version": km.Version,
-		"strict":  cfg.strict,
-		"edition": km.DefaultUpdateStream,
-	})
+	analyticsClient, err := analytics.NewClient(analyticsClientProperties)
 	if err != nil {
 		return errors.New(fmt.Sprintf("Issue retrieving user info: %s. \nYou may need to run: klotho --login <email>", err))
 	}
