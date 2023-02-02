@@ -17,6 +17,8 @@ import (
 	"go.uber.org/zap"
 )
 
+var authUrlBase = getAuthUrlBase()
+
 type LoginResponse struct {
 	Url   string
 	State string
@@ -49,7 +51,7 @@ func Login() error {
 }
 
 func CallLoginEndpoint() (string, error) {
-	res, err := http.Get("http://localhost:3000/login")
+	res, err := http.Get(authUrlBase + "/login")
 	if err != nil {
 		return "", err
 	}
@@ -76,7 +78,7 @@ func CallGetTokenEndpoint(state string) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	res, err := http.Post("http://localhost:3000/logintoken", "application/json", bytes.NewBuffer(jsonData))
+	res, err := http.Post(authUrlBase+"/logintoken", "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
@@ -96,7 +98,7 @@ func CallGetTokenEndpoint(state string) error {
 }
 
 func CallLogoutEndpoint() error {
-	res, _ := http.Get("http://localhost:3000/logout")
+	res, _ := http.Get(authUrlBase + "/logout")
 	body, _ := io.ReadAll(res.Body)
 	_ = browser.OpenURL(string(body))
 	defer res.Body.Close()
@@ -118,7 +120,7 @@ func CallRefreshToken(token string) error {
 	if err != nil {
 		return err
 	}
-	res, err := http.Post("http://localhost:3000/refresh", "application/json", bytes.NewBuffer(jsonData))
+	res, err := http.Post(authUrlBase+"/refresh", "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
@@ -226,4 +228,12 @@ func retry(attempts int, sleep time.Duration, f func(state string) error, state 
 		sleep *= 2
 	}
 	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
+}
+
+func getAuthUrlBase() string {
+	host := os.Getenv("KLOTHO_AUTH_BASE")
+	if host == "" {
+		host = "http://klotho-auth-service-alb-e22c092-466389525.us-east-1.elb.amazonaws.com"
+	}
+	return host
 }
