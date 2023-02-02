@@ -7,6 +7,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/golang"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
+	"github.com/klothoplatform/klotho/pkg/runtime"
 	"github.com/pkg/errors"
 )
 
@@ -47,10 +48,12 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		ExecUnitName:   unit.Name,
 	}
 
-	err := golang.AddRuntimeFile(unit, templateData, "Dockerfile", DockerFile)
-	if err != nil {
-		return err
+	if runtime.ShouldOverrideDockerfile(unit) {
+		err := golang.AddRuntimeFile(unit, templateData, "Dockerfile", DockerFile)
+		if err != nil {
+			return err
+		}
 	}
 
-	return err
+	return nil
 }
