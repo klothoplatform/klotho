@@ -113,12 +113,8 @@ export class CloudCCLib {
         if (this.createVPC) {
             this.getVpcSgSubnets()
         }
-        const resolvedBucketName = this.account.accountId.apply(
-            (accountId) =>
-                sanitized(
-                    AwsSanitizer.S3.bucket.nameValidation()
-                )`${accountId}${physicalPayloadsBucketName}`
-        )
+        // Right now we sanitize this bucket name in the compiler go code so we do not need to here  (issue #188 & pro#51)
+        const resolvedBucketName = pulumi.interpolate`${this.account.accountId}${physicalPayloadsBucketName}`
         this.createBuckets([resolvedBucketName], true)
         this.addSharedPolicyStatement({
             Effect: 'Allow',
