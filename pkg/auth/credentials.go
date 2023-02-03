@@ -30,6 +30,14 @@ func WriteIDToken(token string) error {
 }
 
 func GetIDToken() (*Credentials, error) {
+
+	idToken := os.Getenv("KLOTHO_ID_TOKEN")
+	if idToken != "" {
+		return &Credentials{
+			IdToken: idToken,
+		}, nil
+	}
+
 	configPath, err := cli_config.KlothoConfigPath("credentials.json")
 	result := Credentials{}
 
