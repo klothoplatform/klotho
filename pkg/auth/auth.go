@@ -3,8 +3,9 @@ package auth
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/closenicely"
+	"github.com/pkg/errors"
 	"io"
 	"log"
 	"net/http"
@@ -58,6 +59,7 @@ func CallLoginEndpoint() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer closenicely.OrDebug(res.Body)
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", err
@@ -71,7 +73,6 @@ func CallLoginEndpoint() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer res.Body.Close()
 	return result.State, nil
 }
 
@@ -85,6 +86,7 @@ func CallGetTokenEndpoint(state string) error {
 	if err != nil {
 		return err
 	}
+	defer closenicely.OrDebug(res.Body)
 	if res.StatusCode != 200 {
 		return fmt.Errorf("recieved invalid status code %d", res.StatusCode)
 	}
@@ -96,15 +98,24 @@ func CallGetTokenEndpoint(state string) error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
 	return nil
 }
 
 func CallLogoutEndpoint() error {
-	res, _ := http.Get(authUrlBase + "/logout")
-	body, _ := io.ReadAll(res.Body)
-	_ = browser.OpenURL(string(body))
-	defer res.Body.Close()
+	res, err := http.Get(authUrlBase + "/logout")
+	if err != nil {
+		return errors.Wrap(err, "couldn't invoke logout URL")
+	}
+	defer closenicely.OrDebug(res.Body)
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return errors.Wrap(err, "couldn't read logout redirect URL")
+	}
+	err = browser.OpenURL(string(body))
+	if err != nil {
+		zap.S().Debug("couldn't open logout URL: %s", string(body))
+		zap.L().Warn("couldn't open logout URL. If this persists, run with --verbose to see it. Will still clear local credentials.")
+	}
 
 	configPath, err := cli_config.KlothoConfigPath("credentials.json")
 	if err != nil {
@@ -127,6 +138,7 @@ func CallRefreshToken(token string) error {
 	if err != nil {
 		return err
 	}
+	defer closenicely.OrDebug(res.Body)
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return err
@@ -135,7 +147,6 @@ func CallRefreshToken(token string) error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
 	return nil
 }
 
