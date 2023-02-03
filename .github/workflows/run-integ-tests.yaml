@@ -139,6 +139,13 @@ jobs:
       matrix:
         app_to_test: ${{ fromJson(needs.list-apps.outputs.to_test) }}
         mode: [fresh, upgrade]
+        exclude:      
+          -
+            app_to_test: ts-orm-environment-variable-directive
+            mode: upgrade
+          -
+            app_to_test: ts-redis-env-var-directive
+            mode: upgrade            
     steps:
       - name: versions
         run: |
