@@ -122,7 +122,6 @@ func (km KlothoMain) Main() {
 	if hadWarnings.Load() && cfg.strict {
 		os.Exit(1)
 	}
-	//finished <- true
 }
 
 func setupLogger(analyticsClient *analytics.Client) (*zap.Logger, error) {
