@@ -1,12 +1,11 @@
 package closenicely
 
-import "go.uber.org/zap"
+import (
+	"go.uber.org/zap"
+	"io"
+)
 
-type CloserWithError interface {
-	Close() error
-}
-
-func OrDebug(closer CloserWithError) {
+func OrDebug(closer io.Closer) {
 	if err := closer.Close(); err != nil {
 		zap.L().Debug("Failed to close resource", zap.Error(err))
 	}
