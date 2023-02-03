@@ -8,6 +8,6 @@ type CloserWithError interface {
 
 func OrDebug(closer CloserWithError) {
 	if err := closer.Close(); err != nil {
-		zap.S().Debug("Failed to close resource: %s", err)
+		zap.L().Debug("Failed to close resource", zap.Error(err))
 	}
 }
