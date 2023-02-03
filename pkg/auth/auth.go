@@ -121,9 +121,11 @@ func CallLogoutEndpoint() error {
 	if err != nil {
 		return err
 	}
-	err = os.Remove(configPath)
-	if err != nil {
-		return err
+	if _, err := os.Stat(configPath); err == nil {
+		err = os.Remove(configPath)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -175,6 +177,7 @@ func authorize(tokenRefreshed bool) error {
 	if err != nil {
 		zap.S().Debug(err)
 	}
+
 	if claims, ok := token.Claims.(*MyCustomClaims); ok {
 		if !claims.EmailVerified {
 			if tokenRefreshed {
