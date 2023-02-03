@@ -113,7 +113,7 @@ export class CloudCCLib {
         if (this.createVPC) {
             this.getVpcSgSubnets()
         }
-        // Right now we sanitize this bucket name in the compiler go code so we do not need to here.
+        // Right now we sanitize this bucket name in the compiler go code so we do not need to here  (issue #188 & pro#51)
         const resolvedBucketName = pulumi.interpolate`${this.account.accountId}${physicalPayloadsBucketName}`
         this.createBuckets([resolvedBucketName], true)
         this.addSharedPolicyStatement({
