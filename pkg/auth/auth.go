@@ -179,7 +179,7 @@ func authorize(tokenRefreshed bool) error {
 			}
 		} else if !claims.ProEnabled {
 			return fmt.Errorf("user %s is not authorized to use KlothoPro", claims.Email)
-		} else if claims.IssuedAt < time.Now().Unix() {
+		} else if claims.ExpiresAt < time.Now().Unix() {
 			if tokenRefreshed {
 				return fmt.Errorf("user %s, does not have a valid token", claims.Email)
 			}
