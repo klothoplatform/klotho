@@ -14,7 +14,13 @@ type (
 
 func NewCSharpPlugins(cfg *config.Application, runtime Runtime) *CSharpPlugins {
 	return &CSharpPlugins{
-		Plugins: []core.Plugin{},
+		Plugins: []core.Plugin{
+			&AddExecRuntimeFiles{
+				runtime: runtime,
+				cfg:     cfg,
+			},
+			&Expose{},
+		},
 	}
 }
 

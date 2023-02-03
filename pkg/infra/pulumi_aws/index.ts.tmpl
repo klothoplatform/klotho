@@ -57,7 +57,7 @@ export = async () => {
     const webportalUpload = kloConfig.get("webportal-upload") || "false"
     const sharedRepo = new awsx.ecr.Repository(appName, {
         repository: new aws.ecr.Repository(appName, {
-            name: `${appName}-repo`,
+            name: `${appName}-repo`.toLowerCase(),
             forceDelete: true
         })
     })

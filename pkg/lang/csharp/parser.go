@@ -11,9 +11,10 @@ import (
 )
 
 var multilineCommentMarginRegexp = regexp.MustCompile(`(?m)^\s*[*]*[ \t]*`) // we need to use [ \t] instead of \s, because \s includes newlines in (?m) mode.
+const CSharp = core.LanguageId("csharp")
 
 var Language = core.SourceLanguage{
-	ID:     core.LanguageId("csharp"),
+	ID:     CSharp,
 	Sitter: csharp.GetLanguage(),
 	CapabilityFinder: lang.NewCapabilityFinder("comment", lang.CompositePreprocessor(
 		lang.RegexpRemovePreprocessor(`//\s*`),

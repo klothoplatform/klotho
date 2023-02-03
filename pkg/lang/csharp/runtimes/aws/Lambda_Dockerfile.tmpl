@@ -1,0 +1,7 @@
+FROM public.ecr.aws/lambda/dotnet:6
+
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+COPY ./klotho_bin .
+
+CMD [ "{{.AssemblyName}}::KlothoRuntime.APIGatewayLambdaDispatcher::FunctionHandlerAsync" ]

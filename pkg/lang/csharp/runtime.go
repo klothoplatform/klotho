@@ -1,6 +1,56 @@
 package csharp
 
+import (
+	"bytes"
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
+	"path/filepath"
+	"strings"
+	"text/template"
+)
+
 type (
 	Runtime interface {
+		AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error
+		UpdateCsproj(unit *core.ExecutionUnit)
 	}
 )
+
+func AddRuntimeFile(unit *core.ExecutionUnit, templateData any, path string, content []byte) error {
+	// TODO refactor to consolidate with this method in the javascript package
+	if filepath.Ext(path) == ".tmpl" {
+		t, err := template.New(path).Parse(string(content))
+		if err != nil {
+			return core.WrapErrf(err, "error parsing template %s", path)
+		}
+		tmplBuf := new(bytes.Buffer)
+		err = t.Execute(tmplBuf, templateData)
+		if err != nil {
+			return core.WrapErrf(err, "error executing template %s", path)
+		}
+
+		content = tmplBuf.Bytes()
+		path = strings.TrimSuffix(path, ".tmpl")
+	}
+	switch {
+	case filepath.Ext(path) == ".cs":
+		path = filepath.Join("KlothoRuntime", path)
+		f, err := NewFile(path, bytes.NewReader(content))
+		if err != nil {
+			return core.WrapErrf(err, "error parsing template %s", path)
+		}
+		unit.Add(f)
+	case path == "Dockerfile":
+		dockerF, err := dockerfile.NewFile(path, bytes.NewBuffer(content))
+		if err != nil {
+			return core.WrapErrf(err, "error adding file %s", path)
+		}
+		unit.Add(dockerF)
+	default:
+		unit.Add(&core.RawFile{
+			FPath:   path,
+			Content: content,
+		})
+	}
+	return nil
+}

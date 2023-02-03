@@ -26,4 +26,16 @@ var (
 
 	//go:embed queries/method_declarations.scm
 	methodDeclarations string
+
+	//go:embed queries/expose/configured_app.scm
+	configuredApp string
+
+	//go:embed queries/expose/use_endpoints_format.scm
+	useEndpointsFormat string
+
+	//go:embed queries/expose/http_method_attribute.scm
+	httpMethodAttribute string
+
+	//go:embed queries/expose/map_route.scm
+	exposeMapRoute string
 )
