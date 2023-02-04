@@ -1,6 +1,9 @@
 import Multimap = require('multimap')
 import * as sha256 from 'simple-sha256'
 
+// Set debug = true to enable additional logging
+let debug = false
+
 // Resource name length offset required to account for IAC-added suffixes
 const reservedCharCount = 8
 
@@ -33,7 +36,9 @@ export function sanitize(s: string, options: Partial<SanitizationOptions>): Sani
     let failedRules = new Array<SanitizationRule>()
     for (let i = 0; i < (options.maxPasses || 5); i++) {
         let failedRules = options.rules?.filter((r) => !r.validate(result))
-        failedRules?.forEach((f) => console.debug(f))
+        if (debug) {
+            failedRules?.forEach((f) => console.debug(f))
+        }
         if (options.minLength != null && result.length < options.minLength) {
             throw new Error(
                 `The sanitized value, "${result}", is shorter than minLength: ${options.minLength}`
@@ -47,7 +52,9 @@ export function sanitize(s: string, options: Partial<SanitizationOptions>): Sani
         }
         failedRules?.forEach((r) => (result = r.fix?.apply(this, [result]) || result))
         failedRules = options.rules?.filter((r) => !r.validate(result))
-        failedRules?.forEach((f) => console.debug(f))
+        if (debug) {
+            failedRules?.forEach((f) => console.debug(f))
+        }
         if (failedRules?.length === 0) {
             return { result, violations: [] }
         }

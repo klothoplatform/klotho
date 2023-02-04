@@ -40,7 +40,7 @@ export const targetGroup = {
                 regexpMatch(
                     'The name can contain only alphanumeric characters and hyphens.',
                     /^[a-zA-Z\d-]+$/,
-                    (s) => s.replace(/[^a-zA-Z\d-]/g, '_')
+                    (s) => s.replace(/[^a-zA-Z\d-]/g, '-')
                 ),
                 {
                     description: 'The name must not begin with a hyphen',
