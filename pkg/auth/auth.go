@@ -12,7 +12,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -21,9 +23,9 @@ import (
 	"go.uber.org/zap"
 )
 
-const authServerPemCacheFile = "auth0-klotho.pem"
+var authUrlBase = EnvVar("KLOTHO_AUTH_BASE").GetOr(`http://klotho-auth-service-alb-e22c092-466389525.us-east-1.elb.amazonaws.com`)
 
-var authUrlBase = getAuthUrlBase()
+var pemUrl = EnvVar("KLOTHO_AUTH_PEM").GetOr(`https://klotho.us.auth0.com/pem`)
 
 type LoginResponse struct {
 	Url   string
@@ -230,15 +232,9 @@ func getClaims() (*Credentials, *KlothoClaims, error) {
 	}
 }
 
-func getAuthUrlBase() string {
-	host := os.Getenv("KLOTHO_AUTH_BASE")
-	if host == "" {
-		host = "http://klotho-auth-service-alb-e22c092-466389525.us-east-1.elb.amazonaws.com"
-	}
-	return host
-}
-
 func getPem() (*rsa.PublicKey, error) {
+	var authServerPemCacheFile = path.Join("pem", url.PathEscape(pemUrl))
+
 	writePemCache := false
 	// Try to read the PEM from local cache
 	configPath, err := cli_config.KlothoConfigPath(authServerPemCacheFile)
@@ -251,7 +247,7 @@ func getPem() (*rsa.PublicKey, error) {
 		if !errors.Is(err, os.ErrNotExist) {
 			zap.L().Debug("Couldn't read PEM cache file. Will download it.", zap.Error(err))
 		}
-		pemResp, err := http.Get(`https://klotho.us.auth0.com/pem`)
+		pemResp, err := http.Get(pemUrl)
 		if err != nil {
 			return nil, err
 		}
@@ -279,6 +275,7 @@ func getPem() (*rsa.PublicKey, error) {
 	if writePemCache {
 		configPath, err := cli_config.KlothoConfigPath(authServerPemCacheFile)
 		if err == nil {
+			_ = os.MkdirAll(path.Dir(configPath), 0777)
 			err = os.WriteFile(configPath, bs, 0644)
 		}
 		if err != nil {
@@ -286,4 +283,20 @@ func getPem() (*rsa.PublicKey, error) {
 		}
 	}
 	return pub, nil
+}
+
+// EnvVar represents an environment variable, specified by its key name.
+// wrapper around  os.Getenv. This string's value is the env var key. Use GetOr to get its value, or a
+// default if the value isn't set.
+type EnvVar string
+
+// GetOr uses os.Getenv to get the env var specified by the target EnvVar. If that env var's value is unset or empty,
+// it returns the defaultValue.
+func (s EnvVar) GetOr(defaultValue string) string {
+	value := os.Getenv(string(s))
+	if value == "" {
+		return defaultValue
+	} else {
+		return value
+	}
 }
