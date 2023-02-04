@@ -165,7 +165,7 @@ type KlothoClaims struct {
 	Email         string `json:"email"`
 	EmailVerified bool   `json:"email_verified"`
 	Name          string `json:"name"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 func Authorize() (*KlothoClaims, error) {
@@ -192,7 +192,7 @@ func authorize(tokenRefreshed bool) (*KlothoClaims, error) {
 		}
 	} else if !claims.ProEnabled {
 		return nil, fmt.Errorf("user %s is not authorized to use KlothoPro", claims.Email)
-	} else if claims.ExpiresAt < time.Now().Unix() {
+	} else if claims.ExpiresAt.Before(time.Now()) {
 		if tokenRefreshed {
 			return nil, fmt.Errorf("user %s, does not have a valid token", claims.Email)
 		}
@@ -206,11 +206,6 @@ func authorize(tokenRefreshed bool) (*KlothoClaims, error) {
 		}
 	}
 	return claims, nil
-}
-
-func GetClaims() (*KlothoClaims, error) {
-	_, claims, err := getClaims()
-	return claims, err
 }
 
 func getClaims() (*Credentials, *KlothoClaims, error) {
