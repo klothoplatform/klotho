@@ -1,7 +1,22 @@
+# dotnet builder image
+# https://hub.docker.com/_/microsoft-dotnet
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
+
+WORKDIR /app
+
+# Copy klotho-compiled project files from host
+COPY . .
+
+# Publish the dotnet assembly for an execution unit
+RUN dotnet publish {{.CSProjFile}}
+
+# AWS Lambda dotnet 6 base image
 FROM public.ecr.aws/lambda/dotnet:6
 
 WORKDIR ${LAMBDA_TASK_ROOT}
 
-COPY ./klotho_bin .
+# Copy "dotnet publish" artifacts from build image
+COPY --from=build /app/klotho_bin ./
 
+# Pass the assembly-qualified name of the function handler to the AWS Lambda Runtime
 CMD [ "{{.AssemblyName}}::KlothoRuntime.APIGatewayLambdaDispatcher::FunctionHandlerAsync" ]

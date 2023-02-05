@@ -25,6 +25,7 @@ type (
 		ExecUnitName string
 		Expose       ExposeTemplateData
 		AssemblyName string
+		CSProjFile   string
 	}
 
 	ExposeTemplateData struct {
@@ -88,6 +89,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, startupClass 
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
 		ExecUnitName:   unit.Name,
+		CSProjFile:     projectFile.Path(),
 		Expose: ExposeTemplateData{
 			StartupClass:            startupClassName,
 			APIGatewayProxyFunction: lambdaHandlerName,
