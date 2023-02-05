@@ -64,7 +64,7 @@ namespace ns1 {
 
 	`))
 
-	i := FindTypeDeclarationsInFile(f)
+	i := FindDeclarationsInFile[*TypeDeclaration](f)
 	b, err := json.MarshalIndent(i, "", "  ")
 	if err != nil {
 		fmt.Println(err)
@@ -90,7 +90,7 @@ namespace ns2 {
 
 	`))
 
-	i := FindMethodDeclarationsInFile(f)
+	i := FindDeclarationsInFile[*MethodDeclaration](f)
 	b, err := json.MarshalIndent(i, "", "  ")
 	if err != nil {
 		fmt.Println(err)

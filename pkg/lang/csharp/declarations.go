@@ -2,25 +2,33 @@ package csharp
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
+	"go.uber.org/zap"
 	"strings"
 )
 
 type Declaration struct {
-	Node          *sitter.Node
-	Name          string
-	Namespace     string
-	DeclaringFile string
-	Kind          DeclarationKind
-	Visibility    Visibility
-	QualifiedName string
-	IsGeneric     bool
-	IsNested      bool
+	Node           *sitter.Node
+	Name           string
+	Namespace      string
+	DeclaringFile  string
+	Kind           DeclarationKind
+	Visibility     Visibility
+	QualifiedName  string
+	IsGeneric      bool
+	IsNested       bool
+	IsStatic       bool
+	DeclaringClass string
 }
 
-func (d Declaration) AsDeclaration() Declaration {
-	return d
+func (d *Declaration) AsDeclaration() Declaration {
+	return *d
+}
+
+func (d *Declaration) SetDeclaringFile(filepath string) {
+	d.DeclaringFile = filepath
 }
 
 type TypeDeclaration struct {
@@ -55,11 +63,11 @@ const (
 
 type MethodDeclaration struct {
 	Declaration
-	IsStatic   bool
-	IsAbstract bool
-	IsSealed   bool
-	Parameters []Parameter
-	ReturnType string
+	DeclaringClass string
+	IsAbstract     bool
+	IsSealed       bool
+	Parameters     []Parameter
+	ReturnType     string
 }
 
 type Parameter struct {
@@ -67,67 +75,124 @@ type Parameter struct {
 	Type string
 }
 
+type FieldDeclaration struct {
+	Declaration
+	DeclaringClass  string
+	HasInitialValue bool
+	IsConst         bool
+	IsReadOnly      bool
+	IsRequired      bool
+	Type            string
+}
+
+type PropertyDeclaration struct {
+	Declaration
+	IsAbstract bool
+	IsReadOnly bool
+	IsRequired bool
+	Type       string
+}
+
 // Declarable simplifies the process of working with various declaration kinds simultaneously
 type Declarable interface {
 	AsDeclaration() Declaration
+	SetDeclaringFile(string)
 }
 
-type NamespaceTypes map[string][]TypeDeclaration
-type NamespaceMethods map[string][]MethodDeclaration
+type NamespaceDeclarations[T Declarable] map[string][]T
 
-func (nsm NamespaceMethods) Methods() []MethodDeclaration {
-	var allMethods []MethodDeclaration
-	for _, nsMethods := range nsm {
-		for _, m := range nsMethods {
-			allMethods = append(allMethods, m)
+func (nsd NamespaceDeclarations[T]) Declarations() []T {
+	var allDeclarations []T
+	for _, nsDeclarations := range nsd {
+		for _, d := range nsDeclarations {
+			allDeclarations = append(allDeclarations, d)
 		}
 	}
-	return allMethods
+	return allDeclarations
 }
-
-func (nst NamespaceTypes) Types() []TypeDeclaration {
-	var allTypes []TypeDeclaration
-	for _, nsTypes := range nst {
-		for _, t := range nsTypes {
-			allTypes = append(allTypes, t)
-		}
-	}
-	return allTypes
-}
-func FindTypeDeclarationsInFile(file *core.SourceFile) NamespaceTypes {
-	nsTypeDeclarations := FindTypeDeclarationsAtNode(file.Tree().RootNode())
-	for _, declarations := range nsTypeDeclarations {
+func FindDeclarationsInFile[T Declarable](file *core.SourceFile) NamespaceDeclarations[T] {
+	nsDeclarations := FindDeclarationsAtNode[T](file.Tree().RootNode())
+	for _, declarations := range nsDeclarations {
 		for i, d := range declarations {
-			d.DeclaringFile = file.Path()
+			d.SetDeclaringFile(file.Path())
 			declarations[i] = d
 		}
 	}
-	return nsTypeDeclarations
+	return nsDeclarations
 }
 
-// FindTypeDeclarationsAtNode returns a map containing a list of imports for each import source starting from the supplied node.
-func FindTypeDeclarationsAtNode(node *sitter.Node) NamespaceTypes {
-	namespaceTypes := NamespaceTypes{}
-	matches := AllMatches(node, typeDeclarations)
-	for _, match := range matches {
-		parsedType := parseTypeDeclaration(match)
-		i := namespaceTypes[parsedType.Namespace]
-		namespaceTypes[parsedType.Namespace] = append(i, parsedType)
+type declarationSpec[T Declarable] struct {
+	node      *sitter.Node
+	query     string
+	parseFunc func(match query.MatchNodes) T
+}
+
+// FindDeclarationsAtNode returns a map containing a list of declarations for each namespace starting from the supplied node.
+func FindDeclarationsAtNode[T Declarable](node *sitter.Node) NamespaceDeclarations[T] {
+	empty := NamespaceDeclarations[T]{}
+	switch any(empty).(type) {
+	case NamespaceDeclarations[*TypeDeclaration]:
+		return any(findDeclarationsWithSpec(declarationSpec[*TypeDeclaration]{node: node, query: typeDeclarations, parseFunc: parseTypeDeclaration})).(NamespaceDeclarations[T])
+	case NamespaceDeclarations[*MethodDeclaration]:
+		return any(findDeclarationsWithSpec(declarationSpec[*MethodDeclaration]{node: node, query: methodDeclarations, parseFunc: parseMethodDeclaration})).(NamespaceDeclarations[T])
+	case NamespaceDeclarations[*FieldDeclaration]:
+		return any(findDeclarationsWithSpec(declarationSpec[*FieldDeclaration]{node: node, query: fieldDeclarations, parseFunc: parseFieldDeclaration})).(NamespaceDeclarations[T])
+	default:
+		zap.L().With(logging.NodeField(node)).Panic("invalid declaration type cannot be parsed")
+		return empty
+	}
+}
+
+func findDeclarationsWithSpec[T Declarable](spec declarationSpec[T]) NamespaceDeclarations[T] {
+	namespaceDeclarations := NamespaceDeclarations[T]{}
+	nextMatch := DoQuery(spec.node, spec.query)
+	for {
+		match, found := nextMatch()
+		if !found {
+			break
+		}
+		parsedDeclaration := spec.parseFunc(match)
+		namespace := parsedDeclaration.AsDeclaration().Namespace
+		i := namespaceDeclarations[namespace]
+		namespaceDeclarations[namespace] = append(i, parsedDeclaration)
 	}
 
-	return namespaceTypes
+	return namespaceDeclarations
 }
 
-func FindTypeDeclarationAtNode(node *sitter.Node) (TypeDeclaration, bool) {
-	nextMatch := DoQuery(node, typeDeclarations)
+func FindDeclarationAtNode[T Declarable](node *sitter.Node) (T, bool) {
+	var declaration T
+	found := false
+	switch any(declaration).(type) {
+	case *TypeDeclaration:
+		tDec, tFound := findDeclarationWithSpec(declarationSpec[*TypeDeclaration]{node: node, query: typeDeclarations, parseFunc: parseTypeDeclaration})
+		declaration = any(tDec).(T)
+		found = tFound
+	case *MethodDeclaration:
+		mDec, mFound := findDeclarationWithSpec(declarationSpec[*MethodDeclaration]{node: node, query: methodDeclarations, parseFunc: parseMethodDeclaration})
+		declaration = any(mDec).(T)
+		found = mFound
+	case *FieldDeclaration:
+		fDec, fFound := findDeclarationWithSpec(declarationSpec[*FieldDeclaration]{node: node, query: fieldDeclarations, parseFunc: parseFieldDeclaration})
+		declaration = any(fDec).(T)
+		found = fFound
+	default:
+		zap.L().With(logging.NodeField(node)).Panic("invalid declaration type cannot be parsed")
+	}
+	return declaration, found
+
+}
+
+func findDeclarationWithSpec[T Declarable](spec declarationSpec[T]) (T, bool) {
+	nextMatch := DoQuery(spec.node, spec.query)
 	if match, found := nextMatch(); found {
-		return parseTypeDeclaration(match), true
+		return spec.parseFunc(match), true
 	}
-
-	return TypeDeclaration{}, false
+	var empty T
+	return empty, false
 }
 
-func parseTypeDeclaration(match query.MatchNodes) TypeDeclaration {
+func parseTypeDeclaration(match query.MatchNodes) *TypeDeclaration {
 	classDeclaration := match["class_declaration"]
 	interfaceDeclaration := match["interface_declaration"]
 	recordDeclaration := match["record_declaration"]
@@ -157,13 +222,14 @@ func parseTypeDeclaration(match query.MatchNodes) TypeDeclaration {
 	}
 
 	declaration.Namespace = resolveNamespace(declaration.Node)
+	declaration.QualifiedName = resolveQualifiedName(declaration.Node)
+	declaration.DeclaringClass = declaringClass(declaration.Node, declaration.QualifiedName)
 
 	modifiers := parseModifiers(declaration.Node)
 	declaration.Visibility = modifiers.Visibility
 	declaration.IsAbstract = modifiers.IsAbstract
 	declaration.IsSealed = modifiers.IsSealed
-	declaration.IsNested = query.FirstAncestorOfType(declaration.Node, "class_declaration") != nil
-	declaration.QualifiedName = resolveQualifiedName(declaration.Node)
+	declaration.IsNested = isNested(declaration.Node)
 	declaration.IsGeneric = declaration.Node.ChildByFieldName("type_parameters") != nil
 
 	// handle default visibility
@@ -175,33 +241,14 @@ func parseTypeDeclaration(match query.MatchNodes) TypeDeclaration {
 		}
 	}
 
-	return declaration
-}
-
-func FindMethodDeclarationsInFile(file *core.SourceFile) NamespaceMethods {
-	namespaceMethods := FindMethodDeclarationsAtNode(file.Tree().RootNode())
-	for _, declarations := range namespaceMethods {
-		for i, d := range declarations {
-			d.DeclaringFile = file.Path()
-			declarations[i] = d
-		}
-	}
-	return namespaceMethods
-}
-
-func FindMethodDeclarationsAtNode(node *sitter.Node) NamespaceMethods {
-	namespaceMethods := NamespaceMethods{}
-	matches := AllMatches(node, methodDeclarations)
-	for _, match := range matches {
-		parsedMethod := parseMethodDeclaration(match)
-		i := namespaceMethods[parsedMethod.Namespace]
-		namespaceMethods[parsedMethod.Namespace] = append(i, parsedMethod)
+	// handle static classes
+	if declaration.IsStatic {
+		declaration.IsSealed = true
 	}
 
-	return namespaceMethods
+	return &declaration
 }
-
-func parseMethodDeclaration(match query.MatchNodes) MethodDeclaration {
+func parseMethodDeclaration(match query.MatchNodes) *MethodDeclaration {
 	methodDeclaration := match["method_declaration"]
 	returnType := match["return_type"]
 	name := match["name"]
@@ -224,9 +271,10 @@ func parseMethodDeclaration(match query.MatchNodes) MethodDeclaration {
 	declaration.IsSealed = modifiers.IsSealed
 	declaration.IsStatic = modifiers.IsStatic
 	declaration.IsGeneric = declaration.Node.ChildByFieldName("type_parameters") != nil
-	declaration.IsNested = query.FirstAncestorOfType(declaration.Node, "class_declaration") != nil
+	declaration.IsNested = isNested(declaration.Node)
 	declaration.QualifiedName = resolveQualifiedName(declaration.Node)
 	declaration.Parameters = parseMethodParameters(parameters)
+	declaration.DeclaringClass = declaringClass(declaration.Node, declaration.QualifiedName)
 
 	// handle default visibility
 	if declaration.Visibility == "" {
@@ -237,7 +285,17 @@ func parseMethodDeclaration(match query.MatchNodes) MethodDeclaration {
 		}
 	}
 
-	return declaration
+	return &declaration
+}
+
+func declaringClass(declaration *sitter.Node, qualifiedName string) string {
+	if outer := query.FirstAncestorOfType(declaration.Parent(), "class_declaration"); outer != nil {
+		if !strings.Contains(qualifiedName, ".") {
+			return ""
+		}
+		return qualifiedName[0:strings.LastIndex(qualifiedName, ".")]
+	}
+	return ""
 }
 
 func parseMethodParameters(parameterList *sitter.Node) []Parameter {
@@ -258,11 +316,58 @@ func parseMethodParameters(parameterList *sitter.Node) []Parameter {
 	return parameters
 }
 
+func parseFieldDeclaration(match query.MatchNodes) *FieldDeclaration {
+	fieldDeclaration := match["field_declaration"]
+	fieldType := match["type"]
+	name := match["name"]
+	equalsValueClause := match["equals_value_clause"]
+
+	declaration := &FieldDeclaration{
+		Declaration: Declaration{
+			Name: name.Content(),
+			Node: fieldDeclaration,
+			Kind: DeclarationKindMethod,
+		},
+		Type: fieldType.Content(),
+	}
+
+	declaration.Namespace = resolveNamespace(declaration.Node)
+
+	modifiers := parseModifiers(declaration.Node)
+	declaration.Visibility = modifiers.Visibility
+	declaration.IsConst = modifiers.IsConst
+	declaration.IsRequired = modifiers.IsRequired
+	declaration.IsReadOnly = modifiers.IsReadOnly
+	declaration.IsStatic = modifiers.IsStatic
+	declaration.IsGeneric = fieldType.Type() == "generic_name"
+	declaration.IsNested = isNested(declaration.Node)
+	declaration.QualifiedName = resolveQualifiedName(declaration.Node)
+	declaration.DeclaringClass = declaringClass(declaration.Node, declaration.QualifiedName)
+
+	// handle default visibility
+	if declaration.Visibility == "" {
+		if declaration.IsNested {
+			declaration.Visibility = VisibilityPrivate
+		} else {
+			declaration.Visibility = VisibilityInternal
+		}
+	}
+
+	if equalsValueClause != nil {
+		declaration.HasInitialValue = true
+	}
+
+	return declaration
+}
+
 type modifierSpec struct {
 	Visibility Visibility
 	IsSealed   bool
 	IsAbstract bool
 	IsStatic   bool
+	IsConst    bool
+	IsReadOnly bool
+	IsRequired bool
 }
 
 func parseModifiers(declaration *sitter.Node) modifierSpec {
@@ -277,8 +382,8 @@ func parseModifiers(declaration *sitter.Node) modifierSpec {
 			continue
 		}
 
-		// C# Visibility: https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/access-modifiers
 		switch child.Content() {
+		// C# Visibility: https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/access-modifiers
 		case "private":
 			if spec.Visibility == VisibilityProtected {
 				spec.Visibility = VisibilityPrivateProtected
@@ -302,12 +407,19 @@ func parseModifiers(declaration *sitter.Node) modifierSpec {
 			}
 		case "public":
 			spec.Visibility = VisibilityPublic
+		// Non-visibility modifiers
 		case "sealed":
 			spec.IsSealed = true
 		case "abstract":
 			spec.IsAbstract = true
 		case "static":
 			spec.IsStatic = true
+		case "const":
+			spec.IsConst = true
+		case "readonly":
+			spec.IsReadOnly = true
+		case "required":
+			spec.IsRequired = true
 		}
 	}
 	return spec
@@ -354,4 +466,19 @@ func resolveQualifiedName(declaration *sitter.Node) string {
 		}
 	}
 	return strings.Join(components, ".")
+}
+
+func isNested(declaration *sitter.Node) bool {
+	outer := query.FirstAncestorOfType(declaration.Parent(), "class_declaration")
+	if outer == nil {
+		return false
+	}
+	if declaration.Type() == "class_declaration" && outer != nil {
+		return true
+	}
+	outer = query.FirstAncestorOfType(declaration.Parent(), "class_declaration")
+	if outer != nil {
+		return true
+	}
+	return false
 }

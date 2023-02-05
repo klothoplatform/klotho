@@ -18,14 +18,17 @@ func AllMatches(c *sitter.Node, q string) []query.MatchNodes {
 
 var (
 
-	//go:embed queries/using_directives.scm
+	//go:embed queries/structural/using_directives.scm
 	usingDirectives string
 
-	//go:embed queries/type_declarations.scm
+	//go:embed queries/structural/type_declarations.scm
 	typeDeclarations string
 
-	//go:embed queries/method_declarations.scm
+	//go:embed queries/structural/method_declarations.scm
 	methodDeclarations string
+
+	//go:embed queries/structural/field_declarations.scm
+	fieldDeclarations string
 
 	//go:embed queries/expose/configured_app.scm
 	configuredApp string

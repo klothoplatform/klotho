@@ -30,7 +30,7 @@ func (p *AddExecRuntimeFiles) Transform(result *core.CompilationResult, deps *co
 		declarers := unit.GetDeclaringFiles()
 		if declarers == nil {
 			for _, csFile := range unit.FilesOfLang(CSharp) {
-				types := FindTypeDeclarationsInFile(csFile).Types()
+				types := FindDeclarationsInFile[*TypeDeclaration](csFile).Declarations()
 				for _, t := range types {
 					if cls, found := getDotnetCoreStartupClass(t.Node); found {
 						if startupClass != nil {
@@ -88,7 +88,7 @@ func findLambdaHandlerClasses(unit *core.ExecutionUnit) []TypeDeclaration {
 	var handlerClasses []TypeDeclaration
 	for _, csFile := range unit.FilesOfLang(CSharp) {
 		importedNamespaces := FindImportsInFile(csFile)
-		types := FindTypeDeclarationsInFile(csFile).Types()
+		types := FindDeclarationsInFile[*TypeDeclaration](csFile).Declarations()
 		for _, t := range types {
 			handlerBases := filter.NewSimpleFilter[string](func(b string) bool {
 				cls, found := lambdaEntrypointClasses[b]
@@ -100,19 +100,19 @@ func findLambdaHandlerClasses(unit *core.ExecutionUnit) []TypeDeclaration {
 			if t.IsSealed || t.Visibility != VisibilityPublic {
 				continue
 			}
-			handlerClasses = append(handlerClasses, t)
+			handlerClasses = append(handlerClasses, *t)
 		}
 	}
 	return handlerClasses
 }
 
 func getDotnetCoreStartupClass(classNode *sitter.Node) (DotNetCoreStartupClass, bool) {
-	classDeclaration, found := FindTypeDeclarationAtNode(classNode)
+	classDeclaration, found := FindDeclarationAtNode[*TypeDeclaration](classNode)
 	if !found || classDeclaration.Visibility == VisibilityPrivate || classDeclaration.Kind != DeclarationKindClass {
 		return DotNetCoreStartupClass{}, false
 	}
-	methods := FindMethodDeclarationsAtNode(classNode).Methods()
-	configureMethods := filter.NewSimpleFilter[MethodDeclaration](func(md MethodDeclaration) bool {
+	methods := FindDeclarationsAtNode[*MethodDeclaration](classNode).Declarations()
+	configureMethods := filter.NewSimpleFilter[*MethodDeclaration](func(md *MethodDeclaration) bool {
 		return md.Name == "Configure" &&
 			md.Visibility == VisibilityPublic &&
 			md.ReturnType == "void" &&
@@ -128,11 +128,11 @@ func getDotnetCoreStartupClass(classNode *sitter.Node) (DotNetCoreStartupClass, 
 
 	startupClass := DotNetCoreStartupClass{
 		FilePath:        "",
-		Class:           classDeclaration,
-		ConfigureMethod: configureMethods[0],
+		Class:           *classDeclaration,
+		ConfigureMethod: *configureMethods[0],
 	}
 
-	configureServicesMethods := filter.NewSimpleFilter[MethodDeclaration](func(md MethodDeclaration) bool {
+	configureServicesMethods := filter.NewSimpleFilter[*MethodDeclaration](func(md *MethodDeclaration) bool {
 		return md.Name == "ConfigureServices" &&
 			md.Visibility == VisibilityPublic &&
 			md.ReturnType == "void" &&
@@ -143,7 +143,7 @@ func getDotnetCoreStartupClass(classNode *sitter.Node) (DotNetCoreStartupClass, 
 	}).Apply(methods...)
 
 	if len(configureServicesMethods) == 1 {
-		startupClass.ConfigureServicesMethod = configureServicesMethods[0]
+		startupClass.ConfigureServicesMethod = *configureServicesMethods[0]
 	}
 
 	return startupClass, true
