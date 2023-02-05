@@ -75,7 +75,7 @@ func FindImportsInFile(file *core.SourceFile) Imports {
 // FindImportsAtNode returns a map containing a list of imports for each import source starting from the supplied node.
 func FindImportsAtNode(node *sitter.Node) Imports {
 	fileImports := Imports{}
-	matches := queryImports(node)
+	matches := query.Collect(DoQuery(node, usingDirectives))
 	for _, match := range matches {
 		parsedImport := parseUsingDirective(match)
 		i := fileImports[parsedImport.Name]
@@ -85,20 +85,6 @@ func FindImportsAtNode(node *sitter.Node) Imports {
 	return fileImports
 }
 
-func queryImports(node *sitter.Node) []query.MatchNodes {
-	nextMatch := DoQuery(node, usingDirectives)
-
-	var matches []query.MatchNodes
-	for {
-		if match, found := nextMatch(); found {
-			matches = append(matches, match)
-		} else {
-			break
-		}
-	}
-
-	return matches
-}
 func parseUsingDirective(match query.MatchNodes) Import {
 	usingDirective, identifier, alias := match["using_directive"], match["identifier"], match["alias"]
 

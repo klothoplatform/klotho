@@ -11,13 +11,12 @@ import (
 
 type (
 	Runtime interface {
-		AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error
+		AddExecRuntimeFiles(unit *core.ExecutionUnit, startupClass *DotNetCoreStartupClass, lambdaHandlerName string) error
 		UpdateCsproj(unit *core.ExecutionUnit)
 	}
 )
 
 func AddRuntimeFile(unit *core.ExecutionUnit, templateData any, path string, content []byte) error {
-	// TODO refactor to consolidate with this method in the javascript package
 	if filepath.Ext(path) == ".tmpl" {
 		t, err := template.New(path).Parse(string(content))
 		if err != nil {

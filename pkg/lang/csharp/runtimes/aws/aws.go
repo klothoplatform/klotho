@@ -53,7 +53,7 @@ func (r *AwsRuntime) UpdateCsproj(unit *core.ExecutionUnit) {
 
 }
 
-func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
+func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, startupClass *csharp.DotNetCoreStartupClass, lambdaHandlerName string) error {
 	var DockerFile []byte
 	unitType := r.Cfg.GetResourceType(unit)
 	switch unitType {
@@ -80,12 +80,17 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		assembly = strings.TrimSuffix(pFileName, ".csproj")
 	}
 
+	startupClassName := ""
+	if startupClass != nil {
+		startupClassName = startupClass.Class.QualifiedName
+	}
+
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
 		ExecUnitName:   unit.Name,
 		Expose: ExposeTemplateData{
-			StartupClass:            "SampleApp.Startup",
-			APIGatewayProxyFunction: "SampleApp.LambdaEntryPoint",
+			StartupClass:            startupClassName,
+			APIGatewayProxyFunction: lambdaHandlerName,
 		},
 		AssemblyName: assembly,
 	}

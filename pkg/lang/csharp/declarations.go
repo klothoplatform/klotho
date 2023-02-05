@@ -75,6 +75,25 @@ type Declarable interface {
 type NamespaceTypes map[string][]TypeDeclaration
 type NamespaceMethods map[string][]MethodDeclaration
 
+func (nsm NamespaceMethods) Methods() []MethodDeclaration {
+	var allMethods []MethodDeclaration
+	for _, nsMethods := range nsm {
+		for _, m := range nsMethods {
+			allMethods = append(allMethods, m)
+		}
+	}
+	return allMethods
+}
+
+func (nst NamespaceTypes) Types() []TypeDeclaration {
+	var allTypes []TypeDeclaration
+	for _, nsTypes := range nst {
+		for _, t := range nsTypes {
+			allTypes = append(allTypes, t)
+		}
+	}
+	return allTypes
+}
 func FindTypeDeclarationsInFile(file *core.SourceFile) NamespaceTypes {
 	nsTypeDeclarations := FindTypeDeclarationsAtNode(file.Tree().RootNode())
 	for _, declarations := range nsTypeDeclarations {
@@ -97,6 +116,15 @@ func FindTypeDeclarationsAtNode(node *sitter.Node) NamespaceTypes {
 	}
 
 	return namespaceTypes
+}
+
+func FindTypeDeclarationAtNode(node *sitter.Node) (TypeDeclaration, bool) {
+	nextMatch := DoQuery(node, typeDeclarations)
+	if match, found := nextMatch(); found {
+		return parseTypeDeclaration(match), true
+	}
+
+	return TypeDeclaration{}, false
 }
 
 func parseTypeDeclaration(match query.MatchNodes) TypeDeclaration {
