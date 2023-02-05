@@ -24,7 +24,7 @@ export const createTargetBinding = (
             transformations: [
                 // Make every service private to the cluster, i.e., turn all services into ClusterIP instead of LoadBalancer.
                 (obj: any, opts: pulumi.CustomResourceOptions) => {
-                    obj.metadata = { name: `${execUnit}-tgb` }
+                    obj.metadata = { name: `${execUnit}` }
                     obj.spec.serviceRef.name = serviceName
                     obj.spec.serviceRef.port = port
                     obj.spec.targetGroupARN = targetGroupArn
