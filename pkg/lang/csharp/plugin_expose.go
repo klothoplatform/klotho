@@ -3,6 +3,7 @@ package csharp
 import (
 	"fmt"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -281,7 +282,7 @@ func (h *restAPIHandler) findLocallyMappedRoutes(f *core.SourceFile, varName str
 	for _, vfunc := range verbFuncs {
 		route := core.Route{
 			Verb:          core.Verb(vfunc.Verb),
-			Path:          sanitizeAspDotNetPath(path.Join(h.RootPath, prefix, vfunc.Path)),
+			Path:          sanitizeConventionalPath(path.Join(h.RootPath, prefix, vfunc.Path)),
 			ExecUnitName:  h.Unit.Name,
 			HandledInFile: f.Path(),
 		}
@@ -294,10 +295,23 @@ func (h *restAPIHandler) findLocallyMappedRoutes(f *core.SourceFile, varName str
 	return routes, err
 }
 
-// sanitizeAspDotNetPath converts ASP.net path parameters to Express syntax,
+// sanitizeConventionalPath converts ASP.net conventional path parameters to Express syntax,
 // but does not perform validation to ensure that the supplied string is a valid ASP.net route.
 // As such, there's no expectation of correct output for invalid paths
-func sanitizeAspDotNetPath(path string) string {
-	// TODO: implement path param sanitization
+func sanitizeConventionalPath(path string) string {
+	firstOptionalIndex := strings.Index(path, "?")
+	firstDefaultIndex := strings.Index(path, "=")
+	firstProxyParamIndex := firstOptionalIndex
+	if firstProxyParamIndex == -1 || (firstDefaultIndex > -1 && firstDefaultIndex < firstProxyParamIndex) {
+		firstProxyParamIndex = firstDefaultIndex
+	}
+	if firstProxyParamIndex > -1 {
+		// convert to longest possible proxy route
+		path = path[0:firstProxyParamIndex]
+		path = path[0:strings.LastIndex(path, "{")+1] + "rest*}"
+	}
+
+	// convert path params to express syntax
+	path = regexp.MustCompile("{([^:}]*):?[^}]*}").ReplaceAllString(path, ":$1")
 	return path
 }
