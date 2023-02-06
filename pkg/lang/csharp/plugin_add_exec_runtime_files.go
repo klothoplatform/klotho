@@ -78,7 +78,7 @@ func (p *AddExecRuntimeFiles) Transform(result *core.CompilationResult, deps *co
 	return errs.ErrOrNil()
 }
 
-// lambdaEntrypointClasses is a mapping between valid lambda entrypoint base classes and their fully qualified names
+// lambdaEntrypointClasses is a mapping between valid lambda entrypoint base classes and their owning namespaces
 var lambdaEntrypointClasses = map[string]string{
 	"Amazon.Lambda.AspNetCoreServer.APIGatewayProxyFunction": "",
 	"APIGatewayProxyFunction":                                "Amazon.Lambda.AspNetCoreServer",
@@ -90,10 +90,14 @@ func findLambdaHandlerClasses(unit *core.ExecutionUnit) []TypeDeclaration {
 		importedNamespaces := FindImportsInFile(csFile)
 		types := FindDeclarationsInFile[*TypeDeclaration](csFile).Declarations()
 		for _, t := range types {
-			handlerBases := filter.NewSimpleFilter[string](func(b string) bool {
-				cls, found := lambdaEntrypointClasses[b]
-				return found && (len(cls) == 0 || importedNamespaces[b] != nil)
-			}).Apply(t.Bases...)
+			var handlerBases []string
+			for b, _ := range t.Bases {
+				ns, found := lambdaEntrypointClasses[b]
+				if found && (len(ns) == 0 || importedNamespaces[ns] != nil) {
+					handlerBases = append(handlerBases, b)
+				}
+			}
+
 			if len(handlerBases) == 0 {
 				continue
 			}

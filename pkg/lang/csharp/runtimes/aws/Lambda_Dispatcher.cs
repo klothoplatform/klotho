@@ -8,7 +8,7 @@ using Amazon.Lambda.Core;
 
 namespace KlothoRuntime
 {
-    public class APIGatewayLambdaDispatcher{{if .Expose.APIGatewayProxyFunction}} : {{.Expose.APIGatewayProxyFunction}}{{end}}
+    public class APIGatewayLambdaDispatcher : {{if .Expose.APIGatewayProxyFunction}}{{.Expose.APIGatewayProxyFunction}}{{else}}ProxyFunction{{end}}
     {
         protected override void Init(IWebHostBuilder builder)
         {
