@@ -39,6 +39,12 @@ var (
 	//go:embed queries/expose/http_method_attribute.scm
 	httpMethodAttribute string
 
+	//go:embed queries/expose/route_attribute.scm
+	exposeRouteAttribute string
+
+	//go:embed queries/expose/area_attribute.scm
+	exposeAreaAttribute string
+
 	//go:embed queries/expose/map_route.scm
 	exposeMapRoute string
 )

@@ -2,6 +2,7 @@ package csharp
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/filter"
 	"path"
 	"regexp"
 	"strings"
@@ -314,4 +315,65 @@ func sanitizeConventionalPath(path string) string {
 	// convert path params to express syntax
 	path = regexp.MustCompile("{([^:}]*):?[^}]*}").ReplaceAllString(path, ":$1")
 	return path
+}
+
+type actionSpec struct {
+	name          string
+	method        MethodDeclaration
+	httpMethod    string
+	routeTemplate string
+}
+
+type controllerSpec struct {
+	class   TypeDeclaration
+	actions []actionSpec
+	controllerAttributeSpec
+}
+
+func findControllersInFile(file *core.SourceFile) []controllerSpec {
+	types := FindDeclarationsInFile[*TypeDeclaration](file).Declarations()
+	usingDirectives := FindImportsInFile(file)
+	controllers := filter.NewSimpleFilter(isController(usingDirectives)).Apply(types...)
+	var controllerSpecs []controllerSpec
+	for _, c := range controllers {
+		controller := *c
+		spec := controllerSpec{
+			class:                   controller,
+			controllerAttributeSpec: parseControllerAttributes(controller),
+		}
+		controllerSpecs = append(controllerSpecs, spec)
+	}
+	return controllerSpecs
+}
+
+func isController(using Imports) func(d *TypeDeclaration) bool {
+	return func(d *TypeDeclaration) bool {
+		_, hasCB := d.Bases["ControllerBase"]
+		_, hasQualifiedCB := d.Bases["Microsoft.AspNetCore.Mvc.ControllerBase"]
+		usingNamespace := false
+		if hasCB && !hasQualifiedCB {
+			_, usingNamespace = using["Microsoft.AspNetCore.Mvc"]
+		}
+		return d.Kind == DeclarationKindClass && ((hasCB && usingNamespace) || hasQualifiedCB)
+	}
+}
+
+func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSpec {
+	matches := AllMatches(controller.Node, fmt.Sprintf("[%s%s]", exposeRouteAttribute, exposeAreaAttribute))
+	attrSpec := controllerAttributeSpec{}
+	for _, match := range matches {
+		attr := match["attr"]
+		switch attr.Content() {
+		case "Route":
+			attrSpec.routeTemplates = append(attrSpec.routeTemplates, match["template"].Content())
+		case "Area":
+			attrSpec.area = match["areaName"].Content()
+		}
+	}
+	return attrSpec
+}
+
+type controllerAttributeSpec struct {
+	routeTemplates []string
+	area           string
 }
