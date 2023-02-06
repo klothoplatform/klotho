@@ -313,6 +313,7 @@ export class Eks {
                                     timeoutSeconds: 30,
                                 },
                             },
+                            namespace: KUBE_SYSTEM_NAMESPACE,
                             version: 'v1.10.0',
                         },
                         { provider: this.provider, deleteBeforeReplace: true }
@@ -336,6 +337,7 @@ export class Eks {
                         vpc,
                         this.provider,
                         this.region,
+                        this.options.initializePluginsOnFargate || false,
                         dependsOn
                     )
                     this.installedPlugins.set(plugins.AWS_LOAD_BALANCER_CONTROLLER, albController)
@@ -397,12 +399,15 @@ export class Eks {
                 },
             },
         ]
-        this.execUnitFargateProfile = this.createFargateProfile(
-            `${clusterName}-execunit-profile`,
-            podExecutionRole,
-            vpc,
-            selectors
-        )
+        const fargateUnits = execUnits.filter((unit) => unit.params.nodeType === 'fargate')
+        if (fargateUnits.length > 0) {
+            this.execUnitFargateProfile = this.createFargateProfile(
+                `${clusterName}-execunit-profile`,
+                podExecutionRole,
+                vpc,
+                selectors
+            )
+        }
 
         for (const unit of execUnits) {
             this.setupExecUnit(lib, unit)
@@ -473,7 +478,10 @@ export class Eks {
         }
         // if there are no node group specs, create our default node group as t3.medium
         nodeGroupSpecs.size === 0
-            ? nodeGroupSpecs.set(defaultInstanceType, { diskSize: diskSizeMin })
+            ? nodeGroupSpecs.set(defaultInstanceType, {
+                  diskSize: diskSizeMin,
+                  instanceType: defaultInstanceType,
+              })
             : null
 
         return nodeGroupSpecs
@@ -545,14 +553,40 @@ export class Eks {
         if (chart == undefined) {
             throw new Error('Cannot create ServiceExport without Cloud Map Controller installed')
         }
+
+        let sleep
+        if (this.options.initializePluginsOnFargate) {
+            sleep = new local.Command(
+                'sleepForCerts',
+                {
+                    create: 'sleep 60',
+                    update: 'sleep 60',
+                    triggers: [uuid.v4()],
+                },
+                { dependsOn: chart.ready }
+            )
+        } else {
+            sleep = new local.Command(
+                'sleepForCerts',
+                {
+                    create: 'sleep 10',
+                    update: 'sleep 10',
+                    triggers: [uuid.v4()],
+                },
+                { dependsOn: chart.ready }
+            )
+        }
+
         applyChart(lib, {
             eks: this,
+            lbPlugin: this.lbPlugin,
             chartName: name,
             values,
             dependsOn: [
                 this.execUnitFargateProfile,
                 chart.ready,
                 this.installedPlugins.get(plugins.CLOUD_MAP_CONTROLLER)!,
+                sleep,
             ],
             provider: this.provider,
         })
