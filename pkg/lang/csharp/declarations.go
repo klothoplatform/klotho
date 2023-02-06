@@ -36,6 +36,7 @@ type TypeDeclaration struct {
 	Bases      []string
 	IsAbstract bool
 	IsSealed   bool
+	IsPartial  bool
 }
 
 type DeclarationKind string
@@ -48,6 +49,8 @@ const (
 	DeclarationKindField     = DeclarationKind("field")
 	DeclarationKindProperty  = DeclarationKind("property")
 	DeclarationKindMethod    = DeclarationKind("method")
+	DeclarationKindEnum      = DeclarationKind("enum")
+	DeclarationKindIndexer   = DeclarationKind("indexer")
 )
 
 type Visibility string
@@ -66,6 +69,7 @@ type MethodDeclaration struct {
 	DeclaringClass string
 	IsAbstract     bool
 	IsSealed       bool
+	IsPartial      bool
 	Parameters     []Parameter
 	ReturnType     string
 }
@@ -229,6 +233,7 @@ func parseTypeDeclaration(match query.MatchNodes) *TypeDeclaration {
 	declaration.Visibility = modifiers.Visibility
 	declaration.IsAbstract = modifiers.IsAbstract
 	declaration.IsSealed = modifiers.IsSealed
+	declaration.IsPartial = modifiers.IsPartial
 	declaration.IsNested = isNested(declaration.Node)
 	declaration.IsGeneric = declaration.Node.ChildByFieldName("type_parameters") != nil
 
@@ -270,6 +275,7 @@ func parseMethodDeclaration(match query.MatchNodes) *MethodDeclaration {
 	declaration.IsAbstract = modifiers.IsAbstract
 	declaration.IsSealed = modifiers.IsSealed
 	declaration.IsStatic = modifiers.IsStatic
+	declaration.IsPartial = modifiers.IsPartial
 	declaration.IsGeneric = declaration.Node.ChildByFieldName("type_parameters") != nil
 	declaration.IsNested = isNested(declaration.Node)
 	declaration.QualifiedName = resolveQualifiedName(declaration.Node)
@@ -368,6 +374,7 @@ type modifierSpec struct {
 	IsConst    bool
 	IsReadOnly bool
 	IsRequired bool
+	IsPartial  bool
 }
 
 func parseModifiers(declaration *sitter.Node) modifierSpec {
@@ -412,6 +419,8 @@ func parseModifiers(declaration *sitter.Node) modifierSpec {
 			spec.IsSealed = true
 		case "abstract":
 			spec.IsAbstract = true
+		case "partial":
+			spec.IsPartial = true
 		case "static":
 			spec.IsStatic = true
 		case "const":
