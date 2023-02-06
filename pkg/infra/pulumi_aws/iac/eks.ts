@@ -132,7 +132,7 @@ interface EksClusterOptions {
 }
 
 export const DefaultEksClusterOptions: EksClusterOptions = {
-    initializePluginsOnFargate: true,
+    initializePluginsOnFargate: false,
     installPlugins: [
         plugins.VPC_CNI,
         plugins.METRICS_SERVER,
@@ -313,7 +313,7 @@ export class Eks {
                                     timeoutSeconds: 30,
                                 },
                             },
-                            namespace: KUBE_SYSTEM_NAMESPACE,
+                            namespace: EXEC_UNIT_NAMESPACE,
                             version: 'v1.10.0',
                         },
                         { provider: this.provider, deleteBeforeReplace: true }
