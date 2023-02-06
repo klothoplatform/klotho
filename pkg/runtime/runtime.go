@@ -1,8 +1,6 @@
 package runtime
 
 import (
-	"path/filepath"
-
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
@@ -23,10 +21,11 @@ func ShouldOverrideDockerfile(unit *core.ExecutionUnit) bool {
 		for _, annot := range caps {
 			cap := annot.Capability
 			if cap.ID == unit.Name && cap.Name == annotation.ExecutionUnitCapability {
-				unit.DockerfilePath = filepath.Dir(f.Path())
+				unit.DockerfilePath = f.Path()
 				return false
 			}
 		}
 	}
+	unit.DockerfilePath = "Dockerfile"
 	return true
 }

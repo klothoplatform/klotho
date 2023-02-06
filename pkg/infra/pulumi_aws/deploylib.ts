@@ -351,7 +351,8 @@ export class CloudCCLib {
 
     createImage(execUnitName: string, dockerfilePath: string) {
         const image = this.sharedRepo.buildAndPushImage({
-            context: `./${execUnitName}/${dockerfilePath}`,
+            context: `./${execUnitName}`,
+            dockerfile: `./${execUnitName}/${dockerfilePath}`,
             extraOptions: ['--platform', 'linux/amd64', '--quiet'],
         })
         this.execUnitToImage.set(execUnitName, image)
