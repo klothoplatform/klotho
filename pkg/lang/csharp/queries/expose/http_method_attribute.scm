@@ -1,4 +1,4 @@
-(attribute name: (identifier) @attr (#match? @attr "^Http(Get|Put|Post|Delete|Patch|Head)$")
+(attribute name: (identifier) @attr (#match? @attr "^Http(Get|Put|Post|Delete|Patch|Head|Options)$")
   (attribute_argument_list (
                              ((attribute_argument . (string_literal)) @template) ?
                              ((attribute_argument (name_equals (identifier) @order_id)) ? @order_arg

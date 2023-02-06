@@ -24,19 +24,34 @@ type (
 	Verb string
 )
 
+func (v Verb) String() string {
+	return string(v)
+}
+
+const (
+	VerbAny     = Verb("ANY")
+	VerbGet     = Verb("GET")
+	VerbPost    = Verb("POST")
+	VerbPut     = Verb("PUT")
+	VerbDelete  = Verb("DELETE")
+	VerbPatch   = Verb("PATCH")
+	VerbOptions = Verb("OPTIONS")
+	VerbHead    = Verb("HEAD")
+)
+
 var (
 	GatewayKind             = "gateway"
 	NetworkLoadBalancerKind = "nlb"
 
 	Verbs = map[Verb]struct{}{
-		"ANY":     {},
-		"GET":     {},
-		"POST":    {},
-		"PUT":     {},
-		"DELETE":  {},
-		"PATCH":   {},
-		"OPTIONS": {},
-		"HEAD":    {},
+		VerbAny:     {},
+		VerbGet:     {},
+		VerbPost:    {},
+		VerbPut:     {},
+		VerbDelete:  {},
+		VerbPatch:   {},
+		VerbOptions: {},
+		VerbHead:    {},
 	}
 )
 

@@ -31,19 +31,13 @@ type (
 		DefinedInPath string
 	}
 
-	restAPIHandler struct {
+	aspDotNetCoreHandler struct {
 		Result          *core.CompilationResult
 		Deps            *core.Dependencies
 		Unit            *core.ExecutionUnit
 		RoutesByGateway map[gatewaySpec][]gatewayRouteDefinition
 		RootPath        string
 		log             *zap.Logger
-	}
-
-	fastapiDefResult struct {
-		Expression *sitter.Node
-		Identifier *sitter.Node
-		RootPath   string
 	}
 )
 
@@ -105,7 +99,7 @@ func (p Expose) Transform(result *core.CompilationResult, deps *core.Dependencie
 }
 
 func (p *Expose) transformSingle(result *core.CompilationResult, deps *core.Dependencies, unit *core.ExecutionUnit) error {
-	h := &restAPIHandler{Result: result, Deps: deps, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
+	h := &aspDotNetCoreHandler{Result: result, Deps: deps, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
 	err := h.handle(unit)
 	if err != nil {
 		err = core.WrapErrf(err, "express handler failure for %s", unit.Name)
@@ -114,7 +108,7 @@ func (p *Expose) transformSingle(result *core.CompilationResult, deps *core.Depe
 	return err
 }
 
-func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
+func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 	h.Unit = unit
 	h.log = zap.L().With(zap.String("unit", unit.Name))
 
@@ -170,7 +164,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 	return errs.ErrOrNil()
 }
 
-func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error) {
+func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error) {
 	caps := f.Annotations()
 
 	for _, capNode := range caps {
@@ -209,11 +203,11 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 				AppBuilderName: appBuilderName,
 				gatewayId:      cap.ID,
 			}
-
-			log = log.With(
-				zap.String("IApplicationBuilder", appBuilderName),
-				zap.String("IEndpointRouteBuilder", endpointRouteBuilderName),
-			)
+			//
+			//log = log.With(
+			//	zap.String("IApplicationBuilder", appBuilderName),
+			//	zap.String("IEndpointRouteBuilder", endpointRouteBuilderName),
+			//)
 
 			localRoutes, err := h.findLocallyMappedRoutes(f, endpointRouteBuilderName, "")
 			if err != nil {
@@ -221,11 +215,24 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 			}
 
 			if len(localRoutes) > 0 {
-				log.Sugar().Infof("Found %d route(s) on app '%s'", len(localRoutes), appBuilderName)
 				h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], localRoutes...)
 			}
 
-			// TODO: add support for decorated controllers
+			if 1 == 1 { // TODO: check if MapControllers is invoked
+				for _, csFile := range h.Unit.FilesOfLang(CSharp) {
+					controllers := h.findControllersInFile(csFile)
+					for _, c := range controllers {
+						routes := c.resolveRoutes()
+						for _, route := range c.resolveRoutes() {
+							zap.L().Sugar().Debugf("Found route function %s %s for %s", route.Verb, route.Path, c.name)
+						}
+						h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], routes...)
+
+					}
+				}
+
+			}
+			log.Sugar().Infof("Found %d route(s) on app '%s'", len(h.RoutesByGateway[gwSpec]), appBuilderName)
 		}
 	}
 	return f, nil
@@ -236,7 +243,7 @@ type routeMethodPath struct {
 	Path string
 }
 
-func (h *restAPIHandler) findVerbMappings(root *sitter.Node, varName string) ([]routeMethodPath, error) {
+func (h *aspDotNetCoreHandler) findVerbMappings(root *sitter.Node, varName string) ([]routeMethodPath, error) {
 	nextMatch := DoQuery(root, exposeMapRoute)
 	var route []routeMethodPath
 	var err error
@@ -272,13 +279,13 @@ func (h *restAPIHandler) findVerbMappings(root *sitter.Node, varName string) ([]
 }
 
 // findLocallyMappedRoutes finds any routes defined on varName declared in core.SourceFile f
-func (h *restAPIHandler) findLocallyMappedRoutes(f *core.SourceFile, varName string, prefix string) ([]gatewayRouteDefinition, error) {
+func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *core.SourceFile, varName string, prefix string) ([]gatewayRouteDefinition, error) {
 	var routes = make([]gatewayRouteDefinition, 0)
-	log := h.log.With(logging.FileField(f))
+	//log := h.log.With(logging.FileField(f))
 
 	verbFuncs, err := h.findVerbMappings(f.Tree().RootNode(), varName)
 
-	log.Sugar().Debugf("Got %d verb functions for '%s'", len(verbFuncs), varName)
+	h.log.Sugar().Debugf("Got %d verb functions for '%s'", len(verbFuncs), varName)
 
 	for _, vfunc := range verbFuncs {
 		route := core.Route{
@@ -287,7 +294,7 @@ func (h *restAPIHandler) findLocallyMappedRoutes(f *core.SourceFile, varName str
 			ExecUnitName:  h.Unit.Name,
 			HandledInFile: f.Path(),
 		}
-		log.Sugar().Debugf("Found route function %s %s for '%s'", route.Verb, route.Path, varName)
+		h.log.Sugar().Debugf("Found route function %s %s for '%s'", route.Verb, route.Path, varName)
 		routes = append(routes, gatewayRouteDefinition{
 			Route:         route,
 			DefinedInPath: f.Path(),
@@ -317,20 +324,50 @@ func sanitizeConventionalPath(path string) string {
 	return path
 }
 
+func sanitizeControllerPath(path string, area string, controller string, action string) string {
+	//TODO: handle regex constraints -- they may include additional curly braces ("{", "}") that aren't currently accounted for
+	firstOptionalIndex := strings.Index(path, "?")
+	firstDefaultIndex := strings.Index(path, "=")
+	firstProxyParamIndex := firstOptionalIndex
+	if firstProxyParamIndex == -1 || (firstDefaultIndex > -1 && firstDefaultIndex < firstProxyParamIndex) {
+		firstProxyParamIndex = firstDefaultIndex
+	}
+	if firstProxyParamIndex > -1 {
+		// convert to longest possible proxy route
+		path = path[0:firstProxyParamIndex]
+		path = path[0:strings.LastIndex(path, "{")+1] + "rest*}"
+	}
+
+	// convert path params to express syntax
+	path = regexp.MustCompile("{([^:}]*):?[^}]*}").ReplaceAllString(path, ":$1")
+
+	path = strings.ReplaceAll(path, "[area]", fmt.Sprintf(":%s", area))
+	path = strings.ReplaceAll(path, "[controller]", fmt.Sprintf(":%s", controller))
+	path = strings.ReplaceAll(path, "[action]", fmt.Sprintf(":%s", action))
+	return path
+}
+
 type actionSpec struct {
 	name          string
 	method        MethodDeclaration
-	httpMethod    string
+	verb          core.Verb
 	routeTemplate string
 }
 
 type controllerSpec struct {
-	class   TypeDeclaration
-	actions []actionSpec
+	execUnitName string
+	name         string
+	class        TypeDeclaration
+	actions      []actionSpec
 	controllerAttributeSpec
 }
 
-func findControllersInFile(file *core.SourceFile) []controllerSpec {
+type controllerAttributeSpec struct {
+	routeTemplates []string
+	area           string
+}
+
+func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []controllerSpec {
 	types := FindDeclarationsInFile[*TypeDeclaration](file).Declarations()
 	usingDirectives := FindImportsInFile(file)
 	controllers := filter.NewSimpleFilter(isController(usingDirectives)).Apply(types...)
@@ -338,12 +375,43 @@ func findControllersInFile(file *core.SourceFile) []controllerSpec {
 	for _, c := range controllers {
 		controller := *c
 		spec := controllerSpec{
+			name:                    controller.Name,
 			class:                   controller,
 			controllerAttributeSpec: parseControllerAttributes(controller),
+			actions:                 findActionsInController(controller),
+			execUnitName:            h.Unit.Name,
 		}
 		controllerSpecs = append(controllerSpecs, spec)
 	}
 	return controllerSpecs
+}
+
+func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
+	shortName := strings.ToLower(strings.TrimSuffix(c.name, "Controller"))
+	var routes []gatewayRouteDefinition
+	for _, action := range c.actions {
+		for _, prefix := range c.routeTemplates {
+			routes = append(routes, gatewayRouteDefinition{
+				Route: core.Route{Verb: action.verb,
+					Path:          sanitizeControllerPath(path.Join(prefix, action.routeTemplate), c.area, shortName, action.name),
+					ExecUnitName:  c.execUnitName,
+					HandledInFile: c.class.DeclaringFile,
+				},
+				DefinedInPath: c.class.DeclaringFile,
+			},
+			)
+		}
+	}
+	return routes
+}
+
+func findActionsInController(controller TypeDeclaration) []actionSpec {
+	var actions []actionSpec
+	methods := FindDeclarationsAtNode[*MethodDeclaration](controller.Node).Declarations()
+	for _, m := range methods {
+		actions = append(actions, parseActionAttributes(*m)...)
+	}
+	return actions
 }
 
 func isController(using Imports) func(d *TypeDeclaration) bool {
@@ -359,21 +427,95 @@ func isController(using Imports) func(d *TypeDeclaration) bool {
 }
 
 func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSpec {
-	matches := AllMatches(controller.Node, fmt.Sprintf("[%s%s]", exposeRouteAttribute, exposeAreaAttribute))
+	matches := AllMatches(controller.Node, fmt.Sprintf("%s\n%s", exposeRouteAttribute, exposeAreaAttribute))
 	attrSpec := controllerAttributeSpec{}
 	for _, match := range matches {
 		attr := match["attr"]
 		switch attr.Content() {
 		case "Route":
-			attrSpec.routeTemplates = append(attrSpec.routeTemplates, match["template"].Content())
+			attrSpec.routeTemplates = append(attrSpec.routeTemplates, stringLiteralContent(match["template"]))
 		case "Area":
-			attrSpec.area = match["areaName"].Content()
+			attrSpec.area = stringLiteralContent(match["areaName"])
 		}
 	}
 	return attrSpec
 }
 
-type controllerAttributeSpec struct {
-	routeTemplates []string
-	area           string
+func parseActionAttributes(method MethodDeclaration) []actionSpec {
+	matches := AllMatches(method.Node, fmt.Sprintf("%s\n%s", exposeRouteAttribute, httpMethodAttribute))
+
+	var routePrefixes []string
+	for _, match := range matches {
+		attrName := match["attr"].Content()
+		if attrName == "Route" {
+			routePrefixes = append(routePrefixes, stringLiteralContent(match["template"]))
+		}
+	}
+	if len(routePrefixes) == 0 {
+		routePrefixes = append(routePrefixes, "") // fall back to empty prefix
+	}
+
+	var specs []actionSpec
+	for _, match := range matches {
+		attrName := match["attr"].Content()
+		if attrName == "Route" {
+			continue
+		}
+
+		//TODO: add support for 'AcceptVerbs' attribute
+		verb := core.Verb("")
+		if strings.HasPrefix(attrName, "Http") {
+			verb = core.Verb(strings.ToUpper(strings.TrimPrefix(attrName, "Http")))
+			if _, supported := core.Verbs[core.Verb(verb)]; !supported {
+				continue // unsupported verb
+			}
+		} else {
+			verb = resolveVerbFromNamePrefix(method.Name)
+		}
+
+		for _, prefix := range routePrefixes {
+			routeTemplate := stringLiteralContent(match["template"])
+			// route templates starting with "~" indicate prefixes should be ignored
+			if strings.HasPrefix(routeTemplate, "~") {
+				routeTemplate = strings.TrimPrefix(routeTemplate, "~")
+			} else {
+				routeTemplate = path.Join(prefix, routeTemplate)
+			}
+
+			spec := actionSpec{
+				name:          strings.ToLower(method.Name),
+				method:        method,
+				routeTemplate: routeTemplate,
+				verb:          verb,
+			}
+			specs = append(specs, spec)
+		}
+	}
+	return specs
+}
+
+func resolveVerbFromNamePrefix(name string) core.Verb {
+	name = strings.ToUpper(name)
+	if strings.HasPrefix(name, core.VerbGet.String()) {
+		return core.VerbGet
+	}
+	if strings.HasPrefix(name, core.VerbPost.String()) {
+		return core.VerbPost
+	}
+	if strings.HasPrefix(name, core.VerbPut.String()) {
+		return core.VerbPut
+	}
+	if strings.HasPrefix(name, core.VerbPatch.String()) {
+		return core.VerbPatch
+	}
+	if strings.HasPrefix(name, core.VerbDelete.String()) {
+		return core.VerbDelete
+	}
+	if strings.HasPrefix(name, core.VerbHead.String()) {
+		return core.VerbHead
+	}
+	if strings.HasPrefix(name, core.VerbOptions.String()) {
+		return core.VerbOptions
+	}
+	return ""
 }

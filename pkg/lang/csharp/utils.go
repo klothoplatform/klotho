@@ -6,5 +6,8 @@ import (
 )
 
 func stringLiteralContent(node *sitter.Node) string {
+	if node == nil {
+		return ""
+	}
 	return strings.Trim(strings.TrimPrefix(node.Content(), "@"), `"`)
 }
