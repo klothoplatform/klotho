@@ -332,14 +332,16 @@ jobs:
           sleep "$sleep_amount"
         env:
           SLOW_APPS: |
-            ts-nestjs-sequelize
-            ts-sequelize
-            ts-typeorm
-            ts-redis
-            ts-eks
-            ts-eks-helm
             py-orm
             py-redis
+            ts-eks
+            ts-eks-helm
+            ts-nestjs-sequelize
+            ts-orm-environment-variable-directive
+            ts-redis
+            ts-redis-env-var-directive
+            ts-sequelize
+            ts-typeorm
         working-directory: ${{ matrix.app_to_test }}
       - name: TypeScript - run integ tests
         if: steps.get_language.outputs.language == 'ts'
