@@ -857,7 +857,6 @@ metadata:
   creationTimestamp: null
   labels:
     execUnit: unit
-  name: unit
 spec:
   serviceRef:
     name: unit
