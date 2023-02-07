@@ -101,7 +101,7 @@ func UpdateImportsInFile(f *core.SourceFile, importsToAdd []Import, importsToRem
 	if len(f.Program()) > int(insertionPoint) {
 		contentStr += string(content[insertionPoint:])
 	}
-	fmt.Println([]byte(contentStr))
+
 	err = f.Reparse([]byte(contentStr))
 	if err != nil {
 		return errors.Wrap(err, "could not reparse inserted import")

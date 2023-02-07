@@ -33,6 +33,7 @@ func Test_GetImportsInFile(t *testing.T) {
 			want:   []Import{{Package: "os", Alias: "alias"}},
 		},
 		{
+
 			name: "multiple imports",
 			source: `import(
 				"os"
