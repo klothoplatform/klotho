@@ -18,13 +18,13 @@ export const createTargetBinding = (
     dependsOn
 ) => {
     return new pulumi_k8s.yaml.ConfigFile(
-        `${execUnit}-tgb`,
+        `${execUnit}-${port}-tgb`,
         {
             file: './iac/k8s/add_ons/alb_controller/target_group_binding.yaml',
             transformations: [
                 // Make every service private to the cluster, i.e., turn all services into ClusterIP instead of LoadBalancer.
                 (obj: any, opts: pulumi.CustomResourceOptions) => {
-                    obj.metadata = { name: `${execUnit}-tgb` }
+                    obj.metadata = { name: `${execUnit}` }
                     obj.spec.serviceRef.name = serviceName
                     obj.spec.serviceRef.port = port
                     obj.spec.targetGroupARN = targetGroupArn
@@ -255,6 +255,7 @@ export const installLoadBalancerController = (
     vpc: awsx.ec2.Vpc,
     provider: pulumi_k8s.Provider,
     region: string,
+    fargate: boolean,
     dependsOn?
 ): pulumi_k8s.helm.v3.Chart => {
     /**
@@ -286,7 +287,9 @@ export const installLoadBalancerController = (
                 podLabels: {
                     app: 'aws-lb-controller',
                 },
+                enableCertManager: !fargate,
             },
+            version: '1.4.7',
             namespace: namespace,
             transformations: [tranfsformation],
         },

@@ -309,9 +309,9 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 
 	if appCfg.AppName == "" {
 		return errors.New("'app' required")
-	} else if len(appCfg.AppName) > 35 {
-		analyticsClient.Error("Klotho parameter check failed. 'app' must be less than 35 characters in length")
-		return fmt.Errorf("'app' must be less than 35 characters in length. 'app' was %s", appCfg.AppName)
+	} else if len(appCfg.AppName) > 50 {
+		analyticsClient.Error("Klotho parameter check failed. 'app' must be less than 50 characters in length")
+		return fmt.Errorf("'app' must be less than 50 characters in length. 'app' was %s", appCfg.AppName)
 	}
 	match, err := regexp.MatchString(`^[\w-.:/]+$`, appCfg.AppName)
 	if err != nil {

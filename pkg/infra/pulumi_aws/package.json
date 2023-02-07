@@ -13,10 +13,12 @@
         "cdk8s-cli": "^2.1.4",
         "patch-package": "^6.4.7",
         "requestretry": "^7.0.2",
-        "simple-sha256": "^1.1.0"
+        "simple-sha256": "^1.1.0",
+        "multimap": "^1.1.0"
     },
     "devDependencies": {
         "@types/node": "^16.11.64",
-        "@types/uuid": "^8.3.4"
+        "@types/uuid": "^8.3.4",
+        "@types/multimap": "^1.1.2"
     }
 }

@@ -218,7 +218,10 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 					fmt.Fprintf(indentWriter, "in %s", ast.Path())
 				}
 
-				nodeContent := nodeField.n.Content()
+				nodeContent := ""
+				if nodeField.n != nil {
+					nodeContent = nodeField.n.Content()
+				}
 				if nodeContent == "" {
 					nodeContent = node.Content()
 				}
