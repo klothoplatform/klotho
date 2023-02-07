@@ -63,11 +63,24 @@ interface applyChartParams {
 
 export const applyChart = (lib: CloudCCLib, args: applyChartParams) => {
     const values = getChartValues(lib, args.eks, args.values, args.lbPlugin)
+
+    const transformation = (obj, opts): void => {
+        if (obj.kind == 'TargetGroupBinding') {
+            const execUnitName = obj.metadata.name
+            const targetGroup = args.lbPlugin!.execUnitToTargetGroup.get(execUnitName)!
+            obj.metadata.name = pulumi.interpolate`${execUnitName}-${targetGroup.arn.apply((arn) =>
+                arn.substring(arn.length - 7)
+            )}`
+        }
+        return
+    }
+
     new pulumi_k8s.helm.v3.Chart(
         `${args.eks.clusterName}-${args.chartName}`,
         {
             path: `./charts/${args.chartName}`,
             values,
+            transformations: [transformation],
         },
         { dependsOn: args.dependsOn, provider: args.provider }
     )
