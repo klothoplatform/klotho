@@ -30,8 +30,11 @@ var (
 	//go:embed queries/structural/field_declarations.scm
 	fieldDeclarations string
 
-	//go:embed queries/expose/configured_app.scm
-	configuredApp string
+	//go:embed queries/expose/startup_configure.scm
+	exposeStartupConfigure string
+
+	//go:embed queries/expose/startup_configure_services.scm
+	exposeStartupConfigureServices string
 
 	//go:embed queries/expose/use_endpoints_format.scm
 	useEndpointsFormat string
@@ -47,4 +50,10 @@ var (
 
 	//go:embed queries/expose/map_route.scm
 	exposeMapRoute string
+
+	//go:embed queries/expose/add_controllers_format.scm
+	exposeAddControllersFormat string
+
+	//go:embed queries/expose/map_controllers_format.scm
+	exposeMapControllersFormat string
 )

@@ -43,6 +43,7 @@ type (
 
 // An exposeUseEndpointsResult represents an ASP.net Core IApplicationBuilder.UseEndpoints() invocation
 type exposeUseEndpointsResult struct {
+	StartupClassDeclaration        *sitter.Node // Declaration of the Startup class surrounding the expose annotation
 	UseExpression                  *sitter.Node // Expression of the UseEndpoints() invocation (app.UseEndpoints(endpoints => {...})
 	AppBuilderIdentifier           *sitter.Node // Identifier of the builder (IApplicationBuilder app)
 	EndpointRouteBuilderIdentifier *sitter.Node // Identifier of the RoutesBuilder param (endpoints => {...})
@@ -50,7 +51,7 @@ type exposeUseEndpointsResult struct {
 
 func findIApplicationBuilder(cap *core.Annotation) []exposeUseEndpointsResult {
 	var results []exposeUseEndpointsResult
-	nextMatch := DoQuery(query.FirstAncestorOfType(cap.Node, "namespace_declaration"), configuredApp)
+	nextMatch := DoQuery(query.FirstAncestorOfType(cap.Node, "class_declaration"), exposeStartupConfigure)
 	for {
 		match, found := nextMatch()
 		if !found {
@@ -67,15 +68,16 @@ func findIApplicationBuilder(cap *core.Annotation) []exposeUseEndpointsResult {
 
 		nextExpressionMatch := DoQuery(query.FirstAncestorOfType(paramNameN, "method_declaration"), fmt.Sprintf(useEndpointsFormat, paramName))
 		for {
-			match, found := nextExpressionMatch()
+			expressionMatch, found := nextExpressionMatch()
 			if !found {
 				break
 			}
 
 			results = append(results, exposeUseEndpointsResult{
-				UseExpression:                  match["expression"],
+				UseExpression:                  expressionMatch["expression"],
 				AppBuilderIdentifier:           paramNameN,
-				EndpointRouteBuilderIdentifier: match["endpoints_param"],
+				EndpointRouteBuilderIdentifier: expressionMatch["endpoints_param"],
+				StartupClassDeclaration:        match["class_declaration"],
 			})
 		}
 	}
@@ -218,7 +220,7 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 				h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], localRoutes...)
 			}
 
-			if 1 == 1 { // TODO: check if MapControllers is invoked
+			if isMapControllersInvoked(useEndpoint) && areControllersInjected(useEndpoint.StartupClassDeclaration) {
 				for _, csFile := range h.Unit.FilesOfLang(CSharp) {
 					controllers := h.findControllersInFile(csFile)
 					for _, c := range controllers {
@@ -232,14 +234,19 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 				}
 
 			}
-			log.Sugar().Infof("Found %d route(s) on app '%s'", len(h.RoutesByGateway[gwSpec]), appBuilderName)
+			zap.L().Sugar().Infof("Found %d route(s) on app '%s'", len(h.RoutesByGateway[gwSpec]), appBuilderName)
 		}
 	}
 	return f, nil
 }
 
+func isMapControllersInvoked(useEndpoints exposeUseEndpointsResult) bool {
+	_, found := DoQuery(useEndpoints.UseExpression, fmt.Sprintf(exposeMapControllersFormat, useEndpoints.EndpointRouteBuilderIdentifier.Content()))()
+	return found
+}
+
 type routeMethodPath struct {
-	Verb string
+	Verb core.Verb
 	Path string
 }
 
@@ -261,9 +268,9 @@ func (h *aspDotNetCoreHandler) findVerbMappings(root *sitter.Node, varName strin
 			continue // wrong var (not the IApplicationBuilder we're looking for)
 		}
 
-		verb := strings.ToUpper(strings.TrimPrefix(methodName.Content(), "Map"))
+		verb := core.Verb(strings.ToUpper(strings.TrimPrefix(methodName.Content(), "Map")))
 		if verb == "" {
-			verb = "ANY"
+			verb = core.VerbAny
 		}
 
 		if _, supported := core.Verbs[core.Verb(verb)]; !supported {
@@ -276,6 +283,20 @@ func (h *aspDotNetCoreHandler) findVerbMappings(root *sitter.Node, varName strin
 		})
 	}
 	return route, err
+}
+
+func areControllersInjected(startupClass *sitter.Node) bool {
+
+	match, found := DoQuery(startupClass, exposeStartupConfigureServices)()
+	if !found {
+		return false
+	}
+	methodDeclaration := match["method_declaration"]
+	paramName := match["param_name"].Content()
+
+	_, found = DoQuery(methodDeclaration.ChildByFieldName("body"), fmt.Sprintf(exposeAddControllersFormat, paramName))()
+	return found
+
 }
 
 // findLocallyMappedRoutes finds any routes defined on varName declared in core.SourceFile f
