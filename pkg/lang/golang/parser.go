@@ -14,7 +14,7 @@ const goLang = core.LanguageId("go")
 
 var multilineCommentMarginRegexp = regexp.MustCompile(`(?m)^\s*[*]*[ \t]*`) // we need to use [ \t] instead of \s, because \s includes newlines in (?m) mode.
 
-var language = core.SourceLanguage{
+var Language = core.SourceLanguage{
 	ID:     goLang,
 	Sitter: golang.GetLanguage(),
 	CapabilityFinder: lang.NewCapabilityFinder("comment", lang.CompositePreprocessor(
@@ -47,5 +47,5 @@ var language = core.SourceLanguage{
 }
 
 func NewFile(path string, content io.Reader) (f *core.SourceFile, err error) {
-	return core.NewSourceFile(path, content, language)
+	return core.NewSourceFile(path, content, Language)
 }

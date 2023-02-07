@@ -50,7 +50,7 @@ func Test_findHttpListenServe(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), language)
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -101,7 +101,7 @@ func Test_findChiRouterDefinition(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), language)
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -137,7 +137,7 @@ func Test_findImports(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), language)
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -213,7 +213,7 @@ func Test_findChiRouterMounts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), language)
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -304,7 +304,7 @@ func Test_findChiRouterMountPackage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), language)
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -375,7 +375,7 @@ func Test_findFilesForPackage(t *testing.T) {
 			}
 
 			for path, src := range tt.sources {
-				f, err := core.NewSourceFile(path, strings.NewReader(src), language)
+				f, err := core.NewSourceFile(path, strings.NewReader(src), Language)
 				if !assert.NoError(err) {
 					return
 				}
@@ -443,7 +443,7 @@ func Test_findFilesForFunctionName(t *testing.T) {
 
 			var files = make([]*core.SourceFile, 0)
 			for path, src := range tt.sources {
-				f, err := core.NewSourceFile(path, strings.NewReader(src), language)
+				f, err := core.NewSourceFile(path, strings.NewReader(src), Language)
 				if !assert.NoError(err) {
 					return
 				}

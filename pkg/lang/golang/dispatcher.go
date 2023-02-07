@@ -53,37 +53,7 @@ func UpdateImportWithHandlerRequirements(oldFileContent string, imports *sitter.
 		`"github.com/go-chi/chi/v5"`,
 	}
 
-	newFileContent := oldFileContent
-	var importsToAdd []string
-	importsCode := imports.Content()
-	// Determine which imports already exist and which we need to add
-	for _, i := range handlerRequirements {
-		if !strings.Contains(importsCode, i) {
-			//TODO: investigate correctly indenting code
-			importsToAdd = append(importsToAdd, i)
-		}
-	}
-
-	// Create the new import block
-	newImportCode := "\nimport ("
-	for _, i := range importsToAdd {
-		newImportCode = newImportCode + "\n\t" + i
-	}
-	newImportCode = newImportCode + "\n)"
-
-	// Specifically handle removing the old chi import to ensure we only use chi/v5
-	oldNodeContent := imports.Content()
-	newNodeContent := strings.ReplaceAll(oldNodeContent, "\"github.com/go-chi/chi\"", "")
-
-	newNodeContent = newNodeContent + newImportCode
-
-	newFileContent = strings.ReplaceAll(
-		newFileContent,
-		oldNodeContent,
-		newNodeContent,
-	)
-
-	return newFileContent
+	return UpdateImportsInFile(f, handlerRequirements, []string{"github.com/go-chi/chi"})
 }
 
 func UpdateGoModWithHandlerRequirements(unit *core.ExecutionUnit) error {
