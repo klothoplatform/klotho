@@ -457,9 +457,14 @@ export class ApiGateway {
                             .sort()
                             .join()
                     ),
-                    connections: pulumi
-                        .all(integrations.map((i) => i.connectionId))
-                        .apply((is) => sha256.sync(is.filter((i) => i).sort())),
+                    connections: pulumi.all(integrations.map((i) => i.connectionId)).apply((is) =>
+                        sha256.sync(
+                            is
+                                .filter((i) => i)
+                                .sort()
+                                .join()
+                        )
+                    ),
                 },
             },
             {
