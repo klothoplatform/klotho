@@ -17,15 +17,10 @@ func (p *AddExecRuntimeFiles) Name() string { return "AddExecRuntimeFiles:Python
 
 func (p *AddExecRuntimeFiles) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
 	var errs multierr.Error
-	for _, res := range result.Resources() {
-		unit, ok := res.(*core.ExecutionUnit)
-		if !ok {
-			continue
-		}
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
 		if !unit.HasSourceFilesFor(Language.ID) {
 			continue
 		}
-
 		errs.Append(p.runtime.AddExecRuntimeFiles(unit, result, deps))
 	}
 

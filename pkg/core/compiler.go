@@ -131,11 +131,7 @@ func (result *CompilationResult) Len() int {
 func (result *CompilationResult) GetExecUnitForPath(fp string) (*ExecutionUnit, File) {
 	var best *ExecutionUnit
 	var bestFile File
-	for _, res := range result.Resources() {
-		eu, ok := res.(*ExecutionUnit)
-		if !ok {
-			continue
-		}
+	for _, eu := range GetResourcesOfType[*ExecutionUnit](result) {
 		f := eu.Get(fp)
 		if f != nil {
 			astF, ok := f.(*SourceFile)
