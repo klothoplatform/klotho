@@ -132,7 +132,7 @@ interface EksClusterOptions {
 }
 
 export const DefaultEksClusterOptions: EksClusterOptions = {
-    initializePluginsOnFargate: false,
+    initializePluginsOnFargate: true,
     installPlugins: [
         plugins.VPC_CNI,
         plugins.METRICS_SERVER,
