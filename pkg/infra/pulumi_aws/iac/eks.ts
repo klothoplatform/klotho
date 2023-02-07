@@ -399,15 +399,12 @@ export class Eks {
                 },
             },
         ]
-        const fargateUnits = execUnits.filter((unit) => unit.params.nodeType === 'fargate')
-        if (fargateUnits.length > 0) {
-            this.execUnitFargateProfile = this.createFargateProfile(
-                `${clusterName}-execunit-profile`,
-                podExecutionRole,
-                vpc,
-                selectors
-            )
-        }
+        this.execUnitFargateProfile = this.createFargateProfile(
+            `${clusterName}-execunit-profile`,
+            podExecutionRole,
+            vpc,
+            selectors
+        )
 
         for (const unit of execUnits) {
             this.setupExecUnit(lib, unit)
