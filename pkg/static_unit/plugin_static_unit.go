@@ -24,7 +24,7 @@ type (
 
 func (p StaticUnitSplit) Name() string { return "StaticUnitSplit" }
 
-func (p StaticUnitSplit) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p StaticUnitSplit) Transform(result *core.CompilationResult, _ *core.Dependencies) error {
 	var errs multierr.Error
 
 	inputR := result.GetFirstResource(core.InputFilesKind)

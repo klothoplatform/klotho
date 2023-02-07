@@ -17,7 +17,7 @@ type Assets struct{}
 
 func (p Assets) Name() string { return "Assets" }
 
-func (p Assets) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p Assets) Transform(result *core.CompilationResult, _ *core.Dependencies) error {
 	input := result.GetFirstResource(core.InputFilesKind).(*core.InputFiles)
 
 	units := make(map[string]*core.ExecutionUnit)

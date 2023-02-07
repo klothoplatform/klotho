@@ -19,7 +19,7 @@ func (l PythonExecutable) Name() string {
 	return "python_executable"
 }
 
-func (l PythonExecutable) Transform(result *core.CompilationResult, dependencies *core.Dependencies) error {
+func (l PythonExecutable) Transform(result *core.CompilationResult, _ *core.Dependencies) error {
 	input := core.GetFirstResource[*core.InputFiles](result)
 	if input == nil {
 		return nil

@@ -24,7 +24,7 @@ type Plugin struct {
 
 func (p Plugin) Name() string { return "Validation" }
 
-func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p Plugin) Transform(result *core.CompilationResult, _ *core.Dependencies) error {
 	var errs multierr.Error
 	err := p.handleAnnotations(result)
 	errs.Append(err)

@@ -14,7 +14,7 @@ type ExecUnitPlugin struct {
 
 func (p ExecUnitPlugin) Name() string { return "ExecutionUnit" }
 
-func (p ExecUnitPlugin) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p ExecUnitPlugin) Transform(result *core.CompilationResult, _ *core.Dependencies) error {
 	inputR := result.GetFirstResource(core.InputFilesKind)
 	if inputR == nil {
 		return errors.New("no input files")

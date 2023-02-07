@@ -16,7 +16,7 @@ type ConfigPlugin struct {
 
 func (p ConfigPlugin) Name() string { return "Pulumi:AWS config-set" }
 
-func (p ConfigPlugin) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p ConfigPlugin) Transform(_ *core.CompilationResult, _ *core.Dependencies) error {
 	l := zap.S()
 	provider, ok := p.Provider.(*aws.AWS)
 	if !ok {

@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (a *AWS) Transform(result *core.CompilationResult, _ *core.Dependencies) error {
 	var errs multierr.Error
 	data := NewTemplateData(a.Config)
 

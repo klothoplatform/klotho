@@ -13,7 +13,7 @@ func (l GolangExecutable) Name() string {
 	return "golang_executable"
 }
 
-func (l GolangExecutable) Transform(result *core.CompilationResult, dependencies *core.Dependencies) error {
+func (l GolangExecutable) Transform(result *core.CompilationResult, _ *core.Dependencies) error {
 	input := core.GetFirstResource[*core.InputFiles](result)
 	if input == nil {
 		return nil

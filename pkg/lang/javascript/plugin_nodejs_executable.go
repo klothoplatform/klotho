@@ -23,7 +23,7 @@ func (l NodeJSExecutable) Name() string {
 	return "nodejs_executable"
 }
 
-func (l NodeJSExecutable) Transform(result *core.CompilationResult, dependencies *core.Dependencies) error {
+func (l NodeJSExecutable) Transform(result *core.CompilationResult, _ *core.Dependencies) error {
 	// TODO: Consider adding ES module config for a unit in this plugin
 	input := core.GetFirstResource[*core.InputFiles](result)
 	if input == nil {

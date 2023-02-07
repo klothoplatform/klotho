@@ -27,7 +27,7 @@ type Plugin struct {
 
 func (p Plugin) Name() string { return "Pulumi:AWS" }
 
-func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p Plugin) Transform(result *core.CompilationResult, _ *core.Dependencies) error {
 	infraFiles := &core.InfraFiles{
 		Name: "Pulumi (AWS)",
 	}
