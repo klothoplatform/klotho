@@ -2,14 +2,19 @@ package auth
 
 import (
 	"bytes"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"github.com/klothoplatform/klotho/pkg/closenicely"
 	"github.com/pkg/errors"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -18,7 +23,9 @@ import (
 	"go.uber.org/zap"
 )
 
-var authUrlBase = getAuthUrlBase()
+var authUrlBase = EnvVar("KLOTHO_AUTH_BASE").GetOr(`http://klotho-auth-service-alb-e22c092-466389525.us-east-1.elb.amazonaws.com`)
+
+var pemUrl = EnvVar("KLOTHO_AUTH_PEM").GetOr(`https://klotho.us.auth0.com/pem`)
 
 type LoginResponse struct {
 	Url   string
@@ -26,7 +33,7 @@ type LoginResponse struct {
 }
 
 type Authorizer interface {
-	Authorize() error
+	Authorize() (*KlothoClaims, error)
 }
 
 func DefaultIfNil(auth Authorizer) Authorizer {
@@ -38,7 +45,7 @@ func DefaultIfNil(auth Authorizer) Authorizer {
 
 type standardAuthorizer struct{}
 
-func (s standardAuthorizer) Authorize() error {
+func (s standardAuthorizer) Authorize() (*KlothoClaims, error) {
 	return Authorize()
 }
 
@@ -152,88 +159,139 @@ func CallRefreshToken(token string) error {
 	return nil
 }
 
-type MyCustomClaims struct {
+type KlothoClaims struct {
 	ProEnabled    bool
 	ProTier       int
 	Email         string `json:"email"`
 	EmailVerified bool   `json:"email_verified"`
 	Name          string `json:"name"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
-func Authorize() error {
+func Authorize() (*KlothoClaims, error) {
 	return authorize(false)
 }
 
-func authorize(tokenRefreshed bool) error {
-	creds, err := GetIDToken()
+func authorize(tokenRefreshed bool) (*KlothoClaims, error) {
+	creds, claims, err := getClaims()
 	if err != nil {
-		return errors.New("failed to get credentials for user, please login")
+		return nil, err
 	}
 
-	token, err := jwt.ParseWithClaims(creds.IdToken, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return nil, nil
-	})
-	if err != nil {
-		zap.S().Debug(err)
-	}
-
-	if claims, ok := token.Claims.(*MyCustomClaims); ok {
-		if !claims.EmailVerified {
-			if tokenRefreshed {
-				return fmt.Errorf("user %s, has not verified their email", claims.Email)
-			}
-			err := CallRefreshToken(creds.RefreshToken)
-			if err != nil {
-				return err
-			}
-			err = authorize(true)
-			if err != nil {
-				return err
-			}
-		} else if !claims.ProEnabled {
-			return fmt.Errorf("user %s is not authorized to use KlothoPro", claims.Email)
-		} else if claims.ExpiresAt < time.Now().Unix() {
-			if tokenRefreshed {
-				return fmt.Errorf("user %s, does not have a valid token", claims.Email)
-			}
-			err := CallRefreshToken(creds.RefreshToken)
-			if err != nil {
-				return err
-			}
-			err = authorize(true)
-			if err != nil {
-				return err
-			}
+	if !claims.EmailVerified {
+		if tokenRefreshed {
+			return nil, fmt.Errorf("user %s, has not verified their email", claims.Email)
 		}
-	} else {
-		return errors.New("failed to authorize user")
+		err := CallRefreshToken(creds.RefreshToken)
+		if err != nil {
+			return nil, err
+		}
+		claims, err = authorize(true)
+		if err != nil {
+			return nil, err
+		}
+	} else if !claims.ProEnabled {
+		return nil, fmt.Errorf("user %s is not authorized to use KlothoPro", claims.Email)
+	} else if claims.ExpiresAt.Before(time.Now()) {
+		if tokenRefreshed {
+			return nil, fmt.Errorf("user %s, does not have a valid token", claims.Email)
+		}
+		err := CallRefreshToken(creds.RefreshToken)
+		if err != nil {
+			return nil, err
+		}
+		claims, err = authorize(true)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return nil
+	return claims, nil
 }
 
-func GetUserEmail() (string, error) {
+func getClaims() (*Credentials, *KlothoClaims, error) {
+	errMsg := `Failed to get credentials for user. Please run "klotho --login"`
 	creds, err := GetIDToken()
 	if err != nil {
-		return "", errors.New("failed to get credentials for user, please login")
+		return nil, nil, errors.New(errMsg)
 	}
-	token, err := jwt.ParseWithClaims(creds.IdToken, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return nil, nil
+	token, err := jwt.ParseWithClaims(creds.IdToken, &KlothoClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return getPem()
 	})
 	if err != nil {
-		zap.S().Debug(err)
+		return nil, nil, errors.Wrap(err, errMsg)
 	}
-	if claims, ok := token.Claims.(*MyCustomClaims); ok {
-		return claims.Email, nil
+	if claims, ok := token.Claims.(*KlothoClaims); ok {
+		return creds, claims, nil
 	} else {
-		return "", errors.New("failed to authorize user")
+		return nil, nil, errors.Wrap(err, errMsg)
 	}
 }
 
-func getAuthUrlBase() string {
-	host := os.Getenv("KLOTHO_AUTH_BASE")
-	if host == "" {
-		host = "http://klotho-auth-service-alb-e22c092-466389525.us-east-1.elb.amazonaws.com"
+func getPem() (*rsa.PublicKey, error) {
+	var authServerPemCacheFile = path.Join("pem", url.PathEscape(pemUrl))
+
+	writePemCache := false
+	// Try to read the PEM from local cache
+	configPath, err := cli_config.KlothoConfigPath(authServerPemCacheFile)
+	if err != nil {
+		return nil, err
 	}
-	return host
+	bs, err := os.ReadFile(configPath)
+	// Couldn't read it from cache, so (a) try to fetch it from URL and (b) mark down that we should write it on success
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			zap.L().Debug("Couldn't read PEM cache file. Will download it.", zap.Error(err))
+		}
+		pemResp, err := http.Get(pemUrl)
+		if err != nil {
+			return nil, err
+		}
+		defer closenicely.OrDebug(pemResp.Body)
+		bs, err = io.ReadAll(pemResp.Body)
+		if err != nil {
+			return nil, err
+		}
+		writePemCache = true
+	}
+	// okay, we have the PEM bytes. Try to decode them into a PublicKey.
+	block, _ := pem.Decode(bs)
+	if block == nil {
+		return nil, errors.New("Couldn't parse PEM certificate")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	pub, ok := cert.PublicKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New("Couldn't parse PEM certificate block")
+	}
+	// Finally, if we'd fetched the PEM bytes from URL, save them now.
+	if writePemCache {
+		configPath, err := cli_config.KlothoConfigPath(authServerPemCacheFile)
+		if err == nil {
+			_ = os.MkdirAll(path.Dir(configPath), 0777)
+			err = os.WriteFile(configPath, bs, 0644)
+		}
+		if err != nil {
+			zap.L().Debug("Couldn't write PEM to local cache", zap.Error(err))
+		}
+	}
+	return pub, nil
+}
+
+// EnvVar represents an environment variable, specified by its key name.
+// wrapper around  os.Getenv. This string's value is the env var key. Use GetOr to get its value, or a
+// default if the value isn't set.
+type EnvVar string
+
+// GetOr uses os.Getenv to get the env var specified by the target EnvVar. If that env var's value is unset or empty,
+// it returns the defaultValue.
+func (s EnvVar) GetOr(defaultValue string) string {
+	value := os.Getenv(string(s))
+	if value == "" {
+		return defaultValue
+	} else {
+		return value
+	}
 }

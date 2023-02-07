@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/auth"
 
 	"github.com/google/uuid"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -36,38 +37,29 @@ var (
 var datadogLogLevel = "_logLevel"
 var datadogStatus = "status"
 
-func NewClient(properties map[string]interface{}) (*Client, error) {
-	result, err := getTrackingFileContents(analyticsFile)
-	if err != nil {
-		return nil, err
-	}
-	user := RetrieveUser(result)
-	if user == nil {
-		return nil, errors.New("required user info not set")
-	}
-
-	err = user.RegisterUser()
-	if err != nil {
-		return nil, err
-	}
+func NewClient(properties map[string]interface{}) *Client {
+	local := GetOrCreateAnalyticsFile()
 
 	client := &Client{
 		Properties: properties,
 	}
-	if user.Email != "" {
-		client.UserId = user.Email
-		client.Properties["validated"] = user.Validated
-		if user.Id != "" {
-			client.Properties["localId"] = user.Id
-		}
-	} else {
-		client.UserId = user.Id
-	}
+
+	// These will get validated in AttachAuthorizations
+	client.UserId = local.Id
+	client.Properties["validated"] = false
+
+	client.Properties["localId"] = local.Id
 	if runUuid, err := uuid.NewRandom(); err == nil {
 		client.Properties["runId"] = runUuid.String()
 	}
 
-	return client, nil
+	return client
+}
+
+func (t *Client) AttachAuthorizations(claims *auth.KlothoClaims) {
+	t.Properties["localId"] = t.UserId
+	t.UserId = claims.Email
+	t.Properties["validated"] = claims.EmailVerified
 }
 
 func (t *Client) Info(event string) {

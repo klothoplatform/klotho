@@ -30,7 +30,6 @@ func WriteIDToken(token string) error {
 }
 
 func GetIDToken() (*Credentials, error) {
-
 	idToken := os.Getenv("KLOTHO_ID_TOKEN")
 	if idToken != "" {
 		return &Credentials{
