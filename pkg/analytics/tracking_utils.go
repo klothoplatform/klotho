@@ -5,10 +5,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/cli_config"
 	"math"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -17,8 +15,7 @@ import (
 var kloServerUrl = "http://srv.klo.dev"
 
 type AnalyticsFile struct {
-	Email string
-	Id    string
+	Id string
 }
 
 func SendTrackingToServer(bundle *Client) error {
@@ -71,21 +68,4 @@ func CompressFiles(input *core.InputFiles) ([]byte, error) {
 	err := zipWriter.Close()
 
 	return buf.Bytes(), err
-}
-
-func getTrackingFileContents(file string) (AnalyticsFile, error) {
-	configPath, err := cli_config.KlothoConfigPath(file)
-	result := AnalyticsFile{}
-
-	if err != nil {
-		return result, err
-	}
-
-	content, err := os.ReadFile(configPath)
-	if err != nil {
-		return result, err
-	}
-	err = json.Unmarshal(content, &result)
-
-	return result, err
 }

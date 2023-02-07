@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/closenicely"
 	"github.com/spf13/pflag"
 	"os"
 	"regexp"
@@ -193,30 +194,26 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		zap.S().Warnf("failed to create .klotho directory: %v", err)
 	}
 
-	analyticsClientProperties := map[string]interface{}{
+	// Set up analytics, and hook them up to the logs
+	analyticsClient := analytics.NewClient(map[string]interface{}{
 		"version": km.Version,
 		"strict":  cfg.strict,
 		"edition": km.DefaultUpdateStream,
+	})
+	z, err := setupLogger(analyticsClient)
+	if err != nil {
+		return err
 	}
+	defer closenicely.FuncOrDebug(z.Sync)
+	zap.ReplaceGlobals(z)
 
 	// Set up user if login is specified
 	if cfg.login {
 		err := auth.Login(func(err error) {
-			// We don't have the analytics client set up to the logger yet, so the warn message won't send any
-			//analytics. Manually create a client and send the tracking.
 			zap.L().Warn(`Couldn't log in. You may be able to continue using klotho without logging in for now, but this may break in the future. Please contact us if this continues.'`)
-			client := &analytics.Client{Properties: analyticsClientProperties}
-			client.Warn("login failed")
 		})
 		if err != nil {
 			return err
-		}
-		email, err := auth.GetUserEmail()
-		if err != nil {
-			return err
-		}
-		if err := analytics.CreateUser(email); err != nil {
-			return errors.Wrapf(err, "could not configure user '%s'", email)
 		}
 		return nil
 	}
@@ -228,19 +225,6 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		}
 		return nil
 	}
-
-	// Set up analytics
-	analyticsClient, err := analytics.NewClient(analyticsClientProperties)
-	if err != nil {
-		return errors.New(fmt.Sprintf("Issue retrieving user info: %s. \nYou may need to run: klotho --login <email>", err))
-	}
-
-	z, err := setupLogger(analyticsClient)
-	if err != nil {
-		return err
-	}
-	defer z.Sync() // nolint:errcheck
-	zap.ReplaceGlobals(z)
 
 	errHandler := ErrorHandler{
 		InternalDebug: cfg.internalDebug,
@@ -269,7 +253,10 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// Needs to go after the --version and --update checks
-	err = km.Authorizer.Authorize()
+	claims, err := km.Authorizer.Authorize()
+	if claims != nil {
+		analyticsClient.AttachAuthorizations(claims)
+	}
 	if err != nil {
 		return err
 	}
