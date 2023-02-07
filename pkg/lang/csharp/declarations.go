@@ -21,6 +21,7 @@ type Declaration struct {
 	IsNested       bool
 	IsStatic       bool
 	DeclaringClass string
+	AttributesList *sitter.Node
 }
 
 func (d *Declaration) AsDeclaration() Declaration {
@@ -203,10 +204,12 @@ func parseTypeDeclaration(match query.MatchNodes) *TypeDeclaration {
 	structDeclaration := match["struct_declaration"]
 	name := match["name"]
 	bases := match["bases"]
+	attributes := match["attribute_list"]
 
 	declaration := TypeDeclaration{
 		Declaration: Declaration{
-			Name: name.Content(),
+			Name:           name.Content(),
+			AttributesList: attributes,
 		},
 		Bases: parseBaseTypes(bases),
 	}
@@ -261,9 +264,10 @@ func parseMethodDeclaration(match query.MatchNodes) *MethodDeclaration {
 
 	declaration := MethodDeclaration{
 		Declaration: Declaration{
-			Name: name.Content(),
-			Node: methodDeclaration,
-			Kind: DeclarationKindMethod,
+			Name:           name.Content(),
+			Node:           methodDeclaration,
+			Kind:           DeclarationKindMethod,
+			AttributesList: match["attributes_list"],
 		},
 		ReturnType: returnType.Content(),
 	}
@@ -330,9 +334,10 @@ func parseFieldDeclaration(match query.MatchNodes) *FieldDeclaration {
 
 	declaration := &FieldDeclaration{
 		Declaration: Declaration{
-			Name: name.Content(),
-			Node: fieldDeclaration,
-			Kind: DeclarationKindMethod,
+			Name:           name.Content(),
+			Node:           fieldDeclaration,
+			Kind:           DeclarationKindMethod,
+			AttributesList: match["attributes_list"],
 		},
 		Type: fieldType.Content(),
 	}

@@ -369,10 +369,10 @@ func sanitizeControllerPath(path string, area string, controller string, action 
 }
 
 type actionSpec struct {
-	name          string
 	method        MethodDeclaration
 	verb          core.Verb
 	routeTemplate string
+	name          string
 }
 
 type controllerSpec struct {
@@ -408,13 +408,21 @@ func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []co
 }
 
 func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
-	shortName := strings.ToLower(strings.TrimSuffix(c.name, "Controller"))
+	shortName := strings.TrimSuffix(c.name, "Controller")
 	var routes []gatewayRouteDefinition
 	for _, action := range c.actions {
 		for _, prefix := range c.routeTemplates {
+			routeTemplate := action.routeTemplate
+			// route templates starting with "~" indicate prefixes should be ignored
+			if strings.HasPrefix(routeTemplate, "~") {
+				routeTemplate = strings.TrimPrefix(routeTemplate, "~")
+			} else {
+				routeTemplate = path.Join(prefix, action.routeTemplate)
+			}
+
 			routes = append(routes, gatewayRouteDefinition{
 				Route: core.Route{Verb: action.verb,
-					Path:          sanitizeControllerPath(path.Join(prefix, action.routeTemplate), c.area, shortName, action.name),
+					Path:          sanitizeControllerPath(routeTemplate, c.area, shortName, action.name),
 					ExecUnitName:  c.execUnitName,
 					HandledInFile: c.class.DeclaringFile,
 				},
@@ -448,7 +456,7 @@ func isController(using Imports) func(d *TypeDeclaration) bool {
 }
 
 func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSpec {
-	matches := AllMatches(controller.Node, fmt.Sprintf("%s\n%s", exposeRouteAttribute, exposeAreaAttribute))
+	matches := AllMatches(controller.AttributesList, fmt.Sprintf("[%s\n%s]", exposeRouteAttribute, exposeAreaAttribute))
 	attrSpec := controllerAttributeSpec{}
 	for _, match := range matches {
 		attr := match["attr"]
@@ -463,23 +471,55 @@ func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSp
 }
 
 func parseActionAttributes(method MethodDeclaration) []actionSpec {
-	matches := AllMatches(method.Node, fmt.Sprintf("%s\n%s", exposeRouteAttribute, httpMethodAttribute))
+	matches := AllMatches(method.Node, fmt.Sprintf("[%s\n%s]", exposeRouteAttribute, httpMethodAttribute))
+	var specs []actionSpec
 
+	if len(matches) == 0 {
+		verb := resolveVerbFromNamePrefix(method.Name)
+		if verb != "" {
+			routeTemplate := method.Name[len(verb):]
+			spec := actionSpec{
+				name:          routeTemplate,
+				method:        method,
+				routeTemplate: routeTemplate,
+				verb:          verb,
+			}
+			specs = append(specs, spec)
+		}
+		return specs
+	}
+
+	hasVerbAttribute := false
 	var routePrefixes []string
 	for _, match := range matches {
 		attrName := match["attr"].Content()
 		if attrName == "Route" {
 			routePrefixes = append(routePrefixes, stringLiteralContent(match["template"]))
+		} else {
+			hasVerbAttribute = true
 		}
 	}
 	if len(routePrefixes) == 0 {
 		routePrefixes = append(routePrefixes, "") // fall back to empty prefix
 	}
 
-	var specs []actionSpec
 	for _, match := range matches {
 		attrName := match["attr"].Content()
-		if attrName == "Route" {
+		if attrName == "Route" && hasVerbAttribute {
+			continue
+		}
+		if !hasVerbAttribute {
+			verb := resolveVerbFromNamePrefix(method.Name)
+			if verb != "" {
+				routeTemplate := stringLiteralContent(match["template"])
+				spec := actionSpec{
+					name:          method.Name[len(verb):],
+					method:        method,
+					routeTemplate: routeTemplate,
+					verb:          verb,
+				}
+				specs = append(specs, spec)
+			}
 			continue
 		}
 
@@ -495,16 +535,10 @@ func parseActionAttributes(method MethodDeclaration) []actionSpec {
 		}
 
 		for _, prefix := range routePrefixes {
-			routeTemplate := stringLiteralContent(match["template"])
-			// route templates starting with "~" indicate prefixes should be ignored
-			if strings.HasPrefix(routeTemplate, "~") {
-				routeTemplate = strings.TrimPrefix(routeTemplate, "~")
-			} else {
-				routeTemplate = path.Join(prefix, routeTemplate)
-			}
+			routeTemplate := path.Join(prefix, stringLiteralContent(match["template"]))
 
 			spec := actionSpec{
-				name:          strings.ToLower(method.Name),
+				name:          method.Name[len(verb):],
 				method:        method,
 				routeTemplate: routeTemplate,
 				verb:          verb,
