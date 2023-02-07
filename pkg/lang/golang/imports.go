@@ -47,6 +47,16 @@ func GetImportsInFile(f *core.SourceFile) []Import {
 	return imports
 }
 
+func GetNamedImportInFile(f *core.SourceFile, namedImport string) Import {
+	imports := GetImportsInFile(f)
+	for _, i := range imports {
+		if i.Package == namedImport {
+			return i
+		}
+	}
+	return Import{}
+}
+
 func UpdateImportsInFile(f *core.SourceFile, importsToAdd []Import, importsToRemove []Import) error {
 
 	imports := GetImportsInFile(f)

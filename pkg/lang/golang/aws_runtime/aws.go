@@ -57,3 +57,10 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 
 	return nil
 }
+
+func (r *AwsRuntime) GetFsImports() []string {
+	return []string{
+		"gocloud.dev/blob",
+		"_ \"gocloud.dev/blob/s3blob\"",
+	}
+}

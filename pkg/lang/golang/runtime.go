@@ -13,6 +13,7 @@ import (
 type (
 	Runtime interface {
 		AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error
+		GetFsImports() []string
 	}
 )
 

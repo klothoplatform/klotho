@@ -85,6 +85,52 @@ func Test_GetImportsInFile(t *testing.T) {
 	}
 }
 
+func Test_GetNamedImportInFile(t *testing.T) {
+	tests := []struct {
+		name        string
+		source      string
+		importToGet string
+		want        Import
+	}{
+		{
+			name: "simple import",
+			source: `import(
+				"os"
+)`,
+			want:        Import{Package: "os"},
+			importToGet: "os",
+		},
+		{
+			name: "no match",
+			source: `import(
+				"os"
+				"github.com/go-chi/chi/v5"
+)`,
+			importToGet: "NotReal",
+		},
+		{
+			name: "multiple imports with an alias",
+			source: `import(
+				"os"
+				chi "github.com/go-chi/chi/v5"
+)`,
+			importToGet: "github.com/go-chi/chi/v5",
+			want:        Import{Package: "github.com/go-chi/chi/v5", Alias: "chi"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			f, err := core.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
+			if !assert.NoError(err) {
+				return
+			}
+			i := GetNamedImportInFile(f, tt.importToGet)
+			assert.Equal(tt.want, i)
+		})
+	}
+}
+
 func Test_UpdateImportsInFile(t *testing.T) {
 	tests := []struct {
 		name            string
