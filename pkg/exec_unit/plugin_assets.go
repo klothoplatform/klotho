@@ -21,11 +21,7 @@ func (p Assets) Transform(result *core.CompilationResult, deps *core.Dependencie
 	input := result.GetFirstResource(core.InputFilesKind).(*core.InputFiles)
 
 	units := make(map[string]*core.ExecutionUnit)
-	for _, res := range result.Resources() {
-		unit, ok := res.(*core.ExecutionUnit)
-		if !ok {
-			continue
-		}
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
 		units[unit.Name] = unit
 	}
 

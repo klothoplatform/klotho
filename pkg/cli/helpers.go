@@ -170,11 +170,8 @@ func OutputResources(result *core.CompilationResult, outDir string) (resourceCou
 
 func GetLanguagesUsed(result *core.CompilationResult) []core.ExecutableType {
 	executableLangs := []core.ExecutableType{}
-	for _, res := range result.Resources() {
-		switch r := res.(type) {
-		case *core.ExecutionUnit:
-			executableLangs = append(executableLangs, r.Executable.Type)
-		}
+	for _, u := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
+		executableLangs = append(executableLangs, u.Executable.Type)
 	}
 	return executableLangs
 }
@@ -190,12 +187,10 @@ func GetResourceTypeCount(result *core.CompilationResult, cfg *config.Applicatio
 }
 
 func CloseTreeSitter(result *core.CompilationResult) {
-	for _, res := range result.Resources() {
-		if eu, ok := res.(*core.ExecutionUnit); ok {
-			for _, f := range eu.Files() {
-				if astFile, ok := f.(*core.SourceFile); ok {
-					astFile.Tree().Close()
-				}
+	for _, eu := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
+		for _, f := range eu.Files() {
+			if astFile, ok := f.(*core.SourceFile); ok {
+				astFile.Tree().Close()
 			}
 		}
 	}

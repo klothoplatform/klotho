@@ -55,11 +55,7 @@ func (p ExpressHandler) Name() string { return "Express" }
 
 func (p ExpressHandler) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
 	var errs multierr.Error
-	for _, res := range result.Resources() {
-		unit, ok := res.(*core.ExecutionUnit)
-		if !ok {
-			continue
-		}
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
 		err := p.transformSingle(result, deps, unit)
 		errs.Append(err)
 	}

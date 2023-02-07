@@ -24,12 +24,7 @@ func (p Persist) Transform(result *core.CompilationResult, deps *core.Dependenci
 	persister := &persister{result: result, deps: deps, runtime: p.runtime}
 
 	var errs multierr.Error
-	for _, res := range result.Resources() {
-		unit, ok := res.(*core.ExecutionUnit)
-		if !ok {
-			continue
-		}
-
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
 		err := persister.handleFiles(unit)
 		if err != nil {
 			errs.Append(err)
