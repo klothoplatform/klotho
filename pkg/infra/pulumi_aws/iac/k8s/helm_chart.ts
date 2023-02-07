@@ -68,7 +68,9 @@ export const applyChart = (lib: CloudCCLib, args: applyChartParams) => {
         if (obj.kind == 'TargetGroupBinding') {
             const execUnitName = obj.metadata.name
             const targetGroup = args.lbPlugin!.execUnitToTargetGroup.get(execUnitName)!
-            obj.metadata.name = pulumi.interpolate`${execUnitName}-${targetGroup.arnSuffix}`
+            obj.metadata.name = pulumi.interpolate`${execUnitName}-${targetGroup.arn.apply((arn) =>
+                arn.substring(arn.length - 7)
+            )}`
         }
         return
     }
