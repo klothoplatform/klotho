@@ -33,6 +33,10 @@ type LoginResponse struct {
 }
 
 type Authorizer interface {
+	// Authorize tries to authorize the user. The KlothoClaims it returns may be nil, even if the authentication
+	// succeeds. Conversely, if the KlothoClaims is non-nil, it is valid even if the error is also non-nil; you can use
+	// those claims provisionally (and specifically, in analytics) even if the error is non-nil, indicating failed
+	// authentication.
 	Authorize() (*KlothoClaims, error)
 }
 
