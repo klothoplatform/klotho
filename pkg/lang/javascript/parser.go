@@ -12,8 +12,10 @@ import (
 
 var multilineCommentMarginRegexp = regexp.MustCompile(`(?m)^\s*[*]*[ \t]*`) // we need to use [ \t] instead of \s, because \s includes newlines in (?m) mode.
 
+const js = core.LanguageId("javascript")
+
 var Language = core.SourceLanguage{
-	ID:     core.LanguageId("javascript"),
+	ID:     js,
 	Sitter: javascript.GetLanguage(),
 	CapabilityFinder: lang.NewCapabilityFinder("comment", lang.CompositePreprocessor(
 		lang.RegexpRemovePreprocessor(`//\s*`),

@@ -50,7 +50,6 @@ export interface EksExecUnit {
     params: EksExecUnitArgs
     helmOptions?: HelmOptions
     envVars?: any
-    image?: pulumi.Output<String>
 }
 
 export interface HelmChart {
@@ -591,7 +590,7 @@ export class Eks {
 
     private setupExecUnit(lib: CloudCCLib, unit: EksExecUnit) {
         const execUnit = unit.name
-        const image = unit.image
+        const image = this.lib.execUnitToImage.get(unit.name)!
         const args = unit.params
         let dependencyParent
         let serviceName

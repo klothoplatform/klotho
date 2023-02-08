@@ -32,6 +32,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 				Type:                 cfg.Type,
 				EnvironmentVariables: res.EnvironmentVariables,
 				NetworkPlacement:     cfg.NetworkPlacement,
+				DockerfilePath:       res.DockerfilePath,
 			}
 
 			buildImage := true
