@@ -99,10 +99,16 @@ func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, 
 
 	newNodeContent := strings.Replace(result.args.Content(), result.args.Content(), ArgumentListToString(args), 1)
 
-	f.ReplaceNodeContent(result.args, newNodeContent)
-	f.ReplaceNodeContent(result.operator, "blob")
+	err := f.ReplaceNodeContent(result.args, newNodeContent)
+	if err != nil {
+		return nil, err
+	}
+	err = f.ReplaceNodeContent(result.operator, "blob")
+	if err != nil {
+		return nil, err
+	}
 
-	err := UpdateImportsInFile(f, p.runtime.GetFsImports(), []Import{{Package: "gocloud.dev/blob/fileblob"}})
+	err = UpdateImportsInFile(f, p.runtime.GetFsImports(), []Import{{Package: "gocloud.dev/blob/fileblob"}})
 	if err != nil {
 		return nil, err
 	}
