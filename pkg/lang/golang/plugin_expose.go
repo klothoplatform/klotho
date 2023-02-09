@@ -191,18 +191,21 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile, unitType string) (*core.
 			// Instead of having a dispatcher file, the dipatcher logic is injected into the main.go file. By having that
 			// logic in the expose plugin though, it will only happen if they use the expose annotation for the lambda case.
 			updatedListenContent := UpdateListenWithHandlerCode(string(f.Program()), listener.Expression.Content(), routerName)
+			err := f.Reparse([]byte(updatedListenContent))
+			if err != nil {
+				return f, errors.Wrap(err, "error reparsing after substitutions")
+			}
 
-			updatedImportContent := UpdateImportWithHandlerRequirements(updatedListenContent, importsNode, f)
+			err = UpdateImportWithHandlerRequirements(importsNode, f)
+			if err != nil {
+				return f, errors.Wrap(err, "error updating imports for file")
+			}
 
 			err = UpdateGoModWithHandlerRequirements(h.Unit)
 			if err != nil {
 				return f, errors.Wrap(err, "error updating imports for handler")
 			}
 
-			err := f.Reparse([]byte(updatedImportContent))
-			if err != nil {
-				return f, errors.Wrap(err, "error reparsing after substitutions")
-			}
 		}
 
 		router, err := h.findChiRouterDefinition(f, routerName)
@@ -243,7 +246,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile, unitType string) (*core.
 			if err != nil {
 				return nil, core.NewCompilerError(f, capNode, err)
 			}
-			filesForPackage := h.findFilesForPackageName(m.PkgName)
+			filesForPackage := FindFilesForPackageName(h.Unit, m.PkgName)
 			if len(filesForPackage) == 0 {
 				return nil, core.NewCompilerError(f, capNode, errors.Errorf("No files found for package [%s]", m.PkgName))
 			}
@@ -452,30 +455,6 @@ func (h *restAPIHandler) findChiRouterMountPackage(f *core.SourceFile, mount *ro
 	}
 
 	return errors.Errorf("No import package found with name or alias [%s]", mount.PkgAlias)
-}
-
-func (h *restAPIHandler) findFilesForPackageName(pkgName string) []*core.SourceFile {
-	var packageFiles []*core.SourceFile
-	for _, f := range h.Unit.Files() {
-		src, ok := goLang.CastFile(f)
-		if !ok {
-			continue
-		}
-
-		nextMatch := doQuery(src.Tree().RootNode(), findPackage)
-		for {
-			match, found := nextMatch()
-			if !found {
-				break
-			}
-			package_name := match["package_name"]
-			if query.NodeContentEquals(package_name, pkgName) {
-				packageFiles = append(packageFiles, src)
-			}
-		}
-	}
-
-	return packageFiles
 }
 
 func (h *restAPIHandler) findFileForFunctionName(files []*core.SourceFile, funcName string) (f *core.SourceFile, functionNode *sitter.Node) {

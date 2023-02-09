@@ -5,12 +5,18 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/pkg/errors"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
 type Import struct {
-	Alias   string
-	Package string
+	Alias    string
+	Package  string
+	SpecNode *sitter.Node
+}
+
+func (i *Import) ToString() string {
+	return i.SpecNode.Content()
 }
 
 func GetImportsInFile(f *core.SourceFile) []Import {
@@ -32,53 +38,36 @@ func GetImportsInFile(f *core.SourceFile) []Import {
 		}
 
 		imports = append(imports, Import{
-			Alias:   alias,
-			Package: packageId,
+			Alias:    alias,
+			Package:  packageId,
+			SpecNode: match["spec"],
 		})
 
 	}
 	return imports
 }
 
-func GetImportNode(f *core.SourceFile) *sitter.Node {
-	nextMatch := doQuery(f.Tree().RootNode(), findImports)
-	var imports *sitter.Node
-	for {
-		match, found := nextMatch()
-		if !found {
-			break
-		}
-
-		imports := match["expression"]
-
-		if imports != nil {
-			return imports
-		}
-	}
-	return imports
-}
-
-func UpdateImportsInFile(f *core.SourceFile, importsToAdd []string, importsToRemove []string) string {
+func UpdateImportsInFile(f *core.SourceFile, importsToAdd []Import, importsToRemove []Import) error {
 
 	imports := GetImportsInFile(f)
-
+	newImports := []Import{}
 	// Determine which imports already exist and which we need to add
 	for _, i := range importsToAdd {
 		willAdd := true
 		for _, singleImport := range imports {
-			if singleImport.Package == i {
+			if singleImport.Package == i.Package {
 				willAdd = false
 			}
 		}
 		if willAdd {
-			imports = append(imports, Import{Package: i})
+			newImports = append(newImports, i)
 		}
 	}
-	newImports := []Import{}
+
 	for _, singleImport := range imports {
 		willAdd := true
 		for _, i := range importsToRemove {
-			if singleImport.Package == i {
+			if singleImport.Package == i.Package {
 				willAdd = false
 			}
 		}
@@ -99,15 +88,45 @@ func UpdateImportsInFile(f *core.SourceFile, importsToAdd []string, importsToRem
 	}
 	newImportCode = newImportCode + "\n)"
 
-	// Specifically handle removing the old chi import to ensure we only use chi/v5
-	oldNodeContent := GetImportNode(f).Content()
+	// Delete all old import nodes
+	// for _, i := range imports {
+	// 	if i.ImportNode != nil {
+	// 		err := f.ReplaceNodeContent(i.ImportNode, "")
+	// 		if err != nil {
+	// 			return errors.Wrap(err, "could not delete old import")
+	// 		}
+	// 	}
+	// }
+	DeleteImportNodes(f)
 
-	newFileContent := string(f.Program())
+	packageNode := FindPackageNode(f)
+	insertionPoint := packageNode.Node.EndByte()
+	content := f.Program()
+	contentStr := string(content[0:insertionPoint]) + "\n" + newImportCode
+	if len(f.Program()) > int(insertionPoint) {
+		contentStr += string(content[insertionPoint:])
+	}
+	fmt.Println([]byte(contentStr))
+	err := f.Reparse([]byte(contentStr))
+	if err != nil {
+		return errors.Wrap(err, "could not reparse inserted import")
+	}
 
-	newFileContent = strings.ReplaceAll(
-		newFileContent,
-		oldNodeContent,
-		newImportCode,
-	)
-	return newFileContent
+	return nil
+}
+
+func DeleteImportNodes(f *core.SourceFile) error {
+	for {
+		nextMatch := doQuery(f.Tree().RootNode(), findImports)
+		match, found := nextMatch()
+		if !found {
+			break
+		}
+		fmt.Println(string(f.Program()))
+		err := f.ReplaceNodeContent(match["expression"], "")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
