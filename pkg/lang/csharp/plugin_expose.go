@@ -49,13 +49,25 @@ type exposeUseEndpointsResult struct {
 	EndpointRouteBuilderIdentifier *sitter.Node // Identifier of the RoutesBuilder param (endpoints => {...})
 }
 
+const (
+	builderNamespace = "Microsoft.AspNetCore.Builder"
+	hostingNamespace = "Microsoft.AspNetCore.Hosting"
+)
+
 func findIApplicationBuilder(cap *core.Annotation) []exposeUseEndpointsResult {
+	imports := FindImportsAtNode(query.FirstAncestorOfType(cap.Node, "compilation_unit"))
+
 	var results []exposeUseEndpointsResult
 	nextMatch := DoQuery(query.FirstAncestorOfType(cap.Node, "class_declaration"), exposeStartupConfigure)
 	for {
 		match, found := nextMatch()
 		if !found {
 			break
+		}
+
+		if !imports.HasDeclaration(match["param1_type"].Content(), builderNamespace, "IApplicationBuilder") ||
+			!imports.HasDeclaration(match["param2_type"].Content(), hostingNamespace, "IWebHostEnvironment") {
+			continue
 		}
 
 		paramNameN := match["param_name"]
@@ -291,6 +303,15 @@ func areControllersInjected(startupClass *sitter.Node) bool {
 	if !found {
 		return false
 	}
+
+	imports := FindImportsAtNode(query.FirstAncestorOfType(startupClass, "compilation_unit"))
+	if !imports.HasDeclaration(
+		match["param_type"].Content(),
+		"Microsoft.Extensions.DependencyInjection",
+		"IServiceCollection") {
+		return false
+	}
+
 	methodDeclaration := match["method_declaration"]
 	paramName := match["param_name"].Content()
 
@@ -456,7 +477,7 @@ func isController(using Imports) func(d *TypeDeclaration) bool {
 }
 
 func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSpec {
-	matches := AllMatches(controller.AttributesList, fmt.Sprintf("[%s\n%s]", exposeRouteAttribute, exposeAreaAttribute))
+	matches := AllMatches(controller.AttributesList, query.Join("[", exposeRouteAttribute, exposeAreaAttribute, "]"))
 	attrSpec := controllerAttributeSpec{}
 	for _, match := range matches {
 		attr := match["attr"]
@@ -471,7 +492,7 @@ func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSp
 }
 
 func parseActionAttributes(method MethodDeclaration) []actionSpec {
-	matches := AllMatches(method.Node, fmt.Sprintf("[%s\n%s]", exposeRouteAttribute, httpMethodAttribute))
+	matches := AllMatches(method.Node, query.Join("[", exposeRouteAttribute, httpMethodAttribute, "]"))
 	var specs []actionSpec
 
 	if len(matches) == 0 {

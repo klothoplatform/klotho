@@ -5,12 +5,12 @@
                         parameters: (parameter_list
                                       .
                                       (parameter
-                                        type: (_) @param_type (#match? @param_type "^(Microsoft.AspNetCore.Builder.)?IApplicationBuilder$")
+                                        type: (_) @param1_type
                                         name: (_) @param_name
                                         )
                                       .
                                       (parameter
-                                        type: (_) @param2_type (#match? @param2_type "^(Microsoft.AspNetCore.Hosting.)?IWebHostEnvironment$")
+                                        type: (_) @param2_type
                                         )
                                       .
 

@@ -7,8 +7,11 @@ import (
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
 	"regexp"
+	"strings"
 )
 
+// C# using directive spec: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/namespaces#135-using-directives
+// TODO: add support for "extern alias" imports: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/extern-alias
 type ImportType string
 
 const (
@@ -20,10 +23,9 @@ const (
 type ImportScope string
 
 const (
-	ImportScopeGlobal    = ImportScope("global")
-	ImportScopeFile      = ImportScope("file")
-	ImportScopeNamespace = ImportScope("namespace")
-	ImportScopeLocal     = ImportScope("local")
+	ImportScopeGlobal          = ImportScope("global")
+	ImportScopeCompilationUnit = ImportScope("compilation_unit")
+	ImportScopeNamespace       = ImportScope("namespace")
 )
 
 type Import struct {
@@ -67,6 +69,42 @@ func (imports Imports) AsSlice() []Import {
 	return slice
 }
 
+// TODO: find a better name
+func (imports Imports) HasDeclaration(inputVal, namespace, declaration string) bool {
+	qualifiedName := namespace + "." + declaration
+
+	nsImports := imports[namespace]
+	for _, nsImport := range nsImports {
+
+		if nsImport.Type == ImportTypeUsingAlias && inputVal == nsImport.Alias+"."+declaration {
+			return true
+		} else if declaration == inputVal {
+			return true
+		}
+	}
+
+	typeImports := imports[qualifiedName]
+	for _, typeImport := range typeImports {
+		if inputVal == typeImport.ImportedAs() {
+			return true
+		}
+	}
+
+	if strings.ContainsRune(declaration, '.') {
+		endParentIndex := strings.LastIndex(declaration, ".")
+		parentClass := declaration[0:endParentIndex]
+		child := declaration[endParentIndex+1:]
+		parentImports := imports[parentClass]
+		for _, pImport := range parentImports {
+			if inputVal == pImport.ImportedAs()+"."+child {
+				return true
+			}
+		}
+	}
+
+	return inputVal == qualifiedName
+}
+
 // FindImportsInFile returns a map containing a list of imports for each import source referenced within the file.
 func FindImportsInFile(file *core.SourceFile) Imports {
 	return FindImportsAtNode(file.Tree().RootNode())
@@ -96,14 +134,12 @@ func parseUsingDirective(match query.MatchNodes) Import {
 	if isGlobal(usingDirective) {
 		parsedImport.Scope = ImportScopeGlobal
 	} else if isFileScoped(usingDirective) {
-		parsedImport.Scope = ImportScopeFile
+		parsedImport.Scope = ImportScopeCompilationUnit
 	}
 
 	if namespace := namespaceAncestor(usingDirective); namespace != nil {
 		parsedImport.Scope = ImportScopeNamespace
 		parsedImport.Namespace = namespace.ChildByFieldName("name").Content()
-	} else if parsedImport.Scope == "" {
-		parsedImport.Scope = ImportScopeLocal
 	}
 
 	if isStatic(usingDirective) {

@@ -5,7 +5,7 @@
                         parameters: (parameter_list
                                       .
                                       (parameter
-                                        type: (_) @param_type (#match? @param_type "^(Microsoft.Extensions.DependencyInjection.)?IServiceCollection$")
+                                        type: (_) @param_type
                                         name: (_) @param_name
                                         )
                                       .
