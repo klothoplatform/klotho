@@ -5,6 +5,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
+	"github.com/klothoplatform/klotho/pkg/lang/csharp/csproj"
 	"go.uber.org/zap"
 )
 
@@ -28,24 +29,25 @@ func (l CSharpExecutable) Transform(result *core.CompilationResult, dependencies
 	if input == nil {
 		return nil
 	}
-	//inputFiles := input.Files()
 
-	// TODO: update .csproj detection
-	defaultCsProj, _ := input.Files()[l.Config.AppName+".csproj"]
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
 		if unit.Executable.Type != "" {
 			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.Name, unit.Executable.Type)
 			continue
 		}
 
-		csProj := defaultCsProj
-		// TODO: add logic for resolving the correct .csproj file
-		if csProj == nil {
-			zap.L().Sugar().Debugf("go.mod not found in execution_unit: %s", unit.Name)
+		var csProjFile *csproj.CSProjFile
+		for _, file := range input.Files() {
+			if casted, ok := file.(*csproj.CSProjFile); ok {
+				csProjFile = casted
+			}
+		}
+		if csProjFile == nil {
+			zap.L().Sugar().Debugf(`"MSBuild Project File (.csproj)" not found in execution_unit: %s`, unit.Name)
 			return nil
 		}
 
-		unit.AddResource(csProj.Clone())
+		unit.AddResource(csProjFile.Clone())
 		unit.Executable.Type = core.ExecutableTypeCSharp
 
 		// TODO: get sourceFiles using a dependency resolver once we can generate FileDependencies for Golang
