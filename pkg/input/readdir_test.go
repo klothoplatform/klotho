@@ -110,6 +110,48 @@ func TestReadDir(t *testing.T) {
 			},
 		},
 		{
+			name: "csharp: simple",
+			files: map[string]string{
+				"fizz/one.cs":           "",
+				"fizz/myproject.csproj": "<Project></Project>",
+			},
+			rootPath: "fizz",
+			want: []string{
+				"one.cs",
+				"myproject.csproj",
+			},
+		},
+		{
+			name: "csharp: simple csproj in parent",
+			files: map[string]string{
+				"parent/src/one.cs":       "",                    // will be within ./new_cwd/src
+				"parent/myproject.csproj": "<Project></Project>", // will be wi
+			},
+			rootPath: "parent",
+			want: []string{
+				"src/one.cs",
+				"myproject.csproj",
+			},
+		},
+		{
+			name: "csharp: multiple csproj in parent returns error",
+			files: map[string]string{
+				"parent/src/one.cs":        "",
+				"parent/myproject.csproj":  "<Project></Project>",
+				"parent/myproject2.csproj": "<Project></Project>",
+			},
+			rootPath: "parent",
+		},
+		{
+			name: "csharp: multiple csproj returns error",
+			files: map[string]string{
+				"fizz/one.cs":            "",
+				"fizz/myproject.csproj":  "<Project></Project>",
+				"fizz/myproject2.csproj": "<Project></Project>",
+			},
+			rootPath: "fizz",
+		},
+		{
 			name: "multi-language",
 			files: map[string]string{
 				"fizz/js/one.js":        "",
