@@ -23,9 +23,11 @@ import (
 	"go.uber.org/zap"
 )
 
-var authUrlBase = EnvVar("KLOTHO_AUTH_BASE").GetOr(`http://klotho-auth-service-alb-e22c092-466389525.us-east-1.elb.amazonaws.com`)
-
-var pemUrl = EnvVar("KLOTHO_AUTH_PEM").GetOr(`https://klotho.us.auth0.com/pem`)
+var (
+	authUrlBase          = EnvVar("KLOTHO_AUTH_BASE").GetOr(`http://klotho-auth-service-alb-e22c092-466389525.us-east-1.elb.amazonaws.com`)
+	pemUrl               = EnvVar("KLOTHO_AUTH_PEM").GetOr(`https://klotho.us.auth0.com/pem`)
+	ErrNoCredentialsFile = errors.New("no local credentials file")
+)
 
 type LoginResponse struct {
 	Url   string
@@ -53,14 +55,14 @@ func (s standardAuthorizer) Authorize() (*KlothoClaims, error) {
 	return Authorize()
 }
 
-func Login(onError func(error)) error {
+func Login(onError func(error) error) error {
 	state, err := CallLoginEndpoint()
 	if err != nil {
-		return err
+		return onError(err)
 	}
 	err = CallGetTokenEndpoint(state)
 	if err != nil {
-		onError(err)
+		return onError(err)
 	}
 	return nil
 }
@@ -71,6 +73,9 @@ func CallLoginEndpoint() (string, error) {
 		return "", err
 	}
 	defer closenicely.OrDebug(res.Body)
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return "", errors.Errorf(`received %v from auth server`, res.StatusCode)
+	}
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", err
@@ -213,21 +218,20 @@ func authorize(tokenRefreshed bool) (*KlothoClaims, error) {
 }
 
 func getClaims() (*Credentials, *KlothoClaims, error) {
-	errMsg := `Failed to get credentials for user. Please run "klotho --login"`
 	creds, err := GetIDToken()
 	if err != nil {
-		return nil, nil, errors.New(errMsg)
+		return nil, nil, err
 	}
 	token, err := jwt.ParseWithClaims(creds.IdToken, &KlothoClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return getPem()
 	})
 	if err != nil {
-		return nil, nil, errors.Wrap(err, errMsg)
+		return nil, nil, err
 	}
 	if claims, ok := token.Claims.(*KlothoClaims); ok {
 		return creds, claims, nil
 	} else {
-		return nil, nil, errors.Wrap(err, errMsg)
+		return nil, nil, err
 	}
 }
 
