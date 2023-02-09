@@ -3,9 +3,11 @@ package input
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/filter/predicate"
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -33,12 +35,25 @@ func Upcast[F core.File](o fileOpener[F]) fileOpener[core.File] {
 type languageFiles struct {
 	name             languageName
 	foundSources     bool
-	foundPackageFile bool
-	packageFileName  string
-	// packageFileOpener reads a package file (as opposed to a source file).
+	foundProjectFile bool
+	// projectFileOpener reads a package file (as opposed to a source file).
 	// It is specialized to `core.File` so that the `languageFiles` struct doesn't need to be generic.
-	// If you have a func that returns a more specfic type, use Upcast to convert it to `fileOpener[core.File]`.
-	packageFileOpener fileOpener[core.File]
+	// If you have a func that returns a more specific type, use Upcast to convert it to `fileOpener[core.File]`.
+	projectFileOpener      fileOpener[core.File]
+	projectFilePredicate   predicate.Predicate[string]
+	projectFileDescription string
+}
+
+func hasName(expected string) predicate.Predicate[string] {
+	return func(s string) bool {
+		return expected == s
+	}
+}
+
+func hasSuffix(expected string) predicate.Predicate[string] {
+	return func(name string) bool {
+		return strings.HasSuffix(name, expected)
+	}
 }
 
 type languageName string
@@ -110,19 +125,32 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 		zap.S().Debugf("Read TS config (%s): %+v", tsConfigPath, tsConfig)
 	}
 
-	jsLang := &languageFiles{name: JavaScript, packageFileName: "package.json", packageFileOpener: Upcast(javascript.NewPackageFile)}
-	pyLang := &languageFiles{name: Python, packageFileName: "requirements.txt", packageFileOpener: Upcast(python.NewRequirementsTxt)}
-	goLang := &languageFiles{name: Go, packageFileName: "go.mod", packageFileOpener: Upcast(golang.NewGoMod)}
+	jsLang := &languageFiles{
+		name:                   JavaScript,
+		projectFilePredicate:   hasName("package.json"),
+		projectFileDescription: "package.json",
+		projectFileOpener:      Upcast(javascript.NewPackageFile)}
+	pyLang := &languageFiles{
+		name:                   Python,
+		projectFilePredicate:   hasName("requirements.txt"),
+		projectFileDescription: "requirements.txt",
+		projectFileOpener:      Upcast(python.NewRequirementsTxt)}
+	goLang := &languageFiles{
+		name:                   Go,
+		projectFilePredicate:   hasName("go.mod"),
+		projectFileDescription: "go.mod",
+		projectFileOpener:      Upcast(golang.NewGoMod)}
 	csLang := &languageFiles{
-		name: CSharp,
-		// TODO: Since C# projects don't have a specific named project file, we'll need to update how looking for the project file works.
-		packageFileName: fmt.Sprintf("%s.csproj", cfg.AppName),
-		// TODO: package files in C# are currently unused, so no need to open & parse them.
-		packageFileOpener: func(path string, content io.Reader) (f core.File, err error) { return &core.FileRef{FPath: path}, nil },
+		name:                   CSharp,
+		projectFilePredicate:   hasSuffix(".csproj"),
+		projectFileDescription: "MSBuild Project File (.csproj)",
+		// TODO: project files in C# are currently unused, so no need to open & parse them.
+		projectFileOpener: func(path string, content io.Reader) (f core.File, err error) { return &core.FileRef{FPath: path}, nil },
 	}
 	yamlLang := &languageFiles{name: Yaml}
 	dockerfileLang := &languageFiles{name: DockerFile}
-	allLangs := []*languageFiles{jsLang, pyLang, goLang, yamlLang}
+	allLangs := []*languageFiles{jsLang, pyLang, goLang, yamlLang, csLang}
+	projectDirs := map[languageName][]string{}
 	err := fs.WalkDir(fsys, cfg.Path, func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -149,7 +177,16 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 				// If we ever support Klotho annotations from dependencies,
 				// we'll need to remove this skip and check those.
 				return fs.SkipDir
-
+			case "bin", "obj":
+				dir, _ := filepath.Split(info.Name())
+				for _, projectDir := range projectDirs[CSharp] {
+					if dir == projectDir {
+						zap.L().With(logging.FileField(f)).Debug("detected C# project output, skipping directory")
+						return fs.SkipDir
+					}
+				}
+			case ".idea", ".vscode":
+				fallthrough
 			case ".git", ".svn":
 				return fs.SkipDir
 
@@ -166,16 +203,23 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 			}
 			return nil
 		}
-		isPackageFile := false
+		isProjectFile := false
 		for _, lang := range allLangs {
-			if info.Name() == lang.packageFileName {
-				f, err = addFile(fsys, path, relPath, lang.packageFileOpener)
-				lang.foundPackageFile = true
-				isPackageFile = true
+			if lang.projectFilePredicate != nil && lang.projectFilePredicate(info.Name()) {
+				prjDir, _ := filepath.Split(info.Name())
+				if lang.foundProjectFile == true {
+					err = fmt.Errorf("multiple '%s' files found in directory: %s", lang.projectFileDescription, prjDir)
+					isProjectFile = true
+					break
+				}
+				f, err = addFile(fsys, path, relPath, lang.projectFileOpener)
+				lang.foundProjectFile = true
+				isProjectFile = true
+				projectDirs[lang.name] = append(projectDirs[lang.name], prjDir)
 				break
 			}
 		}
-		if !isPackageFile {
+		if !isProjectFile {
 			ext := filepath.Ext(info.Name())
 			switch ext {
 			case ".js":
@@ -228,9 +272,8 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 		return nil, err
 	}
 	for _, lang := range allLangs {
-		if lang.foundSources && !lang.foundPackageFile && lang.packageFileName != "" {
-
-			pkg, err := openFindUpward(lang.packageFileName, cfg.Path, fsys, lang.packageFileOpener)
+		if lang.foundSources && !lang.foundProjectFile && lang.projectFilePredicate != nil {
+			pkg, err := openFindUpward(lang, cfg.Path, fsys)
 			if err != nil {
 				return nil, err
 			}
@@ -243,23 +286,42 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 }
 
 // openFindUpward tries to open the `basename` file in `rootPath`, or any of its parent dirs up to `fsys`'s root.
-func openFindUpward[F core.File](basename string, rootPath string, fsys fs.FS, opener fileOpener[F]) (core.File, error) {
-	for pkgDir := rootPath; ; pkgDir = filepath.Dir(pkgDir) {
-		pkgPath := filepath.Join(pkgDir, basename)
-		f, err := fsys.Open(pkgPath)
-		if errors.Is(err, fs.ErrNotExist) {
-			if pkgDir == "/" || pkgDir == "." {
-				break
+func openFindUpward(lang *languageFiles, rootPath string, fsys fs.FS) (core.File, error) {
+	for prjDir := rootPath; ; prjDir = filepath.Dir(prjDir) {
+		entries, err := fs.ReadDir(fsys, prjDir)
+		var projectFile core.File
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
 			}
-			continue
+
+			if lang.projectFilePredicate(entry.Name()) {
+				if projectFile != nil {
+					return nil, fmt.Errorf("multiple '%s' files found in directory: %s", lang.projectFileDescription, prjDir)
+				}
+
+				prjFilePath := path.Join(prjDir, entry.Name())
+				f, err := fsys.Open(prjFilePath)
+				if err != nil {
+					break
+				}
+				projectFile, err = func() (core.File, error) {
+					defer f.Close()
+					return lang.projectFileOpener(prjFilePath, f)
+				}()
+			}
 		}
 		if err != nil {
-			return nil, errors.Wrapf(err, "error looking upward for package file named '%s'", basename)
+			return nil, errors.Wrapf(err, "error looking upward for project file")
 		}
-		defer f.Close()
-		return opener(basename, f)
+		if projectFile != nil {
+			return projectFile, nil
+		}
+		if prjDir == "/" || prjDir == "." {
+			break
+		}
 	}
-	return nil, errors.Errorf("No %s found", basename)
+	return nil, errors.Errorf("No %s file found", lang.projectFileDescription)
 }
 
 func addFile[F core.File](fsys fs.FS, path string, relPath string, opener fileOpener[F]) (core.File, error) {
