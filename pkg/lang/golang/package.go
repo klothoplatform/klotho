@@ -37,15 +37,12 @@ func FindFilesForPackageName(unit *core.ExecutionUnit, pkgName string) []*core.S
 
 func FindPackageNode(f *core.SourceFile) Package {
 	nextMatch := doQuery(f.Tree().RootNode(), packageQuery)
-	for {
-		match, found := nextMatch()
-		if !found {
-			break
-		}
-		return Package{
-			Node: match["clause"],
-			Name: match["package_name"].Content(),
-		}
+	match, found := nextMatch()
+	if !found {
+		return Package{}
 	}
-	return Package{}
+	return Package{
+		Node: match["clause"],
+		Name: match["package_name"].Content(),
+	}
 }

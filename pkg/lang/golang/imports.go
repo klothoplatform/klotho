@@ -89,15 +89,10 @@ func UpdateImportsInFile(f *core.SourceFile, importsToAdd []Import, importsToRem
 	newImportCode = newImportCode + "\n)"
 
 	// Delete all old import nodes
-	// for _, i := range imports {
-	// 	if i.ImportNode != nil {
-	// 		err := f.ReplaceNodeContent(i.ImportNode, "")
-	// 		if err != nil {
-	// 			return errors.Wrap(err, "could not delete old import")
-	// 		}
-	// 	}
-	// }
-	DeleteImportNodes(f)
+	err := DeleteImportNodes(f)
+	if err != nil {
+		return errors.Wrap(err, "could not delete imports")
+	}
 
 	packageNode := FindPackageNode(f)
 	insertionPoint := packageNode.Node.EndByte()
@@ -107,7 +102,7 @@ func UpdateImportsInFile(f *core.SourceFile, importsToAdd []Import, importsToRem
 		contentStr += string(content[insertionPoint:])
 	}
 	fmt.Println([]byte(contentStr))
-	err := f.Reparse([]byte(contentStr))
+	err = f.Reparse([]byte(contentStr))
 	if err != nil {
 		return errors.Wrap(err, "could not reparse inserted import")
 	}
