@@ -2,12 +2,15 @@ package csharp
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/filter/predicate"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.uber.org/zap"
 	"strings"
 )
+
+// TODO: implement support for properties, enums, and indexers (maybe others?)
 
 type Declaration struct {
 	Node           *sitter.Node
@@ -98,7 +101,7 @@ type PropertyDeclaration struct {
 	Type       string
 }
 
-// Declarable simplifies the process of working with various declaration kinds simultaneously
+// Declarable simplifies the process of working with various typeName kinds simultaneously
 type Declarable interface {
 	AsDeclaration() Declaration
 	SetDeclaringFile(string)
@@ -142,8 +145,20 @@ func FindDeclarationsAtNode[T Declarable](node *sitter.Node) NamespaceDeclaratio
 		return any(findDeclarationsWithSpec(declarationSpec[*MethodDeclaration]{node: node, query: methodDeclarations, parseFunc: parseMethodDeclaration})).(NamespaceDeclarations[T])
 	case NamespaceDeclarations[*FieldDeclaration]:
 		return any(findDeclarationsWithSpec(declarationSpec[*FieldDeclaration]{node: node, query: fieldDeclarations, parseFunc: parseFieldDeclaration})).(NamespaceDeclarations[T])
+	case NamespaceDeclarations[Declarable]:
+		var allDeclarations NamespaceDeclarations[T]
+		for name, declarations := range findDeclarationsWithSpec(declarationSpec[*TypeDeclaration]{node: node, query: typeDeclarations, parseFunc: parseTypeDeclaration}) {
+			allDeclarations[name] = append(allDeclarations[name], any(declarations).([]T)...)
+		}
+		for name, declarations := range findDeclarationsWithSpec(declarationSpec[*MethodDeclaration]{node: node, query: methodDeclarations, parseFunc: parseMethodDeclaration}) {
+			allDeclarations[name] = append(allDeclarations[name], any(declarations).([]T)...)
+		}
+		for name, declarations := range findDeclarationsWithSpec(declarationSpec[*FieldDeclaration]{node: node, query: fieldDeclarations, parseFunc: parseFieldDeclaration}) {
+			allDeclarations[name] = append(allDeclarations[name], any(declarations).([]T)...)
+		}
+		return allDeclarations
 	default:
-		zap.L().With(logging.NodeField(node)).Panic("invalid declaration type cannot be parsed")
+		zap.L().With(logging.NodeField(node)).Panic("invalid typeName type cannot be parsed")
 		return empty
 	}
 }
@@ -182,7 +197,7 @@ func FindDeclarationAtNode[T Declarable](node *sitter.Node) (T, bool) {
 		declaration = any(fDec).(T)
 		found = fFound
 	default:
-		zap.L().With(logging.NodeField(node)).Panic("invalid declaration type cannot be parsed")
+		zap.L().With(logging.NodeField(node)).Panic("invalid typeName type cannot be parsed")
 	}
 	return declaration, found
 
@@ -495,4 +510,16 @@ func isNested(declaration *sitter.Node) bool {
 		return true
 	}
 	return false
+}
+
+func IsInNamespace[T Declarable](namespace string) predicate.Predicate[T] {
+	return func(d T) bool {
+		return namespace == d.AsDeclaration().Namespace
+	}
+}
+
+func HasName[T Declarable](name string) predicate.Predicate[T] {
+	return func(d T) bool {
+		return name == d.AsDeclaration().Name
+	}
 }

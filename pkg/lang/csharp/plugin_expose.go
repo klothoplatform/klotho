@@ -55,8 +55,6 @@ const (
 )
 
 func findIApplicationBuilder(cap *core.Annotation) []exposeUseEndpointsResult {
-	imports := FindImportsAtNode(query.FirstAncestorOfType(cap.Node, "compilation_unit"))
-
 	var results []exposeUseEndpointsResult
 	nextMatch := DoQuery(query.FirstAncestorOfType(cap.Node, "class_declaration"), exposeStartupConfigure)
 	for {
@@ -65,8 +63,8 @@ func findIApplicationBuilder(cap *core.Annotation) []exposeUseEndpointsResult {
 			break
 		}
 
-		if !imports.HasDeclaration(match["param1_type"].Content(), builderNamespace, "IApplicationBuilder") ||
-			!imports.HasDeclaration(match["param2_type"].Content(), hostingNamespace, "IWebHostEnvironment") {
+		if !IsValidTypeName(match["param1_type"], builderNamespace, "IApplicationBuilder") ||
+			!IsValidTypeName(match["param2_type"], hostingNamespace, "IWebHostEnvironment") {
 			continue
 		}
 
@@ -304,11 +302,7 @@ func areControllersInjected(startupClass *sitter.Node) bool {
 		return false
 	}
 
-	imports := FindImportsAtNode(query.FirstAncestorOfType(startupClass, "compilation_unit"))
-	if !imports.HasDeclaration(
-		match["param_type"].Content(),
-		"Microsoft.Extensions.DependencyInjection",
-		"IServiceCollection") {
+	if !IsValidTypeName(match["param_type"], "Microsoft.Extensions.DependencyInjection", "IServiceCollection") {
 		return false
 	}
 

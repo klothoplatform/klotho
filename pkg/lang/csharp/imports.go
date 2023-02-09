@@ -3,11 +3,9 @@ package csharp
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/filter"
-	"github.com/klothoplatform/klotho/pkg/filter/predicate"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
 	"regexp"
-	"strings"
 )
 
 // C# using directive spec: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/namespaces#135-using-directives
@@ -67,42 +65,6 @@ func (imports Imports) AsSlice() []Import {
 		slice = append(slice, importsOfSource...)
 	}
 	return slice
-}
-
-// TODO: find a better name
-func (imports Imports) HasDeclaration(inputVal, namespace, declaration string) bool {
-	qualifiedName := namespace + "." + declaration
-
-	nsImports := imports[namespace]
-	for _, nsImport := range nsImports {
-
-		if nsImport.Type == ImportTypeUsingAlias && inputVal == nsImport.Alias+"."+declaration {
-			return true
-		} else if declaration == inputVal {
-			return true
-		}
-	}
-
-	typeImports := imports[qualifiedName]
-	for _, typeImport := range typeImports {
-		if inputVal == typeImport.ImportedAs() {
-			return true
-		}
-	}
-
-	if strings.ContainsRune(declaration, '.') {
-		endParentIndex := strings.LastIndex(declaration, ".")
-		parentClass := declaration[0:endParentIndex]
-		child := declaration[endParentIndex+1:]
-		parentImports := imports[parentClass]
-		for _, pImport := range parentImports {
-			if inputVal == pImport.ImportedAs()+"."+child {
-				return true
-			}
-		}
-	}
-
-	return inputVal == qualifiedName
 }
 
 // FindImportsInFile returns a map containing a list of imports for each import source referenced within the file.
@@ -168,40 +130,4 @@ func isFileScoped(usingNode *sitter.Node) bool {
 
 func namespaceAncestor(usingNode *sitter.Node) *sitter.Node {
 	return query.FirstAncestorOfType(usingNode, "namespace_declaration")
-}
-
-func IsImportOfType(importType ImportType) predicate.Predicate[Import] {
-	return func(p Import) bool {
-		return p.Type == importType
-	}
-}
-
-func IsImportInScope(scope ImportScope) predicate.Predicate[Import] {
-	return func(p Import) bool {
-		return p.Scope == scope
-	}
-}
-
-func ImportedAs(localName string) predicate.Predicate[Import] {
-	return func(p Import) bool {
-		return p.ImportedAs() == localName
-	}
-}
-
-func ImportHasName(name string) predicate.Predicate[Import] {
-	return func(p Import) bool {
-		return p.Name == name
-	}
-}
-
-func ascendWhile(node *sitter.Node, predicate predicate.Predicate[*sitter.Node]) *sitter.Node {
-	for ; node != nil && predicate(node); node = node.Parent() {
-	}
-	return node
-}
-
-func nodeTypeIs(nodeType string) predicate.Predicate[*sitter.Node] {
-	return func(n *sitter.Node) bool {
-		return n.Type() == nodeType
-	}
 }
