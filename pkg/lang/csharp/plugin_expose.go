@@ -54,47 +54,6 @@ const (
 	hostingNamespace = "Microsoft.AspNetCore.Hosting"
 )
 
-func findIApplicationBuilder(cap *core.Annotation) []exposeUseEndpointsResult {
-	var results []exposeUseEndpointsResult
-	nextMatch := DoQuery(query.FirstAncestorOfType(cap.Node, "class_declaration"), exposeStartupConfigure)
-	for {
-		match, found := nextMatch()
-		if !found {
-			break
-		}
-
-		if !IsValidTypeName(match["param1_type"], builderNamespace, "IApplicationBuilder") ||
-			!IsValidTypeName(match["param2_type"], hostingNamespace, "IWebHostEnvironment") {
-			continue
-		}
-
-		paramNameN := match["param_name"]
-
-		if paramNameN == nil {
-			break
-		}
-
-		paramName := paramNameN.Content()
-
-		nextExpressionMatch := DoQuery(query.FirstAncestorOfType(paramNameN, "method_declaration"), fmt.Sprintf(useEndpointsFormat, paramName))
-		for {
-			expressionMatch, found := nextExpressionMatch()
-			if !found {
-				break
-			}
-
-			results = append(results, exposeUseEndpointsResult{
-				UseExpression:                  expressionMatch["expression"],
-				AppBuilderIdentifier:           paramNameN,
-				EndpointRouteBuilderIdentifier: expressionMatch["endpoints_param"],
-				StartupClassDeclaration:        match["class_declaration"],
-			})
-		}
-	}
-
-	return results
-}
-
 func (p *Expose) Name() string { return "Expose" }
 
 func (p Expose) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
@@ -179,30 +138,29 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error) {
 	caps := f.Annotations()
 
-	for _, capNode := range caps {
-		log := zap.L().With(logging.AnnotationField(capNode), logging.FileField(f))
-		cap := capNode.Capability
-		if cap.Name != annotation.ExposeCapability {
+	for _, capAnnotation := range caps {
+		capability := capAnnotation.Capability
+		if capability.Name != annotation.ExposeCapability {
 			continue
 		}
 
 		// target can be public or private for now
 		// currently private is unimplemented, so
 		// we fail unless it's set to public
-		target, ok := cap.Directives.String("target")
+		target, ok := capability.Directives.String("target")
 		if !ok {
 			target = "private"
 		}
 		if target != "public" {
-			return nil, core.NewCompilerError(f, capNode,
+			return nil, core.NewCompilerError(f, capAnnotation,
 				errors.New("expose capability must specify target = \"public\""))
 
 		}
 
-		useEndpointResults := findIApplicationBuilder(capNode)
+		useEndpointResults := findIApplicationBuilder(capAnnotation)
 
 		if useEndpointResults == nil {
-			log.Warn(`No "IApplicationBuilder.UseEndpoint()" invocations found`)
+			h.log.With(logging.NodeField(capAnnotation.Node)).Warn(`No "IApplicationBuilder.UseEndpoint()" invocations found`)
 			continue
 		}
 
@@ -213,17 +171,17 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 			gwSpec := gatewaySpec{
 				FilePath:       f.Path(),
 				AppBuilderName: appBuilderName,
-				gatewayId:      cap.ID,
+				gatewayId:      capability.ID,
 			}
-			//
-			//log = log.With(
-			//	zap.String("IApplicationBuilder", appBuilderName),
-			//	zap.String("IEndpointRouteBuilder", endpointRouteBuilderName),
-			//)
+
+			log := h.log.With(
+				zap.String("IApplicationBuilder", appBuilderName),
+				zap.String("IEndpointRouteBuilder", endpointRouteBuilderName),
+			)
 
 			localRoutes, err := h.findLocallyMappedRoutes(f, endpointRouteBuilderName, "")
 			if err != nil {
-				return nil, core.NewCompilerError(f, capNode, err)
+				return nil, core.NewCompilerError(f, capAnnotation, err)
 			}
 
 			if len(localRoutes) > 0 {
@@ -244,10 +202,51 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 				}
 
 			}
-			zap.L().Sugar().Infof("Found %d route(s) on app '%s'", len(h.RoutesByGateway[gwSpec]), appBuilderName)
+			log.Sugar().Infof("Found %d route(s) on app '%s'", len(h.RoutesByGateway[gwSpec]), appBuilderName)
 		}
 	}
 	return f, nil
+}
+
+func findIApplicationBuilder(cap *core.Annotation) []exposeUseEndpointsResult {
+	var results []exposeUseEndpointsResult
+	nextMatch := DoQuery(query.FirstAncestorOfType(cap.Node, "class_declaration"), exposeStartupConfigure)
+	for {
+		match, found := nextMatch()
+		if !found {
+			break
+		}
+
+		if !IsValidTypeName(match["param1_type"], builderNamespace, "IApplicationBuilder") ||
+			!IsValidTypeName(match["param2_type"], hostingNamespace, "IWebHostEnvironment") {
+			continue
+		}
+
+		paramNameN := match["param_name"]
+
+		if paramNameN == nil {
+			break
+		}
+
+		paramName := paramNameN.Content()
+
+		nextExpressionMatch := DoQuery(query.FirstAncestorOfType(paramNameN, "method_declaration"), fmt.Sprintf(useEndpointsFormat, paramName))
+		for {
+			expressionMatch, found := nextExpressionMatch()
+			if !found {
+				break
+			}
+
+			results = append(results, exposeUseEndpointsResult{
+				UseExpression:                  expressionMatch["expression"],
+				AppBuilderIdentifier:           paramNameN,
+				EndpointRouteBuilderIdentifier: expressionMatch["endpoints_param"],
+				StartupClassDeclaration:        match["class_declaration"],
+			})
+		}
+	}
+
+	return results
 }
 
 func isMapControllersInvoked(useEndpoints exposeUseEndpointsResult) bool {
@@ -317,7 +316,6 @@ func areControllersInjected(startupClass *sitter.Node) bool {
 // findLocallyMappedRoutes finds any routes defined on varName declared in core.SourceFile f
 func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *core.SourceFile, varName string, prefix string) ([]gatewayRouteDefinition, error) {
 	var routes = make([]gatewayRouteDefinition, 0)
-	//log := h.log.With(logging.FileField(f))
 
 	verbFuncs, err := h.findVerbMappings(f.Tree().RootNode(), varName)
 
@@ -471,7 +469,7 @@ func isController(using Imports) func(d *TypeDeclaration) bool {
 }
 
 func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSpec {
-	matches := AllMatches(controller.AttributesList, query.Join("[", exposeRouteAttribute, exposeAreaAttribute, "]"))
+	matches := AllMatches(controller.AttributesList, query.Join(exposeRouteAttribute, exposeAreaAttribute))
 	attrSpec := controllerAttributeSpec{}
 	for _, match := range matches {
 		attr := match["attr"]
@@ -486,7 +484,7 @@ func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSp
 }
 
 func parseActionAttributes(method MethodDeclaration) []actionSpec {
-	matches := AllMatches(method.Node, query.Join("[", exposeRouteAttribute, httpMethodAttribute, "]"))
+	matches := AllMatches(method.Node, query.Join(exposeRouteAttribute, httpMethodAttribute))
 	var specs []actionSpec
 
 	if len(matches) == 0 {
