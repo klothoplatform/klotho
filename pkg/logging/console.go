@@ -146,6 +146,9 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 		case postLogMessage:
 			postMessage = v.Message
 			continue
+		case error:
+			// hacky workaround to #195: just don't print errors, since they can be long strings of multi-line trace
+			continue
 		}
 		if fieldCount > 0 {
 			fields.AppendString(", ")

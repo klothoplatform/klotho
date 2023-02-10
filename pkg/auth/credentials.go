@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"github.com/pkg/errors"
 	"os"
 
 	"github.com/klothoplatform/klotho/pkg/cli_config"
@@ -13,7 +14,6 @@ type Credentials struct {
 }
 
 func WriteIDToken(token string) error {
-
 	configPath, err := cli_config.KlothoConfigPath("credentials.json")
 	if err != nil {
 		return err
@@ -46,9 +46,14 @@ func GetIDToken() (*Credentials, error) {
 
 	content, err := os.ReadFile(configPath)
 	if err != nil {
-		return &result, err
+		if errors.Is(err, os.ErrNotExist) {
+			err = ErrNoCredentialsFile
+		}
+		return nil, err
 	}
-	err = json.Unmarshal(content, &result)
+	if len(content) > 0 {
+		err = json.Unmarshal(content, &result)
+	}
 
 	return &result, err
 }
