@@ -170,6 +170,9 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 		} else {
 			padding -= lineLength
 		}
+		if padding < 0 {
+			padding = 0
+		}
 		line.AppendString(strings.Repeat(" ", padding))
 		line.AppendString(fields.String())
 	}
