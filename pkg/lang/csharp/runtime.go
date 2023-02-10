@@ -11,7 +11,7 @@ import (
 
 type (
 	Runtime interface {
-		AddExecRuntimeFiles(unit *core.ExecutionUnit, startupClass *DotNetCoreStartupClass, lambdaHandlerName string) error
+		AddExecRuntimeFiles(unit *core.ExecutionUnit) error
 		UpdateCsproj(unit *core.ExecutionUnit)
 	}
 )

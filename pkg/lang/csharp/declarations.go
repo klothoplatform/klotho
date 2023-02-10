@@ -79,8 +79,9 @@ type MethodDeclaration struct {
 }
 
 type Parameter struct {
-	Name string
-	Type string
+	Name     string
+	Type     string
+	TypeNode *sitter.Node
 }
 
 type FieldDeclaration struct {
@@ -333,8 +334,9 @@ func parseMethodParameters(parameterList *sitter.Node) []Parameter {
 		child := parameterList.Child(i)
 		if child.Type() == "parameter" {
 			parameters = append(parameters, Parameter{
-				Name: child.ChildByFieldName("name").Content(),
-				Type: child.ChildByFieldName("type").Content(),
+				Name:     child.ChildByFieldName("name").Content(),
+				Type:     child.ChildByFieldName("type").Content(),
+				TypeNode: child.ChildByFieldName("type"),
 			})
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp/csproj"
+	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/pkg/errors"
 	"path/filepath"
@@ -54,15 +55,28 @@ func (r *AwsRuntime) UpdateCsproj(unit *core.ExecutionUnit) {
 
 }
 
-func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, startupClass *csharp.DotNetCoreStartupClass, lambdaHandlerName string) error {
-	var DockerFile []byte
+func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit) error {
+	var errs multierr.Error
+	var err error
+	var dockerFile []byte
+	var startupClass *csharp.ASPDotNetCoreStartupClass
+	var lambdaHandlerName string
 	unitType := r.Cfg.GetResourceType(unit)
 	switch unitType {
 	case "lambda":
-		DockerFile = dockerfileLambda
+		dockerFile = dockerfileLambda
+
+		// TODO: implement choosing the correct handler class based on the upstream gateway type
+		lambdaHandlers := csharp.FindLambdaHandlerClasses(unit)
+		if len(lambdaHandlers) > 0 {
+			lambdaHandlerName = lambdaHandlers[0].QualifiedName
+		}
+		errs.Append(err)
 	default:
 		return errors.Errorf("unsupported execution unit type: '%s'", unitType)
 	}
+	startupClass, err = csharp.FindASPDotnetCoreStartupClass(unit)
+	errs.Append(err)
 
 	r.UpdateCsproj(unit)
 
@@ -74,12 +88,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, startupClass 
 		}
 	}
 
-	assembly, ok := projectFile.GetProperty("AssemblyName")
-
-	if !ok {
-		_, pFileName := filepath.Split(projectFile.Path())
-		assembly = strings.TrimSuffix(pFileName, ".csproj")
-	}
+	assembly := resolveAssemblyName(projectFile)
 
 	startupClassName := ""
 	if startupClass != nil {
@@ -97,14 +106,18 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, startupClass 
 		AssemblyName: assembly,
 	}
 
-	err := csharp.AddRuntimeFile(unit, templateData, "Dockerfile.tmpl", DockerFile)
-	if err != nil {
-		return err
-	}
-	err = csharp.AddRuntimeFile(unit, templateData, "Dispatcher.cs.tmpl", dispatcherLambda)
-	if err != nil {
-		return err
-	}
+	errs.Append(csharp.AddRuntimeFile(unit, templateData, "Dockerfile.tmpl", dockerFile))
+	errs.Append(csharp.AddRuntimeFile(unit, templateData, "Dispatcher.cs.tmpl", dispatcherLambda))
 
-	return err
+	return errs.ErrOrNil()
+}
+
+func resolveAssemblyName(projectFile *csproj.CSProjFile) string {
+	assembly, ok := projectFile.GetProperty("AssemblyName")
+
+	if !ok {
+		_, pFileName := filepath.Split(projectFile.Path())
+		assembly = strings.TrimSuffix(pFileName, ".csproj")
+	}
+	return assembly
 }

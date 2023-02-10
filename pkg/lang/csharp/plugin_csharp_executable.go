@@ -79,7 +79,7 @@ func (l CSharpExecutable) Transform(result *core.CompilationResult, dependencies
 }
 
 func (l CSharpExecutable) resolveDefaultEntrypoint(unit *core.ExecutionUnit) {
-	for _, fallbackPath := range []string{l.Config.AppName + ".cs", "Application.cs"} {
+	for _, fallbackPath := range []string{l.Config.AppName + ".cs", "Program.cs", "Application.cs"} {
 		if entrypoint := unit.Get(fallbackPath); entrypoint != nil {
 			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [default] -> [%s] -> %s", unit.Name, entrypoint.Path())
 			unit.AddEntrypoint(entrypoint)
