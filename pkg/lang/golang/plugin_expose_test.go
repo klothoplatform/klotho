@@ -1,7 +1,6 @@
 package golang
 
 import (
-	"sort"
 	"strings"
 	"testing"
 
@@ -50,7 +49,7 @@ func Test_findHttpListenServe(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), language)
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -101,7 +100,7 @@ func Test_findChiRouterDefinition(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), language)
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -137,7 +136,7 @@ func Test_findImports(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), language)
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -213,7 +212,7 @@ func Test_findChiRouterMounts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), language)
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -304,7 +303,7 @@ func Test_findChiRouterMountPackage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), language)
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -315,80 +314,6 @@ func Test_findChiRouterMountPackage(t *testing.T) {
 			}
 
 			assert.Equal(tt.want, tt.mount.PkgName)
-		})
-	}
-}
-
-func Test_findFilesForPackage(t *testing.T) {
-	tests := []struct {
-		name    string
-		sources map[string]string
-		pkgName string
-		want    []string
-	}{
-		{
-			name: "Single file correct package",
-			sources: map[string]string{
-				"file1.go": `package test`,
-			},
-			pkgName: "test",
-			want:    []string{"file1.go"},
-		},
-		{
-			name: "Multiple files correct package",
-			sources: map[string]string{
-				"file1.go": `package test`,
-				"file2.go": `package test`,
-				"file3.go": `package test`,
-			},
-			pkgName: "test",
-			want:    []string{"file1.go", "file2.go", "file3.go"},
-		},
-		{
-			name: "Mutliple files with different packages",
-			sources: map[string]string{
-				"file1.go": `package test`,
-				"file2.go": `package wrong`,
-				"file3.go": `package wrong2`,
-			},
-			pkgName: "test",
-			want:    []string{"file1.go"},
-		},
-		{
-			name: "No files with correct packages",
-			sources: map[string]string{
-				"file1.go": `package wrong`,
-				"file2.go": `package wrong`,
-				"file3.go": `package wrong`,
-			},
-			pkgName: "test",
-			want:    []string{},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			restAPIHandler := &restAPIHandler{
-				log:  zap.L(),
-				Unit: &core.ExecutionUnit{Name: "testUnit", Executable: core.NewExecutable()},
-			}
-
-			for path, src := range tt.sources {
-				f, err := core.NewSourceFile(path, strings.NewReader(src), language)
-				if !assert.NoError(err) {
-					return
-				}
-				restAPIHandler.Unit.AddSourceFile(f)
-			}
-
-			foundFiles := restAPIHandler.findFilesForPackageName(tt.pkgName)
-			var filePaths = make([]string, 0)
-			for _, f := range foundFiles {
-				filePaths = append(filePaths, f.Path())
-			}
-			sort.Strings(filePaths)
-			assert.Equal(tt.want, filePaths)
 		})
 	}
 }
@@ -443,7 +368,7 @@ func Test_findFilesForFunctionName(t *testing.T) {
 
 			var files = make([]*core.SourceFile, 0)
 			for path, src := range tt.sources {
-				f, err := core.NewSourceFile(path, strings.NewReader(src), language)
+				f, err := core.NewSourceFile(path, strings.NewReader(src), Language)
 				if !assert.NoError(err) {
 					return
 				}
