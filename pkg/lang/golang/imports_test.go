@@ -1,7 +1,6 @@
 package golang
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -126,7 +125,8 @@ func Test_GetNamedImportInFile(t *testing.T) {
 				return
 			}
 			i := GetNamedImportInFile(f, tt.importToGet)
-			assert.Equal(tt.want, i)
+			assert.Equal(tt.want.Package, i.Package)
+			assert.Equal(tt.want.Alias, i.Alias)
 		})
 	}
 }
@@ -242,7 +242,6 @@ import (
 			if !assert.NoError(err) {
 				return
 			}
-			fmt.Println(string(f.Program()))
 			assert.Equal(tt.want, string(f.Program()))
 		})
 	}

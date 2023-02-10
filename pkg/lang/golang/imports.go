@@ -127,7 +127,6 @@ func DeleteImportNodes(f *core.SourceFile) error {
 		if !found {
 			break
 		}
-		fmt.Println(string(f.Program()))
 		err := f.ReplaceNodeContent(match["expression"], "")
 		if err != nil {
 			return err

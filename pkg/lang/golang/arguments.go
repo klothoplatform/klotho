@@ -45,5 +45,5 @@ func ArgumentListToString(args []Argument) string {
 }
 
 func (a *Argument) IsString() bool {
-	return a.Type == "interpreted_string_literal"
+	return a.Type == "interpreted_string_literal" || a.Type == "raw_string_literal"
 }

@@ -28,12 +28,7 @@ func (p PersistFsPlugin) Transform(result *core.CompilationResult, deps *core.De
 		if !ok {
 			continue
 		}
-		for _, f := range unit.Files() {
-			goSource, ok := Language.ID.CastFile(f)
-			if !ok {
-				continue
-			}
-
+		for _, goSource := range unit.FilesOfLang(goLang) {
 			resources, err := p.handleFile(goSource, unit)
 			if err != nil {
 				errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.Name))

@@ -12,6 +12,6 @@ func (n NoopRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 func (n NoopRuntime) GetFsImports() []Import {
 	return []Import{
 		{Package: "gocloud.dev/blob"},
-		{Alias: "_", Package: "gocloud.dev/blob/s3blob\""},
+		{Alias: "_", Package: "gocloud.dev/blob/s3blob"},
 	}
 }

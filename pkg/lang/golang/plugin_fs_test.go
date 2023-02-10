@@ -32,6 +32,39 @@ bucket, err := fileblob.OpenBucket("myDir", nil)`,
 			},
 		},
 		{
+			name: "simple var file blob",
+			source: `
+import (
+	"gocloud.dev/blob/fileblob"
+)
+/**
+* @klotho::persist {
+*	id = "test"
+* }
+*/
+var bucket, err = fileblob.OpenBucket("myDir", nil)`,
+			want: &persistResult{
+				varName: "bucket",
+			},
+		},
+		{
+			name: "simple var file blob",
+			source: `
+import (
+	"gocloud.dev/blob/fileblob"
+)
+/**
+* @klotho::persist {
+*	id = "test"
+* }
+*/
+var bucket, err
+bucket, err = fileblob.OpenBucket("myDir", nil)`,
+			want: &persistResult{
+				varName: "bucket",
+			},
+		},
+		{
 			name: "aliased file blob",
 			source: `
 		import (
@@ -113,7 +146,8 @@ func Test_Transform(t *testing.T) {
 	}{
 		{
 			name: "simple file blob",
-			source: `import (
+			source: `package fs
+import (
 	"gocloud.dev/blob/fileblob"
 )
 /**
@@ -128,11 +162,13 @@ bucket, err := fileblob.OpenBucket("myDir", nil)
 					Kind: core.PersistFileKind,
 					Name: "test",
 				},
-				content: `
+				content: `package fs
+
 import (
 	"gocloud.dev/blob"
-	_  "gocloud.dev/blob/s3blob"
+	_ "gocloud.dev/blob/s3blob"
 )
+
 /**
 * @klotho::persist {
 *	id = "test"
@@ -143,8 +179,78 @@ bucket, err := blob.OpenBucket(nil, os.Getenv("test_fs_bucket"))
 			},
 		},
 		{
+			name: "long var file blob",
+			source: `package fs
+import (
+	"gocloud.dev/blob/fileblob"
+)
+/**
+* @klotho::persist {
+*	id = "test"
+* }
+*/
+var bucket, err = fileblob.OpenBucket("myDir", nil)
+`,
+			want: testResult{
+				resource: core.Persist{
+					Kind: core.PersistFileKind,
+					Name: "test",
+				},
+				content: `package fs
+
+import (
+	"gocloud.dev/blob"
+	_ "gocloud.dev/blob/s3blob"
+)
+
+/**
+* @klotho::persist {
+*	id = "test"
+* }
+*/
+var bucket, err = blob.OpenBucket(nil, os.Getenv("test_fs_bucket"))
+`,
+			},
+		},
+		{
+			name: "var deckaration file blob",
+			source: `package fs
+import (
+	"gocloud.dev/blob/fileblob"
+)
+/**
+* @klotho::persist {
+*	id = "test"
+* }
+*/
+var bucket, err
+bucket, err = fileblob.OpenBucket("myDir", nil)
+`,
+			want: testResult{
+				resource: core.Persist{
+					Kind: core.PersistFileKind,
+					Name: "test",
+				},
+				content: `package fs
+
+import (
+	"gocloud.dev/blob"
+	_ "gocloud.dev/blob/s3blob"
+)
+
+/**
+* @klotho::persist {
+*	id = "test"
+* }
+*/
+var bucket, err
+bucket, err = blob.OpenBucket(nil, os.Getenv("test_fs_bucket"))
+`,
+			},
+		},
+		{
 			name: "non string as path throws err",
-			source: `
+			source: `package fs
 		import (
 			alias "gocloud.dev/blob/fileblob"
 		)
