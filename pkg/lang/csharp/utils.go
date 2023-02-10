@@ -64,8 +64,10 @@ func IsValidTypeName(nameNode *sitter.Node, expectedNamespace, expectedType stri
 	// check if type matches aliased type import
 	typeImports := imports[qualifiedExpectedType]
 	for _, typeImport := range typeImports {
-		if actualName == typeImport.ImportedAs() {
-			return true
+		if _, ok := validLocalNamespaces[typeImport.Namespace]; ok || typeImport.Namespace == "" {
+			if actualName == typeImport.ImportedAs() {
+				return true
+			}
 		}
 	}
 

@@ -237,6 +237,20 @@ func TestImports_IsValidTypeName(t *testing.T) {
 			expectedOutput: false,
 		},
 		{
+			name: "uses aliased type imported into a different namespace in the same file",
+			program: `
+			namespace ns1 {
+				class C1 : AliasedType {} 
+			}
+			namespace ns2 {
+				using AliasedType = Other.Namespace.ClassFromOtherNamespace;
+			}`,
+			typeQuery:      "(base_list .(_) @type)",
+			namespace:      "Other.Namespace",
+			typeName:       "ClassFromOtherNamespace",
+			expectedOutput: false,
+		},
+		{
 			name: "uses type name from imported namespace",
 			program: `
 			using Other.Namespace;

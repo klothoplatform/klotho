@@ -3,6 +3,7 @@ package csharp
 import (
 	"fmt"
 	"github.com/klothoplatform/klotho/pkg/filter"
+	"github.com/klothoplatform/klotho/pkg/filter/predicate"
 	"path"
 	"regexp"
 	"strings"
@@ -404,7 +405,7 @@ type controllerAttributeSpec struct {
 func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []controllerSpec {
 	types := FindDeclarationsInFile[*TypeDeclaration](file).Declarations()
 	usingDirectives := FindImportsInFile(file)
-	controllers := filter.NewSimpleFilter(isController(usingDirectives)).Apply(types...)
+	controllers := filter.NewSimpleFilter(HasBase("Microsoft.AspNetCore.Mvc", "ControllerBase", usingDirectives)).Apply(types...)
 	var controllerSpecs []controllerSpec
 	for _, c := range controllers {
 		controller := *c
@@ -456,16 +457,53 @@ func findActionsInController(controller TypeDeclaration) []actionSpec {
 	return actions
 }
 
-func isController(using Imports) func(d *TypeDeclaration) bool {
+func HasBase(namespace, typeName string, using Imports) predicate.Predicate[*TypeDeclaration] {
+	qualifiedName := namespace + "." + typeName
 	return func(d *TypeDeclaration) bool {
-		_, hasCB := d.Bases["ControllerBase"]
-		_, hasQualifiedCB := d.Bases["Microsoft.AspNetCore.Mvc.ControllerBase"]
-		usingNamespace := false
-		if hasCB && !hasQualifiedCB {
-			_, usingNamespace = using["Microsoft.AspNetCore.Mvc"]
+		if _, ok := d.Bases[qualifiedName]; ok {
+			return true
 		}
-		return d.Kind == DeclarationKindClass && ((hasCB && usingNamespace) || hasQualifiedCB)
+		for _, baseNode := range d.Bases {
+			if IsValidTypeName(baseNode, namespace, typeName) {
+				return true
+			}
+		}
+		return false
 	}
+}
+
+func funcName(d *TypeDeclaration, using Imports) bool {
+	_, hasQualifiedCB := d.Bases["Microsoft.AspNetCore.Mvc.ControllerBase"]
+	if hasQualifiedCB {
+		return true
+	}
+
+	_, hasCB := d.Bases["ControllerBase"]
+	validNamespaces := ContainingNamespaces(d.Node)
+	usingNamespace := false
+	if hasCB && !hasQualifiedCB {
+		nsImports := using["Microsoft.AspNetCore.Mvc"]
+		for _, i := range nsImports {
+			if _, isInValidNamespace := validNamespaces[i.Namespace]; i.Namespace == "" || isInValidNamespace {
+				usingNamespace = true
+				break
+			}
+		}
+	}
+	hasAliasedCB := false
+	if !hasCB && !hasQualifiedCB {
+		if cbImports, ok := using["Microsoft.AspNetCore.Mvc.ControllerBase"]; ok {
+			for _, i := range cbImports {
+				if _, isInValidNamespace := validNamespaces[i.Namespace]; i.Namespace == "" || isInValidNamespace {
+					if _, usesAlias := d.Bases[i.Alias]; usesAlias {
+						hasAliasedCB = i.Type == ImportTypeUsingAlias
+						break
+					}
+				}
+			}
+		}
+	}
+	return d.Kind == DeclarationKindClass && ((hasCB && usingNamespace) || hasQualifiedCB || hasAliasedCB)
 }
 
 func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSpec {

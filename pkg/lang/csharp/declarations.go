@@ -37,7 +37,7 @@ func (d *Declaration) SetDeclaringFile(filepath string) {
 
 type TypeDeclaration struct {
 	Declaration
-	Bases      map[string]struct{}
+	Bases      map[string]*sitter.Node
 	IsAbstract bool
 	IsSealed   bool
 	IsPartial  bool
@@ -453,16 +453,16 @@ func parseModifiers(declaration *sitter.Node) modifierSpec {
 	}
 	return spec
 }
-func parseBaseTypes(baseList *sitter.Node) map[string]struct{} {
+func parseBaseTypes(baseList *sitter.Node) map[string]*sitter.Node {
 	if baseList == nil || baseList.Type() != "base_list" {
 		return nil
 	}
 
-	bases := make(map[string]struct{})
+	bases := make(map[string]*sitter.Node)
 	for i := 0; i < int(baseList.ChildCount()); i++ {
 		child := baseList.Child(i)
 		if t := child.Type(); t == "qualified_name" || t == "identifier" {
-			bases[child.Content()] = struct{}{}
+			bases[child.Content()] = child
 		}
 	}
 	return bases
