@@ -209,8 +209,12 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 
 	// Set up user if login is specified
 	if cfg.login {
-		err := auth.Login(func(err error) {
-			zap.L().Warn(`Couldn't log in. You may be able to continue using klotho without logging in for now, but this may break in the future. Please contact us if this continues.'`)
+		err := auth.Login(func(err error) error {
+			zap.L().Warn(`Couldn't log in. You may be able to continue using klotho without logging in for now, but this may break in the future. Please contact us if this continues.`)
+			// Set an empty token. This will mean that the user doesn't get prompted to log in. The login token is still
+			// invalid, but it'll fail-open (at least for now).
+			_ = auth.WriteIDToken("")
+			return nil
 		})
 		if err != nil {
 			return err
@@ -252,15 +256,6 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		analyticsClient.Properties[km.VersionQualifier] = true
 	}
 
-	// Needs to go after the --version and --update checks
-	claims, err := km.Authorizer.Authorize()
-	if claims != nil {
-		analyticsClient.AttachAuthorizations(claims)
-	}
-	if err != nil {
-		return err
-	}
-
 	// if update is specified do the update in place
 	var klothoUpdater = updater.Updater{
 		ServerURL:     updater.DefaultServer,
@@ -295,6 +290,20 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		// Options were set above, and used to perform or check for update. Nothing else to do.
 		// We want to exit early, so that the user doesn't get an error about path not being provided.
 		return nil
+	}
+
+	// Needs to go after the --version and --update checks
+	claims, err := km.Authorizer.Authorize()
+	if claims != nil {
+		analyticsClient.AttachAuthorizations(claims)
+	}
+	if err != nil {
+		if errors.Is(err, auth.ErrNoCredentialsFile) {
+			return errors.New(`Failed to get credentials for user. Please run "klotho --login"`)
+		}
+		// Fail-open. See also the error handler at auth.Login(...) above (you should change that to not write the
+		// empty token, if this fail-open ever changes).
+		zap.L().Warn(`Not logged in. You may be able to continue using klotho without logging in for now, but this may break in the future. Please contact us if this continues.`, zap.Error(err))
 	}
 
 	appCfg, err := readConfig(args)
