@@ -3,7 +3,6 @@ package golang
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -92,9 +91,7 @@ func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, 
 	args[0].Content = "nil"
 	args[1].Content = fmt.Sprintf(`os.Getenv("%s")`, fsEnvVar.Name)
 
-	newNodeContent := strings.Replace(result.args.Content(), result.args.Content(), ArgumentListToString(args), 1)
-
-	err := f.ReplaceNodeContent(result.args, newNodeContent)
+	err := f.ReplaceNodeContent(result.args, ArgumentListToString(args))
 	if err != nil {
 		return nil, err
 	}
