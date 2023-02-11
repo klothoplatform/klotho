@@ -30,6 +30,9 @@ var (
 	//go:embed queries/structural/field_declarations.scm
 	fieldDeclarations string
 
+	//go:embed queries/structural/attribute.scm
+	declarationAttribute string
+
 	//go:embed queries/expose/startup_configure.scm
 	exposeStartupConfigure string
 
@@ -38,15 +41,6 @@ var (
 
 	//go:embed queries/expose/use_endpoints_format.scm
 	useEndpointsFormat string
-
-	//go:embed queries/expose/http_method_attribute.scm
-	httpMethodAttribute string
-
-	//go:embed queries/expose/route_attribute.scm
-	exposeRouteAttribute string
-
-	//go:embed queries/expose/area_attribute.scm
-	exposeAreaAttribute string
 
 	//go:embed queries/expose/map_route.scm
 	exposeMapRoute string

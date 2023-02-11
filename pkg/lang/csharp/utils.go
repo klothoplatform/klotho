@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// TODO: look into handling backslashes differently based on string type
 func stringLiteralContent(node *sitter.Node) string {
 	if node == nil {
 		return ""

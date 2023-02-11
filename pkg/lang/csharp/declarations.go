@@ -24,7 +24,7 @@ type Declaration struct {
 	IsNested       bool
 	IsStatic       bool
 	DeclaringClass string
-	AttributesList *sitter.Node
+	AttributeList  *sitter.Node
 }
 
 func (d *Declaration) AsDeclaration() Declaration {
@@ -33,6 +33,69 @@ func (d *Declaration) AsDeclaration() Declaration {
 
 func (d *Declaration) SetDeclaringFile(filepath string) {
 	d.DeclaringFile = filepath
+}
+
+type Attribute struct {
+	Name string
+	Node *sitter.Node
+}
+
+type AttributeArg struct {
+	Name  string
+	Value string
+}
+
+func (a *Attribute) Args() []AttributeArg {
+	var args []AttributeArg
+	for _, match := range AllMatches(a.Node, declarationAttribute) {
+		nameN := match["arg_name"] // may be nil
+		valueN := match["arg_value"]
+
+		if valueN == nil {
+			continue // match is empty argument list
+		}
+
+		value := valueN.Content()
+		if strings.Contains(valueN.Type(), "string_literal") {
+			value = stringLiteralContent(valueN)
+		}
+
+		args = append(args, AttributeArg{
+			Name:  query.NodeContentOrEmpty(nameN),
+			Value: value,
+		})
+	}
+	return args
+}
+
+type Attributes map[string][]Attribute
+
+func (a Attributes) OfType(types ...string) []Attribute {
+	var attrs []Attribute
+	for name, attr := range a {
+		for _, t := range types {
+			if name == t {
+				attrs = append(attrs, attr...)
+				break
+			}
+		}
+	}
+	return attrs
+}
+func (d *Declaration) Attributes() Attributes {
+	attributes := make(Attributes)
+	if d.AttributeList == nil {
+		return attributes
+	}
+	for i := 0; i < int(d.AttributeList.NamedChildCount()); i++ {
+		attr := d.AttributeList.NamedChild(i)
+		name := attr.ChildByFieldName("name").Content()
+		attributes[name] = append(attributes[name], Attribute{
+			Name: name,
+			Node: attr,
+		})
+	}
+	return attributes
 }
 
 type TypeDeclaration struct {
@@ -224,8 +287,8 @@ func parseTypeDeclaration(match query.MatchNodes) *TypeDeclaration {
 
 	declaration := TypeDeclaration{
 		Declaration: Declaration{
-			Name:           name.Content(),
-			AttributesList: attributes,
+			Name:          name.Content(),
+			AttributeList: attributes,
 		},
 		Bases: parseBaseTypes(bases),
 	}
@@ -280,10 +343,10 @@ func parseMethodDeclaration(match query.MatchNodes) *MethodDeclaration {
 
 	declaration := MethodDeclaration{
 		Declaration: Declaration{
-			Name:           name.Content(),
-			Node:           methodDeclaration,
-			Kind:           DeclarationKindMethod,
-			AttributesList: match["attributes_list"],
+			Name:          name.Content(),
+			Node:          methodDeclaration,
+			Kind:          DeclarationKindMethod,
+			AttributeList: match["attribute_list"],
 		},
 		ReturnType: returnType.Content(),
 	}
@@ -351,10 +414,10 @@ func parseFieldDeclaration(match query.MatchNodes) *FieldDeclaration {
 
 	declaration := &FieldDeclaration{
 		Declaration: Declaration{
-			Name:           name.Content(),
-			Node:           fieldDeclaration,
-			Kind:           DeclarationKindMethod,
-			AttributesList: match["attributes_list"],
+			Name:          name.Content(),
+			Node:          fieldDeclaration,
+			Kind:          DeclarationKindMethod,
+			AttributeList: match["attribute_list"],
 		},
 		Type: fieldType.Content(),
 	}
@@ -523,5 +586,31 @@ func IsInNamespace[T Declarable](namespace string) predicate.Predicate[T] {
 func HasName[T Declarable](name string) predicate.Predicate[T] {
 	return func(d T) bool {
 		return name == d.AsDeclaration().Name
+	}
+}
+
+func HasBase(namespace, typeName string, using Imports) predicate.Predicate[*TypeDeclaration] {
+	qualifiedName := namespace + "." + typeName
+	return func(d *TypeDeclaration) bool {
+		if _, ok := d.Bases[qualifiedName]; ok {
+			return true
+		}
+		for _, baseNode := range d.Bases {
+			if IsValidTypeName(baseNode, namespace, typeName) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func HasBaseWithSuffix(suffix string) predicate.Predicate[*TypeDeclaration] {
+	return func(d *TypeDeclaration) bool {
+		for name, _ := range d.Bases {
+			if strings.HasSuffix(name, suffix) {
+				return true
+			}
+		}
+		return false
 	}
 }

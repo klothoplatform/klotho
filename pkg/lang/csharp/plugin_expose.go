@@ -42,8 +42,8 @@ type (
 	}
 )
 
-// An exposeUseEndpointsResult represents an ASP.net Core IApplicationBuilder.UseEndpoints() invocation
-type exposeUseEndpointsResult struct {
+// An useEndpointsResult represents an ASP.net Core IApplicationBuilder.UseEndpoints() invocation
+type useEndpointsResult struct {
 	StartupClassDeclaration        *sitter.Node // Declaration of the Startup class surrounding the expose annotation
 	UseExpression                  *sitter.Node // Expression of the UseEndpoints() invocation (app.UseEndpoints(endpoints => {...})
 	AppBuilderIdentifier           *sitter.Node // Identifier of the builder (IApplicationBuilder app)
@@ -74,7 +74,7 @@ func (p *Expose) transformSingle(result *core.CompilationResult, deps *core.Depe
 	h := &aspDotNetCoreHandler{Result: result, Deps: deps, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
 	err := h.handle(unit)
 	if err != nil {
-		err = core.WrapErrf(err, "express handler failure for %s", unit.Name)
+		err = core.WrapErrf(err, "ASP.NET Core handler failed for %s", unit.Name)
 	}
 
 	return err
@@ -195,7 +195,7 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 					for _, c := range controllers {
 						routes := c.resolveRoutes()
 						for _, route := range c.resolveRoutes() {
-							zap.L().Sugar().Debugf("Found route function %s %s for %s", route.Verb, route.Path, c.name)
+							zap.L().Sugar().Debugf("Mapped route %s %s from %s", route.Verb, route.Path, c.name)
 						}
 						h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], routes...)
 
@@ -209,8 +209,8 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 	return f, nil
 }
 
-func findIApplicationBuilder(cap *core.Annotation) []exposeUseEndpointsResult {
-	var results []exposeUseEndpointsResult
+func findIApplicationBuilder(cap *core.Annotation) []useEndpointsResult {
+	var results []useEndpointsResult
 	nextMatch := DoQuery(query.FirstAncestorOfType(cap.Node, "class_declaration"), exposeStartupConfigure)
 	for {
 		match, found := nextMatch()
@@ -238,7 +238,7 @@ func findIApplicationBuilder(cap *core.Annotation) []exposeUseEndpointsResult {
 				break
 			}
 
-			results = append(results, exposeUseEndpointsResult{
+			results = append(results, useEndpointsResult{
 				UseExpression:                  expressionMatch["expression"],
 				AppBuilderIdentifier:           paramNameN,
 				EndpointRouteBuilderIdentifier: expressionMatch["endpoints_param"],
@@ -250,7 +250,7 @@ func findIApplicationBuilder(cap *core.Annotation) []exposeUseEndpointsResult {
 	return results
 }
 
-func isMapControllersInvoked(useEndpoints exposeUseEndpointsResult) bool {
+func isMapControllersInvoked(useEndpoints useEndpointsResult) bool {
 	_, found := DoQuery(useEndpoints.UseExpression, fmt.Sprintf(exposeMapControllersFormat, useEndpoints.EndpointRouteBuilderIdentifier.Content()))()
 	return found
 }
@@ -324,8 +324,10 @@ func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *core.SourceFile, varNa
 
 	for _, vfunc := range verbFuncs {
 		route := core.Route{
-			Verb:          core.Verb(vfunc.Verb),
-			Path:          sanitizeConventionalPath(path.Join(h.RootPath, prefix, vfunc.Path)),
+			Verb: core.Verb(vfunc.Verb),
+			// using lowercase routes enforces consistency
+			// since ASP.NET core is case-insensitive and API Gateway is case-sensitive
+			Path:          strings.ToLower(sanitizeConventionalPath(path.Join("/", h.RootPath, prefix, vfunc.Path))),
 			ExecUnitName:  h.Unit.Name,
 			HandledInFile: f.Path(),
 		}
@@ -338,55 +340,12 @@ func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *core.SourceFile, varNa
 	return routes, err
 }
 
-// sanitizeConventionalPath converts ASP.net conventional path parameters to Express syntax,
-// but does not perform validation to ensure that the supplied string is a valid ASP.net route.
-// As such, there's no expectation of correct output for invalid paths
-func sanitizeConventionalPath(path string) string {
-	firstOptionalIndex := strings.Index(path, "?")
-	firstDefaultIndex := strings.Index(path, "=")
-	firstProxyParamIndex := firstOptionalIndex
-	if firstProxyParamIndex == -1 || (firstDefaultIndex > -1 && firstDefaultIndex < firstProxyParamIndex) {
-		firstProxyParamIndex = firstDefaultIndex
-	}
-	if firstProxyParamIndex > -1 {
-		// convert to longest possible proxy route
-		path = path[0:firstProxyParamIndex]
-		path = path[0:strings.LastIndex(path, "{")+1] + "rest*}"
-	}
-
-	// convert path params to express syntax
-	path = regexp.MustCompile("{([^:}]*):?[^}]*}").ReplaceAllString(path, ":$1")
-	return path
-}
-
-func sanitizeControllerPath(path string, area string, controller string, action string) string {
-	//TODO: handle regex constraints -- they may include additional curly braces ("{", "}") that aren't currently accounted for
-	firstOptionalIndex := strings.Index(path, "?")
-	firstDefaultIndex := strings.Index(path, "=")
-	firstProxyParamIndex := firstOptionalIndex
-	if firstProxyParamIndex == -1 || (firstDefaultIndex > -1 && firstDefaultIndex < firstProxyParamIndex) {
-		firstProxyParamIndex = firstDefaultIndex
-	}
-	if firstProxyParamIndex > -1 {
-		// convert to longest possible proxy route
-		path = path[0:firstProxyParamIndex]
-		path = path[0:strings.LastIndex(path, "{")+1] + "rest*}"
-	}
-
-	// convert path params to express syntax
-	path = regexp.MustCompile("{([^:}]*):?[^}]*}").ReplaceAllString(path, ":$1")
-
-	path = strings.ReplaceAll(path, "[area]", fmt.Sprintf(":%s", area))
-	path = strings.ReplaceAll(path, "[controller]", fmt.Sprintf(":%s", controller))
-	path = strings.ReplaceAll(path, "[action]", fmt.Sprintf(":%s", action))
-	return path
-}
-
 type actionSpec struct {
-	method        MethodDeclaration
-	verb          core.Verb
-	routeTemplate string
-	name          string
+	method           MethodDeclaration
+	verb             core.Verb
+	routeTemplate    string
+	name             string
+	hasRouteTemplate bool // an empty string is a valid routeTemplate value
 }
 
 type controllerSpec struct {
@@ -403,9 +362,18 @@ type controllerAttributeSpec struct {
 }
 
 func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []controllerSpec {
+	// controller docs: https://learn.microsoft.com/en-us/aspnet/core/mvc/controllers/actions?view=aspnetcore-7.0
 	types := FindDeclarationsInFile[*TypeDeclaration](file).Declarations()
-	usingDirectives := FindImportsInFile(file)
-	controllers := filter.NewSimpleFilter(HasBase("Microsoft.AspNetCore.Mvc", "ControllerBase", usingDirectives)).Apply(types...)
+	controllers := filter.NewSimpleFilter(
+		predicate.AllOf(
+			predicate.AnyOf(
+				HasBaseWithSuffix("Controller"),
+				NameHasSuffix("Controller"),
+				HasAttribute("Controller"),
+				HasAttribute("ApiController"),
+			),
+			predicate.Not(HasAttribute("NonController"))),
+	).Apply(types...)
 	var controllerSpecs []controllerSpec
 	for _, c := range controllers {
 		controller := *c
@@ -421,22 +389,56 @@ func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []co
 	return controllerSpecs
 }
 
+func HasAttribute(attribute string) predicate.Predicate[*TypeDeclaration] {
+	return func(d *TypeDeclaration) bool {
+		_, ok := d.Attributes()[attribute]
+		return ok
+	}
+}
+
+func NameHasSuffix(suffix string) predicate.Predicate[*TypeDeclaration] {
+	return func(d *TypeDeclaration) bool {
+		return strings.HasSuffix(d.Name, suffix)
+	}
+}
+
 func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 	shortName := strings.TrimSuffix(c.name, "Controller")
 	var routes []gatewayRouteDefinition
+
+	prefixes := c.routeTemplates
+	hasPrefixes := true
+	if len(c.routeTemplates) == 0 {
+		prefixes = []string{""}
+		hasPrefixes = false
+	}
+
 	for _, action := range c.actions {
-		for _, prefix := range c.routeTemplates {
+		for _, prefix := range prefixes {
 			routeTemplate := action.routeTemplate
 			// route templates starting with "~" indicate prefixes should be ignored
 			if strings.HasPrefix(routeTemplate, "~") {
 				routeTemplate = strings.TrimPrefix(routeTemplate, "~")
 			} else {
-				routeTemplate = path.Join(prefix, action.routeTemplate)
+				routeTemplate = path.Join("/", prefix, action.routeTemplate)
+			}
+
+			if !hasPrefixes && !action.hasRouteTemplate {
+				zap.L().Sugar().Debugf("%s cannot be mapped to a route: no route template found", action.method.QualifiedName)
+				continue
+			}
+
+			verb := action.verb
+			if verb == "" {
+				verb = core.VerbAny
 			}
 
 			routes = append(routes, gatewayRouteDefinition{
-				Route: core.Route{Verb: action.verb,
-					Path:          sanitizeControllerPath(routeTemplate, c.area, shortName, action.name),
+				Route: core.Route{
+					Verb: verb,
+					// using lowercase routes enforces consistency
+					// since ASP.NET core is case-insensitive and API Gateway is case-sensitive
+					Path:          strings.ToLower(sanitizeAttributeBasedPath(routeTemplate, c.area, shortName, action.name)),
 					ExecUnitName:  c.execUnitName,
 					HandledInFile: c.class.DeclaringFile,
 				},
@@ -448,180 +450,213 @@ func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 	return routes
 }
 
+// findActionsInController returns a []actionSpec containing specifications for each action detected in the supplied controller
+// action routing docs: https://learn.microsoft.com/en-us/aspnet/core/mvc/controllers/routing?view=aspnetcore-7.0#ar6
 func findActionsInController(controller TypeDeclaration) []actionSpec {
 	var actions []actionSpec
 	methods := FindDeclarationsAtNode[*MethodDeclaration](controller.Node).Declarations()
 	for _, m := range methods {
-		actions = append(actions, parseActionAttributes(*m)...)
+		if _, isNonAction := m.Attributes()["NonAction"]; !isNonAction {
+			actions = append(actions, parseActionAttributes(*m)...)
+		}
 	}
 	return actions
 }
 
-func HasBase(namespace, typeName string, using Imports) predicate.Predicate[*TypeDeclaration] {
-	qualifiedName := namespace + "." + typeName
-	return func(d *TypeDeclaration) bool {
-		if _, ok := d.Bases[qualifiedName]; ok {
-			return true
-		}
-		for _, baseNode := range d.Bases {
-			if IsValidTypeName(baseNode, namespace, typeName) {
-				return true
-			}
-		}
-		return false
-	}
-}
-
-func funcName(d *TypeDeclaration, using Imports) bool {
-	_, hasQualifiedCB := d.Bases["Microsoft.AspNetCore.Mvc.ControllerBase"]
-	if hasQualifiedCB {
-		return true
-	}
-
-	_, hasCB := d.Bases["ControllerBase"]
-	validNamespaces := ContainingNamespaces(d.Node)
-	usingNamespace := false
-	if hasCB && !hasQualifiedCB {
-		nsImports := using["Microsoft.AspNetCore.Mvc"]
-		for _, i := range nsImports {
-			if _, isInValidNamespace := validNamespaces[i.Namespace]; i.Namespace == "" || isInValidNamespace {
-				usingNamespace = true
-				break
-			}
-		}
-	}
-	hasAliasedCB := false
-	if !hasCB && !hasQualifiedCB {
-		if cbImports, ok := using["Microsoft.AspNetCore.Mvc.ControllerBase"]; ok {
-			for _, i := range cbImports {
-				if _, isInValidNamespace := validNamespaces[i.Namespace]; i.Namespace == "" || isInValidNamespace {
-					if _, usesAlias := d.Bases[i.Alias]; usesAlias {
-						hasAliasedCB = i.Type == ImportTypeUsingAlias
-						break
-					}
-				}
-			}
-		}
-	}
-	return d.Kind == DeclarationKindClass && ((hasCB && usingNamespace) || hasQualifiedCB || hasAliasedCB)
-}
-
 func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSpec {
-	matches := AllMatches(controller.AttributesList, query.Join(exposeRouteAttribute, exposeAreaAttribute))
+	attrs := controller.Attributes().OfType("Route", "Area")
 	attrSpec := controllerAttributeSpec{}
-	for _, match := range matches {
-		attr := match["attr"]
-		switch attr.Content() {
+	for _, attr := range attrs {
+		args := attr.Args()
+		switch attr.Name {
 		case "Route":
-			attrSpec.routeTemplates = append(attrSpec.routeTemplates, stringLiteralContent(match["template"]))
+			if len(args) > 0 {
+				attrSpec.routeTemplates = append(attrSpec.routeTemplates, args[0].Value)
+			}
 		case "Area":
-			attrSpec.area = stringLiteralContent(match["areaName"])
+			if len(args) > 0 {
+				attrSpec.area = args[0].Value
+			}
 		}
 	}
 	return attrSpec
 }
 
 func parseActionAttributes(method MethodDeclaration) []actionSpec {
-	matches := AllMatches(method.Node, query.Join(exposeRouteAttribute, httpMethodAttribute))
+	allAttrs := method.Attributes()
+
+	if _, nonAction := allAttrs["NonAction"]; nonAction {
+		return []actionSpec{}
+	}
+
+	verbAttrs := allAttrs.OfType(
+		"HttpGet",
+		"HttpPost",
+		"HttpPut",
+		"HttpPatch",
+		"HttpDelete",
+		"HttpHead",
+		"HttpOptions",
+	)
+	routeAttrs := allAttrs.OfType(
+		"Route",
+	)
+
+	acceptVerbsAttrs := allAttrs.OfType("AcceptVerbs")
+
+	// actions without any attributes are only matched if the controller has a route and there are no other matching routes
+	if len(verbAttrs) == 0 && len(routeAttrs) == 0 && len(acceptVerbsAttrs) == 0 {
+		return []actionSpec{{
+			name:             method.Name,
+			method:           method,
+			hasRouteTemplate: false,
+			verb:             core.VerbAny,
+		}}
+	}
 	var specs []actionSpec
 
-	if len(matches) == 0 {
-		verb := resolveVerbFromNamePrefix(method.Name)
-		if verb != "" {
-			routeTemplate := method.Name[len(verb):]
-			spec := actionSpec{
-				name:          routeTemplate,
-				method:        method,
-				routeTemplate: routeTemplate,
-				verb:          verb,
-			}
-			specs = append(specs, spec)
+	var routePrefixes []string
+
+	for _, routeAttr := range routeAttrs {
+		args := routeAttr.Args()
+		routeTemplate := ""
+		if len(args) > 0 && args[0].Name == "" {
+			routeTemplate = args[0].Value
 		}
-		return specs
+
+		// when [HTTP<VERB>] or [AcceptVerbs] attributes are present [Route] attributes are treated as prefixes
+		if len(verbAttrs) > 0 || len(acceptVerbsAttrs) > 0 {
+			routePrefixes = append(routePrefixes, routeTemplate)
+			continue
+		}
+
+		spec := actionSpec{
+			name:             method.Name,
+			method:           method,
+			routeTemplate:    routeTemplate,
+			verb:             core.VerbAny,
+			hasRouteTemplate: len(args) > 0,
+		}
+		specs = append(specs, spec)
 	}
 
-	hasVerbAttribute := false
-	var routePrefixes []string
-	for _, match := range matches {
-		attrName := match["attr"].Content()
-		if attrName == "Route" {
-			routePrefixes = append(routePrefixes, stringLiteralContent(match["template"]))
-		} else {
-			hasVerbAttribute = true
-		}
-	}
 	if len(routePrefixes) == 0 {
 		routePrefixes = append(routePrefixes, "") // fall back to empty prefix
 	}
 
-	for _, match := range matches {
-		attrName := match["attr"].Content()
-		if attrName == "Route" && hasVerbAttribute {
-			continue
+	for _, verbAttr := range verbAttrs {
+		attrName := verbAttr.Name
+		verb := core.Verb(strings.ToUpper(strings.TrimPrefix(attrName, "Http")))
+		if _, supported := core.Verbs[verb]; !supported {
+			continue // unsupported verb
 		}
-		if !hasVerbAttribute {
-			verb := resolveVerbFromNamePrefix(method.Name)
-			if verb != "" {
-				routeTemplate := stringLiteralContent(match["template"])
-				spec := actionSpec{
-					name:          method.Name[len(verb):],
-					method:        method,
-					routeTemplate: routeTemplate,
-					verb:          verb,
-				}
-				specs = append(specs, spec)
-			}
-			continue
-		}
-
-		//TODO: add support for 'AcceptVerbs' attribute
-		verb := core.Verb("")
-		if strings.HasPrefix(attrName, "Http") {
-			verb = core.Verb(strings.ToUpper(strings.TrimPrefix(attrName, "Http")))
-			if _, supported := core.Verbs[core.Verb(verb)]; !supported {
-				continue // unsupported verb
-			}
-		} else {
-			verb = resolveVerbFromNamePrefix(method.Name)
+		args := verbAttr.Args()
+		routeTemplate := ""
+		if len(args) > 0 && args[0].Name == "" {
+			routeTemplate = args[0].Value
 		}
 
 		for _, prefix := range routePrefixes {
-			routeTemplate := path.Join(prefix, stringLiteralContent(match["template"]))
-
 			spec := actionSpec{
-				name:          method.Name[len(verb):],
-				method:        method,
-				routeTemplate: routeTemplate,
-				verb:          verb,
+				name:             method.Name,
+				method:           method,
+				routeTemplate:    path.Join(prefix, routeTemplate),
+				verb:             verb,
+				hasRouteTemplate: len(args) > 0,
 			}
 			specs = append(specs, spec)
+		}
+	}
+
+	for _, acceptAttr := range acceptVerbsAttrs {
+		var verbs []core.Verb
+		args := acceptAttr.Args()
+		routeTemplate := ""
+		hasRouteTemplate := false
+		for _, arg := range args {
+			if arg.Name == "" {
+				verb := core.Verb(strings.ToUpper(arg.Value))
+				_, supported := core.Verbs[verb]
+
+				if supported == true {
+					verbs = append(verbs, verb)
+				}
+			}
+			if arg.Name == "Route" {
+				routeTemplate = arg.Value
+				hasRouteTemplate = true
+			}
+		}
+
+		for _, verb := range verbs {
+			for _, prefix := range routePrefixes {
+				spec := actionSpec{
+					verb:             verb,
+					name:             method.Name,
+					method:           method,
+					routeTemplate:    path.Join(prefix, routeTemplate),
+					hasRouteTemplate: hasRouteTemplate,
+				}
+				specs = append(specs, spec)
+			}
 		}
 	}
 	return specs
 }
 
-func resolveVerbFromNamePrefix(name string) core.Verb {
-	name = strings.ToUpper(name)
-	if strings.HasPrefix(name, core.VerbGet.String()) {
-		return core.VerbGet
+// sanitizeConventionalPath converts ASP.net conventional path parameters to Express syntax,
+// but does not perform validation to ensure that the supplied string is a valid ASP.net route.
+// As such, there's no expectation of correct output for invalid paths
+// Regexp constraints and controller/action token replacement are not yet supported
+func sanitizeConventionalPath(path string) string {
+	// convert to longest possible proxy route when required
+	firstProxyParamIndex := findFirstProxyRouteIndicator(path)
+	if firstProxyParamIndex > -1 {
+		path = path[0:firstProxyParamIndex]
+		path = path[0:strings.LastIndex(path, "{")+1] + "rest*}"
 	}
-	if strings.HasPrefix(name, core.VerbPost.String()) {
-		return core.VerbPost
+
+	// convert path params to express syntax
+	path = regexp.MustCompile("{([^:}]*):?[^}]*}").ReplaceAllString(path, ":$1")
+	return path
+}
+
+func sanitizeAttributeBasedPath(path string, area string, controller string, action string) string {
+	//TODO: handle regex constraints -- they may include additional curly braces ("{", "}") that aren't currently accounted for
+
+	// replace params such as {controller=Index}
+	specialParamFormat := `(?i){\s*%s\s*=\s*%s\s*}`
+	path = regexp.MustCompile(fmt.Sprintf(specialParamFormat, "area", area)).ReplaceAllString(path, area)
+	path = regexp.MustCompile(fmt.Sprintf(specialParamFormat, "controller", controller)).ReplaceAllString(path, controller)
+	path = regexp.MustCompile(fmt.Sprintf(specialParamFormat, "action", action)).ReplaceAllString(path, action)
+
+	// convert to longest possible proxy route when required
+	firstProxyParamIndex := findFirstProxyRouteIndicator(path)
+	if firstProxyParamIndex > -1 {
+		path = path[0:firstProxyParamIndex]
+		path = path[0:strings.LastIndex(path, "{")+1] + "rest*}"
 	}
-	if strings.HasPrefix(name, core.VerbPut.String()) {
-		return core.VerbPut
+
+	// convert path params to express syntax
+	path = regexp.MustCompile("{([^:}]*):?[^}]*}").ReplaceAllString(path, ":$1")
+
+	// replace special tokens
+	path = regexp.MustCompile(`(?i)\[area]`).ReplaceAllString(path, area)
+	path = regexp.MustCompile(`(?i)\[controller]`).ReplaceAllString(path, controller)
+	path = regexp.MustCompile(`(?i)\[action]`).ReplaceAllString(path, action)
+	return path
+}
+
+func findFirstProxyRouteIndicator(path string) int {
+	firstProxyParamIndex := -1
+	for _, i := range []int{
+		strings.Index(path, "?"),
+		strings.Index(path, "="),
+		strings.Index(path, "*"),
+	} {
+		if i >= 0 && (firstProxyParamIndex < 0 || i < firstProxyParamIndex) {
+			firstProxyParamIndex = i
+		}
 	}
-	if strings.HasPrefix(name, core.VerbPatch.String()) {
-		return core.VerbPatch
-	}
-	if strings.HasPrefix(name, core.VerbDelete.String()) {
-		return core.VerbDelete
-	}
-	if strings.HasPrefix(name, core.VerbHead.String()) {
-		return core.VerbHead
-	}
-	if strings.HasPrefix(name, core.VerbOptions.String()) {
-		return core.VerbOptions
-	}
-	return ""
+	return firstProxyParamIndex
 }
