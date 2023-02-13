@@ -76,6 +76,10 @@ export = async () => {
     cloudLib.uploadAnalytics("Starting pulumi update", false, false)
     cloudLib.uploadAnalytics("Starting pulumi preview", true, false)
 
+    {{- if .Buckets}}
+    cloudLib.createBuckets({{json .Buckets}}, true)
+    {{- end}}
+
     {{- if .HasKV}}
     cloudLib.setupKV();
     {{- end}}

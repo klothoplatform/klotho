@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/bmatcuk/doublestar/v4"
 	"io"
 	"io/fs"
 	"os"
 	"strings"
 	"text/template"
+
+	"github.com/bmatcuk/doublestar/v4"
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"

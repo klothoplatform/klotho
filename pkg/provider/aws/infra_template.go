@@ -141,6 +141,13 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 				data.UseVPC = true
 			}
 
+		case *core.Fs:
+			if res.GenerateNewFs {
+				data.Buckets = append(data.Buckets, provider.FS{
+					Name: res.Name,
+				})
+			}
+
 		case *core.PubSub:
 			for name, event := range res.Events {
 				cfg := a.Config.GetPubSub(key.Name)

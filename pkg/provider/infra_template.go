@@ -50,6 +50,12 @@ type (
 		Params config.InfraParams
 	}
 
+	FS struct {
+		Name   string
+		Type   string
+		Params config.InfraParams
+	}
+
 	ExecUnit struct {
 		Name                 string
 		Type                 string
