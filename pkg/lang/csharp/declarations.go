@@ -10,7 +10,16 @@ import (
 	"strings"
 )
 
-// TODO: implement support for properties, enums, and indexers (maybe others?)
+/* TODO: implement support for:
+   - properties
+   - constructors
+   - events
+   - enums
+   - indexers
+   - local functions
+   - local variables
+   - delegates
+*/
 
 type Declaration struct {
 	Node           *sitter.Node
@@ -25,6 +34,7 @@ type Declaration struct {
 	IsStatic       bool
 	DeclaringClass string
 	AttributeList  *sitter.Node
+	Modifiers      map[string]struct{}
 }
 
 func (d *Declaration) AsDeclaration() Declaration {
@@ -72,10 +82,13 @@ type Attributes map[string][]Attribute
 
 func (a Attributes) OfType(types ...string) []Attribute {
 	var attrs []Attribute
-	for name, attr := range a {
+	for _, attrDeclarations := range a {
 		for _, t := range types {
-			if name == t {
-				attrs = append(attrs, attr...)
+			attr := attrDeclarations[0]
+			tNamespace, tName := splitQualifiedName(t)
+
+			if IsValidTypeName(attr.Node.ChildByFieldName("name"), tNamespace, tName) {
+				attrs = append(attrs, attrDeclarations...)
 				break
 			}
 		}
@@ -137,6 +150,8 @@ type MethodDeclaration struct {
 	IsAbstract     bool
 	IsSealed       bool
 	IsPartial      bool
+	IsVirtual      bool
+	IsOverride     bool
 	Parameters     []Parameter
 	ReturnType     string
 }
@@ -162,6 +177,8 @@ type PropertyDeclaration struct {
 	IsAbstract bool
 	IsReadOnly bool
 	IsRequired bool
+	IsVirtual  bool
+	IsOverride bool
 	Type       string
 }
 
@@ -359,6 +376,8 @@ func parseMethodDeclaration(match query.MatchNodes) *MethodDeclaration {
 	declaration.IsSealed = modifiers.IsSealed
 	declaration.IsStatic = modifiers.IsStatic
 	declaration.IsPartial = modifiers.IsPartial
+	declaration.IsVirtual = modifiers.IsVirtual
+	declaration.IsOverride = modifiers.IsOverride
 	declaration.IsGeneric = declaration.Node.ChildByFieldName("type_parameters") != nil
 	declaration.IsNested = isNested(declaration.Node)
 	declaration.QualifiedName = resolveQualifiedName(declaration.Node)
@@ -460,6 +479,8 @@ type modifierSpec struct {
 	IsReadOnly bool
 	IsRequired bool
 	IsPartial  bool
+	IsVirtual  bool
+	IsOverride bool
 }
 
 func parseModifiers(declaration *sitter.Node) modifierSpec {
@@ -514,6 +535,10 @@ func parseModifiers(declaration *sitter.Node) modifierSpec {
 			spec.IsReadOnly = true
 		case "required":
 			spec.IsRequired = true
+		case "virtual":
+			spec.IsVirtual = true
+		case "override":
+			spec.IsOverride = true
 		}
 	}
 	return spec

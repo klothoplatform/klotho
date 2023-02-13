@@ -87,3 +87,15 @@ func IsValidTypeName(nameNode *sitter.Node, expectedNamespace, expectedType stri
 
 	return false
 }
+
+func splitQualifiedName(qualifiedName string) (namespace string, name string) {
+	separator := strings.LastIndex(qualifiedName, ".")
+
+	if separator != -1 {
+		namespace = qualifiedName[0:separator]
+		name = qualifiedName[separator+1:]
+	} else {
+		name = qualifiedName
+	}
+	return namespace, name
+}

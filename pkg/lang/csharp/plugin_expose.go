@@ -42,7 +42,7 @@ type (
 	}
 )
 
-// An useEndpointsResult represents an ASP.net Core IApplicationBuilder.UseEndpoints() invocation
+// useEndpointsResult represents an ASP.net Core IApplicationBuilder.UseEndpoints() invocation
 type useEndpointsResult struct {
 	StartupClassDeclaration        *sitter.Node // Declaration of the Startup class surrounding the expose annotation
 	UseExpression                  *sitter.Node // Expression of the UseEndpoints() invocation (app.UseEndpoints(endpoints => {...})
@@ -365,14 +365,13 @@ func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []co
 	// controller docs: https://learn.microsoft.com/en-us/aspnet/core/mvc/controllers/actions?view=aspnetcore-7.0
 	types := FindDeclarationsInFile[*TypeDeclaration](file).Declarations()
 	controllers := filter.NewSimpleFilter(
-		predicate.AllOf(
-			predicate.AnyOf(
-				HasBaseWithSuffix("Controller"),
-				NameHasSuffix("Controller"),
-				HasAttribute("Controller"),
-				HasAttribute("ApiController"),
-			),
-			predicate.Not(HasAttribute("NonController"))),
+		predicate.AnyOf(
+			HasBaseWithSuffix("Controller"),
+			NameHasSuffix("Controller"),
+			HasAttribute("Microsoft.AspNetCore.Mvc.Controller"),
+			HasAttribute("Microsoft.AspNetCore.Mvc.ApiController"),
+		),
+		predicate.Not(HasAttribute("Microsoft.AspNetCore.Mvc.NonController")),
 	).Apply(types...)
 	var controllerSpecs []controllerSpec
 	for _, c := range controllers {
@@ -390,9 +389,22 @@ func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []co
 }
 
 func HasAttribute(attribute string) predicate.Predicate[*TypeDeclaration] {
+	namespace, name := splitQualifiedName(attribute)
 	return func(d *TypeDeclaration) bool {
-		_, ok := d.Attributes()[attribute]
-		return ok
+		attrs := d.Attributes()
+		// has qualified attribute
+		if attr, ok := attrs[attribute]; ok {
+			if IsValidTypeName(attr[0].Node, namespace, name) {
+				return true
+			}
+		}
+		// has namespace import + attribute
+		if attr, ok := attrs[name]; ok {
+			if IsValidTypeName(attr[0].Node, namespace, name) {
+				return true
+			}
+		}
+		return false
 	}
 }
 
@@ -468,7 +480,8 @@ func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSp
 	attrSpec := controllerAttributeSpec{}
 	for _, attr := range attrs {
 		args := attr.Args()
-		switch attr.Name {
+		_, name := splitQualifiedName(attr.Name)
+		switch name {
 		case "Route":
 			if len(args) > 0 {
 				attrSpec.routeTemplates = append(attrSpec.routeTemplates, args[0].Value)
@@ -485,24 +498,24 @@ func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSp
 func parseActionAttributes(method MethodDeclaration) []actionSpec {
 	allAttrs := method.Attributes()
 
-	if _, nonAction := allAttrs["NonAction"]; nonAction {
+	if _, nonAction := allAttrs["Microsoft.AspNetCore.Mvc.NonAction"]; nonAction {
 		return []actionSpec{}
 	}
 
 	verbAttrs := allAttrs.OfType(
-		"HttpGet",
-		"HttpPost",
-		"HttpPut",
-		"HttpPatch",
-		"HttpDelete",
-		"HttpHead",
-		"HttpOptions",
+		"Microsoft.AspNetCore.Mvc.HttpGet",
+		"Microsoft.AspNetCore.Mvc.HttpPost",
+		"Microsoft.AspNetCore.Mvc.HttpPut",
+		"Microsoft.AspNetCore.Mvc.HttpPatch",
+		"Microsoft.AspNetCore.Mvc.HttpDelete",
+		"Microsoft.AspNetCore.Mvc.HttpHead",
+		"Microsoft.AspNetCore.Mvc.HttpOptions",
 	)
 	routeAttrs := allAttrs.OfType(
-		"Route",
+		"Microsoft.AspNetCore.Mvc.Route",
 	)
 
-	acceptVerbsAttrs := allAttrs.OfType("AcceptVerbs")
+	acceptVerbsAttrs := allAttrs.OfType("Microsoft.AspNetCore.Mvc.AcceptVerbs")
 
 	// actions without any attributes are only matched if the controller has a route and there are no other matching routes
 	if len(verbAttrs) == 0 && len(routeAttrs) == 0 && len(acceptVerbsAttrs) == 0 {
@@ -545,7 +558,7 @@ func parseActionAttributes(method MethodDeclaration) []actionSpec {
 	}
 
 	for _, verbAttr := range verbAttrs {
-		attrName := verbAttr.Name
+		_, attrName := splitQualifiedName(verbAttr.Name)
 		verb := core.Verb(strings.ToUpper(strings.TrimPrefix(attrName, "Http")))
 		if _, supported := core.Verbs[verb]; !supported {
 			continue // unsupported verb

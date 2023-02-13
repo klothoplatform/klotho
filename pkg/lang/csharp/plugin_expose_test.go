@@ -3,6 +3,7 @@ package csharp
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -183,8 +184,11 @@ func Test_findIApplicationBuilder(t *testing.T) {
 		expectations []expectations
 	}{
 		{
-			name: "",
+			name: "Finds Annotated Startup Classes",
 			program: `
+			using Microsoft.AspNetCore.Builder;
+			using Microsoft.AspNetCore.Hosting;
+			
 			public class MyStartupClass {
 				public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
 				{
@@ -200,6 +204,67 @@ func Test_findIApplicationBuilder(t *testing.T) {
 					});
 				}
 			}
+			
+			public class MyQualifiedStartupClass {
+				public void Configure(
+					Microsoft.AspNetCore.Builder.IApplicationBuilder qualifiedApp,
+					Microsoft.AspNetCore.Hosting.IWebHostEnvironment env)
+				{
+					/**
+					* @klotho::expose {
+					*  id = "csharp-gateway2"
+					*  target = "public"
+					* }
+					*/
+					qualifiedApp.UseEndpoints(endpoints =>
+					{				
+						endpoints.MapGet("/}", () => "Hello!");
+					});
+				}
+			}
+			
+			public class InvalidStartupClassWrongArgType {
+				public void Configure(SomeOtherType app, IWebHostEnvironment env)
+				{
+					/**
+					* @klotho::expose {
+					*  id = "csharp-gateway3"
+					*  target = "public"
+					* }
+					*/
+					app.UseEndpoints(endpoints =>
+					{				
+						endpoints.MapGet("/}", () => "Hello!");
+					});
+				}
+			}
+			
+			public class InvalidStartupClassNoConfigureMethod {
+				public void OtherMethod(IApplicationBuilder app, IWebHostEnvironment env)
+				{
+					/**
+					* @klotho::expose {
+					*  id = "csharp-gateway4"
+					*  target = "public"
+					* }
+					*/
+					app.UseEndpoints(endpoints =>
+					{				
+						endpoints.MapGet("/}", () => "Hello!");
+					});
+				}
+			}
+			
+			public class InvalidNonAnnotatedStartupClass {
+				public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+				{
+					app.UseEndpoints(endpoints =>
+					{				
+						endpoints.MapGet("/}", () => "Hello!");
+					});
+				}
+			}
+			
 				`,
 			expectations: []expectations{
 				{
@@ -207,12 +272,17 @@ func Test_findIApplicationBuilder(t *testing.T) {
 					appBuilderIdentifier:   "app",
 					routeBuilderIdentifier: "endpoints",
 				},
+				{
+					startupClass:           "MyQualifiedStartupClass",
+					appBuilderIdentifier:   "qualifiedApp",
+					routeBuilderIdentifier: "endpoints",
+				},
 			},
 		},
 	}
 	for _, tt := range tests {
-		assert := assert.New(t)
 		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
 			file, err := core.NewSourceFile("program.cs", strings.NewReader(tt.program), Language)
 			if !assert.NoError(err) {
 				return
@@ -230,8 +300,16 @@ func Test_findIApplicationBuilder(t *testing.T) {
 					}
 				}
 			}
+
+			sort.Slice(tt.expectations, func(i, j int) bool {
+				return tt.expectations[i].startupClass < tt.expectations[j].startupClass
+			})
+			sort.Slice(actual, func(i, j int) bool {
+				return actual[i].startupClass < actual[j].startupClass
+			})
+
 			assert.Equal(len(tt.expectations), len(actual), "Incorrect number of results")
-			assert.Contains(tt.expectations, actual)
+			assert.Equal(tt.expectations, actual)
 		})
 	}
 }
