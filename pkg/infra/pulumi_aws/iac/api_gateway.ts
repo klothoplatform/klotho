@@ -38,14 +38,23 @@ export class ApiGateway {
         }
 
         gateways.forEach((gateway) => {
-            if (gateway.ApiType == 'REST') {
-                this.createRestGateway(gateway.Routes, gateway.Name)
+            switch (gateway.ApiType) {
+                case 'REST':
+                    this.createRestGateway(gateway)
+                    break
+                case 'HTTP':
+                    this.createHttpGateway(gateway)
+                    break
             }
         })
     }
 
+    get appName() {
+        return this.lib.name
+    }
+
     createWebSocketApiGateway(providedName): aws.apigatewayv2.Api {
-        return new aws.apigatewayv2.Api(`${this.lib.name}-${providedName}`, {
+        return new aws.apigatewayv2.Api(`${this.appName}-${providedName}`, {
             protocolType: 'WEBSOCKET',
             routeSelectionExpression: `$request.body.action`,
         })
@@ -55,7 +64,7 @@ export class ApiGateway {
         securityGroupIds: pulumi.Output<string>[],
         subnetIds: pulumi.Output<string[]>
     ): aws.apigatewayv2.VpcLink {
-        return new aws.apigatewayv2.VpcLink(`${this.lib.name}`, {
+        return new aws.apigatewayv2.VpcLink(`${this.appName}`, {
             securityGroupIds,
             subnetIds,
         })
@@ -70,7 +79,7 @@ export class ApiGateway {
         execUnitName: string
     ): aws.apigatewayv2.Integration {
         return new aws.apigatewayv2.Integration(
-            `${this.lib.name}-${gwName}-${execUnitName}`,
+            `${this.appName}-${gwName}-${execUnitName}`,
             {
                 apiId: api.id,
                 integrationType: 'AWS_PROXY',
@@ -94,7 +103,7 @@ export class ApiGateway {
         execUnitName: string
     ): aws.apigatewayv2.Integration {
         return new aws.apigatewayv2.Integration(
-            `${this.lib.name}-${gwName}-${execUnitName}`,
+            `${this.appName}-${gwName}-${execUnitName}`,
             {
                 apiId: api.id,
                 description: 'Example with a load balancer',
@@ -119,7 +128,7 @@ export class ApiGateway {
         integration: aws.apigatewayv2.Integration
     ): aws.apigatewayv2.Route {
         return new aws.apigatewayv2.Route(
-            `${this.lib.name}-${gwName}-${route}`,
+            `${this.appName}-${gwName}-${route}`,
             {
                 apiId: api.id,
                 routeKey: route,
@@ -133,7 +142,7 @@ export class ApiGateway {
 
     createDeployment(gwName: string, api: aws.apigatewayv2.Api, routes: aws.apigatewayv2.Route[]) {
         return new aws.apigatewayv2.Deployment(
-            `${this.lib.name}-${gwName}`,
+            `${this.appName}-${gwName}`,
             {
                 apiId: api.id,
             },
@@ -152,7 +161,7 @@ export class ApiGateway {
         stageName: string
     ) {
         return new aws.apigatewayv2.Stage(
-            `${this.lib.name}-${gwName}-${stageName}`,
+            `${this.appName}-${gwName}-${stageName}`,
             {
                 apiId: api.id,
                 name: stageName,
@@ -261,8 +270,63 @@ export class ApiGateway {
         this.invokeUrls.push(stage.invokeUrl)
     }
 
-    createRestGateway(routes: Route[], providedName: string): void {
-        const gwName = providedName.replace(/[^a-zA-Z0-9_-]/g, '-')
+    createHttpGateway(gateway: Gateway) {
+        const gwName = gateway.Name.replace(/[^a-zA-Z0-9_-]/g, '-')
+        const api: aws.apigatewayv2.Api = new aws.apigatewayv2.Api(`${this.appName}-${gwName}`, {
+            name: `${this.appName}-${gwName}`,
+            protocolType: 'HTTP',
+            routeSelectionExpression: '$request.method $request.path',
+        })
+        const apiRoutes: aws.apigatewayv2.Route[] = []
+        for (const r of gateway.Routes) {
+            const execUnit = this.lib.resourceIdToResource.get(`${r.execUnitName}_exec_unit`)
+
+            let integration: aws.apigatewayv2.Integration
+            switch (execUnit.type) {
+                case 'ecs':
+                    break
+                case 'eks':
+                    break
+                case 'lambda':
+                    break
+                default:
+                    throw new Error(`Unsupported execution unit type: ${execUnit.type}`)
+            }
+
+            const path = this.convertPath(r.path)
+            // routeKey matches routeSelectionExpression format
+            const routeKey = `${r.verb.toUpperCase()} ${path}`
+            const route = new aws.apigatewayv2.Route(`${routeKey}`, {
+                apiId: api.id,
+                routeKey,
+                target: pulumi.interpolate`integrations/${integration.id}`,
+            })
+            apiRoutes.push(route)
+        }
+
+        const stage = new aws.apigatewayv2.Stage(
+            gwName,
+            {
+                name: `${this.appName}-${gwName}`,
+                apiId: api.id,
+                autoDeploy: true,
+            },
+            { dependsOn: apiRoutes, parent: api }
+        )
+    }
+
+    /**
+     * Converts an express style path (or path segment) to API Gateway compatible.
+     */
+    convertPath(path: string): string {
+        return path
+            .replace(/:([^/]+)/g, '{$1}') // convert express params :arg to AWS gateway {arg}
+            .replace(/[*]\}/g, '+}') // convert express greedy flag {arg*} to AWS gateway {arg+}
+            .replace(/\/\//g, '/') // collapse double '//' to single '/'
+    }
+
+    createRestGateway(gateway: Gateway): void {
+        const gwName = gateway.Name.replace(/[^a-zA-Z0-9_-]/g, '-')
         const restAPI: aws.apigateway.RestApi = new aws.apigateway.RestApi(gwName, {
             binaryMediaTypes: ['application/octet-stream', 'image/*'],
         })
@@ -272,7 +336,7 @@ export class ApiGateway {
         const integrationNames: string[] = []
         const permissions: aws.lambda.Permission[] = []
         // create the resources and methods needed for the provided routes
-        for (const r of routes) {
+        for (const r of gateway.Routes) {
             const execUnit = this.lib.resourceIdToResource.get(`${r.execUnitName}_exec_unit`)
             const pathSegments = r.path.split('/').filter(Boolean)
             let methodPathLastPart = pathSegments[pathSegments.length - 1] ?? '/' // get the last part of the path
@@ -293,10 +357,8 @@ export class ApiGateway {
                     integrationRequestParams[`integration.${pathParam}`] = `method.${pathParam}`
                 }
 
-                segment = segment
-                    .replace(/:([^/]+)/g, '{$1}') // convert express params :arg to AWS gateway {arg}
-                    .replace(/[*]\}/g, '+}') // convert express greedy flag {arg*} to AWS gateway {arg+}
-                    .replace(/\/\//g, '/') // collapse double '//' to single '/'
+                segment = this.convertPath(segment)
+
                 currPathSegments += `${segment}/`
                 if (resourceMap.has(currPathSegments)) {
                     parentResource = resourceMap.get(currPathSegments)!
@@ -362,9 +424,9 @@ export class ApiGateway {
                             type: 'HTTP_PROXY',
                             connectionType: 'VPC_LINK',
                             connectionId: vpcLink.id,
-                            uri: pulumi.interpolate`http://${nlb.loadBalancer.dnsName}${r.path
-                                .replace(/:([^/]+)/g, '{$1}')
-                                .replace(/[*]\}/g, '+}')}`,
+                            uri: pulumi.interpolate`http://${
+                                nlb.loadBalancer.dnsName
+                            }${this.convertPath(r.path)}`,
                             requestParameters:
                                 Object.keys(integrationRequestParams).length == 0
                                     ? undefined
@@ -441,13 +503,12 @@ export class ApiGateway {
 
         // Create the deployment and stage
         const deployment = new aws.apigateway.Deployment(
-            `${providedName}-deployment`,
+            `${gwName}-deployment`,
             {
                 restApi: restAPI,
                 triggers: {
                     routes: sha256.sync(
-                        routes
-                            .map((r) => `${r.execUnitName}:${r.path}:${r.verb}`)
+                        gateway.Routes.map((r) => `${r.execUnitName}:${r.path}:${r.verb}`)
                             .sort()
                             .join()
                     ),
@@ -474,7 +535,7 @@ export class ApiGateway {
         )
 
         const stage = new aws.apigateway.Stage(
-            `${providedName}-stage`,
+            `${gwName}-stage`,
             {
                 deployment: deployment.id,
                 restApi: restAPI.id,
@@ -495,7 +556,7 @@ export class ApiGateway {
             }))
         )
 
-        this.lib.gatewayToUrl.set(providedName, stage.invokeUrl)
+        this.lib.gatewayToUrl.set(gateway.Name, stage.invokeUrl)
 
         this.invokeUrls.push(stage.invokeUrl)
     }
