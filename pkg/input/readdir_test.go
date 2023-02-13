@@ -122,6 +122,20 @@ func TestReadDir(t *testing.T) {
 			},
 		},
 		{
+			name: "csharp: obj and bin directories excluded",
+			files: map[string]string{
+				"fizz/one.cs":           "",
+				"fizz/aproject.csproj":  "<Project></Project>",
+				"fizz/obj/two.cs":       "",
+				"fizz/bin/aproject.dll": "",
+			},
+			rootPath: "fizz",
+			want: []string{
+				"one.cs",
+				"aproject.csproj",
+			},
+		},
+		{
 			name: "csharp: simple csproj in parent",
 			files: map[string]string{
 				"parent/src/one.cs":       "",                    // will be within ./new_cwd/src
@@ -140,7 +154,7 @@ func TestReadDir(t *testing.T) {
 				"parent/myproject.csproj":  "<Project></Project>",
 				"parent/myproject2.csproj": "<Project></Project>",
 			},
-			rootPath: "parent",
+			rootPath: "parent/src",
 		},
 		{
 			name: "csharp: multiple csproj returns error",
