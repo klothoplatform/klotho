@@ -1391,7 +1391,8 @@ export class CloudCCLib {
             this,
             execUnits,
             charts || [],
-            existingCluster
+            existingCluster,
+            lbPlugin
         )
     }
 
