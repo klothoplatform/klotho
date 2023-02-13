@@ -77,8 +77,9 @@ type (
 	}
 
 	Gateway struct {
-		Name   string
-		Routes []Route
+		Name    string
+		Routes  []Route
+		ApiType string
 	}
 
 	Route struct {

@@ -13,15 +13,13 @@ export interface Route {
 export interface Gateway {
     Name: string
     Routes: Route[]
+    ApiType: 'REST' | 'HTTP'
 }
 
 export class ApiGateway {
     private readonly vpcLink: aws.apigatewayv2.VpcLink
     public readonly invokeUrls: pulumi.Output<string>[] = []
-    private readonly execUnitToIntegration: Map<string, aws.apigatewayv2.Integration> = new Map<
-        string,
-        aws.apigatewayv2.Integration
-    >()
+    private readonly execUnitToIntegration = new Map<string, aws.apigatewayv2.Integration>()
 
     constructor(
         private readonly lib: CloudCCLib,
@@ -40,7 +38,9 @@ export class ApiGateway {
         }
 
         gateways.forEach((gateway) => {
-            this.createDockerBasedAPIGateway(gateway.Routes, gateway.Name)
+            if (gateway.ApiType == 'REST') {
+                this.createRestGateway(gateway.Routes, gateway.Name)
+            }
         })
     }
 
@@ -261,7 +261,7 @@ export class ApiGateway {
         this.invokeUrls.push(stage.invokeUrl)
     }
 
-    createDockerBasedAPIGateway(routes: Route[], providedName: string): void {
+    createRestGateway(routes: Route[], providedName: string): void {
         const gwName = providedName.replace(/[^a-zA-Z0-9_-]/g, '-')
         const restAPI: aws.apigateway.RestApi = new aws.apigateway.RestApi(gwName, {
             binaryMediaTypes: ['application/octet-stream', 'image/*'],
@@ -275,7 +275,7 @@ export class ApiGateway {
         for (const r of routes) {
             const execUnit = this.lib.resourceIdToResource.get(`${r.execUnitName}_exec_unit`)
             const pathSegments = r.path.split('/').filter(Boolean)
-            let methodPathLastPart = pathSegments.at(-1) ?? '/' // get the last part of the path
+            let methodPathLastPart = pathSegments[pathSegments.length - 1] ?? '/' // get the last part of the path
             let routeAndHash = `${methodPathLastPart.replace(':', '').replace('*', '')}-${sha256
                 .sync(r.path)
                 .slice(0, 5)}`
