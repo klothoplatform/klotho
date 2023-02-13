@@ -44,6 +44,10 @@ type languageFiles struct {
 	projectFileDescription string
 }
 
+func (l languageFiles) isProjectFile(filepath string) bool {
+	return l.projectFilePredicate != nil && l.projectFilePredicate(filepath)
+}
+
 func hasName(expected string) predicate.Predicate[string] {
 	return func(s string) bool {
 		return expected == s
@@ -151,6 +155,7 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 	dockerfileLang := &languageFiles{name: DockerFile}
 	allLangs := []*languageFiles{jsLang, pyLang, goLang, yamlLang, csLang}
 	projectDirs := map[languageName][]string{}
+
 	err := fs.WalkDir(fsys, cfg.Path, func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -171,6 +176,11 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 		}
 
 		if info.IsDir() {
+			err = detectProjectsInDir(allLangs, fsys, path, projectDirs)
+			if err != nil {
+				return err
+			}
+
 			switch info.Name() {
 			case "node_modules", "vendor":
 				// Skip modules/vendor folder for performance.
@@ -179,6 +189,9 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 				return fs.SkipDir
 			case "bin", "obj":
 				dir, _ := filepath.Split(info.Name())
+				if dir == "" {
+					dir = cfg.Path
+				}
 				for _, projectDir := range projectDirs[CSharp] {
 					if dir == projectDir {
 						zap.L().With(logging.FileField(f)).Debug("detected C# project output, skipping directory")
@@ -205,17 +218,9 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 		}
 		isProjectFile := false
 		for _, lang := range allLangs {
-			if lang.projectFilePredicate != nil && lang.projectFilePredicate(info.Name()) {
-				prjDir, _ := filepath.Split(info.Name())
-				if lang.foundProjectFile == true {
-					err = fmt.Errorf("multiple '%s' files found in directory: %s", lang.projectFileDescription, prjDir)
-					isProjectFile = true
-					break
-				}
+			if lang.isProjectFile(info.Name()) {
 				f, err = addFile(fsys, path, relPath, lang.projectFileOpener)
-				lang.foundProjectFile = true
 				isProjectFile = true
-				projectDirs[lang.name] = append(projectDirs[lang.name], prjDir)
 				break
 			}
 		}
@@ -271,18 +276,37 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 	if err != nil {
 		return nil, err
 	}
+
 	for _, lang := range allLangs {
 		if lang.foundSources && !lang.foundProjectFile && lang.projectFilePredicate != nil {
-			pkg, err := openFindUpward(lang, cfg.Path, fsys)
+			projectFile, err := openFindUpward(lang, cfg.Path, fsys)
 			if err != nil {
 				return nil, err
 			}
-			input.Add(pkg)
-			zap.L().With(logging.FileField(pkg)).Sugar().Debugf("Read package file for %s", lang.name)
+			input.Add(projectFile)
+			zap.L().With(logging.FileField(projectFile)).Sugar().Debugf("Read project file for %s", lang.name)
 		}
 	}
 
 	return input, nil
+}
+
+func detectProjectsInDir(langs []*languageFiles, fsys fs.FS, dir string, projectDirs map[languageName][]string) error {
+	entries, _ := fs.ReadDir(fsys, dir)
+	for _, lang := range langs {
+		for _, e := range entries {
+			if lang.isProjectFile(e.Name()) {
+				for _, projectDir := range projectDirs[lang.name] {
+					if dir == projectDir {
+						return fmt.Errorf("multiple '%s' files found in directory: %s", lang.projectFileDescription, dir)
+					}
+				}
+				projectDirs[lang.name] = append(projectDirs[lang.name], dir)
+				lang.foundProjectFile = true
+			}
+		}
+	}
+	return nil
 }
 
 // openFindUpward tries to open the `basename` file in `rootPath`, or any of its parent dirs up to `fsys`'s root.
@@ -295,7 +319,7 @@ func openFindUpward(lang *languageFiles, rootPath string, fsys fs.FS) (core.File
 				continue
 			}
 
-			if lang.projectFilePredicate(entry.Name()) {
+			if lang.isProjectFile(entry.Name()) {
 				if projectFile != nil {
 					return nil, fmt.Errorf("multiple '%s' files found in directory: %s", lang.projectFileDescription, prjDir)
 				}
