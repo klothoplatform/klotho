@@ -32,6 +32,7 @@ type (
 	}
 	Expose struct {
 		Type                   string                 `json:"type" yaml:"type" toml:"type"`
+		ApiType                string                 `json:"api_type" yaml:"api_type" toml:"api_type"`
 		ContentDeliveryNetwork ContentDeliveryNetwork `json:"content_delivery_network,omitempty" yaml:"content_delivery_network,omitempty" toml:"content_delivery_network,omitempty"`
 		InfraParams            InfraParams            `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
 	}
