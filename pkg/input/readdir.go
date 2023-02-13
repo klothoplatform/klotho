@@ -54,9 +54,10 @@ func hasName(expected string) predicate.Predicate[string] {
 	}
 }
 
-func hasSuffix(expected string) predicate.Predicate[string] {
+func hasExtension(expected string) predicate.Predicate[string] {
+	extension := "." + expected
 	return func(name string) bool {
-		return strings.HasSuffix(name, expected)
+		return extension != name && strings.HasSuffix(name, extension)
 	}
 }
 
@@ -146,7 +147,7 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 		projectFileOpener:      Upcast(golang.NewGoMod)}
 	csLang := &languageFiles{
 		name:                   CSharp,
-		projectFilePredicate:   hasSuffix(".csproj"),
+		projectFilePredicate:   hasExtension("csproj"),
 		projectFileDescription: "MSBuild Project File (.csproj)",
 		// TODO: project files in C# are currently unused, so no need to open & parse them.
 		projectFileOpener: func(path string, content io.Reader) (f core.File, err error) { return &core.FileRef{FPath: path}, nil },
@@ -188,8 +189,8 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 				// we'll need to remove this skip and check those.
 				return fs.SkipDir
 			case "bin", "obj":
-				dir, _ := filepath.Split(info.Name())
-				if dir == "" {
+				dir := filepath.Dir(info.Name())
+				if dir == "." {
 					dir = cfg.Path
 				}
 				for _, projectDir := range projectDirs[CSharp] {
