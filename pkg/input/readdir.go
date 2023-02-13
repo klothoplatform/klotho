@@ -326,7 +326,8 @@ func openFindUpward(lang *languageFiles, rootPath string, fsys fs.FS) (core.File
 				}
 
 				prjFilePath := path.Join(prjDir, entry.Name())
-				f, err := fsys.Open(prjFilePath)
+				var f fs.File
+				f, err = fsys.Open(prjFilePath)
 				if err != nil {
 					break
 				}
@@ -334,6 +335,9 @@ func openFindUpward(lang *languageFiles, rootPath string, fsys fs.FS) (core.File
 					defer f.Close()
 					return lang.projectFileOpener(prjFilePath, f)
 				}()
+				if err != nil {
+					break
+				}
 			}
 		}
 		if err != nil {
