@@ -639,3 +639,30 @@ func HasBaseWithSuffix(suffix string) predicate.Predicate[*TypeDeclaration] {
 		return false
 	}
 }
+
+func HasAttribute[T Declarable](attribute string) predicate.Predicate[T] {
+	namespace, name := splitQualifiedName(attribute)
+	return func(d T) bool {
+		declaration := d.AsDeclaration()
+		attrs := declaration.Attributes()
+		// has qualified attribute
+		if attr, ok := attrs[attribute]; ok {
+			if IsValidTypeName(attr[0].Node, namespace, name) {
+				return true
+			}
+		}
+		// has namespace import + attribute
+		if attr, ok := attrs[name]; ok {
+			if IsValidTypeName(attr[0].Node, namespace, name) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func NameHasSuffix[T Declarable](suffix string) predicate.Predicate[T] {
+	return func(d T) bool {
+		return strings.HasSuffix(d.AsDeclaration().Name, suffix)
+	}
+}

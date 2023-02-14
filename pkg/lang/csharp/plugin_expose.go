@@ -367,11 +367,11 @@ func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []co
 	controllers := filter.NewSimpleFilter(
 		predicate.AnyOf(
 			HasBaseWithSuffix("Controller"),
-			NameHasSuffix("Controller"),
-			HasAttribute("Microsoft.AspNetCore.Mvc.Controller"),
-			HasAttribute("Microsoft.AspNetCore.Mvc.ApiController"),
+			NameHasSuffix[*TypeDeclaration]("Controller"),
+			HasAttribute[*TypeDeclaration]("Microsoft.AspNetCore.Mvc.Controller"),
+			HasAttribute[*TypeDeclaration]("Microsoft.AspNetCore.Mvc.ApiController"),
 		),
-		predicate.Not(HasAttribute("Microsoft.AspNetCore.Mvc.NonController")),
+		predicate.Not(HasAttribute[*TypeDeclaration]("Microsoft.AspNetCore.Mvc.NonController")),
 	).Apply(types...)
 	var controllerSpecs []controllerSpec
 	for _, c := range controllers {
@@ -386,32 +386,6 @@ func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []co
 		controllerSpecs = append(controllerSpecs, spec)
 	}
 	return controllerSpecs
-}
-
-func HasAttribute(attribute string) predicate.Predicate[*TypeDeclaration] {
-	namespace, name := splitQualifiedName(attribute)
-	return func(d *TypeDeclaration) bool {
-		attrs := d.Attributes()
-		// has qualified attribute
-		if attr, ok := attrs[attribute]; ok {
-			if IsValidTypeName(attr[0].Node, namespace, name) {
-				return true
-			}
-		}
-		// has namespace import + attribute
-		if attr, ok := attrs[name]; ok {
-			if IsValidTypeName(attr[0].Node, namespace, name) {
-				return true
-			}
-		}
-		return false
-	}
-}
-
-func NameHasSuffix(suffix string) predicate.Predicate[*TypeDeclaration] {
-	return func(d *TypeDeclaration) bool {
-		return strings.HasSuffix(d.Name, suffix)
-	}
 }
 
 func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
