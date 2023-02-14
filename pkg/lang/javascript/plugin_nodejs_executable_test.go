@@ -128,6 +128,58 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:       "annotated file is added",
+			otherFiles: map[string]string{"package.json": `{ "main" : "" }`},
+			units: []*core.ExecutionUnit{
+				execUnit("unit1",
+					taggedFile{path: "expose.js", content: `
+						/* @klotho::expose {
+						 *  id = "gateway"
+						 * }
+						 */
+						const index = require('./entrypoint');`,
+					},
+					taggedFile{path: "entrypoint.js", content: "const mod = require('./module')"},
+					taggedFile{path: "module.js"}),
+				execUnit("unit2",
+					taggedFile{path: "expose.js", content: `
+				/* @klotho::expose {
+				 *  id = "gateway"
+				 * }
+				 */
+				const index = require('./entrypoint');`,
+					},
+					taggedFile{path: "index.js", content: `
+					/* @klotho::execution_unit {
+						*  id = "unit2"
+						* }
+						*/
+						const mod = require('./module')"}
+					`, tag: "source"},
+					taggedFile{path: "module.js"}),
+			},
+			expectedUnits: map[string]expectedUnit{
+				"unit1": {
+					executableType: core.ExecutableTypeNodeJS,
+					expectedFiles: map[string][]string{
+						"allFiles":    {"package.json", "entrypoint.js", "module.js", "expose.js"},
+						"resources":   {"package.json"},
+						"sourceFiles": {},
+						"entrypoints": {},
+					},
+				},
+				"unit2": {
+					executableType: core.ExecutableTypeNodeJS,
+					expectedFiles: map[string][]string{
+						"allFiles":    {"package.json", "index.js", "module.js", "expose.js"},
+						"resources":   {"package.json"},
+						"sourceFiles": {"index.js", "module.js"},
+						"entrypoints": {"index.js"},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {

@@ -46,23 +46,24 @@ func (l PythonExecutable) Transform(result *core.CompilationResult, dependencies
 		unit.AddResource(requirementsTxt.Clone())
 		unit.Executable.Type = core.ExecutableTypePython
 
-		if len(unit.Executable.Entrypoints) > 0 {
-			err := refreshSourceFiles(unit)
-			if err != nil {
-				return err
+		for _, file := range unit.FilesOfLang(py) {
+			for _, annot := range file.Annotations() {
+				cap := annot.Capability
+				if cap.Name == annotation.ExecutionUnitCapability && cap.ID == unit.Name {
+					unit.AddEntrypoint(file)
+				}
 			}
-			refreshUpstreamEntrypoints(unit)
 		}
 
 		if len(unit.Executable.Entrypoints) == 0 {
 			resolveDefaultEntrypoint(unit)
-
-			err := refreshSourceFiles(unit)
-			if err != nil {
-				return err
-			}
-			refreshUpstreamEntrypoints(unit)
 		}
+
+		err := refreshSourceFiles(unit)
+		if err != nil {
+			return err
+		}
+		refreshUpstreamEntrypoints(unit)
 	}
 	return nil
 }

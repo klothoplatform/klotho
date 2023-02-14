@@ -105,6 +105,54 @@ func TestPythonExecutable_Transform(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:       "annotated file is added",
+			otherFiles: map[string]string{"requirements.txt": ""},
+			units: []*core.ExecutionUnit{
+				execUnit("unit1",
+					taggedFile{path: "app/expose.py", content: `
+					     # @klotho::expose {
+						 #  id = "gateway"
+						 # }
+						import app.entrypoint`,
+					},
+					taggedFile{path: "app/entrypoint.py", content: `
+					# @klotho::execution_unit { id = "unit1" }
+					import app.module`},
+					taggedFile{path: "app/module.py"}),
+				execUnit("unit2",
+					taggedFile{path: "app/expose.py", content: `
+						# @klotho::expose {
+						#  id = "gateway"
+					    # }
+						import app.main`,
+					},
+					taggedFile{path: "app/main.py", content: `
+					# @klotho::execution_unit { id = "unit2" }
+					import app.module`},
+					taggedFile{path: "app/module.py"}),
+			},
+			expectedUnits: map[string]expectedUnit{
+				"unit1": {
+					executableType: core.ExecutableTypePython,
+					expectedFiles: map[string][]string{
+						"allFiles":    {"requirements.txt", "app/entrypoint.py", "app/module.py", "app/expose.py"},
+						"resources":   {"requirements.txt"},
+						"sourceFiles": {"app/entrypoint.py", "app/module.py", "app/expose.py"},
+						"entrypoints": {"app/entrypoint.py", "app/expose.py"},
+					},
+				},
+				"unit2": {
+					executableType: core.ExecutableTypePython,
+					expectedFiles: map[string][]string{
+						"allFiles":    {"requirements.txt", "app/main.py", "app/module.py", "app/expose.py"},
+						"resources":   {"requirements.txt"},
+						"sourceFiles": {"app/main.py", "app/module.py", "app/expose.py"},
+						"entrypoints": {"app/main.py", "app/expose.py"},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
