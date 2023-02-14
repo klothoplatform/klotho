@@ -130,6 +130,23 @@ export class LoadBalancerPlugin {
                 })
             }
 
+            const listenConditions: pulumi.Unwrap<ListenerRuleArgs['conditions']> = [
+                {
+                    pathPattern: {
+                        values: [
+                            this.subPathParametersForWildcard(route.path),
+                            `${this.subPathParametersForWildcard(route.path)}/`,
+                        ],
+                    },
+                },
+            ]
+            if (route.verb.toUpperCase() != 'ANY') {
+                listenConditions.push({
+                    httpRequestMethod: {
+                        values: [route.verb.toUpperCase()],
+                    },
+                })
+            }
             this.createListenerRule(this.lib.name, route.execUnitName + route.path + route.verb, {
                 listenerArn: listener!.arn,
                 actions: [
@@ -138,21 +155,7 @@ export class LoadBalancerPlugin {
                         targetGroupArn: targetGroup.arn,
                     },
                 ],
-                conditions: [
-                    {
-                        pathPattern: {
-                            values: [
-                                this.subPathParametersForWildcard(route.path),
-                                `${this.subPathParametersForWildcard(route.path)}/`,
-                            ],
-                        },
-                    },
-                    {
-                        httpRequestMethod: {
-                            values: [route.verb.toUpperCase()],
-                        },
-                    },
-                ],
+                conditions: listenConditions,
             })
         }
         return alb.dnsName
