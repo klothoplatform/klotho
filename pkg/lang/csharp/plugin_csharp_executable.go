@@ -11,7 +11,7 @@ import (
 
 var upstreamDependencyResolver = execunit.SourceFilesResolver{
 	UnitFileDependencyResolver: func(unit *core.ExecutionUnit) (execunit.FileDependencies, error) {
-		return execunit.FileDependencies{}, nil
+		return execunit.FileDependencies{}, nil // TODO: implement file dependency resolution for C#
 	},
 	UpstreamAnnotations: []string{annotation.ExposeCapability},
 }
@@ -56,10 +56,14 @@ func (l CSharpExecutable) Transform(result *core.CompilationResult, dependencies
 			unit.AddSourceFile(f)
 		}
 
-		for f := range unit.Executable.SourceFiles {
-			if file, ok := unit.Get(f).(*core.SourceFile); ok && file.IsAnnotatedWith(annotation.ExposeCapability) {
-				zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.Name, f)
-				unit.AddEntrypoint(file)
+		var err error
+		for _, file := range unit.FilesOfLang(CSharp) {
+			for _, annot := range file.Annotations() {
+				cap := annot.Capability
+				if cap.Name == annotation.ExecutionUnitCapability && cap.ID == unit.Name {
+					zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.Name, file.Path())
+					unit.AddEntrypoint(file)
+				}
 			}
 		}
 
@@ -67,13 +71,11 @@ func (l CSharpExecutable) Transform(result *core.CompilationResult, dependencies
 			l.resolveDefaultEntrypoint(unit)
 		}
 
-		if len(unit.Executable.Entrypoints) > 0 {
-			err := refreshSourceFiles(unit)
-			if err != nil {
-				return err
-			}
-			refreshUpstreamEntrypoints(unit)
+		err = refreshSourceFiles(unit)
+		if err != nil {
+			return err
 		}
+		refreshUpstreamEntrypoints(unit)
 	}
 	return nil
 }
