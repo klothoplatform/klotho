@@ -49,6 +49,8 @@ var cfg struct {
 	setOption     map[string]string
 }
 
+const defaultDisableLogo = false
+
 var hadWarnings = atomic.NewBool(false)
 var hadErrors = atomic.NewBool(false)
 
@@ -84,7 +86,7 @@ func (km KlothoMain) Main() {
 	flags.StringVar(&cfg.appName, "app", "", "Application name")
 	flags.StringVarP(&cfg.provider, "provider", "p", "", fmt.Sprintf("Provider to compile to. Supported: %v", "aws"))
 	flags.BoolVar(&cfg.strict, "strict", false, "Fail the compilation on warnings")
-	flags.BoolVar(&cfg.disableLogo, "disable-logo", false, "Disable printing the Klotho logo")
+	flags.BoolVar(&cfg.disableLogo, "disable-logo", defaultDisableLogo, "Disable printing the Klotho logo")
 	flags.BoolVar(&cfg.uploadSource, "upload-source", false, "Upload the compressed source folder for debugging")
 	flags.BoolVar(&cfg.internalDebug, "internalDebug", false, "Enable debugging for compiler")
 	flags.BoolVar(&cfg.version, "version", false, "Print the version")
@@ -151,9 +153,21 @@ func readConfig(args []string) (appCfg config.Application, err error) {
 }
 
 func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
+	// Save any config options. This should go before anything else, so that it always takes effect before any code
+	// that uses it (for example, we should save an update.stream option before we use it below to perform the update).
+	err = SetOptions(cfg.setOption)
+	if err != nil {
+		return err
+	}
+	options, err := ReadOptions()
+	if err != nil {
+		return err
+	}
+
+	showLogo := !(options.UI.DisableLogo.OrDefault(defaultDisableLogo) || cfg.disableLogo)
 	// color.NoColor is set if we're not a terminal that
 	// supports color
-	if !color.NoColor && !cfg.disableLogo {
+	if !color.NoColor && showLogo {
 		color.New(color.FgHiGreen).Println(Logo)
 		fmt.Println()
 	}
@@ -199,17 +213,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 	defer analyticsClient.PanicHandler(&err, errHandler)
 
-	// Save any config options. This should go before anything else, so that it always takes effect before any code
-	// that uses it (for example, we should save an update.stream option before we use it below to perform the update).
-	err = SetOptions(cfg.setOption)
-	if err != nil {
-		return err
-	}
-	options, err := ReadOptions()
-	if err != nil {
-		return err
-	}
-	updateStream := OptionOrDefault(options.Update.Stream, km.DefaultUpdateStream)
+	updateStream := options.Update.Stream.OrDefault(km.DefaultUpdateStream)
 	analyticsClient.Properties["updateStream"] = updateStream
 
 	if cfg.version {
@@ -240,7 +244,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		return nil
 	}
 
-	if ShouldCheckForUpdate(options.Update.Stream, km.DefaultUpdateStream, km.Version) {
+	if ShouldCheckForUpdate(updateStream, km.DefaultUpdateStream, km.Version) {
 		// check daily for new updates and notify users if found
 		needsUpdate, err := klothoUpdater.CheckUpdate(km.Version)
 		if err != nil {
