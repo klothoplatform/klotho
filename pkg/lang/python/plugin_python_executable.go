@@ -1,8 +1,6 @@
 package python
 
 import (
-	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
@@ -52,9 +50,6 @@ func (l PythonExecutable) Transform(result *core.CompilationResult, dependencies
 			for _, annot := range file.Annotations() {
 				cap := annot.Capability
 				if cap.Name == annotation.ExecutionUnitCapability && cap.ID == unit.Name {
-					if len(unit.Executable.Entrypoints) == 1 {
-						return fmt.Errorf("entrypoint resolution failed for execution unit: %s. Too many annotated files with the same execution unit ID", unit.Name)
-					}
 					unit.AddEntrypoint(file)
 				}
 			}
