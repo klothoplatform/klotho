@@ -27,6 +27,7 @@ var (
 	authUrlBase          = EnvVar("KLOTHO_AUTH_BASE").GetOr(`http://klotho-auth-service-alb-e22c092-466389525.us-east-1.elb.amazonaws.com`)
 	pemUrl               = EnvVar("KLOTHO_AUTH_PEM").GetOr(`https://klotho.us.auth0.com/pem`)
 	ErrNoCredentialsFile = errors.New("no local credentials file")
+	ErrEmailUnverified   = errors.New("login email hasn't been verified")
 )
 
 type LoginResponse struct {

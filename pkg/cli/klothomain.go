@@ -302,12 +302,19 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		if errors.Is(err, auth.ErrNoCredentialsFile) {
 			return errors.New(`Failed to get credentials for user. Please run "klotho --login"`)
 		}
-		// Fail-open. See also the error handler at auth.Login(...) above (you should change that to not write the
-		// empty token, if this fail-open ever changes).
-		zap.L().Warn(
-			`Not logged in. You may be able to continue using klotho without logging in for now, but this may break in the future. Please contact us if this continues.`,
-			zap.Error(err),
-			logging.SendDirectlyToAnalytics(`login failure`))
+		if errors.Is(err, auth.ErrEmailUnverified) {
+			zap.L().Warn(
+				`You have not verified your email. You may continue using klotho for now, but this may break in the future. Please check your email to complete registration.`,
+				zap.Error(err),
+				logging.SendDirectlyToAnalytics(`login unverified`))
+		} else {
+			// Fail-open. See also the error handler at auth.Login(...) above (you should change that to not write the
+			// empty token, if this fail-open ever changes).
+			zap.L().Warn(
+				`Not logged in. You may be able to continue using klotho without logging in for now, but this may break in the future. Please contact us if this continues.`,
+				zap.Error(err),
+				logging.SendDirectlyToAnalytics(`login failure`))
+		}
 	}
 
 	appCfg, err := readConfig(args)
