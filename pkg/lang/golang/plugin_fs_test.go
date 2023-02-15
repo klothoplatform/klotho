@@ -1,7 +1,6 @@
 package golang
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -114,7 +113,6 @@ bucket, err = blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", pat
 				assert.Nil(result)
 				return
 			}
-			fmt.Println(result)
 			assert.Equal(tt.want.varName, result.varName)
 		})
 	}
