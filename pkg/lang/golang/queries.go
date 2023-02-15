@@ -7,8 +7,8 @@ import (
 //go:embed queries/imports.scm
 var findImports string
 
-//go:embed queries/find_args.scm
-var findArgs string
+//go:embed queries/find_function_call.scm
+var findFunctionCall string
 
 //go:embed queries/expose/chirouter_assignment.scm
 var findRouterAssignment string
@@ -30,3 +30,6 @@ var packageQuery string
 
 //go:embed queries/gocloud/file_bucket.scm
 var fileBucket string
+
+//go:embed queries/gocloud/open_variable.scm
+var openVariable string

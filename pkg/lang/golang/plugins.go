@@ -18,6 +18,7 @@ func NewGoPlugins(cfg *config.Application, runtime Runtime) *GoPlugins {
 			&Expose{Config: cfg},
 			&AddExecRuntimeFiles{cfg: cfg, runtime: runtime},
 			&PersistFsPlugin{runtime: runtime},
+			&PersistSecretsPlugin{runtime: runtime, config: cfg},
 		},
 	}
 }

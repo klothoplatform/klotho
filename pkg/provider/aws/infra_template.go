@@ -140,9 +140,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 				})
 				data.UseVPC = true
 			}
-
-		case *core.Fs:
-			if res.GenerateNewFs {
+			if res.Kind == core.PersistFileKind && res.GenerateNew {
 				data.Buckets = append(data.Buckets, provider.FS{
 					Name: res.Name,
 				})

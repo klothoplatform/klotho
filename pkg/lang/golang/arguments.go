@@ -3,6 +3,7 @@ package golang
 import (
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -12,27 +13,36 @@ type Argument struct {
 }
 
 // GetArguements is passed a tree-sitter node, which is of type argument_list, and returns a list of in order Arguments
-func GetArguements(args *sitter.Node) []Argument {
-
-	arguments := []Argument{}
-	nextMatch := doQuery(args, findArgs)
+func getArguements(args *sitter.Node) (arguments []Argument, found bool) {
+	fnName := ""
+	nextMatch := doQuery(args, findFunctionCall)
 	for {
 		match, found := nextMatch()
 		if !found {
 			break
 		}
-
+		fn := match["function"]
 		arg := match["arg"]
+
+		if fnName != "" && !query.NodeContentEquals(fn, fnName) {
+			break
+		}
+
+		fnName = fn.Content()
+
 		if arg == nil {
 			continue
 		}
 
 		arguments = append(arguments, Argument{Content: arg.Content(), Type: arg.Type()})
 	}
-	return arguments
+	if fnName != "" {
+		found = true
+	}
+	return
 }
 
-func ArgumentListToString(args []Argument) string {
+func argumentListToString(args []Argument) string {
 	result := "("
 	for index, arg := range args {
 		if index < len(args)-1 {

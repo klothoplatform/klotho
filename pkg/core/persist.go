@@ -7,8 +7,9 @@ import (
 
 type (
 	Persist struct {
-		Name string
-		Kind PersistKind
+		Name        string
+		Kind        PersistKind
+		GenerateNew bool
 	}
 
 	Fs struct {

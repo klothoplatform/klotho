@@ -65,3 +65,12 @@ func (r *AwsRuntime) GetFsImports() []golang.Import {
 		{Package: "gocloud.dev/blob/s3blob", Alias: "_"},
 	}
 }
+
+func (r *AwsRuntime) GetSecretsImports() []golang.Import {
+	return []golang.Import{
+		{Package: "os"},
+		{Package: "strings"},
+		{Package: "gocloud.dev/runtimevar"},
+		{Package: "gocloud.dev/runtimevar/awssecretsmanager", Alias: "_"},
+	}
+}
