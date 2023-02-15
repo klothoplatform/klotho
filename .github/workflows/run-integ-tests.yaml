@@ -138,14 +138,7 @@ jobs:
       fail-fast: false
       matrix:
         app_to_test: ${{ fromJson(needs.list-apps.outputs.to_test) }}
-        mode: [fresh, upgrade]
-        exclude:      
-          - # issue #186
-            app_to_test: ts-orm-environment-variable-directive
-            mode: upgrade
-          - # issue #186
-            app_to_test: ts-redis-env-var-directive
-            mode: upgrade            
+        mode: [fresh, upgrade]       
     steps:
       - name: versions
         run: |

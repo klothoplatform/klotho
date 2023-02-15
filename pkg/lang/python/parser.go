@@ -8,8 +8,10 @@ import (
 	"github.com/smacker/go-tree-sitter/python"
 )
 
+const py = core.LanguageId("python")
+
 var Language = core.SourceLanguage{
-	ID:               core.LanguageId("python"),
+	ID:               py,
 	Sitter:           python.GetLanguage(),
 	CapabilityFinder: lang.NewCapabilityFinder("comment", lang.RegexpRemovePreprocessor(`^#\s*`)),
 	TurnIntoComment:  lang.MakeLineCommenter("# "),

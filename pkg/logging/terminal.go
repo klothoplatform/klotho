@@ -32,7 +32,7 @@ func init() {
 			Height: 60,
 		}
 
-	case err != nil:
+	case err != nil, termSize.Width == 0 && termSize.Height == 0:
 		fmt.Fprintf(os.Stderr, "Could not get terminal size: %v\n", err)
 		termSize = tsize.Size{
 			Width:  80,

@@ -18,10 +18,22 @@ const configFileName = "options.yaml"
 type (
 	Options struct {
 		Update UpdateOptions `yaml:",omitempty"`
+		UI     UIOptions     `yaml:",omitempty"`
 	}
 
 	UpdateOptions struct {
-		Stream string `yaml:",omitempty"`
+		Stream OptionalString `yaml:",omitempty"`
+	}
+
+	UIOptions struct {
+		DisableLogo OptionalBool `yaml:"disable-logo,omitempty"`
+	}
+
+	OptionalString string
+
+	// OptionalBool is useful when you want to differentiate between "unset" and "false".
+	OptionalBool struct {
+		*bool
 	}
 )
 
@@ -122,11 +134,33 @@ func readOptionsFileBytes() (string, []byte, error) {
 	return path, content, err
 }
 
-func OptionOrDefault(given string, defaultValue string) string {
-	if given == "" {
-		return defaultValue
+func (s OptionalString) OrDefault(defValue string) string {
+	if s == "" {
+		return defValue
+	} else {
+		return string(s)
 	}
-	return given
+}
+
+func (b OptionalBool) OrDefault(defValue bool) bool {
+	if b.bool == nil {
+		return defValue
+	} else {
+		return *b.bool
+	}
+}
+
+func (b *OptionalBool) MarshalYAML() (interface{}, error) {
+	return b.bool, nil
+}
+
+func (b *OptionalBool) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var maybeBool bool
+	if err := unmarshal(&maybeBool); err != nil {
+		return err
+	}
+	b.bool = &maybeBool
+	return nil
 }
 
 func ShouldCheckForUpdate(updateStreamOverride string, defaultUpdateStream string, currVersion string) bool {

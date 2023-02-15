@@ -52,12 +52,13 @@ func (l NodeJSExecutable) Transform(result *core.CompilationResult, dependencies
 		unit.Executable.Type = core.ExecutableTypeNodeJS
 
 		var err error
-		if len(unit.Executable.Entrypoints) > 0 {
-			err = refreshSourceFiles(unit)
-			if err != nil {
-				return err
+		for _, file := range unit.FilesOfLang(js) {
+			for _, annot := range file.Annotations() {
+				cap := annot.Capability
+				if cap.Name == annotation.ExecutionUnitCapability && cap.ID == unit.Name {
+					unit.AddEntrypoint(file)
+				}
 			}
-			refreshUpstreamEntrypoints(unit)
 		}
 
 		if len(unit.Executable.Entrypoints) == 0 {
@@ -65,17 +66,17 @@ func (l NodeJSExecutable) Transform(result *core.CompilationResult, dependencies
 			if err != nil {
 				return core.WrapErrf(err, "entrypoint resolution from package.json failed for execution unit: %s", unit.Name)
 			}
-
-			if len(unit.Executable.Entrypoints) == 0 {
-				resolveDefaultEntrypoint(unit)
-			}
-
-			err = refreshSourceFiles(unit)
-			if err != nil {
-				return err
-			}
-			refreshUpstreamEntrypoints(unit)
 		}
+
+		if len(unit.Executable.Entrypoints) == 0 {
+			resolveDefaultEntrypoint(unit)
+		}
+
+		err = refreshSourceFiles(unit)
+		if err != nil {
+			return err
+		}
+		refreshUpstreamEntrypoints(unit)
 	}
 	return nil
 }
