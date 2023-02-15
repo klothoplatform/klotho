@@ -91,8 +91,11 @@ var defaultConfig = config.Defaults{
 			},
 		},
 	},
-	Expose: config.KindDefaults{
-		Type: string(ApiGateway),
+	Expose: config.ExposeDefaults{
+		KindDefaults: config.KindDefaults{
+			Type: string(ApiGateway),
+		},
+		ApiType: "REST",
 	},
 	PubSub: config.KindDefaults{
 		Type: sns,

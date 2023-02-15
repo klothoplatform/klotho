@@ -1,9 +1,8 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
-import { CloudCCLib, ResourceKey, Resource } from '../deploylib'
+import { CloudCCLib } from '../deploylib'
 import * as sha256 from 'simple-sha256'
 import { LoadBalancerPlugin } from './load_balancing'
-import { vpc } from './sanitization/aws/ec2'
 
 export interface Route {
     verb: string
@@ -15,6 +14,10 @@ export interface Gateway {
     Name: string
     Routes: Route[]
     ApiType: 'REST' | 'HTTP'
+}
+
+function sanitizeName(g: Gateway) {
+    return g.Name.replace(/[^a-zA-Z0-9_-]+/g, '-')
 }
 
 export class ApiGateway {
@@ -58,13 +61,6 @@ export class ApiGateway {
         return this.lib.account.accountId
     }
 
-    createWebSocketApiGateway(providedName): aws.apigatewayv2.Api {
-        return new aws.apigatewayv2.Api(`${this.appName}-${providedName}`, {
-            protocolType: 'WEBSOCKET',
-            routeSelectionExpression: `$request.body.action`,
-        })
-    }
-
     createVpcLink(
         securityGroupIds: pulumi.Output<string>[],
         subnetIds: pulumi.Output<string[]>
@@ -75,84 +71,125 @@ export class ApiGateway {
         })
     }
 
-    createLambdaIntegration(
-        gwName: string,
-        api: aws.apigatewayv2.Api,
-        invokeArn: pulumi.Output<string>,
-        createVPC: boolean,
-        verb: string,
-        execUnitName: string
-    ): aws.apigatewayv2.Integration {
-        return new aws.apigatewayv2.Integration(
-            `${this.appName}-${gwName}-${execUnitName}`,
+    createLambdaPermission(gwName: string, api: aws.apigatewayv2.Api, r: Route) {
+        const verb = r.verb.toUpperCase()
+        const path = this.convertPath(r.path)
+        const resourceId = pulumi.interpolate`${api.id}/*/${verb == 'ANY' ? '*' : verb}${
+            path == '' ? '/' : path
+        }`
+        const lambda = this.lib.execUnitToFunctions.get(r.execUnitName)!
+        return new aws.lambda.Permission(
+            `${gwName}-${verb}-${path}`,
             {
-                apiId: api.id,
-                integrationType: 'AWS_PROXY',
-                connectionType: createVPC ? 'VPC_LINK' : 'INTERNET',
-                contentHandlingStrategy: 'CONVERT_TO_TEXT',
-                integrationMethod: verb,
-                integrationUri: invokeArn,
+                statementId: `${gwName}-${verb}-${r.path.replace(/[^a-zA-Z0-9]+/g, '-')}`,
+                action: 'lambda:InvokeFunction',
+                function: lambda,
+                principal: 'apigateway.amazonaws.com',
+                sourceArn: pulumi.interpolate`arn:aws:execute-api:${this.lib.region}:${this.accountId}:${resourceId}`,
             },
-            {
-                parent: api,
-            }
+            { parent: lambda }
         )
     }
 
-    createPrivateIntegration(
-        gwName: string,
-        api: aws.apigatewayv2.Api,
-        vpcLink: aws.apigatewayv2.VpcLink,
-        integrationUri: pulumi.Output<string>,
-        verb: string,
-        execUnitName: string
-    ): aws.apigatewayv2.Integration {
-        return new aws.apigatewayv2.Integration(
-            `${this.appName}-${gwName}-${execUnitName}`,
-            {
-                apiId: api.id,
-                description: 'Example with a load balancer',
-                integrationType: 'HTTP_PROXY',
-                integrationUri,
-                integrationMethod: verb,
-                connectionId: '${stageVariables.vpcLinkId}',
-                connectionType: 'VPC_LINK',
-                passthroughBehavior: 'WHEN_NO_MATCH',
-            },
-            {
-                dependsOn: [vpcLink],
-                parent: api,
-            }
-        )
+    integrationName(r: Route) {
+        const execUnit = this.lib.resourceIdToResource.get(`${r.execUnitName}_exec_unit`)
+        const verb = r.verb.toUpperCase()
+        const path = this.convertPath(r.path)
+        return `${verb}-${path}-${execUnit.type}`
+    }
+
+    createHTTPIntegration(api: aws.apigatewayv2.Api, r: Route): aws.apigatewayv2.Integration {
+        const execUnit = this.lib.resourceIdToResource.get(`${r.execUnitName}_exec_unit`)
+        const integrationName = this.integrationName(r)
+        switch (execUnit.type) {
+            case 'ecs':
+                const ecsNlb = this.lib.execUnitToNlb.get(r.execUnitName)!
+                return new aws.apigatewayv2.Integration(
+                    integrationName,
+                    {
+                        apiId: api.id,
+                        integrationType: 'HTTP_PROXY',
+                        integrationMethod: 'ANY',
+                        integrationUri: ecsNlb.loadBalancer.arn,
+                        connectionType: 'VPC_LINK',
+                        connectionId: '${stageVariables.vpcLinkId}',
+                    },
+                    {
+                        parent: api,
+                    }
+                )
+            case 'eks':
+                const eksListener = this.lbPlugin.getExecUnitListener(r.execUnitName)!
+                return new aws.apigatewayv2.Integration(
+                    integrationName,
+                    {
+                        apiId: api.id,
+                        integrationType: 'HTTP_PROXY',
+                        integrationMethod: 'ANY',
+                        integrationUri: eksListener.arn,
+                        connectionType: 'VPC_LINK',
+                        connectionId: '${stageVariables.vpcLinkId}',
+                    },
+                    {
+                        parent: api,
+                    }
+                )
+            case 'lambda':
+                const lambda = this.lib.execUnitToFunctions.get(r.execUnitName)!
+                return new aws.apigatewayv2.Integration(
+                    integrationName,
+                    {
+                        apiId: api.id,
+                        integrationType: 'AWS_PROXY',
+                        integrationMethod: 'POST',
+                        integrationUri: lambda.arn,
+                        payloadFormatVersion: '2.0',
+                    },
+                    {
+                        parent: api,
+                    }
+                )
+            default:
+                throw new Error(`Unsupported execution unit type: ${execUnit.type}`)
+        }
     }
 
     createRoute(
-        gwName: string,
         api: aws.apigatewayv2.Api,
-        route: string,
+        routeKey: string,
         integration: aws.apigatewayv2.Integration
     ): aws.apigatewayv2.Route {
         return new aws.apigatewayv2.Route(
-            `${this.appName}-${gwName}-${route}`,
+            routeKey,
             {
                 apiId: api.id,
-                routeKey: route,
+                routeKey,
                 target: pulumi.interpolate`integrations/${integration.id}`,
             },
             {
-                parent: api,
+                parent: integration,
             }
         )
     }
 
-    createDeployment(gwName: string, api: aws.apigatewayv2.Api, routes: aws.apigatewayv2.Route[]) {
+    createDeployment(
+        gwName: string,
+        api: aws.apigatewayv2.Api,
+        integrationNames: string[],
+        routes: aws.apigatewayv2.Route[],
+        dependsOn: pulumi.Resource[] = []
+    ) {
         return new aws.apigatewayv2.Deployment(
-            `${this.appName}-${gwName}`,
+            `${gwName}-deploy`,
             {
                 apiId: api.id,
+                triggers: {
+                    integrationNames: sha256.sync(integrationNames.sort().join(',')),
+                    link: this.vpcLink.arn,
+                },
             },
             {
-                dependsOn: routes,
+                dependsOn: [...routes, ...dependsOn],
                 parent: api,
             }
         )
@@ -161,227 +198,120 @@ export class ApiGateway {
     createStage(
         gwName: string,
         api: aws.apigatewayv2.Api,
-        deployment: aws.apigatewayv2.Deployment,
-        vpcLink: aws.apigatewayv2.VpcLink,
-        stageName: string
+        deployment: aws.apigatewayv2.Deployment
     ) {
         return new aws.apigatewayv2.Stage(
-            `${this.appName}-${gwName}-${stageName}`,
+            `${gwName}-stage`,
             {
                 apiId: api.id,
-                name: stageName,
+                name: '$default',
                 deploymentId: deployment.id,
                 stageVariables: {
-                    vpcLinkId: vpcLink.id,
+                    vpcLinkId: this.vpcLink.id,
                 },
             },
             {
-                dependsOn: [vpcLink],
+                dependsOn: [this.vpcLink],
                 parent: api,
             }
         )
     }
 
     createWebSocketGateway(gateway: Gateway) {
-        const gwName = gateway.Name.replace(/[^a-zA-Z0-9_-]/g, '-')
-        const api: aws.apigatewayv2.Api = this.createWebSocketApiGateway(gwName)
-        const apiRoutes: aws.apigatewayv2.Route[] = []
+        const gwName = sanitizeName(gateway)
         const units = new Set<string>()
         gateway.Routes.forEach((gw) => units.add(gw.execUnitName))
         if (units.size > 1) {
-            throw new Error('only one exec unit is supported for websocket API Gateway')
+            throw new Error(`only one exec unit is supported for websocket API Gateway ${gwName}`)
         }
+
+        const api: aws.apigatewayv2.Api = new aws.apigatewayv2.Api(gwName, {
+            name: `${this.appName}-${gwName}`,
+            protocolType: 'WEBSOCKET',
+            // routeSelectionExpression currently not used, the gateway only uses
+            // the builtin routes, $default, $connect, and $disconnect
+            routeSelectionExpression: `$request.body.action`,
+        })
+        const apiRoutes: aws.apigatewayv2.Route[] = []
+        const lambdaPermissions: aws.lambda.Permission[] = []
+        const integrationNames: string[] = []
+
         for (const route of gateway.Routes) {
+            const integration = this.createHTTPIntegration(api, route)
+
+            this.execUnitToIntegration.set(route.execUnitName, integration)
+            apiRoutes.push(this.createRoute(api, '$default', integration))
+            apiRoutes.push(this.createRoute(api, '$connect', integration))
+            apiRoutes.push(this.createRoute(api, '$disconnect', integration))
+
             const execUnit = this.lib.resourceIdToResource.get(`${route.execUnitName}_exec_unit`)
-            if (execUnit.type == 'ecs') {
-                let integration: aws.apigatewayv2.Integration | undefined =
-                    this.execUnitToIntegration.get(route.execUnitName)
-                if (!integration) {
-                    const nlb = this.lib.execUnitToNlb.get(route.execUnitName)!
-                    const integrationUri = pulumi.interpolate`http://${
-                        nlb.loadBalancer.dnsName
-                    }${route.path.replace(/:([^/]+)/g, '{$1}').replace(/[*]\}/g, '+}')}`
-                    integration = this.createPrivateIntegration(
-                        gwName,
-                        api,
-                        this.vpcLink,
-                        integrationUri,
-                        route.verb,
-                        route.execUnitName
-                    )
-                    this.execUnitToIntegration.set(route.execUnitName, integration)
-                }
-                apiRoutes.push(this.createRoute(gwName, api, '$default', integration))
-                apiRoutes.push(this.createRoute(gwName, api, '$connect', integration))
-                apiRoutes.push(this.createRoute(gwName, api, '$disconnect', integration))
-            } else if (execUnit.type == 'lambda') {
-                let integration: aws.apigatewayv2.Integration | undefined =
-                    this.execUnitToIntegration.get(route.execUnitName)
-                if (!integration) {
-                    const lambda: aws.lambda.Function = this.lib.execUnitToFunctions.get(
-                        route.execUnitName
-                    )!
-                    integration = this.createLambdaIntegration(
-                        gwName,
-                        api,
-                        lambda.invokeArn,
-                        this.lib.klothoVPC != undefined,
-                        route.verb,
-                        route.execUnitName
-                    )
-                    this.execUnitToIntegration.set(route.execUnitName, integration)
-                }
-                apiRoutes.push(this.createRoute(gwName, api, '$default', integration))
-                apiRoutes.push(this.createRoute(gwName, api, '$connect', integration))
-                apiRoutes.push(this.createRoute(gwName, api, '$disconnect', integration))
-            } else if (execUnit.type == 'eks') {
-                let integration: aws.apigatewayv2.Integration | undefined =
-                    this.execUnitToIntegration.get(route.execUnitName)
-                if (!integration) {
-                    const nlb = this.lbPlugin.getExecUnitLoadBalancer(route.execUnitName)!
-                    const integrationUri = pulumi.interpolate`http://${nlb.dnsName}${route.path
-                        .replace(/:([^/]+)/g, '{$1}')
-                        .replace(/[*]\}/g, '+}')}`
-                    integration = this.createPrivateIntegration(
-                        gwName,
-                        api,
-                        this.vpcLink,
-                        integrationUri,
-                        route.verb,
-                        route.execUnitName
-                    )
-                    this.execUnitToIntegration.set(route.execUnitName, integration)
-                }
-                apiRoutes.push(this.createRoute(gwName, api, '$default', integration))
-                apiRoutes.push(this.createRoute(gwName, api, '$connect', integration))
-                apiRoutes.push(this.createRoute(gwName, api, '$disconnect', integration))
-            } else {
-                throw new Error('Unsuppotred integration time for api gateway')
+            if (execUnit.type == 'lambda') {
+                lambdaPermissions.push(this.createLambdaPermission(gwName, api, route))
             }
+
+            const integrationName = this.integrationName(route)
+            integrationNames.push(integrationName)
         }
 
         const deployment: aws.apigatewayv2.Deployment = this.createDeployment(
             gwName,
             api,
-            apiRoutes
+            integrationNames,
+            apiRoutes,
+            lambdaPermissions
         )
-        const stage: aws.apigatewayv2.Stage = this.createStage(
-            gwName,
-            api,
-            deployment,
-            this.vpcLink,
-            'stage'
-        )
+        const stage: aws.apigatewayv2.Stage = this.createStage(gwName, api, deployment)
         this.invokeUrls.push(stage.invokeUrl)
     }
 
     createHttpGateway(gateway: Gateway) {
-        const gwName = gateway.Name.replace(/[^a-zA-Z0-9_-]/g, '-')
+        const gwName = sanitizeName(gateway)
         const api: aws.apigatewayv2.Api = new aws.apigatewayv2.Api(`${this.appName}-${gwName}`, {
             name: `${this.appName}-${gwName}`,
             protocolType: 'HTTP',
             routeSelectionExpression: '$request.method $request.path',
+            tags: {
+                'Klotho:app': this.appName,
+            },
         })
-        const integrationNames: string[] = []
+
         const apiRoutes: aws.apigatewayv2.Route[] = []
         const lambdaPermissions: aws.lambda.Permission[] = []
+        const integrationNames: string[] = []
+
         for (const r of gateway.Routes) {
-            const execUnit = this.lib.resourceIdToResource.get(`${r.execUnitName}_exec_unit`)
-            const vpcLink = this.lib.execUnitToVpcLink.get(r.execUnitName)
-            const verb = r.verb.toUpperCase()
-            const path = this.convertPath(r.path)
-            const integrationName = `${verb}-${path}-${execUnit.type}`
+            const integration = this.createHTTPIntegration(api, r)
 
-            let integration: aws.apigatewayv2.Integration
-            switch (execUnit.type) {
-                case 'ecs':
-                    const ecsNlb = this.lib.execUnitToNlb.get(r.execUnitName)!
-                    integration = new aws.apigatewayv2.Integration(integrationName, {
-                        apiId: api.id,
-                        integrationType: 'HTTP_PROXY',
-                        connectionType: 'VPC_LINK',
-                        connectionId: vpcLink!.id,
-                        integrationUri: ecsNlb.loadBalancer.arn,
-                    })
-                    break
-                case 'eks':
-                    const eksNlb = this.lbPlugin.getExecUnitLoadBalancer(r.execUnitName)!
-                    integration = new aws.apigatewayv2.Integration(integrationName, {
-                        apiId: api.id,
-                        integrationType: 'HTTP_PROXY',
-                        connectionType: 'VPC_LINK',
-                        connectionId: vpcLink!.id,
-                        integrationUri: eksNlb.arn,
-                    })
-                    break
-                case 'lambda':
-                    const lambda = this.lib.execUnitToFunctions.get(r.execUnitName)!
-                    const resourceId = `${api.id}/*/${verb == 'ANY' ? '*' : verb}${
-                        path == '' ? '/' : path
-                    }`
-                    lambdaPermissions.push(
-                        new aws.lambda.Permission(
-                            `${r.execUnitName}-${r.verb}-${r.path}-permission`,
-                            {
-                                action: 'lambda:InvokeFunction',
-                                function: lambda.name,
-                                principal: 'apigateway.amazonaws.com',
-                                sourceArn: pulumi.interpolate`arn:aws:execute-api:${this.lib.region}:${this.accountId}:${resourceId}`,
-                            }
-                        )
-                    )
-                    integration = new aws.apigatewayv2.Integration(
-                        integrationName,
-                        {
-                            apiId: api.id,
-                            integrationType: 'AWS_PROXY',
-                            integrationUri: lambda.arn,
-                            integrationMethod: 'POST',
-                        },
-                        {
-                            parent: api,
-                        }
-                    )
-                    break
-                default:
-                    throw new Error(`Unsupported execution unit type: ${execUnit.type}`)
-            }
-            integrationNames.push(integrationName)
-
-            // routeKey matches routeSelectionExpression format
-            let routeKey = `${verb} ${path}`
-            if (routeKey == 'ANY /{rest+}') {
-                // catchall route, use idiomatic $default for route key
+            // routeKey match against api.routeSelectionExpression
+            let routeKey = `${r.verb.toUpperCase()} ${this.convertPath(r.path)}`
+            if (routeKey == 'ANY /') {
+                // For catch-all, use idiomatic $default instead
                 routeKey = '$default'
             }
-            const route = new aws.apigatewayv2.Route(`${routeKey}`, {
-                apiId: api.id,
-                routeKey,
-                target: pulumi.interpolate`integrations/${integration.id}`,
-            })
+            const route = this.createRoute(api, routeKey, integration)
             apiRoutes.push(route)
+
+            const execUnit = this.lib.resourceIdToResource.get(`${r.execUnitName}_exec_unit`)
+            if (execUnit.type == 'lambda') {
+                lambdaPermissions.push(this.createLambdaPermission(gwName, api, r))
+            }
+
+            const integrationName = this.integrationName(r)
+            integrationNames.push(integrationName)
         }
 
-        const deploy = new aws.apigatewayv2.Deployment(
+        const deploy = this.createDeployment(
             gwName,
-            {
-                apiId: api.id,
-                triggers: {
-                    integrations: sha256.sync(integrationNames.sort().join(',')),
-                },
-            },
-            { dependsOn: [...apiRoutes, ...lambdaPermissions], parent: api }
+            api,
+            integrationNames,
+            apiRoutes,
+            lambdaPermissions
         )
 
-        const stage = new aws.apigatewayv2.Stage(
-            gwName,
-            {
-                name: `${this.appName}-${gwName}`,
-                apiId: api.id,
-                deploymentId: deploy.id,
-            },
-            { parent: deploy }
-        )
+        const stage = this.createStage(gwName, api, deploy)
+
+        this.lib.gatewayToUrl.set(gateway.Name, stage.invokeUrl)
+        this.invokeUrls.push(stage.invokeUrl)
     }
 
     /**
@@ -395,7 +325,7 @@ export class ApiGateway {
     }
 
     createRestGateway(gateway: Gateway): void {
-        const gwName = gateway.Name.replace(/[^a-zA-Z0-9_-]/g, '-')
+        const gwName = sanitizeName(gateway)
         const restAPI: aws.apigateway.RestApi = new aws.apigateway.RestApi(gwName, {
             binaryMediaTypes: ['application/octet-stream', 'image/*'],
         })
@@ -536,35 +466,42 @@ export class ApiGateway {
                 )
             } else if (execUnit.type == 'lambda') {
                 const lambda = this.lib.execUnitToFunctions.get(r.execUnitName)!
-                integrations.push(
-                    new aws.apigateway.Integration(
-                        integrationName,
-                        {
-                            restApi: restAPI.id,
-                            resourceId:
-                                parentResource == null ? restAPI.rootResourceId : parentResource.id,
-                            httpMethod: method.httpMethod,
-                            integrationHttpMethod: 'POST',
-                            type: 'AWS_PROXY',
-                            uri: lambda.invokeArn,
-                        },
-                        {
-                            parent: method,
-                        }
-                    )
+                const integration = new aws.apigateway.Integration(
+                    integrationName,
+                    {
+                        restApi: restAPI.id,
+                        resourceId:
+                            parentResource == null ? restAPI.rootResourceId : parentResource.id,
+                        httpMethod: method.httpMethod,
+                        integrationHttpMethod: 'POST',
+                        type: 'AWS_PROXY',
+                        uri: lambda.invokeArn,
+                    },
+                    {
+                        parent: method,
+                    }
                 )
+                integrations.push(integration)
 
                 permissions.push(
-                    new aws.lambda.Permission(`${r.execUnitName}-${r.verb}-${r.path}-permission`, {
-                        action: 'lambda:InvokeFunction',
-                        function: lambda.name,
-                        principal: 'apigateway.amazonaws.com',
-                        sourceArn: pulumi.interpolate`arn:aws:execute-api:${this.lib.region}:${
-                            this.accountId
-                        }:${restAPI.id}/*/${
-                            r.verb.toUpperCase() === 'ANY' ? '*' : r.verb.toUpperCase()
-                        }${parentResource == null ? '/' : parentResource.path}`,
-                    })
+                    new aws.lambda.Permission(
+                        `${r.execUnitName}-${r.verb}-${r.path}-permission`,
+                        {
+                            statementId: `${gwName}-${r.verb}-${r.path.replace(
+                                /[^a-zA-Z0-9]/g,
+                                '-'
+                            )}`,
+                            action: 'lambda:InvokeFunction',
+                            function: lambda.name,
+                            principal: 'apigateway.amazonaws.com',
+                            sourceArn: pulumi.interpolate`arn:aws:execute-api:${this.lib.region}:${
+                                this.accountId
+                            }:${restAPI.id}/*/${
+                                r.verb.toUpperCase() === 'ANY' ? '*' : r.verb.toUpperCase()
+                            }${parentResource == null ? '/' : parentResource.path}`,
+                        },
+                        { parent: lambda }
+                    )
                 )
             }
         }
@@ -607,6 +544,8 @@ export class ApiGateway {
             {
                 deployment: deployment.id,
                 restApi: restAPI.id,
+                // TODO update this to '$default' so the stage isn't part of the invoke URL
+                // https://github.com/klothoplatform/klotho/issues/235
                 stageName: this.lib.stage,
             },
             {
@@ -625,7 +564,6 @@ export class ApiGateway {
         )
 
         this.lib.gatewayToUrl.set(gateway.Name, stage.invokeUrl)
-
         this.invokeUrls.push(stage.invokeUrl)
     }
 }
