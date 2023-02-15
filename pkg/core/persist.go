@@ -12,11 +12,6 @@ type (
 		GenerateNew bool
 	}
 
-	Fs struct {
-		Persist
-		GenerateNewFs bool
-	}
-
 	Secrets struct {
 		Persist
 		Secrets []string
