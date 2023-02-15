@@ -56,7 +56,11 @@ func (p *PersistSecretsPlugin) handleFile(f *core.SourceFile, unit *core.Executi
 	annots := f.Annotations()
 	for _, annot := range annots {
 		cap := annot.Capability
-		if cap.Name != annotation.PersistCapability {
+		if cap.Name != annotation.ConfigCapability {
+			continue
+		}
+		isSecret, found := cap.Directives.Bool("secret")
+		if !isSecret || !found {
 			continue
 		}
 		secretsResult := querySecret(f, annot)
@@ -65,6 +69,7 @@ func (p *PersistSecretsPlugin) handleFile(f *core.SourceFile, unit *core.Executi
 			if err != nil {
 				errs.Append(err)
 			}
+			p.runtime.SetConfigType(cap.ID, isSecret)
 			resources = append(resources, persistResource)
 
 		}
@@ -89,7 +94,7 @@ func (p *PersistSecretsPlugin) transformSecret(f *core.SourceFile, cap *core.Ann
 	}
 	`
 
-	args[1].Content = fmt.Sprintf(`"awssecretsmanager://%s?region=" + os.Getenv("AWS_REGION") + queryParams`, p.config.AppName+"_"+cap.Capability.ID)
+	args[1].Content = fmt.Sprintf(`"awssecretsmanager://" % s?region=" + os.Getenv("AWS_REGION") + queryParams`, p.config.AppName+"_"+cap.Capability.ID)
 
 	newArgContent := argumentListToString(args)
 
@@ -106,9 +111,11 @@ func (p *PersistSecretsPlugin) transformSecret(f *core.SourceFile, cap *core.Ann
 		return nil, err
 	}
 
-	persist := &core.Persist{
-		Kind: core.PersistSecretKind,
-		Name: cap.Capability.ID,
+	persist := &core.Secrets{
+		Persist: core.Persist{
+			Kind: core.PersistSecretKind,
+			Name: cap.Capability.ID,
+		},
 	}
 	return persist, nil
 }

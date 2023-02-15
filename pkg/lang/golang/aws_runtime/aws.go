@@ -74,3 +74,10 @@ func (r *AwsRuntime) GetSecretsImports() []golang.Import {
 		{Package: "gocloud.dev/runtimevar/awssecretsmanager", Alias: "_"},
 	}
 }
+
+func (r *AwsRuntime) SetConfigType(id string, isSecret bool) {
+	cfg := r.Cfg.GetConfig(id)
+	if isSecret && cfg.Type != aws.Secrets_manager {
+		cfg.Merge(config.Config{Type: aws.Secrets_manager})
+	}
+}

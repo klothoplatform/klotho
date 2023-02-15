@@ -29,6 +29,7 @@ type (
 		Exposed        map[string]*Expose        `json:"exposed,omitempty" yaml:"exposed,omitempty" toml:"exposed,omitempty"`
 		Persisted      map[string]*Persist       `json:"persisted,omitempty" yaml:"persisted,omitempty" toml:"persisted,omitempty"`
 		PubSub         map[string]*PubSub        `json:"pubsub,omitempty" yaml:"pubsub,omitempty" toml:"pubsub,omitempty"`
+		Config         map[string]*Config        `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
 	}
 	Expose struct {
 		Type                   string                 `json:"type" yaml:"type" toml:"type"`
@@ -38,6 +39,11 @@ type (
 	}
 
 	Persist struct {
+		Type        string      `json:"type" yaml:"type" toml:"type"`
+		InfraParams InfraParams `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
+	}
+
+	Config struct {
 		Type        string      `json:"type" yaml:"type" toml:"type"`
 		InfraParams InfraParams `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
 	}
@@ -74,6 +80,7 @@ type (
 		Expose        ExposeDefaults      `json:"expose" yaml:"expose" toml:"expose"`
 		Persist       PersistKindDefaults `json:"persist" yaml:"persist" toml:"persist"`
 		PubSub        KindDefaults        `json:"pubsub" yaml:"pubsub" toml:"pubsub"`
+		Config        KindDefaults        `json:"config" yaml:"config" toml:"config"`
 	}
 
 	KindDefaults struct {
@@ -195,6 +202,13 @@ func (cfg *ContentDeliveryNetwork) Merge(other ContentDeliveryNetwork) {
 	if other.Id != "" {
 		cfg.Id = other.Id
 	}
+}
+
+func (cfg *Config) Merge(other Config) {
+	if other.Type != "" {
+		cfg.Type = other.Type
+	}
+	cfg.InfraParams.Merge(other.InfraParams)
 }
 
 func (cfg *Expose) Merge(other Expose) {
@@ -408,6 +422,33 @@ func (a Application) GetStaticUnit(id string) StaticUnit {
 		defaults := StaticUnit{
 			Type:        defaultType,
 			InfraParams: a.Defaults.StaticUnit.InfraParamsByType[defaultType],
+		}
+		cfg.Merge(defaults)
+	}
+	return cfg
+}
+
+// GetConfig returns the `Config` configuration for the resource specified by `id`
+func (a Application) GetConfig(id string) Config {
+	cfg := Config{}
+	defaultType := a.Defaults.Config.Type
+	if ecfg, ok := a.Config[id]; ok {
+		cfgType := ecfg.Type
+		if cfgType == "" {
+			cfgType = defaultType
+		}
+		defaults := Config{
+			Type:        cfgType,
+			InfraParams: a.Defaults.Config.InfraParamsByType[cfgType],
+		}
+		if ecfg.Type == defaults.Type || ecfg.Type == "" {
+			cfg.Merge(defaults)
+		}
+		cfg.Merge(*ecfg)
+	} else {
+		defaults := Config{
+			Type:        defaultType,
+			InfraParams: a.Defaults.Config.InfraParamsByType[defaultType],
 		}
 		cfg.Merge(defaults)
 	}
