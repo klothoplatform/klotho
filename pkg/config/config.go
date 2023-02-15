@@ -71,7 +71,7 @@ type (
 	Defaults struct {
 		ExecutionUnit KindDefaults        `json:"execution_unit" yaml:"execution_unit" toml:"execution_unit"`
 		StaticUnit    KindDefaults        `json:"static_unit" yaml:"static_unit" toml:"static_unit"`
-		Expose        KindDefaults        `json:"expose" yaml:"expose" toml:"expose"`
+		Expose        ExposeDefaults      `json:"expose" yaml:"expose" toml:"expose"`
 		Persist       PersistKindDefaults `json:"persist" yaml:"persist" toml:"persist"`
 		PubSub        KindDefaults        `json:"pubsub" yaml:"pubsub" toml:"pubsub"`
 	}
@@ -79,6 +79,12 @@ type (
 	KindDefaults struct {
 		Type              string                 `json:"type" yaml:"type" toml:"type"`
 		InfraParamsByType map[string]InfraParams `json:"pulumi_params_by_type,omitempty" yaml:"pulumi_params_by_type,omitempty" toml:"pulumi_params_by_type,omitempty"`
+	}
+
+	ExposeDefaults struct {
+		KindDefaults
+		ApiType                string                 `json:"api_type" yaml:"api_type" toml:"api_type"`
+		ContentDeliveryNetwork ContentDeliveryNetwork `json:"content_delivery_network,omitempty" yaml:"content_delivery_network,omitempty" toml:"content_delivery_network,omitempty"`
 	}
 
 	PersistKindDefaults struct {
@@ -158,6 +164,14 @@ func (cfg *KindDefaults) Merge(other KindDefaults) {
 	}
 }
 
+func (cfg *ExposeDefaults) Merge(other ExposeDefaults) {
+	cfg.KindDefaults.Merge(other.KindDefaults)
+	cfg.ContentDeliveryNetwork.Merge(other.ContentDeliveryNetwork)
+	if other.ApiType != "" {
+		cfg.ApiType = other.ApiType
+	}
+}
+
 func (cfg *ExecutionUnit) Merge(other ExecutionUnit) {
 	if other.Type != "" {
 		cfg.Type = other.Type
@@ -177,11 +191,20 @@ func (cfg *ExecutionUnit) Merge(other ExecutionUnit) {
 	cfg.InfraParams.Merge(other.InfraParams)
 }
 
+func (cfg *ContentDeliveryNetwork) Merge(other ContentDeliveryNetwork) {
+	if other.Id != "" {
+		cfg.Id = other.Id
+	}
+}
+
 func (cfg *Expose) Merge(other Expose) {
 	if other.Type != "" {
 		cfg.Type = other.Type
 	}
-	cfg.ContentDeliveryNetwork = other.ContentDeliveryNetwork
+	if other.ApiType != "" {
+		cfg.ApiType = other.ApiType
+	}
+	cfg.ContentDeliveryNetwork.Merge(other.ContentDeliveryNetwork)
 	cfg.InfraParams.Merge(other.InfraParams)
 }
 
@@ -298,8 +321,10 @@ func (a Application) GetExposed(id string) Expose {
 			exposeType = defaultType
 		}
 		defaults := Expose{
-			Type:        exposeType,
-			InfraParams: a.Defaults.Expose.InfraParamsByType[exposeType],
+			Type:                   exposeType,
+			ApiType:                a.Defaults.Expose.ApiType,
+			ContentDeliveryNetwork: a.Defaults.Expose.ContentDeliveryNetwork,
+			InfraParams:            a.Defaults.Expose.InfraParamsByType[exposeType],
 		}
 		if ecfg.Type == defaults.Type || ecfg.Type == "" {
 			cfg.Merge(defaults)
@@ -307,8 +332,10 @@ func (a Application) GetExposed(id string) Expose {
 		cfg.Merge(*ecfg)
 	} else {
 		defaults := Expose{
-			Type:        defaultType,
-			InfraParams: a.Defaults.Expose.InfraParamsByType[defaultType],
+			Type:                   defaultType,
+			ApiType:                a.Defaults.Expose.ApiType,
+			ContentDeliveryNetwork: a.Defaults.Expose.ContentDeliveryNetwork,
+			InfraParams:            a.Defaults.Expose.InfraParamsByType[defaultType],
 		}
 		cfg.Merge(defaults)
 	}

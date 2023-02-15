@@ -201,6 +201,10 @@ export class LoadBalancerPlugin {
         return lb
     }
 
+    public getExecUnitListener = (execUnit: string): aws.lb.Listener | undefined => {
+        return this.execUnitToListner.get(execUnit)
+    }
+
     public createListener = (
         appName: string,
         resourceId: string,
