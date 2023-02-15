@@ -190,7 +190,7 @@ func authorize(tokenRefreshed bool) (*KlothoClaims, error) {
 
 	if !claims.EmailVerified {
 		if tokenRefreshed {
-			return nil, fmt.Errorf("user %s, has not verified their email", claims.Email)
+			return claims, fmt.Errorf("user %s, has not verified their email", claims.Email)
 		}
 		err := CallRefreshToken(creds.RefreshToken)
 		if err != nil {
