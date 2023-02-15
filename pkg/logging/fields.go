@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var EntryMessageField = "entryMessage"
+const EntryMessageField = "entryMessage"
 
 type fileField struct {
 	f core.File
@@ -75,7 +75,7 @@ func (field entryMessage) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 }
 
 // SendEntryMessage adds the entryMessage field to the logger in order to bypass sanitization and allow for the raw message to be logged.
-var SendEntryMessage = zap.Object("entryMessage", entryMessage{})
+var SendEntryMessage = zap.Object(EntryMessageField, entryMessage{})
 
 // DescribeKlothoFields is intended for unit testing expected log lines.
 //

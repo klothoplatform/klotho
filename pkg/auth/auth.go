@@ -27,6 +27,7 @@ var (
 	authUrlBase          = EnvVar("KLOTHO_AUTH_BASE").GetOr(`http://klotho-auth-service-alb-e22c092-466389525.us-east-1.elb.amazonaws.com`)
 	pemUrl               = EnvVar("KLOTHO_AUTH_PEM").GetOr(`https://klotho.us.auth0.com/pem`)
 	ErrNoCredentialsFile = errors.New("no local credentials file")
+	ErrEmailUnverified   = errors.New("login email hasn't been verified")
 )
 
 type LoginResponse struct {
@@ -189,29 +190,29 @@ func authorize(tokenRefreshed bool) (*KlothoClaims, error) {
 
 	if !claims.EmailVerified {
 		if tokenRefreshed {
-			return nil, fmt.Errorf("user %s, has not verified their email", claims.Email)
+			return claims, ErrEmailUnverified
 		}
 		err := CallRefreshToken(creds.RefreshToken)
 		if err != nil {
-			return nil, err
+			return claims, err
 		}
 		claims, err = authorize(true)
 		if err != nil {
-			return nil, err
+			return claims, err
 		}
 	} else if !claims.ProEnabled {
-		return nil, fmt.Errorf("user %s is not authorized to use KlothoPro", claims.Email)
+		return claims, fmt.Errorf("user %s is not authorized to use KlothoPro", claims.Email)
 	} else if claims.ExpiresAt.Before(time.Now()) {
 		if tokenRefreshed {
-			return nil, fmt.Errorf("user %s, does not have a valid token", claims.Email)
+			return claims, fmt.Errorf("user %s, does not have a valid token", claims.Email)
 		}
 		err := CallRefreshToken(creds.RefreshToken)
 		if err != nil {
-			return nil, err
+			return claims, err
 		}
 		claims, err = authorize(true)
 		if err != nil {
-			return nil, err
+			return claims, err
 		}
 	}
 	return claims, nil
