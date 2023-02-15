@@ -89,7 +89,7 @@ func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, 
 	}
 
 	args[0].Content = "nil"
-	args[1].Content = fmt.Sprintf(`os.Getenv("%s")`, fsEnvVar.Name)
+	args[1].Content = fmt.Sprintf(`"s3://" + os.Getenv("%s") + "?region=" + os.Getenv("AWS_REGION")`, fsEnvVar.Name)
 
 	err := f.ReplaceNodeContent(result.args, ArgumentListToString(args))
 	if err != nil {

@@ -79,6 +79,45 @@ func TestInfraTemplateModification(t *testing.T) {
 				UseVPC: true,
 			},
 		},
+		{
+			name: "bucket test",
+			results: []core.CloudResource{
+				&core.Fs{
+					Persist: core.Persist{
+						Name: "bucket",
+					},
+					GenerateNewFs: true,
+				},
+			},
+			cfg: config.Application{
+				Provider: "aws",
+			},
+			dependencies: []core.Dependency{},
+			data: TemplateData{
+				Buckets: []provider.FS{
+					{Name: "bucket"},
+				},
+				UseVPC: false,
+			},
+		},
+		{
+			name: "not new bucket test",
+			results: []core.CloudResource{
+				&core.Fs{
+					Persist: core.Persist{
+						Name: "bucket",
+					},
+					GenerateNewFs: false,
+				},
+			},
+			cfg: config.Application{
+				Provider: "aws",
+			},
+			dependencies: []core.Dependency{},
+			data: TemplateData{
+				UseVPC: false,
+			},
+		},
 	}
 
 	for _, tt := range cases {

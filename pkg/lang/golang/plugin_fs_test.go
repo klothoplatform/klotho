@@ -174,7 +174,7 @@ import (
 *	id = "test"
 * }
 */
-bucket, err := blob.OpenBucket(nil, os.Getenv("test_fs_bucket"))
+bucket, err := blob.OpenBucket(nil, "s3://" + os.Getenv("test_fs_bucket") + "?region=" + os.Getenv("AWS_REGION"))
 `,
 			},
 		},
@@ -208,7 +208,7 @@ import (
 *	id = "test"
 * }
 */
-var bucket, err = blob.OpenBucket(nil, os.Getenv("test_fs_bucket"))
+var bucket, err = blob.OpenBucket(nil, "s3://" + os.Getenv("test_fs_bucket") + "?region=" + os.Getenv("AWS_REGION"))
 `,
 			},
 		},
@@ -244,7 +244,7 @@ import (
 * }
 */
 var bucket, err
-bucket, err = blob.OpenBucket(nil, os.Getenv("test_fs_bucket"))
+bucket, err = blob.OpenBucket(nil, "s3://" + os.Getenv("test_fs_bucket") + "?region=" + os.Getenv("AWS_REGION"))
 `,
 			},
 		},

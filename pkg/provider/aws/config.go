@@ -20,6 +20,7 @@ type (
 		CloudfrontDistributions []*resources.CloudfrontDistribution
 		APIGateways             []provider.Gateway
 		ALBs                    []provider.Gateway
+		Buckets                 []provider.FS
 	}
 )
 

@@ -74,6 +74,7 @@ export class CloudCCLib {
 
     gatewayToUrl = new Map<string, pulumi.Output<string>>()
     siteBuckets = new Map<string, aws.s3.Bucket>()
+    buckets = new Map<string, aws.s3.Bucket>()
 
     topologySpecOutputs: pulumi.Output<ResourceInfo>[] = []
     connectionString = new Map<string, pulumi.Output<string>>()
@@ -103,7 +104,7 @@ export class CloudCCLib {
         public readonly name: string,
         private namespace: string,
         private datadogEnabled: boolean,
-        physicalPayloadsBucketName: string,
+        private physicalPayloadsBucketName: string,
         public readonly topology: TopologyData,
         private createVPC: boolean
     ) {
@@ -113,10 +114,7 @@ export class CloudCCLib {
         if (this.createVPC) {
             this.getVpcSgSubnets()
         }
-        // Right now we sanitize this bucket name in the compiler go code so we do not need to here  (issue #188 & pro#51)
-        const resolvedBucketName = pulumi.interpolate`${this.account.accountId}${physicalPayloadsBucketName}`
-
-        this.createBuckets([resolvedBucketName], true)
+        this.createBuckets([{ Name: physicalPayloadsBucketName }], true)
         this.addSharedPolicyStatement({
             Effect: 'Allow',
             Action: ['cloudwatch:PutMetricData'],
@@ -575,6 +573,9 @@ export class CloudCCLib {
             case Resource.secret:
                 const secret: aws.secretsmanager.Secret = this.secrets.get(v.ResourceID)!
                 return [v.Name, secret.name]
+            case Resource.fs:
+                const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
+                return [v.Name, bucket.bucket]
             default:
                 throw new Error('unsupported kind')
         }
@@ -765,15 +766,39 @@ export class CloudCCLib {
     }
 
     createBuckets(bucketsToCreate, forceDestroy = false) {
-        bucketsToCreate.forEach((bucketName) => {
-            const bucket = new aws.s3.Bucket(
-                bucketName,
-                {
-                    bucket: bucketName,
-                    forceDestroy,
-                },
-                { protect: this.protect }
-            )
+        bucketsToCreate.forEach((b) => {
+            let bucketName
+            let bucket
+            if (b.Name == this.physicalPayloadsBucketName) {
+                // Right now we sanitize this bucket name in the compiler go code so we do not need to here  (issue #188 & pro#51)
+                bucketName = pulumi.interpolate`${this.account.accountId}${b.Name}`
+                // We have to create this in here otherwise the resource name will change and try to trigger a recreate of the bucket leading to a breaking change.
+                bucket = new aws.s3.Bucket(
+                    bucketName,
+                    {
+                        bucket: bucketName,
+                        forceDestroy,
+                    },
+                    { protect: this.protect }
+                )
+                this.buckets.set(b.Name, bucket)
+            } else {
+                bucketName = this.account.accountId.apply(
+                    (accountId) =>
+                        sanitized(
+                            AwsSanitizer.S3.bucket.nameValidation()
+                        )`${accountId}-${this.region}-${b.Name}`
+                )
+                bucket = new aws.s3.Bucket(
+                    b.Name,
+                    {
+                        bucket: bucketName,
+                        forceDestroy,
+                    },
+                    { protect: this.protect }
+                )
+                this.buckets.set(b.Name, bucket)
+            }
 
             this.topology.topologyIconData.forEach((resource) => {
                 if (resource.kind == Resource.fs) {
