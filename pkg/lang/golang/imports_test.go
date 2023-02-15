@@ -1,7 +1,6 @@
 package golang
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -33,6 +32,7 @@ func Test_GetImportsInFile(t *testing.T) {
 			want:   []Import{{Package: "os", Alias: "alias"}},
 		},
 		{
+
 			name: "multiple imports",
 			source: `import(
 				"os"
@@ -80,6 +80,53 @@ func Test_GetImportsInFile(t *testing.T) {
 				}
 				assert.True(found)
 			}
+		})
+	}
+}
+
+func Test_GetNamedImportInFile(t *testing.T) {
+	tests := []struct {
+		name        string
+		source      string
+		importToGet string
+		want        Import
+	}{
+		{
+			name: "simple import",
+			source: `import(
+				"os"
+)`,
+			want:        Import{Package: "os"},
+			importToGet: "os",
+		},
+		{
+			name: "no match",
+			source: `import(
+				"os"
+				"github.com/go-chi/chi/v5"
+)`,
+			importToGet: "NotReal",
+		},
+		{
+			name: "multiple imports with an alias",
+			source: `import(
+				"os"
+				chi "github.com/go-chi/chi/v5"
+)`,
+			importToGet: "github.com/go-chi/chi/v5",
+			want:        Import{Package: "github.com/go-chi/chi/v5", Alias: "chi"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			f, err := core.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
+			if !assert.NoError(err) {
+				return
+			}
+			i := GetNamedImportInFile(f, tt.importToGet)
+			assert.Equal(tt.want.Package, i.Package)
+			assert.Equal(tt.want.Alias, i.Alias)
 		})
 	}
 }
@@ -195,7 +242,6 @@ import (
 			if !assert.NoError(err) {
 				return
 			}
-			fmt.Println(string(f.Program()))
 			assert.Equal(tt.want, string(f.Program()))
 		})
 	}

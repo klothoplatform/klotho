@@ -47,6 +47,16 @@ func GetImportsInFile(f *core.SourceFile) []Import {
 	return imports
 }
 
+func GetNamedImportInFile(f *core.SourceFile, namedImport string) Import {
+	imports := GetImportsInFile(f)
+	for _, i := range imports {
+		if i.Package == namedImport {
+			return i
+		}
+	}
+	return Import{}
+}
+
 func UpdateImportsInFile(f *core.SourceFile, importsToAdd []Import, importsToRemove []Import) error {
 
 	imports := GetImportsInFile(f)
@@ -101,7 +111,7 @@ func UpdateImportsInFile(f *core.SourceFile, importsToAdd []Import, importsToRem
 	if len(f.Program()) > int(insertionPoint) {
 		contentStr += string(content[insertionPoint:])
 	}
-	fmt.Println([]byte(contentStr))
+
 	err = f.Reparse([]byte(contentStr))
 	if err != nil {
 		return errors.Wrap(err, "could not reparse inserted import")
@@ -117,7 +127,6 @@ func DeleteImportNodes(f *core.SourceFile) error {
 		if !found {
 			break
 		}
-		fmt.Println(string(f.Program()))
 		err := f.ReplaceNodeContent(match["expression"], "")
 		if err != nil {
 			return err
