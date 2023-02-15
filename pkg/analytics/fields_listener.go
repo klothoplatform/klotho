@@ -47,8 +47,8 @@ func (fl *fieldListener) Write(entry zapcore.Entry, fields []zapcore.Field) erro
 	safeLogsStr := logging.SanitizeFields(allFields, fl.client.Hash)
 
 	for _, f := range allFields {
-		if f.Key == logging.EntryMessageField {
-			safeLogsStr = entry.Message
+		if msgProducer, ok := f.Interface.(logging.LogMessageProducer); ok {
+			safeLogsStr = msgProducer.GetMessage(entry)
 		}
 	}
 
