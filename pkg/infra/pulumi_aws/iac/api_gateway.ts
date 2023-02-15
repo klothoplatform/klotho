@@ -349,7 +349,11 @@ export class ApiGateway {
             integrationNames.push(integrationName)
 
             // routeKey matches routeSelectionExpression format
-            const routeKey = `${verb} ${path}`
+            let routeKey = `${verb} ${path}`
+            if (routeKey == 'ANY /{rest+}') {
+                // catchall route, use idiomatic $default for route key
+                routeKey = '$default'
+            }
             const route = new aws.apigatewayv2.Route(`${routeKey}`, {
                 apiId: api.id,
                 routeKey,
