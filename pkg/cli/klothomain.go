@@ -161,6 +161,7 @@ func readConfig(args []string) (appCfg config.Application, err error) {
 	} else {
 		appCfg.Format = cfg.cfgFormat
 	}
+	appCfg.EnsureMapsExist()
 	// TODO debug logging for when config file is overwritten by CLI flags
 	if cfg.appName != "" {
 		appCfg.AppName = cfg.appName

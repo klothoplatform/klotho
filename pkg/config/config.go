@@ -111,6 +111,27 @@ type (
 	InfraParams map[string]interface{}
 )
 
+func (appCfg *Application) EnsureMapsExist() {
+	if appCfg.ExecutionUnits == nil {
+		appCfg.ExecutionUnits = make(map[string]*ExecutionUnit)
+	}
+	if appCfg.Exposed == nil {
+		appCfg.Exposed = make(map[string]*Expose)
+	}
+	if appCfg.Persisted == nil {
+		appCfg.Persisted = make(map[string]*Persist)
+	}
+	if appCfg.PubSub == nil {
+		appCfg.PubSub = make(map[string]*PubSub)
+	}
+	if appCfg.StaticUnit == nil {
+		appCfg.StaticUnit = make(map[string]*StaticUnit)
+	}
+	if appCfg.Config == nil {
+		appCfg.Config = make(map[string]*Config)
+	}
+}
+
 func ReadConfig(fpath string) (Application, error) {
 	var appCfg Application
 
@@ -294,6 +315,7 @@ func (cfg *Defaults) Merge(other Defaults) {
 	cfg.Persist.Merge(other.Persist)
 	cfg.PubSub.Merge(other.PubSub)
 	cfg.StaticUnit.Merge(other.StaticUnit)
+	cfg.Config.Merge(other.Config)
 }
 
 // GetExecutionUnit returns the `ExecutionUnit` config for the resource specified by `id`
@@ -477,27 +499,16 @@ func (a Application) GetResourceType(resource core.CloudResource) string {
 	case core.PubSubKind:
 		cfg := a.GetPubSub(key.Name)
 		return cfg.Type
+
+	case core.ConfigKind:
+		cfg := a.GetConfig(key.Name)
+		return cfg.Type
 	}
 	return ""
 }
 
 // UpdateForResources mutates the Application config for all the resources, applying the defaults.
 func (a *Application) UpdateForResources(res []core.CloudResource) {
-	if a.ExecutionUnits == nil {
-		a.ExecutionUnits = make(map[string]*ExecutionUnit)
-	}
-	if a.Exposed == nil {
-		a.Exposed = make(map[string]*Expose)
-	}
-	if a.Persisted == nil {
-		a.Persisted = make(map[string]*Persist)
-	}
-	if a.PubSub == nil {
-		a.PubSub = make(map[string]*PubSub)
-	}
-	if a.StaticUnit == nil {
-		a.StaticUnit = make(map[string]*StaticUnit)
-	}
 	for _, r := range res {
 		key := r.Key()
 		switch key.Kind {

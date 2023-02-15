@@ -129,7 +129,7 @@ func TestInfraTemplateModification(t *testing.T) {
 			for _, dep := range tt.dependencies {
 				deps.Add(dep.Source, dep.Target)
 			}
-
+			tt.cfg.EnsureMapsExist()
 			aws := AWS{
 				Config: &tt.cfg,
 			}

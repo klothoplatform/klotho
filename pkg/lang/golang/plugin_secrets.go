@@ -65,12 +65,12 @@ func (p *PersistSecretsPlugin) handleFile(f *core.SourceFile, unit *core.Executi
 		}
 		secretsResult := querySecret(f, annot)
 		if secretsResult != nil {
-			persistResource, err := p.transformSecret(f, annot, secretsResult, unit)
+			secretResource, err := p.transformSecret(f, annot, secretsResult, unit)
 			if err != nil {
 				errs.Append(err)
 			}
 			p.runtime.SetConfigType(cap.ID, isSecret)
-			resources = append(resources, persistResource)
+			resources = append(resources, secretResource)
 
 		}
 	}
@@ -93,8 +93,15 @@ func (p *PersistSecretsPlugin) transformSecret(f *core.SourceFile, cap *core.Ann
 		queryParams = "&" + klothoRuntimePathSubChunks[1]
 	}
 	`
+	secretEnvVar := core.EnvironmentVariable{
+		Name:       cap.Capability.ID + "_config_secret",
+		Kind:       core.ConfigKind,
+		ResourceID: cap.Capability.ID,
+		Value:      "secret_name",
+	}
+	unit.EnvironmentVariables = append(unit.EnvironmentVariables, secretEnvVar)
 
-	args[1].Content = fmt.Sprintf(`"awssecretsmanager://" % s?region=" + os.Getenv("AWS_REGION") + queryParams`, p.config.AppName+"_"+cap.Capability.ID)
+	args[1].Content = fmt.Sprintf(`"awssecretsmanager://" + os.Getenv("%s") + "?region=" + os.Getenv("AWS_REGION") + queryParams`, secretEnvVar.Name)
 
 	newArgContent := argumentListToString(args)
 
@@ -111,13 +118,11 @@ func (p *PersistSecretsPlugin) transformSecret(f *core.SourceFile, cap *core.Ann
 		return nil, err
 	}
 
-	persist := &core.Secrets{
-		Persist: core.Persist{
-			Kind: core.PersistSecretKind,
-			Name: cap.Capability.ID,
-		},
+	secret := &core.Config{
+		Name:   cap.Capability.ID,
+		Secret: true,
 	}
-	return persist, nil
+	return secret, nil
 }
 
 type persistSecretResult struct {

@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -345,7 +344,6 @@ func Test_validation_handleResources(t *testing.T) {
 			err := p.handleResources(&result)
 			if tt.wantErr {
 				assert.Error(err)
-				fmt.Println(err.Error())
 				return
 			} else {
 				assert.NoError(err)
@@ -487,6 +485,31 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 				},
 			},
 			want: `Unknown static unit in config override, "nottest".`,
+		},
+		{
+			name: "config resource match",
+			result: []core.CloudResource{&core.Config{
+				Name: "test",
+			}},
+			cfg: config.Application{
+				Provider: "aws",
+				Config: map[string]*config.Config{
+					"test": {},
+				},
+			},
+		},
+		{
+			name: "config resource mismatch",
+			result: []core.CloudResource{&core.Config{
+				Name: "test",
+			}},
+			cfg: config.Application{
+				Provider: "aws",
+				Config: map[string]*config.Config{
+					"nottest": {},
+				},
+			},
+			want: `Unknown config resource in config override, "nottest".`,
 		},
 	}
 	for _, tt := range tests {

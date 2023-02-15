@@ -21,6 +21,7 @@ type (
 		APIGateways             []provider.Gateway
 		ALBs                    []provider.Gateway
 		Buckets                 []provider.FS
+		SecretManagerSecrets    []provider.Config
 	}
 )
 

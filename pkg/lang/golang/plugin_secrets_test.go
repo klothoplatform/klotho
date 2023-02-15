@@ -1,7 +1,6 @@
 package golang
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -115,7 +114,6 @@ v, err := runtimevarrrrr.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?dec
 				assert.Nil(result)
 				return
 			}
-			fmt.Println(result)
 			assert.Equal(tt.want.varName, result.varName)
 		})
 	}
@@ -123,7 +121,7 @@ v, err := runtimevarrrrr.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?dec
 
 func Test_TransformSecrets(t *testing.T) {
 	type testResult struct {
-		resource core.Persist
+		resource core.Config
 		content  string
 	}
 	tests := []struct {
@@ -147,8 +145,7 @@ import (
 v, err := runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder=string", path))
 `,
 			want: testResult{
-				resource: core.Persist{
-					Kind: core.PersistSecretKind,
+				resource: core.Config{
 					Name: "test",
 				},
 				content: `package fs
@@ -170,7 +167,7 @@ var queryParams string
 	if len(klothoRuntimePathSubChunks) == 2 {
 		queryParams = "&" + klothoRuntimePathSubChunks[1]
 	}
-	v, err := runtimevar.OpenVariable(context.TODO(), "awssecretsmanager://app_test?region=" + os.Getenv("AWS_REGION") + queryParams)
+	v, err := runtimevar.OpenVariable(context.TODO(), "awssecretsmanager://" + os.Getenv("test_config_secret") + "?region=" + os.Getenv("AWS_REGION") + queryParams)
 `,
 			},
 		},
@@ -189,8 +186,7 @@ import (
 var v, err = runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder=string", path))
 `,
 			want: testResult{
-				resource: core.Persist{
-					Kind: core.PersistSecretKind,
+				resource: core.Config{
 					Name: "test",
 				},
 				content: `package fs
@@ -212,7 +208,7 @@ var queryParams string
 	if len(klothoRuntimePathSubChunks) == 2 {
 		queryParams = "&" + klothoRuntimePathSubChunks[1]
 	}
-	var v, err = runtimevar.OpenVariable(context.TODO(), "awssecretsmanager://app_test?region=" + os.Getenv("AWS_REGION") + queryParams)
+	var v, err = runtimevar.OpenVariable(context.TODO(), "awssecretsmanager://" + os.Getenv("test_config_secret") + "?region=" + os.Getenv("AWS_REGION") + queryParams)
 `,
 			},
 		},
@@ -233,8 +229,7 @@ var err error
 v, err = runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder=string", path))
 `,
 			want: testResult{
-				resource: core.Persist{
-					Kind: core.PersistSecretKind,
+				resource: core.Config{
 					Name: "test",
 				},
 				content: `package fs
@@ -258,7 +253,7 @@ var queryParams string
 	if len(klothoRuntimePathSubChunks) == 2 {
 		queryParams = "&" + klothoRuntimePathSubChunks[1]
 	}
-	v, err = runtimevar.OpenVariable(context.TODO(), "awssecretsmanager://app_test?region=" + os.Getenv("AWS_REGION") + queryParams)
+	v, err = runtimevar.OpenVariable(context.TODO(), "awssecretsmanager://" + os.Getenv("test_config_secret") + "?region=" + os.Getenv("AWS_REGION") + queryParams)
 `,
 			},
 		},
@@ -281,7 +276,6 @@ var queryParams string
 				return
 			}
 			queryResult := querySecret(f, annot)
-			fmt.Println(queryResult)
 			result, err := p.transformSecret(f, annot, queryResult, &unit)
 			if tt.wantErr {
 				assert.Error(err)

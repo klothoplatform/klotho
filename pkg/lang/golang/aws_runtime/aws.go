@@ -76,8 +76,12 @@ func (r *AwsRuntime) GetSecretsImports() []golang.Import {
 }
 
 func (r *AwsRuntime) SetConfigType(id string, isSecret bool) {
-	cfg := r.Cfg.GetConfig(id)
-	if isSecret && cfg.Type != aws.Secrets_manager {
-		cfg.Merge(config.Config{Type: aws.Secrets_manager})
+	cfg := r.Cfg.Config[id]
+	if cfg == nil {
+		if isSecret {
+			r.Cfg.Config[id] = &config.Config{Type: aws.Secrets_manager}
+		}
+	} else if isSecret && cfg.Type != aws.Secrets_manager {
+		cfg.Type = aws.Secrets_manager
 	}
 }
