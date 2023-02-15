@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var EntryMessageField = "entryMessage"
+const EntryMessageField = "entryMessage"
 
 type fileField struct {
 	f core.File
@@ -74,8 +74,11 @@ func (field entryMessage) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
+// unsanitizedMessage sends the given message directly
+type unsanitizedMessage string
+
 // SendEntryMessage adds the entryMessage field to the logger in order to bypass sanitization and allow for the raw message to be logged.
-var SendEntryMessage = zap.Object("entryMessage", entryMessage{})
+var SendEntryMessage = zap.Object(EntryMessageField, entryMessage{})
 
 // DescribeKlothoFields is intended for unit testing expected log lines.
 //
@@ -148,4 +151,24 @@ func (field postLogMessage) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 
 func PostLogMessageField(msg string) zap.Field {
 	return zap.Inline(postLogMessage{Message: msg})
+}
+
+// SendDirectlyToAnalytics sends the given message to our analytics server, exactly as it is. This will not perform
+// any additional sanitization, so make sure not to send anything sensitive! A good rule is to only invoke this with
+// string literals.
+func SendDirectlyToAnalytics(message string) zap.Field {
+	return zap.Object("generic-message", unsanitizedMessage(message))
+}
+
+func (msg unsanitizedMessage) Sanitize(hasher func(any) string) SanitizedField {
+	return SanitizedField{
+		Key: "Generic",
+		Content: map[string]any{
+			"message": msg,
+		},
+	}
+}
+
+func (msg unsanitizedMessage) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return nil // nothing; only used to send to analytics
 }

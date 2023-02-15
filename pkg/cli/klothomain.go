@@ -304,7 +304,10 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		}
 		// Fail-open. See also the error handler at auth.Login(...) above (you should change that to not write the
 		// empty token, if this fail-open ever changes).
-		zap.L().Warn(`Not logged in. You may be able to continue using klotho without logging in for now, but this may break in the future. Please contact us if this continues.`, zap.Error(err))
+		zap.L().Warn(
+			`Not logged in. You may be able to continue using klotho without logging in for now, but this may break in the future. Please contact us if this continues.`,
+			zap.Error(err),
+			logging.SendDirectlyToAnalytics(`login failure`))
 	}
 
 	appCfg, err := readConfig(args)
