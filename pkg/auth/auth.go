@@ -24,8 +24,8 @@ import (
 )
 
 var (
-	authUrlBase          = EnvVar("KLOTHO_AUTH_BASE").GetOr(`http://klotho-auth-service-alb-e22c092-466389525.us-east-1.elb.amazonaws.com`)
-	pemUrl               = EnvVar("KLOTHO_AUTH_PEM").GetOr(`https://klotho.us.auth0.com/pem`)
+	authUrlBase          = cli_config.EnvVar("KLOTHO_AUTH_BASE").GetOr(`http://klotho-auth-service-alb-e22c092-466389525.us-east-1.elb.amazonaws.com`)
+	pemUrl               = cli_config.EnvVar("KLOTHO_AUTH_PEM").GetOr(`https://klotho.us.auth0.com/pem`)
 	ErrNoCredentialsFile = errors.New("no local credentials file")
 	ErrEmailUnverified   = errors.New("login email hasn't been verified")
 )
@@ -272,19 +272,4 @@ func getPem() (*rsa.PublicKey, error) {
 		}
 	}
 	return pub, nil
-}
-
-// EnvVar represents an environment variable, specified by its key name. This is a
-// wrapper around os.Getenv. This string's value is the env var key. Use GetOr to get its value.
-type EnvVar string
-
-// GetOr uses os.Getenv to get the env var specified by the target EnvVar. If that env var's value is unset or empty,
-// it returns the defaultValue.
-func (s EnvVar) GetOr(defaultValue string) string {
-	value := os.Getenv(string(s))
-	if value == "" {
-		return defaultValue
-	} else {
-		return value
-	}
 }
