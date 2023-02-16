@@ -7,6 +7,12 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
+type ASPDotNetCoreStartupClass struct {
+	Class                   TypeDeclaration
+	ConfigureMethod         MethodDeclaration
+	ConfigureServicesMethod MethodDeclaration
+}
+
 func FindASPDotnetCoreStartupClass(unit *core.ExecutionUnit) (*ASPDotNetCoreStartupClass, error) {
 	var startupClass *ASPDotNetCoreStartupClass
 	declarers := unit.GetDeclaringFiles()
@@ -16,7 +22,7 @@ func FindASPDotnetCoreStartupClass(unit *core.ExecutionUnit) (*ASPDotNetCoreStar
 			for _, t := range types {
 				if cls, found := getDotnetCoreStartupClass(t.Node); found {
 					if startupClass != nil {
-						return nil, fmt.Errorf("multiple ASP.net Core startup classes found in execution unit [%s] <- [%s, %s]", unit.Name, startupClass.Class.Name, cls.Class.Name)
+						return nil, fmt.Errorf("multiple ASP.NET Core startup classes found in execution unit [%s] <- [%s, %s]", unit.Name, startupClass.Class.Name, cls.Class.Name)
 					} else {
 						startupClass = &cls
 					}
@@ -89,8 +95,23 @@ func getDotnetCoreStartupClass(classNode *sitter.Node) (ASPDotNetCoreStartupClas
 	return startupClass, true
 }
 
-type ASPDotNetCoreStartupClass struct {
-	Class                   TypeDeclaration
-	ConfigureMethod         MethodDeclaration
-	ConfigureServicesMethod MethodDeclaration
+func FindLambdaHandlerClasses(unit *core.ExecutionUnit) []*TypeDeclaration {
+	var handlerClasses []*TypeDeclaration
+	for _, csFile := range unit.FilesOfLang(CSharp) {
+		types := FindDeclarationsInFile[*TypeDeclaration](csFile).Declarations()
+		for _, t := range types {
+			if t.IsSealed || t.Visibility != VisibilityPublic {
+				continue
+			}
+			for _, bNode := range t.Bases {
+				if IsValidTypeName(bNode, "Amazon.Lambda.AspNetCoreServer", "APIGatewayProxyFunction") ||
+					IsValidTypeName(bNode, "Amazon.Lambda.AspNetCoreServer", "APIGatewayHttpApiV2ProxyFunction") {
+					handlerClasses = append(handlerClasses, t)
+					break
+				}
+			}
+
+		}
+	}
+	return handlerClasses
 }

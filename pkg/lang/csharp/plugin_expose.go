@@ -23,9 +23,10 @@ type (
 	Expose struct{}
 
 	gatewaySpec struct {
-		FilePath       string
-		AppBuilderName string
-		gatewayId      string
+		FilePath        string
+		AppBuilderName  string
+		MapsControllers bool
+		gatewayId       string
 	}
 	gatewayRouteDefinition struct {
 		core.Route
@@ -33,12 +34,33 @@ type (
 	}
 
 	aspDotNetCoreHandler struct {
-		Result          *core.CompilationResult
-		Deps            *core.Dependencies
-		Unit            *core.ExecutionUnit
-		RoutesByGateway map[gatewaySpec][]gatewayRouteDefinition
-		RootPath        string
-		log             *zap.Logger
+		Result           *core.CompilationResult
+		Deps             *core.Dependencies
+		Unit             *core.ExecutionUnit
+		RoutesByGateway  map[gatewaySpec][]gatewayRouteDefinition
+		RootPath         string
+		log              *zap.Logger
+		ControllerRoutes []gatewayRouteDefinition
+	}
+	actionSpec struct {
+		method           MethodDeclaration
+		verb             core.Verb
+		routeTemplate    string
+		name             string
+		hasRouteTemplate bool // an empty string is a valid routeTemplate value
+	}
+
+	controllerSpec struct {
+		execUnitName string
+		name         string
+		class        TypeDeclaration
+		actions      []actionSpec
+		controllerAttributeSpec
+	}
+
+	controllerAttributeSpec struct {
+		routeTemplates []string
+		area           string
 	}
 )
 
@@ -111,6 +133,39 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 			h.Result.Add(gw)
 		}
 
+		if spec.MapsControllers {
+			routes = append(routes, h.ControllerRoutes...)
+			if len(h.ControllerRoutes) > 0 {
+				h.log.Sugar().Debugf("Adding controller routes to gateway %+v", spec)
+			}
+		}
+
+		zap.L().Sugar().Infof("Found %d route(s) on app '%s'", len(routes), spec.AppBuilderName)
+
+		if len(routes) == 0 && len(gw.Routes) == 0 {
+			h.log.Sugar().Infof("Adding catchall route for gateway %+v with no detected routes", spec)
+			routes = []gatewayRouteDefinition{
+				{
+					Route: core.Route{
+						Path:          "/",
+						ExecUnitName:  unit.Name,
+						Verb:          core.VerbAny,
+						HandledInFile: spec.FilePath,
+					},
+					DefinedInPath: spec.FilePath,
+				},
+				{
+					Route: core.Route{
+						Path:          "/:proxy*",
+						ExecUnitName:  unit.Name,
+						Verb:          core.VerbAny,
+						HandledInFile: spec.FilePath,
+					},
+					DefinedInPath: spec.FilePath,
+				},
+			}
+		}
+
 		for _, route := range routes {
 			existsInUnit := gw.AddRoute(route.Route, h.Unit)
 			if existsInUnit != "" {
@@ -166,46 +221,34 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 		}
 
 		for _, useEndpoint := range useEndpointResults {
-			var appBuilderName string = useEndpoint.EndpointRouteBuilderIdentifier.Content()
+			var appBuilderName string = useEndpoint.AppBuilderIdentifier.Content()
 			var endpointRouteBuilderName string = useEndpoint.EndpointRouteBuilderIdentifier.Content()
 
 			gwSpec := gatewaySpec{
-				FilePath:       f.Path(),
-				AppBuilderName: appBuilderName,
-				gatewayId:      capability.ID,
+				FilePath:        f.Path(),
+				AppBuilderName:  appBuilderName,
+				gatewayId:       capability.ID,
+				MapsControllers: isMapControllersInvoked(useEndpoint) && areControllersInjected(useEndpoint.StartupClassDeclaration),
 			}
-
-			log := h.log.With(
-				zap.String("IApplicationBuilder", appBuilderName),
-				zap.String("IEndpointRouteBuilder", endpointRouteBuilderName),
-			)
+			h.RoutesByGateway[gwSpec] = []gatewayRouteDefinition{}
 
 			localRoutes, err := h.findLocallyMappedRoutes(f, endpointRouteBuilderName, "")
 			if err != nil {
 				return nil, core.NewCompilerError(f, capAnnotation, err)
 			}
 
-			if len(localRoutes) > 0 {
-				h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], localRoutes...)
-			}
-
-			if isMapControllersInvoked(useEndpoint) && areControllersInjected(useEndpoint.StartupClassDeclaration) {
-				for _, csFile := range h.Unit.FilesOfLang(CSharp) {
-					controllers := h.findControllersInFile(csFile)
-					for _, c := range controllers {
-						routes := c.resolveRoutes()
-						for _, route := range c.resolveRoutes() {
-							zap.L().Sugar().Debugf("Mapped route %s %s from %s", route.Verb, route.Path, c.name)
-						}
-						h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], routes...)
-
-					}
-				}
-
-			}
-			log.Sugar().Infof("Found %d route(s) on app '%s'", len(h.RoutesByGateway[gwSpec]), appBuilderName)
+			h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], localRoutes...)
 		}
 	}
+
+	controllers := h.findControllersInFile(f)
+	for _, c := range controllers {
+		for _, route := range c.resolveRoutes() {
+			h.ControllerRoutes = append(h.ControllerRoutes, route)
+			zap.L().Sugar().Debugf("Mapped route %s %s from %s", route.Verb, route.Path, c.name)
+		}
+	}
+
 	return f, nil
 }
 
@@ -338,27 +381,6 @@ func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *core.SourceFile, varNa
 		})
 	}
 	return routes, err
-}
-
-type actionSpec struct {
-	method           MethodDeclaration
-	verb             core.Verb
-	routeTemplate    string
-	name             string
-	hasRouteTemplate bool // an empty string is a valid routeTemplate value
-}
-
-type controllerSpec struct {
-	execUnitName string
-	name         string
-	class        TypeDeclaration
-	actions      []actionSpec
-	controllerAttributeSpec
-}
-
-type controllerAttributeSpec struct {
-	routeTemplates []string
-	area           string
 }
 
 func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []controllerSpec {

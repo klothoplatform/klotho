@@ -34,7 +34,6 @@ type Declaration struct {
 	IsStatic       bool
 	DeclaringClass string
 	AttributeList  *sitter.Node
-	Modifiers      map[string]struct{}
 }
 
 func (d *Declaration) AsDeclaration() Declaration {
