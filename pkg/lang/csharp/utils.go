@@ -1,6 +1,7 @@
 package csharp
 
 import (
+	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
@@ -98,4 +99,20 @@ func splitQualifiedName(qualifiedName string) (scope string, name string) {
 		name = qualifiedName
 	}
 	return scope, name
+}
+
+func FindSubtypes(unit *core.ExecutionUnit, baseNamespace, baseType string) []*TypeDeclaration {
+	var declarations []*TypeDeclaration
+	for _, csFile := range unit.FilesOfLang(CSharp) {
+		types := FindDeclarationsInFile[*TypeDeclaration](csFile).Declarations()
+		for _, t := range types {
+			for _, bNode := range t.Bases {
+				if IsValidTypeName(bNode, baseNamespace, baseType) {
+					declarations = append(declarations, t)
+					break
+				}
+			}
+		}
+	}
+	return declarations
 }
