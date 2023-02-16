@@ -104,7 +104,6 @@ export class CloudCCLib {
         public readonly name: string,
         private namespace: string,
         private datadogEnabled: boolean,
-        private physicalPayloadsBucketName: string,
         public readonly topology: TopologyData,
         private createVPC: boolean
     ) {
@@ -114,7 +113,6 @@ export class CloudCCLib {
         if (this.createVPC) {
             this.getVpcSgSubnets()
         }
-        this.createBuckets([{ Name: physicalPayloadsBucketName }], true)
         this.addSharedPolicyStatement({
             Effect: 'Allow',
             Action: ['cloudwatch:PutMetricData'],
@@ -767,38 +765,21 @@ export class CloudCCLib {
 
     createBuckets(bucketsToCreate, forceDestroy = false) {
         bucketsToCreate.forEach((b) => {
-            let bucketName
-            let bucket
-            if (b.Name == this.physicalPayloadsBucketName) {
-                // Right now we sanitize this bucket name in the compiler go code so we do not need to here  (issue #188 & pro#51)
-                bucketName = pulumi.interpolate`${this.account.accountId}${b.Name}`
-                // We have to create this in here otherwise the resource name will change and try to trigger a recreate of the bucket leading to a breaking change.
-                bucket = new aws.s3.Bucket(
-                    bucketName,
-                    {
-                        bucket: bucketName,
-                        forceDestroy,
-                    },
-                    { protect: this.protect }
-                )
-                this.buckets.set(b.Name, bucket)
-            } else {
-                bucketName = this.account.accountId.apply(
-                    (accountId) =>
-                        sanitized(
-                            AwsSanitizer.S3.bucket.nameValidation()
-                        )`${accountId}-${this.region}-${b.Name}`
-                )
-                bucket = new aws.s3.Bucket(
-                    b.Name,
-                    {
-                        bucket: bucketName,
-                        forceDestroy,
-                    },
-                    { protect: this.protect }
-                )
-                this.buckets.set(b.Name, bucket)
-            }
+            const bucketName = this.account.accountId.apply(
+                (accountId) =>
+                    sanitized(
+                        AwsSanitizer.S3.bucket.nameValidation()
+                    )`${accountId}-${this.region}-${b.Name}`
+            )
+            const bucket = new aws.s3.Bucket(
+                b.Name,
+                {
+                    bucket: bucketName,
+                    forceDestroy,
+                },
+                { protect: this.protect }
+            )
+            this.buckets.set(b.Name, bucket)
 
             this.topology.topologyIconData.forEach((resource) => {
                 if (resource.kind == Resource.fs) {

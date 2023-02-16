@@ -51,14 +51,16 @@ func (n NoopRuntime) AddExposeRuntimeFiles(unit *core.ExecutionUnit) error { ret
 
 func (n NoopRuntime) AddKvRuntimeFiles(unit *core.ExecutionUnit) error { return nil }
 
-func (n NoopRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit) error { return nil }
+func (n NoopRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName string, id string) error {
+	return nil
+}
 
 func (n NoopRuntime) AddSecretRuntimeFiles(unit *core.ExecutionUnit) error { return nil }
 
 func (n NoopRuntime) AddOrmRuntimeFiles(unit *core.ExecutionUnit) error { return nil }
 
-func (n NoopRuntime) GetFsRuntimeImportClass(varName string) string {
-	return fmt.Sprintf("import klotho_runtime.fs as %s", varName)
+func (n NoopRuntime) GetFsRuntimeImportClass(id string, varName string) string {
+	return fmt.Sprintf("import klotho_runtime.fs_%s as %s", id, varName)
 }
 
 func (n NoopRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error {

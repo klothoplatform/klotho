@@ -127,12 +127,6 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		}
 	}
 
-	// rpc proxy dispatch needs the fs module
-	err = r.AddRuntimeFiles(unit, fsRuntimeFiles)
-	if err != nil {
-		return err
-	}
-
 	reqTxtPath := ""
 	for path, f := range unit.Files() {
 		if filepath.Base(f.Path()) == "requirements.txt" {
@@ -205,8 +199,8 @@ func (r *AwsRuntime) GetKvRuntimeConfig() python.KVConfig {
 	}
 }
 
-func (r *AwsRuntime) GetFsRuntimeImportClass(varName string) string {
-	return fmt.Sprintf("import klotho_runtime.fs as %s", varName)
+func (r *AwsRuntime) GetFsRuntimeImportClass(id string, varName string) string {
+	return fmt.Sprintf("import klotho_runtime.fs_%s as %s", id, varName)
 }
 
 func (r *AwsRuntime) GetSecretRuntimeImportClass(varName string) string {
@@ -218,9 +212,19 @@ func (r *AwsRuntime) AddKvRuntimeFiles(unit *core.ExecutionUnit) error {
 	return r.AddRuntimeFiles(unit, kvRuntimeFiles)
 }
 
-func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit) error {
+type FsTemplateData struct {
+	BucketNameEnvVar string
+}
+
+func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName string, id string) error {
 	python.AddRequirements(unit, fsRequirements)
-	return r.AddRuntimeFiles(unit, fsRuntimeFiles)
+	templateData := FsTemplateData{BucketNameEnvVar: envVarName}
+	content, err := fsRuntimeFiles.ReadFile("fs.py.tmpl")
+	if err != nil {
+		return err
+	}
+	err = python.AddRuntimeFile(unit, templateData, fmt.Sprintf("fs_%s.py", id), content)
+	return err
 }
 
 func (r *AwsRuntime) AddSecretRuntimeFiles(unit *core.ExecutionUnit) error {
@@ -242,6 +246,18 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 		fileContents = proxyFargateContents
 	case "lambda":
 		fileContents = proxyLambdaContents
+		python.AddRequirements(unit, fsRequirements)
+		proxyEnvVar := core.EnvironmentVariable{
+			Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
+			Kind:       core.ProxyKind,
+			ResourceID: core.KlothoProxyName,
+			Value:      string(core.BUCKET_NAME),
+		}
+		unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
+		err := r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
+		if err != nil {
+			return err
+		}
 	default:
 		return errors.Errorf("unsupported exceution unit type: '%s'", r.Cfg.GetResourceType(unit))
 	}

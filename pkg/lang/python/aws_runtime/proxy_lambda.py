@@ -1,4 +1,4 @@
-from . import fs as s3fs
+from . import fs_payload as s3fs
 import boto3
 import os
 import logging

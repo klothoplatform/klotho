@@ -42,7 +42,7 @@ type Runtime interface {
 	// TransformPersist applies any runtime-specific transformations to the given file for the annotation. Returns the modified source code, to be `Reparse`d by the caller.
 	TransformPersist(file *core.SourceFile, annot *core.Annotation, kind core.PersistKind) error
 	AddKvRuntimeFiles(unit *core.ExecutionUnit) error
-	AddFsRuntimeFiles(unit *core.ExecutionUnit) error
+	AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName string, id string) error
 	AddSecretRuntimeFiles(unit *core.ExecutionUnit) error
 	AddOrmRuntimeFiles(unit *core.ExecutionUnit) error
 	AddRedisNodeRuntimeFiles(unit *core.ExecutionUnit) error

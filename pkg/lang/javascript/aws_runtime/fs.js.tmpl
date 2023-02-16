@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const _ = require('lodash');
 const path = require('path');
 const client_s3_1 = require("@aws-sdk/client-s3");
-const payloadBucketPhysicalName = process.env.KLOTHO_S3_PREFIX + '{{.PayloadsBucketName}}';
+const bucketName = process.env['{{.BucketNameEnvVar}}'];
 const targetRegion = process.env['AWS_TARGET_REGION'];
 const userBucketPath = '/files';
 const s3Client = new client_s3_1.S3Client({ region: targetRegion });
@@ -17,7 +17,7 @@ async function getCallParameters(paramKey, dispatcherMode) {
     let isEmitter = dispatcherMode === 'emitter' ? true : false;
     try {
         const bucketParams = {
-            Bucket: payloadBucketPhysicalName,
+            Bucket: bucketName,
             Key: paramKey,
         };
         const result = await s3Client.send(new client_s3_1.GetObjectCommand(bucketParams));

@@ -82,6 +82,12 @@ type (
 		ContentDeliveryNetwork config.ContentDeliveryNetwork
 	}
 
+	Config struct {
+		Name     string
+		FilePath string
+		Params   config.InfraParams
+	}
+
 	Gateway struct {
 		Name   string
 		Routes []Route

@@ -2,7 +2,7 @@ import os
 
 import boto3
 
-payloadBucketPhysicalName = os.getenv("KLOTHO_S3_PREFIX") + "{{.PayloadsBucketName}}"
+payloadBucketPhysicalName = os.getenv("{{.BucketNameEnvVar}}")
 
 
 def open(url: str, **kwargs):

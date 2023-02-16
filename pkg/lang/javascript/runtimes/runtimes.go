@@ -19,8 +19,7 @@ func GetRuntime(cfg *config.Application) (javascript.Runtime, error) {
 		return &aws_runtime.AwsRuntime{
 			Config: cfg,
 			TemplateConfig: aws.TemplateConfig{
-				PayloadsBucketName: aws.SanitizeS3BucketName(cfg.AppName),
-				TemplateConfig:     provider.TemplateConfig{AppName: cfg.AppName},
+				TemplateConfig: provider.TemplateConfig{AppName: cfg.AppName},
 			},
 		}, nil
 	}

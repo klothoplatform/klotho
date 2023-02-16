@@ -11,11 +11,6 @@ type (
 		Kind PersistKind
 	}
 
-	Fs struct {
-		Persist
-		GenerateNewFs bool
-	}
-
 	Secrets struct {
 		Persist
 		Secrets []string

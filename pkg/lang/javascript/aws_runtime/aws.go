@@ -148,8 +148,18 @@ func (r *AwsRuntime) AddKvRuntimeFiles(unit *core.ExecutionUnit) error {
 	return r.AddRuntimeFiles(unit, kvRuntimeFiles)
 }
 
-func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit) error {
-	return r.AddRuntimeFiles(unit, fsRuntimeFiles)
+type FsTemplateData struct {
+	BucketNameEnvVar string
+}
+
+func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, bucketNameEnvVar string, id string) error {
+	templateData := FsTemplateData{BucketNameEnvVar: bucketNameEnvVar}
+	content, err := fsRuntimeFiles.ReadFile("fs.py.tmpl")
+	if err != nil {
+		return err
+	}
+	err = javascript.AddRuntimeFile(unit, templateData, fmt.Sprintf("fs_%s.py", id), content)
+	return err
 }
 
 func (r *AwsRuntime) AddSecretRuntimeFiles(unit *core.ExecutionUnit) error {
@@ -184,6 +194,17 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 		proxyFile = proxyApprunner
 	case "lambda":
 		proxyFile = proxyLambda
+		proxyEnvVar := core.EnvironmentVariable{
+			Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
+			Kind:       core.ProxyKind,
+			ResourceID: core.KlothoProxyName,
+			Value:      string(core.BUCKET_NAME),
+		}
+		unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
+		err := r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
+		if err != nil {
+			return err
+		}
 	default:
 		return errors.Errorf("unsupported exceution unit type: '%s'", unitType)
 	}

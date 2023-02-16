@@ -21,6 +21,7 @@ type (
 		APIGateways             []provider.Gateway
 		ALBs                    []provider.Gateway
 		Buckets                 []provider.FS
+		SecretManagerSecrets    []provider.Config
 	}
 )
 
@@ -41,7 +42,6 @@ func NewTemplateData(config *config.Application) *TemplateData {
 			TemplateConfig: provider.TemplateConfig{
 				AppName: config.AppName,
 			},
-			PayloadsBucketName: SanitizeS3BucketName(config.AppName),
 		},
 	}
 }
@@ -56,6 +56,7 @@ const (
 	ecs                                = "ecs"
 	lambda                             = "lambda"
 	rds_postgres                       = "rds_postgres"
+	Secrets_manager                    = "secrets_manager"
 	s3                                 = "s3"
 	dynamodb                           = "dynamodb"
 	elasticache                        = "elasticache"

@@ -22,7 +22,6 @@ func GetRuntime(cfg *config.Application) (golang.Runtime, error) {
 				TemplateConfig: provider.TemplateConfig{
 					AppName: cfg.AppName,
 				},
-				PayloadsBucketName: aws.SanitizeS3BucketName(cfg.AppName),
 			},
 		}, nil
 	}

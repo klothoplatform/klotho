@@ -140,11 +140,16 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 				})
 				data.UseVPC = true
 			}
-
-		case *core.Fs:
-			if res.GenerateNewFs {
+			if res.Kind == core.PersistFileKind {
 				data.Buckets = append(data.Buckets, provider.FS{
 					Name: res.Name,
+				})
+			}
+
+		case *core.ProxyResource:
+			if res.Name == core.KlothoProxyName {
+				data.Buckets = append(data.Buckets, provider.FS{
+					Name: resources.GetPayloadsBucketName(*a.Config),
 				})
 			}
 
@@ -164,7 +169,12 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 
 		case *core.Secrets:
 			if res.Kind == core.PersistSecretKind {
-				data.Secrets = append(data.Secrets, res.Secrets...)
+				for _, secret := range res.Secrets {
+					data.SecretManagerSecrets = append(data.SecretManagerSecrets, provider.Config{
+						Name:     secret,
+						FilePath: secret,
+					})
+				}
 			}
 		case *core.Topology:
 			data.Topology = res.GetTopologyData()

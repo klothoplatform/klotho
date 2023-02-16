@@ -58,8 +58,10 @@ func TestRuntimePath(t *testing.T) {
 
 type NoopRuntime struct{}
 
-func (NoopRuntime) AddKvRuntimeFiles(unit *core.ExecutionUnit) error                      { return nil }
-func (NoopRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit) error                      { return nil }
+func (NoopRuntime) AddKvRuntimeFiles(unit *core.ExecutionUnit) error { return nil }
+func (NoopRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName string, id string) error {
+	return nil
+}
 func (NoopRuntime) AddSecretRuntimeFiles(unit *core.ExecutionUnit) error                  { return nil }
 func (NoopRuntime) AddOrmRuntimeFiles(unit *core.ExecutionUnit) error                     { return nil }
 func (NoopRuntime) AddRedisNodeRuntimeFiles(unit *core.ExecutionUnit) error               { return nil }

@@ -11,7 +11,7 @@ import {
     HeadObjectCommand,
 } from '@aws-sdk/client-s3'
 
-const payloadBucketPhysicalName = process.env.KLOTHO_S3_PREFIX + '{{.PayloadsBucketName}}'
+const bucketName = process.env['{{.BucketNameEnvVar}}']
 const targetRegion = process.env['AWS_TARGET_REGION']
 
 const userBucketPath = '/files'
@@ -30,7 +30,7 @@ async function getCallParameters(paramKey, dispatcherMode) {
     let isEmitter = dispatcherMode === 'emitter' ? true : false
     try {
         const bucketParams = {
-            Bucket: payloadBucketPhysicalName,
+            Bucket: bucketName,
             Key: paramKey,
         }
         const result = await s3Client.send(new GetObjectCommand(bucketParams))
