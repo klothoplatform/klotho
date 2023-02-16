@@ -472,7 +472,7 @@ func findActionsInController(controller TypeDeclaration) []actionSpec {
 }
 
 func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSpec {
-	attrs := controller.Attributes().OfType("Route", "Area")
+	attrs := controller.Attributes().OfType("Microsoft.AspNetCore.Mvc.Route", "Microsoft.AspNetCore.Mvc.Area")
 	attrSpec := controllerAttributeSpec{}
 	for _, attr := range attrs {
 		args := attr.Args()

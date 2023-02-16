@@ -313,3 +313,385 @@ func Test_findIApplicationBuilder(t *testing.T) {
 		})
 	}
 }
+
+func TestExpose_Transform(t *testing.T) {
+	type gateway struct {
+		Name   string
+		Routes []routeMethodPath
+	}
+	type srcFile struct {
+		Path    string
+		Content string
+	}
+
+	parseDep := func(dep string) core.Dependency {
+		parts := strings.Split(dep, ":")
+		return core.Dependency{
+			Source: core.ResourceKey{Kind: "gateway", Name: parts[0]},
+			Target: core.ResourceKey{Kind: "exec_unit", Name: parts[1]},
+		}
+	}
+
+	tests := []struct {
+		name             string
+		units            map[string][]srcFile
+		expectedGateways []gateway
+		expectedDeps     []string
+	}{
+		{
+			name: "Routes added using Map<VERB>() are detected",
+			units: map[string][]srcFile{
+				"main": {
+					{
+						Path: "Startup.cs",
+						Content: `
+						using Microsoft.AspNetCore.Builder;
+						using Microsoft.AspNetCore.Hosting;
+						using Microsoft.AspNetCore.Http;
+						using Microsoft.AspNetCore.Routing;
+
+						namespace WebAPILambda
+						{
+							public class Startup
+							{
+								public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+								{
+									/**
+									 * @klotho::expose {
+									 *  id = "my-gateway"
+									 *  target = "public"
+									 * }
+									 */
+									app.UseEndpoints(endpoints =>
+									{
+										endpoints.MapGet("/path", () => "ok");
+										endpoints.MapPut("/path", () => "ok");
+										endpoints.MapPost("/path", () =>  "ok");
+										endpoints.MapDelete("/other-path", () => "ok");
+									});
+								}
+							}
+						}
+						`,
+					},
+				},
+			},
+			expectedGateways: []gateway{
+				{
+					Name: "my-gateway",
+					Routes: []routeMethodPath{
+						{Verb: core.VerbGet, Path: "/path"},
+						{Verb: core.VerbPost, Path: "/path"},
+						{Verb: core.VerbPut, Path: "/path"},
+						{Verb: core.VerbDelete, Path: "/other-path"},
+					},
+				},
+			},
+			expectedDeps: []string{
+				"my-gateway:main",
+			},
+		},
+		{
+			name: "Controller routes are added if AddControllers() and MapControllers() are invoked ",
+			units: map[string][]srcFile{
+				"unit1-MapControllers": {
+					{
+						Path: "Startup.cs",
+						Content: `
+						using Microsoft.AspNetCore.Builder;
+						using Microsoft.AspNetCore.Hosting;
+						using Microsoft.AspNetCore.Http;
+						using Microsoft.Extensions.Configuration;
+						using Microsoft.Extensions.DependencyInjection;
+						using Microsoft.Extensions.Hosting;
+
+						namespace WebAPILambda
+						{
+							public class Startup
+							{							
+								public void ConfigureServices(IServiceCollection services)
+								{
+									services.AddControllers();
+								}
+						
+								public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+								{
+									/**
+									 * @klotho::expose {
+									 *  id = "gateway1"
+									 *  target = "public"
+									 * }
+									 */
+									app.UseEndpoints(endpoints =>
+									{
+										endpoints.MapGet("/local-route", () => "ok");
+										endpoints.MapControllers();
+									});
+								}
+							}
+						}
+						`,
+					},
+					{
+						Path: "controller1.cs",
+						Content: `
+						using System;
+						using Microsoft.AspNetCore.Mvc;
+						
+						namespace WebAPILambda.Controllers
+						{
+													
+							[Route("api/[controller]")]
+							public class Controller1Controller
+							{
+								[HttpGet]
+								public string Get()
+								{
+									return "ok";
+								}
+							}
+						}
+						`,
+					},
+				},
+				"unit2-no-MapControllers": {
+					{
+						Path: "Startup.cs",
+						Content: `
+						using Microsoft.AspNetCore.Builder;
+						using Microsoft.AspNetCore.Hosting;
+						using Microsoft.AspNetCore.Http;
+						using Microsoft.Extensions.Configuration;
+						using Microsoft.Extensions.DependencyInjection;
+						using Microsoft.Extensions.Hosting;
+
+						namespace WebAPILambda
+						{
+							public class Startup
+							{							
+								public void ConfigureServices(IServiceCollection services)
+								{
+									services.AddControllers();
+								}
+						
+								public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+								{
+									/**
+									 * @klotho::expose {
+									 *  id = "gateway2"
+									 *  target = "public"
+									 * }
+									 */
+									app.UseEndpoints(endpoints =>
+									{
+										endpoints.MapGet("/local-route", () => "ok");
+									});
+								}
+							}
+						}
+						`,
+					},
+					{
+						Path: "controller1.cs",
+						Content: `
+						using System;
+						using Microsoft.AspNetCore.Mvc;
+						
+						namespace WebAPILambda.Controllers
+						{
+													
+							[Route("api/[controller]")]
+							public class Controller1Controller
+							{
+								[HttpGet]
+								public string Get()
+								{
+									return "ok";
+								}
+							}
+						}
+						`,
+					},
+				},
+				"unit3-no-AddControllers": {
+					{
+						Path: "Startup.cs",
+						Content: `
+						using Microsoft.AspNetCore.Builder;
+						using Microsoft.AspNetCore.Hosting;
+						using Microsoft.AspNetCore.Http;
+						using Microsoft.Extensions.Configuration;
+						using Microsoft.Extensions.DependencyInjection;
+						using Microsoft.Extensions.Hosting;
+
+						namespace WebAPILambda
+						{
+							public class Startup
+							{
+								public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+								{
+									/**
+									 * @klotho::expose {
+									 *  id = "gateway3"
+									 *  target = "public"
+									 * }
+									 */
+									app.UseEndpoints(endpoints =>
+									{
+										endpoints.MapControllers();
+									});
+								}
+							}
+						}
+						`,
+					},
+					{
+						Path: "controller1.cs",
+						Content: `
+						using System;
+						using Microsoft.AspNetCore.Mvc;
+						
+						namespace WebAPILambda.Controllers
+						{
+													
+							[Route("api/[controller]")]
+							public class Controller1Controller
+							{
+								[HttpGet]
+								public string Get()
+								{
+									return "ok";
+								}
+							}
+						}
+						`,
+					},
+				},
+			},
+			expectedGateways: []gateway{
+				{
+					Name: "gateway1",
+					Routes: []routeMethodPath{
+						{Verb: core.VerbGet, Path: "/local-route"},
+						{Verb: core.VerbGet, Path: "/api/controller1"},
+					},
+				},
+				{
+					Name: "gateway2",
+					Routes: []routeMethodPath{
+						{Verb: core.VerbGet, Path: "/local-route"},
+					},
+				},
+				{
+					Name: "gateway3",
+					Routes: []routeMethodPath{
+						{Verb: core.VerbAny, Path: "/"},
+						{Verb: core.VerbAny, Path: "/:proxy*"},
+					},
+				},
+			},
+			expectedDeps: []string{
+				"gateway1:unit1-MapControllers",
+				"gateway2:unit2-no-MapControllers",
+				"gateway3:unit3-no-AddControllers",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			result := &core.CompilationResult{}
+			for uName, files := range tt.units {
+				unit := &core.ExecutionUnit{
+					Name:       uName,
+					Executable: core.NewExecutable(),
+				}
+				for _, f := range files {
+					sf, err := core.NewSourceFile(f.Path, strings.NewReader(f.Content), Language)
+					if !assert.NoError(err) {
+						return
+					}
+					unit.AddSourceFile(sf)
+				}
+				result.Add(unit)
+			}
+			deps := &core.Dependencies{}
+			expose := Expose{}
+			expose.Transform(result, deps)
+
+			gateways := core.GetResourcesOfType[*core.Gateway](result)
+			assert.Equal(len(tt.expectedGateways), len(gateways))
+
+			sort.Slice(gateways, func(i, j int) bool {
+				return gateways[i].Name < gateways[j].Name
+			})
+			sort.Slice(tt.expectedGateways, func(i, j int) bool {
+				return tt.expectedGateways[i].Name < tt.expectedGateways[j].Name
+			})
+
+			for _, gw := range gateways {
+				sort.Slice(gw.Routes, func(i, j int) bool {
+					if gw.Routes[i].Path == gw.Routes[j].Path {
+						return gw.Routes[i].Verb < gw.Routes[j].Verb
+					} else {
+						return gw.Routes[i].Path < gw.Routes[j].Path
+					}
+				})
+			}
+
+			for _, gw := range tt.expectedGateways {
+				sort.Slice(gw.Routes, func(i, j int) bool {
+					if gw.Routes[i].Path == gw.Routes[j].Path {
+						return gw.Routes[i].Verb < gw.Routes[j].Verb
+					} else {
+						return gw.Routes[i].Path < gw.Routes[j].Path
+					}
+				})
+			}
+
+			for i, expectedGw := range tt.expectedGateways {
+				if i >= len(gateways) {
+					break
+				}
+				assert.Equal(len(expectedGw.Routes), len(gateways[i].Routes))
+				for j, eRoute := range expectedGw.Routes {
+					if j >= len(gateways[i].Routes) {
+						break
+					}
+					aRoute := gateways[i].Routes[j]
+					assert.Equal(eRoute.Verb, aRoute.Verb)
+					assert.Equal(aRoute.Path, aRoute.Path)
+				}
+			}
+			depsArr := deps.ToArray()
+
+			assert.Equal(len(tt.expectedDeps), len(depsArr))
+			var eDeps []core.Dependency
+			for _, dep := range tt.expectedDeps {
+				eDeps = append(eDeps, parseDep(dep))
+			}
+			sort.Slice(eDeps, func(i, j int) bool {
+				if eDeps[i].Source.Name == eDeps[j].Source.Name {
+					return eDeps[i].Target.Name < eDeps[j].Target.Name
+				} else {
+					return eDeps[i].Source.Name < eDeps[j].Source.Name
+				}
+			})
+			sort.Slice(depsArr, func(i, j int) bool {
+				if depsArr[i].Source.Name == depsArr[j].Source.Name {
+					return depsArr[i].Target.Name < depsArr[j].Target.Name
+				} else {
+					return depsArr[i].Source.Name < depsArr[j].Source.Name
+				}
+			})
+
+			for i, eDep := range eDeps {
+				if i >= len(depsArr) {
+					break
+				}
+				aDep := depsArr[i]
+				assert.Equal(eDep, aDep)
+			}
+		})
+	}
+}
