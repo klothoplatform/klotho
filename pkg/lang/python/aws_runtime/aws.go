@@ -144,6 +144,19 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		}
 	}
 
+	python.AddRequirements(unit, fsRequirements)
+	proxyEnvVar := core.EnvironmentVariable{
+		Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
+		Kind:       core.InternalKind,
+		ResourceID: core.KlothoPayloadName,
+		Value:      string(core.BUCKET_NAME),
+	}
+	unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
+	err = r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
+	if err != nil {
+		return err
+	}
+
 	err = python.AddRuntimeFile(unit, templateData, "dispatcher.py.tmpl", dispatcher)
 	if err != nil {
 		return err
@@ -223,7 +236,7 @@ func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName stri
 	if err != nil {
 		return err
 	}
-	err = python.AddRuntimeFile(unit, templateData, fmt.Sprintf("fs_%s.py", id), content)
+	err = python.AddRuntimeFile(unit, templateData, fmt.Sprintf("fs_%s.py.tmpl", id), content)
 	return err
 }
 
@@ -246,18 +259,6 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 		fileContents = proxyFargateContents
 	case "lambda":
 		fileContents = proxyLambdaContents
-		python.AddRequirements(unit, fsRequirements)
-		proxyEnvVar := core.EnvironmentVariable{
-			Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
-			Kind:       core.ProxyKind,
-			ResourceID: core.KlothoProxyName,
-			Value:      string(core.BUCKET_NAME),
-		}
-		unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
-		err := r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
-		if err != nil {
-			return err
-		}
 	default:
 		return errors.Errorf("unsupported exceution unit type: '%s'", r.Cfg.GetResourceType(unit))
 	}

@@ -11,10 +11,9 @@ import {
     HeadObjectCommand,
 } from '@aws-sdk/client-s3'
 
-const bucketName = process.env['{{.BucketNameEnvVar}}']
+const bucketEnvVar = '{{.BucketNameEnvVar}}'
+const bucketName = process.env[bucketEnvVar]
 const targetRegion = process.env['AWS_TARGET_REGION']
-
-const userBucketPath = '/files'
 
 const s3Client = new S3Client({ region: targetRegion })
 
@@ -74,7 +73,7 @@ exports.getCallParameters = getCallParameters
 async function saveParametersToS3(paramsS3Key, params) {
     try {
         const bucketParams = {
-            Bucket: payloadBucketPhysicalName,
+            Bucket: bucketName,
             Key: paramsS3Key,
             Body: JSON.stringify(params),
         }
@@ -88,8 +87,8 @@ exports.saveParametersToS3 = saveParametersToS3
 
 async function s3_writeFile(...args) {
     const bucketParams = {
-        Bucket: payloadBucketPhysicalName,
-        Key: `${userBucketPath}/${args[0]}`,
+        Bucket: bucketName,
+        Key: `${args[0]}`,
         Body: args[1],
     }
     try {
@@ -105,8 +104,8 @@ async function s3_writeFile(...args) {
 
 async function s3_readFile(...args) {
     const bucketParams = {
-        Bucket: payloadBucketPhysicalName,
-        Key: `${userBucketPath}/${args[0]}`,
+        Bucket: bucketName,
+        Key: `${args[0]}`,
     }
     try {
         // Get the object from the Amazon S3 bucket. It is returned as a ReadableStream.
@@ -123,8 +122,8 @@ async function s3_readFile(...args) {
 
 async function s3_readdir(path) {
     const bucketParams: ListObjectsCommandInput = {
-        Bucket: payloadBucketPhysicalName,
-        Prefix: `${userBucketPath}/${path}`,
+        Bucket: bucketName,
+        Prefix: `${path}`,
     }
 
     try {
@@ -141,7 +140,7 @@ async function s3_readdir(path) {
 }
 
 async function s3_exists(fpath) {
-    const bucketParams = { Bucket: payloadBucketPhysicalName, Key: `${userBucketPath}/${path}` }
+    const bucketParams = { Bucket: bucketName, Key: `${path}` }
     try {
         const data = await s3Client.send(new HeadObjectCommand(bucketParams))
         console.debug('Success. Object deleted.', data)
@@ -153,7 +152,7 @@ async function s3_exists(fpath) {
 }
 
 async function s3_deleteFile(fpath) {
-    const bucketParams = { Bucket: payloadBucketPhysicalName, Key: `${userBucketPath}/${path}` }
+    const bucketParams = { Bucket: bucketName, Key: `${path}` }
     try {
         const data = await s3Client.send(new DeleteObjectCommand(bucketParams))
         console.debug('Success. Object deleted.', data)

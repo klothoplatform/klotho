@@ -27,6 +27,7 @@ export enum Resource {
     redis_node = 'persist_redis_node',
     redis_cluster = 'persist_redis_cluster',
     pubsub = 'pubsub',
+    internal = 'internal',
 }
 
 export interface ResourceKey {
@@ -574,6 +575,11 @@ export class CloudCCLib {
             case Resource.fs:
                 const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
                 return [v.Name, bucket.bucket]
+            case Resource.internal:
+                if (v.ResourceID === 'InternalKlothoPayloads') {
+                    const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
+                    return [v.Name, bucket.bucket]
+                }
             default:
                 throw new Error('unsupported kind')
         }
@@ -769,7 +775,7 @@ export class CloudCCLib {
                 (accountId) =>
                     sanitized(
                         AwsSanitizer.S3.bucket.nameValidation()
-                    )`${accountId}-${this.region}-${b.Name}`
+                    )`${accountId}-${this.name}-${this.region}-${b.Name}`
             )
             const bucket = new aws.s3.Bucket(
                 b.Name,

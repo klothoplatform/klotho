@@ -2,7 +2,7 @@ import os
 
 import boto3
 
-payloadBucketPhysicalName = os.getenv("{{.BucketNameEnvVar}}")
+bucketName = os.getenv("{{.BucketNameEnvVar}}")
 
 
 def open(url: str, **kwargs):
@@ -12,7 +12,7 @@ def open(url: str, **kwargs):
 class s3ContextManager(object):
     def __init__(self, file_name: str, **kwargs):
         self.client = boto3.client('s3')
-        self.bucket_name = payloadBucketPhysicalName
+        self.bucket_name = bucketName
         self.file_name = file_name
         self.kwargs = kwargs
 

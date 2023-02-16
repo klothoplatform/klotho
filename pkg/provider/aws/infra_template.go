@@ -146,10 +146,10 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 				})
 			}
 
-		case *core.ProxyResource:
-			if res.Name == core.KlothoProxyName {
+		case *core.InternalResource:
+			if res.Name == core.KlothoPayloadName {
 				data.Buckets = append(data.Buckets, provider.FS{
-					Name: resources.GetPayloadsBucketName(*a.Config),
+					Name: res.Name,
 				})
 			}
 

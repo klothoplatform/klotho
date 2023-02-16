@@ -149,6 +149,12 @@ func (c *Compiler) Compile(main *InputFiles) (*CompilationResult, error) {
 	// Do the initial add without using Add so it doesn't log anything
 	(*ConcurrentMap[ResourceKey, CloudResource])(result).Set(main.Key(), main)
 
+	// Add our internal resource to be used for provider specific implementations. ex) aws dispatcher requires the payloads bucket and so does proxy
+	// TODO: We could likely move this into runtime, but until we refactor that to be common we can keep this here so it lives in one place.
+	// We previously always created the payloads bucket so the behavior is no different
+	internalResource := &InternalResource{Name: KlothoPayloadName}
+	(*ConcurrentMap[ResourceKey, CloudResource])(result).Set(internalResource.Key(), internalResource)
+
 	deps := &Dependencies{}
 
 	for _, p := range c.Plugins {
