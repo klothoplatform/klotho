@@ -35,24 +35,9 @@ type LoginResponse struct {
 	State string
 }
 
-type Authorizer interface {
-	// Authorize tries to authorize the user. The KlothoClaims it returns may be nil, even if the authentication
-	// succeeds. Conversely, if the KlothoClaims is non-nil, it is valid even if the error is also non-nil; you can use
-	// those claims provisionally (and specifically, in analytics) even if the error is non-nil, indicating failed
-	// authentication.
-	Authorize() (*KlothoClaims, error)
-}
+type Auth0Authorizer struct{}
 
-func DefaultIfNil(auth Authorizer) Authorizer {
-	if auth == nil {
-		return standardAuthorizer{}
-	}
-	return auth
-}
-
-type standardAuthorizer struct{}
-
-func (s standardAuthorizer) Authorize() (*KlothoClaims, error) {
+func (s Auth0Authorizer) Authorize() (*KlothoClaims, error) {
 	return Authorize()
 }
 

@@ -32,7 +32,15 @@ type KlothoMain struct {
 	VersionQualifier    string
 	PluginSetup         func(*PluginSetBuilder) error
 	// Authorizer is an optional authorizer override. If this also conforms to FlagsProvider, those flags will be added.
-	Authorizer auth.Authorizer
+	Authorizer Authorizer
+}
+type Authorizer interface {
+
+	// Authorize tries to authorize the user. The KlothoClaims it returns may be nil, even if the authentication
+	// succeeds. Conversely, if the KlothoClaims is non-nil, it is valid even if the error is also non-nil; you can use
+	// those claims provisionally (and specifically, in analytics) even if the error is non-nil, indicating failed
+	// authentication.
+	Authorize() (*auth.KlothoClaims, error)
 }
 
 type FlagsProvider interface {
@@ -79,7 +87,9 @@ const (
 )
 
 func (km KlothoMain) Main() {
-	km.Authorizer = auth.DefaultIfNil(km.Authorizer)
+	if km.Authorizer == nil {
+		km.Authorizer = auth.Auth0Authorizer{}
+	}
 
 	var root = &cobra.Command{
 		Use:  "klotho [path to source]",
