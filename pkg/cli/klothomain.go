@@ -2,28 +2,29 @@ package cli
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/closenicely"
-	"github.com/spf13/pflag"
 	"os"
 	"regexp"
-
-	"github.com/klothoplatform/klotho/pkg/auth"
-	"github.com/klothoplatform/klotho/pkg/cli_config"
-
-	"github.com/klothoplatform/klotho/pkg/updater"
-
-	"github.com/klothoplatform/klotho/pkg/input"
+	"time"
 
 	"github.com/fatih/color"
-	"github.com/klothoplatform/klotho/pkg/analytics"
-	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/gojek/heimdall/v7"
+	"github.com/gojek/heimdall/v7/httpclient"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/klothoplatform/klotho/pkg/analytics"
+	"github.com/klothoplatform/klotho/pkg/auth"
+	"github.com/klothoplatform/klotho/pkg/cli_config"
+	"github.com/klothoplatform/klotho/pkg/closenicely"
+	"github.com/klothoplatform/klotho/pkg/config"
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/input"
+	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/klothoplatform/klotho/pkg/updater"
 )
 
 type KlothoMain struct {
@@ -271,6 +272,11 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		ServerURL:     updater.DefaultServer,
 		Stream:        updateStream,
 		CurrentStream: km.DefaultUpdateStream,
+		Client: httpclient.NewClient(
+			httpclient.WithHTTPTimeout(5*time.Minute),
+			httpclient.WithRetryCount(3),
+			httpclient.WithRetrier(heimdall.NewRetrier(heimdall.NewExponentialBackoff(10*time.Millisecond, time.Second, 1.5, 100*time.Millisecond))),
+		),
 	}
 	if cfg.update {
 		if err := klothoUpdater.Update(km.Version); err != nil {
