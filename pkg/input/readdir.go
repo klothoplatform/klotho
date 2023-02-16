@@ -54,10 +54,9 @@ func hasName(expected string) predicate.Predicate[string] {
 	}
 }
 
-func hasExtension(expected string) predicate.Predicate[string] {
-	extension := "." + expected
+func hasExtension(extension string) predicate.Predicate[string] {
 	return func(name string) bool {
-		return extension != name && strings.HasSuffix(name, extension)
+		return filepath.Ext(name) == extension
 	}
 }
 
@@ -147,7 +146,7 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 		projectFileOpener:      Upcast(golang.NewGoMod)}
 	csLang := &languageFiles{
 		name:                   CSharp,
-		projectFilePredicate:   hasExtension("csproj"),
+		projectFilePredicate:   hasExtension(".csproj"),
 		projectFileDescription: "MSBuild Project File (.csproj)",
 		// TODO: project files in C# are currently unused, so no need to open & parse them.
 		projectFileOpener: func(path string, content io.Reader) (f core.File, err error) { return &core.FileRef{FPath: path}, nil },
@@ -155,7 +154,6 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 	yamlLang := &languageFiles{name: Yaml}
 	dockerfileLang := &languageFiles{name: DockerFile}
 	allLangs := []*languageFiles{jsLang, pyLang, goLang, yamlLang, csLang}
-	projectDirs := map[languageName][]string{}
 
 	err := fs.WalkDir(fsys, cfg.Path, func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
@@ -177,10 +175,6 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 		}
 
 		if info.IsDir() {
-			err = detectProjectsInDir(allLangs, fsys, path, projectDirs)
-			if err != nil {
-				return err
-			}
 
 			switch info.Name() {
 			case "node_modules", "vendor":
@@ -193,11 +187,10 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 				if dir == "." {
 					dir = cfg.Path
 				}
-				for _, projectDir := range projectDirs[CSharp] {
-					if dir == projectDir {
-						zap.L().With(logging.FileField(f)).Debug("detected C# project output, skipping directory")
-						return fs.SkipDir
-					}
+				projectsInDir := getProjectFilesInDir(allLangs, fsys, dir)
+				if _, ok := projectsInDir[CSharp]; ok {
+					zap.L().With(logging.FileField(f)).Debug("detected C# project output, skipping directory")
+					return fs.SkipDir
 				}
 			case ".idea", ".vscode":
 				fallthrough
@@ -222,6 +215,7 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 			if lang.isProjectFile(info.Name()) {
 				f, err = addFile(fsys, path, relPath, lang.projectFileOpener)
 				isProjectFile = true
+				lang.foundProjectFile = true
 				break
 			}
 		}
@@ -292,22 +286,17 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 	return input, nil
 }
 
-func detectProjectsInDir(langs []*languageFiles, fsys fs.FS, dir string, projectDirs map[languageName][]string) error {
+func getProjectFilesInDir(langs []*languageFiles, fsys fs.FS, dir string) map[languageName][]string {
+	projectFiles := make(map[languageName][]string)
 	entries, _ := fs.ReadDir(fsys, dir)
 	for _, lang := range langs {
 		for _, e := range entries {
 			if lang.isProjectFile(e.Name()) {
-				for _, projectDir := range projectDirs[lang.name] {
-					if dir == projectDir {
-						return fmt.Errorf("multiple '%s' files found in directory: %s", lang.projectFileDescription, dir)
-					}
-				}
-				projectDirs[lang.name] = append(projectDirs[lang.name], dir)
-				lang.foundProjectFile = true
+				projectFiles[lang.name] = append(projectFiles[lang.name], e.Name())
 			}
 		}
 	}
-	return nil
+	return projectFiles
 }
 
 // openFindUpward tries to open the `basename` file in `rootPath`, or any of its parent dirs up to `fsys`'s root.
@@ -331,10 +320,8 @@ func openFindUpward(lang *languageFiles, rootPath string, fsys fs.FS) (core.File
 				if err != nil {
 					break
 				}
-				projectFile, err = func() (core.File, error) {
-					defer f.Close()
-					return lang.projectFileOpener(prjFilePath, f)
-				}()
+				projectFile, err = lang.projectFileOpener(prjFilePath, f)
+				f.Close()
 				if err != nil {
 					break
 				}

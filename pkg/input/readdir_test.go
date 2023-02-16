@@ -157,15 +157,6 @@ func TestReadDir(t *testing.T) {
 			rootPath: "parent/src",
 		},
 		{
-			name: "csharp: multiple csproj returns error",
-			files: map[string]string{
-				"fizz/one.cs":            "",
-				"fizz/myproject.csproj":  "<Project></Project>",
-				"fizz/myproject2.csproj": "<Project></Project>",
-			},
-			rootPath: "fizz",
-		},
-		{
 			name: "multi-language",
 			files: map[string]string{
 				"fizz/js/one.js":        "",
