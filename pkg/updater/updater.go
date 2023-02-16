@@ -92,7 +92,7 @@ func (u *Updater) Update(currentVersion string) error {
 		return nil
 	}
 
-	body, err := u.getLatest(u.ServerURL, u.Stream)
+	body, err := u.getLatest()
 	if err != nil {
 		return errors.Wrapf(err, "failed to get latest")
 	}
@@ -108,8 +108,8 @@ func (u *Updater) Update(currentVersion string) error {
 }
 
 // getLatest Grabs latest release from klotho server
-func (u *Updater) getLatest(baseUrl string, stream string) (io.ReadCloser, error) {
-	endpoint := fmt.Sprintf("%s/update/latest/%s/%s?stream=%s", baseUrl, OS, Arch, stream)
+func (u *Updater) getLatest() (io.ReadCloser, error) {
+	endpoint := fmt.Sprintf("%s/update/latest/%s/%s?stream=%s", u.ServerURL, OS, Arch, u.Stream)
 	res, err := u.Client.Get(endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query for latest version: %v", err)
