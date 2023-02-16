@@ -3,6 +3,7 @@ import * as pulumi from '@pulumi/pulumi'
 import { CloudCCLib } from '../deploylib'
 import * as sha256 from 'simple-sha256'
 import { LoadBalancerPlugin } from './load_balancing'
+import { DeploymentArgs, StageArgs } from '@pulumi/aws/apigatewayv2'
 
 export interface Route {
     verb: string
@@ -21,7 +22,7 @@ function sanitizeName(g: Gateway) {
 }
 
 export class ApiGateway {
-    private readonly vpcLink: aws.apigatewayv2.VpcLink
+    private readonly vpcLink?: aws.apigatewayv2.VpcLink
     public readonly invokeUrls: pulumi.Output<string>[] = []
     private readonly execUnitToIntegration = new Map<string, aws.apigatewayv2.Integration>()
 
@@ -179,14 +180,17 @@ export class ApiGateway {
         routes: aws.apigatewayv2.Route[],
         dependsOn: pulumi.Resource[] = []
     ) {
+        const triggers: DeploymentArgs['triggers'] = {
+            integrationNames: sha256.sync(integrationNames.sort().join(',')),
+        }
+        if (this.vpcLink != undefined) {
+            triggers.link = this.vpcLink.arn
+        }
         return new aws.apigatewayv2.Deployment(
             `${gwName}-deploy`,
             {
                 apiId: api.id,
-                triggers: {
-                    integrationNames: sha256.sync(integrationNames.sort().join(',')),
-                    link: this.vpcLink.arn,
-                },
+                triggers,
             },
             {
                 dependsOn: [...routes, ...dependsOn],
@@ -200,18 +204,22 @@ export class ApiGateway {
         api: aws.apigatewayv2.Api,
         deployment: aws.apigatewayv2.Deployment
     ) {
+        const dependsOn: pulumi.Resource[] = []
+        const stageVariables: StageArgs['stageVariables'] = {}
+        if (this.vpcLink != undefined) {
+            stageVariables.vpcLinkId = this.vpcLink.id
+            dependsOn.push(this.vpcLink)
+        }
         return new aws.apigatewayv2.Stage(
             `${gwName}-stage`,
             {
                 apiId: api.id,
                 name: '$default',
                 deploymentId: deployment.id,
-                stageVariables: {
-                    vpcLinkId: this.vpcLink.id,
-                },
+                stageVariables,
             },
             {
-                dependsOn: [this.vpcLink],
+                dependsOn,
                 parent: api,
             }
         )
