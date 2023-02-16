@@ -21,7 +21,7 @@ var (
 	Arch string = runtime.GOARCH
 )
 
-var (
+const (
 	DefaultServer string = "http://srv.klo.dev"
 )
 
@@ -77,7 +77,10 @@ func (u *Updater) CheckUpdate(currentVersion string) (bool, error) {
 		return false, fmt.Errorf("invalid version %s: %v", currentVersion, err)
 	}
 
-	return currVersion.LessThan(*latestVersion) || strings.Split(u.CurrentStream, ":")[0] != strings.Split(u.Stream, ":")[0], nil
+	// Given a stream "xxx:yyyy", the qualifier is the "xxx"
+	differentQualifier := strings.Split(u.CurrentStream, ":")[0] != strings.Split(u.Stream, ":")[0]
+	differentVersion := !currVersion.Equal(*latestVersion)
+	return differentQualifier || differentVersion, nil
 }
 
 // Update performs an update if a newer version is
