@@ -187,7 +187,7 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 				if dir == "." {
 					dir = cfg.Path
 				}
-				projectsInDir := getProjectFilesInDir(allLangs, fsys, dir)
+				projectsInDir := getProjectFilesInDir(fsys, dir, csLang)
 				if _, ok := projectsInDir[CSharp]; ok {
 					zap.L().With(logging.FileField(f)).Debug("detected C# project output, skipping directory")
 					return fs.SkipDir
@@ -286,7 +286,7 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 	return input, nil
 }
 
-func getProjectFilesInDir(langs []*languageFiles, fsys fs.FS, dir string) map[languageName][]string {
+func getProjectFilesInDir(fsys fs.FS, dir string, langs ...*languageFiles) map[languageName][]string {
 	projectFiles := make(map[languageName][]string)
 	entries, _ := fs.ReadDir(fsys, dir)
 	for _, lang := range langs {
