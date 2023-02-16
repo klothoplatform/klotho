@@ -11,8 +11,7 @@ import (
 
 type (
 	Runtime interface {
-		AddExecRuntimeFiles(unit *core.ExecutionUnit) error
-		UpdateCsproj(unit *core.ExecutionUnit)
+		AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error
 	}
 )
 

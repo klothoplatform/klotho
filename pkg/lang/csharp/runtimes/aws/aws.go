@@ -2,6 +2,7 @@ package aws_runtime
 
 import (
 	_ "embed"
+	"fmt"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp"
@@ -30,10 +31,27 @@ type (
 	}
 
 	ExposeTemplateData struct {
-		StartupClass            string
 		APIGatewayProxyFunction string
+		FunctionType            string
+		StartupClass            string
+	}
+
+	qualifiedName struct {
+		namespace string
+		name      string
 	}
 )
+
+var lambdaApiTypeClasses = map[string]qualifiedName{
+	"REST": {
+		namespace: "Amazon.Lambda.AspNetCoreServer",
+		name:      "APIGatewayProxyFunction",
+	},
+	"HTTP": {
+		namespace: "Amazon.Lambda.AspNetCoreServer",
+		name:      "APIGatewayHttpApiV2ProxyFunction",
+	},
+}
 
 //go:embed Lambda_Dockerfile.tmpl
 var dockerfileLambda []byte
@@ -41,8 +59,7 @@ var dockerfileLambda []byte
 //go:embed Lambda_Dispatcher.cs.tmpl
 var dispatcherLambda []byte
 
-func (r *AwsRuntime) UpdateCsproj(unit *core.ExecutionUnit) {
-
+func updateCsproj(unit *core.ExecutionUnit) {
 	var projectFile *csproj.CSProjFile
 	for _, file := range unit.Files() {
 		if pfile, ok := file.(*csproj.CSProjFile); ok {
@@ -52,33 +69,21 @@ func (r *AwsRuntime) UpdateCsproj(unit *core.ExecutionUnit) {
 	}
 
 	projectFile.AddProperty("OutDir", "klotho_bin")
-
 }
 
-func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit) error {
+func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
 	var errs multierr.Error
 	var err error
 	var dockerFile []byte
-	var startupClass *csharp.ASPDotNetCoreStartupClass
-	var lambdaHandlerName string
 	unitType := r.Cfg.GetResourceType(unit)
 	switch unitType {
 	case "lambda":
 		dockerFile = dockerfileLambda
-
-		// TODO: implement choosing the correct handler class based on the upstream gateway type
-		lambdaHandlers := csharp.FindLambdaHandlerClasses(unit)
-		if len(lambdaHandlers) > 0 {
-			lambdaHandlerName = lambdaHandlers[0].QualifiedName
-		}
-		errs.Append(err)
 	default:
 		return errors.Errorf("unsupported execution unit type: '%s'", unitType)
 	}
-	startupClass, err = csharp.FindASPDotnetCoreStartupClass(unit)
-	errs.Append(err)
 
-	r.UpdateCsproj(unit)
+	updateCsproj(unit)
 
 	var projectFile *csproj.CSProjFile
 	for _, file := range unit.Files() {
@@ -90,20 +95,15 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit) error {
 
 	assembly := resolveAssemblyName(projectFile)
 
-	startupClassName := ""
-	if startupClass != nil {
-		startupClassName = startupClass.Class.QualifiedName
-	}
+	exposeData, err := r.getExposeTemplateData(unit, result, deps)
+	errs.Append(err)
 
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
 		ExecUnitName:   unit.Name,
 		CSProjFile:     projectFile.Path(),
-		Expose: ExposeTemplateData{
-			StartupClass:            startupClassName,
-			APIGatewayProxyFunction: lambdaHandlerName,
-		},
-		AssemblyName: assembly,
+		Expose:         exposeData,
+		AssemblyName:   assembly,
 	}
 
 	errs.Append(csharp.AddRuntimeFile(unit, templateData, "Dockerfile.tmpl", dockerFile))
@@ -120,4 +120,75 @@ func resolveAssemblyName(projectFile *csproj.CSProjFile) string {
 		assembly = strings.TrimSuffix(pFileName, ".csproj")
 	}
 	return assembly
+}
+
+func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) (ExposeTemplateData, error) {
+	upstreamGateways := core.FindUpstreamGateways(unit, result, deps)
+
+	var sgw *core.Gateway
+	var sgwApiType string
+	for _, gw := range upstreamGateways {
+		gwApiType := r.Cfg.GetExposed(gw.Name).ApiType
+		if sgw != nil {
+			if sgw.DefinedIn != gw.DefinedIn || sgw.ExportVarName != gw.ExportVarName {
+				return ExposeTemplateData{},
+					errors.Errorf("multiple gateways cannot target different web applications in the same execution unit: [%s -> %s],[%s -> %s]",
+						gw.Name, unit.Name,
+						sgw.Name, unit.Name)
+			}
+			if sgwApiType != gwApiType {
+				return ExposeTemplateData{},
+					errors.Errorf("an execution unit cannot be targeted by different gateways with different API types : [%s:%s -> %s],[%s:%s -> %s]",
+						gwApiType, gw.Name, unit.Name,
+						sgwApiType, sgw.Name, unit.Name)
+			}
+		}
+		sgw = gw
+		sgwApiType = gwApiType
+	}
+
+	if sgw == nil {
+		return ExposeTemplateData{}, nil
+	}
+
+	startupClass, err := csharp.FindASPDotnetCoreStartupClass(unit)
+	if err != nil {
+		return ExposeTemplateData{}, err
+	}
+
+	unitType := r.Cfg.GetExecutionUnit(unit.Name).Type
+
+	if unitType != "lambda" {
+		return ExposeTemplateData{}, fmt.Errorf("unit type \"%s\" is not supported in C# execution units", unitType)
+	}
+
+	className := lambdaApiTypeClasses[sgwApiType]
+
+	entrypointClasses := csharp.FindSubtypes(unit, className.namespace, className.name)
+	var validEntrypoints []*csharp.TypeDeclaration
+	for _, h := range entrypointClasses {
+		if h.IsSealed || h.Visibility != csharp.VisibilityPublic {
+			continue
+		}
+		validEntrypoints = append(validEntrypoints, h)
+	}
+	if len(validEntrypoints) > 1 {
+		var names []string
+		for _, h := range validEntrypoints {
+			names = append(names, h.QualifiedName)
+		}
+		return ExposeTemplateData{}, fmt.Errorf("ambiguous user defined AWS Lamba entrypoint: more than 1 implementation provided :%s", strings.Join(names, ", "))
+	}
+	entrypointName := ""
+	if len(validEntrypoints) == 1 {
+		entrypointName = validEntrypoints[0].QualifiedName
+	}
+
+	exposeData := ExposeTemplateData{
+		StartupClass:            startupClass.Class.QualifiedName,
+		APIGatewayProxyFunction: entrypointName,
+		FunctionType:            fmt.Sprintf("%s.%s", className.namespace, className.name),
+	}
+
+	return exposeData, nil
 }

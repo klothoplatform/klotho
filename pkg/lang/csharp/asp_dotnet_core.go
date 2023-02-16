@@ -95,22 +95,18 @@ func getDotnetCoreStartupClass(classNode *sitter.Node) (ASPDotNetCoreStartupClas
 	return startupClass, true
 }
 
-func FindLambdaHandlerClasses(unit *core.ExecutionUnit) []*TypeDeclaration {
-	var handlerClasses []*TypeDeclaration
+func FindSubtypes(unit *core.ExecutionUnit, baseNamespace, baseType string) []*TypeDeclaration {
+	var declarations []*TypeDeclaration
 	for _, csFile := range unit.FilesOfLang(CSharp) {
 		types := FindDeclarationsInFile[*TypeDeclaration](csFile).Declarations()
 		for _, t := range types {
-			if t.IsSealed || t.Visibility != VisibilityPublic {
-				continue
-			}
 			for _, bNode := range t.Bases {
-				if IsValidTypeName(bNode, "Amazon.Lambda.AspNetCoreServer", "APIGatewayProxyFunction") ||
-					IsValidTypeName(bNode, "Amazon.Lambda.AspNetCoreServer", "APIGatewayHttpApiV2ProxyFunction") {
-					handlerClasses = append(handlerClasses, t)
+				if IsValidTypeName(bNode, baseNamespace, baseType) {
+					declarations = append(declarations, t)
 					break
 				}
 			}
 		}
 	}
-	return handlerClasses
+	return declarations
 }

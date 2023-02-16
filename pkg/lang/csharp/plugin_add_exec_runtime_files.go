@@ -22,7 +22,7 @@ func (p *AddExecRuntimeFiles) Transform(result *core.CompilationResult, deps *co
 		if !(ok && unit.HasSourceFilesFor(CSharp)) {
 			continue
 		}
-		errs.Append(p.runtime.AddExecRuntimeFiles(unit))
+		errs.Append(p.runtime.AddExecRuntimeFiles(unit, result, deps))
 	}
 	return errs.ErrOrNil()
 }

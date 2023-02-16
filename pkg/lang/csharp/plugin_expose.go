@@ -72,14 +72,9 @@ type useEndpointsResult struct {
 	EndpointRouteBuilderIdentifier *sitter.Node // Identifier of the RoutesBuilder param (endpoints => {...})
 }
 
-const (
-	builderNamespace = "Microsoft.AspNetCore.Builder"
-	hostingNamespace = "Microsoft.AspNetCore.Hosting"
-)
-
 func (p *Expose) Name() string { return "Expose" }
 
-func (p Expose) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p *Expose) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
 	var errs multierr.Error
 	for _, res := range result.Resources() {
 		unit, ok := res.(*core.ExecutionUnit)
@@ -93,7 +88,11 @@ func (p Expose) Transform(result *core.CompilationResult, deps *core.Dependencie
 }
 
 func (p *Expose) transformSingle(result *core.CompilationResult, deps *core.Dependencies, unit *core.ExecutionUnit) error {
-	h := &aspDotNetCoreHandler{Result: result, Deps: deps, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
+	h := &aspDotNetCoreHandler{
+		Result:          result,
+		Deps:            deps,
+		RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition),
+	}
 	err := h.handle(unit)
 	if err != nil {
 		err = core.WrapErrf(err, "ASP.NET Core handler failed for %s", unit.Name)
@@ -261,8 +260,8 @@ func findIApplicationBuilder(cap *core.Annotation) []useEndpointsResult {
 			break
 		}
 
-		if !IsValidTypeName(match["param1_type"], builderNamespace, "IApplicationBuilder") ||
-			!IsValidTypeName(match["param2_type"], hostingNamespace, "IWebHostEnvironment") {
+		if !IsValidTypeName(match["param1_type"], "Microsoft.AspNetCore.Builder", "IApplicationBuilder") ||
+			!IsValidTypeName(match["param2_type"], "Microsoft.AspNetCore.Hosting", "IWebHostEnvironment") {
 			continue
 		}
 
