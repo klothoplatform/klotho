@@ -586,7 +586,7 @@ func parseActionAttributes(method MethodDeclaration) []actionSpec {
 				verb := core.Verb(strings.ToUpper(arg.Value))
 				_, supported := core.Verbs[verb]
 
-				if supported == true {
+				if supported {
 					verbs = append(verbs, verb)
 				}
 			}

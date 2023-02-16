@@ -617,7 +617,10 @@ func TestExpose_Transform(t *testing.T) {
 			}
 			deps := &core.Dependencies{}
 			expose := Expose{}
-			expose.Transform(result, deps)
+			err := expose.Transform(result, deps)
+			if !assert.NoError(err) {
+				return
+			}
 
 			gateways := core.GetResourcesOfType[*core.Gateway](result)
 			assert.Equal(len(tt.expectedGateways), len(gateways))

@@ -22,7 +22,7 @@ func ContainingNamespaces(node *sitter.Node) map[string]struct{} {
 		namespaces = append([]string{ns.ChildByFieldName("name").Content()}, namespaces...)
 	}
 	qualifiedNamespaces := make(map[string]struct{})
-	for i, _ := range namespaces {
+	for i := range namespaces {
 		qualifiedNamespaces[strings.Join(namespaces[0:i+1], ".")] = struct{}{}
 	}
 	return qualifiedNamespaces

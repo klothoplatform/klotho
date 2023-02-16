@@ -192,9 +192,7 @@ type NamespaceDeclarations[T Declarable] map[string][]T
 func (nsd NamespaceDeclarations[T]) Declarations() []T {
 	var allDeclarations []T
 	for _, nsDeclarations := range nsd {
-		for _, d := range nsDeclarations {
-			allDeclarations = append(allDeclarations, d)
-		}
+		allDeclarations = append(allDeclarations, nsDeclarations...)
 	}
 	return allDeclarations
 }
@@ -226,7 +224,7 @@ func FindDeclarationsAtNode[T Declarable](node *sitter.Node) NamespaceDeclaratio
 	case NamespaceDeclarations[*FieldDeclaration]:
 		return any(findDeclarationsWithSpec(declarationSpec[*FieldDeclaration]{node: node, query: fieldDeclarations, parseFunc: parseFieldDeclaration})).(NamespaceDeclarations[T])
 	case NamespaceDeclarations[Declarable]:
-		var allDeclarations NamespaceDeclarations[T]
+		allDeclarations := make(NamespaceDeclarations[T])
 		for name, declarations := range findDeclarationsWithSpec(declarationSpec[*TypeDeclaration]{node: node, query: typeDeclarations, parseFunc: parseTypeDeclaration}) {
 			allDeclarations[name] = append(allDeclarations[name], any(declarations).([]T)...)
 		}
@@ -595,10 +593,7 @@ func isNested(declaration *sitter.Node) bool {
 		return true
 	}
 	outer = query.FirstAncestorOfType(declaration.Parent(), "class_declaration")
-	if outer != nil {
-		return true
-	}
-	return false
+	return outer != nil
 }
 
 func IsInNamespace[T Declarable](namespace string) predicate.Predicate[T] {
@@ -630,7 +625,7 @@ func HasBase(namespace, typeName string, using Imports) predicate.Predicate[*Typ
 
 func HasBaseWithSuffix(suffix string) predicate.Predicate[*TypeDeclaration] {
 	return func(d *TypeDeclaration) bool {
-		for name, _ := range d.Bases {
+		for name := range d.Bases {
 			if strings.HasSuffix(name, suffix) {
 				return true
 			}
