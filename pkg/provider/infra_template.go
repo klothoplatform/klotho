@@ -83,8 +83,9 @@ type (
 	}
 
 	Config struct {
-		Name   string
-		Params config.InfraParams
+		Name     string
+		FilePath string
+		Params   config.InfraParams
 	}
 
 	Gateway struct {

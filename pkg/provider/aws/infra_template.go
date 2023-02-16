@@ -172,7 +172,12 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 
 		case *core.Secrets:
 			if res.Kind == core.PersistSecretKind {
-				data.Secrets = append(data.Secrets, res.Secrets...)
+				for _, secret := range res.Secrets {
+					data.SecretManagerSecrets = append(data.SecretManagerSecrets, provider.Config{
+						Name:     secret,
+						FilePath: secret,
+					})
+				}
 			}
 		case *core.Topology:
 			data.Topology = res.GetTopologyData()
