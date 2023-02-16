@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/coreos/go-semver/semver"
 	"github.com/gojek/heimdall/v7/httpclient"
@@ -31,6 +30,8 @@ type Updater struct {
 	Stream string
 	// CurrentStream is the stream this binary came from
 	CurrentStream string
+
+	Client *httpclient.Client
 }
 
 func selfUpdate(data io.ReadCloser) error {
@@ -42,11 +43,8 @@ func selfUpdate(data io.ReadCloser) error {
 // against the latest github release, returns true
 // if the latest release is newer
 func (u *Updater) CheckUpdate(currentVersion string) (bool, error) {
-	timeout := 10 * time.Second
-	cli := httpclient.NewClient(httpclient.WithHTTPTimeout(timeout))
-
 	endpoint := fmt.Sprintf("%s/update/check-latest-version?stream=%s", u.ServerURL, u.Stream)
-	res, err := cli.Get(endpoint, nil)
+	res, err := u.Client.Get(endpoint, nil)
 	if err != nil {
 		return false, fmt.Errorf("failed to query for latest version: %v", err)
 	}
@@ -94,7 +92,7 @@ func (u *Updater) Update(currentVersion string) error {
 		return nil
 	}
 
-	body, err := getLatest(u.ServerURL, u.Stream)
+	body, err := u.getLatest(u.ServerURL, u.Stream)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get latest")
 	}
@@ -110,12 +108,9 @@ func (u *Updater) Update(currentVersion string) error {
 }
 
 // getLatest Grabs latest release from klotho server
-func getLatest(baseUrl string, stream string) (io.ReadCloser, error) {
-	timeout := 10 * time.Second
-	cli := httpclient.NewClient(httpclient.WithHTTPTimeout(timeout))
-
+func (u *Updater) getLatest(baseUrl string, stream string) (io.ReadCloser, error) {
 	endpoint := fmt.Sprintf("%s/update/latest/%s/%s?stream=%s", baseUrl, OS, Arch, stream)
-	res, err := cli.Get(endpoint, nil)
+	res, err := u.Client.Get(endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query for latest version: %v", err)
 	}
