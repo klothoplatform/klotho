@@ -43,14 +43,16 @@ func TestCheckUpdate(t *testing.T) {
 			expectUpdate:   true,
 		},
 		{
-			name: `(weird case) same stream, server has older version`, // unexpected, but should downgrade, I guess?
+			name: `same stream, server has older version`,
 			cli: updateInputs{
 				buildStream:    `open:latest`,
 				currentVersion: `0.5.1`,
 				checkStream:    `open:latest`,
 			},
 			serverResponse: `0.5.0`,
-			expectUpdate:   true,
+			// This is typically unexpected, but can happen in development, or if we give someone a pre-release.
+			// We should not downgrade in either of those cases.
+			expectUpdate: false,
 		},
 		{
 			name: `different stream, server has newer version`,
