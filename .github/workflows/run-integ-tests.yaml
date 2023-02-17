@@ -15,11 +15,6 @@ on:
         description: comma-delimited list of dirs within test-app-repo to run (if empty, runs all)
         required: false
         type: string
-      klotho-login:
-        description: email address to log into Klotho
-        required: true
-        type: string
-        default: klotho-engineering@klo.dev
       region:
         description: the AWS region to deploy to, other than redis tests
         required: false
@@ -45,10 +40,6 @@ on:
       test-app-overrides:
         description: comma-delimited list of dirs within test-app-repo
         required: false
-        type: string
-      klotho-login:
-        description: email address to log into Klotho
-        required: true
         type: string
       region:
         description: the AWS region to deploy to
@@ -166,9 +157,7 @@ jobs:
         run: |
           curl -fsSL http://srv.klo.dev/update/latest/linux/amd64 -o "$RUNNER_TEMP/klotho-old"
           chmod +x "$RUNNER_TEMP/klotho-old"
-          "$RUNNER_TEMP/klotho-old" --login "$KLOTHO_LOGIN"
-        env:
-          KLOTHO_LOGIN: ${{ inputs.klotho-login }}
+          "$RUNNER_TEMP/klotho-old" --login 'klotho-engineering@klo.dev'
       - name: download klotho
         uses: actions/download-artifact@v3
         with:
@@ -184,9 +173,6 @@ jobs:
       - name: install klotho
         run: |
           chmod +x $RUNNER_TEMP/klotho
-          klotho --login $KLOTHO_LOGIN
-        env:
-          KLOTHO_LOGIN: ${{ inputs.klotho-login }}
       - name: typescript compilation
         if: steps.get_language.outputs.language == 'ts'
         working-directory: ${{ matrix.app_to_test }}
@@ -205,6 +191,8 @@ jobs:
           else
             klotho . --app $STACK_NAME -p aws
           fi
+        env:
+          KLOTHO_ID_TOKEN: ${{ secrets.KLOTHO_CREDS_ID_TOKEN }}
       - name: pulumi npm install
         working-directory: ${{ matrix.app_to_test }}
         run: |
@@ -282,6 +270,8 @@ jobs:
           else
             klotho . --app $STACK_NAME -p aws
           fi
+        env:
+          KLOTHO_ID_TOKEN: ${{ secrets.KLOTHO_CREDS_ID_TOKEN }}
       - name: pulumi npm install (upgrade path)
         if: matrix.mode == 'upgrade'
         working-directory: ${{ matrix.app_to_test }}
