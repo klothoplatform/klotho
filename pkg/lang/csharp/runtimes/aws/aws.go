@@ -9,6 +9,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/lang/csharp/csproj"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
+	"github.com/klothoplatform/klotho/pkg/runtime"
 	"github.com/pkg/errors"
 	"path/filepath"
 	"strings"
@@ -106,7 +107,9 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		AssemblyName:   assembly,
 	}
 
-	errs.Append(csharp.AddRuntimeFile(unit, templateData, "Dockerfile.tmpl", dockerFile))
+	if runtime.ShouldOverrideDockerfile(unit) {
+		errs.Append(csharp.AddRuntimeFile(unit, templateData, "Dockerfile.tmpl", dockerFile))
+	}
 	errs.Append(csharp.AddRuntimeFile(unit, templateData, "Dispatcher.cs.tmpl", dispatcherLambda))
 
 	return errs.ErrOrNil()
