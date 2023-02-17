@@ -82,13 +82,16 @@ export class ApiGateway {
         return new aws.lambda.Permission(
             `${gwName}-${verb}-${path}`,
             {
-                statementId: `${gwName}-${verb}-${r.path.replace(/[^a-zA-Z0-9]+/g, '-')}`,
+                statementId: `${gwName}-http-${verb}-${r.path.replace(/[^a-zA-Z0-9]+/g, '-')}`,
                 action: 'lambda:InvokeFunction',
                 function: lambda,
                 principal: 'apigateway.amazonaws.com',
                 sourceArn: pulumi.interpolate`arn:aws:execute-api:${this.lib.region}:${this.accountId}:${resourceId}`,
             },
-            { parent: lambda }
+            {
+                dependsOn: [api],
+                parent: lambda,
+            }
         )
     }
 
@@ -495,7 +498,7 @@ export class ApiGateway {
                     new aws.lambda.Permission(
                         `${r.execUnitName}-${r.verb}-${r.path}-permission`,
                         {
-                            statementId: `${gwName}-${r.verb}-${r.path.replace(
+                            statementId: `${gwName}-rest-${r.verb}-${r.path.replace(
                                 /[^a-zA-Z0-9]/g,
                                 '-'
                             )}`,
@@ -508,7 +511,10 @@ export class ApiGateway {
                                 r.verb.toUpperCase() === 'ANY' ? '*' : r.verb.toUpperCase()
                             }${parentResource == null ? '/' : parentResource.path}`,
                         },
-                        { parent: lambda }
+                        {
+                            dependsOn: [restAPI],
+                            parent: lambda,
+                        }
                     )
                 )
             }
