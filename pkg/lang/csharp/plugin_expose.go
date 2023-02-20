@@ -602,7 +602,7 @@ func parseActionAttributes(method MethodDeclaration) []actionSpec {
 			routeTemplate = args[0].Value
 		}
 
-		for verb, _ := range allRoutesVerbs {
+		for verb := range allRoutesVerbs {
 			spec := actionSpec{
 				name:             method.Name,
 				method:           method,
