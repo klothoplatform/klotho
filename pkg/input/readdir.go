@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
+	"github.com/klothoplatform/klotho/pkg/lang/csharp/csproj"
 	"io"
 	"io/fs"
 	"os"
@@ -148,8 +149,7 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 		name:                   CSharp,
 		projectFilePredicate:   hasExtension(".csproj"),
 		projectFileDescription: "MSBuild Project File (.csproj)",
-		// TODO: project files in C# are currently unused, so no need to open & parse them.
-		projectFileOpener: func(path string, content io.Reader) (f core.File, err error) { return &core.FileRef{FPath: path}, nil },
+		projectFileOpener:      Upcast(csproj.NewCSProjFile),
 	}
 	yamlLang := &languageFiles{name: Yaml}
 	dockerfileLang := &languageFiles{name: DockerFile}
