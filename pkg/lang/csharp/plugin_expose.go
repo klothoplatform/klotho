@@ -20,19 +20,17 @@ import (
 )
 
 type (
-	Expose struct{}
-
+	Expose      struct{}
 	gatewaySpec struct {
-		FilePath        string
-		AppBuilderName  string
-		MapsControllers bool
+		FilePath        string // The path of the file containing the expose annotation
+		AppBuilderName  string // Name of the argument that UseEndpoints() is invoked on
+		MapsControllers bool   // Flag indicating that controller detection should be enabled for this spec
 		gatewayId       string
 	}
 	gatewayRouteDefinition struct {
 		core.Route
 		DefinedInPath string
 	}
-
 	aspDotNetCoreHandler struct {
 		Result           *core.CompilationResult
 		Deps             *core.Dependencies
@@ -42,6 +40,8 @@ type (
 		log              *zap.Logger
 		ControllerRoutes []gatewayRouteDefinition
 	}
+
+	// actionSpec represents a fully parsed ASP.NET Core action method
 	actionSpec struct {
 		method           MethodDeclaration
 		verb             core.Verb
@@ -50,6 +50,7 @@ type (
 		hasRouteTemplate bool // an empty string is a valid routeTemplate value
 	}
 
+	// controllerSpec represents a fully parsed ASP.NET Core controller (including its actions)
 	controllerSpec struct {
 		execUnitName string
 		name         string
@@ -58,29 +59,34 @@ type (
 		controllerAttributeSpec
 	}
 
+	// controllerAttributeSpec represents the details derived from
+	// routing attributes applied to an ASP.NET Core Controller class
 	controllerAttributeSpec struct {
 		routeTemplates []string
 		area           string
 	}
-)
 
-// useEndpointsResult represents an ASP.net Core IApplicationBuilder.UseEndpoints() invocation
-type useEndpointsResult struct {
-	StartupClassDeclaration        *sitter.Node // Declaration of the Startup class surrounding the expose annotation
-	UseExpression                  *sitter.Node // Expression of the UseEndpoints() invocation (app.UseEndpoints(endpoints => {...})
-	AppBuilderIdentifier           *sitter.Node // Identifier of the builder (IApplicationBuilder app)
-	EndpointRouteBuilderIdentifier *sitter.Node // Identifier of the RoutesBuilder param (endpoints => {...})
-}
+	// useEndpointsResult represents an ASP.Net Core IApplicationBuilder.UseEndpoints() invocation
+	useEndpointsResult struct {
+		StartupClassDeclaration        *sitter.Node // Declaration of the Startup class surrounding the expose annotation
+		UseExpression                  *sitter.Node // Expression of the UseEndpoints() invocation (app.UseEndpoints(endpoints => {...})
+		AppBuilderIdentifier           *sitter.Node // Identifier of the builder (IApplicationBuilder app)
+		EndpointRouteBuilderIdentifier *sitter.Node // Identifier of the RoutesBuilder param (endpoints => {...})
+	}
+
+	// routeMethodPath is a simple mapping between an HTTP Verb and a path
+	routeMethodPath struct {
+		Verb core.Verb
+		Path string
+	}
+)
 
 func (p *Expose) Name() string { return "Expose" }
 
 func (p *Expose) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
 	var errs multierr.Error
-	for _, res := range result.Resources() {
-		unit, ok := res.(*core.ExecutionUnit)
-		if !ok {
-			continue
-		}
+
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
 		err := p.transformSingle(result, deps, unit)
 		errs.Append(err)
 	}
@@ -106,13 +112,8 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 	h.log = zap.L().With(zap.String("unit", unit.Name))
 
 	var errs multierr.Error
-	for _, f := range unit.Files() {
-		src, ok := Language.ID.CastFile(f)
-		if !ok {
-			continue
-		}
-
-		newF, err := h.handleFile(src)
+	for _, f := range unit.FilesOfLang(CSharp) {
+		newF, err := h.handleFile(f)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -297,11 +298,6 @@ func isMapControllersInvoked(useEndpoints useEndpointsResult) bool {
 	return found
 }
 
-type routeMethodPath struct {
-	Verb core.Verb
-	Path string
-}
-
 func (h *aspDotNetCoreHandler) findVerbMappings(root *sitter.Node, varName string) ([]routeMethodPath, error) {
 	nextMatch := DoQuery(root, exposeMapRoute)
 	var route []routeMethodPath
@@ -337,6 +333,7 @@ func (h *aspDotNetCoreHandler) findVerbMappings(root *sitter.Node, varName strin
 	return route, err
 }
 
+// areControllersInjected evaluates if the current startup class injects controllers into its DI service collection
 func areControllersInjected(startupClass *sitter.Node) bool {
 
 	match, found := DoQuery(startupClass, exposeStartupConfigureServices)()
@@ -382,8 +379,9 @@ func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *core.SourceFile, varNa
 	return routes, err
 }
 
+// findControllersInFile returns the specs for each controller found in the supplied file
+// controller docs: https://learn.microsoft.com/en-us/aspnet/core/mvc/controllers/actions?view=aspnetcore-7.0
 func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []controllerSpec {
-	// controller docs: https://learn.microsoft.com/en-us/aspnet/core/mvc/controllers/actions?view=aspnetcore-7.0
 	types := FindDeclarationsInFile[*TypeDeclaration](file).Declarations()
 	controllers := filter.NewSimpleFilter(
 		predicate.AnyOf(
@@ -409,6 +407,8 @@ func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []co
 	return controllerSpecs
 }
 
+// resolveRoutes returns a list of gatewayRouteDefinitions
+// by merging a controller's annotations with those of its contained actions
 func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 	shortName := strings.TrimSuffix(c.name, "Controller")
 	var routes []gatewayRouteDefinition
@@ -423,10 +423,10 @@ func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 	for _, action := range c.actions {
 		for _, prefix := range prefixes {
 			routeTemplate := action.routeTemplate
-			// route templates starting with "~" indicate prefixes should be ignored
-			if strings.HasPrefix(routeTemplate, "~") {
+			// action route templates starting with "/" or "~/" indicate controller-level route prefixes should be ignored
+			if strings.HasPrefix(routeTemplate, "~/") {
 				routeTemplate = strings.TrimPrefix(routeTemplate, "~")
-			} else {
+			} else if !strings.HasPrefix(routeTemplate, "/") {
 				routeTemplate = path.Join("/", prefix, action.routeTemplate)
 			}
 
@@ -470,6 +470,8 @@ func findActionsInController(controller TypeDeclaration) []actionSpec {
 	return actions
 }
 
+// parseControllerAttributes returns a list of controllerAttributeSpecs containing routing information
+// for the supplied controller based on its applied attributes
 func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSpec {
 	attrs := controller.Attributes().OfType("Microsoft.AspNetCore.Mvc.Route", "Microsoft.AspNetCore.Mvc.Area")
 	attrSpec := controllerAttributeSpec{}
@@ -490,6 +492,7 @@ func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSp
 	return attrSpec
 }
 
+// parseActionAttributes returns a list of actionSpecs containing routing information derived from the action's attributes
 func parseActionAttributes(method MethodDeclaration) []actionSpec {
 	allAttrs := method.Attributes()
 
@@ -523,35 +526,7 @@ func parseActionAttributes(method MethodDeclaration) []actionSpec {
 	}
 	var specs []actionSpec
 
-	var routePrefixes []string
-
-	for _, routeAttr := range routeAttrs {
-		args := routeAttr.Args()
-		routeTemplate := ""
-		if len(args) > 0 && args[0].Name == "" {
-			routeTemplate = args[0].Value
-		}
-
-		// when [HTTP<VERB>] or [AcceptVerbs] attributes are present [Route] attributes are treated as prefixes
-		if len(verbAttrs) > 0 || len(acceptVerbsAttrs) > 0 {
-			routePrefixes = append(routePrefixes, routeTemplate)
-			continue
-		}
-
-		spec := actionSpec{
-			name:             method.Name,
-			method:           method,
-			routeTemplate:    routeTemplate,
-			verb:             core.VerbAny,
-			hasRouteTemplate: len(args) > 0,
-		}
-		specs = append(specs, spec)
-	}
-
-	if len(routePrefixes) == 0 {
-		routePrefixes = append(routePrefixes, "") // fall back to empty prefix
-	}
-
+	// handle verb attributes
 	for _, verbAttr := range verbAttrs {
 		_, attrName := splitQualifiedName(verbAttr.Name)
 		verb := core.Verb(strings.ToUpper(strings.TrimPrefix(attrName, "Http")))
@@ -564,18 +539,19 @@ func parseActionAttributes(method MethodDeclaration) []actionSpec {
 			routeTemplate = args[0].Value
 		}
 
-		for _, prefix := range routePrefixes {
-			spec := actionSpec{
-				name:             method.Name,
-				method:           method,
-				routeTemplate:    path.Join(prefix, routeTemplate),
-				verb:             verb,
-				hasRouteTemplate: len(args) > 0,
-			}
-			specs = append(specs, spec)
+		spec := actionSpec{
+			name:             method.Name,
+			method:           method,
+			routeTemplate:    routeTemplate,
+			verb:             verb,
+			hasRouteTemplate: len(args) > 0,
 		}
+		specs = append(specs, spec)
 	}
 
+	allRoutesVerbs := make(map[core.Verb]struct{})
+
+	// handle [AcceptVerbs] attributes
 	for _, acceptAttr := range acceptVerbsAttrs {
 		var verbs []core.Verb
 		args := acceptAttr.Args()
@@ -597,25 +573,54 @@ func parseActionAttributes(method MethodDeclaration) []actionSpec {
 		}
 
 		for _, verb := range verbs {
-			for _, prefix := range routePrefixes {
+			if hasRouteTemplate {
 				spec := actionSpec{
 					verb:             verb,
 					name:             method.Name,
 					method:           method,
-					routeTemplate:    path.Join(prefix, routeTemplate),
+					routeTemplate:    routeTemplate,
 					hasRouteTemplate: hasRouteTemplate,
 				}
 				specs = append(specs, spec)
+			} else {
+				// apply all non-route-specific verb restrictions to all [Route] attributes
+				allRoutesVerbs[verb] = struct{}{}
 			}
 		}
 	}
+
+	if len(allRoutesVerbs) == 0 {
+		// default to "ANY" if no verb restrictions exist
+		allRoutesVerbs[core.VerbAny] = struct{}{}
+	}
+
+	// handle [Route] attributes
+	for _, routeAttr := range routeAttrs {
+		args := routeAttr.Args()
+		routeTemplate := ""
+		if len(args) > 0 && args[0].Name == "" {
+			routeTemplate = args[0].Value
+		}
+
+		for verb, _ := range allRoutesVerbs {
+			spec := actionSpec{
+				name:             method.Name,
+				method:           method,
+				routeTemplate:    routeTemplate,
+				verb:             verb,
+				hasRouteTemplate: len(args) > 0,
+			}
+			specs = append(specs, spec)
+		}
+	}
+
 	return specs
 }
 
-// sanitizeConventionalPath converts ASP.net conventional path parameters to Express syntax,
+// sanitizeConventionalPath converts ASP.NET Core conventional path parameters to Express syntax,
 // but does not perform validation to ensure that the supplied string is a valid ASP.net route.
 // As such, there's no expectation of correct output for invalid paths
-// Regexp constraints and controller/action token replacement are not yet supported
+// Regexp constraints, complex segments and controller/action token replacement are not yet supported
 func sanitizeConventionalPath(path string) string {
 	// convert to longest possible proxy route when required
 	firstProxyParamIndex := findFirstProxyRouteIndicator(path)
@@ -629,6 +634,10 @@ func sanitizeConventionalPath(path string) string {
 	return path
 }
 
+// sanitizeAttributeBasedPath converts ASP.NET Core attribute-based route path parameters to Express syntax,
+// but does not perform validation to ensure that the supplied string is a valid ASP.NET Core route.
+// As such, there's no expectation of correct output for invalid paths
+// Regex constraints and complex segments are not yet supported
 func sanitizeAttributeBasedPath(path string, area string, controller string, action string) string {
 	//TODO: handle regex constraints -- they may include additional curly braces ("{", "}") that aren't currently accounted for
 
@@ -655,6 +664,7 @@ func sanitizeAttributeBasedPath(path string, area string, controller string, act
 	return path
 }
 
+// TODO: rework handling of optional and default params
 func findFirstProxyRouteIndicator(path string) int {
 	firstProxyParamIndex := -1
 	for _, i := range []int{

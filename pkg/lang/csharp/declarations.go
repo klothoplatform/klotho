@@ -33,7 +33,6 @@ type Declaration struct {
 	IsNested       bool
 	IsStatic       bool
 	DeclaringClass string
-	AttributeList  *sitter.Node
 }
 
 func (d *Declaration) AsDeclaration() Declaration {
@@ -96,16 +95,24 @@ func (a Attributes) OfType(types ...string) []Attribute {
 }
 func (d *Declaration) Attributes() Attributes {
 	attributes := make(Attributes)
-	if d.AttributeList == nil {
-		return attributes
-	}
-	for i := 0; i < int(d.AttributeList.NamedChildCount()); i++ {
-		attr := d.AttributeList.NamedChild(i)
-		name := attr.ChildByFieldName("name").Content()
-		attributes[name] = append(attributes[name], Attribute{
-			Name: name,
-			Node: attr,
-		})
+
+	for i := 0; i < int(d.Node.NamedChildCount()); i++ {
+		n := d.Node.NamedChild(i)
+		if n.Type() != "attribute_list" {
+			continue
+		}
+
+		for j := 0; j < int(n.NamedChildCount()); j++ {
+			attr := n.NamedChild(j)
+			if attr.Type() != "attribute" {
+				continue
+			}
+			name := attr.ChildByFieldName("name").Content()
+			attributes[name] = append(attributes[name], Attribute{
+				Name: name,
+				Node: attr,
+			})
+		}
 	}
 	return attributes
 }
@@ -297,12 +304,10 @@ func parseTypeDeclaration(match query.MatchNodes) *TypeDeclaration {
 	structDeclaration := match["struct_declaration"]
 	name := match["name"]
 	bases := match["bases"]
-	attributes := match["attribute_list"]
 
 	declaration := TypeDeclaration{
 		Declaration: Declaration{
-			Name:          name.Content(),
-			AttributeList: attributes,
+			Name: name.Content(),
 		},
 		Bases: parseBaseTypes(bases),
 	}
@@ -357,10 +362,9 @@ func parseMethodDeclaration(match query.MatchNodes) *MethodDeclaration {
 
 	declaration := MethodDeclaration{
 		Declaration: Declaration{
-			Name:          name.Content(),
-			Node:          methodDeclaration,
-			Kind:          DeclarationKindMethod,
-			AttributeList: match["attribute_list"],
+			Name: name.Content(),
+			Node: methodDeclaration,
+			Kind: DeclarationKindMethod,
 		},
 		ReturnType: returnType.Content(),
 	}
@@ -430,10 +434,9 @@ func parseFieldDeclaration(match query.MatchNodes) *FieldDeclaration {
 
 	declaration := &FieldDeclaration{
 		Declaration: Declaration{
-			Name:          name.Content(),
-			Node:          fieldDeclaration,
-			Kind:          DeclarationKindMethod,
-			AttributeList: match["attribute_list"],
+			Name: name.Content(),
+			Node: fieldDeclaration,
+			Kind: DeclarationKindMethod,
 		},
 		Type: fieldType.Content(),
 	}
