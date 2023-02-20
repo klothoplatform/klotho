@@ -245,7 +245,7 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 	for _, c := range controllers {
 		for _, route := range c.resolveRoutes() {
 			h.ControllerRoutes = append(h.ControllerRoutes, route)
-			zap.L().Sugar().Debugf("Mapped route %s %s from %s", route.Verb, route.Path, c.name)
+			zap.L().Sugar().Debugf("Mapped route %s %s from %s", route.Verb, route.Path, c.class.Name)
 		}
 	}
 
@@ -396,7 +396,7 @@ func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []co
 	for _, c := range controllers {
 		controller := *c
 		spec := controllerSpec{
-			name:                    controller.Name,
+			name:                    strings.TrimSuffix(controller.Name, "Controller"),
 			class:                   controller,
 			controllerAttributeSpec: parseControllerAttributes(controller),
 			actions:                 findActionsInController(controller),
@@ -410,7 +410,6 @@ func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []co
 // resolveRoutes returns a list of gatewayRouteDefinitions
 // by merging a controller's annotations with those of its contained actions
 func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
-	shortName := strings.TrimSuffix(c.name, "Controller")
 	var routes []gatewayRouteDefinition
 
 	prefixes := c.routeTemplates
@@ -440,12 +439,30 @@ func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 				verb = core.VerbAny
 			}
 
+			// add fixed route for second to last segment if last routeTemplate segment is an optional param
+			// e.g. /a/{b?} -> /a, /a/:rest*
+			if regexp.MustCompile(`(^|/)({[^?{}]+\?})(/$|$)`).MatchString(routeTemplate) {
+				nonOptionalRoute := strings.TrimSuffix(routeTemplate, "/")
+				nonOptionalRoute = nonOptionalRoute[0:strings.LastIndex(nonOptionalRoute, "/")]
+				routes = append(routes, gatewayRouteDefinition{
+					Route: core.Route{
+						Verb: verb,
+						Path: strings.ToLower(
+							sanitizeAttributeBasedPath(nonOptionalRoute, c.area, c.name, action.name)),
+						ExecUnitName:  c.execUnitName,
+						HandledInFile: c.class.DeclaringFile,
+					},
+					DefinedInPath: c.class.DeclaringFile,
+				},
+				)
+			}
+
 			routes = append(routes, gatewayRouteDefinition{
 				Route: core.Route{
 					Verb: verb,
 					// using lowercase routes enforces consistency
-					// since ASP.NET core is case-insensitive and API Gateway is case-sensitive
-					Path:          strings.ToLower(sanitizeAttributeBasedPath(routeTemplate, c.area, shortName, action.name)),
+					// since ASP.NET Core is case-insensitive and API Gateway is case-sensitive
+					Path:          strings.ToLower(sanitizeAttributeBasedPath(routeTemplate, c.area, c.name, action.name)),
 					ExecUnitName:  c.execUnitName,
 					HandledInFile: c.class.DeclaringFile,
 				},
