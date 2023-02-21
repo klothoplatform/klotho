@@ -51,13 +51,10 @@ func (l CSharpExecutable) Transform(result *core.CompilationResult, dependencies
 		unit.Executable.Type = core.ExecutableTypeCSharp
 
 		// TODO: get sourceFiles using a dependency resolver once we can generate FileDependencies for C#
-		sourceFiles := unit.FilesOfLang(CSharp)
-		for _, f := range sourceFiles {
-			unit.AddSourceFile(f)
-		}
-
 		var err error
+		sourceFiles := unit.FilesOfLang(CSharp)
 		for _, file := range sourceFiles {
+			unit.AddSourceFile(file)
 			for _, annot := range file.Annotations() {
 				cap := annot.Capability
 				if cap.Name == annotation.ExecutionUnitCapability && cap.ID == unit.Name {

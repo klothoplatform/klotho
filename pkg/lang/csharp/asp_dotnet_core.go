@@ -2,6 +2,7 @@ package csharp
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/filter"
 	sitter "github.com/smacker/go-tree-sitter"
@@ -32,7 +33,7 @@ func FindASPDotnetCoreStartupClass(unit *core.ExecutionUnit) (*ASPDotNetCoreStar
 	}
 	for _, declarer := range declarers {
 		execUnitAnnotations := filter.NewSimpleFilter[*core.Annotation](func(a *core.Annotation) bool {
-			return a.Capability.Name == "execution_unit" &&
+			return a.Capability.Name == annotation.ExecutionUnitCapability &&
 				a.Capability.ID == unit.Name
 		}).Apply(declarer.Annotations().InSourceOrder()...)
 
@@ -40,8 +41,8 @@ func FindASPDotnetCoreStartupClass(unit *core.ExecutionUnit) (*ASPDotNetCoreStar
 			continue
 		}
 
-		for _, annotation := range execUnitAnnotations {
-			if cls, found := getDotnetCoreStartupClass(annotation.Node); found {
+		for _, a := range execUnitAnnotations {
+			if cls, found := getDotnetCoreStartupClass(a.Node); found {
 				if startupClass != nil {
 					return nil, fmt.Errorf("multiple ASP.NET Core startup classes found in execution unit [%s] <- [%s, %s]", unit.Name, startupClass.Class.Name, cls.Class.Name)
 				} else {
