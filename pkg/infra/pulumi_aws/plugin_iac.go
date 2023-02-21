@@ -133,6 +133,9 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 	if len(data.APIGateways) > 0 {
 		addFile("iac/api_gateway.ts")
 	}
+	if len(data.SecretManagerSecrets) > 0 {
+		addFile("iac/secrets_manager.ts")
+	}
 
 	addFile("deploylib.ts")
 	addFile("package.json")

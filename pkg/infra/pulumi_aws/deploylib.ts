@@ -579,7 +579,8 @@ export class CloudCCLib {
                 return [v.Name, bucket.bucket]
             case Resource.config:
                 if (v.Value == 'secret_name') {
-                    return [v.Name, `${this.name}_${v.ResourceID}`] // TODO: Make this use the secret once we figure out how to bootstrap
+                    const secret: aws.secretsmanager.Secret = this.secrets.get(v.ResourceID)!
+                    return [v.Name, secret.name]
                 }
             default:
                 throw new Error('unsupported kind')
@@ -1011,53 +1012,6 @@ export class CloudCCLib {
                 `cron(${cronExpression})`,
                 schedulerLambda
             )
-    }
-
-    public setupSecrets(secrets: string[]) {
-        for (const secret of secrets) {
-            const secretName = `${this.name}-${secret}`
-            validate(secretName, AwsSanitizer.SecretsManager.secret.nameValidation())
-            let awsSecret: aws.secretsmanager.Secret
-            if (this.secrets.has(secret)) {
-                awsSecret = this.secrets.get(secret)!
-            } else {
-                awsSecret = new aws.secretsmanager.Secret(
-                    `${secret}`,
-                    {
-                        name: secretName,
-                        recoveryWindowInDays: 0,
-                    },
-                    { protect: this.protect }
-                )
-                if (fs.existsSync(secret)) {
-                    new aws.secretsmanager.SecretVersion(
-                        `${secret}`,
-                        {
-                            secretId: awsSecret.id,
-                            secretBinary: fs.readFileSync(secret).toString('base64'),
-                        },
-                        { protect: this.protect }
-                    )
-                }
-                this.secrets.set(secret, awsSecret)
-            }
-            this.topology.topologyIconData.forEach((resource) => {
-                if (resource.kind == Resource.secret) {
-                    this.topology.topologyEdgeData.forEach((edge) => {
-                        if (edge.target == resource.id) {
-                            this.addPolicyStatementForName(
-                                this.resourceIdToResource.get(edge.source).title,
-                                {
-                                    Effect: 'Allow',
-                                    Action: ['secretsmanager:GetSecretValue'],
-                                    Resource: [awsSecret.arn],
-                                }
-                            )
-                        }
-                    })
-                }
-            })
-        }
     }
 
     public setupRDS(orm: string, args: Partial<aws.rds.InstanceArgs>) {
