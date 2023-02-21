@@ -76,7 +76,7 @@ func (h ErrorHandler) printErr(err error, num int) (nextNum int) {
 				log.
 					With(logging.FileField(suberr.File), logging.AnnotationField(suberr.Annotation)).
 					Error(
-						fmt.Sprintf("[err %d] %s", num+1, msg),
+						fmt.Sprintf("[err %d] "+errFmt, num+1, msg),
 						logging.PostLogMessageField(fmt.Sprintf("-> Caused by: "+errFmt, suberr.Cause)),
 					)
 			}
@@ -84,7 +84,7 @@ func (h ErrorHandler) printErr(err error, num int) (nextNum int) {
 		}
 	}
 
-	log.Sugar().Errorf("[err %d] %v", num, err)
+	log.Sugar().Errorf("[err %d] "+errFmt, num, err)
 
 	return num
 }
