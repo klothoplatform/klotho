@@ -489,7 +489,7 @@ func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 }
 
 func stripOptionalLastSegment(routeTemplate string) string {
-	if regexp.MustCompile(`(^|/)({[^?{}]+\?})(/$|$)`).MatchString(routeTemplate) {
+	if regexp.MustCompile(`(^|/)(\{[^?{}]+\?})(/$|$)`).MatchString(routeTemplate) {
 		routeTemplate = strings.TrimSuffix(routeTemplate, "/")
 		routeTemplate = routeTemplate[0:strings.LastIndex(routeTemplate, "/")]
 	}
@@ -669,7 +669,7 @@ func sanitizeConventionalPath(path string) string {
 	}
 
 	// convert path params to express syntax
-	path = regexp.MustCompile("{([^:}?]*):?[^}]*}").ReplaceAllString(path, ":$1")
+	path = regexp.MustCompile(`\{([^:}?]*):?[^}]*}`).ReplaceAllString(path, ":$1")
 	return path
 }
 
@@ -682,7 +682,7 @@ func sanitizeAttributeBasedPath(path string, area string, controller string, act
 	//TODO: handle complex segments e.g. /{com}plex{segment}/
 
 	// replace params such as {controller=Index}
-	specialParamFormat := `(?i){\s*%s\s*=\s*%s\s*}`
+	specialParamFormat := `(?i)\{\s*%s\s*=\s*%s\s*}`
 	path = regexp.MustCompile(fmt.Sprintf(specialParamFormat, "area", area)).ReplaceAllString(path, area)
 	path = regexp.MustCompile(fmt.Sprintf(specialParamFormat, "controller", controller)).ReplaceAllString(path, controller)
 	path = regexp.MustCompile(fmt.Sprintf(specialParamFormat, "action", action)).ReplaceAllString(path, action)
@@ -695,7 +695,7 @@ func sanitizeAttributeBasedPath(path string, area string, controller string, act
 	}
 
 	// convert path params to express syntax
-	path = regexp.MustCompile("{([^:}?]*):?[^}]*}").ReplaceAllString(path, ":$1")
+	path = regexp.MustCompile(`\{([^:}?]*):?[^}]*}`).ReplaceAllString(path, ":$1")
 
 	// replace special tokens
 	path = regexp.MustCompile(`(?i)\[area]`).ReplaceAllString(path, area)
