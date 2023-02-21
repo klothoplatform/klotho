@@ -101,7 +101,8 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 		case *core.Gateway:
 			cfg := a.Config.GetExposed(key.Name)
 			gw := provider.Gateway{
-				Name: res.Name,
+				Name:    res.Name,
+				ApiType: cfg.ApiType,
 			}
 			for _, route := range res.Routes {
 				gw.Routes = append(gw.Routes, provider.Route{
@@ -148,6 +149,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 
 		case *core.InternalResource:
 			if res.Name == core.KlothoPayloadName {
+
 				data.Buckets = append(data.Buckets, provider.FS{
 					Name: res.Name,
 				})
@@ -165,6 +167,15 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 					EventName:   name,
 				}
 				data.PubSubs = append(data.PubSubs, ps)
+			}
+
+		case *core.Config:
+			cfg := a.Config.GetConfig(res.Name)
+			if res.Secret {
+				data.SecretManagerSecrets = append(data.SecretManagerSecrets, provider.Config{
+					Name:   res.Name,
+					Params: cfg.InfraParams,
+				})
 			}
 
 		case *core.Secrets:

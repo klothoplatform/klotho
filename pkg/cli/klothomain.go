@@ -4,23 +4,27 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-
-	"github.com/klothoplatform/klotho/pkg/cli_config"
-
-	"github.com/klothoplatform/klotho/pkg/updater"
-
-	"github.com/klothoplatform/klotho/pkg/input"
+	"time"
 
 	"github.com/fatih/color"
-	"github.com/klothoplatform/klotho/pkg/analytics"
-	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/gojek/heimdall/v7"
+	"github.com/gojek/heimdall/v7/httpclient"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/klothoplatform/klotho/pkg/analytics"
+	"github.com/klothoplatform/klotho/pkg/auth"
+	"github.com/klothoplatform/klotho/pkg/cli_config"
+	"github.com/klothoplatform/klotho/pkg/closenicely"
+	"github.com/klothoplatform/klotho/pkg/config"
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/input"
+	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/klothoplatform/klotho/pkg/updater"
 )
 
 type KlothoMain struct {
@@ -28,6 +32,20 @@ type KlothoMain struct {
 	Version             string
 	VersionQualifier    string
 	PluginSetup         func(*PluginSetBuilder) error
+	// Authorizer is an optional authorizer override. If this also conforms to FlagsProvider, those flags will be added.
+	Authorizer Authorizer
+}
+type Authorizer interface {
+
+	// Authorize tries to authorize the user. The KlothoClaims it returns may be nil, even if the authentication
+	// succeeds. Conversely, if the KlothoClaims is non-nil, it is valid even if the error is also non-nil; you can use
+	// those claims provisionally (and specifically, in analytics) even if the error is non-nil, indicating failed
+	// authentication.
+	Authorize() (*auth.KlothoClaims, error)
+}
+
+type FlagsProvider interface {
+	SetUpCliFlags(flags *pflag.FlagSet)
 }
 
 var cfg struct {
@@ -45,8 +63,9 @@ var cfg struct {
 	uploadSource  bool
 	update        bool
 	cfgFormat     string
-	login         string
 	setOption     map[string]string
+	login         bool
+	logout        bool
 }
 
 const defaultDisableLogo = false
@@ -69,6 +88,9 @@ const (
 )
 
 func (km KlothoMain) Main() {
+	if km.Authorizer == nil {
+		km.Authorizer = auth.Auth0Authorizer{}
+	}
 
 	var root = &cobra.Command{
 		Use:  "klotho [path to source]",
@@ -91,8 +113,14 @@ func (km KlothoMain) Main() {
 	flags.BoolVar(&cfg.internalDebug, "internalDebug", false, "Enable debugging for compiler")
 	flags.BoolVar(&cfg.version, "version", false, "Print the version")
 	flags.BoolVar(&cfg.update, "update", false, "update the cli to the latest version")
-	flags.StringVar(&cfg.login, "login", "", "Login to Klotho with email. For anonymous login, use 'local'")
 	flags.StringToStringVar(&cfg.setOption, "set-option", nil, "Sets a CLI option")
+	flags.BoolVar(&cfg.login, "login", false, "Login to Klotho with email.")
+	flags.BoolVar(&cfg.logout, "logout", false, "Logout of current klotho account.")
+
+	if authFlags, hasFlags := km.Authorizer.(FlagsProvider); hasFlags {
+		authFlags.SetUpCliFlags(flags)
+	}
+
 	_ = flags.MarkHidden("internalDebug")
 
 	err := root.Execute()
@@ -133,6 +161,7 @@ func readConfig(args []string) (appCfg config.Application, err error) {
 	} else {
 		appCfg.Format = cfg.cfgFormat
 	}
+	appCfg.EnsureMapsExist()
 	// TODO debug logging for when config file is overwritten by CLI flags
 	if cfg.appName != "" {
 		appCfg.AppName = cfg.appName
@@ -169,7 +198,6 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	// supports color
 	if !color.NoColor && showLogo {
 		color.New(color.FgHiGreen).Println(Logo)
-		fmt.Println()
 	}
 
 	// create config directory if necessary, must run
@@ -178,30 +206,41 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		zap.S().Warnf("failed to create .klotho directory: %v", err)
 	}
 
-	// Set up user if login is specified
-	if cfg.login != "" {
-		if err := analytics.CreateUser(cfg.login); err != nil {
-			return errors.Wrapf(err, "could not configure user '%s'", cfg.login)
-		}
-		return nil
-	}
-
-	// Set up analytics
-	analyticsClient, err := analytics.NewClient(map[string]interface{}{
+	// Set up analytics, and hook them up to the logs
+	analyticsClient := analytics.NewClient(map[string]interface{}{
 		"version": km.Version,
 		"strict":  cfg.strict,
 		"edition": km.DefaultUpdateStream,
 	})
-	if err != nil {
-		return errors.New(fmt.Sprintf("Issue retrieving user info: %s. \nYou may need to run: klotho --login <email>", err))
-	}
-
 	z, err := setupLogger(analyticsClient)
 	if err != nil {
 		return err
 	}
-	defer z.Sync() // nolint:errcheck
+	defer closenicely.FuncOrDebug(z.Sync)
 	zap.ReplaceGlobals(z)
+
+	// Set up user if login is specified
+	if cfg.login {
+		err := auth.Login(func(err error) error {
+			zap.L().Warn(`Couldn't log in. You may be able to continue using klotho without logging in for now, but this may break in the future. Please contact us if this continues.`)
+			// Set an empty token. This will mean that the user doesn't get prompted to log in. The login token is still
+			// invalid, but it'll fail-open (at least for now).
+			_ = auth.WriteIDToken("")
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	// Set up user if login is specified
+	if cfg.logout {
+		err := auth.CallLogoutEndpoint()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 
 	errHandler := ErrorHandler{
 		InternalDebug: cfg.internalDebug,
@@ -234,6 +273,11 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		ServerURL:     updater.DefaultServer,
 		Stream:        updateStream,
 		CurrentStream: km.DefaultUpdateStream,
+		Client: httpclient.NewClient(
+			httpclient.WithHTTPTimeout(5*time.Minute),
+			httpclient.WithRetryCount(3),
+			httpclient.WithRetrier(heimdall.NewRetrier(heimdall.NewExponentialBackoff(10*time.Millisecond, time.Second, 1.5, 100*time.Millisecond))),
+		),
 	}
 	if cfg.update {
 		if err := klothoUpdater.Update(km.Version); err != nil {
@@ -252,7 +296,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 			zap.S().Warnf("failed to check for updates: %v", err)
 		}
 		if needsUpdate {
-			analyticsClient.Info(klothoName + "update is available")
+			analyticsClient.Info(klothoName + " update is available")
 			zap.L().Info("new update is available, please run klotho --update to get the latest version")
 		}
 	} else {
@@ -263,6 +307,30 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		// Options were set above, and used to perform or check for update. Nothing else to do.
 		// We want to exit early, so that the user doesn't get an error about path not being provided.
 		return nil
+	}
+
+	// Needs to go after the --version and --update checks
+	claims, err := km.Authorizer.Authorize()
+	if claims != nil {
+		analyticsClient.AttachAuthorizations(claims)
+	}
+	if err != nil {
+		if errors.Is(err, auth.ErrNoCredentialsFile) {
+			return errors.New(`Failed to get credentials for user. Please run "klotho --login"`)
+		}
+		if errors.Is(err, auth.ErrEmailUnverified) {
+			zap.L().Warn(
+				`You have not verified your email. You may continue using klotho for now, but this may break in the future. Please check your email to complete registration.`,
+				zap.Error(err),
+				logging.SendEntryMessage)
+		} else {
+			// Fail-open. See also the error handler at auth.Login(...) above (you should change that to not write the
+			// empty token, if this fail-open ever changes).
+			zap.L().Warn(
+				`Not logged in. You may be able to continue using klotho without logging in for now, but this may break in the future. Please contact us if this continues.`,
+				zap.Error(err),
+				logging.SendEntryMessage)
+		}
 	}
 
 	appCfg, err := readConfig(args)

@@ -28,6 +28,7 @@ export enum Resource {
     redis_cluster = 'persist_redis_cluster',
     pubsub = 'pubsub',
     internal = 'internal',
+    config = 'config',
 }
 
 export interface ResourceKey {
@@ -579,6 +580,10 @@ export class CloudCCLib {
                 if (v.ResourceID === 'InternalKlothoPayloads') {
                     const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
                     return [v.Name, bucket.bucket]
+            case Resource.config:
+                if (v.Value == 'secret_name') {
+                    const secret: aws.secretsmanager.Secret = this.secrets.get(v.ResourceID)!
+                    return [v.Name, secret.name]
                 }
             default:
                 throw new Error('unsupported kind')
@@ -993,53 +998,6 @@ export class CloudCCLib {
                 `cron(${cronExpression})`,
                 schedulerLambda
             )
-    }
-
-    public setupSecrets(secrets: string[]) {
-        for (const secret of secrets) {
-            const secretName = `${this.name}-${secret}`
-            validate(secretName, AwsSanitizer.SecretsManager.secret.nameValidation())
-            let awsSecret: aws.secretsmanager.Secret
-            if (this.secrets.has(secret)) {
-                awsSecret = this.secrets.get(secret)!
-            } else {
-                awsSecret = new aws.secretsmanager.Secret(
-                    `${secret}`,
-                    {
-                        name: secretName,
-                        recoveryWindowInDays: 0,
-                    },
-                    { protect: this.protect }
-                )
-                if (fs.existsSync(secret)) {
-                    new aws.secretsmanager.SecretVersion(
-                        `${secret}`,
-                        {
-                            secretId: awsSecret.id,
-                            secretBinary: fs.readFileSync(secret).toString('base64'),
-                        },
-                        { protect: this.protect }
-                    )
-                }
-                this.secrets.set(secret, awsSecret)
-            }
-            this.topology.topologyIconData.forEach((resource) => {
-                if (resource.kind == Resource.secret) {
-                    this.topology.topologyEdgeData.forEach((edge) => {
-                        if (edge.target == resource.id) {
-                            this.addPolicyStatementForName(
-                                this.resourceIdToResource.get(edge.source).title,
-                                {
-                                    Effect: 'Allow',
-                                    Action: ['secretsmanager:GetSecretValue'],
-                                    Resource: [awsSecret.arn],
-                                }
-                            )
-                        }
-                    })
-                }
-            })
-        }
     }
 
     public setupRDS(orm: string, args: Partial<aws.rds.InstanceArgs>) {

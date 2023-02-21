@@ -65,3 +65,23 @@ func (r *AwsRuntime) GetFsImports() []golang.Import {
 		{Package: "gocloud.dev/blob/s3blob", Alias: "_"},
 	}
 }
+
+func (r *AwsRuntime) GetSecretsImports() []golang.Import {
+	return []golang.Import{
+		{Package: "os"},
+		{Package: "strings"},
+		{Package: "gocloud.dev/runtimevar"},
+		{Package: "gocloud.dev/runtimevar/awssecretsmanager", Alias: "_"},
+	}
+}
+
+func (r *AwsRuntime) SetConfigType(id string, isSecret bool) {
+	cfg := r.Cfg.Config[id]
+	if cfg == nil {
+		if isSecret {
+			r.Cfg.Config[id] = &config.Config{Type: aws.Secrets_manager}
+		}
+	} else if isSecret && cfg.Type != aws.Secrets_manager {
+		cfg.Type = aws.Secrets_manager
+	}
+}

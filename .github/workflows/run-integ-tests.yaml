@@ -15,11 +15,6 @@ on:
         description: comma-delimited list of dirs within test-app-repo to run (if empty, runs all)
         required: false
         type: string
-      klotho-login:
-        description: email address to log into Klotho
-        required: true
-        type: string
-        default: klotho-engineering@klo.dev
       region:
         description: the AWS region to deploy to, other than redis tests
         required: false
@@ -45,10 +40,6 @@ on:
       test-app-overrides:
         description: comma-delimited list of dirs within test-app-repo
         required: false
-        type: string
-      klotho-login:
-        description: email address to log into Klotho
-        required: true
         type: string
       region:
         description: the AWS region to deploy to
@@ -115,7 +106,7 @@ jobs:
         uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.19.x
+          go-version: '1.19.6'
       - name: pre-build
         if: ${{ inputs.pre-build-script }}
         run: ${{ inputs.pre-build-script }}
@@ -125,7 +116,7 @@ jobs:
           go build ./cmd/klotho
       - name: upload artifact
         uses: actions/upload-artifact@v3
-        with: 
+        with:
           name: klotho
           path: klotho
           retention-days: 1
@@ -138,7 +129,7 @@ jobs:
       fail-fast: false
       matrix:
         app_to_test: ${{ fromJson(needs.list-apps.outputs.to_test) }}
-        mode: [fresh, upgrade]       
+        mode: [fresh, upgrade]
     steps:
       - name: versions
         run: |
@@ -151,7 +142,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 16
-          cache: "npm"
+          cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
       - name: set up PATH
         run: |
@@ -166,16 +157,14 @@ jobs:
         run: |
           curl -fsSL http://srv.klo.dev/update/latest/linux/amd64 -o "$RUNNER_TEMP/klotho-old"
           chmod +x "$RUNNER_TEMP/klotho-old"
-          "$RUNNER_TEMP/klotho-old" --login "$KLOTHO_LOGIN"
-        env:
-          KLOTHO_LOGIN: ${{ inputs.klotho-login }}
+          "$RUNNER_TEMP/klotho-old" --login 'klotho-engineering@klo.dev'
       - name: download klotho
         uses: actions/download-artifact@v3
         with:
           name: klotho
           path: ${{ runner.temp }}
       - name: initialize symlink
-        run : |
+        run: |
           if [[ ${{ matrix.mode }} == upgrade ]] ; then
             ln -s $RUNNER_TEMP/klotho-old $RUNNER_TEMP/bin/klotho
           else
@@ -184,9 +173,6 @@ jobs:
       - name: install klotho
         run: |
           chmod +x $RUNNER_TEMP/klotho
-          klotho --login $KLOTHO_LOGIN
-        env:
-          KLOTHO_LOGIN: ${{ inputs.klotho-login }}
       - name: typescript compilation
         if: steps.get_language.outputs.language == 'ts'
         working-directory: ${{ matrix.app_to_test }}
@@ -205,6 +191,8 @@ jobs:
           else
             klotho . --app $STACK_NAME -p aws
           fi
+        env:
+          KLOTHO_ID_TOKEN: ${{ secrets.KLOTHO_CREDS_ID_TOKEN }}
       - name: pulumi npm install
         working-directory: ${{ matrix.app_to_test }}
         run: |
@@ -239,7 +227,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          PULUMI_CONFIG_PASSPHRASE: ""
+          PULUMI_CONFIG_PASSPHRASE: ''
           NOT_DEFAULT_REGION_APPS: |
             ts-redis-cluster
             py-redis-cluster
@@ -251,7 +239,7 @@ jobs:
           bash "$BEFORE_DEPLOY_HOOK"
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          PULUMI_CONFIG_PASSPHRASE: ""
+          PULUMI_CONFIG_PASSPHRASE: ''
       - name: pulumi up (upgrade path)
         if: matrix.mode == 'upgrade'
         uses: klothoplatform/gh-action-retry@v1
@@ -268,11 +256,11 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          PULUMI_CONFIG_PASSPHRASE: ""
-      - name:  change symlink (upgrade path)
+          PULUMI_CONFIG_PASSPHRASE: ''
+      - name: change symlink (upgrade path)
         if: matrix.mode == 'upgrade'
-        run : |
-            ln -sf $RUNNER_TEMP/klotho $RUNNER_TEMP/bin/klotho
+        run: |
+          ln -sf $RUNNER_TEMP/klotho $RUNNER_TEMP/bin/klotho
       - name: run klotho (upgrade path)
         if: matrix.mode == 'upgrade'
         working-directory: ${{ matrix.app_to_test }}
@@ -282,6 +270,8 @@ jobs:
           else
             klotho . --app $STACK_NAME -p aws
           fi
+        env:
+          KLOTHO_ID_TOKEN: ${{ secrets.KLOTHO_CREDS_ID_TOKEN }}
       - name: pulumi npm install (upgrade path)
         if: matrix.mode == 'upgrade'
         working-directory: ${{ matrix.app_to_test }}
@@ -297,7 +287,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          PULUMI_CONFIG_PASSPHRASE: ""
+          PULUMI_CONFIG_PASSPHRASE: ''
       - name: pulumi up
         uses: klothoplatform/gh-action-retry@v1
         with:
@@ -313,7 +303,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          PULUMI_CONFIG_PASSPHRASE: ""
+          PULUMI_CONFIG_PASSPHRASE: ''
       - name: wait a bit for pulumi to settle
         run: |
           if echo "$SLOW_APPS" | grep -q --line-regexp '${{ matrix.app_to_test }}' ; then
@@ -375,7 +365,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          PULUMI_CONFIG_PASSPHRASE: ""
+          PULUMI_CONFIG_PASSPHRASE: ''
       - name: upload logs
         if: failure()
         uses: actions/upload-artifact@v3
@@ -411,4 +401,4 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          PULUMI_CONFIG_PASSPHRASE: ""
+          PULUMI_CONFIG_PASSPHRASE: ''

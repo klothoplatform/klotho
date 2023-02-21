@@ -93,11 +93,17 @@ var defaultConfig = config.Defaults{
 			},
 		},
 	},
-	Expose: config.KindDefaults{
-		Type: string(ApiGateway),
+	Expose: config.ExposeDefaults{
+		KindDefaults: config.KindDefaults{
+			Type: string(ApiGateway),
+		},
+		ApiType: "REST",
 	},
 	PubSub: config.KindDefaults{
 		Type: sns,
+	},
+	Config: config.KindDefaults{
+		Type: s3,
 	},
 	Persist: config.PersistKindDefaults{
 		KV: config.KindDefaults{
@@ -170,6 +176,8 @@ func (a *AWS) GetKindTypeMappings(kind string) ([]string, bool) {
 		return []string{s3}, true
 	case core.PubSubKind:
 		return []string{sns}, true
+	case core.ConfigKind:
+		return []string{s3, Secrets_manager}, true
 	}
 	return nil, false
 }

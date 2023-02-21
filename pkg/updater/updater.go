@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/coreos/go-semver/semver"
 	"github.com/gojek/heimdall/v7/httpclient"
@@ -21,7 +20,7 @@ var (
 	Arch string = runtime.GOARCH
 )
 
-var (
+const (
 	DefaultServer string = "http://srv.klo.dev"
 )
 
@@ -31,6 +30,8 @@ type Updater struct {
 	Stream string
 	// CurrentStream is the stream this binary came from
 	CurrentStream string
+
+	Client *httpclient.Client
 }
 
 func selfUpdate(data io.ReadCloser) error {
@@ -42,11 +43,8 @@ func selfUpdate(data io.ReadCloser) error {
 // against the latest github release, returns true
 // if the latest release is newer
 func (u *Updater) CheckUpdate(currentVersion string) (bool, error) {
-	timeout := 10 * time.Second
-	cli := httpclient.NewClient(httpclient.WithHTTPTimeout(timeout))
-
 	endpoint := fmt.Sprintf("%s/update/check-latest-version?stream=%s", u.ServerURL, u.Stream)
-	res, err := cli.Get(endpoint, nil)
+	res, err := u.Client.Get(endpoint, nil)
 	if err != nil {
 		return false, fmt.Errorf("failed to query for latest version: %v", err)
 	}
@@ -77,7 +75,33 @@ func (u *Updater) CheckUpdate(currentVersion string) (bool, error) {
 		return false, fmt.Errorf("invalid version %s: %v", currentVersion, err)
 	}
 
-	return currVersion.LessThan(*latestVersion) || strings.Split(u.CurrentStream, ":")[0] != strings.Split(u.Stream, ":")[0], nil
+	// Given a stream "xxx:yyyy", the qualifier is the "xxx" and the tag is the "yyyy".
+	//
+	// (1) If the qualifiers are different, always update (this is to handle open <--> pro)
+	// Otherwise, check the cli's version against latest. This is a bit trickier:
+	//
+	// (2a) If the tags are the same, then either it's a specific version or it's a monotonic tag like "latest".
+	//   • If it's a monotonic tag, we only want to perform upgrades. A downgrade would be a situation like if we gave
+	//     someone a pre-release, in which case we don't want to downgrade them.
+	//   • If it's a specific version, we can assume that the version will never change.
+	//   • So in either case, we want to only perform upgrades.
+	// (2b) If the tags are different, then someone is either pinning to a specific version, or going from a pinned
+	//     version to a monotonic version. In either case, we should allow downgrades. (Going from pinned to monotonic
+	//     *may* be an incorrect downgrade, with a similar pre-release reason. But if someone has a pre-release, they
+	//     shouldn't be worrying about any upgrade stuff, including not changing their update stream from pinned to
+	//     monotonic.)
+
+	// case (1): different qualifiers always update
+	if strings.Split(u.CurrentStream, ":")[0] != strings.Split(u.Stream, ":")[0] {
+		return true, nil
+	}
+
+	// the qualifiers are the same, so the tags are the same iff the full stream strings are the same
+	if u.CurrentStream == u.Stream {
+		return currVersion.LessThan(*latestVersion), nil // case (2a): only upgrades
+	} else {
+		return !currVersion.Equal(*latestVersion), nil // case (2b): upgrades or downgrades
+	}
 }
 
 // Update performs an update if a newer version is
@@ -94,7 +118,7 @@ func (u *Updater) Update(currentVersion string) error {
 		return nil
 	}
 
-	body, err := getLatest(u.ServerURL, u.Stream)
+	body, err := u.getLatest()
 	if err != nil {
 		return errors.Wrapf(err, "failed to get latest")
 	}
@@ -110,12 +134,9 @@ func (u *Updater) Update(currentVersion string) error {
 }
 
 // getLatest Grabs latest release from klotho server
-func getLatest(baseUrl string, stream string) (io.ReadCloser, error) {
-	timeout := 10 * time.Second
-	cli := httpclient.NewClient(httpclient.WithHTTPTimeout(timeout))
-
-	endpoint := fmt.Sprintf("%s/update/latest/%s/%s?stream=%s", baseUrl, OS, Arch, stream)
-	res, err := cli.Get(endpoint, nil)
+func (u *Updater) getLatest() (io.ReadCloser, error) {
+	endpoint := fmt.Sprintf("%s/update/latest/%s/%s?stream=%s", u.ServerURL, OS, Arch, u.Stream)
+	res, err := u.Client.Get(endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query for latest version: %v", err)
 	}

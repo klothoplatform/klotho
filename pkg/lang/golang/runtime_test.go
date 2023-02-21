@@ -15,3 +15,12 @@ func (n NoopRuntime) GetFsImports() []Import {
 		{Alias: "_", Package: "gocloud.dev/blob/s3blob"},
 	}
 }
+func (n NoopRuntime) GetSecretsImports() []Import {
+	return []Import{
+		{Package: "gocloud.dev/runtimevar"},
+		{Alias: "_", Package: "gocloud.dev/runtimevar/awssecretsmanager"},
+	}
+}
+
+func (n NoopRuntime) SetConfigType(id string, isSecret bool) {
+}

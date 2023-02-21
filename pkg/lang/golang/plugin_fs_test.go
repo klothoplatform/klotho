@@ -19,14 +19,14 @@ func Test_queryFS(t *testing.T) {
 			name: "simple file blob",
 			source: `
 import (
-	"gocloud.dev/blob/fileblob"
+	"gocloud.dev/blob"
 )
 /**
 * @klotho::persist {
 *	id = "test"
 * }
 */
-bucket, err := fileblob.OpenBucket("myDir", nil)`,
+bucket, err := blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))`,
 			want: &persistResult{
 				varName: "bucket",
 			},
@@ -35,14 +35,14 @@ bucket, err := fileblob.OpenBucket("myDir", nil)`,
 			name: "simple var file blob",
 			source: `
 import (
-	"gocloud.dev/blob/fileblob"
+	"gocloud.dev/blob"
 )
 /**
 * @klotho::persist {
 *	id = "test"
 * }
 */
-var bucket, err = fileblob.OpenBucket("myDir", nil)`,
+var bucket, err = blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))`,
 			want: &persistResult{
 				varName: "bucket",
 			},
@@ -51,15 +51,16 @@ var bucket, err = fileblob.OpenBucket("myDir", nil)`,
 			name: "simple var file blob",
 			source: `
 import (
-	"gocloud.dev/blob/fileblob"
+	"gocloud.dev/blob"
 )
+var bucket *blob.Bucket
+var err error
 /**
 * @klotho::persist {
 *	id = "test"
 * }
 */
-var bucket, err
-bucket, err = fileblob.OpenBucket("myDir", nil)`,
+bucket, err = blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))`,
 			want: &persistResult{
 				varName: "bucket",
 			},
@@ -68,30 +69,14 @@ bucket, err = fileblob.OpenBucket("myDir", nil)`,
 			name: "aliased file blob",
 			source: `
 		import (
-			alias "gocloud.dev/blob/fileblob"
+			alias "gocloud.dev/blob"
 		)
 		/**
 		* @klotho::persist {
 		*	id = "test"
 		* }
 		*/
-		bucket, err := alias.OpenBucket("myDir", nil)`,
-			want: &persistResult{
-				varName: "bucket",
-			},
-		},
-		{
-			name: "non string as path still found in query",
-			source: `
-		import (
-			alias "gocloud.dev/blob/fileblob"
-		)
-		/**
-		* @klotho::persist {
-		*	id = "test"
-		* }
-		*/
-		bucket, err := alias.OpenBucket(myDir, nil)`,
+		bucket, err := alias.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))`,
 			want: &persistResult{
 				varName: "bucket",
 			},
@@ -100,14 +85,14 @@ bucket, err = fileblob.OpenBucket("myDir", nil)`,
 			name: "wrong import no match",
 			source: `
 		import (
-			"gocloud.dev/blob/fileblobby"
+			"gocloud.dev/blobby"
 		)
 		/**
 		* @klotho::persist {
 		*	id = "test"
 		* }
 		*/
-		bucket, err := fileblobby.OpenBucket(myDir, nil)`,
+		bucket, err := blobby.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))`,
 		},
 	}
 	for _, tt := range tests {
@@ -148,14 +133,14 @@ func Test_Transform(t *testing.T) {
 			name: "simple file blob",
 			source: `package fs
 import (
-	"gocloud.dev/blob/fileblob"
+	"gocloud.dev/blob"
 )
 /**
 * @klotho::persist {
 *	id = "test"
 * }
 */
-bucket, err := fileblob.OpenBucket("myDir", nil)
+bucket, err := blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))
 `,
 			want: testResult{
 				resource: core.Persist{
@@ -165,8 +150,8 @@ bucket, err := fileblob.OpenBucket("myDir", nil)
 				content: `package fs
 
 import (
-	"gocloud.dev/blob"
 	_ "gocloud.dev/blob/s3blob"
+	"gocloud.dev/blob"
 )
 
 /**
@@ -174,7 +159,8 @@ import (
 *	id = "test"
 * }
 */
-bucket, err := blob.OpenBucket(nil, "s3://" + os.Getenv("test_fs_bucket") + "?region=" + os.Getenv("AWS_REGION"))
+var _ = fmt.Sprintf("file://%s", path)
+bucket, err := blob.OpenBucket(context.Background(), "s3://" + os.Getenv("test_fs_bucket") + "?region=" + os.Getenv("AWS_REGION"))
 `,
 			},
 		},
@@ -182,14 +168,14 @@ bucket, err := blob.OpenBucket(nil, "s3://" + os.Getenv("test_fs_bucket") + "?re
 			name: "long var file blob",
 			source: `package fs
 import (
-	"gocloud.dev/blob/fileblob"
+	"gocloud.dev/blob"
 )
 /**
 * @klotho::persist {
 *	id = "test"
 * }
 */
-var bucket, err = fileblob.OpenBucket("myDir", nil)
+var bucket, err = blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))
 `,
 			want: testResult{
 				resource: core.Persist{
@@ -199,8 +185,8 @@ var bucket, err = fileblob.OpenBucket("myDir", nil)
 				content: `package fs
 
 import (
-	"gocloud.dev/blob"
 	_ "gocloud.dev/blob/s3blob"
+	"gocloud.dev/blob"
 )
 
 /**
@@ -208,7 +194,8 @@ import (
 *	id = "test"
 * }
 */
-var bucket, err = blob.OpenBucket(nil, "s3://" + os.Getenv("test_fs_bucket") + "?region=" + os.Getenv("AWS_REGION"))
+var _ = fmt.Sprintf("file://%s", path)
+var bucket, err = blob.OpenBucket(context.Background(), "s3://" + os.Getenv("test_fs_bucket") + "?region=" + os.Getenv("AWS_REGION"))
 `,
 			},
 		},
@@ -216,15 +203,16 @@ var bucket, err = blob.OpenBucket(nil, "s3://" + os.Getenv("test_fs_bucket") + "
 			name: "var deckaration file blob",
 			source: `package fs
 import (
-	"gocloud.dev/blob/fileblob"
+	"gocloud.dev/blob"
 )
+var bucket *blob.Bucket
+var err error
 /**
 * @klotho::persist {
 *	id = "test"
 * }
 */
-var bucket, err
-bucket, err = fileblob.OpenBucket("myDir", nil)
+bucket, err = blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))
 `,
 			want: testResult{
 				resource: core.Persist{
@@ -234,33 +222,21 @@ bucket, err = fileblob.OpenBucket("myDir", nil)
 				content: `package fs
 
 import (
-	"gocloud.dev/blob"
 	_ "gocloud.dev/blob/s3blob"
+	"gocloud.dev/blob"
 )
 
+var bucket *blob.Bucket
+var err error
 /**
 * @klotho::persist {
 *	id = "test"
 * }
 */
-var bucket, err
-bucket, err = blob.OpenBucket(nil, "s3://" + os.Getenv("test_fs_bucket") + "?region=" + os.Getenv("AWS_REGION"))
+var _ = fmt.Sprintf("file://%s", path)
+bucket, err = blob.OpenBucket(context.Background(), "s3://" + os.Getenv("test_fs_bucket") + "?region=" + os.Getenv("AWS_REGION"))
 `,
 			},
-		},
-		{
-			name: "non string as path throws err",
-			source: `package fs
-		import (
-			alias "gocloud.dev/blob/fileblob"
-		)
-		/**
-		* @klotho::persist {
-		*	id = "test"
-		* }
-		*/
-		bucket, err := alias.OpenBucket(myDir, nil)`,
-			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

@@ -29,14 +29,21 @@ type (
 		Exposed        map[string]*Expose        `json:"exposed,omitempty" yaml:"exposed,omitempty" toml:"exposed,omitempty"`
 		Persisted      map[string]*Persist       `json:"persisted,omitempty" yaml:"persisted,omitempty" toml:"persisted,omitempty"`
 		PubSub         map[string]*PubSub        `json:"pubsub,omitempty" yaml:"pubsub,omitempty" toml:"pubsub,omitempty"`
+		Config         map[string]*Config        `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
 	}
 	Expose struct {
 		Type                   string                 `json:"type" yaml:"type" toml:"type"`
+		ApiType                string                 `json:"api_type" yaml:"api_type" toml:"api_type"`
 		ContentDeliveryNetwork ContentDeliveryNetwork `json:"content_delivery_network,omitempty" yaml:"content_delivery_network,omitempty" toml:"content_delivery_network,omitempty"`
 		InfraParams            InfraParams            `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
 	}
 
 	Persist struct {
+		Type        string      `json:"type" yaml:"type" toml:"type"`
+		InfraParams InfraParams `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
+	}
+
+	Config struct {
 		Type        string      `json:"type" yaml:"type" toml:"type"`
 		InfraParams InfraParams `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
 	}
@@ -70,14 +77,21 @@ type (
 	Defaults struct {
 		ExecutionUnit KindDefaults        `json:"execution_unit" yaml:"execution_unit" toml:"execution_unit"`
 		StaticUnit    KindDefaults        `json:"static_unit" yaml:"static_unit" toml:"static_unit"`
-		Expose        KindDefaults        `json:"expose" yaml:"expose" toml:"expose"`
+		Expose        ExposeDefaults      `json:"expose" yaml:"expose" toml:"expose"`
 		Persist       PersistKindDefaults `json:"persist" yaml:"persist" toml:"persist"`
 		PubSub        KindDefaults        `json:"pubsub" yaml:"pubsub" toml:"pubsub"`
+		Config        KindDefaults        `json:"config" yaml:"config" toml:"config"`
 	}
 
 	KindDefaults struct {
 		Type              string                 `json:"type" yaml:"type" toml:"type"`
 		InfraParamsByType map[string]InfraParams `json:"pulumi_params_by_type,omitempty" yaml:"pulumi_params_by_type,omitempty" toml:"pulumi_params_by_type,omitempty"`
+	}
+
+	ExposeDefaults struct {
+		KindDefaults
+		ApiType                string                 `json:"api_type" yaml:"api_type" toml:"api_type"`
+		ContentDeliveryNetwork ContentDeliveryNetwork `json:"content_delivery_network,omitempty" yaml:"content_delivery_network,omitempty" toml:"content_delivery_network,omitempty"`
 	}
 
 	PersistKindDefaults struct {
@@ -96,6 +110,27 @@ type (
 	// InfraParams are passed as-is to the generated IaC
 	InfraParams map[string]interface{}
 )
+
+func (appCfg *Application) EnsureMapsExist() {
+	if appCfg.ExecutionUnits == nil {
+		appCfg.ExecutionUnits = make(map[string]*ExecutionUnit)
+	}
+	if appCfg.Exposed == nil {
+		appCfg.Exposed = make(map[string]*Expose)
+	}
+	if appCfg.Persisted == nil {
+		appCfg.Persisted = make(map[string]*Persist)
+	}
+	if appCfg.PubSub == nil {
+		appCfg.PubSub = make(map[string]*PubSub)
+	}
+	if appCfg.StaticUnit == nil {
+		appCfg.StaticUnit = make(map[string]*StaticUnit)
+	}
+	if appCfg.Config == nil {
+		appCfg.Config = make(map[string]*Config)
+	}
+}
 
 func ReadConfig(fpath string) (Application, error) {
 	var appCfg Application
@@ -157,6 +192,14 @@ func (cfg *KindDefaults) Merge(other KindDefaults) {
 	}
 }
 
+func (cfg *ExposeDefaults) Merge(other ExposeDefaults) {
+	cfg.KindDefaults.Merge(other.KindDefaults)
+	cfg.ContentDeliveryNetwork.Merge(other.ContentDeliveryNetwork)
+	if other.ApiType != "" {
+		cfg.ApiType = other.ApiType
+	}
+}
+
 func (cfg *ExecutionUnit) Merge(other ExecutionUnit) {
 	if other.Type != "" {
 		cfg.Type = other.Type
@@ -176,11 +219,27 @@ func (cfg *ExecutionUnit) Merge(other ExecutionUnit) {
 	cfg.InfraParams.Merge(other.InfraParams)
 }
 
+func (cfg *ContentDeliveryNetwork) Merge(other ContentDeliveryNetwork) {
+	if other.Id != "" {
+		cfg.Id = other.Id
+	}
+}
+
+func (cfg *Config) Merge(other Config) {
+	if other.Type != "" {
+		cfg.Type = other.Type
+	}
+	cfg.InfraParams.Merge(other.InfraParams)
+}
+
 func (cfg *Expose) Merge(other Expose) {
 	if other.Type != "" {
 		cfg.Type = other.Type
 	}
-	cfg.ContentDeliveryNetwork = other.ContentDeliveryNetwork
+	if other.ApiType != "" {
+		cfg.ApiType = other.ApiType
+	}
+	cfg.ContentDeliveryNetwork.Merge(other.ContentDeliveryNetwork)
 	cfg.InfraParams.Merge(other.InfraParams)
 }
 
@@ -256,6 +315,7 @@ func (cfg *Defaults) Merge(other Defaults) {
 	cfg.Persist.Merge(other.Persist)
 	cfg.PubSub.Merge(other.PubSub)
 	cfg.StaticUnit.Merge(other.StaticUnit)
+	cfg.Config.Merge(other.Config)
 }
 
 // GetExecutionUnit returns the `ExecutionUnit` config for the resource specified by `id`
@@ -297,8 +357,10 @@ func (a Application) GetExposed(id string) Expose {
 			exposeType = defaultType
 		}
 		defaults := Expose{
-			Type:        exposeType,
-			InfraParams: a.Defaults.Expose.InfraParamsByType[exposeType],
+			Type:                   exposeType,
+			ApiType:                a.Defaults.Expose.ApiType,
+			ContentDeliveryNetwork: a.Defaults.Expose.ContentDeliveryNetwork,
+			InfraParams:            a.Defaults.Expose.InfraParamsByType[exposeType],
 		}
 		if ecfg.Type == defaults.Type || ecfg.Type == "" {
 			cfg.Merge(defaults)
@@ -306,8 +368,10 @@ func (a Application) GetExposed(id string) Expose {
 		cfg.Merge(*ecfg)
 	} else {
 		defaults := Expose{
-			Type:        defaultType,
-			InfraParams: a.Defaults.Expose.InfraParamsByType[defaultType],
+			Type:                   defaultType,
+			ApiType:                a.Defaults.Expose.ApiType,
+			ContentDeliveryNetwork: a.Defaults.Expose.ContentDeliveryNetwork,
+			InfraParams:            a.Defaults.Expose.InfraParamsByType[defaultType],
 		}
 		cfg.Merge(defaults)
 	}
@@ -386,6 +450,33 @@ func (a Application) GetStaticUnit(id string) StaticUnit {
 	return cfg
 }
 
+// GetConfig returns the `Config` configuration for the resource specified by `id`
+func (a Application) GetConfig(id string) Config {
+	cfg := Config{}
+	defaultType := a.Defaults.Config.Type
+	if ecfg, ok := a.Config[id]; ok {
+		cfgType := ecfg.Type
+		if cfgType == "" {
+			cfgType = defaultType
+		}
+		defaults := Config{
+			Type:        cfgType,
+			InfraParams: a.Defaults.Config.InfraParamsByType[cfgType],
+		}
+		if ecfg.Type == defaults.Type || ecfg.Type == "" {
+			cfg.Merge(defaults)
+		}
+		cfg.Merge(*ecfg)
+	} else {
+		defaults := Config{
+			Type:        defaultType,
+			InfraParams: a.Defaults.Config.InfraParamsByType[defaultType],
+		}
+		cfg.Merge(defaults)
+	}
+	return cfg
+}
+
 func (a Application) GetResourceType(resource core.CloudResource) string {
 	key := resource.Key()
 	switch key.Kind {
@@ -408,27 +499,16 @@ func (a Application) GetResourceType(resource core.CloudResource) string {
 	case core.PubSubKind:
 		cfg := a.GetPubSub(key.Name)
 		return cfg.Type
+
+	case core.ConfigKind:
+		cfg := a.GetConfig(key.Name)
+		return cfg.Type
 	}
 	return ""
 }
 
 // UpdateForResources mutates the Application config for all the resources, applying the defaults.
 func (a *Application) UpdateForResources(res []core.CloudResource) {
-	if a.ExecutionUnits == nil {
-		a.ExecutionUnits = make(map[string]*ExecutionUnit)
-	}
-	if a.Exposed == nil {
-		a.Exposed = make(map[string]*Expose)
-	}
-	if a.Persisted == nil {
-		a.Persisted = make(map[string]*Persist)
-	}
-	if a.PubSub == nil {
-		a.PubSub = make(map[string]*PubSub)
-	}
-	if a.StaticUnit == nil {
-		a.StaticUnit = make(map[string]*StaticUnit)
-	}
 	for _, r := range res {
 		key := r.Key()
 		switch key.Kind {

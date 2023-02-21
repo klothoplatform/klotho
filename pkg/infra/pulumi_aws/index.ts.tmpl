@@ -28,6 +28,10 @@ import {createStaticS3Website} from './iac/static_s3_website'
 import { Cloudfront } from './iac/cloudfront'
 {{end}}
 
+{{- if .SecretManagerSecrets}}
+import { SecretsManager } from './iac/secrets_manager'
+{{end}}
+
 export = async () => {
     const minimumNodeVersion = 16
     const nodeVersionMatch = process.version.match(/^v(\d+)/)
@@ -83,8 +87,8 @@ export = async () => {
     cloudLib.setupKV();
     {{- end}}
 
-    {{- if .Secrets}}
-    cloudLib.setupSecrets({{json .Secrets}});
+    {{- if .SecretManagerSecrets}}
+    new SecretsManager(cloudLib, {{json .SecretManagerSecrets}});
     {{- end}}
 
     {{range $orm := .ORMs -}}
