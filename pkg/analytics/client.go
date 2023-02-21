@@ -142,6 +142,9 @@ func (t *Client) PanicHandler(err *error, errHandler ErrorHandler) {
 		} else {
 			*err = rerr
 		}
+		if _, hasStack := (*err).(interface{ StackTrace() errors.StackTrace }); !hasStack {
+			*err = errors.WithStack(*err)
+		}
 		t.Panic(rerr.Error())
 		errHandler.PrintErr(*err)
 	}
