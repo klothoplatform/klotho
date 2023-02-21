@@ -64,8 +64,7 @@ func getDotnetCoreStartupClass(classNode *sitter.Node) (ASPDotNetCoreStartupClas
 		return md.Name == "Configure" &&
 			md.Visibility == VisibilityPublic &&
 			md.ReturnType == "void" &&
-			!md.IsStatic &&
-			!md.IsAbstract &&
+			!md.HasAnyModifier("static", "abstract") &&
 			len(md.Parameters) == 2 &&
 			IsValidTypeName(md.Parameters[0].TypeNode, "Microsoft.AspNetCore.Builder", "IApplicationBuilder") &&
 			IsValidTypeName(md.Parameters[1].TypeNode, "Microsoft.AspNetCore.Hosting", "IWebHostEnvironment")
@@ -83,8 +82,7 @@ func getDotnetCoreStartupClass(classNode *sitter.Node) (ASPDotNetCoreStartupClas
 		return md.Name == "ConfigureServices" &&
 			md.Visibility == VisibilityPublic &&
 			md.ReturnType == "void" &&
-			!md.IsStatic &&
-			!md.IsAbstract &&
+			!md.HasAnyModifier("static", "abstract") &&
 			len(md.Parameters) == 1 &&
 			IsValidTypeName(md.Parameters[0].TypeNode, "Microsoft.Extensions.DependencyInjection", "IServiceCollection")
 	}).Apply(methods...)

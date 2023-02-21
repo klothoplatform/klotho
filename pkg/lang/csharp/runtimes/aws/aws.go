@@ -170,7 +170,7 @@ func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, result *cor
 	entrypointClasses := csharp.FindSubtypes(unit, className.namespace, className.name)
 	var validEntrypoints []*csharp.TypeDeclaration
 	for _, h := range entrypointClasses {
-		if h.IsSealed || h.Visibility != csharp.VisibilityPublic {
+		if h.IsSealed() || h.Visibility != csharp.VisibilityPublic {
 			continue
 		}
 		validEntrypoints = append(validEntrypoints, h)
