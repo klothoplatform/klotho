@@ -21,3 +21,6 @@ func (n NoopRuntime) GetSecretsImports() []Import {
 		{Alias: "_", Package: "gocloud.dev/runtimevar/awssecretsmanager"},
 	}
 }
+
+func (n NoopRuntime) SetConfigType(id string, isSecret bool) {
+}

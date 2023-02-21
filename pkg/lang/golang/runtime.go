@@ -15,6 +15,7 @@ type (
 		AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error
 		GetFsImports() []Import
 		GetSecretsImports() []Import
+		SetConfigType(id string, isSecret bool)
 	}
 )
 

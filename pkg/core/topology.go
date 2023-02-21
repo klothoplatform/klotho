@@ -60,6 +60,7 @@ var DiagramEntityToImgPath = TopoMap{
 	{Kind: string(PersistRedisNodeKind)}:    "generic/storage/storage.png",
 	{Kind: string(PersistRedisClusterKind)}: "generic/storage/storage.png",
 	{Kind: PubSubKind}:                      "generic/blank/blank.png",
+	{Kind: ConfigKind}:                      "generic/storage/storage.png",
 
 	// Use AWS as the ultimate fallback for the Kind, so don't specify Provider.
 	{Kind: GatewayKind, Provider: ProviderAWS, Type: "apigateway"}:      "aws/network/api-gateway.png",
@@ -76,6 +77,8 @@ var DiagramEntityToImgPath = TopoMap{
 	{Kind: ExecutionUnitKind, Type: "ecs", Provider: ProviderAWS}:       "aws/compute/fargate.png",
 	{Kind: ExecutionUnitKind, Type: "eks", Provider: ProviderAWS}:       "aws/compute/elastic-kubernetes-service.png",
 	{Kind: ExecutionUnitKind, Type: "apprunner", Provider: ProviderAWS}: "aws/compute/app-runner.png",
+	{Kind: ConfigKind, Type: "secret_manager", Provider: ProviderAWS}:   "aws/security/secrets-manager.png",
+	{Kind: ConfigKind, Type: "s3", Provider: ProviderAWS}:               "aws/compute/simple-storage-service-s3.png",
 
 	{Kind: GatewayKind, Provider: ProviderGCP}:               "gcp/network/api-gateway.png",
 	{Kind: ExecutionUnitKind, Provider: ProviderGCP}:         "gcp/compute/run.png",
@@ -113,15 +116,16 @@ var DiagramEntityToCode = TopoMap{
 	{Kind: GatewayKind, Provider: ProviderAWS, Type: "apigateway"}: `aws_network.APIGateway("%s")`,
 	{Kind: GatewayKind, Provider: ProviderAWS, Type: "alb"}:        `aws_network.ElbNetworkLoadBalancer("%s")`,
 
-	{Kind: ExecutionUnitKind, Provider: ProviderAWS}:               `aws_compute.Lambda("%s")`,
-	{Kind: string(PersistKVKind), Provider: ProviderAWS}:           `aws_database.Dynamodb("%s")`,
-	{Kind: string(PersistFileKind), Provider: ProviderAWS}:         `aws_storage.S3("%s")`,
-	{Kind: string(PersistSecretKind), Provider: ProviderAWS}:       `aws_security.SecretsManager("%s")`,
-	{Kind: string(PersistORMKind), Provider: ProviderAWS}:          `aws_database.RDS("%s")`,
-	{Kind: string(PersistRedisNodeKind), Provider: ProviderAWS}:    `aws_database.ElasticacheForRedis("%s")`,
-	{Kind: string(PersistRedisClusterKind), Provider: ProviderAWS}: `aws_database.ElasticacheForRedis("%s")`, // Theres no memoryDB at the moment
-	{Kind: string(PubSubKind), Provider: ProviderAWS}:              `aws_integration.SNS("%s")`,
-
+	{Kind: ExecutionUnitKind, Provider: ProviderAWS}:                    `aws_compute.Lambda("%s")`,
+	{Kind: string(PersistKVKind), Provider: ProviderAWS}:                `aws_database.Dynamodb("%s")`,
+	{Kind: string(PersistFileKind), Provider: ProviderAWS}:              `aws_storage.S3("%s")`,
+	{Kind: string(PersistSecretKind), Provider: ProviderAWS}:            `aws_security.SecretsManager("%s")`,
+	{Kind: string(PersistORMKind), Provider: ProviderAWS}:               `aws_database.RDS("%s")`,
+	{Kind: string(PersistRedisNodeKind), Provider: ProviderAWS}:         `aws_database.ElasticacheForRedis("%s")`,
+	{Kind: string(PersistRedisClusterKind), Provider: ProviderAWS}:      `aws_database.ElasticacheForRedis("%s")`, // Theres no memoryDB at the moment
+	{Kind: string(PubSubKind), Provider: ProviderAWS}:                   `aws_integration.SNS("%s")`,
+	{Kind: ConfigKind, Type: "secrets_manager", Provider: ProviderAWS}:  `aws_security.SecretsManager("%s")`,
+	{Kind: ConfigKind, Type: "s3", Provider: ProviderAWS}:               `aws_storage.S3("%s")`,
 	{Kind: ExecutionUnitKind, Type: "ecs", Provider: ProviderAWS}:       `aws_compute.Fargate("%s")`,
 	{Kind: ExecutionUnitKind, Type: "eks", Provider: ProviderAWS}:       `aws_compute.EKS("%s")`,
 	{Kind: ExecutionUnitKind, Type: "apprunner", Provider: ProviderAWS}: `generic_compute.Rack("AR: %s")`, // Using generic until mingrammer cuts a release with AppRunner

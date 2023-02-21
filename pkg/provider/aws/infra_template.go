@@ -161,6 +161,15 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 				data.PubSubs = append(data.PubSubs, ps)
 			}
 
+		case *core.Config:
+			cfg := a.Config.GetConfig(res.Name)
+			if res.Secret {
+				data.SecretManagerSecrets = append(data.SecretManagerSecrets, provider.Config{
+					Name:   res.Name,
+					Params: cfg.InfraParams,
+				})
+			}
+
 		case *core.Secrets:
 			if res.Kind == core.PersistSecretKind {
 				data.Secrets = append(data.Secrets, res.Secrets...)

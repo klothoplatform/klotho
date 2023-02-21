@@ -27,6 +27,7 @@ export enum Resource {
     redis_node = 'persist_redis_node',
     redis_cluster = 'persist_redis_cluster',
     pubsub = 'pubsub',
+    config = 'config',
 }
 
 export interface ResourceKey {
@@ -576,6 +577,10 @@ export class CloudCCLib {
             case Resource.fs:
                 const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
                 return [v.Name, bucket.bucket]
+            case Resource.config:
+                if (v.Value == 'secret_name') {
+                    return [v.Name, `${this.name}_${v.ResourceID}`] // TODO: Make this use the secret once we figure out how to bootstrap
+                }
             default:
                 throw new Error('unsupported kind')
         }

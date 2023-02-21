@@ -104,6 +104,8 @@ func (p *Plugin) handleResources(result *core.CompilationResult) error {
 	errs.Append(err)
 	err = validateNoDuplicateIds[*core.StaticUnit](result)
 	errs.Append(err)
+	err = validateNoDuplicateIds[*core.Config](result)
+	errs.Append(err)
 	return errs.ErrOrNil()
 }
 
@@ -152,6 +154,14 @@ func (p *Plugin) validateConfigOverrideResourcesExist(result *core.CompilationRe
 			log.Warnf("Unknown static unit in config override, \"%s\".", unit)
 		}
 	}
+
+	for unit := range p.UserConfigOverrides.Config {
+		resources := result.GetResourcesOfType(core.ConfigKind)
+		resource := getResourceById(unit, resources)
+		if resource == (core.ResourceKey{}) {
+			log.Warnf("Unknown config resource in config override, \"%s\".", unit)
+		}
+	}
 }
 
 func (p *Plugin) checkAnnotationForResource(annot *core.Annotation, result *core.CompilationResult, log *zap.SugaredLogger) core.ResourceKey {
@@ -173,6 +183,8 @@ func (p *Plugin) checkAnnotationForResource(annot *core.Annotation, result *core
 		resources = append(result.GetResourcesOfType(core.GatewayKind), resources...)
 	case annotation.PubSubCapability:
 		resources = append(result.GetResourcesOfType(core.PubSubKind), resources...)
+	case annotation.ConfigCapability:
+		resources = append(result.GetResourcesOfType(core.ConfigKind), resources...)
 	case annotation.AssetCapability:
 	default:
 		log.Warnf("Unknown annotation capability %s.", annot.Capability.Name)
