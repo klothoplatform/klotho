@@ -20,7 +20,7 @@ var (
 	Arch string = runtime.GOARCH
 )
 
-var (
+const (
 	DefaultServer string = "http://srv.klo.dev"
 )
 
@@ -75,7 +75,33 @@ func (u *Updater) CheckUpdate(currentVersion string) (bool, error) {
 		return false, fmt.Errorf("invalid version %s: %v", currentVersion, err)
 	}
 
-	return currVersion.LessThan(*latestVersion) || strings.Split(u.CurrentStream, ":")[0] != strings.Split(u.Stream, ":")[0], nil
+	// Given a stream "xxx:yyyy", the qualifier is the "xxx" and the tag is the "yyyy".
+	//
+	// (1) If the qualifiers are different, always update (this is to handle open <--> pro)
+	// Otherwise, check the cli's version against latest. This is a bit trickier:
+	//
+	// (2a) If the tags are the same, then either it's a specific version or it's a monotonic tag like "latest".
+	//   • If it's a monotonic tag, we only want to perform upgrades. A downgrade would be a situation like if we gave
+	//     someone a pre-release, in which case we don't want to downgrade them.
+	//   • If it's a specific version, we can assume that the version will never change.
+	//   • So in either case, we want to only perform upgrades.
+	// (2b) If the tags are different, then someone is either pinning to a specific version, or going from a pinned
+	//     version to a monotonic version. In either case, we should allow downgrades. (Going from pinned to monotonic
+	//     *may* be an incorrect downgrade, with a similar pre-release reason. But if someone has a pre-release, they
+	//     shouldn't be worrying about any upgrade stuff, including not changing their update stream from pinned to
+	//     monotonic.)
+
+	// case (1): different qualifiers always update
+	if strings.Split(u.CurrentStream, ":")[0] != strings.Split(u.Stream, ":")[0] {
+		return true, nil
+	}
+
+	// the qualifiers are the same, so the tags are the same iff the full stream strings are the same
+	if u.CurrentStream == u.Stream {
+		return currVersion.LessThan(*latestVersion), nil // case (2a): only upgrades
+	} else {
+		return !currVersion.Equal(*latestVersion), nil // case (2b): upgrades or downgrades
+	}
 }
 
 // Update performs an update if a newer version is
