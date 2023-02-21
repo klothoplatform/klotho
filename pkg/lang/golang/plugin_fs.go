@@ -103,9 +103,8 @@ func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, 
 	}
 
 	persist := &core.Persist{
-		Kind:        core.PersistFileKind,
-		Name:        cap.Capability.ID,
-		GenerateNew: true,
+		Kind: core.PersistFileKind,
+		Name: cap.Capability.ID,
 	}
 	return persist, nil
 }

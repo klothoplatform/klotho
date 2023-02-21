@@ -580,11 +580,14 @@ export class CloudCCLib {
                 if (v.ResourceID === 'InternalKlothoPayloads') {
                     const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
                     return [v.Name, bucket.bucket]
+                }
+                break
             case Resource.config:
                 if (v.Value == 'secret_name') {
                     const secret: aws.secretsmanager.Secret = this.secrets.get(v.ResourceID)!
                     return [v.Name, secret.name]
                 }
+                break
             default:
                 throw new Error('unsupported kind')
         }
