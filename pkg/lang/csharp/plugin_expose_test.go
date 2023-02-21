@@ -34,9 +34,9 @@ func TestSanitizeConventionalRoute(t *testing.T) {
 			expected: "/hello/:world",
 		},
 		{
-			name:     "optional param is converted to wildcard",
+			name:     "optional param is converted to standard param",
 			path:     "/hello/{world?}",
-			expected: "/hello/:rest*",
+			expected: "/hello/:world",
 		},
 		{
 			name:     "default param is converted to wildcard",
@@ -50,7 +50,7 @@ func TestSanitizeConventionalRoute(t *testing.T) {
 		},
 		{
 			name:     "path is converted to longest possible wildcard",
-			path:     "/hello/far/away/{other?}/{world=default}",
+			path:     "/hello/far/away/{place=default}/{world=default}",
 			expected: "/hello/far/away/:rest*",
 		},
 		{
@@ -106,9 +106,9 @@ func Test_sanitizeAttributeBasedPath(t *testing.T) {
 			expected: "/hello/:world",
 		},
 		{
-			name:     "optional param is converted to wildcard",
+			name:     "optional param is converted to standard param",
 			path:     "/hello/{world?}",
-			expected: "/hello/:rest*",
+			expected: "/hello/:world",
 		},
 		{
 			name:     "default param is converted to wildcard",
@@ -122,7 +122,7 @@ func Test_sanitizeAttributeBasedPath(t *testing.T) {
 		},
 		{
 			name:     "path is converted to longest possible wildcard",
-			path:     "/hello/far/away/{other?}/{world=default}",
+			path:     "/hello/far/away/{place=default}/{world=default}",
 			expected: "/hello/far/away/:rest*",
 		},
 		{
@@ -315,6 +315,35 @@ func Test_findIApplicationBuilder(t *testing.T) {
 }
 
 func TestExpose_Transform(t *testing.T) {
+	controllerMappingStartupClass := `
+	using Microsoft.AspNetCore.Builder;
+	using Microsoft.AspNetCore.Hosting;
+	using Microsoft.AspNetCore.Http;
+	using Microsoft.Extensions.Configuration;
+	using Microsoft.Extensions.DependencyInjection;
+
+	namespace WebAPILambda
+	{
+		public class Startup
+		{							
+			public void ConfigureServices(IServiceCollection services)
+			{
+				services.AddControllers();
+			}
+
+			public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+			{
+				/**
+				 * @klotho::expose {
+				 *  id = "my-gateway"
+				 *  target = "public"
+				 * }
+				 */
+				app.UseEndpoints(endpoints => endpoints.MapControllers());
+			}
+		}
+	}`
+
 	type gateway struct {
 		Name   string
 		Routes []routeMethodPath
@@ -364,6 +393,7 @@ func TestExpose_Transform(t *testing.T) {
 									 */
 									app.UseEndpoints(endpoints =>
 									{
+										endpoints.Map("/any-path", () => "ok");
 										endpoints.MapGet("/path", () => "ok");
 										endpoints.MapPut("/path", () => "ok");
 										endpoints.MapPost("/path", () =>  "ok");
@@ -380,6 +410,7 @@ func TestExpose_Transform(t *testing.T) {
 				{
 					Name: "my-gateway",
 					Routes: []routeMethodPath{
+						{Verb: core.VerbAny, Path: "/any-path"},
 						{Verb: core.VerbGet, Path: "/path"},
 						{Verb: core.VerbPost, Path: "/path"},
 						{Verb: core.VerbPut, Path: "/path"},
@@ -594,6 +625,83 @@ func TestExpose_Transform(t *testing.T) {
 				"gateway1:unit1-MapControllers",
 				"gateway2:unit2-no-MapControllers",
 				"gateway3:unit3-no-AddControllers",
+			},
+		},
+		{
+			name: "All routing attributes applied to an action are handled",
+			units: map[string][]srcFile{
+				"main": {
+					{
+						Path:    "Startup.cs",
+						Content: controllerMappingStartupClass,
+					},
+					{
+						Path: "MyController.cs",
+						Content: `
+						using Microsoft.AspNetCore.Mvc;
+						[Route("/api/[controller]")]
+						public class MyController {
+							[Route("child")]
+							[Route("/root/child")]
+							[AcceptVerbs("GET")]
+							[AcceptVerbs("DELETE", Route="/del")]
+							[HttpGet]
+							[HttpDelete,HttpPut]
+							public void action() {}
+						}
+						`,
+					},
+				},
+			},
+			expectedGateways: []gateway{
+				{
+					Name: "my-gateway",
+					Routes: []routeMethodPath{
+						{Verb: core.VerbGet, Path: "/api/my"},
+						{Verb: core.VerbDelete, Path: "/api/my"},
+						{Verb: core.VerbPut, Path: "/api/my"},
+						{Verb: core.VerbGet, Path: "/api/my/child"},
+						{Verb: core.VerbGet, Path: "/root/child"},
+						{Verb: core.VerbDelete, Path: "/del"},
+					},
+				},
+			},
+			expectedDeps: []string{
+				"my-gateway:main",
+			},
+		},
+		{
+			name: "Optional last path params result in required and optional routes",
+			units: map[string][]srcFile{
+				"main": {
+					{
+						Path:    "Startup.cs",
+						Content: controllerMappingStartupClass,
+					},
+					{
+						Path: "MyController.cs",
+						Content: `
+						using Microsoft.AspNetCore.Mvc;
+						public class MyController {
+							[Route("/required/{optional?}")]
+							[AcceptVerbs("GET")]
+							public void action() {}
+						}
+						`,
+					},
+				},
+			},
+			expectedGateways: []gateway{
+				{
+					Name: "my-gateway",
+					Routes: []routeMethodPath{
+						{Verb: core.VerbGet, Path: "/required"},
+						{Verb: core.VerbGet, Path: "/required/:optional"},
+					},
+				},
+			},
+			expectedDeps: []string{
+				"my-gateway:main",
 			},
 		},
 	}

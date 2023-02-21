@@ -3,7 +3,6 @@ package query
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	sitter "github.com/smacker/go-tree-sitter"
-	"strings"
 )
 
 // queryCache stores references to all *sitter.Query instances created by invoking Exec for reuse in subsequent Exec invocations
@@ -89,8 +88,4 @@ func (m *Cache) GetQuery(lang core.LanguageId, name string) (*sitter.Query, bool
 		return lCache.Get(name)
 	}
 	return nil, false
-}
-
-func Join(queries ...string) string {
-	return strings.Join(queries, "\n")
 }

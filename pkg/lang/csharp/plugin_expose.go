@@ -362,8 +362,24 @@ func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *core.SourceFile, varNa
 	h.log.Sugar().Debugf("Got %d verb functions for '%s'", len(verbFuncs), varName)
 
 	for _, vfunc := range verbFuncs {
+
+		// add fixed route for second to last segment if last path segment is an optional param
+		// e.g. /a/{b?} -> /a, /a/:b
+		nonOptionalRoute := stripOptionalLastSegment(vfunc.Path)
+		if nonOptionalRoute != vfunc.Path {
+			routes = append(routes, gatewayRouteDefinition{
+				Route: core.Route{
+					Verb:          vfunc.Verb,
+					Path:          strings.ToLower(sanitizeConventionalPath(path.Join("/", h.RootPath, prefix, nonOptionalRoute))),
+					ExecUnitName:  h.Unit.Name,
+					HandledInFile: f.Path(),
+				},
+				DefinedInPath: f.Path(),
+			})
+		}
+
 		route := core.Route{
-			Verb: core.Verb(vfunc.Verb),
+			Verb: vfunc.Verb,
 			// using lowercase routes enforces consistency
 			// since ASP.NET core is case-insensitive and API Gateway is case-sensitive
 			Path:          strings.ToLower(sanitizeConventionalPath(path.Join("/", h.RootPath, prefix, vfunc.Path))),
@@ -440,10 +456,9 @@ func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 			}
 
 			// add fixed route for second to last segment if last routeTemplate segment is an optional param
-			// e.g. /a/{b?} -> /a, /a/:rest*
-			if regexp.MustCompile(`(^|/)({[^?{}]+\?})(/$|$)`).MatchString(routeTemplate) {
-				nonOptionalRoute := strings.TrimSuffix(routeTemplate, "/")
-				nonOptionalRoute = nonOptionalRoute[0:strings.LastIndex(nonOptionalRoute, "/")]
+			// e.g. /a/{b?} -> /a, /a/:b
+			nonOptionalRoute := stripOptionalLastSegment(routeTemplate)
+			if nonOptionalRoute != routeTemplate {
 				routes = append(routes, gatewayRouteDefinition{
 					Route: core.Route{
 						Verb: verb,
@@ -453,8 +468,7 @@ func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 						HandledInFile: c.class.DeclaringFile,
 					},
 					DefinedInPath: c.class.DeclaringFile,
-				},
-				)
+				})
 			}
 
 			routes = append(routes, gatewayRouteDefinition{
@@ -472,6 +486,14 @@ func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 		}
 	}
 	return routes
+}
+
+func stripOptionalLastSegment(routeTemplate string) string {
+	if regexp.MustCompile(`(^|/)({[^?{}]+\?})(/$|$)`).MatchString(routeTemplate) {
+		routeTemplate = strings.TrimSuffix(routeTemplate, "/")
+		routeTemplate = routeTemplate[0:strings.LastIndex(routeTemplate, "/")]
+	}
+	return routeTemplate
 }
 
 // findActionsInController returns a []actionSpec containing specifications for each action detected in the supplied controller
@@ -647,7 +669,7 @@ func sanitizeConventionalPath(path string) string {
 	}
 
 	// convert path params to express syntax
-	path = regexp.MustCompile("{([^:}]*):?[^}]*}").ReplaceAllString(path, ":$1")
+	path = regexp.MustCompile("{([^:}?]*):?[^}]*}").ReplaceAllString(path, ":$1")
 	return path
 }
 
@@ -657,6 +679,7 @@ func sanitizeConventionalPath(path string) string {
 // Regex constraints and complex segments are not yet supported
 func sanitizeAttributeBasedPath(path string, area string, controller string, action string) string {
 	//TODO: handle regex constraints -- they may include additional curly braces ("{", "}") that aren't currently accounted for
+	//TODO: handle complex segments e.g. /{com}plex{segment}/
 
 	// replace params such as {controller=Index}
 	specialParamFormat := `(?i){\s*%s\s*=\s*%s\s*}`
@@ -672,7 +695,7 @@ func sanitizeAttributeBasedPath(path string, area string, controller string, act
 	}
 
 	// convert path params to express syntax
-	path = regexp.MustCompile("{([^:}]*):?[^}]*}").ReplaceAllString(path, ":$1")
+	path = regexp.MustCompile("{([^:}?]*):?[^}]*}").ReplaceAllString(path, ":$1")
 
 	// replace special tokens
 	path = regexp.MustCompile(`(?i)\[area]`).ReplaceAllString(path, area)
@@ -681,11 +704,10 @@ func sanitizeAttributeBasedPath(path string, area string, controller string, act
 	return path
 }
 
-// TODO: rework handling of optional and default params
+// TODO: rework handling of default params
 func findFirstProxyRouteIndicator(path string) int {
 	firstProxyParamIndex := -1
 	for _, i := range []int{
-		strings.Index(path, "?"),
 		strings.Index(path, "="),
 		strings.Index(path, "*"),
 	} {
