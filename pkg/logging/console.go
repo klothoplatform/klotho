@@ -121,6 +121,7 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 		annotation  = enc.Annotation.a
 		nodeField   = enc.Node
 		postMessage = ""
+		errField    error
 
 		indentWriter = &IndentedWriter{Indentation: enc.levelPadding(), Writer: line}
 	)
@@ -147,7 +148,7 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 			postMessage = v.Message
 			continue
 		case error:
-			// hacky workaround to #195: just don't print errors, since they can be long strings of multi-line trace
+			errField = v
 			continue
 		}
 		if fieldCount > 0 {
@@ -267,7 +268,21 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 			line.AppendByte('\n')
 		}
 	}
-
+	if errField != nil {
+		indentWriter.Indentation += colour.Sprint("| ")
+		errFmt := "%v"
+		if enc.Verbose {
+			errFmt = "%+v"
+		}
+		errText := fmt.Sprintf("ERROR: "+errFmt, errField)
+		for _, errLine := range strings.Split(errText, "\n") {
+			fmt.Fprintf(&IndentedWriter{
+				Indentation: indentWriter.Indentation,
+				Writer:      line,
+				Colour:      colour,
+			}, "%s\n", errLine)
+		}
+	}
 	return line, nil
 }
 
