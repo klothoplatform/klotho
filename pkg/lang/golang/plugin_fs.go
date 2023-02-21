@@ -1,8 +1,8 @@
 package golang
 
 import (
-	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -81,47 +81,45 @@ func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, 
 
 	unit.EnvironmentVariables = append(unit.EnvironmentVariables, fsEnvVar)
 
-	args := GetArguements(result.args)
+	args, _ := getArguements(result.expression)
+	// Generate the new node content before replacing the node. We just set it so we can compile correctly
+	newNodeContent := `var _ = ` + args[1].Content + "\n"
 
-	// We need to check to make sure the path supplied to the original node content is a static string. This is because it will get erased and we dont want to leave os level orphaned code
-	if !args[0].IsString() {
-		return nil, errors.New("must supply static string for secret path")
-	}
-
-	args[0].Content = "nil"
 	args[1].Content = fmt.Sprintf(`"s3://" + os.Getenv("%s") + "?region=" + os.Getenv("AWS_REGION")`, fsEnvVar.Name)
 
-	err := f.ReplaceNodeContent(result.args, ArgumentListToString(args))
-	if err != nil {
-		return nil, err
-	}
-	err = f.ReplaceNodeContent(result.operator, "blob")
+	newArgContent := argumentListToString(args)
+
+	newExpressionContent := strings.ReplaceAll(result.expression.Content(), result.args.Content(), newArgContent)
+	newNodeContent += newExpressionContent
+
+	err := f.ReplaceNodeContent(result.expression, newNodeContent)
 	if err != nil {
 		return nil, err
 	}
 
-	err = UpdateImportsInFile(f, p.runtime.GetFsImports(), []Import{{Package: "gocloud.dev/blob/fileblob"}})
+	err = UpdateImportsInFile(f, p.runtime.GetFsImports(), []Import{})
 	if err != nil {
 		return nil, err
 	}
 
 	persist := &core.Persist{
-		Kind: core.PersistFileKind,
-		Name: cap.Capability.ID,
+		Kind:        core.PersistFileKind,
+		Name:        cap.Capability.ID,
+		GenerateNew: true,
 	}
 	return persist, nil
 }
 
 type persistResult struct {
-	varName  string
-	operator *sitter.Node
-	args     *sitter.Node
+	varName    string
+	expression *sitter.Node
+	args       *sitter.Node
 }
 
 func queryFS(file *core.SourceFile, annotation *core.Annotation) *persistResult {
 	log := zap.L().With(logging.FileField(file), logging.AnnotationField(annotation))
 
-	fileBlobImport := GetNamedImportInFile(file, "gocloud.dev/blob/fileblob")
+	fileBlobImport := GetNamedImportInFile(file, "gocloud.dev/blob")
 
 	nextMatch := doQuery(annotation.Node, fileBucket)
 
@@ -138,7 +136,7 @@ func queryFS(file *core.SourceFile, annotation *core.Annotation) *persistResult 
 				return nil
 			}
 		} else {
-			if !query.NodeContentEquals(id, "fileblob") {
+			if !query.NodeContentEquals(id, "blob") {
 				return nil
 			}
 		}
@@ -150,8 +148,8 @@ func queryFS(file *core.SourceFile, annotation *core.Annotation) *persistResult 
 	}
 
 	return &persistResult{
-		varName:  varName.Content(),
-		operator: id,
-		args:     args,
+		varName:    varName.Content(),
+		expression: match["expression"],
+		args:       args,
 	}
 }
