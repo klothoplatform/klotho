@@ -2,6 +2,7 @@ package updater
 
 import (
 	"encoding/json"
+	"github.com/gojek/heimdall/v7/httpclient"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -178,6 +179,7 @@ func TestCheckUpdate(t *testing.T) {
 				ServerURL:     server.URL,
 				Stream:        tt.cli.checkStream,
 				CurrentStream: tt.cli.buildStream,
+				Client:        httpclient.NewClient(),
 			}
 			needsUpdate, e := updater.CheckUpdate(tt.cli.currentVersion)
 
