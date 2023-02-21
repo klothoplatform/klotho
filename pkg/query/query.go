@@ -18,6 +18,11 @@ type NextMatchFunc = NextFunc[MatchNodes]
 // loop over the next match lazily and populate the results map with a mapping
 // of field name as defined in the query to mapped node.
 func Exec(lang core.SourceLanguage, c *sitter.Node, q string) NextMatchFunc {
+	if c == nil {
+		return func() (map[string]*sitter.Node, bool) {
+			return nil, false
+		}
+	}
 
 	query, ok := queryCache.GetQuery(lang.ID, q)
 	if !ok {
