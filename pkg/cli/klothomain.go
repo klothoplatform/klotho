@@ -73,8 +73,10 @@ const defaultDisableLogo = false
 var hadWarnings = atomic.NewBool(false)
 var hadErrors = atomic.NewBool(false)
 
+const consoleEncoderName = "klotho-cli"
+
 func init() {
-	err := zap.RegisterEncoder("klotho-cli", func(zcfg zapcore.EncoderConfig) (zapcore.Encoder, error) {
+	err := zap.RegisterEncoder(consoleEncoderName, func(zcfg zapcore.EncoderConfig) (zapcore.Encoder, error) {
 		return logging.NewConsoleEncoder(cfg.verbose, hadWarnings, hadErrors), nil
 	})
 
@@ -145,7 +147,7 @@ func setupLogger(analyticsClient *analytics.Client) (*zap.Logger, error) {
 	} else {
 		zapCfg = zap.NewProductionConfig()
 	}
-	zapCfg.Encoding = "klotho-cli"
+	zapCfg.Encoding = consoleEncoderName
 	return zapCfg.Build(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
 		trackingCore := analyticsClient.NewFieldListener(zapcore.WarnLevel)
 		return zapcore.NewTee(core, trackingCore)
