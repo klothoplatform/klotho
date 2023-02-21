@@ -8,6 +8,7 @@ import (
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"strings"
 	"testing"
 )
 
@@ -30,16 +31,16 @@ func TestEncodings(t *testing.T) {
 			name:  "plain error field",
 			given: log("hello world", zap.Error(fmt.Errorf("my cool error"))),
 			expect: result{
-				message:        "hello world\n",
-				verboseMessage: "  info hello world\n",
+				message:        "hello world\n| ERROR: my cool error\n",
+				verboseMessage: "  info hello world\n      | ERROR: my cool error\n",
 			},
 		},
 		{
 			name:  "error field with stack",
-			given: log("hello world", zap.Error(errors.WithStack(errors.New("my cool error")))),
+			given: log("hello world", zap.Error(errors.New("my cool error with stack trace"))),
 			expect: result{
-				message:        "hello world\n",
-				verboseMessage: "  info hello world\n",
+				message:        "hello world\n| ERROR: my cool error with stack trace\n",
+				verboseMessage: "  info hello world\n      | ERROR: my cool error with stack trace\n{{TRACE}}",
 			},
 		},
 		{
@@ -93,6 +94,19 @@ func TestEncodings(t *testing.T) {
 						expectMessage = tt.expect.message
 					}
 
+					// for each field that's an Error with a stack trace, replace one instance of "{{TRACE}}" with
+					// that stack trace
+					for _, field := range tt.given.fields {
+						var indent string
+						if verbose {
+							indent = "      "
+						}
+						trace := getStackTrace(field, indent)
+						if trace != "" {
+							expectMessage = strings.Replace(expectMessage, "{{TRACE}}", trace, 1)
+						}
+					}
+
 					assert.Equal(expectMessage, buf.String())
 					assert.Equal(tt.expect.warningsFound, hadWarnings.Load())
 					assert.Equal(tt.expect.errorsFound, hadErrors.Load())
@@ -100,7 +114,31 @@ func TestEncodings(t *testing.T) {
 			}
 		})
 	}
+}
 
+// getStackTrace gets the stack trace, but only if the field is an error that has a stack trace.
+// This makes for a less transparent test, but it's a necessary evil, since the stack trace is dynamic (depending even
+// on GOROOT, etc.)
+func getStackTrace(field zap.Field, indent string) string {
+	if field.Type != zapcore.ErrorType {
+		return ""
+	}
+
+	type stackTracer interface {
+		StackTrace() errors.StackTrace
+	}
+	trace, hasTrace := field.Interface.(stackTracer)
+	if !hasTrace {
+		return ""
+	}
+
+	var result string
+	for _, frame := range trace.StackTrace() {
+		for _, frameLine := range strings.Split(fmt.Sprintf("%+v", frame), "\n") {
+			result += fmt.Sprintf("%s| %+v\n", indent, frameLine)
+		}
+	}
+	return result
 }
 
 type (
