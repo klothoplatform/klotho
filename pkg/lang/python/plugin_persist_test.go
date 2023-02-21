@@ -232,7 +232,7 @@ import aiofiles`,
 # @klotho::persist {
 #   id="mycache"
 # }
-import klotho_runtime.fs as aiofiles`,
+import klotho_runtime.fs_mycache as aiofiles`,
 		},
 		{
 			name: "injects imports as alias",
@@ -245,7 +245,7 @@ import aiofiles as fs`,
 # @klotho::persist {
 #   id="mycache"
 # }
-import klotho_runtime.fs as fs`,
+import klotho_runtime.fs_mycache as fs`,
 		},
 	}
 	for _, tt := range tests {
@@ -405,7 +405,7 @@ import aiofiles`,
 # @klotho::persist {
 #   id="mycache"
 # }
-import klotho_runtime.fs as aiofiles`,
+import klotho_runtime.secret as aiofiles`,
 		},
 		{
 			name: "injects imports as alias",
@@ -418,7 +418,7 @@ import aiofiles as fs`,
 # @klotho::persist {
 #   id="mycache"
 # }
-import klotho_runtime.fs as fs`,
+import klotho_runtime.secret as fs`,
 		},
 	}
 	for _, tt := range tests {
@@ -448,7 +448,7 @@ import klotho_runtime.fs as fs`,
 			}
 			unit := &core.ExecutionUnit{}
 
-			_, err = p.transformFS(f, newF, cap, pres, unit)
+			_, err = p.transformSecret(f, newF, cap, pres, unit)
 			if tt.wantErr {
 				assert.Error(err)
 				return

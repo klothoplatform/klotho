@@ -127,12 +127,6 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		}
 	}
 
-	// rpc proxy dispatch needs the fs module
-	err = r.AddRuntimeFiles(unit, fsRuntimeFiles)
-	if err != nil {
-		return err
-	}
-
 	reqTxtPath := ""
 	for path, f := range unit.Files() {
 		if filepath.Base(f.Path()) == "requirements.txt" {
@@ -148,6 +142,19 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		if err != nil {
 			return err
 		}
+	}
+
+	python.AddRequirements(unit, fsRequirements)
+	proxyEnvVar := core.EnvironmentVariable{
+		Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
+		Kind:       core.InternalKind,
+		ResourceID: core.KlothoPayloadName,
+		Value:      string(core.BUCKET_NAME),
+	}
+	unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
+	err = r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
+	if err != nil {
+		return err
 	}
 
 	err = python.AddRuntimeFile(unit, templateData, "dispatcher.py.tmpl", dispatcher)
@@ -205,8 +212,8 @@ func (r *AwsRuntime) GetKvRuntimeConfig() python.KVConfig {
 	}
 }
 
-func (r *AwsRuntime) GetFsRuntimeImportClass(varName string) string {
-	return fmt.Sprintf("import klotho_runtime.fs as %s", varName)
+func (r *AwsRuntime) GetFsRuntimeImportClass(id string, varName string) string {
+	return fmt.Sprintf("import klotho_runtime.fs_%s as %s", id, varName)
 }
 
 func (r *AwsRuntime) GetSecretRuntimeImportClass(varName string) string {
@@ -218,9 +225,19 @@ func (r *AwsRuntime) AddKvRuntimeFiles(unit *core.ExecutionUnit) error {
 	return r.AddRuntimeFiles(unit, kvRuntimeFiles)
 }
 
-func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit) error {
+type FsTemplateData struct {
+	BucketNameEnvVar string
+}
+
+func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName string, id string) error {
 	python.AddRequirements(unit, fsRequirements)
-	return r.AddRuntimeFiles(unit, fsRuntimeFiles)
+	templateData := FsTemplateData{BucketNameEnvVar: envVarName}
+	content, err := fsRuntimeFiles.ReadFile("fs.py.tmpl")
+	if err != nil {
+		return err
+	}
+	err = python.AddRuntimeFile(unit, templateData, fmt.Sprintf("fs_%s.py.tmpl", id), content)
+	return err
 }
 
 func (r *AwsRuntime) AddSecretRuntimeFiles(unit *core.ExecutionUnit) error {

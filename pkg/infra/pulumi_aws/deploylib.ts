@@ -27,6 +27,7 @@ export enum Resource {
     redis_node = 'persist_redis_node',
     redis_cluster = 'persist_redis_cluster',
     pubsub = 'pubsub',
+    internal = 'internal',
     config = 'config',
 }
 
@@ -105,7 +106,6 @@ export class CloudCCLib {
         public readonly name: string,
         private namespace: string,
         private datadogEnabled: boolean,
-        private physicalPayloadsBucketName: string,
         public readonly topology: TopologyData,
         private createVPC: boolean
     ) {
@@ -115,7 +115,6 @@ export class CloudCCLib {
         if (this.createVPC) {
             this.getVpcSgSubnets()
         }
-        this.createBuckets([{ Name: physicalPayloadsBucketName }], true)
         this.addSharedPolicyStatement({
             Effect: 'Allow',
             Action: ['cloudwatch:PutMetricData'],
@@ -577,11 +576,18 @@ export class CloudCCLib {
             case Resource.fs:
                 const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
                 return [v.Name, bucket.bucket]
+            case Resource.internal:
+                if (v.ResourceID === 'InternalKlothoPayloads') {
+                    const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
+                    return [v.Name, bucket.bucket]
+                }
+                break
             case Resource.config:
                 if (v.Value == 'secret_name') {
                     const secret: aws.secretsmanager.Secret = this.secrets.get(v.ResourceID)!
                     return [v.Name, secret.name]
                 }
+                break
             default:
                 throw new Error('unsupported kind')
         }
@@ -773,38 +779,21 @@ export class CloudCCLib {
 
     createBuckets(bucketsToCreate, forceDestroy = false) {
         bucketsToCreate.forEach((b) => {
-            let bucketName
-            let bucket
-            if (b.Name == this.physicalPayloadsBucketName) {
-                // Right now we sanitize this bucket name in the compiler go code so we do not need to here  (issue #188 & pro#51)
-                bucketName = pulumi.interpolate`${this.account.accountId}${b.Name}`
-                // We have to create this in here otherwise the resource name will change and try to trigger a recreate of the bucket leading to a breaking change.
-                bucket = new aws.s3.Bucket(
-                    bucketName,
-                    {
-                        bucket: bucketName,
-                        forceDestroy,
-                    },
-                    { protect: this.protect }
-                )
-                this.buckets.set(b.Name, bucket)
-            } else {
-                bucketName = this.account.accountId.apply(
-                    (accountId) =>
-                        sanitized(
-                            AwsSanitizer.S3.bucket.nameValidation()
-                        )`${accountId}-${this.region}-${b.Name}`
-                )
-                bucket = new aws.s3.Bucket(
-                    b.Name,
-                    {
-                        bucket: bucketName,
-                        forceDestroy,
-                    },
-                    { protect: this.protect }
-                )
-                this.buckets.set(b.Name, bucket)
-            }
+            const bucketName = this.account.accountId.apply(
+                (accountId) =>
+                    sanitized(
+                        AwsSanitizer.S3.bucket.nameValidation()
+                    )`${accountId}-${this.name}-${this.region}-${b.Name}`
+            )
+            const bucket = new aws.s3.Bucket(
+                b.Name,
+                {
+                    bucket: bucketName,
+                    forceDestroy,
+                },
+                { protect: this.protect }
+            )
+            this.buckets.set(b.Name, bucket)
 
             this.topology.topologyIconData.forEach((resource) => {
                 if (resource.kind == Resource.fs) {

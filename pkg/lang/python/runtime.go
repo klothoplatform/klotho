@@ -21,12 +21,12 @@ type (
 		AddExecRuntimeFiles(*core.ExecutionUnit, *core.CompilationResult, *core.Dependencies) error
 		AddExposeRuntimeFiles(*core.ExecutionUnit) error
 		AddKvRuntimeFiles(unit *core.ExecutionUnit) error
-		AddFsRuntimeFiles(unit *core.ExecutionUnit) error
+		AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName string, id string) error
 		AddOrmRuntimeFiles(unit *core.ExecutionUnit) error
 		AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error
 		AddSecretRuntimeFiles(unit *core.ExecutionUnit) error
 		GetKvRuntimeConfig() KVConfig
-		GetFsRuntimeImportClass(varName string) string
+		GetFsRuntimeImportClass(id string, varName string) string
 		GetSecretRuntimeImportClass(varName string) string
 		GetAppName() string
 	}

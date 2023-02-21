@@ -117,7 +117,6 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 			err = p.runtime.AddKvRuntimeFiles(unit)
 		case core.PersistFileKind:
 			doTransform = p.transformFS
-			err = p.runtime.AddFsRuntimeFiles(unit)
 		case core.PersistSecretKind:
 			doTransform = p.transformSecret
 			err = p.runtime.AddSecretRuntimeFiles(unit)
@@ -229,7 +228,7 @@ func (p *persister) transformFS(original *core.SourceFile, modified *core.Source
 
 	nodeContent := cap.Node.Content()
 
-	replaceString := p.runtime.GetFsRuntimeImportClass(fsR.name)
+	replaceString := p.runtime.GetFsRuntimeImportClass(cap.Capability.ID, fsR.name)
 
 	newContent := nodeContent
 	newExpression := strings.Replace(newContent, fsR.expression, replaceString, -1)
@@ -247,12 +246,22 @@ func (p *persister) transformFS(original *core.SourceFile, modified *core.Source
 	if err != nil {
 		return nil, errors.Wrap(err, "could not reparse FS transformation")
 	}
+	fsEnvVar := core.EnvironmentVariable{
+		Name:       cap.Capability.ID + "_bucket_name",
+		Kind:       string(core.PersistFileKind),
+		ResourceID: cap.Capability.ID,
+		Value:      string(core.BUCKET_NAME),
+	}
+	unit.EnvironmentVariables = append(unit.EnvironmentVariables, fsEnvVar)
 
 	result := &core.Persist{
 		Kind: core.PersistFileKind,
 		Name: cap.Capability.ID,
 	}
-
+	err = p.runtime.AddFsRuntimeFiles(unit, fsEnvVar.Name, cap.Capability.ID)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not add FS runtime")
+	}
 	return result, nil
 }
 

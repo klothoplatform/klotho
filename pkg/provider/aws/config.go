@@ -42,7 +42,6 @@ func NewTemplateData(config *config.Application) *TemplateData {
 			TemplateConfig: provider.TemplateConfig{
 				AppName: config.AppName,
 			},
-			PayloadsBucketName: SanitizeS3BucketName(config.AppName),
 		},
 	}
 }

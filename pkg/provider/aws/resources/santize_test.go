@@ -1,8 +1,9 @@
-package aws
+package resources
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSanitizeS3BucketName(t *testing.T) {

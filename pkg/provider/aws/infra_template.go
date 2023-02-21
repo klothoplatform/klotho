@@ -141,7 +141,15 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 				})
 				data.UseVPC = true
 			}
-			if res.Kind == core.PersistFileKind && res.GenerateNew {
+			if res.Kind == core.PersistFileKind {
+				data.Buckets = append(data.Buckets, provider.FS{
+					Name: res.Name,
+				})
+			}
+
+		case *core.InternalResource:
+			if res.Name == core.KlothoPayloadName {
+
 				data.Buckets = append(data.Buckets, provider.FS{
 					Name: res.Name,
 				})

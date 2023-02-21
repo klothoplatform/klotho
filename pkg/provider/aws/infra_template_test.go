@@ -83,9 +83,8 @@ func TestInfraTemplateModification(t *testing.T) {
 			name: "bucket test",
 			results: []core.CloudResource{
 				&core.Persist{
-					Name:        "bucket",
-					Kind:        core.PersistFileKind,
-					GenerateNew: true,
+					Name: "bucket",
+					Kind: core.PersistFileKind,
 				},
 			},
 			cfg: config.Application{
@@ -103,9 +102,8 @@ func TestInfraTemplateModification(t *testing.T) {
 			name: "not new bucket test",
 			results: []core.CloudResource{
 				&core.Persist{
-					Name:        "bucket",
-					Kind:        core.PersistFileKind,
-					GenerateNew: false,
+					Name: "bucket",
+					Kind: core.PersistFileKind,
 				},
 			},
 			cfg: config.Application{
@@ -129,6 +127,7 @@ func TestInfraTemplateModification(t *testing.T) {
 			for _, dep := range tt.dependencies {
 				deps.Add(dep.Source, dep.Target)
 			}
+
 			tt.cfg.EnsureMapsExist()
 			aws := AWS{
 				Config: &tt.cfg,

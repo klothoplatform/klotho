@@ -13,6 +13,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/klothoplatform/klotho/pkg/runtime"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -28,10 +29,11 @@ type (
 
 	TemplateData struct {
 		aws.TemplateConfig
-		ExecUnitName    string
-		Expose          ExposeTemplateData
-		MainModule      string
-		ProjectFilePath string
+		ExecUnitName       string
+		Expose             ExposeTemplateData
+		MainModule         string
+		ProjectFilePath    string
+		PayloadsBucketName string
 	}
 
 	ExposeTemplateData struct {
@@ -64,7 +66,7 @@ var pubsubRuntimeFiles embed.FS
 // the fs template is added here since the dispatcher needs s3. This means it technically doesn't
 // need to be added later via persist or proxy as it already exists.
 //
-//go:embed clients.js package.json fs.js.tmpl
+//go:embed clients.js package.json
 var ExecRuntimeFiles embed.FS
 
 //go:embed proxy_lambda.js.tmpl
@@ -97,7 +99,7 @@ func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotat
 	importModule := ""
 	switch kind {
 	case core.PersistFileKind:
-		importModule = "fs"
+		importModule = "fs_" + annot.Capability.ID
 	case core.PersistKVKind:
 		importModule = "keyvalue"
 	case core.PersistSecretKind:
@@ -148,8 +150,18 @@ func (r *AwsRuntime) AddKvRuntimeFiles(unit *core.ExecutionUnit) error {
 	return r.AddRuntimeFiles(unit, kvRuntimeFiles)
 }
 
-func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit) error {
-	return r.AddRuntimeFiles(unit, fsRuntimeFiles)
+type FsTemplateData struct {
+	BucketNameEnvVar string
+}
+
+func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, bucketNameEnvVar string, id string) error {
+	templateData := FsTemplateData{BucketNameEnvVar: bucketNameEnvVar}
+	content, err := fsRuntimeFiles.ReadFile("fs.js.tmpl")
+	if err != nil {
+		return err
+	}
+	err = javascript.AddRuntimeFile(unit, templateData, fmt.Sprintf("fs_%s.js.tmpl", id), content)
+	return err
 }
 
 func (r *AwsRuntime) AddSecretRuntimeFiles(unit *core.ExecutionUnit) error {
@@ -259,6 +271,18 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		}
 	}
 
+	proxyEnvVar := core.EnvironmentVariable{
+		Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
+		Kind:       core.InternalKind,
+		ResourceID: core.KlothoPayloadName,
+		Value:      string(core.BUCKET_NAME),
+	}
+	unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
+	err = r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
+	if err != nil {
+		return err
+	}
+
 	err = javascript.AddRuntimeFiles(unit, ExecRuntimeFiles, templateData)
 	if err != nil {
 		return err
@@ -299,8 +323,9 @@ func getExposeTemplateData(unit *core.ExecutionUnit, result *core.CompilationRes
 
 func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) error {
 	templateData := TemplateData{
-		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		TemplateConfig:     r.TemplateConfig,
+		ExecUnitName:       unit.Name,
+		PayloadsBucketName: resources.SanitizeS3BucketName(r.Config.AppName),
 	}
 	err := javascript.AddRuntimeFiles(unit, files, templateData)
 	return err
@@ -308,8 +333,9 @@ func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) e
 
 func (r *AwsRuntime) AddRuntimeFile(unit *core.ExecutionUnit, path string, content []byte) error {
 	templateData := TemplateData{
-		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		TemplateConfig:     r.TemplateConfig,
+		ExecUnitName:       unit.Name,
+		PayloadsBucketName: resources.SanitizeS3BucketName(r.Config.AppName),
 	}
 	err := javascript.AddRuntimeFile(unit, templateData, path, content)
 	return err

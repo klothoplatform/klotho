@@ -175,8 +175,9 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 			resource, transformErr = p.transformKV(f, annot, pResult)
 			runtimeErr = p.runtime.AddKvRuntimeFiles(unit)
 		case core.PersistFileKind:
-			resource, transformErr = p.transformFS(f, annot, pResult)
-			runtimeErr = p.runtime.AddFsRuntimeFiles(unit)
+			var envVarName string
+			resource, envVarName, transformErr = p.transformFS(unit, f, annot, pResult)
+			runtimeErr = p.runtime.AddFsRuntimeFiles(unit, envVarName, cap.ID)
 		case core.PersistSecretKind:
 			resource, transformErr = p.transformSecret(f, annot, pResult)
 			runtimeErr = p.runtime.AddSecretRuntimeFiles(unit)
@@ -238,17 +239,25 @@ func (p *persister) transformSecret(file *core.SourceFile, cap *core.Annotation,
 	return result, nil
 }
 
-func (p *persister) transformFS(file *core.SourceFile, cap *core.Annotation, fsR *persistResult) (core.CloudResource, error) {
-	if err := file.ReplaceNodeContent(fsR.expression, "fsRuntime.fs"); err != nil {
-		return nil, errors.Wrap(err, "could not reparse FS transformation")
+func (p *persister) transformFS(unit *core.ExecutionUnit, file *core.SourceFile, cap *core.Annotation, fsR *persistResult) (core.CloudResource, string, error) {
+	if err := file.ReplaceNodeContent(fsR.expression, fmt.Sprintf("fs_%sRuntime.fs", cap.Capability.ID)); err != nil {
+		return nil, "", errors.Wrap(err, "could not reparse FS transformation")
 	}
+
+	fsEnvVar := core.EnvironmentVariable{
+		Name:       cap.Capability.ID + "_bucket_name",
+		Kind:       string(core.PersistFileKind),
+		ResourceID: cap.Capability.ID,
+		Value:      string(core.BUCKET_NAME),
+	}
+	unit.EnvironmentVariables = append(unit.EnvironmentVariables, fsEnvVar)
 
 	result := &core.Persist{
 		Kind: core.PersistFileKind,
 		Name: cap.Capability.ID,
 	}
 
-	return result, nil
+	return result, fsEnvVar.Name, nil
 }
 
 func (p *persister) transformKV(file *core.SourceFile, cap *core.Annotation, kvR *persistResult) (core.CloudResource, error) {

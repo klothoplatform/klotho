@@ -1,4 +1,4 @@
-const s3fs = require('./fs')
+const s3fs = require('./fs_payload')
 import { configure as serverlessExpress } from '@vendia/serverless-express'
 const uuid = require('uuid')
 const _ = require('lodash')
