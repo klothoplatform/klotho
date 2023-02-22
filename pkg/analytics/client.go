@@ -26,7 +26,7 @@ type (
 	LogLevel string
 )
 
-var (
+const (
 	Panic LogLevel = "panic"
 	Error LogLevel = "error"
 	Warn  LogLevel = "warn"
@@ -34,8 +34,8 @@ var (
 	Debug LogLevel = "debug"
 )
 
-var datadogLogLevel = "_logLevel"
-var datadogStatus = "status"
+const datadogLogLevel = "_logLevel"
+const datadogStatus = "status"
 
 func NewClient(properties map[string]interface{}) *Client {
 	local := GetOrCreateAnalyticsFile()
@@ -95,6 +95,10 @@ func (t *Client) AppendProperties(properties map[string]interface{}) {
 	for k, v := range properties {
 		t.Properties[k] = v
 	}
+}
+
+func (t *Client) DeleteProperty(key string) {
+	delete(t.Properties, key)
 }
 
 func (t *Client) UploadSource(source *core.InputFiles) {

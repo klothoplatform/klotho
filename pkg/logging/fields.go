@@ -22,8 +22,8 @@ func (field fileField) Sanitize(hasher func(any) string) SanitizedField {
 		extension = filepath.Ext(field.f.Path())
 	}
 	return SanitizedField{
-		Key: "FileExtension",
-		Content: map[string]any{
+		Key: "file",
+		Content: map[string]string{
 			"extension": extension,
 			"path":      hasher(field.f.Path()),
 		},
@@ -51,8 +51,8 @@ func (field annotationField) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 
 func (field annotationField) Sanitize(hasher func(any) string) SanitizedField {
 	return SanitizedField{
-		Key: "Capability",
-		Content: map[string]any{
+		Key: "annotation",
+		Content: map[string]string{
 			"name":       field.a.Capability.Name,
 			"id":         hasher(field.a.Capability.ID),
 			"directives": hasher(field.a.Capability.Directives),
@@ -96,11 +96,11 @@ func DescribeKlothoFields(fields []zapcore.Field, expected ...string) map[string
 
 	for _, field := range fields {
 		encoder.b.Reset()
-		marhaledField, ok := field.Interface.(zapcore.ObjectMarshaler)
+		marshaledField, ok := field.Interface.(zapcore.ObjectMarshaler)
 		if !ok {
 			continue
 		}
-		if err := encoder.AppendObject(marhaledField); err != nil {
+		if err := encoder.AppendObject(marshaledField); err != nil {
 			all[field.Key] = "!!(UNMARSHALING ERROR)"
 		} else {
 			all[field.Key] = encoder.b.String()
@@ -111,8 +111,8 @@ func DescribeKlothoFields(fields []zapcore.Field, expected ...string) map[string
 
 func (field astNodeField) Sanitize(hasher func(any) string) SanitizedField {
 	return SanitizedField{
-		Key: "AstNodeType",
-		Content: map[string]any{
+		Key: "ast_node",
+		Content: map[string]string{
 			"type":    field.n.Type(),
 			"content": hasher(field.n.Content()),
 		},

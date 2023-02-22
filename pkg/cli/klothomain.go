@@ -209,7 +209,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// Set up analytics, and hook them up to the logs
-	analyticsClient := analytics.NewClient(map[string]interface{}{
+	analyticsClient := analytics.NewClient(map[string]any{
 		"version": km.Version,
 		"strict":  cfg.strict,
 		"edition": km.DefaultUpdateStream,
@@ -363,7 +363,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// Update analytics with app configs
-	analyticsClient.AppendProperties(map[string]interface{}{
+	analyticsClient.AppendProperties(map[string]any{
 		"provider": appCfg.Provider,
 		"app":      appCfg.AppName,
 	})
@@ -423,9 +423,11 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	CloseTreeSitter(result)
-	analyticsClient.AppendProperties(map[string]interface{}{"resource_types": GetResourceTypeCount(result, &appCfg)})
-	analyticsClient.AppendProperties(map[string]interface{}{"languages": GetLanguagesUsed(result)})
-	analyticsClient.AppendProperties(map[string]interface{}{"resources": resourceCounts})
+	analyticsClient.AppendProperties(map[string]any{
+		"resource_types": GetResourceTypeCount(result, &appCfg),
+		"languages":      GetLanguagesUsed(result),
+		"resources":      resourceCounts,
+	})
 	analyticsClient.Info(klothoName + " compile complete")
 
 	return nil
