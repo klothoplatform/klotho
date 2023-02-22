@@ -137,6 +137,10 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 		addFile("iac/secrets_manager.ts")
 	}
 
+	if len(data.RdsInstances) > 0 {
+		addFile("iac/rds.ts")
+	}
+
 	addFile("deploylib.ts")
 	addFile("package.json")
 	addFile("tsconfig.json")
