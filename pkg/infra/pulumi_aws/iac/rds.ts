@@ -2,11 +2,16 @@ import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 import { hash as h, sanitized, validate } from './sanitization/sanitizer'
 import AwsSanitizer from './sanitization/aws'
-import { Resource, CloudCCLib, RdsImport, kloConfig } from '../deploylib'
+import { Resource, CloudCCLib, kloConfig } from '../deploylib'
 
 export interface CreateInstanceAndProxyResult {
     rds: aws.rds.Instance
     proxy: aws.rds.Proxy
+}
+
+export interface RdsImport {
+    dbInstanceIdentifier: string
+    proxy: string
 }
 
 export class RDS {

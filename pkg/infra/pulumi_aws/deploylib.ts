@@ -62,11 +62,6 @@ export interface TopologyEdgeData {
     target: string
 }
 
-export interface RdsImport {
-    dbInstanceIdentifier: string
-    proxy: string
-}
-
 export const kloConfig: pulumi.Config = new pulumi.Config('klo')
 
 export class CloudCCLib {
