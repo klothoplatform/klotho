@@ -264,6 +264,7 @@ func TestFindDeclarationsInFile(t *testing.T) {
 					Dictionary<T> f2 = new Dictionary<>();
 					public static int f3 = 1;
 					public int f4 = 1, f5 = 2;
+					public event SomeDelegate e1;
 				}
 			}
 			`,
@@ -342,6 +343,17 @@ func TestFindDeclarationsInFile(t *testing.T) {
 					},
 					HasInitialValue: true,
 					Type:            "int",
+				}),
+				asTestDeclarable(&testFieldDeclaration{
+					testDeclaration: testDeclaration{
+						Name:           "e1",
+						Kind:           DeclarationKindEvent,
+						Visibility:     VisibilityPublic,
+						QualifiedName:  "ns1.c1.e1",
+						Namespace:      "ns1",
+						DeclaringClass: "ns1.c1",
+					},
+					Type: "SomeDelegate",
 				}),
 			},
 		},

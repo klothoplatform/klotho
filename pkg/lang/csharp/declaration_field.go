@@ -23,10 +23,15 @@ func parseFieldDeclaration(match query.MatchNodes) *FieldDeclaration {
 		Declaration: Declaration{
 			Name: name.Content(),
 			Node: fieldDeclaration,
-			Kind: DeclarationKindField,
 		},
 		Type:       fieldType.Content(),
 		Declarator: variableDeclarator,
+	}
+
+	if fieldDeclaration.Type() == "event_field_declaration" {
+		declaration.Kind = DeclarationKindEvent
+	} else {
+		declaration.Kind = DeclarationKindField
 	}
 
 	declaration.Namespace = resolveNamespace(declaration.Node)
