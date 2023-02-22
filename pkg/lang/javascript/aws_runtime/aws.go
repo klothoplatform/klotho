@@ -196,6 +196,19 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 		proxyFile = proxyApprunner
 	case "lambda":
 		proxyFile = proxyLambda
+
+		// We also need to add the Fs files because exec to exec calls in aws use s3
+		proxyEnvVar := core.EnvironmentVariable{
+			Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
+			Kind:       core.InternalKind,
+			ResourceID: core.KlothoPayloadName,
+			Value:      string(core.BUCKET_NAME),
+		}
+		unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
+		err := r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
+		if err != nil {
+			return err
+		}
 	default:
 		return errors.Errorf("unsupported exceution unit type: '%s'", unitType)
 	}
@@ -204,11 +217,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	if err != nil {
 		return err
 	}
-	// We also need to add the Fs files because exec to exec calls in aws use s3
-	err = r.AddRuntimeFiles(unit, fsRuntimeFiles)
-	if err != nil {
-		return err
-	}
+
 	return nil
 }
 
@@ -222,6 +231,18 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 	case "lambda":
 		DockerFile = dockerfileLambda
 		Dispatcher = dispatcherLambda
+
+		proxyEnvVar := core.EnvironmentVariable{
+			Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
+			Kind:       core.InternalKind,
+			ResourceID: core.KlothoPayloadName,
+			Value:      string(core.BUCKET_NAME),
+		}
+		unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
+		err := r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
+		if err != nil {
+			return err
+		}
 	default:
 		return errors.Errorf("unsupported execution unit type: '%s'", unitType)
 	}
@@ -269,18 +290,6 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 				zap.S().Debugf("Skipping 'main' from package.json: %s due to not in unit %s", templateData.MainModule, unit.Name)
 			}
 		}
-	}
-
-	proxyEnvVar := core.EnvironmentVariable{
-		Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
-		Kind:       core.InternalKind,
-		ResourceID: core.KlothoPayloadName,
-		Value:      string(core.BUCKET_NAME),
-	}
-	unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
-	err = r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
-	if err != nil {
-		return err
 	}
 
 	err = javascript.AddRuntimeFiles(unit, ExecRuntimeFiles, templateData)

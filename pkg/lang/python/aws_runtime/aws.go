@@ -100,6 +100,19 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		dockerFile = dockerfileLambda
 		dispatcher = dispatcherLambda
 		requirements = execRequirementsLambda
+
+		python.AddRequirements(unit, fsRequirements)
+		proxyEnvVar := core.EnvironmentVariable{
+			Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
+			Kind:       core.InternalKind,
+			ResourceID: core.KlothoPayloadName,
+			Value:      string(core.BUCKET_NAME),
+		}
+		unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
+		err := r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
+		if err != nil {
+			return err
+		}
 	case "ecs", "eks", "apprunner":
 		dockerFile = dockerfileFargate
 		dispatcher = dispatcherFargate
@@ -142,19 +155,6 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		if err != nil {
 			return err
 		}
-	}
-
-	python.AddRequirements(unit, fsRequirements)
-	proxyEnvVar := core.EnvironmentVariable{
-		Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
-		Kind:       core.InternalKind,
-		ResourceID: core.KlothoPayloadName,
-		Value:      string(core.BUCKET_NAME),
-	}
-	unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
-	err = r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
-	if err != nil {
-		return err
 	}
 
 	err = python.AddRuntimeFile(unit, templateData, "dispatcher.py.tmpl", dispatcher)
@@ -259,6 +259,20 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 		fileContents = proxyFargateContents
 	case "lambda":
 		fileContents = proxyLambdaContents
+
+		// We also need to add the Fs files because exec to exec calls in aws use s3
+		python.AddRequirements(unit, fsRequirements)
+		proxyEnvVar := core.EnvironmentVariable{
+			Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
+			Kind:       core.InternalKind,
+			ResourceID: core.KlothoPayloadName,
+			Value:      string(core.BUCKET_NAME),
+		}
+		unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
+		err := r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
+		if err != nil {
+			return err
+		}
 	default:
 		return errors.Errorf("unsupported exceution unit type: '%s'", r.Cfg.GetResourceType(unit))
 	}
@@ -266,8 +280,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	if err != nil {
 		return err
 	}
-	// We also need to add the Fs files because exec to exec calls in aws use s3
-	return r.AddRuntimeFiles(unit, fsRuntimeFiles)
+	return nil
 }
 
 func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) error {
