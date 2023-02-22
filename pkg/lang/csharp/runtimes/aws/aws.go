@@ -15,8 +15,6 @@ import (
 	"strings"
 )
 
-//go:generate ./compile_template.sh Lambda_Dispatcher
-
 type (
 	AwsRuntime struct {
 		TemplateConfig aws.TemplateConfig

@@ -1,4 +1,4 @@
-(invocation_expression
+(invocation_expression ;;; e.g. var.MapGet("/path", () => {});
   function:
   (member_access_expression expression: (_) @var
     name: (_) @method_name (#match? @method_name "^Map(Get|Post|Put|Delete)?$")

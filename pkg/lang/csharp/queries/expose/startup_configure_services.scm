@@ -1,4 +1,4 @@
-(class_declaration body:
+(class_declaration body: ;;; finds method declaration ConfigureServices(T param){...} in a class declaration's body
   (declaration_list (
                       (method_declaration
                         name : (_) @method_name (#eq? @method_name "ConfigureServices")

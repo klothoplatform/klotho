@@ -40,6 +40,7 @@ func (l CSharpExecutable) Transform(result *core.CompilationResult, dependencies
 		for _, file := range input.Files() {
 			if casted, ok := file.(*csproj.CSProjFile); ok {
 				csProjFile = casted
+				break
 			}
 		}
 		if csProjFile == nil {
