@@ -68,7 +68,7 @@ func shouldTransformImage(unit *core.ExecutionUnit) bool {
 
 func shouldTransformServiceAccount(unit *core.ExecutionUnit) bool {
 	// TODO: Replace this with logic that determines if we are creating a role for the exec unit. This happens after here (the aws provider) today.
-	// Ideally we should understand if we are parsing any app code and if not (only building a Dockerfile) then the permissions which we assign wont matter
+	// Ideally we should understand if we are parsing any app code and if not (only building a Dockerfile) then the permissions which we assign won't matter
 	return shouldTransformImage(unit)
 }
 

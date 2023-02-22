@@ -75,7 +75,7 @@ func (p Kubernetes) Transform(result *core.CompilationResult, deps *core.Depende
 			res := result.Get(core.ResourceKey{Kind: core.ExecutionUnitKind, Name: unit.Name})
 			eu, ok := res.(*core.ExecutionUnit)
 			if !ok {
-				return fmt.Errorf("unable to handle nonexistant execution unit: %s", unit.Name)
+				return fmt.Errorf("unable to handle nonexistent execution unit: %s", unit.Name)
 			}
 
 			cfg := p.Config.GetExecutionUnit(unit.Name)

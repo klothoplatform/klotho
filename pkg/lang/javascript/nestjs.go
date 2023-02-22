@@ -117,7 +117,7 @@ func (p *NestJsHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit)
 
 		appName, err := findApp(listen)
 		if err != nil {
-			return nil, core.NewCompilerError(f, annot, errors.New("Couldnt find expose app creation"))
+			return nil, core.NewCompilerError(f, annot, errors.New("Couldn't find expose app creation"))
 		}
 
 		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, p.Config.GetResourceType(unit), cap.ID)

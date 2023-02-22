@@ -46,11 +46,11 @@ func UpdateListenWithHandlerCode(oldFileContent string, nodeToComment string, ap
 
 func UpdateImportWithHandlerRequirements(imports *sitter.Node, f *core.SourceFile) error {
 	handlerRequirements := []Import{
-		Import{Package: "context"},
-		Import{Package: "github.com/aws/aws-lambda-go/events"},
-		Import{Package: "github.com/aws/aws-lambda-go/lambda"},
-		Import{Package: "github.com/awslabs/aws-lambda-go-api-proxy/chi"},
-		Import{Package: "github.com/go-chi/chi/v5"},
+		{Package: "context"},
+		{Package: "github.com/aws/aws-lambda-go/events"},
+		{Package: "github.com/aws/aws-lambda-go/lambda"},
+		{Package: "github.com/awslabs/aws-lambda-go-api-proxy/chi"},
+		{Package: "github.com/go-chi/chi/v5"},
 	}
 
 	return UpdateImportsInFile(f, handlerRequirements, []Import{{Package: "github.com/go-chi/chi"}})

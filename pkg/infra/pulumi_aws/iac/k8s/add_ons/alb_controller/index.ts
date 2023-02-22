@@ -259,7 +259,7 @@ export const installLoadBalancerController = (
     dependsOn?
 ): pulumi_k8s.helm.v3.Chart => {
     /**
-     * we cant limit the permissions to a specific resource because the load balancer controller doesnt know the names of the resources or arns that it is creating.
+     * we can't limit the permissions to a specific resource because the load balancer controller doesn't know the names of the resources or arns that it is creating.
      *  At best what we can do is prefix every k8s service and add a wildcard to the resource,
      *  but then if someone used the cluster controller to create LBs outside of klotho the permissions would get denied
      */

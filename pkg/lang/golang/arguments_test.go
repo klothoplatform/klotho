@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_GetArguements(t *testing.T) {
+func Test_GetArguments(t *testing.T) {
 	tests := []struct {
 		name      string
 		source    string
@@ -49,7 +49,7 @@ func Test_GetArguements(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			args, found := getArguements(f.Tree().RootNode())
+			args, found := getArguments(f.Tree().RootNode())
 
 			assert.ElementsMatch(tt.want, args)
 			assert.Equal(tt.wantFound, found)

@@ -197,7 +197,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	case "lambda":
 		proxyFile = proxyLambda
 	default:
-		return errors.Errorf("unsupported exceution unit type: '%s'", unitType)
+		return errors.Errorf("unsupported execution unit type: '%s'", unitType)
 	}
 
 	err := r.AddRuntimeFile(unit, proxyType+"_proxy.js.tmpl", proxyFile)

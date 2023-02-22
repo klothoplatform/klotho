@@ -12,8 +12,8 @@ type Argument struct {
 	Type    string
 }
 
-// GetArguements is passed a tree-sitter node, which is of type argument_list, and returns a list of in order Arguments
-func getArguements(args *sitter.Node) (arguments []Argument, found bool) {
+// GetArguments is passed a tree-sitter node, which is of type argument_list, and returns a list of in order Arguments
+func getArguments(args *sitter.Node) (arguments []Argument, found bool) {
 	fnName := ""
 	nextMatch := doQuery(args, findFunctionCall)
 	for {

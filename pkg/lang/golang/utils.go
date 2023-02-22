@@ -7,7 +7,7 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
-// stringLiteralContent returns the node content with outter quotes removed
+// stringLiteralContent returns the node content with outer quotes removed
 func stringLiteralContent(node *sitter.Node) string {
 	if node.Type() != "interpreted_string_literal" {
 		panic(fmt.Errorf("node of type %s cannot be parsed as interpreted string literal content", node.Type()))

@@ -35,7 +35,7 @@ func Test_findFilesForPackage(t *testing.T) {
 			want:    []string{"file1.go", "file2.go", "file3.go"},
 		},
 		{
-			name: "Mutliple files with different packages",
+			name: "Multiple files with different packages",
 			sources: map[string]string{
 				"file1.go": `package test`,
 				"file2.go": `package wrong`,
