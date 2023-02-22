@@ -8,9 +8,8 @@ import (
 type (
 	MethodDeclaration struct {
 		Declaration
-		DeclaringClass string
-		Parameters     []Parameter
-		ReturnType     string
+		Parameters []Parameter
+		ReturnType string
 	}
 	Parameter struct {
 		Name     string

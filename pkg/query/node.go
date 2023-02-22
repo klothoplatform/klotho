@@ -36,6 +36,16 @@ func NodeContentOrEmpty(node *sitter.Node) string {
 	return node.Content()
 }
 
+func FirstChildOfType(node *sitter.Node, ctype string) *sitter.Node {
+	for i := 0; i < int(node.ChildCount()); i++ {
+		n := node.Child(i)
+		if n.Type() == ctype {
+			return n
+		}
+	}
+	return nil
+}
+
 func FirstAncestorOfType(node *sitter.Node, ptype string) *sitter.Node {
 	for n := node; n != nil; n = n.Parent() {
 		if n.Type() == ptype {

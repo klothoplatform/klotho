@@ -71,9 +71,7 @@ func parseBaseTypes(baseList *sitter.Node) map[string]*sitter.Node {
 	bases := make(map[string]*sitter.Node)
 	for i := 0; i < int(baseList.NamedChildCount()); i++ {
 		child := baseList.NamedChild(i)
-		if t := child.Type(); t == "qualified_name" || t == "identifier" {
-			bases[child.Content()] = child
-		}
+		bases[child.Content()] = child
 	}
 	return bases
 }

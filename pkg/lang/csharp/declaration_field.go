@@ -2,13 +2,14 @@ package csharp
 
 import (
 	"github.com/klothoplatform/klotho/pkg/query"
+	sitter "github.com/smacker/go-tree-sitter"
 )
 
 type FieldDeclaration struct {
 	Declaration
-	DeclaringClass  string
 	HasInitialValue bool
 	Type            string
+	Declarator      *sitter.Node
 }
 
 func parseFieldDeclaration(match query.MatchNodes) *FieldDeclaration {
@@ -16,6 +17,7 @@ func parseFieldDeclaration(match query.MatchNodes) *FieldDeclaration {
 	fieldType := match["type"]
 	name := match["name"]
 	equalsValueClause := match["equals_value_clause"]
+	variableDeclarator := match["variable_declarator"]
 
 	declaration := &FieldDeclaration{
 		Declaration: Declaration{
@@ -23,14 +25,15 @@ func parseFieldDeclaration(match query.MatchNodes) *FieldDeclaration {
 			Node: fieldDeclaration,
 			Kind: DeclarationKindField,
 		},
-		Type: fieldType.Content(),
+		Type:       fieldType.Content(),
+		Declarator: variableDeclarator,
 	}
 
 	declaration.Namespace = resolveNamespace(declaration.Node)
 	declaration.Visibility = parseVisibilityModifiers(declaration.Node)
 	declaration.IsGeneric = fieldType.Type() == "generic_name"
 	declaration.IsNested = isNested(declaration.Node)
-	declaration.QualifiedName = resolveQualifiedName(declaration.Node)
+	declaration.QualifiedName = resolveQualifiedName(declaration.Declarator)
 	declaration.DeclaringClass = declaringClass(declaration.Node, declaration.QualifiedName)
 
 	// handle default visibility

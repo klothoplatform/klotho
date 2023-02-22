@@ -258,21 +258,29 @@ func FindDeclarationsAtNode[T Declarable](node *sitter.Node) NamespaceDeclaratio
 	case NamespaceDeclarations[*FieldDeclaration]:
 		return any(findDeclarationsWithSpec(declarationSpec[*FieldDeclaration]{node: node, query: fieldDeclarations, parseFunc: parseFieldDeclaration})).(NamespaceDeclarations[T])
 	case NamespaceDeclarations[Declarable]:
-		allDeclarations := make(NamespaceDeclarations[T])
-		for name, declarations := range findDeclarationsWithSpec(declarationSpec[*TypeDeclaration]{node: node, query: typeDeclarations, parseFunc: parseTypeDeclaration}) {
-			allDeclarations[name] = append(allDeclarations[name], any(declarations).([]T)...)
+		allDeclarations := make(NamespaceDeclarations[Declarable])
+		for namespace, declarations := range findDeclarationsWithSpec(declarationSpec[*TypeDeclaration]{node: node, query: typeDeclarations, parseFunc: parseTypeDeclaration}) {
+			allDeclarations[namespace] = append(allDeclarations[namespace], toDeclarableSlice(declarations)...)
 		}
 		for name, declarations := range findDeclarationsWithSpec(declarationSpec[*MethodDeclaration]{node: node, query: methodDeclarations, parseFunc: parseMethodDeclaration}) {
-			allDeclarations[name] = append(allDeclarations[name], any(declarations).([]T)...)
+			allDeclarations[name] = append(allDeclarations[name], toDeclarableSlice(declarations)...)
 		}
 		for name, declarations := range findDeclarationsWithSpec(declarationSpec[*FieldDeclaration]{node: node, query: fieldDeclarations, parseFunc: parseFieldDeclaration}) {
-			allDeclarations[name] = append(allDeclarations[name], any(declarations).([]T)...)
+			allDeclarations[name] = append(allDeclarations[name], toDeclarableSlice(declarations)...)
 		}
-		return allDeclarations
+		return any(allDeclarations).(NamespaceDeclarations[T])
 	default:
 		zap.L().With(logging.NodeField(node)).Panic("invalid typeName type cannot be parsed")
 		return empty
 	}
+}
+
+func toDeclarableSlice[T Declarable](s []T) []Declarable {
+	var ds []Declarable
+	for _, d := range s {
+		ds = append(ds, d)
+	}
+	return ds
 }
 
 // FindDeclarationAtNode finds the next declaration of the supplied Declarable implementation starting from the supplied node.
@@ -404,7 +412,17 @@ func resolveQualifiedName(declaration *sitter.Node) string {
 		return ""
 	}
 
-	components := []string{declaration.ChildByFieldName("name").Content()}
+	nameNode := declaration.ChildByFieldName("name")
+	// handle fields which use identifiers instead of names
+	if nameNode == nil {
+		nameNode = query.FirstChildOfType(declaration, "identifier")
+	}
+
+	if nameNode == nil {
+		return ""
+	}
+
+	components := []string{nameNode.Content()}
 
 	for node := declaration.Parent(); node != nil; node = node.Parent() {
 		if name := node.ChildByFieldName("name"); name != nil {
@@ -423,7 +441,7 @@ func isNested(declaration *sitter.Node) bool {
 	if declaration.Type() == "class_declaration" && outer != nil {
 		return true
 	}
-	outer = query.FirstAncestorOfType(declaration.Parent(), "class_declaration")
+	outer = query.FirstAncestorOfType(outer.Parent(), "class_declaration")
 	return outer != nil
 }
 
