@@ -4,6 +4,7 @@ package analytics
 // as the main entry.
 
 import (
+	"fmt"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap/zapcore"
 )
@@ -44,27 +45,37 @@ func (fl *fieldListener) Write(entry zapcore.Entry, fields []zapcore.Field) erro
 	allFields = append(allFields, fl.fields...)
 	allFields = append(allFields, fields...)
 
-	safeLogsStr := logging.SanitizeFields(allFields, fl.client.Hash)
+	message := entry.Level.CapitalString()
+
+	for k, v := range logging.SanitizeFields(allFields, fl.client.Hash) {
+		property := fmt.Sprintf("log.%s", k)
+		fl.client.Properties[property] = v
+		defer func() { fl.client.DeleteProperty(property) }()
+	}
 
 	for _, f := range allFields {
 		if f.Key == logging.EntryMessageField {
-			safeLogsStr = entry.Message
+			message += (" " + entry.Message)
+		}
+		if err, isError := f.Interface.(error); isError {
+			fl.client.Properties["error"] = fmt.Sprintf("%+v", err)
+			defer fl.client.DeleteProperty("error")
 		}
 	}
 
 	switch entry.Level {
 	case zapcore.DebugLevel:
-		fl.client.Debug(safeLogsStr)
+		fl.client.Debug(message)
 	case zapcore.InfoLevel:
-		fl.client.Info(safeLogsStr)
+		fl.client.Info(message)
 	case zapcore.WarnLevel:
-		fl.client.Warn(safeLogsStr)
+		fl.client.Warn(message)
 	case zapcore.ErrorLevel:
-		fl.client.Error(safeLogsStr)
+		fl.client.Error(message)
 	case zapcore.DPanicLevel, zapcore.PanicLevel, zapcore.FatalLevel:
-		fl.client.Panic(safeLogsStr)
+		fl.client.Panic(message)
 	default:
-		fl.client.Warn(safeLogsStr) // shouldn't happen, but just to be safe
+		fl.client.Warn(message) // shouldn't happen, but just to be safe
 	}
 	return nil
 }

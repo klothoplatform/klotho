@@ -12,7 +12,7 @@ func TestSanitize(t *testing.T) {
 		name   string
 		given  []zap.Field
 		hasher func(any) string
-		want   string
+		want   map[string]string
 	}{
 		{
 			name: "non-sanitized field",
@@ -21,7 +21,7 @@ func TestSanitize(t *testing.T) {
 					Interface: "not a safe field",
 				},
 			},
-			want: "[]",
+			want: map[string]string{},
 		},
 		{
 			name: "sanitized field unhashed",
@@ -30,7 +30,9 @@ func TestSanitize(t *testing.T) {
 					Interface: sanitizedString("safe to send"),
 				},
 			},
-			want: `[{"key":"TestSanitizedField","content":"safe to send"}]`,
+			want: map[string]string{
+				"SanitizedField.sanitized": "safe to send",
+			},
 		},
 		{
 			name: "hashed field",
@@ -40,7 +42,9 @@ func TestSanitize(t *testing.T) {
 				},
 			},
 			hasher: func(s any) string { return "this is a hash" },
-			want:   `[{"key":"TestHashingField","content":"this is a hash"}]`,
+			want: map[string]string{
+				"HashingField.hashed": "this is a hash",
+			},
 		},
 		{
 			name: "hashed field no hasher",
@@ -49,17 +53,19 @@ func TestSanitize(t *testing.T) {
 					Interface: hashingString("12345"),
 				},
 			},
-			want: `[{"key":"TestHashingField","content":"\u003credacted\u003e"}]`, // 0x3c is `<`, and 0x3e is `>`
+			want: map[string]string{
+				"HashingField.hashed": "<redacted>",
+			},
 		},
 		{
 			name:  "no fields",
 			given: []zap.Field{},
-			want:  "[]",
+			want:  map[string]string{},
 		},
 		{
 			name:  "nil fields",
 			given: []zap.Field{},
-			want:  "[]",
+			want:  map[string]string{},
 		},
 	}
 	for _, tt := range cases {
@@ -78,14 +84,14 @@ type (
 
 func (s sanitizedString) Sanitize(hasher func(any) string) SanitizedField {
 	return SanitizedField{
-		Key:     "TestSanitizedField",
-		Content: string(s),
+		Key:     "SanitizedField",
+		Content: map[string]string{"sanitized": string(s)},
 	}
 }
 
 func (s hashingString) Sanitize(hasher func(any) string) SanitizedField {
 	return SanitizedField{
-		Key:     "TestHashingField",
-		Content: hasher(string(s)),
+		Key:     "HashingField",
+		Content: map[string]string{"hashed": hasher(string(s))},
 	}
 }

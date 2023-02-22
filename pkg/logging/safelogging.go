@@ -1,7 +1,7 @@
 package logging
 
 import (
-	"encoding/json"
+	"fmt"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -11,29 +11,23 @@ type (
 	}
 
 	SanitizedField struct {
-		Key     string `json:"key"`
-		Content any    `json:"content,omitempty"`
+		Key     string
+		Content map[string]string
 	}
 )
 
-// JsonMarshalSafely tries to marshal the value, but returns `[]byte("<error>")` if it can't (instead of an error).
-func JsonMarshalSafely(v any) []byte {
-	jsonBytes, err := json.Marshal(v)
-	if err != nil {
-		return []byte("<error>")
-	}
-	return jsonBytes
-}
-
-func SanitizeFields(fields []zapcore.Field, hasher func(any) string) string {
+func SanitizeFields(fields []zapcore.Field, hasher func(any) string) map[string]string {
 	if hasher == nil {
 		hasher = func(_ any) string { return `<redacted>` }
 	}
-	safeLogs := make([]SanitizedField, 0, len(fields))
+	result := make(map[string]string)
 	for _, field := range fields {
 		if safeField, isSafe := field.Interface.(Sanitizer); isSafe {
-			safeLogs = append(safeLogs, safeField.Sanitize(hasher))
+			sanitizedField := safeField.Sanitize(hasher)
+			for k, v := range sanitizedField.Content {
+				result[fmt.Sprintf("%s.%s", sanitizedField.Key, k)] = v
+			}
 		}
 	}
-	return string(JsonMarshalSafely(safeLogs))
+	return result
 }
