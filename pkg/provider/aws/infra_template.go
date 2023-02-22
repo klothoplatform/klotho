@@ -124,13 +124,19 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 				data.HasKV = true
 			}
 			if res.Kind == core.PersistORMKind {
-				data.ORMs = append(data.ORMs, provider.ORM{
-					Name:   res.Name,
-					Type:   cfg.Type,
-					Params: cfg.InfraParams,
-				})
 				if cfg.Type == "rds_postgres" {
+					data.RdsInstances = append(data.RdsInstances, provider.ORM{
+						Name:   res.Name,
+						Type:   cfg.Type,
+						Params: cfg.InfraParams,
+					})
 					data.UseVPC = true
+				} else {
+					data.ORMs = append(data.ORMs, provider.ORM{
+						Name:   res.Name,
+						Type:   cfg.Type,
+						Params: cfg.InfraParams,
+					})
 				}
 			}
 			if res.Kind == core.PersistRedisClusterKind || res.Kind == core.PersistRedisNodeKind {

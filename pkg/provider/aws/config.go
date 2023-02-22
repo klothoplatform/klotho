@@ -22,6 +22,7 @@ type (
 		ALBs                    []provider.Gateway
 		Buckets                 []provider.FS
 		SecretManagerSecrets    []provider.Config
+		RdsInstances            []provider.ORM
 	}
 )
 
@@ -55,7 +56,7 @@ const (
 	eks                                = "eks"
 	ecs                                = "ecs"
 	lambda                             = "lambda"
-	rds_postgres                       = "rds_postgres"
+	Rds_postgres                       = "rds_postgres"
 	Secrets_manager                    = "secrets_manager"
 	s3                                 = "s3"
 	dynamodb                           = "dynamodb"
@@ -116,9 +117,9 @@ var defaultConfig = config.Defaults{
 			Type: s3,
 		},
 		ORM: config.KindDefaults{
-			Type: rds_postgres,
+			Type: Rds_postgres,
 			InfraParamsByType: map[string]config.InfraParams{
-				rds_postgres: {
+				Rds_postgres: {
 					"instanceClass":     "db.t4g.micro",
 					"allocatedStorage":  20,
 					"skipFinalSnapshot": true,
@@ -167,7 +168,7 @@ func (a *AWS) GetKindTypeMappings(kind string) ([]string, bool) {
 	case string(core.PersistKVKind):
 		return []string{dynamodb}, true
 	case string(core.PersistORMKind):
-		return []string{rds_postgres}, true
+		return []string{Rds_postgres}, true
 	case string(core.PersistRedisNodeKind):
 		return []string{elasticache}, true
 	case string(core.PersistRedisClusterKind):

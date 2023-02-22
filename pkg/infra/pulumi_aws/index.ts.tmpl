@@ -32,6 +32,10 @@ import { Cloudfront } from './iac/cloudfront'
 import { SecretsManager } from './iac/secrets_manager'
 {{end}}
 
+{{- if .RdsInstances}}
+import { RDS } from './iac/rds'
+{{end}}
+
 export = async () => {
     const minimumNodeVersion = 16
     const nodeVersionMatch = process.version.match(/^v(\d+)/)
@@ -91,10 +95,12 @@ export = async () => {
     new SecretsManager(cloudLib, {{json .SecretManagerSecrets}});
     {{- end}}
 
+    {{range $rds := .RdsInstances -}}
+    RDS.setupRDS(cloudLib, "{{$rds.Name}}", {{json $rds.Params}} as Partial<aws.rds.InstanceArgs>);
+    {{- end}}
+
     {{range $orm := .ORMs -}}
-    {{if eq $orm.Type "rds_postgres" -}}
-    cloudLib.setupRDS("{{$orm.Name}}", {{json $orm.Params}} as Partial<aws.rds.InstanceArgs>);
-    {{- else if eq $orm.Type "cockroachdb_serverless" -}}
+    {{if eq $orm.Type "cockroachdb_serverless" -}}
     cloudLib.addConnectionString(
         "{{$orm.Name}}",
         new CockroachDB("{{$orm.Name}}-db", {app: appName, id: "{{$orm.Name}}", region, topology{{if $orm.Params}}, ...{{json $orm.Params}}{{end -}} }).connectionString,
