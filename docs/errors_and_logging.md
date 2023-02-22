@@ -41,7 +41,7 @@ if err != nil {
 ## log.warn
 A misconfiguration or other user mistake that has a high likelihood of causing problems down the line. These don't cause a compilation failure by default.
 
-### Eamples:
+### Examples:
 ```go
 if object != nil && !query.NodeContentEquals(object, file.program, "exports") {
   // the @klotho annotation was specified in a way that is not supported

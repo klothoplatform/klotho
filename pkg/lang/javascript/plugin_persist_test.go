@@ -457,7 +457,7 @@ func Test_queryRedis(t *testing.T) {
 			matchName:       "client",
 		},
 		{
-			name:            "variable declaration no arguements",
+			name:            "variable declaration no arguments",
 			source:          `const client = (0, redis_1.createClient)();`,
 			matchExpression: `()`,
 			matchName:       "client",
@@ -511,7 +511,7 @@ func Test_queryRedis(t *testing.T) {
 			matchName:       "client",
 		},
 		{
-			name:            "cluster variable declaration no arguements",
+			name:            "cluster variable declaration no arguments",
 			source:          `const client = (0, redis_1.createCluster)();`,
 			matchExpression: `()`,
 			matchName:       "client",

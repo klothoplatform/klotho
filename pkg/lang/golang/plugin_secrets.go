@@ -79,7 +79,7 @@ func (p *PersistSecretsPlugin) handleFile(f *core.SourceFile, unit *core.Executi
 
 func (p *PersistSecretsPlugin) transformSecret(f *core.SourceFile, cap *core.Annotation, result *persistSecretResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 
-	args, found := getArguements(result.expression)
+	args, found := getArguments(result.expression)
 	if !found {
 		return nil, nil
 	}

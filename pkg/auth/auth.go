@@ -90,7 +90,7 @@ func CallGetTokenEndpoint(state string) error {
 	}
 	defer closenicely.OrDebug(res.Body)
 	if res.StatusCode != 200 {
-		return fmt.Errorf("recieved invalid status code %d", res.StatusCode)
+		return fmt.Errorf("received invalid status code %d", res.StatusCode)
 	}
 	body, err := io.ReadAll(res.Body)
 	if err != nil {

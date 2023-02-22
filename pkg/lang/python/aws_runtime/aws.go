@@ -274,7 +274,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 			return err
 		}
 	default:
-		return errors.Errorf("unsupported exceution unit type: '%s'", r.Cfg.GetResourceType(unit))
+		return errors.Errorf("unsupported execution unit type: '%s'", r.Cfg.GetResourceType(unit))
 	}
 	err := r.AddRuntimeFile(unit, proxyType+"_proxy.py", []byte(fileContents))
 	if err != nil {

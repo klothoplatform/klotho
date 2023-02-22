@@ -81,7 +81,7 @@ func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, 
 
 	unit.EnvironmentVariables = append(unit.EnvironmentVariables, fsEnvVar)
 
-	args, _ := getArguements(result.expression)
+	args, _ := getArguments(result.expression)
 	// Generate the new node content before replacing the node. We just set it so we can compile correctly
 	newNodeContent := `var _ = ` + args[1].Content + "\n"
 

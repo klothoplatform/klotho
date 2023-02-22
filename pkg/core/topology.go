@@ -71,7 +71,7 @@ var DiagramEntityToImgPath = TopoMap{
 	{Kind: string(PersistSecretKind), Provider: ProviderAWS}:            "aws/security/secrets-manager.png",
 	{Kind: string(PersistORMKind), Provider: ProviderAWS}:               "aws/database/rds.png",
 	{Kind: string(PersistRedisNodeKind), Provider: ProviderAWS}:         "aws/database/elasticache-for-redis.png",
-	{Kind: string(PersistRedisClusterKind), Provider: ProviderAWS}:      "aws/database/elasticache-for-redis.png", // Theres no memoryDB at the moment
+	{Kind: string(PersistRedisClusterKind), Provider: ProviderAWS}:      "aws/database/elasticache-for-redis.png", // There's no memoryDB at the moment
 	{Kind: PubSubKind, Provider: ProviderAWS}:                           "aws/integration/simple-notification-service-sns.png",
 	{Kind: NetworkLoadBalancerKind, Provider: ProviderAWS}:              "aws/network/elb-network-load-balancer.png",
 	{Kind: ExecutionUnitKind, Type: "ecs", Provider: ProviderAWS}:       "aws/compute/fargate.png",
@@ -122,7 +122,7 @@ var DiagramEntityToCode = TopoMap{
 	{Kind: string(PersistSecretKind), Provider: ProviderAWS}:            `aws_security.SecretsManager("%s")`,
 	{Kind: string(PersistORMKind), Provider: ProviderAWS}:               `aws_database.RDS("%s")`,
 	{Kind: string(PersistRedisNodeKind), Provider: ProviderAWS}:         `aws_database.ElasticacheForRedis("%s")`,
-	{Kind: string(PersistRedisClusterKind), Provider: ProviderAWS}:      `aws_database.ElasticacheForRedis("%s")`, // Theres no memoryDB at the moment
+	{Kind: string(PersistRedisClusterKind), Provider: ProviderAWS}:      `aws_database.ElasticacheForRedis("%s")`, // There's no memoryDB at the moment
 	{Kind: string(PubSubKind), Provider: ProviderAWS}:                   `aws_integration.SNS("%s")`,
 	{Kind: ConfigKind, Type: "secrets_manager", Provider: ProviderAWS}:  `aws_security.SecretsManager("%s")`,
 	{Kind: ConfigKind, Type: "s3", Provider: ProviderAWS}:               `aws_storage.S3("%s")`,

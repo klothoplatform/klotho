@@ -301,7 +301,7 @@ func Test_getKlothoCharts(t *testing.T) {
 			},
 		},
 		{
-			name: "seperate unit tests",
+			name: "separate unit tests",
 			fileUnits: []map[string]string{{
 				"chart/Chart.yaml":         ``,
 				"chart/templates/unitFile": ``,

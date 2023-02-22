@@ -55,7 +55,7 @@ func getNextCallDetails(node *sitter.Node) (callDetails FunctionCallDetails, fou
 			argContent = arg.Content()
 		}
 
-		// ignore overlapping pattern that captures keyword_argument nodes as standard aguments
+		// ignore overlapping pattern that captures keyword_argument nodes as standard arguments
 		if argContent != "" && !strings.Contains(argContent, "=") {
 			callDetails.Arguments = append(callDetails.Arguments, FunctionArg{Name: argNameContent, Value: argContent})
 		}
