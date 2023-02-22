@@ -72,7 +72,6 @@ var (
 	ExecutableTypeNodeJS = ExecutableType("NodeJS")
 	ExecutableTypePython = ExecutableType("Python")
 	ExecutableTypeGolang = ExecutableType("Golang")
-
 	ExecutableTypeCSharp = ExecutableType("CSharp")
 )
 
