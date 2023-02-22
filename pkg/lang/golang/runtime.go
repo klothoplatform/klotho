@@ -16,6 +16,7 @@ type (
 		GetFsImports() []Import
 		GetSecretsImports() []Import
 		SetConfigType(id string, isSecret bool)
+		ActOnExposeListener(unit *core.ExecutionUnit, f *core.SourceFile, listener *HttpListener, routerName string) error
 	}
 )
 

@@ -24,3 +24,7 @@ func (n NoopRuntime) GetSecretsImports() []Import {
 
 func (n NoopRuntime) SetConfigType(id string, isSecret bool) {
 }
+
+func (n NoopRuntime) ActOnExposeListener(unit *core.ExecutionUnit, f *core.SourceFile, listener *HttpListener, routerName string) error {
+	return nil
+}

@@ -32,7 +32,7 @@ func TestInfraTemplateModification(t *testing.T) {
 			cfg: config.Application{
 				Provider: "aws",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"unit": {Type: eks},
+					"unit": {Type: Eks},
 				},
 				Exposed: map[string]*config.Expose{
 					"gw": {Type: string(ApiGateway)},
@@ -65,7 +65,7 @@ func TestInfraTemplateModification(t *testing.T) {
 			cfg: config.Application{
 				Provider: "aws",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"unit": {Type: eks, HelmChartOptions: &config.HelmChartOptions{Install: true}, NetworkPlacement: "public"},
+					"unit": {Type: Eks, HelmChartOptions: &config.HelmChartOptions{Install: true}, NetworkPlacement: "public"},
 				},
 			},
 			dependencies: []core.Dependency{},

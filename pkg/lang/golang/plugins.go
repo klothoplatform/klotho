@@ -15,7 +15,7 @@ type (
 func NewGoPlugins(cfg *config.Application, runtime Runtime) *GoPlugins {
 	return &GoPlugins{
 		Plugins: []core.Plugin{
-			&Expose{Config: cfg},
+			&Expose{Config: cfg, runtime: runtime},
 			&AddExecRuntimeFiles{cfg: cfg, runtime: runtime},
 			&PersistFsPlugin{runtime: runtime},
 			&PersistSecretsPlugin{runtime: runtime, config: cfg},

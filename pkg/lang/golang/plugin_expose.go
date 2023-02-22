@@ -18,7 +18,8 @@ import (
 
 type (
 	Expose struct {
-		Config *config.Application
+		Config  *config.Application
+		runtime Runtime
 	}
 
 	gatewaySpec struct {
@@ -39,6 +40,7 @@ type (
 		RoutesByGateway map[gatewaySpec][]gatewayRouteDefinition
 		RootPath        string
 		log             *zap.Logger
+		runtime         Runtime
 	}
 
 	chiRouterDefResult struct {
@@ -47,7 +49,7 @@ type (
 		RootPath    string
 	}
 
-	httpListener struct {
+	HttpListener struct {
 		Identifier *sitter.Node
 		Expression *sitter.Node
 		Address    *sitter.Node
@@ -78,15 +80,15 @@ func (p Expose) Transform(result *core.CompilationResult, deps *core.Dependencie
 }
 
 func (p *Expose) transformSingle(result *core.CompilationResult, deps *core.Dependencies, unit *core.ExecutionUnit) error {
-	h := &restAPIHandler{Result: result, Deps: deps, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
-	err := h.handle(unit, p.Config.GetResourceType(unit))
+	h := &restAPIHandler{Result: result, Deps: deps, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition), runtime: p.runtime}
+	err := h.handle(unit)
 	if err != nil {
 		err = core.WrapErrf(err, "Chi handler failure for %s", unit.Name)
 	}
 	return err
 }
 
-func (h *restAPIHandler) handle(unit *core.ExecutionUnit, unitType string) error {
+func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 	h.Unit = unit
 	h.log = zap.L().With(zap.String("unit", unit.Name))
 
@@ -97,7 +99,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit, unitType string) error
 			continue
 		}
 
-		newF, err := h.handleFile(src, unitType)
+		newF, err := h.handleFile(src)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -143,7 +145,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit, unitType string) error
 	return errs.ErrOrNil()
 }
 
-func (h *restAPIHandler) handleFile(f *core.SourceFile, unitType string) (*core.SourceFile, error) {
+func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error) {
 
 	caps := f.Annotations()
 	for _, capNode := range caps {
@@ -176,32 +178,9 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile, unitType string) (*core.
 		}
 		routerName := listener.Identifier.Content()
 
-		importsNode, err := h.FindImports(f)
+		err = h.runtime.ActOnExposeListener(h.Unit, f, &listener, routerName)
 		if err != nil {
 			return nil, core.NewCompilerError(f, capNode, err)
-		}
-
-		//TODO: Move comment listen code to library logic like JS does eventually
-		if unitType == "lambda" {
-			//TODO: Will likely need to move this into a separate plugin of some sort
-			// Instead of having a dispatcher file, the dipatcher logic is injected into the main.go file. By having that
-			// logic in the expose plugin though, it will only happen if they use the expose annotation for the lambda case.
-			updatedListenContent := UpdateListenWithHandlerCode(string(f.Program()), listener.Expression.Content(), routerName)
-			err := f.Reparse([]byte(updatedListenContent))
-			if err != nil {
-				return f, errors.Wrap(err, "error reparsing after substitutions")
-			}
-
-			err = UpdateImportWithHandlerRequirements(importsNode, f)
-			if err != nil {
-				return f, errors.Wrap(err, "error updating imports for file")
-			}
-
-			err = UpdateGoModWithHandlerRequirements(h.Unit)
-			if err != nil {
-				return f, errors.Wrap(err, "error updating imports for handler")
-			}
-
 		}
 
 		router, err := h.findChiRouterDefinition(f, routerName)
@@ -288,7 +267,7 @@ func (h *restAPIHandler) findChiRouterDefinition(f *core.SourceFile, appName str
 	return chiRouterDefResult{}, nil
 }
 
-func (h *restAPIHandler) findHttpListenAndServe(cap *core.Annotation, f *core.SourceFile) (httpListener, error) {
+func (h *restAPIHandler) findHttpListenAndServe(cap *core.Annotation, f *core.SourceFile) (HttpListener, error) {
 	nextMatch := doQuery(cap.Node, findHttpListen)
 	for {
 		match, found := nextMatch()
@@ -299,17 +278,17 @@ func (h *restAPIHandler) findHttpListenAndServe(cap *core.Annotation, f *core.So
 		listenExp, addr, router, expression := match["sel_exp"], match["addr"], match["router"], match["expression"]
 
 		if listenExp.Content() == "http.ListenAndServe" {
-			return httpListener{
+			return HttpListener{
 				Identifier: router,
 				Expression: expression,
 				Address:    addr,
 			}, nil
 		} else {
-			return httpListener{}, errors.Errorf("Expected http.ListenAndServe but found %s", listenExp.Content())
+			return HttpListener{}, errors.Errorf("Expected http.ListenAndServe but found %s", listenExp.Content())
 		}
 	}
 
-	return httpListener{}, nil
+	return HttpListener{}, nil
 }
 
 func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, varName string, prefix string) ([]gatewayRouteDefinition, error) {

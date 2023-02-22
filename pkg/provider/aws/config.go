@@ -53,43 +53,43 @@ type GatewayType string
 
 // Enums for the types we allow in the aws provider so that we can reuse the same string within the provider
 const (
-	eks                                = "eks"
-	ecs                                = "ecs"
-	lambda                             = "lambda"
+	Eks                                = "eks"
+	Ecs                                = "ecs"
+	Lambda                             = "lambda"
 	Rds_postgres                       = "rds_postgres"
 	Secrets_manager                    = "secrets_manager"
-	s3                                 = "s3"
-	dynamodb                           = "dynamodb"
-	elasticache                        = "elasticache"
-	memorydb                           = "memorydb"
-	sns                                = "sns"
-	cockroachdb_serverless             = "cockroachdb_serverless"
+	S3                                 = "s3"
+	Dynamodb                           = "dynamodb"
+	Elasticache                        = "elasticache"
+	Memorydb                           = "memorydb"
+	Sns                                = "sns"
+	Cockroachdb_serverless             = "cockroachdb_serverless"
 	ApiGateway             GatewayType = "apigateway"
 	Alb                    GatewayType = "alb"
 )
 
 var defaultConfig = config.Defaults{
 	ExecutionUnit: config.KindDefaults{
-		Type: lambda,
+		Type: Lambda,
 		InfraParamsByType: map[string]config.InfraParams{
-			lambda: {
+			Lambda: {
 				"memorySize": 512,
 				"timeout":    180,
 			},
-			ecs: {
+			Ecs: {
 				"memory": 512,
 				"cpu":    256,
 			},
-			eks: {
+			Eks: {
 				"nodeType": "fargate",
 				"replicas": 2,
 			},
 		},
 	},
 	StaticUnit: config.KindDefaults{
-		Type: s3,
+		Type: S3,
 		InfraParamsByType: map[string]config.InfraParams{
-			s3: {
+			S3: {
 				"cloudFrontEnabled": true,
 			},
 		},
@@ -101,20 +101,20 @@ var defaultConfig = config.Defaults{
 		ApiType: "REST",
 	},
 	PubSub: config.KindDefaults{
-		Type: sns,
+		Type: Sns,
 	},
 	Config: config.KindDefaults{
-		Type: s3,
+		Type: S3,
 	},
 	Persist: config.PersistKindDefaults{
 		KV: config.KindDefaults{
-			Type: dynamodb,
+			Type: Dynamodb,
 		},
 		FS: config.KindDefaults{
-			Type: s3,
+			Type: S3,
 		},
 		Secret: config.KindDefaults{
-			Type: s3,
+			Type: S3,
 		},
 		ORM: config.KindDefaults{
 			Type: Rds_postgres,
@@ -125,22 +125,22 @@ var defaultConfig = config.Defaults{
 					"skipFinalSnapshot": true,
 					"engineVersion":     "13.7",
 				},
-				cockroachdb_serverless: {},
+				Cockroachdb_serverless: {},
 			},
 		},
 		RedisNode: config.KindDefaults{
-			Type: elasticache,
+			Type: Elasticache,
 			InfraParamsByType: map[string]config.InfraParams{
-				elasticache: {
+				Elasticache: {
 					"nodeType":      "cache.t3.micro",
 					"numCacheNodes": 1,
 				},
 			},
 		},
 		RedisCluster: config.KindDefaults{
-			Type: memorydb,
+			Type: Memorydb,
 			InfraParamsByType: map[string]config.InfraParams{
-				memorydb: {
+				Memorydb: {
 					"nodeType":            "db.t4g.small",
 					"numReplicasPerShard": "1",
 					"numShards":           "2",
@@ -158,27 +158,27 @@ func (a *AWS) GetDefaultConfig() config.Defaults {
 func (a *AWS) GetKindTypeMappings(kind string) ([]string, bool) {
 	switch kind {
 	case core.ExecutionUnitKind:
-		return []string{eks, ecs, lambda}, true
+		return []string{Eks, Ecs, Lambda}, true
 	case core.GatewayKind:
 		return []string{string(ApiGateway), string(Alb)}, true
 	case core.StaticUnitKind:
-		return []string{s3}, true
+		return []string{S3}, true
 	case string(core.PersistFileKind):
-		return []string{s3}, true
+		return []string{S3}, true
 	case string(core.PersistKVKind):
-		return []string{dynamodb}, true
+		return []string{Dynamodb}, true
 	case string(core.PersistORMKind):
 		return []string{Rds_postgres}, true
 	case string(core.PersistRedisNodeKind):
-		return []string{elasticache}, true
+		return []string{Elasticache}, true
 	case string(core.PersistRedisClusterKind):
-		return []string{memorydb}, true
+		return []string{Memorydb}, true
 	case string(core.PersistSecretKind):
-		return []string{s3}, true
+		return []string{S3}, true
 	case core.PubSubKind:
-		return []string{sns}, true
+		return []string{Sns}, true
 	case core.ConfigKind:
-		return []string{s3, Secrets_manager}, true
+		return []string{S3, Secrets_manager}, true
 	}
 	return nil, false
 }

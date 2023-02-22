@@ -1,0 +1,13 @@
+FROM golang:alpine as builder
+RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
+
+WORKDIR /usr/src/app
+ENV GOOS=linux GOARCH=amd64 CGO_ENABLED=0
+COPY . .
+RUN go mod tidy && go mod download && go mod verify
+RUN go build -o /usr/local/bin/app
+
+FROM scratch
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=builder /usr/local/bin/app main
+ENTRYPOINT ["./main"]
