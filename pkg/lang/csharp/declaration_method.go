@@ -13,7 +13,6 @@ type (
 	}
 	Parameter struct {
 		Name     string
-		Type     string
 		TypeNode *sitter.Node
 	}
 )
@@ -64,7 +63,6 @@ func parseMethodParameters(parameterList *sitter.Node) []Parameter {
 		if child.Type() == "parameter" {
 			parameters = append(parameters, Parameter{
 				Name:     child.ChildByFieldName("name").Content(),
-				Type:     child.ChildByFieldName("type").Content(),
 				TypeNode: child.ChildByFieldName("type"),
 			})
 		}

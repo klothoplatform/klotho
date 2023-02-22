@@ -2,10 +2,8 @@ package csharp
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
-	"regexp"
 )
 
 // C# using directive spec: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/namespaces#135-using-directives
@@ -52,12 +50,6 @@ func (p *Import) ImportedAs() string {
 	return p.Name
 }
 
-// Filter applies the supplied Filter to all Import values and returns the filtered list of Import values.
-func (imports Imports) Filter(filter filter.Filter[Import]) []Import {
-	filteredImports := filter.Apply(imports.AsSlice()...)
-	return filteredImports
-}
-
 // AsSlice converts an instance of Imports to []Import for simpler iteration over all Import values.
 func (imports Imports) AsSlice() []Import {
 	var slice []Import
@@ -86,14 +78,18 @@ func FindImportsAtNode(node *sitter.Node) Imports {
 }
 
 func parseUsingDirective(match query.MatchNodes) Import {
-	usingDirective, identifier, alias := match["using_directive"], match["identifier"], match["alias"]
+	usingDirective := match["using_directive"]
+	identifier := match["identifier"]
+	alias := match["alias"]
+	global := match["global"]
+	static := match["static"]
 
 	parsedImport := Import{
 		Name: identifier.Content(),
 		Node: usingDirective,
 	}
 
-	if isGlobal(usingDirective) {
+	if global != nil {
 		parsedImport.Scope = ImportScopeGlobal
 	} else if isFileScoped(usingDirective) {
 		parsedImport.Scope = ImportScopeCompilationUnit
@@ -104,7 +100,7 @@ func parseUsingDirective(match query.MatchNodes) Import {
 		parsedImport.Namespace = namespace.ChildByFieldName("name").Content()
 	}
 
-	if isStatic(usingDirective) {
+	if static != nil {
 		parsedImport.Type = ImportTypeUsingStatic
 	} else if aliasContent := query.NodeContentOrEmpty(alias); aliasContent != "" {
 		parsedImport.Type = ImportTypeUsingAlias
@@ -116,15 +112,10 @@ func parseUsingDirective(match query.MatchNodes) Import {
 	return parsedImport
 }
 
-func isGlobal(usingDirective *sitter.Node) bool {
-	return query.NodeContentStartWith(usingDirective, "global")
-}
-
-func isStatic(usingNode *sitter.Node) bool {
-	return query.NodeContentRegex(usingNode, regexp.MustCompile(`\s*static\s`))
-}
-
 func isFileScoped(usingNode *sitter.Node) bool {
+	if usingNode == nil {
+		return false
+	}
 	return usingNode.Parent().Type() == "compilation_unit"
 }
 

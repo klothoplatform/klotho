@@ -29,16 +29,17 @@ func parseTypeDeclaration(match query.MatchNodes) *TypeDeclaration {
 		Bases: parseBaseTypes(bases),
 	}
 
-	if classDeclaration != nil {
+	switch {
+	case classDeclaration != nil:
 		declaration.Node = classDeclaration
 		declaration.Kind = DeclarationKindClass
-	} else if interfaceDeclaration != nil {
+	case interfaceDeclaration != nil:
 		declaration.Node = interfaceDeclaration
 		declaration.Kind = DeclarationKindInterface
-	} else if recordDeclaration != nil {
+	case recordDeclaration != nil:
 		declaration.Node = recordDeclaration
 		declaration.Kind = DeclarationKindRecord
-	} else if structDeclaration != nil {
+	case structDeclaration != nil:
 		declaration.Node = structDeclaration
 		declaration.Kind = DeclarationKindStruct
 	}

@@ -1,11 +1,18 @@
-(using_directive . [
-                     (qualified_name) @identifier
-                     (identifier) @identifier
-                     ((name_equals (identifier) @alias)
-                       .
-                       (
-                         [(qualified_name)
-                           (identifier)]
-                         ) @identifier
-                       )
-                     ]) @using_directive
+(using_directive . ;;; [global] using [static] A[.B]; OR using C = A[.B];
+  "global" ? @global
+  .
+  "using"
+  .
+  "static" ? @static
+  .
+  [
+    (qualified_name) @identifier ;;; A.B
+    (identifier) @identifier ;;; A
+    ((name_equals (identifier) @alias) ;;; C = A.B
+      .
+      (
+        [(qualified_name)
+          (identifier)]
+        ) @identifier
+      )
+    ]) @using_directive
