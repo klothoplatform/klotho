@@ -7,11 +7,12 @@ const bucketEnvVar = '{{.BucketNameEnvVar}}';
 const bucketName = process.env[bucketEnvVar];
 const targetRegion = process.env['AWS_TARGET_REGION'];
 const s3Client = new client_s3_1.S3Client({ region: targetRegion });
-const streamToString = (stream, encoding) => new Promise((resolve, reject) => {
+const streamToString = async (stream, encoding) => (await streamToBuffer(stream)).toString(encoding);
+const streamToBuffer = (stream) => new Promise((resolve, reject) => {
     const chunks = [];
     stream.on('data', (chunk) => chunks.push(chunk));
     stream.on('error', reject);
-    stream.on('end', () => resolve(Buffer.concat(chunks).toString(encoding)));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
 });
 async function getCallParameters(paramKey, dispatcherMode) {
     let isEmitter = dispatcherMode === 'emitter' ? true : false;
@@ -97,15 +98,8 @@ async function s3_readFile(...args) {
             if (args[1]?.encoding) {
                 return await streamToString(data.Body, args[1].encoding);
             }
-            return new Promise((resolve, reject) => {
-                const stream = data.Body;
-                const chunks = [];
-                stream.on('data', chunk => chunks.push(chunk))
-                stream.once('end', () => resolve(Buffer.concat(chunks)))
-                stream.once('error', reject)
-            });
+           return streamToBuffer(data.Body);
         }
-        return Promise.resolve();
     }
     catch (err) {
         console.log('Error', err);
