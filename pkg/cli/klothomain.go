@@ -256,7 +256,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	defer analyticsClient.PanicHandler(&err, errHandler)
 
 	updateStream := options.Update.Stream.OrDefault(km.DefaultUpdateStream)
-	analyticsClient.AppendProperties(map[string]any{"updateStream": updateStream})
+	analyticsClient.AppendProperty("updateStream", updateStream)
 
 	if cfg.version {
 		var versionQualifier string
@@ -268,7 +268,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 	klothoName := "klotho"
 	if km.VersionQualifier != "" {
-		analyticsClient.AppendProperties(map[string]any{km.VersionQualifier: true})
+		analyticsClient.AppendProperty(km.VersionQualifier, true)
 	}
 
 	// if update is specified do the update in place

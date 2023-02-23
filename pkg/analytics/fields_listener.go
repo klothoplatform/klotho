@@ -74,7 +74,7 @@ func (fl *fieldListener) Write(entry zapcore.Entry, fields []zapcore.Field) erro
 		}
 	}
 
-	fl.client.Send(p)
+	fl.client.send(p)
 
 	return nil
 }

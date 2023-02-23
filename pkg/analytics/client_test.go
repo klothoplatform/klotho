@@ -80,7 +80,7 @@ func TestAnalyticsSend(t *testing.T) {
 			name: "direct send at level info with properties",
 			send: func(c *Client) {
 				c.userId = "my-user@klo.dev"
-				c.AppendProperties(map[string]any{"property_1": "aaa"})
+				c.AppendProperty("property_1", "aaa")
 				c.Info("hello world")
 			},
 			expect: []sentPayload{{
@@ -95,21 +95,41 @@ func TestAnalyticsSend(t *testing.T) {
 			}},
 		},
 		{
-			name: "send via logger with no fields",
+			name: "two sends have isolated state",
 			send: func(c *Client) {
 				c.userId = "my-user@klo.dev"
-				logger := zap.New(c.NewFieldListener(zapcore.WarnLevel))
-				logger.Warn("my message")
+
+				payload1 := c.createPayload(Warn, "message 1")
+				payload1.Properties["hello"] = "world"
+
+				payload2 := c.createPayload(Info, "message 2")
+				payload2.Properties["hello"] = "goodbye"
+
+				c.send(payload1)
+				c.send(payload2)
 			},
-			expect: []sentPayload{{
-				"id":    "my-user@klo.dev",
-				"event": "WARN",
-				"properties": map[string]any{
-					"_logLevel": "warn",
-					"status":    "warn",
-					"validated": false,
+			expect: []sentPayload{
+				{
+					"id":    "my-user@klo.dev",
+					"event": "message 1",
+					"properties": map[string]any{
+						"_logLevel": "warn",
+						"status":    "warn",
+						"validated": false,
+						"hello":     "world",
+					},
 				},
-			}},
+				{
+					"id":    "my-user@klo.dev",
+					"event": "message 2",
+					"properties": map[string]any{
+						"_logLevel": "info",
+						"status":    "info",
+						"validated": false,
+						"hello":     "goodbye",
+					},
+				},
+			},
 		},
 		{
 			name: "send via logger",

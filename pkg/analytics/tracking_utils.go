@@ -19,14 +19,14 @@ type AnalyticsFile struct {
 	Id string
 }
 
-func (t *Client) Send(payload *Payload) {
+func (t *Client) send(payload Payload) {
 	postBody, _ := json.Marshal(payload)
 	data := bytes.NewBuffer(postBody)
 	url := t.serverUrlOverride
 	if url == "" {
 		url = kloServerUrl
 	}
-	resp, err := http.Post(fmt.Sprintf("%v/analytics/track", url), "application/json", data)
+	resp, err := http.Post(fmt.Sprintf("%s/analytics/track", url), "application/json", data)
 
 	if err != nil {
 		zap.L().Debug(fmt.Sprintf("Failed to send metrics info. %v", err))

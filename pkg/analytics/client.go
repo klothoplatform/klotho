@@ -70,26 +70,29 @@ func (t *Client) AttachAuthorizations(claims *auth.KlothoClaims) {
 }
 
 func (t *Client) Info(event string) {
-	t.Send(t.createPayload(Info, event))
+	t.send(t.createPayload(Info, event))
 }
 
 func (t *Client) Warn(event string) {
-	t.Send(t.createPayload(Warn, event))
+	t.send(t.createPayload(Warn, event))
 }
 
 func (t *Client) Error(event string) {
-	t.Send(t.createPayload(Error, event))
+	t.send(t.createPayload(Error, event))
 }
 
-func (p *Payload) addError(err error) *Payload {
+func (p *Payload) addError(err error) {
 	p.Properties["error"] = fmt.Sprintf("%+v", err)
-	return p
 }
 
 func (t *Client) AppendProperties(properties map[string]interface{}) {
 	for k, v := range properties {
-		t.universalProperties[k] = v
+		t.AppendProperty(k, v)
 	}
+}
+
+func (t *Client) AppendProperty(key string, value any) {
+	t.universalProperties[key] = value
 }
 
 func (t *Client) UploadSource(source *core.InputFiles) {
@@ -100,11 +103,11 @@ func (t *Client) UploadSource(source *core.InputFiles) {
 	}
 	p := t.createPayload(Info, "klotho uploading")
 	p.Source = data
-	t.Send(p)
+	t.send(p)
 }
 
-func (t *Client) createPayload(level LogLevel, event string) *Payload {
-	p := &Payload{
+func (t *Client) createPayload(level LogLevel, event string) Payload {
+	p := Payload{
 		UserId:     t.userId,
 		Event:      event,
 		Properties: make(map[string]any, len(t.universalProperties)+2),
@@ -146,7 +149,9 @@ func (t *Client) PanicHandler(err *error, errHandler ErrorHandler) {
 		if _, hasStack := (*err).(interface{ StackTrace() errors.StackTrace }); !hasStack {
 			*err = errors.WithStack(*err)
 		}
-		t.Send(t.createPayload(Error, "ERROR").addError(rerr))
+		p := t.createPayload(Error, "ERROR")
+		p.addError(rerr)
+		t.send(p)
 		errHandler.PrintErr(*err)
 	}
 }
