@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"math"
 	"net/http"
 	"time"
@@ -12,23 +13,26 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 )
 
-var kloServerUrl = "http://srv.klo.dev"
+const kloServerUrl = "http://srv.klo.dev"
 
 type AnalyticsFile struct {
 	Id string
 }
 
-func SendTrackingToServer(bundle *Client) error {
-	postBody, _ := json.Marshal(bundle)
+func (t *Client) send(payload Payload) {
+	postBody, _ := json.Marshal(payload)
 	data := bytes.NewBuffer(postBody)
-	resp, err := http.Post(fmt.Sprintf("%v/analytics/track", kloServerUrl), "application/json", data)
-	if err != nil {
-		return err
+	url := t.serverUrlOverride
+	if url == "" {
+		url = kloServerUrl
 	}
+	resp, err := http.Post(fmt.Sprintf("%s/analytics/track", url), "application/json", data)
 
-	defer resp.Body.Close()
-
-	return nil
+	if err != nil {
+		zap.L().Debug(fmt.Sprintf("Failed to send metrics info. %v", err))
+		return
+	}
+	resp.Body.Close()
 }
 
 func CompressFiles(input *core.InputFiles) ([]byte, error) {

@@ -1,7 +1,13 @@
 package analytics
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -56,7 +62,7 @@ func TestAnalytics_Hash(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			analytics := &Client{
-				UserId: userId,
+				userId: userId,
 			}
 			actual := analytics.Hash(tt.given)
 			assert.Equal(tt.expect, actual)
@@ -64,6 +70,168 @@ func TestAnalytics_Hash(t *testing.T) {
 	}
 }
 
-type jsonConvertable struct {
-	Foo string `json:"foo"`
+func TestAnalyticsSend(t *testing.T) {
+	cases := []struct {
+		name   string
+		send   func(client *Client)
+		expect []sentPayload
+	}{
+		{
+			name: "direct send at level info with properties",
+			send: func(c *Client) {
+				c.userId = "my-user@klo.dev"
+				c.AppendProperty("property_1", "aaa")
+				c.Info("hello world")
+			},
+			expect: []sentPayload{{
+				"id":    "my-user@klo.dev",
+				"event": "hello world",
+				"properties": map[string]any{
+					"_logLevel":  "info",
+					"status":     "info",
+					"validated":  false,
+					"property_1": "aaa",
+				},
+			}},
+		},
+		{
+			name: "two sends have isolated state",
+			send: func(c *Client) {
+				c.userId = "my-user@klo.dev"
+
+				payload1 := c.createPayload(Warn, "message 1")
+				payload1.Properties["hello"] = "world"
+
+				payload2 := c.createPayload(Info, "message 2")
+				payload2.Properties["hello"] = "goodbye"
+
+				c.send(payload1)
+				c.send(payload2)
+			},
+			expect: []sentPayload{
+				{
+					"id":    "my-user@klo.dev",
+					"event": "message 1",
+					"properties": map[string]any{
+						"_logLevel": "warn",
+						"status":    "warn",
+						"validated": false,
+						"hello":     "world",
+					},
+				},
+				{
+					"id":    "my-user@klo.dev",
+					"event": "message 2",
+					"properties": map[string]any{
+						"_logLevel": "info",
+						"status":    "info",
+						"validated": false,
+						"hello":     "goodbye",
+					},
+				},
+			},
+		},
+		{
+			name: "send via logger",
+			send: func(c *Client) {
+				c.userId = "my-user@klo.dev"
+				logger := zap.New(c.NewFieldListener(zapcore.WarnLevel))
+				logger.Error("first message", zap.Error(fmt.Errorf("my error")))
+				logger.Warn("second message") // no error field on this one!
+			},
+			expect: []sentPayload{
+				{
+					"id":    "my-user@klo.dev",
+					"event": "ERROR",
+					"properties": map[string]any{
+						"_logLevel": "error",
+						"status":    "error",
+						"validated": false,
+						"error":     "my error",
+					},
+				},
+				{
+					"id":    "my-user@klo.dev",
+					"event": "WARN",
+					"properties": map[string]any{
+						"_logLevel": "warn",
+						"status":    "warn",
+						"validated": false,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			handler := interactions{assert: assert}
+			for range tt.expect {
+				handler.interactions = append(handler.interactions, nil)
+			}
+
+			server := httptest.NewServer(&handler)
+			defer server.Close()
+
+			client := NewClient()
+			client.serverUrlOverride = server.URL
+
+			tt.send(client)
+			for i, receivedPayload := range handler.interactions {
+				expect := tt.expect[i]
+				if assert.NotNil(receivedPayload) {
+					// for properties we can't control, just assert that they exist, and then delete them.
+					// this is so that we don't have to set them on the expected
+					if properties, ok := receivedPayload["properties"].(map[string]any); ok {
+						for _, opaqueProperty := range []string{"localId", "runId"} {
+							assert.NotEmpty(properties[opaqueProperty])
+							delete(properties, opaqueProperty)
+						}
+					}
+
+					assert.Equal(expect, receivedPayload)
+				}
+			}
+		})
+	}
+}
+
+type (
+	sentPayload     map[string]any
+	jsonConvertable struct {
+		Foo string `json:"foo"`
+	}
+
+	interactions struct {
+		assert       *assert.Assertions
+		count        int
+		interactions []sentPayload
+	}
+)
+
+func (s *interactions) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	if s.count >= len(s.interactions) {
+		s.assert.Fail("no interactions left")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer func() { s.count += 1 }()
+
+	decoder := json.NewDecoder(r.Body)
+	body := sentPayload{}
+	if err := decoder.Decode(&body); !s.assert.NoError(err) {
+		return
+	}
+	s.interactions[s.count] = body
+
+	if s.assert.Equal(http.MethodPost, r.Method) && s.assert.Equal("/analytics/track", r.URL.RequestURI()) {
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte("ok"))
+		s.assert.NoError(err)
+	} else {
+		s.assert.Fail("no interactions left")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
