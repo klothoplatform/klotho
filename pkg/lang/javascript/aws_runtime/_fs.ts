@@ -90,7 +90,7 @@ exports.saveParametersToS3 = saveParametersToS3
 async function s3_writeFile(...args) {
     const bucketParams = {
         Bucket: bucketName,
-        Key: stripLeadingSlashes(`${args[0]}`),
+        Key: `${args[0]}`,
         Body: args[1],
     }
     try {
@@ -127,7 +127,7 @@ async function s3_readFile(...args) {
 async function s3_readdir(path) {
     const bucketParams: ListObjectsCommandInput = {
         Bucket: bucketName,
-        Prefix: stripLeadingSlashes(`${path}`),
+        Prefix: `${path}`,
     }
 
     try {
@@ -144,10 +144,7 @@ async function s3_readdir(path) {
 }
 
 async function s3_exists(fpath) {
-    const bucketParams = {
-        Bucket: bucketName,
-        Key: stripLeadingSlashes(`${path}`),
-    }
+    const bucketParams = { Bucket: bucketName, Key: `${path}` }
     try {
         const data = await s3Client.send(new HeadObjectCommand(bucketParams))
         console.debug('Success. Object deleted.', data)
@@ -159,10 +156,7 @@ async function s3_exists(fpath) {
 }
 
 async function s3_deleteFile(fpath) {
-    const bucketParams = {
-        Bucket: bucketName,
-        Key: stripLeadingSlashes(`${path}`),
-    }
+    const bucketParams = { Bucket: bucketName, Key: `${path}` }
     try {
         const data = await s3Client.send(new DeleteObjectCommand(bucketParams))
         console.debug('Success. Object deleted.', data)
@@ -171,9 +165,6 @@ async function s3_deleteFile(fpath) {
         console.log('Error', err)
         throw err
     }
-}
-function stripLeadingSlashes(path: string): string {
-    return path.replace(/^\/+/, '')
 }
 
 exports.fs = {
