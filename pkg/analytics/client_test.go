@@ -62,7 +62,7 @@ func TestAnalytics_Hash(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			analytics := &Client{
-				UserId: userId,
+				userId: userId,
 			}
 			actual := analytics.Hash(tt.given)
 			assert.Equal(tt.expect, actual)
@@ -73,14 +73,14 @@ func TestAnalytics_Hash(t *testing.T) {
 func TestAnalyticsSend(t *testing.T) {
 	cases := []struct {
 		name   string
-		send   func()
+		send   func(client *Client)
 		expect []sentPayload
 	}{
 		{
 			name: "direct send at level info with properties",
-			send: func() {
-				c := NewClient(map[string]any{"property_1": "aaa"})
-				c.UserId = "my-user@klo.dev"
+			send: func(c *Client) {
+				c.userId = "my-user@klo.dev"
+				c.AppendProperties(map[string]any{"property_1": "aaa"})
 				c.Info("hello world")
 			},
 			expect: []sentPayload{{
@@ -88,6 +88,7 @@ func TestAnalyticsSend(t *testing.T) {
 				"event": "hello world",
 				"properties": map[string]any{
 					"_logLevel":  "info",
+					"status":     "info",
 					"validated":  false,
 					"property_1": "aaa",
 				},
@@ -95,9 +96,8 @@ func TestAnalyticsSend(t *testing.T) {
 		},
 		{
 			name: "send via logger with no fields",
-			send: func() {
-				c := NewClient(map[string]any{})
-				c.UserId = "my-user@klo.dev"
+			send: func(c *Client) {
+				c.userId = "my-user@klo.dev"
 				logger := zap.New(c.NewFieldListener(zapcore.WarnLevel))
 				logger.Warn("my message")
 			},
@@ -113,9 +113,8 @@ func TestAnalyticsSend(t *testing.T) {
 		},
 		{
 			name: "send via logger",
-			send: func() {
-				c := NewClient(map[string]any{})
-				c.UserId = "my-user@klo.dev"
+			send: func(c *Client) {
+				c.userId = "my-user@klo.dev"
 				logger := zap.New(c.NewFieldListener(zapcore.WarnLevel))
 				logger.Error("first message", zap.Error(fmt.Errorf("my error")))
 				logger.Warn("second message") // no error field on this one!
@@ -155,11 +154,10 @@ func TestAnalyticsSend(t *testing.T) {
 			server := httptest.NewServer(&handler)
 			defer server.Close()
 
-			var oldUrl = kloServerUrl
-			defer func() { kloServerUrl = oldUrl }()
-			kloServerUrl = server.URL
+			client := NewClient()
+			client.serverUrlOverride = server.URL
 
-			tt.send()
+			tt.send(client)
 			for i, receivedPayload := range handler.interactions {
 				expect := tt.expect[i]
 				if assert.NotNil(receivedPayload) {

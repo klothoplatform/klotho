@@ -45,38 +45,37 @@ func (fl *fieldListener) Write(entry zapcore.Entry, fields []zapcore.Field) erro
 	allFields = append(allFields, fl.fields...)
 	allFields = append(allFields, fields...)
 
-	message := entry.Level.CapitalString()
+	logLevel := Warn
+	switch entry.Level {
+	case zapcore.DebugLevel:
+		logLevel = Debug
+	case zapcore.InfoLevel:
+		logLevel = Info
+	case zapcore.WarnLevel:
+		logLevel = Warn
+	case zapcore.ErrorLevel:
+		logLevel = Error
+	case zapcore.DPanicLevel, zapcore.PanicLevel, zapcore.FatalLevel:
+		logLevel = Panic
+	}
+
+	p := fl.client.createPayload(logLevel, entry.Level.CapitalString())
 
 	for k, v := range logging.SanitizeFields(allFields, fl.client.Hash) {
-		property := fmt.Sprintf("log.%s", k)
-		fl.client.Properties[property] = v
-		defer func() { fl.client.DeleteProperty(property) }()
+		p.Properties[fmt.Sprintf("log.%s", k)] = v
 	}
 
 	for _, f := range allFields {
 		if f.Key == logging.EntryMessageField {
-			message += (" " + entry.Message)
+			p.Event += (" " + entry.Message)
 		}
 		if err, isError := f.Interface.(error); isError {
-			fl.client.Properties["error"] = fmt.Sprintf("%+v", err)
-			defer fl.client.DeleteProperty("error")
+			p.addError(err)
 		}
 	}
 
-	switch entry.Level {
-	case zapcore.DebugLevel:
-		fl.client.Debug(message)
-	case zapcore.InfoLevel:
-		fl.client.Info(message)
-	case zapcore.WarnLevel:
-		fl.client.Warn(message)
-	case zapcore.ErrorLevel:
-		fl.client.Error(message)
-	case zapcore.DPanicLevel, zapcore.PanicLevel, zapcore.FatalLevel:
-		fl.client.Panic(message)
-	default:
-		fl.client.Warn(message) // shouldn't happen, but just to be safe
-	}
+	fl.client.Send(p)
+
 	return nil
 }
 

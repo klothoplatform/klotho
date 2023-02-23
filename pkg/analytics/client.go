@@ -14,15 +14,23 @@ import (
 )
 
 type (
-	Client struct {
-		UserId     string                 `json:"id"`
-		Event      string                 `json:"event"`
-		Source     []byte                 `json:"source,omitempty"`
-		Properties map[string]interface{} `json:"properties,omitempty"`
+	Payload struct {
+		UserId     string         `json:"id"`
+		Event      string         `json:"event"`
+		Source     []byte         `json:"source,omitempty"`
+		Properties map[string]any `json:"properties"`
 	}
+
+	Client struct {
+		serverUrlOverride   string
+		userId              string
+		universalProperties map[string]any
+	}
+
 	ErrorHandler interface {
 		PrintErr(err error)
 	}
+
 	LogLevel string
 )
 
@@ -37,68 +45,51 @@ const (
 const datadogLogLevel = "_logLevel"
 const datadogStatus = "status"
 
-func NewClient(properties map[string]interface{}) *Client {
+func NewClient() *Client {
 	local := GetOrCreateAnalyticsFile()
 
-	client := &Client{
-		Properties: properties,
-	}
+	client := &Client{}
+	client.universalProperties = make(map[string]any)
 
 	// These will get validated in AttachAuthorizations
-	client.UserId = local.Id
-	client.Properties["validated"] = false
+	client.userId = local.Id
+	client.universalProperties["validated"] = false
 
-	client.Properties["localId"] = local.Id
+	client.universalProperties["localId"] = local.Id
 	if runUuid, err := uuid.NewRandom(); err == nil {
-		client.Properties["runId"] = runUuid.String()
+		client.universalProperties["runId"] = runUuid.String()
 	}
 
 	return client
 }
 
 func (t *Client) AttachAuthorizations(claims *auth.KlothoClaims) {
-	t.Properties["localId"] = t.UserId
-	t.UserId = claims.Email
-	t.Properties["validated"] = claims.EmailVerified
+	t.universalProperties["localId"] = t.userId
+	t.userId = claims.Email
+	t.universalProperties["validated"] = claims.EmailVerified
 }
 
 func (t *Client) Info(event string) {
-	t.Properties[datadogLogLevel] = Info
-	t.track(event)
-}
-
-func (t *Client) Debug(event string) {
-	t.Properties[datadogLogLevel] = Debug
-	t.track(event)
+	t.Send(t.createPayload(Info, event))
 }
 
 func (t *Client) Warn(event string) {
-	t.Properties[datadogLogLevel] = Warn
-	t.Properties[datadogStatus] = Warn
-	t.track(event)
+	t.Send(t.createPayload(Warn, event))
 }
 
 func (t *Client) Error(event string) {
-	t.Properties[datadogLogLevel] = Error
-	t.Properties[datadogStatus] = Error
-	t.track(event)
+	t.Send(t.createPayload(Error, event))
 }
 
-func (t *Client) Panic(event string) {
-	t.Properties[datadogLogLevel] = Panic
-	// Using error since datadog does not support panic for the reserved status field
-	t.Properties[datadogStatus] = Error
-	t.track(event)
+func (p *Payload) addError(err error) *Payload {
+	p.Properties["error"] = fmt.Sprintf("%+v", err)
+	return p
 }
 
 func (t *Client) AppendProperties(properties map[string]interface{}) {
 	for k, v := range properties {
-		t.Properties[k] = v
+		t.universalProperties[k] = v
 	}
-}
-
-func (t *Client) DeleteProperty(key string) {
-	delete(t.Properties, key)
 }
 
 func (t *Client) UploadSource(source *core.InputFiles) {
@@ -107,28 +98,34 @@ func (t *Client) UploadSource(source *core.InputFiles) {
 		zap.S().Warnf("Failed to upload debug bundle. %v", err)
 		return
 	}
-	srcClient := &Client{
-		UserId:     t.UserId,
-		Properties: t.Properties,
-		Source:     data,
-	}
-	srcClient.Info("klotho uploading")
+	p := t.createPayload(Info, "klotho uploading")
+	p.Source = data
+	t.Send(p)
 }
 
-func (t *Client) track(event string) {
-	t.Event = event
-	err := SendTrackingToServer(t)
-
-	if err != nil {
-		zap.L().Debug(fmt.Sprintf("Failed to send metrics info. %v", err))
+func (t *Client) createPayload(level LogLevel, event string) *Payload {
+	p := &Payload{
+		UserId:     t.userId,
+		Event:      event,
+		Properties: make(map[string]any, len(t.universalProperties)+2),
 	}
+	for k, v := range t.universalProperties {
+		p.Properties[k] = v
+	}
+	p.Properties[datadogLogLevel] = level
+	if level == Panic {
+		p.Properties[datadogStatus] = Error // datadog doesn't support panic for the reserved status field
+	} else {
+		p.Properties[datadogStatus] = level
+	}
+	return p
 }
 
-// Hash hashes a value, using this analytic sender's UserId as a salt. It does not output anything or in any way modify the
+// Hash hashes a value, using this analytic sender's userId as a salt. It does not output anything or in any way modify the
 // sender's state.
 func (t *Client) Hash(value any) string {
 	h := sha256.New()
-	h.Write([]byte(t.UserId)) // use this as a salt
+	h.Write([]byte(t.userId)) // use this as a salt
 	if json.NewEncoder(h).Encode(value) != nil {
 		return "unknown"
 	}
@@ -149,7 +146,7 @@ func (t *Client) PanicHandler(err *error, errHandler ErrorHandler) {
 		if _, hasStack := (*err).(interface{ StackTrace() errors.StackTrace }); !hasStack {
 			*err = errors.WithStack(*err)
 		}
-		t.Panic(rerr.Error())
+		t.Send(t.createPayload(Error, "ERROR").addError(rerr))
 		errHandler.PrintErr(*err)
 	}
 }
