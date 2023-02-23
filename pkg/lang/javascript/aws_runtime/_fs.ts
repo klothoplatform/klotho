@@ -17,12 +17,14 @@ const targetRegion = process.env['AWS_TARGET_REGION']
 
 const s3Client = new S3Client({ region: targetRegion })
 
-const streamToString = (stream: Readable): Promise<string> =>
-    new Promise((resolve, reject) => {
-        const chunks: Uint8Array[] = []
+const streamToString = async (stream: Readable, encoding: string) =>
+    (await streamToBuffer(stream)).toString(encoding)
+const streamToBuffer = (stream: Readable) =>
+    new Promise<Buffer>((resolve, reject) => {
+        const chunks = []
         stream.on('data', (chunk) => chunks.push(chunk))
         stream.on('error', reject)
-        stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+        stream.on('end', () => resolve(Buffer.concat(chunks)))
     })
 
 async function getCallParameters(paramKey, dispatcherMode) {
@@ -36,7 +38,7 @@ async function getCallParameters(paramKey, dispatcherMode) {
 
         let parameters: any = ''
         if (result.Body) {
-            parameters = await streamToString(result.Body as Readable)
+            parameters = await streamToString(result.Body as Readable, 'utf-8')
             console.log(parameters)
         }
         if (parameters != '') {
@@ -111,9 +113,11 @@ async function s3_readFile(...args) {
         // Get the object from the Amazon S3 bucket. It is returned as a ReadableStream.
         const data = await s3Client.send(new GetObjectCommand(bucketParams))
         if (data.Body) {
-            return await streamToString(data.Body as Readable)
+            if (args[1]?.encoding) {
+                return await streamToString(data.Body, args[1].encoding)
+            }
+            return streamToBuffer(data.Body)
         }
-        return ''
     } catch (err) {
         console.log('Error', err)
         throw err
