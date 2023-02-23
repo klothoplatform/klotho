@@ -27,9 +27,9 @@ func (local *LocalAuth) SetUpCliFlags(flags *pflag.FlagSet) {
 	flags.BoolVar((*bool)(local), "local", bool(*local), "If provided, runs Klotho with a local login (that is, not requiring an authenticated login)")
 }
 
-func (local *LocalAuth) Authorize() (*auth.KlothoClaims, error) {
+func (local *LocalAuth) Authorize() (auth.LoginInfo, error) {
 	if !*local {
 		return auth.Authorize()
 	}
-	return nil, nil
+	return auth.LoginInfo{Authorizer: "local"}, nil
 }

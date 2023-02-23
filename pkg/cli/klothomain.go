@@ -37,11 +37,11 @@ type KlothoMain struct {
 }
 type Authorizer interface {
 
-	// Authorize tries to authorize the user. The KlothoClaims it returns may be nil, even if the authentication
-	// succeeds. Conversely, if the KlothoClaims is non-nil, it is valid even if the error is also non-nil; you can use
+	// Authorize tries to authorize the user. The klothoClaims it returns may be nil, even if the authentication
+	// succeeds. Conversely, if the klothoClaims is non-nil, it is valid even if the error is also non-nil; you can use
 	// those claims provisionally (and specifically, in analytics) even if the error is non-nil, indicating failed
 	// authentication.
-	Authorize() (*auth.KlothoClaims, error)
+	Authorize() (auth.LoginInfo, error)
 }
 
 type FlagsProvider interface {
@@ -314,9 +314,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 
 	// Needs to go after the --version and --update checks
 	claims, err := km.Authorizer.Authorize()
-	if claims != nil {
-		analyticsClient.AttachAuthorizations(claims)
-	}
+	analyticsClient.AttachAuthorizations(claims)
 	if err != nil {
 		if errors.Is(err, auth.ErrNoCredentialsFile) {
 			return errors.New(`Failed to get credentials for user. Please run "klotho --login"`)
