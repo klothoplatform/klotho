@@ -73,7 +73,7 @@ exports.saveParametersToS3 = saveParametersToS3;
 async function s3_writeFile(...args) {
     const bucketParams = {
         Bucket: bucketName,
-        Key: `${args[0]}`,
+        Key: stripLeadingSlashes(`${args[0]}`),
         Body: args[1],
     };
     try {
@@ -88,15 +88,24 @@ async function s3_writeFile(...args) {
 async function s3_readFile(...args) {
     const bucketParams = {
         Bucket: bucketName,
-        Key: `${args[0]}`,
+        Key: stripLeadingSlashes(`${args[0]}`),
     };
     try {
         // Get the object from the Amazon S3 bucket. It is returned as a ReadableStream.
         const data = await s3Client.send(new client_s3_1.GetObjectCommand(bucketParams));
         if (data.Body) {
-            return await streamToString(data.Body);
+            if (args[1]?.encoding) {
+                return await streamToString(data.Body);
+            }
+            return new Promise((resolve, reject) => {
+                const stream = data.Body;
+                const chunks = [];
+                stream.on('data', chunk => chunks.push(chunk))
+                stream.once('end', () => resolve(Buffer.concat(chunks)))
+                stream.once('error', reject)
+            });
         }
-        return '';
+        return Promise.resolve();
     }
     catch (err) {
         console.log('Error', err);
@@ -106,7 +115,7 @@ async function s3_readFile(...args) {
 async function s3_readdir(path) {
     const bucketParams = {
         Bucket: bucketName,
-        Prefix: `${path}`,
+        Prefix: stripLeadingSlashes(`${path}`),
     };
     try {
         const data = await s3Client.send(new client_s3_1.ListObjectsCommand(bucketParams));
@@ -122,7 +131,10 @@ async function s3_readdir(path) {
     }
 }
 async function s3_exists(fpath) {
-    const bucketParams = { Bucket: bucketName, Key: `${path}` };
+    const bucketParams = {
+        Bucket: bucketName,
+        Key: stripLeadingSlashes(`${path}`)
+    };
     try {
         const data = await s3Client.send(new client_s3_1.HeadObjectCommand(bucketParams));
         console.debug('Success. Object deleted.', data);
@@ -134,7 +146,10 @@ async function s3_exists(fpath) {
     }
 }
 async function s3_deleteFile(fpath) {
-    const bucketParams = { Bucket: bucketName, Key: `${path}` };
+    const bucketParams = {
+        Bucket: bucketName,
+        Key: stripLeadingSlashes(`${path}`)
+    };
     try {
         const data = await s3Client.send(new client_s3_1.DeleteObjectCommand(bucketParams));
         console.debug('Success. Object deleted.', data);
@@ -144,6 +159,9 @@ async function s3_deleteFile(fpath) {
         console.log('Error', err);
         throw err;
     }
+}
+function stripLeadingSlashes(path) {
+    return path.replace(/^\/+/, "");
 }
 exports.fs = {
     writeFile: s3_writeFile,
