@@ -250,7 +250,7 @@ func (p *persister) transformFS(unit *core.ExecutionUnit, file *core.SourceFile,
 		ResourceID: cap.Capability.ID,
 		Value:      string(core.BUCKET_NAME),
 	}
-	unit.EnvironmentVariables = append(unit.EnvironmentVariables, fsEnvVar)
+	unit.EnvironmentVariables.Add(fsEnvVar)
 
 	result := &core.Persist{
 		Kind: core.PersistFileKind,
@@ -307,7 +307,7 @@ func (p *persister) transformORM(unit *core.ExecutionUnit, file *core.SourceFile
 		Name: cap.Capability.ID,
 	}
 
-	unit.EnvironmentVariables = append(unit.EnvironmentVariables, envVar)
+	unit.EnvironmentVariables.Add(envVar)
 
 	return result, nil
 }
@@ -340,8 +340,8 @@ func (p *persister) transformRedis(unit *core.ExecutionUnit, file *core.SourceFi
 		Name: cap.Capability.ID,
 	}
 
-	unit.EnvironmentVariables = append(unit.EnvironmentVariables, hostEnvVar)
-	unit.EnvironmentVariables = append(unit.EnvironmentVariables, portEnvVar)
+	unit.EnvironmentVariables.Add(hostEnvVar)
+	unit.EnvironmentVariables.Add(portEnvVar)
 
 	return result, nil
 }

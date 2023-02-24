@@ -99,7 +99,7 @@ func (p *PersistSecretsPlugin) transformSecret(f *core.SourceFile, cap *core.Ann
 		ResourceID: cap.Capability.ID,
 		Value:      "secret_name",
 	}
-	unit.EnvironmentVariables = append(unit.EnvironmentVariables, secretEnvVar)
+	unit.EnvironmentVariables.Add(secretEnvVar)
 
 	args[1].Content = fmt.Sprintf(`"awssecretsmanager://" + os.Getenv("%s") + "?region=" + os.Getenv("AWS_REGION") + queryParams`, secretEnvVar.Name)
 

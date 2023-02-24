@@ -181,6 +181,12 @@ func (r *AwsRuntime) AddRedisClusterRuntimeFiles(unit *core.ExecutionUnit) error
 }
 
 func (r *AwsRuntime) AddPubsubRuntimeFiles(unit *core.ExecutionUnit) error {
+	unit.EnvironmentVariables.Add(core.InternalStorageVariable)
+	err := r.AddFsRuntimeFiles(unit, core.InternalStorageVariable.Name, "payload")
+	if err != nil {
+		return err
+	}
+
 	return r.AddRuntimeFiles(unit, pubsubRuntimeFiles)
 }
 
@@ -198,14 +204,8 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 		proxyFile = proxyLambda
 
 		// We also need to add the Fs files because exec to exec calls in aws use s3
-		proxyEnvVar := core.EnvironmentVariable{
-			Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
-			Kind:       core.InternalKind,
-			ResourceID: core.KlothoPayloadName,
-			Value:      string(core.BUCKET_NAME),
-		}
-		unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
-		err := r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
+		unit.EnvironmentVariables.Add(core.InternalStorageVariable)
+		err := r.AddFsRuntimeFiles(unit, core.InternalStorageVariable.Name, "payload")
 		if err != nil {
 			return err
 		}
@@ -232,14 +232,8 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		DockerFile = dockerfileLambda
 		Dispatcher = dispatcherLambda
 
-		proxyEnvVar := core.EnvironmentVariable{
-			Name:       core.KLOTHO_PROXY_ENV_VAR_NAME,
-			Kind:       core.InternalKind,
-			ResourceID: core.KlothoPayloadName,
-			Value:      string(core.BUCKET_NAME),
-		}
-		unit.EnvironmentVariables = append(unit.EnvironmentVariables, proxyEnvVar)
-		err := r.AddFsRuntimeFiles(unit, proxyEnvVar.Name, "payload")
+		unit.EnvironmentVariables.Add(core.InternalStorageVariable)
+		err := r.AddFsRuntimeFiles(unit, core.InternalStorageVariable.Name, "payload")
 		if err != nil {
 			return err
 		}

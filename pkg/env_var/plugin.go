@@ -68,7 +68,7 @@ func (p EnvVarInjection) Transform(result *core.CompilationResult, deps *core.De
 						errs.Append(err)
 						continue
 					}
-					unit.EnvironmentVariables = append(unit.EnvironmentVariables, directiveResult.variables...)
+					unit.EnvironmentVariables.AddAll(directiveResult.variables)
 				}
 			}
 		}
@@ -88,13 +88,13 @@ func validateValue(kind string, value string) bool {
 
 type EnvironmentVariableDirectiveResult struct {
 	kind      string
-	variables []core.EnvironmentVariable
+	variables core.EnvironmentVariables
 }
 
 func ParseDirectiveToEnvVars(cap *annotation.Capability) (EnvironmentVariableDirectiveResult, error) {
 	overallKind := ""
 	envVars := cap.Directives.Object(core.EnvironmentVariableDirective)
-	foundVars := []core.EnvironmentVariable{}
+	foundVars := core.EnvironmentVariables{}
 	if envVars == nil {
 		return EnvironmentVariableDirectiveResult{}, nil
 	}
@@ -133,7 +133,7 @@ func ParseDirectiveToEnvVars(cap *annotation.Capability) (EnvironmentVariableDir
 			Value:      value,
 			ResourceID: cap.ID,
 		}
-		foundVars = append(foundVars, foundVariable)
+		foundVars.Add(foundVariable)
 	}
 
 	return EnvironmentVariableDirectiveResult{kind: overallKind, variables: foundVars}, nil
