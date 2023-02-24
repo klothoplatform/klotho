@@ -109,3 +109,46 @@ func Test_IsValidTypeName(t *testing.T) {
 		})
 	}
 }
+
+func Test_normalizedStringContent(t *testing.T) {
+	tests := []struct {
+		name       string
+		stringNode string
+		want       string
+	}{
+		{
+			name:       "string literal: content is extracted",
+			stringNode: `"H\"ello\\"`,
+			want:       `H\"ello\\`,
+		},
+		{
+			name:       `verbatim string literal: 2 double quotes are converted to 1 escaped double quote ("" -> \")`,
+			stringNode: `@"Some ""quoted"" text"`,
+			want:       `Some \"quoted\" text`,
+		},
+		{
+			name:       `verbatim string literal: 1 back slash converted to 2 backslashes (\ -> \\)`,
+			stringNode: `@"Some \text\"`,
+			want:       `Some \\text\\`,
+		},
+		{
+			name:       `raw string literal: double quotes are escaped (" -> \")`,
+			stringNode: `"""Some "quoted" text"""`,
+			want:       "", // TODO: replace this want with the commented out alternative once raw string literals are supported (tree-sitter-c-sharp >= 0.21.0)
+			//want:       `Some \"quoted\" text`,
+		},
+		{
+			name:       `raw string literal: 1 back slash converted to 2 backslashes (\ -> \\)`,
+			stringNode: `"""Some \text\"""`,
+			want:       "", // TODO: replace this want with the commented out alternative once raw string literals are supported (tree-sitter-c-sharp >= 0.21.0)
+			//want:       `Some \\text\\`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			f, _ := core.NewSourceFile("file.cs", strings.NewReader(tt.stringNode), Language)
+			assert.Equalf(tt.want, normalizedStringContent(f.Tree().RootNode().Child(0)), "normalizedStringContent(%v)", tt.stringNode)
+		})
+	}
+}

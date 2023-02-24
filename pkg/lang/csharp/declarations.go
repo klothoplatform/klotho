@@ -195,7 +195,7 @@ func (a *Attribute) Args() []AttributeArg {
 
 		value := valueN.Content()
 		if strings.Contains(valueN.Type(), "string_literal") {
-			value = stringLiteralContent(valueN)
+			value = normalizedStringContent(valueN)
 		}
 
 		args = append(args, AttributeArg{
@@ -438,7 +438,7 @@ func isNested(declaration *sitter.Node) bool {
 	if outer == nil {
 		return false
 	}
-	if declaration.Type() == "class_declaration" && outer != nil {
+	if declaration.Type() == "class_declaration" {
 		return true
 	}
 	outer = query.FirstAncestorOfType(outer.Parent(), "class_declaration")

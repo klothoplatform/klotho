@@ -8,14 +8,31 @@ import (
 	"strings"
 )
 
-// TODO: look into handling backslashes differently based on string type
-func stringLiteralContent(node *sitter.Node) string {
+// normalizedStringContent returns the string literal formatted content for string literal and verbatim string literal nodes
+func normalizedStringContent(node *sitter.Node) string {
 	if node == nil {
 		return ""
 	}
-	return strings.Trim(strings.TrimPrefix(node.Content(), "@"), `"`)
+	content := node.Content()
+	// raw string literals are not supported by tree-sitter-c-sharp until v0.21.0 is released
+	isRawStringLiteral := strings.HasPrefix(content, `"""`)
+	isVerbatimStringLiteral := strings.HasPrefix(content, "@")
+	content = strings.TrimPrefix(content, "@")
+	content = strings.TrimPrefix(content, `"`)
+	content = strings.TrimSuffix(content, `"`)
+	if isRawStringLiteral {
+		content = strings.TrimPrefix(content, `""`)
+		content = strings.TrimSuffix(content, `""`)
+		content = strings.ReplaceAll(content, `\`, `\\`)
+		content = strings.ReplaceAll(content, `"`, `\"`)
+	} else if isVerbatimStringLiteral {
+		content = strings.ReplaceAll(content, `\`, `\\`)
+		content = strings.ReplaceAll(content, `""`, `\"`)
+	}
+	return content
 }
 
+// ContainingNamespaces returns the set of namespaces surrounding the current node.
 func ContainingNamespaces(node *sitter.Node) map[string]struct{} {
 	var namespaces []string
 	for _, ns := range query.AncestorsOfType(node, "namespace_declaration") {

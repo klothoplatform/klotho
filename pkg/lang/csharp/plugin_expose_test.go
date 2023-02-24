@@ -68,6 +68,53 @@ func TestSanitizeConventionalRoute(t *testing.T) {
 			path:     "/api/{**slug}/trimmed",
 			expected: "/api/:rest*",
 		},
+		{
+			name:     "complex segment 1",
+			path:     "/{x}a{y}",
+			expected: "/:complex1",
+		},
+		{
+			name:     "complex segment 2",
+			path:     "/{x}a{y}/{x}{y}/",
+			expected: "/:complex1/:complex2/",
+		},
+		{
+			name:     "complex segment 3",
+			path:     "{x}a{y}/",
+			expected: ":complex1/",
+		},
+		{
+			name:     "complex segment 4",
+			path:     "x{x}",
+			expected: ":complex1",
+		},
+		{
+			name:     "complex segment 5",
+			path:     "{x}{y}",
+			expected: ":complex1",
+		},
+		{
+			name:     "regex constraints 1",
+			path:     "/{p1:regex(pattern)}/{p2:regex(p{{a}}ttern)}",
+			expected: "/:p1/:p2",
+		},
+		{
+			name:     "regex constraints 2",
+			path:     "/{p1:regex(patt\\\\\\)ern)}/{p2:regex(p\\)attern)}/",
+			expected: "/:p1/:p2/",
+		},
+		{
+			name:     "regex constraints 3",
+			path:     "{p1:regex(pattern)}",
+			expected: ":p1",
+		},
+		{
+			// This scenario verifies we don't get stuck in a loop processing bad input.
+			// The original path will cause an HTTP-500 response from ASP.NET Core.
+			name:     "invalid regex constraint output bad path without causing an error",
+			path:     "{p1:regex(pat}tern)}",
+			expected: ":p1tern)}",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -90,6 +137,13 @@ func Test_sanitizeAttributeBasedPath(t *testing.T) {
 			name:     "simple path",
 			path:     "/hello",
 			expected: "/hello",
+		},
+		{
+			// This scenario verifies we don't get stuck in a loop processing bad input.
+			// The original path will cause an HTTP-500 response from ASP.NET Core.
+			name:     "invalid regex constraint output bad path without causing an error",
+			path:     "{p1:regex(pat}tern)}",
+			expected: ":p1tern)}",
 		},
 		{
 			name:     "one path param",
@@ -163,6 +217,46 @@ func Test_sanitizeAttributeBasedPath(t *testing.T) {
 			name:     "wildcards are converted to proxy routes 3",
 			path:     "/api/{**slug}/trimmed",
 			expected: "/api/:rest*",
+		},
+		{
+			name:     "complex segment 1",
+			path:     "/{x}a{y}",
+			expected: "/:complex1",
+		},
+		{
+			name:     "complex segment 2",
+			path:     "/{x}a{y}/{x}{y}/",
+			expected: "/:complex1/:complex2/",
+		},
+		{
+			name:     "complex segment 3",
+			path:     "{x}a{y}/",
+			expected: ":complex1/",
+		},
+		{
+			name:     "complex segment 4",
+			path:     "x{x}",
+			expected: ":complex1",
+		},
+		{
+			name:     "complex segment 5",
+			path:     "{x}{y}",
+			expected: ":complex1",
+		},
+		{
+			name:     "regex constraints 1",
+			path:     "/{p1:regex(pattern)}/{p2:regex(p{{a}}ttern)}",
+			expected: "/:p1/:p2",
+		},
+		{
+			name:     "regex constraints 2",
+			path:     "/{p1:regex(patt\\\\\\)ern)}/{p2:regex(p\\)attern)}/",
+			expected: "/:p1/:p2/",
+		},
+		{
+			name:     "regex constraints 3",
+			path:     "{p1:regex(pattern)}",
+			expected: ":p1",
 		},
 	}
 	for _, tt := range tests {

@@ -221,8 +221,8 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 		}
 
 		for _, useEndpoint := range useEndpointResults {
-			var appBuilderName string = useEndpoint.AppBuilderIdentifier.Content()
-			var endpointRouteBuilderName string = useEndpoint.EndpointRouteBuilderIdentifier.Content()
+			var appBuilderName = useEndpoint.AppBuilderIdentifier.Content()
+			var endpointRouteBuilderName = useEndpoint.EndpointRouteBuilderIdentifier.Content()
 
 			gwSpec := gatewaySpec{
 				FilePath:        f.Path(),
@@ -327,7 +327,7 @@ func (h *aspDotNetCoreHandler) findVerbMappings(root *sitter.Node, varName strin
 
 		route = append(route, routeMethodPath{
 			Verb: verb,
-			Path: stringLiteralContent(routePath),
+			Path: normalizedStringContent(routePath),
 		})
 	}
 	return route, err
@@ -661,12 +661,16 @@ func parseActionAttributes(method MethodDeclaration) []actionSpec {
 // As such, there's no expectation of correct output for invalid paths
 // Regexp constraints, complex segments and controller/action token replacement are not yet supported
 func sanitizeConventionalPath(path string) string {
+	path = sanitizeRegexConstraints(path)
+
 	// convert to longest possible proxy route when required
 	firstProxyParamIndex := findFirstProxyRouteIndicator(path)
 	if firstProxyParamIndex > -1 {
 		path = path[0:firstProxyParamIndex]
 		path = path[0:strings.LastIndex(path, "{")+1] + "rest*}"
 	}
+
+	path = sanitizeComplexSegments(path)
 
 	// convert path params to express syntax
 	path = regexp.MustCompile(`\{([^:}?]*):?[^}]*}`).ReplaceAllString(path, ":$1")
@@ -678,8 +682,7 @@ func sanitizeConventionalPath(path string) string {
 // As such, there's no expectation of correct output for invalid paths
 // Regex constraints and complex segments are not yet supported
 func sanitizeAttributeBasedPath(path string, area string, controller string, action string) string {
-	//TODO: handle regex constraints -- they may include additional curly braces ("{", "}") that aren't currently accounted for
-	//TODO: handle complex segments e.g. /{com}plex{segment}/
+	path = sanitizeRegexConstraints(path)
 
 	// replace params such as {controller=Index}
 	specialParamFormat := `(?i)\{\s*%s\s*=\s*%s\s*}`
@@ -694,6 +697,8 @@ func sanitizeAttributeBasedPath(path string, area string, controller string, act
 		path = path[0:strings.LastIndex(path, "{")+1] + "rest*}"
 	}
 
+	path = sanitizeComplexSegments(path)
+
 	// convert path params to express syntax
 	path = regexp.MustCompile(`\{([^:}?]*):?[^}]*}`).ReplaceAllString(path, ":$1")
 
@@ -704,16 +709,64 @@ func sanitizeAttributeBasedPath(path string, area string, controller string, act
 	return path
 }
 
-// TODO: rework handling of default params
+// '*' is a literal in ASP.NET Core routes when not the first character in a route param: /path/* -> /path/*, /path/{*slug} -> /path/:rest*
+// Routes containing '*' literals are not supported by AWS API Gateway.
+var catchAllRegexp = regexp.MustCompile(`\{\*`)
+
+// TODO: rework handling of default params as they might not always indicate the need for a proxy route
+//
+//	see: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/routing?view=aspnetcore-6.0#route-template-reference
 func findFirstProxyRouteIndicator(path string) int {
 	firstProxyParamIndex := -1
-	for _, i := range []int{
-		strings.Index(path, "="),
-		strings.Index(path, "*"),
-	} {
-		if i >= 0 && (firstProxyParamIndex < 0 || i < firstProxyParamIndex) {
-			firstProxyParamIndex = i
-		}
+	if firstCatchAll := catchAllRegexp.FindStringIndex(path); firstCatchAll != nil {
+		firstProxyParamIndex = firstCatchAll[0] + 1 // +1 to avoid stripping the opening "{"
+	}
+	firstDefaultParam := strings.Index(path, "=")
+	if firstDefaultParam > -1 || (firstProxyParamIndex == -1 && firstDefaultParam < firstProxyParamIndex) {
+		firstProxyParamIndex = firstDefaultParam
 	}
 	return firstProxyParamIndex
+}
+
+var regexParamStartPattern = regexp.MustCompile(`(?i)\{[^:}]+:regex\(`)
+var regexStartPattern = regexp.MustCompile(`(?i):regex\(`)
+var regexEndPattern = regexp.MustCompile(`[^}](})(?:[^}]|$)`)
+
+func sanitizeRegexConstraints(path string) string {
+	sanitized := path
+	pStart := regexParamStartPattern.FindStringIndex(sanitized)
+	for ; pStart != nil; pStart = regexParamStartPattern.FindStringIndex(sanitized) {
+		rStart := regexStartPattern.FindStringIndex(sanitized[pStart[0]:])
+		if rStart == nil {
+			continue
+		}
+		regexStart := pStart[0] + rStart[0]
+		regexParamEnd := -1
+		regexEndSubmatches := regexEndPattern.FindStringSubmatchIndex(sanitized[regexStart:]) // [0,1] = complete match, [2,3] = capture group 1
+		if regexEndSubmatches != nil {
+			if regexEndSubmatches[2] != -1 {
+				regexParamEnd = regexStart + regexEndSubmatches[2]
+			}
+		}
+		if regexParamEnd != -1 {
+			sanitized = sanitized[0:regexStart] + sanitized[regexParamEnd:]
+		} else {
+			return path // prevents infinite loop if the route has any incomplete/invalid regex constraints
+		}
+	}
+	return sanitized
+}
+
+var complexSegmnentPattern = regexp.MustCompile(`(?P<complex>[^{}/]+(?:[^{}/]*\{[^{}/]+}[^{}/]*?)+?|{[^{}/]+}(?:[^{}/]+|\{[^{}/]+})+)(?:/|$|/$)`)
+
+func sanitizeComplexSegments(path string) string {
+	i := 0
+	return complexSegmnentPattern.ReplaceAllStringFunc(path, func(complex string) string {
+		i++
+		segment := fmt.Sprintf("{%s%d}", "complex", i)
+		if strings.HasSuffix(complex, "/") {
+			segment += "/"
+		}
+		return segment
+	})
 }
