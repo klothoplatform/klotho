@@ -33,8 +33,8 @@ func (unit *HelmExecUnit) handlePersistForExecUnit(deps *core.Dependencies) ([]V
 	return values, nil
 }
 
-func generateEnvVars(deps *core.Dependencies, name string) []core.EnvironmentVariable {
-	envVars := []core.EnvironmentVariable{}
+func generateEnvVars(deps *core.Dependencies, name string) core.EnvironmentVariables {
+	envVars := core.EnvironmentVariables{}
 	for _, target := range deps.Downstream(core.ResourceKey{Name: name, Kind: core.ExecutionUnitKind}) {
 		switch target.Kind {
 		case string(core.PersistORMKind):

@@ -12,7 +12,7 @@ import (
 func Test_envVarPlugin(t *testing.T) {
 	type testResult struct {
 		resource core.CloudResource
-		envVars  []core.EnvironmentVariable
+		envVars  core.EnvironmentVariables
 	}
 	tests := []struct {
 		name    string
@@ -34,12 +34,13 @@ func Test_envVarPlugin(t *testing.T) {
 const a = 1`,
 			want: testResult{
 				resource: &core.Persist{Kind: core.PersistRedisNodeKind, Name: "myRedisNode"},
-				envVars: []core.EnvironmentVariable{{
-					Name:       "REDIS_NODE_HOST",
-					Kind:       "persist_redis_node",
-					ResourceID: "myRedisNode",
-					Value:      "host",
-				},
+				envVars: core.EnvironmentVariables{
+					{
+						Name:       "REDIS_NODE_HOST",
+						Kind:       "persist_redis_node",
+						ResourceID: "myRedisNode",
+						Value:      "host",
+					},
 					{
 						Name:       "REDIS_NODE_PORT",
 						Kind:       "persist_redis_node",
@@ -63,12 +64,13 @@ const a = 1`,
 const a = 1`,
 			want: testResult{
 				resource: &core.Persist{Kind: core.PersistRedisClusterKind, Name: "myRedisCluster"},
-				envVars: []core.EnvironmentVariable{{
-					Name:       "REDIS_HOST",
-					Kind:       "persist_redis_cluster",
-					ResourceID: "myRedisCluster",
-					Value:      "host",
-				},
+				envVars: core.EnvironmentVariables{
+					{
+						Name:       "REDIS_HOST",
+						Kind:       "persist_redis_cluster",
+						ResourceID: "myRedisCluster",
+						Value:      "host",
+					},
 					{
 						Name:       "REDIS_PORT",
 						Kind:       "persist_redis_cluster",
@@ -91,12 +93,13 @@ const a = 1`,
 const a = 1`,
 			want: testResult{
 				resource: &core.Persist{Kind: core.PersistORMKind, Name: "myOrm"},
-				envVars: []core.EnvironmentVariable{{
-					Name:       "ORM_CONNECTION_STRING",
-					Kind:       "persist_orm",
-					ResourceID: "myOrm",
-					Value:      "connection_string",
-				},
+				envVars: core.EnvironmentVariables{
+					{
+						Name:       "ORM_CONNECTION_STRING",
+						Kind:       "persist_orm",
+						ResourceID: "myOrm",
+						Value:      "connection_string",
+					},
 				},
 			},
 		},
@@ -215,12 +218,13 @@ func Test_parseDirectiveToEnvVars(t *testing.T) {
 const a = 1`,
 			want: EnvironmentVariableDirectiveResult{
 				kind: string(core.PersistRedisNodeKind),
-				variables: []core.EnvironmentVariable{{
-					Name:       "REDIS_NODE_HOST",
-					Kind:       "persist_redis_node",
-					ResourceID: "myRedisNode",
-					Value:      "host",
-				},
+				variables: core.EnvironmentVariables{
+					{
+						Name:       "REDIS_NODE_HOST",
+						Kind:       "persist_redis_node",
+						ResourceID: "myRedisNode",
+						Value:      "host",
+					},
 					{
 						Name:       "REDIS_NODE_PORT",
 						Kind:       "persist_redis_node",

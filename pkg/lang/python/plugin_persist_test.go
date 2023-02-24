@@ -712,7 +712,7 @@ engine = create_engine(os.environ.get("SQLALCHEMY_PERSIST_ORM_CONNECTION"))`,
 			}
 			assert.NoError(err)
 			assert.Equal(tt.want, string(newF.Program()))
-			assert.Equal([]core.EnvironmentVariable{
+			assert.Equal(core.EnvironmentVariables{
 				{
 					Name:       "SQLALCHEMY_PERSIST_ORM_CONNECTION",
 					Kind:       string(core.PersistORMKind),
@@ -1048,7 +1048,7 @@ client = RedisCluster(host=os.environ.get("REDIS_PERSIST_REDIS_HOST"), port=os.e
 			}
 			assert.NoError(err)
 			assert.Equal(tt.want, string(newF.Program()))
-			assert.Equal([]core.EnvironmentVariable{
+			assert.Equal(core.EnvironmentVariables{
 				{
 					Name:       "REDIS_PERSIST_REDIS_HOST",
 					Kind:       string(tt.redisType),
