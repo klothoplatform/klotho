@@ -488,8 +488,11 @@ func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 	return routes
 }
 
+var optionalLastSegmentPattern = regexp.MustCompile(`(^|/)(\{[^?{}]+\?})(/$|$)`)
+
+// stripOptionalLastSegment strips the last segment of a path if it contains an optional param
 func stripOptionalLastSegment(routeTemplate string) string {
-	if regexp.MustCompile(`(^|/)(\{[^?{}]+\?})(/$|$)`).MatchString(routeTemplate) {
+	if optionalLastSegmentPattern.MatchString(routeTemplate) {
 		routeTemplate = strings.TrimSuffix(routeTemplate, "/")
 		routeTemplate = routeTemplate[0:strings.LastIndex(routeTemplate, "/")]
 	}
@@ -656,6 +659,8 @@ func parseActionAttributes(method MethodDeclaration) []actionSpec {
 	return specs
 }
 
+var expressParamConversionPattern = regexp.MustCompile(`\{([^:}?]*):?[^}]*}`)
+
 // sanitizeConventionalPath converts ASP.NET Core conventional path parameters to Express syntax,
 // but does not perform validation to ensure that the supplied string is a valid ASP.net route.
 // As such, there's no expectation of correct output for invalid paths
@@ -670,12 +675,17 @@ func sanitizeConventionalPath(path string) string {
 		path = path[0:strings.LastIndex(path, "{")+1] + "rest*}"
 	}
 
-	path = sanitizeComplexSegments(path)
+	path = mergeComplexSegments(path)
 
 	// convert path params to express syntax
-	path = regexp.MustCompile(`\{([^:}?]*):?[^}]*}`).ReplaceAllString(path, ":$1")
+
+	path = expressParamConversionPattern.ReplaceAllString(path, ":$1")
 	return path
 }
+
+var areaTokenPattern = regexp.MustCompile(`(?i)\[area]`)
+var actionTokenPattern = regexp.MustCompile(`(?i)\[action]`)
+var controllerTokenPattern = regexp.MustCompile(`(?i)\[controller]`)
 
 // sanitizeAttributeBasedPath converts ASP.NET Core attribute-based route path parameters to Express syntax,
 // but does not perform validation to ensure that the supplied string is a valid ASP.NET Core route.
@@ -697,15 +707,15 @@ func sanitizeAttributeBasedPath(path string, area string, controller string, act
 		path = path[0:strings.LastIndex(path, "{")+1] + "rest*}"
 	}
 
-	path = sanitizeComplexSegments(path)
+	path = mergeComplexSegments(path)
 
 	// convert path params to express syntax
-	path = regexp.MustCompile(`\{([^:}?]*):?[^}]*}`).ReplaceAllString(path, ":$1")
+	path = expressParamConversionPattern.ReplaceAllString(path, ":$1")
 
 	// replace special tokens
-	path = regexp.MustCompile(`(?i)\[area]`).ReplaceAllString(path, area)
-	path = regexp.MustCompile(`(?i)\[controller]`).ReplaceAllString(path, controller)
-	path = regexp.MustCompile(`(?i)\[action]`).ReplaceAllString(path, action)
+	path = areaTokenPattern.ReplaceAllString(path, area)
+	path = controllerTokenPattern.ReplaceAllString(path, controller)
+	path = actionTokenPattern.ReplaceAllString(path, action)
 	return path
 }
 
@@ -757,11 +767,13 @@ func sanitizeRegexConstraints(path string) string {
 	return sanitized
 }
 
-var complexSegmnentPattern = regexp.MustCompile(`(?P<complex>[^{}/]+(?:[^{}/]*\{[^{}/]+}[^{}/]*?)+?|{[^{}/]+}(?:[^{}/]+|\{[^{}/]+})+)(?:/|$|/$)`)
+var complexSegmentPattern = regexp.MustCompile(`(?P<complex>[^{}/]+(?:[^{}/]*\{[^{}/]+}[^{}/]*?)+?|{[^{}/]+}(?:[^{}/]+|\{[^{}/]+})+)(?:/|$|/$)`)
 
-func sanitizeComplexSegments(path string) string {
+// mergeComplexSegments replaces complex path segments with uniquely named parameterized segments.
+// e.g. /simple/{c}ompl{ex}/{com}{plex} -> /simple/{complex1}/{complex2}
+func mergeComplexSegments(path string) string {
 	i := 0
-	return complexSegmnentPattern.ReplaceAllStringFunc(path, func(complex string) string {
+	return complexSegmentPattern.ReplaceAllStringFunc(path, func(complex string) string {
 		i++
 		segment := fmt.Sprintf("{%s%d}", "complex", i)
 		if strings.HasSuffix(complex, "/") {
