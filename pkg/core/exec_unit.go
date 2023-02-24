@@ -18,7 +18,7 @@ type (
 		Name                 string
 		files                ConcurrentMap[string, File]
 		Executable           Executable
-		EnvironmentVariables []EnvironmentVariable
+		EnvironmentVariables EnvironmentVariables
 		DockerfilePath       string
 	}
 

@@ -27,7 +27,7 @@ func (p ExecUnitPlugin) Transform(result *core.CompilationResult, deps *core.Dep
 	cfg := p.Config.GetExecutionUnit(unit.Name)
 
 	for key, value := range cfg.EnvironmentVariables {
-		unit.EnvironmentVariables = append(unit.EnvironmentVariables, core.EnvironmentVariable{
+		unit.EnvironmentVariables.Add(core.EnvironmentVariable{
 			Name:  key,
 			Value: value,
 		})

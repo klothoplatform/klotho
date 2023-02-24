@@ -79,7 +79,7 @@ func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, 
 		Value:      "bucket_url",
 	}
 
-	unit.EnvironmentVariables = append(unit.EnvironmentVariables, fsEnvVar)
+	unit.EnvironmentVariables.Add(fsEnvVar)
 
 	args, _ := getArguments(result.expression)
 	// Generate the new node content before replacing the node. We just set it so we can compile correctly

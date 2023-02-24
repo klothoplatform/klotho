@@ -12,7 +12,7 @@ import * as crypto from 'crypto'
 import { addInflight } from './dispatcher'
 import { Readable } from 'stream'
 
-const payloadBucketPhysicalName = process.env.KLOTHO_S3_PREFIX + '{{.PayloadsBucketName}}'
+const payloadBucketPhysicalName = process.env.KLOTHO_PROXY_RESOURCE_NAME
 const appName = '{{.AppName}}'
 
 // The account-level ARN for sns. The topics must be account-wide unique
