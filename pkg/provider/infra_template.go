@@ -65,7 +65,7 @@ type (
 		Schedules            []Schedule
 		HelmOptions          config.HelmChartOptions
 		Params               config.InfraParams
-		EnvironmentVariables []core.EnvironmentVariable
+		EnvironmentVariables core.EnvironmentVariables
 		DockerfilePath       string
 	}
 

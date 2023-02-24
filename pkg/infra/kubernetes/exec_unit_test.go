@@ -428,7 +428,7 @@ func Test_addEnvVarToDeployment(t *testing.T) {
 	tests := []struct {
 		name    string
 		file    string
-		envVars []core.EnvironmentVariable
+		envVars core.EnvironmentVariables
 		want    result
 		wantErr bool
 	}{
@@ -451,7 +451,7 @@ spec:
       containers:
       - name: nginx
         image: nginx:1.14.2`,
-			envVars: []core.EnvironmentVariable{{Name: "SEQUELIZEDB_PERSIST_ORM_CONNECTION"}},
+			envVars: core.EnvironmentVariables{{Name: "SEQUELIZEDB_PERSIST_ORM_CONNECTION"}},
 			want: result{
 				values: []Value{
 					{
@@ -546,13 +546,13 @@ func Test_addEnvVarToPod(t *testing.T) {
 	tests := []struct {
 		name    string
 		file    string
-		envVars []core.EnvironmentVariable
+		envVars core.EnvironmentVariables
 		want    result
 		wantErr bool
 	}{
 		{
 			name:    "Basic Pod",
-			envVars: []core.EnvironmentVariable{{Name: "SEQUELIZEDB_PERSIST_ORM_CONNECTION"}},
+			envVars: core.EnvironmentVariables{{Name: "SEQUELIZEDB_PERSIST_ORM_CONNECTION"}},
 			file: `apiVersion: v1
 kind: Pod
 metadata:

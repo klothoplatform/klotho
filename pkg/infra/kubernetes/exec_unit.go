@@ -326,7 +326,7 @@ func (unit *HelmExecUnit) getServiceName() string {
 	return unit.Name
 }
 
-func (unit *HelmExecUnit) addEnvsVarToDeployment(envVars []core.EnvironmentVariable) ([]Value, error) {
+func (unit *HelmExecUnit) addEnvsVarToDeployment(envVars core.EnvironmentVariables) ([]Value, error) {
 	values := []Value{}
 
 	log := zap.L().Sugar().With(logging.FileField(unit.Deployment), zap.String("unit", unit.Name))
@@ -376,7 +376,7 @@ func (unit *HelmExecUnit) addEnvsVarToDeployment(envVars []core.EnvironmentVaria
 	return values, nil
 }
 
-func (unit *HelmExecUnit) addEnvVarToPod(envVars []core.EnvironmentVariable) ([]Value, error) {
+func (unit *HelmExecUnit) addEnvVarToPod(envVars core.EnvironmentVariables) ([]Value, error) {
 	values := []Value{}
 
 	log := zap.L().Sugar().With(logging.FileField(unit.Pod), zap.String("unit", unit.Name))

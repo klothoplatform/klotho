@@ -284,25 +284,25 @@ func Test_generateEnvVarsForPersist(t *testing.T) {
 		name     string
 		unit     *core.ExecutionUnit
 		resource core.CloudResource
-		values   []core.EnvironmentVariable
+		values   core.EnvironmentVariables
 	}{
 		{
 			name:     "Wrong dependencies",
 			unit:     &core.ExecutionUnit{Name: "main"},
 			resource: &core.Persist{Name: "file", Kind: core.PersistFileKind},
-			values:   []core.EnvironmentVariable{},
+			values:   core.EnvironmentVariables{},
 		},
 		{
 			name:     "orm dependency",
 			unit:     &core.ExecutionUnit{Name: "main"},
 			resource: &core.Persist{Name: "orm", Kind: core.PersistORMKind},
-			values:   []core.EnvironmentVariable{{Name: "ORM_PERSIST_ORM_CONNECTION", Kind: "persist_orm", ResourceID: "orm", Value: string(core.CONNECTION_STRING)}},
+			values:   core.EnvironmentVariables{{Name: "ORM_PERSIST_ORM_CONNECTION", Kind: "persist_orm", ResourceID: "orm", Value: string(core.CONNECTION_STRING)}},
 		},
 		{
 			name:     "redis node dependency",
 			unit:     &core.ExecutionUnit{Name: "main"},
 			resource: &core.Persist{Name: "redisNode", Kind: core.PersistRedisNodeKind},
-			values: []core.EnvironmentVariable{
+			values: core.EnvironmentVariables{
 				{Name: "REDISNODE_PERSIST_REDIS_HOST", Kind: "persist_redis_node", ResourceID: "redisNode", Value: string(core.HOST)},
 				{Name: "REDISNODE_PERSIST_REDIS_PORT", Kind: "persist_redis_node", ResourceID: "redisNode", Value: string(core.PORT)},
 			},
@@ -311,7 +311,7 @@ func Test_generateEnvVarsForPersist(t *testing.T) {
 			name:     "redis cluster dependency",
 			unit:     &core.ExecutionUnit{Name: "main"},
 			resource: &core.Persist{Name: "redisCluster", Kind: core.PersistRedisClusterKind},
-			values: []core.EnvironmentVariable{
+			values: core.EnvironmentVariables{
 				{Name: "REDISCLUSTER_PERSIST_REDIS_HOST", Kind: "persist_redis_cluster", ResourceID: "redisCluster", Value: string(core.HOST)},
 				{Name: "REDISCLUSTER_PERSIST_REDIS_PORT", Kind: "persist_redis_cluster", ResourceID: "redisCluster", Value: string(core.PORT)},
 			},

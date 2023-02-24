@@ -13,7 +13,7 @@ func Test_environmentVarsAddedToUnit(t *testing.T) {
 	tests := []struct {
 		name         string
 		envVars      map[string]string
-		want         []core.EnvironmentVariable
+		want         core.EnvironmentVariables
 		wantExecUnit bool
 	}{
 		{
@@ -30,7 +30,7 @@ func Test_environmentVarsAddedToUnit(t *testing.T) {
 				"key1": "value1",
 				"key2": "value2",
 			},
-			want: []core.EnvironmentVariable{
+			want: core.EnvironmentVariables{
 				{
 					Name:  "key1",
 					Value: "value1",
