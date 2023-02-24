@@ -7,50 +7,13 @@ import (
 	"testing"
 )
 
-type declarationTestCase struct {
+type declarationTestCase[T Declarable] struct {
 	name                 string
 	program              string
 	expectedDeclarations []testDeclarable
 }
 
-func TestFindDeclarationAttributes(t *testing.T) {
-	tests := []declarationTestCase{
-		{
-			name: "Parses attributes",
-			program: `
-			[Route("/path"), AcceptVerbs("GET", "POST")]
-			[AcceptVerbs("PUT", Route="/other")]
-			class c1 {}
-			`,
-			expectedDeclarations: []testDeclarable{
-				asTestDeclarable(&testTypeDeclaration{
-					testDeclaration: testDeclaration{
-						Name:          "c1",
-						Kind:          DeclarationKindClass,
-						Visibility:    VisibilityInternal,
-						QualifiedName: "c1",
-						Attributes: map[string][]testAttribute{
-							"Route": {{Name: "Route", Args: []testArg{{Value: "/path"}}}},
-							"AcceptVerbs": {
-								{Name: "AcceptVerbs", Args: []testArg{
-									{Value: "GET"},
-									{Value: "POST"},
-								}},
-								{Name: "AcceptVerbs", Args: []testArg{
-									{Value: "PUT"},
-									{Name: "Route", Value: "/other"},
-								}},
-							},
-						},
-					},
-				}),
-			},
-		},
-	}
-	runFindDeclarationsInFileTests(t, tests)
-}
-
-func runFindDeclarationsInFileTests(t *testing.T, tests []declarationTestCase) {
+func runFindDeclarationsInFileTests[T Declarable](t *testing.T, tests []declarationTestCase[T]) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
@@ -59,7 +22,7 @@ func runFindDeclarationsInFileTests(t *testing.T, tests []declarationTestCase) {
 				return
 			}
 
-			declarations := FindDeclarationsInFile[Declarable](sourceFile)
+			declarations := FindDeclarationsInFile[T](sourceFile)
 
 			expected := make(map[string]testDeclarable)
 			for _, d := range tt.expectedDeclarations {
@@ -69,6 +32,8 @@ func runFindDeclarationsInFileTests(t *testing.T, tests []declarationTestCase) {
 			for _, d := range declarations.Declarations() {
 				actual[d.AsDeclaration().QualifiedName] = d
 			}
+
+			assert.Equal(len(expected), len(actual), "actual number of declarations does not match expected")
 
 			for qn, ed := range expected {
 				ad, ok := actual[qn]
@@ -81,12 +46,19 @@ func runFindDeclarationsInFileTests(t *testing.T, tests []declarationTestCase) {
 }
 
 func validateDeclarable(assert *assert.Assertions, expected testDeclarable, actual Declarable) {
-	if etd, ok := expected.(*testTypeDeclaration); ok && assert.IsType(&TypeDeclaration{}, actual) {
-		validateTypeDeclaration(assert, etd, actual.(*TypeDeclaration))
-	} else if emd, ok := expected.(*testMethodDeclaration); ok && assert.IsType(&MethodDeclaration{}, actual) {
-		validateMethodDeclaration(assert, emd, actual.(*MethodDeclaration))
-	} else if efd, ok := expected.(*testFieldDeclaration); ok && assert.IsType(&FieldDeclaration{}, actual) {
-		validateFieldDeclaration(assert, efd, actual.(*FieldDeclaration))
+	switch expected := expected.(type) {
+	case *testTypeDeclaration:
+		if assert.IsType(&TypeDeclaration{}, actual) {
+			validateTypeDeclaration(assert, expected, actual.(*TypeDeclaration))
+		}
+	case *testMethodDeclaration:
+		if assert.IsType(&MethodDeclaration{}, actual) {
+			validateMethodDeclaration(assert, expected, actual.(*MethodDeclaration))
+		}
+	case *testFieldDeclaration:
+		if assert.IsType(&FieldDeclaration{}, actual) {
+			validateFieldDeclaration(assert, expected, actual.(*FieldDeclaration))
+		}
 	}
 }
 
@@ -157,10 +129,4 @@ type (
 
 func (d testDeclaration) AsTestDeclaration() testDeclaration {
 	return d
-}
-
-func asTestDeclarable[T testDeclarable](declarable T) testDeclarable {
-	var td testDeclarable
-	td = declarable
-	return td
 }

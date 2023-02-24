@@ -11,7 +11,30 @@ func validateFieldDeclaration(assert *assert.Assertions, expected *testFieldDecl
 }
 
 func TestFindFieldDeclarationsInFile(t *testing.T) {
-	tests := []declarationTestCase{
+	tests := []declarationTestCase[*FieldDeclaration]{
+		{
+			name: "parses attributes on field declarations",
+			program: `
+			
+			class c1 {
+				[Attr1]
+				int f1;
+			}
+			`,
+			expectedDeclarations: []testDeclarable{
+				testFieldDeclaration{
+					testDeclaration: testDeclaration{
+						Name:          "f1",
+						Kind:          DeclarationKindField,
+						Visibility:    VisibilityInternal,
+						QualifiedName: "c1.f1",
+						Attributes: map[string][]testAttribute{
+							"Attr1": {{Name: "Attr1", Args: []testArg{{Name: "Arg", Value: "value"}}}},
+						},
+					},
+				},
+			},
+		},
 		{
 			name: "Parses field declarations",
 			program: `
@@ -29,7 +52,7 @@ func TestFindFieldDeclarationsInFile(t *testing.T) {
 			}
 			`,
 			expectedDeclarations: []testDeclarable{
-				asTestDeclarable(&testFieldDeclaration{
+				testFieldDeclaration{
 					testDeclaration: testDeclaration{
 						Name:           "nf1",
 						Kind:           DeclarationKindField,
@@ -41,8 +64,8 @@ func TestFindFieldDeclarationsInFile(t *testing.T) {
 					},
 					HasInitialValue: true,
 					Type:            "int",
-				}),
-				asTestDeclarable(&testFieldDeclaration{
+				},
+				testFieldDeclaration{
 					testDeclaration: testDeclaration{
 						Name:           "f1",
 						Kind:           DeclarationKindField,
@@ -52,8 +75,8 @@ func TestFindFieldDeclarationsInFile(t *testing.T) {
 						DeclaringClass: "ns1.c1",
 					},
 					Type: "int",
-				}),
-				asTestDeclarable(&testFieldDeclaration{
+				},
+				testFieldDeclaration{
 					testDeclaration: testDeclaration{
 						Name:           "f2",
 						Kind:           DeclarationKindField,
@@ -65,8 +88,8 @@ func TestFindFieldDeclarationsInFile(t *testing.T) {
 					},
 					HasInitialValue: true,
 					Type:            "Dictionary<T>",
-				}),
-				asTestDeclarable(&testFieldDeclaration{
+				},
+				testFieldDeclaration{
 					testDeclaration: testDeclaration{
 						Name:           "f3",
 						Kind:           DeclarationKindField,
@@ -79,8 +102,8 @@ func TestFindFieldDeclarationsInFile(t *testing.T) {
 					},
 					HasInitialValue: true,
 					Type:            "int",
-				}),
-				asTestDeclarable(&testFieldDeclaration{
+				},
+				testFieldDeclaration{
 					testDeclaration: testDeclaration{
 						Name:           "f4",
 						Kind:           DeclarationKindField,
@@ -91,8 +114,8 @@ func TestFindFieldDeclarationsInFile(t *testing.T) {
 					},
 					HasInitialValue: true,
 					Type:            "int",
-				}),
-				asTestDeclarable(&testFieldDeclaration{
+				},
+				testFieldDeclaration{
 					testDeclaration: testDeclaration{
 						Name:           "f5",
 						Kind:           DeclarationKindField,
@@ -103,8 +126,8 @@ func TestFindFieldDeclarationsInFile(t *testing.T) {
 					},
 					HasInitialValue: true,
 					Type:            "int",
-				}),
-				asTestDeclarable(&testFieldDeclaration{
+				},
+				testFieldDeclaration{
 					testDeclaration: testDeclaration{
 						Name:           "e1",
 						Kind:           DeclarationKindEvent,
@@ -114,7 +137,7 @@ func TestFindFieldDeclarationsInFile(t *testing.T) {
 						DeclaringClass: "ns1.c1",
 					},
 					Type: "SomeDelegate",
-				}),
+				},
 			},
 		},
 	}

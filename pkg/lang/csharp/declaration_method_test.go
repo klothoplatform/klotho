@@ -6,9 +6,42 @@ import (
 )
 
 func TestFindMethodDeclarationsInFile(t *testing.T) {
-	tests := []declarationTestCase{
+	tests := []declarationTestCase[*MethodDeclaration]{
 		{
-			name: "Parses method declarations",
+			name: "parses attributes on types",
+			program: `
+			class c1 {
+				[Route("/path"), AcceptVerbs("GET", "POST")]
+				[AcceptVerbs("PUT", Route="/other")]
+				void m1(){}
+			}
+			`,
+			expectedDeclarations: []testDeclarable{
+				testMethodDeclaration{
+					testDeclaration: testDeclaration{
+						Name:          "m1",
+						Kind:          DeclarationKindMethod,
+						Visibility:    VisibilityInternal,
+						QualifiedName: "c1.m1",
+						Attributes: map[string][]testAttribute{
+							"Route": {{Name: "Route", Args: []testArg{{Value: "/path"}}}},
+							"AcceptVerbs": {
+								{Name: "AcceptVerbs", Args: []testArg{
+									{Value: "GET"},
+									{Value: "POST"},
+								}},
+								{Name: "AcceptVerbs", Args: []testArg{
+									{Value: "PUT"},
+									{Name: "Route", Value: "/other"},
+								}},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "parses method declarations",
 			program: `
 			namespace ns1 {
 				class c1 {
@@ -23,7 +56,7 @@ func TestFindMethodDeclarationsInFile(t *testing.T) {
 			}
 			`,
 			expectedDeclarations: []testDeclarable{
-				asTestDeclarable(&testMethodDeclaration{
+				testMethodDeclaration{
 					testDeclaration: testDeclaration{
 						Name:           "pm1",
 						Kind:           DeclarationKindMethod,
@@ -34,8 +67,8 @@ func TestFindMethodDeclarationsInFile(t *testing.T) {
 						IsNested:       true,
 					},
 					ReturnType: "void",
-				}),
-				asTestDeclarable(&testMethodDeclaration{
+				},
+				testMethodDeclaration{
 					testDeclaration: testDeclaration{
 						Name:           "m1",
 						Kind:           DeclarationKindMethod,
@@ -51,8 +84,8 @@ func TestFindMethodDeclarationsInFile(t *testing.T) {
 						{Type: "T1", Name: "p1"},
 						{Type: "T2", Name: "p2"},
 					},
-				}),
-				asTestDeclarable(&testMethodDeclaration{
+				},
+				testMethodDeclaration{
 					testDeclaration: testDeclaration{
 						Name:           "am1",
 						Kind:           DeclarationKindMethod,
@@ -62,8 +95,8 @@ func TestFindMethodDeclarationsInFile(t *testing.T) {
 						DeclaringClass: "ns1.c1",
 					},
 					ReturnType: "SomeType",
-				}),
-				asTestDeclarable(&testMethodDeclaration{
+				},
+				testMethodDeclaration{
 					testDeclaration: testDeclaration{
 						Name:           "stm1",
 						Kind:           DeclarationKindMethod,
@@ -75,8 +108,8 @@ func TestFindMethodDeclarationsInFile(t *testing.T) {
 						IsSealed:       true,
 					},
 					ReturnType: "void",
-				}),
-				asTestDeclarable(&testMethodDeclaration{
+				},
+				testMethodDeclaration{
 					testDeclaration: testDeclaration{
 						Name:           "slm1",
 						Kind:           DeclarationKindMethod,
@@ -88,7 +121,7 @@ func TestFindMethodDeclarationsInFile(t *testing.T) {
 						IsSealed:       true,
 					},
 					ReturnType: "void",
-				}),
+				},
 			},
 		},
 	}

@@ -7,17 +7,97 @@ import (
 )
 
 func TestFindTypeDeclarationsInFile(t *testing.T) {
-	tests := []declarationTestCase{
+	tests := []declarationTestCase[*TypeDeclaration]{
 		{
-			name: "Parses type declarations",
+			name: "parses attributes on type declarations",
+			program: `
+			[Route("/path"), Route("/path2", order = 1)]
+			[ApiController]
+			class c1 {
+			}
+			`,
+			expectedDeclarations: []testDeclarable{
+				testTypeDeclaration{
+					testDeclaration: testDeclaration{
+						Name:          "c1",
+						Kind:          DeclarationKindClass,
+						Visibility:    VisibilityInternal,
+						QualifiedName: "c1",
+						Attributes: map[string][]testAttribute{
+							"Route": {
+								{Name: "Route", Args: []testArg{{Value: "/path"}}},
+								{Name: "Route", Args: []testArg{{Value: "/path2"}, {Name: "order", Value: "1"}}},
+							},
+							"ApiController": {{Name: "Route"}},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "parses interface declarations",
+			program: `
+			namespace ns1 {
+				interface i1 {}
+			}
+			`,
+			expectedDeclarations: []testDeclarable{
+				testTypeDeclaration{
+					testDeclaration: testDeclaration{
+						Name:          "i1",
+						Kind:          DeclarationKindInterface,
+						Visibility:    VisibilityInternal,
+						QualifiedName: "ns1.i1",
+						Namespace:     "ns1",
+					},
+				},
+			},
+		},
+		{
+			name: "parses struct declarations",
+			program: `
+			namespace ns1 {
+				struct s1 {}
+			}
+			`,
+			expectedDeclarations: []testDeclarable{
+				testTypeDeclaration{
+					testDeclaration: testDeclaration{
+						Name:          "s1",
+						Kind:          DeclarationKindStruct,
+						Visibility:    VisibilityInternal,
+						QualifiedName: "ns1.s1",
+						Namespace:     "ns1",
+					},
+				},
+			},
+		},
+		{
+			name: "parses record declarations",
+			program: `
+			namespace ns1 {
+				record r1 {}
+			}
+			`,
+			expectedDeclarations: []testDeclarable{
+				testTypeDeclaration{
+					testDeclaration: testDeclaration{
+						Name:          "r1",
+						Kind:          DeclarationKindRecord,
+						Visibility:    VisibilityInternal,
+						QualifiedName: "ns1.r1",
+						Namespace:     "ns1",
+					},
+				},
+			},
+		},
+		{
+			name: "parses class declarations",
 			program: `
 			public class c1 {}
 			class gc1<T> {}
 			static class stc1 {}
 			private class pc1 : Base1, Base2 {}
-			interface i1 {}
-			struct s1 {}
-			record r1 {}
 			abstract class ac1 {}
 			sealed class slc1 {}
 			partial class pc1 {}
@@ -33,15 +113,15 @@ func TestFindTypeDeclarationsInFile(t *testing.T) {
 			}
 			`,
 			expectedDeclarations: []testDeclarable{
-				asTestDeclarable(&testTypeDeclaration{
+				testTypeDeclaration{
 					testDeclaration: testDeclaration{
 						Name:          "c1",
 						Kind:          DeclarationKindClass,
 						Visibility:    VisibilityPublic,
 						QualifiedName: "c1",
 					},
-				}),
-				asTestDeclarable(&testTypeDeclaration{
+				},
+				testTypeDeclaration{
 					testDeclaration: testDeclaration{
 						Name:          "gc1",
 						Kind:          DeclarationKindClass,
@@ -49,8 +129,8 @@ func TestFindTypeDeclarationsInFile(t *testing.T) {
 						QualifiedName: "gc1",
 						IsGeneric:     true,
 					},
-				}),
-				asTestDeclarable(&testTypeDeclaration{
+				},
+				testTypeDeclaration{
 					testDeclaration: testDeclaration{
 						Name:          "stc1",
 						Kind:          DeclarationKindClass,
@@ -59,8 +139,8 @@ func TestFindTypeDeclarationsInFile(t *testing.T) {
 						HasModifiers:  []string{"static"},
 						IsSealed:      true,
 					},
-				}),
-				asTestDeclarable(&testTypeDeclaration{
+				},
+				testTypeDeclaration{
 					testDeclaration: testDeclaration{
 						Name:          "pc1",
 						Kind:          DeclarationKindClass,
@@ -68,32 +148,8 @@ func TestFindTypeDeclarationsInFile(t *testing.T) {
 						QualifiedName: "pc1",
 					},
 					Bases: []string{"Base1", "Base1"},
-				}),
-				asTestDeclarable(&testTypeDeclaration{
-					testDeclaration: testDeclaration{
-						Name:          "i1",
-						Kind:          DeclarationKindInterface,
-						Visibility:    VisibilityInternal,
-						QualifiedName: "i1",
-					},
-				}),
-				asTestDeclarable(&testTypeDeclaration{
-					testDeclaration: testDeclaration{
-						Name:          "s1",
-						Kind:          DeclarationKindStruct,
-						Visibility:    VisibilityInternal,
-						QualifiedName: "s1",
-					},
-				}),
-				asTestDeclarable(&testTypeDeclaration{
-					testDeclaration: testDeclaration{
-						Name:          "r1",
-						Kind:          DeclarationKindRecord,
-						Visibility:    VisibilityInternal,
-						QualifiedName: "r1",
-					},
-				}),
-				asTestDeclarable(&testTypeDeclaration{
+				},
+				testTypeDeclaration{
 					testDeclaration: testDeclaration{
 						Name:          "ac1",
 						Kind:          DeclarationKindClass,
@@ -101,8 +157,8 @@ func TestFindTypeDeclarationsInFile(t *testing.T) {
 						QualifiedName: "ac1",
 						HasModifiers:  []string{"abstract"},
 					},
-				}),
-				asTestDeclarable(&testTypeDeclaration{
+				},
+				testTypeDeclaration{
 					testDeclaration: testDeclaration{
 						Name:          "slc1",
 						Kind:          DeclarationKindClass,
@@ -111,8 +167,8 @@ func TestFindTypeDeclarationsInFile(t *testing.T) {
 						HasModifiers:  []string{"sealed"},
 						IsSealed:      true,
 					},
-				}),
-				asTestDeclarable(&testTypeDeclaration{
+				},
+				testTypeDeclaration{
 					testDeclaration: testDeclaration{
 						Name:          "pc1",
 						Kind:          DeclarationKindClass,
@@ -120,16 +176,16 @@ func TestFindTypeDeclarationsInFile(t *testing.T) {
 						QualifiedName: "pc1",
 						HasModifiers:  []string{"partial"},
 					},
-				}),
-				asTestDeclarable(&testTypeDeclaration{
+				},
+				testTypeDeclaration{
 					testDeclaration: testDeclaration{
 						Name:          "pic1",
 						Kind:          DeclarationKindClass,
 						Visibility:    VisibilityProtectedInternal,
 						QualifiedName: "pic1",
 					},
-				}),
-				asTestDeclarable(&testTypeDeclaration{
+				},
+				testTypeDeclaration{
 					testDeclaration: testDeclaration{
 						Name:          "c2",
 						Kind:          DeclarationKindClass,
@@ -137,8 +193,8 @@ func TestFindTypeDeclarationsInFile(t *testing.T) {
 						QualifiedName: "ns1.c2",
 						Namespace:     "ns1",
 					},
-				}),
-				asTestDeclarable(&testTypeDeclaration{
+				},
+				testTypeDeclaration{
 					testDeclaration: testDeclaration{
 						Name:           "nc1",
 						Kind:           DeclarationKindClass,
@@ -148,8 +204,8 @@ func TestFindTypeDeclarationsInFile(t *testing.T) {
 						DeclaringClass: "ns1.c2",
 						IsNested:       true,
 					},
-				}),
-				asTestDeclarable(&testTypeDeclaration{
+				},
+				testTypeDeclaration{
 					testDeclaration: testDeclaration{
 						Name:          "c3",
 						Kind:          DeclarationKindClass,
@@ -157,7 +213,7 @@ func TestFindTypeDeclarationsInFile(t *testing.T) {
 						QualifiedName: "ns1.ns2.c3",
 						Namespace:     "ns1.ns2",
 					},
-				}),
+				},
 			},
 		},
 	}
