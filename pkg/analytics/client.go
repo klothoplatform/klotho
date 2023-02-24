@@ -63,10 +63,14 @@ func NewClient() *Client {
 	return client
 }
 
-func (t *Client) AttachAuthorizations(claims *auth.KlothoClaims) {
+func (t *Client) AttachAuthorizations(loginInfo auth.LoginInfo) {
 	t.universalProperties["localId"] = t.userId
-	t.userId = claims.Email
-	t.universalProperties["validated"] = claims.EmailVerified
+
+	if loginInfo.Email != "" {
+		t.userId = loginInfo.Email
+		t.universalProperties["validated"] = loginInfo.EmailVerified
+	}
+	t.universalProperties["loginMethod"] = loginInfo.Authorizer
 }
 
 func (t *Client) Info(event string) {

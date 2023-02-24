@@ -37,7 +37,7 @@ type LoginResponse struct {
 
 type Auth0Authorizer struct{}
 
-func (s Auth0Authorizer) Authorize() (*KlothoClaims, error) {
+func (s Auth0Authorizer) Authorize() (LoginInfo, error) {
 	return Authorize()
 }
 
@@ -154,7 +154,7 @@ func CallRefreshToken(token string) error {
 	return nil
 }
 
-type KlothoClaims struct {
+type klothoClaims struct {
 	ProEnabled    bool
 	ProTier       int
 	Email         string `json:"email"`
@@ -163,11 +163,25 @@ type KlothoClaims struct {
 	jwt.RegisteredClaims
 }
 
-func Authorize() (*KlothoClaims, error) {
-	return authorize(false)
+type LoginInfo struct {
+	Authorizer    string
+	Email         string
+	EmailVerified bool
 }
 
-func authorize(tokenRefreshed bool) (*KlothoClaims, error) {
+func Authorize() (LoginInfo, error) {
+	claims, err := authorize(false)
+	loginInfo := LoginInfo{
+		Authorizer: "auth0",
+	}
+	if claims != nil {
+		loginInfo.Email = claims.Email
+		loginInfo.EmailVerified = claims.EmailVerified
+	}
+	return loginInfo, err
+}
+
+func authorize(tokenRefreshed bool) (*klothoClaims, error) {
 	creds, claims, err := getClaims()
 	if err != nil {
 		return nil, err
@@ -203,18 +217,18 @@ func authorize(tokenRefreshed bool) (*KlothoClaims, error) {
 	return claims, nil
 }
 
-func getClaims() (*Credentials, *KlothoClaims, error) {
+func getClaims() (*Credentials, *klothoClaims, error) {
 	creds, err := GetIDToken()
 	if err != nil {
 		return nil, nil, err
 	}
-	token, err := jwt.ParseWithClaims(creds.IdToken, &KlothoClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(creds.IdToken, &klothoClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return getPem()
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	if claims, ok := token.Claims.(*KlothoClaims); ok {
+	if claims, ok := token.Claims.(*klothoClaims); ok {
 		return creds, claims, nil
 	} else {
 		return nil, nil, err
