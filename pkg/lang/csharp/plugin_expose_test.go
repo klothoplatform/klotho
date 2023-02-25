@@ -129,7 +129,7 @@ func Test_findIApplicationBuilder(t *testing.T) {
 					results := findIApplicationBuilder(a)
 					for _, r := range results {
 						actual = append(actual, expectations{
-							startupClass:           r.StartupClassDeclaration.ChildByFieldName("name").Content(),
+							startupClass:           r.StartupClass.Class.QualifiedName,
 							appBuilderIdentifier:   r.AppBuilderIdentifier.Content(),
 							routeBuilderIdentifier: r.EndpointRouteBuilderIdentifier.Content(),
 						})
@@ -259,7 +259,7 @@ func TestExpose_Transform(t *testing.T) {
 			},
 		},
 		{
-			name: "Controller routes are added if AddControllers() and MapControllers() are invoked ",
+			name: "Controller routes are added if AddControllers() and MapControllers() are invoked on valid startup class",
 			units: map[string][]srcFile{
 				"unit1-MapControllers": {
 					{
@@ -405,6 +405,67 @@ func TestExpose_Transform(t *testing.T) {
 									 */
 									app.UseEndpoints(endpoints =>
 									{
+										endpoints.MapControllers();
+									});
+								}
+							}
+						}
+						`,
+					},
+					{
+						Path: "controller1.cs",
+						Content: `
+						using System;
+						using Microsoft.AspNetCore.Mvc;
+						
+						namespace WebAPILambda.Controllers
+						{
+													
+							[Route("api/[controller]")]
+							public class Controller1Controller
+							{
+								[HttpGet]
+								public string Get()
+								{
+									return "ok";
+								}
+							}
+						}
+						`,
+					},
+				},
+
+				"unit4-private-startup-class": {
+					{
+						Path: "Startup.cs",
+						Content: `
+						using Microsoft.AspNetCore.Builder;
+						using Microsoft.AspNetCore.Hosting;
+						using Microsoft.AspNetCore.Http;
+						using Microsoft.Extensions.Configuration;
+						using Microsoft.Extensions.DependencyInjection;
+						using Microsoft.Extensions.Hosting;
+
+						namespace WebAPILambda
+						{
+							private class Startup
+							{							
+								public void ConfigureServices(IServiceCollection services)
+								{
+									services.AddControllers();
+								}
+						
+								public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+								{
+									/**
+									 * @klotho::expose {
+									 *  id = "gateway1"
+									 *  target = "public"
+									 * }
+									 */
+									app.UseEndpoints(endpoints =>
+									{
+										endpoints.MapGet("/local-route", () => "ok");
 										endpoints.MapControllers();
 									});
 								}

@@ -67,10 +67,10 @@ type (
 
 	// useEndpointsResult represents an ASP.Net Core IApplicationBuilder.UseEndpoints() invocation
 	useEndpointsResult struct {
-		StartupClassDeclaration        *sitter.Node // Declaration of the Startup class surrounding the expose annotation
-		UseExpression                  *sitter.Node // Expression of the UseEndpoints() invocation (app.UseEndpoints(endpoints => {...})
-		AppBuilderIdentifier           *sitter.Node // Identifier of the builder (IApplicationBuilder app)
-		EndpointRouteBuilderIdentifier *sitter.Node // Identifier of the RoutesBuilder param (endpoints => {...})
+		StartupClass                   ASPDotNetCoreStartupClass // Declaration of the Startup class surrounding the expose annotation
+		UseExpression                  *sitter.Node              // Expression of the UseEndpoints() invocation (app.UseEndpoints(endpoints => {...})
+		AppBuilderIdentifier           *sitter.Node              // Identifier of the builder (IApplicationBuilder app)
+		EndpointRouteBuilderIdentifier *sitter.Node              // Identifier of the RoutesBuilder param (endpoints => {...})
 	}
 
 	// routeMethodPath is a simple mapping between an HTTP Verb and a path
@@ -227,7 +227,7 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 				FilePath:        f.Path(),
 				AppBuilderName:  appBuilderName,
 				gatewayId:       capability.ID,
-				MapsControllers: isMapControllersInvoked(useEndpoint) && areControllersInjected(useEndpoint.StartupClassDeclaration),
+				MapsControllers: isMapControllersInvoked(useEndpoint) && areControllersInjected(useEndpoint.StartupClass.Class.Node),
 			}
 			h.RoutesByGateway[gwSpec] = []gatewayRouteDefinition{}
 
@@ -253,7 +253,13 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 
 func findIApplicationBuilder(cap *core.Annotation) []useEndpointsResult {
 	var results []useEndpointsResult
-	nextMatch := DoQuery(query.FirstAncestorOfType(cap.Node, "class_declaration"), exposeStartupConfigure)
+	classNode := query.FirstAncestorOfType(cap.Node, "class_declaration")
+	classDeclaration, ok := getDotnetCoreStartupClass(classNode)
+	if !ok {
+		return nil
+	}
+
+	nextMatch := DoQuery(classNode, exposeStartupConfigure)
 	for {
 		match, found := nextMatch()
 		if !found {
@@ -284,7 +290,7 @@ func findIApplicationBuilder(cap *core.Annotation) []useEndpointsResult {
 				UseExpression:                  expressionMatch["expression"],
 				AppBuilderIdentifier:           paramNameN,
 				EndpointRouteBuilderIdentifier: expressionMatch["endpoints_param"],
-				StartupClassDeclaration:        match["class_declaration"],
+				StartupClass:                   classDeclaration,
 			})
 		}
 	}
