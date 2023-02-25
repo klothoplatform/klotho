@@ -521,6 +521,7 @@ func TestExpose_Transform(t *testing.T) {
 						public class MyController {
 							[Route("/required/{optional?}")]
 							[Route("/api/required/{default=value}")]
+							[Route("/api/{x=default}/{y=default}/{default=value}")]
 							[AcceptVerbs("GET")]
 							public void action() {}
 						}
@@ -535,7 +536,8 @@ func TestExpose_Transform(t *testing.T) {
 						{Verb: core.VerbGet, Path: "/required"},
 						{Verb: core.VerbGet, Path: "/required/:optional"},
 						{Verb: core.VerbGet, Path: "/api/required"},
-						{Verb: core.VerbGet, Path: "/api/required/:optional"},
+						{Verb: core.VerbGet, Path: "/api/required/:default"},
+						{Verb: core.VerbGet, Path: "/api/:rest*"},
 					},
 				},
 			},
@@ -603,15 +605,16 @@ func TestExpose_Transform(t *testing.T) {
 				if i >= len(gateways) {
 					break
 				}
-				assert.Equal(len(expectedGw.Routes), len(gateways[i].Routes))
-				for j, eRoute := range expectedGw.Routes {
-					if j >= len(gateways[i].Routes) {
-						break
-					}
-					aRoute := gateways[i].Routes[j]
-					assert.Equal(eRoute.Verb, aRoute.Verb)
-					assert.Equal(aRoute.Path, aRoute.Path)
+
+				var aRoutes []routeMethodPath
+				for _, r := range gateways[i].Routes {
+					aRoutes = append(aRoutes, routeMethodPath{
+						Verb: r.Verb,
+						Path: r.Path,
+					})
 				}
+				assert.Equal(len(expectedGw.Routes), len(aRoutes))
+				assert.ElementsMatch(expectedGw.Routes, aRoutes)
 			}
 			depsArr := deps.ToArray()
 
