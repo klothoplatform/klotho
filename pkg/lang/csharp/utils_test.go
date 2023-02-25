@@ -89,6 +89,28 @@ func Test_IsValidTypeName(t *testing.T) {
 			typeName:       "ImportedName",
 			expectedOutput: true,
 		},
+		{
+			name: "works for method argument types",
+			program: `
+			using Other.Namespace;
+			class C1 { void M1(ImportedName p1){} }
+			`,
+			typeQuery:      "(parameter type: (_) @type)",
+			namespace:      "Other.Namespace",
+			typeName:       "ImportedName",
+			expectedOutput: true,
+		},
+		{
+			name: "works for field types",
+			program: `
+			using Other.Namespace;
+			class C1 { ImportedName F1 = new ImportedName(); }
+			`,
+			typeQuery:      "(variable_declaration type: (_) @type)",
+			namespace:      "Other.Namespace",
+			typeName:       "ImportedName",
+			expectedOutput: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
