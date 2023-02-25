@@ -507,7 +507,7 @@ func TestExpose_Transform(t *testing.T) {
 			},
 		},
 		{
-			name: "Optional last path params result in required and optional routes",
+			name: "Optional or default last path params result in required and optional routes",
 			units: map[string][]srcFile{
 				"main": {
 					{
@@ -520,6 +520,7 @@ func TestExpose_Transform(t *testing.T) {
 						using Microsoft.AspNetCore.Mvc;
 						public class MyController {
 							[Route("/required/{optional?}")]
+							[Route("/api/required/{default=value}")]
 							[AcceptVerbs("GET")]
 							public void action() {}
 						}
@@ -533,6 +534,8 @@ func TestExpose_Transform(t *testing.T) {
 					Routes: []routeMethodPath{
 						{Verb: core.VerbGet, Path: "/required"},
 						{Verb: core.VerbGet, Path: "/required/:optional"},
+						{Verb: core.VerbGet, Path: "/api/required"},
+						{Verb: core.VerbGet, Path: "/api/required/:optional"},
 					},
 				},
 			},

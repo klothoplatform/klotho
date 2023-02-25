@@ -41,12 +41,12 @@ func TestSanitizeConventionalRoute(t *testing.T) {
 			expected: "/api/my/:route/with/defaults",
 		},
 		{
-			name:     "trailing default params are converted to proxy route",
+			name:     "multiple trailing default params are converted to proxy route",
 			path:     "/api/my/{route=default}/{with:regex(pattern)=default}/{defaults:alpha=default}",
 			expected: "/api/my/:rest*",
 		},
 		{
-			name:     "trailing default params mixed followed by a final optional param are converted to proxy route",
+			name:     "trailing default params followed by a final optional param are converted to proxy route",
 			path:     "/api/my/{route=default}/{with:regex((pattern))=default}/{defaults:alpha=default}/{optional?}",
 			expected: "/api/my/:rest*",
 		},
@@ -177,12 +177,17 @@ func Test_sanitizeAttributeBasedPath(t *testing.T) {
 			expected: "/api/my/:route/with/defaults",
 		},
 		{
-			name:     "trailing default params are converted to proxy route",
+			name:     "multiple trailing default params are converted to proxy route",
 			path:     "/api/my/{route=default}/{with:regex(pattern)=default}/{defaults:alpha=default}",
 			expected: "/api/my/:rest*",
 		},
 		{
-			name:     "trailing default params mixed followed by a final optional param are converted to proxy route",
+			name:     "trailing single default param is converted to simple param",
+			path:     "/api/my/{route}/{with}/{defaults=default}",
+			expected: "/api/my/:route/:with/:defaults",
+		},
+		{
+			name:     "trailing default params followed by a final optional param are converted to proxy route",
 			path:     "/api/my/{route=default}/{with:regex((pattern))=default}/{defaults:alpha=default}/{optional?}",
 			expected: "/api/my/:rest*",
 		},

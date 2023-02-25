@@ -5,7 +5,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
 	"path"
-	"regexp"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -486,17 +485,6 @@ func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 		}
 	}
 	return routes
-}
-
-var optionalLastSegmentPattern = regexp.MustCompile(`(?:^|/)(\{[^?{}]+\?})(/$|$)`)
-
-// stripOptionalLastSegment strips the last segment of a path if it contains an optional param
-func stripOptionalLastSegment(routeTemplate string) string {
-	if optionalLastSegmentPattern.MatchString(routeTemplate) {
-		routeTemplate = strings.TrimSuffix(routeTemplate, "/")
-		routeTemplate = routeTemplate[0:strings.LastIndex(routeTemplate, "/")]
-	}
-	return routeTemplate
 }
 
 // findActionsInController returns a []actionSpec containing specifications for each action detected in the supplied controller

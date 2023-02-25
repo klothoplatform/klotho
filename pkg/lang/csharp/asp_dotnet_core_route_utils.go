@@ -6,6 +6,23 @@ import (
 	"strings"
 )
 
+var optionalLastSegmentPattern = regexp.MustCompile(`(?:^|/)(\{[^?{}]+\?})(/$|$)`)
+var defaultLastSegmentPattern = regexp.MustCompile(`(?:^|/)(\{[^{][^}=]*=(?:[^}]|(?:}})+)*[^}]}(}})*)(?:/$|$)`)
+
+// stripOptionalLastSegment strips the last segment of a path if it contains an optional or default param
+func stripOptionalLastSegment(routeTemplate string) string {
+	match := optionalLastSegmentPattern.FindStringIndex(routeTemplate)
+	if match == nil {
+		match = defaultLastSegmentPattern.FindStringIndex(routeTemplate)
+	}
+	if match != nil && !complexSegmentPattern.MatchString(routeTemplate[match[0]:]) {
+
+		routeTemplate = strings.TrimSuffix(routeTemplate, "/")
+		routeTemplate = routeTemplate[0:match[0]]
+	}
+	return routeTemplate
+}
+
 var expressParamConversionPattern = regexp.MustCompile(`\{([^:=}?]*)[^}]*}`)
 
 // sanitizeAttributeBasedPath converts ASP.NET Core attribute-based route path parameters to Express syntax,
