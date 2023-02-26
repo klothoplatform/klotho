@@ -270,7 +270,7 @@ func FindDeclarationsAtNode[T Declarable](node *sitter.Node) NamespaceDeclaratio
 		}
 		return any(allDeclarations).(NamespaceDeclarations[T])
 	default:
-		zap.L().With(logging.NodeField(node)).Panic("invalid typeName type cannot be parsed")
+		zap.L().Sugar().With(logging.NodeField(node)).Panicf("declaration parsing for type %T has not been implemented", *new(T))
 		return empty
 	}
 }
@@ -301,7 +301,7 @@ func FindDeclarationAtNode[T Declarable](node *sitter.Node) (T, bool) {
 		declaration = any(fDec).(T)
 		found = fFound
 	default:
-		zap.L().With(logging.NodeField(node)).Panic("invalid typeName type cannot be parsed")
+		zap.L().Sugar().With(logging.NodeField(node)).Panicf("declaration parsing for type %T has not been implemented", *new(T))
 	}
 	return declaration, found
 }
