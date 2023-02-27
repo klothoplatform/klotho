@@ -3,8 +3,9 @@ RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
 
 WORKDIR /usr/src/app
 ENV GOOS=linux GOARCH=amd64 CGO_ENABLED=0
-COPY . .
+COPY go.mod ./
 RUN go mod tidy && go mod download && go mod verify
+COPY . .
 RUN go build -o /usr/local/bin/app
 
 FROM scratch

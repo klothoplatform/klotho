@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -72,14 +71,11 @@ func (r *AwsRuntime) ActOnExposeListener(unit *core.ExecutionUnit, f *core.Sourc
 	unitType := r.Cfg.GetResourceType(unit)
 	//TODO: Move comment listen code to library logic like JS does eventually
 	if unitType == aws.Lambda {
-		oldFileContent := string(f.Program())
 		nodeToComment := listener.Expression.Content()
 		//TODO: Will likely need to move this into a separate plugin of some sort
 		// Instead of having a dispatcher file, the dipatcher logic is injected into the main.go file. By having that
 		// logic in the expose plugin though, it will only happen if they use the expose annotation for the lambda case.
 		if len(nodeToComment) > 0 {
-			newFileContent := oldFileContent
-
 			oldNodeContent := nodeToComment
 			newNodeContent := commentRegex.ReplaceAllString(oldNodeContent, "// $1")
 
@@ -94,13 +90,8 @@ func (r *AwsRuntime) ActOnExposeListener(unit *core.ExecutionUnit, f *core.Sourc
 			//End - Added by Klotho`, routerName)
 
 			newNodeContent = newNodeContent + dispatcherCode
-			newFileContent = strings.ReplaceAll(
-				newFileContent,
-				oldNodeContent,
-				newNodeContent,
-			)
 
-			err := f.Reparse([]byte(newFileContent))
+			err := f.ReplaceNodeContent(listener.Expression, newNodeContent)
 			if err != nil {
 				return errors.Wrap(err, "error reparsing after substitutions")
 			}
