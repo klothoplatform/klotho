@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
+	github.com/beevik/etree v1.1.0
 	github.com/bmatcuk/doublestar/v4 v4.2.0
 	github.com/coreos/go-semver v0.3.0
 	github.com/davecgh/go-spew v1.1.1

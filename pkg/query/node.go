@@ -29,6 +29,23 @@ func NodeContentRegex(node *sitter.Node, regex *regexp.Regexp) bool {
 	return regex.MatchString(content)
 }
 
+func NodeContentOrEmpty(node *sitter.Node) string {
+	if node == nil {
+		return ""
+	}
+	return node.Content()
+}
+
+func FirstChildOfType(node *sitter.Node, ctype string) *sitter.Node {
+	for i := 0; i < int(node.ChildCount()); i++ {
+		n := node.Child(i)
+		if n.Type() == ctype {
+			return n
+		}
+	}
+	return nil
+}
+
 func FirstAncestorOfType(node *sitter.Node, ptype string) *sitter.Node {
 	for n := node; n != nil; n = n.Parent() {
 		if n.Type() == ptype {
@@ -36,4 +53,14 @@ func FirstAncestorOfType(node *sitter.Node, ptype string) *sitter.Node {
 		}
 	}
 	return nil
+}
+
+func AncestorsOfType(node *sitter.Node, aType string) []*sitter.Node {
+	var ancestors []*sitter.Node
+	for n := node; n != nil; n = n.Parent() {
+		if n.Type() == aType {
+			ancestors = append(ancestors, n)
+		}
+	}
+	return ancestors
 }
