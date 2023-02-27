@@ -3,12 +3,13 @@ package analytics
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestAnalytics_Hash(t *testing.T) {
@@ -89,7 +90,6 @@ func TestAnalyticsSend(t *testing.T) {
 				"properties": map[string]any{
 					"_logLevel":  "info",
 					"status":     "info",
-					"validated":  false,
 					"property_1": "aaa",
 				},
 			}},
@@ -115,7 +115,6 @@ func TestAnalyticsSend(t *testing.T) {
 					"properties": map[string]any{
 						"_logLevel": "warn",
 						"status":    "warn",
-						"validated": false,
 						"hello":     "world",
 					},
 				},
@@ -125,7 +124,6 @@ func TestAnalyticsSend(t *testing.T) {
 					"properties": map[string]any{
 						"_logLevel": "info",
 						"status":    "info",
-						"validated": false,
 						"hello":     "goodbye",
 					},
 				},
@@ -146,7 +144,6 @@ func TestAnalyticsSend(t *testing.T) {
 					"properties": map[string]any{
 						"_logLevel": "error",
 						"status":    "error",
-						"validated": false,
 						"error":     "my error",
 					},
 				},
@@ -156,7 +153,6 @@ func TestAnalyticsSend(t *testing.T) {
 					"properties": map[string]any{
 						"_logLevel": "warn",
 						"status":    "warn",
-						"validated": false,
 					},
 				},
 			},
@@ -174,21 +170,22 @@ func TestAnalyticsSend(t *testing.T) {
 			server := httptest.NewServer(&handler)
 			defer server.Close()
 
-			client := NewClient()
-			client.serverUrlOverride = server.URL
+			// Don't use NewClient which uses local state
+			// thus causes the test to depend on the runner's environment
+			client := &Client{
+				serverUrlOverride: server.URL,
+				universalProperties: map[string]any{
+					"localId": "localId",
+				},
+			}
 
 			tt.send(client)
 			for i, receivedPayload := range handler.interactions {
 				expect := tt.expect[i]
+				for k, v := range client.universalProperties {
+					expect["properties"].(map[string]any)[k] = v
+				}
 				if assert.NotNil(receivedPayload) {
-					// for properties we can't control, just assert that they exist, and then delete them.
-					// this is so that we don't have to set them on the expected
-					if properties, ok := receivedPayload["properties"].(map[string]any); ok {
-						for _, opaqueProperty := range []string{"localId", "runId"} {
-							assert.NotEmpty(properties[opaqueProperty])
-							delete(properties, opaqueProperty)
-						}
-					}
 
 					assert.Equal(expect, receivedPayload)
 				}

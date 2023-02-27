@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/auth"
 
 	"github.com/google/uuid"
@@ -64,8 +65,6 @@ func NewClient() *Client {
 }
 
 func (t *Client) AttachAuthorizations(loginInfo auth.LoginInfo) {
-	t.universalProperties["localId"] = t.userId
-
 	if loginInfo.Email != "" {
 		t.userId = loginInfo.Email
 		t.universalProperties["validated"] = loginInfo.EmailVerified
