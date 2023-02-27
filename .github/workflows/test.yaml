@@ -43,19 +43,3 @@ jobs:
           output: both
           hide_complexity: true
           hide_branch_rate: true
-
-      - name: Add Coverage PR Comment
-        uses: marocchino/sticky-pull-request-comment@v2
-        if: github.event_name == 'pull_request'
-        with:
-          recreate: true
-          path: code-coverage-results.md
-  # codetour-watch:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
-
-  #     - name: 'Watch CodeTour changes'
-  #       uses: pozil/codetour-watch@v1.6.0
-  #       with:
-  #         repo-token: ${{ secrets.GITHUB_TOKEN }}
