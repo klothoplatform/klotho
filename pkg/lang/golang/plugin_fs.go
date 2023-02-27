@@ -97,7 +97,7 @@ func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, 
 		return nil, err
 	}
 
-	err = UpdateImportsInFile(f, p.runtime.GetFsImports(), []Import{})
+	err = UpdateImportsInFile(f, p.runtime.GetFsImports(), []Import{{Package: "gocloud.dev/blob/fileblob"}, {Package: "gocloud.dev/blob/memblob"}})
 	if err != nil {
 		return nil, err
 	}

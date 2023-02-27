@@ -113,7 +113,7 @@ func (p *PersistSecretsPlugin) transformSecret(f *core.SourceFile, cap *core.Ann
 		return nil, err
 	}
 
-	err = UpdateImportsInFile(f, p.runtime.GetSecretsImports(), []Import{})
+	err = UpdateImportsInFile(f, p.runtime.GetSecretsImports(), []Import{{Package: "gocloud.dev/runtimevar/filevar"}, {Package: "gocloud.dev/runtimevar/constantvar"}})
 	if err != nil {
 		return nil, err
 	}

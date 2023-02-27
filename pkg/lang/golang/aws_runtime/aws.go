@@ -2,6 +2,8 @@ package aws_runtime
 
 import (
 	_ "embed"
+	"fmt"
+	"regexp"
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -33,12 +35,17 @@ type (
 //go:embed Lambda_Dockerfile
 var dockerfileLambda []byte
 
+//go:embed Exec_Dockerfile
+var dockerfileExec []byte
+
 func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
 	var DockerFile []byte
 	unitType := r.Cfg.GetResourceType(unit)
 	switch unitType {
-	case "lambda":
+	case aws.Lambda:
 		DockerFile = dockerfileLambda
+	case aws.Ecs, aws.Eks:
+		DockerFile = dockerfileExec
 	default:
 		return errors.Errorf("unsupported execution unit type: '%s'", unitType)
 	}
@@ -55,6 +62,75 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		}
 	}
 
+	return nil
+}
+
+var commentRegex = regexp.MustCompile(`(?m)^(\s*)`)
+
+func (r *AwsRuntime) ActOnExposeListener(unit *core.ExecutionUnit, f *core.SourceFile, listener *golang.HttpListener, routerName string) error {
+	unitType := r.Cfg.GetResourceType(unit)
+	//TODO: Move comment listen code to library logic like JS does eventually
+	if unitType == aws.Lambda {
+		nodeToComment := listener.Expression.Content()
+		//TODO: Will likely need to move this into a separate plugin of some sort
+		// Instead of having a dispatcher file, the dipatcher logic is injected into the main.go file. By having that
+		// logic in the expose plugin though, it will only happen if they use the expose annotation for the lambda case.
+		if len(nodeToComment) > 0 {
+			oldNodeContent := nodeToComment
+			newNodeContent := commentRegex.ReplaceAllString(oldNodeContent, "// $1")
+
+			//TODO: investigate correctly indenting code
+			dispatcherCode := fmt.Sprintf(`
+			// Begin - Added by Klotho
+			chiLambda := chiadapter.New(%s)
+			handler := func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+				return chiLambda.ProxyWithContext(ctx, req)
+			}
+			lambda.StartWithContext(context.Background(), handler)
+			//End - Added by Klotho`, routerName)
+
+			newNodeContent = newNodeContent + dispatcherCode
+
+			err := f.ReplaceNodeContent(listener.Expression, newNodeContent)
+			if err != nil {
+				return errors.Wrap(err, "error reparsing after substitutions")
+			}
+		}
+
+		handlerRequirements := []golang.Import{
+			{Package: "context"},
+			{Package: "github.com/aws/aws-lambda-go/events"},
+			{Package: "github.com/aws/aws-lambda-go/lambda"},
+			{Package: "github.com/awslabs/aws-lambda-go-api-proxy/chi"},
+			{Package: "github.com/go-chi/chi/v5"},
+		}
+
+		err := golang.UpdateImportsInFile(f, handlerRequirements, []golang.Import{{Package: "github.com/go-chi/chi"}})
+		if err != nil {
+			return errors.Wrap(err, "error updating imports")
+		}
+
+		requireCode := `
+require (
+	github.com/aws/aws-lambda-go v1.19.1 // indirect
+	github.com/awslabs/aws-lambda-go-api-proxy v0.13.3 // indirect
+	github.com/go-chi/chi/v5 v5.0.7 // indirect
+)
+		`
+		for _, f := range unit.Files() {
+			// looking for the root go.mod that we copy to each exec unit
+			if f.Path() == "go.mod" {
+				modFile, ok := f.(*golang.GoMod)
+				if !ok {
+					return errors.Errorf("Unable to update %s with new requirements", f.Path())
+				}
+				// Some requires may be duplicated if the go.mod has similar existing modules but that shouldn't be an issue
+				modFile.AddLine(requireCode)
+			}
+		}
+
+		return nil
+	}
 	return nil
 }
 
