@@ -131,6 +131,9 @@ func (u *Updater) Update(currentVersion string) error {
 
 	var body io.Reader = resp.Body
 	if !color.NoColor {
+		// Use NoColor as an indicator of whether the output
+		// is a terminal or not. It's not perfect (the env var "NO_COLOR")
+		// but it's close enough.
 		bar := progressbar.DefaultBytes(
 			resp.ContentLength,
 			"downloading",
