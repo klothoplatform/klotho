@@ -36,7 +36,7 @@ type Updater struct {
 	Client *httpclient.Client
 }
 
-func selfUpdate(data io.ReadCloser) error {
+func selfUpdate(data io.Reader) error {
 	//TODO add signature verification if we want
 	return update.Apply(data, update.Options{})
 }
@@ -129,13 +129,14 @@ func (u *Updater) Update(currentVersion string) error {
 	}
 	defer resp.Body.Close()
 
-	body := resp.Body
+	var body io.Reader = resp.Body
 	if !color.NoColor {
 		bar := progressbar.DefaultBytes(
 			resp.ContentLength,
 			"downloading",
 		)
-		body = &TeeReader{r: resp.Body, w: bar}
+		teeToBar := progressbar.NewReader(body, bar)
+		body = &teeToBar
 	}
 
 	if err := selfUpdate(body); err != nil {
