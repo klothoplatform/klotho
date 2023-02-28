@@ -9,9 +9,11 @@ import (
 	"strings"
 
 	"github.com/coreos/go-semver/semver"
+	"github.com/fatih/color"
 	"github.com/gojek/heimdall/v7/httpclient"
 	"github.com/inconshreveable/go-update"
 	"github.com/pkg/errors"
+	"github.com/schollz/progressbar/v3"
 	"go.uber.org/zap"
 )
 
@@ -118,12 +120,22 @@ func (u *Updater) Update(currentVersion string) error {
 		return nil
 	}
 
-	body, err := u.getLatest()
+	resp, err := u.getLatest()
 	if err != nil {
 		return errors.Wrapf(err, "failed to get latest")
 	}
-	if body != nil {
-		defer body.Close()
+	if resp.Body == nil {
+		return errors.New("No response body from download")
+	}
+	defer resp.Body.Close()
+
+	body := resp.Body
+	if !color.NoColor {
+		bar := progressbar.DefaultBytes(
+			resp.ContentLength,
+			"downloading",
+		)
+		body = &TeeReader{r: resp.Body, w: bar}
 	}
 
 	if err := selfUpdate(body); err != nil {
@@ -134,7 +146,7 @@ func (u *Updater) Update(currentVersion string) error {
 }
 
 // getLatest Grabs latest release from klotho server
-func (u *Updater) getLatest() (io.ReadCloser, error) {
+func (u *Updater) getLatest() (*http.Response, error) {
 	endpoint := fmt.Sprintf("%s/update/latest/%s/%s?stream=%s", u.ServerURL, OS, Arch, u.Stream)
 	res, err := u.Client.Get(endpoint, nil)
 	if err != nil {
@@ -144,6 +156,6 @@ func (u *Updater) getLatest() (io.ReadCloser, error) {
 		return nil, fmt.Errorf("failed to query for latest version, bad response from server: %d", res.StatusCode)
 
 	}
-	return res.Body, nil
+	return res, nil
 
 }
