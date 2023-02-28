@@ -32,9 +32,9 @@ jobs:
           npm install -g typescript
           mkdir dist
           go generate ./...
-          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 CC="zig cc -target x86_64-linux-musl" CXX="zig c++ -target x86_64-linux-musl" go build --tags extended -o dist/klotho_linux_amd64 -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" ./cmd/klotho
-          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build --tags extended -o dist/klotho_darwin_amd64 -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" ./cmd/klotho
-          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build --tags extended -o dist/klotho_darwin_arm64 -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" ./cmd/klotho
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 CC="zig cc -target x86_64-linux-musl" CXX="zig c++ -target x86_64-linux-musl" go build --tags extended -o dist/klotho_linux_amd64 -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}' -s -w" ./cmd/klotho
+          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build --tags extended -o dist/klotho_darwin_amd64 -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}' -s -w" ./cmd/klotho
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build --tags extended -o dist/klotho_darwin_arm64 -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}' -s -w" ./cmd/klotho
           chmod +x dist
 
       - name: Upload build-artifacts
