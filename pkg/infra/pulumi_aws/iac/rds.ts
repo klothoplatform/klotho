@@ -2,7 +2,7 @@ import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 import { hash as h, sanitized, validate } from './sanitization/sanitizer'
 import AwsSanitizer from './sanitization/aws'
-import { Resource, CloudCCLib, kloConfig } from '../deploylib'
+import { CloudCCLib, kloConfig, Resource } from '../deploylib'
 
 export interface CreateInstanceAndProxyResult {
     rds: aws.rds.Instance
@@ -20,9 +20,10 @@ export class RDS {
     static setupRDS(lib: CloudCCLib, orm: string, args: Partial<aws.rds.InstanceArgs>) {
         const rdsImports: { [key: string]: RdsImport } | undefined = kloConfig.getObject('rds')
         const config = new pulumi.Config()
-        const dbName = sanitized(
+        let dbName = sanitized(
             AwsSanitizer.RDS.engine.pg.database.nameValidation()
         )`${orm.toLowerCase()}`
+        dbName = sanitized(AwsSanitizer.RDS.instance.nameValidation())`${dbName}`
         const username = config.require(`${dbName}_username`)
         const password = config.requireSecret(`${dbName}_password`)
 
@@ -31,8 +32,7 @@ export class RDS {
 
         if (rdsImports != undefined && rdsImports[orm] != undefined) {
             rds = aws.rds.Instance.get(dbName, rdsImports[orm].dbInstanceIdentifier)
-            const proxyName = sanitized(AwsSanitizer.RDS.dbProxy.nameValidation())`${h(dbName)}`
-            proxy = aws.rds.Proxy.get(proxyName, rdsImports[orm].proxy)
+            proxy = aws.rds.Proxy.get(dbName, rdsImports[orm].proxy)
         } else {
             const result: CreateInstanceAndProxyResult = RDS.createInstanceAndProxy(
                 lib,
@@ -179,8 +179,7 @@ export class RDS {
         })
 
         // setup the rds proxy
-        const proxyName = sanitized(AwsSanitizer.RDS.dbProxy.nameValidation())`${h(dbName)}`
-        const proxy = new aws.rds.Proxy(proxyName, {
+        const proxy = new aws.rds.Proxy(dbName, {
             debugLogging: false,
             engineFamily: 'POSTGRESQL',
             idleClientTimeout: 1800,

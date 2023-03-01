@@ -33,28 +33,6 @@ export const engine = {
     },
 }
 
-export const dbProxy = {
-    nameValidation() {
-        return {
-            minLength: 1,
-            rules: [
-                regexpMatch('', /^[\da-zA-Z-]+$/, (s) => s.replace(/[^\da-zA-Z-]/g, '-')),
-                regexpMatch('Identifier must start with a letter', /^[a-zA-Z]/, (s) =>
-                    s.replace(/^[^a-zA-Z]+/, '')
-                ),
-                {
-                    description: 'Identifier must not end with a hyphen',
-                    validate: (s) => !s.endsWith('-'),
-                    fix: (s) => s.replace(/-+$/, ''),
-                },
-                regexpNotMatch('Identifier must not contain consecutive hyphens', /--/, (s) =>
-                    s.replace(/--+/g, '-')
-                ),
-            ],
-        }
-    },
-}
-
 export const instance = {
     nameValidation() {
         return {
