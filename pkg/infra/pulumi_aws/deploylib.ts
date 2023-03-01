@@ -520,11 +520,8 @@ export class CloudCCLib {
             }
         }
 
-        const logGroupName = sanitized(
-            AwsSanitizer.CloudWatch.logGroup.nameValidation()
-        )`/aws/lambda/${lambdaName}-function-api-lg`
         let cloudwatchGroup = new aws.cloudwatch.LogGroup(`${execUnitName}-function-api-lg`, {
-            name: logGroupName,
+            name: pulumi.interpolate`/aws/lambda/${lambdaConfig.name}`,
             retentionInDays: 1,
         })
 
