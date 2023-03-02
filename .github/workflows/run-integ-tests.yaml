@@ -19,11 +19,6 @@ on:
         description: the AWS region to deploy to, other than redis tests
         required: false
         type: string
-        default: us-east-1
-      region-redis-cluster:
-        description: the AWS region to deploy redis tests to
-        required: false
-        type: string
         default: us-east-2
   workflow_call:
     # same inputs as workflow_dispatch
@@ -45,11 +40,6 @@ on:
         description: the AWS region to deploy to
         required: false
         type: string
-        default: us-east-1
-      region-redis-cluster:
-        description: the AWS region to deploy redis tests to
-        required: false
-        type: string
         default: us-east-2
       pre-build-script: # This input is intentionally NOT in workflow_dispatch
         description: path to a script (within the caller's repo) to invoke before `go build`. must be executable.
@@ -59,7 +49,7 @@ on:
 concurrency: integ-tests
 name: run integration tests
 jobs:
-  list-apps:
+  list-apps: # creates the to_test output
     runs-on: ubuntu-latest
     outputs:
       to_test: ${{ steps.find_dirs.outputs.to_test }}
@@ -99,7 +89,8 @@ jobs:
           echo "to_test=$test_cases" > $GITHUB_OUTPUT
         env:
           APP_NAME_OVERRIDES: ${{ inputs.test-app-overrides }}
-  build-klotho:
+
+  build-klotho: # creates the klotho artifact
     runs-on: ubuntu-latest
     steps:
       - name: checkout klotho
@@ -120,16 +111,45 @@ jobs:
           name: klotho
           path: klotho
           retention-days: 1
+
+  setup-tests: # creates the test_resources artifact
+    runs-on: ubuntu-latest
+    environment: integ_test
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.test-app-repo }}
+          ref: ${{ inputs.test-app-ref }}
+      - name: shared resources
+        run: |
+          cd _test_resources
+          pulumi -s integ-test-shared stack select --create
+          pulumi stack tag set usage integ-test
+          pulumi config refresh
+          pulumi preview
+          #pulumi up -y --refresh
+          #pulumi stack export > test_resources.json
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ''
+          AWS_REGION: ${{ inputs.region }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: upload shared resources
+        uses: actions/upload-artifact@v3
+        with:
+          name: test_resources
+          path: test_resources.json
+          retention-days: 1
+
   sample-app:
-    needs: [build-klotho, list-apps]
+    needs: [build-klotho, list-apps, setup-tests]
     runs-on: ubuntu-latest
     environment: integ_test
     strategy:
-      max-parallel: 2 # each service can have up to 2 EIPs (one per private + public subnet), and we're capped at 5 total. See #613
       fail-fast: false
       matrix:
         app_to_test: ${{ fromJson(needs.list-apps.outputs.to_test) }}
-        mode: [fresh, upgrade]
     steps:
       - name: versions
         run: |
@@ -144,35 +164,26 @@ jobs:
           node-version: 16
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
-      - name: set up PATH
-        run: |
-          mkdir $RUNNER_TEMP/bin
-          echo $RUNNER_TEMP/bin
-          echo $RUNNER_TEMP/bin >> $GITHUB_PATH
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+          cache-dependency-path: '**/requirements.json'
       - name: get sample app language
         id: get_language
         run: echo language=$(echo "${{ matrix.app_to_test }}" | cut -d "-" -f 1) >> $GITHUB_OUTPUT
-      - name: Install Public Klotho (old version)
-        if: matrix.mode == 'upgrade'
-        run: |
-          curl -fsSL http://srv.klo.dev/update/latest/linux/amd64 -o "$RUNNER_TEMP/klotho-old"
-          chmod +x "$RUNNER_TEMP/klotho-old"
-          "$RUNNER_TEMP/klotho-old" --login 'klotho-engineering@klo.dev'
       - name: download klotho
         uses: actions/download-artifact@v3
         with:
           name: klotho
-          path: ${{ runner.temp }}
-      - name: initialize symlink
-        run: |
-          if [[ ${{ matrix.mode }} == upgrade ]] ; then
-            ln -s $RUNNER_TEMP/klotho-old $RUNNER_TEMP/bin/klotho
-          else
-            ln -s $RUNNER_TEMP/klotho $RUNNER_TEMP/bin/klotho
-          fi
+          path: /usr/local/bin
+      - name: import resources
+        uses: actions/download-artifact@v3
+        with:
+          name: test_resources
       - name: install klotho
         run: |
-          chmod +x $RUNNER_TEMP/klotho
+          chmod +x /usr/local/bin/klotho
       - name: typescript compilation
         if: steps.get_language.outputs.language == 'ts'
         working-directory: ${{ matrix.app_to_test }}
@@ -182,9 +193,7 @@ jobs:
       - name: run klotho
         working-directory: ${{ matrix.app_to_test }}
         run: |
-          mode="${{ matrix.mode }}"
-          mode="${mode:0:1}" # just use the first letter ("f" for "fresh" or "u" for "upgrade")
-          STACK_NAME="${{ matrix.app_to_test }}-$mode-$GITHUB_RUN_ID"
+          STACK_NAME="integ-test-${{ matrix.app_to_test }}-$GITHUB_RUN_ID"
           echo "STACK_NAME=$STACK_NAME" >> $GITHUB_ENV
           if [[ -f test/klotho.yaml ]]; then 
             klotho --app $STACK_NAME -p aws -c test/klotho.yaml #need app name to always be consistent for pre deploy hooks
@@ -213,24 +222,14 @@ jobs:
           pulumi -C compiled -s "$STACK_NAME" stack tag set usage integ-test
           pulumi -C compiled -s "$STACK_NAME" config refresh || true # refresh the stack, just in case it exists from a previous attempt. Ignore if that fails
           echo "(It's fine if this said 'error: no previous deployment'.)"
-          if echo "$NOT_DEFAULT_REGION_APPS" | grep -q --line-regexp '${{ matrix.app_to_test }}' ; then
-            echo "deploying to $AWS_REGION_REDIS"
-            pulumi -C compiled -s "$STACK_NAME" config set aws:region "$AWS_REGION_REDIS"
-          else
-            echo "deploying to $AWS_REGION"
-            pulumi -C compiled -s "$STACK_NAME" config set aws:region "$AWS_REGION" 
-          fi
+          python scripts/add_shared_resources.py "compiled/Pulumi.$STACK_NAME.yaml"
           echo '::endgroup'
         env:
           AWS_REGION: ${{ inputs.region }}
-          AWS_REGION_REDIS: ${{ inputs.region-redis-cluster }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ''
-          NOT_DEFAULT_REGION_APPS: |
-            ts-redis-cluster
-            py-redis-cluster
       - name: pre-deploy hook
         working-directory: ${{ matrix.app_to_test }}
         if: env.BEFORE_DEPLOY_HOOK
@@ -240,43 +239,6 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ''
-      - name: pulumi up (upgrade path)
-        if: matrix.mode == 'upgrade'
-        uses: klothoplatform/gh-action-retry@v1
-        with:
-          description: pulumi up (upgrade path)
-          working-directory: ${{ matrix.app_to_test }}
-          script: |
-            pulumi -C compiled -s "$STACK_NAME" up --refresh --yes
-            pulumi_out="$(pulumi -C compiled -s "$STACK_NAME" stack output --json)"
-            echo "$pulumi_out" | jq .
-            API_ENDPOINT="$(echo "$pulumi_out" | jq -er '.apiUrls[0]')"
-            echo "API_ENDPOINT=$API_ENDPOINT" >> $GITHUB_ENV # used by integ-test runners below
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          PULUMI_CONFIG_PASSPHRASE: ''
-      - name: change symlink (upgrade path)
-        if: matrix.mode == 'upgrade'
-        run: |
-          ln -sf $RUNNER_TEMP/klotho $RUNNER_TEMP/bin/klotho
-      - name: run klotho (upgrade path)
-        if: matrix.mode == 'upgrade'
-        working-directory: ${{ matrix.app_to_test }}
-        run: |
-          if [[ -f test/klotho.yaml ]]; then 
-            klotho --app $STACK_NAME -p aws -c test/klotho.yaml #need app name to always be consistent for pre deploy hooks
-          else
-            klotho . --app $STACK_NAME -p aws
-          fi
-        env:
-          KLOTHO_ID_TOKEN: ${{ secrets.KLOTHO_CREDS_ID_TOKEN }}
-      - name: pulumi npm install (upgrade path)
-        if: matrix.mode == 'upgrade'
-        working-directory: ${{ matrix.app_to_test }}
-        run: |
-          npm install --prefix compiled
       - name: pulumi policy-pack
         if: env.POLICY_PACK
         working-directory: ${{ matrix.app_to_test }}
