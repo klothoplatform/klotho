@@ -18,6 +18,11 @@ import {
 import { installMetricsServer } from './k8s/add_ons/metrics_server'
 import { applyChart, Value } from './k8s/helm_chart'
 import { LoadBalancerPlugin } from './load_balancing'
+import {
+    AL2_x86_64_GPU,
+    EKS_AMI_INSTANCE_PREFIX_MAP,
+    getAmiFromInstanceType,
+} from './ec2/instance_specs'
 
 export interface EksExecUnitArgs {
     nodeType: 'fargate' | 'node'
@@ -61,19 +66,6 @@ export interface HelmChart {
 interface FargateProfileSelector {
     namespace: string
     labels?: { [key: string]: string }
-}
-
-// ExecEnvVar sets the environment variables using an exec-based auth plugin.
-interface ExecEnvVar {
-    /**
-     * Name of the auth exec environment variable.
-     */
-    name: pulumi.Input<string>
-
-    /**
-     * Value of the auth exec environment variable.
-     */
-    value: pulumi.Input<string>
 }
 
 /**
@@ -405,11 +397,33 @@ export class Eks {
             selectors
         )
 
+        let installNvidiaDriver = false
+
         for (const unit of execUnits) {
             this.setupExecUnit(lib, unit)
+            if (unit.params.nodeConstraints?.instanceType) {
+                const amiType = getAmiFromInstanceType(unit.params.nodeConstraints.instanceType)
+                amiType == AL2_x86_64_GPU ? (installNvidiaDriver = true) : null
+            }
         }
         for (const chart of charts) {
             this.setupKlothoHelmChart(lib, chart.Name, chart.Values || [])
+        }
+
+        if (installNvidiaDriver) {
+            new pulumi_k8s.yaml.ConfigFile(
+                `${clusterName}-NvidiaDriver`,
+                {
+                    file: 'https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.10/nvidia-device-plugin.yml',
+                },
+                {
+                    provider: this.provider,
+                    dependsOn: [
+                        ...this.privateNodeGroups.values(),
+                        ...this.publicNodeGroups.values(),
+                    ],
+                }
+            )
         }
     }
 
@@ -524,9 +538,11 @@ export class Eks {
         }>
     ): aws.eks.NodeGroup {
         const nodeRole = this.createNodeIamRole(nodeGroupName)
+        const amiType = getAmiFromInstanceType(specs.instanceType!)
         return new aws.eks.NodeGroup(`${nodeGroupName}-NodeGroup`, {
             clusterName: this.cluster.name,
             nodeRoleArn: nodeRole.arn,
+            amiType: amiType != '' ? amiType : undefined,
             subnetIds,
             scalingConfig: {
                 desiredSize: 2,
@@ -553,7 +569,7 @@ export class Eks {
         let sleep
         if (this.options.initializePluginsOnFargate) {
             sleep = new local.Command(
-                'sleepForCerts',
+                `sleepForCerts-${name}`,
                 {
                     create: 'sleep 60',
                     update: 'sleep 60',
@@ -563,7 +579,7 @@ export class Eks {
             )
         } else {
             sleep = new local.Command(
-                'sleepForCerts',
+                `sleepForCerts-${name}`,
                 {
                     create: 'sleep 10',
                     update: 'sleep 10',
@@ -1065,6 +1081,10 @@ export class Eks {
             resources.requests!['memory'] = `${args.limits?.memory}Mi`
         }
 
+        if (args.nodeConstraints?.instanceType) {
+            const amiType = getAmiFromInstanceType(args.nodeConstraints.instanceType)
+            amiType == AL2_x86_64_GPU ? (resources.limits!['nvidia.com/gpu'] = 1) : null
+        }
         return k8s.createDeployment({
             name: execUnit,
             image,
@@ -1156,7 +1176,7 @@ export class Eks {
             )
         }
         const sleep = new local.Command(
-            'sleepForCerts',
+            `sleepForCerts-${execUnit}`,
             {
                 create: 'sleep 60',
                 update: 'sleep 60',

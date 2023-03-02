@@ -151,6 +151,7 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 	addFile("iac/cockroachdb.ts")
 	addFile("iac/analytics.ts")
 	addFile("iac/load_balancing.ts")
+	addFile("iac/ec2/instance_specs.ts")
 	addFile("iac/k8s/horizontal-pod-autoscaling.ts")
 	addFile("iac/k8s/helm_chart.ts")
 	addFile("iac/k8s/add_ons/metrics_server/index.ts")
