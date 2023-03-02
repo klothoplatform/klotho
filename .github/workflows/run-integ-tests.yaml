@@ -122,11 +122,11 @@ jobs:
           ref: ${{ inputs.test-app-ref }}
       - name: shared resources
         run: |
+          set -x
           cd _test_resources
           pulumi -s integ-test-shared stack select --create
           pulumi stack tag set usage integ-test
-          pulumi config refresh
-          pulumi preview
+          pulumi config refresh || true
           #pulumi up -y --refresh
           #pulumi stack export > test_resources.json
         env:
@@ -218,11 +218,12 @@ jobs:
             echo "BEFORE_DEPLOY_HOOK=$(readlink -f test/integ_test_hooks/pre-deploy.sh)" >> $GITHUB_ENV
           fi
           echo '::group::Configuration'
-          pulumi -C compiled -s "$STACK_NAME" stack select --create
-          pulumi -C compiled -s "$STACK_NAME" stack tag set usage integ-test
-          pulumi -C compiled -s "$STACK_NAME" config refresh || true # refresh the stack, just in case it exists from a previous attempt. Ignore if that fails
+          cd compiled
+          pulumi -s "$STACK_NAME" stack select --create
+          pulumi -s "$STACK_NAME" stack tag set usage integ-test
+          pulumi -s "$STACK_NAME" config refresh || true # refresh the stack, just in case it exists from a previous attempt. Ignore if that fails
           echo "(It's fine if this said 'error: no previous deployment'.)"
-          python scripts/add_shared_resources.py "compiled/Pulumi.$STACK_NAME.yaml"
+          python $GITHUB_WORKSPACE/scripts/add_shared_resources.py "Pulumi.$STACK_NAME.yaml"
           echo '::endgroup'
         env:
           AWS_REGION: ${{ inputs.region }}

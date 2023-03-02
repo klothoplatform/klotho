@@ -5,24 +5,27 @@ from pathlib import Path
 
 
 def get_pulumi_resources():
-    if Path('test_resources.json').exists():
-        with open('test_resources.json') as output:
-            output_json = json.loads(output)
-            resources = output_json.get('deployment', {}).get('resources', [])
-            return {
-                "klo:vpc": {
-                    "id": next(r for r in resources if r["type"] == "aws:ec2/vpc:Vpc")['id'],
-                    "sgId": next(r for r in resources if r["type"] == "aws:ec2/securityGroup:SecurityGroup")['id'],
-                    "privateSubnetIds": [
-                        r['id'] for r in resources if r['type'] == 'aws:ec2/subnet:Subnet' and 'private' in r['urn'].split('::')[-1]
-                    ],
-                    "publicSubnetIds": [
-                        r['id'] for r in resources if r['type'] == 'aws:ec2/subnet:Subnet' and 'public' in r['urn'].split('::')[-1]
-                    ],
+    p = Path('.').resolve()
+    while p != Path('/'):
+        resources_path = p / 'test_resources.json'
+        if resources_path.exists():
+            print(f"found resources json at {resources_path}")
+            with open(resources_path) as output:
+                output_json = json.loads(output)
+                resources = output_json.get('deployment', {}).get('resources', [])
+                return {
+                    "klo:vpc": {
+                        "id": next(r for r in resources if r["type"] == "aws:ec2/vpc:Vpc")['id'],
+                        "sgId": next(r for r in resources if r["type"] == "aws:ec2/securityGroup:SecurityGroup")['id'],
+                        "privateSubnetIds": [
+                            r['id'] for r in resources if r['type'] == 'aws:ec2/subnet:Subnet' and 'private' in r['urn'].split('::')[-1]
+                        ],
+                        "publicSubnetIds": [
+                            r['id'] for r in resources if r['type'] == 'aws:ec2/subnet:Subnet' and 'public' in r['urn'].split('::')[-1]
+                        ],
+                    }
                 }
-            }
-    else:
-        return None
+    return None
 
 def update_pulumi_app_config(app_yaml_path, resources):
     with open(app_yaml_path) as f:
