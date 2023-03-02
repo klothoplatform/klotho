@@ -120,10 +120,17 @@ jobs:
         with:
           repository: ${{ inputs.test-app-repo }}
           ref: ${{ inputs.test-app-ref }}
+      - name: Use Node.js 16.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
       - name: shared resources
         run: |
           set -x
           cd _test_resources
+          npm i
           pulumi -s integ-test-shared stack select --create
           pulumi stack tag set usage integ-test
           pulumi config refresh || true
