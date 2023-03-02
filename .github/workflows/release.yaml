@@ -40,6 +40,6 @@ jobs:
       - name: Upload build-artifacts
         uses: alexellis/upload-assets@0.2.2
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GENERATE_ARTIFACTS_TOKEN }}
         with:
           asset_paths: '["dist/*"]'
