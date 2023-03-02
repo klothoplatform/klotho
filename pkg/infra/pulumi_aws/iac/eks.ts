@@ -403,7 +403,9 @@ export class Eks {
             this.setupExecUnit(lib, unit)
             if (unit.params.nodeConstraints?.instanceType) {
                 const amiType = getAmiFromInstanceType(unit.params.nodeConstraints.instanceType)
-                amiType == AL2_x86_64_GPU ? (installNvidiaDriver = true) : null
+                if (amiType === AL2_x86_64_GPU) {
+                    installNvidiaDriver = true
+                }
             }
         }
         for (const chart of charts) {
@@ -1083,7 +1085,9 @@ export class Eks {
 
         if (args.nodeConstraints?.instanceType) {
             const amiType = getAmiFromInstanceType(args.nodeConstraints.instanceType)
-            amiType == AL2_x86_64_GPU ? (resources.limits!['nvidia.com/gpu'] = 1) : null
+            if (amiType == AL2_x86_64_GPU) {
+                resources.limits!['nvidia.com/gpu'] = 1
+            }
         }
         return k8s.createDeployment({
             name: execUnit,
