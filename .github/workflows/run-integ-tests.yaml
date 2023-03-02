@@ -127,8 +127,8 @@ jobs:
           pulumi -s integ-test-shared stack select --create
           pulumi stack tag set usage integ-test
           pulumi config refresh || true
-          #pulumi up -y --refresh
-          #pulumi stack export > test_resources.json
+          pulumi up -y --refresh
+          pulumi stack export > test_resources.json
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ''
