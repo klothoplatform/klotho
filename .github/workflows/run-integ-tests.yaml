@@ -136,6 +136,7 @@ jobs:
           pulumi config refresh || true
           pulumi up -y --refresh
           pulumi stack export > test_resources.json
+          cat test_resources.json
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ''
@@ -171,9 +172,6 @@ jobs:
           node-version: 16
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
-      - run: |
-          pwd
-          ls -l
       - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
