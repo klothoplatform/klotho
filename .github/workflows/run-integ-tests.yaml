@@ -229,7 +229,7 @@ jobs:
           pulumi -s "$STACK_NAME" stack tag set usage integ-test
           pulumi -s "$STACK_NAME" config refresh || true # refresh the stack, just in case it exists from a previous attempt. Ignore if that fails
           echo "(It's fine if this said 'error: no previous deployment'.)"
-          python $GITHUB_WORKSPACE/scripts/add_shared_resources.py "Pulumi.$STACK_NAME.yaml"
+          python $GITHUB_WORKSPACE/_test_resources/add_shared_resources.py "Pulumi.$STACK_NAME.yaml"
           echo '::endgroup'
         env:
           AWS_REGION: ${{ inputs.region }}
