@@ -214,8 +214,8 @@ func (p *Kubernetes) getKlothoCharts(result *core.CompilationResult) (map[string
 						foundDifference = true
 					}
 				}
-				if !foundDifference {
-					p.log.Warn("Found Conflicting Helm Values files, %s and %s, for helm chart in directory %s. Using %s",
+				if foundDifference {
+					p.log.Warnf("Found Conflicting Helm Values files, %s and %s, for helm chart in directory %s. Using %s",
 						khChart.ValuesFiles, cfg.HelmChartOptions.ValuesFiles, cfg.HelmChartOptions.Directory, khChart.ValuesFiles)
 				}
 				khChart.ExecutionUnits = append(khChart.ExecutionUnits, &HelmExecUnit{Name: u.Name, Namespace: "default"})
