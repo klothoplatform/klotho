@@ -200,7 +200,7 @@ jobs:
         working-directory: ${{ matrix.app_to_test }}
         run: |
           STACK_NAME="integ-test-${{ matrix.app_to_test }}-$GITHUB_RUN_ID"
-          if [ $($STACK_NAME | wc -m) -ge 50 ]; then
+          if [ $(echo "$STACK_NAME" | wc -m) -ge 50 ]; then
             STACK_NAME="integ-test-$(echo '${{ matrix.app_to_test }}' | sed -r 's/^(.{12}).*(.{15})/\1-\2/')-$GITHUB_RUN_ID"
           fi
           echo "STACK_NAME=$STACK_NAME" >> $GITHUB_ENV
