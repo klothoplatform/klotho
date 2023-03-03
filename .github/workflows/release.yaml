@@ -4,6 +4,15 @@ on:
   release:
     types:
       - created
+permissions:
+  contents: write
+  checks: write
+  actions: read
+  issues: read
+  packages: write
+  pull-requests: read
+  repository-projects: read
+  statuses: read
 
 jobs:
   generate:
@@ -40,6 +49,6 @@ jobs:
       - name: Upload build-artifacts
         uses: alexellis/upload-assets@0.2.2
         env:
-          GITHUB_TOKEN: ${{ secrets.GENERATE_ARTIFACTS_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           asset_paths: '["dist/*"]'
