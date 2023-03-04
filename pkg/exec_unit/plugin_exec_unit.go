@@ -27,10 +27,7 @@ func (p ExecUnitPlugin) Transform(result *core.CompilationResult, deps *core.Dep
 	cfg := p.Config.GetExecutionUnit(unit.Name)
 
 	for key, value := range cfg.EnvironmentVariables {
-		unit.EnvironmentVariables.Add(core.EnvironmentVariable{
-			Name:  key,
-			Value: value,
-		})
+		unit.EnvironmentVariables.Add(core.NewEnvironmentVariable(key, "", "", value))
 	}
 
 	for _, f := range inputR.(*core.InputFiles).Files() {

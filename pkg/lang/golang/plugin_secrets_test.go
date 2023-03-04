@@ -167,7 +167,7 @@ var queryParams string
 	if len(klothoRuntimePathSubChunks) == 2 {
 		queryParams = "&" + klothoRuntimePathSubChunks[1]
 	}
-	v, err := runtimevar.OpenVariable(context.TODO(), "awssecretsmanager://" + os.Getenv("test_config_secret") + "?region=" + os.Getenv("AWS_REGION") + queryParams)
+	v, err := runtimevar.OpenVariable(context.TODO(), "awssecretsmanager://" + os.Getenv("TEST_CONFIG_SECRET") + "?region=" + os.Getenv("AWS_REGION") + queryParams)
 `,
 			},
 		},
@@ -208,7 +208,7 @@ var queryParams string
 	if len(klothoRuntimePathSubChunks) == 2 {
 		queryParams = "&" + klothoRuntimePathSubChunks[1]
 	}
-	var v, err = runtimevar.OpenVariable(context.TODO(), "awssecretsmanager://" + os.Getenv("test_config_secret") + "?region=" + os.Getenv("AWS_REGION") + queryParams)
+	var v, err = runtimevar.OpenVariable(context.TODO(), "awssecretsmanager://" + os.Getenv("TEST_CONFIG_SECRET") + "?region=" + os.Getenv("AWS_REGION") + queryParams)
 `,
 			},
 		},
@@ -253,7 +253,7 @@ var queryParams string
 	if len(klothoRuntimePathSubChunks) == 2 {
 		queryParams = "&" + klothoRuntimePathSubChunks[1]
 	}
-	v, err = runtimevar.OpenVariable(context.TODO(), "awssecretsmanager://" + os.Getenv("test_config_secret") + "?region=" + os.Getenv("AWS_REGION") + queryParams)
+	v, err = runtimevar.OpenVariable(context.TODO(), "awssecretsmanager://" + os.Getenv("TEST_CONFIG_SECRET") + "?region=" + os.Getenv("AWS_REGION") + queryParams)
 `,
 			},
 		},

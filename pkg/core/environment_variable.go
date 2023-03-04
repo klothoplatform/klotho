@@ -1,6 +1,10 @@
 package core
 
-import "go.uber.org/zap"
+import (
+	"strings"
+
+	"go.uber.org/zap"
+)
 
 type (
 	EnvironmentVariable struct {
@@ -13,6 +17,19 @@ type (
 	EnvironmentVariables []EnvironmentVariable
 )
 
+func NewEnvironmentVariable(name string, kind string, resourceId string, value string) EnvironmentVariable {
+	name = strings.ReplaceAll(name, "-", "_")
+	name = strings.ReplaceAll(name, ".", "_")
+	name = strings.ReplaceAll(name, ":", "_")
+	name = strings.ReplaceAll(name, "/", "_")
+	return EnvironmentVariable{
+		Name:       name,
+		Kind:       kind,
+		ResourceID: resourceId,
+		Value:      value,
+	}
+}
+
 type EnvironmentVariableValue string
 
 const (
@@ -20,6 +37,8 @@ const (
 	ORM_ENV_VAR_NAME_SUFFIX        = "_PERSIST_ORM_CONNECTION"
 	REDIS_PORT_ENV_VAR_NAME_SUFFIX = "_PERSIST_REDIS_PORT"
 	REDIS_HOST_ENV_VAR_NAME_SUFFIX = "_PERSIST_REDIS_HOST"
+	BUCKET_NAME_SUFFIX             = "_BUCKET_NAME"
+	SECRET_NAME_SUFFIX             = "_CONFIG_SECRET"
 	KLOTHO_PROXY_ENV_VAR_NAME      = "KLOTHO_PROXY_RESOURCE_NAME"
 )
 
@@ -28,6 +47,7 @@ var (
 	PORT              EnvironmentVariableValue = "port"
 	CONNECTION_STRING EnvironmentVariableValue = "connection_string"
 	BUCKET_NAME       EnvironmentVariableValue = "bucket_name"
+	SECRET_NAME       EnvironmentVariableValue = "secret_name"
 )
 
 var InternalStorageVariable = EnvironmentVariable{
