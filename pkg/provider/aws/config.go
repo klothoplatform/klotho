@@ -23,6 +23,8 @@ type (
 		Buckets                 []provider.FS
 		SecretManagerSecrets    []provider.Config
 		RdsInstances            []provider.ORM
+		MemoryDBClusters        []provider.Redis
+		ElasticacheInstances    []provider.Redis
 	}
 )
 

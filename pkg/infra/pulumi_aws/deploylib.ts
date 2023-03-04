@@ -7,13 +7,11 @@ import * as sha256 from 'simple-sha256'
 import * as fs from 'fs'
 import * as requestRetry from 'requestretry'
 import * as crypto from 'crypto'
-import { setupElasticacheCluster } from './iac/elasticache'
 import * as analytics from './iac/analytics'
 
 import { hash as h, sanitized, validate } from './iac/sanitization/sanitizer'
 import { LoadBalancerPlugin } from './iac/load_balancing'
 import { DefaultEksClusterOptions, Eks, EksExecUnit, HelmChart } from './iac/eks'
-import { setupMemoryDbCluster } from './iac/memorydb'
 import AwsSanitizer from './iac/sanitization/aws'
 
 export enum Resource {
@@ -1363,87 +1361,5 @@ export class CloudCCLib {
                 dependsOn: [attach],
             }
         )
-    }
-
-    public setupRedis = async (
-        name: string,
-        type: 'elasticache' | 'memorydb',
-        args: Partial<aws.elasticache.ClusterArgs | aws.memorydb.ClusterArgs>
-    ) => {
-        if (type === 'elasticache') {
-            const subnetGroup = new aws.elasticache.SubnetGroup(
-                sanitized(
-                    AwsSanitizer.Elasticache.cacheSubnetGroup.cacheSubnetGroupNameValidation()
-                )`${h(this.name)}-${h(name)}-subnetgroup`,
-                {
-                    subnetIds: this.privateSubnetIds,
-                    tags: {
-                        Name: 'Klotho DB subnet group',
-                    },
-                }
-            )
-            args = args as aws.elasticache.ClusterArgs
-            setupElasticacheCluster(
-                name,
-                args,
-                this.topology,
-                this.protect,
-                this.connectionString,
-                subnetGroup.name,
-                this.sgs,
-                this.name
-            )
-        } else if (type === 'memorydb') {
-            // Since not all zones are supported in us-east-1 and us-west-2 we will verify our subnets are valid for the subnet group
-            const supported_azs = [
-                'use1-az2',
-                'use1-az4',
-                'use1-az6',
-                'usw2-az1',
-                'usw2-az2',
-                'usw2-az3',
-            ]
-            let subnets: string[] | Promise<pulumi.Output<string>[]> = []
-            if (['us-east-1', 'us-west-2'].includes(this.region)) {
-                for (const subnetId in this.privateSubnetIds) {
-                    const subnet: aws.ec2.GetSubnetResult = await aws.ec2.getSubnet({
-                        id: subnetId,
-                    })
-                    if (supported_azs.includes(subnet.availabilityZoneId)) {
-                        subnets.push(subnetId)
-                    }
-                }
-                if (subnets.length === 0) {
-                    throw new Error(
-                        'Unable to find subnets in supported memorydb Availability Zones'
-                    )
-                }
-            } else {
-                subnets = this.privateSubnetIds
-            }
-
-            const subnetGroup = new aws.memorydb.SubnetGroup(
-                sanitized(AwsSanitizer.MemoryDB.subnetGroup.subnetGroupNameValidation())`${
-                    this.name
-                }-${h(name)}-subnetgroup`,
-                {
-                    subnetIds: subnets,
-                    tags: {
-                        Name: 'Klotho DB subnet group',
-                    },
-                }
-            )
-            args = args as aws.memorydb.ClusterArgs
-            setupMemoryDbCluster(
-                name,
-                args,
-                this.topology,
-                this.protect,
-                this.connectionString,
-                subnetGroup.name,
-                this.sgs,
-                this.name
-            )
-        }
     }
 }
