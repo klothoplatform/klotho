@@ -179,62 +179,62 @@ export class CloudCCLib {
         const sgName = sanitized(AwsSanitizer.EC2.vpc.securityGroup.nameValidation())`${h(
             this.name
         )}`
-        const klothoSG = new aws.ec2.SecurityGroup(sgName, {
-            name: sgName,
-            vpcId: this.klothoVPC.id,
-            egress: [
-                {
-                    cidrBlocks: ['0.0.0.0/0'],
-                    description: 'Allows all outbound IPv4 traffic.',
-                    fromPort: 0,
-                    protocol: '-1',
-                    toPort: 0,
-                },
-            ],
-            ingress: [
-                {
-                    description:
-                        'Allows inbound traffic from network interfaces and instances that are assigned to the same security group.',
-                    fromPort: 0,
-                    protocol: '-1',
-                    self: true,
-                    toPort: 0,
-                },
-                {
-                    description: 'For EKS control plane',
-                    cidrBlocks: ['0.0.0.0/0'],
-                    fromPort: 9443,
-                    protocol: 'TCP',
-                    self: true,
-                    toPort: 9443,
-                },
-            ],
-        })
-        this.sgs = new Array(klothoSG.id)
-
-        pulumi.output(this.klothoVPC.privateSubnets).apply((ps) => {
-            const cidrBlocks: any = ps.map((subnet) => subnet.subnet.cidrBlock)
-            new aws.ec2.SecurityGroupRule(`${this.name}-private-ingress`, {
-                type: 'ingress',
-                cidrBlocks: cidrBlocks,
-                fromPort: 0,
-                protocol: '-1',
-                toPort: 0,
-                securityGroupId: klothoSG.id,
+        pulumi
+            .all([this.klothoVPC.privateSubnets || [], this.klothoVPC.publicSubnets || []])
+            .apply(([privateSubnets, publicSubnets]) => {
+                const privateCidrBlocks: any = privateSubnets.map(
+                    (subnet) => subnet.subnet.cidrBlock
+                )
+                const publicCidrBlocks: any = publicSubnets.map((subnet) => subnet.subnet.cidrBlock)
+                const klothoSG = new aws.ec2.SecurityGroup(sgName, {
+                    name: sgName,
+                    vpcId: this.klothoVPC.id,
+                    egress: [
+                        {
+                            cidrBlocks: ['0.0.0.0/0'],
+                            description: 'Allows all outbound IPv4 traffic.',
+                            fromPort: 0,
+                            protocol: '-1',
+                            toPort: 0,
+                        },
+                    ],
+                    ingress: [
+                        {
+                            description:
+                                'Allows inbound traffic from network interfaces and instances that are assigned to the same security group.',
+                            fromPort: 0,
+                            protocol: '-1',
+                            self: true,
+                            toPort: 0,
+                        },
+                        {
+                            description: 'For EKS control plane',
+                            cidrBlocks: ['0.0.0.0/0'],
+                            fromPort: 9443,
+                            protocol: 'TCP',
+                            self: true,
+                            toPort: 9443,
+                        },
+                        {
+                            description: 'For EKS control plane',
+                            cidrBlocks: privateCidrBlocks,
+                            fromPort: 0,
+                            protocol: '-1',
+                            self: true,
+                            toPort: 0,
+                        },
+                        {
+                            description: 'For EKS control plane',
+                            cidrBlocks: publicCidrBlocks,
+                            fromPort: 0,
+                            protocol: '-1',
+                            self: true,
+                            toPort: 0,
+                        },
+                    ],
+                })
+                this.sgs = new Array(klothoSG.id)
             })
-        })
-
-        pulumi.output(this.klothoVPC.publicSubnets).apply((ps) => {
-            const cidrBlocks: any = ps.map((subnet) => subnet.subnet.cidrBlock)
-            new aws.ec2.SecurityGroupRule(`${this.name}-public-ingress`, {
-                type: 'ingress',
-                cidrBlocks: cidrBlocks,
-                fromPort: 0,
-                protocol: '-1',
-                toPort: 0,
-                securityGroupId: klothoSG.id,
-            })
-        })
     }
 
     // there is currently no way to handle an exception of a resource doesn't exist, so this
