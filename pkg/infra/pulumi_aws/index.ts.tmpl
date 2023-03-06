@@ -36,6 +36,15 @@ import { SecretsManager } from './iac/secrets_manager'
 import { RDS } from './iac/rds'
 {{end}}
 
+{{- if .ElasticacheInstances}}
+import { Elasticache } from './iac/elasticache'
+{{end}}
+
+{{- if .MemoryDBClusters}}
+import { MemoryDb } from './iac/memorydb'
+{{end}}
+
+
 export = async () => {
     const minimumNodeVersion = 16
     const nodeVersionMatch = process.version.match(/^v(\d+)/)
@@ -108,8 +117,12 @@ export = async () => {
     {{- end}}
     {{- end}}
 
-    {{range $redis := .Redis -}}
-    cloudLib.setupRedis("{{$redis.Name}}", "{{$redis.Type}}", {{json $redis.Params}} as Partial<aws.elasticache.ClusterArgs | aws.memorydb.ClusterArgs>);
+    {{range $redis := .ElasticacheInstances -}}
+    Elasticache.setupElasticacheCluster(cloudLib, "{{$redis.Name}}",  {{json $redis.Params}} as Partial<aws.elasticache.ClusterArgs>);
+    {{- end}}
+
+    {{range $redis := .MemoryDBClusters -}}
+    MemoryDb.setupMemoryDbCluster(cloudLib, "{{$redis.Name}}",  {{json $redis.Params}} as Partial<aws.memorydb.ClusterArgs>);
     {{- end}}
 
     let keepWarm: string[] = [];
