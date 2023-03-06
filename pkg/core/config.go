@@ -21,6 +21,6 @@ func (p *Config) Key() ResourceKey {
 	}
 }
 
-func GenerateSecretEnvVar(id string, kind string) EnvironmentVariable {
+func GenerateSecretEnvVar(id string, kind string) environmentVariable {
 	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(id), SECRET_NAME_SUFFIX), ConfigKind, id, string(SECRET_NAME))
 }

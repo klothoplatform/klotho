@@ -1,28 +1,47 @@
 package core
 
 import (
-	"strings"
-
+	"github.com/klothoplatform/klotho/pkg/sanitization"
 	"go.uber.org/zap"
 )
 
+type EnvironmentVariable interface {
+	GetName() string
+	GetKind() string
+	GetResourceID() string
+	GetValue() string
+}
+
 type (
-	EnvironmentVariable struct {
+	environmentVariable struct {
 		Name       string
 		Kind       string
 		ResourceID string
 		Value      string
 	}
 
-	EnvironmentVariables []EnvironmentVariable
+	EnvironmentVariables []environmentVariable
 )
 
-func NewEnvironmentVariable(name string, kind string, resourceId string, value string) EnvironmentVariable {
-	name = strings.ReplaceAll(name, "-", "_")
-	name = strings.ReplaceAll(name, ".", "_")
-	name = strings.ReplaceAll(name, ":", "_")
-	name = strings.ReplaceAll(name, "/", "_")
-	return EnvironmentVariable{
+func (e environmentVariable) GetName() string {
+	return e.Name
+}
+
+func (e environmentVariable) GetKind() string {
+	return e.Kind
+}
+
+func (e environmentVariable) GetResourceID() string {
+	return e.ResourceID
+}
+
+func (e environmentVariable) GetValue() string {
+	return e.Value
+}
+
+func NewEnvironmentVariable(name string, kind string, resourceId string, value string) environmentVariable {
+	name = sanitization.EnvVarKeySanitizer.Apply(name)
+	return environmentVariable{
 		Name:       name,
 		Kind:       kind,
 		ResourceID: resourceId,
@@ -50,7 +69,7 @@ var (
 	SECRET_NAME       EnvironmentVariableValue = "secret_name"
 )
 
-var InternalStorageVariable = EnvironmentVariable{
+var InternalStorageVariable = environmentVariable{
 	Name:       KLOTHO_PROXY_ENV_VAR_NAME,
 	Kind:       InternalKind,
 	ResourceID: KlothoPayloadName,
@@ -58,7 +77,7 @@ var InternalStorageVariable = EnvironmentVariable{
 }
 
 // Add the given environment variable to the list. If a variable of the same name already exists, replace it.
-func (vars *EnvironmentVariables) Add(v EnvironmentVariable) {
+func (vars *EnvironmentVariables) Add(v environmentVariable) {
 	if *vars == nil {
 		*vars = make(EnvironmentVariables, 0)
 	}

@@ -35,18 +35,18 @@ func (p *Persist) Key() ResourceKey {
 	}
 }
 
-func GenerateRedisHostEnvVar(id string, kind string) EnvironmentVariable {
+func GenerateRedisHostEnvVar(id string, kind string) environmentVariable {
 	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(id), REDIS_HOST_ENV_VAR_NAME_SUFFIX), kind, id, string(HOST))
 }
 
-func GenerateRedisPortEnvVar(id string, kind string) EnvironmentVariable {
+func GenerateRedisPortEnvVar(id string, kind string) environmentVariable {
 	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(id), REDIS_PORT_ENV_VAR_NAME_SUFFIX), kind, id, string(PORT))
 }
 
-func GenerateOrmConnStringEnvVar(id string) EnvironmentVariable {
+func GenerateOrmConnStringEnvVar(id string) environmentVariable {
 	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(id), ORM_ENV_VAR_NAME_SUFFIX), string(PersistORMKind), id, string(CONNECTION_STRING))
 }
 
-func GenerateBucketEnvVar(id string) EnvironmentVariable {
+func GenerateBucketEnvVar(id string) environmentVariable {
 	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(id), BUCKET_NAME_SUFFIX), string(PersistFileKind), id, string(BUCKET_NAME))
 }
