@@ -277,7 +277,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ''
-        working-directory: ${{ matrix.app_to_test }}
       - name: TypeScript - run integ tests
         if: steps.get_language.outputs.language == 'ts'
         uses: klothoplatform/gh-action-retry@v1
