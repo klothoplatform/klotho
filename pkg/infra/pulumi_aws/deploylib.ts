@@ -186,7 +186,7 @@ export class CloudCCLib {
                     (subnet) => subnet.subnet.cidrBlock
                 )
                 const publicCidrBlocks: any = publicSubnets.map((subnet) => subnet.subnet.cidrBlock)
-                const klothoSG = new aws.ec2.SecurityGroup(sgName, {
+                return new aws.ec2.SecurityGroup(sgName, {
                     name: sgName,
                     vpcId: this.klothoVPC.id,
                     egress: [
@@ -216,16 +216,8 @@ export class CloudCCLib {
                             toPort: 9443,
                         },
                         {
-                            description: 'For EKS control plane',
-                            cidrBlocks: privateCidrBlocks,
-                            fromPort: 0,
-                            protocol: '-1',
-                            self: true,
-                            toPort: 0,
-                        },
-                        {
-                            description: 'For EKS control plane',
-                            cidrBlocks: publicCidrBlocks,
+                            description: 'For private subnets internally',
+                            cidrBlocks: [...privateCidrBlocks, ...publicCidrBlocks],
                             fromPort: 0,
                             protocol: '-1',
                             self: true,
@@ -233,7 +225,6 @@ export class CloudCCLib {
                         },
                     ],
                 })
-                return klothoSG
             })
         this.sgs = new Array(klothoSG.id)
     }
