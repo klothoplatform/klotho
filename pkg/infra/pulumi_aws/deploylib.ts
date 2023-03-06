@@ -179,7 +179,7 @@ export class CloudCCLib {
         const sgName = sanitized(AwsSanitizer.EC2.vpc.securityGroup.nameValidation())`${h(
             this.name
         )}`
-        pulumi
+        const klothoSG = pulumi
             .all([this.klothoVPC.privateSubnets || [], this.klothoVPC.publicSubnets || []])
             .apply(([privateSubnets, publicSubnets]) => {
                 const privateCidrBlocks: any = privateSubnets.map(
@@ -233,8 +233,9 @@ export class CloudCCLib {
                         },
                     ],
                 })
-                this.sgs = new Array(klothoSG.id)
+                return klothoSG
             })
+        this.sgs = new Array(klothoSG.id)
     }
 
     // there is currently no way to handle an exception of a resource doesn't exist, so this
