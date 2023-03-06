@@ -144,7 +144,7 @@ var defaultConfig = config.Defaults{
 			InfraParamsByType: map[string]config.InfraParams{
 				Memorydb: {
 					"nodeType":            "db.t4g.small",
-					"numReplicasPerShard": "1",
+					"numReplicasPerShard": 1,
 					"numShards":           "2",
 				},
 			},
