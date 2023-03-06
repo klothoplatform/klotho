@@ -74,7 +74,7 @@ export class CloudCCLib {
 
     gatewayToUrl = new Map<string, pulumi.Output<string>>()
     siteBuckets = new Map<string, aws.s3.Bucket>()
-    buckets = new Map<string, aws.s3.Bucket>()
+    buckets = new Map<string, pulumi.Output<aws.s3.Bucket>>()
 
     topologySpecOutputs: pulumi.Output<ResourceInfo>[] = []
     connectionString = new Map<string, pulumi.Output<string>>()
@@ -561,11 +561,11 @@ export class CloudCCLib {
                 const secret: aws.secretsmanager.Secret = this.secrets.get(v.ResourceID)!
                 return [v.Name, secret.name]
             case Resource.fs:
-                const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
+                const bucket: pulumi.Output<aws.s3.Bucket> = this.buckets.get(v.ResourceID)!
                 return [v.Name, bucket.bucket]
             case Resource.internal:
                 if (v.ResourceID === 'InternalKlothoPayloads') {
-                    const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
+                    const bucket: pulumi.Output<aws.s3.Bucket> = this.buckets.get(v.ResourceID)!
                     return [v.Name, bucket.bucket]
                 }
                 break
@@ -766,7 +766,7 @@ export class CloudCCLib {
 
     createBuckets(bucketsToCreate, forceDestroy = false) {
         bucketsToCreate.forEach((b) => {
-            this.account.accountId.apply((accountId) => {
+            const bucket = this.account.accountId.apply((accountId) => {
                 const bucketName = sanitized(
                     AwsSanitizer.S3.bucket.nameValidation()
                 )`${accountId}-${h(this.name)}-${h(b.Name)}`
@@ -777,7 +777,8 @@ export class CloudCCLib {
                     },
                     { protect: this.protect }
                 )
-                this.buckets.set(b.Name, bucket)
+                console.log(b.Name)
+                console.log(this.buckets.keys())
 
                 this.topology.topologyIconData.forEach((resource) => {
                     if (resource.kind == Resource.fs) {
@@ -822,7 +823,9 @@ export class CloudCCLib {
                         Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
                     })
                 })
+                return bucket
             })
+            this.buckets.set(b.Name, bucket)
         })
     }
 
