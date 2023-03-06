@@ -145,7 +145,7 @@ var defaultConfig = config.Defaults{
 				Memorydb: {
 					"nodeType":            "db.t4g.small",
 					"numReplicasPerShard": 1,
-					"numShards":           "2",
+					"numShards":           2,
 				},
 			},
 		},
