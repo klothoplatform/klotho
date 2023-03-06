@@ -233,7 +233,6 @@ jobs:
           pulumi -s "$STACK_NAME" config refresh || true # refresh the stack, just in case it exists from a previous attempt. Ignore if that fails
           echo "(It's fine if this said 'error: no previous deployment'.)"
           pip install -r $GITHUB_WORKSPACE/_test_resources/requirements.txt
-           python $GITHUB_WORKSPACE/_test_resources/add_shared_resources.py
           python $GITHUB_WORKSPACE/_test_resources/add_shared_resources.py "Pulumi.$STACK_NAME.yaml"
           echo '::endgroup'
         env:
