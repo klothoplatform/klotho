@@ -233,6 +233,7 @@ jobs:
           pulumi -s "$STACK_NAME" config refresh || true # refresh the stack, just in case it exists from a previous attempt. Ignore if that fails
           echo "(It's fine if this said 'error: no previous deployment'.)"
           pip install -r $GITHUB_WORKSPACE/_test_resources/requirements.txt
+           python $GITHUB_WORKSPACE/_test_resources/add_shared_resources.py
           python $GITHUB_WORKSPACE/_test_resources/add_shared_resources.py "Pulumi.$STACK_NAME.yaml"
           echo '::endgroup'
         env:
@@ -248,17 +249,6 @@ jobs:
           echo Running pre deploy hook: $BEFORE_DEPLOY_HOOK
           bash "$BEFORE_DEPLOY_HOOK"
         env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          PULUMI_CONFIG_PASSPHRASE: ''
-      - name: pulumi policy-pack
-        if: env.POLICY_PACK
-        working-directory: ${{ matrix.app_to_test }}
-        run: |
-          npm install --prefix test/pulumi
-          pulumi -C compiled -s "$STACK_NAME" preview --policy-pack "$POLICY_PACK"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ''
       - name: pulumi up
