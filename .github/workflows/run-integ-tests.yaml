@@ -269,7 +269,7 @@ jobs:
       - name: wait a bit for pulumi to settle
         run: |
           if echo "$SLOW_APPS" | grep -q --line-regexp '${{ matrix.app_to_test }}' ; then
-            sleep_amount=300
+            sleep_amount=600
           else
             sleep_amount=30
           fi
@@ -279,8 +279,6 @@ jobs:
           SLOW_APPS: |
             py-orm
             py-redis
-            ts-eks
-            ts-eks-helm
             ts-nestjs-sequelize
             ts-orm-environment-variable-directive
             ts-redis
