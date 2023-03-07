@@ -127,12 +127,8 @@ func ParseDirectiveToEnvVars(cap *annotation.Capability) (EnvironmentVariableDir
 			return EnvironmentVariableDirectiveResult{}, errors.New("cannot have multiple resource kinds in environment variables for single annotation")
 		}
 
-		foundVariable := core.EnvironmentVariable{
-			Name:       name,
-			Kind:       kind,
-			Value:      value,
-			ResourceID: cap.ID,
-		}
+		foundVariable := core.NewEnvironmentVariable(name, kind, cap.ID, value)
+
 		foundVars.Add(foundVariable)
 	}
 

@@ -38,7 +38,7 @@ func generateEnvVars(deps *core.Dependencies, name string) core.EnvironmentVaria
 	for _, target := range deps.Downstream(core.ResourceKey{Name: name, Kind: core.ExecutionUnitKind}) {
 		switch target.Kind {
 		case string(core.PersistORMKind):
-			envVars = append(envVars, core.GenerateOrmConnStringEnvVar(target.Name, target.Kind))
+			envVars = append(envVars, core.GenerateOrmConnStringEnvVar(target.Name))
 		case string(core.PersistRedisNodeKind):
 			envVars = append(
 				envVars,

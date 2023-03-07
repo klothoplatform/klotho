@@ -459,7 +459,7 @@ spec:
 						Kind:                "Deployment",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "SEQUELIZEDBPERSISTORMCONNECTION",
-						EnvironmentVariable: core.EnvironmentVariable{Name: "SEQUELIZEDB_PERSIST_ORM_CONNECTION"},
+						EnvironmentVariable: core.NewEnvironmentVariable("SEQUELIZEDB_PERSIST_ORM_CONNECTION", "", "", ""),
 					},
 				},
 				newFile: `apiVersion: apps/v1
@@ -568,7 +568,7 @@ spec:
 						Kind:                "Pod",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "SEQUELIZEDBPERSISTORMCONNECTION",
-						EnvironmentVariable: core.EnvironmentVariable{Name: "SEQUELIZEDB_PERSIST_ORM_CONNECTION"},
+						EnvironmentVariable: core.NewEnvironmentVariable("SEQUELIZEDB_PERSIST_ORM_CONNECTION", "", "", ""),
 					},
 				},
 				newFile: `apiVersion: v1

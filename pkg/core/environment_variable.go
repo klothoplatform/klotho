@@ -1,17 +1,53 @@
 package core
 
-import "go.uber.org/zap"
+import (
+	"github.com/klothoplatform/klotho/pkg/sanitization"
+	"go.uber.org/zap"
+)
+
+type EnvironmentVariable interface {
+	GetName() string
+	GetKind() string
+	GetResourceID() string
+	GetValue() string
+}
 
 type (
-	EnvironmentVariable struct {
+	environmentVariable struct {
 		Name       string
 		Kind       string
 		ResourceID string
 		Value      string
 	}
 
-	EnvironmentVariables []EnvironmentVariable
+	EnvironmentVariables []environmentVariable
 )
+
+func (e environmentVariable) GetName() string {
+	return e.Name
+}
+
+func (e environmentVariable) GetKind() string {
+	return e.Kind
+}
+
+func (e environmentVariable) GetResourceID() string {
+	return e.ResourceID
+}
+
+func (e environmentVariable) GetValue() string {
+	return e.Value
+}
+
+func NewEnvironmentVariable(name string, kind string, resourceId string, value string) environmentVariable {
+	name = sanitization.EnvVarKeySanitizer.Apply(name)
+	return environmentVariable{
+		Name:       name,
+		Kind:       kind,
+		ResourceID: resourceId,
+		Value:      value,
+	}
+}
 
 type EnvironmentVariableValue string
 
@@ -20,6 +56,8 @@ const (
 	ORM_ENV_VAR_NAME_SUFFIX        = "_PERSIST_ORM_CONNECTION"
 	REDIS_PORT_ENV_VAR_NAME_SUFFIX = "_PERSIST_REDIS_PORT"
 	REDIS_HOST_ENV_VAR_NAME_SUFFIX = "_PERSIST_REDIS_HOST"
+	BUCKET_NAME_SUFFIX             = "_BUCKET_NAME"
+	SECRET_NAME_SUFFIX             = "_CONFIG_SECRET"
 	KLOTHO_PROXY_ENV_VAR_NAME      = "KLOTHO_PROXY_RESOURCE_NAME"
 )
 
@@ -28,9 +66,10 @@ var (
 	PORT              EnvironmentVariableValue = "port"
 	CONNECTION_STRING EnvironmentVariableValue = "connection_string"
 	BUCKET_NAME       EnvironmentVariableValue = "bucket_name"
+	SECRET_NAME       EnvironmentVariableValue = "secret_name"
 )
 
-var InternalStorageVariable = EnvironmentVariable{
+var InternalStorageVariable = environmentVariable{
 	Name:       KLOTHO_PROXY_ENV_VAR_NAME,
 	Kind:       InternalKind,
 	ResourceID: KlothoPayloadName,
@@ -38,7 +77,7 @@ var InternalStorageVariable = EnvironmentVariable{
 }
 
 // Add the given environment variable to the list. If a variable of the same name already exists, replace it.
-func (vars *EnvironmentVariables) Add(v EnvironmentVariable) {
+func (vars *EnvironmentVariables) Add(v environmentVariable) {
 	if *vars == nil {
 		*vars = make(EnvironmentVariables, 0)
 	}
