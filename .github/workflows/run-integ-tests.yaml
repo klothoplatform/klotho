@@ -266,26 +266,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ''
-      - name: wait a bit for pulumi to settle
-        run: |
-          if echo "$SLOW_APPS" | grep -q --line-regexp '${{ matrix.app_to_test }}' ; then
-            sleep_amount=600
-          else
-            sleep_amount=30
-          fi
-          echo "sleeping for $sleep_amount seconds"
-          sleep "$sleep_amount"
-        env:
-          SLOW_APPS: |
-            py-orm
-            py-redis
-            ts-nestjs-sequelize
-            ts-orm-environment-variable-directive
-            ts-redis
-            ts-redis-env-var-directive
-            ts-sequelize
-            ts-typeorm
-        working-directory: ${{ matrix.app_to_test }}
       - name: TypeScript - run integ tests
         if: steps.get_language.outputs.language == 'ts'
         uses: klothoplatform/gh-action-retry@v1
