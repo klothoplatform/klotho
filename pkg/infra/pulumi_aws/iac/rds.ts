@@ -46,27 +46,15 @@ export class RDS {
             proxy = result.proxy
         }
 
+        let databaseName = dbName
         if (rdsImports != undefined && rdsImports[orm]?.dbName != undefined) {
-            const clients = lib.addConnectionString(
-                orm,
-                pulumi.interpolate`postgresql://${username}:${password}@${proxy.endpoint}:5432/${rdsImports[orm]?.dbName}`
-            )
-            RDS.addPermissions(lib, clients, rds, username)
-        } else {
-            const clients = lib.addConnectionString(
-                orm,
-                pulumi.interpolate`postgresql://${username}:${password}@${proxy.endpoint}:5432/${dbName}`
-            )
-            RDS.addPermissions(lib, clients, rds, username)
+            databaseName = rdsImports[orm]?.dbName
         }
-    }
 
-    static addPermissions(
-        lib: CloudCCLib,
-        clients: string[],
-        rds: aws.rds.Instance,
-        username: string
-    ) {
+        const clients = lib.addConnectionString(
+            orm,
+            pulumi.interpolate`postgresql://${username}:${password}@${proxy.endpoint}:5432/${databaseName}`
+        )
         const resource = pulumi.interpolate`arn:aws:rds-db:${lib.region}:${lib.account.accountId}:dbuser:${rds.resourceId}/${username}`
         for (const client of clients) {
             lib.addPolicyStatementForName(lib.resourceIdToResource.get(client).title, {
