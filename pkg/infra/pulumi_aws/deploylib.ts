@@ -298,7 +298,6 @@ export class CloudCCLib {
         } else {
             this.execUnitToPolicyStatements.set(name, [statement])
         }
-        console.log(this.execUnitToPolicyStatements.get(name))
     }
 
     // make sure this is called last so all resource generation has a chance to add to the policy statements
