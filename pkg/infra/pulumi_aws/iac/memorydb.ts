@@ -44,7 +44,7 @@ export class MemoryDb {
 
         let memdbCluster
         if (memoryDbImports != undefined && memoryDbImports[dbName] != undefined) {
-            memdbCluster = aws.elasticache.Cluster.get(clusterName, memoryDbImports[dbName])
+            memdbCluster = aws.memorydb.Cluster.get(clusterName, memoryDbImports[dbName])
         } else {
             memdbCluster = MemoryDb.createCluster(lib, dbName, clusterName, subnets, args)
         }

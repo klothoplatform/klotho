@@ -298,6 +298,7 @@ export class CloudCCLib {
         } else {
             this.execUnitToPolicyStatements.set(name, [statement])
         }
+        console.log(this.execUnitToPolicyStatements.get(name))
     }
 
     // make sure this is called last so all resource generation has a chance to add to the policy statements
@@ -777,53 +778,44 @@ export class CloudCCLib {
                     },
                     { protect: this.protect }
                 )
-                console.log(b.Name)
-                console.log(this.buckets.keys())
-
-                this.topology.topologyIconData.forEach((resource) => {
-                    if (resource.kind == Resource.fs) {
-                        this.topology.topologyEdgeData.forEach((edge) => {
-                            if (resource.id == edge.target) {
-                                const name = this.resourceIdToResource.get(edge.source).title
-                                this.addPolicyStatementForName(name, {
-                                    Effect: 'Allow',
-                                    Action: ['s3:*'],
-                                    Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
-                                })
-                            }
-                        })
-                    }
-                })
-
-                const nameSet = new Set<string>()
-                this.topology.topologyEdgeData.forEach((edge) => {
-                    const source = this.resourceIdToResource.get(edge.source)
-                    const target = this.resourceIdToResource.get(edge.target)
-                    if (source.kind == Resource.exec_unit && target.kind == Resource.exec_unit) {
-                        nameSet.add(source.title)
-                        nameSet.add(target.title)
-                    } else if (
-                        source.kind == Resource.exec_unit &&
-                        target.kind == Resource.pubsub
-                    ) {
-                        // pubsub publisher
-                        nameSet.add(source.title)
-                    } else if (
-                        source.kind == Resource.pubsub &&
-                        target.kind == Resource.exec_unit
-                    ) {
-                        // pubsub subscriber
-                        nameSet.add(target.title)
-                    }
-                })
-                nameSet.forEach((n) => {
-                    this.addPolicyStatementForName(n, {
-                        Effect: 'Allow',
-                        Action: ['s3:*'],
-                        Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
-                    })
-                })
                 return bucket
+            })
+            this.topology.topologyIconData.forEach((resource) => {
+                if (resource.kind == Resource.fs) {
+                    this.topology.topologyEdgeData.forEach((edge) => {
+                        if (resource.id == edge.target) {
+                            const name = this.resourceIdToResource.get(edge.source).title
+                            this.addPolicyStatementForName(name, {
+                                Effect: 'Allow',
+                                Action: ['s3:*'],
+                                Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
+                            })
+                        }
+                    })
+                }
+            })
+
+            const nameSet = new Set<string>()
+            this.topology.topologyEdgeData.forEach((edge) => {
+                const source = this.resourceIdToResource.get(edge.source)
+                const target = this.resourceIdToResource.get(edge.target)
+                if (source.kind == Resource.exec_unit && target.kind == Resource.exec_unit) {
+                    nameSet.add(source.title)
+                    nameSet.add(target.title)
+                } else if (source.kind == Resource.exec_unit && target.kind == Resource.pubsub) {
+                    // pubsub publisher
+                    nameSet.add(source.title)
+                } else if (source.kind == Resource.pubsub && target.kind == Resource.exec_unit) {
+                    // pubsub subscriber
+                    nameSet.add(target.title)
+                }
+            })
+            nameSet.forEach((n) => {
+                this.addPolicyStatementForName(n, {
+                    Effect: 'Allow',
+                    Action: ['s3:*'],
+                    Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
+                })
             })
             this.buckets.set(b.Name, bucket)
         })
