@@ -74,7 +74,7 @@ export class CloudCCLib {
 
     gatewayToUrl = new Map<string, pulumi.Output<string>>()
     siteBuckets = new Map<string, aws.s3.Bucket>()
-    buckets = new Map<string, aws.s3.Bucket>()
+    buckets = new Map<string, pulumi.Output<aws.s3.Bucket>>()
 
     topologySpecOutputs: pulumi.Output<ResourceInfo>[] = []
     connectionString = new Map<string, pulumi.Output<string>>()
@@ -561,11 +561,11 @@ export class CloudCCLib {
                 const secret: aws.secretsmanager.Secret = this.secrets.get(v.ResourceID)!
                 return [v.Name, secret.name]
             case Resource.fs:
-                const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
+                const bucket: pulumi.Output<aws.s3.Bucket> = this.buckets.get(v.ResourceID)!
                 return [v.Name, bucket.bucket]
             case Resource.internal:
                 if (v.ResourceID === 'InternalKlothoPayloads') {
-                    const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
+                    const bucket: pulumi.Output<aws.s3.Bucket> = this.buckets.get(v.ResourceID)!
                     return [v.Name, bucket.bucket]
                 }
                 break
@@ -766,7 +766,7 @@ export class CloudCCLib {
 
     createBuckets(bucketsToCreate, forceDestroy = false) {
         bucketsToCreate.forEach((b) => {
-            this.account.accountId.apply((accountId) => {
+            const bucket = this.account.accountId.apply((accountId) => {
                 const bucketName = sanitized(
                     AwsSanitizer.S3.bucket.nameValidation()
                 )`${accountId}-${h(this.name)}-${h(b.Name)}`
@@ -777,52 +777,46 @@ export class CloudCCLib {
                     },
                     { protect: this.protect }
                 )
-                this.buckets.set(b.Name, bucket)
-
-                this.topology.topologyIconData.forEach((resource) => {
-                    if (resource.kind == Resource.fs) {
-                        this.topology.topologyEdgeData.forEach((edge) => {
-                            if (resource.id == edge.target) {
-                                const name = this.resourceIdToResource.get(edge.source).title
-                                this.addPolicyStatementForName(name, {
-                                    Effect: 'Allow',
-                                    Action: ['s3:*'],
-                                    Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
-                                })
-                            }
-                        })
-                    }
-                })
-
-                const nameSet = new Set<string>()
-                this.topology.topologyEdgeData.forEach((edge) => {
-                    const source = this.resourceIdToResource.get(edge.source)
-                    const target = this.resourceIdToResource.get(edge.target)
-                    if (source.kind == Resource.exec_unit && target.kind == Resource.exec_unit) {
-                        nameSet.add(source.title)
-                        nameSet.add(target.title)
-                    } else if (
-                        source.kind == Resource.exec_unit &&
-                        target.kind == Resource.pubsub
-                    ) {
-                        // pubsub publisher
-                        nameSet.add(source.title)
-                    } else if (
-                        source.kind == Resource.pubsub &&
-                        target.kind == Resource.exec_unit
-                    ) {
-                        // pubsub subscriber
-                        nameSet.add(target.title)
-                    }
-                })
-                nameSet.forEach((n) => {
-                    this.addPolicyStatementForName(n, {
-                        Effect: 'Allow',
-                        Action: ['s3:*'],
-                        Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
+                return bucket
+            })
+            this.topology.topologyIconData.forEach((resource) => {
+                if (resource.kind == Resource.fs) {
+                    this.topology.topologyEdgeData.forEach((edge) => {
+                        if (resource.id == edge.target) {
+                            const name = this.resourceIdToResource.get(edge.source).title
+                            this.addPolicyStatementForName(name, {
+                                Effect: 'Allow',
+                                Action: ['s3:*'],
+                                Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
+                            })
+                        }
                     })
+                }
+            })
+
+            const nameSet = new Set<string>()
+            this.topology.topologyEdgeData.forEach((edge) => {
+                const source = this.resourceIdToResource.get(edge.source)
+                const target = this.resourceIdToResource.get(edge.target)
+                if (source.kind == Resource.exec_unit && target.kind == Resource.exec_unit) {
+                    nameSet.add(source.title)
+                    nameSet.add(target.title)
+                } else if (source.kind == Resource.exec_unit && target.kind == Resource.pubsub) {
+                    // pubsub publisher
+                    nameSet.add(source.title)
+                } else if (source.kind == Resource.pubsub && target.kind == Resource.exec_unit) {
+                    // pubsub subscriber
+                    nameSet.add(target.title)
+                }
+            })
+            nameSet.forEach((n) => {
+                this.addPolicyStatementForName(n, {
+                    Effect: 'Allow',
+                    Action: ['s3:*'],
+                    Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
                 })
             })
+            this.buckets.set(b.Name, bucket)
         })
     }
 
