@@ -4,8 +4,8 @@ import (
 	"regexp"
 )
 
-// EnvVarKeySanitizer returns a sanitized environment key when applied.
-var EnvVarKeySanitizer = NewSanitizer(
+// IdentifierSanitizer returns a sanitized identifier that can be injected into source code when applied.
+var IdentifierSanitizer = NewSanitizer(
 	// strip any leading non alpha characters
 	Rule{
 		Pattern:     regexp.MustCompile(`^[^a-zA-Z]+`),

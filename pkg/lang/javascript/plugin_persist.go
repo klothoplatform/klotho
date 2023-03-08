@@ -3,6 +3,7 @@ package javascript
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/sanitization"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
@@ -240,7 +241,7 @@ func (p *persister) transformSecret(file *core.SourceFile, cap *core.Annotation,
 }
 
 func (p *persister) transformFS(unit *core.ExecutionUnit, file *core.SourceFile, cap *core.Annotation, fsR *persistResult) (core.CloudResource, string, error) {
-	if err := file.ReplaceNodeContent(fsR.expression, fmt.Sprintf("fs_%sRuntime.fs", cap.Capability.ID)); err != nil {
+	if err := file.ReplaceNodeContent(fsR.expression, sanitization.IdentifierSanitizer.Apply(fmt.Sprintf("fs_%sRuntime", cap.Capability.ID))+".fs"); err != nil {
 		return nil, "", errors.Wrap(err, "could not reparse FS transformation")
 	}
 
