@@ -210,7 +210,6 @@ export class CloudCCLib {
                             cidrBlocks: ['0.0.0.0/0'],
                             fromPort: 9443,
                             protocol: 'TCP',
-                            self: true,
                             toPort: 9443,
                         },
                         {
@@ -218,7 +217,6 @@ export class CloudCCLib {
                             cidrBlocks: [...privateCidrBlocks, ...publicCidrBlocks],
                             fromPort: 0,
                             protocol: '-1',
-                            self: true,
                             toPort: 0,
                         },
                     ],
