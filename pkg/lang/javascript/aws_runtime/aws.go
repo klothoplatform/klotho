@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/sanitization"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -99,7 +100,7 @@ func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotat
 	importModule := ""
 	switch kind {
 	case core.PersistFileKind:
-		importModule = "fs_" + annot.Capability.ID
+		importModule = sanitization.IdentifierSanitizer.Apply("fs_" + annot.Capability.ID)
 	case core.PersistKVKind:
 		importModule = "keyvalue"
 	case core.PersistSecretKind:
