@@ -548,6 +548,7 @@ export class ApiGateway {
                 },
             },
             {
+                deleteBeforeReplace: false,
                 dependsOn: [...methods, ...integrations, ...permissions],
                 parent: restAPI,
             }
