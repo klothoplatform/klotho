@@ -23,6 +23,8 @@ type (
 		Buckets                 []provider.FS
 		SecretManagerSecrets    []provider.Config
 		RdsInstances            []provider.ORM
+		MemoryDBClusters        []provider.Redis
+		ElasticacheInstances    []provider.Redis
 	}
 )
 
@@ -142,8 +144,8 @@ var defaultConfig = config.Defaults{
 			InfraParamsByType: map[string]config.InfraParams{
 				Memorydb: {
 					"nodeType":            "db.t4g.small",
-					"numReplicasPerShard": "1",
-					"numShards":           "2",
+					"numReplicasPerShard": 1,
+					"numShards":           2,
 				},
 			},
 		},

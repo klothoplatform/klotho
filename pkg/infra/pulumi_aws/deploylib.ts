@@ -7,13 +7,11 @@ import * as sha256 from 'simple-sha256'
 import * as fs from 'fs'
 import * as requestRetry from 'requestretry'
 import * as crypto from 'crypto'
-import { setupElasticacheCluster } from './iac/elasticache'
 import * as analytics from './iac/analytics'
 
 import { hash as h, sanitized, validate } from './iac/sanitization/sanitizer'
 import { LoadBalancerPlugin } from './iac/load_balancing'
 import { DefaultEksClusterOptions, Eks, EksExecUnit, HelmChart } from './iac/eks'
-import { setupMemoryDbCluster } from './iac/memorydb'
 import AwsSanitizer from './iac/sanitization/aws'
 
 export enum Resource {
@@ -76,7 +74,7 @@ export class CloudCCLib {
 
     gatewayToUrl = new Map<string, pulumi.Output<string>>()
     siteBuckets = new Map<string, aws.s3.Bucket>()
-    buckets = new Map<string, aws.s3.Bucket>()
+    buckets = new Map<string, pulumi.Output<aws.s3.Bucket>>()
 
     topologySpecOutputs: pulumi.Output<ResourceInfo>[] = []
     connectionString = new Map<string, pulumi.Output<string>>()
@@ -179,14 +177,14 @@ export class CloudCCLib {
         const sgName = sanitized(AwsSanitizer.EC2.vpc.securityGroup.nameValidation())`${h(
             this.name
         )}`
-        pulumi
+        const klothoSG = pulumi
             .all([this.klothoVPC.privateSubnets || [], this.klothoVPC.publicSubnets || []])
             .apply(([privateSubnets, publicSubnets]) => {
                 const privateCidrBlocks: any = privateSubnets.map(
                     (subnet) => subnet.subnet.cidrBlock
                 )
                 const publicCidrBlocks: any = publicSubnets.map((subnet) => subnet.subnet.cidrBlock)
-                const klothoSG = new aws.ec2.SecurityGroup(sgName, {
+                return new aws.ec2.SecurityGroup(sgName, {
                     name: sgName,
                     vpcId: this.klothoVPC.id,
                     egress: [
@@ -216,16 +214,8 @@ export class CloudCCLib {
                             toPort: 9443,
                         },
                         {
-                            description: 'For EKS control plane',
-                            cidrBlocks: privateCidrBlocks,
-                            fromPort: 0,
-                            protocol: '-1',
-                            self: true,
-                            toPort: 0,
-                        },
-                        {
-                            description: 'For EKS control plane',
-                            cidrBlocks: publicCidrBlocks,
+                            description: 'For private subnets internally',
+                            cidrBlocks: [...privateCidrBlocks, ...publicCidrBlocks],
                             fromPort: 0,
                             protocol: '-1',
                             self: true,
@@ -233,8 +223,8 @@ export class CloudCCLib {
                         },
                     ],
                 })
-                this.sgs = new Array(klothoSG.id)
             })
+        this.sgs = new Array(klothoSG.id)
     }
 
     // there is currently no way to handle an exception of a resource doesn't exist, so this
@@ -571,11 +561,11 @@ export class CloudCCLib {
                 const secret: aws.secretsmanager.Secret = this.secrets.get(v.ResourceID)!
                 return [v.Name, secret.name]
             case Resource.fs:
-                const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
+                const bucket: pulumi.Output<aws.s3.Bucket> = this.buckets.get(v.ResourceID)!
                 return [v.Name, bucket.bucket]
             case Resource.internal:
                 if (v.ResourceID === 'InternalKlothoPayloads') {
-                    const bucket: aws.s3.Bucket = this.buckets.get(v.ResourceID)!
+                    const bucket: pulumi.Output<aws.s3.Bucket> = this.buckets.get(v.ResourceID)!
                     return [v.Name, bucket.bucket]
                 }
                 break
@@ -776,28 +766,19 @@ export class CloudCCLib {
 
     createBuckets(bucketsToCreate, forceDestroy = false) {
         bucketsToCreate.forEach((b) => {
-            const bucketName = this.account.accountId.apply(
-                (accountId) =>
-                    sanitized(
-                        AwsSanitizer.S3.bucket.nameValidation()
-                    )`${accountId}-${this.name}-${this.region}-${b.Name}`
-            )
-            const bucket = new aws.s3.Bucket(
-                b.Name,
-                {
-                    bucket: bucketName,
-                    forceDestroy,
-                    serverSideEncryptionConfiguration: {
-                        applyServerSideEncryptionByDefault: {
-                            sseAlgorithm: 'aws:kms',
-                        },
-                        bucketKeyEnabled: true,
+            const bucket = this.account.accountId.apply((accountId) => {
+                const bucketName = sanitized(
+                    AwsSanitizer.S3.bucket.nameValidation()
+                )`${accountId}-${h(this.name)}-${h(b.Name)}`
+                const bucket = new aws.s3.Bucket(
+                    bucketName,
+                    {
+                        forceDestroy,
                     },
-                },
-                { protect: this.protect }
-            )
-            this.buckets.set(b.Name, bucket)
-
+                    { protect: this.protect }
+                )
+                return bucket
+            })
             this.topology.topologyIconData.forEach((resource) => {
                 if (resource.kind == Resource.fs) {
                     this.topology.topologyEdgeData.forEach((edge) => {
@@ -835,6 +816,7 @@ export class CloudCCLib {
                     Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
                 })
             })
+            this.buckets.set(b.Name, bucket)
         })
     }
 
@@ -1369,87 +1351,5 @@ export class CloudCCLib {
                 dependsOn: [attach],
             }
         )
-    }
-
-    public setupRedis = async (
-        name: string,
-        type: 'elasticache' | 'memorydb',
-        args: Partial<aws.elasticache.ClusterArgs | aws.memorydb.ClusterArgs>
-    ) => {
-        if (type === 'elasticache') {
-            const subnetGroup = new aws.elasticache.SubnetGroup(
-                sanitized(
-                    AwsSanitizer.Elasticache.cacheSubnetGroup.cacheSubnetGroupNameValidation()
-                )`${h(this.name)}-${h(name)}-subnetgroup`,
-                {
-                    subnetIds: this.privateSubnetIds,
-                    tags: {
-                        Name: 'Klotho DB subnet group',
-                    },
-                }
-            )
-            args = args as aws.elasticache.ClusterArgs
-            setupElasticacheCluster(
-                name,
-                args,
-                this.topology,
-                this.protect,
-                this.connectionString,
-                subnetGroup.name,
-                this.sgs,
-                this.name
-            )
-        } else if (type === 'memorydb') {
-            // Since not all zones are supported in us-east-1 and us-west-2 we will verify our subnets are valid for the subnet group
-            const supported_azs = [
-                'use1-az2',
-                'use1-az4',
-                'use1-az6',
-                'usw2-az1',
-                'usw2-az2',
-                'usw2-az3',
-            ]
-            let subnets: string[] | Promise<pulumi.Output<string>[]> = []
-            if (['us-east-1', 'us-west-2'].includes(this.region)) {
-                for (const subnetId in this.privateSubnetIds) {
-                    const subnet: aws.ec2.GetSubnetResult = await aws.ec2.getSubnet({
-                        id: subnetId,
-                    })
-                    if (supported_azs.includes(subnet.availabilityZoneId)) {
-                        subnets.push(subnetId)
-                    }
-                }
-                if (subnets.length === 0) {
-                    throw new Error(
-                        'Unable to find subnets in supported memorydb Availability Zones'
-                    )
-                }
-            } else {
-                subnets = this.privateSubnetIds
-            }
-
-            const subnetGroup = new aws.memorydb.SubnetGroup(
-                sanitized(AwsSanitizer.MemoryDB.subnetGroup.subnetGroupNameValidation())`${
-                    this.name
-                }-${h(name)}-subnetgroup`,
-                {
-                    subnetIds: subnets,
-                    tags: {
-                        Name: 'Klotho DB subnet group',
-                    },
-                }
-            )
-            args = args as aws.memorydb.ClusterArgs
-            setupMemoryDbCluster(
-                name,
-                args,
-                this.topology,
-                this.protect,
-                this.connectionString,
-                subnetGroup.name,
-                this.sgs,
-                this.name
-            )
-        }
     }
 }

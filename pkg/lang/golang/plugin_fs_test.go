@@ -160,7 +160,7 @@ import (
 * }
 */
 var _ = fmt.Sprintf("file://%s", path)
-bucket, err := blob.OpenBucket(context.Background(), "s3://" + os.Getenv("test_fs_bucket") + "?region=" + os.Getenv("AWS_REGION"))
+bucket, err := blob.OpenBucket(context.Background(), "s3://" + os.Getenv("TEST_BUCKET_NAME") + "?region=" + os.Getenv("AWS_REGION"))
 `,
 			},
 		},
@@ -195,7 +195,7 @@ import (
 * }
 */
 var _ = fmt.Sprintf("file://%s", path)
-var bucket, err = blob.OpenBucket(context.Background(), "s3://" + os.Getenv("test_fs_bucket") + "?region=" + os.Getenv("AWS_REGION"))
+var bucket, err = blob.OpenBucket(context.Background(), "s3://" + os.Getenv("TEST_BUCKET_NAME") + "?region=" + os.Getenv("AWS_REGION"))
 `,
 			},
 		},
@@ -234,7 +234,7 @@ var err error
 * }
 */
 var _ = fmt.Sprintf("file://%s", path)
-bucket, err = blob.OpenBucket(context.Background(), "s3://" + os.Getenv("test_fs_bucket") + "?region=" + os.Getenv("AWS_REGION"))
+bucket, err = blob.OpenBucket(context.Background(), "s3://" + os.Getenv("TEST_BUCKET_NAME") + "?region=" + os.Getenv("AWS_REGION"))
 `,
 			},
 		},

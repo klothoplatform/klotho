@@ -93,12 +93,8 @@ func (p *PersistSecretsPlugin) transformSecret(f *core.SourceFile, cap *core.Ann
 		queryParams = "&" + klothoRuntimePathSubChunks[1]
 	}
 	`
-	secretEnvVar := core.EnvironmentVariable{
-		Name:       cap.Capability.ID + "_config_secret",
-		Kind:       core.ConfigKind,
-		ResourceID: cap.Capability.ID,
-		Value:      "secret_name",
-	}
+	secretEnvVar := core.GenerateSecretEnvVar(cap.Capability.ID, core.ConfigKind)
+
 	unit.EnvironmentVariables.Add(secretEnvVar)
 
 	args[1].Content = fmt.Sprintf(`"awssecretsmanager://" + os.Getenv("%s") + "?region=" + os.Getenv("AWS_REGION") + queryParams`, secretEnvVar.Name)

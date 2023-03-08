@@ -139,8 +139,16 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 					})
 				}
 			}
-			if res.Kind == core.PersistRedisClusterKind || res.Kind == core.PersistRedisNodeKind {
-				data.Redis = append(data.Redis, provider.Redis{
+			if res.Kind == core.PersistRedisNodeKind {
+				data.ElasticacheInstances = append(data.ElasticacheInstances, provider.Redis{
+					Name:   res.Name,
+					Type:   cfg.Type,
+					Params: cfg.InfraParams,
+				})
+				data.UseVPC = true
+			}
+			if res.Kind == core.PersistRedisClusterKind {
+				data.MemoryDBClusters = append(data.MemoryDBClusters, provider.Redis{
 					Name:   res.Name,
 					Type:   cfg.Type,
 					Params: cfg.InfraParams,

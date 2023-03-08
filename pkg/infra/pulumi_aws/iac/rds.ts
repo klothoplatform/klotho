@@ -12,6 +12,7 @@ export interface CreateInstanceAndProxyResult {
 export interface RdsImport {
     dbInstanceIdentifier: string
     proxy: string
+    dbName: string
 }
 
 export class RDS {
@@ -45,11 +46,15 @@ export class RDS {
             proxy = result.proxy
         }
 
+        let databaseName = dbName
+        if (rdsImports != undefined && rdsImports[orm]?.dbName != undefined) {
+            databaseName = rdsImports[orm]?.dbName
+        }
+
         const clients = lib.addConnectionString(
             orm,
-            pulumi.interpolate`postgresql://${username}:${password}@${proxy.endpoint}:5432/${dbName}`
+            pulumi.interpolate`postgresql://${username}:${password}@${proxy.endpoint}:5432/${databaseName}`
         )
-
         const resource = pulumi.interpolate`arn:aws:rds-db:${lib.region}:${lib.account.accountId}:dbuser:${rds.resourceId}/${username}`
         for (const client of clients) {
             lib.addPolicyStatementForName(lib.resourceIdToResource.get(client).title, {

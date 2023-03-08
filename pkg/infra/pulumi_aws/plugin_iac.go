@@ -141,11 +141,17 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 		addFile("iac/rds.ts")
 	}
 
+	if len(data.ElasticacheInstances) > 0 {
+		addFile("iac/elasticache.ts")
+	}
+	if len(data.MemoryDBClusters) > 0 {
+		addFile("iac/memorydb.ts")
+	}
+
 	addFile("deploylib.ts")
 	addFile("package.json")
 	addFile("tsconfig.json")
-	addFile("iac/elasticache.ts")
-	addFile("iac/memorydb.ts")
+
 	addFile("iac/eks.ts")
 	addFile("iac/kubernetes.ts")
 	addFile("iac/cockroachdb.ts")

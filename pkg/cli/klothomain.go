@@ -425,7 +425,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	analyticsClient.AppendProperties(map[string]any{
 		"resource_types": GetResourceTypeCount(result, &appCfg),
 		"languages":      GetLanguagesUsed(result),
-		"resources":      resourceCounts,
+		"resources":      GetResourceCount(resourceCounts),
 	})
 	analyticsClient.Info(klothoName + " compile complete")
 

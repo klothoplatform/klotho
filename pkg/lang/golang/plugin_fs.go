@@ -72,12 +72,7 @@ func (p *PersistFsPlugin) handleFile(f *core.SourceFile, unit *core.ExecutionUni
 
 func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, result *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
 
-	fsEnvVar := core.EnvironmentVariable{
-		Name:       cap.Capability.ID + "_fs_bucket",
-		Kind:       string(core.PersistFileKind),
-		ResourceID: cap.Capability.ID,
-		Value:      "bucket_url",
-	}
+	fsEnvVar := core.GenerateBucketEnvVar(cap.Capability.ID)
 
 	unit.EnvironmentVariables.Add(fsEnvVar)
 

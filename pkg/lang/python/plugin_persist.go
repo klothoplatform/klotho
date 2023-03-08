@@ -246,12 +246,8 @@ func (p *persister) transformFS(original *core.SourceFile, modified *core.Source
 	if err != nil {
 		return nil, errors.Wrap(err, "could not reparse FS transformation")
 	}
-	fsEnvVar := core.EnvironmentVariable{
-		Name:       cap.Capability.ID + "_bucket_name",
-		Kind:       string(core.PersistFileKind),
-		ResourceID: cap.Capability.ID,
-		Value:      string(core.BUCKET_NAME),
-	}
+	fsEnvVar := core.GenerateBucketEnvVar(cap.Capability.ID)
+
 	unit.EnvironmentVariables.Add(fsEnvVar)
 
 	result := &core.Persist{
@@ -313,7 +309,7 @@ func (p *persister) transformORM(original *core.SourceFile, modified *core.Sourc
 	if err != nil {
 		return nil, errors.Wrap(err, "could not reparse ORM transformation")
 	}
-	envVar := core.GenerateOrmConnStringEnvVar(cap.Capability.ID, string(ormR.kind))
+	envVar := core.GenerateOrmConnStringEnvVar(cap.Capability.ID)
 
 	replaceContent := fmt.Sprintf(`os.environ.get("%s")`, envVar.Name)
 
