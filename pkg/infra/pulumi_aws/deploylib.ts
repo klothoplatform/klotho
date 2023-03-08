@@ -772,6 +772,12 @@ export class CloudCCLib {
                     bucketName,
                     {
                         forceDestroy,
+                        serverSideEncryptionConfiguration: {
+                            applyServerSideEncryptionByDefault: {
+                                sseAlgorithm: 'aws:kms',
+                            },
+                            bucketKeyEnabled: true,
+                        },
                     },
                     { protect: this.protect }
                 )
