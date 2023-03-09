@@ -6,24 +6,27 @@ export const installFluentBitForCW = (eks: Eks, provider) => {
     const label = { name: namespaceName }
     const cwNamespace = eks.createNamespace(namespaceName, label)
 
-    const configMap = new pulumi_k8s.core.v1.ConfigMap(
-        `${eks.clusterName}-fluent-bit-cluster-info`,
-        {
-            metadata: {
-                name: 'fluent-bit-cluster-info',
-                namespace: namespaceName,
+    const configMap = eks.getClusterName().apply((name) => {
+        return new pulumi_k8s.core.v1.ConfigMap(
+            `${eks.clusterName}-fluent-bit-cluster-info`,
+            {
+                metadata: {
+                    name: 'fluent-bit-cluster-info',
+                    namespace: namespaceName,
+                },
+                data: {
+                    'cluster.name': name,
+                    'logs.region': eks.region,
+                    'http.server': 'On',
+                    'http.port': '2020',
+                    'read.head': 'Off',
+                    'read.tail': 'On',
+                },
             },
-            data: {
-                'cluster.name': eks.clusterName,
-                'logs.region': eks.region,
-                'http.server': 'On',
-                'http.port': '2020',
-                'read.head': 'Off',
-                'read.tail': 'On',
-            },
-        },
-        { provider, dependsOn: [cwNamespace] }
-    )
+            { provider, dependsOn: [cwNamespace] }
+        )
+    })
+
     new pulumi_k8s.yaml.ConfigFile(
         `${eks.clusterName}-FluentBitDriver`,
         {

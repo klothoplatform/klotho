@@ -439,6 +439,10 @@ export class Eks {
         }
     }
 
+    public getClusterName(): pulumi.Output<string> {
+        return this.cluster.name
+    }
+
     private determineNodeGroupSpecs(execUnits: EksExecUnit[]): Map<string, NodeGroupSpecs> {
         let nodeGroupSpecs: Map<string, NodeGroupSpecs> = new Map<string, NodeGroupSpecs>()
         const defaultDiskSize = 20
