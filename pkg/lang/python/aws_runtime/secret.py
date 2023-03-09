@@ -23,8 +23,8 @@ class SecretItem():
 
     async def read(self):
         response = self.client.get_secret_value(SecretId=self.name)
-        if response["SecretBinary"]:
+        if response.get("SecretBinary"):
             return response["SecretBinary"].decode('utf8')
-        elif response["SecretString"]:
+        elif response.get("SecretString"):
             return response["SecretString"]
         raise Exception("Empty Secret")
