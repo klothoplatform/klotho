@@ -7,7 +7,13 @@ import * as pulumi_k8s from '@pulumi/kubernetes'
 import * as k8s from './kubernetes'
 import * as https from 'https'
 import { getIssuerCAThumbprint } from '@pulumi/eks/cert-thumprint'
-import { cloud_map_controller, alb_controller, external_dns } from './k8s/add_ons/'
+import {
+    cloud_map_controller,
+    alb_controller,
+    external_dns,
+    installFluentBitForCW,
+    enableFargateLogging,
+} from './k8s/add_ons/'
 import { local } from '@pulumi/command'
 import { CloudCCLib, Resource } from '../deploylib'
 import * as uuid from 'uuid'
@@ -117,13 +123,14 @@ interface EksClusterOptions {
     initializePluginsOnFargate?: boolean
     installPlugins?: plugins[]
     enableFargateLogging?: Boolean
+    enableFluentBitLogging?: Boolean
     adminRoleArn?: string
     autoApply?: boolean
     createNodeGroup?: boolean
 }
 
 export const DefaultEksClusterOptions: EksClusterOptions = {
-    initializePluginsOnFargate: true,
+    initializePluginsOnFargate: false,
     installPlugins: [
         plugins.VPC_CNI,
         plugins.METRICS_SERVER,
@@ -132,6 +139,7 @@ export const DefaultEksClusterOptions: EksClusterOptions = {
         plugins.CLOUD_MAP_CONTROLLER,
     ],
     enableFargateLogging: true,
+    enableFluentBitLogging: true,
     autoApply: true,
     createNodeGroup: true,
 }
@@ -272,7 +280,10 @@ export class Eks {
         this.createNodeGroups(execUnits)
 
         if (options.enableFargateLogging) {
-            this.enableFargateLogging()
+            enableFargateLogging(this, this.provider)
+        }
+        if (options.enableFluentBitLogging) {
+            installFluentBitForCW(this, this.provider)
         }
 
         const p = options.installPlugins ? options.installPlugins : []
@@ -313,22 +324,21 @@ export class Eks {
                     break
                 case plugins.AWS_LOAD_BALANCER_CONTROLLER:
                     const lbSaName = `${clusterName}-alb-controller`
-                    const lbServiceAccount = this.createServiceAccount(
-                        lbSaName,
-                        KUBE_SYSTEM_NAMESPACE
-                    )
+                    const namespace = options.initializePluginsOnFargate
+                        ? KUBE_SYSTEM_NAMESPACE
+                        : EXEC_UNIT_NAMESPACE
+                    const lbServiceAccount = this.createServiceAccount(lbSaName, namespace)
                     alb_controller.attachPermissionsToRole(
-                        this.serviceAccounts.get(`${lbSaName}_${KUBE_SYSTEM_NAMESPACE}`)!
+                        this.serviceAccounts.get(`${lbSaName}_${namespace}`)!
                     )
                     certManagerInstall ? dependsOn.push(certManagerInstall) : null
                     const albController = alb_controller.installLoadBalancerController(
                         clusterName,
-                        KUBE_SYSTEM_NAMESPACE,
+                        namespace,
                         lbServiceAccount,
                         vpc,
                         this.provider,
                         this.region,
-                        this.options.initializePluginsOnFargate || false,
                         dependsOn
                     )
                     this.installedPlugins.set(plugins.AWS_LOAD_BALANCER_CONTROLLER, albController)
@@ -427,6 +437,10 @@ export class Eks {
                 }
             )
         }
+    }
+
+    public getClusterName(): pulumi.Output<string> {
+        return this.cluster.name
     }
 
     private determineNodeGroupSpecs(execUnits: EksExecUnit[]): Map<string, NodeGroupSpecs> {
@@ -970,7 +984,7 @@ export class Eks {
         return sa
     }
 
-    private createNamespace(
+    public createNamespace(
         name: string,
         labels?: { [key: string]: any }
     ): pulumi_k8s.core.v1.Namespace {
@@ -1010,46 +1024,6 @@ export class Eks {
             customTimeouts: { create: '30m', update: '30m', delete: '30m' },
         })
         return profile
-    }
-
-    private enableFargateLogging() {
-        const ns = 'aws-observability'
-        const labels = { 'aws-observability': 'enabled' }
-        this.createNamespace(ns, labels)
-
-        const configMap = new pulumi_k8s.core.v1.ConfigMap(
-            'aws-observability-configmap',
-            {
-                metadata: {
-                    name: 'aws-logging',
-                    namespace: ns,
-                },
-                data: {
-                    'output.conf': `[OUTPUT]
-                    Name cloudwatch_logs
-                    Match   *
-                    region ${this.region}
-                    log_group_name fluent-bit-cloudwatch
-                    log_stream_prefix from-fluent-bit-
-                    auto_create_group true
-                    log_key log`,
-
-                    'parsers.conf': `[PARSER]
-                    Name crio
-                    Format Regex
-                    Regex ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>P|F) (?<log>.*)$
-                    Time_Key    time
-                    Time_Format %Y-%m-%dT%H:%M:%S.%L%z`,
-
-                    'filters.conf': `[FILTER]
-                    Name parser
-                    Match *
-                    Key_name log
-                    Parser crio`,
-                },
-            },
-            { provider: this.provider }
-        )
     }
 
     // These are exec unit level methods
@@ -1262,6 +1236,7 @@ export class Eks {
                 'arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly',
                 'arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy',
                 'arn:aws:iam::aws:policy/AWSCloudMapFullAccess',
+                'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy',
             ],
         })
     }
