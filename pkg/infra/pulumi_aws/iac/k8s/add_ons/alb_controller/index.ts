@@ -255,7 +255,6 @@ export const installLoadBalancerController = (
     vpc: awsx.ec2.Vpc,
     provider: pulumi_k8s.Provider,
     region: string,
-    fargate: boolean,
     dependsOn?
 ): pulumi_k8s.helm.v3.Chart => {
     /**
@@ -287,7 +286,6 @@ export const installLoadBalancerController = (
                 podLabels: {
                     app: 'aws-lb-controller',
                 },
-                enableCertManager: !fargate,
             },
             version: '1.4.7',
             namespace: namespace,

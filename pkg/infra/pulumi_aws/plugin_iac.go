@@ -160,6 +160,7 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 	addFile("iac/ec2/instance_specs.ts")
 	addFile("iac/k8s/horizontal-pod-autoscaling.ts")
 	addFile("iac/k8s/helm_chart.ts")
+	addFile("iac/k8s/add_ons/fluent_bit_for_eks/index.ts")
 	addFile("iac/k8s/add_ons/metrics_server/index.ts")
 	addFile("iac/k8s/add_ons/alb_controller/target_group_binding.yaml")
 	addFile("iac/k8s/add_ons/alb_controller/index.ts")
