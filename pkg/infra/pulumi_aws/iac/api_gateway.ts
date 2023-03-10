@@ -107,14 +107,14 @@ export class ApiGateway {
         const integrationName = this.integrationName(r)
         switch (execUnit.type) {
             case 'ecs':
-                const ecsNlb = this.lib.execUnitToNlb.get(r.execUnitName)!
+                const ecsLbListener = this.lib.execUnitToLbListener.get(r.execUnitName)!
                 return new aws.apigatewayv2.Integration(
                     integrationName,
                     {
                         apiId: api.id,
                         integrationType: 'HTTP_PROXY',
                         integrationMethod: 'ANY',
-                        integrationUri: ecsNlb.loadBalancer.arn,
+                        integrationUri: ecsLbListener.listener.arn,
                         connectionType: 'VPC_LINK',
                         connectionId: '${stageVariables.vpcLinkId}',
                     },
