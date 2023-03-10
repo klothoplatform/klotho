@@ -521,52 +521,52 @@ export class ApiGateway {
         }
 
         // Create the deployment and stage
-        const deployment = new aws.apigateway.Deployment(
-            `${gwName}-deployment`,
-            {
-                restApi: restAPI,
-                triggers: {
-                    routes: sha256.sync(
-                        gateway.Routes.map((r) => `${r.execUnitName}:${r.path}:${r.verb}`)
-                            .sort()
-                            .join()
-                    ),
-                    integrations: sha256.sync(
-                        integrationNames
-                            .map((i) => i)
-                            .sort()
-                            .join()
-                    ),
-                    connections: pulumi.all(integrations.map((i) => i.connectionId)).apply((is) =>
-                        sha256.sync(
-                            is
+        const stage = pulumi.all(integrations.map((i) => i.connectionId)).apply((connectionIds) => {
+            const deployment = new aws.apigateway.Deployment(
+                `${gwName}-deployment`,
+                {
+                    restApi: restAPI,
+                    triggers: {
+                        routes: sha256.sync(
+                            gateway.Routes.map((r) => `${r.execUnitName}:${r.path}:${r.verb}`)
+                                .sort()
+                                .join()
+                        ),
+                        integrations: sha256.sync(
+                            integrationNames
+                                .map((i) => i)
+                                .sort()
+                                .join()
+                        ),
+                        connections: sha256.sync(
+                            connectionIds
                                 .filter((i) => i)
                                 .sort()
                                 .join()
-                        )
-                    ),
+                        ),
+                    },
                 },
-            },
-            {
-                deleteBeforeReplace: false,
-                dependsOn: [...methods, ...integrations, ...permissions],
-                parent: restAPI,
-            }
-        )
+                {
+                    deleteBeforeReplace: false,
+                    dependsOn: [...methods, ...integrations, ...permissions],
+                    parent: restAPI,
+                }
+            )
 
-        const stage = new aws.apigateway.Stage(
-            `${gwName}-stage`,
-            {
-                deployment: deployment.id,
-                restApi: restAPI.id,
-                // TODO update this to '$default' so the stage isn't part of the invoke URL
-                // https://github.com/klothoplatform/klotho/issues/235
-                stageName: this.lib.stage,
-            },
-            {
-                parent: deployment,
-            }
-        )
+            return new aws.apigateway.Stage(
+                `${gwName}-stage`,
+                {
+                    deployment: deployment.id,
+                    restApi: restAPI.id,
+                    // TODO update this to '$default' so the stage isn't part of the invoke URL
+                    // https://github.com/klothoplatform/klotho/issues/235
+                    stageName: this.lib.stage,
+                },
+                {
+                    parent: deployment,
+                }
+            )
+        })
 
         this.lib.topologySpecOutputs.push(
             pulumi.all([restAPI.id, restAPI.urn]).apply(([id, urn]) => ({
