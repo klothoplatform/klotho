@@ -95,6 +95,7 @@ export class CloudCCLib {
 
     protect = kloConfig.getBoolean('protect') ?? false
     execUnitToNlb = new Map<string, awsx.lb.NetworkLoadBalancer>()
+    execUnitToLbListener = new Map<string, awsx.lb.Listener>()
     execUnitToVpcLink = new Map<string, aws.apigateway.VpcLink>()
 
     constructor(
@@ -1251,6 +1252,8 @@ export class CloudCCLib {
             const listener = targetGroup.createListener(`${execUnitName}-listener`, {
                 port: 80,
             })
+
+            this.execUnitToLbListener.set(execUnitName, listener)
 
             const vpcLink = new aws.apigateway.VpcLink(`${execUnitName}-vpc-link`, {
                 targetArn: nlb.loadBalancer.arn,
