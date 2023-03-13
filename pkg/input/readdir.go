@@ -3,14 +3,15 @@ package input
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/filter/predicate"
-	"github.com/klothoplatform/klotho/pkg/lang/csharp/csproj"
 	"io"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/filter/predicate"
+	"github.com/klothoplatform/klotho/pkg/lang/csharp/csproj"
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -226,10 +227,10 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 				if tsConfig.CompilerOptions.OutDir != "" {
 					tsPrefix := tsConfig.CompilerOptions.OutDir + string(os.PathSeparator)
 					newPath := strings.TrimPrefix(path, tsPrefix) // tsPrefix is already joined to cfg.Path, so use `path` not `relPath`
-					if relPath != newPath {
+					if relPath != newPath && newPath != path {
 						zap.S().Debugf("Removing TS outdir from %s -> %s", relPath, newPath)
+						relPath = newPath
 					}
-					relPath = newPath
 				}
 				f, err = addFile(fsys, path, relPath, javascript.NewFile)
 				jsLang.foundSources = true
