@@ -390,12 +390,6 @@ export class ApiGateway {
                 }
             }
 
-            //create the methods
-            // We use the combination of the aws method property operationName alongside pulumi properties
-            // replaceOnChanges and deleteBeforeReplace in order to correctly trigger swapping integrations
-            // when infra is changed, for example from lambda to fargate. All three properties are required
-            // to trigger a replace action of the method, which is required to correctly swap integrations
-            // while preventing resource collisions on the method.
             const method = new aws.apigateway.Method(
                 `${r.verb.toUpperCase()}-${routeAndHash}`,
                 {
@@ -411,8 +405,6 @@ export class ApiGateway {
                 },
                 {
                     parent: parentResource ?? restAPI,
-                    replaceOnChanges: ['*'],
-                    deleteBeforeReplace: true,
                 }
             )
             methods.push(method)
