@@ -115,6 +115,91 @@ func Test_findChiRouterDefinition(t *testing.T) {
 	}
 }
 
+func Test_removeNetHttpImport(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		want   string
+	}{
+		{
+			name: "simple identifier",
+			source: `package test
+import (
+	"fmt"
+	"net/http"
+)
+
+http.ListenAndServe(":3000", r)
+			`,
+			want: `package test
+import (
+	"fmt"
+	"net/http"
+)
+
+http.ListenAndServe(":3000", r)
+			`,
+		},
+		{
+			name: "simple package identifier",
+			source: `package test
+import (
+	"fmt"
+	"net/http"
+)
+
+r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Hello!"))
+})
+			`,
+			want: `package test
+import (
+	"fmt"
+	"net/http"
+)
+
+r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Hello!"))
+})
+			`,
+		},
+		{
+			name: "should remove import",
+			source: `package test
+import (
+	"fmt"
+	"net/http"
+)
+
+random.ListenAndServe(":3000", r)
+			`,
+			want: `package test
+
+import (
+	"fmt"
+)
+
+
+random.ListenAndServe(":3000", r)
+			`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			if !assert.NoError(err) {
+				return
+			}
+			err = testRestAPIHandler.removeNetHttpImport(f)
+
+			assert.NoError(err)
+			assert.Equal(tt.want, string(f.Program()))
+		})
+	}
+}
+
 func Test_findImports(t *testing.T) {
 	tests := []struct {
 		name   string

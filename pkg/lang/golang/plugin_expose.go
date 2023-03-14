@@ -1,6 +1,7 @@
 package golang
 
 import (
+	"fmt"
 	"path"
 	"strings"
 
@@ -183,6 +184,11 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 			return nil, core.NewCompilerError(f, capNode, err)
 		}
 
+		err = h.removeNetHttpImport(f)
+		if err != nil {
+			return nil, core.NewCompilerError(f, capNode, err)
+		}
+
 		router, err := h.findChiRouterDefinition(f, routerName)
 		if err != nil {
 			return nil, core.NewCompilerError(f, capNode, err)
@@ -237,6 +243,37 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 		}
 	}
 	return f, nil
+}
+
+func (h *restAPIHandler) removeNetHttpImport(f *core.SourceFile) error {
+	h.log.Info(fmt.Sprintf("searching for http imports in %s", f.Path()))
+	netHttpImportName := "http"
+	netHttpImport := GetNamedImportInFile(f, netHttpImportName)
+	if netHttpImport.Alias != "" {
+		netHttpImportName = netHttpImport.Alias
+	}
+
+	nextMatch := doQuery(f.Tree().RootNode(), fmt.Sprintf("[((package_identifier)@id (#match? @id \"%s\")) ((identifier)@id (#match? @id \"%s\"))]", netHttpImportName, netHttpImportName))
+
+	httpUsed := false
+	for {
+		_, found := nextMatch()
+		if !found {
+			break
+		}
+		if found {
+			httpUsed = true
+			break
+		}
+	}
+
+	if !httpUsed {
+		err := UpdateImportsInFile(f, []Import{}, []Import{{Package: "net/http"}})
+		if err != nil {
+			return errors.Wrap(err, "error updating imports")
+		}
+	}
+	return nil
 }
 
 func (h *restAPIHandler) findChiRouterDefinition(f *core.SourceFile, appName string) (chiRouterDefResult, error) {
