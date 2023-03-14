@@ -1,21 +1,9 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
-import { CloudCCLib } from '../deploylib'
+import { CloudCCLib, Route, Gateway } from '../deploylib'
 import * as sha256 from 'simple-sha256'
 import { LoadBalancerPlugin } from './load_balancing'
 import { DeploymentArgs, StageArgs } from '@pulumi/aws/apigatewayv2'
-
-export interface Route {
-    verb: string
-    path: string
-    execUnitName: string
-}
-
-export interface Gateway {
-    Name: string
-    Routes: Route[]
-    ApiType: 'REST' | 'HTTP'
-}
 
 function sanitizeName(g: Gateway) {
     return g.Name.replace(/[^a-zA-Z0-9_-]+/g, '-')

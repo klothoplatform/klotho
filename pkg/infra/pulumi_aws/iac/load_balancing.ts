@@ -9,18 +9,7 @@ import {
 } from '@pulumi/aws/lb'
 import { ListenerRuleArgs } from '@pulumi/aws/alb'
 import { hash as h, sanitized } from './sanitization/sanitizer'
-import { CloudCCLib } from '../deploylib'
-
-export interface Route {
-    verb: string
-    path: string
-    execUnitName: string
-}
-
-export interface Gateway {
-    Name: string
-    Routes: Route[]
-}
+import { CloudCCLib, Gateway } from '../deploylib'
 
 export class LoadBalancerPlugin {
     // A map of all resources which are going to be fronted by a load balancer
