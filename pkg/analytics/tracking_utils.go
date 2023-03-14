@@ -5,10 +5,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
-	"math"
 	"net/http"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 )
@@ -52,11 +52,6 @@ func CompressFiles(input *core.InputFiles) ([]byte, error) {
 			Name:               f.Path(),
 			UncompressedSize64: uint64(buf.Len()),
 			Modified:           now,
-		}
-		if header.UncompressedSize64 >= math.MaxUint32 {
-			header.UncompressedSize = math.MaxUint32
-		} else {
-			header.UncompressedSize = uint32(header.UncompressedSize64)
 		}
 
 		headerWriter, err := zipWriter.CreateHeader(header)
