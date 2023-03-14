@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
+	"github.com/klothoplatform/klotho/pkg/lang/yaml"
 	yamlLang "github.com/klothoplatform/klotho/pkg/lang/yaml"
 	"github.com/stretchr/testify/assert"
 )
@@ -623,6 +624,244 @@ spec:
 			}
 			assert.Equal(tt.want.values, values)
 			assert.Equal(tt.want.newFile, string(testUnit.Pod.Program()))
+		})
+	}
+}
+
+func Test_addUnitsEnvironmentVariables(t *testing.T) {
+	type testResult struct {
+		values []Value
+		file   string
+	}
+	tests := []struct {
+		name           string
+		unit           HelmExecUnit
+		deploymentYaml string
+		podYaml        string
+		deps           []core.Dependency
+		want           testResult
+		wantErr        bool
+	}{
+		{
+			name: "unit with deployment",
+			unit: HelmExecUnit{
+				Name:      "unit",
+				Namespace: "default",
+			},
+			deploymentYaml: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    execUnit: testUnit
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+      execUnit: testUnit
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: nginx
+        execUnit: testUnit
+    spec:
+      containers:
+      - image: '{{ .Values.testUnitImage }}'
+        name: nginx
+        resources: {}
+      serviceAccountName: testUnit
+status: {}
+`,
+			want: testResult{
+				file: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    execUnit: testUnit
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+      execUnit: testUnit
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: nginx
+        execUnit: testUnit
+    spec:
+      containers:
+      - env:
+        - name: TESTBUCKET_BUCKET_NAME
+          value: '{{ .Values.TESTBUCKETBUCKETNAME }}'
+        - name: TESTREDIS_PERSIST_REDIS_HOST
+          value: '{{ .Values.TESTREDISPERSISTREDISHOST }}'
+        - name: TESTSECRET_CONFIG_SECRET
+          value: '{{ .Values.TESTSECRETCONFIGSECRET }}'
+        - name: TESTORM_PERSIST_ORM_CONNECTION
+          value: '{{ .Values.TESTORMPERSISTORMCONNECTION }}'
+        image: '{{ .Values.testUnitImage }}'
+        name: nginx
+        resources: {}
+      serviceAccountName: testUnit
+status: {}
+`,
+				values: []Value{
+					{
+						ExecUnitName:        "unit",
+						Kind:                "Deployment",
+						Type:                string(EnvironmentVariableTransformation),
+						Key:                 "TESTREDISPERSISTREDISHOST",
+						EnvironmentVariable: core.GenerateRedisHostEnvVar("testRedis", string(core.PersistRedisClusterKind)),
+					},
+					{
+						ExecUnitName:        "unit",
+						Kind:                "Deployment",
+						Type:                string(EnvironmentVariableTransformation),
+						Key:                 "TESTBUCKETBUCKETNAME",
+						EnvironmentVariable: core.GenerateBucketEnvVar("testBucket"),
+					},
+					{
+						ExecUnitName:        "unit",
+						Kind:                "Deployment",
+						Type:                string(EnvironmentVariableTransformation),
+						Key:                 "TESTORMPERSISTORMCONNECTION",
+						EnvironmentVariable: core.GenerateOrmConnStringEnvVar("testOrm"),
+					},
+					{
+						ExecUnitName:        "unit",
+						Kind:                "Deployment",
+						Type:                string(EnvironmentVariableTransformation),
+						Key:                 "TESTSECRETCONFIGSECRET",
+						EnvironmentVariable: core.GenerateSecretEnvVar("testSecret", core.ConfigKind),
+					},
+				},
+			},
+		},
+		{
+			name: "unit with pod",
+			unit: HelmExecUnit{
+				Name:      "unit",
+				Namespace: "default",
+			},
+			podYaml: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+spec:
+  containers:
+  - name: web
+    image: nginx`,
+			want: testResult{
+				file: `apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  name: test
+spec:
+  containers:
+  - env:
+    - name: TESTBUCKET_BUCKET_NAME
+      value: '{{ .Values.TESTBUCKETBUCKETNAME }}'
+    - name: TESTREDIS_PERSIST_REDIS_HOST
+      value: '{{ .Values.TESTREDISPERSISTREDISHOST }}'
+    - name: TESTSECRET_CONFIG_SECRET
+      value: '{{ .Values.TESTSECRETCONFIGSECRET }}'
+    - name: TESTORM_PERSIST_ORM_CONNECTION
+      value: '{{ .Values.TESTORMPERSISTORMCONNECTION }}'
+    image: nginx
+    name: web
+    resources: {}
+status: {}
+`,
+				values: []Value{
+					{
+						ExecUnitName:        "unit",
+						Kind:                "Pod",
+						Type:                string(EnvironmentVariableTransformation),
+						Key:                 "TESTREDISPERSISTREDISHOST",
+						EnvironmentVariable: core.GenerateRedisHostEnvVar("testRedis", string(core.PersistRedisClusterKind)),
+					},
+					{
+						ExecUnitName:        "unit",
+						Kind:                "Pod",
+						Type:                string(EnvironmentVariableTransformation),
+						Key:                 "TESTBUCKETBUCKETNAME",
+						EnvironmentVariable: core.GenerateBucketEnvVar("testBucket"),
+					},
+					{
+						ExecUnitName:        "unit",
+						Kind:                "Pod",
+						Type:                string(EnvironmentVariableTransformation),
+						Key:                 "TESTORMPERSISTORMCONNECTION",
+						EnvironmentVariable: core.GenerateOrmConnStringEnvVar("testOrm"),
+					},
+					{
+						ExecUnitName:        "unit",
+						Kind:                "Pod",
+						Type:                string(EnvironmentVariableTransformation),
+						Key:                 "TESTSECRETCONFIGSECRET",
+						EnvironmentVariable: core.GenerateSecretEnvVar("testSecret", core.ConfigKind),
+					},
+				},
+			},
+		},
+		{
+			name: "has dependency but no pod or deployment file",
+			unit: HelmExecUnit{
+				Name:      "unit",
+				Namespace: "default",
+			},
+			want: testResult{
+				values: []Value{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			eunit := core.ExecutionUnit{}
+			eunit.EnvironmentVariables.Add(core.GenerateBucketEnvVar("testBucket"))
+			eunit.EnvironmentVariables.Add(core.GenerateRedisHostEnvVar("testRedis", string(core.PersistRedisClusterKind)))
+			eunit.EnvironmentVariables.Add(core.GenerateSecretEnvVar("testSecret", core.ConfigKind))
+			eunit.EnvironmentVariables.Add(core.GenerateOrmConnStringEnvVar("testOrm"))
+
+			if tt.deploymentYaml != "" {
+				f, err := yaml.NewFile("deployment.yaml", strings.NewReader(tt.deploymentYaml))
+				assert.NoError(err)
+				tt.unit.Deployment = f
+			}
+			if tt.podYaml != "" {
+				f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.podYaml))
+				assert.NoError(err)
+				tt.unit.Pod = f
+			}
+
+			values, err := tt.unit.AddUnitsEnvironmentVariables(&eunit)
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			} else if !assert.NoError(err) {
+				return
+
+			}
+			assert.ElementsMatch(tt.want.values, values)
+
+			if tt.deploymentYaml != "" {
+				assert.Equal(tt.want.file, string(tt.unit.Deployment.Program()))
+			}
+			if tt.podYaml != "" {
+				assert.Equal(tt.want.file, string(tt.unit.Pod.Program()))
+			}
 		})
 	}
 }
