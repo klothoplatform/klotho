@@ -38,6 +38,7 @@ func (p Assets) Transform(result *core.CompilationResult, deps *core.Dependencie
 			if annot.Capability.Name != annotation.AssetCapability {
 				continue
 			}
+			log := zap.L().With(logging.FileField(f), logging.AnnotationField(annot)).Sugar()
 
 			includes, _ := annot.Capability.Directives.StringArray("include")
 			excludes, _ := annot.Capability.Directives.StringArray("exclude")
@@ -56,19 +57,20 @@ func (p Assets) Transform(result *core.CompilationResult, deps *core.Dependencie
 			matchCount := 0
 			for _, asset := range input.Files() {
 				if matcher.Matches(asset.Path()) {
-					zap.L().With(logging.FileField(f), logging.AnnotationField(annot)).Sugar().Infof("Adding asset '%s' to unit '%s'", asset.Path(), destUnit)
 					matchCount++
 					if destUnit == "" {
+						log.Infof("Adding asset '%s' to all units", asset.Path())
 						for _, unit := range units {
 							unit.AddStaticAsset(asset)
 						}
 					} else {
+						log.Infof("Adding asset '%s' to unit '%s'", asset.Path(), destUnit)
 						units[destUnit].AddStaticAsset(asset)
 					}
 				}
 			}
 			if matchCount == 0 {
-				zap.L().With(logging.FileField(f), logging.AnnotationField(annot)).Warn("No assets found matching include/exclude rules")
+				log.Warn("No assets found matching include/exclude rules")
 			}
 			if matcher.err != nil {
 				errs.Append(matcher.err)
