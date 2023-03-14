@@ -5,10 +5,11 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/sanitization"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/sanitization"
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -161,7 +162,7 @@ func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, bucketNameEnvVa
 	if err != nil {
 		return err
 	}
-	err = javascript.AddRuntimeFile(unit, templateData, fmt.Sprintf("fs_%s.js.tmpl", id), content)
+	err = javascript.AddRuntimeFile(unit, templateData, fmt.Sprintf("fs_%s.js.tmpl", sanitization.IdentifierSanitizer.Apply(id)), content)
 	return err
 }
 
