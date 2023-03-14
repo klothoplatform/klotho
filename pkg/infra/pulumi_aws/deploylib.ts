@@ -29,6 +29,18 @@ export enum Resource {
     config = 'config',
 }
 
+export interface Gateway {
+    Name: string
+    Routes: Route[]
+    ApiType: 'REST' | 'HTTP'
+}
+
+export interface Route {
+    verb: string
+    path: string
+    execUnitName: string
+}
+
 export interface ResourceKey {
     Kind: string
     Name: string
