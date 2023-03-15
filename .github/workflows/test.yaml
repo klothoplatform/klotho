@@ -27,19 +27,4 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Run test
-        run: go test -race -v -coverprofile=coverage.out ./...
-
-      - name: Convert to Cobertura
-        run: |
-          go get github.com/t-yuki/gocover-cobertura
-          go install github.com/t-yuki/gocover-cobertura
-          gocover-cobertura < coverage.out > coverage.xml
-
-      - name: Code Coverage Summary Report
-        uses: irongut/CodeCoverageSummary@v1.2.0
-        with:
-          filename: coverage.xml
-          format: markdown
-          output: both
-          hide_complexity: true
-          hide_branch_rate: true
+        run: go test -race -v ./...
