@@ -131,7 +131,7 @@ jobs:
           set -x
           cd _test_resources
           npm i
-          pulumi -s integ-test-shared stack select --create
+          pulumi -s integ-test-shared-${{ env.AWS_REGION }} stack select --create
           pulumi stack tag set usage integ-test
           pulumi config refresh || true
           pulumi up -y --refresh
