@@ -326,6 +326,24 @@ func (unit *HelmExecUnit) getServiceName() string {
 	return unit.Name
 }
 
+func (unit *HelmExecUnit) AddUnitsEnvironmentVariables(eu *core.ExecutionUnit) (values []Value, err error) {
+	if unit.Deployment != nil {
+		v, err := unit.addEnvsVarToDeployment(eu.EnvironmentVariables)
+		if err != nil {
+			return nil, err
+		}
+
+		values = append(values, v...)
+	} else if unit.Pod != nil {
+		v, err := unit.addEnvVarToPod(eu.EnvironmentVariables)
+		if err != nil {
+			return nil, err
+		}
+
+		values = append(values, v...)
+	}
+	return
+}
 func (unit *HelmExecUnit) addEnvsVarToDeployment(envVars core.EnvironmentVariables) ([]Value, error) {
 	values := []Value{}
 
