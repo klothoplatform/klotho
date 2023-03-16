@@ -16,7 +16,7 @@ import {CloudCCLib, kloConfig} from './deploylib'
 import {EksExecUnitArgs, EksExecUnit} from './iac/eks'
 import {CockroachDB} from './iac/cockroachdb'
 {{- if .APIGateways}}
-import {ApiGateway, Gateway, Route } from './iac/api_gateway'
+import {ApiGateway } from './iac/api_gateway'
 {{end}}
 import { LoadBalancerPlugin } from './iac/load_balancing'
 
