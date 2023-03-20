@@ -13,8 +13,8 @@ const py = core.LanguageId("python")
 var Language = core.SourceLanguage{
 	ID:               py,
 	Sitter:           python.GetLanguage(),
-	CapabilityFinder: lang.NewCapabilityFinder("comment", lang.RegexpRemovePreprocessor(`^#\s*`)),
-	TurnIntoComment:  lang.MakeLineCommenter("# "),
+	CapabilityFinder: lang.NewCapabilityFinder("comment", lang.RegexpRemovePreprocessor(`^#\s*`), lang.IsNumberCommentBlock),
+	ToLineComment:    lang.MakeLineCommenter("# "),
 }
 
 func NewFile(path string, content io.Reader) (f *core.SourceFile, err error) {

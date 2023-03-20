@@ -29,22 +29,22 @@ var Language = core.SourceLanguage{
 			}
 			// The comment is something like:
 			//   /** foo
-			//    * bar
-			//    */
+			//     * bar
+			//     */
 			//
-			// First, we'll trim the opening and closing slashes, to get it to:
-			//   ** foo
-			//    * bar
-			//    *
+			// First, we'll trim the opening and closing delimiters, to get it to:
+			//   * foo
+			//   * bar
 			//
+			comment = comment[2 : len(comment)-2]
 			// Then, we'll use a regexp to remove an opening stretch of `*`s from each line
-			comment = comment[1 : len(comment)-1]
 			comment = multilineCommentMarginRegexp.ReplaceAllString(comment, "")
 			// `/*`-style comments never combine with subsequent comments
 			return comment
 		},
-	)),
-	TurnIntoComment: lang.MakeLineCommenter("// "),
+	),
+		lang.IsCLineCommentBlock),
+	ToLineComment: lang.MakeLineCommenter("// "),
 }
 
 func NewFile(path string, content io.Reader) (f *core.SourceFile, err error) {

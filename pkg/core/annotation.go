@@ -17,6 +17,9 @@ type (
 		Capability *annotation.Capability
 		// Node is the node that has been annotated; not the comment node representing the annotation itself.
 		Node *sitter.Node
+		// IsTransformed indicates whether the content of an annotation's original Node field been transformed.
+		// When reparsing a transformed annotation, its Node field will be nil to prevent plugins from treating the transformed code as input.
+		IsTransformed bool
 	}
 
 	AnnotationKey struct {
@@ -66,7 +69,11 @@ func (m AnnotationMap) Update(other AnnotationMap) {
 	for k, v := range other {
 		if ex, ok := m[k]; ok {
 			// Update the contents not the pointer so existing annotation pointers are still valid
-			*ex = *v
+			newValue := *v
+			if ex.IsTransformed {
+				newValue.IsTransformed = true
+			}
+			*ex = newValue
 		} else {
 			m[k] = v
 		}

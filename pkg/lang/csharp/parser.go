@@ -42,8 +42,9 @@ var Language = core.SourceLanguage{
 			// `/*`-style comments never combine with subsequent comments
 			return comment
 		},
-	)),
-	TurnIntoComment: lang.MakeLineCommenter("// "),
+	),
+		lang.IsCLineCommentBlock),
+	ToLineComment: lang.MakeLineCommenter("// "),
 }
 
 func NewFile(path string, content io.Reader) (f *core.SourceFile, err error) {

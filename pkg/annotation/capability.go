@@ -13,40 +13,85 @@ type Capability struct {
 	Directives Directives `json:"directives"`
 }
 
-var capabilityRE = regexp.MustCompile(`@klotho::(\w+)(?:\s*\{\s*([^}]*)})?`)
+var capabilityStartRegex = regexp.MustCompile(`\s*@klotho::(\w+)\s*(\{)?`)
+var idRegex = regexp.MustCompile(`^[\w-_.:/]+$`)
 
-func ParseCapability(s string) (*Capability, error) {
-	matches := capabilityRE.FindStringSubmatch(s)
-	if len(matches) < 2 {
-		return nil, nil
-	}
+func ParseCapabilities(s string) ([]*Capability, error) {
+	var capabilities []*Capability
+	matches := capabilityStartRegex.FindAllStringSubmatchIndex(s, -1)
+	previousEnd := -1
+	for _, match := range matches {
+		if len(match) == 0 {
+			continue
+		}
 
-	cap := &Capability{
-		Name: matches[1],
-	}
+		// nested annotations are not supported (though not necessarily syntactically incorrect)
+		if previousEnd > -1 && match[0] <= previousEnd {
+			continue
+		}
 
-	if len(matches) > 2 {
+		bodyExprStart := match[4]
+		var bodyExprEnd int
 		var err error
-		cap.Directives, err = ParseDirectives(matches[2])
+
+		cap := &Capability{
+			Name: s[match[2]:match[3]],
+		}
+
+		if bodyExprStart != -1 {
+			bodyExprEnd = bodyExprStart + getExprEndIndex(s[bodyExprStart:], "", '{', '}')
+			cap.Directives, err = ParseDirectives(s[bodyExprStart+1 : bodyExprEnd])
+		}
+
 		if err != nil {
-			return cap, errors.Wrap(err, "could not parse directives")
+			return nil, errors.Wrap(err, "could not parse directives")
 		}
 		id, _ := cap.Directives.String("id")
 		if id != "" {
 			if len(id) > 25 {
-				return cap, fmt.Errorf("'id' must be less than 25 characters in length. 'id' was %s", id)
+				return nil, fmt.Errorf("'id' must be less than 25 characters in length. 'id' was %s", id)
 			}
-			match, err := regexp.MatchString(`^[\w-_.:/]+$`, id)
-			if err != nil {
-				return cap, errors.Wrap(err, "could not parse 'id' directive")
-			} else if !match {
-				return cap, fmt.Errorf("'id' can only contain alphanumeric, -, _, ., :, and /. 'id' was %s", id)
+			if !idRegex.MatchString(id) {
+				return nil, fmt.Errorf("'id' can only contain alphanumeric, -, _, ., :, and /. 'id' was %s", id)
 			}
 		}
 		cap.ID = id
+		capabilities = append(capabilities, cap)
+		previousEnd = match[1] - 1
 	}
+	return capabilities, nil
+}
 
-	return cap, nil
+// getExprEndIndex gets the index of end delimiter in a balanced expression of start and end delimiters.
+//
+// The escape argument is used for detecting escaped delimiters and should either be `\` or `\\`
+// depending on the format of the input string.
+func getExprEndIndex(input, escape string, start, end rune) int {
+	escapedStartPattern := regexp.MustCompile(fmt.Sprintf(`^[^%c]*?((?:%s)*)\%c`, start, escape, start))
+	escapedEndPattern := regexp.MustCompile(fmt.Sprintf(`^[^%c]*?((?:%s)*)\%c`, end, escape, end))
+	sCount := 0
+	eCount := 0
+	lastMatchIndex := -1
+	for i := 0; i < len(input); i++ {
+		switch rune(input[i]) {
+		case start:
+			match := escapedStartPattern.FindStringSubmatch(input[lastMatchIndex+1:])
+			if match[1] == "" || len(match[1])%len(escape) != 0 {
+				sCount++
+			}
+			lastMatchIndex = i
+		case end:
+			match := escapedEndPattern.FindStringSubmatch(input[lastMatchIndex+1:])
+			if match[1] == "" || len(match[1])%len(escape) != 0 {
+				eCount++
+			}
+			lastMatchIndex = i
+		}
+		if sCount == eCount {
+			return i
+		}
+	}
+	return -1
 }
 
 const ExecutionUnitCapability = "execution_unit"

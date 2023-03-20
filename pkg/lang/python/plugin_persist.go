@@ -84,6 +84,7 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 	newFile := f.CloneSourceFile()
 
 	var resources []core.CloudResource
+	var handledAnnotations []*core.Annotation
 
 	var errs multierr.Error
 	for _, annot := range annots {
@@ -138,6 +139,7 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 		errs.Append(err)
 
 		resource, err := doTransform(f, newFile, annot, pResult, unit)
+		handledAnnotations = append(handledAnnotations, annot) // err != nil doesn't guarantee that a transformation did not occur
 		if err != nil {
 			errs.Append(err)
 		} else {
@@ -145,7 +147,7 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 		}
 	}
 
-	err := f.Reparse(newFile.Program())
+	err := f.Reparse(newFile.Program(), handledAnnotations...)
 	errs.Append(err)
 
 	return resources, errs.ErrOrNil()
@@ -201,17 +203,18 @@ func (p *persister) transformKV(original *core.SourceFile, modified *core.Source
 	expression := strings.Replace(nodeContent, kvR.expression, runtimeExpr, -1)
 
 	modifiedSrc := string(modified.Program())
-
+	var handledAnnotations []*core.Annotation
 	// replace original expression with new expression (uses string slicing over strings.replaceAll to minimize unintended consequences)
 	for _, mCap := range modified.Annotations() {
 		if cap.Capability.Name == mCap.Capability.Name && cap.Capability.ID == mCap.Capability.ID {
 			startByte := mCap.Node.StartByte()
 			endByte := mCap.Node.EndByte()
 			modifiedSrc = modifiedSrc[0:startByte] + expression + modifiedSrc[endByte:]
+			handledAnnotations = append(handledAnnotations, mCap)
 		}
 	}
 
-	err = modified.Reparse([]byte(modifiedSrc))
+	err = modified.Reparse([]byte(modifiedSrc), handledAnnotations...)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not reparse KV transformation")
 	}
@@ -232,17 +235,19 @@ func (p *persister) transformFS(original *core.SourceFile, modified *core.Source
 
 	newContent := nodeContent
 	newExpression := strings.Replace(newContent, fsR.expression, replaceString, -1)
-	modifiedSrc := string(modified.Program())
 
+	modifiedSrc := string(modified.Program())
+	var handledAnnotations []*core.Annotation
 	// replace original expression with new expression (uses string slicing over strings.replaceAll to minimize unintended consequences)
 	for _, mCap := range modified.Annotations() {
 		if cap.Capability.Name == mCap.Capability.Name && cap.Capability.ID == mCap.Capability.ID {
 			startByte := mCap.Node.StartByte()
 			endByte := mCap.Node.EndByte()
 			modifiedSrc = modifiedSrc[:startByte] + newExpression + modifiedSrc[endByte:]
+			handledAnnotations = append(handledAnnotations, mCap)
 		}
 	}
-	err := modified.Reparse([]byte(modifiedSrc))
+	err := modified.Reparse([]byte(modifiedSrc), handledAnnotations...)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not reparse FS transformation")
 	}
@@ -269,17 +274,19 @@ func (p *persister) transformSecret(original *core.SourceFile, modified *core.So
 
 	newContent := nodeContent
 	newExpression := strings.Replace(newContent, secretR.expression, replaceString, -1)
-	modifiedSrc := string(modified.Program())
 
+	modifiedSrc := string(modified.Program())
+	var handledAnnotations []*core.Annotation
 	// replace original expression with new expression (uses string slicing over strings.replaceAll to minimize unintended consequences)
 	for _, mCap := range modified.Annotations() {
 		if cap.Capability.Name == mCap.Capability.Name && cap.Capability.ID == mCap.Capability.ID {
 			startByte := mCap.Node.StartByte()
 			endByte := mCap.Node.EndByte()
 			modifiedSrc = modifiedSrc[:startByte] + newExpression + modifiedSrc[endByte:]
+			handledAnnotations = append(handledAnnotations, mCap)
 		}
 	}
-	err := modified.Reparse([]byte(modifiedSrc))
+	err := modified.Reparse([]byte(modifiedSrc), handledAnnotations...)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not reparse Secrets transformation")
 	}
@@ -316,15 +323,17 @@ func (p *persister) transformORM(original *core.SourceFile, modified *core.Sourc
 	expression := strings.Replace(newContent, ormR.expression, replaceContent, -1)
 
 	modifiedSrc := string(modified.Program())
+	var handledAnnotations []*core.Annotation
 	// replace original expression with new expression (uses string slicing over strings.replaceAll to minimize unintended consequences)
 	for _, mCap := range modified.Annotations() {
 		if cap.Capability.Name == mCap.Capability.Name && cap.Capability.ID == mCap.Capability.ID {
 			startByte := mCap.Node.StartByte()
 			endByte := mCap.Node.EndByte()
 			modifiedSrc = modifiedSrc[:startByte] + expression + modifiedSrc[endByte:]
+			handledAnnotations = append(handledAnnotations, mCap)
 		}
 	}
-	err = modified.Reparse([]byte(modifiedSrc))
+	err = modified.Reparse([]byte(modifiedSrc), handledAnnotations...)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not reparse ORM transformation")
 	}
@@ -384,15 +393,17 @@ func (p *persister) transformRedis(original *core.SourceFile, modified *core.Sou
 	expression := strings.Replace(newContent, redisR.expression, replaceContent, -1)
 
 	modifiedSrc := string(modified.Program())
+	var handledAnnotations []*core.Annotation
 	// replace original expression with new expression (uses string slicing over strings.replaceAll to minimize unintended consequences)
 	for _, mCap := range modified.Annotations() {
 		if cap.Capability.Name == mCap.Capability.Name && cap.Capability.ID == mCap.Capability.ID {
 			startByte := mCap.Node.StartByte()
 			endByte := mCap.Node.EndByte()
 			modifiedSrc = modifiedSrc[:startByte] + expression + modifiedSrc[endByte:]
+			handledAnnotations = append(handledAnnotations, mCap)
 		}
 	}
-	err = modified.Reparse([]byte(modifiedSrc))
+	err = modified.Reparse([]byte(modifiedSrc), handledAnnotations...)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not reparse Redis transformation")
 	}

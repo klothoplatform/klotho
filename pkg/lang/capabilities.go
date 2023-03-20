@@ -2,26 +2,29 @@ package lang
 
 import (
 	"fmt"
-	"io"
-	"regexp"
-
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/query"
 	"github.com/pkg/errors"
 	sitter "github.com/smacker/go-tree-sitter"
+	"io"
+	"regexp"
+	"strings"
 )
 
 type (
 	commentBlock struct {
-		comment string
-		node    *sitter.Node
+		comment       string
+		endNode       *sitter.Node
+		startNode     *sitter.Node
+		annotatedNode *sitter.Node
 	}
 
 	capabilityFinder struct {
-		sitterQuery  string
-		preprocessor CommentPreprocessor
+		sitterQuery            string
+		preprocessor           CommentPreprocessor
+		mergeCommentsPredicate MergeCommentsPredicate
 	}
 
 	// CommentPreprocessor edits a given comment string.
@@ -29,6 +32,8 @@ type (
 	// Its input is the current comment string. Its output is what the comment string should be instead; this can just be the
 	// input string, if no edits are necessary. Empty strings are *not* treated specially: they just look like an empty comment.
 	CommentPreprocessor func(comment string) string
+
+	MergeCommentsPredicate func(previous, current *sitter.Node) bool
 )
 
 // RegexpRemovePreprocessor returns a preprocessor powered by a regexp that removes all matches.
@@ -52,6 +57,20 @@ func CompositePreprocessor(preprocessors ...CommentPreprocessor) CommentPreproce
 	}
 }
 
+func IsCLineCommentBlock(previous, current *sitter.Node) bool {
+	return previous != nil && current != nil &&
+		current.StartPoint().Row-previous.StartPoint().Row == 1 &&
+		strings.HasPrefix(current.Content(), "//") &&
+		strings.HasPrefix(previous.Content(), "//")
+}
+
+func IsNumberCommentBlock(previous, current *sitter.Node) bool {
+	return previous != nil && current != nil &&
+		current.StartPoint().Row-previous.StartPoint().Row == 1 &&
+		strings.HasPrefix(current.Content(), "#") &&
+		strings.HasPrefix(previous.Content(), "#")
+}
+
 // NewCapabilityFinder creates a struct that you can use to find capabilities (annotations) within a source file.
 //
 // To do this, you provide a `sitterQuery` that looks for comments nodes that contain the `klotho::` annotations,
@@ -59,57 +78,66 @@ func CompositePreprocessor(preprocessors ...CommentPreprocessor) CommentPreproce
 //
 // If a source file contains multiple comment nodes in a row (as identified by having equal `.Type()`s), those comments
 // will be preprocessed individually, but then merged into a single annotation.
-func NewCapabilityFinder(sitterQuery string, preprocessor CommentPreprocessor) core.CapabilityFinder {
+func NewCapabilityFinder(sitterQuery string, preprocessor CommentPreprocessor, mergePredicate MergeCommentsPredicate) core.CapabilityFinder {
 	return &capabilityFinder{
-		sitterQuery:  sitterQuery,
-		preprocessor: preprocessor,
+		sitterQuery:            sitterQuery,
+		preprocessor:           preprocessor,
+		mergeCommentsPredicate: mergePredicate,
 	}
 }
 
-// FindAllCapabilities finds all of the annotations (ie, capabilities) in a SourceFile.
+// FindAllCapabilities finds all the annotations (ie, capabilities) in a SourceFile.
 func (c *capabilityFinder) FindAllCapabilities(f *core.SourceFile) (core.AnnotationMap, error) {
 	var merr multierr.Error
 	capabilities := make(core.AnnotationMap)
-	for _, block := range c.findAllCommentsBlocks(f) {
-		cap, err := annotation.ParseCapability(block.comment)
-		if cap == nil {
-			continue
+	for _, block := range c.findAllCommentBlocks(f) {
+		caps, err := annotation.ParseCapabilities(block.comment)
+		for i, cap := range caps {
+			var node *sitter.Node
+			if i == 0 {
+				node = block.annotatedNode
+			}
+			annot := &core.Annotation{Capability: cap, Node: node}
+			if err != nil {
+				merr.Append(core.NewCompilerError(f, annot, errors.Wrap(err, "error parsing annotation")))
+				continue
+			}
+			capabilities.Add(annot)
 		}
-		annotation := &core.Annotation{Capability: cap, Node: block.node}
-		if err != nil {
-			merr.Append(core.NewCompilerError(f, annotation, errors.Wrap(err, "error parsing annotation")))
-			continue
-		}
-		capabilities.Add(annotation)
 	}
 	return capabilities, merr.ErrOrNil()
 }
 
-func (c *capabilityFinder) findAllCommentsBlocks(f *core.SourceFile) []*commentBlock {
+func (c *capabilityFinder) findAllCommentBlocks(f *core.SourceFile) []*commentBlock {
 	const fullCaptureName = "fullQueryCaptureForFindAllCommentsBlocks" // please don't use this in your query ;)
 	queryString := fmt.Sprintf(`(%s) @%s`, c.sitterQuery, fullCaptureName)
 	nextMatch := query.Exec(f.Language, f.Tree().RootNode(), queryString)
 
-	blocks := []*commentBlock{}
-	combineWithPrevious := false
+	var blocks []*commentBlock
 	for {
 		match, found := nextMatch()
 		if !found || match == nil {
 			break
 		}
 		capture := match[fullCaptureName]
-		comment := capture.Content()
-		comment = c.preprocessor(comment)
-
-		node := capture.NextNamedSibling()
-		if combineWithPrevious {
-			prevBlock := blocks[len(blocks)-1]
-			prevBlock.comment = prevBlock.comment + "\n" + comment
-			prevBlock.node = node // The previous "node" was just this capture, so we want to basically push it forward
-		} else {
-			blocks = append(blocks, &commentBlock{comment: comment, node: node})
+		comment := c.preprocessor(capture.Content())
+		annotatedNode := capture.NextNamedSibling()
+		if annotatedNode != nil && strings.Contains(annotatedNode.Type(), "comment") {
+			annotatedNode = nil
 		}
-		combineWithPrevious = node != nil && node.Type() == capture.Type()
+
+		var prevBlock *commentBlock
+		if len(blocks) > 0 {
+			prevBlock = blocks[len(blocks)-1]
+		}
+
+		if prevBlock != nil && c.mergeCommentsPredicate(prevBlock.endNode, capture) {
+			prevBlock.comment = prevBlock.comment + "\n" + comment
+			prevBlock.endNode = capture
+			prevBlock.annotatedNode = annotatedNode
+		} else {
+			blocks = append(blocks, &commentBlock{comment: comment, startNode: capture, endNode: capture, annotatedNode: annotatedNode})
+		}
 	}
 	return blocks
 }

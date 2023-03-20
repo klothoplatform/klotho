@@ -13,7 +13,7 @@ const YamlLang = core.LanguageId("yaml")
 var language = core.SourceLanguage{
 	ID:               YamlLang,
 	Sitter:           yaml.GetLanguage(),
-	CapabilityFinder: lang.NewCapabilityFinder("comment", lang.RegexpRemovePreprocessor(`^#\s*`)),
+	CapabilityFinder: lang.NewCapabilityFinder("comment", lang.RegexpRemovePreprocessor(`^#\s*`), lang.IsNumberCommentBlock),
 }
 
 func NewFile(path string, content io.Reader) (f *core.SourceFile, err error) {

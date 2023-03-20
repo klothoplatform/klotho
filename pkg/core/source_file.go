@@ -22,7 +22,7 @@ type SourceLanguage struct {
 	ID               LanguageId
 	Sitter           *sitter.Language
 	CapabilityFinder CapabilityFinder
-	TurnIntoComment  Commenter
+	ToLineComment    Commenter
 }
 
 type LanguageId string
@@ -41,7 +41,11 @@ func (lid LanguageId) CastFile(f File) (*SourceFile, bool) {
 	return nil, false
 }
 
-func (f *SourceFile) Reparse(newProgram []byte) (err error) {
+func (f *SourceFile) Reparse(newProgram []byte, transformedAnnotations ...*Annotation) (err error) {
+	for _, a := range transformedAnnotations {
+		a.IsTransformed = true // prevents reattachment of the annotation to a potentially transformed succeeding sibling node
+	}
+
 	f.program = newProgram
 	f.tree, err = f.parser.ParseCtx(context.TODO(), nil, f.program)
 	if err == nil {
