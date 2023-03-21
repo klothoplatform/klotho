@@ -4,14 +4,17 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/pelletier/go-toml/v2"
-	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
 type (
+	/** Application is used to define the configuration for the application being compiled by Klotho.
+	* The application configuration contains the necessary information to depict the architecture as well as klotho compilation configuration.
+	 */
 	Application struct {
 		AppName  string `json:"app" yaml:"app" toml:"app"`
 		Provider string `json:"provider" yaml:"provider" toml:"provider"`
@@ -23,92 +26,52 @@ type (
 		Path   string `json:"path" yaml:"path" toml:"path"`
 		OutDir string `json:"out_dir" yaml:"out_dir" toml:"out_dir"`
 
-		Defaults       Defaults                  `json:"defaults" yaml:"defaults" toml:"defaults"`
-		ExecutionUnits map[string]*ExecutionUnit `json:"execution_units,omitempty" yaml:"execution_units,omitempty" toml:"execution_units,omitempty"`
-		StaticUnit     map[string]*StaticUnit    `json:"static_unit,omitempty" yaml:"static_unit,omitempty" toml:"static_unit,omitempty"`
-		Exposed        map[string]*Expose        `json:"exposed,omitempty" yaml:"exposed,omitempty" toml:"exposed,omitempty"`
-		Persisted      map[string]*Persist       `json:"persisted,omitempty" yaml:"persisted,omitempty" toml:"persisted,omitempty"`
-		PubSub         map[string]*PubSub        `json:"pubsub,omitempty" yaml:"pubsub,omitempty" toml:"pubsub,omitempty"`
-		Config         map[string]*Config        `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
-	}
-	Expose struct {
-		Type                   string                 `json:"type" yaml:"type" toml:"type"`
-		ApiType                string                 `json:"api_type" yaml:"api_type" toml:"api_type"`
-		ContentDeliveryNetwork ContentDeliveryNetwork `json:"content_delivery_network,omitempty" yaml:"content_delivery_network,omitempty" toml:"content_delivery_network,omitempty"`
-		InfraParams            InfraParams            `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
-	}
-
-	Persist struct {
-		Type        string      `json:"type" yaml:"type" toml:"type"`
-		InfraParams InfraParams `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
-	}
-
-	Config struct {
-		Type        string      `json:"type" yaml:"type" toml:"type"`
-		InfraParams InfraParams `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
-	}
-
-	ExecutionUnit struct {
-		Type                 string            `json:"type" yaml:"type" toml:"type"`
-		NetworkPlacement     string            `json:"network_placement,omitempty" yaml:"network_placement,omitempty" toml:"network_placement,omitempty"`
-		EnvironmentVariables map[string]string `json:"environment_variables,omitempty" yaml:"environment_variables,omitempty" toml:"environment_variables,omitempty"`
-		HelmChartOptions     *HelmChartOptions `json:"helm_chart_options,omitempty" yaml:"helm_chart_options,omitempty" toml:"helm_chart_options,omitempty"`
-		InfraParams          InfraParams       `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
-	}
-
-	// A HelmChartOptions represents configuration for execution units attempting to generate helm charts
-	HelmChartOptions struct {
-		Directory   string   `json:"directory,omitempty" yaml:"directory,omitempty" toml:"directory,omitempty"` // Directory signals the directory which will contain the helm chart outputs
-		Install     bool     `json:"install,omitempty" yaml:"install,omitempty" toml:"install,omitempty"`
-		ValuesFiles []string `json:"values_files,omitempty" yaml:"values_files,omitempty" toml:"values_files,omitempty"`
-	}
-
-	PubSub struct {
-		Type        string      `json:"type" yaml:"type" toml:"type"`
-		InfraParams InfraParams `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
-	}
-
-	StaticUnit struct {
-		Type                   string                 `json:"type" yaml:"type" toml:"type"`
-		InfraParams            InfraParams            `json:"pulumi_params,omitempty" yaml:"pulumi_params,omitempty" toml:"pulumi_params,omitempty"`
-		ContentDeliveryNetwork ContentDeliveryNetwork `json:"content_delivery_network,omitempty" yaml:"content_delivery_network,omitempty" toml:"content_delivery_network,omitempty"`
-	}
-
-	Defaults struct {
-		ExecutionUnit KindDefaults        `json:"execution_unit" yaml:"execution_unit" toml:"execution_unit"`
-		StaticUnit    KindDefaults        `json:"static_unit" yaml:"static_unit" toml:"static_unit"`
-		Expose        ExposeDefaults      `json:"expose" yaml:"expose" toml:"expose"`
-		Persist       PersistKindDefaults `json:"persist" yaml:"persist" toml:"persist"`
-		PubSub        KindDefaults        `json:"pubsub" yaml:"pubsub" toml:"pubsub"`
-		Config        KindDefaults        `json:"config" yaml:"config" toml:"config"`
-	}
-
-	KindDefaults struct {
-		Type              string                 `json:"type" yaml:"type" toml:"type"`
-		InfraParamsByType map[string]InfraParams `json:"pulumi_params_by_type,omitempty" yaml:"pulumi_params_by_type,omitempty" toml:"pulumi_params_by_type,omitempty"`
-	}
-
-	ExposeDefaults struct {
-		KindDefaults
-		ApiType                string                 `json:"api_type" yaml:"api_type" toml:"api_type"`
-		ContentDeliveryNetwork ContentDeliveryNetwork `json:"content_delivery_network,omitempty" yaml:"content_delivery_network,omitempty" toml:"content_delivery_network,omitempty"`
-	}
-
-	PersistKindDefaults struct {
-		KV           KindDefaults `json:"kv" yaml:"kv" toml:"kv"`
-		FS           KindDefaults `json:"fs" yaml:"fs" toml:"fs"`
-		Secret       KindDefaults `json:"secret" yaml:"secret" toml:"secret"`
-		ORM          KindDefaults `json:"orm" yaml:"orm" toml:"orm"`
-		RedisNode    KindDefaults `json:"redis_node" yaml:"redis_node" toml:"redis_node"`
-		RedisCluster KindDefaults `json:"redis_cluster" yaml:"redis_cluster" toml:"redis_cluster"`
+		Defaults            Defaults                  `json:"defaults" yaml:"defaults" toml:"defaults"`
+		ExecutionUnits      map[string]*ExecutionUnit `json:"execution_units,omitempty" yaml:"execution_units,omitempty" toml:"execution_units,omitempty"`
+		StaticUnit          map[string]*StaticUnit    `json:"static_unit,omitempty" yaml:"static_unit,omitempty" toml:"static_unit,omitempty"`
+		Exposed             map[string]*Expose        `json:"exposed,omitempty" yaml:"exposed,omitempty" toml:"exposed,omitempty"`
+		PersistKv           map[string]*Persist       `json:"persist_kv,omitempty" yaml:"persist_kv,omitempty" toml:"persist_kv,omitempty"`
+		PersistOrm          map[string]*Persist       `json:"persist_orm,omitempty" yaml:"persist_orm,omitempty" toml:"persist_orm,omitempty"`
+		PersistFs           map[string]*Persist       `json:"persist_fs,omitempty" yaml:"persist_fs,omitempty" toml:"persist_fs,omitempty"`
+		PersistSecrets      map[string]*Persist       `json:"persist_secrets,omitempty" yaml:"persist_secrets,omitempty" toml:"persist_secrets,omitempty"`
+		PersistRedisNode    map[string]*Persist       `json:"persist_redis_node,omitempty" yaml:"persist_redis_node,omitempty" toml:"persist_redis_node,omitempty"`
+		PersistRedisCluster map[string]*Persist       `json:"persist_redis_cluster,omitempty" yaml:"persist_redis_cluster,omitempty" toml:"persist_redis_cluster,omitempty"`
+		PubSub              map[string]*PubSub        `json:"pubsub,omitempty" yaml:"pubsub,omitempty" toml:"pubsub,omitempty"`
+		Config              map[string]*Config        `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
 	}
 
 	ContentDeliveryNetwork struct {
 		Id string `json:"id,omitempty" yaml:"id,omitempty" toml:"id,omitempty"`
 	}
 
-	// InfraParams are passed as-is to the generated IaC
+	/** InfraParams are passed as-is to the generated IaC
+	*   It follows a generic map and is later converted to the Kind specific object
+	 */
+
 	InfraParams map[string]interface{}
+
+	KindParams interface {
+		Merge(cfg interface{}) InfraParams
+	}
+
+	Defaults struct {
+		ExecutionUnit       KindDefaults `json:"execution_unit" yaml:"execution_unit" toml:"execution_unit"`
+		StaticUnit          KindDefaults `json:"static_unit" yaml:"static_unit" toml:"static_unit"`
+		Expose              KindDefaults `json:"expose" yaml:"expose" toml:"expose"`
+		PersistKv           KindDefaults `json:"persist_kv,omitempty" yaml:"persist_kv,omitempty" toml:"persist_kv,omitempty"`
+		PersistOrm          KindDefaults `json:"persist_orm,omitempty" yaml:"persist_orm,omitempty" toml:"persist_orm,omitempty"`
+		PersistFs           KindDefaults `json:"persist_fs,omitempty" yaml:"persist_fs,omitempty" toml:"persist_fs,omitempty"`
+		PersistSecrets      KindDefaults `json:"persist_secrets,omitempty" yaml:"persist_secrets,omitempty" toml:"persist_secrets,omitempty"`
+		PersistRedisNode    KindDefaults `json:"persist_redis_node,omitempty" yaml:"persist_redis_node,omitempty" toml:"persist_redis_node,omitempty"`
+		PersistRedisCluster KindDefaults `json:"persist_redis_cluster,omitempty" yaml:"persist_redis_cluster,omitempty" toml:"persist_redis_cluster,omitempty"`
+		PubSub              KindDefaults `json:"pubsub" yaml:"pubsub" toml:"pubsub"`
+		Config              KindDefaults `json:"config" yaml:"config" toml:"config"`
+	}
+
+	KindDefaults struct {
+		Type              string                 `json:"type" yaml:"type" toml:"type"`
+		InfraParamsByType map[string]InfraParams `json:"infra_params_by_type,omitempty" yaml:"infra_params_by_type,omitempty" toml:"infra_params_by_type,omitempty"`
+	}
 )
 
 func (appCfg *Application) EnsureMapsExist() {
@@ -118,8 +81,23 @@ func (appCfg *Application) EnsureMapsExist() {
 	if appCfg.Exposed == nil {
 		appCfg.Exposed = make(map[string]*Expose)
 	}
-	if appCfg.Persisted == nil {
-		appCfg.Persisted = make(map[string]*Persist)
+	if appCfg.PersistFs == nil {
+		appCfg.PersistFs = make(map[string]*Persist)
+	}
+	if appCfg.PersistKv == nil {
+		appCfg.PersistKv = make(map[string]*Persist)
+	}
+	if appCfg.PersistOrm == nil {
+		appCfg.PersistOrm = make(map[string]*Persist)
+	}
+	if appCfg.PersistSecrets == nil {
+		appCfg.PersistSecrets = make(map[string]*Persist)
+	}
+	if appCfg.PersistRedisNode == nil {
+		appCfg.PersistRedisNode = make(map[string]*Persist)
+	}
+	if appCfg.PersistRedisCluster == nil {
+		appCfg.PersistRedisCluster = make(map[string]*Persist)
 	}
 	if appCfg.PubSub == nil {
 		appCfg.PubSub = make(map[string]*PubSub)
@@ -154,327 +132,7 @@ func ReadConfig(fpath string) (Application, error) {
 		err = toml.NewDecoder(f).Decode(&appCfg)
 		appCfg.Format = "toml"
 	}
-	postWarning := false
-	for _, unit := range appCfg.ExecutionUnits {
-		if unit.Type == "fargate" {
-			postWarning = true
-		}
-	}
-
-	if postWarning {
-		zap.S().Warn("Execution unit type 'fargate' is now renamed to 'ecs'")
-	}
 	return appCfg, err
-}
-
-func (cfg *InfraParams) Merge(other InfraParams) {
-	if *cfg == nil {
-		*cfg = make(InfraParams)
-	}
-	// TODO do a deeper merge
-	for k, v := range other {
-		(*cfg)[k] = v
-	}
-
-}
-
-func (cfg *KindDefaults) Merge(other KindDefaults) {
-	if other.Type != "" {
-		cfg.Type = other.Type
-	}
-	if cfg.InfraParamsByType == nil {
-		cfg.InfraParamsByType = make(map[string]InfraParams)
-	}
-	for name, unit := range other.InfraParamsByType {
-		paramsByType := cfg.InfraParamsByType[name]
-		paramsByType.Merge(unit)
-		cfg.InfraParamsByType[name] = paramsByType
-	}
-}
-
-func (cfg *ExposeDefaults) Merge(other ExposeDefaults) {
-	cfg.KindDefaults.Merge(other.KindDefaults)
-	cfg.ContentDeliveryNetwork.Merge(other.ContentDeliveryNetwork)
-	if other.ApiType != "" {
-		cfg.ApiType = other.ApiType
-	}
-}
-
-func (cfg *ExecutionUnit) Merge(other ExecutionUnit) {
-	if other.Type != "" {
-		cfg.Type = other.Type
-	}
-	if cfg.Type == "fargate" {
-		cfg.Type = "ecs"
-	}
-	cfg.NetworkPlacement = other.NetworkPlacement
-	if other.NetworkPlacement == "" {
-		cfg.NetworkPlacement = "private"
-	}
-	cfg.EnvironmentVariables = other.EnvironmentVariables
-	if cfg.EnvironmentVariables == nil {
-		cfg.EnvironmentVariables = make(map[string]string)
-	}
-	cfg.HelmChartOptions = other.HelmChartOptions
-	cfg.InfraParams.Merge(other.InfraParams)
-}
-
-func (cfg *ContentDeliveryNetwork) Merge(other ContentDeliveryNetwork) {
-	if other.Id != "" {
-		cfg.Id = other.Id
-	}
-}
-
-func (cfg *Config) Merge(other Config) {
-	if other.Type != "" {
-		cfg.Type = other.Type
-	}
-	cfg.InfraParams.Merge(other.InfraParams)
-}
-
-func (cfg *Expose) Merge(other Expose) {
-	if other.Type != "" {
-		cfg.Type = other.Type
-	}
-	if other.ApiType != "" {
-		cfg.ApiType = other.ApiType
-	}
-	cfg.ContentDeliveryNetwork.Merge(other.ContentDeliveryNetwork)
-	cfg.InfraParams.Merge(other.InfraParams)
-}
-
-func (cfg *Persist) Merge(other Persist) {
-	if other.Type != "" {
-		cfg.Type = other.Type
-	}
-	cfg.InfraParams.Merge(other.InfraParams)
-}
-
-func (cfg *PubSub) Merge(other PubSub) {
-	if other.Type != "" {
-		cfg.Type = other.Type
-	}
-	cfg.InfraParams.Merge(other.InfraParams)
-}
-
-func (cfg *StaticUnit) Merge(other StaticUnit) {
-	if other.Type != "" {
-		cfg.Type = other.Type
-	}
-	cfg.ContentDeliveryNetwork = other.ContentDeliveryNetwork
-	cfg.InfraParams.Merge(other.InfraParams)
-}
-
-func (cfg *Persist) GetPersistDefaults(other PersistKindDefaults, persistType core.PersistKind) Persist {
-	var t *KindDefaults
-
-	switch persistType {
-	case core.PersistKVKind:
-		t = &other.KV
-
-	case core.PersistFileKind:
-		t = &other.FS
-
-	case core.PersistSecretKind:
-		t = &other.Secret
-
-	case core.PersistORMKind:
-		t = &other.ORM
-
-	case core.PersistRedisClusterKind:
-		t = &other.RedisCluster
-	case core.PersistRedisNodeKind:
-		t = &other.RedisNode
-	}
-	if t != nil {
-		defaultType := t.Type
-		if cfg.Type != "" {
-			defaultType = cfg.Type
-		}
-		dcfg := Persist{
-			Type:        defaultType,
-			InfraParams: t.InfraParamsByType[defaultType],
-		}
-		return dcfg
-	}
-	return *cfg
-}
-
-func (cfg *PersistKindDefaults) Merge(other PersistKindDefaults) {
-	cfg.FS.Merge(other.FS)
-	cfg.KV.Merge(other.KV)
-	cfg.Secret.Merge(other.Secret)
-	cfg.ORM.Merge(other.ORM)
-	cfg.RedisCluster.Merge(other.RedisCluster)
-	cfg.RedisNode.Merge(other.RedisNode)
-}
-
-func (cfg *Defaults) Merge(other Defaults) {
-	cfg.ExecutionUnit.Merge(other.ExecutionUnit)
-	cfg.Expose.Merge(other.Expose)
-	cfg.Persist.Merge(other.Persist)
-	cfg.PubSub.Merge(other.PubSub)
-	cfg.StaticUnit.Merge(other.StaticUnit)
-	cfg.Config.Merge(other.Config)
-}
-
-// GetExecutionUnit returns the `ExecutionUnit` config for the resource specified by `id`
-// merged with the defaults.
-func (a Application) GetExecutionUnit(id string) ExecutionUnit {
-	cfg := ExecutionUnit{}
-	defaultType := a.Defaults.ExecutionUnit.Type
-	if ecfg, ok := a.ExecutionUnits[id]; ok {
-		unitType := ecfg.Type
-		if unitType == "" {
-			unitType = defaultType
-		}
-		defaults := ExecutionUnit{
-			Type:        unitType,
-			InfraParams: a.Defaults.ExecutionUnit.InfraParamsByType[unitType],
-		}
-		if ecfg.Type == defaults.Type || ecfg.Type == "" {
-			cfg.Merge(defaults)
-		}
-		cfg.Merge(*ecfg)
-	} else {
-		defaults := ExecutionUnit{
-			Type:        defaultType,
-			InfraParams: a.Defaults.ExecutionUnit.InfraParamsByType[defaultType],
-		}
-		cfg.Merge(defaults)
-	}
-	return cfg
-}
-
-// GetExposed returns the `Expose` config for the resource specified by `id`
-// merged with the defaults.
-func (a Application) GetExposed(id string) Expose {
-	cfg := Expose{}
-	defaultType := a.Defaults.Expose.Type
-	if ecfg, ok := a.Exposed[id]; ok {
-		exposeType := ecfg.Type
-		if exposeType == "" {
-			exposeType = defaultType
-		}
-		defaults := Expose{
-			Type:                   exposeType,
-			ApiType:                a.Defaults.Expose.ApiType,
-			ContentDeliveryNetwork: a.Defaults.Expose.ContentDeliveryNetwork,
-			InfraParams:            a.Defaults.Expose.InfraParamsByType[exposeType],
-		}
-		if ecfg.Type == defaults.Type || ecfg.Type == "" {
-			cfg.Merge(defaults)
-		}
-		cfg.Merge(*ecfg)
-	} else {
-		defaults := Expose{
-			Type:                   defaultType,
-			ApiType:                a.Defaults.Expose.ApiType,
-			ContentDeliveryNetwork: a.Defaults.Expose.ContentDeliveryNetwork,
-			InfraParams:            a.Defaults.Expose.InfraParamsByType[defaultType],
-		}
-		cfg.Merge(defaults)
-	}
-	return cfg
-}
-
-// GetPersisted returns the `Persist` config for the resource specified by `id`
-// merged with the defaults for `kind`.
-func (a Application) GetPersisted(id string, kind core.PersistKind) Persist {
-	cfg := Persist{}
-	if ecfg, ok := a.Persisted[id]; ok {
-		defaults := ecfg.GetPersistDefaults(a.Defaults.Persist, kind)
-		if ecfg.Type == defaults.Type || ecfg.Type == "" {
-			cfg.Merge(defaults)
-		}
-		cfg.Merge(*ecfg)
-	} else {
-		defaults := cfg.GetPersistDefaults(a.Defaults.Persist, kind)
-		cfg.Merge(defaults)
-	}
-	return cfg
-}
-
-// GetPubSub returns the `PubSub` config for the resource specified by `id`
-func (a Application) GetPubSub(id string) PubSub {
-	cfg := PubSub{}
-	defaultType := a.Defaults.PubSub.Type
-	if ecfg, ok := a.PubSub[id]; ok {
-		pubsubType := ecfg.Type
-		if pubsubType == "" {
-			pubsubType = defaultType
-		}
-		defaults := PubSub{
-			Type:        pubsubType,
-			InfraParams: a.Defaults.PubSub.InfraParamsByType[pubsubType],
-		}
-		if ecfg.Type == defaults.Type || ecfg.Type == "" {
-			cfg.Merge(defaults)
-		}
-		cfg.Merge(*ecfg)
-	} else {
-		defaultType := a.Defaults.PubSub.Type
-		defaults := PubSub{
-			Type:        defaultType,
-			InfraParams: a.Defaults.PubSub.InfraParamsByType[defaultType],
-		}
-		cfg.Merge(defaults)
-	}
-	return cfg
-}
-
-// GetStaticUnit returns the `StaticUnit` config for the resource specified by `id`
-func (a Application) GetStaticUnit(id string) StaticUnit {
-	cfg := StaticUnit{}
-	defaultType := a.Defaults.StaticUnit.Type
-	if ecfg, ok := a.StaticUnit[id]; ok {
-		unitType := ecfg.Type
-		if unitType == "" {
-			unitType = defaultType
-		}
-		defaults := StaticUnit{
-			Type:        unitType,
-			InfraParams: a.Defaults.StaticUnit.InfraParamsByType[unitType],
-		}
-		if ecfg.Type == defaults.Type || ecfg.Type == "" {
-			cfg.Merge(defaults)
-		}
-		cfg.Merge(*ecfg)
-	} else {
-		defaults := StaticUnit{
-			Type:        defaultType,
-			InfraParams: a.Defaults.StaticUnit.InfraParamsByType[defaultType],
-		}
-		cfg.Merge(defaults)
-	}
-	return cfg
-}
-
-// GetConfig returns the `Config` configuration for the resource specified by `id`
-func (a Application) GetConfig(id string) Config {
-	cfg := Config{}
-	defaultType := a.Defaults.Config.Type
-	if ecfg, ok := a.Config[id]; ok {
-		cfgType := ecfg.Type
-		if cfgType == "" {
-			cfgType = defaultType
-		}
-		defaults := Config{
-			Type:        cfgType,
-			InfraParams: a.Defaults.Config.InfraParamsByType[cfgType],
-		}
-		if ecfg.Type == defaults.Type || ecfg.Type == "" {
-			cfg.Merge(defaults)
-		}
-		cfg.Merge(*ecfg)
-	} else {
-		defaults := Config{
-			Type:        defaultType,
-			InfraParams: a.Defaults.Config.InfraParamsByType[defaultType],
-		}
-		cfg.Merge(defaults)
-	}
-	return cfg
 }
 
 func (a Application) GetResourceType(resource core.CloudResource) string {
@@ -492,8 +150,28 @@ func (a Application) GetResourceType(resource core.CloudResource) string {
 		cfg := a.GetExposed(key.Name)
 		return cfg.Type
 
-	case string(core.PersistFileKind), string(core.PersistKVKind), string(core.PersistORMKind), string(core.PersistSecretKind), string(core.PersistRedisClusterKind), string(core.PersistRedisNodeKind):
-		cfg := a.GetPersisted(key.Name, core.PersistKind(key.Kind))
+	case string(core.PersistFileKind):
+		cfg := a.GetPersistFs(key.Name)
+		return cfg.Type
+
+	case string(core.PersistKVKind):
+		cfg := a.GetPersistKv(key.Name)
+		return cfg.Type
+
+	case string(core.PersistORMKind):
+		cfg := a.GetPersistOrm(key.Name)
+		return cfg.Type
+
+	case string(core.PersistSecretKind):
+		cfg := a.GetPersistSecrets(key.Name)
+		return cfg.Type
+
+	case string(core.PersistRedisClusterKind):
+		cfg := a.GetPersistRedisCluster(key.Name)
+		return cfg.Type
+
+	case string(core.PersistRedisNodeKind):
+		cfg := a.GetPersistRedisNode(key.Name)
 		return cfg.Type
 
 	case core.PubSubKind:
@@ -524,13 +202,112 @@ func (a *Application) UpdateForResources(res []core.CloudResource) {
 			cfg := a.GetExposed(key.Name)
 			a.Exposed[key.Name] = &cfg
 
-		case string(core.PersistFileKind), string(core.PersistKVKind), string(core.PersistORMKind), string(core.PersistSecretKind), string(core.PersistRedisClusterKind), string(core.PersistRedisNodeKind):
-			cfg := a.GetPersisted(key.Name, core.PersistKind(key.Kind))
-			a.Persisted[key.Name] = &cfg
+		case string(core.PersistFileKind):
+			cfg := a.GetPersistFs(key.Name)
+			a.PersistFs[key.Name] = &cfg
+
+		case string(core.PersistKVKind):
+			cfg := a.GetPersistKv(key.Name)
+			a.PersistKv[key.Name] = &cfg
+
+		case string(core.PersistORMKind):
+			cfg := a.GetPersistOrm(key.Name)
+			a.PersistOrm[key.Name] = &cfg
+
+		case string(core.PersistSecretKind):
+			cfg := a.GetPersistSecrets(key.Name)
+			a.PersistSecrets[key.Name] = &cfg
+
+		case string(core.PersistRedisClusterKind):
+			cfg := a.GetPersistRedisCluster(key.Name)
+			a.PersistRedisCluster[key.Name] = &cfg
+
+		case string(core.PersistRedisNodeKind):
+			cfg := a.GetPersistRedisNode(key.Name)
+			a.PersistRedisNode[key.Name] = &cfg
 
 		case core.PubSubKind:
 			cfg := a.GetPubSub(key.Name)
 			a.PubSub[key.Name] = &cfg
 		}
 	}
+}
+
+func ConvertToInfraParams(p any) InfraParams {
+	jsonString, err := json.Marshal(p)
+	if err != nil {
+		panic(err)
+	}
+	params := InfraParams{}
+	json.Unmarshal(jsonString, &params)
+	return params
+}
+
+func (a *Application) MergeDefaults(other Defaults) {
+	a.Defaults.ExecutionUnit.Merge(other.ExecutionUnit)
+	a.Defaults.Expose.Merge(other.Expose)
+	a.Defaults.PersistFs.Merge(other.PersistFs)
+	a.Defaults.PersistKv.Merge(other.PersistKv)
+	a.Defaults.PersistOrm.Merge(other.PersistOrm)
+	a.Defaults.PersistRedisCluster.Merge(other.PersistRedisCluster)
+	a.Defaults.PersistRedisNode.Merge(other.PersistRedisNode)
+	a.Defaults.PersistSecrets.Merge(other.PersistSecrets)
+	a.Defaults.PubSub.Merge(other.PubSub)
+	a.Defaults.StaticUnit.Merge(other.StaticUnit)
+	a.Defaults.Config.Merge(other.Config)
+}
+
+func (cfg *KindDefaults) Merge(other KindDefaults) {
+	if other.Type != "" && cfg.Type == "" {
+		cfg.Type = other.Type
+	}
+	if cfg.InfraParamsByType == nil {
+		cfg.InfraParamsByType = make(map[string]InfraParams)
+	}
+	for name, unit := range other.InfraParamsByType {
+		paramsByType := cfg.InfraParamsByType[name]
+		cfg.InfraParamsByType[name] = paramsByType.Merge(unit)
+	}
+}
+
+var (
+	MaxDepth = 32
+)
+
+// Merge recursively merges the src and dst maps. Key conflicts are resolved by
+// preferring src, or recursively descending, if both src and dst are maps.
+func (src InfraParams) Merge(dst InfraParams) map[string]interface{} {
+	return merge(dst, src, 0)
+}
+
+func merge(dst, src map[string]interface{}, depth int) map[string]interface{} {
+	if depth > MaxDepth {
+		panic("too deep!")
+	}
+	if dst == nil {
+		dst = make(map[string]interface{})
+	}
+	for key, srcVal := range src {
+		if dstVal, ok := dst[key]; ok {
+			srcMap, srcMapOk := mapify(srcVal)
+			dstMap, dstMapOk := mapify(dstVal)
+			if srcMapOk && dstMapOk {
+				srcVal = merge(dstMap, srcMap, depth+1)
+			}
+		}
+		dst[key] = srcVal
+	}
+	return dst
+}
+
+func mapify(i interface{}) (map[string]interface{}, bool) {
+	value := reflect.ValueOf(i)
+	if value.Kind() == reflect.Map {
+		m := map[string]interface{}{}
+		for _, k := range value.MapKeys() {
+			m[k.String()] = value.MapIndex(k).Interface()
+		}
+		return m, true
+	}
+	return map[string]interface{}{}, false
 }
