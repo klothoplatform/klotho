@@ -137,7 +137,7 @@ func Test_GetExposeKindParams(t *testing.T) {
 					"ApiType": "REST",
 				},
 			},
-			want: GatewayKindParams{
+			want: GatewayTypeParams{
 				ApiType: "REST",
 			},
 		},
