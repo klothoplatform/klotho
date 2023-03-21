@@ -120,3 +120,35 @@ func Test_GetExpose(t *testing.T) {
 		})
 	}
 }
+
+func Test_GetExposeKindParams(t *testing.T) {
+	tests := []struct {
+		name   string
+		cfg    Application
+		expose Expose
+		want   interface{}
+	}{
+		{
+			name: "get base exec unit",
+			cfg:  Application{},
+			expose: Expose{
+				Type: "apigateway",
+				InfraParams: InfraParams{
+					"ApiType": "REST",
+				},
+			},
+			want: GatewayTypeParams{
+				ApiType: "REST",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			testcfg := tt.cfg.GetExposeKindParams(tt.expose)
+			assert.Equal(tt.want, testcfg)
+
+		})
+	}
+}

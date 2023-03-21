@@ -232,7 +232,10 @@ func ConvertToInfraParams(p any) InfraParams {
 		panic(err)
 	}
 	params := InfraParams{}
-	json.Unmarshal(jsonString, &params)
+	err = json.Unmarshal(jsonString, &params)
+	if err != nil {
+		panic(err)
+	}
 	return params
 }
 

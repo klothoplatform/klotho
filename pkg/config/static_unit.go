@@ -17,14 +17,14 @@ func (a Application) GetStaticUnit(id string) StaticUnit {
 		defaultParams, ok := a.Defaults.StaticUnit.InfraParamsByType[ecfg.Type]
 		if ok {
 			if ecfg.InfraParams == nil {
-				ecfg.InfraParams = defaultParams
-			} else {
-				ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
+				ecfg.InfraParams = make(InfraParams)
 			}
+			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
 		}
 		return *ecfg
 	}
 	cfg.Type = a.Defaults.StaticUnit.Type
+	cfg.InfraParams = make(InfraParams)
 	defaultParams, ok := a.Defaults.StaticUnit.InfraParamsByType[cfg.Type]
 	if ok {
 		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)

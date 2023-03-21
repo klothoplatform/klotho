@@ -63,18 +63,26 @@ type (
 func (a Application) GetExecutionUnit(id string) ExecutionUnit {
 	cfg := ExecutionUnit{}
 	if ecfg, ok := a.ExecutionUnits[id]; ok {
+		if ecfg.InfraParams == nil {
+			ecfg.InfraParams = make(InfraParams)
+		}
+		if ecfg.EnvironmentVariables == nil {
+			ecfg.EnvironmentVariables = make(map[string]string)
+		}
+		if ecfg.NetworkPlacement == "" {
+			ecfg.NetworkPlacement = "private"
+		}
 		defaultParams, ok := a.Defaults.ExecutionUnit.InfraParamsByType[ecfg.Type]
 		if ok {
-			if ecfg.InfraParams == nil {
-				ecfg.InfraParams = defaultParams
-			} else {
-				ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-			}
+			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
 		}
 		return *ecfg
 	}
 	cfg.Type = a.Defaults.ExecutionUnit.Type
+	cfg.NetworkPlacement = "private"
 	defaultParams, ok := a.Defaults.ExecutionUnit.InfraParamsByType[cfg.Type]
+	cfg.InfraParams = make(InfraParams)
+	cfg.EnvironmentVariables = make(map[string]string)
 	if ok {
 		cfg.InfraParams = defaultParams
 	}
