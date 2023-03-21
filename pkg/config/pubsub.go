@@ -16,14 +16,14 @@ func (a Application) GetPubSub(id string) PubSub {
 		defaultParams, ok := a.Defaults.PubSub.InfraParamsByType[ecfg.Type]
 		if ok {
 			if ecfg.InfraParams == nil {
-				ecfg.InfraParams = defaultParams
-			} else {
-				ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
+				ecfg.InfraParams = make(InfraParams)
 			}
+			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
 		}
 		return *ecfg
 	}
 	cfg.Type = a.Defaults.PubSub.Type
+	cfg.InfraParams = make(InfraParams)
 	defaultParams, ok := a.Defaults.PubSub.InfraParamsByType[cfg.Type]
 	if ok {
 		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)

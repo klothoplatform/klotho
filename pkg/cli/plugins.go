@@ -142,7 +142,6 @@ func (b *PluginSetBuilder) AddPulumi() error {
 	if err := b.setupProvider(); err != nil {
 		return err
 	}
-	b.Parse = append(b.Parse, pulumi_aws.ConfigPlugin{Config: b.Cfg, Provider: b.provider})
 	b.Infra = append(b.Infra, pulumi_aws.Plugin{Config: b.Cfg})
 	return nil
 }
