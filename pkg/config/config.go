@@ -12,9 +12,8 @@ import (
 )
 
 type (
-	/** Application is used to define the configuration for the application being compiled by Klotho.
-	* The application configuration contains the necessary information to depict the architecture as well as klotho compilation configuration.
-	 */
+	// Application is used to define the configuration for the application being compiled by Klotho.
+	//The application configuration contains the necessary information to depict the architecture as well as klotho compilation configuration.
 	Application struct {
 		AppName  string `json:"app" yaml:"app" toml:"app"`
 		Provider string `json:"provider" yaml:"provider" toml:"provider"`
@@ -44,16 +43,10 @@ type (
 		Id string `json:"id,omitempty" yaml:"id,omitempty" toml:"id,omitempty"`
 	}
 
-	/** InfraParams are passed as-is to the generated IaC
-	*   It follows a generic map and is later converted to the Kind specific object
-	 */
-
 	InfraParams map[string]interface{}
 
-	KindParams interface {
-		Merge(cfg interface{}) InfraParams
-	}
-
+	// Defaults represent the default characteristics the application will be configured with on Klotho compilation
+	// If a new field is added to defaults, that field will need to be added to the MergeDefaults method
 	Defaults struct {
 		ExecutionUnit       KindDefaults `json:"execution_unit" yaml:"execution_unit" toml:"execution_unit"`
 		StaticUnit          KindDefaults `json:"static_unit" yaml:"static_unit" toml:"static_unit"`
@@ -147,7 +140,7 @@ func (a Application) GetResourceType(resource core.CloudResource) string {
 		return cfg.Type
 
 	case core.GatewayKind:
-		cfg := a.GetExposed(key.Name)
+		cfg := a.GetExpose(key.Name)
 		return cfg.Type
 
 	case string(core.PersistFileKind):
@@ -199,7 +192,7 @@ func (a *Application) UpdateForResources(res []core.CloudResource) {
 			a.StaticUnit[key.Name] = &cfg
 
 		case core.GatewayKind:
-			cfg := a.GetExposed(key.Name)
+			cfg := a.GetExpose(key.Name)
 			a.Exposed[key.Name] = &cfg
 
 		case string(core.PersistFileKind):
@@ -309,5 +302,5 @@ func mapify(i interface{}) (map[string]interface{}, bool) {
 		}
 		return m, true
 	}
-	return map[string]interface{}{}, false
+	return nil, false
 }

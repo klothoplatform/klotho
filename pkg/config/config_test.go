@@ -154,6 +154,36 @@ func Test_MergeKindDefaults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "basic defaults merge",
+			cfg: KindDefaults{
+				Type: "apigateway",
+				InfraParamsByType: map[string]InfraParams{
+					"apigateway": {
+						"key1": "value100",
+						"key2": "value2",
+					},
+				},
+			},
+			defaults: KindDefaults{
+				Type: "somethingelse",
+				InfraParamsByType: map[string]InfraParams{
+					"apigateway": {
+						"key1": 1234,
+						"key2": []int{1234},
+					},
+				},
+			},
+			want: KindDefaults{
+				Type: "apigateway",
+				InfraParamsByType: map[string]InfraParams{
+					"apigateway": {
+						"key1": "value100",
+						"key2": "value2",
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

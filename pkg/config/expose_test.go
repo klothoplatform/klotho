@@ -114,7 +114,7 @@ func Test_GetExpose(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			testcfg := tt.cfg.GetExposed(tt.id)
+			testcfg := tt.cfg.GetExpose(tt.id)
 			assert.Equal(tt.want, testcfg)
 
 		})

@@ -8,17 +8,17 @@ type (
 		InfraParams            InfraParams            `json:"infra_params,omitempty" yaml:"infra_params,omitempty" toml:"infra_params,omitempty"`
 	}
 
-	GatewayKindParams struct {
+	GatewayTypeParams struct {
 		ApiType string
 	}
 
-	LoadBalancerKindParams struct {
+	LoadBalancerTypeParams struct {
 	}
 )
 
 // GetExpose returns the `Expose` config for the resource specified by `id`
 // merged with the defaults.
-func (a Application) GetExposed(id string) Expose {
+func (a Application) GetExpose(id string) Expose {
 	cfg := Expose{}
 	if ecfg, ok := a.Exposed[id]; ok {
 		defaultParams, ok := a.Defaults.Expose.InfraParamsByType[ecfg.Type]

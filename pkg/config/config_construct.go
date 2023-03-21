@@ -1,7 +1,7 @@
 package config
 
 type (
-	// Config is how config Klotho constructs are represented in the klotho configuration
+	// Config is how config Klotho constructs and other related resources (or meta-resources) are represented in the klotho configuration
 	Config struct {
 		Type        string      `json:"type" yaml:"type" toml:"type"`
 		InfraParams InfraParams `json:"infra_params,omitempty" yaml:"infra_params,omitempty" toml:"infra_params,omitempty"`
