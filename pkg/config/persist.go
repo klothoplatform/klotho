@@ -15,17 +15,17 @@ type (
 func (a Application) GetPersistKv(id string) Persist {
 	cfg := Persist{}
 	if ecfg, ok := a.PersistKv[id]; ok {
+		if ecfg.InfraParams == nil {
+			ecfg.InfraParams = make(InfraParams)
+		}
 		defaultParams, ok := a.Defaults.PersistKv.InfraParamsByType[ecfg.Type]
 		if ok {
-			if ecfg.InfraParams == nil {
-				ecfg.InfraParams = defaultParams
-			} else {
-				ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-			}
+			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
 		}
 		return *ecfg
 	}
 	cfg.Type = a.Defaults.PersistKv.Type
+	cfg.InfraParams = make(InfraParams)
 	defaultParams, ok := a.Defaults.PersistKv.InfraParamsByType[cfg.Type]
 	if ok {
 		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)
@@ -39,17 +39,17 @@ func (a Application) GetPersistKv(id string) Persist {
 func (a Application) GetPersistFs(id string) Persist {
 	cfg := Persist{}
 	if ecfg, ok := a.PersistFs[id]; ok {
+		if ecfg.InfraParams == nil {
+			ecfg.InfraParams = make(InfraParams)
+		}
 		defaultParams, ok := a.Defaults.PersistFs.InfraParamsByType[ecfg.Type]
 		if ok {
-			if ecfg.InfraParams == nil {
-				ecfg.InfraParams = defaultParams
-			} else {
-				ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-			}
+			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
 		}
 		return *ecfg
 	}
 	cfg.Type = a.Defaults.PersistFs.Type
+	cfg.InfraParams = make(InfraParams)
 	defaultParams, ok := a.Defaults.PersistFs.InfraParamsByType[cfg.Type]
 	if ok {
 		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)
@@ -63,17 +63,17 @@ func (a Application) GetPersistFs(id string) Persist {
 func (a Application) GetPersistSecrets(id string) Persist {
 	cfg := Persist{}
 	if ecfg, ok := a.PersistSecrets[id]; ok {
+		if ecfg.InfraParams == nil {
+			ecfg.InfraParams = make(InfraParams)
+		}
 		defaultParams, ok := a.Defaults.PersistSecrets.InfraParamsByType[ecfg.Type]
 		if ok {
-			if ecfg.InfraParams == nil {
-				ecfg.InfraParams = defaultParams
-			} else {
-				ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-			}
+			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
 		}
 		return *ecfg
 	}
 	cfg.Type = a.Defaults.PersistSecrets.Type
+	cfg.InfraParams = make(InfraParams)
 	defaultParams, ok := a.Defaults.PersistSecrets.InfraParamsByType[cfg.Type]
 	if ok {
 		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)
@@ -87,17 +87,17 @@ func (a Application) GetPersistSecrets(id string) Persist {
 func (a Application) GetPersistOrm(id string) Persist {
 	cfg := Persist{}
 	if ecfg, ok := a.PersistOrm[id]; ok {
+		if ecfg.InfraParams == nil {
+			ecfg.InfraParams = make(InfraParams)
+		}
 		defaultParams, ok := a.Defaults.PersistOrm.InfraParamsByType[ecfg.Type]
 		if ok {
-			if ecfg.InfraParams == nil {
-				ecfg.InfraParams = defaultParams
-			} else {
-				ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-			}
+			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
 		}
 		return *ecfg
 	}
 	cfg.Type = a.Defaults.PersistOrm.Type
+	cfg.InfraParams = make(InfraParams)
 	defaultParams, ok := a.Defaults.PersistOrm.InfraParamsByType[cfg.Type]
 	if ok {
 		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)
@@ -111,17 +111,17 @@ func (a Application) GetPersistOrm(id string) Persist {
 func (a Application) GetPersistRedisNode(id string) Persist {
 	cfg := Persist{}
 	if ecfg, ok := a.PersistRedisNode[id]; ok {
+		if ecfg.InfraParams == nil {
+			ecfg.InfraParams = make(InfraParams)
+		}
 		defaultParams, ok := a.Defaults.PersistRedisNode.InfraParamsByType[ecfg.Type]
 		if ok {
-			if ecfg.InfraParams == nil {
-				ecfg.InfraParams = defaultParams
-			} else {
-				ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-			}
+			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
 		}
 		return *ecfg
 	}
 	cfg.Type = a.Defaults.PersistRedisNode.Type
+	cfg.InfraParams = make(InfraParams)
 	defaultParams, ok := a.Defaults.PersistRedisNode.InfraParamsByType[cfg.Type]
 	if ok {
 		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)
@@ -135,17 +135,17 @@ func (a Application) GetPersistRedisNode(id string) Persist {
 func (a Application) GetPersistRedisCluster(id string) Persist {
 	cfg := Persist{}
 	if ecfg, ok := a.PersistRedisCluster[id]; ok {
+		if ecfg.InfraParams == nil {
+			ecfg.InfraParams = make(InfraParams)
+		}
 		defaultParams, ok := a.Defaults.PersistRedisCluster.InfraParamsByType[ecfg.Type]
 		if ok {
-			if ecfg.InfraParams == nil {
-				ecfg.InfraParams = defaultParams
-			} else {
-				ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-			}
+			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
 		}
 		return *ecfg
 	}
 	cfg.Type = a.Defaults.PersistRedisCluster.Type
+	cfg.InfraParams = make(InfraParams)
 	defaultParams, ok := a.Defaults.PersistRedisCluster.InfraParamsByType[cfg.Type]
 	if ok {
 		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)

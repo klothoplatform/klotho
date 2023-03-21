@@ -2,6 +2,7 @@ package aws
 
 import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -100,9 +101,14 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 
 		case *core.Gateway:
 			cfg := a.Config.GetExposed(key.Name)
+			apiType := ""
+			kindParams, ok := a.Config.GetExposeKindParams(cfg).(config.GatewayKindParams)
+			if ok {
+				apiType = kindParams.ApiType
+			}
 			gw := provider.Gateway{
 				Name:    res.Name,
-				ApiType: cfg.ApiType,
+				ApiType: apiType,
 			}
 			for _, route := range res.Routes {
 				gw.Routes = append(gw.Routes, provider.Route{
@@ -118,12 +124,12 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 			}
 
 		case *core.Persist:
-			cfg := a.Config.GetPersisted(key.Name, res.Kind)
 
 			if res.Kind == core.PersistKVKind {
 				data.HasKV = true
 			}
 			if res.Kind == core.PersistORMKind {
+				cfg := a.Config.GetPersistOrm(key.Name)
 				if cfg.Type == "rds_postgres" {
 					data.RdsInstances = append(data.RdsInstances, provider.ORM{
 						Name:   res.Name,
@@ -140,6 +146,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 				}
 			}
 			if res.Kind == core.PersistRedisNodeKind {
+				cfg := a.Config.GetPersistRedisNode(key.Name)
 				data.ElasticacheInstances = append(data.ElasticacheInstances, provider.Redis{
 					Name:   res.Name,
 					Type:   cfg.Type,
@@ -148,6 +155,7 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 				data.UseVPC = true
 			}
 			if res.Kind == core.PersistRedisClusterKind {
+				cfg := a.Config.GetPersistRedisCluster(key.Name)
 				data.MemoryDBClusters = append(data.MemoryDBClusters, provider.Redis{
 					Name:   res.Name,
 					Type:   cfg.Type,

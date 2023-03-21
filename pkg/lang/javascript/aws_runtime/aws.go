@@ -123,7 +123,7 @@ func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotat
 
 	switch kind {
 	case core.PersistORMKind:
-		cfg := r.Config.GetPersisted(annot.Capability.ID, kind)
+		cfg := r.Config.GetPersistOrm(annot.Capability.ID)
 		if cfg.Type == "cockroachdb_serverless" {
 			oldNodeContent := annot.Node.Content()
 			newNodeContent := sequelizeReplaceRE.ReplaceAllString(oldNodeContent, "new cockroachdbSequelize.Sequelize(")

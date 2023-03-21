@@ -390,6 +390,8 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 	err = km.PluginSetup(plugins)
 
+	appCfg.MergeDefaults(plugins.provider.GetDefaultConfig())
+
 	if err != nil {
 		return err
 	}

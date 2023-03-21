@@ -3,6 +3,9 @@ package aws_runtime
 import (
 	_ "embed"
 	"fmt"
+	"path/filepath"
+	"strings"
+
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp"
@@ -11,8 +14,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/runtime"
 	"github.com/pkg/errors"
-	"path/filepath"
-	"strings"
 )
 
 type (
@@ -75,6 +76,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 	var err error
 	var dockerFile []byte
 	unitType := r.Cfg.GetResourceType(unit)
+	fmt.Println(unitType)
 	switch unitType {
 	case "lambda":
 		dockerFile = dockerfileLambda
@@ -129,7 +131,12 @@ func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, result *cor
 	var sgw *core.Gateway
 	var sgwApiType string
 	for _, gw := range upstreamGateways {
-		gwApiType := r.Cfg.GetExposed(gw.Name).ApiType
+		gwCfg := r.Cfg.GetExposed(gw.Name)
+		kindParams := r.Cfg.GetExposeKindParams(gwCfg)
+		var gwApiType string
+		if params, ok := kindParams.(config.GatewayKindParams); ok {
+			gwApiType = params.ApiType
+		}
 		if sgw != nil {
 			if sgw.DefinedIn != gw.DefinedIn || sgw.ExportVarName != gw.ExportVarName {
 				return ExposeTemplateData{},

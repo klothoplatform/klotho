@@ -118,19 +118,54 @@ func (p *Plugin) validateConfigOverrideResourcesExist(result *core.CompilationRe
 		}
 	}
 
-	for persistResource := range p.UserConfigOverrides.Persisted {
+	for persistResource := range p.UserConfigOverrides.PersistKv {
+		resources := result.GetResourcesOfType(string(core.PersistKVKind))
+		resource := getResourceById(persistResource, resources)
+		if resource == (core.ResourceKey{}) {
+			log.Warnf("Unknown persist_kv in config override, \"%s\".", persistResource)
+		}
+	}
+
+	for persistResource := range p.UserConfigOverrides.PersistFs {
 		resources := result.GetResourcesOfType(string(core.PersistFileKind))
-		resources = append(result.GetResourcesOfType(string(core.PersistKVKind)), resources...)
-		resources = append(result.GetResourcesOfType(string(core.PersistORMKind)), resources...)
-		resources = append(result.GetResourcesOfType(string(core.PersistRedisClusterKind)), resources...)
-		resources = append(result.GetResourcesOfType(string(core.PersistRedisNodeKind)), resources...)
-		resources = append(result.GetResourcesOfType(string(core.PersistSecretKind)), resources...)
+		resource := getResourceById(persistResource, resources)
+		if resource == (core.ResourceKey{}) {
+			log.Warnf("Unknown persist_fs in config override, \"%s\".", persistResource)
+		}
+	}
+
+	for persistResource := range p.UserConfigOverrides.PersistOrm {
+		resources := result.GetResourcesOfType(string(core.PersistORMKind))
+		resource := getResourceById(persistResource, resources)
+		if resource == (core.ResourceKey{}) {
+			log.Warnf("Unknown persist_orm in config override, \"%s\".", persistResource)
+		}
+	}
+
+	for persistResource := range p.UserConfigOverrides.PersistSecrets {
+		resources := result.GetResourcesOfType(string(core.PersistSecretKind))
 		resource := getResourceById(persistResource, resources)
 		if resource == (core.ResourceKey{}) {
 			log.Warnf("Unknown persist in config override, \"%s\".", persistResource)
 		}
-
 	}
+
+	for persistResource := range p.UserConfigOverrides.PersistRedisCluster {
+		resources := result.GetResourcesOfType(string(core.PersistRedisClusterKind))
+		resource := getResourceById(persistResource, resources)
+		if resource == (core.ResourceKey{}) {
+			log.Warnf("Unknown persist in config override, \"%s\".", persistResource)
+		}
+	}
+
+	for persistResource := range p.UserConfigOverrides.PersistRedisNode {
+		resources := result.GetResourcesOfType(string(core.PersistRedisNodeKind))
+		resource := getResourceById(persistResource, resources)
+		if resource == (core.ResourceKey{}) {
+			log.Warnf("Unknown persist in config override, \"%s\".", persistResource)
+		}
+	}
+
 	for exposeResource := range p.UserConfigOverrides.Exposed {
 		resources := result.GetResourcesOfType(core.GatewayKind)
 		resource := getResourceById(exposeResource, resources)
