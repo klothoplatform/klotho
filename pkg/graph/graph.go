@@ -89,7 +89,7 @@ func (d *Directed[V]) GetVertex(source string) V {
 	v, err := d.underlying.Vertex(source)
 	if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
 		zap.S().With("error", zap.Error(err)).Errorf(
-			`Unexpected error while getting vertex for "%v"`, source.Id())
+			`Unexpected error while getting vertex for "%v"`, source)
 	}
 	return v
 }

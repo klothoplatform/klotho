@@ -2,6 +2,7 @@ package execunit
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"go.uber.org/zap"
 )
 
@@ -15,16 +16,11 @@ func (PruneUncategorizedFiles) Name() string {
 	return "prune_uncategorized_files"
 }
 
-func (p PruneUncategorizedFiles) Transform(result *core.CompilationResult, dependencies *core.Dependencies) error {
+func (p PruneUncategorizedFiles) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
 	log := zap.L().Sugar()
 
-	units := result.GetResourcesOfType(core.ExecutionUnitKind)
-	for _, unitR := range units {
-		unit, ok := unitR.(*core.ExecutionUnit)
-		if !ok {
-			continue
-		}
-
+	units := core.GetResourcesOfType[*core.ExecutionUnit](constructGraph)
+	for _, unit := range units {
 		count := 0
 		for path := range unit.Files() {
 			_, isResource := unit.Executable.Resources[path]
@@ -37,9 +33,9 @@ func (p PruneUncategorizedFiles) Transform(result *core.CompilationResult, depen
 
 			unit.Remove(path)
 			count++
-			log.Debugf("Removed file: '%s' from execution unit: %s", path, unit.Name)
+			log.Debugf("Removed file: '%s' from execution unit: %s", path, unit.ID)
 		}
-		log.Debugf("Removed %d uncategorized files from execution unit: %s", count, unit.Name)
+		log.Debugf("Removed %d uncategorized files from execution unit: %s", count, unit.ID)
 	}
 	return nil
 }

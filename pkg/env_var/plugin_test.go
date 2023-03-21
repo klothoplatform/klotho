@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_envVarPlugin(t *testing.T) {
 	type testResult struct {
-		resource core.CloudResource
+		resource core.Construct
 		envVars  core.EnvironmentVariables
 	}
 	tests := []struct {
@@ -33,19 +34,17 @@ func Test_envVarPlugin(t *testing.T) {
 */
 const a = 1`,
 			want: testResult{
-				resource: &core.Persist{Kind: core.PersistRedisNodeKind, Name: "myRedisNode"},
+				resource: &core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "myRedisNode"}},
 				envVars: core.EnvironmentVariables{
 					{
-						Name:       "REDIS_NODE_HOST",
-						Kind:       "persist_redis_node",
-						ResourceID: "myRedisNode",
-						Value:      "host",
+						Name:      "REDIS_NODE_HOST",
+						Construct: &core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "myRedisNode"}},
+						Value:     "host",
 					},
 					{
-						Name:       "REDIS_NODE_PORT",
-						Kind:       "persist_redis_node",
-						ResourceID: "myRedisNode",
-						Value:      "port",
+						Name:      "REDIS_NODE_PORT",
+						Construct: &core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "myRedisNode"}},
+						Value:     "port",
 					},
 				},
 			},
@@ -63,19 +62,17 @@ const a = 1`,
 */
 const a = 1`,
 			want: testResult{
-				resource: &core.Persist{Kind: core.PersistRedisClusterKind, Name: "myRedisCluster"},
+				resource: &core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "myRedisCluster"}},
 				envVars: core.EnvironmentVariables{
 					{
-						Name:       "REDIS_HOST",
-						Kind:       "persist_redis_cluster",
-						ResourceID: "myRedisCluster",
-						Value:      "host",
+						Name:      "REDIS_HOST",
+						Construct: &core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "myRedisCluster"}},
+						Value:     "host",
 					},
 					{
-						Name:       "REDIS_PORT",
-						Kind:       "persist_redis_cluster",
-						ResourceID: "myRedisCluster",
-						Value:      "port",
+						Name:      "REDIS_PORT",
+						Construct: &core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "myRedisCluster"}},
+						Value:     "port",
 					},
 				},
 			},
@@ -92,13 +89,12 @@ const a = 1`,
 */
 const a = 1`,
 			want: testResult{
-				resource: &core.Persist{Kind: core.PersistORMKind, Name: "myOrm"},
+				resource: &core.Orm{AnnotationKey: core.AnnotationKey{ID: "myOrm"}},
 				envVars: core.EnvironmentVariables{
 					{
-						Name:       "ORM_CONNECTION_STRING",
-						Kind:       "persist_orm",
-						ResourceID: "myOrm",
-						Value:      "connection_string",
+						Name:      "ORM_CONNECTION_STRING",
+						Construct: &core.Orm{AnnotationKey: core.AnnotationKey{ID: "myOrm"}},
+						Value:     "connection_string",
 					},
 				},
 			},
@@ -162,12 +158,11 @@ const a = 1`,
 			}
 			p := EnvVarInjection{}
 
-			unit := &core.ExecutionUnit{Name: "unit"}
+			unit := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "unit"}}
 			unit.Add(f)
-			result := &core.CompilationResult{}
-			result.Add(unit)
-			deps := &core.Dependencies{}
-			err = p.Transform(result, deps)
+			result := graph.NewDirected[core.Construct]()
+			result.AddVertex(unit)
+			err = p.Transform(&core.InputFiles{}, result)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -176,13 +171,13 @@ const a = 1`,
 				return
 			}
 
-			resources := result.GetResourcesOfType(tt.want.resource.Key().Kind)
+			resources := core.GetResourcesOfType[*core.ExecutionUnit](result)
 			assert.Len(resources, 1)
 			assert.Equal(tt.want.resource, resources[0])
 
-			downstreamDeps := deps.Downstream(unit.Key())
+			downstreamDeps := result.OutgoingEdges(unit)
 			assert.Len(downstreamDeps, 1)
-			assert.Equal(tt.want.resource.Key(), downstreamDeps[0])
+			assert.Equal(tt.want.resource.Provenance().ID, downstreamDeps[0].Destination.Id())
 
 			assert.Len(unit.EnvironmentVariables, len(tt.want.envVars))
 			for _, envVar := range tt.want.envVars {
@@ -217,19 +212,15 @@ func Test_parseDirectiveToEnvVars(t *testing.T) {
 */
 const a = 1`,
 			want: EnvironmentVariableDirectiveResult{
-				kind: string(core.PersistRedisNodeKind),
+				kind: "redis_node",
 				variables: core.EnvironmentVariables{
 					{
-						Name:       "REDIS_NODE_HOST",
-						Kind:       "persist_redis_node",
-						ResourceID: "myRedisNode",
-						Value:      "host",
+						Name:  "REDIS_NODE_HOST",
+						Value: "host",
 					},
 					{
-						Name:       "REDIS_NODE_PORT",
-						Kind:       "persist_redis_node",
-						ResourceID: "myRedisNode",
-						Value:      "port",
+						Name:  "REDIS_NODE_PORT",
+						Value: "port",
 					},
 				},
 			},

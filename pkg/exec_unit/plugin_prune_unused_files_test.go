@@ -3,7 +3,9 @@ package execunit
 import (
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,7 +31,7 @@ func TestPruneUncategorizedFiles_Transform(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			testUnit := core.ExecutionUnit{Name: "main", Executable: core.NewExecutable()}
+			testUnit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "main", Capability: annotation.ExecutionUnitCapability}, Executable: core.NewExecutable()}
 			for _, path := range tt.unitFiles {
 				testUnit.Add(&core.FileRef{FPath: path})
 			}
@@ -43,9 +45,9 @@ func TestPruneUncategorizedFiles_Transform(t *testing.T) {
 				testUnit.AddStaticAsset(&core.FileRef{FPath: path})
 			}
 			p := PruneUncategorizedFiles{}
-			result := &core.CompilationResult{}
-			result.Add(&testUnit)
-			err := p.Transform(result, &core.Dependencies{})
+			result := graph.NewDirected[core.Construct]()
+			result.AddVertex(&testUnit)
+			err := p.Transform(&core.InputFiles{}, result)
 			if !assert.NoError(err) {
 				return
 			}
