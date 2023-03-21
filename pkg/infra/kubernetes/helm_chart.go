@@ -24,15 +24,6 @@ type KlothoHelmChart struct {
 
 var HelmChartKind = "helm_chart"
 
-func (*KlothoHelmChart) Type() string { return "" }
-
-func (t *KlothoHelmChart) Key() core.ResourceKey {
-	return core.ResourceKey{
-		Name: t.Name,
-		Kind: HelmChartKind,
-	}
-}
-
 func (t *KlothoHelmChart) OutputTo(dest string) error {
 	errs := make(chan error)
 	files := t.Files

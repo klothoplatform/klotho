@@ -139,7 +139,7 @@ func (a *Application) AddLinks(links []core.CloudResourceLink) {
 	for _, link := range links {
 		a.Links = append(a.Links, CloudResourceLink{
 			Source: link.Dependency().Source.Id(),
-			Target: link.Dependency().Target.Id(),
+			Target: link.Dependency().Destination.Id(),
 			Type:   link.Type(),
 		})
 	}

@@ -20,8 +20,8 @@ import (
 	"github.com/klothoplatform/klotho/pkg/auth"
 	"github.com/klothoplatform/klotho/pkg/cli_config"
 	"github.com/klothoplatform/klotho/pkg/closenicely"
+	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/input"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/updater"
@@ -396,17 +396,19 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	document := core.CompilationDocument{
+	document := compiler.CompilationDocument{
 		InputFiles: input,
 	}
-	compiler := core.Compiler{
-		Plugins:  plugins.Plugins(),
-		Document: document,
+	compiler := compiler.Compiler{
+		AnalysisAndTransformationPlugins: plugins.AnalysisAndTransform,
+		ProviderPlugins:                  plugins.Provider,
+		IaCPlugins:                       plugins.IaC,
+		Document:                         document,
 	}
 
 	analyticsClient.Info(klothoName + " compiling")
 
-	result, err := compiler.Compile()
+	err = compiler.Compile()
 	if err != nil || hadErrors.Load() {
 		if err != nil {
 			errHandler.PrintErr(err)
@@ -422,15 +424,15 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		analyticsClient.UploadSource(input)
 	}
 
-	resourceCounts, err := OutputResources(result, appCfg.OutDir)
+	resourceCounts, err := OutputResources(document.Constructs, appCfg.OutDir)
 	if err != nil {
 		return err
 	}
 
-	CloseTreeSitter(result)
+	CloseTreeSitter(document.Constructs)
 	analyticsClient.AppendProperties(map[string]any{
-		"resource_types": GetResourceTypeCount(result, &appCfg),
-		"languages":      GetLanguagesUsed(result),
+		"resource_types": GetResourceTypeCount(document.Constructs, &appCfg),
+		"languages":      GetLanguagesUsed(document.Constructs),
 		"resources":      GetResourceCount(resourceCounts),
 	})
 	analyticsClient.Info(klothoName + " compile complete")

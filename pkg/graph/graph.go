@@ -85,6 +85,33 @@ func (d *Directed[V]) AddEdge(source V, dest V) {
 	}
 }
 
+func (d *Directed[V]) GetVertex(source string) V {
+	v, err := d.underlying.Vertex(source)
+	if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
+		zap.S().With("error", zap.Error(err)).Errorf(
+			`Unexpected error while getting vertex for "%v"`, source.Id())
+	}
+	return v
+}
+
+func (d *Directed[V]) GetAllVertices() []V {
+	predecessors, err := d.underlying.PredecessorMap()
+	if err != nil {
+		// Very unexpected! This is only because the underlying graph store is generalized and supports returning err,
+		// in case it's something like a SQL-backed store. Our store is in-memory and should never error out.
+		panic(err)
+	}
+	var vertices []V
+	for vId, _ := range predecessors {
+		if v, err := d.underlying.Vertex(vId); err == nil {
+			vertices = append(vertices, v)
+		} else {
+			zap.S().Errorf(`Couldn't resolve vertex with id="%s". %s`, vId, ourFault)
+		}
+	}
+	return vertices
+}
+
 func handleEdges[V Identifiable, O any](d *Directed[V], from V, generate func(destination V) O) []O {
 	// Note: this is very inefficient. The graph library we use doesn't let us get just the roots, so we pull in
 	// the full predecessor map, get all the ids with no outgoing edges, and then look up the vertex for each one
