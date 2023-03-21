@@ -8,6 +8,21 @@ import (
 )
 
 type (
+	Construct interface {
+		Provenance() AnnotationKey
+		Id() string
+	}
+
+	// ProviderResource will be renamed to CloudResource once the cleanup of CloudResource is done
+	ProviderResource interface {
+		// Provider returns name of the provider the resource is correlated to
+		Provider() string
+		// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+		KlothoConstructRef() []AnnotationKey
+		// ID returns the id of the cloud resource
+		Id() string
+	}
+
 	CompilationResult ConcurrentMap[ResourceKey, CloudResource]
 
 	ResourceKey struct {
@@ -34,7 +49,8 @@ type (
 	}
 
 	Compiler struct {
-		Plugins []Plugin
+		Plugins  []Plugin
+		Document CompilationDocument
 	}
 
 	// ResourcesOrErr provided as commonly used in async operations for the result channel.
@@ -144,10 +160,8 @@ func (result *CompilationResult) GetExecUnitForPath(fp string) (*ExecutionUnit, 
 	return best, bestFile
 }
 
-func (c *Compiler) Compile(main *InputFiles) (*CompilationResult, error) {
+func (c *Compiler) Compile() (*CompilationResult, error) {
 	result := &CompilationResult{}
-	// Do the initial add without using Add so it doesn't log anything
-	(*ConcurrentMap[ResourceKey, CloudResource])(result).Set(main.Key(), main)
 
 	// Add our internal resource to be used for provider specific implementations. ex) aws dispatcher requires the payloads bucket and so does proxy
 	// TODO: We could likely move this into runtime, but until we refactor that to be common we can keep this here so it lives in one place.
