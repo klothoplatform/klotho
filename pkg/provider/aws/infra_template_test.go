@@ -42,7 +42,7 @@ func TestInfraTemplateModification(t *testing.T) {
 			data: TemplateData{
 				TemplateData: provider.TemplateData{
 					ExecUnits: []provider.ExecUnit{
-						{Name: "unit", Type: "eks", NetworkPlacement: "private", MemReqMB: 0, KeepWarm: false, Schedules: []provider.Schedule(nil), Params: config.InfraParams{}},
+						{Name: "unit", Type: "eks", NetworkPlacement: "private", MemReqMB: 0, KeepWarm: false, Schedules: []provider.Schedule(nil), Params: make(config.InfraParams)},
 					},
 				},
 				APIGateways: []provider.Gateway{

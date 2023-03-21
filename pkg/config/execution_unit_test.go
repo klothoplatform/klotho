@@ -31,6 +31,8 @@ func Test_GetExecutionUnit(t *testing.T) {
 				InfraParams: InfraParams{
 					"key1": "value1",
 				},
+				NetworkPlacement:     "private",
+				EnvironmentVariables: make(map[string]string),
 			},
 		},
 		{
@@ -54,6 +56,8 @@ func Test_GetExecutionUnit(t *testing.T) {
 				InfraParams: InfraParams{
 					"key1": "value1",
 				},
+				NetworkPlacement:     "private",
+				EnvironmentVariables: make(map[string]string),
 			},
 		},
 		{
@@ -82,11 +86,13 @@ func Test_GetExecutionUnit(t *testing.T) {
 					"key1": "value1",
 					"key2": "value200",
 				},
-				HelmChartOptions: &HelmChartOptions{Install: true},
+				HelmChartOptions:     &HelmChartOptions{Install: true},
+				NetworkPlacement:     "private",
+				EnvironmentVariables: make(map[string]string),
 			},
 		},
 		{
-			name: "get config and add other default params",
+			name: "get config and add other default params plus overrides",
 			cfg: Application{
 				Defaults: Defaults{
 					ExecutionUnit: KindDefaults{
@@ -101,6 +107,10 @@ func Test_GetExecutionUnit(t *testing.T) {
 						Type:             "ecs",
 						InfraParams:      map[string]interface{}{"key2": "value200"},
 						HelmChartOptions: &HelmChartOptions{Install: true},
+						NetworkPlacement: "public",
+						EnvironmentVariables: map[string]string{
+							"1": "2",
+						},
 					},
 				},
 			},
@@ -111,6 +121,10 @@ func Test_GetExecutionUnit(t *testing.T) {
 					"key2": "value200",
 				},
 				HelmChartOptions: &HelmChartOptions{Install: true},
+				NetworkPlacement: "public",
+				EnvironmentVariables: map[string]string{
+					"1": "2",
+				},
 			},
 		},
 	}

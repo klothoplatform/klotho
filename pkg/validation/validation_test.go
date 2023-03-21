@@ -393,7 +393,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 			}},
 			cfg: config.Application{
 				Provider: "aws",
-				Persisted: map[string]*config.Persist{
+				PersistKv: map[string]*config.Persist{
 					"test": {},
 				},
 			},
@@ -405,11 +405,11 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 			}},
 			cfg: config.Application{
 				Provider: "aws",
-				Persisted: map[string]*config.Persist{
+				PersistKv: map[string]*config.Persist{
 					"nottest": {},
 				},
 			},
-			want: `Unknown persist in config override, "nottest".`,
+			want: `Unknown persist_kv in config override, "nottest".`,
 		},
 		{
 			name: "expose match",

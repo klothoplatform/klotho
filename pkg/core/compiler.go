@@ -22,6 +22,10 @@ type (
 		Key() ResourceKey
 	}
 
+	Construct interface {
+		Provenance() AnnotationKey
+	}
+
 	HasLocalOutput interface {
 		OutputTo(dest string) error
 	}

@@ -97,9 +97,9 @@ func Test_UpdateForResources(t *testing.T) {
 						Type: "dynamodb",
 					},
 				},
-				Exposed:        map[string]*Expose{"test": {Type: "apigateway"}},
-				ExecutionUnits: map[string]*ExecutionUnit{"test": {Type: "lambda"}},
-				PersistKv:      map[string]*Persist{"test": {Type: "dynamodb"}},
+				Exposed:        map[string]*Expose{"test": {Type: "apigateway", InfraParams: make(InfraParams)}},
+				ExecutionUnits: map[string]*ExecutionUnit{"test": {Type: "lambda", NetworkPlacement: "private", EnvironmentVariables: make(map[string]string), InfraParams: make(InfraParams)}},
+				PersistKv:      map[string]*Persist{"test": {Type: "dynamodb", InfraParams: make(InfraParams)}},
 			},
 		},
 	}

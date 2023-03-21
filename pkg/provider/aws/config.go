@@ -51,56 +51,60 @@ func NewTemplateData(config *config.Application) *TemplateData {
 
 func (c *AWS) Name() string { return "aws" }
 
-type GatewayType string
-
 // Enums for the types we allow in the aws provider so that we can reuse the same string within the provider
 const (
-	Eks                                = "eks"
-	Ecs                                = "ecs"
-	Lambda                             = "lambda"
-	Rds_postgres                       = "rds_postgres"
-	Secrets_manager                    = "secrets_manager"
-	S3                                 = "s3"
-	Dynamodb                           = "dynamodb"
-	Elasticache                        = "elasticache"
-	Memorydb                           = "memorydb"
-	Sns                                = "sns"
-	Cockroachdb_serverless             = "cockroachdb_serverless"
-	ApiGateway             GatewayType = "apigateway"
-	Alb                    GatewayType = "alb"
+	Eks                    = "eks"
+	Ecs                    = "ecs"
+	Lambda                 = "lambda"
+	Rds_postgres           = "rds_postgres"
+	Secrets_manager        = "secrets_manager"
+	S3                     = "s3"
+	Dynamodb               = "dynamodb"
+	Elasticache            = "elasticache"
+	Memorydb               = "memorydb"
+	Sns                    = "sns"
+	Cockroachdb_serverless = "cockroachdb_serverless"
+	ApiGateway             = "apigateway"
+	Alb                    = "alb"
+)
+
+var (
+	eksDefaults = config.KubernetesTypeParams{
+		NodeType: "fargate",
+		Replicas: 2,
+	}
+
+	ecsDefaults = config.ContainerTypeParams{
+		Memory: 512,
+		Cpu:    256,
+	}
+
+	lambdaDefaults = config.ServerlessTypeParams{
+		Timeout: 180,
+		Memory:  512,
+	}
 )
 
 var defaultConfig = config.Defaults{
 	ExecutionUnit: config.KindDefaults{
 		Type: Lambda,
 		InfraParamsByType: map[string]config.InfraParams{
-			Lambda: {
-				"memorySize": 512,
-				"timeout":    180,
-			},
-			Ecs: {
-				"memory": 512,
-				"cpu":    256,
-			},
-			Eks: {
-				"nodeType": "fargate",
-				"replicas": 2,
-			},
+			Lambda: config.ConvertToInfraParams(lambdaDefaults),
+			Ecs:    config.ConvertToInfraParams(ecsDefaults),
+			Eks:    config.ConvertToInfraParams(eksDefaults),
 		},
 	},
 	StaticUnit: config.KindDefaults{
 		Type: S3,
-		InfraParamsByType: map[string]config.InfraParams{
-			S3: {
-				"cloudFrontEnabled": true,
-			},
-		},
 	},
-	Expose: config.ExposeDefaults{
-		KindDefaults: config.KindDefaults{
-			Type: string(ApiGateway),
+	Expose: config.KindDefaults{
+		Type: ApiGateway,
+		InfraParamsByType: map[string]config.InfraParams{
+			ApiGateway: config.ConvertToInfraParams(config.GatewayTypeParams{
+				ApiType: "REST",
+			}),
+			Alb: config.ConvertToInfraParams(config.LoadBalancerTypeParams{}),
 		},
-		ApiType: "REST",
 	},
 	PubSub: config.KindDefaults{
 		Type: Sns,
@@ -108,46 +112,40 @@ var defaultConfig = config.Defaults{
 	Config: config.KindDefaults{
 		Type: S3,
 	},
-	Persist: config.PersistKindDefaults{
-		KV: config.KindDefaults{
-			Type: Dynamodb,
+	PersistKv: config.KindDefaults{
+		Type: Dynamodb,
+		InfraParamsByType: map[string]config.InfraParams{
+			Dynamodb: config.ConvertToInfraParams(config.InfraParams{}),
 		},
-		FS: config.KindDefaults{
-			Type: S3,
+	},
+	PersistFs: config.KindDefaults{
+		Type: S3,
+		InfraParamsByType: map[string]config.InfraParams{
+			S3: config.ConvertToInfraParams(config.InfraParams{}),
 		},
-		Secret: config.KindDefaults{
-			Type: S3,
+	},
+	PersistSecrets: config.KindDefaults{
+		Type: Secrets_manager,
+		InfraParamsByType: map[string]config.InfraParams{
+			Secrets_manager: config.ConvertToInfraParams(config.InfraParams{}),
 		},
-		ORM: config.KindDefaults{
-			Type: Rds_postgres,
-			InfraParamsByType: map[string]config.InfraParams{
-				Rds_postgres: {
-					"instanceClass":     "db.t4g.micro",
-					"allocatedStorage":  20,
-					"skipFinalSnapshot": true,
-					"engineVersion":     "13.7",
-				},
-				Cockroachdb_serverless: {},
-			},
+	},
+	PersistOrm: config.KindDefaults{
+		Type: Rds_postgres,
+		InfraParamsByType: map[string]config.InfraParams{
+			Rds_postgres: config.ConvertToInfraParams(config.InfraParams{}),
 		},
-		RedisNode: config.KindDefaults{
-			Type: Elasticache,
-			InfraParamsByType: map[string]config.InfraParams{
-				Elasticache: {
-					"nodeType":      "cache.t3.micro",
-					"numCacheNodes": 1,
-				},
-			},
+	},
+	PersistRedisNode: config.KindDefaults{
+		Type: Elasticache,
+		InfraParamsByType: map[string]config.InfraParams{
+			Elasticache: config.ConvertToInfraParams(config.InfraParams{}),
 		},
-		RedisCluster: config.KindDefaults{
-			Type: Memorydb,
-			InfraParamsByType: map[string]config.InfraParams{
-				Memorydb: {
-					"nodeType":            "db.t4g.small",
-					"numReplicasPerShard": 1,
-					"numShards":           2,
-				},
-			},
+	},
+	PersistRedisCluster: config.KindDefaults{
+		Type: Memorydb,
+		InfraParamsByType: map[string]config.InfraParams{
+			Memorydb: config.ConvertToInfraParams(config.InfraParams{}),
 		},
 	},
 }

@@ -13,18 +13,17 @@ type (
 func (a Application) GetConfig(id string) Config {
 	cfg := Config{}
 	if ecfg, ok := a.Config[id]; ok {
+		if ecfg.InfraParams == nil {
+			ecfg.InfraParams = make(InfraParams)
+		}
 		defaultParams, ok := a.Defaults.Config.InfraParamsByType[ecfg.Type]
 		if ok {
-			if ecfg.InfraParams == nil {
-				ecfg.InfraParams = defaultParams
-			} else {
-				ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-			}
+			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
 		}
-
 		return *ecfg
 	}
 	cfg.Type = a.Defaults.Config.Type
+	cfg.InfraParams = make(InfraParams)
 	defaultParams, ok := a.Defaults.Config.InfraParamsByType[cfg.Type]
 	if ok {
 		cfg.InfraParams = defaultParams
