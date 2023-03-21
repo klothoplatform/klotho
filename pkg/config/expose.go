@@ -54,14 +54,14 @@ func (a Application) GetExposeKindParams(cfg Expose) interface{} {
 		zap.S().Debug(err)
 	}
 
-	gatewayParams := GatewayKindParams{}
+	gatewayParams := GatewayTypeParams{}
 	if err := json.Unmarshal(jsonString, &gatewayParams); err != nil {
 		zap.S().Debug(err)
 	} else {
 		return gatewayParams
 	}
 
-	loadBalancerParams := LoadBalancerKindParams{}
+	loadBalancerParams := LoadBalancerTypeParams{}
 	if err := json.Unmarshal(jsonString, &loadBalancerParams); err != nil {
 		zap.S().Debug(err)
 	} else {

@@ -131,10 +131,10 @@ func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, result *cor
 	var sgw *core.Gateway
 	var sgwApiType string
 	for _, gw := range upstreamGateways {
-		gwCfg := r.Cfg.GetExposed(gw.Name)
+		gwCfg := r.Cfg.GetExpose(gw.Name)
 		kindParams := r.Cfg.GetExposeKindParams(gwCfg)
 		var gwApiType string
-		if params, ok := kindParams.(config.GatewayKindParams); ok {
+		if params, ok := kindParams.(config.GatewayTypeParams); ok {
 			gwApiType = params.ApiType
 		}
 		if sgw != nil {

@@ -100,9 +100,9 @@ func (a *AWS) Transform(result *core.CompilationResult, deps *core.Dependencies)
 			data.StaticUnits = append(data.StaticUnits, unit)
 
 		case *core.Gateway:
-			cfg := a.Config.GetExposed(key.Name)
+			cfg := a.Config.GetExpose(key.Name)
 			apiType := ""
-			kindParams, ok := a.Config.GetExposeKindParams(cfg).(config.GatewayKindParams)
+			kindParams, ok := a.Config.GetExposeKindParams(cfg).(config.GatewayTypeParams)
 			if ok {
 				apiType = kindParams.ApiType
 			}
@@ -231,7 +231,7 @@ func (a *AWS) GenerateCloudfrontDistributions(data *TemplateData, result *core.C
 		key := res.Key()
 		switch res.(type) {
 		case *core.Gateway:
-			cfg := a.Config.GetExposed(key.Name)
+			cfg := a.Config.GetExpose(key.Name)
 			cfId := cfg.ContentDeliveryNetwork.Id
 			if cfId != "" {
 				cf, ok := cloudfrontMap[cfId]

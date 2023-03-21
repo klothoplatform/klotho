@@ -100,10 +100,10 @@ var defaultConfig = config.Defaults{
 	Expose: config.KindDefaults{
 		Type: ApiGateway,
 		InfraParamsByType: map[string]config.InfraParams{
-			ApiGateway: config.ConvertToInfraParams(config.GatewayKindParams{
+			ApiGateway: config.ConvertToInfraParams(config.GatewayTypeParams{
 				ApiType: "REST",
 			}),
-			Alb: config.ConvertToInfraParams(config.LoadBalancerKindParams{}),
+			Alb: config.ConvertToInfraParams(config.LoadBalancerTypeParams{}),
 		},
 	},
 	PubSub: config.KindDefaults{
