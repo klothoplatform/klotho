@@ -6,47 +6,92 @@ import (
 )
 
 type (
-	Persist struct {
-		Name string
-		Kind PersistKind
-	}
-
 	Secrets struct {
-		Persist
+		AnnotationKey
 		Secrets []string
 	}
-)
 
-type PersistKind string
-
-const (
-	PersistKVKind           PersistKind = "persist_kv"
-	PersistFileKind         PersistKind = "persist_fs"
-	PersistSecretKind       PersistKind = "persist_secret"
-	PersistORMKind          PersistKind = "persist_orm"
-	PersistRedisNodeKind    PersistKind = "persist_redis_node"
-	PersistRedisClusterKind PersistKind = "persist_redis_cluster"
-)
-
-func (p *Persist) Key() ResourceKey {
-	return ResourceKey{
-		Name: p.Name,
-		Kind: string(p.Kind),
+	Fs struct {
+		AnnotationKey
 	}
+
+	Kv struct {
+		AnnotationKey
+	}
+
+	Orm struct {
+		AnnotationKey
+	}
+
+	RedisNode struct {
+		AnnotationKey
+	}
+
+	RedisCluster struct {
+		AnnotationKey
+	}
+)
+
+func (p *Secrets) Provenance() AnnotationKey {
+	return p.AnnotationKey
 }
 
-func GenerateRedisHostEnvVar(id string, kind string) environmentVariable {
-	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(id), REDIS_HOST_ENV_VAR_NAME_SUFFIX), kind, id, string(HOST))
+func (p *Secrets) Id() string {
+	return p.AnnotationKey.ToString()
 }
 
-func GenerateRedisPortEnvVar(id string, kind string) environmentVariable {
-	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(id), REDIS_PORT_ENV_VAR_NAME_SUFFIX), kind, id, string(PORT))
+func (p *Fs) Provenance() AnnotationKey {
+	return p.AnnotationKey
 }
 
-func GenerateOrmConnStringEnvVar(id string) environmentVariable {
-	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(id), ORM_ENV_VAR_NAME_SUFFIX), string(PersistORMKind), id, string(CONNECTION_STRING))
+func (p *Fs) Id() string {
+	return p.AnnotationKey.ToString()
 }
 
-func GenerateBucketEnvVar(id string) environmentVariable {
-	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(id), BUCKET_NAME_SUFFIX), string(PersistFileKind), id, string(BUCKET_NAME))
+func (p *Kv) Provenance() AnnotationKey {
+	return p.AnnotationKey
+}
+
+func (p *Kv) Id() string {
+	return p.AnnotationKey.ToString()
+}
+
+func (p *Orm) Provenance() AnnotationKey {
+	return p.AnnotationKey
+}
+
+func (p *Orm) Id() string {
+	return p.AnnotationKey.ToString()
+}
+
+func (p *RedisNode) Provenance() AnnotationKey {
+	return p.AnnotationKey
+}
+
+func (p *RedisNode) Id() string {
+	return p.AnnotationKey.ToString()
+}
+
+func (p *RedisCluster) Provenance() AnnotationKey {
+	return p.AnnotationKey
+}
+
+func (p *RedisCluster) Id() string {
+	return p.AnnotationKey.ToString()
+}
+
+func GenerateRedisHostEnvVar(cfg Construct) environmentVariable {
+	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(cfg.Provenance().ID), REDIS_HOST_ENV_VAR_NAME_SUFFIX), cfg, string(HOST))
+}
+
+func GenerateRedisPortEnvVar(cfg Construct) environmentVariable {
+	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(cfg.Provenance().ID), REDIS_PORT_ENV_VAR_NAME_SUFFIX), cfg, string(PORT))
+}
+
+func GenerateOrmConnStringEnvVar(cfg Construct) environmentVariable {
+	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(cfg.Provenance().ID), ORM_ENV_VAR_NAME_SUFFIX), cfg, string(CONNECTION_STRING))
+}
+
+func GenerateBucketEnvVar(cfg Construct) environmentVariable {
+	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(cfg.Provenance().ID), BUCKET_NAME_SUFFIX), cfg, string(BUCKET_NAME))
 }

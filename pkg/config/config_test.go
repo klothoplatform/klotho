@@ -11,7 +11,7 @@ func Test_GetResourceType(t *testing.T) {
 	tests := []struct {
 		name     string
 		cfg      Application
-		resource core.CloudResource
+		resource core.Construct
 		want     string
 	}{
 		{
@@ -23,7 +23,7 @@ func Test_GetResourceType(t *testing.T) {
 					},
 				},
 			},
-			resource: &core.Gateway{Name: "test"},
+			resource: &core.Gateway{AnnotationKey: core.AnnotationKey{ID: "test"}},
 			want:     "apigateway",
 		},
 		{
@@ -35,7 +35,7 @@ func Test_GetResourceType(t *testing.T) {
 					},
 				},
 			},
-			resource: &core.ExecutionUnit{Name: "test"},
+			resource: &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test"}},
 			want:     "lambda",
 		},
 		{
@@ -47,7 +47,7 @@ func Test_GetResourceType(t *testing.T) {
 					},
 				},
 			},
-			resource: &core.Persist{Name: "test", Kind: core.PersistKVKind},
+			resource: &core.Kv{AnnotationKey: core.AnnotationKey{ID: "test"}},
 			want:     "dynamodb",
 		},
 	}
@@ -66,7 +66,7 @@ func Test_UpdateForResources(t *testing.T) {
 	tests := []struct {
 		name      string
 		cfg       Application
-		resources []core.CloudResource
+		resources []core.Construct
 		want      Application
 	}{
 		{
@@ -84,7 +84,8 @@ func Test_UpdateForResources(t *testing.T) {
 					},
 				},
 			},
-			resources: []core.CloudResource{&core.Gateway{Name: "test"}, &core.ExecutionUnit{Name: "test"}, &core.Persist{Name: "test", Kind: core.PersistKVKind}},
+			resources: []core.Construct{&core.Gateway{AnnotationKey: core.AnnotationKey{ID: "test"}}, &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test"}},
+				&core.Kv{AnnotationKey: core.AnnotationKey{ID: "test"}}},
 			want: Application{
 				Defaults: Defaults{
 					Expose: KindDefaults{

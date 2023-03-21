@@ -37,6 +37,13 @@ type (
 		PersistRedisCluster map[string]*Persist       `json:"persist_redis_cluster,omitempty" yaml:"persist_redis_cluster,omitempty" toml:"persist_redis_cluster,omitempty"`
 		PubSub              map[string]*PubSub        `json:"pubsub,omitempty" yaml:"pubsub,omitempty" toml:"pubsub,omitempty"`
 		Config              map[string]*Config        `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
+		Links               []CloudResourceLink       `json:"links,omitempty" yaml:"links,omitempty" toml:"links,omitempty"`
+	}
+
+	CloudResourceLink struct {
+		Source string `json:"source,omitempty" yaml:"source,omitempty" toml:"source,omitempty"`
+		Target string `json:"target,omitempty" yaml:"target,omitempty" toml:"target,omitempty"`
+		Type   string `json:"type,omitempty" yaml:"type,omitempty" toml:"type,omitempty"`
 	}
 
 	ContentDeliveryNetwork struct {
@@ -128,100 +135,108 @@ func ReadConfig(fpath string) (Application, error) {
 	return appCfg, err
 }
 
-func (a Application) GetResourceType(resource core.CloudResource) string {
-	key := resource.Key()
-	switch key.Kind {
-	case core.ExecutionUnitKind:
-		cfg := a.GetExecutionUnit(key.Name)
+func (a *Application) AddLinks(links []core.CloudResourceLink) {
+	for _, link := range links {
+		a.Links = append(a.Links, CloudResourceLink{
+			Source: link.Dependency().Source.Id(),
+			Target: link.Dependency().Target.Id(),
+			Type:   link.Type(),
+		})
+	}
+}
+
+func (a Application) GetResourceType(resource core.Construct) string {
+	switch resource.(type) {
+	case *core.ExecutionUnit:
+		cfg := a.GetExecutionUnit(resource.Provenance().ID)
 		return cfg.Type
 
-	case core.StaticUnitKind:
-		cfg := a.GetStaticUnit(key.Name)
+	case *core.StaticUnit:
+		cfg := a.GetStaticUnit(resource.Provenance().ID)
 		return cfg.Type
 
-	case core.GatewayKind:
-		cfg := a.GetExpose(key.Name)
+	case *core.Gateway:
+		cfg := a.GetExpose(resource.Provenance().ID)
 		return cfg.Type
 
-	case string(core.PersistFileKind):
-		cfg := a.GetPersistFs(key.Name)
+	case *core.Fs:
+		cfg := a.GetPersistFs(resource.Provenance().ID)
 		return cfg.Type
 
-	case string(core.PersistKVKind):
-		cfg := a.GetPersistKv(key.Name)
+	case *core.Kv:
+		cfg := a.GetPersistKv(resource.Provenance().ID)
 		return cfg.Type
 
-	case string(core.PersistORMKind):
-		cfg := a.GetPersistOrm(key.Name)
+	case *core.Orm:
+		cfg := a.GetPersistOrm(resource.Provenance().ID)
 		return cfg.Type
 
-	case string(core.PersistSecretKind):
-		cfg := a.GetPersistSecrets(key.Name)
+	case *core.Secrets:
+		cfg := a.GetPersistSecrets(resource.Provenance().ID)
 		return cfg.Type
 
-	case string(core.PersistRedisClusterKind):
-		cfg := a.GetPersistRedisCluster(key.Name)
+	case *core.RedisCluster:
+		cfg := a.GetPersistRedisCluster(resource.Provenance().ID)
 		return cfg.Type
 
-	case string(core.PersistRedisNodeKind):
-		cfg := a.GetPersistRedisNode(key.Name)
+	case *core.RedisNode:
+		cfg := a.GetPersistRedisNode(resource.Provenance().ID)
 		return cfg.Type
 
-	case core.PubSubKind:
-		cfg := a.GetPubSub(key.Name)
+	case *core.PubSub:
+		cfg := a.GetPubSub(resource.Provenance().ID)
 		return cfg.Type
 
-	case core.ConfigKind:
-		cfg := a.GetConfig(key.Name)
+	case *core.Config:
+		cfg := a.GetConfig(resource.Provenance().ID)
 		return cfg.Type
 	}
 	return ""
 }
 
 // UpdateForResources mutates the Application config for all the resources, applying the defaults.
-func (a *Application) UpdateForResources(res []core.CloudResource) {
+func (a *Application) UpdateForResources(res []core.Construct) {
 	for _, r := range res {
-		key := r.Key()
-		switch key.Kind {
-		case core.ExecutionUnitKind:
-			cfg := a.GetExecutionUnit(key.Name)
-			a.ExecutionUnits[key.Name] = &cfg
+		switch r.(type) {
+		case *core.ExecutionUnit:
+			cfg := a.GetExecutionUnit(r.Provenance().ID)
+			a.ExecutionUnits[r.Provenance().ID] = &cfg
 
-		case core.StaticUnitKind:
-			cfg := a.GetStaticUnit(key.Name)
-			a.StaticUnit[key.Name] = &cfg
+		case *core.StaticUnit:
+			cfg := a.GetStaticUnit(r.Provenance().ID)
+			a.StaticUnit[r.Provenance().ID] = &cfg
 
-		case core.GatewayKind:
-			cfg := a.GetExpose(key.Name)
-			a.Exposed[key.Name] = &cfg
+		case *core.Gateway:
+			cfg := a.GetExpose(r.Provenance().ID)
+			a.Exposed[r.Provenance().ID] = &cfg
 
-		case string(core.PersistFileKind):
-			cfg := a.GetPersistFs(key.Name)
-			a.PersistFs[key.Name] = &cfg
+		case *core.Fs:
+			cfg := a.GetPersistFs(r.Provenance().ID)
+			a.PersistFs[r.Provenance().ID] = &cfg
 
-		case string(core.PersistKVKind):
-			cfg := a.GetPersistKv(key.Name)
-			a.PersistKv[key.Name] = &cfg
+		case *core.Kv:
+			cfg := a.GetPersistKv(r.Provenance().ID)
+			a.PersistKv[r.Provenance().ID] = &cfg
 
-		case string(core.PersistORMKind):
-			cfg := a.GetPersistOrm(key.Name)
-			a.PersistOrm[key.Name] = &cfg
+		case *core.Orm:
+			cfg := a.GetPersistOrm(r.Provenance().ID)
+			a.PersistOrm[r.Provenance().ID] = &cfg
 
-		case string(core.PersistSecretKind):
-			cfg := a.GetPersistSecrets(key.Name)
-			a.PersistSecrets[key.Name] = &cfg
+		case *core.Secrets:
+			cfg := a.GetPersistSecrets(r.Provenance().ID)
+			a.PersistSecrets[r.Provenance().ID] = &cfg
 
-		case string(core.PersistRedisClusterKind):
-			cfg := a.GetPersistRedisCluster(key.Name)
-			a.PersistRedisCluster[key.Name] = &cfg
+		case *core.RedisCluster:
+			cfg := a.GetPersistRedisCluster(r.Provenance().ID)
+			a.PersistRedisCluster[r.Provenance().ID] = &cfg
 
-		case string(core.PersistRedisNodeKind):
-			cfg := a.GetPersistRedisNode(key.Name)
-			a.PersistRedisNode[key.Name] = &cfg
+		case *core.RedisNode:
+			cfg := a.GetPersistRedisNode(r.Provenance().ID)
+			a.PersistRedisNode[r.Provenance().ID] = &cfg
 
-		case core.PubSubKind:
-			cfg := a.GetPubSub(key.Name)
-			a.PubSub[key.Name] = &cfg
+		case *core.PubSub:
+			cfg := a.GetPubSub(r.Provenance().ID)
+			a.PubSub[r.Provenance().ID] = &cfg
 		}
 	}
 }

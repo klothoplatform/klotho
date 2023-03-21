@@ -3,27 +3,27 @@ package core
 import (
 	"os"
 	"path/filepath"
+
+	"github.com/klothoplatform/klotho/pkg/config"
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 )
 
-type InfraFiles struct {
-	Name  string
-	Files ConcurrentMap[string, File]
-}
-
-var InfraAsCodeKind = "infra_as_code"
-
-func (iac *InfraFiles) Key() ResourceKey {
-	return ResourceKey{
-		Name: iac.Name,
-		Kind: InfraAsCodeKind,
+type (
+	CompilationDocument struct {
+		InputFiles     *core.InputFiles
+		Constructs     *graph.Directed[core.Construct]
+		Configuration  *config.Application
+		CloudResources []*graph.Directed[core.CloudResource]
+		OutputFiles    []core.File
 	}
-}
+)
 
-func (iac *InfraFiles) OutputTo(dest string) error {
+func (doc *CompilationDocument) OutputTo(dest string) error {
 	errs := make(chan error)
-	files := iac.Files.Values()
+	files := doc.OutputFiles
 	for idx := range files {
-		go func(f File) {
+		go func(f core.File) {
 			path := filepath.Join(dest, f.Path())
 			dir := filepath.Dir(path)
 			err := os.MkdirAll(dir, 0777)
@@ -35,7 +35,7 @@ func (iac *InfraFiles) OutputTo(dest string) error {
 			if os.IsNotExist(err) {
 				file, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0777)
 			} else if err == nil {
-				ovr, ok := f.(NonOverwritable)
+				ovr, ok := f.(core.NonOverwritable)
 				if ok && !ovr.Overwrite(file) {
 					errs <- nil
 					return
@@ -59,8 +59,4 @@ func (iac *InfraFiles) OutputTo(dest string) error {
 		}
 	}
 	return nil
-}
-
-func (unit *InfraFiles) Add(f File) {
-	unit.Files.Set(f.Path(), f)
 }

@@ -15,7 +15,7 @@ import (
 
 type (
 	ExecutionUnit struct {
-		Name                 string
+		AnnotationKey
 		files                ConcurrentMap[string, File]
 		Executable           Executable
 		EnvironmentVariables EnvironmentVariables
@@ -75,19 +75,19 @@ var (
 	ExecutableTypeCSharp = ExecutableType("CSharp")
 )
 
-func (unit *ExecutionUnit) Key() ResourceKey {
-	return ResourceKey{
-		Name: unit.Name,
-		Kind: ExecutionUnitKind,
-	}
+func (p *ExecutionUnit) Provenance() AnnotationKey {
+	return p.AnnotationKey
 }
 
+func (p *ExecutionUnit) Id() string {
+	return p.AnnotationKey.ToString()
+}
 func (unit *ExecutionUnit) OutputTo(dest string) error {
 	errs := make(chan error)
 	files := unit.Files()
 	for idx := range files {
 		go func(f File) {
-			path := filepath.Join(dest, unit.Name, f.Path())
+			path := filepath.Join(dest, unit.ID, f.Path())
 			dir := filepath.Dir(path)
 			err := os.MkdirAll(dir, 0777)
 			if err != nil {
@@ -201,7 +201,7 @@ func (unit *ExecutionUnit) GetDeclaringFiles() []*SourceFile {
 	var coreFiles []*SourceFile
 	for _, f := range unit.Files() {
 		astF, ok := f.(*SourceFile)
-		if ok && FileExecUnitName(astF) == unit.Name {
+		if ok && FileExecUnitName(astF) == unit.ID {
 			coreFiles = append(coreFiles, astF)
 		}
 	}

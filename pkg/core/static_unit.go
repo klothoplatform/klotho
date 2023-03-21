@@ -7,20 +7,19 @@ import (
 
 type (
 	StaticUnit struct {
-		Name          string
+		AnnotationKey
 		IndexDocument string
 		StaticFiles   ConcurrentMap[string, File]
 		SharedFiles   ConcurrentMap[string, File]
 	}
 )
 
-var StaticUnitKind = "static_unit"
+func (p *StaticUnit) Provenance() AnnotationKey {
+	return p.AnnotationKey
+}
 
-func (unit *StaticUnit) Key() ResourceKey {
-	return ResourceKey{
-		Name: unit.Name,
-		Kind: StaticUnitKind,
-	}
+func (p *StaticUnit) Id() string {
+	return p.AnnotationKey.ToString()
 }
 
 func (unit *StaticUnit) OutputTo(dest string) error {
@@ -28,7 +27,7 @@ func (unit *StaticUnit) OutputTo(dest string) error {
 	files := unit.Files()
 	for idx := range files {
 		go func(f File) {
-			path := filepath.Join(dest, unit.Name, f.Path())
+			path := filepath.Join(dest, unit.ID, f.Path())
 			dir := filepath.Dir(path)
 			err := os.MkdirAll(dir, 0777)
 			if err != nil {

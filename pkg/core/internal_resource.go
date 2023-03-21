@@ -2,17 +2,16 @@ package core
 
 type (
 	InternalResource struct {
-		Name string
+		AnnotationKey
 	}
 )
 
 const KlothoPayloadName = "InternalKlothoPayloads"
 
-const InternalKind = "internal"
+func (p *InternalResource) Provenance() AnnotationKey {
+	return p.AnnotationKey
+}
 
-func (p *InternalResource) Key() ResourceKey {
-	return ResourceKey{
-		Name: p.Name,
-		Kind: InternalKind,
-	}
+func (p *InternalResource) Id() string {
+	return p.AnnotationKey.ToString()
 }

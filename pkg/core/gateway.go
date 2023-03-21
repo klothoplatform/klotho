@@ -2,7 +2,7 @@ package core
 
 type (
 	Gateway struct {
-		Name   string
+		AnnotationKey
 		Routes []Route
 		// Map of gateway targets with the exec unit name as the key
 		DefinedIn     string
@@ -55,17 +55,18 @@ var (
 	}
 )
 
-func NewGateway(name string) *Gateway {
+func NewGateway(key AnnotationKey) *Gateway {
 	return &Gateway{
-		Name: name,
+		AnnotationKey: key,
 	}
 }
 
-func (gw *Gateway) Key() ResourceKey {
-	return ResourceKey{
-		Name: gw.Name,
-		Kind: GatewayKind,
-	}
+func (p *Gateway) Provenance() AnnotationKey {
+	return p.AnnotationKey
+}
+
+func (p *Gateway) Id() string {
+	return p.AnnotationKey.ToString()
 }
 
 func (gw *Gateway) AddRoute(route Route, unit *ExecutionUnit) string {
@@ -77,15 +78,4 @@ func (gw *Gateway) AddRoute(route Route, unit *ExecutionUnit) string {
 
 	gw.Routes = append(gw.Routes, route)
 	return ""
-}
-
-func FindUpstreamGateways(unit *ExecutionUnit, result *CompilationResult, deps *Dependencies) []*Gateway {
-	var upstreamGateways []*Gateway
-	for _, dep := range deps.Upstream(unit.Key()) {
-		res := result.Get(dep)
-		if gw, ok := res.(*Gateway); ok {
-			upstreamGateways = append(upstreamGateways, gw)
-		}
-	}
-	return upstreamGateways
 }

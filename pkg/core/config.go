@@ -7,20 +7,21 @@ import (
 
 type (
 	Config struct {
-		Name   string
+		AnnotationKey
 		Secret bool
 	}
 )
 
 const ConfigKind = "config"
 
-func (p *Config) Key() ResourceKey {
-	return ResourceKey{
-		Name: p.Name,
-		Kind: ConfigKind,
-	}
+func (p *Config) Provenance() AnnotationKey {
+	return p.AnnotationKey
 }
 
-func GenerateSecretEnvVar(id string, kind string) environmentVariable {
-	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(id), SECRET_NAME_SUFFIX), ConfigKind, id, string(SECRET_NAME))
+func (p *Config) Id() string {
+	return p.AnnotationKey.ToString()
+}
+
+func GenerateSecretEnvVar(cfg *Config) environmentVariable {
+	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(cfg.ID), SECRET_NAME_SUFFIX), cfg, string(SECRET_NAME))
 }
