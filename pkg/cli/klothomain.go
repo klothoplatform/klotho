@@ -396,13 +396,17 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
+	document := core.CompilationDocument{
+		InputFiles: input,
+	}
 	compiler := core.Compiler{
-		Plugins: plugins.Plugins(),
+		Plugins:  plugins.Plugins(),
+		Document: document,
 	}
 
 	analyticsClient.Info(klothoName + " compiling")
 
-	result, err := compiler.Compile(input)
+	result, err := compiler.Compile()
 	if err != nil || hadErrors.Load() {
 		if err != nil {
 			errHandler.PrintErr(err)
