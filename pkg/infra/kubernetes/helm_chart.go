@@ -5,8 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap"
 	apps "k8s.io/api/apps/v1"
@@ -20,7 +22,17 @@ type KlothoHelmChart struct {
 	Directory      string
 	Files          []core.File
 	Values         []Value
+	AnnotationKeys []core.AnnotationKey
 }
+
+// Provider returns name of the provider the resource is correlated to
+func (chart *KlothoHelmChart) Provider() string { return "kubernetes" }
+
+// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (chart *KlothoHelmChart) KlothoConstructRef() []core.AnnotationKey { return chart.AnnotationKeys }
+
+// ID returns the id of the cloud resource
+func (chart *KlothoHelmChart) Id() string { return fmt.Sprintf("klotho_helm_chart-%s", chart.Name) }
 
 var HelmChartKind = "helm_chart"
 
@@ -140,7 +152,7 @@ func (t *KlothoHelmChart) AssignFilesToUnits() error {
 	return nil
 }
 
-func (chart *KlothoHelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.ExecutionUnit, cfg config.ExecutionUnit, deps *core.Dependencies) ([]Value, error) {
+func (chart *KlothoHelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.ExecutionUnit, cfg config.ExecutionUnit, constructGraph *graph.Directed[core.Construct]) ([]Value, error) {
 	values := []Value{}
 
 	if shouldTransformImage(eu) {
@@ -179,7 +191,7 @@ func (chart *KlothoHelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.E
 			values = append(values, serviceAccountValues...)
 		}
 	}
-	upstreamValues, err := chart.handleUpstreamUnitDependencies(unit, deps)
+	upstreamValues, err := chart.handleUpstreamUnitDependencies(unit, constructGraph)
 	if err != nil {
 		return nil, err
 	}
@@ -194,17 +206,17 @@ func (chart *KlothoHelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.E
 	return values, nil
 }
 
-func (chart *KlothoHelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, deps *core.Dependencies) (values []Value, err error) {
-	sources := deps.Upstream(core.ResourceKey{Kind: core.ExecutionUnitKind, Name: unit.Name})
+func (chart *KlothoHelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, constructGraph *graph.Directed[core.Construct]) (values []Value, err error) {
+	sources := constructGraph.IncomingVertices(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: unit.Name, Capability: annotation.ExecutionUnitCapability}})
 	needService := false
 	needsTargetGroupBinding := false
 	needsServiceExport := false
 	for _, source := range sources {
-		if source.Kind == core.GatewayKind {
+		if source.Provenance().Capability == annotation.ExposeCapability {
 			needService = true
 			needsTargetGroupBinding = true
 		}
-		if source.Kind == core.ExecutionUnitKind {
+		if source.Provenance().Capability == annotation.ExecutionUnitCapability {
 			needService = true
 			needsServiceExport = true
 		}

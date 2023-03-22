@@ -5,8 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 	yamlLang "github.com/klothoplatform/klotho/pkg/lang/yaml"
 	"github.com/stretchr/testify/assert"
@@ -453,7 +455,7 @@ func Test_handleExecutionUnit(t *testing.T) {
 			assert := assert.New(t)
 			testUnit := tt.chart.ExecutionUnits[0]
 
-			eu := &core.ExecutionUnit{Name: "unit"}
+			eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "unit", Capability: annotation.ExecutionUnitCapability}}
 			if tt.hasDockerfile {
 				dockerF, err := dockerfile.NewFile("Dockerfile", bytes.NewBuffer([]byte{}))
 				if !assert.NoError(err) {
@@ -461,8 +463,8 @@ func Test_handleExecutionUnit(t *testing.T) {
 				}
 				eu.Add(dockerF)
 			}
-			deps := &core.Dependencies{}
-			transformations, err := tt.chart.handleExecutionUnit(testUnit, eu, tt.cfg, deps)
+			constructGraph := graph.NewDirected[core.Construct]()
+			transformations, err := tt.chart.handleExecutionUnit(testUnit, eu, tt.cfg, constructGraph)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -483,7 +485,7 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 	tests := []struct {
 		name    string
 		chart   KlothoHelmChart
-		deps    []core.Dependency
+		deps    []graph.Edge[core.Construct]
 		want    testResult
 		wantErr bool
 	}{
@@ -498,10 +500,10 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 					},
 				},
 			},
-			deps: []core.Dependency{
+			deps: []graph.Edge[core.Construct]{
 				{
-					Source: core.ResourceKey{Kind: core.GatewayKind},
-					Target: core.ResourceKey{Kind: core.ExecutionUnitKind, Name: "unit"},
+					Source:      &core.Gateway{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
+					Destination: &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "unit"}},
 				},
 			},
 			want: testResult{
@@ -527,10 +529,10 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 					},
 				},
 			},
-			deps: []core.Dependency{
+			deps: []graph.Edge[core.Construct]{
 				{
-					Source: core.ResourceKey{Kind: core.ExecutionUnitKind},
-					Target: core.ResourceKey{Kind: core.ExecutionUnitKind, Name: "unit"},
+					Source:      &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "test"}},
+					Destination: &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "unit"}},
 				},
 			},
 			want: testResult{
@@ -548,14 +550,14 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 					},
 				},
 			},
-			deps: []core.Dependency{
+			deps: []graph.Edge[core.Construct]{
 				{
-					Source: core.ResourceKey{Kind: core.ExecutionUnitKind},
-					Target: core.ResourceKey{Kind: core.ExecutionUnitKind, Name: "unit"},
+					Source:      &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "test"}},
+					Destination: &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "unit"}},
 				},
 				{
-					Source: core.ResourceKey{Kind: core.GatewayKind},
-					Target: core.ResourceKey{Kind: core.ExecutionUnitKind, Name: "unit"},
+					Source:      &core.Gateway{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
+					Destination: &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "unit"}},
 				},
 			},
 			want: testResult{
@@ -587,12 +589,13 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			testUnit := tt.chart.ExecutionUnits[0]
-
-			deps := &core.Dependencies{}
+			constructGraph := graph.NewDirected[core.Construct]()
 			for _, dep := range tt.deps {
-				deps.Add(dep.Source, dep.Target)
+				constructGraph.AddVertex(dep.Source)
+				constructGraph.AddVertex(dep.Destination)
+				constructGraph.AddEdge(dep.Source, dep.Destination)
 			}
-			values, err := tt.chart.handleUpstreamUnitDependencies(testUnit, deps)
+			values, err := tt.chart.handleUpstreamUnitDependencies(testUnit, constructGraph)
 			if tt.wantErr {
 				assert.Error(err)
 				return

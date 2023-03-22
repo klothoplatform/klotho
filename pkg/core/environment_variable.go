@@ -7,8 +7,7 @@ import (
 
 type EnvironmentVariable interface {
 	GetName() string
-	GetKind() string
-	GetResourceID() string
+	GetConstruct() Construct
 	GetValue() string
 }
 

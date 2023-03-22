@@ -10,6 +10,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes/helm"
 	yamlLang "github.com/klothoplatform/klotho/pkg/lang/yaml"
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -26,18 +27,18 @@ type Kubernetes struct {
 
 func (p Kubernetes) Name() string { return "kubernetes" }
 
-func (p Kubernetes) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p Kubernetes) Translate(constructGraph *graph.Directed[core.Construct]) (dag *graph.Directed[core.CloudResource], links []core.CloudResourceLink, err error) {
 	var errs multierr.Error
 	p.log = zap.L().Sugar()
 	helmHelper, err := helm.NewHelmHelper()
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	p.helmHelper = helmHelper
 
-	klothoCharts, err := p.getKlothoCharts(result)
+	klothoCharts, err := p.getKlothoCharts(constructGraph)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	// For exec units that specify their own chart, we want to render and replace
@@ -72,14 +73,14 @@ func (p Kubernetes) Transform(result *core.CompilationResult, deps *core.Depende
 			continue
 		}
 		for _, unit := range khChart.ExecutionUnits {
-			res := result.Get(core.ResourceKey{Kind: core.ExecutionUnitKind, Name: unit.Name})
+			res := core.Get(constructGraph, core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: unit.Name})
 			eu, ok := res.(*core.ExecutionUnit)
 			if !ok {
-				return fmt.Errorf("unable to handle nonexistent execution unit: %s", unit.Name)
+				return nil, nil, fmt.Errorf("unable to handle nonexistent execution unit: %s", unit.Name)
 			}
 
 			cfg := p.Config.GetExecutionUnit(unit.Name)
-			execUnitValues, err := khChart.handleExecutionUnit(unit, eu, cfg, deps)
+			execUnitValues, err := khChart.handleExecutionUnit(unit, eu, cfg, constructGraph)
 			if err != nil {
 				errs.Append(err)
 			}
@@ -96,10 +97,10 @@ func (p Kubernetes) Transform(result *core.CompilationResult, deps *core.Depende
 		}
 		khChart.Files = append(khChart.Files, chartFile)
 
-		result.Add(&khChart)
+		dag.AddVertex(&khChart)
 	}
 
-	return errs.ErrOrNil()
+	return dag, links, errs.ErrOrNil()
 }
 
 func (p *Kubernetes) setHelmChartDirectory(path string, cfg *config.ExecutionUnit, unitName string) (bool, error) {
@@ -139,7 +140,7 @@ func (p *Kubernetes) setValuesFile(path string, cfg *config.ExecutionUnit, unitN
 	return nil
 }
 
-func (p *Kubernetes) getKlothoCharts(result *core.CompilationResult) (map[string]KlothoHelmChart, error) {
+func (p *Kubernetes) getKlothoCharts(constructGraph *graph.Directed[core.Construct]) (map[string]KlothoHelmChart, error) {
 	var errs multierr.Error
 	klothoCharts := make(map[string]KlothoHelmChart)
 	inputFiles := result.GetFirstResource(core.InputFilesKind)

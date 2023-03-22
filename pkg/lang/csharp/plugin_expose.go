@@ -2,10 +2,12 @@ package csharp
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/filter"
-	"github.com/klothoplatform/klotho/pkg/filter/predicate"
 	"path"
 	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/filter"
+	"github.com/klothoplatform/klotho/pkg/filter/predicate"
+	"github.com/klothoplatform/klotho/pkg/graph"
 
 	"github.com/klothoplatform/klotho/pkg/multierr"
 
@@ -31,8 +33,7 @@ type (
 		DefinedInPath string
 	}
 	aspDotNetCoreHandler struct {
-		Result           *core.CompilationResult
-		Deps             *core.Dependencies
+		ConstructGraph   *graph.Directed[core.Construct]
 		Unit             *core.ExecutionUnit
 		RoutesByGateway  map[gatewaySpec][]gatewayRouteDefinition
 		RootPath         string
@@ -82,25 +83,24 @@ type (
 
 func (p *Expose) Name() string { return "Expose" }
 
-func (p *Expose) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p *Expose) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
 	var errs multierr.Error
 
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
-		err := p.transformSingle(result, deps, unit)
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+		err := p.transformSingle(constructGraph, unit)
 		errs.Append(err)
 	}
 	return errs.ErrOrNil()
 }
 
-func (p *Expose) transformSingle(result *core.CompilationResult, deps *core.Dependencies, unit *core.ExecutionUnit) error {
+func (p *Expose) transformSingle(constructGraph *graph.Directed[core.Construct], unit *core.ExecutionUnit) error {
 	h := &aspDotNetCoreHandler{
-		Result:          result,
-		Deps:            deps,
+		ConstructGraph:  constructGraph,
 		RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition),
 	}
 	err := h.handle(unit)
 	if err != nil {
-		err = core.WrapErrf(err, "ASP.NET Core handler failed for %s", unit.Name)
+		err = core.WrapErrf(err, "ASP.NET Core handler failed for %s", unit.ID)
 	}
 
 	return err
@@ -108,7 +108,7 @@ func (p *Expose) transformSingle(result *core.CompilationResult, deps *core.Depe
 
 func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 	h.Unit = unit
-	h.log = zap.L().With(zap.String("unit", unit.Name))
+	h.log = zap.L().With(zap.String("unit", unit.ID))
 
 	var errs multierr.Error
 	for _, f := range unit.FilesOfLang(CSharp) {
@@ -123,13 +123,13 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 	}
 
 	for spec, routes := range h.RoutesByGateway {
-		gw := core.NewGateway(spec.gatewayId)
-		if existing := h.Result.Get(gw.Key()); existing != nil {
+		gw := core.NewGateway(core.AnnotationKey{ID: spec.gatewayId, Capability: annotation.ExposeCapability})
+		if existing := core.Get(h.ConstructGraph, gw.Provenance()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath
 			gw.ExportVarName = spec.AppBuilderName
-			h.Result.Add(gw)
+			h.ConstructGraph.AddVertex(gw)
 		}
 
 		if spec.MapsControllers {
@@ -147,7 +147,7 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 				{
 					Route: core.Route{
 						Path:          "/",
-						ExecUnitName:  unit.Name,
+						ExecUnitName:  unit.ID,
 						Verb:          core.VerbAny,
 						HandledInFile: spec.FilePath,
 					},
@@ -156,7 +156,7 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 				{
 					Route: core.Route{
 						Path:          "/:proxy*",
-						ExecUnitName:  unit.Name,
+						ExecUnitName:  unit.ID,
 						Verb:          core.VerbAny,
 						HandledInFile: spec.FilePath,
 					},
@@ -181,9 +181,9 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 			targetUnit := core.FileExecUnitName(targetFile)
 			if targetUnit == "" {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
-				targetUnit = unit.Name
+				targetUnit = unit.ID
 			}
-			h.Deps.Add(gw.Key(), core.ResourceKey{Name: targetUnit, Kind: core.ExecutionUnitKind})
+			h.ConstructGraph.AddEdge(gw.Provenance().ToString(), core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}.ToString())
 		}
 	}
 
@@ -376,7 +376,7 @@ func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *core.SourceFile, varNa
 				Route: core.Route{
 					Verb:          vfunc.Verb,
 					Path:          strings.ToLower(sanitizeConventionalPath(path.Join("/", h.RootPath, prefix, nonOptionalRoute))),
-					ExecUnitName:  h.Unit.Name,
+					ExecUnitName:  h.Unit.ID,
 					HandledInFile: f.Path(),
 				},
 				DefinedInPath: f.Path(),
@@ -388,7 +388,7 @@ func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *core.SourceFile, varNa
 			// using lowercase routes enforces consistency
 			// since ASP.NET core is case-insensitive and API Gateway is case-sensitive
 			Path:          strings.ToLower(sanitizeConventionalPath(path.Join("/", h.RootPath, prefix, vfunc.Path))),
-			ExecUnitName:  h.Unit.Name,
+			ExecUnitName:  h.Unit.ID,
 			HandledInFile: f.Path(),
 		}
 		h.log.Sugar().Debugf("Found route function %s %s for '%s'", route.Verb, route.Path, varName)
@@ -421,7 +421,7 @@ func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []co
 			class:                   controller,
 			controllerAttributeSpec: parseControllerAttributes(controller),
 			actions:                 findActionsInController(controller),
-			execUnitName:            h.Unit.Name,
+			execUnitName:            h.Unit.ID,
 		}
 		controllerSpecs = append(controllerSpecs, spec)
 	}

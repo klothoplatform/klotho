@@ -73,3 +73,15 @@ func GetExecUnitForPath(g *graph.Directed[Construct], fp string) (*ExecutionUnit
 	}
 	return best, bestFile
 }
+
+func FindUpstreamGateways(unit *ExecutionUnit, g *graph.Directed[Construct]) []*Gateway {
+	gateways := []*Gateway{}
+	vertices := g.IncomingVertices(unit)
+	for _, v := range vertices {
+		gw, ok := v.(*Gateway)
+		if ok {
+			gateways = append(gateways, gw)
+		}
+	}
+	return gateways
+}
