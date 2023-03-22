@@ -108,20 +108,20 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 		var doTransform func(original *core.SourceFile, modified *core.SourceFile, cap *core.Annotation, result *persistResult, unit *core.ExecutionUnit) (core.Construct, error)
 		var err error
 		switch construct.(type) {
-		case core.Kv:
+		case *core.Kv:
 			doTransform = p.transformKV
 			err = p.runtime.AddKvRuntimeFiles(unit)
-		case core.Fs:
+		case *core.Fs:
 			doTransform = p.transformFS
-		case core.Secrets:
+		case *core.Secrets:
 			doTransform = p.transformSecret
 			err = p.runtime.AddSecretRuntimeFiles(unit)
-		case core.Orm:
+		case *core.Orm:
 			doTransform = p.transformORM
 			err = p.runtime.AddOrmRuntimeFiles(unit)
-		case core.RedisCluster:
+		case *core.RedisCluster:
 			doTransform = p.transformRedis
-		case core.RedisNode:
+		case *core.RedisNode:
 			doTransform = p.transformRedis
 		default:
 			errs.Append(core.NewCompilerError(
@@ -349,7 +349,7 @@ func (p *persister) transformRedis(original *core.SourceFile, modified *core.Sou
 	var result core.Construct
 	isCluster := false
 	switch redisR.construct.(type) {
-	case core.RedisCluster:
+	case *core.RedisCluster:
 		result = &core.RedisCluster{
 			AnnotationKey: core.AnnotationKey{
 				ID:         cap.Capability.ID,
@@ -357,7 +357,7 @@ func (p *persister) transformRedis(original *core.SourceFile, modified *core.Sou
 			},
 		}
 		isCluster = true
-	case core.RedisNode:
+	case *core.RedisNode:
 		result = &core.RedisNode{
 			AnnotationKey: core.AnnotationKey{
 				ID:         cap.Capability.ID,
@@ -593,7 +593,7 @@ func (p *persister) queryORM(file *core.SourceFile, annotation *core.Annotation,
 	return &persistResult{
 		name:       engineVar.Content(),
 		expression: connString.Content(),
-		construct:  core.Orm{},
+		construct:  &core.Orm{},
 	}
 }
 
@@ -712,9 +712,9 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 
 	var construct core.Construct
 
-	construct = core.RedisNode{}
+	construct = &core.RedisNode{}
 	if funcCall.Content() == clusterRedisFunction {
-		construct = core.RedisCluster{}
+		construct = &core.RedisCluster{}
 	}
 
 	callDetails, found := getNextCallDetails(parentOfType(funcCall, "call"))
@@ -747,21 +747,21 @@ func (p *persister) determinePersistType(f *core.SourceFile, annotation *core.An
 	kvR := p.queryKV(f, annotation, false)
 	if kvR != nil {
 		log.Sugar().Debugf("Determined persist type of kv")
-		return core.Kv{}, kvR
+		return &core.Kv{}, kvR
 	}
 	fsR := p.queryFS(f, annotation, false)
 	if fsR != nil {
 		if secret, ok := annotation.Capability.Directives.Bool("secret"); ok && secret {
 			log.Sugar().Debugf("Determined persist type of secrets")
-			return core.Secrets{}, fsR
+			return &core.Secrets{}, fsR
 		}
 		log.Sugar().Debugf("Determined persist type of fs")
-		return core.Fs{}, fsR
+		return &core.Fs{}, fsR
 	}
 	ormR := p.queryORM(f, annotation, false)
 	if ormR != nil {
 		log.Sugar().Debugf("Determined persist type of orm")
-		return core.Orm{}, ormR
+		return &core.Orm{}, ormR
 	}
 	redisR := p.queryRedis(f, annotation, false)
 	if redisR != nil {

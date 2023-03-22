@@ -143,7 +143,7 @@ myCache = Cache(cache_class=keyvalue.KVStore, my_arg="value", serializer=keyvalu
 
 			ptype, pres := p.determinePersistType(f, cap)
 
-			_, ok := ptype.(core.Kv)
+			_, ok := ptype.(*core.Kv)
 			if !assert.True(ok) {
 				return
 			}
@@ -271,7 +271,7 @@ import klotho_runtime.fs_mycache as fs`,
 
 			ptype, pres := p.determinePersistType(f, cap)
 
-			_, ok := ptype.(core.Fs)
+			_, ok := ptype.(*core.Fs)
 			if !assert.True(ok) {
 				return
 			}
@@ -445,7 +445,7 @@ import klotho_runtime.secret as fs`,
 
 			ptype, pres := p.determinePersistType(f, cap)
 
-			_, ok := ptype.(core.Fs)
+			_, ok := ptype.(*core.Fs)
 			if !assert.True(ok) {
 				return
 			}
@@ -706,7 +706,7 @@ engine = create_engine(os.environ.get("SQLALCHEMY_PERSIST_ORM_CONNECTION"))`,
 			pres := &persistResult{
 				name:       "engine",
 				expression: tt.expression,
-				construct:  core.Orm{},
+				construct:  &core.Orm{},
 			}
 			unit := &core.ExecutionUnit{}
 			_, err = p.transformORM(f, newF, cap, pres, unit)
@@ -719,7 +719,7 @@ engine = create_engine(os.environ.get("SQLALCHEMY_PERSIST_ORM_CONNECTION"))`,
 			assert.Equal(core.EnvironmentVariables{
 				{
 					Name:      "SQLALCHEMY_PERSIST_ORM_CONNECTION",
-					Construct: core.Orm{AnnotationKey: core.AnnotationKey{ID: "sqlAlchemy", Capability: annotation.PersistCapability}},
+					Construct: &core.Orm{AnnotationKey: core.AnnotationKey{ID: "sqlAlchemy", Capability: annotation.PersistCapability}},
 					Value:     "connection_string",
 				},
 			}, unit.EnvironmentVariables)
@@ -924,7 +924,7 @@ import redis
 # }
 client = redis.Redis(host='localhost', port=6379)
 `,
-			redisConstruct: core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
+			redisConstruct: &core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
 			want: `
 import redis
 import os
@@ -942,7 +942,7 @@ from redis import Redis
 #   id = "redis"
 # }
 client = Redis(host='localhost', port=6379)`,
-			redisConstruct: core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
+			redisConstruct: &core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
 			want: `
 from redis import Redis
 import os
@@ -960,7 +960,7 @@ import redis
 # }
 client = redis.cluster.RedisCluster(host='localhost', port=6379)
 `,
-			redisConstruct: core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
+			redisConstruct: &core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
 			want: `
 import redis
 import os
@@ -978,7 +978,7 @@ from redis import cluster
 #   id = "redis"
 # }
 client = cluster.RedisCluster(host='localhost', port=6379)`,
-			redisConstruct: core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
+			redisConstruct: &core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
 			want: `
 from redis import cluster
 import os
@@ -995,7 +995,7 @@ from redis.cluster import RedisCluster
 #   id = "redis"
 # }
 client = RedisCluster(host='localhost', port=6379)`,
-			redisConstruct: core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
+			redisConstruct: &core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
 			want: `
 from redis.cluster import RedisCluster
 import os

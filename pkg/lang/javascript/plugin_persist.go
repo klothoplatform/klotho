@@ -165,23 +165,23 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 		var resource core.Construct
 		var err, runtimeErr, transformErr error
 		switch keyType.(type) {
-		case core.Kv:
+		case *core.Kv:
 			resource, transformErr = p.transformKV(f, annot, pResult)
 			runtimeErr = p.runtime.AddKvRuntimeFiles(unit)
-		case core.Fs:
+		case *core.Fs:
 			var envVarName string
 			resource, envVarName, transformErr = p.transformFS(unit, f, annot, pResult)
 			runtimeErr = p.runtime.AddFsRuntimeFiles(unit, envVarName, cap.ID)
-		case core.Secrets:
+		case *core.Secrets:
 			resource, transformErr = p.transformSecret(f, annot, pResult)
 			runtimeErr = p.runtime.AddSecretRuntimeFiles(unit)
-		case core.Orm:
+		case *core.Orm:
 			resource, transformErr = p.transformORM(unit, f, annot, pResult)
 			runtimeErr = p.runtime.AddOrmRuntimeFiles(unit)
-		case core.RedisCluster:
+		case *core.RedisCluster:
 			resource, transformErr = p.transformRedis(unit, f, annot, pResult, keyType)
 			runtimeErr = p.runtime.AddRedisClusterRuntimeFiles(unit)
-		case core.RedisNode:
+		case *core.RedisNode:
 			resource, transformErr = p.transformRedis(unit, f, annot, pResult, keyType)
 			runtimeErr = p.runtime.AddRedisNodeRuntimeFiles(unit)
 		default:
@@ -321,16 +321,16 @@ func (p *persister) transformRedis(unit *core.ExecutionUnit, file *core.SourceFi
 	var result core.Construct
 
 	switch construct.(type) {
-	case core.RedisCluster:
-		result = core.RedisCluster{
+	case *core.RedisCluster:
+		result = &core.RedisCluster{
 			AnnotationKey: core.AnnotationKey{
 				Capability: cap.Capability.Name,
 				ID:         cap.Capability.ID,
 			},
 		}
 		importName = "redis_cluster"
-	case core.RedisNode:
-		result = core.RedisCluster{
+	case *core.RedisNode:
+		result = &core.RedisCluster{
 			AnnotationKey: core.AnnotationKey{
 				Capability: cap.Capability.Name,
 				ID:         cap.Capability.ID,
@@ -512,9 +512,9 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 
 	var kind core.Construct
 	if method.Content() == "createCluster" {
-		kind = core.RedisCluster{}
+		kind = &core.RedisCluster{}
 	} else {
-		kind = core.RedisNode{}
+		kind = &core.RedisNode{}
 	}
 
 	if method.Content() != "createClient" && method.Content() != "createCluster" {

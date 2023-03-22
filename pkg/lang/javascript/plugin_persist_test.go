@@ -252,7 +252,7 @@ const m = new keyvalueRuntime.dMap({"versioned":true})`,
 
 			ptype, pres := p.determinePersistType(f, cap)
 
-			_, ok := ptype.(core.Kv)
+			_, ok := ptype.(*core.Kv)
 			if !assert.True(ok) {
 				return
 			}

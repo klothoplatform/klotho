@@ -32,51 +32,51 @@ type (
 	}
 )
 
-func (p Secrets) Provenance() AnnotationKey {
+func (p *Secrets) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p Secrets) Id() string {
+func (p *Secrets) Id() string {
 	return p.AnnotationKey.ToString()
 }
 
-func (p Fs) Provenance() AnnotationKey {
+func (p *Fs) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p Fs) Id() string {
+func (p *Fs) Id() string {
 	return p.AnnotationKey.ToString()
 }
 
-func (p Kv) Provenance() AnnotationKey {
+func (p *Kv) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p Kv) Id() string {
+func (p *Kv) Id() string {
 	return p.AnnotationKey.ToString()
 }
 
-func (p Orm) Provenance() AnnotationKey {
+func (p *Orm) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p Orm) Id() string {
+func (p *Orm) Id() string {
 	return p.AnnotationKey.ToString()
 }
 
-func (p RedisNode) Provenance() AnnotationKey {
+func (p *RedisNode) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p RedisNode) Id() string {
+func (p *RedisNode) Id() string {
 	return p.AnnotationKey.ToString()
 }
 
-func (p RedisCluster) Provenance() AnnotationKey {
+func (p *RedisCluster) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p RedisCluster) Id() string {
+func (p *RedisCluster) Id() string {
 	return p.AnnotationKey.ToString()
 }
 
