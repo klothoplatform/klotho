@@ -91,7 +91,7 @@ func (r *AwsRuntime) GetAppName() string {
 	return r.TemplateConfig.AppName
 }
 
-func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
+func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
 	var dockerFile, dispatcher []byte
 	var requirements string
 	unitType := r.Cfg.GetResourceType(unit)
@@ -117,13 +117,13 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		ExecUnitName:   unit.ID,
 	}
 
 	var err error
 
-	if shouldAddExposeRuntimeFiles(unit, result, deps) {
-		exposeData, err := getExposeTemplateData(unit, result, deps)
+	if shouldAddExposeRuntimeFiles(unit, constructGraph) {
+		exposeData, err := getExposeTemplateData(unit, constructGraph)
 		if err != nil {
 			return err
 		}
@@ -141,7 +141,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		}
 	}
 	if reqTxtPath == "" {
-		return errors.Errorf("No `requirements.txt` found for execution unit %s", unit.Name)
+		return errors.Errorf("No `requirements.txt` found for execution unit %s", unit.ID)
 	}
 	templateData.ProjectFilePath = reqTxtPath
 	if runtime.ShouldOverrideDockerfile(unit) {
@@ -160,9 +160,10 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 	return nil
 }
 
-func shouldAddExposeRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) bool {
-	for _, dep := range deps.Upstream(unit.Key()) {
-		res := result.Get(dep)
+func shouldAddExposeRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) bool {
+
+	for _, dep := range constructGraph.IncomingVertices(unit) {
+		res := core.Get(constructGraph, dep.Provenance())
 		if _, ok := res.(*core.Gateway); ok {
 			return true
 		}
@@ -171,16 +172,16 @@ func shouldAddExposeRuntimeFiles(unit *core.ExecutionUnit, result *core.Compilat
 }
 
 // TODO: look into de-duplicating this function for reuse across languages
-func getExposeTemplateData(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) (ExposeTemplateData, error) {
-	upstreamGateways := core.FindUpstreamGateways(unit, result, deps)
+func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) (ExposeTemplateData, error) {
+	upstreamGateways := core.FindUpstreamGateways(unit, constructGraph)
 
 	var sourceGateway *core.Gateway
 	for _, gw := range upstreamGateways {
 		if sourceGateway != nil && (sourceGateway.DefinedIn != gw.DefinedIn || sourceGateway.ExportVarName != gw.ExportVarName) {
 			return ExposeTemplateData{},
 				errors.Errorf("multiple gateways cannot target different web applications in the same execution unit: [%s -> %s],[%s -> %s]",
-					gw.Name, unit.Name,
-					sourceGateway.Name, unit.Name)
+					gw.ID, unit.ID,
+					sourceGateway.ID, unit.ID)
 		}
 		sourceGateway = gw
 	}
@@ -274,7 +275,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) error {
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		ExecUnitName:   unit.ID,
 	}
 	err := python.AddRuntimeFiles(unit, files, templateData)
 	return err
@@ -283,7 +284,7 @@ func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) e
 func (r *AwsRuntime) AddRuntimeFile(unit *core.ExecutionUnit, path string, content []byte) error {
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		ExecUnitName:   unit.ID,
 	}
 	err := python.AddRuntimeFile(unit, templateData, path, content)
 	return err

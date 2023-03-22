@@ -143,7 +143,8 @@ myCache = Cache(cache_class=keyvalue.KVStore, my_arg="value", serializer=keyvalu
 
 			ptype, pres := p.determinePersistType(f, cap)
 
-			if !assert.Equal(core.PersistKVKind, ptype) {
+			_, ok := ptype.(core.Kv)
+			if !assert.True(ok) {
 				return
 			}
 
@@ -270,7 +271,8 @@ import klotho_runtime.fs_mycache as fs`,
 
 			ptype, pres := p.determinePersistType(f, cap)
 
-			if !assert.Equal(core.PersistFileKind, ptype) {
+			_, ok := ptype.(core.Fs)
+			if !assert.True(ok) {
 				return
 			}
 			unit := &core.ExecutionUnit{}
@@ -443,9 +445,11 @@ import klotho_runtime.secret as fs`,
 
 			ptype, pres := p.determinePersistType(f, cap)
 
-			if !assert.Equal(core.PersistFileKind, ptype) {
+			_, ok := ptype.(core.Fs)
+			if !assert.True(ok) {
 				return
 			}
+
 			unit := &core.ExecutionUnit{}
 
 			_, err = p.transformSecret(f, newF, cap, pres, unit)
@@ -702,7 +706,7 @@ engine = create_engine(os.environ.get("SQLALCHEMY_PERSIST_ORM_CONNECTION"))`,
 			pres := &persistResult{
 				name:       "engine",
 				expression: tt.expression,
-				kind:       core.PersistORMKind,
+				construct:  core.Orm{},
 			}
 			unit := &core.ExecutionUnit{}
 			_, err = p.transformORM(f, newF, cap, pres, unit)
@@ -714,10 +718,9 @@ engine = create_engine(os.environ.get("SQLALCHEMY_PERSIST_ORM_CONNECTION"))`,
 			assert.Equal(tt.want, string(newF.Program()))
 			assert.Equal(core.EnvironmentVariables{
 				{
-					Name:       "SQLALCHEMY_PERSIST_ORM_CONNECTION",
-					Kind:       string(core.PersistORMKind),
-					ResourceID: "sqlAlchemy",
-					Value:      "connection_string",
+					Name:      "SQLALCHEMY_PERSIST_ORM_CONNECTION",
+					Construct: core.Orm{AnnotationKey: core.AnnotationKey{ID: "sqlAlchemy", Capability: annotation.PersistCapability}},
+					Value:     "connection_string",
 				},
 			}, unit.EnvironmentVariables)
 		})
@@ -732,7 +735,6 @@ func Test_persister_queryRedis(t *testing.T) {
 		matchName       string
 		matchExpression string
 		args            []FunctionArg
-		redisType       core.PersistKind
 	}{
 		{
 			name: "create redis constructor import match",
@@ -743,7 +745,6 @@ func Test_persister_queryRedis(t *testing.T) {
 			matchName:       "client",
 			matchExpression: "(host='localhost', port=6379, db=0)",
 			args:            []FunctionArg{{Name: "host", Value: "'localhost'"}, {Name: "port", Value: "6379"}, {Name: "db", Value: "0"}},
-			redisType:       core.PersistRedisNodeKind,
 		},
 		{
 			name: "redis import match",
@@ -754,7 +755,6 @@ func Test_persister_queryRedis(t *testing.T) {
 			matchName:       "client",
 			matchExpression: "(host='localhost', port=6379, db=0)",
 			args:            []FunctionArg{{Name: "host", Value: "'localhost'"}, {Name: "port", Value: "6379"}, {Name: "db", Value: "0"}},
-			redisType:       core.PersistRedisNodeKind,
 		},
 		{
 			name: "create redis constructor import match as alias",
@@ -765,7 +765,6 @@ func Test_persister_queryRedis(t *testing.T) {
 			matchName:       "client",
 			matchExpression: "(host='localhost', port=6379, db=0)",
 			args:            []FunctionArg{{Name: "host", Value: "'localhost'"}, {Name: "port", Value: "6379"}, {Name: "db", Value: "0"}},
-			redisType:       core.PersistRedisNodeKind,
 		},
 		{
 			name: "redis import match as alias",
@@ -776,7 +775,6 @@ func Test_persister_queryRedis(t *testing.T) {
 			matchName:       "client",
 			matchExpression: "(host='localhost', port=6379, db=0)",
 			args:            []FunctionArg{{Name: "host", Value: "'localhost'"}, {Name: "port", Value: "6379"}, {Name: "db", Value: "0"}},
-			redisType:       core.PersistRedisNodeKind,
 		},
 		{
 			name: "other import function not matched",
@@ -803,7 +801,6 @@ func Test_persister_queryRedis(t *testing.T) {
 			matchName:       "client",
 			matchExpression: "(host='localhost', port=6379)",
 			args:            []FunctionArg{{Name: "host", Value: "'localhost'"}, {Name: "port", Value: "6379"}},
-			redisType:       core.PersistRedisClusterKind,
 		},
 		{
 			name: "RedisCluster import cluster from redis matched",
@@ -814,7 +811,6 @@ func Test_persister_queryRedis(t *testing.T) {
 			matchName:       "client",
 			matchExpression: "(host='localhost', port=6379)",
 			args:            []FunctionArg{{Name: "host", Value: "'localhost'"}, {Name: "port", Value: "6379"}},
-			redisType:       core.PersistRedisClusterKind,
 		},
 		{
 			name: "RedisCluster import from redis.cluster matched",
@@ -825,7 +821,6 @@ func Test_persister_queryRedis(t *testing.T) {
 			matchName:       "client",
 			matchExpression: "(host='localhost', port=6379)",
 			args:            []FunctionArg{{Name: "host", Value: "'localhost'"}, {Name: "port", Value: "6379"}},
-			redisType:       core.PersistRedisClusterKind,
 		},
 		{
 			name: "RedisCluster imported self matched as alias",
@@ -836,7 +831,6 @@ func Test_persister_queryRedis(t *testing.T) {
 			matchName:       "client",
 			matchExpression: "(host='localhost', port=6379)",
 			args:            []FunctionArg{{Name: "host", Value: "'localhost'"}, {Name: "port", Value: "6379"}},
-			redisType:       core.PersistRedisClusterKind,
 		},
 		{
 			name: "RedisCluster import cluster from redis matched as alias",
@@ -847,7 +841,6 @@ func Test_persister_queryRedis(t *testing.T) {
 			matchName:       "client",
 			matchExpression: "(host='localhost', port=6379)",
 			args:            []FunctionArg{{Name: "host", Value: "'localhost'"}, {Name: "port", Value: "6379"}},
-			redisType:       core.PersistRedisClusterKind,
 		},
 		{
 			name: "RedisCluster import from redis.cluster matched as alias",
@@ -858,7 +851,6 @@ func Test_persister_queryRedis(t *testing.T) {
 			matchName:       "client",
 			matchExpression: "(host='localhost', port=6379)",
 			args:            []FunctionArg{{Name: "host", Value: "'localhost'"}, {Name: "port", Value: "6379"}},
-			redisType:       core.PersistRedisClusterKind,
 		},
 		{
 			name: "RedisCluster imported self matched as alias no match",
@@ -917,11 +909,11 @@ func Test_persister_queryRedis(t *testing.T) {
 
 func Test_transformRedis(t *testing.T) {
 	tests := []struct {
-		name      string
-		source    string
-		redisType core.PersistKind
-		want      string
-		wantErr   bool
+		name           string
+		source         string
+		redisConstruct core.Construct
+		want           string
+		wantErr        bool
 	}{
 		{
 			name: "injects runtime from self import",
@@ -932,7 +924,7 @@ import redis
 # }
 client = redis.Redis(host='localhost', port=6379)
 `,
-			redisType: core.PersistRedisNodeKind,
+			redisConstruct: core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
 			want: `
 import redis
 import os
@@ -950,7 +942,7 @@ from redis import Redis
 #   id = "redis"
 # }
 client = Redis(host='localhost', port=6379)`,
-			redisType: core.PersistRedisNodeKind,
+			redisConstruct: core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
 			want: `
 from redis import Redis
 import os
@@ -968,7 +960,7 @@ import redis
 # }
 client = redis.cluster.RedisCluster(host='localhost', port=6379)
 `,
-			redisType: core.PersistRedisClusterKind,
+			redisConstruct: core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
 			want: `
 import redis
 import os
@@ -986,7 +978,7 @@ from redis import cluster
 #   id = "redis"
 # }
 client = cluster.RedisCluster(host='localhost', port=6379)`,
-			redisType: core.PersistRedisClusterKind,
+			redisConstruct: core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
 			want: `
 from redis import cluster
 import os
@@ -1003,7 +995,7 @@ from redis.cluster import RedisCluster
 #   id = "redis"
 # }
 client = RedisCluster(host='localhost', port=6379)`,
-			redisType: core.PersistRedisClusterKind,
+			redisConstruct: core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
 			want: `
 from redis.cluster import RedisCluster
 import os
@@ -1037,7 +1029,7 @@ client = RedisCluster(host=os.environ.get("REDIS_PERSIST_REDIS_HOST"), port=os.e
 				name:       "client",
 				expression: "(host='localhost', port=6379)",
 				args:       []FunctionArg{{Name: "host", Value: "localhost"}, {Name: "port", Value: "6379"}},
-				kind:       tt.redisType,
+				construct:  tt.redisConstruct,
 			}
 
 			unit := &core.ExecutionUnit{}
@@ -1048,18 +1040,17 @@ client = RedisCluster(host=os.environ.get("REDIS_PERSIST_REDIS_HOST"), port=os.e
 			}
 			assert.NoError(err)
 			assert.Equal(tt.want, string(newF.Program()))
+
 			assert.Equal(core.EnvironmentVariables{
 				{
-					Name:       "REDIS_PERSIST_REDIS_HOST",
-					Kind:       string(tt.redisType),
-					ResourceID: "redis",
-					Value:      "host",
+					Name:      "REDIS_PERSIST_REDIS_HOST",
+					Construct: tt.redisConstruct,
+					Value:     "host",
 				},
 				{
-					Name:       "REDIS_PERSIST_REDIS_PORT",
-					Kind:       string(tt.redisType),
-					ResourceID: "redis",
-					Value:      "port",
+					Name:      "REDIS_PERSIST_REDIS_PORT",
+					Construct: tt.redisConstruct,
+					Value:     "port",
 				},
 			}, unit.EnvironmentVariables)
 		})
