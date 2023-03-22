@@ -9,6 +9,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
+	"github.com/klothoplatform/klotho/pkg/graph"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -35,19 +36,19 @@ type nestJsOutput struct {
 
 func (p NestJsHandler) Name() string { return "NestJs" }
 
-func (p NestJsHandler) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p NestJsHandler) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
 	var errs multierr.Error
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
-		err := p.transformSingle(result, deps, unit)
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+		err := p.transformSingle(constructGraph, unit)
 		errs.Append(err)
 	}
 	return errs.ErrOrNil()
 }
 
-func (p *NestJsHandler) transformSingle(result *core.CompilationResult, deps *core.Dependencies, unit *core.ExecutionUnit) error {
+func (p *NestJsHandler) transformSingle(constructGraph *graph.Directed[core.Construct], unit *core.ExecutionUnit) error {
 
 	execUnitInfo := execUnitExposeInfo{Unit: unit, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
-	p.log = zap.L().With(zap.String("unit", unit.Name))
+	p.log = zap.L().With(zap.String("unit", unit.ID))
 
 	var errs multierr.Error
 
@@ -75,7 +76,7 @@ func (p *NestJsHandler) transformSingle(result *core.CompilationResult, deps *co
 	err := p.assignRoutesToGateway(&execUnitInfo)
 	errs.Append(err)
 
-	handleGatewayRoutes(&execUnitInfo, result, deps, p.log)
+	handleGatewayRoutes(&execUnitInfo, constructGraph, p.log)
 	return errs.ErrOrNil()
 }
 
@@ -136,7 +137,7 @@ func (p *NestJsHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit)
 func (h *NestJsHandler) assignRoutesToGateway(info *execUnitExposeInfo) error {
 	var errs multierr.Error
 
-	controllers := h.findControllers(info.Unit.Name)
+	controllers := h.findControllers(info.Unit.ID)
 	modules := h.findModules(controllers)
 
 	for _, factory := range h.output.factories {

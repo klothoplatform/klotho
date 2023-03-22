@@ -33,7 +33,7 @@ func (p PersistFsPlugin) Transform(input *core.InputFiles, constructGraph *graph
 
 			for _, r := range resources {
 				constructGraph.AddVertex(r)
-				constructGraph.AddEdge(core.AnnotationKey{ID: unit.ID, Capability: annotation.ExecutionUnitCapability}.ToString(), r.Provenance().ToString())
+				constructGraph.AddEdge(unit.Provenance().ToString(), r.Provenance().ToString())
 			}
 		}
 	}
@@ -65,7 +65,7 @@ func (p *PersistFsPlugin) handleFile(f *core.SourceFile, unit *core.ExecutionUni
 
 func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, result *persistResult, unit *core.ExecutionUnit) (core.Construct, error) {
 	fs := &core.Fs{
-		AnnotationKey: core.AnnotationKey{Capability: annotation.PersistCapability, ID: cap.Capability.ID},
+		AnnotationKey: core.AnnotationKey{Capability: cap.Capability.Name, ID: cap.Capability.ID},
 	}
 
 	fsEnvVar := core.GenerateBucketEnvVar(fs)

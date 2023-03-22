@@ -1,7 +1,9 @@
 package javascript
 
 import (
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/query"
 	"github.com/pkg/errors"
 	sitter "github.com/smacker/go-tree-sitter"
@@ -52,15 +54,15 @@ func findListener(cap *core.Annotation) exposeListenResult {
 	return exposeListenResult{}
 }
 
-func handleGatewayRoutes(info *execUnitExposeInfo, result *core.CompilationResult, deps *core.Dependencies, log *zap.Logger) {
+func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *graph.Directed[core.Construct], log *zap.Logger) {
 	for spec, routes := range info.RoutesByGateway {
-		gw := core.NewGateway(spec.gatewayId)
-		if existing := result.Get(gw.Key()); existing != nil {
+		gw := core.NewGateway(core.AnnotationKey{ID: spec.gatewayId, Capability: annotation.ExposeCapability})
+		if existing := core.Get(constructGraph, gw.Provenance()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath
 			gw.ExportVarName = spec.AppVarName
-			result.Add(gw)
+			constructGraph.AddVertex(gw)
 		}
 		if len(routes) == 0 && len(gw.Routes) == 0 {
 			log.Sugar().Infof("Adding catchall route for gateway %+v with no detected routes", spec)
@@ -68,7 +70,7 @@ func handleGatewayRoutes(info *execUnitExposeInfo, result *core.CompilationResul
 				{
 					Route: core.Route{
 						Path:          "/",
-						ExecUnitName:  info.Unit.Name,
+						ExecUnitName:  info.Unit.ID,
 						Verb:          core.Verb("ANY"),
 						HandledInFile: spec.FilePath,
 					},
@@ -77,7 +79,7 @@ func handleGatewayRoutes(info *execUnitExposeInfo, result *core.CompilationResul
 				{
 					Route: core.Route{
 						Path:          "/:proxy*",
-						ExecUnitName:  info.Unit.Name,
+						ExecUnitName:  info.Unit.ID,
 						Verb:          core.Verb("ANY"),
 						HandledInFile: spec.FilePath,
 					},
@@ -100,15 +102,15 @@ func handleGatewayRoutes(info *execUnitExposeInfo, result *core.CompilationResul
 			targetUnit := core.FileExecUnitName(targAST)
 			if targetUnit == "" {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
-				targetUnit = info.Unit.Name
+				targetUnit = info.Unit.ID
 			}
-			depKey := core.ResourceKey{Name: targetUnit, Kind: core.ExecutionUnitKind}
-			if result.Get(depKey) == nil {
+			depKey := core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}
+			if core.Get(constructGraph, depKey) == nil {
 				// The unit defined in the target does not exist, fall back to current one (for running in single-exec mode).
 				// TODO when there are ways to combine units, we'll need a more sophisticated way to see which unit the target maps to.
-				depKey.Name = info.Unit.Name
+				depKey.ID = info.Unit.ID
 			}
-			deps.Add(gw.Key(), depKey)
+			constructGraph.AddEdge(gw.Provenance().ToString(), depKey.ToString())
 		}
 	}
 }

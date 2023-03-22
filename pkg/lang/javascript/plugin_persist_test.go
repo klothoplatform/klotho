@@ -7,6 +7,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -107,9 +108,9 @@ p.get('foo')`,
 				execUnit.Add(f)
 			}
 			p := persister{
-				result: &core.CompilationResult{},
+				ConstructGraph: graph.NewDirected[core.Construct](),
 			}
-			p.result.Add(&execUnit)
+			p.ConstructGraph.AddVertex(&execUnit)
 
 			p.findUnawaitedCalls(&execUnit)
 			logSb := strings.Builder{}
@@ -251,7 +252,8 @@ const m = new keyvalueRuntime.dMap({"versioned":true})`,
 
 			ptype, pres := p.determinePersistType(f, cap)
 
-			if !assert.Equal(core.PersistKVKind, ptype) {
+			_, ok := ptype.(core.Kv)
+			if !assert.True(ok) {
 				return
 			}
 

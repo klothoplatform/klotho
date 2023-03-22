@@ -35,7 +35,7 @@ func (p PersistSecretsPlugin) Transform(input *core.InputFiles, constructGraph *
 
 			for _, r := range resources {
 				constructGraph.AddVertex(r)
-				constructGraph.AddEdge(core.AnnotationKey{ID: unit.ID, Capability: annotation.ExecutionUnitCapability}.ToString(), r.Provenance().ToString())
+				constructGraph.AddEdge(unit.Provenance().ToString(), r.Provenance().ToString())
 			}
 		}
 	}
@@ -74,7 +74,7 @@ func (p *PersistSecretsPlugin) transformSecret(f *core.SourceFile, cap *core.Ann
 	secret := &core.Config{
 		AnnotationKey: core.AnnotationKey{
 			ID:         cap.Capability.ID,
-			Capability: annotation.ConfigCapability,
+			Capability: cap.Capability.Name,
 		},
 		Secret: true,
 	}

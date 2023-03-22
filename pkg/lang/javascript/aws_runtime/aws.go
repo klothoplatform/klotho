@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/sanitization"
 
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -97,23 +98,23 @@ var dockerfileFargate []byte
 
 var sequelizeReplaceRE = regexp.MustCompile(`new (\w+\.|\b)Sequelize\(`)
 
-func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotation, kind core.PersistKind) error {
+func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotation, construct core.Construct) error {
 	importModule := ""
-	switch kind {
-	case core.PersistFileKind:
+	switch construct.(type) {
+	case *core.Fs:
 		importModule = sanitization.IdentifierSanitizer.Apply("fs_" + annot.Capability.ID)
-	case core.PersistKVKind:
+	case *core.Kv:
 		importModule = "keyvalue"
-	case core.PersistSecretKind:
+	case *core.Secrets:
 		importModule = "secret"
-	case core.PersistORMKind:
+	case *core.Orm:
 		importModule = "orm"
-	case core.PersistRedisClusterKind:
+	case *core.RedisCluster:
 		importModule = "redis_cluster"
-	case core.PersistRedisNodeKind:
+	case *core.RedisNode:
 		importModule = "redis_node"
 	default:
-		return fmt.Errorf("could not get runtime import file name for persist type: %v", kind)
+		return fmt.Errorf("could not get runtime import file name for persist type: %v", construct.Provenance().ID)
 	}
 
 	err := javascript.EnsureRuntimeImportFile(importModule, importModule, file)
@@ -121,8 +122,8 @@ func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotat
 		return err
 	}
 
-	switch kind {
-	case core.PersistORMKind:
+	switch construct.(type) {
+	case *core.Orm:
 		cfg := r.Config.GetPersistOrm(annot.Capability.ID)
 		if cfg.Type == "cockroachdb_serverless" {
 			oldNodeContent := annot.Node.Content()
@@ -223,7 +224,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	return nil
 }
 
-func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
+func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *graph.Directed[core.Construct]) error {
 	var DockerFile, Dispatcher []byte
 	unitType := r.Config.GetResourceType(unit)
 	switch unitType {
@@ -245,10 +246,10 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		ExecUnitName:   unit.ID,
 	}
 
-	exposeData, err := getExposeTemplateData(unit, result, deps)
+	exposeData, err := getExposeTemplateData(unit, constructGraph)
 	if err != nil {
 		return err
 	}
@@ -261,7 +262,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 		}
 	}
 	if pjsonPath == "" {
-		return errors.Errorf("No `package.json` found for execution unit %s", unit.Name)
+		return errors.Errorf("No `package.json` found for execution unit %s", unit.ID)
 	}
 	templateData.ProjectFilePath = pjsonPath
 	if pjson := unit.Get(pjsonPath); pjson != nil {
@@ -283,7 +284,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 				// has a specific execution unit annotation. In that case, just skip its import
 				// by zeroing out the field.
 				templateData.MainModule = ""
-				zap.S().Debugf("Skipping 'main' from package.json: %s due to not in unit %s", templateData.MainModule, unit.Name)
+				zap.S().Debugf("Skipping 'main' from package.json: %s due to not in unit %s", templateData.MainModule, unit.ID)
 			}
 		}
 	}
@@ -304,16 +305,16 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 	return err
 }
 
-func getExposeTemplateData(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) (ExposeTemplateData, error) {
-	upstreamGateways := core.FindUpstreamGateways(unit, result, deps)
+func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *graph.Directed[core.Construct]) (ExposeTemplateData, error) {
+	upstreamGateways := core.FindUpstreamGateways(unit, constructGraph)
 
 	var sourceGateway *core.Gateway
 	for _, gw := range upstreamGateways {
 		if sourceGateway != nil && (sourceGateway.DefinedIn != gw.DefinedIn || sourceGateway.ExportVarName != gw.ExportVarName) {
 			return ExposeTemplateData{},
 				errors.Errorf("multiple gateways cannot target different web applications in the same execution unit: [%s -> %s],[%s -> %s]",
-					gw.Name, unit.Name,
-					sourceGateway.Name, unit.Name)
+					gw.ID, unit.ID,
+					sourceGateway.ID, unit.ID)
 		}
 		sourceGateway = gw
 	}
@@ -329,7 +330,7 @@ func getExposeTemplateData(unit *core.ExecutionUnit, result *core.CompilationRes
 func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) error {
 	templateData := TemplateData{
 		TemplateConfig:     r.TemplateConfig,
-		ExecUnitName:       unit.Name,
+		ExecUnitName:       unit.ID,
 		PayloadsBucketName: resources.SanitizeS3BucketName(r.Config.AppName),
 	}
 	err := javascript.AddRuntimeFiles(unit, files, templateData)
@@ -339,7 +340,7 @@ func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) e
 func (r *AwsRuntime) AddRuntimeFile(unit *core.ExecutionUnit, path string, content []byte) error {
 	templateData := TemplateData{
 		TemplateConfig:     r.TemplateConfig,
-		ExecUnitName:       unit.Name,
+		ExecUnitName:       unit.ID,
 		PayloadsBucketName: resources.SanitizeS3BucketName(r.Config.AppName),
 	}
 	err := javascript.AddRuntimeFile(unit, templateData, path, content)

@@ -10,6 +10,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/query"
@@ -53,20 +54,20 @@ type routeMethodPath struct {
 
 func (p ExpressHandler) Name() string { return "Express" }
 
-func (p ExpressHandler) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p ExpressHandler) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
 	var errs multierr.Error
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
-		err := p.transformSingle(result, deps, unit)
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+		err := p.transformSingle(constructGraph, unit)
 		errs.Append(err)
 	}
 	return errs.ErrOrNil()
 }
 
-func (p *ExpressHandler) transformSingle(result *core.CompilationResult, deps *core.Dependencies, unit *core.ExecutionUnit) error {
+func (p *ExpressHandler) transformSingle(constructGraph *graph.Directed[core.Construct], unit *core.ExecutionUnit) error {
 
 	execUnitInfo := execUnitExposeInfo{Unit: unit, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
 	p.output = expressOutput{}
-	p.log = zap.L().With(zap.String("unit", unit.Name))
+	p.log = zap.L().With(zap.String("unit", unit.ID))
 
 	var errs multierr.Error
 
@@ -91,10 +92,10 @@ func (p *ExpressHandler) transformSingle(result *core.CompilationResult, deps *c
 		}
 		p.queryResources(js)
 	}
-	err := p.assignRoutesToGateway(&execUnitInfo, result)
+	err := p.assignRoutesToGateway(&execUnitInfo, constructGraph)
 	errs.Append(err)
 
-	handleGatewayRoutes(&execUnitInfo, result, deps, p.log)
+	handleGatewayRoutes(&execUnitInfo, constructGraph, p.log)
 	return errs.ErrOrNil()
 }
 
@@ -196,7 +197,7 @@ func (h *ExpressHandler) findExpress(f *core.SourceFile) string {
 	return ""
 }
 
-func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, result *core.CompilationResult) error {
+func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, constructGraph *graph.Directed[core.Construct]) error {
 	var errs multierr.Error
 	fileContentUpdate := make(map[*core.SourceFile]string)
 	for _, listener := range h.output.listeners {
@@ -210,7 +211,7 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, result 
 		}
 		info.RoutesByGateway[gwSpec] = []gatewayRouteDefinition{}
 
-		localRoutes := h.handleLocalRoutes(listener.f, listenVarName, "", info.Unit.Name)
+		localRoutes := h.handleLocalRoutes(listener.f, listenVarName, "", info.Unit.ID)
 		if len(localRoutes) > 0 {
 			h.log.Sugar().Infof("Found %d route(s) on server '%s'", len(localRoutes), listenVarName)
 			info.RoutesByGateway[gwSpec] = append(info.RoutesByGateway[gwSpec], localRoutes...)
@@ -231,7 +232,7 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, result 
 			var routes []gatewayRouteDefinition
 			if imp == (Import{}) {
 				// not an imported router, assume it's defined locally
-				routes = h.handleLocalRoutes(mw.f, mwImportName, mw.Path, info.Unit.Name)
+				routes = h.handleLocalRoutes(mw.f, mwImportName, mw.Path, info.Unit.ID)
 			} else {
 				path := imp.Source
 				if path[0] != '.' {
@@ -239,7 +240,7 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, result 
 					continue
 				}
 
-				mwFile := GetFileForModule(result, path)
+				mwFile := GetFileForModule(constructGraph, path)
 
 				var exportName string
 				if mw.PropertyName == "" {
@@ -263,7 +264,7 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, result 
 					exportName = exportNode.Content()
 				}
 
-				if mwUnit := core.FileExecUnitName(mwFile); mwUnit != "" && info.Unit.Name != mwUnit {
+				if mwUnit := core.FileExecUnitName(mwFile); mwUnit != "" && info.Unit.ID != mwUnit {
 					importAssign := imp.ImportNode
 					mwUse := mw.UseExpr. // call_expression
 								Parent() // expression_statement
@@ -277,7 +278,7 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, result 
 					continue // we have no routes to add, and make sure we don't log the "no routes" warning
 				} else {
 					// TODO check if mw is a Router and only handle the local routes if so
-					routes = h.handleLocalRoutes(mwFile, exportName, mw.Path, info.Unit.Name)
+					routes = h.handleLocalRoutes(mwFile, exportName, mw.Path, info.Unit.ID)
 				}
 			}
 			if len(routes) == 0 {

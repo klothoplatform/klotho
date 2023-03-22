@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -34,9 +35,9 @@ func TestPubSub_rewriteFileEmitters(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
+			result := graph.NewDirected[core.Construct]()
 			p := &Pubsub{
-				result: new(core.CompilationResult),
-				deps:   new(core.Dependencies),
+				ConstructGraph: result,
 			}
 
 			f, err := NewFile("test.js", strings.NewReader(tt.source))
@@ -107,10 +108,9 @@ e.emitter.emit('a')`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-
+			result := graph.NewDirected[core.Construct]()
 			p := &Pubsub{
-				result: new(core.CompilationResult),
-				deps:   new(core.Dependencies),
+				ConstructGraph: result,
 			}
 
 			f, err := NewFile("test.js", strings.NewReader(tt.source))
@@ -175,9 +175,9 @@ e.emitter.on('a', () => {})`,
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
+			result := graph.NewDirected[core.Construct]()
 			p := &Pubsub{
-				result: new(core.CompilationResult),
-				deps:   new(core.Dependencies),
+				ConstructGraph: result,
 			}
 
 			f, err := NewFile("test.js", strings.NewReader(tt.source))

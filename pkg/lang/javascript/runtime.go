@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 )
@@ -40,7 +41,7 @@ type TransformResult struct {
 
 type Runtime interface {
 	// TransformPersist applies any runtime-specific transformations to the given file for the annotation. Returns the modified source code, to be `Reparse`d by the caller.
-	TransformPersist(file *core.SourceFile, annot *core.Annotation, kind core.PersistKind) error
+	TransformPersist(file *core.SourceFile, annot *core.Annotation, construct core.Construct) error
 	AddKvRuntimeFiles(unit *core.ExecutionUnit) error
 	AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName string, id string) error
 	AddSecretRuntimeFiles(unit *core.ExecutionUnit) error
@@ -49,7 +50,7 @@ type Runtime interface {
 	AddRedisClusterRuntimeFiles(unit *core.ExecutionUnit) error
 	AddPubsubRuntimeFiles(unit *core.ExecutionUnit) error
 	AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error
-	AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error
+	AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *graph.Directed[core.Construct]) error
 }
 
 func AddRuntimeFile(unit *core.ExecutionUnit, templateData any, path string, content []byte) error {
