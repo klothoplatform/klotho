@@ -29,7 +29,7 @@ type (
 	IaCPlugin interface {
 		Name() string
 
-		Translate(cloudGraph *core.ConstructGraph) []core.File
+		Translate(cloudGraph *core.ResourceGraph) ([]core.File, error)
 	}
 
 	Compiler struct {

@@ -7,7 +7,7 @@ import (
 )
 
 type Provider interface {
-	compiler.Plugin
+	compiler.ProviderPlugin
 	GetKindTypeMappings(construct core.Construct) ([]string, bool)
 	GetDefaultConfig() config.Defaults
 }
