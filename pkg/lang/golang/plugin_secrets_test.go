@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
@@ -146,9 +147,13 @@ v, err := runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder
 `,
 			want: testResult{
 				resource: core.Config{
-					Name: "test",
+					AnnotationKey: core.AnnotationKey{
+						ID:         "test",
+						Capability: annotation.ConfigCapability,
+					},
 				},
 				content: `package fs
+			}
 
 import (
 	_ "gocloud.dev/runtimevar/awssecretsmanager"
@@ -187,7 +192,10 @@ var v, err = runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?deco
 `,
 			want: testResult{
 				resource: core.Config{
-					Name: "test",
+					AnnotationKey: core.AnnotationKey{
+						ID:         "test",
+						Capability: annotation.ConfigCapability,
+					},
 				},
 				content: `package fs
 
@@ -230,7 +238,10 @@ v, err = runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder=
 `,
 			want: testResult{
 				resource: core.Config{
-					Name: "test",
+					AnnotationKey: core.AnnotationKey{
+						ID:         "test",
+						Capability: annotation.ConfigCapability,
+					},
 				},
 				content: `package fs
 
@@ -284,7 +295,7 @@ var queryParams string
 				return
 			}
 
-			assert.Equal(tt.want.resource.Key(), result.Key())
+			assert.Equal(tt.want.resource.Provenance(), result.Provenance())
 			assert.Equal(tt.want.content, string(f.Program()))
 		})
 	}

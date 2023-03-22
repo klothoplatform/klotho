@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -11,7 +12,7 @@ import (
 
 var testRestAPIHandler = &restAPIHandler{
 	log:  zap.L(),
-	Unit: &core.ExecutionUnit{Name: "testUnit"},
+	Unit: &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "testUnit", Capability: annotation.ExecutionUnitCapability}},
 }
 
 func Test_findHttpListenServe(t *testing.T) {
