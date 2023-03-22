@@ -138,7 +138,7 @@ func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotat
 				buf.WriteString(importLine)
 				buf.WriteRune('\n')
 				buf.Write(file.Program())
-				if err := file.Reparse(buf.Bytes(), annot); err != nil {
+				if err := file.Reparse(buf.Bytes()); err != nil {
 					return err
 				}
 			}

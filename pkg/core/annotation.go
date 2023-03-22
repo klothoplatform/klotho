@@ -17,9 +17,9 @@ type (
 		Capability *annotation.Capability
 		// Node is the node that has been annotated; not the comment node representing the annotation itself.
 		Node *sitter.Node
-		// IsTransformed indicates whether the content of an annotation's original Node field been transformed.
-		// When reparsing a transformed annotation, its Node field will be nil to prevent plugins from treating the transformed code as input.
-		IsTransformed bool
+		// isDetached indicates that an annotation has been detached from its original Node as a result of code transformation.
+		// When reparsing a detached annotation, its Node field will be nil to prevent plugins from treating the transformed code as input.
+		isDetached bool
 	}
 
 	AnnotationKey struct {
@@ -45,7 +45,7 @@ func (a *Annotation) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
-func (a Annotation) Format(s fmt.State, verb rune) {
+func (a *Annotation) Format(s fmt.State, verb rune) {
 	fmt.Fprintf(s, "@klotho::%s", a.Capability.Name)
 	if len(a.Capability.Directives) > 0 {
 		if s.Flag('+') || s.Flag('#') {
@@ -61,8 +61,17 @@ func (a Annotation) Format(s fmt.State, verb rune) {
 	}
 }
 
-func (a Annotation) Key() AnnotationKey {
+func (a *Annotation) Key() AnnotationKey {
 	return AnnotationKey{Capability: a.Capability.Name, ID: a.Capability.ID}
+}
+
+func (a *Annotation) Detach() {
+	a.isDetached = true
+	a.Node = nil
+}
+
+func (a *Annotation) IsDetached() bool {
+	return a.isDetached
 }
 
 func (m AnnotationMap) Update(other AnnotationMap) {
@@ -70,8 +79,8 @@ func (m AnnotationMap) Update(other AnnotationMap) {
 		if ex, ok := m[k]; ok {
 			// Update the contents not the pointer so existing annotation pointers are still valid
 			newValue := *v
-			if ex.IsTransformed {
-				newValue.IsTransformed = true
+			if ex.isDetached {
+				newValue.isDetached = true
 			}
 			*ex = newValue
 		} else {

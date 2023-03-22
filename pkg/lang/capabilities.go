@@ -64,7 +64,7 @@ func IsCLineCommentBlock(previous, current *sitter.Node) bool {
 		strings.HasPrefix(previous.Content(), "//")
 }
 
-func IsNumberCommentBlock(previous, current *sitter.Node) bool {
+func IsHashCommentBlock(previous, current *sitter.Node) bool {
 	return previous != nil && current != nil &&
 		current.StartPoint().Row-previous.StartPoint().Row == 1 &&
 		strings.HasPrefix(current.Content(), "#") &&

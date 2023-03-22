@@ -144,7 +144,6 @@ func (p *Pubsub) rewriteFileEmitters(f *core.SourceFile, vars VarDeclarations) e
 		errs.Append(core.WrapErrf(err, "could not create runtime import"))
 	}
 
-	var handledAnotations []*core.Annotation
 	for spec, varReference := range vars {
 		expr := varReference.Annotation.Node.Content()
 		newExpr := emitterRE.ReplaceAllString(
@@ -152,10 +151,9 @@ func (p *Pubsub) rewriteFileEmitters(f *core.SourceFile, vars VarDeclarations) e
 			fmt.Sprintf(`%sRuntime.Emitter("%s", "%s", "%s")`, emitterRTName, f.Path(), spec.VarName, varReference.Annotation.Capability.ID),
 		)
 		content = strings.ReplaceAll(content, expr, newExpr)
-		handledAnotations = append(handledAnotations, varReference.Annotation)
 	}
 
-	err = f.Reparse([]byte(content), handledAnotations...)
+	err = f.Reparse([]byte(content))
 	errs.Append(err)
 	return errs.ErrOrNil()
 }

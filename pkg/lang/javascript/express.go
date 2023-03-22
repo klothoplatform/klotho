@@ -105,7 +105,7 @@ func (p *ExpressHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit
 	for _, annot := range annots {
 		log := zap.L().With(logging.AnnotationField(annot), logging.FileField(f))
 		cap := annot.Capability
-		if annot.IsTransformed || cap.Name != annotation.ExposeCapability {
+		if annot.IsDetached() || cap.Name != annotation.ExposeCapability {
 			continue
 		}
 
@@ -140,8 +140,9 @@ func (p *ExpressHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit
 
 		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, p.Config.GetResourceType(unit), cap.ID)
 		if actedOn {
+			annot.Detach()
 			fileContent = newfileContent
-			err := f.Reparse([]byte(fileContent), annot)
+			err := f.Reparse([]byte(fileContent))
 			if err != nil {
 				return f, errors.Wrap(err, "error reparsing after substitutions")
 			}

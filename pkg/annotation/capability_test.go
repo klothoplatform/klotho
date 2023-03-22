@@ -109,18 +109,68 @@ func TestParseCapability(t *testing.T) {
 			}},
 		},
 		{
-			name: "object directive",
-			text: `@klotho::thing {
-		[key1]
-		a = 1
-		b = 2
-	}`,
+			name: "map directive",
+			text: `
+			@klotho::thing {
+			  [key1]
+			  a = 1
+			  b = 2
+			}`,
 			want: []*Capability{{
 				Name: "thing",
 				Directives: Directives{
 					"key1": map[string]interface{}{"a": int64(1), "b": int64(2)},
 				},
 			}},
+		},
+		{
+			name: "inline map directive",
+			text: `
+			@klotho::thing {
+			  map1 = {a = 1, map2 = {b = [1, 2, 3]}}
+			}`,
+			want: []*Capability{{
+				Name: "thing",
+				Directives: Directives{
+					"map1": map[string]interface{}{
+						"a": int64(1),
+						"map2": map[string]interface{}{
+							"b": []interface{}{
+								int64(1), int64(2), int64(3),
+							}}},
+				},
+			}},
+		},
+		{
+			name: "multiple capabilities",
+			text: `
+			@klotho::thing1 {
+			  id = "thing1"
+			  directive = "val1"
+			  inline = {key = "val"}
+			}
+			@klotho::thing2 {
+			  id = "thing2"
+			  directive = "val2"
+			}`,
+			want: []*Capability{
+				{
+					Name: "thing1",
+					ID:   "thing1",
+					Directives: Directives{
+						"directive": "val1",
+						"id":        "thing1",
+						"inline":    map[string]interface{}{"key": "val"},
+					},
+				},
+				{
+					Name: "thing2",
+					ID:   "thing2",
+					Directives: Directives{
+						"directive": "val2",
+						"id":        "thing2",
+					},
+				}},
 		},
 	}
 	for _, tt := range tests {
