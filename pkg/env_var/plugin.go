@@ -31,7 +31,7 @@ var (
 
 func (p EnvVarInjection) Name() string { return "EnvVarInjection" }
 
-func (p EnvVarInjection) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (p EnvVarInjection) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 
 	units := core.GetResourcesOfType[*core.ExecutionUnit](constructGraph)
@@ -169,7 +169,7 @@ func handlePersist(directiveResult EnvironmentVariableDirectiveResult, cap *anno
 	}
 
 	constructGraph.AddVertex(resource)
-	constructGraph.AddEdge(unit, resource)
+	constructGraph.AddEdge(unit.Id(), resource.Id())
 	variables := core.EnvironmentVariables{}
 	for _, variable := range directiveResult.variables {
 		variable.Construct = resource

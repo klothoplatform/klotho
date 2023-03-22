@@ -593,7 +593,7 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 			for _, dep := range tt.deps {
 				constructGraph.AddVertex(dep.Source)
 				constructGraph.AddVertex(dep.Destination)
-				constructGraph.AddEdge(dep.Source, dep.Destination)
+				constructGraph.AddEdge(dep.Source.Id(), dep.Destination.Id())
 			}
 			values, err := tt.chart.handleUpstreamUnitDependencies(testUnit, constructGraph)
 			if tt.wantErr {

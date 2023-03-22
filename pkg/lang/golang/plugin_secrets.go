@@ -7,7 +7,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/query"
@@ -22,7 +21,7 @@ type PersistSecretsPlugin struct {
 
 func (p PersistSecretsPlugin) Name() string { return "Persist" }
 
-func (p PersistSecretsPlugin) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (p PersistSecretsPlugin) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 
 	var errs multierr.Error
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
@@ -35,7 +34,7 @@ func (p PersistSecretsPlugin) Transform(input *core.InputFiles, constructGraph *
 
 			for _, r := range resources {
 				constructGraph.AddVertex(r)
-				constructGraph.AddEdge(unit.Provenance().ToString(), r.Provenance().ToString())
+				constructGraph.AddEdge(unit.Id(), r.Id())
 			}
 		}
 	}

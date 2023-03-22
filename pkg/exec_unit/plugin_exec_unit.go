@@ -4,7 +4,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 )
 
 type ExecUnitPlugin struct {
@@ -13,7 +12,7 @@ type ExecUnitPlugin struct {
 
 func (p ExecUnitPlugin) Name() string { return "ExecutionUnit" }
 
-func (p ExecUnitPlugin) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (p ExecUnitPlugin) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 
 	unit := &core.ExecutionUnit{
 		AnnotationKey: core.AnnotationKey{

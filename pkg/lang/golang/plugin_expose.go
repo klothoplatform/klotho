@@ -71,7 +71,7 @@ type (
 
 func (p *Expose) Name() string { return "Expose" }
 
-func (p Expose) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (p Expose) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		err := p.transformSingle(constructGraph, unit)
@@ -80,7 +80,7 @@ func (p Expose) Transform(input *core.InputFiles, constructGraph *graph.Directed
 	return errs.ErrOrNil()
 }
 
-func (p *Expose) transformSingle(constructGraph *graph.Directed[core.Construct], unit *core.ExecutionUnit) error {
+func (p *Expose) transformSingle(constructGraph *core.ConstructGraph, unit *core.ExecutionUnit) error {
 	h := &restAPIHandler{ConstructGraph: constructGraph, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition), runtime: p.runtime}
 	err := h.handle(unit)
 	if err != nil {
@@ -139,7 +139,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
 				targetUnit = unit.ID
 			}
-			h.ConstructGraph.AddEdge(gw.Provenance().ToString(), core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}.ToString())
+			h.ConstructGraph.AddEdge(gw.Id(), core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}.ToString())
 		}
 	}
 

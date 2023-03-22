@@ -54,7 +54,7 @@ type routeMethodPath struct {
 
 func (p ExpressHandler) Name() string { return "Express" }
 
-func (p ExpressHandler) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (p ExpressHandler) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		err := p.transformSingle(constructGraph, unit)
@@ -63,7 +63,7 @@ func (p ExpressHandler) Transform(input *core.InputFiles, constructGraph *graph.
 	return errs.ErrOrNil()
 }
 
-func (p *ExpressHandler) transformSingle(constructGraph *graph.Directed[core.Construct], unit *core.ExecutionUnit) error {
+func (p *ExpressHandler) transformSingle(constructGraph *core.ConstructGraph, unit *core.ExecutionUnit) error {
 
 	execUnitInfo := execUnitExposeInfo{Unit: unit, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
 	p.output = expressOutput{}

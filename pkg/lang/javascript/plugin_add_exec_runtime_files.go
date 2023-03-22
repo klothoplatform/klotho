@@ -2,7 +2,6 @@ package javascript
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 )
 
@@ -14,7 +13,7 @@ type (
 
 func (p AddExecRuntimeFiles) Name() string { return "AddExecRuntimeFiles:JavaScript" }
 
-func (p AddExecRuntimeFiles) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (p AddExecRuntimeFiles) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 
 	var errs multierr.Error
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {

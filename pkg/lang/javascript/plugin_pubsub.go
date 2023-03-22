@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/filter"
-	"github.com/klothoplatform/klotho/pkg/graph"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -22,7 +21,7 @@ type (
 	Pubsub struct {
 		runtime Runtime
 
-		ConstructGraph *graph.Directed[core.Construct]
+		ConstructGraph *core.ConstructGraph
 
 		emitters             map[VarSpec]*emitterValue
 		proxyGenerationCalls []proxyGenerationCall
@@ -51,7 +50,7 @@ const pubsubVarTypeModule = "events"
 
 func (p Pubsub) Name() string { return "Pubsub" }
 
-func (p Pubsub) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (p Pubsub) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	p.ConstructGraph = constructGraph
 
 	p.emitters = make(map[VarSpec]*emitterValue)

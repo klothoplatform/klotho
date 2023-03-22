@@ -2,12 +2,11 @@ package golang
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 )
 
 type NoopRuntime struct{}
 
-func (n NoopRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *graph.Directed[core.Construct]) error {
+func (n NoopRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
 	return nil
 }
 func (n NoopRuntime) GetFsImports() []Import {

@@ -2,7 +2,6 @@ package execunit
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"go.uber.org/zap"
 )
 
@@ -16,7 +15,7 @@ func (PruneUncategorizedFiles) Name() string {
 	return "prune_uncategorized_files"
 }
 
-func (p PruneUncategorizedFiles) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (p PruneUncategorizedFiles) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	log := zap.L().Sugar()
 
 	units := core.GetResourcesOfType[*core.ExecutionUnit](constructGraph)

@@ -5,7 +5,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp/csproj"
 	"go.uber.org/zap"
 )
@@ -25,7 +24,7 @@ func (l CSharpExecutable) Name() string {
 	return "csharp_executable"
 }
 
-func (l CSharpExecutable) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (l CSharpExecutable) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		if unit.Executable.Type != "" {
 			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.ID, unit.Executable.Type)

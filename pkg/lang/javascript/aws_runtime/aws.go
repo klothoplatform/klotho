@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/sanitization"
 
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -224,7 +223,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	return nil
 }
 
-func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *graph.Directed[core.Construct]) error {
+func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
 	var DockerFile, Dispatcher []byte
 	unitType := r.Config.GetResourceType(unit)
 	switch unitType {
@@ -305,7 +304,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	return err
 }
 
-func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *graph.Directed[core.Construct]) (ExposeTemplateData, error) {
+func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) (ExposeTemplateData, error) {
 	upstreamGateways := core.FindUpstreamGateways(unit, constructGraph)
 
 	var sourceGateway *core.Gateway

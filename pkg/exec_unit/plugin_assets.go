@@ -8,7 +8,6 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"go.uber.org/zap"
@@ -18,7 +17,7 @@ type Assets struct{}
 
 func (p Assets) Name() string { return "Assets" }
 
-func (p Assets) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (p Assets) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	units := make(map[string]*core.ExecutionUnit)
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		units[unit.ID] = unit

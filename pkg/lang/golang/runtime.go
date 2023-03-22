@@ -7,13 +7,12 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 )
 
 type (
 	Runtime interface {
-		AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *graph.Directed[core.Construct]) error
+		AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error
 		GetFsImports() []Import
 		GetSecretsImports() []Import
 		SetConfigType(id string, isSecret bool)

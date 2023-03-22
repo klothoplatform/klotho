@@ -3,7 +3,6 @@ package golang
 import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"go.uber.org/zap"
 )
 
@@ -14,7 +13,7 @@ func (l GolangExecutable) Name() string {
 	return "golang_executable"
 }
 
-func (l GolangExecutable) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (l GolangExecutable) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	inputFiles := input.Files()
 
 	defaultGoMod, _ := input.Files()["go.mod"].(*GoMod)

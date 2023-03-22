@@ -5,12 +5,16 @@ import (
 )
 
 type (
+	// Construct describes a resource at the source code, Klotho annotation level
 	Construct interface {
+		// Provenance returns the AnnotationKey that the construct was created by
 		Provenance() AnnotationKey
+		// Id returns the unique Id of the construct
 		Id() string
 	}
 
-	CloudResource interface {
+	// Resource describes a resource at the provider, infrastructure level
+	Resource interface {
 		// Provider returns name of the provider the resource is correlated to
 		Provider() string
 		// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
@@ -19,11 +23,12 @@ type (
 		Id() string
 	}
 
+	// CloudResourceLink describes what Resources are necessary to ensure that a depoendency between two Constructs are satisfied at an infrastructure level
 	CloudResourceLink interface {
 		// Dependency returns the klotho resource dependencies this link correlates to
 		Dependency() *graph.Edge[Construct] // Edge in the klothoconstructDag
 		// Resources returns a set of resources which make up the Link
-		Resources() map[CloudResource]struct{}
+		Resources() map[Resource]struct{}
 		// Type returns type of link, correlating to its Link ID
 		Type() string
 	}
@@ -31,13 +36,15 @@ type (
 	HasLocalOutput interface {
 		OutputTo(dest string) error
 	}
+	ConstructGraph = graph.Directed[Construct]
+	ResourceGraph  = graph.Directed[Resource]
 )
 
-func Get(g *graph.Directed[Construct], key AnnotationKey) Construct {
+func Get(g *ConstructGraph, key AnnotationKey) Construct {
 	return g.GetVertex(key.ToString())
 }
 
-func GetResourcesOfCapability(g *graph.Directed[Construct], capability string) (filtered []Construct) {
+func GetResourcesOfCapability(g *ConstructGraph, capability string) (filtered []Construct) {
 	vertices := g.GetAllVertices()
 	for _, v := range vertices {
 		if v.Provenance().Capability == capability {
@@ -48,7 +55,7 @@ func GetResourcesOfCapability(g *graph.Directed[Construct], capability string) (
 	return
 }
 
-func GetResourcesOfType[T Construct](g *graph.Directed[Construct]) (filtered []T) {
+func GetResourcesOfType[T Construct](g *ConstructGraph) (filtered []T) {
 	vertices := g.GetAllVertices()
 	for _, v := range vertices {
 		if vT, ok := v.(T); ok {
@@ -58,7 +65,7 @@ func GetResourcesOfType[T Construct](g *graph.Directed[Construct]) (filtered []T
 	return
 }
 
-func GetExecUnitForPath(g *graph.Directed[Construct], fp string) (*ExecutionUnit, File) {
+func GetExecUnitForPath(g *ConstructGraph, fp string) (*ExecutionUnit, File) {
 	var best *ExecutionUnit
 	var bestFile File
 	for _, eu := range GetResourcesOfType[*ExecutionUnit](g) {
@@ -74,7 +81,7 @@ func GetExecUnitForPath(g *graph.Directed[Construct], fp string) (*ExecutionUnit
 	return best, bestFile
 }
 
-func FindUpstreamGateways(unit *ExecutionUnit, g *graph.Directed[Construct]) []*Gateway {
+func FindUpstreamGateways(unit *ExecutionUnit, g *ConstructGraph) []*Gateway {
 	gateways := []*Gateway{}
 	vertices := g.IncomingVertices(unit)
 	for _, v := range vertices {

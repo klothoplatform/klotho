@@ -6,15 +6,14 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 )
 
 type (
 	CompilationDocument struct {
 		InputFiles     *core.InputFiles
-		Constructs     *graph.Directed[core.Construct]
+		Constructs     *core.ConstructGraph
 		Configuration  *config.Application
-		CloudResources []*graph.Directed[core.CloudResource]
+		CloudResources *core.ResourceGraph
 		OutputFiles    []core.File
 	}
 )

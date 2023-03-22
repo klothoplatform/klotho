@@ -5,7 +5,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"go.uber.org/zap"
 )
 
@@ -18,19 +17,19 @@ type (
 		Name() string
 
 		// Transform is expected to mutate the result and any dependencies
-		Transform(*core.InputFiles, *graph.Directed[core.Construct]) error
+		Transform(*core.InputFiles, *core.ConstructGraph) error
 	}
 
 	ProviderPlugin interface {
 		Name() string
 
-		Translate(result *graph.Directed[core.Construct]) (dag *graph.Directed[core.CloudResource], Links []core.CloudResourceLink, err error)
+		Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (Links []core.CloudResourceLink, err error)
 	}
 
 	IaCPlugin interface {
 		Name() string
 
-		Translate(cloudGraph *graph.Directed[core.CloudResource]) []core.File
+		Translate(cloudGraph *core.ConstructGraph) []core.File
 	}
 
 	Compiler struct {
@@ -42,7 +41,7 @@ type (
 
 	// ResourcesOrErr provided as commonly used in async operations for the result channel.
 	ResourcesOrErr struct {
-		Resources []core.CloudResource
+		Resources []core.Resource
 		Err       error
 	}
 )
@@ -73,11 +72,10 @@ func (c *Compiler) Compile() error {
 		}
 		log := zap.L().With(zap.String("plugin", p.Name()))
 		log.Debug("starting")
-		dag, links, err := p.Translate(c.Document.Constructs)
+		links, err := p.Translate(c.Document.Constructs, c.Document.CloudResources)
 		if err != nil {
 			return core.NewPluginError(p.Name(), err)
 		}
-		c.Document.CloudResources = append(c.Document.CloudResources, dag)
 		c.Document.Configuration.AddLinks(links)
 		log.Debug("completed")
 	}

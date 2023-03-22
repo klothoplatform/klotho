@@ -3,7 +3,6 @@ package javascript
 import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/query"
 	"github.com/pkg/errors"
 	sitter "github.com/smacker/go-tree-sitter"
@@ -54,7 +53,7 @@ func findListener(cap *core.Annotation) exposeListenResult {
 	return exposeListenResult{}
 }
 
-func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *graph.Directed[core.Construct], log *zap.Logger) {
+func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.ConstructGraph, log *zap.Logger) {
 	for spec, routes := range info.RoutesByGateway {
 		gw := core.NewGateway(core.AnnotationKey{ID: spec.gatewayId, Capability: annotation.ExposeCapability})
 		if existing := core.Get(constructGraph, gw.Provenance()); existing != nil {
@@ -110,7 +109,7 @@ func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *graph.Directe
 				// TODO when there are ways to combine units, we'll need a more sophisticated way to see which unit the target maps to.
 				depKey.ID = info.Unit.ID
 			}
-			constructGraph.AddEdge(gw.Provenance().ToString(), depKey.ToString())
+			constructGraph.AddEdge(gw.Id(), depKey.ToString())
 		}
 	}
 }

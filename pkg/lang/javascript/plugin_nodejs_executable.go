@@ -7,7 +7,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
 	"github.com/klothoplatform/klotho/pkg/filter"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap"
 )
@@ -24,7 +23,7 @@ func (l NodeJSExecutable) Name() string {
 	return "nodejs_executable"
 }
 
-func (l NodeJSExecutable) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (l NodeJSExecutable) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	// TODO: Consider adding ES module config for a unit in this plugin
 	inputFiles := input.Files()
 

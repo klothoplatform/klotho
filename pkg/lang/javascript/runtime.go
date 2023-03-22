@@ -9,7 +9,6 @@ import (
 	"text/template"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 )
@@ -50,7 +49,7 @@ type Runtime interface {
 	AddRedisClusterRuntimeFiles(unit *core.ExecutionUnit) error
 	AddPubsubRuntimeFiles(unit *core.ExecutionUnit) error
 	AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error
-	AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *graph.Directed[core.Construct]) error
+	AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error
 }
 
 func AddRuntimeFile(unit *core.ExecutionUnit, templateData any, path string, content []byte) error {

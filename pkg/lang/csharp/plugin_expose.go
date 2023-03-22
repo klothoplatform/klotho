@@ -83,7 +83,7 @@ type (
 
 func (p *Expose) Name() string { return "Expose" }
 
-func (p *Expose) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (p *Expose) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
@@ -183,7 +183,7 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
 				targetUnit = unit.ID
 			}
-			h.ConstructGraph.AddEdge(gw.Provenance().ToString(), core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}.ToString())
+			h.ConstructGraph.AddEdge(gw.Id(), core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}.ToString())
 		}
 	}
 
