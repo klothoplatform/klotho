@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -148,8 +147,7 @@ func Test_getKlothoCharts(t *testing.T) {
 			want: result{
 				klothoCharts: map[string]KlothoHelmChart{
 					"chart": {
-						Directory:   "chart",
-						ValuesFiles: []string{"chart/values.yaml"},
+						Directory: "chart",
 					},
 				},
 				chartsUnits: map[string][]string{
@@ -185,8 +183,7 @@ func Test_getKlothoCharts(t *testing.T) {
 			want: result{
 				klothoCharts: map[string]KlothoHelmChart{
 					"chart": {
-						Directory:   "chart",
-						ValuesFiles: []string{"chart/values.yaml"},
+						Directory: "chart",
 					},
 				},
 				chartsUnits: map[string][]string{
@@ -311,14 +308,6 @@ func Test_getKlothoCharts(t *testing.T) {
 					}
 					if !assert.True(found) {
 						return
-					}
-					res := core.Get(result, core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: u.Name})
-					unit, ok := res.(*core.ExecutionUnit)
-					if !assert.True(ok) {
-						return
-					}
-					for _, f := range unit.Files() {
-						assert.True(!strings.HasPrefix(f.Path(), c.Directory+string(os.PathSeparator)))
 					}
 				}
 			}

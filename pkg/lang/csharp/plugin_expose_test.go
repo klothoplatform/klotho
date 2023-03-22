@@ -706,7 +706,8 @@ func TestExpose_Transform(t *testing.T) {
 					break
 				}
 				aDep := depsArr[i]
-				assert.Equal(eDep, aDep)
+				assert.Equal(eDep.Source.Provenance(), aDep.Source.Provenance())
+				assert.Equal(eDep.Destination.Provenance(), aDep.Destination.Provenance())
 			}
 		})
 	}

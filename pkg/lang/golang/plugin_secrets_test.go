@@ -138,7 +138,7 @@ import (
 	"gocloud.dev/runtimevar"
 )
 /**
-* @klotho::persist {
+* @klotho::config {
 *	id = "test"
 *   secret = true
 * }
@@ -153,7 +153,6 @@ v, err := runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder
 					},
 				},
 				content: `package fs
-			}
 
 import (
 	_ "gocloud.dev/runtimevar/awssecretsmanager"
@@ -161,7 +160,7 @@ import (
 )
 
 /**
-* @klotho::persist {
+* @klotho::config {
 *	id = "test"
 *   secret = true
 * }
@@ -183,7 +182,7 @@ import (
 	"gocloud.dev/runtimevar"
 )
 /**
-* @klotho::persist {
+* @klotho::config {
 *	id = "test"
 *   secret = true
 * }
@@ -205,7 +204,7 @@ import (
 )
 
 /**
-* @klotho::persist {
+* @klotho::config {
 *	id = "test"
 *   secret = true
 * }
@@ -229,7 +228,7 @@ import (
 var v *runtimevar.Variable
 var err error
 /**
-* @klotho::persist {
+* @klotho::config {
 *	id = "test"
 *   secret = true
 * }
@@ -253,7 +252,7 @@ import (
 var v *runtimevar.Variable
 var err error
 /**
-* @klotho::persist {
+* @klotho::config {
 *	id = "test"
 *   secret = true
 * }
@@ -281,7 +280,7 @@ var queryParams string
 			if !assert.NoError(err) {
 				return
 			}
-			annot, ok := f.Annotations()[core.AnnotationKey{Capability: "persist", ID: "test"}]
+			annot, ok := f.Annotations()[core.AnnotationKey{Capability: "config", ID: "test"}]
 
 			if !assert.True(ok) {
 				return

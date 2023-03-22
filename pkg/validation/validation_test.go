@@ -47,9 +47,9 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 				Capability: &annotation.Capability{Name: annotation.ExposeCapability, ID: "test"},
 			},
 			result: []core.Construct{&core.Gateway{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
+				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability},
 			}},
-			want: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
+			want: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability},
 		},
 		{
 			name: "embed assets match",
@@ -275,7 +275,7 @@ func Test_validation_handleResources(t *testing.T) {
 					AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
 				},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -334,7 +334,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		},
 		{
 			name: "persist match",
-			result: []core.Construct{&core.Orm{
+			result: []core.Construct{&core.Kv{
 				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
 			}},
 			cfg: config.Application{

@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"fmt"
+
 	"github.com/dominikbraun/graph"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -208,21 +210,21 @@ func handleIncomingEdges[V Identifiable, O any](d *Directed[V], to V, generate f
 		panic(err)
 	}
 	var results []O
-	vertexAdjacency, ok := fullAdjacency[to.Id()]
-	if !ok {
-		return results
-	}
-	for _, edge := range vertexAdjacency {
-		if edge.Target != to.Id() {
-			zap.S().Debugf(`Ignoring unexpected edge source from %v`, edge)
-			continue
-		}
-		if toV, err := d.underlying.Vertex(edge.Target); err == nil {
-			toAdd := generate(toV)
-			results = append(results, toAdd)
-		} else {
-			zap.S().With(zap.Error(err)).Errorf(
-				`Ignoring edge %v because I couldn't resolve the destination vertex. %s`, edge, ourFault)
+	for _, v := range fullAdjacency {
+		for _, edge := range v {
+			fmt.Println(edge.Target)
+			fmt.Println(to.Id())
+			if edge.Target != to.Id() {
+				zap.S().Debugf(`Ignoring unexpected edge source from %v`, edge)
+				continue
+			}
+			if toV, err := d.underlying.Vertex(edge.Source); err == nil {
+				toAdd := generate(toV)
+				results = append(results, toAdd)
+			} else {
+				zap.S().With(zap.Error(err)).Errorf(
+					`Ignoring edge %v because I couldn't resolve the destination vertex. %s`, edge, ourFault)
+			}
 		}
 	}
 	return results

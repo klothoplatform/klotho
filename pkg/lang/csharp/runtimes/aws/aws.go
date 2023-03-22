@@ -77,7 +77,6 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	var err error
 	var dockerFile []byte
 	unitType := r.Cfg.GetResourceType(unit)
-	fmt.Println(unitType)
 	switch unitType {
 	case "lambda":
 		dockerFile = dockerfileLambda

@@ -282,7 +282,7 @@ func validateNoDuplicateIds[T core.Construct](constructGraph *core.ConstructGrap
 	units := core.GetResourcesOfType[T](constructGraph)
 	for _, unit := range units {
 		if _, ok := unitIds[unit.Provenance().ID]; ok {
-			return fmt.Errorf(`multiple Persist objects with the same name, "%s"`, unit.Provenance().ID)
+			return fmt.Errorf(`multiple objects with the same name, "%s"`, unit.Provenance().ID)
 		}
 		unitIds[unit.Provenance().ID] = struct{}{}
 	}
