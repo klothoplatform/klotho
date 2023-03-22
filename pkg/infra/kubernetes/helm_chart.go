@@ -8,7 +8,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap"
 	apps "k8s.io/api/apps/v1"
@@ -152,7 +151,7 @@ func (t *KlothoHelmChart) AssignFilesToUnits() error {
 	return nil
 }
 
-func (chart *KlothoHelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.ExecutionUnit, cfg config.ExecutionUnit, constructGraph *graph.Directed[core.Construct]) ([]Value, error) {
+func (chart *KlothoHelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.ExecutionUnit, cfg config.ExecutionUnit, constructGraph *core.ConstructGraph) ([]Value, error) {
 	values := []Value{}
 
 	if shouldTransformImage(eu) {
@@ -206,8 +205,8 @@ func (chart *KlothoHelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.E
 	return values, nil
 }
 
-func (chart *KlothoHelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, constructGraph *graph.Directed[core.Construct]) (values []Value, err error) {
-	sources := constructGraph.IncomingVertices(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: unit.Name, Capability: annotation.ExecutionUnitCapability}})
+func (chart *KlothoHelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, constructGraph *core.ConstructGraph) (values []Value, err error) {
+	sources := constructGraph.GetUpstreamConstructs(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: unit.Name, Capability: annotation.ExecutionUnitCapability}})
 	needService := false
 	needsTargetGroupBinding := false
 	needsServiceExport := false

@@ -19,7 +19,7 @@ func (p *Config) Provenance() AnnotationKey {
 }
 
 func (p *Config) Id() string {
-	return p.AnnotationKey.ToString()
+	return p.AnnotationKey.ToId()
 }
 
 func GenerateSecretEnvVar(cfg *Config) environmentVariable {

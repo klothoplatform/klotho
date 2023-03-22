@@ -9,7 +9,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes/helm"
 	yamlLang "github.com/klothoplatform/klotho/pkg/lang/yaml"
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -72,7 +71,7 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 			continue
 		}
 		for _, unit := range khChart.ExecutionUnits {
-			res := core.Get(constructGraph, core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: unit.Name})
+			res := constructGraph.GetConstruct(core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: unit.Name})
 			eu, ok := res.(*core.ExecutionUnit)
 			if !ok {
 				return nil, fmt.Errorf("unable to handle nonexistent execution unit: %s", unit.Name)
@@ -96,7 +95,7 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 		}
 		khChart.Files = append(khChart.Files, chartFile)
 
-		dag.AddVertex(&khChart)
+		dag.AddResource(&khChart)
 	}
 
 	return links, errs.ErrOrNil()
@@ -121,7 +120,7 @@ func (p *Kubernetes) setHelmChartDirectory(path string, cfg *config.ExecutionUni
 	return false, nil
 }
 
-func (p *Kubernetes) getKlothoCharts(constructGraph *graph.Directed[core.Construct]) (map[string]KlothoHelmChart, error) {
+func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[string]KlothoHelmChart, error) {
 	var errs multierr.Error
 	klothoCharts := make(map[string]KlothoHelmChart)
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {

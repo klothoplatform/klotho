@@ -613,7 +613,7 @@ func TestExpose_Transform(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			result := graph.NewDirected[core.Construct]()
+			result := core.NewConstructGraph()
 			for uName, files := range tt.units {
 				unit := &core.ExecutionUnit{
 					Executable:    core.NewExecutable(),
@@ -626,7 +626,7 @@ func TestExpose_Transform(t *testing.T) {
 					}
 					unit.AddSourceFile(sf)
 				}
-				result.AddVertex(unit)
+				result.AddConstruct(unit)
 			}
 			expose := Expose{}
 			err := expose.Transform(&core.InputFiles{}, result)
@@ -679,7 +679,7 @@ func TestExpose_Transform(t *testing.T) {
 				assert.Equal(len(expectedGw.Routes), len(aRoutes))
 				assert.ElementsMatch(expectedGw.Routes, aRoutes)
 			}
-			depsArr := result.GetAllEdges()
+			depsArr := result.ListDependencies()
 
 			assert.Equal(len(tt.expectedDeps), len(depsArr))
 			var eDeps []graph.Edge[core.Construct]

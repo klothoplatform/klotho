@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/graph"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -129,7 +128,7 @@ func ParseDirectiveToEnvVars(cap *annotation.Capability) (EnvironmentVariableDir
 	return EnvironmentVariableDirectiveResult{kind: overallKind, variables: foundVars}, nil
 }
 
-func handlePersist(directiveResult EnvironmentVariableDirectiveResult, cap *annotation.Capability, unit *core.ExecutionUnit, constructGraph *graph.Directed[core.Construct]) error {
+func handlePersist(directiveResult EnvironmentVariableDirectiveResult, cap *annotation.Capability, unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
 
 	var resource core.Construct
 	switch directiveResult.kind {
@@ -168,8 +167,8 @@ func handlePersist(directiveResult EnvironmentVariableDirectiveResult, cap *anno
 		return fmt.Errorf("unsupported 'kind', %s", directiveResult.kind)
 	}
 
-	constructGraph.AddVertex(resource)
-	constructGraph.AddEdge(unit.Id(), resource.Id())
+	constructGraph.AddConstruct(resource)
+	constructGraph.AddDependency(unit.Id(), resource.Id())
 	variables := core.EnvironmentVariables{}
 	for _, variable := range directiveResult.variables {
 		variable.Construct = resource

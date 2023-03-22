@@ -6,7 +6,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,7 +53,7 @@ func Test_environmentVarsAddedToUnit(t *testing.T) {
 				},
 			}
 			p := ExecUnitPlugin{Config: &cfg}
-			result := graph.NewDirected[core.Construct]()
+			result := core.NewConstructGraph()
 
 			inputFiles := &core.InputFiles{}
 			if tt.wantExecUnit {

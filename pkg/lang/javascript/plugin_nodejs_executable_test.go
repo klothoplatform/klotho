@@ -6,7 +6,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	assert2 "github.com/stretchr/testify/assert"
 )
 
@@ -192,9 +191,9 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 				inputFiles.Add(file(p, c))
 			}
 
-			result := graph.NewDirected[core.Construct]()
+			result := core.NewConstructGraph()
 			for _, unit := range tt.units {
-				result.AddVertex(unit)
+				result.AddConstruct(unit)
 				for _, f := range unit.Files() {
 					inputFiles.Add(f)
 				}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/sanitization"
 
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
@@ -107,7 +106,7 @@ func (p *persister) findUnwaitedCallsInFile(js *core.SourceFile, spec VarSpec) (
 }
 
 type persister struct {
-	ConstructGraph *graph.Directed[core.Construct]
+	ConstructGraph *core.ConstructGraph
 	runtime        Runtime
 }
 
@@ -125,14 +124,14 @@ func (p *persister) handleFiles(unit *core.ExecutionUnit) error {
 		}
 
 		for _, r := range resources {
-			p.ConstructGraph.AddVertex(r)
+			p.ConstructGraph.AddConstruct(r)
 
 			_, isReferencedByExecUnit := unit.Executable.SourceFiles[js.Path()]
 
 			// a file containing capabilities without an execution unit indicates that the file's capabilities
 			// are imported by execution units in one or more separate files
 			if core.FileExecUnitName(js) != "" || isReferencedByExecUnit {
-				p.ConstructGraph.AddEdge(unit.Provenance().ToString(), r.Provenance().ToString())
+				p.ConstructGraph.AddDependency(unit.Id(), r.Id())
 			}
 		}
 	}

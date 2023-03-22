@@ -56,12 +56,12 @@ func findListener(cap *core.Annotation) exposeListenResult {
 func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.ConstructGraph, log *zap.Logger) {
 	for spec, routes := range info.RoutesByGateway {
 		gw := core.NewGateway(core.AnnotationKey{ID: spec.gatewayId, Capability: annotation.ExposeCapability})
-		if existing := core.Get(constructGraph, gw.Provenance()); existing != nil {
+		if existing := constructGraph.GetConstruct(gw.Provenance()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath
 			gw.ExportVarName = spec.AppVarName
-			constructGraph.AddVertex(gw)
+			constructGraph.AddConstruct(gw)
 		}
 		if len(routes) == 0 && len(gw.Routes) == 0 {
 			log.Sugar().Infof("Adding catchall route for gateway %+v with no detected routes", spec)
@@ -104,12 +104,12 @@ func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.Construc
 				targetUnit = info.Unit.ID
 			}
 			depKey := core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}
-			if core.Get(constructGraph, depKey) == nil {
+			if constructGraph.GetConstruct(depKey) == nil {
 				// The unit defined in the target does not exist, fall back to current one (for running in single-exec mode).
 				// TODO when there are ways to combine units, we'll need a more sophisticated way to see which unit the target maps to.
 				depKey.ID = info.Unit.ID
 			}
-			constructGraph.AddEdge(gw.Id(), depKey.ToString())
+			constructGraph.AddDependency(gw.Id(), depKey.ToId())
 		}
 	}
 }

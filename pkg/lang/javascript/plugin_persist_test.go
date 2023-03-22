@@ -7,7 +7,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -108,9 +107,9 @@ p.get('foo')`,
 				execUnit.Add(f)
 			}
 			p := persister{
-				ConstructGraph: graph.NewDirected[core.Construct](),
+				ConstructGraph: core.NewConstructGraph(),
 			}
-			p.ConstructGraph.AddVertex(&execUnit)
+			p.ConstructGraph.AddConstruct(&execUnit)
 
 			p.findUnawaitedCalls(&execUnit)
 			logSb := strings.Builder{}

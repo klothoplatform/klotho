@@ -26,7 +26,7 @@ func (p *PubSub) Provenance() AnnotationKey {
 }
 
 func (p *PubSub) Id() string {
-	return p.AnnotationKey.ToString()
+	return p.AnnotationKey.ToId()
 }
 
 func (p *PubSub) AddPublisher(event string, key AnnotationKey) {

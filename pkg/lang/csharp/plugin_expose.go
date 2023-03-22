@@ -7,7 +7,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
-	"github.com/klothoplatform/klotho/pkg/graph"
 
 	"github.com/klothoplatform/klotho/pkg/multierr"
 
@@ -33,7 +32,7 @@ type (
 		DefinedInPath string
 	}
 	aspDotNetCoreHandler struct {
-		ConstructGraph   *graph.Directed[core.Construct]
+		ConstructGraph   *core.ConstructGraph
 		Unit             *core.ExecutionUnit
 		RoutesByGateway  map[gatewaySpec][]gatewayRouteDefinition
 		RootPath         string
@@ -93,7 +92,7 @@ func (p *Expose) Transform(input *core.InputFiles, constructGraph *core.Construc
 	return errs.ErrOrNil()
 }
 
-func (p *Expose) transformSingle(constructGraph *graph.Directed[core.Construct], unit *core.ExecutionUnit) error {
+func (p *Expose) transformSingle(constructGraph *core.ConstructGraph, unit *core.ExecutionUnit) error {
 	h := &aspDotNetCoreHandler{
 		ConstructGraph:  constructGraph,
 		RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition),
@@ -124,12 +123,12 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 
 	for spec, routes := range h.RoutesByGateway {
 		gw := core.NewGateway(core.AnnotationKey{ID: spec.gatewayId, Capability: annotation.ExposeCapability})
-		if existing := core.Get(h.ConstructGraph, gw.Provenance()); existing != nil {
+		if existing := h.ConstructGraph.GetConstruct(gw.Provenance()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath
 			gw.ExportVarName = spec.AppBuilderName
-			h.ConstructGraph.AddVertex(gw)
+			h.ConstructGraph.AddConstruct(gw)
 		}
 
 		if spec.MapsControllers {
@@ -183,7 +182,7 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
 				targetUnit = unit.ID
 			}
-			h.ConstructGraph.AddEdge(gw.Id(), core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}.ToString())
+			h.ConstructGraph.AddDependency(gw.Id(), core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}.ToId())
 		}
 	}
 

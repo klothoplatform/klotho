@@ -33,8 +33,8 @@ func (p PersistSecretsPlugin) Transform(input *core.InputFiles, constructGraph *
 			}
 
 			for _, r := range resources {
-				constructGraph.AddVertex(r)
-				constructGraph.AddEdge(unit.Id(), r.Id())
+				constructGraph.AddConstruct(r)
+				constructGraph.AddDependency(unit.Id(), r.Id())
 			}
 		}
 	}

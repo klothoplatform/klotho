@@ -1,8 +1,6 @@
 package graph
 
 import (
-	"fmt"
-
 	"github.com/dominikbraun/graph"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -110,7 +108,7 @@ func (d *Directed[V]) AddEdge(source string, dest string) {
 
 func (d *Directed[V]) GetVertex(source string) V {
 	v, err := d.underlying.Vertex(source)
-	if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
+	if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
 		zap.S().With("error", zap.Error(err)).Errorf(
 			`Unexpected error while getting vertex for "%v"`, source)
 	}
@@ -212,8 +210,6 @@ func handleIncomingEdges[V Identifiable, O any](d *Directed[V], to V, generate f
 	var results []O
 	for _, v := range fullAdjacency {
 		for _, edge := range v {
-			fmt.Println(edge.Target)
-			fmt.Println(to.Id())
 			if edge.Target != to.Id() {
 				zap.S().Debugf(`Ignoring unexpected edge source from %v`, edge)
 				continue

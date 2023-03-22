@@ -9,7 +9,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/smacker/go-tree-sitter/javascript"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -271,7 +270,7 @@ func Test_getKlothoCharts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			result := graph.NewDirected[core.Construct]()
+			result := core.NewConstructGraph()
 			inputFiles := &core.InputFiles{}
 			for idx, fileUnit := range tt.fileUnits {
 				execUnitName := fmt.Sprintf("main%s", strconv.Itoa(idx))
@@ -283,7 +282,7 @@ func Test_getKlothoCharts(t *testing.T) {
 						inputFiles.Add(f)
 					}
 				}
-				result.AddVertex(&testUnit)
+				result.AddConstruct(&testUnit)
 			}
 
 			k := &Kubernetes{Config: tt.cfg, log: zap.L().Sugar()}

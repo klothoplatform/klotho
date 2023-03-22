@@ -463,7 +463,7 @@ func Test_handleExecutionUnit(t *testing.T) {
 				}
 				eu.Add(dockerF)
 			}
-			constructGraph := graph.NewDirected[core.Construct]()
+			constructGraph := core.NewConstructGraph()
 			transformations, err := tt.chart.handleExecutionUnit(testUnit, eu, tt.cfg, constructGraph)
 			if tt.wantErr {
 				assert.Error(err)
@@ -589,11 +589,11 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			testUnit := tt.chart.ExecutionUnits[0]
-			constructGraph := graph.NewDirected[core.Construct]()
+			constructGraph := core.NewConstructGraph()
 			for _, dep := range tt.deps {
-				constructGraph.AddVertex(dep.Source)
-				constructGraph.AddVertex(dep.Destination)
-				constructGraph.AddEdge(dep.Source.Id(), dep.Destination.Id())
+				constructGraph.AddConstruct(dep.Source)
+				constructGraph.AddConstruct(dep.Destination)
+				constructGraph.AddDependency(dep.Source.Id(), dep.Destination.Id())
 			}
 			values, err := tt.chart.handleUpstreamUnitDependencies(testUnit, constructGraph)
 			if tt.wantErr {

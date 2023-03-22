@@ -19,7 +19,7 @@ func (p *StaticUnit) Provenance() AnnotationKey {
 }
 
 func (p *StaticUnit) Id() string {
-	return p.AnnotationKey.ToString()
+	return p.AnnotationKey.ToId()
 }
 
 func (unit *StaticUnit) OutputTo(dest string) error {

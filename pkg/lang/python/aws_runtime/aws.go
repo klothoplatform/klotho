@@ -162,8 +162,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 
 func shouldAddExposeRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) bool {
 
-	for _, dep := range constructGraph.IncomingVertices(unit) {
-		res := core.Get(constructGraph, dep.Provenance())
+	for _, res := range constructGraph.GetUpstreamConstructs(unit) {
 		if _, ok := res.(*core.Gateway); ok {
 			return true
 		}
@@ -173,7 +172,7 @@ func shouldAddExposeRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.
 
 // TODO: look into de-duplicating this function for reuse across languages
 func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) (ExposeTemplateData, error) {
-	upstreamGateways := core.FindUpstreamGateways(unit, constructGraph)
+	upstreamGateways := constructGraph.FindUpstreamGateways(unit)
 
 	var sourceGateway *core.Gateway
 	for _, gw := range upstreamGateways {

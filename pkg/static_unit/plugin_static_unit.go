@@ -87,7 +87,7 @@ func (p StaticUnitSplit) Transform(input *core.InputFiles, constructGraph *core.
 				if matcher.err != nil {
 					errs.Append(matcher.err)
 				}
-				constructGraph.AddVertex(newUnit)
+				constructGraph.AddConstruct(newUnit)
 			}
 		}
 	}

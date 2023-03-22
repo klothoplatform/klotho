@@ -80,7 +80,7 @@ func (p *ExecutionUnit) Provenance() AnnotationKey {
 }
 
 func (p *ExecutionUnit) Id() string {
-	return p.AnnotationKey.ToString()
+	return p.AnnotationKey.ToId()
 }
 func (unit *ExecutionUnit) OutputTo(dest string) error {
 	errs := make(chan error)

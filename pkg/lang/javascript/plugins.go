@@ -4,7 +4,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"go.uber.org/zap"
 )
 
@@ -29,7 +28,7 @@ func NewJavascriptPlugins(cfg *config.Application, runtime Runtime) *JavascriptP
 
 func (c JavascriptPlugins) Name() string { return "javascript" }
 
-func (c JavascriptPlugins) Transform(input *core.InputFiles, constructGraph *graph.Directed[core.Construct]) error {
+func (c JavascriptPlugins) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	for _, p := range c.Plugins {
 		log := zap.L().With(zap.String("plugin", p.Name()))
 		log.Debug("starting")

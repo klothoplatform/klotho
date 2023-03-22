@@ -6,7 +6,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/stretchr/testify/assert"
 )
@@ -161,8 +160,8 @@ const a = 1`,
 
 			unit := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "unit"}}
 			unit.Add(f)
-			result := graph.NewDirected[core.Construct]()
-			result.AddVertex(unit)
+			result := core.NewConstructGraph()
+			result.AddConstruct(unit)
 			err = p.Transform(&core.InputFiles{}, result)
 			if tt.wantErr {
 				assert.Error(err)
@@ -172,11 +171,11 @@ const a = 1`,
 				return
 			}
 
-			resources := core.GetResourcesOfCapability(result, annotation.PersistCapability)
+			resources := result.GetResourcesOfCapability(annotation.PersistCapability)
 			assert.Len(resources, 1)
 			assert.Equal(tt.want.resource, resources[0])
 
-			downstreamDeps := result.OutgoingEdges(unit)
+			downstreamDeps := result.GetDownstreamDependencies(unit)
 			assert.Len(downstreamDeps, 1)
 			assert.Equal(tt.want.resource.Provenance().ID, downstreamDeps[0].Destination.Provenance().ID)
 

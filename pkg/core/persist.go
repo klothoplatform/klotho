@@ -37,7 +37,7 @@ func (p *Secrets) Provenance() AnnotationKey {
 }
 
 func (p *Secrets) Id() string {
-	return p.AnnotationKey.ToString()
+	return p.AnnotationKey.ToId()
 }
 
 func (p *Fs) Provenance() AnnotationKey {
@@ -45,7 +45,7 @@ func (p *Fs) Provenance() AnnotationKey {
 }
 
 func (p *Fs) Id() string {
-	return p.AnnotationKey.ToString()
+	return p.AnnotationKey.ToId()
 }
 
 func (p *Kv) Provenance() AnnotationKey {
@@ -53,7 +53,7 @@ func (p *Kv) Provenance() AnnotationKey {
 }
 
 func (p *Kv) Id() string {
-	return p.AnnotationKey.ToString()
+	return p.AnnotationKey.ToId()
 }
 
 func (p *Orm) Provenance() AnnotationKey {
@@ -61,7 +61,7 @@ func (p *Orm) Provenance() AnnotationKey {
 }
 
 func (p *Orm) Id() string {
-	return p.AnnotationKey.ToString()
+	return p.AnnotationKey.ToId()
 }
 
 func (p *RedisNode) Provenance() AnnotationKey {
@@ -69,7 +69,7 @@ func (p *RedisNode) Provenance() AnnotationKey {
 }
 
 func (p *RedisNode) Id() string {
-	return p.AnnotationKey.ToString()
+	return p.AnnotationKey.ToId()
 }
 
 func (p *RedisCluster) Provenance() AnnotationKey {
@@ -77,7 +77,7 @@ func (p *RedisCluster) Provenance() AnnotationKey {
 }
 
 func (p *RedisCluster) Id() string {
-	return p.AnnotationKey.ToString()
+	return p.AnnotationKey.ToId()
 }
 
 func GenerateRedisHostEnvVar(cfg Construct) environmentVariable {

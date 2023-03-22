@@ -102,7 +102,7 @@ func (p Pubsub) Transform(input *core.InputFiles, constructGraph *core.Construct
 	}
 
 	for _, v := range p.emitters {
-		p.ConstructGraph.AddVertex(v.Resource)
+		p.ConstructGraph.AddConstruct(v.Resource)
 	}
 
 	err := p.generateEmitterDefinitions()
@@ -178,7 +178,7 @@ func (p *Pubsub) findProxiesNeeded(unit *core.ExecutionUnit) error {
 					value.Publishers = append(value.Publishers, emitterUsage{filePath: f.Path(), event: event, unitId: unit.ID})
 					log.Debugf("Adding publisher to '%s'", event)
 				}
-				p.ConstructGraph.AddEdge(unit.Provenance().ToString(), value.Resource.Provenance().ToString())
+				p.ConstructGraph.AddDependency(unit.Id(), value.Resource.Id())
 				log.Infof("Found %d topics produced to %s#%s: %v", len(pEvents), spec.DefinedIn, spec.VarName, pEvents)
 			}
 			sEvents := p.findSubscriberTopics(js, spec)
@@ -188,7 +188,7 @@ func (p *Pubsub) findProxiesNeeded(unit *core.ExecutionUnit) error {
 					value.Subscribers = append(value.Subscribers, emitterUsage{filePath: f.Path(), event: event, unitId: unit.ID})
 					log.Debugf("Adding subscriber to '%s'", event)
 				}
-				p.ConstructGraph.AddEdge(value.Resource.Provenance().ToString(), unit.Provenance().ToString())
+				p.ConstructGraph.AddDependency(value.Resource.Id(), unit.Id())
 				log.Infof("Found %d topics consumed from %s#%s: %v", len(sEvents), spec.DefinedIn, spec.VarName, sEvents)
 				importPath, err := filepath.Rel(filepath.Dir(f.Path()), spec.DefinedIn)
 				if err != nil {

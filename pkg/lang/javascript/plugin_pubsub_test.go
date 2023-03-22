@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -35,7 +34,7 @@ func TestPubSub_rewriteFileEmitters(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			result := graph.NewDirected[core.Construct]()
+			result := core.NewConstructGraph()
 			p := &Pubsub{
 				ConstructGraph: result,
 			}
@@ -108,7 +107,7 @@ e.emitter.emit('a')`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			result := graph.NewDirected[core.Construct]()
+			result := core.NewConstructGraph()
 			p := &Pubsub{
 				ConstructGraph: result,
 			}
@@ -175,7 +174,7 @@ e.emitter.on('a', () => {})`,
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			result := graph.NewDirected[core.Construct]()
+			result := core.NewConstructGraph()
 			p := &Pubsub{
 				ConstructGraph: result,
 			}

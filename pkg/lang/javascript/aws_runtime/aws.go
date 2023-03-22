@@ -305,7 +305,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 }
 
 func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) (ExposeTemplateData, error) {
-	upstreamGateways := core.FindUpstreamGateways(unit, constructGraph)
+	upstreamGateways := constructGraph.FindUpstreamGateways(unit)
 
 	var sourceGateway *core.Gateway
 	for _, gw := range upstreamGateways {

@@ -8,7 +8,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp/csproj"
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -72,7 +71,7 @@ func updateCsproj(unit *core.ExecutionUnit) {
 	projectFile.AddProperty("OutDir", "klotho_bin")
 }
 
-func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *graph.Directed[core.Construct]) error {
+func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 	var err error
 	var dockerFile []byte
@@ -125,8 +124,8 @@ func resolveAssemblyName(projectFile *csproj.CSProjFile) string {
 	return assembly
 }
 
-func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *graph.Directed[core.Construct]) (ExposeTemplateData, error) {
-	upstreamGateways := core.FindUpstreamGateways(unit, constructGraph)
+func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) (ExposeTemplateData, error) {
+	upstreamGateways := constructGraph.FindUpstreamGateways(unit)
 
 	var sgw *core.Gateway
 	var sgwApiType string

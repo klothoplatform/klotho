@@ -39,7 +39,7 @@ func (p *Plugin) handleProviderValidation(constructGraph *core.ConstructGraph) e
 
 	var errs multierr.Error
 	log := zap.L().Sugar()
-	for _, resource := range constructGraph.GetAllVertices() {
+	for _, resource := range constructGraph.ListConstructs() {
 		resourceValid := false
 		mapping, shouldValidate := p.Provider.GetKindTypeMappings(resource)
 		resourceType := p.Config.GetResourceType(resource)
@@ -112,7 +112,7 @@ func (p *Plugin) handleResources(constructGraph *core.ConstructGraph) error {
 
 func (p *Plugin) validateConfigOverrideResourcesExist(constructGraph *core.ConstructGraph, log *zap.SugaredLogger) {
 	for unit := range p.UserConfigOverrides.ExecutionUnits {
-		resources := core.GetResourcesOfCapability(constructGraph, annotation.ExecutionUnitCapability)
+		resources := constructGraph.GetResourcesOfCapability(annotation.ExecutionUnitCapability)
 		resource := getResourceById(unit, resources)
 		if resource == (core.AnnotationKey{}) {
 			log.Warnf("Unknown execution unit in config override, \"%s\".", unit)
@@ -121,7 +121,7 @@ func (p *Plugin) validateConfigOverrideResourcesExist(constructGraph *core.Const
 
 	for persistResource := range p.UserConfigOverrides.PersistKv {
 		resources := []core.Construct{}
-		resources_persist := core.GetResourcesOfCapability(constructGraph, annotation.PersistCapability)
+		resources_persist := constructGraph.GetResourcesOfCapability(annotation.PersistCapability)
 		for _, res := range resources_persist {
 			if _, ok := res.(*core.Kv); ok {
 				resources = append(resources, res)
@@ -135,7 +135,7 @@ func (p *Plugin) validateConfigOverrideResourcesExist(constructGraph *core.Const
 
 	for persistResource := range p.UserConfigOverrides.PersistFs {
 		resources := []core.Construct{}
-		resources_persist := core.GetResourcesOfCapability(constructGraph, annotation.PersistCapability)
+		resources_persist := constructGraph.GetResourcesOfCapability(annotation.PersistCapability)
 		for _, res := range resources_persist {
 			if _, ok := res.(*core.Fs); ok {
 				resources = append(resources, res)
@@ -149,7 +149,7 @@ func (p *Plugin) validateConfigOverrideResourcesExist(constructGraph *core.Const
 
 	for persistResource := range p.UserConfigOverrides.PersistOrm {
 		resources := []core.Construct{}
-		resources_persist := core.GetResourcesOfCapability(constructGraph, annotation.PersistCapability)
+		resources_persist := constructGraph.GetResourcesOfCapability(annotation.PersistCapability)
 		for _, res := range resources_persist {
 			if _, ok := res.(*core.Orm); ok {
 				resources = append(resources, res)
@@ -163,7 +163,7 @@ func (p *Plugin) validateConfigOverrideResourcesExist(constructGraph *core.Const
 
 	for persistResource := range p.UserConfigOverrides.PersistSecrets {
 		resources := []core.Construct{}
-		resources_persist := core.GetResourcesOfCapability(constructGraph, annotation.PersistCapability)
+		resources_persist := constructGraph.GetResourcesOfCapability(annotation.PersistCapability)
 		for _, res := range resources_persist {
 			if _, ok := res.(*core.Secrets); ok {
 				resources = append(resources, res)
@@ -177,7 +177,7 @@ func (p *Plugin) validateConfigOverrideResourcesExist(constructGraph *core.Const
 
 	for persistResource := range p.UserConfigOverrides.PersistRedisCluster {
 		resources := []core.Construct{}
-		resources_persist := core.GetResourcesOfCapability(constructGraph, annotation.PersistCapability)
+		resources_persist := constructGraph.GetResourcesOfCapability(annotation.PersistCapability)
 		for _, res := range resources_persist {
 			if _, ok := res.(*core.RedisCluster); ok {
 				resources = append(resources, res)
@@ -191,7 +191,7 @@ func (p *Plugin) validateConfigOverrideResourcesExist(constructGraph *core.Const
 
 	for persistResource := range p.UserConfigOverrides.PersistRedisNode {
 		resources := []core.Construct{}
-		resources_persist := core.GetResourcesOfCapability(constructGraph, annotation.PersistCapability)
+		resources_persist := constructGraph.GetResourcesOfCapability(annotation.PersistCapability)
 		for _, res := range resources_persist {
 			if _, ok := res.(*core.RedisNode); ok {
 				resources = append(resources, res)
@@ -204,7 +204,7 @@ func (p *Plugin) validateConfigOverrideResourcesExist(constructGraph *core.Const
 	}
 
 	for exposeResource := range p.UserConfigOverrides.Exposed {
-		resources := core.GetResourcesOfCapability(constructGraph, annotation.ExposeCapability)
+		resources := constructGraph.GetResourcesOfCapability(annotation.ExposeCapability)
 		resource := getResourceById(exposeResource, resources)
 		if resource == (core.AnnotationKey{}) {
 			log.Warnf("Unknown expose in config override, \"%s\".", exposeResource)
@@ -212,7 +212,7 @@ func (p *Plugin) validateConfigOverrideResourcesExist(constructGraph *core.Const
 	}
 
 	for pubsubResource := range p.UserConfigOverrides.PubSub {
-		resources := core.GetResourcesOfCapability(constructGraph, annotation.PubSubCapability)
+		resources := constructGraph.GetResourcesOfCapability(annotation.PubSubCapability)
 		resource := getResourceById(pubsubResource, resources)
 		if resource == (core.AnnotationKey{}) {
 			log.Warnf("Unknown pubsub in config override, \"%s\".", pubsubResource)
@@ -220,7 +220,7 @@ func (p *Plugin) validateConfigOverrideResourcesExist(constructGraph *core.Const
 	}
 
 	for unit := range p.UserConfigOverrides.StaticUnit {
-		resources := core.GetResourcesOfCapability(constructGraph, annotation.StaticUnitCapability)
+		resources := constructGraph.GetResourcesOfCapability(annotation.StaticUnitCapability)
 		resource := getResourceById(unit, resources)
 		if resource == (core.AnnotationKey{}) {
 			log.Warnf("Unknown static unit in config override, \"%s\".", unit)
@@ -228,7 +228,7 @@ func (p *Plugin) validateConfigOverrideResourcesExist(constructGraph *core.Const
 	}
 
 	for unit := range p.UserConfigOverrides.Config {
-		resources := core.GetResourcesOfCapability(constructGraph, annotation.ConfigCapability)
+		resources := constructGraph.GetResourcesOfCapability(annotation.ConfigCapability)
 		resource := getResourceById(unit, resources)
 		if resource == (core.AnnotationKey{}) {
 			log.Warnf("Unknown config resource in config override, \"%s\".", unit)
@@ -241,17 +241,17 @@ func (p *Plugin) checkAnnotationForResource(annot *core.Annotation, constructGra
 
 	switch annot.Capability.Name {
 	case annotation.PersistCapability:
-		resources = append(core.GetResourcesOfCapability(constructGraph, annotation.PersistCapability), resources...)
+		resources = append(constructGraph.GetResourcesOfCapability(annotation.PersistCapability), resources...)
 	case annotation.ExecutionUnitCapability:
-		resources = append(core.GetResourcesOfCapability(constructGraph, annotation.ExecutionUnitCapability), resources...)
+		resources = append(constructGraph.GetResourcesOfCapability(annotation.ExecutionUnitCapability), resources...)
 	case annotation.StaticUnitCapability:
-		resources = append(core.GetResourcesOfCapability(constructGraph, annotation.StaticUnitCapability), resources...)
+		resources = append(constructGraph.GetResourcesOfCapability(annotation.StaticUnitCapability), resources...)
 	case annotation.ExposeCapability:
-		resources = append(core.GetResourcesOfCapability(constructGraph, annotation.ExposeCapability), resources...)
+		resources = append(constructGraph.GetResourcesOfCapability(annotation.ExposeCapability), resources...)
 	case annotation.PubSubCapability:
-		resources = append(core.GetResourcesOfCapability(constructGraph, annotation.PubSubCapability), resources...)
+		resources = append(constructGraph.GetResourcesOfCapability(annotation.PubSubCapability), resources...)
 	case annotation.ConfigCapability:
-		resources = append(core.GetResourcesOfCapability(constructGraph, annotation.ConfigCapability), resources...)
+		resources = append(constructGraph.GetResourcesOfCapability(annotation.ConfigCapability), resources...)
 	case annotation.AssetCapability:
 	default:
 		log.Warnf("Unknown annotation capability %s.", annot.Capability.Name)

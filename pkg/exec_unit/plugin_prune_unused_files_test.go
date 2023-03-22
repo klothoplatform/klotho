@@ -5,7 +5,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,8 +44,8 @@ func TestPruneUncategorizedFiles_Transform(t *testing.T) {
 				testUnit.AddStaticAsset(&core.FileRef{FPath: path})
 			}
 			p := PruneUncategorizedFiles{}
-			result := graph.NewDirected[core.Construct]()
-			result.AddVertex(&testUnit)
+			result := core.NewConstructGraph()
+			result.AddConstruct(&testUnit)
 			err := p.Transform(&core.InputFiles{}, result)
 			if !assert.NoError(err) {
 				return

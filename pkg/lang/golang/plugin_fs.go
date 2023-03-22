@@ -31,8 +31,8 @@ func (p PersistFsPlugin) Transform(input *core.InputFiles, constructGraph *core.
 			}
 
 			for _, r := range resources {
-				constructGraph.AddVertex(r)
-				constructGraph.AddEdge(unit.Id(), r.Id())
+				constructGraph.AddConstruct(r)
+				constructGraph.AddDependency(unit.Id(), r.Id())
 			}
 		}
 	}

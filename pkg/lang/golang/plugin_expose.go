@@ -10,7 +10,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/query"
@@ -36,7 +35,7 @@ type (
 	}
 
 	restAPIHandler struct {
-		ConstructGraph  *graph.Directed[core.Construct]
+		ConstructGraph  *core.ConstructGraph
 		Unit            *core.ExecutionUnit
 		RoutesByGateway map[gatewaySpec][]gatewayRouteDefinition
 		RootPath        string
@@ -113,12 +112,12 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 	for spec, routes := range h.RoutesByGateway {
 		gwName := spec.Id
 		gw := core.NewGateway(core.AnnotationKey{ID: gwName, Capability: annotation.ExposeCapability})
-		if existing := core.Get(h.ConstructGraph, gw.Provenance()); existing != nil {
+		if existing := h.ConstructGraph.GetConstruct(gw.Provenance()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath
 			gw.ExportVarName = spec.AppVarName
-			h.ConstructGraph.AddVertex(gw)
+			h.ConstructGraph.AddConstruct(gw)
 		}
 
 		for _, route := range routes {
@@ -139,7 +138,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
 				targetUnit = unit.ID
 			}
-			h.ConstructGraph.AddEdge(gw.Id(), core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}.ToString())
+			h.ConstructGraph.AddDependency(gw.Id(), core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}.ToId())
 		}
 	}
 

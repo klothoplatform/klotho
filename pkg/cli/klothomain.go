@@ -22,6 +22,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/closenicely"
 	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
+	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/input"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/updater"
@@ -253,7 +254,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 			cmd.SilenceUsage = true
 		},
 	}
-	defer analyticsClient.PanicHandler(&err, errHandler)
+	// defer analyticsClient.PanicHandler(&err, errHandler)
 
 	updateStream := options.Update.Stream.OrDefault(km.DefaultUpdateStream)
 	analyticsClient.AppendProperty("updateStream", updateStream)
@@ -397,7 +398,10 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	document := compiler.CompilationDocument{
-		InputFiles: input,
+		InputFiles:     input,
+		Constructs:     core.NewConstructGraph(),
+		Configuration:  &appCfg,
+		CloudResources: core.NewResourceGraph(),
 	}
 	compiler := compiler.Compiler{
 		AnalysisAndTransformationPlugins: plugins.AnalysisAndTransform,

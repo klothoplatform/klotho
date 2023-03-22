@@ -31,7 +31,7 @@ var (
 	lineIndentRE = regexp.MustCompile(`(?m)^`)
 )
 
-func (a AnnotationKey) ToString() string {
+func (a AnnotationKey) ToId() string {
 	return fmt.Sprintf("%s_%s", a.Capability, a.ID)
 }
 

@@ -41,7 +41,7 @@ func (p ExecUnitPlugin) Transform(input *core.InputFiles, constructGraph *core.C
 	}
 
 	if len(unit.Files()) > 0 {
-		constructGraph.AddVertex(unit)
+		constructGraph.AddConstruct(unit)
 	}
 
 	return nil

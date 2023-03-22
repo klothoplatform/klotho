@@ -10,7 +10,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/query"
@@ -197,7 +196,7 @@ func (h *ExpressHandler) findExpress(f *core.SourceFile) string {
 	return ""
 }
 
-func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, constructGraph *graph.Directed[core.Construct]) error {
+func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 	fileContentUpdate := make(map[*core.SourceFile]string)
 	for _, listener := range h.output.listeners {

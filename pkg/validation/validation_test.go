@@ -6,7 +6,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/provider/providers"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -158,9 +157,9 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 			assert := assert.New(t)
 
 			p := Plugin{}
-			result := graph.NewDirected[core.Construct]()
+			result := core.NewConstructGraph()
 			for _, c := range tt.result {
-				result.AddVertex(c)
+				result.AddConstruct(c)
 			}
 			log := zap.L().With().Sugar()
 
@@ -218,9 +217,9 @@ func Test_validation_handleProviderValidation(t *testing.T) {
 				Provider: provider,
 				Config:   &tt.cfg,
 			}
-			result := graph.NewDirected[core.Construct]()
+			result := core.NewConstructGraph()
 			for _, c := range tt.result {
-				result.AddVertex(c)
+				result.AddConstruct(c)
 			}
 
 			err := p.handleProviderValidation(result)
@@ -283,9 +282,9 @@ func Test_validation_handleResources(t *testing.T) {
 			assert := assert.New(t)
 
 			p := Plugin{}
-			result := graph.NewDirected[core.Construct]()
+			result := core.NewConstructGraph()
 			for _, c := range tt.result {
-				result.AddVertex(c)
+				result.AddConstruct(c)
 			}
 
 			err := p.handleResources(result)
@@ -467,9 +466,9 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 				Provider:            provider,
 				UserConfigOverrides: tt.cfg,
 			}
-			result := graph.NewDirected[core.Construct]()
+			result := core.NewConstructGraph()
 			for _, c := range tt.result {
-				result.AddVertex(c)
+				result.AddConstruct(c)
 			}
 
 			observedZapCore, observedLogs := observer.New(zap.WarnLevel)

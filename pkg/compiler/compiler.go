@@ -51,7 +51,7 @@ func (c *Compiler) Compile() error {
 	// TODO: We could likely move this into runtime, but until we refactor that to be common we can keep this here so it lives in one place.
 	// We previously always created the payloads bucket so the behavior is no different
 	internalResource := &core.InternalResource{AnnotationKey: core.AnnotationKey{ID: core.KlothoPayloadName, Capability: annotation.InternalCapability}}
-	c.Document.Constructs.AddVertex(internalResource)
+	c.Document.Constructs.AddConstruct(internalResource)
 
 	for _, p := range c.AnalysisAndTransformationPlugins {
 		if isPluginNil(p) {

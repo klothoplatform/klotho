@@ -9,7 +9,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/lang"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -66,7 +65,7 @@ func OutputCapabilities(input *core.InputFiles, outDir string) error {
 	return nil
 }
 
-func OutputResources(result *graph.Directed[core.Construct], outDir string) (resourceCounts map[string]int, err error) {
+func OutputResources(result *core.ConstructGraph, outDir string) (resourceCounts map[string]int, err error) {
 	err = os.MkdirAll(outDir, 0777)
 	if err != nil {
 		return
@@ -75,7 +74,7 @@ func OutputResources(result *graph.Directed[core.Construct], outDir string) (res
 	resourceCounts = make(map[string]int)
 	var resourcesOutput []interface{}
 	var merr multierr.Error
-	for _, construct := range result.GetAllVertices() {
+	for _, construct := range result.ListConstructs() {
 		resourceCounts[construct.Provenance().Capability] = resourceCounts[construct.Provenance().Capability] + 1
 
 		switch r := construct.(type) {
@@ -124,7 +123,7 @@ func OutputResources(result *graph.Directed[core.Construct], outDir string) (res
 	return
 }
 
-func GetLanguagesUsed(result *graph.Directed[core.Construct]) []core.ExecutableType {
+func GetLanguagesUsed(result *core.ConstructGraph) []core.ExecutableType {
 	executableLangs := []core.ExecutableType{}
 	for _, u := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
 		executableLangs = append(executableLangs, u.Executable.Type)
@@ -141,8 +140,8 @@ func GetResourceCount(counts map[string]int) (resourceCounts []string) {
 	return
 }
 
-func GetResourceTypeCount(result *graph.Directed[core.Construct], cfg *config.Application) (resourceCounts []string) {
-	for _, res := range result.GetAllVertices() {
+func GetResourceTypeCount(result *core.ConstructGraph, cfg *config.Application) (resourceCounts []string) {
+	for _, res := range result.ListConstructs() {
 		resType := cfg.GetResourceType(res)
 		if resType != "" {
 			resourceCounts = append(resourceCounts, resType)
@@ -151,7 +150,7 @@ func GetResourceTypeCount(result *graph.Directed[core.Construct], cfg *config.Ap
 	return
 }
 
-func CloseTreeSitter(result *graph.Directed[core.Construct]) {
+func CloseTreeSitter(result *core.ConstructGraph) {
 	for _, eu := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
 		for _, f := range eu.Files() {
 			if astFile, ok := f.(*core.SourceFile); ok {

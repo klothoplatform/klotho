@@ -6,20 +6,19 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
-func GetFileForModule(constructGraph *graph.Directed[core.Construct], moduleName string) *core.SourceFile {
+func GetFileForModule(constructGraph *core.ConstructGraph, moduleName string) *core.SourceFile {
 	moduleName = strings.TrimPrefix(moduleName, "./") // Convert relative import to file name
 
-	original, f := core.GetExecUnitForPath(constructGraph, moduleName)
+	original, f := constructGraph.GetExecUnitForPath(moduleName)
 	if original == nil && !strings.HasSuffix(moduleName, ".js") {
-		original, f = core.GetExecUnitForPath(constructGraph, moduleName+".js")
+		original, f = constructGraph.GetExecUnitForPath(moduleName + ".js")
 	}
 	if original == nil {
-		original, f = core.GetExecUnitForPath(constructGraph, path.Join(moduleName, "index.js"))
+		original, f = constructGraph.GetExecUnitForPath(path.Join(moduleName, "index.js"))
 	}
 	if original == nil {
 		return nil
