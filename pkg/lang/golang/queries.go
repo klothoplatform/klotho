@@ -25,6 +25,9 @@ var findRouterMounts string
 //go:embed queries/expose/function.scm
 var findFunction string
 
+//go:embed queries/expose/router_middleware.scm
+var routerMiddleware string
+
 //go:embed queries/package.scm
 var packageQuery string
 
