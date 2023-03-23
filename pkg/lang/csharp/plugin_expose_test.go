@@ -1,11 +1,14 @@
 package csharp
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/stretchr/testify/assert"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/klothoplatform/klotho/pkg/annotation"
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_findIApplicationBuilder(t *testing.T) {
@@ -189,11 +192,11 @@ func TestExpose_Transform(t *testing.T) {
 		Content string
 	}
 
-	parseDep := func(dep string) core.Dependency {
+	parseDep := func(dep string) graph.Edge[core.Construct] {
 		parts := strings.Split(dep, ":")
-		return core.Dependency{
-			Source: core.ResourceKey{Kind: "gateway", Name: parts[0]},
-			Target: core.ResourceKey{Kind: "exec_unit", Name: parts[1]},
+		return graph.Edge[core.Construct]{
+			Source:      &core.Gateway{AnnotationKey: core.AnnotationKey{Capability: annotation.ExposeCapability, ID: parts[0]}},
+			Destination: &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: parts[1]}},
 		}
 	}
 
@@ -610,11 +613,11 @@ func TestExpose_Transform(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			result := &core.CompilationResult{}
+			result := core.NewConstructGraph()
 			for uName, files := range tt.units {
 				unit := &core.ExecutionUnit{
-					Name:       uName,
-					Executable: core.NewExecutable(),
+					Executable:    core.NewExecutable(),
+					AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: uName},
 				}
 				for _, f := range files {
 					sf, err := core.NewSourceFile(f.Path, strings.NewReader(f.Content), Language)
@@ -623,11 +626,10 @@ func TestExpose_Transform(t *testing.T) {
 					}
 					unit.AddSourceFile(sf)
 				}
-				result.Add(unit)
+				result.AddConstruct(unit)
 			}
-			deps := &core.Dependencies{}
 			expose := Expose{}
-			err := expose.Transform(result, deps)
+			err := expose.Transform(&core.InputFiles{}, result)
 			if !assert.NoError(err) {
 				return
 			}
@@ -636,7 +638,7 @@ func TestExpose_Transform(t *testing.T) {
 			assert.Equal(len(tt.expectedGateways), len(gateways))
 
 			sort.Slice(gateways, func(i, j int) bool {
-				return gateways[i].Name < gateways[j].Name
+				return gateways[i].ID < gateways[j].ID
 			})
 			sort.Slice(tt.expectedGateways, func(i, j int) bool {
 				return tt.expectedGateways[i].Name < tt.expectedGateways[j].Name
@@ -677,25 +679,25 @@ func TestExpose_Transform(t *testing.T) {
 				assert.Equal(len(expectedGw.Routes), len(aRoutes))
 				assert.ElementsMatch(expectedGw.Routes, aRoutes)
 			}
-			depsArr := deps.ToArray()
+			depsArr := result.ListDependencies()
 
 			assert.Equal(len(tt.expectedDeps), len(depsArr))
-			var eDeps []core.Dependency
+			var eDeps []graph.Edge[core.Construct]
 			for _, dep := range tt.expectedDeps {
 				eDeps = append(eDeps, parseDep(dep))
 			}
 			sort.Slice(eDeps, func(i, j int) bool {
-				if eDeps[i].Source.Name == eDeps[j].Source.Name {
-					return eDeps[i].Target.Name < eDeps[j].Target.Name
+				if eDeps[i].Source.Id() == eDeps[j].Source.Id() {
+					return eDeps[i].Destination.Id() < eDeps[j].Destination.Id()
 				} else {
-					return eDeps[i].Source.Name < eDeps[j].Source.Name
+					return eDeps[i].Source.Id() < eDeps[j].Source.Id()
 				}
 			})
 			sort.Slice(depsArr, func(i, j int) bool {
-				if depsArr[i].Source.Name == depsArr[j].Source.Name {
-					return depsArr[i].Target.Name < depsArr[j].Target.Name
+				if depsArr[i].Source.Id() == depsArr[j].Source.Id() {
+					return depsArr[i].Destination.Id() < depsArr[j].Destination.Id()
 				} else {
-					return depsArr[i].Source.Name < depsArr[j].Source.Name
+					return depsArr[i].Source.Id() < depsArr[j].Source.Id()
 				}
 			})
 
@@ -704,7 +706,8 @@ func TestExpose_Transform(t *testing.T) {
 					break
 				}
 				aDep := depsArr[i]
-				assert.Equal(eDep, aDep)
+				assert.Equal(eDep.Source.Provenance(), aDep.Source.Provenance())
+				assert.Equal(eDep.Destination.Provenance(), aDep.Destination.Provenance())
 			}
 		})
 	}

@@ -1,8 +1,6 @@
 package execunit
 
 import (
-	"errors"
-
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -14,23 +12,22 @@ type ExecUnitPlugin struct {
 
 func (p ExecUnitPlugin) Name() string { return "ExecutionUnit" }
 
-func (p ExecUnitPlugin) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
-	inputR := result.GetFirstResource(core.InputFilesKind)
-	if inputR == nil {
-		return errors.New("no input files")
-	}
+func (p ExecUnitPlugin) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 
 	unit := &core.ExecutionUnit{
-		Name:       "main",
+		AnnotationKey: core.AnnotationKey{
+			ID:         "main",
+			Capability: annotation.ExecutionUnitCapability,
+		},
 		Executable: core.NewExecutable(),
 	}
-	cfg := p.Config.GetExecutionUnit(unit.Name)
+	cfg := p.Config.GetExecutionUnit(unit.ID)
 
 	for key, value := range cfg.EnvironmentVariables {
-		unit.EnvironmentVariables.Add(core.NewEnvironmentVariable(key, "", "", value))
+		unit.EnvironmentVariables.Add(core.NewEnvironmentVariable(key, nil, value))
 	}
 
-	for _, f := range inputR.(*core.InputFiles).Files() {
+	for _, f := range input.Files() {
 		if sf, ok := f.(*core.SourceFile); ok {
 			// Only add source files by default.
 			// Plugins are responsible for adding in non-source files
@@ -44,7 +41,7 @@ func (p ExecUnitPlugin) Transform(result *core.CompilationResult, deps *core.Dep
 	}
 
 	if len(unit.Files()) > 0 {
-		result.Add(unit)
+		constructGraph.AddConstruct(unit)
 	}
 
 	return nil

@@ -18,7 +18,7 @@ import (
 
 type (
 	Runtime interface {
-		AddExecRuntimeFiles(*core.ExecutionUnit, *core.CompilationResult, *core.Dependencies) error
+		AddExecRuntimeFiles(*core.ExecutionUnit, *core.ConstructGraph) error
 		AddExposeRuntimeFiles(*core.ExecutionUnit) error
 		AddKvRuntimeFiles(unit *core.ExecutionUnit) error
 		AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName string, id string) error

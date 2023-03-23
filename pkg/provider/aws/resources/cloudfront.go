@@ -7,20 +7,20 @@ import (
 
 type CloudfrontDistribution struct {
 	Id                string
-	Origins           []core.ResourceKey
+	Origins           []core.AnnotationKey
 	DefaultRootObject string
 }
 
-func CreateCloudfrontDistribution(resources []core.CloudResource) *CloudfrontDistribution {
+func CreateCloudfrontDistribution(resources []core.Construct) *CloudfrontDistribution {
 	distribution := &CloudfrontDistribution{}
 
 	for _, res := range resources {
-		switch res.Key().Kind {
-		case core.GatewayKind:
-			distribution.Origins = append(distribution.Origins, res.Key())
-		case core.StaticUnitKind:
+		switch res.(type) {
+		case *core.Gateway:
+			distribution.Origins = append(distribution.Origins, res.Provenance())
+		case *core.StaticUnit:
 			sunit := res.(*core.StaticUnit)
-			distribution.Origins = append(distribution.Origins, res.Key())
+			distribution.Origins = append(distribution.Origins, res.Provenance())
 			if distribution.DefaultRootObject != "" {
 				zap.S().Warn("Cannot have a cdn with multiple root objects")
 			}

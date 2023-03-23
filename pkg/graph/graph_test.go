@@ -1,8 +1,9 @@
 package graph
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEmptyGraph(t *testing.T) {
@@ -19,8 +20,8 @@ func TestSimpleGraph(t *testing.T) {
 	d.AddVertex(a)
 	d.AddVertex(b)
 	d.AddVertex(c)
-	d.AddEdge(a, b)
-	d.AddEdge(a, c)
+	d.AddEdge(a.Id(), b.Id())
+	d.AddEdge(a.Id(), c.Id())
 
 	test(t, "roots", func(assert *assert.Assertions) {
 		assert.Equal([]DummyVertex{a}, d.Roots())
@@ -49,7 +50,7 @@ func TestCycleToSelf(t *testing.T) {
 	d := NewDirected[DummyVertex]()
 	v := DummyVertex("dummy")
 	d.AddVertex(v)
-	d.AddEdge(v, v)
+	d.AddEdge(v.Id(), v.Id())
 	assert.Equal(
 		[]Edge[DummyVertex]{
 			Edge[DummyVertex]{
@@ -67,8 +68,8 @@ func TestCycle(t *testing.T) {
 	v2 := DummyVertex("world")
 	d.AddVertex(v1)
 	d.AddVertex(v2)
-	d.AddEdge(v1, v2)
-	d.AddEdge(v2, v1)
+	d.AddEdge(v1.Id(), v2.Id())
+	d.AddEdge(v2.Id(), v1.Id())
 	assert.Equal(
 		[]Edge[DummyVertex]{
 			Edge[DummyVertex]{
@@ -101,8 +102,8 @@ func TestNegativeCases(t *testing.T) {
 		v2 := DummyVertex("world")
 		d.AddVertex(v1)
 		d.AddVertex(v2)
-		d.AddEdge(v1, v2)
-		d.AddEdge(v1, v2)
+		d.AddEdge(v1.Id(), v2.Id())
+		d.AddEdge(v1.Id(), v2.Id())
 		assert.Equal(
 			[]Edge[DummyVertex]{
 				Edge[DummyVertex]{

@@ -21,25 +21,19 @@ type (
 )
 
 var (
-	SupportedKindMappings = map[string]string{
-		"orm":           string(core.PersistORMKind),
-		"redis_node":    string(core.PersistRedisNodeKind),
-		"redis_cluster": string(core.PersistRedisClusterKind),
-	}
-
 	SupportedKindValues = map[string][]string{
-		string(core.PersistORMKind):          {"connection_string"},
-		string(core.PersistRedisClusterKind): {"host", "port"},
-		string(core.PersistRedisNodeKind):    {"host", "port"},
+		"orm":           {"connection_string"},
+		"redis_node":    {"host", "port"},
+		"redis_cluster": {"host", "port"},
 	}
 )
 
 func (p EnvVarInjection) Name() string { return "EnvVarInjection" }
 
-func (p EnvVarInjection) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p EnvVarInjection) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 
-	units := core.GetResourcesOfType[*core.ExecutionUnit](result)
+	units := core.GetResourcesOfType[*core.ExecutionUnit](constructGraph)
 	for _, unit := range units {
 		for _, f := range unit.Files() {
 			log := zap.L().With(logging.FileField(f)).Sugar()
@@ -63,12 +57,11 @@ func (p EnvVarInjection) Transform(result *core.CompilationResult, deps *core.De
 					if directiveResult.kind == "" {
 						continue
 					}
-					err = handlePersist(directiveResult.kind, cap, unit, result, deps)
+					err = handlePersist(directiveResult, cap, unit, constructGraph)
 					if err != nil {
 						errs.Append(err)
 						continue
 					}
-					unit.EnvironmentVariables.AddAll(directiveResult.variables)
 				}
 			}
 		}
@@ -112,7 +105,7 @@ func ParseDirectiveToEnvVars(cap *annotation.Capability) (EnvironmentVariableDir
 		kind := valueSplit[0]
 		value := valueSplit[1]
 
-		kind, ok = SupportedKindMappings[kind]
+		_, ok = SupportedKindValues[kind]
 		if !ok {
 			return EnvironmentVariableDirectiveResult{}, errors.New("invalid value for 'kind' of environment variable value")
 		}
@@ -127,7 +120,7 @@ func ParseDirectiveToEnvVars(cap *annotation.Capability) (EnvironmentVariableDir
 			return EnvironmentVariableDirectiveResult{}, errors.New("cannot have multiple resource kinds in environment variables for single annotation")
 		}
 
-		foundVariable := core.NewEnvironmentVariable(name, kind, cap.ID, value)
+		foundVariable := core.NewEnvironmentVariable(name, nil, value)
 
 		foundVars.Add(foundVariable)
 	}
@@ -135,31 +128,52 @@ func ParseDirectiveToEnvVars(cap *annotation.Capability) (EnvironmentVariableDir
 	return EnvironmentVariableDirectiveResult{kind: overallKind, variables: foundVars}, nil
 }
 
-func handlePersist(kind string, cap *annotation.Capability, unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
-	switch kind {
-	case string(core.PersistORMKind):
-		resource := core.Persist{
-			Kind: core.PersistORMKind,
-			Name: cap.ID,
+func handlePersist(directiveResult EnvironmentVariableDirectiveResult, cap *annotation.Capability, unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
+
+	var resource core.Construct
+	switch directiveResult.kind {
+	case "orm":
+		resources := core.GetResourcesOfType[*core.Orm](constructGraph)
+		for _, res := range resources {
+			if res.ID == cap.ID {
+				return nil
+			}
 		}
-		result.Add(&resource)
-		deps.Add(unit.Key(), resource.Key())
-	case string(core.PersistRedisClusterKind):
-		resource := core.Persist{
-			Kind: core.PersistRedisClusterKind,
-			Name: cap.ID,
+		resource = &core.Orm{
+			AnnotationKey: core.AnnotationKey{ID: cap.ID, Capability: cap.Name},
 		}
-		result.Add(&resource)
-		deps.Add(unit.Key(), resource.Key())
-	case string(core.PersistRedisNodeKind):
-		resource := core.Persist{
-			Kind: core.PersistRedisNodeKind,
-			Name: cap.ID,
+	case "redis_cluster":
+		resources := core.GetResourcesOfType[*core.RedisCluster](constructGraph)
+		for _, res := range resources {
+			if res.ID == cap.ID {
+				return nil
+			}
 		}
-		result.Add(&resource)
-		deps.Add(unit.Key(), resource.Key())
+		resource = &core.RedisCluster{
+			AnnotationKey: core.AnnotationKey{ID: cap.ID, Capability: cap.Name},
+		}
+
+	case "redis_node":
+		resources := core.GetResourcesOfType[*core.RedisNode](constructGraph)
+		for _, res := range resources {
+			if res.ID == cap.ID {
+				return nil
+			}
+		}
+		resource = &core.RedisNode{
+			AnnotationKey: core.AnnotationKey{ID: cap.ID, Capability: cap.Name},
+		}
 	default:
-		return fmt.Errorf("unsupported 'kind', %s", kind)
+		return fmt.Errorf("unsupported 'kind', %s", directiveResult.kind)
 	}
+
+	constructGraph.AddConstruct(resource)
+	constructGraph.AddDependency(unit.Id(), resource.Id())
+	variables := core.EnvironmentVariables{}
+	for _, variable := range directiveResult.variables {
+		variable.Construct = resource
+		variables = append(variables, variable)
+	}
+	unit.EnvironmentVariables.AddAll(variables)
 	return nil
 }

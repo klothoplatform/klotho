@@ -13,27 +13,23 @@ func (l GolangExecutable) Name() string {
 	return "golang_executable"
 }
 
-func (l GolangExecutable) Transform(result *core.CompilationResult, dependencies *core.Dependencies) error {
-	input := core.GetFirstResource[*core.InputFiles](result)
-	if input == nil {
-		return nil
-	}
+func (l GolangExecutable) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	inputFiles := input.Files()
 
 	defaultGoMod, _ := input.Files()["go.mod"].(*GoMod)
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		if unit.Executable.Type != "" {
-			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.Name, unit.Executable.Type)
+			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.ID, unit.Executable.Type)
 			continue
 		}
 
 		goMod := defaultGoMod
-		goModPath := core.CheckForProjectFile(result, unit, "go.mod")
+		goModPath := core.CheckForProjectFile(input, unit, "go.mod")
 		if goModPath != "" {
 			goMod, _ = inputFiles[goModPath].(*GoMod)
 		}
 		if goMod == nil {
-			zap.L().Sugar().Debugf("go.mod not found in execution_unit: %s", unit.Name)
+			zap.L().Sugar().Debugf("go.mod not found in execution_unit: %s", unit.ID)
 			return nil
 		}
 
@@ -48,7 +44,7 @@ func (l GolangExecutable) Transform(result *core.CompilationResult, dependencies
 
 		for f := range unit.Executable.SourceFiles {
 			if file, ok := unit.Get(f).(*core.SourceFile); ok && file.IsAnnotatedWith(annotation.ExposeCapability) {
-				zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.Name, f)
+				zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.ID, f)
 				unit.AddEntrypoint(file)
 			}
 		}
@@ -63,7 +59,7 @@ func (l GolangExecutable) Transform(result *core.CompilationResult, dependencies
 func resolveDefaultEntrypoint(unit *core.ExecutionUnit) {
 	for _, fallbackPath := range []string{"main.go"} {
 		if entrypoint := unit.Get(fallbackPath); entrypoint != nil {
-			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [default] -> [%s] -> %s", unit.Name, entrypoint.Path())
+			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [default] -> [%s] -> %s", unit.ID, entrypoint.Path())
 			unit.AddEntrypoint(entrypoint)
 		}
 	}

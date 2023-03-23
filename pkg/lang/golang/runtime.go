@@ -12,7 +12,7 @@ import (
 
 type (
 	Runtime interface {
-		AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error
+		AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error
 		GetFsImports() []Import
 		GetSecretsImports() []Import
 		SetConfigType(id string, isSecret bool)
