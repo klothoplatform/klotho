@@ -69,7 +69,7 @@ func (tc templatesCompiler) AddResource(v any) {
 		if reflect.TypeOf(child).Kind() == reflect.Struct {
 			tc.AddResource(child)
 			childRes := tc.getResource(child)
-			tc.resourceGraph.AddEdge(res, childRes)
+			tc.resourceGraph.AddEdge(res.Id(), childRes.Id())
 		}
 	}
 }
