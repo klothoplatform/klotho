@@ -1,12 +1,14 @@
-package sanitization
+package aws
 
 import (
 	"regexp"
+
+	"github.com/klothoplatform/klotho/pkg/sanitization"
 )
 
 // EnvVarKeySanitizer returns a sanitized environment key when applied.
-var EnvVarKeySanitizer = NewSanitizer(
-	[]Rule{
+var LambdaFunctionSanitizer = sanitization.NewSanitizer(
+	[]sanitization.Rule{
 		// strip any leading non alpha characters
 		{
 			Pattern:     regexp.MustCompile(`^[^a-zA-Z]+`),
@@ -22,4 +24,4 @@ var EnvVarKeySanitizer = NewSanitizer(
 			Pattern:     regexp.MustCompile(`[^a-zA-Z0-9_]+`),
 			Replacement: "",
 		},
-	}, 0)
+	}, 64)

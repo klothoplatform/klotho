@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -154,6 +155,7 @@ func (unit *ExecutionUnit) AddSourceFile(f File) {
 
 func (unit *ExecutionUnit) AddStaticAsset(f File) {
 	if f != nil {
+		fmt.Println(unit)
 		unit.files.Set(f.Path(), f)
 		unit.Executable.StaticAssets[f.Path()] = struct{}{}
 	}

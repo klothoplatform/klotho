@@ -19,6 +19,10 @@ func NewConstructGraph() *ConstructGraph {
 	}
 }
 
+func (cg *ConstructGraph) GetRoots() []Construct {
+	return cg.underlying.Roots()
+}
+
 func (cg *ConstructGraph) AddConstruct(construct Construct) {
 	zap.S().Infof("Adding resource %s", construct.Id())
 	cg.underlying.AddVertex(construct)

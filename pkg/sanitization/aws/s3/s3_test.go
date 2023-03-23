@@ -1,4 +1,4 @@
-package resources
+package s3
 
 import (
 	"testing"
