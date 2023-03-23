@@ -1,7 +1,7 @@
 package iac2
 
 import (
-	"fmt"
+	"go.uber.org/zap"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -25,9 +25,8 @@ func getStructValues(o any) map[string]any {
 	for i := 0; i < fieldCount; i++ {
 		valField := valType.Field(i)
 		if !valField.IsExported() {
-			panic(fmt.Sprintf(
-				`cannot output %s because it has unexported fields (this is a Klotho bug)`,
-				valType.Name()))
+			zap.S().Debugf(`Ignoring unexported field %s on %s`, valField.Name, valType.Name())
+			continue
 		}
 		fieldName := valField.Name
 		fieldValue := val.Field(i).Interface()

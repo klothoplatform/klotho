@@ -11,7 +11,6 @@ import (
 )
 
 func TestOutputBody(t *testing.T) {
-
 	compiler := CreateTemplatesCompiler()
 	compiler.templates = filesMapToFsMap(dummyTemplateFiles)
 	compiler.AddResource(
