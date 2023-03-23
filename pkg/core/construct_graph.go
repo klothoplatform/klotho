@@ -1,6 +1,8 @@
 package core
 
 import (
+	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"go.uber.org/zap"
 )
@@ -38,9 +40,27 @@ func (cg *ConstructGraph) ListDependencies() []graph.Edge[Construct] {
 	return cg.underlying.GetAllEdges()
 }
 
+func (cg *ConstructGraph) GetDownstreamDependencies(source Construct) []graph.Edge[Construct] {
+	return cg.underlying.OutgoingEdges(source)
+}
+
+func (cg *ConstructGraph) GetDownstreamConstructs(source Construct) []Construct {
+	return cg.underlying.OutgoingVertices(source)
+}
+
+func (cg *ConstructGraph) GetUpstreamDependencies(source Construct) []graph.Edge[Construct] {
+	return cg.underlying.IncomingEdges(source)
+}
+
+func (cg *ConstructGraph) GetUpstreamConstructs(source Construct) []Construct {
+	return cg.underlying.IncomingVertices(source)
+}
+
 func (cg *ConstructGraph) GetResourcesOfCapability(capability string) (filtered []Construct) {
 	vertices := cg.underlying.GetAllVertices()
 	for _, v := range vertices {
+		fmt.Println(v)
+		fmt.Println(capability)
 		if v.Provenance().Capability == capability {
 			filtered = append(filtered, v)
 
@@ -57,22 +77,6 @@ func GetResourcesOfType[T Construct](g *ConstructGraph) (filtered []T) {
 		}
 	}
 	return
-}
-
-func (cg *ConstructGraph) GetDownstreamDependencies(source Construct) []graph.Edge[Construct] {
-	return cg.underlying.OutgoingEdges(source)
-}
-
-func (cg *ConstructGraph) GetDownstreamConstructs(source Construct) []Construct {
-	return cg.underlying.OutgoingVertices(source)
-}
-
-func (cg *ConstructGraph) GetUpstreamDependencies(source Construct) []graph.Edge[Construct] {
-	return cg.underlying.IncomingEdges(source)
-}
-
-func (cg *ConstructGraph) GetUpstreamConstructs(source Construct) []Construct {
-	return cg.underlying.IncomingVertices(source)
 }
 
 func (cg *ConstructGraph) GetExecUnitForPath(fp string) (*ExecutionUnit, File) {
