@@ -61,23 +61,15 @@ func ParseResourceCreationTemplate(contents []byte) ResourceCreationTemplate {
 		result.inputTypes[inputName] = inputType
 	}
 
-	// return type
-	returnTypeFunc := query.Select(doQuery(node, findCreateFuncQuery), query.ContentOf(query.ParamNamed("return_type")))
-	returnType, err := returnTypeFunc()
-	if !err {
+	// return type and expression
+	createFunc := doQuery(node, findCreateFuncQuery)
+	create, found := createFunc()
+	if !found {
 		// unexpected, since all inputs are from resources in the klotho binary
 		panic("couldn't find valid create() function")
 	}
-	result.outputType = returnType
-
-	// return expression
-	returnBodyFunc := query.Select(doQuery(node, findCreateFuncQuery), query.ContentOf(query.ParamNamed("return_body")))
-	returnBody, err := returnBodyFunc()
-	if !err {
-		// unexpected, since all inputs are from resources in the klotho binary
-		panic("couldn't find valid create() function")
-	}
-	result.expressionTemplate = parameterizeArgs(returnBody)
+	result.outputType = create["return_type"].Content()
+	result.expressionTemplate = parameterizeArgs(create["return_body"].Content())
 
 	// imports
 	result.imports = make(map[string]struct{})
