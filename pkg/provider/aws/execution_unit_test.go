@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -8,6 +9,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/cloudwatch"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/ecr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/iam"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/lambda"
@@ -20,6 +22,8 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 	image := ecr.NewEcrImage(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}, "test")
 	role := iam.NewIamRole("test", "test-ExecutionRole", core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, iam.LAMBDA_ASSUMER_ROLE_POLICY)
 	lambda := lambda.NewLambdaFunction(unit, "test", role)
+	logGroup := cloudwatch.NewLogGroup("test", fmt.Sprintf("/aws/lambda/%s", lambda.Name), unit.Provenance(), 5)
+
 	type testResult struct {
 		nodes []core.Resource
 		deps  []graph.Edge[core.Resource]
@@ -36,24 +40,28 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 			cfg: config.Application{
 				AppName: "test",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"test": &config.ExecutionUnit{Type: "lambda"},
+					"test": {Type: "lambda"},
 				},
 			},
 			want: testResult{
 				nodes: []core.Resource{
-					repo, image, role, lambda,
+					repo, image, role, lambda, logGroup,
 				},
 				deps: []graph.Edge[core.Resource]{
-					graph.Edge[core.Resource]{
+					{
 						Source:      repo,
 						Destination: image,
 					},
-					graph.Edge[core.Resource]{
+					{
 						Source:      image,
 						Destination: lambda,
 					},
-					graph.Edge[core.Resource]{
+					{
 						Source:      role,
+						Destination: lambda,
+					},
+					{
+						Source:      logGroup,
 						Destination: lambda,
 					},
 				},
@@ -64,7 +72,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 			cfg: config.Application{
 				AppName: "test",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"test": &config.ExecutionUnit{Type: "lambda"},
+					"test": {Type: "lambda"},
 				},
 			},
 			existingResources: []core.Resource{ecr.NewEcrRepository("test", core.AnnotationKey{ID: "test2", Capability: annotation.ExecutionUnitCapability})},
@@ -73,16 +81,20 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					repo, image, role, lambda,
 				},
 				deps: []graph.Edge[core.Resource]{
-					graph.Edge[core.Resource]{
+					{
 						Source:      repo,
 						Destination: image,
 					},
-					graph.Edge[core.Resource]{
+					{
 						Source:      image,
 						Destination: lambda,
 					},
-					graph.Edge[core.Resource]{
+					{
 						Source:      role,
+						Destination: lambda,
+					},
+					{
+						Source:      logGroup,
 						Destination: lambda,
 					},
 				},

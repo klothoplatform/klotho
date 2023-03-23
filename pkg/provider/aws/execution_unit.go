@@ -6,6 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/cloudwatch"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/ecr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/iam"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/lambda"
@@ -42,8 +43,12 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, dag *core.Reso
 
 	switch execUnitCfg.Type {
 	case Lambda:
+
 		lambda := lambda.NewLambdaFunction(unit, a.Config.AppName, role)
+		logGroup := cloudwatch.NewLogGroup(a.Config.AppName, fmt.Sprintf("/aws/lambda/%s", lambda.Name), unit.Provenance(), 5)
 		dag.AddResource(lambda)
+		dag.AddResource(logGroup)
+		dag.AddDependency(logGroup, lambda)
 		dag.AddDependency(role, lambda)
 		dag.AddDependency(image, lambda)
 		return nil
