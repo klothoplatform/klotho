@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -101,96 +100,6 @@ func Test_setHelmChartDirectory(t *testing.T) {
 	}
 }
 
-func Test_setValuesFiles(t *testing.T) {
-
-	tests := []struct {
-		name     string
-		path     string
-		cfg      *config.ExecutionUnit
-		unitName string
-		want     []string
-	}{
-		{
-			name: "happy path yaml",
-			path: "somedir/values.yaml",
-			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{
-					Install:   true,
-					Directory: "somedir",
-				},
-			},
-			unitName: "testUnit",
-			want:     []string{"somedir/values.yaml"},
-		},
-		{
-			name: "happy path yml",
-			path: "somedir/values.yml",
-			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{
-					Install:   true,
-					Directory: "somedir",
-				},
-			},
-			unitName: "testUnit",
-			want:     []string{"somedir/values.yml"},
-		},
-		{
-			name: "happy path no directory",
-			path: "somedir/values.yml",
-			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{
-					Install: true,
-				},
-			},
-			unitName: "testUnit",
-			want:     []string{"somedir/values.yml"},
-		},
-		{
-			name: "no install",
-			path: "somedir/values.yaml",
-			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{},
-			},
-			unitName: "testUnit",
-		},
-		{
-			name: "values override",
-			path: "somedir/values.yaml",
-			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{
-					ValuesFiles: []string{"override/values.yaml"},
-					Install:     true,
-				},
-			},
-			unitName: "testUnit",
-			want:     []string{"override/values.yaml"},
-		},
-		{
-			name: "non yaml file no action",
-			path: "somedir/values.something",
-			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{
-					Install: true,
-				},
-			},
-			unitName: "testUnit",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			k := &Kubernetes{Config: &config.Application{Path: "."}, log: zap.L().Sugar()}
-
-			err := k.setValuesFile(tt.path, tt.cfg, tt.unitName)
-			if !assert.NoError(err) {
-				return
-			}
-			assert.Equal(tt.want, tt.cfg.HelmChartOptions.ValuesFiles)
-		})
-	}
-}
-
 type testCapabilityFinder struct{}
 
 var testLang = core.SourceLanguage{
@@ -237,8 +146,7 @@ func Test_getKlothoCharts(t *testing.T) {
 			want: result{
 				klothoCharts: map[string]KlothoHelmChart{
 					"chart": {
-						Directory:   "chart",
-						ValuesFiles: []string{"chart/values.yaml"},
+						Directory: "chart",
 					},
 				},
 				chartsUnits: map[string][]string{
@@ -274,8 +182,7 @@ func Test_getKlothoCharts(t *testing.T) {
 			want: result{
 				klothoCharts: map[string]KlothoHelmChart{
 					"chart": {
-						Directory:   "chart",
-						ValuesFiles: []string{"chart/values.yaml"},
+						Directory: "chart",
 					},
 				},
 				chartsUnits: map[string][]string{
@@ -363,11 +270,11 @@ func Test_getKlothoCharts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			result := &core.CompilationResult{}
+			result := core.NewConstructGraph()
 			inputFiles := &core.InputFiles{}
 			for idx, fileUnit := range tt.fileUnits {
 				execUnitName := fmt.Sprintf("main%s", strconv.Itoa(idx))
-				testUnit := core.ExecutionUnit{Name: execUnitName}
+				testUnit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: execUnitName, Capability: annotation.ExecutionUnitCapability}}
 				for path, file := range fileUnit {
 					f, err := core.NewSourceFile(path, strings.NewReader(file), testLang)
 					if assert.Nil(err) {
@@ -375,9 +282,8 @@ func Test_getKlothoCharts(t *testing.T) {
 						inputFiles.Add(f)
 					}
 				}
-				result.Add(&testUnit)
+				result.AddConstruct(&testUnit)
 			}
-			result.Add(inputFiles)
 
 			k := &Kubernetes{Config: tt.cfg, log: zap.L().Sugar()}
 
@@ -401,14 +307,6 @@ func Test_getKlothoCharts(t *testing.T) {
 					}
 					if !assert.True(found) {
 						return
-					}
-					res := result.Get(core.ResourceKey{Kind: core.ExecutionUnitKind, Name: u.Name})
-					unit, ok := res.(*core.ExecutionUnit)
-					if !assert.True(ok) {
-						return
-					}
-					for _, f := range unit.Files() {
-						assert.True(!strings.HasPrefix(f.Path(), c.Directory+string(os.PathSeparator)))
 					}
 				}
 			}

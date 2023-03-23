@@ -2,16 +2,17 @@ package csharp
 
 import (
 	"bytes"
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 )
 
 type (
 	Runtime interface {
-		AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error
+		AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error
 	}
 )
 

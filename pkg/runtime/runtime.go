@@ -20,7 +20,7 @@ func ShouldOverrideDockerfile(unit *core.ExecutionUnit) bool {
 		caps := dFile.Annotations()
 		for _, annot := range caps {
 			cap := annot.Capability
-			if cap.ID == unit.Name && cap.Name == annotation.ExecutionUnitCapability {
+			if cap.ID == unit.ID && cap.Name == annotation.ExecutionUnitCapability {
 				unit.DockerfilePath = f.Path()
 				return false
 			}

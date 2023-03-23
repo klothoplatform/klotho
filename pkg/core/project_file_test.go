@@ -114,8 +114,7 @@ func TestCheckForProjectFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			testUnit := ExecutionUnit{Name: "main"}
-			result := &CompilationResult{}
+			testUnit := ExecutionUnit{AnnotationKey: AnnotationKey{ID: "main"}}
 			input := &InputFiles{}
 			for path, unit := range tt.fileUnits {
 				if strings.Contains(path, tt.fileName) {
@@ -128,9 +127,7 @@ func TestCheckForProjectFile(t *testing.T) {
 					}
 				}
 			}
-			result.Add(input)
-
-			pf := CheckForProjectFile(result, &testUnit, tt.fileName)
+			pf := CheckForProjectFile(input, &testUnit, tt.fileName)
 			assert.Equal(tt.want, pf)
 		})
 	}

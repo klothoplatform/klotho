@@ -7,17 +7,15 @@ import (
 
 type EnvironmentVariable interface {
 	GetName() string
-	GetKind() string
-	GetResourceID() string
+	GetConstruct() Construct
 	GetValue() string
 }
 
 type (
 	environmentVariable struct {
-		Name       string
-		Kind       string
-		ResourceID string
-		Value      string
+		Name      string
+		Construct Construct
+		Value     string
 	}
 
 	EnvironmentVariables []environmentVariable
@@ -27,25 +25,20 @@ func (e environmentVariable) GetName() string {
 	return e.Name
 }
 
-func (e environmentVariable) GetKind() string {
-	return e.Kind
-}
-
-func (e environmentVariable) GetResourceID() string {
-	return e.ResourceID
+func (e environmentVariable) GetConstruct() Construct {
+	return e.Construct
 }
 
 func (e environmentVariable) GetValue() string {
 	return e.Value
 }
 
-func NewEnvironmentVariable(name string, kind string, resourceId string, value string) environmentVariable {
+func NewEnvironmentVariable(name string, construct Construct, value string) environmentVariable {
 	name = sanitization.EnvVarKeySanitizer.Apply(name)
 	return environmentVariable{
-		Name:       name,
-		Kind:       kind,
-		ResourceID: resourceId,
-		Value:      value,
+		Name:      name,
+		Construct: construct,
+		Value:     value,
 	}
 }
 
@@ -70,10 +63,8 @@ var (
 )
 
 var InternalStorageVariable = environmentVariable{
-	Name:       KLOTHO_PROXY_ENV_VAR_NAME,
-	Kind:       InternalKind,
-	ResourceID: KlothoPayloadName,
-	Value:      string(BUCKET_NAME),
+	Name:  KLOTHO_PROXY_ENV_VAR_NAME,
+	Value: string(BUCKET_NAME),
 }
 
 // Add the given environment variable to the list. If a variable of the same name already exists, replace it.
@@ -83,7 +74,7 @@ func (vars *EnvironmentVariables) Add(v environmentVariable) {
 	}
 	for i, e := range *vars {
 		if e.Name == v.Name {
-			if e.Value != v.Value || e.ResourceID != v.ResourceID {
+			if e.Value != v.Value || e.Construct != v.Construct {
 				zap.S().Debugf("Replacing variable %+v with %+v", e, v)
 			}
 			(*vars)[i] = v

@@ -68,9 +68,9 @@ func (NoopRuntime) AddRedisNodeRuntimeFiles(unit *core.ExecutionUnit) error     
 func (NoopRuntime) AddRedisClusterRuntimeFiles(unit *core.ExecutionUnit) error            { return nil }
 func (NoopRuntime) AddPubsubRuntimeFiles(unit *core.ExecutionUnit) error                  { return nil }
 func (NoopRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error { return nil }
-func (NoopRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
+func (NoopRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
 	return nil
 }
-func (NoopRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotation, kind core.PersistKind) error {
+func (NoopRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotation, construct core.Construct) error {
 	return nil
 }

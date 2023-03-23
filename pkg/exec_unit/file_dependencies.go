@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
 	"go.uber.org/zap"
 )
 
@@ -24,13 +23,6 @@ const (
 )
 
 func (FileDependencies) Type() string { return "" }
-
-// Key implements core.CloudResource
-func (deps FileDependencies) Key() core.ResourceKey {
-	return core.ResourceKey{
-		Kind: FileDependenciesResourceKind,
-	}
-}
 
 func (deps FileDependencies) Add(other FileDependencies) {
 	for k, v := range other {

@@ -19,28 +19,20 @@ type PersistFsPlugin struct {
 
 func (p PersistFsPlugin) Name() string { return "Persist" }
 
-func (p PersistFsPlugin) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p PersistFsPlugin) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 
 	var errs multierr.Error
-	for _, res := range result.Resources() {
-		unit, ok := res.(*core.ExecutionUnit)
-		if !ok {
-			continue
-		}
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		for _, goSource := range unit.FilesOfLang(goLang) {
 			resources, err := p.handleFile(goSource, unit)
 			if err != nil {
-				errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.Name))
+				errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.ID))
 				continue
 			}
 
 			for _, r := range resources {
-				result.Add(r)
-
-				deps.Add(core.ResourceKey{
-					Name: unit.Name,
-					Kind: core.ExecutionUnitKind,
-				}, r.Key())
+				constructGraph.AddConstruct(r)
+				constructGraph.AddDependency(unit.Id(), r.Id())
 			}
 		}
 	}
@@ -48,8 +40,8 @@ func (p PersistFsPlugin) Transform(result *core.CompilationResult, deps *core.De
 	return errs.ErrOrNil()
 }
 
-func (p *PersistFsPlugin) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]core.CloudResource, error) {
-	resources := []core.CloudResource{}
+func (p *PersistFsPlugin) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]core.Construct, error) {
+	resources := []core.Construct{}
 	var errs multierr.Error
 	annots := f.Annotations()
 	for _, annot := range annots {
@@ -70,9 +62,12 @@ func (p *PersistFsPlugin) handleFile(f *core.SourceFile, unit *core.ExecutionUni
 	return resources, errs.ErrOrNil()
 }
 
-func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, result *persistResult, unit *core.ExecutionUnit) (core.CloudResource, error) {
+func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, result *persistResult, unit *core.ExecutionUnit) (core.Construct, error) {
+	fs := &core.Fs{
+		AnnotationKey: core.AnnotationKey{Capability: cap.Capability.Name, ID: cap.Capability.ID},
+	}
 
-	fsEnvVar := core.GenerateBucketEnvVar(cap.Capability.ID)
+	fsEnvVar := core.GenerateBucketEnvVar(fs)
 
 	unit.EnvironmentVariables.Add(fsEnvVar)
 
@@ -97,11 +92,7 @@ func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, 
 		return nil, err
 	}
 
-	persist := &core.Persist{
-		Kind: core.PersistFileKind,
-		Name: cap.Capability.ID,
-	}
-	return persist, nil
+	return fs, nil
 }
 
 type persistResult struct {

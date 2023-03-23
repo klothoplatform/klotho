@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
@@ -137,7 +138,7 @@ import (
 	"gocloud.dev/runtimevar"
 )
 /**
-* @klotho::persist {
+* @klotho::config {
 *	id = "test"
 *   secret = true
 * }
@@ -146,7 +147,10 @@ v, err := runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder
 `,
 			want: testResult{
 				resource: core.Config{
-					Name: "test",
+					AnnotationKey: core.AnnotationKey{
+						ID:         "test",
+						Capability: annotation.ConfigCapability,
+					},
 				},
 				content: `package fs
 
@@ -156,7 +160,7 @@ import (
 )
 
 /**
-* @klotho::persist {
+* @klotho::config {
 *	id = "test"
 *   secret = true
 * }
@@ -178,7 +182,7 @@ import (
 	"gocloud.dev/runtimevar"
 )
 /**
-* @klotho::persist {
+* @klotho::config {
 *	id = "test"
 *   secret = true
 * }
@@ -187,7 +191,10 @@ var v, err = runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?deco
 `,
 			want: testResult{
 				resource: core.Config{
-					Name: "test",
+					AnnotationKey: core.AnnotationKey{
+						ID:         "test",
+						Capability: annotation.ConfigCapability,
+					},
 				},
 				content: `package fs
 
@@ -197,7 +204,7 @@ import (
 )
 
 /**
-* @klotho::persist {
+* @klotho::config {
 *	id = "test"
 *   secret = true
 * }
@@ -221,7 +228,7 @@ import (
 var v *runtimevar.Variable
 var err error
 /**
-* @klotho::persist {
+* @klotho::config {
 *	id = "test"
 *   secret = true
 * }
@@ -230,7 +237,10 @@ v, err = runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder=
 `,
 			want: testResult{
 				resource: core.Config{
-					Name: "test",
+					AnnotationKey: core.AnnotationKey{
+						ID:         "test",
+						Capability: annotation.ConfigCapability,
+					},
 				},
 				content: `package fs
 
@@ -242,7 +252,7 @@ import (
 var v *runtimevar.Variable
 var err error
 /**
-* @klotho::persist {
+* @klotho::config {
 *	id = "test"
 *   secret = true
 * }
@@ -270,7 +280,7 @@ var queryParams string
 			if !assert.NoError(err) {
 				return
 			}
-			annot, ok := f.Annotations()[core.AnnotationKey{Capability: "persist", ID: "test"}]
+			annot, ok := f.Annotations()[core.AnnotationKey{Capability: "config", ID: "test"}]
 
 			if !assert.True(ok) {
 				return
@@ -284,7 +294,7 @@ var queryParams string
 				return
 			}
 
-			assert.Equal(tt.want.resource.Key(), result.Key())
+			assert.Equal(tt.want.resource.Provenance(), result.Provenance())
 			assert.Equal(tt.want.content, string(f.Program()))
 		})
 	}

@@ -6,12 +6,6 @@ type (
 
 var InputFilesKind = "input_files"
 
-func (*InputFiles) Key() ResourceKey {
-	return ResourceKey{
-		Kind: InputFilesKind,
-	}
-}
-
 func (input *InputFiles) Add(f File) {
 	m := (*ConcurrentMap[string, File])(input)
 	if f != nil {

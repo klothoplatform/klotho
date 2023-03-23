@@ -30,15 +30,6 @@ type (
 
 var AwsTemplateDataKind = "aws_template_data"
 
-func (*TemplateData) Type() string { return "" }
-
-func (t *TemplateData) Key() core.ResourceKey {
-	return core.ResourceKey{
-		Name: t.AppName,
-		Kind: AwsTemplateDataKind,
-	}
-}
-
 func NewTemplateData(config *config.Application) *TemplateData {
 	return &TemplateData{
 		TemplateConfig: TemplateConfig{
@@ -155,29 +146,29 @@ func (a *AWS) GetDefaultConfig() config.Defaults {
 }
 
 // GetKindTypeMappings returns a list of valid types for the aws provider based on the kind passed in
-func (a *AWS) GetKindTypeMappings(kind string) ([]string, bool) {
-	switch kind {
-	case core.ExecutionUnitKind:
+func (a *AWS) GetKindTypeMappings(construct core.Construct) ([]string, bool) {
+	switch construct.(type) {
+	case *core.ExecutionUnit:
 		return []string{Eks, Ecs, Lambda}, true
-	case core.GatewayKind:
+	case *core.Gateway:
 		return []string{string(ApiGateway), string(Alb)}, true
-	case core.StaticUnitKind:
+	case *core.StaticUnit:
 		return []string{S3}, true
-	case string(core.PersistFileKind):
+	case *core.Fs:
 		return []string{S3}, true
-	case string(core.PersistKVKind):
+	case *core.Kv:
 		return []string{Dynamodb}, true
-	case string(core.PersistORMKind):
+	case *core.Orm:
 		return []string{Rds_postgres}, true
-	case string(core.PersistRedisNodeKind):
+	case *core.RedisNode:
 		return []string{Elasticache}, true
-	case string(core.PersistRedisClusterKind):
+	case *core.RedisCluster:
 		return []string{Memorydb}, true
-	case string(core.PersistSecretKind):
+	case *core.Secrets:
 		return []string{S3}, true
-	case core.PubSubKind:
+	case *core.PubSub:
 		return []string{Sns}, true
-	case core.ConfigKind:
+	case *core.Config:
 		return []string{S3, Secrets_manager}, true
 	}
 	return nil, false

@@ -34,9 +34,9 @@ var Funcs = template.FuncMap{
 		}
 	},
 
-	"keyNames": func(keys []core.ResourceKey) (ns []string) {
+	"keyNames": func(keys []core.Construct) (ns []string) {
 		for _, k := range keys {
-			ns = append(ns, k.Name)
+			ns = append(ns, k.Provenance().ID)
 		}
 		return
 	},

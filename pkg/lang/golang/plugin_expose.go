@@ -35,8 +35,7 @@ type (
 	}
 
 	restAPIHandler struct {
-		Result          *core.CompilationResult
-		Deps            *core.Dependencies
+		ConstructGraph  *core.ConstructGraph
 		Unit            *core.ExecutionUnit
 		RoutesByGateway map[gatewaySpec][]gatewayRouteDefinition
 		RootPath        string
@@ -72,27 +71,27 @@ type (
 
 func (p *Expose) Name() string { return "Expose" }
 
-func (p Expose) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p Expose) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
-		err := p.transformSingle(result, deps, unit)
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+		err := p.transformSingle(constructGraph, unit)
 		errs.Append(err)
 	}
 	return errs.ErrOrNil()
 }
 
-func (p *Expose) transformSingle(result *core.CompilationResult, deps *core.Dependencies, unit *core.ExecutionUnit) error {
-	h := &restAPIHandler{Result: result, Deps: deps, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition), runtime: p.runtime}
+func (p *Expose) transformSingle(constructGraph *core.ConstructGraph, unit *core.ExecutionUnit) error {
+	h := &restAPIHandler{ConstructGraph: constructGraph, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition), runtime: p.runtime}
 	err := h.handle(unit)
 	if err != nil {
-		err = core.WrapErrf(err, "Chi handler failure for %s", unit.Name)
+		err = core.WrapErrf(err, "Chi handler failure for %s", unit.ID)
 	}
 	return err
 }
 
 func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 	h.Unit = unit
-	h.log = zap.L().With(zap.String("unit", unit.Name))
+	h.log = zap.L().With(zap.String("unit", unit.ID))
 
 	var errs multierr.Error
 	for _, f := range unit.Files() {
@@ -113,13 +112,13 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 
 	for spec, routes := range h.RoutesByGateway {
 		gwName := spec.Id
-		gw := core.NewGateway(gwName)
-		if existing := h.Result.Get(gw.Key()); existing != nil {
+		gw := core.NewGateway(core.AnnotationKey{ID: gwName, Capability: annotation.ExposeCapability})
+		if existing := h.ConstructGraph.GetConstruct(gw.Provenance()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath
 			gw.ExportVarName = spec.AppVarName
-			h.Result.Add(gw)
+			h.ConstructGraph.AddConstruct(gw)
 		}
 
 		for _, route := range routes {
@@ -138,9 +137,9 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 			targetUnit := core.FileExecUnitName(targetFile)
 			if targetUnit == "" {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
-				targetUnit = unit.Name
+				targetUnit = unit.ID
 			}
-			h.Deps.Add(gw.Key(), core.ResourceKey{Name: targetUnit, Kind: core.ExecutionUnitKind})
+			h.ConstructGraph.AddDependency(gw.Id(), core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}.ToId())
 		}
 	}
 
@@ -363,7 +362,7 @@ func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, router chiRoute
 		route := core.Route{
 			Verb:          core.Verb(vfunc.Verb),
 			Path:          path.Join(h.RootPath, prefix, vfunc.Path), //TODO: Handle Chi router path parameters conversion to express for pulumi logic
-			ExecUnitName:  h.Unit.Name,
+			ExecUnitName:  h.Unit.ID,
 			HandledInFile: f.Path(),
 		}
 		log.Sugar().Debugf("Found route function %s %s for '%s'", route.Verb, route.Path, router.Name)
@@ -601,7 +600,7 @@ func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *s
 		route := core.Route{
 			Verb:          core.Verb(vfunc.Verb),
 			Path:          path.Join(h.RootPath, m.Path, vfunc.Path), //TODO: Handle Chi router path parameters conversion to express for pulumi logic
-			ExecUnitName:  h.Unit.Name,
+			ExecUnitName:  h.Unit.ID,
 			HandledInFile: f.Path(),
 		}
 		log.Sugar().Debugf("Found route function %s %s from '%s.%s'", route.Verb, route.Path, m.PkgAlias, m.FuncName)

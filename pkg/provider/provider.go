@@ -1,12 +1,13 @@
 package provider
 
 import (
+	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 )
 
 type Provider interface {
-	core.Plugin
-	GetKindTypeMappings(kind string) ([]string, bool)
+	compiler.ProviderPlugin
+	GetKindTypeMappings(construct core.Construct) ([]string, bool)
 	GetDefaultConfig() config.Defaults
 }

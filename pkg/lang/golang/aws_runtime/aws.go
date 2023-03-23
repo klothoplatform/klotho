@@ -38,7 +38,7 @@ var dockerfileLambda []byte
 //go:embed Exec_Dockerfile
 var dockerfileExec []byte
 
-func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
+func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
 	var DockerFile []byte
 	unitType := r.Cfg.GetResourceType(unit)
 	switch unitType {
@@ -52,7 +52,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		ExecUnitName:   unit.ID,
 	}
 
 	if runtime.ShouldOverrideDockerfile(unit) {
