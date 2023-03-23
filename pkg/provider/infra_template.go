@@ -25,13 +25,11 @@ type (
 		HelmCharts  []HelmChart
 		StaticUnits []StaticUnit
 		Gateways    []Gateway
-		Topology    core.TopologyData
-		Results     *core.CompilationResult
 	}
 
 	PubSub struct {
-		Publishers  []core.ResourceKey
-		Subscribers []core.ResourceKey
+		Publishers  []core.AnnotationKey
+		Subscribers []core.AnnotationKey
 		Path        string
 		EventName   string
 		Name        string

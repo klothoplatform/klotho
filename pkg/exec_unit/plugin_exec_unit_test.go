@@ -53,7 +53,7 @@ func Test_environmentVarsAddedToUnit(t *testing.T) {
 				},
 			}
 			p := ExecUnitPlugin{Config: &cfg}
-			result := &core.CompilationResult{}
+			result := core.NewConstructGraph()
 
 			inputFiles := &core.InputFiles{}
 			if tt.wantExecUnit {
@@ -67,8 +67,7 @@ func Test_environmentVarsAddedToUnit(t *testing.T) {
 				})
 			}
 
-			result.Add(inputFiles)
-			err := p.Transform(result, &core.Dependencies{})
+			err := p.Transform(inputFiles, result)
 			if !assert.NoError(err) {
 				return
 			}

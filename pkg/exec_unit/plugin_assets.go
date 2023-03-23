@@ -17,12 +17,10 @@ type Assets struct{}
 
 func (p Assets) Name() string { return "Assets" }
 
-func (p Assets) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
-	input := result.GetFirstResource(core.InputFilesKind).(*core.InputFiles)
-
+func (p Assets) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	units := make(map[string]*core.ExecutionUnit)
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
-		units[unit.Name] = unit
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+		units[unit.ID] = unit
 	}
 
 	var errs multierr.Error

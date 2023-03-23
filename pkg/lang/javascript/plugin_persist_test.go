@@ -107,9 +107,9 @@ p.get('foo')`,
 				execUnit.Add(f)
 			}
 			p := persister{
-				result: &core.CompilationResult{},
+				ConstructGraph: core.NewConstructGraph(),
 			}
-			p.result.Add(&execUnit)
+			p.ConstructGraph.AddConstruct(&execUnit)
 
 			p.findUnawaitedCalls(&execUnit)
 			logSb := strings.Builder{}
@@ -251,7 +251,8 @@ const m = new keyvalueRuntime.dMap({"versioned":true})`,
 
 			ptype, pres := p.determinePersistType(f, cap)
 
-			if !assert.Equal(core.PersistKVKind, ptype) {
+			_, ok := ptype.(*core.Kv)
+			if !assert.True(ok) {
 				return
 			}
 

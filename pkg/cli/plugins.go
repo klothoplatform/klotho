@@ -1,8 +1,8 @@
 package cli
 
 import (
+	compiler "github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
 	envvar "github.com/klothoplatform/klotho/pkg/env_var"
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
@@ -19,31 +19,18 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/provider/providers"
 	staticunit "github.com/klothoplatform/klotho/pkg/static_unit"
-	"github.com/klothoplatform/klotho/pkg/topology"
-	"github.com/klothoplatform/klotho/pkg/validation"
 )
 
 // PluginSetBuilder is a crude "plugin dependency" helper struct for managing the order of plugins via stages.
 // TODO improve the flexibility and expressivity to capture the real dependencies between plugins.
 type PluginSetBuilder struct {
-	Cfg       *config.Application
-	Parse     []core.Plugin
-	Units     []core.Plugin
-	Transform []core.Plugin
-	Topology  []core.Plugin
-	Infra     []core.Plugin
+	AnalysisAndTransform []compiler.AnalysisAndTransformationPlugin
+	Provider             []compiler.ProviderPlugin
+	IaC                  []compiler.IaCPlugin
+
+	Cfg *config.Application
 
 	provider provider.Provider
-}
-
-func (b PluginSetBuilder) Plugins() []core.Plugin {
-	var plugins []core.Plugin
-	plugins = append(plugins, b.Parse...)
-	plugins = append(plugins, b.Units...)
-	plugins = append(plugins, b.Transform...)
-	plugins = append(plugins, b.Topology...)
-	plugins = append(plugins, b.Infra...)
-	return plugins
 }
 
 func (b *PluginSetBuilder) AddAll() error {
@@ -55,25 +42,14 @@ func (b *PluginSetBuilder) AddAll() error {
 		b.AddGo,
 		b.AddCSharp,
 		b.AddPulumi,
-		b.AddPostCompilation,
 	} {
 		merr.Append(f())
 	}
 	return merr.ErrOrNil()
 }
 
-func (b *PluginSetBuilder) AddPostCompilation() error {
-	if err := b.setupProvider(); err != nil {
-		return err
-	}
-
-	b.Transform = append(b.Transform, envvar.EnvVarInjection{Config: b.Cfg}, validation.Plugin{Provider: b.provider, Config: b.Cfg, UserConfigOverrides: *b.Cfg}, kubernetes.Kubernetes{Config: b.Cfg})
-	b.Topology = append(b.Topology, topology.Plugin{Config: b.Cfg})
-	return nil
-}
-
 func (b *PluginSetBuilder) AddExecUnit() error {
-	b.Units = append(b.Units,
+	b.AnalysisAndTransform = append(b.AnalysisAndTransform,
 		staticunit.StaticUnitSplit{Config: b.Cfg},
 		execunit.ExecUnitPlugin{Config: b.Cfg},
 		// Configure executables and include assets after exec split
@@ -83,7 +59,8 @@ func (b *PluginSetBuilder) AddExecUnit() error {
 		golang.GolangExecutable{},
 		csharp.CSharpExecutable{Config: b.Cfg},
 		execunit.PruneUncategorizedFiles{},
-		execunit.Assets{})
+		execunit.Assets{},
+		envvar.EnvVarInjection{Config: b.Cfg})
 	return nil
 }
 
@@ -93,7 +70,7 @@ func (b *PluginSetBuilder) AddJavascript() error {
 		return err
 	}
 
-	b.Transform = append(b.Transform, javascript.NewJavascriptPlugins(b.Cfg, jsRuntime))
+	b.AnalysisAndTransform = append(b.AnalysisAndTransform, javascript.NewJavascriptPlugins(b.Cfg, jsRuntime))
 	return nil
 }
 
@@ -103,7 +80,7 @@ func (b *PluginSetBuilder) AddPython() error {
 		return err
 	}
 
-	b.Transform = append(b.Transform, python.NewPythonPlugins(b.Cfg, pyRuntime))
+	b.AnalysisAndTransform = append(b.AnalysisAndTransform, python.NewPythonPlugins(b.Cfg, pyRuntime))
 	return nil
 }
 
@@ -113,7 +90,7 @@ func (b *PluginSetBuilder) AddGo() error {
 		return err
 	}
 
-	b.Transform = append(b.Transform, golang.NewGoPlugins(b.Cfg, goRuntime))
+	b.AnalysisAndTransform = append(b.AnalysisAndTransform, golang.NewGoPlugins(b.Cfg, goRuntime))
 	return nil
 }
 
@@ -122,7 +99,7 @@ func (b *PluginSetBuilder) AddCSharp() error {
 	if err != nil {
 		return err
 	}
-	b.Transform = append(b.Transform, csharp.NewCSharpPlugins(b.Cfg, csRuntime))
+	b.AnalysisAndTransform = append(b.AnalysisAndTransform, csharp.NewCSharpPlugins(b.Cfg, csRuntime))
 	return nil
 }
 
@@ -133,8 +110,9 @@ func (b *PluginSetBuilder) setupProvider() (err error) {
 
 	b.provider, err = providers.GetProvider(b.Cfg)
 	if err == nil {
-		b.Infra = append(b.Infra, b.provider)
+		b.Provider = append(b.Provider, b.provider)
 	}
+	b.Provider = append(b.Provider, kubernetes.Kubernetes{Config: b.Cfg})
 	return
 }
 
@@ -142,6 +120,6 @@ func (b *PluginSetBuilder) AddPulumi() error {
 	if err := b.setupProvider(); err != nil {
 		return err
 	}
-	b.Infra = append(b.Infra, pulumi_aws.Plugin{Config: b.Cfg})
+	b.IaC = append(b.IaC, pulumi_aws.Plugin{Config: b.Cfg})
 	return nil
 }

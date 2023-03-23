@@ -71,12 +71,11 @@ func updateCsproj(unit *core.ExecutionUnit) {
 	projectFile.AddProperty("OutDir", "klotho_bin")
 }
 
-func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
+func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 	var err error
 	var dockerFile []byte
 	unitType := r.Cfg.GetResourceType(unit)
-	fmt.Println(unitType)
 	switch unitType {
 	case "lambda":
 		dockerFile = dockerfileLambda
@@ -96,12 +95,12 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.
 
 	assembly := resolveAssemblyName(projectFile)
 
-	exposeData, err := r.getExposeTemplateData(unit, result, deps)
+	exposeData, err := r.getExposeTemplateData(unit, constructGraph)
 	errs.Append(err)
 
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		ExecUnitName:   unit.ID,
 		CSProjFile:     projectFile.Path(),
 		Expose:         exposeData,
 		AssemblyName:   assembly,
@@ -125,13 +124,13 @@ func resolveAssemblyName(projectFile *csproj.CSProjFile) string {
 	return assembly
 }
 
-func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) (ExposeTemplateData, error) {
-	upstreamGateways := core.FindUpstreamGateways(unit, result, deps)
+func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) (ExposeTemplateData, error) {
+	upstreamGateways := constructGraph.FindUpstreamGateways(unit)
 
 	var sgw *core.Gateway
 	var sgwApiType string
 	for _, gw := range upstreamGateways {
-		gwCfg := r.Cfg.GetExpose(gw.Name)
+		gwCfg := r.Cfg.GetExpose(gw.ID)
 		kindParams := r.Cfg.GetExposeKindParams(gwCfg)
 		var gwApiType string
 		if params, ok := kindParams.(config.GatewayTypeParams); ok {
@@ -141,14 +140,14 @@ func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, result *cor
 			if sgw.DefinedIn != gw.DefinedIn || sgw.ExportVarName != gw.ExportVarName {
 				return ExposeTemplateData{},
 					errors.Errorf("multiple gateways cannot target different web applications in the same execution unit: [%s -> %s],[%s -> %s]",
-						gw.Name, unit.Name,
-						sgw.Name, unit.Name)
+						gw.ID, unit.ID,
+						sgw.ID, unit.ID)
 			}
 			if sgwApiType != gwApiType {
 				return ExposeTemplateData{},
 					errors.Errorf("an execution unit cannot be targeted by different gateways with different API types : [%s:%s -> %s],[%s:%s -> %s]",
-						gwApiType, gw.Name, unit.Name,
-						sgwApiType, sgw.Name, unit.Name)
+						gwApiType, gw.ID, unit.ID,
+						sgwApiType, sgw.ID, unit.ID)
 			}
 		}
 		sgw = gw
@@ -164,7 +163,7 @@ func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, result *cor
 		return ExposeTemplateData{}, err
 	}
 
-	unitType := r.Cfg.GetExecutionUnit(unit.Name).Type
+	unitType := r.Cfg.GetExecutionUnit(unit.ID).Type
 
 	if unitType != "lambda" {
 		return ExposeTemplateData{}, fmt.Errorf("unit type \"%s\" is not supported in C# execution units", unitType)

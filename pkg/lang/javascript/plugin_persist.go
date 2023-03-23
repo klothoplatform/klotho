@@ -3,8 +3,9 @@ package javascript
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/sanitization"
 	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/sanitization"
 
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
 
@@ -36,23 +37,17 @@ type Persist struct {
 
 func (p Persist) Name() string { return "Persist" }
 
-func (p Persist) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
-	persister := &persister{result: result, deps: deps, runtime: p.runtime}
+func (p Persist) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+	persister := &persister{ConstructGraph: constructGraph, runtime: p.runtime}
+	var errs multierr.Error
 
 	// It's important for this to happen first, before the code gets transformed; otherwise we won't find the "new Map()"s.
 	// Please be careful before moving this loop, or putting anything before it. The call to findUnawaitedCalls(units)
 	// assumes that the code has not yet been rewritten (e.g. to turn Maps into our runtime map classes).
 	// This code could use a cleanup: see CloudCompilers/klotho#431
-	for _, res := range result.Resources() {
-		unit, ok := res.(*core.ExecutionUnit)
-		if !ok {
-			continue
-		}
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		persister.findUnawaitedCalls(unit)
-	}
 
-	var errs multierr.Error
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
 		err := persister.handleFiles(unit)
 		if err != nil {
 			errs.Append(err)
@@ -68,7 +63,8 @@ func (p *persister) hasKvAnnotation(declaringFile *core.SourceFile, annot *core.
 		return false
 	}
 	pType, _ := p.determinePersistType(declaringFile, annot)
-	return pType == core.PersistKVKind
+	_, ok := pType.(*core.Kv)
+	return ok
 }
 
 func (p *persister) findUnawaitedCalls(unit *core.ExecutionUnit) {
@@ -110,9 +106,8 @@ func (p *persister) findUnwaitedCallsInFile(js *core.SourceFile, spec VarSpec) (
 }
 
 type persister struct {
-	result  *core.CompilationResult
-	deps    *core.Dependencies
-	runtime Runtime
+	ConstructGraph *core.ConstructGraph
+	runtime        Runtime
 }
 
 func (p *persister) handleFiles(unit *core.ExecutionUnit) error {
@@ -125,21 +120,18 @@ func (p *persister) handleFiles(unit *core.ExecutionUnit) error {
 
 		resources, err := p.handleFile(js, unit)
 		if err != nil {
-			errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.Name))
+			errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.ID))
 		}
 
 		for _, r := range resources {
-			p.result.Add(r)
+			p.ConstructGraph.AddConstruct(r)
 
 			_, isReferencedByExecUnit := unit.Executable.SourceFiles[js.Path()]
 
 			// a file containing capabilities without an execution unit indicates that the file's capabilities
 			// are imported by execution units in one or more separate files
 			if core.FileExecUnitName(js) != "" || isReferencedByExecUnit {
-				p.deps.Add(core.ResourceKey{
-					Name: unit.Name,
-					Kind: core.ExecutionUnitKind,
-				}, r.Key())
+				p.ConstructGraph.AddDependency(unit.Id(), r.Id())
 			}
 		}
 	}
@@ -147,9 +139,9 @@ func (p *persister) handleFiles(unit *core.ExecutionUnit) error {
 	return errs.ErrOrNil()
 }
 
-func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]core.CloudResource, error) {
+func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]core.Construct, error) {
 	annots := f.Annotations()
-	var resources []core.CloudResource
+	var resources []core.Construct
 
 	var errs multierr.Error
 	for _, annot := range annots {
@@ -169,26 +161,26 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 			errs.Append(core.NewCompilerError(f, annot, errors.New("'id' is required")))
 		}
 
-		var resource core.CloudResource
+		var resource core.Construct
 		var err, runtimeErr, transformErr error
-		switch keyType {
-		case core.PersistKVKind:
+		switch keyType.(type) {
+		case *core.Kv:
 			resource, transformErr = p.transformKV(f, annot, pResult)
 			runtimeErr = p.runtime.AddKvRuntimeFiles(unit)
-		case core.PersistFileKind:
+		case *core.Fs:
 			var envVarName string
 			resource, envVarName, transformErr = p.transformFS(unit, f, annot, pResult)
 			runtimeErr = p.runtime.AddFsRuntimeFiles(unit, envVarName, cap.ID)
-		case core.PersistSecretKind:
+		case *core.Secrets:
 			resource, transformErr = p.transformSecret(f, annot, pResult)
 			runtimeErr = p.runtime.AddSecretRuntimeFiles(unit)
-		case core.PersistORMKind:
+		case *core.Orm:
 			resource, transformErr = p.transformORM(unit, f, annot, pResult)
 			runtimeErr = p.runtime.AddOrmRuntimeFiles(unit)
-		case core.PersistRedisClusterKind:
+		case *core.RedisCluster:
 			resource, transformErr = p.transformRedis(unit, f, annot, pResult, keyType)
 			runtimeErr = p.runtime.AddRedisClusterRuntimeFiles(unit)
-		case core.PersistRedisNodeKind:
+		case *core.RedisNode:
 			resource, transformErr = p.transformRedis(unit, f, annot, pResult, keyType)
 			runtimeErr = p.runtime.AddRedisNodeRuntimeFiles(unit)
 		default:
@@ -218,7 +210,7 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 	return resources, errs.ErrOrNil()
 }
 
-func (p *persister) transformSecret(file *core.SourceFile, cap *core.Annotation, secretR *persistResult) (core.CloudResource, error) {
+func (p *persister) transformSecret(file *core.SourceFile, cap *core.Annotation, secretR *persistResult) (core.Construct, error) {
 	if err := file.ReplaceNodeContent(secretR.expression, "secretRuntime"); err != nil {
 		return nil, err
 	}
@@ -230,9 +222,9 @@ func (p *persister) transformSecret(file *core.SourceFile, cap *core.Annotation,
 	}
 
 	result := &core.Secrets{
-		Persist: core.Persist{
-			Kind: core.PersistSecretKind,
-			Name: cap.Capability.ID,
+		AnnotationKey: core.AnnotationKey{
+			Capability: cap.Capability.Name,
+			ID:         cap.Capability.ID,
 		},
 		Secrets: secrets,
 	}
@@ -240,24 +232,26 @@ func (p *persister) transformSecret(file *core.SourceFile, cap *core.Annotation,
 	return result, nil
 }
 
-func (p *persister) transformFS(unit *core.ExecutionUnit, file *core.SourceFile, cap *core.Annotation, fsR *persistResult) (core.CloudResource, string, error) {
+func (p *persister) transformFS(unit *core.ExecutionUnit, file *core.SourceFile, cap *core.Annotation, fsR *persistResult) (core.Construct, string, error) {
 	if err := file.ReplaceNodeContent(fsR.expression, sanitization.IdentifierSanitizer.Apply(fmt.Sprintf("fs_%sRuntime", cap.Capability.ID))+".fs"); err != nil {
 		return nil, "", errors.Wrap(err, "could not reparse FS transformation")
 	}
 
-	fsEnvVar := core.GenerateBucketEnvVar(cap.Capability.ID)
+	result := &core.Fs{
+		AnnotationKey: core.AnnotationKey{
+			Capability: cap.Capability.Name,
+			ID:         cap.Capability.ID,
+		},
+	}
+
+	fsEnvVar := core.GenerateBucketEnvVar(result)
 
 	unit.EnvironmentVariables.Add(fsEnvVar)
-
-	result := &core.Persist{
-		Kind: core.PersistFileKind,
-		Name: cap.Capability.ID,
-	}
 
 	return result, fsEnvVar.Name, nil
 }
 
-func (p *persister) transformKV(file *core.SourceFile, cap *core.Annotation, kvR *persistResult) (core.CloudResource, error) {
+func (p *persister) transformKV(file *core.SourceFile, cap *core.Annotation, kvR *persistResult) (core.Construct, error) {
 	directives := cap.Capability.Directives
 
 	mapString := "new keyvalueRuntime.dMap("
@@ -274,16 +268,24 @@ func (p *persister) transformKV(file *core.SourceFile, cap *core.Annotation, kvR
 		return nil, err
 	}
 
-	result := &core.Persist{
-		Kind: core.PersistKVKind,
-		Name: cap.Capability.ID,
+	result := &core.Kv{
+		AnnotationKey: core.AnnotationKey{
+			Capability: cap.Capability.Name,
+			ID:         cap.Capability.ID,
+		},
 	}
 
 	return result, nil
 }
 
-func (p *persister) transformORM(unit *core.ExecutionUnit, file *core.SourceFile, cap *core.Annotation, ormR *persistResult) (core.CloudResource, error) {
-	envVar := core.GenerateOrmConnStringEnvVar(cap.Capability.ID)
+func (p *persister) transformORM(unit *core.ExecutionUnit, file *core.SourceFile, cap *core.Annotation, ormR *persistResult) (core.Construct, error) {
+	result := &core.Orm{
+		AnnotationKey: core.AnnotationKey{
+			Capability: cap.Capability.Name,
+			ID:         cap.Capability.ID,
+		},
+	}
+	envVar := core.GenerateOrmConnStringEnvVar(result)
 
 	var replaceContent string
 	switch ormR.ormType {
@@ -299,17 +301,12 @@ func (p *persister) transformORM(unit *core.ExecutionUnit, file *core.SourceFile
 		return nil, err
 	}
 
-	result := &core.Persist{
-		Kind: core.PersistORMKind,
-		Name: cap.Capability.ID,
-	}
-
 	unit.EnvironmentVariables.Add(envVar)
 
 	return result, nil
 }
 
-func (p *persister) transformRedis(unit *core.ExecutionUnit, file *core.SourceFile, cap *core.Annotation, redisR *persistResult, kind core.PersistKind) (core.CloudResource, error) {
+func (p *persister) transformRedis(unit *core.ExecutionUnit, file *core.SourceFile, cap *core.Annotation, redisR *persistResult, construct core.Construct) (core.Construct, error) {
 	// Because the redis client can be initialized with () or ({...}) we have to have the expression match it all.
 	// We need to remove the outer () so that the runtime will process these correctly.
 	newExpression := strings.TrimLeft(redisR.expression.Content(), "(")
@@ -319,22 +316,35 @@ func (p *persister) transformRedis(unit *core.ExecutionUnit, file *core.SourceFi
 		newExpression = "{}"
 	}
 
-	importName := "redis_node"
-	if kind == core.PersistRedisClusterKind {
+	var importName string
+	var result core.Construct
+
+	switch construct.(type) {
+	case *core.RedisCluster:
+		result = &core.RedisCluster{
+			AnnotationKey: core.AnnotationKey{
+				Capability: cap.Capability.Name,
+				ID:         cap.Capability.ID,
+			},
+		}
 		importName = "redis_cluster"
+	case *core.RedisNode:
+		result = &core.RedisCluster{
+			AnnotationKey: core.AnnotationKey{
+				Capability: cap.Capability.Name,
+				ID:         cap.Capability.ID,
+			},
+		}
+		importName = "redis_node"
 	}
-	hostEnvVar := core.GenerateRedisHostEnvVar(cap.Capability.ID, string(kind))
-	portEnvVar := core.GenerateRedisPortEnvVar(cap.Capability.ID, string(kind))
+
+	hostEnvVar := core.GenerateRedisHostEnvVar(result)
+	portEnvVar := core.GenerateRedisPortEnvVar(result)
 
 	replaceContent := fmt.Sprintf(`(%sRuntime.getParams("%s", "%s", %s))`, importName, hostEnvVar.Name, portEnvVar.Name, newExpression)
 
 	if err := file.ReplaceNodeContent(redisR.expression, replaceContent); err != nil {
 		return nil, err
-	}
-
-	result := &core.Persist{
-		Kind: kind,
-		Name: cap.Capability.ID,
 	}
 
 	unit.EnvironmentVariables.Add(hostEnvVar)
@@ -489,28 +499,30 @@ func (p *persister) queryORM(file *core.SourceFile, annotation *core.Annotation,
 	}
 }
 
-func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotation, enableWarnings bool) (core.PersistKind, *persistResult) {
+func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotation, enableWarnings bool) (core.Construct, *persistResult) {
 	nextMatch := DoQuery(annotation.Node, persistRedis)
 
 	match, found := nextMatch()
 	if !found {
-		return "", nil
+		return nil, nil
 	}
 
 	name, argstring, method := match["name"], match["argstring"], match["method"]
 
-	kind := core.PersistRedisNodeKind
+	var kind core.Construct
 	if method.Content() == "createCluster" {
-		kind = core.PersistRedisClusterKind
+		kind = &core.RedisCluster{}
+	} else {
+		kind = &core.RedisNode{}
 	}
 
 	if method.Content() != "createClient" && method.Content() != "createCluster" {
-		return "", nil
+		return nil, nil
 	}
 
 	if obj := match["var.obj"]; obj != nil {
 		if !query.NodeContentEquals(obj, "exports") {
-			return "", nil
+			return nil, nil
 		}
 	}
 
@@ -520,13 +532,13 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 	}
 }
 
-func (p *persister) determinePersistType(f *core.SourceFile, annotation *core.Annotation) (core.PersistKind, *persistResult) {
+func (p *persister) determinePersistType(f *core.SourceFile, annotation *core.Annotation) (core.Construct, *persistResult) {
 	log := zap.L().With(logging.FileField(f), logging.AnnotationField(annotation))
 
 	kvR := p.queryKV(f, annotation, false)
 	if kvR != nil {
-		log.Sugar().Debugf("Determined persist type of '%s'", core.PersistKVKind)
-		return core.PersistKVKind, kvR
+		log.Sugar().Debugf("Determined persist type of kv")
+		return &core.Kv{}, kvR
 	}
 
 	// We only check for FS and not Secrets because they are defined in the same way.
@@ -535,17 +547,17 @@ func (p *persister) determinePersistType(f *core.SourceFile, annotation *core.An
 	if fsR != nil {
 		secret, ok := annotation.Capability.Directives.Bool("secret")
 		if ok && secret {
-			log.Sugar().Debugf("Determined persist type of '%s'", core.PersistSecretKind)
-			return core.PersistSecretKind, fsR
+			log.Sugar().Debugf("Determined persist type of secrets")
+			return &core.Secrets{}, fsR
 		}
-		log.Sugar().Debugf("Determined persist type of '%s'", core.PersistFileKind)
-		return core.PersistFileKind, fsR
+		log.Sugar().Debugf("Determined persist type of fs")
+		return &core.Fs{}, fsR
 	}
 
 	ormR := p.queryORM(f, annotation, false)
 	if ormR != nil {
-		log.Sugar().Debugf("Determined persist type of '%s'", core.PersistORMKind)
-		return core.PersistORMKind, ormR
+		log.Sugar().Debugf("Determined persist type of orm")
+		return &core.Orm{}, ormR
 	}
 
 	redisKind, redis := p.queryRedis(f, annotation, false)
@@ -554,5 +566,5 @@ func (p *persister) determinePersistType(f *core.SourceFile, annotation *core.An
 		return redisKind, redis
 	}
 
-	return "", nil
+	return nil, nil
 }

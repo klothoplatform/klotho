@@ -1,6 +1,7 @@
 package python
 
 import (
+	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"go.uber.org/zap"
@@ -8,13 +9,13 @@ import (
 
 type (
 	PythonPlugins struct {
-		Plugins []core.Plugin
+		Plugins []compiler.AnalysisAndTransformationPlugin
 	}
 )
 
 func NewPythonPlugins(cfg *config.Application, runtime Runtime) *PythonPlugins {
 	return &PythonPlugins{
-		Plugins: []core.Plugin{
+		Plugins: []compiler.AnalysisAndTransformationPlugin{
 			&Expose{},
 			&AddExecRuntimeFiles{cfg: cfg, runtime: runtime},
 			&Persist{runtime: runtime},
@@ -24,11 +25,11 @@ func NewPythonPlugins(cfg *config.Application, runtime Runtime) *PythonPlugins {
 
 func (c PythonPlugins) Name() string { return "python" }
 
-func (c PythonPlugins) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (c PythonPlugins) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	for _, p := range c.Plugins {
 		log := zap.L().With(zap.String("plugin", p.Name()))
 		log.Debug("starting")
-		err := p.Transform(result, deps)
+		err := p.Transform(input, constructGraph)
 		if err != nil {
 			return core.NewPluginError(p.Name(), err)
 		}

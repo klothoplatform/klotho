@@ -24,15 +24,8 @@ type (
 
 func (p StaticUnitSplit) Name() string { return "StaticUnitSplit" }
 
-func (p StaticUnitSplit) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
+func (p StaticUnitSplit) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
-
-	inputR := result.GetFirstResource(core.InputFilesKind)
-	if inputR == nil {
-		//? Already split?
-		return nil
-	}
-	input := inputR.(*core.InputFiles)
 	for _, f := range input.Files() {
 
 		log := zap.L().With(logging.FileField(f)).Sugar()
@@ -53,7 +46,10 @@ func (p StaticUnitSplit) Transform(result *core.CompilationResult, deps *core.De
 					errs.Append(cause)
 				}
 				newUnit := &core.StaticUnit{
-					Name: cap.ID,
+					AnnotationKey: core.AnnotationKey{
+						ID:         cap.ID,
+						Capability: cap.Name,
+					},
 				}
 
 				indexDocument, ok := cap.Directives.String("index_document")
@@ -91,7 +87,7 @@ func (p StaticUnitSplit) Transform(result *core.CompilationResult, deps *core.De
 				if matcher.err != nil {
 					errs.Append(matcher.err)
 				}
-				result.Add(newUnit)
+				constructGraph.AddConstruct(newUnit)
 			}
 		}
 	}

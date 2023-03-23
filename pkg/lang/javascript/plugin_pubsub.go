@@ -21,8 +21,7 @@ type (
 	Pubsub struct {
 		runtime Runtime
 
-		result *core.CompilationResult
-		deps   *core.Dependencies
+		ConstructGraph *core.ConstructGraph
 
 		emitters             map[VarSpec]*emitterValue
 		proxyGenerationCalls []proxyGenerationCall
@@ -51,14 +50,13 @@ const pubsubVarTypeModule = "events"
 
 func (p Pubsub) Name() string { return "Pubsub" }
 
-func (p Pubsub) Transform(result *core.CompilationResult, deps *core.Dependencies) error {
-	p.result = result
+func (p Pubsub) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+	p.ConstructGraph = constructGraph
 
-	p.deps = deps
 	p.emitters = make(map[VarSpec]*emitterValue)
 
 	var errs multierr.Error
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		vars := DiscoverDeclarations(unit.Files(), pubsubVarType, pubsubVarTypeModule, true, FilterByCapability(annotation.PubSubCapability))
 		for spec, value := range vars {
 			if value.Annotation.Capability.ID == "" {
@@ -66,8 +64,11 @@ func (p Pubsub) Transform(result *core.CompilationResult, deps *core.Dependencie
 			}
 			if _, ok := p.emitters[spec]; !ok {
 				resource := core.PubSub{
+					AnnotationKey: core.AnnotationKey{
+						ID:         value.Annotation.Capability.ID,
+						Capability: value.Annotation.Capability.Name,
+					},
 					Path: spec.DefinedIn,
-					Name: value.Annotation.Capability.ID,
 				}
 				p.emitters[spec] = &emitterValue{
 					Resource: &resource,
@@ -101,7 +102,7 @@ func (p Pubsub) Transform(result *core.CompilationResult, deps *core.Dependencie
 	}
 
 	for _, v := range p.emitters {
-		p.result.Add(v.Resource)
+		p.ConstructGraph.AddConstruct(v.Resource)
 	}
 
 	err := p.generateEmitterDefinitions()
@@ -120,7 +121,7 @@ func (p *Pubsub) rewriteEmitters(unit *core.ExecutionUnit, fileVars map[string]V
 		}
 		err := p.rewriteFileEmitters(js, fileVars[js.Path()])
 		if err != nil {
-			errs.Append(core.WrapErrf(err, "failed to handle pubsub in unit %s", unit.Name))
+			errs.Append(core.WrapErrf(err, "failed to handle pubsub in unit %s", unit.ID))
 		}
 	}
 
@@ -173,21 +174,21 @@ func (p *Pubsub) findProxiesNeeded(unit *core.ExecutionUnit) error {
 			pEvents := p.findPublisherTopics(js, spec)
 			if len(pEvents) > 0 {
 				for _, event := range pEvents {
-					value.Resource.AddPublisher(event, unit.Key())
-					value.Publishers = append(value.Publishers, emitterUsage{filePath: f.Path(), event: event, unitId: unit.Name})
+					value.Resource.AddPublisher(event, unit.Provenance())
+					value.Publishers = append(value.Publishers, emitterUsage{filePath: f.Path(), event: event, unitId: unit.ID})
 					log.Debugf("Adding publisher to '%s'", event)
 				}
-				p.deps.Add(unit.Key(), value.Resource.Key())
+				p.ConstructGraph.AddDependency(unit.Id(), value.Resource.Id())
 				log.Infof("Found %d topics produced to %s#%s: %v", len(pEvents), spec.DefinedIn, spec.VarName, pEvents)
 			}
 			sEvents := p.findSubscriberTopics(js, spec)
 			if len(sEvents) > 0 {
 				for _, event := range sEvents {
-					value.Resource.AddSubscriber(event, unit.Key())
-					value.Subscribers = append(value.Subscribers, emitterUsage{filePath: f.Path(), event: event, unitId: unit.Name})
+					value.Resource.AddSubscriber(event, unit.Provenance())
+					value.Subscribers = append(value.Subscribers, emitterUsage{filePath: f.Path(), event: event, unitId: unit.ID})
 					log.Debugf("Adding subscriber to '%s'", event)
 				}
-				p.deps.Add(value.Resource.Key(), unit.Key())
+				p.ConstructGraph.AddDependency(value.Resource.Id(), unit.Id())
 				log.Infof("Found %d topics consumed from %s#%s: %v", len(sEvents), spec.DefinedIn, spec.VarName, sEvents)
 				importPath, err := filepath.Rel(filepath.Dir(f.Path()), spec.DefinedIn)
 				if err != nil {
@@ -249,11 +250,11 @@ func (p *Pubsub) generateProxies(filepath string, emitters []EmitterSubscriberPr
 	log := zap.L().With(logging.FileField(f)).Sugar()
 	var merr multierr.Error
 	appendBuf := new(bytes.Buffer)
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](p.result) {
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](p.ConstructGraph) {
 		if existing := unit.Get(filepath); existing != nil {
 			existing := existing.(*core.SourceFile)
 			if bytes.Contains(existing.Program(), []byte(emitters[0].VarName)) {
-				log.Debugf("File already contains var in unit %s", unit.Name)
+				log.Debugf("File already contains var in unit %s", unit.ID)
 				continue
 			}
 			appendBuf.Reset()
@@ -264,7 +265,7 @@ func (p *Pubsub) generateProxies(filepath string, emitters []EmitterSubscriberPr
 			if err != nil {
 				merr.Append(err)
 			}
-			log.Debugf("Appending pubsub proxy to unit %s", unit.Name)
+			log.Debugf("Appending pubsub proxy to unit %s", unit.ID)
 		} else {
 			unit.Add(f)
 		}
@@ -275,7 +276,7 @@ func (p *Pubsub) generateProxies(filepath string, emitters []EmitterSubscriberPr
 // generateEmitterDefinitions handles making sure the emitters are defined in all the execution units its used in at the path they are originally defined in,
 // even if the original definition is in a file marked only for a single execution unit. It also make sure that the subscribers are imported to register their handlers.
 func (p *Pubsub) generateEmitterDefinitions() (err error) {
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](p.result) {
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](p.ConstructGraph) {
 		emittersByFile := make(map[string]map[VarSpec]*emitterValue)
 		for spec, emitter := range p.emitters {
 			f, ok := emittersByFile[spec.DefinedIn]

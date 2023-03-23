@@ -2,33 +2,34 @@ package core
 
 type (
 	PubSub struct {
+		AnnotationKey
 		Path   string
-		Name   string
 		Events map[string]*Event
 	}
 
 	Event struct {
 		Name        string
-		Publishers  []ResourceKey
-		Subscribers []ResourceKey
+		Publishers  []AnnotationKey
+		Subscribers []AnnotationKey
 	}
 
 	EventReference struct {
-		ResourceKey
+		AnnotationKey
 		FilePath string
 	}
 )
 
 const PubSubKind = "pubsub"
 
-func (p PubSub) Key() ResourceKey {
-	return ResourceKey{
-		Name: p.Name,
-		Kind: PubSubKind,
-	}
+func (p *PubSub) Provenance() AnnotationKey {
+	return p.AnnotationKey
 }
 
-func (p *PubSub) AddPublisher(event string, key ResourceKey) {
+func (p *PubSub) Id() string {
+	return p.AnnotationKey.ToId()
+}
+
+func (p *PubSub) AddPublisher(event string, key AnnotationKey) {
 	if p.Events == nil {
 		p.Events = make(map[string]*Event)
 	}
@@ -40,7 +41,7 @@ func (p *PubSub) AddPublisher(event string, key ResourceKey) {
 	e.Publishers = append(e.Publishers, key)
 }
 
-func (p *PubSub) AddSubscriber(event string, key ResourceKey) {
+func (p *PubSub) AddSubscriber(event string, key AnnotationKey) {
 	if p.Events == nil {
 		p.Events = make(map[string]*Event)
 	}

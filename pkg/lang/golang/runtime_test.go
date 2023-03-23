@@ -6,7 +6,7 @@ import (
 
 type NoopRuntime struct{}
 
-func (n NoopRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, result *core.CompilationResult, dependencies *core.Dependencies) error {
+func (n NoopRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
 	return nil
 }
 func (n NoopRuntime) GetFsImports() []Import {
