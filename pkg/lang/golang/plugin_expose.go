@@ -45,6 +45,7 @@ type (
 	}
 
 	chiRouterDefResult struct {
+		Name        string
 		Declaration *sitter.Node
 		Identifier  *sitter.Node
 		RootPath    string
@@ -208,7 +209,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 
 		log = log.With(zap.String("var", routerName))
 
-		localRoutes, err := h.findChiRoutesForVar(f, routerName, "")
+		localRoutes, err := h.findChiRoutesForVar(f, router, "")
 		if err != nil {
 			return nil, core.NewCompilerError(f, capNode, err)
 		}
@@ -291,6 +292,7 @@ func (h *restAPIHandler) findChiRouterDefinition(f *core.SourceFile, appName str
 			if foundName == appName {
 				rootPath := ""
 				return chiRouterDefResult{
+					Name:        appName,
 					Declaration: declaration,
 					Identifier:  identifier,
 					RootPath:    rootPath,
@@ -328,16 +330,26 @@ func (h *restAPIHandler) findHttpListenAndServe(cap *core.Annotation, f *core.So
 	return HttpListener{}, nil
 }
 
-func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, varName string, prefix string) ([]gatewayRouteDefinition, error) {
+func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, router chiRouterDefResult, prefix string) ([]gatewayRouteDefinition, error) {
 	var routes = make([]gatewayRouteDefinition, 0)
 	log := h.log.With(logging.FileField(f))
 
-	verbFuncs, err := h.findVerbFuncs(f.Tree().RootNode(), varName)
+	verbFuncs, err := h.findVerbFuncs(router.Declaration.Parent(), router.Name)
 	if err != nil {
 		return routes, err
 	}
 
-	log.Sugar().Debugf("Got %d verb functions for '%s'", len(verbFuncs), varName)
+	log.Sugar().Debugf("Got %d verb functions for '%s'", len(verbFuncs), router.Name)
+
+	addCors := false
+	mws := h.findMiddleware(router.Declaration.Parent())
+	for _, mw := range mws {
+		addCors = h.isMiddlewareCors(mw)
+		if addCors {
+			log.Sugar().Debugf("Found cors middleware for '%s", router.Name)
+			break
+		}
+	}
 
 	for _, vfunc := range verbFuncs {
 		route := core.Route{
@@ -346,11 +358,22 @@ func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, varName string,
 			ExecUnitName:  h.Unit.Name,
 			HandledInFile: f.Path(),
 		}
-		log.Sugar().Debugf("Found route function %s %s for '%s'", route.Verb, route.Path, varName)
+		log.Sugar().Debugf("Found route function %s %s for '%s'", route.Verb, route.Path, router.Name)
 		routes = append(routes, gatewayRouteDefinition{
 			Route:         route,
 			DefinedInPath: f.Path(),
 		})
+		if addCors {
+			routes = append(routes, gatewayRouteDefinition{
+				Route: core.Route{
+					Verb:          core.VerbOptions,
+					Path:          route.Path,
+					ExecUnitName:  route.ExecUnitName,
+					HandledInFile: route.HandledInFile,
+				},
+				DefinedInPath: f.Path(),
+			})
+		}
 	}
 	return routes, err
 }
@@ -469,6 +492,25 @@ func (h *restAPIHandler) findChiRouterMountPackage(f *core.SourceFile, mount *ro
 	return errors.Errorf("No import package found with name or alias [%s]", mount.PkgAlias)
 }
 
+func (h *restAPIHandler) findMiddleware(n *sitter.Node) []*sitter.Node {
+	// TODO should filter the middleware for the variable (router) we are looking at
+	// but currently findChiRoutesInFunction doesn't look for it and just returns all routes.
+	var mw []*sitter.Node
+	next := doQuery(n, routerMiddleware)
+
+	for {
+		match, found := next()
+		if !found {
+			break
+		}
+		args := match["args"]
+		for i := 0; i < int(args.ChildCount()); i++ {
+			mw = append(mw, args.Child(i))
+		}
+	}
+	return mw
+}
+
 func (h *restAPIHandler) findFileForFunctionName(files []*core.SourceFile, funcName string) (f *core.SourceFile, functionNode *sitter.Node) {
 	for _, f := range files {
 		nextMatch := doQuery(f.Tree().RootNode(), findFunction)
@@ -487,9 +529,31 @@ func (h *restAPIHandler) findFileForFunctionName(files []*core.SourceFile, funcN
 	return
 }
 
+func (h *restAPIHandler) isMiddlewareCors(mw *sitter.Node) bool {
+	// TODO this is a pretty hacky way to check, but it will work for now.
+	// r.Use(cors.Handler(cors.Options{}))
+	// r.Use(cors.AllowAll().Handler)
+	// r.Use(&cors.Cors{})
+	if dot := strings.Index(mw.Content(), "."); dot > 0 {
+		pkg := mw.Content()[:dot]
+		return strings.HasSuffix(pkg, "cors")
+	}
+	return false
+}
+
 func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *sitter.Node, m routerMount) []gatewayRouteDefinition {
 	var gatewayRoutes = make([]gatewayRouteDefinition, 0)
 	log := h.log.With(logging.FileField(f))
+
+	mws := h.findMiddleware(funcNode)
+	addCors := false
+	for _, mw := range mws {
+		addCors = h.isMiddlewareCors(mw)
+		if addCors {
+			log.Sugar().Debugf("Found cors middleware for mount '%s.%s'", m.PkgAlias, m.FuncName)
+			break
+		}
+	}
 
 	// This is very similar in logic to how we find the local router and verbs. The difference is for external routers, we are starting from
 	// the node of the specified function and don't care about what the router name is so long as the router methods are declared within this function node
@@ -516,6 +580,12 @@ func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *s
 			Verb: verb.Content(),
 			Path: pathContent,
 		})
+		if addCors {
+			routes = append(routes, routeMethodPath{
+				Verb: string(core.VerbOptions),
+				Path: pathContent,
+			})
+		}
 	}
 	log.Sugar().Debugf("Found %d verb functions from '%s.%s'", len(routes), m.PkgAlias, m.FuncName)
 
