@@ -123,7 +123,7 @@ func (d *Directed[V]) GetAllVertices() []V {
 		panic(err)
 	}
 	var vertices []V
-	for vId, _ := range predecessors {
+	for vId := range predecessors {
 		if v, err := d.underlying.Vertex(vId); err == nil {
 			vertices = append(vertices, v)
 		} else {

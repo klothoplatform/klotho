@@ -100,12 +100,12 @@ func (cfg ExecutionUnit) GetExecutionUnitParamsAsKubernetes() KubernetesTypePara
 	infraParams := cfg.InfraParams
 	jsonString, err := json.Marshal(infraParams)
 	if err != nil {
-		zap.S().Debug(err)
+		zap.S().Error(err)
 	}
 
 	params := KubernetesTypeParams{}
 	if err := json.Unmarshal(jsonString, &params); err != nil {
-		zap.S().Debug(err)
+		zap.S().Error(err)
 		return params
 	} else {
 		return params

@@ -719,21 +719,21 @@ status: {}
 						Kind:                "Deployment",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTREDISPERSISTREDISHOST",
-						EnvironmentVariable: core.GenerateRedisHostEnvVar(&core.RedisCluster{core.AnnotationKey{ID: "testRedis"}}),
+						EnvironmentVariable: core.GenerateRedisHostEnvVar(&core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "testRedis"}}),
 					},
 					{
 						ExecUnitName:        "unit",
 						Kind:                "Deployment",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTBUCKETBUCKETNAME",
-						EnvironmentVariable: core.GenerateBucketEnvVar(&core.Fs{core.AnnotationKey{ID: "testBucket"}}),
+						EnvironmentVariable: core.GenerateBucketEnvVar(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "testBucket"}}),
 					},
 					{
 						ExecUnitName:        "unit",
 						Kind:                "Deployment",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTORMPERSISTORMCONNECTION",
-						EnvironmentVariable: core.GenerateOrmConnStringEnvVar(&core.Orm{core.AnnotationKey{ID: "testOrm"}}),
+						EnvironmentVariable: core.GenerateOrmConnStringEnvVar(&core.Orm{AnnotationKey: core.AnnotationKey{ID: "testOrm"}}),
 					},
 					{
 						ExecUnitName:        "unit",
@@ -787,21 +787,21 @@ status: {}
 						Kind:                "Pod",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTREDISPERSISTREDISHOST",
-						EnvironmentVariable: core.GenerateRedisHostEnvVar(&core.RedisCluster{core.AnnotationKey{ID: "testRedis"}}),
+						EnvironmentVariable: core.GenerateRedisHostEnvVar(&core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "testRedis"}}),
 					},
 					{
 						ExecUnitName:        "unit",
 						Kind:                "Pod",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTBUCKETBUCKETNAME",
-						EnvironmentVariable: core.GenerateBucketEnvVar(&core.Fs{core.AnnotationKey{ID: "testBucket"}}),
+						EnvironmentVariable: core.GenerateBucketEnvVar(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "testBucket"}}),
 					},
 					{
 						ExecUnitName:        "unit",
 						Kind:                "Pod",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTORMPERSISTORMCONNECTION",
-						EnvironmentVariable: core.GenerateOrmConnStringEnvVar(&core.Orm{core.AnnotationKey{ID: "testOrm"}}),
+						EnvironmentVariable: core.GenerateOrmConnStringEnvVar(&core.Orm{AnnotationKey: core.AnnotationKey{ID: "testOrm"}}),
 					},
 					{
 						ExecUnitName:        "unit",
@@ -829,10 +829,10 @@ status: {}
 			assert := assert.New(t)
 
 			eunit := core.ExecutionUnit{}
-			eunit.EnvironmentVariables.Add(core.GenerateBucketEnvVar(&core.Fs{core.AnnotationKey{ID: "testBucket"}}))
-			eunit.EnvironmentVariables.Add(core.GenerateRedisHostEnvVar(&core.RedisCluster{core.AnnotationKey{ID: "testRedis"}}))
+			eunit.EnvironmentVariables.Add(core.GenerateBucketEnvVar(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "testBucket"}}))
+			eunit.EnvironmentVariables.Add(core.GenerateRedisHostEnvVar(&core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "testRedis"}}))
 			eunit.EnvironmentVariables.Add(core.GenerateSecretEnvVar(&core.Config{AnnotationKey: core.AnnotationKey{ID: "testSecret"}, Secret: true}))
-			eunit.EnvironmentVariables.Add(core.GenerateOrmConnStringEnvVar(&core.Orm{core.AnnotationKey{ID: "testOrm"}}))
+			eunit.EnvironmentVariables.Add(core.GenerateOrmConnStringEnvVar(&core.Orm{AnnotationKey: core.AnnotationKey{ID: "testOrm"}}))
 
 			if tt.deploymentYaml != "" {
 				f, err := yaml.NewFile("deployment.yaml", strings.NewReader(tt.deploymentYaml))
