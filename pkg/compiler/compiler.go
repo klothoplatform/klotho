@@ -14,21 +14,18 @@ type (
 	}
 
 	AnalysisAndTransformationPlugin interface {
-		Name() string
-
+		Plugin
 		// Transform is expected to mutate the result and any dependencies
 		Transform(*core.InputFiles, *core.ConstructGraph) error
 	}
 
 	ProviderPlugin interface {
-		Name() string
-
-		Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (Links []core.CloudResourceLink, err error)
+		Plugin
+		Translate(result *core.ConstructGraph, dag *core.ResourceGraph) ([]core.CloudResourceLink, error)
 	}
 
 	IaCPlugin interface {
-		Name() string
-
+		Plugin
 		Translate(cloudGraph *core.ResourceGraph) ([]core.File, error)
 	}
 
@@ -72,7 +69,7 @@ func (c *Compiler) Compile() error {
 		}
 		log := zap.L().With(zap.String("plugin", p.Name()))
 		log.Debug("starting")
-		links, err := p.Translate(c.Document.Constructs, c.Document.CloudResources)
+		links, err := p.Translate(c.Document.Constructs, c.Document.Resources)
 		if err != nil {
 			return core.NewPluginError(p.Name(), err)
 		}
@@ -80,7 +77,18 @@ func (c *Compiler) Compile() error {
 		log.Debug("completed")
 	}
 
-	return nil
+	for _, p := range c.IaCPlugins {
+		if isPluginNil(p) {
+			continue
+		}
+		// TODO logging
+		files, err := p.Translate(c.Document.Resources)
+		if err != nil {
+			return core.NewPluginError(p.Name(), err)
+		}
+		c.Document.OutputFiles = append(c.Document.OutputFiles, files...)
+	}
+	return c.Document.OutputTo(c.Document.Configuration.OutDir)
 }
 
 func isPluginNil(i Plugin) bool {

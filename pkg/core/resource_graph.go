@@ -6,32 +6,32 @@ import (
 
 type (
 	ResourceGraph struct {
-		underlying *graph.Directed[Resource]
+		Underlying *graph.Directed[Resource]
 	}
 )
 
 func NewResourceGraph() *ResourceGraph {
 	return &ResourceGraph{
-		underlying: graph.NewDirected[Resource](),
+		Underlying: graph.NewDirected[Resource](),
 	}
 }
 
 func (cg *ResourceGraph) AddResource(resource Resource) {
-	cg.underlying.AddVertex(resource)
+	cg.Underlying.AddVertex(resource)
 }
 
 func (cg *ResourceGraph) AddDependency(source Resource, dest Resource) {
-	cg.underlying.AddEdge(source.Id(), dest.Id())
+	cg.Underlying.AddEdge(source.Id(), dest.Id())
 }
 
 func (cg *ResourceGraph) GetResource(id string) Resource {
-	return cg.underlying.GetVertex(id)
+	return cg.Underlying.GetVertex(id)
 }
 
 func (cg *ResourceGraph) ListConstructs() []Resource {
-	return cg.underlying.GetAllVertices()
+	return cg.Underlying.GetAllVertices()
 }
 
 func (cg *ResourceGraph) ListDependencies() []graph.Edge[Resource] {
-	return cg.underlying.GetAllEdges()
+	return cg.Underlying.GetAllEdges()
 }

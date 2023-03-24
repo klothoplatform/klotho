@@ -5,8 +5,8 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	envvar "github.com/klothoplatform/klotho/pkg/env_var"
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
+	"github.com/klothoplatform/klotho/pkg/infra/iac2"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
-	"github.com/klothoplatform/klotho/pkg/infra/pulumi_aws"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp"
 	csRuntimes "github.com/klothoplatform/klotho/pkg/lang/csharp/runtimes"
 	"github.com/klothoplatform/klotho/pkg/lang/golang"
@@ -120,6 +120,6 @@ func (b *PluginSetBuilder) AddPulumi() error {
 	if err := b.setupProvider(); err != nil {
 		return err
 	}
-	b.IaC = append(b.IaC, pulumi_aws.Plugin{Config: b.Cfg})
+	b.IaC = append(b.IaC, iac2.Plugin{})
 	return nil
 }
