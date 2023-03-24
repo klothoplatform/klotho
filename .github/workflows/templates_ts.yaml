@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: find templates
-        id: find_dirs
+        id: list-templates
         run: |
           json="$(find pkg/infra/iac2/templates -find d -maxdepth 1 -mindepth 1 -exec basename {} \; \
                 | jq -csR 'split("\n") | map(select(. != ""))')"
