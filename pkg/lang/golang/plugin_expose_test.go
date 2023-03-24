@@ -403,6 +403,113 @@ func Test_findChiRouterMountPackage(t *testing.T) {
 	}
 }
 
+func Test_findMiddleware(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		expect []string
+	}{
+		{
+			name: "single use",
+			source: `r := chi.NewRouter()
+			r.Use(someMiddleware)
+			`,
+			expect: []string{"someMiddleware"},
+		},
+		{
+			name: "single use multiple middleware",
+			source: `r := chi.NewRouter()
+			r.Use(someMiddleware, anotherMiddleware)
+			`,
+			expect: []string{"someMiddleware", "anotherMiddleware"},
+		},
+		{
+			name: "multiple use multiple middleware",
+			source: `r := chi.NewRouter()
+			r.Use(someMiddleware, anotherMiddleware)
+			r.Use(aThirdMiddleware)
+			`,
+			expect: []string{"someMiddleware", "anotherMiddleware", "aThirdMiddleware"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			if !assert.NoError(err) {
+				return
+			}
+			mws := testRestAPIHandler.findMiddleware(f.Tree().RootNode())
+
+			if !assert.Len(mws, len(tt.expect)) {
+				return
+			}
+
+			for i, expect := range tt.expect {
+				actual := mws[i]
+				assert.Equal(expect, actual.Content())
+			}
+		})
+	}
+}
+
+func Test_isMiddlewareCors(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		expect bool
+	}{
+		{
+			name: "not cors",
+			source: `r := chi.NewRouter()
+			r.Use(someMiddleware)
+			`,
+			expect: false,
+		},
+		{
+			name: "cors handler",
+			source: `r := chi.NewRouter()
+			r.Use(cors.Handler(cors.Options{}))
+			`,
+			expect: true,
+		},
+		{
+			name: "cors allowall",
+			source: `r := chi.NewRouter()
+			r.Use(cors.AllowAll().Handler)
+			`,
+			expect: true,
+		},
+		{
+			name: "cors struct",
+			source: `r := chi.NewRouter()
+			r.Use(&cors.Cors{}.Handler)
+			`,
+			expect: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			if !assert.NoError(err) {
+				return
+			}
+			mws := testRestAPIHandler.findMiddleware(f.Tree().RootNode())
+
+			if !assert.Len(mws, 1) {
+				return
+			}
+
+			isCors := testRestAPIHandler.isMiddlewareCors(mws[0])
+
+			assert.Equal(tt.expect, isCors)
+		})
+	}
+}
+
 func Test_findFilesForFunctionName(t *testing.T) {
 	tests := []struct {
 		name     string
