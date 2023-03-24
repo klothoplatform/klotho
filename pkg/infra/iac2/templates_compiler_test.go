@@ -2,13 +2,14 @@ package iac2
 
 import (
 	"bytes"
-	graph2 "github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/stretchr/testify/assert"
 	"io/fs"
 	"strings"
 	"testing"
 	"testing/fstest"
 	"time"
+
+	graph2 "github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestOutputBody(t *testing.T) {
@@ -25,6 +26,7 @@ func TestOutputBody(t *testing.T) {
 	graph.AddVertex(parent)
 	graph.AddEdge(parent.Id(), fizz.Id())
 	graph.AddEdge(parent.Id(), buzz.Id())
+	graph.AddEdge(fizz.Id(), buzz.Id())
 
 	compiler := CreateTemplatesCompiler(graph)
 	compiler.templates = filesMapToFsMap(dummyTemplateFiles)
