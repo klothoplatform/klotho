@@ -4,21 +4,18 @@ import (
 	"embed"
 	_ "embed"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/klothoplatform/klotho/pkg/multierr"
-	"github.com/pkg/errors"
 	"io"
 	"io/fs"
 	"reflect"
 	"regexp"
 	"sort"
+
+	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/multierr"
+	"github.com/pkg/errors"
 )
 
 type (
-	varNamer interface {
-		VariableName() string
-	}
-
 	templatesCompiler struct {
 		// templates is the fs.FS where we read all of our `<struct>/factory.ts` files
 		templates fs.FS
@@ -79,7 +76,7 @@ func (tc templatesCompiler) RenderImports(out io.Writer) error {
 			errs.Append(err)
 			continue
 		}
-		for statement, _ := range tmpl.imports {
+		for statement := range tmpl.imports {
 			allImports[statement] = struct{}{}
 		}
 	}
@@ -88,7 +85,7 @@ func (tc templatesCompiler) RenderImports(out io.Writer) error {
 	}
 
 	sortedImports := make([]string, 0, len(allImports))
-	for statement, _ := range allImports {
+	for statement := range allImports {
 		sortedImports = append(sortedImports, statement)
 	}
 
@@ -116,8 +113,8 @@ func (tc templatesCompiler) renderResource(out io.Writer, resource graph.Identif
 		case reflect.String:
 			inputArgs[fieldName] = quoteTsString(child.(string))
 		case reflect.Struct, reflect.Pointer:
-			if child, ok := child.(graph.Identifiable); ok {
-				inputArgs[fieldName] = tc.getVarName(child)
+			if typedChild, ok := child.(graph.Identifiable); ok {
+				inputArgs[fieldName] = tc.getVarName(typedChild)
 			} else {
 				errs.Append(errors.Errorf(`child struct of %v is not of a known type: %v`, resource, child))
 			}
@@ -134,7 +131,10 @@ func (tc templatesCompiler) renderResource(out io.Writer, resource graph.Identif
 
 	fmt.Fprintf(out, `const %s = `, varName)
 	errs.Append(tmpl.RenderCreate(out, inputArgs))
-	out.Write([]byte(";\n"))
+	_, err = out.Write([]byte(";\n"))
+	if err != nil {
+		return err
+	}
 
 	return errs.ErrOrNil()
 }

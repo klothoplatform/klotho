@@ -1,13 +1,13 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
-import {LogGroup} from "@pulumi/aws/cloudwatch";
-import {Role} from "@pulumi/aws/iam";
+import { LogGroup } from '@pulumi/aws/cloudwatch'
+import { Role } from '@pulumi/aws/iam'
 
 interface Args {
-    ExecUnitName: string,
+    ExecUnitName: string
     // lambdaName: string,
     // image: pulumi.Output<string>,
-    CloudwatchGroup: LogGroup,
+    CloudwatchGroup: LogGroup
     // lambdaRole: Role,
     // envVars: Record<string, pulumi.Output<string>>,
     // dependsOn: []
@@ -19,9 +19,9 @@ function create(args: Args): aws.lambda.Function {
         args.ExecUnitName,
         {
             packageType: 'Image',
-            imageUri: "TODO-image-uri",//args.image,
-            role: "TODO-role",//args.lambdaRole.arn,
-            name: "TODO-lambda-name",//args.lambdaName,
+            imageUri: 'TODO-image-uri', //args.image,
+            role: 'TODO-role', //args.lambdaRole.arn,
+            name: 'TODO-lambda-name', //args.lambdaName,
             tags: {
                 env: 'production',
                 service: args.ExecUnitName,
@@ -29,5 +29,6 @@ function create(args: Args): aws.lambda.Function {
         },
         {
             dependsOn: [args.CloudwatchGroup],
-        });
+        }
+    )
 }
