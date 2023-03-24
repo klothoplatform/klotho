@@ -18,7 +18,7 @@ jobs:
       - name: find templates
         id: list-templates
         run: |
-          json="$(find pkg/infra/iac2/templates -find d -maxdepth 1 -mindepth 1 -exec basename {} \; \
+          json="$(find pkg/infra/iac2/templates -type d -maxdepth 1 -mindepth 1 -exec basename {} \; \
                 | jq -csR 'split("\n") | map(select(. != ""))')"
           echo "to_test=$json" > $GITHUB_OUTPUT
   checks:
