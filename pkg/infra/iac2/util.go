@@ -81,13 +81,15 @@ func getStructValues(o any) map[string]any {
 
 func quoteTsString(str string) string {
 	result := strings.Builder{}
-	result.WriteRune('"')
+	result.WriteRune('`')
 	for _, char := range str {
 		switch char {
 		case '"':
-			result.WriteString(`\"`)
+			result.WriteString(`"`)
 		case '\'':
-			result.WriteString(`\'`)
+			result.WriteString(`'`)
+		case '`':
+			result.WriteString("`")
 		case '\\':
 			result.WriteString(`\\`)
 		case '\b':
@@ -95,11 +97,11 @@ func quoteTsString(str string) string {
 		case '\f':
 			result.WriteString(`\f`)
 		case '\n':
-			result.WriteString(`\n`)
+			result.WriteString("\n")
 		case '\r':
 			result.WriteString(`\r`)
 		case '\t':
-			result.WriteString(`\t`)
+			result.WriteString("\t")
 		default:
 			if char < 32 || char > 126 {
 				result.WriteString("\\u")
@@ -109,14 +111,6 @@ func quoteTsString(str string) string {
 			}
 		}
 	}
-	result.WriteRune('"')
+	result.WriteRune('`')
 	return result.String()
-}
-
-func reverseInPlace[A any](a []A) {
-	// taken from https://github.com/golang/go/wiki/SliceTricks/33793edcc2c7aee6448ed1dd0c36524eddfdf1e2#reversing
-	for i := len(a)/2 - 1; i >= 0; i-- {
-		opp := len(a) - 1 - i
-		a[i], a[opp] = a[opp], a[i]
-	}
 }
