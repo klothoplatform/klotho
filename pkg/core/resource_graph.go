@@ -27,3 +27,11 @@ func (cg *ResourceGraph) AddDependency(source Resource, dest Resource) {
 func (cg *ResourceGraph) GetResource(id string) Resource {
 	return cg.underlying.GetVertex(id)
 }
+
+func (cg *ResourceGraph) ListConstructs() []Resource {
+	return cg.underlying.GetAllVertices()
+}
+
+func (cg *ResourceGraph) ListDependencies() []graph.Edge[Resource] {
+	return cg.underlying.GetAllEdges()
+}

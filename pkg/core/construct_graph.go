@@ -1,8 +1,6 @@
 package core
 
 import (
-	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"go.uber.org/zap"
 )
@@ -17,6 +15,10 @@ func NewConstructGraph() *ConstructGraph {
 	return &ConstructGraph{
 		underlying: graph.NewDirected[Construct](),
 	}
+}
+
+func (cg *ConstructGraph) GetRoots() []Construct {
+	return cg.underlying.Roots()
 }
 
 func (cg *ConstructGraph) AddConstruct(construct Construct) {
@@ -59,8 +61,6 @@ func (cg *ConstructGraph) GetUpstreamConstructs(source Construct) []Construct {
 func (cg *ConstructGraph) GetResourcesOfCapability(capability string) (filtered []Construct) {
 	vertices := cg.underlying.GetAllVertices()
 	for _, v := range vertices {
-		fmt.Println(v)
-		fmt.Println(capability)
 		if v.Provenance().Capability == capability {
 			filtered = append(filtered, v)
 

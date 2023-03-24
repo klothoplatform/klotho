@@ -16,7 +16,7 @@ func Test_AddConstruct(t *testing.T) {
 	}
 	gw := &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}}
 	constructGraph.AddConstruct(gw)
-	construct := g.GetVertex("expose_test")
+	construct := g.GetVertex("expose:test")
 	storedGw, ok := construct.(*Gateway)
 	if !assert.True(ok) {
 		return

@@ -1,5 +1,11 @@
 package config
 
+import (
+	"encoding/json"
+
+	"go.uber.org/zap"
+)
+
 type (
 	// ExecutionUnit is how execution unit Klotho constructs are represented in the klotho configuration
 	ExecutionUnit struct {
@@ -87,4 +93,21 @@ func (a Application) GetExecutionUnit(id string) ExecutionUnit {
 		cfg.InfraParams = defaultParams
 	}
 	return cfg
+}
+
+func (cfg ExecutionUnit) GetExecutionUnitParamsAsKubernetes() KubernetesTypeParams {
+
+	infraParams := cfg.InfraParams
+	jsonString, err := json.Marshal(infraParams)
+	if err != nil {
+		zap.S().Error(err)
+	}
+
+	params := KubernetesTypeParams{}
+	if err := json.Unmarshal(jsonString, &params); err != nil {
+		zap.S().Error(err)
+		return params
+	} else {
+		return params
+	}
 }
