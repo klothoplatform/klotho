@@ -15,16 +15,15 @@ func CreateCloudfrontDistribution(resources []core.Construct) *CloudfrontDistrib
 	distribution := &CloudfrontDistribution{}
 
 	for _, res := range resources {
-		switch res.(type) {
+		switch construct := res.(type) {
 		case *core.Gateway:
 			distribution.Origins = append(distribution.Origins, res.Provenance())
 		case *core.StaticUnit:
-			sunit := res.(*core.StaticUnit)
 			distribution.Origins = append(distribution.Origins, res.Provenance())
 			if distribution.DefaultRootObject != "" {
 				zap.S().Warn("Cannot have a cdn with multiple root objects")
 			}
-			distribution.DefaultRootObject = sunit.IndexDocument
+			distribution.DefaultRootObject = construct.IndexDocument
 		}
 	}
 	return distribution

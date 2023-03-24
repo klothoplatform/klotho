@@ -123,7 +123,7 @@ func (d *Directed[V]) GetAllVertices() []V {
 		panic(err)
 	}
 	var vertices []V
-	for vId, _ := range predecessors {
+	for vId := range predecessors {
 		if v, err := d.underlying.Vertex(vId); err == nil {
 			vertices = append(vertices, v)
 		} else {
@@ -154,12 +154,12 @@ func (d *Directed[V]) GetAllEdges() []Edge[V] {
 	for _, edges := range fullAdjacency {
 		for _, edge := range edges {
 			sourceV, err := d.underlying.Vertex(edge.Source)
-			if err == nil {
+			if err != nil {
 				zap.S().With(zap.Error(err)).Errorf(
 					`Ignoring edge %v because I couldn't resolve the source vertex. %s`, edge, ourFault)
 			}
 			destV, err := d.underlying.Vertex(edge.Target)
-			if err == nil {
+			if err != nil {
 				zap.S().With(zap.Error(err)).Errorf(
 					`Ignoring edge %v because I couldn't resolve the destination vertex. %s`, edge, ourFault)
 			}

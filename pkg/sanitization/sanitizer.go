@@ -1,10 +1,13 @@
 package sanitization
 
-import "regexp"
+import (
+	"regexp"
+)
 
 type (
 	Sanitizer struct {
-		rules []Rule
+		rules     []Rule
+		maxLength int
 	}
 
 	Rule struct {
@@ -19,10 +22,13 @@ func (s *Sanitizer) Apply(input string) string {
 	for _, rule := range s.rules {
 		output = rule.Pattern.ReplaceAllString(output, rule.Replacement)
 	}
+	if s.maxLength != 0 && s.maxLength < len(output) {
+		output = output[:s.maxLength]
+	}
 	return output
 }
 
 // NewSanitizer returns a new Sanitizer that applies the supplied rules to inputs.
-func NewSanitizer(rules ...Rule) *Sanitizer {
-	return &Sanitizer{rules: rules}
+func NewSanitizer(rules []Rule, maxLength int) *Sanitizer {
+	return &Sanitizer{rules: rules, maxLength: maxLength}
 }
