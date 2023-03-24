@@ -6,8 +6,16 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 )
 
-type Provider interface {
-	compiler.ProviderPlugin
-	GetKindTypeMappings(construct core.Construct) ([]string, bool)
-	GetDefaultConfig() config.Defaults
-}
+type (
+	Provider interface {
+		compiler.ProviderPlugin
+		GetKindTypeMappings(construct core.Construct) ([]string, bool)
+		GetDefaultConfig() config.Defaults
+	}
+
+	TemplateConfig struct {
+		Datadog bool
+		Lumigo  bool
+		AppName string
+	}
+)

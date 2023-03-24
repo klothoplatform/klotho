@@ -29,13 +29,17 @@ func (cg *ResourceGraph) GetResource(id string) Resource {
 }
 
 func (cg *ResourceGraph) GetDependency(source string, target string) graph.Edge[Resource] {
-	return cg.underlying.GetEdge(source, target)
+	return cg.Underlying.GetEdge(source, target)
 }
 
-func (cg *ResourceGraph) ListConstructs() []Resource {
+func (cg *ResourceGraph) ListResources() []Resource {
 	return cg.Underlying.GetAllVertices()
 }
 
 func (cg *ResourceGraph) ListDependencies() []graph.Edge[Resource] {
 	return cg.Underlying.GetAllEdges()
+}
+
+func (cg *ResourceGraph) TopologicalSort() ([]string, error) {
+	return cg.Underlying.VertexIdsInTopologicalOrder()
 }

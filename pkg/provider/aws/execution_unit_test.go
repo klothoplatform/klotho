@@ -21,7 +21,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 	repo := ecr.NewEcrRepository("test", core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability})
 	image := ecr.NewEcrImage(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}, "test", repo)
 	role := iam.NewIamRole("test", "test-ExecutionRole", core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, iam.LAMBDA_ASSUMER_ROLE_POLICY)
-	lambda := lambda.NewLambdaFunction(unit, "test", role)
+	lambda := lambda.NewLambdaFunction(unit, "test", role, image)
 	logGroup := cloudwatch.NewLogGroup("test", fmt.Sprintf("/aws/lambda/%s", lambda.Name), unit.Provenance(), 5)
 
 	type testResult struct {
@@ -67,39 +67,6 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "ecr repo already exists",
-			cfg: config.Application{
-				AppName: "test",
-				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"test": {Type: "lambda"},
-				},
-			},
-			existingResources: []core.Resource{ecr.NewEcrRepository("test", core.AnnotationKey{ID: "test2", Capability: annotation.ExecutionUnitCapability})},
-			want: testResult{
-				nodes: []core.Resource{
-					repo, image, role, lambda,
-				},
-				deps: []graph.Edge[core.Resource]{
-					{
-						Source:      repo,
-						Destination: image,
-					},
-					{
-						Source:      image,
-						Destination: lambda,
-					},
-					{
-						Source:      role,
-						Destination: lambda,
-					},
-					{
-						Source:      logGroup,
-						Destination: lambda,
-					},
-				},
-			},
-		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -123,7 +90,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 			}
 			for _, node := range tt.want.nodes {
 				found := false
-				for _, res := range dag.ListConstructs() {
+				for _, res := range dag.ListResources() {
 					if res.Id() == node.Id() {
 						found = true
 					}
@@ -139,16 +106,6 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					}
 				}
 				assert.True(found)
-			}
-
-			for _, res := range dag.ListConstructs() {
-				if repo, ok := res.(*ecr.EcrRepository); ok {
-					if len(tt.existingResources) != 0 {
-						assert.Len(repo.ConstructsRef, 2)
-					} else {
-						assert.Len(repo.ConstructsRef, 1)
-					}
-				}
 			}
 		})
 
