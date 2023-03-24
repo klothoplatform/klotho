@@ -32,7 +32,7 @@ var (
 )
 
 func (a AnnotationKey) ToId() string {
-	return fmt.Sprintf("%s_%s", a.Capability, a.ID)
+	return fmt.Sprintf("%s:%s", a.Capability, a.ID)
 }
 
 func (a *Annotation) MarshalJSON() ([]byte, error) {

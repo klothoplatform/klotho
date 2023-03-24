@@ -30,7 +30,7 @@ func Test_ImageId(t *testing.T) {
 	assert := assert.New(t)
 	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test"}}
 	image := NewEcrImage(eu, "test-app")
-	assert.Equal(image.Id(), "ecr_image_test-app-test")
+	assert.Equal(image.Id(), "aws:ecr_image:test-app-test")
 }
 
 func Test_ImageKlothoConstructRef(t *testing.T) {

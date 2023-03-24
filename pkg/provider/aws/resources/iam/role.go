@@ -41,7 +41,7 @@ func (role *IamRole) KlothoConstructRef() []core.AnnotationKey {
 
 // ID returns the id of the cloud resource
 func (role *IamRole) Id() string {
-	return fmt.Sprintf("%s_%s", IAM_ROLE_TYPE, role.Name)
+	return fmt.Sprintf("%s:%s:%s", role.Provider(), IAM_ROLE_TYPE, role.Name)
 }
 
 const LAMBDA_ASSUMER_ROLE_POLICY = `{

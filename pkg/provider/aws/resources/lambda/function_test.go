@@ -33,7 +33,7 @@ func Test_Id(t *testing.T) {
 	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test"}}
 	role := &iam.IamRole{Name: "testRole"}
 	lambda := NewLambdaFunction(eu, "test-app", role)
-	assert.Equal(lambda.Id(), "lambda_function_test_app_test")
+	assert.Equal(lambda.Id(), "aws:lambda_function:test_app_test")
 }
 
 func Test_KlothoConstructRef(t *testing.T) {

@@ -48,5 +48,5 @@ func (lambda *LambdaFunction) KlothoConstructRef() []core.AnnotationKey {
 
 // ID returns the id of the cloud resource
 func (lambda *LambdaFunction) Id() string {
-	return fmt.Sprintf("%s_%s", LAMBDA_FUNCTION_TYPE, lambda.Name)
+	return fmt.Sprintf("%s:%s:%s", lambda.Provider(), LAMBDA_FUNCTION_TYPE, lambda.Name)
 }

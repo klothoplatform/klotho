@@ -41,5 +41,5 @@ func (repo *EcrRepository) Id() string {
 }
 
 func GenerateRepoId(name string) string {
-	return fmt.Sprintf("%s_%s", ECR_REPO_TYPE, name)
+	return fmt.Sprintf("%s:%s:%s", resources.AWS_PROVIDER, ECR_REPO_TYPE, name)
 }

@@ -28,7 +28,7 @@ func Test_RepoId(t *testing.T) {
 	assert := assert.New(t)
 	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test"}}
 	image := NewEcrRepository("test-app", eu.Provenance())
-	assert.Equal(image.Id(), "ecr_repo_test-app")
+	assert.Equal(image.Id(), "aws:ecr_repo:test-app")
 }
 
 func Test_RepoKlothoConstructRef(t *testing.T) {
@@ -41,5 +41,5 @@ func Test_RepoKlothoConstructRef(t *testing.T) {
 func Test_GenerateRepoId(t *testing.T) {
 	assert := assert.New(t)
 	id := GenerateRepoId("test-app")
-	assert.Equal(id, "ecr_repo_test-app")
+	assert.Equal(id, "aws:ecr_repo:test-app")
 }

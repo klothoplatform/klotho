@@ -31,16 +31,16 @@ func NewLogGroup(appName string, logGroupName string, ref core.AnnotationKey, re
 }
 
 // Provider returns name of the provider the resource is correlated to
-func (image *LogGroup) Provider() string {
+func (lg *LogGroup) Provider() string {
 	return resources.AWS_PROVIDER
 }
 
 // KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (image *LogGroup) KlothoConstructRef() []core.AnnotationKey {
-	return image.ConstructsRef
+func (lg *LogGroup) KlothoConstructRef() []core.AnnotationKey {
+	return lg.ConstructsRef
 }
 
 // ID returns the id of the cloud resource
-func (image *LogGroup) Id() string {
-	return fmt.Sprintf("%s_%s", LOG_GROUP_TYPE, image.Name)
+func (lg *LogGroup) Id() string {
+	return fmt.Sprintf("%s:%s:%s", lg.Provider(), LOG_GROUP_TYPE, lg.Name)
 }

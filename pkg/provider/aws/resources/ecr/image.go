@@ -41,5 +41,5 @@ func (image *EcrImage) KlothoConstructRef() []core.AnnotationKey {
 
 // ID returns the id of the cloud resource
 func (image *EcrImage) Id() string {
-	return fmt.Sprintf("%s_%s", ECR_IMAGE_TYPE, image.Name)
+	return fmt.Sprintf("%s:%s:%s", image.Provider(), ECR_IMAGE_TYPE, image.Name)
 }
