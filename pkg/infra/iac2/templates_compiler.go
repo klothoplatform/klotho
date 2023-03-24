@@ -110,7 +110,7 @@ func (tc templatesCompiler) RenderImports(out io.Writer) error {
 	return nil
 }
 
-func (tc templatesCompiler) renderResource(out io.Writer, resource graph.Identifiable) error {
+func (tc templatesCompiler) renderResource(out io.Writer, resource core.Resource) error {
 
 	tmpl, err := tc.GetTemplate(resource)
 	if err != nil {
