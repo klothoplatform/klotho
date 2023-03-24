@@ -139,6 +139,14 @@ func (tc templatesCompiler) renderResource(out io.Writer, resource graph.Identif
 	return errs.ErrOrNil()
 }
 
+// getVarName gets a unique but nice-looking variable for the given item.
+//
+// It does this by first calculating an ideal variable name, which is a camel-cased ${structName}${Id}. For example, if
+// you had an object CoolResource{id: "foo-bar"}, the ideal variable name is coolResourceFooBar.
+//
+// If that ideal variable name hasn't been used yet, this function returns it. If it has been used, we append `_${i}` to
+// it, where ${i} is the lowest positive integer that would give us a new, unique variable name. This isn't expected
+// to happen often, if at all, since ids are globally unique.
 func (tc templatesCompiler) getVarName(v graph.Identifiable) string {
 	if name, alreadyResolved := tc.resourceVarNamesById[v.Id()]; alreadyResolved {
 		return name

@@ -9,7 +9,7 @@ concurrency:
   group: templates-compilation-${{ github.ref }}
 name: iac-templates
 jobs:
-  ls:
+  list-templates:
     outputs:
       to_test: ${{ steps.find_dirs.outputs.to_test }}
     runs-on: ubuntu-latest
@@ -18,16 +18,16 @@ jobs:
       - name: find templates
         id: find_dirs
         run: |
-          json="$(find pkg/infra/iac2/templates -d -maxdepth 1 -mindepth 1 -exec basename {} \; \
+          json="$(find pkg/infra/iac2/templates -find d -maxdepth 1 -mindepth 1 -exec basename {} \; \
                 | jq -csR 'split("\n") | map(select(. != ""))')"
           echo "to_test=$json" > $GITHUB_OUTPUT
   checks:
-    needs: [ls]
+    needs: [list-templates]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        template_dir: ${{ fromJson(needs.ls.outputs.to_test) }}
+        template_dir: ${{ fromJson(needs.list-templates.outputs.to_test) }}
     defaults:
       run:
         working-directory: pkg/infra/iac2/templates/${{ matrix.template_dir }}
