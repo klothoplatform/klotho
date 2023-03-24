@@ -15,7 +15,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/runtime"
 	"github.com/klothoplatform/klotho/pkg/sanitization"
-	"github.com/klothoplatform/klotho/pkg/sanitization/aws/s3"
+	sanitize "github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -329,7 +329,7 @@ func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) e
 	templateData := TemplateData{
 		TemplateConfig:     r.TemplateConfig,
 		ExecUnitName:       unit.ID,
-		PayloadsBucketName: s3.SanitizeS3BucketName(r.Config.AppName),
+		PayloadsBucketName: sanitize.SanitizeS3BucketName(r.Config.AppName),
 	}
 	err := javascript.AddRuntimeFiles(unit, files, templateData)
 	return err
@@ -339,7 +339,7 @@ func (r *AwsRuntime) AddRuntimeFile(unit *core.ExecutionUnit, path string, conte
 	templateData := TemplateData{
 		TemplateConfig:     r.TemplateConfig,
 		ExecUnitName:       unit.ID,
-		PayloadsBucketName: s3.SanitizeS3BucketName(r.Config.AppName),
+		PayloadsBucketName: sanitize.SanitizeS3BucketName(r.Config.AppName),
 	}
 	err := javascript.AddRuntimeFile(unit, templateData, path, content)
 	return err
