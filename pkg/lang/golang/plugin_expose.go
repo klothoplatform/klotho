@@ -504,8 +504,8 @@ func (h *restAPIHandler) findMiddleware(n *sitter.Node) []*sitter.Node {
 			break
 		}
 		args := match["args"]
-		for i := 0; i < int(args.ChildCount()); i++ {
-			mw = append(mw, args.Child(i))
+		for i := 0; i < int(args.NamedChildCount()); i++ {
+			mw = append(mw, args.NamedChild(i))
 		}
 	}
 	return mw
@@ -533,7 +533,7 @@ func (h *restAPIHandler) isMiddlewareCors(mw *sitter.Node) bool {
 	// TODO this is a pretty hacky way to check, but it will work for now.
 	// r.Use(cors.Handler(cors.Options{}))
 	// r.Use(cors.AllowAll().Handler)
-	// r.Use(&cors.Cors{})
+	// r.Use(&cors.Cors{}.Handler)
 	if dot := strings.Index(mw.Content(), "."); dot > 0 {
 		pkg := mw.Content()[:dot]
 		return strings.HasSuffix(pkg, "cors")
