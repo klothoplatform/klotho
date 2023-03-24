@@ -2,24 +2,34 @@ package annotation
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/parseutils"
 	"regexp"
+	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/multierr"
+	"github.com/klothoplatform/klotho/pkg/parseutils"
+	"github.com/lithammer/dedent"
 	"github.com/pkg/errors"
 )
 
-type Capability struct {
-	Name       string     `json:"name"`
-	ID         string     `json:"id"`
-	Directives Directives `json:"directives"`
-}
+type (
+	Capability struct {
+		Name       string     `json:"name"`
+		ID         string     `json:"id"`
+		Directives Directives `json:"directives"`
+	}
+
+	CapabilityResult struct {
+		Capability *Capability
+		Error      error
+	}
+)
 
 var capabilityStartRegex = regexp.MustCompile(`\s*@klotho::(\w+)\s*(\{)?`)
 var idRegex = regexp.MustCompile(`^[\w-_.:/]+$`)
 var extractBodyExpr = parseutils.ExpressionExtractor("", '{', '}')
 
-func ParseCapabilities(s string) ([]*Capability, error) {
-	var capabilities []*Capability
+func ParseCapabilities(s string) []CapabilityResult {
+	var results []CapabilityResult
 	submatchIndices := capabilityStartRegex.FindAllStringSubmatchIndex(s, -1)
 	previousEnd := -1
 	for _, submatch := range submatchIndices {
@@ -32,37 +42,51 @@ func ParseCapabilities(s string) ([]*Capability, error) {
 			continue
 		}
 
+		var annotErrs multierr.Error
 		bodyExprStart := submatch[4]
-		var err error
 
 		cap := &Capability{
 			Name: s[submatch[2]:submatch[3]],
 		}
 
+		var bodyExpr string
 		if bodyExprStart != -1 {
 			if exprs := extractBodyExpr(s[bodyExprStart:], 1); len(exprs) == 1 {
-				bodyExpr := exprs[0]
-				cap.Directives, err = ParseDirectives(bodyExpr[1 : len(bodyExpr)-1])
+				bodyExpr = exprs[0]
+				var err error
+				if cap.Directives, err = ParseDirectives(bodyExpr[1 : len(bodyExpr)-1]); err != nil {
+					annotErrs.Append(errors.Wrap(err, "could not parse directives for annotation"))
+				}
+			} else {
+				annotErrs.Append(fmt.Errorf("incorrect number of annotation body expressions: expected=1, detected=%d", len(exprs)))
 			}
 		}
 
-		if err != nil {
-			return nil, errors.Wrap(err, "could not parse directives")
-		}
 		id, _ := cap.Directives.String("id")
 		if id != "" {
 			if len(id) > 25 {
-				return nil, fmt.Errorf("'id' must be less than 25 characters in length. 'id' was %s", id)
+				annotErrs.Append(fmt.Errorf("'id' must be less than 25 characters in length. 'id' was %s", id))
 			}
 			if !idRegex.MatchString(id) {
-				return nil, fmt.Errorf("'id must match the pattern: '%s', but 'id' was %s", idRegex.String(), id)
+				annotErrs.Append(fmt.Errorf("'id must match the pattern: '%s', but 'id' was %s", idRegex.String(), id))
 			}
 		}
 		cap.ID = id
-		capabilities = append(capabilities, cap)
 		previousEnd = submatch[1] - 1
+
+		var err error
+		if annotErrs.ErrOrNil() != nil {
+			annotText := strings.TrimSpace(dedent.Dedent(s[submatch[0] : submatch[1]+len(bodyExpr)-1]))
+			err = errors.Wrapf(annotErrs.ErrOrNil(), "could not parse capability:\n%s\n", annotText)
+		}
+
+		results = append(results, CapabilityResult{
+			Capability: cap,
+			Error:      err,
+		})
 	}
-	return capabilities, nil
+
+	return results
 }
 
 const ExecutionUnitCapability = "execution_unit"

@@ -2,15 +2,16 @@ package lang
 
 import (
 	"fmt"
+	"io"
+	"regexp"
+	"strings"
+
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/query"
 	"github.com/pkg/errors"
 	sitter "github.com/smacker/go-tree-sitter"
-	"io"
-	"regexp"
-	"strings"
 )
 
 type (
@@ -91,10 +92,15 @@ func (c *capabilityFinder) FindAllCapabilities(f *core.SourceFile) (core.Annotat
 	var merr multierr.Error
 	capabilities := make(core.AnnotationMap)
 	for _, block := range c.findAllCommentBlocks(f) {
-		caps, err := annotation.ParseCapabilities(block.comment)
-		for i, cap := range caps {
+		results := annotation.ParseCapabilities(block.comment)
+		for i, result := range results {
+			cap := result.Capability
+			err := result.Error
 			var node *sitter.Node
-			if i == 0 {
+
+			// Only the annotation closest to the annotated node is attached.
+			// The remaining capabilities are considered to be "file-level" annotations.
+			if i == len(results)-1 {
 				node = block.annotatedNode
 			}
 			annot := &core.Annotation{Capability: cap, Node: node}
@@ -122,7 +128,7 @@ func (c *capabilityFinder) findAllCommentBlocks(f *core.SourceFile) []*commentBl
 		capture := match[fullCaptureName]
 		comment := c.preprocessor(capture.Content())
 		annotatedNode := capture.NextNamedSibling()
-		if annotatedNode != nil && strings.Contains(annotatedNode.Type(), "comment") {
+		if match, found := query.Exec(f.Language, annotatedNode, queryString)(); found && match[fullCaptureName] == annotatedNode {
 			annotatedNode = nil
 		}
 

@@ -3,6 +3,7 @@ package annotation
 import (
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -172,16 +173,37 @@ func TestParseCapability(t *testing.T) {
 					},
 				}},
 		},
+		{
+			name: "escaped glob pattern is not parseable",
+			text: `
+			@klotho::thing1 {
+			  id = "#$%#$%sdfDSFdgdfgdf_(dfgdfgdfggdfgdfg"
+			}
+			@klotho::thing {
+			  included = "**\/*.js"
+			}`,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			got, err := ParseCapabilities(tt.text)
-			if tt.wantErr {
-				assert.Error(err)
-			} else if assert.NoError(err) {
-				assert.Equal(tt.want, got)
+			results := ParseCapabilities(tt.text)
+			var gotCaps []*Capability
+			var gotErr multierr.Error
+			for _, result := range results {
+				if result.Capability != nil {
+					gotCaps = append(gotCaps, result.Capability)
+				}
+				if result.Error != nil {
+					gotErr.Append(result.Error)
+				}
+			}
+			if tt.wantErr && assert.Error(gotErr.ErrOrNil()) {
+				t.Log(gotErr.ErrOrNil())
+			} else if assert.NoError(gotErr.ErrOrNil()) {
+				assert.Equal(tt.want, gotCaps)
 			}
 		})
 	}

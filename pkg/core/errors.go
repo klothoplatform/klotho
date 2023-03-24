@@ -75,7 +75,7 @@ func (err *CompileError) Error() string {
 	if err.File != nil {
 		fmt.Fprintf(sb, "error in %s", err.File.Path())
 	}
-	if err.Annotation.Capability != nil {
+	if err.Annotation.Capability != nil && err.Annotation.Node != nil {
 		start := err.Annotation.Node.StartPoint()
 		fmt.Fprintf(sb, ":%d:%d (in %s)", start.Row, start.Column, err.Annotation.Capability.Name)
 	}
@@ -91,11 +91,13 @@ func (err *CompileError) Format(s fmt.State, verb rune) {
 			fmt.Fprint(s, "\n")
 			err.Annotation.Format(s, verb)
 			fmt.Fprintf(s, "\nin %s\n", err.File.Path())
-			fnode := &NodeContent{
-				Endpoints: err.Annotation.Node,
-				Content:   err.Annotation.Node.Content(),
+			if err.Annotation.Node != nil {
+				fnode := &NodeContent{
+					Endpoints: err.Annotation.Node,
+					Content:   err.Annotation.Node.Content(),
+				}
+				fnode.Format(s, verb)
 			}
-			fnode.Format(s, verb)
 		}
 	}
 	errorColour.Fprint(s, "\n-> Error: ")

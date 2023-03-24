@@ -44,7 +44,10 @@ type annotationField struct {
 }
 
 func (field annotationField) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	_ = astNodeField{n: field.a.Node}.MarshalLogObject(enc)
+	if field.a.Node != nil {
+		_ = astNodeField{n: field.a.Node}.MarshalLogObject(enc)
+	}
+
 	enc.AddString("capability", field.a.Capability.Name)
 	return nil
 }
