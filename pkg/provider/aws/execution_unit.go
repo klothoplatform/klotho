@@ -19,12 +19,14 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, dag *core.Reso
 	execUnitCfg := a.Config.GetExecutionUnit(unit.ID)
 
 	// See if we have already created an ecr repository for the app and if not create one, otherwise add a ref to this exec unit
-	repo := dag.GetResource(ecr.GenerateRepoId(a.Config.AppName))
-	if repo == nil {
+	var repo *ecr.EcrRepository
+	existingRepo := dag.GetResource(ecr.GenerateRepoId(a.Config.AppName))
+	if existingRepo == nil {
 		repo = ecr.NewEcrRepository(a.Config.AppName, unit.Provenance())
 		dag.AddResource(repo)
 	} else {
-		repo, ok := repo.(*ecr.EcrRepository)
+		var ok bool
+		repo, ok = existingRepo.(*ecr.EcrRepository)
 		if !ok {
 			return fmt.Errorf("expected resource with id, %s, to be ecr repository", repo.Id())
 		}
@@ -32,7 +34,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, dag *core.Reso
 	}
 
 	// Create image and make it dependent on the repository
-	image := ecr.NewEcrImage(unit, a.Config.AppName)
+	image := ecr.NewEcrImage(unit, a.Config.AppName, repo)
 	dag.AddResource(image)
 	dag.AddDependency(repo, image)
 

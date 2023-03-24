@@ -13,16 +13,18 @@ type (
 	EcrImage struct {
 		Name          string
 		ConstructsRef []core.AnnotationKey
+		Repo          *EcrRepository
 		Context       string
 		Dockerfile    string
 		ExtraOptions  []string
 	}
 )
 
-func NewEcrImage(unit *core.ExecutionUnit, appName string) *EcrImage {
+func NewEcrImage(unit *core.ExecutionUnit, appName string, repo *EcrRepository) *EcrImage {
 	return &EcrImage{
 		Name:          fmt.Sprintf("%s-%s", appName, unit.ID),
 		ConstructsRef: []core.AnnotationKey{unit.Provenance()},
+		Repo:          repo,
 		Context:       fmt.Sprintf("./%s", unit.ID),
 		Dockerfile:    fmt.Sprintf("./%s/%s", unit.ID, unit.DockerfilePath),
 		ExtraOptions:  []string{"--platform", "linux/amd64", "--quiet"},

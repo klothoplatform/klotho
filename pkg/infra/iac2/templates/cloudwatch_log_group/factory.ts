@@ -1,9 +1,8 @@
 import * as aws from '@pulumi/aws'
 
-interface Args {
-}
+interface Args {}
 
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.cloudwatch.LogGroup {
-    return null; // TODO
+    return null // TODO
 }

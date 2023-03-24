@@ -1,13 +1,14 @@
 package iac2
 
 import (
-	"github.com/klothoplatform/klotho/pkg/graph"
-	"go.uber.org/zap"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/klothoplatform/klotho/pkg/graph"
+	"go.uber.org/zap"
 )
 
 var lowerThenUpper = regexp.MustCompile("([a-z0-9])([A-Z])")
@@ -24,15 +25,6 @@ func lowercaseFirst(s string) string {
 	firstChar := s[:1]
 	rest := s[1:]
 	return strings.ToLower(firstChar) + rest
-}
-
-func uppercaseFirst(s string) string {
-	if s == "" {
-		return s
-	}
-	firstChar := s[:1]
-	rest := s[1:]
-	return strings.ToUpper(firstChar) + rest
 }
 
 func toUpperCamel(s string) string {
