@@ -73,8 +73,13 @@ func ParseResourceCreationTemplate(contents []byte) ResourceCreationTemplate {
 
 	// imports
 	result.imports = make(map[string]struct{})
-	importsQuery := query.Select(doQuery(node, findImportsQuery), query.ContentOf(query.ParamNamed("import")))
-	for _, importLine := range query.Collect(importsQuery) {
+	importsQuery := doQuery(node, findImportsQuery)
+	for {
+		match, found := importsQuery()
+		if !found {
+			break
+		}
+		importLine := match["import"].Content()
 		// Trim any trailing semicolons. This helps normalize imports, so that we don't include them twice if one file
 		// includes the semicolon and the other doesn't.
 		importLine = strings.TrimRight(importLine, ";")

@@ -6,14 +6,12 @@ import (
 	"fmt"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/multierr"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/pkg/errors"
 	"io"
 	"io/fs"
 	"reflect"
 	"regexp"
 	"sort"
-	"strings"
 )
 
 type (
@@ -21,16 +19,17 @@ type (
 		VariableName() string
 	}
 
-	resource struct {
-		hash    string
-		element any
-	}
-
 	templatesCompiler struct {
-		templates             fs.FS
-		resourceGraph         *graph.Directed[resource]
-		resources             map[any]resource
+		// templates is the fs.FS where we read all of our `<struct>/factory.ts` files
+		templates fs.FS
+		// resourceGraph is the graph of resources to render
+		resourceGraph *graph.Directed[graph.Identifiable]
+		// templatesByStructName is a cache from struct name (e.g. "CloudwatchLogs") to the template for that struct.
 		templatesByStructName map[string]ResourceCreationTemplate
+		// resourceVarNames is a set of all variable names
+		resourceVarNames map[string]struct{}
+		// resourceVarNamesById is a map from resource id to the variable name for that resource
+		resourceVarNamesById map[string]string
 	}
 )
 
@@ -41,68 +40,51 @@ var (
 	nonIdentifierChars = regexp.MustCompile(`\W`)
 )
 
-func CreateTemplatesCompiler() *templatesCompiler {
+func CreateTemplatesCompiler(resources *graph.Directed[graph.Identifiable]) *templatesCompiler {
 	subTemplates, err := fs.Sub(standardTemplates, "templates")
 	if err != nil {
 		panic(err) // unexpected, since standardTemplates is statically built into klotho
 	}
 	return &templatesCompiler{
 		templates:             subTemplates,
-		resourceGraph:         graph.NewDirected[resource](),
-		resources:             make(map[any]resource),
+		resourceGraph:         resources,
 		templatesByStructName: make(map[string]ResourceCreationTemplate),
+		resourceVarNames:      make(map[string]struct{}),
+		resourceVarNamesById:  make(map[string]string),
 	}
-}
-
-func (tc templatesCompiler) AddResource(v any) {
-	if _, exists := tc.resources[v]; exists {
-		return
-
-	}
-	res := resource{
-		hash:    fmt.Sprintf(`%x`, len(tc.resources)),
-		element: v,
-	}
-	tc.resources[v] = res
-	tc.resourceGraph.AddVertex(res)
-	for _, child := range getStructValues(v) {
-		if reflect.TypeOf(child).Kind() == reflect.Struct {
-			tc.AddResource(child)
-			childRes := tc.getResource(child)
-			tc.resourceGraph.AddEdge(res.Id(), childRes.Id())
-		}
-	}
-}
-
-func (tc templatesCompiler) getResource(v any) resource {
-	childRes, childExists := tc.resources[v]
-	if !childExists {
-		panic(fmt.Sprintf(`compiler has inconsistent state: no resource for %v`, v))
-	}
-	return childRes
 }
 
 func (tc templatesCompiler) RenderBody(out io.Writer) error {
-	// TODO: for now, assume a nice little tree
-	// TODO: need a stable sorting of outputs!
-
 	errs := multierr.Error{}
-	for _, res := range tc.resourceGraph.Roots() {
-		err := tc.renderResource(out, res.element)
+	vertexIds, err := tc.resourceGraph.VertexIdsInTopologicalOrder()
+	if err != nil {
+		return err
+	}
+	reverseInPlace(vertexIds)
+	for _, id := range vertexIds {
+		resource := tc.resourceGraph.GetVertex(id)
+		err := tc.renderResource(out, resource)
 		errs.Append(err)
 	}
 	return errs.ErrOrNil()
 }
 
 func (tc templatesCompiler) RenderImports(out io.Writer) error {
-	// TODO: for now, assume a nice little tree
+	errs := multierr.Error{}
 
 	allImports := make(map[string]struct{})
-	for _, res := range tc.resources {
-		tmpl := tc.GetTemplate(res.element)
+	for _, res := range tc.resourceGraph.GetAllVertices() {
+		tmpl, err := tc.GetTemplate(res)
+		if err != nil {
+			errs.Append(err)
+			continue
+		}
 		for statement, _ := range tmpl.imports {
 			allImports[statement] = struct{}{}
 		}
+	}
+	if err := errs.ErrOrNil(); err != nil {
+		return err
 	}
 
 	sortedImports := make([]string, 0, len(allImports))
@@ -123,67 +105,73 @@ func (tc templatesCompiler) RenderImports(out io.Writer) error {
 	return nil
 }
 
-func (tc templatesCompiler) renderResource(out io.Writer, res any) error {
+func (tc templatesCompiler) renderResource(out io.Writer, resource graph.Identifiable) error {
 	// TODO: for now, assume a nice little tree
 	errs := multierr.Error{}
 
 	inputArgs := make(map[string]string)
-	for fieldName, child := range getStructValues(res) {
-		childType := reflect.TypeOf(child) // todo cache in the resource?
+	for fieldName, child := range getStructValues(resource) {
+		childType := reflect.TypeOf(child)
 		switch childType.Kind() {
 		case reflect.String:
 			inputArgs[fieldName] = quoteTsString(child.(string))
-		case reflect.Struct:
-			errs.Append(tc.renderResource(out, child))
-			inputArgs[fieldName] = tc.getResource(child).VariableName()
+		case reflect.Struct, reflect.Pointer:
+			if child, ok := child.(graph.Identifiable); ok {
+				inputArgs[fieldName] = tc.getVarName(child)
+			} else {
+				errs.Append(errors.Errorf(`child struct of %v is not of a known type: %v`, resource, child))
+			}
 		default:
-			errs.Append(errors.Errorf(`unrecognized input type for %v [%s]: %v`, res, fieldName, child))
+			errs.Append(errors.Errorf(`unrecognized input type for %v [%s]: %v`, resource, fieldName, child))
 		}
 	}
 
-	varName := tc.getResource(res).VariableName()
+	varName := tc.getVarName(resource)
+	tmpl, err := tc.GetTemplate(resource)
+	if err != nil {
+		return err
+	}
+
 	fmt.Fprintf(out, `const %s = `, varName)
-	errs.Append(tc.GetTemplate(res).RenderCreate(out, inputArgs))
+	errs.Append(tmpl.RenderCreate(out, inputArgs))
 	out.Write([]byte(";\n"))
 
 	return errs.ErrOrNil()
-
 }
 
-func (tc templatesCompiler) GetTemplate(v any) ResourceCreationTemplate {
-	// TODO cache into the resource
-	vType := reflect.TypeOf(v)
-	typeName := vType.Name()
+func (tc templatesCompiler) getVarName(v graph.Identifiable) string {
+	if name, alreadyResolved := tc.resourceVarNamesById[v.Id()]; alreadyResolved {
+		return name
+	}
+
+	// Generate something like "lambdaFoo", where Lambda is the name of the struct and "foo" is the id
+	desiredName := lowercaseFirst(structName(v)) + toUpperCamel(v.Id())
+	resolvedName := desiredName
+	for i := 1; ; i++ {
+		_, varNameTaken := tc.resourceVarNames[resolvedName]
+		if varNameTaken {
+			resolvedName = fmt.Sprintf("%s_%d", desiredName, i)
+		} else {
+			break
+		}
+	}
+	tc.resourceVarNames[resolvedName] = struct{}{}
+	tc.resourceVarNamesById[v.Id()] = resolvedName
+	return resolvedName
+}
+
+func (tc templatesCompiler) GetTemplate(v graph.Identifiable) (ResourceCreationTemplate, error) {
+	typeName := structName(v)
 	existing, ok := tc.templatesByStructName[typeName]
 	if ok {
-		return existing
+		return existing, nil
 	}
 	templateName := camelToSnake(typeName)
 	contents, err := fs.ReadFile(tc.templates, templateName+`/factory.ts`)
 	if err != nil {
-		// Shouldn't ever happen; would mean an error in how we set up our structs
-		panic(err)
+		return ResourceCreationTemplate{}, err
 	}
 	template := ParseResourceCreationTemplate(contents)
 	tc.templatesByStructName[typeName] = template
-	return template
-}
-
-func (r resource) Id() string {
-	if r.hash == "" {
-		h, err := hashstructure.Hash(r.element, hashstructure.FormatV2, nil)
-		if err != nil {
-			// Shouldn't ever happen; would mean an error in how we set up our structs
-			panic(err)
-		}
-		r.hash = fmt.Sprintf("%x", h)
-	}
-	return r.hash
-}
-
-func (r resource) VariableName() string {
-	name := fmt.Sprintf(`%s_%s`, reflect.TypeOf(r.element).Name(), r.Id())
-	firstChar := name[:1]
-	rest := name[1:]
-	return strings.ToLower(firstChar) + rest
+	return template, nil
 }

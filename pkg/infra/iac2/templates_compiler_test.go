@@ -2,6 +2,7 @@ package iac2
 
 import (
 	"bytes"
+	graph2 "github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/stretchr/testify/assert"
 	"io/fs"
 	"strings"
@@ -11,15 +12,22 @@ import (
 )
 
 func TestOutputBody(t *testing.T) {
-	compiler := CreateTemplatesCompiler()
+	fizz := &DummyFizz{Value: "my-hello"}
+	buzz := DummyBuzz{}
+	parent := &DummyBig{
+		id:   "main",
+		Fizz: fizz,
+		Buzz: buzz,
+	}
+	graph := graph2.NewDirected[graph2.Identifiable]()
+	graph.AddVertex(fizz)
+	graph.AddVertex(buzz)
+	graph.AddVertex(parent)
+	graph.AddEdge(parent.Id(), fizz.Id())
+	graph.AddEdge(parent.Id(), buzz.Id())
+
+	compiler := CreateTemplatesCompiler(graph)
 	compiler.templates = filesMapToFsMap(dummyTemplateFiles)
-	compiler.AddResource(
-		DummyResourceParent{
-			Fizz: DummyResourceLeafFizz{
-				Value: "my-hello",
-			},
-			Buzz: DummyResourceLeafBuzz{},
-		})
 
 	t.Run("body", func(t *testing.T) {
 		assert := assert.New(t)
@@ -29,11 +37,11 @@ func TestOutputBody(t *testing.T) {
 			return
 		}
 		expect := strings.TrimLeft(`
-const dummyResourceLeafFizz_1 = new aws.fizz.DummyResource("my-hello");
-const dummyResourceLeafBuzz_2 = new aws.buzz.DummyResource();
-const dummyResourceParent_0 = new DummyParent(
-				dummyResourceLeafFizz_1,
-				{buzz: dummyResourceLeafBuzz_2});
+const dummyBuzzShared = new aws.buzz.DummyResource();
+const dummyFizzMyHello = new aws.fizz.DummyResource("my-hello");
+const dummyBigMain = new DummyParent(
+				dummyFizzMyHello,
+				{buzz: dummyBuzzShared});
 `, "\n")
 		assert.Equal(expect, buf.String())
 	})
@@ -53,22 +61,35 @@ import {Whatever} from "@pulumi/aws/cool/service"
 }
 
 type (
-	DummyResourceLeafFizz struct {
+	DummyFizz struct {
 		Value string
 	}
 
-	DummyResourceLeafBuzz struct {
+	DummyBuzz struct {
 		// nothing
 	}
 
-	DummyResourceParent struct {
-		Fizz DummyResourceLeafFizz
-		Buzz DummyResourceLeafBuzz
+	DummyBig struct {
+		id   string
+		Fizz *DummyFizz
+		Buzz DummyBuzz
 	}
 )
 
+func (f *DummyFizz) Id() string {
+	return f.Value
+}
+
+func (b DummyBuzz) Id() string {
+	return "shared"
+}
+
+func (p *DummyBig) Id() string {
+	return p.id
+}
+
 var dummyTemplateFiles = map[string]string{
-	`dummy_resource_leaf_fizz/factory.ts`: `
+	`dummy_fizz/factory.ts`: `
 		import * as aws from '@pulumi/aws'
 
 		interface Args {
@@ -79,7 +100,7 @@ var dummyTemplateFiles = map[string]string{
 			return new aws.fizz.DummyResource(args.Value);
 		}`,
 
-	`dummy_resource_leaf_buzz/factory.ts`: `
+	`dummy_buzz/factory.ts`: `
 		import * as aws from '@pulumi/aws'
 		import {Whatever} from "@pulumi/aws/cool/service"; // Note the trailing semicolon. It'll get removed.
 
@@ -89,7 +110,7 @@ var dummyTemplateFiles = map[string]string{
 			return new aws.buzz.DummyResource();
 		}`,
 
-	`dummy_resource_parent/factory.ts`: `
+	`dummy_big/factory.ts`: `
 		import * as aws from '@pulumi/aws'
 
 		interface Args {
