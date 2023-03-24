@@ -61,28 +61,25 @@ func ParseResourceCreationTemplate(contents []byte) ResourceCreationTemplate {
 		result.inputTypes[inputName] = inputType
 	}
 
-	// return type
-	returnTypeFunc := query.Select(doQuery(node, findCreateFuncQuery), query.ContentOf(query.ParamNamed("return_type")))
-	returnType, err := returnTypeFunc()
-	if !err {
+	// return type and expression
+	createFunc := doQuery(node, findCreateFuncQuery)
+	create, found := createFunc()
+	if !found {
 		// unexpected, since all inputs are from resources in the klotho binary
 		panic("couldn't find valid create() function")
 	}
-	result.outputType = returnType
-
-	// return expression
-	returnBodyFunc := query.Select(doQuery(node, findCreateFuncQuery), query.ContentOf(query.ParamNamed("return_body")))
-	returnBody, err := returnBodyFunc()
-	if !err {
-		// unexpected, since all inputs are from resources in the klotho binary
-		panic("couldn't find valid create() function")
-	}
-	result.expressionTemplate = parameterizeArgs(returnBody)
+	result.outputType = create["return_type"].Content()
+	result.expressionTemplate = parameterizeArgs(create["return_body"].Content())
 
 	// imports
 	result.imports = make(map[string]struct{})
-	importsQuery := query.Select(doQuery(node, findImportsQuery), query.ContentOf(query.ParamNamed("import")))
-	for _, importLine := range query.Collect(importsQuery) {
+	importsQuery := doQuery(node, findImportsQuery)
+	for {
+		match, found := importsQuery()
+		if !found {
+			break
+		}
+		importLine := match["import"].Content()
 		// Trim any trailing semicolons. This helps normalize imports, so that we don't include them twice if one file
 		// includes the semicolon and the other doesn't.
 		importLine = strings.TrimRight(importLine, ";")

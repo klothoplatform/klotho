@@ -55,6 +55,10 @@ func (d *Directed[V]) Roots() []V {
 	return roots
 }
 
+func (d *Directed[V]) VertexIdsInTopologicalOrder() ([]string, error) {
+	return graph.TopologicalSort(d.underlying)
+}
+
 func (d *Directed[V]) OutgoingEdges(from V) []Edge[V] {
 	return handleOutgoingEdges(d, from, func(destination V) Edge[V] {
 		return Edge[V]{
