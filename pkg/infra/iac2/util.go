@@ -1,11 +1,13 @@
 package iac2
 
 import (
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"go.uber.org/zap"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 var lowerThenUpper = regexp.MustCompile("([a-z0-9])([A-Z])")
@@ -15,9 +17,59 @@ func camelToSnake(s string) string {
 	return strings.ToLower(snakedButUppers)
 }
 
+func lowercaseFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	firstChar := s[:1]
+	rest := s[1:]
+	return strings.ToLower(firstChar) + rest
+}
+
+func uppercaseFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	firstChar := s[:1]
+	rest := s[1:]
+	return strings.ToUpper(firstChar) + rest
+}
+
+func toUpperCamel(s string) string {
+	sb := strings.Builder{}
+	sb.Grow(len(s))
+	capitalizeNext := true
+	for _, char := range s {
+		if unicode.IsLetter(char) || unicode.IsDigit(char) {
+			if capitalizeNext {
+				char = unicode.ToUpper(char)
+				capitalizeNext = false
+			}
+			sb.WriteRune(char)
+		} else {
+			capitalizeNext = true
+		}
+	}
+	return sb.String()
+}
+
+func structName(v graph.Identifiable) string {
+	vType := reflect.TypeOf(v)
+	for vType.Kind() == reflect.Pointer {
+		vType = vType.Elem()
+	}
+	return vType.Name()
+}
+
 func getStructValues(o any) map[string]any {
 	val := reflect.ValueOf(o)
-	valType := reflect.TypeOf(o)
+	for val.Kind() == reflect.Pointer {
+		val = val.Elem()
+	}
+	if val.Kind() != reflect.Struct {
+		return nil
+	}
+	valType := val.Type()
 
 	fieldCount := val.NumField()
 	result := make(map[string]any, fieldCount)
@@ -28,9 +80,9 @@ func getStructValues(o any) map[string]any {
 			zap.S().Debugf(`Ignoring unexported field %s on %s`, valField.Name, valType.Name())
 			continue
 		}
-		fieldName := valField.Name
-		fieldValue := val.Field(i).Interface()
-		result[fieldName] = fieldValue
+		fieldValue := val.Field(i)
+		fieldData := fieldValue.Interface()
+		result[valField.Name] = fieldData
 	}
 	return result
 }
@@ -67,4 +119,12 @@ func quoteTsString(str string) string {
 	}
 	result.WriteRune('"')
 	return result.String()
+}
+
+func reverseInPlace[A any](a []A) {
+	// taken from https://github.com/golang/go/wiki/SliceTricks/33793edcc2c7aee6448ed1dd0c36524eddfdf1e2#reversing
+	for i := len(a)/2 - 1; i >= 0; i-- {
+		opp := len(a) - 1 - i
+		a[i], a[opp] = a[opp], a[i]
+	}
 }
