@@ -2,6 +2,8 @@ package iac2
 
 import (
 	"bytes"
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/stretchr/testify/assert"
 	"io/fs"
 	"strings"
 	"testing"
@@ -9,7 +11,6 @@ import (
 	"time"
 
 	graph2 "github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestOutputBody(t *testing.T) {
@@ -20,13 +21,13 @@ func TestOutputBody(t *testing.T) {
 		Fizz: fizz,
 		Buzz: buzz,
 	}
-	graph := graph2.NewDirected[graph2.Identifiable]()
+	graph := graph2.NewDirected[core.Resource]()
 	graph.AddVertex(fizz)
 	graph.AddVertex(buzz)
 	graph.AddVertex(parent)
-	graph.AddEdge(parent.Id(), fizz.Id())
-	graph.AddEdge(parent.Id(), buzz.Id())
-	graph.AddEdge(fizz.Id(), buzz.Id())
+	graph.AddEdge(fizz.Id(), parent.Id())
+	graph.AddEdge(buzz.Id(), parent.Id())
+	graph.AddEdge(buzz.Id(), fizz.Id())
 
 	compiler := CreateTemplatesCompiler(graph)
 	compiler.templates = filesMapToFsMap(dummyTemplateFiles)
@@ -38,13 +39,14 @@ func TestOutputBody(t *testing.T) {
 		if !assert.NoError(err) {
 			return
 		}
-		expect := strings.TrimLeft(`
-const dummyBuzzShared = new aws.buzz.DummyResource();
-const dummyFizzMyHello = new aws.fizz.DummyResource("my-hello");
-const dummyBigMain = new DummyParent(
-				dummyFizzMyHello,
-				{buzz: dummyBuzzShared});
-`, "\n")
+		expect := s(
+			"const buzzShared = new aws.buzz.DummyResource();",
+			"",
+			"const fizzMyHello = new aws.fizz.DummyResource(`my-hello`);",
+			"",
+			"const bigMain = new DummyParent(",
+			"				fizzMyHello,",
+			"				{buzz: buzzShared});")
 		assert.Equal(expect, buf.String())
 	})
 	t.Run("imports", func(t *testing.T) {
@@ -78,17 +80,17 @@ type (
 	}
 )
 
-func (f *DummyFizz) Id() string {
-	return f.Value
-}
+func (f *DummyFizz) Id() string                               { return "fizz-" + f.Value }
+func (f *DummyFizz) Provider() string                         { return "DummyProvider" }
+func (f *DummyFizz) KlothoConstructRef() []core.AnnotationKey { return nil }
 
-func (b DummyBuzz) Id() string {
-	return "shared"
-}
+func (b DummyBuzz) Id() string                               { return "buzz-shared" }
+func (f DummyBuzz) Provider() string                         { return "DummyProvider" }
+func (f DummyBuzz) KlothoConstructRef() []core.AnnotationKey { return nil }
 
-func (p *DummyBig) Id() string {
-	return p.id
-}
+func (p *DummyBig) Id() string                               { return "big-" + p.id }
+func (f *DummyBig) Provider() string                         { return "DummyProvider" }
+func (f *DummyBig) KlothoConstructRef() []core.AnnotationKey { return nil }
 
 var dummyTemplateFiles = map[string]string{
 	`dummy_fizz/factory.ts`: `
@@ -138,4 +140,10 @@ func filesMapToFsMap(files map[string]string) fs.FS {
 		}
 	}
 	return mockFs
+}
+
+// s joins all the inputs via newline. We use it because the output might itself contain backticks, which makes the
+// built-in go multiline strings unuseful.
+func s(lines ...string) string {
+	return strings.Join(lines, "\n")
 }

@@ -10,11 +10,11 @@ import (
 
 type (
 	CompilationDocument struct {
-		InputFiles     *core.InputFiles
-		Constructs     *core.ConstructGraph
-		Configuration  *config.Application
-		CloudResources *core.ResourceGraph
-		OutputFiles    []core.File
+		InputFiles    *core.InputFiles
+		Constructs    *core.ConstructGraph
+		Configuration *config.Application
+		Resources     *core.ResourceGraph
+		OutputFiles   []core.File
 	}
 )
 
