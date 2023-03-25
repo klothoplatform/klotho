@@ -7,7 +7,7 @@ import (
 
 func TestParseTemplate(t *testing.T) {
 	assert := assert.New(t)
-	parsed := ParseResourceCreationTemplate([]byte(simpleTemplateBody))
+	parsed := ParseResourceCreationTemplate("dummy", []byte(simpleTemplateBody))
 
 	assert.Equal(
 		map[string]string{

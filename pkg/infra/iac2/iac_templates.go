@@ -3,15 +3,16 @@ package iac2
 import (
 	"context"
 	_ "embed"
+
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/query"
+	"github.com/pkg/errors"
+	sitter "github.com/smacker/go-tree-sitter"
+	"github.com/smacker/go-tree-sitter/typescript/typescript"
 	"io"
 	"regexp"
 	"strings"
 	"text/template"
-
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/query"
-	sitter "github.com/smacker/go-tree-sitter"
-	"github.com/smacker/go-tree-sitter/typescript/typescript"
 )
 
 type (
@@ -22,6 +23,7 @@ type (
 
 	ResourceCreationTemplate struct {
 		ResourceCreationSignature
+		name               string
 		imports            map[string]struct{}
 		expressionTemplate string
 	}
@@ -34,6 +36,7 @@ var (
 	}
 
 	parameterizeArgsRegex = regexp.MustCompile(`args(\.\w+)`)
+	curlyEscapes          = regexp.MustCompile(`({+)args\.`)
 
 	//go:embed find_args.scm
 	findArgsQuery string
@@ -45,10 +48,10 @@ var (
 	findImportsQuery string
 )
 
-func ParseResourceCreationTemplate(contents []byte) ResourceCreationTemplate {
+func ParseResourceCreationTemplate(name string, contents []byte) ResourceCreationTemplate {
 	node := parseFile(contents)
 
-	result := ResourceCreationTemplate{}
+	result := ResourceCreationTemplate{name: name}
 
 	// inputs
 	result.inputTypes = make(map[string]string)
@@ -97,7 +100,12 @@ func doQuery(c *sitter.Node, q string) query.NextMatchFunc {
 
 // parameterizeArgs turns "args.foo" into {{.Foo}}. It's very simplistic and just works off regex
 func parameterizeArgs(contents string) string {
-	return parameterizeArgsRegex.ReplaceAllString(contents, `{{$1}}`)
+	// If the source has "{args.Foo}", then just turning "args.Foo" -> "{{.Foo}}" would result in "{{{.Foo}}}", which is
+	// invalid go-template. So, we first turn "{args." into "{{`{`}}args.", which will eventually result in
+	// "{{`{`}}{{.Foo}}" — which, while ugly, will result in the correct template execution.
+	contents = curlyEscapes.ReplaceAllString(contents, "{{`$1`}}args")
+	contents = parameterizeArgsRegex.ReplaceAllString(contents, `{{$1}}`)
+	return contents
 }
 
 func parseFile(contents []byte) *sitter.Node {
@@ -113,7 +121,7 @@ func parseFile(contents []byte) *sitter.Node {
 func (t ResourceCreationTemplate) RenderCreate(out io.Writer, inputs map[string]string) error {
 	tmpl, err := template.New("template").Parse(t.expressionTemplate)
 	if err != nil {
-		return err // unexpected, but we already return error for the writer, so why not
+		return errors.Wrapf(err, `while writing template for %s`, t.name)
 	}
 	return tmpl.Execute(out, inputs)
 }

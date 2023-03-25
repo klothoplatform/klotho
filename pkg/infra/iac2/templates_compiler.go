@@ -4,15 +4,17 @@ import (
 	"embed"
 	_ "embed"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/multierr"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"io"
 	"io/fs"
 	"reflect"
 	"regexp"
 	"sort"
-
-	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/klothoplatform/klotho/pkg/multierr"
-	"github.com/pkg/errors"
+	"strings"
 )
 
 type (
@@ -20,7 +22,7 @@ type (
 		// templates is the fs.FS where we read all of our `<struct>/factory.ts` files
 		templates fs.FS
 		// resourceGraph is the graph of resources to render
-		resourceGraph *graph.Directed[graph.Identifiable]
+		resourceGraph *graph.Directed[core.Resource] // TODO make this be a core.ResourceGraph, and un-expose that struct's Underlying
 		// templatesByStructName is a cache from struct name (e.g. "CloudwatchLogs") to the template for that struct.
 		templatesByStructName map[string]ResourceCreationTemplate
 		// resourceVarNames is a set of all variable names
@@ -37,7 +39,7 @@ var (
 	nonIdentifierChars = regexp.MustCompile(`\W`)
 )
 
-func CreateTemplatesCompiler(resources *graph.Directed[graph.Identifiable]) *templatesCompiler {
+func CreateTemplatesCompiler(resources *graph.Directed[core.Resource]) *templatesCompiler {
 	subTemplates, err := fs.Sub(standardTemplates, "templates")
 	if err != nil {
 		panic(err) // unexpected, since standardTemplates is statically built into klotho
@@ -57,11 +59,17 @@ func (tc templatesCompiler) RenderBody(out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	reverseInPlace(vertexIds)
-	for _, id := range vertexIds {
+	for i, id := range vertexIds {
 		resource := tc.resourceGraph.GetVertex(id)
 		err := tc.renderResource(out, resource)
 		errs.Append(err)
+		if i < len(vertexIds)-1 {
+			_, err = out.Write([]byte("\n\n"))
+			if err != nil {
+				return err
+			}
+		}
+
 	}
 	return errs.ErrOrNil()
 }
@@ -102,41 +110,101 @@ func (tc templatesCompiler) RenderImports(out io.Writer) error {
 	return nil
 }
 
-func (tc templatesCompiler) renderResource(out io.Writer, resource graph.Identifiable) error {
-	// TODO: for now, assume a nice little tree
-	errs := multierr.Error{}
+func (tc templatesCompiler) renderResource(out io.Writer, resource core.Resource) error {
 
-	inputArgs := make(map[string]string)
-	for fieldName, child := range getStructValues(resource) {
-		childType := reflect.TypeOf(child)
-		switch childType.Kind() {
-		case reflect.String:
-			inputArgs[fieldName] = quoteTsString(child.(string))
-		case reflect.Struct, reflect.Pointer:
-			if typedChild, ok := child.(graph.Identifiable); ok {
-				inputArgs[fieldName] = tc.getVarName(typedChild)
-			} else {
-				errs.Append(errors.Errorf(`child struct of %v is not of a known type: %v`, resource, child))
-			}
-		default:
-			errs.Append(errors.Errorf(`unrecognized input type for %v [%s]: %v`, resource, fieldName, child))
-		}
-	}
-
-	varName := tc.getVarName(resource)
 	tmpl, err := tc.GetTemplate(resource)
 	if err != nil {
 		return err
 	}
 
+	errs := multierr.Error{}
+
+	resourceVal := reflect.ValueOf(resource)
+	for resourceVal.Kind() == reflect.Pointer {
+		resourceVal = resourceVal.Elem()
+	}
+	inputArgs := make(map[string]string)
+	var zeroValue reflect.Value
+	for fieldName := range tmpl.inputTypes {
+		childVal := resourceVal.FieldByName(fieldName)
+		if childVal == zeroValue {
+			zap.S().Warnf(
+				`Klotho compiler error: no field %s.%s while rendering typescript template`,
+				resourceVal.Type().Name(),
+				fieldName)
+			continue
+		}
+		resolvedValue := tc.resolveStructInput(childVal)
+		if resolvedValue == "" {
+			errs.Append(errors.Errorf(`child struct of %v is not of a known type: %v`, resource, childVal.Interface()))
+		} else {
+			inputArgs[fieldName] = resolvedValue
+		}
+
+	}
+
+	varName := tc.getVarName(resource)
+
 	fmt.Fprintf(out, `const %s = `, varName)
 	errs.Append(tmpl.RenderCreate(out, inputArgs))
-	_, err = out.Write([]byte(";\n"))
+	_, err = out.Write([]byte(";"))
 	if err != nil {
 		return err
 	}
 
 	return errs.ErrOrNil()
+}
+
+// resolveStructInput translates a value to a form suitable to inject into the typescript as an input to a function.
+func (tc templatesCompiler) resolveStructInput(childVal reflect.Value) string {
+	switch childVal.Kind() {
+	case reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return fmt.Sprintf("%v", childVal.Interface())
+	case reflect.String:
+		return quoteTsString(childVal.Interface().(string))
+	case reflect.Struct, reflect.Pointer:
+		if childVal.Kind() == reflect.Pointer && childVal.IsNil() {
+			return "null"
+		}
+		if typedChild, ok := childVal.Interface().(graph.Identifiable); ok {
+			return tc.getVarName(typedChild)
+		} else {
+			return ""
+		}
+	case reflect.Array, reflect.Slice:
+		sliceLen := childVal.Len()
+
+		buf := strings.Builder{}
+		buf.WriteRune('[')
+		for i := 0; i < sliceLen; i++ {
+			buf.WriteString(tc.resolveStructInput(childVal.Index(i)))
+			if i < (sliceLen - 1) {
+				buf.WriteRune(',')
+			}
+		}
+		buf.WriteRune(']')
+		return buf.String()
+	case reflect.Map:
+		mapLen := childVal.Len()
+
+		buf := strings.Builder{}
+		buf.WriteRune('{')
+		for i, key := range childVal.MapKeys() {
+			buf.WriteString(tc.resolveStructInput(key))
+			buf.WriteRune(':')
+			buf.WriteString(tc.resolveStructInput(childVal.MapIndex(key)))
+			if i < (mapLen - 1) {
+				buf.WriteRune(',')
+			}
+		}
+		buf.WriteRune('}')
+
+		return buf.String()
+	}
+	return ""
 }
 
 // getVarName gets a unique but nice-looking variable for the given item.
@@ -153,7 +221,7 @@ func (tc templatesCompiler) getVarName(v graph.Identifiable) string {
 	}
 
 	// Generate something like "lambdaFoo", where Lambda is the name of the struct and "foo" is the id
-	desiredName := lowercaseFirst(structName(v)) + toUpperCamel(v.Id())
+	desiredName := lowercaseFirst(toUpperCamel(v.Id()))
 	resolvedName := desiredName
 	for i := 1; ; i++ {
 		_, varNameTaken := tc.resourceVarNames[resolvedName]
@@ -179,7 +247,7 @@ func (tc templatesCompiler) GetTemplate(v graph.Identifiable) (ResourceCreationT
 	if err != nil {
 		return ResourceCreationTemplate{}, err
 	}
-	template := ParseResourceCreationTemplate(contents)
+	template := ParseResourceCreationTemplate(typeName, contents)
 	tc.templatesByStructName[typeName] = template
 	return template, nil
 }
