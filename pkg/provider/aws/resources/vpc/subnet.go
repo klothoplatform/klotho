@@ -62,7 +62,6 @@ func CreatePrivateSubnet(appName string, subnetName string, vpc *Vpc, cidrBlock 
 	ip := NewElasticIp(appName, subnetName)
 
 	dag.AddResource(ip)
-	dag.AddDependency(subnet, ip)
 
 	natGateway := NewNatGateway(appName, subnetName, subnet, ip)
 

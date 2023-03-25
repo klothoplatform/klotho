@@ -50,6 +50,7 @@ func CreateNetwork(appName string, dag *core.ResourceGraph) {
 	vpc := NewVpc("test-app")
 	region := resources.NewRegion()
 
+	dag.AddResource(region)
 	dag.AddResource(vpc)
 
 	CreateGatewayVpcEndpoint("s3", vpc, region, dag)
