@@ -1,26 +1,32 @@
 package iac2
 
 import (
+	"bytes"
 	"embed"
 	_ "embed"
+	"encoding/json"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/klothoplatform/klotho/pkg/multierr"
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"io"
 	"io/fs"
 	"reflect"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/lang/javascript"
+	"github.com/klothoplatform/klotho/pkg/multierr"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 type (
 	templatesCompiler struct {
 		// templates is the fs.FS where we read all of our `<struct>/factory.ts` files
 		templates fs.FS
+		// packageFiles is the fs.FS where we read all of our `<struct>/package.json` files
+		packageFiles fs.FS
 		// resourceGraph is the graph of resources to render
 		resourceGraph *graph.Directed[core.Resource] // TODO make this be a core.ResourceGraph, and un-expose that struct's Underlying
 		// templatesByStructName is a cache from struct name (e.g. "CloudwatchLogs") to the template for that struct.
@@ -36,6 +42,9 @@ var (
 	//go:embed templates/*/factory.ts
 	standardTemplates embed.FS
 
+	//go:embed templates/*/package.json
+	packageJsons embed.FS
+
 	nonIdentifierChars = regexp.MustCompile(`\W`)
 )
 
@@ -44,8 +53,13 @@ func CreateTemplatesCompiler(resources *graph.Directed[core.Resource]) *template
 	if err != nil {
 		panic(err) // unexpected, since standardTemplates is statically built into klotho
 	}
+	subPackageJsons, err := fs.Sub(packageJsons, "templates")
+	if err != nil {
+		panic(err) // unexpected, since standardTemplates is statically built into klotho
+	}
 	return &templatesCompiler{
 		templates:             subTemplates,
+		packageFiles:          subPackageJsons,
 		resourceGraph:         resources,
 		templatesByStructName: make(map[string]ResourceCreationTemplate),
 		resourceVarNames:      make(map[string]struct{}),
@@ -108,6 +122,24 @@ func (tc templatesCompiler) RenderImports(out io.Writer) error {
 	}
 
 	return nil
+}
+
+func (tc templatesCompiler) RenderPackageJSON() (javascript.NodePackageJson, error) {
+	errs := multierr.Error{}
+	mainPJson := javascript.NodePackageJson{}
+	for _, res := range tc.resourceGraph.GetAllVertices() {
+		pJson, err := tc.GetPackageJSON(res)
+		if err != nil {
+			fmt.Println(err)
+			errs.Append(err)
+			continue
+		}
+		mainPJson.Merge(&pJson)
+	}
+	if err := errs.ErrOrNil(); err != nil {
+		return *mainPJson.Clone(), err
+	}
+	return *mainPJson.Clone(), nil
 }
 
 func (tc templatesCompiler) renderResource(out io.Writer, resource core.Resource) error {
@@ -250,4 +282,19 @@ func (tc templatesCompiler) GetTemplate(v graph.Identifiable) (ResourceCreationT
 	template := ParseResourceCreationTemplate(typeName, contents)
 	tc.templatesByStructName[typeName] = template
 	return template, nil
+}
+
+func (tc templatesCompiler) GetPackageJSON(v graph.Identifiable) (javascript.NodePackageJson, error) {
+	packageContent := javascript.NodePackageJson{}
+	typeName := structName(v)
+	templateName := camelToSnake(typeName)
+	contents, err := fs.ReadFile(tc.packageFiles, templateName+`/package.json`)
+	if err != nil {
+		return *packageContent.Clone(), err
+	}
+	err = json.NewDecoder(bytes.NewReader(contents)).Decode(&packageContent)
+	if err != nil {
+		return *packageContent.Clone(), err
+	}
+	return *packageContent.Clone(), nil
 }

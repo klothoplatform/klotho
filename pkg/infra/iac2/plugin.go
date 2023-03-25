@@ -2,6 +2,7 @@ package iac2
 
 import (
 	"bytes"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 )
 
@@ -34,11 +35,21 @@ func (p Plugin) Translate(cloudGraph *core.ResourceGraph) ([]core.File, error) {
 	}
 	indexTs := &core.RawFile{
 		FPath:   `iac2/index.ts`,
-		Content: bytes.Clone(buf.Bytes()),
+		Content: buf.Bytes(),
 	}
-	buf.Reset()
 
-	// TODO also write a package.json
+	pJson, err := tc.RenderPackageJSON()
+	if err != nil {
+		return nil, err
+	}
+	pJsonContent, err := pJson.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	packageJson := &core.RawFile{
+		FPath:   `iac2/package.json`,
+		Content: pJsonContent,
+	}
 
-	return []core.File{indexTs}, nil
+	return []core.File{indexTs, packageJson}, nil
 }

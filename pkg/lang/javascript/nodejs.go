@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"go.uber.org/zap"
 )
 
 type PackageFile struct {
@@ -35,6 +36,22 @@ func (f *PackageFile) Clone() core.File {
 
 func (f *PackageFile) Path() string {
 	return f.path
+}
+
+func (f *PackageFile) MergeDeps(other *PackageFile) {
+	for dep, version := range other.Content.Dependencies {
+		currentVersion, ok := f.Content.Dependencies[dep]
+		if ok {
+			if currentVersion != version {
+				zap.S().Warnf(`Found conflicting dependencies in package.json.
+Found version of package, %s = %s, at path %s.
+Found version of package, %s = %s, at path %s.
+Using version %s`, dep, currentVersion, f.path, dep, version, other.path, currentVersion)
+			}
+		} else {
+			f.Content.Dependencies[dep] = version
+		}
+	}
 }
 
 func (f *PackageFile) WriteTo(out io.Writer) (int64, error) {
@@ -110,7 +127,7 @@ func (n *NodePackageJson) MarshalJSON() ([]byte, error) {
 	for k, v := range n.OtherFields {
 		m[k] = v
 	}
-	return json.Marshal(m)
+	return json.MarshalIndent(m, "", "    ")
 }
 
 func (n *NodePackageJson) UnmarshalJSON(b []byte) error {
