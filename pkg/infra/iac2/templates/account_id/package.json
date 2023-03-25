@@ -1,6 +1,7 @@
 {
     "name": "iac-fragment",
     "dependencies": {
+        "@pulumi/pulumi": "^3.40.2",
         "@pulumi/aws": "^5.16.0"
     }
 }
