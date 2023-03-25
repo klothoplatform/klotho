@@ -3,14 +3,15 @@ package iac2
 import (
 	"context"
 	_ "embed"
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/query"
-	sitter "github.com/smacker/go-tree-sitter"
-	"github.com/smacker/go-tree-sitter/typescript/typescript"
 	"io"
 	"regexp"
 	"strings"
 	"text/template"
+
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/query"
+	sitter "github.com/smacker/go-tree-sitter"
+	"github.com/smacker/go-tree-sitter/typescript/typescript"
 )
 
 type (
