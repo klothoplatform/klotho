@@ -120,6 +120,6 @@ func (b *PluginSetBuilder) AddPulumi() error {
 	if err := b.setupProvider(); err != nil {
 		return err
 	}
-	b.IaC = append(b.IaC, iac2.Plugin{})
+	b.IaC = append(b.IaC, iac2.Plugin{Config: b.Cfg})
 	return nil
 }

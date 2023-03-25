@@ -3,15 +3,16 @@ package iac2
 import (
 	"context"
 	_ "embed"
+	"io"
+	"regexp"
+	"strings"
+	"text/template"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/query"
 	"github.com/pkg/errors"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/typescript/typescript"
-	"io"
-	"regexp"
-	"strings"
-	"text/template"
 )
 
 type (
@@ -35,7 +36,7 @@ var (
 	}
 
 	parameterizeArgsRegex = regexp.MustCompile(`args(\.\w+)`)
-	curlyEscapes          = regexp.MustCompile(`({+)args\.`)
+	curlyEscapes          = regexp.MustCompile(`({+)args`)
 
 	//go:embed find_args.scm
 	findArgsQuery string
