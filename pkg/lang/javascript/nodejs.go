@@ -106,7 +106,17 @@ func (n *NodePackageJson) Merge(other *NodePackageJson) {
 		n.Dependencies = make(map[string]string)
 	}
 	for k, v := range other.Dependencies {
-		n.Dependencies[k] = v
+		currentVersion, ok := n.Dependencies[k]
+		if ok {
+			if currentVersion != v {
+				zap.S().Warnf(`Found conflicting dependencies in package.json.
+Found version of package, %s = %s.
+Found version of package, %s = %s.
+Using version %s`, k, currentVersion, k, v, currentVersion)
+			}
+		} else {
+			n.Dependencies[k] = v
+		}
 	}
 
 	if n.DevDependencies == nil {
