@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"sort"
+
 	"github.com/dominikbraun/graph"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -127,12 +129,18 @@ func (d *Directed[V]) GetAllVertices() []V {
 		panic(err)
 	}
 	var vertices []V
+	var ids []string
 	for vId := range predecessors {
 		if v, err := d.underlying.Vertex(vId); err == nil {
-			vertices = append(vertices, v)
+			ids = append(ids, v.Id())
 		} else {
 			zap.S().Errorf(`Couldn't resolve vertex with id="%s". %s`, vId, ourFault)
 		}
+	}
+
+	sort.Strings(ids)
+	for _, id := range ids {
+		vertices = append(vertices, d.GetVertex(id))
 	}
 	return vertices
 }
