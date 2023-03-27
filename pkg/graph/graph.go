@@ -145,13 +145,13 @@ func (d *Directed[V]) GetAllVertices() []V {
 	return vertices
 }
 
-func (d *Directed[V]) GetEdge(source string, target string) graph.Edge[V] {
+func (d *Directed[V]) GetEdge(source string, target string) Edge[V] {
 	v, err := d.underlying.Edge(source, target)
 	if err != nil && !errors.Is(err, graph.ErrEdgeNotFound) {
 		zap.S().With("error", zap.Error(err)).Errorf(
 			`Unexpected error while getting vertex for "%v"`, source)
 	}
-	return v
+	return Edge[V]{Source: v.Source, Destination: v.Target}
 }
 
 func (d *Directed[V]) GetAllEdges() []Edge[V] {

@@ -28,6 +28,10 @@ func (cg *ResourceGraph) GetResource(id string) Resource {
 	return cg.Underlying.GetVertex(id)
 }
 
+func (cg *ResourceGraph) GetDependency(source string, target string) graph.Edge[Resource] {
+	return cg.underlying.GetEdge(source, target)
+}
+
 func (cg *ResourceGraph) ListConstructs() []Resource {
 	return cg.Underlying.GetAllVertices()
 }
