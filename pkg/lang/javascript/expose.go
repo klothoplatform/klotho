@@ -56,7 +56,7 @@ func findListener(cap *core.Annotation) exposeListenResult {
 func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.ConstructGraph, log *zap.Logger) {
 	for spec, routes := range info.RoutesByGateway {
 		gw := core.NewGateway(core.AnnotationKey{ID: spec.gatewayId, Capability: annotation.ExposeCapability})
-		if existing := constructGraph.GetConstruct(gw.Provenance()); existing != nil {
+		if existing := constructGraph.GetConstruct(gw.Id()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath
@@ -104,7 +104,7 @@ func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.Construc
 				targetUnit = info.Unit.ID
 			}
 			depKey := core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}
-			if constructGraph.GetConstruct(depKey) == nil {
+			if constructGraph.GetConstruct(depKey.ToId()) == nil {
 				// The unit defined in the target does not exist, fall back to current one (for running in single-exec mode).
 				// TODO when there are ways to combine units, we'll need a more sophisticated way to see which unit the target maps to.
 				depKey.ID = info.Unit.ID

@@ -15,7 +15,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/runtime"
 	"github.com/klothoplatform/klotho/pkg/sanitization"
-	sanitize "github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -327,9 +326,8 @@ func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.Constr
 
 func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) error {
 	templateData := TemplateData{
-		TemplateConfig:     r.TemplateConfig,
-		ExecUnitName:       unit.ID,
-		PayloadsBucketName: sanitize.SanitizeS3BucketName(r.Config.AppName),
+		TemplateConfig: r.TemplateConfig,
+		ExecUnitName:   unit.ID,
 	}
 	err := javascript.AddRuntimeFiles(unit, files, templateData)
 	return err
@@ -337,9 +335,8 @@ func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) e
 
 func (r *AwsRuntime) AddRuntimeFile(unit *core.ExecutionUnit, path string, content []byte) error {
 	templateData := TemplateData{
-		TemplateConfig:     r.TemplateConfig,
-		ExecUnitName:       unit.ID,
-		PayloadsBucketName: sanitize.SanitizeS3BucketName(r.Config.AppName),
+		TemplateConfig: r.TemplateConfig,
+		ExecUnitName:   unit.ID,
 	}
 	err := javascript.AddRuntimeFile(unit, templateData, path, content)
 	return err

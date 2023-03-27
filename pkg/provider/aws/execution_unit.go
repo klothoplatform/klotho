@@ -18,35 +18,17 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, dag *core.Reso
 
 	execUnitCfg := a.Config.GetExecutionUnit(unit.ID)
 
-	// See if we have already created an ecr repository for the app and if not create one, otherwise add a ref to this exec unit
-	var repo *ecr.EcrRepository
-	existingRepo := dag.GetResource(ecr.GenerateRepoId(a.Config.AppName))
-	if existingRepo == nil {
-		repo = ecr.NewEcrRepository(a.Config.AppName, unit.Provenance())
-		dag.AddResource(repo)
-	} else {
-		var ok bool
-		repo, ok = existingRepo.(*ecr.EcrRepository)
-		if !ok {
-			return fmt.Errorf("expected resource with id, %s, to be ecr repository", repo.Id())
-		}
-		repo.ConstructsRef = append(repo.ConstructsRef, unit.Provenance())
+	image, err := ecr.GenerateEcrRepoAndImage(a.Config.AppName, unit, dag)
+	if err != nil {
+		return err
 	}
 
-	// Create image and make it dependent on the repository
-	image := ecr.NewEcrImage(unit, a.Config.AppName, repo)
-	dag.AddResource(image)
-	dag.AddDependency(repo, image)
-
-	// Create and add role
 	role := iam.NewIamRole(a.Config.AppName, fmt.Sprintf("%s-ExecutionRole", unit.ID), unit.Provenance(), GetAssumeRolePolicyForType(execUnitCfg))
-
 	dag.AddResource(role)
 
 	switch execUnitCfg.Type {
 	case Lambda:
-
-		lambda := lambda.NewLambdaFunction(unit, a.Config.AppName, role)
+		lambda := lambda.NewLambdaFunction(unit, a.Config.AppName, role, image)
 		logGroup := cloudwatch.NewLogGroup(a.Config.AppName, fmt.Sprintf("/aws/lambda/%s", lambda.Name), unit.Provenance(), 5)
 		dag.AddResource(lambda)
 		dag.AddResource(logGroup)
@@ -54,8 +36,6 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, dag *core.Reso
 		dag.AddDependency(role, lambda)
 		dag.AddDependency(image, lambda)
 		return nil
-	case Eks:
-	case Ecs:
 	default:
 		log.Errorf("Unsupported type, %s, for aws execution units", execUnitCfg.Type)
 

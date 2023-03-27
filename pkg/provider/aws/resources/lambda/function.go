@@ -5,6 +5,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/ecr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/iam"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
@@ -20,6 +21,7 @@ type (
 		// Role points to the id of the cloud resource
 		Role      *iam.IamRole
 		VpcConfig LambdaVpcConfig
+		Image     *ecr.EcrImage
 	}
 
 	LambdaVpcConfig struct {
@@ -28,11 +30,12 @@ type (
 	}
 )
 
-func NewLambdaFunction(unit *core.ExecutionUnit, appName string, role *iam.IamRole) *LambdaFunction {
+func NewLambdaFunction(unit *core.ExecutionUnit, appName string, role *iam.IamRole, image *ecr.EcrImage) *LambdaFunction {
 	return &LambdaFunction{
 		Name:          sanitizer.Apply(fmt.Sprintf("%s-%s", appName, unit.ID)),
 		ConstructsRef: []core.AnnotationKey{unit.Provenance()},
 		Role:          role,
+		Image:         image,
 	}
 }
 

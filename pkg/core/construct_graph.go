@@ -21,6 +21,10 @@ func (cg *ConstructGraph) GetRoots() []Construct {
 	return cg.underlying.Roots()
 }
 
+func (cg *ConstructGraph) TopologicalSort() ([]string, error) {
+	return cg.underlying.VertexIdsInTopologicalOrder()
+}
+
 func (cg *ConstructGraph) AddConstruct(construct Construct) {
 	zap.S().Infof("Adding resource %s", construct.Id())
 	cg.underlying.AddVertex(construct)
@@ -30,8 +34,8 @@ func (cg *ConstructGraph) AddDependency(source string, dest string) {
 	cg.underlying.AddEdge(source, dest)
 }
 
-func (cg *ConstructGraph) GetConstruct(key AnnotationKey) Construct {
-	return cg.underlying.GetVertex(key.ToId())
+func (cg *ConstructGraph) GetConstruct(key string) Construct {
+	return cg.underlying.GetVertex(key)
 }
 
 func (cg *ConstructGraph) ListConstructs() []Construct {
