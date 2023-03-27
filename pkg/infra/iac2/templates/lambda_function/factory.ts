@@ -1,5 +1,6 @@
 import * as aws from '@pulumi/aws'
 import { LogGroup } from '@pulumi/aws/cloudwatch'
+import * as pulumi from '@pulumi/pulumi'
 
 interface Args {
     Name: string
@@ -9,7 +10,7 @@ interface Args {
     Role: aws.iam.Role
     // envVars: Record<string, pulumi.Output<string>>,
     // dependsOn: []
-    dependsOn: any[]
+    dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
 
 // noinspection JSUnusedLocalSymbols

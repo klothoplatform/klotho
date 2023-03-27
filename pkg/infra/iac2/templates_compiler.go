@@ -145,12 +145,12 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 	}
 	inputArgs := make(map[string]string)
 	var zeroValue reflect.Value
+	for fieldName := range tmpl.InputTypes {
 		// dependsOn will be a reserved field for us to use to map dependencies. If specified as an Arg we will automatically call resolveDependencies
 		if fieldName == "dependsOn" {
 			inputArgs[fieldName] = tc.resolveDependencies(resource)
 			continue
 		}
-	for fieldName := range tmpl.InputTypes {
 		childVal := resourceVal.FieldByName(fieldName)
 		if childVal == zeroValue {
 			zap.S().Warnf(
@@ -181,7 +181,7 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 }
 
 // resolveDependencies creates a string which models an array containing all the variable names, which the resource depends on.
-func (tc templatesCompiler) resolveDependencies(resource core.Resource) string {
+func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 	buf := strings.Builder{}
 	buf.WriteRune('[')
 	upstreamResources := tc.resourceGraph.GetUpstreamResources(resource)
