@@ -39,3 +39,7 @@ func (cg *ResourceGraph) ListResources() []Resource {
 func (cg *ResourceGraph) ListDependencies() []graph.Edge[Resource] {
 	return cg.Underlying.GetAllEdges()
 }
+
+func (cg *ResourceGraph) TopologicalSort() ([]string, error) {
+	return cg.Underlying.VertexIdsInTopologicalOrder()
+}
