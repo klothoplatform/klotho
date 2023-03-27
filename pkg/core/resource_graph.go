@@ -29,7 +29,7 @@ func (cg *ResourceGraph) GetResource(id string) Resource {
 }
 
 func (cg *ResourceGraph) GetDependency(source string, target string) graph.Edge[Resource] {
-	return cg.underlying.GetEdge(source, target)
+	return cg.Underlying.GetEdge(source, target)
 }
 
 func (cg *ResourceGraph) ListResources() []Resource {
