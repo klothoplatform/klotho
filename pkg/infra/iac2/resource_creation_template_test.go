@@ -14,15 +14,15 @@ func TestParseTemplate(t *testing.T) {
 			"input1": "string",
 			"input2": "pulumi.Output<string>",
 		},
-		parsed.inputTypes)
-	assert.Equal("aws.lambda.Function", parsed.outputType)
-	assert.Equal("new Function({{.blah}})", parsed.expressionTemplate)
+		parsed.InputTypes)
+	assert.Equal("aws.lambda.Function", parsed.OutputType)
+	assert.Equal("new Function({{.blah}})", parsed.ExpressionTemplate)
 	assert.Equal(
 		map[string]struct{}{
 			`import * as aws from '@pulumi/aws'`:   {},
 			`import {Role} from "@pulumi/aws/iam"`: {},
 		},
-		parsed.imports,
+		parsed.Imports,
 	)
 }
 
