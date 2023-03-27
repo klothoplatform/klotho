@@ -36,7 +36,7 @@ var (
 	}
 
 	parameterizeArgsRegex = regexp.MustCompile(`args(\.\w+)`)
-	curlyEscapes          = regexp.MustCompile(`({+)args`)
+	curlyEscapes          = regexp.MustCompile(`({+)(args\.)`)
 
 	//go:embed find_args.scm
 	findArgsQuery string
@@ -103,7 +103,7 @@ func parameterizeArgs(contents string) string {
 	// If the source has "{args.Foo}", then just turning "args.Foo" -> "{{.Foo}}" would result in "{{{.Foo}}}", which is
 	// invalid go-template. So, we first turn "{args." into "{{`{`}}args.", which will eventually result in
 	// "{{`{`}}{{.Foo}}" — which, while ugly, will result in the correct template execution.
-	contents = curlyEscapes.ReplaceAllString(contents, "{{`$1`}}args")
+	contents = curlyEscapes.ReplaceAllString(contents, "{{`$1`}}$2")
 	contents = parameterizeArgsRegex.ReplaceAllString(contents, `{{$1}}`)
 	return contents
 }
