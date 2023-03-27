@@ -3,15 +3,16 @@ package iac2
 import (
 	"context"
 	_ "embed"
+	"io"
+	"regexp"
+	"strings"
+	"text/template"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/query"
 	"github.com/pkg/errors"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/typescript/typescript"
-	"io"
-	"regexp"
-	"strings"
-	"text/template"
 )
 
 type (
@@ -35,7 +36,7 @@ var (
 	}
 
 	parameterizeArgsRegex = regexp.MustCompile(`args(\.\w+)`)
-	curlyEscapes          = regexp.MustCompile(`({+)args\.`)
+	curlyEscapes          = regexp.MustCompile(`({+)(args\.)`)
 
 	//go:embed find_args.scm
 	findArgsQuery string
@@ -102,7 +103,7 @@ func parameterizeArgs(contents string) string {
 	// If the source has "{args.Foo}", then just turning "args.Foo" -> "{{.Foo}}" would result in "{{{.Foo}}}", which is
 	// invalid go-template. So, we first turn "{args." into "{{`{`}}args.", which will eventually result in
 	// "{{`{`}}{{.Foo}}" — which, while ugly, will result in the correct template execution.
-	contents = curlyEscapes.ReplaceAllString(contents, "{{`$1`}}args")
+	contents = curlyEscapes.ReplaceAllString(contents, "{{`$1`}}$2")
 	contents = parameterizeArgsRegex.ReplaceAllString(contents, `{{$1}}`)
 	return contents
 }
