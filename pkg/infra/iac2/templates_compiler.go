@@ -26,7 +26,7 @@ type (
 		// templates is the fs.FS where we read all of our `<struct>/factory.ts` files
 		templates fs.FS
 		// resourceGraph is the graph of resources to render
-		resourceGraph *graph.Directed[core.Resource] // TODO make this be a core.ResourceGraph, and un-expose that struct's Underlying
+		resourceGraph *core.ResourceGraph // TODO make this be a core.ResourceGraph, and un-expose that struct's Underlying
 		// templatesByStructName is a cache from struct name (e.g. "CloudwatchLogs") to the template for that struct.
 		templatesByStructName map[string]ResourceCreationTemplate
 		// resourceVarNames is a set of all variable names
@@ -43,7 +43,7 @@ var (
 	nonIdentifierChars = regexp.MustCompile(`\W`)
 )
 
-func CreateTemplatesCompiler(resources *graph.Directed[core.Resource]) *templatesCompiler {
+func CreateTemplatesCompiler(resources *core.ResourceGraph) *templatesCompiler {
 	subTemplates, err := fs.Sub(standardTemplates, "templates")
 	if err != nil {
 		panic(err) // unexpected, since standardTemplates is statically built into klotho
@@ -64,7 +64,7 @@ func (tc templatesCompiler) RenderBody(out io.Writer) error {
 		return err
 	}
 	for i, id := range vertexIds {
-		resource := tc.resourceGraph.GetVertex(id)
+		resource := tc.resourceGraph.GetResource(id)
 		err := tc.renderResource(out, resource)
 		errs.Append(err)
 		if i < len(vertexIds)-1 {
@@ -82,7 +82,7 @@ func (tc templatesCompiler) RenderImports(out io.Writer) error {
 	errs := multierr.Error{}
 
 	allImports := make(map[string]struct{})
-	for _, res := range tc.resourceGraph.GetAllVertices() {
+	for _, res := range tc.resourceGraph.ListResources() {
 		tmpl, err := tc.GetTemplate(res)
 		if err != nil {
 			errs.Append(err)
@@ -117,7 +117,7 @@ func (tc templatesCompiler) RenderImports(out io.Writer) error {
 func (tc templatesCompiler) RenderPackageJSON() (*javascript.NodePackageJson, error) {
 	errs := multierr.Error{}
 	mainPJson := javascript.NodePackageJson{}
-	for _, res := range tc.resourceGraph.GetAllVertices() {
+	for _, res := range tc.resourceGraph.ListResources() {
 		pJson, err := tc.GetPackageJSON(res)
 		if err != nil {
 			errs.Append(err)
@@ -147,6 +147,11 @@ func (tc templatesCompiler) renderResource(out io.Writer, resource core.Resource
 	inputArgs := make(map[string]string)
 	var zeroValue reflect.Value
 	for fieldName := range tmpl.inputTypes {
+		// dependsOn will be a reserved field for us to use to map dependencies. If specified as an Arg we will automatically call resolveDependencies
+		if fieldName == "dependsOn" {
+			inputArgs[fieldName] = tc.resolveDependencies(resource)
+			continue
+		}
 		childVal := resourceVal.FieldByName(fieldName)
 		if childVal == zeroValue {
 			zap.S().Warnf(
@@ -174,6 +179,23 @@ func (tc templatesCompiler) renderResource(out io.Writer, resource core.Resource
 	}
 
 	return errs.ErrOrNil()
+}
+
+// resolveDependencies creates a string which models an array containing all the variable names, which the resource depends on.
+func (tc templatesCompiler) resolveDependencies(resource core.Resource) string {
+	buf := strings.Builder{}
+	buf.WriteRune('[')
+	upstreamResources := tc.resourceGraph.GetUpstreamResources(resource)
+	numDeps := len(upstreamResources)
+	for i := 0; i < numDeps; i++ {
+		res := upstreamResources[i]
+		buf.WriteString(tc.getVarName(res))
+		if i < (numDeps - 1) {
+			buf.WriteRune(',')
+		}
+	}
+	buf.WriteRune(']')
+	return buf.String()
 }
 
 // resolveStructInput translates a value to a form suitable to inject into the typescript as an input to a function.

@@ -32,7 +32,7 @@ func (p Plugin) Translate(cloudGraph *core.ResourceGraph) ([]core.File, error) {
 	// TODO We'll eventually want to split the output into different files, but we don't know exactly what that looks
 	// like yet. For now, just write to a single file, "new_index.ts"
 	buf := &bytes.Buffer{}
-	tc := CreateTemplatesCompiler(cloudGraph.Underlying)
+	tc := CreateTemplatesCompiler(cloudGraph)
 
 	// index.ts
 	if err := tc.RenderImports(buf); err != nil {

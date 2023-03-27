@@ -9,6 +9,7 @@ interface Args {
     Role: aws.iam.Role
     // envVars: Record<string, pulumi.Output<string>>,
     // dependsOn: []
+    dependsOn: any[]
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -26,7 +27,7 @@ function create(args: Args): aws.lambda.Function {
             },
         },
         {
-            dependsOn: [args.CloudwatchGroup],
+            dependsOn: args.dependsOn,
         }
     )
 }
