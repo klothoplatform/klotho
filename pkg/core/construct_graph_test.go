@@ -40,7 +40,7 @@ func Test_AddDependency(t *testing.T) {
 		return
 	}
 	assert.Equal(edge.Source, eu)
-	assert.Equal(edge.Target, kv)
+	assert.Equal(edge.Destination, kv)
 }
 
 func Test_GetConstruct(t *testing.T) {
