@@ -1,7 +1,10 @@
 package aws
 
-import "github.com/klothoplatform/klotho/pkg/config"
+import (
+	"github.com/klothoplatform/klotho/pkg/config"
+)
 
 type AWS struct {
-	Config *config.Application
+	Config                  *config.Application
+	ConstructIdToResourceId map[string]string
 }

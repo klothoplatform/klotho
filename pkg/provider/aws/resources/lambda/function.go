@@ -19,9 +19,10 @@ type (
 		Name          string
 		ConstructsRef []core.AnnotationKey
 		// Role points to the id of the cloud resource
-		Role      *iam.IamRole
-		VpcConfig LambdaVpcConfig
-		Image     *ecr.EcrImage
+		Role                 *iam.IamRole
+		VpcConfig            LambdaVpcConfig
+		Image                *ecr.EcrImage
+		EnvironmentVariables resources.EnvironmentVariables
 	}
 
 	LambdaVpcConfig struct {

@@ -28,19 +28,33 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, dag *core.Reso
 
 	switch execUnitCfg.Type {
 	case Lambda:
-		lambda := lambda.NewLambdaFunction(unit, a.Config.AppName, role, image)
-		logGroup := cloudwatch.NewLogGroup(a.Config.AppName, fmt.Sprintf("/aws/lambda/%s", lambda.Name), unit.Provenance(), 5)
-		dag.AddResource(lambda)
+
+		lambdaFunction := lambda.NewLambdaFunction(unit, a.Config.AppName, role)
+		a.ConstructIdToResourceId[unit.Id()] = lambdaFunction.Id()
+		logGroup := cloudwatch.NewLogGroup(a.Config.AppName, fmt.Sprintf("/aws/lambda/%s", lambdaFunction.Name), unit.Provenance(), 5)
+		dag.AddResource(lambdaFunction)
 		dag.AddResource(logGroup)
-		dag.AddDependency(logGroup, lambda)
-		dag.AddDependency(role, lambda)
-		dag.AddDependency(image, lambda)
+		dag.AddDependency(logGroup, lambdaFunction)
+		dag.AddDependency(role, lambdaFunction)
+		dag.AddDependency(image, lambdaFunction)
 		return nil
 	default:
 		log.Errorf("Unsupported type, %s, for aws execution units", execUnitCfg.Type)
 
 	}
 	return nil
+}
+
+func (a *AWS) convertExecUnitParams(unit *core.ExecutionUnit, dag *core.ResourceGraph) resources.EnvironmentVariables {
+	resourceEnvVars := make(resources.EnvironmentVariables)
+	for _, envVar := range unit.EnvironmentVariables {
+		resource := a.ConstructIdToResourceId[envVar.GetConstruct().Id()]
+		resourceEnvVars[envVar.Name] = resources.EnvironmentVariable{
+			Resource: dag.GetResource(resource),
+			Value:    envVar.Value,
+		}
+	}
+	return resourceEnvVars
 }
 
 func GetAssumeRolePolicyForType(cfg config.ExecutionUnit) string {
