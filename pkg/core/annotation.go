@@ -80,7 +80,7 @@ func (m AnnotationMap) Update(other AnnotationMap) {
 			// Update the contents not the pointer so existing annotation pointers are still valid
 			newValue := *v
 			if ex.isDetached {
-				newValue.isDetached = true
+				newValue.Detach()
 			}
 			*ex = newValue
 		} else {
