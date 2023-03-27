@@ -93,7 +93,7 @@ func Test_CreateNetwork(t *testing.T) {
 			for _, dep := range tt.want.deps {
 				assert.NotNil(dag.GetDependency(dep.source, dep.dest))
 			}
-			assert.Len(dag.ListConstructs(), len(tt.want.nodes))
+			assert.Len(dag.ListResources(), len(tt.want.nodes))
 			assert.Len(dag.ListDependencies(), len(tt.want.deps))
 		})
 	}
