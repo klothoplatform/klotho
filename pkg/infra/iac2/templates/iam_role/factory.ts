@@ -9,6 +9,6 @@ interface Args {
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.iam.Role {
     return new aws.iam.Role(args.Name, {
-        assumeRolePolicy: args.AssumeRolePolicyDoc,
+        assumeRolePolicy: JSON.parse(args.AssumeRolePolicyDoc),
     })
 }

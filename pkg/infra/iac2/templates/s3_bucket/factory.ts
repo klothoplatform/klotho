@@ -3,27 +3,25 @@ import * as pulumi from '@pulumi/pulumi'
 
 interface Args {
     Name: string
-    AccountId: pulumi.Output<pulumi.UnwrappedObject<aws.GetCallerIdentityResult>>
+    AccountId: aws.GetCallerIdentityResult
     ForceDestroy: boolean
 }
 
 // noinspection JSUnusedLocalSymbols
-function create(args: Args): pulumi.Output<aws.s3.Bucket> {
-    return args.AccountId.apply((accountId) => {
-        return new aws.s3.Bucket(
-            `${accountId}-${args.Name}`,
-            {
-                forceDestroy: args.ForceDestroy,
-                serverSideEncryptionConfiguration: {
-                    rule: {
-                        applyServerSideEncryptionByDefault: {
-                            sseAlgorithm: 'aws:kms',
-                        },
-                        bucketKeyEnabled: true,
+function create(args: Args): aws.s3.Bucket {
+    return new aws.s3.Bucket(
+        `${args.AccountId}-${args.Name}`,
+        {
+            forceDestroy: args.ForceDestroy,
+            serverSideEncryptionConfiguration: {
+                rule: {
+                    applyServerSideEncryptionByDefault: {
+                        sseAlgorithm: 'aws:kms',
                     },
+                    bucketKeyEnabled: true,
                 },
             },
-            { protect: true }
-        )
-    })
+        },
+        { protect: true }
+    )
 }

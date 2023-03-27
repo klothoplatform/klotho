@@ -42,9 +42,12 @@ func (p Plugin) Translate(cloudGraph *core.ResourceGraph) ([]core.File, error) {
 		return nil, err
 	}
 
+	buf.Write([]byte("export = async () => {\n"))
 	if err := tc.RenderBody(buf); err != nil {
 		return nil, err
 	}
+	buf.Write([]byte("}"))
+
 	indexTs := &core.RawFile{
 		FPath:   `index.ts`,
 		Content: buf.Bytes(),

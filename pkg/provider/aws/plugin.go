@@ -1,8 +1,6 @@
 package aws
 
 import (
-	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
@@ -36,9 +34,6 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (L
 		default:
 			log.Warnf("Unsupported resource %s", construct.Id())
 		}
-	}
-	for _, c := range dag.ListResources() {
-		fmt.Println(c.Id())
 	}
 	return
 }
