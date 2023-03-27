@@ -2,15 +2,14 @@ package iac2
 
 import (
 	"bytes"
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/stretchr/testify/assert"
 	"io/fs"
 	"strings"
 	"testing"
 	"testing/fstest"
 	"time"
 
-	graph2 "github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestOutputBody(t *testing.T) {
@@ -21,13 +20,13 @@ func TestOutputBody(t *testing.T) {
 		Fizz: fizz,
 		Buzz: buzz,
 	}
-	graph := graph2.NewDirected[core.Resource]()
-	graph.AddVertex(fizz)
-	graph.AddVertex(buzz)
-	graph.AddVertex(parent)
-	graph.AddEdge(fizz.Id(), parent.Id())
-	graph.AddEdge(buzz.Id(), parent.Id())
-	graph.AddEdge(buzz.Id(), fizz.Id())
+	graph := core.NewResourceGraph()
+	graph.AddResource(fizz)
+	graph.AddResource(buzz)
+	graph.AddResource(parent)
+	graph.AddDependency(fizz, parent)
+	graph.AddDependency(buzz, parent)
+	graph.AddDependency(buzz, fizz)
 
 	compiler := CreateTemplatesCompiler(graph)
 	compiler.templates = filesMapToFsMap(dummyTemplateFiles)
