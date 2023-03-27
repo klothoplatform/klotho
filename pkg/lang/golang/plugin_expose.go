@@ -112,7 +112,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 	for spec, routes := range h.RoutesByGateway {
 		gwName := spec.Id
 		gw := core.NewGateway(core.AnnotationKey{ID: gwName, Capability: annotation.ExposeCapability})
-		if existing := h.ConstructGraph.GetConstruct(gw.Provenance()); existing != nil {
+		if existing := h.ConstructGraph.GetConstruct(gw.Id()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath

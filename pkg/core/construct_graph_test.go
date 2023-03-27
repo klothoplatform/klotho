@@ -51,13 +51,13 @@ func Test_GetConstruct(t *testing.T) {
 	}
 	gw := &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}}
 	g.AddVertex(gw)
-	construct := constructGraph.GetConstruct(gw.Provenance())
+	construct := constructGraph.GetConstruct(gw.Id())
 	storedGw, ok := construct.(*Gateway)
 	if !assert.True(ok) {
 		return
 	}
 	assert.Equal(storedGw, gw)
-	nilConstruct := constructGraph.GetConstruct(AnnotationKey{ID: "fake"})
+	nilConstruct := constructGraph.GetConstruct(AnnotationKey{ID: "fake"}.ToId())
 	assert.Nil(nilConstruct)
 }
 

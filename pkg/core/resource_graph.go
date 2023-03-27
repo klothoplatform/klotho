@@ -59,3 +59,7 @@ func (cg *ResourceGraph) GetUpstreamDependencies(source Resource) []graph.Edge[R
 func (cg *ResourceGraph) GetUpstreamResources(source Resource) []Resource {
 	return cg.underlying.IncomingVertices(source)
 }
+
+func (cg *ResourceGraph) TopologicalSort() ([]string, error) {
+	return cg.Underlying.VertexIdsInTopologicalOrder()
+}

@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/fs"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -22,7 +21,9 @@ import (
 )
 
 type (
-	templatesCompiler struct {
+	// TemplatesCompiler renders a graph of [core.Resource] nodes by combining each one with its corresponding
+	// ResourceCreationTemplate
+	TemplatesCompiler struct {
 		// templates is the fs.FS where we read all of our `<struct>/factory.ts` files
 		templates fs.FS
 		// resourceGraph is the graph of resources to render
@@ -39,16 +40,14 @@ type (
 var (
 	//go:embed templates/*/factory.ts templates/*/package.json
 	standardTemplates embed.FS
-
-	nonIdentifierChars = regexp.MustCompile(`\W`)
 )
 
-func CreateTemplatesCompiler(resources *core.ResourceGraph) *templatesCompiler {
+func CreateTemplatesCompiler(resources *core.ResourceGraph) *TemplatesCompiler {
 	subTemplates, err := fs.Sub(standardTemplates, "templates")
 	if err != nil {
 		panic(err) // unexpected, since standardTemplates is statically built into klotho
 	}
-	return &templatesCompiler{
+	return &TemplatesCompiler{
 		templates:             subTemplates,
 		resourceGraph:         resources,
 		templatesByStructName: make(map[string]ResourceCreationTemplate),
@@ -57,7 +56,7 @@ func CreateTemplatesCompiler(resources *core.ResourceGraph) *templatesCompiler {
 	}
 }
 
-func (tc templatesCompiler) RenderBody(out io.Writer) error {
+func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 	errs := multierr.Error{}
 	vertexIds, err := tc.resourceGraph.VertexIdsInTopologicalOrder()
 	if err != nil {
@@ -78,7 +77,7 @@ func (tc templatesCompiler) RenderBody(out io.Writer) error {
 	return errs.ErrOrNil()
 }
 
-func (tc templatesCompiler) RenderImports(out io.Writer) error {
+func (tc TemplatesCompiler) RenderImports(out io.Writer) error {
 	errs := multierr.Error{}
 
 	allImports := make(map[string]struct{})
@@ -88,7 +87,7 @@ func (tc templatesCompiler) RenderImports(out io.Writer) error {
 			errs.Append(err)
 			continue
 		}
-		for statement := range tmpl.imports {
+		for statement := range tmpl.Imports {
 			allImports[statement] = struct{}{}
 		}
 	}
@@ -114,7 +113,7 @@ func (tc templatesCompiler) RenderImports(out io.Writer) error {
 	return nil
 }
 
-func (tc templatesCompiler) RenderPackageJSON() (*javascript.NodePackageJson, error) {
+func (tc TemplatesCompiler) RenderPackageJSON() (*javascript.NodePackageJson, error) {
 	errs := multierr.Error{}
 	mainPJson := javascript.NodePackageJson{}
 	for _, res := range tc.resourceGraph.ListResources() {
@@ -131,7 +130,7 @@ func (tc templatesCompiler) RenderPackageJSON() (*javascript.NodePackageJson, er
 	return &mainPJson, nil
 }
 
-func (tc templatesCompiler) renderResource(out io.Writer, resource core.Resource) error {
+func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource) error {
 
 	tmpl, err := tc.GetTemplate(resource)
 	if err != nil {
@@ -146,12 +145,12 @@ func (tc templatesCompiler) renderResource(out io.Writer, resource core.Resource
 	}
 	inputArgs := make(map[string]string)
 	var zeroValue reflect.Value
-	for fieldName := range tmpl.inputTypes {
 		// dependsOn will be a reserved field for us to use to map dependencies. If specified as an Arg we will automatically call resolveDependencies
 		if fieldName == "dependsOn" {
 			inputArgs[fieldName] = tc.resolveDependencies(resource)
 			continue
 		}
+	for fieldName := range tmpl.InputTypes {
 		childVal := resourceVal.FieldByName(fieldName)
 		if childVal == zeroValue {
 			zap.S().Warnf(
@@ -199,7 +198,7 @@ func (tc templatesCompiler) resolveDependencies(resource core.Resource) string {
 }
 
 // resolveStructInput translates a value to a form suitable to inject into the typescript as an input to a function.
-func (tc templatesCompiler) resolveStructInput(childVal reflect.Value) string {
+func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value) string {
 	switch childVal.Kind() {
 	case reflect.Bool,
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
@@ -258,7 +257,7 @@ func (tc templatesCompiler) resolveStructInput(childVal reflect.Value) string {
 // If that ideal variable name hasn't been used yet, this function returns it. If it has been used, we append `_${i}` to
 // it, where ${i} is the lowest positive integer that would give us a new, unique variable name. This isn't expected
 // to happen often, if at all, since ids are globally unique.
-func (tc templatesCompiler) getVarName(v graph.Identifiable) string {
+func (tc TemplatesCompiler) getVarName(v graph.Identifiable) string {
 	if name, alreadyResolved := tc.resourceVarNamesById[v.Id()]; alreadyResolved {
 		return name
 	}
@@ -279,7 +278,7 @@ func (tc templatesCompiler) getVarName(v graph.Identifiable) string {
 	return resolvedName
 }
 
-func (tc templatesCompiler) GetTemplate(v graph.Identifiable) (ResourceCreationTemplate, error) {
+func (tc TemplatesCompiler) GetTemplate(v graph.Identifiable) (ResourceCreationTemplate, error) {
 	typeName := structName(v)
 	existing, ok := tc.templatesByStructName[typeName]
 	if ok {
@@ -295,7 +294,7 @@ func (tc templatesCompiler) GetTemplate(v graph.Identifiable) (ResourceCreationT
 	return template, nil
 }
 
-func (tc templatesCompiler) GetPackageJSON(v graph.Identifiable) (javascript.NodePackageJson, error) {
+func (tc TemplatesCompiler) GetPackageJSON(v graph.Identifiable) (javascript.NodePackageJson, error) {
 	packageContent := javascript.NodePackageJson{}
 	typeName := structName(v)
 	templateName := camelToSnake(typeName)
