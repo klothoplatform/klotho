@@ -71,7 +71,7 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 			continue
 		}
 		for _, unit := range khChart.ExecutionUnits {
-			res := constructGraph.GetConstruct(core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: unit.Name})
+			res := constructGraph.GetConstruct(core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: unit.Name}.ToId())
 			eu, ok := res.(*core.ExecutionUnit)
 			if !ok {
 				return nil, fmt.Errorf("unable to handle nonexistent execution unit: %s", unit.Name)
