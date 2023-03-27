@@ -6,40 +6,60 @@ import (
 
 type (
 	ResourceGraph struct {
-		Underlying *graph.Directed[Resource]
+		underlying *graph.Directed[Resource]
 	}
 )
 
 func NewResourceGraph() *ResourceGraph {
 	return &ResourceGraph{
-		Underlying: graph.NewDirected[Resource](),
+		underlying: graph.NewDirected[Resource](),
 	}
 }
 
 func (cg *ResourceGraph) AddResource(resource Resource) {
-	cg.Underlying.AddVertex(resource)
+	cg.underlying.AddVertex(resource)
 }
 
 func (cg *ResourceGraph) AddDependency(source Resource, dest Resource) {
-	cg.Underlying.AddEdge(source.Id(), dest.Id())
+	cg.underlying.AddEdge(source.Id(), dest.Id())
 }
 
 func (cg *ResourceGraph) GetResource(id string) Resource {
-	return cg.Underlying.GetVertex(id)
+	return cg.underlying.GetVertex(id)
 }
 
 func (cg *ResourceGraph) GetDependency(source string, target string) graph.Edge[Resource] {
-	return cg.Underlying.GetEdge(source, target)
+	return cg.underlying.GetEdge(source, target)
 }
 
 func (cg *ResourceGraph) ListResources() []Resource {
-	return cg.Underlying.GetAllVertices()
+	return cg.underlying.GetAllVertices()
 }
 
 func (cg *ResourceGraph) ListDependencies() []graph.Edge[Resource] {
-	return cg.Underlying.GetAllEdges()
+	return cg.underlying.GetAllEdges()
+}
+
+func (cg *ResourceGraph) VertexIdsInTopologicalOrder() ([]string, error) {
+	return cg.underlying.VertexIdsInTopologicalOrder()
+}
+
+func (cg *ResourceGraph) GetDownstreamDependencies(source Resource) []graph.Edge[Resource] {
+	return cg.underlying.OutgoingEdges(source)
+}
+
+func (cg *ResourceGraph) GetDownstreamResources(source Resource) []Resource {
+	return cg.underlying.OutgoingVertices(source)
+}
+
+func (cg *ResourceGraph) GetUpstreamDependencies(source Resource) []graph.Edge[Resource] {
+	return cg.underlying.IncomingEdges(source)
+}
+
+func (cg *ResourceGraph) GetUpstreamResources(source Resource) []Resource {
+	return cg.underlying.IncomingVertices(source)
 }
 
 func (cg *ResourceGraph) TopologicalSort() ([]string, error) {
-	return cg.Underlying.VertexIdsInTopologicalOrder()
+	return cg.underlying.VertexIdsInTopologicalOrder()
 }
