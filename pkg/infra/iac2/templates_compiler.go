@@ -1,20 +1,24 @@
 package iac2
 
 import (
+	"bytes"
 	"embed"
 	_ "embed"
+	"encoding/json"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/klothoplatform/klotho/pkg/multierr"
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"io"
 	"io/fs"
 	"reflect"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/lang/javascript"
+	"github.com/klothoplatform/klotho/pkg/multierr"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 type (
@@ -33,7 +37,7 @@ type (
 )
 
 var (
-	//go:embed templates/*/factory.ts
+	//go:embed templates/*/factory.ts templates/*/package.json
 	standardTemplates embed.FS
 
 	nonIdentifierChars = regexp.MustCompile(`\W`)
@@ -108,6 +112,23 @@ func (tc templatesCompiler) RenderImports(out io.Writer) error {
 	}
 
 	return nil
+}
+
+func (tc templatesCompiler) RenderPackageJSON() (*javascript.NodePackageJson, error) {
+	errs := multierr.Error{}
+	mainPJson := javascript.NodePackageJson{}
+	for _, res := range tc.resourceGraph.GetAllVertices() {
+		pJson, err := tc.GetPackageJSON(res)
+		if err != nil {
+			errs.Append(err)
+			continue
+		}
+		mainPJson.Merge(&pJson)
+	}
+	if err := errs.ErrOrNil(); err != nil {
+		return &mainPJson, err
+	}
+	return &mainPJson, nil
 }
 
 func (tc templatesCompiler) renderResource(out io.Writer, resource core.Resource) error {
@@ -250,4 +271,19 @@ func (tc templatesCompiler) GetTemplate(v graph.Identifiable) (ResourceCreationT
 	template := ParseResourceCreationTemplate(typeName, contents)
 	tc.templatesByStructName[typeName] = template
 	return template, nil
+}
+
+func (tc templatesCompiler) GetPackageJSON(v graph.Identifiable) (javascript.NodePackageJson, error) {
+	packageContent := javascript.NodePackageJson{}
+	typeName := structName(v)
+	templateName := camelToSnake(typeName)
+	contents, err := fs.ReadFile(tc.templates, templateName+`/package.json`)
+	if err != nil {
+		return *packageContent.Clone(), err
+	}
+	err = json.NewDecoder(bytes.NewReader(contents)).Decode(&packageContent)
+	if err != nil {
+		return *packageContent.Clone(), err
+	}
+	return *packageContent.Clone(), nil
 }
