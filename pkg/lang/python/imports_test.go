@@ -62,6 +62,18 @@ func TestFindImports(t *testing.T) {
 			},
 		},
 		{
+			name:   "import aliased nested submodule",
+			source: "import mymodule.submodule1.submodule2 as w",
+			want: map[string]Import{
+				"mymodule.submodule1.submodule2": {
+					ParentModule: "mymodule.submodule1",
+					Name:         "submodule2",
+					ImportedSelf: true,
+					Alias:        "w",
+				},
+			},
+		},
+		{
 			name:   "import relative module",
 			source: "from .. import mymodule\nfrom ..parent import child.attribute",
 			want: map[string]Import{
@@ -183,16 +195,10 @@ func TestFindImports(t *testing.T) {
 				fmt.Println(imports)
 			}
 			assert.Equal(len(tt.want), len(imports))
-			for _, i := range imports {
-				moduleKey := ""
-				if i.ParentModule != "" {
-					moduleKey = i.ParentModule
+			for qualifiedName, i := range imports {
+				if expected, ok := tt.want[qualifiedName]; assert.Truef(ok, "import not found for name: %s", qualifiedName) {
+					validateImport(assert, f.Program(), expected, i)
 				}
-				if moduleKey != "" && moduleKey[len(moduleKey)-1] != '.' {
-					moduleKey += "."
-				}
-				moduleKey += i.Name
-				validateImport(assert, f.Program(), tt.want[moduleKey], i)
 			}
 		})
 	}

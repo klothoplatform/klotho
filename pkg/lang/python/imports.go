@@ -119,12 +119,10 @@ func FindImports(file *core.SourceFile) Imports {
 		qualifiedModuleName := parent
 		if qualifiedModuleName == "" {
 			qualifiedModuleName = moduleName
-		} else if module != nil {
-			if qualifiedModuleName != "" && qualifiedModuleName[len(qualifiedModuleName)-1] == '.' {
-				qualifiedModuleName += moduleName
-			} else {
-				qualifiedModuleName += "." + moduleName
-			}
+		} else if qualifiedModuleName[len(qualifiedModuleName)-1] == '.' {
+			qualifiedModuleName += moduleName
+		} else {
+			qualifiedModuleName += "." + moduleName
 		}
 		i := fileImports[qualifiedModuleName]
 		// technically, this may be a submodule, but we can't tell without deeper analysis of the imported file
