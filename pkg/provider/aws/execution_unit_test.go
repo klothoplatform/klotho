@@ -13,6 +13,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/ecr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/iam"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/lambda"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -72,7 +73,8 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			aws := AWS{
-				Config: &tt.cfg,
+				Config:                  &tt.cfg,
+				ConstructIdToResourceId: make(map[string]string),
 			}
 			dag := core.NewResourceGraph()
 
@@ -106,6 +108,94 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					}
 				}
 				assert.True(found)
+			}
+		})
+
+	}
+}
+
+func Test_convertExecUnitParams(t *testing.T) {
+	s3Bucket := s3.NewS3Bucket(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "bucket"}}, "test-app", resources.NewAccountId())
+	cases := []struct {
+		name                    string
+		construct               core.Construct
+		resources               []core.Resource
+		testresource            core.Resource
+		wants                   resources.EnvironmentVariables
+		constructIdToResourceId map[string]string
+		wantErr                 bool
+	}{
+		{
+			name: `lambda`,
+			construct: &core.ExecutionUnit{
+				AnnotationKey: core.AnnotationKey{ID: "unit"},
+				EnvironmentVariables: core.EnvironmentVariables{
+					core.GenerateBucketEnvVar(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "bucket"}}),
+				},
+			},
+			resources: []core.Resource{
+				s3Bucket,
+			},
+			constructIdToResourceId: map[string]string{
+				":unit":   "aws:lambda_function:",
+				":bucket": "aws:s3_bucket:test-app-bucket",
+			},
+			testresource: &lambda.LambdaFunction{},
+			wants: resources.EnvironmentVariables{
+				"APP_NAME":           core.IaCValue{Resource: nil, Property: "test"},
+				"EXECUNIT_NAME":      core.IaCValue{Resource: nil, Property: "unit"},
+				"BUCKET_BUCKET_NAME": core.IaCValue{Resource: s3Bucket, Property: "bucket_name"},
+			},
+		},
+		{
+			name: `lambda`,
+			construct: &core.ExecutionUnit{
+				AnnotationKey: core.AnnotationKey{ID: "unit"},
+				EnvironmentVariables: core.EnvironmentVariables{
+					core.NewEnvironmentVariable("TestVar", nil, "TestValue"),
+				},
+			},
+			constructIdToResourceId: map[string]string{
+				":unit": "aws:lambda_function:",
+			},
+			testresource: &lambda.LambdaFunction{},
+			wants: resources.EnvironmentVariables{
+				"APP_NAME":      core.IaCValue{Resource: nil, Property: "test"},
+				"EXECUNIT_NAME": core.IaCValue{Resource: nil, Property: "unit"},
+				"TestVar":       core.IaCValue{Resource: nil, Property: "TestValue"},
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			aws := AWS{
+				Config:                  &config.Application{AppName: "test"},
+				ConstructIdToResourceId: tt.constructIdToResourceId,
+			}
+
+			result := core.NewConstructGraph()
+			result.AddConstruct(tt.construct)
+
+			dag := core.NewResourceGraph()
+			dag.AddResource(tt.testresource)
+			for _, res := range tt.resources {
+				dag.AddResource(res)
+			}
+
+			err := aws.convertExecUnitParams(result, dag)
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
+			if !assert.NoError(err) {
+				return
+			}
+			switch res := tt.testresource.(type) {
+			case *lambda.LambdaFunction:
+				assert.Equal(tt.wants, res.EnvironmentVariables)
+
 			}
 		})
 
