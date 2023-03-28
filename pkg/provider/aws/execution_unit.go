@@ -65,24 +65,24 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 					}
 					resourceEnvVars[envVar.Name] = core.IaCValue{
 						Resource: resource,
-						Value:    envVar.Value,
+						Property: envVar.Value,
 					}
 				} else {
 					return fmt.Errorf("resource not found for construct with id, %s", envVar.GetConstruct().Id())
 				}
 			} else {
 				resourceEnvVars[envVar.Name] = core.IaCValue{
-					Value: envVar.Value,
+					Property: envVar.Value,
 				}
 			}
 		}
 
 		// This set of environment variables are added to all Execution Unit's corresponding Resources
 		resourceEnvVars["APP_NAME"] = core.IaCValue{
-			Value: a.Config.AppName,
+			Property: a.Config.AppName,
 		}
 		resourceEnvVars["EXECUNIT_NAME"] = core.IaCValue{
-			Value: unit.ID,
+			Property: unit.ID,
 		}
 
 		// Retrieve the actual resource and set the environment variables on it

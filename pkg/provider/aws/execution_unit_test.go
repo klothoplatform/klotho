@@ -142,9 +142,9 @@ func Test_convertExecUnitParams(t *testing.T) {
 			},
 			testresource: &lambda.LambdaFunction{},
 			wants: resources.EnvironmentVariables{
-				"APP_NAME":           core.IaCValue{Resource: nil, Value: "test"},
-				"EXECUNIT_NAME":      core.IaCValue{Resource: nil, Value: "unit"},
-				"BUCKET_BUCKET_NAME": core.IaCValue{Resource: s3Bucket, Value: "bucket_name"},
+				"APP_NAME":           core.IaCValue{Resource: nil, Property: "test"},
+				"EXECUNIT_NAME":      core.IaCValue{Resource: nil, Property: "unit"},
+				"BUCKET_BUCKET_NAME": core.IaCValue{Resource: s3Bucket, Property: "bucket_name"},
 			},
 		},
 		{
@@ -160,9 +160,9 @@ func Test_convertExecUnitParams(t *testing.T) {
 			},
 			testresource: &lambda.LambdaFunction{},
 			wants: resources.EnvironmentVariables{
-				"APP_NAME":      core.IaCValue{Resource: nil, Value: "test"},
-				"EXECUNIT_NAME": core.IaCValue{Resource: nil, Value: "unit"},
-				"TestVar":       core.IaCValue{Resource: nil, Value: "TestValue"},
+				"APP_NAME":      core.IaCValue{Resource: nil, Property: "test"},
+				"EXECUNIT_NAME": core.IaCValue{Resource: nil, Property: "unit"},
+				"TestVar":       core.IaCValue{Resource: nil, Property: "TestValue"},
 			},
 		},
 	}

@@ -163,7 +163,7 @@ func Test_handleIaCValue(t *testing.T) {
 			name: "bucket name",
 			value: core.IaCValue{
 				Resource: s3.NewS3Bucket(&core.Fs{}, "test-app", resources.NewAccountId()),
-				Value:    string(core.BUCKET_NAME),
+				Property: string(core.BUCKET_NAME),
 			},
 			resourceVarNamesById: map[string]string{
 				"aws:s3_bucket:test-app-": "testBucket",
@@ -173,7 +173,7 @@ func Test_handleIaCValue(t *testing.T) {
 		{
 			name: "string value, nil resource",
 			value: core.IaCValue{
-				Value: "TestValue",
+				Property: "TestValue",
 			},
 			want: "`TestValue`",
 		},

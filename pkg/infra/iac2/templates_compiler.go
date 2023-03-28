@@ -253,9 +253,9 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 // handleIaCValue determines how to retrieve values from a resource given a specific value identifier.
 func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) string {
 	if v.Resource == nil {
-		return tc.resolveStructInput(reflect.ValueOf(v.Value), false)
+		return tc.resolveStructInput(reflect.ValueOf(v.Property), false)
 	}
-	switch v.Value {
+	switch v.Property {
 	case string(core.BUCKET_NAME):
 		return fmt.Sprintf("%s.bucket", tc.getVarName(v.Resource))
 	}

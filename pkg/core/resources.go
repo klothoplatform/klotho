@@ -37,8 +37,8 @@ type (
 	IaCValue struct {
 		// Resource is the resource the IaCValue is correlated to
 		Resource Resource
-		// Value defines the intended characteristic of the resource we want to retrieve
-		Value string
+		// Property defines the intended characteristic of the resource we want to retrieve
+		Property string
 	}
 
 	HasLocalOutput interface {
