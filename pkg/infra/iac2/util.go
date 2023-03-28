@@ -1,13 +1,13 @@
 package iac2
 
 import (
+	"github.com/klothoplatform/klotho/pkg/core"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
 
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"go.uber.org/zap"
 )
 
@@ -45,7 +45,7 @@ func toUpperCamel(s string) string {
 	return sb.String()
 }
 
-func structName(v graph.Identifiable) string {
+func structName(v core.Resource) string {
 	vType := reflect.TypeOf(v)
 	for vType.Kind() == reflect.Pointer {
 		vType = vType.Elem()
@@ -79,32 +79,36 @@ func getStructValues(o any) map[string]any {
 	return result
 }
 
+// quoteTsString converts the string into a TypeScript backticked string. We do that rather than a standard json string
+// so that it looks nicer in the resulting source code. For example, instead of:
+//
+//	const someStr = "{\n\t"hello": "world",\n}";
+//
+// you would get:
+//
+//	const SomeStr = `{
+//		"hello": "world",
+//	}`;
 func quoteTsString(str string) string {
 	result := strings.Builder{}
 	result.WriteRune('`')
 	for _, char := range str {
 		switch char {
-		case '"':
-			result.WriteString(`"`)
-		case '\'':
-			result.WriteString(`'`)
 		case '`':
-			result.WriteString("`")
-		case '\\':
-			result.WriteString(`\\`)
+			result.WriteString("\\`")
 		case '\b':
 			result.WriteString(`\b`)
 		case '\f':
 			result.WriteString(`\f`)
-		case '\n':
-			result.WriteString("\n")
 		case '\r':
 			result.WriteString(`\r`)
-		case '\t':
-			result.WriteString("\t")
+		case '\\':
+			result.WriteString(`\\`)
+		case '\t', '"', '\'', '\n':
+			result.WriteRune(char)
 		default:
 			if char < 32 || char > 126 {
-				result.WriteString("\\u")
+				result.WriteString(`\u`)
 				result.WriteString(strconv.FormatInt(int64(char), 16))
 			} else {
 				result.WriteRune(char)

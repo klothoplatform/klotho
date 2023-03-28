@@ -3,6 +3,7 @@ package iac2
 import (
 	"bytes"
 	"io/fs"
+	"reflect"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -61,6 +62,90 @@ import {Whatever} from "@pulumi/aws/cool/service"
 `, "\n")
 		assert.Equal(expect, buf.String())
 	})
+}
+
+func TestResolveStructInput(t *testing.T) {
+	cases := []struct {
+		name     string
+		value    any
+		withVars map[string]string
+		want     string
+	}{
+		{
+			name:  "string",
+			value: "hello, world",
+			want:  "`hello, world`",
+		},
+		{
+			name:  "bool",
+			value: true,
+			want:  `true`,
+		},
+		{
+			name:  "int",
+			value: 123,
+			want:  `123`,
+		},
+		{
+			name:  "float",
+			value: 1234.5,
+			want:  `1234.5`,
+		},
+		{
+			name:     "struct",
+			value:    DummyBuzz{},
+			withVars: map[string]string{`buzz-shared`: `myVar`},
+			want:     `myVar`,
+		},
+		{
+			name:     "struct-pointer",
+			value:    &DummyFizz{Value: `abc`},
+			withVars: map[string]string{`fizz-abc`: `myVar`},
+			want:     `myVar`,
+		},
+		{
+			name:  "null",
+			value: nil,
+			want:  `null`,
+		},
+		{
+			name:     "slice of resources",
+			value:    []core.Resource{&DummyFizz{Value: `abc`}},
+			withVars: map[string]string{`fizz-abc`: `myVar`},
+			want:     `[myVar]`,
+		},
+		{
+			name:     "slice of any",
+			value:    []any{123, &DummyFizz{Value: `abc`}},
+			withVars: map[string]string{`fizz-abc`: `myVar`},
+			want:     `[123,myVar]`,
+		},
+		{
+			name:     "array",
+			value:    [2]any{123, &DummyFizz{Value: `abc`}},
+			withVars: map[string]string{`fizz-abc`: `myVar`},
+			want:     `[123,myVar]`,
+		},
+		{
+			name: "map",
+			value: map[string]any{
+				"MyStruct": DummyBuzz{},
+			},
+			withVars: map[string]string{`buzz-shared`: `myVar`},
+			want:     "{`MyStruct`:myVar}",
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			tc := TemplatesCompiler{
+				resourceVarNamesById: tt.withVars,
+			}
+			val := reflect.ValueOf(tt.value)
+			actual := tc.resolveStructInput(val)
+			assert.Equal(tt.want, actual)
+		})
+	}
 }
 
 type (

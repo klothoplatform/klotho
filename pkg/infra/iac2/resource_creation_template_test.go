@@ -2,7 +2,9 @@ package iac2
 
 import (
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
+	"text/template"
 )
 
 func TestParseTemplate(t *testing.T) {
@@ -24,6 +26,63 @@ func TestParseTemplate(t *testing.T) {
 		},
 		parsed.Imports,
 	)
+}
+
+func TestParameterizeArgs(t *testing.T) {
+	cases := []struct {
+		given  string
+		want   string
+		input  map[string]any
+		result string
+	}{
+		{
+			given:  `new Foo(args.Bar)`,
+			want:   `new Foo({{.Bar}})`,
+			input:  map[string]any{"Bar": `"HELLO"`},
+			result: `new Foo("HELLO")`,
+		},
+		{
+			given:  `new Foo({args.Bar})`,
+			want:   "new Foo({{`{`}}{{.Bar}}})",
+			input:  map[string]any{"Bar": `"HELLO"`},
+			result: `new Foo({"HELLO"})`,
+		},
+		{
+			given:  `new Foo({{args.Bar}})`, // two curlies
+			want:   "new Foo({{`{{`}}{{.Bar}}}})",
+			input:  map[string]any{"Bar": `"HELLO"`},
+			result: `new Foo({{"HELLO"}})`,
+		},
+		{
+			given: `new Foo(argsFoo)`,
+			want:  `new Foo(argsFoo)`,
+		},
+		{
+			given: `new Foo(myargs.Foo)`,
+			want:  `new Foo(myargs.Foo)`,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.given, func(t *testing.T) {
+			tmplStr := parameterizeArgs(tt.given)
+			assert := assert.New(t)
+			assert.Equal(tt.want, tmplStr, `template create`)
+
+			if tt.input != nil {
+				t.Run("template use", func(t *testing.T) {
+					tmpl, err := template.New("template").Parse(tmplStr)
+					if assert.NoError(err) {
+						buf := strings.Builder{}
+						err := tmpl.Execute(&buf, tt.input)
+						if assert.NoError(err) {
+							assert.Equal(tt.result, buf.String(), `template use`)
+						}
+					}
+				})
+			}
+		})
+	}
+
 }
 
 const simpleTemplateBody = `
