@@ -19,15 +19,19 @@ import (
 )
 
 type (
+	templatesProvider struct {
+		// templates is the fs.FS where we read all of our `<struct>/factory.ts` files
+		templates fs.FS
+		// templatesByStructName is a cache from struct name (e.g. "CloudwatchLogs") to the template for that struct.
+		templatesByStructName map[string]ResourceCreationTemplate
+	}
+
 	// TemplatesCompiler renders a graph of [core.Resource] nodes by combining each one with its corresponding
 	// ResourceCreationTemplate
 	TemplatesCompiler struct {
-		// templates is the fs.FS where we read all of our `<struct>/factory.ts` files
-		templates fs.FS
+		*templatesProvider
 		// resourceGraph is the graph of resources to render
 		resourceGraph *core.ResourceGraph // TODO make this be a core.ResourceGraph, and un-expose that struct's Underlying
-		// templatesByStructName is a cache from struct name (e.g. "CloudwatchLogs") to the template for that struct.
-		templatesByStructName map[string]ResourceCreationTemplate
 		// resourceVarNames is a set of all variable names
 		resourceVarNames map[string]struct{}
 		// resourceVarNamesById is a map from resource id to the variable name for that resource
@@ -41,16 +45,22 @@ var (
 )
 
 func CreateTemplatesCompiler(resources *core.ResourceGraph) *TemplatesCompiler {
+	return &TemplatesCompiler{
+		templatesProvider:    standardTemplatesProvider(),
+		resourceGraph:        resources,
+		resourceVarNames:     make(map[string]struct{}),
+		resourceVarNamesById: make(map[string]string),
+	}
+}
+
+func standardTemplatesProvider() *templatesProvider {
 	subTemplates, err := fs.Sub(standardTemplates, "templates")
 	if err != nil {
 		panic(err) // unexpected, since standardTemplates is statically built into klotho
 	}
-	return &TemplatesCompiler{
+	return &templatesProvider{
 		templates:             subTemplates,
-		resourceGraph:         resources,
 		templatesByStructName: make(map[string]ResourceCreationTemplate),
-		resourceVarNames:      make(map[string]struct{}),
-		resourceVarNamesById:  make(map[string]string),
 	}
 }
 
@@ -80,7 +90,7 @@ func (tc TemplatesCompiler) RenderImports(out io.Writer) error {
 
 	allImports := make(map[string]struct{})
 	for _, res := range tc.resourceGraph.ListResources() {
-		tmpl, err := tc.GetTemplate(res)
+		tmpl, err := tc.getTemplate(res)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -130,7 +140,7 @@ func (tc TemplatesCompiler) RenderPackageJSON() (*javascript.NodePackageJson, er
 
 func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource) error {
 
-	tmpl, err := tc.GetTemplate(resource)
+	tmpl, err := tc.getTemplate(resource)
 	if err != nil {
 		return err
 	}
@@ -291,8 +301,11 @@ func (tc TemplatesCompiler) getVarName(v core.Resource) string {
 	return resolvedName
 }
 
-func (tc TemplatesCompiler) GetTemplate(v core.Resource) (ResourceCreationTemplate, error) {
-	typeName := structName(v)
+func (tc templatesProvider) getTemplate(v core.Resource) (ResourceCreationTemplate, error) {
+	return tc.getTemplateForType(structName(v))
+}
+
+func (tc templatesProvider) getTemplateForType(typeName string) (ResourceCreationTemplate, error) {
 	existing, ok := tc.templatesByStructName[typeName]
 	if ok {
 		return existing, nil
