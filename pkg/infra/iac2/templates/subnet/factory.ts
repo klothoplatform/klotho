@@ -9,7 +9,7 @@ interface Args {
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.ec2.Subnet {
     return new aws.ec2.Subnet(args.Name, {
-        vpcId: args.Vpc.main.id,
+        vpcId: args.Vpc.id,
         cidrBlock: args.CidrBlock,
     })
 }

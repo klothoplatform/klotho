@@ -42,6 +42,7 @@ jobs:
           expected="factory.ts\npackage-lock.json\npackage.json"
           echo "SHOWING EXPECTED / ACTUAL"
           diff --side-by-side <(echo "$expected") <(ls -1)
+      - run: npm install typescript --no-save
       - run: npm install
       - run: npx tsc factory.ts
       - name: install depcheck
