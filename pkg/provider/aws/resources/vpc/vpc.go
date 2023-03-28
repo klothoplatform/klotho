@@ -46,12 +46,26 @@ func (vpc *Vpc) Id() string {
 	return fmt.Sprintf("%s:%s:%s", vpc.Provider(), VPC_TYPE, vpc.Name)
 }
 
+func (vpc *Vpc) GetVpcSubnets(dag *core.ResourceGraph) []*Subnet {
+	subnets := []*Subnet{}
+	downstreamDeps := dag.GetDownstreamResources(vpc)
+	for _, dep := range downstreamDeps {
+		if subnet, ok := dep.(*Subnet); ok {
+			subnets = append(subnets, subnet)
+		}
+	}
+	return subnets
+}
+
 func CreateNetwork(appName string, dag *core.ResourceGraph) {
 	vpc := NewVpc("test-app")
 	region := resources.NewRegion()
+	igw := NewInternetGateway(appName, "igw1", vpc)
 
 	dag.AddResource(region)
 	dag.AddResource(vpc)
+	dag.AddResource(igw)
+	dag.AddDependency(vpc, igw)
 
 	CreateGatewayVpcEndpoint("s3", vpc, region, dag)
 	CreateGatewayVpcEndpoint("dynamodb", vpc, region, dag)
