@@ -6,7 +6,7 @@ interface Args {
     Region: string
     ServiceName: string
     VpcEndpointType: string
-    Subnets: aws.ec2.Subnet
+    Subnets: aws.ec2.Subnet[]
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -17,6 +17,6 @@ function create(args: Args): aws.ec2.VpcEndpoint {
         vpcEndpointType: args.VpcEndpointType,
         privateDnsEnabled: true,
         subnetIds: args.Subnets.map((x) => x.id),
-        routeTableIds: args.Subnets.map((x) => x.routeTable!.id),
+        routeTableIds: args.Vpc.defaultRouteTableId,
     })
 }

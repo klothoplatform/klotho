@@ -8,6 +8,6 @@ interface Args {
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.ec2.InternetGateway {
     return new aws.ec2.InternetGateway(args.Name, {
-        vpcId: args.Vpc.main.id,
+        vpcId: args.Vpc.id,
     })
 }
