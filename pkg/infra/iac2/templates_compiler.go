@@ -17,7 +17,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 )
 
 type (
@@ -144,7 +143,6 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 		resourceVal = resourceVal.Elem()
 	}
 	inputArgs := make(map[string]string)
-	var zeroValue reflect.Value
 	for fieldName := range tmpl.InputTypes {
 		// dependsOn will be a reserved field for us to use to map dependencies. If specified as an Arg we will automatically call resolveDependencies
 		if fieldName == "dependsOn" {
@@ -152,13 +150,6 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 			continue
 		}
 		childVal := resourceVal.FieldByName(fieldName)
-		if childVal == zeroValue {
-			zap.S().Warnf(
-				`Klotho compiler error: no field %s.%s while rendering typescript template`,
-				resourceVal.Type().Name(),
-				fieldName)
-			continue
-		}
 		resolvedValue := tc.resolveStructInput(childVal)
 		if resolvedValue == "" {
 			errs.Append(errors.Errorf(`child struct of %v is not of a known type: %v`, resource, childVal.Interface()))
@@ -199,6 +190,10 @@ func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 
 // resolveStructInput translates a value to a form suitable to inject into the typescript as an input to a function.
 func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value) string {
+	var zeroValue reflect.Value
+	if childVal == zeroValue {
+		return `null`
+	}
 	switch childVal.Kind() {
 	case reflect.Bool,
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
@@ -211,7 +206,7 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value) string {
 		if childVal.Kind() == reflect.Pointer && childVal.IsNil() {
 			return "null"
 		}
-		if typedChild, ok := childVal.Interface().(graph.Identifiable); ok {
+		if typedChild, ok := childVal.Interface().(core.Resource); ok {
 			return tc.getVarName(typedChild)
 		} else {
 			return ""
@@ -245,6 +240,12 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value) string {
 		buf.WriteRune('}')
 
 		return buf.String()
+	case reflect.Interface:
+		// This happens when the value is inside a map, slice, or array. Basically, the reflected type is interface{},
+		// instead of being the actual type. So, we basically pull the item out of the collection, and then reflect on
+		// it directly.
+		underlyingVal := childVal.Interface()
+		return tc.resolveStructInput(reflect.ValueOf(underlyingVal))
 	}
 	return ""
 }
@@ -257,7 +258,7 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value) string {
 // If that ideal variable name hasn't been used yet, this function returns it. If it has been used, we append `_${i}` to
 // it, where ${i} is the lowest positive integer that would give us a new, unique variable name. This isn't expected
 // to happen often, if at all, since ids are globally unique.
-func (tc TemplatesCompiler) getVarName(v graph.Identifiable) string {
+func (tc TemplatesCompiler) getVarName(v core.Resource) string {
 	if name, alreadyResolved := tc.resourceVarNamesById[v.Id()]; alreadyResolved {
 		return name
 	}
@@ -278,7 +279,7 @@ func (tc TemplatesCompiler) getVarName(v graph.Identifiable) string {
 	return resolvedName
 }
 
-func (tc TemplatesCompiler) GetTemplate(v graph.Identifiable) (ResourceCreationTemplate, error) {
+func (tc TemplatesCompiler) GetTemplate(v core.Resource) (ResourceCreationTemplate, error) {
 	typeName := structName(v)
 	existing, ok := tc.templatesByStructName[typeName]
 	if ok {
@@ -294,7 +295,7 @@ func (tc TemplatesCompiler) GetTemplate(v graph.Identifiable) (ResourceCreationT
 	return template, nil
 }
 
-func (tc TemplatesCompiler) GetPackageJSON(v graph.Identifiable) (javascript.NodePackageJson, error) {
+func (tc TemplatesCompiler) GetPackageJSON(v core.Resource) (javascript.NodePackageJson, error) {
 	packageContent := javascript.NodePackageJson{}
 	typeName := structName(v)
 	templateName := camelToSnake(typeName)

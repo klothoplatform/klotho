@@ -42,7 +42,7 @@ var (
 		Sitter: typescript.GetLanguage(),
 	}
 
-	parameterizeArgsRegex = regexp.MustCompile(`args(\.\w+)`)
+	parameterizeArgsRegex = regexp.MustCompile(`\bargs(\.\w+)`)
 	curlyEscapes          = regexp.MustCompile(`({+)(args\.)`)
 
 	//go:embed find_args.scm
