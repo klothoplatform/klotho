@@ -8,6 +8,8 @@ import (
 )
 
 func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (Links []core.CloudResourceLink, err error) {
+	a.ConstructIdToResourceId = make(map[string]string)
+
 	log := zap.S()
 
 	constructIds, err := result.TopologicalSort()
@@ -28,12 +30,18 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (L
 		case *core.Fs:
 			accountId := resources.NewAccountId()
 			bucket := s3.NewS3Bucket(construct, a.Config.AppName, accountId)
+			a.ConstructIdToResourceId[construct.Id()] = bucket.Id()
 			dag.AddResource(accountId)
 			dag.AddResource(bucket)
 			dag.AddDependency(accountId, bucket)
 		default:
 			log.Warnf("Unsupported resource %s", construct.Id())
 		}
+	}
+
+	err = a.convertExecUnitParams(result, dag)
+	if err != nil {
+		return
 	}
 	return
 }

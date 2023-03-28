@@ -125,7 +125,7 @@ func parameterizeArgs(contents string) string {
 	// invalid go-template. So, we first turn "{args." into "{{`{`}}args.", which will eventually result in
 	// "{{`{`}}{{.Foo}}" — which, while ugly, will result in the correct template execution.
 	contents = curlyEscapes.ReplaceAllString(contents, "{{`$1`}}$2")
-	contents = templateComments.ReplaceAllString(contents, "{{`$1`}}")
+	contents = templateComments.ReplaceAllString(contents, "$1")
 	contents = parameterizeArgsRegex.ReplaceAllString(contents, `{{$1}}`)
 	return contents
 }

@@ -42,7 +42,7 @@ func (p Plugin) Translate(cloudGraph *core.ResourceGraph) ([]core.File, error) {
 		return nil, err
 	}
 
-	buf.Write([]byte("export = async () => {\n"))
+	buf.Write([]byte("export default async () => {\n"))
 	if err := tc.RenderBody(buf); err != nil {
 		return nil, err
 	}

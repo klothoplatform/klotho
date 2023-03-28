@@ -2,6 +2,7 @@ package iac2
 
 import (
 	"bytes"
+	"fmt"
 	"io/fs"
 	"reflect"
 	"strings"
@@ -10,6 +11,8 @@ import (
 	"time"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -66,10 +69,11 @@ import {Whatever} from "@pulumi/aws/cool/service"
 
 func TestResolveStructInput(t *testing.T) {
 	cases := []struct {
-		name     string
-		value    any
-		withVars map[string]string
-		want     string
+		name                   string
+		value                  any
+		withVars               map[string]string
+		useDoubleQuotedStrings bool
+		want                   string
 	}{
 		{
 			name:  "string",
@@ -131,8 +135,9 @@ func TestResolveStructInput(t *testing.T) {
 			value: map[string]any{
 				"MyStruct": DummyBuzz{},
 			},
-			withVars: map[string]string{`buzz-shared`: `myVar`},
-			want:     "{`MyStruct`:myVar}",
+			withVars:               map[string]string{`buzz-shared`: `myVar`},
+			want:                   `{"MyStruct":myVar},`,
+			useDoubleQuotedStrings: true,
 		},
 	}
 	for _, tt := range cases {
@@ -142,7 +147,39 @@ func TestResolveStructInput(t *testing.T) {
 				resourceVarNamesById: tt.withVars,
 			}
 			val := reflect.ValueOf(tt.value)
-			actual := tc.resolveStructInput(val)
+			actual := tc.resolveStructInput(val, tt.useDoubleQuotedStrings)
+			assert.Equal(tt.want, actual)
+		})
+	}
+}
+
+func Test_handleIaCValue(t *testing.T) {
+	cases := []struct {
+		name                 string
+		value                core.IaCValue
+		resourceVarNamesById map[string]string
+		want                 string
+	}{
+		{
+			name: "string",
+			value: core.IaCValue{
+				Resource: s3.NewS3Bucket(&core.Fs{}, "test-app", resources.NewAccountId()),
+				Value:    string(core.BUCKET_NAME),
+			},
+			resourceVarNamesById: map[string]string{
+				"aws:s3_bucket:test-app-": "testBucket",
+			},
+			want: "testBucket.bucket",
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			tc := TemplatesCompiler{
+				resourceVarNamesById: tt.resourceVarNamesById,
+			}
+			fmt.Println(tt.value.Resource.Id())
+			actual := tc.handleIaCValue(tt.value)
 			assert.Equal(tt.want, actual)
 		})
 	}

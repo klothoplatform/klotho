@@ -6,7 +6,7 @@ interface Args {
     // lambdaName: string,
     // image: pulumi.Output<string>,
     Role: aws.iam.Role
-    EnvironmentVariables: Record<string, pulumi.Output<string>>,
+    EnvironmentVariables: Record<string, pulumi.Output<string>>
     // dependsOn: []
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
@@ -21,7 +21,7 @@ function create(args: Args): aws.lambda.Function {
             role: args.Role.arn,
             name: args.Name,
             environment: {
-                variables:  args.EnvironmentVariables
+                variables: args.EnvironmentVariables,
             },
             tags: {
                 env: 'production',

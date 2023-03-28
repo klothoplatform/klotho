@@ -29,7 +29,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, dag *core.Reso
 	switch execUnitCfg.Type {
 	case Lambda:
 
-		lambdaFunction := lambda.NewLambdaFunction(unit, a.Config.AppName, role)
+		lambdaFunction := lambda.NewLambdaFunction(unit, a.Config.AppName, role, image)
 		a.ConstructIdToResourceId[unit.Id()] = lambdaFunction.Id()
 		logGroup := cloudwatch.NewLogGroup(a.Config.AppName, fmt.Sprintf("/aws/lambda/%s", lambdaFunction.Name), unit.Provenance(), 5)
 		dag.AddResource(lambdaFunction)
@@ -45,16 +45,40 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, dag *core.Reso
 	return nil
 }
 
-func (a *AWS) convertExecUnitParams(unit *core.ExecutionUnit, dag *core.ResourceGraph) resources.EnvironmentVariables {
-	resourceEnvVars := make(resources.EnvironmentVariables)
-	for _, envVar := range unit.EnvironmentVariables {
-		resource := a.ConstructIdToResourceId[envVar.GetConstruct().Id()]
-		resourceEnvVars[envVar.Name] = resources.EnvironmentVariable{
-			Resource: dag.GetResource(resource),
-			Value:    envVar.Value,
+func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.ResourceGraph) error {
+	execUnits := core.GetResourcesOfType[*core.ExecutionUnit](result)
+	for _, unit := range execUnits {
+		resourceEnvVars := make(resources.EnvironmentVariables)
+		for _, envVar := range unit.EnvironmentVariables {
+			resourceId, ok := a.ConstructIdToResourceId[envVar.GetConstruct().Id()]
+			if ok {
+				resource := dag.GetResource(resourceId)
+				if resource == nil {
+					return fmt.Errorf("resource not found for id, %s", resourceId)
+				}
+				resourceEnvVars[envVar.Name] = core.IaCValue{
+					Resource: resource,
+					Value:    envVar.Value,
+				}
+			} else {
+				return fmt.Errorf("resource not found for construct with id, %s", envVar.GetConstruct().Id())
+			}
+		}
+		resourceId, ok := a.ConstructIdToResourceId[unit.Id()]
+		if ok {
+			resource := dag.GetResource(resourceId)
+			if resource == nil {
+				return fmt.Errorf("resource not found for id, %s", resourceId)
+			}
+			switch r := resource.(type) {
+			case *lambda.LambdaFunction:
+				r.EnvironmentVariables = resourceEnvVars
+			}
+		} else {
+			return fmt.Errorf("resource not found for construct with id, %s", unit.Id())
 		}
 	}
-	return resourceEnvVars
+	return nil
 }
 
 func GetAssumeRolePolicyForType(cfg config.ExecutionUnit) string {

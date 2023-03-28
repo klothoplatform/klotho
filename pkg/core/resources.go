@@ -33,6 +33,14 @@ type (
 		Type() string
 	}
 
+	// IaCValue is a struct that defines a value we need to grab from a specific resource. It is up to the plugins to make the determination of how to retrieve the value
+	IaCValue struct {
+		// Resource is the resource the IaCValue is correlated to
+		Resource Resource
+		// Value defines the intended characteristic of the resource we want to retrieve
+		Value string
+	}
+
 	HasLocalOutput interface {
 		OutputTo(dest string) error
 	}
