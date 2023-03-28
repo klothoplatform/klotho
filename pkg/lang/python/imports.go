@@ -119,7 +119,7 @@ func FindImports(file *core.SourceFile) Imports {
 		qualifiedModuleName := parent
 		if qualifiedModuleName == "" {
 			qualifiedModuleName = moduleName
-		} else if qualifiedModuleName[len(qualifiedModuleName)-1] == '.' {
+		} else if strings.HasSuffix(qualifiedModuleName, ".") {
 			qualifiedModuleName += moduleName
 		} else {
 			qualifiedModuleName += "." + moduleName
