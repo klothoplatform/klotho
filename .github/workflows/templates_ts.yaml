@@ -37,7 +37,6 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 16
-          cache: 'npm'
       - name: check for unexpected files
         run:
           expected="factory.ts\npackage-lock.json\npackage.json"
