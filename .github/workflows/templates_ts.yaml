@@ -38,7 +38,6 @@ jobs:
         with:
           node-version: 16
           cache: 'npm'
-          cache-dependency-path: 'pkg/infra/iac2/templates/${{ matrix.template_dir }}/package-lock.json'
       - name: check for unexpected files
         run:
           expected="factory.ts\npackage-lock.json\npackage.json"
