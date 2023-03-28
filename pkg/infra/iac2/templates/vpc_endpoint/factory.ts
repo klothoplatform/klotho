@@ -17,6 +17,6 @@ function create(args: Args): aws.ec2.VpcEndpoint {
         vpcEndpointType: args.VpcEndpointType,
         privateDnsEnabled: true,
         subnetIds: args.Subnets.map((x) => x.id),
-        routeTableIds: args.Vpc.defaultRouteTableId.apply((id) => id),
+        routeTableIds: [args.Vpc.defaultRouteTableId.apply((id) => id)],
     })
 }
