@@ -142,7 +142,27 @@ func Test_convertExecUnitParams(t *testing.T) {
 			},
 			testresource: &lambda.LambdaFunction{},
 			wants: resources.EnvironmentVariables{
+				"APP_NAME":           core.IaCValue{Resource: nil, Value: "test"},
+				"EXECUNIT_NAME":      core.IaCValue{Resource: nil, Value: "unit"},
 				"BUCKET_BUCKET_NAME": core.IaCValue{Resource: s3Bucket, Value: "bucket_name"},
+			},
+		},
+		{
+			name: `lambda`,
+			construct: &core.ExecutionUnit{
+				AnnotationKey: core.AnnotationKey{ID: "unit"},
+				EnvironmentVariables: core.EnvironmentVariables{
+					core.NewEnvironmentVariable("TestVar", nil, "TestValue"),
+				},
+			},
+			constructIdToResourceId: map[string]string{
+				":unit": "aws:lambda_function:",
+			},
+			testresource: &lambda.LambdaFunction{},
+			wants: resources.EnvironmentVariables{
+				"APP_NAME":      core.IaCValue{Resource: nil, Value: "test"},
+				"EXECUNIT_NAME": core.IaCValue{Resource: nil, Value: "unit"},
+				"TestVar":       core.IaCValue{Resource: nil, Value: "TestValue"},
 			},
 		},
 	}
@@ -151,6 +171,7 @@ func Test_convertExecUnitParams(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			aws := AWS{
+				Config:                  &config.Application{AppName: "test"},
 				ConstructIdToResourceId: tt.constructIdToResourceId,
 			}
 

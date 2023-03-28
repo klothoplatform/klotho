@@ -210,7 +210,6 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 		} else if typedChild, ok := childVal.Interface().(core.IaCValue); ok {
 			return tc.handleIaCValue(typedChild)
 		} else {
-
 			return ""
 		}
 	case reflect.Array, reflect.Slice:
@@ -240,7 +239,6 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 			}
 		}
 		buf.WriteRune('}')
-		buf.WriteRune(',')
 		return buf.String()
 	case reflect.Interface:
 		// This happens when the value is inside a map, slice, or array. Basically, the reflected type is interface{},
@@ -254,6 +252,9 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 
 // handleIaCValue determines how to retrieve values from a resource given a specific value identifier.
 func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) string {
+	if v.Resource == nil {
+		return tc.resolveStructInput(reflect.ValueOf(v.Value), false)
+	}
 	switch v.Value {
 	case string(core.BUCKET_NAME):
 		return fmt.Sprintf("%s.bucket", tc.getVarName(v.Resource))

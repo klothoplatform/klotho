@@ -2,7 +2,6 @@ package iac2
 
 import (
 	"bytes"
-	"fmt"
 	"io/fs"
 	"reflect"
 	"strings"
@@ -136,7 +135,7 @@ func TestResolveStructInput(t *testing.T) {
 				"MyStruct": DummyBuzz{},
 			},
 			withVars:               map[string]string{`buzz-shared`: `myVar`},
-			want:                   `{"MyStruct":myVar},`,
+			want:                   `{"MyStruct":myVar}`,
 			useDoubleQuotedStrings: true,
 		},
 	}
@@ -161,7 +160,7 @@ func Test_handleIaCValue(t *testing.T) {
 		want                 string
 	}{
 		{
-			name: "string",
+			name: "bucket name",
 			value: core.IaCValue{
 				Resource: s3.NewS3Bucket(&core.Fs{}, "test-app", resources.NewAccountId()),
 				Value:    string(core.BUCKET_NAME),
@@ -171,6 +170,13 @@ func Test_handleIaCValue(t *testing.T) {
 			},
 			want: "testBucket.bucket",
 		},
+		{
+			name: "string value, nil resource",
+			value: core.IaCValue{
+				Value: "TestValue",
+			},
+			want: "`TestValue`",
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -178,7 +184,6 @@ func Test_handleIaCValue(t *testing.T) {
 			tc := TemplatesCompiler{
 				resourceVarNamesById: tt.resourceVarNamesById,
 			}
-			fmt.Println(tt.value.Resource.Id())
 			actual := tc.handleIaCValue(tt.value)
 			assert.Equal(tt.want, actual)
 		})
