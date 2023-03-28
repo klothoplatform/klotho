@@ -149,7 +149,7 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 			continue
 		}
 		childVal := resourceVal.FieldByName(fieldName)
-		resolvedValue := tc.resolveStructInput(childVal)
+		resolvedValue := tc.resolveStructInput(childVal, false)
 		if resolvedValue == "" {
 			errs.Append(errors.Errorf(`child struct of %v is not of a known type: %v`, resource, childVal.Interface()))
 		} else {
@@ -188,7 +188,7 @@ func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 }
 
 // resolveStructInput translates a value to a form suitable to inject into the typescript as an input to a function.
-func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value) string {
+func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDoubleQuotedStrings bool) string {
 	var zeroValue reflect.Value
 	if childVal == zeroValue {
 		return `null`
@@ -200,13 +200,15 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value) string {
 		reflect.Float32, reflect.Float64:
 		return fmt.Sprintf("%v", childVal.Interface())
 	case reflect.String:
-		return quoteTsString(childVal.Interface().(string))
+		return quoteTsString(childVal.Interface().(string), useDoubleQuotedStrings)
 	case reflect.Struct, reflect.Pointer:
 		if childVal.Kind() == reflect.Pointer && childVal.IsNil() {
 			return "null"
 		}
 		if typedChild, ok := childVal.Interface().(core.Resource); ok {
 			return tc.getVarName(typedChild)
+		} else if typedChild, ok := childVal.Interface().(core.IaCValue); ok {
+			return tc.handleIaCValue(typedChild)
 		} else {
 			return ""
 		}
@@ -216,7 +218,7 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value) string {
 		buf := strings.Builder{}
 		buf.WriteRune('[')
 		for i := 0; i < sliceLen; i++ {
-			buf.WriteString(tc.resolveStructInput(childVal.Index(i)))
+			buf.WriteString(tc.resolveStructInput(childVal.Index(i), false))
 			if i < (sliceLen - 1) {
 				buf.WriteRune(',')
 			}
@@ -229,22 +231,33 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value) string {
 		buf := strings.Builder{}
 		buf.WriteRune('{')
 		for i, key := range childVal.MapKeys() {
-			buf.WriteString(tc.resolveStructInput(key))
+			buf.WriteString(tc.resolveStructInput(key, true))
 			buf.WriteRune(':')
-			buf.WriteString(tc.resolveStructInput(childVal.MapIndex(key)))
+			buf.WriteString(tc.resolveStructInput(childVal.MapIndex(key), false))
 			if i < (mapLen - 1) {
 				buf.WriteRune(',')
 			}
 		}
 		buf.WriteRune('}')
-
 		return buf.String()
 	case reflect.Interface:
 		// This happens when the value is inside a map, slice, or array. Basically, the reflected type is interface{},
 		// instead of being the actual type. So, we basically pull the item out of the collection, and then reflect on
 		// it directly.
 		underlyingVal := childVal.Interface()
-		return tc.resolveStructInput(reflect.ValueOf(underlyingVal))
+		return tc.resolveStructInput(reflect.ValueOf(underlyingVal), false)
+	}
+	return ""
+}
+
+// handleIaCValue determines how to retrieve values from a resource given a specific value identifier.
+func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) string {
+	if v.Resource == nil {
+		return tc.resolveStructInput(reflect.ValueOf(v.Property), false)
+	}
+	switch v.Property {
+	case string(core.BUCKET_NAME):
+		return fmt.Sprintf("%s.bucket", tc.getVarName(v.Resource))
 	}
 	return ""
 }

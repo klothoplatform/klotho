@@ -1,14 +1,13 @@
 package iac2
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
 
-	"go.uber.org/zap"
+	"github.com/klothoplatform/klotho/pkg/core"
 )
 
 var lowerThenUpper = regexp.MustCompile("([a-z0-9])([A-Z])")
@@ -53,32 +52,6 @@ func structName(v core.Resource) string {
 	return vType.Name()
 }
 
-func getStructValues(o any) map[string]any {
-	val := reflect.ValueOf(o)
-	for val.Kind() == reflect.Pointer {
-		val = val.Elem()
-	}
-	if val.Kind() != reflect.Struct {
-		return nil
-	}
-	valType := val.Type()
-
-	fieldCount := val.NumField()
-	result := make(map[string]any, fieldCount)
-
-	for i := 0; i < fieldCount; i++ {
-		valField := valType.Field(i)
-		if !valField.IsExported() {
-			zap.S().Debugf(`Ignoring unexported field %s on %s`, valField.Name, valType.Name())
-			continue
-		}
-		fieldValue := val.Field(i)
-		fieldData := fieldValue.Interface()
-		result[valField.Name] = fieldData
-	}
-	return result
-}
-
 // quoteTsString converts the string into a TypeScript backticked string. We do that rather than a standard json string
 // so that it looks nicer in the resulting source code. For example, instead of:
 //
@@ -89,9 +62,13 @@ func getStructValues(o any) map[string]any {
 //	const SomeStr = `{
 //		"hello": "world",
 //	}`;
-func quoteTsString(str string) string {
+func quoteTsString(str string, useDoubleQuotedStrings bool) string {
 	result := strings.Builder{}
-	result.WriteRune('`')
+	if useDoubleQuotedStrings {
+		result.WriteString(`"`)
+	} else {
+		result.WriteRune('`')
+	}
 	for _, char := range str {
 		switch char {
 		case '`':
@@ -115,6 +92,10 @@ func quoteTsString(str string) string {
 			}
 		}
 	}
-	result.WriteRune('`')
+	if useDoubleQuotedStrings {
+		result.WriteString(`"`)
+	} else {
+		result.WriteRune('`')
+	}
 	return result.String()
 }
