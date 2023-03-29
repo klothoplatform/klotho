@@ -1,5 +1,5 @@
 {
-    "name": "iac-fragment",
+    "name": "log_group",
     "dependencies": {
         "@pulumi/aws": "^5.16.0"
     }
