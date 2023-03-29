@@ -7,7 +7,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 	"github.com/klothoplatform/klotho/pkg/lang/yaml"
-	yamlLang "github.com/klothoplatform/klotho/pkg/lang/yaml"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -285,7 +284,7 @@ spec:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.Pod = f
 			}
@@ -402,7 +401,7 @@ spec:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("deployment.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("deployment.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.Deployment = f
 			}
@@ -520,7 +519,7 @@ spec:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("deployment.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("deployment.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.Deployment = f
 			}
@@ -609,7 +608,7 @@ spec:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.Pod = f
 			}
@@ -912,7 +911,7 @@ metadata:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.ServiceAccount = f
 			}
@@ -981,7 +980,7 @@ status: {}
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.TargetGroupBinding = f
 			}
@@ -1058,7 +1057,7 @@ status:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.Service = f
 			}
@@ -1104,7 +1103,7 @@ metadata:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 			if tt.file != "" {
-				f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+				f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 				if assert.Nil(err) {
 					testUnit.ServiceAccount = f
 				}
@@ -1167,7 +1166,7 @@ spec:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 			if tt.file != "" {
-				f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+				f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 				if assert.Nil(err) {
 					testUnit.Service = f
 				}
