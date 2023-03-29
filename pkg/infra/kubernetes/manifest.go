@@ -28,7 +28,7 @@ type DeploymentManifestData struct {
 	Namespace          string
 }
 
-func addDeploymentManifest(kch *KlothoHelmChart, unit *HelmExecUnit) error {
+func addDeploymentManifest(kch *HelmChart, unit *HelmExecUnit) error {
 	data := DeploymentManifestData{
 		ExecUnitName:       unit.Name,
 		Namespace:          unit.Namespace,
@@ -53,7 +53,7 @@ type ServiceAccountManifestData struct {
 	Namespace    string
 }
 
-func addServiceAccountManifest(kch *KlothoHelmChart, unit *HelmExecUnit) error {
+func addServiceAccountManifest(kch *HelmChart, unit *HelmExecUnit) error {
 	data := ServiceAccountManifestData{
 		ExecUnitName: unit.Name,
 		Namespace:    unit.Namespace,
@@ -77,7 +77,7 @@ type ServiceManifestData struct {
 	Namespace    string
 }
 
-func addServiceManifest(kch *KlothoHelmChart, unit *HelmExecUnit) error {
+func addServiceManifest(kch *HelmChart, unit *HelmExecUnit) error {
 	data := ServiceManifestData{
 		ExecUnitName: unit.Name,
 		Namespace:    unit.Namespace,
@@ -100,7 +100,7 @@ type TargetGroupBindingManifestData struct {
 	ServiceName string
 }
 
-func addTargetGroupBindingManifest(kch *KlothoHelmChart, unit *HelmExecUnit) error {
+func addTargetGroupBindingManifest(kch *HelmChart, unit *HelmExecUnit) error {
 	data := TargetGroupBindingManifestData{
 		ServiceName: unit.getServiceName(),
 	}
@@ -123,7 +123,7 @@ type ServiceExportManifestData struct {
 	Namespace   string
 }
 
-func addServiceExportManifest(kch *KlothoHelmChart, unit *HelmExecUnit) error {
+func addServiceExportManifest(kch *HelmChart, unit *HelmExecUnit) error {
 	data := ServiceExportManifestData{
 		ServiceName: unit.getServiceName(),
 		Namespace:   unit.Namespace,

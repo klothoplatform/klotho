@@ -14,7 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-type KlothoHelmChart struct {
+type HelmChart struct {
 	Name           string
 	ValuesFiles    []string
 	ExecutionUnits []*HelmExecUnit
@@ -25,17 +25,17 @@ type KlothoHelmChart struct {
 }
 
 // Provider returns name of the provider the resource is correlated to
-func (chart *KlothoHelmChart) Provider() string { return "kubernetes" }
+func (chart *HelmChart) Provider() string { return "kubernetes" }
 
 // KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (chart *KlothoHelmChart) KlothoConstructRef() []core.AnnotationKey { return chart.AnnotationKeys }
+func (chart *HelmChart) KlothoConstructRef() []core.AnnotationKey { return chart.AnnotationKeys }
 
 // ID returns the id of the cloud resource
-func (chart *KlothoHelmChart) Id() string { return fmt.Sprintf("klotho_helm_chart-%s", chart.Name) }
+func (chart *HelmChart) Id() string { return fmt.Sprintf("klotho_helm_chart-%s", chart.Name) }
 
 var HelmChartKind = "helm_chart"
 
-func (t *KlothoHelmChart) OutputTo(dest string) error {
+func (t *HelmChart) OutputTo(dest string) error {
 	errs := make(chan error)
 	files := t.Files
 	for idx := range files {
@@ -70,7 +70,7 @@ func (t *KlothoHelmChart) OutputTo(dest string) error {
 	return nil
 }
 
-func (t *KlothoHelmChart) AssignFilesToUnits() error {
+func (t *HelmChart) AssignFilesToUnits() error {
 	needsMetadataName := len(t.ExecutionUnits) > 1
 	for _, unit := range t.ExecutionUnits {
 		for _, f := range t.Files {
@@ -151,7 +151,7 @@ func (t *KlothoHelmChart) AssignFilesToUnits() error {
 	return nil
 }
 
-func (chart *KlothoHelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.ExecutionUnit, cfg config.ExecutionUnit, constructGraph *core.ConstructGraph) ([]Value, error) {
+func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.ExecutionUnit, cfg config.ExecutionUnit, constructGraph *core.ConstructGraph) ([]Value, error) {
 	values := []Value{}
 
 	if shouldTransformImage(eu) {
@@ -205,7 +205,7 @@ func (chart *KlothoHelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.E
 	return values, nil
 }
 
-func (chart *KlothoHelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, constructGraph *core.ConstructGraph) (values []Value, err error) {
+func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, constructGraph *core.ConstructGraph) (values []Value, err error) {
 	sources := constructGraph.GetUpstreamConstructs(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: unit.Name, Capability: annotation.ExecutionUnitCapability}})
 	needService := false
 	needsTargetGroupBinding := false
@@ -253,7 +253,7 @@ func (chart *KlothoHelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit,
 	return
 }
 
-func (chart *KlothoHelmChart) addDeployment(unit *HelmExecUnit) ([]Value, error) {
+func (chart *HelmChart) addDeployment(unit *HelmExecUnit) ([]Value, error) {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding Deployment manifest for exec unit")
 	err := addDeploymentManifest(chart, unit)
@@ -267,7 +267,7 @@ func (chart *KlothoHelmChart) addDeployment(unit *HelmExecUnit) ([]Value, error)
 	return values, nil
 }
 
-func (chart *KlothoHelmChart) addServiceAccount(unit *HelmExecUnit) ([]Value, error) {
+func (chart *HelmChart) addServiceAccount(unit *HelmExecUnit) ([]Value, error) {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding ServiceAccount manifest for exec unit")
 	err := addServiceAccountManifest(chart, unit)
@@ -281,7 +281,7 @@ func (chart *KlothoHelmChart) addServiceAccount(unit *HelmExecUnit) ([]Value, er
 	return values, nil
 }
 
-func (chart *KlothoHelmChart) addService(unit *HelmExecUnit) ([]Value, error) {
+func (chart *HelmChart) addService(unit *HelmExecUnit) ([]Value, error) {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding Service manifest for exec unit")
 	err := addServiceManifest(chart, unit)
@@ -296,7 +296,7 @@ func (chart *KlothoHelmChart) addService(unit *HelmExecUnit) ([]Value, error) {
 	return values, nil
 }
 
-func (chart *KlothoHelmChart) addTargetGroupBinding(unit *HelmExecUnit) ([]Value, error) {
+func (chart *HelmChart) addTargetGroupBinding(unit *HelmExecUnit) ([]Value, error) {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding TargetGroupBinding manifest for exec unit")
 	err := addTargetGroupBindingManifest(chart, unit)
@@ -310,7 +310,7 @@ func (chart *KlothoHelmChart) addTargetGroupBinding(unit *HelmExecUnit) ([]Value
 	return values, nil
 }
 
-func (chart *KlothoHelmChart) addServiceExport(unit *HelmExecUnit) error {
+func (chart *HelmChart) addServiceExport(unit *HelmExecUnit) error {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding ServiceExport manifest for exec unit")
 	err := addServiceExportManifest(chart, unit)
