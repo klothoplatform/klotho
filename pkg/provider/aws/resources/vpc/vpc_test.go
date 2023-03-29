@@ -55,9 +55,10 @@ func Test_CreateNetwork(t *testing.T) {
 				nodes: []string{"aws:vpc:test_app", "aws:vpc_subnet:test_app_private1", "aws:vpc_subnet:test_app_private2", "aws:vpc_subnet:test_app_public1", "aws:vpc_subnet:test_app_public2",
 					"aws:vpc_endpoint:test_app_s3", "aws:vpc_endpoint:test_app_sqs", "aws:vpc_endpoint:test_app_sns", "aws:vpc_endpoint:test_app_lambda",
 					"aws:vpc_endpoint:test_app_secretsmanager", "aws:vpc_endpoint:test_app_dynamodb", "aws:elastic_ip:test_app_private2", "aws:elastic_ip:test_app_private1",
-					"aws:nat_gateway:test_app_private1", "aws:nat_gateway:test_app_private2", "aws:region:region",
+					"aws:nat_gateway:test_app_private1", "aws:nat_gateway:test_app_private2", "aws:region:region", "aws:internet_gateway:test_app_igw1",
 				},
 				deps: []stringDep{
+					{source: "aws:vpc:test_app", dest: "aws:internet_gateway:test_app_igw1"},
 					{source: "aws:vpc:test_app", dest: "aws:vpc_subnet:test_app_private1"},
 					{source: "aws:vpc:test_app", dest: "aws:vpc_subnet:test_app_private2"},
 					{source: "aws:vpc:test_app", dest: "aws:vpc_subnet:test_app_public1"},
@@ -95,6 +96,46 @@ func Test_CreateNetwork(t *testing.T) {
 			}
 			assert.Len(dag.ListResources(), len(tt.want.nodes))
 			assert.Len(dag.ListDependencies(), len(tt.want.deps))
+		})
+	}
+}
+
+func Test_GetVpcSubnets(t *testing.T) {
+	vpc := NewVpc("test-app")
+	subnet1 := NewSubnet("private1", vpc, "10.0.0.0/24", PrivateSubnet)
+	subnet2 := NewSubnet("private2", vpc, "10.0.0.0/24", PrivateSubnet)
+	subnet3 := NewSubnet("private3", vpc, "10.0.0.0/24", PrivateSubnet)
+	subnet4 := NewSubnet("private4", vpc, "10.0.0.0/24", PrivateSubnet)
+
+	cases := []struct {
+		name    string
+		vpc     *Vpc
+		subnets []*Subnet
+		want    []*Subnet
+	}{
+		{
+			name:    "happy path",
+			vpc:     vpc,
+			subnets: []*Subnet{subnet1, subnet2, subnet3, subnet4},
+			want:    []*Subnet{subnet1, subnet2, subnet3, subnet4},
+		},
+		{
+			name: "no subnets",
+			vpc:  vpc,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			dag := core.NewResourceGraph()
+
+			dag.AddResource(tt.vpc)
+			for _, s := range tt.subnets {
+				dag.AddResource(s)
+				dag.AddDependency(tt.vpc, s)
+			}
+			result := tt.vpc.GetVpcSubnets(dag)
+			assert.ElementsMatch(result, tt.want)
 		})
 	}
 }
