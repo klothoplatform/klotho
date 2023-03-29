@@ -14,7 +14,10 @@ func (a *AWS) GenerateFsResources(construct *core.Fs, result *core.ConstructGrap
 		unit, ok := res.(*core.ExecutionUnit)
 		if ok {
 			a.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), []string{"s3:*"},
-				[]core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE}})
+				[]core.IaCValue{
+					{Resource: bucket, Property: core.ARN_IAC_VALUE},
+					{Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE},
+				})
 		}
 	}
 	a.ConstructIdToResourceId[construct.Id()] = bucket.Id()

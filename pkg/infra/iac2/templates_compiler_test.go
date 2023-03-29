@@ -50,8 +50,8 @@ func TestOutputBody(t *testing.T) {
 			"				fizzMyHello,",
 			"				{",
 			"					buzz: buzzShared,",
-			"					nest: {",
-			"Fizz: fizzMyHello,}",
+			"					nest: {Fizz: fizzMyHello,",
+			"}",
 			"				});")
 		assert.Equal(expect, buf.String())
 	})

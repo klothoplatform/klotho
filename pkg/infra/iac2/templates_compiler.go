@@ -167,9 +167,6 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 		resolvedValue, err := tc.resolveStructInput(childVal, false, iacTag)
 		if err != nil {
 			errs.Append(err)
-		}
-		if resolvedValue == "" {
-			errs.Append(errors.Errorf(`child struct of %v is not of a known type: %v`, resource, childVal.Type().Name()))
 		} else {
 			inputArgs[fieldName] = resolvedValue
 		}
@@ -233,31 +230,29 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 			return output, nil
 		} else {
 			if iacTag == "document" {
-				output := "{"
-				correspondingStruct := childVal
-				if childVal.Kind() == reflect.Pointer {
-					correspondingStruct = childVal.Elem()
+				val := childVal
+				output := strings.Builder{}
+				output.WriteString("{")
+				correspondingStruct := val
+				if val.Kind() == reflect.Pointer {
+					correspondingStruct = val.Elem()
 				}
 				for i := 0; i < correspondingStruct.NumField(); i++ {
 
-					anotherChildVal := correspondingStruct.Field(i)
+					childVal := correspondingStruct.Field(i)
 					fieldName := correspondingStruct.Type().Field(i).Name
-					resolvedValue, err := tc.resolveStructInput(anotherChildVal, false, iacTag)
+					resolvedValue, err := tc.resolveStructInput(childVal, false, iacTag)
 
 					if err != nil {
-						return output, err
+						return output.String(), err
 					}
-					if resolvedValue == "" {
-						return output, errors.Errorf(`child struct of %v is not of a known type: %v`, childVal.Type().Name(), fieldName)
-					} else {
-						output = fmt.Sprintf("%s\n%s: %s,", output, fieldName, resolvedValue)
-					}
+					output.WriteString(fmt.Sprintf("%s: %s,\n", fieldName, resolvedValue))
 				}
-				output = output + "}"
-				return output, nil
+				output.WriteString("}")
+				return output.String(), nil
 			}
 
-			return "", nil
+			return "", errors.Errorf(`child struct of %v is not of a known type`, childVal.Type().Name())
 		}
 	case reflect.Array, reflect.Slice:
 		sliceLen := childVal.Len()
@@ -266,11 +261,8 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 		buf.WriteRune('[')
 		for i := 0; i < sliceLen; i++ {
 			output, err := tc.resolveStructInput(childVal.Index(i), false, iacTag)
-			if output == "" {
-				return output, errors.Errorf(`child struct of %v is not of a known type`, childVal.Index(i).Type().Name())
-			}
 			if err != nil {
-				return output, nil
+				return output, err
 			}
 			buf.WriteString(output)
 			if i < (sliceLen - 1) {
@@ -292,11 +284,8 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 			buf.WriteString(output)
 			buf.WriteRune(':')
 			output, err = tc.resolveStructInput(childVal.MapIndex(key), false, iacTag)
-			if output == "" {
-				return output, errors.Errorf(`child struct of %v is not of a known type`, childVal.MapIndex(key).Type().Name())
-			}
 			if err != nil {
-				return output, nil
+				return output, err
 			}
 			buf.WriteString(output)
 			if i < (mapLen - 1) {

@@ -59,8 +59,7 @@ func (p *PolicyGenerator) AddAllowPolicyToUnit(unitId string, actions []string, 
 }
 
 func (p *PolicyGenerator) AddUnitRole(unitId string, role *IamRole) error {
-	_, found := p.unitToRole[unitId]
-	if found {
+	if _, found := p.unitToRole[unitId]; found {
 		return fmt.Errorf("unit with id, %s, is already mapped to an IAM Role", unitId)
 	}
 	p.unitToRole[unitId] = role
