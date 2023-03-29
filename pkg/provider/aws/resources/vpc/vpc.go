@@ -17,8 +17,8 @@ type (
 		Name               string
 		ConstructsRef      []core.AnnotationKey
 		CidrBlock          string
-		enableDnsHostnames bool
-		enableDnsSupport   bool
+		EnableDnsSupport bool
+		EnableDnsHostnames   bool
 	}
 )
 
@@ -26,8 +26,8 @@ func NewVpc(appName string) *Vpc {
 	return &Vpc{
 		Name:               sanitizer.Apply(appName),
 		CidrBlock:          "10.0.0.0/16",
-		enableDnsSupport:   true,
-		enableDnsHostnames: true,
+		EnableDnsSupport:   true,
+		EnableDnsHostnames: true,
 	}
 }
 

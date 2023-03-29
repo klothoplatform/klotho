@@ -2,6 +2,11 @@ package iac2
 
 import (
 	"fmt"
+	"go/types"
+	"reflect"
+	"strings"
+	"testing"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -11,12 +16,9 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/lambda"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/vpc"
+	"github.com/pkg/errors"
 	assert "github.com/stretchr/testify/assert"
-	"go/types"
 	"golang.org/x/tools/go/packages"
-	"reflect"
-	"strings"
-	"testing"
 )
 
 type (
@@ -62,7 +64,7 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.Region{},
 		&vpc.Vpc{},
 		&vpc.VpcEndpoint{},
-		&kubernetes.KlothoHelmChart{},
+		&kubernetes.HelmChart{},
 		&lambda.LambdaFunction{},
 		&ecr.EcrImage{},
 		&cloudwatch.LogGroup{},
@@ -73,7 +75,6 @@ func TestKnownTemplates(t *testing.T) {
 		&iam.IamRole{},
 		&ecr.EcrRepository{},
 		&s3.S3Bucket{},
-		&resources.AccountId{},
 	}
 
 	tp := standardTemplatesProvider()
@@ -129,7 +130,7 @@ func TestKnownTemplates(t *testing.T) {
 		})
 	}
 	t.Run("all types tested", func(t *testing.T) {
-		assert := assert.New(t)
+		a := assert.New(t)
 
 		// Find the methods for core.Resource
 		var t2 reflect.Type = reflect.TypeOf((*core.Resource)(nil)).Elem()
@@ -138,17 +139,17 @@ func TestKnownTemplates(t *testing.T) {
 			name: t2.Name(),
 		}
 		coreTypes, err := getTypesInPackage(coreResourceRef.pkg)
-		if !assert.NoError(err) {
+		if !a.NoError(err) {
 			return
 		}
 		coreResourceType := coreTypes[coreResourceRef]
-		if !assert.NotEmptyf(coreResourceType, `couldn't find %v!`, coreResourceRef) {
+		if !a.NotEmptyf(coreResourceType, `couldn't find %v!`, coreResourceRef) {
 			return
 		}
 
 		// Find all structs that implement core.Resource
 		resourcesTypes, err := getTypesInPackage("github.com/klothoplatform/klotho/pkg/provider/aws/...")
-		if !assert.NoError(err) {
+		if !a.NoError(err) {
 			return
 		}
 		for ref, methods := range resourcesTypes {
@@ -156,7 +157,7 @@ func TestKnownTemplates(t *testing.T) {
 			if methods.isInterface || !methods.containsAllMethodsIn(coreResourceType) {
 				continue
 			}
-			assert.Contains(testedTypes, ref)
+			a.Contains(testedTypes, ref)
 		}
 	})
 }
@@ -187,26 +188,38 @@ func buildExpectedTsType(out *strings.Builder, tp *templatesProvider, t reflect.
 		}
 		out.WriteString(res.OutputType)
 	case reflect.Array, reflect.Slice:
+		err := buildExpectedTsType(out, tp, t.Elem())
+		if err != nil {
+			return err
+		}
 		out.WriteString("[]")
-		buildExpectedTsType(out, tp, t.Elem())
 	case reflect.Map:
 		out.WriteString("Record<")
-		buildExpectedTsType(out, tp, t.Key())
+		err := buildExpectedTsType(out, tp, t.Key())
+		if err != nil {
+			return err
+		}
 		out.WriteString(", ")
-		buildExpectedTsType(out, tp, t.Elem())
+		err = buildExpectedTsType(out, tp, t.Elem())
+		if err != nil {
+			return err
+		}
 		out.WriteRune('>')
 	case reflect.Pointer, reflect.Interface:
 		// Interface happens when the value is inside a map, slice, or array. Basically, the reflected type is
 		// interface{},instead of being the actual type. So, we basically pull the item out of the collection, and then
 		// reflect on it directly.
-		buildExpectedTsType(out, tp, t.Elem())
+		err := buildExpectedTsType(out, tp, t.Elem())
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 // getTypesInPackage finds all types within a package (which may be "..."-ed).
 func getTypesInPackage(packageName string) (map[TypeRef]Methods, error) {
-	config := &packages.Config{Mode: packages.LoadSyntax}
+	config := &packages.Config{Mode: packages.NeedName | packages.NeedTypes | packages.NeedTypesInfo}
 	pkgs, err := packages.Load(config, packageName)
 	if err != nil {
 		return nil, err
@@ -231,6 +244,9 @@ func getTypesInPackage(packageName string) (map[TypeRef]Methods, error) {
 			result[key] = getMethods(typ)
 		}
 	}
+	if len(result) == 0 {
+		return nil, errors.Errorf(`couldn't find any packages in %s`, packageName)
+	}
 	return result, nil
 }
 
@@ -254,7 +270,7 @@ func getMethods(t *types.Named) Methods {
 }
 
 func (m Methods) containsAllMethodsIn(other Methods) bool {
-	for sig, _ := range other.signatures {
+	for sig := range other.signatures {
 		if _, exists := m.signatures[sig]; !exists {
 			return false
 		}

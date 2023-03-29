@@ -2,7 +2,6 @@ package aws
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
 	"go.uber.org/zap"
 )
@@ -28,12 +27,9 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (L
 				return
 			}
 		case *core.Fs:
-			accountId := resources.NewAccountId()
-			bucket := s3.NewS3Bucket(construct, a.Config.AppName, accountId)
+			bucket := s3.NewS3Bucket(construct, a.Config.AppName)
 			a.ConstructIdToResourceId[construct.Id()] = bucket.Id()
-			dag.AddResource(accountId)
 			dag.AddResource(bucket)
-			dag.AddDependency(accountId, bucket)
 		default:
 			log.Warnf("Unsupported resource %s", construct.Id())
 		}
