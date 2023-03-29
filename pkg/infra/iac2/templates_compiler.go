@@ -221,8 +221,14 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 			return "null", nil
 		}
 		if typedChild, ok := childVal.Interface().(core.Resource); ok {
+			if iacTag == "document" {
+				return "", errors.Errorf(`structs of type Resource can not be tagged with resource: "document"`)
+			}
 			return tc.getVarName(typedChild), nil
 		} else if typedChild, ok := childVal.Interface().(core.IaCValue); ok {
+			if iacTag == "document" {
+				return "", errors.Errorf(`structs of type IaCValue can not be tagged with resource: "document"`)
+			}
 			output, err := tc.handleIaCValue(typedChild)
 			if err != nil {
 				return output, err
@@ -234,13 +240,20 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 				output := strings.Builder{}
 				output.WriteString("{")
 				correspondingStruct := val
-				if val.Kind() == reflect.Pointer {
+				for correspondingStruct.Kind() == reflect.Pointer {
 					correspondingStruct = val.Elem()
 				}
 				for i := 0; i < correspondingStruct.NumField(); i++ {
 
 					childVal := correspondingStruct.Field(i)
 					fieldName := correspondingStruct.Type().Field(i).Name
+
+					structField, found := correspondingStruct.Type().FieldByName(fieldName)
+					iacTag := ""
+					if found {
+						iacTag = structField.Tag.Get("render")
+					}
+
 					resolvedValue, err := tc.resolveStructInput(childVal, false, iacTag)
 
 					if err != nil {

@@ -14,7 +14,7 @@ type (
 
 	PolicyDocument struct {
 		Version   string
-		Statement []StatementEntry `resource:"document"`
+		Statement []StatementEntry `render:"document"`
 	}
 
 	StatementEntry struct {
