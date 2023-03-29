@@ -43,6 +43,9 @@ func (p Plugin) Translate(cloudGraph *core.ResourceGraph) ([]core.File, error) {
 	}
 
 	buf.Write([]byte("export default async () => {\n"))
+	buf.Write([]byte("const kloConfig: pulumi.Config = new pulumi.Config('klo')\n"))
+	buf.Write([]byte("const protect = kloConfig.getBoolean('protect') ?? false\n\n"))
+
 	if err := tc.RenderBody(buf); err != nil {
 		return nil, err
 	}
