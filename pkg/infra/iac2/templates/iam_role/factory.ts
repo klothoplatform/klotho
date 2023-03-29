@@ -1,11 +1,12 @@
 import * as aws from '@pulumi/aws'
+import * as pulumi from '@pulumi/pulumi'
 
 interface Args {
     Name: string
     AssumeRolePolicyDoc: string
     ManagedPolicyArns: string[]
     InlinePolicy: aws.iam.PolicyDocument
-    ManagedPolicies: aws.iam.Policy[]
+    ManagedPolicies: pulumi.Output<string[]>
     AwsManagedPolicies: string[]
 }
 
