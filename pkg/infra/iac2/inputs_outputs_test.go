@@ -157,7 +157,10 @@ func TestKnownTemplates(t *testing.T) {
 			if methods.isInterface || !methods.containsAllMethodsIn(coreResourceType) {
 				continue
 			}
-			a.Contains(testedTypes, ref)
+			t.Run(ref.name, func(t *testing.T) {
+				assert := assert.New(t)
+				assert.Contains(testedTypes, ref)
+			})
 		}
 	})
 }
