@@ -2,7 +2,7 @@ on:
   push:
     branches: [main, ifc2-foundations] # TODO ifc2-foundations only while that feature branch is active
   pull_request:
-    branches: [main, ifc2-foundations]
+    branches: ['*']
   workflow_dispatch: {}
 concurrency:
   cancel-in-progress: true

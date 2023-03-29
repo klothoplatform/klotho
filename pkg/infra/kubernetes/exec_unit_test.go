@@ -6,7 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
-	yamlLang "github.com/klothoplatform/klotho/pkg/lang/yaml"
+	"github.com/klothoplatform/klotho/pkg/lang/yaml"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -284,7 +284,7 @@ spec:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.Pod = f
 			}
@@ -401,7 +401,7 @@ spec:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("deployment.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("deployment.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.Deployment = f
 			}
@@ -519,7 +519,7 @@ spec:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("deployment.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("deployment.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.Deployment = f
 			}
@@ -608,7 +608,7 @@ spec:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.Pod = f
 			}
@@ -834,12 +834,12 @@ status: {}
 			eunit.EnvironmentVariables.Add(core.GenerateOrmConnStringEnvVar(&core.Orm{AnnotationKey: core.AnnotationKey{ID: "testOrm"}}))
 
 			if tt.deploymentYaml != "" {
-				f, err := yamlLang.NewFile("deployment.yaml", strings.NewReader(tt.deploymentYaml))
+				f, err := yaml.NewFile("deployment.yaml", strings.NewReader(tt.deploymentYaml))
 				assert.NoError(err)
 				tt.unit.Deployment = f
 			}
 			if tt.podYaml != "" {
-				f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.podYaml))
+				f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.podYaml))
 				assert.NoError(err)
 				tt.unit.Pod = f
 			}
@@ -911,7 +911,7 @@ metadata:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.ServiceAccount = f
 			}
@@ -980,7 +980,7 @@ status: {}
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.TargetGroupBinding = f
 			}
@@ -1057,7 +1057,7 @@ status:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 
-			f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+			f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 			if assert.Nil(err) {
 				testUnit.Service = f
 			}
@@ -1103,7 +1103,7 @@ metadata:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 			if tt.file != "" {
-				f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+				f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 				if assert.Nil(err) {
 					testUnit.ServiceAccount = f
 				}
@@ -1166,7 +1166,7 @@ spec:
 			assert := assert.New(t)
 			testUnit := HelmExecUnit{Name: "testUnit"}
 			if tt.file != "" {
-				f, err := yamlLang.NewFile("pod.yaml", strings.NewReader(tt.file))
+				f, err := yaml.NewFile("pod.yaml", strings.NewReader(tt.file))
 				if assert.Nil(err) {
 					testUnit.Service = f
 				}
