@@ -21,6 +21,7 @@ func TestOutputBody(t *testing.T) {
 		id:   "main",
 		Fizz: fizz,
 		Buzz: buzz,
+		Nest: &NestedResource{Fizz: fizz},
 	}
 	graph := core.NewResourceGraph()
 	graph.AddResource(fizz)
@@ -47,7 +48,11 @@ func TestOutputBody(t *testing.T) {
 			"",
 			"const bigMain = new DummyParent(",
 			"				fizzMyHello,",
-			"				{buzz: buzzShared});")
+			"				{",
+			"					buzz: buzzShared,",
+			"					nest: {",
+			"Fizz: fizzMyHello,}",
+			"				});")
 		assert.Equal(expect, buf.String())
 	})
 	t.Run("imports", func(t *testing.T) {
@@ -145,7 +150,8 @@ func TestResolveStructInput(t *testing.T) {
 				resourceVarNamesById: tt.withVars,
 			}
 			val := reflect.ValueOf(tt.value)
-			actual := tc.resolveStructInput(val, tt.useDoubleQuotedStrings)
+			actual, err := tc.resolveStructInput(val, tt.useDoubleQuotedStrings, "")
+			assert.NoError(err)
 			assert.Equal(tt.want, actual)
 		})
 	}
@@ -183,7 +189,8 @@ func Test_handleIaCValue(t *testing.T) {
 			tc := TemplatesCompiler{
 				resourceVarNamesById: tt.resourceVarNamesById,
 			}
-			actual := tc.handleIaCValue(tt.value)
+			actual, err := tc.handleIaCValue(tt.value)
+			assert.NoError(err)
 			assert.Equal(tt.want, actual)
 		})
 	}
@@ -202,6 +209,11 @@ type (
 		id   string
 		Fizz *DummyFizz
 		Buzz DummyBuzz
+		Nest *NestedResource `render:"document"`
+	}
+
+	NestedResource struct {
+		Fizz *DummyFizz
 	}
 )
 
@@ -245,12 +257,16 @@ var dummyTemplateFiles = map[string]string{
 		interface Args {
 			Fizz: aws.fizz.DummyResource,
 			Buzz: aws.buzz.DummyResource,
+			Nest: aws.nest.DummyResource
 		}
 
 		function create(args: Args): aws.foobar.DummyParent {
 			return new DummyParent(
 				args.Fizz,
-				{buzz: args.Buzz});
+				{
+					buzz: args.Buzz,
+					nest: args.Nest
+				});
 		}`,
 }
 

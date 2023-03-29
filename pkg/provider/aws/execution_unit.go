@@ -10,11 +10,12 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/ecr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/iam"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/lambda"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
 // GenerateExecUnitResources generates the neccessary AWS resources for a given execution unit and adds them to the resource graph
-func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, dag *core.ResourceGraph) error {
+func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	log := zap.S()
 
 	execUnitCfg := a.Config.GetExecutionUnit(unit.ID)
@@ -26,6 +27,18 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, dag *core.Reso
 
 	role := iam.NewIamRole(a.Config.AppName, fmt.Sprintf("%s-ExecutionRole", unit.ID), unit.Provenance(), GetAssumeRolePolicyForType(execUnitCfg))
 	dag.AddResource(role)
+	err = a.PolicyGenerator.AddUnitRole(unit.Id(), role)
+	if err != nil {
+		return err
+	}
+	for _, res := range result.GetDownstreamConstructs(unit) {
+		resource, ok := a.ConstructIdToResourceId[res.Id()]
+		if !ok {
+			return errors.Errorf("could not find resource for construct, %s, which unit, %s, depends on", unit.Id(), res.Id())
+		}
+		dag.AddDependency(dag.GetResource(resource), role)
+	}
+	role.InlinePolicy = a.PolicyGenerator.GetUnitPolicies(unit.Id())
 
 	switch execUnitCfg.Type {
 	case Lambda:
