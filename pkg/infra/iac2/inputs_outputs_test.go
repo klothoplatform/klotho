@@ -11,6 +11,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/lambda"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/vpc"
+	"github.com/pkg/errors"
 	assert "github.com/stretchr/testify/assert"
 	"go/types"
 	"golang.org/x/tools/go/packages"
@@ -129,7 +130,7 @@ func TestKnownTemplates(t *testing.T) {
 		})
 	}
 	t.Run("all types tested", func(t *testing.T) {
-		assert := assert.New(t)
+		a := assert.New(t)
 
 		// Find the methods for core.Resource
 		var t2 reflect.Type = reflect.TypeOf((*core.Resource)(nil)).Elem()
@@ -138,17 +139,17 @@ func TestKnownTemplates(t *testing.T) {
 			name: t2.Name(),
 		}
 		coreTypes, err := getTypesInPackage(coreResourceRef.pkg)
-		if !assert.NoError(err) {
+		if !a.NoError(err) {
 			return
 		}
 		coreResourceType := coreTypes[coreResourceRef]
-		if !assert.NotEmptyf(coreResourceType, `couldn't find %v!`, coreResourceRef) {
+		if !a.NotEmptyf(coreResourceType, `couldn't find %v!`, coreResourceRef) {
 			return
 		}
 
 		// Find all structs that implement core.Resource
 		resourcesTypes, err := getTypesInPackage("github.com/klothoplatform/klotho/pkg/provider/aws/...")
-		if !assert.NoError(err) {
+		if !a.NoError(err) {
 			return
 		}
 		for ref, methods := range resourcesTypes {
@@ -156,7 +157,10 @@ func TestKnownTemplates(t *testing.T) {
 			if methods.isInterface || !methods.containsAllMethodsIn(coreResourceType) {
 				continue
 			}
-			assert.Contains(testedTypes, ref)
+			t.Run(ref.name, func(t *testing.T) {
+				assert := assert.New(t)
+				assert.Contains(testedTypes, ref)
+			})
 		}
 	})
 }
@@ -206,7 +210,7 @@ func buildExpectedTsType(out *strings.Builder, tp *templatesProvider, t reflect.
 
 // getTypesInPackage finds all types within a package (which may be "..."-ed).
 func getTypesInPackage(packageName string) (map[TypeRef]Methods, error) {
-	config := &packages.Config{Mode: packages.LoadSyntax}
+	config := &packages.Config{Mode: packages.NeedName | packages.NeedTypes | packages.NeedTypesInfo}
 	pkgs, err := packages.Load(config, packageName)
 	if err != nil {
 		return nil, err
@@ -230,6 +234,9 @@ func getTypesInPackage(packageName string) (map[TypeRef]Methods, error) {
 			}
 			result[key] = getMethods(typ)
 		}
+	}
+	if len(result) == 0 {
+		return nil, errors.Errorf(`couldn't find any packages in %s`, packageName)
 	}
 	return result, nil
 }
