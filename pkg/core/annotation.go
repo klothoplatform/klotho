@@ -45,7 +45,7 @@ func (a *Annotation) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
-func (a *Annotation) Format(s fmt.State, verb rune) {
+func (a Annotation) Format(s fmt.State, verb rune) {
 	fmt.Fprintf(s, "@klotho::%s", a.Capability.Name)
 	if len(a.Capability.Directives) > 0 {
 		if s.Flag('+') || s.Flag('#') {
@@ -61,7 +61,7 @@ func (a *Annotation) Format(s fmt.State, verb rune) {
 	}
 }
 
-func (a *Annotation) Key() AnnotationKey {
+func (a Annotation) Key() AnnotationKey {
 	return AnnotationKey{Capability: a.Capability.Name, ID: a.Capability.ID}
 }
 

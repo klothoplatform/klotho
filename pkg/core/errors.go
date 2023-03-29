@@ -90,8 +90,9 @@ func (err *CompileError) Format(s fmt.State, verb rune) {
 		if err.Annotation.Capability != nil {
 			fmt.Fprint(s, "\n")
 			err.Annotation.Format(s, verb)
-			fmt.Fprintf(s, "\nin %s\n", err.File.Path())
+			fmt.Fprintf(s, "\nin %s", err.File.Path())
 			if err.Annotation.Node != nil {
+				fmt.Fprint(s, "\n")
 				fnode := &NodeContent{
 					Endpoints: err.Annotation.Node,
 					Content:   err.Annotation.Node.Content(),

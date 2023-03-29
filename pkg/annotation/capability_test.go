@@ -1,6 +1,8 @@
 package annotation
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -176,12 +178,25 @@ func TestParseCapability(t *testing.T) {
 		{
 			name: "escaped glob pattern is not parseable",
 			text: `
-			@klotho::thing1 {
-			  id = "#$%#$%sdfDSFdgdfgdf_(dfgdfgdfggdfgdfg"
-			}
 			@klotho::thing {
-			  included = "**\/*.js"
+			  	id = "id"
+				included = "**\/*.js"
 			}`,
+			wantErr: true,
+		}, {
+			name: "parsing fails if ID includes invalid characters",
+			text: `
+			@klotho::thing1 {
+			  id = "#$%#$%sdf"
+			}`,
+			wantErr: true,
+		},
+		{
+			name: "parsing fails if ID is too long (current max = 25 chars)",
+			text: fmt.Sprintf(`
+			@klotho::thing1 {
+			  id = "%s"
+			}`, strings.Repeat("a", 26)),
 			wantErr: true,
 		},
 	}

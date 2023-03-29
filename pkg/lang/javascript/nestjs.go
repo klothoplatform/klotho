@@ -120,9 +120,8 @@ func (p *NestJsHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit)
 			return nil, core.NewCompilerError(f, annot, errors.New("Couldn't find expose app creation"))
 		}
 
-		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, p.Config.GetResourceType(unit), cap.ID)
+		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, p.Config.GetResourceType(unit), annot)
 		if actedOn {
-			annot.Detach()
 			fileContent = newfileContent
 			err := f.Reparse([]byte(fileContent))
 			if err != nil {
@@ -167,7 +166,7 @@ func (h *NestJsHandler) assignRoutesToGateway(info *execUnitExposeInfo) error {
 	}
 	return errs.ErrOrNil()
 }
-func (h *NestJsHandler) actOnAnnotation(f *core.SourceFile, listen *exposeListenResult, fileContent string, appName string, unitType string, id string) (actedOn bool, newfileContent string) {
+func (h *NestJsHandler) actOnAnnotation(f *core.SourceFile, listen *exposeListenResult, fileContent string, appName string, unitType string, annot *core.Annotation) (actedOn bool, newfileContent string) {
 	nestFactory := h.findNestFactory(f)
 	newfileContent = fileContent
 	actedOn = false
@@ -187,10 +186,11 @@ func (h *NestJsHandler) actOnAnnotation(f *core.SourceFile, listen *exposeListen
 		} else {
 			newfileContent = CommentNodes(fileContent, listen.Expression.Content())
 		}
+		annot.Detach() // prevents this annotation from being rebound to the next non-comment node in the file on reparse
 	}
 
 	nestFactory.appName = appName
-	nestFactory.id = id
+	nestFactory.id = annot.Capability.ID
 	h.output.factories = append(h.output.factories, nestFactory)
 
 	newfileContent += fmt.Sprintf(`
