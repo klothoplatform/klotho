@@ -115,7 +115,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 }
 
 func Test_convertExecUnitParams(t *testing.T) {
-	s3Bucket := s3.NewS3Bucket(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "bucket"}}, "test-app", resources.NewAccountId())
+	s3Bucket := s3.NewS3Bucket(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "bucket"}}, "test-app")
 	cases := []struct {
 		name                    string
 		construct               core.Construct

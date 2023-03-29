@@ -1,0 +1,6 @@
+{
+    "name": "iac-fragment",
+    "dependencies": {
+        "@pulumi/kubernetes": "^3.21.4"
+    }
+}

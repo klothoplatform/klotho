@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
 	"github.com/stretchr/testify/assert"
 )
@@ -162,7 +161,7 @@ func Test_handleIaCValue(t *testing.T) {
 		{
 			name: "bucket name",
 			value: core.IaCValue{
-				Resource: s3.NewS3Bucket(&core.Fs{}, "test-app", resources.NewAccountId()),
+				Resource: s3.NewS3Bucket(&core.Fs{}, "test-app"),
 				Property: string(core.BUCKET_NAME),
 			},
 			resourceVarNamesById: map[string]string{

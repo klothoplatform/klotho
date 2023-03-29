@@ -17,7 +17,7 @@ type (
 		Name                string
 		ConstructsRef       []core.AnnotationKey
 		AssumeRolePolicyDoc string
-		//ManagedPolicyArns   []string
+		ManagedPolicyArns   []string
 	}
 )
 
