@@ -3,7 +3,6 @@ package iac2
 import (
 	"bytes"
 	"embed"
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
