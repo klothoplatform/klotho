@@ -25,13 +25,13 @@ func Test_AssignFilesToUnits(t *testing.T) {
 	tests := []struct {
 		name      string
 		fileUnits map[string]string
-		chart     KlothoHelmChart
+		chart     HelmChart
 		want      []TestUnit
 		wantErr   bool
 	}{
 		{
 			name: "Basic Pod",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				ExecutionUnits: []*HelmExecUnit{
 					{Name: "unit1"},
 				},
@@ -51,7 +51,7 @@ spec:
 		},
 		{
 			name: "Basic Deployment",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				ExecutionUnits: []*HelmExecUnit{
 					{Name: "unit1"},
 				},
@@ -81,7 +81,7 @@ spec:
 		},
 		{
 			name: "Basic ServiceAccount",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				ExecutionUnits: []*HelmExecUnit{
 					{Name: "unit1"},
 				},
@@ -101,7 +101,7 @@ metadata:
 		},
 		{
 			name: "Basic Service",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				ExecutionUnits: []*HelmExecUnit{
 					{Name: "unit1"},
 				},
@@ -125,7 +125,7 @@ spec:
 		},
 		{
 			name: "Multi unit Pod",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				ExecutionUnits: []*HelmExecUnit{
 					{Name: "unit1"},
 					{Name: "unit2"},
@@ -159,7 +159,7 @@ spec:
 		},
 		{
 			name: "multi unit Deployment",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				ExecutionUnits: []*HelmExecUnit{
 					{Name: "unit1"},
 					{Name: "unit2"},
@@ -212,7 +212,7 @@ spec:
 		},
 		{
 			name: "multi unit ServiceAccount",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				ExecutionUnits: []*HelmExecUnit{
 					{Name: "unit1"},
 					{Name: "unit2"},
@@ -241,7 +241,7 @@ metadata:
 		},
 		{
 			name: "multi unit Service",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				ExecutionUnits: []*HelmExecUnit{
 					{Name: "unit1"},
 					{Name: "unit2"},
@@ -282,7 +282,7 @@ spec:
 		},
 		{
 			name: "single unit pod and deployment error",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				ExecutionUnits: []*HelmExecUnit{
 					{Name: "unit1"},
 				},
@@ -313,7 +313,7 @@ spec:
 		},
 		{
 			name: "multi unit pod and deployment error",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				ExecutionUnits: []*HelmExecUnit{
 					{Name: "unit1"},
 					{Name: "unit2"},
@@ -400,7 +400,7 @@ spec:
 func Test_handleExecutionUnit(t *testing.T) {
 	tests := []struct {
 		name          string
-		chart         KlothoHelmChart
+		chart         HelmChart
 		hasDockerfile bool
 		cfg           config.ExecutionUnit
 		want          []Value
@@ -408,7 +408,7 @@ func Test_handleExecutionUnit(t *testing.T) {
 	}{
 		{
 			name: "no transforms",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				Name: "test",
 				ExecutionUnits: []*HelmExecUnit{
 					{
@@ -423,7 +423,7 @@ func Test_handleExecutionUnit(t *testing.T) {
 		},
 		{
 			name: "only dockerfile",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				Name: "test",
 				ExecutionUnits: []*HelmExecUnit{
 					{
@@ -484,14 +484,14 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		chart   KlothoHelmChart
+		chart   HelmChart
 		deps    []graph.Edge[core.Construct]
 		want    testResult
 		wantErr bool
 	}{
 		{
 			name: "gateway dep",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				Name: "test",
 				ExecutionUnits: []*HelmExecUnit{
 					{
@@ -520,7 +520,7 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 		},
 		{
 			name: "exec unit dep",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				Name: "test",
 				ExecutionUnits: []*HelmExecUnit{
 					{
@@ -541,7 +541,7 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 		},
 		{
 			name: "multiple deps",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				Name: "test",
 				ExecutionUnits: []*HelmExecUnit{
 					{
@@ -574,7 +574,7 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 		},
 		{
 			name: "no deps",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				Name: "test",
 				ExecutionUnits: []*HelmExecUnit{
 					{
@@ -624,13 +624,13 @@ func Test_addDeployment(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		chart   KlothoHelmChart
+		chart   HelmChart
 		want    TestUnit
 		wantErr bool
 	}{
 		{
 			name: "happy path test",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				Name: "test",
 				ExecutionUnits: []*HelmExecUnit{
 					{
@@ -710,12 +710,12 @@ func Test_addServiceAccount(t *testing.T) {
 	}
 	tests := []struct {
 		name  string
-		chart KlothoHelmChart
+		chart HelmChart
 		want  TestUnit
 	}{
 		{
 			name: "happy path test",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				Name: "test",
 				ExecutionUnits: []*HelmExecUnit{
 					{
@@ -774,12 +774,12 @@ func Test_addService(t *testing.T) {
 	}
 	tests := []struct {
 		name  string
-		chart KlothoHelmChart
+		chart HelmChart
 		want  TestUnit
 	}{
 		{
 			name: "happy path test",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				Name: "test",
 				ExecutionUnits: []*HelmExecUnit{
 					{
@@ -838,12 +838,12 @@ func Test_addTargetGroupBinding(t *testing.T) {
 	}
 	tests := []struct {
 		name  string
-		chart KlothoHelmChart
+		chart HelmChart
 		want  TestUnit
 	}{
 		{
 			name: "happy path test",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				Name: "test",
 				ExecutionUnits: []*HelmExecUnit{
 					{
@@ -903,12 +903,12 @@ func Test_addServiceExport(t *testing.T) {
 	}
 	tests := []struct {
 		name  string
-		chart KlothoHelmChart
+		chart HelmChart
 		want  TestUnit
 	}{
 		{
 			name: "happy path test",
-			chart: KlothoHelmChart{
+			chart: HelmChart{
 				Name: "test",
 				ExecutionUnits: []*HelmExecUnit{
 					{

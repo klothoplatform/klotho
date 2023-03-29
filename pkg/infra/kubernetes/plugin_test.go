@@ -125,7 +125,7 @@ func (t *testCapabilityFinder) FindAllCapabilities(sf *core.SourceFile) (core.An
 
 func Test_getKlothoCharts(t *testing.T) {
 	type result struct {
-		klothoCharts map[string]KlothoHelmChart
+		klothoCharts map[string]HelmChart
 		chartsUnits  map[string][]string
 	}
 	tests := []struct {
@@ -144,7 +144,7 @@ func Test_getKlothoCharts(t *testing.T) {
 				"chart/values.yaml":        ``,
 			}},
 			want: result{
-				klothoCharts: map[string]KlothoHelmChart{
+				klothoCharts: map[string]HelmChart{
 					"chart": {
 						Directory: "chart",
 					},
@@ -180,7 +180,7 @@ func Test_getKlothoCharts(t *testing.T) {
 				"chart/values.yaml":        ``,
 			}},
 			want: result{
-				klothoCharts: map[string]KlothoHelmChart{
+				klothoCharts: map[string]HelmChart{
 					"chart": {
 						Directory: "chart",
 					},
@@ -223,7 +223,7 @@ func Test_getKlothoCharts(t *testing.T) {
 				"chart2/values.yaml":        ``,
 			}},
 			want: result{
-				klothoCharts: map[string]KlothoHelmChart{
+				klothoCharts: map[string]HelmChart{
 					"": {},
 				},
 				chartsUnits: map[string][]string{

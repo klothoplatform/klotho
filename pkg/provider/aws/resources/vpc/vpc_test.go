@@ -14,7 +14,7 @@ func Test_NewVpc(t *testing.T) {
 	assert.Equal(vpc.Name, "test_app")
 	assert.Nil(vpc.ConstructsRef)
 	assert.Equal(vpc.CidrBlock, "10.0.0.0/16")
-	assert.Equal(vpc.enableDnsSupport, true)
+	assert.Equal(vpc.EnableDnsSupport, true)
 }
 
 func Test_VpcProvider(t *testing.T) {

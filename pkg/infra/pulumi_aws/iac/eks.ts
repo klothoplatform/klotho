@@ -419,7 +419,7 @@ export class Eks {
             }
         }
         for (const chart of charts) {
-            this.setupKlothoHelmChart(lib, chart.Name, chart.Values || [])
+            this.setupHelmChart(lib, chart.Name, chart.Values || [])
         }
 
         if (installNvidiaDriver) {
@@ -574,7 +574,7 @@ export class Eks {
         })
     }
 
-    public setupKlothoHelmChart(lib: CloudCCLib, name: string, values: Value[]) {
+    public setupHelmChart(lib: CloudCCLib, name: string, values: Value[]) {
         const chart: pulumi_k8s.helm.v3.Chart = this.installedPlugins.get(
             plugins.AWS_LOAD_BALANCER_CONTROLLER
         ) as pulumi_k8s.helm.v3.Chart

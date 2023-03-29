@@ -16,16 +16,14 @@ type (
 	S3Bucket struct {
 		Name          string
 		ConstructsRef []core.AnnotationKey
-		AccountId     *resources.AccountId
 		ForceDestroy  bool
 	}
 )
 
-func NewS3Bucket(fs *core.Fs, appName string, accountId *resources.AccountId) *S3Bucket {
+func NewS3Bucket(fs *core.Fs, appName string) *S3Bucket {
 	return &S3Bucket{
 		Name:          sanitizer.Apply(fmt.Sprintf("%s-%s", appName, fs.ID)),
 		ConstructsRef: []core.AnnotationKey{fs.Provenance()},
-		AccountId:     accountId,
 		ForceDestroy:  true,
 	}
 }
