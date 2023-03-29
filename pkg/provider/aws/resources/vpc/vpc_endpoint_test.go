@@ -12,7 +12,7 @@ func Test_NewVpcEndpoint(t *testing.T) {
 	assert := assert.New(t)
 	vpc := NewVpc("test-app")
 	region := resources.NewRegion()
-	vpce := NewVpcEndpoint("s3", vpc, "Interface", region)
+	vpce := NewVpcEndpoint("s3", vpc, "Interface", region, []*Subnet{})
 	assert.Equal(vpce.Name, "test_app_s3")
 	assert.Nil(vpce.ConstructsRef)
 	assert.Equal(vpce.ServiceName, "s3")
@@ -25,7 +25,7 @@ func Test_VpcEndpointProvider(t *testing.T) {
 	assert := assert.New(t)
 	vpc := NewVpc("test-app")
 	region := resources.NewRegion()
-	vpce := NewVpcEndpoint("s3", vpc, "Interface", region)
+	vpce := NewVpcEndpoint("s3", vpc, "Interface", region, []*Subnet{})
 	assert.Equal(vpce.Provider(), resources.AWS_PROVIDER)
 }
 
@@ -33,7 +33,7 @@ func Test_VpcEndpointId(t *testing.T) {
 	assert := assert.New(t)
 	vpc := NewVpc("test-app")
 	region := resources.NewRegion()
-	vpce := NewVpcEndpoint("s3", vpc, "Interface", region)
+	vpce := NewVpcEndpoint("s3", vpc, "Interface", region, []*Subnet{})
 	assert.Equal(vpce.Id(), "aws:vpc_endpoint:test_app_s3")
 }
 
@@ -41,7 +41,7 @@ func Test_VpcEndpointKlothoConstructRef(t *testing.T) {
 	assert := assert.New(t)
 	vpc := NewVpc("test-app")
 	region := resources.NewRegion()
-	vpce := NewVpcEndpoint("s3", vpc, "Interface", region)
+	vpce := NewVpcEndpoint("s3", vpc, "Interface", region, []*Subnet{})
 	assert.Nil(vpce.ConstructsRef)
 }
 

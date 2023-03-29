@@ -37,13 +37,12 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 16
-          cache: 'npm'
-          cache-dependency-path: 'pkg/infra/iac2/templates/${{ matrix.template_dir }}/package-lock.json'
       - name: check for unexpected files
         run:
           expected="factory.ts\npackage-lock.json\npackage.json"
           echo "SHOWING EXPECTED / ACTUAL"
           diff --side-by-side <(echo "$expected") <(ls -1)
+      - run: npm install typescript --no-save
       - run: npm install
       - run: npx tsc factory.ts
       - name: install depcheck

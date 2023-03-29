@@ -20,16 +20,18 @@ type (
 		Region          *resources.Region
 		ServiceName     string
 		VpcEndpointType string
+		Subnets         []*Subnet
 	}
 )
 
-func NewVpcEndpoint(service string, vpc *Vpc, endpointType string, region *resources.Region) *VpcEndpoint {
+func NewVpcEndpoint(service string, vpc *Vpc, endpointType string, region *resources.Region, subnets []*Subnet) *VpcEndpoint {
 	return &VpcEndpoint{
 		Name:            vpcEndpointSanitizer.Apply(fmt.Sprintf("%s-%s", vpc.Name, service)),
 		Vpc:             vpc,
 		ServiceName:     service,
 		VpcEndpointType: endpointType,
 		Region:          region,
+		Subnets:         subnets,
 	}
 }
 
@@ -49,14 +51,14 @@ func (vpce *VpcEndpoint) Id() string {
 }
 
 func CreateGatewayVpcEndpoint(service string, vpc *Vpc, region *resources.Region, dag *core.ResourceGraph) {
-	vpce := NewVpcEndpoint(service, vpc, "Gateway", region)
+	vpce := NewVpcEndpoint(service, vpc, "Gateway", region, vpc.GetVpcSubnets(dag))
 	dag.AddResource(vpce)
 	dag.AddDependency(vpc, vpce)
 	dag.AddDependency(region, vpce)
 }
 
 func CreateInterfaceVpcEndpoint(service string, vpc *Vpc, region *resources.Region, dag *core.ResourceGraph) {
-	vpce := NewVpcEndpoint(service, vpc, "Interface", region)
+	vpce := NewVpcEndpoint(service, vpc, "Interface", region, vpc.GetVpcSubnets(dag))
 	dag.AddResource(vpce)
 	dag.AddDependency(vpc, vpce)
 	dag.AddDependency(region, vpce)
