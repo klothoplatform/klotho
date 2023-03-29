@@ -6,7 +6,7 @@ interface Args {
     AssumeRolePolicyDoc: string
     ManagedPolicyArns: string[]
     InlinePolicy: aws.iam.PolicyDocument
-    ManagedPolicies: pulumi.Output<string[]>
+    ManagedPolicies: pulumi.Output<string>[]
     AwsManagedPolicies: string[]
 }
 
