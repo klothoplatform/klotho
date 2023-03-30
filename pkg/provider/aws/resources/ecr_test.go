@@ -1,4 +1,4 @@
-package ecr
+package resources
 
 import (
 	"testing"

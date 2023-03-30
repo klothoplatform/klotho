@@ -1,28 +1,25 @@
-package lambda
+package resources
 
 import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/ecr"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/iam"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
 const LAMBDA_FUNCTION_TYPE = "lambda_function"
 
-var sanitizer = aws.LambdaFunctionSanitizer
+var lambdaFunctionSanitizer = aws.LambdaFunctionSanitizer
 
 type (
 	LambdaFunction struct {
 		Name          string
 		ConstructsRef []core.AnnotationKey
 		// Role points to the id of the cloud resource
-		Role                 *iam.IamRole
+		Role                 *IamRole
 		VpcConfig            LambdaVpcConfig
-		Image                *ecr.EcrImage
-		EnvironmentVariables resources.EnvironmentVariables
+		Image                *EcrImage
+		EnvironmentVariables EnvironmentVariables
 	}
 
 	LambdaVpcConfig struct {
@@ -31,9 +28,9 @@ type (
 	}
 )
 
-func NewLambdaFunction(unit *core.ExecutionUnit, appName string, role *iam.IamRole, image *ecr.EcrImage) *LambdaFunction {
+func NewLambdaFunction(unit *core.ExecutionUnit, appName string, role *IamRole, image *EcrImage) *LambdaFunction {
 	return &LambdaFunction{
-		Name:          sanitizer.Apply(fmt.Sprintf("%s-%s", appName, unit.ID)),
+		Name:          lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", appName, unit.ID)),
 		ConstructsRef: []core.AnnotationKey{unit.Provenance()},
 		Role:          role,
 		Image:         image,
@@ -42,7 +39,7 @@ func NewLambdaFunction(unit *core.ExecutionUnit, appName string, role *iam.IamRo
 
 // Provider returns name of the provider the resource is correlated to
 func (lambda *LambdaFunction) Provider() string {
-	return resources.AWS_PROVIDER
+	return AWS_PROVIDER
 }
 
 // KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to

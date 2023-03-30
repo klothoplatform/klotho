@@ -1,16 +1,15 @@
-package cloudwatch
+package resources
 
 import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
 const LOG_GROUP_TYPE = "log_group"
 
-var sanitizer = aws.CloudwatchLogGroupSanitizer
+var logGroupSanitizer = aws.CloudwatchLogGroupSanitizer
 
 type (
 	LogGroup struct {
@@ -23,7 +22,7 @@ type (
 
 func NewLogGroup(appName string, logGroupName string, ref core.AnnotationKey, retention int) *LogGroup {
 	return &LogGroup{
-		Name:            sanitizer.Apply(fmt.Sprintf("%s-%s", appName, logGroupName)),
+		Name:            logGroupSanitizer.Apply(fmt.Sprintf("%s-%s", appName, logGroupName)),
 		ConstructsRef:   []core.AnnotationKey{ref},
 		LogGroupName:    logGroupName,
 		RetentionInDays: retention,
@@ -32,7 +31,7 @@ func NewLogGroup(appName string, logGroupName string, ref core.AnnotationKey, re
 
 // Provider returns name of the provider the resource is correlated to
 func (lg *LogGroup) Provider() string {
-	return resources.AWS_PROVIDER
+	return AWS_PROVIDER
 }
 
 // KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to

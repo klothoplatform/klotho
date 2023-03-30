@@ -1,15 +1,14 @@
-package iam
+package resources
 
 import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_AddAllowPolicyToUnit(t *testing.T) {
-	bucket := s3.NewS3Bucket(&core.Fs{}, "test-app")
+	bucket := NewS3Bucket(&core.Fs{}, "test-app")
 	unitId := "testUnit"
 	cases := []struct {
 		name             string
