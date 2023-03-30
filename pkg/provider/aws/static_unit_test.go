@@ -82,10 +82,7 @@ func Test_GenerateStaticUnitResources(t *testing.T) {
 				ConstructIdToResourceId: make(map[string]string),
 			}
 			dag := core.NewResourceGraph()
-
-			if tt.indexDocument != "" {
-				unit.IndexDocument = tt.indexDocument
-			}
+			unit.IndexDocument = tt.indexDocument
 
 			err := aws.GenerateStaticUnitResources(unit, dag)
 			if tt.want.err {
@@ -101,7 +98,7 @@ func Test_GenerateStaticUnitResources(t *testing.T) {
 					if res.Id() == node.Id() {
 						found = true
 					}
-					if res.Id() == bucket.Id() && tt.indexDocument != "" {
+					if res.Id() == bucket.Id() {
 						if b, ok := res.(*s3.S3Bucket); ok {
 							assert.Equal(b.IndexDocument, tt.indexDocument)
 						}

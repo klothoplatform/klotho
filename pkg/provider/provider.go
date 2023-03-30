@@ -1,4 +1,4 @@
-// Package Provider provides the interface for providers which satisfy the [compiler.ProviderPlugin].
+// Package provider provides the interface for providers which satisfy the [compiler.ProviderPlugin].
 //
 // A Provider is a centralized location containing all necessary logic to transform an architecture, representated as klotho constructs,
 // into the necessary resources to run on the given provider and achieve the same functionality.
