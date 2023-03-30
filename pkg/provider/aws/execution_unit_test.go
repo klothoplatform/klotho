@@ -25,8 +25,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 	lambda := lambda.NewLambdaFunction(unit, "test", role, image)
 	logGroup := cloudwatch.NewLogGroup("test", fmt.Sprintf("/aws/lambda/%s", lambda.Name), unit.Provenance(), 5)
 	fs := &core.Fs{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	accountId := resources.NewAccountId()
-	bucket := s3.NewS3Bucket(fs, "test", accountId)
+	bucket := s3.NewS3Bucket(fs, "test")
 
 	type testResult struct {
 		nodes []core.Resource

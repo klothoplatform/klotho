@@ -2,13 +2,11 @@ package aws
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
 )
 
 func (a *AWS) GenerateFsResources(construct *core.Fs, result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	accountId := resources.NewAccountId()
-	bucket := s3.NewS3Bucket(construct, a.Config.AppName, accountId)
+	bucket := s3.NewS3Bucket(construct, a.Config.AppName)
 	upstreamResources := result.GetUpstreamConstructs(construct)
 	for _, res := range upstreamResources {
 		unit, ok := res.(*core.ExecutionUnit)
@@ -21,8 +19,6 @@ func (a *AWS) GenerateFsResources(construct *core.Fs, result *core.ConstructGrap
 		}
 	}
 	a.ConstructIdToResourceId[construct.Id()] = bucket.Id()
-	dag.AddResource(accountId)
 	dag.AddResource(bucket)
-	dag.AddDependency(accountId, bucket)
 	return nil
 }

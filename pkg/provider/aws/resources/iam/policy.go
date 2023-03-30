@@ -16,11 +16,11 @@ type (
 	IamPolicy struct {
 		Name          string
 		ConstructsRef []core.AnnotationKey
-		Policy        PolicyDocument
+		Policy        *PolicyDocument `render:"document"`
 	}
 )
 
-func NewIamPolicy(appName string, policyName string, ref core.AnnotationKey, policy PolicyDocument) *IamPolicy {
+func NewIamPolicy(appName string, policyName string, ref core.AnnotationKey, policy *PolicyDocument) *IamPolicy {
 	return &IamPolicy{
 		Name:          policySanitizer.Apply(fmt.Sprintf("%s-%s", appName, policyName)),
 		ConstructsRef: []core.AnnotationKey{ref},

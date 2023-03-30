@@ -7,7 +7,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/iam"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
 	"github.com/stretchr/testify/assert"
@@ -16,8 +15,7 @@ import (
 func Test_GenerateFsResources(t *testing.T) {
 	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
 	fs := &core.Fs{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	accountId := resources.NewAccountId()
-	bucket := s3.NewS3Bucket(fs, "test", accountId)
+	bucket := s3.NewS3Bucket(fs, "test")
 
 	type testResult struct {
 		nodes  []core.Resource
@@ -34,13 +32,7 @@ func Test_GenerateFsResources(t *testing.T) {
 			name: "generate fs",
 			want: testResult{
 				nodes: []core.Resource{
-					accountId, bucket,
-				},
-				deps: []graph.Edge[core.Resource]{
-					{
-						Source:      accountId,
-						Destination: bucket,
-					},
+					bucket,
 				},
 			},
 		},
@@ -54,13 +46,7 @@ func Test_GenerateFsResources(t *testing.T) {
 			},
 			want: testResult{
 				nodes: []core.Resource{
-					accountId, bucket,
-				},
-				deps: []graph.Edge[core.Resource]{
-					{
-						Source:      accountId,
-						Destination: bucket,
-					},
+					bucket,
 				},
 				policy: iam.StatementEntry{
 					Effect:   "Allow",

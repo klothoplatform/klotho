@@ -73,6 +73,7 @@ func TestKnownTemplates(t *testing.T) {
 		&vpc.Subnet{},
 		&vpc.InternetGateway{},
 		&iam.IamRole{},
+		&iam.IamPolicy{},
 		&ecr.EcrRepository{},
 		&s3.S3Bucket{},
 	}
@@ -105,6 +106,7 @@ func TestKnownTemplates(t *testing.T) {
 			})
 
 			t.Run("inputs", func(t *testing.T) {
+				coreResourceType := reflect.TypeOf((*core.Resource)(nil)).Elem()
 				for inputName, inputTsType := range tmpl.InputTypes {
 					if inputName == "dependsOn" {
 						continue
@@ -113,17 +115,24 @@ func TestKnownTemplates(t *testing.T) {
 						assert := assert.New(t)
 
 						field, fieldFound := resType.FieldByName(inputName)
+
 						if !assert.Truef(fieldFound, `missing field`, field.Name) {
 							return
 						}
 						assert.Truef(field.IsExported(), `field is not exported`, field.Name)
-
-						expectedType := &strings.Builder{}
-						if err := buildExpectedTsType(expectedType, tp, field.Type); !assert.NoError(err) {
-							return
+						if field.Tag.Get("render") != "" {
+							assert.Equal("document", field.Tag.Get("render"))
+							assert.False(
+								field.Type.Elem().Implements(coreResourceType),
+								"fields tagged with `render:\"document\"` must not be for core.Resource types")
+						} else {
+							expectedType := &strings.Builder{}
+							if err := buildExpectedTsType(expectedType, tp, field.Type); !assert.NoError(err) {
+								return
+							}
+							assert.NotEmpty(expectedType, `couldn't determine expected type'`)
+							assert.Equal(expectedType.String(), inputTsType, `field type`)
 						}
-						assert.NotEmpty(expectedType, `couldn't determine expected type'`)
-						assert.Equal(expectedType.String(), inputTsType, `field type`)
 					})
 				}
 			})
@@ -168,11 +177,6 @@ func TestKnownTemplates(t *testing.T) {
 // buildExpectedTsType converts a Go type to an expected TypeScript type. For example, a map[string]int would translate
 // to Record<string, number>.
 func buildExpectedTsType(out *strings.Builder, tp *templatesProvider, t reflect.Type) error {
-	// env vars are a special case
-	if t.PkgPath() == `github.com/klothoplatform/klotho/pkg/provider/aws/resources` && t.Name() == `EnvironmentVariables` {
-		out.WriteString(`Record<string, pulumi.Output<string>>`)
-		return nil
-	}
 
 	// ok, general cases now
 	switch t.Kind() {
@@ -185,11 +189,15 @@ func buildExpectedTsType(out *strings.Builder, tp *templatesProvider, t reflect.
 	case reflect.String:
 		out.WriteString(`string`)
 	case reflect.Struct:
-		res, err := tp.getTemplateForType(t.Name())
-		if err != nil {
-			return err
+		if t == reflect.TypeOf((*core.IaCValue)(nil)).Elem() {
+			out.WriteString("pulumi.Output<string>")
+		} else {
+			res, err := tp.getTemplateForType(t.Name())
+			if err != nil {
+				return err
+			}
+			out.WriteString(res.OutputType)
 		}
-		out.WriteString(res.OutputType)
 	case reflect.Array, reflect.Slice:
 		err := buildExpectedTsType(out, tp, t.Elem())
 		if err != nil {
