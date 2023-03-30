@@ -3,6 +3,7 @@ package iac2
 import (
 	"fmt"
 	"go/types"
+	"io/fs"
 	"reflect"
 	"strings"
 	"testing"
@@ -163,8 +164,30 @@ func TestKnownTemplates(t *testing.T) {
 			}
 			t.Run(ref.name, func(t *testing.T) {
 				assert := assert.New(t)
-				assert.Contains(testedTypes, ref)
+				assert.Contains(
+					testedTypes,
+					ref,
+					`struct implements core.Resource but isn't tested; add it to this test's '"allResources" var`)
 			})
+		}
+	})
+	t.Run("all templates used", func(t *testing.T) {
+		usedTemplates := make(map[string]struct{})
+		for _, res := range allResources {
+			usedTemplates[camelToSnake(structName(res))] = struct{}{}
+		}
+		err := fs.WalkDir(tp.templates, ".", func(path string, d fs.DirEntry, err error) error {
+			if path == "." {
+				return nil
+			}
+			t.Run(path, func(t *testing.T) {
+				assert := assert.New(t)
+				assert.Contains(usedTemplates, path, `template isn't used; add a core.Resource implementation for it`)
+			})
+			return fs.SkipDir
+		})
+		if !assert.New(t).NoError(err) {
+			return
 		}
 	})
 }
