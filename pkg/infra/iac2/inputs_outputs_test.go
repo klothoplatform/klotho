@@ -10,12 +10,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/cloudwatch"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/ecr"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/iam"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/lambda"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/vpc"
 	"github.com/pkg/errors"
 	assert "github.com/stretchr/testify/assert"
 	"golang.org/x/tools/go/packages"
@@ -62,21 +56,21 @@ type (
 func TestKnownTemplates(t *testing.T) {
 	var allResources = []core.Resource{
 		&resources.Region{},
-		&vpc.Vpc{},
-		&vpc.VpcEndpoint{},
+		&resources.Vpc{},
+		&resources.VpcEndpoint{},
 		&kubernetes.HelmChart{},
-		&lambda.LambdaFunction{},
-		&ecr.EcrImage{},
-		&cloudwatch.LogGroup{},
-		&vpc.ElasticIp{},
-		&vpc.NatGateway{},
-		&vpc.Subnet{},
-		&vpc.InternetGateway{},
-		&iam.IamRole{},
-		&iam.IamPolicy{},
-		&ecr.EcrRepository{},
-		&s3.S3Bucket{},
-		&s3.S3Object{},
+		&resources.LambdaFunction{},
+		&resources.EcrImage{},
+		&resources.LogGroup{},
+		&resources.ElasticIp{},
+		&resources.NatGateway{},
+		&resources.Subnet{},
+		&resources.InternetGateway{},
+		&resources.IamRole{},
+		&resources.IamPolicy{},
+		&resources.EcrRepository{},
+		&resources.S3Bucket{},
+		&resources.S3Object{},
 	}
 
 	tp := standardTemplatesProvider()

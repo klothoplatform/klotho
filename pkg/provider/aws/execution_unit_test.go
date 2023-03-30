@@ -9,23 +9,18 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/cloudwatch"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/ecr"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/iam"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/lambda"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_GenerateExecUnitResources(t *testing.T) {
 	unit := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	repo := ecr.NewEcrRepository("test", core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability})
-	image := ecr.NewEcrImage(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}, "test", repo)
-	role := iam.NewIamRole("test", "test-ExecutionRole", core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, iam.LAMBDA_ASSUMER_ROLE_POLICY)
-	lambda := lambda.NewLambdaFunction(unit, "test", role, image)
-	logGroup := cloudwatch.NewLogGroup("test", fmt.Sprintf("/aws/lambda/%s", lambda.Name), unit.Provenance(), 5)
+	repo := resources.NewEcrRepository("test", core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability})
+	image := resources.NewEcrImage(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}, "test", repo)
+	role := resources.NewIamRole("test", "test-ExecutionRole", core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, resources.LAMBDA_ASSUMER_ROLE_POLICY)
+	lambda := resources.NewLambdaFunction(unit, "test", role, image)
+	logGroup := resources.NewLogGroup("test", fmt.Sprintf("/aws/lambda/%s", lambda.Name), unit.Provenance(), 5)
 	fs := &core.Fs{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	bucket := s3.NewS3Bucket(fs, "test")
+	bucket := resources.NewS3Bucket(fs, "test")
 
 	type testResult struct {
 		nodes []core.Resource
@@ -84,7 +79,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 				ConstructIdToResourceId: map[string]string{
 					fs.Id(): bucket.Id(),
 				},
-				PolicyGenerator: iam.NewPolicyGenerator(),
+				PolicyGenerator: resources.NewPolicyGenerator(),
 			}
 			dag := core.NewResourceGraph()
 
@@ -129,7 +124,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 }
 
 func Test_convertExecUnitParams(t *testing.T) {
-	s3Bucket := s3.NewS3Bucket(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "bucket"}}, "test-app")
+	s3Bucket := resources.NewS3Bucket(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "bucket"}}, "test-app")
 	cases := []struct {
 		name                    string
 		construct               core.Construct
@@ -154,7 +149,7 @@ func Test_convertExecUnitParams(t *testing.T) {
 				":unit":   "aws:lambda_function:",
 				":bucket": "aws:s3_bucket:test-app-bucket",
 			},
-			testresource: &lambda.LambdaFunction{},
+			testresource: &resources.LambdaFunction{},
 			wants: resources.EnvironmentVariables{
 				"APP_NAME":           core.IaCValue{Resource: nil, Property: "test"},
 				"EXECUNIT_NAME":      core.IaCValue{Resource: nil, Property: "unit"},
@@ -172,7 +167,7 @@ func Test_convertExecUnitParams(t *testing.T) {
 			constructIdToResourceId: map[string]string{
 				":unit": "aws:lambda_function:",
 			},
-			testresource: &lambda.LambdaFunction{},
+			testresource: &resources.LambdaFunction{},
 			wants: resources.EnvironmentVariables{
 				"APP_NAME":      core.IaCValue{Resource: nil, Property: "test"},
 				"EXECUNIT_NAME": core.IaCValue{Resource: nil, Property: "unit"},
@@ -207,7 +202,7 @@ func Test_convertExecUnitParams(t *testing.T) {
 				return
 			}
 			switch res := tt.testresource.(type) {
-			case *lambda.LambdaFunction:
+			case *resources.LambdaFunction:
 				assert.Equal(tt.wants, res.EnvironmentVariables)
 
 			}
