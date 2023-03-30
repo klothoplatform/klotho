@@ -7,7 +7,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,9 +15,9 @@ func Test_GenerateStaticUnitResources(t *testing.T) {
 	unit := &core.StaticUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
 	unit.AddSharedFile(&core.FileRef{FPath: "test/Shared"})
 	unit.AddStaticFile(&core.FileRef{FPath: "test/Static"})
-	bucket := s3.NewS3Bucket(unit, "test-app")
-	obj1 := s3.NewS3Object(bucket, "Shared", "test/Shared", "test/test/Shared")
-	obj2 := s3.NewS3Object(bucket, "Static", "test/Static", "test/test/Static")
+	bucket := resources.NewS3Bucket(unit, "test-app")
+	obj1 := resources.NewS3Object(bucket, "Shared", "test/Shared", "test/test/Shared")
+	obj2 := resources.NewS3Object(bucket, "Static", "test/Static", "test/test/Static")
 
 	type testResult struct {
 		nodes []core.Resource
@@ -99,7 +99,7 @@ func Test_GenerateStaticUnitResources(t *testing.T) {
 						found = true
 					}
 					if res.Id() == bucket.Id() {
-						if b, ok := res.(*s3.S3Bucket); ok {
+						if b, ok := res.(*resources.S3Bucket); ok {
 							assert.Equal(b.IndexDocument, tt.indexDocument)
 						}
 					}

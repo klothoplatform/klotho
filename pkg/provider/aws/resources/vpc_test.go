@@ -1,10 +1,9 @@
-package vpc
+package resources
 
 import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +19,7 @@ func Test_NewVpc(t *testing.T) {
 func Test_VpcProvider(t *testing.T) {
 	assert := assert.New(t)
 	vpc := NewVpc("test-app")
-	assert.Equal(vpc.Provider(), resources.AWS_PROVIDER)
+	assert.Equal(vpc.Provider(), AWS_PROVIDER)
 }
 
 func Test_VpcId(t *testing.T) {
