@@ -76,6 +76,7 @@ func TestKnownTemplates(t *testing.T) {
 		&iam.IamPolicy{},
 		&ecr.EcrRepository{},
 		&s3.S3Bucket{},
+		&s3.S3Object{},
 	}
 
 	tp := standardTemplatesProvider()
