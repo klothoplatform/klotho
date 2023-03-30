@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_NewLambdaFunction(t *testing.T) {
+func Test_NewS3Bucket(t *testing.T) {
 	assert := assert.New(t)
 	fs := &core.Fs{AnnotationKey: core.AnnotationKey{ID: "test@#$#@$^%#$&wacjyksdjhgklSJDHGFAJHGT3O474oh43o"}}
 	bucket := NewS3Bucket(fs, "test-app")
@@ -17,21 +17,21 @@ func Test_NewLambdaFunction(t *testing.T) {
 	assert.Equal(bucket.ForceDestroy, true)
 }
 
-func Test_Provider(t *testing.T) {
+func Test_BucketProvider(t *testing.T) {
 	assert := assert.New(t)
 	fs := &core.Fs{AnnotationKey: core.AnnotationKey{ID: "test"}}
 	bucket := NewS3Bucket(fs, "test-app")
 	assert.Equal(bucket.Provider(), resources.AWS_PROVIDER)
 }
 
-func Test_Id(t *testing.T) {
+func Test_BucketId(t *testing.T) {
 	assert := assert.New(t)
 	fs := &core.Fs{AnnotationKey: core.AnnotationKey{ID: "test"}}
 	bucket := NewS3Bucket(fs, "test-app")
 	assert.Equal(bucket.Id(), "aws:s3_bucket:test-app-test")
 }
 
-func Test_KlothoConstructRef(t *testing.T) {
+func Test_BucketKlothoConstructRef(t *testing.T) {
 	assert := assert.New(t)
 	fs := &core.Fs{AnnotationKey: core.AnnotationKey{ID: "test"}}
 	bucket := NewS3Bucket(fs, "test-app")

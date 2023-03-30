@@ -17,12 +17,13 @@ type (
 		Name          string
 		ConstructsRef []core.AnnotationKey
 		ForceDestroy  bool
+		IndexDocument string
 	}
 )
 
-func NewS3Bucket(fs *core.Fs, appName string) *S3Bucket {
+func NewS3Bucket(fs core.Construct, appName string) *S3Bucket {
 	return &S3Bucket{
-		Name:          sanitizer.Apply(fmt.Sprintf("%s-%s", appName, fs.ID)),
+		Name:          sanitizer.Apply(fmt.Sprintf("%s-%s", appName, fs.Provenance().ID)),
 		ConstructsRef: []core.AnnotationKey{fs.Provenance()},
 		ForceDestroy:  true,
 	}
