@@ -1,5 +1,5 @@
 {
-    "name": "iac-fragment",
+    "name": "s3_object",
     "dependencies": {
         "mime": "^2.0.0",
         "@pulumi/aws": "^5.16.0",
