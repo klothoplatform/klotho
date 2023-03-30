@@ -16,7 +16,7 @@ func (a *AWS) Name() string { return "aws" }
 
 // Enums for the types we allow in the aws provider so that we can reuse the same string within the provider
 const (
-	Eks                    = "eks"
+	Kubernetes             = "kubernetes"
 	Ecs                    = "ecs"
 	Lambda                 = "lambda"
 	Rds_postgres           = "rds_postgres"
@@ -52,9 +52,9 @@ var defaultConfig = config.Defaults{
 	ExecutionUnit: config.KindDefaults{
 		Type: Lambda,
 		InfraParamsByType: map[string]config.InfraParams{
-			Lambda: config.ConvertToInfraParams(lambdaDefaults),
-			Ecs:    config.ConvertToInfraParams(ecsDefaults),
-			Eks:    config.ConvertToInfraParams(eksDefaults),
+			Lambda:     config.ConvertToInfraParams(lambdaDefaults),
+			Ecs:        config.ConvertToInfraParams(ecsDefaults),
+			Kubernetes: config.ConvertToInfraParams(eksDefaults),
 		},
 	},
 	StaticUnit: config.KindDefaults{
@@ -121,7 +121,7 @@ func (a *AWS) GetDefaultConfig() config.Defaults {
 func (a *AWS) GetKindTypeMappings(construct core.Construct) ([]string, bool) {
 	switch construct.(type) {
 	case *core.ExecutionUnit:
-		return []string{Eks, Ecs, Lambda}, true
+		return []string{Kubernetes, Ecs, Lambda}, true
 	case *core.Gateway:
 		return []string{string(ApiGateway), string(Alb)}, true
 	case *core.StaticUnit:
