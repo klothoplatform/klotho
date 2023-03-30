@@ -6,6 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/iam"
 )
 
 func GetProvider(cfg *config.Application) (provider.Provider, error) {
@@ -15,7 +16,9 @@ func GetProvider(cfg *config.Application) (provider.Provider, error) {
 		fallthrough
 	case "aws":
 		return &aws.AWS{
-			Config: cfg,
+			Config:                  cfg,
+			ConstructIdToResourceId: make(map[string]string),
+			PolicyGenerator:         iam.NewPolicyGenerator(),
 		}, nil
 	}
 

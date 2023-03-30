@@ -45,3 +45,8 @@ type (
 		OutputTo(dest string) error
 	}
 )
+
+const (
+	ARN_IAC_VALUE                  = "arn"
+	ALL_BUCKET_DIRECTORY_IAC_VALUE = "all_bucket_directory"
+)
