@@ -33,6 +33,11 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (L
 			if err != nil {
 				return
 			}
+		case *core.Secrets:
+			err = a.GenerateSecretsResources(construct, result, dag)
+			if err != nil {
+				return
+			}
 		default:
 			log.Warnf("Unsupported resource %s", construct.Id())
 		}
