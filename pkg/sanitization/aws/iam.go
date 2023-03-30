@@ -15,3 +15,12 @@ var IamRoleSanitizer = sanitization.NewSanitizer(
 			Replacement: "_",
 		},
 	}, 64)
+
+var IamPolicySanitizer = sanitization.NewSanitizer(
+	[]sanitization.Rule{
+		// replace "-" or whitespace with "_"
+		{
+			Pattern:     regexp.MustCompile(`[^\w+=,.@-]`),
+			Replacement: "_",
+		},
+	}, 64)
