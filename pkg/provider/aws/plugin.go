@@ -2,13 +2,10 @@ package aws
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
 	"go.uber.org/zap"
 )
 
 func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (Links []core.CloudResourceLink, err error) {
-	a.ConstructIdToResourceId = make(map[string]string)
-
 	log := zap.S()
 
 	constructIds, err := result.TopologicalSort()
@@ -22,14 +19,15 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (L
 		log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
 		switch construct := construct.(type) {
 		case *core.ExecutionUnit:
-			err = a.GenerateExecUnitResources(construct, dag)
+			err = a.GenerateExecUnitResources(construct, result, dag)
 			if err != nil {
 				return
 			}
 		case *core.Fs:
-			bucket := s3.NewS3Bucket(construct, a.Config.AppName)
-			a.ConstructIdToResourceId[construct.Id()] = bucket.Id()
-			dag.AddResource(bucket)
+			err = a.GenerateFsResources(construct, result, dag)
+			if err != nil {
+				return
+			}
 		default:
 			log.Warnf("Unsupported resource %s", construct.Id())
 		}

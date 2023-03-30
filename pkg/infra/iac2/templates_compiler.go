@@ -158,9 +158,15 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 			continue
 		}
 		childVal := resourceVal.FieldByName(fieldName)
-		resolvedValue := tc.resolveStructInput(childVal, false)
-		if resolvedValue == "" {
-			errs.Append(errors.Errorf(`child struct of %v is not of a known type: %v`, resource, childVal.Interface()))
+		structField, found := resourceVal.Type().FieldByName(fieldName)
+		iacTag := ""
+		if found {
+			iacTag = structField.Tag.Get("render")
+		}
+
+		resolvedValue, err := tc.resolveStructInput(childVal, false, iacTag)
+		if err != nil {
+			errs.Append(err)
 		} else {
 			inputArgs[fieldName] = resolvedValue
 		}
@@ -197,29 +203,69 @@ func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 }
 
 // resolveStructInput translates a value to a form suitable to inject into the typescript as an input to a function.
-func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDoubleQuotedStrings bool) string {
+func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDoubleQuotedStrings bool, iacTag string) (string, error) {
 	var zeroValue reflect.Value
 	if childVal == zeroValue {
-		return `null`
+		return `null`, nil
 	}
 	switch childVal.Kind() {
 	case reflect.Bool,
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64:
-		return fmt.Sprintf("%v", childVal.Interface())
+		return fmt.Sprintf("%v", childVal.Interface()), nil
 	case reflect.String:
-		return quoteTsString(childVal.Interface().(string), useDoubleQuotedStrings)
+		return quoteTsString(childVal.Interface().(string), useDoubleQuotedStrings), nil
 	case reflect.Struct, reflect.Pointer:
 		if childVal.Kind() == reflect.Pointer && childVal.IsNil() {
-			return "null"
+			return "null", nil
 		}
 		if typedChild, ok := childVal.Interface().(core.Resource); ok {
-			return tc.getVarName(typedChild)
+			if iacTag == "document" {
+				return "", errors.Errorf(`structs of type Resource can not be tagged with resource: "document"`)
+			}
+			return tc.getVarName(typedChild), nil
 		} else if typedChild, ok := childVal.Interface().(core.IaCValue); ok {
-			return tc.handleIaCValue(typedChild)
+			if iacTag == "document" {
+				return "", errors.Errorf(`structs of type IaCValue can not be tagged with resource: "document"`)
+			}
+			output, err := tc.handleIaCValue(typedChild)
+			if err != nil {
+				return output, err
+			}
+			return output, nil
 		} else {
-			return ""
+			if iacTag == "document" {
+				val := childVal
+				output := strings.Builder{}
+				output.WriteString("{")
+				correspondingStruct := val
+				for correspondingStruct.Kind() == reflect.Pointer {
+					correspondingStruct = val.Elem()
+				}
+				for i := 0; i < correspondingStruct.NumField(); i++ {
+
+					childVal := correspondingStruct.Field(i)
+					fieldName := correspondingStruct.Type().Field(i).Name
+
+					structField, found := correspondingStruct.Type().FieldByName(fieldName)
+					iacTag := ""
+					if found {
+						iacTag = structField.Tag.Get("render")
+					}
+
+					resolvedValue, err := tc.resolveStructInput(childVal, false, iacTag)
+
+					if err != nil {
+						return output.String(), err
+					}
+					output.WriteString(fmt.Sprintf("%s: %s,\n", fieldName, resolvedValue))
+				}
+				output.WriteString("}")
+				return output.String(), nil
+			}
+
+			return "", errors.Errorf(`child struct of %v is not of a known type`, childVal.Type().Name())
 		}
 	case reflect.Array, reflect.Slice:
 		sliceLen := childVal.Len()
@@ -227,48 +273,68 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 		buf := strings.Builder{}
 		buf.WriteRune('[')
 		for i := 0; i < sliceLen; i++ {
-			buf.WriteString(tc.resolveStructInput(childVal.Index(i), false))
+			output, err := tc.resolveStructInput(childVal.Index(i), false, iacTag)
+			if err != nil {
+				return output, err
+			}
+			buf.WriteString(output)
 			if i < (sliceLen - 1) {
 				buf.WriteRune(',')
 			}
 		}
 		buf.WriteRune(']')
-		return buf.String()
+		return buf.String(), nil
 	case reflect.Map:
 		mapLen := childVal.Len()
 
 		buf := strings.Builder{}
 		buf.WriteRune('{')
 		for i, key := range childVal.MapKeys() {
-			buf.WriteString(tc.resolveStructInput(key, true))
+			output, err := tc.resolveStructInput(key, true, iacTag)
+			if err != nil {
+				return output, nil
+			}
+			buf.WriteString(output)
 			buf.WriteRune(':')
-			buf.WriteString(tc.resolveStructInput(childVal.MapIndex(key), false))
+			output, err = tc.resolveStructInput(childVal.MapIndex(key), false, iacTag)
+			if err != nil {
+				return output, err
+			}
+			buf.WriteString(output)
 			if i < (mapLen - 1) {
 				buf.WriteRune(',')
 			}
 		}
 		buf.WriteRune('}')
-		return buf.String()
+		return buf.String(), nil
 	case reflect.Interface:
 		// This happens when the value is inside a map, slice, or array. Basically, the reflected type is interface{},
 		// instead of being the actual type. So, we basically pull the item out of the collection, and then reflect on
 		// it directly.
 		underlyingVal := childVal.Interface()
-		return tc.resolveStructInput(reflect.ValueOf(underlyingVal), false)
+		return tc.resolveStructInput(reflect.ValueOf(underlyingVal), false, iacTag)
 	}
-	return ""
+	return "", nil
 }
 
 // handleIaCValue determines how to retrieve values from a resource given a specific value identifier.
-func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) string {
+func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) (string, error) {
 	if v.Resource == nil {
-		return tc.resolveStructInput(reflect.ValueOf(v.Property), false)
+		output, err := tc.resolveStructInput(reflect.ValueOf(v.Property), false, "")
+		if err != nil {
+			return output, err
+		}
+		return output, nil
 	}
 	switch v.Property {
 	case string(core.BUCKET_NAME):
-		return fmt.Sprintf("%s.bucket", tc.getVarName(v.Resource))
+		return fmt.Sprintf("%s.bucket", tc.getVarName(v.Resource)), nil
+	case string(core.ARN_IAC_VALUE):
+		return fmt.Sprintf("%s.arn", tc.getVarName(v.Resource)), nil
+	case string(core.ALL_BUCKET_DIRECTORY_IAC_VALUE):
+		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/*`", tc.getVarName(v.Resource)), nil
 	}
-	return ""
+	return "", errors.Errorf("unsupported IaC Value Property, %s", v.Property)
 }
 
 // getVarName gets a unique but nice-looking variable for the given item.

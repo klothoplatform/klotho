@@ -17,7 +17,9 @@ type (
 		Name                string
 		ConstructsRef       []core.AnnotationKey
 		AssumeRolePolicyDoc string
-		ManagedPolicyArns   []string
+		ManagedPolicies     []core.IaCValue
+		AwsManagedPolicies  []string
+		InlinePolicy        *PolicyDocument `render:"document"`
 	}
 )
 

@@ -24,6 +24,8 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 	role := iam.NewIamRole("test", "test-ExecutionRole", core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, iam.LAMBDA_ASSUMER_ROLE_POLICY)
 	lambda := lambda.NewLambdaFunction(unit, "test", role, image)
 	logGroup := cloudwatch.NewLogGroup("test", fmt.Sprintf("/aws/lambda/%s", lambda.Name), unit.Provenance(), 5)
+	fs := &core.Fs{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
+	bucket := s3.NewS3Bucket(fs, "test")
 
 	type testResult struct {
 		nodes []core.Resource
@@ -44,6 +46,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					"test": {Type: "lambda"},
 				},
 			},
+			existingResources: []core.Resource{bucket},
 			want: testResult{
 				nodes: []core.Resource{
 					repo, image, role, lambda, logGroup,
@@ -56,6 +59,10 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{
 						Source:      image,
 						Destination: lambda,
+					},
+					{
+						Source:      bucket,
+						Destination: role,
 					},
 					{
 						Source:      role,
@@ -73,16 +80,23 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			aws := AWS{
-				Config:                  &tt.cfg,
-				ConstructIdToResourceId: make(map[string]string),
+				Config: &tt.cfg,
+				ConstructIdToResourceId: map[string]string{
+					fs.Id(): bucket.Id(),
+				},
+				PolicyGenerator: iam.NewPolicyGenerator(),
 			}
 			dag := core.NewResourceGraph()
 
 			for _, res := range tt.existingResources {
 				dag.AddResource(res)
 			}
+			result := core.NewConstructGraph()
+			result.AddConstruct(unit)
+			result.AddConstruct(fs)
+			result.AddDependency(unit.Id(), fs.Id())
 
-			err := aws.GenerateExecUnitResources(unit, dag)
+			err := aws.GenerateExecUnitResources(unit, result, dag)
 			if tt.want.err {
 				assert.Error(err)
 				return
