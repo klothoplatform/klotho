@@ -17,3 +17,14 @@ var S3BucketSanitizer = sanitization.NewSanitizer(
 	},
 	52, // We know that we will prepend account id onto the names here, so we want to shorten this further until we do that in the iac level
 )
+
+// EnvVarKeySanitizer returns a sanitized environment key when applied.
+var S3ObjectSanitizer = sanitization.NewSanitizer(
+	[]sanitization.Rule{
+		{
+			Pattern:     regexp.MustCompile(`^.$`),
+			Replacement: "-",
+		},
+	},
+	0,
+)

@@ -1,9 +1,9 @@
 import * as aws from '@pulumi/aws'
-import * as pulumi from '@pulumi/pulumi'
 
 interface Args {
     Name: string
     ForceDestroy: boolean
+    IndexDocument: string
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -19,6 +19,9 @@ function create(args: Args): aws.s3.Bucket {
                     },
                     bucketKeyEnabled: true,
                 },
+            },
+            website: {
+                indexDocument: args.IndexDocument,
             },
         },
         { protect: true }
