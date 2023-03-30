@@ -7,20 +7,19 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/iam"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_GenerateFsResources(t *testing.T) {
 	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
 	fs := &core.Fs{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	bucket := s3.NewS3Bucket(fs, "test")
+	bucket := resources.NewS3Bucket(fs, "test")
 
 	type testResult struct {
 		nodes  []core.Resource
 		deps   []graph.Edge[core.Resource]
-		policy iam.StatementEntry
+		policy resources.StatementEntry
 		err    bool
 	}
 	cases := []struct {
@@ -48,7 +47,7 @@ func Test_GenerateFsResources(t *testing.T) {
 				nodes: []core.Resource{
 					bucket,
 				},
-				policy: iam.StatementEntry{
+				policy: resources.StatementEntry{
 					Effect:   "Allow",
 					Action:   []string{"s3:*"},
 					Resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE}},
@@ -64,7 +63,7 @@ func Test_GenerateFsResources(t *testing.T) {
 					AppName: "test",
 				},
 				ConstructIdToResourceId: make(map[string]string),
-				PolicyGenerator:         iam.NewPolicyGenerator(),
+				PolicyGenerator:         resources.NewPolicyGenerator(),
 			}
 			result := core.NewConstructGraph()
 

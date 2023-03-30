@@ -2,11 +2,11 @@ package aws
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources/s3"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
 func (a *AWS) GenerateFsResources(construct *core.Fs, result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	bucket := s3.NewS3Bucket(construct, a.Config.AppName)
+	bucket := resources.NewS3Bucket(construct, a.Config.AppName)
 	upstreamResources := result.GetUpstreamConstructs(construct)
 	for _, res := range upstreamResources {
 		unit, ok := res.(*core.ExecutionUnit)
