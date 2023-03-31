@@ -68,7 +68,7 @@ type (
 	}
 )
 
-func CreateNetwork(appName string, dag *core.ResourceGraph) {
+func CreateNetwork(appName string, dag *core.ResourceGraph) *Vpc {
 	vpc := NewVpc("test-app")
 	region := NewRegion()
 	igw := NewInternetGateway(appName, "igw1", vpc)
@@ -91,10 +91,10 @@ func CreateNetwork(appName string, dag *core.ResourceGraph) {
 	CreatePublicSubnet("public1", vpc, "10.0.128.0/18", dag)
 	CreatePublicSubnet("public2", vpc, "10.0.192.0/18", dag)
 
+	return vpc
 }
 
-func CreatePrivateSubnet(appName string, subnetName string, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) {
-
+func CreatePrivateSubnet(appName string, subnetName string, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
 	subnet := NewSubnet(subnetName, vpc, cidrBlock, PrivateSubnet)
 
 	dag.AddResource(subnet)
@@ -109,6 +109,8 @@ func CreatePrivateSubnet(appName string, subnetName string, vpc *Vpc, cidrBlock 
 	dag.AddResource(natGateway)
 	dag.AddDependency2(natGateway, subnet)
 	dag.AddDependency2(natGateway, ip)
+
+	return subnet
 }
 
 func CreatePublicSubnet(subnetName string, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) {
