@@ -416,6 +416,10 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) (string, error) {
 		return fmt.Sprintf("%s.invokeArn", tc.getVarName(v.Resource)), nil
 	case string(core.ALL_RESOURCES_IAC_VALUE):
 		return "*", nil
+	case string(core.HOST):
+		return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].address`", tc.getVarName(v.Resource)), nil
+	case string(core.PORT):
+		return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].port`", tc.getVarName(v.Resource)), nil
 	}
 	return "", errors.Errorf("unsupported IaC Value Property, %s", v.Property)
 }

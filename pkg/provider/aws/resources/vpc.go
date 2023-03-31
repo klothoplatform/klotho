@@ -3,6 +3,7 @@ package resources
 import (
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
@@ -100,7 +101,22 @@ func CreateNetwork(appName string, dag *core.ResourceGraph) *Vpc {
 	return vpc
 }
 
+func GetVpc(cfg *config.Application, dag *core.ResourceGraph) *Vpc {
+	for _, r := range dag.ListResources() {
+		if vpc, ok := r.(*Vpc); ok {
+			return vpc
+		}
+	}
+	return CreateNetwork(cfg.AppName, dag)
+}
+
+func GetSubnets(cfg *config.Application, dag *core.ResourceGraph) (sns []*Subnet) {
+	vpc := GetVpc(cfg, dag)
+	return vpc.GetVpcSubnets(dag)
+}
+
 func CreatePrivateSubnet(appName string, subnetName string, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
+
 	subnet := NewSubnet(subnetName, vpc, cidrBlock, PrivateSubnet)
 
 	dag.AddResource(subnet)
@@ -119,10 +135,11 @@ func CreatePrivateSubnet(appName string, subnetName string, vpc *Vpc, cidrBlock 
 	return subnet
 }
 
-func CreatePublicSubnet(subnetName string, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) {
+func CreatePublicSubnet(subnetName string, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
 	subnet := NewSubnet(subnetName, vpc, cidrBlock, PublicSubnet)
 	dag.AddResource(subnet)
 	dag.AddDependency2(subnet, vpc)
+	return subnet
 }
 
 func CreateGatewayVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph) {
