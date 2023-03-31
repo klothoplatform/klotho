@@ -62,8 +62,7 @@ func Test_GenerateFsResources(t *testing.T) {
 				Config: &config.Application{
 					AppName: "test",
 				},
-				ConstructIdToResourceId: make(map[string]string),
-				PolicyGenerator:         resources.NewPolicyGenerator(),
+				PolicyGenerator: resources.NewPolicyGenerator(),
 			}
 			result := core.NewConstructGraph()
 
