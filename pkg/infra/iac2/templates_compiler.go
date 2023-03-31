@@ -116,7 +116,7 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 		resource := tc.resourceGraph.GetResource(id)
 		err := tc.renderResource(out, resource)
 		errs.Append(err)
-		if i < len(vertexIds)-1 {
+		if i > 0 {
 			_, err = out.Write([]byte("\n\n"))
 			if err != nil {
 				return err
