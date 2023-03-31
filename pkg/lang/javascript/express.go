@@ -105,7 +105,7 @@ func (p *ExpressHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit
 	for _, annot := range annots {
 		log := zap.L().With(logging.AnnotationField(annot), logging.FileField(f))
 		cap := annot.Capability
-		if cap.Name != annotation.ExposeCapability {
+		if annot.IsDetached() || cap.Name != annotation.ExposeCapability {
 			continue
 		}
 
@@ -138,7 +138,7 @@ func (p *ExpressHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit
 			return nil, core.NewCompilerError(f, annot, errors.New("Couldn't find expose app creation"))
 		}
 
-		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, p.Config.GetResourceType(unit), cap.ID)
+		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, p.Config.GetResourceType(unit), annot)
 		if actedOn {
 			fileContent = newfileContent
 			err := f.Reparse([]byte(fileContent))
@@ -151,7 +151,7 @@ func (p *ExpressHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit
 	return f, nil
 }
 
-func (h *ExpressHandler) actOnAnnotation(f *core.SourceFile, listen *exposeListenResult, fileContent string, appName string, unitType string, id string) (actedOn bool, newfileContent string) {
+func (h *ExpressHandler) actOnAnnotation(f *core.SourceFile, listen *exposeListenResult, fileContent string, appName string, unitType string, annot *core.Annotation) (actedOn bool, newfileContent string) {
 
 	varName := h.findExpress(f)
 	listenVarName := listen.Identifier.Content()
@@ -163,8 +163,13 @@ func (h *ExpressHandler) actOnAnnotation(f *core.SourceFile, listen *exposeListe
 	//TODO: look into moving this runtime-specific logic elsewhere
 	if unitType == "lambda" {
 		newfileContent = CommentNodes(fileContent, listen.Expression.Content())
+		annot.Detach() // prevents this annotation from being rebound to the next non-comment node in the file on reparse
 	}
-	h.output.listeners = append(h.output.listeners, expressListner{varName: listenVarName, f: f, appName: appName, annotationId: id})
+	h.output.listeners = append(h.output.listeners, expressListner{
+		varName: listenVarName,
+		f:       f, appName: appName,
+		annotationId: annot.Capability.ID,
+	})
 	newfileContent += fmt.Sprintf(`
 	exports.%s = %s
 	`, strings.TrimPrefix(appName, "exports."), appName)

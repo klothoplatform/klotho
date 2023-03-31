@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -11,9 +12,54 @@ import (
 
 func TestFindAllCommentBlocks(t *testing.T) {
 	cases := []FindAllCommentBlocksTestCase{
-		{"single-line",
-			`// testing
-const x = 123`,
+		{"multiline comment annotates its succeeding sibling node", `
+		/* testing */
+		const x = 123`,
+			[]FindAllCommentBlocksExpected{
+				{
+					`testing `,
+					`const x = 123`,
+				},
+			},
+		},
+		{"doc comment annotates its succeeding sibling node", `
+		/** testing */
+		const x = 123`,
+			[]FindAllCommentBlocksExpected{
+				{
+					`testing `,
+					`const x = 123`,
+				},
+			},
+		},
+		{"multiline comments are not merged with any surrounding comments", `
+		// comment 1
+		/* comment 2 */
+		/* comment 3 */
+		// comment 4
+		const x = 123`,
+			[]FindAllCommentBlocksExpected{
+				{
+					`comment 1`,
+					``,
+				},
+				{
+					`comment 2 `,
+					``,
+				},
+				{
+					`comment 3 `,
+					``,
+				},
+				{
+					`comment 4`,
+					`const x = 123`,
+				},
+			},
+		},
+		{"single line comment block annotates its succeeding sibling node", `
+		// testing
+		const x = 123`,
 			[]FindAllCommentBlocksExpected{
 				{
 					`testing`,
@@ -21,23 +67,30 @@ const x = 123`,
 				},
 			},
 		},
-		{"multi-line, no splits",
-			`// first line
-// second line
-const x = 123`,
+		{"uninterrupted sequential line comments are combined into a single comment block", `
+		// separate block
+		
+		// first line
+		// second line
+		// third line
+		const x = 123`,
 			[]FindAllCommentBlocksExpected{
 				{
-					"first line\nsecond line",
+					"separate block",
+					"",
+				},
+				{
+					"first line\nsecond line\nthird line",
 					"const x = 123",
 				},
 			},
 		},
-		{"two annotations",
-			`// first
-const x = 123
-
-// second
-const y = 456`,
+		{"each line comment block annotates its succeeding sibling node", `
+		// first
+		const x = 123
+					
+		// second
+		const y = 456`,
 			[]FindAllCommentBlocksExpected{
 				{
 					"first",
@@ -49,7 +102,7 @@ const y = 456`,
 				},
 			},
 		},
-		{"comment is last node",
+		{"line comment as last node in file does not annotate a node",
 			`// only line in source`,
 			[]FindAllCommentBlocksExpected{
 				{
@@ -58,12 +111,24 @@ const y = 456`,
 				},
 			},
 		},
-		{"multi-line comment is last node",
-			`// first line
-// second line`,
+		{"line comment block as last node in file does not annotate a node", `
+		// first line
+		// second line`,
 			[]FindAllCommentBlocksExpected{
 				{
 					"first line\nsecond line",
+					"",
+				},
+			},
+		},
+		{"multiline comment as last node in file does not annotate a node", `
+		/* 
+		first line
+		second line
+		*/`,
+			[]FindAllCommentBlocksExpected{
+				{
+					"first line\nsecond line\n",
 					"",
 				},
 			},
@@ -86,7 +151,7 @@ const y = 456`,
 		lang := core.SourceLanguage{
 			ID:               "capabilities_test_js",
 			Sitter:           javascript.GetLanguage(),
-			CapabilityFinder: NewCapabilityFinder("(comment) @c", func(in string) string { return in }),
+			CapabilityFinder: NewCapabilityFinder("(comment) @c", func(in string) string { return in }, IsCLineCommentBlock),
 		}
 		found, err := FindAllCommentBlocksForTest(lang, "//comment\nx=y")
 		if !assert.NoError(err) {
@@ -94,8 +159,8 @@ const y = 456`,
 		}
 		want := []FindAllCommentBlocksExpected{
 			{
-				Comment: "//comment",
-				Node:    "x=y",
+				Comment:       "//comment",
+				AnnotatedNode: "x=y",
 			},
 		}
 		assert.Equal(want, found)
@@ -164,7 +229,15 @@ func TestCompositePreprocessor(t *testing.T) {
 var dummyJsLang = core.SourceLanguage{
 	ID:     "capabilities_test_js",
 	Sitter: javascript.GetLanguage(),
-	CapabilityFinder: NewCapabilityFinder("comment", func(comment string) string {
-		return strings.Replace(comment, "// ", "", -1)
-	}),
+	CapabilityFinder: NewCapabilityFinder("comment", CompositePreprocessor(
+		RegexpRemovePreprocessor(`//\s*`),
+		func(comment string) string {
+			if !strings.HasPrefix(comment, "/*") {
+				return comment
+			}
+			comment = comment[2 : len(comment)-2]
+			comment = regexp.MustCompile(`(?m)^\s*[*]*[ \t]*`).ReplaceAllString(comment, "")
+			return comment
+		}),
+		IsCLineCommentBlock),
 }

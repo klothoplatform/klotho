@@ -2,6 +2,7 @@ package lang
 
 import (
 	"errors"
+	"github.com/klothoplatform/klotho/pkg/query"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -9,8 +10,8 @@ import (
 
 type (
 	FindAllCommentBlocksExpected struct {
-		Comment string
-		Node    string
+		Comment       string
+		AnnotatedNode string
 	}
 
 	FindAllCommentBlocksTestCase struct {
@@ -33,16 +34,16 @@ func FindAllCommentBlocksForTest(language core.SourceLanguage, source string) ([
 	if err != nil {
 		return nil, err
 	}
-	blocks := capFinder.findAllCommentsBlocks(f)
+	blocks := capFinder.findAllCommentBlocks(f)
 	found := []FindAllCommentBlocksExpected{}
 	for _, block := range blocks {
 		content := ""
-		if block.node != nil {
-			content = block.node.Content()
+		if block.endNode != nil {
+			content = query.NodeContentOrEmpty(block.annotatedNode)
 		}
 		found = append(found, FindAllCommentBlocksExpected{
-			Comment: block.comment,
-			Node:    content,
+			Comment:       block.comment,
+			AnnotatedNode: content,
 		})
 	}
 	return found, nil

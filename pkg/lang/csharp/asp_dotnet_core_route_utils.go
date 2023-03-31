@@ -2,6 +2,7 @@ package csharp
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/parseutils"
 	"regexp"
 	"strings"
 )
@@ -150,6 +151,16 @@ var regexParamStartPattern = regexp.MustCompile(`(?i)\{[^:}]+:regex\(`)
 // regexStartPattern matches the start of a regex constraint
 var regexStartPattern = regexp.MustCompile(`(?i):regex\(`)
 
+// using "\\" as the escape character under the assumption supplied values are normalized to the string literal format
+var extractRegexExprs = parseutils.ExpressionExtractor(`\\`, '(', ')')
+
+func extractRegexExpr(input string) string {
+	if exprs := extractRegexExprs(input, 1); len(exprs) == 1 {
+		return exprs[0]
+	}
+	return ""
+}
+
 func sanitizeRegexConstraints(path string) string {
 	sanitized := path
 	pStart := regexParamStartPattern.FindStringIndex(sanitized)
@@ -160,10 +171,8 @@ func sanitizeRegexConstraints(path string) string {
 		}
 		regexStart := pStart[0] + rStart[1]
 		regexParamEnd := -1
-		// using "\\" as the escape character under the assumption supplied values are normalized to the string literal format
-		endOffset := getExprEndIndex(sanitized[regexStart-1:], `\\`, '(', ')')
-		if endOffset != -1 {
-			regexParamEnd = regexStart - 1 + endOffset
+		if regexExpr := extractRegexExpr(sanitized[regexStart-1:]); regexExpr != "" {
+			regexParamEnd = (regexStart - 1) + (len(regexExpr) - 1)
 		}
 		if regexParamEnd != -1 {
 			sanitized = sanitized[0:pStart[0]+rStart[0]] + sanitized[regexParamEnd+1:]
@@ -172,38 +181,6 @@ func sanitizeRegexConstraints(path string) string {
 		}
 	}
 	return sanitized
-}
-
-// getExprEndIndex gets the index of end delimiter in a balanced expression of start and end delimiters.
-//
-// The escape argument is used for detecting escaped delimiters and should either be `\` or `\\`
-// depending on the format of the input string.
-func getExprEndIndex(input, escape string, start, end rune) int {
-	escapedStartPattern := regexp.MustCompile(fmt.Sprintf(`^[^%c]*?((?:%s)*)\%c`, start, escape, start))
-	escapedEndPattern := regexp.MustCompile(fmt.Sprintf(`^[^%c]*?((?:%s)*)\%c`, end, escape, end))
-	sCount := 0
-	eCount := 0
-	lastMatchIndex := -1
-	for i := 0; i < len(input); i++ {
-		switch rune(input[i]) {
-		case start:
-			match := escapedStartPattern.FindStringSubmatch(input[lastMatchIndex+1:])
-			if match[1] == "" || len(match[1])%len(escape) != 0 {
-				sCount++
-			}
-			lastMatchIndex = i
-		case end:
-			match := escapedEndPattern.FindStringSubmatch(input[lastMatchIndex+1:])
-			if match[1] == "" || len(match[1])%len(escape) != 0 {
-				eCount++
-			}
-			lastMatchIndex = i
-		}
-		if sCount == eCount {
-			return i
-		}
-	}
-	return -1
 }
 
 var complexSegmentPattern = regexp.MustCompile(`(?P<complex>[^{}/]+(?:[^{}/]*\{[^{}/]+}[^{}/]*?)+?|{[^{}/]+}(?:[^{}/]+|\{[^{}/]+})+)(?:/|$|/$)`)

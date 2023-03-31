@@ -16,8 +16,8 @@ func TestFindAllCommentBlocks(t *testing.T) {
 x = y`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "one\ntwo",
-					Node:    "x = y",
+					Comment:       "one\ntwo",
+					AnnotatedNode: "x = y",
 				},
 			},
 		},
@@ -28,8 +28,8 @@ def foo():
 	return None`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "@klotho::fizz",
-					Node:    "return None",
+					Comment:       "@klotho::fizz",
+					AnnotatedNode: "return None",
 				},
 			},
 		},

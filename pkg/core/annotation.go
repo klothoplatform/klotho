@@ -17,6 +17,9 @@ type (
 		Capability *annotation.Capability
 		// Node is the node that has been annotated; not the comment node representing the annotation itself.
 		Node *sitter.Node
+		// isDetached indicates that an annotation has been detached from its original Node as a result of code transformation.
+		// When reparsing a detached annotation, its Node field will be nil to prevent plugins from treating the transformed code as input.
+		isDetached bool
 	}
 
 	AnnotationKey struct {
@@ -62,11 +65,24 @@ func (a Annotation) Key() AnnotationKey {
 	return AnnotationKey{Capability: a.Capability.Name, ID: a.Capability.ID}
 }
 
+func (a *Annotation) Detach() {
+	a.isDetached = true
+	a.Node = nil
+}
+
+func (a *Annotation) IsDetached() bool {
+	return a.isDetached
+}
+
 func (m AnnotationMap) Update(other AnnotationMap) {
 	for k, v := range other {
 		if ex, ok := m[k]; ok {
 			// Update the contents not the pointer so existing annotation pointers are still valid
-			*ex = *v
+			newValue := *v
+			if ex.isDetached {
+				newValue.Detach()
+			}
+			*ex = newValue
 		} else {
 			m[k] = v
 		}

@@ -43,7 +43,8 @@ var Language = core.SourceLanguage{
 			// `/*`-style comments never combine with subsequent comments
 			return comment
 		},
-	)),
+	),
+		lang.IsCLineCommentBlock),
 }
 
 func NewFile(path string, content io.Reader) (f *core.SourceFile, err error) {

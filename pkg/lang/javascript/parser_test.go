@@ -16,8 +16,8 @@ func TestFindAllCommentBlocks(t *testing.T) {
 x = y`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "@klotho::expose",
-					Node:    "x = y",
+					Comment:       "@klotho::expose",
+					AnnotatedNode: "x = y",
 				},
 			},
 		},
@@ -33,7 +33,7 @@ x = y`,
 					Comment: `@klotho::expose {
 foo = "bar"
 }`,
-					Node: "x = y",
+					AnnotatedNode: "x = y",
 				},
 			},
 		},
@@ -46,8 +46,8 @@ foo = "bar"
 a = b`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "\nfoo\n",
-					Node:    "a = b",
+					Comment:       "foo\n",
+					AnnotatedNode: "a = b",
 				},
 			},
 		},
@@ -63,8 +63,11 @@ a = b`,
  a = b`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "\nfirst\n\n\nsecond\n",
-					Node:    "a = b",
+					Comment: "first\n",
+				},
+				{
+					Comment:       "second\n",
+					AnnotatedNode: "a = b",
 				},
 			},
 		},
@@ -80,8 +83,11 @@ a = b`,
  a = b`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "\ncomment starts with just one star\n\n\ncomment starts with two stars\n",
-					Node:    "a = b",
+					Comment: "comment starts with just one star\n",
+				},
+				{
+					Comment:       "\ncomment starts with two stars\n",
+					AnnotatedNode: "a = b",
 				},
 			},
 		},
@@ -95,8 +101,11 @@ a = b`,
 a = b`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "\nfirst\n\nsecond",
-					Node:    "a = b",
+					Comment: "first\n",
+				},
+				{
+					Comment:       "second",
+					AnnotatedNode: "a = b",
 				},
 			},
 		},

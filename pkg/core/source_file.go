@@ -22,7 +22,7 @@ type SourceLanguage struct {
 	ID               LanguageId
 	Sitter           *sitter.Language
 	CapabilityFinder CapabilityFinder
-	TurnIntoComment  Commenter
+	ToLineComment    Commenter
 }
 
 type LanguageId string

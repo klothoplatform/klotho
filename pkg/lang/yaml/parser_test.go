@@ -15,8 +15,8 @@ func TestFindAllCommentBlocks(t *testing.T) {
 resource: test`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "one",
-					Node:    "resource: test",
+					Comment:       "one",
+					AnnotatedNode: "resource: test",
 				},
 			},
 		},
@@ -29,8 +29,8 @@ maintainers:
 `,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "@klotho::execution_unit",
-					Node:    "name: nginxinc",
+					Comment:       "@klotho::execution_unit",
+					AnnotatedNode: "name: nginxinc",
 				},
 			},
 		},
@@ -41,8 +41,8 @@ maintainers:
 resource: test`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "one\ntwo",
-					Node:    "resource: test",
+					Comment:       "one\ntwo",
+					AnnotatedNode: "resource: test",
 				},
 			},
 		},
@@ -55,8 +55,8 @@ maintainers:
   email: test`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "@klotho::execution_unit {\nid = \"nginx-helm\"\n}",
-					Node:    "email: test",
+					Comment:       "@klotho::execution_unit {\nid = \"nginx-helm\"\n}",
+					AnnotatedNode: "email: test",
 				},
 			},
 		},

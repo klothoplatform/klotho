@@ -15,8 +15,8 @@ func TestFindAllCommentBlocks(t *testing.T) {
 FROM public.ecr.aws/lambda/nodejs:16`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "one",
-					Node:    "FROM public.ecr.aws/lambda/nodejs:16",
+					Comment:       "one",
+					AnnotatedNode: "FROM public.ecr.aws/lambda/nodejs:16",
 				},
 			},
 		},
@@ -27,8 +27,8 @@ FROM public.ecr.aws/lambda/nodejs:16
 COPY . ./`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "@klotho::execution_unit",
-					Node:    "COPY . ./",
+					Comment:       "@klotho::execution_unit",
+					AnnotatedNode: "COPY . ./",
 				},
 			},
 		},
@@ -39,8 +39,8 @@ COPY . ./`,
 FROM public.ecr.aws/lambda/nodejs:16`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "one\ntwo",
-					Node:    "FROM public.ecr.aws/lambda/nodejs:16",
+					Comment:       "one\ntwo",
+					AnnotatedNode: "FROM public.ecr.aws/lambda/nodejs:16",
 				},
 			},
 		},
@@ -53,8 +53,8 @@ FROM public.ecr.aws/lambda/nodejs:16
 COPY . ./`,
 			Want: []lang.FindAllCommentBlocksExpected{
 				{
-					Comment: "@klotho::execution_unit {\nid = \"dockerfile-unit\"\n}",
-					Node:    "COPY . ./",
+					Comment:       "@klotho::execution_unit {\nid = \"dockerfile-unit\"\n}",
+					AnnotatedNode: "COPY . ./",
 				},
 			},
 		},
