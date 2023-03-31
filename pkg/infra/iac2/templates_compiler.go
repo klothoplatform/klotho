@@ -111,7 +111,8 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for i, id := range vertexIds {
+	for i := len(vertexIds) - 1; i >= 0; i-- {
+		id := vertexIds[i]
 		resource := tc.resourceGraph.GetResource(id)
 		err := tc.renderResource(out, resource)
 		errs.Append(err)
