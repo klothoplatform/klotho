@@ -78,8 +78,7 @@ func Test_GenerateStaticUnitResources(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			aws := AWS{
-				Config:                  &tt.cfg,
-				ConstructIdToResourceId: make(map[string]string),
+				Config: &tt.cfg,
 			}
 			dag := core.NewResourceGraph()
 			unit.IndexDocument = tt.indexDocument
