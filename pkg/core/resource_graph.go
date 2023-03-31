@@ -20,7 +20,9 @@ func (cg *ResourceGraph) AddResource(resource Resource) {
 	cg.underlying.AddVertex(resource)
 }
 
-func (cg *ResourceGraph) AddDependency(source Resource, dest Resource) {
+// AddDependency2 deliberately renamed from AddDependency in the short term to catch when dependencies were
+// being added in the inverse order.
+func (cg *ResourceGraph) AddDependency2(source Resource, dest Resource) {
 	cg.underlying.AddEdge(source.Id(), dest.Id())
 }
 
