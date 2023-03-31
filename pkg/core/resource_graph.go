@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/klothoplatform/klotho/pkg/graph"
+	"go.uber.org/zap"
 )
 
 type (
@@ -18,6 +19,7 @@ func NewResourceGraph() *ResourceGraph {
 
 func (cg *ResourceGraph) AddResource(resource Resource) {
 	cg.underlying.AddVertex(resource)
+	zap.S().Debugf("adding resource: %s", resource.Id())
 }
 
 // AddDependency2 deliberately renamed from AddDependency in the short term to catch when dependencies were
