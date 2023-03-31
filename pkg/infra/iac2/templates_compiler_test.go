@@ -31,9 +31,9 @@ func TestOutputBody(t *testing.T) {
 	graph.AddResource(fizz)
 	graph.AddResource(buzz)
 	graph.AddResource(parent)
-	graph.AddDependency(parent, fizz)
-	graph.AddDependency(parent, buzz)
-	graph.AddDependency(fizz, buzz)
+	graph.AddDependency2(parent, fizz)
+	graph.AddDependency2(parent, buzz)
+	graph.AddDependency2(fizz, buzz)
 
 	compiler := CreateTemplatesCompiler(graph)
 	compiler.templates = filesMapToFsMap(dummyTemplateFiles)
