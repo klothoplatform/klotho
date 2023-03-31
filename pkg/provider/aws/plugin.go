@@ -4,12 +4,13 @@ import (
 	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
-func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (Links []core.CloudResourceLink, err error) {
+func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
 	log := zap.S()
 
 	err = a.createEksClusters(result, dag)
@@ -22,43 +23,32 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (L
 	}
 	// We want to reverse the list so that we start at the leaf nodes. This allows us to check downstream dependencies each time and process them.
 	reverseInPlace(constructIds)
+	var merr multierr.Error
 	for _, id := range constructIds {
 		construct := result.GetConstruct(id)
 		log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
 		switch construct := construct.(type) {
 		case *core.ExecutionUnit:
-			err = a.GenerateExecUnitResources(construct, result, dag)
-			if err != nil {
-				return
-			}
+			merr.Append(a.GenerateExecUnitResources(construct, result, dag))
 		case *core.StaticUnit:
-			err = a.GenerateStaticUnitResources(construct, dag)
-			if err != nil {
-				return
-			}
+			merr.Append(a.GenerateStaticUnitResources(construct, dag))
 		case *core.Gateway:
-			err = a.GenerateExposeResources(construct, result, dag)
-			if err != nil {
-				return
-			}
+			merr.Append(a.GenerateExposeResources(construct, result, dag))
 		case *core.Fs:
-			err = a.GenerateFsResources(construct, result, dag)
-			if err != nil {
-				return
-			}
+			merr.Append(a.GenerateFsResources(construct, result, dag))
 		case *core.Secrets:
-			err = a.GenerateSecretsResources(construct, result, dag)
-			if err != nil {
-				return
-			}
+			merr.Append(a.GenerateSecretsResources(construct, result, dag))
 		case *core.Kv:
-			err = a.GenerateKvResources(construct, result, dag)
-			if err != nil {
-				return
-			}
+			merr.Append(a.GenerateKvResources(construct, result, dag))
+		case *core.RedisCluster, *core.RedisNode:
+			merr.Append(a.GenerateRedisResources(construct, result, dag))
 		default:
-			log.Warnf("Unsupported construct %s", construct.Id())
+			// TODO convert to error once migration to ifc2 is complete
+			log.Warnf("Unsupported resource %s", construct.Id())
 		}
+	}
+	if err = merr.ErrOrNil(); err != nil {
+		return
 	}
 
 	err = a.convertExecUnitParams(result, dag)

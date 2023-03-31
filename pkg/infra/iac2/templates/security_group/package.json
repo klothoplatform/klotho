@@ -1,0 +1,6 @@
+{
+    "name": "security_group",
+    "dependencies": {
+        "@pulumi/aws": "^5.16.0"
+    }
+}
