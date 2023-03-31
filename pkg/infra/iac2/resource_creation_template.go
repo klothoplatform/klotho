@@ -3,7 +3,9 @@ package iac2
 import (
 	"context"
 	_ "embed"
+	"fmt"
 	"io"
+	"reflect"
 	"regexp"
 	"strings"
 	"text/template"
@@ -126,7 +128,7 @@ func parameterizeArgs(contents string) string {
 	// "{{`{`}}{{.Foo}}" — which, while ugly, will result in the correct template execution.
 	contents = curlyEscapes.ReplaceAllString(contents, "{{`$1`}}$2")
 	contents = templateComments.ReplaceAllString(contents, "$1")
-	contents = parameterizeArgsRegex.ReplaceAllString(contents, `{{$1}}`)
+	contents = parameterizeArgsRegex.ReplaceAllString(contents, `{{parseTS $1}}`)
 	return contents
 }
 
@@ -140,10 +142,24 @@ func parseFile(contents []byte) *sitter.Node {
 	return tree.RootNode()
 }
 
-func (t ResourceCreationTemplate) RenderCreate(out io.Writer, inputs map[string]string) error {
-	tmpl, err := template.New("template").Parse(t.ExpressionTemplate)
+func (t ResourceCreationTemplate) RenderCreate(out io.Writer, inputs map[string]templateValue) error {
+	tmpl, err := template.New(t.name).Funcs(template.FuncMap{
+		"parseTS": parseTS,
+	}).Parse(t.ExpressionTemplate)
 	if err != nil {
 		return errors.Wrapf(err, `while writing template for %s`, t.name)
 	}
 	return tmpl.Execute(out, inputs)
+}
+
+// parseTS returns the parsed value of val if val implements templateValue or val's string representation otherwise
+func parseTS(val reflect.Value) (string, error) {
+	if templateVal, ok := val.Interface().(templateValue); ok {
+		out, err := templateVal.Parse()
+		if err != nil {
+			return "", core.WrapErrf(err, "template value parsing failed")
+		}
+		return out, nil
+	}
+	return "", fmt.Errorf("invalid template value detected: %s: %v: template values must implement the templateValue interface", val.Kind().String(), val.Interface())
 }

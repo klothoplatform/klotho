@@ -18,10 +18,14 @@ func TestOutputBody(t *testing.T) {
 	fizz := &DummyFizz{Value: "my-hello"}
 	buzz := DummyBuzz{}
 	parent := &DummyBig{
-		id:   "main",
-		Fizz: fizz,
-		Buzz: buzz,
-		Nest: &NestedResource{Fizz: fizz},
+		id:        "main",
+		Fizz:      fizz,
+		Buzz:      buzz,
+		NestedDoc: &NestedResource{Fizz: fizz},
+		NestedTemplate: &NestedTemplate{
+			Str: "strVal",
+			Arr: []string{"val1", "val2"},
+		},
 	}
 	graph := core.NewResourceGraph()
 	graph.AddResource(fizz)
@@ -50,9 +54,17 @@ func TestOutputBody(t *testing.T) {
 			"				fizzMyHello,",
 			"				{",
 			"					buzz: buzzShared,",
-			"					nest: {Fizz: fizzMyHello,",
+			"					nestedDoc: {Fizz: fizzMyHello,",
 			"}",
-			"				});")
+			"					nestedTemplate: ",
+			"		{",
+			"			str: \"strVal\"",
+			"			arr0: \"val1\"",
+			"			arr1: \"val2\"",
+			"		}",
+			"					rawNestedTemplate: true",
+			"				});",
+		)
 		assert.Equal(expect, buf.String())
 	})
 	t.Run("imports", func(t *testing.T) {
@@ -64,6 +76,7 @@ func TestOutputBody(t *testing.T) {
 		}
 		expect := strings.TrimLeft(`
 import * as aws from '@pulumi/aws'
+import * as inputs from '@pulumi/aws/types/input'
 import {Whatever} from "@pulumi/aws/cool/service"
 `, "\n")
 		assert.Equal(expect, buf.String())
@@ -73,6 +86,7 @@ import {Whatever} from "@pulumi/aws/cool/service"
 func TestResolveStructInput(t *testing.T) {
 	cases := []struct {
 		name                   string
+		parentResource         *core.Resource
 		value                  any
 		withVars               map[string]string
 		useDoubleQuotedStrings bool
@@ -149,8 +163,9 @@ func TestResolveStructInput(t *testing.T) {
 			tc := TemplatesCompiler{
 				resourceVarNamesById: tt.withVars,
 			}
+			resourceVal := reflect.ValueOf(tt.parentResource)
 			val := reflect.ValueOf(tt.value)
-			actual, err := tc.resolveStructInput(val, tt.useDoubleQuotedStrings, "")
+			actual, err := tc.resolveStructInput(&resourceVal, val, tt.useDoubleQuotedStrings, "")
 			assert.NoError(err)
 			assert.Equal(tt.want, actual)
 		})
@@ -206,14 +221,20 @@ type (
 	}
 
 	DummyBig struct {
-		id   string
-		Fizz *DummyFizz
-		Buzz DummyBuzz
-		Nest *NestedResource `render:"document"`
+		id             string
+		Fizz           *DummyFizz
+		Buzz           DummyBuzz
+		NestedDoc      *NestedResource `render:"document"`
+		NestedTemplate *NestedTemplate `render:"template"`
 	}
 
 	NestedResource struct {
 		Fizz *DummyFizz
+	}
+
+	NestedTemplate struct {
+		Str string
+		Arr []string
 	}
 )
 
@@ -251,13 +272,22 @@ var dummyTemplateFiles = map[string]string{
 			return new aws.buzz.DummyResource();
 		}`,
 
+	`dummy_big/nested_template.ts.tmpl`: `
+		{
+			str: "{{.Str}}"
+			{{- range $index, $val := .Arr }}
+			arr{{$index}}: "{{$val}}"
+			{{- end}}
+		}`,
 	`dummy_big/factory.ts`: `
 		import * as aws from '@pulumi/aws'
+		import * as inputs from '@pulumi/aws/types/input'
 
 		interface Args {
 			Fizz: aws.fizz.DummyResource,
 			Buzz: aws.buzz.DummyResource,
-			Nest: aws.nest.DummyResource
+			NestedDoc: aws.nest.DummyResource
+			NestedTemplate: pulumi.Input<inputs.nest.NestedInput>
 		}
 
 		function create(args: Args): aws.foobar.DummyParent {
@@ -265,7 +295,11 @@ var dummyTemplateFiles = map[string]string{
 				args.Fizz,
 				{
 					buzz: args.Buzz,
-					nest: args.Nest
+					nestedDoc: args.NestedDoc
+					nestedTemplate: args.NestedTemplate
+					//TMPL {{- if eq .NestedTemplate.Raw.Str "strVal"}}
+					rawNestedTemplate: true
+					//TMPL {{- end}}
 				});
 		}`,
 }
