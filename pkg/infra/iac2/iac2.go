@@ -44,6 +44,30 @@
 //     factory.ts as a "template for a template". and this field as the template derived from that file.
 //  4. Imports, a set of string representing the TypeScript imports. Again, these are taken literally from the source.
 //
+// Template input values in a factory.ts file are wrapped in structs implementing the templateValue interface.
+//
+// To access an input's raw values in the factory template, invoke its `Raw` function.
+//
+// For Example:
+//
+//	const tableName = {{ .Table.Raw.Name }};
+//
+// To manually access an input's rendered value in a factory template, invoke the `parseTS` template function:
+//
+// For Example:
+//
+//	const table = {{ renderTS .Table }}
+//
+// # Nested Struct Rendering
+//
+// Within a Resource struct, the default TemplatesCompiler rendering behavior allows only fields of primitive types,
+// slices, maps, and structs implementing the Resource or IacValue interfaces.
+// This behavior can be modified with the following using the following tas on struct fields:
+//   - `render:"document"` - tells TemplatesCompiler to render a field as a TypeScript object
+//   - `render:"template"` - tells TemplatesCompiler to render a field using a standard Go-[text/template]
+//     with a filename matching the nested struct's name in lower-snake-case format
+//     in the same directory as the parent resource's factory.ts file.
+//
 // # TemplatesCompiler
 //
 // The TemplatesCompiler is responsible for putting all of the above together, along with the resources graph. It
@@ -54,10 +78,10 @@
 //
 // As mentioned above, the factory.ts is a template-for-a-template:
 //
-//	╭────────────────────────────────╮   ╭──────────────────────────────────╮   ╭──────────────────────────────╮
-//	│ // factory.ts                  │ → │ ExpressionTemplate               │ → │ // with Role{Name: "hello"}  │
-//	│ return aws.iam.Role(args.Name) │ → │ return aws.iam.Role( {{.Name}} ) │ → │ return aws.iam.Role("hello") │
-//	╰────────────────────────────────╯   ╰──────────────────────────────────╯   ╰──────────────────────────────╯
+//	╭────────────────────────────────╮   ╭─────────────────────────────────────────╮   ╭──────────────────────────────╮
+//	│ // factory.ts                  │ → │ ExpressionTemplate                      │ → │ // with Role{Name: "hello"}  │
+//	│ return aws.iam.Role(args.Name) │ → │ return aws.iam.Role(parseTS {{.Name}} ) │ → │ return aws.iam.Role("hello") │
+//	╰────────────────────────────────╯   ╰─────────────────────────────────────────╯   ╰──────────────────────────────╯
 //
 // This approach lets us do various checks at compile/unit-test time:
 //
