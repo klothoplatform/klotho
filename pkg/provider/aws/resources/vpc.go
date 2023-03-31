@@ -76,7 +76,7 @@ func CreateNetwork(appName string, dag *core.ResourceGraph) {
 	dag.AddResource(region)
 	dag.AddResource(vpc)
 	dag.AddResource(igw)
-	dag.AddDependency(vpc, igw)
+	dag.AddDependency(igw, vpc)
 
 	CreateGatewayVpcEndpoint("s3", vpc, region, dag)
 	CreateGatewayVpcEndpoint("dynamodb", vpc, region, dag)
@@ -98,7 +98,7 @@ func CreatePrivateSubnet(appName string, subnetName string, vpc *Vpc, cidrBlock 
 	subnet := NewSubnet(subnetName, vpc, cidrBlock, PrivateSubnet)
 
 	dag.AddResource(subnet)
-	dag.AddDependency(vpc, subnet)
+	dag.AddDependency(subnet, vpc)
 
 	ip := NewElasticIp(appName, subnetName)
 
@@ -107,28 +107,28 @@ func CreatePrivateSubnet(appName string, subnetName string, vpc *Vpc, cidrBlock 
 	natGateway := NewNatGateway(appName, subnetName, subnet, ip)
 
 	dag.AddResource(natGateway)
-	dag.AddDependency(subnet, natGateway)
-	dag.AddDependency(ip, natGateway)
+	dag.AddDependency(natGateway, subnet)
+	dag.AddDependency(natGateway, ip)
 }
 
 func CreatePublicSubnet(subnetName string, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) {
 	subnet := NewSubnet(subnetName, vpc, cidrBlock, PublicSubnet)
 	dag.AddResource(subnet)
-	dag.AddDependency(vpc, subnet)
+	dag.AddDependency(subnet, vpc)
 }
 
 func CreateGatewayVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph) {
 	vpce := NewVpcEndpoint(service, vpc, "Gateway", region, vpc.GetVpcSubnets(dag))
 	dag.AddResource(vpce)
-	dag.AddDependency(vpc, vpce)
-	dag.AddDependency(region, vpce)
+	dag.AddDependency(vpce, vpc)
+	dag.AddDependency(vpce, region)
 }
 
 func CreateInterfaceVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph) {
 	vpce := NewVpcEndpoint(service, vpc, "Interface", region, vpc.GetVpcSubnets(dag))
 	dag.AddResource(vpce)
-	dag.AddDependency(vpc, vpce)
-	dag.AddDependency(region, vpce)
+	dag.AddDependency(vpce, vpc)
+	dag.AddDependency(vpce, region)
 }
 
 func (vpc *Vpc) GetVpcSubnets(dag *core.ResourceGraph) []*Subnet {

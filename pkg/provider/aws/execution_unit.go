@@ -46,9 +46,9 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 		logGroup := resources.NewLogGroup(a.Config.AppName, fmt.Sprintf("/aws/lambda/%s", lambdaFunction.Name), unit.Provenance(), 5)
 		dag.AddResource(lambdaFunction)
 		dag.AddResource(logGroup)
-		dag.AddDependency(logGroup, lambdaFunction)
-		dag.AddDependency(role, lambdaFunction)
-		dag.AddDependency(image, lambdaFunction)
+		dag.AddDependency(lambdaFunction, logGroup)
+		dag.AddDependency(lambdaFunction, role)
+		dag.AddDependency(lambdaFunction, image)
 		return nil
 	default:
 		log.Errorf("Unsupported type, %s, for aws execution units", execUnitCfg.Type)
