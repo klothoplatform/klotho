@@ -33,7 +33,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 			return errors.Errorf("could not find resource for construct, %s, which unit, %s, depends on", unit.Id(), construct.Id())
 		}
 		for _, resource := range resList {
-			dag.AddDependency(resource, role)
+			dag.AddDependency(role, resource)
 		}
 	}
 	role.InlinePolicy = a.PolicyGenerator.GetUnitPolicies(unit.Id())

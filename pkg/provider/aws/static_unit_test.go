@@ -41,12 +41,12 @@ func Test_GenerateStaticUnitResources(t *testing.T) {
 				},
 				deps: []graph.Edge[core.Resource]{
 					{
-						Source:      bucket,
-						Destination: obj1,
+						Source:      obj1,
+						Destination: obj1.Bucket,
 					},
 					{
-						Source:      bucket,
-						Destination: obj2,
+						Source:      obj2,
+						Destination: obj2.Bucket,
 					},
 				},
 			},
@@ -63,12 +63,12 @@ func Test_GenerateStaticUnitResources(t *testing.T) {
 				},
 				deps: []graph.Edge[core.Resource]{
 					{
-						Source:      bucket,
-						Destination: obj1,
+						Source:      obj1,
+						Destination: obj1.Bucket,
 					},
 					{
-						Source:      bucket,
-						Destination: obj2,
+						Source:      obj2,
+						Destination: obj2.Bucket,
 					},
 				},
 			},
