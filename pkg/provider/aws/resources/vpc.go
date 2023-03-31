@@ -135,7 +135,7 @@ func CreateInterfaceVpcEndpoint(service string, vpc *Vpc, region *Region, dag *c
 
 func (vpc *Vpc) GetVpcSubnets(dag *core.ResourceGraph) []*Subnet {
 	subnets := []*Subnet{}
-	downstreamDeps := dag.GetDownstreamResources(vpc)
+	downstreamDeps := dag.GetUpstreamResources(vpc)
 	for _, dep := range downstreamDeps {
 		if subnet, ok := dep.(*Subnet); ok {
 			subnets = append(subnets, subnet)
