@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -100,27 +101,27 @@ func Test_CreateNetwork(t *testing.T) {
 }
 
 func Test_GetVpcSubnets(t *testing.T) {
-	vpc := NewVpc("test-app")
-	subnet1 := NewSubnet("private1", vpc, "10.0.0.0/24", PrivateSubnet)
-	subnet2 := NewSubnet("private2", vpc, "10.0.0.0/24", PrivateSubnet)
-	subnet3 := NewSubnet("private3", vpc, "10.0.0.0/24", PrivateSubnet)
-	subnet4 := NewSubnet("private4", vpc, "10.0.0.0/24", PrivateSubnet)
+
+	type subnetSpec struct {
+		Cidr   string
+		Public bool
+	}
 
 	cases := []struct {
 		name    string
-		vpc     *Vpc
-		subnets []*Subnet
-		want    []*Subnet
+		subnets []subnetSpec
 	}{
 		{
-			name:    "happy path",
-			vpc:     vpc,
-			subnets: []*Subnet{subnet1, subnet2, subnet3, subnet4},
-			want:    []*Subnet{subnet1, subnet2, subnet3, subnet4},
+			name: "happy path",
+			subnets: []subnetSpec{
+				{"10.0.1.0/24", false},
+				{"10.0.2.0/24", false},
+				{"10.0.3.0/24", true},
+				{"10.0.4.0/24", true},
+			},
 		},
 		{
 			name: "no subnets",
-			vpc:  vpc,
 		},
 	}
 	for _, tt := range cases {
@@ -128,13 +129,22 @@ func Test_GetVpcSubnets(t *testing.T) {
 			assert := assert.New(t)
 			dag := core.NewResourceGraph()
 
-			dag.AddResource(tt.vpc)
-			for _, s := range tt.subnets {
-				dag.AddResource(s)
-				dag.AddDependency2(tt.vpc, s)
+			vpc := NewVpc("test-app")
+			dag.AddResource(vpc)
+			for i, spec := range tt.subnets {
+				if spec.Public {
+					CreatePublicSubnet(fmt.Sprintf("public%d", i), vpc, spec.Cidr, dag)
+				} else {
+					CreatePrivateSubnet("test-app", fmt.Sprintf("private%d", i), vpc, spec.Cidr, dag)
+				}
 			}
-			result := tt.vpc.GetVpcSubnets(dag)
-			assert.ElementsMatch(result, tt.want)
+
+			result := vpc.GetVpcSubnets(dag)
+			var got []subnetSpec
+			for _, sn := range result {
+				got = append(got, subnetSpec{Cidr: sn.CidrBlock, Public: sn.Type == PublicSubnet})
+			}
+			assert.ElementsMatch(got, tt.subnets)
 		})
 	}
 }
