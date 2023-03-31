@@ -1,5 +1,5 @@
 {
-    "name": "eks_cluster",
+    "name": "eks_node_group",
     "dependencies": {
         "@pulumi/aws": "^5.16.0"
     }
