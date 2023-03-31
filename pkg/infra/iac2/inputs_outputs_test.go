@@ -86,6 +86,9 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.ApiResource{},
 		&resources.ApiStage{},
 		&resources.LambdaPermission{},
+		&resources.Elasticache{},
+		&resources.ElasticacheSubnetgroup{},
+		&resources.SecurityGroup{},
 	}
 
 	tp := standardTemplatesProvider()
