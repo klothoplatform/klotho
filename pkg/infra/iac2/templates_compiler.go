@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path"
 	"reflect"
 	"sort"
 	"strings"
+	"text/template"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
@@ -18,11 +20,30 @@ import (
 )
 
 type (
+	nestedTemplateValue struct {
+		parentValue            reflect.Value
+		childValue             reflect.Value
+		iacTag                 string
+		tc                     *TemplatesCompiler
+		useDoubleQuotedStrings bool
+	}
+
+	stringTemplateValue struct {
+		raw   interface{}
+		value string
+	}
+
+	templateValue interface {
+		Parse() (string, error)
+		Raw() interface{}
+	}
+
 	templatesProvider struct {
 		// templates is the fs.FS where we read all of our `<struct>/factory.ts` files
 		templates fs.FS
-		// templatesByStructName is a cache from struct name (e.g. "CloudwatchLogs") to the template for that struct.
-		templatesByStructName map[string]ResourceCreationTemplate
+		// resourceTemplatesByStructName is a cache from struct name (e.g. "CloudwatchLogs") to the template for that struct.
+		resourceTemplatesByStructName map[string]ResourceCreationTemplate
+		childTemplatesByPath          map[string]*template.Template
 	}
 
 	// TemplatesCompiler renders a graph of [core.Resource] nodes by combining each one with its corresponding
@@ -43,6 +64,26 @@ var (
 	standardTemplates embed.FS
 )
 
+func (s stringTemplateValue) Parse() (string, error) {
+	return s.value, nil
+}
+
+func (s stringTemplateValue) Raw() interface{} {
+	return s.raw
+}
+
+func (v nestedTemplateValue) Parse() (string, error) {
+	childVal := v.childValue
+	if childVal.Kind() == reflect.Pointer && !childVal.IsNil() {
+		childVal = childVal.Elem()
+	}
+	return v.tc.resolveStructInput(&v.parentValue, childVal, v.useDoubleQuotedStrings, v.iacTag)
+}
+
+func (v nestedTemplateValue) Raw() interface{} {
+	return v.childValue.Interface()
+}
+
 func CreateTemplatesCompiler(resources *core.ResourceGraph) *TemplatesCompiler {
 	return &TemplatesCompiler{
 		templatesProvider:    standardTemplatesProvider(),
@@ -58,8 +99,9 @@ func standardTemplatesProvider() *templatesProvider {
 		panic(err) // unexpected, since standardTemplates is statically built into klotho
 	}
 	return &templatesProvider{
-		templates:             subTemplates,
-		templatesByStructName: make(map[string]ResourceCreationTemplate),
+		templates:                     subTemplates,
+		resourceTemplatesByStructName: make(map[string]ResourceCreationTemplate),
+		childTemplatesByPath:          make(map[string]*template.Template),
 	}
 }
 
@@ -150,11 +192,15 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 	for resourceVal.Kind() == reflect.Pointer {
 		resourceVal = resourceVal.Elem()
 	}
-	inputArgs := make(map[string]string)
+	inputArgs := make(map[string]templateValue)
 	for fieldName := range tmpl.InputTypes {
 		// dependsOn will be a reserved field for us to use to map dependencies. If specified as an Arg we will automatically call resolveDependencies
 		if fieldName == "dependsOn" {
-			inputArgs[fieldName] = tc.resolveDependencies(resource)
+			inputArgs[fieldName] = stringTemplateValue{value: tc.resolveDependencies(resource)}
+			continue
+		}
+		if fieldName == "protect" {
+			inputArgs[fieldName] = stringTemplateValue{value: "protect"}
 			continue
 		}
 		childVal := resourceVal.FieldByName(fieldName)
@@ -164,7 +210,22 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 			iacTag = structField.Tag.Get("render")
 		}
 
-		resolvedValue, err := tc.resolveStructInput(childVal, false, iacTag)
+		var err error
+		var resolvedValue templateValue
+		if iacTag == "template" {
+			resolvedValue = nestedTemplateValue{
+				parentValue:            resourceVal,
+				childValue:             childVal,
+				iacTag:                 iacTag,
+				tc:                     &tc,
+				useDoubleQuotedStrings: false,
+			}
+		} else {
+			var strValue string
+			strValue, err = tc.resolveStructInput(&resourceVal, childVal, false, iacTag)
+			resolvedValue = stringTemplateValue{value: strValue}
+		}
+
 		if err != nil {
 			errs.Append(err)
 		} else {
@@ -203,7 +264,7 @@ func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 }
 
 // resolveStructInput translates a value to a form suitable to inject into the typescript as an input to a function.
-func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDoubleQuotedStrings bool, iacTag string) (string, error) {
+func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, childVal reflect.Value, useDoubleQuotedStrings bool, iacTag string) (string, error) {
 	var zeroValue reflect.Value
 	if childVal == zeroValue {
 		return `null`, nil
@@ -221,21 +282,22 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 			return "null", nil
 		}
 		if typedChild, ok := childVal.Interface().(core.Resource); ok {
-			if iacTag == "document" {
-				return "", errors.Errorf(`structs of type Resource can not be tagged with resource: "document"`)
+			if iacTag != "" {
+				return "", errors.Errorf("structs of type Resource can not be tagged with `resource:`")
 			}
 			return tc.getVarName(typedChild), nil
 		} else if typedChild, ok := childVal.Interface().(core.IaCValue); ok {
-			if iacTag == "document" {
-				return "", errors.Errorf(`structs of type IaCValue can not be tagged with resource: "document"`)
+			if iacTag != "" {
+				return "", errors.Errorf("structs of type IaCValue can not be tagged with `resource:`")
 			}
 			output, err := tc.handleIaCValue(typedChild)
 			if err != nil {
 				return output, err
 			}
 			return output, nil
-		} else {
-			if iacTag == "document" {
+		} else if iacTag != "" {
+			switch iacTag {
+			case "document":
 				val := childVal
 				output := strings.Builder{}
 				output.WriteString("{")
@@ -254,7 +316,7 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 						iacTag = structField.Tag.Get("render")
 					}
 
-					resolvedValue, err := tc.resolveStructInput(childVal, false, iacTag)
+					resolvedValue, err := tc.resolveStructInput(resourceVal, childVal, false, iacTag)
 
 					if err != nil {
 						return output.String(), err
@@ -263,8 +325,19 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 				}
 				output.WriteString("}")
 				return output.String(), nil
+			case "template":
+				tmpl, err := tc.getNestedTemplate(path.Join(
+					camelToSnake(resourceVal.Type().Name()),
+					camelToSnake(childVal.Type().Name()),
+				))
+				if err != nil {
+					return "", err
+				}
+				output := bytes.NewBuffer([]byte{})
+				err = tmpl.Execute(output, childVal.Interface())
+				return output.String(), err
 			}
-
+		} else {
 			return "", errors.Errorf(`child struct of %v is not of a known type`, childVal.Type().Name())
 		}
 	case reflect.Array, reflect.Slice:
@@ -273,7 +346,7 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 		buf := strings.Builder{}
 		buf.WriteRune('[')
 		for i := 0; i < sliceLen; i++ {
-			output, err := tc.resolveStructInput(childVal.Index(i), false, iacTag)
+			output, err := tc.resolveStructInput(resourceVal, childVal.Index(i), false, iacTag)
 			if err != nil {
 				return output, err
 			}
@@ -290,13 +363,13 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 		buf := strings.Builder{}
 		buf.WriteRune('{')
 		for i, key := range childVal.MapKeys() {
-			output, err := tc.resolveStructInput(key, true, iacTag)
+			output, err := tc.resolveStructInput(resourceVal, key, true, iacTag)
 			if err != nil {
 				return output, nil
 			}
 			buf.WriteString(output)
 			buf.WriteRune(':')
-			output, err = tc.resolveStructInput(childVal.MapIndex(key), false, iacTag)
+			output, err = tc.resolveStructInput(resourceVal, childVal.MapIndex(key), false, iacTag)
 			if err != nil {
 				return output, err
 			}
@@ -312,7 +385,7 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 		// instead of being the actual type. So, we basically pull the item out of the collection, and then reflect on
 		// it directly.
 		underlyingVal := childVal.Interface()
-		return tc.resolveStructInput(reflect.ValueOf(underlyingVal), false, iacTag)
+		return tc.resolveStructInput(resourceVal, reflect.ValueOf(underlyingVal), false, iacTag)
 	}
 	return "", nil
 }
@@ -320,7 +393,7 @@ func (tc TemplatesCompiler) resolveStructInput(childVal reflect.Value, useDouble
 // handleIaCValue determines how to retrieve values from a resource given a specific value identifier.
 func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) (string, error) {
 	if v.Resource == nil {
-		output, err := tc.resolveStructInput(reflect.ValueOf(v.Property), false, "")
+		output, err := tc.resolveStructInput(nil, reflect.ValueOf(v.Property), false, "")
 		if err != nil {
 			return output, err
 		}
@@ -371,7 +444,7 @@ func (tc templatesProvider) getTemplate(v core.Resource) (ResourceCreationTempla
 }
 
 func (tc templatesProvider) getTemplateForType(typeName string) (ResourceCreationTemplate, error) {
-	existing, ok := tc.templatesByStructName[typeName]
+	existing, ok := tc.resourceTemplatesByStructName[typeName]
 	if ok {
 		return existing, nil
 	}
@@ -381,8 +454,41 @@ func (tc templatesProvider) getTemplateForType(typeName string) (ResourceCreatio
 		return ResourceCreationTemplate{}, err
 	}
 	template := ParseResourceCreationTemplate(typeName, contents)
-	tc.templatesByStructName[typeName] = template
+	tc.resourceTemplatesByStructName[typeName] = template
 	return template, nil
+}
+
+func (tc templatesProvider) getNestedTemplate(templatePath string) (*template.Template, error) {
+	templateFilePaths := []string{
+		templatePath + ".ts.tmpl",
+		templatePath + ".ts",
+	}
+
+	existing, ok := tc.childTemplatesByPath[templatePath]
+	if ok {
+		return existing, nil
+	}
+
+	var contents []byte
+	var merr multierr.Error
+	var err error
+	for _, tfPath := range templateFilePaths {
+		contents, err = fs.ReadFile(tc.templates, tfPath)
+		if err == nil {
+			break
+		} else {
+			merr.Append(err)
+		}
+	}
+	if len(contents) == 0 && merr.ErrOrNil() != nil {
+		return nil, core.WrapErrf(merr.ErrOrNil(), "could not read template: %s", templatePath)
+	}
+	tmpl, err := template.New(templatePath).Parse(string(contents))
+	if err != nil {
+		return nil, errors.Wrapf(err, `while writing template for %s`, templatePath)
+	}
+	tc.childTemplatesByPath[templatePath] = tmpl
+	return tmpl, nil
 }
 
 func (tc TemplatesCompiler) GetPackageJSON(v core.Resource) (javascript.NodePackageJson, error) {

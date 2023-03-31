@@ -1,10 +1,11 @@
 package iac2
 
 import (
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
 	"text/template"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseTemplate(t *testing.T) {
@@ -18,7 +19,7 @@ func TestParseTemplate(t *testing.T) {
 		},
 		parsed.InputTypes)
 	assert.Equal("aws.lambda.Function", parsed.OutputType)
-	assert.Equal("new Function({{.blah}})", parsed.ExpressionTemplate)
+	assert.Equal("new Function({{parseTS .blah}})", parsed.ExpressionTemplate)
 	assert.Equal(
 		map[string]struct{}{
 			`import * as aws from '@pulumi/aws'`:   {},
@@ -37,19 +38,19 @@ func TestParameterizeArgs(t *testing.T) {
 	}{
 		{
 			given:  `new Foo(args.Bar)`,
-			want:   `new Foo({{.Bar}})`,
+			want:   `new Foo({{parseTS .Bar}})`,
 			input:  map[string]any{"Bar": `"HELLO"`},
 			result: `new Foo("HELLO")`,
 		},
 		{
 			given:  `new Foo({args.Bar})`,
-			want:   "new Foo({{`{`}}{{.Bar}}})",
+			want:   "new Foo({{`{`}}{{parseTS .Bar}}})",
 			input:  map[string]any{"Bar": `"HELLO"`},
 			result: `new Foo({"HELLO"})`,
 		},
 		{
 			given:  `new Foo({{args.Bar}})`, // two curlies
-			want:   "new Foo({{`{{`}}{{.Bar}}}})",
+			want:   "new Foo({{`{{`}}{{parseTS .Bar}}}})",
 			input:  map[string]any{"Bar": `"HELLO"`},
 			result: `new Foo({{"HELLO"}})`,
 		},
@@ -70,7 +71,7 @@ func TestParameterizeArgs(t *testing.T) {
 
 			if tt.input != nil {
 				t.Run("template use", func(t *testing.T) {
-					tmpl, err := template.New("template").Parse(tmplStr)
+					tmpl, err := template.New("template").Funcs(template.FuncMap{"parseTS": func(s string) string { return s }}).Parse(tmplStr)
 					if assert.NoError(err) {
 						buf := strings.Builder{}
 						err := tmpl.Execute(&buf, tt.input)
