@@ -18,7 +18,7 @@ func (a *AWS) GenerateFsResources(construct *core.Fs, result *core.ConstructGrap
 				})
 		}
 	}
-	a.ConstructIdToResourceId[construct.Id()] = bucket.Id()
+	a.MapResourceDirectlyToConstruct(bucket, construct)
 	dag.AddResource(bucket)
 	return nil
 }

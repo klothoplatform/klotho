@@ -27,12 +27,14 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 	if err != nil {
 		return err
 	}
-	for _, res := range result.GetDownstreamConstructs(unit) {
-		resource, ok := a.ConstructIdToResourceId[res.Id()]
+	for _, construct := range result.GetDownstreamConstructs(unit) {
+		resList, ok := a.GetResourcesDirectlyTiedToConstruct(construct)
 		if !ok {
-			return errors.Errorf("could not find resource for construct, %s, which unit, %s, depends on", unit.Id(), res.Id())
+			return errors.Errorf("could not find resource for construct, %s, which unit, %s, depends on", unit.Id(), construct.Id())
 		}
-		dag.AddDependency(dag.GetResource(resource), role)
+		for _, resource := range resList {
+			dag.AddDependency(resource, role)
+		}
 	}
 	role.InlinePolicy = a.PolicyGenerator.GetUnitPolicies(unit.Id())
 
@@ -40,7 +42,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 	case Lambda:
 
 		lambdaFunction := resources.NewLambdaFunction(unit, a.Config.AppName, role, image)
-		a.ConstructIdToResourceId[unit.Id()] = lambdaFunction.Id()
+		a.MapResourceDirectlyToConstruct(lambdaFunction, unit)
 		logGroup := resources.NewLogGroup(a.Config.AppName, fmt.Sprintf("/aws/lambda/%s", lambdaFunction.Name), unit.Provenance(), 5)
 		dag.AddResource(lambdaFunction)
 		dag.AddResource(logGroup)
@@ -66,19 +68,18 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 		// This set of environment variables correspond to the specific needs of the execution units and its dependencies
 		for _, envVar := range unit.EnvironmentVariables {
 			if envVar.Construct != nil {
-				resourceId, ok := a.ConstructIdToResourceId[envVar.GetConstruct().Id()]
-				if ok {
-					resource := dag.GetResource(resourceId)
-					if resource == nil {
-						return fmt.Errorf("resource not found for id, %s", resourceId)
-					}
+				resList, ok := a.GetResourcesDirectlyTiedToConstruct(envVar.GetConstruct())
+				if !ok {
+					return fmt.Errorf("resource not found for construct with id, %s", envVar.GetConstruct().Id())
+				}
+				for _, resource := range resList {
 					resourceEnvVars[envVar.Name] = core.IaCValue{
 						Resource: resource,
 						Property: envVar.Value,
 					}
-				} else {
-					return fmt.Errorf("resource not found for construct with id, %s", envVar.GetConstruct().Id())
+
 				}
+
 			} else {
 				resourceEnvVars[envVar.Name] = core.IaCValue{
 					Property: envVar.Value,
@@ -95,18 +96,15 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 		}
 
 		// Retrieve the actual resource and set the environment variables on it
-		resourceId, ok := a.ConstructIdToResourceId[unit.Id()]
-		if ok {
-			resource := dag.GetResource(resourceId)
-			if resource == nil {
-				return fmt.Errorf("resource not found for id, %s", resourceId)
-			}
+		resList, ok := a.GetResourcesDirectlyTiedToConstruct(unit)
+		if !ok {
+			return fmt.Errorf("resource not found for construct with id, %s", unit.Id())
+		}
+		for _, resource := range resList {
 			switch r := resource.(type) {
 			case *resources.LambdaFunction:
 				r.EnvironmentVariables = resourceEnvVars
 			}
-		} else {
-			return fmt.Errorf("resource not found for construct with id, %s", unit.Id())
 		}
 	}
 	return nil
