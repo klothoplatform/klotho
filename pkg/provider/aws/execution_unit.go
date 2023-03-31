@@ -33,7 +33,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 			return errors.Errorf("could not find resource for construct, %s, which unit, %s, depends on", unit.Id(), construct.Id())
 		}
 		for _, resource := range resList {
-			dag.AddDependency(role, resource)
+			dag.AddDependency2(role, resource)
 		}
 	}
 	role.InlinePolicy = a.PolicyGenerator.GetUnitPolicies(unit.Id())
@@ -46,9 +46,9 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 		logGroup := resources.NewLogGroup(a.Config.AppName, fmt.Sprintf("/aws/lambda/%s", lambdaFunction.Name), unit.Provenance(), 5)
 		dag.AddResource(lambdaFunction)
 		dag.AddResource(logGroup)
-		dag.AddDependency(lambdaFunction, logGroup)
-		dag.AddDependency(lambdaFunction, role)
-		dag.AddDependency(lambdaFunction, image)
+		dag.AddDependency2(lambdaFunction, logGroup)
+		dag.AddDependency2(lambdaFunction, role)
+		dag.AddDependency2(lambdaFunction, image)
 		return nil
 	default:
 		log.Errorf("Unsupported type, %s, for aws execution units", execUnitCfg.Type)

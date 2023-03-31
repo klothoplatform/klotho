@@ -131,7 +131,7 @@ func Test_GetVpcSubnets(t *testing.T) {
 			dag.AddResource(tt.vpc)
 			for _, s := range tt.subnets {
 				dag.AddResource(s)
-				dag.AddDependency(tt.vpc, s)
+				dag.AddDependency2(tt.vpc, s)
 			}
 			result := tt.vpc.GetVpcSubnets(dag)
 			assert.ElementsMatch(result, tt.want)
