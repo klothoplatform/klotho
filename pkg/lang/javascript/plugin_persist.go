@@ -562,7 +562,7 @@ func (p *persister) determinePersistType(f *core.SourceFile, annotation *core.An
 
 	redisKind, redis := p.queryRedis(f, annotation, false)
 	if redis != nil {
-		log.Sugar().Debugf("Determined persist type of '%s'", redisKind)
+		log.Sugar().Debugf("Determined persist type of redis: '%T'", redisKind)
 		return redisKind, redis
 	}
 

@@ -22,3 +22,17 @@ func (a *AWS) GenerateFsResources(construct *core.Fs, result *core.ConstructGrap
 	dag.AddResource(bucket)
 	return nil
 }
+
+func (a *AWS) GenerateRedisResources(construct core.Construct, result *core.ConstructGraph, dag *core.ResourceGraph) error {
+	ec := resources.CreateElasticache(a.Config, dag, construct)
+	upstreamResources := result.GetUpstreamConstructs(construct)
+	for _, res := range upstreamResources {
+		unit, ok := res.(*core.ExecutionUnit)
+		if ok {
+			unit.EnvironmentVariables.Add(core.GenerateRedisHostEnvVar(construct))
+			unit.EnvironmentVariables.Add(core.GenerateRedisPortEnvVar(construct))
+		}
+	}
+	a.MapResourceDirectlyToConstruct(ec, construct)
+	return nil
+}
