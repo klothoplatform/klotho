@@ -16,9 +16,8 @@ func GetProvider(cfg *config.Application) (provider.Provider, error) {
 		fallthrough
 	case "aws":
 		return &aws.AWS{
-			Config:                  cfg,
-			ConstructIdToResourceId: make(map[string]string),
-			PolicyGenerator:         resources.NewPolicyGenerator(),
+			Config:          cfg,
+			PolicyGenerator: resources.NewPolicyGenerator(),
 		}, nil
 	}
 

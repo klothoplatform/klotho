@@ -76,8 +76,8 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 			assert := assert.New(t)
 			aws := AWS{
 				Config: &tt.cfg,
-				ConstructIdToResourceId: map[string]string{
-					fs.Id(): bucket.Id(),
+				constructIdToResources: map[string][]core.Resource{
+					fs.Id(): {bucket},
 				},
 				PolicyGenerator: resources.NewPolicyGenerator(),
 			}
@@ -129,9 +129,9 @@ func Test_convertExecUnitParams(t *testing.T) {
 		name                    string
 		construct               core.Construct
 		resources               []core.Resource
-		testresource            core.Resource
+		execUnitResource        core.Resource
 		wants                   resources.EnvironmentVariables
-		constructIdToResourceId map[string]string
+		constructIdToResourceId map[string][]core.Resource
 		wantErr                 bool
 	}{
 		{
@@ -145,11 +145,10 @@ func Test_convertExecUnitParams(t *testing.T) {
 			resources: []core.Resource{
 				s3Bucket,
 			},
-			constructIdToResourceId: map[string]string{
-				":unit":   "aws:lambda_function:",
-				":bucket": "aws:s3_bucket:test-app-bucket",
+			constructIdToResourceId: map[string][]core.Resource{
+				":bucket": {s3Bucket},
 			},
-			testresource: &resources.LambdaFunction{},
+			execUnitResource: &resources.LambdaFunction{},
 			wants: resources.EnvironmentVariables{
 				"APP_NAME":           core.IaCValue{Resource: nil, Property: "test"},
 				"EXECUNIT_NAME":      core.IaCValue{Resource: nil, Property: "unit"},
@@ -164,10 +163,8 @@ func Test_convertExecUnitParams(t *testing.T) {
 					core.NewEnvironmentVariable("TestVar", nil, "TestValue"),
 				},
 			},
-			constructIdToResourceId: map[string]string{
-				":unit": "aws:lambda_function:",
-			},
-			testresource: &resources.LambdaFunction{},
+			constructIdToResourceId: make(map[string][]core.Resource),
+			execUnitResource:        &resources.LambdaFunction{},
 			wants: resources.EnvironmentVariables{
 				"APP_NAME":      core.IaCValue{Resource: nil, Property: "test"},
 				"EXECUNIT_NAME": core.IaCValue{Resource: nil, Property: "unit"},
@@ -180,15 +177,16 @@ func Test_convertExecUnitParams(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			aws := AWS{
-				Config:                  &config.Application{AppName: "test"},
-				ConstructIdToResourceId: tt.constructIdToResourceId,
+				Config:                 &config.Application{AppName: "test"},
+				constructIdToResources: tt.constructIdToResourceId,
 			}
+			aws.constructIdToResources[":unit"] = []core.Resource{tt.execUnitResource}
 
 			result := core.NewConstructGraph()
 			result.AddConstruct(tt.construct)
 
 			dag := core.NewResourceGraph()
-			dag.AddResource(tt.testresource)
+			dag.AddResource(tt.execUnitResource)
 			for _, res := range tt.resources {
 				dag.AddResource(res)
 			}
@@ -201,10 +199,11 @@ func Test_convertExecUnitParams(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			switch res := tt.testresource.(type) {
+			switch res := tt.execUnitResource.(type) {
 			case *resources.LambdaFunction:
 				assert.Equal(tt.wants, res.EnvironmentVariables)
-
+			default:
+				assert.Failf(`test error`, `unrecognized test resource: %v`, res)
 			}
 		})
 

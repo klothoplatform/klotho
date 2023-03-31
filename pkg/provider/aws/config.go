@@ -12,7 +12,7 @@ type (
 	}
 )
 
-func (c *AWS) Name() string { return "aws" }
+func (a *AWS) Name() string { return "aws" }
 
 // Enums for the types we allow in the aws provider so that we can reuse the same string within the provider
 const (
