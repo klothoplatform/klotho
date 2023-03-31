@@ -48,24 +48,24 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 				},
 				deps: []graph.Edge[core.Resource]{
 					{
-						Source:      repo,
+						Source:      image,
+						Destination: repo,
+					},
+					{
+						Source:      lambda,
 						Destination: image,
 					},
 					{
-						Source:      image,
-						Destination: lambda,
+						Source:      role,
+						Destination: bucket,
 					},
 					{
-						Source:      bucket,
+						Source:      lambda,
 						Destination: role,
 					},
 					{
-						Source:      role,
-						Destination: lambda,
-					},
-					{
-						Source:      logGroup,
-						Destination: lambda,
+						Source:      lambda,
+						Destination: logGroup,
 					},
 				},
 			},
@@ -109,6 +109,8 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 				assert.True(found)
 			}
 
+			assert.Len(dag.ListDependencies(), len(tt.want.deps))
+
 			for _, dep := range tt.want.deps {
 				found := false
 				for _, res := range dag.ListDependencies() {
@@ -116,7 +118,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 						found = true
 					}
 				}
-				assert.True(found)
+				assert.True(found, "did not find resource: %s -> %s", dep.Source.Id(), dep.Destination.Id())
 			}
 		})
 
