@@ -136,12 +136,6 @@ func ParseDirectiveToEnvVars(cap *annotation.Capability) (EnvironmentVariableDir
 }
 
 func handlePersist(kind string, cap *annotation.Capability, unit *core.ExecutionUnit, result *core.CompilationResult, deps *core.Dependencies) error {
-	resources := core.GetResourcesOfType[*core.Persist](result)
-	for _, res := range resources {
-		if res.Name == cap.ID && string(res.Kind) == kind {
-			return nil
-		}
-	}
 	switch kind {
 	case string(core.PersistORMKind):
 		resource := core.Persist{
