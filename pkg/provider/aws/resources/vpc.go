@@ -12,7 +12,6 @@ var igwSanitizer = aws.SubnetSanitizer
 var natGatewaySanitizer = aws.SubnetSanitizer
 var vpcEndpointSanitizer = aws.SubnetSanitizer
 var subnetSanitizer = aws.SubnetSanitizer
-var sanitizer = aws.VpcSanitizer
 
 const (
 	PrivateSubnet  = "private"
@@ -262,7 +261,7 @@ func (vpce *VpcEndpoint) Id() string {
 
 func NewVpc(appName string) *Vpc {
 	return &Vpc{
-		Name:               sanitizer.Apply(appName),
+		Name:               aws.VpcSanitizer.Apply(appName),
 		CidrBlock:          "10.0.0.0/16",
 		EnableDnsSupport:   true,
 		EnableDnsHostnames: true,

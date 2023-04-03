@@ -16,6 +16,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/klothoplatform/klotho/pkg/multierr"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
 )
 
@@ -60,7 +61,7 @@ type (
 )
 
 var (
-	//go:embed templates/*/factory.ts templates/*/package.json
+	//go:embed templates/*/factory.ts templates/*/package.json templates/*/*.ts.tmpl
 	standardTemplates embed.FS
 )
 
@@ -407,6 +408,12 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) (string, error) {
 		return fmt.Sprintf("%s.arn", tc.getVarName(v.Resource)), nil
 	case string(core.ALL_BUCKET_DIRECTORY_IAC_VALUE):
 		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/*`", tc.getVarName(v.Resource)), nil
+	case resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE,
+		resources.DYNAMODB_TABLE_INDEX_IAC_VALUE,
+		resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE,
+		resources.DYNAMODB_TABLE_STREAM_IAC_VALUE:
+		prop := strings.Split(v.Property, "__")[1]
+		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/%s/*`", tc.getVarName(v.Resource), prop), nil
 	}
 	return "", errors.Errorf("unsupported IaC Value Property, %s", v.Property)
 }
