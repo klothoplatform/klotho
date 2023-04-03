@@ -17,7 +17,7 @@ type (
 		underlying graph.Graph[string, V]
 	}
 
-	Edge[V Identifiable] struct {
+	Edge[V any] struct {
 		Source      V
 		Destination V
 	}
