@@ -417,9 +417,19 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) (string, error) {
 	case string(core.ALL_RESOURCES_IAC_VALUE):
 		return "*", nil
 	case string(core.HOST):
-		return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].address`", tc.getVarName(v.Resource)), nil
+		switch v.Resource.(type) {
+		case *resources.Elasticache:
+			return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].address`", tc.getVarName(v.Resource)), nil
+		default:
+			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
+		}
 	case string(core.PORT):
-		return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].port`", tc.getVarName(v.Resource)), nil
+		switch v.Resource.(type) {
+		case *resources.Elasticache:
+			return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].port`", tc.getVarName(v.Resource)), nil
+		default:
+			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
+		}
 	}
 	return "", errors.Errorf("unsupported IaC Value Property, %s", v.Property)
 }
