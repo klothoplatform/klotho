@@ -9,7 +9,7 @@ interface Args {
     Type: string
     ConnectionType: string
     VpcLink: aws.apigateway.VpcLink
-    RequestParameters: Record<string, boolean>
+    RequestParameters: Record<string, string>
     Uri: pulumi.Output<string>
 }
 

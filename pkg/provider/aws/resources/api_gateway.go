@@ -58,7 +58,7 @@ type (
 		RestApi               *RestApi
 		Resource              *ApiResource
 		Method                *ApiMethod
-		RequestParameters     map[string]bool
+		RequestParameters     map[string]string
 		IntegrationHttpMethod string
 		Type                  string
 		ConnectionType        string
