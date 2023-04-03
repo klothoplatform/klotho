@@ -19,7 +19,7 @@ func EdgeIds[V Identifiable](edges []Edge[V]) []Edge[string] {
 	if edges == nil {
 		return nil
 	}
-	result := make([]Edge[string], len(edges), len(edges))
+	result := make([]Edge[string], len(edges))
 	for i, edge := range edges {
 		result[i] = Edge[string]{
 			Source:      edge.Source.Id(),
