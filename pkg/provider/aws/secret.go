@@ -14,6 +14,21 @@ func (a *AWS) GenerateSecretsResources(construct *core.Secrets, result *core.Con
 		secretVersion := resources.NewSecretVersion(secret, single)
 		dag.AddResource(secretVersion)
 		dag.AddDependency2(secret, secretVersion)
+
+		for _, upstreamCons := range result.GetUpstreamConstructs(construct) {
+			unit, isUnit := upstreamCons.(*core.ExecutionUnit)
+			if !isUnit {
+				continue
+			}
+			a.PolicyGenerator.AddAllowPolicyToUnit(
+				unit.Id(),
+				[]string{`secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue`},
+				[]core.IaCValue{{
+					Resource: secret,
+					Property: core.ARN_IAC_VALUE,
+				}},
+			)
+		}
 	}
 	return nil
 }

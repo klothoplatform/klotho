@@ -1,6 +1,8 @@
 package graph
 
-import "sort"
+import (
+	"sort"
+)
 
 // SortEdges sorts the edges in place by (source.Id(), dest.Id()). You can use this to normalize a collection of edges.
 // This can be useful in tests. This method returns the slice you pass in, as a convenience.

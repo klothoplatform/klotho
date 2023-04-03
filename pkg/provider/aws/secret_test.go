@@ -17,7 +17,7 @@ func TestGenerateSecretsResources(t *testing.T) {
 	type testResult struct {
 		resourceIds map[string]struct{}
 		deps        []graph.Edge[string]
-		//policy resources.StatementEntry
+		policies    func(secretResolver func(string) *resources.Secret) []resources.StatementEntry
 	}
 	const AppName = "AppName"
 	const secretsConstructId = "MySecrets"
@@ -51,6 +51,32 @@ func TestGenerateSecretsResources(t *testing.T) {
 						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId),
 					},
 				},
+				policies: func(secretResolver func(string) *resources.Secret) []resources.StatementEntry {
+					secret1 := secretResolver(fmt.Sprintf(`aws:secret:%s-%s-secret1`, AppName, secretsConstructId))
+					secret2 := secretResolver(fmt.Sprintf(`aws:secret:%s-%s-secret2`, AppName, secretsConstructId))
+					return []resources.StatementEntry{
+						{
+							Effect: "Allow",
+							Action: []string{`secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue`},
+							Resource: []core.IaCValue{
+								{
+									Resource: secret1,
+									Property: core.ARN_IAC_VALUE,
+								},
+							},
+						},
+						{
+							Effect: "Allow",
+							Action: []string{`secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue`},
+							Resource: []core.IaCValue{
+								{
+									Resource: secret2,
+									Property: core.ARN_IAC_VALUE,
+								},
+							},
+						},
+					}
+				},
 			},
 		},
 		{
@@ -59,6 +85,9 @@ func TestGenerateSecretsResources(t *testing.T) {
 			want: testResult{
 				resourceIds: map[string]struct{}{},
 				deps:        nil,
+				policies: func(_ func(string) *resources.Secret) []resources.StatementEntry {
+					return nil
+				},
 			},
 		},
 	}
@@ -71,20 +100,20 @@ func TestGenerateSecretsResources(t *testing.T) {
 				},
 				PolicyGenerator: resources.NewPolicyGenerator(),
 			}
-			secretsRes := &core.Secrets{
+			secretsConstruct := &core.Secrets{
 				AnnotationKey: core.AnnotationKey{ID: secretsConstructId, Capability: annotation.PersistCapability},
 				Secrets:       tt.secrets,
 			}
 
 			constructGraph := core.NewConstructGraph()
-			constructGraph.AddConstruct(secretsRes)
+			constructGraph.AddConstruct(secretsConstruct)
 			if tt.execUnit != nil {
 				constructGraph.AddConstruct(tt.execUnit)
-				constructGraph.AddDependency(secretsRes.Id(), execUnit.Id())
+				constructGraph.AddDependency(execUnit.Id(), secretsConstruct.Id())
 			}
 
 			dag := core.NewResourceGraph()
-			err := aws.GenerateSecretsResources(secretsRes, constructGraph, dag)
+			err := aws.GenerateSecretsResources(secretsConstruct, constructGraph, dag)
 			if !assert.NoError(err) {
 				return
 			}
@@ -95,7 +124,22 @@ func TestGenerateSecretsResources(t *testing.T) {
 			graph.SortEdgeIds(tt.want.deps)
 			actual := graph.SortEdgeIds(graph.EdgeIds(dag.ListDependencies()))
 			assert.Equal(tt.want.deps, actual)
+
+			wantPolicies := tt.want.policies(func(secretId string) *resources.Secret {
+				resource := dag.GetResource(secretId)
+				assert.NotNil(resource)
+				if secret, foundSecret := resource.(*resources.Secret); foundSecret {
+					return secret
+				} else {
+					assert.Failf(`found a resource with id="%s", but it wasn't a Secret: %v`, secretId, resource)
+				}
+				return nil
+			})
+			var actualPolicies []resources.StatementEntry
+			if actualPolicyDoc := aws.PolicyGenerator.GetUnitPolicies(execUnit.Id()); actualPolicyDoc != nil {
+				actualPolicies = actualPolicyDoc.Statement
+			}
+			assert.Equal(wantPolicies, actualPolicies)
 		})
 	}
-
 }

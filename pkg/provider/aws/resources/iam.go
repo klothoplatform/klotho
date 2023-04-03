@@ -2,7 +2,6 @@ package resources
 
 import (
 	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
