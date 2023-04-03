@@ -65,5 +65,5 @@ func (sv *SecretVersion) KlothoConstructRef() []core.AnnotationKey {
 }
 
 func (sv *SecretVersion) Id() string {
-	return fmt.Sprintf("%s:%s:%s", sv.Provider(), SECRET_TYPE, sv.secretNameUnSanitized)
+	return fmt.Sprintf("%s:%s:%s", sv.Provider(), SECRET_VERSION_TYPE, sv.secretNameUnSanitized)
 }

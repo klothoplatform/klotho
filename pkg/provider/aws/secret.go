@@ -12,7 +12,7 @@ func (a *AWS) GenerateSecretsResources(construct *core.Secrets, result *core.Con
 		a.MapResourceDirectlyToConstruct(secret, construct)
 
 		secretVersion := resources.NewSecretVersion(secret, single)
-		dag.AddResource(secret)
+		dag.AddResource(secretVersion)
 		dag.AddDependency2(secret, secretVersion)
 	}
 	return nil
