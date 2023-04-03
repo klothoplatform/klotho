@@ -27,6 +27,7 @@ func (a *AWS) GenerateKvResources(kv *core.Kv, result *core.ConstructGraph, dag 
 		dag.AddResource(table)
 	} else {
 		table = existingTable.(*resources.DynamodbTable)
+		table.ConstructsRef = append(table.ConstructsRef, kv.AnnotationKey)
 		zap.L().Sugar().Debugf("skipping resource generation for [construct -> resource] relationship, [%s -> %s]: target resource already exists in the application's resource graph.", kv.ID, table.Id())
 	}
 
