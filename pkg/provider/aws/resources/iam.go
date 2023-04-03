@@ -2,6 +2,8 @@ package resources
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
@@ -130,6 +132,7 @@ func (p *PolicyGenerator) AddAllowPolicyToUnit(unitId string, actions []string, 
 			Action:   actions,
 			Resource: resources,
 		})
+		policyDoc.Deduplicate()
 	}
 }
 
@@ -195,4 +198,32 @@ func (policy *IamPolicy) KlothoConstructRef() []core.AnnotationKey {
 // ID returns the id of the cloud resource
 func (policy *IamPolicy) Id() string {
 	return fmt.Sprintf("%s:%s:%s", policy.Provider(), IAM_POLICY_TYPE, policy.Name)
+}
+
+func (s StatementEntry) Id() string {
+	var id strings.Builder
+	for _, r := range s.Resource {
+		id.WriteString(r.Resource.Id())
+		id.WriteRune(':')
+		id.WriteString(r.Property)
+	}
+	id.WriteString("::")
+	id.WriteString(s.Effect)
+	id.WriteString("::")
+	id.WriteString(strings.Join(s.Action, ","))
+
+	return id.String()
+}
+
+func (d *PolicyDocument) Deduplicate() {
+	keys := make(map[string]struct{})
+	var unique []StatementEntry
+	for _, stmt := range d.Statement {
+		id := stmt.Id()
+		if _, ok := keys[id]; !ok {
+			keys[id] = struct{}{}
+			unique = append(unique, stmt)
+		}
+	}
+	d.Statement = unique
 }

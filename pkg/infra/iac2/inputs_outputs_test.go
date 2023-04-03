@@ -72,6 +72,7 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.EcrRepository{},
 		&resources.S3Bucket{},
 		&resources.S3Object{},
+		&resources.DynamodbTable{},
 		&resources.Secret{},
 		&resources.SecretVersion{},
 	}
@@ -106,7 +107,7 @@ func TestKnownTemplates(t *testing.T) {
 			t.Run("inputs", func(t *testing.T) {
 				coreResourceType := reflect.TypeOf((*core.Resource)(nil)).Elem()
 				for inputName, inputTsType := range tmpl.InputTypes {
-					if inputName == "dependsOn" {
+					if inputName == "dependsOn" || inputName == "protect" {
 						continue
 					}
 					t.Run(inputName, func(t *testing.T) {
@@ -119,10 +120,11 @@ func TestKnownTemplates(t *testing.T) {
 						}
 						assert.Truef(field.IsExported(), `field is not exported`, field.Name)
 						if field.Tag.Get("render") != "" {
-							assert.Equal("document", field.Tag.Get("render"))
+							assert.Contains([]string{"document", "template"}, field.Tag.Get("render"))
 							assert.False(
 								field.Type.Elem().Implements(coreResourceType),
-								"fields tagged with `render:\"document\"` must not be for core.Resource types")
+								"fields tagged with `render:\"document\"` or `render:\"template\"` must not be for core.Resource types")
+
 						} else {
 							expectedType := &strings.Builder{}
 							if err := buildExpectedTsType(expectedType, tp, field.Type); !assert.NoError(err) {
