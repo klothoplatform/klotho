@@ -66,6 +66,35 @@ func Test_GenerateKVResources(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "generate multiple kvs with upstream unit deps",
+			constructDeps: []graph.Edge[core.Construct]{
+				{
+					Source:      eu,
+					Destination: kv,
+				},
+				{
+					Source:      eu,
+					Destination: &core.Kv{AnnotationKey: core.AnnotationKey{ID: "second", Capability: annotation.PersistCapability}},
+				},
+			},
+			want: testResult{
+				nodes: []core.Resource{
+					table,
+				},
+				policy: resources.StatementEntry{
+					Effect: "Allow",
+					Action: []string{"dynamodb:*"},
+					Resource: []core.IaCValue{
+						{Resource: table, Property: core.ARN_IAC_VALUE},
+						{Resource: table, Property: resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE},
+						{Resource: table, Property: resources.DYNAMODB_TABLE_INDEX_IAC_VALUE},
+						{Resource: table, Property: resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE},
+						{Resource: table, Property: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -77,14 +106,8 @@ func Test_GenerateKVResources(t *testing.T) {
 				PolicyGenerator: resources.NewPolicyGenerator(),
 			}
 			result := core.NewConstructGraph()
-
-			for _, dep := range tt.constructDeps {
-				result.AddConstruct(dep.Source)
-				result.AddConstruct(dep.Destination)
-				result.AddDependency(dep.Source.Id(), dep.Destination.Id())
-			}
-
 			dag := core.NewResourceGraph()
+
 			err := aws.GenerateKvResources(kv, result, dag)
 			if tt.want.err {
 				assert.Error(err)
@@ -93,6 +116,24 @@ func Test_GenerateKVResources(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
+
+			for _, dep := range tt.constructDeps {
+				result.AddConstruct(dep.Source)
+				result.AddConstruct(dep.Destination)
+				result.AddDependency(dep.Source.Id(), dep.Destination.Id())
+
+				if dep, ok := dep.Destination.(*core.Kv); ok {
+					err := aws.GenerateKvResources(dep, result, dag)
+					if tt.want.err {
+						assert.Error(err)
+						return
+					}
+					if !assert.NoError(err) {
+						return
+					}
+				}
+			}
+
 			for _, node := range tt.want.nodes {
 				found := false
 				for _, res := range dag.ListResources() {
@@ -113,7 +154,9 @@ func Test_GenerateKVResources(t *testing.T) {
 				assert.Truef(found, "dependency [%s -> %s] not found resource graph edges", dep.Source.Id(), dep.Destination.Id())
 			}
 			if len(tt.want.policy.Action) != 0 {
-				for _, statement := range aws.PolicyGenerator.GetUnitPolicies(eu.Id()).Statement {
+				statements := aws.PolicyGenerator.GetUnitPolicies(eu.Id()).Statement
+				assert.Equal(len(tt.want.policy.Action), len(statements))
+				for _, statement := range statements {
 					for _, val := range statement.Resource {
 						assert.Equal(val.Resource.Id(), table.Id())
 					}

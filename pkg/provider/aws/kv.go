@@ -5,6 +5,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"go.uber.org/zap"
 )
 
 func (a *AWS) GenerateKvResources(kv *core.Kv, result *core.ConstructGraph, dag *core.ResourceGraph) error {
@@ -16,17 +17,23 @@ func (a *AWS) GenerateKvResources(kv *core.Kv, result *core.ConstructGraph, dag 
 			{Name: "sk", Type: "S"},
 		},
 	)
-	table.HashKey = "pk"
-	table.RangeKey = "sk"
-	if err := table.Validate(); err != nil {
-		return err
+
+	if existingTable := dag.GetResource(table.Id()); existingTable == nil {
+		table.HashKey = "pk"
+		table.RangeKey = "sk"
+		if err := table.Validate(); err != nil {
+			return err
+		}
+		dag.AddResource(table)
+	} else {
+		table = existingTable.(*resources.DynamodbTable)
+		zap.L().Sugar().Debugf("skipping resource generation for [construct -> resource] relationship, [%s -> %s]: target resource already exists in the application's resource graph.", kv.ID, table.Id())
 	}
 
 	a.MapResourceDirectlyToConstruct(table, kv)
-	dag.AddResource(table)
 
-	upstreamResources := result.GetUpstreamConstructs(kv)
-	for _, res := range upstreamResources {
+	upstreamConstructs := result.GetUpstreamConstructs(kv)
+	for _, res := range upstreamConstructs {
 		unit, ok := res.(*core.ExecutionUnit)
 		if ok {
 			a.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), []string{"dynamodb:*"},
