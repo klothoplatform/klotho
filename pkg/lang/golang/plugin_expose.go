@@ -209,7 +209,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 
 		log = log.With(zap.String("var", routerName))
 
-		localRoutes, err := h.findChiRoutesForVar(f, router, "")
+		localRoutes, addCors, err := h.findChiRoutesForVar(f, router, "")
 		if err != nil {
 			return nil, core.NewCompilerError(f, capNode, err)
 		}
@@ -240,6 +240,16 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 			if len(mountedRoutes) > 0 {
 				log.Sugar().Infof("Found %d route(s) on mounted router '%s.%s'", len(mountedRoutes), m.PkgAlias, m.FuncName)
 				h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], mountedRoutes...)
+			}
+			if addCors {
+				for _, mountedRoute := range mountedRoutes {
+					def := mountedRoute
+					if def.Verb == core.VerbOptions {
+						continue
+					}
+					def.Verb = core.VerbOptions
+					h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], def)
+				}
 			}
 		}
 	}
@@ -330,18 +340,16 @@ func (h *restAPIHandler) findHttpListenAndServe(cap *core.Annotation, f *core.So
 	return HttpListener{}, nil
 }
 
-func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, router chiRouterDefResult, prefix string) ([]gatewayRouteDefinition, error) {
-	var routes = make([]gatewayRouteDefinition, 0)
+func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, router chiRouterDefResult, prefix string) (routes []gatewayRouteDefinition, addCors bool, err error) {
 	log := h.log.With(logging.FileField(f))
 
 	verbFuncs, err := h.findVerbFuncs(router.Declaration.Parent(), router.Name)
 	if err != nil {
-		return routes, err
+		return routes, false, err
 	}
 
 	log.Sugar().Debugf("Got %d verb functions for '%s'", len(verbFuncs), router.Name)
 
-	addCors := false
 	mws := h.findMiddleware(router.Declaration.Parent())
 	for _, mw := range mws {
 		addCors = h.isMiddlewareCors(mw)
@@ -375,7 +383,7 @@ func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, router chiRoute
 			})
 		}
 	}
-	return routes, err
+	return routes, addCors, err
 }
 
 func (h *restAPIHandler) findVerbFuncs(root *sitter.Node, varName string) ([]routeMethodPath, error) {
