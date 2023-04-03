@@ -252,7 +252,7 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 	buf := strings.Builder{}
 	buf.WriteRune('[')
-	upstreamResources := tc.resourceGraph.GetUpstreamResources(resource)
+	upstreamResources := tc.resourceGraph.GetDownstreamResources(resource)
 	numDeps := len(upstreamResources)
 	for i := 0; i < numDeps; i++ {
 		res := upstreamResources[i]
@@ -414,6 +414,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) (string, error) {
 		resources.DYNAMODB_TABLE_STREAM_IAC_VALUE:
 		prop := strings.Split(v.Property, "__")[1]
 		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/%s/*`", tc.getVarName(v.Resource), prop), nil
+	case string(resources.LAMBDA_INTEGRATION_URI_IAC_VALUE):
+		return fmt.Sprintf("%s.invokeArn", tc.getVarName(v.Resource)), nil
 	}
 	return "", errors.Errorf("unsupported IaC Value Property, %s", v.Property)
 }

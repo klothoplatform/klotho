@@ -1,6 +1,6 @@
 {
-  "name": "pulumi-templates",
-  "workspaces": [
-    "*"
-  ]
+    "name": "pulumi-templates",
+    "workspaces": [
+        "*"
+    ]
 }

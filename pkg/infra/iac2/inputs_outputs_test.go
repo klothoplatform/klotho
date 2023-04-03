@@ -75,6 +75,14 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.DynamodbTable{},
 		&resources.Secret{},
 		&resources.SecretVersion{},
+		&resources.VpcLink{},
+		&resources.RestApi{},
+		&resources.ApiDeployment{},
+		&resources.ApiIntegration{},
+		&resources.ApiMethod{},
+		&resources.ApiResource{},
+		&resources.ApiStage{},
+		&resources.LambdaPermission{},
 	}
 
 	tp := standardTemplatesProvider()
@@ -126,6 +134,9 @@ func TestKnownTemplates(t *testing.T) {
 								"fields tagged with `render:\"document\"` or `render:\"template\"` must not be for core.Resource types")
 
 						} else {
+							if field.Type.Kind() == reflect.Interface && field.Type == reflect.TypeOf((*core.Resource)(nil)).Elem() {
+								return
+							}
 							expectedType := &strings.Builder{}
 							if err := buildExpectedTsType(expectedType, tp, field.Type); !assert.NoError(err) {
 								return
