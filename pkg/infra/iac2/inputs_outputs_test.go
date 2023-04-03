@@ -73,6 +73,8 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.S3Bucket{},
 		&resources.S3Object{},
 		&resources.DynamodbTable{},
+		&resources.Secret{},
+		&resources.SecretVersion{},
 	}
 
 	tp := standardTemplatesProvider()

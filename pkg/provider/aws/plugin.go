@@ -33,6 +33,11 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (L
 			if err != nil {
 				return
 			}
+		case *core.Secrets:
+			err = a.GenerateSecretsResources(construct, result, dag)
+			if err != nil {
+				return
+			}
 		case *core.Kv:
 			err = a.GenerateKvResources(construct, result, dag)
 			if err != nil {

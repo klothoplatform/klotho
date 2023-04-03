@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// GenerateExecUnitResources generates the neccessary AWS resources for a given execution unit and adds them to the resource graph
+// GenerateExecUnitResources generates the necessary AWS resources for a given execution unit and adds them to the resource graph
 func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	log := zap.S()
 
