@@ -73,7 +73,7 @@ func CreateEksCluster(appName string, clusterName string, subnets []*Subnet, sec
 	cluster := NewEksCluster(appName, clusterName, subnets, securityGroups, clusterRole)
 	cluster.ConstructsRef = references
 	dag.AddResource(cluster)
-	dag.AddDependency(clusterRole, cluster)
+	dag.AddDependency2(cluster, clusterRole)
 
 	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
 	dag.AddResource(fargateRole)
@@ -82,21 +82,21 @@ func CreateEksCluster(appName string, clusterName string, subnets []*Subnet, sec
 	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
 
 	dag.AddResource(profile)
-	dag.AddDependency(fargateRole, profile)
-	dag.AddDependency(cluster, profile)
+	dag.AddDependency2(profile, fargateRole)
+	dag.AddDependency2(profile, cluster)
 
 	nodeRole := createNodeRole(appName, clusterName+"-NodeGroupRole", references)
 	dag.AddResource(nodeRole)
 
 	nodeGroup := NewEksNodeGroup(cluster, subnets, nodeRole, references)
 	dag.AddResource(nodeGroup)
-	dag.AddDependency(nodeRole, nodeGroup)
-	dag.AddDependency(cluster, nodeGroup)
+	dag.AddDependency2(nodeGroup, nodeRole)
+	dag.AddDependency2(nodeGroup, cluster)
 
 	for _, s := range subnets {
-		dag.AddDependency(s, cluster)
-		dag.AddDependency(s, nodeGroup)
-		dag.AddDependency(s, profile)
+		dag.AddDependency2(cluster, s)
+		dag.AddDependency2(nodeGroup, s)
+		dag.AddDependency2(profile, s)
 	}
 }
 

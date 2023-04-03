@@ -177,9 +177,9 @@ func Test_CreatePrivateSubnet(t *testing.T) {
 			want: testResult{
 				nodes: []string{"aws:vpc:test_app", "aws:vpc_subnet:test_app_private1", "aws:elastic_ip:test_app_private1", "aws:nat_gateway:test_app_private1"},
 				deps: []stringDep{
-					{source: "aws:vpc:test_app", dest: "aws:vpc_subnet:test_app_private1"},
-					{source: "aws:vpc_subnet:test_app_private1", dest: "aws:nat_gateway:test_app_private1"},
-					{source: "aws:elastic_ip:test_app_private1", dest: "aws:nat_gateway:test_app_private1"},
+					{dest: "aws:vpc:test_app", source: "aws:vpc_subnet:test_app_private1"},
+					{dest: "aws:vpc_subnet:test_app_private1", source: "aws:nat_gateway:test_app_private1"},
+					{dest: "aws:elastic_ip:test_app_private1", source: "aws:nat_gateway:test_app_private1"},
 				},
 			},
 		},
@@ -222,7 +222,7 @@ func Test_CreatePublicSubnet(t *testing.T) {
 			want: testResult{
 				nodes: []string{"aws:vpc:test_app", "aws:vpc_subnet:test_app_public1"},
 				deps: []stringDep{
-					{source: "aws:vpc:test_app", dest: "aws:vpc_subnet:test_app_public1"},
+					{dest: "aws:vpc:test_app", source: "aws:vpc_subnet:test_app_public1"},
 				},
 			},
 		},
@@ -265,12 +265,12 @@ func Test_CreateGatewayVpcEndpoint(t *testing.T) {
 			want: testResult{
 				nodes: []string{"aws:vpc:test_app", "aws:region:region", "aws:vpc_endpoint:test_app_s3", "aws:vpc_subnet:test_app_1", "aws:vpc_subnet:test_app_2"},
 				deps: []stringDep{
-					{source: "aws:vpc:test_app", dest: "aws:vpc_endpoint:test_app_s3"},
-					{source: "aws:region:region", dest: "aws:vpc_endpoint:test_app_s3"},
-					{source: "aws:vpc:test_app", dest: "aws:vpc_subnet:test_app_1"},
-					{source: "aws:vpc:test_app", dest: "aws:vpc_subnet:test_app_2"},
-					{source: "aws:vpc_subnet:test_app_1", dest: "aws:vpc_endpoint:test_app_s3"},
-					{source: "aws:vpc_subnet:test_app_2", dest: "aws:vpc_endpoint:test_app_s3"},
+					{dest: "aws:vpc:test_app", source: "aws:vpc_endpoint:test_app_s3"},
+					{dest: "aws:region:region", source: "aws:vpc_endpoint:test_app_s3"},
+					{dest: "aws:vpc:test_app", source: "aws:vpc_subnet:test_app_1"},
+					{dest: "aws:vpc:test_app", source: "aws:vpc_subnet:test_app_2"},
+					{dest: "aws:vpc_subnet:test_app_1", source: "aws:vpc_endpoint:test_app_s3"},
+					{dest: "aws:vpc_subnet:test_app_2", source: "aws:vpc_endpoint:test_app_s3"},
 				},
 			},
 		},
@@ -321,12 +321,12 @@ func Test_CreateInterfaceVpcEndpoint(t *testing.T) {
 			want: testResult{
 				nodes: []string{"aws:vpc:test_app", "aws:region:region", "aws:vpc_endpoint:test_app_s3", "aws:vpc_subnet:test_app_1", "aws:vpc_subnet:test_app_2"},
 				deps: []stringDep{
-					{source: "aws:vpc:test_app", dest: "aws:vpc_endpoint:test_app_s3"},
-					{source: "aws:region:region", dest: "aws:vpc_endpoint:test_app_s3"},
-					{source: "aws:vpc:test_app", dest: "aws:vpc_subnet:test_app_1"},
-					{source: "aws:vpc:test_app", dest: "aws:vpc_subnet:test_app_2"},
-					{source: "aws:vpc_subnet:test_app_1", dest: "aws:vpc_endpoint:test_app_s3"},
-					{source: "aws:vpc_subnet:test_app_2", dest: "aws:vpc_endpoint:test_app_s3"},
+					{dest: "aws:vpc:test_app", source: "aws:vpc_endpoint:test_app_s3"},
+					{dest: "aws:region:region", source: "aws:vpc_endpoint:test_app_s3"},
+					{dest: "aws:vpc:test_app", source: "aws:vpc_subnet:test_app_1"},
+					{dest: "aws:vpc:test_app", source: "aws:vpc_subnet:test_app_2"},
+					{dest: "aws:vpc_subnet:test_app_1", source: "aws:vpc_endpoint:test_app_s3"},
+					{dest: "aws:vpc_subnet:test_app_2", source: "aws:vpc_endpoint:test_app_s3"},
 				},
 			},
 		},
