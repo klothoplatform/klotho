@@ -71,8 +71,8 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 			continue
 		}
 		for _, unit := range khChart.ExecutionUnits {
-			res := constructGraph.GetConstruct(core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: unit.Name}.ToId())
-			eu, ok := res.(*core.ExecutionUnit)
+			eu, ok := core.GetConstruct[*core.ExecutionUnit](constructGraph,
+				core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: unit.Name}.ToId())
 			if !ok {
 				return nil, fmt.Errorf("unable to handle nonexistent execution unit: %s", unit.Name)
 			}
@@ -83,7 +83,7 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 				errs.Append(err)
 			}
 			khChart.Values = append(khChart.Values, execUnitValues...)
-
+			khChart.ConstructRefs = append(khChart.ConstructRefs, eu.Provenance())
 		}
 		output, err := yaml.Marshal(metadata)
 		if err != nil {
@@ -107,8 +107,7 @@ func (p *Kubernetes) setHelmChartDirectory(path string, cfg *config.ExecutionUni
 		return false, nil
 	}
 	relPath := strings.TrimSuffix(path, extension)
-	if strings.HasSuffix(relPath, "Chart") &&
-		(cfg.HelmChartOptions.Install && cfg.HelmChartOptions.Directory == "") {
+	if strings.HasSuffix(relPath, "Chart") && cfg.HelmChartOptions.Directory == "" {
 		chartDirectory, err := filepath.Rel(p.Config.Path, filepath.Dir(path))
 		if err != nil {
 			return false, err
@@ -125,10 +124,6 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 	klothoCharts := make(map[string]HelmChart)
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		cfg := p.Config.GetExecutionUnit(unit.ID)
-
-		if cfg.HelmChartOptions == nil {
-			continue
-		}
 
 		if cfg.HelmChartOptions.Directory == "" {
 			for _, f := range unit.GetDeclaringFiles() {
@@ -150,7 +145,7 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 			}
 		}
 
-		if cfg.HelmChartOptions.Install {
+		if cfg.Type == "kubernetes" {
 			khChart, ok := klothoCharts[cfg.HelmChartOptions.Directory]
 			if !ok {
 				klothoCharts[cfg.HelmChartOptions.Directory] = HelmChart{

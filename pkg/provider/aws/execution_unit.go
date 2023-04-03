@@ -85,7 +85,17 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 				},
 			},
 		}
-		return nil
+		// transform kubernetes resources for EKS
+		for _, res := range dag.ListResources() {
+			if res.Provider() != "kubernetes" {
+				continue
+			}
+			for _, ref := range res.KlothoConstructRef() {
+				if ref.ToId() == unit.ToId() {
+					a.MapResourceDirectlyToConstruct(res, unit)
+				}
+			}
+		}
 	default:
 		log.Errorf("Unsupported type, %s, for aws execution units", execUnitCfg.Type)
 

@@ -112,7 +112,7 @@ func (b *PluginSetBuilder) setupProvider() (err error) {
 	if err == nil {
 		b.Provider = append(b.Provider, b.provider)
 	}
-	b.Provider = append(b.Provider, kubernetes.Kubernetes{Config: b.Cfg})
+	b.Provider = append([]compiler.ProviderPlugin{kubernetes.Kubernetes{Config: b.Cfg}}, b.Provider...)
 	return
 }
 

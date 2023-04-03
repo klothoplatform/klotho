@@ -14,23 +14,49 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+type HelmFetchOpts struct {
+	Repo string
+}
+
 type HelmChart struct {
-	Name           string
-	ValuesFiles    []string
-	ExecutionUnits []*HelmExecUnit
-	Directory      string
-	Files          []core.File
-	Values         []Value
-	AnnotationKeys []core.AnnotationKey
+	Name               string
+	Chart              string
+	ValuesFiles        []string
+	ExecutionUnits     []*HelmExecUnit
+	Directory          string
+	Files              []core.File
+	Values             []Value `render:"document"`
+	ConstructRefs      []core.AnnotationKey
+	FetchOpts          HelmFetchOpts `render:"template"`
+	KubernetesProvider KubernetesProvider
+}
+
+// TODO look into a better way to represent the k8s provider since it's more of a pulumi construct
+type KubernetesProvider struct {
+	ConstructsRef []core.AnnotationKey
+	KubeConfig    string
+	Name          string
+}
+
+func (e KubernetesProvider) Provider() string {
+	return "aws"
+}
+
+func (e KubernetesProvider) KlothoConstructRef() []core.AnnotationKey {
+	return e.ConstructsRef
+}
+
+func (e KubernetesProvider) Id() string {
+	return fmt.Sprintf("%s:%s:%s", e.Provider(), "eks_provider", e.Name)
 }
 
 // Provider returns name of the provider the resource is correlated to
 func (chart *HelmChart) Provider() string { return "kubernetes" }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (chart *HelmChart) KlothoConstructRef() []core.AnnotationKey { return chart.AnnotationKeys }
+// KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
+func (chart *HelmChart) KlothoConstructRef() []core.AnnotationKey { return chart.ConstructRefs }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (chart *HelmChart) Id() string { return fmt.Sprintf("klotho_helm_chart-%s", chart.Name) }
 
 var HelmChartKind = "helm_chart"

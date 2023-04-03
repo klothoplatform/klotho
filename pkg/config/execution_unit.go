@@ -12,14 +12,13 @@ type (
 		Type                 string            `json:"type" yaml:"type" toml:"type"`
 		NetworkPlacement     string            `json:"network_placement,omitempty" yaml:"network_placement,omitempty" toml:"network_placement,omitempty"`
 		EnvironmentVariables map[string]string `json:"environment_variables,omitempty" yaml:"environment_variables,omitempty" toml:"environment_variables,omitempty"`
-		HelmChartOptions     *HelmChartOptions `json:"helm_chart_options,omitempty" yaml:"helm_chart_options,omitempty" toml:"helm_chart_options,omitempty"`
+		HelmChartOptions     HelmChartOptions  `json:"helm_chart_options,omitempty" yaml:"helm_chart_options,omitempty" toml:"helm_chart_options,omitempty"`
 		InfraParams          InfraParams       `json:"infra_params,omitempty" yaml:"infra_params,omitempty" toml:"infra_params,omitempty"`
 	}
 
 	// HelmChartOptions represents configuration for execution units attempting to generate helm charts
 	HelmChartOptions struct {
 		Directory   string   `json:"directory,omitempty" yaml:"directory,omitempty" toml:"directory,omitempty"` // Directory signals the directory which will contain the helm chart outputs
-		Install     bool     `json:"install,omitempty" yaml:"install,omitempty" toml:"install,omitempty"`
 		ValuesFiles []string `json:"values_files,omitempty" yaml:"values_files,omitempty" toml:"values_files,omitempty"`
 	}
 

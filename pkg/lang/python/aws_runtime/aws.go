@@ -107,7 +107,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 		if err != nil {
 			return err
 		}
-	case "ecs", "eks", "apprunner":
+	case "ecs", "kubernetes", "apprunner":
 		dockerFile = dockerfileFargate
 		dispatcher = dispatcherFargate
 		requirements = execRequirementsFargate
@@ -247,7 +247,7 @@ func (r *AwsRuntime) AddOrmRuntimeFiles(unit *core.ExecutionUnit) error {
 func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error {
 	var fileContents string
 	switch proxyType {
-	case "eks":
+	case "kubernetes":
 		fileContents = proxyEksContents
 	case "ecs":
 		fileContents = proxyFargateContents

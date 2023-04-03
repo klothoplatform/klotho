@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -78,6 +79,24 @@ func CreateEksCluster(appName string, clusterName string, subnets []*Subnet, sec
 	cluster.ConstructsRef = references
 	dag.AddResource(cluster)
 	dag.AddDependency(cluster, clusterRole)
+
+	provider := kubernetes.KubernetesProvider{Name: clusterName + "-eks-provider", ConstructsRef: references, KubeConfig: ""}
+	dag.AddResource(provider)
+	dag.AddDependency2(provider, cluster)
+
+	// TODO look into a better way to map the provider to a helm chart
+	refs := make(map[string]struct{})
+	for _, ref := range cluster.KlothoConstructRef() {
+		refs[ref.ToId()] = struct{}{}
+	}
+	for _, r := range dag.ListResources() {
+		if chart, ok := r.(*kubernetes.HelmChart); ok {
+			if _, ok := refs[chart.ConstructRefs[0].ToId()]; ok {
+				chart.KubernetesProvider = provider
+				dag.AddDependency2(chart, provider)
+			}
+		}
+	}
 
 	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
 	dag.AddResource(fargateRole)

@@ -194,7 +194,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	var proxyFile []byte
 	unitType := r.Config.GetResourceType(unit)
 	switch proxyType {
-	case "eks":
+	case "kubernetes":
 		proxyFile = proxyEks
 	case "ecs":
 		proxyFile = proxyFargate
@@ -225,7 +225,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	var DockerFile, Dispatcher []byte
 	unitType := r.Config.GetResourceType(unit)
 	switch unitType {
-	case "ecs", "eks", "apprunner":
+	case "ecs", "kubernetes", "apprunner":
 		DockerFile = dockerfileFargate
 		Dispatcher = dispatcherFargate
 	case "lambda":
