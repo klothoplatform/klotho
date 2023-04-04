@@ -131,9 +131,9 @@ func TestGenerateSecretsResources(t *testing.T) {
 			actualResourceIds := graph.VertexIds(dag.ListResources())
 			assert.Equal(tt.want.resourceIds, actualResourceIds)
 
-			graph.SortEdgeIds(tt.want.deps)
+			wantedDeps := graph.SortEdgeIds(tt.want.deps)
 			actual := graph.SortEdgeIds(graph.EdgeIds(dag.ListDependencies()))
-			assert.Equal(tt.want.deps, actual)
+			assert.Equal(wantedDeps, actual)
 
 			wantPolicies := tt.want.policies(func(secretId string) *resources.SecretVersion {
 				resource := dag.GetResource(secretId)
