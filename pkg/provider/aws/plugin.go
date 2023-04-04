@@ -1,13 +1,21 @@
 package aws
 
 import (
+	"sort"
+
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
 func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (Links []core.CloudResourceLink, err error) {
 	log := zap.S()
 
+	err = a.createEksClusters(result, dag)
+	if err != nil {
+		return
+	}
 	constructIds, err := result.TopologicalSort()
 	if err != nil {
 		return
@@ -49,7 +57,7 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (L
 				return
 			}
 		default:
-			log.Warnf("Unsupported resource %s", construct.Id())
+			log.Warnf("Unsupported construct %s", construct.Id())
 		}
 	}
 
@@ -58,6 +66,59 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (L
 		return
 	}
 	return
+}
+
+// createEksCluster determines whether any execution units have a type of EKS to determine whether a cluster needs to be created.
+//
+// If any units do have a type of EKS, the function will look at their configuration to determine how the cluster needs to be configured.
+// The clusterId field within an execution units configuration, will determine which cluster the unit will belong to, helping klotho understands how many clusters to create.
+// If the clusterId field is unassigned, the execution unit will be assigned to the first clusterId, if only one exists.
+// If multiple clusters exist we will throw an error since we cannot determine which exec unit belongs to which cluster.
+// If there are no clusterIds defined by any units, one cluster will be created for all units.
+func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceGraph) error {
+	unassignedUnits := []*core.ExecutionUnit{}
+	clusterIdToUnit := map[string][]*core.ExecutionUnit{}
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
+		cfg := a.Config.GetExecutionUnit(unit.Provenance().ID)
+		if cfg.Type == Kubernetes {
+			params := cfg.GetExecutionUnitParamsAsKubernetes()
+			if params.ClusterId == "" {
+				unassignedUnits = append(unassignedUnits, unit)
+				continue
+			}
+			clusterIdToUnit[params.ClusterId] = append(clusterIdToUnit[params.ClusterId], unit)
+
+		}
+	}
+
+	//Assign unassigned units to the first key after sorted
+	keys := []string{}
+	for k := range clusterIdToUnit {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	// If multiple clusters exist and there are unassigned units, error out since we can not determine where they should belong
+	if len(keys) > 1 && len(unassignedUnits) != 0 {
+		return errors.Errorf("Unable to determine which cluster, units %v belong to", unassignedUnits)
+	}
+
+	// If no units are defined in config, create a defaultly named one
+	if len(keys) == 0 {
+		keys = append(keys, "eks-cluster")
+	}
+
+	// Assign all units to the cluster that exists
+	if len(unassignedUnits) != 0 {
+		clusterIdToUnit[keys[0]] = append(clusterIdToUnit[keys[0]], unassignedUnits...)
+	}
+
+	vpc := resources.CreateNetwork(a.Config.AppName, dag)
+	subnets := vpc.GetVpcSubnets(dag)
+	for clusterId, units := range clusterIdToUnit {
+		resources.CreateEksCluster(a.Config.AppName, clusterId, subnets, nil, units, dag)
+	}
+	return nil
 }
 
 func reverseInPlace[A any](a []A) {

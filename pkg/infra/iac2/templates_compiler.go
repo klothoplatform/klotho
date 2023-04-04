@@ -75,9 +75,6 @@ func (s stringTemplateValue) Raw() interface{} {
 
 func (v nestedTemplateValue) Parse() (string, error) {
 	childVal := v.childValue
-	if childVal.Kind() == reflect.Pointer && !childVal.IsNil() {
-		childVal = childVal.Elem()
-	}
 	return v.tc.resolveStructInput(&v.parentValue, childVal, v.useDoubleQuotedStrings, v.iacTag)
 }
 
@@ -298,15 +295,16 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 			}
 			return output, nil
 		} else if iacTag != "" {
+			val := childVal
+			correspondingStruct := val
+			for correspondingStruct.Kind() == reflect.Pointer {
+				correspondingStruct = val.Elem()
+			}
 			switch iacTag {
 			case "document":
-				val := childVal
+
 				output := strings.Builder{}
 				output.WriteString("{")
-				correspondingStruct := val
-				for correspondingStruct.Kind() == reflect.Pointer {
-					correspondingStruct = val.Elem()
-				}
 				for i := 0; i < correspondingStruct.NumField(); i++ {
 
 					childVal := correspondingStruct.Field(i)
@@ -330,7 +328,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 			case "template":
 				tmpl, err := tc.getNestedTemplate(path.Join(
 					camelToSnake(resourceVal.Type().Name()),
-					camelToSnake(childVal.Type().Name()),
+					camelToSnake(correspondingStruct.Type().Name()),
 				))
 				if err != nil {
 					return "", err
@@ -416,6 +414,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) (string, error) {
 		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/%s/*`", tc.getVarName(v.Resource), prop), nil
 	case string(resources.LAMBDA_INTEGRATION_URI_IAC_VALUE):
 		return fmt.Sprintf("%s.invokeArn", tc.getVarName(v.Resource)), nil
+	case string(core.ALL_RESOURCES_IAC_VALUE):
+		return "*", nil
 	}
 	return "", errors.Errorf("unsupported IaC Value Property, %s", v.Property)
 }
