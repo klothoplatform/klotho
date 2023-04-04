@@ -44,7 +44,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	switch unitType {
 	case aws.Lambda:
 		DockerFile = dockerfileLambda
-	case aws.Ecs, aws.Eks:
+	case aws.Ecs, aws.Kubernetes:
 		DockerFile = dockerfileExec
 	default:
 		return errors.Errorf("unsupported execution unit type: '%s'", unitType)

@@ -68,7 +68,13 @@ type (
 )
 
 func CreateNetwork(appName string, dag *core.ResourceGraph) *Vpc {
-	vpc := NewVpc("test-app")
+
+	vpc := NewVpc(appName)
+
+	if dag.GetResource(vpc.Id()) != nil {
+		return vpc
+	}
+
 	region := NewRegion()
 	igw := NewInternetGateway(appName, "igw1", vpc)
 
@@ -77,6 +83,12 @@ func CreateNetwork(appName string, dag *core.ResourceGraph) *Vpc {
 	dag.AddResource(igw)
 	dag.AddDependency2(igw, vpc)
 
+	CreatePrivateSubnet(appName, "private1", vpc, "10.0.0.0/18", dag)
+	CreatePrivateSubnet(appName, "private2", vpc, "10.0.64.0/18", dag)
+	CreatePublicSubnet("public1", vpc, "10.0.128.0/18", dag)
+	CreatePublicSubnet("public2", vpc, "10.0.192.0/18", dag)
+
+	// VPC Endpoints are dependent upon the subnets so we need to ensure the subnets are created first
 	CreateGatewayVpcEndpoint("s3", vpc, region, dag)
 	CreateGatewayVpcEndpoint("dynamodb", vpc, region, dag)
 
@@ -84,11 +96,6 @@ func CreateNetwork(appName string, dag *core.ResourceGraph) *Vpc {
 	CreateInterfaceVpcEndpoint("sqs", vpc, region, dag)
 	CreateInterfaceVpcEndpoint("sns", vpc, region, dag)
 	CreateInterfaceVpcEndpoint("secretsmanager", vpc, region, dag)
-
-	CreatePrivateSubnet(appName, "private1", vpc, "10.0.0.0/18", dag)
-	CreatePrivateSubnet(appName, "private2", vpc, "10.0.64.0/18", dag)
-	CreatePublicSubnet("public1", vpc, "10.0.128.0/18", dag)
-	CreatePublicSubnet("public2", vpc, "10.0.192.0/18", dag)
 
 	return vpc
 }
@@ -119,17 +126,25 @@ func CreatePublicSubnet(subnetName string, vpc *Vpc, cidrBlock string, dag *core
 }
 
 func CreateGatewayVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph) {
-	vpce := NewVpcEndpoint(service, vpc, "Gateway", region, vpc.GetVpcSubnets(dag))
+	subnets := vpc.GetVpcSubnets(dag)
+	vpce := NewVpcEndpoint(service, vpc, "Gateway", region, subnets)
 	dag.AddResource(vpce)
 	dag.AddDependency2(vpce, vpc)
 	dag.AddDependency2(vpce, region)
+	for _, subnet := range subnets {
+		dag.AddDependency2(vpce, subnet)
+	}
 }
 
 func CreateInterfaceVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph) {
-	vpce := NewVpcEndpoint(service, vpc, "Interface", region, vpc.GetVpcSubnets(dag))
+	subnets := vpc.GetVpcSubnets(dag)
+	vpce := NewVpcEndpoint(service, vpc, "Interface", region, subnets)
 	dag.AddResource(vpce)
 	dag.AddDependency2(vpce, vpc)
 	dag.AddDependency2(vpce, region)
+	for _, subnet := range subnets {
+		dag.AddDependency2(vpce, subnet)
+	}
 }
 
 func (vpc *Vpc) GetVpcSubnets(dag *core.ResourceGraph) []*Subnet {
