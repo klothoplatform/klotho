@@ -91,41 +91,40 @@ func (rg *ResourceGraph) TopologicalSort() ([]string, error) {
 // - `DependencyMap  map[string]Resource`
 // - `SpecificDepMap map[string]*T`
 func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
-	rv := reflect.ValueOf(source)
-	rt := rv.Type()
-	if rt.Kind() == reflect.Pointer {
-		rv = rv.Elem()
-		rt = rt.Elem()
+	sourceValue := reflect.ValueOf(source)
+	sourceType := sourceValue.Type()
+	if sourceType.Kind() == reflect.Pointer {
+		sourceValue = sourceValue.Elem()
+		sourceType = sourceType.Elem()
 	}
-	for i := 0; i < rt.NumField(); i++ {
+	for i := 0; i < sourceType.NumField(); i++ {
 		// TODO maybe add a tag for options for things like ignoring fields
 
-		v := rv.Field(i)
-		switch v.Kind() {
+		fieldValue := sourceValue.Field(i)
+		switch fieldValue.Kind() {
 		case reflect.Interface, reflect.Pointer:
-			r, ok := v.Interface().(Resource)
-			if ok {
-				rg.AddDependency2(source, r)
+			if target, ok := fieldValue.Interface().(Resource); ok {
+				rg.AddDependency2(source, target)
 			}
 
 		case reflect.Slice, reflect.Array:
-			et := rt.Field(i).Type.Elem()
-			if et.Implements(resourceType) {
-				for ei := 0; ei < v.Len(); ei++ {
-					ev := v.Index(ei)
-					if r, ok := ev.Interface().(Resource); ok {
-						rg.AddDependency2(source, r)
+			elemType := sourceType.Field(i).Type.Elem()
+			if elemType.Implements(resourceType) {
+				for elemIdx := 0; elemIdx < fieldValue.Len(); elemIdx++ {
+					elemValue := fieldValue.Index(elemIdx)
+					if target, ok := elemValue.Interface().(Resource); ok {
+						rg.AddDependency2(source, target)
 					}
 				}
 			}
 
 		case reflect.Map:
-			et := rt.Field(i).Type.Elem()
-			if et.Implements(resourceType) {
-				for iter := v.MapRange(); iter.Next(); {
-					ev := iter.Value()
-					if r, ok := ev.Interface().(Resource); ok {
-						rg.AddDependency2(source, r)
+			elemType := sourceType.Field(i).Type.Elem()
+			if elemType.Implements(resourceType) {
+				for iter := fieldValue.MapRange(); iter.Next(); {
+					elemValue := iter.Value()
+					if target, ok := elemValue.Interface().(Resource); ok {
+						rg.AddDependency2(source, target)
 					}
 				}
 			}
