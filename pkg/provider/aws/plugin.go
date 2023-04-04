@@ -67,7 +67,8 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (L
 //
 // If any units do have a type of EKS, the function will look at their configuration to determine how the cluster needs to be configured.
 // The clusterId field within an execution units configuration, will determine which cluster the unit will belong to, helping klotho understands how many clusters to create.
-// If the clusterId field is unassigned, the execution unit will be assigned to the first clusterId alphanumerically.
+// If the clusterId field is unassigned, the execution unit will be assigned to the first clusterId, if only one exists.
+// If multiple clusters exist we will throw an error since we cannot determine which exec unit belongs to which cluster.
 // If there are no clusterIds defined by any units, one cluster will be created for all units.
 func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	unassignedUnits := []*core.ExecutionUnit{}
