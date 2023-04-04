@@ -13,12 +13,14 @@ interface Args {
 function create(args: Args): aws.iam.Role {
     return new aws.iam.Role(args.Name, {
         assumeRolePolicy: JSON.parse(args.AssumeRolePolicyDoc),
+        //TMPL {{ if .InlinePolicy.Raw }}
         inlinePolicies: [
             {
                 name: args.Name,
                 policy: JSON.stringify(args.InlinePolicy),
             },
         ],
+        //TMPLE {{ end }}
         managedPolicyArns: [...args.ManagedPolicies, ...args.AwsManagedPolicies],
     })
 }
