@@ -4,7 +4,7 @@ import * as pulumi from '@pulumi/pulumi'
 interface Args {
     Name: string
     Vpc: aws.ec2.Vpc
-    Region: pulumi.Output<Promise<aws.GetRegionResult>>
+    Region: pulumi.Output<pulumi.UnwrappedObject<aws.GetRegionResult>>
     ServiceName: string
     VpcEndpointType: string
     Subnets: aws.ec2.Subnet[]
