@@ -27,7 +27,9 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 	api_references := []core.AnnotationKey{gateway.AnnotationKey}
 	triggers := map[string]string{}
 
-	resourceBySegment := map[string]*resources.ApiResource{}
+	resourceByCurrentSegment := map[string]*resources.ApiResource{}
+	api_methods := []*resources.ApiMethod{}
+	api_integrations := []*resources.ApiIntegration{}
 	for _, route := range gateway.Routes {
 		construct := result.GetConstruct(core.AnnotationKey{ID: route.ExecUnitName, Capability: annotation.ExecutionUnitCapability}.ToId())
 		if construct == nil {
@@ -46,10 +48,19 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 		// We split our path by segments so that we can create a resource per segment as per api gateway v1
 		segments := strings.Split(route.Path, "/")
 		currPathSegment := strings.Builder{}
+		refs := []core.AnnotationKey{gateway.Provenance(), execUnit.Provenance()}
+		methodRequestParams := map[string]bool{}
+		integrationRequestParams := map[string]string{}
+		var parentResource *resources.ApiResource
 
+		// This for loop ensures that an apigateway resource is created for every sub segment in the routes path
+		// If one is not created, it will be generated with its parent being the resource which exists for the previous segment.
 		for _, segment := range segments {
-			methodRequestParams := map[string]bool{}
-			integrationRequestParams := map[string]string{}
+
+			// The root path is already created in api gw so we dont want to attempt to create an empty resource
+			if segment == "" {
+				continue
+			}
 
 			if strings.Contains(segment, ":") {
 				// We strip the pathParam of the : and * characters (which signal path parameters or wildcard routes) to be able to inject them into our method and integration request parameters
@@ -59,35 +70,56 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 				methodRequestParams[fmt.Sprintf("method.%s", pathParam)] = true
 				integrationRequestParams[fmt.Sprintf("integration.%s", pathParam)] = fmt.Sprintf("method.%s", pathParam)
 			}
-
 			segment = convertPath(segment)
+
 			currPathSegment.WriteString(fmt.Sprintf("%s/", segment))
-			refs := []core.AnnotationKey{gateway.Provenance(), execUnit.Provenance()}
-			resource, ok := resourceBySegment[segment]
+			currParentResource, ok := resourceByCurrentSegment[currPathSegment.String()]
+
+			// If no resource exists at this segment, create a resource and set it as the parent
 			if !ok {
-				resource = resources.NewApiResource(api, refs, segment)
+				resource := resources.NewApiResource(currPathSegment.String(), api, refs, segment, parentResource)
 				dag.AddResource(resource)
 				dag.AddDependency2(resource, api)
-				resourceBySegment[currPathSegment.String()] = resource
+				resourceByCurrentSegment[currPathSegment.String()] = resource
 				triggers[resource.Name] = resource.Name
+				// If there is currently a parent segment, it would be in the route before the new segment, thus add a dependency
+				if parentResource != nil {
+					dag.AddDependency2(resource, parentResource)
+				}
+				parentResource = resource
+			} else {
+				// The resource for this segment already exists, so just update the current parent
+				parentResource = currParentResource
 			}
-
-			method := resources.NewApiMethod(resource, refs, strings.ToUpper(string(route.Verb)), methodRequestParams)
-			dag.AddResource(method)
-			dag.AddDependency2(method, resource)
-			integration, err := a.createIntegration(method, execUnit, refs, route, dag)
-			if err != nil {
-				errs.Append(err)
-				continue
-			}
-
-			triggers[integration.Name] = integration.Name
 		}
+
+		// Now that we know there are resouces for the full path of this route, we can create the specific method for the route
+		method := resources.NewApiMethod(parentResource, api, refs, strings.ToUpper(string(route.Verb)), methodRequestParams)
+		dag.AddResource(method)
+		api_methods = append(api_methods, method)
+		if parentResource != nil {
+			dag.AddDependency2(method, parentResource)
+		}
+		integration, err := a.createIntegration(method, execUnit, refs, route, dag)
+		if err != nil {
+			errs.Append(err)
+			continue
+		}
+		api_integrations = append(api_integrations, integration)
+		triggers[integration.Name] = integration.Name
+
 	}
 	api.ConstructsRef = api_references
 	deployment := resources.NewApiDeployment(api, api_references, triggers)
 	dag.AddResource(deployment)
 	dag.AddDependency2(deployment, api)
+	for _, m := range api_methods {
+		dag.AddDependency2(deployment, m)
+	}
+	for _, integration := range api_integrations {
+		dag.AddDependency2(deployment, integration)
+	}
+
 	stage := resources.NewApiStage(deployment, "$default", api_references)
 	dag.AddResource(stage)
 	dag.AddDependency2(stage, deployment)

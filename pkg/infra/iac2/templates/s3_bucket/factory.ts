@@ -4,6 +4,7 @@ interface Args {
     Name: string
     ForceDestroy: boolean
     IndexDocument: string
+    protect: boolean
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -20,10 +21,12 @@ function create(args: Args): aws.s3.Bucket {
                     bucketKeyEnabled: true,
                 },
             },
+            //TMPL {{ if .IndexDocument.Raw }}
             website: {
                 indexDocument: args.IndexDocument,
             },
+            //TMPL {{ end }}
         },
-        { protect: true }
+        { protect: args.protect }
     )
 }
