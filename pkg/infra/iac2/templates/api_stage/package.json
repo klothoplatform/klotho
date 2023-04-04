@@ -1,0 +1,6 @@
+{
+    "name": "api_stage",
+    "dependencies": {
+        "@pulumi/aws": "^5.16.0"
+    }
+}

@@ -36,6 +36,11 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (L
 			if err != nil {
 				return
 			}
+		case *core.Gateway:
+			err = a.GenerateExposeResources(construct, result, dag)
+			if err != nil {
+				return
+			}
 		case *core.Fs:
 			err = a.GenerateFsResources(construct, result, dag)
 			if err != nil {
