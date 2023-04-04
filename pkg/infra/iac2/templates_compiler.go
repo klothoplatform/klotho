@@ -199,7 +199,7 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 			continue
 		}
 		if fieldName == "protect" {
-			inputArgs[fieldName] = stringTemplateValue{value: "protect"}
+			inputArgs[fieldName] = stringTemplateValue{value: "protect", raw: "protect"}
 			continue
 		}
 		childVal := resourceVal.FieldByName(fieldName)
@@ -222,7 +222,7 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 		} else {
 			var strValue string
 			strValue, err = tc.resolveStructInput(&resourceVal, childVal, false, iacTag)
-			resolvedValue = stringTemplateValue{value: strValue}
+			resolvedValue = stringTemplateValue{value: strValue, raw: childVal.Interface()}
 		}
 
 		if err != nil {
