@@ -21,7 +21,16 @@ func Test_GenerateKVResources(t *testing.T) {
 	table.HashKey = "pk"
 	table.RangeKey = "sk"
 	table.BillingMode = resources.PAY_PER_REQUEST
-
+	actions := []string{"dynamodb:*"}
+	policyResources := []core.IaCValue{
+		{Resource: table, Property: core.ARN_IAC_VALUE},
+		{Resource: table, Property: resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE},
+		{Resource: table, Property: resources.DYNAMODB_TABLE_INDEX_IAC_VALUE},
+		{Resource: table, Property: resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE},
+		{Resource: table, Property: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
+	}
+	policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
+	policy := resources.NewIamPolicy("test", kv.Id(), kv.Provenance(), policyDoc)
 	type testResult struct {
 		nodes  []core.Resource
 		deps   []graph.Edge[core.Resource]
@@ -53,17 +62,7 @@ func Test_GenerateKVResources(t *testing.T) {
 				nodes: []core.Resource{
 					table,
 				},
-				policy: resources.StatementEntry{
-					Effect: "Allow",
-					Action: []string{"dynamodb:*"},
-					Resource: []core.IaCValue{
-						{Resource: table, Property: core.ARN_IAC_VALUE},
-						{Resource: table, Property: resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE},
-						{Resource: table, Property: resources.DYNAMODB_TABLE_INDEX_IAC_VALUE},
-						{Resource: table, Property: resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE},
-						{Resource: table, Property: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
-					},
-				},
+				policy: policy.Policy.Statement[0],
 			},
 		},
 		{
@@ -80,19 +79,12 @@ func Test_GenerateKVResources(t *testing.T) {
 			},
 			want: testResult{
 				nodes: []core.Resource{
-					table,
+					table, policy,
 				},
-				policy: resources.StatementEntry{
-					Effect: "Allow",
-					Action: []string{"dynamodb:*"},
-					Resource: []core.IaCValue{
-						{Resource: table, Property: core.ARN_IAC_VALUE},
-						{Resource: table, Property: resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE},
-						{Resource: table, Property: resources.DYNAMODB_TABLE_INDEX_IAC_VALUE},
-						{Resource: table, Property: resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE},
-						{Resource: table, Property: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
-					},
+				deps: []graph.Edge[core.Resource]{
+					{Source: policy, Destination: table},
 				},
+				policy: policy.Policy.Statement[0],
 			},
 		},
 	}
@@ -154,7 +146,7 @@ func Test_GenerateKVResources(t *testing.T) {
 				assert.Truef(found, "dependency [%s -> %s] not found resource graph edges", dep.Source.Id(), dep.Destination.Id())
 			}
 			if len(tt.want.policy.Action) != 0 {
-				statements := aws.PolicyGenerator.GetUnitPolicies(eu.Id()).Statement
+				statements := aws.PolicyGenerator.GetUnitPolicies(eu.Id())[0].Policy.Statement
 				assert.Equal(len(tt.want.policy.Action), len(statements))
 				for _, statement := range statements {
 					for _, val := range statement.Resource {

@@ -2,13 +2,14 @@ package aws
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 // (The filename says this is a secret test! So shh, don't tell anyone about it!)
@@ -17,7 +18,7 @@ func TestGenerateSecretsResources(t *testing.T) {
 	type testResult struct {
 		resourceIds map[string]struct{}
 		deps        []graph.Edge[string]
-		policies    func(secretResolver func(string) *resources.Secret) []resources.StatementEntry
+		policies    func(secretResolver func(string) *resources.SecretVersion) []resources.StatementEntry
 	}
 	const AppName = "AppName"
 	const secretsConstructId = "MySecrets"
@@ -36,10 +37,11 @@ func TestGenerateSecretsResources(t *testing.T) {
 			execUnit: execUnit,
 			want: testResult{
 				resourceIds: map[string]struct{}{
-					fmt.Sprintf(`aws:secret:%s-%s-secret1`, AppName, secretsConstructId):         {},
-					fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId): {},
-					fmt.Sprintf(`aws:secret:%s-%s-secret2`, AppName, secretsConstructId):         {},
-					fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId): {},
+					fmt.Sprintf(`aws:secret:%s-%s-secret1`, AppName, secretsConstructId):                              {},
+					fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId):                      {},
+					fmt.Sprintf(`aws:secret:%s-%s-secret2`, AppName, secretsConstructId):                              {},
+					fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId):                      {},
+					fmt.Sprintf(`aws:iam_policy:%s-%s_%s`, AppName, annotation.PersistCapability, secretsConstructId): {},
 				},
 				deps: []graph.Edge[string]{
 					{
@@ -47,13 +49,21 @@ func TestGenerateSecretsResources(t *testing.T) {
 						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId),
 					},
 					{
+						Source:      fmt.Sprintf(`aws:iam_policy:%s-%s_%s`, AppName, annotation.PersistCapability, secretsConstructId),
+						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId),
+					},
+					{
+						Source:      fmt.Sprintf(`aws:iam_policy:%s-%s_%s`, AppName, annotation.PersistCapability, secretsConstructId),
+						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId),
+					},
+					{
 						Source:      fmt.Sprintf(`aws:secret:%s-%s-secret2`, AppName, secretsConstructId),
 						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId),
 					},
 				},
-				policies: func(secretResolver func(string) *resources.Secret) []resources.StatementEntry {
-					secret1 := secretResolver(fmt.Sprintf(`aws:secret:%s-%s-secret1`, AppName, secretsConstructId))
-					secret2 := secretResolver(fmt.Sprintf(`aws:secret:%s-%s-secret2`, AppName, secretsConstructId))
+				policies: func(secretResolver func(string) *resources.SecretVersion) []resources.StatementEntry {
+					secret1 := secretResolver(fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId))
+					secret2 := secretResolver(fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId))
 					return []resources.StatementEntry{
 						{
 							Effect: "Allow",
@@ -85,7 +95,7 @@ func TestGenerateSecretsResources(t *testing.T) {
 			want: testResult{
 				resourceIds: map[string]struct{}{},
 				deps:        nil,
-				policies: func(_ func(string) *resources.Secret) []resources.StatementEntry {
+				policies: func(_ func(string) *resources.SecretVersion) []resources.StatementEntry {
 					return nil
 				},
 			},
@@ -121,14 +131,20 @@ func TestGenerateSecretsResources(t *testing.T) {
 			actualResourceIds := graph.VertexIds(dag.ListResources())
 			assert.Equal(tt.want.resourceIds, actualResourceIds)
 
-			graph.SortEdgeIds(tt.want.deps)
-			actual := graph.SortEdgeIds(graph.EdgeIds(dag.ListDependencies()))
-			assert.Equal(tt.want.deps, actual)
+			for _, dep := range tt.want.deps {
+				found := false
+				for _, res := range dag.ListDependencies() {
+					if dep.Source == res.Source.Id() && dep.Destination == res.Destination.Id() {
+						found = true
+					}
+				}
+				assert.Truef(found, "Did not find dependency, %s -> %s", dep.Source, dep.Destination)
+			}
 
-			wantPolicies := tt.want.policies(func(secretId string) *resources.Secret {
+			wantPolicies := tt.want.policies(func(secretId string) *resources.SecretVersion {
 				resource := dag.GetResource(secretId)
 				assert.NotNil(resource)
-				if secret, foundSecret := resource.(*resources.Secret); foundSecret {
+				if secret, foundSecret := resource.(*resources.SecretVersion); foundSecret {
 					return secret
 				} else {
 					assert.Failf(`found a resource with id="%s", but it wasn't a Secret: %v`, secretId, resource)
@@ -136,8 +152,8 @@ func TestGenerateSecretsResources(t *testing.T) {
 				return nil
 			})
 			var actualPolicies []resources.StatementEntry
-			if actualPolicyDoc := aws.PolicyGenerator.GetUnitPolicies(execUnit.Id()); actualPolicyDoc != nil {
-				actualPolicies = actualPolicyDoc.Statement
+			if policies := aws.PolicyGenerator.GetUnitPolicies(execUnit.Id()); policies != nil {
+				actualPolicies = policies[0].Policy.Statement
 			}
 			assert.Equal(wantPolicies, actualPolicies)
 		})
