@@ -19,7 +19,7 @@ func Test_createEksClusters(t *testing.T) {
 		want   []*resources.EksCluster
 	}{
 		{
-			name: `on exec unit, no cluster id`,
+			name: `one exec unit, no cluster id`,
 			units: []*core.ExecutionUnit{
 				{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 			},
@@ -120,7 +120,10 @@ func Test_createEksClusters(t *testing.T) {
 			}
 			dag := core.NewResourceGraph()
 
-			aws.createEksClusters(result, dag)
+			err := aws.createEksClusters(result, dag)
+			if !assert.NoError(err) {
+				return
+			}
 			numEksClusters := 0
 			for _, res := range dag.ListResources() {
 				if _, ok := res.(*resources.EksCluster); ok {
