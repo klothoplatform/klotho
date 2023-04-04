@@ -24,46 +24,47 @@ func (cg *ResourceGraph) AddResource(resource Resource) {
 
 // AddDependency2 deliberately renamed from AddDependency in the short term to catch when dependencies were
 // being added in the inverse order.
-func (cg *ResourceGraph) AddDependency2(source Resource, dest Resource) {
-	cg.underlying.AddEdge(source.Id(), dest.Id())
+func (rg *ResourceGraph) AddDependency2(source Resource, dest Resource) {
+	rg.underlying.AddEdge(source.Id(), dest.Id())
+	zap.S().Debugf("adding %s -> %s", source.Id(), dest.Id())
 }
 
-func (cg *ResourceGraph) GetResource(id string) Resource {
-	return cg.underlying.GetVertex(id)
+func (rg *ResourceGraph) GetResource(id string) Resource {
+	return rg.underlying.GetVertex(id)
 }
 
-func (cg *ResourceGraph) GetDependency(source string, target string) *graph.Edge[Resource] {
-	return cg.underlying.GetEdge(source, target)
+func (rg *ResourceGraph) GetDependency(source string, target string) *graph.Edge[Resource] {
+	return rg.underlying.GetEdge(source, target)
 }
 
-func (cg *ResourceGraph) ListResources() []Resource {
-	return cg.underlying.GetAllVertices()
+func (rg *ResourceGraph) ListResources() []Resource {
+	return rg.underlying.GetAllVertices()
 }
 
-func (cg *ResourceGraph) ListDependencies() []graph.Edge[Resource] {
-	return cg.underlying.GetAllEdges()
+func (rg *ResourceGraph) ListDependencies() []graph.Edge[Resource] {
+	return rg.underlying.GetAllEdges()
 }
 
-func (cg *ResourceGraph) VertexIdsInTopologicalOrder() ([]string, error) {
-	return cg.underlying.VertexIdsInTopologicalOrder()
+func (rg *ResourceGraph) VertexIdsInTopologicalOrder() ([]string, error) {
+	return rg.underlying.VertexIdsInTopologicalOrder()
 }
 
-func (cg *ResourceGraph) GetDownstreamDependencies(source Resource) []graph.Edge[Resource] {
-	return cg.underlying.OutgoingEdges(source)
+func (rg *ResourceGraph) GetDownstreamDependencies(source Resource) []graph.Edge[Resource] {
+	return rg.underlying.OutgoingEdges(source)
 }
 
-func (cg *ResourceGraph) GetDownstreamResources(source Resource) []Resource {
-	return cg.underlying.OutgoingVertices(source)
+func (rg *ResourceGraph) GetDownstreamResources(source Resource) []Resource {
+	return rg.underlying.OutgoingVertices(source)
 }
 
-func (cg *ResourceGraph) GetUpstreamDependencies(source Resource) []graph.Edge[Resource] {
-	return cg.underlying.IncomingEdges(source)
+func (rg *ResourceGraph) GetUpstreamDependencies(source Resource) []graph.Edge[Resource] {
+	return rg.underlying.IncomingEdges(source)
 }
 
-func (cg *ResourceGraph) GetUpstreamResources(source Resource) []Resource {
-	return cg.underlying.IncomingVertices(source)
+func (rg *ResourceGraph) GetUpstreamResources(source Resource) []Resource {
+	return rg.underlying.IncomingVertices(source)
 }
 
-func (cg *ResourceGraph) TopologicalSort() ([]string, error) {
-	return cg.underlying.VertexIdsInTopologicalOrder()
+func (rg *ResourceGraph) TopologicalSort() ([]string, error) {
+	return rg.underlying.VertexIdsInTopologicalOrder()
 }
