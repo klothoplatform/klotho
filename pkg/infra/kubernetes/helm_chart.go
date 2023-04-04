@@ -29,6 +29,8 @@ type HelmChart struct {
 	ConstructRefs      []core.AnnotationKey
 	FetchOpts          HelmFetchOpts `render:"template"`
 	KubernetesProvider KubernetesProvider
+	Namespace          string
+	Version            string
 }
 
 // TODO look into a better way to represent the k8s provider since it's more of a pulumi construct

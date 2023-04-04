@@ -3,12 +3,12 @@ import * as pulumi_k8s from '@pulumi/kubernetes'
 
 interface Args {
     Name: string
-    Directory?: pulumi.Input<string>
-    Chart?: pulumi.Input<string>
+    Directory?: string
+    Chart?: string
     FetchOpts?: pulumi.Input<pulumi_k8s.helm.v3.FetchOpts>
     Values?: pulumi.Inputs
-    Version?: pulumi.Input<string>
-    Namespace?: pulumi.Input<string>
+    Version?: string
+    Namespace?: string
     KubernetesProvider: pulumi_k8s.Provider
     dependsOn: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }

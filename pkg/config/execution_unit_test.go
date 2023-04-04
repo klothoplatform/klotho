@@ -73,9 +73,8 @@ func Test_GetExecutionUnit(t *testing.T) {
 				},
 				ExecutionUnits: map[string]*ExecutionUnit{
 					"test": {
-						Type:             "lambda",
-						InfraParams:      map[string]interface{}{"key2": "value200"},
-						HelmChartOptions: &HelmChartOptions{Install: true},
+						Type:        "lambda",
+						InfraParams: map[string]interface{}{"key2": "value200"},
 					},
 				},
 			},
@@ -86,7 +85,6 @@ func Test_GetExecutionUnit(t *testing.T) {
 					"key1": "value1",
 					"key2": "value200",
 				},
-				HelmChartOptions:     &HelmChartOptions{Install: true},
 				NetworkPlacement:     "private",
 				EnvironmentVariables: make(map[string]string),
 			},
@@ -106,7 +104,6 @@ func Test_GetExecutionUnit(t *testing.T) {
 					"test": {
 						Type:             "ecs",
 						InfraParams:      map[string]interface{}{"key2": "value200"},
-						HelmChartOptions: &HelmChartOptions{Install: true},
 						NetworkPlacement: "public",
 						EnvironmentVariables: map[string]string{
 							"1": "2",
@@ -120,7 +117,6 @@ func Test_GetExecutionUnit(t *testing.T) {
 				InfraParams: InfraParams{
 					"key2": "value200",
 				},
-				HelmChartOptions: &HelmChartOptions{Install: true},
 				NetworkPlacement: "public",
 				EnvironmentVariables: map[string]string{
 					"1": "2",
