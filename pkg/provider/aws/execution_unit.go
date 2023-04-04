@@ -47,15 +47,13 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 
 	switch execUnitCfg.Type {
 	case Lambda:
-
 		lambdaFunction := resources.NewLambdaFunction(unit, a.Config.AppName, role, image)
+		dag.AddDependenciesReflect(lambdaFunction)
 		a.MapResourceDirectlyToConstruct(lambdaFunction, unit)
+
 		logGroup := resources.NewLogGroup(a.Config.AppName, fmt.Sprintf("/aws/lambda/%s", lambdaFunction.Name), unit.Provenance(), 5)
-		dag.AddResource(lambdaFunction)
 		dag.AddResource(logGroup)
 		dag.AddDependency2(lambdaFunction, logGroup)
-		dag.AddDependency2(lambdaFunction, role)
-		dag.AddDependency2(lambdaFunction, image)
 		return nil
 	case Kubernetes:
 		cfg := a.Config.GetExecutionUnit(unit.Provenance().ID)

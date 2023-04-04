@@ -13,28 +13,24 @@ type (
 	}
 )
 
-var (
-	resourceType = reflect.TypeOf((*Resource)(nil)).Elem()
-)
-
 func NewResourceGraph() *ResourceGraph {
 	return &ResourceGraph{
 		underlying: graph.NewDirected[Resource](),
 	}
 }
 
-func (cg *ResourceGraph) AddResource(resource Resource) {
-	cg.underlying.AddVertex(resource)
-	zap.S().Debugf("adding resource: %s", resource.Id())
+func (rg *ResourceGraph) AddResource(resource Resource) {
+	if rg.GetResource(resource.Id()) == nil {
+		rg.underlying.AddVertex(resource)
+		zap.S().Debugf("adding resource: %s", resource.Id())
+	}
 }
 
 // AddDependency2 deliberately renamed from AddDependency in the short term to catch when dependencies were
 // being added in the inverse order. If either `source` or `dest` don't exist in the graph, they are added.
 func (rg *ResourceGraph) AddDependency2(source Resource, dest Resource) {
 	for _, res := range []Resource{source, dest} {
-		if rg.GetResource(res.Id()) == nil {
-			rg.AddResource(res)
-		}
+		rg.AddResource(res)
 	}
 	rg.underlying.AddEdge(source.Id(), dest.Id())
 	zap.S().Debugf("adding %s -> %s", source.Id(), dest.Id())
@@ -91,43 +87,48 @@ func (rg *ResourceGraph) TopologicalSort() ([]string, error) {
 // - `DependencyMap  map[string]Resource`
 // - `SpecificDepMap map[string]*T`
 func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
+	rg.AddResource(source)
+
 	sourceValue := reflect.ValueOf(source)
 	sourceType := sourceValue.Type()
 	if sourceType.Kind() == reflect.Pointer {
 		sourceValue = sourceValue.Elem()
 		sourceType = sourceType.Elem()
 	}
+	add := func(targetValue reflect.Value) {
+		if targetValue.Kind() == reflect.Pointer && targetValue.IsNil() {
+			return
+		}
+		if !targetValue.CanInterface() {
+			return
+		}
+		if target, ok := targetValue.Interface().(Resource); ok {
+			rg.AddDependency2(source, target)
+		} else if wrapper, ok := targetValue.Interface().(*IaCValue); ok {
+			rg.AddDependency2(source, wrapper.Resource)
+		} else if wrapper, ok := targetValue.Interface().(IaCValue); ok {
+			rg.AddDependency2(source, wrapper.Resource)
+		}
+	}
 	for i := 0; i < sourceType.NumField(); i++ {
 		// TODO maybe add a tag for options for things like ignoring fields
 
 		fieldValue := sourceValue.Field(i)
 		switch fieldValue.Kind() {
-		case reflect.Interface, reflect.Pointer:
-			if target, ok := fieldValue.Interface().(Resource); ok {
-				rg.AddDependency2(source, target)
-			}
-
 		case reflect.Slice, reflect.Array:
-			elemType := sourceType.Field(i).Type.Elem()
-			if elemType.Implements(resourceType) {
-				for elemIdx := 0; elemIdx < fieldValue.Len(); elemIdx++ {
-					elemValue := fieldValue.Index(elemIdx)
-					if target, ok := elemValue.Interface().(Resource); ok {
-						rg.AddDependency2(source, target)
-					}
-				}
+			for elemIdx := 0; elemIdx < fieldValue.Len(); elemIdx++ {
+				elemValue := fieldValue.Index(elemIdx)
+				add(elemValue)
 			}
 
 		case reflect.Map:
-			elemType := sourceType.Field(i).Type.Elem()
-			if elemType.Implements(resourceType) {
-				for iter := fieldValue.MapRange(); iter.Next(); {
-					elemValue := iter.Value()
-					if target, ok := elemValue.Interface().(Resource); ok {
-						rg.AddDependency2(source, target)
-					}
-				}
+			for iter := fieldValue.MapRange(); iter.Next(); {
+				elemValue := iter.Value()
+				add(elemValue)
 			}
+
+		default:
+			add(fieldValue)
 		}
 	}
 }

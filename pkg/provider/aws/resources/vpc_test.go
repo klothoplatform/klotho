@@ -11,70 +11,73 @@ import (
 
 func Test_CreateNetwork(t *testing.T) {
 	appName := "test-app"
-	type stringDep struct {
-		source string
-		dest   string
-	}
-	type testResult struct {
-		nodes []string
-		deps  []stringDep
-	}
 	cases := []struct {
 		name              string
 		existingResources []core.Resource
-		want              testResult
+		want              DagExpectation
 	}{
 		{
 			name: "happy path",
-			want: testResult{
-				nodes: []string{"aws:vpc:test_app", "aws:vpc_subnet:test_app_private1", "aws:vpc_subnet:test_app_private2", "aws:vpc_subnet:test_app_public1", "aws:vpc_subnet:test_app_public2",
+			want: DagExpectation{
+				Nodes: []string{"aws:vpc:test_app", "aws:vpc_subnet:test_app_private1", "aws:vpc_subnet:test_app_private2", "aws:vpc_subnet:test_app_public1", "aws:vpc_subnet:test_app_public2",
 					"aws:vpc_endpoint:test_app_s3", "aws:vpc_endpoint:test_app_sqs", "aws:vpc_endpoint:test_app_sns", "aws:vpc_endpoint:test_app_lambda",
 					"aws:vpc_endpoint:test_app_secretsmanager", "aws:vpc_endpoint:test_app_dynamodb", "aws:elastic_ip:test_app_private2", "aws:elastic_ip:test_app_private1",
 					"aws:nat_gateway:test_app_private1", "aws:nat_gateway:test_app_private2", "aws:region:region", "aws:availability_zones:AvailabilityZones", "aws:internet_gateway:test_app_igw1",
 				},
-				deps: []stringDep{
-					{source: "aws:internet_gateway:test_app_igw1", dest: "aws:vpc:test_app"},
-					{source: "aws:vpc_subnet:test_app_private1", dest: "aws:vpc:test_app"},
-					{source: "aws:vpc_subnet:test_app_private2", dest: "aws:vpc:test_app"},
-					{source: "aws:vpc_subnet:test_app_public1", dest: "aws:vpc:test_app"},
-					{source: "aws:vpc_subnet:test_app_public2", dest: "aws:vpc:test_app"},
-					{source: "aws:availability_zones:AvailabilityZones", dest: "aws:region:region"},
-					{source: "aws:vpc_subnet:test_app_private1", dest: "aws:availability_zones:AvailabilityZones"},
-					{source: "aws:vpc_subnet:test_app_private2", dest: "aws:availability_zones:AvailabilityZones"},
-					{source: "aws:vpc_subnet:test_app_public1", dest: "aws:availability_zones:AvailabilityZones"},
-					{source: "aws:vpc_subnet:test_app_public2", dest: "aws:availability_zones:AvailabilityZones"},
-					{source: "aws:vpc_endpoint:test_app_sqs", dest: "aws:vpc:test_app"},
-					{source: "aws:vpc_endpoint:test_app_s3", dest: "aws:vpc:test_app"},
-					{source: "aws:vpc_endpoint:test_app_dynamodb", dest: "aws:vpc:test_app"},
-					{source: "aws:vpc_endpoint:test_app_sns", dest: "aws:vpc:test_app"},
-					{source: "aws:vpc_endpoint:test_app_lambda", dest: "aws:vpc:test_app"},
-					{source: "aws:vpc_endpoint:test_app_secretsmanager", dest: "aws:vpc:test_app"},
-					{source: "aws:vpc_endpoint:test_app_sqs", dest: "aws:region:region"},
-					{source: "aws:vpc_endpoint:test_app_s3", dest: "aws:region:region"},
-					{source: "aws:vpc_endpoint:test_app_dynamodb", dest: "aws:region:region"},
-					{source: "aws:vpc_endpoint:test_app_sns", dest: "aws:region:region"},
-					{source: "aws:vpc_endpoint:test_app_lambda", dest: "aws:region:region"},
-					{source: "aws:vpc_endpoint:test_app_secretsmanager", dest: "aws:region:region"},
-					{source: "aws:nat_gateway:test_app_private2", dest: "aws:vpc_subnet:test_app_private2"},
-					{source: "aws:nat_gateway:test_app_private2", dest: "aws:elastic_ip:test_app_private2"},
-					{source: "aws:nat_gateway:test_app_private1", dest: "aws:vpc_subnet:test_app_private1"},
-					{source: "aws:nat_gateway:test_app_private1", dest: "aws:elastic_ip:test_app_private1"},
-					{dest: "aws:vpc_subnet:test_app_private1", source: "aws:vpc_endpoint:test_app_sqs"},
-					{dest: "aws:vpc_subnet:test_app_private1", source: "aws:vpc_endpoint:test_app_sns"},
-					{dest: "aws:vpc_subnet:test_app_private1", source: "aws:vpc_endpoint:test_app_lambda"},
-					{dest: "aws:vpc_subnet:test_app_private1", source: "aws:vpc_endpoint:test_app_secretsmanager"},
-					{dest: "aws:vpc_subnet:test_app_private2", source: "aws:vpc_endpoint:test_app_sqs"},
-					{dest: "aws:vpc_subnet:test_app_private2", source: "aws:vpc_endpoint:test_app_sns"},
-					{dest: "aws:vpc_subnet:test_app_private2", source: "aws:vpc_endpoint:test_app_lambda"},
-					{dest: "aws:vpc_subnet:test_app_private2", source: "aws:vpc_endpoint:test_app_secretsmanager"},
+				Deps: []StringDep{
+					{Source: "aws:internet_gateway:test_app_igw1", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_subnet:test_app_private1", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_subnet:test_app_private2", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_subnet:test_app_public1", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_subnet:test_app_public2", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_endpoint:test_app_sqs", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_endpoint:test_app_s3", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_endpoint:test_app_dynamodb", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_endpoint:test_app_sns", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_endpoint:test_app_lambda", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_endpoint:test_app_secretsmanager", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_endpoint:test_app_sqs", Destination: "aws:region:region"},
+					{Source: "aws:vpc_endpoint:test_app_s3", Destination: "aws:region:region"},
+					{Source: "aws:vpc_endpoint:test_app_dynamodb", Destination: "aws:region:region"},
+					{Source: "aws:vpc_endpoint:test_app_sns", Destination: "aws:region:region"},
+					{Source: "aws:vpc_endpoint:test_app_lambda", Destination: "aws:region:region"},
+					{Source: "aws:vpc_endpoint:test_app_secretsmanager", Destination: "aws:region:region"},
+					{Source: "aws:nat_gateway:test_app_private2", Destination: "aws:vpc_subnet:test_app_private2"},
+					{Source: "aws:nat_gateway:test_app_private2", Destination: "aws:elastic_ip:test_app_private2"},
+					{Source: "aws:nat_gateway:test_app_private1", Destination: "aws:vpc_subnet:test_app_private1"},
+					{Source: "aws:nat_gateway:test_app_private1", Destination: "aws:elastic_ip:test_app_private1"},
+					{Destination: "aws:vpc_subnet:test_app_private1", Source: "aws:vpc_endpoint:test_app_sqs"},
+					{Destination: "aws:vpc_subnet:test_app_private1", Source: "aws:vpc_endpoint:test_app_s3"},
+					{Destination: "aws:vpc_subnet:test_app_private1", Source: "aws:vpc_endpoint:test_app_dynamodb"},
+					{Destination: "aws:vpc_subnet:test_app_private1", Source: "aws:vpc_endpoint:test_app_sns"},
+					{Destination: "aws:vpc_subnet:test_app_private1", Source: "aws:vpc_endpoint:test_app_lambda"},
+					{Destination: "aws:vpc_subnet:test_app_private1", Source: "aws:vpc_endpoint:test_app_secretsmanager"},
+					{Destination: "aws:vpc_subnet:test_app_private2", Source: "aws:vpc_endpoint:test_app_sqs"},
+					{Destination: "aws:vpc_subnet:test_app_private2", Source: "aws:vpc_endpoint:test_app_s3"},
+					{Destination: "aws:vpc_subnet:test_app_private2", Source: "aws:vpc_endpoint:test_app_dynamodb"},
+					{Destination: "aws:vpc_subnet:test_app_private2", Source: "aws:vpc_endpoint:test_app_sns"},
+					{Destination: "aws:vpc_subnet:test_app_private2", Source: "aws:vpc_endpoint:test_app_lambda"},
+					{Destination: "aws:vpc_subnet:test_app_private2", Source: "aws:vpc_endpoint:test_app_secretsmanager"},
+					{Destination: "aws:vpc_subnet:test_app_public1", Source: "aws:vpc_endpoint:test_app_sqs"},
+					{Destination: "aws:vpc_subnet:test_app_public1", Source: "aws:vpc_endpoint:test_app_s3"},
+					{Destination: "aws:vpc_subnet:test_app_public1", Source: "aws:vpc_endpoint:test_app_dynamodb"},
+					{Destination: "aws:vpc_subnet:test_app_public1", Source: "aws:vpc_endpoint:test_app_sns"},
+					{Destination: "aws:vpc_subnet:test_app_public1", Source: "aws:vpc_endpoint:test_app_lambda"},
+					{Destination: "aws:vpc_subnet:test_app_public1", Source: "aws:vpc_endpoint:test_app_secretsmanager"},
+					{Destination: "aws:vpc_subnet:test_app_public2", Source: "aws:vpc_endpoint:test_app_sqs"},
+					{Destination: "aws:vpc_subnet:test_app_public2", Source: "aws:vpc_endpoint:test_app_s3"},
+					{Destination: "aws:vpc_subnet:test_app_public2", Source: "aws:vpc_endpoint:test_app_dynamodb"},
+					{Destination: "aws:vpc_subnet:test_app_public2", Source: "aws:vpc_endpoint:test_app_sns"},
+					{Destination: "aws:vpc_subnet:test_app_public2", Source: "aws:vpc_endpoint:test_app_lambda"},
+					{Destination: "aws:vpc_subnet:test_app_public2", Source: "aws:vpc_endpoint:test_app_secretsmanager"},
 				},
 			},
 		},
 		{
 			name:              "happy path",
 			existingResources: []core.Resource{NewVpc(appName)},
-			want: testResult{
-				nodes: []string{"aws:vpc:test_app"},
+			want: DagExpectation{
+				Nodes: []string{"aws:vpc:test_app"},
 			},
 		},
 	}
@@ -91,14 +94,8 @@ func Test_CreateNetwork(t *testing.T) {
 			}
 			result := CreateNetwork(cfg, dag)
 			assert.NotNil(result)
-			for _, id := range tt.want.nodes {
-				assert.NotNil(dag.GetResource(id))
-			}
-			for _, dep := range tt.want.deps {
-				assert.NotNilf(dag.GetDependency(dep.source, dep.dest), "Dependency not found for %s -> %s", dep.source, dep.dest)
-			}
-			assert.Len(dag.ListResources(), len(tt.want.nodes))
-			assert.Len(dag.ListDependencies(), len(tt.want.deps))
+
+			tt.want.Assert(t, dag)
 		})
 	}
 }
@@ -155,8 +152,8 @@ func Test_GetVpcSubnets(t *testing.T) {
 func Test_CreatePrivateSubnet(t *testing.T) {
 	appName := "test-app"
 	type stringDep struct {
-		source string
-		dest   string
+		Source      string
+		Destination string
 	}
 	type testResult struct {
 		nodes []string
@@ -192,7 +189,7 @@ func Test_CreatePrivateSubnet(t *testing.T) {
 				assert.NotNil(dag.GetResource(id))
 			}
 			for _, dep := range tt.want.deps {
-				assert.NotNil(dag.GetDependency(dep.source, dep.dest))
+				assert.NotNil(dag.GetDependency(dep.Source, dep.Destination))
 			}
 			assert.Len(dag.ListResources(), len(tt.want.nodes))
 			assert.Len(dag.ListDependencies(), len(tt.want.deps))
@@ -203,8 +200,8 @@ func Test_CreatePrivateSubnet(t *testing.T) {
 func Test_CreatePublicSubnet(t *testing.T) {
 	appName := "test-app"
 	type stringDep struct {
-		source string
-		dest   string
+		Source      string
+		Destination string
 	}
 	type testResult struct {
 		nodes []string
@@ -238,7 +235,7 @@ func Test_CreatePublicSubnet(t *testing.T) {
 				assert.NotNil(dag.GetResource(id))
 			}
 			for _, dep := range tt.want.deps {
-				assert.NotNil(dag.GetDependency(dep.source, dep.dest))
+				assert.NotNil(dag.GetDependency(dep.Source, dep.Destination))
 			}
 			assert.Len(dag.ListResources(), len(tt.want.nodes))
 			assert.Len(dag.ListDependencies(), len(tt.want.deps))
@@ -249,8 +246,8 @@ func Test_CreatePublicSubnet(t *testing.T) {
 func Test_CreateGatewayVpcEndpoint(t *testing.T) {
 	appName := "test-app"
 	type stringDep struct {
-		source string
-		dest   string
+		Source      string
+		Destination string
 	}
 	type testResult struct {
 		nodes []string
@@ -303,8 +300,8 @@ func Test_CreateGatewayVpcEndpoint(t *testing.T) {
 func Test_CreateInterfaceVpcEndpoint(t *testing.T) {
 	appName := "test-app"
 	type stringDep struct {
-		source string
-		dest   string
+		Source      string
+		Destination string
 	}
 	type testResult struct {
 		nodes []string
@@ -319,12 +316,12 @@ func Test_CreateInterfaceVpcEndpoint(t *testing.T) {
 			want: testResult{
 				nodes: []string{"aws:vpc:test_app", "aws:region:region", "aws:vpc_endpoint:test_app_s3", "aws:vpc_subnet:test_app_1", "aws:vpc_subnet:test_app_2"},
 				deps: []stringDep{
-					{dest: "aws:vpc:test_app", source: "aws:vpc_endpoint:test_app_s3"},
-					{dest: "aws:region:region", source: "aws:vpc_endpoint:test_app_s3"},
-					{dest: "aws:vpc:test_app", source: "aws:vpc_subnet:test_app_1"},
-					{dest: "aws:vpc:test_app", source: "aws:vpc_subnet:test_app_2"},
-					{dest: "aws:vpc_subnet:test_app_1", source: "aws:vpc_endpoint:test_app_s3"},
-					{dest: "aws:vpc_subnet:test_app_2", source: "aws:vpc_endpoint:test_app_s3"},
+					{Destination: "aws:vpc:test_app", Source: "aws:vpc_endpoint:test_app_s3"},
+					{Destination: "aws:region:region", Source: "aws:vpc_endpoint:test_app_s3"},
+					{Destination: "aws:vpc:test_app", Source: "aws:vpc_subnet:test_app_1"},
+					{Destination: "aws:vpc:test_app", Source: "aws:vpc_subnet:test_app_2"},
+					{Destination: "aws:vpc_subnet:test_app_1", Source: "aws:vpc_endpoint:test_app_s3"},
+					{Destination: "aws:vpc_subnet:test_app_2", Source: "aws:vpc_endpoint:test_app_s3"},
 				},
 			},
 		},
