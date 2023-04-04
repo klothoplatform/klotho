@@ -66,6 +66,7 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 	execUnits := core.GetResourcesOfType[*core.ExecutionUnit](result)
 	for _, unit := range execUnits {
 
+		// For now we skip over kubernetes because the environment variables are already attached to the helm chart. This may change as we do kubernetes development
 		if a.Config.GetExecutionUnit(unit.ID).Type == Kubernetes {
 			continue
 		}
