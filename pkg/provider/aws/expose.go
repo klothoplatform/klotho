@@ -13,11 +13,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+// GenerateExposeResources will create the necessary resources within AWS to support a Gateway construct and its dependencies.
 func (a *AWS) GenerateExposeResources(gateway *core.Gateway, result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	err := a.CreateRestApi(gateway, result, dag)
 	return err
 }
 
+// CreateRestApi will create the the necessary resources within AWS to support a Gateway construct, of type RestAPI, and its dependencies, using the apigatewayv1 resources.
 func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	var errs multierr.Error
 	api := resources.NewRestApi(a.Config.AppName, gateway)
@@ -25,7 +27,7 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 	api_references := []core.AnnotationKey{gateway.AnnotationKey}
 	triggers := map[string]string{}
 
-	resourceMap := map[string]*resources.ApiResource{}
+	resourceBySegment := map[string]*resources.ApiResource{}
 	for _, route := range gateway.Routes {
 		construct := result.GetConstruct(core.AnnotationKey{ID: route.ExecUnitName, Capability: annotation.ExecutionUnitCapability}.ToId())
 		if construct == nil {
@@ -41,6 +43,7 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 		routeTrigger := fmt.Sprintf("%s:%s:%s", route.ExecUnitName, route.Path, route.Verb)
 		triggers[routeTrigger] = routeTrigger
 
+		// We split our path by segments so that we can create a resource per segment as per api gateway v1
 		segments := strings.Split(route.Path, "/")
 		currPathSegment := strings.Builder{}
 
@@ -49,6 +52,7 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 			integrationRequestParams := map[string]string{}
 
 			if strings.Contains(segment, ":") {
+				// We strip the pathParam of the : and * characters (which signal path parameters or wildcard routes) to be able to inject them into our method and integration request parameters
 				pathParam := fmt.Sprintf("request.path.%s", segment)
 				pathParam = strings.ReplaceAll(pathParam, ":", "")
 				pathParam = strings.ReplaceAll(pathParam, "*", "")
@@ -59,12 +63,12 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 			segment = convertPath(segment)
 			currPathSegment.WriteString(fmt.Sprintf("%s/", segment))
 			refs := []core.AnnotationKey{gateway.Provenance(), execUnit.Provenance()}
-			resource, ok := resourceMap[segment]
+			resource, ok := resourceBySegment[segment]
 			if !ok {
 				resource = resources.NewApiResource(api, refs, segment)
 				dag.AddResource(resource)
 				dag.AddDependency2(resource, api)
-				resourceMap[currPathSegment.String()] = resource
+				resourceBySegment[currPathSegment.String()] = resource
 				triggers[resource.Name] = resource.Name
 			}
 
@@ -90,6 +94,7 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 	return errs.ErrOrNil()
 }
 
+// createIntegration will create the the necessary resources within AWS to support a dependency between an expose construct and an execution unit.
 func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.ExecutionUnit, refs []core.AnnotationKey, route core.Route, dag *core.ResourceGraph) (*resources.ApiIntegration, error) {
 	cfg := a.Config.GetExecutionUnit(unit.ID)
 	switch cfg.Type {
@@ -115,6 +120,12 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 	}
 }
 
+// convertPath will convert the path stored in our gateway construct into a path that is functionaliy the same within apigateway.
+//
+// The path will be minpulated so that:
+// - any : characters will be removed and replaced the item with surrounding brackets, to signal this is a path parameter
+// - any escaped / will turn into a singal /
+// - any wildcard route will be propagated to the apigateway standard format
 func convertPath(path string) string {
 	path = regexp.MustCompile(":([^/]+)").ReplaceAllString(path, "{$1}")
 	path = regexp.MustCompile("[*]}").ReplaceAllString(path, "+}")
