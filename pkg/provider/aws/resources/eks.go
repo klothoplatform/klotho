@@ -125,10 +125,12 @@ func createPodExecutionRole(appName string, roleName string, refs []core.Annotat
 
 func createNodeRole(appName string, roleName string, refs []core.AnnotationKey) *IamRole {
 	nodeRole := NewIamRole(appName, roleName, refs, EC2_ASSUMER_ROLE_POLICY)
-	nodeRole.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+	nodeRole.AddAwsManagedPolicies([]string{
+		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
 		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
 		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy", "arn:aws:iam::aws:policy/AWSCloudMapFullAccess",
-		"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"})
+		"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
+	})
 	return nodeRole
 }
 

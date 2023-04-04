@@ -28,7 +28,8 @@ func Test_CreateEksCluster(t *testing.T) {
 		{
 			name: "happy path",
 			want: testResult{
-				nodes: []string{"aws:eks_cluster:test-app-test-cluster",
+				nodes: []string{
+					"aws:eks_cluster:test-app-test-cluster",
 					"aws:eks_fargate_profile:test-app-test-cluster",
 					"aws:eks_node_group:test-app-test-cluster",
 					"aws:iam_role:test-app-test-cluster-FargateExecutionRole",
@@ -53,7 +54,7 @@ func Test_CreateEksCluster(t *testing.T) {
 			for _, id := range tt.want.nodes {
 				resource := dag.GetResource(id)
 				assert.NotNil(resource, fmt.Sprintf("Resource %s, not found", id))
-				assert.Equal(resource.KlothoConstructRef(), []core.AnnotationKey{{ID: "test"}}, fmt.Sprintf("Resource %s, did not recieve klotho construct ref", resource.Id()))
+				assert.Equalf(resource.KlothoConstructRef(), []core.AnnotationKey{{ID: "test"}}, "Resource %s, did not recieve klotho construct ref", resource.Id())
 			}
 			for _, dep := range tt.want.deps {
 				assert.NotNil(dag.GetDependency(dep.source, dep.dest), fmt.Sprintf("Dependency %s, not found", dep))
@@ -96,8 +97,10 @@ func Test_createNodeRole(t *testing.T) {
 	eus := []core.AnnotationKey{{ID: "test"}}
 	assert := assert.New(t)
 	role := createNodeRole(appName, "test", eus)
-	assert.ElementsMatch(role.AwsManagedPolicies, []string{"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+	assert.ElementsMatch(role.AwsManagedPolicies, []string{
+		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
 		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
 		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy", "arn:aws:iam::aws:policy/AWSCloudMapFullAccess",
-		"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"})
+		"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
+	})
 }

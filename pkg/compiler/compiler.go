@@ -105,21 +105,17 @@ func (c *Compiler) createConfigOutputFile() error {
 	c.Document.Configuration.UpdateForResources(c.Document.Constructs.ListConstructs())
 	buf := new(bytes.Buffer)
 	var err error
-	var ext string
 	switch c.Document.Configuration.Format {
 	case "toml":
-		ext = "toml"
 		enc := toml.NewEncoder(buf)
 		enc.SetArraysMultiline(true)
 		enc.SetIndentTables(true)
 		err = enc.Encode(c.Document.Configuration)
 
 	case "json":
-		ext = "json"
 		err = json.NewEncoder(buf).Encode(c.Document.Configuration)
 
 	case "yaml":
-		ext = "yaml"
 		err = yaml.NewEncoder(buf).Encode(c.Document.Configuration)
 
 	default:
@@ -129,7 +125,7 @@ func (c *Compiler) createConfigOutputFile() error {
 		return err
 	}
 	c.Document.OutputFiles = append(c.Document.OutputFiles, &core.RawFile{
-		FPath:   fmt.Sprintf("klotho.%s", ext),
+		FPath:   fmt.Sprintf("klotho.%s", c.Document.Configuration.Format),
 		Content: buf.Bytes(),
 	})
 	return nil

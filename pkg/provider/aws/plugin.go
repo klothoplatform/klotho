@@ -5,13 +5,17 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
 func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (Links []core.CloudResourceLink, err error) {
 	log := zap.S()
 
-	a.createEksClusters(result, dag)
+	err = a.createEksClusters(result, dag)
+	if err != nil {
+		return
+	}
 	constructIds, err := result.TopologicalSort()
 	if err != nil {
 		return
@@ -65,7 +69,7 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (L
 // The clusterId field within an execution units configuration, will determine which cluster the unit will belong to, helping klotho understands how many clusters to create.
 // If the clusterId field is unassigned, the execution unit will be assigned to the first clusterId alphanumerically.
 // If there are no clusterIds defined by any units, one cluster will be created for all units.
-func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceGraph) {
+func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	unassignedUnits := []*core.ExecutionUnit{}
 	clusterIdToUnit := map[string][]*core.ExecutionUnit{}
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
@@ -88,10 +92,18 @@ func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceG
 	}
 	sort.Strings(keys)
 
-	if len(keys) == 0 && len(unassignedUnits) != 0 {
+	// If multiple clusters exist and there are unassigned units, error out since we can not determine where they should belong
+	if len(keys) > 1 && len(unassignedUnits) != 0 {
+		return errors.Errorf("Unable to determine which cluster, units %v belong to", unassignedUnits)
+	}
+
+	// If no units are defined in config, create a defaultly named one
+	if len(keys) == 0 {
 		keys = append(keys, "eks-cluster")
-		clusterIdToUnit[keys[0]] = append(clusterIdToUnit[keys[0]], unassignedUnits...)
-	} else if len(unassignedUnits) != 0 {
+	}
+
+	// Assign all units to the cluster that exists
+	if len(unassignedUnits) != 0 {
 		clusterIdToUnit[keys[0]] = append(clusterIdToUnit[keys[0]], unassignedUnits...)
 	}
 
@@ -100,6 +112,7 @@ func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceG
 	for clusterId, units := range clusterIdToUnit {
 		resources.CreateEksCluster(a.Config.AppName, clusterId, subnets, nil, units, dag)
 	}
+	return nil
 }
 
 func reverseInPlace[A any](a []A) {

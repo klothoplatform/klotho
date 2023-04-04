@@ -20,7 +20,9 @@ function create(args: Args): aws.eks.NodeGroup {
     return new aws.eks.NodeGroup(args.Name, {
         clusterName: args.Cluster.name,
         nodeRoleArn: args.NodeRole.arn,
-        amiType: args.AmiType != '' ? args.AmiType : undefined,
+        //TMPL {{ if .AmiType.Raw }}
+        amiType: args.AmiType,
+        //TMPL {{ end }}
         subnetIds: args.Subnets.map((subnet) => subnet.id),
         scalingConfig: {
             desiredSize: args.DesiredSize,
