@@ -29,7 +29,7 @@ func (cg *ResourceGraph) AddResource(resource Resource) {
 }
 
 // AddDependency2 deliberately renamed from AddDependency in the short term to catch when dependencies were
-// being added in the inverse order.
+// being added in the inverse order. If either `source` or `dest` don't exist in the graph, they are added.
 func (rg *ResourceGraph) AddDependency2(source Resource, dest Resource) {
 	for _, res := range []Resource{source, dest} {
 		if rg.GetResource(res.Id()) == nil {
