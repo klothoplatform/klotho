@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang"
@@ -65,7 +66,10 @@ func OutputCapabilities(input *core.InputFiles, outDir string) error {
 	return nil
 }
 
-func OutputResources(result *core.ConstructGraph, outDir string) (resourceCounts map[string]int, err error) {
+func OutputResources(document compiler.CompilationDocument) (resourceCounts map[string]int, err error) {
+	outDir := document.Configuration.OutDir
+	result := document.Constructs
+
 	err = os.MkdirAll(outDir, 0777)
 	if err != nil {
 		return
@@ -118,9 +122,26 @@ func OutputResources(result *core.ConstructGraph, outDir string) (resourceCounts
 		}
 	}
 
+	merr.Append(OutputHelpers(document.Resources, outDir))
 	err = merr.ErrOrNil()
 
 	return
+}
+
+func OutputHelpers(dag *core.ResourceGraph, outDir string) error {
+	var merr multierr.Error
+	for _, resource := range dag.ListResources() {
+		output, ok := resource.(core.HasLocalOutput)
+		if !ok {
+			continue
+		}
+		zap.L().Debug("Output", zap.String("provider", resource.Provider()), zap.String("id", resource.Id()))
+		err := output.OutputTo(outDir)
+		if err != nil {
+			merr.Append(errors.Wrapf(err, "error outputting resource %+v", resource.Id()))
+		}
+	}
+	return merr.ErrOrNil()
 }
 
 func GetLanguagesUsed(result *core.ConstructGraph) []core.ExecutableType {
