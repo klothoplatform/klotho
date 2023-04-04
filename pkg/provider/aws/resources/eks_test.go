@@ -11,24 +11,16 @@ func Test_CreateEksCluster(t *testing.T) {
 	appName := "test-app"
 	clusterName := "test-cluster"
 	eus := []*core.ExecutionUnit{{AnnotationKey: core.AnnotationKey{ID: "test"}}}
-	sources := []core.AnnotationKey{{ID: "test"}}
+	Sources := []core.AnnotationKey{{ID: "test"}}
 	subnet := NewSubnet("test-subnet", NewVpc(appName), "", PrivateSubnet, core.IaCValue{})
-	type stringDep struct {
-		source string
-		dest   string
-	}
-	type testResult struct {
-		nodes []string
-		deps  []stringDep
-	}
 	cases := []struct {
 		name string
-		want testResult
+		want DagExpectation
 	}{
 		{
 			name: "happy path",
-			want: testResult{
-				nodes: []string{
+			want: DagExpectation{
+				Nodes: []string{
 					"aws:eks_cluster:test-app-test-cluster",
 					"aws:eks_fargate_profile:test-app-test-cluster",
 					"aws:eks_node_group:test-app-test-cluster",
@@ -37,15 +29,15 @@ func Test_CreateEksCluster(t *testing.T) {
 					"aws:iam_role:test-app-test-cluster-k8sAdmin",
 					subnet.Id(),
 				},
-				deps: []stringDep{
-					{dest: "aws:eks_cluster:test-app-test-cluster", source: "aws:eks_fargate_profile:test-app-test-cluster"},
-					{dest: "aws:eks_cluster:test-app-test-cluster", source: "aws:eks_node_group:test-app-test-cluster"},
-					{dest: "aws:iam_role:test-app-test-cluster-k8sAdmin", source: "aws:eks_cluster:test-app-test-cluster"},
-					{dest: "aws:iam_role:test-app-test-cluster-FargateExecutionRole", source: "aws:eks_fargate_profile:test-app-test-cluster"},
-					{dest: "aws:iam_role:test-app-test-cluster-NodeGroupRole", source: "aws:eks_node_group:test-app-test-cluster"},
-					{dest: subnet.Id(), source: "aws:eks_node_group:test-app-test-cluster"},
-					{dest: subnet.Id(), source: "aws:eks_fargate_profile:test-app-test-cluster"},
-					{dest: subnet.Id(), source: "aws:eks_cluster:test-app-test-cluster"},
+				Deps: []StringDep{
+					{Destination: "aws:eks_cluster:test-app-test-cluster", Source: "aws:eks_fargate_profile:test-app-test-cluster"},
+					{Destination: "aws:eks_cluster:test-app-test-cluster", Source: "aws:eks_node_group:test-app-test-cluster"},
+					{Destination: "aws:iam_role:test-app-test-cluster-k8sAdmin", Source: "aws:eks_cluster:test-app-test-cluster"},
+					{Destination: "aws:iam_role:test-app-test-cluster-FargateExecutionRole", Source: "aws:eks_fargate_profile:test-app-test-cluster"},
+					{Destination: "aws:iam_role:test-app-test-cluster-NodeGroupRole", Source: "aws:eks_node_group:test-app-test-cluster"},
+					{Destination: subnet.Id(), Source: "aws:eks_node_group:test-app-test-cluster"},
+					{Destination: subnet.Id(), Source: "aws:eks_fargate_profile:test-app-test-cluster"},
+					{Destination: subnet.Id(), Source: "aws:eks_cluster:test-app-test-cluster"},
 				},
 			},
 		},
@@ -55,21 +47,13 @@ func Test_CreateEksCluster(t *testing.T) {
 			assert := assert.New(t)
 			dag := core.NewResourceGraph()
 			CreateEksCluster(appName, clusterName, []*Subnet{subnet}, nil, eus, dag)
-			var res []string
 			for _, r := range dag.ListResources() {
-				res = append(res, r.Id())
 				if r != subnet { // ignore input resources
-					assert.ElementsMatch(sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
+					assert.ElementsMatch(Sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
 				}
 			}
-			assert.ElementsMatch(tt.want.nodes, res)
 
-			var dep []stringDep
-			for _, e := range dag.ListDependencies() {
-				dep = append(dep, stringDep{source: e.Source.Id(), dest: e.Destination.Id()})
-			}
-
-			assert.ElementsMatch(tt.want.deps, dep)
+			tt.want.Assert(t, dag)
 		})
 	}
 }
