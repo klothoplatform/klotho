@@ -7,15 +7,18 @@ import (
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
-const LAMBDA_FUNCTION_TYPE = "lambda_function"
+const (
+	LAMBDA_FUNCTION_TYPE   = "lambda_function"
+	LAMBDA_PERMISSION_TYPE = "lambda_permission"
+)
 
 var lambdaFunctionSanitizer = aws.LambdaFunctionSanitizer
+var LambdaPermissionSanitizer = aws.LambdaPermissionSanitizer
 
 type (
 	LambdaFunction struct {
-		Name          string
-		ConstructsRef []core.AnnotationKey
-		// Role points to the id of the cloud resource
+		Name                 string
+		ConstructsRef        []core.AnnotationKey
 		Role                 *IamRole
 		VpcConfig            LambdaVpcConfig
 		Image                *EcrImage
@@ -25,6 +28,15 @@ type (
 	LambdaVpcConfig struct {
 		SecurityGroupIds []string
 		SubnetIds        []string
+	}
+
+	LambdaPermission struct {
+		Name          string
+		ConstructsRef []core.AnnotationKey
+		Function      *LambdaFunction
+		Principal     string
+		Source        core.IaCValue
+		Action        string
 	}
 )
 
@@ -50,4 +62,30 @@ func (lambda *LambdaFunction) KlothoConstructRef() []core.AnnotationKey {
 // ID returns the id of the cloud resource
 func (lambda *LambdaFunction) Id() string {
 	return fmt.Sprintf("%s:%s:%s", lambda.Provider(), LAMBDA_FUNCTION_TYPE, lambda.Name)
+}
+
+func NewLambdaPermission(function *LambdaFunction, val core.IaCValue, principal string, action string, ref []core.AnnotationKey) *LambdaPermission {
+	return &LambdaPermission{
+		Name:          LambdaPermissionSanitizer.Apply(fmt.Sprintf("%s-%s", function.Name, val.Resource.Id())),
+		ConstructsRef: ref,
+		Function:      function,
+		Source:        val,
+		Action:        action,
+		Principal:     principal,
+	}
+}
+
+// Provider returns name of the provider the resource is correlated to
+func (permission *LambdaPermission) Provider() string {
+	return AWS_PROVIDER
+}
+
+// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (permission *LambdaPermission) KlothoConstructRef() []core.AnnotationKey {
+	return permission.ConstructsRef
+}
+
+// ID returns the id of the cloud resource
+func (permission *LambdaPermission) Id() string {
+	return fmt.Sprintf("%s:%s:%s", permission.Provider(), LAMBDA_PERMISSION_TYPE, permission.Name)
 }
