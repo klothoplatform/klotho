@@ -37,14 +37,19 @@ func (a *AWS) GenerateKvResources(kv *core.Kv, result *core.ConstructGraph, dag 
 	for _, res := range upstreamConstructs {
 		unit, ok := res.(*core.ExecutionUnit)
 		if ok {
-			a.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), []string{"dynamodb:*"},
-				[]core.IaCValue{
-					{Resource: table, Property: core.ARN_IAC_VALUE},
-					{Resource: table, Property: resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE},
-					{Resource: table, Property: resources.DYNAMODB_TABLE_INDEX_IAC_VALUE},
-					{Resource: table, Property: resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE},
-					{Resource: table, Property: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
-				})
+			actions := []string{"dynamodb:*"}
+			policyResources := []core.IaCValue{
+				{Resource: table, Property: core.ARN_IAC_VALUE},
+				{Resource: table, Property: resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE},
+				{Resource: table, Property: resources.DYNAMODB_TABLE_INDEX_IAC_VALUE},
+				{Resource: table, Property: resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE},
+				{Resource: table, Property: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
+			}
+			policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
+			policy := resources.NewIamPolicy(a.Config.AppName, kv.Id(), kv.Provenance(), policyDoc)
+			dag.AddResource(policy)
+			dag.AddDependency2(policy, table)
+			a.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), policy)
 		}
 	}
 	return nil

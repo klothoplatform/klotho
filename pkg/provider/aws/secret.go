@@ -3,6 +3,7 @@ package aws
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"github.com/pkg/errors"
 )
 
 func (a *AWS) GenerateSecretsResources(construct *core.Secrets, result *core.ConstructGraph, dag *core.ResourceGraph) error {
@@ -20,14 +21,26 @@ func (a *AWS) GenerateSecretsResources(construct *core.Secrets, result *core.Con
 			if !isUnit {
 				continue
 			}
-			a.PolicyGenerator.AddAllowPolicyToUnit(
-				unit.Id(),
-				[]string{`secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue`},
-				[]core.IaCValue{{
-					Resource: secret,
-					Property: core.ARN_IAC_VALUE,
-				}},
-			)
+
+			actions := []string{`secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue`}
+			policyResources := []core.IaCValue{{
+				Resource: secretVersion,
+				Property: core.ARN_IAC_VALUE,
+			}}
+			policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
+			policy := resources.NewIamPolicy(a.Config.AppName, construct.Id(), construct.Provenance(), policyDoc)
+			if res := dag.GetResource(policy.Id()); res != nil {
+				if existingPolicy, ok := res.(*resources.IamPolicy); ok {
+					existingPolicy.Policy.Statement = append(existingPolicy.Policy.Statement, policyDoc.Statement...)
+					dag.AddDependency2(existingPolicy, secretVersion)
+				} else {
+					return errors.Errorf("expected resource with id, %s, to be an iam policy", res.Id())
+				}
+			} else {
+				dag.AddResource(policy)
+				dag.AddDependency2(policy, secretVersion)
+				a.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), policy)
+			}
 		}
 	}
 	return nil

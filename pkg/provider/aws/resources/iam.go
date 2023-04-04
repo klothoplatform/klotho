@@ -12,59 +12,59 @@ const (
 	IAM_ROLE_TYPE              = "iam_role"
 	IAM_POLICY_TYPE            = "iam_policy"
 	LAMBDA_ASSUMER_ROLE_POLICY = `{
-	Version: '2012-10-17',
-	Statement: [
+	"Version": "2012-10-17",
+	"Statement": [
 		{
-			Action: 'sts:AssumeRole',
-			Principal: {
-				Service: 'lambda.amazonaws.com',
+			"Action": "sts:AssumeRole",
+			"Principal": {
+				"Service": "lambda.amazonaws.com"
 			},
-			Effect: 'Allow',
-			Sid: '',
-		},
-	],
+			"Effect": "Allow",
+			"Sid": ""
+		}
+	]
 }`
 
 	ECS_ASSUMER_ROLE_POLICY = `{
-	Version: '2012-10-17',
-	Statement: [
+	"Version": "2012-10-17",
+	"Statement": [
 		{
-			Action: 'sts:AssumeRole',
-			Principal: {
-				Service: 'ecs-tasks.amazonaws.com',
+			"Action": "sts:AssumeRole",
+			"Principal": {
+				"Service": "ecs-tasks.amazonaws.com"
 			},
-			Effect: 'Allow',
-			Sid: '',
-		},
-	],
+			"Effect": "Allow",
+			"Sid": ""
+		}
+	]
 }`
 
 	EC2_ASSUMER_ROLE_POLICY = `{
-	Version: '2012-10-17',
-	Statement: [
+	"Version": "2012-10-17",
+	"Statement": [
 		{
-			Action: 'sts:AssumeRole',
-			Principal: {
-				Service: 'ec2.amazonaws.com',
+			"Action": "sts:AssumeRole",
+			"Principal": {
+				"Service": "ec2.amazonaws.com"
 			},
-			Effect: 'Allow',
-			Sid: '',
-		},
-	],
+			"Effect": "Allow",
+			"Sid": ""
+		}
+	]
 }`
 
 	EKS_FARGATE_ASSUME_ROLE_POLICY = `{
-	Version: '2012-10-17',
-	Statement: [
+	"Version": "2012-10-17",
+	"Statement": [
 		{
-			Action: 'sts:AssumeRole',
-			Principal: {
-				Service: 'eks-fargate-pods.amazonaws.com',
+			"Action": "sts:AssumeRole",
+			"Principal": {
+				""Service"": "eks-fargate-pods.amazonaws.com"
 			},
-			Effect: 'Allow',
-			Sid: '',
-		},
-	],
+			"Effect": "Allow",
+			"Sid": ""
+		}
+	]
 }`
 	EKS_ASSUME_ROLE_POLICY = `{
 		Version: '2012-10-17',
@@ -103,7 +103,7 @@ type (
 
 	PolicyGenerator struct {
 		unitToRole    map[string]*IamRole
-		unitsPolicies map[string]*PolicyDocument
+		unitsPolicies map[string][]*IamPolicy
 	}
 
 	PolicyDocument struct {
@@ -120,32 +120,23 @@ type (
 
 func NewPolicyGenerator() *PolicyGenerator {
 	p := &PolicyGenerator{
-		unitsPolicies: make(map[string]*PolicyDocument),
+		unitsPolicies: make(map[string][]*IamPolicy),
 		unitToRole:    make(map[string]*IamRole),
 	}
 	return p
 }
 
-func (p *PolicyGenerator) AddAllowPolicyToUnit(unitId string, actions []string, resources []core.IaCValue) {
-	policyDoc, found := p.unitsPolicies[unitId]
+func (p *PolicyGenerator) AddAllowPolicyToUnit(unitId string, policy *IamPolicy) {
+	policies, found := p.unitsPolicies[unitId]
 	if !found {
-		p.unitsPolicies[unitId] = &PolicyDocument{
-			Version: VERSION,
-			Statement: []StatementEntry{
-				{
-					Effect:   "Allow",
-					Action:   actions,
-					Resource: resources,
-				},
-			},
-		}
+		p.unitsPolicies[unitId] = []*IamPolicy{policy}
 	} else {
-		policyDoc.Statement = append(policyDoc.Statement, StatementEntry{
-			Effect:   "Allow",
-			Action:   actions,
-			Resource: resources,
-		})
-		policyDoc.Deduplicate()
+		for _, pol := range policies {
+			if policy.Name == pol.Name {
+				return
+			}
+		}
+		p.unitsPolicies[unitId] = append(p.unitsPolicies[unitId], policy)
 	}
 }
 
@@ -162,9 +153,22 @@ func (p *PolicyGenerator) GetUnitRole(unitId string) *IamRole {
 	return role
 }
 
-func (p *PolicyGenerator) GetUnitPolicies(unitId string) *PolicyDocument {
-	policyDoc := p.unitsPolicies[unitId]
-	return policyDoc
+func (p *PolicyGenerator) GetUnitPolicies(unitId string) []*IamPolicy {
+	policies := p.unitsPolicies[unitId]
+	return policies
+}
+
+func CreateAllowPolicyDocument(actions []string, resources []core.IaCValue) *PolicyDocument {
+	return &PolicyDocument{
+		Version: VERSION,
+		Statement: []StatementEntry{
+			{
+				Effect:   "Allow",
+				Action:   actions,
+				Resource: resources,
+			},
+		},
+	}
 }
 
 func NewIamRole(appName string, roleName string, ref []core.AnnotationKey, assumeRolePolicy string) *IamRole {

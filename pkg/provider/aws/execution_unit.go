@@ -36,7 +36,14 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 			dag.AddDependency2(role, resource)
 		}
 	}
-	role.InlinePolicy = a.PolicyGenerator.GetUnitPolicies(unit.Id())
+	unitsPolicies := a.PolicyGenerator.GetUnitPolicies(unit.Id())
+	for _, pol := range unitsPolicies {
+		dag.AddDependency2(role, pol)
+		role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{
+			Resource: pol,
+			Property: core.ARN_IAC_VALUE,
+		})
+	}
 
 	switch execUnitCfg.Type {
 	case Lambda:

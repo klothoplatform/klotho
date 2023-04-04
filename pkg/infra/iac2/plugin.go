@@ -42,7 +42,7 @@ func (p Plugin) Translate(cloudGraph *core.ResourceGraph) ([]core.File, error) {
 		return nil, err
 	}
 
-	buf.Write([]byte("export default async () => {\n"))
+	buf.Write([]byte("export = async () => {\n"))
 	buf.Write([]byte("const kloConfig: pulumi.Config = new pulumi.Config('klo')\n"))
 	buf.Write([]byte("const protect = kloConfig.getBoolean('protect') ?? false\n\n"))
 
@@ -77,8 +77,17 @@ func (p Plugin) Translate(cloudGraph *core.ResourceGraph) ([]core.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	var content []byte
+	content, err = files.ReadFile("tsConfig.json")
+	if err == nil {
+		return nil, err
+	}
+	tsConfig := &core.RawFile{
+		FPath:   "tsConfig.json",
+		Content: content,
+	}
 
-	return []core.File{indexTs, packageJson, pulumiYaml, pulumiStack}, nil
+	return []core.File{indexTs, packageJson, pulumiYaml, pulumiStack, tsConfig}, nil
 }
 
 func addTemplate(name string, t *template.Template, data any) (*core.RawFile, error) {

@@ -15,7 +15,13 @@ func Test_GenerateFsResources(t *testing.T) {
 	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
 	fs := &core.Fs{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
 	bucket := resources.NewS3Bucket(fs, "test")
-
+	actions := []string{"s3:*"}
+	policyResources := []core.IaCValue{
+		{Resource: bucket, Property: core.ARN_IAC_VALUE},
+		{Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE},
+	}
+	policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
+	policy := resources.NewIamPolicy("test", fs.Id(), fs.Provenance(), policyDoc)
 	type testResult struct {
 		nodes  []core.Resource
 		deps   []graph.Edge[core.Resource]
@@ -45,13 +51,12 @@ func Test_GenerateFsResources(t *testing.T) {
 			},
 			want: testResult{
 				nodes: []core.Resource{
-					bucket,
+					bucket, policy,
 				},
-				policy: resources.StatementEntry{
-					Effect:   "Allow",
-					Action:   []string{"s3:*"},
-					Resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE}},
+				deps: []graph.Edge[core.Resource]{
+					{Source: policy, Destination: bucket},
 				},
+				policy: policy.Policy.Statement[0],
 			},
 		},
 	}
@@ -98,10 +103,10 @@ func Test_GenerateFsResources(t *testing.T) {
 						found = true
 					}
 				}
-				assert.True(found)
+				assert.Truef(found, "Expected to find dependency for %s -> %s", dep.Source.Id(), dep.Destination.Id())
 			}
 			if len(tt.want.policy.Action) != 0 {
-				for _, statement := range aws.PolicyGenerator.GetUnitPolicies(eu.Id()).Statement {
+				for _, statement := range aws.PolicyGenerator.GetUnitPolicies(eu.Id())[0].Policy.Statement {
 					foundArnVal := false
 					foundDirVal := false
 					for _, val := range statement.Resource {
