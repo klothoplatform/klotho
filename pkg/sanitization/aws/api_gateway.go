@@ -21,7 +21,7 @@ var ApiResourceSanitizer = sanitization.NewSanitizer(
 	[]sanitization.Rule{
 		// strip any leading non alpha characters
 		{
-			Pattern:     regexp.MustCompile(`[^a-zA-Z0-9_-]+`),
+			Pattern:     regexp.MustCompile(`[^a-zA-Z0-9\/_-]+`),
 			Replacement: "-",
 		},
 	}, 64)

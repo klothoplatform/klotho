@@ -10,16 +10,17 @@ import (
 func Test_AddAllowPolicyToUnit(t *testing.T) {
 	bucket := NewS3Bucket(&core.Fs{}, "test-app")
 	unitId := "testUnit"
+
 	cases := []struct {
 		name             string
-		existingPolicies map[string]*PolicyDocument
+		existingPolicies map[string][]*IamPolicy
 		actions          []string
 		resource         []core.IaCValue
 		want             StatementEntry
 	}{
 		{
 			name:             "Add policy, none exists",
-			existingPolicies: map[string]*PolicyDocument{},
+			existingPolicies: map[string][]*IamPolicy{},
 			actions:          []string{"s3:*"},
 			resource:         []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE}},
 			want: StatementEntry{
@@ -30,14 +31,19 @@ func Test_AddAllowPolicyToUnit(t *testing.T) {
 		},
 		{
 			name: "Add policy, one already exists",
-			existingPolicies: map[string]*PolicyDocument{
+			existingPolicies: map[string][]*IamPolicy{
 				unitId: {
-					Version: VERSION,
-					Statement: []StatementEntry{
-						{
-							Effect:   "Allow",
-							Action:   []string{"dynamodb:*"},
-							Resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE}},
+					{
+						Name: "test_policy",
+						Policy: &PolicyDocument{
+							Version: VERSION,
+							Statement: []StatementEntry{
+								{
+									Effect:   "Allow",
+									Action:   []string{"dynamodb:*"},
+									Resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE}},
+								},
+							},
 						},
 					},
 				},
@@ -46,7 +52,7 @@ func Test_AddAllowPolicyToUnit(t *testing.T) {
 			resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE}},
 			want: StatementEntry{
 				Effect:   "Allow",
-				Action:   []string{"s3:*"},
+				Action:   []string{"dynamodb:*"},
 				Resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE}},
 			},
 		},
@@ -59,9 +65,24 @@ func Test_AddAllowPolicyToUnit(t *testing.T) {
 				unitsPolicies: tt.existingPolicies,
 			}
 
-			p.AddAllowPolicyToUnit(unitId, tt.actions, tt.resource)
+			policy := &IamPolicy{
+				Name: "test_policy",
+				Policy: &PolicyDocument{
+					Version: VERSION,
+					Statement: []StatementEntry{
+						{
+							Action:   tt.actions,
+							Effect:   "Allow",
+							Resource: tt.resource,
+						},
+					},
+				},
+			}
+
+			p.AddAllowPolicyToUnit(unitId, policy)
 			policies := p.unitsPolicies[unitId]
-			assert.Contains(policies.Statement, tt.want)
+			assert.Len(policies, 1)
+			assert.Contains(policies[0].Policy.Statement, tt.want)
 		})
 
 	}

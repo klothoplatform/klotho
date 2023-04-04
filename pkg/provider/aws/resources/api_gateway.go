@@ -30,10 +30,11 @@ type (
 	}
 
 	ApiResource struct {
-		Name          string
-		ConstructsRef []core.AnnotationKey
-		RestApi       *RestApi
-		PathPart      string
+		Name           string
+		ConstructsRef  []core.AnnotationKey
+		RestApi        *RestApi
+		PathPart       string
+		ParentResource *ApiResource
 	}
 
 	ApiMethod struct {
@@ -105,12 +106,13 @@ func (api *RestApi) Id() string {
 	return fmt.Sprintf("%s:%s:%s", api.Provider(), API_GATEWAY_REST_TYPE, api.Name)
 }
 
-func NewApiResource(api *RestApi, refs []core.AnnotationKey, pathPart string) *ApiResource {
+func NewApiResource(currSegment string, api *RestApi, refs []core.AnnotationKey, pathPart string, parentResource *ApiResource) *ApiResource {
 	return &ApiResource{
-		Name:          apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", api.Name, pathPart)),
-		ConstructsRef: refs,
-		RestApi:       api,
-		PathPart:      pathPart,
+		Name:           apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", api.Name, currSegment)),
+		ConstructsRef:  refs,
+		RestApi:        api,
+		PathPart:       pathPart,
+		ParentResource: parentResource,
 	}
 }
 
@@ -129,11 +131,15 @@ func (res *ApiResource) Id() string {
 	return fmt.Sprintf("%s:%s:%s", res.Provider(), API_GATEWAY_RESOURCE_TYPE, res.Name)
 }
 
-func NewApiMethod(resource *ApiResource, refs []core.AnnotationKey, httpMethod string, requestParams map[string]bool) *ApiMethod {
+func NewApiMethod(resource *ApiResource, api *RestApi, refs []core.AnnotationKey, httpMethod string, requestParams map[string]bool) *ApiMethod {
+	name := fmt.Sprintf("%s-%s", api.Name, httpMethod)
+	if resource != nil {
+		name = fmt.Sprintf("%s-%s", resource.Name, httpMethod)
+	}
 	return &ApiMethod{
-		Name:              fmt.Sprintf("%s-%s", resource.Name, httpMethod),
+		Name:              name,
 		ConstructsRef:     refs,
-		RestApi:           resource.RestApi,
+		RestApi:           api,
 		Resource:          resource,
 		HttpMethod:        httpMethod,
 		RequestParameters: requestParams,

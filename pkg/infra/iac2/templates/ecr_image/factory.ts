@@ -7,6 +7,7 @@ interface Args {
     Repo: aws.ecr.Repository
     Context: string
     Dockerfile: string
+    dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
 
 function create(args: Args): docker.Image {
