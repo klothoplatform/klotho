@@ -1,7 +1,6 @@
 package resources
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -12,6 +11,7 @@ func Test_CreateEksCluster(t *testing.T) {
 	appName := "test-app"
 	clusterName := "test-cluster"
 	eus := []*core.ExecutionUnit{{AnnotationKey: core.AnnotationKey{ID: "test"}}}
+	sources := []core.AnnotationKey{{ID: "test"}}
 	subnet := NewSubnet("test-subnet", NewVpc(appName), "", PrivateSubnet)
 	type stringDep struct {
 		source string
@@ -35,6 +35,7 @@ func Test_CreateEksCluster(t *testing.T) {
 					"aws:iam_role:test-app-test-cluster-FargateExecutionRole",
 					"aws:iam_role:test-app-test-cluster-NodeGroupRole",
 					"aws:iam_role:test-app-test-cluster-k8sAdmin",
+					subnet.Id(),
 				},
 				deps: []stringDep{
 					{dest: "aws:eks_cluster:test-app-test-cluster", source: "aws:eks_fargate_profile:test-app-test-cluster"},
@@ -42,6 +43,9 @@ func Test_CreateEksCluster(t *testing.T) {
 					{dest: "aws:iam_role:test-app-test-cluster-k8sAdmin", source: "aws:eks_cluster:test-app-test-cluster"},
 					{dest: "aws:iam_role:test-app-test-cluster-FargateExecutionRole", source: "aws:eks_fargate_profile:test-app-test-cluster"},
 					{dest: "aws:iam_role:test-app-test-cluster-NodeGroupRole", source: "aws:eks_node_group:test-app-test-cluster"},
+					{dest: subnet.Id(), source: "aws:eks_node_group:test-app-test-cluster"},
+					{dest: subnet.Id(), source: "aws:eks_fargate_profile:test-app-test-cluster"},
+					{dest: subnet.Id(), source: "aws:eks_cluster:test-app-test-cluster"},
 				},
 			},
 		},
@@ -51,16 +55,21 @@ func Test_CreateEksCluster(t *testing.T) {
 			assert := assert.New(t)
 			dag := core.NewResourceGraph()
 			CreateEksCluster(appName, clusterName, []*Subnet{subnet}, nil, eus, dag)
-			for _, id := range tt.want.nodes {
-				resource := dag.GetResource(id)
-				assert.NotNil(resource, fmt.Sprintf("Resource %s, not found", id))
-				assert.Equalf(resource.KlothoConstructRef(), []core.AnnotationKey{{ID: "test"}}, "Resource %s, did not recieve klotho construct ref", resource.Id())
+			var res []string
+			for _, r := range dag.ListResources() {
+				res = append(res, r.Id())
+				if r != subnet { // ignore input resources
+					assert.ElementsMatch(sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
+				}
 			}
-			for _, dep := range tt.want.deps {
-				assert.NotNil(dag.GetDependency(dep.source, dep.dest), fmt.Sprintf("Dependency %s, not found", dep))
+			assert.ElementsMatch(tt.want.nodes, res)
+
+			var dep []stringDep
+			for _, e := range dag.ListDependencies() {
+				dep = append(dep, stringDep{source: e.Source.Id(), dest: e.Destination.Id()})
 			}
-			assert.Len(dag.ListResources(), len(tt.want.nodes))
-			assert.Len(dag.ListDependencies(), len(tt.want.deps))
+
+			assert.ElementsMatch(tt.want.deps, dep)
 		})
 	}
 }
