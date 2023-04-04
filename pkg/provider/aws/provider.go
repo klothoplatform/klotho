@@ -1,10 +1,11 @@
 package aws
 
 import (
+	"sort"
+
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
-	"sort"
 )
 
 type AWS struct {
