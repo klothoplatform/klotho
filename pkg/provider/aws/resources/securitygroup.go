@@ -11,6 +11,7 @@ type SecurityGroup struct {
 	Name          string
 	Vpc           *Vpc
 	ConstructsRef []core.AnnotationKey
+	// TODO Add ingress rules - https://github.com/klothoplatform/klotho/issues/465
 }
 
 const SG_TYPE = "security_group"

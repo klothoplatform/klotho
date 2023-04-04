@@ -66,7 +66,7 @@ func CreateElasticache(cfg *config.Application, dag *core.ResourceGraph, source 
 		CloudwatchGroup: NewLogGroup(cfg.AppName, fmt.Sprintf("/aws/elasticache/%s-%s-persist-redis", cfg.AppName, source.Id()), source.Provenance(), 0),
 		SubnetGroup: &ElasticacheSubnetgroup{
 			Name:          source.Id(),
-			Subnets:       GetSubnets(cfg, dag),
+			Subnets:       GetSubnets(cfg, dag), // TODO when we allow for segmented networks, need to determine which network (subnets) this lives in
 			ConstructsRef: []core.AnnotationKey{source.Provenance()},
 		},
 		SecurityGroups: []*SecurityGroup{GetSecurityGroup(cfg, dag)},
