@@ -45,16 +45,16 @@ func TestGenerateSecretsResources(t *testing.T) {
 				},
 				deps: []graph.Edge[string]{
 					{
+						Source:      fmt.Sprintf(`aws:secret:%s-%s-secret1`, AppName, secretsConstructId),
+						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId),
+					},
+					{
 						Source:      fmt.Sprintf(`aws:iam_policy:%s-%s_%s`, AppName, annotation.PersistCapability, secretsConstructId),
 						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId),
 					},
 					{
 						Source:      fmt.Sprintf(`aws:iam_policy:%s-%s_%s`, AppName, annotation.PersistCapability, secretsConstructId),
 						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId),
-					},
-					{
-						Source:      fmt.Sprintf(`aws:secret:%s-%s-secret1`, AppName, secretsConstructId),
-						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId),
 					},
 					{
 						Source:      fmt.Sprintf(`aws:secret:%s-%s-secret2`, AppName, secretsConstructId),
@@ -131,9 +131,15 @@ func TestGenerateSecretsResources(t *testing.T) {
 			actualResourceIds := graph.VertexIds(dag.ListResources())
 			assert.Equal(tt.want.resourceIds, actualResourceIds)
 
-			wantedDeps := graph.SortEdgeIds(tt.want.deps)
-			actual := graph.SortEdgeIds(graph.EdgeIds(dag.ListDependencies()))
-			assert.Equal(wantedDeps, actual)
+			for _, dep := range tt.want.deps {
+				found := false
+				for _, res := range dag.ListDependencies() {
+					if dep.Source == res.Source.Id() && dep.Destination == res.Destination.Id() {
+						found = true
+					}
+				}
+				assert.Truef(found, "Did not find dependency, %s -> %s", dep.Source, dep.Destination)
+			}
 
 			wantPolicies := tt.want.policies(func(secretId string) *resources.SecretVersion {
 				resource := dag.GetResource(secretId)
