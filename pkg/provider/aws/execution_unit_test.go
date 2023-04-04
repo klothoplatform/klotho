@@ -16,7 +16,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 	unit := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
 	repo := resources.NewEcrRepository("test", core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability})
 	image := resources.NewEcrImage(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}, "test", repo)
-	role := resources.NewIamRole("test", "test-ExecutionRole", core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, resources.LAMBDA_ASSUMER_ROLE_POLICY)
+	role := resources.NewIamRole("test", "test-ExecutionRole", []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}}, resources.LAMBDA_ASSUMER_ROLE_POLICY)
 	lambda := resources.NewLambdaFunction(unit, "test", role, image)
 	logGroup := resources.NewLogGroup("test", fmt.Sprintf("/aws/lambda/%s", lambda.Name), unit.Provenance(), 5)
 	fs := &core.Fs{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
@@ -230,12 +230,12 @@ func Test_GetAssumeRolePolicyForType(t *testing.T) {
 		},
 		{
 			name:  `eks fargate`,
-			cfg:   config.ExecutionUnit{Type: Eks, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Fargate)})},
+			cfg:   config.ExecutionUnit{Type: Kubernetes, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Fargate)})},
 			wants: "{\n\tVersion: '2012-10-17',\n\tStatement: [\n\t\t{\n\t\t\tAction: 'sts:AssumeRole',\n\t\t\tPrincipal: {\n\t\t\t\tService: 'eks-fargate-pods.amazonaws.com',\n\t\t\t},\n\t\t\tEffect: 'Allow',\n\t\t\tSid: '',\n\t\t},\n\t],\n}",
 		},
 		{
 			name:  `eks node`,
-			cfg:   config.ExecutionUnit{Type: Eks, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Node)})},
+			cfg:   config.ExecutionUnit{Type: Kubernetes, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Node)})},
 			wants: "{\n\tVersion: '2012-10-17',\n\tStatement: [\n\t\t{\n\t\t\tAction: 'sts:AssumeRole',\n\t\t\tPrincipal: {\n\t\t\t\tService: 'ec2.amazonaws.com',\n\t\t\t},\n\t\t\tEffect: 'Allow',\n\t\t\tSid: '',\n\t\t},\n\t],\n}",
 		},
 	}

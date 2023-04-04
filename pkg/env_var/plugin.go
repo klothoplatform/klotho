@@ -133,33 +133,15 @@ func handlePersist(directiveResult EnvironmentVariableDirectiveResult, cap *anno
 	var resource core.Construct
 	switch directiveResult.kind {
 	case "orm":
-		resources := core.GetResourcesOfType[*core.Orm](constructGraph)
-		for _, res := range resources {
-			if res.ID == cap.ID {
-				return nil
-			}
-		}
 		resource = &core.Orm{
 			AnnotationKey: core.AnnotationKey{ID: cap.ID, Capability: cap.Name},
 		}
 	case "redis_cluster":
-		resources := core.GetResourcesOfType[*core.RedisCluster](constructGraph)
-		for _, res := range resources {
-			if res.ID == cap.ID {
-				return nil
-			}
-		}
 		resource = &core.RedisCluster{
 			AnnotationKey: core.AnnotationKey{ID: cap.ID, Capability: cap.Name},
 		}
 
 	case "redis_node":
-		resources := core.GetResourcesOfType[*core.RedisNode](constructGraph)
-		for _, res := range resources {
-			if res.ID == cap.ID {
-				return nil
-			}
-		}
 		resource = &core.RedisNode{
 			AnnotationKey: core.AnnotationKey{ID: cap.ID, Capability: cap.Name},
 		}

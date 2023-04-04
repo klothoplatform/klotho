@@ -66,6 +66,19 @@ const (
 		},
 	],
 }`
+	EKS_ASSUME_ROLE_POLICY = `{
+		Version: '2012-10-17',
+		Statement: [
+			{
+				Action: 'sts:AssumeRole',
+				Principal: {
+					Service: 'eks.amazonaws.com',
+				},
+				Effect: 'Allow',
+				Sid: '',
+			},
+		],
+	}`
 	VERSION = "2012-10-17"
 )
 
@@ -154,10 +167,10 @@ func (p *PolicyGenerator) GetUnitPolicies(unitId string) *PolicyDocument {
 	return policyDoc
 }
 
-func NewIamRole(appName string, roleName string, ref core.AnnotationKey, assumeRolePolicy string) *IamRole {
+func NewIamRole(appName string, roleName string, ref []core.AnnotationKey, assumeRolePolicy string) *IamRole {
 	return &IamRole{
 		Name:                roleSanitizer.Apply(fmt.Sprintf("%s-%s", appName, roleName)),
-		ConstructsRef:       []core.AnnotationKey{ref},
+		ConstructsRef:       ref,
 		AssumeRolePolicyDoc: assumeRolePolicy,
 	}
 }
@@ -175,6 +188,11 @@ func (role *IamRole) KlothoConstructRef() []core.AnnotationKey {
 // ID returns the id of the cloud resource
 func (role *IamRole) Id() string {
 	return fmt.Sprintf("%s:%s:%s", role.Provider(), IAM_ROLE_TYPE, role.Name)
+}
+
+// ID returns the id of the cloud resource
+func (role *IamRole) AddAwsManagedPolicies(policies []string) {
+	role.AwsManagedPolicies = append(role.AwsManagedPolicies, policies...)
 }
 
 func NewIamPolicy(appName string, policyName string, ref core.AnnotationKey, policy *PolicyDocument) *IamPolicy {
