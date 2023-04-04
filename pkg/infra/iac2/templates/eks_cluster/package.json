@@ -1,5 +1,5 @@
 {
-    "name": "nat_gateway",
+    "name": "eks_cluster",
     "dependencies": {
         "@pulumi/aws": "^5.16.0"
     }

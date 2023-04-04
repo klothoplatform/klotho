@@ -49,4 +49,5 @@ type (
 const (
 	ARN_IAC_VALUE                  = "arn"
 	ALL_BUCKET_DIRECTORY_IAC_VALUE = "all_bucket_directory"
+	ALL_RESOURCES_IAC_VALUE        = "*"
 )

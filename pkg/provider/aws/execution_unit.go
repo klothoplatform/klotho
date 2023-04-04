@@ -21,7 +21,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 		return err
 	}
 
-	role := resources.NewIamRole(a.Config.AppName, fmt.Sprintf("%s-ExecutionRole", unit.ID), unit.Provenance(), GetAssumeRolePolicyForType(execUnitCfg))
+	role := resources.NewIamRole(a.Config.AppName, fmt.Sprintf("%s-ExecutionRole", unit.ID), []core.AnnotationKey{unit.Provenance()}, GetAssumeRolePolicyForType(execUnitCfg))
 	dag.AddResource(role)
 	err = a.PolicyGenerator.AddUnitRole(unit.Id(), role)
 	if err != nil {
@@ -50,6 +50,8 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 		dag.AddDependency2(lambdaFunction, role)
 		dag.AddDependency2(lambdaFunction, image)
 		return nil
+	case Kubernetes:
+		return nil
 	default:
 		log.Errorf("Unsupported type, %s, for aws execution units", execUnitCfg.Type)
 
@@ -57,12 +59,17 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 	return nil
 }
 
-// convertExecUnitParams transforms the execution units environment variables to a map of key names and their corresponding core.IaCValue struct
+// convertExecUnitParams transforms the execution units environment variables to a map of key names and their corresponding core.IaCValue struct.
 //
-// If an environment variable does not pertain to a construct and is just a key, value string, the resource of the IaCValue will be left null
+// If an environment variable does not pertain to a construct and is just a key, value string, the resource of the IaCValue will be left null.
 func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	execUnits := core.GetResourcesOfType[*core.ExecutionUnit](result)
 	for _, unit := range execUnits {
+
+		// For now we skip over kubernetes because the environment variables are already attached to the helm chart. This may change as we do kubernetes development
+		if a.Config.GetExecutionUnit(unit.ID).Type == Kubernetes {
+			continue
+		}
 		resourceEnvVars := make(resources.EnvironmentVariables)
 
 		// This set of environment variables correspond to the specific needs of the execution units and its dependencies
@@ -117,7 +124,7 @@ func GetAssumeRolePolicyForType(cfg config.ExecutionUnit) string {
 		return resources.LAMBDA_ASSUMER_ROLE_POLICY
 	case Ecs:
 		return resources.ECS_ASSUMER_ROLE_POLICY
-	case Eks:
+	case Kubernetes:
 		eksConfig := cfg.GetExecutionUnitParamsAsKubernetes()
 		if eksConfig.NodeType == string(resources.Fargate) {
 			return resources.EKS_FARGATE_ASSUME_ROLE_POLICY

@@ -1,11 +1,17 @@
 package compiler
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/pelletier/go-toml/v2"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v2"
 )
 
 type (
@@ -88,7 +94,41 @@ func (c *Compiler) Compile() error {
 		}
 		c.Document.OutputFiles = append(c.Document.OutputFiles, files...)
 	}
+	err := c.createConfigOutputFile()
+	if err != nil {
+		return errors.Wrap(err, "Unable to output Klotho configuration file")
+	}
 	return c.Document.OutputTo(c.Document.Configuration.OutDir)
+}
+
+func (c *Compiler) createConfigOutputFile() error {
+	c.Document.Configuration.UpdateForResources(c.Document.Constructs.ListConstructs())
+	buf := new(bytes.Buffer)
+	var err error
+	switch c.Document.Configuration.Format {
+	case "toml":
+		enc := toml.NewEncoder(buf)
+		enc.SetArraysMultiline(true)
+		enc.SetIndentTables(true)
+		err = enc.Encode(c.Document.Configuration)
+
+	case "json":
+		err = json.NewEncoder(buf).Encode(c.Document.Configuration)
+
+	case "yaml":
+		err = yaml.NewEncoder(buf).Encode(c.Document.Configuration)
+
+	default:
+		err = errors.Errorf("unsupported config format: %s", c.Document.Configuration.Format)
+	}
+	if err != nil {
+		return err
+	}
+	c.Document.OutputFiles = append(c.Document.OutputFiles, &core.RawFile{
+		FPath:   fmt.Sprintf("klotho.%s", c.Document.Configuration.Format),
+		Content: buf.Bytes(),
+	})
+	return nil
 }
 
 func isPluginNil(i Plugin) bool {
