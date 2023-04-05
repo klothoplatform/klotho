@@ -219,6 +219,8 @@ func Test_handleIaCValue(t *testing.T) {
 					varName:     "cluster_arn",
 				},
 			},
+		},
+		{
 			name: "Availability zone",
 			value: core.IaCValue{
 				Resource: &resources.AvailabilityZones{},
