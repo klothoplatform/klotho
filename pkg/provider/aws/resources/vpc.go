@@ -82,7 +82,6 @@ func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 	igw := NewInternetGateway(appName, "igw1", vpc)
 
 	dag.AddResource(region)
-	dag.AddResource(azs)
 	dag.AddDependency2(azs, region)
 	dag.AddResource(vpc)
 	dag.AddResource(igw)
