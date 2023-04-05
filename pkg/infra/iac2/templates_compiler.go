@@ -75,7 +75,7 @@ func (s stringTemplateValue) Raw() interface{} {
 
 func (v nestedTemplateValue) Parse() (string, error) {
 	childVal := v.childValue
-	return v.tc.resolveStructInput(&v.parentValue, childVal, v.useDoubleQuotedStrings, v.iacTag)
+	return v.tc.resolveStructInput(&v.parentValue, childVal, v.useDoubleQuotedStrings, v.iacTag, &ResourceCreationTemplate{})
 }
 
 func (v nestedTemplateValue) Raw() interface{} {
@@ -221,7 +221,7 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 			}
 		} else {
 			var strValue string
-			strValue, err = tc.resolveStructInput(&resourceVal, childVal, false, iacTag)
+			strValue, err = tc.resolveStructInput(&resourceVal, childVal, false, iacTag, &tmpl)
 			resolvedValue = stringTemplateValue{value: strValue, raw: childVal.Interface()}
 		}
 
@@ -233,10 +233,23 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 
 	}
 
+	uniqueOutputs, err := deduplicateAppliedOutputs(tmpl.AppliedOutputs)
+	if err != nil {
+		return err
+	}
 	varName := tc.getVarName(resource)
-
 	fmt.Fprintf(out, `const %s = `, varName)
+	_, err = out.Write([]byte(appliedOutputsToString(uniqueOutputs)))
+	if err != nil {
+		return err
+	}
 	errs.Append(tmpl.RenderCreate(out, inputArgs))
+	if len(uniqueOutputs) > 0 {
+		_, err = out.Write([]byte("})"))
+		if err != nil {
+			return err
+		}
+	}
 	_, err = out.Write([]byte(";"))
 	if err != nil {
 		return err
@@ -263,7 +276,7 @@ func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 }
 
 // resolveStructInput translates a value to a form suitable to inject into the typescript as an input to a function.
-func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, childVal reflect.Value, useDoubleQuotedStrings bool, iacTag string) (string, error) {
+func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, childVal reflect.Value, useDoubleQuotedStrings bool, iacTag string, tmpl *ResourceCreationTemplate) (string, error) {
 	var zeroValue reflect.Value
 	if childVal == zeroValue {
 		return `null`, nil
@@ -289,7 +302,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 			if iacTag != "" {
 				return "", errors.Errorf("structs of type IaCValue can not be tagged with `resource:`")
 			}
-			output, err := tc.handleIaCValue(typedChild)
+			output, err := tc.handleIaCValue(typedChild, tmpl)
 			if err != nil {
 				return output, err
 			}
@@ -316,11 +329,12 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 						iacTag = structField.Tag.Get("render")
 					}
 
-					resolvedValue, err := tc.resolveStructInput(resourceVal, childVal, false, iacTag)
+					resolvedValue, err := tc.resolveStructInput(resourceVal, childVal, false, iacTag, tmpl)
 
 					if err != nil {
 						return output.String(), err
 					}
+
 					output.WriteString(fmt.Sprintf("%s: %s,\n", fieldName, resolvedValue))
 				}
 				output.WriteString("}")
@@ -346,7 +360,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 		buf := strings.Builder{}
 		buf.WriteRune('[')
 		for i := 0; i < sliceLen; i++ {
-			output, err := tc.resolveStructInput(resourceVal, childVal.Index(i), false, iacTag)
+			output, err := tc.resolveStructInput(resourceVal, childVal.Index(i), false, iacTag, tmpl)
 			if err != nil {
 				return output, err
 			}
@@ -363,13 +377,13 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 		buf := strings.Builder{}
 		buf.WriteRune('{')
 		for i, key := range childVal.MapKeys() {
-			output, err := tc.resolveStructInput(resourceVal, key, true, iacTag)
+			output, err := tc.resolveStructInput(resourceVal, key, true, iacTag, tmpl)
 			if err != nil {
 				return output, nil
 			}
 			buf.WriteString(output)
 			buf.WriteRune(':')
-			output, err = tc.resolveStructInput(resourceVal, childVal.MapIndex(key), false, iacTag)
+			output, err = tc.resolveStructInput(resourceVal, childVal.MapIndex(key), false, iacTag, tmpl)
 			if err != nil {
 				return output, err
 			}
@@ -385,15 +399,15 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 		// instead of being the actual type. So, we basically pull the item out of the collection, and then reflect on
 		// it directly.
 		underlyingVal := childVal.Interface()
-		return tc.resolveStructInput(resourceVal, reflect.ValueOf(underlyingVal), false, iacTag)
+		return tc.resolveStructInput(resourceVal, reflect.ValueOf(underlyingVal), false, iacTag, tmpl)
 	}
 	return "", nil
 }
 
 // handleIaCValue determines how to retrieve values from a resource given a specific value identifier.
-func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) (string, error) {
+func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, tmpl *ResourceCreationTemplate) (string, error) {
 	if v.Resource == nil {
-		output, err := tc.resolveStructInput(nil, reflect.ValueOf(v.Property), false, "")
+		output, err := tc.resolveStructInput(nil, reflect.ValueOf(v.Property), false, "", tmpl)
 		if err != nil {
 			return output, err
 		}
@@ -430,7 +444,28 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) (string, error) {
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
 		}
+	case resources.CLUSTER_OIDC_ARN_IAC_VALUE:
+		varName := "cluster_oidc_url"
+		tmpl.AppliedOutputs = append(tmpl.AppliedOutputs, AppliedOutput{
+			appliedName: fmt.Sprintf("%s.openIdConnectIssuerUrl", tc.getVarName(v.Resource)),
+			varName:     varName,
+		})
+
+		arnVarName := "cluster_arn"
+		tmpl.AppliedOutputs = append(tmpl.AppliedOutputs, AppliedOutput{
+			appliedName: fmt.Sprintf("%s.arn", tc.getVarName(v.Resource)),
+			varName:     arnVarName,
+		})
+		return fmt.Sprintf("`arn:aws:iam::${%s.split(':')[4]}:oidc-provider/${%s}`", arnVarName, varName), nil
+	case resources.CLUSTER_OIDC_URL_IAC_VALUE:
+		varName := "cluster_oidc_url"
+		tmpl.AppliedOutputs = append(tmpl.AppliedOutputs, AppliedOutput{
+			appliedName: fmt.Sprintf("%s.openIdConnectIssuerUrl", tc.getVarName(v.Resource)),
+			varName:     varName,
+		})
+		return fmt.Sprintf("[`${%s}:sub`]", varName), nil
 	}
+
 	return "", errors.Errorf("unsupported IaC Value Property, %s", v.Property)
 }
 

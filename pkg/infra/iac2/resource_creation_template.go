@@ -35,6 +35,13 @@ type (
 		Imports map[string]struct{}
 		// ExpressionTemplate is a Go-[text/template] for a TypeScript expression to generate a piece of infrastructure.
 		ExpressionTemplate string
+		// AppliedOutputs represents any variables which require the pulumi apply functionality to be run on the template
+		AppliedOutputs []AppliedOutput
+	}
+
+	AppliedOutput struct {
+		appliedName string
+		varName     string
 	}
 )
 
@@ -162,4 +169,45 @@ func parseTS(val reflect.Value) (string, error) {
 		return out, nil
 	}
 	return "", fmt.Errorf("invalid template value detected: %s: %v: template values must implement the templateValue interface", val.Kind().String(), val.Interface())
+}
+
+func appliedOutputsToString(outputs []AppliedOutput) string {
+	out := strings.Builder{}
+	if len(outputs) == 0 {
+		return ""
+	}
+	out.WriteString("pulumi.all([")
+	for i := 0; i < len(outputs); i++ {
+		out.WriteString(outputs[i].appliedName)
+		if i < len(outputs)-1 {
+			out.WriteString(", ")
+		}
+	}
+	out.WriteString("]).apply(([")
+	for i := 0; i < len(outputs); i++ {
+		out.WriteString(outputs[i].varName)
+		if i < len(outputs)-1 {
+			out.WriteString(", ")
+		}
+	}
+	out.WriteString("]) => { return ")
+	return out.String()
+}
+
+func deduplicateAppliedOutputs(outputs []AppliedOutput) ([]AppliedOutput, error) {
+	uniqueList := []AppliedOutput{}
+	for _, output := range outputs {
+		unique := true
+		for _, u := range uniqueList {
+			if u.appliedName == output.appliedName && u.varName == output.varName {
+				unique = false
+			} else if u.varName == output.varName {
+				return nil, errors.Errorf("Found conflicting pulumi output var, %s", u.varName)
+			}
+		}
+		if unique {
+			uniqueList = append(uniqueList, output)
+		}
+	}
+	return uniqueList, nil
 }

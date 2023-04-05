@@ -95,7 +95,7 @@ func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceG
 
 	// If no units are defined in config, create a defaultly named one
 	if len(keys) == 0 {
-		keys = append(keys, "eks-cluster")
+		keys = append(keys, resources.DEFAULT_CLUSTER_NAME)
 	}
 
 	// Assign all units to the cluster that exists

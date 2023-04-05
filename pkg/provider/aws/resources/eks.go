@@ -11,6 +11,10 @@ const (
 	EKS_CLUSTER_TYPE         = "eks_cluster"
 	EKS_FARGATE_PROFILE_TYPE = "eks_fargate_profile"
 	EKS_NODE_GROUP_TYPE      = "eks_node_group"
+	DEFAULT_CLUSTER_NAME     = "eks-cluster"
+
+	CLUSTER_OIDC_URL_IAC_VALUE = "cluster_oidc_url"
+	CLUSTER_OIDC_ARN_IAC_VALUE = "cluster_oidc_arn"
 )
 
 var nodeGroupSanitizer = aws.EksNodeGroupSanitizer
@@ -98,6 +102,21 @@ func CreateEksCluster(appName string, clusterName string, subnets []*Subnet, sec
 		dag.AddDependency2(nodeGroup, s)
 		dag.AddDependency2(profile, s)
 	}
+}
+
+// GetEksCluster will return the resource with the name corresponding to the appName and ClusterId
+//
+// If the dag does not contain the resource or the resource is not an EksCluster, it will return nil
+func GetEksCluster(appName string, clusterId string, dag *core.ResourceGraph) *EksCluster {
+	if clusterId == "" {
+		clusterId = DEFAULT_CLUSTER_NAME
+	}
+	cluster := NewEksCluster(appName, clusterId, nil, nil, nil)
+	resource := dag.GetResource(cluster.Id())
+	if existingCluster, ok := resource.(*EksCluster); ok {
+		return existingCluster
+	}
+	return nil
 }
 
 func createClusterAdminRole(appName string, roleName string, refs []core.AnnotationKey) *IamRole {

@@ -2,6 +2,7 @@ package iac2
 
 import (
 	"bytes"
+	"fmt"
 	"io/fs"
 	"reflect"
 	"strings"
@@ -165,7 +166,7 @@ func TestResolveStructInput(t *testing.T) {
 			}
 			resourceVal := reflect.ValueOf(tt.parentResource)
 			val := reflect.ValueOf(tt.value)
-			actual, err := tc.resolveStructInput(&resourceVal, val, tt.useDoubleQuotedStrings, "")
+			actual, err := tc.resolveStructInput(&resourceVal, val, tt.useDoubleQuotedStrings, "", nil)
 			assert.NoError(err)
 			assert.Equal(tt.want, actual)
 		})
@@ -177,7 +178,9 @@ func Test_handleIaCValue(t *testing.T) {
 		name                 string
 		value                core.IaCValue
 		resourceVarNamesById map[string]string
+		template             ResourceCreationTemplate
 		want                 string
+		wantOutputs          []AppliedOutput
 	}{
 		{
 			name: "bucket name",
@@ -197,6 +200,30 @@ func Test_handleIaCValue(t *testing.T) {
 			},
 			want: "`TestValue`",
 		},
+		{
+			name: "value with applied outputs, cluster oidc arn",
+			value: core.IaCValue{
+				Resource: resources.NewEksCluster("test-app", "cluster1", nil, nil, nil),
+				Property: resources.CLUSTER_OIDC_ARN_IAC_VALUE,
+			},
+			template: ResourceCreationTemplate{
+				Imports: make(map[string]struct{}),
+			},
+			resourceVarNamesById: map[string]string{
+				"aws:eks_cluster:test-app-cluster1": "awsEksClusterTestAppCluster1",
+			},
+			want: "`arn:aws:iam::${cluster_arn.split(':')[4]}:oidc-provider/${cluster_oidc_url}`",
+			wantOutputs: []AppliedOutput{
+				{
+					appliedName: fmt.Sprintf("%s.openIdConnectIssuerUrl", "awsEksClusterTestAppCluster1"),
+					varName:     "cluster_oidc_url",
+				},
+				{
+					appliedName: fmt.Sprintf("%s.arn", "awsEksClusterTestAppCluster1"),
+					varName:     "cluster_arn",
+				},
+			},
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -204,9 +231,12 @@ func Test_handleIaCValue(t *testing.T) {
 			tc := TemplatesCompiler{
 				resourceVarNamesById: tt.resourceVarNamesById,
 			}
-			actual, err := tc.handleIaCValue(tt.value)
+			actual, err := tc.handleIaCValue(tt.value, &tt.template)
 			assert.NoError(err)
 			assert.Equal(tt.want, actual)
+			if tt.wantOutputs != nil {
+				assert.ElementsMatch(tt.wantOutputs, tt.template.AppliedOutputs)
+			}
 		})
 	}
 }

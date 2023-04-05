@@ -23,6 +23,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 	bucket := resources.NewS3Bucket(fs, "test")
 	policy1 := &resources.IamPolicy{Name: "policy1"}
 	policy2 := &resources.IamPolicy{Name: "policy2"}
+	cluster := resources.NewEksCluster("test", resources.DEFAULT_CLUSTER_NAME, nil, nil, nil)
 
 	type testResult struct {
 		nodes []core.Resource
@@ -40,7 +41,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 			cfg: config.Application{
 				AppName: "test",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"test": {Type: "lambda"},
+					"test": {Type: Lambda},
 				},
 			},
 			existingResources: []core.Resource{bucket, policy1, policy2},
@@ -68,6 +69,39 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{
 						Source:      lambda,
 						Destination: logGroup,
+					},
+					{
+						Source:      role,
+						Destination: policy1,
+					},
+					{
+						Source:      role,
+						Destination: policy2,
+					},
+				},
+			},
+		},
+		{
+			name: "generate kubernetes",
+			cfg: config.Application{
+				AppName: "test",
+				ExecutionUnits: map[string]*config.ExecutionUnit{
+					"test": {Type: Kubernetes},
+				},
+			},
+			existingResources: []core.Resource{bucket, policy1, policy2, cluster},
+			want: testResult{
+				nodes: []core.Resource{
+					repo, image, role, cluster, policy1, policy2, bucket,
+				},
+				deps: []graph.Edge[core.Resource]{
+					{
+						Source:      image,
+						Destination: repo,
+					},
+					{
+						Source:      role,
+						Destination: bucket,
 					},
 					{
 						Source:      role,
@@ -112,6 +146,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
+
 			for _, node := range tt.want.nodes {
 				found := false
 				for _, res := range dag.ListResources() {
@@ -133,7 +168,6 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 			}
 			assert.Len(dag.ListDependencies(), len(tt.want.deps))
 		})
-
 	}
 }
 
@@ -226,29 +260,53 @@ func Test_convertExecUnitParams(t *testing.T) {
 
 func Test_GetAssumeRolePolicyForType(t *testing.T) {
 	cases := []struct {
-		name  string
-		cfg   config.ExecutionUnit
-		wants string
+		name string
+		cfg  config.ExecutionUnit
+		want resources.StatementEntry
 	}{
 		{
-			name:  `lambda`,
-			cfg:   config.ExecutionUnit{Type: Lambda},
-			wants: "{\n\t\"Version\": \"2012-10-17\",\n\t\"Statement\": [\n\t\t{\n\t\t\t\"Action\": \"sts:AssumeRole\",\n\t\t\t\"Principal\": {\n\t\t\t\t\"Service\": \"lambda.amazonaws.com\"\n\t\t\t},\n\t\t\t\"Effect\": \"Allow\",\n\t\t\t\"Sid\": \"\"\n\t\t}\n\t]\n}",
+			name: `lambda`,
+			cfg:  config.ExecutionUnit{Type: Lambda},
+			want: resources.StatementEntry{
+				Action: []string{"sts:AssumeRole"},
+				Principal: &resources.Principal{
+					Service: "lambda.amazonaws.com",
+				},
+				Effect: "Allow",
+			},
 		},
 		{
-			name:  `ecs`,
-			cfg:   config.ExecutionUnit{Type: Ecs},
-			wants: "{\n\t\"Version\": \"2012-10-17\",\n\t\"Statement\": [\n\t\t{\n\t\t\t\"Action\": \"sts:AssumeRole\",\n\t\t\t\"Principal\": {\n\t\t\t\t\"Service\": \"ecs-tasks.amazonaws.com\"\n\t\t\t},\n\t\t\t\"Effect\": \"Allow\",\n\t\t\t\"Sid\": \"\"\n\t\t}\n\t]\n}",
+			name: `ecs`,
+			cfg:  config.ExecutionUnit{Type: Ecs},
+			want: resources.StatementEntry{
+				Action: []string{"sts:AssumeRole"},
+				Principal: &resources.Principal{
+					Service: "ecs-tasks.amazonaws.com",
+				},
+				Effect: "Allow",
+			},
 		},
 		{
-			name:  `eks fargate`,
-			cfg:   config.ExecutionUnit{Type: Kubernetes, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Fargate)})},
-			wants: "{\n\t\"Version\": \"2012-10-17\",\n\t\"Statement\": [\n\t\t{\n\t\t\t\"Action\": \"sts:AssumeRole\",\n\t\t\t\"Principal\": {\n\t\t\t\t\"\"Service\"\": \"eks-fargate-pods.amazonaws.com\"\n\t\t\t},\n\t\t\t\"Effect\": \"Allow\",\n\t\t\t\"Sid\": \"\"\n\t\t}\n\t]\n}",
+			name: `eks fargate`,
+			cfg:  config.ExecutionUnit{Type: Kubernetes, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Fargate)})},
+			want: resources.StatementEntry{
+				Action: []string{"sts:AssumeRole"},
+				Principal: &resources.Principal{
+					Service: "eks-fargate-pods.amazonaws.com",
+				},
+				Effect: "Allow",
+			},
 		},
 		{
-			name:  `eks node`,
-			cfg:   config.ExecutionUnit{Type: Kubernetes, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Node)})},
-			wants: "{\n\t\"Version\": \"2012-10-17\",\n\t\"Statement\": [\n\t\t{\n\t\t\t\"Action\": \"sts:AssumeRole\",\n\t\t\t\"Principal\": {\n\t\t\t\t\"Service\": \"ec2.amazonaws.com\"\n\t\t\t},\n\t\t\t\"Effect\": \"Allow\",\n\t\t\t\"Sid\": \"\"\n\t\t}\n\t]\n}",
+			name: `eks node`,
+			cfg:  config.ExecutionUnit{Type: Kubernetes, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Node)})},
+			want: resources.StatementEntry{
+				Action: []string{"sts:AssumeRole"},
+				Principal: &resources.Principal{
+					Service: "ec2.amazonaws.com",
+				},
+				Effect: "Allow",
+			},
 		},
 	}
 
@@ -256,7 +314,8 @@ func Test_GetAssumeRolePolicyForType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			actual := GetAssumeRolePolicyForType(tt.cfg)
-			assert.Equal(tt.wants, actual)
+
+			assert.Equal(tt.want, actual.Statement[0])
 		})
 
 	}
