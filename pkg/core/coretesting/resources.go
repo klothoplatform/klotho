@@ -15,9 +15,9 @@ type (
 		Nodes []string
 		Deps  []StringDep
 
-		// OnlyContains only check whether the dag contains the `.Nodes` and `.Deps`. If false,
+		// AssertSubset assert the dag contains all the `.Nodes` and `.Deps`. If false,
 		// checks full equality.
-		OnlyContains bool
+		AssertSubset bool
 	}
 )
 
@@ -26,10 +26,8 @@ func (expect ResourcesExpectation) Assert(t *testing.T, dag *core.ResourceGraph)
 	for _, r := range dag.ListResources() {
 		res = append(res, r.Id())
 	}
-	if expect.OnlyContains {
-		for _, r := range expect.Nodes {
-			assert.Contains(t, res, r)
-		}
+	if expect.AssertSubset {
+		assert.Subset(t, res, expect.Nodes)
 	} else {
 		assert.ElementsMatch(t, expect.Nodes, res)
 	}
@@ -39,10 +37,8 @@ func (expect ResourcesExpectation) Assert(t *testing.T, dag *core.ResourceGraph)
 		dep = append(dep, StringDep{Source: e.Source.Id(), Destination: e.Destination.Id()})
 	}
 
-	if expect.OnlyContains {
-		for _, d := range expect.Deps {
-			assert.Contains(t, dep, d)
-		}
+	if expect.AssertSubset {
+		assert.Subset(t, dep, expect.Deps)
 	} else {
 		assert.ElementsMatch(t, expect.Deps, dep)
 	}
