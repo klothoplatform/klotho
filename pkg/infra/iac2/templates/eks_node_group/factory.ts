@@ -1,8 +1,9 @@
 import * as aws from '@pulumi/aws'
+import * as aws_native from '@pulumi/aws-native'
 
 interface Args {
     Name: string
-    Cluster: aws.eks.Cluster
+    Cluster: aws_native.eks.Cluster
     NodeRole: aws.iam.Role
     AmiType: string
     Subnets: aws.ec2.Subnet[]

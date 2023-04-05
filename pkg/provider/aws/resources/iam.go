@@ -9,87 +9,85 @@ import (
 )
 
 const (
-	IAM_ROLE_TYPE              = "iam_role"
-	IAM_POLICY_TYPE            = "iam_policy"
-	LAMBDA_ASSUMER_ROLE_POLICY = `{
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Action": "sts:AssumeRole",
-			"Principal": {
-				"Service": "lambda.amazonaws.com"
-			},
-			"Effect": "Allow",
-			"Sid": ""
-		}
-	]
-}`
-
-	ECS_ASSUMER_ROLE_POLICY = `{
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Action": "sts:AssumeRole",
-			"Principal": {
-				"Service": "ecs-tasks.amazonaws.com"
-			},
-			"Effect": "Allow",
-			"Sid": ""
-		}
-	]
-}`
-
-	EC2_ASSUMER_ROLE_POLICY = `{
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Action": "sts:AssumeRole",
-			"Principal": {
-				"Service": "ec2.amazonaws.com"
-			},
-			"Effect": "Allow",
-			"Sid": ""
-		}
-	]
-}`
-
-	EKS_FARGATE_ASSUME_ROLE_POLICY = `{
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Action": "sts:AssumeRole",
-			"Principal": {
-				""Service"": "eks-fargate-pods.amazonaws.com"
-			},
-			"Effect": "Allow",
-			"Sid": ""
-		}
-	]
-}`
-	EKS_ASSUME_ROLE_POLICY = `{
-		Version: '2012-10-17',
-		Statement: [
-			{
-				Action: 'sts:AssumeRole',
-				Principal: {
-					Service: 'eks.amazonaws.com',
-				},
-				Effect: 'Allow',
-				Sid: '',
-			},
-		],
-	}`
-	VERSION = "2012-10-17"
+	IAM_ROLE_TYPE      = "iam_role"
+	IAM_POLICY_TYPE    = "iam_policy"
+	OIDC_PROVIDER_TYPE = "iam_oidc_provider"
+	VERSION            = "2012-10-17"
 )
 
 var roleSanitizer = aws.IamRoleSanitizer
 var policySanitizer = aws.IamPolicySanitizer
 
+var LAMBDA_ASSUMER_ROLE_POLICY = &PolicyDocument{
+	Version: VERSION,
+	Statement: []StatementEntry{
+		{
+			Action: []string{"sts:AssumeRole"},
+			Principal: &Principal{
+				Service: "lambda.amazonaws.com",
+			},
+			Effect: "Allow",
+		},
+	},
+}
+
+var ECS_ASSUMER_ROLE_POLICY = &PolicyDocument{
+	Version: VERSION,
+	Statement: []StatementEntry{
+		{
+			Action: []string{"sts:AssumeRole"},
+			Principal: &Principal{
+				Service: "ecs-tasks.amazonaws.com",
+			},
+			Effect: "Allow",
+		},
+	},
+}
+
+var EC2_ASSUMER_ROLE_POLICY = &PolicyDocument{
+	Version: VERSION,
+	Statement: []StatementEntry{
+		{
+			Action: []string{"sts:AssumeRole"},
+			Principal: &Principal{
+				Service: "ec2.amazonaws.com",
+			},
+			Effect: "Allow",
+		},
+	},
+}
+
+var EKS_FARGATE_ASSUME_ROLE_POLICY = &PolicyDocument{
+	Version: VERSION,
+	Statement: []StatementEntry{
+		{
+			Action: []string{"sts:AssumeRole"},
+			Principal: &Principal{
+				Service: "eks-fargate-pods.amazonaws.com",
+			},
+			Effect: "Allow",
+		},
+	},
+}
+
+var EKS_ASSUME_ROLE_POLICY = &PolicyDocument{
+	Version: VERSION,
+	Statement: []StatementEntry{
+		{
+			Action: []string{"sts:AssumeRole"},
+			Principal: &Principal{
+				Service: "eks.amazonaws.com",
+			},
+			Effect: "Allow",
+		},
+	},
+}
+
 type (
 	IamRole struct {
 		Name                string
 		ConstructsRef       []core.AnnotationKey
-		AssumeRolePolicyDoc string
+		AssumeRolePolicyDoc *PolicyDocument `render:"document"`
 		ManagedPolicies     []core.IaCValue
 		AwsManagedPolicies  []string
 		InlinePolicy        *PolicyDocument `render:"document"`
@@ -112,9 +110,20 @@ type (
 	}
 
 	StatementEntry struct {
-		Effect   string
-		Action   []string
-		Resource []core.IaCValue
+		Effect    string
+		Action    []string
+		Resource  []core.IaCValue
+		Principal *Principal `render:"document"`
+		Condition *Condition `render:"document"`
+	}
+
+	Principal struct {
+		Service   string
+		Federated core.IaCValue
+	}
+
+	Condition struct {
+		StringEquals map[core.IaCValue]string
 	}
 )
 
@@ -171,7 +180,7 @@ func CreateAllowPolicyDocument(actions []string, resources []core.IaCValue) *Pol
 	}
 }
 
-func NewIamRole(appName string, roleName string, ref []core.AnnotationKey, assumeRolePolicy string) *IamRole {
+func NewIamRole(appName string, roleName string, ref []core.AnnotationKey, assumeRolePolicy *PolicyDocument) *IamRole {
 	return &IamRole{
 		Name:                roleSanitizer.Apply(fmt.Sprintf("%s-%s", appName, roleName)),
 		ConstructsRef:       ref,
