@@ -17,6 +17,15 @@ function create(args: Args): docker.Image {
             dockerfile: args.Dockerfile,
             platform: 'linux/amd64',
         },
-        imageName: pulumi.interpolate`${args.Repo.repositoryUrl}/${args.Name}`,
+        imageName: pulumi.interpolate`${args.Repo.repositoryUrl}`,
+        registry: args.Repo.registryId.apply(async (registryId) => {
+            const credentials = await aws.ecr.getCredentials({ registryId }, { async: true })
+            const decodedCredentials = Buffer.from(
+                credentials.authorizationToken,
+                'base64'
+            ).toString()
+            const [username, password] = decodedCredentials.split(':')
+            return { server: credentials.proxyEndpoint.replace('https://', ''), username, password }
+        }),
     })
 }

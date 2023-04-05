@@ -1,5 +1,5 @@
 {
-    "name": "region",
+    "name": "availability_zones",
     "dependencies": {
         "@pulumi/aws": "^5.16.0",
         "@pulumi/pulumi": "^3.40.2"

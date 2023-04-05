@@ -3,6 +3,7 @@
     "dependencies": {
         "@pulumi/aws": "^5.16.0",
         "@pulumi/pulumi": "^3.40.2",
-        "@pulumi/docker": "^v4.1.0"
+        "@pulumi/docker": "^v4.1.0",
+        "@types/node": "^18.15.11"
     }
 }
