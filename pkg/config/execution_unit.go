@@ -106,8 +106,6 @@ func (cfg ExecutionUnit) GetExecutionUnitParamsAsKubernetes() KubernetesTypePara
 	params := KubernetesTypeParams{}
 	if err := json.Unmarshal(jsonString, &params); err != nil {
 		zap.S().Error(err)
-		return params
-	} else {
-		return params
 	}
+	return params
 }

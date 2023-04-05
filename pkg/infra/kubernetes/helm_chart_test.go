@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"bytes"
+	"github.com/klothoplatform/klotho/pkg/testutil"
 	"strings"
 	"testing"
 
@@ -36,12 +37,14 @@ func Test_AssignFilesToUnits(t *testing.T) {
 					{Name: "unit1"},
 				},
 			},
-			fileUnits: map[string]string{"pod.yaml": `apiVersion: v1
-kind: Pod
-spec:
-  containers:
-  - name: web
-    image: nginx`},
+			fileUnits: map[string]string{
+				"pod.yaml": testutil.UnIndent(`
+                    apiVersion: v1
+                    kind: Pod
+                    spec:
+                      containers:
+                      - name: web
+                        image: nginx`)},
 			want: []TestUnit{
 				{
 					name:    "unit1",
@@ -56,22 +59,23 @@ spec:
 					{Name: "unit1"},
 				},
 			},
-			fileUnits: map[string]string{"deployment.yaml": `apiVersion: apps/v1
-kind: Deployment
-spec:
-  replicas: 3
-  selector:
-  matchLabels:
-    app: nginx
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.14.2`,
-			},
+			fileUnits: map[string]string{
+				"deployment.yaml": testutil.UnIndent(`
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    spec:
+                      replicas: 3
+                      selector:
+                      matchLabels:
+                        app: nginx
+                      template:
+                        metadata:
+                          labels:
+                            app: nginx
+                        spec:
+                          containers:
+                          - name: nginx
+                            image: nginx:1.14.2`)},
 			want: []TestUnit{
 				{
 					name:           "unit1",
@@ -86,12 +90,13 @@ spec:
 					{Name: "unit1"},
 				},
 			},
-			fileUnits: map[string]string{"ServiceAccount.yaml": `apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: release-name-nginx-ingress
-  namespace: default`,
-			},
+			fileUnits: map[string]string{
+				"ServiceAccount.yaml": testutil.UnIndent(`
+                    apiVersion: v1
+                    kind: ServiceAccount
+                    metadata:
+                      name: release-name-nginx-ingress
+                      namespace: default`)},
 			want: []TestUnit{
 				{
 					name:               "unit1",
@@ -106,16 +111,17 @@ metadata:
 					{Name: "unit1"},
 				},
 			},
-			fileUnits: map[string]string{"Service.yaml": `apiVersion: v1
-kind: Service
-spec:
-  ports:
-  - port: 80
-    protocol: TCP
-    targetPort: 3000
-  selector:
-    execUnit: name`,
-			},
+			fileUnits: map[string]string{
+				"Service.yaml": testutil.UnIndent(`
+                    apiVersion: v1
+                    kind: Service
+                    spec:
+                      ports:
+                      - port: 80
+                        protocol: TCP
+                        targetPort: 3000
+                      selector:
+                        execUnit: name`)},
 			want: []TestUnit{
 				{
 					name:        "unit1",
@@ -131,22 +137,25 @@ spec:
 					{Name: "unit2"},
 				},
 			},
-			fileUnits: map[string]string{"pod.yaml": `apiVersion: v1
-kind: Pod
-metadata:
-  name: unit1
-spec:
-  containers:
-  - name: web
-    image: nginx`,
-				"pod2.yaml": `apiVersion: v1
-kind: Pod
-metadata:
-  name: notunit2
-spec:
-  containers:
-  - name: web
-    image: nginx`},
+			fileUnits: map[string]string{
+				"pod.yaml": testutil.UnIndent(`
+                    apiVersion: v1
+                    kind: Pod
+                    metadata:
+                      name: unit1
+                    spec:
+                      containers:
+                      - name: web
+                        image: nginx`),
+				"pod2.yaml": testutil.UnIndent(`
+                    apiVersion: v1
+                    kind: Pod
+                    metadata:
+                      name: notunit2
+                    spec:
+                      containers:
+                      - name: web
+                        image: nginx`)},
 			want: []TestUnit{
 				{
 					name:    "unit1",
@@ -165,40 +174,43 @@ spec:
 					{Name: "unit2"},
 				},
 			},
-			fileUnits: map[string]string{"deployment.yaml": `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: unit1
-spec:
-  replicas: 3
-  selector:
-  matchLabels:
-    app: nginx
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.14.2`,
-				"deployment2.yaml": `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: notunit2
-spec:
-  replicas: 3
-  selector:
-  matchLabels:
-    app: nginx
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.14.2`,
+			fileUnits: map[string]string{
+				"deployment.yaml": testutil.UnIndent(`
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    metadata:
+                      name: unit1
+                    spec:
+                      replicas: 3
+                      selector:
+                      matchLabels:
+                        app: nginx
+                      template:
+                        metadata:
+                          labels:
+                            app: nginx
+                        spec:
+                          containers:
+                          - name: nginx
+                            image: nginx:1.14.2`),
+				"deployment2.yaml": testutil.UnIndent(`
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    metadata:
+                      name: notunit2
+                    spec:
+                      replicas: 3
+                      selector:
+                      matchLabels:
+                        app: nginx
+                      template:
+                        metadata:
+                          labels:
+                            app: nginx
+                        spec:
+                          containers:
+                          - name: nginx
+                            image: nginx:1.14.2`),
 			},
 			want: []TestUnit{
 				{
@@ -218,16 +230,19 @@ spec:
 					{Name: "unit2"},
 				},
 			},
-			fileUnits: map[string]string{"ServiceAccount.yaml": `apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: unit1
-  namespace: default`,
-				"ServiceAccount2.yaml": `apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: notunit2
-  namespace: default`,
+			fileUnits: map[string]string{
+				"ServiceAccount.yaml": testutil.UnIndent(`
+                    apiVersion: v1
+                    kind: ServiceAccount
+                    metadata:
+                      name: unit1
+                      namespace: default`),
+				"ServiceAccount2.yaml": testutil.UnIndent(`
+                    apiVersion: v1
+                    kind: ServiceAccount
+                    metadata:
+                      name: notunit2
+                      namespace: default`),
 			},
 			want: []TestUnit{
 				{
@@ -247,28 +262,31 @@ metadata:
 					{Name: "unit2"},
 				},
 			},
-			fileUnits: map[string]string{"Service.yaml": `apiVersion: v1
-kind: Service
-metadata:
-  name: unit1
-spec:
-  ports:
-  - port: 80
-    protocol: TCP
-    targetPort: 3000
-  selector:
-    execUnit: name`,
-				"Service2.yaml": `apiVersion: v1
-kind: Service
-metadata:
-  name: notunit2
-spec:
-  ports:
-  - port: 80
-    protocol: TCP
-    targetPort: 3000
-  selector:
-    execUnit: name`,
+			fileUnits: map[string]string{
+				"Service.yaml": testutil.UnIndent(`
+                    apiVersion: v1
+                    kind: Service
+                    metadata:
+                      name: unit1
+                    spec:
+                      ports:
+                      - port: 80
+                        protocol: TCP
+                        targetPort: 3000
+                      selector:
+                        execUnit: name`),
+				"Service2.yaml": testutil.UnIndent(`
+                    apiVersion: v1
+                    kind: Service
+                    metadata:
+                      name: notunit2
+                    spec:
+                      ports:
+                      - port: 80
+                        protocol: TCP
+                        targetPort: 3000
+                      selector:
+                        execUnit: name`),
 			},
 			want: []TestUnit{
 				{
@@ -287,27 +305,30 @@ spec:
 					{Name: "unit1"},
 				},
 			},
-			fileUnits: map[string]string{"pod.yaml": `apiVersion: v1
-kind: Pod
-spec:
-  containers:
-  - name: web
-    image: nginx`,
-				"deployment.yaml": `apiVersion: apps/v1
-kind: Deployment
-spec:
-  replicas: 3
-  selector:
-  matchLabels:
-    app: nginx
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.14.2`,
+			fileUnits: map[string]string{
+				"pod.yaml": testutil.UnIndent(`
+                    apiVersion: v1
+                    kind: Pod
+                    spec:
+                      containers:
+                      - name: web
+                        image: nginx`),
+				"deployment.yaml": testutil.UnIndent(`
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    spec:
+                      replicas: 3
+                      selector:
+                      matchLabels:
+                        app: nginx
+                      template:
+                        metadata:
+                          labels:
+                            app: nginx
+                        spec:
+                          containers:
+                          - name: nginx
+                            image: nginx:1.14.2`),
 			},
 			wantErr: true,
 		},
@@ -319,31 +340,34 @@ spec:
 					{Name: "unit2"},
 				},
 			},
-			fileUnits: map[string]string{"pod.yaml": `apiVersion: v1
-kind: Pod
-metadata:
-  name: unit1
-spec:
-  containers:
-  - name: web
-    image: nginx`,
-				"deployment.yaml": `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: unit1
-spec:
-  replicas: 3
-  selector:
-  matchLabels:
-    app: nginx
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.14.2`,
+			fileUnits: map[string]string{
+				"pod.yaml": testutil.UnIndent(`
+                    apiVersion: v1
+                    kind: Pod
+                    metadata:
+                      name: unit1
+                    spec:
+                      containers:
+                      - name: web
+                        image: nginx`),
+				"deployment.yaml": testutil.UnIndent(`
+					apiVersion: apps/v1
+                    kind: Deployment
+                    metadata:
+                      name: unit1
+                    spec:
+                      replicas: 3
+                      selector:
+                      matchLabels:
+                        app: nginx
+                      template:
+                        metadata:
+                          labels:
+                            app: nginx
+                        spec:
+                          containers:
+                          - name: nginx
+                            image: nginx:1.14.2`),
 			},
 			wantErr: true,
 		},
