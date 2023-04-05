@@ -1,10 +1,11 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
+import * as aws_native from '@pulumi/aws-native'
 
 interface Args {
     Name: string
     Subnets: aws.ec2.Subnet[]
-    Cluster: aws.eks.Cluster
+    Cluster: aws_native.eks.Cluster
     PodExecutionRole: aws.iam.Role
     Selectors: pulumi.Input<pulumi.Input<aws.types.input.eks.FargateProfileSelector>[]>
 }

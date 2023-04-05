@@ -58,6 +58,35 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 		dag.AddDependency2(lambdaFunction, image)
 		return nil
 	case Kubernetes:
+		cfg := a.Config.GetExecutionUnit(unit.Provenance().ID)
+		params := cfg.GetExecutionUnitParamsAsKubernetes()
+		cluster := resources.GetEksCluster(a.Config.AppName, params.ClusterId, dag)
+		if cluster == nil {
+			return errors.Errorf("Expected to have cluster created for unit, %s, but did not find cluster in graph", unit.ID)
+		}
+		role.AssumeRolePolicyDoc = &resources.PolicyDocument{
+			Version: resources.VERSION,
+			Statement: []resources.StatementEntry{
+				{
+					Effect: "Allow",
+					Principal: &resources.Principal{
+						Federated: core.IaCValue{
+							Resource: cluster,
+							Property: resources.CLUSTER_OIDC_ARN_IAC_VALUE,
+						},
+					},
+					Action: []string{"sts:AssumeRoleWithWebIdentity"},
+					Condition: &resources.Condition{
+						StringEquals: map[core.IaCValue]string{
+							{
+								Resource: cluster,
+								Property: resources.CLUSTER_OIDC_URL_IAC_VALUE,
+							}: fmt.Sprintf("system:serviceaccount:default:%s", unit.ID), // TODO: Replace default with the namespace when we expose via configuration
+						},
+					},
+				},
+			},
+		}
 		return nil
 	default:
 		log.Errorf("Unsupported type, %s, for aws execution units", execUnitCfg.Type)
@@ -125,7 +154,7 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 }
 
 // GetAssumeRolePolicyForType returns an assume role policy doc as a string, for the execution units corresponding IAM role
-func GetAssumeRolePolicyForType(cfg config.ExecutionUnit) string {
+func GetAssumeRolePolicyForType(cfg config.ExecutionUnit) *resources.PolicyDocument {
 	switch cfg.Type {
 	case Lambda:
 		return resources.LAMBDA_ASSUMER_ROLE_POLICY
@@ -138,5 +167,5 @@ func GetAssumeRolePolicyForType(cfg config.ExecutionUnit) string {
 		}
 		return resources.EC2_ASSUMER_ROLE_POLICY
 	}
-	return ""
+	return nil
 }
