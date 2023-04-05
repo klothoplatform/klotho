@@ -51,11 +51,12 @@ type (
 		Subnet        *Subnet
 	}
 	Subnet struct {
-		Name          string
-		ConstructsRef []core.AnnotationKey
-		CidrBlock     string
-		Vpc           *Vpc
-		Type          string
+		Name             string
+		ConstructsRef    []core.AnnotationKey
+		CidrBlock        string
+		Vpc              *Vpc
+		Type             string
+		AvailabilityZone core.IaCValue
 	}
 	VpcEndpoint struct {
 		Name            string
@@ -68,8 +69,8 @@ type (
 	}
 )
 
-func CreateNetwork(appName string, dag *core.ResourceGraph) *Vpc {
-
+func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
+	appName := config.AppName
 	vpc := NewVpc(appName)
 
 	if dag.GetResource(vpc.Id()) != nil {
@@ -77,17 +78,27 @@ func CreateNetwork(appName string, dag *core.ResourceGraph) *Vpc {
 	}
 
 	region := NewRegion()
+	azs := NewAvailabilityZones()
 	igw := NewInternetGateway(appName, "igw1", vpc)
 
 	dag.AddResource(region)
+	dag.AddDependency2(azs, region)
 	dag.AddResource(vpc)
 	dag.AddResource(igw)
 	dag.AddDependency2(igw, vpc)
 
-	CreatePrivateSubnet(appName, "private1", vpc, "10.0.0.0/18", dag)
-	CreatePrivateSubnet(appName, "private2", vpc, "10.0.64.0/18", dag)
-	CreatePublicSubnet("public1", vpc, "10.0.128.0/18", dag)
-	CreatePublicSubnet("public2", vpc, "10.0.192.0/18", dag)
+	az1 := core.IaCValue{
+		Resource: azs,
+		Property: "0",
+	}
+	az2 := core.IaCValue{
+		Resource: azs,
+		Property: "1",
+	}
+	CreatePrivateSubnet(appName, "private1", az1, vpc, "10.0.0.0/18", dag)
+	CreatePrivateSubnet(appName, "private2", az2, vpc, "10.0.64.0/18", dag)
+	CreatePublicSubnet("public1", az1, vpc, "10.0.128.0/18", dag)
+	CreatePublicSubnet("public2", az2, vpc, "10.0.192.0/18", dag)
 
 	// VPC Endpoints are dependent upon the subnets so we need to ensure the subnets are created first
 	CreateGatewayVpcEndpoint("s3", vpc, region, dag)
@@ -107,7 +118,7 @@ func GetVpc(cfg *config.Application, dag *core.ResourceGraph) *Vpc {
 			return vpc
 		}
 	}
-	return CreateNetwork(cfg.AppName, dag)
+	return CreateNetwork(cfg, dag)
 }
 
 func GetSubnets(cfg *config.Application, dag *core.ResourceGraph) (sns []*Subnet) {
@@ -115,12 +126,13 @@ func GetSubnets(cfg *config.Application, dag *core.ResourceGraph) (sns []*Subnet
 	return vpc.GetVpcSubnets(dag)
 }
 
-func CreatePrivateSubnet(appName string, subnetName string, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
+func CreatePrivateSubnet(appName string, subnetName string, az core.IaCValue, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
 
-	subnet := NewSubnet(subnetName, vpc, cidrBlock, PrivateSubnet)
+	subnet := NewSubnet(subnetName, vpc, cidrBlock, PrivateSubnet, az)
 
 	dag.AddResource(subnet)
 	dag.AddDependency2(subnet, vpc)
+	dag.AddDependency2(subnet, az.Resource)
 
 	ip := NewElasticIp(appName, subnetName)
 
@@ -135,26 +147,29 @@ func CreatePrivateSubnet(appName string, subnetName string, vpc *Vpc, cidrBlock 
 	return subnet
 }
 
-func CreatePublicSubnet(subnetName string, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
-	subnet := NewSubnet(subnetName, vpc, cidrBlock, PublicSubnet)
+func CreatePublicSubnet(subnetName string, az core.IaCValue, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
+	subnet := NewSubnet(subnetName, vpc, cidrBlock, PublicSubnet, az)
 	dag.AddResource(subnet)
 	dag.AddDependency2(subnet, vpc)
+	dag.AddDependency2(subnet, az.Resource)
 	return subnet
 }
 
 func CreateGatewayVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph) {
-	subnets := vpc.GetVpcSubnets(dag)
-	vpce := NewVpcEndpoint(service, vpc, "Gateway", region, subnets)
+	vpce := NewVpcEndpoint(service, vpc, "Gateway", region, nil)
 	dag.AddResource(vpce)
 	dag.AddDependency2(vpce, vpc)
 	dag.AddDependency2(vpce, region)
-	for _, subnet := range subnets {
-		dag.AddDependency2(vpce, subnet)
-	}
 }
 
 func CreateInterfaceVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph) {
-	subnets := vpc.GetVpcSubnets(dag)
+	vpc_subnets := vpc.GetVpcSubnets(dag)
+	subnets := []*Subnet{}
+	for _, s := range vpc_subnets {
+		if s.Type == PrivateSubnet {
+			subnets = append(subnets, s)
+		}
+	}
 	vpce := NewVpcEndpoint(service, vpc, "Interface", region, subnets)
 	dag.AddResource(vpce)
 	dag.AddDependency2(vpce, vpc)
@@ -241,12 +256,13 @@ func (natGateway *NatGateway) Id() string {
 	return fmt.Sprintf("%s:%s:%s", natGateway.Provider(), NAT_GATEWAY_TYPE, natGateway.Name)
 }
 
-func NewSubnet(subnetName string, vpc *Vpc, cidrBlock string, subnetType string) *Subnet {
+func NewSubnet(subnetName string, vpc *Vpc, cidrBlock string, subnetType string, availabilityZone core.IaCValue) *Subnet {
 	return &Subnet{
-		Name:      subnetSanitizer.Apply(fmt.Sprintf("%s-%s", vpc.Name, subnetName)),
-		CidrBlock: cidrBlock,
-		Vpc:       vpc,
-		Type:      subnetType,
+		Name:             subnetSanitizer.Apply(fmt.Sprintf("%s-%s", vpc.Name, subnetName)),
+		CidrBlock:        cidrBlock,
+		Vpc:              vpc,
+		Type:             subnetType,
+		AvailabilityZone: availabilityZone,
 	}
 }
 
