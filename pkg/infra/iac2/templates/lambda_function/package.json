@@ -2,6 +2,7 @@
     "name": "lambda_function",
     "dependencies": {
         "@pulumi/aws": "^5.16.0",
-        "@pulumi/pulumi": "^3.40.2"
+        "@pulumi/pulumi": "^3.40.2",
+        "@pulumi/docker": "^v4.1.0"
     }
 }

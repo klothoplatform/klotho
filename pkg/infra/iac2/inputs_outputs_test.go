@@ -89,6 +89,8 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.Elasticache{},
 		&resources.ElasticacheSubnetgroup{},
 		&resources.SecurityGroup{},
+		&resources.AvailabilityZones{},
+		&resources.AccountId{},
 	}
 
 	tp := standardTemplatesProvider()
