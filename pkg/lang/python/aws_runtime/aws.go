@@ -96,7 +96,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	var requirements string
 	unitType := r.Cfg.GetResourceType(unit)
 	switch unitType {
-	case "lambda":
+	case config.Lambda:
 		dockerFile = dockerfileLambda
 		dispatcher = dispatcherLambda
 		requirements = execRequirementsLambda
@@ -107,7 +107,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 		if err != nil {
 			return err
 		}
-	case "ecs", "kubernetes", "apprunner":
+	case config.Ecs, config.Kubernetes, config.AppRunner:
 		dockerFile = dockerfileFargate
 		dispatcher = dispatcherFargate
 		requirements = execRequirementsFargate
@@ -247,11 +247,11 @@ func (r *AwsRuntime) AddOrmRuntimeFiles(unit *core.ExecutionUnit) error {
 func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error {
 	var fileContents string
 	switch proxyType {
-	case "kubernetes":
+	case config.Kubernetes:
 		fileContents = proxyEksContents
-	case "ecs":
+	case config.Ecs:
 		fileContents = proxyFargateContents
-	case "lambda":
+	case config.Lambda:
 		fileContents = proxyLambdaContents
 
 		// We also need to add the Fs files because exec to exec calls in aws use s3

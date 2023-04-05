@@ -194,13 +194,13 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	var proxyFile []byte
 	unitType := r.Config.GetResourceType(unit)
 	switch proxyType {
-	case "kubernetes":
+	case config.Kubernetes:
 		proxyFile = proxyEks
-	case "ecs":
+	case config.Ecs:
 		proxyFile = proxyFargate
-	case "apprunner":
+	case config.AppRunner:
 		proxyFile = proxyApprunner
-	case "lambda":
+	case config.Lambda:
 		proxyFile = proxyLambda
 
 		// We also need to add the Fs files because exec to exec calls in aws use s3
@@ -225,10 +225,10 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	var DockerFile, Dispatcher []byte
 	unitType := r.Config.GetResourceType(unit)
 	switch unitType {
-	case "ecs", "kubernetes", "apprunner":
+	case config.Ecs, config.Kubernetes, config.AppRunner:
 		DockerFile = dockerfileFargate
 		Dispatcher = dispatcherFargate
-	case "lambda":
+	case config.Lambda:
 		DockerFile = dockerfileLambda
 		Dispatcher = dispatcherLambda
 

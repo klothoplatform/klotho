@@ -66,7 +66,6 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 				errs.Append(err)
 				continue
 			}
-		} else {
 		}
 		khChart.Name = chartContent.Name()
 		values := make(map[string]interface{})
@@ -166,7 +165,7 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 			}
 		}
 
-		if cfg.Type == "kubernetes" {
+		if cfg.Type == config.Kubernetes {
 			khChart, ok := klothoCharts[cfg.HelmChartOptions.Directory]
 			if !ok {
 				klothoCharts[cfg.HelmChartOptions.Directory] = HelmChart{
@@ -194,7 +193,7 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 						khChart.ValuesFiles, cfg.HelmChartOptions.ValuesFiles, cfg.HelmChartOptions.Directory, khChart.ValuesFiles)
 				}
 				khChart.ExecutionUnits = append(khChart.ExecutionUnits, &HelmExecUnit{Name: unit.ID, Namespace: "default"})
-				khChart.ConstructRefs = append(append(khChart.ConstructRefs, unit.AnnotationKey))
+				khChart.ConstructRefs = append(khChart.ConstructRefs, unit.AnnotationKey)
 				klothoCharts[cfg.HelmChartOptions.Directory] = khChart
 			}
 		}
