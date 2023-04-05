@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,11 +16,11 @@ func Test_CreateEksCluster(t *testing.T) {
 	subnet := NewSubnet("test-subnet", NewVpc(appName), "", PrivateSubnet, core.IaCValue{})
 	cases := []struct {
 		name string
-		want DagExpectation
+		want coretesting.ResourcesExpectation
 	}{
 		{
 			name: "happy path",
-			want: DagExpectation{
+			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:eks_cluster:test-app-test-cluster",
 					"aws:eks_fargate_profile:test-app-test-cluster",
@@ -29,7 +30,7 @@ func Test_CreateEksCluster(t *testing.T) {
 					"aws:iam_role:test-app-test-cluster-k8sAdmin",
 					subnet.Id(),
 				},
-				Deps: []StringDep{
+				Deps: []coretesting.StringDep{
 					{Destination: "aws:eks_cluster:test-app-test-cluster", Source: "aws:eks_fargate_profile:test-app-test-cluster"},
 					{Destination: "aws:eks_cluster:test-app-test-cluster", Source: "aws:eks_node_group:test-app-test-cluster"},
 					{Destination: "aws:iam_role:test-app-test-cluster-k8sAdmin", Source: "aws:eks_cluster:test-app-test-cluster"},
