@@ -35,8 +35,6 @@ type (
 		Imports map[string]struct{}
 		// ExpressionTemplate is a Go-[text/template] for a TypeScript expression to generate a piece of infrastructure.
 		ExpressionTemplate string
-		// AppliedOutputs represents any variables which require the pulumi apply functionality to be run on the template
-		AppliedOutputs []AppliedOutput
 	}
 
 	AppliedOutput struct {

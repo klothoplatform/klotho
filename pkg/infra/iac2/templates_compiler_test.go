@@ -178,7 +178,6 @@ func Test_handleIaCValue(t *testing.T) {
 		name                 string
 		value                core.IaCValue
 		resourceVarNamesById map[string]string
-		template             ResourceCreationTemplate
 		want                 string
 		wantOutputs          []AppliedOutput
 	}{
@@ -206,9 +205,6 @@ func Test_handleIaCValue(t *testing.T) {
 				Resource: resources.NewEksCluster("test-app", "cluster1", nil, nil, nil),
 				Property: resources.CLUSTER_OIDC_ARN_IAC_VALUE,
 			},
-			template: ResourceCreationTemplate{
-				Imports: make(map[string]struct{}),
-			},
 			resourceVarNamesById: map[string]string{
 				"aws:eks_cluster:test-app-cluster1": "awsEksClusterTestAppCluster1",
 			},
@@ -231,11 +227,12 @@ func Test_handleIaCValue(t *testing.T) {
 			tc := TemplatesCompiler{
 				resourceVarNamesById: tt.resourceVarNamesById,
 			}
-			actual, err := tc.handleIaCValue(tt.value, &tt.template)
+			appliedOutputs := []AppliedOutput{}
+			actual, err := tc.handleIaCValue(tt.value, &appliedOutputs)
 			assert.NoError(err)
 			assert.Equal(tt.want, actual)
 			if tt.wantOutputs != nil {
-				assert.ElementsMatch(tt.wantOutputs, tt.template.AppliedOutputs)
+				assert.ElementsMatch(tt.wantOutputs, appliedOutputs)
 			}
 		})
 	}
