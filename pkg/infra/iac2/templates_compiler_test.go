@@ -219,12 +219,22 @@ func Test_handleIaCValue(t *testing.T) {
 					varName:     "cluster_arn",
 				},
 			},
+			name: "Availability zone",
+			value: core.IaCValue{
+				Resource: &resources.AvailabilityZones{},
+				Property: "2",
+			},
+			resourceVarNamesById: map[string]string{
+				"aws:availability_zones:AvailabilityZones": "azs",
+			},
+			want: "awsAvailabilityZones.names[2]",
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			tc := TemplatesCompiler{
+				resourceVarNames:     map[string]struct{}{},
 				resourceVarNamesById: tt.resourceVarNamesById,
 			}
 			appliedOutputs := []AppliedOutput{}

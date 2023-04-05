@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
@@ -29,7 +30,7 @@ func Test_CreateNetwork(t *testing.T) {
 				nodes: []string{"aws:vpc:test_app", "aws:vpc_subnet:test_app_private1", "aws:vpc_subnet:test_app_private2", "aws:vpc_subnet:test_app_public1", "aws:vpc_subnet:test_app_public2",
 					"aws:vpc_endpoint:test_app_s3", "aws:vpc_endpoint:test_app_sqs", "aws:vpc_endpoint:test_app_sns", "aws:vpc_endpoint:test_app_lambda",
 					"aws:vpc_endpoint:test_app_secretsmanager", "aws:vpc_endpoint:test_app_dynamodb", "aws:elastic_ip:test_app_private2", "aws:elastic_ip:test_app_private1",
-					"aws:nat_gateway:test_app_private1", "aws:nat_gateway:test_app_private2", "aws:region:region", "aws:internet_gateway:test_app_igw1",
+					"aws:nat_gateway:test_app_private1", "aws:nat_gateway:test_app_private2", "aws:region:region", "aws:availability_zones:AvailabilityZones", "aws:internet_gateway:test_app_igw1",
 				},
 				deps: []stringDep{
 					{source: "aws:internet_gateway:test_app_igw1", dest: "aws:vpc:test_app"},
@@ -37,6 +38,11 @@ func Test_CreateNetwork(t *testing.T) {
 					{source: "aws:vpc_subnet:test_app_private2", dest: "aws:vpc:test_app"},
 					{source: "aws:vpc_subnet:test_app_public1", dest: "aws:vpc:test_app"},
 					{source: "aws:vpc_subnet:test_app_public2", dest: "aws:vpc:test_app"},
+					{source: "aws:availability_zones:AvailabilityZones", dest: "aws:region:region"},
+					{source: "aws:vpc_subnet:test_app_private1", dest: "aws:availability_zones:AvailabilityZones"},
+					{source: "aws:vpc_subnet:test_app_private2", dest: "aws:availability_zones:AvailabilityZones"},
+					{source: "aws:vpc_subnet:test_app_public1", dest: "aws:availability_zones:AvailabilityZones"},
+					{source: "aws:vpc_subnet:test_app_public2", dest: "aws:availability_zones:AvailabilityZones"},
 					{source: "aws:vpc_endpoint:test_app_sqs", dest: "aws:vpc:test_app"},
 					{source: "aws:vpc_endpoint:test_app_s3", dest: "aws:vpc:test_app"},
 					{source: "aws:vpc_endpoint:test_app_dynamodb", dest: "aws:vpc:test_app"},
@@ -54,29 +60,13 @@ func Test_CreateNetwork(t *testing.T) {
 					{source: "aws:nat_gateway:test_app_private1", dest: "aws:vpc_subnet:test_app_private1"},
 					{source: "aws:nat_gateway:test_app_private1", dest: "aws:elastic_ip:test_app_private1"},
 					{dest: "aws:vpc_subnet:test_app_private1", source: "aws:vpc_endpoint:test_app_sqs"},
-					{dest: "aws:vpc_subnet:test_app_private1", source: "aws:vpc_endpoint:test_app_s3"},
-					{dest: "aws:vpc_subnet:test_app_private1", source: "aws:vpc_endpoint:test_app_dynamodb"},
 					{dest: "aws:vpc_subnet:test_app_private1", source: "aws:vpc_endpoint:test_app_sns"},
 					{dest: "aws:vpc_subnet:test_app_private1", source: "aws:vpc_endpoint:test_app_lambda"},
 					{dest: "aws:vpc_subnet:test_app_private1", source: "aws:vpc_endpoint:test_app_secretsmanager"},
 					{dest: "aws:vpc_subnet:test_app_private2", source: "aws:vpc_endpoint:test_app_sqs"},
-					{dest: "aws:vpc_subnet:test_app_private2", source: "aws:vpc_endpoint:test_app_s3"},
-					{dest: "aws:vpc_subnet:test_app_private2", source: "aws:vpc_endpoint:test_app_dynamodb"},
 					{dest: "aws:vpc_subnet:test_app_private2", source: "aws:vpc_endpoint:test_app_sns"},
 					{dest: "aws:vpc_subnet:test_app_private2", source: "aws:vpc_endpoint:test_app_lambda"},
 					{dest: "aws:vpc_subnet:test_app_private2", source: "aws:vpc_endpoint:test_app_secretsmanager"},
-					{dest: "aws:vpc_subnet:test_app_public1", source: "aws:vpc_endpoint:test_app_sqs"},
-					{dest: "aws:vpc_subnet:test_app_public1", source: "aws:vpc_endpoint:test_app_s3"},
-					{dest: "aws:vpc_subnet:test_app_public1", source: "aws:vpc_endpoint:test_app_dynamodb"},
-					{dest: "aws:vpc_subnet:test_app_public1", source: "aws:vpc_endpoint:test_app_sns"},
-					{dest: "aws:vpc_subnet:test_app_public1", source: "aws:vpc_endpoint:test_app_lambda"},
-					{dest: "aws:vpc_subnet:test_app_public1", source: "aws:vpc_endpoint:test_app_secretsmanager"},
-					{dest: "aws:vpc_subnet:test_app_public2", source: "aws:vpc_endpoint:test_app_sqs"},
-					{dest: "aws:vpc_subnet:test_app_public2", source: "aws:vpc_endpoint:test_app_s3"},
-					{dest: "aws:vpc_subnet:test_app_public2", source: "aws:vpc_endpoint:test_app_dynamodb"},
-					{dest: "aws:vpc_subnet:test_app_public2", source: "aws:vpc_endpoint:test_app_sns"},
-					{dest: "aws:vpc_subnet:test_app_public2", source: "aws:vpc_endpoint:test_app_lambda"},
-					{dest: "aws:vpc_subnet:test_app_public2", source: "aws:vpc_endpoint:test_app_secretsmanager"},
 				},
 			},
 		},
@@ -95,13 +85,17 @@ func Test_CreateNetwork(t *testing.T) {
 			for _, res := range tt.existingResources {
 				dag.AddResource(res)
 			}
-			result := CreateNetwork(appName, dag)
+
+			cfg := &config.Application{
+				AppName: appName,
+			}
+			result := CreateNetwork(cfg, dag)
 			assert.NotNil(result)
 			for _, id := range tt.want.nodes {
 				assert.NotNil(dag.GetResource(id))
 			}
 			for _, dep := range tt.want.deps {
-				assert.NotNil(dag.GetDependency(dep.source, dep.dest))
+				assert.NotNilf(dag.GetDependency(dep.source, dep.dest), "Dependency not found for %s -> %s", dep.source, dep.dest)
 			}
 			assert.Len(dag.ListResources(), len(tt.want.nodes))
 			assert.Len(dag.ListDependencies(), len(tt.want.deps))
@@ -142,9 +136,9 @@ func Test_GetVpcSubnets(t *testing.T) {
 			dag.AddResource(vpc)
 			for i, spec := range tt.subnets {
 				if spec.Public {
-					CreatePublicSubnet(fmt.Sprintf("public%d", i), vpc, spec.Cidr, dag)
+					CreatePublicSubnet(fmt.Sprintf("public%d", i), core.IaCValue{Resource: NewAvailabilityZones()}, vpc, spec.Cidr, dag)
 				} else {
-					CreatePrivateSubnet("test-app", fmt.Sprintf("private%d", i), vpc, spec.Cidr, dag)
+					CreatePrivateSubnet("test-app", fmt.Sprintf("private%d", i), core.IaCValue{Resource: NewAvailabilityZones()}, vpc, spec.Cidr, dag)
 				}
 			}
 
@@ -175,9 +169,10 @@ func Test_CreatePrivateSubnet(t *testing.T) {
 		{
 			name: "happy path",
 			want: testResult{
-				nodes: []string{"aws:vpc:test_app", "aws:vpc_subnet:test_app_private1", "aws:elastic_ip:test_app_private1", "aws:nat_gateway:test_app_private1"},
+				nodes: []string{"aws:vpc:test_app", "aws:availability_zones:AvailabilityZones", "aws:vpc_subnet:test_app_private1", "aws:elastic_ip:test_app_private1", "aws:nat_gateway:test_app_private1"},
 				deps: []stringDep{
 					{dest: "aws:vpc:test_app", source: "aws:vpc_subnet:test_app_private1"},
+					{dest: "aws:availability_zones:AvailabilityZones", source: "aws:vpc_subnet:test_app_private1"},
 					{dest: "aws:vpc_subnet:test_app_private1", source: "aws:nat_gateway:test_app_private1"},
 					{dest: "aws:elastic_ip:test_app_private1", source: "aws:nat_gateway:test_app_private1"},
 				},
@@ -190,7 +185,9 @@ func Test_CreatePrivateSubnet(t *testing.T) {
 			dag := core.NewResourceGraph()
 			vpc := NewVpc(appName)
 			dag.AddResource(vpc)
-			CreatePrivateSubnet(appName, "private1", vpc, "0", dag)
+			az := NewAvailabilityZones()
+			dag.AddResource(az)
+			CreatePrivateSubnet(appName, "private1", core.IaCValue{Resource: az}, vpc, "0", dag)
 			for _, id := range tt.want.nodes {
 				assert.NotNil(dag.GetResource(id))
 			}
@@ -220,8 +217,9 @@ func Test_CreatePublicSubnet(t *testing.T) {
 		{
 			name: "happy path",
 			want: testResult{
-				nodes: []string{"aws:vpc:test_app", "aws:vpc_subnet:test_app_public1"},
+				nodes: []string{"aws:vpc:test_app", "aws:availability_zones:AvailabilityZones", "aws:vpc_subnet:test_app_public1"},
 				deps: []stringDep{
+					{dest: "aws:availability_zones:AvailabilityZones", source: "aws:vpc_subnet:test_app_public1"},
 					{dest: "aws:vpc:test_app", source: "aws:vpc_subnet:test_app_public1"},
 				},
 			},
@@ -233,7 +231,9 @@ func Test_CreatePublicSubnet(t *testing.T) {
 			dag := core.NewResourceGraph()
 			vpc := NewVpc(appName)
 			dag.AddResource(vpc)
-			CreatePublicSubnet("public1", vpc, "0", dag)
+			az := NewAvailabilityZones()
+			dag.AddResource(az)
+			CreatePublicSubnet("public1", core.IaCValue{Resource: NewAvailabilityZones()}, vpc, "0", dag)
 			for _, id := range tt.want.nodes {
 				assert.NotNil(dag.GetResource(id))
 			}
@@ -269,8 +269,6 @@ func Test_CreateGatewayVpcEndpoint(t *testing.T) {
 					{dest: "aws:region:region", source: "aws:vpc_endpoint:test_app_s3"},
 					{dest: "aws:vpc:test_app", source: "aws:vpc_subnet:test_app_1"},
 					{dest: "aws:vpc:test_app", source: "aws:vpc_subnet:test_app_2"},
-					{dest: "aws:vpc_subnet:test_app_1", source: "aws:vpc_endpoint:test_app_s3"},
-					{dest: "aws:vpc_subnet:test_app_2", source: "aws:vpc_endpoint:test_app_s3"},
 				},
 			},
 		},
@@ -280,8 +278,8 @@ func Test_CreateGatewayVpcEndpoint(t *testing.T) {
 			assert := assert.New(t)
 			dag := core.NewResourceGraph()
 			vpc := NewVpc(appName)
-			subnet1 := NewSubnet("1", vpc, "", PrivateSubnet)
-			subnet2 := NewSubnet("2", vpc, "", PrivateSubnet)
+			subnet1 := NewSubnet("1", vpc, "", PrivateSubnet, core.IaCValue{})
+			subnet2 := NewSubnet("2", vpc, "", PrivateSubnet, core.IaCValue{})
 			region := NewRegion()
 			dag.AddResource(vpc)
 			dag.AddResource(subnet1)
@@ -291,10 +289,10 @@ func Test_CreateGatewayVpcEndpoint(t *testing.T) {
 			dag.AddResource(region)
 			CreateGatewayVpcEndpoint("s3", vpc, region, dag)
 			for _, id := range tt.want.nodes {
-				assert.NotNil(dag.GetResource(id))
+				assert.NotNilf(dag.GetResource(id), "Did not find node %s", id)
 			}
 			for _, dep := range tt.want.deps {
-				assert.NotNil(dag.GetDependency(dep.source, dep.dest))
+				assert.NotNilf(dag.GetDependency(dep.source, dep.dest), "Did not find dependency %s -> %s", dep.source, dep.dest)
 			}
 			assert.Len(dag.ListResources(), len(tt.want.nodes))
 			assert.Len(dag.ListDependencies(), len(tt.want.deps))
@@ -336,8 +334,8 @@ func Test_CreateInterfaceVpcEndpoint(t *testing.T) {
 			assert := assert.New(t)
 			dag := core.NewResourceGraph()
 			vpc := NewVpc(appName)
-			subnet1 := NewSubnet("1", vpc, "", PrivateSubnet)
-			subnet2 := NewSubnet("2", vpc, "", PrivateSubnet)
+			subnet1 := NewSubnet("1", vpc, "", PrivateSubnet, core.IaCValue{})
+			subnet2 := NewSubnet("2", vpc, "", PrivateSubnet, core.IaCValue{})
 			region := NewRegion()
 			dag.AddResource(vpc)
 			dag.AddResource(subnet1)
@@ -345,12 +343,12 @@ func Test_CreateInterfaceVpcEndpoint(t *testing.T) {
 			dag.AddDependency2(subnet1, vpc)
 			dag.AddDependency2(subnet2, vpc)
 			dag.AddResource(region)
-			CreateGatewayVpcEndpoint("s3", vpc, region, dag)
+			CreateInterfaceVpcEndpoint("s3", vpc, region, dag)
 			for _, id := range tt.want.nodes {
-				assert.NotNil(dag.GetResource(id))
+				assert.NotNilf(dag.GetResource(id), "Did not find node %s", id)
 			}
 			for _, dep := range tt.want.deps {
-				assert.NotNil(dag.GetDependency(dep.source, dep.dest))
+				assert.NotNilf(dag.GetDependency(dep.source, dep.dest), "Did not find dependency %s -> %s", dep.source, dep.dest)
 			}
 			assert.Len(dag.ListResources(), len(tt.want.nodes))
 			assert.Len(dag.ListDependencies(), len(tt.want.deps))

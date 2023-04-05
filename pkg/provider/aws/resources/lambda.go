@@ -64,12 +64,12 @@ func (lambda *LambdaFunction) Id() string {
 	return fmt.Sprintf("%s:%s:%s", lambda.Provider(), LAMBDA_FUNCTION_TYPE, lambda.Name)
 }
 
-func NewLambdaPermission(function *LambdaFunction, val core.IaCValue, principal string, action string, ref []core.AnnotationKey) *LambdaPermission {
+func NewLambdaPermission(function *LambdaFunction, source core.IaCValue, principal string, action string, ref []core.AnnotationKey) *LambdaPermission {
 	return &LambdaPermission{
-		Name:          LambdaPermissionSanitizer.Apply(fmt.Sprintf("%s-%s", function.Name, val.Resource.Id())),
+		Name:          LambdaPermissionSanitizer.Apply(fmt.Sprintf("%s-%s", function.Name, source.Resource.Id())),
 		ConstructsRef: ref,
 		Function:      function,
-		Source:        val,
+		Source:        source,
 		Action:        action,
 		Principal:     principal,
 	}
