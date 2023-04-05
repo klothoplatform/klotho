@@ -21,8 +21,12 @@ function create(args: Args): aws.apigateway.Integration {
         httpMethod: args.Method.httpMethod,
         integrationHttpMethod: args.Method.httpMethod,
         type: args.Type,
-        connectionType: 'VPC_LINK',
-        connectionId: args.ConnectionType,
+        //TMPL {{ if .ConnectionType.Raw }}
+        connectionType: args.ConnectionType,
+        //TMPL {{ end }}
+        //TMPL {{ if .VpcLink.Raw }}
+        connectionId: args.VpcLink.id,
+        //TMPL {{ end }}
         uri: args.Uri,
         requestParameters: args.RequestParameters,
     })

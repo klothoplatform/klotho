@@ -17,6 +17,7 @@ const (
 	API_GATEWAY_STAGE_TYPE       = "api_stage"
 
 	LAMBDA_INTEGRATION_URI_IAC_VALUE = "lambda_integration_uri"
+	ALL_RESOURCES_ARN_IAC_VALUE      = "all_resources_arn"
 )
 
 var restApiSanitizer = aws.RestApiSanitizer

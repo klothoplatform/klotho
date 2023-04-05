@@ -12,7 +12,7 @@ func Test_CreateEksCluster(t *testing.T) {
 	clusterName := "test-cluster"
 	eus := []*core.ExecutionUnit{{AnnotationKey: core.AnnotationKey{ID: "test"}}}
 	sources := []core.AnnotationKey{{ID: "test"}}
-	subnet := NewSubnet("test-subnet", NewVpc(appName), "", PrivateSubnet)
+	subnet := NewSubnet("test-subnet", NewVpc(appName), "", PrivateSubnet, core.IaCValue{})
 	type stringDep struct {
 		source string
 		dest   string
