@@ -433,6 +433,19 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) (string, error) {
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
 		}
+	case resources.ALL_RESOURCES_ARN_IAC_VALUE:
+		method, ok := v.Resource.(*resources.ApiMethod)
+		if !ok {
+			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
+		}
+		verb := strings.ToUpper(method.HttpMethod)
+		if verb == "ANY" {
+			verb = "*"
+		}
+		accountId := resources.NewAccountId()
+		region := resources.NewRegion()
+		return fmt.Sprintf("pulumi.interpolate`arn:aws:execute-api:${%s.name}:${%s.accountId}:${%s.id}/*/%s${%s.path}`", tc.getVarName(region),
+			tc.getVarName(accountId), tc.getVarName(method.RestApi), verb, tc.getVarName(method.Resource)), nil
 	}
 	return "", errors.Errorf("unsupported IaC Value Property, %s", v.Property)
 }
