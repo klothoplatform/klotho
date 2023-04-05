@@ -1,6 +1,7 @@
 package iac2
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"text/template"
@@ -81,6 +82,98 @@ func TestParameterizeArgs(t *testing.T) {
 					}
 				})
 			}
+		})
+	}
+
+}
+
+func Test_appliedOutputsToString(t *testing.T) {
+	cases := []struct {
+		name  string
+		want  string
+		input []AppliedOutput
+	}{
+		{
+			name: "simple test",
+			input: []AppliedOutput{
+				{
+					appliedName: fmt.Sprintf("%s.openIdConnectIssuerUrl", "awsEksClusterTestAppCluster1"),
+					varName:     "cluster_oidc_url",
+				},
+				{
+					appliedName: fmt.Sprintf("%s.arn", "awsEksClusterTestAppCluster1"),
+					varName:     "cluster_arn",
+				},
+			},
+			want: "pulumi.all([awsEksClusterTestAppCluster1.openIdConnectIssuerUrl, awsEksClusterTestAppCluster1.arn]).apply(([cluster_oidc_url, cluster_arn]) => { return ",
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			result := appliedOutputsToString(tt.input)
+			assert := assert.New(t)
+			assert.Equal(tt.want, result)
+		})
+	}
+
+}
+
+func Test_dedupeAppliedOutputs(t *testing.T) {
+	cases := []struct {
+		name    string
+		want    []AppliedOutput
+		input   []AppliedOutput
+		wantErr bool
+	}{
+		{
+			name: "simple test",
+			input: []AppliedOutput{
+				{
+					appliedName: fmt.Sprintf("%s.openIdConnectIssuerUrl", "awsEksClusterTestAppCluster1"),
+					varName:     "cluster_oidc_url",
+				},
+				{
+					appliedName: fmt.Sprintf("%s.openIdConnectIssuerUrl", "awsEksClusterTestAppCluster1"),
+					varName:     "cluster_oidc_url",
+				},
+			},
+			want: []AppliedOutput{
+				{
+					appliedName: fmt.Sprintf("%s.openIdConnectIssuerUrl", "awsEksClusterTestAppCluster1"),
+					varName:     "cluster_oidc_url",
+				},
+			},
+		},
+		{
+			name: "var name conflict ",
+			input: []AppliedOutput{
+				{
+					appliedName: fmt.Sprintf("%s.should differ", "awsEksClusterTestAppCluster1"),
+					varName:     "cluster_oidc_url",
+				},
+				{
+					appliedName: fmt.Sprintf("%s.openIdConnectIssuerUrl", "awsEksClusterTestAppCluster1"),
+					varName:     "cluster_oidc_url",
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			result, err := deduplicateAppliedOutputs(tt.input)
+
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
+			if !assert.NoError(err) {
+				return
+			}
+
+			assert.Equal(tt.want, result)
 		})
 	}
 

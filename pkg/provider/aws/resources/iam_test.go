@@ -99,14 +99,14 @@ func Test_AddUnitRole(t *testing.T) {
 		{
 			name:          "Add role, none exists",
 			existingRoles: map[string]*IamRole{},
-			role:          NewIamRole("test-app", "test-role", []core.AnnotationKey{}, ""),
+			role:          NewIamRole("test-app", "test-role", []core.AnnotationKey{}, nil),
 		},
 		{
 			name: "Add role, one already exists",
 			existingRoles: map[string]*IamRole{
-				unitId: NewIamRole("test-app", "diff-role", []core.AnnotationKey{}, ""),
+				unitId: NewIamRole("test-app", "diff-role", []core.AnnotationKey{}, nil),
 			},
-			role:    NewIamRole("test-app", "test-role", []core.AnnotationKey{}, ""),
+			role:    NewIamRole("test-app", "test-role", []core.AnnotationKey{}, nil),
 			wantErr: true,
 		},
 	}
