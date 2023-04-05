@@ -47,9 +47,14 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 
 		if err != nil {
 			if err.Error() == "Chart.yaml file is missing" {
+				var unitNames []string
+				for _, eu := range khChart.ExecutionUnits {
+					unitNames = append(unitNames, eu.Name)
+				}
+
 				chartContent = &chart.Chart{
 					Metadata: &chart.Metadata{
-						Name:        p.Config.AppName,
+						Name:        strings.ReplaceAll(strings.ToLower(strings.Join(unitNames, "")), "_", "-"),
 						APIVersion:  "v2",
 						AppVersion:  "0.0.1",
 						Version:     "0.0.1",
@@ -123,7 +128,7 @@ func (p *Kubernetes) setHelmChartDirectory(path string, cfg *config.ExecutionUni
 		return false, nil
 	}
 	relPath := strings.TrimSuffix(path, extension)
-	if strings.HasSuffix(relPath, "Chart") && cfg.HelmChartOptions.Directory == "" {
+	if strings.HasSuffix(relPath, "Chart") && cfg.HelmChartOptions != nil && cfg.HelmChartOptions.Directory == "" {
 		chartDirectory, err := filepath.Rel(p.Config.Path, filepath.Dir(path))
 		if err != nil {
 			return false, err
@@ -189,6 +194,7 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 						khChart.ValuesFiles, cfg.HelmChartOptions.ValuesFiles, cfg.HelmChartOptions.Directory, khChart.ValuesFiles)
 				}
 				khChart.ExecutionUnits = append(khChart.ExecutionUnits, &HelmExecUnit{Name: unit.ID, Namespace: "default"})
+				khChart.ConstructRefs = append(append(khChart.ConstructRefs, unit.AnnotationKey))
 				klothoCharts[cfg.HelmChartOptions.Directory] = khChart
 			}
 		}

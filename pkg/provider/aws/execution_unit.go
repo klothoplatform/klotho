@@ -5,6 +5,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -86,13 +87,59 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 			},
 		}
 		// transform kubernetes resources for EKS
+
+		// TODO look into a better way to map the provider to a helm chart
+		providerName := "UNIMPLEMENTED-eks-provider"
+		provider, ok := dag.GetResource(providerName).(*resources.AwsKubernetesProvider)
+		if !ok {
+			provider = &resources.AwsKubernetesProvider{Name: providerName, KubeConfig: ""}
+		}
+		dag.AddResource(provider)
+		provider.ConstructRefs = append(provider.ConstructRefs, unit.AnnotationKey)
+
 		for _, res := range dag.ListResources() {
-			if res.Provider() != "kubernetes" {
-				continue
+			switch res.(type) {
+
 			}
-			for _, ref := range res.KlothoConstructRef() {
-				if ref.ToId() == unit.ToId() {
-					a.MapResourceDirectlyToConstruct(res, unit)
+			if khChart, ok := res.(*kubernetes.HelmChart); ok {
+				for _, ref := range khChart.KlothoConstructRef() {
+					if ref.ToId() == unit.ToId() {
+						awsChart := resources.NewAwsHelmChart(khChart)
+						awsChart.KubernetesProvider = provider
+						dag.AddDependenciesReflect(awsChart)
+						if existing, ok := dag.GetResource(awsChart.Id()).(*resources.AwsHelmChart); ok {
+							awsChart = existing
+						} else {
+							dag.AddResource(awsChart)
+						}
+						for _, val := range khChart.Values {
+							if val.ExecUnitName != unit.ID {
+								continue
+							}
+							switch val.Type {
+							// TODO handle kubernetes.TargetGroupTransformation
+							case string(kubernetes.ImageTransformation):
+								awsChart.Values.Values = append(awsChart.Values.Values, resources.AwsHelmChartValue{
+									Key: val.Key,
+									Value: core.IaCValue{
+										Resource: image,
+										Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
+									},
+								})
+								dag.AddDependency2(awsChart, image)
+							case string(kubernetes.ServiceAccountAnnotationTransformation):
+								awsChart.Values.Values = append(awsChart.Values.Values, resources.AwsHelmChartValue{
+									Key: val.Key,
+									Value: core.IaCValue{
+										Resource: role,
+										Property: core.ARN_IAC_VALUE,
+									},
+								})
+								dag.AddDependency2(awsChart, role)
+							}
+						}
+						a.MapResourceDirectlyToConstruct(awsChart, unit)
+					}
 				}
 			}
 		}
@@ -110,10 +157,6 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 	execUnits := core.GetResourcesOfType[*core.ExecutionUnit](result)
 	for _, unit := range execUnits {
 
-		// For now we skip over kubernetes because the environment variables are already attached to the helm chart. This may change as we do kubernetes development
-		if a.Config.GetExecutionUnit(unit.ID).Type == Kubernetes {
-			continue
-		}
 		resourceEnvVars := make(resources.EnvironmentVariables)
 
 		// This set of environment variables correspond to the specific needs of the execution units and its dependencies
@@ -155,6 +198,19 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 			switch r := resource.(type) {
 			case *resources.LambdaFunction:
 				r.EnvironmentVariables = resourceEnvVars
+			case *resources.AwsHelmChart:
+				for evName, evVal := range resourceEnvVars {
+					if key, ok := r.EnvVarKeys[evName]; ok {
+						r.Values.Values = append(r.Values.Values, resources.AwsHelmChartValue{
+							Key:   key,
+							Value: evVal,
+						})
+						if evVal.Resource != resource {
+							dag.AddDependency2(resource, evVal.Resource)
+						}
+					}
+
+				}
 			}
 		}
 	}

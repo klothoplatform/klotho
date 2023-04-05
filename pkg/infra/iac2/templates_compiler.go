@@ -14,6 +14,7 @@ import (
 	"text/template"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -180,6 +181,11 @@ func (tc TemplatesCompiler) RenderPackageJSON() (*javascript.NodePackageJson, er
 
 func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource) error {
 
+	switch resource.(type) {
+	case *kubernetes.HelmChart:
+		return nil // Raw helm charts
+	}
+
 	tmpl, err := tc.getTemplate(resource)
 	if err != nil {
 		return err
@@ -303,7 +309,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 			return tc.getVarName(typedChild), nil
 		} else if typedChild, ok := childVal.Interface().(core.IaCValue); ok {
 			if iacTag != "" {
-				return "", errors.Errorf("structs of type IaCValue can not be tagged with `resource:`")
+				return "", errors.Errorf("structs implementing IaCValue can not be tagged with `resource:`")
 			}
 			output, err := tc.handleIaCValue(typedChild, appliedOutputs)
 			if err != nil {
@@ -359,7 +365,22 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 				tmpl, err := tc.getNestedTemplate(path.Join(
 					camelToSnake(resourceVal.Type().Name()),
 					camelToSnake(correspondingStruct.Type().Name()),
-				))
+				), template.FuncMap{
+					// parseField parses a single field from the supplied value
+					"parseField": func(val reflect.Value, fieldName string) (string, error) {
+						structField, found := val.Type().FieldByName(fieldName)
+						if !found {
+							return "", fmt.Errorf("field '%s' not found", fieldName)
+						}
+						iacTag := structField.Tag.Get("render")
+						fieldVal := val.FieldByName(fieldName)
+						return tc.resolveStructInput(nil, fieldVal, useDoubleQuotedStrings, iacTag, appliedOutputs)
+					},
+					// parseVal parses the supplied value
+					"parseVal": func(val reflect.Value) (string, error) {
+						return tc.resolveStructInput(nil, val, useDoubleQuotedStrings, "", appliedOutputs)
+					},
+				})
 				if err != nil {
 					return "", err
 				}
@@ -422,8 +443,11 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 
 // handleIaCValue determines how to retrieve values from a resource given a specific value identifier.
 func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]AppliedOutput) (string, error) {
-	if v.Resource == nil {
-		output, err := tc.resolveStructInput(nil, reflect.ValueOf(v.Property), false, "", appliedOutputs)
+	resource := v.Resource
+	property := v.Property
+
+	if resource == nil {
+		output, err := tc.resolveStructInput(nil, reflect.ValueOf(property), false, "", appliedOutputs)
 		if err != nil {
 			return output, err
 		}
@@ -431,10 +455,9 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 	} else if _, ok := v.Resource.(*resources.AvailabilityZones); ok {
 		return fmt.Sprintf("%s.names[%s]", tc.getVarName(v.Resource), v.Property), nil
 	}
-
-	switch v.Property {
+	switch property {
 	case string(core.BUCKET_NAME):
-		return fmt.Sprintf("%s.bucket", tc.getVarName(v.Resource)), nil
+		return fmt.Sprintf("%s.bucket", tc.getVarName(resource)), nil
 	case string(core.ARN_IAC_VALUE):
 		return fmt.Sprintf("%s.arn", tc.getVarName(v.Resource)), nil
 	case string(resources.ALL_BUCKET_DIRECTORY_IAC_VALUE):
@@ -443,25 +466,25 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		resources.DYNAMODB_TABLE_INDEX_IAC_VALUE,
 		resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE,
 		resources.DYNAMODB_TABLE_STREAM_IAC_VALUE:
-		prop := strings.Split(v.Property, "__")[1]
-		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/%s/*`", tc.getVarName(v.Resource), prop), nil
+		prop := strings.Split(property, "__")[1]
+		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/%s/*`", tc.getVarName(resource), prop), nil
 	case string(resources.LAMBDA_INTEGRATION_URI_IAC_VALUE):
-		return fmt.Sprintf("%s.invokeArn", tc.getVarName(v.Resource)), nil
+		return fmt.Sprintf("%s.invokeArn", tc.getVarName(resource)), nil
 	case string(core.ALL_RESOURCES_IAC_VALUE):
 		return "*", nil
 	case string(core.HOST):
-		switch v.Resource.(type) {
+		switch resource.(type) {
 		case *resources.Elasticache:
-			return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].address`", tc.getVarName(v.Resource)), nil
+			return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].address`", tc.getVarName(resource)), nil
 		default:
-			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
+			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
 	case string(core.PORT):
-		switch v.Resource.(type) {
+		switch resource.(type) {
 		case *resources.Elasticache:
-			return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].port`", tc.getVarName(v.Resource)), nil
+			return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].port`", tc.getVarName(resource)), nil
 		default:
-			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
+			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
 	case resources.CLUSTER_OIDC_ARN_IAC_VALUE:
 		varName := "cluster_oidc_url"
@@ -500,11 +523,16 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		}
 		return fmt.Sprintf("pulumi.interpolate`arn:aws:execute-api:${%s.name}:${%s.accountId}:${%s.id}/*/%s%s`", tc.getVarName(region),
 			tc.getVarName(accountId), tc.getVarName(method.RestApi), verb, path), nil
+<<<<<<< HEAD
 	case resources.STAGE_INVOKE_URL_IAC_VALUE:
 		return fmt.Sprintf("%s.invokeUrl.apply((d) => d.split('//')[1].split('/')[0])", tc.getVarName(v.Resource)), nil
+=======
+	case resources.ECR_IMAGE_NAME_IAC_VALUE:
+		return fmt.Sprintf(`%s.imageName`, tc.getVarName(resource)), nil
+>>>>>>> 9d47c7b (Transforms helm charts for use with aws)
 	}
 
-	return "", errors.Errorf("unsupported IaC Value Property, %s", v.Property)
+	return "", errors.Errorf("unsupported IaC Value Property, %s", property)
 }
 
 // getVarName gets a unique but nice-looking variable for the given item.
@@ -535,32 +563,32 @@ func (tc TemplatesCompiler) getVarName(v core.Resource) string {
 	return resolvedName
 }
 
-func (tc templatesProvider) getTemplate(v core.Resource) (ResourceCreationTemplate, error) {
-	return tc.getTemplateForType(structName(v))
+func (tp templatesProvider) getTemplate(v core.Resource) (ResourceCreationTemplate, error) {
+	return tp.getTemplateForType(structName(v))
 }
 
-func (tc templatesProvider) getTemplateForType(typeName string) (ResourceCreationTemplate, error) {
-	existing, ok := tc.resourceTemplatesByStructName[typeName]
+func (tp templatesProvider) getTemplateForType(typeName string) (ResourceCreationTemplate, error) {
+	existing, ok := tp.resourceTemplatesByStructName[typeName]
 	if ok {
 		return existing, nil
 	}
 	templateName := camelToSnake(typeName)
-	contents, err := fs.ReadFile(tc.templates, templateName+`/factory.ts`)
+	contents, err := fs.ReadFile(tp.templates, templateName+`/factory.ts`)
 	if err != nil {
 		return ResourceCreationTemplate{}, err
 	}
 	template := ParseResourceCreationTemplate(typeName, contents)
-	tc.resourceTemplatesByStructName[typeName] = template
+	tp.resourceTemplatesByStructName[typeName] = template
 	return template, nil
 }
 
-func (tc templatesProvider) getNestedTemplate(templatePath string) (*template.Template, error) {
+func (tp templatesProvider) getNestedTemplate(templatePath string, funcs template.FuncMap) (*template.Template, error) {
 	templateFilePaths := []string{
 		templatePath + ".ts.tmpl",
 		templatePath + ".ts",
 	}
 
-	existing, ok := tc.childTemplatesByPath[templatePath]
+	existing, ok := tp.childTemplatesByPath[templatePath]
 	if ok {
 		return existing, nil
 	}
@@ -569,7 +597,7 @@ func (tc templatesProvider) getNestedTemplate(templatePath string) (*template.Te
 	var merr multierr.Error
 	var err error
 	for _, tfPath := range templateFilePaths {
-		contents, err = fs.ReadFile(tc.templates, tfPath)
+		contents, err = fs.ReadFile(tp.templates, tfPath)
 		if err == nil {
 			break
 		} else {
@@ -579,11 +607,11 @@ func (tc templatesProvider) getNestedTemplate(templatePath string) (*template.Te
 	if len(contents) == 0 && merr.ErrOrNil() != nil {
 		return nil, core.WrapErrf(merr.ErrOrNil(), "could not read template: %s", templatePath)
 	}
-	tmpl, err := template.New(templatePath).Parse(string(contents))
+	tmpl, err := template.New(templatePath).Funcs(funcs).Parse(string(contents))
 	if err != nil {
 		return nil, errors.Wrapf(err, `while writing template for %s`, templatePath)
 	}
-	tc.childTemplatesByPath[templatePath] = tmpl
+	tp.childTemplatesByPath[templatePath] = tmpl
 	return tmpl, nil
 }
 

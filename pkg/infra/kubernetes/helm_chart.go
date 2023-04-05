@@ -14,42 +14,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-type HelmFetchOpts struct {
-	Repo string
-}
-
 type HelmChart struct {
-	Name               string
-	Chart              string
-	ValuesFiles        []string
-	ExecutionUnits     []*HelmExecUnit
-	Directory          string
-	Files              []core.File
-	Values             []Value `render:"document"`
-	ConstructRefs      []core.AnnotationKey
-	FetchOpts          HelmFetchOpts `render:"template"`
-	KubernetesProvider KubernetesProvider
-	Namespace          string
-	Version            string
-}
-
-// TODO look into a better way to represent the k8s provider since it's more of a pulumi construct
-type KubernetesProvider struct {
-	ConstructsRef []core.AnnotationKey
-	KubeConfig    string
-	Name          string
-}
-
-func (e KubernetesProvider) Provider() string {
-	return "aws"
-}
-
-func (e KubernetesProvider) KlothoConstructRef() []core.AnnotationKey {
-	return e.ConstructsRef
-}
-
-func (e KubernetesProvider) Id() string {
-	return fmt.Sprintf("%s:%s:%s", e.Provider(), "eks_provider", e.Name)
+	Name           string
+	Chart          string
+	ValuesFiles    []string
+	ExecutionUnits []*HelmExecUnit
+	Directory      string
+	Files          []core.File
+	Values         []HelmChartValue
+	ConstructRefs  []core.AnnotationKey
 }
 
 // Provider returns name of the provider the resource is correlated to
@@ -179,8 +152,8 @@ func (t *HelmChart) AssignFilesToUnits() error {
 	return nil
 }
 
-func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.ExecutionUnit, cfg config.ExecutionUnit, constructGraph *core.ConstructGraph) ([]Value, error) {
-	values := []Value{}
+func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.ExecutionUnit, cfg config.ExecutionUnit, constructGraph *core.ConstructGraph) ([]HelmChartValue, error) {
+	values := []HelmChartValue{}
 
 	if shouldTransformImage(eu) {
 		if unit.Deployment != nil {
@@ -233,7 +206,7 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 	return values, nil
 }
 
-func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, constructGraph *core.ConstructGraph) (values []Value, err error) {
+func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, constructGraph *core.ConstructGraph) (values []HelmChartValue, err error) {
 	sources := constructGraph.GetUpstreamConstructs(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: unit.Name, Capability: annotation.ExecutionUnitCapability}})
 	needService := false
 	needsTargetGroupBinding := false
@@ -281,7 +254,7 @@ func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, const
 	return
 }
 
-func (chart *HelmChart) addDeployment(unit *HelmExecUnit) ([]Value, error) {
+func (chart *HelmChart) addDeployment(unit *HelmExecUnit) ([]HelmChartValue, error) {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding Deployment manifest for exec unit")
 	err := addDeploymentManifest(chart, unit)
@@ -295,7 +268,7 @@ func (chart *HelmChart) addDeployment(unit *HelmExecUnit) ([]Value, error) {
 	return values, nil
 }
 
-func (chart *HelmChart) addServiceAccount(unit *HelmExecUnit) ([]Value, error) {
+func (chart *HelmChart) addServiceAccount(unit *HelmExecUnit) ([]HelmChartValue, error) {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding ServiceAccount manifest for exec unit")
 	err := addServiceAccountManifest(chart, unit)
@@ -309,7 +282,7 @@ func (chart *HelmChart) addServiceAccount(unit *HelmExecUnit) ([]Value, error) {
 	return values, nil
 }
 
-func (chart *HelmChart) addService(unit *HelmExecUnit) ([]Value, error) {
+func (chart *HelmChart) addService(unit *HelmExecUnit) ([]HelmChartValue, error) {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding Service manifest for exec unit")
 	err := addServiceManifest(chart, unit)
@@ -324,7 +297,7 @@ func (chart *HelmChart) addService(unit *HelmExecUnit) ([]Value, error) {
 	return values, nil
 }
 
-func (chart *HelmChart) addTargetGroupBinding(unit *HelmExecUnit) ([]Value, error) {
+func (chart *HelmChart) addTargetGroupBinding(unit *HelmExecUnit) ([]HelmChartValue, error) {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding TargetGroupBinding manifest for exec unit")
 	err := addTargetGroupBindingManifest(chart, unit)

@@ -3,7 +3,7 @@ package kubernetes
 import "github.com/klothoplatform/klotho/pkg/core"
 
 // Values specifies the values that exist in the generated helm chart, which are necessary to provide during installation to run on the provider
-type Value struct {
+type HelmChartValue struct {
 	ExecUnitName        string                   // ExecUnitName signifies the exec unit that this value is for
 	Kind                string                   // Kind is the kind of the kubernetes object this value is applied to
 	Type                string                   // Type is the type of value expected

@@ -427,7 +427,7 @@ func Test_handleExecutionUnit(t *testing.T) {
 		chart         HelmChart
 		hasDockerfile bool
 		cfg           config.ExecutionUnit
-		want          []Value
+		want          []HelmChartValue
 		wantErr       bool
 	}{
 		{
@@ -443,7 +443,7 @@ func Test_handleExecutionUnit(t *testing.T) {
 			},
 			hasDockerfile: false,
 			cfg:           config.ExecutionUnit{},
-			want:          []Value{},
+			want:          []HelmChartValue{},
 		},
 		{
 			name: "only dockerfile",
@@ -458,7 +458,7 @@ func Test_handleExecutionUnit(t *testing.T) {
 			},
 			hasDockerfile: true,
 			cfg:           config.ExecutionUnit{},
-			want: []Value{
+			want: []HelmChartValue{
 				{
 					ExecUnitName: "unit",
 					Kind:         "Deployment",
@@ -503,7 +503,7 @@ func Test_handleExecutionUnit(t *testing.T) {
 
 func Test_handleUpstreamUnitDependencies(t *testing.T) {
 	type testResult struct {
-		values []Value
+		values []HelmChartValue
 		files  []string
 	}
 	tests := []struct {
@@ -532,7 +532,7 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 			},
 			want: testResult{
 				files: []string{"test/templates/unit-targetgroupbinding.yaml"},
-				values: []Value{
+				values: []HelmChartValue{
 					{
 						ExecUnitName: "unit",
 						Kind:         "TargetGroupBinding",
@@ -586,7 +586,7 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 			},
 			want: testResult{
 				files: []string{"test/templates/unit-serviceexport.yaml", "test/templates/unit-targetgroupbinding.yaml"},
-				values: []Value{
+				values: []HelmChartValue{
 					{
 						ExecUnitName: "unit",
 						Kind:         "TargetGroupBinding",
@@ -644,7 +644,7 @@ func Test_addDeployment(t *testing.T) {
 	type TestUnit struct {
 		deploymentPath string
 		deploymentFile string
-		values         []Value
+		values         []HelmChartValue
 	}
 	tests := []struct {
 		name    string
@@ -698,7 +698,7 @@ spec:
       serviceAccountName: unit
 status: {}
 `,
-				values: []Value{
+				values: []HelmChartValue{
 					{
 						ExecUnitName: "unit",
 						Kind:         "Deployment",
@@ -730,7 +730,7 @@ func Test_addServiceAccount(t *testing.T) {
 	type TestUnit struct {
 		serviceAccountPath string
 		serviceAccountFile string
-		values             []Value
+		values             []HelmChartValue
 	}
 	tests := []struct {
 		name  string
@@ -762,7 +762,7 @@ metadata:
   name: unit
   namespace: default
 `,
-				values: []Value{
+				values: []HelmChartValue{
 					{
 						ExecUnitName: "unit",
 						Kind:         "ServiceAccount",
@@ -794,7 +794,7 @@ func Test_addService(t *testing.T) {
 	type TestUnit struct {
 		servicePath string
 		serviceFile string
-		values      []Value
+		values      []HelmChartValue
 	}
 	tests := []struct {
 		name  string
@@ -858,7 +858,7 @@ func Test_addTargetGroupBinding(t *testing.T) {
 	type TestUnit struct {
 		targetGroupBindingPath string
 		targetGroupBindingFile string
-		values                 []Value
+		values                 []HelmChartValue
 	}
 	tests := []struct {
 		name  string
@@ -892,7 +892,7 @@ spec:
   targetGroupARN: '{{ .Values.unitTargetGroupArn }}'
 status: {}
 `,
-				values: []Value{
+				values: []HelmChartValue{
 					{
 						ExecUnitName: "unit",
 						Kind:         "TargetGroupBinding",

@@ -91,13 +91,11 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.SecurityGroup{},
 		&resources.AvailabilityZones{},
 		&resources.AccountId{},
-<<<<<<< HEAD
 		&resources.CloudfrontDistribution{},
 		&resources.OriginAccessIdentity{},
 		&resources.S3BucketPolicy{},
-=======
-		&kubernetes.KubernetesProvider{},
->>>>>>> 59d1c73 (Fixes helm tests)
+		&resources.AwsKubernetesProvider{},
+		&resources.AwsHelmChart{},
 	}
 
 	tp := standardTemplatesProvider()
