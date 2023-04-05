@@ -120,7 +120,7 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 		dag.AddDependency2(deployment, integration)
 	}
 
-	stage := resources.NewApiStage(deployment, "$default", api_references)
+	stage := resources.NewApiStage(deployment, "stage", api_references)
 	dag.AddResource(stage)
 	dag.AddDependency2(stage, deployment)
 	return errs.ErrOrNil()

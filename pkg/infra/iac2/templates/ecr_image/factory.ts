@@ -17,7 +17,7 @@ function create(args: Args): docker.Image {
             dockerfile: args.Dockerfile,
             platform: 'linux/amd64',
         },
-        imageName: pulumi.interpolate`${args.Repo.repositoryUrl}`,
+        imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:latest`,
         registry: args.Repo.registryId.apply(async (registryId) => {
             const credentials = await aws.ecr.getCredentials({ registryId }, { async: true })
             const decodedCredentials = Buffer.from(
