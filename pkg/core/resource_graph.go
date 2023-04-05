@@ -102,12 +102,13 @@ func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
 		if !targetValue.CanInterface() {
 			return
 		}
-		if target, ok := targetValue.Interface().(Resource); ok {
-			rg.AddDependency2(source, target)
-		} else if wrapper, ok := targetValue.Interface().(*IaCValue); ok {
-			rg.AddDependency2(source, wrapper.Resource)
-		} else if wrapper, ok := targetValue.Interface().(IaCValue); ok {
-			rg.AddDependency2(source, wrapper.Resource)
+		switch value := targetValue.Interface().(type) {
+		case Resource:
+			rg.AddDependency2(source, value)
+		case *IaCValue:
+			rg.AddDependency2(source, value.Resource)
+		case IaCValue:
+			rg.AddDependency2(source, value.Resource)
 		}
 	}
 	for i := 0; i < sourceType.NumField(); i++ {
