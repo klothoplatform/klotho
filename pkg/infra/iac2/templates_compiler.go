@@ -398,7 +398,10 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue) (string, error) {
 			return output, err
 		}
 		return output, nil
+	} else if reflect.TypeOf(v.Resource) == reflect.TypeOf((*resources.AvailabilityZones)(nil)) {
+		return fmt.Sprintf("%s.names[%s]", tc.getVarName(v.Resource), v.Property), nil
 	}
+
 	switch v.Property {
 	case string(core.BUCKET_NAME):
 		return fmt.Sprintf("%s.bucket", tc.getVarName(v.Resource)), nil
