@@ -6,6 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,7 @@ func Test_CreateRestApi(t *testing.T) {
 		units                  []*core.ExecutionUnit
 		constructIdToResources map[string][]core.Resource
 		cfg                    config.Application
-		want                   DagExpectation
+		want                   coretesting.ResourcesExpectation
 		wantErr                bool
 	}{
 		{
@@ -54,7 +55,7 @@ func Test_CreateRestApi(t *testing.T) {
 				},
 				AppName: appName,
 			},
-			want: DagExpectation{
+			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:account_id:AccountId",
 					"aws:api_deployment:test-test",
@@ -125,7 +126,7 @@ func Test_CreateRestApi(t *testing.T) {
 					ExecutionUnit: config.KindDefaults{Type: Lambda},
 				},
 			},
-			want: DagExpectation{
+			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:account_id:AccountId",
 					"aws:api_deployment:test-test",

@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,17 +15,17 @@ func Test_CreateNetwork(t *testing.T) {
 	cases := []struct {
 		name              string
 		existingResources []core.Resource
-		want              DagExpectation
+		want              coretesting.ResourcesExpectation
 	}{
 		{
 			name: "happy path",
-			want: DagExpectation{
+			want: coretesting.ResourcesExpectation{
 				Nodes: []string{"aws:vpc:test_app", "aws:vpc_subnet:test_app_private1", "aws:vpc_subnet:test_app_private2", "aws:vpc_subnet:test_app_public1", "aws:vpc_subnet:test_app_public2",
 					"aws:vpc_endpoint:test_app_s3", "aws:vpc_endpoint:test_app_sqs", "aws:vpc_endpoint:test_app_sns", "aws:vpc_endpoint:test_app_lambda",
 					"aws:vpc_endpoint:test_app_secretsmanager", "aws:vpc_endpoint:test_app_dynamodb", "aws:elastic_ip:test_app_private2", "aws:elastic_ip:test_app_private1",
 					"aws:nat_gateway:test_app_private1", "aws:nat_gateway:test_app_private2", "aws:region:region", "aws:availability_zones:AvailabilityZones", "aws:internet_gateway:test_app_igw1",
 				},
-				Deps: []StringDep{
+				Deps: []coretesting.StringDep{
 					{Source: "aws:internet_gateway:test_app_igw1", Destination: "aws:vpc:test_app"},
 					{Source: "aws:vpc_subnet:test_app_private1", Destination: "aws:vpc:test_app"},
 					{Source: "aws:vpc_subnet:test_app_private2", Destination: "aws:vpc:test_app"},
@@ -76,7 +77,7 @@ func Test_CreateNetwork(t *testing.T) {
 		{
 			name:              "happy path",
 			existingResources: []core.Resource{NewVpc(appName)},
-			want: DagExpectation{
+			want: coretesting.ResourcesExpectation{
 				Nodes: []string{"aws:vpc:test_app"},
 			},
 		},
