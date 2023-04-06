@@ -1,5 +1,0 @@
-{
-    {{- range $i, $chartVal := .Values}}
-    {{$chartVal.Key}}: {{parseVal $chartVal.Value}},
-    {{- end}}
-}

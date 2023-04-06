@@ -14,6 +14,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+const HELM_CHART_TYPE = "helm_chart"
+
 type HelmChart struct {
 	Name           string
 	Chart          string
@@ -21,8 +23,24 @@ type HelmChart struct {
 	ExecutionUnits []*HelmExecUnit
 	Directory      string
 	Files          []core.File
-	Values         []HelmChartValue
-	ConstructRefs  []core.AnnotationKey
+	ProviderValues []HelmChartValue
+
+	ConstructRefs    []core.AnnotationKey
+	ClustersProvider core.Resource
+	Repo             string
+	Version          string
+	Namespace        string
+	Values           map[string]core.IaCValue
+}
+
+// Provider returns name of the provider the resource is correlated to
+func (chart *HelmChart) Provider() string { return "kubernetes" }
+
+// KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
+func (chart *HelmChart) KlothoConstructRef() []core.AnnotationKey { return chart.ConstructRefs }
+
+func (chart *HelmChart) Id() string {
+	return fmt.Sprintf("%s:%s:%s", chart.Provider(), HELM_CHART_TYPE, chart.Name)
 }
 
 var HelmChartKind = "helm_chart"

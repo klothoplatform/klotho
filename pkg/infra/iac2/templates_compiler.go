@@ -14,7 +14,6 @@ import (
 	"text/template"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -180,12 +179,6 @@ func (tc TemplatesCompiler) RenderPackageJSON() (*javascript.NodePackageJson, er
 }
 
 func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource) error {
-
-	switch resource.(type) {
-	case *kubernetes.HelmChart:
-		return nil // Raw helm charts
-	}
-
 	tmpl, err := tc.getTemplate(resource)
 	if err != nil {
 		return err
@@ -365,22 +358,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 				tmpl, err := tc.getNestedTemplate(path.Join(
 					camelToSnake(resourceVal.Type().Name()),
 					camelToSnake(correspondingStruct.Type().Name()),
-				), template.FuncMap{
-					// parseField parses a single field from the supplied value
-					"parseField": func(val reflect.Value, fieldName string) (string, error) {
-						structField, found := val.Type().FieldByName(fieldName)
-						if !found {
-							return "", fmt.Errorf("field '%s' not found", fieldName)
-						}
-						iacTag := structField.Tag.Get("render")
-						fieldVal := val.FieldByName(fieldName)
-						return tc.resolveStructInput(nil, fieldVal, useDoubleQuotedStrings, iacTag, appliedOutputs)
-					},
-					// parseVal parses the supplied value
-					"parseVal": func(val reflect.Value) (string, error) {
-						return tc.resolveStructInput(nil, val, useDoubleQuotedStrings, "", appliedOutputs)
-					},
-				})
+				))
 				if err != nil {
 					return "", err
 				}
@@ -582,7 +560,7 @@ func (tp templatesProvider) getTemplateForType(typeName string) (ResourceCreatio
 	return template, nil
 }
 
-func (tp templatesProvider) getNestedTemplate(templatePath string, funcs template.FuncMap) (*template.Template, error) {
+func (tp templatesProvider) getNestedTemplate(templatePath string) (*template.Template, error) {
 	templateFilePaths := []string{
 		templatePath + ".ts.tmpl",
 		templatePath + ".ts",
@@ -607,7 +585,7 @@ func (tp templatesProvider) getNestedTemplate(templatePath string, funcs templat
 	if len(contents) == 0 && merr.ErrOrNil() != nil {
 		return nil, core.WrapErrf(merr.ErrOrNil(), "could not read template: %s", templatePath)
 	}
-	tmpl, err := template.New(templatePath).Funcs(funcs).Parse(string(contents))
+	tmpl, err := template.New(templatePath).Parse(string(contents))
 	if err != nil {
 		return nil, errors.Wrapf(err, `while writing template for %s`, templatePath)
 	}

@@ -31,7 +31,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 	for _, construct := range result.GetDownstreamConstructs(unit) {
 		resList, ok := a.GetResourcesDirectlyTiedToConstruct(construct)
 		if !ok {
-			return errors.Errorf("could not find resource for construct, %s, which unit, %s, depends on", unit.Id(), construct.Id())
+			return errors.Errorf("could not find resource for construct, %s, which unit, %s, depends on", construct.Id(), unit.Id())
 		}
 		for _, resource := range resList {
 			dag.AddDependency(role, resource)
@@ -98,47 +98,34 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 		provider.ConstructRefs = append(provider.ConstructRefs, unit.AnnotationKey)
 
 		for _, res := range dag.ListResources() {
-			switch res.(type) {
-
-			}
 			if khChart, ok := res.(*kubernetes.HelmChart); ok {
+				fmt.Println(khChart)
 				for _, ref := range khChart.KlothoConstructRef() {
 					if ref.ToId() == unit.ToId() {
-						awsChart := resources.NewAwsHelmChart(khChart)
-						awsChart.KubernetesProvider = provider
-						dag.AddDependenciesReflect(awsChart)
-						if existing, ok := dag.GetResource(awsChart.Id()).(*resources.AwsHelmChart); ok {
-							awsChart = existing
-						} else {
-							dag.AddResource(awsChart)
-						}
-						for _, val := range khChart.Values {
+						khChart.ClustersProvider = provider
+						dag.AddDependenciesReflect(khChart)
+						for _, val := range khChart.ProviderValues {
+							fmt.Println(val)
 							if val.ExecUnitName != unit.ID {
 								continue
 							}
 							switch val.Type {
 							// TODO handle kubernetes.TargetGroupTransformation
 							case string(kubernetes.ImageTransformation):
-								awsChart.Values.Values = append(awsChart.Values.Values, resources.AwsHelmChartValue{
-									Key: val.Key,
-									Value: core.IaCValue{
-										Resource: image,
-										Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
-									},
-								})
-								dag.AddDependency2(awsChart, image)
+								khChart.Values[val.Key] = core.IaCValue{
+									Resource: image,
+									Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
+								}
+								dag.AddDependency2(khChart, image)
 							case string(kubernetes.ServiceAccountAnnotationTransformation):
-								awsChart.Values.Values = append(awsChart.Values.Values, resources.AwsHelmChartValue{
-									Key: val.Key,
-									Value: core.IaCValue{
-										Resource: role,
-										Property: core.ARN_IAC_VALUE,
-									},
-								})
-								dag.AddDependency2(awsChart, role)
+								khChart.Values[val.Key] = core.IaCValue{
+									Resource: role,
+									Property: core.ARN_IAC_VALUE,
+								}
+								dag.AddDependency2(khChart, role)
 							}
 						}
-						a.MapResourceDirectlyToConstruct(awsChart, unit)
+						a.MapResourceDirectlyToConstruct(khChart, unit)
 					}
 				}
 			}
@@ -198,15 +185,14 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 			switch r := resource.(type) {
 			case *resources.LambdaFunction:
 				r.EnvironmentVariables = resourceEnvVars
-			case *resources.AwsHelmChart:
+			case *kubernetes.HelmChart:
 				for evName, evVal := range resourceEnvVars {
-					if key, ok := r.EnvVarKeys[evName]; ok {
-						r.Values.Values = append(r.Values.Values, resources.AwsHelmChartValue{
-							Key:   key,
-							Value: evVal,
-						})
-						if evVal.Resource != resource {
-							dag.AddDependency2(resource, evVal.Resource)
+					for _, val := range r.ProviderValues {
+						if val.EnvironmentVariable != nil && evName == val.EnvironmentVariable.GetName() {
+							r.Values[val.Key] = evVal
+							if evVal.Resource != resource {
+								dag.AddDependency2(resource, evVal.Resource)
+							}
 						}
 					}
 

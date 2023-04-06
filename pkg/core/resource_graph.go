@@ -132,11 +132,6 @@ func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
 
 		fieldValue := sourceValue.Field(i)
 		switch fieldValue.Kind() {
-		case reflect.Interface, reflect.Pointer:
-			if target, ok := fieldValue.Interface().(Resource); ok && !fieldValue.IsNil() {
-				rg.AddDependency2(source, target)
-			}
-
 		case reflect.Slice, reflect.Array:
 			for elemIdx := 0; elemIdx < fieldValue.Len(); elemIdx++ {
 				elemValue := fieldValue.Index(elemIdx)

@@ -5,10 +5,13 @@ interface Args {
     Name: string
     Directory?: string
     Chart?: string
+    Repo?: string
+    Values?: Record<string, pulumi.Output<string>>
+    Version?: string
+    Namespace?: string
+    ClustersProvider: pulumi_k8s.Provider
     dependsOn: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
-
-// This template is not actually rendered in index.ts right now, but is required for unit tests.
 
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): pulumi_k8s.helm.v3.Chart {
@@ -18,13 +21,26 @@ function create(args: Args): pulumi_k8s.helm.v3.Chart {
             //TMPL {{- if .Chart.Raw }}
             chart: args.Chart,
             //TMPL {{- end }}
+            //TMPL {{- if and (.Chart.Raw) (.FetchOpts.Raw) }}
+            fetchOpts: {
+                repo: args.Repo,
+            },
+            //TMPL {{- end }}
             //TMPL {{- if not .Chart.Raw }}
             path: `./charts/${args.Directory}`,
             //TMPL {{- end }}
+            //TMPL {{- if .Namespace.Raw }}
+            namespace: args.Namespace,
+            //TMPL {{- end }}
+            //TMPL {{- if .Version.Raw }}
+            version: args.Version,
+            //TMPL {{- end }}
             //TMPL {{- if .Values.Raw }}
+            values: args.Values,
+            //TMPL {{- end }}
         },
         {
-            provider: undefined,
+            provider: args.ClustersProvider,
             //TMPL {{- if .dependsOn.Raw }}
             dependsOn: args.dependsOn,
             //TMPL {{- end }}

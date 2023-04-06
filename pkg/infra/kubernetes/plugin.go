@@ -26,7 +26,7 @@ type Kubernetes struct {
 
 func (p Kubernetes) Name() string { return "kubernetes" }
 
-func (p Kubernetes) Translate(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
 	var errs multierr.Error
 	p.log = zap.L().Sugar()
 	helmHelper, err := helm.NewHelmHelper()
@@ -102,7 +102,7 @@ func (p Kubernetes) Translate(input *core.InputFiles, constructGraph *core.Const
 			if err != nil {
 				errs.Append(err)
 			}
-			khChart.Values = append(khChart.Values, execUnitValues...)
+			khChart.ProviderValues = append(khChart.ProviderValues, execUnitValues...)
 		}
 		output, err := yaml.Marshal(chartContent.Metadata)
 		if err != nil {
@@ -145,7 +145,7 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		cfg := p.Config.GetExecutionUnit(unit.ID)
 
-		if cfg.HelmChartOptions.Directory == "" {
+		if cfg.HelmChartOptions != nil && cfg.HelmChartOptions.Directory == "" {
 			for _, f := range unit.GetDeclaringFiles() {
 
 				caps := f.Annotations()
@@ -166,20 +166,30 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 		}
 
 		if cfg.Type == config.Kubernetes {
-			khChart, ok := klothoCharts[cfg.HelmChartOptions.Directory]
+			chartDir := ""
+			if cfg.HelmChartOptions != nil {
+				chartDir = cfg.HelmChartOptions.Directory
+			}
+			valuesFiles := []string{}
+			if cfg.HelmChartOptions != nil {
+				valuesFiles = cfg.HelmChartOptions.ValuesFiles
+			}
+			khChart, ok := klothoCharts[chartDir]
 			if !ok {
-				klothoCharts[cfg.HelmChartOptions.Directory] = HelmChart{
-					ValuesFiles:    cfg.HelmChartOptions.ValuesFiles,
+
+				klothoCharts[chartDir] = HelmChart{
+					ValuesFiles:    valuesFiles,
 					ExecutionUnits: []*HelmExecUnit{{Name: unit.ID, Namespace: "default"}},
-					Directory:      cfg.HelmChartOptions.Directory,
+					Directory:      chartDir,
 					ConstructRefs:  []core.AnnotationKey{unit.Provenance()},
+					Values:         make(map[string]core.IaCValue),
 				}
 
 			} else {
 				foundDifference := false
 				for _, chartFile := range khChart.ValuesFiles {
 					fileFound := false
-					for _, cfgFile := range cfg.HelmChartOptions.ValuesFiles {
+					for _, cfgFile := range valuesFiles {
 						if cfgFile == chartFile {
 							fileFound = true
 						}
@@ -194,7 +204,7 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 				}
 				khChart.ExecutionUnits = append(khChart.ExecutionUnits, &HelmExecUnit{Name: unit.ID, Namespace: "default"})
 				khChart.ConstructRefs = append(khChart.ConstructRefs, unit.AnnotationKey)
-				klothoCharts[cfg.HelmChartOptions.Directory] = khChart
+				klothoCharts[chartDir] = khChart
 			}
 		}
 	}

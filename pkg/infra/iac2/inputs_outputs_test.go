@@ -95,7 +95,7 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.OriginAccessIdentity{},
 		&resources.S3BucketPolicy{},
 		&resources.AwsKubernetesProvider{},
-		&resources.AwsHelmChart{},
+		&kubernetes.HelmChart{},
 	}
 
 	tp := standardTemplatesProvider()
