@@ -13,5 +13,8 @@ function create(args: Args): aws.ec2.Vpc {
         cidrBlock: args.CidrBlock,
         enableDnsHostnames: args.EnableDnsHostnames,
         enableDnsSupport: args.EnableDnsSupport,
+        tags: {
+            Name: args.Name,
+        },
     })
 }

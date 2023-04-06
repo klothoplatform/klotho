@@ -120,6 +120,7 @@ type (
 	Principal struct {
 		Service   string
 		Federated core.IaCValue
+		AWS       core.IaCValue
 	}
 
 	Condition struct {

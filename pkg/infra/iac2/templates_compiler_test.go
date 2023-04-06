@@ -55,7 +55,7 @@ func TestOutputBody(t *testing.T) {
 			"				fizzMyHello,",
 			"				{",
 			"					buzz: buzzShared,",
-			"					nestedDoc: {Fizz: fizzMyHello,",
+			"					nestedDoc: {fizz: fizzMyHello,",
 			"}",
 			"					nestedTemplate: ",
 			"		{",

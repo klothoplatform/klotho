@@ -332,13 +332,26 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 						iacTag = structField.Tag.Get("render")
 					}
 
+					// If the struct type is PolicyDocument, pass that down to our recursive calls to keep field name upperCased
+					if correspondingStruct.Type() == reflect.TypeOf((*resources.PolicyDocument)(nil)).Elem() {
+						resourceVal = &correspondingStruct
+					}
+
 					resolvedValue, err := tc.resolveStructInput(resourceVal, childVal, false, iacTag, appliedOutputs)
 
 					if err != nil {
 						return output.String(), err
 					}
 
-					output.WriteString(fmt.Sprintf("%s: %s,\n", fieldName, resolvedValue))
+					// If the struct type is not PolicyDocument, we want to camelCase our field names to follow pulumi format
+					if resourceVal.Type() != reflect.TypeOf((*resources.PolicyDocument)(nil)).Elem() {
+						fieldName = strings.ToLower(string(fieldName[0])) + fieldName[1:]
+					}
+
+					// To Prevent us from rendering fields which are not set, only right if the value is non zero for its type
+					if !childVal.IsZero() {
+						output.WriteString(fmt.Sprintf("%s: %s,\n", fieldName, resolvedValue))
+					}
 				}
 				output.WriteString("}")
 				return output.String(), nil
@@ -424,7 +437,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf("%s.bucket", tc.getVarName(v.Resource)), nil
 	case string(core.ARN_IAC_VALUE):
 		return fmt.Sprintf("%s.arn", tc.getVarName(v.Resource)), nil
-	case string(core.ALL_BUCKET_DIRECTORY_IAC_VALUE):
+	case string(resources.ALL_BUCKET_DIRECTORY_IAC_VALUE):
 		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/*`", tc.getVarName(v.Resource)), nil
 	case resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE,
 		resources.DYNAMODB_TABLE_INDEX_IAC_VALUE,
@@ -483,6 +496,9 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		region := resources.NewRegion()
 		return fmt.Sprintf("pulumi.interpolate`arn:aws:execute-api:${%s.name}:${%s.accountId}:${%s.id}/*/%s${%s.path}`", tc.getVarName(region),
 			tc.getVarName(accountId), tc.getVarName(method.RestApi), verb, tc.getVarName(method.Resource)), nil
+	case resources.STAGE_INVOKE_URL_IAC_VALUE:
+		return fmt.Sprintf("%s.invokeUrl.apply((d) => d.split('//')[1].split('/')[0])", tc.getVarName(v.Resource)), nil
+
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property, %s", v.Property)

@@ -22,11 +22,11 @@ func Test_AddAllowPolicyToUnit(t *testing.T) {
 			name:             "Add policy, none exists",
 			existingPolicies: map[string][]*IamPolicy{},
 			actions:          []string{"s3:*"},
-			resource:         []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE}},
+			resource:         []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: ALL_BUCKET_DIRECTORY_IAC_VALUE}},
 			want: StatementEntry{
 				Effect:   "Allow",
 				Action:   []string{"s3:*"},
-				Resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE}},
+				Resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: ALL_BUCKET_DIRECTORY_IAC_VALUE}},
 			},
 		},
 		{
@@ -41,7 +41,7 @@ func Test_AddAllowPolicyToUnit(t *testing.T) {
 								{
 									Effect:   "Allow",
 									Action:   []string{"dynamodb:*"},
-									Resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE}},
+									Resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: ALL_BUCKET_DIRECTORY_IAC_VALUE}},
 								},
 							},
 						},
@@ -49,11 +49,11 @@ func Test_AddAllowPolicyToUnit(t *testing.T) {
 				},
 			},
 			actions:  []string{"s3:*"},
-			resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE}},
+			resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: ALL_BUCKET_DIRECTORY_IAC_VALUE}},
 			want: StatementEntry{
 				Effect:   "Allow",
 				Action:   []string{"dynamodb:*"},
-				Resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE}},
+				Resource: []core.IaCValue{{Resource: bucket, Property: core.ARN_IAC_VALUE}, {Resource: bucket, Property: ALL_BUCKET_DIRECTORY_IAC_VALUE}},
 			},
 		},
 	}
