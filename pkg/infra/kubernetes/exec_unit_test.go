@@ -1,6 +1,8 @@
 package kubernetes
 
 import (
+	"github.com/klothoplatform/klotho/pkg/config"
+	"github.com/klothoplatform/klotho/pkg/testutil"
 	"strings"
 	"testing"
 
@@ -316,23 +318,24 @@ func Test_transformDeployment(t *testing.T) {
 	}{
 		{
 			name: "Basic Deployment",
-			file: `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: nginx-deployment
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: nginx
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.14.2`,
+			file: testutil.UnIndent(`
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: nginx-deployment
+                spec:
+                  replicas: 3
+                  selector:
+                    matchLabels:
+                      app: nginx
+                  template:
+                    metadata:
+                      labels:
+                        app: nginx
+                    spec:
+                      containers:
+                      - name: nginx
+                        image: nginx:1.14.2`),
 			want: result{
 				values: []Value{
 					{
@@ -342,57 +345,58 @@ spec:
 						Key:          "testUnitImage",
 					},
 				},
-				newFile: `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  creationTimestamp: null
-  labels:
-    execUnit: testUnit
-  name: nginx-deployment
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: nginx
-      execUnit: testUnit
-  strategy: {}
-  template:
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: nginx
-        execUnit: testUnit
-    spec:
-      containers:
-      - image: '{{ .Values.testUnitImage }}'
-        name: nginx
-        resources: {}
-      serviceAccountName: testUnit
-status: {}
-`,
+				newFile: testutil.UnIndent(`
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    metadata:
+                      creationTimestamp: null
+                      labels:
+                        execUnit: testUnit
+                      name: nginx-deployment
+                    spec:
+                      replicas: 3
+                      selector:
+                        matchLabels:
+                          app: nginx
+                          execUnit: testUnit
+                      strategy: {}
+                      template:
+                        metadata:
+                          creationTimestamp: null
+                          labels:
+                            app: nginx
+                            execUnit: testUnit
+                        spec:
+                          containers:
+                          - image: '{{ .Values.testUnitImage }}'
+                            name: nginx
+                            resources: {}
+                          serviceAccountName: testUnit
+                    status: {}`),
 			},
 		},
 		{
 			name: "reject Deployment with multiple containers",
-			file: `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: nginx-deployment
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: nginx
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.14.2
-	  - name: nginx2
-        image: nginx:1.14.3`,
+			file: testutil.UnIndent(`
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: nginx-deployment
+                spec:
+                  replicas: 3
+                  selector:
+                    matchLabels:
+                      app: nginx
+                  template:
+                    metadata:
+                      labels:
+                        app: nginx
+                    spec:
+                      containers:
+                      - name: nginx
+                        image: nginx:1.14.2
+                      - name: nginx2
+                        image: nginx:1.14.3`),
 			wantErr: true,
 		},
 	}
