@@ -12,7 +12,7 @@ func Test_CreateEksCluster(t *testing.T) {
 	appName := "test-app"
 	clusterName := "test-cluster"
 	eus := []*core.ExecutionUnit{{AnnotationKey: core.AnnotationKey{ID: "test"}}}
-	Sources := []core.AnnotationKey{{ID: "test"}}
+	sources := []core.AnnotationKey{{ID: "test"}}
 	subnet := NewSubnet("test-subnet", NewVpc(appName), "", PrivateSubnet, core.IaCValue{})
 	cases := []struct {
 		name string
@@ -50,7 +50,7 @@ func Test_CreateEksCluster(t *testing.T) {
 			CreateEksCluster(appName, clusterName, []*Subnet{subnet}, nil, eus, dag)
 			for _, r := range dag.ListResources() {
 				if r != subnet { // ignore input resources
-					assert.ElementsMatch(Sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
+					assert.ElementsMatch(sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
 				}
 			}
 
