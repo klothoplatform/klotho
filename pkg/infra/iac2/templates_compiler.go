@@ -483,7 +483,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		region := resources.NewRegion()
 		path := "/"
 		if method.Resource != nil {
-			path = fmt.Sprintf("{%s.path}", tc.getVarName(method.Resource))
+			path = fmt.Sprintf("${%s.path}", tc.getVarName(method.Resource))
 		}
 		return fmt.Sprintf("pulumi.interpolate`arn:aws:execute-api:${%s.name}:${%s.accountId}:${%s.id}/*/%s%s`", tc.getVarName(region),
 			tc.getVarName(accountId), tc.getVarName(method.RestApi), verb, path), nil
