@@ -29,8 +29,10 @@ func (expect ResourcesExpectation) Assert(t *testing.T, dag *core.ResourceGraph)
 	got := ResoucesFromDAG(dag)
 
 	if expect.AssertSubset {
+		assert.Subset(t, got.Nodes, expect.Nodes)
 		assert.Subset(t, got.Deps, expect.Deps)
 	} else {
+		assert.ElementsMatch(t, expect.Nodes, got.Nodes)
 		assert.ElementsMatch(t, expect.Deps, got.Deps)
 	}
 }
