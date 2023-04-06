@@ -1,6 +1,10 @@
 package coretesting
 
 import (
+	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -22,24 +26,65 @@ type (
 )
 
 func (expect ResourcesExpectation) Assert(t *testing.T, dag *core.ResourceGraph) {
-	var res []string
+	got := ResoucesFromDAG(dag)
+
+	if expect.AssertSubset {
+		assert.Subset(t, got.Deps, expect.Deps)
+	} else {
+		assert.ElementsMatch(t, expect.Deps, got.Deps)
+	}
+}
+
+func ResoucesFromDAG(dag *core.ResourceGraph) ResourcesExpectation {
+	var nodes []string
 	for _, r := range dag.ListResources() {
-		res = append(res, r.Id())
+		nodes = append(nodes, r.Id())
 	}
-	if expect.AssertSubset {
-		assert.Subset(t, res, expect.Nodes)
-	} else {
-		assert.ElementsMatch(t, expect.Nodes, res)
-	}
-
-	var dep []StringDep
+	var deps []StringDep
 	for _, e := range dag.ListDependencies() {
-		dep = append(dep, StringDep{Source: e.Source.Id(), Destination: e.Destination.Id()})
+		deps = append(deps, StringDep{Source: e.Source.Id(), Destination: e.Destination.Id()})
 	}
 
-	if expect.AssertSubset {
-		assert.Subset(t, dep, expect.Deps)
-	} else {
-		assert.ElementsMatch(t, expect.Deps, dep)
+	return ResourcesExpectation{
+		Nodes: nodes,
+		Deps:  deps,
 	}
+}
+
+// GoString is useful in combination with `ResoucesFromDAG` to generate or update unit tests. Make sure to read over
+// the results before using to make sure it is correct.
+// For example:
+//
+//	fmt.Print(coretesting.ResoucesFromDAG(dag).GoString())
+func (expect ResourcesExpectation) GoString() string {
+	buf := new(strings.Builder)
+	buf.WriteString("coretesting.ResourcesExpectation{\n")
+
+	nodes := make([]string, len(expect.Nodes))
+	copy(nodes, expect.Nodes)
+	sort.Strings(nodes)
+	buf.WriteString("	Nodes: []string{\n")
+	for _, n := range nodes {
+		fmt.Fprintf(buf, "		%s,\n", strconv.Quote(n))
+	}
+	buf.WriteString("	},\n")
+
+	edges := make([]StringDep, len(expect.Deps))
+	copy(edges, expect.Deps)
+	sort.SliceStable(edges, func(i, j int) bool {
+		a, b := edges[i], edges[j]
+		if a.Source == b.Source {
+			return a.Destination < b.Destination
+		}
+		return a.Source < b.Source
+	})
+	buf.WriteString("	Deps: []coretesting.StringDep{\n")
+	for _, e := range edges {
+		fmt.Fprintf(buf, "		{Source: %s, Destination: %s},\n", strconv.Quote(e.Source), strconv.Quote(e.Destination))
+	}
+	buf.WriteString("	},\n")
+
+	buf.WriteString("}\n")
+
+	return buf.String()
 }
