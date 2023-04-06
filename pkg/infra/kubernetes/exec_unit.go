@@ -3,6 +3,9 @@ package kubernetes
 import (
 	"errors"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/config"
+	"gopkg.in/inf.v0"
+	k8s_resource "k8s.io/apimachinery/pkg/api/resource"
 	"regexp"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -122,7 +125,7 @@ func (unit *HelmExecUnit) transformPod() (values []Value, err error) {
 	return
 }
 
-func (unit *HelmExecUnit) transformDeployment() ([]Value, error) {
+func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) ([]Value, error) {
 	values := []Value{}
 	log := zap.L().Sugar().With(logging.FileField(unit.Deployment), zap.String("unit", unit.Name))
 	log.Debugf("Transforming file, %s, for exec unit, %s", unit.Deployment.Path(), unit.Name)
@@ -140,14 +143,15 @@ func (unit *HelmExecUnit) transformDeployment() ([]Value, error) {
 
 	if len(deployment.Spec.Template.Spec.Containers) > 1 {
 		return nil, errors.New("too many containers in pod spec, don't know which to replace")
-	} else if len(deployment.Spec.Template.Spec.Containers) == 0 {
-		deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, corev1.Container{
-			Name:  unit.Name,
-			Image: fmt.Sprintf("{{ .Values.%s }}", value),
-		})
-	} else {
-		deployment.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("{{ .Values.%s }}", value)
 	}
+	if len(deployment.Spec.Template.Spec.Containers) == 0 {
+		deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, corev1.Container{
+			Name: unit.Name,
+		})
+	}
+	container := &deployment.Spec.Template.Spec.Containers[0]
+
+	container.Image = fmt.Sprintf("{{ .Values.%s }}", value)
 
 	if deployment.Labels == nil {
 		deployment.Labels = make(map[string]string)
@@ -165,6 +169,13 @@ func (unit *HelmExecUnit) transformDeployment() ([]Value, error) {
 	deployment.Spec.Selector.MatchLabels["execUnit"] = unit.Name
 
 	deployment.Spec.Template.Spec.ServiceAccountName = unit.getServiceAccountName()
+
+	k8sCfg := cfg.GetExecutionUnitParamsAsKubernetes()
+	if k8sCfg.Limits.Cpu != 0 {
+		container.Resources.Limits = mapOrNew(container.Resources.Limits)
+		container.Resources.Limits[corev1.ResourceCPU] = *k8s_resource.NewDecimalQuantity(*inf.NewDec(int64(k8sCfg.Limits.Cpu), 0), k8s_resource.DecimalSI)
+	}
+
 	output, err := yaml.Marshal(deployment)
 	if err != nil {
 		return nil, err
@@ -180,6 +191,13 @@ func (unit *HelmExecUnit) transformDeployment() ([]Value, error) {
 		Key:          value,
 	})
 	return values, nil
+}
+
+func mapOrNew[K comparable, V any](input map[K]V) map[K]V {
+	if input == nil {
+		input = make(map[K]V)
+	}
+	return input
 }
 
 func (unit *HelmExecUnit) transformService() (values []Value, err error) {

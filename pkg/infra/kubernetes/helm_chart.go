@@ -156,7 +156,7 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 
 	if shouldTransformImage(eu) {
 		if unit.Deployment != nil {
-			deploymentValues, err := unit.transformDeployment()
+			deploymentValues, err := unit.transformDeployment(cfg)
 			if err != nil {
 				return nil, err
 			}
@@ -260,7 +260,7 @@ func (chart *HelmChart) addDeployment(unit *HelmExecUnit) ([]Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	values, err := unit.transformDeployment()
+	values, err := unit.transformDeployment(config.ExecutionUnit{})
 	if err != nil {
 		return nil, err
 	}

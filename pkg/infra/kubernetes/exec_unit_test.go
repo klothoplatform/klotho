@@ -307,44 +307,48 @@ spec:
 
 func Test_transformDeployment(t *testing.T) {
 	type result struct {
-		values  []Value
-		newFile string
+		values      []Value
+		focusOnPath string
+		newFile     string
+	}
+	basicDeploymentYaml := testutil.UnIndent(`
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: nginx-deployment
+        spec:
+          replicas: 3
+          selector:
+            matchLabels:
+              app: nginx
+          template:
+            metadata:
+              labels:
+                app: nginx
+            spec:
+              containers:
+              - name: nginx
+                image: nginx:1.14.2`)
+	wantValues := []Value{
+		{
+			ExecUnitName: "testUnit",
+			Kind:         "Deployment",
+			Type:         string(ImageTransformation),
+			Key:          "testUnitImage",
+		},
 	}
 	tests := []struct {
 		name    string
 		file    string
+		cfg     config.ExecutionUnit
 		want    result
 		wantErr bool
 	}{
 		{
 			name: "Basic Deployment",
-			file: testutil.UnIndent(`
-                apiVersion: apps/v1
-                kind: Deployment
-                metadata:
-                  name: nginx-deployment
-                spec:
-                  replicas: 3
-                  selector:
-                    matchLabels:
-                      app: nginx
-                  template:
-                    metadata:
-                      labels:
-                        app: nginx
-                    spec:
-                      containers:
-                      - name: nginx
-                        image: nginx:1.14.2`),
+			file: basicDeploymentYaml,
 			want: result{
-				values: []Value{
-					{
-						ExecUnitName: "testUnit",
-						Kind:         "Deployment",
-						Type:         string(ImageTransformation),
-						Key:          "testUnitImage",
-					},
-				},
+				values: wantValues,
 				newFile: testutil.UnIndent(`
                     apiVersion: apps/v1
                     kind: Deployment
@@ -370,6 +374,73 @@ func Test_transformDeployment(t *testing.T) {
                           containers:
                           - image: '{{ .Values.testUnitImage }}'
                             name: nginx
+                            resources: {}
+                          serviceAccountName: testUnit
+                    status: {}`),
+			},
+		},
+		{
+			name: "specify cpu",
+			file: basicDeploymentYaml,
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"cpu": 123,
+					},
+				},
+			},
+			want: result{
+				values:      wantValues,
+				focusOnPath: "$.spec.template.spec.containers[0].resources",
+				newFile: testutil.UnIndent(`
+                    limits:
+                        cpu: "123"`),
+			},
+		},
+		{
+			name: "no containers specified",
+			file: testutil.UnIndent(`
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: nginx-deployment
+                spec:
+                  replicas: 3
+                  selector:
+                    matchLabels:
+                      app: nginx
+                  template:
+                    metadata:
+                      labels:
+                        app: nginx`),
+			want: result{
+				values: wantValues,
+				// note that this adds a container
+				newFile: testutil.UnIndent(`
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    metadata:
+                      creationTimestamp: null
+                      labels:
+                        execUnit: testUnit
+                      name: nginx-deployment
+                    spec:
+                      replicas: 3
+                      selector:
+                        matchLabels:
+                          app: nginx
+                          execUnit: testUnit
+                      strategy: {}
+                      template:
+                        metadata:
+                          creationTimestamp: null
+                          labels:
+                            app: nginx
+                            execUnit: testUnit
+                        spec:
+                          containers:
+                          - image: '{{ .Values.testUnitImage }}'
+                            name: testUnit
                             resources: {}
                           serviceAccountName: testUnit
                     status: {}`),
@@ -410,7 +481,7 @@ func Test_transformDeployment(t *testing.T) {
 				testUnit.Deployment = f
 			}
 
-			values, err := testUnit.transformDeployment()
+			values, err := testUnit.transformDeployment(tt.cfg)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -419,7 +490,11 @@ func Test_transformDeployment(t *testing.T) {
 				return
 			}
 			assert.Equal(tt.want.values, values)
-			assert.Equal(tt.want.newFile, string(testUnit.Deployment.Program()))
+			actualYaml := string(testUnit.Deployment.Program())
+			if tt.want.focusOnPath != "" {
+				actualYaml = testutil.SafeYamlPath(actualYaml, tt.want.focusOnPath)
+			}
+			assert.Equal(tt.want.newFile, actualYaml)
 		})
 	}
 }
