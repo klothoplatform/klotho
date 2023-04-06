@@ -25,15 +25,6 @@ type HelmChart struct {
 	ConstructRefs  []core.AnnotationKey
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (chart *HelmChart) Provider() string { return "kubernetes" }
-
-// KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
-func (chart *HelmChart) KlothoConstructRef() []core.AnnotationKey { return chart.ConstructRefs }
-
-// Id returns the id of the cloud resource
-func (chart *HelmChart) Id() string { return fmt.Sprintf("klotho_helm_chart-%s", chart.Name) }
-
 var HelmChartKind = "helm_chart"
 
 func (t *HelmChart) OutputTo(dest string) error {

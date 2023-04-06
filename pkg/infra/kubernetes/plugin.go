@@ -26,7 +26,7 @@ type Kubernetes struct {
 
 func (p Kubernetes) Name() string { return "kubernetes" }
 
-func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
+func (p Kubernetes) Translate(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 	p.log = zap.L().Sugar()
 	helmHelper, err := helm.NewHelmHelper()
