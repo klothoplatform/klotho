@@ -291,7 +291,7 @@ func Test_transformPod(t *testing.T) {
 				},
 			},
 			want: result{
-				values: []Value{
+				values: []HelmChartValue{
 					{
 						ExecUnitName: "testUnit",
 						Kind:         "Pod",
@@ -382,7 +382,7 @@ func Test_transformDeployment(t *testing.T) {
               containers:
               - name: nginx
                 image: nginx:1.14.2`)
-	wantValues := []Value{
+	wantValues := []HelmChartValue{
 		{
 			ExecUnitName: "testUnit",
 			Kind:         "Deployment",
