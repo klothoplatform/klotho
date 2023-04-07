@@ -111,9 +111,9 @@ func CreateS3Origin(unit *core.StaticUnit, bucket *S3Bucket, distribution *Cloud
 		},
 	}
 	bucketPolicy := NewBucketPolicy(unit.ID, bucket, policyDoc)
-	dag.AddDependency2(bucketPolicy, oai)
-	dag.AddDependency2(distribution, oai)
-	dag.AddDependency2(bucketPolicy, bucket)
+	dag.AddDependency(bucketPolicy, oai)
+	dag.AddDependency(distribution, oai)
+	dag.AddDependency(bucketPolicy, bucket)
 	s3OriginConfig := S3OriginConfig{
 		OriginAccessIdentity: core.IaCValue{
 			Resource: oai,

@@ -21,7 +21,7 @@ func (a *AWS) GenerateFsResources(construct *core.Fs, result *core.ConstructGrap
 			policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
 			policy := resources.NewIamPolicy(a.Config.AppName, construct.Id(), construct.Provenance(), policyDoc)
 			dag.AddResource(policy)
-			dag.AddDependency2(policy, bucket)
+			dag.AddDependency(policy, bucket)
 			a.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), policy)
 		}
 	}

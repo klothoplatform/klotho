@@ -75,16 +75,16 @@ func CreateElasticache(cfg *config.Application, dag *core.ResourceGraph, source 
 	dag.AddResource(ec)
 	dag.AddResource(ec.CloudwatchGroup)
 	dag.AddResource(ec.SubnetGroup)
-	dag.AddDependency2(ec, ec.CloudwatchGroup)
-	dag.AddDependency2(ec, ec.SubnetGroup)
+	dag.AddDependency(ec, ec.CloudwatchGroup)
+	dag.AddDependency(ec, ec.SubnetGroup)
 
 	for _, sg := range ec.SecurityGroups {
 		sg.ConstructsRef = append(sg.ConstructsRef, source.Provenance())
-		dag.AddDependency2(ec, sg)
+		dag.AddDependency(ec, sg)
 	}
 	for _, sn := range ec.SubnetGroup.Subnets {
 		sn.ConstructsRef = append(sn.ConstructsRef, source.Provenance())
-		dag.AddDependency2(ec.SubnetGroup, sn)
+		dag.AddDependency(ec.SubnetGroup, sn)
 	}
 
 	return ec
