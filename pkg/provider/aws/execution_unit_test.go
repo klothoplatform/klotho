@@ -38,11 +38,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 		},
 		Values: make(map[string]core.IaCValue),
 	}
-	type testResult struct {
-		nodes []core.Resource
-		deps  []graph.Edge[core.Resource]
-		err   bool
-	}
+
 	cases := []struct {
 		name              string
 		existingResources []core.Resource
