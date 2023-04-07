@@ -233,6 +233,9 @@ func Test_CreateRestApi(t *testing.T) {
 			}
 
 			tt.want.Assert(t, dag)
+			resources, found := aws.GetResourcesDirectlyTiedToConstruct(tt.gw)
+			assert.True(found)
+			assert.Len(resources, 2)
 		})
 
 	}

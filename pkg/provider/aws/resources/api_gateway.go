@@ -18,6 +18,7 @@ const (
 
 	LAMBDA_INTEGRATION_URI_IAC_VALUE = "lambda_integration_uri"
 	ALL_RESOURCES_ARN_IAC_VALUE      = "all_resources_arn"
+	STAGE_INVOKE_URL_IAC_VALUE       = "stage_invoke_url"
 )
 
 var restApiSanitizer = aws.RestApiSanitizer
