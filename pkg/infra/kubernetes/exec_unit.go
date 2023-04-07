@@ -167,13 +167,6 @@ func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) ([]HelmC
 	return values, nil
 }
 
-func mapOrNew[K comparable, V any](input map[K]V) map[K]V {
-	if input == nil {
-		input = make(map[K]V)
-	}
-	return input
-}
-
 func (unit *HelmExecUnit) transformService() (values []HelmChartValue, err error) {
 	log := zap.L().Sugar().With(logging.FileField(unit.Service), zap.String("unit", unit.Name))
 	log.Debugf("Transforming file, %s, for exec unit, %s", unit.Service.Path(), unit.Name)
@@ -486,7 +479,9 @@ func (unit *HelmExecUnit) configureContainer(container *corev1.Container, cfg co
 		return err
 	}
 	for name, quantity := range resourceReqs.Limits {
-		container.Resources.Limits = mapOrNew(container.Resources.Limits)
+		if container.Resources.Limits == nil {
+			container.Resources.Limits = make(corev1.ResourceList)
+		}
 		container.Resources.Limits[name] = quantity
 	}
 
