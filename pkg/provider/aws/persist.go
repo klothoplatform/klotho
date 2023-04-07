@@ -16,7 +16,7 @@ func (a *AWS) GenerateFsResources(construct *core.Fs, result *core.ConstructGrap
 			actions := []string{"s3:*"}
 			policyResources := []core.IaCValue{
 				{Resource: bucket, Property: core.ARN_IAC_VALUE},
-				{Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE},
+				{Resource: bucket, Property: resources.ALL_BUCKET_DIRECTORY_IAC_VALUE},
 			}
 			policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
 			policy := resources.NewIamPolicy(a.Config.AppName, construct.Id(), construct.Provenance(), policyDoc)

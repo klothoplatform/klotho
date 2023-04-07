@@ -55,6 +55,10 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 	if err != nil {
 		return
 	}
+	err = a.createCDNs(result, dag)
+	if err != nil {
+		return
+	}
 	return
 }
 

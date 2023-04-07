@@ -120,6 +120,8 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 
 	stage := resources.NewApiStage(deployment, "stage", api_references)
 	dag.AddDependenciesReflect(stage)
+	a.MapResourceDirectlyToConstruct(stage, gateway)
+	a.MapResourceDirectlyToConstruct(api, gateway)
 	return errs.ErrOrNil()
 }
 
