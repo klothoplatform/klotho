@@ -4,7 +4,9 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/testutil"
 	apps "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	yaml2 "k8s.io/apimachinery/pkg/util/yaml"
+	k8s_yaml "sigs.k8s.io/yaml"
 	"strings"
 	"testing"
 
@@ -235,14 +237,15 @@ func Test_transformPod(t *testing.T) {
 	}{
 		{
 			name: "Basic Pod",
-			file: `apiVersion: v1
-kind: Pod
-metadata:
-  name: test
-spec:
-  containers:
-  - name: web
-    image: nginx`,
+			file: testutil.UnIndent(`
+                apiVersion: v1
+                kind: Pod
+                metadata:
+                  name: test
+                spec:
+                  containers:
+                  - name: web
+                    image: nginx`),
 			want: result{
 				values: []Value{
 					{
@@ -252,35 +255,82 @@ spec:
 						Key:          "testUnitImage",
 					},
 				},
-				newFile: `apiVersion: v1
-kind: Pod
-metadata:
-  creationTimestamp: null
-  labels:
-    execUnit: testUnit
-  name: test
-spec:
-  containers:
-  - image: '{{ .Values.testUnitImage }}'
-    name: web
-    resources: {}
-  serviceAccountName: testUnit
-status: {}
-`,
+				newFile: testutil.UnIndent(`
+                    apiVersion: v1
+                    kind: Pod
+                    metadata:
+                      creationTimestamp: null
+                      labels:
+                        execUnit: testUnit
+                      name: test
+                    spec:
+                      containers:
+                      - image: '{{ .Values.testUnitImage }}'
+                        name: web
+                        resources: {}
+                      serviceAccountName: testUnit
+                    status: {}`),
+			},
+		},
+		{
+			// This is just to test that we call upsertOnlyContainer.
+			// See Test_upsertOnlyContainer for more exhaustive tests.
+			name: "container gets upserted",
+			file: testutil.UnIndent(`
+                apiVersion: v1
+                kind: Pod
+                metadata:
+                  name: test
+                spec:
+                  containers: []`),
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"cpu": 123,
+					},
+				},
+			},
+			want: result{
+				values: []Value{
+					{
+						ExecUnitName: "testUnit",
+						Kind:         "Pod",
+						Type:         string(ImageTransformation),
+						Key:          "testUnitImage",
+					},
+				},
+				newFile: testutil.UnIndent(`
+                    apiVersion: v1
+                    kind: Pod
+                    metadata:
+                      creationTimestamp: null
+                      labels:
+                        execUnit: testUnit
+                      name: test
+                    spec:
+                      containers:
+                      - image: '{{ .Values.testUnitImage }}'
+                        name: testUnit
+                        resources:
+                          limits:
+                            cpu: "123"
+                      serviceAccountName: testUnit
+                    status: {}`),
 			},
 		},
 		{
 			name: "reject Pod with multiple containers",
-			file: `apiVersion: v1
-kind: Pod
-metadata:
-  name: test
-spec:
-  containers:
-  - name: web
-    image: nginx
-  - name: web2
-    image: nginx2`,
+			file: testutil.UnIndent(`
+                apiVersion: v1
+                kind: Pod
+                metadata:
+                  name: test
+                spec:
+                  containers:
+                  - name: web
+                    image: nginx
+                  - name: web2
+                    image: nginx2`),
 			wantErr: true,
 		},
 	}
@@ -383,6 +433,8 @@ func Test_transformDeployment(t *testing.T) {
 			},
 		},
 		{
+			// This is just to test that we call upsertOnlyContainer.
+			// See Test_upsertOnlyContainer for more exhaustive tests.
 			name: "specify cpu int",
 			file: basicDeploymentYaml,
 			cfg: config.ExecutionUnit{
@@ -398,92 +450,6 @@ func Test_transformDeployment(t *testing.T) {
 				newFile: testutil.UnIndent(`
                     limits:
                         cpu: "123"`),
-			},
-		},
-		{
-			name: "specify cpu str",
-			file: basicDeploymentYaml,
-			cfg: config.ExecutionUnit{
-				InfraParams: config.InfraParams{
-					"limits": map[string]any{
-						"cpu": "123",
-					},
-				},
-			},
-			want: result{
-				values:      wantValues,
-				focusOnPath: "$.spec.template.spec.containers[0].resources",
-				newFile: testutil.UnIndent(`
-                    limits:
-                        cpu: "123"`),
-			},
-		},
-		{
-			name: "specify cpu with unit",
-			file: basicDeploymentYaml,
-			cfg: config.ExecutionUnit{
-				InfraParams: config.InfraParams{
-					"limits": map[string]any{
-						"cpu": "123m",
-					},
-				},
-			},
-			want: result{
-				values:      wantValues,
-				focusOnPath: "$.spec.template.spec.containers[0].resources",
-				newFile: testutil.UnIndent(`
-                    limits:
-                        cpu: 123m`),
-			},
-		},
-		{
-			name: "specify cpu with invalid unit",
-			file: basicDeploymentYaml,
-			cfg: config.ExecutionUnit{
-				InfraParams: config.InfraParams{
-					"limits": map[string]any{
-						"cpu": "123q",
-					},
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "specify memory with unit",
-			file: basicDeploymentYaml,
-			cfg: config.ExecutionUnit{
-				InfraParams: config.InfraParams{
-					"limits": map[string]any{
-						"memory": "129M",
-					},
-				},
-			},
-			want: result{
-				values:      wantValues,
-				focusOnPath: "$.spec.template.spec.containers[0].resources",
-				newFile: testutil.UnIndent(`
-                    limits:
-                        memory: 129M`),
-			},
-		},
-		{
-			name: "specify both memory and limit",
-			file: basicDeploymentYaml,
-			cfg: config.ExecutionUnit{
-				InfraParams: config.InfraParams{
-					"limits": map[string]any{
-						"cpu":    123,
-						"memory": "129M",
-					},
-				},
-			},
-			want: result{
-				values:      wantValues,
-				focusOnPath: "$.spec.template.spec.containers[0].resources",
-				newFile: testutil.UnIndent(`
-                    limits:
-                        cpu: "123"
-                        memory: 129M`),
 			},
 		},
 		{
@@ -1347,4 +1313,192 @@ spec:
 			assert.Equal(tt.want, name)
 		})
 	}
+}
+
+func Test_upsertOnlyContainer(t *testing.T) {
+	tests := []struct {
+		name        string
+		given       []corev1.Container
+		wantSuccess bool
+	}{
+		{
+			name:        "nil containers",
+			given:       nil,
+			wantSuccess: true,
+		},
+		{
+			name:        "empty container",
+			given:       []corev1.Container{},
+			wantSuccess: true,
+		},
+		{
+			name:        "one container",
+			given:       []corev1.Container{corev1.Container{}},
+			wantSuccess: true,
+		},
+		{
+			name:        "multiple containers",
+			given:       []corev1.Container{corev1.Container{}, corev1.Container{}},
+			wantSuccess: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			unit := HelmExecUnit{
+				Name: "MyTestHelm",
+			}
+
+			// Just a single config, to make sure we call configureContainer.
+			// See Test_configureContainer below for more extensive tests
+			cfg := config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"cpu": "123",
+					},
+				},
+			}
+
+			valueStr, err := unit.upsertOnlyContainer(&tt.given, cfg)
+			if tt.wantSuccess {
+				if !assert.NoError(err) {
+					return
+				}
+			} else {
+				assert.Error(err)
+				return
+			}
+
+			if !assert.Equal(1, len(tt.given)) {
+				return
+			}
+			container := tt.given[0]
+
+			// Test the image
+			assert.Equal("MyTestHelmImage", valueStr)
+			assert.Equal(`{{ .Values.MyTestHelmImage }}`, container.Image)
+
+			// Quick check on config. As mentioned above, we check these more extensively in Test_configureContainer
+			cpuQuantity := container.Resources.Limits[corev1.ResourceCPU]
+			assert.Equal("123", cpuQuantity.String())
+		})
+	}
+}
+
+func Test_configureContainer(t *testing.T) {
+	type result struct {
+		focusOnPath   string
+		containerYaml string
+		err           bool
+	}
+	tests := []struct {
+		name string
+		cfg  config.ExecutionUnit
+		want result
+	}{
+		{
+			name: "specify cpu str",
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"cpu": "123",
+					},
+				},
+			},
+			want: result{
+				focusOnPath: "$.resources",
+				containerYaml: testutil.UnIndent(`
+                    limits:
+                        cpu: "123"`),
+			},
+		},
+		{
+			name: "specify cpu with unit",
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"cpu": "123m",
+					},
+				},
+			},
+			want: result{
+				focusOnPath: "$.resources",
+				containerYaml: testutil.UnIndent(`
+                    limits:
+                        cpu: 123m`),
+			},
+		},
+		{
+			name: "specify cpu with invalid unit",
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"cpu": "123q",
+					},
+				},
+			},
+			want: result{
+				err: true,
+			},
+		},
+		{
+			name: "specify memory with unit",
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"memory": "129M",
+					},
+				},
+			},
+			want: result{
+				focusOnPath: "$.resources",
+				containerYaml: testutil.UnIndent(`
+                    limits:
+                        memory: 129M`),
+			},
+		},
+		{
+			name: "specify both memory and limit",
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"cpu":    123,
+						"memory": "129M",
+					},
+				},
+			},
+			want: result{
+				focusOnPath: "$.resources",
+				containerYaml: testutil.UnIndent(`
+                    limits:
+                        cpu: "123"
+                        memory: 129M`),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			unit := HelmExecUnit{}
+			container := corev1.Container{}
+
+			err := unit.configureContainer(&container, tt.cfg)
+			if tt.want.err {
+				assert.Error(err)
+				return
+			} else if !assert.NoError(err) {
+				return
+			}
+
+			actualContainerYamlBs, err := k8s_yaml.Marshal(container)
+			if !assert.NoError(err) {
+				return
+			}
+
+			actualContainerYaml := testutil.SafeYamlPath(string(actualContainerYamlBs), tt.want.focusOnPath)
+
+			assert.Equal(tt.want.containerYaml, actualContainerYaml)
+		})
+	}
+
 }
