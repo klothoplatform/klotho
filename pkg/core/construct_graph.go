@@ -83,6 +83,12 @@ func GetResourcesOfType[T Construct](g *ConstructGraph) (filtered []T) {
 	return
 }
 
+func GetConstruct[T Construct](g *ConstructGraph, key string) (construct T, ok bool) {
+	cR := g.GetConstruct(key)
+	construct, ok = cR.(T)
+	return
+}
+
 func (cg *ConstructGraph) GetExecUnitForPath(fp string) (*ExecutionUnit, File) {
 	var best *ExecutionUnit
 	var bestFile File

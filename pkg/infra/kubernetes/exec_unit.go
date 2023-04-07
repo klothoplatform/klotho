@@ -72,7 +72,7 @@ func shouldTransformServiceAccount(unit *core.ExecutionUnit) bool {
 	return shouldTransformImage(unit)
 }
 
-func (unit *HelmExecUnit) transformPod() (values []Value, err error) {
+func (unit *HelmExecUnit) transformPod() (values []HelmChartValue, err error) {
 	log := zap.L().Sugar().With(logging.FileField(unit.Pod), zap.String("unit", unit.Name))
 	log.Debugf("Transforming file, %s, for exec unit, %s", unit.Pod.Path(), unit.Name)
 	obj, err := readFile(unit.Pod)
@@ -113,7 +113,7 @@ func (unit *HelmExecUnit) transformPod() (values []Value, err error) {
 	if err != nil {
 		return
 	}
-	values = append(values, Value{
+	values = append(values, HelmChartValue{
 		ExecUnitName: unit.Name,
 		Kind:         pod.Kind,
 		Type:         string(ImageTransformation),
@@ -122,8 +122,8 @@ func (unit *HelmExecUnit) transformPod() (values []Value, err error) {
 	return
 }
 
-func (unit *HelmExecUnit) transformDeployment() ([]Value, error) {
-	values := []Value{}
+func (unit *HelmExecUnit) transformDeployment() ([]HelmChartValue, error) {
+	values := []HelmChartValue{}
 	log := zap.L().Sugar().With(logging.FileField(unit.Deployment), zap.String("unit", unit.Name))
 	log.Debugf("Transforming file, %s, for exec unit, %s", unit.Deployment.Path(), unit.Name)
 	obj, err := readFile(unit.Deployment)
@@ -173,7 +173,7 @@ func (unit *HelmExecUnit) transformDeployment() ([]Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	values = append(values, Value{
+	values = append(values, HelmChartValue{
 		ExecUnitName: unit.Name,
 		Kind:         deployment.Kind,
 		Type:         string(ImageTransformation),
@@ -182,7 +182,7 @@ func (unit *HelmExecUnit) transformDeployment() ([]Value, error) {
 	return values, nil
 }
 
-func (unit *HelmExecUnit) transformService() (values []Value, err error) {
+func (unit *HelmExecUnit) transformService() (values []HelmChartValue, err error) {
 	log := zap.L().Sugar().With(logging.FileField(unit.Service), zap.String("unit", unit.Name))
 	log.Debugf("Transforming file, %s, for exec unit, %s", unit.Service.Path(), unit.Name)
 	obj, err := readFile(unit.Service)
@@ -215,7 +215,7 @@ func (unit *HelmExecUnit) transformService() (values []Value, err error) {
 	return
 }
 
-func (unit *HelmExecUnit) transformServiceAccount() (values []Value, err error) {
+func (unit *HelmExecUnit) transformServiceAccount() (values []HelmChartValue, err error) {
 	log := zap.L().Sugar().With(logging.FileField(unit.ServiceAccount), zap.String("unit", unit.Name))
 	log.Debugf("Transforming file, %s, for exec unit, %s", unit.ServiceAccount.Path(), unit.Name)
 	obj, err := readFile(unit.ServiceAccount)
@@ -245,7 +245,7 @@ func (unit *HelmExecUnit) transformServiceAccount() (values []Value, err error) 
 	if err != nil {
 		return nil, err
 	}
-	values = append(values, Value{
+	values = append(values, HelmChartValue{
 		ExecUnitName: unit.Name,
 		Kind:         serviceAccount.Kind,
 		Type:         string(ServiceAccountAnnotationTransformation),
@@ -254,7 +254,7 @@ func (unit *HelmExecUnit) transformServiceAccount() (values []Value, err error) 
 	return
 }
 
-func (unit *HelmExecUnit) transformTargetGroupBinding() (values []Value, err error) {
+func (unit *HelmExecUnit) transformTargetGroupBinding() (values []HelmChartValue, err error) {
 	log := zap.L().Sugar().With(logging.FileField(unit.TargetGroupBinding), zap.String("unit", unit.Name))
 	log.Debugf("Transforming file, %s, for exec unit, %s", unit.TargetGroupBinding.Path(), unit.Name)
 	obj, err := readElbv2ApiFiles(unit.TargetGroupBinding)
@@ -282,7 +282,7 @@ func (unit *HelmExecUnit) transformTargetGroupBinding() (values []Value, err err
 	if err != nil {
 		return nil, err
 	}
-	values = append(values, Value{
+	values = append(values, HelmChartValue{
 		ExecUnitName: unit.Name,
 		Kind:         targetGroupBinding.Kind,
 		Type:         string(TargetGroupTransformation),
@@ -326,7 +326,7 @@ func (unit *HelmExecUnit) getServiceName() string {
 	return unit.Name
 }
 
-func (unit *HelmExecUnit) AddUnitsEnvironmentVariables(eu *core.ExecutionUnit) (values []Value, err error) {
+func (unit *HelmExecUnit) AddUnitsEnvironmentVariables(eu *core.ExecutionUnit) (values []HelmChartValue, err error) {
 	if unit.Deployment != nil {
 		v, err := unit.addEnvsVarToDeployment(eu.EnvironmentVariables)
 		if err != nil {
@@ -344,8 +344,8 @@ func (unit *HelmExecUnit) AddUnitsEnvironmentVariables(eu *core.ExecutionUnit) (
 	}
 	return
 }
-func (unit *HelmExecUnit) addEnvsVarToDeployment(envVars core.EnvironmentVariables) ([]Value, error) {
-	values := []Value{}
+func (unit *HelmExecUnit) addEnvsVarToDeployment(envVars core.EnvironmentVariables) ([]HelmChartValue, error) {
+	values := []HelmChartValue{}
 
 	log := zap.L().Sugar().With(logging.FileField(unit.Deployment), zap.String("unit", unit.Name))
 	log.Debugf("Adding environment variables to file, %s, for exec unit, %s", unit.Deployment.Path(), unit.Name)
@@ -372,7 +372,7 @@ func (unit *HelmExecUnit) addEnvsVarToDeployment(envVars core.EnvironmentVariabl
 			}
 
 			deployment.Spec.Template.Spec.Containers[0].Env = append(deployment.Spec.Template.Spec.Containers[0].Env, newEv)
-			values = append(values, Value{
+			values = append(values, HelmChartValue{
 				ExecUnitName:        unit.Name,
 				Kind:                deployment.Kind,
 				Type:                string(EnvironmentVariableTransformation),
@@ -394,8 +394,8 @@ func (unit *HelmExecUnit) addEnvsVarToDeployment(envVars core.EnvironmentVariabl
 	return values, nil
 }
 
-func (unit *HelmExecUnit) addEnvVarToPod(envVars core.EnvironmentVariables) ([]Value, error) {
-	values := []Value{}
+func (unit *HelmExecUnit) addEnvVarToPod(envVars core.EnvironmentVariables) ([]HelmChartValue, error) {
+	values := []HelmChartValue{}
 
 	log := zap.L().Sugar().With(logging.FileField(unit.Pod), zap.String("unit", unit.Name))
 	log.Debugf("Adding environment variables to file, %s, for exec unit, %s", unit.Pod.Path(), unit.Name)
@@ -422,7 +422,7 @@ func (unit *HelmExecUnit) addEnvVarToPod(envVars core.EnvironmentVariables) ([]V
 			}
 
 			pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, newEv)
-			values = append(values, Value{
+			values = append(values, HelmChartValue{
 				ExecUnitName:        unit.Name,
 				Kind:                pod.Kind,
 				Type:                string(EnvironmentVariableTransformation),

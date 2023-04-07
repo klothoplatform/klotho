@@ -8,6 +8,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
@@ -146,6 +147,10 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 
 		integration := resources.NewApiIntegration(method, refs, "POST", "AWS_PROXY", nil, core.IaCValue{Resource: function, Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
 		dag.AddDependenciesReflect(integration)
+		return integration, nil
+	case kubernetes.KubernetesType:
+		// TODO: Replace this with the proper eks integration
+		integration := resources.NewApiIntegration(method, refs, "POST", "AWS_PROXY", nil, core.IaCValue{Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
 		return integration, nil
 	default:
 		return nil, errors.Errorf("Unrecognized integration type, %s, for api gateway", cfg.Type)
