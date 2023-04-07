@@ -99,6 +99,10 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.LoadBalancer{},
 		&resources.TargetGroup{},
 		&resources.Listener{},
+		&resources.RdsInstance{},
+		&resources.RdsProxy{},
+		&resources.RdsSubnetGroup{},
+		&resources.RdsProxyTargetGroup{},
 	}
 
 	tp := standardTemplatesProvider()

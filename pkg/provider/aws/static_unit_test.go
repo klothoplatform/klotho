@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -78,7 +77,6 @@ func Test_GenerateStaticUnitResources(t *testing.T) {
 				return
 			}
 
-			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 			tiedResources, found := aws.GetResourcesDirectlyTiedToConstruct(unit)
 			assert.True(found)
 			mappedIds := []string{}

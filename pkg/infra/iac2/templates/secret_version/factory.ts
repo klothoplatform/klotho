@@ -5,6 +5,7 @@ interface Args {
     SecretName: string
     Secret: aws.secretsmanager.Secret
     Path: string
+    protect: boolean
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -19,7 +20,7 @@ function create(args: Args): void {
                 secretId: args.Secret.id,
                 secretBinary: data.toString('base64'),
             },
-            { protect: this.lib.protect }
+            { protect: args.protect }
         )
     })
 }

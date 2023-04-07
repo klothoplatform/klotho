@@ -203,6 +203,19 @@ func (vpc *Vpc) GetVpcSubnets(dag *core.ResourceGraph) []*Subnet {
 	return subnets
 }
 
+func (vpc *Vpc) GetPrivateSubnets(dag *core.ResourceGraph) []*Subnet {
+	subnets := []*Subnet{}
+	downstreamDeps := dag.GetUpstreamResources(vpc)
+	for _, dep := range downstreamDeps {
+		if subnet, ok := dep.(*Subnet); ok {
+			if subnet.Type == PrivateSubnet {
+				subnets = append(subnets, subnet)
+			}
+		}
+	}
+	return subnets
+}
+
 func NewElasticIp(appName string, ipName string) *ElasticIp {
 	return &ElasticIp{
 		Name: elasticIpSanitizer.Apply(fmt.Sprintf("%s-%s", appName, ipName)),

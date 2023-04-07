@@ -1,0 +1,7 @@
+{
+    "name": "rds_proxy_target_group",
+    "dependencies": {
+        "@pulumi/aws-native": "^0.56.0",
+        "@pulumi/aws": "^5.16.0"
+    }
+}

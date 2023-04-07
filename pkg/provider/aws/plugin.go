@@ -41,8 +41,10 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 			merr.Append(a.GenerateSecretsResources(construct, result, dag))
 		case *core.Kv:
 			merr.Append(a.GenerateKvResources(construct, result, dag))
-		case *core.RedisCluster, *core.RedisNode:
+		case *core.RedisNode:
 			merr.Append(a.GenerateRedisResources(construct, result, dag))
+		case *core.Orm:
+			merr.Append(a.GenerateOrmResources(construct, result, dag))
 		default:
 			// TODO convert to error once migration to ifc2 is complete
 			log.Warnf("Unsupported resource %s", construct.Id())

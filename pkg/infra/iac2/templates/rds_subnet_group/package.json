@@ -1,0 +1,6 @@
+{
+    "name": "rds_instance",
+    "dependencies": {
+        "@pulumi/aws": "^5.16.0"
+    }
+}

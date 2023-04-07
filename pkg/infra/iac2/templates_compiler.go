@@ -464,6 +464,28 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
+	case string(core.CONNECTION_STRING):
+		switch res := v.Resource.(type) {
+		case *resources.RdsProxy:
+			downResources := tc.resourceGraph.GetUpstreamDependencies(res)
+			var instance *resources.RdsInstance
+			for _, resource := range downResources {
+				if rdsProxyTargetGroup, ok := resource.Source.(*resources.RdsProxyTargetGroup); ok {
+					instance = rdsProxyTargetGroup.RdsInstance
+				}
+			}
+			if instance == nil {
+				return "", errors.Errorf("Rds Proxy, %s, must have an associated instance", v.Resource.Id())
+			}
+
+			fetchUsername := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[0]`, instance.CredentialsPath)
+			fetchPassword := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[1]`, instance.CredentialsPath)
+			return fmt.Sprintf("pulumi.interpolate`postgresql://${%s}:${%s}@${%s.endpoint}:5432/%s`", fetchUsername, fetchPassword,
+				tc.getVarName(v.Resource), instance.DatabaseName), nil
+		default:
+			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
+		}
+
 	case resources.CLUSTER_OIDC_ARN_IAC_VALUE:
 		varName := "cluster_oidc_url"
 		*appliedOutputs = append(*appliedOutputs, AppliedOutput{

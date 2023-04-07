@@ -45,6 +45,7 @@ func (p Plugin) Translate(cloudGraph *core.ResourceGraph) ([]core.File, error) {
 	buf.Write([]byte("export = async () => {\n"))
 	buf.Write([]byte("const kloConfig: pulumi.Config = new pulumi.Config('klo')\n"))
 	buf.Write([]byte("const protect = kloConfig.getBoolean('protect') ?? false\n\n"))
+	buf.Write([]byte("const awsNativeRegion = aws_native.getRegion()\n\n"))
 
 	if err := tc.RenderBody(buf); err != nil {
 		return nil, err
