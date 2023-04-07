@@ -43,7 +43,7 @@ func (rg *ResourceGraph) AddResource(resource Resource) {
 //			...
 //		}
 //
-//		rg.AddDependency(lambda, lambda.Role)
+//	rg.AddDependency(lambda, lambda.Role)
 func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Resource) {
 	for _, res := range []Resource{deployedSecond, deployedFirst} {
 		rg.AddResource(res)
