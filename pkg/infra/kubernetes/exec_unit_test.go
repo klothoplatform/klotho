@@ -3,6 +3,8 @@ package kubernetes
 import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/testutil"
+	apps "k8s.io/api/apps/v1"
+	yaml2 "k8s.io/apimachinery/pkg/util/yaml"
 	"strings"
 	"testing"
 
@@ -227,6 +229,7 @@ func Test_transformPod(t *testing.T) {
 	tests := []struct {
 		name    string
 		file    string
+		cfg     config.ExecutionUnit
 		want    result
 		wantErr bool
 	}{
@@ -291,7 +294,7 @@ spec:
 				testUnit.Pod = f
 			}
 
-			values, err := testUnit.transformPod()
+			values, err := testUnit.transformPod(tt.cfg)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -380,7 +383,7 @@ func Test_transformDeployment(t *testing.T) {
 			},
 		},
 		{
-			name: "specify cpu",
+			name: "specify cpu int",
 			file: basicDeploymentYaml,
 			cfg: config.ExecutionUnit{
 				InfraParams: config.InfraParams{
@@ -395,6 +398,92 @@ func Test_transformDeployment(t *testing.T) {
 				newFile: testutil.UnIndent(`
                     limits:
                         cpu: "123"`),
+			},
+		},
+		{
+			name: "specify cpu str",
+			file: basicDeploymentYaml,
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"cpu": "123",
+					},
+				},
+			},
+			want: result{
+				values:      wantValues,
+				focusOnPath: "$.spec.template.spec.containers[0].resources",
+				newFile: testutil.UnIndent(`
+                    limits:
+                        cpu: "123"`),
+			},
+		},
+		{
+			name: "specify cpu with unit",
+			file: basicDeploymentYaml,
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"cpu": "123m",
+					},
+				},
+			},
+			want: result{
+				values:      wantValues,
+				focusOnPath: "$.spec.template.spec.containers[0].resources",
+				newFile: testutil.UnIndent(`
+                    limits:
+                        cpu: 123m`),
+			},
+		},
+		{
+			name: "specify cpu with invalid unit",
+			file: basicDeploymentYaml,
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"cpu": "123q",
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "specify memory with unit",
+			file: basicDeploymentYaml,
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"memory": "129M",
+					},
+				},
+			},
+			want: result{
+				values:      wantValues,
+				focusOnPath: "$.spec.template.spec.containers[0].resources",
+				newFile: testutil.UnIndent(`
+                    limits:
+                        memory: 129M`),
+			},
+		},
+		{
+			name: "specify both memory and limit",
+			file: basicDeploymentYaml,
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"cpu":    123,
+						"memory": "129M",
+					},
+				},
+			},
+			want: result{
+				values:      wantValues,
+				focusOnPath: "$.spec.template.spec.containers[0].resources",
+				newFile: testutil.UnIndent(`
+                    limits:
+                        cpu: "123"
+                        memory: 129M`),
 			},
 		},
 		{
@@ -495,6 +584,10 @@ func Test_transformDeployment(t *testing.T) {
 				actualYaml = testutil.SafeYamlPath(actualYaml, tt.want.focusOnPath)
 			}
 			assert.Equal(tt.want.newFile, actualYaml)
+
+			chart := apps.Deployment{}
+			err = yaml2.Unmarshal([]byte(actualYaml), &chart)
+			assert.NoErrorf(err, "while unmarshalling yaml doc")
 		})
 	}
 }

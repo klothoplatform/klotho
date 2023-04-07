@@ -47,10 +47,10 @@ type (
 
 	// KubernetesLimits represents the configurability of kubernetes limits for execution units which match the kubernetes compatibility
 	KubernetesLimits struct {
-		// Cpu specifies the limit per pod in millicores
-		Cpu int `json:"cpu,omitempty" yaml:"cpu,omitempty" toml:"cpu,omitempty"`
+		// Cpu specifies the limit per pod in millicores. It is "any" so that the user can specify it as either a string or a number
+		Cpu any `json:"cpu,omitempty" yaml:"cpu,omitempty" toml:"cpu,omitempty"`
 		// Memory specifies the limit per pod in MB
-		Memory int `json:"memory,omitempty" yaml:"memory,omitempty" toml:"memory,omitempty"`
+		Memory any `json:"memory,omitempty" yaml:"memory,omitempty" toml:"memory,omitempty"`
 	}
 
 	// KubernetesLimits represents the configurability of kubernetes limits for execution units which match the kubernetes compatibility

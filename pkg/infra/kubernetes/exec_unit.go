@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"gopkg.in/inf.v0"
-	k8s_resource "k8s.io/apimachinery/pkg/api/resource"
 	"regexp"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -75,7 +73,7 @@ func shouldTransformServiceAccount(unit *core.ExecutionUnit) bool {
 	return shouldTransformImage(unit)
 }
 
-func (unit *HelmExecUnit) transformPod() (values []Value, err error) {
+func (unit *HelmExecUnit) transformPod(cfg config.ExecutionUnit) (values []Value, err error) {
 	log := zap.L().Sugar().With(logging.FileField(unit.Pod), zap.String("unit", unit.Name))
 	log.Debugf("Transforming file, %s, for exec unit, %s", unit.Pod.Path(), unit.Name)
 	obj, err := readFile(unit.Pod)
@@ -88,18 +86,9 @@ func (unit *HelmExecUnit) transformPod() (values []Value, err error) {
 		return
 	}
 
-	value := GenerateImagePlaceholder(unit.Name)
-
-	if len(pod.Spec.Containers) > 1 {
-		err = errors.New("too many containers in pod spec, don't know which to replace")
-		return
-	} else if len(pod.Spec.Containers) == 0 {
-		pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{
-			Name:  unit.Name,
-			Image: fmt.Sprintf("{{ .Values.%s }}", value),
-		})
-	} else {
-		pod.Spec.Containers[0].Image = fmt.Sprintf("{{ .Values.%s }}", value)
+	value, err := unit.upsertOnlyContainer(&pod.Spec.Containers, cfg)
+	if err != nil {
+		return nil, err
 	}
 
 	if pod.Labels == nil {
@@ -139,19 +128,10 @@ func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) ([]Value
 		return nil, err
 	}
 
-	value := GenerateImagePlaceholder(unit.Name)
-
-	if len(deployment.Spec.Template.Spec.Containers) > 1 {
-		return nil, errors.New("too many containers in pod spec, don't know which to replace")
+	value, err := unit.upsertOnlyContainer(&deployment.Spec.Template.Spec.Containers, cfg)
+	if err != nil {
+		return nil, err
 	}
-	if len(deployment.Spec.Template.Spec.Containers) == 0 {
-		deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, corev1.Container{
-			Name: unit.Name,
-		})
-	}
-	container := &deployment.Spec.Template.Spec.Containers[0]
-
-	container.Image = fmt.Sprintf("{{ .Values.%s }}", value)
 
 	if deployment.Labels == nil {
 		deployment.Labels = make(map[string]string)
@@ -169,12 +149,6 @@ func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) ([]Value
 	deployment.Spec.Selector.MatchLabels["execUnit"] = unit.Name
 
 	deployment.Spec.Template.Spec.ServiceAccountName = unit.getServiceAccountName()
-
-	k8sCfg := cfg.GetExecutionUnitParamsAsKubernetes()
-	if k8sCfg.Limits.Cpu != 0 {
-		container.Resources.Limits = mapOrNew(container.Resources.Limits)
-		container.Resources.Limits[corev1.ResourceCPU] = *k8s_resource.NewDecimalQuantity(*inf.NewDec(int64(k8sCfg.Limits.Cpu), 0), k8s_resource.DecimalSI)
-	}
 
 	output, err := yaml.Marshal(deployment)
 	if err != nil {
@@ -460,4 +434,61 @@ func (unit *HelmExecUnit) addEnvVarToPod(envVars core.EnvironmentVariables) ([]V
 	}
 
 	return values, nil
+}
+
+// upsertOnlyContainer ensures that there is exactly one container in the given slice, and that it's correctly
+// configured. Along the way, it will also generate the image placeholder value, which it then returns.
+//
+// If the provided containers slice is empty, this method will create a new container and inert it into the slice; this
+// modifies the call site's slice (which is why we pass in a pointer to a slice). Otherwise, we'll use the slice's
+// existing container, or return an error if there is more than one.
+//
+// To configure the container, we:
+//  1. set its image to a template for the generated placeholder value
+//  2. call configureContainer on it
+func (unit *HelmExecUnit) upsertOnlyContainer(containers *[]corev1.Container, cfg config.ExecutionUnit) (string, error) {
+	if len(*containers) > 1 {
+		return "", errors.New("too many containers in pod spec, don't know which to replace")
+	}
+	if len(*containers) == 0 {
+		*containers = append(*containers, corev1.Container{
+			Name: unit.Name,
+		})
+	}
+	container := &(*containers)[0]
+
+	value := GenerateImagePlaceholder(unit.Name)
+	container.Image = fmt.Sprintf("{{ .Values.%s }}", value)
+
+	if err := unit.configureContainer(container, cfg); err != nil {
+		return "", err
+	}
+
+	return value, nil
+}
+
+func (unit *HelmExecUnit) configureContainer(container *corev1.Container, cfg config.ExecutionUnit) error {
+	k8sCfg := cfg.GetExecutionUnitParamsAsKubernetes()
+
+	limits := make(map[corev1.ResourceName]any)
+	if k8sCfg.Limits.Cpu != nil {
+		limits[corev1.ResourceCPU] = k8sCfg.Limits.Cpu
+	}
+	if k8sCfg.Limits.Memory != nil {
+		limits[corev1.ResourceMemory] = k8sCfg.Limits.Memory
+	}
+	limitsYaml, err := yaml.Marshal(map[string]any{"limits": limits})
+	if err != nil {
+		return err
+	}
+	resourceReqs := corev1.ResourceRequirements{}
+	if err = yaml.Unmarshal(limitsYaml, &resourceReqs); err != nil {
+		return err
+	}
+	for name, quantity := range resourceReqs.Limits {
+		container.Resources.Limits = mapOrNew(container.Resources.Limits)
+		container.Resources.Limits[name] = quantity
+	}
+
+	return nil
 }

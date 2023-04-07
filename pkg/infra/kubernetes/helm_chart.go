@@ -162,7 +162,7 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 			}
 			values = append(values, deploymentValues...)
 		} else if unit.Pod != nil {
-			podValues, err := unit.transformPod()
+			podValues, err := unit.transformPod(cfg)
 			if err != nil {
 				return nil, err
 			}

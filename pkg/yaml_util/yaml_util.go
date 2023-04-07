@@ -115,7 +115,6 @@ func YamlErrors(err error) []string {
 	default:
 		return []string{err.Error()}
 	}
-
 }
 
 func findChild(within []*yaml.Node, named string) *yaml.Node {
