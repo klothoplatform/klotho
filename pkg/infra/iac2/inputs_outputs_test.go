@@ -91,6 +91,9 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.SecurityGroup{},
 		&resources.AvailabilityZones{},
 		&resources.AccountId{},
+		&resources.CloudfrontDistribution{},
+		&resources.OriginAccessIdentity{},
+		&resources.S3BucketPolicy{},
 	}
 
 	tp := standardTemplatesProvider()

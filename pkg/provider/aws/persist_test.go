@@ -18,7 +18,7 @@ func Test_GenerateFsResources(t *testing.T) {
 	actions := []string{"s3:*"}
 	policyResources := []core.IaCValue{
 		{Resource: bucket, Property: core.ARN_IAC_VALUE},
-		{Resource: bucket, Property: core.ALL_BUCKET_DIRECTORY_IAC_VALUE},
+		{Resource: bucket, Property: resources.ALL_BUCKET_DIRECTORY_IAC_VALUE},
 	}
 	policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
 	policy := resources.NewIamPolicy("test", fs.Id(), fs.Provenance(), policyDoc)
@@ -114,7 +114,7 @@ func Test_GenerateFsResources(t *testing.T) {
 						if val.Property == core.ARN_IAC_VALUE {
 							foundArnVal = true
 						}
-						if val.Property == core.ALL_BUCKET_DIRECTORY_IAC_VALUE {
+						if val.Property == resources.ALL_BUCKET_DIRECTORY_IAC_VALUE {
 							foundDirVal = true
 						}
 					}
