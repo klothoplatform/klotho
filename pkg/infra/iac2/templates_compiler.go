@@ -494,11 +494,14 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		}
 		accountId := resources.NewAccountId()
 		region := resources.NewRegion()
-		return fmt.Sprintf("pulumi.interpolate`arn:aws:execute-api:${%s.name}:${%s.accountId}:${%s.id}/*/%s${%s.path}`", tc.getVarName(region),
-			tc.getVarName(accountId), tc.getVarName(method.RestApi), verb, tc.getVarName(method.Resource)), nil
+		path := "/"
+		if method.Resource != nil {
+			path = fmt.Sprintf("${%s.path}", tc.getVarName(method.Resource))
+		}
+		return fmt.Sprintf("pulumi.interpolate`arn:aws:execute-api:${%s.name}:${%s.accountId}:${%s.id}/*/%s%s`", tc.getVarName(region),
+			tc.getVarName(accountId), tc.getVarName(method.RestApi), verb, path), nil
 	case resources.STAGE_INVOKE_URL_IAC_VALUE:
 		return fmt.Sprintf("%s.invokeUrl.apply((d) => d.split('//')[1].split('/')[0])", tc.getVarName(v.Resource)), nil
-
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property, %s", v.Property)
@@ -516,7 +519,6 @@ func (tc TemplatesCompiler) getVarName(v core.Resource) string {
 	if name, alreadyResolved := tc.resourceVarNamesById[v.Id()]; alreadyResolved {
 		return name
 	}
-
 	// Generate something like "lambdaFoo", where Lambda is the name of the struct and "foo" is the id
 	desiredName := lowercaseFirst(toUpperCamel(v.Id()))
 	resolvedName := desiredName
