@@ -32,9 +32,9 @@ func TestOutputBody(t *testing.T) {
 	graph.AddResource(fizz)
 	graph.AddResource(buzz)
 	graph.AddResource(parent)
-	graph.AddDependency2(parent, fizz)
-	graph.AddDependency2(parent, buzz)
-	graph.AddDependency2(fizz, buzz)
+	graph.AddDependency(parent, fizz)
+	graph.AddDependency(parent, buzz)
+	graph.AddDependency(fizz, buzz)
 
 	compiler := CreateTemplatesCompiler(graph)
 	compiler.templates = filesMapToFsMap(dummyTemplateFiles)
@@ -55,7 +55,7 @@ func TestOutputBody(t *testing.T) {
 			"				fizzMyHello,",
 			"				{",
 			"					buzz: buzzShared,",
-			"					nestedDoc: {Fizz: fizzMyHello,",
+			"					nestedDoc: {fizz: fizzMyHello,",
 			"}",
 			"					nestedTemplate: ",
 			"		{",

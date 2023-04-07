@@ -15,7 +15,9 @@ func (a *AWS) GenerateStaticUnitResources(unit *core.StaticUnit, dag *core.Resou
 	for _, f := range unit.Files() {
 		object := resources.NewS3Object(bucket, filepath.Base(f.Path()), f.Path(), filepath.Join(unit.ID, f.Path()))
 		dag.AddResource(object)
-		dag.AddDependency2(object, bucket)
+		dag.AddDependency(object, bucket)
+		a.MapResourceDirectlyToConstruct(object, unit)
 	}
+	a.MapResourceDirectlyToConstruct(bucket, unit)
 	return nil
 }

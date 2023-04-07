@@ -1,12 +1,12 @@
 package aws
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
@@ -20,18 +20,14 @@ func Test_CreateRestApi(t *testing.T) {
 	unit2 := &core.ExecutionUnit{
 		AnnotationKey: core.AnnotationKey{ID: "test2", Capability: annotation.ExecutionUnitCapability},
 	}
-	type testResult struct {
-		resourceIds []string
-		deps        []graph.Edge[string]
-		err         bool
-	}
 	cases := []struct {
 		name                   string
 		gw                     *core.Gateway
 		units                  []*core.ExecutionUnit
 		constructIdToResources map[string][]core.Resource
 		cfg                    config.Application
-		want                   testResult
+		want                   coretesting.ResourcesExpectation
+		wantErr                bool
 	}{
 		{
 			name: "simple base route and single lambda",
@@ -59,19 +55,29 @@ func Test_CreateRestApi(t *testing.T) {
 				},
 				AppName: appName,
 			},
-			want: testResult{
-				resourceIds: []string{
-					"aws:account_id:AccountId", "aws:api_deployment:test-test", "aws:api_integration:test-test-GET", "aws:api_method:test-test-GET", "aws:api_stage:test-test-stage",
-					"aws:lambda_function:test_test", "aws:lambda_permission:test_test_awsapi_methodtest_test_GET", "aws:rest_api:test-test",
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:account_id:AccountId",
+					"aws:api_deployment:test-test",
+					"aws:api_integration:test-test-GET",
+					"aws:api_method:test-test-GET",
+					"aws:api_stage:test-test-stage",
+					"aws:lambda_function:test_test",
+					"aws:lambda_permission:test_test_awsapi_methodtest_test_GET",
+					"aws:rest_api:test-test",
 				},
-				deps: []graph.Edge[string]{
-					{Source: "aws:api_integration:test-test-GET", Destination: "aws:lambda_function:test_test"},
-					{Source: "aws:api_integration:test-test-GET", Destination: "aws:api_method:test-test-GET"},
-					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-GET"},
+				Deps: []graph.Edge[string]{
 					{Source: "aws:api_deployment:test-test", Destination: "aws:api_integration:test-test-GET"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-GET"},
 					{Source: "aws:api_deployment:test-test", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_integration:test-test-GET", Destination: "aws:api_method:test-test-GET"},
+					{Source: "aws:api_integration:test-test-GET", Destination: "aws:lambda_function:test_test"},
+					{Source: "aws:api_integration:test-test-GET", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_method:test-test-GET", Destination: "aws:rest_api:test-test"},
 					{Source: "aws:api_stage:test-test-stage", Destination: "aws:api_deployment:test-test"},
+					{Source: "aws:api_stage:test-test-stage", Destination: "aws:rest_api:test-test"},
 					{Source: "aws:lambda_permission:test_test_awsapi_methodtest_test_GET", Destination: "aws:account_id:AccountId"},
+					{Source: "aws:lambda_permission:test_test_awsapi_methodtest_test_GET", Destination: "aws:api_method:test-test-GET"},
 					{Source: "aws:lambda_permission:test_test_awsapi_methodtest_test_GET", Destination: "aws:lambda_function:test_test"},
 				},
 			},
@@ -120,48 +126,78 @@ func Test_CreateRestApi(t *testing.T) {
 					ExecutionUnit: config.KindDefaults{Type: Lambda},
 				},
 			},
-			want: testResult{
-				resourceIds: []string{
-					"aws:account_id:AccountId", "aws:api_deployment:test-test", "aws:api_integration:test-test-GET", "aws:api_integration:test-test-test/-GET",
-					"aws:api_integration:test-test-test/-POST", "aws:api_integration:test-test-test/-id-/-GET", "aws:api_method:test-test-GET", "aws:api_method:test-test-test/-GET",
-					"aws:api_method:test-test-test/-POST", "aws:api_method:test-test-test/-id-/-GET", "aws:api_resource:test-test-test/", "aws:api_resource:test-test-test/-id-/",
-					"aws:api_stage:test-test-stage", "aws:lambda_function:test_test", "aws:lambda_function:test_test2", "aws:lambda_permission:test_test2_awsapi_methodtest_test_test_GET",
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:account_id:AccountId",
+					"aws:api_deployment:test-test",
+					"aws:api_integration:test-test-GET",
+					"aws:api_integration:test-test-test/-GET",
+					"aws:api_integration:test-test-test/-id-/-GET",
+					"aws:api_integration:test-test-test/-POST",
+					"aws:api_method:test-test-GET",
+					"aws:api_method:test-test-test/-GET",
+					"aws:api_method:test-test-test/-id-/-GET",
+					"aws:api_method:test-test-test/-POST",
+					"aws:api_resource:test-test-test/-id-/",
+					"aws:api_resource:test-test-test/",
+					"aws:api_stage:test-test-stage",
+					"aws:lambda_function:test_test",
+					"aws:lambda_function:test_test2",
+					"aws:lambda_permission:test_test_awsapi_methodtest_test_GET",
+					"aws:lambda_permission:test_test_awsapi_methodtest_test_test_POST",
+					"aws:lambda_permission:test_test2_awsapi_methodtest_test_test_GET",
 					"aws:lambda_permission:test_test2_awsapi_methodtest_test_test_id__GET",
-					"aws:lambda_permission:test_test_awsapi_methodtest_test_GET", "aws:lambda_permission:test_test_awsapi_methodtest_test_test_POST", "aws:rest_api:test-test",
+					"aws:rest_api:test-test",
 				},
-				deps: []graph.Edge[string]{
-					{Source: "aws:api_resource:test-test-test/-id-/", Destination: "aws:rest_api:test-test"},
-					{Source: "aws:api_resource:test-test-test/-id-/", Destination: "aws:api_resource:test-test-test/"},
-					{Source: "aws:api_method:test-test-test/-id-/-GET", Destination: "aws:api_resource:test-test-test/-id-/"},
-					{Source: "aws:api_resource:test-test-test/", Destination: "aws:rest_api:test-test"},
-					{Source: "aws:api_integration:test-test-test/-POST", Destination: "aws:api_method:test-test-test/-POST"},
-					{Source: "aws:api_integration:test-test-test/-POST", Destination: "aws:lambda_function:test_test"},
-					{Source: "aws:api_integration:test-test-test/-GET", Destination: "aws:api_method:test-test-test/-GET"},
-					{Source: "aws:api_integration:test-test-test/-GET", Destination: "aws:lambda_function:test_test2"},
-					{Source: "aws:lambda_permission:test_test_awsapi_methodtest_test_test_POST", Destination: "aws:account_id:AccountId"},
-					{Source: "aws:lambda_permission:test_test_awsapi_methodtest_test_test_POST", Destination: "aws:lambda_function:test_test"},
-					{Source: "aws:api_method:test-test-test/-GET", Destination: "aws:api_resource:test-test-test/"},
-					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-test/-GET"},
+				Deps: []graph.Edge[string]{
 					{Source: "aws:api_deployment:test-test", Destination: "aws:api_integration:test-test-GET"},
-					{Source: "aws:api_deployment:test-test", Destination: "aws:rest_api:test-test"},
-					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-test/-POST"},
-					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-test/-id-/-GET"},
-					{Source: "aws:api_deployment:test-test", Destination: "aws:api_integration:test-test-test/-id-/-GET"},
-					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-GET"},
 					{Source: "aws:api_deployment:test-test", Destination: "aws:api_integration:test-test-test/-GET"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_integration:test-test-test/-id-/-GET"},
 					{Source: "aws:api_deployment:test-test", Destination: "aws:api_integration:test-test-test/-POST"},
-					{Source: "aws:api_stage:test-test-stage", Destination: "aws:api_deployment:test-test"},
-					{Source: "aws:api_method:test-test-test/-POST", Destination: "aws:api_resource:test-test-test/"},
-					{Source: "aws:api_integration:test-test-test/-id-/-GET", Destination: "aws:api_method:test-test-test/-id-/-GET"},
-					{Source: "aws:api_integration:test-test-test/-id-/-GET", Destination: "aws:lambda_function:test_test2"},
-					{Source: "aws:lambda_permission:test_test_awsapi_methodtest_test_GET", Destination: "aws:account_id:AccountId"},
-					{Source: "aws:lambda_permission:test_test_awsapi_methodtest_test_GET", Destination: "aws:lambda_function:test_test"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-GET"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-test/-GET"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-test/-id-/-GET"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-test/-POST"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:rest_api:test-test"},
 					{Source: "aws:api_integration:test-test-GET", Destination: "aws:api_method:test-test-GET"},
 					{Source: "aws:api_integration:test-test-GET", Destination: "aws:lambda_function:test_test"},
+					{Source: "aws:api_integration:test-test-GET", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_integration:test-test-test/-GET", Destination: "aws:api_method:test-test-test/-GET"},
+					{Source: "aws:api_integration:test-test-test/-GET", Destination: "aws:api_resource:test-test-test/"},
+					{Source: "aws:api_integration:test-test-test/-GET", Destination: "aws:lambda_function:test_test2"},
+					{Source: "aws:api_integration:test-test-test/-GET", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_integration:test-test-test/-id-/-GET", Destination: "aws:api_method:test-test-test/-id-/-GET"},
+					{Source: "aws:api_integration:test-test-test/-id-/-GET", Destination: "aws:api_resource:test-test-test/-id-/"},
+					{Source: "aws:api_integration:test-test-test/-id-/-GET", Destination: "aws:lambda_function:test_test2"},
+					{Source: "aws:api_integration:test-test-test/-id-/-GET", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_integration:test-test-test/-POST", Destination: "aws:api_method:test-test-test/-POST"},
+					{Source: "aws:api_integration:test-test-test/-POST", Destination: "aws:api_resource:test-test-test/"},
+					{Source: "aws:api_integration:test-test-test/-POST", Destination: "aws:lambda_function:test_test"},
+					{Source: "aws:api_integration:test-test-test/-POST", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_method:test-test-GET", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_method:test-test-test/-GET", Destination: "aws:api_resource:test-test-test/"},
+					{Source: "aws:api_method:test-test-test/-GET", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_method:test-test-test/-id-/-GET", Destination: "aws:api_resource:test-test-test/-id-/"},
+					{Source: "aws:api_method:test-test-test/-POST", Destination: "aws:api_resource:test-test-test/"},
+					{Source: "aws:api_method:test-test-test/-POST", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_resource:test-test-test/-id-/", Destination: "aws:api_resource:test-test-test/"},
+					{Source: "aws:api_resource:test-test-test/-id-/", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_resource:test-test-test/", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_stage:test-test-stage", Destination: "aws:api_deployment:test-test"},
+					{Source: "aws:api_stage:test-test-stage", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:lambda_permission:test_test_awsapi_methodtest_test_GET", Destination: "aws:account_id:AccountId"},
+					{Source: "aws:lambda_permission:test_test_awsapi_methodtest_test_GET", Destination: "aws:api_method:test-test-GET"},
+					{Source: "aws:lambda_permission:test_test_awsapi_methodtest_test_GET", Destination: "aws:lambda_function:test_test"},
+					{Source: "aws:lambda_permission:test_test_awsapi_methodtest_test_test_POST", Destination: "aws:account_id:AccountId"},
+					{Source: "aws:lambda_permission:test_test_awsapi_methodtest_test_test_POST", Destination: "aws:api_method:test-test-test/-POST"},
+					{Source: "aws:lambda_permission:test_test_awsapi_methodtest_test_test_POST", Destination: "aws:lambda_function:test_test"},
 					{Source: "aws:lambda_permission:test_test2_awsapi_methodtest_test_test_GET", Destination: "aws:account_id:AccountId"},
+					{Source: "aws:lambda_permission:test_test2_awsapi_methodtest_test_test_GET", Destination: "aws:api_method:test-test-test/-GET"},
 					{Source: "aws:lambda_permission:test_test2_awsapi_methodtest_test_test_GET", Destination: "aws:lambda_function:test_test2"},
 					{Source: "aws:lambda_permission:test_test2_awsapi_methodtest_test_test_id__GET", Destination: "aws:account_id:AccountId"},
+					{Source: "aws:lambda_permission:test_test2_awsapi_methodtest_test_test_id__GET", Destination: "aws:api_method:test-test-test/-id-/-GET"},
 					{Source: "aws:lambda_permission:test_test2_awsapi_methodtest_test_test_id__GET", Destination: "aws:lambda_function:test_test2"},
+					{Source: "aws:api_method:test-test-test/-id-/-GET", Destination: "aws:rest_api:test-test"},
 				},
 			},
 		},
@@ -188,7 +224,7 @@ func Test_CreateRestApi(t *testing.T) {
 			}
 
 			err := aws.CreateRestApi(tt.gw, result, dag)
-			if tt.want.err {
+			if tt.wantErr {
 				assert.Error(err)
 				return
 			}
@@ -196,27 +232,10 @@ func Test_CreateRestApi(t *testing.T) {
 				return
 			}
 
-			for _, node := range tt.want.resourceIds {
-				found := false
-				for _, res := range dag.ListResources() {
-					if res.Id() == node {
-						found = true
-					}
-				}
-				assert.True(found, fmt.Sprintf("Did not find resource with id, %s, in graph", node))
-			}
-
-			for _, dep := range tt.want.deps {
-				found := false
-				for _, res := range dag.ListDependencies() {
-					if res.Source.Id() == dep.Source && res.Destination.Id() == dep.Destination {
-						found = true
-					}
-				}
-				assert.True(found, "did not find resource: %s -> %s", dep.Source, dep.Destination)
-			}
-			assert.Len(dag.ListDependencies(), len(tt.want.deps))
-			assert.Len(dag.ListResources(), len(tt.want.resourceIds))
+			tt.want.Assert(t, dag)
+			resources, found := aws.GetResourcesDirectlyTiedToConstruct(tt.gw)
+			assert.True(found)
+			assert.Len(resources, 2)
 		})
 
 	}

@@ -17,6 +17,13 @@ type testResource struct {
 
 	DependencyMap  map[string]Resource
 	SpecificDepMap map[string]*testResource
+
+	IacValue       IaCValue
+	IacValuePtr    *IaCValue
+	IacValueArr    []IaCValue
+	IacValuePtrArr []*IaCValue
+	IacValueMap    map[string]IaCValue
+	IacValuePtrMap map[string]*IaCValue
 }
 
 // Provider returns name of the provider the resource is correlated to
@@ -52,6 +59,25 @@ func TestResourceGraph_AddDependenciesReflect(t *testing.T) {
 			"one": {ID: "spec_map1"},
 			"two": {ID: "spec_map2"},
 		},
+
+		IacValue:    IaCValue{Resource: &testResource{ID: "value1"}},
+		IacValuePtr: &IaCValue{Resource: &testResource{ID: "value2"}},
+		IacValueArr: []IaCValue{
+			{Resource: &testResource{ID: "value_arr1"}},
+			{Resource: &testResource{ID: "value_arr2"}},
+		},
+		IacValuePtrArr: []*IaCValue{
+			{Resource: &testResource{ID: "value_ptr_arr1"}},
+			{Resource: &testResource{ID: "value_ptr_arr2"}},
+		},
+		IacValueMap: map[string]IaCValue{
+			"one": {Resource: &testResource{ID: "value_map1"}},
+			"two": {Resource: &testResource{ID: "value_map2"}},
+		},
+		IacValuePtrMap: map[string]*IaCValue{
+			"one": {Resource: &testResource{ID: "value_ptr_map1"}},
+			"two": {Resource: &testResource{ID: "value_ptr_map2"}},
+		},
 	}
 
 	dag := NewResourceGraph()
@@ -60,7 +86,18 @@ func TestResourceGraph_AddDependenciesReflect(t *testing.T) {
 
 	assert := assert.New(t)
 
-	for _, target := range []string{"single", "single_specific", "arr1", "arr2", "spec_arr1", "spec_arr2", "map1", "map2", "spec_map1", "spec_map2"} {
+	for _, target := range []string{
+		"single", "single_specific",
+		"arr1", "arr2",
+		"spec_arr1", "spec_arr2",
+		"map1", "map2",
+		"spec_map1", "spec_map2",
+		"value1", "value2",
+		"value_arr1", "value_arr2",
+		"value_ptr_arr1", "value_ptr_arr2",
+		"value_map1", "value_map2",
+		"value_ptr_map1", "value_ptr_map2",
+	} {
 		assert.NotNil(dag.GetDependency(tr.ID, target), "source -> %s", target)
 	}
 }

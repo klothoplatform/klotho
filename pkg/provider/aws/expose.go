@@ -78,13 +78,12 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 			// If no resource exists at this segment, create a resource and set it as the parent
 			if !ok {
 				resource := resources.NewApiResource(currPathSegment.String(), api, refs, segment, parentResource)
-				dag.AddResource(resource)
-				dag.AddDependency2(resource, api)
+				dag.AddDependenciesReflect(resource)
 				resourceByCurrentSegment[currPathSegment.String()] = resource
 				triggers[resource.Name] = resource.Name
 				// If there is currently a parent segment, it would be in the route before the new segment, thus add a dependency
 				if parentResource != nil {
-					dag.AddDependency2(resource, parentResource)
+					dag.AddDependency(resource, parentResource)
 				}
 				parentResource = resource
 			} else {
@@ -95,10 +94,10 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 
 		// Now that we know there are resouces for the full path of this route, we can create the specific method for the route
 		method := resources.NewApiMethod(parentResource, api, refs, strings.ToUpper(string(route.Verb)), methodRequestParams)
-		dag.AddResource(method)
+		dag.AddDependenciesReflect(method)
 		api_methods = append(api_methods, method)
 		if parentResource != nil {
-			dag.AddDependency2(method, parentResource)
+			dag.AddDependency(method, parentResource)
 		}
 		integration, err := a.createIntegration(method, execUnit, refs, route, dag)
 		if err != nil {
@@ -111,18 +110,18 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 	}
 	api.ConstructsRef = api_references
 	deployment := resources.NewApiDeployment(api, api_references, triggers)
-	dag.AddResource(deployment)
-	dag.AddDependency2(deployment, api)
+	dag.AddDependenciesReflect(deployment)
 	for _, m := range api_methods {
-		dag.AddDependency2(deployment, m)
+		dag.AddDependency(deployment, m)
 	}
 	for _, integration := range api_integrations {
-		dag.AddDependency2(deployment, integration)
+		dag.AddDependency(deployment, integration)
 	}
 
 	stage := resources.NewApiStage(deployment, "stage", api_references)
-	dag.AddResource(stage)
-	dag.AddDependency2(stage, deployment)
+	dag.AddDependenciesReflect(stage)
+	a.MapResourceDirectlyToConstruct(stage, gateway)
+	a.MapResourceDirectlyToConstruct(api, gateway)
 	return errs.ErrOrNil()
 }
 
@@ -139,16 +138,14 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 		if !ok {
 			return nil, errors.Errorf("Expected resource to be of type, lambda function, for execution unit, %s", unit.ID)
 		}
-		accountId := resources.NewAccountId()
 		lambdaPermission := resources.NewLambdaPermission(function, core.IaCValue{Resource: method, Property: resources.ALL_RESOURCES_ARN_IAC_VALUE}, "apigateway.amazonaws.com", "lambda:InvokeFunction", refs)
-		dag.AddResource(lambdaPermission)
-		dag.AddResource(accountId)
-		dag.AddDependency2(lambdaPermission, accountId)
-		dag.AddDependency2(lambdaPermission, function)
+		dag.AddDependenciesReflect(lambdaPermission)
+
+		accountId := resources.NewAccountId()
+		dag.AddDependency(lambdaPermission, accountId)
+
 		integration := resources.NewApiIntegration(method, refs, "POST", "AWS_PROXY", nil, core.IaCValue{Resource: function, Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
-		dag.AddResource(integration)
-		dag.AddDependency2(integration, method)
-		dag.AddDependency2(integration, function)
+		dag.AddDependenciesReflect(integration)
 		return integration, nil
 	default:
 		return nil, errors.Errorf("Unrecognized integration type, %s, for api gateway", cfg.Type)
