@@ -56,7 +56,7 @@ func (a *AWS) createCDNs(result *core.ConstructGraph, dag *core.ResourceGraph) e
 				if apiStage == nil {
 					return errors.Errorf("Could not find an api stage mapped to gateway %s", construct.ID)
 				}
-				dag.AddDependency2(distro, apiStage)
+				dag.AddDependency(distro, apiStage)
 				distro.DefaultCacheBehavior.DefaultTtl = 0
 				resources.CreateCustomOrigin(construct, apiStage, distro)
 				distro.ConstructsRef = append(distro.ConstructsRef, construct.Provenance())
@@ -74,7 +74,7 @@ func (a *AWS) createCDNs(result *core.ConstructGraph, dag *core.ResourceGraph) e
 				if bucket == nil {
 					return errors.Errorf("Could not find an api stage mapped to gateway %s", construct.ID)
 				}
-				dag.AddDependency2(distro, bucket)
+				dag.AddDependency(distro, bucket)
 				distro.DefaultRootObject = bucket.IndexDocument
 				resources.CreateS3Origin(construct, bucket, distro, dag)
 				distro.ConstructsRef = append(distro.ConstructsRef, construct.Provenance())

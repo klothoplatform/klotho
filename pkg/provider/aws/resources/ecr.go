@@ -47,7 +47,7 @@ func GenerateEcrRepoAndImage(appName string, unit *core.ExecutionUnit, dag *core
 	// Create image and make it dependent on the repository
 	image := NewEcrImage(unit, appName, repo)
 	dag.AddResource(image)
-	dag.AddDependency2(image, repo)
+	dag.AddDependency(image, repo)
 	return image, nil
 }
 

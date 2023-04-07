@@ -28,7 +28,7 @@ func GetSecurityGroup(cfg *config.Application, dag *core.ResourceGraph) *Securit
 		Vpc:  GetVpc(cfg, dag),
 	}
 	dag.AddResource(sg)
-	dag.AddDependency2(sg, sg.Vpc)
+	dag.AddDependency(sg, sg.Vpc)
 	return sg
 }
 
