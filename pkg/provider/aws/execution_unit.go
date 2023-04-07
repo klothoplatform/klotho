@@ -5,6 +5,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -30,7 +31,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 	for _, construct := range result.GetDownstreamConstructs(unit) {
 		resList, ok := a.GetResourcesDirectlyTiedToConstruct(construct)
 		if !ok {
-			return errors.Errorf("could not find resource for construct, %s, which unit, %s, depends on", unit.Id(), construct.Id())
+			return errors.Errorf("could not find resource for construct, %s, which unit, %s, depends on", construct.Id(), unit.Id())
 		}
 		for _, resource := range resList {
 			dag.AddDependency(role, resource)
@@ -55,7 +56,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 		dag.AddResource(logGroup)
 		dag.AddDependency(lambdaFunction, logGroup)
 		return nil
-	case Kubernetes:
+	case kubernetes.KubernetesType:
 		cfg := a.Config.GetExecutionUnit(unit.Provenance().ID)
 		params := cfg.GetExecutionUnitParamsAsKubernetes()
 		cluster := resources.GetEksCluster(a.Config.AppName, params.ClusterId, dag)
@@ -85,7 +86,48 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 				},
 			},
 		}
-		return nil
+		// transform kubernetes resources for EKS
+
+		// TODO look into a better way to map the provider to a helm chart
+		providerName := "UNIMPLEMENTED-eks-provider"
+		provider, ok := dag.GetResource(providerName).(*resources.AwsKubernetesProvider)
+		if !ok {
+			provider = &resources.AwsKubernetesProvider{Name: providerName, KubeConfig: ""}
+		}
+		dag.AddResource(provider)
+		provider.ConstructRefs = append(provider.ConstructRefs, unit.AnnotationKey)
+
+		for _, res := range dag.ListResources() {
+			if khChart, ok := res.(*kubernetes.HelmChart); ok {
+				for _, ref := range khChart.KlothoConstructRef() {
+					if ref.ToId() == unit.ToId() {
+						khChart.ClustersProvider = provider
+						dag.AddDependenciesReflect(khChart)
+						for _, val := range khChart.ProviderValues {
+							if val.ExecUnitName != unit.ID {
+								continue
+							}
+							switch val.Type {
+							// TODO handle kubernetes.TargetGroupTransformation
+							case string(kubernetes.ImageTransformation):
+								khChart.Values[val.Key] = core.IaCValue{
+									Resource: image,
+									Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
+								}
+								dag.AddDependency(khChart, image)
+							case string(kubernetes.ServiceAccountAnnotationTransformation):
+								khChart.Values[val.Key] = core.IaCValue{
+									Resource: role,
+									Property: core.ARN_IAC_VALUE,
+								}
+								dag.AddDependency(khChart, role)
+							}
+						}
+						a.MapResourceDirectlyToConstruct(khChart, unit)
+					}
+				}
+			}
+		}
 	default:
 		log.Errorf("Unsupported type, %s, for aws execution units", execUnitCfg.Type)
 
@@ -100,10 +142,6 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 	execUnits := core.GetResourcesOfType[*core.ExecutionUnit](result)
 	for _, unit := range execUnits {
 
-		// For now we skip over kubernetes because the environment variables are already attached to the helm chart. This may change as we do kubernetes development
-		if a.Config.GetExecutionUnit(unit.ID).Type == Kubernetes {
-			continue
-		}
 		resourceEnvVars := make(resources.EnvironmentVariables)
 
 		// This set of environment variables correspond to the specific needs of the execution units and its dependencies
@@ -145,6 +183,18 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 			switch r := resource.(type) {
 			case *resources.LambdaFunction:
 				r.EnvironmentVariables = resourceEnvVars
+			case *kubernetes.HelmChart:
+				for evName, evVal := range resourceEnvVars {
+					for _, val := range r.ProviderValues {
+						if val.EnvironmentVariable != nil && evName == val.EnvironmentVariable.GetName() {
+							r.Values[val.Key] = evVal
+							if evVal.Resource != resource {
+								dag.AddDependency(resource, evVal.Resource)
+							}
+						}
+					}
+
+				}
 			}
 		}
 	}
@@ -158,7 +208,7 @@ func GetAssumeRolePolicyForType(cfg config.ExecutionUnit) *resources.PolicyDocum
 		return resources.LAMBDA_ASSUMER_ROLE_POLICY
 	case Ecs:
 		return resources.ECS_ASSUMER_ROLE_POLICY
-	case Kubernetes:
+	case kubernetes.KubernetesType:
 		eksConfig := cfg.GetExecutionUnitParamsAsKubernetes()
 		if eksConfig.NodeType == string(resources.Fargate) {
 			return resources.EKS_FARGATE_ASSUME_ROLE_POLICY

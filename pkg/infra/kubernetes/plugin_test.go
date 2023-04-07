@@ -28,9 +28,7 @@ func Test_setHelmChartDirectory(t *testing.T) {
 			name: "happy path yaml",
 			path: "somedir/Chart.yaml",
 			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{
-					Install: true,
-				},
+				HelmChartOptions: &config.HelmChartOptions{},
 			},
 			unitName: "testUnit",
 			want:     "somedir",
@@ -40,23 +38,11 @@ func Test_setHelmChartDirectory(t *testing.T) {
 			name: "happy path yml",
 			path: "somedir/Chart.yml",
 			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{
-					Install: true,
-				},
+				HelmChartOptions: &config.HelmChartOptions{},
 			},
 			unitName: "testUnit",
 			want:     "somedir",
 			isSet:    true,
-		},
-		{
-			name: "no install",
-			path: "somedir/Chart.yaml",
-			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{},
-			},
-			unitName: "testUnit",
-			want:     "",
-			isSet:    false,
 		},
 		{
 			name: "directory override",
@@ -64,7 +50,6 @@ func Test_setHelmChartDirectory(t *testing.T) {
 			cfg: &config.ExecutionUnit{
 				HelmChartOptions: &config.HelmChartOptions{
 					Directory: "override",
-					Install:   true,
 				},
 			},
 			unitName: "testUnit",
@@ -75,9 +60,7 @@ func Test_setHelmChartDirectory(t *testing.T) {
 			name: "non yaml file no action",
 			path: "somedir/Chart.something",
 			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{
-					Install: true,
-				},
+				HelmChartOptions: &config.HelmChartOptions{},
 			},
 			unitName: "testUnit",
 			want:     "",
@@ -157,8 +140,9 @@ func Test_getKlothoCharts(t *testing.T) {
 				Path: ".",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"main0": {
+						Type: "kubernetes",
 						HelmChartOptions: &config.HelmChartOptions{
-							Install: true,
+							Directory: "chart",
 						},
 					},
 				},
@@ -193,14 +177,14 @@ func Test_getKlothoCharts(t *testing.T) {
 				Path: ".",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"main0": {
+						Type: "kubernetes",
 						HelmChartOptions: &config.HelmChartOptions{
-							Install:   true,
 							Directory: "chart",
 						},
 					},
 					"main1": {
+						Type: "kubernetes",
 						HelmChartOptions: &config.HelmChartOptions{
-							Install:   true,
 							Directory: "chart",
 						},
 					},
@@ -234,32 +218,54 @@ func Test_getKlothoCharts(t *testing.T) {
 				Path: ".",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"main0": {
-						HelmChartOptions: &config.HelmChartOptions{
-							Install: true,
-						},
+						Type:             "kubernetes",
+						HelmChartOptions: &config.HelmChartOptions{},
 					},
 					"main1": {
-						HelmChartOptions: &config.HelmChartOptions{
-							Install: true,
-						},
+						Type:             "kubernetes",
+						HelmChartOptions: &config.HelmChartOptions{},
 					},
 				},
 			},
 		},
 		{
-			name: "no install no chart",
+			name: "no directory and no Chart.yml then klotho-generated chart is used",
 			fileUnits: []map[string]string{{
-				"chart/Chart.yaml":         ``,
-				"chart/templates/unitFile": ``,
-				"unitFile":                 `main0`,
-				"chart/crds/crd.yaml":      ``,
-				"chart/values.yaml":        ``,
+				"unitFile": `main0`,
+			}},
+			want: result{
+				klothoCharts: map[string]HelmChart{
+					"": {},
+				},
+				chartsUnits: map[string][]string{
+					"": {"main0"},
+				},
+			},
+			cfg: &config.Application{
+				Path: ".",
+				ExecutionUnits: map[string]*config.ExecutionUnit{
+					"main0": {
+						Type:             "kubernetes",
+						HelmChartOptions: &config.HelmChartOptions{},
+					},
+				},
+			},
+		},
+		{
+			name: "no chart created if exec unit type is not kubernetes",
+			fileUnits: []map[string]string{{
+				"Chart.yaml":         ``,
+				"templates/unitFile": ``,
+				"unitFile":           `main0`,
+				"crds/crd.yaml":      ``,
+				"values.yaml":        ``,
 			}},
 			want: result{},
 			cfg: &config.Application{
 				Path: ".",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"main0": {
+						Type:             "lambda",
 						HelmChartOptions: &config.HelmChartOptions{},
 					},
 				},

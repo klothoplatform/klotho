@@ -3,6 +3,7 @@ package aws
 import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/provider"
 )
 
@@ -16,7 +17,6 @@ func (a *AWS) Name() string { return "aws" }
 
 // Enums for the types we allow in the aws provider so that we can reuse the same string within the provider
 const (
-	Kubernetes             = "kubernetes"
 	Ecs                    = "ecs"
 	Lambda                 = "lambda"
 	Rds_postgres           = "rds_postgres"
@@ -29,6 +29,7 @@ const (
 	Cockroachdb_serverless = "cockroachdb_serverless"
 	ApiGateway             = "apigateway"
 	Alb                    = "alb"
+	AppRunner              = "app_runner"
 )
 
 var (
@@ -52,9 +53,9 @@ var defaultConfig = config.Defaults{
 	ExecutionUnit: config.KindDefaults{
 		Type: Lambda,
 		InfraParamsByType: map[string]config.InfraParams{
-			Lambda:     config.ConvertToInfraParams(lambdaDefaults),
-			Ecs:        config.ConvertToInfraParams(ecsDefaults),
-			Kubernetes: config.ConvertToInfraParams(eksDefaults),
+			Lambda:                    config.ConvertToInfraParams(lambdaDefaults),
+			Ecs:                       config.ConvertToInfraParams(ecsDefaults),
+			kubernetes.KubernetesType: config.ConvertToInfraParams(eksDefaults),
 		},
 	},
 	StaticUnit: config.KindDefaults{
@@ -121,7 +122,7 @@ func (a *AWS) GetDefaultConfig() config.Defaults {
 func (a *AWS) GetKindTypeMappings(construct core.Construct) ([]string, bool) {
 	switch construct.(type) {
 	case *core.ExecutionUnit:
-		return []string{Kubernetes, Ecs, Lambda}, true
+		return []string{kubernetes.KubernetesType, Ecs, Lambda}, true
 	case *core.Gateway:
 		return []string{string(ApiGateway), string(Alb)}, true
 	case *core.StaticUnit:
