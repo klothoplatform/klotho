@@ -48,7 +48,7 @@ func (a *AWS) GenerateKvResources(kv *core.Kv, result *core.ConstructGraph, dag 
 			policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
 			policy := resources.NewIamPolicy(a.Config.AppName, kv.Id(), kv.Provenance(), policyDoc)
 			dag.AddResource(policy)
-			dag.AddDependency2(policy, table)
+			dag.AddDependency(policy, table)
 			a.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), policy)
 		}
 	}

@@ -14,7 +14,7 @@ func (a *AWS) GenerateSecretsResources(construct *core.Secrets, result *core.Con
 
 		secretVersion := resources.NewSecretVersion(secret, single)
 		dag.AddResource(secretVersion)
-		dag.AddDependency2(secret, secretVersion)
+		dag.AddDependency(secret, secretVersion)
 
 		for _, upstreamCons := range result.GetUpstreamConstructs(construct) {
 			unit, isUnit := upstreamCons.(*core.ExecutionUnit)
@@ -32,13 +32,13 @@ func (a *AWS) GenerateSecretsResources(construct *core.Secrets, result *core.Con
 			if res := dag.GetResource(policy.Id()); res != nil {
 				if existingPolicy, ok := res.(*resources.IamPolicy); ok {
 					existingPolicy.Policy.Statement = append(existingPolicy.Policy.Statement, policyDoc.Statement...)
-					dag.AddDependency2(existingPolicy, secretVersion)
+					dag.AddDependency(existingPolicy, secretVersion)
 				} else {
 					return errors.Errorf("expected resource with id, %s, to be an iam policy", res.Id())
 				}
 			} else {
 				dag.AddResource(policy)
-				dag.AddDependency2(policy, secretVersion)
+				dag.AddDependency(policy, secretVersion)
 				a.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), policy)
 			}
 		}
