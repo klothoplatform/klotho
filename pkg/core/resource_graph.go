@@ -36,7 +36,7 @@ func (rg *ResourceGraph) AddResource(resource Resource) {
 //	│ deployedSecond │   │ deployedFirst  │
 //	╰────────────────╯   ╰────────────────╯
 //
-// And you would invoke it as:
+// And you would use it as:
 //
 //	 lambda := LambdaFunction {
 //			Role: executionRole
