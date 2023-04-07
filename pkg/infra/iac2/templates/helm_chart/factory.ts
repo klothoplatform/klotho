@@ -3,7 +3,6 @@ import * as pulumi_k8s from '@pulumi/kubernetes'
 
 interface Args {
     Name: string
-    Directory?: string
     Chart?: string
     Repo?: string
     Values?: Record<string, pulumi.Output<string>>
@@ -27,7 +26,7 @@ function create(args: Args): pulumi_k8s.helm.v3.Chart {
             },
             //TMPL {{- end }}
             //TMPL {{- if not .Chart.Raw }}
-            path: `./charts/${args.Directory}`,
+            path: `./charts/${args.Name}`,
             //TMPL {{- end }}
             //TMPL {{- if .Namespace.Raw }}
             namespace: args.Namespace,
