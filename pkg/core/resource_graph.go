@@ -26,7 +26,7 @@ func (rg *ResourceGraph) AddResource(resource Resource) {
 	}
 }
 
-// Adds a dependency such that `deployedSecond` has to be deployed before `deployedFirst`. This makes the left-to-right
+// Adds a dependency such that `deployedSecond` has to be deployed after `deployedFirst`. This makes the left-to-right
 // association consistent with our visualizer, and with the Go struct graph.
 //
 // For example, if you have a Lambda and its execution role, then:
