@@ -225,7 +225,7 @@ func Test_shouldTransformServiceAccount(t *testing.T) {
 
 func Test_transformPod(t *testing.T) {
 	type result struct {
-		values  []Value
+		values  []HelmChartValue
 		newFile string
 	}
 	tests := []struct {
@@ -247,7 +247,7 @@ func Test_transformPod(t *testing.T) {
                   - name: web
                     image: nginx`),
 			want: result{
-				values: []Value{
+				values: []HelmChartValue{
 					{
 						ExecUnitName: "testUnit",
 						Kind:         "Pod",
@@ -360,7 +360,7 @@ func Test_transformPod(t *testing.T) {
 
 func Test_transformDeployment(t *testing.T) {
 	type result struct {
-		values      []Value
+		values      []HelmChartValue
 		focusOnPath string
 		newFile     string
 	}
@@ -560,7 +560,7 @@ func Test_transformDeployment(t *testing.T) {
 
 func Test_addEnvVarToDeployment(t *testing.T) {
 	type result struct {
-		values  []Value
+		values  []HelmChartValue
 		newFile string
 	}
 	tests := []struct {
@@ -591,7 +591,7 @@ spec:
         image: nginx:1.14.2`,
 			envVars: core.EnvironmentVariables{{Name: "SEQUELIZEDB_PERSIST_ORM_CONNECTION"}},
 			want: result{
-				values: []Value{
+				values: []HelmChartValue{
 					{
 						ExecUnitName:        "testUnit",
 						Kind:                "Deployment",
@@ -678,7 +678,7 @@ spec:
 
 func Test_addEnvVarToPod(t *testing.T) {
 	type result struct {
-		values  []Value
+		values  []HelmChartValue
 		newFile string
 	}
 	tests := []struct {
@@ -700,7 +700,7 @@ spec:
   - name: web
     image: nginx`,
 			want: result{
-				values: []Value{
+				values: []HelmChartValue{
 					{
 						ExecUnitName:        "testUnit",
 						Kind:                "Pod",
@@ -767,7 +767,7 @@ spec:
 
 func Test_addUnitsEnvironmentVariables(t *testing.T) {
 	type testResult struct {
-		values []Value
+		values []HelmChartValue
 		file   string
 	}
 	tests := []struct {
@@ -850,7 +850,7 @@ spec:
       serviceAccountName: testUnit
 status: {}
 `,
-				values: []Value{
+				values: []HelmChartValue{
 					{
 						ExecUnitName:        "unit",
 						Kind:                "Deployment",
@@ -918,7 +918,7 @@ spec:
     resources: {}
 status: {}
 `,
-				values: []Value{
+				values: []HelmChartValue{
 					{
 						ExecUnitName:        "unit",
 						Kind:                "Pod",
@@ -957,7 +957,7 @@ status: {}
 				Namespace: "default",
 			},
 			want: testResult{
-				values: []Value{},
+				values: []HelmChartValue{},
 			},
 		},
 	}
@@ -1004,7 +1004,7 @@ status: {}
 
 func Test_transformServiceAccount(t *testing.T) {
 	type result struct {
-		values  []Value
+		values  []HelmChartValue
 		newFile string
 	}
 	tests := []struct {
@@ -1022,7 +1022,7 @@ metadata:
   name: release-name-nginx-ingress
   namespace: default`,
 			want: result{
-				values: []Value{
+				values: []HelmChartValue{
 					{
 						ExecUnitName: "testUnit",
 						Kind:         "ServiceAccount",
@@ -1070,7 +1070,7 @@ metadata:
 
 func Test_transformTargetGroupBinding(t *testing.T) {
 	type result struct {
-		values  []Value
+		values  []HelmChartValue
 		newFile string
 	}
 	tests := []struct {
@@ -1089,7 +1089,7 @@ spec:
     port: 80
   targetGroupARN: REPLACE_ME
 `, want: result{
-				values: []Value{
+				values: []HelmChartValue{
 					{
 						ExecUnitName: "testUnit",
 						Kind:         "TargetGroupBinding",
@@ -1139,7 +1139,7 @@ status: {}
 
 func Test_transformService(t *testing.T) {
 	type result struct {
-		values  []Value
+		values  []HelmChartValue
 		newFile string
 	}
 	tests := []struct {

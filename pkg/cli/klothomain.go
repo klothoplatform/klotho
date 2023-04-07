@@ -428,7 +428,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		analyticsClient.UploadSource(input)
 	}
 
-	resourceCounts, err := OutputResources(document.Constructs, appCfg.OutDir)
+	resourceCounts, err := OutputResources(document)
 	if err != nil {
 		return err
 	}

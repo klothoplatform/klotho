@@ -7,6 +7,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,7 +27,7 @@ func Test_createEksClusters(t *testing.T) {
 			config: &config.Application{
 				AppName: "test",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"test": {Type: Kubernetes},
+					"test": {Type: kubernetes.KubernetesType},
 				},
 			},
 			want: []*resources.EksCluster{
@@ -53,8 +54,8 @@ func Test_createEksClusters(t *testing.T) {
 			config: &config.Application{
 				AppName: "test",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"test":  {Type: Kubernetes},
-					"test2": {Type: Kubernetes},
+					"test":  {Type: kubernetes.KubernetesType},
+					"test2": {Type: kubernetes.KubernetesType},
 				},
 			},
 			want: []*resources.EksCluster{
@@ -73,8 +74,8 @@ func Test_createEksClusters(t *testing.T) {
 			config: &config.Application{
 				AppName: "test",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"test":  {Type: Kubernetes},
-					"test2": {Type: Kubernetes, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{ClusterId: "cluster2"})},
+					"test":  {Type: kubernetes.KubernetesType},
+					"test2": {Type: kubernetes.KubernetesType, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{ClusterId: "cluster2"})},
 				},
 			},
 			want: []*resources.EksCluster{
@@ -93,8 +94,8 @@ func Test_createEksClusters(t *testing.T) {
 			config: &config.Application{
 				AppName: "test",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"test":  {Type: Kubernetes, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{ClusterId: "cluster1"})},
-					"test2": {Type: Kubernetes, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{ClusterId: "cluster2"})},
+					"test":  {Type: kubernetes.KubernetesType, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{ClusterId: "cluster1"})},
+					"test2": {Type: kubernetes.KubernetesType, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{ClusterId: "cluster2"})},
 				},
 			},
 			want: []*resources.EksCluster{

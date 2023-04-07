@@ -12,9 +12,14 @@ import (
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes/helm"
 	yamlLang "github.com/klothoplatform/klotho/pkg/lang/yaml"
 	"github.com/klothoplatform/klotho/pkg/multierr"
+	"helm.sh/helm/v3/pkg/chart"
 	"sigs.k8s.io/yaml"
 
 	"go.uber.org/zap"
+)
+
+const (
+	KubernetesType = "kubernetes"
 )
 
 type Kubernetes struct {
@@ -42,13 +47,31 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 	// For exec units that specify their own chart, we want to render and replace
 	for dir, khChart := range klothoCharts {
 		dirToLoad := filepath.Join(p.Config.Path, dir)
-		chart, err := p.helmHelper.LoadChart(dirToLoad)
+		chartContent, err := p.helmHelper.LoadChart(dirToLoad)
+
 		if err != nil {
-			errs.Append(err)
-			continue
+			if err.Error() == "Chart.yaml file is missing" {
+				var unitNames []string
+				for _, eu := range khChart.ExecutionUnits {
+					unitNames = append(unitNames, eu.Name)
+				}
+
+				chartContent = &chart.Chart{
+					Metadata: &chart.Metadata{
+						Name:        strings.ReplaceAll(strings.ToLower(strings.Join(unitNames, "")), "_", "-"),
+						APIVersion:  "v2",
+						AppVersion:  "0.0.1",
+						Version:     "0.0.1",
+						KubeVersion: ">= 1.19.0-0",
+						Type:        "application",
+					},
+				}
+			} else {
+				errs.Append(err)
+				continue
+			}
 		}
-		metadata := chart.Metadata
-		khChart.Name = chart.Name()
+		khChart.Name = chartContent.Name()
 		values := make(map[string]interface{})
 		if len(khChart.ValuesFiles) > 0 {
 			values, err = helm.MergeValues(khChart.ValuesFiles)
@@ -58,7 +81,7 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 			}
 		}
 
-		renderedFiles, err := p.helmHelper.GetRenderedTemplates(chart, values, "default")
+		renderedFiles, err := p.helmHelper.GetRenderedTemplates(chartContent, values, "default")
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -70,9 +93,10 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 			errs.Append(err)
 			continue
 		}
+
 		for _, unit := range khChart.ExecutionUnits {
-			res := constructGraph.GetConstruct(core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: unit.Name}.ToId())
-			eu, ok := res.(*core.ExecutionUnit)
+			eu, ok := core.GetConstruct[*core.ExecutionUnit](constructGraph,
+				core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: unit.Name}.ToId())
 			if !ok {
 				return nil, fmt.Errorf("unable to handle nonexistent execution unit: %s", unit.Name)
 			}
@@ -82,10 +106,9 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 			if err != nil {
 				errs.Append(err)
 			}
-			khChart.Values = append(khChart.Values, execUnitValues...)
-
+			khChart.ProviderValues = append(khChart.ProviderValues, execUnitValues...)
 		}
-		output, err := yaml.Marshal(metadata)
+		output, err := yaml.Marshal(chartContent.Metadata)
 		if err != nil {
 			errs.Append(err)
 		}
@@ -93,6 +116,7 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 		if err != nil {
 			errs.Append(err)
 		}
+
 		khChart.Files = append(khChart.Files, chartFile)
 
 		dag.AddResource(&khChart)
@@ -107,8 +131,7 @@ func (p *Kubernetes) setHelmChartDirectory(path string, cfg *config.ExecutionUni
 		return false, nil
 	}
 	relPath := strings.TrimSuffix(path, extension)
-	if strings.HasSuffix(relPath, "Chart") &&
-		(cfg.HelmChartOptions.Install && cfg.HelmChartOptions.Directory == "") {
+	if strings.HasSuffix(relPath, "Chart") && cfg.HelmChartOptions != nil && cfg.HelmChartOptions.Directory == "" {
 		chartDirectory, err := filepath.Rel(p.Config.Path, filepath.Dir(path))
 		if err != nil {
 			return false, err
@@ -126,11 +149,7 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		cfg := p.Config.GetExecutionUnit(unit.ID)
 
-		if cfg.HelmChartOptions == nil {
-			continue
-		}
-
-		if cfg.HelmChartOptions.Directory == "" {
+		if cfg.HelmChartOptions != nil && cfg.HelmChartOptions.Directory == "" {
 			for _, f := range unit.GetDeclaringFiles() {
 
 				caps := f.Annotations()
@@ -150,19 +169,31 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 			}
 		}
 
-		if cfg.HelmChartOptions.Install {
-			khChart, ok := klothoCharts[cfg.HelmChartOptions.Directory]
+		if cfg.Type == KubernetesType {
+			chartDir := ""
+			if cfg.HelmChartOptions != nil {
+				chartDir = cfg.HelmChartOptions.Directory
+			}
+			valuesFiles := []string{}
+			if cfg.HelmChartOptions != nil {
+				valuesFiles = cfg.HelmChartOptions.ValuesFiles
+			}
+			khChart, ok := klothoCharts[chartDir]
 			if !ok {
-				klothoCharts[cfg.HelmChartOptions.Directory] = HelmChart{
-					ValuesFiles:    cfg.HelmChartOptions.ValuesFiles,
+
+				klothoCharts[chartDir] = HelmChart{
+					ValuesFiles:    valuesFiles,
 					ExecutionUnits: []*HelmExecUnit{{Name: unit.ID, Namespace: "default"}},
-					Directory:      cfg.HelmChartOptions.Directory,
+					Directory:      chartDir,
+					ConstructRefs:  []core.AnnotationKey{unit.Provenance()},
+					Values:         make(map[string]core.IaCValue),
 				}
+
 			} else {
 				foundDifference := false
 				for _, chartFile := range khChart.ValuesFiles {
 					fileFound := false
-					for _, cfgFile := range cfg.HelmChartOptions.ValuesFiles {
+					for _, cfgFile := range valuesFiles {
 						if cfgFile == chartFile {
 							fileFound = true
 						}
@@ -176,7 +207,8 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 						khChart.ValuesFiles, cfg.HelmChartOptions.ValuesFiles, cfg.HelmChartOptions.Directory, khChart.ValuesFiles)
 				}
 				khChart.ExecutionUnits = append(khChart.ExecutionUnits, &HelmExecUnit{Name: unit.ID, Namespace: "default"})
-				klothoCharts[cfg.HelmChartOptions.Directory] = khChart
+				khChart.ConstructRefs = append(khChart.ConstructRefs, unit.AnnotationKey)
+				klothoCharts[chartDir] = khChart
 			}
 		}
 	}

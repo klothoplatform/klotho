@@ -1,40 +1,50 @@
 package aws
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_GenerateExecUnitResources(t *testing.T) {
 	unit := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	repo := resources.NewEcrRepository("test", core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability})
-	image := resources.NewEcrImage(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}, "test", repo)
-	role := resources.NewIamRole("test", "test-ExecutionRole", []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}}, resources.LAMBDA_ASSUMER_ROLE_POLICY)
-	lambda := resources.NewLambdaFunction(unit, "test", role, image)
-	logGroup := resources.NewLogGroup("test", fmt.Sprintf("/aws/lambda/%s", lambda.Name), unit.Provenance(), 5)
 	fs := &core.Fs{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
 	bucket := resources.NewS3Bucket(fs, "test")
 	policy1 := &resources.IamPolicy{Name: "policy1"}
 	policy2 := &resources.IamPolicy{Name: "policy2"}
 	cluster := resources.NewEksCluster("test", resources.DEFAULT_CLUSTER_NAME, nil, nil, nil)
-
-	type testResult struct {
-		nodes []core.Resource
-		deps  []graph.Edge[core.Resource]
-		err   bool
+	chart := &kubernetes.HelmChart{
+		Name:           "chart",
+		ConstructRefs:  []core.AnnotationKey{unit.Provenance()},
+		ExecutionUnits: []*kubernetes.HelmExecUnit{{Name: unit.ID}},
+		ProviderValues: []kubernetes.HelmChartValue{
+			{
+				ExecUnitName: unit.ID,
+				Type:         string(kubernetes.ServiceAccountAnnotationTransformation),
+				Key:          "sa",
+			},
+			{
+				ExecUnitName: unit.ID,
+				Type:         string(kubernetes.ImageTransformation),
+				Key:          "image",
+			},
+		},
+		Values: make(map[string]core.IaCValue),
 	}
+
 	cases := []struct {
 		name              string
 		existingResources []core.Resource
 		cfg               config.Application
-		want              testResult
+		want              coretesting.ResourcesExpectation
+		wantErr           bool
 	}{
 		{
 			name: "generate lambda",
@@ -45,72 +55,58 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 				},
 			},
 			existingResources: []core.Resource{bucket, policy1, policy2},
-			want: testResult{
-				nodes: []core.Resource{
-					repo, image, role, lambda, logGroup, policy1, policy2, bucket,
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:ecr_image:test-test",
+					"aws:ecr_repo:test",
+					"aws:iam_policy:policy1",
+					"aws:iam_policy:policy2",
+					"aws:iam_role:test-test-ExecutionRole",
+					"aws:lambda_function:test_test",
+					"aws:log_group:test_awslambdatest_test",
+					"aws:s3_bucket:test-test",
 				},
-				deps: []graph.Edge[core.Resource]{
-					{
-						Source:      image,
-						Destination: repo,
-					},
-					{
-						Source:      lambda,
-						Destination: image,
-					},
-					{
-						Source:      role,
-						Destination: bucket,
-					},
-					{
-						Source:      lambda,
-						Destination: role,
-					},
-					{
-						Source:      lambda,
-						Destination: logGroup,
-					},
-					{
-						Source:      role,
-						Destination: policy1,
-					},
-					{
-						Source:      role,
-						Destination: policy2,
-					},
+				Deps: []graph.Edge[string]{
+					{Source: "aws:ecr_image:test-test", Destination: "aws:ecr_repo:test"},
+					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:iam_policy:policy1"},
+					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:iam_policy:policy2"},
+					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:s3_bucket:test-test"},
+					{Source: "aws:lambda_function:test_test", Destination: "aws:ecr_image:test-test"},
+					{Source: "aws:lambda_function:test_test", Destination: "aws:iam_role:test-test-ExecutionRole"},
+					{Source: "aws:lambda_function:test_test", Destination: "aws:log_group:test_awslambdatest_test"},
 				},
 			},
 		},
+
 		{
 			name: "generate kubernetes",
 			cfg: config.Application{
 				AppName: "test",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"test": {Type: Kubernetes},
+					"test": {Type: kubernetes.KubernetesType},
 				},
 			},
-			existingResources: []core.Resource{bucket, policy1, policy2, cluster},
-			want: testResult{
-				nodes: []core.Resource{
-					repo, image, role, cluster, policy1, policy2, bucket,
+			existingResources: []core.Resource{bucket, policy1, policy2, cluster, chart},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:ecr_image:test-test",
+					"aws:ecr_repo:test",
+					"aws:eks_cluster:test-eks-cluster",
+					"aws:eks_provider:UNIMPLEMENTED-eks-provider",
+					"aws:iam_policy:policy1",
+					"aws:iam_policy:policy2",
+					"aws:iam_role:test-test-ExecutionRole",
+					"aws:s3_bucket:test-test",
+					"kubernetes:helm_chart:chart",
 				},
-				deps: []graph.Edge[core.Resource]{
-					{
-						Source:      image,
-						Destination: repo,
-					},
-					{
-						Source:      role,
-						Destination: bucket,
-					},
-					{
-						Source:      role,
-						Destination: policy1,
-					},
-					{
-						Source:      role,
-						Destination: policy2,
-					},
+				Deps: []graph.Edge[string]{
+					{Source: "aws:ecr_image:test-test", Destination: "aws:ecr_repo:test"},
+					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:iam_policy:policy1"},
+					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:iam_policy:policy2"},
+					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:s3_bucket:test-test"},
+					{Source: "kubernetes:helm_chart:chart", Destination: "aws:ecr_image:test-test"},
+					{Source: "kubernetes:helm_chart:chart", Destination: "aws:iam_role:test-test-ExecutionRole"},
+					{Source: "kubernetes:helm_chart:chart", Destination: "aws:eks_provider:UNIMPLEMENTED-eks-provider"},
 				},
 			},
 		},
@@ -139,7 +135,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 			result.AddDependency(unit.Id(), fs.Id())
 
 			err := aws.GenerateExecUnitResources(unit, result, dag)
-			if tt.want.err {
+			if tt.wantErr {
 				assert.Error(err)
 				return
 			}
@@ -147,26 +143,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 				return
 			}
 
-			for _, node := range tt.want.nodes {
-				found := false
-				for _, res := range dag.ListResources() {
-					if res.Id() == node.Id() {
-						found = true
-					}
-				}
-				assert.True(found)
-			}
-			assert.Len(dag.ListResources(), len(tt.want.nodes))
-			for _, dep := range tt.want.deps {
-				found := false
-				for _, res := range dag.ListDependencies() {
-					if res.Source.Id() == dep.Source.Id() && res.Destination.Id() == dep.Destination.Id() {
-						found = true
-					}
-				}
-				assert.True(found, "did not find resource: %s -> %s", dep.Source.Id(), dep.Destination.Id())
-			}
-			assert.Len(dag.ListDependencies(), len(tt.want.deps))
+			tt.want.Assert(t, dag)
 		})
 	}
 }
@@ -204,7 +181,7 @@ func Test_convertExecUnitParams(t *testing.T) {
 			},
 		},
 		{
-			name: `lambda`,
+			name: `lambda with sample key value`,
 			construct: &core.ExecutionUnit{
 				AnnotationKey: core.AnnotationKey{ID: "unit"},
 				EnvironmentVariables: core.EnvironmentVariables{
@@ -217,6 +194,35 @@ func Test_convertExecUnitParams(t *testing.T) {
 				"APP_NAME":      core.IaCValue{Resource: nil, Property: "test"},
 				"EXECUNIT_NAME": core.IaCValue{Resource: nil, Property: "unit"},
 				"TestVar":       core.IaCValue{Resource: nil, Property: "TestValue"},
+			},
+		},
+		{
+			name: `kubernetes`,
+			construct: &core.ExecutionUnit{
+				AnnotationKey: core.AnnotationKey{ID: "unit"},
+				EnvironmentVariables: core.EnvironmentVariables{
+					core.GenerateBucketEnvVar(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "bucket"}}),
+					core.NewEnvironmentVariable("TestVar", nil, "TestValue"),
+				},
+			},
+			resources: []core.Resource{
+				s3Bucket,
+			},
+			constructIdToResourceId: map[string][]core.Resource{
+				":bucket": {s3Bucket},
+			},
+			execUnitResource: &kubernetes.HelmChart{
+				Name: "chart",
+				ProviderValues: []kubernetes.HelmChartValue{
+					{
+						EnvironmentVariable: core.GenerateBucketEnvVar(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "bucket"}}),
+						Key:                 "BUCKETBUCKETNAME",
+					},
+				},
+				Values: make(map[string]core.IaCValue),
+			},
+			wants: resources.EnvironmentVariables{
+				"BUCKETBUCKETNAME": core.IaCValue{Resource: s3Bucket, Property: "bucket_name"},
 			},
 		},
 	}
@@ -250,6 +256,12 @@ func Test_convertExecUnitParams(t *testing.T) {
 			switch res := tt.execUnitResource.(type) {
 			case *resources.LambdaFunction:
 				assert.Equal(tt.wants, res.EnvironmentVariables)
+			case *kubernetes.HelmChart:
+				wantAsMap := map[string]core.IaCValue{}
+				for key, val := range tt.wants {
+					wantAsMap[key] = val
+				}
+				assert.Equal(wantAsMap, res.Values)
 			default:
 				assert.Failf(`test error`, `unrecognized test resource: %v`, res)
 			}
@@ -288,7 +300,7 @@ func Test_GetAssumeRolePolicyForType(t *testing.T) {
 		},
 		{
 			name: `eks fargate`,
-			cfg:  config.ExecutionUnit{Type: Kubernetes, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Fargate)})},
+			cfg:  config.ExecutionUnit{Type: kubernetes.KubernetesType, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Fargate)})},
 			want: resources.StatementEntry{
 				Action: []string{"sts:AssumeRole"},
 				Principal: &resources.Principal{
@@ -299,7 +311,7 @@ func Test_GetAssumeRolePolicyForType(t *testing.T) {
 		},
 		{
 			name: `eks node`,
-			cfg:  config.ExecutionUnit{Type: Kubernetes, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Node)})},
+			cfg:  config.ExecutionUnit{Type: kubernetes.KubernetesType, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Node)})},
 			want: resources.StatementEntry{
 				Action: []string{"sts:AssumeRole"},
 				Principal: &resources.Principal{

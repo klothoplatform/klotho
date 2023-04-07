@@ -19,7 +19,6 @@ type (
 	// HelmChartOptions represents configuration for execution units attempting to generate helm charts
 	HelmChartOptions struct {
 		Directory   string   `json:"directory,omitempty" yaml:"directory,omitempty" toml:"directory,omitempty"` // Directory signals the directory which will contain the helm chart outputs
-		Install     bool     `json:"install,omitempty" yaml:"install,omitempty" toml:"install,omitempty"`
 		ValuesFiles []string `json:"values_files,omitempty" yaml:"values_files,omitempty" toml:"values_files,omitempty"`
 	}
 
@@ -71,6 +70,9 @@ func (a Application) GetExecutionUnit(id string) ExecutionUnit {
 	if ecfg, ok := a.ExecutionUnits[id]; ok {
 		if ecfg.InfraParams == nil {
 			ecfg.InfraParams = make(InfraParams)
+		}
+		if ecfg.HelmChartOptions == nil {
+			ecfg.HelmChartOptions = &HelmChartOptions{}
 		}
 		if ecfg.EnvironmentVariables == nil {
 			ecfg.EnvironmentVariables = make(map[string]string)
