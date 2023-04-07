@@ -1,0 +1,6 @@
+{
+    "name": "aws_kubernetes_provider",
+    "dependencies": {
+        "@pulumi/kubernetes": "^3.21.4"
+    }
+}

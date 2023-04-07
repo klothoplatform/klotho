@@ -136,7 +136,7 @@ func createPodExecutionRole(appName string, roleName string, refs []core.Annotat
 				"logs:DescribeLogStreams",
 				"logs:PutLogEvents",
 			},
-			Resource: []core.IaCValue{{Property: "*"}},
+			Resource: []core.IaCValue{core.IaCValue{Property: "*"}},
 		},
 	}}
 	return fargateRole

@@ -94,6 +94,8 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.CloudfrontDistribution{},
 		&resources.OriginAccessIdentity{},
 		&resources.S3BucketPolicy{},
+		&resources.AwsKubernetesProvider{},
+		&kubernetes.HelmChart{},
 	}
 
 	tp := standardTemplatesProvider()
@@ -140,8 +142,14 @@ func TestKnownTemplates(t *testing.T) {
 						assert.Truef(field.IsExported(), `field is not exported`, field.Name)
 						if field.Tag.Get("render") != "" {
 							assert.Contains([]string{"document", "template"}, field.Tag.Get("render"))
-							assert.False(
-								field.Type.Elem().Implements(coreResourceType),
+							var t reflect.Type
+							switch field.Type.Kind() {
+							case reflect.Slice, reflect.Map, reflect.Pointer, reflect.Chan, reflect.Array:
+								t = field.Type.Elem()
+							default:
+								t = field.Type
+							}
+							assert.False(t.Implements(coreResourceType),
 								"fields tagged with `render:\"document\"` or `render:\"template\"` must not be for core.Resource types")
 
 						} else {
