@@ -99,13 +99,11 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 
 		for _, res := range dag.ListResources() {
 			if khChart, ok := res.(*kubernetes.HelmChart); ok {
-				fmt.Println(khChart)
 				for _, ref := range khChart.KlothoConstructRef() {
 					if ref.ToId() == unit.ToId() {
 						khChart.ClustersProvider = provider
 						dag.AddDependenciesReflect(khChart)
 						for _, val := range khChart.ProviderValues {
-							fmt.Println(val)
 							if val.ExecUnitName != unit.ID {
 								continue
 							}
