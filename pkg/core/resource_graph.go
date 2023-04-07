@@ -26,19 +26,25 @@ func (rg *ResourceGraph) AddResource(resource Resource) {
 	}
 }
 
-// Adds a dependency such that `deployedFirst` has to be deployed before `deployedNext`. For example, if you have a
-// Lambda and its execution role, then:
+// Adds a dependency such that `deployedSecond` has to be deployed before `deployedFirst`. This makes the left-to-right
+// association consistent with our visualizer.
 //
-//	╭───────────────╮   ╭────────────────╮
-//	│     first     ├──➤│      next      │
-//	│    IamRole    │   │ LambdaFunction │
-//	╰───────────────╯   ╰────────────────╯
-func (rg *ResourceGraph) AddDependency(deployedFirst Resource, deployedNext Resource) {
-	for _, res := range []Resource{deployedFirst, deployedNext} {
+// For example, if you have a Lambda and its execution role, then:
+//
+//	╭────────────────╮   ╭────────────────╮
+//	│ LambdaFunction ├──➤│    IamRole     │
+//	│ deployedSecond │   │ deployedFirst  │
+//	╰────────────────╯   ╰────────────────╯
+//
+// And you would invoke it as:
+//
+//	rg.AddDependency(lambda, role)
+func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Resource) {
+	for _, res := range []Resource{deployedSecond, deployedFirst} {
 		rg.AddResource(res)
 	}
-	rg.underlying.AddEdge(deployedFirst.Id(), deployedNext.Id())
-	zap.S().Debugf("adding %s -> %s", deployedFirst.Id(), deployedNext.Id())
+	rg.underlying.AddEdge(deployedSecond.Id(), deployedFirst.Id())
+	zap.S().Debugf("adding %s -> %s", deployedSecond.Id(), deployedFirst.Id())
 }
 
 func (rg *ResourceGraph) GetResource(id string) Resource {
