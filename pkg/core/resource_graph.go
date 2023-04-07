@@ -26,14 +26,19 @@ func (rg *ResourceGraph) AddResource(resource Resource) {
 	}
 }
 
-// AddDependency2 deliberately renamed from AddDependency in the short term to catch when dependencies were
-// being added in the inverse order. If either `source` or `dest` don't exist in the graph, they are added.
-func (rg *ResourceGraph) AddDependency2(source Resource, dest Resource) {
-	for _, res := range []Resource{source, dest} {
+// Adds a dependency such that `deployedFirst` has to be deployed before `deployedNext`. For example, if you have a
+// Lambda and its execution role, then:
+//
+//	╭───────────────╮   ╭────────────────╮
+//	│     first     ├──➤│      next      │
+//	│    IamRole    │   │ LambdaFunction │
+//	╰───────────────╯   ╰────────────────╯
+func (rg *ResourceGraph) AddDependency(deployedFirst Resource, deployedNext Resource) {
+	for _, res := range []Resource{deployedFirst, deployedNext} {
 		rg.AddResource(res)
 	}
-	rg.underlying.AddEdge(source.Id(), dest.Id())
-	zap.S().Debugf("adding %s -> %s", source.Id(), dest.Id())
+	rg.underlying.AddEdge(deployedFirst.Id(), deployedNext.Id())
+	zap.S().Debugf("adding %s -> %s", deployedFirst.Id(), deployedNext.Id())
 }
 
 func (rg *ResourceGraph) GetResource(id string) Resource {
@@ -104,11 +109,11 @@ func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
 		}
 		switch value := targetValue.Interface().(type) {
 		case Resource:
-			rg.AddDependency2(source, value)
+			rg.AddDependency(source, value)
 		case *IaCValue:
-			rg.AddDependency2(source, value.Resource)
+			rg.AddDependency(source, value.Resource)
 		case IaCValue:
-			rg.AddDependency2(source, value.Resource)
+			rg.AddDependency(source, value.Resource)
 		}
 	}
 	for i := 0; i < sourceType.NumField(); i++ {

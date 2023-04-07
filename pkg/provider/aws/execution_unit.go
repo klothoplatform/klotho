@@ -33,12 +33,12 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 			return errors.Errorf("could not find resource for construct, %s, which unit, %s, depends on", unit.Id(), construct.Id())
 		}
 		for _, resource := range resList {
-			dag.AddDependency2(role, resource)
+			dag.AddDependency(role, resource)
 		}
 	}
 	unitsPolicies := a.PolicyGenerator.GetUnitPolicies(unit.Id())
 	for _, pol := range unitsPolicies {
-		dag.AddDependency2(role, pol)
+		dag.AddDependency(role, pol)
 		role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{
 			Resource: pol,
 			Property: core.ARN_IAC_VALUE,
@@ -53,7 +53,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 
 		logGroup := resources.NewLogGroup(a.Config.AppName, fmt.Sprintf("/aws/lambda/%s", lambdaFunction.Name), unit.Provenance(), 5)
 		dag.AddResource(logGroup)
-		dag.AddDependency2(lambdaFunction, logGroup)
+		dag.AddDependency(lambdaFunction, logGroup)
 		return nil
 	case Kubernetes:
 		cfg := a.Config.GetExecutionUnit(unit.Provenance().ID)

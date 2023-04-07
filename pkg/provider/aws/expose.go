@@ -83,7 +83,7 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 				triggers[resource.Name] = resource.Name
 				// If there is currently a parent segment, it would be in the route before the new segment, thus add a dependency
 				if parentResource != nil {
-					dag.AddDependency2(resource, parentResource)
+					dag.AddDependency(resource, parentResource)
 				}
 				parentResource = resource
 			} else {
@@ -97,7 +97,7 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 		dag.AddDependenciesReflect(method)
 		api_methods = append(api_methods, method)
 		if parentResource != nil {
-			dag.AddDependency2(method, parentResource)
+			dag.AddDependency(method, parentResource)
 		}
 		integration, err := a.createIntegration(method, execUnit, refs, route, dag)
 		if err != nil {
@@ -112,10 +112,10 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 	deployment := resources.NewApiDeployment(api, api_references, triggers)
 	dag.AddDependenciesReflect(deployment)
 	for _, m := range api_methods {
-		dag.AddDependency2(deployment, m)
+		dag.AddDependency(deployment, m)
 	}
 	for _, integration := range api_integrations {
-		dag.AddDependency2(deployment, integration)
+		dag.AddDependency(deployment, integration)
 	}
 
 	stage := resources.NewApiStage(deployment, "stage", api_references)
@@ -142,7 +142,7 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 		dag.AddDependenciesReflect(lambdaPermission)
 
 		accountId := resources.NewAccountId()
-		dag.AddDependency2(lambdaPermission, accountId)
+		dag.AddDependency(lambdaPermission, accountId)
 
 		integration := resources.NewApiIntegration(method, refs, "POST", "AWS_PROXY", nil, core.IaCValue{Resource: function, Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
 		dag.AddDependenciesReflect(integration)

@@ -82,10 +82,10 @@ func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 	igw := NewInternetGateway(appName, "igw1", vpc)
 
 	dag.AddResource(region)
-	dag.AddDependency2(azs, region)
+	dag.AddDependency(azs, region)
 	dag.AddResource(vpc)
 	dag.AddResource(igw)
-	dag.AddDependency2(igw, vpc)
+	dag.AddDependency(igw, vpc)
 
 	az1 := core.IaCValue{
 		Resource: azs,
@@ -131,8 +131,8 @@ func CreatePrivateSubnet(appName string, subnetName string, az core.IaCValue, vp
 	subnet := NewSubnet(subnetName, vpc, cidrBlock, PrivateSubnet, az)
 
 	dag.AddResource(subnet)
-	dag.AddDependency2(subnet, vpc)
-	dag.AddDependency2(subnet, az.Resource)
+	dag.AddDependency(subnet, vpc)
+	dag.AddDependency(subnet, az.Resource)
 
 	ip := NewElasticIp(appName, subnetName)
 
@@ -141,8 +141,8 @@ func CreatePrivateSubnet(appName string, subnetName string, az core.IaCValue, vp
 	natGateway := NewNatGateway(appName, subnetName, subnet, ip)
 
 	dag.AddResource(natGateway)
-	dag.AddDependency2(natGateway, subnet)
-	dag.AddDependency2(natGateway, ip)
+	dag.AddDependency(natGateway, subnet)
+	dag.AddDependency(natGateway, ip)
 
 	return subnet
 }
@@ -150,16 +150,16 @@ func CreatePrivateSubnet(appName string, subnetName string, az core.IaCValue, vp
 func CreatePublicSubnet(subnetName string, az core.IaCValue, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
 	subnet := NewSubnet(subnetName, vpc, cidrBlock, PublicSubnet, az)
 	dag.AddResource(subnet)
-	dag.AddDependency2(subnet, vpc)
-	dag.AddDependency2(subnet, az.Resource)
+	dag.AddDependency(subnet, vpc)
+	dag.AddDependency(subnet, az.Resource)
 	return subnet
 }
 
 func CreateGatewayVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph) {
 	vpce := NewVpcEndpoint(service, vpc, "Gateway", region, nil)
 	dag.AddResource(vpce)
-	dag.AddDependency2(vpce, vpc)
-	dag.AddDependency2(vpce, region)
+	dag.AddDependency(vpce, vpc)
+	dag.AddDependency(vpce, region)
 }
 
 func CreateInterfaceVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph) {
@@ -172,10 +172,10 @@ func CreateInterfaceVpcEndpoint(service string, vpc *Vpc, region *Region, dag *c
 	}
 	vpce := NewVpcEndpoint(service, vpc, "Interface", region, subnets)
 	dag.AddResource(vpce)
-	dag.AddDependency2(vpce, vpc)
-	dag.AddDependency2(vpce, region)
+	dag.AddDependency(vpce, vpc)
+	dag.AddDependency(vpce, region)
 	for _, subnet := range subnets {
-		dag.AddDependency2(vpce, subnet)
+		dag.AddDependency(vpce, subnet)
 	}
 }
 
