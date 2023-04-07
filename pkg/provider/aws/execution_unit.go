@@ -56,7 +56,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 		dag.AddResource(logGroup)
 		dag.AddDependency(lambdaFunction, logGroup)
 		return nil
-	case Kubernetes:
+	case kubernetes.KubernetesType:
 		cfg := a.Config.GetExecutionUnit(unit.Provenance().ID)
 		params := cfg.GetExecutionUnitParamsAsKubernetes()
 		cluster := resources.GetEksCluster(a.Config.AppName, params.ClusterId, dag)
@@ -114,13 +114,13 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 									Resource: image,
 									Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
 								}
-								dag.AddDependency2(khChart, image)
+								dag.AddDependency(khChart, image)
 							case string(kubernetes.ServiceAccountAnnotationTransformation):
 								khChart.Values[val.Key] = core.IaCValue{
 									Resource: role,
 									Property: core.ARN_IAC_VALUE,
 								}
-								dag.AddDependency2(khChart, role)
+								dag.AddDependency(khChart, role)
 							}
 						}
 						a.MapResourceDirectlyToConstruct(khChart, unit)
@@ -189,7 +189,7 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 						if val.EnvironmentVariable != nil && evName == val.EnvironmentVariable.GetName() {
 							r.Values[val.Key] = evVal
 							if evVal.Resource != resource {
-								dag.AddDependency2(resource, evVal.Resource)
+								dag.AddDependency(resource, evVal.Resource)
 							}
 						}
 					}
@@ -208,7 +208,7 @@ func GetAssumeRolePolicyForType(cfg config.ExecutionUnit) *resources.PolicyDocum
 		return resources.LAMBDA_ASSUMER_ROLE_POLICY
 	case Ecs:
 		return resources.ECS_ASSUMER_ROLE_POLICY
-	case Kubernetes:
+	case kubernetes.KubernetesType:
 		eksConfig := cfg.GetExecutionUnitParamsAsKubernetes()
 		if eksConfig.NodeType == string(resources.Fargate) {
 			return resources.EKS_FARGATE_ASSUME_ROLE_POLICY

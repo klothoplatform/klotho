@@ -18,6 +18,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	KubernetesType = "kubernetes"
+)
+
 type Kubernetes struct {
 	Config     *config.Application
 	log        *zap.SugaredLogger
@@ -165,7 +169,7 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 			}
 		}
 
-		if cfg.Type == config.Kubernetes {
+		if cfg.Type == KubernetesType {
 			chartDir := ""
 			if cfg.HelmChartOptions != nil {
 				chartDir = cfg.HelmChartOptions.Directory

@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
@@ -74,7 +75,7 @@ func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceG
 	clusterIdToUnit := map[string][]*core.ExecutionUnit{}
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
 		cfg := a.Config.GetExecutionUnit(unit.Provenance().ID)
-		if cfg.Type == Kubernetes {
+		if cfg.Type == kubernetes.KubernetesType {
 			params := cfg.GetExecutionUnitParamsAsKubernetes()
 			if params.ClusterId == "" {
 				unassignedUnits = append(unassignedUnits, unit)

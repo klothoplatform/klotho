@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/config"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/lang/python"
 	"github.com/klothoplatform/klotho/pkg/runtime"
 
@@ -96,7 +97,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	var requirements string
 	unitType := r.Cfg.GetResourceType(unit)
 	switch unitType {
-	case config.Lambda:
+	case aws.Lambda:
 		dockerFile = dockerfileLambda
 		dispatcher = dispatcherLambda
 		requirements = execRequirementsLambda
@@ -107,7 +108,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 		if err != nil {
 			return err
 		}
-	case config.Ecs, config.Kubernetes, config.AppRunner:
+	case aws.Ecs, kubernetes.KubernetesType, aws.AppRunner:
 		dockerFile = dockerfileFargate
 		dispatcher = dispatcherFargate
 		requirements = execRequirementsFargate
@@ -247,11 +248,11 @@ func (r *AwsRuntime) AddOrmRuntimeFiles(unit *core.ExecutionUnit) error {
 func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error {
 	var fileContents string
 	switch proxyType {
-	case config.Kubernetes:
+	case kubernetes.KubernetesType:
 		fileContents = proxyEksContents
-	case config.Ecs:
+	case aws.Ecs:
 		fileContents = proxyFargateContents
-	case config.Lambda:
+	case aws.Lambda:
 		fileContents = proxyLambdaContents
 
 		// We also need to add the Fs files because exec to exec calls in aws use s3

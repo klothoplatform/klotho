@@ -83,7 +83,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 			cfg: config.Application{
 				AppName: "test",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"test": {Type: Kubernetes},
+					"test": {Type: kubernetes.KubernetesType},
 				},
 			},
 			existingResources: []core.Resource{bucket, policy1, policy2, cluster, chart},
@@ -300,7 +300,7 @@ func Test_GetAssumeRolePolicyForType(t *testing.T) {
 		},
 		{
 			name: `eks fargate`,
-			cfg:  config.ExecutionUnit{Type: Kubernetes, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Fargate)})},
+			cfg:  config.ExecutionUnit{Type: kubernetes.KubernetesType, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Fargate)})},
 			want: resources.StatementEntry{
 				Action: []string{"sts:AssumeRole"},
 				Principal: &resources.Principal{
@@ -311,7 +311,7 @@ func Test_GetAssumeRolePolicyForType(t *testing.T) {
 		},
 		{
 			name: `eks node`,
-			cfg:  config.ExecutionUnit{Type: Kubernetes, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Node)})},
+			cfg:  config.ExecutionUnit{Type: kubernetes.KubernetesType, InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: string(resources.Node)})},
 			want: resources.StatementEntry{
 				Action: []string{"sts:AssumeRole"},
 				Principal: &resources.Principal{

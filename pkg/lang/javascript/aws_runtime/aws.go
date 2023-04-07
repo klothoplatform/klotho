@@ -11,6 +11,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/runtime"
@@ -194,13 +195,13 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	var proxyFile []byte
 	unitType := r.Config.GetResourceType(unit)
 	switch proxyType {
-	case config.Kubernetes:
+	case kubernetes.KubernetesType:
 		proxyFile = proxyEks
-	case config.Ecs:
+	case aws.Ecs:
 		proxyFile = proxyFargate
-	case config.AppRunner:
+	case aws.AppRunner:
 		proxyFile = proxyApprunner
-	case config.Lambda:
+	case aws.Lambda:
 		proxyFile = proxyLambda
 
 		// We also need to add the Fs files because exec to exec calls in aws use s3
@@ -225,10 +226,10 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	var DockerFile, Dispatcher []byte
 	unitType := r.Config.GetResourceType(unit)
 	switch unitType {
-	case config.Ecs, config.Kubernetes, config.AppRunner:
+	case aws.Ecs, kubernetes.KubernetesType, aws.AppRunner:
 		DockerFile = dockerfileFargate
 		Dispatcher = dispatcherFargate
-	case config.Lambda:
+	case aws.Lambda:
 		DockerFile = dockerfileLambda
 		Dispatcher = dispatcherLambda
 

@@ -501,13 +501,10 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		}
 		return fmt.Sprintf("pulumi.interpolate`arn:aws:execute-api:${%s.name}:${%s.accountId}:${%s.id}/*/%s%s`", tc.getVarName(region),
 			tc.getVarName(accountId), tc.getVarName(method.RestApi), verb, path), nil
-<<<<<<< HEAD
 	case resources.STAGE_INVOKE_URL_IAC_VALUE:
 		return fmt.Sprintf("%s.invokeUrl.apply((d) => d.split('//')[1].split('/')[0])", tc.getVarName(v.Resource)), nil
-=======
 	case resources.ECR_IMAGE_NAME_IAC_VALUE:
 		return fmt.Sprintf(`%s.imageName`, tc.getVarName(resource)), nil
->>>>>>> 9d47c7b (Transforms helm charts for use with aws)
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property, %s", property)

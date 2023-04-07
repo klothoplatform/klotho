@@ -111,10 +111,3 @@ func (cfg ExecutionUnit) GetExecutionUnitParamsAsKubernetes() KubernetesTypePara
 	}
 	return params
 }
-
-const (
-	Lambda     = "lambda"
-	Kubernetes = "kubernetes"
-	Ecs        = "ecs"
-	AppRunner  = "apprunner"
-)
