@@ -9,7 +9,7 @@ interface Args {
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.s3.BucketPolicy {
     return new aws.s3.BucketPolicy(args.Name, {
-        bucket: args.Bucket.id, // refer to the bucket created earlier
+        bucket: args.Bucket.id,
         policy: args.Policy,
     })
 }

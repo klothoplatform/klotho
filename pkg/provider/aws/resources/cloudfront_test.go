@@ -31,8 +31,7 @@ func Test_CreateS3Origin(t *testing.T) {
 		return
 	}
 	bucketPolicy, ok := res.(*S3BucketPolicy)
-	if !ok {
-		assert.True(ok)
+	if !assert.True(ok) {
 		return
 	}
 
