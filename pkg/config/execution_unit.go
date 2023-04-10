@@ -46,15 +46,15 @@ type (
 
 	// KubernetesLimits represents the configurability of kubernetes limits for execution units which match the kubernetes compatibility
 	KubernetesLimits struct {
-		// Cpu specifies the limit per pod in millicores
-		Cpu int `json:"cpu,omitempty" yaml:"cpu,omitempty" toml:"cpu,omitempty"`
+		// Cpu specifies the limit per pod in millicores. It is "any" so that the user can specify it as either a string or a number
+		Cpu any `json:"cpu,omitempty" yaml:"cpu,omitempty" toml:"cpu,omitempty"`
 		// Memory specifies the limit per pod in MB
-		Memory int `json:"memory,omitempty" yaml:"memory,omitempty" toml:"memory,omitempty"`
+		Memory any `json:"memory,omitempty" yaml:"memory,omitempty" toml:"memory,omitempty"`
 	}
 
 	// KubernetesLimits represents the configurability of kubernetes limits for execution units which match the kubernetes compatibility
 	KubernetesHorizontalPodAutoScalingConfig struct {
-		// MemoryUtilization specifies he percentage of cpu a pod can utilize before the cluster will attempt to scale the pod
+		// MemoryUtilization specifies the percentage of cpu a pod can utilize before the cluster will attempt to scale the pod
 		CpuUtilization int `json:"cpu_utilization,omitempty" yaml:"cpu_utilization,omitempty" toml:"cpu_utilization,omitempty"`
 		// MemoryUtilization specifies the percentage of memory a pod can utilize before the cluster will attempt to scale the pod
 		MemoryUtilization int `json:"memory_utilization,omitempty" yaml:"memory_utilization,omitempty" toml:"memory_utilization,omitempty"`
