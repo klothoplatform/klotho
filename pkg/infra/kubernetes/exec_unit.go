@@ -479,10 +479,16 @@ func (unit *HelmExecUnit) configureContainer(container *corev1.Container, cfg co
 		return err
 	}
 	for name, quantity := range resourceReqs.Limits {
+		// We infer both limits and requestes from the k8sCfg limits. In order to get full utilization without overloading
+		// the nodes, for now we're hard-coding the requests as being the same as limits.
 		if container.Resources.Limits == nil {
 			container.Resources.Limits = make(corev1.ResourceList)
 		}
+		if container.Resources.Requests == nil {
+			container.Resources.Requests = make(corev1.ResourceList)
+		}
 		container.Resources.Limits[name] = quantity
+		container.Resources.Requests[name] = quantity
 	}
 
 	return nil

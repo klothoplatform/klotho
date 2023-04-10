@@ -314,6 +314,8 @@ func Test_transformPod(t *testing.T) {
                         resources:
                           limits:
                             cpu: "123"
+                          requests:
+                            cpu: "123"
                       serviceAccountName: testUnit
                     status: {}`),
 			},
@@ -449,6 +451,8 @@ func Test_transformDeployment(t *testing.T) {
 				focusOnPath: "$.spec.template.spec.containers[0].resources",
 				newFile: testutil.UnIndent(`
                     limits:
+                        cpu: "123"
+                    requests:
                         cpu: "123"`),
 			},
 		},
@@ -1409,6 +1413,8 @@ func Test_configureContainer(t *testing.T) {
                     name: ""
                     resources:
                       limits:
+                        cpu: "123"
+                      requests:
                         cpu: "123"`),
 			},
 		},
@@ -1426,6 +1432,8 @@ func Test_configureContainer(t *testing.T) {
                     name: ""
                     resources:
                       limits:
+                        cpu: "123"
+                      requests:
                         cpu: "123"`), // gets converted to str ¯\_(ツ)_/¯
 			},
 		},
@@ -1447,6 +1455,8 @@ func Test_configureContainer(t *testing.T) {
                     name: ""
                     resources:
                       limits:
+                        cpu: 100m
+                      requests:
                         cpu: 100m`), // k8s normalizes it to this
 			},
 		},
@@ -1464,6 +1474,8 @@ func Test_configureContainer(t *testing.T) {
                     name: ""
                     resources:
                       limits:
+                        cpu: 123m
+                      requests:
                         cpu: 123m`),
 			},
 		},
@@ -1494,6 +1506,8 @@ func Test_configureContainer(t *testing.T) {
                     name: ""
                     resources:
                       limits:
+                        memory: 129M
+                      requests:
                         memory: 129M`),
 			},
 		},
@@ -1512,6 +1526,9 @@ func Test_configureContainer(t *testing.T) {
                     name: ""
                     resources:
                       limits:
+                        cpu: "123"
+                        memory: 129M
+                      requests:
                         cpu: "123"
                         memory: 129M`),
 			},
