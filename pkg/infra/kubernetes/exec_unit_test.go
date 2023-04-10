@@ -1387,7 +1387,6 @@ func Test_upsertOnlyContainer(t *testing.T) {
 
 func Test_configureContainer(t *testing.T) {
 	type result struct {
-		focusOnPath   string
 		containerYaml string
 		err           bool
 	}
@@ -1406,9 +1405,10 @@ func Test_configureContainer(t *testing.T) {
 				},
 			},
 			want: result{
-				focusOnPath: "$.resources",
 				containerYaml: testutil.UnIndent(`
-                    limits:
+                    name: ""
+                    resources:
+                      limits:
                         cpu: "123"`),
 			},
 		},
@@ -1422,9 +1422,10 @@ func Test_configureContainer(t *testing.T) {
 				},
 			},
 			want: result{
-				focusOnPath: "$.resources",
 				containerYaml: testutil.UnIndent(`
-                    limits:
+                    name: ""
+                    resources:
+                      limits:
                         cpu: "123"`), // gets converted to str ¯\_(ツ)_/¯
 			},
 		},
@@ -1442,9 +1443,10 @@ func Test_configureContainer(t *testing.T) {
 			},
 			want: result{
 				// From k8s docs:
-				focusOnPath: "$.resources",
 				containerYaml: testutil.UnIndent(`
-                    limits:
+                    name: ""
+                    resources:
+                      limits:
                         cpu: 100m`), // k8s normalizes it to this
 			},
 		},
@@ -1458,9 +1460,10 @@ func Test_configureContainer(t *testing.T) {
 				},
 			},
 			want: result{
-				focusOnPath: "$.resources",
 				containerYaml: testutil.UnIndent(`
-                    limits:
+                    name: ""
+                    resources:
+                      limits:
                         cpu: 123m`),
 			},
 		},
@@ -1487,9 +1490,10 @@ func Test_configureContainer(t *testing.T) {
 				},
 			},
 			want: result{
-				focusOnPath: "$.resources",
 				containerYaml: testutil.UnIndent(`
-                    limits:
+                    name: ""
+                    resources:
+                      limits:
                         memory: 129M`),
 			},
 		},
@@ -1504,9 +1508,10 @@ func Test_configureContainer(t *testing.T) {
 				},
 			},
 			want: result{
-				focusOnPath: "$.resources",
 				containerYaml: testutil.UnIndent(`
-                    limits:
+                    name: ""
+                    resources:
+                      limits:
                         cpu: "123"
                         memory: 129M`),
 			},
@@ -1531,9 +1536,7 @@ func Test_configureContainer(t *testing.T) {
 				return
 			}
 
-			actualContainerYaml := testutil.SafeYamlPath(string(actualContainerYamlBs), tt.want.focusOnPath)
-
-			assert.Equal(tt.want.containerYaml, actualContainerYaml)
+			assert.Equal(tt.want.containerYaml, string(actualContainerYamlBs))
 		})
 	}
 
