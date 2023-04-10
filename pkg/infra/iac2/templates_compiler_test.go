@@ -178,6 +178,7 @@ func Test_handleIaCValue(t *testing.T) {
 		name                 string
 		value                core.IaCValue
 		resourceVarNamesById map[string]string
+		resource             core.Resource
 		want                 string
 		wantOutputs          []AppliedOutput
 	}{
@@ -231,6 +232,18 @@ func Test_handleIaCValue(t *testing.T) {
 			},
 			want: "awsAvailabilityZones.names[2]",
 		},
+		{
+			name: "nlb uri",
+			value: core.IaCValue{
+				Resource: &resources.LoadBalancer{Name: "test"},
+				Property: resources.NLB_INTEGRATION_URI_IAC_VALUE,
+			},
+			resourceVarNamesById: map[string]string{
+				"aws:load_balancer:test": "lb",
+			},
+			resource: &resources.ApiIntegration{Route: "/route"},
+			want:     "pulumi.interpolate`http://${lb.dnsName}/route`",
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -240,7 +253,11 @@ func Test_handleIaCValue(t *testing.T) {
 				resourceVarNamesById: tt.resourceVarNamesById,
 			}
 			appliedOutputs := []AppliedOutput{}
-			actual, err := tc.handleIaCValue(tt.value, &appliedOutputs)
+			reflectValue := reflect.ValueOf(tt.resource)
+			if reflectValue.Kind() == reflect.Pointer {
+				reflectValue = reflectValue.Elem()
+			}
+			actual, err := tc.handleIaCValue(tt.value, &appliedOutputs, &reflectValue)
 			assert.NoError(err)
 			assert.Equal(tt.want, actual)
 			if tt.wantOutputs != nil {

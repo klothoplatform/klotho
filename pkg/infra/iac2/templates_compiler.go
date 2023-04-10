@@ -304,7 +304,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 			if iacTag != "" {
 				return "", errors.Errorf("structs implementing IaCValue can not be tagged with `resource:`")
 			}
-			output, err := tc.handleIaCValue(typedChild, appliedOutputs)
+			output, err := tc.handleIaCValue(typedChild, appliedOutputs, resourceVal)
 			if err != nil {
 				return output, err
 			}
@@ -420,7 +420,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 }
 
 // handleIaCValue determines how to retrieve values from a resource given a specific value identifier.
-func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]AppliedOutput) (string, error) {
+func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]AppliedOutput, resourceVal *reflect.Value) (string, error) {
 	resource := v.Resource
 	property := v.Property
 
@@ -505,6 +505,12 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf("%s.invokeUrl.apply((d) => d.split('//')[1].split('/')[0])", tc.getVarName(v.Resource)), nil
 	case resources.ECR_IMAGE_NAME_IAC_VALUE:
 		return fmt.Sprintf(`%s.imageName`, tc.getVarName(resource)), nil
+	case resources.NLB_INTEGRATION_URI_IAC_VALUE:
+		integration, ok := resourceVal.Interface().(resources.ApiIntegration)
+		if !ok {
+			return "", errors.Errorf("Unable to handle iac value for %s on type %s", resources.NLB_INTEGRATION_URI_IAC_VALUE, resourceVal.Type().Name())
+		}
+		return fmt.Sprintf("pulumi.interpolate`http://${%s.dnsName}%s`", tc.getVarName(resource), integration.Route), nil
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property, %s", property)
