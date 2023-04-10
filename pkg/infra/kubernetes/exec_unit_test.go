@@ -1413,6 +1413,42 @@ func Test_configureContainer(t *testing.T) {
 			},
 		},
 		{
+			name: "specify cpu int",
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"cpu": 123,
+					},
+				},
+			},
+			want: result{
+				focusOnPath: "$.resources",
+				containerYaml: testutil.UnIndent(`
+                    limits:
+                        cpu: "123"`), // gets converted to str ¯\_(ツ)_/¯
+			},
+		},
+		{
+			// From k8s docs:
+			// > For CPU resource units, the quantity expression 0.1 is equivalent to the expression 100m, which can be
+			// > read as "one hundred millicpu"
+			name: "specify cpu float",
+			cfg: config.ExecutionUnit{
+				InfraParams: config.InfraParams{
+					"limits": map[string]any{
+						"cpu": 0.1,
+					},
+				},
+			},
+			want: result{
+				// From k8s docs:
+				focusOnPath: "$.resources",
+				containerYaml: testutil.UnIndent(`
+                    limits:
+                        cpu: 100m`), // k8s normalizes it to this
+			},
+		},
+		{
 			name: "specify cpu with unit",
 			cfg: config.ExecutionUnit{
 				InfraParams: config.InfraParams{
