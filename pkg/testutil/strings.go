@@ -1,6 +1,11 @@
 package testutil
 
-import "strings"
+import (
+	"fmt"
+	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
+	"gopkg.in/yaml.v3"
+	"strings"
+)
 
 // UnIndent removes a level of indentation from the given string. The rules are very simple:
 //   - first, drop any leading newlines from the string
@@ -49,4 +54,39 @@ func UnIndent(y string) string {
 		sb.WriteRune('\n')
 	}
 	return sb.String()
+}
+
+// YamlPath returns a subset of the given yaml file, as specified by its path. It uses [yamlpath] under the hood.
+// See the [yamlpath's github page] for details, though the package's godocs are easier to read.
+//
+// tldr: `$.path.to.your[0].subdocument` (the `$` is literally a dollar sign you should use to anchor the path).
+//
+// This function expects there to be a single node result. If you want a list, select the list's parent instead.
+//
+// If there are any errors along the way, this will return `// ERROR: ${msg}`.
+//
+// [yamlpath's github page]: https://github.com/vmware-labs/yaml-jsonpath
+func SafeYamlPath(yamlStr string, path string) string {
+	path_obj, err := yamlpath.NewPath(path)
+	if err != nil {
+		return fmt.Sprintf("// ERROR: %s", err)
+	}
+
+	var parsed_node yaml.Node
+	err = yaml.Unmarshal([]byte(yamlStr), &parsed_node)
+	if err != nil {
+		return fmt.Sprintf("// ERROR: %s", err)
+	}
+	found_nodes, err := path_obj.Find(&parsed_node)
+	if err != nil {
+		return fmt.Sprintf("// ERROR: %s", err)
+	}
+	if len(found_nodes) != 1 {
+		return fmt.Sprintf("// ERROR: expected exactly one match, but found %d", len(found_nodes))
+	}
+	result_bytes, err := yaml.Marshal(found_nodes[0])
+	if err != nil {
+		return fmt.Sprintf("// ERROR: %s", err)
+	}
+	return string(result_bytes)
 }
