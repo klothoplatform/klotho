@@ -254,7 +254,7 @@ func Test_handleIaCValue(t *testing.T) {
 			}
 			appliedOutputs := []AppliedOutput{}
 			reflectValue := reflect.ValueOf(tt.resource)
-			if reflectValue.Kind() == reflect.Pointer {
+			for reflectValue.Kind() == reflect.Pointer {
 				reflectValue = reflectValue.Elem()
 			}
 			actual, err := tc.handleIaCValue(tt.value, &appliedOutputs, &reflectValue)
