@@ -107,20 +107,29 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 							if val.ExecUnitName != unit.ID {
 								continue
 							}
-							switch val.Type {
-							// TODO handle kubernetes.TargetGroupTransformation
-							case string(kubernetes.ImageTransformation):
+							switch kubernetes.ProviderValueTypes(val.Type) {
+							case kubernetes.TargetGroupTransformation:
+								// TODO implement me
+							case kubernetes.ImageTransformation:
 								khChart.Values[val.Key] = core.IaCValue{
 									Resource: image,
 									Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
 								}
 								dag.AddDependency(khChart, image)
-							case string(kubernetes.ServiceAccountAnnotationTransformation):
+							case kubernetes.ServiceAccountAnnotationTransformation:
 								khChart.Values[val.Key] = core.IaCValue{
 									Resource: role,
 									Property: core.ARN_IAC_VALUE,
 								}
 								dag.AddDependency(khChart, role)
+							case kubernetes.ExecUnitNetworkPlacement:
+								khChart.Values[val.Key] = core.IaCValue{
+									Property: cfg.NetworkPlacement,
+								}
+							case kubernetes.ExecUnitNodeGroup:
+								khChart.Values[val.Key] = core.IaCValue{
+									Property: resources.NodeGroupNameFromConfig(cfg),
+								}
 							}
 						}
 						a.MapResourceDirectlyToConstruct(khChart, unit)

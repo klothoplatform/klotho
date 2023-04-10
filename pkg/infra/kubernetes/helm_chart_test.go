@@ -2,9 +2,10 @@ package kubernetes
 
 import (
 	"bytes"
-	"github.com/klothoplatform/klotho/pkg/testutil"
 	"strings"
 	"testing"
+
+	"github.com/klothoplatform/klotho/pkg/testutil"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -467,6 +468,18 @@ func Test_handleExecutionUnit(t *testing.T) {
 				},
 				{
 					ExecUnitName: "unit",
+					Kind:         "Deployment",
+					Type:         string(ExecUnitNetworkPlacement),
+					Key:          "{{ .Values.unitNetworkPlacement }}",
+				},
+				{
+					ExecUnitName: "unit",
+					Kind:         "Deployment",
+					Type:         string(ExecUnitNodeGroup),
+					Key:          "{{ .Values.unitNodeGroup }}",
+				},
+				{
+					ExecUnitName: "unit",
 					Kind:         "ServiceAccount",
 					Type:         "service_account_annotation",
 					Key:          "unitRoleArn",
@@ -694,6 +707,9 @@ spec:
       - image: '{{ .Values.unitImage }}'
         name: unit
         resources: {}
+      nodeSelector:
+        eks.amazonaws.com/nodegroup: REPLACE_ME
+        network_placement: REPLACE_ME
       serviceAccount: unit
       serviceAccountName: unit
 status: {}
@@ -704,6 +720,18 @@ status: {}
 						Kind:         "Deployment",
 						Type:         "image",
 						Key:          "unitImage",
+					},
+					{
+						ExecUnitName: "unit",
+						Kind:         "Deployment",
+						Type:         string(ExecUnitNetworkPlacement),
+						Key:          "{{ .Values.unitNetworkPlacement }}",
+					},
+					{
+						ExecUnitName: "unit",
+						Kind:         "Deployment",
+						Type:         string(ExecUnitNodeGroup),
+						Key:          "{{ .Values.unitNodeGroup }}",
 					},
 				},
 			},

@@ -341,6 +341,18 @@ spec:
 						Type:         string(ImageTransformation),
 						Key:          "testUnitImage",
 					},
+					{
+						ExecUnitName: "testUnit",
+						Kind:         "Deployment",
+						Type:         string(ExecUnitNetworkPlacement),
+						Key:          "{{ .Values.testUnitNetworkPlacement }}",
+					},
+					{
+						ExecUnitName: "testUnit",
+						Kind:         "Deployment",
+						Type:         string(ExecUnitNodeGroup),
+						Key:          "{{ .Values.testUnitNodeGroup }}",
+					},
 				},
 				newFile: `apiVersion: apps/v1
 kind: Deployment

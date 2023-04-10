@@ -179,6 +179,14 @@ func (tc TemplatesCompiler) RenderPackageJSON() (*javascript.NodePackageJson, er
 }
 
 func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource) error {
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		panic(errors.Errorf("panic rendering resource %s: %v", resource.Id(), r))
+	}()
+
 	tmpl, err := tc.getTemplate(resource)
 	if err != nil {
 		return err
@@ -192,61 +200,79 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 	}
 	inputArgs := make(map[string]templateValue)
 	for fieldName := range tmpl.InputTypes {
-		// dependsOn will be a reserved field for us to use to map dependencies. If specified as an Arg we will automatically call resolveDependencies
-		if fieldName == "dependsOn" {
-			inputArgs[fieldName] = stringTemplateValue{value: tc.resolveDependencies(resource)}
-			continue
-		}
-		if fieldName == "protect" {
-			inputArgs[fieldName] = stringTemplateValue{value: "protect", raw: "protect"}
-			continue
-		}
-		childVal := resourceVal.FieldByName(fieldName)
-		structField, found := resourceVal.Type().FieldByName(fieldName)
-		iacTag := ""
-		if found {
-			iacTag = structField.Tag.Get("render")
-		}
-
-		var err error
-		var resolvedValue templateValue
-		if iacTag == "template" {
-			resolvedValue = nestedTemplateValue{
-				parentValue:            resourceVal,
-				childValue:             childVal,
-				iacTag:                 iacTag,
-				tc:                     &tc,
-				useDoubleQuotedStrings: false,
-			}
-		} else {
-			var strValue string
-			var appliedoutputs []AppliedOutput
-			buf := strings.Builder{}
-			strValue, err = tc.resolveStructInput(&resourceVal, childVal, false, iacTag, &appliedoutputs)
-			uniqueOutputs, err := deduplicateAppliedOutputs(appliedoutputs)
-			if err != nil {
-				return err
-			}
-			_, err = buf.WriteString(appliedOutputsToString(uniqueOutputs))
-			if err != nil {
-				return err
-			}
-			buf.WriteString(strValue)
-			if len(uniqueOutputs) > 0 {
-				_, err = buf.WriteString("})")
-				if err != nil {
-					return err
+		func(fieldName string) {
+			defer func() {
+				r := recover()
+				if r == nil {
+					return
 				}
+				panic(errors.Errorf("panic rendering field %s: %v", fieldName, r))
+			}()
+			// dependsOn will be a reserved field for us to use to map dependencies. If specified as an Arg we will automatically call resolveDependencies
+			if fieldName == "dependsOn" {
+				inputArgs[fieldName] = stringTemplateValue{value: tc.resolveDependencies(resource)}
+				return
 			}
-			resolvedValue = stringTemplateValue{value: buf.String(), raw: childVal.Interface()}
-		}
+			if fieldName == "protect" {
+				inputArgs[fieldName] = stringTemplateValue{value: "protect", raw: "protect"}
+				return
+			}
+			childVal := resourceVal.FieldByName(fieldName)
+			structField, found := resourceVal.Type().FieldByName(fieldName)
+			iacTag := ""
+			if found {
+				iacTag = structField.Tag.Get("render")
+			}
 
+			var err error
+			var resolvedValue templateValue
+			if iacTag == "template" {
+				resolvedValue = nestedTemplateValue{
+					parentValue:            resourceVal,
+					childValue:             childVal,
+					iacTag:                 iacTag,
+					tc:                     &tc,
+					useDoubleQuotedStrings: false,
+				}
+			} else {
+				var strValue string
+				var appliedoutputs []AppliedOutput
+				buf := strings.Builder{}
+				strValue, err = tc.resolveStructInput(&resourceVal, childVal, false, iacTag, &appliedoutputs)
+				if err != nil {
+					errs.Append(err)
+					return
+				}
+				uniqueOutputs, err := deduplicateAppliedOutputs(appliedoutputs)
+				if err != nil {
+					errs.Append(err)
+					return
+				}
+				_, err = buf.WriteString(appliedOutputsToString(uniqueOutputs))
+				if err != nil {
+					errs.Append(err)
+					return
+				}
+				buf.WriteString(strValue)
+				if len(uniqueOutputs) > 0 {
+					_, err = buf.WriteString("})")
+					if err != nil {
+						errs.Append(err)
+						return
+					}
+				}
+				resolvedValue = stringTemplateValue{value: buf.String(), raw: childVal.Interface()}
+			}
+
+			if err != nil {
+				errs.Append(err)
+			} else {
+				inputArgs[fieldName] = resolvedValue
+			}
+		}(fieldName)
 		if err != nil {
-			errs.Append(err)
-		} else {
-			inputArgs[fieldName] = resolvedValue
+			return err
 		}
-
 	}
 
 	varName := tc.getVarName(resource)

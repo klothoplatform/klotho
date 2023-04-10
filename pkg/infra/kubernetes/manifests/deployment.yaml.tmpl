@@ -26,3 +26,6 @@ spec:
         name: {{ .ExecUnitName }}
       serviceAccount: {{ .ServiceAccountName }}
       serviceAccountName: {{ .ServiceAccountName }}
+      nodeSelector:
+        network_placement: REPLACE_ME
+        eks.amazonaws.com/nodegroup: REPLACE_ME

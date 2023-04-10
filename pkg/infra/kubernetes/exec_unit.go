@@ -173,12 +173,27 @@ func (unit *HelmExecUnit) transformDeployment() ([]HelmChartValue, error) {
 	if err != nil {
 		return nil, err
 	}
-	values = append(values, HelmChartValue{
-		ExecUnitName: unit.Name,
-		Kind:         deployment.Kind,
-		Type:         string(ImageTransformation),
-		Key:          value,
-	})
+	values = append(values,
+		HelmChartValue{
+			ExecUnitName: unit.Name,
+			Kind:         deployment.Kind,
+			Type:         string(ImageTransformation),
+			Key:          value,
+		},
+		HelmChartValue{
+			ExecUnitName: unit.Name,
+			Kind:         deployment.Kind,
+			Type:         string(ExecUnitNetworkPlacement),
+			Key:          fmt.Sprintf("{{ .Values.%sNetworkPlacement }}", unit.Name),
+		},
+		HelmChartValue{
+			ExecUnitName: unit.Name,
+			Kind:         deployment.Kind,
+			Type:         string(ExecUnitNodeGroup),
+			Key:          fmt.Sprintf("{{ .Values.%sNodeGroup }}", unit.Name),
+		},
+	)
+
 	return values, nil
 }
 

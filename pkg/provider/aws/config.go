@@ -34,8 +34,9 @@ const (
 
 var (
 	eksDefaults = config.KubernetesTypeParams{
-		NodeType: "fargate",
-		Replicas: 2,
+		NodeType:     "fargate",
+		InstanceType: "t3.medium",
+		Replicas:     2,
 	}
 
 	ecsDefaults = config.ContainerTypeParams{
