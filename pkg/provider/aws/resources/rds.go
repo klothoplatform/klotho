@@ -105,14 +105,9 @@ type (
 	}
 )
 
-func CreateRdsInstance(cfg *config.Application, orm *core.Orm, proxyEnabled bool, dag *core.ResourceGraph) (*RdsInstance, *RdsProxy, error) {
+func CreateRdsInstance(cfg *config.Application, orm *core.Orm, proxyEnabled bool, subnets []*Subnet, securityGroups []*SecurityGroup, dag *core.ResourceGraph) (*RdsInstance, *RdsProxy, error) {
 
-	vpc := CreateNetwork(cfg, dag)
-
-	securityGroups := []*SecurityGroup{GetSecurityGroup(cfg, dag)}
-	privateSubnets := vpc.GetPrivateSubnets(dag)
-
-	subnetGroup := NewRdsSubnetGroup(orm, cfg.AppName, privateSubnets)
+	subnetGroup := NewRdsSubnetGroup(orm, cfg.AppName, subnets)
 
 	instance := NewRdsInstance(orm, cfg.AppName, subnetGroup, securityGroups)
 	credsBytes := []byte(fmt.Sprintf("%s\n%s", instance.Username, instance.Password))
@@ -134,7 +129,7 @@ func CreateRdsInstance(cfg *config.Application, orm *core.Orm, proxyEnabled bool
 		role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{Resource: secretPolicy, Property: core.ARN_IAC_VALUE})
 		dag.AddDependency(secretPolicy, secret)
 
-		proxy = NewRdsProxy(orm, cfg.AppName, securityGroups, privateSubnets, role, secret)
+		proxy = NewRdsProxy(orm, cfg.AppName, securityGroups, subnets, role, secret)
 		dag.AddDependency(proxy, secret)
 		proxyTargetGroup := NewRdsProxyTargetGroup(orm, cfg.AppName, instance, proxy)
 		dag.AddDependenciesReflect(secretVersion)
