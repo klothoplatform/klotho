@@ -478,8 +478,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 				return "", errors.Errorf("Rds Proxy, %s, must have an associated instance", v.Resource.Id())
 			}
 
-			fetchUsername := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[0]`, instance.CredentialsPath)
-			fetchPassword := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[1]`, instance.CredentialsPath)
+			fetchUsername := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[1].split('"')[3]`, instance.CredentialsPath)
+			fetchPassword := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[2].split('"')[3]`, instance.CredentialsPath)
 			return fmt.Sprintf("pulumi.interpolate`postgresql://${%s}:${%s}@${%s.endpoint}:5432/%s`", fetchUsername, fetchPassword,
 				tc.getVarName(v.Resource), instance.DatabaseName), nil
 		default:

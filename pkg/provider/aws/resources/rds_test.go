@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -87,6 +88,21 @@ func Test_CreateRdsInstance(t *testing.T) {
 			}
 			assert.ElementsMatch(instance.ConstructsRef, []core.AnnotationKey{orm.AnnotationKey})
 			tt.want.Assert(t, dag)
+			if tt.proxyEnabled {
+				res := dag.GetResource("aws:rds_instance:test-app-test")
+				instance, ok := res.(*RdsInstance)
+				if !assert.True(ok) {
+					return
+				}
+				files := instance.GetOutputFiles()
+				assert.Len(files, 1)
+				f, ok := files[0].(*core.RawFile)
+				if !assert.True(ok) {
+					return
+				}
+				assert.Equal(f.Path(), "secrets/"+orm.Id())
+				assert.Equal(string(f.Content), fmt.Sprintf("{\n\"username\": \"%s\",\n\"password\": \"%s\"\n}", instance.Username, instance.Password))
+			}
 		})
 	}
 }

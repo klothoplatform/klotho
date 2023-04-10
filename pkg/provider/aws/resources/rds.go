@@ -105,12 +105,16 @@ type (
 	}
 )
 
+// CreateRdsInstance takes in an orm construct and creates the necessary resources to support creating a functional RDS Orm implementation
+//
+// If proxy is enabled, a corresponding proxy, secret, and remaining resources will be created.
+// A username and password are generated for the rds instance and proxy credentials and are written to the compiled directory to be used within the IaC.
 func CreateRdsInstance(cfg *config.Application, orm *core.Orm, proxyEnabled bool, subnets []*Subnet, securityGroups []*SecurityGroup, dag *core.ResourceGraph) (*RdsInstance, *RdsProxy, error) {
 
 	subnetGroup := NewRdsSubnetGroup(orm, cfg.AppName, subnets)
 
 	instance := NewRdsInstance(orm, cfg.AppName, subnetGroup, securityGroups)
-	credsBytes := []byte(fmt.Sprintf("%s\n%s", instance.Username, instance.Password))
+	credsBytes := []byte(fmt.Sprintf("{\n\"username\": \"%s\",\n\"password\": \"%s\"\n}", instance.Username, instance.Password))
 	credsPath := fmt.Sprintf("secrets/%s", orm.Id())
 	instance.CredentialsFile = &core.RawFile{
 		FPath:   credsPath,
@@ -143,12 +147,32 @@ func CreateRdsInstance(cfg *config.Application, orm *core.Orm, proxyEnabled bool
 	return instance, proxy, nil
 }
 
-func generateUsernameOrPassword() string {
+// generateUsername generates a random username for the rds instance.
+//
+// The first letter of an RDS username must be a letter
+func generateUsername() string {
 	rand.Seed(time.Now().UnixNano())
+	initialChars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+		"abcdefghijklmnopqrstuvwxyz")
 	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
 		"abcdefghijklmnopqrstuvwxyz" +
 		"0123456789")
 	length := 12
+	var b strings.Builder
+	b.WriteRune(chars[rand.Intn(len(initialChars))])
+	for i := 0; i < length-1; i++ {
+		b.WriteRune(chars[rand.Intn(len(chars))])
+	}
+	return b.String()
+}
+
+// generatePassword generates a random password for the rds instance.
+func generatePassword() string {
+	rand.Seed(time.Now().UnixNano())
+	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+		"abcdefghijklmnopqrstuvwxyz" +
+		"0123456789")
+	length := 16
 	var b strings.Builder
 	for i := 0; i < length; i++ {
 		b.WriteRune(chars[rand.Intn(len(chars))])
@@ -164,8 +188,8 @@ func NewRdsInstance(orm *core.Orm, appName string, subnetGroup *RdsSubnetGroup, 
 		SecurityGroups:                   securityGroups,
 		IamDatabaseAuthenticationEnabled: true,
 		DatabaseName:                     orm.ID,
-		Username:                         generateUsernameOrPassword(),
-		Password:                         generateUsernameOrPassword(),
+		Username:                         generateUsername(),
+		Password:                         generatePassword(),
 		Engine:                           "postgres",
 		EngineVersion:                    "13.7",
 		InstanceClass:                    "db.t4g.micro",
