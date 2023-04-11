@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 	"github.com/klothoplatform/klotho/pkg/lang/yaml"
@@ -311,6 +312,7 @@ func Test_transformDeployment(t *testing.T) {
 	tests := []struct {
 		name    string
 		file    string
+		cfg     config.ExecutionUnit
 		want    result
 		wantErr bool
 	}{
@@ -341,18 +343,6 @@ spec:
 						Type:         string(ImageTransformation),
 						Key:          "testUnitImage",
 					},
-					{
-						ExecUnitName: "testUnit",
-						Kind:         "Deployment",
-						Type:         string(ExecUnitNetworkPlacement),
-						Key:          "{{ .Values.testUnitNetworkPlacement }}",
-					},
-					{
-						ExecUnitName: "testUnit",
-						Kind:         "Deployment",
-						Type:         string(ExecUnitNodeGroup),
-						Key:          "{{ .Values.testUnitNodeGroup }}",
-					},
 				},
 				newFile: `apiVersion: apps/v1
 kind: Deployment
@@ -382,6 +372,75 @@ spec:
       serviceAccountName: testUnit
 status: {}
 `,
+			},
+		},
+		{
+			name: "Deployment with node selectors",
+			file: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2`,
+			cfg: config.ExecutionUnit{NetworkPlacement: "private", InfraParams: config.InfraParams{"instance_type": "test.instance"}},
+			want: result{
+				values: []HelmChartValue{
+					{
+						ExecUnitName: "testUnit",
+						Kind:         "Deployment",
+						Type:         string(ImageTransformation),
+						Key:          "testUnitImage",
+					},
+					{
+						ExecUnitName: "testUnit",
+						Kind:         "Deployment",
+						Type:         string(InstanceTypeKey),
+						Key:          "{{ .Values.testUnitInstanceTypeKey }}",
+					},
+				},
+				newFile: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    execUnit: testUnit
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+      execUnit: testUnit
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: nginx
+        execUnit: testUnit
+    spec:
+      containers:
+      - image: '{{ .Values.testUnitImage }}'
+        name: nginx
+        resources: {}
+      nodeSelector:
+        '{{ .Values.testUnitInstanceTypeKey }}': '{{ .Values.testUnitInstanceTypeValue
+          }}'
+        network_placement: private
+      serviceAccountName: testUnit
+status: {}
+`, // ?? Not sure why yaml marshalling adds the newline and indentation within the value of the instance type
 			},
 		},
 		{
@@ -418,7 +477,7 @@ spec:
 				testUnit.Deployment = f
 			}
 
-			values, err := testUnit.transformDeployment()
+			values, err := testUnit.transformDeployment(tt.cfg)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -655,7 +714,7 @@ func Test_addUnitsEnvironmentVariables(t *testing.T) {
 		{
 			name: "unit with deployment",
 			unit: HelmExecUnit{
-				Name:      "unit",
+				Name:      "testUnit",
 				Namespace: "default",
 			},
 			deploymentYaml: `apiVersion: apps/v1
@@ -726,28 +785,28 @@ status: {}
 `,
 				values: []HelmChartValue{
 					{
-						ExecUnitName:        "unit",
+						ExecUnitName:        "testUnit",
 						Kind:                "Deployment",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTREDISPERSISTREDISHOST",
 						EnvironmentVariable: core.GenerateRedisHostEnvVar(&core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "testRedis"}}),
 					},
 					{
-						ExecUnitName:        "unit",
+						ExecUnitName:        "testUnit",
 						Kind:                "Deployment",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTBUCKETBUCKETNAME",
 						EnvironmentVariable: core.GenerateBucketEnvVar(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "testBucket"}}),
 					},
 					{
-						ExecUnitName:        "unit",
+						ExecUnitName:        "testUnit",
 						Kind:                "Deployment",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTORMPERSISTORMCONNECTION",
 						EnvironmentVariable: core.GenerateOrmConnStringEnvVar(&core.Orm{AnnotationKey: core.AnnotationKey{ID: "testOrm"}}),
 					},
 					{
-						ExecUnitName:        "unit",
+						ExecUnitName:        "testUnit",
 						Kind:                "Deployment",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTSECRETCONFIGSECRET",
@@ -839,7 +898,9 @@ status: {}
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			eunit := core.ExecutionUnit{}
+			eunit := core.ExecutionUnit{
+				AnnotationKey: core.AnnotationKey{ID: tt.unit.Name},
+			}
 			eunit.EnvironmentVariables.Add(core.GenerateBucketEnvVar(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "testBucket"}}))
 			eunit.EnvironmentVariables.Add(core.GenerateRedisHostEnvVar(&core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "testRedis"}}))
 			eunit.EnvironmentVariables.Add(core.GenerateSecretEnvVar(&core.Config{AnnotationKey: core.AnnotationKey{ID: "testSecret"}, Secret: true}))

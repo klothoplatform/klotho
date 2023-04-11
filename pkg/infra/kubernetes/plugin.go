@@ -105,6 +105,7 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 			execUnitValues, err := khChart.handleExecutionUnit(unit, eu, cfg, constructGraph)
 			if err != nil {
 				errs.Append(err)
+				continue
 			}
 			khChart.ProviderValues = append(khChart.ProviderValues, execUnitValues...)
 		}
@@ -119,7 +120,7 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 
 		khChart.Files = append(khChart.Files, chartFile)
 
-		dag.AddResource(&khChart)
+		dag.AddResource(khChart)
 	}
 
 	return links, errs.ErrOrNil()
@@ -143,9 +144,9 @@ func (p *Kubernetes) setHelmChartDirectory(path string, cfg *config.ExecutionUni
 	return false, nil
 }
 
-func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[string]HelmChart, error) {
+func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[string]*HelmChart, error) {
 	var errs multierr.Error
-	klothoCharts := make(map[string]HelmChart)
+	klothoCharts := make(map[string]*HelmChart)
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		cfg := p.Config.GetExecutionUnit(unit.ID)
 
@@ -180,15 +181,12 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 			}
 			khChart, ok := klothoCharts[chartDir]
 			if !ok {
-
-				klothoCharts[chartDir] = HelmChart{
-					ValuesFiles:    valuesFiles,
-					ExecutionUnits: []*HelmExecUnit{{Name: unit.ID, Namespace: "default"}},
-					Directory:      chartDir,
-					ConstructRefs:  []core.AnnotationKey{unit.Provenance()},
-					Values:         make(map[string]core.IaCValue),
+				khChart = &HelmChart{
+					ValuesFiles: valuesFiles,
+					Directory:   chartDir,
+					Values:      make(map[string]core.IaCValue),
 				}
-
+				klothoCharts[chartDir] = khChart
 			} else {
 				foundDifference := false
 				for _, chartFile := range khChart.ValuesFiles {
@@ -206,10 +204,11 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 					p.log.Warnf("Found Conflicting Helm Values files, %s and %s, for helm chart in directory %s. Using %s",
 						khChart.ValuesFiles, cfg.HelmChartOptions.ValuesFiles, cfg.HelmChartOptions.Directory, khChart.ValuesFiles)
 				}
-				khChart.ExecutionUnits = append(khChart.ExecutionUnits, &HelmExecUnit{Name: unit.ID, Namespace: "default"})
-				khChart.ConstructRefs = append(khChart.ConstructRefs, unit.AnnotationKey)
 				klothoCharts[chartDir] = khChart
 			}
+
+			khChart.ExecutionUnits = append(khChart.ExecutionUnits, &HelmExecUnit{Name: unit.ID, Namespace: "default"})
+			khChart.ConstructRefs = append(khChart.ConstructRefs, unit.AnnotationKey)
 		}
 	}
 	return klothoCharts, errs.ErrOrNil()

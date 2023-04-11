@@ -94,8 +94,6 @@ func (t *HelmChart) AssignFilesToUnits() error {
 			if err != nil {
 				return err
 			}
-			// now use switch over the type of the object
-			// and match each type-case
 			switch o := obj.(type) {
 			case *corev1.Pod:
 				pod := o
@@ -161,52 +159,52 @@ func (t *HelmChart) AssignFilesToUnits() error {
 	return nil
 }
 
-func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.ExecutionUnit, cfg config.ExecutionUnit, constructGraph *core.ConstructGraph) ([]HelmChartValue, error) {
+func (chart *HelmChart) handleExecutionUnit(helmUnit *HelmExecUnit, unit *core.ExecutionUnit, cfg config.ExecutionUnit, constructGraph *core.ConstructGraph) ([]HelmChartValue, error) {
 	values := []HelmChartValue{}
 
-	if shouldTransformImage(eu) {
-		if unit.Deployment != nil {
-			deploymentValues, err := unit.transformDeployment()
+	if shouldTransformImage(unit) {
+		if helmUnit.Deployment != nil {
+			deploymentValues, err := helmUnit.transformDeployment(cfg)
 			if err != nil {
 				return nil, err
 			}
 			values = append(values, deploymentValues...)
-		} else if unit.Pod != nil {
-			podValues, err := unit.transformPod()
+		} else if helmUnit.Pod != nil {
+			podValues, err := helmUnit.transformPod()
 			if err != nil {
 				return nil, err
 			}
 			values = append(values, podValues...)
 		} else {
-			deploymentValues, err := chart.addDeployment(unit)
+			deploymentValues, err := chart.addDeployment(helmUnit, cfg)
 			if err != nil {
 				return nil, err
 			}
 			values = append(values, deploymentValues...)
 		}
 	}
-	if shouldTransformServiceAccount(eu) {
-		if unit.ServiceAccount != nil {
-			serviceAccountValues, err := unit.transformServiceAccount()
+	if shouldTransformServiceAccount(unit) {
+		if helmUnit.ServiceAccount != nil {
+			serviceAccountValues, err := helmUnit.transformServiceAccount()
 			if err != nil {
 				return nil, err
 			}
 			values = append(values, serviceAccountValues...)
 		} else {
-			serviceAccountValues, err := chart.addServiceAccount(unit)
+			serviceAccountValues, err := chart.addServiceAccount(helmUnit)
 			if err != nil {
 				return nil, err
 			}
 			values = append(values, serviceAccountValues...)
 		}
 	}
-	upstreamValues, err := chart.handleUpstreamUnitDependencies(unit, constructGraph)
+	upstreamValues, err := chart.handleUpstreamUnitDependencies(helmUnit, constructGraph)
 	if err != nil {
 		return nil, err
 	}
 	values = append(values, upstreamValues...)
 
-	unitEnvValues, err := unit.AddUnitsEnvironmentVariables(eu)
+	unitEnvValues, err := helmUnit.AddUnitsEnvironmentVariables(unit)
 	if err != nil {
 		return nil, err
 	}
@@ -263,14 +261,14 @@ func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, const
 	return
 }
 
-func (chart *HelmChart) addDeployment(unit *HelmExecUnit) ([]HelmChartValue, error) {
+func (chart *HelmChart) addDeployment(unit *HelmExecUnit, cfg config.ExecutionUnit) ([]HelmChartValue, error) {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding Deployment manifest for exec unit")
 	err := addDeploymentManifest(chart, unit)
 	if err != nil {
 		return nil, err
 	}
-	values, err := unit.transformDeployment()
+	values, err := unit.transformDeployment(cfg)
 	if err != nil {
 		return nil, err
 	}

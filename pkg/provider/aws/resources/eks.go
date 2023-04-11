@@ -152,9 +152,8 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	dag.AddDependenciesReflect(cluster)
 
 	for groupKey, spec := range groupSpecs {
-		groupName := NodeGroupName(groupKey.NetworkType, groupKey.InstanceType)
 		nodeGroup := &EksNodeGroup{
-			Name:          nodeGroupSanitizer.Apply(groupName),
+			Name:          NodeGroupName(groupKey.NetworkType, groupKey.InstanceType),
 			ConstructsRef: spec.refs,
 			Cluster:       cluster,
 			DiskSize:      spec.DiskSizeGiB,
@@ -169,7 +168,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 			MinSize:        1,
 			MaxUnavailable: 1,
 		}
-		nodeGroup.NodeRole = createNodeRole(appName, fmt.Sprintf("%s.%s", clusterName, groupName), references)
+		nodeGroup.NodeRole = createNodeRole(appName, fmt.Sprintf("%s.%s", clusterName, nodeGroup.Name), references)
 		for _, sn := range subnets {
 			if sn.Type == groupKey.NetworkType {
 				nodeGroup.Subnets = append(nodeGroup.Subnets, sn)

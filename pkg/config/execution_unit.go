@@ -41,7 +41,7 @@ type (
 		NodeType                       string                                   `json:"node_type,omitempty" yaml:"node_type,omitempty" toml:"node_type,omitempty"`
 		Replicas                       int                                      `json:"replicas,omitempty" yaml:"replicas,omitempty" toml:"replicas,omitempty"`
 		InstanceType                   string                                   `json:"instance_type,omitempty" yaml:"instance_type,omitempty" toml:"instance_type,omitempty"`
-		DiskSizeGiB                    float64                                  `json:"disk_size_gib,omitempty" yaml:"disk_size_gib,omitempty" toml:"disk_size_gib,omitempty"`
+		DiskSizeGiB                    int                                      `json:"disk_size_gib,omitempty" yaml:"disk_size_gib,omitempty" toml:"disk_size_gib,omitempty"`
 		Limits                         KubernetesLimits                         `json:"limits,omitempty" yaml:"limits,omitempty" toml:"limits,omitempty"`
 		HorizontalPodAutoScalingConfig KubernetesHorizontalPodAutoScalingConfig `json:"horizontal_pod_autoscaling,omitempty" yaml:"horizontal_pod_autoscaling,omitempty" toml:"horizontal_pod_autoscaling,omitempty"`
 	}

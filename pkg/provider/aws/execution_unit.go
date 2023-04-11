@@ -122,11 +122,11 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 									Property: core.ARN_IAC_VALUE,
 								}
 								dag.AddDependency(khChart, role)
-							case kubernetes.ExecUnitNetworkPlacement:
+							case kubernetes.InstanceTypeKey:
 								khChart.Values[val.Key] = core.IaCValue{
-									Property: cfg.NetworkPlacement,
+									Property: "eks.amazonaws.com/nodegroup",
 								}
-							case kubernetes.ExecUnitNodeGroup:
+							case kubernetes.InstanceTypeValue:
 								khChart.Values[val.Key] = core.IaCValue{
 									Property: resources.NodeGroupNameFromConfig(cfg),
 								}

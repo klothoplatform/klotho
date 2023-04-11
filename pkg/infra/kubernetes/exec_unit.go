@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 	"github.com/klothoplatform/klotho/pkg/logging"
@@ -85,7 +86,7 @@ func (unit *HelmExecUnit) transformPod() (values []HelmChartValue, err error) {
 		return
 	}
 
-	value := GenerateImagePlaceholder(unit.Name)
+	imagePlaceholder := GenerateImagePlaceholder(unit.Name)
 
 	if len(pod.Spec.Containers) > 1 {
 		err = errors.New("too many containers in pod spec, don't know which to replace")
@@ -93,10 +94,10 @@ func (unit *HelmExecUnit) transformPod() (values []HelmChartValue, err error) {
 	} else if len(pod.Spec.Containers) == 0 {
 		pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{
 			Name:  unit.Name,
-			Image: fmt.Sprintf("{{ .Values.%s }}", value),
+			Image: fmt.Sprintf("{{ .Values.%s }}", imagePlaceholder),
 		})
 	} else {
-		pod.Spec.Containers[0].Image = fmt.Sprintf("{{ .Values.%s }}", value)
+		pod.Spec.Containers[0].Image = fmt.Sprintf("{{ .Values.%s }}", imagePlaceholder)
 	}
 
 	if pod.Labels == nil {
@@ -117,13 +118,12 @@ func (unit *HelmExecUnit) transformPod() (values []HelmChartValue, err error) {
 		ExecUnitName: unit.Name,
 		Kind:         pod.Kind,
 		Type:         string(ImageTransformation),
-		Key:          value,
+		Key:          imagePlaceholder,
 	})
 	return
 }
 
-func (unit *HelmExecUnit) transformDeployment() ([]HelmChartValue, error) {
-	values := []HelmChartValue{}
+func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) (values []HelmChartValue, err error) {
 	log := zap.L().Sugar().With(logging.FileField(unit.Deployment), zap.String("unit", unit.Name))
 	log.Debugf("Transforming file, %s, for exec unit, %s", unit.Deployment.Path(), unit.Name)
 	obj, err := readFile(unit.Deployment)
@@ -136,18 +136,24 @@ func (unit *HelmExecUnit) transformDeployment() ([]HelmChartValue, error) {
 		return nil, err
 	}
 
-	value := GenerateImagePlaceholder(unit.Name)
+	imagePlaceholder := GenerateImagePlaceholder(unit.Name)
 
 	if len(deployment.Spec.Template.Spec.Containers) > 1 {
 		return nil, errors.New("too many containers in pod spec, don't know which to replace")
 	} else if len(deployment.Spec.Template.Spec.Containers) == 0 {
 		deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, corev1.Container{
 			Name:  unit.Name,
-			Image: fmt.Sprintf("{{ .Values.%s }}", value),
+			Image: fmt.Sprintf("{{ .Values.%s }}", imagePlaceholder),
 		})
 	} else {
-		deployment.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("{{ .Values.%s }}", value)
+		deployment.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("{{ .Values.%s }}", imagePlaceholder)
 	}
+	values = append(values, HelmChartValue{
+		ExecUnitName: unit.Name,
+		Kind:         deployment.Kind,
+		Type:         string(ImageTransformation),
+		Key:          imagePlaceholder,
+	})
 
 	if deployment.Labels == nil {
 		deployment.Labels = make(map[string]string)
@@ -165,6 +171,28 @@ func (unit *HelmExecUnit) transformDeployment() ([]HelmChartValue, error) {
 	deployment.Spec.Selector.MatchLabels["execUnit"] = unit.Name
 
 	deployment.Spec.Template.Spec.ServiceAccountName = unit.getServiceAccountName()
+
+	if deployment.Spec.Template.Spec.NodeSelector == nil {
+		deployment.Spec.Template.Spec.NodeSelector = make(map[string]string)
+	}
+
+	if cfg.NetworkPlacement != "" {
+		deployment.Spec.Template.Spec.NodeSelector["network_placement"] = cfg.NetworkPlacement
+	}
+	if kconfig := cfg.GetExecutionUnitParamsAsKubernetes(); kconfig.InstanceType != "" {
+		instanceTypeKey := fmt.Sprintf("{{ .Values.%sInstanceTypeKey }}", unit.Name)
+		instanceTypeValue := fmt.Sprintf("{{ .Values.%sInstanceTypeValue }}", unit.Name)
+		deployment.Spec.Template.Spec.NodeSelector[instanceTypeKey] = instanceTypeValue
+		values = append(values,
+			HelmChartValue{
+				ExecUnitName: unit.Name,
+				Kind:         deployment.Kind,
+				Type:         string(InstanceTypeKey),
+				Key:          instanceTypeKey,
+			},
+		)
+	}
+
 	output, err := yaml.Marshal(deployment)
 	if err != nil {
 		return nil, err
@@ -173,26 +201,6 @@ func (unit *HelmExecUnit) transformDeployment() ([]HelmChartValue, error) {
 	if err != nil {
 		return nil, err
 	}
-	values = append(values,
-		HelmChartValue{
-			ExecUnitName: unit.Name,
-			Kind:         deployment.Kind,
-			Type:         string(ImageTransformation),
-			Key:          value,
-		},
-		HelmChartValue{
-			ExecUnitName: unit.Name,
-			Kind:         deployment.Kind,
-			Type:         string(ExecUnitNetworkPlacement),
-			Key:          fmt.Sprintf("{{ .Values.%sNetworkPlacement }}", unit.Name),
-		},
-		HelmChartValue{
-			ExecUnitName: unit.Name,
-			Kind:         deployment.Kind,
-			Type:         string(ExecUnitNodeGroup),
-			Key:          fmt.Sprintf("{{ .Values.%sNodeGroup }}", unit.Name),
-		},
-	)
 
 	return values, nil
 }

@@ -18,6 +18,6 @@ const (
 	ImageTransformation                    ProviderValueTypes = "image"
 	EnvironmentVariableTransformation      ProviderValueTypes = "env_var"
 	ServiceAccountAnnotationTransformation ProviderValueTypes = "service_account_annotation"
-	ExecUnitNetworkPlacement               ProviderValueTypes = "unit_network_placement"
-	ExecUnitNodeGroup                      ProviderValueTypes = "unit_node_group"
+	InstanceTypeKey                        ProviderValueTypes = "instance_type_key"
+	InstanceTypeValue                      ProviderValueTypes = "instance_type_value"
 )

@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -279,7 +278,7 @@ func Test_getKlothoCharts(t *testing.T) {
 			result := core.NewConstructGraph()
 			inputFiles := &core.InputFiles{}
 			for idx, fileUnit := range tt.fileUnits {
-				execUnitName := fmt.Sprintf("main%s", strconv.Itoa(idx))
+				execUnitName := fmt.Sprintf("main%d", idx)
 				testUnit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: execUnitName, Capability: annotation.ExecutionUnitCapability}}
 				for path, file := range fileUnit {
 					f, err := core.NewSourceFile(path, strings.NewReader(file), testLang)

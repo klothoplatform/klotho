@@ -36,6 +36,7 @@ var (
 	eksDefaults = config.KubernetesTypeParams{
 		NodeType:     "fargate",
 		InstanceType: "t3.medium",
+		DiskSizeGiB:  20,
 		Replicas:     2,
 	}
 
