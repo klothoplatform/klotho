@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
 
@@ -81,7 +82,6 @@ func (t *HelmChart) OutputTo(dest string) error {
 }
 
 func (t *HelmChart) AssignFilesToUnits() error {
-	needsMetadataName := len(t.ExecutionUnits) > 1
 	for _, unit := range t.ExecutionUnits {
 		for _, f := range t.Files {
 			ast, ok := f.(*core.SourceFile)
@@ -89,6 +89,18 @@ func (t *HelmChart) AssignFilesToUnits() error {
 				continue
 			}
 			log := zap.L().Sugar().With(logging.FileField(f), zap.String("unit", unit.Name))
+
+			// setAst sets the given *core.SourceFile field (hence the double-pointer), as long as either (a) there's
+			// only one exec unit or (b) there are multiple units, but this one's name matches the k8s object name.
+			// It returns whether that condition matched.
+			setAst := func(k8sObject metav1.Object, handle **core.SourceFile) bool {
+				if len(t.ExecutionUnits) <= 1 || (k8sObject.GetName() == unit.Name) {
+					log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
+					*handle = ast
+					return true
+				}
+				return false
+			}
 
 			obj, err := readFile(ast)
 			if err != nil {
@@ -98,61 +110,21 @@ func (t *HelmChart) AssignFilesToUnits() error {
 			// and match each type-case
 			switch o := obj.(type) {
 			case *corev1.Pod:
-				pod := o
-				if needsMetadataName {
-					if pod.Name == unit.Name {
-						log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-						if unit.Deployment != nil {
-							return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
-						}
-						unit.Pod = ast
-					}
-				} else {
-					log.Debug("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-					if unit.Deployment != nil {
-						return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
-					}
-					unit.Pod = ast
+				if setAst(o, &unit.Pod) && unit.Deployment != nil {
+					// Don't set this pod if there's already a spec for deployment. That means there's both a deployment
+					// manifest and a pod manifest for the same exec unit, which is a confusing scenario (since a
+					// deployment itself contains a pod spec). For now, we just disallow it.
+					return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
 				}
 			case *apps.Deployment:
-				deployment := o
-				if needsMetadataName {
-					if deployment.Name == unit.Name {
-						log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-						if unit.Pod != nil {
-							return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
-						}
-						unit.Deployment = ast
-					}
-				} else {
-					log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-					if unit.Pod != nil {
-						return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
-					}
-					unit.Deployment = ast
+				if setAst(o, &unit.Deployment) && unit.Pod != nil {
+					// Don't set this deployment if there's already a spec for this pod. See comment above.
+					return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
 				}
 			case *corev1.ServiceAccount:
-				serviceAccount := o
-				if needsMetadataName {
-					if serviceAccount.Name == unit.Name {
-						log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-						unit.ServiceAccount = ast
-					}
-				} else {
-					log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-					unit.ServiceAccount = ast
-				}
+				setAst(o, &unit.ServiceAccount)
 			case *corev1.Service:
-				service := o
-				if needsMetadataName {
-					if service.Name == unit.Name {
-						log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-						unit.Service = ast
-					}
-				} else {
-					log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-					unit.Service = ast
-				}
+				setAst(o, &unit.Service)
 			default:
 				log.Debug("Unrecognized type")
 			}
