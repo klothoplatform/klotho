@@ -94,13 +94,12 @@ func (t *HelmChart) AssignFilesToUnits() error {
 			// only one exec unit or (b) there are multiple units, but this one's name matches the k8s object name.
 			// It returns whether that condition matched.
 			setAst := func(k8sObject metav1.Object, handle **core.SourceFile) bool {
-				needsMetadataName := len(t.ExecutionUnits) > 1
-				shouldSet := (!needsMetadataName) || (k8sObject.GetName() == unit.Name)
-				if shouldSet {
+				if len(t.ExecutionUnits) <= 1 || (k8sObject.GetName() == unit.Name) {
 					log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
 					*handle = ast
+					return true
 				}
-				return shouldSet
+				return false
 			}
 
 			obj, err := readFile(ast)
