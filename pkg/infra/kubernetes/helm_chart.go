@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	autoscaling "k8s.io/api/autoscaling/v2beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
@@ -121,6 +122,8 @@ func (t *HelmChart) AssignFilesToUnits() error {
 					// Don't set this deployment if there's already a spec for this pod. See comment above.
 					return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
 				}
+			case *autoscaling.HorizontalPodAutoscaler:
+				setAst(o, &unit.HorizontalPodAutoscaler)
 			case *corev1.ServiceAccount:
 				setAst(o, &unit.ServiceAccount)
 			case *corev1.Service:
@@ -155,6 +158,21 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 				return nil, err
 			}
 			values = append(values, deploymentValues...)
+		}
+		if unit.Deployment != nil && cfg.GetExecutionUnitParamsAsKubernetes().HorizontalPodAutoScalingConfig.NotEmpty() {
+			if unit.HorizontalPodAutoscaler != nil {
+				hpaValues, err := unit.transformHorizontalPodAutoscaler(cfg)
+				if err != nil {
+					return nil, err
+				}
+				values = append(values, hpaValues...)
+			} else {
+				hpaValues, err := chart.addHorizontalPodAutoscaler(unit, cfg)
+				if err != nil {
+					return nil, err
+				}
+				values = append(values, hpaValues...)
+			}
 		}
 	}
 	if shouldTransformServiceAccount(eu) {
@@ -243,6 +261,20 @@ func (chart *HelmChart) addDeployment(unit *HelmExecUnit) ([]HelmChartValue, err
 		return nil, err
 	}
 	values, err := unit.transformDeployment(config.ExecutionUnit{})
+	if err != nil {
+		return nil, err
+	}
+	return values, nil
+}
+
+func (chart *HelmChart) addHorizontalPodAutoscaler(unit *HelmExecUnit, cfg config.ExecutionUnit) ([]HelmChartValue, error) {
+	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
+	log.Info("Adding HorizontalPodAutoscaler manifest for exec unit")
+	err := addHorizontalPodAutoscalerManifest(chart, unit)
+	if err != nil {
+		return nil, err
+	}
+	values, err := unit.transformHorizontalPodAutoscaler(cfg)
 	if err != nil {
 		return nil, err
 	}

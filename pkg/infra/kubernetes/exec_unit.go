@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/klothoplatform/klotho/pkg/config"
+	autoscaling "k8s.io/api/autoscaling/v2beta2"
 	"regexp"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -17,14 +18,15 @@ import (
 )
 
 type HelmExecUnit struct {
-	Name               string
-	Namespace          string
-	Service            *core.SourceFile
-	Deployment         *core.SourceFile
-	Pod                *core.SourceFile
-	ServiceAccount     *core.SourceFile
-	TargetGroupBinding *core.SourceFile
-	ServiceExport      *core.SourceFile
+	Name                    string
+	Namespace               string
+	Service                 *core.SourceFile
+	Deployment              *core.SourceFile
+	Pod                     *core.SourceFile
+	ServiceAccount          *core.SourceFile
+	TargetGroupBinding      *core.SourceFile
+	ServiceExport           *core.SourceFile
+	HorizontalPodAutoscaler *core.SourceFile
 }
 
 var (
@@ -173,6 +175,90 @@ func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) ([]HelmC
 		Key:          value,
 	})
 	return values, nil
+}
+
+func (unit *HelmExecUnit) transformHorizontalPodAutoscaler(cfg config.ExecutionUnit) ([]HelmChartValue, error) {
+	log := zap.L().Sugar().With(logging.FileField(unit.HorizontalPodAutoscaler), zap.String("unit", unit.Name))
+	log.Debugf("Transforming file, %s, for exec unit, %s", unit.HorizontalPodAutoscaler.Path(), unit.Name)
+	obj, err := readFile(unit.HorizontalPodAutoscaler)
+	if err != nil {
+		return nil, nil
+	}
+	hpa, ok := obj.(*autoscaling.HorizontalPodAutoscaler)
+	if !ok {
+		err = fmt.Errorf("expected file %s to contain HorizontalPodAutoscaler Kind", unit.HorizontalPodAutoscaler.Path())
+		return nil, nil
+	}
+	k8Cfg := cfg.GetExecutionUnitParamsAsKubernetes()
+	hpaCfg := k8Cfg.HorizontalPodAutoScalingConfig
+
+	if k8Cfg.Replicas != 0 {
+		minReplicas := int32(k8Cfg.Replicas)
+		hpa.Spec.MinReplicas = &minReplicas
+		if hpaCfg.MaxReplicas == 0 {
+			hpaCfg.MaxReplicas = int(minReplicas) * 2
+		}
+	}
+
+	if hpaCfg.MaxReplicas != 0 {
+		maxReplicas := int32(hpaCfg.MaxReplicas)
+		if maxReplicas < *hpa.Spec.MinReplicas {
+			log.Errorf(`cannot set maxReplicas to %v because that's less than minReplicas (%v)`,
+				hpaCfg.MaxReplicas,
+				*hpa.Spec.MinReplicas,
+			)
+		} else {
+			hpa.Spec.MaxReplicas = maxReplicas
+		}
+	}
+	if hpaCfg.CpuUtilization != 0 {
+		cpu := int32(hpaCfg.CpuUtilization)
+		res := getOrCreateMetricResource(&hpa.Spec.Metrics, corev1.ResourceCPU)
+		res.Target = autoscaling.MetricTarget{
+			Type:               autoscaling.UtilizationMetricType,
+			AverageUtilization: &cpu,
+		}
+	}
+	if hpaCfg.MemoryUtilization != 0 {
+		mem := int32(hpaCfg.MemoryUtilization)
+		res := getOrCreateMetricResource(&hpa.Spec.Metrics, corev1.ResourceMemory)
+		res.Target = autoscaling.MetricTarget{
+			Type:               autoscaling.UtilizationMetricType,
+			AverageUtilization: &mem,
+		}
+	}
+
+	output, err := yaml.Marshal(hpa)
+	if err != nil {
+		return nil, err
+	}
+	manifest := string(output)
+	err = unit.HorizontalPodAutoscaler.Reparse([]byte(manifest))
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func getOrCreateMetricResource(metrics *[]autoscaling.MetricSpec, name corev1.ResourceName) *autoscaling.ResourceMetricSource {
+	for _, spec := range *metrics {
+		if spec.Type != autoscaling.ResourceMetricSourceType || spec.Resource == nil {
+			continue
+		}
+		if spec.Resource.Name == name {
+			return spec.Resource
+		}
+	}
+	// none was there, so create one. The caller will set the target
+	createdRes := &autoscaling.ResourceMetricSource{Name: name}
+	createdSpec := autoscaling.MetricSpec{
+		Type:     autoscaling.ResourceMetricSourceType,
+		Resource: createdRes,
+	}
+	//created := autoscaling.ResourceMetricSource{Name: name}
+
+	*metrics = append(*metrics, createdSpec)
+	return createdRes
 }
 
 func (unit *HelmExecUnit) transformService(cfg config.ExecutionUnit) (values []HelmChartValue, err error) {
