@@ -525,7 +525,7 @@ spec:
       containers:
       - name: nginx
         image: nginx:1.14.2`,
-			cfg: config.ExecutionUnit{NetworkPlacement: "private", InfraParams: config.InfraParams{"instance_type": "test.instance"}},
+			cfg: config.ExecutionUnit{NetworkPlacement: "private", InfraParams: config.InfraParams{"instance_type": "testinstance"}},
 			want: result{
 				values: []HelmChartValue{
 					{
@@ -538,7 +538,13 @@ spec:
 						ExecUnitName: "testUnit",
 						Kind:         "Deployment",
 						Type:         string(InstanceTypeKey),
-						Key:          "{{ .Values.testUnitInstanceTypeKey }}",
+						Key:          "testUnitInstanceTypeKey",
+					},
+					{
+						ExecUnitName: "testUnit",
+						Kind:         "Deployment",
+						Type:         string(InstanceTypeValue),
+						Key:          "testUnitInstanceTypeValue",
 					},
 				},
 				newFile: `apiVersion: apps/v1

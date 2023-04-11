@@ -164,15 +164,21 @@ func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) (values 
 		deployment.Spec.Template.Spec.NodeSelector["network_placement"] = cfg.NetworkPlacement
 	}
 	if kconfig := cfg.GetExecutionUnitParamsAsKubernetes(); kconfig.InstanceType != "" {
-		instanceTypeKey := fmt.Sprintf("{{ .Values.%sInstanceTypeKey }}", unit.Name)
-		instanceTypeValue := fmt.Sprintf("{{ .Values.%sInstanceTypeValue }}", unit.Name)
-		deployment.Spec.Template.Spec.NodeSelector[instanceTypeKey] = instanceTypeValue
+		instanceTypeKey := unit.Name + "InstanceTypeKey"
+		instanceTypeValue := unit.Name + "InstanceTypeValue"
+		deployment.Spec.Template.Spec.NodeSelector[fmt.Sprintf("{{ .Values.%s }}", instanceTypeKey)] = fmt.Sprintf("{{ .Values.%s }}", instanceTypeValue)
 		values = append(values,
 			HelmChartValue{
 				ExecUnitName: unit.Name,
 				Kind:         deployment.Kind,
 				Type:         string(InstanceTypeKey),
 				Key:          instanceTypeKey,
+			},
+			HelmChartValue{
+				ExecUnitName: unit.Name,
+				Kind:         deployment.Kind,
+				Type:         string(InstanceTypeValue),
+				Key:          instanceTypeValue,
 			},
 		)
 	}
