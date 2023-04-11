@@ -533,6 +533,16 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 			return "", errors.Errorf("Unable to handle iac value for %s on type %s", resources.NLB_INTEGRATION_URI_IAC_VALUE, resourceVal.Type().Name())
 		}
 		return fmt.Sprintf("pulumi.interpolate`http://${%s.dnsName}%s`", tc.getVarName(resource), integration.Route), nil
+	case resources.RDS_CONNECTION_ARN_IAC_VALUE:
+		switch res := v.Resource.(type) {
+		case *resources.RdsInstance:
+			accountId := resources.NewAccountId()
+			region := resources.NewRegion()
+			fetchUsername := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[1].split('"')[3]`, res.CredentialsPath)
+			return fmt.Sprintf("pulumi.interpolate`arn:aws:rds-db:${%s.name}:${%s.accountId}:dbuser:${%s.resourceId}/${%s}`", tc.getVarName(region), tc.getVarName(accountId), tc.getVarName(res), fetchUsername), nil
+		default:
+			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
+		}
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property, %s", property)

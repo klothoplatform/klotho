@@ -34,6 +34,8 @@ const (
 	RDS_SUBNET_GROUP_TYPE  = "rds_subnet_group"
 	RDS_PROXY_TYPE         = "rds_proxy"
 	RDS_PROXY_TARGET_GROUP = "rds_proxy_target_group"
+
+	RDS_CONNECTION_ARN_IAC_VALUE = "rds_connection_arn"
 )
 
 type (
@@ -121,6 +123,11 @@ func CreateRdsInstance(cfg *config.Application, orm *core.Orm, proxyEnabled bool
 		Content: credsBytes,
 	}
 	instance.CredentialsPath = credsPath
+	rdsPolicyDoc := CreateAllowPolicyDocument([]string{"rds-db:connect"}, []core.IaCValue{{Resource: instance, Property: RDS_CONNECTION_ARN_IAC_VALUE}})
+	rdsPolicy := NewIamPolicy(cfg.AppName, fmt.Sprintf("%s-connectionpolicy", orm.ID), orm.Provenance(), rdsPolicyDoc)
+	dag.AddDependency(rdsPolicy, instance)
+	dag.AddDependency(rdsPolicy, NewAccountId())
+	dag.AddDependency(rdsPolicy, NewRegion())
 
 	var proxy *RdsProxy
 	if proxyEnabled {
@@ -146,6 +153,19 @@ func CreateRdsInstance(cfg *config.Application, orm *core.Orm, proxyEnabled bool
 	dag.AddDependenciesReflect(instance)
 	dag.AddDependenciesReflect(subnetGroup)
 	return instance, proxy, nil
+}
+
+func (i *RdsInstance) GetConnectionPolicy(dag *core.ResourceGraph) *IamPolicy {
+	var pol *IamPolicy
+	upstreamDeps := dag.GetUpstreamDependencies(i)
+	for _, dep := range upstreamDeps {
+		if res, ok := dep.Source.(*IamPolicy); ok {
+			if len(res.Policy.Statement[0].Action) == 1 && res.Policy.Statement[0].Action[0] == "rds-db:connect" {
+				return res
+			}
+		}
+	}
+	return pol
 }
 
 // generateUsername generates a random username for the rds instance.
