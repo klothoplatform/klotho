@@ -20,6 +20,7 @@ type (
 		Path                  string
 		ConstructsRef         []core.AnnotationKey
 		secretNameUnSanitized string
+		Type                  string
 	}
 )
 

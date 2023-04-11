@@ -23,7 +23,7 @@ function create(args: Args): aws.apigateway.Integration {
         //TMPL resourceId: args.RestApi.rootResourceId,
         //TMPL {{- end }}
         httpMethod: args.Method.httpMethod,
-        integrationHttpMethod: args.Method.httpMethod,
+        integrationHttpMethod: args.IntegrationHttpMethod,
         type: args.Type,
         //TMPL {{ if .ConnectionType.Raw }}
         connectionType: args.ConnectionType,

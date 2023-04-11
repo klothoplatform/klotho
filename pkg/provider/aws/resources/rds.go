@@ -128,6 +128,7 @@ func CreateRdsInstance(cfg *config.Application, orm *core.Orm, proxyEnabled bool
 		secret := NewSecret(orm.Provenance(), orm.Id(), cfg.AppName)
 
 		secretVersion := NewSecretVersion(secret, credsPath)
+		secretVersion.Type = "string"
 		secretPolicyDoc := CreateAllowPolicyDocument([]string{"secretsmanager:GetSecretValue"}, []core.IaCValue{{Resource: secret, Property: core.ARN_IAC_VALUE}})
 		secretPolicy := NewIamPolicy(cfg.AppName, fmt.Sprintf("%s-ormsecretpolicy", orm.ID), orm.AnnotationKey, secretPolicyDoc)
 		role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{Resource: secretPolicy, Property: core.ARN_IAC_VALUE})

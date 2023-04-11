@@ -16,5 +16,7 @@ function create(args: Args): aws_native.rds.DBProxyTargetGroup {
         dBProxyName: args.RdsProxy.name,
         connectionPoolConfigurationInfo: args.ConnectionPoolConfigurationInfo,
         targetGroupName: 'default',
+    }, {
+        deleteBeforeReplace: true,
     })
 }
