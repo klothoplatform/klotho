@@ -4,7 +4,6 @@ interface Args {
     Name: string
     RdsInstance: aws.rds.Instance
     RdsProxy: aws.rds.Proxy
-    ConnectionPoolConfigurationInfo: aws_native.types.input.rds.DBProxyTargetGroupConnectionPoolConfigurationInfoFormatArgs
     TargetGroupName: string
 }
 
