@@ -121,6 +121,13 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 									Property: core.ARN_IAC_VALUE,
 								}
 								dag.AddDependency(khChart, role)
+							case string(kubernetes.TargetGroupTransformation):
+								targetGroup := a.createEksLoadBalancer(result, dag, unit)
+								khChart.Values[val.Key] = core.IaCValue{
+									Resource: targetGroup,
+									Property: core.ARN_IAC_VALUE,
+								}
+								dag.AddDependency(khChart, targetGroup)
 							}
 						}
 						a.MapResourceDirectlyToConstruct(khChart, unit)
@@ -216,4 +223,29 @@ func GetAssumeRolePolicyForType(cfg config.ExecutionUnit) *resources.PolicyDocum
 		return resources.EC2_ASSUMER_ROLE_POLICY
 	}
 	return nil
+}
+
+func (a *AWS) createEksLoadBalancer(result *core.ConstructGraph, dag *core.ResourceGraph, unit *core.ExecutionUnit) *resources.TargetGroup {
+	gws := result.FindUpstreamGateways(unit)
+	refs := []core.AnnotationKey{unit.AnnotationKey}
+	for _, gw := range gws {
+		refs = append(refs, gw.AnnotationKey)
+	}
+	vpc := resources.GetVpc(a.Config, dag)
+	subnets := vpc.GetPrivateSubnets(dag)
+	securityGroups := []*resources.SecurityGroup{resources.GetSecurityGroup(a.Config, dag)}
+	lb := resources.NewLoadBalancer(a.Config.AppName, unit.ID, refs, "internal", "network", subnets, securityGroups)
+	unitsPort := unit.Port
+	if unitsPort == 0 {
+		unitsPort = 3000
+	}
+	targetGroup := resources.NewTargetGroup(a.Config.AppName, unit.ID, refs, unitsPort, "TCP", vpc, "ip")
+	listener := resources.NewListener(unit.ID, lb, refs, 80, "TCP", []*resources.LBAction{
+		{TargetGroupArn: core.IaCValue{Resource: targetGroup, Property: core.ARN_IAC_VALUE}, Type: "forward"},
+	})
+	dag.AddDependenciesReflect(lb)
+	dag.AddDependenciesReflect(targetGroup)
+	dag.AddDependenciesReflect(listener)
+	dag.AddDependency(listener, targetGroup)
+	return targetGroup
 }

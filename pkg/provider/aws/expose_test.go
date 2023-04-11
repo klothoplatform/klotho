@@ -8,6 +8,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
@@ -201,6 +202,116 @@ func Test_CreateRestApi(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "multiple routes and eks",
+			gw: &core.Gateway{
+				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability},
+				Routes: []core.Route{
+					{
+						Path:         "/",
+						Verb:         "Get",
+						ExecUnitName: "test",
+					},
+					{
+						Path:         "/test",
+						Verb:         "POST",
+						ExecUnitName: "test",
+					},
+					{
+						Path:         "/test",
+						Verb:         "Get",
+						ExecUnitName: "test2",
+					},
+					{
+						Path:         "/test/:id",
+						Verb:         "Get",
+						ExecUnitName: "test2",
+					},
+				},
+			},
+			units: []*core.ExecutionUnit{
+				unit1, unit2,
+			},
+			constructIdToResources: map[string][]core.Resource{
+				"execution_unit:test": {
+					resources.NewLoadBalancer(appName, unit1.ID, nil, "internal", "network", nil, nil),
+				},
+				"execution_unit:test2": {
+					resources.NewLoadBalancer(appName, unit2.ID, nil, "internal", "network", nil, nil),
+				},
+			},
+			cfg: config.Application{
+				AppName: appName,
+				Defaults: config.Defaults{
+					ExecutionUnit: config.KindDefaults{Type: kubernetes.KubernetesType},
+				},
+			},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:api_deployment:test-test",
+					"aws:api_integration:test-test-GET",
+					"aws:api_integration:test-test-test/-GET",
+					"aws:api_integration:test-test-test/-POST",
+					"aws:api_integration:test-test-test/-id-/-GET",
+					"aws:api_method:test-test-GET",
+					"aws:api_method:test-test-test/-GET",
+					"aws:api_method:test-test-test/-POST",
+					"aws:api_method:test-test-test/-id-/-GET",
+					"aws:api_resource:test-test-test/",
+					"aws:api_resource:test-test-test/-id-/",
+					"aws:api_stage:test-test-stage",
+					"aws:load_balancer:test-test",
+					"aws:load_balancer:test-test2",
+					"aws:rest_api:test-test",
+					"aws:vpc_link:aws:load_balancer:test-test",
+					"aws:vpc_link:aws:load_balancer:test-test2",
+				},
+				Deps: []graph.Edge[string]{
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_integration:test-test-GET"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_integration:test-test-test/-GET"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_integration:test-test-test/-POST"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_integration:test-test-test/-id-/-GET"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-GET"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-test/-GET"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-test/-POST"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:api_method:test-test-test/-id-/-GET"},
+					{Source: "aws:api_deployment:test-test", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_integration:test-test-GET", Destination: "aws:api_method:test-test-GET"},
+					{Source: "aws:api_integration:test-test-GET", Destination: "aws:load_balancer:test-test"},
+					{Source: "aws:api_integration:test-test-GET", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_integration:test-test-GET", Destination: "aws:vpc_link:aws:load_balancer:test-test"},
+					{Source: "aws:api_integration:test-test-test/-GET", Destination: "aws:api_method:test-test-test/-GET"},
+					{Source: "aws:api_integration:test-test-test/-GET", Destination: "aws:api_resource:test-test-test/"},
+					{Source: "aws:api_integration:test-test-test/-GET", Destination: "aws:load_balancer:test-test2"},
+					{Source: "aws:api_integration:test-test-test/-GET", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_integration:test-test-test/-GET", Destination: "aws:vpc_link:aws:load_balancer:test-test2"},
+					{Source: "aws:api_integration:test-test-test/-POST", Destination: "aws:api_method:test-test-test/-POST"},
+					{Source: "aws:api_integration:test-test-test/-POST", Destination: "aws:api_resource:test-test-test/"},
+					{Source: "aws:api_integration:test-test-test/-POST", Destination: "aws:load_balancer:test-test"},
+					{Source: "aws:api_integration:test-test-test/-POST", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_integration:test-test-test/-POST", Destination: "aws:vpc_link:aws:load_balancer:test-test"},
+					{Source: "aws:api_integration:test-test-test/-id-/-GET", Destination: "aws:api_method:test-test-test/-id-/-GET"},
+					{Source: "aws:api_integration:test-test-test/-id-/-GET", Destination: "aws:api_resource:test-test-test/-id-/"},
+					{Source: "aws:api_integration:test-test-test/-id-/-GET", Destination: "aws:load_balancer:test-test2"},
+					{Source: "aws:api_integration:test-test-test/-id-/-GET", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_integration:test-test-test/-id-/-GET", Destination: "aws:vpc_link:aws:load_balancer:test-test2"},
+					{Source: "aws:api_method:test-test-GET", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_method:test-test-test/-GET", Destination: "aws:api_resource:test-test-test/"},
+					{Source: "aws:api_method:test-test-test/-GET", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_method:test-test-test/-POST", Destination: "aws:api_resource:test-test-test/"},
+					{Source: "aws:api_method:test-test-test/-POST", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_method:test-test-test/-id-/-GET", Destination: "aws:api_resource:test-test-test/-id-/"},
+					{Source: "aws:api_method:test-test-test/-id-/-GET", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_resource:test-test-test/", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_resource:test-test-test/-id-/", Destination: "aws:api_resource:test-test-test/"},
+					{Source: "aws:api_resource:test-test-test/-id-/", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:api_stage:test-test-stage", Destination: "aws:api_deployment:test-test"},
+					{Source: "aws:api_stage:test-test-stage", Destination: "aws:rest_api:test-test"},
+					{Source: "aws:vpc_link:aws:load_balancer:test-test", Destination: "aws:load_balancer:test-test"},
+					{Source: "aws:vpc_link:aws:load_balancer:test-test2", Destination: "aws:load_balancer:test-test2"},
+				},
+			},
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -231,7 +342,6 @@ func Test_CreateRestApi(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-
 			tt.want.Assert(t, dag)
 			resources, found := aws.GetResourcesDirectlyTiedToConstruct(tt.gw)
 			assert.True(found)
