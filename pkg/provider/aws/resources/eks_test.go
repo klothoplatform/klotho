@@ -107,3 +107,35 @@ func Test_createNodeRole(t *testing.T) {
 		"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
 	})
 }
+
+func TestNodeGroupNameFromConfig(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  config.ExecutionUnit
+		want string
+	}{
+		{
+			name: "simple config",
+			cfg: config.ExecutionUnit{
+				NetworkPlacement: "public",
+				InfraParams:      config.InfraParams{"instance_type": "test"},
+			},
+			want: "public_test",
+		},
+		{
+			name: "translate config",
+			cfg: config.ExecutionUnit{
+				NetworkPlacement: "private",
+				InfraParams:      config.InfraParams{"instance_type": "t3.medium"},
+			},
+			want: "private_t3_medium",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			assert.Equal(tt.want, NodeGroupNameFromConfig(tt.cfg))
+		})
+	}
+}
