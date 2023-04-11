@@ -172,7 +172,7 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 			values = append(values, serviceAccountValues...)
 		}
 	}
-	upstreamValues, err := chart.handleUpstreamUnitDependencies(unit, constructGraph)
+	upstreamValues, err := chart.handleUpstreamUnitDependencies(unit, constructGraph, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 	return values, nil
 }
 
-func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, constructGraph *core.ConstructGraph) (values []HelmChartValue, err error) {
+func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, constructGraph *core.ConstructGraph, cfg config.ExecutionUnit) (values []HelmChartValue, err error) {
 	sources := constructGraph.GetUpstreamConstructs(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: unit.Name, Capability: annotation.ExecutionUnitCapability}})
 	needService := false
 	needsTargetGroupBinding := false
@@ -204,13 +204,13 @@ func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, const
 	}
 	if needService {
 		if unit.Service != nil {
-			serviceValues, err := unit.transformService()
+			serviceValues, err := unit.transformService(cfg)
 			if err != nil {
 				return nil, err
 			}
 			values = append(values, serviceValues...)
 		} else {
-			serviceValues, err := chart.addService(unit)
+			serviceValues, err := chart.addService(unit, cfg)
 			if err != nil {
 				return nil, err
 			}
@@ -263,7 +263,7 @@ func (chart *HelmChart) addServiceAccount(unit *HelmExecUnit) ([]HelmChartValue,
 	return values, nil
 }
 
-func (chart *HelmChart) addService(unit *HelmExecUnit) ([]HelmChartValue, error) {
+func (chart *HelmChart) addService(unit *HelmExecUnit, cfg config.ExecutionUnit) ([]HelmChartValue, error) {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding Service manifest for exec unit")
 	err := addServiceManifest(chart, unit)
@@ -271,7 +271,7 @@ func (chart *HelmChart) addService(unit *HelmExecUnit) ([]HelmChartValue, error)
 		return nil, err
 	}
 
-	values, err := unit.transformService()
+	values, err := unit.transformService(cfg)
 	if err != nil {
 		return nil, err
 	}
