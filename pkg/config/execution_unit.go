@@ -37,11 +37,11 @@ type (
 
 	// KubernetesKindParams represents the KindParams, configurability, of execution units which match the kubernetes compatibility
 	KubernetesTypeParams struct {
-		ClusterId                      string                                   `json:"cluster_id,omitempty" yaml:"cluster_id,omitempty" toml:"cluster_id,omitempty"`
-		NodeType                       string                                   `json:"node_type,omitempty" yaml:"node_type,omitempty" toml:"node_type,omitempty"`
-		Replicas                       int                                      `json:"replicas,omitempty" yaml:"replicas,omitempty" toml:"replicas,omitempty"`
-		Limits                         KubernetesLimits                         `json:"limits,omitempty" yaml:"limits,omitempty" toml:"limits,omitempty"`
-		HorizontalPodAutoScalingConfig KubernetesHorizontalPodAutoScalingConfig `json:"horizontal_pod_autoscaling,omitempty" yaml:"horizontal_pod_autoscaling,omitempty" toml:"horizontal_pod_autoscaling,omitempty"`
+		ClusterId string           `json:"cluster_id,omitempty" yaml:"cluster_id,omitempty" toml:"cluster_id,omitempty"`
+		NodeType  string           `json:"node_type,omitempty" yaml:"node_type,omitempty" toml:"node_type,omitempty"`
+		Replicas  int              `json:"replicas,omitempty" yaml:"replicas,omitempty" toml:"replicas,omitempty"`
+		Limits    KubernetesLimits `json:"limits,omitempty" yaml:"limits,omitempty" toml:"limits,omitempty"`
+		/* TODO */ HorizontalPodAutoScalingConfig KubernetesHorizontalPodAutoScalingConfig `json:"horizontal_pod_autoscaling,omitempty" yaml:"horizontal_pod_autoscaling,omitempty" toml:"horizontal_pod_autoscaling,omitempty"`
 	}
 
 	// KubernetesLimits represents the configurability of kubernetes limits for execution units which match the kubernetes compatibility
