@@ -96,6 +96,9 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.S3BucketPolicy{},
 		&resources.AwsKubernetesProvider{},
 		&kubernetes.HelmChart{},
+		&resources.LoadBalancer{},
+		&resources.TargetGroup{},
+		&resources.Listener{},
 	}
 
 	tp := standardTemplatesProvider()

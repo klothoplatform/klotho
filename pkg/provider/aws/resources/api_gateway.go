@@ -67,6 +67,7 @@ type (
 		ConnectionType        string
 		VpcLink               *VpcLink
 		Uri                   core.IaCValue
+		Route                 string
 	}
 
 	ApiDeployment struct {
