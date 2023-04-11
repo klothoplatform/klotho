@@ -38,10 +38,10 @@ func (rg *ResourceGraph) AddResource(resource Resource) {
 //
 // And you would use it as:
 //
-//	 lambda := LambdaFunction {
-//			Role: executionRole
-//			...
-//		}
+//	lambda := LambdaFunction {
+//		Role: executionRole
+//		...
+//	}
 //
 //	rg.AddDependency(lambda, lambda.Role)
 func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Resource) {

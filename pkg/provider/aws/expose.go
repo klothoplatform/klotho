@@ -149,8 +149,16 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 		dag.AddDependenciesReflect(integration)
 		return integration, nil
 	case kubernetes.KubernetesType:
-		// TODO: Replace this with the proper eks integration
-		integration := resources.NewApiIntegration(method, refs, "POST", "AWS_PROXY", nil, core.IaCValue{Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
+		nlb := dag.GetResource(resources.NewLoadBalancer(a.Config.AppName, unit.ID, nil, "internal", "network", nil, nil).Id())
+		if nlb == nil {
+			return nil, errors.Errorf("No nlb created for unit %s", unit.ID)
+		}
+		vpcLink := resources.NewVpcLink(nlb, refs)
+		integration := resources.NewApiIntegration(method, refs, "POST", "VPC_LINK", vpcLink, core.IaCValue{Resource: nlb, Property: resources.NLB_INTEGRATION_URI_IAC_VALUE})
+		integration.Route = convertPath(route.Path)
+		dag.AddDependency(integration, nlb)
+		dag.AddDependenciesReflect(vpcLink)
+		dag.AddDependenciesReflect(integration)
 		return integration, nil
 	default:
 		return nil, errors.Errorf("Unrecognized integration type, %s, for api gateway", cfg.Type)

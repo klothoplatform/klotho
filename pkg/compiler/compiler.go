@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -57,9 +56,6 @@ func (c *Compiler) Compile() error {
 	c.Document.Constructs.AddConstruct(internalResource)
 
 	for _, p := range c.AnalysisAndTransformationPlugins {
-		if isPluginNil(p) {
-			continue
-		}
 		log := zap.L().With(zap.String("plugin", p.Name()))
 		log.Debug("starting")
 		err := p.Transform(c.Document.InputFiles, c.Document.Constructs)
@@ -70,9 +66,6 @@ func (c *Compiler) Compile() error {
 	}
 
 	for _, p := range c.ProviderPlugins {
-		if isPluginNil(p) {
-			continue
-		}
 		log := zap.L().With(zap.String("plugin", p.Name()))
 		log.Debug("starting")
 		links, err := p.Translate(c.Document.Constructs, c.Document.Resources)
@@ -84,9 +77,6 @@ func (c *Compiler) Compile() error {
 	}
 
 	for _, p := range c.IaCPlugins {
-		if isPluginNil(p) {
-			continue
-		}
 		// TODO logging
 		files, err := p.Translate(c.Document.Resources)
 		if err != nil {
@@ -129,15 +119,4 @@ func (c *Compiler) createConfigOutputFile() error {
 		Content: buf.Bytes(),
 	})
 	return nil
-}
-
-func isPluginNil(i Plugin) bool {
-	if i == nil {
-		return true
-	}
-	switch reflect.TypeOf(i).Kind() {
-	case reflect.Pointer:
-		return reflect.ValueOf(i).IsNil()
-	}
-	return false
 }

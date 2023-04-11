@@ -20,6 +20,7 @@ type (
 		Executable           Executable
 		EnvironmentVariables EnvironmentVariables
 		DockerfilePath       string
+		Port                 int
 	}
 
 	// Executable represents the slice of a project that is deployed to and executed on an ExecutionUnit

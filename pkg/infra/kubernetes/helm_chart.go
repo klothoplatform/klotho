@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -81,7 +83,6 @@ func (t *HelmChart) OutputTo(dest string) error {
 }
 
 func (t *HelmChart) AssignFilesToUnits() error {
-	needsMetadataName := len(t.ExecutionUnits) > 1
 	for _, unit := range t.ExecutionUnits {
 		for _, f := range t.Files {
 			ast, ok := f.(*core.SourceFile)
@@ -90,67 +91,39 @@ func (t *HelmChart) AssignFilesToUnits() error {
 			}
 			log := zap.L().Sugar().With(logging.FileField(f), zap.String("unit", unit.Name))
 
+			// setAst sets the given *core.SourceFile field (hence the double-pointer), as long as either (a) there's
+			// only one exec unit or (b) there are multiple units, but this one's name matches the k8s object name.
+			// It returns whether that condition matched.
+			setAst := func(k8sObject metav1.Object, handle **core.SourceFile) bool {
+				if len(t.ExecutionUnits) <= 1 || (k8sObject.GetName() == unit.Name) {
+					log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
+					*handle = ast
+					return true
+				}
+				return false
+			}
+
 			obj, err := readFile(ast)
 			if err != nil {
 				return err
 			}
 			switch o := obj.(type) {
 			case *corev1.Pod:
-				pod := o
-				if needsMetadataName {
-					if pod.Name == unit.Name {
-						log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-						if unit.Deployment != nil {
-							return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
-						}
-						unit.Pod = ast
-					}
-				} else {
-					log.Debug("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-					if unit.Deployment != nil {
-						return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
-					}
-					unit.Pod = ast
+				if setAst(o, &unit.Pod) && unit.Deployment != nil {
+					// Don't set this pod if there's already a spec for deployment. That means there's both a deployment
+					// manifest and a pod manifest for the same exec unit, which is a confusing scenario (since a
+					// deployment itself contains a pod spec). For now, we just disallow it.
+					return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
 				}
 			case *apps.Deployment:
-				deployment := o
-				if needsMetadataName {
-					if deployment.Name == unit.Name {
-						log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-						if unit.Pod != nil {
-							return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
-						}
-						unit.Deployment = ast
-					}
-				} else {
-					log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-					if unit.Pod != nil {
-						return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
-					}
-					unit.Deployment = ast
+				if setAst(o, &unit.Deployment) && unit.Pod != nil {
+					// Don't set this deployment if there's already a spec for this pod. See comment above.
+					return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
 				}
 			case *corev1.ServiceAccount:
-				serviceAccount := o
-				if needsMetadataName {
-					if serviceAccount.Name == unit.Name {
-						log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-						unit.ServiceAccount = ast
-					}
-				} else {
-					log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-					unit.ServiceAccount = ast
-				}
+				setAst(o, &unit.ServiceAccount)
 			case *corev1.Service:
-				service := o
-				if needsMetadataName {
-					if service.Name == unit.Name {
-						log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-						unit.Service = ast
-					}
-				} else {
-					log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-					unit.Service = ast
-				}
+				setAst(o, &unit.Service)
 			default:
 				log.Debug("Unrecognized type")
 			}
@@ -159,52 +132,52 @@ func (t *HelmChart) AssignFilesToUnits() error {
 	return nil
 }
 
-func (chart *HelmChart) handleExecutionUnit(helmUnit *HelmExecUnit, unit *core.ExecutionUnit, cfg config.ExecutionUnit, constructGraph *core.ConstructGraph) ([]HelmChartValue, error) {
+func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.ExecutionUnit, cfg config.ExecutionUnit, constructGraph *core.ConstructGraph) ([]HelmChartValue, error) {
 	values := []HelmChartValue{}
 
-	if shouldTransformImage(unit) {
-		if helmUnit.Deployment != nil {
-			deploymentValues, err := helmUnit.transformDeployment(cfg)
+	if shouldTransformImage(eu) {
+		if unit.Deployment != nil {
+			deploymentValues, err := unit.transformDeployment(cfg)
 			if err != nil {
 				return nil, err
 			}
 			values = append(values, deploymentValues...)
-		} else if helmUnit.Pod != nil {
-			podValues, err := helmUnit.transformPod()
+		} else if unit.Pod != nil {
+			podValues, err := unit.transformPod(cfg)
 			if err != nil {
 				return nil, err
 			}
 			values = append(values, podValues...)
 		} else {
-			deploymentValues, err := chart.addDeployment(helmUnit, cfg)
+			deploymentValues, err := chart.addDeployment(unit, cfg)
 			if err != nil {
 				return nil, err
 			}
 			values = append(values, deploymentValues...)
 		}
 	}
-	if shouldTransformServiceAccount(unit) {
-		if helmUnit.ServiceAccount != nil {
-			serviceAccountValues, err := helmUnit.transformServiceAccount()
+	if shouldTransformServiceAccount(eu) {
+		if unit.ServiceAccount != nil {
+			serviceAccountValues, err := unit.transformServiceAccount()
 			if err != nil {
 				return nil, err
 			}
 			values = append(values, serviceAccountValues...)
 		} else {
-			serviceAccountValues, err := chart.addServiceAccount(helmUnit)
+			serviceAccountValues, err := chart.addServiceAccount(unit)
 			if err != nil {
 				return nil, err
 			}
 			values = append(values, serviceAccountValues...)
 		}
 	}
-	upstreamValues, err := chart.handleUpstreamUnitDependencies(helmUnit, constructGraph)
+	upstreamValues, err := chart.handleUpstreamUnitDependencies(unit, constructGraph)
 	if err != nil {
 		return nil, err
 	}
 	values = append(values, upstreamValues...)
 
-	unitEnvValues, err := helmUnit.AddUnitsEnvironmentVariables(unit)
+	unitEnvValues, err := unit.AddUnitsEnvironmentVariables(eu)
 	if err != nil {
 		return nil, err
 	}
