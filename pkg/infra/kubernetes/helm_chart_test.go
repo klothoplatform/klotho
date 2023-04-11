@@ -454,7 +454,13 @@ func Test_handleExecutionUnit(t *testing.T) {
 					ExecUnitName: testUnitName,
 					Kind:         "Deployment",
 					Type:         "instance_type_key",
-					Key:          "{{ .Values.unitInstanceTypeKey }}",
+					Key:          "unitInstanceTypeKey",
+				},
+				{
+					ExecUnitName: testUnitName,
+					Kind:         "Deployment",
+					Type:         "instance_type_value",
+					Key:          "unitInstanceTypeValue",
 				},
 				{
 					ExecUnitName: testUnitName,
