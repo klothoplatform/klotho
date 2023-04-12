@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/klothoplatform/klotho/pkg/config"
+	autoscaling "k8s.io/api/autoscaling/v2beta2"
 	"regexp"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -17,14 +18,15 @@ import (
 )
 
 type HelmExecUnit struct {
-	Name               string
-	Namespace          string
-	Service            *core.SourceFile
-	Deployment         *core.SourceFile
-	Pod                *core.SourceFile
-	ServiceAccount     *core.SourceFile
-	TargetGroupBinding *core.SourceFile
-	ServiceExport      *core.SourceFile
+	Name                    string
+	Namespace               string
+	Service                 *core.SourceFile
+	Deployment              *core.SourceFile
+	Pod                     *core.SourceFile
+	ServiceAccount          *core.SourceFile
+	TargetGroupBinding      *core.SourceFile
+	ServiceExport           *core.SourceFile
+	HorizontalPodAutoscaler *core.SourceFile
 }
 
 var (
@@ -86,7 +88,7 @@ func (unit *HelmExecUnit) transformPod(cfg config.ExecutionUnit) (values []HelmC
 		return
 	}
 
-	value, err := unit.upsertOnlyContainer(&pod.Spec.Containers, cfg)
+	_, value, err := unit.upsertOnlyContainer(&pod.Spec.Containers, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -128,27 +130,35 @@ func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) ([]HelmC
 		return nil, err
 	}
 
-	value, err := unit.upsertOnlyContainer(&deployment.Spec.Template.Spec.Containers, cfg)
+	k8sCfg, value, err := unit.upsertOnlyContainer(&deployment.Spec.Template.Spec.Containers, cfg)
 	if err != nil {
 		return nil, err
 	}
+
+	extraLabels := generateLabels(k8sCfg)
 
 	if deployment.Labels == nil {
 		deployment.Labels = make(map[string]string)
 	}
 	deployment.Labels["execUnit"] = unit.Name
+	extraLabels.addTo(deployment.Labels)
+
+	if k8sCfg.Replicas != 0 {
+		*deployment.Spec.Replicas = int32(k8sCfg.Replicas)
+	}
 
 	if deployment.Spec.Template.Labels == nil {
 		deployment.Spec.Template.Labels = make(map[string]string)
 	}
 	deployment.Spec.Template.Labels["execUnit"] = unit.Name
+	deployment.Spec.Template.Spec.ServiceAccountName = unit.getServiceAccountName()
+	extraLabels.addTo(deployment.Spec.Template.Labels)
 
 	if deployment.Spec.Selector.MatchLabels == nil {
 		deployment.Spec.Selector.MatchLabels = make(map[string]string)
 	}
 	deployment.Spec.Selector.MatchLabels["execUnit"] = unit.Name
-
-	deployment.Spec.Template.Spec.ServiceAccountName = unit.getServiceAccountName()
+	extraLabels.addTo(deployment.Spec.Selector.MatchLabels)
 
 	output, err := yaml.Marshal(deployment)
 	if err != nil {
@@ -167,7 +177,90 @@ func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) ([]HelmC
 	return values, nil
 }
 
-func (unit *HelmExecUnit) transformService() (values []HelmChartValue, err error) {
+func (unit *HelmExecUnit) transformHorizontalPodAutoscaler(cfg config.ExecutionUnit) ([]HelmChartValue, error) {
+	log := zap.L().Sugar().With(logging.FileField(unit.HorizontalPodAutoscaler), zap.String("unit", unit.Name))
+	log.Debugf("Transforming file, %s, for exec unit, %s", unit.HorizontalPodAutoscaler.Path(), unit.Name)
+	obj, err := readFile(unit.HorizontalPodAutoscaler)
+	if err != nil {
+		return nil, nil
+	}
+	hpa, ok := obj.(*autoscaling.HorizontalPodAutoscaler)
+	if !ok {
+		return nil, fmt.Errorf("expected file %s to contain HorizontalPodAutoscaler Kind", unit.HorizontalPodAutoscaler.Path())
+	}
+	k8Cfg := cfg.GetExecutionUnitParamsAsKubernetes()
+	hpaCfg := k8Cfg.HorizontalPodAutoScalingConfig
+
+	if k8Cfg.Replicas != 0 {
+		minReplicas := int32(k8Cfg.Replicas)
+		hpa.Spec.MinReplicas = &minReplicas
+		if hpaCfg.MaxReplicas == 0 {
+			hpaCfg.MaxReplicas = int(minReplicas) * 2
+		}
+	}
+
+	if hpaCfg.MaxReplicas != 0 {
+		maxReplicas := int32(hpaCfg.MaxReplicas)
+		if maxReplicas < *hpa.Spec.MinReplicas {
+			log.Errorf(`cannot set maxReplicas to %v because that's less than minReplicas (%v)`,
+				hpaCfg.MaxReplicas,
+				*hpa.Spec.MinReplicas,
+			)
+		} else {
+			hpa.Spec.MaxReplicas = maxReplicas
+		}
+	}
+	if hpaCfg.CpuUtilization != 0 {
+		cpu := int32(hpaCfg.CpuUtilization)
+		res := getOrCreateMetricResource(&hpa.Spec.Metrics, corev1.ResourceCPU)
+		res.Target = autoscaling.MetricTarget{
+			Type:               autoscaling.UtilizationMetricType,
+			AverageUtilization: &cpu,
+		}
+	}
+	if hpaCfg.MemoryUtilization != 0 {
+		mem := int32(hpaCfg.MemoryUtilization)
+		res := getOrCreateMetricResource(&hpa.Spec.Metrics, corev1.ResourceMemory)
+		res.Target = autoscaling.MetricTarget{
+			Type:               autoscaling.UtilizationMetricType,
+			AverageUtilization: &mem,
+		}
+	}
+
+	output, err := yaml.Marshal(hpa)
+	if err != nil {
+		return nil, err
+	}
+	manifest := string(output)
+	err = unit.HorizontalPodAutoscaler.Reparse([]byte(manifest))
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func getOrCreateMetricResource(metrics *[]autoscaling.MetricSpec, name corev1.ResourceName) *autoscaling.ResourceMetricSource {
+	for _, spec := range *metrics {
+		if spec.Type != autoscaling.ResourceMetricSourceType || spec.Resource == nil {
+			continue
+		}
+		if spec.Resource.Name == name {
+			return spec.Resource
+		}
+	}
+	// none was there, so create one. The caller will set the target
+	createdRes := &autoscaling.ResourceMetricSource{Name: name}
+	createdSpec := autoscaling.MetricSpec{
+		Type:     autoscaling.ResourceMetricSourceType,
+		Resource: createdRes,
+	}
+	//created := autoscaling.ResourceMetricSource{Name: name}
+
+	*metrics = append(*metrics, createdSpec)
+	return createdRes
+}
+
+func (unit *HelmExecUnit) transformService(cfg config.ExecutionUnit) (values []HelmChartValue, err error) {
 	log := zap.L().Sugar().With(logging.FileField(unit.Service), zap.String("unit", unit.Name))
 	log.Debugf("Transforming file, %s, for exec unit, %s", unit.Service.Path(), unit.Name)
 	obj, err := readFile(unit.Service)
@@ -179,15 +272,22 @@ func (unit *HelmExecUnit) transformService() (values []HelmChartValue, err error
 		err = fmt.Errorf("expected file %s to contain ServiceAccount Kind", unit.ServiceAccount.Path())
 		return
 	}
+
+	k8Cfg := cfg.GetExecutionUnitParamsAsKubernetes()
+	extraLabels := generateLabels(k8Cfg)
+
 	if service.Spec.Selector == nil {
 		service.Spec.Selector = make(map[string]string)
 	}
 	service.Spec.Selector["execUnit"] = unit.Name
+	extraLabels.addTo(service.Spec.Selector)
 
 	if service.Labels == nil {
 		service.Labels = make(map[string]string)
 	}
 	service.Labels["execUnit"] = unit.Name
+	extraLabels.addTo(service.Labels)
+
 	output, err := yaml.Marshal(service)
 	if err != nil {
 		return nil, err
@@ -430,7 +530,8 @@ func (unit *HelmExecUnit) addEnvVarToPod(envVars core.EnvironmentVariables) ([]H
 }
 
 // upsertOnlyContainer ensures that there is exactly one container in the given slice, and that it's correctly
-// configured. Along the way, it will also generate the image placeholder value, which it then returns.
+// configured. Along the way, it will also generate the image placeholder value, which it then returns. Finally, it
+// also returns the k8s-specific configs it had to generate along the way.
 //
 // If the provided containers slice is empty, this method will create a new container and inert it into the slice; this
 // modifies the call site's slice (which is why we pass in a pointer to a slice). Otherwise, we'll use the slice's
@@ -439,9 +540,10 @@ func (unit *HelmExecUnit) addEnvVarToPod(envVars core.EnvironmentVariables) ([]H
 // To configure the container, we:
 //  1. set its image to a template for the generated placeholder value
 //  2. call configureContainer on it
-func (unit *HelmExecUnit) upsertOnlyContainer(containers *[]corev1.Container, cfg config.ExecutionUnit) (string, error) {
+func (unit *HelmExecUnit) upsertOnlyContainer(containers *[]corev1.Container, cfg config.ExecutionUnit) (config.KubernetesTypeParams, string, error) {
 	if len(*containers) > 1 {
-		return "", errors.New("too many containers in pod spec, don't know which to replace")
+		var zero config.KubernetesTypeParams
+		return zero, "", errors.New("too many containers in pod spec, don't know which to replace")
 	}
 	if len(*containers) == 0 {
 		*containers = append(*containers, corev1.Container{
@@ -453,14 +555,15 @@ func (unit *HelmExecUnit) upsertOnlyContainer(containers *[]corev1.Container, cf
 	value := GenerateImagePlaceholder(unit.Name)
 	container.Image = fmt.Sprintf("{{ .Values.%s }}", value)
 
-	if err := unit.configureContainer(container, cfg); err != nil {
-		return "", err
+	k8config, err := unit.configureContainer(container, cfg)
+	if err != nil {
+		return k8config, "", err
 	}
 
-	return value, nil
+	return k8config, value, nil
 }
 
-func (unit *HelmExecUnit) configureContainer(container *corev1.Container, cfg config.ExecutionUnit) error {
+func (unit *HelmExecUnit) configureContainer(container *corev1.Container, cfg config.ExecutionUnit) (config.KubernetesTypeParams, error) {
 	k8sCfg := cfg.GetExecutionUnitParamsAsKubernetes()
 
 	limits := make(map[corev1.ResourceName]any)
@@ -472,11 +575,11 @@ func (unit *HelmExecUnit) configureContainer(container *corev1.Container, cfg co
 	}
 	limitsYaml, err := yaml.Marshal(map[string]any{"limits": limits})
 	if err != nil {
-		return err
+		return k8sCfg, err
 	}
 	resourceReqs := corev1.ResourceRequirements{}
 	if err = yaml.Unmarshal(limitsYaml, &resourceReqs); err != nil {
-		return err
+		return k8sCfg, err
 	}
 	for name, quantity := range resourceReqs.Limits {
 		// We infer both limits and requestes from the k8sCfg limits. In order to get full utilization without overloading
@@ -491,5 +594,22 @@ func (unit *HelmExecUnit) configureContainer(container *corev1.Container, cfg co
 		container.Resources.Requests[name] = quantity
 	}
 
-	return nil
+	return k8sCfg, nil
+}
+
+type kubernetesLabels map[string]string
+
+func (k kubernetesLabels) addTo(other map[string]string) {
+	for k, v := range k {
+		_, inOther := other[k]
+		if !inOther {
+			other[k] = v
+		}
+	}
+}
+
+func generateLabels(cfg config.KubernetesTypeParams) kubernetesLabels {
+	return map[string]string{
+		"klotho-fargate-enabled": fmt.Sprintf(`%v`, cfg.NodeType == "fargate"),
+	}
 }
