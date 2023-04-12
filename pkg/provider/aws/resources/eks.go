@@ -2,7 +2,6 @@ package resources
 
 import (
 	"fmt"
-	"math"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -135,11 +134,15 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 		key := groupKey{InstanceType: params.InstanceType, NetworkType: unitCfg.NetworkPlacement}
 		spec := groupSpecs[key]
 		if spec == nil {
-			spec = &groupSpec{}
+			spec = &groupSpec{
+				DiskSizeGiB: 20,
+			}
 			groupSpecs[key] = spec
 		}
 		spec.refs = append(spec.refs, unit.AnnotationKey)
-		spec.DiskSizeGiB = int(math.Max(float64(spec.DiskSizeGiB), float64(spec.DiskSizeGiB)))
+		if params.DiskSizeGiB > spec.DiskSizeGiB {
+			spec.DiskSizeGiB = params.DiskSizeGiB
+		}
 	}
 
 	appName := cfg.AppName
@@ -152,6 +155,9 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	dag.AddDependenciesReflect(cluster)
 
 	for groupKey, spec := range groupSpecs {
+		if groupKey.InstanceType == "" {
+			groupKey.InstanceType = "t3.medium"
+		}
 		nodeGroup := &EksNodeGroup{
 			Name:          NodeGroupName(groupKey.NetworkType, groupKey.InstanceType),
 			ConstructsRef: spec.refs,
@@ -169,6 +175,8 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 			MaxUnavailable: 1,
 		}
 		nodeGroup.NodeRole = createNodeRole(appName, fmt.Sprintf("%s.%s", clusterName, nodeGroup.Name), references)
+		dag.AddDependenciesReflect(nodeGroup.NodeRole)
+
 		for _, sn := range subnets {
 			if sn.Type == groupKey.NetworkType {
 				nodeGroup.Subnets = append(nodeGroup.Subnets, sn)
@@ -179,7 +187,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	}
 
 	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
-	dag.AddResource(fargateRole)
+	dag.AddDependenciesReflect(fargateRole)
 
 	profile := NewEksFargateProfile(cluster, subnets, fargateRole, references)
 	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
