@@ -1,10 +1,10 @@
 package resources
 
 import (
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"strings"
-	"time"
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -172,31 +172,31 @@ func (i *RdsInstance) GetConnectionPolicy(dag *core.ResourceGraph) *IamPolicy {
 //
 // The first letter of an RDS username must be a letter
 func generateUsername() string {
-	rand.Seed(time.Now().UnixNano())
-	initialChars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-		"abcdefghijklmnopqrstuvwxyz")
-	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-		"abcdefghijklmnopqrstuvwxyz" +
-		"0123456789")
-	length := 12
+	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+	length := 9
 	var b strings.Builder
-	b.WriteRune(chars[rand.Intn(len(initialChars))])
-	for i := 0; i < length-1; i++ {
-		b.WriteRune(chars[rand.Intn(len(chars))])
+	b.WriteString("KLO")
+	for i := 0; i < length; i++ {
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			panic(err.Error())
+		}
+		b.WriteRune(chars[num.Int64()])
 	}
 	return b.String()
 }
 
 // generatePassword generates a random password for the rds instance.
 func generatePassword() string {
-	rand.Seed(time.Now().UnixNano())
-	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-		"abcdefghijklmnopqrstuvwxyz" +
-		"0123456789")
+	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
 	length := 16
 	var b strings.Builder
 	for i := 0; i < length; i++ {
-		b.WriteRune(chars[rand.Intn(len(chars))])
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			panic(err.Error())
+		}
+		b.WriteRune(chars[num.Int64()])
 	}
 	return b.String()
 }
