@@ -6,7 +6,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/provider/providers"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
@@ -156,7 +155,7 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			p := Plugin{}
+			p := ConstructValidation{}
 			result := core.NewConstructGraph()
 			for _, c := range tt.result {
 				result.AddConstruct(c)
@@ -166,70 +165,6 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 			resource := p.checkAnnotationForResource(&tt.annot, result, log)
 			assert.Equal(tt.want, resource)
 
-		})
-	}
-}
-
-func Test_validation_handleProviderValidation(t *testing.T) {
-	tests := []struct {
-		name    string
-		result  []core.Construct
-		cfg     config.Application
-		wantErr bool
-	}{
-		{
-			name: "exec unit match",
-			result: []core.Construct{&core.ExecutionUnit{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
-			}},
-			cfg: config.Application{
-				Provider: "aws",
-				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"test": {
-						Type: "lambda",
-					},
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "exec unit mismatch",
-			result: []core.Construct{&core.ExecutionUnit{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
-			}},
-			cfg: config.Application{
-				Provider: "aws",
-				ExecutionUnits: map[string]*config.ExecutionUnit{
-					"test": {
-						Type: "wrong",
-					},
-				},
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			provider, _ := providers.GetProvider(&tt.cfg)
-			p := Plugin{
-				Provider: provider,
-				Config:   &tt.cfg,
-			}
-			result := core.NewConstructGraph()
-			for _, c := range tt.result {
-				result.AddConstruct(c)
-			}
-
-			err := p.handleProviderValidation(result)
-			if tt.wantErr {
-				assert.Error(err)
-				return
-			} else {
-				assert.NoError(err)
-				return
-			}
 		})
 	}
 }
@@ -281,7 +216,7 @@ func Test_validation_handleResources(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			p := Plugin{}
+			p := ConstructValidation{}
 			result := core.NewConstructGraph()
 			for _, c := range tt.result {
 				result.AddConstruct(c)
@@ -461,9 +396,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			provider, _ := providers.GetProvider(&tt.cfg)
-			p := Plugin{
-				Provider:            provider,
+			p := ConstructValidation{
 				UserConfigOverrides: tt.cfg,
 			}
 			result := core.NewConstructGraph()

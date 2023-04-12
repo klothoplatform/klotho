@@ -15,6 +15,10 @@ type (
 
 func (a *AWS) Name() string { return "aws" }
 
+func (a *AWS) Validate(config *config.Application, constructGraph *core.ConstructGraph) error {
+	return provider.HandleProviderValidation(a, config, constructGraph)
+}
+
 // Enums for the types we allow in the aws provider so that we can reuse the same string within the provider
 const (
 	Ecs                    = "ecs"
@@ -119,30 +123,30 @@ func (a *AWS) GetDefaultConfig() config.Defaults {
 }
 
 // GetKindTypeMappings returns a list of valid types for the aws provider based on the kind passed in
-func (a *AWS) GetKindTypeMappings(construct core.Construct) ([]string, bool) {
+func (a *AWS) GetKindTypeMappings(construct core.Construct) []string {
 	switch construct.(type) {
 	case *core.ExecutionUnit:
-		return []string{kubernetes.KubernetesType, Ecs, Lambda}, true
+		return []string{kubernetes.KubernetesType, Ecs, Lambda}
 	case *core.Gateway:
-		return []string{string(ApiGateway), string(Alb)}, true
+		return []string{string(ApiGateway), string(Alb)}
 	case *core.StaticUnit:
-		return []string{S3}, true
+		return []string{S3}
 	case *core.Fs:
-		return []string{S3}, true
+		return []string{S3}
 	case *core.Kv:
-		return []string{Dynamodb}, true
+		return []string{Dynamodb}
 	case *core.Orm:
-		return []string{Rds_postgres}, true
+		return []string{Rds_postgres}
 	case *core.RedisNode:
-		return []string{Elasticache}, true
+		return []string{Elasticache}
 	case *core.RedisCluster:
-		return []string{Memorydb}, true
+		return []string{Memorydb}
 	case *core.Secrets:
-		return []string{S3}, true
+		return []string{S3}
 	case *core.PubSub:
-		return []string{Sns}, true
+		return []string{Sns}
 	case *core.Config:
-		return []string{S3, Secrets_manager}, true
+		return []string{S3, Secrets_manager}
 	}
-	return nil, false
+	return nil
 }
