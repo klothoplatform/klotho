@@ -25,6 +25,8 @@ const (
 	VPC_SUBNET_TYPE       = "vpc_subnet"
 	VPC_ENDPOINT_TYPE     = "vpc_endpoint"
 	VPC_TYPE              = "vpc"
+
+	CIDR_BLOCK_IAC_VALUE = "cidr_block"
 )
 
 type (

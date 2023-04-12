@@ -2,6 +2,8 @@ package kubernetes
 
 import (
 	"fmt"
+	autoscaling "k8s.io/api/autoscaling/v2beta2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
 
@@ -81,7 +83,6 @@ func (t *HelmChart) OutputTo(dest string) error {
 }
 
 func (t *HelmChart) AssignFilesToUnits() error {
-	needsMetadataName := len(t.ExecutionUnits) > 1
 	for _, unit := range t.ExecutionUnits {
 		for _, f := range t.Files {
 			ast, ok := f.(*core.SourceFile)
@@ -89,6 +90,18 @@ func (t *HelmChart) AssignFilesToUnits() error {
 				continue
 			}
 			log := zap.L().Sugar().With(logging.FileField(f), zap.String("unit", unit.Name))
+
+			// setAst sets the given *core.SourceFile field (hence the double-pointer), as long as either (a) there's
+			// only one exec unit or (b) there are multiple units, but this one's name matches the k8s object name.
+			// It returns whether that condition matched.
+			setAst := func(k8sObject metav1.Object, handle **core.SourceFile) bool {
+				if len(t.ExecutionUnits) <= 1 || (k8sObject.GetName() == unit.Name) {
+					log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
+					*handle = ast
+					return true
+				}
+				return false
+			}
 
 			obj, err := readFile(ast)
 			if err != nil {
@@ -98,61 +111,23 @@ func (t *HelmChart) AssignFilesToUnits() error {
 			// and match each type-case
 			switch o := obj.(type) {
 			case *corev1.Pod:
-				pod := o
-				if needsMetadataName {
-					if pod.Name == unit.Name {
-						log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-						if unit.Deployment != nil {
-							return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
-						}
-						unit.Pod = ast
-					}
-				} else {
-					log.Debug("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-					if unit.Deployment != nil {
-						return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
-					}
-					unit.Pod = ast
+				if setAst(o, &unit.Pod) && unit.Deployment != nil {
+					// Don't set this pod if there's already a spec for deployment. That means there's both a deployment
+					// manifest and a pod manifest for the same exec unit, which is a confusing scenario (since a
+					// deployment itself contains a pod spec). For now, we just disallow it.
+					return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
 				}
 			case *apps.Deployment:
-				deployment := o
-				if needsMetadataName {
-					if deployment.Name == unit.Name {
-						log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-						if unit.Pod != nil {
-							return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
-						}
-						unit.Deployment = ast
-					}
-				} else {
-					log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-					if unit.Pod != nil {
-						return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
-					}
-					unit.Deployment = ast
+				if setAst(o, &unit.Deployment) && unit.Pod != nil {
+					// Don't set this deployment if there's already a spec for this pod. See comment above.
+					return fmt.Errorf("can not support multiple pod specifications for unit %s", unit.Name)
 				}
+			case *autoscaling.HorizontalPodAutoscaler:
+				setAst(o, &unit.HorizontalPodAutoscaler)
 			case *corev1.ServiceAccount:
-				serviceAccount := o
-				if needsMetadataName {
-					if serviceAccount.Name == unit.Name {
-						log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-						unit.ServiceAccount = ast
-					}
-				} else {
-					log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-					unit.ServiceAccount = ast
-				}
+				setAst(o, &unit.ServiceAccount)
 			case *corev1.Service:
-				service := o
-				if needsMetadataName {
-					if service.Name == unit.Name {
-						log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-						unit.Service = ast
-					}
-				} else {
-					log.Debugf("Found unit, %s's, pod manifest in file, %s", unit.Name, f.Path())
-					unit.Service = ast
-				}
+				setAst(o, &unit.Service)
 			default:
 				log.Debug("Unrecognized type")
 			}
@@ -184,6 +159,21 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 			}
 			values = append(values, deploymentValues...)
 		}
+		if unit.Deployment != nil && cfg.GetExecutionUnitParamsAsKubernetes().HorizontalPodAutoScalingConfig.NotEmpty() {
+			if unit.HorizontalPodAutoscaler != nil {
+				hpaValues, err := unit.transformHorizontalPodAutoscaler(cfg)
+				if err != nil {
+					return nil, err
+				}
+				values = append(values, hpaValues...)
+			} else {
+				hpaValues, err := chart.addHorizontalPodAutoscaler(unit, cfg)
+				if err != nil {
+					return nil, err
+				}
+				values = append(values, hpaValues...)
+			}
+		}
 	}
 	if shouldTransformServiceAccount(eu) {
 		if unit.ServiceAccount != nil {
@@ -200,7 +190,7 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 			values = append(values, serviceAccountValues...)
 		}
 	}
-	upstreamValues, err := chart.handleUpstreamUnitDependencies(unit, constructGraph)
+	upstreamValues, err := chart.handleUpstreamUnitDependencies(unit, constructGraph, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +205,7 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 	return values, nil
 }
 
-func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, constructGraph *core.ConstructGraph) (values []HelmChartValue, err error) {
+func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, constructGraph *core.ConstructGraph, cfg config.ExecutionUnit) (values []HelmChartValue, err error) {
 	sources := constructGraph.GetUpstreamConstructs(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: unit.Name, Capability: annotation.ExecutionUnitCapability}})
 	needService := false
 	needsTargetGroupBinding := false
@@ -232,13 +222,13 @@ func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, const
 	}
 	if needService {
 		if unit.Service != nil {
-			serviceValues, err := unit.transformService()
+			serviceValues, err := unit.transformService(cfg)
 			if err != nil {
 				return nil, err
 			}
 			values = append(values, serviceValues...)
 		} else {
-			serviceValues, err := chart.addService(unit)
+			serviceValues, err := chart.addService(unit, cfg)
 			if err != nil {
 				return nil, err
 			}
@@ -277,6 +267,20 @@ func (chart *HelmChart) addDeployment(unit *HelmExecUnit) ([]HelmChartValue, err
 	return values, nil
 }
 
+func (chart *HelmChart) addHorizontalPodAutoscaler(unit *HelmExecUnit, cfg config.ExecutionUnit) ([]HelmChartValue, error) {
+	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
+	log.Info("Adding HorizontalPodAutoscaler manifest for exec unit")
+	err := addHorizontalPodAutoscalerManifest(chart, unit)
+	if err != nil {
+		return nil, err
+	}
+	values, err := unit.transformHorizontalPodAutoscaler(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return values, nil
+}
+
 func (chart *HelmChart) addServiceAccount(unit *HelmExecUnit) ([]HelmChartValue, error) {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding ServiceAccount manifest for exec unit")
@@ -291,7 +295,7 @@ func (chart *HelmChart) addServiceAccount(unit *HelmExecUnit) ([]HelmChartValue,
 	return values, nil
 }
 
-func (chart *HelmChart) addService(unit *HelmExecUnit) ([]HelmChartValue, error) {
+func (chart *HelmChart) addService(unit *HelmExecUnit, cfg config.ExecutionUnit) ([]HelmChartValue, error) {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding Service manifest for exec unit")
 	err := addServiceManifest(chart, unit)
@@ -299,7 +303,7 @@ func (chart *HelmChart) addService(unit *HelmExecUnit) ([]HelmChartValue, error)
 		return nil, err
 	}
 
-	values, err := unit.transformService()
+	values, err := unit.transformService(cfg)
 	if err != nil {
 		return nil, err
 	}

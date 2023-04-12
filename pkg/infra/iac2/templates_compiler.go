@@ -543,6 +543,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
 		}
+	case resources.CIDR_BLOCK_IAC_VALUE:
+		return fmt.Sprintf(`%s.cidrBlock`, tc.getVarName(resource)), nil
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property, %s", property)

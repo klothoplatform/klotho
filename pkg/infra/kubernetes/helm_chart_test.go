@@ -22,6 +22,7 @@ func Test_AssignFilesToUnits(t *testing.T) {
 		deploymentPath     string
 		serviceAccountPath string
 		servicePath        string
+		hpaPath            string
 	}
 	tests := []struct {
 		name      string
@@ -130,6 +131,38 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			},
 		},
 		{
+			name: "Basic HPA",
+			chart: HelmChart{
+				ExecutionUnits: []*HelmExecUnit{
+					{Name: "unit1"},
+				},
+			},
+			fileUnits: map[string]string{
+				"HorizontalPodAutoscaler.yaml": testutil.UnIndent(`
+                    apiVersion: autoscaling/v2beta2
+                    kind: HorizontalPodAutoscaler
+                    metadata:
+                      name: example-hpa
+                    spec:
+                      scaleTargetRef:
+                        apiVersion: apps/v1
+                        kind: Deployment
+                        name: example-deployment
+                      minReplicas: 2
+                      maxReplicas: 10
+                      metrics:
+                      - type: Resource
+                        resource:
+                          name: cpu
+                          targetAverageUtilization: 50`)},
+			want: []TestUnit{
+				{
+					name:    "unit1",
+					hpaPath: "HorizontalPodAutoscaler.yaml",
+				},
+			},
+		},
+		{
 			name: "Multi unit Pod",
 			chart: HelmChart{
 				ExecutionUnits: []*HelmExecUnit{
@@ -216,6 +249,42 @@ func Test_AssignFilesToUnits(t *testing.T) {
 				{
 					name:           "unit1",
 					deploymentPath: "deployment.yaml",
+				},
+				{
+					name: "unit2",
+				},
+			},
+		},
+		{
+			name: "multi  unit HPA",
+			chart: HelmChart{
+				ExecutionUnits: []*HelmExecUnit{
+					{Name: "unit1"},
+					{Name: "unit2"},
+				},
+			},
+			fileUnits: map[string]string{
+				"HorizontalPodAutoscaler.yaml": testutil.UnIndent(`
+                    apiVersion: autoscaling/v2beta2
+                    kind: HorizontalPodAutoscaler
+                    metadata:
+                      name: unit1
+                    spec:
+                      scaleTargetRef:
+                        apiVersion: apps/v1
+                        kind: Deployment
+                        name: example-deployment
+                      minReplicas: 2
+                      maxReplicas: 10
+                      metrics:
+                      - type: Resource
+                        resource:
+                          name: cpu
+                          targetAverageUtilization: 50`)},
+			want: []TestUnit{
+				{
+					name:    "unit1",
+					hpaPath: "HorizontalPodAutoscaler.yaml",
 				},
 				{
 					name: "unit2",
@@ -413,6 +482,11 @@ func Test_AssignFilesToUnits(t *testing.T) {
 							assert.Equal(hu.servicePath, cu.Service.Path())
 						} else {
 							assert.Nil(cu.Service)
+						}
+						if hu.hpaPath != "" {
+							assert.Equal(hu.hpaPath, cu.HorizontalPodAutoscaler.Path())
+						} else {
+							assert.Nil(cu.HorizontalPodAutoscaler)
 						}
 					}
 				}
@@ -619,7 +693,7 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 				constructGraph.AddConstruct(dep.Destination)
 				constructGraph.AddDependency(dep.Source.Id(), dep.Destination.Id())
 			}
-			values, err := tt.chart.handleUpstreamUnitDependencies(testUnit, constructGraph)
+			values, err := tt.chart.handleUpstreamUnitDependencies(testUnit, constructGraph, config.ExecutionUnit{})
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -671,6 +745,7 @@ metadata:
   creationTimestamp: null
   labels:
     execUnit: unit
+    klotho-fargate-enabled: "false"
   name: unit
   namespace: default
 spec:
@@ -678,6 +753,7 @@ spec:
   selector:
     matchLabels:
       execUnit: unit
+      klotho-fargate-enabled: "false"
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -721,6 +797,82 @@ status: {}
 			assert.Equal(tt.want.deploymentPath, testUnit.Deployment.Path())
 			assert.Equal(tt.want.deploymentFile, string(testUnit.Deployment.Program()))
 			assert.Equal(testUnit.Deployment, tt.chart.Files[0])
+			assert.Equal(tt.want.values, values)
+		})
+	}
+}
+
+func Test_addHorizontalPodAutoscaler(t *testing.T) {
+	type result struct {
+		hpaPath string
+		hpaFile string
+		values  []HelmChartValue
+	}
+	tests := []struct {
+		name  string
+		chart HelmChart
+		want  result
+	}{
+		{
+			name: "happy path test",
+			chart: HelmChart{
+				Name: "test",
+				ExecutionUnits: []*HelmExecUnit{
+					{
+						Name:      "unit",
+						Namespace: "default",
+					},
+				},
+			},
+			want: result{
+				hpaPath: "test/templates/unit-horizontal-pod-autoscaler.yaml",
+				hpaFile: testutil.UnIndent(`
+                    apiVersion: autoscaling/v2beta2
+                    kind: HorizontalPodAutoscaler
+                    metadata:
+                      creationTimestamp: null
+                      name: unit
+                    spec:
+                      maxReplicas: 4
+                      metrics:
+                      - resource:
+                          name: cpu
+                          target:
+                            averageUtilization: 70
+                            type: Utilization
+                        type: Resource
+                      - resource:
+                          name: memory
+                          target:
+                            averageUtilization: 70
+                            type: Utilization
+                        type: Resource
+                      minReplicas: 2
+                      scaleTargetRef:
+                        apiVersion: apps/v1
+                        kind: Deployment
+                        name: unit
+                    status:
+                      conditions: null
+                      currentMetrics: null
+                      currentReplicas: 0
+                      desiredReplicas: 0`),
+				values: nil,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			testUnit := tt.chart.ExecutionUnits[0]
+			values, err := tt.chart.addHorizontalPodAutoscaler(testUnit, config.ExecutionUnit{})
+			if !assert.NoError(err) {
+				return
+			}
+			assert.Len(tt.chart.Files, 1)
+			assert.Equal(tt.want.hpaPath, testUnit.HorizontalPodAutoscaler.Path())
+			assert.Equal(tt.want.hpaFile, string(testUnit.HorizontalPodAutoscaler.Program()))
+			assert.Equal(testUnit.HorizontalPodAutoscaler, tt.chart.Files[0])
 			assert.Equal(tt.want.values, values)
 		})
 	}
@@ -820,6 +972,7 @@ metadata:
   creationTimestamp: null
   labels:
     execUnit: unit
+    klotho-fargate-enabled: "false"
   name: unit
   namespace: default
 spec:
@@ -829,6 +982,7 @@ spec:
     targetPort: 3000
   selector:
     execUnit: unit
+    klotho-fargate-enabled: "false"
   sessionAffinity: None
   type: ClusterIP
 status:
@@ -841,7 +995,7 @@ status:
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			testUnit := tt.chart.ExecutionUnits[0]
-			values, err := tt.chart.addService(testUnit)
+			values, err := tt.chart.addService(testUnit, config.ExecutionUnit{})
 			if !assert.NoError(err) {
 				return
 			}
