@@ -22,13 +22,6 @@ import (
 )
 
 type (
-	nestedTemplateValue struct {
-		parentValue            reflect.Value
-		childValue             reflect.Value
-		tc                     *TemplatesCompiler
-		useDoubleQuotedStrings bool
-	}
-
 	stringTemplateValue struct {
 		raw   interface{}
 		value string
@@ -78,15 +71,6 @@ func (s stringTemplateValue) Parse() (string, error) {
 
 func (s stringTemplateValue) Raw() interface{} {
 	return s.raw
-}
-
-func (v nestedTemplateValue) Parse() (string, error) {
-	childVal := v.childValue
-	return v.tc.resolveStructInput(&v.parentValue, childVal, v.useDoubleQuotedStrings, nil)
-}
-
-func (v nestedTemplateValue) Raw() interface{} {
-	return v.childValue.Interface()
 }
 
 func CreateTemplatesCompiler(resources *core.ResourceGraph) *TemplatesCompiler {
@@ -216,6 +200,9 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 		var appliedoutputs []AppliedOutput
 		buf := strings.Builder{}
 		strValue, err = tc.resolveStructInput(&resourceVal, childVal, false, &appliedoutputs)
+		if err != nil {
+			return err
+		}
 		uniqueOutputs, err := deduplicateAppliedOutputs(appliedoutputs)
 		if err != nil {
 			return err
