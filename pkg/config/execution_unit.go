@@ -111,3 +111,8 @@ func (cfg ExecutionUnit) GetExecutionUnitParamsAsKubernetes() KubernetesTypePara
 	}
 	return params
 }
+
+func (hpa KubernetesHorizontalPodAutoScalingConfig) NotEmpty() bool {
+	var zero KubernetesHorizontalPodAutoScalingConfig
+	return hpa != zero
+}

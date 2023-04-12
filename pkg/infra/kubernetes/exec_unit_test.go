@@ -4,6 +4,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/testutil"
 	apps "k8s.io/api/apps/v1"
+	autoscaling "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	yaml2 "k8s.io/apimachinery/pkg/util/yaml"
 	k8s_yaml "sigs.k8s.io/yaml"
@@ -411,6 +412,7 @@ func Test_transformDeployment(t *testing.T) {
                       creationTimestamp: null
                       labels:
                         execUnit: testUnit
+                        klotho-fargate-enabled: "false"
                       name: nginx-deployment
                     spec:
                       replicas: 3
@@ -418,6 +420,7 @@ func Test_transformDeployment(t *testing.T) {
                         matchLabels:
                           app: nginx
                           execUnit: testUnit
+                          klotho-fargate-enabled: "false"
                       strategy: {}
                       template:
                         metadata:
@@ -425,6 +428,7 @@ func Test_transformDeployment(t *testing.T) {
                           labels:
                             app: nginx
                             execUnit: testUnit
+                            klotho-fargate-enabled: "false"
                         spec:
                           containers:
                           - image: '{{ .Values.testUnitImage }}'
@@ -482,6 +486,7 @@ func Test_transformDeployment(t *testing.T) {
                       creationTimestamp: null
                       labels:
                         execUnit: testUnit
+                        klotho-fargate-enabled: "false"
                       name: nginx-deployment
                     spec:
                       replicas: 3
@@ -489,6 +494,7 @@ func Test_transformDeployment(t *testing.T) {
                         matchLabels:
                           app: nginx
                           execUnit: testUnit
+                          klotho-fargate-enabled: "false"
                       strategy: {}
                       template:
                         metadata:
@@ -496,6 +502,7 @@ func Test_transformDeployment(t *testing.T) {
                           labels:
                             app: nginx
                             execUnit: testUnit
+                            klotho-fargate-enabled: "false"
                         spec:
                           containers:
                           - image: '{{ .Values.testUnitImage }}'
@@ -556,6 +563,303 @@ func Test_transformDeployment(t *testing.T) {
 			assert.Equal(tt.want.newFile, actualYaml)
 
 			chart := apps.Deployment{}
+			err = yaml2.Unmarshal([]byte(actualYaml), &chart)
+			assert.NoErrorf(err, "while unmarshalling yaml doc")
+		})
+	}
+}
+
+func Test_transformHorizontalPodAutoscaler(t *testing.T) {
+	type result struct {
+		values      []HelmChartValue
+		focusOnPath string
+		newFile     string
+	}
+	tests := []struct {
+		name           string
+		file           string
+		deploymentName string
+		cfg            config.ExecutionUnit
+		want           result
+		wantErr        bool
+	}{
+		{
+			name: "Basic HPA, no cfg",
+			file: testutil.UnIndent(`
+                apiVersion: autoscaling/v2beta2
+                kind: HorizontalPodAutoscaler
+                metadata:
+                  name: testUnit
+                spec:
+                  scaleTargetRef:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    name: testUnit`),
+			want: result{
+				values: nil,
+				newFile: testutil.UnIndent(`
+                apiVersion: autoscaling/v2beta2
+                kind: HorizontalPodAutoscaler
+                metadata:
+                  creationTimestamp: null
+                  name: testUnit
+                spec:
+                  maxReplicas: 0
+                  scaleTargetRef:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    name: testUnit
+                status:
+                  conditions: null
+                  currentMetrics: null
+                  currentReplicas: 0
+                  desiredReplicas: 0`),
+			},
+		},
+		{
+			name: "Basic HPA, just min replicas",
+			cfg: config.ExecutionUnit{InfraParams: map[string]any{
+				"replicas": 13,
+			}},
+			file: testutil.UnIndent(`
+                apiVersion: autoscaling/v2beta2
+                kind: HorizontalPodAutoscaler
+                metadata:
+                  name: testUnit
+                spec:
+                  scaleTargetRef:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    name: testUnit`),
+			want: result{
+				values: nil,
+				newFile: testutil.UnIndent(`
+                apiVersion: autoscaling/v2beta2
+                kind: HorizontalPodAutoscaler
+                metadata:
+                  creationTimestamp: null
+                  name: testUnit
+                spec:
+                  maxReplicas: 26
+                  minReplicas: 13
+                  scaleTargetRef:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    name: testUnit
+                status:
+                  conditions: null
+                  currentMetrics: null
+                  currentReplicas: 0
+                  desiredReplicas: 0`),
+			},
+		},
+		{
+			name: "Basic HPA, just max replicas",
+			cfg: config.ExecutionUnit{InfraParams: map[string]any{
+				"horizontal_pod_autoscaling": map[string]any{
+					"max_replicas": 33,
+				},
+			}},
+			file: testutil.UnIndent(`
+                apiVersion: autoscaling/v2beta2
+                kind: HorizontalPodAutoscaler
+                metadata:
+                  name: testUnit
+                spec:
+                  minReplicas: 11     # note: min in the incoming yaml, but max isn't'
+                  scaleTargetRef:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    name: testUnit`),
+			want: result{
+				values: nil,
+				newFile: testutil.UnIndent(`
+                apiVersion: autoscaling/v2beta2
+                kind: HorizontalPodAutoscaler
+                metadata:
+                  creationTimestamp: null
+                  name: testUnit
+                spec:
+                  maxReplicas: 33
+                  minReplicas: 11
+                  scaleTargetRef:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    name: testUnit
+                status:
+                  conditions: null
+                  currentMetrics: null
+                  currentReplicas: 0
+                  desiredReplicas: 0`),
+			},
+		},
+		{
+			name: "Basic HPA, just cpu",
+			cfg: config.ExecutionUnit{InfraParams: map[string]any{
+				"horizontal_pod_autoscaling": map[string]any{
+					"cpu_utilization": 27,
+				},
+			}},
+			file: testutil.UnIndent(`
+                apiVersion: autoscaling/v2beta2
+                kind: HorizontalPodAutoscaler
+                metadata:
+                  name: testUnit
+                spec:
+                  scaleTargetRef:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    name: testUnit`),
+			want: result{
+				values: nil,
+				newFile: testutil.UnIndent(`
+                apiVersion: autoscaling/v2beta2
+                kind: HorizontalPodAutoscaler
+                metadata:
+                  creationTimestamp: null
+                  name: testUnit
+                spec:
+                  maxReplicas: 0
+                  metrics:
+                  - resource:
+                      name: cpu
+                      target:
+                        averageUtilization: 27
+                        type: Utilization
+                    type: Resource
+                  scaleTargetRef:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    name: testUnit
+                status:
+                  conditions: null
+                  currentMetrics: null
+                  currentReplicas: 0
+                  desiredReplicas: 0`),
+			},
+		},
+		{
+			name: "Basic HPA, override cpu",
+			cfg: config.ExecutionUnit{InfraParams: map[string]any{
+				"horizontal_pod_autoscaling": map[string]any{
+					"cpu_utilization": 22,
+				},
+			}},
+			file: testutil.UnIndent(`
+                apiVersion: autoscaling/v2beta2
+                kind: HorizontalPodAutoscaler
+                metadata:
+                  name: testUnit
+                spec:
+                  metrics:
+                  - type: Resource
+                    resource:
+                      name: cpu
+                      targetAverageUtilization: 11
+                  scaleTargetRef:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    name: testUnit`),
+			want: result{
+				values: nil,
+				newFile: testutil.UnIndent(`
+                apiVersion: autoscaling/v2beta2
+                kind: HorizontalPodAutoscaler
+                metadata:
+                  creationTimestamp: null
+                  name: testUnit
+                spec:
+                  maxReplicas: 0
+                  metrics:
+                  - resource:
+                      name: cpu
+                      target:
+                        averageUtilization: 22
+                        type: Utilization
+                    type: Resource
+                  scaleTargetRef:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    name: testUnit
+                status:
+                  conditions: null
+                  currentMetrics: null
+                  currentReplicas: 0
+                  desiredReplicas: 0`),
+			},
+		},
+		{
+			name: "Basic HPA, just memory",
+			cfg: config.ExecutionUnit{InfraParams: map[string]any{
+				"horizontal_pod_autoscaling": map[string]any{
+					"memory_utilization": 93,
+				},
+			}},
+			file: testutil.UnIndent(`
+                apiVersion: autoscaling/v2beta2
+                kind: HorizontalPodAutoscaler
+                metadata:
+                  name: testUnit
+                spec:
+                  scaleTargetRef:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    name: testUnit`),
+			want: result{
+				values: nil,
+				newFile: testutil.UnIndent(`
+                apiVersion: autoscaling/v2beta2
+                kind: HorizontalPodAutoscaler
+                metadata:
+                  creationTimestamp: null
+                  name: testUnit
+                spec:
+                  maxReplicas: 0
+                  metrics:
+                  - resource:
+                      name: memory
+                      target:
+                        averageUtilization: 93
+                        type: Utilization
+                    type: Resource
+                  scaleTargetRef:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    name: testUnit
+                status:
+                  conditions: null
+                  currentMetrics: null
+                  currentReplicas: 0
+                  desiredReplicas: 0`),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			testUnit := HelmExecUnit{Name: "testUnit"}
+
+			f, err := yaml.NewFile("hpa.yaml", strings.NewReader(tt.file))
+			if assert.Nil(err) {
+				testUnit.HorizontalPodAutoscaler = f
+			}
+
+			values, err := testUnit.transformHorizontalPodAutoscaler(tt.cfg)
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
+			if !assert.NoError(err) {
+				return
+			}
+			assert.Equal(tt.want.values, values)
+			actualYaml := string(testUnit.HorizontalPodAutoscaler.Program())
+			if tt.want.focusOnPath != "" {
+				actualYaml = testutil.SafeYamlPath(actualYaml, tt.want.focusOnPath)
+			}
+			assert.Equal(tt.want.newFile, actualYaml)
+
+			chart := autoscaling.HorizontalPodAutoscaler{}
 			err = yaml2.Unmarshal([]byte(actualYaml), &chart)
 			assert.NoErrorf(err, "while unmarshalling yaml doc")
 		})
@@ -1176,6 +1480,7 @@ metadata:
   creationTimestamp: null
   labels:
     execUnit: testUnit
+    klotho-fargate-enabled: "false"
   name: testUnit
   namespace: default
 spec:
@@ -1185,6 +1490,7 @@ spec:
     targetPort: 3000
   selector:
     execUnit: testUnit
+    klotho-fargate-enabled: "false"
     random: something
   sessionAffinity: None
   type: ClusterIP
@@ -1204,7 +1510,7 @@ status:
 				testUnit.Service = f
 			}
 
-			values, err := testUnit.transformService()
+			values, err := testUnit.transformService(config.ExecutionUnit{})
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -1363,7 +1669,7 @@ func Test_upsertOnlyContainer(t *testing.T) {
 				},
 			}
 
-			valueStr, err := unit.upsertOnlyContainer(&tt.given, cfg)
+			_, valueStr, err := unit.upsertOnlyContainer(&tt.given, cfg)
 			if tt.wantSuccess {
 				if !assert.NoError(err) {
 					return
@@ -1540,7 +1846,7 @@ func Test_configureContainer(t *testing.T) {
 			unit := HelmExecUnit{}
 			container := corev1.Container{}
 
-			err := unit.configureContainer(&container, tt.cfg)
+			_, err := unit.configureContainer(&container, tt.cfg)
 			if tt.want.err {
 				assert.Error(err)
 				return

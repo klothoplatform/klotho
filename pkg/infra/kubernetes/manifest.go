@@ -14,6 +14,7 @@ import (
 var files embed.FS
 
 var deployment = templateutils.MustTemplate(files, "manifests/deployment.yaml.tmpl")
+var horizontalPodAutoscaler = templateutils.MustTemplate(files, "manifests/horizontal_pod_autoscaler.yaml.tmpl")
 var serviceAccount = templateutils.MustTemplate(files, "manifests/service_account.yaml.tmpl")
 var service = templateutils.MustTemplate(files, "manifests/service.yaml.tmpl")
 var serviceExport = templateutils.MustTemplate(files, "manifests/service_export.yaml.tmpl")
@@ -45,6 +46,28 @@ func addDeploymentManifest(kch *HelmChart, unit *HelmExecUnit) error {
 	}
 	kch.Files = append(kch.Files, newF)
 	unit.Deployment = newF
+	return nil
+}
+
+type HorizontalPodAutoscalerManifestData struct {
+	ExecUnitName string
+}
+
+func addHorizontalPodAutoscalerManifest(kch *HelmChart, unit *HelmExecUnit) error {
+	data := HorizontalPodAutoscalerManifestData{
+		ExecUnitName: unit.Name,
+	}
+	buf := new(bytes.Buffer)
+	err := horizontalPodAutoscaler.Execute(buf, data)
+	if err != nil {
+		return core.WrapErrf(err, "error executing template %s", horizontalPodAutoscaler.Name())
+	}
+	newF, err := yaml.NewFile(fmt.Sprintf("%s/templates/%s-horizontal-pod-autoscaler.yaml", kch.Name, unit.Name), bytes.NewBuffer(buf.Bytes()))
+	if err != nil {
+		return core.WrapErrf(err, "error executing template %s", horizontalPodAutoscaler.Name())
+	}
+	kch.Files = append(kch.Files, newF)
+	unit.HorizontalPodAutoscaler = newF
 	return nil
 }
 
