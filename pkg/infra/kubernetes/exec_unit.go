@@ -186,8 +186,7 @@ func (unit *HelmExecUnit) transformHorizontalPodAutoscaler(cfg config.ExecutionU
 	}
 	hpa, ok := obj.(*autoscaling.HorizontalPodAutoscaler)
 	if !ok {
-		err = fmt.Errorf("expected file %s to contain HorizontalPodAutoscaler Kind", unit.HorizontalPodAutoscaler.Path())
-		return nil, nil
+		return nil, fmt.Errorf("expected file %s to contain HorizontalPodAutoscaler Kind", unit.HorizontalPodAutoscaler.Path())
 	}
 	k8Cfg := cfg.GetExecutionUnitParamsAsKubernetes()
 	hpaCfg := k8Cfg.HorizontalPodAutoScalingConfig
