@@ -6,7 +6,9 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/validation"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -27,6 +29,7 @@ type (
 	ProviderPlugin interface {
 		Plugin
 		Translate(result *core.ConstructGraph, dag *core.ResourceGraph) ([]core.CloudResourceLink, error)
+		Validate(config *config.Application, constructGraph *core.ConstructGraph) error
 	}
 
 	IaCPlugin interface {
@@ -49,6 +52,9 @@ type (
 )
 
 func (c *Compiler) Compile() error {
+
+	userOverridesConfiguration := *c.Document.Configuration
+
 	// Add our internal resource to be used for provider specific implementations. ex) aws dispatcher requires the payloads bucket and so does proxy
 	// TODO: We could likely move this into runtime, but until we refactor that to be common we can keep this here so it lives in one place.
 	// We previously always created the payloads bucket so the behavior is no different
@@ -65,9 +71,22 @@ func (c *Compiler) Compile() error {
 		log.Debug("completed")
 	}
 
+	constructValidation := validation.ConstructValidation{
+		Config:              c.Document.Configuration,
+		UserConfigOverrides: userOverridesConfiguration,
+	}
+	err := constructValidation.Run(c.Document.InputFiles, c.Document.Constructs)
+	if err != nil {
+		return err
+	}
+
 	for _, p := range c.ProviderPlugins {
 		log := zap.L().With(zap.String("plugin", p.Name()))
 		log.Debug("starting")
+		err := p.Validate(c.Document.Configuration, c.Document.Constructs)
+		if err != nil {
+			return core.NewPluginError(p.Name(), err)
+		}
 		links, err := p.Translate(c.Document.Constructs, c.Document.Resources)
 		if err != nil {
 			return core.NewPluginError(p.Name(), err)
@@ -84,7 +103,7 @@ func (c *Compiler) Compile() error {
 		}
 		c.Document.OutputFiles = append(c.Document.OutputFiles, files...)
 	}
-	err := c.createConfigOutputFile()
+	err = c.createConfigOutputFile()
 	if err != nil {
 		return errors.Wrap(err, "Unable to output Klotho configuration file")
 	}
