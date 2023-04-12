@@ -109,6 +109,16 @@ func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceG
 	}
 
 	vpc := resources.CreateNetwork(a.Config, dag)
+	sg := resources.GetSecurityGroup(a.Config, dag)
+	sg.IngressRules = append(sg.IngressRules, resources.SecurityGroupRule{
+		Description: "Allows ingress traffic from the EKS control plane",
+		FromPort:    9443,
+		Protocol:    "TCP",
+		ToPort:      9443,
+		CidrBlocks: []core.IaCValue{
+			{Property: "0.0.0.0/0"},
+		},
+	})
 	subnets := vpc.GetVpcSubnets(dag)
 	for clusterId, units := range clusterIdToUnit {
 		resources.CreateEksCluster(a.Config.AppName, clusterId, subnets, nil, units, dag)
