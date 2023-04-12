@@ -280,8 +280,8 @@ type (
 		id             string
 		Fizz           *DummyFizz
 		Buzz           DummyBuzz
-		NestedDoc      *NestedResource `render:"document"`
-		NestedTemplate *NestedTemplate `render:"template"`
+		NestedDoc      *NestedResource
+		NestedTemplate *NestedTemplate
 	}
 
 	NestedResource struct {

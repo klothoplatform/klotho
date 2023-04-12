@@ -12,8 +12,8 @@ type (
 		Name          string
 		Vpc           *Vpc
 		ConstructsRef []core.AnnotationKey
-		IngressRules  []SecurityGroupRule `render:"document"`
-		EgressRules   []SecurityGroupRule `render:"document"`
+		IngressRules  []SecurityGroupRule
+		EgressRules   []SecurityGroupRule
 	}
 	SecurityGroupRule struct {
 		Description string

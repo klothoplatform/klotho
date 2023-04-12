@@ -18,6 +18,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 type (
@@ -309,65 +310,71 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 				return output, err
 			}
 			return output, nil
-		} else if iacTag != "" {
+		} else {
 			val := childVal
 			correspondingStruct := val
 			for correspondingStruct.Kind() == reflect.Pointer {
 				correspondingStruct = val.Elem()
 			}
-			switch iacTag {
-			case "document":
 
-				output := strings.Builder{}
-				output.WriteString("{")
-				for i := 0; i < correspondingStruct.NumField(); i++ {
-
-					childVal := correspondingStruct.Field(i)
-					fieldName := correspondingStruct.Type().Field(i).Name
-
-					structField, found := correspondingStruct.Type().FieldByName(fieldName)
-					iacTag := ""
-					if found {
-						iacTag = structField.Tag.Get("render")
-					}
-
-					// If the struct type is PolicyDocument, pass that down to our recursive calls to keep field name upperCased
-					if correspondingStruct.Type() == reflect.TypeOf((*resources.PolicyDocument)(nil)).Elem() {
-						resourceVal = &correspondingStruct
-					}
-
-					resolvedValue, err := tc.resolveStructInput(resourceVal, childVal, false, iacTag, appliedOutputs)
-
-					if err != nil {
-						return output.String(), err
-					}
-
-					// If the struct type is not PolicyDocument, we want to camelCase our field names to follow pulumi format
-					if resourceVal.Type() != reflect.TypeOf((*resources.PolicyDocument)(nil)).Elem() {
-						fieldName = strings.ToLower(string(fieldName[0])) + fieldName[1:]
-					}
-
-					// To Prevent us from rendering fields which are not set, only right if the value is non zero for its type
-					if !childVal.IsZero() {
-						output.WriteString(fmt.Sprintf("%s: %s,\n", fieldName, resolvedValue))
-					}
-				}
-				output.WriteString("}")
-				return output.String(), nil
-			case "template":
-				tmpl, err := tc.getNestedTemplate(path.Join(
-					camelToSnake(resourceVal.Type().Name()),
-					camelToSnake(correspondingStruct.Type().Name()),
-				))
-				if err != nil {
-					return "", err
-				}
+			// Check to see if there is a nested tempalte and if there is use that
+			tmpl, err := tc.getNestedTemplate(path.Join(
+				camelToSnake(resourceVal.Type().Name()),
+				camelToSnake(correspondingStruct.Type().Name()),
+			), template.FuncMap{
+				// parseVal parses the supplied value
+				"parseVal": func(val reflect.Value) (string, error) {
+					return tc.resolveStructInput(nil, val, useDoubleQuotedStrings, "", appliedOutputs)
+				},
+			})
+			if err != nil {
+				return "", err
+			}
+			if tmpl != nil {
+				zap.S().Debugf("Rendering nested template %s, for resource %s", tmpl.Name, correspondingStruct.Type())
 				output := bytes.NewBuffer([]byte{})
 				err = tmpl.Execute(output, childVal.Interface())
 				return output.String(), err
 			}
-		} else {
-			return "", errors.Errorf(`child struct of %v is not of a known type`, childVal.Type().Name())
+			zap.S().Debugf("Rendering resource %s, as document", correspondingStruct.Type())
+
+			// Last resort, render as a document
+			output := strings.Builder{}
+			output.WriteString("{")
+			for i := 0; i < correspondingStruct.NumField(); i++ {
+
+				childVal := correspondingStruct.Field(i)
+				fieldName := correspondingStruct.Type().Field(i).Name
+
+				structField, found := correspondingStruct.Type().FieldByName(fieldName)
+				iacTag := ""
+				if found {
+					iacTag = structField.Tag.Get("render")
+				}
+
+				// If the struct type is PolicyDocument, pass that down to our recursive calls to keep field name upperCased
+				if correspondingStruct.Type() == reflect.TypeOf((*resources.PolicyDocument)(nil)).Elem() {
+					resourceVal = &correspondingStruct
+				}
+
+				resolvedValue, err := tc.resolveStructInput(resourceVal, childVal, false, iacTag, appliedOutputs)
+
+				if err != nil {
+					return output.String(), err
+				}
+
+				// If the struct type is not PolicyDocument, we want to camelCase our field names to follow pulumi format
+				if resourceVal.Type() != reflect.TypeOf((*resources.PolicyDocument)(nil)).Elem() {
+					fieldName = strings.ToLower(string(fieldName[0])) + fieldName[1:]
+				}
+
+				// To Prevent us from rendering fields which are not set, only right if the value is non zero for its type
+				if !childVal.IsZero() {
+					output.WriteString(fmt.Sprintf("%s: %s,\n", fieldName, resolvedValue))
+				}
+			}
+			output.WriteString("}")
+			return output.String(), nil
 		}
 	case reflect.Array, reflect.Slice:
 		sliceLen := childVal.Len()
@@ -565,7 +572,7 @@ func (tp templatesProvider) getTemplateForType(typeName string) (ResourceCreatio
 	return template, nil
 }
 
-func (tp templatesProvider) getNestedTemplate(templatePath string) (*template.Template, error) {
+func (tp templatesProvider) getNestedTemplate(templatePath string, funcs template.FuncMap) (*template.Template, error) {
 	templateFilePaths := []string{
 		templatePath + ".ts.tmpl",
 		templatePath + ".ts",
@@ -587,10 +594,11 @@ func (tp templatesProvider) getNestedTemplate(templatePath string) (*template.Te
 			merr.Append(err)
 		}
 	}
-	if len(contents) == 0 && merr.ErrOrNil() != nil {
-		return nil, core.WrapErrf(merr.ErrOrNil(), "could not read template: %s", templatePath)
+	// If we dont have any contents we dont have a nested template for the resource, so fall back to the document route
+	if len(contents) == 0 {
+		return nil, nil
 	}
-	tmpl, err := template.New(templatePath).Parse(string(contents))
+	tmpl, err := template.New(templatePath).Funcs(funcs).Parse(string(contents))
 	if err != nil {
 		return nil, errors.Wrapf(err, `while writing template for %s`, templatePath)
 	}

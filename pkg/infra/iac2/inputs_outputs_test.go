@@ -129,7 +129,6 @@ func TestKnownTemplates(t *testing.T) {
 			})
 
 			t.Run("inputs", func(t *testing.T) {
-				coreResourceType := reflect.TypeOf((*core.Resource)(nil)).Elem()
 				for inputName, inputTsType := range tmpl.InputTypes {
 					if inputName == "dependsOn" || inputName == "protect" {
 						continue
@@ -143,29 +142,22 @@ func TestKnownTemplates(t *testing.T) {
 							return
 						}
 						assert.Truef(field.IsExported(), `field is not exported`, field.Name)
-						if field.Tag.Get("render") != "" {
-							assert.Contains([]string{"document", "template"}, field.Tag.Get("render"))
-							var t reflect.Type
-							switch field.Type.Kind() {
-							case reflect.Slice, reflect.Map, reflect.Pointer, reflect.Chan, reflect.Array:
-								t = field.Type.Elem()
-							default:
-								t = field.Type
-							}
-							assert.False(t.Implements(coreResourceType),
-								"fields tagged with `render:\"document\"` or `render:\"template\"` must not be for core.Resource types")
 
-						} else {
-							if field.Type.Kind() == reflect.Interface && field.Type == reflect.TypeOf((*core.Resource)(nil)).Elem() {
-								return
-							}
-							expectedType := &strings.Builder{}
-							if err := buildExpectedTsType(expectedType, tp, field.Type); !assert.NoError(err) {
-								return
-							}
-							assert.NotEmpty(expectedType, `couldn't determine expected type'`)
-							assert.Equal(expectedType.String(), inputTsType, `field type`)
+						if field.Type.Kind() == reflect.Interface && field.Type == reflect.TypeOf((*core.Resource)(nil)).Elem() {
+							return
 						}
+						// avoids fields which use nested template or document functionality
+						if field.Type.Kind() == reflect.Struct || field.Type.Kind() == reflect.Pointer && field.Type != reflect.TypeOf((*core.Resource)(nil)).Elem() || field.Type != reflect.TypeOf((*core.IaCValue)(nil)).Elem() {
+							return
+						}
+
+						expectedType := &strings.Builder{}
+						if err := buildExpectedTsType(expectedType, tp, field.Type); !assert.NoError(err) {
+							return
+						}
+						assert.NotEmpty(expectedType, `couldn't determine expected type'`)
+						assert.Equal(expectedType.String(), inputTsType, `field type`)
+
 					})
 				}
 			})

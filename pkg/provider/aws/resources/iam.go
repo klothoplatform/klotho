@@ -87,16 +87,16 @@ type (
 	IamRole struct {
 		Name                string
 		ConstructsRef       []core.AnnotationKey
-		AssumeRolePolicyDoc *PolicyDocument `render:"document"`
+		AssumeRolePolicyDoc *PolicyDocument
 		ManagedPolicies     []core.IaCValue
 		AwsManagedPolicies  []string
-		InlinePolicy        *PolicyDocument `render:"document"`
+		InlinePolicy        *PolicyDocument
 	}
 
 	IamPolicy struct {
 		Name          string
 		ConstructsRef []core.AnnotationKey
-		Policy        *PolicyDocument `render:"document"`
+		Policy        *PolicyDocument
 	}
 
 	PolicyGenerator struct {
@@ -106,15 +106,15 @@ type (
 
 	PolicyDocument struct {
 		Version   string
-		Statement []StatementEntry `render:"document"`
+		Statement []StatementEntry
 	}
 
 	StatementEntry struct {
 		Effect    string
 		Action    []string
 		Resource  []core.IaCValue
-		Principal *Principal `render:"document"`
-		Condition *Condition `render:"document"`
+		Principal *Principal
+		Condition *Condition
 	}
 
 	Principal struct {
