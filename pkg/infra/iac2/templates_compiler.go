@@ -511,6 +511,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 			return "", errors.Errorf("Unable to handle iac value for %s on type %s", resources.NLB_INTEGRATION_URI_IAC_VALUE, resourceVal.Type().Name())
 		}
 		return fmt.Sprintf("pulumi.interpolate`http://${%s.dnsName}%s`", tc.getVarName(resource), integration.Route), nil
+	case resources.CIDR_BLOCK_IAC_VALUE:
+		return fmt.Sprintf(`%s.cidrBlock`, tc.getVarName(resource)), nil
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property, %s", property)
