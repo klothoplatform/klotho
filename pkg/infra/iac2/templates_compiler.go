@@ -436,7 +436,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 	switch property {
 	case string(core.BUCKET_NAME):
 		return fmt.Sprintf("%s.bucket", tc.getVarName(resource)), nil
-	case string(core.ARN_IAC_VALUE):
+	case string(resources.ARN_IAC_VALUE):
 		return fmt.Sprintf("%s.arn", tc.getVarName(v.Resource)), nil
 	case string(resources.ALL_BUCKET_DIRECTORY_IAC_VALUE):
 		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/*`", tc.getVarName(v.Resource)), nil

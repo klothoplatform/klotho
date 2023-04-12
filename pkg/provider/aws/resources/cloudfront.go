@@ -97,7 +97,7 @@ func CreateS3Origin(unit *core.StaticUnit, bucket *S3Bucket, distribution *Cloud
 				Principal: &Principal{
 					AWS: core.IaCValue{
 						Resource: oai,
-						Property: core.ARN_IAC_VALUE,
+						Property: ARN_IAC_VALUE,
 					},
 				},
 				Action: []string{"s3:GetObject"},
