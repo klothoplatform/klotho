@@ -15,6 +15,9 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 	log := zap.S()
 
 	createNetwork, err := a.shouldCreateNetwork(result)
+	if err != nil {
+		return
+	}
 	if createNetwork {
 		_ = resources.CreateNetwork(a.Config, dag)
 	}
