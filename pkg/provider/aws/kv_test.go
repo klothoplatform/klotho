@@ -23,7 +23,7 @@ func Test_GenerateKVResources(t *testing.T) {
 	table.BillingMode = resources.PAY_PER_REQUEST
 	actions := []string{"dynamodb:*"}
 	policyResources := []core.IaCValue{
-		{Resource: table, Property: core.ARN_IAC_VALUE},
+		{Resource: table, Property: resources.ARN_IAC_VALUE},
 		{Resource: table, Property: resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE},
 		{Resource: table, Property: resources.DYNAMODB_TABLE_INDEX_IAC_VALUE},
 		{Resource: table, Property: resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE},
