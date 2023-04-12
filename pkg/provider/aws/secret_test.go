@@ -71,7 +71,7 @@ func TestGenerateSecretsResources(t *testing.T) {
 							Resource: []core.IaCValue{
 								{
 									Resource: secret1,
-									Property: core.ARN_IAC_VALUE,
+									Property: resources.ARN_IAC_VALUE,
 								},
 							},
 						},
@@ -81,7 +81,7 @@ func TestGenerateSecretsResources(t *testing.T) {
 							Resource: []core.IaCValue{
 								{
 									Resource: secret2,
-									Property: core.ARN_IAC_VALUE,
+									Property: resources.ARN_IAC_VALUE,
 								},
 							},
 						},
