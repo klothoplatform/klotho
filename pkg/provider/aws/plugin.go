@@ -14,6 +14,11 @@ import (
 func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
 	log := zap.S()
 
+	createNetwork, err := a.shouldCreateNetwork(result)
+	if createNetwork {
+		_ = resources.CreateNetwork(a.Config, dag)
+	}
+
 	err = a.createEksClusters(result, dag)
 	if err != nil {
 		return
@@ -61,6 +66,26 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 		return
 	}
 	return
+}
+
+// shouldCreateNetwork determines whether any of our aws resources will need to be within a VPC
+func (a *AWS) shouldCreateNetwork(result *core.ConstructGraph) (bool, error) {
+	constructIds, err := result.TopologicalSort()
+	if err != nil {
+		return false, err
+	}
+	for _, id := range constructIds {
+		construct := result.GetConstruct(id)
+		switch construct := construct.(type) {
+		case *core.RedisCluster, *core.RedisNode, *core.Orm:
+			return true, nil
+		case *core.ExecutionUnit:
+			if a.Config.GetExecutionUnit(construct.ID).Type == kubernetes.KubernetesType {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 // createEksCluster determines whether any execution units have a type of EKS to determine whether a cluster needs to be created.

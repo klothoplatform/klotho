@@ -12,6 +12,75 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_shouldCreateNetwork(t *testing.T) {
+	cases := []struct {
+		name       string
+		constructs []core.Construct
+		config     *config.Application
+		want       bool
+	}{
+		{
+			name:       "lambda",
+			constructs: []core.Construct{&core.ExecutionUnit{}},
+			config:     &config.Application{Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: Lambda}}},
+			want:       false,
+		},
+		{
+			name:       "kubernetes",
+			constructs: []core.Construct{&core.ExecutionUnit{}},
+			config:     &config.Application{Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: kubernetes.KubernetesType}}},
+			want:       true,
+		},
+		{
+			name:       "orm",
+			constructs: []core.Construct{&core.Orm{}},
+			want:       true,
+		},
+		{
+			name:       "redis Node",
+			constructs: []core.Construct{&core.RedisNode{}},
+			want:       true,
+		},
+		{
+			name:       "redis Cluster",
+			constructs: []core.Construct{&core.RedisCluster{}},
+			want:       true,
+		},
+		{
+			name: "remaining resources",
+			constructs: []core.Construct{
+				&core.StaticUnit{},
+				&core.Secrets{},
+				&core.Fs{},
+				&core.Kv{},
+				&core.Config{},
+				&core.InternalResource{},
+				&core.Gateway{},
+				&core.PubSub{},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			aws := AWS{
+				Config: tt.config,
+			}
+			result := core.NewConstructGraph()
+			for _, construct := range tt.constructs {
+				result.AddConstruct(construct)
+			}
+			should, err := aws.shouldCreateNetwork(result)
+			if !assert.NoError(err) {
+				return
+			}
+			assert.Equal(tt.want, should)
+		})
+
+	}
+}
+
 func Test_createEksClusters(t *testing.T) {
 	cases := []struct {
 		name   string
