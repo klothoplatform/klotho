@@ -36,6 +36,7 @@ type (
 		compiler.ProviderPlugin
 		GetKindTypeMappings(construct core.Construct) []string
 		GetDefaultConfig() config.Defaults
+		compiler.ValidatingPlugin
 	}
 
 	TemplateConfig struct {
@@ -60,7 +61,7 @@ func HandleProviderValidation(p Provider, config *config.Application, constructG
 		resourceValid := false
 		mapping := p.GetKindTypeMappings(resource)
 		if len(mapping) == 0 {
-			errs.Append(errors.Errorf("Provider, %s, Does not support %s ", p.Name(), reflect.ValueOf(resource).Kind()))
+			errs.Append(errors.Errorf("Provider, %s, Does not support %s ", p.Name(), reflect.ValueOf(resource).Type()))
 			continue
 		}
 		resourceType := config.GetResourceType(resource)
@@ -71,7 +72,7 @@ func HandleProviderValidation(p Provider, config *config.Application, constructG
 			}
 		}
 		if !resourceValid {
-			errs.Append(errors.Errorf("Provider, %s, Does not support %s and type, %s, pair.\nValid resource types are: %s", p.Name(), resource, resourceType, strings.Join(mapping, ", ")))
+			errs.Append(errors.Errorf("Provider, %s, Does not support %s and type, %s, pair.\nValid resource types are: %s", p.Name(), reflect.ValueOf(resource).Type(), resourceType, strings.Join(mapping, ", ")))
 		}
 	}
 

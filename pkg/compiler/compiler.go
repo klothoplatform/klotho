@@ -29,12 +29,15 @@ type (
 	ProviderPlugin interface {
 		Plugin
 		Translate(result *core.ConstructGraph, dag *core.ResourceGraph) ([]core.CloudResourceLink, error)
-		Validate(config *config.Application, constructGraph *core.ConstructGraph) error
 	}
 
 	IaCPlugin interface {
 		Plugin
 		Translate(cloudGraph *core.ResourceGraph) ([]core.File, error)
+	}
+
+	ValidatingPlugin interface {
+		Validate(config *config.Application, constructGraph *core.ConstructGraph) error
 	}
 
 	Compiler struct {
@@ -83,9 +86,11 @@ func (c *Compiler) Compile() error {
 	for _, p := range c.ProviderPlugins {
 		log := zap.L().With(zap.String("plugin", p.Name()))
 		log.Debug("starting")
-		err := p.Validate(c.Document.Configuration, c.Document.Constructs)
-		if err != nil {
-			return core.NewPluginError(p.Name(), err)
+		if validator, ok := p.(ValidatingPlugin); ok {
+			err := validator.Validate(c.Document.Configuration, c.Document.Constructs)
+			if err != nil {
+				return core.NewPluginError(p.Name(), err)
+			}
 		}
 		links, err := p.Translate(c.Document.Constructs, c.Document.Resources)
 		if err != nil {

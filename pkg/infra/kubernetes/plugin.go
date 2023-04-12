@@ -30,11 +30,6 @@ type Kubernetes struct {
 
 func (p Kubernetes) Name() string { return "kubernetes" }
 
-// Right now we dont do any validation to ensure kubernetes configuration is correct up front. Instead we only do it within our translate function
-func (p Kubernetes) Validate(config *config.Application, constructGraph *core.ConstructGraph) error {
-	return nil
-}
-
 func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
 	var errs multierr.Error
 	p.log = zap.L().Sugar()
