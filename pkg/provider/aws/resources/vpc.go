@@ -121,6 +121,15 @@ func GetVpc(cfg *config.Application, dag *core.ResourceGraph) *Vpc {
 	return CreateNetwork(cfg, dag)
 }
 
+func VpcExists(dag *core.ResourceGraph) bool {
+	for _, r := range dag.ListResources() {
+		if _, ok := r.(*Vpc); ok {
+			return true
+		}
+	}
+	return false
+}
+
 func GetSubnets(cfg *config.Application, dag *core.ResourceGraph) (sns []*Subnet) {
 	vpc := GetVpc(cfg, dag)
 	return vpc.GetVpcSubnets(dag)
@@ -137,6 +146,17 @@ func (vpc *Vpc) GetPrivateSubnets(dag *core.ResourceGraph) []*Subnet {
 		}
 	}
 	return subnets
+}
+
+func (vpc *Vpc) GetSecurityGroups(dag *core.ResourceGraph) []*SecurityGroup {
+	securityGroups := []*SecurityGroup{}
+	downstreamDeps := dag.GetUpstreamResources(vpc)
+	for _, dep := range downstreamDeps {
+		if securityGroup, ok := dep.(*SecurityGroup); ok {
+			securityGroups = append(securityGroups, securityGroup)
+		}
+	}
+	return securityGroups
 }
 
 func CreatePrivateSubnet(appName string, subnetName string, az core.IaCValue, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {

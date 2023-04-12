@@ -111,22 +111,6 @@ func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
 		sourceValue = sourceValue.Elem()
 		sourceType = sourceType.Elem()
 	}
-	add := func(targetValue reflect.Value) {
-		if targetValue.Kind() == reflect.Pointer && targetValue.IsNil() {
-			return
-		}
-		if !targetValue.CanInterface() {
-			return
-		}
-		switch value := targetValue.Interface().(type) {
-		case Resource:
-			rg.AddDependency(source, value)
-		case *IaCValue:
-			rg.AddDependency(source, value.Resource)
-		case IaCValue:
-			rg.AddDependency(source, value.Resource)
-		}
-	}
 	for i := 0; i < sourceType.NumField(); i++ {
 		// TODO maybe add a tag for options for things like ignoring fields
 
@@ -135,17 +119,48 @@ func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
 		case reflect.Slice, reflect.Array:
 			for elemIdx := 0; elemIdx < fieldValue.Len(); elemIdx++ {
 				elemValue := fieldValue.Index(elemIdx)
-				add(elemValue)
+				rg.addDependenciesReflect(source, elemValue)
 			}
 
 		case reflect.Map:
 			for iter := fieldValue.MapRange(); iter.Next(); {
 				elemValue := iter.Value()
-				add(elemValue)
+				rg.addDependenciesReflect(source, elemValue)
 			}
 
 		default:
-			add(fieldValue)
+			rg.addDependenciesReflect(source, fieldValue)
+		}
+	}
+}
+func (rg *ResourceGraph) addDependenciesReflect(source Resource, targetValue reflect.Value) {
+	if targetValue.Kind() == reflect.Pointer && targetValue.IsNil() {
+		return
+	}
+	if !targetValue.CanInterface() {
+		return
+	}
+	switch value := targetValue.Interface().(type) {
+	case Resource:
+		rg.AddDependency(source, value)
+	case *IaCValue:
+		if value.Resource != nil {
+			rg.AddDependency(source, value.Resource)
+		}
+	case IaCValue:
+		if value.Resource != nil {
+			rg.AddDependency(source, value.Resource)
+		}
+	default:
+		correspondingStruct := targetValue
+		for correspondingStruct.Kind() == reflect.Pointer {
+			correspondingStruct = targetValue.Elem()
+		}
+		if correspondingStruct.Kind() == reflect.Struct {
+			for i := 0; i < correspondingStruct.NumField(); i++ {
+				childVal := correspondingStruct.Field(i)
+				rg.addDependenciesReflect(source, childVal)
+			}
 		}
 	}
 }
