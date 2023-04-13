@@ -48,6 +48,8 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 
 	switch execUnitCfg.Type {
 	case Lambda:
+		role.AwsManagedPolicies = append(role.AwsManagedPolicies, "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole")
+		role.AwsManagedPolicies = append(role.AwsManagedPolicies, "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess")
 		lambdaFunction := resources.NewLambdaFunction(unit, a.Config.AppName, role, image)
 		dag.AddDependenciesReflect(lambdaFunction)
 		a.MapResourceDirectlyToConstruct(lambdaFunction, unit)

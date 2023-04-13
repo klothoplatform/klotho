@@ -154,7 +154,7 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 			return nil, errors.Errorf("No nlb created for unit %s", unit.ID)
 		}
 		vpcLink := resources.NewVpcLink(nlb, refs)
-		integration := resources.NewApiIntegration(method, refs, "POST", "VPC_LINK", vpcLink, core.IaCValue{Resource: nlb, Property: resources.NLB_INTEGRATION_URI_IAC_VALUE})
+		integration := resources.NewApiIntegration(method, refs, method.HttpMethod, "VPC_LINK", vpcLink, core.IaCValue{Resource: nlb, Property: resources.NLB_INTEGRATION_URI_IAC_VALUE})
 		integration.Route = convertPath(route.Path)
 		dag.AddDependency(integration, nlb)
 		dag.AddDependenciesReflect(vpcLink)
