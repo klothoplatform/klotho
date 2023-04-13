@@ -166,7 +166,7 @@ func TestResolveStructInput(t *testing.T) {
 			}
 			resourceVal := reflect.ValueOf(tt.parentResource)
 			val := reflect.ValueOf(tt.value)
-			actual, err := tc.resolveStructInput(&resourceVal, val, tt.useDoubleQuotedStrings, "", nil)
+			actual, err := tc.resolveStructInput(&resourceVal, val, tt.useDoubleQuotedStrings, nil)
 			assert.NoError(err)
 			assert.Equal(tt.want, actual)
 		})
@@ -280,8 +280,8 @@ type (
 		id             string
 		Fizz           *DummyFizz
 		Buzz           DummyBuzz
-		NestedDoc      *NestedResource `render:"document"`
-		NestedTemplate *NestedTemplate `render:"template"`
+		NestedDoc      *NestedResource
+		NestedTemplate *NestedTemplate
 	}
 
 	NestedResource struct {

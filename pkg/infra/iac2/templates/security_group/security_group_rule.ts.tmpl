@@ -1,0 +1,12 @@
+{
+    {{- if .CidrBlocks }}
+    cidrBlocks: {{ parseVal .CidrBlocks }},
+    {{- end }}
+    description: "{{ .Description }}",
+    fromPort: {{ .FromPort }},
+    protocol: "{{ .Protocol }}",
+    {{- if .Self }}
+    self: {{ .Self }},
+    {{- end }}
+    toPort: {{ .ToPort }},
+}
