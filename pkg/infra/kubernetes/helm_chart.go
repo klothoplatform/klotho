@@ -2,10 +2,11 @@ package kubernetes
 
 import (
 	"fmt"
-	autoscaling "k8s.io/api/autoscaling/v2beta2"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
+
+	autoscaling "k8s.io/api/autoscaling/v2beta2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -44,8 +45,6 @@ func (chart *HelmChart) KlothoConstructRef() []core.AnnotationKey { return chart
 func (chart *HelmChart) Id() string {
 	return fmt.Sprintf("%s:%s:%s", chart.Provider(), HELM_CHART_TYPE, chart.Name)
 }
-
-var HelmChartKind = "helm_chart"
 
 func (t *HelmChart) OutputTo(dest string) error {
 	errs := make(chan error)
