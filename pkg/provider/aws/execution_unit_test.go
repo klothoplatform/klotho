@@ -41,7 +41,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 				Key:          "tgb",
 			},
 		},
-		Values: make(map[string]core.IaCValue),
+		Values: make(map[string]any),
 	}
 
 	cases := []struct {
@@ -288,7 +288,7 @@ func Test_convertExecUnitParams(t *testing.T) {
 						Key:                 "BUCKETBUCKETNAME",
 					},
 				},
-				Values: make(map[string]core.IaCValue),
+				Values: make(map[string]any),
 			},
 			wants: resources.EnvironmentVariables{
 				"BUCKETBUCKETNAME": core.IaCValue{Resource: s3Bucket, Property: "bucket_name"},
@@ -326,7 +326,7 @@ func Test_convertExecUnitParams(t *testing.T) {
 			case *resources.LambdaFunction:
 				assert.Equal(tt.wants, res.EnvironmentVariables)
 			case *kubernetes.HelmChart:
-				wantAsMap := map[string]core.IaCValue{}
+				wantAsMap := map[string]any{}
 				for key, val := range tt.wants {
 					wantAsMap[key] = val
 				}
