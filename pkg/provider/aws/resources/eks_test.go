@@ -1,7 +1,6 @@
 package resources
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -76,7 +75,6 @@ func Test_CreateEksCluster(t *testing.T) {
 					assert.ElementsMatch(sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
 				}
 			}
-			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 			tt.want.Assert(t, dag)
 
 		})
