@@ -20,13 +20,36 @@ var service = templateutils.MustTemplate(files, "manifests/service.yaml.tmpl")
 var serviceExport = templateutils.MustTemplate(files, "manifests/service_export.yaml.tmpl")
 var targetGroupBinding = templateutils.MustTemplate(files, "manifests/target_group_binding.yaml.tmpl")
 
-type DeploymentManifestData struct {
-	ExecUnitName       string
-	FargateEnabled     string
-	ReplicaCount       string
-	ServiceAccountName string
-	Image              string
-	Namespace          string
+const (
+	MANIFEST_TYPE = "manifest"
+)
+
+type (
+	Manifest struct {
+		Name            string
+		ConstructRefs   []core.AnnotationKey
+		FilePath        string
+		Transformations map[string]core.IaCValue
+	}
+
+	DeploymentManifestData struct {
+		ExecUnitName       string
+		FargateEnabled     string
+		ReplicaCount       string
+		ServiceAccountName string
+		Image              string
+		Namespace          string
+	}
+)
+
+// Provider returns name of the provider the resource is correlated to
+func (manifest *Manifest) Provider() string { return "kubernetes" }
+
+// KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
+func (manifest *Manifest) KlothoConstructRef() []core.AnnotationKey { return manifest.ConstructRefs }
+
+func (manifest *Manifest) Id() string {
+	return fmt.Sprintf("%s:%s:%s", manifest.Provider(), MANIFEST_TYPE, manifest.Name)
 }
 
 func addDeploymentManifest(kch *HelmChart, unit *HelmExecUnit) error {

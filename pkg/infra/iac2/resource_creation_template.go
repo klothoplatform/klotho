@@ -147,9 +147,10 @@ func parseFile(contents []byte) *sitter.Node {
 	return tree.RootNode()
 }
 
-func (t ResourceCreationTemplate) RenderCreate(out io.Writer, inputs map[string]templateValue) error {
+func (t ResourceCreationTemplate) RenderCreate(out io.Writer, inputs map[string]templateValue, tc TemplatesCompiler) error {
 	tmpl, err := template.New(t.name).Funcs(template.FuncMap{
-		"parseTS": parseTS,
+		"parseTS":        parseTS,
+		"handleIaCValue": tc.handleSingleIaCValue,
 	}).Parse(t.ExpressionTemplate)
 	if err != nil {
 		return errors.Wrapf(err, `while writing template for %s`, t.name)

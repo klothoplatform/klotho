@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -26,23 +27,38 @@ func Test_CreateEksCluster(t *testing.T) {
 					"aws:eks_fargate_profile:test-app-test-cluster",
 					"aws:eks_node_group:test-app-test-cluster",
 					"aws:iam_role:test-app-test-cluster-FargateExecutionRole",
-					"aws:iam_role:test-app-test-cluster-k8sAdmin",
 					"aws:iam_role:test-app-test-cluster-NodeGroupRole",
+					"aws:iam_role:test-app-test-cluster-k8sAdmin",
+					"aws:region:region",
+					"aws:vpc_subnet:test_app_test_subnet",
 					"kubernetes:helm_chart:test-cluster-cert-manager",
 					"kubernetes:helm_chart:test-cluster-metrics-server",
-					subnet.Id(),
+					"kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns",
+					"kubernetes:manifest:test-app-test-cluster-aws-observability-config-map",
+					"kubernetes:manifest:test-app-test-cluster-aws-observability-ns",
+					"kubernetes:manifest:test-app-test-cluster-fluent-bit",
+					"kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map",
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:eks_cluster:test-app-test-cluster", Destination: "aws:iam_role:test-app-test-cluster-k8sAdmin"},
-					{Source: "aws:eks_cluster:test-app-test-cluster", Destination: subnet.Id()},
+					{Source: "aws:eks_cluster:test-app-test-cluster", Destination: "aws:vpc_subnet:test_app_test_subnet"},
 					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: "aws:iam_role:test-app-test-cluster-FargateExecutionRole"},
-					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: subnet.Id()},
+					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: "aws:vpc_subnet:test_app_test_subnet"},
 					{Source: "aws:eks_node_group:test-app-test-cluster", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "aws:eks_node_group:test-app-test-cluster", Destination: "aws:iam_role:test-app-test-cluster-NodeGroupRole"},
+					{Source: "aws:eks_node_group:test-app-test-cluster", Destination: "aws:vpc_subnet:test_app_test_subnet"},
 					{Source: "kubernetes:helm_chart:test-cluster-cert-manager", Destination: "aws:eks_node_group:test-app-test-cluster"},
 					{Source: "kubernetes:helm_chart:test-cluster-metrics-server", Destination: "aws:eks_node_group:test-app-test-cluster"},
-					{Source: "aws:eks_node_group:test-app-test-cluster", Destination: subnet.Id()},
+					{Source: "kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "kubernetes:manifest:test-app-test-cluster-aws-observability-config-map", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "kubernetes:manifest:test-app-test-cluster-aws-observability-config-map", Destination: "kubernetes:manifest:test-app-test-cluster-aws-observability-ns"},
+					{Source: "kubernetes:manifest:test-app-test-cluster-aws-observability-ns", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit", Destination: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map"},
+					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "aws:region:region"},
+					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns"},
 				},
 			},
 		},
@@ -53,12 +69,16 @@ func Test_CreateEksCluster(t *testing.T) {
 			dag := core.NewResourceGraph()
 			CreateEksCluster(appName, clusterName, []*Subnet{subnet}, nil, eus, dag)
 			for _, r := range dag.ListResources() {
-				if r != subnet { // ignore input resources
+				if cluster, ok := r.(*EksCluster); ok {
+					assert.Len(cluster.Manifests, 4)
+				}
+				if r != subnet && r.Id() != "aws:region:region" { // ignore input resources
 					assert.ElementsMatch(sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
 				}
 			}
-
+			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 			tt.want.Assert(t, dag)
+
 		})
 	}
 }
