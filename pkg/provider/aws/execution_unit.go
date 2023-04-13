@@ -42,12 +42,14 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 		dag.AddDependency(role, pol)
 		role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{
 			Resource: pol,
-			Property: core.ARN_IAC_VALUE,
+			Property: resources.ARN_IAC_VALUE,
 		})
 	}
 
 	switch execUnitCfg.Type {
 	case Lambda:
+		role.AwsManagedPolicies = append(role.AwsManagedPolicies, "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole")
+		role.AwsManagedPolicies = append(role.AwsManagedPolicies, "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess")
 		lambdaFunction := resources.NewLambdaFunction(unit, a.Config.AppName, role, image)
 		if resources.VpcExists(dag) {
 			vpc := resources.GetVpc(a.Config, dag)
@@ -124,14 +126,14 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 							case string(kubernetes.ServiceAccountAnnotationTransformation):
 								khChart.Values[val.Key] = core.IaCValue{
 									Resource: role,
-									Property: core.ARN_IAC_VALUE,
+									Property: resources.ARN_IAC_VALUE,
 								}
 								dag.AddDependency(khChart, role)
 							case string(kubernetes.TargetGroupTransformation):
 								targetGroup := a.createEksLoadBalancer(result, dag, unit)
 								khChart.Values[val.Key] = core.IaCValue{
 									Resource: targetGroup,
-									Property: core.ARN_IAC_VALUE,
+									Property: resources.ARN_IAC_VALUE,
 								}
 								dag.AddDependency(khChart, targetGroup)
 							}
@@ -247,7 +249,7 @@ func (a *AWS) createEksLoadBalancer(result *core.ConstructGraph, dag *core.Resou
 	}
 	targetGroup := resources.NewTargetGroup(a.Config.AppName, unit.ID, refs, unitsPort, "TCP", vpc, "ip")
 	listener := resources.NewListener(unit.ID, lb, refs, 80, "TCP", []*resources.LBAction{
-		{TargetGroupArn: core.IaCValue{Resource: targetGroup, Property: core.ARN_IAC_VALUE}, Type: "forward"},
+		{TargetGroupArn: core.IaCValue{Resource: targetGroup, Property: resources.ARN_IAC_VALUE}, Type: "forward"},
 	})
 	dag.AddDependenciesReflect(lb)
 	dag.AddDependenciesReflect(targetGroup)

@@ -89,6 +89,18 @@ func Test_createEksClusters(t *testing.T) {
 		want   []*resources.EksCluster
 	}{
 		{
+			name: `no clusters created`,
+			units: []*core.ExecutionUnit{
+				{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+			},
+			config: &config.Application{
+				AppName: "test",
+				ExecutionUnits: map[string]*config.ExecutionUnit{
+					"test": {Type: Lambda},
+				},
+			},
+		},
+		{
 			name: `one exec unit, no cluster id`,
 			units: []*core.ExecutionUnit{
 				{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
@@ -208,6 +220,19 @@ func Test_createEksClusters(t *testing.T) {
 					return
 				}
 				assert.ElementsMatch(resource.KlothoConstructRef(), cluster.ConstructsRef)
+			}
+
+			if len(tt.want) > 0 {
+				sg := resources.GetSecurityGroup(aws.Config, dag)
+				assert.Contains(sg.IngressRules, resources.SecurityGroupRule{
+					Description: "Allows ingress traffic from the EKS control plane",
+					FromPort:    9443,
+					Protocol:    "TCP",
+					ToPort:      9443,
+					CidrBlocks: []core.IaCValue{
+						{Property: "0.0.0.0/0"},
+					},
+				})
 			}
 		})
 

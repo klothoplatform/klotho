@@ -48,7 +48,7 @@ type (
 		Port           int
 		Protocol       string
 		LoadBalancer   *LoadBalancer
-		DefaultActions []*LBAction `render:"document"`
+		DefaultActions []*LBAction
 	}
 	LBAction struct {
 		TargetGroupArn core.IaCValue

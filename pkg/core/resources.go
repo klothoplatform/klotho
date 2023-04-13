@@ -41,12 +41,15 @@ type (
 		Property string
 	}
 
+	HasOutputFiles interface {
+		GetOutputFiles() []File
+	}
+
 	HasLocalOutput interface {
 		OutputTo(dest string) error
 	}
 )
 
 const (
-	ARN_IAC_VALUE           = "arn"
 	ALL_RESOURCES_IAC_VALUE = "*"
 )

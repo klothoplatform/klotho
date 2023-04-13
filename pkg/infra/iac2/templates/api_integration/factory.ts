@@ -17,9 +17,13 @@ interface Args {
 function create(args: Args): aws.apigateway.Integration {
     return new aws.apigateway.Integration(args.Name, {
         restApi: args.RestApi.id,
+        //TMPL {{- if .Resource.Raw }}
         resourceId: args.Resource.id,
+        //TMPL {{- else}}
+        //TMPL resourceId: args.RestApi.rootResourceId,
+        //TMPL {{- end }}
         httpMethod: args.Method.httpMethod,
-        integrationHttpMethod: args.Method.httpMethod,
+        integrationHttpMethod: args.IntegrationHttpMethod,
         type: args.Type,
         //TMPL {{ if .ConnectionType.Raw }}
         connectionType: args.ConnectionType,

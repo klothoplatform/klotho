@@ -49,8 +49,10 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 			merr.Append(a.GenerateSecretsResources(construct, result, dag))
 		case *core.Kv:
 			merr.Append(a.GenerateKvResources(construct, result, dag))
-		case *core.RedisCluster, *core.RedisNode:
+		case *core.RedisNode:
 			merr.Append(a.GenerateRedisResources(construct, result, dag))
+		case *core.Orm:
+			merr.Append(a.GenerateOrmResources(construct, result, dag))
 		default:
 			// TODO convert to error once migration to ifc2 is complete
 			log.Warnf("Unsupported resource %s", construct.Id())
@@ -137,6 +139,16 @@ func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceG
 	}
 
 	vpc := resources.CreateNetwork(a.Config, dag)
+	sg := resources.GetSecurityGroup(a.Config, dag)
+	sg.IngressRules = append(sg.IngressRules, resources.SecurityGroupRule{
+		Description: "Allows ingress traffic from the EKS control plane",
+		FromPort:    9443,
+		Protocol:    "TCP",
+		ToPort:      9443,
+		CidrBlocks: []core.IaCValue{
+			{Property: "0.0.0.0/0"},
+		},
+	})
 	subnets := vpc.GetVpcSubnets(dag)
 	for clusterId, units := range clusterIdToUnit {
 		resources.CreateEksCluster(a.Config.AppName, clusterId, subnets, nil, units, dag)
