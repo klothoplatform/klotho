@@ -136,9 +136,9 @@ func CreateRdsInstance(cfg *config.Application, orm *core.Orm, proxyEnabled bool
 
 		secretVersion := NewSecretVersion(secret, credsPath)
 		secretVersion.Type = "string"
-		secretPolicyDoc := CreateAllowPolicyDocument([]string{"secretsmanager:GetSecretValue"}, []core.IaCValue{{Resource: secret, Property: core.ARN_IAC_VALUE}})
+		secretPolicyDoc := CreateAllowPolicyDocument([]string{"secretsmanager:GetSecretValue"}, []core.IaCValue{{Resource: secret, Property: ARN_IAC_VALUE}})
 		secretPolicy := NewIamPolicy(cfg.AppName, fmt.Sprintf("%s-ormsecretpolicy", orm.ID), orm.AnnotationKey, secretPolicyDoc)
-		role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{Resource: secretPolicy, Property: core.ARN_IAC_VALUE})
+		role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{Resource: secretPolicy, Property: ARN_IAC_VALUE})
 		dag.AddDependency(secretPolicy, secret)
 
 		proxy = NewRdsProxy(orm, cfg.AppName, securityGroups, subnets, role, secret)
@@ -275,7 +275,7 @@ func NewRdsProxy(orm *core.Orm, appName string, securityGroups []*SecurityGroup,
 			{
 				AuthScheme: "SECRETS",
 				IamAuth:    "DISABLED",
-				SecretArn:  core.IaCValue{Resource: secret, Property: core.ARN_IAC_VALUE},
+				SecretArn:  core.IaCValue{Resource: secret, Property: ARN_IAC_VALUE},
 			},
 		},
 	}
