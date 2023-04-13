@@ -125,7 +125,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	cluster.ConstructsRef = references
 	dag.AddDependenciesReflect(cluster)
 
-	createNodeGroups(cfg, dag, units, cluster, subnets)
+	createNodeGroups(cfg, dag, units, clusterName, cluster, subnets)
 
 	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
 	dag.AddDependenciesReflect(fargateRole)
@@ -135,7 +135,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	dag.AddDependenciesReflect(profile)
 }
 
-func createNodeGroups(cfg *config.Application, dag *core.ResourceGraph, units []*core.ExecutionUnit, cluster *EksCluster, subnets []*Subnet) ([]*EksNodeGroup, error) {
+func createNodeGroups(cfg *config.Application, dag *core.ResourceGraph, units []*core.ExecutionUnit, clusterName string, cluster *EksCluster, subnets []*Subnet) []*EksNodeGroup {
 	type groupKey struct {
 		InstanceType string
 		NetworkType  string
@@ -202,7 +202,7 @@ func createNodeGroups(cfg *config.Application, dag *core.ResourceGraph, units []
 			MinSize:        1,
 			MaxUnavailable: 1,
 		}
-		nodeGroup.NodeRole = createNodeRole(cfg.AppName, fmt.Sprintf("%s.%s", cluster.Name, nodeGroup.Name), spec.refs)
+		nodeGroup.NodeRole = createNodeRole(cfg.AppName, fmt.Sprintf("%s.%s", clusterName, nodeGroup.Name), spec.refs)
 		dag.AddDependenciesReflect(nodeGroup.NodeRole)
 
 		for _, sn := range subnets {
@@ -216,7 +216,7 @@ func createNodeGroups(cfg *config.Application, dag *core.ResourceGraph, units []
 		groups = append(groups, nodeGroup)
 	}
 
-	return groups, nil
+	return groups
 }
 
 func NodeGroupNameFromConfig(cfg config.ExecutionUnit) string {

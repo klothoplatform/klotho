@@ -154,10 +154,9 @@ func Test_createNodeGroups(t *testing.T) {
 		AmiType  string
 	}
 	tests := []struct {
-		name    string
-		units   map[string]*config.ExecutionUnit
-		want    []NodeGroupExpect
-		wantErr bool
+		name  string
+		units map[string]*config.ExecutionUnit
+		want  []NodeGroupExpect
 	}{
 		{
 			name: "no groups default",
@@ -218,13 +217,7 @@ func Test_createNodeGroups(t *testing.T) {
 				ExecutionUnits: tt.units,
 			}
 
-			groups, err := createNodeGroups(cfg, dag, units, cluster, subnets)
-			if tt.wantErr {
-				assert.Error(err)
-				return
-			} else if !assert.NoError(err) {
-				return
-			}
+			groups := createNodeGroups(cfg, dag, units, cluster.Name, cluster, subnets)
 			got := make([]NodeGroupExpect, len(groups))
 			for i, group := range groups {
 				got[i] = NodeGroupExpect{Name: group.Name, DiskSize: group.DiskSize, AmiType: group.AmiType}
