@@ -62,11 +62,8 @@
 //
 // Within a Resource struct, the default TemplatesCompiler rendering behavior allows only fields of primitive types,
 // slices, maps, and structs implementing the Resource or IacValue interfaces.
-// This behavior can be modified with the following using the following tas on struct fields:
-//   - `render:"document"` - tells TemplatesCompiler to render a field as a TypeScript object
-//   - `render:"template"` - tells TemplatesCompiler to render a field using a standard Go-[text/template]
-//     with a filename matching the nested struct's name in lower-snake-case format
-//     in the same directory as the parent resource's factory.ts file.
+// This behavior can be extendend using nested templates, if there is a filename matching the nested struct's name in lower-snake-case format in the same directory as the parent resource's factory.ts file.
+// Any other field will be rendered as a document, recursively.
 //
 // # TemplatesCompiler
 //

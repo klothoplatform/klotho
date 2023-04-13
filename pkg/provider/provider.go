@@ -14,9 +14,6 @@
 //   - They are a native Go Type
 //   - They satisfy the core.Resource interface
 //   - They are a core.IaCValue
-//   - The struct field is tagged with `render: "document`
-//
-// The `render: "document` signals that the field within the struct contains other nested fields and needs to be rendered as an object, native to the language the IaCPlugin uses
 package provider
 
 import (
