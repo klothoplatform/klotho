@@ -9,6 +9,7 @@ import (
 const REGION_TYPE = "region"
 const AVAILABILITY_ZONES_TYPE = "availability_zones"
 const ACCOUNT_ID_TYPE = "account_id"
+const ARN_IAC_VALUE = "arn"
 
 type (
 	Region struct {

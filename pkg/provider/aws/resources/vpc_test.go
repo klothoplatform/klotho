@@ -154,6 +154,59 @@ func Test_GetVpcSubnets(t *testing.T) {
 	}
 }
 
+func Test_GetPrivateSubnets(t *testing.T) {
+
+	type subnetSpec struct {
+		Cidr   string
+		Public bool
+	}
+
+	cases := []struct {
+		name    string
+		subnets []subnetSpec
+		want    []subnetSpec
+	}{
+		{
+			name: "happy path",
+			subnets: []subnetSpec{
+				{"10.0.1.0/24", false},
+				{"10.0.2.0/24", false},
+				{"10.0.3.0/24", true},
+				{"10.0.4.0/24", true},
+			},
+			want: []subnetSpec{
+				{"10.0.1.0/24", false}, {"10.0.2.0/24", false},
+			},
+		},
+		{
+			name: "no subnets",
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			dag := core.NewResourceGraph()
+
+			vpc := NewVpc("test-app")
+			dag.AddResource(vpc)
+			for i, spec := range tt.subnets {
+				if spec.Public {
+					CreatePublicSubnet(fmt.Sprintf("public%d", i), core.IaCValue{Resource: NewAvailabilityZones()}, vpc, spec.Cidr, dag)
+				} else {
+					CreatePrivateSubnet("test-app", fmt.Sprintf("private%d", i), core.IaCValue{Resource: NewAvailabilityZones()}, vpc, spec.Cidr, dag)
+				}
+			}
+
+			result := vpc.GetPrivateSubnets(dag)
+			var got []subnetSpec
+			for _, sn := range result {
+				got = append(got, subnetSpec{Cidr: sn.CidrBlock, Public: sn.Type == PublicSubnet})
+			}
+			assert.ElementsMatch(got, tt.want)
+		})
+	}
+}
+
 func Test_CreatePrivateSubnet(t *testing.T) {
 	appName := "test-app"
 	cases := []struct {

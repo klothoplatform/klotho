@@ -5,21 +5,22 @@ interface Args {
     SecretName: string
     Secret: aws.secretsmanager.Secret
     Path: string
+    Type: string
+    protect: boolean
 }
 
 // noinspection JSUnusedLocalSymbols
-function create(args: Args): void {
-    return fs.readFile(args.Path, (err, data) => {
-        if (err != null) {
-            return
-        }
-        new aws.secretsmanager.SecretVersion(
-            args.SecretName,
-            {
-                secretId: args.Secret.id,
-                secretBinary: data.toString('base64'),
-            },
-            { protect: this.lib.protect }
-        )
-    })
+function create(args: Args): aws.secretsmanager.SecretVersion {
+    return new aws.secretsmanager.SecretVersion(
+        args.SecretName,
+        {
+            secretId: args.Secret.id,
+            //TMPL {{ if eq .Type.Raw "string" }}
+            //TMPL secretString: fs.readFileSync(args.Path, 'utf-8').toString()
+            //TMPL {{ else }}
+            secretBinary: fs.readFileSync(args.Path, 'base64').toString(),
+            //TMPL {{ end }}
+        },
+        { protect: args.protect }
+    )
 }

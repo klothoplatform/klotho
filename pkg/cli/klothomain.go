@@ -428,11 +428,10 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		analyticsClient.UploadSource(input)
 	}
 
-	resourceCounts, err := OutputResources(document)
+	resourceCounts, err := document.OutputResources()
 	if err != nil {
 		return err
 	}
-
 	CloseTreeSitter(document.Constructs)
 	analyticsClient.AppendProperties(map[string]any{
 		"resource_types": GetResourceTypeCount(document.Constructs, &appCfg),

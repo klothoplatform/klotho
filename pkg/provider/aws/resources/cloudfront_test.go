@@ -40,7 +40,7 @@ func Test_CreateS3Origin(t *testing.T) {
 		Principal: &Principal{
 			AWS: core.IaCValue{
 				Resource: oai,
-				Property: core.ARN_IAC_VALUE,
+				Property: ARN_IAC_VALUE,
 			},
 		},
 		Action: []string{"s3:GetObject"},

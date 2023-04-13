@@ -14,22 +14,26 @@
 //   - They are a native Go Type
 //   - They satisfy the core.Resource interface
 //   - They are a core.IaCValue
-//   - The struct field is tagged with `render: "document`
-//
-// The `render: "document` signals that the field within the struct contains other nested fields and needs to be rendered as an object, native to the language the IaCPlugin uses
 package provider
 
 import (
+	"reflect"
+	"strings"
+
 	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/multierr"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 type (
 	Provider interface {
 		compiler.ProviderPlugin
-		GetKindTypeMappings(construct core.Construct) ([]string, bool)
+		GetKindTypeMappings(construct core.Construct) []string
 		GetDefaultConfig() config.Defaults
+		compiler.ValidatingPlugin
 	}
 
 	TemplateConfig struct {
@@ -38,3 +42,36 @@ type (
 		AppName string
 	}
 )
+
+// HandleProviderValidation ensures that the klotho configuration and construct graph are valid for the provider
+//
+// The current checks consist of:
+//   - types defined in klotho configuration for each construct is valid for the provider
+func HandleProviderValidation(p Provider, config *config.Application, constructGraph *core.ConstructGraph) error {
+
+	var errs multierr.Error
+	log := zap.L().Sugar()
+	for _, resource := range constructGraph.ListConstructs() {
+		if _, ok := resource.(*core.InternalResource); ok {
+			continue
+		}
+		resourceValid := false
+		mapping := p.GetKindTypeMappings(resource)
+		if len(mapping) == 0 {
+			errs.Append(errors.Errorf("Provider, %s, Does not support %s ", p.Name(), reflect.ValueOf(resource).Type()))
+			continue
+		}
+		resourceType := config.GetResourceType(resource)
+		log.Debugf("Checking if provider, %s, supports %s and type, %s, pair.", p.Name(), resource.Provenance().Capability, resourceType)
+		for _, validType := range mapping {
+			if validType == resourceType {
+				resourceValid = true
+			}
+		}
+		if !resourceValid {
+			errs.Append(errors.Errorf("Provider, %s, Does not support %s and type, %s, pair.\nValid resource types are: %s", p.Name(), reflect.ValueOf(resource).Type(), resourceType, strings.Join(mapping, ", ")))
+		}
+	}
+
+	return errs.ErrOrNil()
+}

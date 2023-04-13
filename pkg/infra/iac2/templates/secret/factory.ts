@@ -3,6 +3,7 @@ import * as aws from '@pulumi/aws'
 interface Args {
     Name: string
     SecretName: string
+    protect: boolean
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -13,6 +14,6 @@ function create(args: Args): aws.secretsmanager.Secret {
             name: args.SecretName,
             recoveryWindowInDays: 0,
         },
-        { protect: this.lib.protect }
+        { protect: args.protect }
     )
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -80,7 +81,7 @@ type (
 		ConstructsRef    []core.AnnotationKey
 		Cluster          *EksCluster
 		PodExecutionRole *IamRole
-		Selectors        []*FargateProfileSelector `render:"template"`
+		Selectors        []*FargateProfileSelector
 		Subnets          []*Subnet
 	}
 
@@ -125,7 +126,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	cluster.ConstructsRef = references
 	dag.AddDependenciesReflect(cluster)
 
-	createNodeGroups(cfg, dag, units, clusterName, cluster, subnets)
+	nodeGroups := createNodeGroups(cfg, dag, units, clusterName, cluster, subnets)
 
 	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
 	dag.AddDependenciesReflect(fargateRole)
@@ -133,6 +134,13 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	profile := NewEksFargateProfile(cluster, subnets, fargateRole, references)
 	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
 	dag.AddDependenciesReflect(profile)
+
+	for _, addOn := range createAddOns(clusterName, references) {
+		dag.AddResource(addOn)
+		for _, nodeGroup := range nodeGroups {
+			dag.AddDependency(addOn, nodeGroup)
+		}
+	}
 }
 
 func createNodeGroups(cfg *config.Application, dag *core.ResourceGraph, units []*core.ExecutionUnit, clusterName string, cluster *EksCluster, subnets []*Subnet) []*EksNodeGroup {
@@ -226,6 +234,31 @@ func NodeGroupNameFromConfig(cfg config.ExecutionUnit) string {
 
 func NodeGroupName(networkPlacement string, instanceType string) string {
 	return nodeGroupSanitizer.Apply(fmt.Sprintf("%s_%s", networkPlacement, instanceType))
+}
+
+func createAddOns(clusterName string, provenance []core.AnnotationKey) []*kubernetes.HelmChart {
+	return []*kubernetes.HelmChart{
+		{
+			Name:          clusterName + `-metrics-server`,
+			Chart:         "metrics-server",
+			ConstructRefs: provenance,
+			Repo:          `https://kubernetes-sigs.github.io/metrics-server/`,
+		},
+		{
+			Name:             clusterName + `-cert-manager`,
+			Chart:            `cert-manager`,
+			ConstructRefs:    provenance,
+			ClustersProvider: nil,
+			Repo:             `https://charts.jetstack.io`,
+			Version:          `v1.10.0`,
+			Values: map[string]any{
+				`installCRDs`: true,
+				`webhook`: map[string]any{
+					`timeoutSeconds`: 30,
+				},
+			},
+		},
+	}
 }
 
 // GetEksCluster will return the resource with the name corresponding to the appName and ClusterId

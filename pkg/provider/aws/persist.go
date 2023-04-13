@@ -9,19 +9,19 @@ func (a *AWS) GenerateFsResources(construct *core.Fs, result *core.ConstructGrap
 	bucket := resources.NewS3Bucket(construct, a.Config.AppName)
 	dag.AddResource(bucket)
 	a.MapResourceDirectlyToConstruct(bucket, construct)
+	actions := []string{"s3:*"}
+	policyResources := []core.IaCValue{
+		{Resource: bucket, Property: resources.ARN_IAC_VALUE},
+		{Resource: bucket, Property: resources.ALL_BUCKET_DIRECTORY_IAC_VALUE},
+	}
+	policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
+	policy := resources.NewIamPolicy(a.Config.AppName, construct.Id(), construct.Provenance(), policyDoc)
+	dag.AddResource(policy)
+	dag.AddDependency(policy, bucket)
 	upstreamResources := result.GetUpstreamConstructs(construct)
 	for _, res := range upstreamResources {
 		unit, ok := res.(*core.ExecutionUnit)
 		if ok {
-			actions := []string{"s3:*"}
-			policyResources := []core.IaCValue{
-				{Resource: bucket, Property: core.ARN_IAC_VALUE},
-				{Resource: bucket, Property: resources.ALL_BUCKET_DIRECTORY_IAC_VALUE},
-			}
-			policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
-			policy := resources.NewIamPolicy(a.Config.AppName, construct.Id(), construct.Provenance(), policyDoc)
-			dag.AddResource(policy)
-			dag.AddDependency(policy, bucket)
 			a.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), policy)
 		}
 	}

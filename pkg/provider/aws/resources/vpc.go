@@ -25,6 +25,8 @@ const (
 	VPC_SUBNET_TYPE       = "vpc_subnet"
 	VPC_ENDPOINT_TYPE     = "vpc_endpoint"
 	VPC_TYPE              = "vpc"
+
+	CIDR_BLOCK_IAC_VALUE = "cidr_block"
 )
 
 type (
@@ -126,19 +128,6 @@ func GetSubnets(cfg *config.Application, dag *core.ResourceGraph) (sns []*Subnet
 	return vpc.GetVpcSubnets(dag)
 }
 
-func (vpc *Vpc) GetPrivateSubnets(dag *core.ResourceGraph) []*Subnet {
-	subnets := []*Subnet{}
-	downstreamDeps := dag.GetUpstreamResources(vpc)
-	for _, dep := range downstreamDeps {
-		if subnet, ok := dep.(*Subnet); ok {
-			if subnet.Type == PrivateSubnet {
-				subnets = append(subnets, subnet)
-			}
-		}
-	}
-	return subnets
-}
-
 func CreatePrivateSubnet(appName string, subnetName string, az core.IaCValue, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
 
 	subnet := NewSubnet(subnetName, vpc, cidrBlock, PrivateSubnet, az)
@@ -198,6 +187,19 @@ func (vpc *Vpc) GetVpcSubnets(dag *core.ResourceGraph) []*Subnet {
 	for _, dep := range downstreamDeps {
 		if subnet, ok := dep.(*Subnet); ok {
 			subnets = append(subnets, subnet)
+		}
+	}
+	return subnets
+}
+
+func (vpc *Vpc) GetPrivateSubnets(dag *core.ResourceGraph) []*Subnet {
+	subnets := []*Subnet{}
+	downstreamDeps := dag.GetUpstreamResources(vpc)
+	for _, dep := range downstreamDeps {
+		if subnet, ok := dep.(*Subnet); ok {
+			if subnet.Type == PrivateSubnet {
+				subnets = append(subnets, subnet)
+			}
 		}
 	}
 	return subnets
