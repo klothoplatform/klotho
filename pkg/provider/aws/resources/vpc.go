@@ -137,19 +137,6 @@ func GetSubnets(cfg *config.Application, dag *core.ResourceGraph) (sns []*Subnet
 	return vpc.GetVpcSubnets(dag)
 }
 
-func (vpc *Vpc) GetPrivateSubnets(dag *core.ResourceGraph) []*Subnet {
-	subnets := []*Subnet{}
-	downstreamDeps := dag.GetUpstreamResources(vpc)
-	for _, dep := range downstreamDeps {
-		if subnet, ok := dep.(*Subnet); ok {
-			if subnet.Type == PrivateSubnet {
-				subnets = append(subnets, subnet)
-			}
-		}
-	}
-	return subnets
-}
-
 func (vpc *Vpc) GetSecurityGroups(dag *core.ResourceGraph) []*SecurityGroup {
 	securityGroups := []*SecurityGroup{}
 	downstreamDeps := dag.GetUpstreamResources(vpc)

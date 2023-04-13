@@ -75,12 +75,8 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 
 // shouldCreateNetwork determines whether any of our aws resources will need to be within a VPC
 func (a *AWS) shouldCreateNetwork(result *core.ConstructGraph) (bool, error) {
-	constructIds, err := result.TopologicalSort()
-	if err != nil {
-		return false, err
-	}
-	for _, id := range constructIds {
-		construct := result.GetConstruct(id)
+	constructs := result.ListConstructs()
+	for _, construct := range constructs {
 		switch construct := construct.(type) {
 		case *core.RedisCluster, *core.RedisNode, *core.Orm:
 			return true, nil
