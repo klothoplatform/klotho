@@ -416,7 +416,7 @@ export class ApiGateway {
                             connectionId: vpcLink.id,
                             uri: pulumi.interpolate`http://${
                                 nlb.loadBalancer.dnsName
-                            }${this.convertPath(r.path)}`,
+                            }${this.convertPath(r.path).replace('+', '')}`,
                             requestParameters:
                                 Object.keys(integrationRequestParams).length == 0
                                     ? undefined
@@ -444,7 +444,7 @@ export class ApiGateway {
                             connectionId: vpcLink.id,
                             uri: pulumi.interpolate`http://${nlb.dnsName}${this.convertPath(
                                 r.path
-                            )}`,
+                            ).replace('+', '')}`,
                             requestParameters:
                                 Object.keys(integrationRequestParams).length == 0
                                     ? undefined
