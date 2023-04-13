@@ -46,8 +46,6 @@ func (chart *HelmChart) Id() string {
 	return fmt.Sprintf("%s:%s:%s", chart.Provider(), HELM_CHART_TYPE, chart.Name)
 }
 
-var HelmChartKind = "helm_chart"
-
 func (t *HelmChart) OutputTo(dest string) error {
 	errs := make(chan error)
 	files := t.Files

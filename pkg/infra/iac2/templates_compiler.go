@@ -252,7 +252,7 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 		varName := tc.getVarName(resource)
 		fmt.Fprintf(out, `const %s = `, varName)
 	}
-	errs.Append(tmpl.RenderCreate(out, inputArgs))
+	errs.Append(tmpl.RenderCreate(out, inputArgs, tc))
 	_, err = out.Write([]byte(";"))
 	if err != nil {
 		return err
@@ -433,6 +433,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf("%s.bucket", tc.getVarName(resource)), nil
 	case string(resources.ARN_IAC_VALUE):
 		return fmt.Sprintf("%s.arn", tc.getVarName(v.Resource)), nil
+	case string(resources.NAME_IAC_VALUE):
+		return fmt.Sprintf("%s.name", tc.getVarName(v.Resource)), nil
 	case string(resources.ALL_BUCKET_DIRECTORY_IAC_VALUE):
 		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/*`", tc.getVarName(v.Resource)), nil
 	case resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE,
@@ -543,6 +545,10 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property, %s", property)
+}
+
+func (tc TemplatesCompiler) handleSingleIaCValue(v core.IaCValue) (string, error) {
+	return tc.handleIaCValue(v, nil, nil)
 }
 
 // getVarName gets a unique but nice-looking variable for the given item.

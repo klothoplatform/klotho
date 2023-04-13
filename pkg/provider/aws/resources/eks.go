@@ -1,8 +1,13 @@
 package resources
 
 import (
+	"embed"
 	"fmt"
+	"io/fs"
+	"path"
 	"strings"
+
+	"go.uber.org/zap"
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -18,6 +23,13 @@ const (
 
 	CLUSTER_OIDC_URL_IAC_VALUE = "cluster_oidc_url"
 	CLUSTER_OIDC_ARN_IAC_VALUE = "cluster_oidc_arn"
+	NAME_IAC_VALUE             = "name"
+
+	AWS_OBSERVABILITY_NS_PATH         = "aws_observability_namespace.yaml"
+	AWS_OBSERVABILITY_CONFIG_MAP_PATH = "aws_observability_configmap.yaml"
+	AMAZON_CLOUDWATCH_NS_PATH         = "amazon_cloudwatch_namespace.yaml"
+	FLUENT_BIT_CLUSTER_INFO           = "fluent_bit_cluster_info.yaml"
+	MANIFEST_PATH_PREFIX              = "manifests"
 )
 
 var nodeGroupSanitizer = aws.EksNodeGroupSanitizer
@@ -67,6 +79,9 @@ var EKS_AMI_INSTANCE_PREFIX_MAP = map[string][]string{
 	"AL2_ARM_64":     {"c6g", "c6gd", "c6gn", "m6g", "m6gd", "r6g", "r6gd", "t4g"},
 }
 
+//go:embed manifests/*
+var eksManifests embed.FS
+
 type (
 	//Todo: Add SecurityGroups when they are available
 	EksCluster struct {
@@ -74,6 +89,7 @@ type (
 		ConstructsRef []core.AnnotationKey
 		ClusterRole   *IamRole
 		Subnets       []*Subnet
+		Manifests     []core.File
 	}
 
 	EksFargateProfile struct {
@@ -127,6 +143,15 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	dag.AddDependenciesReflect(cluster)
 
 	nodeGroups := createNodeGroups(cfg, dag, units, clusterName, cluster, subnets)
+
+	err := cluster.createFargateLogging(references, dag)
+	if err != nil {
+		zap.S().Warnf("Unable to set up Fargate logging manifests for cluster %s: %s", clusterName, err.Error())
+	}
+	err = cluster.installFluentBit(references, dag)
+	if err != nil {
+		zap.S().Warnf("Unable to set up fluent bit manifests for cluster %s: %s", clusterName, err.Error())
+	}
 
 	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
 	dag.AddDependenciesReflect(fargateRole)
@@ -259,6 +284,89 @@ func createAddOns(clusterName string, provenance []core.AnnotationKey) []*kubern
 			},
 		},
 	}
+}
+
+func (cluster *EksCluster) GetOutputFiles() []core.File {
+	return cluster.Manifests
+}
+
+func (cluster *EksCluster) createFargateLogging(references []core.AnnotationKey, dag *core.ResourceGraph) error {
+	namespaceOutputPath := path.Join(MANIFEST_PATH_PREFIX, AWS_OBSERVABILITY_NS_PATH)
+	content, err := fs.ReadFile(eksManifests, namespaceOutputPath)
+	if err != nil {
+		return err
+	}
+	namespace := &kubernetes.Manifest{
+		Name:          fmt.Sprintf("%s-%s", cluster.Name, "aws-observability-ns"),
+		ConstructRefs: references,
+		FilePath:      namespaceOutputPath,
+	}
+	dag.AddResource(namespace)
+	dag.AddDependency(namespace, cluster)
+	cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: namespaceOutputPath, Content: content})
+
+	configMapOutputPath := path.Join(MANIFEST_PATH_PREFIX, AWS_OBSERVABILITY_CONFIG_MAP_PATH)
+	content, err = fs.ReadFile(eksManifests, configMapOutputPath)
+	if err != nil {
+		return err
+	}
+	configMap := &kubernetes.Manifest{
+		Name:          fmt.Sprintf("%s-%s", cluster.Name, "aws-observability-config-map"),
+		ConstructRefs: references,
+		FilePath:      configMapOutputPath,
+	}
+	dag.AddResource(configMap)
+	dag.AddDependency(configMap, cluster)
+	dag.AddDependency(configMap, namespace)
+	cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: configMapOutputPath, Content: content})
+	return nil
+}
+
+func (cluster *EksCluster) installFluentBit(references []core.AnnotationKey, dag *core.ResourceGraph) error {
+	namespaceOutputPath := path.Join(MANIFEST_PATH_PREFIX, AMAZON_CLOUDWATCH_NS_PATH)
+	content, err := fs.ReadFile(eksManifests, namespaceOutputPath)
+	if err != nil {
+		return err
+	}
+	namespace := &kubernetes.Manifest{
+		Name:          fmt.Sprintf("%s-%s", cluster.Name, "awmazon-cloudwatch-ns"),
+		ConstructRefs: references,
+		FilePath:      namespaceOutputPath,
+	}
+	dag.AddResource(namespace)
+	dag.AddDependency(namespace, cluster)
+	cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: namespaceOutputPath, Content: content})
+
+	configMapOutputPath := path.Join(MANIFEST_PATH_PREFIX, FLUENT_BIT_CLUSTER_INFO)
+	content, err = fs.ReadFile(eksManifests, configMapOutputPath)
+	if err != nil {
+		return err
+	}
+	region := NewRegion()
+	configMap := &kubernetes.Manifest{
+		Name:          fmt.Sprintf("%s-%s", cluster.Name, "fluent-bit-cluster-info-config-map"),
+		ConstructRefs: references,
+		FilePath:      configMapOutputPath,
+		Transformations: map[string]core.IaCValue{
+			"data.cluster.name": {Resource: cluster, Property: NAME_IAC_VALUE},
+			"data.logs.region":  {Resource: region, Property: NAME_IAC_VALUE},
+		},
+	}
+	dag.AddResource(configMap)
+	dag.AddDependency(configMap, cluster)
+	dag.AddDependency(configMap, namespace)
+	dag.AddDependency(configMap, region)
+	cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: configMapOutputPath, Content: content})
+
+	fluentBitOptimized := &kubernetes.Manifest{
+		Name:          fmt.Sprintf("%s-%s", cluster.Name, "fluent-bit"),
+		ConstructRefs: references,
+		FilePath:      "https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/fluent-bit/fluent-bit.yaml",
+	}
+	dag.AddResource(configMap)
+	dag.AddDependency(fluentBitOptimized, cluster)
+	dag.AddDependency(fluentBitOptimized, configMap)
+	return nil
 }
 
 // GetEksCluster will return the resource with the name corresponding to the appName and ClusterId
