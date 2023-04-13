@@ -437,6 +437,28 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
+	case string(core.CONNECTION_STRING):
+		switch res := v.Resource.(type) {
+		case *resources.RdsProxy:
+			downResources := tc.resourceGraph.GetUpstreamDependencies(res)
+			var instance *resources.RdsInstance
+			for _, resource := range downResources {
+				if rdsProxyTargetGroup, ok := resource.Source.(*resources.RdsProxyTargetGroup); ok {
+					instance = rdsProxyTargetGroup.RdsInstance
+				}
+			}
+			if instance == nil {
+				return "", errors.Errorf("Rds Proxy, %s, must have an associated instance", v.Resource.Id())
+			}
+
+			fetchUsername := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[1].split('"')[3]`, instance.CredentialsPath)
+			fetchPassword := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[2].split('"')[3]`, instance.CredentialsPath)
+			return fmt.Sprintf("pulumi.interpolate`postgresql://${%s}:${%s}@${%s.endpoint}:5432/%s`", fetchUsername, fetchPassword,
+				tc.getVarName(v.Resource), instance.DatabaseName), nil
+		default:
+			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
+		}
+
 	case resources.CLUSTER_OIDC_ARN_IAC_VALUE:
 		varName := "cluster_oidc_url"
 		*appliedOutputs = append(*appliedOutputs, AppliedOutput{
@@ -484,6 +506,16 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 			return "", errors.Errorf("Unable to handle iac value for %s on type %s", resources.NLB_INTEGRATION_URI_IAC_VALUE, resourceVal.Type().Name())
 		}
 		return fmt.Sprintf("pulumi.interpolate`http://${%s.dnsName}%s`", tc.getVarName(resource), integration.Route), nil
+	case resources.RDS_CONNECTION_ARN_IAC_VALUE:
+		switch res := v.Resource.(type) {
+		case *resources.RdsInstance:
+			accountId := resources.NewAccountId()
+			region := resources.NewRegion()
+			fetchUsername := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[1].split('"')[3]`, res.CredentialsPath)
+			return fmt.Sprintf("pulumi.interpolate`arn:aws:rds-db:${%s.name}:${%s.accountId}:dbuser:${%s.resourceId}/${%s}`", tc.getVarName(region), tc.getVarName(accountId), tc.getVarName(res), fetchUsername), nil
+		default:
+			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
+		}
 	case resources.CIDR_BLOCK_IAC_VALUE:
 		return fmt.Sprintf(`%s.cidrBlock`, tc.getVarName(resource)), nil
 	}

@@ -41,6 +41,10 @@ type (
 		Property string
 	}
 
+	HasOutputFiles interface {
+		GetOutputFiles() []File
+	}
+
 	HasLocalOutput interface {
 		OutputTo(dest string) error
 	}

@@ -2,6 +2,7 @@ package resources
 
 import (
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
@@ -19,14 +20,15 @@ type (
 		Path                  string
 		ConstructsRef         []core.AnnotationKey
 		secretNameUnSanitized string
+		Type                  string
 	}
 )
 
 const SECRET_TYPE = "secret"
 const SECRET_VERSION_TYPE = "secret_version"
 
-func NewSecret(annot core.AnnotationKey, secret string, appName string) *Secret {
-	plainName := fmt.Sprintf("%s-%s-%s", appName, annot.ID, secret)
+func NewSecret(annot core.AnnotationKey, secretName string, appName string) *Secret {
+	plainName := fmt.Sprintf("%s-%s-%s", appName, annot.ID, secretName)
 	return &Secret{
 		Name:          plainName,
 		SecretName:    aws.SecretSanitizer.Apply(plainName),
