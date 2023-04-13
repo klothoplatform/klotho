@@ -142,7 +142,7 @@ func (a *AWS) GetKindTypeMappings(construct core.Construct) []string {
 	case *core.RedisCluster:
 		return []string{Memorydb}
 	case *core.Secrets:
-		return []string{S3}
+		return []string{Secrets_manager}
 	case *core.PubSub:
 		return []string{Sns}
 	case *core.Config:
