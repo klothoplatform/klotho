@@ -87,51 +87,55 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 			},
 		}
 		// transform kubernetes resources for EKS
-
-		// TODO look into a better way to map the provider to a helm chart
-		providerName := "UNIMPLEMENTED-eks-provider"
-		provider, ok := dag.GetResource(providerName).(*resources.AwsKubernetesProvider)
-		if !ok {
-			provider = &resources.AwsKubernetesProvider{Name: providerName, KubeConfig: ""}
-		}
-		dag.AddResource(provider)
-		provider.ConstructRefs = append(provider.ConstructRefs, unit.AnnotationKey)
-
+		var charts []*kubernetes.HelmChart
+		var kubeconfig *kubernetes.Kubeconfig
 		for _, res := range dag.ListResources() {
-			if khChart, ok := res.(*kubernetes.HelmChart); ok {
-				for _, ref := range khChart.KlothoConstructRef() {
-					if ref.ToId() == unit.ToId() {
-						khChart.ClustersProvider = provider
-						dag.AddDependenciesReflect(khChart)
-						for _, val := range khChart.ProviderValues {
-							if val.ExecUnitName != unit.ID {
-								continue
-							}
-							switch val.Type {
-							// TODO handle kubernetes.TargetGroupTransformation
-							case string(kubernetes.ImageTransformation):
-								khChart.Values[val.Key] = core.IaCValue{
-									Resource: image,
-									Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
-								}
-								dag.AddDependency(khChart, image)
-							case string(kubernetes.ServiceAccountAnnotationTransformation):
-								khChart.Values[val.Key] = core.IaCValue{
-									Resource: role,
-									Property: core.ARN_IAC_VALUE,
-								}
-								dag.AddDependency(khChart, role)
-							case string(kubernetes.TargetGroupTransformation):
-								targetGroup := a.createEksLoadBalancer(result, dag, unit)
-								khChart.Values[val.Key] = core.IaCValue{
-									Resource: targetGroup,
-									Property: core.ARN_IAC_VALUE,
-								}
-								dag.AddDependency(khChart, targetGroup)
-							}
-						}
-						a.MapResourceDirectlyToConstruct(khChart, unit)
+			switch res := res.(type) {
+			case *kubernetes.HelmChart:
+				charts = append(charts, res)
+			case *kubernetes.Kubeconfig:
+				if kubeconfig != nil {
+					return fmt.Errorf("multiple kubeconfigs detected for cluster id=%s", cluster.Id())
+				}
+				kubeconfig = res
+			}
+		}
+		for _, khChart := range charts {
+			for _, ref := range khChart.KlothoConstructRef() {
+				if ref.ToId() == unit.ToId() {
+					khChart.ClustersProvider = core.IaCValue{
+						Resource: kubeconfig,
+						Property: resources.CLUSTER_PROVIDER_IAC_VALUE,
 					}
+					dag.AddDependenciesReflect(khChart)
+					for _, val := range khChart.ProviderValues {
+						if val.ExecUnitName != unit.ID {
+							continue
+						}
+						switch val.Type {
+						// TODO handle kubernetes.TargetGroupTransformation
+						case string(kubernetes.ImageTransformation):
+							khChart.Values[val.Key] = core.IaCValue{
+								Resource: image,
+								Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
+							}
+							dag.AddDependency(khChart, image)
+						case string(kubernetes.ServiceAccountAnnotationTransformation):
+							khChart.Values[val.Key] = core.IaCValue{
+								Resource: role,
+								Property: core.ARN_IAC_VALUE,
+							}
+							dag.AddDependency(khChart, role)
+						case string(kubernetes.TargetGroupTransformation):
+							targetGroup := a.createEksLoadBalancer(result, dag, unit)
+							khChart.Values[val.Key] = core.IaCValue{
+								Resource: targetGroup,
+								Property: core.ARN_IAC_VALUE,
+							}
+							dag.AddDependency(khChart, targetGroup)
+						}
+					}
+					a.MapResourceDirectlyToConstruct(khChart, unit)
 				}
 			}
 		}

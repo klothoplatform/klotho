@@ -14,6 +14,7 @@ import (
 	"text/template"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -23,13 +24,13 @@ import (
 
 type (
 	stringTemplateValue struct {
-		raw   interface{}
+		raw   any
 		value string
 	}
 
 	templateValue interface {
 		Parse() (string, error)
-		Raw() interface{}
+		Raw() any
 	}
 
 	templatesProvider struct {
@@ -192,6 +193,10 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 			inputArgs[fieldName] = stringTemplateValue{value: "protect", raw: "protect"}
 			continue
 		}
+		if fieldName == "awsProfile" {
+			inputArgs[fieldName] = stringTemplateValue{value: "protect", raw: "awsProfile"}
+			continue
+		}
 		childVal := resourceVal.FieldByName(fieldName)
 		var err error
 		var resolvedValue templateValue
@@ -218,7 +223,13 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 				return err
 			}
 		}
-		resolvedValue = stringTemplateValue{value: buf.String(), raw: childVal.Interface()}
+
+		var rawVal any
+		if childVal.IsValid() {
+			rawVal = childVal.Interface()
+		}
+
+		resolvedValue = stringTemplateValue{value: buf.String(), raw: rawVal}
 
 		if err != nil {
 			errs.Append(err)
@@ -235,7 +246,7 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 	if err != nil {
 		return err
 	}
-
+	errs.Append(tc.renderGlueVars(out, resource))
 	return errs.ErrOrNil()
 }
 
@@ -409,9 +420,11 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 	switch property {
 	case string(core.BUCKET_NAME):
 		return fmt.Sprintf("%s.bucket", tc.getVarName(resource)), nil
-	case string(core.ARN_IAC_VALUE):
+	case core.ARN_IAC_VALUE:
 		return fmt.Sprintf("%s.arn", tc.getVarName(v.Resource)), nil
-	case string(resources.ALL_BUCKET_DIRECTORY_IAC_VALUE):
+	case core.NAME_IAC_VALUE:
+		return fmt.Sprintf("%s.name", tc.getVarName(v.Resource)), nil
+	case resources.ALL_BUCKET_DIRECTORY_IAC_VALUE:
 		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/*`", tc.getVarName(v.Resource)), nil
 	case resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE,
 		resources.DYNAMODB_TABLE_INDEX_IAC_VALUE,
@@ -419,9 +432,9 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		resources.DYNAMODB_TABLE_STREAM_IAC_VALUE:
 		prop := strings.Split(property, "__")[1]
 		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/%s/*`", tc.getVarName(resource), prop), nil
-	case string(resources.LAMBDA_INTEGRATION_URI_IAC_VALUE):
+	case resources.LAMBDA_INTEGRATION_URI_IAC_VALUE:
 		return fmt.Sprintf("%s.invokeArn", tc.getVarName(resource)), nil
-	case string(core.ALL_RESOURCES_IAC_VALUE):
+	case core.ALL_RESOURCES_IAC_VALUE:
 		return "*", nil
 	case string(core.HOST):
 		switch resource.(type) {
@@ -457,6 +470,15 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 			varName:     varName,
 		})
 		return fmt.Sprintf("[`${%s}:sub`]", varName), nil
+	case resources.CLUSTER_CA_DATA_IAC_VALUE:
+		return fmt.Sprintf("%s.certificateAuthorityData", tc.getVarName(v.Resource)), nil
+	case resources.CLUSTER_ENDPOINT_IAC_VALUE:
+		return fmt.Sprintf("%s.endpoint", tc.getVarName(v.Resource)), nil
+	case resources.CLUSTER_PROVIDER_IAC_VALUE:
+		if kcfg, ok := v.Resource.(*kubernetes.Kubeconfig); ok {
+			p := &KubernetesProvider{Name: fmt.Sprintf("%s-provider", kcfg.Name)}
+			return tc.getVarNameByResourceId(p.Id()), nil
+		}
 	case resources.ALL_RESOURCES_ARN_IAC_VALUE:
 		method, ok := v.Resource.(*resources.ApiMethod)
 		if !ok {
@@ -500,11 +522,15 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 // it, where ${i} is the lowest positive integer that would give us a new, unique variable name. This isn't expected
 // to happen often, if at all, since ids are globally unique.
 func (tc TemplatesCompiler) getVarName(v core.Resource) string {
-	if name, alreadyResolved := tc.resourceVarNamesById[v.Id()]; alreadyResolved {
+	return tc.getVarNameByResourceId(v.Id())
+}
+
+func (tc TemplatesCompiler) getVarNameByResourceId(id string) string {
+	if name, alreadyResolved := tc.resourceVarNamesById[id]; alreadyResolved {
 		return name
 	}
 	// Generate something like "lambdaFoo", where Lambda is the name of the struct and "foo" is the id
-	desiredName := lowercaseFirst(toUpperCamel(v.Id()))
+	desiredName := lowercaseFirst(toUpperCamel(id))
 	resolvedName := desiredName
 	for i := 1; ; i++ {
 		_, varNameTaken := tc.resourceVarNames[resolvedName]
@@ -515,7 +541,7 @@ func (tc TemplatesCompiler) getVarName(v core.Resource) string {
 		}
 	}
 	tc.resourceVarNames[resolvedName] = struct{}{}
-	tc.resourceVarNamesById[v.Id()] = resolvedName
+	tc.resourceVarNamesById[id] = resolvedName
 	return resolvedName
 }
 
@@ -593,4 +619,27 @@ func (tc TemplatesCompiler) GetPackageJSON(v core.Resource) (javascript.NodePack
 		return *packageContent.Clone(), err
 	}
 	return *packageContent.Clone(), nil
+}
+
+// renderGlueVars renders additional variables associated with a given resource that do not represent specific cloud resources
+func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource core.Resource) error {
+	var errs multierr.Error
+	switch resource := resource.(type) {
+	case *kubernetes.Kubeconfig:
+		errs.Append(tc.renderKubernetesProvider(out, resource))
+	}
+	return errs.ErrOrNil()
+}
+
+func (tc TemplatesCompiler) renderKubernetesProvider(out io.Writer, kubeconfig *kubernetes.Kubeconfig) error {
+	var errs multierr.Error
+	provider := &KubernetesProvider{
+		Name:          fmt.Sprintf("%s-provider", kubeconfig.Name),
+		ConstructsRef: kubeconfig.ConstructsRef,
+		KubeConfig:    kubeconfig,
+	}
+	_, err := out.Write([]byte("\n"))
+	errs.Append(err)
+	errs.Append(tc.renderResource(out, provider))
+	return errs.ErrOrNil()
 }

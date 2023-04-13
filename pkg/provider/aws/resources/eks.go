@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -15,6 +16,9 @@ const (
 
 	CLUSTER_OIDC_URL_IAC_VALUE = "cluster_oidc_url"
 	CLUSTER_OIDC_ARN_IAC_VALUE = "cluster_oidc_arn"
+	CLUSTER_ENDPOINT_IAC_VALUE = "cluster_endpoint"
+	CLUSTER_CA_DATA_IAC_VALUE  = "cluster_certificate_authority_data"
+	CLUSTER_PROVIDER_IAC_VALUE = "cluster_provider"
 )
 
 var nodeGroupSanitizer = aws.EksNodeGroupSanitizer
@@ -64,8 +68,8 @@ type (
 // CreateEksCluster will create a cluster in the subnets provided, with the attached additional security groups
 //
 // The method will also create a fargate profile in the default namespace and a single NodeGroup.
-// The method will create all of the corresponding IAM Roles necessary and attach all the execution units references to the following objects
-func CreateEksCluster(appName string, clusterName string, subnets []*Subnet, securityGroups []*any, units []*core.ExecutionUnit, dag *core.ResourceGraph) {
+// The method will create all the corresponding IAM Roles necessary and attach all the execution units references to the following objects
+func CreateEksCluster(appName string, clusterName string, subnets []*Subnet, securityGroups []*any, units []*core.ExecutionUnit, dag *core.ResourceGraph) error {
 	references := []core.AnnotationKey{}
 	for _, u := range units {
 		references = append(references, u.Provenance())
@@ -78,6 +82,9 @@ func CreateEksCluster(appName string, clusterName string, subnets []*Subnet, sec
 	cluster.ConstructsRef = references
 	dag.AddResource(cluster)
 	dag.AddDependency(cluster, clusterRole)
+	for _, subnet := range subnets {
+		dag.AddDependency(cluster, subnet)
+	}
 
 	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
 	dag.AddResource(fargateRole)
@@ -101,6 +108,76 @@ func CreateEksCluster(appName string, clusterName string, subnets []*Subnet, sec
 		dag.AddDependency(cluster, s)
 		dag.AddDependency(nodeGroup, s)
 		dag.AddDependency(profile, s)
+	}
+
+	var region *Region
+	for _, res := range dag.GetAllDownstreamResources(cluster) {
+		if r, ok := res.(*Region); ok {
+			region = r
+		}
+	}
+	if region == nil {
+		return fmt.Errorf("downstream region not found for EksCluster with id=%s", cluster.Id())
+	}
+
+	kubeconfig := createEKSKubeconfig(cluster, region)
+	dag.AddResource(kubeconfig)
+	dag.AddDependency(kubeconfig, cluster)
+	dag.AddDependency(kubeconfig, region)
+
+	return nil
+}
+
+func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeconfig {
+	username := "aws"
+	clusterNameIaCValue := core.IaCValue{
+		Resource: cluster,
+		Property: core.NAME_IAC_VALUE,
+	}
+	return &kubernetes.Kubeconfig{
+		ConstructsRef:  cluster.ConstructsRef,
+		Name:           fmt.Sprintf("%s-eks-kubeconfig", cluster.Name),
+		ApiVersion:     "v1",
+		CurrentContext: "aws",
+		Kind:           "Config",
+		Clusters: []kubernetes.KubeconfigCluster{
+			{
+				Name: clusterNameIaCValue,
+				CertificateAuthorityData: core.IaCValue{
+					Resource: cluster,
+					Property: CLUSTER_CA_DATA_IAC_VALUE,
+				},
+				Server: core.IaCValue{
+					Resource: cluster,
+					Property: CLUSTER_ENDPOINT_IAC_VALUE,
+				},
+			},
+		},
+		Contexts: []kubernetes.KubeconfigContext{
+			{
+				Cluster: clusterNameIaCValue,
+				User:    username,
+			},
+		},
+		Users: []kubernetes.KubeconfigUser{
+			{
+				Exec: kubernetes.KubeconfigExec{
+					ApiVersion: "client.authentication.k8s.io/v1beta1",
+					Command:    "aws",
+					Args: []any{
+						"eks",
+						"get-token",
+						"--cluster-name",
+						clusterNameIaCValue,
+						"--region",
+						core.IaCValue{
+							Resource: region,
+							Property: core.NAME_IAC_VALUE,
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -136,7 +213,7 @@ func createPodExecutionRole(appName string, roleName string, refs []core.Annotat
 				"logs:DescribeLogStreams",
 				"logs:PutLogEvents",
 			},
-			Resource: []core.IaCValue{core.IaCValue{Property: "*"}},
+			Resource: []core.IaCValue{{Property: "*"}},
 		},
 	}}
 	return fargateRole

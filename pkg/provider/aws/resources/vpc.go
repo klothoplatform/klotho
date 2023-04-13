@@ -86,6 +86,7 @@ func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 	dag.AddResource(region)
 	dag.AddDependency(azs, region)
 	dag.AddResource(vpc)
+	dag.AddDependency(vpc, region)
 	dag.AddResource(igw)
 	dag.AddDependency(igw, vpc)
 

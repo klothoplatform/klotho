@@ -75,6 +75,7 @@ func Test_CreateNetwork(t *testing.T) {
 					{Source: "aws:vpc_subnet:test_app_public1", Destination: "aws:vpc:test_app"},
 					{Source: "aws:vpc_subnet:test_app_public2", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:vpc_subnet:test_app_public2", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc:test_app", Destination: "aws:region:region"},
 				},
 			},
 		},

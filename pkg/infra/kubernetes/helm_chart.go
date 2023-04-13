@@ -2,10 +2,11 @@ package kubernetes
 
 import (
 	"fmt"
-	autoscaling "k8s.io/api/autoscaling/v2beta2"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
+
+	autoscaling "k8s.io/api/autoscaling/v2beta2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -28,7 +29,7 @@ type HelmChart struct {
 	ProviderValues []HelmChartValue
 
 	ConstructRefs    []core.AnnotationKey
-	ClustersProvider core.Resource
+	ClustersProvider core.IaCValue
 	Repo             string
 	Version          string
 	Namespace        string

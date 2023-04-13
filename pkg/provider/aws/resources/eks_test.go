@@ -13,7 +13,9 @@ func Test_CreateEksCluster(t *testing.T) {
 	clusterName := "test-cluster"
 	eus := []*core.ExecutionUnit{{AnnotationKey: core.AnnotationKey{ID: "test"}}}
 	sources := []core.AnnotationKey{{ID: "test"}}
-	subnet := NewSubnet("test-subnet", NewVpc(appName), "", PrivateSubnet, core.IaCValue{})
+	vpc := NewVpc(appName)
+	subnet := NewSubnet("test-subnet", vpc, "", PrivateSubnet, core.IaCValue{})
+	region := NewRegion()
 	cases := []struct {
 		name string
 		want coretesting.ResourcesExpectation
@@ -28,9 +30,14 @@ func Test_CreateEksCluster(t *testing.T) {
 					"aws:iam_role:test-app-test-cluster-FargateExecutionRole",
 					"aws:iam_role:test-app-test-cluster-k8sAdmin",
 					"aws:iam_role:test-app-test-cluster-NodeGroupRole",
+					"kubernetes:kubeconfig:test-app-test-cluster-eks-kubeconfig",
 					subnet.Id(),
+					vpc.Id(),
+					region.Id(),
 				},
 				Deps: []coretesting.StringDep{
+					{Source: vpc.Id(), Destination: region.Id()},
+					{Source: subnet.Id(), Destination: vpc.Id()},
 					{Source: "aws:eks_cluster:test-app-test-cluster", Destination: "aws:iam_role:test-app-test-cluster-k8sAdmin"},
 					{Source: "aws:eks_cluster:test-app-test-cluster", Destination: subnet.Id()},
 					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: "aws:eks_cluster:test-app-test-cluster"},
@@ -39,6 +46,8 @@ func Test_CreateEksCluster(t *testing.T) {
 					{Source: "aws:eks_node_group:test-app-test-cluster", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "aws:eks_node_group:test-app-test-cluster", Destination: "aws:iam_role:test-app-test-cluster-NodeGroupRole"},
 					{Source: "aws:eks_node_group:test-app-test-cluster", Destination: subnet.Id()},
+					{Source: "kubernetes:kubeconfig:test-app-test-cluster-eks-kubeconfig", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "kubernetes:kubeconfig:test-app-test-cluster-eks-kubeconfig", Destination: region.Id()},
 				},
 			},
 		},
@@ -47,9 +56,15 @@ func Test_CreateEksCluster(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			dag := core.NewResourceGraph()
-			CreateEksCluster(appName, clusterName, []*Subnet{subnet}, nil, eus, dag)
+			dag.AddResource(region)
+			dag.AddResource(vpc)
+			dag.AddResource(subnet)
+			dag.AddDependency(subnet, vpc)
+			dag.AddDependency(vpc, region)
+
+			assert.NoError(CreateEksCluster(appName, clusterName, []*Subnet{subnet}, nil, eus, dag))
 			for _, r := range dag.ListResources() {
-				if r != subnet { // ignore input resources
+				if r != subnet && r != vpc && r != region { // ignore input resources
 					assert.ElementsMatch(sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
 				}
 			}
