@@ -5,7 +5,7 @@ interface Args {
     Name: string
     Chart?: string
     Repo?: string
-    Values?: Record<string, pulumi.Output<string>>
+    Values?: Record<string, pulumi.Output<any>>
     Version?: string
     Namespace?: string
     ClustersProvider: pulumi_k8s.Provider
@@ -20,7 +20,7 @@ function create(args: Args): pulumi_k8s.helm.v3.Chart {
             //TMPL {{- if .Chart.Raw }}
             chart: args.Chart,
             //TMPL {{- end }}
-            //TMPL {{- if and (.Chart.Raw) (.FetchOpts.Raw) }}
+            //TMPL {{- if .Repo.Raw }}
             fetchOpts: {
                 repo: args.Repo,
             },
