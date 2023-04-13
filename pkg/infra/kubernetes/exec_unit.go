@@ -181,6 +181,8 @@ func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) (values 
 				Key:          instanceTypeValue,
 			},
 		)
+	} else if kconfig.DiskSizeGiB > 0 {
+		log.Warnf("Unimplemented: disk size configured of %d ignored due to missing instance type", kconfig.DiskSizeGiB)
 	}
 
 	output, err := yaml.Marshal(deployment)
