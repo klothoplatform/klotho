@@ -28,6 +28,8 @@ func Test_CreateEksCluster(t *testing.T) {
 					"aws:iam_role:test-app-test-cluster-FargateExecutionRole",
 					"aws:iam_role:test-app-test-cluster-k8sAdmin",
 					"aws:iam_role:test-app-test-cluster-NodeGroupRole",
+					"kubernetes:helm_chart:test-cluster-cert-manager",
+					"kubernetes:helm_chart:test-cluster-metrics-server",
 					subnet.Id(),
 				},
 				Deps: []coretesting.StringDep{
@@ -38,6 +40,8 @@ func Test_CreateEksCluster(t *testing.T) {
 					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: subnet.Id()},
 					{Source: "aws:eks_node_group:test-app-test-cluster", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "aws:eks_node_group:test-app-test-cluster", Destination: "aws:iam_role:test-app-test-cluster-NodeGroupRole"},
+					{Source: "kubernetes:helm_chart:test-cluster-cert-manager", Destination: "aws:eks_node_group:test-app-test-cluster"},
+					{Source: "kubernetes:helm_chart:test-cluster-metrics-server", Destination: "aws:eks_node_group:test-app-test-cluster"},
 					{Source: "aws:eks_node_group:test-app-test-cluster", Destination: subnet.Id()},
 				},
 			},

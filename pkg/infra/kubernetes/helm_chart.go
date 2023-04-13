@@ -32,7 +32,7 @@ type HelmChart struct {
 	Repo             string
 	Version          string
 	Namespace        string
-	Values           map[string]core.IaCValue
+	Values           map[string]any
 }
 
 // Provider returns name of the provider the resource is correlated to

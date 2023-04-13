@@ -192,7 +192,7 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 					ExecutionUnits: []*HelmExecUnit{{Name: unit.ID, Namespace: "default"}},
 					Directory:      chartDir,
 					ConstructRefs:  []core.AnnotationKey{unit.Provenance()},
-					Values:         make(map[string]core.IaCValue),
+					Values:         make(map[string]any),
 				}
 
 			} else {
