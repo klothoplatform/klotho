@@ -2,67 +2,35 @@ package validation
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
-	"github.com/klothoplatform/klotho/pkg/provider"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 )
 
-type Plugin struct {
-	Provider            provider.Provider
+type ConstructValidation struct {
 	Config              *config.Application
 	UserConfigOverrides config.Application
 }
 
-func (p Plugin) Name() string { return "Validation" }
+func (p ConstructValidation) Name() string { return "Validation" }
 
-func (p Plugin) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p ConstructValidation) Run(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 	err := p.handleAnnotations(input, constructGraph)
 	errs.Append(err)
 	err = p.handleResources(constructGraph)
 	errs.Append(err)
-	err = p.handleProviderValidation(constructGraph)
-	errs.Append(err)
 	p.validateConfigOverrideResourcesExist(constructGraph, zap.L().Sugar())
 	return errs.ErrOrNil()
 }
 
-func (p *Plugin) handleProviderValidation(constructGraph *core.ConstructGraph) error {
-
-	var errs multierr.Error
-	log := zap.L().Sugar()
-	for _, resource := range constructGraph.ListConstructs() {
-		resourceValid := false
-		mapping, shouldValidate := p.Provider.GetKindTypeMappings(resource)
-		resourceType := p.Config.GetResourceType(resource)
-		if !shouldValidate {
-			log.Debugf("Skipping kind (%s) check (for type %s)", resource.Provenance().Capability, resourceType)
-			continue
-		}
-		log.Debugf("Checking if provider, %s, supports %s and type, %s, pair.", p.Provider.Name(), resource.Provenance().Capability, resourceType)
-		for _, validType := range mapping {
-			if validType == resourceType {
-				resourceValid = true
-			}
-		}
-		if !resourceValid {
-			errs.Append(errors.Errorf("Provider, %s, Does not support %s and type, %s, pair.\nValid resource types are: %s", p.Provider.Name(), resource, resourceType, strings.Join(mapping, ", ")))
-		}
-	}
-
-	return errs.ErrOrNil()
-}
-
 // handleAnnotations ensures that every annotation has one resource and only one resource tied to the kind in which it is supposed to produce.
-func (p *Plugin) handleAnnotations(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p *ConstructValidation) handleAnnotations(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 	for _, f := range input.Files() {
 
@@ -83,7 +51,7 @@ func (p *Plugin) handleAnnotations(input *core.InputFiles, constructGraph *core.
 }
 
 // handleResources ensures that every resource has a unique id and capability pair.
-func (p *Plugin) handleResources(constructGraph *core.ConstructGraph) error {
+func (p *ConstructValidation) handleResources(constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 	err := validateNoDuplicateIds[*core.Kv](constructGraph)
 	errs.Append(err)
@@ -110,7 +78,7 @@ func (p *Plugin) handleResources(constructGraph *core.ConstructGraph) error {
 	return errs.ErrOrNil()
 }
 
-func (p *Plugin) validateConfigOverrideResourcesExist(constructGraph *core.ConstructGraph, log *zap.SugaredLogger) {
+func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGraph *core.ConstructGraph, log *zap.SugaredLogger) {
 	for unit := range p.UserConfigOverrides.ExecutionUnits {
 		resources := constructGraph.GetResourcesOfCapability(annotation.ExecutionUnitCapability)
 		resource := getResourceById(unit, resources)
@@ -236,7 +204,7 @@ func (p *Plugin) validateConfigOverrideResourcesExist(constructGraph *core.Const
 	}
 }
 
-func (p *Plugin) checkAnnotationForResource(annot *core.Annotation, constructGraph *core.ConstructGraph, log *zap.SugaredLogger) core.AnnotationKey {
+func (p *ConstructValidation) checkAnnotationForResource(annot *core.Annotation, constructGraph *core.ConstructGraph, log *zap.SugaredLogger) core.AnnotationKey {
 	resources := []core.Construct{}
 
 	switch annot.Capability.Name {

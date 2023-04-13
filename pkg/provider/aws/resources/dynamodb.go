@@ -15,7 +15,7 @@ type (
 	DynamodbTable struct {
 		Name          string
 		ConstructsRef []core.AnnotationKey
-		Attributes    []DynamodbTableAttribute `render:"template"`
+		Attributes    []DynamodbTableAttribute
 		BillingMode   string
 		HashKey       string
 		RangeKey      string

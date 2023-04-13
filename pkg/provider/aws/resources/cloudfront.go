@@ -18,11 +18,11 @@ type (
 	CloudfrontDistribution struct {
 		Name                         string
 		ConstructsRef                []core.AnnotationKey
-		Origins                      []*CloudfrontOrigin `render:"document"`
+		Origins                      []*CloudfrontOrigin
 		CloudfrontDefaultCertificate bool
 		Enabled                      bool
-		DefaultCacheBehavior         *DefaultCacheBehavior `render:"document"`
-		Restrictions                 *Restrictions         `render:"document"`
+		DefaultCacheBehavior         *DefaultCacheBehavior
+		Restrictions                 *Restrictions
 		DefaultRootObject            string
 	}
 
@@ -30,7 +30,7 @@ type (
 		AllowedMethods       []string
 		CachedMethods        []string
 		TargetOriginId       string
-		ForwardedValues      ForwardedValues `render:"document"`
+		ForwardedValues      ForwardedValues
 		MinTtl               int
 		DefaultTtl           int
 		MaxTtl               int
@@ -39,7 +39,7 @@ type (
 
 	ForwardedValues struct {
 		QueryString bool
-		Cookies     Cookies `render:"document"`
+		Cookies     Cookies
 	}
 
 	Cookies struct {
@@ -47,7 +47,7 @@ type (
 	}
 
 	Restrictions struct {
-		GeoRestriction GeoRestriction `render:"document"`
+		GeoRestriction GeoRestriction
 	}
 
 	GeoRestriction struct {
@@ -58,8 +58,8 @@ type (
 		DomainName         core.IaCValue
 		OriginId           string
 		OriginPath         string
-		S3OriginConfig     S3OriginConfig     `render:"document"`
-		CustomOriginConfig CustomOriginConfig `render:"document"`
+		S3OriginConfig     S3OriginConfig
+		CustomOriginConfig CustomOriginConfig
 	}
 
 	S3OriginConfig struct {
@@ -97,7 +97,7 @@ func CreateS3Origin(unit *core.StaticUnit, bucket *S3Bucket, distribution *Cloud
 				Principal: &Principal{
 					AWS: core.IaCValue{
 						Resource: oai,
-						Property: core.ARN_IAC_VALUE,
+						Property: ARN_IAC_VALUE,
 					},
 				},
 				Action: []string{"s3:GetObject"},

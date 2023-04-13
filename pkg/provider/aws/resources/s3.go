@@ -39,7 +39,7 @@ type (
 		Name          string
 		ConstructsRef []core.AnnotationKey
 		Bucket        *S3Bucket
-		Policy        *PolicyDocument `render:"document"`
+		Policy        *PolicyDocument
 	}
 )
 

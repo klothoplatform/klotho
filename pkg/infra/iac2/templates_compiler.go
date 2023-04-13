@@ -18,17 +18,10 @@ import (
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 type (
-	nestedTemplateValue struct {
-		parentValue            reflect.Value
-		childValue             reflect.Value
-		iacTag                 string
-		tc                     *TemplatesCompiler
-		useDoubleQuotedStrings bool
-	}
-
 	stringTemplateValue struct {
 		raw   interface{}
 		value string
@@ -57,6 +50,13 @@ type (
 		resourceVarNames map[string]struct{}
 		// resourceVarNamesById is a map from resource id to the variable name for that resource
 		resourceVarNamesById map[string]string
+		// ctx is a pointer to the current context being used within the templates compiler. This context is used when parsing values within nested templates.
+		ctx *NestedCtx
+	}
+	NestedCtx struct {
+		useDoubleQuotes bool
+		appliedOutputs  *[]AppliedOutput
+		rootVal         *reflect.Value
 	}
 )
 
@@ -71,15 +71,6 @@ func (s stringTemplateValue) Parse() (string, error) {
 
 func (s stringTemplateValue) Raw() interface{} {
 	return s.raw
-}
-
-func (v nestedTemplateValue) Parse() (string, error) {
-	childVal := v.childValue
-	return v.tc.resolveStructInput(&v.parentValue, childVal, v.useDoubleQuotedStrings, v.iacTag, nil)
-}
-
-func (v nestedTemplateValue) Raw() interface{} {
-	return v.childValue.Interface()
 }
 
 func CreateTemplatesCompiler(resources *core.ResourceGraph) *TemplatesCompiler {
@@ -202,44 +193,32 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 			continue
 		}
 		childVal := resourceVal.FieldByName(fieldName)
-		structField, found := resourceVal.Type().FieldByName(fieldName)
-		iacTag := ""
-		if found {
-			iacTag = structField.Tag.Get("render")
-		}
-
 		var err error
 		var resolvedValue templateValue
-		if iacTag == "template" {
-			resolvedValue = nestedTemplateValue{
-				parentValue:            resourceVal,
-				childValue:             childVal,
-				iacTag:                 iacTag,
-				tc:                     &tc,
-				useDoubleQuotedStrings: false,
-			}
-		} else {
-			var strValue string
-			var appliedoutputs []AppliedOutput
-			buf := strings.Builder{}
-			strValue, err = tc.resolveStructInput(&resourceVal, childVal, false, iacTag, &appliedoutputs)
-			uniqueOutputs, err := deduplicateAppliedOutputs(appliedoutputs)
-			if err != nil {
-				return err
-			}
-			_, err = buf.WriteString(appliedOutputsToString(uniqueOutputs))
-			if err != nil {
-				return err
-			}
-			buf.WriteString(strValue)
-			if len(uniqueOutputs) > 0 {
-				_, err = buf.WriteString("})")
-				if err != nil {
-					return err
-				}
-			}
-			resolvedValue = stringTemplateValue{value: buf.String(), raw: childVal.Interface()}
+
+		var strValue string
+		var appliedoutputs []AppliedOutput
+		buf := strings.Builder{}
+		strValue, err = tc.resolveStructInput(&resourceVal, childVal, false, &appliedoutputs)
+		if err != nil {
+			return err
 		}
+		uniqueOutputs, err := deduplicateAppliedOutputs(appliedoutputs)
+		if err != nil {
+			return err
+		}
+		_, err = buf.WriteString(appliedOutputsToString(uniqueOutputs))
+		if err != nil {
+			return err
+		}
+		buf.WriteString(strValue)
+		if len(uniqueOutputs) > 0 {
+			_, err = buf.WriteString("})")
+			if err != nil {
+				return err
+			}
+		}
+		resolvedValue = stringTemplateValue{value: buf.String(), raw: childVal.Interface()}
 
 		if err != nil {
 			errs.Append(err)
@@ -278,7 +257,12 @@ func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 }
 
 // resolveStructInput translates a value to a form suitable to inject into the typescript as an input to a function.
-func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, childVal reflect.Value, useDoubleQuotedStrings bool, iacTag string, appliedOutputs *[]AppliedOutput) (string, error) {
+func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, childVal reflect.Value, useDoubleQuotedStrings bool, appliedOutputs *[]AppliedOutput) (string, error) {
+	tc.ctx = &NestedCtx{
+		useDoubleQuotes: useDoubleQuotedStrings,
+		appliedOutputs:  appliedOutputs,
+		rootVal:         resourceVal,
+	}
 	var zeroValue reflect.Value
 	if childVal == zeroValue {
 		return `null`, nil
@@ -296,78 +280,67 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 			return "null", nil
 		}
 		if typedChild, ok := childVal.Interface().(core.Resource); ok {
-			if iacTag != "" {
-				return "", errors.Errorf("structs of type Resource can not be tagged with `resource:`")
-			}
 			return tc.getVarName(typedChild), nil
 		} else if typedChild, ok := childVal.Interface().(core.IaCValue); ok {
-			if iacTag != "" {
-				return "", errors.Errorf("structs implementing IaCValue can not be tagged with `resource:`")
-			}
 			output, err := tc.handleIaCValue(typedChild, appliedOutputs, resourceVal)
 			if err != nil {
 				return output, err
 			}
 			return output, nil
-		} else if iacTag != "" {
+		} else {
 			val := childVal
 			correspondingStruct := val
 			for correspondingStruct.Kind() == reflect.Pointer {
 				correspondingStruct = val.Elem()
 			}
-			switch iacTag {
-			case "document":
 
-				output := strings.Builder{}
-				output.WriteString("{")
-				for i := 0; i < correspondingStruct.NumField(); i++ {
-
-					childVal := correspondingStruct.Field(i)
-					fieldName := correspondingStruct.Type().Field(i).Name
-
-					structField, found := correspondingStruct.Type().FieldByName(fieldName)
-					iacTag := ""
-					if found {
-						iacTag = structField.Tag.Get("render")
-					}
-
-					// If the struct type is PolicyDocument, pass that down to our recursive calls to keep field name upperCased
-					if correspondingStruct.Type() == reflect.TypeOf((*resources.PolicyDocument)(nil)).Elem() {
-						resourceVal = &correspondingStruct
-					}
-
-					resolvedValue, err := tc.resolveStructInput(resourceVal, childVal, false, iacTag, appliedOutputs)
-
-					if err != nil {
-						return output.String(), err
-					}
-
-					// If the struct type is not PolicyDocument, we want to camelCase our field names to follow pulumi format
-					if resourceVal.Type() != reflect.TypeOf((*resources.PolicyDocument)(nil)).Elem() {
-						fieldName = strings.ToLower(string(fieldName[0])) + fieldName[1:]
-					}
-
-					// To Prevent us from rendering fields which are not set, only right if the value is non zero for its type
-					if !childVal.IsZero() {
-						output.WriteString(fmt.Sprintf("%s: %s,\n", fieldName, resolvedValue))
-					}
-				}
-				output.WriteString("}")
-				return output.String(), nil
-			case "template":
-				tmpl, err := tc.getNestedTemplate(path.Join(
-					camelToSnake(resourceVal.Type().Name()),
-					camelToSnake(correspondingStruct.Type().Name()),
-				))
-				if err != nil {
-					return "", err
-				}
+			// Check to see if there is a nested tempalte and if there is use that
+			tmpl, err := tc.getNestedTemplate(path.Join(
+				camelToSnake(resourceVal.Type().Name()),
+				camelToSnake(correspondingStruct.Type().Name()),
+			), tc)
+			if err != nil {
+				return "", err
+			}
+			if tmpl != nil {
+				zap.S().Debugf("Rendering nested template %s, for resource %s", tmpl.Name, correspondingStruct.Type())
 				output := bytes.NewBuffer([]byte{})
 				err = tmpl.Execute(output, childVal.Interface())
 				return output.String(), err
 			}
-		} else {
-			return "", errors.Errorf(`child struct of %v is not of a known type`, childVal.Type().Name())
+			zap.S().Debugf("Rendering resource %s, as document", correspondingStruct.Type())
+
+			// Last resort, render as a document
+			output := strings.Builder{}
+			output.WriteString("{")
+			for i := 0; i < correspondingStruct.NumField(); i++ {
+
+				childVal := correspondingStruct.Field(i)
+				fieldName := correspondingStruct.Type().Field(i).Name
+
+				// If the struct type is PolicyDocument, pass that down to our recursive calls to keep field name upperCased
+				if correspondingStruct.Type() == reflect.TypeOf((*resources.PolicyDocument)(nil)).Elem() {
+					resourceVal = &correspondingStruct
+				}
+
+				resolvedValue, err := tc.resolveStructInput(resourceVal, childVal, false, appliedOutputs)
+
+				if err != nil {
+					return output.String(), err
+				}
+
+				// If the struct type is not PolicyDocument, we want to camelCase our field names to follow pulumi format
+				if resourceVal.Type() != reflect.TypeOf((*resources.PolicyDocument)(nil)).Elem() {
+					fieldName = strings.ToLower(string(fieldName[0])) + fieldName[1:]
+				}
+
+				// To Prevent us from rendering fields which are not set, only right if the value is non zero for its type
+				if !childVal.IsZero() {
+					output.WriteString(fmt.Sprintf("%s: %s,\n", fieldName, resolvedValue))
+				}
+			}
+			output.WriteString("}")
+			return output.String(), nil
 		}
 	case reflect.Array, reflect.Slice:
 		sliceLen := childVal.Len()
@@ -375,7 +348,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 		buf := strings.Builder{}
 		buf.WriteRune('[')
 		for i := 0; i < sliceLen; i++ {
-			output, err := tc.resolveStructInput(resourceVal, childVal.Index(i), false, iacTag, appliedOutputs)
+			output, err := tc.resolveStructInput(resourceVal, childVal.Index(i), false, appliedOutputs)
 			if err != nil {
 				return output, err
 			}
@@ -392,13 +365,13 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 		buf := strings.Builder{}
 		buf.WriteRune('{')
 		for i, key := range childVal.MapKeys() {
-			output, err := tc.resolveStructInput(resourceVal, key, true, iacTag, appliedOutputs)
+			output, err := tc.resolveStructInput(resourceVal, key, true, appliedOutputs)
 			if err != nil {
 				return output, nil
 			}
 			buf.WriteString(output)
 			buf.WriteRune(':')
-			output, err = tc.resolveStructInput(resourceVal, childVal.MapIndex(key), false, iacTag, appliedOutputs)
+			output, err = tc.resolveStructInput(resourceVal, childVal.MapIndex(key), false, appliedOutputs)
 			if err != nil {
 				return output, err
 			}
@@ -414,7 +387,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 		// instead of being the actual type. So, we basically pull the item out of the collection, and then reflect on
 		// it directly.
 		underlyingVal := childVal.Interface()
-		return tc.resolveStructInput(resourceVal, reflect.ValueOf(underlyingVal), false, iacTag, appliedOutputs)
+		return tc.resolveStructInput(resourceVal, reflect.ValueOf(underlyingVal), false, appliedOutputs)
 	}
 	return "", nil
 }
@@ -425,7 +398,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 	property := v.Property
 
 	if resource == nil {
-		output, err := tc.resolveStructInput(nil, reflect.ValueOf(property), false, "", appliedOutputs)
+		output, err := tc.resolveStructInput(nil, reflect.ValueOf(property), false, appliedOutputs)
 		if err != nil {
 			return output, err
 		}
@@ -436,7 +409,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 	switch property {
 	case string(core.BUCKET_NAME):
 		return fmt.Sprintf("%s.bucket", tc.getVarName(resource)), nil
-	case string(core.ARN_IAC_VALUE):
+	case string(resources.ARN_IAC_VALUE):
 		return fmt.Sprintf("%s.arn", tc.getVarName(v.Resource)), nil
 	case string(resources.ALL_BUCKET_DIRECTORY_IAC_VALUE):
 		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/*`", tc.getVarName(v.Resource)), nil
@@ -578,6 +551,11 @@ func (tc TemplatesCompiler) getVarName(v core.Resource) string {
 	return resolvedName
 }
 
+// parseVal parses the supplied value for nested tempaltes
+func (tc TemplatesCompiler) parseVal(val reflect.Value) (string, error) {
+	return tc.resolveStructInput(tc.ctx.rootVal, val, tc.ctx.useDoubleQuotes, tc.ctx.appliedOutputs)
+}
+
 func (tp templatesProvider) getTemplate(v core.Resource) (ResourceCreationTemplate, error) {
 	return tp.getTemplateForType(structName(v))
 }
@@ -597,7 +575,7 @@ func (tp templatesProvider) getTemplateForType(typeName string) (ResourceCreatio
 	return template, nil
 }
 
-func (tp templatesProvider) getNestedTemplate(templatePath string) (*template.Template, error) {
+func (tp templatesProvider) getNestedTemplate(templatePath string, tc TemplatesCompiler) (*template.Template, error) {
 	templateFilePaths := []string{
 		templatePath + ".ts.tmpl",
 		templatePath + ".ts",
@@ -619,10 +597,14 @@ func (tp templatesProvider) getNestedTemplate(templatePath string) (*template.Te
 			merr.Append(err)
 		}
 	}
-	if len(contents) == 0 && merr.ErrOrNil() != nil {
-		return nil, core.WrapErrf(merr.ErrOrNil(), "could not read template: %s", templatePath)
+	// If we dont have any contents we dont have a nested template for the resource, so fall back to the document route
+	if len(contents) == 0 {
+		return nil, nil
 	}
-	tmpl, err := template.New(templatePath).Parse(string(contents))
+
+	tmpl, err := template.New(templatePath).Funcs(template.FuncMap{
+		"parseVal": tc.parseVal,
+	}).Parse(string(contents))
 	if err != nil {
 		return nil, errors.Wrapf(err, `while writing template for %s`, templatePath)
 	}

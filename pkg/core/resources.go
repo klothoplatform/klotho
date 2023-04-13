@@ -51,6 +51,5 @@ type (
 )
 
 const (
-	ARN_IAC_VALUE           = "arn"
 	ALL_RESOURCES_IAC_VALUE = "*"
 )

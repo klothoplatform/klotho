@@ -35,7 +35,7 @@ type (
 		ConstructsRef    []core.AnnotationKey
 		Cluster          *EksCluster
 		PodExecutionRole *IamRole
-		Selectors        []*FargateProfileSelector `render:"template"`
+		Selectors        []*FargateProfileSelector
 		Subnets          []*Subnet
 	}
 
