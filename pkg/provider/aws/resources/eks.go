@@ -2,6 +2,7 @@ package resources
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
@@ -101,6 +102,22 @@ func CreateEksCluster(appName string, clusterName string, subnets []*Subnet, sec
 		dag.AddDependency(cluster, s)
 		dag.AddDependency(nodeGroup, s)
 		dag.AddDependency(profile, s)
+	}
+
+	for _, addOn := range createAddOns(clusterName, references) {
+		dag.AddResource(addOn)
+		dag.AddDependency(addOn, cluster)
+	}
+}
+
+func createAddOns(clusterName string, provenance []core.AnnotationKey) []*kubernetes.HelmChart {
+	return []*kubernetes.HelmChart{
+		&kubernetes.HelmChart{
+			Name:          clusterName + `-metrics-server`,
+			Chart:         "metrics-server",
+			ConstructRefs: provenance,
+			Repo:          `https://kubernetes-sigs.github.io/metrics-server/`,
+		},
 	}
 }
 

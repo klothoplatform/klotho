@@ -143,6 +143,12 @@ func (p *Kubernetes) setHelmChartDirectory(path string, cfg *config.ExecutionUni
 	return false, nil
 }
 
+// getKlothoCharts gets all the main Chart.yaml Helm charts for the compilation. It returns a map of Helm charts for
+// each execution unit, keyed by their directory (relative to the source root).
+//
+//   - Side effect: If the user has provided [config.HelmChartOptions] with an empty Directory for a given execution
+//     unit, this method will look for a Chart.yaml next to whatever file declares the execution unit, and set the
+//     Directory field on the exec unit's [config.HelmChartOptions] to that chart's directory.
 func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[string]HelmChart, error) {
 	var errs multierr.Error
 	klothoCharts := make(map[string]HelmChart)
