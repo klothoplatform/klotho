@@ -10,22 +10,17 @@ interface Args {
 }
 
 // noinspection JSUnusedLocalSymbols
-function create(args: Args): void {
-    return fs.readFile(args.Path, (err, data) => {
-        if (err != null) {
-            return
-        }
-        new aws.secretsmanager.SecretVersion(
-            args.SecretName,
-            {
-                secretId: args.Secret.id,
-                //TMPL {{ if eq .Type.Raw "string" }}
-                //TMPL secretString: data.toString()
-                //TMPL {{ else }}
-                secretBinary: data.toString('base64'),
-                //TMPL {{ end }}
-            },
-            { protect: args.protect }
-        )
-    })
+function create(args: Args): aws.secretsmanager.SecretVersion {
+    return new aws.secretsmanager.SecretVersion(
+        args.SecretName,
+        {
+            secretId: args.Secret.id,
+            //TMPL {{ if eq .Type.Raw "string" }}
+            //TMPL secretString: fs.readFileSync(args.Path, 'utf-8').toString()
+            //TMPL {{ else }}
+            secretBinary: fs.readFileSync(args.Path, 'base64').toString(),
+            //TMPL {{ end }}
+        },
+        { protect: args.protect }
+    )
 }

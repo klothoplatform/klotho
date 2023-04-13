@@ -228,8 +228,10 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 
 	}
 
-	varName := tc.getVarName(resource)
-	fmt.Fprintf(out, `const %s = `, varName)
+	if tmpl.OutputType != "void" {
+		varName := tc.getVarName(resource)
+		fmt.Fprintf(out, `const %s = `, varName)
+	}
 	errs.Append(tmpl.RenderCreate(out, inputArgs))
 	_, err = out.Write([]byte(";"))
 	if err != nil {
