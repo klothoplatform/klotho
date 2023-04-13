@@ -267,14 +267,18 @@ func buildExpectedTsType(out *strings.Builder, tp *templatesProvider, t reflect.
 			return err
 		}
 		out.WriteRune('>')
-	case reflect.Pointer, reflect.Interface:
-		// Interface happens when the value is inside a map, slice, or array. Basically, the reflected type is
+	case reflect.Pointer:
+		// Pointer happens when the value is inside a map, slice, or array. Basically, the reflected type is
 		// interface{},instead of being the actual type. So, we basically pull the item out of the collection, and then
 		// reflect on it directly.
 		err := buildExpectedTsType(out, tp, t.Elem())
 		if err != nil {
 			return err
 		}
+	case reflect.Interface:
+		// Similar to Pointer above; but specifically when the map/slice's type is "any". For example,
+		// `map[string]int` will hit the `reflect.Pointer`case for the value type, but `map[string]any` will his here.
+		out.WriteString(`pulumi.Output<any>`)
 	}
 	return nil
 }

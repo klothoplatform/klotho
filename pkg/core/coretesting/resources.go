@@ -2,6 +2,7 @@ package coretesting
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,9 +33,38 @@ func (expect ResourcesExpectation) Assert(t *testing.T, dag *core.ResourceGraph)
 		assert.Subset(t, got.Nodes, expect.Nodes)
 		assert.Subset(t, got.Deps, expect.Deps)
 	} else {
-		assert.ElementsMatch(t, expect.Nodes, got.Nodes)
-		assert.ElementsMatch(t, expect.Deps, got.Deps)
+		expect.ElementsMatchPretty(t, expect.Nodes, got.Nodes)
+		expect.ElementsMatchPretty(t, expect.Deps, got.Deps)
 	}
+}
+
+// ElementsMatchPretty invokes [assert.ElementsMatch], but first does a string-based check based on the elements;
+// string representation. This means in the common case that unequal strings are enough to demonstrate inequality, we'll
+// get a nicer diff.
+func (expect ResourcesExpectation) ElementsMatchPretty(t *testing.T, expected any, actual any) {
+	toStr := func(obj any) string {
+		objVal := reflect.ValueOf(obj)
+		if objVal.Type().Kind() != reflect.Slice && objVal.Type().Kind() != reflect.Array {
+			return ""
+		}
+		arrLen := objVal.Len()
+		var res []string
+		for i := 0; i < arrLen; i++ {
+			res = append(res, fmt.Sprintf(`%+v`, objVal.Index(i).Interface()))
+		}
+		sort.Strings(res)
+		return strings.Join(res, "\n")
+	}
+
+	expectedStr := toStr(expected)
+	actualStr := toStr(actual)
+	if expectedStr != "" && actualStr != "" {
+		if !assert.Equal(t, expectedStr, actualStr) {
+			return
+		}
+	}
+
+	assert.ElementsMatch(t, expected, actual)
 }
 
 func ResoucesFromDAG(dag *core.ResourceGraph) ResourcesExpectation {
