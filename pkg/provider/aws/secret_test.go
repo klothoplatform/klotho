@@ -45,8 +45,8 @@ func TestGenerateSecretsResources(t *testing.T) {
 				},
 				deps: []graph.Edge[string]{
 					{
-						Source:      fmt.Sprintf(`aws:secret:%s-%s-secret1`, AppName, secretsConstructId),
-						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId),
+						Destination: fmt.Sprintf(`aws:secret:%s-%s-secret1`, AppName, secretsConstructId),
+						Source:      fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId),
 					},
 					{
 						Source:      fmt.Sprintf(`aws:iam_policy:%s-%s_%s`, AppName, annotation.PersistCapability, secretsConstructId),
@@ -57,8 +57,8 @@ func TestGenerateSecretsResources(t *testing.T) {
 						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId),
 					},
 					{
-						Source:      fmt.Sprintf(`aws:secret:%s-%s-secret2`, AppName, secretsConstructId),
-						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId),
+						Destination: fmt.Sprintf(`aws:secret:%s-%s-secret2`, AppName, secretsConstructId),
+						Source:      fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId),
 					},
 				},
 				policies: func(secretResolver func(string) *resources.SecretVersion) []resources.StatementEntry {

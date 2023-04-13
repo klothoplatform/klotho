@@ -14,7 +14,7 @@ func (a *AWS) GenerateSecretsResources(construct *core.Secrets, result *core.Con
 
 		secretVersion := resources.NewSecretVersion(secret, single)
 		dag.AddResource(secretVersion)
-		dag.AddDependency(secret, secretVersion)
+		dag.AddDependency(secretVersion, secret)
 
 		for _, upstreamCons := range result.GetUpstreamConstructs(construct) {
 			unit, isUnit := upstreamCons.(*core.ExecutionUnit)

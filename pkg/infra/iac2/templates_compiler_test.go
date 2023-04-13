@@ -18,6 +18,7 @@ import (
 func TestOutputBody(t *testing.T) {
 	fizz := &DummyFizz{Value: "my-hello"}
 	buzz := DummyBuzz{}
+	void := DummyVoid{}
 	parent := &DummyBig{
 		id:        "main",
 		Fizz:      fizz,
@@ -32,9 +33,12 @@ func TestOutputBody(t *testing.T) {
 	graph.AddResource(fizz)
 	graph.AddResource(buzz)
 	graph.AddResource(parent)
+	graph.AddResource(void)
 	graph.AddDependency(parent, fizz)
 	graph.AddDependency(parent, buzz)
+	graph.AddDependency(parent, void)
 	graph.AddDependency(fizz, buzz)
+	graph.AddDependency(void, fizz)
 
 	compiler := CreateTemplatesCompiler(graph)
 	compiler.templates = filesMapToFsMap(dummyTemplateFiles)
@@ -50,6 +54,8 @@ func TestOutputBody(t *testing.T) {
 			"const buzzShared = new aws.buzz.DummyResource();",
 			"",
 			"const fizzMyHello = new aws.fizz.DummyResource(`my-hello`);",
+			"",
+			"fs.ReadFile();",
 			"",
 			"const bigMain = new DummyParent(",
 			"				fizzMyHello,",
@@ -284,6 +290,10 @@ type (
 		NestedTemplate *NestedTemplate
 	}
 
+	DummyVoid struct {
+		// nothing
+	}
+
 	NestedResource struct {
 		Fizz *DummyFizz
 	}
@@ -306,6 +316,10 @@ func (p *DummyBig) Id() string                               { return "big-" + p
 func (f *DummyBig) Provider() string                         { return "DummyProvider" }
 func (f *DummyBig) KlothoConstructRef() []core.AnnotationKey { return nil }
 
+func (p DummyVoid) Id() string                               { return "void" }
+func (f DummyVoid) Provider() string                         { return "DummyProvider" }
+func (f DummyVoid) KlothoConstructRef() []core.AnnotationKey { return nil }
+
 var dummyTemplateFiles = map[string]string{
 	`dummy_fizz/factory.ts`: `
 		import * as aws from '@pulumi/aws'
@@ -326,6 +340,16 @@ var dummyTemplateFiles = map[string]string{
 
 		function create(args: Args): aws.buzz.DummyResource {
 			return new aws.buzz.DummyResource();
+		}`,
+
+	`dummy_void/factory.ts`: `
+		import * as aws from '@pulumi/aws'
+		import {Whatever} from "@pulumi/aws/cool/service"; // Note the trailing semicolon. It'll get removed.
+
+		interface Args {}
+
+		function create(args: Args): void {
+			return fs.ReadFile();
 		}`,
 
 	`dummy_big/nested_template.ts.tmpl`: `
