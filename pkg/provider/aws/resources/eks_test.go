@@ -21,7 +21,9 @@ func Test_CreateEksCluster(t *testing.T) {
 		}
 	}
 	sources := []core.AnnotationKey{{ID: "test"}}
-	subnet := NewSubnet("test-subnet", NewVpc(cfg.AppName), "", PrivateSubnet, core.IaCValue{})
+	vpc := NewVpc(cfg.AppName)
+	subnet := NewSubnet("test-subnet", vpc, "", PrivateSubnet, core.IaCValue{})
+	region := NewRegion()
 	cases := []struct {
 		name string
 		want coretesting.ResourcesExpectation
@@ -37,7 +39,9 @@ func Test_CreateEksCluster(t *testing.T) {
 					"aws:iam_role:test-app-test-cluster-k8sAdmin",
 					"aws:iam_role:test-app-test-cluster.private_t3_medium",
 					"aws:region:region",
+					"aws:vpc:test_app",
 					"aws:vpc_subnet:test_app_test_subnet",
+					"kubernetes:kubeconfig:test-app-test-cluster-eks-kubeconfig",
 					"kubernetes:helm_chart:test-cluster-cert-manager",
 					"kubernetes:helm_chart:test-cluster-metrics-server",
 					"kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns",
@@ -47,6 +51,8 @@ func Test_CreateEksCluster(t *testing.T) {
 					"kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map",
 				},
 				Deps: []coretesting.StringDep{
+					{Source: "aws:vpc:test_app", Destination: "aws:region:region"},
+					{Source: "aws:vpc_subnet:test_app_test_subnet", Destination: "aws:vpc:test_app"},
 					{Source: "aws:eks_cluster:test-app-test-cluster", Destination: "aws:iam_role:test-app-test-cluster-k8sAdmin"},
 					{Source: "aws:eks_cluster:test-app-test-cluster", Destination: subnet.Id()},
 					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: "aws:eks_cluster:test-app-test-cluster"},
@@ -66,6 +72,10 @@ func Test_CreateEksCluster(t *testing.T) {
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "aws:region:region"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns"},
+					{Source: "kubernetes:kubeconfig:test-app-test-cluster-eks-kubeconfig", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "kubernetes:kubeconfig:test-app-test-cluster-eks-kubeconfig", Destination: "aws:region:region"},
+					{Source: "kubernetes:helm_chart:test-cluster-cert-manager", Destination: "kubernetes:kubeconfig:test-app-test-cluster-eks-kubeconfig"},
+					{Source: "kubernetes:helm_chart:test-cluster-metrics-server", Destination: "kubernetes:kubeconfig:test-app-test-cluster-eks-kubeconfig"},
 				},
 			},
 		},
@@ -74,17 +84,22 @@ func Test_CreateEksCluster(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			dag := core.NewResourceGraph()
-			CreateEksCluster(&cfg, clusterName, []*Subnet{subnet}, nil, eus, dag)
+			dag.AddResource(region)
+			dag.AddResource(vpc)
+			dag.AddResource(subnet)
+			dag.AddDependency(subnet, vpc)
+			dag.AddDependency(vpc, region)
+
+			assert.NoError(CreateEksCluster(&cfg, clusterName, []*Subnet{subnet}, nil, eus, dag))
 			for _, r := range dag.ListResources() {
 				if cluster, ok := r.(*EksCluster); ok {
 					assert.Len(cluster.Manifests, 4)
 				}
-				if r != subnet && r.Id() != "aws:region:region" { // ignore input resources
+				if r != subnet && r != vpc && r != region { // ignore input resources
 					assert.ElementsMatch(sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
 				}
 			}
 			tt.want.Assert(t, dag)
-
 		})
 	}
 }
