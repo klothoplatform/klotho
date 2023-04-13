@@ -116,6 +116,26 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 		references = append(references, u.Provenance())
 	}
 
+	appName := cfg.AppName
+
+	clusterRole := createClusterAdminRole(appName, clusterName+"-k8sAdmin", references)
+	dag.AddResource(clusterRole)
+
+	cluster := NewEksCluster(appName, clusterName, subnets, securityGroups, clusterRole)
+	cluster.ConstructsRef = references
+	dag.AddDependenciesReflect(cluster)
+
+	createNodeGroups(cfg, dag, units, cluster, subnets)
+
+	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
+	dag.AddDependenciesReflect(fargateRole)
+
+	profile := NewEksFargateProfile(cluster, subnets, fargateRole, references)
+	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
+	dag.AddDependenciesReflect(profile)
+}
+
+func createNodeGroups(cfg *config.Application, dag *core.ResourceGraph, units []*core.ExecutionUnit, cluster *EksCluster, subnets []*Subnet) ([]*EksNodeGroup, error) {
 	type groupKey struct {
 		InstanceType string
 		NetworkType  string
@@ -145,18 +165,26 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 		}
 	}
 
-	appName := cfg.AppName
+	var groups []*EksNodeGroup
 
-	clusterRole := createClusterAdminRole(appName, clusterName+"-k8sAdmin", references)
-	dag.AddResource(clusterRole)
-
-	cluster := NewEksCluster(appName, clusterName, subnets, securityGroups, clusterRole)
-	cluster.ConstructsRef = references
-	dag.AddDependenciesReflect(cluster)
+	hasInstanceType := false
+	for gk := range groupSpecs {
+		if gk.InstanceType != "" {
+			hasInstanceType = true
+			break
+		}
+	}
+	if !hasInstanceType {
+		for gk, spec := range groupSpecs {
+			if gk.InstanceType == "" {
+				groupSpecs[groupKey{InstanceType: "t3.medium", NetworkType: gk.NetworkType}] = spec
+			}
+		}
+	}
 
 	for groupKey, spec := range groupSpecs {
 		if groupKey.InstanceType == "" {
-			groupKey.InstanceType = "t3.medium"
+			continue
 		}
 		nodeGroup := &EksNodeGroup{
 			Name:          NodeGroupName(groupKey.NetworkType, groupKey.InstanceType),
@@ -174,7 +202,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 			MinSize:        1,
 			MaxUnavailable: 1,
 		}
-		nodeGroup.NodeRole = createNodeRole(appName, fmt.Sprintf("%s.%s", clusterName, nodeGroup.Name), references)
+		nodeGroup.NodeRole = createNodeRole(cfg.AppName, fmt.Sprintf("%s.%s", cluster.Name, nodeGroup.Name), spec.refs)
 		dag.AddDependenciesReflect(nodeGroup.NodeRole)
 
 		for _, sn := range subnets {
@@ -184,14 +212,11 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 		}
 
 		dag.AddDependenciesReflect(nodeGroup)
+
+		groups = append(groups, nodeGroup)
 	}
 
-	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
-	dag.AddDependenciesReflect(fargateRole)
-
-	profile := NewEksFargateProfile(cluster, subnets, fargateRole, references)
-	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
-	dag.AddDependenciesReflect(profile)
+	return groups, nil
 }
 
 func NodeGroupNameFromConfig(cfg config.ExecutionUnit) string {
@@ -200,7 +225,6 @@ func NodeGroupNameFromConfig(cfg config.ExecutionUnit) string {
 }
 
 func NodeGroupName(networkPlacement string, instanceType string) string {
-	// ?? Does this need to handle instanceType == "" ?
 	return nodeGroupSanitizer.Apply(fmt.Sprintf("%s_%s", networkPlacement, instanceType))
 }
 
