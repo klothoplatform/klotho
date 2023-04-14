@@ -13,7 +13,7 @@ func (l GolangExecutable) Name() string {
 	return "golang_executable"
 }
 
-func (l GolangExecutable) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (l GolangExecutable) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	inputFiles := input.Files()
 
 	defaultGoMod, _ := input.Files()["go.mod"].(*GoMod)

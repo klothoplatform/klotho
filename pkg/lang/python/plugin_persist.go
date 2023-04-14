@@ -20,7 +20,7 @@ type Persist struct {
 
 func (p Persist) Name() string { return "Persist" }
 
-func (p Persist) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p Persist) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	persister := &persister{ConstructGraph: constructGraph, runtime: p.runtime}
 
 	var errs multierr.Error

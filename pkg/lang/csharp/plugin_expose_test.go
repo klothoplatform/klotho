@@ -629,7 +629,7 @@ func TestExpose_Transform(t *testing.T) {
 				result.AddConstruct(unit)
 			}
 			expose := Expose{}
-			err := expose.Transform(&core.InputFiles{}, result)
+			err := expose.Transform(&core.InputFiles{}, &core.FileDependencies{}, result)
 			if !assert.NoError(err) {
 				return
 			}

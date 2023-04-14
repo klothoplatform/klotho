@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
 type (
@@ -25,4 +26,31 @@ func (e *KubernetesProvider) KlothoConstructRef() []core.AnnotationKey {
 
 func (e *KubernetesProvider) Id() string {
 	return fmt.Sprintf("%s:%s:%s", e.Provider(), "kubernetes_provider", e.Name)
+}
+
+const (
+	IAM_ROLE_POLICY_ATTACH_TYPE = "role_policy_attach"
+)
+
+type (
+	RolePolicyAttachment struct {
+		Name   string
+		Policy *resources.IamPolicy
+		Role   *resources.IamRole
+	}
+)
+
+// Provider returns name of the provider the resource is correlated to
+func (role *RolePolicyAttachment) Provider() string {
+	return resources.AWS_PROVIDER
+}
+
+// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (role *RolePolicyAttachment) KlothoConstructRef() []core.AnnotationKey {
+	return nil
+}
+
+// ID returns the id of the cloud resource
+func (role *RolePolicyAttachment) Id() string {
+	return fmt.Sprintf("%s:%s:%s", role.Provider(), IAM_ROLE_POLICY_ATTACH_TYPE, role.Name)
 }

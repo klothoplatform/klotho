@@ -105,6 +105,8 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.RdsProxyTargetGroup{},
 		&kubernetes.Manifest{},
 		&KubernetesProvider{},
+		&RolePolicyAttachment{},
+		&resources.PrivateDnsNamespace{},
 	}
 
 	tp := standardTemplatesProvider()
