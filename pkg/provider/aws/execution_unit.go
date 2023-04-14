@@ -144,6 +144,81 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 	return nil
 }
 
+func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.ResourceGraph) error {
+	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
+		downstreamConstructs := result.GetDownstreamConstructs(unit)
+		for _, construct := range downstreamConstructs {
+			if targetUnit, ok := construct.(*core.ExecutionUnit); ok {
+				switch a.Config.GetExecutionUnit(targetUnit.ID).Type {
+				case Lambda:
+					targetResources, _ := a.GetResourcesDirectlyTiedToConstruct(targetUnit)
+					var targetLambda *resources.LambdaFunction
+					var execPolicy *resources.IamPolicy
+					execPolicyDoc := resources.CreateAllowPolicyDocument([]string{"lambda:InvokeFunction"}, []core.IaCValue{{Resource: targetLambda, Property: resources.ARN_IAC_VALUE}})
+					for _, resource := range targetResources {
+						if lambdafunc, ok := resource.(*resources.LambdaFunction); ok {
+							targetLambda = lambdafunc
+						}
+						if execPol, ok := resource.(*resources.IamPolicy); ok {
+							if len(execPol.Policy.Statement) == 1 {
+								statement := execPol.Policy.Statement[0]
+								if statement.Action[0] == execPolicyDoc.Statement[0].Action[0] && statement.Resource[0] == execPolicyDoc.Statement[0].Resource[0] {
+									execPolicy = execPol
+								}
+							}
+						}
+					}
+					if targetLambda == nil {
+						return errors.Errorf("Could not find a lambda function tied to execution unit %s", targetUnit.ID)
+					}
+					if execPolicy == nil {
+						execPolicy = resources.NewIamPolicy(a.Config.AppName, fmt.Sprintf("%s-invoke", targetUnit.ID), targetUnit.Provenance(), execPolicyDoc)
+						dag.AddResource(execPolicy)
+					}
+					// We do not add the policy to the units list in policy generator otherwise we will cause a circular dependency
+					execPolicy.ConstructsRef = append(execPolicy.ConstructsRef, unit.AnnotationKey)
+				case kubernetes.KubernetesType:
+					privateNamespace := resources.NewPrivateDnsNamespace(a.Config.AppName, []core.AnnotationKey{unit.AnnotationKey}, resources.GetVpc(a.Config, dag))
+					if ns := dag.GetResource(privateNamespace.Id()); ns != nil {
+						namespace, ok := ns.(*resources.PrivateDnsNamespace)
+						if !ok {
+							return errors.Errorf("Found a non PrivateDnsNamespace with same id as global PrivateDnsNamespace, %s", namespace.Id())
+						}
+						privateNamespace = namespace
+						privateNamespace.ConstructsRef = append(privateNamespace.ConstructsRef, unit.Provenance())
+					} else {
+						dag.AddDependenciesReflect(privateNamespace)
+					}
+
+					// Add a dependency from clusters to the namespace so its available before any pods could come up
+					for _, resource := range dag.ListResources() {
+						if cluster, ok := resource.(*resources.EksCluster); ok {
+							dag.AddDependency(cluster, privateNamespace)
+						}
+					}
+
+					serviceDiscoveryPolicyDoc := resources.CreateAllowPolicyDocument([]string{"servicediscovery:DiscoverInstances"}, []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}})
+					policy := resources.NewIamPolicy(a.Config.AppName, privateNamespace.Name, unit.AnnotationKey, serviceDiscoveryPolicyDoc)
+					if pol := dag.GetResource(policy.Id()); pol != nil {
+						pol, ok := pol.(*resources.IamPolicy)
+						if !ok {
+							return errors.Errorf("Found a non PrivateDnsNamespace with same id as global PrivateDnsNamespace, %s", pol.Id())
+						}
+						policy = pol
+						policy.ConstructsRef = append(policy.ConstructsRef, unit.Provenance())
+					} else {
+						dag.AddDependenciesReflect(policy)
+					}
+					a.PolicyGenerator.AddAllowPolicyToUnit(unit.ID, policy)
+				}
+			}
+		}
+
+	}
+
+	return nil
+}
+
 // convertExecUnitParams transforms the execution units environment variables to a map of key names and their corresponding core.IaCValue struct.
 //
 // If an environment variable does not pertain to a construct and is just a key, value string, the resource of the IaCValue will be left null.

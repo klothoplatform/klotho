@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
@@ -175,6 +176,62 @@ func TestResolveStructInput(t *testing.T) {
 			actual, err := tc.resolveStructInput(&resourceVal, val, tt.useDoubleQuotedStrings, nil)
 			assert.NoError(err)
 			assert.Equal(tt.want, actual)
+		})
+	}
+}
+
+func renderGlueVars(t *testing.T) {
+	unit := &core.ExecutionUnit{}
+	cases := []struct {
+		name                 string
+		subResource          core.Resource
+		nodes                []core.Resource
+		edges                []graph.Edge[core.Resource]
+		resourceVarNamesById map[string]string
+		want                 string
+	}{
+		{
+			name:        "role_policy_attachment",
+			subResource: resources.NewIamPolicy("test", "t", unit.Provenance(), nil),
+			nodes: []core.Resource{
+				resources.NewIamRole("test", "t", nil, nil),
+				resources.NewLambdaFunction(unit, "test", resources.NewIamRole("test", "t", nil, nil), &resources.EcrImage{}),
+				resources.NewIamPolicy("test", "t", unit.Provenance(), nil),
+			},
+			edges: []graph.Edge[core.Resource]{
+				{
+					Source:      resources.NewIamPolicy("test", "t", unit.Provenance(), nil),
+					Destination: resources.NewLambdaFunction(unit, "test", resources.NewIamRole("test", "t", nil, nil), &resources.EcrImage{}),
+				},
+			},
+			resourceVarNamesById: map[string]string{
+				"aws:iam_role:test-t":       "testRole",
+				"aws:lambda_function:test_": "testFunction",
+				"aws:iam_policy:test-t":     "testPolicy",
+			},
+			want: "const awsRolePolicyAttachTestTTestT = new aws.iam.RolePolicyAttachment(`test-t-test-t`, {\n\t\t\t\t\t\tpolicyArn: testPolicy.arn,\n\t\t\t\t\t\trole: testRole\n\t\t\t\t\t});",
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			tc := CreateTemplatesCompiler(core.NewResourceGraph())
+			tc.resourceVarNames = map[string]struct{}{}
+			tc.resourceVarNamesById = tt.resourceVarNamesById
+			tc.templates = filesMapToFsMap(subResourceTemplateFiles)
+			for _, res := range tt.nodes {
+				tc.resourceGraph.AddResource(res)
+			}
+			for _, edge := range tt.edges {
+				tc.resourceGraph.AddDependency(edge.Source, edge.Destination)
+			}
+			buf := &bytes.Buffer{}
+
+			err := tc.renderGlueVars(buf, tt.subResource)
+			if !assert.NoError(err) {
+				return
+			}
+			assert.Equal(buf.String(), tt.want)
 		})
 	}
 }
@@ -382,6 +439,25 @@ var dummyTemplateFiles = map[string]string{
 					//TMPL {{- end}}
 				});
 		}`,
+}
+
+var subResourceTemplateFiles = map[string]string{
+	"role_policy_attachment/factory.ts": `import * as aws from '@pulumi/aws'
+				import * as pulumi from '@pulumi/pulumi'
+				
+				interface Args {
+					Name: string
+					Policy: aws.iam.Policy
+					Role: aws.iam.Role
+				}
+				
+				// noinspection JSUnusedLocalSymbols
+				function create(args: Args): aws.iam.RolePolicyAttachment {
+					return new aws.iam.RolePolicyAttachment(args.Name, {
+						policyArn: args.Policy.arn,
+						role: args.Role
+					})
+				}`,
 }
 
 func filesMapToFsMap(files map[string]string) fs.FS {
