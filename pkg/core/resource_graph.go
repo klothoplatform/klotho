@@ -93,15 +93,24 @@ func (rg *ResourceGraph) TopologicalSort() ([]string, error) {
 }
 
 // AddDependenciesReflect uses reflection to inspect the fields of the resource given
-// and add dependencies for each direct (ie, first-level) dependency.
+// and add dependencies for each dependency nested within the object.
+// Structs that are a type of a valid dependency, will not be recursed further as they will already have a
+// direct dependency to their own fields.
 //
-// Supported field types (`*T` is a struct that implements Resource)
+// Supported field types (`*T` is a struct that implements Resource, *K is a struct that does not implement Resource)
 // - `SingleDependency   Resource`
 // - `SpecificDependency *T`
 // - `DependencyArray  []Resource`
 // - `SpecificDepArray []*T`
 // - `DependencyMap  map[string]Resource`
 // - `SpecificDepMap map[string]*T`
+// - `NestedStructDependency K`
+// - `NestedSpecificDependency *K`
+// - `NestedDependencyArray  []K`
+// - `NestedSpecificDepArray []*K`
+// - `NestedDependencyMap  map[string]K`
+// - `NestedSpecificDepMap map[string]*K`
+
 func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
 	rg.AddResource(source)
 
@@ -111,22 +120,6 @@ func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
 		sourceValue = sourceValue.Elem()
 		sourceType = sourceType.Elem()
 	}
-	add := func(targetValue reflect.Value) {
-		if targetValue.Kind() == reflect.Pointer && targetValue.IsNil() {
-			return
-		}
-		if !targetValue.CanInterface() {
-			return
-		}
-		switch value := targetValue.Interface().(type) {
-		case Resource:
-			rg.AddDependency(source, value)
-		case *IaCValue:
-			rg.AddDependency(source, value.Resource)
-		case IaCValue:
-			rg.AddDependency(source, value.Resource)
-		}
-	}
 	for i := 0; i < sourceType.NumField(); i++ {
 		// TODO maybe add a tag for options for things like ignoring fields
 
@@ -135,17 +128,62 @@ func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
 		case reflect.Slice, reflect.Array:
 			for elemIdx := 0; elemIdx < fieldValue.Len(); elemIdx++ {
 				elemValue := fieldValue.Index(elemIdx)
-				add(elemValue)
+				rg.addDependenciesReflect(source, elemValue)
 			}
 
 		case reflect.Map:
 			for iter := fieldValue.MapRange(); iter.Next(); {
 				elemValue := iter.Value()
-				add(elemValue)
+				rg.addDependenciesReflect(source, elemValue)
 			}
 
 		default:
-			add(fieldValue)
+			rg.addDependenciesReflect(source, fieldValue)
+		}
+	}
+}
+func (rg *ResourceGraph) addDependenciesReflect(source Resource, targetValue reflect.Value) {
+	if targetValue.Kind() == reflect.Pointer && targetValue.IsNil() {
+		return
+	}
+	if !targetValue.CanInterface() {
+		return
+	}
+	switch value := targetValue.Interface().(type) {
+	case Resource:
+		rg.AddDependency(source, value)
+	case *IaCValue:
+		if value.Resource != nil {
+			rg.AddDependency(source, value.Resource)
+		}
+	case IaCValue:
+		if value.Resource != nil {
+			rg.AddDependency(source, value.Resource)
+		}
+	default:
+		correspondingValue := targetValue
+		for correspondingValue.Kind() == reflect.Pointer {
+			correspondingValue = targetValue.Elem()
+		}
+		switch correspondingValue.Kind() {
+
+		case reflect.Struct:
+			for i := 0; i < correspondingValue.NumField(); i++ {
+				childVal := correspondingValue.Field(i)
+				rg.addDependenciesReflect(source, childVal)
+			}
+		case reflect.Slice, reflect.Array:
+			for elemIdx := 0; elemIdx < correspondingValue.Len(); elemIdx++ {
+				elemValue := correspondingValue.Index(elemIdx)
+				rg.addDependenciesReflect(source, elemValue)
+			}
+
+		case reflect.Map:
+			for iter := correspondingValue.MapRange(); iter.Next(); {
+				elemValue := iter.Value()
+				rg.addDependenciesReflect(source, elemValue)
+			}
+
 		}
 	}
 }

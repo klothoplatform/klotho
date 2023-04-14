@@ -6,8 +6,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type NestedResources struct {
+	Resource      Resource
+	ResourceArray []Resource
+	ResourceMap   map[string]Resource
+}
+
 type testResource struct {
 	ID string
+
+	NestedResources NestedResources
 
 	SingleDependency   Resource
 	SpecificDependency *testResource
@@ -45,7 +53,16 @@ func TestResourceGraph_AddDependenciesReflect(t *testing.T) {
 	tr := &testResource{
 		ID: "source",
 
-		SingleDependency:   &testResource{ID: "single"},
+		NestedResources: NestedResources{
+			Resource:      &testResource{ID: "nested"},
+			ResourceArray: []Resource{&testResource{ID: "nested_arr1"}, &testResource{ID: "nested_arr2"}},
+			ResourceMap: map[string]Resource{
+				"one": &testResource{ID: "nested_map1"},
+				"two": &testResource{ID: "nested_map2"},
+			},
+		},
+
+		SingleDependency:   &testResource{ID: "single", NestedResources: NestedResources{Resource: &testResource{ID: "nested_single"}}},
 		SpecificDependency: &testResource{ID: "single_specific"},
 
 		DependencyArray:  []Resource{&testResource{ID: "arr1"}, &testResource{ID: "arr2"}},
@@ -97,7 +114,11 @@ func TestResourceGraph_AddDependenciesReflect(t *testing.T) {
 		"value_ptr_arr1", "value_ptr_arr2",
 		"value_map1", "value_map2",
 		"value_ptr_map1", "value_ptr_map2",
+		"nested",
+		"nested_arr1", "nested_arr2",
+		"nested_map1", "nested_map2",
 	} {
 		assert.NotNil(dag.GetDependency(tr.ID, target), "source -> %s", target)
 	}
+	assert.Nil(dag.GetDependency(tr.ID, "nested_single"))
 }
