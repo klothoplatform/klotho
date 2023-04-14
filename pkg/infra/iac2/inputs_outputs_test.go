@@ -94,8 +94,8 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.CloudfrontDistribution{},
 		&resources.OriginAccessIdentity{},
 		&resources.S3BucketPolicy{},
-		&resources.AwsKubernetesProvider{},
 		&kubernetes.HelmChart{},
+		&kubernetes.Kubeconfig{},
 		&resources.LoadBalancer{},
 		&resources.TargetGroup{},
 		&resources.Listener{},
@@ -104,6 +104,7 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.RdsSubnetGroup{},
 		&resources.RdsProxyTargetGroup{},
 		&kubernetes.Manifest{},
+		&KubernetesProvider{},
 	}
 
 	tp := standardTemplatesProvider()
@@ -135,7 +136,7 @@ func TestKnownTemplates(t *testing.T) {
 
 			t.Run("inputs", func(t *testing.T) {
 				for inputName, inputTsType := range tmpl.InputTypes {
-					if inputName == "dependsOn" || inputName == "protect" {
+					if inputName == "dependsOn" || inputName == "protect" || inputName == "awsProfile" {
 						continue
 					}
 					t.Run(inputName, func(t *testing.T) {

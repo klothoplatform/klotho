@@ -23,6 +23,9 @@ const (
 
 	CLUSTER_OIDC_URL_IAC_VALUE = "cluster_oidc_url"
 	CLUSTER_OIDC_ARN_IAC_VALUE = "cluster_oidc_arn"
+	CLUSTER_ENDPOINT_IAC_VALUE = "cluster_endpoint"
+	CLUSTER_CA_DATA_IAC_VALUE  = "cluster_certificate_authority_data"
+	CLUSTER_PROVIDER_IAC_VALUE = "cluster_provider"
 	NAME_IAC_VALUE             = "name"
 
 	AWS_OBSERVABILITY_NS_PATH         = "aws_observability_namespace.yaml"
@@ -90,6 +93,7 @@ type (
 		ClusterRole   *IamRole
 		Subnets       []*Subnet
 		Manifests     []core.File
+		Kubeconfig    *kubernetes.Kubeconfig
 	}
 
 	EksFargateProfile struct {
@@ -126,8 +130,8 @@ type (
 // CreateEksCluster will create a cluster in the subnets provided, with the attached additional security groups
 //
 // The method will also create a fargate profile in the default namespace and a single NodeGroup.
-// The method will create all of the corresponding IAM Roles necessary and attach all the execution units references to the following objects
-func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Subnet, securityGroups []*any, units []*core.ExecutionUnit, dag *core.ResourceGraph) {
+// The method will create all the corresponding IAM Roles necessary and attach all the execution units references to the following objects
+func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Subnet, securityGroups []*any, units []*core.ExecutionUnit, dag *core.ResourceGraph) error {
 	references := []core.AnnotationKey{}
 	for _, u := range units {
 		references = append(references, u.Provenance())
@@ -160,12 +164,35 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
 	dag.AddDependenciesReflect(profile)
 
-	for _, addOn := range createAddOns(clusterName, references) {
+	// Find the region a
+	var region *Region
+	region, err = findClusterRegion(dag, cluster)
+	if err != nil {
+		return err
+	}
+	cluster.Kubeconfig = createEKSKubeconfig(cluster, region)
+
+	for _, addOn := range createAddOns(cluster, references) {
 		dag.AddResource(addOn)
 		for _, nodeGroup := range nodeGroups {
 			dag.AddDependency(addOn, nodeGroup)
 		}
 	}
+
+	return nil
+}
+
+func findClusterRegion(dag *core.ResourceGraph, cluster *EksCluster) (*Region, error) {
+	var region *Region
+	for _, res := range dag.GetAllDownstreamResources(cluster) {
+		if r, ok := res.(*Region); ok {
+			region = r
+		}
+	}
+	if region == nil {
+		return nil, fmt.Errorf("downstream region not found for EksCluster with id, %s", cluster.Id())
+	}
+	return region, nil
 }
 
 func createNodeGroups(cfg *config.Application, dag *core.ResourceGraph, units []*core.ExecutionUnit, clusterName string, cluster *EksCluster, subnets []*Subnet) []*EksNodeGroup {
@@ -261,21 +288,28 @@ func NodeGroupName(networkPlacement string, instanceType string) string {
 	return nodeGroupSanitizer.Apply(fmt.Sprintf("%s_%s", networkPlacement, instanceType))
 }
 
-func createAddOns(clusterName string, provenance []core.AnnotationKey) []*kubernetes.HelmChart {
+func createAddOns(cluster *EksCluster, provenance []core.AnnotationKey) []*kubernetes.HelmChart {
 	return []*kubernetes.HelmChart{
 		{
-			Name:          clusterName + `-metrics-server`,
+			Name:          cluster.Name + `-metrics-server`,
 			Chart:         "metrics-server",
 			ConstructRefs: provenance,
-			Repo:          `https://kubernetes-sigs.github.io/metrics-server/`,
+			ClustersProvider: core.IaCValue{
+				Resource: cluster.Kubeconfig,
+				Property: CLUSTER_PROVIDER_IAC_VALUE,
+			},
+			Repo: `https://kubernetes-sigs.github.io/metrics-server/`,
 		},
 		{
-			Name:             clusterName + `-cert-manager`,
-			Chart:            `cert-manager`,
-			ConstructRefs:    provenance,
-			ClustersProvider: nil,
-			Repo:             `https://charts.jetstack.io`,
-			Version:          `v1.10.0`,
+			Name:          cluster.Name + `-cert-manager`,
+			Chart:         `cert-manager`,
+			ConstructRefs: provenance,
+			ClustersProvider: core.IaCValue{
+				Resource: cluster.Kubeconfig,
+				Property: CLUSTER_PROVIDER_IAC_VALUE,
+			},
+			Repo:    `https://charts.jetstack.io`,
+			Version: `v1.10.0`,
 			Values: map[string]any{
 				`installCRDs`: true,
 				`webhook`: map[string]any{
@@ -367,6 +401,59 @@ func (cluster *EksCluster) installFluentBit(references []core.AnnotationKey, dag
 	dag.AddDependency(fluentBitOptimized, cluster)
 	dag.AddDependency(fluentBitOptimized, configMap)
 	return nil
+}
+
+func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeconfig {
+	username := "aws"
+	clusterNameIaCValue := core.IaCValue{
+		Resource: cluster,
+		Property: NAME_IAC_VALUE,
+	}
+	return &kubernetes.Kubeconfig{
+		ConstructsRef:  cluster.ConstructsRef,
+		Name:           fmt.Sprintf("%s-eks-kubeconfig", cluster.Name),
+		ApiVersion:     "v1",
+		CurrentContext: "aws",
+		Kind:           "Config",
+		Clusters: []kubernetes.KubeconfigCluster{
+			{
+				Name: clusterNameIaCValue,
+				CertificateAuthorityData: core.IaCValue{
+					Resource: cluster,
+					Property: CLUSTER_CA_DATA_IAC_VALUE,
+				},
+				Server: core.IaCValue{
+					Resource: cluster,
+					Property: CLUSTER_ENDPOINT_IAC_VALUE,
+				},
+			},
+		},
+		Contexts: []kubernetes.KubeconfigContext{
+			{
+				Cluster: clusterNameIaCValue,
+				User:    username,
+			},
+		},
+		Users: []kubernetes.KubeconfigUser{
+			{
+				Exec: kubernetes.KubeconfigExec{
+					ApiVersion: "client.authentication.k8s.io/v1beta1",
+					Command:    "aws",
+					Args: []any{
+						"eks",
+						"get-token",
+						"--cluster-name",
+						clusterNameIaCValue,
+						"--region",
+						core.IaCValue{
+							Resource: region,
+							Property: NAME_IAC_VALUE,
+						},
+					},
+				},
+			},
+		},
+	}
 }
 
 // GetEksCluster will return the resource with the name corresponding to the appName and ClusterId

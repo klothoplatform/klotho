@@ -122,10 +122,12 @@ func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceG
 		},
 	})
 	subnets := vpc.GetVpcSubnets(dag)
+
+	var merr multierr.Error
 	for clusterId, units := range clusterIdToUnit {
-		resources.CreateEksCluster(a.Config, clusterId, subnets, nil, units, dag)
+		merr.Append(resources.CreateEksCluster(a.Config, clusterId, subnets, nil, units, dag))
 	}
-	return nil
+	return merr.ErrOrNil()
 }
 
 func reverseInPlace[A any](a []A) {
