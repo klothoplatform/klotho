@@ -1,5 +1,5 @@
 {
-    "name": "helm_chart",
+    "name": "helm_chart_alb_controlller",
     "dependencies": {
         "@pulumi/kubernetes": "^3.21.4",
         "@pulumi/pulumi": "^3.40.2"
