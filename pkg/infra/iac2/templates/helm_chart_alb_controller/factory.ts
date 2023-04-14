@@ -40,7 +40,7 @@ function create(args: Args): pulumi_k8s.helm.v3.Chart {
                                 annotations: {
                                     'eks.amazonaws.com/role-arn': pulumi.interpolate`${args.Role.arn}`,
                                 },
-                            }
+                            },
                         }
                     ).metadata.name,
                 },
