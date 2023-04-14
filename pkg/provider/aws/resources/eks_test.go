@@ -69,7 +69,6 @@ func Test_CreateEksCluster(t *testing.T) {
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit", Destination: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "aws:eks_cluster:test-app-test-cluster"},
-					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "aws:region:region"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns"},
 				},
 			},
