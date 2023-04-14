@@ -11,7 +11,7 @@ var PrivateDnsNamespaceSanitizer = sanitization.NewSanitizer(
 	[]sanitization.Rule{
 		// strip any leading non alpha characters
 		{
-			Pattern:     regexp.MustCompile(`^[!-~]+$`),
+			Pattern:     regexp.MustCompile(`[^!-~]+`),
 			Replacement: "_",
 		},
-	}, 64)
+	}, 253)

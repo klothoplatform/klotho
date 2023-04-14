@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -277,12 +276,12 @@ func Test_handleExecUnitProxy(t *testing.T) {
 			config: config.Application{AppName: "test", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: kubernetes.KubernetesType}}},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:iam_policy:test-_",
-					"aws:private_dns_namespace:_",
+					"aws:iam_policy:test-test",
+					"aws:private_dns_namespace:test",
 					"aws:vpc:test",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:private_dns_namespace:_", Destination: "aws:vpc:test"},
+					{Source: "aws:private_dns_namespace:test", Destination: "aws:vpc:test"},
 				},
 			},
 		},
@@ -324,7 +323,6 @@ func Test_handleExecUnitProxy(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 			tt.want.Assert(t, dag)
 		})
 
