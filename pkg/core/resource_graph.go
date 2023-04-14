@@ -149,37 +149,3 @@ func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
 		}
 	}
 }
-
-func (rg *ResourceGraph) GetAllUpstreamResources(source Resource) []Resource {
-	var upstreams []Resource
-	upstreamsSet := map[Resource]struct{}{}
-	for r := range rg.getAllUpstreamResourcesSet(source, upstreamsSet) {
-		upstreams = append(upstreams, r)
-	}
-	return upstreams
-}
-
-func (rg *ResourceGraph) getAllUpstreamResourcesSet(source Resource, upstreams map[Resource]struct{}) map[Resource]struct{} {
-	for _, r := range rg.underlying.IncomingVertices(source) {
-		upstreams[r] = struct{}{}
-		rg.getAllUpstreamResourcesSet(r, upstreams)
-	}
-	return upstreams
-}
-
-func (rg *ResourceGraph) GetAllDownstreamResources(source Resource) []Resource {
-	var upstreams []Resource
-	upstreamsSet := map[Resource]struct{}{}
-	for r := range rg.getAllDownstreamResourcesSet(source, upstreamsSet) {
-		upstreams = append(upstreams, r)
-	}
-	return upstreams
-}
-
-func (rg *ResourceGraph) getAllDownstreamResourcesSet(source Resource, upstreams map[Resource]struct{}) map[Resource]struct{} {
-	for _, r := range rg.underlying.OutgoingVertices(source) {
-		upstreams[r] = struct{}{}
-		rg.getAllDownstreamResourcesSet(r, upstreams)
-	}
-	return upstreams
-}

@@ -289,17 +289,9 @@ func NodeGroupName(networkPlacement string, instanceType string) string {
 	return nodeGroupSanitizer.Apply(fmt.Sprintf("%s_%s", networkPlacement, instanceType))
 }
 
-func createAddOns(clusterName string, vpc *Vpc, provenance []core.AnnotationKey) []core.Resource {
+func createAddOns(cluster *EksCluster, vpc *Vpc, provenance []core.AnnotationKey) []core.Resource {
 	return []core.Resource{
 		&kubernetes.HelmChart{
-			Name:             clusterName + `-metrics-server`,
-			Chart:            "metrics-server",
-			ConstructRefs:    provenance,
-			ClustersProvider: nil, // TODO?
-			Repo:             `https://kubernetes-sigs.github.io/metrics-server/`,
-func createAddOns(cluster *EksCluster, provenance []core.AnnotationKey) []*kubernetes.HelmChart {
-	return []*kubernetes.HelmChart{
-		{
 			Name:          cluster.Name + `-metrics-server`,
 			Chart:         "metrics-server",
 			ConstructRefs: provenance,
