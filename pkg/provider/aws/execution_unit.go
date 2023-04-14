@@ -51,6 +51,12 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 		role.AwsManagedPolicies = append(role.AwsManagedPolicies, "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole")
 		role.AwsManagedPolicies = append(role.AwsManagedPolicies, "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess")
 		lambdaFunction := resources.NewLambdaFunction(unit, a.Config.AppName, role, image)
+		if resources.VpcExists(dag) {
+			vpc := resources.GetVpc(a.Config, dag)
+			lambdaFunction.Subnets = vpc.GetPrivateSubnets(dag)
+			lambdaFunction.SecurityGroups = vpc.GetSecurityGroups(dag)
+			lambdaFunction.Vpc = vpc
+		}
 		dag.AddDependenciesReflect(lambdaFunction)
 		a.MapResourceDirectlyToConstruct(lambdaFunction, unit)
 
