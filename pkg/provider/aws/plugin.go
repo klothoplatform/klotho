@@ -121,9 +121,8 @@ func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceG
 			{Property: "0.0.0.0/0"},
 		},
 	})
-	subnets := vpc.GetVpcSubnets(dag)
 	for clusterId, units := range clusterIdToUnit {
-		resources.CreateEksCluster(a.Config, clusterId, subnets, nil, units, dag)
+		resources.CreateEksCluster(a.Config, clusterId, vpc, nil, units, dag)
 	}
 	return nil
 }

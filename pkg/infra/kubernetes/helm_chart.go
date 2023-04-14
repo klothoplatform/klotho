@@ -19,6 +19,8 @@ import (
 
 const HELM_CHART_TYPE = "helm_chart"
 
+const PROVIDER = "kubernetes"
+
 type HelmChart struct {
 	Name           string
 	Chart          string
@@ -37,7 +39,7 @@ type HelmChart struct {
 }
 
 // Provider returns name of the provider the resource is correlated to
-func (chart *HelmChart) Provider() string { return "kubernetes" }
+func (chart *HelmChart) Provider() string { return PROVIDER }
 
 // KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
 func (chart *HelmChart) KlothoConstructRef() []core.AnnotationKey { return chart.ConstructRefs }

@@ -127,7 +127,7 @@ type (
 //
 // The method will also create a fargate profile in the default namespace and a single NodeGroup.
 // The method will create all of the corresponding IAM Roles necessary and attach all the execution units references to the following objects
-func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Subnet, securityGroups []*any, units []*core.ExecutionUnit, dag *core.ResourceGraph) {
+func CreateEksCluster(cfg *config.Application, clusterName string, vpc *Vpc, securityGroups []*any, units []*core.ExecutionUnit, dag *core.ResourceGraph) {
 	references := []core.AnnotationKey{}
 	for _, u := range units {
 		references = append(references, u.Provenance())
@@ -138,6 +138,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	clusterRole := createClusterAdminRole(appName, clusterName+"-k8sAdmin", references)
 	dag.AddResource(clusterRole)
 
+	subnets := vpc.GetVpcSubnets(dag)
 	cluster := NewEksCluster(appName, clusterName, subnets, securityGroups, clusterRole)
 	cluster.ConstructsRef = references
 	dag.AddDependenciesReflect(cluster)
@@ -160,8 +161,8 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
 	dag.AddDependenciesReflect(profile)
 
-	for _, addOn := range createAddOns(clusterName, references) {
-		dag.AddResource(addOn)
+	for _, addOn := range createAddOns(clusterName, vpc, references) {
+		dag.AddDependenciesReflect(addOn)
 		for _, nodeGroup := range nodeGroups {
 			dag.AddDependency(addOn, nodeGroup)
 		}
@@ -261,19 +262,21 @@ func NodeGroupName(networkPlacement string, instanceType string) string {
 	return nodeGroupSanitizer.Apply(fmt.Sprintf("%s_%s", networkPlacement, instanceType))
 }
 
-func createAddOns(clusterName string, provenance []core.AnnotationKey) []*kubernetes.HelmChart {
-	return []*kubernetes.HelmChart{
-		{
-			Name:          clusterName + `-metrics-server`,
-			Chart:         "metrics-server",
-			ConstructRefs: provenance,
-			Repo:          `https://kubernetes-sigs.github.io/metrics-server/`,
+func createAddOns(clusterName string, vpc *Vpc, provenance []core.AnnotationKey) []core.Resource {
+	NewIamRole()
+	return []core.Resource{
+		&kubernetes.HelmChart{
+			Name:             clusterName + `-metrics-server`,
+			Chart:            "metrics-server",
+			ConstructRefs:    provenance,
+			ClustersProvider: nil, // TODO?
+			Repo:             `https://kubernetes-sigs.github.io/metrics-server/`,
 		},
-		{
+		&kubernetes.HelmChart{
 			Name:             clusterName + `-cert-manager`,
 			Chart:            `cert-manager`,
 			ConstructRefs:    provenance,
-			ClustersProvider: nil,
+			ClustersProvider: nil, // TODO?
 			Repo:             `https://charts.jetstack.io`,
 			Version:          `v1.10.0`,
 			Values: map[string]any{
@@ -282,6 +285,37 @@ func createAddOns(clusterName string, provenance []core.AnnotationKey) []*kubern
 					`timeoutSeconds`: 30,
 				},
 			},
+		},
+		&HelmChartAlbController{
+			HelmChart: kubernetes.HelmChart{
+
+				Name:             clusterName + `-alb-c`,
+				Chart:            `aws-load-balancer-controller`,
+				ConstructRefs:    provenance,
+				Repo:             `https://aws.github.io/eks-charts`,
+				Version:          `1.4.7`,
+				ClustersProvider: nil,       // TODO?
+				Namespace:        "default", // kube-system if on fargate, default otherwise
+			},
+			ClusterName: clusterName,
+			Region:      NewRegion(),
+			Vpc:         vpc,
+			Role: NewIamRole(clusterName, `alb-controller-role`, provenance, &PolicyDocument{
+				Version: VERSION,
+				Statement: []StatementEntry{
+					{
+						Effect:    `Allow`,
+						Action:    []string{`sts:AssumeRoleWithWebIdentity`},
+						Resource:  nil,
+						Principal: nil,
+						Condition: &Condition{
+							StringEquals: map[core.IaCValue]string{
+								nil: fmt.Sprintf(`system:serviceaccount:${namespace}:${name}`), // TODO fill out the key, and namenamespace, and name
+							},
+						},
+					},
+				},
+			}),
 		},
 	}
 }
@@ -493,3 +527,25 @@ func amiFromInstanceType(instanceType string) string {
 	}
 	return ""
 }
+
+type HelmChartAlbController struct {
+	kubernetes.HelmChart
+
+	// The following are specific to this struct
+	ClusterName string
+	Region      *Region
+	Vpc         *Vpc
+	Role        *IamRole
+}
+
+//func (h *HelmChartAlbController) Provider() string {
+//	return h.HelmChart.Provider()
+//}
+//
+//func (h *HelmChartAlbController) KlothoConstructRef() []core.AnnotationKey {
+//	return h.HelmChart.KlothoConstructRef()
+//}
+//
+//func (h *HelmChartAlbController) Id() string {
+//	return h.HelmChart.Id()
+//}

@@ -43,7 +43,7 @@ type (
 )
 
 // Provider returns name of the provider the resource is correlated to
-func (manifest *Manifest) Provider() string { return "kubernetes" }
+func (manifest *Manifest) Provider() string { return PROVIDER }
 
 // KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
 func (manifest *Manifest) KlothoConstructRef() []core.AnnotationKey { return manifest.ConstructRefs }
