@@ -14,7 +14,6 @@ import (
 	"text/template"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -209,7 +208,7 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 			inputArgs[fieldName] = stringTemplateValue{value: "protect", raw: "protect"}
 			return
 		case "awsProfile":
-			inputArgs[fieldName] = stringTemplateValue{value: "protect", raw: "awsProfile"}
+			inputArgs[fieldName] = stringTemplateValue{value: "awsProfile", raw: "awsProfile"}
 			return
 		}
 		childVal := resourceVal.FieldByName(fieldName)
@@ -518,7 +517,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 	case resources.CLUSTER_ENDPOINT_IAC_VALUE:
 		return fmt.Sprintf("%s.endpoint", tc.getVarName(v.Resource)), nil
 	case resources.CLUSTER_PROVIDER_IAC_VALUE:
-		if kcfg, ok := v.Resource.(*kubernetes.Kubeconfig); ok {
+		if kcfg, ok := v.Resource.(*resources.EksCluster); ok {
 			p := &KubernetesProvider{Name: fmt.Sprintf("%s-provider", kcfg.Name)}
 			return tc.getVarNameByResourceId(p.Id()), nil
 		}
@@ -682,20 +681,25 @@ func (tc TemplatesCompiler) GetPackageJSON(v core.Resource) (javascript.NodePack
 func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource core.Resource) error {
 	var errs multierr.Error
 	switch resource := resource.(type) {
-	case *kubernetes.Kubeconfig:
+	case *resources.EksCluster:
 		errs.Append(tc.renderKubernetesProvider(out, resource))
 	}
 	return errs.ErrOrNil()
 }
 
-func (tc TemplatesCompiler) renderKubernetesProvider(out io.Writer, kubeconfig *kubernetes.Kubeconfig) error {
+func (tc TemplatesCompiler) renderKubernetesProvider(out io.Writer, cluster *resources.EksCluster) error {
 	var errs multierr.Error
+
+	_, err := out.Write([]byte("\n\n"))
+	errs.Append(err)
+	errs.Append(tc.renderResource(out, cluster.Kubeconfig))
+
 	provider := &KubernetesProvider{
-		Name:          fmt.Sprintf("%s-provider", kubeconfig.Name),
-		ConstructsRef: kubeconfig.ConstructsRef,
-		KubeConfig:    kubeconfig,
+		Name:          fmt.Sprintf("%s-provider", cluster.Name),
+		ConstructsRef: cluster.ConstructsRef,
+		KubeConfig:    cluster.Kubeconfig,
 	}
-	_, err := out.Write([]byte("\n"))
+	_, err = out.Write([]byte("\n\n"))
 	errs.Append(err)
 	errs.Append(tc.renderResource(out, provider))
 	return errs.ErrOrNil()

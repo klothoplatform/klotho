@@ -93,6 +93,7 @@ type (
 		ClusterRole   *IamRole
 		Subnets       []*Subnet
 		Manifests     []core.File
+		Kubeconfig    *kubernetes.Kubeconfig
 	}
 
 	EksFargateProfile struct {
@@ -163,6 +164,25 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
 	dag.AddDependenciesReflect(profile)
 
+	// Find the region a
+	var region *Region
+	region, err = findClusterRegion(dag, cluster)
+	if err != nil {
+		return err
+	}
+	cluster.Kubeconfig = createEKSKubeconfig(cluster, region)
+
+	for _, addOn := range createAddOns(cluster, references) {
+		dag.AddResource(addOn)
+		for _, nodeGroup := range nodeGroups {
+			dag.AddDependency(addOn, nodeGroup)
+		}
+	}
+
+	return nil
+}
+
+func findClusterRegion(dag *core.ResourceGraph, cluster *EksCluster) (*Region, error) {
 	var region *Region
 	for _, res := range dag.GetAllDownstreamResources(cluster) {
 		if r, ok := res.(*Region); ok {
@@ -170,22 +190,9 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 		}
 	}
 	if region == nil {
-		return fmt.Errorf("downstream region not found for EksCluster with id=%s", cluster.Id())
+		return nil, fmt.Errorf("downstream region not found for EksCluster with id, %s", cluster.Id())
 	}
-
-	kubeconfig := createEKSKubeconfig(cluster, region)
-	dag.AddResource(kubeconfig)
-	dag.AddDependency(kubeconfig, cluster)
-	dag.AddDependency(kubeconfig, region)
-	
-	for _, addOn := range createAddOns(clusterName, references) {
-		dag.AddResource(addOn)
-		for _, nodeGroup := range nodeGroups {
-			dag.AddDependency(addOn, nodeGroup)
-		}
-	}
-	
-	return nil
+	return region, nil
 }
 
 func createNodeGroups(cfg *config.Application, dag *core.ResourceGraph, units []*core.ExecutionUnit, clusterName string, cluster *EksCluster, subnets []*Subnet) []*EksNodeGroup {
@@ -281,28 +288,28 @@ func NodeGroupName(networkPlacement string, instanceType string) string {
 	return nodeGroupSanitizer.Apply(fmt.Sprintf("%s_%s", networkPlacement, instanceType))
 }
 
-func createAddOns(clusterName string, kubeconfig *kubernetes.Kubeconfig, provenance []core.AnnotationKey) []*kubernetes.HelmChart {
+func createAddOns(cluster *EksCluster, provenance []core.AnnotationKey) []*kubernetes.HelmChart {
 	return []*kubernetes.HelmChart{
 		{
-			Name:          clusterName + `-metrics-server`,
+			Name:          cluster.Name + `-metrics-server`,
 			Chart:         "metrics-server",
 			ConstructRefs: provenance,
 			ClustersProvider: core.IaCValue{
-				Resource: kubeconfig,
+				Resource: cluster.Kubeconfig,
 				Property: CLUSTER_PROVIDER_IAC_VALUE,
 			},
 			Repo: `https://kubernetes-sigs.github.io/metrics-server/`,
 		},
 		{
-			Name:             clusterName + `-cert-manager`,
-			Chart:            `cert-manager`,
-			ConstructRefs:    provenance,
+			Name:          cluster.Name + `-cert-manager`,
+			Chart:         `cert-manager`,
+			ConstructRefs: provenance,
 			ClustersProvider: core.IaCValue{
-				Resource: kubeconfig,
+				Resource: cluster.Kubeconfig,
 				Property: CLUSTER_PROVIDER_IAC_VALUE,
 			},
-			Repo:             `https://charts.jetstack.io`,
-			Version:          `v1.10.0`,
+			Repo:    `https://charts.jetstack.io`,
+			Version: `v1.10.0`,
 			Values: map[string]any{
 				`installCRDs`: true,
 				`webhook`: map[string]any{

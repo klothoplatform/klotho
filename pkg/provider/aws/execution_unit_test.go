@@ -125,7 +125,6 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					"aws:vpc_subnet:test_public1",
 					"aws:vpc_subnet:test_public2",
 					"kubernetes:helm_chart:chart",
-					"kubernetes:kubeconfig:test-config",
 				},
 				Deps: []graph.Edge[string]{
 					{Source: "aws:availability_zones:AvailabilityZones", Destination: "aws:region:region"},
@@ -177,8 +176,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{Source: "kubernetes:helm_chart:chart", Destination: "aws:ecr_image:test-test"},
 					{Source: "kubernetes:helm_chart:chart", Destination: "aws:iam_role:test-test-ExecutionRole"},
 					{Source: "kubernetes:helm_chart:chart", Destination: "aws:target_group:test-test"},
-					{Source: "kubernetes:helm_chart:chart", Destination: "kubernetes:kubeconfig:test-config"},
-					{Source: "kubernetes:kubeconfig:test-config", Destination: "aws:eks_cluster:test-eks-cluster"},
+					{Source: "kubernetes:helm_chart:chart", Destination: "aws:eks_cluster:test-eks-cluster"},
 				},
 			},
 		},
@@ -201,12 +199,10 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 				case *resources.IamPolicy:
 					aws.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), res)
 				case *resources.EksCluster:
-					kubeconfig := &kubernetes.Kubeconfig{
+					res.Kubeconfig = &kubernetes.Kubeconfig{
 						ConstructsRef: res.KlothoConstructRef(),
 						Name:          "test-config",
 					}
-					dag.AddResource(kubeconfig)
-					dag.AddDependency(kubeconfig, res)
 				}
 			}
 			result := core.NewConstructGraph()
