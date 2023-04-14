@@ -46,7 +46,7 @@ func TestPruneUncategorizedFiles_Transform(t *testing.T) {
 			p := PruneUncategorizedFiles{}
 			result := core.NewConstructGraph()
 			result.AddConstruct(&testUnit)
-			err := p.Transform(&core.InputFiles{}, result)
+			err := p.Transform(&core.InputFiles{}, &core.FileDependencies{}, result)
 			if !assert.NoError(err) {
 				return
 			}

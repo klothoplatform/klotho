@@ -199,52 +199,52 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 				}
 				panic(errors.Errorf("panic rendering field %s: %v", fieldName, r))
 			}()
-		switch fieldName {
-		// dependsOn will be a reserved field for us to use to map dependencies. If specified as an Arg we will automatically call resolveDependencies
-		case "dependsOn":
-			inputArgs[fieldName] = stringTemplateValue{value: tc.resolveDependencies(resource)}
-			return
-		case "protect":
-			inputArgs[fieldName] = stringTemplateValue{value: "protect", raw: "protect"}
-			return
-		case "awsProfile":
-			inputArgs[fieldName] = stringTemplateValue{value: "awsProfile", raw: "awsProfile"}
-			return
-		}
-		childVal := resourceVal.FieldByName(fieldName)
+			switch fieldName {
+			// dependsOn will be a reserved field for us to use to map dependencies. If specified as an Arg we will automatically call resolveDependencies
+			case "dependsOn":
+				inputArgs[fieldName] = stringTemplateValue{value: tc.resolveDependencies(resource)}
+				return
+			case "protect":
+				inputArgs[fieldName] = stringTemplateValue{value: "protect", raw: "protect"}
+				return
+			case "awsProfile":
+				inputArgs[fieldName] = stringTemplateValue{value: "awsProfile", raw: "awsProfile"}
+				return
+			}
+			childVal := resourceVal.FieldByName(fieldName)
 
-		var appliedoutputs []AppliedOutput
-		buf := strings.Builder{}
-		strValue, err := tc.resolveStructInput(&resourceVal, childVal, false, &appliedoutputs)
-		if err != nil {
-			errs.Append(err)
-			return
-		}
-		uniqueOutputs, err := deduplicateAppliedOutputs(appliedoutputs)
-		if err != nil {
-			errs.Append(err)
-			return
-		}
-		_, err = buf.WriteString(appliedOutputsToString(uniqueOutputs))
-		if err != nil {
-			errs.Append(err)
-			return
-		}
-		buf.WriteString(strValue)
-		if len(uniqueOutputs) > 0 {
-			_, err = buf.WriteString("})")
+			var appliedoutputs []AppliedOutput
+			buf := strings.Builder{}
+			strValue, err := tc.resolveStructInput(&resourceVal, childVal, false, &appliedoutputs)
 			if err != nil {
 				errs.Append(err)
 				return
 			}
-		}
+			uniqueOutputs, err := deduplicateAppliedOutputs(appliedoutputs)
+			if err != nil {
+				errs.Append(err)
+				return
+			}
+			_, err = buf.WriteString(appliedOutputsToString(uniqueOutputs))
+			if err != nil {
+				errs.Append(err)
+				return
+			}
+			buf.WriteString(strValue)
+			if len(uniqueOutputs) > 0 {
+				_, err = buf.WriteString("})")
+				if err != nil {
+					errs.Append(err)
+					return
+				}
+			}
 
-		var rawVal any
-		if childVal.IsValid() {
-			rawVal = childVal.Interface()
-		}
+			var rawVal any
+			if childVal.IsValid() {
+				rawVal = childVal.Interface()
+			}
 
-		resolvedValue := stringTemplateValue{value: buf.String(), raw: rawVal}
+			resolvedValue := stringTemplateValue{value: buf.String(), raw: rawVal}
 
 			if err != nil {
 				errs.Append(err)
@@ -683,6 +683,18 @@ func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource core.Resource
 	switch resource := resource.(type) {
 	case *resources.EksCluster:
 		errs.Append(tc.renderKubernetesProvider(out, resource))
+	case *resources.IamPolicy:
+		downStream := tc.resourceGraph.GetDownstreamResources(resource)
+		for _, res := range downStream {
+			if lambda, ok := res.(*resources.LambdaFunction); ok {
+				rpa := RolePolicyAttachment{
+					Name:   fmt.Sprintf("%s-%s", lambda.Role.Name, resource.Name),
+					Policy: resource,
+					Role:   lambda.Role,
+				}
+				errs.Append(tc.renderResource(out, &rpa))
+			}
+		}
 	}
 	return errs.ErrOrNil()
 }

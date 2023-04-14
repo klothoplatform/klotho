@@ -23,7 +23,7 @@ func (l NodeJSExecutable) Name() string {
 	return "nodejs_executable"
 }
 
-func (l NodeJSExecutable) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (l NodeJSExecutable) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	// TODO: Consider adding ES module config for a unit in this plugin
 	inputFiles := input.Files()
 

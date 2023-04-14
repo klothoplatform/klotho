@@ -2,7 +2,6 @@ package javascript
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
-	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
 	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -10,12 +9,12 @@ import (
 )
 
 // UnitFileDependencyResolver resolves the execunit.FileDependencies for the provided core.ExecutionUnit.
-func UnitFileDependencyResolver(unit *core.ExecutionUnit) (execunit.FileDependencies, error) {
+func UnitFileDependencyResolver(unit *core.ExecutionUnit) (core.FileDependencies, error) {
 	return ResolveFileDependencies(unit.Files())
 }
 
-func ResolveFileDependencies(fs map[string]core.File) (execunit.FileDependencies, error) {
-	fileDeps := make(execunit.FileDependencies)
+func ResolveFileDependencies(fs map[string]core.File) (core.FileDependencies, error) {
+	fileDeps := make(core.FileDependencies)
 	for _, f := range fs {
 		jsF, ok := Language.ID.CastFile(f)
 		if !ok {
@@ -31,8 +30,8 @@ func ResolveFileDependencies(fs map[string]core.File) (execunit.FileDependencies
 	return fileDeps, nil
 }
 
-func localImports(input map[string]core.File, f *core.SourceFile) (execunit.Imported, error) {
-	imports := make(execunit.Imported)
+func localImports(input map[string]core.File, f *core.SourceFile) (core.Imported, error) {
+	imports := make(core.Imported)
 	var errs multierr.Error
 
 	localImports := FindImportsInFile(f).Filter(filter.NewSimpleFilter(IsRelativeImport))
@@ -51,14 +50,14 @@ func localImports(input map[string]core.File, f *core.SourceFile) (execunit.Impo
 
 		uses := ImportUsageQuery(f.Tree().RootNode(), imp.ImportedAs())
 
-		useNames := make(execunit.References)
+		useNames := make(core.References)
 		for _, use := range uses {
 			name := use.Content()
 			useNames.Add(name)
 		}
 		refs, ok := imports[importFile.Path()]
 		if !ok {
-			refs = make(execunit.References)
+			refs = make(core.References)
 			imports[importFile.Path()] = refs
 		}
 		for name := range useNames {

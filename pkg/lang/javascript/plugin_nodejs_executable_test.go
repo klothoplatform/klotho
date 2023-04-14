@@ -198,7 +198,7 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 					inputFiles.Add(f)
 				}
 			}
-			if !assert.NoError(NodeJSExecutable{}.Transform(inputFiles, result)) {
+			if !assert.NoError(NodeJSExecutable{}.Transform(inputFiles, &core.FileDependencies{}, result)) {
 				return
 			}
 			assert.Equal(len(tt.expectedUnits), len(tt.units))

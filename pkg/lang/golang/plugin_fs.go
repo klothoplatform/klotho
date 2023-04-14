@@ -19,7 +19,7 @@ type PersistFsPlugin struct {
 
 func (p PersistFsPlugin) Name() string { return "Persist" }
 
-func (p PersistFsPlugin) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p PersistFsPlugin) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 
 	var errs multierr.Error
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {

@@ -10,8 +10,8 @@ import (
 )
 
 var upstreamDependencyResolver = execunit.SourceFilesResolver{
-	UnitFileDependencyResolver: func(unit *core.ExecutionUnit) (execunit.FileDependencies, error) {
-		return execunit.FileDependencies{}, nil // TODO: implement file dependency resolution for C#
+	UnitFileDependencyResolver: func(unit *core.ExecutionUnit) (core.FileDependencies, error) {
+		return core.FileDependencies{}, nil // TODO: implement file dependency resolution for C#
 	},
 	UpstreamAnnotations: []string{annotation.ExposeCapability},
 }
@@ -24,7 +24,7 @@ func (l CSharpExecutable) Name() string {
 	return "csharp_executable"
 }
 
-func (l CSharpExecutable) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (l CSharpExecutable) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		if unit.Executable.Type != "" {
 			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.ID, unit.Executable.Type)

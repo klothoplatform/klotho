@@ -27,11 +27,11 @@ func NewCSharpPlugins(cfg *config.Application, runtime Runtime) *CSharpPlugins {
 
 func (c CSharpPlugins) Name() string { return "C#" }
 
-func (c CSharpPlugins) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (c CSharpPlugins) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	for _, p := range c.Plugins {
 		log := zap.L().With(zap.String("plugin", p.Name()))
 		log.Debug("starting")
-		err := p.Transform(input, constructGraph)
+		err := p.Transform(input, fileDeps, constructGraph)
 		if err != nil {
 			return core.NewPluginError(p.Name(), err)
 		}

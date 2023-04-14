@@ -398,11 +398,13 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	document := compiler.CompilationDocument{
-		InputFiles:    input,
-		Constructs:    core.NewConstructGraph(),
-		Configuration: &appCfg,
-		Resources:     core.NewResourceGraph(),
+		InputFiles:       input,
+		FileDependencies: &core.FileDependencies{},
+		Constructs:       core.NewConstructGraph(),
+		Configuration:    &appCfg,
+		Resources:        core.NewResourceGraph(),
 	}
+
 	compiler := compiler.Compiler{
 		AnalysisAndTransformationPlugins: plugins.AnalysisAndTransform,
 		ProviderPlugins:                  plugins.Provider,

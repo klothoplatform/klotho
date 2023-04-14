@@ -7,7 +7,7 @@ import (
 )
 
 type (
-	UnitFileDependencyResolver func(unit *core.ExecutionUnit) (FileDependencies, error)
+	UnitFileDependencyResolver func(unit *core.ExecutionUnit) (core.FileDependencies, error)
 
 	SourceFilesResolver struct {
 		UnitFileDependencyResolver UnitFileDependencyResolver

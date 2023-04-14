@@ -24,7 +24,7 @@ type (
 
 func (p StaticUnitSplit) Name() string { return "StaticUnitSplit" }
 
-func (p StaticUnitSplit) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p StaticUnitSplit) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 	for _, f := range input.Files() {
 

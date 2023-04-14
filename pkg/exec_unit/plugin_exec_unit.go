@@ -12,7 +12,7 @@ type ExecUnitPlugin struct {
 
 func (p ExecUnitPlugin) Name() string { return "ExecutionUnit" }
 
-func (p ExecUnitPlugin) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p ExecUnitPlugin) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 
 	unit := &core.ExecutionUnit{
 		AnnotationKey: core.AnnotationKey{

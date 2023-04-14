@@ -389,7 +389,6 @@ func (cluster *EksCluster) installFluentBit(references []core.AnnotationKey, dag
 	dag.AddResource(configMap)
 	dag.AddDependency(configMap, cluster)
 	dag.AddDependency(configMap, namespace)
-	dag.AddDependency(configMap, region)
 	cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: configMapOutputPath, Content: content})
 
 	fluentBitOptimized := &kubernetes.Manifest{

@@ -13,7 +13,7 @@ type (
 
 func (p AddExecRuntimeFiles) Name() string { return "AddExecRuntimeFiles:JavaScript" }
 
-func (p AddExecRuntimeFiles) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p AddExecRuntimeFiles) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 
 	var errs multierr.Error
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
