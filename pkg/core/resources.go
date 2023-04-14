@@ -23,7 +23,7 @@ type (
 		Id() string
 	}
 
-	// CloudResourceLink describes what Resources are necessary to ensure that a depoendency between two Constructs are satisfied at an infrastructure level
+	// CloudResourceLink describes what Resources are necessary to ensure that a dependency between two Constructs are satisfied at an infrastructure level
 	CloudResourceLink interface {
 		// Dependency returns the klotho resource dependencies this link correlates to
 		Dependency() *graph.Edge[Construct] // Edge in the klothoconstructDag

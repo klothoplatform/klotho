@@ -89,21 +89,14 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 			},
 		}
 		// transform kubernetes resources for EKS
-
-		// TODO look into a better way to map the provider to a helm chart
-		providerName := "UNIMPLEMENTED-eks-provider"
-		provider, ok := dag.GetResource(providerName).(*resources.AwsKubernetesProvider)
-		if !ok {
-			provider = &resources.AwsKubernetesProvider{Name: providerName, KubeConfig: ""}
-		}
-		dag.AddResource(provider)
-		provider.ConstructRefs = append(provider.ConstructRefs, unit.AnnotationKey)
-
 		for _, res := range dag.ListResources() {
 			if khChart, ok := res.(*kubernetes.HelmChart); ok {
 				for _, ref := range khChart.KlothoConstructRef() {
 					if ref.ToId() == unit.ToId() {
-						khChart.ClustersProvider = provider
+						khChart.ClustersProvider = core.IaCValue{
+							Resource: cluster,
+							Property: resources.CLUSTER_PROVIDER_IAC_VALUE,
+						}
 						dag.AddDependenciesReflect(khChart)
 						for _, val := range khChart.ProviderValues {
 							if val.ExecUnitName != unit.ID {

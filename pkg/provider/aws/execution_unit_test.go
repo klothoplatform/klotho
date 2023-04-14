@@ -20,6 +20,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 	policy1 := &resources.IamPolicy{Name: "policy1"}
 	policy2 := &resources.IamPolicy{Name: "policy2"}
 	cluster := resources.NewEksCluster("test", resources.DEFAULT_CLUSTER_NAME, nil, nil, nil)
+
 	chart := &kubernetes.HelmChart{
 		Name:           "chart",
 		ConstructRefs:  []core.AnnotationKey{unit.Provenance()},
@@ -98,7 +99,6 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					"aws:ecr_image:test-test",
 					"aws:ecr_repo:test",
 					"aws:eks_cluster:test-eks-cluster",
-					"aws:eks_provider:UNIMPLEMENTED-eks-provider",
 					"aws:elastic_ip:test_private1",
 					"aws:elastic_ip:test_private2",
 					"aws:iam_policy:policy1",
@@ -144,6 +144,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{Source: "aws:nat_gateway:test_private2", Destination: "aws:vpc_subnet:test_private2"},
 					{Source: "aws:security_group:test", Destination: "aws:vpc:test"},
 					{Source: "aws:target_group:test-test", Destination: "aws:vpc:test"},
+					{Source: "aws:vpc:test", Destination: "aws:region:region"},
 					{Source: "aws:vpc_endpoint:test_dynamodb", Destination: "aws:region:region"},
 					{Source: "aws:vpc_endpoint:test_dynamodb", Destination: "aws:vpc:test"},
 					{Source: "aws:vpc_endpoint:test_lambda", Destination: "aws:region:region"},
@@ -173,9 +174,9 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{Source: "aws:vpc_subnet:test_public2", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:vpc_subnet:test_public2", Destination: "aws:vpc:test"},
 					{Source: "kubernetes:helm_chart:chart", Destination: "aws:ecr_image:test-test"},
-					{Source: "kubernetes:helm_chart:chart", Destination: "aws:eks_provider:UNIMPLEMENTED-eks-provider"},
 					{Source: "kubernetes:helm_chart:chart", Destination: "aws:iam_role:test-test-ExecutionRole"},
 					{Source: "kubernetes:helm_chart:chart", Destination: "aws:target_group:test-test"},
+					{Source: "kubernetes:helm_chart:chart", Destination: "aws:eks_cluster:test-eks-cluster"},
 				},
 			},
 		},
@@ -194,8 +195,14 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 
 			for _, res := range tt.existingResources {
 				dag.AddResource(res)
-				if policy, ok := res.(*resources.IamPolicy); ok {
-					aws.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), policy)
+				switch res := res.(type) {
+				case *resources.IamPolicy:
+					aws.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), res)
+				case *resources.EksCluster:
+					res.Kubeconfig = &kubernetes.Kubeconfig{
+						ConstructsRef: res.KlothoConstructRef(),
+						Name:          "test-config",
+					}
 				}
 			}
 			result := core.NewConstructGraph()
