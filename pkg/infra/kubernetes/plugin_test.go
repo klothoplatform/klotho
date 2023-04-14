@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -108,7 +107,7 @@ func (t *testCapabilityFinder) FindAllCapabilities(sf *core.SourceFile) (core.An
 
 func Test_getKlothoCharts(t *testing.T) {
 	type result struct {
-		klothoCharts map[string]HelmChart
+		klothoCharts map[string]*HelmChart
 		chartsUnits  map[string][]string
 	}
 	tests := []struct {
@@ -127,7 +126,7 @@ func Test_getKlothoCharts(t *testing.T) {
 				"chart/values.yaml":        ``,
 			}},
 			want: result{
-				klothoCharts: map[string]HelmChart{
+				klothoCharts: map[string]*HelmChart{
 					"chart": {
 						Directory: "chart",
 					},
@@ -164,7 +163,7 @@ func Test_getKlothoCharts(t *testing.T) {
 				"chart/values.yaml":        ``,
 			}},
 			want: result{
-				klothoCharts: map[string]HelmChart{
+				klothoCharts: map[string]*HelmChart{
 					"chart": {
 						Directory: "chart",
 					},
@@ -207,7 +206,7 @@ func Test_getKlothoCharts(t *testing.T) {
 				"chart2/values.yaml":        ``,
 			}},
 			want: result{
-				klothoCharts: map[string]HelmChart{
+				klothoCharts: map[string]*HelmChart{
 					"": {},
 				},
 				chartsUnits: map[string][]string{
@@ -234,7 +233,7 @@ func Test_getKlothoCharts(t *testing.T) {
 				"unitFile": `main0`,
 			}},
 			want: result{
-				klothoCharts: map[string]HelmChart{
+				klothoCharts: map[string]*HelmChart{
 					"": {},
 				},
 				chartsUnits: map[string][]string{
@@ -279,7 +278,7 @@ func Test_getKlothoCharts(t *testing.T) {
 			result := core.NewConstructGraph()
 			inputFiles := &core.InputFiles{}
 			for idx, fileUnit := range tt.fileUnits {
-				execUnitName := fmt.Sprintf("main%s", strconv.Itoa(idx))
+				execUnitName := fmt.Sprintf("main%d", idx)
 				testUnit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: execUnitName, Capability: annotation.ExecutionUnitCapability}}
 				for path, file := range fileUnit {
 					f, err := core.NewSourceFile(path, strings.NewReader(file), testLang)
