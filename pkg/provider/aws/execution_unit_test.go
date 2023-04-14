@@ -311,7 +311,7 @@ func Test_handleExecUnitProxy(t *testing.T) {
 				for _, r := range res {
 					dag.AddResource(r)
 					if role, ok := r.(*resources.IamRole); ok {
-						aws.PolicyGenerator.AddUnitRole(id, role)
+						_ = aws.PolicyGenerator.AddUnitRole(id, role)
 					}
 				}
 			}

@@ -180,7 +180,7 @@ func TestResolveStructInput(t *testing.T) {
 	}
 }
 
-func renderGlueVars(t *testing.T) {
+func Test_renderGlueVars(t *testing.T) {
 	unit := &core.ExecutionUnit{}
 	cases := []struct {
 		name                 string
