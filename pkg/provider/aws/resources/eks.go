@@ -291,7 +291,7 @@ func NodeGroupName(networkPlacement string, instanceType string) string {
 
 func createAddOns(cluster *EksCluster, vpc *Vpc, provenance []core.AnnotationKey) []core.Resource {
 	clustersProvider := core.IaCValue{
-		Resource: cluster.Kubeconfig,
+		Resource: cluster,
 		Property: CLUSTER_PROVIDER_IAC_VALUE,
 	}
 	return []core.Resource{

@@ -35,7 +35,7 @@ function create(args: Args): pulumi_k8s.helm.v3.Chart {
                         {
                             automountServiceAccountToken: true,
                             metadata: {
-                                name: `${args.ClusterName}-alb-controller`,
+                                name: args.ClusterName + '-alb-controller',
                                 namespace: args.Namespace,
                                 annotations: {
                                     'eks.amazonaws.com/role-arn': pulumi.interpolate`${args.Role.arn}`,

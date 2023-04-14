@@ -99,3 +99,7 @@ func quoteTsString(str string, useDoubleQuotedStrings bool) string {
 	}
 	return result.String()
 }
+
+func typeOf[K any]() reflect.Type {
+	return reflect.TypeOf((*K)(nil)).Elem()
+}
