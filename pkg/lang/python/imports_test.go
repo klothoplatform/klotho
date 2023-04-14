@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
@@ -202,7 +200,7 @@ func TestResolveFileDependencies(t *testing.T) {
 	cases := []struct {
 		name   string
 		input  map[string]string
-		expect execunit.FileDependencies
+		expect core.FileDependencies
 		// expectFailureDueTo is a string that's non-empty if we expect this test to fail
 		expectFailureDueTo string
 	}{
@@ -212,11 +210,11 @@ func TestResolveFileDependencies(t *testing.T) {
 				"main.py":  `from other import my_method`,
 				"other.py": `pass`,
 			},
-			expect: map[string]execunit.Imported{
-				"main.py": map[string]execunit.References{
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
 					"other.py": NewSet("my_method"),
 				},
-				"other.py": map[string]execunit.References{},
+				"other.py": map[string]core.References{},
 			},
 		},
 		{
@@ -225,11 +223,11 @@ func TestResolveFileDependencies(t *testing.T) {
 				"main.py":  `from other import method_a, method_2`,
 				"other.py": `pass`,
 			},
-			expect: map[string]execunit.Imported{
-				"main.py": map[string]execunit.References{
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
 					"other.py": NewSet("method_a", "method_2"),
 				},
-				"other.py": map[string]execunit.References{},
+				"other.py": map[string]core.References{},
 			},
 		},
 		{
@@ -238,11 +236,11 @@ func TestResolveFileDependencies(t *testing.T) {
 				"main.py":  `from other import method_a as aaa`,
 				"other.py": `pass`,
 			},
-			expect: map[string]execunit.Imported{
-				"main.py": map[string]execunit.References{
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
 					"other.py": NewSet("aaa"),
 				},
-				"other.py": map[string]execunit.References{},
+				"other.py": map[string]core.References{},
 			},
 		},
 		{
@@ -254,11 +252,11 @@ other.hello_world()
 `,
 				"other.py": `pass`,
 			},
-			expect: map[string]execunit.Imported{
-				"main.py": map[string]execunit.References{
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
 					"other.py": NewSet[string]("hello_world"),
 				},
-				"other.py": map[string]execunit.References{},
+				"other.py": map[string]core.References{},
 			},
 		},
 		{
@@ -270,11 +268,11 @@ print(other.hello_world)
 `,
 				"other.py": `pass`,
 			},
-			expect: map[string]execunit.Imported{
-				"main.py": map[string]execunit.References{
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
 					"other.py": NewSet[string]("hello_world"),
 				},
-				"other.py": map[string]execunit.References{},
+				"other.py": map[string]core.References{},
 			},
 		},
 		{
@@ -283,11 +281,11 @@ print(other.hello_world)
 				"main.py":  `import other`,
 				"other.py": `pass`,
 			},
-			expect: map[string]execunit.Imported{
-				"main.py": map[string]execunit.References{
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
 					"other.py": NewSet[string](),
 				},
-				"other.py": map[string]execunit.References{},
+				"other.py": map[string]core.References{},
 			},
 		},
 		{
@@ -299,11 +297,11 @@ some_other.hello_world()
 `,
 				"other.py": `pass`,
 			},
-			expect: map[string]execunit.Imported{
-				"main.py": map[string]execunit.References{
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
 					"other.py": NewSet[string]("hello_world"),
 				},
-				"other.py": map[string]execunit.References{},
+				"other.py": map[string]core.References{},
 			},
 		},
 		{
@@ -316,11 +314,11 @@ other.hello.say_hi()
 `,
 				"other/hello.py": `pass`,
 			},
-			expect: map[string]execunit.Imported{
-				"main.py": map[string]execunit.References{
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
 					"other/hello.py": NewSet[string]("say_hi"),
 				},
-				"other.py": map[string]execunit.References{},
+				"other.py": map[string]core.References{},
 			},
 		},
 		{
@@ -333,11 +331,11 @@ other.hello.world.say_hi()
 `,
 				"other/hello/world.py": `pass`,
 			},
-			expect: map[string]execunit.Imported{
-				"main.py": map[string]execunit.References{
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
 					"other/hello/world.py": NewSet[string]("say_hi"),
 				},
-				"other.py": map[string]execunit.References{},
+				"other.py": map[string]core.References{},
 			},
 		},
 		{
@@ -347,13 +345,13 @@ other.hello.world.say_hi()
 				"foo.py":  `pass`,
 				"fizz.py": `pass`,
 			},
-			expect: map[string]execunit.Imported{
-				"main.py": map[string]execunit.References{
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
 					"foo.py":  NewSet("bar"),
 					"fizz.py": NewSet("buzz"),
 				},
-				"foo.py":  map[string]execunit.References{},
-				"fizz.py": map[string]execunit.References{},
+				"foo.py":  map[string]core.References{},
+				"fizz.py": map[string]core.References{},
 			},
 		},
 		{
@@ -362,9 +360,9 @@ other.hello.world.say_hi()
 				"main.py":  `import something_not_found`,
 				"other.py": `pass`,
 			},
-			expect: map[string]execunit.Imported{
-				"main.py":  map[string]execunit.References{},
-				"other.py": map[string]execunit.References{},
+			expect: map[string]core.Imported{
+				"main.py":  map[string]core.References{},
+				"other.py": map[string]core.References{},
 			},
 		},
 	}

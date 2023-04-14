@@ -106,12 +106,12 @@ type testFileDep struct {
 }
 
 func testFileDepResolver(testFileDeps []testFileDep) UnitFileDependencyResolver {
-	return func(unit *core.ExecutionUnit) (FileDependencies, error) {
-		fileDeps := FileDependencies{}
+	return func(unit *core.ExecutionUnit) (core.FileDependencies, error) {
+		fileDeps := core.FileDependencies{}
 		for _, fileDep := range testFileDeps {
-			imported := Imported{}
+			imported := core.Imported{}
 			for importPath, importedRefs := range fileDep.imports {
-				refs := References{}
+				refs := core.References{}
 				for _, ref := range importedRefs {
 					refs[ref] = struct{}{}
 				}

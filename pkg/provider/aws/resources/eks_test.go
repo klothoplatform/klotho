@@ -38,6 +38,8 @@ func Test_CreateEksCluster(t *testing.T) {
 					"aws:iam_role:test-app-test-cluster-FargateExecutionRole",
 					"aws:iam_role:test-app-test-cluster-k8sAdmin",
 					"aws:iam_role:test-app-test-cluster.private_t3_medium",
+					"aws:region:region",
+					"aws:vpc:test_app",
 					"aws:vpc_subnet:test_app_test_subnet",
 					"kubernetes:helm_chart:test-app-test-cluster-cert-manager",
 					"kubernetes:helm_chart:test-app-test-cluster-metrics-server",

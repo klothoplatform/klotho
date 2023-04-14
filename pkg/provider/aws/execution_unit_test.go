@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -244,17 +245,25 @@ func Test_handleExecUnitProxy(t *testing.T) {
 				{Source: unit2.Id(), Destination: unit1.Id()},
 			},
 			constructIdToResourceId: map[string][]core.Resource{
-				":unit1": {resources.NewLambdaFunction(unit1, "test", &resources.IamRole{Name: "role1"}, &resources.EcrImage{})},
-				":unit2": {resources.NewLambdaFunction(unit2, "test", &resources.IamRole{Name: "role2"}, &resources.EcrImage{})},
+				":unit1": {resources.NewLambdaFunction(unit1, "test", &resources.IamRole{Name: "role1"}, &resources.EcrImage{}), &resources.IamRole{Name: "role1"}},
+				":unit2": {resources.NewLambdaFunction(unit2, "test", &resources.IamRole{Name: "role2"}, &resources.EcrImage{}), &resources.IamRole{Name: "role2"}},
 			},
 			config: config.Application{AppName: "test", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: Lambda}}},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:iam_policy:test-unit1-invoke",
 					"aws:iam_policy:test-unit2-invoke",
+					"aws:iam_role:role1",
+					"aws:iam_role:role2",
 					"aws:lambda_function:test_unit1",
 					"aws:lambda_function:test_unit2",
 					"aws:vpc:test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:iam_policy:test-unit1-invoke", Destination: "aws:iam_role:role2"},
+					{Source: "aws:iam_policy:test-unit1-invoke", Destination: "aws:lambda_function:test_unit1"},
+					{Source: "aws:iam_policy:test-unit2-invoke", Destination: "aws:iam_role:role1"},
+					{Source: "aws:iam_policy:test-unit2-invoke", Destination: "aws:lambda_function:test_unit2"},
 				},
 			},
 		},
@@ -298,9 +307,12 @@ func Test_handleExecUnitProxy(t *testing.T) {
 
 			dag := core.NewResourceGraph()
 			dag.AddResource(resources.NewVpc("test"))
-			for _, res := range tt.constructIdToResourceId {
+			for id, res := range tt.constructIdToResourceId {
 				for _, r := range res {
 					dag.AddResource(r)
+					if role, ok := r.(*resources.IamRole); ok {
+						aws.PolicyGenerator.AddUnitRole(id, role)
+					}
 				}
 			}
 
@@ -312,6 +324,7 @@ func Test_handleExecUnitProxy(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
+			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 			tt.want.Assert(t, dag)
 		})
 

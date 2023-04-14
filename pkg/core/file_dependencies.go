@@ -1,4 +1,4 @@
-package execunit
+package core
 
 import (
 	"encoding/json"
@@ -17,12 +17,6 @@ type (
 	// References is a set of references that are being used from the file
 	References map[string]struct{}
 )
-
-const (
-	FileDependenciesResourceKind = "input_file_dependencies"
-)
-
-func (FileDependencies) Type() string { return "" }
 
 func (deps FileDependencies) Add(other FileDependencies) {
 	for k, v := range other {

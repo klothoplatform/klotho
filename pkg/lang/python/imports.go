@@ -4,7 +4,6 @@ import (
 	"path"
 	"strings"
 
-	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
 	"github.com/klothoplatform/klotho/pkg/query"
 	"go.uber.org/zap"
 
@@ -158,36 +157,36 @@ func FindImports(file *core.SourceFile) Imports {
 	return fileImports
 }
 
-func UnitFileDependencyResolver(unit *core.ExecutionUnit) (execunit.FileDependencies, error) {
+func UnitFileDependencyResolver(unit *core.ExecutionUnit) (core.FileDependencies, error) {
 	return ResolveFileDependencies(unit.Files())
 }
 
-func ResolveFileDependencies(files map[string]core.File) (execunit.FileDependencies, error) {
-	fileDeps := make(execunit.FileDependencies) // map of [importing file path] -> Imported
+func ResolveFileDependencies(files map[string]core.File) (core.FileDependencies, error) {
+	fileDeps := make(core.FileDependencies) // map of [importing file path] -> Imported
 	for filePath, file := range files {
 		pyFile, isPy := Language.ID.CastFile(file)
 		if !isPy {
 			continue
 		}
 		pyRoot := findPyRoot(filePath, files)
-		imported := make(execunit.Imported) // map of [imported file path] -> References
+		imported := make(core.Imported) // map of [imported file path] -> References
 		fileDeps[filePath] = imported
 
 		// minimal logic for adding a dependency on __init__.py
 		// TODO: find __init__.py refs (typically used in the form <package>.<name>)
 		initPy := path.Dir(filePath) + "/__init__.py"
 		if _, ok := files[initPy]; ok {
-			imported[initPy] = execunit.References{}
+			imported[initPy] = core.References{}
 		}
 
 		imports := FindImports(pyFile)
 		for moduleName, importSpec := range imports {
 			if importedFile := findImportedFile(moduleName, filePath, pyRoot, files); importedFile != "" {
-				var refs execunit.References // set of [referenced attributes]
+				var refs core.References // set of [referenced attributes]
 				if currentRefs, found := imported[importedFile]; found {
 					refs = currentRefs
 				} else {
-					refs = make(execunit.References)
+					refs = make(core.References)
 					imported[importedFile] = refs
 				}
 				if importSpec.ImportedSelf {

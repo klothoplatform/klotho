@@ -162,7 +162,7 @@ const a = 1`,
 			unit.Add(f)
 			result := core.NewConstructGraph()
 			result.AddConstruct(unit)
-			err = p.Transform(&core.InputFiles{}, result)
+			err = p.Transform(&core.InputFiles{}, &core.FileDependencies{}, result)
 			if tt.wantErr {
 				assert.Error(err)
 				return

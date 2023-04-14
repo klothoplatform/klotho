@@ -35,7 +35,7 @@ type nestJsOutput struct {
 
 func (p NestJsHandler) Name() string { return "NestJs" }
 
-func (p NestJsHandler) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p NestJsHandler) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		err := p.transformSingle(constructGraph, unit)

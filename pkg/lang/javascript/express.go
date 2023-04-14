@@ -53,7 +53,7 @@ type routeMethodPath struct {
 
 func (p ExpressHandler) Name() string { return "Express" }
 
-func (p ExpressHandler) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p ExpressHandler) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		err := p.transformSingle(constructGraph, unit)

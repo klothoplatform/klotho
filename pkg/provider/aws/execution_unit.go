@@ -146,6 +146,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 
 func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
+
 		downstreamConstructs := result.GetDownstreamConstructs(unit)
 		for _, construct := range downstreamConstructs {
 			if targetUnit, ok := construct.(*core.ExecutionUnit); ok {
@@ -154,11 +155,12 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 					targetResources, _ := a.GetResourcesDirectlyTiedToConstruct(targetUnit)
 					var targetLambda *resources.LambdaFunction
 					var execPolicy *resources.IamPolicy
-					execPolicyDoc := resources.CreateAllowPolicyDocument([]string{"lambda:InvokeFunction"}, []core.IaCValue{{Resource: targetLambda, Property: resources.ARN_IAC_VALUE}})
+					var execPolicyDoc *resources.PolicyDocument
 					for _, resource := range targetResources {
 						if lambdafunc, ok := resource.(*resources.LambdaFunction); ok {
 							targetLambda = lambdafunc
 						}
+						execPolicyDoc := resources.CreateAllowPolicyDocument([]string{"lambda:InvokeFunction"}, []core.IaCValue{{Resource: targetLambda, Property: resources.ARN_IAC_VALUE}})
 						if execPol, ok := resource.(*resources.IamPolicy); ok {
 							if len(execPol.Policy.Statement) == 1 {
 								statement := execPol.Policy.Statement[0]
@@ -177,6 +179,8 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 					}
 					// We do not add the policy to the units list in policy generator otherwise we will cause a circular dependency
 					execPolicy.ConstructsRef = append(execPolicy.ConstructsRef, unit.AnnotationKey)
+					dag.AddDependency(execPolicy, a.PolicyGenerator.GetUnitRole(unit.Id()))
+					dag.AddDependency(execPolicy, targetLambda)
 				case kubernetes.KubernetesType:
 					privateNamespace := resources.NewPrivateDnsNamespace(a.Config.AppName, []core.AnnotationKey{unit.AnnotationKey}, resources.GetVpc(a.Config, dag))
 					if ns := dag.GetResource(privateNamespace.Id()); ns != nil {
