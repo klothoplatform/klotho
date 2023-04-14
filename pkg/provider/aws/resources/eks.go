@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"strings"
 
+	"go.uber.org/zap"
+
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
-	"go.uber.org/zap"
 )
 
 const (
@@ -32,6 +35,49 @@ const (
 var nodeGroupSanitizer = aws.EksNodeGroupSanitizer
 var profileSanitizer = aws.EksFargateProfileSanitizer
 var clusterSanitizer = aws.EksClusterSanitizer
+
+var EKS_AMI_INSTANCE_PREFIX_MAP = map[string][]string{
+	"AL2_x86_64": {
+		"c1",
+		"c3",
+		"c4",
+		"c5a",
+		"c5d",
+		"c5n",
+		"c6i",
+		"d2",
+		"i2",
+		"i3",
+		"i3en",
+		"i4i",
+		"inf1",
+		"m1",
+		"m2",
+		"m3",
+		"m4",
+		"m5",
+		"m5a",
+		"m5ad",
+		"m5d",
+		"m5zn",
+		"m6i",
+		"r3",
+		"r4",
+		"r5",
+		"r5a",
+		"r5ad",
+		"r5d",
+		"r5n",
+		"r6i",
+		"t1",
+		"t2",
+		"t3",
+		"t3a",
+		"z1d",
+	},
+	"AL2_x86_64_GPU": {"g2", "g3", "g4dn"},
+	"AL2_ARM_64":     {"c6g", "c6gd", "c6gn", "m6g", "m6gd", "r6g", "r6gd", "t4g"},
+}
 
 //go:embed manifests/*
 var eksManifests embed.FS
@@ -81,19 +127,22 @@ type (
 //
 // The method will also create a fargate profile in the default namespace and a single NodeGroup.
 // The method will create all of the corresponding IAM Roles necessary and attach all the execution units references to the following objects
-func CreateEksCluster(appName string, clusterName string, subnets []*Subnet, securityGroups []*any, units []*core.ExecutionUnit, dag *core.ResourceGraph) {
+func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Subnet, securityGroups []*any, units []*core.ExecutionUnit, dag *core.ResourceGraph) {
 	references := []core.AnnotationKey{}
 	for _, u := range units {
 		references = append(references, u.Provenance())
 	}
+
+	appName := cfg.AppName
 
 	clusterRole := createClusterAdminRole(appName, clusterName+"-k8sAdmin", references)
 	dag.AddResource(clusterRole)
 
 	cluster := NewEksCluster(appName, clusterName, subnets, securityGroups, clusterRole)
 	cluster.ConstructsRef = references
-	dag.AddResource(cluster)
-	dag.AddDependency(cluster, clusterRole)
+	dag.AddDependenciesReflect(cluster)
+
+	nodeGroups := createNodeGroups(cfg, dag, units, clusterName, cluster, subnets)
 
 	err := cluster.createFargateLogging(references, dag)
 	if err != nil {
@@ -105,44 +154,122 @@ func CreateEksCluster(appName string, clusterName string, subnets []*Subnet, sec
 	}
 
 	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
-	dag.AddResource(fargateRole)
+	dag.AddDependenciesReflect(fargateRole)
 
 	profile := NewEksFargateProfile(cluster, subnets, fargateRole, references)
 	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
-
-	dag.AddResource(profile)
-	dag.AddDependency(profile, fargateRole)
-	dag.AddDependency(profile, cluster)
-
-	nodeRole := createNodeRole(appName, clusterName+"-NodeGroupRole", references)
-	dag.AddResource(nodeRole)
-
-	nodeGroup := NewEksNodeGroup(cluster, subnets, nodeRole, references)
-	dag.AddResource(nodeGroup)
-	dag.AddDependency(nodeGroup, nodeRole)
-	dag.AddDependency(nodeGroup, cluster)
-
-	for _, s := range subnets {
-		dag.AddDependency(cluster, s)
-		dag.AddDependency(nodeGroup, s)
-		dag.AddDependency(profile, s)
-	}
+	dag.AddDependenciesReflect(profile)
 
 	for _, addOn := range createAddOns(clusterName, references) {
 		dag.AddResource(addOn)
-		dag.AddDependency(addOn, nodeGroup)
+		for _, nodeGroup := range nodeGroups {
+			dag.AddDependency(addOn, nodeGroup)
+		}
 	}
+}
+
+func createNodeGroups(cfg *config.Application, dag *core.ResourceGraph, units []*core.ExecutionUnit, clusterName string, cluster *EksCluster, subnets []*Subnet) []*EksNodeGroup {
+	type groupKey struct {
+		InstanceType string
+		NetworkType  string
+	}
+
+	type groupSpec struct {
+		DiskSizeGiB int
+		refs        []core.AnnotationKey
+	}
+
+	groupSpecs := make(map[groupKey]*groupSpec)
+
+	for _, unit := range units {
+		unitCfg := cfg.GetExecutionUnit(unit.ID)
+		params := unitCfg.GetExecutionUnitParamsAsKubernetes()
+		key := groupKey{InstanceType: params.InstanceType, NetworkType: unitCfg.NetworkPlacement}
+		spec := groupSpecs[key]
+		if spec == nil {
+			spec = &groupSpec{
+				DiskSizeGiB: 20,
+			}
+			groupSpecs[key] = spec
+		}
+		spec.refs = append(spec.refs, unit.AnnotationKey)
+		if params.DiskSizeGiB > spec.DiskSizeGiB {
+			spec.DiskSizeGiB = params.DiskSizeGiB
+		}
+	}
+
+	var groups []*EksNodeGroup
+
+	hasInstanceType := false
+	for gk := range groupSpecs {
+		if gk.InstanceType != "" {
+			hasInstanceType = true
+			break
+		}
+	}
+	if !hasInstanceType {
+		for gk, spec := range groupSpecs {
+			if gk.InstanceType == "" {
+				groupSpecs[groupKey{InstanceType: "t3.medium", NetworkType: gk.NetworkType}] = spec
+			}
+		}
+	}
+
+	for groupKey, spec := range groupSpecs {
+		if groupKey.InstanceType == "" {
+			continue
+		}
+		nodeGroup := &EksNodeGroup{
+			Name:          NodeGroupName(groupKey.NetworkType, groupKey.InstanceType),
+			ConstructsRef: spec.refs,
+			Cluster:       cluster,
+			DiskSize:      spec.DiskSizeGiB,
+			AmiType:       amiFromInstanceType(groupKey.InstanceType),
+			InstanceTypes: []string{groupKey.InstanceType},
+			Labels: map[string]string{
+				"network_placement": groupKey.NetworkType,
+			},
+			// TODO make these configurable
+			DesiredSize:    2,
+			MaxSize:        2,
+			MinSize:        1,
+			MaxUnavailable: 1,
+		}
+		nodeGroup.NodeRole = createNodeRole(cfg.AppName, fmt.Sprintf("%s.%s", clusterName, nodeGroup.Name), spec.refs)
+		dag.AddDependenciesReflect(nodeGroup.NodeRole)
+
+		for _, sn := range subnets {
+			if sn.Type == groupKey.NetworkType {
+				nodeGroup.Subnets = append(nodeGroup.Subnets, sn)
+			}
+		}
+
+		dag.AddDependenciesReflect(nodeGroup)
+
+		groups = append(groups, nodeGroup)
+	}
+
+	return groups
+}
+
+func NodeGroupNameFromConfig(cfg config.ExecutionUnit) string {
+	params := cfg.GetExecutionUnitParamsAsKubernetes()
+	return NodeGroupName(cfg.NetworkPlacement, params.InstanceType)
+}
+
+func NodeGroupName(networkPlacement string, instanceType string) string {
+	return nodeGroupSanitizer.Apply(fmt.Sprintf("%s_%s", networkPlacement, instanceType))
 }
 
 func createAddOns(clusterName string, provenance []core.AnnotationKey) []*kubernetes.HelmChart {
 	return []*kubernetes.HelmChart{
-		&kubernetes.HelmChart{
+		{
 			Name:          clusterName + `-metrics-server`,
 			Chart:         "metrics-server",
 			ConstructRefs: provenance,
 			Repo:          `https://kubernetes-sigs.github.io/metrics-server/`,
 		},
-		&kubernetes.HelmChart{
+		{
 			Name:             clusterName + `-cert-manager`,
 			Chart:            `cert-manager`,
 			ConstructRefs:    provenance,
@@ -274,7 +401,7 @@ func createPodExecutionRole(appName string, roleName string, refs []core.Annotat
 				"logs:DescribeLogStreams",
 				"logs:PutLogEvents",
 			},
-			Resource: []core.IaCValue{core.IaCValue{Property: "*"}},
+			Resource: []core.IaCValue{{Property: "*"}},
 		},
 	}}
 	return fargateRole
@@ -340,32 +467,29 @@ func (profile *EksFargateProfile) Id() string {
 	return fmt.Sprintf("%s:%s:%s", profile.Provider(), EKS_FARGATE_PROFILE_TYPE, profile.Name)
 }
 
-func NewEksNodeGroup(cluster *EksCluster, subnets []*Subnet, nodeRole *IamRole, ref []core.AnnotationKey) *EksNodeGroup {
-	return &EksNodeGroup{
-		Name:           nodeGroupSanitizer.Apply(cluster.Name),
-		ConstructsRef:  ref,
-		Cluster:        cluster,
-		Subnets:        subnets,
-		NodeRole:       nodeRole,
-		DesiredSize:    2,
-		MinSize:        1,
-		MaxSize:        3,
-		MaxUnavailable: 1,
-		InstanceTypes:  []string{"t3.medium"},
-	}
-}
-
 // Provider returns name of the provider the resource is correlated to
-func (cluster *EksNodeGroup) Provider() string {
+func (group *EksNodeGroup) Provider() string {
 	return AWS_PROVIDER
 }
 
 // KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (cluster *EksNodeGroup) KlothoConstructRef() []core.AnnotationKey {
-	return cluster.ConstructsRef
+func (group *EksNodeGroup) KlothoConstructRef() []core.AnnotationKey {
+	return group.ConstructsRef
 }
 
 // ID returns the id of the cloud resource
-func (cluster *EksNodeGroup) Id() string {
-	return fmt.Sprintf("%s:%s:%s", cluster.Provider(), EKS_NODE_GROUP_TYPE, cluster.Name)
+func (group *EksNodeGroup) Id() string {
+	return fmt.Sprintf("%s:%s:%s", group.Provider(), EKS_NODE_GROUP_TYPE, group.Name)
+}
+
+func amiFromInstanceType(instanceType string) string {
+	prefix := strings.Split(instanceType, ".")[0]
+	for key, value := range EKS_AMI_INSTANCE_PREFIX_MAP {
+		for _, toMatch := range value {
+			if toMatch == prefix {
+				return key
+			}
+		}
+	}
+	return ""
 }

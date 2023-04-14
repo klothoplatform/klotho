@@ -5,16 +5,16 @@ import (
 	"os"
 	"path/filepath"
 
+	"go.uber.org/zap"
+	apps "k8s.io/api/apps/v1"
 	autoscaling "k8s.io/api/autoscaling/v2beta2"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/logging"
-	"go.uber.org/zap"
-	apps "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 )
 
 const HELM_CHART_TYPE = "helm_chart"
@@ -106,8 +106,6 @@ func (t *HelmChart) AssignFilesToUnits() error {
 			if err != nil {
 				return err
 			}
-			// now use switch over the type of the object
-			// and match each type-case
 			switch o := obj.(type) {
 			case *corev1.Pod:
 				if setAst(o, &unit.Pod) && unit.Deployment != nil {
@@ -152,7 +150,7 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 			}
 			values = append(values, podValues...)
 		} else {
-			deploymentValues, err := chart.addDeployment(unit)
+			deploymentValues, err := chart.addDeployment(unit, cfg)
 			if err != nil {
 				return nil, err
 			}
@@ -252,14 +250,14 @@ func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, const
 	return
 }
 
-func (chart *HelmChart) addDeployment(unit *HelmExecUnit) ([]HelmChartValue, error) {
+func (chart *HelmChart) addDeployment(unit *HelmExecUnit, cfg config.ExecutionUnit) ([]HelmChartValue, error) {
 	log := zap.L().Sugar().With(zap.String("unit", unit.Name))
 	log.Info("Adding Deployment manifest for exec unit")
 	err := addDeploymentManifest(chart, unit)
 	if err != nil {
 		return nil, err
 	}
-	values, err := unit.transformDeployment(config.ExecutionUnit{})
+	values, err := unit.transformDeployment(cfg)
 	if err != nil {
 		return nil, err
 	}
