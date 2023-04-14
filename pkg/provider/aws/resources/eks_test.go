@@ -36,11 +36,13 @@ func Test_CreateEksCluster(t *testing.T) {
 					"aws:eks_fargate_profile:test-app-test-cluster",
 					"aws:eks_node_group:private_t3_medium",
 					"aws:iam_role:test-app-test-cluster-FargateExecutionRole",
+					"aws:iam_role:test-app-test-cluster-alb-controller-role",
 					"aws:iam_role:test-app-test-cluster-k8sAdmin",
 					"aws:iam_role:test-app-test-cluster.private_t3_medium",
 					"aws:region:region",
 					"aws:vpc:test_app",
 					"aws:vpc_subnet:test_app_test_subnet",
+					"kubernetes:helm_chart:test-app-test-cluster-alb-c",
 					"kubernetes:helm_chart:test-app-test-cluster-cert-manager",
 					"kubernetes:helm_chart:test-app-test-cluster-metrics-server",
 					"kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns",
@@ -71,6 +73,12 @@ func Test_CreateEksCluster(t *testing.T) {
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "aws:region:region"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-alb-c", Destination: "aws:eks_node_group:private_t3_medium"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-alb-c", Destination: "aws:iam_role:test-app-test-cluster-alb-controller-role"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-alb-c", Destination: "aws:region:region"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-alb-c", Destination: "aws:vpc:test_app"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-cert-manager", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-metrics-server", Destination: "aws:eks_cluster:test-app-test-cluster"},
 				},
 			},
 		},
@@ -91,7 +99,7 @@ func Test_CreateEksCluster(t *testing.T) {
 					assert.Len(cluster.Manifests, 4)
 				}
 				if r != subnet && r != vpc && r != region { // ignore input resources
-					assert.ElementsMatch(sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
+					coretesting.ElementsMatchPretty(t, sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
 				}
 			}
 			tt.want.Assert(t, dag)

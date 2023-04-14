@@ -33,15 +33,15 @@ func (expect ResourcesExpectation) Assert(t *testing.T, dag *core.ResourceGraph)
 		assert.Subset(t, got.Nodes, expect.Nodes)
 		assert.Subset(t, got.Deps, expect.Deps)
 	} else {
-		expect.ElementsMatchPretty(t, expect.Nodes, got.Nodes)
-		expect.ElementsMatchPretty(t, expect.Deps, got.Deps)
+		ElementsMatchPretty(t, expect.Nodes, got.Nodes)
+		ElementsMatchPretty(t, expect.Deps, got.Deps)
 	}
 }
 
 // ElementsMatchPretty invokes [assert.ElementsMatch], but first does a string-based check based on the elements;
 // string representation. This means in the common case that unequal strings are enough to demonstrate inequality, we'll
 // get a nicer diff.
-func (expect ResourcesExpectation) ElementsMatchPretty(t *testing.T, expected any, actual any) {
+func ElementsMatchPretty(t *testing.T, expected any, actual any, msgAndArgs ...any) {
 	toStr := func(obj any) string {
 		objVal := reflect.ValueOf(obj)
 		if objVal.Type().Kind() != reflect.Slice && objVal.Type().Kind() != reflect.Array {
@@ -59,12 +59,12 @@ func (expect ResourcesExpectation) ElementsMatchPretty(t *testing.T, expected an
 	expectedStr := toStr(expected)
 	actualStr := toStr(actual)
 	if expectedStr != "" && actualStr != "" {
-		if !assert.Equal(t, expectedStr, actualStr) {
+		if !assert.Equal(t, expectedStr, actualStr, msgAndArgs) {
 			return
 		}
 	}
 
-	assert.ElementsMatch(t, expected, actual)
+	assert.ElementsMatch(t, expected, actual, msgAndArgs)
 }
 
 func ResoucesFromDAG(dag *core.ResourceGraph) ResourcesExpectation {
