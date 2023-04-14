@@ -382,8 +382,8 @@ func (cluster *EksCluster) installFluentBit(references []core.AnnotationKey, dag
 		ConstructRefs: references,
 		FilePath:      configMapOutputPath,
 		Transformations: map[string]core.IaCValue{
-			"data.cluster.name": {Resource: cluster, Property: NAME_IAC_VALUE},
-			"data.logs.region":  {Resource: region, Property: NAME_IAC_VALUE},
+			`data["cluster.name"]`: {Resource: cluster, Property: NAME_IAC_VALUE},
+			`data["logs.region"]`:  {Resource: region, Property: NAME_IAC_VALUE},
 		},
 	}
 	dag.AddResource(configMap)
