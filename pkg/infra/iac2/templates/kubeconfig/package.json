@@ -1,7 +1,6 @@
 {
     "name": "kubeconfig",
     "dependencies": {
-        "@pulumi/kubernetes": "^3.21.4",
         "@pulumi/pulumi": "^3.40.2"
     }
 }
