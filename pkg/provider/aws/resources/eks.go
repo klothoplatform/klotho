@@ -263,7 +263,6 @@ func NodeGroupName(networkPlacement string, instanceType string) string {
 }
 
 func createAddOns(clusterName string, vpc *Vpc, provenance []core.AnnotationKey) []core.Resource {
-	NewIamRole()
 	return []core.Resource{
 		&kubernetes.HelmChart{
 			Name:             clusterName + `-metrics-server`,
@@ -318,6 +317,10 @@ func createAddOns(clusterName string, vpc *Vpc, provenance []core.AnnotationKey)
 			}),
 		},
 	}
+}
+
+func createAlbController() *HelmChartAlbController {
+
 }
 
 func (cluster *EksCluster) GetOutputFiles() []core.File {
@@ -537,15 +540,3 @@ type HelmChartAlbController struct {
 	Vpc         *Vpc
 	Role        *IamRole
 }
-
-//func (h *HelmChartAlbController) Provider() string {
-//	return h.HelmChart.Provider()
-//}
-//
-//func (h *HelmChartAlbController) KlothoConstructRef() []core.AnnotationKey {
-//	return h.HelmChart.KlothoConstructRef()
-//}
-//
-//func (h *HelmChartAlbController) Id() string {
-//	return h.HelmChart.Id()
-//}
