@@ -290,27 +290,25 @@ func NodeGroupName(networkPlacement string, instanceType string) string {
 }
 
 func createAddOns(cluster *EksCluster, vpc *Vpc, provenance []core.AnnotationKey) []core.Resource {
+	clustersProvider := core.IaCValue{
+		Resource: cluster.Kubeconfig,
+		Property: CLUSTER_PROVIDER_IAC_VALUE,
+	}
 	return []core.Resource{
 		&kubernetes.HelmChart{
-			Name:          cluster.Name + `-metrics-server`,
-			Chart:         "metrics-server",
-			ConstructRefs: provenance,
-			ClustersProvider: core.IaCValue{
-				Resource: cluster.Kubeconfig,
-				Property: CLUSTER_PROVIDER_IAC_VALUE,
-			},
-			Repo: `https://kubernetes-sigs.github.io/metrics-server/`,
+			Name:             cluster.Name + `-metrics-server`,
+			Chart:            "metrics-server",
+			ConstructRefs:    provenance,
+			ClustersProvider: clustersProvider,
+			Repo:             `https://kubernetes-sigs.github.io/metrics-server/`,
 		},
 		&kubernetes.HelmChart{
-			Name:          cluster.Name + `-cert-manager`,
-			Chart:         `cert-manager`,
-			ConstructRefs: provenance,
-			ClustersProvider: core.IaCValue{
-				Resource: cluster.Kubeconfig,
-				Property: CLUSTER_PROVIDER_IAC_VALUE,
-			}, // TODO?
-			Repo:    `https://charts.jetstack.io`,
-			Version: `v1.10.0`,
+			Name:             cluster.Name + `-cert-manager`,
+			Chart:            `cert-manager`,
+			ConstructRefs:    provenance,
+			ClustersProvider: clustersProvider,
+			Repo:             `https://charts.jetstack.io`,
+			Version:          `v1.10.0`,
 			Values: map[string]any{
 				`installCRDs`: true,
 				`webhook`: map[string]any{
@@ -321,39 +319,46 @@ func createAddOns(cluster *EksCluster, vpc *Vpc, provenance []core.AnnotationKey
 		&HelmChartAlbController{
 			HelmChart: kubernetes.HelmChart{
 
-				Name:             clusterName + `-alb-c`,
+				Name:             cluster.Name + `-alb-c`,
 				Chart:            `aws-load-balancer-controller`,
 				ConstructRefs:    provenance,
 				Repo:             `https://aws.github.io/eks-charts`,
 				Version:          `1.4.7`,
-				ClustersProvider: nil,       // TODO?
+				ClustersProvider: clustersProvider,
 				Namespace:        "default", // kube-system if on fargate, default otherwise
 			},
-			ClusterName: clusterName,
+			ClusterName: cluster.Name,
 			Region:      NewRegion(),
 			Vpc:         vpc,
-			Role: NewIamRole(clusterName, `alb-controller-role`, provenance, &PolicyDocument{
-				Version: VERSION,
-				Statement: []StatementEntry{
-					{
-						Effect:    `Allow`,
-						Action:    []string{`sts:AssumeRoleWithWebIdentity`},
-						Resource:  nil,
-						Principal: nil,
-						Condition: &Condition{
-							StringEquals: map[core.IaCValue]string{
-								nil: fmt.Sprintf(`system:serviceaccount:${namespace}:${name}`), // TODO fill out the key, and namenamespace, and name
-							},
-						},
-					},
-				},
-			}),
+			Role:        NewIamRole(cluster.Name, `alb-controller-role`, provenance, ServiceRolePolicyDocument(cluster, `alb-controller`)),
 		},
 	}
 }
 
-func createAlbController() *HelmChartAlbController {
-
+func ServiceRolePolicyDocument(cluster *EksCluster, name string) *PolicyDocument {
+	return &PolicyDocument{
+		Version: VERSION,
+		Statement: []StatementEntry{
+			{
+				Effect: "Allow",
+				Principal: &Principal{
+					Federated: core.IaCValue{
+						Resource: cluster,
+						Property: CLUSTER_OIDC_ARN_IAC_VALUE,
+					},
+				},
+				Action: []string{"sts:AssumeRoleWithWebIdentity"},
+				Condition: &Condition{
+					StringEquals: map[core.IaCValue]string{
+						{
+							Resource: cluster,
+							Property: CLUSTER_OIDC_URL_IAC_VALUE,
+						}: fmt.Sprintf("system:serviceaccount:default:%s", name), // TODO: Replace default with the namespace when we expose via configuration
+					},
+				},
+			},
+		},
+	}
 }
 
 func (cluster *EksCluster) GetOutputFiles() []core.File {
