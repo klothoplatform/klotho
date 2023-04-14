@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/sanitization"
 	"go.uber.org/zap"
 )
@@ -63,8 +64,9 @@ var (
 )
 
 var InternalStorageVariable = environmentVariable{
-	Name:  KLOTHO_PROXY_ENV_VAR_NAME,
-	Value: string(BUCKET_NAME),
+	Name:      KLOTHO_PROXY_ENV_VAR_NAME,
+	Construct: &InternalResource{AnnotationKey: AnnotationKey{ID: KlothoPayloadName, Capability: annotation.InternalCapability}},
+	Value:     string(BUCKET_NAME),
 }
 
 // Add the given environment variable to the list. If a variable of the same name already exists, replace it.
