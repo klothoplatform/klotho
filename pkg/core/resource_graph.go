@@ -1,7 +1,6 @@
 package core
 
 import (
-	"github.com/pkg/errors"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/graph"
@@ -148,26 +147,5 @@ func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
 		default:
 			add(fieldValue)
 		}
-	}
-}
-
-// FindOnlyResource looks through the graph to find a resource of the specified type. It returns that resource, or an
-// error if it did not find exactly one such resource.
-func FindOnlyResource[R Resource](rg *ResourceGraph) (R, error) {
-	var possibilities []R
-	for _, res := range rg.ListResources() {
-		if res, ok := res.(R); ok {
-			possibilities = append(possibilities, res)
-		}
-	}
-	switch len(possibilities) {
-	case 1:
-		return possibilities[0], nil
-	case 0:
-		var zero R
-		return zero, errors.New(`could not find element`)
-	default:
-		var zero R
-		return zero, errors.Errorf(`expected 1 element, found %d`, len(possibilities))
 	}
 }
