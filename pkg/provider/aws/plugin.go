@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -28,6 +29,7 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 	for _, id := range constructIds {
 		construct := result.GetConstruct(id)
 		log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
+		fmt.Println(construct.Id())
 		switch construct := construct.(type) {
 		case *core.ExecutionUnit:
 			merr.Append(a.GenerateExecUnitResources(construct, result, dag))
@@ -45,6 +47,8 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 			merr.Append(a.GenerateRedisResources(construct, result, dag))
 		case *core.Orm:
 			merr.Append(a.GenerateOrmResources(construct, result, dag))
+		case *core.InternalResource:
+			merr.Append(a.GenerateFsResources(construct, result, dag))
 		default:
 			// TODO convert to error once migration to ifc2 is complete
 			log.Warnf("Unsupported resource %s", construct.Id())

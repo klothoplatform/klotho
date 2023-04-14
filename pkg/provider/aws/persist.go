@@ -5,7 +5,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
-func (a *AWS) GenerateFsResources(construct *core.Fs, result *core.ConstructGraph, dag *core.ResourceGraph) error {
+func (a *AWS) GenerateFsResources(construct core.Construct, result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	bucket := resources.NewS3Bucket(construct, a.Config.AppName)
 	dag.AddResource(bucket)
 	a.MapResourceDirectlyToConstruct(bucket, construct)
