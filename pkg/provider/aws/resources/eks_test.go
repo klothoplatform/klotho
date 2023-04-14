@@ -85,7 +85,7 @@ func Test_CreateEksCluster(t *testing.T) {
 			dag.AddDependency(subnet, vpc)
 			dag.AddDependency(vpc, region)
 
-			assert.NoError(CreateEksCluster(&cfg, clusterName, []*Subnet{subnet}, nil, eus, dag))
+			assert.NoError(CreateEksCluster(&cfg, clusterName, vpc, nil, eus, dag))
 			for _, r := range dag.ListResources() {
 				if cluster, ok := r.(*EksCluster); ok {
 					assert.Len(cluster.Manifests, 4)
