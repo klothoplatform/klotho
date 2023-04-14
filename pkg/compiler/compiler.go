@@ -23,7 +23,7 @@ type (
 	AnalysisAndTransformationPlugin interface {
 		Plugin
 		// Transform is expected to mutate the result and any dependencies
-		Transform(*core.InputFiles, *core.ConstructGraph) error
+		Transform(*core.InputFiles, *core.FileDependencies, *core.ConstructGraph) error
 	}
 
 	ProviderPlugin interface {
@@ -67,7 +67,7 @@ func (c *Compiler) Compile() error {
 	for _, p := range c.AnalysisAndTransformationPlugins {
 		log := zap.L().With(zap.String("plugin", p.Name()))
 		log.Debug("starting")
-		err := p.Transform(c.Document.InputFiles, c.Document.Constructs)
+		err := p.Transform(c.Document.InputFiles, c.Document.FileDependencies, c.Document.Constructs)
 		if err != nil {
 			return core.NewPluginError(p.Name(), err)
 		}

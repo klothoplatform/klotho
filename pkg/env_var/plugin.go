@@ -30,7 +30,7 @@ var (
 
 func (p EnvVarInjection) Name() string { return "EnvVarInjection" }
 
-func (p EnvVarInjection) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p EnvVarInjection) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 
 	units := core.GetResourcesOfType[*core.ExecutionUnit](constructGraph)

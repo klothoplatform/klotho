@@ -17,7 +17,7 @@ type Assets struct{}
 
 func (p Assets) Name() string { return "Assets" }
 
-func (p Assets) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p Assets) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	units := make(map[string]*core.ExecutionUnit)
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		units[unit.ID] = unit

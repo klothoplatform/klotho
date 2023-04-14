@@ -50,7 +50,7 @@ const pubsubVarTypeModule = "events"
 
 func (p Pubsub) Name() string { return "Pubsub" }
 
-func (p Pubsub) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p Pubsub) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	p.ConstructGraph = constructGraph
 
 	p.emitters = make(map[VarSpec]*emitterValue)

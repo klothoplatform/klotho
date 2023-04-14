@@ -19,7 +19,7 @@ func (l PythonExecutable) Name() string {
 	return "python_executable"
 }
 
-func (l PythonExecutable) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (l PythonExecutable) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	inputFiles := input.Files()
 
 	defaultRequirementsTxt, _ := inputFiles["requirements.txt"].(*RequirementsTxt)

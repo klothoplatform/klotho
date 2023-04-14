@@ -67,7 +67,7 @@ func Test_environmentVarsAddedToUnit(t *testing.T) {
 				})
 			}
 
-			err := p.Transform(inputFiles, result)
+			err := p.Transform(inputFiles, &core.FileDependencies{}, result)
 			if !assert.NoError(err) {
 				return
 			}

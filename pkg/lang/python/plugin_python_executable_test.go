@@ -171,7 +171,7 @@ func TestPythonExecutable_Transform(t *testing.T) {
 					inputFiles.Add(f)
 				}
 			}
-			if !assert.NoError(PythonExecutable{}.Transform(inputFiles, result)) {
+			if !assert.NoError(PythonExecutable{}.Transform(inputFiles, &core.FileDependencies{}, result)) {
 				return
 			}
 			assert.Equal(len(tt.expectedUnits), len(tt.units))

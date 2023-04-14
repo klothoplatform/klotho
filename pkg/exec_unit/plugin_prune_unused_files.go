@@ -15,7 +15,7 @@ func (PruneUncategorizedFiles) Name() string {
 	return "prune_uncategorized_files"
 }
 
-func (p PruneUncategorizedFiles) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p PruneUncategorizedFiles) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	log := zap.L().Sugar()
 
 	units := core.GetResourcesOfType[*core.ExecutionUnit](constructGraph)

@@ -53,7 +53,10 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 	if err = merr.ErrOrNil(); err != nil {
 		return
 	}
-
+	err = a.handleExecUnitProxy(result, dag)
+	if err != nil {
+		return
+	}
 	err = a.convertExecUnitParams(result, dag)
 	if err != nil {
 		return

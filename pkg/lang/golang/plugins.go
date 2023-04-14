@@ -26,11 +26,11 @@ func NewGoPlugins(cfg *config.Application, runtime Runtime) *GoPlugins {
 
 func (c GoPlugins) Name() string { return "go" }
 
-func (c GoPlugins) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (c GoPlugins) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	for _, p := range c.Plugins {
 		log := zap.L().With(zap.String("plugin", p.Name()))
 		log.Debug("starting")
-		err := p.Transform(input, constructGraph)
+		err := p.Transform(input, fileDeps, constructGraph)
 		if err != nil {
 			return core.NewPluginError(p.Name(), err)
 		}

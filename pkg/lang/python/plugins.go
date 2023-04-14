@@ -25,11 +25,11 @@ func NewPythonPlugins(cfg *config.Application, runtime Runtime) *PythonPlugins {
 
 func (c PythonPlugins) Name() string { return "python" }
 
-func (c PythonPlugins) Transform(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (c PythonPlugins) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	for _, p := range c.Plugins {
 		log := zap.L().With(zap.String("plugin", p.Name()))
 		log.Debug("starting")
-		err := p.Transform(input, constructGraph)
+		err := p.Transform(input, fileDeps, constructGraph)
 		if err != nil {
 			return core.NewPluginError(p.Name(), err)
 		}

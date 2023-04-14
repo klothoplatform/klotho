@@ -224,6 +224,111 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 	}
 }
 
+func Test_handleExecUnitProxy(t *testing.T) {
+	unit1 := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "unit1"}}
+	unit2 := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "unit2"}}
+	cases := []struct {
+		name                    string
+		constructs              []core.Construct
+		dependencies            []graph.Edge[string]
+		constructIdToResourceId map[string][]core.Resource
+		config                  config.Application
+		want                    coretesting.ResourcesExpectation
+		wantErr                 bool
+	}{
+		{
+			name:       `lambda to lambda`,
+			constructs: []core.Construct{unit1, unit2},
+			dependencies: []graph.Edge[string]{
+				{Source: unit1.Id(), Destination: unit2.Id()},
+				{Source: unit2.Id(), Destination: unit1.Id()},
+			},
+			constructIdToResourceId: map[string][]core.Resource{
+				":unit1": {resources.NewLambdaFunction(unit1, "test", &resources.IamRole{Name: "role1"}, &resources.EcrImage{}), &resources.IamRole{Name: "role1"}},
+				":unit2": {resources.NewLambdaFunction(unit2, "test", &resources.IamRole{Name: "role2"}, &resources.EcrImage{}), &resources.IamRole{Name: "role2"}},
+			},
+			config: config.Application{AppName: "test", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: Lambda}}},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:iam_policy:test-unit1-invoke",
+					"aws:iam_policy:test-unit2-invoke",
+					"aws:iam_role:role1",
+					"aws:iam_role:role2",
+					"aws:lambda_function:test_unit1",
+					"aws:lambda_function:test_unit2",
+					"aws:vpc:test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:iam_policy:test-unit1-invoke", Destination: "aws:iam_role:role2"},
+					{Source: "aws:iam_policy:test-unit1-invoke", Destination: "aws:lambda_function:test_unit1"},
+					{Source: "aws:iam_policy:test-unit2-invoke", Destination: "aws:iam_role:role1"},
+					{Source: "aws:iam_policy:test-unit2-invoke", Destination: "aws:lambda_function:test_unit2"},
+				},
+			},
+		},
+		{
+			name:       `k8s to k8s`,
+			constructs: []core.Construct{unit1, unit2},
+			dependencies: []graph.Edge[string]{
+				{Source: unit1.Id(), Destination: unit2.Id()},
+				{Source: unit2.Id(), Destination: unit1.Id()},
+			},
+			config: config.Application{AppName: "test", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: kubernetes.KubernetesType}}},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:iam_policy:test-test",
+					"aws:private_dns_namespace:test",
+					"aws:vpc:test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:private_dns_namespace:test", Destination: "aws:vpc:test"},
+				},
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			aws := AWS{
+				Config:                 &tt.config,
+				constructIdToResources: tt.constructIdToResourceId,
+				PolicyGenerator:        resources.NewPolicyGenerator(),
+			}
+
+			result := core.NewConstructGraph()
+			for _, construct := range tt.constructs {
+				result.AddConstruct(construct)
+			}
+			for _, dep := range tt.dependencies {
+				result.AddDependency(dep.Source, dep.Destination)
+			}
+
+			dag := core.NewResourceGraph()
+			dag.AddResource(resources.NewVpc("test"))
+			for id, res := range tt.constructIdToResourceId {
+				for _, r := range res {
+					dag.AddResource(r)
+					if role, ok := r.(*resources.IamRole); ok {
+						_ = aws.PolicyGenerator.AddUnitRole(id, role)
+					}
+				}
+			}
+
+			err := aws.handleExecUnitProxy(result, dag)
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
+			if !assert.NoError(err) {
+				return
+			}
+			tt.want.Assert(t, dag)
+		})
+
+	}
+}
+
 func Test_convertExecUnitParams(t *testing.T) {
 	s3Bucket := resources.NewS3Bucket(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "bucket"}}, "test-app")
 	cases := []struct {
