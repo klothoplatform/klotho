@@ -29,7 +29,7 @@ type HelmChart struct {
 	ProviderValues []HelmChartValue
 
 	ConstructRefs    []core.AnnotationKey
-	ClustersProvider core.Resource
+	ClustersProvider core.IaCValue
 	Repo             string
 	Version          string
 	Namespace        string
