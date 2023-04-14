@@ -20,14 +20,11 @@ type (
 		Name                 string
 		ConstructsRef        []core.AnnotationKey
 		Role                 *IamRole
-		VpcConfig            LambdaVpcConfig
 		Image                *EcrImage
 		EnvironmentVariables EnvironmentVariables
-	}
-
-	LambdaVpcConfig struct {
-		SecurityGroupIds []string
-		SubnetIds        []string
+		SecurityGroups       []*SecurityGroup
+		Subnets              []*Subnet
+		Vpc                  *Vpc
 	}
 
 	LambdaPermission struct {
