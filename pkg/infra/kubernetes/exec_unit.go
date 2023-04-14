@@ -3,18 +3,19 @@ package kubernetes
 import (
 	"errors"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/config"
-	autoscaling "k8s.io/api/autoscaling/v2beta2"
 	"regexp"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
-	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap"
 	apps "k8s.io/api/apps/v1"
+	autoscaling "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	elbv2api "sigs.k8s.io/aws-load-balancer-controller/apis/elbv2/v1beta1"
 	"sigs.k8s.io/yaml"
+
+	"github.com/klothoplatform/klotho/pkg/config"
+	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
+	"github.com/klothoplatform/klotho/pkg/logging"
 )
 
 type HelmExecUnit struct {
@@ -88,7 +89,7 @@ func (unit *HelmExecUnit) transformPod(cfg config.ExecutionUnit) (values []HelmC
 		return
 	}
 
-	_, value, err := unit.upsertOnlyContainer(&pod.Spec.Containers, cfg)
+	_, imagePlaceholder, err := unit.upsertOnlyContainer(&pod.Spec.Containers, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -111,13 +112,12 @@ func (unit *HelmExecUnit) transformPod(cfg config.ExecutionUnit) (values []HelmC
 		ExecUnitName: unit.Name,
 		Kind:         pod.Kind,
 		Type:         string(ImageTransformation),
-		Key:          value,
+		Key:          imagePlaceholder,
 	})
 	return
 }
 
-func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) ([]HelmChartValue, error) {
-	values := []HelmChartValue{}
+func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) (values []HelmChartValue, err error) {
 	log := zap.L().Sugar().With(logging.FileField(unit.Deployment), zap.String("unit", unit.Name))
 	log.Debugf("Transforming file, %s, for exec unit, %s", unit.Deployment.Path(), unit.Name)
 	obj, err := readFile(unit.Deployment)
@@ -130,10 +130,16 @@ func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) ([]HelmC
 		return nil, err
 	}
 
-	k8sCfg, value, err := unit.upsertOnlyContainer(&deployment.Spec.Template.Spec.Containers, cfg)
+	k8sCfg, imagePlaceholder, err := unit.upsertOnlyContainer(&deployment.Spec.Template.Spec.Containers, cfg)
 	if err != nil {
 		return nil, err
 	}
+	values = append(values, HelmChartValue{
+		ExecUnitName: unit.Name,
+		Kind:         deployment.Kind,
+		Type:         string(ImageTransformation),
+		Key:          imagePlaceholder,
+	})
 
 	extraLabels := generateLabels(k8sCfg)
 
@@ -160,6 +166,35 @@ func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) ([]HelmC
 	deployment.Spec.Selector.MatchLabels["execUnit"] = unit.Name
 	extraLabels.addTo(deployment.Spec.Selector.MatchLabels)
 
+	if deployment.Spec.Template.Spec.NodeSelector == nil {
+		deployment.Spec.Template.Spec.NodeSelector = make(map[string]string)
+	}
+
+	if cfg.NetworkPlacement != "" {
+		deployment.Spec.Template.Spec.NodeSelector["network_placement"] = cfg.NetworkPlacement
+	}
+	if kconfig := cfg.GetExecutionUnitParamsAsKubernetes(); kconfig.InstanceType != "" {
+		instanceTypeKey := unit.Name + "InstanceTypeKey"
+		instanceTypeValue := unit.Name + "InstanceTypeValue"
+		deployment.Spec.Template.Spec.NodeSelector[fmt.Sprintf("{{ .Values.%s }}", instanceTypeKey)] = fmt.Sprintf("{{ .Values.%s }}", instanceTypeValue)
+		values = append(values,
+			HelmChartValue{
+				ExecUnitName: unit.Name,
+				Kind:         deployment.Kind,
+				Type:         string(InstanceTypeKey),
+				Key:          instanceTypeKey,
+			},
+			HelmChartValue{
+				ExecUnitName: unit.Name,
+				Kind:         deployment.Kind,
+				Type:         string(InstanceTypeValue),
+				Key:          instanceTypeValue,
+			},
+		)
+	} else if kconfig.DiskSizeGiB > 0 {
+		log.Warnf("Unimplemented: disk size configured of %d ignored due to missing instance type", kconfig.DiskSizeGiB)
+	}
+
 	output, err := yaml.Marshal(deployment)
 	if err != nil {
 		return nil, err
@@ -168,12 +203,7 @@ func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) ([]HelmC
 	if err != nil {
 		return nil, err
 	}
-	values = append(values, HelmChartValue{
-		ExecUnitName: unit.Name,
-		Kind:         deployment.Kind,
-		Type:         string(ImageTransformation),
-		Key:          value,
-	})
+
 	return values, nil
 }
 

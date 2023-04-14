@@ -2,9 +2,10 @@ package kubernetes
 
 import (
 	"bytes"
-	"github.com/klothoplatform/klotho/pkg/testutil"
 	"strings"
 	"testing"
+
+	"github.com/klothoplatform/klotho/pkg/testutil"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -27,17 +28,13 @@ func Test_AssignFilesToUnits(t *testing.T) {
 	tests := []struct {
 		name      string
 		fileUnits map[string]string
-		chart     HelmChart
+		units     []string
 		want      []TestUnit
 		wantErr   bool
 	}{
 		{
-			name: "Basic Pod",
-			chart: HelmChart{
-				ExecutionUnits: []*HelmExecUnit{
-					{Name: "unit1"},
-				},
-			},
+			name:  "Basic Pod",
+			units: []string{"unit1"},
 			fileUnits: map[string]string{
 				"pod.yaml": testutil.UnIndent(`
                     apiVersion: v1
@@ -54,12 +51,8 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			},
 		},
 		{
-			name: "Basic Deployment",
-			chart: HelmChart{
-				ExecutionUnits: []*HelmExecUnit{
-					{Name: "unit1"},
-				},
-			},
+			name:  "Basic Deployment",
+			units: []string{"unit1"},
 			fileUnits: map[string]string{
 				"deployment.yaml": testutil.UnIndent(`
                     apiVersion: apps/v1
@@ -85,12 +78,8 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			},
 		},
 		{
-			name: "Basic ServiceAccount",
-			chart: HelmChart{
-				ExecutionUnits: []*HelmExecUnit{
-					{Name: "unit1"},
-				},
-			},
+			name:  "Basic ServiceAccount",
+			units: []string{"unit1"},
 			fileUnits: map[string]string{
 				"ServiceAccount.yaml": testutil.UnIndent(`
                     apiVersion: v1
@@ -106,12 +95,8 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			},
 		},
 		{
-			name: "Basic Service",
-			chart: HelmChart{
-				ExecutionUnits: []*HelmExecUnit{
-					{Name: "unit1"},
-				},
-			},
+			name:  "Basic Service",
+			units: []string{"unit1"},
 			fileUnits: map[string]string{
 				"Service.yaml": testutil.UnIndent(`
                     apiVersion: v1
@@ -131,12 +116,8 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			},
 		},
 		{
-			name: "Basic HPA",
-			chart: HelmChart{
-				ExecutionUnits: []*HelmExecUnit{
-					{Name: "unit1"},
-				},
-			},
+			name:  "Basic HPA",
+			units: []string{"unit1"},
 			fileUnits: map[string]string{
 				"HorizontalPodAutoscaler.yaml": testutil.UnIndent(`
                     apiVersion: autoscaling/v2beta2
@@ -163,13 +144,8 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			},
 		},
 		{
-			name: "Multi unit Pod",
-			chart: HelmChart{
-				ExecutionUnits: []*HelmExecUnit{
-					{Name: "unit1"},
-					{Name: "unit2"},
-				},
-			},
+			name:  "Multi unit Pod",
+			units: []string{"unit1", "unit2"},
 			fileUnits: map[string]string{
 				"pod.yaml": testutil.UnIndent(`
                     apiVersion: v1
@@ -200,13 +176,8 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			},
 		},
 		{
-			name: "multi unit Deployment",
-			chart: HelmChart{
-				ExecutionUnits: []*HelmExecUnit{
-					{Name: "unit1"},
-					{Name: "unit2"},
-				},
-			},
+			name:  "multi unit Deployment",
+			units: []string{"unit1", "unit2"},
 			fileUnits: map[string]string{
 				"deployment.yaml": testutil.UnIndent(`
                     apiVersion: apps/v1
@@ -256,13 +227,8 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			},
 		},
 		{
-			name: "multi  unit HPA",
-			chart: HelmChart{
-				ExecutionUnits: []*HelmExecUnit{
-					{Name: "unit1"},
-					{Name: "unit2"},
-				},
-			},
+			name:  "multi  unit HPA",
+			units: []string{"unit1", "unit2"},
 			fileUnits: map[string]string{
 				"HorizontalPodAutoscaler.yaml": testutil.UnIndent(`
                     apiVersion: autoscaling/v2beta2
@@ -292,13 +258,8 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			},
 		},
 		{
-			name: "multi unit ServiceAccount",
-			chart: HelmChart{
-				ExecutionUnits: []*HelmExecUnit{
-					{Name: "unit1"},
-					{Name: "unit2"},
-				},
-			},
+			name:  "multi unit ServiceAccount",
+			units: []string{"unit1", "unit2"},
 			fileUnits: map[string]string{
 				"ServiceAccount.yaml": testutil.UnIndent(`
                     apiVersion: v1
@@ -324,13 +285,8 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			},
 		},
 		{
-			name: "multi unit Service",
-			chart: HelmChart{
-				ExecutionUnits: []*HelmExecUnit{
-					{Name: "unit1"},
-					{Name: "unit2"},
-				},
-			},
+			name:  "multi unit Service",
+			units: []string{"unit1", "unit2"},
 			fileUnits: map[string]string{
 				"Service.yaml": testutil.UnIndent(`
                     apiVersion: v1
@@ -368,12 +324,8 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			},
 		},
 		{
-			name: "single unit pod and deployment error",
-			chart: HelmChart{
-				ExecutionUnits: []*HelmExecUnit{
-					{Name: "unit1"},
-				},
-			},
+			name:  "single unit pod and deployment error",
+			units: []string{"unit1"},
 			fileUnits: map[string]string{
 				"pod.yaml": testutil.UnIndent(`
                     apiVersion: v1
@@ -402,13 +354,8 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "multi unit pod and deployment error",
-			chart: HelmChart{
-				ExecutionUnits: []*HelmExecUnit{
-					{Name: "unit1"},
-					{Name: "unit2"},
-				},
-			},
+			name:  "multi unit pod and deployment error",
+			units: []string{"unit1", "unit2"},
 			fileUnits: map[string]string{
 				"pod.yaml": testutil.UnIndent(`
                     apiVersion: v1
@@ -420,23 +367,23 @@ func Test_AssignFilesToUnits(t *testing.T) {
                       - name: web
                         image: nginx`),
 				"deployment.yaml": testutil.UnIndent(`
-					apiVersion: apps/v1
-                    kind: Deployment
-                    metadata:
-                      name: unit1
-                    spec:
-                      replicas: 3
-                      selector:
-                      matchLabels:
-                        app: nginx
-                      template:
-                        metadata:
-                          labels:
-                            app: nginx
-                        spec:
-                          containers:
-                          - name: nginx
-                            image: nginx:1.14.2`),
+                    apiVersion: apps/v1
+                      kind: Deployment
+                      metadata:
+                        name: unit1
+                      spec:
+                        replicas: 3
+                        selector:
+                        matchLabels:
+                          app: nginx
+                        template:
+                          metadata:
+                            labels:
+                              app: nginx
+                          spec:
+                            containers:
+                            - name: nginx
+                              image: nginx:1.14.2`),
 			},
 			wantErr: true,
 		},
@@ -445,14 +392,23 @@ func Test_AssignFilesToUnits(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
+			chart := &HelmChart{
+				Name:      "test",
+				Namespace: "default",
+			}
+
+			for _, name := range tt.units {
+				chart.ExecutionUnits = append(chart.ExecutionUnits, &HelmExecUnit{Name: name})
+			}
+
 			for path, file := range tt.fileUnits {
 				f, err := yamlLang.NewFile(path, strings.NewReader(file))
 				if assert.Nil(err) {
-					tt.chart.Files = append(tt.chart.Files, f)
+					chart.Files = append(chart.Files, f)
 				}
 			}
 
-			err := tt.chart.AssignFilesToUnits()
+			err := chart.AssignFilesToUnits()
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -461,7 +417,7 @@ func Test_AssignFilesToUnits(t *testing.T) {
 				return
 			}
 			for _, hu := range tt.want {
-				for _, cu := range tt.chart.ExecutionUnits {
+				for _, cu := range chart.ExecutionUnits {
 					if hu.name == cu.Name {
 						if hu.podPath != "" {
 							assert.Equal(hu.podPath, cu.Pod.Path())
@@ -496,51 +452,83 @@ func Test_AssignFilesToUnits(t *testing.T) {
 }
 
 func Test_handleExecutionUnit(t *testing.T) {
+	testUnitName := "unit"
 	tests := []struct {
 		name          string
-		chart         HelmChart
 		hasDockerfile bool
 		cfg           config.ExecutionUnit
 		want          []HelmChartValue
 		wantErr       bool
 	}{
 		{
-			name: "no transforms",
-			chart: HelmChart{
-				Name: "test",
-				ExecutionUnits: []*HelmExecUnit{
-					{
-						Name:      "unit",
-						Namespace: "default",
-					},
-				},
-			},
+			name:          "no transforms",
 			hasDockerfile: false,
 			cfg:           config.ExecutionUnit{},
 			want:          []HelmChartValue{},
 		},
 		{
-			name: "only dockerfile",
-			chart: HelmChart{
-				Name: "test",
-				ExecutionUnits: []*HelmExecUnit{
-					{
-						Name:      "unit",
-						Namespace: "default",
-					},
-				},
-			},
+			name:          "only dockerfile",
 			hasDockerfile: true,
 			cfg:           config.ExecutionUnit{},
 			want: []HelmChartValue{
 				{
-					ExecUnitName: "unit",
+					ExecUnitName: testUnitName,
 					Kind:         "Deployment",
 					Type:         "image",
 					Key:          "unitImage",
 				},
 				{
-					ExecUnitName: "unit",
+					ExecUnitName: testUnitName,
+					Kind:         "ServiceAccount",
+					Type:         "service_account_annotation",
+					Key:          "unitRoleArn",
+				},
+			},
+		},
+		{
+			name:          "network placement",
+			hasDockerfile: true,
+			cfg:           config.ExecutionUnit{NetworkPlacement: "private"},
+			want: []HelmChartValue{
+				{
+					ExecUnitName: testUnitName,
+					Kind:         "Deployment",
+					Type:         "image",
+					Key:          "unitImage",
+				},
+				{
+					ExecUnitName: testUnitName,
+					Kind:         "ServiceAccount",
+					Type:         "service_account_annotation",
+					Key:          "unitRoleArn",
+				},
+			},
+		},
+		{
+			name:          "node group",
+			hasDockerfile: true,
+			cfg:           config.ExecutionUnit{NetworkPlacement: "private", InfraParams: config.InfraParams{"instance_type": "test.node"}},
+			want: []HelmChartValue{
+				{
+					ExecUnitName: testUnitName,
+					Kind:         "Deployment",
+					Type:         "image",
+					Key:          "unitImage",
+				},
+				{
+					ExecUnitName: testUnitName,
+					Kind:         "Deployment",
+					Type:         "instance_type_key",
+					Key:          "unitInstanceTypeKey",
+				},
+				{
+					ExecUnitName: testUnitName,
+					Kind:         "Deployment",
+					Type:         "instance_type_value",
+					Key:          "unitInstanceTypeValue",
+				},
+				{
+					ExecUnitName: testUnitName,
 					Kind:         "ServiceAccount",
 					Type:         "service_account_annotation",
 					Key:          "unitRoleArn",
@@ -551,9 +539,7 @@ func Test_handleExecutionUnit(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			testUnit := tt.chart.ExecutionUnits[0]
-
-			eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "unit", Capability: annotation.ExecutionUnitCapability}}
+			eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: testUnitName, Capability: annotation.ExecutionUnitCapability}}
 			if tt.hasDockerfile {
 				dockerF, err := dockerfile.NewFile("Dockerfile", bytes.NewBuffer([]byte{}))
 				if !assert.NoError(err) {
@@ -562,7 +548,14 @@ func Test_handleExecutionUnit(t *testing.T) {
 				eu.Add(dockerF)
 			}
 			constructGraph := core.NewConstructGraph()
-			transformations, err := tt.chart.handleExecutionUnit(testUnit, eu, tt.cfg, constructGraph)
+
+			testUnit := &HelmExecUnit{Name: eu.ID}
+			chart := &HelmChart{
+				Name:           "test",
+				Namespace:      "default",
+				ExecutionUnits: []*HelmExecUnit{testUnit},
+			}
+			transformations, err := chart.handleExecutionUnit(testUnit, eu, tt.cfg, constructGraph)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -582,22 +575,14 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		chart   HelmChart
+		unit    *HelmExecUnit
 		deps    []graph.Edge[core.Construct]
 		want    testResult
 		wantErr bool
 	}{
 		{
 			name: "gateway dep",
-			chart: HelmChart{
-				Name: "test",
-				ExecutionUnits: []*HelmExecUnit{
-					{
-						Name:      "unit",
-						Namespace: "default",
-					},
-				},
-			},
+			unit: &HelmExecUnit{Name: "unit", Namespace: "default"},
 			deps: []graph.Edge[core.Construct]{
 				{
 					Source:      &core.Gateway{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
@@ -618,15 +603,7 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 		},
 		{
 			name: "exec unit dep",
-			chart: HelmChart{
-				Name: "test",
-				ExecutionUnits: []*HelmExecUnit{
-					{
-						Name:      "unit",
-						Namespace: "default",
-					},
-				},
-			},
+			unit: &HelmExecUnit{Name: "unit", Namespace: "default"},
 			deps: []graph.Edge[core.Construct]{
 				{
 					Source:      &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "test"}},
@@ -639,15 +616,7 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 		},
 		{
 			name: "multiple deps",
-			chart: HelmChart{
-				Name: "test",
-				ExecutionUnits: []*HelmExecUnit{
-					{
-						Name:      "unit",
-						Namespace: "default",
-					},
-				},
-			},
+			unit: &HelmExecUnit{Name: "unit", Namespace: "default"},
 			deps: []graph.Edge[core.Construct]{
 				{
 					Source:      &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "test"}},
@@ -672,28 +641,23 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 		},
 		{
 			name: "no deps",
-			chart: HelmChart{
-				Name: "test",
-				ExecutionUnits: []*HelmExecUnit{
-					{
-						Name:      "unit",
-						Namespace: "default",
-					},
-				},
-			},
+			unit: &HelmExecUnit{Name: "unit", Namespace: "default"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			testUnit := tt.chart.ExecutionUnits[0]
 			constructGraph := core.NewConstructGraph()
 			for _, dep := range tt.deps {
 				constructGraph.AddConstruct(dep.Source)
 				constructGraph.AddConstruct(dep.Destination)
 				constructGraph.AddDependency(dep.Source.Id(), dep.Destination.Id())
 			}
-			values, err := tt.chart.handleUpstreamUnitDependencies(testUnit, constructGraph, config.ExecutionUnit{})
+			chart := HelmChart{
+				Name:           "test",
+				ExecutionUnits: []*HelmExecUnit{tt.unit},
+			}
+			values, err := chart.handleUpstreamUnitDependencies(tt.unit, constructGraph, config.ExecutionUnit{})
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -704,10 +668,10 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 			assert.Equal(tt.want.values, values)
 			for _, f := range tt.want.files {
 				if strings.Contains(f, "targetgroupbinding") {
-					assert.Equal(f, testUnit.TargetGroupBinding.Path())
+					assert.Equal(f, tt.unit.TargetGroupBinding.Path())
 				}
 				if strings.Contains(f, "serviceexport") {
-					assert.Equal(f, testUnit.ServiceExport.Path())
+					assert.Equal(f, tt.unit.ServiceExport.Path())
 				}
 			}
 		})
@@ -722,21 +686,14 @@ func Test_addDeployment(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		chart   HelmChart
+		unit    *HelmExecUnit
+		cfg     config.ExecutionUnit
 		want    TestUnit
 		wantErr bool
 	}{
 		{
 			name: "happy path test",
-			chart: HelmChart{
-				Name: "test",
-				ExecutionUnits: []*HelmExecUnit{
-					{
-						Name:      "unit",
-						Namespace: "default",
-					},
-				},
-			},
+			unit: &HelmExecUnit{Name: "unit", Namespace: "default"},
 			want: TestUnit{
 				deploymentPath: "test/templates/unit-deployment.yaml",
 				deploymentFile: `apiVersion: apps/v1
@@ -788,15 +745,19 @@ status: {}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			testUnit := tt.chart.ExecutionUnits[0]
-			values, err := tt.chart.addDeployment(testUnit)
+			chart := &HelmChart{
+				Name:           "test",
+				Namespace:      "default",
+				ExecutionUnits: []*HelmExecUnit{tt.unit},
+			}
+			values, err := chart.addDeployment(tt.unit, tt.cfg)
 			if !assert.NoError(err) {
 				return
 			}
-			assert.Len(tt.chart.Files, 1)
-			assert.Equal(tt.want.deploymentPath, testUnit.Deployment.Path())
-			assert.Equal(tt.want.deploymentFile, string(testUnit.Deployment.Program()))
-			assert.Equal(testUnit.Deployment, tt.chart.Files[0])
+			assert.Len(chart.Files, 1)
+			assert.Equal(tt.want.deploymentPath, tt.unit.Deployment.Path())
+			assert.Equal(tt.want.deploymentFile, string(tt.unit.Deployment.Program()))
+			assert.Equal(tt.unit.Deployment, chart.Files[0])
 			assert.Equal(tt.want.values, values)
 		})
 	}
@@ -885,21 +846,13 @@ func Test_addServiceAccount(t *testing.T) {
 		values             []HelmChartValue
 	}
 	tests := []struct {
-		name  string
-		chart HelmChart
-		want  TestUnit
+		name string
+		unit *HelmExecUnit
+		want TestUnit
 	}{
 		{
 			name: "happy path test",
-			chart: HelmChart{
-				Name: "test",
-				ExecutionUnits: []*HelmExecUnit{
-					{
-						Name:      "unit",
-						Namespace: "default",
-					},
-				},
-			},
+			unit: &HelmExecUnit{Name: "unit", Namespace: "default"},
 			want: TestUnit{
 				serviceAccountPath: "test/templates/unit-serviceaccount.yaml",
 				serviceAccountFile: `apiVersion: v1
@@ -928,15 +881,20 @@ metadata:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			testUnit := tt.chart.ExecutionUnits[0]
-			values, err := tt.chart.addServiceAccount(testUnit)
+			chart := &HelmChart{
+				Name:           "test",
+				Namespace:      "default",
+				ExecutionUnits: []*HelmExecUnit{tt.unit},
+			}
+
+			values, err := chart.addServiceAccount(tt.unit)
 			if !assert.NoError(err) {
 				return
 			}
-			assert.Len(tt.chart.Files, 1)
-			assert.Equal(tt.want.serviceAccountPath, testUnit.ServiceAccount.Path())
-			assert.Equal(tt.want.serviceAccountFile, string(testUnit.ServiceAccount.Program()))
-			assert.Equal(testUnit.ServiceAccount, tt.chart.Files[0])
+			assert.Len(chart.Files, 1)
+			assert.Equal(tt.want.serviceAccountPath, tt.unit.ServiceAccount.Path())
+			assert.Equal(tt.want.serviceAccountFile, string(tt.unit.ServiceAccount.Program()))
+			assert.Equal(tt.unit.ServiceAccount, chart.Files[0])
 			assert.Equal(tt.want.values, values)
 		})
 	}
@@ -949,21 +907,13 @@ func Test_addService(t *testing.T) {
 		values      []HelmChartValue
 	}
 	tests := []struct {
-		name  string
-		chart HelmChart
-		want  TestUnit
+		name string
+		unit *HelmExecUnit
+		want TestUnit
 	}{
 		{
 			name: "happy path test",
-			chart: HelmChart{
-				Name: "test",
-				ExecutionUnits: []*HelmExecUnit{
-					{
-						Name:      "unit",
-						Namespace: "default",
-					},
-				},
-			},
+			unit: &HelmExecUnit{Name: "unit", Namespace: "default"},
 			want: TestUnit{
 				servicePath: "test/templates/unit-service.yaml",
 				serviceFile: `apiVersion: v1
@@ -994,42 +944,38 @@ status:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			testUnit := tt.chart.ExecutionUnits[0]
-			values, err := tt.chart.addService(testUnit, config.ExecutionUnit{})
+			chart := &HelmChart{
+				Name:           "test",
+				Namespace:      "default",
+				ExecutionUnits: []*HelmExecUnit{tt.unit},
+			}
+
+			values, err := chart.addService(tt.unit, config.ExecutionUnit{})
 			if !assert.NoError(err) {
 				return
 			}
-			assert.Len(tt.chart.Files, 1)
-			assert.Equal(tt.want.servicePath, testUnit.Service.Path())
-			assert.Equal(tt.want.serviceFile, string(testUnit.Service.Program()))
-			assert.Equal(testUnit.Service, tt.chart.Files[0])
+			assert.Len(chart.Files, 1)
+			assert.Equal(tt.want.servicePath, tt.unit.Service.Path())
+			assert.Equal(tt.want.serviceFile, string(tt.unit.Service.Program()))
+			assert.Equal(tt.unit.Service, chart.Files[0])
 			assert.Equal(tt.want.values, values)
 		})
 	}
 }
 
 func Test_addTargetGroupBinding(t *testing.T) {
+	testUnitName := "unit"
 	type TestUnit struct {
 		targetGroupBindingPath string
 		targetGroupBindingFile string
 		values                 []HelmChartValue
 	}
 	tests := []struct {
-		name  string
-		chart HelmChart
-		want  TestUnit
+		name string
+		want TestUnit
 	}{
 		{
 			name: "happy path test",
-			chart: HelmChart{
-				Name: "test",
-				ExecutionUnits: []*HelmExecUnit{
-					{
-						Name:      "unit",
-						Namespace: "default",
-					},
-				},
-			},
 			want: TestUnit{
 				targetGroupBindingPath: "test/templates/unit-targetgroupbinding.yaml",
 				targetGroupBindingFile: `apiVersion: elbv2.k8s.aws/v1beta1
@@ -1060,15 +1006,21 @@ status: {}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			testUnit := tt.chart.ExecutionUnits[0]
-			values, err := tt.chart.addTargetGroupBinding(testUnit)
+			testUnit := &HelmExecUnit{Name: testUnitName}
+			chart := &HelmChart{
+				Name:           "test",
+				Namespace:      "default",
+				ExecutionUnits: []*HelmExecUnit{testUnit},
+			}
+
+			values, err := chart.addTargetGroupBinding(testUnit)
 			if !assert.NoError(err) {
 				return
 			}
-			assert.Len(tt.chart.Files, 1)
+			assert.Len(chart.Files, 1)
 			assert.Equal(tt.want.targetGroupBindingPath, testUnit.TargetGroupBinding.Path())
 			assert.Equal(tt.want.targetGroupBindingFile, string(testUnit.TargetGroupBinding.Program()))
-			assert.Equal(testUnit.TargetGroupBinding, tt.chart.Files[0])
+			assert.Equal(testUnit.TargetGroupBinding, chart.Files[0])
 			assert.Equal(tt.want.values, values)
 		})
 	}
@@ -1080,21 +1032,13 @@ func Test_addServiceExport(t *testing.T) {
 		targetGroupBindingFile string
 	}
 	tests := []struct {
-		name  string
-		chart HelmChart
-		want  TestUnit
+		name string
+		unit *HelmExecUnit
+		want TestUnit
 	}{
 		{
 			name: "happy path test",
-			chart: HelmChart{
-				Name: "test",
-				ExecutionUnits: []*HelmExecUnit{
-					{
-						Name:      "unit",
-						Namespace: "default",
-					},
-				},
-			},
+			unit: &HelmExecUnit{Name: "unit", Namespace: "default"},
 			want: TestUnit{
 				targetGroupBindingPath: "test/templates/unit-serviceexport.yaml",
 				targetGroupBindingFile: `kind: ServiceExport
@@ -1109,15 +1053,20 @@ metadata:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			testUnit := tt.chart.ExecutionUnits[0]
-			err := tt.chart.addServiceExport(testUnit)
+			chart := &HelmChart{
+				Name:           "test",
+				Namespace:      "default",
+				ExecutionUnits: []*HelmExecUnit{tt.unit},
+			}
+
+			err := chart.addServiceExport(tt.unit)
 			if !assert.NoError(err) {
 				return
 			}
-			assert.Len(tt.chart.Files, 1)
-			assert.Equal(tt.want.targetGroupBindingPath, testUnit.ServiceExport.Path())
-			assert.Equal(tt.want.targetGroupBindingFile, string(testUnit.ServiceExport.Program()))
-			assert.Equal(testUnit.ServiceExport, tt.chart.Files[0])
+			assert.Len(chart.Files, 1)
+			assert.Equal(tt.want.targetGroupBindingPath, tt.unit.ServiceExport.Path())
+			assert.Equal(tt.want.targetGroupBindingFile, string(tt.unit.ServiceExport.Program()))
+			assert.Equal(tt.unit.ServiceExport, chart.Files[0])
 		})
 	}
 }

@@ -10,11 +10,11 @@ import (
 var EksClusterSanitizer = sanitization.NewSanitizer(
 	[]sanitization.Rule{
 		{
-			Pattern:     regexp.MustCompile(`/[^a-zA-Z\d-]/g`),
+			Pattern:     regexp.MustCompile(`[^a-zA-Z\d-]`),
 			Replacement: "_",
 		},
 		{
-			Pattern:     regexp.MustCompile(`/^[^a-zA-Z]+/`),
+			Pattern:     regexp.MustCompile(`^[^a-zA-Z]+`),
 			Replacement: "",
 		},
 	},
@@ -25,11 +25,11 @@ var EksClusterSanitizer = sanitization.NewSanitizer(
 var EksNodeGroupSanitizer = sanitization.NewSanitizer(
 	[]sanitization.Rule{
 		{
-			Pattern:     regexp.MustCompile(`/[^a-zA-Z\d-]/g`),
+			Pattern:     regexp.MustCompile(`[^a-zA-Z0-9_-]`),
 			Replacement: "_",
 		},
 		{
-			Pattern:     regexp.MustCompile(`/^[^a-zA-Z]+/`),
+			Pattern:     regexp.MustCompile(`^[^a-zA-Z]+`),
 			Replacement: "",
 		},
 	},
@@ -40,11 +40,11 @@ var EksNodeGroupSanitizer = sanitization.NewSanitizer(
 var EksFargateProfileSanitizer = sanitization.NewSanitizer(
 	[]sanitization.Rule{
 		{
-			Pattern:     regexp.MustCompile(`/[^a-zA-Z\d-]/g`),
+			Pattern:     regexp.MustCompile(`[^a-zA-Z\d-]`),
 			Replacement: "_",
 		},
 		{
-			Pattern:     regexp.MustCompile(`/^[^a-zA-Z]+/`),
+			Pattern:     regexp.MustCompile(`^[^a-zA-Z]+`),
 			Replacement: "",
 		},
 	},

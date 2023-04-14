@@ -15,7 +15,7 @@ function create(args: Args): aws.eks.FargateProfile {
     return new aws.eks.FargateProfile(
         args.Name,
         {
-            clusterName: args.Cluster.name,
+            clusterName: args.Cluster.name.apply((n) => n!),
             podExecutionRoleArn: args.PodExecutionRole.arn,
             selectors: args.Selectors,
             subnetIds: args.Subnets.map((subnet) => subnet.id),

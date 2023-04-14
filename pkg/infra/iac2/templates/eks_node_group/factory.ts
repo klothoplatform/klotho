@@ -19,11 +19,11 @@ interface Args {
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.eks.NodeGroup {
     return new aws.eks.NodeGroup(args.Name, {
-        clusterName: args.Cluster.name,
+        clusterName: args.Cluster.name.apply((n) => n!),
         nodeRoleArn: args.NodeRole.arn,
-        //TMPL {{ if .AmiType.Raw }}
+        //TMPL {{- if .AmiType.Raw }}
         amiType: args.AmiType,
-        //TMPL {{ end }}
+        //TMPL {{- end }}
         subnetIds: args.Subnets.map((subnet) => subnet.id),
         scalingConfig: {
             desiredSize: args.DesiredSize,

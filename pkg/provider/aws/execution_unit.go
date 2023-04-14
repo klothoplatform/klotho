@@ -109,21 +109,28 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 							if val.ExecUnitName != unit.ID {
 								continue
 							}
-							switch val.Type {
-							// TODO handle kubernetes.TargetGroupTransformation
-							case string(kubernetes.ImageTransformation):
+							switch kubernetes.ProviderValueTypes(val.Type) {
+							case kubernetes.ImageTransformation:
 								khChart.Values[val.Key] = core.IaCValue{
 									Resource: image,
 									Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
 								}
 								dag.AddDependency(khChart, image)
-							case string(kubernetes.ServiceAccountAnnotationTransformation):
+							case kubernetes.ServiceAccountAnnotationTransformation:
 								khChart.Values[val.Key] = core.IaCValue{
 									Resource: role,
 									Property: resources.ARN_IAC_VALUE,
 								}
 								dag.AddDependency(khChart, role)
-							case string(kubernetes.TargetGroupTransformation):
+							case kubernetes.InstanceTypeKey:
+								khChart.Values[val.Key] = core.IaCValue{
+									Property: "eks.amazonaws.com/nodegroup",
+								}
+							case kubernetes.InstanceTypeValue:
+								khChart.Values[val.Key] = core.IaCValue{
+									Property: resources.NodeGroupNameFromConfig(cfg),
+								}
+							case kubernetes.TargetGroupTransformation:
 								targetGroup := a.createEksLoadBalancer(result, dag, unit)
 								khChart.Values[val.Key] = core.IaCValue{
 									Resource: targetGroup,
