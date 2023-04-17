@@ -168,7 +168,7 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 						if lambdafunc, ok := resource.(*resources.LambdaFunction); ok {
 							targetLambda = lambdafunc
 						}
-						execPolicyDoc := resources.CreateAllowPolicyDocument([]string{"lambda:InvokeFunction"}, []core.IaCValue{{Resource: targetLambda, Property: resources.ARN_IAC_VALUE}})
+						execPolicyDoc = resources.CreateAllowPolicyDocument([]string{"lambda:InvokeFunction"}, []core.IaCValue{{Resource: targetLambda, Property: resources.ARN_IAC_VALUE}})
 						if execPol, ok := resource.(*resources.IamPolicy); ok {
 							if len(execPol.Policy.Statement) == 1 {
 								statement := execPol.Policy.Statement[0]
