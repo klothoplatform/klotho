@@ -24,7 +24,7 @@ func (a *AWS) GenerateSecretsResources(construct *core.Secrets, result *core.Con
 
 			actions := []string{`secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue`}
 			policyResources := []core.IaCValue{{
-				Resource: secretVersion,
+				Resource: secret,
 				Property: resources.ARN_IAC_VALUE,
 			}}
 			policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
