@@ -344,6 +344,7 @@ func Test_convertExecUnitParams(t *testing.T) {
 		name                    string
 		construct               core.Construct
 		resources               []core.Resource
+		defaultType             string
 		execUnitResource        core.Resource
 		wants                   resources.EnvironmentVariables
 		constructIdToResourceId map[string][]core.Resource
@@ -357,6 +358,7 @@ func Test_convertExecUnitParams(t *testing.T) {
 					core.GenerateBucketEnvVar(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "bucket"}}),
 				},
 			},
+			defaultType: Lambda,
 			resources: []core.Resource{
 				s3Bucket,
 			},
@@ -378,6 +380,7 @@ func Test_convertExecUnitParams(t *testing.T) {
 					core.NewEnvironmentVariable("TestVar", nil, "TestValue"),
 				},
 			},
+			defaultType:             Lambda,
 			constructIdToResourceId: make(map[string][]core.Resource),
 			execUnitResource:        &resources.LambdaFunction{},
 			wants: resources.EnvironmentVariables{
@@ -395,6 +398,7 @@ func Test_convertExecUnitParams(t *testing.T) {
 					core.NewEnvironmentVariable("TestVar", nil, "TestValue"),
 				},
 			},
+			defaultType: kubernetes.KubernetesType,
 			resources: []core.Resource{
 				s3Bucket,
 			},
@@ -409,7 +413,8 @@ func Test_convertExecUnitParams(t *testing.T) {
 						Key:                 "BUCKETBUCKETNAME",
 					},
 				},
-				Values: make(map[string]any),
+				ConstructRefs: []core.AnnotationKey{{ID: "unit"}},
+				Values:        make(map[string]any),
 			},
 			wants: resources.EnvironmentVariables{
 				"BUCKETBUCKETNAME": core.IaCValue{Resource: s3Bucket, Property: "bucket_name"},
@@ -421,10 +426,12 @@ func Test_convertExecUnitParams(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			aws := AWS{
-				Config:                 &config.Application{AppName: "test"},
+				Config:                 &config.Application{AppName: "test", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: tt.defaultType}}},
 				constructIdToResources: tt.constructIdToResourceId,
 			}
-			aws.constructIdToResources[":unit"] = []core.Resource{tt.execUnitResource}
+			if _, ok := tt.execUnitResource.(*kubernetes.HelmChart); !ok {
+				aws.constructIdToResources[":unit"] = []core.Resource{tt.execUnitResource}
+			}
 
 			result := core.NewConstructGraph()
 			result.AddConstruct(tt.construct)

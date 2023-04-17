@@ -3,6 +3,7 @@ package aws
 import (
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
@@ -30,7 +31,9 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 	}
 	for _, construct := range result.GetDownstreamConstructs(unit) {
 		resList, ok := a.GetResourcesDirectlyTiedToConstruct(construct)
-		if !ok {
+		// Skip over other execution units because we will handle their dependencies within the handleExecProxy function.
+		// We cant predict the order in which execution units will be handled within this function
+		if !ok && construct.Provenance().Capability != annotation.ExecutionUnitCapability {
 			return errors.Errorf("could not find resource for construct, %s, which unit, %s, depends on", construct.Id(), unit.Id())
 		}
 		for _, resource := range resList {
@@ -138,7 +141,6 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 								dag.AddDependency(khChart, targetGroup)
 							}
 						}
-						a.MapResourceDirectlyToConstruct(khChart, unit)
 					}
 				}
 			}
@@ -234,7 +236,6 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 		}
 
 	}
-
 	return nil
 }
 
@@ -242,6 +243,19 @@ func findUnitsCluster(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*resou
 	for _, res := range dag.ListResources() {
 		if r, ok := res.(*resources.EksCluster); ok {
 			for _, ref := range r.ConstructsRef {
+				if ref == unit.Provenance() {
+					return r, nil
+				}
+			}
+		}
+	}
+	return nil, fmt.Errorf("EksCluster not found for unit with id, %s", unit.ID)
+}
+
+func findUnitsHelmChart(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*kubernetes.HelmChart, error) {
+	for _, res := range dag.ListResources() {
+		if r, ok := res.(*kubernetes.HelmChart); ok {
+			for _, ref := range r.ConstructRefs {
 				if ref == unit.Provenance() {
 					return r, nil
 				}
@@ -265,7 +279,7 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 			if envVar.Construct != nil {
 				resList, ok := a.GetResourcesDirectlyTiedToConstruct(envVar.GetConstruct())
 				if !ok {
-					return fmt.Errorf("resource not found for construct with id, %s", envVar.GetConstruct().Id())
+					return fmt.Errorf("resource not found for env var construct with id, %s", envVar.GetConstruct().Id())
 				}
 				for _, resource := range resList {
 					resourceEnvVars[envVar.Name] = core.IaCValue{
@@ -289,10 +303,18 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 		resourceEnvVars["EXECUNIT_NAME"] = core.IaCValue{
 			Property: unit.ID,
 		}
-
 		// Retrieve the actual resource and set the environment variables on it
-		resList, ok := a.GetResourcesDirectlyTiedToConstruct(unit)
-		if !ok {
+		resList, _ := a.GetResourcesDirectlyTiedToConstruct(unit)
+
+		// If the unit is a kubernetes unit, the helm chart wont be directly tied to the unit so we need to ensure we grab it
+		if a.Config.GetExecutionUnit(unit.ID).Type == kubernetes.KubernetesType {
+			chart, err := findUnitsHelmChart(unit, dag)
+			if err != nil {
+				return err
+			}
+			resList = append(resList, chart)
+		}
+		if len(resList) == 0 {
 			return fmt.Errorf("resource not found for construct with id, %s", unit.Id())
 		}
 		for _, resource := range resList {
