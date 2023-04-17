@@ -9,19 +9,8 @@ import (
 // EnvVarKeySanitizer returns a sanitized environment key when applied.
 var CloudwatchLogGroupSanitizer = sanitization.NewSanitizer(
 	[]sanitization.Rule{
-		// strip any leading non alpha characters
 		{
-			Pattern:     regexp.MustCompile(`^[^a-zA-Z]+`),
-			Replacement: "",
-		},
-		// replace "-" or whitespace with "_"
-		{
-			Pattern:     regexp.MustCompile(`[-\s]+`),
+			Pattern:     regexp.MustCompile(`[^-._/#A-Za-z\d]`),
 			Replacement: "_",
 		},
-		// strip any other invalid characters
-		{
-			Pattern:     regexp.MustCompile(`[^a-zA-Z0-9_]+`),
-			Replacement: "",
-		},
-	}, 64)
+	}, 512)

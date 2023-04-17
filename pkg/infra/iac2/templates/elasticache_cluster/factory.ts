@@ -6,12 +6,15 @@ interface Args {
     CloudwatchGroup: aws.cloudwatch.LogGroup
     SubnetGroup: aws.elasticache.SubnetGroup
     SecurityGroups: aws.ec2.SecurityGroup[]
+    NodeType: string
+    NumCacheNodes: number
 }
 
 function create(args: Args): aws.elasticache.Cluster {
     return new aws.elasticache.Cluster(args.Name, {
-        engine: 'redis',
-        clusterId: args.Engine,
+        engine: args.Engine,
+        nodeType: args.NodeType,
+        numCacheNodes: args.NumCacheNodes,
         logDeliveryConfigurations: [
             {
                 destination: args.CloudwatchGroup.name,
