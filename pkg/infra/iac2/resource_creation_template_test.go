@@ -63,6 +63,16 @@ func TestParameterizeArgs(t *testing.T) {
 			given: `new Foo(myargs.Foo)`,
 			want:  `new Foo(myargs.Foo)`,
 		},
+		{
+			given: `//TMPL test`,
+			want:  `test`,
+		},
+		{
+			given:  `//TMPL {{ .Param }}`,
+			want:   `{{ .Param }}`,
+			input:  map[string]any{"Param": "value"},
+			result: `value`,
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.given, func(t *testing.T) {
