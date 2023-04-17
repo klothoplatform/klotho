@@ -125,6 +125,7 @@ type (
 
 	Condition struct {
 		StringEquals map[core.IaCValue]string
+		Null         map[core.IaCValue]string
 	}
 )
 
