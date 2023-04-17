@@ -48,8 +48,12 @@ func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Re
 	for _, res := range []Resource{deployedSecond, deployedFirst} {
 		rg.AddResource(res)
 	}
-	rg.underlying.AddEdge(deployedSecond.Id(), deployedFirst.Id())
-	zap.S().Debugf("adding %s -> %s", deployedSecond.Id(), deployedFirst.Id())
+	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.Id(), deployedFirst.Id()); cycle {
+		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond.Id(), deployedFirst.Id())
+	} else {
+		rg.underlying.AddEdge(deployedSecond.Id(), deployedFirst.Id())
+		zap.S().Debugf("adding %s -> %s", deployedSecond.Id(), deployedFirst.Id())
+	}
 }
 
 func (rg *ResourceGraph) GetResource(id string) Resource {

@@ -24,7 +24,6 @@ type (
 		EnvironmentVariables EnvironmentVariables
 		SecurityGroups       []*SecurityGroup
 		Subnets              []*Subnet
-		Vpc                  *Vpc
 	}
 
 	LambdaPermission struct {
