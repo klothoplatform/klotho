@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -37,7 +36,6 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 	for _, id := range constructIds {
 		construct := result.GetConstruct(id)
 		log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
-		fmt.Println(construct.Id())
 		switch construct := construct.(type) {
 		case *core.ExecutionUnit:
 			merr.Append(a.GenerateExecUnitResources(construct, result, dag))
