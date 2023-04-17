@@ -16,15 +16,20 @@ import (
 func Test_CreateEksCluster(t *testing.T) {
 	cfg := config.Application{AppName: "test-app", ExecutionUnits: make(map[string]*config.ExecutionUnit)}
 	clusterName := "test-cluster"
-	eus := []*core.ExecutionUnit{{AnnotationKey: core.AnnotationKey{ID: "test"}}}
-	for _, eu := range eus {
-		cfg.ExecutionUnits[eu.ID] = &config.ExecutionUnit{
-			Type:             "kubernetes",
-			NetworkPlacement: "private",
-			InfraParams:      config.InfraParams{"instance_type": "t3.medium"},
-		}
+	eu1 := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test"}}
+	cfg.ExecutionUnits[eu1.ID] = &config.ExecutionUnit{
+		Type:             "kubernetes",
+		NetworkPlacement: "private",
+		InfraParams:      config.InfraParams{"instance_type": "t3.medium"},
 	}
-	sources := []core.AnnotationKey{{ID: "test"}}
+	eu2 := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test-gpu"}}
+	cfg.ExecutionUnits[eu2.ID] = &config.ExecutionUnit{
+		Type:             "kubernetes",
+		NetworkPlacement: "private",
+		InfraParams:      config.InfraParams{"instance_type": "g2"},
+	}
+	eus := []*core.ExecutionUnit{eu1, eu2}
+	sources := []core.AnnotationKey{{ID: "test"}, {ID: "test-gpu"}}
 	vpc := NewVpc(cfg.AppName)
 	subnet := NewSubnet("test-subnet", vpc, "", PrivateSubnet, core.IaCValue{})
 	region := NewRegion()
@@ -39,9 +44,11 @@ func Test_CreateEksCluster(t *testing.T) {
 					"aws:eks_cluster:test-app-test-cluster",
 					"aws:eks_fargate_profile:test-app-test-cluster",
 					"aws:eks_node_group:private_t3_medium",
+					"aws:eks_node_group:private_g2",
 					"aws:iam_role:test-app-test-cluster-FargateExecutionRole",
 					"aws:iam_role:test-app-test-cluster-k8sAdmin",
 					"aws:iam_role:test-app-test-cluster.private_t3_medium",
+					"aws:iam_role:test-app-test-cluster.private_g2",
 					"aws:region:region",
 					"aws:vpc:test_app",
 					"aws:vpc_subnet:test_app_test_subnet",
@@ -52,6 +59,8 @@ func Test_CreateEksCluster(t *testing.T) {
 					"kubernetes:manifest:test-app-test-cluster-aws-observability-ns",
 					"kubernetes:manifest:test-app-test-cluster-fluent-bit",
 					"kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map",
+					"kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin",
+					"aws:eks_addon:test-app-test-cluster-addon-vpc-cni",
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:vpc:test_app", Destination: "aws:region:region"},
@@ -64,8 +73,13 @@ func Test_CreateEksCluster(t *testing.T) {
 					{Source: "aws:eks_node_group:private_t3_medium", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "aws:eks_node_group:private_t3_medium", Destination: "aws:iam_role:test-app-test-cluster.private_t3_medium"},
 					{Source: "aws:eks_node_group:private_t3_medium", Destination: subnet.Id()},
+					{Source: "aws:eks_node_group:private_g2", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "aws:eks_node_group:private_g2", Destination: "aws:iam_role:test-app-test-cluster.private_g2"},
+					{Source: "aws:eks_node_group:private_g2", Destination: subnet.Id()},
 					{Source: "kubernetes:helm_chart:test-app-test-cluster-cert-manager", Destination: "aws:eks_node_group:private_t3_medium"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-cert-manager", Destination: "aws:eks_node_group:private_g2"},
 					{Source: "kubernetes:helm_chart:test-app-test-cluster-metrics-server", Destination: "aws:eks_node_group:private_t3_medium"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-metrics-server", Destination: "aws:eks_node_group:private_g2"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-aws-observability-config-map", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-aws-observability-config-map", Destination: "kubernetes:manifest:test-app-test-cluster-aws-observability-ns"},
@@ -74,6 +88,10 @@ func Test_CreateEksCluster(t *testing.T) {
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit", Destination: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns"},
+					{Source: "aws:eks_addon:test-app-test-cluster-addon-vpc-cni", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_node_group:private_g2"},
+					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_node_group:private_t3_medium"},
 				},
 			},
 		},
@@ -94,7 +112,7 @@ func Test_CreateEksCluster(t *testing.T) {
 					assert.Len(cluster.Manifests, 4)
 				}
 				if r != subnet && r != vpc && r != region { // ignore input resources
-					assert.ElementsMatch(sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
+					assert.Subsetf(sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
 				}
 			}
 			tt.want.Assert(t, dag)

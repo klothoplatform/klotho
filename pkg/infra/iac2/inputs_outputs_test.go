@@ -67,6 +67,7 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.EksCluster{},
 		&resources.EksNodeGroup{},
 		&resources.EksFargateProfile{},
+		&resources.EksAddon{},
 		&resources.NatGateway{},
 		&resources.Subnet{},
 		&resources.InternetGateway{},
