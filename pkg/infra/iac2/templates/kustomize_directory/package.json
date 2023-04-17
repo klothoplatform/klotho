@@ -1,0 +1,6 @@
+{
+    "name": "kustomize_directory",
+    "dependencies": {
+        "@pulumi/kubernetes": "^3.21.4"
+    }
+}

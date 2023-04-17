@@ -4,6 +4,7 @@ import * as pulumi_k8s from '@pulumi/kubernetes'
 interface Args {
     Name: string
     FilePath: string
+    ClustersProvider: pulumi_k8s.Provider
     Transformations?: Record<string, pulumi.Output<string>>
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
@@ -24,6 +25,9 @@ function create(args: Args): pulumi_k8s.yaml.ConfigFile {
             ],
             //TMPL {{- end }}
         },
-        { dependsOn: args.dependsOn }
+        {
+            dependsOn: args.dependsOn,
+            provider: args.ClustersProvider,
+        }
     )
 }

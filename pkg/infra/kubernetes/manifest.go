@@ -26,10 +26,11 @@ const (
 
 type (
 	Manifest struct {
-		Name            string
-		ConstructRefs   []core.AnnotationKey
-		FilePath        string
-		Transformations map[string]core.IaCValue
+		Name             string
+		ConstructRefs    []core.AnnotationKey
+		FilePath         string
+		Transformations  map[string]core.IaCValue
+		ClustersProvider core.IaCValue
 	}
 
 	DeploymentManifestData struct {
