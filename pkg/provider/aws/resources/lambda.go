@@ -50,12 +50,12 @@ func (lambda *LambdaFunction) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (lambda *LambdaFunction) KlothoConstructRef() []core.AnnotationKey {
 	return lambda.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (lambda *LambdaFunction) Id() string {
 	return fmt.Sprintf("%s:%s:%s", lambda.Provider(), LAMBDA_FUNCTION_TYPE, lambda.Name)
 }
