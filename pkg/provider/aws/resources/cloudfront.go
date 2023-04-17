@@ -10,8 +10,10 @@ import (
 var cloudfrontDistributionSanitizer = aws.CloudfrontDistributionSanitizer
 
 const (
-	CLOUDFRONT_DISTRIBUTION_TYPE = "cloudfront_distribution"
-	ORIGIN_ACCESS_IDENTITY_TYPE  = "cloudfront_origin_access_identity"
+	CLOUDFRONT_DISTRIBUTION_TYPE              = "cloudfront_distribution"
+	ORIGIN_ACCESS_IDENTITY_TYPE               = "cloudfront_origin_access_identity"
+	IAM_ARN_IAC_VALUE                         = "iam_arn"
+	CLOUDFRONT_ACCESS_IDENTITY_PATH_IAC_VALUE = "cloudfront_access_identity_path"
 )
 
 type (
@@ -97,7 +99,7 @@ func CreateS3Origin(unit *core.StaticUnit, bucket *S3Bucket, distribution *Cloud
 				Principal: &Principal{
 					AWS: core.IaCValue{
 						Resource: oai,
-						Property: ARN_IAC_VALUE,
+						Property: IAM_ARN_IAC_VALUE,
 					},
 				},
 				Action: []string{"s3:GetObject"},
@@ -117,6 +119,7 @@ func CreateS3Origin(unit *core.StaticUnit, bucket *S3Bucket, distribution *Cloud
 	s3OriginConfig := S3OriginConfig{
 		OriginAccessIdentity: core.IaCValue{
 			Resource: oai,
+			Property: CLOUDFRONT_ACCESS_IDENTITY_PATH_IAC_VALUE,
 		},
 	}
 	origin := &CloudfrontOrigin{

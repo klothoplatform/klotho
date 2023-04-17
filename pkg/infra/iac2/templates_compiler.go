@@ -435,6 +435,12 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, resourceVal *reflect
 		return quoteTsString(secret.SecretName, true), nil
 	case string(core.BUCKET_NAME):
 		return fmt.Sprintf("%s.bucket", tc.getVarName(resource)), nil
+	case resources.BUCKET_REGIONAL_DOMAIN_NAME_IAC_VALUE:
+		return fmt.Sprintf("%s.bucketRegionalDomainName", tc.getVarName(resource)), nil
+	case resources.IAM_ARN_IAC_VALUE:
+		return fmt.Sprintf("%s.iamArn", tc.getVarName(resource)), nil
+	case resources.CLOUDFRONT_ACCESS_IDENTITY_PATH_IAC_VALUE:
+		return fmt.Sprintf("%s.cloudfrontAccessIdentityPath", tc.getVarName(resource)), nil
 	case resources.ARN_IAC_VALUE:
 		return fmt.Sprintf("%s.arn", tc.getVarName(v.Resource)), nil
 	case resources.NAME_IAC_VALUE:
