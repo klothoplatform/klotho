@@ -30,6 +30,7 @@ const (
 	CLUSTER_CA_DATA_IAC_VALUE  = "cluster_certificate_authority_data"
 	CLUSTER_PROVIDER_IAC_VALUE = "cluster_provider"
 	NAME_IAC_VALUE             = "name"
+	ID_IAC_VALUE               = "id"
 
 	AWS_OBSERVABILITY_NS_PATH         = "aws_observability_namespace.yaml"
 	AWS_OBSERVABILITY_CONFIG_MAP_PATH = "aws_observability_configmap.yaml"
@@ -488,6 +489,62 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 	return nil
 }
 
+func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey, dag *core.ResourceGraph) error {
+	serviceAccountName := "aws-load-balancer-controller"
+	saPath := "aws-load-balancer-controller-service-account.yaml"
+	outputPath := path.Join(MANIFEST_PATH_PREFIX, saPath)
+
+	assumeRolePolicyDoc := cluster.GetServiceAccountAssumeRolePolicy(serviceAccountName)
+	role := NewIamRole(cluster.Name, "alb-controller", references, assumeRolePolicyDoc)
+	policy := createAlbControllerPolicy(cluster.Name, references[0])
+	role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{Resource: policy, Property: ARN_IAC_VALUE})
+
+	serviceAccount, err := kubernetes.GenerateServiceAccountManifest(serviceAccountName, "default", true)
+	if err != nil {
+		return err
+	}
+	saManifest := &kubernetes.Manifest{
+		Name:          fmt.Sprintf("%s-%s", cluster.Name, "alb-controller-service-account"),
+		ConstructRefs: references,
+		FilePath:      outputPath,
+		ClustersProvider: core.IaCValue{
+			Resource: cluster,
+			Property: CLUSTER_PROVIDER_IAC_VALUE,
+		},
+		Transformations: map[string]core.IaCValue{
+			`metadata["annotations.eks.amazonaws.com/role-arn"]`: {Resource: role, Property: ARN_IAC_VALUE},
+		},
+	}
+	dag.AddDependenciesReflect(saManifest)
+	cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: outputPath, Content: serviceAccount})
+
+	albChart := &kubernetes.HelmChart{
+		Name:          fmt.Sprintf("%s-alb-controller", cluster.Name),
+		Chart:         "aws-load-balancer-controller",
+		Repo:          "https://aws.github.io/eks-charts",
+		ConstructRefs: references,
+		Version:       "1.4.7",
+		Namespace:     "default",
+		ClustersProvider: core.IaCValue{
+			Resource: cluster,
+			Property: CLUSTER_PROVIDER_IAC_VALUE,
+		},
+		Values: map[string]any{
+			"clusterName":           core.IaCValue{Resource: cluster, Property: NAME_IAC_VALUE},
+			"serviceAccount.create": false,
+			"serviceAccount.name":   serviceAccountName,
+			"region":                core.IaCValue{Resource: NewRegion(), Property: NAME_IAC_VALUE},
+			"vpcId":                 core.IaCValue{Resource: cluster.Subnets[0].Vpc, Property: ID_IAC_VALUE},
+			"podLabels": map[string]string{
+				"app": "aws-lb-controller",
+			},
+		},
+	}
+	dag.AddDependenciesReflect(albChart)
+	dag.AddDependenciesReflect(role)
+	return nil
+}
+
 func (cluster *EksCluster) installVpcCniAddon(references []core.AnnotationKey, dag *core.ResourceGraph) {
 	addonName := "vpc-cni"
 	addon := &EksAddon{
@@ -559,6 +616,32 @@ func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeco
 							Resource: region,
 							Property: NAME_IAC_VALUE,
 						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func (cluster *EksCluster) GetServiceAccountAssumeRolePolicy(serviceAccountName string) *PolicyDocument {
+	return &PolicyDocument{
+		Version: VERSION,
+		Statement: []StatementEntry{
+			{
+				Effect: "Allow",
+				Principal: &Principal{
+					Federated: core.IaCValue{
+						Resource: cluster,
+						Property: CLUSTER_OIDC_ARN_IAC_VALUE,
+					},
+				},
+				Action: []string{"sts:AssumeRoleWithWebIdentity"},
+				Condition: &Condition{
+					StringEquals: map[core.IaCValue]string{
+						{
+							Resource: cluster,
+							Property: CLUSTER_OIDC_URL_IAC_VALUE,
+						}: fmt.Sprintf("system:serviceaccount:default:%s", serviceAccountName), // TODO: Replace default with the namespace when we expose via configuration
 					},
 				},
 			},
@@ -705,4 +788,221 @@ func amiFromInstanceType(instanceType string) string {
 		}
 	}
 	return ""
+}
+
+func createAlbControllerPolicy(clusterName string, ref core.AnnotationKey) *IamPolicy {
+	policy := NewIamPolicy(clusterName, "alb-controller", ref, CreateAllowPolicyDocument([]string{
+		"ec2:DescribeAccountAttributes",
+		"ec2:DescribeAddresses",
+		"ec2:DescribeAvailabilityZones",
+		"ec2:DescribeInternetGateways",
+		"ec2:DescribeVpcs",
+		"ec2:DescribeVpcPeeringConnections",
+		"ec2:DescribeSubnets",
+		"ec2:DescribeSecurityGroups",
+		"ec2:DescribeInstances",
+		"ec2:DescribeNetworkInterfaces",
+		"ec2:DescribeTags",
+		"ec2:GetCoipPoolUsage",
+		"ec2:DescribeCoipPools",
+		"elasticloadbalancing:DescribeLoadBalancers",
+		"elasticloadbalancing:DescribeLoadBalancerAttributes",
+		"elasticloadbalancing:DescribeListeners",
+		"elasticloadbalancing:DescribeListenerCertificates",
+		"elasticloadbalancing:DescribeSSLPolicies",
+		"elasticloadbalancing:DescribeRules",
+		"elasticloadbalancing:DescribeTargetGroups",
+		"elasticloadbalancing:DescribeTargetGroupAttributes",
+		"elasticloadbalancing:DescribeTargetHealth",
+		"elasticloadbalancing:DescribeTags",
+		"elasticloadbalancing:CreateListener",
+		"elasticloadbalancing:DeleteListener",
+		"elasticloadbalancing:CreateRule",
+		"elasticloadbalancing:DeleteRule",
+	},
+		[]core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}},
+	))
+	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
+		Effect: "Allow",
+		Action: []string{
+			"cognito-idp:DescribeUserPoolClient",
+			"acm:ListCertificates",
+			"acm:DescribeCertificate",
+			"iam:ListServerCertificates",
+			"iam:GetServerCertificate",
+			"waf-regional:GetWebACL",
+			"waf-regional:GetWebACLForResource",
+			"waf-regional:AssociateWebACL",
+			"waf-regional:DisassociateWebACL",
+			"wafv2:GetWebACL",
+			"wafv2:GetWebACLForResource",
+			"wafv2:AssociateWebACL",
+			"wafv2:DisassociateWebACL",
+			"shield:GetSubscriptionState",
+			"shield:DescribeProtection",
+			"shield:CreateProtection",
+			"shield:DeleteProtection",
+		},
+		Resource: []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}},
+	})
+	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
+		Effect: "Allow",
+		Action: []string{
+			"iam:CreateServiceLinkedRole",
+		},
+		Resource: []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}},
+		Condition: &Condition{StringEquals: map[core.IaCValue]string{
+			core.IaCValue{Property: "iam:AWSServiceName"}: "elasticloadbalancing.amazonaws.com",
+		}},
+	})
+	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
+		Effect: "Allow",
+		Action: []string{
+			"ec2:AuthorizeSecurityGroupIngress",
+			"ec2:RevokeSecurityGroupIngress",
+		},
+		Resource: []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}},
+	})
+	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
+		Effect: "Allow",
+		Action: []string{
+			"ec2:CreateSecurityGroup",
+		},
+		Resource: []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}},
+	})
+	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
+		Effect: "Allow",
+		Action: []string{
+			"ec2:CreateTags",
+		},
+		Resource: []core.IaCValue{{Property: "arn:aws:ec2:*:*:security-group/*"}},
+		Condition: &Condition{
+			StringEquals: map[core.IaCValue]string{
+				core.IaCValue{Property: "ec2:CreateAction"}: "CreateSecurityGroup",
+			},
+			Null: map[core.IaCValue]string{
+				core.IaCValue{Property: "aws:RequestTag/elbv2.k8s.aws/cluster"}: "false",
+			},
+		},
+	})
+	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
+		Effect: "Allow",
+		Action: []string{
+			"ec2:CreateTags",
+			"ec2:DeleteTags",
+		},
+		Resource: []core.IaCValue{{Property: "arn:aws:ec2:*:*:security-group/*"}},
+		Condition: &Condition{
+			StringEquals: map[core.IaCValue]string{
+				core.IaCValue{Property: "ec2:CreateAction"}: "CreateSecurityGroup",
+			},
+			Null: map[core.IaCValue]string{
+				core.IaCValue{Property: "aws:RequestTag/elbv2.k8s.aws/cluster"}:  "true",
+				core.IaCValue{Property: "aws:ResourceTag/elbv2.k8s.aws/cluster"}: "false",
+			},
+		},
+	})
+	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
+		Effect: "Allow",
+		Action: []string{
+			"ec2:AuthorizeSecurityGroupIngress",
+			"ec2:RevokeSecurityGroupIngress",
+			"ec2:DeleteSecurityGroup",
+		},
+		Resource: []core.IaCValue{{Property: "arn:aws:ec2:*:*:security-group/*"}},
+		Condition: &Condition{
+			Null: map[core.IaCValue]string{
+				core.IaCValue{Property: "aws:ResourceTag/elbv2.k8s.aws/cluster"}: "false",
+			},
+		},
+	})
+	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
+		Effect: "Allow",
+		Action: []string{
+			"elasticloadbalancing:CreateLoadBalancer",
+			"elasticloadbalancing:CreateTargetGroup",
+		},
+		Resource: []core.IaCValue{{Property: "arn:aws:ec2:*:*:security-group/*"}},
+		Condition: &Condition{
+			Null: map[core.IaCValue]string{
+				core.IaCValue{Property: "aws:RequestTag/elbv2.k8s.aws/cluster"}: "false",
+			},
+		},
+	})
+	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
+		Effect: "Allow",
+		Action: []string{
+			"elasticloadbalancing:AddTags",
+			"elasticloadbalancing:RemoveTags",
+		},
+		Resource: []core.IaCValue{
+			{Property: "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*"},
+			{Property: "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*"},
+			{Property: "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"},
+		},
+		Condition: &Condition{
+			Null: map[core.IaCValue]string{
+				core.IaCValue{Property: "aws:RequestTag/elbv2.k8s.aws/cluster"}:  "true",
+				core.IaCValue{Property: "aws:ResourceTag/elbv2.k8s.aws/cluster"}: "false",
+			},
+		},
+	})
+	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
+		Effect: "Allow",
+		Action: []string{
+			"elasticloadbalancing:AddTags",
+			"elasticloadbalancing:RemoveTags",
+		},
+		Resource: []core.IaCValue{
+			{Property: "arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*"},
+			{Property: "arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*"},
+			{Property: "arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*"},
+			{Property: "arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*"},
+		},
+	})
+	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
+		Effect: "Allow",
+		Action: []string{
+			"elasticloadbalancing:ModifyLoadBalancerAttributes",
+			"elasticloadbalancing:SetIpAddressType",
+			"elasticloadbalancing:SetSecurityGroups",
+			"elasticloadbalancing:SetSubnets",
+			"elasticloadbalancing:DeleteLoadBalancer",
+			"elasticloadbalancing:ModifyTargetGroup",
+			"elasticloadbalancing:ModifyTargetGroupAttributes",
+			"elasticloadbalancing:DeleteTargetGroup",
+		},
+		Resource: []core.IaCValue{
+			{Property: core.ALL_RESOURCES_IAC_VALUE},
+		},
+		Condition: &Condition{
+			Null: map[core.IaCValue]string{
+				{Property: "aws:RequestTag/elbv2.k8s.aws/cluster"}: "false",
+			},
+		},
+	})
+	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
+		Effect: "Allow",
+		Action: []string{
+			"elasticloadbalancing:RegisterTargets",
+			"elasticloadbalancing:DeregisterTargets",
+		},
+		Resource: []core.IaCValue{
+			{Property: "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*"},
+		},
+	})
+	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
+		Effect: "Allow",
+		Action: []string{
+			"elasticloadbalancing:SetWebAcl",
+			"elasticloadbalancing:ModifyListener",
+			"elasticloadbalancing:AddListenerCertificates",
+			"elasticloadbalancing:RemoveListenerCertificates",
+			"elasticloadbalancing:ModifyRule",
+		},
+		Resource: []core.IaCValue{
+			{Property: core.ALL_RESOURCES_IAC_VALUE},
+		},
+	})
+	return policy
 }
