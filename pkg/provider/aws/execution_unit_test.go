@@ -232,6 +232,7 @@ func Test_handleExecUnitProxy(t *testing.T) {
 		constructs              []core.Construct
 		dependencies            []graph.Edge[string]
 		constructIdToResourceId map[string][]core.Resource
+		existingResources       []core.Resource
 		config                  config.Application
 		want                    coretesting.ResourcesExpectation
 		wantErr                 bool
@@ -273,15 +274,20 @@ func Test_handleExecUnitProxy(t *testing.T) {
 				{Source: unit1.Id(), Destination: unit2.Id()},
 				{Source: unit2.Id(), Destination: unit1.Id()},
 			},
-			config: config.Application{AppName: "test", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: kubernetes.KubernetesType}}},
+			config:            config.Application{AppName: "test", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: kubernetes.KubernetesType}}},
+			existingResources: []core.Resource{&resources.EksCluster{Name: "cluster", ConstructsRef: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey}}},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:iam_policy:test-test",
 					"aws:private_dns_namespace:test",
 					"aws:vpc:test",
+					"aws:eks_cluster:cluster",
+					"kubernetes:kustomize_directory:cluster-cloudmap-controller",
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:private_dns_namespace:test", Destination: "aws:vpc:test"},
+					{Source: "aws:eks_cluster:cluster", Destination: "aws:private_dns_namespace:test"},
+					{Source: "kubernetes:kustomize_directory:cluster-cloudmap-controller", Destination: "aws:eks_cluster:cluster"},
 				},
 			},
 		},
@@ -313,6 +319,9 @@ func Test_handleExecUnitProxy(t *testing.T) {
 						_ = aws.PolicyGenerator.AddUnitRole(id, role)
 					}
 				}
+			}
+			for _, res := range tt.existingResources {
+				dag.AddDependenciesReflect(res)
 			}
 
 			err := aws.handleExecUnitProxy(result, dag)

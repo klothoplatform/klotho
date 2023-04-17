@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"reflect"
 	"strings"
 
 	"go.uber.org/zap"
@@ -13,6 +14,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -88,12 +90,13 @@ var eksManifests embed.FS
 type (
 	//Todo: Add SecurityGroups when they are available
 	EksCluster struct {
-		Name          string
-		ConstructsRef []core.AnnotationKey
-		ClusterRole   *IamRole
-		Subnets       []*Subnet
-		Manifests     []core.File
-		Kubeconfig    *kubernetes.Kubeconfig
+		Name           string
+		ConstructsRef  []core.AnnotationKey
+		ClusterRole    *IamRole
+		Subnets        []*Subnet
+		SecurityGroups []*SecurityGroup
+		Manifests      []core.File
+		Kubeconfig     *kubernetes.Kubeconfig
 	}
 
 	EksFargateProfile struct {
@@ -131,7 +134,7 @@ type (
 //
 // The method will also create a fargate profile in the default namespace and a single NodeGroup.
 // The method will create all the corresponding IAM Roles necessary and attach all the execution units references to the following objects
-func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Subnet, securityGroups []*any, units []*core.ExecutionUnit, dag *core.ResourceGraph) error {
+func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Subnet, securityGroups []*SecurityGroup, units []*core.ExecutionUnit, dag *core.ResourceGraph) error {
 	references := []core.AnnotationKey{}
 	for _, u := range units {
 		references = append(references, u.Provenance())
@@ -164,7 +167,6 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
 	dag.AddDependenciesReflect(profile)
 
-	// Find the region a
 	var region *Region
 	region, err = findClusterRegion(dag, cluster)
 	if err != nil {
@@ -334,6 +336,10 @@ func (cluster *EksCluster) createFargateLogging(references []core.AnnotationKey,
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "aws-observability-ns"),
 		ConstructRefs: references,
 		FilePath:      namespaceOutputPath,
+		ClustersProvider: core.IaCValue{
+			Resource: cluster,
+			Property: CLUSTER_PROVIDER_IAC_VALUE,
+		},
 	}
 	dag.AddResource(namespace)
 	dag.AddDependency(namespace, cluster)
@@ -348,6 +354,10 @@ func (cluster *EksCluster) createFargateLogging(references []core.AnnotationKey,
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "aws-observability-config-map"),
 		ConstructRefs: references,
 		FilePath:      configMapOutputPath,
+		ClustersProvider: core.IaCValue{
+			Resource: cluster,
+			Property: CLUSTER_PROVIDER_IAC_VALUE,
+		},
 	}
 	dag.AddResource(configMap)
 	dag.AddDependency(configMap, cluster)
@@ -366,6 +376,10 @@ func (cluster *EksCluster) installFluentBit(references []core.AnnotationKey, dag
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "awmazon-cloudwatch-ns"),
 		ConstructRefs: references,
 		FilePath:      namespaceOutputPath,
+		ClustersProvider: core.IaCValue{
+			Resource: cluster,
+			Property: CLUSTER_PROVIDER_IAC_VALUE,
+		},
 	}
 	dag.AddResource(namespace)
 	dag.AddDependency(namespace, cluster)
@@ -385,6 +399,10 @@ func (cluster *EksCluster) installFluentBit(references []core.AnnotationKey, dag
 			`data["cluster.name"]`: {Resource: cluster, Property: NAME_IAC_VALUE},
 			`data["logs.region"]`:  {Resource: region, Property: NAME_IAC_VALUE},
 		},
+		ClustersProvider: core.IaCValue{
+			Resource: cluster,
+			Property: CLUSTER_PROVIDER_IAC_VALUE,
+		},
 	}
 	dag.AddResource(configMap)
 	dag.AddDependency(configMap, cluster)
@@ -400,6 +418,44 @@ func (cluster *EksCluster) installFluentBit(references []core.AnnotationKey, dag
 	dag.AddDependency(fluentBitOptimized, cluster)
 	dag.AddDependency(fluentBitOptimized, configMap)
 	return nil
+}
+
+func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag *core.ResourceGraph) error {
+	cloudMapController := &kubernetes.KustomizeDirectory{
+		Name:          fmt.Sprintf("%s-cloudmap-controller", cluster.Name),
+		ConstructRefs: []core.AnnotationKey{ref},
+		Directory:     "https://github.com/aws/aws-cloud-map-mcs-controller-for-k8s/config/controller_install_release",
+		ClustersProvider: core.IaCValue{
+			Resource: cluster,
+			Property: CLUSTER_PROVIDER_IAC_VALUE,
+		},
+	}
+	if controller := dag.GetResource(cloudMapController.Id()); controller != nil {
+		if cm, ok := controller.(*kubernetes.KustomizeDirectory); ok {
+			cloudMapController = cm
+			cm.ConstructRefs = append(cm.ConstructRefs, ref)
+		} else {
+			return errors.Errorf("Expected resource with id, %s, to be of type HelmChart, but was %s",
+				controller.Id(), reflect.ValueOf(controller).Type().Name())
+		}
+	} else {
+		dag.AddDependenciesReflect(cloudMapController)
+	}
+
+	for _, nodeGroup := range cluster.getClustersNodeGroups(dag) {
+		dag.AddDependency(cloudMapController, nodeGroup)
+	}
+	return nil
+}
+
+func (cluster *EksCluster) getClustersNodeGroups(dag *core.ResourceGraph) []*EksNodeGroup {
+	nodeGroups := []*EksNodeGroup{}
+	for _, res := range dag.GetAllUpstreamResources(cluster) {
+		if nodeGroup, ok := res.(*EksNodeGroup); ok {
+			nodeGroups = append(nodeGroups, nodeGroup)
+		}
+	}
+	return nodeGroups
 }
 
 func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeconfig {
@@ -498,18 +554,19 @@ func createNodeRole(appName string, roleName string, refs []core.AnnotationKey) 
 	nodeRole.AddAwsManagedPolicies([]string{
 		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
 		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
-		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy", "arn:aws:iam::aws:policy/AWSCloudMapFullAccess",
+		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
+		"arn:aws:iam::aws:policy/AWSCloudMapFullAccess",
 		"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
 	})
 	return nodeRole
 }
 
-func NewEksCluster(appName string, clusterName string, subnets []*Subnet, securityGroups []*any, role *IamRole) *EksCluster {
+func NewEksCluster(appName string, clusterName string, subnets []*Subnet, securityGroups []*SecurityGroup, role *IamRole) *EksCluster {
 	return &EksCluster{
-		Name:    clusterSanitizer.Apply(fmt.Sprintf("%s-%s", appName, clusterName)),
-		Subnets: subnets,
-		// SecurityGroups: securityGroups,
-		ClusterRole: role,
+		Name:           clusterSanitizer.Apply(fmt.Sprintf("%s-%s", appName, clusterName)),
+		Subnets:        subnets,
+		SecurityGroups: securityGroups,
+		ClusterRole:    role,
 	}
 }
 

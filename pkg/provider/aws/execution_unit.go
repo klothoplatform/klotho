@@ -220,6 +220,15 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 						dag.AddDependenciesReflect(policy)
 					}
 					a.PolicyGenerator.AddAllowPolicyToUnit(unit.ID, policy)
+
+					cluster, err := findUnitsCluster(targetUnit, dag)
+					if err != nil {
+						return err
+					}
+					err = cluster.InstallCloudMapController(targetUnit.AnnotationKey, dag)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -227,6 +236,19 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 	}
 
 	return nil
+}
+
+func findUnitsCluster(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*resources.EksCluster, error) {
+	for _, res := range dag.ListResources() {
+		if r, ok := res.(*resources.EksCluster); ok {
+			for _, ref := range r.ConstructsRef {
+				if ref == unit.Provenance() {
+					return r, nil
+				}
+			}
+		}
+	}
+	return nil, fmt.Errorf("EksCluster not found for unit with id, %s", unit.ID)
 }
 
 // convertExecUnitParams transforms the execution units environment variables to a map of key names and their corresponding core.IaCValue struct.
