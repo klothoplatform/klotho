@@ -149,6 +149,15 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 		dag.AddDependenciesReflect(integration)
 		return integration, nil
 	case kubernetes.KubernetesType:
+
+		cluster, err := findUnitsCluster(unit, dag)
+		if err != nil {
+			return nil, err
+		}
+		err = cluster.InstallAlbController([]core.AnnotationKey{unit.AnnotationKey}, dag)
+		if err != nil {
+			return nil, err
+		}
 		nlb := dag.GetResource(resources.NewLoadBalancer(a.Config.AppName, unit.ID, nil, "internal", "network", nil, nil).Id())
 		if nlb == nil {
 			return nil, errors.Errorf("No nlb created for unit %s", unit.ID)

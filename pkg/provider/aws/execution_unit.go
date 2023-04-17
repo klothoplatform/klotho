@@ -73,29 +73,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 		if cluster == nil {
 			return errors.Errorf("Expected to have cluster created for unit, %s, but did not find cluster in graph", unit.ID)
 		}
-		role.AssumeRolePolicyDoc = &resources.PolicyDocument{
-			Version: resources.VERSION,
-			Statement: []resources.StatementEntry{
-				{
-					Effect: "Allow",
-					Principal: &resources.Principal{
-						Federated: core.IaCValue{
-							Resource: cluster,
-							Property: resources.CLUSTER_OIDC_ARN_IAC_VALUE,
-						},
-					},
-					Action: []string{"sts:AssumeRoleWithWebIdentity"},
-					Condition: &resources.Condition{
-						StringEquals: map[core.IaCValue]string{
-							{
-								Resource: cluster,
-								Property: resources.CLUSTER_OIDC_URL_IAC_VALUE,
-							}: fmt.Sprintf("system:serviceaccount:default:%s", unit.ID), // TODO: Replace default with the namespace when we expose via configuration
-						},
-					},
-				},
-			},
-		}
+		role.AssumeRolePolicyDoc = cluster.GetServiceAccountAssumeRolePolicy(unit.ID)
 		// transform kubernetes resources for EKS
 		for _, res := range dag.ListResources() {
 			if khChart, ok := res.(*kubernetes.HelmChart); ok {

@@ -400,7 +400,14 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 			if err != nil {
 				return output, nil
 			}
-			buf.WriteString(output)
+			// Pulumi requires the conditional fields of policy document to have its keys wrapped in [] so we need special handling here
+			if resourceVal.Type() == reflect.TypeOf((*resources.PolicyDocument)(nil)).Elem() && childVal.Type() == reflect.TypeOf((map[core.IaCValue]string)(nil)) {
+				buf.WriteString("[")
+				buf.WriteString(output)
+				buf.WriteString("]")
+			} else {
+				buf.WriteString(output)
+			}
 			buf.WriteRune(':')
 			output, err = tc.resolveStructInput(resourceVal, childVal.MapIndex(key), false, appliedOutputs)
 			if err != nil {
@@ -444,6 +451,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf("%s.arn", tc.getVarName(v.Resource)), nil
 	case resources.NAME_IAC_VALUE:
 		return fmt.Sprintf("%s.name", tc.getVarName(v.Resource)), nil
+	case resources.ID_IAC_VALUE:
+		return fmt.Sprintf("%s.id", tc.getVarName(v.Resource)), nil
 	case resources.ALL_BUCKET_DIRECTORY_IAC_VALUE:
 		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/*`", tc.getVarName(v.Resource)), nil
 	case resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE,
@@ -511,7 +520,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 			appliedName: fmt.Sprintf("%s.openIdConnectIssuerUrl", tc.getVarName(v.Resource)),
 			varName:     varName,
 		})
-		return fmt.Sprintf("[`${%s}:sub`]", varName), nil
+		return fmt.Sprintf("`${%s}:sub`", varName), nil
 	case resources.CLUSTER_CA_DATA_IAC_VALUE:
 		return fmt.Sprintf("%s.certificateAuthorityData", tc.getVarName(v.Resource)), nil
 	case resources.CLUSTER_ENDPOINT_IAC_VALUE:
