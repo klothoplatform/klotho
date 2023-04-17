@@ -106,11 +106,11 @@ func ParseResourceCreationTemplate(name string, contents []byte) ResourceCreatio
 	result.OutputType = create["return_type"].Content()
 	var expressionBody string
 	if result.OutputType == "void" {
-		expressionBody = create["body"].Content()
+		expressionBody = bodyContents(create["body"])
 	} else {
 		body, found := doQuery(create["body"], findReturn)()
 		if !found {
-			panic(errors.Errorf("No 'return' found in body in %s", name))
+			panic(errors.Errorf("No 'return' found in %s body : `%s`", name, create["body"].Content()))
 		}
 		expressionBody = body["return_body"].Content()
 	}
@@ -222,4 +222,19 @@ func deduplicateAppliedOutputs(outputs []AppliedOutput) ([]AppliedOutput, error)
 		}
 	}
 	return uniqueList, nil
+}
+
+func bodyContents(node *sitter.Node) string {
+	if node.ChildCount() == 0 || node.Child(0).Content() != "{" {
+		return node.Content()
+	}
+	var buf strings.Builder
+	buf.Grow(len(node.Content()))
+	for i := 0; i < int(node.NamedChildCount()); i++ {
+		if i > 0 {
+			buf.WriteRune('\n')
+		}
+		buf.WriteString(node.NamedChild(i).Content())
+	}
+	return strings.TrimSuffix(buf.String(), ";")
 }

@@ -406,7 +406,7 @@ var dummyTemplateFiles = map[string]string{
 		interface Args {}
 
 		function create(args: Args): void {
-			return fs.ReadFile();
+			fs.ReadFile();
 		}`,
 
 	`dummy_big/nested_template.ts.tmpl`: `
