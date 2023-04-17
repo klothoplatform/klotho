@@ -24,7 +24,7 @@ func NewLogGroup(appName string, logGroupName string, ref core.AnnotationKey, re
 	return &LogGroup{
 		Name:            logGroupSanitizer.Apply(fmt.Sprintf("%s-%s", appName, logGroupName)),
 		ConstructsRef:   []core.AnnotationKey{ref},
-		LogGroupName:    logGroupName,
+		LogGroupName:    logGroupSanitizer.Apply(logGroupName),
 		RetentionInDays: retention,
 	}
 }

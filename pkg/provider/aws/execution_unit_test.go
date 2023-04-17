@@ -69,7 +69,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					"aws:iam_policy:policy2",
 					"aws:iam_role:test-test-ExecutionRole",
 					"aws:lambda_function:test_test",
-					"aws:log_group:test_awslambdatest_test",
+					"aws:log_group:test-/aws/lambda/test_test",
 					"aws:s3_bucket:test-test",
 				},
 				Deps: []graph.Edge[string]{
@@ -79,7 +79,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:s3_bucket:test-test"},
 					{Source: "aws:lambda_function:test_test", Destination: "aws:ecr_image:test-test"},
 					{Source: "aws:lambda_function:test_test", Destination: "aws:iam_role:test-test-ExecutionRole"},
-					{Source: "aws:lambda_function:test_test", Destination: "aws:log_group:test_awslambdatest_test"},
+					{Source: "aws:lambda_function:test_test", Destination: "aws:log_group:test-/aws/lambda/test_test"},
 				},
 			},
 		},

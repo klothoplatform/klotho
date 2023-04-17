@@ -58,7 +58,6 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 			vpc := resources.GetVpc(a.Config, dag)
 			lambdaFunction.Subnets = vpc.GetPrivateSubnets(dag)
 			lambdaFunction.SecurityGroups = vpc.GetSecurityGroups(dag)
-			lambdaFunction.Vpc = vpc
 		}
 		dag.AddDependenciesReflect(lambdaFunction)
 		a.MapResourceDirectlyToConstruct(lambdaFunction, unit)

@@ -243,7 +243,7 @@ func handleIncomingEdges[V Identifiable, O any](d *Directed[V], to V, generate f
 	for _, v := range fullAdjacency {
 		for _, edge := range v {
 			if edge.Target != to.Id() {
-				// zap.S().Debugf(`Ignoring unexpected edge target from %v`, edge)
+				zap.S().Debugf(`Ignoring unexpected edge target from %v`, edge)
 				continue
 			}
 			if toV, err := d.underlying.Vertex(edge.Source); err == nil {
