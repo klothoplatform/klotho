@@ -22,6 +22,7 @@ const (
 	EKS_FARGATE_PROFILE_TYPE = "eks_fargate_profile"
 	EKS_NODE_GROUP_TYPE      = "eks_node_group"
 	DEFAULT_CLUSTER_NAME     = "eks-cluster"
+	EKS_ADDON_TYPE           = "eks_addon"
 
 	CLUSTER_OIDC_URL_IAC_VALUE = "cluster_oidc_url"
 	CLUSTER_OIDC_ARN_IAC_VALUE = "cluster_oidc_arn"
@@ -88,7 +89,6 @@ var EKS_AMI_INSTANCE_PREFIX_MAP = map[string][]string{
 var eksManifests embed.FS
 
 type (
-	//Todo: Add SecurityGroups when they are available
 	EksCluster struct {
 		Name           string
 		ConstructsRef  []core.AnnotationKey
@@ -128,6 +128,13 @@ type (
 		InstanceTypes  []string
 		Labels         map[string]string
 	}
+
+	EksAddon struct {
+		Name          string
+		ConstructsRef []core.AnnotationKey
+		AddonName     string
+		ClusterName   core.IaCValue
+	}
 )
 
 // CreateEksCluster will create a cluster in the subnets provided, with the attached additional security groups
@@ -151,6 +158,8 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 
 	nodeGroups := createNodeGroups(cfg, dag, units, clusterName, cluster, subnets)
 
+	cluster.installVpcCniAddon(references, dag)
+
 	err := cluster.createFargateLogging(references, dag)
 	if err != nil {
 		zap.S().Warnf("Unable to set up Fargate logging manifests for cluster %s: %s", clusterName, err.Error())
@@ -158,6 +167,13 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	err = cluster.installFluentBit(references, dag)
 	if err != nil {
 		zap.S().Warnf("Unable to set up fluent bit manifests for cluster %s: %s", clusterName, err.Error())
+	}
+
+	for _, ng := range cluster.getClustersNodeGroups(dag) {
+		if strings.HasSuffix(strings.ToLower(ng.AmiType), "_gpu") {
+			cluster.installNvidiaDevicePlugin(dag)
+			break
+		}
 	}
 
 	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
@@ -326,6 +342,25 @@ func (cluster *EksCluster) GetOutputFiles() []core.File {
 	return cluster.Manifests
 }
 
+func (cluster *EksCluster) installNvidiaDevicePlugin(dag *core.ResourceGraph) {
+	manifest := &kubernetes.Manifest{
+		Name:     fmt.Sprintf("%s-%s", cluster.Name, "nvidia-device-plugin"),
+		FilePath: "https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.10/nvidia-device-plugin.yml",
+		ClustersProvider: core.IaCValue{
+			Resource: cluster,
+			Property: CLUSTER_PROVIDER_IAC_VALUE,
+		},
+	}
+	dag.AddDependenciesReflect(manifest)
+
+	for _, ng := range cluster.getClustersNodeGroups(dag) {
+		dag.AddDependency(manifest, ng)
+		if strings.HasSuffix(strings.ToLower(ng.AmiType), "_gpu") {
+			manifest.ConstructRefs = append(manifest.ConstructRefs, ng.ConstructsRef...)
+		}
+	}
+}
+
 func (cluster *EksCluster) createFargateLogging(references []core.AnnotationKey, dag *core.ResourceGraph) error {
 	namespaceOutputPath := path.Join(MANIFEST_PATH_PREFIX, AWS_OBSERVABILITY_NS_PATH)
 	content, err := fs.ReadFile(eksManifests, namespaceOutputPath)
@@ -413,6 +448,10 @@ func (cluster *EksCluster) installFluentBit(references []core.AnnotationKey, dag
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "fluent-bit"),
 		ConstructRefs: references,
 		FilePath:      "https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/fluent-bit/fluent-bit.yaml",
+		ClustersProvider: core.IaCValue{
+			Resource: cluster,
+			Property: CLUSTER_PROVIDER_IAC_VALUE,
+		},
 	}
 	dag.AddResource(configMap)
 	dag.AddDependency(fluentBitOptimized, cluster)
@@ -446,6 +485,21 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 		dag.AddDependency(cloudMapController, nodeGroup)
 	}
 	return nil
+}
+
+func (cluster *EksCluster) installVpcCniAddon(references []core.AnnotationKey, dag *core.ResourceGraph) {
+	addonName := "vpc-cni"
+	addon := &EksAddon{
+		Name:          fmt.Sprintf("%s-addon-%s", cluster.Name, addonName),
+		ConstructsRef: references,
+		AddonName:     addonName,
+		ClusterName: core.IaCValue{
+			Resource: cluster,
+			Property: NAME_IAC_VALUE,
+		},
+	}
+	dag.AddResource(addon)
+	dag.AddDependenciesReflect(addon)
 }
 
 func (cluster *EksCluster) getClustersNodeGroups(dag *core.ResourceGraph) []*EksNodeGroup {
@@ -575,14 +629,29 @@ func (cluster *EksCluster) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (cluster *EksCluster) KlothoConstructRef() []core.AnnotationKey {
 	return cluster.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (cluster *EksCluster) Id() string {
 	return fmt.Sprintf("%s:%s:%s", cluster.Provider(), EKS_CLUSTER_TYPE, cluster.Name)
+}
+
+// Provider returns name of the provider the resource is correlated to
+func (addon *EksAddon) Provider() string {
+	return AWS_PROVIDER
+}
+
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (addon *EksAddon) KlothoConstructRef() []core.AnnotationKey {
+	return addon.ConstructsRef
+}
+
+// Id returns the id of the cloud resource
+func (addon *EksAddon) Id() string {
+	return fmt.Sprintf("%s:%s:%s", addon.Provider(), EKS_ADDON_TYPE, addon.Name)
 }
 
 func NewEksFargateProfile(cluster *EksCluster, subnets []*Subnet, nodeRole *IamRole, ref []core.AnnotationKey) *EksFargateProfile {
