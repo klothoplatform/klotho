@@ -24,4 +24,4 @@ var ApiResourceSanitizer = sanitization.NewSanitizer(
 			Pattern:     regexp.MustCompile(`[^a-zA-Z0-9\/_-]+`),
 			Replacement: "-",
 		},
-	}, 64)
+	}, 0)

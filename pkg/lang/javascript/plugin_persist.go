@@ -329,7 +329,7 @@ func (p *persister) transformRedis(unit *core.ExecutionUnit, file *core.SourceFi
 		}
 		importName = "redis_cluster"
 	case *core.RedisNode:
-		result = &core.RedisCluster{
+		result = &core.RedisNode{
 			AnnotationKey: core.AnnotationKey{
 				Capability: cap.Capability.Name,
 				ID:         cap.Capability.ID,
