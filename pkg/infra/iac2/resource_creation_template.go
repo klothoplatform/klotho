@@ -51,7 +51,7 @@ var (
 
 	parameterizeArgsRegex = regexp.MustCompile(`\bargs(\.\w+)`)
 	curlyEscapes          = regexp.MustCompile(`({+)(args\.)`)
-	templateComments      = regexp.MustCompile(`//*TMPL\s+(.*)`)
+	templateComments      = regexp.MustCompile(`//*TMPL\s+`)
 
 	//go:embed find_args.scm
 	findArgsQuery string
@@ -61,6 +61,9 @@ var (
 
 	//go:embed find_imports.scm
 	findImportsQuery string
+
+	//go:embed find_return.scm
+	findReturn string
 )
 
 // ParseResourceCreationTemplate parses TypeScript file into a ResourceCreationTemplate, which TemplatesCompiler
@@ -98,10 +101,20 @@ func ParseResourceCreationTemplate(name string, contents []byte) ResourceCreatio
 	create, found := createFunc()
 	if !found {
 		// unexpected, since all inputs are from resources in the klotho binary
-		panic("couldn't find valid create() function")
+		panic("couldn't find valid create() function in " + node.String() + "\n" + node.Content())
 	}
 	result.OutputType = create["return_type"].Content()
-	result.ExpressionTemplate = parameterizeArgs(create["return_body"].Content())
+	var expressionBody string
+	if result.OutputType == "void" {
+		expressionBody = create["body"].Content()
+	} else {
+		body, found := doQuery(create["body"], findReturn)()
+		if !found {
+			panic(errors.Errorf("No 'return' found in body in %s", name))
+		}
+		expressionBody = body["return_body"].Content()
+	}
+	result.ExpressionTemplate = parameterizeArgs(expressionBody)
 
 	// imports
 	result.Imports = make(map[string]struct{})
@@ -132,8 +145,8 @@ func parameterizeArgs(contents string) string {
 	// invalid go-template. So, we first turn "{args." into "{{`{`}}args.", which will eventually result in
 	// "{{`{`}}{{.Foo}}" — which, while ugly, will result in the correct template execution.
 	contents = curlyEscapes.ReplaceAllString(contents, "{{`$1`}}$2")
-	contents = templateComments.ReplaceAllString(contents, "$1")
 	contents = parameterizeArgsRegex.ReplaceAllString(contents, `{{parseTS $1}}`)
+	contents = templateComments.ReplaceAllString(contents, "")
 	return contents
 }
 

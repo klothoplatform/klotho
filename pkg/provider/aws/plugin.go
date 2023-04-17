@@ -55,6 +55,8 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 			merr.Append(a.GenerateOrmResources(construct, result, dag))
 		case *core.InternalResource:
 			merr.Append(a.GenerateFsResources(construct, result, dag))
+		case *core.Config:
+			merr.Append(a.GenerateConfigResources(construct, result, dag))
 		default:
 			// TODO convert to error once migration to ifc2 is complete
 			log.Warnf("Unsupported resource %s", construct.Id())

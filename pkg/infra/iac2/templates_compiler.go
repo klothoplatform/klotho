@@ -445,6 +445,9 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf("%s.names[%s]", tc.getVarName(v.Resource), v.Property), nil
 	}
 	switch property {
+	case string(core.SECRET_NAME):
+		secret := resource.(*resources.Secret)
+		return secret.SecretName, nil
 	case string(core.BUCKET_NAME):
 		return fmt.Sprintf("%s.bucket", tc.getVarName(resource)), nil
 	case resources.ARN_IAC_VALUE:
@@ -571,7 +574,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf(`%s.cidrBlock`, tc.getVarName(resource)), nil
 	}
 
-	return "", errors.Errorf("unsupported IaC Value Property, %s", property)
+	return "", errors.Errorf("unsupported IaC Value Property %T.%s", resource, property)
 }
 
 func (tc TemplatesCompiler) handleSingleIaCValue(v core.IaCValue) (string, error) {
