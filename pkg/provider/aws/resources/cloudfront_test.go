@@ -40,7 +40,7 @@ func Test_CreateS3Origin(t *testing.T) {
 		Principal: &Principal{
 			AWS: core.IaCValue{
 				Resource: oai,
-				Property: ARN_IAC_VALUE,
+				Property: IAM_ARN_IAC_VALUE,
 			},
 		},
 		Action: []string{"s3:GetObject"},
@@ -62,6 +62,7 @@ func Test_CreateS3Origin(t *testing.T) {
 	assert.Equal(s3Origin.S3OriginConfig, S3OriginConfig{
 		OriginAccessIdentity: core.IaCValue{
 			Resource: oai,
+			Property: CLOUDFRONT_ACCESS_IDENTITY_PATH_IAC_VALUE,
 		},
 	})
 
