@@ -26,7 +26,7 @@ var LambdaFunctionSanitizer = sanitization.NewSanitizer(
 		},
 	}, 64)
 
-// EnvVarKeySanitizer returns a sanitized environment key when applied.
+// LambdaPermissionSanitizer returns a sanitized environment key when applied.
 var LambdaPermissionSanitizer = sanitization.NewSanitizer(
 	[]sanitization.Rule{
 		// strip any leading non alpha characters
@@ -44,4 +44,4 @@ var LambdaPermissionSanitizer = sanitization.NewSanitizer(
 			Pattern:     regexp.MustCompile(`[^a-zA-Z0-9_]+`),
 			Replacement: "",
 		},
-	}, 64)
+	}, 100)

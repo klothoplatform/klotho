@@ -319,7 +319,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 				return "", err
 			}
 			if tmpl != nil {
-				zap.S().Debugf("Rendering nested template %s, for resource %s", tmpl.Name, correspondingStruct.Type())
+				zap.S().Debugf("Rendering nested template %s, for resource %s", tmpl.Name(), correspondingStruct.Type())
 				output := bytes.NewBuffer([]byte{})
 				err = tmpl.Execute(output, childVal.Interface())
 				return output.String(), err
