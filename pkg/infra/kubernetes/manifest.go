@@ -96,21 +96,31 @@ func addHorizontalPodAutoscalerManifest(kch *HelmChart, unit *HelmExecUnit) erro
 }
 
 type ServiceAccountManifestData struct {
-	ExecUnitName string
-	Namespace    string
+	Name      string
+	Namespace string
+	IRSA      bool
 }
 
-func addServiceAccountManifest(kch *HelmChart, unit *HelmExecUnit) error {
+func GenerateServiceAccountManifest(name string, namespace string, irsa bool) ([]byte, error) {
 	data := ServiceAccountManifestData{
-		ExecUnitName: unit.Name,
-		Namespace:    unit.Namespace,
+		Name:      name,
+		Namespace: namespace,
+		IRSA:      irsa,
 	}
 	buf := new(bytes.Buffer)
 	err := serviceAccount.Execute(buf, data)
 	if err != nil {
-		return core.WrapErrf(err, "error executing template %s", serviceAccount.Name())
+		return nil, core.WrapErrf(err, "error executing template %s", serviceAccount.Name())
 	}
-	newF, err := yaml.NewFile(fmt.Sprintf("%s/templates/%s-serviceaccount.yaml", kch.Name, unit.Name), bytes.NewBuffer(buf.Bytes()))
+	return buf.Bytes(), nil
+}
+
+func addServiceAccountManifest(kch *HelmChart, unit *HelmExecUnit) error {
+	buf, err := GenerateServiceAccountManifest(unit.Name, unit.Namespace, false)
+	if err != nil {
+		return err
+	}
+	newF, err := yaml.NewFile(fmt.Sprintf("%s/templates/%s-serviceaccount.yaml", kch.Name, unit.Name), bytes.NewBuffer(buf))
 	if err != nil {
 		return core.WrapErrf(err, "error executing template %s", serviceAccount.Name())
 	}

@@ -26,6 +26,7 @@ func Test_CreateRestApi(t *testing.T) {
 		gw                     *core.Gateway
 		units                  []*core.ExecutionUnit
 		constructIdToResources map[string][]core.Resource
+		existingResources      []core.Resource
 		cfg                    config.Application
 		want                   coretesting.ResourcesExpectation
 		wantErr                bool
@@ -240,6 +241,13 @@ func Test_CreateRestApi(t *testing.T) {
 					resources.NewLoadBalancer(appName, unit2.ID, nil, "internal", "network", nil, nil),
 				},
 			},
+			existingResources: []core.Resource{
+				&resources.EksCluster{
+					Name:          "Cluster",
+					ConstructsRef: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey},
+					Subnets:       []*resources.Subnet{resources.NewSubnet("1", resources.NewVpc("test"), "", "", core.IaCValue{})},
+				},
+			},
 			cfg: config.Application{
 				AppName: appName,
 				Defaults: config.Defaults{
@@ -265,6 +273,13 @@ func Test_CreateRestApi(t *testing.T) {
 					"aws:rest_api:test-test",
 					"aws:vpc_link:aws:load_balancer:test-test",
 					"aws:vpc_link:aws:load_balancer:test-test2",
+					"aws:eks_cluster:Cluster",
+					"aws:iam_policy:Cluster-alb-controller",
+					"aws:iam_role:Cluster-alb-controller",
+					"aws:region:region",
+					"aws:vpc:test",
+					"kubernetes:helm_chart:Cluster-alb-controller",
+					"kubernetes:manifest:Cluster-alb-controller-service-account",
 				},
 				Deps: []graph.Edge[string]{
 					{Source: "aws:api_deployment:test-test", Destination: "aws:api_integration:test-test-GET"},
@@ -309,6 +324,13 @@ func Test_CreateRestApi(t *testing.T) {
 					{Source: "aws:api_stage:test-test-stage", Destination: "aws:rest_api:test-test"},
 					{Source: "aws:vpc_link:aws:load_balancer:test-test", Destination: "aws:load_balancer:test-test"},
 					{Source: "aws:vpc_link:aws:load_balancer:test-test2", Destination: "aws:load_balancer:test-test2"},
+					{Source: "aws:iam_role:Cluster-alb-controller", Destination: "aws:eks_cluster:Cluster"},
+					{Source: "aws:iam_role:Cluster-alb-controller", Destination: "aws:iam_policy:Cluster-alb-controller"},
+					{Source: "kubernetes:helm_chart:Cluster-alb-controller", Destination: "aws:eks_cluster:Cluster"},
+					{Source: "kubernetes:helm_chart:Cluster-alb-controller", Destination: "aws:region:region"},
+					{Source: "kubernetes:helm_chart:Cluster-alb-controller", Destination: "aws:vpc:test"},
+					{Source: "kubernetes:manifest:Cluster-alb-controller-service-account", Destination: "aws:eks_cluster:Cluster"},
+					{Source: "kubernetes:manifest:Cluster-alb-controller-service-account", Destination: "aws:iam_role:Cluster-alb-controller"},
 				},
 			},
 		},
@@ -326,6 +348,9 @@ func Test_CreateRestApi(t *testing.T) {
 				for _, res := range resources {
 					dag.AddResource(res)
 				}
+			}
+			for _, res := range tt.existingResources {
+				dag.AddResource(res)
 			}
 			result := core.NewConstructGraph()
 			result.AddConstruct(tt.gw)
