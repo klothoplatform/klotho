@@ -458,14 +458,14 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return "*", nil
 	case string(core.HOST):
 		switch resource.(type) {
-		case *resources.Elasticache:
+		case *resources.ElasticacheCluster:
 			return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].address`", tc.getVarName(resource)), nil
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
 	case string(core.PORT):
 		switch resource.(type) {
-		case *resources.Elasticache:
+		case *resources.ElasticacheCluster:
 			return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].port`", tc.getVarName(resource)), nil
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)

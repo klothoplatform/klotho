@@ -484,6 +484,7 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 	for _, nodeGroup := range cluster.getClustersNodeGroups(dag) {
 		dag.AddDependency(cloudMapController, nodeGroup)
 	}
+
 	return nil
 }
 

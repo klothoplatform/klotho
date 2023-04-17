@@ -5,16 +5,19 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
 type (
-	Elasticache struct {
+	ElasticacheCluster struct {
 		Name            string
 		Engine          string
 		CloudwatchGroup *LogGroup
 		SubnetGroup     *ElasticacheSubnetgroup
 		SecurityGroups  []*SecurityGroup
 		ConstructsRef   []core.AnnotationKey
+		NodeType        string
+		NumCacheNodes   int
 	}
 
 	ElasticacheSubnetgroup struct {
@@ -29,18 +32,22 @@ const (
 	ECSN_TYPE = "elasticache_subnetgroup"
 )
 
+var (
+	elasticacheClusterSanitizer = aws.ElasticacheClusterSanitizer
+)
+
 // Provider returns name of the provider the resource is correlated to
-func (ec *Elasticache) Provider() string {
+func (ec *ElasticacheCluster) Provider() string {
 	return AWS_PROVIDER
 }
 
 // KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ec *Elasticache) KlothoConstructRef() []core.AnnotationKey {
+func (ec *ElasticacheCluster) KlothoConstructRef() []core.AnnotationKey {
 	return ec.ConstructsRef
 }
 
 // ID returns the id of the cloud resource
-func (ec *Elasticache) Id() string {
+func (ec *ElasticacheCluster) Id() string {
 	return fmt.Sprintf("%s:%s:%s", ec.Provider(), EC_TYPE, ec.Name)
 }
 
@@ -59,18 +66,20 @@ func (ecsn *ElasticacheSubnetgroup) Id() string {
 	return fmt.Sprintf("%s:%s:%s", ecsn.Provider(), ECSN_TYPE, ecsn.Name)
 }
 
-func CreateElasticache(cfg *config.Application, dag *core.ResourceGraph, source core.Construct) *Elasticache {
-	ec := &Elasticache{
-		Name:            source.Id(),
+func CreateElasticache(cfg *config.Application, dag *core.ResourceGraph, source core.Construct) *ElasticacheCluster {
+	ec := &ElasticacheCluster{
+		Name:            elasticacheClusterSanitizer.Apply(fmt.Sprintf("%s-%s", cfg.AppName, source.Provenance().ID)),
 		Engine:          "redis", // TODO determine this from the type of `source`
 		CloudwatchGroup: NewLogGroup(cfg.AppName, fmt.Sprintf("/aws/elasticache/%s-%s-persist-redis", cfg.AppName, source.Id()), source.Provenance(), 0),
 		SubnetGroup: &ElasticacheSubnetgroup{
-			Name:          source.Id(),
+			Name:          elasticacheClusterSanitizer.Apply(fmt.Sprintf("%s-%s", cfg.AppName, source.Provenance().ID)),
 			Subnets:       GetSubnets(cfg, dag), // TODO when we allow for segmented networks, need to determine which network (subnets) this lives in
 			ConstructsRef: []core.AnnotationKey{source.Provenance()},
 		},
 		SecurityGroups: []*SecurityGroup{GetSecurityGroup(cfg, dag)},
 		ConstructsRef:  []core.AnnotationKey{source.Provenance()},
+		NodeType:       "cache.t3.micro",
+		NumCacheNodes:  1,
 	}
 	dag.AddResource(ec)
 	dag.AddResource(ec.CloudwatchGroup)
