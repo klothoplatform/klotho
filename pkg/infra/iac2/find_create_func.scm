@@ -10,9 +10,7 @@
       .
     )
     return_type: (type_annotation (_) @return_type)
-    body: (statement_block
-      (return_statement (_) @return_body)
-    )
+    body: (statement_block) @body
   )
   (#eq? @function_name "create")
   (#eq? @input_type "Args")

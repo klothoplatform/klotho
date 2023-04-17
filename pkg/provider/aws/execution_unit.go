@@ -265,7 +265,6 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 					}
 
 				}
-
 			} else {
 				resourceEnvVars[envVar.Name] = core.IaCValue{
 					Property: envVar.Value,
