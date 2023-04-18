@@ -1,11 +1,15 @@
 package iac2
 
 import (
+	"context"
+	_ "embed"
 	"fmt"
 	"strings"
 	"testing"
 	"text/template"
 
+	sitter "github.com/smacker/go-tree-sitter"
+	"github.com/smacker/go-tree-sitter/javascript"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -202,3 +206,57 @@ function create(args: Args): aws.lambda.Function {
 	return new Function(args.blah);
 }
 `
+
+func Test_bodyContents(t *testing.T) {
+	statementQuery, err := sitter.NewQuery([]byte("(statement_block) @v"), javascript.GetLanguage())
+	if err != nil {
+		t.Fail()
+		return
+	}
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{
+			name: "simple",
+			content: `{
+	fs.ReadFile();
+}`,
+			want: "fs.ReadFile()",
+		},
+		{
+			name: "multiline",
+			content: `{
+	fs.ReadFile();
+	fs.WriteFile();
+}`,
+			want: `fs.ReadFile();
+fs.WriteFile()`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			parser := sitter.NewParser()
+			parser.SetLanguage(javascript.GetLanguage())
+			js, err := parser.ParseCtx(context.Background(), nil, []byte(tt.content))
+			if !assert.NoError(err) {
+				return
+			}
+
+			cursor := sitter.NewQueryCursor()
+			cursor.Exec(statementQuery, js.RootNode())
+
+			match, ok := cursor.NextMatch()
+			if !assert.True(ok) || !assert.Len(match.Captures, 1) {
+				return
+			}
+
+			got := bodyContents(match.Captures[0].Node)
+
+			assert.Equal(tt.want, got)
+		})
+	}
+}

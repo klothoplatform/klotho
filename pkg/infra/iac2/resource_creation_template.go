@@ -224,6 +224,9 @@ func deduplicateAppliedOutputs(outputs []AppliedOutput) ([]AppliedOutput, error)
 	return uniqueList, nil
 }
 
+// bodyContents returns the contents of a 'statement_block' with the surrounding {}
+// and indentation removed so that the contents of a void function
+// can be inlined with the rest of the index.ts.
 func bodyContents(node *sitter.Node) string {
 	if node.ChildCount() == 0 || node.Child(0).Content() != "{" {
 		return node.Content()
@@ -236,5 +239,5 @@ func bodyContents(node *sitter.Node) string {
 		}
 		buf.WriteString(node.NamedChild(i).Content())
 	}
-	return strings.TrimSuffix(buf.String(), ";")
+	return strings.TrimSuffix(buf.String(), ";") // Remove any trailing ';' since one is added later to prevent ';;'
 }
