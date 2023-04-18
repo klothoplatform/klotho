@@ -19,6 +19,9 @@ function create(args: Args): aws.lambda.Function {
         {
             packageType: 'Image',
             imageUri: args.Image.imageName,
+            sourceCodeHash: args.Image.repoDigest.apply(
+                (repoDigest) => (repoDigest ?? '').split(':')[-1]
+            ),
             role: args.Role.arn,
             name: args.Name,
             //TMPL {{- if and .SecurityGroups.Raw .Subnets.Raw }}
