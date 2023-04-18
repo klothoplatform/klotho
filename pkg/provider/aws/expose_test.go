@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -425,19 +424,9 @@ func Test_ConvertPath(t *testing.T) {
 	}
 	for _, tt := range cases {
 		t.Run(tt.given, func(t *testing.T) {
-			for _, greedy := range []bool{true, false} { // https://www.youtube.com/watch?v=cwmDrQzsFT8#t=1m02s
-				t.Run(fmt.Sprintf(`greedy=%v`, greedy), func(t *testing.T) {
-					assert := assert.New(t)
-					actual := convertPath(tt.given, greedy)
-					var want string
-					if greedy {
-						want = tt.wantIfGreedy
-					} else {
-						want = tt.wantIfNoGreedy
-					}
-					assert.Equal(want, actual)
-				})
-			}
+			assert := assert.New(t)
+			assert.Equal(tt.wantIfGreedy, convertPath(tt.given, true), "greedy")
+			assert.Equal(tt.wantIfNoGreedy, convertPath(tt.given, false), "not greedy")
 		})
 	}
 }
