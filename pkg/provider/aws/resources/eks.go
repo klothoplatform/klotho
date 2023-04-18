@@ -147,6 +147,12 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	for _, u := range units {
 		references = append(references, u.Provenance())
 	}
+	privateSubnets := []*Subnet{}
+	for _, sub := range subnets {
+		if sub.Type == PrivateSubnet {
+			privateSubnets = append(privateSubnets, sub)
+		}
+	}
 
 	appName := cfg.AppName
 
@@ -168,7 +174,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 
 	nodeGroups := createNodeGroups(cfg, dag, units, clusterName, cluster, subnets)
 
-	cluster.installVpcCniAddon(references, dag)
+	vpcCni := cluster.installVpcCniAddon(references, dag)
 
 	err := cluster.createFargateLogging(references, dag)
 	if err != nil {
@@ -180,6 +186,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	}
 
 	for _, ng := range cluster.GetClustersNodeGroups(dag) {
+		dag.AddDependency(ng, vpcCni)
 		if strings.HasSuffix(strings.ToLower(ng.AmiType), "_gpu") {
 			cluster.installNvidiaDevicePlugin(dag)
 			break
@@ -189,7 +196,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
 	dag.AddDependenciesReflect(fargateRole)
 
-	profile := NewEksFargateProfile(cluster, subnets, fargateRole, references)
+	profile := NewEksFargateProfile(cluster, privateSubnets, fargateRole, references)
 	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
 	dag.AddDependenciesReflect(profile)
 
@@ -560,7 +567,7 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 	return nil
 }
 
-func (cluster *EksCluster) installVpcCniAddon(references []core.AnnotationKey, dag *core.ResourceGraph) {
+func (cluster *EksCluster) installVpcCniAddon(references []core.AnnotationKey, dag *core.ResourceGraph) *EksAddon {
 	addonName := "vpc-cni"
 	addon := &EksAddon{
 		Name:          fmt.Sprintf("%s-addon-%s", cluster.Name, addonName),
@@ -573,6 +580,7 @@ func (cluster *EksCluster) installVpcCniAddon(references []core.AnnotationKey, d
 	}
 	dag.AddResource(addon)
 	dag.AddDependenciesReflect(addon)
+	return addon
 }
 
 func (cluster *EksCluster) GetClustersNodeGroups(dag *core.ResourceGraph) []*EksNodeGroup {
@@ -736,6 +744,7 @@ func createNodeRole(appName string, roleName string, refs []core.AnnotationKey) 
 		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
 		"arn:aws:iam::aws:policy/AWSCloudMapFullAccess",
 		"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
+		"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
 	})
 	return nodeRole
 }

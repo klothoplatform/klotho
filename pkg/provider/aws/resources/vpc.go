@@ -54,12 +54,13 @@ type (
 		Subnet        *Subnet
 	}
 	Subnet struct {
-		Name             string
-		ConstructsRef    []core.AnnotationKey
-		CidrBlock        string
-		Vpc              *Vpc
-		Type             string
-		AvailabilityZone core.IaCValue
+		Name                string
+		ConstructsRef       []core.AnnotationKey
+		CidrBlock           string
+		Vpc                 *Vpc
+		Type                string
+		AvailabilityZone    core.IaCValue
+		MapPublicIpOnLaunch bool
 	}
 	VpcEndpoint struct {
 		Name            string
@@ -119,34 +120,46 @@ func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 		Resource: azs,
 		Property: "1",
 	}
-	private1, nat1 := CreatePrivateSubnet(appName, "private1", az1, vpc, "10.0.0.0/18", dag)
+
+	public1 := CreatePublicSubnet("public1", az1, vpc, "10.0.128.0/18", dag)
+
+	ip1 := NewElasticIp(appName, "public1")
+	dag.AddDependenciesReflect(ip1)
+	natGateway1 := NewNatGateway(appName, "public1", public1, ip1)
+	dag.AddDependenciesReflect(natGateway1)
+
+	public2 := CreatePublicSubnet("public2", az2, vpc, "10.0.192.0/18", dag)
+
+	ip2 := NewElasticIp(appName, "public2")
+	dag.AddDependenciesReflect(ip2)
+	natGateway2 := NewNatGateway(appName, "public2", public2, ip2)
+	dag.AddDependenciesReflect(natGateway2)
+
+	dag.AddDependency(publicRt, public1)
+	dag.AddDependency(publicRt, public2)
+
+	private1 := CreatePrivateSubnet(appName, "private1", az1, vpc, "10.0.0.0/18", dag)
 
 	rt1 := &RouteTable{
 		Name: private1.Name,
 		Vpc:  vpc,
 		Routes: []*RouteTableRoute{
-			{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: nat1, Property: ID_IAC_VALUE}},
+			{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: natGateway1, Property: ID_IAC_VALUE}},
 		},
 	}
 	dag.AddDependenciesReflect(rt1)
 	dag.AddDependency(rt1, private1)
 
-	private2, nat2 := CreatePrivateSubnet(appName, "private2", az2, vpc, "10.0.64.0/18", dag)
+	private2 := CreatePrivateSubnet(appName, "private2", az2, vpc, "10.0.64.0/18", dag)
 	rt2 := &RouteTable{
 		Name: private2.Name,
 		Vpc:  vpc,
 		Routes: []*RouteTableRoute{
-			{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: nat2, Property: ID_IAC_VALUE}},
+			{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: natGateway2, Property: ID_IAC_VALUE}},
 		},
 	}
 	dag.AddDependenciesReflect(rt2)
 	dag.AddDependency(rt2, private2)
-
-	public1 := CreatePublicSubnet("public1", az1, vpc, "10.0.128.0/18", dag)
-	public2 := CreatePublicSubnet("public2", az2, vpc, "10.0.192.0/18", dag)
-
-	dag.AddDependency(publicRt, public1)
-	dag.AddDependency(publicRt, public2)
 
 	routeTables := []*RouteTable{publicRt, rt1, rt2}
 	// VPC Endpoints are dependent upon the subnets so we need to ensure the subnets are created first
@@ -195,25 +208,10 @@ func (vpc *Vpc) GetSecurityGroups(dag *core.ResourceGraph) []*SecurityGroup {
 	return securityGroups
 }
 
-func CreatePrivateSubnet(appName string, subnetName string, az core.IaCValue, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) (*Subnet, *NatGateway) {
-
+func CreatePrivateSubnet(appName string, subnetName string, az core.IaCValue, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
 	subnet := NewSubnet(subnetName, vpc, cidrBlock, PrivateSubnet, az)
-
-	dag.AddResource(subnet)
-	dag.AddDependency(subnet, vpc)
-	dag.AddDependency(subnet, az.Resource)
-
-	ip := NewElasticIp(appName, subnetName)
-
-	dag.AddResource(ip)
-
-	natGateway := NewNatGateway(appName, subnetName, subnet, ip)
-
-	dag.AddResource(natGateway)
-	dag.AddDependency(natGateway, subnet)
-	dag.AddDependency(natGateway, ip)
-
-	return subnet, natGateway
+	dag.AddDependenciesReflect(subnet)
+	return subnet
 }
 
 func CreatePublicSubnet(subnetName string, az core.IaCValue, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
@@ -339,12 +337,17 @@ func (natGateway *NatGateway) Id() string {
 }
 
 func NewSubnet(subnetName string, vpc *Vpc, cidrBlock string, subnetType string, availabilityZone core.IaCValue) *Subnet {
+	mapPublicIpOnLaunch := false
+	if subnetType == PublicSubnet {
+		mapPublicIpOnLaunch = true
+	}
 	return &Subnet{
-		Name:             subnetSanitizer.Apply(fmt.Sprintf("%s-%s", vpc.Name, subnetName)),
-		CidrBlock:        cidrBlock,
-		Vpc:              vpc,
-		Type:             subnetType,
-		AvailabilityZone: availabilityZone,
+		Name:                subnetSanitizer.Apply(fmt.Sprintf("%s-%s", vpc.Name, subnetName)),
+		CidrBlock:           cidrBlock,
+		Vpc:                 vpc,
+		Type:                subnetType,
+		AvailabilityZone:    availabilityZone,
+		MapPublicIpOnLaunch: mapPublicIpOnLaunch,
 	}
 }
 
