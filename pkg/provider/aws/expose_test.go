@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -387,5 +388,56 @@ func Test_CreateRestApi(t *testing.T) {
 			assert.Len(resources, 2)
 		})
 
+	}
+}
+
+func Test_ConvertPath(t *testing.T) {
+	cases := []struct {
+		given          string
+		wantIfGreedy   string
+		wantIfNoGreedy string
+	}{
+		{
+			given:          `foo/bar`,
+			wantIfGreedy:   `foo/bar`,
+			wantIfNoGreedy: `foo/bar`,
+		},
+		{
+			given:          `foo/:bar`,
+			wantIfGreedy:   `foo/{bar}`,
+			wantIfNoGreedy: `foo/{bar}`,
+		},
+		{
+			given:          `foo/:bar*`,
+			wantIfGreedy:   `foo/{bar+}`,
+			wantIfNoGreedy: `foo/{bar}`,
+		},
+		{
+			given:          `foo/bar*`,
+			wantIfGreedy:   `foo/bar*`,
+			wantIfNoGreedy: `foo/bar*`,
+		},
+		{
+			given:          `foo//bar`,
+			wantIfGreedy:   `foo/bar`,
+			wantIfNoGreedy: `foo/bar`,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.given, func(t *testing.T) {
+			for _, greedy := range []bool{true, false} { // https://www.youtube.com/watch?v=cwmDrQzsFT8#t=1m02s
+				t.Run(fmt.Sprintf(`greedy=%v`, greedy), func(t *testing.T) {
+					assert := assert.New(t)
+					actual := convertPath(tt.given, greedy)
+					var want string
+					if greedy {
+						want = tt.wantIfGreedy
+					} else {
+						want = tt.wantIfNoGreedy
+					}
+					assert.Equal(want, actual)
+				})
+			}
+		})
 	}
 }
