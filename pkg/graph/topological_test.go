@@ -15,20 +15,15 @@ func TestStableTopologicalOrder(t *testing.T) {
 	g.AddVerticesAndEdge("a", "c")
 	g.AddVerticesAndEdge("b", "c")
 
-	archetype, err := g.VertexIdsInTopologicalOrder()
-	if !assert.NoError(err) {
-		return
-	}
-	archetypeStr := strings.Join(archetype, "")
-	assert.True(archetypeStr == "abc" || archetypeStr == "bac")
-
 	for i := 0; i < 10000; i++ {
 		check, err := g.VertexIdsInTopologicalOrder()
 		if !assert.NoError(err) {
 			return
 		}
-		checkStr := strings.Join(check, "")
-		if !assert.Equal(archetypeStr, checkStr, `failed on attempt #%d`, i+1) {
+
+		// "bac" would also be valid, but the ordering we use happens to be "abc", and that's consistent across runs
+		expected := "abc"
+		if !assert.Equal(expected, strings.Join(check, ""), `failed on attempt #%d`, i+1) {
 			return
 		}
 	}
