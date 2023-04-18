@@ -55,11 +55,8 @@ func (transformer manifestTransformer[K]) apply(unit *HelmExecUnit, cfg config.E
 	}
 	transformObj, ok := obj.(K)
 	if !ok {
-		t := reflect.TypeOf((*K)(nil))
-		for t.Kind() == reflect.Pointer {
-			t = t.Elem()
-		}
-		err = fmt.Errorf("expected file %s to contain %s Kind", source.Path(), t.Name())
+		var k K
+		err = fmt.Errorf("expected file %s to contain %T Kind", source.Path(), t)
 		return nil, err
 	}
 
