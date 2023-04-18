@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dominikbraun/graph"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,7 +32,24 @@ func TestStableTopologicalOrder(t *testing.T) {
 			return
 		}
 	}
+}
 
+func TestKvIteratorStable(t *testing.T) {
+	assert := assert.New(t)
+
+	g := NewDirected[dummyVertex]()
+	g.AddVerticesAndEdge("a", "c")
+	g.AddVerticesAndEdge("b", "c")
+	predecessorsMap, err := g.underlying.PredecessorMap()
+	if !assert.NoError(err) {
+		return
+	}
+
+	var verticesList string
+	stringIterator.forEach(predecessorsMap, func(v string, _m map[string]graph.Edge[string]) {
+		verticesList += v
+	})
+	assert.Equal("abc", verticesList)
 }
 
 type dummyVertex string
