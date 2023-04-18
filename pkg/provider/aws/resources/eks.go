@@ -597,13 +597,15 @@ func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeco
 		Clusters: []kubernetes.KubeconfigCluster{
 			{
 				Name: clusterNameIaCValue,
-				CertificateAuthorityData: core.IaCValue{
-					Resource: cluster,
-					Property: CLUSTER_CA_DATA_IAC_VALUE,
-				},
-				Server: core.IaCValue{
-					Resource: cluster,
-					Property: CLUSTER_ENDPOINT_IAC_VALUE,
+				Cluster: map[string]core.IaCValue{
+					"certificate-authority-data": {
+						Resource: cluster,
+						Property: CLUSTER_CA_DATA_IAC_VALUE,
+					},
+					"server": {
+						Resource: cluster,
+						Property: CLUSTER_ENDPOINT_IAC_VALUE,
+					},
 				},
 			},
 		},

@@ -24,9 +24,8 @@ type (
 	}
 
 	KubeconfigCluster struct {
-		Name                     core.IaCValue
-		CertificateAuthorityData core.IaCValue
-		Server                   core.IaCValue
+		Name    core.IaCValue
+		Cluster map[string]core.IaCValue
 	}
 
 	KubeconfigContext struct {
