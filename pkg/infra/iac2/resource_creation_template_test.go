@@ -1,12 +1,8 @@
 package iac2
 
 import (
-<<<<<<< HEAD
 	"context"
 	_ "embed"
-	"fmt"
-=======
->>>>>>> 63e1235 (remove applied outputs)
 	"strings"
 	"testing"
 	"text/template"

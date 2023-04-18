@@ -110,6 +110,7 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.PrivateDnsNamespace{},
 		&kubernetes.KustomizeDirectory{},
 		&resources.OpenIdConnectProvider{},
+		&SecurityGroupRule{},
 	}
 
 	tp := standardTemplatesProvider()

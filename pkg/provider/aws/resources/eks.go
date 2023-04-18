@@ -179,7 +179,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 		zap.S().Warnf("Unable to set up fluent bit manifests for cluster %s: %s", clusterName, err.Error())
 	}
 
-	for _, ng := range cluster.getClustersNodeGroups(dag) {
+	for _, ng := range cluster.GetClustersNodeGroups(dag) {
 		if strings.HasSuffix(strings.ToLower(ng.AmiType), "_gpu") {
 			cluster.installNvidiaDevicePlugin(dag)
 			break
@@ -363,7 +363,7 @@ func (cluster *EksCluster) installNvidiaDevicePlugin(dag *core.ResourceGraph) {
 	}
 	dag.AddDependenciesReflect(manifest)
 
-	for _, ng := range cluster.getClustersNodeGroups(dag) {
+	for _, ng := range cluster.GetClustersNodeGroups(dag) {
 		dag.AddDependency(manifest, ng)
 		if strings.HasSuffix(strings.ToLower(ng.AmiType), "_gpu") {
 			manifest.ConstructRefs = append(manifest.ConstructRefs, ng.ConstructsRef...)
@@ -491,7 +491,7 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 		dag.AddDependenciesReflect(cloudMapController)
 	}
 
-	for _, nodeGroup := range cluster.getClustersNodeGroups(dag) {
+	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
 		dag.AddDependency(cloudMapController, nodeGroup)
 	}
 
@@ -554,6 +554,9 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 	}
 	dag.AddDependenciesReflect(albChart)
 	dag.AddDependenciesReflect(role)
+	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
+		dag.AddDependency(albChart, nodeGroup)
+	}
 	return nil
 }
 
@@ -572,7 +575,7 @@ func (cluster *EksCluster) installVpcCniAddon(references []core.AnnotationKey, d
 	dag.AddDependenciesReflect(addon)
 }
 
-func (cluster *EksCluster) getClustersNodeGroups(dag *core.ResourceGraph) []*EksNodeGroup {
+func (cluster *EksCluster) GetClustersNodeGroups(dag *core.ResourceGraph) []*EksNodeGroup {
 	nodeGroups := []*EksNodeGroup{}
 	for _, res := range dag.GetAllUpstreamResources(cluster) {
 		if nodeGroup, ok := res.(*EksNodeGroup); ok {
@@ -609,26 +612,32 @@ func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeco
 				},
 			},
 		},
-		Contexts: []kubernetes.KubeconfigContext{
+		Contexts: []kubernetes.KubeconfigContexts{
 			{
-				Cluster: clusterNameIaCValue,
-				User:    username,
+				Name: clusterNameIaCValue,
+				Context: kubernetes.KubeconfigContext{
+					Cluster: clusterNameIaCValue,
+					User:    username,
+				},
 			},
 		},
-		Users: []kubernetes.KubeconfigUser{
+		Users: []kubernetes.KubeconfigUsers{
 			{
-				Exec: kubernetes.KubeconfigExec{
-					ApiVersion: "client.authentication.k8s.io/v1beta1",
-					Command:    "aws",
-					Args: []any{
-						"eks",
-						"get-token",
-						"--cluster-name",
-						clusterNameIaCValue,
-						"--region",
-						core.IaCValue{
-							Resource: region,
-							Property: NAME_IAC_VALUE,
+				Name: username,
+				User: kubernetes.KubeconfigUser{
+					Exec: kubernetes.KubeconfigExec{
+						ApiVersion: "client.authentication.k8s.io/v1beta1",
+						Command:    "aws",
+						Args: []any{
+							"eks",
+							"get-token",
+							"--cluster-name",
+							clusterNameIaCValue,
+							"--region",
+							core.IaCValue{
+								Resource: region,
+								Property: NAME_IAC_VALUE,
+							},
 						},
 					},
 				},

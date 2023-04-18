@@ -119,6 +119,9 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 									Property: resources.ARN_IAC_VALUE,
 								}
 								dag.AddDependency(khChart, targetGroup)
+								for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
+									dag.AddDependency(khChart, nodeGroup)
+								}
 							}
 						}
 					}

@@ -1,0 +1,6 @@
+{
+    "name": "security_group_rule",
+    "dependencies": {
+        "@pulumi/aws": "^5.16.0"
+    }
+}

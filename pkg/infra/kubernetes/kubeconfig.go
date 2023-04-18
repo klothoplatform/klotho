@@ -19,8 +19,8 @@ type (
 		CurrentContext string
 
 		Clusters []KubeconfigCluster
-		Contexts []KubeconfigContext
-		Users    []KubeconfigUser
+		Contexts []KubeconfigContexts
+		Users    []KubeconfigUsers
 	}
 
 	KubeconfigCluster struct {
@@ -28,9 +28,18 @@ type (
 		Cluster map[string]core.IaCValue
 	}
 
+	KubeconfigContexts struct {
+		Context KubeconfigContext
+		Name    core.IaCValue
+	}
 	KubeconfigContext struct {
 		Cluster core.IaCValue
 		User    string
+	}
+
+	KubeconfigUsers struct {
+		Name string
+		User KubeconfigUser
 	}
 
 	KubeconfigUser struct {

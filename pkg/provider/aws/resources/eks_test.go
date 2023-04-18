@@ -186,7 +186,7 @@ func Test_getClustersNodeGroups(t *testing.T) {
 	dag.AddDependenciesReflect(nodeGroup1)
 	dag.AddDependenciesReflect(nodeGroup2)
 	dag.AddDependenciesReflect(nodeGroup3)
-	assert.ElementsMatch(cluster.getClustersNodeGroups(dag), []*EksNodeGroup{nodeGroup1, nodeGroup2})
+	assert.ElementsMatch(cluster.GetClustersNodeGroups(dag), []*EksNodeGroup{nodeGroup1, nodeGroup2})
 }
 
 func Test_createClusterAdminRole(t *testing.T) {

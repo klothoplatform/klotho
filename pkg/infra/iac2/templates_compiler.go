@@ -663,6 +663,7 @@ func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource core.Resource
 	var errs multierr.Error
 	switch resource := resource.(type) {
 	case *resources.EksCluster:
+		errs.Append(tc.addIngressRuleToCluster(out, resource))
 		errs.Append(tc.renderKubernetesProvider(out, resource))
 	case *resources.IamPolicy:
 		downStream := tc.resourceGraph.GetDownstreamResources(resource)
@@ -695,5 +696,30 @@ func (tc TemplatesCompiler) renderKubernetesProvider(out io.Writer, cluster *res
 	_, err = out.Write([]byte("\n\n"))
 	errs.Append(err)
 	errs.Append(tc.renderResource(out, provider))
+	return errs.ErrOrNil()
+}
+
+func (tc TemplatesCompiler) addIngressRuleToCluster(out io.Writer, cluster *resources.EksCluster) error {
+	var errs multierr.Error
+
+	_, err := out.Write([]byte("\n\n"))
+	errs.Append(err)
+
+	cidrBlocks := []string{}
+	for _, subnet := range cluster.Subnets {
+		cidrBlocks = append(cidrBlocks, subnet.CidrBlock)
+	}
+
+	sgRule := &SecurityGroupRule{
+		ConstructsRef: cluster.ConstructsRef,
+		Name:          fmt.Sprintf("%s-ingress", cluster.Name),
+		FromPort:      0,
+		ToPort:        0,
+		Protocol:      "-1",
+		CidrBlocks:    cidrBlocks,
+		Cluster:       cluster,
+		Type:          "ingress",
+	}
+	errs.Append(tc.renderResource(out, sgRule))
 	return errs.ErrOrNil()
 }
