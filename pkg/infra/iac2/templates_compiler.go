@@ -259,9 +259,14 @@ func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 	numDeps := len(upstreamResources)
 	for i := 0; i < numDeps; i++ {
 		res := upstreamResources[i]
-		buf.WriteString(tc.getVarName(res))
-		if i < (numDeps - 1) {
-			buf.WriteRune(',')
+		switch res.(type) {
+		case *resources.Region, *resources.AvailabilityZones, *resources.AccountId:
+			continue
+		default:
+			buf.WriteString(tc.getVarName(res))
+			if i < (numDeps - 1) {
+				buf.WriteRune(',')
+			}
 		}
 	}
 	buf.WriteRune(']')
