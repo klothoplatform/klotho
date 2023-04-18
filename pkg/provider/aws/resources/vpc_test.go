@@ -39,6 +39,9 @@ func Test_CreateNetwork(t *testing.T) {
 					"aws:vpc_subnet:test_app_private2",
 					"aws:vpc_subnet:test_app_public1",
 					"aws:vpc_subnet:test_app_public2",
+					"aws:route_table:test_app_private1",
+					"aws:route_table:test_app_private2",
+					"aws:route_table:test_app-public",
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:availability_zones:AvailabilityZones", Destination: "aws:region:region"},
@@ -49,12 +52,18 @@ func Test_CreateNetwork(t *testing.T) {
 					{Source: "aws:nat_gateway:test_app_private2", Destination: "aws:vpc_subnet:test_app_private2"},
 					{Source: "aws:vpc_endpoint:test_app_dynamodb", Destination: "aws:region:region"},
 					{Source: "aws:vpc_endpoint:test_app_dynamodb", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_endpoint:test_app_dynamodb", Destination: "aws:route_table:test_app-public"},
+					{Source: "aws:vpc_endpoint:test_app_dynamodb", Destination: "aws:route_table:test_app_private1"},
+					{Source: "aws:vpc_endpoint:test_app_dynamodb", Destination: "aws:route_table:test_app_private2"},
 					{Source: "aws:vpc_endpoint:test_app_lambda", Destination: "aws:region:region"},
 					{Source: "aws:vpc_endpoint:test_app_lambda", Destination: "aws:vpc:test_app"},
 					{Source: "aws:vpc_endpoint:test_app_lambda", Destination: "aws:vpc_subnet:test_app_private1"},
 					{Source: "aws:vpc_endpoint:test_app_lambda", Destination: "aws:vpc_subnet:test_app_private2"},
 					{Source: "aws:vpc_endpoint:test_app_s3", Destination: "aws:region:region"},
 					{Source: "aws:vpc_endpoint:test_app_s3", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_endpoint:test_app_s3", Destination: "aws:route_table:test_app-public"},
+					{Source: "aws:vpc_endpoint:test_app_s3", Destination: "aws:route_table:test_app_private1"},
+					{Source: "aws:vpc_endpoint:test_app_s3", Destination: "aws:route_table:test_app_private2"},
 					{Source: "aws:vpc_endpoint:test_app_secretsmanager", Destination: "aws:region:region"},
 					{Source: "aws:vpc_endpoint:test_app_secretsmanager", Destination: "aws:vpc:test_app"},
 					{Source: "aws:vpc_endpoint:test_app_secretsmanager", Destination: "aws:vpc_subnet:test_app_private1"},
@@ -76,6 +85,16 @@ func Test_CreateNetwork(t *testing.T) {
 					{Source: "aws:vpc_subnet:test_app_public2", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:vpc_subnet:test_app_public2", Destination: "aws:vpc:test_app"},
 					{Source: "aws:vpc:test_app", Destination: "aws:region:region"},
+					{Source: "aws:route_table:test_app-public", Destination: "aws:internet_gateway:test_app_igw1"},
+					{Source: "aws:route_table:test_app-public", Destination: "aws:vpc:test_app"},
+					{Source: "aws:route_table:test_app-public", Destination: "aws:vpc_subnet:test_app_public1"},
+					{Source: "aws:route_table:test_app-public", Destination: "aws:vpc_subnet:test_app_public2"},
+					{Source: "aws:route_table:test_app_private1", Destination: "aws:nat_gateway:test_app_private1"},
+					{Source: "aws:route_table:test_app_private2", Destination: "aws:nat_gateway:test_app_private2"},
+					{Source: "aws:route_table:test_app_private1", Destination: "aws:vpc:test_app"},
+					{Source: "aws:route_table:test_app_private2", Destination: "aws:vpc:test_app"},
+					{Source: "aws:route_table:test_app_private1", Destination: "aws:vpc_subnet:test_app_private1"},
+					{Source: "aws:route_table:test_app_private2", Destination: "aws:vpc_subnet:test_app_private2"},
 				},
 			},
 		},
@@ -283,12 +302,13 @@ func Test_CreateGatewayVpcEndpoint(t *testing.T) {
 		{
 			name: "happy path",
 			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"aws:vpc:test_app", "aws:region:region", "aws:vpc_endpoint:test_app_s3", "aws:vpc_subnet:test_app_1", "aws:vpc_subnet:test_app_2"},
+				Nodes: []string{"aws:vpc:test_app", "aws:region:region", "aws:vpc_endpoint:test_app_s3", "aws:vpc_subnet:test_app_1", "aws:vpc_subnet:test_app_2", "aws:route_table:rt"},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:vpc_endpoint:test_app_s3", Destination: "aws:vpc:test_app"},
 					{Source: "aws:vpc_endpoint:test_app_s3", Destination: "aws:region:region"},
 					{Source: "aws:vpc_subnet:test_app_1", Destination: "aws:vpc:test_app"},
 					{Source: "aws:vpc_subnet:test_app_2", Destination: "aws:vpc:test_app"},
+					{Source: "aws:vpc_endpoint:test_app_s3", Destination: "aws:route_table:rt"},
 				},
 			},
 		},
@@ -302,7 +322,7 @@ func Test_CreateGatewayVpcEndpoint(t *testing.T) {
 			region := NewRegion()
 			dag.AddDependency(subnet1, vpc)
 			dag.AddDependency(subnet2, vpc)
-			CreateGatewayVpcEndpoint("s3", vpc, region, dag)
+			CreateGatewayVpcEndpoint("s3", vpc, region, []*RouteTable{&RouteTable{Name: "rt"}}, dag)
 			tt.want.Assert(t, dag)
 		})
 	}

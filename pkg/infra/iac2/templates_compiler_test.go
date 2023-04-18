@@ -210,6 +210,25 @@ func Test_renderGlueVars(t *testing.T) {
 			},
 			want: "const awsRolePolicyAttachTestTTestT = new aws.iam.RolePolicyAttachment(`test-t-test-t`, {\n\t\t\t\t\t\tpolicyArn: testPolicy.arn,\n\t\t\t\t\t\trole: testRole\n\t\t\t\t\t});",
 		},
+		{
+			name:        "routeTableAssociation",
+			subResource: &resources.RouteTable{Name: "rt1"},
+			nodes: []core.Resource{
+				&resources.RouteTable{Name: "rt1"},
+				&resources.Subnet{Name: "s1"},
+			},
+			edges: []graph.Edge[core.Resource]{
+				{
+					Source:      &resources.RouteTable{Name: "rt1"},
+					Destination: &resources.Subnet{Name: "s1"},
+				},
+			},
+			resourceVarNamesById: map[string]string{
+				"aws:route_table:rt1": "testRouteTable",
+				"aws:vpc_subnet:s1":   "subnet1",
+			},
+			want: "\n\nconst pulumiRouteTableAssociationS1 = new aws.ec2.RouteTableAssociation(`s1`, {\n\t\t\t\tsubnetId: subnet1.id,\n\t\t\trouteTableId: testRouteTable.id,\n\t\t\t});\n\n",
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -431,6 +450,21 @@ var subResourceTemplateFiles = map[string]string{
 						role: args.Role
 					})
 				}`,
+	"route_table_association/factory.ts": `import * as aws from '@pulumi/aws'
+
+		interface Args {
+			Name: string
+			Subnet: aws.ec2.Subnet
+			RouteTable: aws.ec2.RouteTable
+		}
+		
+		// noinspection JSUnusedLocalSymbols
+		function create(args: Args): aws.ec2.RouteTableAssociation {
+			return new aws.ec2.RouteTableAssociation(args.Name, {
+				subnetId: args.Subnet.id,
+			routeTableId: args.RouteTable.id,
+			})
+		}`,
 }
 
 func filesMapToFsMap(files map[string]string) fs.FS {

@@ -1,0 +1,6 @@
+{
+    "name": "route_table",
+    "dependencies": {
+        "@pulumi/aws": "^5.16.0"
+    }
+}

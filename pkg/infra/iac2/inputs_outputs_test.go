@@ -111,6 +111,8 @@ func TestKnownTemplates(t *testing.T) {
 		&kubernetes.KustomizeDirectory{},
 		&resources.OpenIdConnectProvider{},
 		&SecurityGroupRule{},
+		&RouteTableAssociation{},
+		&resources.RouteTable{},
 	}
 
 	tp := standardTemplatesProvider()

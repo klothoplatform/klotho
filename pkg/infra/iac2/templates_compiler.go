@@ -665,6 +665,8 @@ func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource core.Resource
 	case *resources.EksCluster:
 		errs.Append(tc.addIngressRuleToCluster(out, resource))
 		errs.Append(tc.renderKubernetesProvider(out, resource))
+	case *resources.RouteTable:
+		errs.Append(tc.associateRouteTable(out, resource))
 	case *resources.IamPolicy:
 		downStream := tc.resourceGraph.GetDownstreamResources(resource)
 		for _, res := range downStream {
@@ -721,5 +723,29 @@ func (tc TemplatesCompiler) addIngressRuleToCluster(out io.Writer, cluster *reso
 		Type:          "ingress",
 	}
 	errs.Append(tc.renderResource(out, sgRule))
+	return errs.ErrOrNil()
+}
+
+func (tc TemplatesCompiler) associateRouteTable(out io.Writer, rt *resources.RouteTable) error {
+	var errs multierr.Error
+
+	_, err := out.Write([]byte("\n\n"))
+	errs.Append(err)
+
+	for _, resource := range tc.resourceGraph.GetDownstreamResources(rt) {
+		if subnet, ok := resource.(*resources.Subnet); ok {
+
+			association := &RouteTableAssociation{
+				Name:       subnet.Name,
+				Subnet:     subnet,
+				RouteTable: rt,
+			}
+			errs.Append(tc.renderResource(out, association))
+
+			_, err := out.Write([]byte("\n\n"))
+			errs.Append(err)
+		}
+	}
+
 	return errs.ErrOrNil()
 }
