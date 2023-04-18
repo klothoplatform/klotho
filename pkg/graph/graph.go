@@ -58,7 +58,8 @@ func (d *Directed[V]) Roots() []V {
 }
 
 func (d *Directed[V]) VertexIdsInTopologicalOrder() ([]string, error) {
-	return StableTopologicalSort(d.underlying)
+	var iter KvIterator[string] = stringIterator
+	return StableTopologicalSort(d.underlying, iter)
 }
 
 func (d *Directed[V]) OutgoingEdges(from V) []Edge[V] {
