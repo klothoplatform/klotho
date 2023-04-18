@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"regexp"
 
+	"k8s.io/apimachinery/pkg/runtime"
+
 	"go.uber.org/zap"
 	apps "k8s.io/api/apps/v1"
 	autoscaling "k8s.io/api/autoscaling/v2beta2"
@@ -28,6 +30,49 @@ type HelmExecUnit struct {
 	TargetGroupBinding      *core.SourceFile
 	ServiceExport           *core.SourceFile
 	HorizontalPodAutoscaler *core.SourceFile
+}
+
+type manifestTransformer[K runtime.Object] struct {
+	fieldToTransform func(unit *HelmExecUnit) *core.SourceFile
+	transform        func(unit *HelmExecUnit, cfg config.ExecutionUnit, target K, log *zap.SugaredLogger) ([]HelmChartValue, error)
+	// readF is the function to read a given file to the runtime.Object that we will then cast down to K. You may leave
+	// it blank, in which case the transformer will assume readFile.
+	readF func(f *core.SourceFile) (runtime.Object, error)
+}
+
+func (transformer manifestTransformer[K]) apply(unit *HelmExecUnit, cfg config.ExecutionUnit) ([]HelmChartValue, error) {
+	source := transformer.fieldToTransform(unit)
+	log := zap.L().Sugar().With(logging.FileField(source), zap.String("unit", unit.Name))
+	log.Debugf("Transforming file, %s, for exec unit, %s", source.Path(), unit.Name)
+	readF := transformer.readF
+	if readF == nil {
+		readF = readFile
+	}
+	obj, err := readF(source)
+	if err != nil {
+		return nil, err
+	}
+	transformObj, ok := obj.(K)
+	if !ok {
+		var k K
+		err = fmt.Errorf("expected file %s to contain %T Kind", source.Path(), k)
+		return nil, err
+	}
+
+	newValues, err := transformer.transform(unit, cfg, transformObj, log)
+	if err != nil {
+		return nil, err
+	}
+
+	output, err := yaml.Marshal(transformObj)
+	if err != nil {
+		return nil, err
+	}
+	err = source.Reparse([]byte(output))
+	if err != nil {
+		return nil, err
+	}
+	return newValues, nil
 }
 
 var (
@@ -76,197 +121,165 @@ func shouldTransformServiceAccount(unit *core.ExecutionUnit) bool {
 	return shouldTransformImage(unit)
 }
 
-func (unit *HelmExecUnit) transformPod(cfg config.ExecutionUnit) (values []HelmChartValue, err error) {
-	log := zap.L().Sugar().With(logging.FileField(unit.Pod), zap.String("unit", unit.Name))
-	log.Debugf("Transforming file, %s, for exec unit, %s", unit.Pod.Path(), unit.Name)
-	obj, err := readFile(unit.Pod)
-	if err != nil {
-		return
-	}
-	pod, ok := obj.(*corev1.Pod)
-	if !ok {
-		err = fmt.Errorf("expected file %s to contain Pod Kind", unit.Pod.Path())
-		return
-	}
+var podTransformer = manifestTransformer[*corev1.Pod]{
+	fieldToTransform: func(unit *HelmExecUnit) *core.SourceFile {
+		return unit.Pod
+	},
 
-	_, imagePlaceholder, err := unit.upsertOnlyContainer(&pod.Spec.Containers, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if pod.Labels == nil {
-		pod.Labels = make(map[string]string)
-	}
-	pod.Labels["execUnit"] = unit.Name
-	pod.Spec.ServiceAccountName = unit.getServiceAccountName()
-
-	output, err := yaml.Marshal(pod)
-	if err != nil {
-		return
-	}
-	err = unit.Pod.Reparse([]byte(output))
-	if err != nil {
-		return
-	}
-	values = append(values, HelmChartValue{
-		ExecUnitName: unit.Name,
-		Kind:         pod.Kind,
-		Type:         string(ImageTransformation),
-		Key:          imagePlaceholder,
-	})
-	return
-}
-
-func (unit *HelmExecUnit) transformDeployment(cfg config.ExecutionUnit) (values []HelmChartValue, err error) {
-	log := zap.L().Sugar().With(logging.FileField(unit.Deployment), zap.String("unit", unit.Name))
-	log.Debugf("Transforming file, %s, for exec unit, %s", unit.Deployment.Path(), unit.Name)
-	obj, err := readFile(unit.Deployment)
-	if err != nil {
-		return nil, err
-	}
-	deployment, ok := obj.(*apps.Deployment)
-	if !ok {
-		err = fmt.Errorf("expected file %s to contain Deployment Kind", unit.Deployment.Path())
-		return nil, err
-	}
-
-	k8sCfg, imagePlaceholder, err := unit.upsertOnlyContainer(&deployment.Spec.Template.Spec.Containers, cfg)
-	if err != nil {
-		return nil, err
-	}
-	values = append(values, HelmChartValue{
-		ExecUnitName: unit.Name,
-		Kind:         deployment.Kind,
-		Type:         string(ImageTransformation),
-		Key:          imagePlaceholder,
-	})
-
-	extraLabels := generateLabels(k8sCfg)
-
-	if deployment.Labels == nil {
-		deployment.Labels = make(map[string]string)
-	}
-	deployment.Labels["execUnit"] = unit.Name
-	extraLabels.addTo(deployment.Labels)
-
-	if k8sCfg.Replicas != 0 {
-		*deployment.Spec.Replicas = int32(k8sCfg.Replicas)
-	}
-
-	if deployment.Spec.Template.Labels == nil {
-		deployment.Spec.Template.Labels = make(map[string]string)
-	}
-	deployment.Spec.Template.Labels["execUnit"] = unit.Name
-	deployment.Spec.Template.Spec.ServiceAccountName = unit.getServiceAccountName()
-	extraLabels.addTo(deployment.Spec.Template.Labels)
-
-	if deployment.Spec.Selector.MatchLabels == nil {
-		deployment.Spec.Selector.MatchLabels = make(map[string]string)
-	}
-	deployment.Spec.Selector.MatchLabels["execUnit"] = unit.Name
-	extraLabels.addTo(deployment.Spec.Selector.MatchLabels)
-
-	if deployment.Spec.Template.Spec.NodeSelector == nil {
-		deployment.Spec.Template.Spec.NodeSelector = make(map[string]string)
-	}
-
-	if cfg.NetworkPlacement != "" {
-		deployment.Spec.Template.Spec.NodeSelector["network_placement"] = cfg.NetworkPlacement
-	}
-	if kconfig := cfg.GetExecutionUnitParamsAsKubernetes(); kconfig.InstanceType != "" {
-		instanceTypeKey := unit.Name + "InstanceTypeKey"
-		instanceTypeValue := unit.Name + "InstanceTypeValue"
-		deployment.Spec.Template.Spec.NodeSelector[fmt.Sprintf("{{ .Values.%s }}", instanceTypeKey)] = fmt.Sprintf("{{ .Values.%s }}", instanceTypeValue)
-		values = append(values,
-			HelmChartValue{
-				ExecUnitName: unit.Name,
-				Kind:         deployment.Kind,
-				Type:         string(InstanceTypeKey),
-				Key:          instanceTypeKey,
-			},
-			HelmChartValue{
-				ExecUnitName: unit.Name,
-				Kind:         deployment.Kind,
-				Type:         string(InstanceTypeValue),
-				Key:          instanceTypeValue,
-			},
-		)
-	} else if kconfig.DiskSizeGiB > 0 {
-		log.Warnf("Unimplemented: disk size configured of %d ignored due to missing instance type", kconfig.DiskSizeGiB)
-	}
-
-	output, err := yaml.Marshal(deployment)
-	if err != nil {
-		return nil, err
-	}
-	err = unit.Deployment.Reparse([]byte(output))
-	if err != nil {
-		return nil, err
-	}
-
-	return values, nil
-}
-
-func (unit *HelmExecUnit) transformHorizontalPodAutoscaler(cfg config.ExecutionUnit) ([]HelmChartValue, error) {
-	log := zap.L().Sugar().With(logging.FileField(unit.HorizontalPodAutoscaler), zap.String("unit", unit.Name))
-	log.Debugf("Transforming file, %s, for exec unit, %s", unit.HorizontalPodAutoscaler.Path(), unit.Name)
-	obj, err := readFile(unit.HorizontalPodAutoscaler)
-	if err != nil {
-		return nil, nil
-	}
-	hpa, ok := obj.(*autoscaling.HorizontalPodAutoscaler)
-	if !ok {
-		return nil, fmt.Errorf("expected file %s to contain HorizontalPodAutoscaler Kind", unit.HorizontalPodAutoscaler.Path())
-	}
-	k8Cfg := cfg.GetExecutionUnitParamsAsKubernetes()
-	hpaCfg := k8Cfg.HorizontalPodAutoScalingConfig
-
-	if k8Cfg.Replicas != 0 {
-		minReplicas := int32(k8Cfg.Replicas)
-		hpa.Spec.MinReplicas = &minReplicas
-		if hpaCfg.MaxReplicas == 0 {
-			hpaCfg.MaxReplicas = int(minReplicas) * 2
+	transform: func(unit *HelmExecUnit, cfg config.ExecutionUnit, pod *corev1.Pod, log *zap.SugaredLogger) ([]HelmChartValue, error) {
+		_, imagePlaceholder, err := unit.upsertOnlyContainer(&pod.Spec.Containers, cfg)
+		if err != nil {
+			return nil, err
 		}
-	}
 
-	if hpaCfg.MaxReplicas != 0 {
-		maxReplicas := int32(hpaCfg.MaxReplicas)
-		if maxReplicas < *hpa.Spec.MinReplicas {
-			log.Errorf(`cannot set maxReplicas to %v because that's less than minReplicas (%v)`,
-				hpaCfg.MaxReplicas,
-				*hpa.Spec.MinReplicas,
+		if pod.Labels == nil {
+			pod.Labels = make(map[string]string)
+		}
+		pod.Labels["execUnit"] = unit.Name
+		pod.Spec.ServiceAccountName = unit.getServiceAccountName()
+
+		output, err := yaml.Marshal(pod)
+		if err != nil {
+			return nil, err
+		}
+		err = unit.Pod.Reparse([]byte(output))
+		if err != nil {
+			return nil, err
+		}
+		return []HelmChartValue{
+			{
+				ExecUnitName: unit.Name,
+				Kind:         pod.Kind,
+				Type:         string(ImageTransformation),
+				Key:          imagePlaceholder,
+			},
+		}, nil
+	},
+}
+
+var deploymentTransformer = manifestTransformer[*apps.Deployment]{
+	fieldToTransform: func(unit *HelmExecUnit) *core.SourceFile {
+		return unit.Deployment
+	},
+
+	transform: func(unit *HelmExecUnit, cfg config.ExecutionUnit, deployment *apps.Deployment, log *zap.SugaredLogger) ([]HelmChartValue, error) {
+		k8sCfg, imagePlaceholder, err := unit.upsertOnlyContainer(&deployment.Spec.Template.Spec.Containers, cfg)
+		if err != nil {
+			return nil, err
+		}
+		var values []HelmChartValue
+		values = []HelmChartValue{
+			HelmChartValue{
+				ExecUnitName: unit.Name,
+				Kind:         deployment.Kind,
+				Type:         string(ImageTransformation),
+				Key:          imagePlaceholder,
+			},
+		}
+
+		extraLabels := generateLabels(k8sCfg)
+
+		if deployment.Labels == nil {
+			deployment.Labels = make(map[string]string)
+		}
+		deployment.Labels["execUnit"] = unit.Name
+		extraLabels.addTo(deployment.Labels)
+
+		if k8sCfg.Replicas != 0 {
+			*deployment.Spec.Replicas = int32(k8sCfg.Replicas)
+		}
+
+		if deployment.Spec.Template.Labels == nil {
+			deployment.Spec.Template.Labels = make(map[string]string)
+		}
+		deployment.Spec.Template.Labels["execUnit"] = unit.Name
+		deployment.Spec.Template.Spec.ServiceAccountName = unit.getServiceAccountName()
+		extraLabels.addTo(deployment.Spec.Template.Labels)
+
+		if deployment.Spec.Selector.MatchLabels == nil {
+			deployment.Spec.Selector.MatchLabels = make(map[string]string)
+		}
+		deployment.Spec.Selector.MatchLabels["execUnit"] = unit.Name
+		extraLabels.addTo(deployment.Spec.Selector.MatchLabels)
+
+		if deployment.Spec.Template.Spec.NodeSelector == nil {
+			deployment.Spec.Template.Spec.NodeSelector = make(map[string]string)
+		}
+
+		if cfg.NetworkPlacement != "" {
+			deployment.Spec.Template.Spec.NodeSelector["network_placement"] = cfg.NetworkPlacement
+		}
+		if kconfig := cfg.GetExecutionUnitParamsAsKubernetes(); kconfig.InstanceType != "" {
+			instanceTypeKey := unit.Name + "InstanceTypeKey"
+			instanceTypeValue := unit.Name + "InstanceTypeValue"
+			deployment.Spec.Template.Spec.NodeSelector[fmt.Sprintf("{{ .Values.%s }}", instanceTypeKey)] = fmt.Sprintf("{{ .Values.%s }}", instanceTypeValue)
+			values = append(values,
+				HelmChartValue{
+					ExecUnitName: unit.Name,
+					Kind:         deployment.Kind,
+					Type:         string(InstanceTypeKey),
+					Key:          instanceTypeKey,
+				},
+				HelmChartValue{
+					ExecUnitName: unit.Name,
+					Kind:         deployment.Kind,
+					Type:         string(InstanceTypeValue),
+					Key:          instanceTypeValue,
+				},
 			)
-		} else {
-			hpa.Spec.MaxReplicas = maxReplicas
+		} else if kconfig.DiskSizeGiB > 0 {
+			log.Warnf("Unimplemented: disk size configured of %d ignored due to missing instance type", kconfig.DiskSizeGiB)
 		}
-	}
-	if hpaCfg.CpuUtilization != 0 {
-		cpu := int32(hpaCfg.CpuUtilization)
-		res := getOrCreateMetricResource(&hpa.Spec.Metrics, corev1.ResourceCPU)
-		res.Target = autoscaling.MetricTarget{
-			Type:               autoscaling.UtilizationMetricType,
-			AverageUtilization: &cpu,
-		}
-	}
-	if hpaCfg.MemoryUtilization != 0 {
-		mem := int32(hpaCfg.MemoryUtilization)
-		res := getOrCreateMetricResource(&hpa.Spec.Metrics, corev1.ResourceMemory)
-		res.Target = autoscaling.MetricTarget{
-			Type:               autoscaling.UtilizationMetricType,
-			AverageUtilization: &mem,
-		}
-	}
+		return values, nil
+	},
+}
 
-	output, err := yaml.Marshal(hpa)
-	if err != nil {
-		return nil, err
-	}
-	manifest := string(output)
-	err = unit.HorizontalPodAutoscaler.Reparse([]byte(manifest))
-	if err != nil {
-		return nil, err
-	}
-	return nil, nil
+var horizontalPodAutoscalerTransformer = manifestTransformer[*autoscaling.HorizontalPodAutoscaler]{
+	fieldToTransform: func(unit *HelmExecUnit) *core.SourceFile {
+		return unit.HorizontalPodAutoscaler
+	},
+
+	transform: func(unit *HelmExecUnit, cfg config.ExecutionUnit, hpa *autoscaling.HorizontalPodAutoscaler, log *zap.SugaredLogger) ([]HelmChartValue, error) {
+		k8Cfg := cfg.GetExecutionUnitParamsAsKubernetes()
+		hpaCfg := k8Cfg.HorizontalPodAutoScalingConfig
+
+		if k8Cfg.Replicas != 0 {
+			minReplicas := int32(k8Cfg.Replicas)
+			hpa.Spec.MinReplicas = &minReplicas
+			if hpaCfg.MaxReplicas == 0 {
+				hpaCfg.MaxReplicas = int(minReplicas) * 2
+			}
+		}
+
+		if hpaCfg.MaxReplicas != 0 {
+			maxReplicas := int32(hpaCfg.MaxReplicas)
+			if maxReplicas < *hpa.Spec.MinReplicas {
+				log.Errorf(`cannot set maxReplicas to %v because that's less than minReplicas (%v)`,
+					hpaCfg.MaxReplicas,
+					*hpa.Spec.MinReplicas,
+				)
+			} else {
+				hpa.Spec.MaxReplicas = maxReplicas
+			}
+		}
+		if hpaCfg.CpuUtilization != 0 {
+			cpu := int32(hpaCfg.CpuUtilization)
+			res := getOrCreateMetricResource(&hpa.Spec.Metrics, corev1.ResourceCPU)
+			res.Target = autoscaling.MetricTarget{
+				Type:               autoscaling.UtilizationMetricType,
+				AverageUtilization: &cpu,
+			}
+		}
+		if hpaCfg.MemoryUtilization != 0 {
+			mem := int32(hpaCfg.MemoryUtilization)
+			res := getOrCreateMetricResource(&hpa.Spec.Metrics, corev1.ResourceMemory)
+			res.Target = autoscaling.MetricTarget{
+				Type:               autoscaling.UtilizationMetricType,
+				AverageUtilization: &mem,
+			}
+		}
+		return nil, nil
+	},
 }
 
 func getOrCreateMetricResource(metrics *[]autoscaling.MetricSpec, name corev1.ResourceName) *autoscaling.ResourceMetricSource {
@@ -290,120 +303,84 @@ func getOrCreateMetricResource(metrics *[]autoscaling.MetricSpec, name corev1.Re
 	return createdRes
 }
 
-func (unit *HelmExecUnit) transformService(cfg config.ExecutionUnit) (values []HelmChartValue, err error) {
-	log := zap.L().Sugar().With(logging.FileField(unit.Service), zap.String("unit", unit.Name))
-	log.Debugf("Transforming file, %s, for exec unit, %s", unit.Service.Path(), unit.Name)
-	obj, err := readFile(unit.Service)
-	if err != nil {
-		return
-	}
-	service, ok := obj.(*corev1.Service)
-	if !ok {
-		err = fmt.Errorf("expected file %s to contain ServiceAccount Kind", unit.ServiceAccount.Path())
-		return
-	}
+var serviceTransformer = manifestTransformer[*corev1.Service]{
+	fieldToTransform: func(unit *HelmExecUnit) *core.SourceFile {
+		return unit.Service
+	},
 
-	k8Cfg := cfg.GetExecutionUnitParamsAsKubernetes()
-	extraLabels := generateLabels(k8Cfg)
+	transform: func(unit *HelmExecUnit, cfg config.ExecutionUnit, service *corev1.Service, log *zap.SugaredLogger) ([]HelmChartValue, error) {
+		k8Cfg := cfg.GetExecutionUnitParamsAsKubernetes()
+		extraLabels := generateLabels(k8Cfg)
 
-	if service.Spec.Selector == nil {
-		service.Spec.Selector = make(map[string]string)
-	}
-	service.Spec.Selector["execUnit"] = unit.Name
-	extraLabels.addTo(service.Spec.Selector)
+		if service.Spec.Selector == nil {
+			service.Spec.Selector = make(map[string]string)
+		}
+		service.Spec.Selector["execUnit"] = unit.Name
+		extraLabels.addTo(service.Spec.Selector)
 
-	if service.Labels == nil {
-		service.Labels = make(map[string]string)
-	}
-	service.Labels["execUnit"] = unit.Name
-	extraLabels.addTo(service.Labels)
+		if service.Labels == nil {
+			service.Labels = make(map[string]string)
+		}
+		service.Labels["execUnit"] = unit.Name
+		extraLabels.addTo(service.Labels)
 
-	output, err := yaml.Marshal(service)
-	if err != nil {
-		return nil, err
-	}
-	manifest := string(output)
-	err = unit.Service.Reparse([]byte(manifest))
-	if err != nil {
-		return nil, err
-	}
-	return
+		return nil, nil
+	},
 }
 
-func (unit *HelmExecUnit) transformServiceAccount() (values []HelmChartValue, err error) {
-	log := zap.L().Sugar().With(logging.FileField(unit.ServiceAccount), zap.String("unit", unit.Name))
-	log.Debugf("Transforming file, %s, for exec unit, %s", unit.ServiceAccount.Path(), unit.Name)
-	obj, err := readFile(unit.ServiceAccount)
-	if err != nil {
-		return
-	}
-	serviceAccount, ok := obj.(*corev1.ServiceAccount)
-	if !ok {
-		err = fmt.Errorf("expected file %s to contain ServiceAccount Kind", unit.ServiceAccount.Path())
-		return
-	}
-	value := GenerateRoleArnPlaceholder(unit.Name)
-	if serviceAccount.Annotations == nil {
-		serviceAccount.Annotations = make(map[string]string)
-	}
-	serviceAccount.Annotations[EKS_ANNOTATION_KEY] = fmt.Sprintf("{{ .Values.%s }}", value)
-	if serviceAccount.Labels == nil {
-		serviceAccount.Labels = make(map[string]string)
-	}
-	serviceAccount.Labels["execUnit"] = unit.Name
+var serviceAccountTransformer = manifestTransformer[*corev1.ServiceAccount]{
+	fieldToTransform: func(unit *HelmExecUnit) *core.SourceFile {
+		return unit.ServiceAccount
+	},
 
-	output, err := yaml.Marshal(serviceAccount)
-	if err != nil {
-		return nil, err
-	}
-	err = unit.ServiceAccount.Reparse([]byte(output))
-	if err != nil {
-		return nil, err
-	}
-	values = append(values, HelmChartValue{
-		ExecUnitName: unit.Name,
-		Kind:         serviceAccount.Kind,
-		Type:         string(ServiceAccountAnnotationTransformation),
-		Key:          value,
-	})
-	return
+	transform: func(unit *HelmExecUnit, _cfg config.ExecutionUnit, serviceAccount *corev1.ServiceAccount, log *zap.SugaredLogger) ([]HelmChartValue, error) {
+		value := GenerateRoleArnPlaceholder(unit.Name)
+		if serviceAccount.Annotations == nil {
+			serviceAccount.Annotations = make(map[string]string)
+		}
+		serviceAccount.Annotations[EKS_ANNOTATION_KEY] = fmt.Sprintf("{{ .Values.%s }}", value)
+		if serviceAccount.Labels == nil {
+			serviceAccount.Labels = make(map[string]string)
+		}
+		serviceAccount.Labels["execUnit"] = unit.Name
+
+		return []HelmChartValue{
+			HelmChartValue{
+				ExecUnitName: unit.Name,
+				Kind:         serviceAccount.Kind,
+				Type:         string(ServiceAccountAnnotationTransformation),
+				Key:          value,
+			},
+		}, nil
+	},
 }
 
-func (unit *HelmExecUnit) transformTargetGroupBinding() (values []HelmChartValue, err error) {
-	log := zap.L().Sugar().With(logging.FileField(unit.TargetGroupBinding), zap.String("unit", unit.Name))
-	log.Debugf("Transforming file, %s, for exec unit, %s", unit.TargetGroupBinding.Path(), unit.Name)
-	obj, err := readElbv2ApiFiles(unit.TargetGroupBinding)
-	if err != nil {
-		return
-	}
-	targetGroupBinding, ok := obj.(*elbv2api.TargetGroupBinding)
-	if !ok {
-		err = fmt.Errorf("expected file %s to contain TargetGroupBinding Kind", unit.TargetGroupBinding.Path())
-		return
-	}
-	value := GenerateTargetGroupBindingPlaceholder(unit.Name)
+var targetGroupBindingTransformer = manifestTransformer[*elbv2api.TargetGroupBinding]{
+	fieldToTransform: func(unit *HelmExecUnit) *core.SourceFile {
+		return unit.TargetGroupBinding
+	},
 
-	targetGroupBinding.Spec.TargetGroupARN = fmt.Sprintf("{{ .Values.%s }}", value)
+	readF: readElbv2ApiFiles,
 
-	if targetGroupBinding.Labels == nil {
-		targetGroupBinding.Labels = make(map[string]string)
-	}
-	targetGroupBinding.Labels["execUnit"] = unit.Name
-	output, err := yaml.Marshal(targetGroupBinding)
-	if err != nil {
-		return nil, err
-	}
-	err = unit.TargetGroupBinding.Reparse([]byte(output))
-	if err != nil {
-		return nil, err
-	}
-	values = append(values, HelmChartValue{
-		ExecUnitName: unit.Name,
-		Kind:         targetGroupBinding.Kind,
-		Type:         string(TargetGroupTransformation),
-		Key:          value,
-	})
-	return
+	transform: func(unit *HelmExecUnit, cfg config.ExecutionUnit, targetGroupBinding *elbv2api.TargetGroupBinding, log *zap.SugaredLogger) ([]HelmChartValue, error) {
+		value := GenerateTargetGroupBindingPlaceholder(unit.Name)
+
+		targetGroupBinding.Spec.TargetGroupARN = fmt.Sprintf("{{ .Values.%s }}", value)
+
+		if targetGroupBinding.Labels == nil {
+			targetGroupBinding.Labels = make(map[string]string)
+		}
+		targetGroupBinding.Labels["execUnit"] = unit.Name
+
+		return []HelmChartValue{
+			HelmChartValue{
+				ExecUnitName: unit.Name,
+				Kind:         targetGroupBinding.Kind,
+				Type:         string(TargetGroupTransformation),
+				Key:          value,
+			},
+		}, nil
+	},
 }
 
 func (unit *HelmExecUnit) getServiceAccountName() string {
