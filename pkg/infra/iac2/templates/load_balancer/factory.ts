@@ -18,6 +18,8 @@ function create(args: Args): aws.lb.LoadBalancer {
         loadBalancerType: args.Type,
         subnets: args.Subnets.map((subnet) => subnet.id),
         tags: args.Tags,
+        //TMPL {{- if .SecurityGroups.Raw }}
         securityGroups: args.SecurityGroups.map((sg) => sg.id),
+        //TMPL {{- end }}
     })
 }

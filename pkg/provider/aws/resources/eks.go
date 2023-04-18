@@ -24,8 +24,8 @@ const (
 	DEFAULT_CLUSTER_NAME     = "eks-cluster"
 	EKS_ADDON_TYPE           = "eks_addon"
 
-	CLUSTER_OIDC_URL_IAC_VALUE = "cluster_oidc_url"
-	CLUSTER_OIDC_ARN_IAC_VALUE = "cluster_oidc_arn"
+	OIDC_URL_IAC_VALUE         = "oidc_url"
+	OIDC_AUD_IAC_VALUE         = "oidc_aud"
 	CLUSTER_ENDPOINT_IAC_VALUE = "cluster_endpoint"
 	CLUSTER_CA_DATA_IAC_VALUE  = "cluster_certificate_authority_data"
 	CLUSTER_PROVIDER_IAC_VALUE = "cluster_provider"
@@ -156,6 +156,15 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	cluster := NewEksCluster(appName, clusterName, subnets, securityGroups, clusterRole)
 	cluster.ConstructsRef = references
 	dag.AddDependenciesReflect(cluster)
+
+	oidc := &OpenIdConnectProvider{
+		Name:          cluster.Name,
+		ConstructsRef: references,
+		ClientIdLists: []string{"sts.amazonaws.com"},
+		Region:        NewRegion(),
+		Cluster:       cluster,
+	}
+	dag.AddDependenciesReflect(oidc)
 
 	nodeGroups := createNodeGroups(cfg, dag, units, clusterName, cluster, subnets)
 
@@ -494,7 +503,10 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 	saPath := "aws-load-balancer-controller-service-account.yaml"
 	outputPath := path.Join(MANIFEST_PATH_PREFIX, saPath)
 
-	assumeRolePolicyDoc := cluster.GetServiceAccountAssumeRolePolicy(serviceAccountName)
+	assumeRolePolicyDoc, err := cluster.GetServiceAccountAssumeRolePolicy(serviceAccountName, dag)
+	if err != nil {
+		return err
+	}
 	role := NewIamRole(cluster.Name, "alb-controller", references, assumeRolePolicyDoc)
 	policy := createAlbControllerPolicy(cluster.Name, references[0])
 	role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{Resource: policy, Property: ARN_IAC_VALUE})
@@ -623,7 +635,21 @@ func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeco
 	}
 }
 
-func (cluster *EksCluster) GetServiceAccountAssumeRolePolicy(serviceAccountName string) *PolicyDocument {
+func (cluster *EksCluster) getOidc(dag *core.ResourceGraph) *OpenIdConnectProvider {
+	for _, res := range dag.GetUpstreamResources(cluster) {
+		if oidc, ok := res.(*OpenIdConnectProvider); ok {
+			return oidc
+		}
+	}
+	return nil
+}
+
+func (cluster *EksCluster) GetServiceAccountAssumeRolePolicy(serviceAccountName string, dag *core.ResourceGraph) (*PolicyDocument, error) {
+	oidc := cluster.getOidc(dag)
+	if oidc == nil {
+		return nil, errors.Errorf("Could not find openIdConnectProvider for cluster %s", cluster.Name)
+	}
+
 	return &PolicyDocument{
 		Version: VERSION,
 		Statement: []StatementEntry{
@@ -631,22 +657,26 @@ func (cluster *EksCluster) GetServiceAccountAssumeRolePolicy(serviceAccountName 
 				Effect: "Allow",
 				Principal: &Principal{
 					Federated: core.IaCValue{
-						Resource: cluster,
-						Property: CLUSTER_OIDC_ARN_IAC_VALUE,
+						Resource: oidc,
+						Property: ARN_IAC_VALUE,
 					},
 				},
 				Action: []string{"sts:AssumeRoleWithWebIdentity"},
 				Condition: &Condition{
 					StringEquals: map[core.IaCValue]string{
 						{
-							Resource: cluster,
-							Property: CLUSTER_OIDC_URL_IAC_VALUE,
+							Resource: oidc,
+							Property: OIDC_URL_IAC_VALUE,
 						}: fmt.Sprintf("system:serviceaccount:default:%s", serviceAccountName), // TODO: Replace default with the namespace when we expose via configuration
+						{
+							Resource: oidc,
+							Property: OIDC_AUD_IAC_VALUE,
+						}: "sts.amazonaws.com",
 					},
 				},
 			},
 		},
-	}
+	}, nil
 }
 
 // GetEksCluster will return the resource with the name corresponding to the appName and ClusterId

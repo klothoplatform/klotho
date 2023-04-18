@@ -127,6 +127,14 @@ type (
 		StringEquals map[core.IaCValue]string
 		Null         map[core.IaCValue]string
 	}
+
+	OpenIdConnectProvider struct {
+		Name          string
+		ConstructsRef []core.AnnotationKey
+		ClientIdLists []string
+		Cluster       *EksCluster
+		Region        *Region
+	}
 )
 
 func NewPolicyGenerator() *PolicyGenerator {
@@ -231,6 +239,21 @@ func (policy *IamPolicy) KlothoConstructRef() []core.AnnotationKey {
 // ID returns the id of the cloud resource
 func (policy *IamPolicy) Id() string {
 	return fmt.Sprintf("%s:%s:%s", policy.Provider(), IAM_POLICY_TYPE, policy.Name)
+}
+
+// Provider returns name of the provider the resource is correlated to
+func (oidc *OpenIdConnectProvider) Provider() string {
+	return AWS_PROVIDER
+}
+
+// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (oidc *OpenIdConnectProvider) KlothoConstructRef() []core.AnnotationKey {
+	return oidc.ConstructsRef
+}
+
+// ID returns the id of the cloud resource
+func (oidc *OpenIdConnectProvider) Id() string {
+	return fmt.Sprintf("%s:%s:%s", oidc.Provider(), OIDC_PROVIDER_TYPE, oidc.Name)
 }
 
 func (s StatementEntry) Id() string {
