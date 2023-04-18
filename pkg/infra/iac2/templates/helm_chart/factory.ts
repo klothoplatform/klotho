@@ -40,9 +40,7 @@ function create(args: Args): pulumi_k8s.helm.v3.Chart {
         },
         {
             provider: args.ClustersProvider,
-            //TMPL {{- if .dependsOn.Raw }}
             dependsOn: args.dependsOn,
-            //TMPL {{- end }}
         }
     )
 }

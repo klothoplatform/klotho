@@ -9,9 +9,13 @@ interface Args {
 
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.rds.ProxyTarget {
-    return new aws.rds.ProxyTarget('exampleProxyTarget', {
-        dbInstanceIdentifier: args.RdsInstance.id,
-        dbProxyName: args.RdsProxy.name,
-        targetGroupName: args.TargetGroupName,
-    })
+    return new aws.rds.ProxyTarget(
+        args.Name,
+        {
+            dbInstanceIdentifier: args.RdsInstance.id,
+            dbProxyName: args.RdsProxy.name,
+            targetGroupName: args.TargetGroupName,
+        },
+        { deleteBeforeReplace: true }
+    )
 }

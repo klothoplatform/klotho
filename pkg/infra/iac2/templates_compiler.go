@@ -55,7 +55,6 @@ type (
 	}
 	NestedCtx struct {
 		useDoubleQuotes bool
-		appliedOutputs  *[]AppliedOutput
 		rootVal         *reflect.Value
 	}
 )
@@ -213,31 +212,13 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 			}
 			childVal := resourceVal.FieldByName(fieldName)
 
-			var appliedoutputs []AppliedOutput
 			buf := strings.Builder{}
-			strValue, err := tc.resolveStructInput(&resourceVal, childVal, false, &appliedoutputs)
-			if err != nil {
-				errs.Append(err)
-				return
-			}
-			uniqueOutputs, err := deduplicateAppliedOutputs(appliedoutputs)
-			if err != nil {
-				errs.Append(err)
-				return
-			}
-			_, err = buf.WriteString(appliedOutputsToString(uniqueOutputs))
+			strValue, err := tc.resolveStructInput(&resourceVal, childVal, false)
 			if err != nil {
 				errs.Append(err)
 				return
 			}
 			buf.WriteString(strValue)
-			if len(uniqueOutputs) > 0 {
-				_, err = buf.WriteString("})")
-				if err != nil {
-					errs.Append(err)
-					return
-				}
-			}
 
 			var rawVal any
 			if childVal.IsValid() {
@@ -278,9 +259,14 @@ func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 	numDeps := len(upstreamResources)
 	for i := 0; i < numDeps; i++ {
 		res := upstreamResources[i]
-		buf.WriteString(tc.getVarName(res))
-		if i < (numDeps - 1) {
-			buf.WriteRune(',')
+		switch res.(type) {
+		case *resources.Region, *resources.AvailabilityZones, *resources.AccountId:
+			continue
+		default:
+			buf.WriteString(tc.getVarName(res))
+			if i < (numDeps - 1) {
+				buf.WriteRune(',')
+			}
 		}
 	}
 	buf.WriteRune(']')
@@ -288,10 +274,9 @@ func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 }
 
 // resolveStructInput translates a value to a form suitable to inject into the typescript as an input to a function.
-func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, childVal reflect.Value, useDoubleQuotedStrings bool, appliedOutputs *[]AppliedOutput) (string, error) {
+func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, childVal reflect.Value, useDoubleQuotedStrings bool) (string, error) {
 	tc.ctx = &NestedCtx{
 		useDoubleQuotes: useDoubleQuotedStrings,
-		appliedOutputs:  appliedOutputs,
 		rootVal:         resourceVal,
 	}
 	var zeroValue reflect.Value
@@ -313,7 +298,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 		if typedChild, ok := childVal.Interface().(core.Resource); ok {
 			return tc.getVarName(typedChild), nil
 		} else if typedChild, ok := childVal.Interface().(core.IaCValue); ok {
-			output, err := tc.handleIaCValue(typedChild, appliedOutputs, resourceVal)
+			output, err := tc.handleIaCValue(typedChild, resourceVal)
 			if err != nil {
 				return output, err
 			}
@@ -354,7 +339,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 					resourceVal = &correspondingStruct
 				}
 
-				resolvedValue, err := tc.resolveStructInput(resourceVal, childVal, false, appliedOutputs)
+				resolvedValue, err := tc.resolveStructInput(resourceVal, childVal, false)
 
 				if err != nil {
 					return output.String(), err
@@ -379,7 +364,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 		buf := strings.Builder{}
 		buf.WriteRune('[')
 		for i := 0; i < sliceLen; i++ {
-			output, err := tc.resolveStructInput(resourceVal, childVal.Index(i), false, appliedOutputs)
+			output, err := tc.resolveStructInput(resourceVal, childVal.Index(i), false)
 			if err != nil {
 				return output, err
 			}
@@ -396,7 +381,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 		buf := strings.Builder{}
 		buf.WriteRune('{')
 		for i, key := range childVal.MapKeys() {
-			output, err := tc.resolveStructInput(resourceVal, key, true, appliedOutputs)
+			output, err := tc.resolveStructInput(resourceVal, key, true)
 			if err != nil {
 				return output, nil
 			}
@@ -409,7 +394,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 				buf.WriteString(output)
 			}
 			buf.WriteRune(':')
-			output, err = tc.resolveStructInput(resourceVal, childVal.MapIndex(key), false, appliedOutputs)
+			output, err = tc.resolveStructInput(resourceVal, childVal.MapIndex(key), false)
 			if err != nil {
 				return output, err
 			}
@@ -425,18 +410,18 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 		// instead of being the actual type. So, we basically pull the item out of the collection, and then reflect on
 		// it directly.
 		underlyingVal := childVal.Interface()
-		return tc.resolveStructInput(resourceVal, reflect.ValueOf(underlyingVal), false, appliedOutputs)
+		return tc.resolveStructInput(resourceVal, reflect.ValueOf(underlyingVal), false)
 	}
 	return "", nil
 }
 
 // handleIaCValue determines how to retrieve values from a resource given a specific value identifier.
-func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]AppliedOutput, resourceVal *reflect.Value) (string, error) {
+func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, resourceVal *reflect.Value) (string, error) {
 	resource := v.Resource
 	property := v.Property
 
 	if resource == nil {
-		output, err := tc.resolveStructInput(nil, reflect.ValueOf(property), false, appliedOutputs)
+		output, err := tc.resolveStructInput(nil, reflect.ValueOf(property), false)
 		if err != nil {
 			return output, err
 		}
@@ -504,28 +489,12 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
 		}
 
-	case resources.CLUSTER_OIDC_ARN_IAC_VALUE:
-		varName := "cluster_oidc_url"
-		*appliedOutputs = append(*appliedOutputs, AppliedOutput{
-			appliedName: fmt.Sprintf("%s.openIdConnectIssuerUrl", tc.getVarName(v.Resource)),
-			varName:     varName,
-		})
-
-		arnVarName := "cluster_arn"
-		*appliedOutputs = append(*appliedOutputs, AppliedOutput{
-			appliedName: fmt.Sprintf("%s.arn", tc.getVarName(v.Resource)),
-			varName:     arnVarName,
-		})
-		return fmt.Sprintf("`arn:aws:iam::${%s.split(':')[4]}:oidc-provider/${%s}`", arnVarName, varName), nil
-	case resources.CLUSTER_OIDC_URL_IAC_VALUE:
-		varName := "cluster_oidc_url"
-		*appliedOutputs = append(*appliedOutputs, AppliedOutput{
-			appliedName: fmt.Sprintf("%s.openIdConnectIssuerUrl", tc.getVarName(v.Resource)),
-			varName:     varName,
-		})
-		return fmt.Sprintf("`${%s}:sub`", varName), nil
+	case resources.OIDC_URL_IAC_VALUE:
+		return fmt.Sprintf("`${%s.url}:sub`", tc.getVarName(v.Resource)), nil
+	case resources.OIDC_AUD_IAC_VALUE:
+		return fmt.Sprintf("`${%s.url}:aud`", tc.getVarName(v.Resource)), nil
 	case resources.CLUSTER_CA_DATA_IAC_VALUE:
-		return fmt.Sprintf("%s.certificateAuthorityData", tc.getVarName(v.Resource)), nil
+		return fmt.Sprintf("%s.certificateAuthorities[0].data", tc.getVarName(v.Resource)), nil
 	case resources.CLUSTER_ENDPOINT_IAC_VALUE:
 		return fmt.Sprintf("%s.endpoint", tc.getVarName(v.Resource)), nil
 	case resources.CLUSTER_PROVIDER_IAC_VALUE:
@@ -578,7 +547,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 }
 
 func (tc TemplatesCompiler) handleSingleIaCValue(v core.IaCValue) (string, error) {
-	return tc.handleIaCValue(v, nil, nil)
+	return tc.handleIaCValue(v, nil)
 }
 
 // getVarName gets a unique but nice-looking variable for the given item.
@@ -615,7 +584,7 @@ func (tc TemplatesCompiler) getVarNameByResourceId(id string) string {
 
 // parseVal parses the supplied value for nested tempaltes
 func (tc TemplatesCompiler) parseVal(val reflect.Value) (string, error) {
-	return tc.resolveStructInput(tc.ctx.rootVal, val, tc.ctx.useDoubleQuotes, tc.ctx.appliedOutputs)
+	return tc.resolveStructInput(tc.ctx.rootVal, val, tc.ctx.useDoubleQuotes)
 }
 
 func (tp templatesProvider) getTemplate(v core.Resource) (ResourceCreationTemplate, error) {
@@ -694,6 +663,7 @@ func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource core.Resource
 	var errs multierr.Error
 	switch resource := resource.(type) {
 	case *resources.EksCluster:
+		errs.Append(tc.addIngressRuleToCluster(out, resource))
 		errs.Append(tc.renderKubernetesProvider(out, resource))
 	case *resources.IamPolicy:
 		downStream := tc.resourceGraph.GetDownstreamResources(resource)
@@ -726,5 +696,30 @@ func (tc TemplatesCompiler) renderKubernetesProvider(out io.Writer, cluster *res
 	_, err = out.Write([]byte("\n\n"))
 	errs.Append(err)
 	errs.Append(tc.renderResource(out, provider))
+	return errs.ErrOrNil()
+}
+
+func (tc TemplatesCompiler) addIngressRuleToCluster(out io.Writer, cluster *resources.EksCluster) error {
+	var errs multierr.Error
+
+	_, err := out.Write([]byte("\n\n"))
+	errs.Append(err)
+
+	cidrBlocks := []string{}
+	for _, subnet := range cluster.Subnets {
+		cidrBlocks = append(cidrBlocks, subnet.CidrBlock)
+	}
+
+	sgRule := &SecurityGroupRule{
+		ConstructsRef: cluster.ConstructsRef,
+		Name:          fmt.Sprintf("%s-ingress", cluster.Name),
+		FromPort:      0,
+		ToPort:        0,
+		Protocol:      "-1",
+		CidrBlocks:    cidrBlocks,
+		Cluster:       cluster,
+		Type:          "ingress",
+	}
+	errs.Append(tc.renderResource(out, sgRule))
 	return errs.ErrOrNil()
 }

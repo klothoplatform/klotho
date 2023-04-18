@@ -61,6 +61,7 @@ func Test_CreateEksCluster(t *testing.T) {
 					"kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map",
 					"kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin",
 					"aws:eks_addon:test-app-test-cluster-addon-vpc-cni",
+					"aws:iam_oidc_provider:test-app-test-cluster",
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:vpc:test_app", Destination: "aws:region:region"},
@@ -92,6 +93,8 @@ func Test_CreateEksCluster(t *testing.T) {
 					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_node_group:private_g2"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_node_group:private_t3_medium"},
+					{Source: "aws:iam_oidc_provider:test-app-test-cluster", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "aws:iam_oidc_provider:test-app-test-cluster", Destination: "aws:region:region"},
 				},
 			},
 		},
@@ -183,7 +186,7 @@ func Test_getClustersNodeGroups(t *testing.T) {
 	dag.AddDependenciesReflect(nodeGroup1)
 	dag.AddDependenciesReflect(nodeGroup2)
 	dag.AddDependenciesReflect(nodeGroup3)
-	assert.ElementsMatch(cluster.getClustersNodeGroups(dag), []*EksNodeGroup{nodeGroup1, nodeGroup2})
+	assert.ElementsMatch(cluster.GetClustersNodeGroups(dag), []*EksNodeGroup{nodeGroup1, nodeGroup2})
 }
 
 func Test_createClusterAdminRole(t *testing.T) {
