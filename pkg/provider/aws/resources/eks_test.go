@@ -96,6 +96,7 @@ func Test_CreateEksCluster(t *testing.T) {
 					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_node_group:private_g2"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_node_group:private_t3_medium"},
+					{Source: "aws:eks_node_group:private_t3_medium", Destination: "aws:eks_addon:test-app-test-cluster-addon-vpc-cni"},
 				},
 			},
 		},

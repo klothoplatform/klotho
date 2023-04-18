@@ -15,17 +15,6 @@ type (
 		EnableServerSideApply bool
 	}
 
-	SecurityGroupRule struct {
-		ConstructsRef []core.AnnotationKey
-		Name          string
-		FromPort      int
-		ToPort        int
-		Protocol      string
-		CidrBlocks    []string
-		Cluster       *resources.EksCluster
-		Type          string
-	}
-
 	RouteTableAssociation struct {
 		Name          string
 		ConstructsRef []core.AnnotationKey
@@ -44,18 +33,6 @@ func (e *KubernetesProvider) KlothoConstructRef() []core.AnnotationKey {
 
 func (e *KubernetesProvider) Id() string {
 	return fmt.Sprintf("%s:%s:%s", e.Provider(), "kubernetes_provider", e.Name)
-}
-
-func (e *SecurityGroupRule) Provider() string {
-	return "pulumi"
-}
-
-func (e *SecurityGroupRule) KlothoConstructRef() []core.AnnotationKey {
-	return e.ConstructsRef
-}
-
-func (e *SecurityGroupRule) Id() string {
-	return fmt.Sprintf("%s:%s:%s", e.Provider(), "security_group_rule", e.Name)
 }
 
 func (e *RouteTableAssociation) Provider() string {

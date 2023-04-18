@@ -202,33 +202,33 @@ var deploymentTransformer = manifestTransformer[*apps.Deployment]{
 		deployment.Spec.Selector.MatchLabels["execUnit"] = unit.Name
 		extraLabels.addTo(deployment.Spec.Selector.MatchLabels)
 
-		if deployment.Spec.Template.Spec.NodeSelector == nil {
+		if deployment.Spec.Template.Spec.NodeSelector == nil && cfg.GetExecutionUnitParamsAsKubernetes().NodeType == "node" {
 			deployment.Spec.Template.Spec.NodeSelector = make(map[string]string)
-		}
+			if cfg.NetworkPlacement != "" {
+				deployment.Spec.Template.Spec.NodeSelector["network_placement"] = cfg.NetworkPlacement
+			}
 
-		if cfg.NetworkPlacement != "" {
-			deployment.Spec.Template.Spec.NodeSelector["network_placement"] = cfg.NetworkPlacement
-		}
-		if kconfig := cfg.GetExecutionUnitParamsAsKubernetes(); kconfig.InstanceType != "" {
-			instanceTypeKey := unit.Name + "InstanceTypeKey"
-			instanceTypeValue := unit.Name + "InstanceTypeValue"
-			deployment.Spec.Template.Spec.NodeSelector[fmt.Sprintf("{{ .Values.%s }}", instanceTypeKey)] = fmt.Sprintf("{{ .Values.%s }}", instanceTypeValue)
-			values = append(values,
-				HelmChartValue{
-					ExecUnitName: unit.Name,
-					Kind:         deployment.Kind,
-					Type:         string(InstanceTypeKey),
-					Key:          instanceTypeKey,
-				},
-				HelmChartValue{
-					ExecUnitName: unit.Name,
-					Kind:         deployment.Kind,
-					Type:         string(InstanceTypeValue),
-					Key:          instanceTypeValue,
-				},
-			)
-		} else if kconfig.DiskSizeGiB > 0 {
-			log.Warnf("Unimplemented: disk size configured of %d ignored due to missing instance type", kconfig.DiskSizeGiB)
+			if kconfig := cfg.GetExecutionUnitParamsAsKubernetes(); kconfig.InstanceType != "" {
+				instanceTypeKey := unit.Name + "InstanceTypeKey"
+				instanceTypeValue := unit.Name + "InstanceTypeValue"
+				deployment.Spec.Template.Spec.NodeSelector[fmt.Sprintf("{{ .Values.%s }}", instanceTypeKey)] = fmt.Sprintf("{{ .Values.%s }}", instanceTypeValue)
+				values = append(values,
+					HelmChartValue{
+						ExecUnitName: unit.Name,
+						Kind:         deployment.Kind,
+						Type:         string(InstanceTypeKey),
+						Key:          instanceTypeKey,
+					},
+					HelmChartValue{
+						ExecUnitName: unit.Name,
+						Kind:         deployment.Kind,
+						Type:         string(InstanceTypeValue),
+						Key:          instanceTypeValue,
+					},
+				)
+			} else if kconfig.DiskSizeGiB > 0 {
+				log.Warnf("Unimplemented: disk size configured of %d ignored due to missing instance type", kconfig.DiskSizeGiB)
+			}
 		}
 		return values, nil
 	},

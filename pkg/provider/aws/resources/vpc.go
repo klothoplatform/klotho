@@ -85,6 +85,16 @@ type (
 	}
 )
 
+// CreateNetwork takes in a config and uses the appName to create an aws network and inject it into the dag.
+//
+// The network consists of:
+// - 1 Vpc
+// - 1 Internet Gateway
+// - 2 Public subnets, in different availability zones, which use the public route table.
+// - 1 Public Route Table that includes a route to an internet gateway.
+// - 2 Nat Gateways, each one sitting in its own public subnet.
+// - 2 private subnets, with their own route table.
+// - 2 Private Route Tables that include a route to one of the Nat Gateways.
 func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 	appName := config.AppName
 	vpc := NewVpc(appName)

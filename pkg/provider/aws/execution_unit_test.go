@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -245,8 +244,6 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
-
 			tt.want.Assert(t, dag)
 		})
 	}

@@ -594,7 +594,6 @@ func (cluster *EksCluster) GetClustersNodeGroups(dag *core.ResourceGraph) []*Eks
 }
 
 func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeconfig {
-	username := "aws"
 	clusterNameIaCValue := core.IaCValue{
 		Resource: cluster,
 		Property: NAME_IAC_VALUE,
@@ -603,7 +602,7 @@ func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeco
 		ConstructsRef:  cluster.ConstructsRef,
 		Name:           fmt.Sprintf("%s-eks-kubeconfig", cluster.Name),
 		ApiVersion:     "v1",
-		CurrentContext: "aws",
+		CurrentContext: clusterNameIaCValue,
 		Kind:           "Config",
 		Clusters: []kubernetes.KubeconfigCluster{
 			{
@@ -625,13 +624,13 @@ func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeco
 				Name: clusterNameIaCValue,
 				Context: kubernetes.KubeconfigContext{
 					Cluster: clusterNameIaCValue,
-					User:    username,
+					User:    clusterNameIaCValue,
 				},
 			},
 		},
 		Users: []kubernetes.KubeconfigUsers{
 			{
-				Name: username,
+				Name: clusterNameIaCValue,
 				User: kubernetes.KubeconfigUser{
 					Exec: kubernetes.KubeconfigExec{
 						ApiVersion: "client.authentication.k8s.io/v1beta1",

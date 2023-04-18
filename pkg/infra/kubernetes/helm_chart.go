@@ -1,9 +1,9 @@
 package kubernetes
 
 import (
+	"bytes"
 	"fmt"
-	"os"
-	"path/filepath"
+	"path"
 
 	"go.uber.org/zap"
 	apps "k8s.io/api/apps/v1"
@@ -45,40 +45,17 @@ func (chart *HelmChart) KlothoConstructRef() []core.AnnotationKey { return chart
 func (chart *HelmChart) Id() string {
 	return fmt.Sprintf("%s:%s:%s", chart.Provider(), HELM_CHART_TYPE, chart.Name)
 }
-
-func (t *HelmChart) OutputTo(dest string) error {
-	errs := make(chan error)
-	files := t.Files
-	for idx := range files {
-		go func(f core.File) {
-			path := filepath.Join(dest, "charts", f.Path())
-			dir := filepath.Dir(path)
-			err := os.MkdirAll(dir, 0777)
-			if err != nil {
-				errs <- err
-				return
-			}
-			file, err := os.OpenFile(path, os.O_RDWR, 0777)
-			if os.IsNotExist(err) {
-				file, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0777)
-			}
-			if err != nil {
-				errs <- err
-				return
-			}
-			_, err = f.WriteTo(file)
-			defer file.Close()
-			errs <- err
-		}(files[idx])
+func (t *HelmChart) GetOutputFiles() []core.File {
+	var outputFiles []core.File
+	for _, file := range t.Files {
+		buf := &bytes.Buffer{}
+		file.WriteTo(buf)
+		outputFiles = append(outputFiles, &core.RawFile{
+			FPath:   path.Join("charts", file.Path()),
+			Content: buf.Bytes(),
+		})
 	}
-
-	for i := 0; i < len(files); i++ {
-		err := <-errs
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return outputFiles
 }
 
 func (t *HelmChart) AssignFilesToUnits() error {
