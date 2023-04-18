@@ -2,7 +2,6 @@
     "name": "eks_fargate_profile",
     "dependencies": {
         "@pulumi/aws": "^5.16.0",
-        "@pulumi/aws-native": "^0.56.0",
         "@pulumi/pulumi": "^3.40.2"
     }
 }
