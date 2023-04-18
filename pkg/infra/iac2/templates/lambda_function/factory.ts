@@ -21,7 +21,7 @@ function create(args: Args): aws.lambda.Function {
             imageUri: args.Image.imageName,
             role: args.Role.arn,
             name: args.Name,
-            //TMPL {{- if .Vpc.Raw }}
+            //TMPL {{- if and .SecurityGroups.Raw .Subnets.Raw }}
             vpcConfig: {
                 securityGroupIds: args.SecurityGroups.map((sg) => sg.id),
                 subnetIds: args.Subnets.map((subnet) => subnet.id),
