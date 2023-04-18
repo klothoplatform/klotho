@@ -24,8 +24,8 @@ const (
 	DEFAULT_CLUSTER_NAME     = "eks-cluster"
 	EKS_ADDON_TYPE           = "eks_addon"
 
-	CLUSTER_OIDC_URL_IAC_VALUE = "cluster_oidc_url"
-	CLUSTER_OIDC_ARN_IAC_VALUE = "cluster_oidc_arn"
+	OIDC_URL_IAC_VALUE         = "oidc_url"
+	OIDC_AUD_IAC_VALUE         = "oidc_aud"
 	CLUSTER_ENDPOINT_IAC_VALUE = "cluster_endpoint"
 	CLUSTER_CA_DATA_IAC_VALUE  = "cluster_certificate_authority_data"
 	CLUSTER_PROVIDER_IAC_VALUE = "cluster_provider"
@@ -157,6 +157,15 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	cluster.ConstructsRef = references
 	dag.AddDependenciesReflect(cluster)
 
+	oidc := &OpenIdConnectProvider{
+		Name:          cluster.Name,
+		ConstructsRef: references,
+		ClientIdLists: []string{"sts.amazonaws.com"},
+		Region:        NewRegion(),
+		Cluster:       cluster,
+	}
+	dag.AddDependenciesReflect(oidc)
+
 	nodeGroups := createNodeGroups(cfg, dag, units, clusterName, cluster, subnets)
 
 	cluster.installVpcCniAddon(references, dag)
@@ -170,7 +179,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 		zap.S().Warnf("Unable to set up fluent bit manifests for cluster %s: %s", clusterName, err.Error())
 	}
 
-	for _, ng := range cluster.getClustersNodeGroups(dag) {
+	for _, ng := range cluster.GetClustersNodeGroups(dag) {
 		if strings.HasSuffix(strings.ToLower(ng.AmiType), "_gpu") {
 			cluster.installNvidiaDevicePlugin(dag)
 			break
@@ -354,7 +363,7 @@ func (cluster *EksCluster) installNvidiaDevicePlugin(dag *core.ResourceGraph) {
 	}
 	dag.AddDependenciesReflect(manifest)
 
-	for _, ng := range cluster.getClustersNodeGroups(dag) {
+	for _, ng := range cluster.GetClustersNodeGroups(dag) {
 		dag.AddDependency(manifest, ng)
 		if strings.HasSuffix(strings.ToLower(ng.AmiType), "_gpu") {
 			manifest.ConstructRefs = append(manifest.ConstructRefs, ng.ConstructsRef...)
@@ -482,7 +491,7 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 		dag.AddDependenciesReflect(cloudMapController)
 	}
 
-	for _, nodeGroup := range cluster.getClustersNodeGroups(dag) {
+	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
 		dag.AddDependency(cloudMapController, nodeGroup)
 	}
 
@@ -494,7 +503,10 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 	saPath := "aws-load-balancer-controller-service-account.yaml"
 	outputPath := path.Join(MANIFEST_PATH_PREFIX, saPath)
 
-	assumeRolePolicyDoc := cluster.GetServiceAccountAssumeRolePolicy(serviceAccountName)
+	assumeRolePolicyDoc, err := cluster.GetServiceAccountAssumeRolePolicy(serviceAccountName, dag)
+	if err != nil {
+		return err
+	}
 	role := NewIamRole(cluster.Name, "alb-controller", references, assumeRolePolicyDoc)
 	policy := createAlbControllerPolicy(cluster.Name, references[0])
 	role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{Resource: policy, Property: ARN_IAC_VALUE})
@@ -542,6 +554,9 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 	}
 	dag.AddDependenciesReflect(albChart)
 	dag.AddDependenciesReflect(role)
+	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
+		dag.AddDependency(albChart, nodeGroup)
+	}
 	return nil
 }
 
@@ -560,7 +575,7 @@ func (cluster *EksCluster) installVpcCniAddon(references []core.AnnotationKey, d
 	dag.AddDependenciesReflect(addon)
 }
 
-func (cluster *EksCluster) getClustersNodeGroups(dag *core.ResourceGraph) []*EksNodeGroup {
+func (cluster *EksCluster) GetClustersNodeGroups(dag *core.ResourceGraph) []*EksNodeGroup {
 	nodeGroups := []*EksNodeGroup{}
 	for _, res := range dag.GetAllUpstreamResources(cluster) {
 		if nodeGroup, ok := res.(*EksNodeGroup); ok {
@@ -585,36 +600,44 @@ func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeco
 		Clusters: []kubernetes.KubeconfigCluster{
 			{
 				Name: clusterNameIaCValue,
-				CertificateAuthorityData: core.IaCValue{
-					Resource: cluster,
-					Property: CLUSTER_CA_DATA_IAC_VALUE,
-				},
-				Server: core.IaCValue{
-					Resource: cluster,
-					Property: CLUSTER_ENDPOINT_IAC_VALUE,
+				Cluster: map[string]core.IaCValue{
+					"certificate-authority-data": {
+						Resource: cluster,
+						Property: CLUSTER_CA_DATA_IAC_VALUE,
+					},
+					"server": {
+						Resource: cluster,
+						Property: CLUSTER_ENDPOINT_IAC_VALUE,
+					},
 				},
 			},
 		},
-		Contexts: []kubernetes.KubeconfigContext{
+		Contexts: []kubernetes.KubeconfigContexts{
 			{
-				Cluster: clusterNameIaCValue,
-				User:    username,
+				Name: clusterNameIaCValue,
+				Context: kubernetes.KubeconfigContext{
+					Cluster: clusterNameIaCValue,
+					User:    username,
+				},
 			},
 		},
-		Users: []kubernetes.KubeconfigUser{
+		Users: []kubernetes.KubeconfigUsers{
 			{
-				Exec: kubernetes.KubeconfigExec{
-					ApiVersion: "client.authentication.k8s.io/v1beta1",
-					Command:    "aws",
-					Args: []any{
-						"eks",
-						"get-token",
-						"--cluster-name",
-						clusterNameIaCValue,
-						"--region",
-						core.IaCValue{
-							Resource: region,
-							Property: NAME_IAC_VALUE,
+				Name: username,
+				User: kubernetes.KubeconfigUser{
+					Exec: kubernetes.KubeconfigExec{
+						ApiVersion: "client.authentication.k8s.io/v1beta1",
+						Command:    "aws",
+						Args: []any{
+							"eks",
+							"get-token",
+							"--cluster-name",
+							clusterNameIaCValue,
+							"--region",
+							core.IaCValue{
+								Resource: region,
+								Property: NAME_IAC_VALUE,
+							},
 						},
 					},
 				},
@@ -623,7 +646,21 @@ func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeco
 	}
 }
 
-func (cluster *EksCluster) GetServiceAccountAssumeRolePolicy(serviceAccountName string) *PolicyDocument {
+func (cluster *EksCluster) getOidc(dag *core.ResourceGraph) *OpenIdConnectProvider {
+	for _, res := range dag.GetUpstreamResources(cluster) {
+		if oidc, ok := res.(*OpenIdConnectProvider); ok {
+			return oidc
+		}
+	}
+	return nil
+}
+
+func (cluster *EksCluster) GetServiceAccountAssumeRolePolicy(serviceAccountName string, dag *core.ResourceGraph) (*PolicyDocument, error) {
+	oidc := cluster.getOidc(dag)
+	if oidc == nil {
+		return nil, errors.Errorf("Could not find openIdConnectProvider for cluster %s", cluster.Name)
+	}
+
 	return &PolicyDocument{
 		Version: VERSION,
 		Statement: []StatementEntry{
@@ -631,22 +668,26 @@ func (cluster *EksCluster) GetServiceAccountAssumeRolePolicy(serviceAccountName 
 				Effect: "Allow",
 				Principal: &Principal{
 					Federated: core.IaCValue{
-						Resource: cluster,
-						Property: CLUSTER_OIDC_ARN_IAC_VALUE,
+						Resource: oidc,
+						Property: ARN_IAC_VALUE,
 					},
 				},
 				Action: []string{"sts:AssumeRoleWithWebIdentity"},
 				Condition: &Condition{
 					StringEquals: map[core.IaCValue]string{
 						{
-							Resource: cluster,
-							Property: CLUSTER_OIDC_URL_IAC_VALUE,
+							Resource: oidc,
+							Property: OIDC_URL_IAC_VALUE,
 						}: fmt.Sprintf("system:serviceaccount:default:%s", serviceAccountName), // TODO: Replace default with the namespace when we expose via configuration
+						{
+							Resource: oidc,
+							Property: OIDC_AUD_IAC_VALUE,
+						}: "sts.amazonaws.com",
 					},
 				},
 			},
 		},
-	}
+	}, nil
 }
 
 // GetEksCluster will return the resource with the name corresponding to the appName and ClusterId

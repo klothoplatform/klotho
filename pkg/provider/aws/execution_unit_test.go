@@ -20,7 +20,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 	policy1 := &resources.IamPolicy{Name: "policy1"}
 	policy2 := &resources.IamPolicy{Name: "policy2"}
 	cluster := resources.NewEksCluster("test", resources.DEFAULT_CLUSTER_NAME, nil, nil, nil)
-
+	oidc := &resources.OpenIdConnectProvider{Name: cluster.Name}
 	chart := &kubernetes.HelmChart{
 		Name:           "chart",
 		ConstructRefs:  []core.AnnotationKey{unit.Provenance()},
@@ -48,6 +48,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 	cases := []struct {
 		name              string
 		existingResources []core.Resource
+		existingDeps      []graph.Edge[core.Resource]
 		cfg               config.Application
 		want              coretesting.ResourcesExpectation
 		wantErr           bool
@@ -92,7 +93,10 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					"test": {Type: kubernetes.KubernetesType},
 				},
 			},
-			existingResources: []core.Resource{bucket, policy1, policy2, cluster, chart},
+			existingResources: []core.Resource{bucket, policy1, policy2, cluster, chart, oidc},
+			existingDeps: []graph.Edge[core.Resource]{
+				{Source: oidc, Destination: cluster},
+			},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
@@ -111,7 +115,6 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					"aws:nat_gateway:test_private2",
 					"aws:region:region",
 					"aws:s3_bucket:test-test",
-					"aws:security_group:test",
 					"aws:target_group:test-test",
 					"aws:vpc:test",
 					"aws:vpc_endpoint:test_dynamodb",
@@ -125,6 +128,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					"aws:vpc_subnet:test_public1",
 					"aws:vpc_subnet:test_public2",
 					"kubernetes:helm_chart:chart",
+					"aws:iam_oidc_provider:test-eks-cluster",
 				},
 				Deps: []graph.Edge[string]{
 					{Source: "aws:availability_zones:AvailabilityZones", Destination: "aws:region:region"},
@@ -133,7 +137,6 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:iam_policy:policy2"},
 					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:s3_bucket:test-test"},
 					{Source: "aws:internet_gateway:test_igw1", Destination: "aws:vpc:test"},
-					{Source: "aws:load_balancer:test-test", Destination: "aws:security_group:test"},
 					{Source: "aws:load_balancer:test-test", Destination: "aws:vpc_subnet:test_private1"},
 					{Source: "aws:load_balancer:test-test", Destination: "aws:vpc_subnet:test_private2"},
 					{Source: "aws:load_balancer_listener:test-test-test", Destination: "aws:load_balancer:test-test"},
@@ -142,7 +145,6 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{Source: "aws:nat_gateway:test_private1", Destination: "aws:vpc_subnet:test_private1"},
 					{Source: "aws:nat_gateway:test_private2", Destination: "aws:elastic_ip:test_private2"},
 					{Source: "aws:nat_gateway:test_private2", Destination: "aws:vpc_subnet:test_private2"},
-					{Source: "aws:security_group:test", Destination: "aws:vpc:test"},
 					{Source: "aws:target_group:test-test", Destination: "aws:vpc:test"},
 					{Source: "aws:vpc:test", Destination: "aws:region:region"},
 					{Source: "aws:vpc_endpoint:test_dynamodb", Destination: "aws:region:region"},
@@ -177,6 +179,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{Source: "kubernetes:helm_chart:chart", Destination: "aws:iam_role:test-test-ExecutionRole"},
 					{Source: "kubernetes:helm_chart:chart", Destination: "aws:target_group:test-test"},
 					{Source: "kubernetes:helm_chart:chart", Destination: "aws:eks_cluster:test-eks-cluster"},
+					{Source: "aws:iam_oidc_provider:test-eks-cluster", Destination: "aws:eks_cluster:test-eks-cluster"},
 				},
 			},
 		},
@@ -205,6 +208,10 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					}
 				}
 			}
+			for _, dep := range tt.existingDeps {
+				dag.AddDependency(dep.Source, dep.Destination)
+			}
+
 			result := core.NewConstructGraph()
 			result.AddConstruct(unit)
 			result.AddConstruct(fs)
