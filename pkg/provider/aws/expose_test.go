@@ -389,3 +389,44 @@ func Test_CreateRestApi(t *testing.T) {
 
 	}
 }
+
+func Test_ConvertPath(t *testing.T) {
+	cases := []struct {
+		given          string
+		wantIfGreedy   string
+		wantIfNoGreedy string
+	}{
+		{
+			given:          `foo/bar`,
+			wantIfGreedy:   `foo/bar`,
+			wantIfNoGreedy: `foo/bar`,
+		},
+		{
+			given:          `foo/:bar`,
+			wantIfGreedy:   `foo/{bar}`,
+			wantIfNoGreedy: `foo/{bar}`,
+		},
+		{
+			given:          `foo/:bar*`,
+			wantIfGreedy:   `foo/{bar+}`,
+			wantIfNoGreedy: `foo/{bar}`,
+		},
+		{
+			given:          `foo/bar*`,
+			wantIfGreedy:   `foo/bar*`,
+			wantIfNoGreedy: `foo/bar*`,
+		},
+		{
+			given:          `foo//bar`,
+			wantIfGreedy:   `foo/bar`,
+			wantIfNoGreedy: `foo/bar`,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.given, func(t *testing.T) {
+			assert := assert.New(t)
+			assert.Equal(tt.wantIfGreedy, convertPath(tt.given, true), "greedy")
+			assert.Equal(tt.wantIfNoGreedy, convertPath(tt.given, false), "not greedy")
+		})
+	}
+}

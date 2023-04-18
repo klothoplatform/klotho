@@ -71,7 +71,7 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 				methodRequestParams[fmt.Sprintf("method.%s", pathParam)] = true
 				integrationRequestParams[fmt.Sprintf("integration.%s", pathParam)] = fmt.Sprintf("method.%s", pathParam)
 			}
-			segment = convertPath(segment)
+			segment = convertPath(segment, true)
 
 			currPathSegment.WriteString(fmt.Sprintf("%s/", segment))
 			currParentResource, ok := resourceByCurrentSegment[currPathSegment.String()]
@@ -164,7 +164,7 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 		}
 		vpcLink := resources.NewVpcLink(nlb, refs)
 		integration := resources.NewApiIntegration(method, refs, method.HttpMethod, "HTTP_PROXY", vpcLink, core.IaCValue{Resource: nlb, Property: resources.NLB_INTEGRATION_URI_IAC_VALUE})
-		integration.Route = convertPath(route.Path)
+		integration.Route = convertPath(route.Path, false)
 		integration.ConnectionType = "VPC_LINK"
 		dag.AddDependency(integration, nlb)
 		dag.AddDependenciesReflect(vpcLink)
@@ -175,15 +175,23 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 	}
 }
 
-// convertPath will convert the path stored in our gateway construct into a path that is functionaliy the same within apigateway.
+// convertPath will convert the path stored in our gateway construct into a path that is functionally the same within
+// api gateway.
 //
-// The path will be minpulated so that:
-// - any : characters will be removed and replaced the item with surrounding brackets, to signal this is a path parameter
-// - any escaped / will turn into a singal /
-// - any wildcard route will be propagated to the apigateway standard format
-func convertPath(path string) string {
+// Iff `wildcardsToGreedy` is true, this will turn "*}" into "+}". Otherwise, it will turn "*}" into "}".
+//
+// The path will be manipulated so that:
+//   - any : characters will be removed and replaced the item with surrounding brackets, to signal this is a path
+//     parameter
+//   - any escaped / will turn into a single /
+//   - any wildcard route will be propagated to the api gateway standard format
+func convertPath(path string, wildcardsToGreedy bool) string {
 	path = regexp.MustCompile(":([^/]+)").ReplaceAllString(path, "{$1}")
-	path = regexp.MustCompile("[*]}").ReplaceAllString(path, "+}")
+	greedyMarker := ""
+	if wildcardsToGreedy {
+		greedyMarker = "+"
+	}
+	path = regexp.MustCompile("[*]}").ReplaceAllString(path, greedyMarker+"}")
 	path = regexp.MustCompile("//").ReplaceAllString(path, "/")
 	return path
 }
