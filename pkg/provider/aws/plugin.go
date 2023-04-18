@@ -156,7 +156,7 @@ func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceG
 
 	var merr multierr.Error
 	for clusterId, units := range clusterIdToUnit {
-		merr.Append(resources.CreateEksCluster(a.Config, clusterId, subnets, nil, units, dag))
+		merr.Append(resources.CreateEksCluster(a.Config, clusterId, subnets, vpc.GetSecurityGroups(dag), units, dag))
 	}
 	return merr.ErrOrNil()
 }
