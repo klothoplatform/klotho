@@ -73,7 +73,10 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 		if cluster == nil {
 			return errors.Errorf("Expected to have cluster created for unit, %s, but did not find cluster in graph", unit.ID)
 		}
-		role.AssumeRolePolicyDoc = cluster.GetServiceAccountAssumeRolePolicy(unit.ID)
+		role.AssumeRolePolicyDoc, err = cluster.GetServiceAccountAssumeRolePolicy(unit.ID, dag)
+		if err != nil {
+			return err
+		}
 		// transform kubernetes resources for EKS
 		for _, res := range dag.ListResources() {
 			if khChart, ok := res.(*kubernetes.HelmChart); ok {
@@ -116,6 +119,9 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 									Property: resources.ARN_IAC_VALUE,
 								}
 								dag.AddDependency(khChart, targetGroup)
+								for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
+									dag.AddDependency(khChart, nodeGroup)
+								}
 							}
 						}
 					}
@@ -340,8 +346,7 @@ func (a *AWS) createEksLoadBalancer(result *core.ConstructGraph, dag *core.Resou
 	}
 	vpc := resources.GetVpc(a.Config, dag)
 	subnets := vpc.GetPrivateSubnets(dag)
-	securityGroups := []*resources.SecurityGroup{resources.GetSecurityGroup(a.Config, dag)}
-	lb := resources.NewLoadBalancer(a.Config.AppName, unit.ID, refs, "internal", "network", subnets, securityGroups)
+	lb := resources.NewLoadBalancer(a.Config.AppName, unit.ID, refs, "internal", "network", subnets, nil)
 	unitsPort := unit.Port
 	if unitsPort == 0 {
 		unitsPort = 3000

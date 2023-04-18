@@ -1,4 +1,3 @@
-import * as aws_native from '@pulumi/aws-native'
 import * as aws from '@pulumi/aws'
 
 interface Args {
@@ -9,9 +8,9 @@ interface Args {
 }
 
 // noinspection JSUnusedLocalSymbols
-function create(args: Args): aws_native.eks.Cluster {
-    return new aws_native.eks.Cluster(args.Name, {
-        resourcesVpcConfig: {
+function create(args: Args): aws.eks.Cluster {
+    return new aws.eks.Cluster(args.Name, {
+        vpcConfig: {
             subnetIds: args.Subnets.map((subnet) => subnet.id),
             //TMPL {{- if .SecurityGroups.Raw }}
             securityGroupIds: args.SecurityGroups.map((sg) => sg.id),
