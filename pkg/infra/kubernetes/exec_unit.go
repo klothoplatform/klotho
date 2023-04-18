@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,7 +34,6 @@ type HelmExecUnit struct {
 }
 
 type manifestTransformer[K runtime.Object] struct {
-	manifestKind     string
 	fieldToTransform func(unit *HelmExecUnit) *core.SourceFile
 	transform        func(unit *HelmExecUnit, cfg config.ExecutionUnit, target K, log *zap.SugaredLogger) ([]HelmChartValue, error)
 	// readF is the function to read a given file to the runtime.Object that we will then cast down to K. You may leave
@@ -55,7 +55,11 @@ func (transformer manifestTransformer[K]) apply(unit *HelmExecUnit, cfg config.E
 	}
 	transformObj, ok := obj.(K)
 	if !ok {
-		err = fmt.Errorf("expected file %s to contain %s Kind", source.Path(), transformer.manifestKind)
+		t := reflect.TypeOf((*K)(nil))
+		for t.Kind() == reflect.Pointer {
+			t = t.Elem()
+		}
+		err = fmt.Errorf("expected file %s to contain %s Kind", source.Path(), t.Name())
 		return nil, err
 	}
 
@@ -122,8 +126,6 @@ func shouldTransformServiceAccount(unit *core.ExecutionUnit) bool {
 }
 
 var podTransformer = manifestTransformer[*corev1.Pod]{
-	manifestKind: "Pod",
-
 	fieldToTransform: func(unit *HelmExecUnit) *core.SourceFile {
 		return unit.Pod
 	},
@@ -160,8 +162,6 @@ var podTransformer = manifestTransformer[*corev1.Pod]{
 }
 
 var deploymentTransformer = manifestTransformer[*apps.Deployment]{
-	manifestKind: "Deployment",
-
 	fieldToTransform: func(unit *HelmExecUnit) *core.SourceFile {
 		return unit.Deployment
 	},
@@ -239,8 +239,6 @@ var deploymentTransformer = manifestTransformer[*apps.Deployment]{
 }
 
 var horizontalPodAutoscalerTransformer = manifestTransformer[*autoscaling.HorizontalPodAutoscaler]{
-	manifestKind: "HorizontalPodAutoscaler",
-
 	fieldToTransform: func(unit *HelmExecUnit) *core.SourceFile {
 		return unit.HorizontalPodAutoscaler
 	},
@@ -310,8 +308,6 @@ func getOrCreateMetricResource(metrics *[]autoscaling.MetricSpec, name corev1.Re
 }
 
 var serviceTransformer = manifestTransformer[*corev1.Service]{
-	manifestKind: "Service",
-
 	fieldToTransform: func(unit *HelmExecUnit) *core.SourceFile {
 		return unit.Service
 	},
@@ -337,8 +333,6 @@ var serviceTransformer = manifestTransformer[*corev1.Service]{
 }
 
 var serviceAccountTransformer = manifestTransformer[*corev1.ServiceAccount]{
-	manifestKind: "ServiceAccount",
-
 	fieldToTransform: func(unit *HelmExecUnit) *core.SourceFile {
 		return unit.ServiceAccount
 	},
@@ -366,8 +360,6 @@ var serviceAccountTransformer = manifestTransformer[*corev1.ServiceAccount]{
 }
 
 var targetGroupBindingTransformer = manifestTransformer[*elbv2api.TargetGroupBinding]{
-	manifestKind: "TargetGroupBinding",
-
 	fieldToTransform: func(unit *HelmExecUnit) *core.SourceFile {
 		return unit.TargetGroupBinding
 	},
