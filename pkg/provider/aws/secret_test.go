@@ -7,7 +7,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
@@ -15,90 +15,69 @@ import (
 // (The filename says this is a secret test! So shh, don't tell anyone about it!)
 
 func TestGenerateSecretsResources(t *testing.T) {
-	type testResult struct {
-		resourceIds map[string]struct{}
-		deps        []graph.Edge[string]
-		policies    func(secretResolver func(string) *resources.SecretVersion) []resources.StatementEntry
-	}
 	const AppName = "AppName"
 	const secretsConstructId = "MySecrets"
 
 	execUnit := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "TestUnit", Capability: annotation.ExecutionUnitCapability}}
 
 	cases := []struct {
-		name     string
-		secrets  []string
-		execUnit *core.ExecutionUnit
-		want     testResult
+		name         string
+		secrets      []string
+		execUnit     *core.ExecutionUnit
+		want         coretesting.ResourcesExpectation
+		wantPolicies func(secretResolver func(string) *resources.Secret) []resources.StatementEntry
 	}{
 		{
 			name:     "two secrets",
 			secrets:  []string{`secret1`, `secret2`},
 			execUnit: execUnit,
-			want: testResult{
-				resourceIds: map[string]struct{}{
-					fmt.Sprintf(`aws:secret:%s-%s-secret1`, AppName, secretsConstructId):                              {},
-					fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId):                      {},
-					fmt.Sprintf(`aws:secret:%s-%s-secret2`, AppName, secretsConstructId):                              {},
-					fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId):                      {},
-					fmt.Sprintf(`aws:iam_policy:%s-%s_%s`, AppName, annotation.PersistCapability, secretsConstructId): {},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:iam_policy:AppName-persist_MySecrets",
+					"aws:secret:AppName-MySecrets-secret1",
+					"aws:secret:AppName-MySecrets-secret2",
+					"aws:secret_version:AppName-MySecrets-secret1",
+					"aws:secret_version:AppName-MySecrets-secret2",
 				},
-				deps: []graph.Edge[string]{
-					{
-						Destination: fmt.Sprintf(`aws:secret:%s-%s-secret1`, AppName, secretsConstructId),
-						Source:      fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId),
-					},
-					{
-						Source:      fmt.Sprintf(`aws:iam_policy:%s-%s_%s`, AppName, annotation.PersistCapability, secretsConstructId),
-						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId),
-					},
-					{
-						Source:      fmt.Sprintf(`aws:iam_policy:%s-%s_%s`, AppName, annotation.PersistCapability, secretsConstructId),
-						Destination: fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId),
-					},
-					{
-						Destination: fmt.Sprintf(`aws:secret:%s-%s-secret2`, AppName, secretsConstructId),
-						Source:      fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId),
-					},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:iam_policy:AppName-persist_MySecrets", Destination: "aws:secret_version:AppName-MySecrets-secret1"},
+					{Source: "aws:iam_policy:AppName-persist_MySecrets", Destination: "aws:secret_version:AppName-MySecrets-secret2"},
+					{Source: "aws:secret_version:AppName-MySecrets-secret1", Destination: "aws:secret:AppName-MySecrets-secret1"},
+					{Source: "aws:secret_version:AppName-MySecrets-secret2", Destination: "aws:secret:AppName-MySecrets-secret2"},
 				},
-				policies: func(secretResolver func(string) *resources.SecretVersion) []resources.StatementEntry {
-					secret1 := secretResolver(fmt.Sprintf(`aws:secret_version:%s-%s-secret1`, AppName, secretsConstructId))
-					secret2 := secretResolver(fmt.Sprintf(`aws:secret_version:%s-%s-secret2`, AppName, secretsConstructId))
-					return []resources.StatementEntry{
-						{
-							Effect: "Allow",
-							Action: []string{`secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue`},
-							Resource: []core.IaCValue{
-								{
-									Resource: secret1,
-									Property: resources.ARN_IAC_VALUE,
-								},
+			},
+			wantPolicies: func(secretResolver func(string) *resources.Secret) []resources.StatementEntry {
+				secret1 := secretResolver(fmt.Sprintf(`aws:secret:%s-%s-secret1`, AppName, secretsConstructId))
+				secret2 := secretResolver(fmt.Sprintf(`aws:secret:%s-%s-secret2`, AppName, secretsConstructId))
+				return []resources.StatementEntry{
+					{
+						Effect: "Allow",
+						Action: []string{`secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue`},
+						Resource: []core.IaCValue{
+							{
+								Resource: secret1,
+								Property: resources.ARN_IAC_VALUE,
 							},
 						},
-						{
-							Effect: "Allow",
-							Action: []string{`secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue`},
-							Resource: []core.IaCValue{
-								{
-									Resource: secret2,
-									Property: resources.ARN_IAC_VALUE,
-								},
+					},
+					{
+						Effect: "Allow",
+						Action: []string{`secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue`},
+						Resource: []core.IaCValue{
+							{
+								Resource: secret2,
+								Property: resources.ARN_IAC_VALUE,
 							},
 						},
-					}
-				},
+					},
+				}
 			},
 		},
 		{
-			name:     "no secrets",
-			execUnit: execUnit,
-			want: testResult{
-				resourceIds: map[string]struct{}{},
-				deps:        nil,
-				policies: func(_ func(string) *resources.SecretVersion) []resources.StatementEntry {
-					return nil
-				},
-			},
+			name:         "no secrets",
+			execUnit:     execUnit,
+			want:         coretesting.ResourcesExpectation{},
+			wantPolicies: func(secretResolver func(string) *resources.Secret) []resources.StatementEntry { return nil },
 		},
 	}
 	for _, tt := range cases {
@@ -128,26 +107,15 @@ func TestGenerateSecretsResources(t *testing.T) {
 				return
 			}
 
-			actualResourceIds := graph.VertexIds(dag.ListResources())
-			assert.Equal(tt.want.resourceIds, actualResourceIds)
+			tt.want.Assert(t, dag)
 
-			for _, dep := range tt.want.deps {
-				found := false
-				for _, res := range dag.ListDependencies() {
-					if dep.Source == res.Source.Id() && dep.Destination == res.Destination.Id() {
-						found = true
-					}
-				}
-				assert.Truef(found, "Did not find dependency, %s -> %s", dep.Source, dep.Destination)
-			}
-
-			wantPolicies := tt.want.policies(func(secretId string) *resources.SecretVersion {
+			wantPolicies := tt.wantPolicies(func(secretId string) *resources.Secret {
 				resource := dag.GetResource(secretId)
 				assert.NotNil(resource)
-				if secret, foundSecret := resource.(*resources.SecretVersion); foundSecret {
+				if secret, foundSecret := resource.(*resources.Secret); foundSecret {
 					return secret
 				} else {
-					assert.Failf(`found a resource with id="%s", but it wasn't a Secret: %v`, secretId, resource)
+					assert.Failf("resource not a Secret", `found a resource with id="%s", but it was %T`, secretId, resource)
 				}
 				return nil
 			})
