@@ -42,7 +42,6 @@ func (p Plugin) Translate(cloudGraph *core.ResourceGraph) ([]core.File, error) {
 		return nil, err
 	}
 
-	buf.Write([]byte("export = async () => {\n"))
 	buf.Write([]byte("const kloConfig: pulumi.Config = new pulumi.Config('klo')\n"))
 	buf.Write([]byte("const protect = kloConfig.getBoolean('protect') ?? false"))
 	buf.Write([]byte(`
@@ -52,7 +51,6 @@ const awsProfile = awsConfig.get('profile')` + "\n\n"))
 	if err := tc.RenderBody(buf); err != nil {
 		return nil, err
 	}
-	buf.Write([]byte("}"))
 
 	indexTs := &core.RawFile{
 		FPath:   `index.ts`,
