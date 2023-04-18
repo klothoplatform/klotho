@@ -138,13 +138,13 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 
 	if shouldTransformImage(eu) {
 		if unit.Deployment != nil {
-			deploymentValues, err := unit.transformDeployment(cfg)
+			deploymentValues, err := deploymentTransformer.apply(unit, cfg)
 			if err != nil {
 				return nil, err
 			}
 			values = append(values, deploymentValues...)
 		} else if unit.Pod != nil {
-			podValues, err := unit.transformPod(cfg)
+			podValues, err := podTransformer.apply(unit, cfg)
 			if err != nil {
 				return nil, err
 			}
@@ -158,7 +158,7 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 		}
 		if unit.Deployment != nil && cfg.GetExecutionUnitParamsAsKubernetes().HorizontalPodAutoScalingConfig.NotEmpty() {
 			if unit.HorizontalPodAutoscaler != nil {
-				hpaValues, err := unit.transformHorizontalPodAutoscaler(cfg)
+				hpaValues, err := horizontalPodAutoscalerTransformer.apply(unit, cfg)
 				if err != nil {
 					return nil, err
 				}
@@ -174,7 +174,7 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 	}
 	if shouldTransformServiceAccount(eu) {
 		if unit.ServiceAccount != nil {
-			serviceAccountValues, err := unit.transformServiceAccount()
+			serviceAccountValues, err := serviceAccountTransformer.apply(unit, cfg)
 			if err != nil {
 				return nil, err
 			}
@@ -219,7 +219,7 @@ func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, const
 	}
 	if needService {
 		if unit.Service != nil {
-			serviceValues, err := unit.transformService(cfg)
+			serviceValues, err := serviceTransformer.apply(unit, cfg)
 			if err != nil {
 				return nil, err
 			}
@@ -257,7 +257,7 @@ func (chart *HelmChart) addDeployment(unit *HelmExecUnit, cfg config.ExecutionUn
 	if err != nil {
 		return nil, err
 	}
-	values, err := unit.transformDeployment(cfg)
+	values, err := deploymentTransformer.apply(unit, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +271,7 @@ func (chart *HelmChart) addHorizontalPodAutoscaler(unit *HelmExecUnit, cfg confi
 	if err != nil {
 		return nil, err
 	}
-	values, err := unit.transformHorizontalPodAutoscaler(cfg)
+	values, err := horizontalPodAutoscalerTransformer.apply(unit, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +285,7 @@ func (chart *HelmChart) addServiceAccount(unit *HelmExecUnit) ([]HelmChartValue,
 	if err != nil {
 		return nil, err
 	}
-	values, err := unit.transformServiceAccount()
+	values, err := serviceAccountTransformer.apply(unit, config.ExecutionUnit{})
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +300,7 @@ func (chart *HelmChart) addService(unit *HelmExecUnit, cfg config.ExecutionUnit)
 		return nil, err
 	}
 
-	values, err := unit.transformService(cfg)
+	values, err := serviceTransformer.apply(unit, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +314,7 @@ func (chart *HelmChart) addTargetGroupBinding(unit *HelmExecUnit) ([]HelmChartVa
 	if err != nil {
 		return nil, err
 	}
-	values, err := unit.transformTargetGroupBinding()
+	values, err := targetGroupBindingTransformer.apply(unit, config.ExecutionUnit{})
 	if err != nil {
 		return nil, err
 	}

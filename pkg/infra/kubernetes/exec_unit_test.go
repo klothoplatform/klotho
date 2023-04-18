@@ -348,7 +348,7 @@ func Test_transformPod(t *testing.T) {
 				testUnit.Pod = f
 			}
 
-			values, err := testUnit.transformPod(tt.cfg)
+			values, err := podTransformer.apply(&testUnit, tt.cfg)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -626,7 +626,7 @@ status: {}
 				testUnit.Deployment = f
 			}
 
-			values, err := testUnit.transformDeployment(tt.cfg)
+			values, err := deploymentTransformer.apply(&testUnit, tt.cfg)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -923,7 +923,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
 				testUnit.HorizontalPodAutoscaler = f
 			}
 
-			values, err := testUnit.transformHorizontalPodAutoscaler(tt.cfg)
+			values, err := horizontalPodAutoscalerTransformer.apply(&testUnit, tt.cfg)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -1443,7 +1443,7 @@ metadata:
 				testUnit.ServiceAccount = f
 			}
 
-			values, err := testUnit.transformServiceAccount()
+			values, err := serviceAccountTransformer.apply(&testUnit, config.ExecutionUnit{})
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -1512,7 +1512,7 @@ status: {}
 				testUnit.TargetGroupBinding = f
 			}
 
-			values, err := testUnit.transformTargetGroupBinding()
+			values, err := targetGroupBindingTransformer.apply(&testUnit, config.ExecutionUnit{})
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -1591,7 +1591,7 @@ status:
 				testUnit.Service = f
 			}
 
-			values, err := testUnit.transformService(config.ExecutionUnit{})
+			values, err := serviceTransformer.apply(&testUnit, config.ExecutionUnit{})
 			if tt.wantErr {
 				assert.Error(err)
 				return
