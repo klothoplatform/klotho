@@ -10,6 +10,7 @@ interface Args {
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
 
+// noinspection JSUnusedLocalSymbols
 function create(args: Args): docker.Image {
     return new docker.Image(args.Name, {
         build: {
@@ -17,15 +18,15 @@ function create(args: Args): docker.Image {
             dockerfile: args.Dockerfile,
             platform: 'linux/amd64',
         },
-        imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:latest`,
-        registry: args.Repo.registryId.apply(async (registryId) => {
-            const credentials = await aws.ecr.getCredentials({ registryId }, { async: true })
-            const decodedCredentials = Buffer.from(
-                credentials.authorizationToken,
-                'base64'
-            ).toString()
-            const [username, password] = decodedCredentials.split(':')
-            return { server: credentials.proxyEndpoint.replace('https://', ''), username, password }
-        }),
+        registry: aws.ecr
+            .getAuthorizationTokenOutput({ registryId: args.Repo.registryId }, { async: true })
+            .apply((registryToken) => {
+                return {
+                    server: args.Repo.repositoryUrl,
+                    username: registryToken.userName,
+                    password: registryToken.password,
+                }
+            }),
+        imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:${args.Name}`,
     })
 }
