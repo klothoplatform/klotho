@@ -40,8 +40,8 @@ func TestGenerateSecretsResources(t *testing.T) {
 					"aws:secret_version:AppName-MySecrets-secret2",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:iam_policy:AppName-persist_MySecrets", Destination: "aws:secret_version:AppName-MySecrets-secret1"},
-					{Source: "aws:iam_policy:AppName-persist_MySecrets", Destination: "aws:secret_version:AppName-MySecrets-secret2"},
+					{Source: "aws:iam_policy:AppName-persist_MySecrets", Destination: "aws:secret:AppName-MySecrets-secret1"},
+					{Source: "aws:iam_policy:AppName-persist_MySecrets", Destination: "aws:secret:AppName-MySecrets-secret2"},
 					{Source: "aws:secret_version:AppName-MySecrets-secret1", Destination: "aws:secret:AppName-MySecrets-secret1"},
 					{Source: "aws:secret_version:AppName-MySecrets-secret2", Destination: "aws:secret:AppName-MySecrets-secret2"},
 				},
