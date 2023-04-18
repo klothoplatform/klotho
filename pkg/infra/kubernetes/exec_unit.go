@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"regexp"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -56,7 +55,7 @@ func (transformer manifestTransformer[K]) apply(unit *HelmExecUnit, cfg config.E
 	transformObj, ok := obj.(K)
 	if !ok {
 		var k K
-		err = fmt.Errorf("expected file %s to contain %T Kind", source.Path(), t)
+		err = fmt.Errorf("expected file %s to contain %T Kind", source.Path(), k)
 		return nil, err
 	}
 
@@ -148,7 +147,7 @@ var podTransformer = manifestTransformer[*corev1.Pod]{
 			return nil, err
 		}
 		return []HelmChartValue{
-			HelmChartValue{
+			{
 				ExecUnitName: unit.Name,
 				Kind:         pod.Kind,
 				Type:         string(ImageTransformation),
