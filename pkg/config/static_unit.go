@@ -12,23 +12,17 @@ type (
 // GetConfig returns the `Config` config for the resource specified by `id`
 // merged with the defaults.
 func (a Application) GetStaticUnit(id string) StaticUnit {
-	cfg := StaticUnit{}
-	if ecfg, ok := a.StaticUnit[id]; ok {
-		defaultParams, ok := a.Defaults.StaticUnit.InfraParamsByType[ecfg.Type]
-		if ok {
-			if ecfg.InfraParams == nil {
-				ecfg.InfraParams = make(InfraParams)
-			}
-			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-		}
-		return *ecfg
+	cfg := StaticUnit{
+		Type: a.Defaults.StaticUnit.Type,
 	}
-	cfg.Type = a.Defaults.StaticUnit.Type
-	cfg.InfraParams = make(InfraParams)
-	defaultParams, ok := a.Defaults.StaticUnit.InfraParamsByType[cfg.Type]
-	if ok {
-		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)
 
+	ecfg, hasOverride := a.StaticUnit[id]
+	if hasOverride {
+		overrideValue(&cfg.Type, ecfg.Type)
+		overrideValue(&cfg.ContentDeliveryNetwork, ecfg.ContentDeliveryNetwork)
+		cfg.InfraParams = ecfg.InfraParams
 	}
+	cfg.InfraParams.ApplyDefaults(a.Defaults.StaticUnit.InfraParamsByType[cfg.Type])
+
 	return cfg
 }

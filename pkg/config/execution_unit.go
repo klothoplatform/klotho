@@ -12,7 +12,7 @@ type (
 		Type                 string            `json:"type" yaml:"type" toml:"type"`
 		NetworkPlacement     string            `json:"network_placement,omitempty" yaml:"network_placement,omitempty" toml:"network_placement,omitempty"`
 		EnvironmentVariables map[string]string `json:"environment_variables,omitempty" yaml:"environment_variables,omitempty" toml:"environment_variables,omitempty"`
-		HelmChartOptions     *HelmChartOptions `json:"helm_chart_options,omitempty" yaml:"helm_chart_options,omitempty" toml:"helm_chart_options,omitempty"`
+		HelmChartOptions     HelmChartOptions  `json:"helm_chart_options,omitempty" yaml:"helm_chart_options,omitempty" toml:"helm_chart_options,omitempty"`
 		InfraParams          InfraParams       `json:"infra_params,omitempty" yaml:"infra_params,omitempty" toml:"infra_params,omitempty"`
 	}
 
@@ -68,34 +68,25 @@ type (
 // GetExecutionUnit returns the `ExecutionUnit` config for the resource specified by `id`
 // merged with the defaults.
 func (a Application) GetExecutionUnit(id string) ExecutionUnit {
-	cfg := ExecutionUnit{}
-	if ecfg, ok := a.ExecutionUnits[id]; ok {
-		if ecfg.InfraParams == nil {
-			ecfg.InfraParams = make(InfraParams)
-		}
-		if ecfg.HelmChartOptions == nil {
-			ecfg.HelmChartOptions = &HelmChartOptions{}
-		}
-		if ecfg.EnvironmentVariables == nil {
-			ecfg.EnvironmentVariables = make(map[string]string)
-		}
-		if ecfg.NetworkPlacement == "" {
-			ecfg.NetworkPlacement = "private"
-		}
-		defaultParams, ok := a.Defaults.ExecutionUnit.InfraParamsByType[ecfg.Type]
-		if ok {
-			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-		}
-		return *ecfg
+	cfg := ExecutionUnit{
+		Type:                 a.Defaults.ExecutionUnit.Type,
+		NetworkPlacement:     "private",
+		EnvironmentVariables: make(map[string]string),
 	}
-	cfg.Type = a.Defaults.ExecutionUnit.Type
-	cfg.NetworkPlacement = "private"
-	defaultParams, ok := a.Defaults.ExecutionUnit.InfraParamsByType[cfg.Type]
-	cfg.InfraParams = make(InfraParams)
-	cfg.EnvironmentVariables = make(map[string]string)
-	if ok {
-		cfg.InfraParams = defaultParams
+
+	ecfg, hasOverride := a.ExecutionUnits[id]
+	if hasOverride {
+		overrideValue(&cfg.Type, ecfg.Type)
+		overrideValue(&cfg.NetworkPlacement, ecfg.NetworkPlacement)
+		for k, v := range ecfg.EnvironmentVariables {
+			cfg.EnvironmentVariables[k] = v
+		}
+		overrideValue(&cfg.HelmChartOptions.Directory, ecfg.HelmChartOptions.Directory)
+		cfg.HelmChartOptions.ValuesFiles = append(cfg.HelmChartOptions.ValuesFiles, ecfg.HelmChartOptions.ValuesFiles...)
+		cfg.InfraParams = ecfg.InfraParams
 	}
+	cfg.InfraParams.ApplyDefaults(a.Defaults.ExecutionUnit.InfraParamsByType[cfg.Type])
+
 	return cfg
 }
 
