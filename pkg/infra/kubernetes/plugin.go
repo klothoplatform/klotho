@@ -132,7 +132,7 @@ func (p *Kubernetes) setHelmChartDirectory(path string, cfg *config.ExecutionUni
 		return false, nil
 	}
 	relPath := strings.TrimSuffix(path, extension)
-	if strings.HasSuffix(relPath, "Chart") && cfg.HelmChartOptions != nil && cfg.HelmChartOptions.Directory == "" {
+	if strings.HasSuffix(relPath, "Chart") && cfg.HelmChartOptions.Directory == "" {
 		chartDirectory, err := filepath.Rel(p.Config.Path, filepath.Dir(path))
 		if err != nil {
 			return false, err
@@ -156,7 +156,7 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
 		cfg := p.Config.GetExecutionUnit(unit.ID)
 
-		if cfg.HelmChartOptions != nil && cfg.HelmChartOptions.Directory == "" {
+		if cfg.HelmChartOptions.Directory == "" {
 			for _, f := range unit.GetDeclaringFiles() {
 
 				caps := f.Annotations()
@@ -177,14 +177,8 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 		}
 
 		if cfg.Type == KubernetesType {
-			chartDir := ""
-			if cfg.HelmChartOptions != nil {
-				chartDir = cfg.HelmChartOptions.Directory
-			}
-			valuesFiles := []string{}
-			if cfg.HelmChartOptions != nil {
-				valuesFiles = cfg.HelmChartOptions.ValuesFiles
-			}
+			chartDir := cfg.HelmChartOptions.Directory
+			valuesFiles := cfg.HelmChartOptions.ValuesFiles
 			khChart, ok := klothoCharts[chartDir]
 			if !ok {
 				khChart = &HelmChart{

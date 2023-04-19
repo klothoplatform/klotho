@@ -12,22 +12,15 @@ type (
 // GetConfig returns the `Config` config for the resource specified by `id`
 // merged with the defaults.
 func (a Application) GetConfig(id string) Config {
-	cfg := Config{}
-	if ecfg, ok := a.Config[id]; ok {
-		if ecfg.InfraParams == nil {
-			ecfg.InfraParams = make(InfraParams)
-		}
-		defaultParams, ok := a.Defaults.Config.InfraParamsByType[ecfg.Type]
-		if ok {
-			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-		}
-		return *ecfg
+	cfg := Config{
+		Type: a.Defaults.Config.Type,
 	}
-	cfg.Type = a.Defaults.Config.Type
-	cfg.InfraParams = make(InfraParams)
-	defaultParams, ok := a.Defaults.Config.InfraParamsByType[cfg.Type]
-	if ok {
-		cfg.InfraParams = defaultParams
+	ecfg, hasOverride := a.Config[id]
+	if hasOverride {
+		overrideValue(&cfg.Type, ecfg.Type)
+		cfg.InfraParams = ecfg.InfraParams
 	}
+	cfg.InfraParams.ApplyDefaults(a.Defaults.Config.InfraParamsByType[cfg.Type])
+
 	return cfg
 }

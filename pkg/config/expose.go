@@ -25,29 +25,22 @@ type (
 // GetExpose returns the `Expose` config for the resource specified by `id`
 // merged with the defaults.
 func (a Application) GetExpose(id string) Expose {
-	cfg := Expose{}
-	if ecfg, ok := a.Exposed[id]; ok {
-		if ecfg.InfraParams == nil {
-			ecfg.InfraParams = make(InfraParams)
-		}
-		defaultParams, ok := a.Defaults.Expose.InfraParamsByType[ecfg.Type]
-		if ok {
-			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-		}
-		return *ecfg
+	cfg := Expose{
+		Type: a.Defaults.Expose.Type,
 	}
-	cfg.Type = a.Defaults.Expose.Type
-	defaultParams, ok := a.Defaults.Expose.InfraParamsByType[cfg.Type]
-	cfg.InfraParams = make(InfraParams)
-	if ok {
-		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)
 
+	ecfg, hasOverride := a.Exposed[id]
+	if hasOverride {
+		overrideValue(&cfg.Type, ecfg.Type)
+		overrideValue(&cfg.ContentDeliveryNetwork, ecfg.ContentDeliveryNetwork)
+		cfg.InfraParams = ecfg.InfraParams
 	}
+	cfg.InfraParams.ApplyDefaults(a.Defaults.Expose.InfraParamsByType[cfg.Type])
+
 	return cfg
 }
 
 func (a Application) GetExposeKindParams(cfg Expose) interface{} {
-
 	infraParams := cfg.InfraParams
 	jsonString, err := json.Marshal(infraParams)
 	if err != nil {
