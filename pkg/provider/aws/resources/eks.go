@@ -548,11 +548,13 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 			Property: CLUSTER_PROVIDER_IAC_VALUE,
 		},
 		Values: map[string]any{
-			"clusterName":           core.IaCValue{Resource: cluster, Property: NAME_IAC_VALUE},
-			"serviceAccount.create": false,
-			"serviceAccount.name":   serviceAccountName,
-			"region":                core.IaCValue{Resource: NewRegion(), Property: NAME_IAC_VALUE},
-			"vpcId":                 core.IaCValue{Resource: cluster.Subnets[0].Vpc, Property: ID_IAC_VALUE},
+			"clusterName": core.IaCValue{Resource: cluster, Property: NAME_IAC_VALUE},
+			"serviceAccount": map[string]any{
+				"create": false,
+				"name":   serviceAccountName,
+			},
+			"region": core.IaCValue{Resource: NewRegion(), Property: NAME_IAC_VALUE},
+			"vpcId":  core.IaCValue{Resource: cluster.Subnets[0].Vpc, Property: ID_IAC_VALUE},
 			"podLabels": map[string]string{
 				"app": "aws-lb-controller",
 			},

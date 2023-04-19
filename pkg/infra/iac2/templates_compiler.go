@@ -268,11 +268,11 @@ func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 		switch res.(type) {
 		case *resources.Region, *resources.AvailabilityZones, *resources.AccountId:
 			continue
-		case *kubernetes.HelmChart, *kubernetes.KustomizeDirectory:
+		case *kubernetes.HelmChart:
 			wrapping.actualVars = append(wrapping.actualVars, fmt.Sprintf("%s.ready", tc.getVarName(res)))
 			wrapping.methodVars = append(wrapping.methodVars, tc.getVarName(res))
 			buf.WriteString(fmt.Sprintf("...%s,", tc.getVarName(res)))
-		case *kubernetes.Manifest:
+		case *kubernetes.Manifest, *kubernetes.KustomizeDirectory:
 			wrapping.actualVars = append(wrapping.actualVars, fmt.Sprintf("%s.resources", tc.getVarName(res)))
 			wrapping.methodVars = append(wrapping.methodVars, tc.getVarName(res))
 			buf.WriteString(fmt.Sprintf("...Object.values(%s),", tc.getVarName(res)))
