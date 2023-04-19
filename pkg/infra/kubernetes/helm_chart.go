@@ -49,7 +49,10 @@ func (t *HelmChart) GetOutputFiles() []core.File {
 	var outputFiles []core.File
 	for _, file := range t.Files {
 		buf := &bytes.Buffer{}
-		file.WriteTo(buf)
+		_, err := file.WriteTo(buf)
+		if err != nil {
+			panic(err)
+		}
 		outputFiles = append(outputFiles, &core.RawFile{
 			FPath:   path.Join("charts", file.Path()),
 			Content: buf.Bytes(),

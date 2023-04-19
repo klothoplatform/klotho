@@ -174,7 +174,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 
 	nodeGroups := createNodeGroups(cfg, dag, units, clusterName, cluster, subnets)
 
-	vpcCni := cluster.installVpcCniAddon(references, dag)
+	cluster.installVpcCniAddon(references, dag)
 
 	err := cluster.createFargateLogging(references, dag)
 	if err != nil {
@@ -186,7 +186,6 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	}
 
 	for _, ng := range cluster.GetClustersNodeGroups(dag) {
-		dag.AddDependency(ng, vpcCni)
 		if strings.HasSuffix(strings.ToLower(ng.AmiType), "_gpu") {
 			cluster.installNvidiaDevicePlugin(dag)
 			break
@@ -567,7 +566,7 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 	return nil
 }
 
-func (cluster *EksCluster) installVpcCniAddon(references []core.AnnotationKey, dag *core.ResourceGraph) *EksAddon {
+func (cluster *EksCluster) installVpcCniAddon(references []core.AnnotationKey, dag *core.ResourceGraph) {
 	addonName := "vpc-cni"
 	addon := &EksAddon{
 		Name:          fmt.Sprintf("%s-addon-%s", cluster.Name, addonName),
@@ -578,9 +577,7 @@ func (cluster *EksCluster) installVpcCniAddon(references []core.AnnotationKey, d
 			Property: NAME_IAC_VALUE,
 		},
 	}
-	dag.AddResource(addon)
 	dag.AddDependenciesReflect(addon)
-	return addon
 }
 
 func (cluster *EksCluster) GetClustersNodeGroups(dag *core.ResourceGraph) []*EksNodeGroup {
