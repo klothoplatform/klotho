@@ -6,6 +6,7 @@ interface Args {
     CidrBlock: string
     Vpc: aws.ec2.Vpc
     AvailabilityZone: pulumi.Output<string>
+    MapPublicIpOnLaunch: boolean
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -14,6 +15,7 @@ function create(args: Args): aws.ec2.Subnet {
         vpcId: args.Vpc.id,
         cidrBlock: args.CidrBlock,
         availabilityZone: args.AvailabilityZone,
+        mapPublicIpOnLaunch: args.MapPublicIpOnLaunch,
         tags: {
             Name: args.Name,
         },

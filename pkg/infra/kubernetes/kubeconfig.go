@@ -16,7 +16,7 @@ type (
 		Name           string
 		ApiVersion     string
 		Kind           string
-		CurrentContext string
+		CurrentContext core.IaCValue
 
 		Clusters []KubeconfigCluster
 		Contexts []KubeconfigContexts
@@ -34,11 +34,11 @@ type (
 	}
 	KubeconfigContext struct {
 		Cluster core.IaCValue
-		User    string
+		User    core.IaCValue
 	}
 
 	KubeconfigUsers struct {
-		Name string
+		Name core.IaCValue
 		User KubeconfigUser
 	}
 

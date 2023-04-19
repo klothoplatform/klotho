@@ -136,15 +136,6 @@ func (document *CompilationDocument) OutputHelpers(outDir string) error {
 		if res, ok := resource.(core.HasOutputFiles); ok {
 			document.OutputFiles = append(document.OutputFiles, res.GetOutputFiles()...)
 		}
-		output, ok := resource.(core.HasLocalOutput)
-		if !ok {
-			continue
-		}
-		zap.L().Debug("Output", zap.String("provider", resource.Provider()), zap.String("id", resource.Id()))
-		err := output.OutputTo(outDir)
-		if err != nil {
-			merr.Append(errors.Wrapf(err, "error outputting resource %+v", resource.Id()))
-		}
 	}
 	return merr.ErrOrNil()
 }

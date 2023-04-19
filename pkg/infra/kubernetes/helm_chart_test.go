@@ -507,7 +507,7 @@ func Test_handleExecutionUnit(t *testing.T) {
 		{
 			name:          "node group",
 			hasDockerfile: true,
-			cfg:           config.ExecutionUnit{NetworkPlacement: "private", InfraParams: config.InfraParams{"instance_type": "test.node"}},
+			cfg:           config.ExecutionUnit{NetworkPlacement: "private", InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{NodeType: "node", InstanceType: "test.node"})},
 			want: []HelmChartValue{
 				{
 					ExecUnitName: testUnitName,
