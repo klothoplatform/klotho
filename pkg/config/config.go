@@ -291,7 +291,7 @@ func (params *InfraParams) ApplyDefaults(dflt InfraParams) {
 // values and src is the default values.
 func merge(dst, src map[string]interface{}, depth int) {
 	if depth > MaxDepth {
-		panic("too deep!")
+		panic("merge recursion max depth exceeded")
 	}
 	if dst == nil {
 		panic("destination map is nil")
