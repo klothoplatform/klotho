@@ -530,7 +530,7 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 			Property: CLUSTER_PROVIDER_IAC_VALUE,
 		},
 		Transformations: map[string]core.IaCValue{
-			`metadata["annotations.eks.amazonaws.com/role-arn"]`: {Resource: role, Property: ARN_IAC_VALUE},
+			`metadata["annotations"]["eks.amazonaws.com/role-arn"]`: {Resource: role, Property: ARN_IAC_VALUE},
 		},
 	}
 	dag.AddDependenciesReflect(saManifest)
