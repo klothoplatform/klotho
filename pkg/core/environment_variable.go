@@ -56,11 +56,12 @@ const (
 )
 
 var (
-	HOST              EnvironmentVariableValue = "host"
-	PORT              EnvironmentVariableValue = "port"
-	CONNECTION_STRING EnvironmentVariableValue = "connection_string"
-	BUCKET_NAME       EnvironmentVariableValue = "bucket_name"
-	SECRET_NAME       EnvironmentVariableValue = "secret_name"
+	HOST                   EnvironmentVariableValue = "host"
+	PORT                   EnvironmentVariableValue = "port"
+	CONNECTION_STRING      EnvironmentVariableValue = "connection_string"
+	BUCKET_NAME            EnvironmentVariableValue = "bucket_name"
+	SECRET_NAME            EnvironmentVariableValue = "secret_name"
+	KV_DYNAMODB_TABLE_NAME EnvironmentVariableValue = "kv_dynamodb_table_name"
 )
 
 var InternalStorageVariable = environmentVariable{
