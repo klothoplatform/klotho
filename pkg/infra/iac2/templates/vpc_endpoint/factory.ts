@@ -8,6 +8,7 @@ interface Args {
     ServiceName: string
     VpcEndpointType: string
     Subnets: aws.ec2.Subnet[]
+    RouteTables: aws.ec2.RouteTable[]
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -20,8 +21,8 @@ function create(args: Args): aws.ec2.VpcEndpoint {
         privateDnsEnabled: true,
         subnetIds: args.Subnets.map((x) => x.id),
         //TMPL {{ end }}
-        //TMPL {{ if eq .VpcEndpointType.Raw "Gateway"}}
-        routeTableIds: [args.Vpc.defaultRouteTableId.apply((id) => id)],
+        //TMPL {{ if .RouteTables.Raw }}
+        routeTableIds: args.RouteTables.map((rt) => rt.id),
         //TMPL {{ end}}
     })
 }

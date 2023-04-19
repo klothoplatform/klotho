@@ -25,6 +25,7 @@ const (
 	VPC_SUBNET_TYPE       = "vpc_subnet"
 	VPC_ENDPOINT_TYPE     = "vpc_endpoint"
 	VPC_TYPE              = "vpc"
+	ROUTE_TABLE_TYPE      = "route_table"
 
 	CIDR_BLOCK_IAC_VALUE = "cidr_block"
 )
@@ -53,12 +54,13 @@ type (
 		Subnet        *Subnet
 	}
 	Subnet struct {
-		Name             string
-		ConstructsRef    []core.AnnotationKey
-		CidrBlock        string
-		Vpc              *Vpc
-		Type             string
-		AvailabilityZone core.IaCValue
+		Name                string
+		ConstructsRef       []core.AnnotationKey
+		CidrBlock           string
+		Vpc                 *Vpc
+		Type                string
+		AvailabilityZone    core.IaCValue
+		MapPublicIpOnLaunch bool
 	}
 	VpcEndpoint struct {
 		Name            string
@@ -68,9 +70,31 @@ type (
 		ServiceName     string
 		VpcEndpointType string
 		Subnets         []*Subnet
+		RouteTables     []*RouteTable
+	}
+	RouteTable struct {
+		Name          string
+		ConstructsRef []core.AnnotationKey
+		Vpc           *Vpc
+		Routes        []*RouteTableRoute
+	}
+	RouteTableRoute struct {
+		CidrBlock    string
+		NatGatewayId core.IaCValue
+		GatewayId    core.IaCValue
 	}
 )
 
+// CreateNetwork takes in a config and uses the appName to create an aws network and inject it into the dag.
+//
+// The network consists of:
+// - 1 Vpc
+// - 1 Internet Gateway
+// - 2 Public subnets, in different availability zones, which use the public route table.
+// - 1 Public Route Table that includes a route to an internet gateway.
+// - 2 Nat Gateways, each one sitting in its own public subnet.
+// - 2 private subnets, with their own route table.
+// - 2 Private Route Tables that include a route to one of the Nat Gateways.
 func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 	appName := config.AppName
 	vpc := NewVpc(appName)
@@ -82,6 +106,14 @@ func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 	region := NewRegion()
 	azs := NewAvailabilityZones()
 	igw := NewInternetGateway(appName, "igw1", vpc)
+	publicRt := &RouteTable{
+		Name: fmt.Sprintf("%s-public", vpc.Name),
+		Vpc:  vpc,
+		Routes: []*RouteTableRoute{
+			{CidrBlock: "0.0.0.0/0", GatewayId: core.IaCValue{Resource: igw, Property: ID_IAC_VALUE}},
+		},
+	}
+	dag.AddDependenciesReflect(publicRt)
 
 	dag.AddResource(region)
 	dag.AddDependency(azs, region)
@@ -98,14 +130,51 @@ func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 		Resource: azs,
 		Property: "1",
 	}
-	CreatePrivateSubnet(appName, "private1", az1, vpc, "10.0.0.0/18", dag)
-	CreatePrivateSubnet(appName, "private2", az2, vpc, "10.0.64.0/18", dag)
-	CreatePublicSubnet("public1", az1, vpc, "10.0.128.0/18", dag)
-	CreatePublicSubnet("public2", az2, vpc, "10.0.192.0/18", dag)
 
+	public1 := CreatePublicSubnet("public1", az1, vpc, "10.0.128.0/18", dag)
+
+	ip1 := NewElasticIp(appName, "public1")
+	dag.AddDependenciesReflect(ip1)
+	natGateway1 := NewNatGateway(appName, "public1", public1, ip1)
+	dag.AddDependenciesReflect(natGateway1)
+
+	public2 := CreatePublicSubnet("public2", az2, vpc, "10.0.192.0/18", dag)
+
+	ip2 := NewElasticIp(appName, "public2")
+	dag.AddDependenciesReflect(ip2)
+	natGateway2 := NewNatGateway(appName, "public2", public2, ip2)
+	dag.AddDependenciesReflect(natGateway2)
+
+	dag.AddDependency(publicRt, public1)
+	dag.AddDependency(publicRt, public2)
+
+	private1 := CreatePrivateSubnet(appName, "private1", az1, vpc, "10.0.0.0/18", dag)
+
+	rt1 := &RouteTable{
+		Name: private1.Name,
+		Vpc:  vpc,
+		Routes: []*RouteTableRoute{
+			{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: natGateway1, Property: ID_IAC_VALUE}},
+		},
+	}
+	dag.AddDependenciesReflect(rt1)
+	dag.AddDependency(rt1, private1)
+
+	private2 := CreatePrivateSubnet(appName, "private2", az2, vpc, "10.0.64.0/18", dag)
+	rt2 := &RouteTable{
+		Name: private2.Name,
+		Vpc:  vpc,
+		Routes: []*RouteTableRoute{
+			{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: natGateway2, Property: ID_IAC_VALUE}},
+		},
+	}
+	dag.AddDependenciesReflect(rt2)
+	dag.AddDependency(rt2, private2)
+
+	routeTables := []*RouteTable{publicRt, rt1, rt2}
 	// VPC Endpoints are dependent upon the subnets so we need to ensure the subnets are created first
-	CreateGatewayVpcEndpoint("s3", vpc, region, dag)
-	CreateGatewayVpcEndpoint("dynamodb", vpc, region, dag)
+	CreateGatewayVpcEndpoint("s3", vpc, region, routeTables, dag)
+	CreateGatewayVpcEndpoint("dynamodb", vpc, region, routeTables, dag)
 
 	CreateInterfaceVpcEndpoint("lambda", vpc, region, dag)
 	CreateInterfaceVpcEndpoint("sqs", vpc, region, dag)
@@ -150,23 +219,8 @@ func (vpc *Vpc) GetSecurityGroups(dag *core.ResourceGraph) []*SecurityGroup {
 }
 
 func CreatePrivateSubnet(appName string, subnetName string, az core.IaCValue, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
-
 	subnet := NewSubnet(subnetName, vpc, cidrBlock, PrivateSubnet, az)
-
-	dag.AddResource(subnet)
-	dag.AddDependency(subnet, vpc)
-	dag.AddDependency(subnet, az.Resource)
-
-	ip := NewElasticIp(appName, subnetName)
-
-	dag.AddResource(ip)
-
-	natGateway := NewNatGateway(appName, subnetName, subnet, ip)
-
-	dag.AddResource(natGateway)
-	dag.AddDependency(natGateway, subnet)
-	dag.AddDependency(natGateway, ip)
-
+	dag.AddDependenciesReflect(subnet)
 	return subnet
 }
 
@@ -178,10 +232,10 @@ func CreatePublicSubnet(subnetName string, az core.IaCValue, vpc *Vpc, cidrBlock
 	return subnet
 }
 
-func CreateGatewayVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph) {
+func CreateGatewayVpcEndpoint(service string, vpc *Vpc, region *Region, routeTables []*RouteTable, dag *core.ResourceGraph) {
 	vpce := NewVpcEndpoint(service, vpc, "Gateway", region, nil)
-	dag.AddResource(vpce)
-	dag.AddDependency(vpce, vpc)
+	vpce.RouteTables = routeTables
+	dag.AddDependenciesReflect(vpce)
 	dag.AddDependency(vpce, region)
 }
 
@@ -293,12 +347,17 @@ func (natGateway *NatGateway) Id() string {
 }
 
 func NewSubnet(subnetName string, vpc *Vpc, cidrBlock string, subnetType string, availabilityZone core.IaCValue) *Subnet {
+	mapPublicIpOnLaunch := false
+	if subnetType == PublicSubnet {
+		mapPublicIpOnLaunch = true
+	}
 	return &Subnet{
-		Name:             subnetSanitizer.Apply(fmt.Sprintf("%s-%s", vpc.Name, subnetName)),
-		CidrBlock:        cidrBlock,
-		Vpc:              vpc,
-		Type:             subnetType,
-		AvailabilityZone: availabilityZone,
+		Name:                subnetSanitizer.Apply(fmt.Sprintf("%s-%s", vpc.Name, subnetName)),
+		CidrBlock:           cidrBlock,
+		Vpc:                 vpc,
+		Type:                subnetType,
+		AvailabilityZone:    availabilityZone,
+		MapPublicIpOnLaunch: mapPublicIpOnLaunch,
 	}
 }
 
@@ -365,4 +424,19 @@ func (vpc *Vpc) KlothoConstructRef() []core.AnnotationKey {
 // ID returns the id of the cloud resource
 func (vpc *Vpc) Id() string {
 	return fmt.Sprintf("%s:%s:%s", vpc.Provider(), VPC_TYPE, vpc.Name)
+}
+
+// Provider returns name of the provider the resource is correlated to
+func (vpc *RouteTable) Provider() string {
+	return AWS_PROVIDER
+}
+
+// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rt *RouteTable) KlothoConstructRef() []core.AnnotationKey {
+	return rt.ConstructsRef
+}
+
+// ID returns the id of the cloud resource
+func (rt *RouteTable) Id() string {
+	return fmt.Sprintf("%s:%s:%s", rt.Provider(), ROUTE_TABLE_TYPE, rt.Name)
 }

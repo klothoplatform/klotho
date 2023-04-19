@@ -663,8 +663,9 @@ func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource core.Resource
 	var errs multierr.Error
 	switch resource := resource.(type) {
 	case *resources.EksCluster:
-		errs.Append(tc.addIngressRuleToCluster(out, resource))
 		errs.Append(tc.renderKubernetesProvider(out, resource))
+	case *resources.RouteTable:
+		errs.Append(tc.associateRouteTable(out, resource))
 	case *resources.IamPolicy:
 		downStream := tc.resourceGraph.GetDownstreamResources(resource)
 		for _, res := range downStream {
@@ -699,27 +700,26 @@ func (tc TemplatesCompiler) renderKubernetesProvider(out io.Writer, cluster *res
 	return errs.ErrOrNil()
 }
 
-func (tc TemplatesCompiler) addIngressRuleToCluster(out io.Writer, cluster *resources.EksCluster) error {
+func (tc TemplatesCompiler) associateRouteTable(out io.Writer, rt *resources.RouteTable) error {
 	var errs multierr.Error
 
 	_, err := out.Write([]byte("\n\n"))
 	errs.Append(err)
 
-	cidrBlocks := []string{}
-	for _, subnet := range cluster.Subnets {
-		cidrBlocks = append(cidrBlocks, subnet.CidrBlock)
+	for _, resource := range tc.resourceGraph.GetDownstreamResources(rt) {
+		if subnet, ok := resource.(*resources.Subnet); ok {
+
+			association := &RouteTableAssociation{
+				Name:       subnet.Name,
+				Subnet:     subnet,
+				RouteTable: rt,
+			}
+			errs.Append(tc.renderResource(out, association))
+
+			_, err := out.Write([]byte("\n\n"))
+			errs.Append(err)
+		}
 	}
 
-	sgRule := &SecurityGroupRule{
-		ConstructsRef: cluster.ConstructsRef,
-		Name:          fmt.Sprintf("%s-ingress", cluster.Name),
-		FromPort:      0,
-		ToPort:        0,
-		Protocol:      "-1",
-		CidrBlocks:    cidrBlocks,
-		Cluster:       cluster,
-		Type:          "ingress",
-	}
-	errs.Append(tc.renderResource(out, sgRule))
 	return errs.ErrOrNil()
 }
