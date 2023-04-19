@@ -179,14 +179,6 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 		}
 	}
 
-	for pubsubResource := range p.UserConfigOverrides.PubSub {
-		resources := constructGraph.GetResourcesOfCapability(annotation.PubSubCapability)
-		resource := getResourceById(pubsubResource, resources)
-		if resource == (core.AnnotationKey{}) {
-			log.Warnf("Unknown pubsub in config override, \"%s\".", pubsubResource)
-		}
-	}
-
 	for unit := range p.UserConfigOverrides.StaticUnit {
 		resources := constructGraph.GetResourcesOfCapability(annotation.StaticUnitCapability)
 		resource := getResourceById(unit, resources)

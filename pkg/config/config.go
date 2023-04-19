@@ -35,7 +35,6 @@ type (
 		PersistSecrets      map[string]*Persist       `json:"persist_secrets,omitempty" yaml:"persist_secrets,omitempty" toml:"persist_secrets,omitempty"`
 		PersistRedisNode    map[string]*Persist       `json:"persist_redis_node,omitempty" yaml:"persist_redis_node,omitempty" toml:"persist_redis_node,omitempty"`
 		PersistRedisCluster map[string]*Persist       `json:"persist_redis_cluster,omitempty" yaml:"persist_redis_cluster,omitempty" toml:"persist_redis_cluster,omitempty"`
-		PubSub              map[string]*PubSub        `json:"pubsub,omitempty" yaml:"pubsub,omitempty" toml:"pubsub,omitempty"`
 		Config              map[string]*Config        `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
 		Links               []CloudResourceLink       `json:"links,omitempty" yaml:"links,omitempty" toml:"links,omitempty"`
 	}
@@ -98,9 +97,6 @@ func (appCfg *Application) EnsureMapsExist() {
 	}
 	if appCfg.PersistRedisCluster == nil {
 		appCfg.PersistRedisCluster = make(map[string]*Persist)
-	}
-	if appCfg.PubSub == nil {
-		appCfg.PubSub = make(map[string]*PubSub)
 	}
 	if appCfg.StaticUnit == nil {
 		appCfg.StaticUnit = make(map[string]*StaticUnit)
@@ -183,10 +179,6 @@ func (a Application) GetResourceType(resource core.Construct) string {
 		cfg := a.GetPersistRedisNode(resource.Provenance().ID)
 		return cfg.Type
 
-	case *core.PubSub:
-		cfg := a.GetPubSub(resource.Provenance().ID)
-		return cfg.Type
-
 	case *core.Config:
 		cfg := a.GetConfig(resource.Provenance().ID)
 		return cfg.Type
@@ -233,10 +225,6 @@ func (a *Application) UpdateForResources(res []core.Construct) {
 		case *core.RedisNode:
 			cfg := a.GetPersistRedisNode(r.Provenance().ID)
 			a.PersistRedisNode[r.Provenance().ID] = &cfg
-
-		case *core.PubSub:
-			cfg := a.GetPubSub(r.Provenance().ID)
-			a.PubSub[r.Provenance().ID] = &cfg
 		}
 	}
 }
@@ -255,29 +243,30 @@ func ConvertToInfraParams(p any) InfraParams {
 }
 
 func (a *Application) MergeDefaults(other Defaults) {
-	a.Defaults.ExecutionUnit.Merge(other.ExecutionUnit)
-	a.Defaults.Expose.Merge(other.Expose)
-	a.Defaults.PersistFs.Merge(other.PersistFs)
-	a.Defaults.PersistKv.Merge(other.PersistKv)
-	a.Defaults.PersistOrm.Merge(other.PersistOrm)
-	a.Defaults.PersistRedisCluster.Merge(other.PersistRedisCluster)
-	a.Defaults.PersistRedisNode.Merge(other.PersistRedisNode)
-	a.Defaults.PersistSecrets.Merge(other.PersistSecrets)
-	a.Defaults.PubSub.Merge(other.PubSub)
-	a.Defaults.StaticUnit.Merge(other.StaticUnit)
-	a.Defaults.Config.Merge(other.Config)
+	a.Defaults.ExecutionUnit.ApplyDefaults(other.ExecutionUnit)
+	a.Defaults.Expose.ApplyDefaults(other.Expose)
+	a.Defaults.PersistFs.ApplyDefaults(other.PersistFs)
+	a.Defaults.PersistKv.ApplyDefaults(other.PersistKv)
+	a.Defaults.PersistOrm.ApplyDefaults(other.PersistOrm)
+	a.Defaults.PersistRedisCluster.ApplyDefaults(other.PersistRedisCluster)
+	a.Defaults.PersistRedisNode.ApplyDefaults(other.PersistRedisNode)
+	a.Defaults.PersistSecrets.ApplyDefaults(other.PersistSecrets)
+	a.Defaults.PubSub.ApplyDefaults(other.PubSub)
+	a.Defaults.StaticUnit.ApplyDefaults(other.StaticUnit)
+	a.Defaults.Config.ApplyDefaults(other.Config)
 }
 
-func (cfg *KindDefaults) Merge(other KindDefaults) {
-	if other.Type != "" && cfg.Type == "" {
-		cfg.Type = other.Type
+func (cfg *KindDefaults) ApplyDefaults(dflt KindDefaults) {
+	if cfg.Type == "" {
+		cfg.Type = dflt.Type
 	}
 	if cfg.InfraParamsByType == nil {
 		cfg.InfraParamsByType = make(map[string]InfraParams)
 	}
-	for name, unit := range other.InfraParamsByType {
-		paramsByType := cfg.InfraParamsByType[name]
-		cfg.InfraParamsByType[name] = paramsByType.Merge(unit)
+	for name, unit := range dflt.InfraParamsByType {
+		params := cfg.InfraParamsByType[name]
+		params.ApplyDefaults(unit)
+		cfg.InfraParamsByType[name] = params
 	}
 }
 
@@ -285,30 +274,41 @@ var (
 	MaxDepth = 32
 )
 
-// Merge recursively merges the src and dst maps. Key conflicts are resolved by
-// preferring src, or recursively descending, if both src and dst are maps.
-func (src InfraParams) Merge(dst InfraParams) map[string]interface{} {
-	return merge(dst, src, 0)
+// ApplyDefaults applies the defaults to params
+func (params *InfraParams) ApplyDefaults(dflt InfraParams) {
+	if len(dflt) == 0 {
+		return
+	}
+	if *params == nil {
+		*params = make(InfraParams)
+	}
+	merge(*params, dflt, 0)
 }
 
-func merge(dst, src map[string]interface{}, depth int) map[string]interface{} {
+// merge applies all k,v pairs from src into dst. If the value is a map, it will
+// try to recusively merge those as well. When keys conflict, dst will win out
+// because this is used for ApplyDefaults where dst is the specific annotation's
+// values and src is the default values.
+func merge(dst, src map[string]interface{}, depth int) {
 	if depth > MaxDepth {
 		panic("too deep!")
 	}
 	if dst == nil {
-		dst = make(map[string]interface{})
+		panic("destination map is nil")
 	}
 	for key, srcVal := range src {
 		if dstVal, ok := dst[key]; ok {
 			srcMap, srcMapOk := mapify(srcVal)
 			dstMap, dstMapOk := mapify(dstVal)
 			if srcMapOk && dstMapOk {
-				srcVal = merge(dstMap, srcMap, depth+1)
+				merge(dstMap, srcMap, depth+1)
+				srcVal = dstMap
+			} else {
+				continue
 			}
 		}
 		dst[key] = srcVal
 	}
-	return dst
 }
 
 func mapify(i interface{}) (map[string]interface{}, bool) {
@@ -321,4 +321,12 @@ func mapify(i interface{}) (map[string]interface{}, bool) {
 		return m, true
 	}
 	return nil, false
+}
+
+func overrideValue[T comparable](src *T, override T) {
+	var zero T
+	if override == zero {
+		return
+	}
+	*src = override
 }
