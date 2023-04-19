@@ -514,6 +514,68 @@ func Test_transformDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "Deployment fargate shouldnt have node selectors",
+			file: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2`,
+			cfg: config.ExecutionUnit{NetworkPlacement: "private", InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{InstanceType: "testinstance", NodeType: "fargate"})},
+			want: result{
+				values: []HelmChartValue{
+					{
+						ExecUnitName: "testUnit",
+						Kind:         "Deployment",
+						Type:         string(ImageTransformation),
+						Key:          "testUnitImage",
+					},
+				},
+				newFile: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    execUnit: testUnit
+    klotho-fargate-enabled: "true"
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+      execUnit: testUnit
+      klotho-fargate-enabled: "true"
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: nginx
+        execUnit: testUnit
+        klotho-fargate-enabled: "true"
+    spec:
+      containers:
+      - image: '{{ .Values.testUnitImage }}'
+        name: nginx
+        resources: {}
+      serviceAccountName: testUnit
+status: {}
+`, // ?? Not sure why yaml marshalling adds the newline and indentation within the value of the instance type
+			},
+		},
+		{
 			name: "Deployment with node selectors",
 			file: `apiVersion: apps/v1
 kind: Deployment
@@ -532,7 +594,7 @@ spec:
       containers:
       - name: nginx
         image: nginx:1.14.2`,
-			cfg: config.ExecutionUnit{NetworkPlacement: "private", InfraParams: config.InfraParams{"instance_type": "testinstance"}},
+			cfg: config.ExecutionUnit{NetworkPlacement: "private", InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{InstanceType: "testinstance", NodeType: "node"})},
 			want: result{
 				values: []HelmChartValue{
 					{

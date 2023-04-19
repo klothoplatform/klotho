@@ -1,5 +1,5 @@
 {
-    "name": "security_group_rule",
+    "name": "route_table_association",
     "dependencies": {
         "@pulumi/aws": "^5.16.0"
     }

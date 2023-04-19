@@ -19,7 +19,7 @@ interface Args {
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.eks.NodeGroup {
     return new aws.eks.NodeGroup(args.Name, {
-        clusterName: args.Cluster.name.apply((n) => n!),
+        clusterName: args.Cluster.name,
         nodeRoleArn: args.NodeRole.arn,
         //TMPL {{- if .AmiType.Raw }}
         amiType: args.AmiType,

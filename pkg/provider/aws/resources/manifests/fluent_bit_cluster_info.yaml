@@ -8,7 +8,7 @@ metadata:
 data:
   cluster.name: REPLACE_ME
   logs.region: REPLACE_ME
-  http.server: On
-  http.port: 2020
-  read.head: Off
-  read.tail: On
+  http.server: "On"
+  http.port: "2020"
+  read.head: "Off"
+  read.tail: "On"

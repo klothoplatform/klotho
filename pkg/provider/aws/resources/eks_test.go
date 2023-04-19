@@ -41,14 +41,16 @@ func Test_CreateEksCluster(t *testing.T) {
 			name: "happy path",
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
+					"aws:eks_addon:test-app-test-cluster-addon-vpc-cni",
 					"aws:eks_cluster:test-app-test-cluster",
 					"aws:eks_fargate_profile:test-app-test-cluster",
-					"aws:eks_node_group:private_t3_medium",
 					"aws:eks_node_group:private_g2",
+					"aws:eks_node_group:private_t3_medium",
+					"aws:iam_oidc_provider:test-app-test-cluster",
 					"aws:iam_role:test-app-test-cluster-FargateExecutionRole",
 					"aws:iam_role:test-app-test-cluster-k8sAdmin",
-					"aws:iam_role:test-app-test-cluster.private_t3_medium",
 					"aws:iam_role:test-app-test-cluster.private_g2",
+					"aws:iam_role:test-app-test-cluster.private_t3_medium",
 					"aws:region:region",
 					"aws:vpc:test_app",
 					"aws:vpc_subnet:test_app_test_subnet",
@@ -60,27 +62,28 @@ func Test_CreateEksCluster(t *testing.T) {
 					"kubernetes:manifest:test-app-test-cluster-fluent-bit",
 					"kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map",
 					"kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin",
-					"aws:eks_addon:test-app-test-cluster-addon-vpc-cni",
-					"aws:iam_oidc_provider:test-app-test-cluster",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:vpc:test_app", Destination: "aws:region:region"},
-					{Source: "aws:vpc_subnet:test_app_test_subnet", Destination: "aws:vpc:test_app"},
+					{Source: "aws:eks_addon:test-app-test-cluster-addon-vpc-cni", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "aws:eks_cluster:test-app-test-cluster", Destination: "aws:iam_role:test-app-test-cluster-k8sAdmin"},
-					{Source: "aws:eks_cluster:test-app-test-cluster", Destination: subnet.Id()},
+					{Source: "aws:eks_cluster:test-app-test-cluster", Destination: "aws:vpc_subnet:test_app_test_subnet"},
 					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: "aws:iam_role:test-app-test-cluster-FargateExecutionRole"},
-					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: subnet.Id()},
-					{Source: "aws:eks_node_group:private_t3_medium", Destination: "aws:eks_cluster:test-app-test-cluster"},
-					{Source: "aws:eks_node_group:private_t3_medium", Destination: "aws:iam_role:test-app-test-cluster.private_t3_medium"},
-					{Source: "aws:eks_node_group:private_t3_medium", Destination: subnet.Id()},
+					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: "aws:vpc_subnet:test_app_test_subnet"},
 					{Source: "aws:eks_node_group:private_g2", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "aws:eks_node_group:private_g2", Destination: "aws:iam_role:test-app-test-cluster.private_g2"},
-					{Source: "aws:eks_node_group:private_g2", Destination: subnet.Id()},
-					{Source: "kubernetes:helm_chart:test-app-test-cluster-cert-manager", Destination: "aws:eks_node_group:private_t3_medium"},
+					{Source: "aws:eks_node_group:private_g2", Destination: "aws:vpc_subnet:test_app_test_subnet"},
+					{Source: "aws:eks_node_group:private_t3_medium", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "aws:eks_node_group:private_t3_medium", Destination: "aws:iam_role:test-app-test-cluster.private_t3_medium"},
+					{Source: "aws:eks_node_group:private_t3_medium", Destination: "aws:vpc_subnet:test_app_test_subnet"},
+					{Source: "aws:iam_oidc_provider:test-app-test-cluster", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "aws:iam_oidc_provider:test-app-test-cluster", Destination: "aws:region:region"},
+					{Source: "aws:vpc:test_app", Destination: "aws:region:region"},
+					{Source: "aws:vpc_subnet:test_app_test_subnet", Destination: "aws:vpc:test_app"},
 					{Source: "kubernetes:helm_chart:test-app-test-cluster-cert-manager", Destination: "aws:eks_node_group:private_g2"},
-					{Source: "kubernetes:helm_chart:test-app-test-cluster-metrics-server", Destination: "aws:eks_node_group:private_t3_medium"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-cert-manager", Destination: "aws:eks_node_group:private_t3_medium"},
 					{Source: "kubernetes:helm_chart:test-app-test-cluster-metrics-server", Destination: "aws:eks_node_group:private_g2"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-metrics-server", Destination: "aws:eks_node_group:private_t3_medium"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-aws-observability-config-map", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-aws-observability-config-map", Destination: "kubernetes:manifest:test-app-test-cluster-aws-observability-ns"},
@@ -89,12 +92,9 @@ func Test_CreateEksCluster(t *testing.T) {
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit", Destination: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns"},
-					{Source: "aws:eks_addon:test-app-test-cluster-addon-vpc-cni", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_node_group:private_g2"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_node_group:private_t3_medium"},
-					{Source: "aws:iam_oidc_provider:test-app-test-cluster", Destination: "aws:eks_cluster:test-app-test-cluster"},
-					{Source: "aws:iam_oidc_provider:test-app-test-cluster", Destination: "aws:region:region"},
 				},
 			},
 		},
@@ -118,6 +118,7 @@ func Test_CreateEksCluster(t *testing.T) {
 					assert.Subsetf(sources, r.KlothoConstructRef(), "not matching refs in %s", r.Id())
 				}
 			}
+
 			tt.want.Assert(t, dag)
 		})
 	}
@@ -227,6 +228,7 @@ func Test_createNodeRole(t *testing.T) {
 		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
 		"arn:aws:iam::aws:policy/AWSCloudMapFullAccess",
 		"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
+		"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
 	})
 }
 
