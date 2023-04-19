@@ -7,12 +7,12 @@ import moment = require('moment')
 import { AWSConfig } from './clients'
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb'
 
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb')
+import { Entity } from 'electrodb'
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 
 const docClient = new DynamoDBDocumentClient(new DynamoDBClient(AWSConfig))
+const tableName = process.env['KLOTHO_KV_DYNAMODB_TABLE_NAME']
 let alldMaps: dMap[] = []
-
-import { Entity } from 'electrodb'
 
 const KVStore = new Entity(
     {
@@ -51,7 +51,7 @@ const KVStore = new Entity(
         },
         filters: {},
     },
-    { table: '{{.AppName}}', client: docClient }
+    { table: tableName, client: docClient }
 )
 
 interface MapOptions {

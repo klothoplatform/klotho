@@ -467,6 +467,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, resourceVal *reflect
 		return quoteTsString(secret.SecretName, true), nil
 	case string(core.BUCKET_NAME):
 		return fmt.Sprintf("%s.bucket", tc.getVarName(resource)), nil
+	case string(core.KV_DYNAMODB_TABLE_NAME):
+		return fmt.Sprintf("%s.name", tc.getVarName(resource)), nil
 	case resources.BUCKET_REGIONAL_DOMAIN_NAME_IAC_VALUE:
 		return fmt.Sprintf("%s.bucketRegionalDomainName", tc.getVarName(resource)), nil
 	case resources.IAM_ARN_IAC_VALUE:
@@ -494,14 +496,14 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, resourceVal *reflect
 	case string(core.HOST):
 		switch resource.(type) {
 		case *resources.ElasticacheCluster:
-			return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].address`", tc.getVarName(resource)), nil
+			return fmt.Sprintf("%s.cacheNodes[0].address", tc.getVarName(resource)), nil
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
 	case string(core.PORT):
 		switch resource.(type) {
 		case *resources.ElasticacheCluster:
-			return fmt.Sprintf("pulumi.interpolate`%s.cacheNodes[0].port`", tc.getVarName(resource)), nil
+			return fmt.Sprintf("%s.cacheNodes[0].port.apply(port => port.toString())", tc.getVarName(resource)), nil
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}

@@ -165,7 +165,7 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 		var err, runtimeErr, transformErr error
 		switch keyType.(type) {
 		case *core.Kv:
-			resource, transformErr = p.transformKV(f, annot, pResult)
+			resource, transformErr = p.transformKV(unit, f, annot, pResult)
 			runtimeErr = p.runtime.AddKvRuntimeFiles(unit)
 		case *core.Fs:
 			var envVarName string
@@ -251,7 +251,7 @@ func (p *persister) transformFS(unit *core.ExecutionUnit, file *core.SourceFile,
 	return result, fsEnvVar.Name, nil
 }
 
-func (p *persister) transformKV(file *core.SourceFile, cap *core.Annotation, kvR *persistResult) (core.Construct, error) {
+func (p *persister) transformKV(unit *core.ExecutionUnit, file *core.SourceFile, cap *core.Annotation, kvR *persistResult) (core.Construct, error) {
 	directives := cap.Capability.Directives
 
 	mapString := "new keyvalueRuntime.dMap("
@@ -274,6 +274,9 @@ func (p *persister) transformKV(file *core.SourceFile, cap *core.Annotation, kvR
 			ID:         cap.Capability.ID,
 		},
 	}
+
+	envVar := core.GenerateKvTableNameEnvVar(result)
+	unit.EnvironmentVariables.Add(envVar)
 
 	return result, nil
 }
