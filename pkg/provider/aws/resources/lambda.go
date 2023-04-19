@@ -3,6 +3,7 @@ package resources
 import (
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
@@ -24,6 +25,8 @@ type (
 		EnvironmentVariables EnvironmentVariables
 		SecurityGroups       []*SecurityGroup
 		Subnets              []*Subnet
+		Timeout              int
+		MemorySize           int
 	}
 
 	LambdaPermission struct {
@@ -36,12 +39,15 @@ type (
 	}
 )
 
-func NewLambdaFunction(unit *core.ExecutionUnit, appName string, role *IamRole, image *EcrImage) *LambdaFunction {
+func NewLambdaFunction(unit *core.ExecutionUnit, cfg *config.Application, role *IamRole, image *EcrImage) *LambdaFunction {
+	params := config.ConvertFromInfraParams[config.ServerlessTypeParams](cfg.GetExecutionUnit(unit.ID).InfraParams)
 	return &LambdaFunction{
-		Name:          lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", appName, unit.ID)),
+		Name:          lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", cfg.AppName, unit.ID)),
 		ConstructsRef: []core.AnnotationKey{unit.Provenance()},
 		Role:          role,
 		Image:         image,
+		MemorySize:    params.Memory,
+		Timeout:       params.Timeout,
 	}
 }
 
