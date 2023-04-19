@@ -98,9 +98,9 @@ func Test_UpdateForResources(t *testing.T) {
 						Type: "dynamodb",
 					},
 				},
-				Exposed:        map[string]*Expose{"test": {Type: "apigateway", InfraParams: make(InfraParams)}},
-				ExecutionUnits: map[string]*ExecutionUnit{"test": {Type: "lambda", NetworkPlacement: "private", EnvironmentVariables: make(map[string]string), InfraParams: make(InfraParams)}},
-				PersistKv:      map[string]*Persist{"test": {Type: "dynamodb", InfraParams: make(InfraParams)}},
+				Exposed:        map[string]*Expose{"test": {Type: "apigateway"}},
+				ExecutionUnits: map[string]*ExecutionUnit{"test": {Type: "lambda", NetworkPlacement: "private", EnvironmentVariables: make(map[string]string)}},
+				PersistKv:      map[string]*Persist{"test": {Type: "dynamodb"}},
 			},
 		},
 	}
@@ -189,7 +189,7 @@ func Test_MergeKindDefaults(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			tt.cfg.Merge(tt.defaults)
+			tt.cfg.ApplyDefaults(tt.defaults)
 			assert.Equal(tt.want, tt.cfg)
 
 		})
@@ -201,7 +201,7 @@ func Test_MergeInfraParams(t *testing.T) {
 		name     string
 		cfg      InfraParams
 		defaults InfraParams
-		want     map[string]interface{}
+		want     InfraParams
 	}{
 		{
 			name: "basic infra params merge",
@@ -213,7 +213,7 @@ func Test_MergeInfraParams(t *testing.T) {
 				"key2": "value2",
 				"1":    "2",
 			},
-			want: map[string]interface{}{
+			want: InfraParams{
 				"key1": "value100",
 				"key2": "value2",
 				"1":    "2",
@@ -233,7 +233,7 @@ func Test_MergeInfraParams(t *testing.T) {
 				},
 				"somethingelse": map[string]interface{}{"1": "2"},
 			},
-			want: map[string]interface{}{
+			want: InfraParams{
 				"apigateway": map[string]interface{}{
 					"key1": "value100",
 					"key2": "value2",
@@ -241,12 +241,21 @@ func Test_MergeInfraParams(t *testing.T) {
 				"somethingelse": map[string]interface{}{"1": "2"},
 			},
 		},
+		{
+			name: "empty params",
+			defaults: InfraParams{
+				"key1": "value1",
+			},
+			want: map[string]interface{}{
+				"key1": "value1",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			result := tt.cfg.Merge(tt.defaults)
-			assert.Equal(tt.want, result)
+			tt.cfg.ApplyDefaults(tt.defaults)
+			assert.Equal(tt.want, tt.cfg)
 
 		})
 	}

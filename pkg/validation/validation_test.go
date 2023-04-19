@@ -317,31 +317,6 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 			want: `Unknown expose in config override, "nottest".`,
 		},
 		{
-			name: "pubsub match",
-			result: []core.Construct{&core.PubSub{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PubSubCapability},
-			}},
-			cfg: config.Application{
-				Provider: "aws",
-				PubSub: map[string]*config.PubSub{
-					"test": {},
-				},
-			},
-		},
-		{
-			name: "pubsub mismatch",
-			result: []core.Construct{&core.PubSub{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PubSubCapability},
-			}},
-			cfg: config.Application{
-				Provider: "aws",
-				PubSub: map[string]*config.PubSub{
-					"nottest": {},
-				},
-			},
-			want: `Unknown pubsub in config override, "nottest".`,
-		},
-		{
 			name: "static unit match",
 			result: []core.Construct{&core.StaticUnit{
 				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.StaticUnitCapability},

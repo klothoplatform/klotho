@@ -27,7 +27,7 @@ func Test_setHelmChartDirectory(t *testing.T) {
 			name: "happy path yaml",
 			path: "somedir/Chart.yaml",
 			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{},
+				HelmChartOptions: config.HelmChartOptions{},
 			},
 			unitName: "testUnit",
 			want:     "somedir",
@@ -37,7 +37,7 @@ func Test_setHelmChartDirectory(t *testing.T) {
 			name: "happy path yml",
 			path: "somedir/Chart.yml",
 			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{},
+				HelmChartOptions: config.HelmChartOptions{},
 			},
 			unitName: "testUnit",
 			want:     "somedir",
@@ -47,7 +47,7 @@ func Test_setHelmChartDirectory(t *testing.T) {
 			name: "directory override",
 			path: "somedir/Chart.yaml",
 			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{
+				HelmChartOptions: config.HelmChartOptions{
 					Directory: "override",
 				},
 			},
@@ -59,7 +59,7 @@ func Test_setHelmChartDirectory(t *testing.T) {
 			name: "non yaml file no action",
 			path: "somedir/Chart.something",
 			cfg: &config.ExecutionUnit{
-				HelmChartOptions: &config.HelmChartOptions{},
+				HelmChartOptions: config.HelmChartOptions{},
 			},
 			unitName: "testUnit",
 			want:     "",
@@ -140,7 +140,7 @@ func Test_getKlothoCharts(t *testing.T) {
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"main0": {
 						Type: "kubernetes",
-						HelmChartOptions: &config.HelmChartOptions{
+						HelmChartOptions: config.HelmChartOptions{
 							Directory: "chart",
 						},
 					},
@@ -177,13 +177,13 @@ func Test_getKlothoCharts(t *testing.T) {
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"main0": {
 						Type: "kubernetes",
-						HelmChartOptions: &config.HelmChartOptions{
+						HelmChartOptions: config.HelmChartOptions{
 							Directory: "chart",
 						},
 					},
 					"main1": {
 						Type: "kubernetes",
-						HelmChartOptions: &config.HelmChartOptions{
+						HelmChartOptions: config.HelmChartOptions{
 							Directory: "chart",
 						},
 					},
@@ -218,11 +218,11 @@ func Test_getKlothoCharts(t *testing.T) {
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"main0": {
 						Type:             "kubernetes",
-						HelmChartOptions: &config.HelmChartOptions{},
+						HelmChartOptions: config.HelmChartOptions{},
 					},
 					"main1": {
 						Type:             "kubernetes",
-						HelmChartOptions: &config.HelmChartOptions{},
+						HelmChartOptions: config.HelmChartOptions{},
 					},
 				},
 			},
@@ -245,7 +245,7 @@ func Test_getKlothoCharts(t *testing.T) {
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"main0": {
 						Type:             "kubernetes",
-						HelmChartOptions: &config.HelmChartOptions{},
+						HelmChartOptions: config.HelmChartOptions{},
 					},
 				},
 			},
@@ -265,7 +265,7 @@ func Test_getKlothoCharts(t *testing.T) {
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"main0": {
 						Type:             "lambda",
-						HelmChartOptions: &config.HelmChartOptions{},
+						HelmChartOptions: config.HelmChartOptions{},
 					},
 				},
 			},

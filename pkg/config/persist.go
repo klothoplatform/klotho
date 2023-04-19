@@ -10,146 +10,53 @@ type (
 	}
 )
 
+func getPersist(id string, kindDefaults KindDefaults, overrides map[string]*Persist) Persist {
+	cfg := Persist{
+		Type: kindDefaults.Type,
+	}
+
+	ecfg, hasOverride := overrides[id]
+	if hasOverride {
+		overrideValue(&cfg.Type, ecfg.Type)
+		cfg.InfraParams = ecfg.InfraParams
+	}
+	cfg.InfraParams.ApplyDefaults(kindDefaults.InfraParamsByType[cfg.Type])
+
+	return cfg
+}
+
 // GetPersistKv returns the `Persist` config for the persist_kv resource specified by `id`
 // merged with the defaults.
 func (a Application) GetPersistKv(id string) Persist {
-	cfg := Persist{}
-	if ecfg, ok := a.PersistKv[id]; ok {
-		if ecfg.InfraParams == nil {
-			ecfg.InfraParams = make(InfraParams)
-		}
-		defaultParams, ok := a.Defaults.PersistKv.InfraParamsByType[ecfg.Type]
-		if ok {
-			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-		}
-		return *ecfg
-	}
-	cfg.Type = a.Defaults.PersistKv.Type
-	cfg.InfraParams = make(InfraParams)
-	defaultParams, ok := a.Defaults.PersistKv.InfraParamsByType[cfg.Type]
-	if ok {
-		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)
-
-	}
-	return cfg
+	return getPersist(id, a.Defaults.PersistKv, a.PersistKv)
 }
 
 // GetPersistFs returns the `Persist` config for the persist_fs resource specified by `id`
 // merged with the defaults.
 func (a Application) GetPersistFs(id string) Persist {
-	cfg := Persist{}
-	if ecfg, ok := a.PersistFs[id]; ok {
-		if ecfg.InfraParams == nil {
-			ecfg.InfraParams = make(InfraParams)
-		}
-		defaultParams, ok := a.Defaults.PersistFs.InfraParamsByType[ecfg.Type]
-		if ok {
-			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-		}
-		return *ecfg
-	}
-	cfg.Type = a.Defaults.PersistFs.Type
-	cfg.InfraParams = make(InfraParams)
-	defaultParams, ok := a.Defaults.PersistFs.InfraParamsByType[cfg.Type]
-	if ok {
-		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)
-
-	}
-	return cfg
+	return getPersist(id, a.Defaults.PersistFs, a.PersistFs)
 }
 
 // GetPersistSecrets returns the `Persist` config for the persist_secrets resource specified by `id`
 // merged with the defaults.
 func (a Application) GetPersistSecrets(id string) Persist {
-	cfg := Persist{}
-	if ecfg, ok := a.PersistSecrets[id]; ok {
-		if ecfg.InfraParams == nil {
-			ecfg.InfraParams = make(InfraParams)
-		}
-		defaultParams, ok := a.Defaults.PersistSecrets.InfraParamsByType[ecfg.Type]
-		if ok {
-			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-		}
-		return *ecfg
-	}
-	cfg.Type = a.Defaults.PersistSecrets.Type
-	cfg.InfraParams = make(InfraParams)
-	defaultParams, ok := a.Defaults.PersistSecrets.InfraParamsByType[cfg.Type]
-	if ok {
-		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)
-
-	}
-	return cfg
+	return getPersist(id, a.Defaults.PersistSecrets, a.PersistSecrets)
 }
 
 // GetPersistOrm returns the `Persist` config for the persist_orm resource specified by `id`
 // merged with the defaults.
 func (a Application) GetPersistOrm(id string) Persist {
-	cfg := Persist{}
-	if ecfg, ok := a.PersistOrm[id]; ok {
-		if ecfg.InfraParams == nil {
-			ecfg.InfraParams = make(InfraParams)
-		}
-		defaultParams, ok := a.Defaults.PersistOrm.InfraParamsByType[ecfg.Type]
-		if ok {
-			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-		}
-		return *ecfg
-	}
-	cfg.Type = a.Defaults.PersistOrm.Type
-	cfg.InfraParams = make(InfraParams)
-	defaultParams, ok := a.Defaults.PersistOrm.InfraParamsByType[cfg.Type]
-	if ok {
-		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)
-
-	}
-	return cfg
+	return getPersist(id, a.Defaults.PersistOrm, a.PersistOrm)
 }
 
 // GetPersistRedisNode returns the `Persist` config for the persist_redis_node resource specified by `id`
 // merged with the defaults.
 func (a Application) GetPersistRedisNode(id string) Persist {
-	cfg := Persist{}
-	if ecfg, ok := a.PersistRedisNode[id]; ok {
-		if ecfg.InfraParams == nil {
-			ecfg.InfraParams = make(InfraParams)
-		}
-		defaultParams, ok := a.Defaults.PersistRedisNode.InfraParamsByType[ecfg.Type]
-		if ok {
-			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-		}
-		return *ecfg
-	}
-	cfg.Type = a.Defaults.PersistRedisNode.Type
-	cfg.InfraParams = make(InfraParams)
-	defaultParams, ok := a.Defaults.PersistRedisNode.InfraParamsByType[cfg.Type]
-	if ok {
-		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)
-
-	}
-	return cfg
+	return getPersist(id, a.Defaults.PersistRedisNode, a.PersistRedisNode)
 }
 
 // GetPersistRedisCluster returns the `Persist` config for the persist_redis_cluster resource specified by `id`
 // merged with the defaults.
 func (a Application) GetPersistRedisCluster(id string) Persist {
-	cfg := Persist{}
-	if ecfg, ok := a.PersistRedisCluster[id]; ok {
-		if ecfg.InfraParams == nil {
-			ecfg.InfraParams = make(InfraParams)
-		}
-		defaultParams, ok := a.Defaults.PersistRedisCluster.InfraParamsByType[ecfg.Type]
-		if ok {
-			ecfg.InfraParams = ecfg.InfraParams.Merge(defaultParams)
-		}
-		return *ecfg
-	}
-	cfg.Type = a.Defaults.PersistRedisCluster.Type
-	cfg.InfraParams = make(InfraParams)
-	defaultParams, ok := a.Defaults.PersistRedisCluster.InfraParamsByType[cfg.Type]
-	if ok {
-		cfg.InfraParams = cfg.InfraParams.Merge(defaultParams)
-
-	}
-	return cfg
+	return getPersist(id, a.Defaults.PersistRedisCluster, a.PersistRedisCluster)
 }

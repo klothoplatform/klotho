@@ -58,7 +58,7 @@ func Test_GetExecutionUnit(t *testing.T) {
 				},
 				NetworkPlacement:     "private",
 				EnvironmentVariables: make(map[string]string),
-				HelmChartOptions:     &HelmChartOptions{},
+				HelmChartOptions:     HelmChartOptions{},
 			},
 		},
 		{
@@ -88,7 +88,7 @@ func Test_GetExecutionUnit(t *testing.T) {
 				},
 				NetworkPlacement:     "private",
 				EnvironmentVariables: make(map[string]string),
-				HelmChartOptions:     &HelmChartOptions{},
+				HelmChartOptions:     HelmChartOptions{},
 			},
 		},
 		{
@@ -123,7 +123,7 @@ func Test_GetExecutionUnit(t *testing.T) {
 				EnvironmentVariables: map[string]string{
 					"1": "2",
 				},
-				HelmChartOptions: &HelmChartOptions{},
+				HelmChartOptions: HelmChartOptions{},
 			},
 		},
 	}
