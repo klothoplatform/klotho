@@ -242,6 +242,19 @@ func ConvertToInfraParams(p any) InfraParams {
 	return params
 }
 
+func ConvertFromInfraParams[T any](params InfraParams) T {
+	jsonString, err := json.Marshal(params)
+	if err != nil {
+		panic(err)
+	}
+	var out T
+	err = json.Unmarshal(jsonString, &out)
+	if err != nil {
+		panic(err)
+	}
+	return out
+}
+
 func (a *Application) MergeDefaults(other Defaults) {
 	a.Defaults.ExecutionUnit.ApplyDefaults(other.ExecutionUnit)
 	a.Defaults.Expose.ApplyDefaults(other.Expose)
