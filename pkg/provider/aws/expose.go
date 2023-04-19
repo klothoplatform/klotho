@@ -154,10 +154,15 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 		if err != nil {
 			return nil, err
 		}
-		err = cluster.InstallAlbController([]core.AnnotationKey{unit.AnnotationKey}, dag)
+		albChart, err := cluster.InstallAlbController([]core.AnnotationKey{unit.AnnotationKey}, dag)
 		if err != nil {
 			return nil, err
 		}
+		klothoChart, err := findUnitsHelmChart(unit, dag)
+		if err != nil {
+			return nil, err
+		}
+		dag.AddDependency(klothoChart, albChart)
 		nlb := dag.GetResource(resources.NewLoadBalancer(a.Config.AppName, unit.ID, nil, "internal", "network", nil, nil).Id())
 		if nlb == nil {
 			return nil, errors.Errorf("No nlb created for unit %s", unit.ID)

@@ -248,6 +248,7 @@ func Test_CreateRestApi(t *testing.T) {
 					ConstructsRef: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey},
 					Subnets:       []*resources.Subnet{resources.NewSubnet("1", resources.NewVpc("test"), "", "", core.IaCValue{})},
 				},
+				&kubernetes.HelmChart{Name: "chart", ConstructRefs: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey}},
 				&resources.OpenIdConnectProvider{Name: "test"},
 			},
 			existingDependencies: []graph.Edge[core.Resource]{
@@ -290,6 +291,7 @@ func Test_CreateRestApi(t *testing.T) {
 					"kubernetes:helm_chart:Cluster-alb-controller",
 					"kubernetes:manifest:Cluster-alb-controller-service-account",
 					"aws:iam_oidc_provider:test",
+					"kubernetes:helm_chart:chart",
 				},
 				Deps: []graph.Edge[string]{
 					{Source: "aws:api_deployment:test-test", Destination: "aws:api_integration:test-test-GET"},
@@ -342,6 +344,7 @@ func Test_CreateRestApi(t *testing.T) {
 					{Source: "kubernetes:helm_chart:Cluster-alb-controller", Destination: "aws:vpc:test"},
 					{Source: "kubernetes:manifest:Cluster-alb-controller-service-account", Destination: "aws:eks_cluster:Cluster"},
 					{Source: "kubernetes:manifest:Cluster-alb-controller-service-account", Destination: "aws:iam_role:Cluster-alb-controller"},
+					{Source: "kubernetes:helm_chart:chart", Destination: "kubernetes:helm_chart:Cluster-alb-controller"},
 				},
 			},
 		},
