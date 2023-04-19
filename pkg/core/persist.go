@@ -95,3 +95,7 @@ func GenerateOrmConnStringEnvVar(cfg Construct) environmentVariable {
 func GenerateBucketEnvVar(cfg Construct) environmentVariable {
 	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(cfg.Provenance().ID), BUCKET_NAME_SUFFIX), cfg, string(BUCKET_NAME))
 }
+
+func GenerateKvTableNameEnvVar(cfg Construct) environmentVariable {
+	return NewEnvironmentVariable("KLOTHO_KV_DYNAMODB_TABLE_NAME", cfg, string(KV_DYNAMODB_TABLE_NAME))
+}

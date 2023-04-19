@@ -6,10 +6,11 @@ const _ = require("lodash");
 const moment = require("moment");
 const clients_1 = require("./clients");
 const lib_dynamodb_1 = require("@aws-sdk/lib-dynamodb");
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const docClient = new lib_dynamodb_1.DynamoDBDocumentClient(new DynamoDBClient(clients_1.AWSConfig));
-let alldMaps = [];
 const electrodb_1 = require("electrodb");
+const client_dynamodb_1 = require("@aws-sdk/client-dynamodb");
+const docClient = new lib_dynamodb_1.DynamoDBDocumentClient(new client_dynamodb_1.DynamoDBClient(clients_1.AWSConfig));
+const tableName = process.env['KLOTHO_KV_DYNAMODB_TABLE_NAME'];
+let alldMaps = [];
 const KVStore = new electrodb_1.Entity({
     model: {
         entity: 'entry',
@@ -45,7 +46,7 @@ const KVStore = new electrodb_1.Entity({
         },
     },
     filters: {},
-}, { table: '{{.AppName}}', client: docClient });
+}, { table: tableName, client: docClient });
 class dMap {
     constructor(opts) {
         this.dynamoCalls = 0;
