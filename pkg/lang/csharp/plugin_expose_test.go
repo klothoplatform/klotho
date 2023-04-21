@@ -634,7 +634,7 @@ func TestExpose_Transform(t *testing.T) {
 				return
 			}
 
-			gateways := core.GetResourcesOfType[*core.Gateway](result)
+			gateways := core.GetConstructsOfType[*core.Gateway](result)
 			assert.Equal(len(tt.expectedGateways), len(gateways))
 
 			sort.Slice(gateways, func(i, j int) bool {

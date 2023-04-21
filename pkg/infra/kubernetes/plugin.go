@@ -153,7 +153,7 @@ func (p *Kubernetes) setHelmChartDirectory(path string, cfg *config.ExecutionUni
 func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[string]*HelmChart, error) {
 	var errs multierr.Error
 	klothoCharts := make(map[string]*HelmChart)
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
 		cfg := p.Config.GetExecutionUnit(unit.ID)
 
 		if cfg.HelmChartOptions.Directory == "" {
