@@ -64,7 +64,7 @@ func OutputCapabilities(input *core.InputFiles, outDir string) error {
 
 func GetLanguagesUsed(result *core.ConstructGraph) []core.ExecutableType {
 	executableLangs := []core.ExecutableType{}
-	for _, u := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
+	for _, u := range core.GetConstructsOfType[*core.ExecutionUnit](result) {
 		executableLangs = append(executableLangs, u.Executable.Type)
 	}
 	return executableLangs
@@ -90,7 +90,7 @@ func GetResourceTypeCount(result *core.ConstructGraph, cfg *config.Application) 
 }
 
 func CloseTreeSitter(result *core.ConstructGraph) {
-	for _, eu := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
+	for _, eu := range core.GetConstructsOfType[*core.ExecutionUnit](result) {
 		for _, f := range eu.Files() {
 			if astFile, ok := f.(*core.SourceFile); ok {
 				astFile.Tree().Close()

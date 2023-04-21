@@ -73,7 +73,7 @@ func (cg *ConstructGraph) GetResourcesOfCapability(capability string) (filtered 
 	return
 }
 
-func GetResourcesOfType[T Construct](g *ConstructGraph) (filtered []T) {
+func GetConstructsOfType[T Construct](g *ConstructGraph) (filtered []T) {
 	vertices := g.underlying.GetAllVertices()
 	for _, v := range vertices {
 		if vT, ok := v.(T); ok {
@@ -92,7 +92,7 @@ func GetConstruct[T Construct](g *ConstructGraph, key string) (construct T, ok b
 func (cg *ConstructGraph) GetExecUnitForPath(fp string) (*ExecutionUnit, File) {
 	var best *ExecutionUnit
 	var bestFile File
-	for _, eu := range GetResourcesOfType[*ExecutionUnit](cg) {
+	for _, eu := range GetConstructsOfType[*ExecutionUnit](cg) {
 		f := eu.Get(fp)
 		if f != nil {
 			astF, ok := f.(*SourceFile)

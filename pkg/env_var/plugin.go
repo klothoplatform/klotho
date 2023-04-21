@@ -33,7 +33,7 @@ func (p EnvVarInjection) Name() string { return "EnvVarInjection" }
 func (p EnvVarInjection) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
 
-	units := core.GetResourcesOfType[*core.ExecutionUnit](constructGraph)
+	units := core.GetConstructsOfType[*core.ExecutionUnit](constructGraph)
 	for _, unit := range units {
 		for _, f := range unit.Files() {
 			log := zap.L().With(logging.FileField(f)).Sugar()

@@ -45,7 +45,7 @@ func (p Persist) Transform(input *core.InputFiles, fileDeps *core.FileDependenci
 	// Please be careful before moving this loop, or putting anything before it. The call to findUnawaitedCalls(units)
 	// assumes that the code has not yet been rewritten (e.g. to turn Maps into our runtime map classes).
 	// This code could use a cleanup: see CloudCompilers/klotho#431
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
 		persister.findUnawaitedCalls(unit)
 
 		err := persister.handleFiles(unit)

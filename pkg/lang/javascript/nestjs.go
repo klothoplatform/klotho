@@ -37,7 +37,7 @@ func (p NestJsHandler) Name() string { return "NestJs" }
 
 func (p NestJsHandler) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	var errs multierr.Error
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
 		err := p.transformSingle(constructGraph, unit)
 		errs.Append(err)
 	}

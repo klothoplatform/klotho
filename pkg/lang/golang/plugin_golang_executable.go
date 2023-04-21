@@ -17,7 +17,7 @@ func (l GolangExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 	inputFiles := input.Files()
 
 	defaultGoMod, _ := input.Files()["go.mod"].(*GoMod)
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
 		if unit.Executable.Type != "" {
 			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.ID, unit.Executable.Type)
 			continue
