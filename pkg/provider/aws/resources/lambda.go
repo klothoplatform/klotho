@@ -82,12 +82,12 @@ func (permission *LambdaPermission) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (permission *LambdaPermission) KlothoConstructRef() []core.AnnotationKey {
 	return permission.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (permission *LambdaPermission) Id() string {
 	return fmt.Sprintf("%s:%s:%s", permission.Provider(), LAMBDA_PERMISSION_TYPE, permission.Name)
 }

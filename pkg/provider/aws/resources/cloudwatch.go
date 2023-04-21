@@ -34,12 +34,12 @@ func (lg *LogGroup) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (lg *LogGroup) KlothoConstructRef() []core.AnnotationKey {
 	return lg.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (lg *LogGroup) Id() string {
 	return fmt.Sprintf("%s:%s:%s", lg.Provider(), LOG_GROUP_TYPE, lg.Name)
 }
