@@ -719,18 +719,20 @@ func createClusterAdminRole(appName string, roleName string, refs []core.Annotat
 
 func createPodExecutionRole(appName string, roleName string, refs []core.AnnotationKey) *IamRole {
 	fargateRole := NewIamRole(appName, roleName, refs, EKS_FARGATE_ASSUME_ROLE_POLICY)
-	fargateRole.InlinePolicy = &PolicyDocument{Version: VERSION, Statement: []StatementEntry{
-		{
-			Effect: "Allow",
-			Action: []string{
-				"logs:CreateLogStream",
-				"logs:CreateLogGroup",
-				"logs:DescribeLogStreams",
-				"logs:PutLogEvents",
-			},
-			Resource: []core.IaCValue{{Property: "*"}},
-		},
-	}}
+	fargateRole.InlinePolicies = []*IamInlinePolicy{
+		NewIamInlinePolicy("fargate-pod-execution-policy", refs[0],
+			&PolicyDocument{Version: VERSION, Statement: []StatementEntry{
+				{
+					Effect: "Allow",
+					Action: []string{
+						"logs:CreateLogStream",
+						"logs:CreateLogGroup",
+						"logs:DescribeLogStreams",
+						"logs:PutLogEvents",
+					},
+					Resource: []core.IaCValue{{Property: "*"}},
+				},
+			}})}
 	fargateRole.AddAwsManagedPolicies([]string{
 		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
 		"arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy",

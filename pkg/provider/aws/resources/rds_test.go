@@ -12,9 +12,9 @@ import (
 
 func Test_CreateRdsInstance(t *testing.T) {
 	appName := "test-app"
-	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test"}}
+	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test", Capability: "orm"}}
 	subnets := []*Subnet{NewSubnet("subnet", NewVpc(appName), "0", PrivateSubnet, core.IaCValue{})}
-	sgs := []*SecurityGroup{&SecurityGroup{Name: "test"}}
+	sgs := []*SecurityGroup{{Name: "test"}}
 	cases := []struct {
 		name         string
 		proxyEnabled bool
@@ -25,36 +25,30 @@ func Test_CreateRdsInstance(t *testing.T) {
 			proxyEnabled: true,
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:account_id:AccountId",
-					"aws:iam_policy:test-app-test-connectionpolicy",
 					"aws:iam_policy:test-app-test-ormsecretpolicy",
 					"aws:iam_role:test-app-test-ormsecretrole",
 					"aws:rds_instance:test-app-test",
 					"aws:rds_proxy:test-app-test",
-					"aws:rds_proxy_target_group:test_app_test",
+					"aws:rds_proxy_target_group:test-app-test",
 					"aws:rds_subnet_group:test-app-test",
-					"aws:region:region",
-					"aws:secret:test-app-test-:test",
-					"aws:secret_version:test-app-test-:test",
+					"aws:secret:test-app-orm:test",
+					"aws:secret_version:test-app-orm:test",
 					"aws:security_group:test",
 					"aws:vpc_subnet:test_app_subnet",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:iam_policy:test-app-test-connectionpolicy", Destination: "aws:account_id:AccountId"},
-					{Source: "aws:iam_policy:test-app-test-connectionpolicy", Destination: "aws:rds_instance:test-app-test"},
-					{Source: "aws:iam_policy:test-app-test-connectionpolicy", Destination: "aws:region:region"},
-					{Source: "aws:iam_policy:test-app-test-ormsecretpolicy", Destination: "aws:secret:test-app-test-:test"},
+					{Source: "aws:iam_policy:test-app-test-ormsecretpolicy", Destination: "aws:secret:test-app-orm:test"},
 					{Source: "aws:iam_role:test-app-test-ormsecretrole", Destination: "aws:iam_policy:test-app-test-ormsecretpolicy"},
 					{Source: "aws:rds_instance:test-app-test", Destination: "aws:rds_subnet_group:test-app-test"},
 					{Source: "aws:rds_instance:test-app-test", Destination: "aws:security_group:test"},
 					{Source: "aws:rds_proxy:test-app-test", Destination: "aws:iam_role:test-app-test-ormsecretrole"},
-					{Source: "aws:rds_proxy:test-app-test", Destination: "aws:secret:test-app-test-:test"},
+					{Source: "aws:rds_proxy:test-app-test", Destination: "aws:secret:test-app-orm:test"},
 					{Source: "aws:rds_proxy:test-app-test", Destination: "aws:security_group:test"},
 					{Source: "aws:rds_proxy:test-app-test", Destination: "aws:vpc_subnet:test_app_subnet"},
-					{Source: "aws:rds_proxy_target_group:test_app_test", Destination: "aws:rds_instance:test-app-test"},
-					{Source: "aws:rds_proxy_target_group:test_app_test", Destination: "aws:rds_proxy:test-app-test"},
+					{Source: "aws:rds_proxy_target_group:test-app-test", Destination: "aws:rds_instance:test-app-test"},
+					{Source: "aws:rds_proxy_target_group:test-app-test", Destination: "aws:rds_proxy:test-app-test"},
 					{Source: "aws:rds_subnet_group:test-app-test", Destination: "aws:vpc_subnet:test_app_subnet"},
-					{Source: "aws:secret_version:test-app-test-:test", Destination: "aws:secret:test-app-test-:test"},
+					{Source: "aws:secret_version:test-app-orm:test", Destination: "aws:secret:test-app-orm:test"},
 				},
 			},
 		},
@@ -62,18 +56,12 @@ func Test_CreateRdsInstance(t *testing.T) {
 			name: "no proxy",
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:account_id:AccountId",
-					"aws:iam_policy:test-app-test-connectionpolicy",
 					"aws:rds_instance:test-app-test",
 					"aws:rds_subnet_group:test-app-test",
-					"aws:region:region",
 					"aws:security_group:test",
 					"aws:vpc_subnet:test_app_subnet",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:iam_policy:test-app-test-connectionpolicy", Destination: "aws:account_id:AccountId"},
-					{Source: "aws:iam_policy:test-app-test-connectionpolicy", Destination: "aws:rds_instance:test-app-test"},
-					{Source: "aws:iam_policy:test-app-test-connectionpolicy", Destination: "aws:region:region"},
 					{Source: "aws:rds_instance:test-app-test", Destination: "aws:rds_subnet_group:test-app-test"},
 					{Source: "aws:rds_instance:test-app-test", Destination: "aws:security_group:test"},
 					{Source: "aws:rds_subnet_group:test-app-test", Destination: "aws:vpc_subnet:test_app_subnet"},

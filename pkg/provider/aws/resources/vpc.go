@@ -63,14 +63,15 @@ type (
 		MapPublicIpOnLaunch bool
 	}
 	VpcEndpoint struct {
-		Name            string
-		ConstructsRef   []core.AnnotationKey
-		Vpc             *Vpc
-		Region          *Region
-		ServiceName     string
-		VpcEndpointType string
-		Subnets         []*Subnet
-		RouteTables     []*RouteTable
+		Name             string
+		ConstructsRef    []core.AnnotationKey
+		Vpc              *Vpc
+		Region           *Region
+		ServiceName      string
+		VpcEndpointType  string
+		Subnets          []*Subnet
+		RouteTables      []*RouteTable
+		SecurityGroupIds []core.IaCValue
 	}
 	RouteTable struct {
 		Name          string
@@ -176,10 +177,10 @@ func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 	CreateGatewayVpcEndpoint("s3", vpc, region, routeTables, dag)
 	CreateGatewayVpcEndpoint("dynamodb", vpc, region, routeTables, dag)
 
-	CreateInterfaceVpcEndpoint("lambda", vpc, region, dag)
-	CreateInterfaceVpcEndpoint("sqs", vpc, region, dag)
-	CreateInterfaceVpcEndpoint("sns", vpc, region, dag)
-	CreateInterfaceVpcEndpoint("secretsmanager", vpc, region, dag)
+	CreateInterfaceVpcEndpoint("lambda", vpc, region, dag, config)
+	CreateInterfaceVpcEndpoint("sqs", vpc, region, dag, config)
+	CreateInterfaceVpcEndpoint("sns", vpc, region, dag, config)
+	CreateInterfaceVpcEndpoint("secretsmanager", vpc, region, dag, config)
 
 	return vpc
 }
@@ -239,21 +240,26 @@ func CreateGatewayVpcEndpoint(service string, vpc *Vpc, region *Region, routeTab
 	dag.AddDependency(vpce, region)
 }
 
-func CreateInterfaceVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph) {
-	vpc_subnets := vpc.GetVpcSubnets(dag)
-	subnets := []*Subnet{}
-	for _, s := range vpc_subnets {
+func CreateInterfaceVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph, config *config.Application) {
+	vpcSubnets := vpc.GetVpcSubnets(dag)
+	var subnets []*Subnet
+	for _, s := range vpcSubnets {
 		if s.Type == PrivateSubnet {
 			subnets = append(subnets, s)
 		}
 	}
 	vpce := NewVpcEndpoint(service, vpc, "Interface", region, subnets)
-	dag.AddResource(vpce)
-	dag.AddDependency(vpce, vpc)
-	dag.AddDependency(vpce, region)
-	for _, subnet := range subnets {
-		dag.AddDependency(vpce, subnet)
+	sgs := vpc.GetSecurityGroups(dag)
+	if len(sgs) == 0 {
+		sgs = append(sgs, GetSecurityGroup(config, dag))
 	}
+	for _, sg := range sgs {
+		vpce.SecurityGroupIds = append(vpce.SecurityGroupIds, core.IaCValue{
+			Resource: sg,
+			Property: ID_IAC_VALUE,
+		})
+	}
+	dag.AddDependenciesReflect(vpce)
 }
 
 func (vpc *Vpc) GetVpcSubnets(dag *core.ResourceGraph) []*Subnet {

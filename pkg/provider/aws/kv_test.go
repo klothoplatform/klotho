@@ -32,10 +32,11 @@ func Test_GenerateKVResources(t *testing.T) {
 	policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
 	policy := resources.NewIamPolicy("test", kv.Id(), kv.Provenance(), policyDoc)
 	type testResult struct {
-		nodes  []core.Resource
-		deps   []graph.Edge[core.Resource]
-		policy resources.StatementEntry
-		err    bool
+		nodes         []core.Resource
+		deps          []graph.Edge[core.Resource]
+		managedPolicy resources.StatementEntry
+		inlinePolicy  resources.StatementEntry
+		err           bool
 	}
 	cases := []struct {
 		name          string
@@ -62,7 +63,7 @@ func Test_GenerateKVResources(t *testing.T) {
 				nodes: []core.Resource{
 					table,
 				},
-				policy: policy.Policy.Statement[0],
+				inlinePolicy: policy.Policy.Statement[0],
 			},
 		},
 		{
@@ -79,12 +80,9 @@ func Test_GenerateKVResources(t *testing.T) {
 			},
 			want: testResult{
 				nodes: []core.Resource{
-					table, policy,
+					table,
 				},
-				deps: []graph.Edge[core.Resource]{
-					{Source: policy, Destination: table},
-				},
-				policy: policy.Policy.Statement[0],
+				inlinePolicy: policy.Policy.Statement[0],
 			},
 		},
 	}
@@ -145,15 +143,26 @@ func Test_GenerateKVResources(t *testing.T) {
 				}
 				assert.Truef(found, "dependency [%s -> %s] not found resource graph edges", dep.Source.Id(), dep.Destination.Id())
 			}
-			if len(tt.want.policy.Action) != 0 {
+			if len(tt.want.managedPolicy.Action) != 0 {
 				statements := aws.PolicyGenerator.GetUnitPolicies(eu.Id())[0].Policy.Statement
-				assert.Equal(len(tt.want.policy.Action), len(statements))
+				assert.Equal(len(tt.want.managedPolicy.Action), len(statements))
 				for _, statement := range statements {
 					for _, val := range statement.Resource {
 						assert.Equal(val.Resource.Id(), table.Id())
 					}
-					assert.ElementsMatch(statement.Action, tt.want.policy.Action)
-					assert.Equal(statement.Effect, tt.want.policy.Effect)
+					assert.ElementsMatch(statement.Action, tt.want.managedPolicy.Action)
+					assert.Equal(statement.Effect, tt.want.managedPolicy.Effect)
+				}
+			}
+			if len(tt.want.inlinePolicy.Action) != 0 {
+				statements := aws.PolicyGenerator.GetUnitInlinePolicies(eu.Id())[0].Policy.Statement
+				assert.Equal(len(tt.want.inlinePolicy.Action), len(statements))
+				for _, statement := range statements {
+					for _, val := range statement.Resource {
+						assert.Equal(val.Resource.Id(), table.Id())
+					}
+					assert.ElementsMatch(statement.Action, tt.want.inlinePolicy.Action)
+					assert.Equal(statement.Effect, tt.want.inlinePolicy.Effect)
 				}
 			}
 		})
