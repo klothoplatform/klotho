@@ -237,7 +237,6 @@ func CreateGatewayVpcEndpoint(service string, vpc *Vpc, region *Region, routeTab
 	vpce := NewVpcEndpoint(service, vpc, "Gateway", region, nil)
 	vpce.RouteTables = routeTables
 	dag.AddDependenciesReflect(vpce)
-	dag.AddDependency(vpce, region)
 }
 
 func CreateInterfaceVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph, config *config.Application) {
@@ -297,12 +296,12 @@ func (subnet *ElasticIp) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (subnet *ElasticIp) KlothoConstructRef() []core.AnnotationKey {
 	return subnet.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (subnet *ElasticIp) Id() string {
 	return fmt.Sprintf("%s:%s:%s", subnet.Provider(), ELASTIC_IP_TYPE, subnet.Name)
 }
@@ -319,12 +318,12 @@ func (igw *InternetGateway) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (igw *InternetGateway) KlothoConstructRef() []core.AnnotationKey {
 	return igw.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (igw *InternetGateway) Id() string {
 	return fmt.Sprintf("%s:%s:%s", igw.Provider(), INTERNET_GATEWAY_TYPE, igw.Name)
 }
@@ -342,12 +341,12 @@ func (natGateway *NatGateway) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (natGateway *NatGateway) KlothoConstructRef() []core.AnnotationKey {
 	return natGateway.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (natGateway *NatGateway) Id() string {
 	return fmt.Sprintf("%s:%s:%s", natGateway.Provider(), NAT_GATEWAY_TYPE, natGateway.Name)
 }
@@ -372,12 +371,12 @@ func (subnet *Subnet) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (subnet *Subnet) KlothoConstructRef() []core.AnnotationKey {
 	return subnet.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (subnet *Subnet) Id() string {
 	return fmt.Sprintf("%s:%s:%s", subnet.Provider(), VPC_SUBNET_TYPE, subnet.Name)
 }
@@ -398,12 +397,12 @@ func (vpce *VpcEndpoint) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (vpce *VpcEndpoint) KlothoConstructRef() []core.AnnotationKey {
 	return vpce.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (vpce *VpcEndpoint) Id() string {
 	return fmt.Sprintf("%s:%s:%s", vpce.Provider(), VPC_ENDPOINT_TYPE, vpce.Name)
 }
@@ -422,12 +421,12 @@ func (vpc *Vpc) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (vpc *Vpc) KlothoConstructRef() []core.AnnotationKey {
 	return vpc.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (vpc *Vpc) Id() string {
 	return fmt.Sprintf("%s:%s:%s", vpc.Provider(), VPC_TYPE, vpc.Name)
 }
@@ -437,12 +436,12 @@ func (vpc *RouteTable) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (rt *RouteTable) KlothoConstructRef() []core.AnnotationKey {
 	return rt.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (rt *RouteTable) Id() string {
 	return fmt.Sprintf("%s:%s:%s", rt.Provider(), ROUTE_TABLE_TYPE, rt.Name)
 }

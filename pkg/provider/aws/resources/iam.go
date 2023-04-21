@@ -235,17 +235,17 @@ func (role *IamRole) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (role *IamRole) KlothoConstructRef() []core.AnnotationKey {
 	return role.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (role *IamRole) Id() string {
 	return fmt.Sprintf("%s:%s:%s", role.Provider(), IAM_ROLE_TYPE, role.Name)
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (role *IamRole) AddAwsManagedPolicies(policies []string) {
 	role.AwsManagedPolicies = append(role.AwsManagedPolicies, policies...)
 }
@@ -271,12 +271,12 @@ func (policy *IamPolicy) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (policy *IamPolicy) KlothoConstructRef() []core.AnnotationKey {
 	return policy.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (policy *IamPolicy) Id() string {
 	return fmt.Sprintf("%s:%s:%s", policy.Provider(), IAM_POLICY_TYPE, policy.Name)
 }
@@ -286,12 +286,12 @@ func (oidc *OpenIdConnectProvider) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (oidc *OpenIdConnectProvider) KlothoConstructRef() []core.AnnotationKey {
 	return oidc.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (oidc *OpenIdConnectProvider) Id() string {
 	return fmt.Sprintf("%s:%s:%s", oidc.Provider(), OIDC_PROVIDER_TYPE, oidc.Name)
 }

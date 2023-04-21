@@ -77,12 +77,12 @@ func (sg *SecurityGroup) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (sg *SecurityGroup) KlothoConstructRef() []core.AnnotationKey {
 	return sg.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (sg *SecurityGroup) Id() string {
 	return fmt.Sprintf("%s:%s:%s", sg.Provider(), SG_TYPE, sg.Name)
 }

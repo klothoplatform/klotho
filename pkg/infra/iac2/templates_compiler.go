@@ -103,6 +103,10 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 	for i := len(vertexIds) - 1; i >= 0; i-- {
 		id := vertexIds[i]
 		resource := tc.resourceGraph.GetResource(id)
+		switch resource.(type) {
+		case *resources.AccountId, *resources.Region:
+			continue // skip resources that we know are rendered outside of the body
+		}
 		err := tc.renderResource(out, resource)
 		errs.Append(err)
 		if i > 0 {

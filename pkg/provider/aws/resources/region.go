@@ -40,12 +40,12 @@ func (region *Region) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (region *Region) KlothoConstructRef() []core.AnnotationKey {
 	return region.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (region *Region) Id() string {
 	return fmt.Sprintf("%s:%s:%s", region.Provider(), REGION_TYPE, region.Name)
 }
@@ -62,12 +62,12 @@ func (azs *AvailabilityZones) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (azs *AvailabilityZones) KlothoConstructRef() []core.AnnotationKey {
 	return azs.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (azs *AvailabilityZones) Id() string {
 	return fmt.Sprintf("%s:%s:%s", azs.Provider(), AVAILABILITY_ZONES_TYPE, azs.Name)
 }
@@ -84,12 +84,12 @@ func (id *AccountId) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (id *AccountId) KlothoConstructRef() []core.AnnotationKey {
 	return id.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (id *AccountId) Id() string {
 	return fmt.Sprintf("%s:%s:%s", id.Provider(), ACCOUNT_ID_TYPE, id.Name)
 }
