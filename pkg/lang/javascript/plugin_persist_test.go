@@ -256,7 +256,7 @@ const m = new keyvalueRuntime.dMap({"versioned":true})`,
 				return
 			}
 
-			_, err = p.transformKV(f, cap, pres)
+			_, err = p.transformKV(&core.ExecutionUnit{}, f, cap, pres)
 			if tt.wantErr {
 				assert.Error(err)
 				return

@@ -123,11 +123,6 @@ func CreateRdsInstance(cfg *config.Application, orm *core.Orm, proxyEnabled bool
 		Content: credsBytes,
 	}
 	instance.CredentialsPath = credsPath
-	rdsPolicyDoc := CreateAllowPolicyDocument([]string{"rds-db:connect"}, []core.IaCValue{{Resource: instance, Property: RDS_CONNECTION_ARN_IAC_VALUE}})
-	rdsPolicy := NewIamPolicy(cfg.AppName, fmt.Sprintf("%s-connectionpolicy", orm.ID), orm.Provenance(), rdsPolicyDoc)
-	dag.AddDependency(rdsPolicy, instance)
-	dag.AddDependency(rdsPolicy, NewAccountId())
-	dag.AddDependency(rdsPolicy, NewRegion())
 
 	var proxy *RdsProxy
 	if proxyEnabled {
@@ -155,17 +150,10 @@ func CreateRdsInstance(cfg *config.Application, orm *core.Orm, proxyEnabled bool
 	return instance, proxy, nil
 }
 
-func (i *RdsInstance) GetConnectionPolicy(dag *core.ResourceGraph) *IamPolicy {
-	var pol *IamPolicy
-	upstreamDeps := dag.GetUpstreamDependencies(i)
-	for _, dep := range upstreamDeps {
-		if res, ok := dep.Source.(*IamPolicy); ok {
-			if len(res.Policy.Statement[0].Action) == 1 && res.Policy.Statement[0].Action[0] == "rds-db:connect" {
-				return res
-			}
-		}
-	}
-	return pol
+func (rds *RdsInstance) GetConnectionPolicyDocument() *PolicyDocument {
+	return CreateAllowPolicyDocument(
+		[]string{"rds-db:connect"},
+		[]core.IaCValue{{Resource: rds, Property: RDS_CONNECTION_ARN_IAC_VALUE}})
 }
 
 // generateUsername generates a random username for the rds instance.

@@ -104,7 +104,7 @@ func (a *AWS) shouldCreateNetwork(result *core.ConstructGraph) (bool, error) {
 // If multiple clusters exist we will throw an error since we cannot determine which exec unit belongs to which cluster.
 // If there are no clusterIds defined by any units, one cluster will be created for all units.
 func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	unassignedUnits := []*core.ExecutionUnit{}
+	var unassignedUnits []*core.ExecutionUnit
 	clusterIdToUnit := map[string][]*core.ExecutionUnit{}
 	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
 		cfg := a.Config.GetExecutionUnit(unit.Provenance().ID)
@@ -141,7 +141,12 @@ func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceG
 		clusterIdToUnit[keys[0]] = append(clusterIdToUnit[keys[0]], unassignedUnits...)
 	}
 
-	vpc := resources.CreateNetwork(a.Config, dag)
+	if len(clusterIdToUnit) == 0 {
+		zap.L().Debug("no Kubernetes execution units detected: skipping EKS cluster setup")
+		return nil
+	}
+
+	vpc := resources.GetVpc(a.Config, dag)
 	sg := resources.GetSecurityGroup(a.Config, dag)
 	sg.IngressRules = append(sg.IngressRules, resources.SecurityGroupRule{
 		Description: "Allows ingress traffic from the EKS control plane",

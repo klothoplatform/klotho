@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
@@ -15,14 +17,12 @@ func (a *AWS) GenerateFsResources(construct core.Construct, result *core.Constru
 		{Resource: bucket, Property: resources.ALL_BUCKET_DIRECTORY_IAC_VALUE},
 	}
 	policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
-	policy := resources.NewIamPolicy(a.Config.AppName, construct.Id(), construct.Provenance(), policyDoc)
-	dag.AddResource(policy)
-	dag.AddDependency(policy, bucket)
+	policy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-s3", construct.Id()), construct.Provenance(), policyDoc)
 	upstreamResources := result.GetUpstreamConstructs(construct)
 	for _, res := range upstreamResources {
 		unit, ok := res.(*core.ExecutionUnit)
 		if ok {
-			a.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), policy)
+			a.PolicyGenerator.AddInlinePolicyToUnit(unit.Id(), policy)
 		}
 	}
 	return nil

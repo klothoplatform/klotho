@@ -8,6 +8,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/klothoplatform/klotho/pkg/templateutils"
 )
 
@@ -42,11 +43,19 @@ func (p Plugin) Translate(cloudGraph *core.ResourceGraph) ([]core.File, error) {
 		return nil, err
 	}
 
-	buf.Write([]byte("const kloConfig: pulumi.Config = new pulumi.Config('klo')\n"))
-	buf.Write([]byte("const protect = kloConfig.getBoolean('protect') ?? false"))
-	buf.Write([]byte(`
+	buf.WriteString("const kloConfig: pulumi.Config = new pulumi.Config('klo')\n")
+	buf.WriteString("const protect = kloConfig.getBoolean('protect') ?? false")
+	buf.WriteString(`
 const awsConfig = new pulumi.Config('aws')
-const awsProfile = awsConfig.get('profile')` + "\n\n"))
+const awsProfile = awsConfig.get('profile')` + "\n")
+	if err := tc.renderResource(buf, resources.NewAccountId()); err != nil {
+		return nil, err
+	}
+	buf.WriteString("\n")
+	if err := tc.renderResource(buf, resources.NewRegion()); err != nil {
+		return nil, err
+	}
+	buf.WriteString("\n\n")
 
 	if err := tc.RenderBody(buf); err != nil {
 		return nil, err

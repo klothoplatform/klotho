@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
+	"go.uber.org/zap"
 )
 
 const (
@@ -90,7 +91,7 @@ type (
 		AssumeRolePolicyDoc *PolicyDocument
 		ManagedPolicies     []core.IaCValue
 		AwsManagedPolicies  []string
-		InlinePolicy        *PolicyDocument
+		InlinePolicies      []*IamInlinePolicy
 	}
 
 	IamPolicy struct {
@@ -99,9 +100,16 @@ type (
 		Policy        *PolicyDocument
 	}
 
+	IamInlinePolicy struct {
+		Name          string
+		ConstructsRef []core.AnnotationKey
+		Policy        *PolicyDocument
+	}
+
 	PolicyGenerator struct {
-		unitToRole    map[string]*IamRole
-		unitsPolicies map[string][]*IamPolicy
+		unitToRole          map[string]*IamRole
+		unitsInlinePolicies map[string]map[string]*IamInlinePolicy
+		unitsPolicies       map[string][]*IamPolicy
 	}
 
 	PolicyDocument struct {
@@ -139,8 +147,9 @@ type (
 
 func NewPolicyGenerator() *PolicyGenerator {
 	p := &PolicyGenerator{
-		unitsPolicies: make(map[string][]*IamPolicy),
-		unitToRole:    make(map[string]*IamRole),
+		unitsPolicies:       make(map[string][]*IamPolicy),
+		unitsInlinePolicies: make(map[string]map[string]*IamInlinePolicy),
+		unitToRole:          make(map[string]*IamRole),
 	}
 	return p
 }
@@ -165,6 +174,29 @@ func (p *PolicyGenerator) AddUnitRole(unitId string, role *IamRole) error {
 	}
 	p.unitToRole[unitId] = role
 	return nil
+}
+
+func (p *PolicyGenerator) AddInlinePolicyToUnit(unitId string, policy *IamInlinePolicy) {
+	inlinePolicies, ok := p.unitsInlinePolicies[unitId]
+	if !ok {
+		p.unitsInlinePolicies[unitId] = map[string]*IamInlinePolicy{policy.Name: policy}
+		return
+	}
+	for name, _ := range inlinePolicies {
+		if policy.Name == name {
+			// TODO: handle duplicates
+			zap.L().Sugar().Debugf("duplicate policy with name '%s' in unit '%s' ignored", name, unitId)
+		}
+	}
+	p.unitsInlinePolicies[unitId][policy.Name] = policy
+}
+
+func (p *PolicyGenerator) GetUnitInlinePolicies(unitId string) []*IamInlinePolicy {
+	var policies []*IamInlinePolicy
+	for _, policy := range p.unitsInlinePolicies[unitId] {
+		policies = append(policies, policy)
+	}
+	return policies
 }
 
 func (p *PolicyGenerator) GetUnitRole(unitId string) *IamRole {
@@ -221,6 +253,14 @@ func (role *IamRole) AddAwsManagedPolicies(policies []string) {
 func NewIamPolicy(appName string, policyName string, ref core.AnnotationKey, policy *PolicyDocument) *IamPolicy {
 	return &IamPolicy{
 		Name:          policySanitizer.Apply(fmt.Sprintf("%s-%s", appName, policyName)),
+		ConstructsRef: []core.AnnotationKey{ref},
+		Policy:        policy,
+	}
+}
+
+func NewIamInlinePolicy(policyName string, ref core.AnnotationKey, policy *PolicyDocument) *IamInlinePolicy {
+	return &IamInlinePolicy{
+		Name:          policySanitizer.Apply(fmt.Sprintf(policyName)),
 		ConstructsRef: []core.AnnotationKey{ref},
 		Policy:        policy,
 	}

@@ -21,11 +21,12 @@ func TestGenerateSecretsResources(t *testing.T) {
 	execUnit := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "TestUnit", Capability: annotation.ExecutionUnitCapability}}
 
 	cases := []struct {
-		name         string
-		secrets      []string
-		execUnit     *core.ExecutionUnit
-		want         coretesting.ResourcesExpectation
-		wantPolicies func(secretResolver func(string) *resources.Secret) []resources.StatementEntry
+		name                string
+		secrets             []string
+		execUnit            *core.ExecutionUnit
+		want                coretesting.ResourcesExpectation
+		wantManagedPolicies func(secretResolver func(string) *resources.Secret) []resources.StatementEntry
+		wantInlinePolicies  func(secretResolver func(string) *resources.Secret) []resources.StatementEntry
 	}{
 		{
 			name:     "two secrets",
@@ -33,22 +34,20 @@ func TestGenerateSecretsResources(t *testing.T) {
 			execUnit: execUnit,
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:iam_policy:AppName-persist_MySecrets",
-					"aws:secret:AppName-MySecrets-secret1",
-					"aws:secret:AppName-MySecrets-secret2",
-					"aws:secret_version:AppName-MySecrets-secret1",
-					"aws:secret_version:AppName-MySecrets-secret2",
+					"aws:secret:AppName-secret1",
+					"aws:secret:AppName-secret2",
+					"aws:secret_version:AppName-secret1",
+					"aws:secret_version:AppName-secret2",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:iam_policy:AppName-persist_MySecrets", Destination: "aws:secret:AppName-MySecrets-secret1"},
-					{Source: "aws:iam_policy:AppName-persist_MySecrets", Destination: "aws:secret:AppName-MySecrets-secret2"},
-					{Source: "aws:secret_version:AppName-MySecrets-secret1", Destination: "aws:secret:AppName-MySecrets-secret1"},
-					{Source: "aws:secret_version:AppName-MySecrets-secret2", Destination: "aws:secret:AppName-MySecrets-secret2"},
+					{Source: "aws:secret_version:AppName-secret1", Destination: "aws:secret:AppName-secret1"},
+					{Source: "aws:secret_version:AppName-secret2", Destination: "aws:secret:AppName-secret2"},
 				},
 			},
-			wantPolicies: func(secretResolver func(string) *resources.Secret) []resources.StatementEntry {
-				secret1 := secretResolver(fmt.Sprintf(`aws:secret:%s-%s-secret1`, AppName, secretsConstructId))
-				secret2 := secretResolver(fmt.Sprintf(`aws:secret:%s-%s-secret2`, AppName, secretsConstructId))
+			wantManagedPolicies: func(secretResolver func(string) *resources.Secret) []resources.StatementEntry { return nil },
+			wantInlinePolicies: func(secretResolver func(string) *resources.Secret) []resources.StatementEntry {
+				secret1 := secretResolver(fmt.Sprintf(`aws:secret:%s-secret1`, AppName))
+				secret2 := secretResolver(fmt.Sprintf(`aws:secret:%s-secret2`, AppName))
 				return []resources.StatementEntry{
 					{
 						Effect: "Allow",
@@ -74,10 +73,11 @@ func TestGenerateSecretsResources(t *testing.T) {
 			},
 		},
 		{
-			name:         "no secrets",
-			execUnit:     execUnit,
-			want:         coretesting.ResourcesExpectation{},
-			wantPolicies: func(secretResolver func(string) *resources.Secret) []resources.StatementEntry { return nil },
+			name:                "no secrets",
+			execUnit:            execUnit,
+			want:                coretesting.ResourcesExpectation{},
+			wantManagedPolicies: func(secretResolver func(string) *resources.Secret) []resources.StatementEntry { return nil },
+			wantInlinePolicies:  func(secretResolver func(string) *resources.Secret) []resources.StatementEntry { return nil },
 		},
 	}
 	for _, tt := range cases {
@@ -109,7 +109,7 @@ func TestGenerateSecretsResources(t *testing.T) {
 
 			tt.want.Assert(t, dag)
 
-			wantPolicies := tt.wantPolicies(func(secretId string) *resources.Secret {
+			wantManagedPolicies := tt.wantManagedPolicies(func(secretId string) *resources.Secret {
 				resource := dag.GetResource(secretId)
 				assert.NotNil(resource)
 				if secret, foundSecret := resource.(*resources.Secret); foundSecret {
@@ -119,11 +119,31 @@ func TestGenerateSecretsResources(t *testing.T) {
 				}
 				return nil
 			})
-			var actualPolicies []resources.StatementEntry
+
+			wantInlinePolicies := tt.wantInlinePolicies(func(secretId string) *resources.Secret {
+				resource := dag.GetResource(secretId)
+				assert.NotNil(resource)
+				if secret, foundSecret := resource.(*resources.Secret); foundSecret {
+					return secret
+				} else {
+					assert.Failf("resource not a Secret", `found a resource with id="%s", but it was %T`, secretId, resource)
+				}
+				return nil
+			})
+
+			var actualManagedPolicies []resources.StatementEntry
 			if policies := aws.PolicyGenerator.GetUnitPolicies(execUnit.Id()); policies != nil {
-				actualPolicies = policies[0].Policy.Statement
+				actualManagedPolicies = policies[0].Policy.Statement
 			}
-			assert.Equal(wantPolicies, actualPolicies)
+			assert.Equal(wantManagedPolicies, actualManagedPolicies)
+
+			var actualInlinePolicies []resources.StatementEntry
+			if inlinePolicies := aws.PolicyGenerator.GetUnitInlinePolicies(execUnit.Id()); inlinePolicies != nil {
+				for _, ip := range inlinePolicies {
+					actualInlinePolicies = append(actualInlinePolicies, ip.Policy.Statement...)
+				}
+			}
+			assert.Equal(wantInlinePolicies, actualInlinePolicies)
 		})
 	}
 }

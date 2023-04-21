@@ -8,6 +8,7 @@ interface Args {
     ServiceName: string
     VpcEndpointType: string
     Subnets: aws.ec2.Subnet[]
+    SecurityGroupIds: pulumi.Input<string[]> | undefined
     RouteTables: aws.ec2.RouteTable[]
 }
 
@@ -17,12 +18,14 @@ function create(args: Args): aws.ec2.VpcEndpoint {
         vpcId: args.Vpc.id,
         serviceName: pulumi.interpolate`com.amazonaws.${args.Region.name}.${args.ServiceName}`,
         vpcEndpointType: args.VpcEndpointType,
-        //TMPL {{ if eq .VpcEndpointType.Raw "Interface"}}
+        //TMPL {{- if eq .VpcEndpointType.Raw "Interface"}}
         privateDnsEnabled: true,
         subnetIds: args.Subnets.map((x) => x.id),
-        //TMPL {{ end }}
-        //TMPL {{ if .RouteTables.Raw }}
+        securityGroupIds: args.SecurityGroupIds,
+        //TMPL {{- end }}
+
+        //TMPL {{- if eq .VpcEndpointType.Raw "Gateway"}}
         routeTableIds: args.RouteTables.map((rt) => rt.id),
-        //TMPL {{ end}}
+        //TMPL {{- end}}
     })
 }
