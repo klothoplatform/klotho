@@ -17,9 +17,9 @@ type (
 	Resource interface {
 		// Provider returns name of the provider the resource is correlated to
 		Provider() string
-		// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+		// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 		KlothoConstructRef() []AnnotationKey
-		// ID returns the id of the cloud resource
+		// Id returns the id of the cloud resource
 		Id() string
 	}
 

@@ -72,12 +72,12 @@ func (lb *LoadBalancer) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (lb *LoadBalancer) KlothoConstructRef() []core.AnnotationKey {
 	return lb.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (lb *LoadBalancer) Id() string {
 	return fmt.Sprintf("%s:%s:%s", lb.Provider(), LOAD_BALANCER_TYPE, lb.Name)
 }
@@ -98,12 +98,12 @@ func (tg *TargetGroup) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (tg *TargetGroup) KlothoConstructRef() []core.AnnotationKey {
 	return tg.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (tg *TargetGroup) Id() string {
 	return fmt.Sprintf("%s:%s:%s", tg.Provider(), TARGET_GROUP_TYPE, tg.Name)
 }
@@ -124,12 +124,12 @@ func (tg *Listener) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (tg *Listener) KlothoConstructRef() []core.AnnotationKey {
 	return tg.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (tg *Listener) Id() string {
 	return fmt.Sprintf("%s:%s:%s", tg.Provider(), LISTENER_TYPE, tg.Name)
 }

@@ -41,12 +41,12 @@ func (ec *ElasticacheCluster) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (ec *ElasticacheCluster) KlothoConstructRef() []core.AnnotationKey {
 	return ec.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (ec *ElasticacheCluster) Id() string {
 	return fmt.Sprintf("%s:%s:%s", ec.Provider(), EC_TYPE, ec.Name)
 }
@@ -56,12 +56,12 @@ func (ecsn *ElasticacheSubnetgroup) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (ecsn *ElasticacheSubnetgroup) KlothoConstructRef() []core.AnnotationKey {
 	return ecsn.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (ecsn *ElasticacheSubnetgroup) Id() string {
 	return fmt.Sprintf("%s:%s:%s", ecsn.Provider(), ECSN_TYPE, ecsn.Name)
 }

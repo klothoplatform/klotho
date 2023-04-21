@@ -34,12 +34,12 @@ func (ns *PrivateDnsNamespace) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (ns *PrivateDnsNamespace) KlothoConstructRef() []core.AnnotationKey {
 	return ns.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (ns *PrivateDnsNamespace) Id() string {
 	return fmt.Sprintf("%s:%s:%s", ns.Provider(), PRIVATE_DNS_NAMESPACE_TYPE, ns.Name)
 }

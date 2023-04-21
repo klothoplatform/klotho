@@ -66,12 +66,12 @@ func (repo *EcrRepository) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (repo *EcrRepository) KlothoConstructRef() []core.AnnotationKey {
 	return repo.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (repo *EcrRepository) Id() string {
 	return GenerateRepoId(repo.Name)
 }
@@ -96,12 +96,12 @@ func (image *EcrImage) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (image *EcrImage) KlothoConstructRef() []core.AnnotationKey {
 	return image.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (image *EcrImage) Id() string {
 	return fmt.Sprintf("%s:%s:%s", image.Provider(), ECR_IMAGE_TYPE, image.Name)
 }

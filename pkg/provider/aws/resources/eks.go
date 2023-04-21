@@ -807,12 +807,12 @@ func (profile *EksFargateProfile) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (profile *EksFargateProfile) KlothoConstructRef() []core.AnnotationKey {
 	return profile.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (profile *EksFargateProfile) Id() string {
 	return fmt.Sprintf("%s:%s:%s", profile.Provider(), EKS_FARGATE_PROFILE_TYPE, profile.Name)
 }
@@ -822,12 +822,12 @@ func (group *EksNodeGroup) Provider() string {
 	return AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (group *EksNodeGroup) KlothoConstructRef() []core.AnnotationKey {
 	return group.ConstructsRef
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (group *EksNodeGroup) Id() string {
 	return fmt.Sprintf("%s:%s:%s", group.Provider(), EKS_NODE_GROUP_TYPE, group.Name)
 }
