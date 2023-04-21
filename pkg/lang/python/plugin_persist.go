@@ -24,7 +24,7 @@ func (p Persist) Transform(input *core.InputFiles, fileDeps *core.FileDependenci
 	persister := &persister{ConstructGraph: constructGraph, runtime: p.runtime}
 
 	var errs multierr.Error
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
 		err := persister.handleFiles(unit)
 		if err != nil {
 			errs.Append(err)

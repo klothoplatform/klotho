@@ -71,7 +71,7 @@ func Test_environmentVarsAddedToUnit(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			units := core.GetResourcesOfType[*core.ExecutionUnit](result)
+			units := core.GetConstructsOfType[*core.ExecutionUnit](result)
 			if tt.wantExecUnit {
 				assert.Len(units, 1)
 				assert.ElementsMatch(tt.want, units[0].EnvironmentVariables)

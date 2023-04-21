@@ -239,7 +239,7 @@ func getResourceById(id string, resources []core.Construct) core.AnnotationKey {
 
 func validateNoDuplicateIds[T core.Construct](constructGraph *core.ConstructGraph) error {
 	unitIds := make(map[string]struct{})
-	units := core.GetResourcesOfType[T](constructGraph)
+	units := core.GetConstructsOfType[T](constructGraph)
 	for _, unit := range units {
 		if _, ok := unitIds[unit.Provenance().ID]; ok {
 			return fmt.Errorf(`multiple objects with the same name, "%s"`, unit.Provenance().ID)

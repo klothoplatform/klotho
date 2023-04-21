@@ -56,7 +56,7 @@ func (p Pubsub) Transform(input *core.InputFiles, fileDeps *core.FileDependencie
 	p.emitters = make(map[VarSpec]*emitterValue)
 
 	var errs multierr.Error
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
 		vars := DiscoverDeclarations(unit.Files(), pubsubVarType, pubsubVarTypeModule, true, FilterByCapability(annotation.PubSubCapability))
 		for spec, value := range vars {
 			if value.Annotation.Capability.ID == "" {
@@ -250,7 +250,7 @@ func (p *Pubsub) generateProxies(filepath string, emitters []EmitterSubscriberPr
 	log := zap.L().With(logging.FileField(f)).Sugar()
 	var merr multierr.Error
 	appendBuf := new(bytes.Buffer)
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](p.ConstructGraph) {
+	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](p.ConstructGraph) {
 		if existing := unit.Get(filepath); existing != nil {
 			existing := existing.(*core.SourceFile)
 			if bytes.Contains(existing.Program(), []byte(emitters[0].VarName)) {
@@ -276,7 +276,7 @@ func (p *Pubsub) generateProxies(filepath string, emitters []EmitterSubscriberPr
 // generateEmitterDefinitions handles making sure the emitters are defined in all the execution units its used in at the path they are originally defined in,
 // even if the original definition is in a file marked only for a single execution unit. It also make sure that the subscribers are imported to register their handlers.
 func (p *Pubsub) generateEmitterDefinitions() (err error) {
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](p.ConstructGraph) {
+	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](p.ConstructGraph) {
 		emittersByFile := make(map[string]map[VarSpec]*emitterValue)
 		for spec, emitter := range p.emitters {
 			f, ok := emittersByFile[spec.DefinedIn]

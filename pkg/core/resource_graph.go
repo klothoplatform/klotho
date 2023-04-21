@@ -226,3 +226,27 @@ func (rg *ResourceGraph) getAllDownstreamResourcesSet(source Resource, upstreams
 	}
 	return upstreams
 }
+
+func GetFirstResourceOfType[T Resource](rg *ResourceGraph) (T, error) {
+	var zero T
+	names, err := rg.TopologicalSort()
+	if err != nil {
+		return zero, err
+	}
+
+	for _, name := range names {
+		if r, ok := rg.GetResource(name).(T); ok {
+			return r, nil
+		}
+	}
+	return zero, fmt.Errorf("resource of type %T not found", zero)
+}
+
+func GetResourcesOfType[T Resource](rg *ResourceGraph) (resources []T) {
+	for _, rRaw := range rg.ListResources() {
+		if r, ok := rRaw.(T); ok {
+			resources = append(resources, r)
+		}
+	}
+	return resources
+}
