@@ -28,7 +28,7 @@ const SECRET_TYPE = "secret"
 const SECRET_VERSION_TYPE = "secret_version"
 
 func NewSecret(annot core.AnnotationKey, secretName string, appName string) *Secret {
-	plainName := fmt.Sprintf("%s-%s", appName, annot.ID)
+	plainName := appName
 	if secretName != "" {
 		plainName += "-" + secretName
 	}

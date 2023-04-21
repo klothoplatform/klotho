@@ -1,10 +1,11 @@
 import * as aws from '@pulumi/aws'
+import * as input from '@pulumi/aws/types/input'
 import * as pulumi from '@pulumi/pulumi'
 
 interface Args {
     Name: string
     AssumeRolePolicyDoc: string
-    InlinePolicy: aws.iam.PolicyDocument
+    InlinePolicies: pulumi.Input<pulumi.Input<input.iam.RoleInlinePolicy>[]>
     ManagedPolicies: pulumi.Output<string>[]
     AwsManagedPolicies: string[]
 }
@@ -13,14 +14,18 @@ interface Args {
 function create(args: Args): aws.iam.Role {
     return new aws.iam.Role(args.Name, {
         assumeRolePolicy: pulumi.jsonStringify(args.AssumeRolePolicyDoc),
-        //TMPL {{ if .InlinePolicy.Raw }}
-        inlinePolicies: [
-            {
-                name: args.Name,
-                policy: JSON.stringify(args.InlinePolicy),
-            },
+        //TMPL {{- if .InlinePolicies.Raw }}
+        inlinePolicies: args.InlinePolicies,
+        //TMPL {{- end }}
+        //TMPL {{- if or .ManagedPolicies.Raw .AwsManagedPolicies.Raw }}
+        managedPolicyArns: [
+            //TMPL {{- if .ManagedPolicies.Raw }}
+            ...args.ManagedPolicies,
+            //TMPL {{- end }}
+            //TMPL {{- if .AwsManagedPolicies.Raw }}
+            ...args.AwsManagedPolicies,
+            //TMPL {{- end }}
         ],
-        //TMPLE {{ end }}
-        managedPolicyArns: [...args.ManagedPolicies, ...args.AwsManagedPolicies],
+        //TMPL {{- end }}
     })
 }

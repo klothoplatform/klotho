@@ -142,9 +142,6 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 		lambdaPermission := resources.NewLambdaPermission(function, core.IaCValue{Resource: method, Property: resources.ALL_RESOURCES_ARN_IAC_VALUE}, "apigateway.amazonaws.com", "lambda:InvokeFunction", refs)
 		dag.AddDependenciesReflect(lambdaPermission)
 
-		accountId := resources.NewAccountId()
-		dag.AddDependency(lambdaPermission, accountId)
-
 		integration := resources.NewApiIntegration(method, refs, "POST", "AWS_PROXY", nil, core.IaCValue{Resource: function, Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
 		dag.AddDependenciesReflect(integration)
 		return integration, nil

@@ -9,6 +9,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -191,16 +192,20 @@ func Test_renderGlueVars(t *testing.T) {
 	}{
 		{
 			name:        "role_policy_attachment",
-			subResource: resources.NewIamPolicy("test", "t", unit.Provenance(), nil),
+			subResource: resources.NewIamRole("test", "t", nil, nil),
 			nodes: []core.Resource{
 				resources.NewIamRole("test", "t", nil, nil),
-				resources.NewLambdaFunction(unit, "test", resources.NewIamRole("test", "t", nil, nil), &resources.EcrImage{}),
+				resources.NewLambdaFunction(unit, &config.Application{AppName: "test"}, resources.NewIamRole("test", "t", nil, nil), &resources.EcrImage{}),
 				resources.NewIamPolicy("test", "t", unit.Provenance(), nil),
 			},
 			edges: []graph.Edge[core.Resource]{
 				{
 					Source:      resources.NewIamPolicy("test", "t", unit.Provenance(), nil),
-					Destination: resources.NewLambdaFunction(unit, "test", resources.NewIamRole("test", "t", nil, nil), &resources.EcrImage{}),
+					Destination: resources.NewLambdaFunction(unit, &config.Application{AppName: "test"}, resources.NewIamRole("test", "t", nil, nil), &resources.EcrImage{}),
+				},
+				{
+					Source:      resources.NewIamRole("test", "t", nil, nil),
+					Destination: resources.NewIamPolicy("test", "t", unit.Provenance(), nil),
 				},
 			},
 			resourceVarNamesById: map[string]string{
@@ -249,7 +254,7 @@ func Test_renderGlueVars(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			assert.Equal(buf.String(), tt.want)
+			assert.Equal(tt.want, buf.String())
 		})
 	}
 }

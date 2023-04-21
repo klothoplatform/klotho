@@ -69,8 +69,8 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					"aws:iam_policy:policy1",
 					"aws:iam_policy:policy2",
 					"aws:iam_role:test-test-ExecutionRole",
-					"aws:lambda_function:test_test",
-					"aws:log_group:test-/aws/lambda/test_test",
+					"aws:lambda_function:test-test",
+					"aws:log_group:test-/aws/lambda/test-test",
 					"aws:s3_bucket:test-test",
 				},
 				Deps: []graph.Edge[string]{
@@ -78,9 +78,9 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:iam_policy:policy1"},
 					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:iam_policy:policy2"},
 					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:s3_bucket:test-test"},
-					{Source: "aws:lambda_function:test_test", Destination: "aws:ecr_image:test-test"},
-					{Source: "aws:lambda_function:test_test", Destination: "aws:iam_role:test-test-ExecutionRole"},
-					{Source: "aws:lambda_function:test_test", Destination: "aws:log_group:test-/aws/lambda/test_test"},
+					{Source: "aws:lambda_function:test-test", Destination: "aws:ecr_image:test-test"},
+					{Source: "aws:lambda_function:test-test", Destination: "aws:iam_role:test-test-ExecutionRole"},
+					{Source: "aws:lambda_function:test-test", Destination: "aws:log_group:test-/aws/lambda/test-test"},
 				},
 			},
 		},
@@ -121,6 +121,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					"aws:s3_bucket:test-test",
 					"aws:target_group:test-test",
 					"aws:vpc:test",
+					"aws:security_group:test",
 					"aws:vpc_endpoint:test_dynamodb",
 					"aws:vpc_endpoint:test_lambda",
 					"aws:vpc_endpoint:test_s3",
@@ -161,6 +162,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{Source: "aws:route_table:test_private2", Destination: "aws:vpc_subnet:test_private2"},
 					{Source: "aws:target_group:test-test", Destination: "aws:vpc:test"},
 					{Source: "aws:vpc:test", Destination: "aws:region:region"},
+					{Source: "aws:security_group:test", Destination: "aws:vpc:test"},
 					{Source: "aws:vpc_endpoint:test_dynamodb", Destination: "aws:region:region"},
 					{Source: "aws:vpc_endpoint:test_dynamodb", Destination: "aws:route_table:test-public"},
 					{Source: "aws:vpc_endpoint:test_dynamodb", Destination: "aws:route_table:test_private1"},
@@ -170,6 +172,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{Source: "aws:vpc_endpoint:test_lambda", Destination: "aws:vpc:test"},
 					{Source: "aws:vpc_endpoint:test_lambda", Destination: "aws:vpc_subnet:test_private1"},
 					{Source: "aws:vpc_endpoint:test_lambda", Destination: "aws:vpc_subnet:test_private2"},
+					{Source: "aws:vpc_endpoint:test_lambda", Destination: "aws:security_group:test"},
 					{Source: "aws:vpc_endpoint:test_s3", Destination: "aws:region:region"},
 					{Source: "aws:vpc_endpoint:test_s3", Destination: "aws:route_table:test-public"},
 					{Source: "aws:vpc_endpoint:test_s3", Destination: "aws:route_table:test_private1"},
@@ -177,12 +180,15 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{Source: "aws:vpc_endpoint:test_s3", Destination: "aws:vpc:test"},
 					{Source: "aws:vpc_endpoint:test_secretsmanager", Destination: "aws:region:region"},
 					{Source: "aws:vpc_endpoint:test_secretsmanager", Destination: "aws:vpc:test"},
+					{Source: "aws:vpc_endpoint:test_secretsmanager", Destination: "aws:security_group:test"},
 					{Source: "aws:vpc_endpoint:test_secretsmanager", Destination: "aws:vpc_subnet:test_private1"},
 					{Source: "aws:vpc_endpoint:test_secretsmanager", Destination: "aws:vpc_subnet:test_private2"},
 					{Source: "aws:vpc_endpoint:test_sns", Destination: "aws:region:region"},
 					{Source: "aws:vpc_endpoint:test_sns", Destination: "aws:vpc:test"},
+					{Source: "aws:vpc_endpoint:test_sns", Destination: "aws:security_group:test"},
 					{Source: "aws:vpc_endpoint:test_sns", Destination: "aws:vpc_subnet:test_private1"},
 					{Source: "aws:vpc_endpoint:test_sns", Destination: "aws:vpc_subnet:test_private2"},
+					{Source: "aws:vpc_endpoint:test_sqs", Destination: "aws:security_group:test"},
 					{Source: "aws:vpc_endpoint:test_sqs", Destination: "aws:region:region"},
 					{Source: "aws:vpc_endpoint:test_sqs", Destination: "aws:vpc:test"},
 					{Source: "aws:vpc_endpoint:test_sqs", Destination: "aws:vpc_subnet:test_private1"},
@@ -252,6 +258,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 func Test_handleExecUnitProxy(t *testing.T) {
 	unit1 := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "unit1"}}
 	unit2 := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "unit2"}}
+	cfg := &config.Application{AppName: "test"}
 	cases := []struct {
 		name                    string
 		constructs              []core.Construct
@@ -270,8 +277,8 @@ func Test_handleExecUnitProxy(t *testing.T) {
 				{Source: unit2.Id(), Destination: unit1.Id()},
 			},
 			constructIdToResourceId: map[string][]core.Resource{
-				":unit1": {resources.NewLambdaFunction(unit1, "test", &resources.IamRole{Name: "role1"}, &resources.EcrImage{}), &resources.IamRole{Name: "role1"}},
-				":unit2": {resources.NewLambdaFunction(unit2, "test", &resources.IamRole{Name: "role2"}, &resources.EcrImage{}), &resources.IamRole{Name: "role2"}},
+				":unit1": {resources.NewLambdaFunction(unit1, cfg, &resources.IamRole{Name: "role1"}, &resources.EcrImage{}), &resources.IamRole{Name: "role1"}},
+				":unit2": {resources.NewLambdaFunction(unit2, cfg, &resources.IamRole{Name: "role2"}, &resources.EcrImage{}), &resources.IamRole{Name: "role2"}},
 			},
 			config: config.Application{AppName: "test", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: Lambda}}},
 			want: coretesting.ResourcesExpectation{
@@ -280,15 +287,15 @@ func Test_handleExecUnitProxy(t *testing.T) {
 					"aws:iam_policy:test-unit2-invoke",
 					"aws:iam_role:role1",
 					"aws:iam_role:role2",
-					"aws:lambda_function:test_unit1",
-					"aws:lambda_function:test_unit2",
+					"aws:lambda_function:test-unit1",
+					"aws:lambda_function:test-unit2",
 					"aws:vpc:test",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:iam_policy:test-unit1-invoke", Destination: "aws:iam_role:role2"},
-					{Source: "aws:iam_policy:test-unit1-invoke", Destination: "aws:lambda_function:test_unit1"},
-					{Source: "aws:iam_policy:test-unit2-invoke", Destination: "aws:iam_role:role1"},
-					{Source: "aws:iam_policy:test-unit2-invoke", Destination: "aws:lambda_function:test_unit2"},
+					{Source: "aws:iam_role:role2", Destination: "aws:iam_policy:test-unit1-invoke"},
+					{Source: "aws:iam_policy:test-unit1-invoke", Destination: "aws:lambda_function:test-unit1"},
+					{Source: "aws:iam_role:role1", Destination: "aws:iam_policy:test-unit2-invoke"},
+					{Source: "aws:iam_policy:test-unit2-invoke", Destination: "aws:lambda_function:test-unit2"},
 				},
 			},
 		},
@@ -303,7 +310,6 @@ func Test_handleExecUnitProxy(t *testing.T) {
 			existingResources: []core.Resource{&resources.EksCluster{Name: "cluster", ConstructsRef: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey}}, &kubernetes.HelmChart{Name: "chart", ConstructRefs: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey}}},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:iam_policy:test-test",
 					"aws:private_dns_namespace:test",
 					"aws:vpc:test",
 					"aws:eks_cluster:cluster",
@@ -361,7 +367,6 @@ func Test_handleExecUnitProxy(t *testing.T) {
 			}
 			tt.want.Assert(t, dag)
 		})
-
 	}
 }
 

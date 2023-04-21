@@ -23,10 +23,11 @@ func Test_GenerateFsResources(t *testing.T) {
 	policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
 	policy := resources.NewIamPolicy("test", fs.Id(), fs.Provenance(), policyDoc)
 	type testResult struct {
-		nodes  []core.Resource
-		deps   []graph.Edge[core.Resource]
-		policy resources.StatementEntry
-		err    bool
+		nodes         []core.Resource
+		deps          []graph.Edge[core.Resource]
+		inlinePolicy  resources.StatementEntry
+		managedPolicy resources.StatementEntry
+		err           bool
 	}
 	cases := []struct {
 		name          string
@@ -50,13 +51,8 @@ func Test_GenerateFsResources(t *testing.T) {
 				},
 			},
 			want: testResult{
-				nodes: []core.Resource{
-					bucket, policy,
-				},
-				deps: []graph.Edge[core.Resource]{
-					{Source: policy, Destination: bucket},
-				},
-				policy: policy.Policy.Statement[0],
+				nodes:        []core.Resource{bucket},
+				inlinePolicy: policy.Policy.Statement[0],
 			},
 		},
 	}
@@ -105,7 +101,7 @@ func Test_GenerateFsResources(t *testing.T) {
 				}
 				assert.Truef(found, "Expected to find dependency for %s -> %s", dep.Source.Id(), dep.Destination.Id())
 			}
-			if len(tt.want.policy.Action) != 0 {
+			if len(tt.want.managedPolicy.Action) != 0 {
 				for _, statement := range aws.PolicyGenerator.GetUnitPolicies(eu.Id())[0].Policy.Statement {
 					foundArnVal := false
 					foundDirVal := false
@@ -120,8 +116,27 @@ func Test_GenerateFsResources(t *testing.T) {
 					}
 					assert.True(foundArnVal)
 					assert.True(foundDirVal)
-					assert.ElementsMatch(statement.Action, tt.want.policy.Action)
-					assert.Equal(statement.Effect, tt.want.policy.Effect)
+					assert.ElementsMatch(statement.Action, tt.want.managedPolicy.Action)
+					assert.Equal(statement.Effect, tt.want.managedPolicy.Effect)
+				}
+			}
+			if len(tt.want.inlinePolicy.Action) != 0 {
+				for _, statement := range aws.PolicyGenerator.GetUnitInlinePolicies(eu.Id())[0].Policy.Statement {
+					foundArnVal := false
+					foundDirVal := false
+					for _, val := range statement.Resource {
+						assert.Equal(val.Resource.Id(), bucket.Id())
+						if val.Property == resources.ARN_IAC_VALUE {
+							foundArnVal = true
+						}
+						if val.Property == resources.ALL_BUCKET_DIRECTORY_IAC_VALUE {
+							foundDirVal = true
+						}
+					}
+					assert.True(foundArnVal)
+					assert.True(foundDirVal)
+					assert.ElementsMatch(statement.Action, tt.want.inlinePolicy.Action)
+					assert.Equal(statement.Effect, tt.want.inlinePolicy.Effect)
 				}
 			}
 		})
