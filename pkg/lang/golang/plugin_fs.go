@@ -22,7 +22,7 @@ func (p PersistFsPlugin) Name() string { return "Persist" }
 func (p PersistFsPlugin) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 
 	var errs multierr.Error
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
 		for _, goSource := range unit.FilesOfLang(goLang) {
 			resources, err := p.handleFile(goSource, unit)
 			if err != nil {

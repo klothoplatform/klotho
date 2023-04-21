@@ -145,7 +145,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 }
 
 func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
+	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](result) {
 
 		downstreamConstructs := result.GetDownstreamConstructs(unit)
 		for _, construct := range downstreamConstructs {
@@ -256,7 +256,7 @@ func findUnitsHelmChart(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*kub
 //
 // If an environment variable does not pertain to a construct and is just a key, value string, the resource of the IaCValue will be left null.
 func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	execUnits := core.GetResourcesOfType[*core.ExecutionUnit](result)
+	execUnits := core.GetConstructsOfType[*core.ExecutionUnit](result)
 	for _, unit := range execUnits {
 
 		resourceEnvVars := make(resources.EnvironmentVariables)

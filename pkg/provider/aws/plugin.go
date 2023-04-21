@@ -106,7 +106,7 @@ func (a *AWS) shouldCreateNetwork(result *core.ConstructGraph) (bool, error) {
 func (a *AWS) createEksClusters(result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	var unassignedUnits []*core.ExecutionUnit
 	clusterIdToUnit := map[string][]*core.ExecutionUnit{}
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](result) {
+	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](result) {
 		cfg := a.Config.GetExecutionUnit(unit.Provenance().ID)
 		if cfg.Type == kubernetes.KubernetesType {
 			params := cfg.GetExecutionUnitParamsAsKubernetes()

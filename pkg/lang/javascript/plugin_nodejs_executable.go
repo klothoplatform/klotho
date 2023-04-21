@@ -28,7 +28,7 @@ func (l NodeJSExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 	inputFiles := input.Files()
 
 	defaultPackageJson, _ := inputFiles["package.json"].(*PackageFile)
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
 		if unit.Executable.Type != "" {
 			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.ID, unit.Executable.Type)
 			continue

@@ -16,7 +16,7 @@ func (p AddExecRuntimeFiles) Name() string { return "AddExecRuntimeFiles:JavaScr
 func (p AddExecRuntimeFiles) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 
 	var errs multierr.Error
-	for _, unit := range core.GetResourcesOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
 		if !unit.HasSourceFilesFor(Language.ID) {
 			continue
 		}
