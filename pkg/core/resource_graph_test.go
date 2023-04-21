@@ -39,12 +39,12 @@ func (tr *testResource) Provider() string {
 	return "test"
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (tr *testResource) KlothoConstructRef() []AnnotationKey {
 	return nil
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (tr *testResource) Id() string {
 	return tr.ID
 }

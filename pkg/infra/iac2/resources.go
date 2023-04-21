@@ -64,12 +64,12 @@ func (role *RolePolicyAttachment) Provider() string {
 	return resources.AWS_PROVIDER
 }
 
-// KlothoResource returns AnnotationKey of the klotho resource the cloud resource is correlated to
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (role *RolePolicyAttachment) KlothoConstructRef() []core.AnnotationKey {
 	return nil
 }
 
-// ID returns the id of the cloud resource
+// Id returns the id of the cloud resource
 func (role *RolePolicyAttachment) Id() string {
 	return fmt.Sprintf("%s:%s:%s", role.Provider(), IAM_ROLE_POLICY_ATTACH_TYPE, role.Name)
 }
