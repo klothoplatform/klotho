@@ -40,6 +40,14 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 			dag.AddDependency(role, resource)
 		}
 	}
+	for _, ip := range a.PolicyGenerator.GetUnitInlinePolicies(unit.Id()) {
+		role.InlinePolicies = append(role.InlinePolicies, ip)
+		for _, stmt := range ip.Policy.Statement {
+			for _, resource := range stmt.Resource {
+				dag.AddDependency(role, resource.Resource)
+			}
+		}
+	}
 	unitsPolicies := a.PolicyGenerator.GetUnitPolicies(unit.Id())
 	for _, pol := range unitsPolicies {
 		dag.AddDependency(role, pol)
@@ -48,7 +56,6 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 			Property: resources.ARN_IAC_VALUE,
 		})
 	}
-
 	switch execUnitCfg.Type {
 	case Lambda:
 		role.AwsManagedPolicies = append(role.AwsManagedPolicies, "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess")
@@ -172,7 +179,7 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 					}
 					// We do not add the policy to the units list in policy generator otherwise we will cause a circular dependency
 					execPolicy.ConstructsRef = append(execPolicy.ConstructsRef, unit.AnnotationKey)
-					dag.AddDependency(execPolicy, a.PolicyGenerator.GetUnitRole(unit.Id()))
+					dag.AddDependency(a.PolicyGenerator.GetUnitRole(unit.Id()), execPolicy)
 					dag.AddDependency(execPolicy, targetLambda)
 				case kubernetes.KubernetesType:
 					privateNamespace := resources.NewPrivateDnsNamespace(a.Config.AppName, []core.AnnotationKey{unit.AnnotationKey}, resources.GetVpc(a.Config, dag))
@@ -195,18 +202,8 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 					}
 
 					serviceDiscoveryPolicyDoc := resources.CreateAllowPolicyDocument([]string{"servicediscovery:DiscoverInstances"}, []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}})
-					policy := resources.NewIamPolicy(a.Config.AppName, privateNamespace.Name, unit.AnnotationKey, serviceDiscoveryPolicyDoc)
-					if pol := dag.GetResource(policy.Id()); pol != nil {
-						pol, ok := pol.(*resources.IamPolicy)
-						if !ok {
-							return errors.Errorf("Found a non PrivateDnsNamespace with same id as global PrivateDnsNamespace, %s", pol.Id())
-						}
-						policy = pol
-						policy.ConstructsRef = append(policy.ConstructsRef, unit.Provenance())
-					} else {
-						dag.AddDependenciesReflect(policy)
-					}
-					a.PolicyGenerator.AddAllowPolicyToUnit(unit.ID, policy)
+					policy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-%s-servicediscovery", unit.ID, privateNamespace.Name), unit.AnnotationKey, serviceDiscoveryPolicyDoc)
+					a.PolicyGenerator.AddInlinePolicyToUnit(unit.Id(), policy)
 
 					cluster, err := findUnitsCluster(targetUnit, dag)
 					if err != nil {

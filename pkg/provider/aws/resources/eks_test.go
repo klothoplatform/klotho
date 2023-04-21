@@ -203,7 +203,7 @@ func Test_createPodExecutionRole(t *testing.T) {
 	eus := []core.AnnotationKey{{ID: "test"}}
 	assert := assert.New(t)
 	role := createPodExecutionRole(appName, "test", eus)
-	assert.ElementsMatch(role.InlinePolicy.Statement, []StatementEntry{
+	assert.ElementsMatch(role.InlinePolicies[0].Policy.Statement, []StatementEntry{
 		{
 			Effect: "Allow",
 			Action: []string{

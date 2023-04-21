@@ -1,10 +1,11 @@
 package aws
 
 import (
+	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
-	"github.com/pkg/errors"
 )
 
 func (a *AWS) GenerateSecretsResources(construct *core.Secrets, result *core.ConstructGraph, dag *core.ResourceGraph) error {
@@ -35,18 +36,8 @@ func (a *AWS) generateSecret(construct core.Construct, result *core.ConstructGra
 			Property: resources.ARN_IAC_VALUE,
 		}}
 		policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
-		policy := resources.NewIamPolicy(a.Config.AppName, construct.Id(), construct.Provenance(), policyDoc)
-		if res := dag.GetResource(policy.Id()); res != nil {
-			if existingPolicy, ok := res.(*resources.IamPolicy); ok {
-				existingPolicy.Policy.Statement = append(existingPolicy.Policy.Statement, policyDoc.Statement...)
-				dag.AddDependency(existingPolicy, secret)
-			} else {
-				return errors.Errorf("expected resource with id, %s, to be an iam policy", res.Id())
-			}
-		} else {
-			dag.AddDependenciesReflect(policy)
-			a.PolicyGenerator.AddAllowPolicyToUnit(unit.Id(), policy)
-		}
+		policy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-secretsmanager", secret.Name), construct.Provenance(), policyDoc)
+		a.PolicyGenerator.AddInlinePolicyToUnit(unit.Id(), policy)
 	}
 	return nil
 }
