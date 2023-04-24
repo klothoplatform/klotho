@@ -1,0 +1,13 @@
+apiVersion: about.k8s.io/v1alpha1
+kind: ClusterProperty
+metadata:
+  name: cluster.clusterset.k8s.io
+spec:
+  value: REPLACE_ME
+---
+apiVersion: about.k8s.io/v1alpha1
+kind: ClusterProperty
+metadata:
+  name: clusterset.k8s.io
+spec:
+  value: my-clusterset
