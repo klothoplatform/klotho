@@ -242,8 +242,8 @@ func findUnitsCluster(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*resou
 func findUnitsHelmChart(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*kubernetes.HelmChart, error) {
 	for _, res := range dag.ListResources() {
 		if r, ok := res.(*kubernetes.HelmChart); ok {
-			for _, ref := range r.ConstructRefs {
-				if ref == unit.Provenance() {
+			for _, ref := range r.ExecutionUnits {
+				if ref.Name == unit.Provenance().ID {
 					return r, nil
 				}
 			}
