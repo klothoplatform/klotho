@@ -553,7 +553,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
 		}
 
-	case resources.OIDC_URL_IAC_VALUE:
+	case resources.OIDC_SUB_IAC_VALUE:
 		varName := "cluster_oidc_url"
 		*appliedOutputs = append(*appliedOutputs, AppliedOutput{
 			appliedName: fmt.Sprintf("%s.url", tc.getVarName(v.Resource)),
