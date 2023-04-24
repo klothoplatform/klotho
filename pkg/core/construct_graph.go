@@ -1,8 +1,13 @@
 package core
 
 import (
+	"os"
+
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v2"
 )
 
 type (
@@ -115,4 +120,83 @@ func (cg *ConstructGraph) FindUpstreamGateways(unit *ExecutionUnit) []*Gateway {
 		}
 	}
 	return gateways
+}
+
+func CreateConstructGraphFromFile(path string) (*ConstructGraph, error) {
+
+	type ConstructRepresentation struct {
+		Kind string `yaml:"kind"`
+	}
+
+	type EdgeRepresentation struct {
+		Source      string `yaml:"source"`
+		Destination string `yaml:"destination"`
+	}
+
+	type ConstructGraphRepresentation struct {
+		Nodes map[string]ConstructRepresentation `yaml:"nodes"`
+		Edges []EdgeRepresentation               `yaml:"edges"`
+	}
+
+	graph := NewConstructGraph()
+	input := ConstructGraphRepresentation{
+		Nodes: map[string]ConstructRepresentation{},
+	}
+	keys := map[string]AnnotationKey{}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return graph, err
+	}
+	defer f.Close() // nolint:errcheck
+
+	err = yaml.NewDecoder(f).Decode(&input)
+	if err != nil {
+		return graph, err
+	}
+
+	for id, construct := range input.Nodes {
+		switch construct.Kind {
+		case "execution_unit":
+			unit := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.ExecutionUnitCapability}}
+			graph.AddConstruct(unit)
+			keys[id] = unit.AnnotationKey
+		case "static_unit":
+			unit := &StaticUnit{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.StaticUnitCapability}}
+			graph.AddConstruct(unit)
+			keys[id] = unit.AnnotationKey
+		case "orm":
+			unit := &Orm{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.PersistCapability}}
+			graph.AddConstruct(unit)
+			keys[id] = unit.AnnotationKey
+		case "kv":
+			unit := &Kv{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.PersistCapability}}
+			graph.AddConstruct(unit)
+			keys[id] = unit.AnnotationKey
+		case "redis_node":
+			unit := &RedisNode{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.PersistCapability}}
+			graph.AddConstruct(unit)
+			keys[id] = unit.AnnotationKey
+		case "fs":
+			unit := &Fs{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.PersistCapability}}
+			graph.AddConstruct(unit)
+			keys[id] = unit.AnnotationKey
+		case "secret":
+			unit := &Config{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.PersistCapability}, Secret: true}
+			graph.AddConstruct(unit)
+			keys[id] = unit.AnnotationKey
+		case "expose":
+			unit := &Gateway{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.ExposeCapability}}
+			graph.AddConstruct(unit)
+			keys[id] = unit.AnnotationKey
+		default:
+			return graph, errors.Errorf("Unsupported kind %s in construct graph creation", construct.Kind)
+		}
+	}
+
+	for _, edge := range input.Edges {
+		graph.AddDependency(keys[edge.Source].ToId(), keys[edge.Destination].ToId())
+	}
+
+	return graph, err
 }

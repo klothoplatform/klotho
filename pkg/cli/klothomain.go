@@ -50,23 +50,24 @@ type FlagsProvider interface {
 }
 
 var cfg struct {
-	verbose       bool
-	config        string
-	outDir        string
-	ast           bool
-	caps          bool
-	provider      string
-	appName       string
-	strict        bool
-	disableLogo   bool
-	internalDebug bool
-	version       bool
-	uploadSource  bool
-	update        bool
-	cfgFormat     string
-	setOption     map[string]string
-	login         bool
-	logout        bool
+	verbose        bool
+	config         string
+	constructGraph string
+	outDir         string
+	ast            bool
+	caps           bool
+	provider       string
+	appName        string
+	strict         bool
+	disableLogo    bool
+	internalDebug  bool
+	version        bool
+	uploadSource   bool
+	update         bool
+	cfgFormat      string
+	setOption      map[string]string
+	login          bool
+	logout         bool
 }
 
 const defaultDisableLogo = false
@@ -104,6 +105,7 @@ func (km KlothoMain) Main() {
 
 	flags.BoolVarP(&cfg.verbose, "verbose", "v", false, "Verbose flag")
 	flags.StringVarP(&cfg.config, "config", "c", "", "Config file")
+	flags.StringVar(&cfg.constructGraph, "construct-graph", "", "Construct Graph file")
 	flags.StringVarP(&cfg.outDir, "outDir", "o", defaultOutDir, "Output directory")
 	flags.BoolVar(&cfg.ast, "ast", false, "Print the AST to a companion file")
 	flags.BoolVar(&cfg.caps, "caps", false, "Print the capabilities to a companion file")
@@ -125,6 +127,7 @@ func (km KlothoMain) Main() {
 	}
 
 	_ = flags.MarkHidden("internalDebug")
+	_ = flags.MarkHidden("construct-graph")
 
 	err := root.Execute()
 	if err != nil {
@@ -397,10 +400,21 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
+	constructs := core.NewConstructGraph()
+
+	if cfg.constructGraph != "" {
+		plugins.AnalysisAndTransform = nil
+		createdGraph, err := core.CreateConstructGraphFromFile(cfg.constructGraph)
+		if err != nil {
+			return err
+		}
+		constructs = createdGraph
+	}
+
 	document := compiler.CompilationDocument{
 		InputFiles:       input,
 		FileDependencies: &core.FileDependencies{},
-		Constructs:       core.NewConstructGraph(),
+		Constructs:       constructs,
 		Configuration:    &appCfg,
 		Resources:        core.NewResourceGraph(),
 	}
