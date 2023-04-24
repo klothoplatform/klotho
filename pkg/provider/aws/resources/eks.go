@@ -24,7 +24,7 @@ const (
 	DEFAULT_CLUSTER_NAME     = "eks-cluster"
 	EKS_ADDON_TYPE           = "eks_addon"
 
-	OIDC_URL_IAC_VALUE         = "oidc_url"
+	OIDC_SUB_IAC_VALUE         = "oidc_url"
 	OIDC_AUD_IAC_VALUE         = "oidc_aud"
 	CLUSTER_ENDPOINT_IAC_VALUE = "cluster_endpoint"
 	CLUSTER_CA_DATA_IAC_VALUE  = "cluster_certificate_authority_data"
@@ -683,7 +683,7 @@ func (cluster *EksCluster) GetServiceAccountAssumeRolePolicy(serviceAccountName 
 					StringEquals: map[core.IaCValue]string{
 						{
 							Resource: oidc,
-							Property: OIDC_URL_IAC_VALUE,
+							Property: OIDC_SUB_IAC_VALUE,
 						}: fmt.Sprintf("system:serviceaccount:default:%s", serviceAccountName), // TODO: Replace default with the namespace when we expose via configuration
 						{
 							Resource: oidc,

@@ -188,21 +188,28 @@ func appliedOutputsToString(outputs []AppliedOutput) string {
 	if len(outputs) == 0 {
 		return ""
 	}
-	out.WriteString("pulumi.all([")
-	for i := 0; i < len(outputs); i++ {
-		out.WriteString(outputs[i].appliedName)
-		if i < len(outputs)-1 {
-			out.WriteString(", ")
+	if len(outputs) > 1 {
+		out.WriteString("pulumi.all([")
+		for i := 0; i < len(outputs); i++ {
+			out.WriteString(outputs[i].appliedName)
+			if i < len(outputs)-1 {
+				out.WriteString(", ")
+			}
 		}
-	}
-	out.WriteString("]).apply(([")
-	for i := 0; i < len(outputs); i++ {
-		out.WriteString(outputs[i].varName)
-		if i < len(outputs)-1 {
-			out.WriteString(", ")
+		out.WriteString("]).apply(([")
+		for i := 0; i < len(outputs); i++ {
+			out.WriteString(outputs[i].varName)
+			if i < len(outputs)-1 {
+				out.WriteString(", ")
+			}
 		}
+		out.WriteString("])")
+	} else {
+		out.WriteString(outputs[0].appliedName)
+		out.WriteString(".apply(")
+		out.WriteString(outputs[0].varName)
 	}
-	out.WriteString("]) => { return ")
+	out.WriteString(" => { return ")
 	return out.String()
 }
 
