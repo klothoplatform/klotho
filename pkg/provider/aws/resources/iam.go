@@ -182,7 +182,7 @@ func (p *PolicyGenerator) AddInlinePolicyToUnit(unitId string, policy *IamInline
 		p.unitsInlinePolicies[unitId] = map[string]*IamInlinePolicy{policy.Name: policy}
 		return
 	}
-	for name, _ := range inlinePolicies {
+	for name := range inlinePolicies {
 		if policy.Name == name {
 			// TODO: handle duplicates
 			zap.L().Sugar().Debugf("duplicate policy with name '%s' in unit '%s' ignored", name, unitId)
@@ -260,7 +260,7 @@ func NewIamPolicy(appName string, policyName string, ref core.AnnotationKey, pol
 
 func NewIamInlinePolicy(policyName string, ref core.AnnotationKey, policy *PolicyDocument) *IamInlinePolicy {
 	return &IamInlinePolicy{
-		Name:          policySanitizer.Apply(fmt.Sprintf(policyName)),
+		Name:          policySanitizer.Apply(policyName),
 		ConstructsRef: []core.AnnotationKey{ref},
 		Policy:        policy,
 	}
