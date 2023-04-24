@@ -300,7 +300,7 @@ func Test_handleExecUnitProxy(t *testing.T) {
 				{Source: unit2.Id(), Destination: unit1.Id()},
 			},
 			config:            config.Application{AppName: "test", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: kubernetes.KubernetesType}}},
-			existingResources: []core.Resource{&resources.EksCluster{Name: "cluster", ConstructsRef: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey}}},
+			existingResources: []core.Resource{&resources.EksCluster{Name: "cluster", ConstructsRef: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey}}, &kubernetes.HelmChart{Name: "chart", ConstructRefs: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey}}},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:iam_policy:test-test",
@@ -308,11 +308,13 @@ func Test_handleExecUnitProxy(t *testing.T) {
 					"aws:vpc:test",
 					"aws:eks_cluster:cluster",
 					"kubernetes:kustomize_directory:cluster-cloudmap-controller",
+					"kubernetes:helm_chart:chart",
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:private_dns_namespace:test", Destination: "aws:vpc:test"},
 					{Source: "aws:eks_cluster:cluster", Destination: "aws:private_dns_namespace:test"},
 					{Source: "kubernetes:kustomize_directory:cluster-cloudmap-controller", Destination: "aws:eks_cluster:cluster"},
+					{Source: "kubernetes:helm_chart:chart", Destination: "kubernetes:kustomize_directory:cluster-cloudmap-controller"},
 				},
 			},
 		},

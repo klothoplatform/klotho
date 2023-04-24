@@ -475,7 +475,7 @@ func (cluster *EksCluster) installFluentBit(references []core.AnnotationKey, dag
 	return nil
 }
 
-func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag *core.ResourceGraph) error {
+func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag *core.ResourceGraph) (*kubernetes.KustomizeDirectory, error) {
 	cloudMapController := &kubernetes.KustomizeDirectory{
 		Name:          fmt.Sprintf("%s-cloudmap-controller", cluster.Name),
 		ConstructRefs: []core.AnnotationKey{ref},
@@ -490,7 +490,7 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 			cloudMapController = cm
 			cm.ConstructRefs = append(cm.ConstructRefs, ref)
 		} else {
-			return errors.Errorf("Expected resource with id, %s, to be of type HelmChart, but was %s",
+			return nil, errors.Errorf("Expected resource with id, %s, to be of type HelmChart, but was %s",
 				controller.Id(), reflect.ValueOf(controller).Type().Name())
 		}
 	} else {
@@ -501,17 +501,17 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 		dag.AddDependency(cloudMapController, nodeGroup)
 	}
 
-	return nil
+	return cloudMapController, nil
 }
 
-func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey, dag *core.ResourceGraph) error {
+func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey, dag *core.ResourceGraph) (*kubernetes.HelmChart, error) {
 	serviceAccountName := "aws-load-balancer-controller"
 	saPath := "aws-load-balancer-controller-service-account.yaml"
 	outputPath := path.Join(MANIFEST_PATH_PREFIX, saPath)
 
 	assumeRolePolicyDoc, err := cluster.GetServiceAccountAssumeRolePolicy(serviceAccountName, dag)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	role := NewIamRole(cluster.Name, "alb-controller", references, assumeRolePolicyDoc)
 	policy := createAlbControllerPolicy(cluster.Name, references[0])
@@ -519,7 +519,7 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 
 	serviceAccount, err := kubernetes.GenerateServiceAccountManifest(serviceAccountName, "default", true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	saManifest := &kubernetes.Manifest{
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "alb-controller-service-account"),
@@ -530,7 +530,7 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 			Property: CLUSTER_PROVIDER_IAC_VALUE,
 		},
 		Transformations: map[string]core.IaCValue{
-			`metadata["annotations.eks.amazonaws.com/role-arn"]`: {Resource: role, Property: ARN_IAC_VALUE},
+			`metadata["annotations"]["eks.amazonaws.com/role-arn"]`: {Resource: role, Property: ARN_IAC_VALUE},
 		},
 	}
 	dag.AddDependenciesReflect(saManifest)
@@ -548,11 +548,13 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 			Property: CLUSTER_PROVIDER_IAC_VALUE,
 		},
 		Values: map[string]any{
-			"clusterName":           core.IaCValue{Resource: cluster, Property: NAME_IAC_VALUE},
-			"serviceAccount.create": false,
-			"serviceAccount.name":   serviceAccountName,
-			"region":                core.IaCValue{Resource: NewRegion(), Property: NAME_IAC_VALUE},
-			"vpcId":                 core.IaCValue{Resource: cluster.Subnets[0].Vpc, Property: ID_IAC_VALUE},
+			"clusterName": core.IaCValue{Resource: cluster, Property: NAME_IAC_VALUE},
+			"serviceAccount": map[string]any{
+				"create": false,
+				"name":   serviceAccountName,
+			},
+			"region": core.IaCValue{Resource: NewRegion(), Property: NAME_IAC_VALUE},
+			"vpcId":  core.IaCValue{Resource: cluster.Subnets[0].Vpc, Property: ID_IAC_VALUE},
 			"podLabels": map[string]string{
 				"app": "aws-lb-controller",
 			},
@@ -563,7 +565,7 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
 		dag.AddDependency(albChart, nodeGroup)
 	}
-	return nil
+	return albChart, nil
 }
 
 func (cluster *EksCluster) installVpcCniAddon(references []core.AnnotationKey, dag *core.ResourceGraph) {
@@ -729,6 +731,10 @@ func createPodExecutionRole(appName string, roleName string, refs []core.Annotat
 			Resource: []core.IaCValue{{Property: "*"}},
 		},
 	}}
+	fargateRole.AddAwsManagedPolicies([]string{
+		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+		"arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy",
+	})
 	return fargateRole
 }
 

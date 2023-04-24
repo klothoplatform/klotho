@@ -212,10 +212,15 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 					if err != nil {
 						return err
 					}
-					err = cluster.InstallCloudMapController(targetUnit.AnnotationKey, dag)
+					cloudmap, err := cluster.InstallCloudMapController(targetUnit.AnnotationKey, dag)
 					if err != nil {
 						return err
 					}
+					klothoChart, err := findUnitsHelmChart(unit, dag)
+					if err != nil {
+						return err
+					}
+					dag.AddDependency(klothoChart, cloudmap)
 				}
 			}
 		}
@@ -234,7 +239,7 @@ func findUnitsCluster(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*resou
 			}
 		}
 	}
-	return nil, fmt.Errorf("EksCluster not found for unit with id, %s", unit.ID)
+	return nil, fmt.Errorf("eks cluster not found for unit with id, %s", unit.ID)
 }
 
 func findUnitsHelmChart(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*kubernetes.HelmChart, error) {
@@ -247,7 +252,7 @@ func findUnitsHelmChart(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*kub
 			}
 		}
 	}
-	return nil, fmt.Errorf("EksCluster not found for unit with id, %s", unit.ID)
+	return nil, fmt.Errorf("helm chart not found for unit with id, %s", unit.ID)
 }
 
 // convertExecUnitParams transforms the execution units environment variables to a map of key names and their corresponding core.IaCValue struct.
