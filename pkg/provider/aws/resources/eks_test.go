@@ -135,7 +135,7 @@ func Test_InstallCloudMapController(t *testing.T) {
 	dag.AddDependenciesReflect(nodeGroup1)
 
 	unit1 := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "1"}}
-	err := cluster.InstallCloudMapController(unit1.AnnotationKey, dag)
+	_, err := cluster.InstallCloudMapController(unit1.AnnotationKey, dag)
 	if !assert.NoError(err) {
 		return
 	}
@@ -158,7 +158,7 @@ func Test_InstallCloudMapController(t *testing.T) {
 	}
 
 	unit2 := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "2"}}
-	err = cluster.InstallCloudMapController(unit2.AnnotationKey, dag)
+	_, err = cluster.InstallCloudMapController(unit2.AnnotationKey, dag)
 	if !assert.NoError(err) {
 		return
 	}

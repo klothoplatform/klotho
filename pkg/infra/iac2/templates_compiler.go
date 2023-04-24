@@ -14,6 +14,7 @@ import (
 	"text/template"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -253,6 +254,11 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 
 // resolveDependencies creates a string which models an array containing all the variable names, which the resource depends on.
 func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
+	type pulumiAllWrap struct {
+		actualVars []string
+		methodVars []string
+	}
+	var wrapping pulumiAllWrap
 	buf := strings.Builder{}
 	buf.WriteRune('[')
 	upstreamResources := tc.resourceGraph.GetDownstreamResources(resource)
@@ -262,15 +268,41 @@ func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 		switch res.(type) {
 		case *resources.Region, *resources.AvailabilityZones, *resources.AccountId:
 			continue
+		case *kubernetes.HelmChart:
+			wrapping.actualVars = append(wrapping.actualVars, fmt.Sprintf("%s.ready", tc.getVarName(res)))
+			wrapping.methodVars = append(wrapping.methodVars, tc.getVarName(res))
+			buf.WriteString(fmt.Sprintf("...%s,", tc.getVarName(res)))
+		case *kubernetes.Manifest, *kubernetes.KustomizeDirectory:
+			wrapping.actualVars = append(wrapping.actualVars, fmt.Sprintf("%s.resources", tc.getVarName(res)))
+			wrapping.methodVars = append(wrapping.methodVars, tc.getVarName(res))
+			buf.WriteString(fmt.Sprintf("...Object.values(%s),", tc.getVarName(res)))
 		default:
-			buf.WriteString(tc.getVarName(res))
-			if i < (numDeps - 1) {
-				buf.WriteRune(',')
-			}
+			buf.WriteString(fmt.Sprintf("%s,", tc.getVarName(res)))
 		}
 	}
 	buf.WriteRune(']')
-	return buf.String()
+	if len(wrapping.actualVars) == 0 {
+		return buf.String()
+	}
+	wrappedBuf := strings.Builder{}
+	wrappedBuf.WriteString("pulumi.all([")
+	for i := 0; i < len(wrapping.actualVars); i++ {
+		wrappedBuf.WriteString(wrapping.actualVars[i])
+		if i < len(wrapping.actualVars)-1 {
+			wrappedBuf.WriteString(", ")
+		}
+	}
+	wrappedBuf.WriteString("]).apply(([")
+	for i := 0; i < len(wrapping.methodVars); i++ {
+		wrappedBuf.WriteString(wrapping.methodVars[i])
+		if i < len(wrapping.methodVars)-1 {
+			wrappedBuf.WriteString(", ")
+		}
+	}
+	wrappedBuf.WriteString("]) => { return ")
+	wrappedBuf.WriteString(buf.String())
+	wrappedBuf.WriteString("})")
+	return wrappedBuf.String()
 }
 
 // resolveStructInput translates a value to a form suitable to inject into the typescript as an input to a function.
