@@ -36,6 +36,7 @@ const (
 	AWS_OBSERVABILITY_CONFIG_MAP_PATH = "aws_observability_configmap.yaml"
 	AMAZON_CLOUDWATCH_NS_PATH         = "amazon_cloudwatch_namespace.yaml"
 	FLUENT_BIT_CLUSTER_INFO           = "fluent_bit_cluster_info.yaml"
+	CM_CLUSTER_SET                    = "cloudmap_cluster_set.yaml"
 	MANIFEST_PATH_PREFIX              = "manifests"
 )
 
@@ -485,6 +486,7 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 			Property: CLUSTER_PROVIDER_IAC_VALUE,
 		},
 	}
+
 	if controller := dag.GetResource(cloudMapController.Id()); controller != nil {
 		if cm, ok := controller.(*kubernetes.KustomizeDirectory); ok {
 			cloudMapController = cm
@@ -494,7 +496,27 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 				controller.Id(), reflect.ValueOf(controller).Type().Name())
 		}
 	} else {
+		clusterSetOutputPath := path.Join(MANIFEST_PATH_PREFIX, CM_CLUSTER_SET)
+		content, err := fs.ReadFile(eksManifests, clusterSetOutputPath)
+		if err != nil {
+			return nil, err
+		}
+		clusterSet := &kubernetes.Manifest{
+			Name:          fmt.Sprintf("%s-%s", cluster.Name, "cluster-set"),
+			ConstructRefs: []core.AnnotationKey{ref},
+			FilePath:      clusterSetOutputPath,
+			Transformations: map[string]core.IaCValue{
+				`spec["value"]`: {Resource: cluster, Property: NAME_IAC_VALUE},
+			},
+			ClustersProvider: core.IaCValue{
+				Resource: cluster,
+				Property: CLUSTER_PROVIDER_IAC_VALUE,
+			},
+		}
+		cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: clusterSetOutputPath, Content: content})
+		dag.AddResource(clusterSet)
 		dag.AddDependenciesReflect(cloudMapController)
+		dag.AddDependency(clusterSet, cloudMapController)
 	}
 
 	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
