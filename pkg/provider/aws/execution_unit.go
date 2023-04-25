@@ -202,8 +202,10 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 					}
 
 					serviceDiscoveryPolicyDoc := resources.CreateAllowPolicyDocument([]string{"servicediscovery:DiscoverInstances"}, []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}})
-					policy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-%s-servicediscovery", unit.ID, privateNamespace.Name), unit.AnnotationKey, serviceDiscoveryPolicyDoc)
-					a.PolicyGenerator.AddInlinePolicyToUnit(unit.Id(), policy)
+					execPolicy := resources.NewIamPolicy(a.Config.AppName, fmt.Sprintf("%s-servicediscovery", privateNamespace.Name), unit.AnnotationKey, serviceDiscoveryPolicyDoc)
+					dag.AddResource(execPolicy)
+					execPolicy.ConstructsRef = append(execPolicy.ConstructsRef, unit.AnnotationKey)
+					dag.AddDependency(a.PolicyGenerator.GetUnitRole(unit.Id()), execPolicy)
 
 					cluster, err := findUnitsCluster(targetUnit, dag)
 					if err != nil {
@@ -221,7 +223,6 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 				}
 			}
 		}
-
 	}
 	return nil
 }
