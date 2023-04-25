@@ -363,6 +363,23 @@ func NewSubnet(subnetName string, vpc *Vpc, cidrBlock string, subnetType string,
 	}
 }
 
+// IsPublic returns whether this Subnet is public within the resource graph. A subnet is public iff its upstream
+// RouteTable has a downstream InternetGateway.
+func (subnet *Subnet) IsPublic(dag *core.ResourceGraph) bool {
+	for _, upstreamFromSubnet := range dag.GetUpstreamResources(subnet) {
+		routeTable, ok := upstreamFromSubnet.(*RouteTable)
+		if !ok {
+			continue
+		}
+		for _, downstreamFromRouteTable := range dag.GetAllDownstreamResources(routeTable) {
+			if _, isIGW := downstreamFromRouteTable.(*InternetGateway); isIGW {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (subnet *Subnet) KlothoConstructRef() []core.AnnotationKey {
 	return subnet.ConstructsRef

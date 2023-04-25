@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"net/http"
+
 	compiler "github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
 	envvar "github.com/klothoplatform/klotho/pkg/env_var"
@@ -19,6 +21,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/provider/providers"
 	staticunit "github.com/klothoplatform/klotho/pkg/static_unit"
+	"github.com/klothoplatform/klotho/pkg/visualizer"
 )
 
 // PluginSetBuilder is a crude "plugin dependency" helper struct for managing the order of plugins via stages.
@@ -42,10 +45,16 @@ func (b *PluginSetBuilder) AddAll() error {
 		b.AddGo,
 		b.AddCSharp,
 		b.AddPulumi,
+		b.AddVisualizerPlugin,
 	} {
 		merr.Append(f())
 	}
 	return merr.ErrOrNil()
+}
+
+func (b *PluginSetBuilder) AddVisualizerPlugin() error {
+	b.IaC = append(b.IaC, visualizer.Plugin{Config: b.Cfg, Client: http.DefaultClient})
+	return nil
 }
 
 func (b *PluginSetBuilder) AddExecUnit() error {
