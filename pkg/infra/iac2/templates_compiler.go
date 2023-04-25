@@ -576,6 +576,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 			p := &KubernetesProvider{Name: fmt.Sprintf("%s-provider", kcfg.Name)}
 			return tc.getVarNameByResourceId(p.Id()), nil
 		}
+	case resources.CLUSTER_SECURITY_GROUP_ID_IAC_VALUE:
+		return fmt.Sprintf("%s.vpcConfig.clusterSecurityGroupId", tc.getVarName(v.Resource)), nil
 	case resources.ALL_RESOURCES_ARN_IAC_VALUE:
 		method, ok := v.Resource.(*resources.ApiMethod)
 		if !ok {
@@ -738,6 +740,7 @@ func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource core.Resource
 	switch resource := resource.(type) {
 	case *resources.EksCluster:
 		errs.Append(tc.renderKubernetesProvider(out, resource))
+		errs.Append(tc.addIngressRuleToCluster(out, resource))
 	case *resources.RouteTable:
 		errs.Append(tc.associateRouteTable(out, resource))
 	case *resources.IamRole:
@@ -749,10 +752,41 @@ func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource core.Resource
 					Policy: policy,
 					Role:   resource,
 				}
+				_, err := out.Write([]byte("\n\n"))
+				errs.Append(err)
 				errs.Append(tc.renderResource(out, &rpa))
 			}
 		}
 	}
+	return errs.ErrOrNil()
+}
+
+func (tc TemplatesCompiler) addIngressRuleToCluster(out io.Writer, cluster *resources.EksCluster) error {
+	var errs multierr.Error
+
+	_, err := out.Write([]byte("\n\n"))
+	errs.Append(err)
+
+	cidrBlocks := []string{}
+	for _, subnet := range cluster.Subnets {
+		cidrBlocks = append(cidrBlocks, subnet.CidrBlock)
+	}
+
+	sgRule := &SecurityGroupRule{
+		ConstructsRef: cluster.ConstructsRef,
+		Name:          fmt.Sprintf("%s-ingress", cluster.Name),
+		Description:   "Allows access to cluster from the VPCs private and public subnets",
+		FromPort:      0,
+		ToPort:        0,
+		Protocol:      "-1",
+		CidrBlocks:    cidrBlocks,
+		SecurityGroupId: core.IaCValue{
+			Resource: cluster,
+			Property: resources.CLUSTER_SECURITY_GROUP_ID_IAC_VALUE,
+		},
+		Type: "ingress",
+	}
+	errs.Append(tc.renderResource(out, sgRule))
 	return errs.ErrOrNil()
 }
 

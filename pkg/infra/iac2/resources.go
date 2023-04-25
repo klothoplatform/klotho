@@ -21,6 +21,18 @@ type (
 		Subnet        *resources.Subnet
 		RouteTable    *resources.RouteTable
 	}
+
+	SecurityGroupRule struct {
+		ConstructsRef   []core.AnnotationKey
+		Name            string
+		Description     string
+		FromPort        int
+		ToPort          int
+		Protocol        string
+		CidrBlocks      []string
+		SecurityGroupId core.IaCValue
+		Type            string
+	}
 )
 
 func (e *KubernetesProvider) Provider() string {
@@ -72,4 +84,16 @@ func (role *RolePolicyAttachment) KlothoConstructRef() []core.AnnotationKey {
 // Id returns the id of the cloud resource
 func (role *RolePolicyAttachment) Id() string {
 	return fmt.Sprintf("%s:%s:%s", role.Provider(), IAM_ROLE_POLICY_ATTACH_TYPE, role.Name)
+}
+
+func (e *SecurityGroupRule) Provider() string {
+	return "pulumi"
+}
+
+func (e *SecurityGroupRule) KlothoConstructRef() []core.AnnotationKey {
+	return e.ConstructsRef
+}
+
+func (e *SecurityGroupRule) Id() string {
+	return fmt.Sprintf("%s:%s:%s", e.Provider(), "security_group_rule", e.Name)
 }
