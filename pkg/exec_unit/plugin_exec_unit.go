@@ -27,6 +27,10 @@ func (p ExecUnitPlugin) Transform(input *core.InputFiles, fileDeps *core.FileDep
 		unit.EnvironmentVariables.Add(core.NewEnvironmentVariable(key, nil, value))
 	}
 
+	// This set of environment variables is added to all Execution Units
+	unit.EnvironmentVariables.Add(core.NewEnvironmentVariable("APP_NAME", nil, p.Config.AppName))
+	unit.EnvironmentVariables.Add(core.NewEnvironmentVariable("EXECUNIT_NAME", nil, unit.ID))
+
 	for _, f := range input.Files() {
 		if sf, ok := f.(*core.SourceFile); ok {
 			// Only add source files by default.
