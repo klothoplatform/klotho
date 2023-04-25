@@ -282,13 +282,6 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 			}
 		}
 
-		// This set of environment variables are added to all Execution Unit's corresponding Resources
-		resourceEnvVars["APP_NAME"] = core.IaCValue{
-			Property: a.Config.AppName,
-		}
-		resourceEnvVars["EXECUNIT_NAME"] = core.IaCValue{
-			Property: unit.ID,
-		}
 		// Retrieve the actual resource and set the environment variables on it
 		resList, _ := a.GetResourcesDirectlyTiedToConstruct(unit)
 
@@ -312,7 +305,7 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 					for _, val := range r.ProviderValues {
 						if val.EnvironmentVariable != nil && evName == val.EnvironmentVariable.GetName() {
 							r.Values[val.Key] = evVal
-							if evVal.Resource != resource {
+							if evVal.Resource != nil && evVal.Resource != resource {
 								dag.AddDependency(resource, evVal.Resource)
 							}
 						}
