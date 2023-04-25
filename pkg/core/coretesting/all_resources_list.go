@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/pkg/errors"
@@ -30,6 +31,8 @@ type (
 		Pkg  string
 		Name string
 	}
+
+	TypeRefSet map[TypeRef]struct{}
 )
 
 // FindAllResources returns the TypeRefs for each of the resources you pass in, as well as for any other resources in
@@ -122,6 +125,24 @@ func FindAllResources(a *assert.Assertions, from []core.Resource) []TypeRef {
 		}
 	}
 	return results
+}
+
+func (ts TypeRefSet) Add(e any) {
+	eType := reflect.TypeOf(e)
+	for eType.Kind() == reflect.Pointer {
+		eType = eType.Elem()
+	}
+	ts[TypeRef{Pkg: eType.PkgPath(), Name: eType.Name()}] = struct{}{}
+}
+
+func (ts TypeRefSet) Check(t *testing.T, required TypeRef, msg string) {
+	assert := assert.New(t)
+
+	assert.Contains(
+		ts,
+		required,
+		msg)
+
 }
 
 // getTypesInPackage finds all types within a package (which may be "..."-ed).

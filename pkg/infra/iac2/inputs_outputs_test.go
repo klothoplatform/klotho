@@ -41,14 +41,14 @@ func TestKnownTemplates(t *testing.T) {
 	)
 
 	tp := standardTemplatesProvider()
-	testedTypes := make(map[coretesting.TypeRef]struct{})
+	testedTypes := make(coretesting.TypeRefSet)
 	for _, res := range allResources {
+		testedTypes.Add(res)
 		baseResourceType := reflect.TypeOf(res)
 		resType := baseResourceType
 		for resType.Kind() == reflect.Pointer {
 			resType = resType.Elem()
 		}
-		testedTypes[coretesting.TypeRef{Pkg: resType.PkgPath(), Name: resType.Name()}] = struct{}{}
 		t.Run(resType.String(), func(t *testing.T) {
 			var tmpl ResourceCreationTemplate
 
@@ -123,11 +123,7 @@ func TestKnownTemplates(t *testing.T) {
 	t.Run("all types tested", func(t *testing.T) {
 		for _, ref := range coretesting.FindAllResources(assert.New(t), allResources) {
 			t.Run(ref.Name, func(t *testing.T) {
-				assert := assert.New(t)
-				assert.Contains(
-					testedTypes,
-					ref,
-					`struct implements core.Resource but isn't tested; add it to this test's '"allResources" var`)
+				testedTypes.Check(t, ref, `struct implements core.Resource but isn't tested; add it to this test's '"allResources" var`)
 			})
 		}
 	})

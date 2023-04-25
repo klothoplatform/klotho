@@ -175,10 +175,14 @@ func (link *VpcLink) KlothoConstructRef() []core.AnnotationKey {
 
 // Id returns the id of the cloud resource
 func (res *VpcLink) Id() core.ResourceId {
+	name := "<no target>"
+	if res.Target != nil {
+		name = res.Target.Id().String()
+	}
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     VPC_LINK_TYPE,
-		Name:     res.Target.Id().String(),
+		Name:     name,
 	}
 }
 
