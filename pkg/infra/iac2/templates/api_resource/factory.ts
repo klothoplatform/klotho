@@ -9,13 +9,17 @@ interface Args {
 
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.apigateway.Resource {
-    return new aws.apigateway.Resource(args.Name, {
-        restApi: args.RestApi.id,
-        //TMPL {{- if .ParentResource.Raw }}
-        parentId: args.ParentResource.id,
-        //TMPL {{- else}}
-        //TMPL parentId: args.RestApi.rootResourceId,
-        //TMPL {{- end }}
-        pathPart: args.PathPart,
-    })
+    return new aws.apigateway.Resource(
+        args.Name,
+        {
+            restApi: args.RestApi.id,
+            //TMPL {{- if .ParentResource.Raw }}
+            parentId: args.ParentResource.id,
+            //TMPL {{- else}}
+            //TMPL parentId: args.RestApi.rootResourceId,
+            //TMPL {{- end }}
+            pathPart: args.PathPart,
+        },
+        { parent: args.RestApi }
+    )
 }
