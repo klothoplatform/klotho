@@ -100,7 +100,7 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 		if parentResource != nil {
 			dag.AddDependency(method, parentResource)
 		}
-		integration, err := a.createIntegration(method, execUnit, refs, route, dag)
+		integration, err := a.createIntegration(method, execUnit, refs, route, dag, integrationRequestParams)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -127,7 +127,7 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 }
 
 // createIntegration will create the the necessary resources within AWS to support a dependency between an expose construct and an execution unit.
-func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.ExecutionUnit, refs []core.AnnotationKey, route core.Route, dag *core.ResourceGraph) (*resources.ApiIntegration, error) {
+func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.ExecutionUnit, refs []core.AnnotationKey, route core.Route, dag *core.ResourceGraph, integrationRequestParams map[string]string) (*resources.ApiIntegration, error) {
 	cfg := a.Config.GetExecutionUnit(unit.ID)
 	switch cfg.Type {
 	case Lambda:
@@ -142,11 +142,10 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 		lambdaPermission := resources.NewLambdaPermission(function, core.IaCValue{Resource: method, Property: resources.ALL_RESOURCES_ARN_IAC_VALUE}, "apigateway.amazonaws.com", "lambda:InvokeFunction", refs)
 		dag.AddDependenciesReflect(lambdaPermission)
 
-		integration := resources.NewApiIntegration(method, refs, "POST", "AWS_PROXY", nil, core.IaCValue{Resource: function, Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
+		integration := resources.NewApiIntegration(method, refs, "POST", "AWS_PROXY", nil, core.IaCValue{Resource: function, Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE}, integrationRequestParams)
 		dag.AddDependenciesReflect(integration)
 		return integration, nil
 	case kubernetes.KubernetesType:
-
 		cluster, err := findUnitsCluster(unit, dag)
 		if err != nil {
 			return nil, err
@@ -165,7 +164,7 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 			return nil, errors.Errorf("No nlb created for unit %s", unit.ID)
 		}
 		vpcLink := resources.NewVpcLink(nlb, refs)
-		integration := resources.NewApiIntegration(method, refs, method.HttpMethod, "HTTP_PROXY", vpcLink, core.IaCValue{Resource: nlb, Property: resources.NLB_INTEGRATION_URI_IAC_VALUE})
+		integration := resources.NewApiIntegration(method, refs, method.HttpMethod, "HTTP_PROXY", vpcLink, core.IaCValue{Resource: nlb, Property: resources.NLB_INTEGRATION_URI_IAC_VALUE}, integrationRequestParams)
 		integration.Route = convertPath(route.Path, false)
 		integration.ConnectionType = "VPC_LINK"
 		dag.AddDependency(integration, nlb)

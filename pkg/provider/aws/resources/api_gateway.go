@@ -188,7 +188,7 @@ func (link *VpcLink) Id() string {
 	return fmt.Sprintf("%s:%s:%s", link.Provider(), VPC_LINK_TYPE, link.Name)
 }
 
-func NewApiIntegration(method *ApiMethod, refs []core.AnnotationKey, integrationMethod string, integrationType string, vpcLink *VpcLink, uri core.IaCValue) *ApiIntegration {
+func NewApiIntegration(method *ApiMethod, refs []core.AnnotationKey, integrationMethod string, integrationType string, vpcLink *VpcLink, uri core.IaCValue, requestParameters map[string]string) *ApiIntegration {
 	return &ApiIntegration{
 		Name:                  method.Name,
 		ConstructsRef:         refs,
@@ -199,6 +199,7 @@ func NewApiIntegration(method *ApiMethod, refs []core.AnnotationKey, integration
 		Type:                  integrationType,
 		VpcLink:               vpcLink,
 		Uri:                   uri,
+		RequestParameters:     requestParameters,
 	}
 }
 
