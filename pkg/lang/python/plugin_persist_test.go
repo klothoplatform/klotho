@@ -86,7 +86,7 @@ import keyvalue
 # @klotho::persist {
 #   id="mycache"
 # }
-myCache = Cache(cache_class=keyvalue.KVStore, serializer=keyvalue.NoOpSerializer(), table_name="app", map_id="mycache")`,
+myCache = Cache(cache_class=keyvalue.KVStore, serializer=keyvalue.NoOpSerializer(), map_id="mycache")`,
 		},
 		{
 			name: "overrides required args when initially set by the user",
@@ -102,7 +102,7 @@ import keyvalue
 # @klotho::persist {
 #   id="mycache"
 # }
-myCache = Cache(cache_class=keyvalue.KVStore, serializer=keyvalue.NoOpSerializer(), table_name="app", map_id="mycache")`,
+myCache = Cache(cache_class=keyvalue.KVStore, serializer=keyvalue.NoOpSerializer(), map_id="mycache")`,
 		},
 		{
 			name: "leaves optional arguments provided by the user in place",
@@ -118,7 +118,7 @@ import keyvalue
 # @klotho::persist {
 #   id="mycache"
 # }
-myCache = Cache(cache_class=keyvalue.KVStore, my_arg="value", serializer=keyvalue.NoOpSerializer(), table_name="app", map_id="mycache")`,
+myCache = Cache(cache_class=keyvalue.KVStore, my_arg="value", serializer=keyvalue.NoOpSerializer(), map_id="mycache")`,
 		},
 	}
 	for _, tt := range tests {

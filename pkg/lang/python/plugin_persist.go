@@ -177,10 +177,6 @@ func (p *persister) transformKV(original *core.SourceFile, modified *core.Source
 	}
 
 	args = AddOrReplaceArg(FunctionArg{
-		Name:  "table_name",
-		Value: fmt.Sprintf(`"%s"`, p.runtime.GetAppName()),
-	}, args)
-	args = AddOrReplaceArg(FunctionArg{
 		Name:  "map_id",
 		Value: fmt.Sprintf(`"%s"`, id),
 	}, args)
@@ -218,7 +214,8 @@ func (p *persister) transformKV(original *core.SourceFile, modified *core.Source
 			Capability: cap.Capability.Name,
 		},
 	}
-
+	envVar := core.GenerateKvTableNameEnvVar(result)
+	unit.EnvironmentVariables.Add(envVar)
 	return result, nil
 }
 
