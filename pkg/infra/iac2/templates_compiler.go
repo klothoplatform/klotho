@@ -619,6 +619,10 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		}
 	case resources.CIDR_BLOCK_IAC_VALUE:
 		return fmt.Sprintf(`%s.cidrBlock`, tc.getVarName(resource)), nil
+	case resources.AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE:
+		region := resources.NewRegion()
+		return fmt.Sprintf(`pulumi.all([obj.data["output.conf"], %s.name, %s.name]).apply(([obj, regionName, clusterName]) => obj.replace("region-code",regionName).replace("my-logs","/fargate/" +clusterName))`,
+			tc.getVarName(region), tc.getVarName(v.Resource)), nil
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property %T.%s", resource, property)

@@ -24,14 +24,15 @@ const (
 	DEFAULT_CLUSTER_NAME     = "eks-cluster"
 	EKS_ADDON_TYPE           = "eks_addon"
 
-	OIDC_SUB_IAC_VALUE                  = "oidc_url"
-	OIDC_AUD_IAC_VALUE                  = "oidc_aud"
-	CLUSTER_ENDPOINT_IAC_VALUE          = "cluster_endpoint"
-	CLUSTER_CA_DATA_IAC_VALUE           = "cluster_certificate_authority_data"
-	CLUSTER_PROVIDER_IAC_VALUE          = "cluster_provider"
-	CLUSTER_SECURITY_GROUP_ID_IAC_VALUE = "cluster_security_group_id"
-	NAME_IAC_VALUE                      = "name"
-	ID_IAC_VALUE                        = "id"
+	OIDC_SUB_IAC_VALUE                            = "oidc_url"
+	OIDC_AUD_IAC_VALUE                            = "oidc_aud"
+	CLUSTER_ENDPOINT_IAC_VALUE                    = "cluster_endpoint"
+	CLUSTER_CA_DATA_IAC_VALUE                     = "cluster_certificate_authority_data"
+	CLUSTER_PROVIDER_IAC_VALUE                    = "cluster_provider"
+	CLUSTER_SECURITY_GROUP_ID_IAC_VALUE           = "cluster_security_group_id"
+	NAME_IAC_VALUE                                = "name"
+	ID_IAC_VALUE                                  = "id"
+	AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE = "aws_observ_cm_region"
 
 	AWS_OBSERVABILITY_NS_PATH         = "aws_observability_namespace.yaml"
 	AWS_OBSERVABILITY_CONFIG_MAP_PATH = "aws_observability_configmap.yaml"
@@ -411,9 +412,12 @@ func (cluster *EksCluster) createFargateLogging(references []core.AnnotationKey,
 			Resource: cluster,
 			Property: CLUSTER_PROVIDER_IAC_VALUE,
 		},
+		Transformations: map[string]core.IaCValue{
+			`data["output.conf"]`: {Resource: cluster, Property: AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE},
+		},
 	}
-	dag.AddResource(configMap)
-	dag.AddDependency(configMap, cluster)
+	dag.AddDependenciesReflect(configMap)
+	dag.AddDependency(configMap, NewRegion())
 	dag.AddDependency(configMap, namespace)
 	cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: configMapOutputPath, Content: content})
 	return nil
