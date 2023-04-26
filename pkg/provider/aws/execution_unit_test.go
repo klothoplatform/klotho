@@ -258,6 +258,14 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 func Test_handleExecUnitProxy(t *testing.T) {
 	unit1 := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "unit1"}}
 	unit2 := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "unit2"}}
+	chart := &kubernetes.HelmChart{
+		Name:          "chart",
+		ConstructRefs: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey},
+		ExecutionUnits: []*kubernetes.HelmExecUnit{
+			{Name: unit1.ID},
+			{Name: unit2.ID},
+		},
+	}
 	cfg := &config.Application{AppName: "test"}
 	cases := []struct {
 		name                    string
@@ -306,8 +314,14 @@ func Test_handleExecUnitProxy(t *testing.T) {
 				{Source: unit1.Id(), Destination: unit2.Id()},
 				{Source: unit2.Id(), Destination: unit1.Id()},
 			},
-			config:            config.Application{AppName: "test", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: kubernetes.KubernetesType}}},
-			existingResources: []core.Resource{&resources.EksCluster{Name: "cluster", ConstructsRef: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey}}, &kubernetes.HelmChart{Name: "chart", ConstructRefs: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey}}},
+			constructIdToResourceId: map[string][]core.Resource{
+				"unit1": {chart, &resources.IamRole{Name: "role1"}},
+				"unit2": {chart, &resources.IamRole{Name: "role2"}},
+			},
+			config: config.Application{AppName: "test", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: kubernetes.KubernetesType}}},
+			existingResources: []core.Resource{
+				&resources.EksCluster{Name: "cluster", ConstructsRef: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey}},
+				chart},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:private_dns_namespace:test",
@@ -316,6 +330,9 @@ func Test_handleExecUnitProxy(t *testing.T) {
 					"kubernetes:kustomize_directory:cluster-cloudmap-controller",
 					"kubernetes:helm_chart:chart",
 					"kubernetes:manifest:cluster-cluster-set",
+					"aws:iam_policy:test-test-servicediscovery",
+					"aws:iam_role:role1",
+					"aws:iam_role:role2",
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:private_dns_namespace:test", Destination: "aws:vpc:test"},
@@ -323,6 +340,8 @@ func Test_handleExecUnitProxy(t *testing.T) {
 					{Source: "kubernetes:kustomize_directory:cluster-cloudmap-controller", Destination: "aws:eks_cluster:cluster"},
 					{Source: "kubernetes:helm_chart:chart", Destination: "kubernetes:kustomize_directory:cluster-cloudmap-controller"},
 					{Source: "kubernetes:manifest:cluster-cluster-set", Destination: "kubernetes:kustomize_directory:cluster-cloudmap-controller"},
+					{Source: "aws:iam_role:role1", Destination: "aws:iam_policy:test-test-servicediscovery"},
+					{Source: "aws:iam_role:role2", Destination: "aws:iam_policy:test-test-servicediscovery"},
 				},
 			},
 		},
@@ -401,8 +420,6 @@ func Test_convertExecUnitParams(t *testing.T) {
 			},
 			execUnitResource: &resources.LambdaFunction{},
 			wants: resources.EnvironmentVariables{
-				"APP_NAME":           core.IaCValue{Resource: nil, Property: "test"},
-				"EXECUNIT_NAME":      core.IaCValue{Resource: nil, Property: "unit"},
 				"BUCKET_BUCKET_NAME": core.IaCValue{Resource: s3Bucket, Property: "bucket_name"},
 			},
 		},
@@ -418,9 +435,7 @@ func Test_convertExecUnitParams(t *testing.T) {
 			constructIdToResourceId: make(map[string][]core.Resource),
 			execUnitResource:        &resources.LambdaFunction{},
 			wants: resources.EnvironmentVariables{
-				"APP_NAME":      core.IaCValue{Resource: nil, Property: "test"},
-				"EXECUNIT_NAME": core.IaCValue{Resource: nil, Property: "unit"},
-				"TestVar":       core.IaCValue{Resource: nil, Property: "TestValue"},
+				"TestVar": core.IaCValue{Resource: nil, Property: "TestValue"},
 			},
 		},
 		{
@@ -440,7 +455,8 @@ func Test_convertExecUnitParams(t *testing.T) {
 				":bucket": {s3Bucket},
 			},
 			execUnitResource: &kubernetes.HelmChart{
-				Name: "chart",
+				Name:           "chart",
+				ExecutionUnits: []*kubernetes.HelmExecUnit{{Name: "unit"}},
 				ProviderValues: []kubernetes.HelmChartValue{
 					{
 						EnvironmentVariable: core.GenerateBucketEnvVar(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "bucket"}}),

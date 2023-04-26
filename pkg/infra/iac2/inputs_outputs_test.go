@@ -112,6 +112,7 @@ func TestKnownTemplates(t *testing.T) {
 		&resources.OpenIdConnectProvider{},
 		&RouteTableAssociation{},
 		&resources.RouteTable{},
+		&SecurityGroupRule{},
 	}
 
 	tp := standardTemplatesProvider()

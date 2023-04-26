@@ -241,7 +241,14 @@ func Test_CreateRestApi(t *testing.T) {
 					ConstructsRef: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey},
 					Subnets:       []*resources.Subnet{resources.NewSubnet("1", resources.NewVpc("test"), "", "", core.IaCValue{})},
 				},
-				&kubernetes.HelmChart{Name: "chart", ConstructRefs: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey}},
+				&kubernetes.HelmChart{
+					Name:          "chart",
+					ConstructRefs: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey},
+					ExecutionUnits: []*kubernetes.HelmExecUnit{
+						{Name: "test"},
+						{Name: "test2"},
+					},
+				},
 				&resources.OpenIdConnectProvider{Name: "test"},
 			},
 			existingDependencies: []graph.Edge[core.Resource]{
