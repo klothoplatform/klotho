@@ -1,7 +1,7 @@
 {
     "name": "api_integration",
     "dependencies": {
-        "@pulumi/aws": "^5.16.0",
-        "@pulumi/pulumi": "^3.40.2"
+        "@pulumi/aws": "^5.37.0",
+        "@pulumi/pulumi": "^3.65.0"
     }
 }
