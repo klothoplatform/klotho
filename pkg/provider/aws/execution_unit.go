@@ -83,6 +83,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 			return errors.Errorf("Expected to have cluster created for unit, %s, but did not find cluster in graph", unit.ID)
 		}
 		role.AssumeRolePolicyDoc, err = cluster.GetServiceAccountAssumeRolePolicy(unit.ID, dag)
+		dag.AddDependenciesReflect(role)
 		if err != nil {
 			return err
 		}

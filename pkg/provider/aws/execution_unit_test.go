@@ -141,6 +141,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:iam_policy:policy1"},
 					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:iam_policy:policy2"},
 					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:s3_bucket:test-test"},
+					{Source: "aws:iam_role:test-test-ExecutionRole", Destination: "aws:iam_oidc_provider:test-eks-cluster"},
 					{Source: "aws:internet_gateway:test_igw1", Destination: "aws:vpc:test"},
 					{Source: "aws:load_balancer:test-test", Destination: "aws:vpc_subnet:test_private1"},
 					{Source: "aws:load_balancer:test-test", Destination: "aws:vpc_subnet:test_private2"},
