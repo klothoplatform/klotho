@@ -205,7 +205,7 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 					execPolicy := resources.NewIamPolicy(a.Config.AppName, fmt.Sprintf("%s-servicediscovery", privateNamespace.Name), unit.AnnotationKey, serviceDiscoveryPolicyDoc)
 					dag.AddResource(execPolicy)
 					execPolicy.ConstructsRef = append(execPolicy.ConstructsRef, unit.AnnotationKey)
-					dag.AddDependency(a.PolicyGenerator.GetUnitRole(unit.ID), execPolicy)
+					dag.AddDependency(a.PolicyGenerator.GetUnitRole(unit.Id()), execPolicy)
 
 					cluster, err := findUnitsCluster(targetUnit, dag)
 					if err != nil {
