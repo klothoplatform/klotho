@@ -12,8 +12,6 @@ type (
 	}
 )
 
-const ConfigKind = "config"
-
 func (p *Config) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
