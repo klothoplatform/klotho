@@ -214,7 +214,7 @@ func Test_renderGlueVars(t *testing.T) {
 				"aws:lambda_function:test_": "testFunction",
 				"aws:iam_policy:test-t":     "testPolicy",
 			},
-			want: "const awsRolePolicyAttachTestTTestT = new aws.iam.RolePolicyAttachment(`test-t-test-t`, {\n\t\t\t\t\t\tpolicyArn: testPolicy.arn,\n\t\t\t\t\t\trole: testRole\n\t\t\t\t\t});",
+			want: "\n\nconst awsRolePolicyAttachTestTTestT = new aws.iam.RolePolicyAttachment(`test-t-test-t`, {\n\t\t\t\t\t\tpolicyArn: testPolicy.arn,\n\t\t\t\t\t\trole: testRole\n\t\t\t\t\t});",
 		},
 		{
 			name:        "routeTableAssociation",
@@ -296,10 +296,10 @@ func Test_handleIaCValue(t *testing.T) {
 			resourceVarNamesById: map[string]string{
 				"aws:eks_cluster:test-app-cluster1": "awsEksClusterTestAppCluster1",
 			},
-			want: "`arn:aws:iam::${cluster_arn.split(':')[4]}:oidc-provider/${cluster_oidc_url}`",
+			want: "`${cluster_oidc_url}:sub`",
 			wantOutputs: []AppliedOutput{
 				{
-					appliedName: fmt.Sprintf("%s.openIdConnectIssuerUrl", "awsEksClusterTestAppCluster1"),
+					appliedName: fmt.Sprintf("%s.url", "awsEksClusterTestAppCluster1"),
 					varName:     "cluster_oidc_url",
 				},
 			},
