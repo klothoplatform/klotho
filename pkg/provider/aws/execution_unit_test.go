@@ -315,8 +315,8 @@ func Test_handleExecUnitProxy(t *testing.T) {
 				{Source: unit2.Id(), Destination: unit1.Id()},
 			},
 			constructIdToResourceId: map[string][]core.Resource{
-				"unit1": {chart, &resources.IamRole{Name: "role1"}},
-				"unit2": {chart, &resources.IamRole{Name: "role2"}},
+				":unit1": {chart, &resources.IamRole{Name: "role1"}},
+				":unit2": {chart, &resources.IamRole{Name: "role2"}},
 			},
 			config: config.Application{AppName: "test", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: kubernetes.KubernetesType}}},
 			existingResources: []core.Resource{
