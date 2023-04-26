@@ -3,6 +3,7 @@ import sys
 from datetime import datetime, timedelta
 from typing import Optional
 
+import os
 import boto3
 from aiocache.base import BaseCache
 from aiocache.serializers import BaseSerializer
@@ -24,12 +25,11 @@ class KVItem:
 
 class KVStore(BaseCache):
 
-    def __init__(self, client: boto3.client = None, resource: boto3.resource = None, map_id: str = None,
-                 table_name: str = None, **kwargs):
+    def __init__(self, client: boto3.client = None, resource: boto3.resource = None, map_id: str = None, **kwargs):
         super().__init__(**kwargs)
         self.dynamodb = boto3.resource('dynamodb') if resource is None else resource
         self.client = boto3.client('dynamodb') if client is None else client
-        self.table_name = table_name
+        self.table_name = os.getenv("KLOTHO_KV_DYNAMODB_TABLE_NAME")
         self.map_id = map_id
         self.table = self.dynamodb.Table(self.table_name)
 
