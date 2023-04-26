@@ -311,9 +311,9 @@ func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.Resou
 							}
 						}
 					}
-
 				}
 			}
+			dag.AddDependenciesReflect(resource)
 		}
 	}
 	return nil
