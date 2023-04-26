@@ -18,6 +18,7 @@ func (a Application) GetConfig(id string) Config {
 	ecfg, hasOverride := a.Config[id]
 	if hasOverride {
 		overrideValue(&cfg.Type, ecfg.Type)
+		overrideValue(&cfg.Path, ecfg.Path)
 		cfg.InfraParams = ecfg.InfraParams
 	}
 	cfg.InfraParams.ApplyDefaults(a.Defaults.Config.InfraParamsByType[cfg.Type])
