@@ -12,7 +12,7 @@ By participating in this project, you agree to abide by the [Contributor Covenan
 
 1. Fork the Klotho repository on GitHub.
 2. Clone your fork to your local machine: `git clone https://github.com/YOUR_USERNAME/klotho.git`
-3. Set up your development environment by following the instructions provided in the [README.md](./blob/main/README.md) file.
+3. Set up your development environment by following the instructions provided in the [README.md](./README.md#developing) file.
 
 ## How to Contribute
 
