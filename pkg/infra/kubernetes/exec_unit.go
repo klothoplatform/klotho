@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"errors"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/sanitization"
 	"regexp"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,6 +40,8 @@ type manifestTransformer[K runtime.Object] struct {
 	// it blank, in which case the transformer will assume readFile.
 	readF func(f *core.SourceFile) (runtime.Object, error)
 }
+
+var sanitizeEnvVar = sanitization.EnvVarKeySanitizer.Apply
 
 func (transformer manifestTransformer[K]) apply(unit *HelmExecUnit, cfg config.ExecutionUnit) ([]HelmChartValue, error) {
 	source := transformer.fieldToTransform(unit)
@@ -153,6 +156,12 @@ var podTransformer = manifestTransformer[*corev1.Pod]{
 				Type:         string(ImageTransformation),
 				Key:          imagePlaceholder,
 			},
+			{
+				ExecUnitName: unit.Name,
+				Kind:         pod.Kind,
+				Type:         string(ImageHashTransformation),
+				Key:          imagePlaceholder + "hash",
+			},
 		}, nil
 	},
 }
@@ -174,6 +183,12 @@ var deploymentTransformer = manifestTransformer[*apps.Deployment]{
 				Kind:         deployment.Kind,
 				Type:         string(ImageTransformation),
 				Key:          imagePlaceholder,
+			},
+			{
+				ExecUnitName: unit.Name,
+				Kind:         deployment.Kind,
+				Type:         string(ImageHashTransformation),
+				Key:          imagePlaceholder + "hash",
 			},
 		}
 
@@ -437,7 +452,7 @@ func (unit *HelmExecUnit) AddUnitsEnvironmentVariables(eu *core.ExecutionUnit) (
 	return
 }
 func (unit *HelmExecUnit) addEnvsVarToDeployment(envVars core.EnvironmentVariables) ([]HelmChartValue, error) {
-	values := []HelmChartValue{}
+	var values []HelmChartValue
 
 	log := zap.L().Sugar().With(logging.FileField(unit.Deployment), zap.String("unit", unit.Name))
 	log.Debugf("Adding environment variables to file, %s, for exec unit, %s", unit.Deployment.Path(), unit.Name)
@@ -562,6 +577,13 @@ func (unit *HelmExecUnit) upsertOnlyContainer(containers *[]corev1.Container, cf
 	value := GenerateImagePlaceholder(unit.Name)
 	container.Image = fmt.Sprintf("{{ .Values.%s }}", value)
 
+	// the image hash environment variable changes when an image's hash changes
+	// this will cause the IaC provider to trigger a new deployment
+	hashValue := value + "hash"
+	container.Env = append(container.Env, corev1.EnvVar{
+		Name:  sanitizeEnvVar(hashValue),
+		Value: fmt.Sprintf("{{ .Values.%s }}", hashValue),
+	})
 	k8config, err := unit.configureContainer(container, cfg)
 	if err != nil {
 		return k8config, "", err

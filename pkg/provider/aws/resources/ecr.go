@@ -10,7 +10,8 @@ const (
 	ECR_REPO_TYPE  = "ecr_repo"
 	ECR_IMAGE_TYPE = "ecr_image"
 
-	ECR_IMAGE_NAME_IAC_VALUE = "ecr_image_name"
+	ECR_IMAGE_NAME_IAC_VALUE  = "ecr_image_name"
+	ECR_REPO_DIGEST_IAC_VALUE = "ecr_repo_digest"
 )
 
 type (
