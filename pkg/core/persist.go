@@ -32,6 +32,10 @@ type (
 	}
 )
 
+const (
+	KLOTHO_KV_DYNAMODB_TABLE_NAME = "KLOTHO_KV_DYNAMODB_TABLE_NAME"
+)
+
 func (p *Secrets) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
@@ -97,5 +101,5 @@ func GenerateBucketEnvVar(cfg Construct) environmentVariable {
 }
 
 func GenerateKvTableNameEnvVar(cfg Construct) environmentVariable {
-	return NewEnvironmentVariable("KLOTHO_KV_DYNAMODB_TABLE_NAME", cfg, string(KV_DYNAMODB_TABLE_NAME))
+	return NewEnvironmentVariable(KLOTHO_KV_DYNAMODB_TABLE_NAME, cfg, string(KV_DYNAMODB_TABLE_NAME))
 }
