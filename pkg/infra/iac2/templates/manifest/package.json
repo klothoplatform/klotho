@@ -2,6 +2,6 @@
     "name": "manifest",
     "dependencies": {
         "@pulumi/kubernetes": "^3.21.4",
-        "@pulumi/pulumi": "^3.40.2"
+        "@pulumi/pulumi": "^3.65.0"
     }
 }

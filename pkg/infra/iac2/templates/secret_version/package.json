@@ -1,6 +1,6 @@
 {
     "name": "fs-secret-version",
     "dependencies": {
-        "@pulumi/aws": "^5.16.0"
+        "@pulumi/aws": "^5.37.0"
     }
 }
