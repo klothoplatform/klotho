@@ -1,7 +1,9 @@
 import boto3
+import json
 import os
-import logging
 import requests
+
+import logging
 
 sd_client = boto3.client("servicediscovery")
 APP_NAME = os.environ.get("APP_NAME")
@@ -16,7 +18,7 @@ async def proxy_call(exec_group_name, module_name, function_to_call, params):
             'module_name': module_name,
             'params': params,
         })
-        return res.content
+        return json.loads(res.content)
     except Exception as e:
         logging.error(e)
         raise e
