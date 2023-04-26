@@ -39,6 +39,14 @@ func Test_environmentVarsAddedToUnit(t *testing.T) {
 					Name:  "key2",
 					Value: "value2",
 				},
+				{
+					Name:  "APP_NAME",
+					Value: "test",
+				},
+				{
+					Name:  "EXECUNIT_NAME",
+					Value: "main",
+				},
 			},
 			wantExecUnit: true,
 		},
@@ -48,6 +56,7 @@ func Test_environmentVarsAddedToUnit(t *testing.T) {
 			assert := assert.New(t)
 
 			cfg := config.Application{
+				AppName: "test",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"main": {EnvironmentVariables: tt.envVars},
 				},
