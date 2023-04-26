@@ -599,6 +599,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf("%s.invokeUrl.apply((d) => d.split('//')[1].split('/')[0])", tc.getVarName(v.Resource)), nil
 	case resources.ECR_IMAGE_NAME_IAC_VALUE:
 		return fmt.Sprintf(`%s.imageName`, tc.getVarName(resource)), nil
+	case resources.ECR_REPO_DIGEST_IAC_VALUE:
+		return fmt.Sprintf(`%s.repoDigest`, tc.getVarName(resource)), nil
 	case resources.NLB_INTEGRATION_URI_IAC_VALUE:
 		integration, ok := resourceVal.Interface().(resources.ApiIntegration)
 		if !ok {

@@ -16,6 +16,7 @@ type ProviderValueTypes string
 const (
 	TargetGroupTransformation              ProviderValueTypes = "target_group"
 	ImageTransformation                    ProviderValueTypes = "image"
+	ImageHashTransformation                ProviderValueTypes = "image_hash"
 	EnvironmentVariableTransformation      ProviderValueTypes = "env_var"
 	ServiceAccountAnnotationTransformation ProviderValueTypes = "service_account_annotation"
 	InstanceTypeKey                        ProviderValueTypes = "instance_type_key"

@@ -256,6 +256,12 @@ func Test_transformPod(t *testing.T) {
 						Type:         string(ImageTransformation),
 						Key:          "testUnitImage",
 					},
+					{
+						ExecUnitName: "testUnit",
+						Kind:         "Pod",
+						Type:         string(ImageHashTransformation),
+						Key:          "testUnitImagehash",
+					},
 				},
 				newFile: testutil.UnIndent(`
                     apiVersion: v1
@@ -267,7 +273,10 @@ func Test_transformPod(t *testing.T) {
                       name: test
                     spec:
                       containers:
-                      - image: '{{ .Values.testUnitImage }}'
+                      - env:
+                        - name: testUnitImagehash
+                          value: '{{ .Values.testUnitImagehash }}'
+                        image: '{{ .Values.testUnitImage }}'
                         name: web
                         resources: {}
                       serviceAccountName: testUnit
@@ -300,6 +309,12 @@ func Test_transformPod(t *testing.T) {
 						Type:         string(ImageTransformation),
 						Key:          "testUnitImage",
 					},
+					{
+						ExecUnitName: "testUnit",
+						Kind:         "Pod",
+						Type:         string(ImageHashTransformation),
+						Key:          "testUnitImagehash",
+					},
 				},
 				newFile: testutil.UnIndent(`
                     apiVersion: v1
@@ -311,7 +326,10 @@ func Test_transformPod(t *testing.T) {
                       name: test
                     spec:
                       containers:
-                      - image: '{{ .Values.testUnitImage }}'
+                      - env:
+                        - name: testUnitImagehash
+                          value: '{{ .Values.testUnitImagehash }}'
+                        image: '{{ .Values.testUnitImage }}'
                         name: testUnit
                         resources:
                           limits:
@@ -393,6 +411,12 @@ func Test_transformDeployment(t *testing.T) {
 			Type:         string(ImageTransformation),
 			Key:          "testUnitImage",
 		},
+		{
+			ExecUnitName: "testUnit",
+			Kind:         "Deployment",
+			Type:         string(ImageHashTransformation),
+			Key:          "testUnitImagehash",
+		},
 	}
 	tests := []struct {
 		name    string
@@ -432,7 +456,10 @@ func Test_transformDeployment(t *testing.T) {
                             klotho-fargate-enabled: "false"
                         spec:
                           containers:
-                          - image: '{{ .Values.testUnitImage }}'
+                          - env:
+                            - name: testUnitImagehash
+                              value: '{{ .Values.testUnitImagehash }}'
+                            image: '{{ .Values.testUnitImage }}'
                             name: nginx
                             resources: {}
                           serviceAccountName: testUnit
@@ -506,7 +533,10 @@ func Test_transformDeployment(t *testing.T) {
                             klotho-fargate-enabled: "false"
                         spec:
                           containers:
-                          - image: '{{ .Values.testUnitImage }}'
+                          - env:
+                            - name: testUnitImagehash
+                              value: '{{ .Values.testUnitImagehash }}'
+                            image: '{{ .Values.testUnitImage }}'
                             name: testUnit
                             resources: {}
                           serviceAccountName: testUnit
@@ -541,6 +571,12 @@ spec:
 						Type:         string(ImageTransformation),
 						Key:          "testUnitImage",
 					},
+					{
+						ExecUnitName: "testUnit",
+						Kind:         "Deployment",
+						Type:         string(ImageHashTransformation),
+						Key:          "testUnitImagehash",
+					},
 				},
 				newFile: `apiVersion: apps/v1
 kind: Deployment
@@ -567,7 +603,10 @@ spec:
         klotho-fargate-enabled: "true"
     spec:
       containers:
-      - image: '{{ .Values.testUnitImage }}'
+      - env:
+        - name: testUnitImagehash
+          value: '{{ .Values.testUnitImagehash }}'
+        image: '{{ .Values.testUnitImage }}'
         name: nginx
         resources: {}
       serviceAccountName: testUnit
@@ -602,6 +641,12 @@ spec:
 						Kind:         "Deployment",
 						Type:         string(ImageTransformation),
 						Key:          "testUnitImage",
+					},
+					{
+						ExecUnitName: "testUnit",
+						Kind:         "Deployment",
+						Type:         string(ImageHashTransformation),
+						Key:          "testUnitImagehash",
 					},
 					{
 						ExecUnitName: "testUnit",
@@ -641,7 +686,10 @@ spec:
         klotho-fargate-enabled: "false"
     spec:
       containers:
-      - image: '{{ .Values.testUnitImage }}'
+      - env:
+        - name: testUnitImagehash
+          value: '{{ .Values.testUnitImagehash }}'
+        image: '{{ .Values.testUnitImage }}'
         name: nginx
         resources: {}
       nodeSelector:
