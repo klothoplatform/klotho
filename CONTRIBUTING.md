@@ -52,7 +52,7 @@ If you notice any errors or outdated information in the documentation, please cr
 
 ## Testing
 
-Before submitting your changes, ensure that your code passes all tests. To run the tests, follow the instructions provided in the [Developing](.#developing) section of the README.md file.
+Before submitting your changes, ensure that your code passes all tests. To run the tests, follow the instructions provided in the [Developing](./README.md#developing) section of the README.md file.
 
 ## Community
 
