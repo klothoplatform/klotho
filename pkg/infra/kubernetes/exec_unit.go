@@ -579,7 +579,7 @@ func (unit *HelmExecUnit) upsertOnlyContainer(containers *[]corev1.Container, cf
 	}
 	if len(*containers) == 0 {
 		*containers = append(*containers, corev1.Container{
-			Name: unit.Name,
+			Name: sanitize.MetadataNameSanitizer.Apply(unit.Name),
 		})
 	}
 	container := &(*containers)[0]

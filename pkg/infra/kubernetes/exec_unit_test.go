@@ -330,7 +330,7 @@ func Test_transformPod(t *testing.T) {
                         - name: testUnitImagehash
                           value: '{{ .Values.testUnitImagehash }}'
                         image: '{{ .Values.testUnitImage }}'
-                        name: testUnit
+                        name: testunit
                         resources:
                           limits:
                             cpu: "123"
@@ -537,7 +537,7 @@ func Test_transformDeployment(t *testing.T) {
                             - name: testUnitImagehash
                               value: '{{ .Values.testUnitImagehash }}'
                             image: '{{ .Values.testUnitImage }}'
-                            name: testUnit
+                            name: testunit
                             resources: {}
                           serviceAccountName: testunit
                     status: {}`),
