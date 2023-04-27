@@ -50,7 +50,8 @@ var (
 	}
 
 	parameterizeArgsRegex = regexp.MustCompile(`\bargs(\.\w+)`)
-	curlyEscapes          = regexp.MustCompile(`({+)(args\.)`)
+	curlyArgsEscapes      = regexp.MustCompile(`({+)(args\.)`)
+	curlyEscapes          = regexp.MustCompile(`~~{{`)
 	templateComments      = regexp.MustCompile(`//*TMPL\s+`)
 
 	//go:embed find_args.scm
@@ -114,7 +115,11 @@ func ParseResourceCreationTemplate(name string, contents []byte) ResourceCreatio
 		}
 		expressionBody = body["return_body"].Content()
 	}
-	result.ExpressionTemplate = parameterizeArgs(expressionBody)
+	expressionBody = parameterizeArgs(expressionBody)
+
+	// transform escaped double curly brace literals e.g. ~~{{ .ID }} -> {{ `{{` }} .ID }}
+	expressionBody = curlyEscapes.ReplaceAllString(expressionBody, "{{ `{{` }}")
+	result.ExpressionTemplate = expressionBody
 
 	// imports
 	result.Imports = make(map[string]struct{})
@@ -144,7 +149,7 @@ func parameterizeArgs(contents string) string {
 	// If the source has "{args.Foo}", then just turning "args.Foo" -> "{{.Foo}}" would result in "{{{.Foo}}}", which is
 	// invalid go-template. So, we first turn "{args." into "{{`{`}}args.", which will eventually result in
 	// "{{`{`}}{{.Foo}}" — which, while ugly, will result in the correct template execution.
-	contents = curlyEscapes.ReplaceAllString(contents, "{{`$1`}}$2")
+	contents = curlyArgsEscapes.ReplaceAllString(contents, "{{`$1`}}$2")
 	contents = parameterizeArgsRegex.ReplaceAllString(contents, `{{parseTS $1}}`)
 	contents = templateComments.ReplaceAllString(contents, "")
 	return contents
