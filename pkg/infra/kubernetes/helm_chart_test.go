@@ -478,12 +478,6 @@ func Test_handleExecutionUnit(t *testing.T) {
 					Key:          "unitImage",
 				},
 				{
-					ExecUnitName: "unit",
-					Kind:         "Deployment",
-					Type:         "image_hash",
-					Key:          "unitImagehash",
-				},
-				{
 					ExecUnitName: testUnitName,
 					Kind:         "ServiceAccount",
 					Type:         "service_account_annotation",
@@ -503,12 +497,6 @@ func Test_handleExecutionUnit(t *testing.T) {
 					Key:          "unitImage",
 				},
 				{
-					ExecUnitName: "unit",
-					Kind:         "Deployment",
-					Type:         "image_hash",
-					Key:          "unitImagehash",
-				},
-				{
 					ExecUnitName: testUnitName,
 					Kind:         "ServiceAccount",
 					Type:         "service_account_annotation",
@@ -526,12 +514,6 @@ func Test_handleExecutionUnit(t *testing.T) {
 					Kind:         "Deployment",
 					Type:         "image",
 					Key:          "unitImage",
-				},
-				{
-					ExecUnitName: "unit",
-					Kind:         "Deployment",
-					Type:         "image_hash",
-					Key:          "unitImagehash",
 				},
 				{
 					ExecUnitName: testUnitName,
@@ -742,10 +724,7 @@ spec:
         klotho-fargate-enabled: "false"
     spec:
       containers:
-      - env:
-        - name: unitImagehash
-          value: '{{ .Values.unitImagehash }}'
-        image: '{{ .Values.unitImage }}'
+      - image: '{{ .Values.unitImage }}'
         name: unit
         resources: {}
       serviceAccount: unit
@@ -758,12 +737,6 @@ status: {}
 						Kind:         "Deployment",
 						Type:         "image",
 						Key:          "unitImage",
-					},
-					{
-						ExecUnitName: "unit",
-						Kind:         "Deployment",
-						Type:         "image_hash",
-						Key:          "unitImagehash",
 					},
 				},
 			},
