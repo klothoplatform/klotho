@@ -35,7 +35,7 @@ async function getEksServiceIp(logicalName): Promise<string> {
         const client = new ServiceDiscoveryClient({})
         const command = new DiscoverInstancesCommand({
             NamespaceName: `default`,
-            ServiceName: logicalName,
+            ServiceName: logicalName.toLowerCase(),
         })
         const response = await client.send(command)
 
