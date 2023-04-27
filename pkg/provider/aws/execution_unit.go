@@ -108,12 +108,6 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 									Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
 								}
 								dag.AddDependency(khChart, image)
-							case kubernetes.ImageHashTransformation:
-								khChart.Values[val.Key] = core.IaCValue{
-									Resource: image,
-									Property: resources.ECR_REPO_DIGEST_IAC_VALUE,
-								}
-								dag.AddDependency(khChart, image)
 							case kubernetes.ServiceAccountAnnotationTransformation:
 								khChart.Values[val.Key] = core.IaCValue{
 									Resource: role,
