@@ -623,6 +623,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		region := resources.NewRegion()
 		return fmt.Sprintf(`pulumi.all([obj.data["output.conf"], %s.name, %s.name]).apply(([obj, regionName, clusterName]) => obj.replace("region-code",regionName).replace("my-logs","/fargate/" +clusterName))`,
 			tc.getVarName(region), tc.getVarName(v.Resource)), nil
+	case resources.NODE_GROUP_NAME_IAC_VALUE:
+		return fmt.Sprintf(`%s.nodeGroupName`, tc.getVarName(resource)), nil
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property %T.%s", resource, property)

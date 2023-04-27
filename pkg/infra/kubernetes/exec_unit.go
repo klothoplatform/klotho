@@ -3,8 +3,10 @@ package kubernetes
 import (
 	"errors"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/sanitization"
 	"regexp"
+
+	"github.com/klothoplatform/klotho/pkg/sanitization"
+	sanitize "github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -99,6 +101,14 @@ func GenerateTargetGroupBindingPlaceholder(unit string) string {
 	return fmt.Sprintf("%sTargetGroupArn", sanitizeString(unit))
 }
 
+func GenerateInstanceTypeKeyPlaceholder(unit string) string {
+	return fmt.Sprintf("%sInstanceTypeKey", sanitizeString(unit))
+}
+
+func GenerateInstanceTypeValuePlaceholder(unit string) string {
+	return fmt.Sprintf("%sInstanceTypeValue", sanitizeString(unit))
+
+}
 func GenerateEnvVarKeyValue(key string) (k string, v string) {
 	k = key
 	v = sanitizeString(key)
@@ -178,7 +188,7 @@ var deploymentTransformer = manifestTransformer[*apps.Deployment]{
 		}
 		var values []HelmChartValue
 		values = []HelmChartValue{
-			HelmChartValue{
+			{
 				ExecUnitName: unit.Name,
 				Kind:         deployment.Kind,
 				Type:         string(ImageTransformation),
@@ -224,8 +234,8 @@ var deploymentTransformer = manifestTransformer[*apps.Deployment]{
 			}
 
 			if kconfig := cfg.GetExecutionUnitParamsAsKubernetes(); kconfig.InstanceType != "" {
-				instanceTypeKey := unit.Name + "InstanceTypeKey"
-				instanceTypeValue := unit.Name + "InstanceTypeValue"
+				instanceTypeKey := GenerateInstanceTypeKeyPlaceholder(unit.Name)
+				instanceTypeValue := GenerateInstanceTypeValuePlaceholder(unit.Name)
 				deployment.Spec.Template.Spec.NodeSelector[fmt.Sprintf("{{ .Values.%s }}", instanceTypeKey)] = fmt.Sprintf("{{ .Values.%s }}", instanceTypeValue)
 				values = append(values,
 					HelmChartValue{
@@ -388,7 +398,7 @@ var targetGroupBindingTransformer = manifestTransformer[*elbv2api.TargetGroupBin
 		targetGroupBinding.Labels["execUnit"] = unit.Name
 
 		return []HelmChartValue{
-			HelmChartValue{
+			{
 				ExecUnitName: unit.Name,
 				Kind:         targetGroupBinding.Kind,
 				Type:         string(TargetGroupTransformation),
@@ -400,11 +410,11 @@ var targetGroupBindingTransformer = manifestTransformer[*elbv2api.TargetGroupBin
 
 func (unit *HelmExecUnit) getServiceAccountName() string {
 	if unit.ServiceAccount == nil {
-		return unit.Name
+		return sanitize.MetadataNameSanitizer.Apply(unit.Name)
 	}
 	obj, err := readFile(unit.ServiceAccount)
 	if err != nil {
-		return unit.Name
+		return sanitize.MetadataNameSanitizer.Apply(unit.Name)
 	}
 	serviceAccount, ok := obj.(*corev1.ServiceAccount)
 	if !ok {
@@ -569,7 +579,7 @@ func (unit *HelmExecUnit) upsertOnlyContainer(containers *[]corev1.Container, cf
 	}
 	if len(*containers) == 0 {
 		*containers = append(*containers, corev1.Container{
-			Name: unit.Name,
+			Name: sanitize.MetadataNameSanitizer.Apply(unit.Name),
 		})
 	}
 	container := &(*containers)[0]

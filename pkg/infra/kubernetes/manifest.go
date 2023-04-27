@@ -7,6 +7,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/yaml"
+	sanitize "github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/templateutils"
 )
 
@@ -34,6 +35,7 @@ type (
 	}
 
 	DeploymentManifestData struct {
+		Name               string
 		ExecUnitName       string
 		FargateEnabled     string
 		ReplicaCount       string
@@ -55,6 +57,7 @@ func (manifest *Manifest) Id() string {
 
 func addDeploymentManifest(kch *HelmChart, unit *HelmExecUnit) error {
 	data := DeploymentManifestData{
+		Name:               sanitize.MetadataNameSanitizer.Apply(unit.Name),
 		ExecUnitName:       unit.Name,
 		Namespace:          unit.Namespace,
 		ServiceAccountName: unit.getServiceAccountName(),
@@ -74,11 +77,13 @@ func addDeploymentManifest(kch *HelmChart, unit *HelmExecUnit) error {
 }
 
 type HorizontalPodAutoscalerManifestData struct {
+	Name         string
 	ExecUnitName string
 }
 
 func addHorizontalPodAutoscalerManifest(kch *HelmChart, unit *HelmExecUnit) error {
 	data := HorizontalPodAutoscalerManifestData{
+		Name:         sanitize.MetadataNameSanitizer.Apply(unit.Name),
 		ExecUnitName: unit.Name,
 	}
 	buf := new(bytes.Buffer)
@@ -101,22 +106,23 @@ type ServiceAccountManifestData struct {
 	IRSA      bool
 }
 
-func GenerateServiceAccountManifest(name string, namespace string, irsa bool) ([]byte, error) {
+func GenerateServiceAccountManifest(name string, namespace string, irsa bool) (string, []byte, error) {
+	saName := sanitize.MetadataNameSanitizer.Apply(name)
 	data := ServiceAccountManifestData{
-		Name:      name,
+		Name:      saName,
 		Namespace: namespace,
 		IRSA:      irsa,
 	}
 	buf := new(bytes.Buffer)
 	err := serviceAccount.Execute(buf, data)
 	if err != nil {
-		return nil, core.WrapErrf(err, "error executing template %s", serviceAccount.Name())
+		return saName, nil, core.WrapErrf(err, "error executing template %s", serviceAccount.Name())
 	}
-	return buf.Bytes(), nil
+	return saName, buf.Bytes(), nil
 }
 
 func addServiceAccountManifest(kch *HelmChart, unit *HelmExecUnit) error {
-	buf, err := GenerateServiceAccountManifest(unit.Name, unit.Namespace, false)
+	_, buf, err := GenerateServiceAccountManifest(unit.Name, unit.Namespace, false)
 	if err != nil {
 		return err
 	}
@@ -130,12 +136,14 @@ func addServiceAccountManifest(kch *HelmChart, unit *HelmExecUnit) error {
 }
 
 type ServiceManifestData struct {
+	Name         string
 	ExecUnitName string
 	Namespace    string
 }
 
 func addServiceManifest(kch *HelmChart, unit *HelmExecUnit) error {
 	data := ServiceManifestData{
+		Name:         sanitize.MetadataNameSanitizer.Apply(unit.Name),
 		ExecUnitName: unit.Name,
 		Namespace:    unit.Namespace,
 	}

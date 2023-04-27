@@ -44,13 +44,13 @@ func Test_CreateEksCluster(t *testing.T) {
 					"aws:eks_addon:test-app-test-cluster-addon-vpc-cni",
 					"aws:eks_cluster:test-app-test-cluster",
 					"aws:eks_fargate_profile:test-app-test-cluster",
-					"aws:eks_node_group:private_g2",
-					"aws:eks_node_group:private_t3_medium",
+					"aws:eks_node_group:test-cluster_private_g2",
+					"aws:eks_node_group:test-cluster_private_t3_medium",
 					"aws:iam_oidc_provider:test-app-test-cluster",
 					"aws:iam_role:test-app-test-cluster-FargateExecutionRole",
 					"aws:iam_role:test-app-test-cluster-k8sAdmin",
-					"aws:iam_role:test-app-test-cluster.private_g2",
-					"aws:iam_role:test-app-test-cluster.private_t3_medium",
+					"aws:iam_role:test-app-test-cluster_private_g2",
+					"aws:iam_role:test-app-test-cluster_private_t3_medium",
 					"aws:region:region",
 					"aws:vpc:test_app",
 					"aws:vpc_subnet:test_app_test_subnet",
@@ -70,20 +70,20 @@ func Test_CreateEksCluster(t *testing.T) {
 					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: "aws:iam_role:test-app-test-cluster-FargateExecutionRole"},
 					{Source: "aws:eks_fargate_profile:test-app-test-cluster", Destination: "aws:vpc_subnet:test_app_test_subnet"},
-					{Source: "aws:eks_node_group:private_g2", Destination: "aws:eks_cluster:test-app-test-cluster"},
-					{Source: "aws:eks_node_group:private_g2", Destination: "aws:iam_role:test-app-test-cluster.private_g2"},
-					{Source: "aws:eks_node_group:private_g2", Destination: "aws:vpc_subnet:test_app_test_subnet"},
-					{Source: "aws:eks_node_group:private_t3_medium", Destination: "aws:eks_cluster:test-app-test-cluster"},
-					{Source: "aws:eks_node_group:private_t3_medium", Destination: "aws:iam_role:test-app-test-cluster.private_t3_medium"},
-					{Source: "aws:eks_node_group:private_t3_medium", Destination: "aws:vpc_subnet:test_app_test_subnet"},
+					{Source: "aws:eks_node_group:test-cluster_private_g2", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "aws:eks_node_group:test-cluster_private_g2", Destination: "aws:iam_role:test-app-test-cluster_private_g2"},
+					{Source: "aws:eks_node_group:test-cluster_private_g2", Destination: "aws:vpc_subnet:test_app_test_subnet"},
+					{Source: "aws:eks_node_group:test-cluster_private_t3_medium", Destination: "aws:eks_cluster:test-app-test-cluster"},
+					{Source: "aws:eks_node_group:test-cluster_private_t3_medium", Destination: "aws:iam_role:test-app-test-cluster_private_t3_medium"},
+					{Source: "aws:eks_node_group:test-cluster_private_t3_medium", Destination: "aws:vpc_subnet:test_app_test_subnet"},
 					{Source: "aws:iam_oidc_provider:test-app-test-cluster", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "aws:iam_oidc_provider:test-app-test-cluster", Destination: "aws:region:region"},
 					{Source: "aws:vpc:test_app", Destination: "aws:region:region"},
 					{Source: "aws:vpc_subnet:test_app_test_subnet", Destination: "aws:vpc:test_app"},
-					{Source: "kubernetes:helm_chart:test-app-test-cluster-cert-manager", Destination: "aws:eks_node_group:private_g2"},
-					{Source: "kubernetes:helm_chart:test-app-test-cluster-cert-manager", Destination: "aws:eks_node_group:private_t3_medium"},
-					{Source: "kubernetes:helm_chart:test-app-test-cluster-metrics-server", Destination: "aws:eks_node_group:private_g2"},
-					{Source: "kubernetes:helm_chart:test-app-test-cluster-metrics-server", Destination: "aws:eks_node_group:private_t3_medium"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-cert-manager", Destination: "aws:eks_node_group:test-cluster_private_g2"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-cert-manager", Destination: "aws:eks_node_group:test-cluster_private_t3_medium"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-metrics-server", Destination: "aws:eks_node_group:test-cluster_private_g2"},
+					{Source: "kubernetes:helm_chart:test-app-test-cluster-metrics-server", Destination: "aws:eks_node_group:test-cluster_private_t3_medium"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-aws-observability-config-map", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-aws-observability-config-map", Destination: "kubernetes:manifest:test-app-test-cluster-aws-observability-ns"},
@@ -94,8 +94,8 @@ func Test_CreateEksCluster(t *testing.T) {
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "aws:eks_cluster:test-app-test-cluster"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-fluent-bit-cluster-info-config-map", Destination: "kubernetes:manifest:test-app-test-cluster-awmazon-cloudwatch-ns"},
 					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_cluster:test-app-test-cluster"},
-					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_node_group:private_g2"},
-					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_node_group:private_t3_medium"},
+					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_node_group:test-cluster_private_g2"},
+					{Source: "kubernetes:manifest:test-app-test-cluster-nvidia-device-plugin", Destination: "aws:eks_node_group:test-cluster_private_t3_medium"},
 				},
 			},
 		},
@@ -233,38 +233,6 @@ func Test_createNodeRole(t *testing.T) {
 	})
 }
 
-func TestNodeGroupNameFromConfig(t *testing.T) {
-	tests := []struct {
-		name string
-		cfg  config.ExecutionUnit
-		want string
-	}{
-		{
-			name: "simple config",
-			cfg: config.ExecutionUnit{
-				NetworkPlacement: "public",
-				InfraParams:      config.InfraParams{"instance_type": "test"},
-			},
-			want: "public_test",
-		},
-		{
-			name: "translate config",
-			cfg: config.ExecutionUnit{
-				NetworkPlacement: "private",
-				InfraParams:      config.InfraParams{"instance_type": "t3.medium"},
-			},
-			want: "private_t3_medium",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			assert.Equal(tt.want, NodeGroupNameFromConfig(tt.cfg))
-		})
-	}
-}
-
 func Test_createNodeGroups(t *testing.T) {
 	cluster := &EksCluster{Name: "cluster"}
 	subnets := []*Subnet{
@@ -290,7 +258,7 @@ func Test_createNodeGroups(t *testing.T) {
 				"b": {},
 			},
 			want: []NodeGroupExpect{
-				{Name: "private_t3_medium", DiskSize: 20, AmiType: "AL2_x86_64"},
+				{Name: "cluster_private_t3_medium", DiskSize: 20, AmiType: "AL2_x86_64"},
 			},
 		},
 		{
@@ -300,8 +268,8 @@ func Test_createNodeGroups(t *testing.T) {
 				"b": {NetworkPlacement: "public"},
 			},
 			want: []NodeGroupExpect{
-				{Name: "private_t3_medium", DiskSize: 20, AmiType: "AL2_x86_64"},
-				{Name: "public_t3_medium", DiskSize: 20, AmiType: "AL2_x86_64"},
+				{Name: "cluster_private_t3_medium", DiskSize: 20, AmiType: "AL2_x86_64"},
+				{Name: "cluster_public_t3_medium", DiskSize: 20, AmiType: "AL2_x86_64"},
 			},
 		},
 		{
@@ -311,8 +279,8 @@ func Test_createNodeGroups(t *testing.T) {
 				"b": {InfraParams: config.InfraParams{"instance_type": "g2.medium"}},
 			},
 			want: []NodeGroupExpect{
-				{Name: "private_c1_medium", DiskSize: 20, AmiType: "AL2_x86_64"},
-				{Name: "private_g2_medium", DiskSize: 20, AmiType: "AL2_x86_64_GPU"},
+				{Name: "cluster_private_c1_medium", DiskSize: 20, AmiType: "AL2_x86_64"},
+				{Name: "cluster_private_g2_medium", DiskSize: 20, AmiType: "AL2_x86_64_GPU"},
 			},
 		},
 		{
@@ -322,8 +290,8 @@ func Test_createNodeGroups(t *testing.T) {
 				"b": {NetworkPlacement: "public", InfraParams: config.InfraParams{"disk_size_gib": 50}},
 			},
 			want: []NodeGroupExpect{
-				{Name: "private_t3_medium", DiskSize: 20, AmiType: "AL2_x86_64"},
-				{Name: "public_t3_medium", DiskSize: 50, AmiType: "AL2_x86_64"},
+				{Name: "cluster_private_t3_medium", DiskSize: 20, AmiType: "AL2_x86_64"},
+				{Name: "cluster_public_t3_medium", DiskSize: 50, AmiType: "AL2_x86_64"},
 			},
 		},
 	}

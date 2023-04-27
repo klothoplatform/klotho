@@ -125,9 +125,18 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 									Property: "eks.amazonaws.com/nodegroup",
 								}
 							case kubernetes.InstanceTypeValue:
-								khChart.Values[val.Key] = core.IaCValue{
-									Property: resources.NodeGroupNameFromConfig(cfg),
+								for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
+									for _, ref := range nodeGroup.ConstructsRef {
+										if ref.ToId() == unit.Id() {
+											dag.AddDependency(khChart, nodeGroup)
+											khChart.Values[val.Key] = core.IaCValue{
+												Resource: nodeGroup,
+												Property: resources.NODE_GROUP_NAME_IAC_VALUE,
+											}
+										}
+									}
 								}
+
 							case kubernetes.TargetGroupTransformation:
 								targetGroup := a.createEksLoadBalancer(result, dag, unit)
 								khChart.Values[val.Key] = core.IaCValue{
@@ -135,9 +144,7 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 									Property: resources.ARN_IAC_VALUE,
 								}
 								dag.AddDependency(khChart, targetGroup)
-								for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
-									dag.AddDependency(khChart, nodeGroup)
-								}
+
 							}
 						}
 					}

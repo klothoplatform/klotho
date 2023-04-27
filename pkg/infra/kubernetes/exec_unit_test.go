@@ -279,7 +279,7 @@ func Test_transformPod(t *testing.T) {
                         image: '{{ .Values.testUnitImage }}'
                         name: web
                         resources: {}
-                      serviceAccountName: testUnit
+                      serviceAccountName: testunit
                     status: {}`),
 			},
 		},
@@ -330,13 +330,13 @@ func Test_transformPod(t *testing.T) {
                         - name: testUnitImagehash
                           value: '{{ .Values.testUnitImagehash }}'
                         image: '{{ .Values.testUnitImage }}'
-                        name: testUnit
+                        name: testunit
                         resources:
                           limits:
                             cpu: "123"
                           requests:
                             cpu: "123"
-                      serviceAccountName: testUnit
+                      serviceAccountName: testunit
                     status: {}`),
 			},
 		},
@@ -462,7 +462,7 @@ func Test_transformDeployment(t *testing.T) {
                             image: '{{ .Values.testUnitImage }}'
                             name: nginx
                             resources: {}
-                          serviceAccountName: testUnit
+                          serviceAccountName: testunit
                     status: {}`),
 			},
 		},
@@ -537,9 +537,9 @@ func Test_transformDeployment(t *testing.T) {
                             - name: testUnitImagehash
                               value: '{{ .Values.testUnitImagehash }}'
                             image: '{{ .Values.testUnitImage }}'
-                            name: testUnit
+                            name: testunit
                             resources: {}
-                          serviceAccountName: testUnit
+                          serviceAccountName: testunit
                     status: {}`),
 			},
 		},
@@ -609,7 +609,7 @@ spec:
         image: '{{ .Values.testUnitImage }}'
         name: nginx
         resources: {}
-      serviceAccountName: testUnit
+      serviceAccountName: testunit
 status: {}
 `, // ?? Not sure why yaml marshalling adds the newline and indentation within the value of the instance type
 			},
@@ -696,7 +696,7 @@ spec:
         '{{ .Values.testUnitInstanceTypeKey }}': '{{ .Values.testUnitInstanceTypeValue
           }}'
         network_placement: private
-      serviceAccountName: testUnit
+      serviceAccountName: testunit
 status: {}
 `, // ?? Not sure why yaml marshalling adds the newline and indentation within the value of the instance type
 			},
@@ -1734,7 +1734,7 @@ metadata:
 		},
 		{
 			name: "no file",
-			want: "testUnit",
+			want: "testunit",
 		},
 	}
 	for _, tt := range tests {

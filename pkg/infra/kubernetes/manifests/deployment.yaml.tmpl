@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   labels:
     execUnit: {{ .ExecUnitName }}
-  name: {{ .ExecUnitName }}
+  name: {{ .Name }}
   namespace: {{ .Namespace }}
 spec:
   replicas: 2
@@ -22,6 +22,6 @@ spec:
     spec:
       containers:
       - image: REPLACE_ME
-        name: {{ .ExecUnitName }}
+        name: {{ .Name }}
       serviceAccount: {{ .ServiceAccountName }}
       serviceAccountName: {{ .ServiceAccountName }}
