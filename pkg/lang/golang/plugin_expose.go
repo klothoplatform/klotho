@@ -3,6 +3,7 @@ package golang
 import (
 	"fmt"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -341,7 +342,7 @@ func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, varName string,
 	for _, vfunc := range verbFuncs {
 		route := core.Route{
 			Verb:          core.Verb(vfunc.Verb),
-			Path:          path.Join(h.RootPath, prefix, vfunc.Path), //TODO: Handle Chi router path parameters conversion to express for pulumi logic
+			Path:          sanitizeChiPath(path.Join(h.RootPath, prefix, vfunc.Path)),
 			ExecUnitName:  h.Unit.ID,
 			HandledInFile: f.Path(),
 		}
@@ -521,7 +522,7 @@ func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *s
 	for _, vfunc := range routes {
 		route := core.Route{
 			Verb:          core.Verb(vfunc.Verb),
-			Path:          path.Join(h.RootPath, m.Path, vfunc.Path), //TODO: Handle Chi router path parameters conversion to express for pulumi logic
+			Path:          sanitizeChiPath(path.Join(h.RootPath, m.Path, vfunc.Path)),
 			ExecUnitName:  h.Unit.ID,
 			HandledInFile: f.Path(),
 		}
@@ -533,4 +534,15 @@ func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *s
 	}
 
 	return gatewayRoutes
+}
+
+var chiPathParamPattern = regexp.MustCompile(`{(\w+):?[^}]*}`)
+
+// sanitizeChiPath converts chi router path parameters to Express syntax,
+// but does not perform validation to ensure that the supplied string is a valid chi route.
+// As such, there's no expectation of correct output for invalid paths.
+//
+// Constraints containing a closing curly brace ("}") are not supported (a regex constraint is the most likely scenario).
+func sanitizeChiPath(path string) string {
+	return chiPathParamPattern.ReplaceAllString(path, ":$1")
 }
