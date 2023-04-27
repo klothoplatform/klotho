@@ -18,7 +18,9 @@ async def proxy_call(exec_group_name, module_name, function_to_call, params):
             'module_name': module_name,
             'params': params,
         })
-        return json.loads(res.content)
+        if res.content != "":
+            return json.loads(res.content)
+        return None
     except Exception as e:
         logging.error(e)
         raise e
