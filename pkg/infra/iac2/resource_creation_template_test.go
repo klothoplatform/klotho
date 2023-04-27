@@ -25,7 +25,7 @@ func TestParseTemplate(t *testing.T) {
 			},
 			parsed.InputTypes)
 		assert.Equal("aws.lambda.Function", parsed.OutputType)
-		assert.Equal("new Function({{parseTS .blah}})", parsed.ExpressionTemplate)
+		assert.Equal("new Function({{parseTS .blah}}, \"{{ `{{` }} .SomeLiteralValue }}\")", parsed.ExpressionTemplate)
 		assert.Equal(
 			map[string]struct{}{
 				`import * as aws from '@pulumi/aws'`:   {},
@@ -120,7 +120,17 @@ func Test_appliedOutputsToString(t *testing.T) {
 		input []AppliedOutput
 	}{
 		{
-			name: "simple test",
+			name: "single applied outputs uses output.apply()",
+			input: []AppliedOutput{
+				{
+					appliedName: fmt.Sprintf("%s.arn", "awsEksClusterTestAppCluster1"),
+					varName:     "cluster_arn",
+				},
+			},
+			want: "awsEksClusterTestAppCluster1.arn.apply(cluster_arn => { return ",
+		},
+		{
+			name: "multiple applied outputs uses pulumi.all().apply()",
 			input: []AppliedOutput{
 				{
 					appliedName: fmt.Sprintf("%s.openIdConnectIssuerUrl", "awsEksClusterTestAppCluster1"),
@@ -215,7 +225,7 @@ interface Args {
 }
 
 function create(args: Args): aws.lambda.Function {
-	return new Function(args.blah);
+	return new Function(args.blah, "~~{{ .SomeLiteralValue }}");
 }
 `
 
