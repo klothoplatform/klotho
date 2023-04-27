@@ -11,18 +11,21 @@ var MetadataNameSanitizer = sanitization.NewSanitizer(
 	[]sanitization.Rule{
 		// strip any leading non alpha characters
 		{
-			Pattern:     regexp.MustCompile(`^[^a-z]+`),
+			Pattern:     regexp.MustCompile(`^[^a-zA-Z]+`),
 			Replacement: "",
+			Lowercase:   true,
 		},
 		// strip any ending non alpha characters
 		{
-			Pattern:     regexp.MustCompile(`[^a-z]$`),
+			Pattern:     regexp.MustCompile(`[^a-zA-Z]$`),
 			Replacement: "",
+			Lowercase:   true,
 		},
 		// strip any other invalid characters
 		{
-			Pattern:     regexp.MustCompile(`[^a-z0-9-.]+`),
+			Pattern:     regexp.MustCompile(`[^a-zA-Z0-9-.]+`),
 			Replacement: "",
+			Lowercase:   true,
 		},
 	}, 253)
 
