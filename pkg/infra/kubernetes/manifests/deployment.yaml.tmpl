@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   labels:
     execUnit: {{ .ExecUnitName }}
-  name: {{ .ExecUnitName }}
+  name: {{ .Name }}
   namespace: {{ .Namespace }}
 spec:
   replicas: 2

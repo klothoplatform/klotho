@@ -819,6 +819,8 @@ func Test_addHorizontalPodAutoscaler(t *testing.T) {
                     kind: HorizontalPodAutoscaler
                     metadata:
                       creationTimestamp: null
+                      labels:
+                        execUnit: unit
                       name: unit
                     spec:
                       maxReplicas: 4
