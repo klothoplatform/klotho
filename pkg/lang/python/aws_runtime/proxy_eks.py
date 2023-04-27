@@ -27,7 +27,7 @@ async def proxy_call(exec_group_name, module_name, function_to_call, params):
 def get_exec_fargate_instance(logical_name):
     response = sd_client.discover_instances(
         NamespaceName='default',  # ECS uses an app-specific name, but for EKS it's just "default"
-        ServiceName=logical_name,
+        ServiceName=logical_name.lower(),
     )
     ips = [ip["Attributes"]["AWS_INSTANCE_IPV4"] for ip in response['Instances']]
     if len(ips) == 0:

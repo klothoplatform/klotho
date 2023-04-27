@@ -31,7 +31,7 @@ async function getEksServiceIp(logicalName) {
         const client = new client_servicediscovery_1.ServiceDiscoveryClient({});
         const command = new client_servicediscovery_1.DiscoverInstancesCommand({
             NamespaceName: `default`,
-            ServiceName: logicalName,
+            ServiceName: logicalName.toLowerCase(),
         });
         const response = await client.send(command);
         const ips = response.Instances?.reduce((ips, instance) => {
