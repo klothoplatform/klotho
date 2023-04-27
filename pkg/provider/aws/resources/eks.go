@@ -33,6 +33,7 @@ const (
 	NAME_IAC_VALUE                                = "name"
 	ID_IAC_VALUE                                  = "id"
 	AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE = "aws_observ_cm_region"
+	NODE_GROUP_NAME_IAC_VALUE                     = "node_group_name"
 
 	AWS_OBSERVABILITY_NS_PATH         = "aws_observability_namespace.yaml"
 	AWS_OBSERVABILITY_CONFIG_MAP_PATH = "aws_observability_configmap.yaml"
@@ -284,7 +285,7 @@ func createNodeGroups(cfg *config.Application, dag *core.ResourceGraph, units []
 			continue
 		}
 		nodeGroup := &EksNodeGroup{
-			Name:          NodeGroupName(groupKey.NetworkType, groupKey.InstanceType),
+			Name:          NodeGroupName(clusterName, groupKey.NetworkType, groupKey.InstanceType),
 			ConstructsRef: spec.refs,
 			Cluster:       cluster,
 			DiskSize:      spec.DiskSizeGiB,
@@ -299,7 +300,7 @@ func createNodeGroups(cfg *config.Application, dag *core.ResourceGraph, units []
 			MinSize:        1,
 			MaxUnavailable: 1,
 		}
-		nodeGroup.NodeRole = createNodeRole(cfg.AppName, fmt.Sprintf("%s.%s", clusterName, nodeGroup.Name), spec.refs)
+		nodeGroup.NodeRole = createNodeRole(cfg.AppName, nodeGroup.Name, spec.refs)
 		dag.AddDependenciesReflect(nodeGroup.NodeRole)
 
 		for _, sn := range subnets {
@@ -316,13 +317,8 @@ func createNodeGroups(cfg *config.Application, dag *core.ResourceGraph, units []
 	return groups
 }
 
-func NodeGroupNameFromConfig(cfg config.ExecutionUnit) string {
-	params := cfg.GetExecutionUnitParamsAsKubernetes()
-	return NodeGroupName(cfg.NetworkPlacement, params.InstanceType)
-}
-
-func NodeGroupName(networkPlacement string, instanceType string) string {
-	return nodeGroupSanitizer.Apply(fmt.Sprintf("%s_%s", networkPlacement, instanceType))
+func NodeGroupName(clusterName string, networkPlacement string, instanceType string) string {
+	return nodeGroupSanitizer.Apply(fmt.Sprintf("%s_%s_%s", clusterName, networkPlacement, instanceType))
 }
 
 func createAddOns(cluster *EksCluster, provenance []core.AnnotationKey) []*kubernetes.HelmChart {
@@ -535,8 +531,11 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 	serviceAccountName := "aws-load-balancer-controller"
 	saPath := "aws-load-balancer-controller-service-account.yaml"
 	outputPath := path.Join(MANIFEST_PATH_PREFIX, saPath)
-
-	assumeRolePolicyDoc, err := cluster.GetServiceAccountAssumeRolePolicy(serviceAccountName, dag)
+	saName, serviceAccount, err := kubernetes.GenerateServiceAccountManifest(serviceAccountName, "default", true)
+	if err != nil {
+		return nil, err
+	}
+	assumeRolePolicyDoc, err := cluster.GetServiceAccountAssumeRolePolicy(saName, dag)
 	if err != nil {
 		return nil, err
 	}
@@ -544,7 +543,6 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 	policy := createAlbControllerPolicy(cluster.Name, references[0])
 	role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{Resource: policy, Property: ARN_IAC_VALUE})
 
-	serviceAccount, err := kubernetes.GenerateServiceAccountManifest(serviceAccountName, "default", true)
 	if err != nil {
 		return nil, err
 	}
@@ -578,7 +576,7 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 			"clusterName": core.IaCValue{Resource: cluster, Property: NAME_IAC_VALUE},
 			"serviceAccount": map[string]any{
 				"create": false,
-				"name":   serviceAccountName,
+				"name":   saName,
 			},
 			"region": core.IaCValue{Resource: NewRegion(), Property: NAME_IAC_VALUE},
 			"vpcId":  core.IaCValue{Resource: cluster.Subnets[0].Vpc, Property: ID_IAC_VALUE},
