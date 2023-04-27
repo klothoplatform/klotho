@@ -21,7 +21,6 @@ function create(args: Args): aws.lambda.Function {
         {
             packageType: 'Image',
             imageUri: args.Image.imageName,
-            sourceCodeHash: args.Image.repoDigest,
             //TMPL {{- if .MemorySize.Raw }}
             memorySize: args.MemorySize,
             //TMPL {{- end }}
