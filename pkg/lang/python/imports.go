@@ -214,6 +214,7 @@ func ResolveFileDependencies(files map[string]core.File) (core.FileDependencies,
 	return fileDeps, nil
 }
 
+// dependenciesForImport returns all imports specified by spec
 func dependenciesForImport(relativeToPath string, spec Import, files map[string]core.File) (core.Imported, error) {
 	deps := make(core.Imported)
 
@@ -275,6 +276,8 @@ func dependenciesForImport(relativeToPath string, spec Import, files map[string]
 	return deps, nil
 }
 
+// referencesForImport returns all references of importModule within the program. If the import is aliased, importModule should be the alias
+// and not the real module name.
 func referencesForImport(program *sitter.Node, importModule string) core.References {
 	refs := make(core.References)
 	nextAttrUsage := DoQuery(program, FindQualifiedAttrUsage)
@@ -315,6 +318,7 @@ func findImportedFile[V any](moduleName string, relativeToFilePath string, fileS
 	return "", nil
 }
 
+// pythonModuleToPath converts a python module name to a file path, using relativeToFilePath as the base path for relative modules.
 func pythonModuleToPath(module string, relativeToFilePath string) (string, error) {
 	if !strings.HasPrefix(module, ".") {
 		return strings.ReplaceAll(module, ".", "/") + ".py", nil
