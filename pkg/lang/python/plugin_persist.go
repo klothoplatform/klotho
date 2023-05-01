@@ -434,7 +434,7 @@ func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, 
 	if !ok {
 		return nil
 	}
-	aiocacheImported := aiocacheImport.ImportedSelf
+	aiocacheImported := len(aiocacheImport.ImportedAttributes) == 0
 	cacheImport, cacheImported := aiocacheImport.ImportedAttributes["Cache"]
 	functionHostName := aiocacheImport.Name
 	cacheFunction := cacheImport.Name
@@ -499,7 +499,7 @@ func (p *persister) queryFS(file *core.SourceFile, annotation *core.Annotation, 
 	varName := ""
 	if fsSpecImport.Alias != "" {
 		varName = fsSpecImport.Alias
-	} else if fsSpecImport.ImportedSelf {
+	} else if len(fsSpecImport.ImportedAttributes) == 0 {
 		varName = fsSpecImport.Name
 	} else {
 		return nil
@@ -545,7 +545,7 @@ func (p *persister) queryORM(file *core.SourceFile, annotation *core.Annotation,
 	if !ok {
 		return nil
 	}
-	sqlalchemyImported := sqlalchemyImport.ImportedSelf
+	sqlalchemyImported := len(sqlalchemyImport.ImportedAttributes) == 0
 	sqlalchemyImportName := sqlalchemyImport.Name
 	engineImport, engineImported := sqlalchemyImport.ImportedAttributes["create_engine"]
 	engineFunction := engineImport.Name
@@ -647,7 +647,7 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 	if !ok && !cok {
 		return nil
 	}
-	redisImported := redisImport.ImportedSelf
+	redisImported := len(redisClusterImport.ImportedAttributes) == 0
 	redisImportName := redisImport.Name
 	constructorImport, constructorImported := redisImport.ImportedAttributes["Redis"]
 	clusterConstructorImport, clusterConstructorImported := redisClusterImport.ImportedAttributes["RedisCluster"]

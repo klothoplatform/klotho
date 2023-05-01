@@ -179,11 +179,11 @@ func TestPythonExecutable_Transform(t *testing.T) {
 			for _, unit := range tt.units {
 				eu := tt.expectedUnits[unit.ID]
 				assert.Equal(eu.executableType, unit.Executable.Type)
-				assert.ElementsMatch(eu.expectedFiles["allFiles"], keys(unit.Files()))
-				assert.ElementsMatch(eu.expectedFiles["entrypoints"], keys(unit.Executable.Entrypoints))
-				assert.ElementsMatch(eu.expectedFiles["sourceFiles"], keys(unit.Executable.SourceFiles))
-				assert.ElementsMatch(eu.expectedFiles["resources"], keys(unit.Executable.Resources))
-				assert.ElementsMatch(eu.expectedFiles["staticAssets"], keys(unit.Executable.StaticAssets))
+				assert.ElementsMatch(eu.expectedFiles["allFiles"], keys(unit.Files()), "allFiles")
+				assert.ElementsMatch(eu.expectedFiles["entrypoints"], keys(unit.Executable.Entrypoints), "entrypoints")
+				assert.ElementsMatch(eu.expectedFiles["sourceFiles"], keys(unit.Executable.SourceFiles), "sourceFiles")
+				assert.ElementsMatch(eu.expectedFiles["resources"], keys(unit.Executable.Resources), "resources")
+				assert.ElementsMatch(eu.expectedFiles["staticAssets"], keys(unit.Executable.StaticAssets), "staticAssets")
 			}
 		})
 	}

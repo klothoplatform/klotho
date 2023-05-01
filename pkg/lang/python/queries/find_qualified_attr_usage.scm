@@ -7,4 +7,4 @@
 (attribute
   object: (identifier) @obj_name
   attribute: (identifier) @attr_name
-  )
+)

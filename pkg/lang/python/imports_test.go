@@ -19,44 +19,44 @@ func TestFindImports(t *testing.T) {
 			name:   "import module",
 			source: "import mymodule",
 			want: map[string]Import{
-				"mymodule": {Name: "mymodule", ImportedSelf: true},
+				"mymodule": {Name: "mymodule"},
 			},
 		},
 		{
 			name:   "import module aliased",
 			source: "import mymodule as m",
 			want: map[string]Import{
-				"mymodule": {Name: "mymodule", ImportedSelf: true, Alias: "m"},
+				"mymodule": {Name: "mymodule", Alias: "m"},
 			},
 		},
 		{
 			name:   "import modules",
 			source: "import mymodule1, mymodule2",
 			want: map[string]Import{
-				"mymodule1": {Name: "mymodule1", ImportedSelf: true},
-				"mymodule2": {Name: "mymodule2", ImportedSelf: true},
+				"mymodule1": {Name: "mymodule1"},
+				"mymodule2": {Name: "mymodule2"},
 			},
 		},
 		{
 			name:   "import modules aliased",
 			source: "import mymodule1 as m1, mymodule2 as m2",
 			want: map[string]Import{
-				"mymodule1": {Name: "mymodule1", ImportedSelf: true, Alias: "m1"},
-				"mymodule2": {Name: "mymodule2", ImportedSelf: true, Alias: "m2"},
+				"mymodule1": {Name: "mymodule1", Alias: "m1"},
+				"mymodule2": {Name: "mymodule2", Alias: "m2"},
 			},
 		},
 		{
 			name:   "import submodule",
 			source: "import mymodule.submodule",
 			want: map[string]Import{
-				"mymodule.submodule": {ParentModule: "mymodule", Name: "submodule", ImportedSelf: true},
+				"mymodule.submodule": {ParentModule: "mymodule", Name: "submodule"},
 			},
 		},
 		{
 			name:   "import submodule aliased",
 			source: "import mymodule.submodule as w",
 			want: map[string]Import{
-				"mymodule.submodule": {ParentModule: "mymodule", Name: "submodule", ImportedSelf: true, Alias: "w"},
+				"mymodule.submodule": {ParentModule: "mymodule", Name: "submodule", Alias: "w"},
 			},
 		},
 		{
@@ -66,7 +66,6 @@ func TestFindImports(t *testing.T) {
 				"mymodule.submodule1.submodule2": {
 					ParentModule: "mymodule.submodule1",
 					Name:         "submodule2",
-					ImportedSelf: true,
 					Alias:        "w",
 				},
 			},
@@ -78,14 +77,12 @@ func TestFindImports(t *testing.T) {
 				"..": {
 					ParentModule: "..",
 					Name:         "",
-					ImportedSelf: false,
 					ImportedAttributes: map[string]Attribute{
 						"mymodule": {Name: "mymodule"},
 					}},
 				"..parent": {
 					ParentModule:       "..",
 					Name:               "parent",
-					ImportedSelf:       false,
 					ImportedAttributes: map[string]Attribute{"child.attribute": {Name: "child.attribute"}},
 				},
 			},
@@ -95,8 +92,7 @@ func TestFindImports(t *testing.T) {
 			source: "from mymodule import attribute",
 			want: map[string]Import{
 				"mymodule": {
-					Name:         "mymodule",
-					ImportedSelf: false,
+					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
 						"attribute": {Name: "attribute"},
 					}},
@@ -108,8 +104,7 @@ func TestFindImports(t *testing.T) {
 			         from mymodule import attribute2`,
 			want: map[string]Import{
 				"mymodule": {
-					Name:         "mymodule",
-					ImportedSelf: false,
+					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
 						"attribute1": {Name: "attribute1"},
 						"attribute2": {Name: "attribute2"},
@@ -121,8 +116,7 @@ func TestFindImports(t *testing.T) {
 			source: "from mymodule import attribute1, attribute2",
 			want: map[string]Import{
 				"mymodule": {
-					Name:         "mymodule",
-					ImportedSelf: false,
+					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
 						"attribute1": {Name: "attribute1"},
 						"attribute2": {Name: "attribute2"},
@@ -134,12 +128,18 @@ func TestFindImports(t *testing.T) {
 			source: "from mymodule import attribute1 as a1, attribute2 as a2",
 			want: map[string]Import{
 				"mymodule": {
-					Name:         "mymodule",
-					ImportedSelf: false,
+					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
 						"attribute1": {Name: "attribute1", Alias: "a1"},
 						"attribute2": {Name: "attribute2", Alias: "a2"},
 					}},
+			},
+		},
+		{
+			name:   "import sibling",
+			source: "from . import mymodule",
+			want: map[string]Import{
+				".": {ParentModule: ".", ImportedAttributes: map[string]Attribute{"mymodule": {Name: "mymodule"}}},
 			},
 		},
 		{
@@ -152,17 +152,14 @@ func TestFindImports(t *testing.T) {
 			`,
 			want: map[string]Import{
 				"module1": {
-					Name:         "module1",
-					ImportedSelf: true,
+					Name: "module1",
 				},
 				"module2.submodule1": {
 					ParentModule: "module2",
 					Name:         "submodule1",
-					ImportedSelf: true,
 				},
 				"module3": {
-					Name:         "module3",
-					ImportedSelf: false,
+					Name: "module3",
 					ImportedAttributes: map[string]Attribute{
 						"attribute1": {Name: "attribute1"},
 						"attribute2": {Name: "attribute2"},
@@ -171,7 +168,6 @@ func TestFindImports(t *testing.T) {
 				"..": {
 					ParentModule: "..",
 					Name:         "",
-					ImportedSelf: false,
 					ImportedAttributes: map[string]Attribute{
 						"attribute1": {Name: "attribute1"},
 					},
@@ -224,6 +220,19 @@ func TestResolveFileDependencies(t *testing.T) {
 			},
 		},
 		{
+			name: "import module attribute",
+			input: map[string]string{
+				"main.py":         `from shared import other`,
+				"shared/other.py": `pass`,
+			},
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
+					"shared/other.py": NewSet[string](),
+				},
+				"shared/other.py": map[string]core.References{},
+			},
+		},
+		{
 			name: "import two attributes",
 			input: map[string]string{
 				"main.py":  `from other import method_a, method_2`,
@@ -244,7 +253,7 @@ func TestResolveFileDependencies(t *testing.T) {
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other.py": NewSet("aaa"),
+					"other.py": NewSet("method_a"),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -253,14 +262,14 @@ func TestResolveFileDependencies(t *testing.T) {
 			name: "import full module and use method",
 			input: map[string]string{
 				"main.py": `
-import other
-other.hello_world()
-`,
+		import other
+		other.hello_world()
+		`,
 				"other.py": `pass`,
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other.py": NewSet[string]("hello_world"),
+					"other.py": NewSet("hello_world"),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -269,14 +278,14 @@ other.hello_world()
 			name: "import full module and use var",
 			input: map[string]string{
 				"main.py": `
-import other
-print(other.hello_world)
-`,
+		import other
+		print(other.hello_world)
+		`,
 				"other.py": `pass`,
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other.py": NewSet[string]("hello_world"),
+					"other.py": NewSet("hello_world"),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -298,48 +307,74 @@ print(other.hello_world)
 			name: "import full module with alias",
 			input: map[string]string{
 				"main.py": `
-import other as some_other
-some_other.hello_world()
-`,
+		import other as some_other
+		some_other.hello_world()
+		`,
 				"other.py": `pass`,
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other.py": NewSet[string]("hello_world"),
+					"other.py": NewSet("hello_world"),
 				},
 				"other.py": map[string]core.References{},
 			},
 		},
 		{
-			expectFailureDueTo: "#492",
-			name:               "import qualified module and use method",
+			name: "import qualified module",
 			input: map[string]string{
-				"main.py": `
-import other.hello
-other.hello.say_hi()
-`,
+				"main.py":        `import other.hello`,
 				"other/hello.py": `pass`,
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other/hello.py": NewSet[string]("say_hi"),
+					"other/hello.py": NewSet[string](),
+				},
+				"other/hello.py": map[string]core.References{},
+			},
+		},
+		{
+			name: "import qualified module with attribute",
+			input: map[string]string{
+				"main.py":        `from other.hello import a`,
+				"other/hello.py": `pass`,
+			},
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
+					"other/hello.py": NewSet("a"),
+				},
+				"other/hello.py": map[string]core.References{},
+			},
+		},
+		{
+			expectFailureDueTo: "#492", // TODO https://github.com/klothoplatform/klotho-history/issues/492
+			name:               "import qualified module and use method",
+			input: map[string]string{
+				"main.py": `
+		import other.hello
+		other.hello.say_hi()
+		`,
+				"other/hello.py": `pass`,
+			},
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
+					"other/hello.py": NewSet("say_hi"),
 				},
 				"other.py": map[string]core.References{},
 			},
 		},
 		{
-			expectFailureDueTo: "#492",
+			expectFailureDueTo: "#492",                                        // TODO https://github.com/klothoplatform/klotho-history/issues/492
 			name:               "import deep qualified module and use method", // like above, but "import a.b.c" instead of "… a.b"
 			input: map[string]string{
 				"main.py": `
-import other.hello.world
-other.hello.world.say_hi()
-`,
+		import other.hello.world
+		other.hello.world.say_hi()
+		`,
 				"other/hello/world.py": `pass`,
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other/hello/world.py": NewSet[string]("say_hi"),
+					"other/hello/world.py": NewSet("say_hi"),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -368,6 +403,58 @@ other.hello.world.say_hi()
 			},
 			expect: map[string]core.Imported{
 				"main.py":  map[string]core.References{},
+				"other.py": map[string]core.References{},
+			},
+		},
+		{
+			name: "import sibling module",
+			input: map[string]string{
+				"main.py":  `from . import other`,
+				"other.py": `pass`,
+			},
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
+					"other.py": NewSet[string](),
+				},
+				"other.py": map[string]core.References{},
+			},
+		},
+		{
+			name: "import uncle module",
+			input: map[string]string{
+				"mod/main.py": `from .. import other`,
+				"other.py":    `pass`,
+			},
+			expect: map[string]core.Imported{
+				"mod/main.py": map[string]core.References{
+					"other.py": NewSet[string](),
+				},
+				"other.py": map[string]core.References{},
+			},
+		},
+		{
+			name: "import sibling module short",
+			input: map[string]string{
+				"main.py":  `import .other`,
+				"other.py": `pass`,
+			},
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
+					"other.py": NewSet[string](),
+				},
+				"other.py": map[string]core.References{},
+			},
+		},
+		{
+			name: "import uncle module short",
+			input: map[string]string{
+				"mod/main.py": `import ..other`,
+				"other.py":    `pass`,
+			},
+			expect: map[string]core.Imported{
+				"mod/main.py": map[string]core.References{
+					"other.py": NewSet[string](),
+				},
 				"other.py": map[string]core.References{},
 			},
 		},
@@ -407,6 +494,7 @@ func TestFindImportedFile(t *testing.T) {
 		relativeToFilePath string
 		files              []string
 		expect             string
+		expectErr          bool
 	}{
 		{
 			name:               "absolute import exists",
@@ -469,7 +557,7 @@ func TestFindImportedFile(t *testing.T) {
 			moduleName:         "....foo",
 			relativeToFilePath: "path/to/some_file.py",
 			files:              []string{"foo.py"},
-			expect:             "",
+			expectErr:          true,
 		},
 		{
 			name:               "parent module",
@@ -493,100 +581,21 @@ func TestFindImportedFile(t *testing.T) {
 			for _, f := range tt.files {
 				fileSet[f] = struct{}{}
 			}
-			actual := findImportedFile(tt.moduleName, tt.relativeToFilePath, ".", fileSet)
-			assert.Equal(tt.expect, actual)
-		})
-	}
-}
-
-func TestFindPyRoot(t *testing.T) {
-	cases := []struct {
-		name       string
-		relativeTo string
-		files      []string
-		expect     string
-	}{
-		{
-			name:       "all at root",
-			relativeTo: "main.py",
-			files: []string{
-				"hello.py",
-				"world.py",
-			},
-			expect: ".",
-		},
-		{
-			name:       "all are two down",
-			relativeTo: "a/b/main.py",
-			files: []string{
-				"a/b/hello.py",
-				"a/b/world.py",
-			},
-			expect: "a/b",
-		},
-		{
-			name:       "other files are lower down",
-			relativeTo: "a/main.py",
-			files: []string{
-				"a/b/hello.py",
-				"a/b/c/world.py",
-			},
-			expect: "a",
-		},
-		{
-			name:       "other files are higher up",
-			relativeTo: "a/b/c/d/main.py",
-			files: []string{
-				"a/hello.py",
-				"a/world.py",
-			},
-			expect: "a",
-		},
-		{
-			name:       "other files are in different sub-dirs",
-			relativeTo: "a/b/c/d/main.py",
-			files: []string{
-				"a/e/hello.py",
-				"a/f/world.py",
-			},
-			expect: "a",
-		},
-		{
-			name:       "different top-level dirs",
-			relativeTo: "src/main.py",
-			files: []string{
-				"test/hello.py",
-			},
-			expect: "src",
-		},
-		{
-			name:       "no files",
-			relativeTo: "a/b/main.py",
-			files:      []string{},
-			expect:     "a/b",
-		},
-	}
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-			filesMap := make(map[string]core.File)
-			for _, path := range tt.files {
-				pyFile, err := NewFile(path, strings.NewReader(""))
-				if assert.NoError(err) {
-					filesMap[path] = pyFile
-				}
+			actual, err := findImportedFile(tt.moduleName, tt.relativeToFilePath, fileSet)
+			if tt.expectErr {
+				assert.Error(err)
+				return
+			} else if !assert.NoError(err) {
+				return
 			}
-			actual := findPyRoot(tt.relativeTo, filesMap)
 			assert.Equal(tt.expect, actual)
 		})
 	}
-
 }
 
 func validateImport(assert *assert.Assertions, content []byte, expected Import, actual Import) {
 	assert.Equal(expected.ParentModule, actual.ParentModule)
 	assert.Equal(expected.Name, actual.Name)
-	assert.Equal(expected.ImportedSelf, actual.ImportedSelf)
 
 	assert.Equal(len(expected.ImportedAttributes), len(actual.ImportedAttributes))
 	for i := range expected.ImportedAttributes {
@@ -605,4 +614,144 @@ func NewSet[K comparable](elements ...K) map[K]struct{} {
 		result[elem] = struct{}{}
 	}
 	return result
+}
+
+func Test_referencesForImport(t *testing.T) {
+	tests := []struct {
+		name         string
+		program      string
+		importModule string
+		want         core.References
+	}{
+		{
+			name: "imported function call",
+			program: `import blah
+blah.foo()`,
+			importModule: "blah",
+			want:         core.References{"foo": {}},
+		},
+		{
+			name: "imported constant",
+			program: `import blah
+b = blah.a + 1`,
+			importModule: "blah",
+			want:         core.References{"a": {}},
+		},
+		{
+			name: "imported subproperty",
+			program: `import blah
+blah.a.b()`,
+			importModule: "blah",
+			want:         core.References{"a": {}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			parsed, err := NewFile("main.py", strings.NewReader(tt.program))
+			if !assert.NoError(err) {
+				return
+			}
+
+			got := referencesForImport(parsed.Tree().RootNode(), tt.importModule)
+			assert.Equal(tt.want, got)
+		})
+	}
+}
+
+func Test_pythonModuleToPath(t *testing.T) {
+	// For ease of understanding, all test cases operate in the following directory structure:
+	// .
+	// ├─ app/
+	// │  ├─ models/
+	// │  │  └─ data.py
+	// │  └─ main.py
+	// ├─ shared/
+	// │  ├─ util.py
+	// │  └─ blah.py
+	// ├─ foo.py
+	// └─ bar.py
+	tests := []struct {
+		name               string
+		module             string
+		relativeToFilePath string
+		want               string
+		wantErr            bool
+	}{
+		{
+			name:               "absolute",
+			module:             "foo",
+			relativeToFilePath: "bar.py",
+			want:               "foo.py",
+		},
+		{
+			name:               "absolute in folder",
+			module:             "foo",
+			relativeToFilePath: "app/main.py",
+			want:               "foo.py",
+		},
+		{
+			name:               "absolute submodule",
+			module:             "shared.util",
+			relativeToFilePath: "bar.py",
+			want:               "shared/util.py",
+		},
+		{
+			name:               "relative",
+			module:             ".foo",
+			relativeToFilePath: "bar.py",
+			want:               "foo.py",
+		},
+		{
+			name:               "relative submodule",
+			module:             ".shared.util",
+			relativeToFilePath: "bar.py",
+			want:               "shared/util.py",
+		},
+		{
+			name:               "relative inside submodule",
+			module:             ".blah",
+			relativeToFilePath: "shared/util.py",
+			want:               "shared/blah.py",
+		},
+		{
+			name:               "relative parent",
+			module:             "..foo",
+			relativeToFilePath: "app/main.py",
+			want:               "foo.py",
+		},
+		{
+			name:               "relative parent submodule",
+			module:             "..shared.util",
+			relativeToFilePath: "app/main.py",
+			want:               "shared/util.py",
+		},
+		{
+			name:               "relative multi ancestor",
+			module:             "...foo",
+			relativeToFilePath: "app/models/data.py",
+			want:               "foo.py",
+		},
+		{
+			name:               "out of bounds error",
+			module:             "...foo",
+			relativeToFilePath: "foo.py",
+			wantErr:            true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			got, err := pythonModuleToPath(tt.module, tt.relativeToFilePath)
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			} else if !assert.NoError(err) {
+				return
+			}
+			assert.Equal(tt.want, got)
+		})
+	}
 }
