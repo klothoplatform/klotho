@@ -68,13 +68,16 @@ export class ApiGateway {
         }`
         const lambda = this.lib.execUnitToFunctions.get(r.execUnitName)!
         return new aws.lambda.Permission(
-            `${gwName}-${verb}-${path}`,
+            `${gwName}-http-${r.execUnitName}-invoke-permission`,
             {
-                statementId: `${gwName}-http-${verb}-${r.path.replace(/[^a-zA-Z0-9]+/g, '-')}`,
+                statementId: `${gwName}-httpapi-${r.execUnitName}-invoke`.replace(
+                    /[^a-zA-Z0-9]+/g,
+                    '-'
+                ),
                 action: 'lambda:InvokeFunction',
                 function: lambda,
                 principal: 'apigateway.amazonaws.com',
-                sourceArn: pulumi.interpolate`arn:aws:execute-api:${this.lib.region}:${this.accountId}:${resourceId}`,
+                sourceArn: pulumi.interpolate`${api.executionArn}/*`,
             },
             {
                 dependsOn: [api],
@@ -275,6 +278,7 @@ export class ApiGateway {
         })
 
         const apiRoutes: aws.apigatewayv2.Route[] = []
+        const permissionedExecUnits: Set<string> = new Set()
         const lambdaPermissions: aws.lambda.Permission[] = []
         const integrationNames: string[] = []
 
@@ -291,8 +295,9 @@ export class ApiGateway {
             apiRoutes.push(route)
 
             const execUnit = this.lib.resourceIdToResource.get(`${r.execUnitName}_exec_unit`)
-            if (execUnit.type == 'lambda') {
+            if (execUnit.type == 'lambda' && !permissionedExecUnits.has(r.execUnitName)) {
                 lambdaPermissions.push(this.createLambdaPermission(gwName, api, r))
+                permissionedExecUnits.add(r.execUnitName)
             }
 
             const integrationName = this.integrationName(r)
@@ -333,6 +338,7 @@ export class ApiGateway {
         const integrations: aws.apigateway.Integration[] = []
         const integrationNames: string[] = []
         const permissions: aws.lambda.Permission[] = []
+        const permissionedExecUnits: Set<string> = new Set()
         // create the resources and methods needed for the provided routes
         for (const r of gateway.Routes) {
             const execUnit = this.lib.resourceIdToResource.get(`${r.execUnitName}_exec_unit`)
@@ -474,29 +480,28 @@ export class ApiGateway {
                 )
                 integrations.push(integration)
 
-                permissions.push(
-                    new aws.lambda.Permission(
-                        `${r.execUnitName}-${r.verb}-${r.path}-permission`,
-                        {
-                            statementId: `${gwName}-rest-${r.verb}-${r.path.replace(
-                                /[^a-zA-Z0-9]/g,
-                                '-'
-                            )}`,
-                            action: 'lambda:InvokeFunction',
-                            function: lambda.name,
-                            principal: 'apigateway.amazonaws.com',
-                            sourceArn: pulumi.interpolate`arn:aws:execute-api:${this.lib.region}:${
-                                this.accountId
-                            }:${restAPI.id}/*/${
-                                r.verb.toUpperCase() === 'ANY' ? '*' : r.verb.toUpperCase()
-                            }${parentResource == null ? '/' : parentResource.path}`,
-                        },
-                        {
-                            dependsOn: [restAPI],
-                            parent: lambda,
-                        }
+                if (!permissionedExecUnits.has(r.execUnitName)) {
+                    permissions.push(
+                        new aws.lambda.Permission(
+                            `${gwName}-rest-${r.execUnitName}-invoke-permission`,
+                            {
+                                statementId: `${gwName}-rest-${r.execUnitName}-invoke`.replace(
+                                    /[^a-zA-Z0-9]/g,
+                                    '-'
+                                ),
+                                action: 'lambda:InvokeFunction',
+                                function: lambda.name,
+                                principal: 'apigateway.amazonaws.com',
+                                sourceArn: pulumi.interpolate`${restAPI.executionArn}/*`,
+                            },
+                            {
+                                dependsOn: [restAPI],
+                                parent: lambda,
+                            }
+                        )
                     )
-                )
+                    permissionedExecUnits.add(r.execUnitName)
+                }
             }
         }
 
