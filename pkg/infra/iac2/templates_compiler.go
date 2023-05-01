@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"io"
 	"io/fs"
 	"path"
@@ -517,6 +518,9 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf("%s.invokeArn", tc.getVarName(resource)), nil
 	case core.ALL_RESOURCES_IAC_VALUE:
 		return "*", nil
+	case aws.API_GATEWAY_EXECUTION_CHILD_RESOURCES_IAC_VALUE:
+		return fmt.Sprintf("pulumi.interpolate`${%s.executionArn}/*`", tc.getVarName(v.Resource)), nil
+
 	case string(core.HOST):
 		switch resource.(type) {
 		case *resources.ElasticacheCluster:
@@ -578,23 +582,6 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		}
 	case resources.CLUSTER_SECURITY_GROUP_ID_IAC_VALUE:
 		return fmt.Sprintf("%s.vpcConfig.clusterSecurityGroupId", tc.getVarName(v.Resource)), nil
-	case resources.ALL_RESOURCES_ARN_IAC_VALUE:
-		method, ok := v.Resource.(*resources.ApiMethod)
-		if !ok {
-			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
-		}
-		verb := strings.ToUpper(method.HttpMethod)
-		if verb == "ANY" {
-			verb = "*"
-		}
-		accountId := resources.NewAccountId()
-		region := resources.NewRegion()
-		path := "/"
-		if method.Resource != nil {
-			path = fmt.Sprintf("${%s.path}", tc.getVarName(method.Resource))
-		}
-		return fmt.Sprintf("pulumi.interpolate`arn:aws:execute-api:${%s.name}:${%s.accountId}:${%s.id}/*/%s%s`", tc.getVarName(region),
-			tc.getVarName(accountId), tc.getVarName(method.RestApi), verb, path), nil
 	case resources.STAGE_INVOKE_URL_IAC_VALUE:
 		return fmt.Sprintf("%s.invokeUrl.apply((d) => d.split('//')[1].split('/')[0])", tc.getVarName(v.Resource)), nil
 	case resources.ECR_IMAGE_NAME_IAC_VALUE:
