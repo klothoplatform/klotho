@@ -14,6 +14,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const API_GATEWAY_EXECUTION_CHILD_RESOURCES_IAC_VALUE = "child_resources"
+
 // GenerateExposeResources will create the necessary resources within AWS to support a Gateway construct and its dependencies.
 func (a *AWS) GenerateExposeResources(gateway *core.Gateway, result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	err := a.CreateRestApi(gateway, result, dag)
@@ -126,7 +128,7 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 	return errs.ErrOrNil()
 }
 
-// createIntegration will create the the necessary resources within AWS to support a dependency between an expose construct and an execution unit.
+// createIntegration will create the necessary resources within AWS to support a dependency between an expose construct and an execution unit.
 func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.ExecutionUnit, refs []core.AnnotationKey, route core.Route, dag *core.ResourceGraph, integrationRequestParams map[string]string) (*resources.ApiIntegration, error) {
 	cfg := a.Config.GetExecutionUnit(unit.ID)
 	switch cfg.Type {
@@ -139,8 +141,19 @@ func (a *AWS) createIntegration(method *resources.ApiMethod, unit *core.Executio
 		if !ok {
 			return nil, errors.Errorf("Expected resource to be of type, lambda function, for execution unit, %s", unit.ID)
 		}
-		lambdaPermission := resources.NewLambdaPermission(function, core.IaCValue{Resource: method, Property: resources.ALL_RESOURCES_ARN_IAC_VALUE}, "apigateway.amazonaws.com", "lambda:InvokeFunction", refs)
-		dag.AddDependenciesReflect(lambdaPermission)
+
+		invocationSource := core.IaCValue{Resource: method.RestApi, Property: API_GATEWAY_EXECUTION_CHILD_RESOURCES_IAC_VALUE}
+		lambdaPermission := resources.NewLambdaPermission(function, invocationSource, "apigateway.amazonaws.com", "lambda:InvokeFunction", refs)
+		permissionExists := false
+		for _, res := range dag.GetAllUpstreamResources(function) {
+			if existingPermission, ok := res.(*resources.LambdaPermission); ok && existingPermission.Function == function && existingPermission.Source == invocationSource {
+				permissionExists = true
+				break
+			}
+		}
+		if !permissionExists {
+			dag.AddDependenciesReflect(lambdaPermission)
+		}
 
 		integration := resources.NewApiIntegration(method, refs, "POST", "AWS_PROXY", nil, core.IaCValue{Resource: function, Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE}, integrationRequestParams)
 		dag.AddDependenciesReflect(integration)
