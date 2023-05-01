@@ -262,8 +262,8 @@ func TestResolveFileDependencies(t *testing.T) {
 			name: "import full module and use method",
 			input: map[string]string{
 				"main.py": `
-		import other
-		other.hello_world()
+import other
+other.hello_world()
 		`,
 				"other.py": `pass`,
 			},
@@ -278,8 +278,8 @@ func TestResolveFileDependencies(t *testing.T) {
 			name: "import full module and use var",
 			input: map[string]string{
 				"main.py": `
-		import other
-		print(other.hello_world)
+import other
+print(other.hello_world)
 		`,
 				"other.py": `pass`,
 			},
@@ -307,8 +307,8 @@ func TestResolveFileDependencies(t *testing.T) {
 			name: "import full module with alias",
 			input: map[string]string{
 				"main.py": `
-		import other as some_other
-		some_other.hello_world()
+import other as some_other
+some_other.hello_world()
 		`,
 				"other.py": `pass`,
 			},
@@ -345,13 +345,13 @@ func TestResolveFileDependencies(t *testing.T) {
 				"other/hello.py": map[string]core.References{},
 			},
 		},
-		{
-			expectFailureDueTo: "#492", // TODO https://github.com/klothoplatform/klotho-history/issues/492
+		{ // TODO https://github.com/klothoplatform/klotho-history/issues/492
+			expectFailureDueTo: "#492",
 			name:               "import qualified module and use method",
 			input: map[string]string{
 				"main.py": `
-		import other.hello
-		other.hello.say_hi()
+import other.hello
+other.hello.say_hi()
 		`,
 				"other/hello.py": `pass`,
 			},
@@ -362,14 +362,14 @@ func TestResolveFileDependencies(t *testing.T) {
 				"other.py": map[string]core.References{},
 			},
 		},
-		{
-			expectFailureDueTo: "#492",                                        // TODO https://github.com/klothoplatform/klotho-history/issues/492
+		{ // TODO https://github.com/klothoplatform/klotho-history/issues/492
+			expectFailureDueTo: "#492",
 			name:               "import deep qualified module and use method", // like above, but "import a.b.c" instead of "… a.b"
 			input: map[string]string{
 				"main.py": `
-		import other.hello.world
-		other.hello.world.say_hi()
-		`,
+import other.hello.world
+other.hello.world.say_hi()
+`,
 				"other/hello/world.py": `pass`,
 			},
 			expect: map[string]core.Imported{
