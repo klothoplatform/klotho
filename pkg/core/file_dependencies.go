@@ -3,8 +3,6 @@ package core
 import (
 	"encoding/json"
 	"fmt"
-
-	"go.uber.org/zap"
 )
 
 type (
@@ -20,18 +18,34 @@ type (
 
 func (deps FileDependencies) Add(other FileDependencies) {
 	for k, v := range other {
-		if _, alreadyThere := deps[k]; alreadyThere {
-			// This shouldn't happen, as long as each plugin sticks to its own files (ie python only does .py files,
-			// etc)
-			zap.S().Warnf("Multiple file dependencies found for %v. Will use one at random.", k)
-		} else {
-			deps[k] = v
+		imports, alreadyThere := deps[k]
+		if !alreadyThere {
+			imports = make(Imported)
+			deps[k] = imports
 		}
+		imports.AddAll(v)
+	}
+}
+
+func (i Imported) AddAll(other Imported) {
+	for k, v := range other {
+		refs, alreadyThere := i[k]
+		if !alreadyThere {
+			refs = make(References)
+			i[k] = refs
+		}
+		refs.AddAll(v)
 	}
 }
 
 func (r References) Add(ref string) {
 	r[ref] = struct{}{}
+}
+
+func (r References) AddAll(other References) {
+	for k := range other {
+		r.Add(k)
+	}
 }
 
 func (r References) Clone() References {

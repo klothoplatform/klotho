@@ -1,13 +1,14 @@
 package python
 
 import (
+	"fmt"
 	"path"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/query"
 	"go.uber.org/zap"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -19,7 +20,6 @@ type Import struct {
 	// Given a statement `from foo import bar as the_bar` the attribute name is `bar`.
 	ImportedAttributes map[string]Attribute
 	Node               *sitter.Node
-	ImportedSelf       bool
 	Alias              string
 }
 
@@ -42,6 +42,28 @@ func (imp Import) ImportedAs() string {
 			name = imp.ParentModule + "." + name
 		}
 		return name
+	}
+}
+
+func (imp Import) ModuleDir() string {
+	moduleRoot := ""
+	if imp.ParentModule != "" {
+		moduleRoot = imp.ParentModule
+	}
+	if imp.Name != "" {
+		if moduleRoot != "" {
+			moduleRoot += "."
+		}
+		moduleRoot += imp.Name
+	}
+	return moduleRoot
+}
+
+func (attr Attribute) UsedAs() string {
+	if attr.Alias != "" {
+		return attr.Alias
+	} else {
+		return attr.Name
 	}
 }
 
@@ -142,7 +164,6 @@ func FindImports(file *core.SourceFile) Imports {
 			}
 			i.ImportedAttributes = ia
 		} else {
-			i.ImportedSelf = true
 			i.Node = module
 		}
 
@@ -166,9 +187,9 @@ func ResolveFileDependencies(files map[string]core.File) (core.FileDependencies,
 		if !isPy {
 			continue
 		}
-		pyRoot := findPyRoot(filePath, files)
 		imported := make(core.Imported) // map of [imported file path] -> References
 		fileDeps[filePath] = imported
+		log := zap.S().With(logging.FileField(file))
 
 		// minimal logic for adding a dependency on __init__.py
 		// TODO: find __init__.py refs (typically used in the form <package>.<name>)
@@ -178,109 +199,147 @@ func ResolveFileDependencies(files map[string]core.File) (core.FileDependencies,
 		}
 
 		imports := FindImports(pyFile)
-		for moduleName, importSpec := range imports {
-			if importedFile := findImportedFile(moduleName, filePath, pyRoot, files); importedFile != "" {
-				var refs core.References // set of [referenced attributes]
-				if currentRefs, found := imported[importedFile]; found {
-					refs = currentRefs
-				} else {
-					refs = make(core.References)
-					imported[importedFile] = refs
-				}
-				if importSpec.ImportedSelf {
-					nextAttrUsage := DoQuery(pyFile.Tree().RootNode(), FindQualifiedAttrUsage)
-					for {
-						attrUsage, found := nextAttrUsage()
-						if !found {
-							break
-						}
-						objName, attrName := attrUsage["obj_name"], attrUsage["attr_name"]
-						if query.NodeContentEquals(objName, importSpec.ImportedAs()) {
-							attrNameStr := attrName.Content()
-							refs[attrNameStr] = struct{}{}
-						}
-					}
-				} else {
-					for _, attr := range importSpec.ImportedAttributes {
-						if attr.Alias != "" {
-							refs[attr.Alias] = struct{}{}
-						} else {
-							refs[attr.Name] = struct{}{}
-						}
-					}
-				}
-			} else {
-				zap.S().Debugf(`couldn't find file for module [%v] within [%v]`, moduleName, filePath)
+		for _, importSpec := range imports {
+			deps, err := dependenciesForImport(filePath, importSpec, files)
+			if err != nil {
+				return nil, err
 			}
+			if len(deps) == 0 {
+				log.Debugf(`couldn't find file for module %+v`, importSpec)
+			}
+			imported.AddAll(deps)
 		}
+		log.Debugf("found imports: %v", imported)
 	}
 	return fileDeps, nil
+}
+
+func dependenciesForImport(relativeToPath string, spec Import, files map[string]core.File) (core.Imported, error) {
+	deps := make(core.Imported)
+
+	moduleRoot := spec.ModuleDir()
+
+	importedModule, err := findImportedFile(spec.Name, relativeToPath, files)
+	if err != nil {
+		return nil, err
+	}
+
+	if importedModule == "" {
+		importedModule, err = findImportedFile(moduleRoot, relativeToPath, files)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if importedModule != "" {
+		refs, ok := deps[importedModule]
+		if !ok {
+			refs = make(core.References)
+			deps[importedModule] = refs
+		}
+
+		if len(spec.ImportedAttributes) == 0 {
+			sourceFile := files[relativeToPath].(*core.SourceFile)
+			importRefs := referencesForImport(sourceFile.Tree().RootNode(), spec.ImportedAs())
+			refs.AddAll(importRefs)
+		} else {
+			for _, attr := range spec.ImportedAttributes {
+				refs.Add(attr.Name)
+			}
+		}
+		return deps, nil
+	}
+
+	if moduleRoot != "" && !strings.HasSuffix(moduleRoot, ".") {
+		moduleRoot += "."
+	}
+	for _, attr := range spec.ImportedAttributes {
+		modulePath, err := findImportedFile(moduleRoot+attr.Name, relativeToPath, files)
+		if err != nil {
+			return nil, err
+		}
+		if modulePath == "" {
+			continue
+		}
+		moduleFile := files[modulePath].(*core.SourceFile)
+		refs, ok := deps[modulePath]
+		if !ok {
+			refs = make(core.References)
+			deps[modulePath] = refs
+		}
+
+		importRefs := referencesForImport(moduleFile.Tree().RootNode(), attr.UsedAs())
+		refs.AddAll(importRefs)
+	}
+
+	return deps, nil
+}
+
+func referencesForImport(program *sitter.Node, importModule string) core.References {
+	refs := make(core.References)
+	nextAttrUsage := DoQuery(program, FindQualifiedAttrUsage)
+	for {
+		attrUsage, found := nextAttrUsage()
+		if !found {
+			break
+		}
+		objName, attrName := attrUsage["obj_name"], attrUsage["attr_name"]
+		if objName.Content() == importModule {
+			attrNameStr := attrName.Content()
+			refs[attrNameStr] = struct{}{}
+		}
+	}
+	return refs
 }
 
 // findImportedFile takes a python module name, and returns the path to the file within the specified file set.
 // It returns an empty string if the file doesn't exist in the set.
 //
 // The value of the fileSet is ignored; we treat the map as if it were a map[string]struct{}.
-func findImportedFile[V any](moduleName string, relativeToFilePath string, root string, fileSet map[string]V) string {
-	// We're going to set two vars: moduleDir is a dir path, and moduleName will be stripped of any prefixed dots.
-	// That way, we'll have the state such that the py file (if it exists) will be at
-	// "${moduleDir}/${moduleName}.py" *except* that moduleName itself may have dots (e.g. it could be "foo.bar"),
-	// and each one of those should get translated to a path delimiter.
-	var moduleDir string
-	if strings.HasPrefix(moduleName, ".") {
-		// This could be .foo, ..foo, etc. The first dot is the relative dir, and subsequent ones are up a dir.
+func findImportedFile[V any](moduleName string, relativeToFilePath string, fileSet map[string]V) (string, error) {
+	modulePath, err := pythonModuleToPath(moduleName, relativeToFilePath)
+	if err != nil {
+		return "", err
+	}
 
-		// Note: moduleDir is not a dir initially, but will be after the first iteration, and we're guaranteed to have
-		// at least one iteration (because of the HasPrefix check above).
-		moduleDir = relativeToFilePath
-		for strings.HasPrefix(moduleName, ".") {
-			if moduleDir == "." {
-				// can't go up any more dirs!
-				return ""
-			}
-			moduleName = strings.TrimPrefix(moduleName, ".")
-			moduleDir = path.Dir(moduleDir)
-		}
-	} else {
-		moduleDir = ""
+	if _, ok := fileSet[modulePath]; ok {
+		return modulePath, nil
 	}
-	if moduleDir == "." {
-		moduleDir = "" // we want to generate "foo.py", not "./foo.py"
+
+	modulePath = strings.Replace(modulePath, ".py", "/__init__.py", 1)
+
+	if _, ok := fileSet[modulePath]; ok {
+		return modulePath, nil
 	}
-	if moduleName == "" {
-		// The original import was something like "from .. import foo". Look for an __init__.py in moduleDir
-		moduleName = "__init__" // (the ".py" gets added below)
-	}
-	modulePath := strings.ReplaceAll(moduleName, ".", "/")
-	expectFile := path.Join(moduleDir, modulePath) + ".py"
-	if _, exists := fileSet[expectFile]; exists {
-		return expectFile
-	} else {
-		return ""
-	}
+
+	return "", nil
 }
 
-// findPyRoot makes takes a guess at where the python files are located. It returns the highest-level dir that contains
-// all .py files (in it or its sub-dirs), or "" if there is not one dir that matches that.
-func findPyRoot(relativeToFilePath string, files map[string]core.File) string {
-	best := strings.Split(path.Dir(relativeToFilePath), "/")
-	for filePath, file := range files {
-		if _, isPy := Language.ID.CastFile(file); !isPy {
-			continue
-		}
-		dir := path.Dir(filePath)
-		dirSegments := strings.Split(dir, "/")
-		i := 0
-		for ; i < len(dirSegments) && i < len(best); i++ {
-			if best[i] != dirSegments[i] {
-				break
-			}
-		}
-		// "i" is now the index one *after* the last match, or 0 if there was no match. If there's no match, just ignore
-		// this file: it's in a different top-level dir than relativeTo.
-		if i > 0 {
-			best = best[:i]
+func pythonModuleToPath(module string, relativeToFilePath string) (string, error) {
+	if !strings.HasPrefix(module, ".") {
+		return strings.ReplaceAll(module, ".", "/") + ".py", nil
+	}
+
+	dotCount := 0
+	for _, c := range module {
+		if c == '.' {
+			dotCount++
+		} else {
+			break
 		}
 	}
-	return strings.Join(best, "/")
+
+	modulePath := strings.ReplaceAll(module[dotCount:], ".", "/")
+	moduleDir := path.Dir(relativeToFilePath)
+
+	if dotCount > 1 {
+		for i := 0; i < dotCount-1; i++ {
+			if moduleDir == "." {
+				return "", fmt.Errorf("can't go up %v dirs from %v (module '%s')", dotCount, relativeToFilePath, module)
+			}
+			moduleDir = path.Dir(moduleDir)
+		}
+	}
+
+	return path.Join(moduleDir, modulePath) + ".py", nil
 }
