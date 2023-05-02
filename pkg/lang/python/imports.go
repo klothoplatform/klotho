@@ -336,13 +336,11 @@ func pythonModuleToPath(module string, relativeToFilePath string) (string, error
 	modulePath := strings.ReplaceAll(module[dotCount:], ".", "/")
 	moduleDir := path.Dir(relativeToFilePath)
 
-	if dotCount > 1 {
-		for i := 0; i < dotCount-1; i++ {
-			if moduleDir == "." {
-				return "", fmt.Errorf("can't go up %v dirs from %v (module '%s')", dotCount, relativeToFilePath, module)
-			}
-			moduleDir = path.Dir(moduleDir)
+	for i := 0; i < dotCount-1; i++ {
+		if moduleDir == "." {
+			return "", fmt.Errorf("can't go up %v dirs from %v (module '%s')", dotCount, relativeToFilePath, module)
 		}
+		moduleDir = path.Dir(moduleDir)
 	}
 
 	return path.Join(moduleDir, modulePath) + ".py", nil
