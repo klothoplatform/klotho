@@ -174,6 +174,17 @@ func TestFindImports(t *testing.T) {
 				},
 			},
 		},
+		{ // TODO https://github.com/klothoplatform/klotho/issues/567
+			name: "import module aliased twice",
+			source: `
+				import module1 as a
+				import module1 as b
+`,
+			want: map[string]Import{
+				"module1": {Name: "module1", Alias: "a"},
+				// missing alias 'b'
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
