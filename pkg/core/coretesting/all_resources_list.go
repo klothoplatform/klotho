@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"go/types"
 	"reflect"
+	"runtime"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/pkg/errors"
@@ -31,7 +33,8 @@ type (
 )
 
 // FindAllResources returns the TypeRefs for each of the resources you pass in, as well as for any other resources in
-// the same-or-descendent packages from those resources.
+// the same-or-descendent packages from those resources, and also any resources in the caller's package (or
+// descendents).
 //
 // For example, let's say you had:
 //
@@ -49,7 +52,21 @@ type (
 //   - ResourceB (because it's in the same package as A)
 //   - ResourceC (because it was in a subpackage of A)
 //   - but *not* for ResourceD
+//
+// If there are any problems, this function will return nil, but also trigger a failure on the provided
+// [assert.Assertions].
 func FindAllResources(a *assert.Assertions, from []core.Resource) []TypeRef {
+	// Find caller's package
+	pc, _, _, ok := runtime.Caller(1)
+	if !a.Truef(ok, "couldn't get caller info") {
+		return nil
+	}
+	// callerFunc is something like "github.com/klothoplatform/klotho/pkg/infra/iac2.TestKnownTemplates.func2"
+	// we want to extract "github.com/klothoplatform/klotho/pkg/infra/iac2"
+	callerFunc := runtime.FuncForPC(pc).Name()
+	callerFuncLastSlash := strings.LastIndexByte(callerFunc, '/')
+	callerFuncDotAfterLastSlash := strings.IndexByte(callerFunc[callerFuncLastSlash:], '.') + callerFuncLastSlash
+	callerPkg := callerFunc[:callerFuncDotAfterLastSlash]
 
 	// Find the methods for core.Resource
 	var t2 reflect.Type = reflect.TypeOf((*core.Resource)(nil)).Elem()
@@ -68,6 +85,7 @@ func FindAllResources(a *assert.Assertions, from []core.Resource) []TypeRef {
 
 	// Find all packages in our "from" list"
 	packageNames := make(map[string]struct{})
+	packageNames[callerPkg] = struct{}{}
 	for _, res := range from {
 		resType := reflect.TypeOf(res)
 		for resType.Kind() == reflect.Pointer {
