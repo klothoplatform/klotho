@@ -31,6 +31,7 @@ func TestOutputBody(t *testing.T) {
 			Arr: []string{"val1", "val2"},
 		},
 	}
+	thingToImport := &DummyFizz{Value: "imported"}
 	graph := core.NewResourceGraph()
 	graph.AddResource(fizz)
 	graph.AddResource(buzz)
@@ -41,6 +42,7 @@ func TestOutputBody(t *testing.T) {
 	graph.AddDependency(parent, void)
 	graph.AddDependency(fizz, buzz)
 	graph.AddDependency(void, fizz)
+	graph.AddDependency(thingToImport, &Imported{ID: "fizz-123"})
 
 	compiler := CreateTemplatesCompiler(graph)
 	compiler.templates = filesMapToFsMap(dummyTemplateFiles)
@@ -58,6 +60,8 @@ func TestOutputBody(t *testing.T) {
 			"const fizzMyHello = new aws.fizz.DummyResource(`my-hello`);",
 			"",
 			"fs.ReadFile();",
+			"",
+			`const fizzImported = aws.fizz.DummyResource.get("fizz-imported", "fizz-123")`,
 			"",
 			"const bigMain = new DummyParent(",
 			"				fizzMyHello,",
