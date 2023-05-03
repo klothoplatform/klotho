@@ -1,8 +1,6 @@
 package resources
 
 import (
-	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 )
 
@@ -35,19 +33,18 @@ func NewRegion() *Region {
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (region *Region) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (region *Region) KlothoConstructRef() []core.AnnotationKey {
 	return region.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (region *Region) Id() string {
-	return fmt.Sprintf("%s:%s:%s", region.Provider(), REGION_TYPE, region.Name)
+func (region *Region) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     REGION_TYPE,
+		Name:     region.Name,
+	}
 }
 
 func NewAvailabilityZones() *AvailabilityZones {
@@ -57,19 +54,18 @@ func NewAvailabilityZones() *AvailabilityZones {
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (azs *AvailabilityZones) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (azs *AvailabilityZones) KlothoConstructRef() []core.AnnotationKey {
 	return azs.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (azs *AvailabilityZones) Id() string {
-	return fmt.Sprintf("%s:%s:%s", azs.Provider(), AVAILABILITY_ZONES_TYPE, azs.Name)
+func (azs *AvailabilityZones) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     AVAILABILITY_ZONES_TYPE,
+		Name:     azs.Name,
+	}
 }
 
 func NewAccountId() *AccountId {
@@ -79,17 +75,16 @@ func NewAccountId() *AccountId {
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (id *AccountId) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (id *AccountId) KlothoConstructRef() []core.AnnotationKey {
 	return id.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (id *AccountId) Id() string {
-	return fmt.Sprintf("%s:%s:%s", id.Provider(), ACCOUNT_ID_TYPE, id.Name)
+func (id *AccountId) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     ACCOUNT_ID_TYPE,
+		Name:     id.Name,
+	}
 }

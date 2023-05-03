@@ -18,15 +18,15 @@ func Test_CreateS3Origin(t *testing.T) {
 	dag := core.NewResourceGraph()
 	CreateS3Origin(unit, bucket, distro, dag)
 
-	assert.NotNil(dag.GetDependency("aws:s3_bucket_policy:test-bucket-test", "aws:cloudfront_origin_access_identity:test-bucket-test"))
-	assert.NotNil(dag.GetDependency("aws:s3_bucket_policy:test-bucket-test", "aws:s3_bucket:test-bucket"))
-	assert.NotNil(dag.GetDependency("aws:cloudfront_distribution:test-1", "aws:cloudfront_origin_access_identity:test-bucket-test"))
+	assert.NotNil(dag.GetDependencyByVertexIds("aws:s3_bucket_policy:test-bucket-test", "aws:cloudfront_origin_access_identity:test-bucket-test"))
+	assert.NotNil(dag.GetDependencyByVertexIds("aws:s3_bucket_policy:test-bucket-test", "aws:s3_bucket:test-bucket"))
+	assert.NotNil(dag.GetDependencyByVertexIds("aws:cloudfront_distribution:test-1", "aws:cloudfront_origin_access_identity:test-bucket-test"))
 
-	oai := dag.GetResource(fmt.Sprintf("aws:cloudfront_origin_access_identity:%s-%s", bucket.Name, unit.ID))
+	oai := dag.GetResource(core.ResourceId{Provider: "aws", Type: "cloudfront_origin_access_identity", Name: fmt.Sprintf("%s-%s", bucket.Name, unit.ID)})
 	if !assert.NotNil(oai) {
 		return
 	}
-	res := dag.GetResource(fmt.Sprintf("aws:s3_bucket_policy:%s-%s", bucket.Name, unit.ID))
+	res := dag.GetResource(core.ResourceId{Provider: "aws", Type: "s3_bucket_policy", Name: fmt.Sprintf("%s-%s", bucket.Name, unit.ID)})
 	if !assert.NotNil(res) {
 		return
 	}

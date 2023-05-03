@@ -170,7 +170,10 @@ func TestResolveStructInput(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			tc := TemplatesCompiler{
-				resourceVarNamesById: tt.withVars,
+				resourceVarNamesById: make(map[core.ResourceId]string),
+			}
+			for k, v := range tt.withVars {
+				tc.resourceVarNamesById[core.ResourceId{Name: k}] = v
 			}
 			resourceVal := reflect.ValueOf(tt.parentResource)
 			val := reflect.ValueOf(tt.value)
@@ -188,7 +191,7 @@ func Test_renderGlueVars(t *testing.T) {
 		subResource          core.Resource
 		nodes                []core.Resource
 		edges                []graph.Edge[core.Resource]
-		resourceVarNamesById map[string]string
+		resourceVarNamesById map[core.ResourceId]string
 		want                 string
 	}{
 		{
@@ -209,10 +212,10 @@ func Test_renderGlueVars(t *testing.T) {
 					Destination: resources.NewIamPolicy("test", "t", unit.Provenance(), nil),
 				},
 			},
-			resourceVarNamesById: map[string]string{
-				"aws:iam_role:test-t":       "testRole",
-				"aws:lambda_function:test_": "testFunction",
-				"aws:iam_policy:test-t":     "testPolicy",
+			resourceVarNamesById: map[core.ResourceId]string{
+				{Provider: "aws", Type: "iam_role", Name: "test-t"}:       "testRole",
+				{Provider: "aws", Type: "lambda_function", Name: "test_"}: "testFunction",
+				{Provider: "aws", Type: "iam_policy", Name: "test-t"}:     "testPolicy",
 			},
 			want: "\n\nconst awsRolePolicyAttachTestTTestT = new aws.iam.RolePolicyAttachment(`test-t-test-t`, {\n\t\t\t\t\t\tpolicyArn: testPolicy.arn,\n\t\t\t\t\t\trole: testRole\n\t\t\t\t\t});",
 		},
@@ -229,9 +232,9 @@ func Test_renderGlueVars(t *testing.T) {
 					Destination: &resources.Subnet{Name: "s1"},
 				},
 			},
-			resourceVarNamesById: map[string]string{
-				"aws:route_table:rt1": "testRouteTable",
-				"aws:vpc_subnet:s1":   "subnet1",
+			resourceVarNamesById: map[core.ResourceId]string{
+				{Provider: "aws", Type: "route_table", Name: "rt1"}: "testRouteTable",
+				{Provider: "aws", Type: "vpc_subnet", Name: "s1"}:   "subnet1",
 			},
 			want: "\n\nconst pulumiRouteTableAssociationS1 = new aws.ec2.RouteTableAssociation(`s1`, {\n\t\t\t\tsubnetId: subnet1.id,\n\t\t\trouteTableId: testRouteTable.id,\n\t\t\t});\n\n",
 		},
@@ -240,7 +243,6 @@ func Test_renderGlueVars(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			tc := CreateTemplatesCompiler(core.NewResourceGraph())
-			tc.resourceVarNames = map[string]struct{}{}
 			tc.resourceVarNamesById = tt.resourceVarNamesById
 			tc.templates = filesMapToFsMap(subResourceTemplateFiles)
 			for _, res := range tt.nodes {
@@ -264,7 +266,7 @@ func Test_handleIaCValue(t *testing.T) {
 	cases := []struct {
 		name                 string
 		value                core.IaCValue
-		resourceVarNamesById map[string]string
+		resourceVarNamesById map[core.ResourceId]string
 		resource             core.Resource
 		want                 string
 		wantOutputs          []AppliedOutput
@@ -275,8 +277,8 @@ func Test_handleIaCValue(t *testing.T) {
 				Resource: resources.NewS3Bucket(&core.Fs{}, "test-app"),
 				Property: string(core.BUCKET_NAME),
 			},
-			resourceVarNamesById: map[string]string{
-				"aws:s3_bucket:test-app-": "testBucket",
+			resourceVarNamesById: map[core.ResourceId]string{
+				{Provider: "aws", Type: "s3_bucket", Name: "test-app-"}: "testBucket",
 			},
 			want: "testBucket.bucket",
 		},
@@ -293,8 +295,8 @@ func Test_handleIaCValue(t *testing.T) {
 				Resource: resources.NewEksCluster("test-app", "cluster1", nil, nil, nil),
 				Property: resources.OIDC_SUB_IAC_VALUE,
 			},
-			resourceVarNamesById: map[string]string{
-				"aws:eks_cluster:test-app-cluster1": "awsEksClusterTestAppCluster1",
+			resourceVarNamesById: map[core.ResourceId]string{
+				{Provider: "aws", Type: "eks_cluster", Name: "test-app-cluster1"}: "awsEksClusterTestAppCluster1",
 			},
 			want: "`${cluster_oidc_url}:sub`",
 			wantOutputs: []AppliedOutput{
@@ -310,8 +312,8 @@ func Test_handleIaCValue(t *testing.T) {
 				Resource: &resources.AvailabilityZones{},
 				Property: "2",
 			},
-			resourceVarNamesById: map[string]string{
-				"aws:availability_zones:AvailabilityZones": "azs",
+			resourceVarNamesById: map[core.ResourceId]string{
+				{Provider: "aws", Type: "availability_zones", Name: "AvailabilityZones"}: "azs",
 			},
 			want: "awsAvailabilityZones.names[2]",
 		},
@@ -321,8 +323,8 @@ func Test_handleIaCValue(t *testing.T) {
 				Resource: &resources.LoadBalancer{Name: "test"},
 				Property: resources.NLB_INTEGRATION_URI_IAC_VALUE,
 			},
-			resourceVarNamesById: map[string]string{
-				"aws:load_balancer:test": "lb",
+			resourceVarNamesById: map[core.ResourceId]string{
+				{Provider: "aws", Type: "load_balancer", Name: "test"}: "lb",
 			},
 			resource: &resources.ApiIntegration{Route: "/route"},
 			want:     "pulumi.interpolate`http://${lb.dnsName}/route`",
@@ -332,7 +334,7 @@ func Test_handleIaCValue(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			tc := TemplatesCompiler{
-				resourceVarNames:     map[string]struct{}{},
+				resourceVarNames:     make(map[string]struct{}),
 				resourceVarNamesById: tt.resourceVarNamesById,
 			}
 			appliedOutputs := []AppliedOutput{}
@@ -381,19 +383,19 @@ type (
 	}
 )
 
-func (f *DummyFizz) Id() string                               { return "fizz-" + f.Value }
+func (f *DummyFizz) Id() core.ResourceId                      { return core.ResourceId{Name: "fizz-" + f.Value} }
 func (f *DummyFizz) Provider() string                         { return "DummyProvider" }
 func (f *DummyFizz) KlothoConstructRef() []core.AnnotationKey { return nil }
 
-func (b DummyBuzz) Id() string                               { return "buzz-shared" }
+func (b DummyBuzz) Id() core.ResourceId                      { return core.ResourceId{Name: "buzz-shared"} }
 func (f DummyBuzz) Provider() string                         { return "DummyProvider" }
 func (f DummyBuzz) KlothoConstructRef() []core.AnnotationKey { return nil }
 
-func (p *DummyBig) Id() string                               { return "big-" + p.id }
+func (p *DummyBig) Id() core.ResourceId                      { return core.ResourceId{Name: "big-" + p.id} }
 func (f *DummyBig) Provider() string                         { return "DummyProvider" }
 func (f *DummyBig) KlothoConstructRef() []core.AnnotationKey { return nil }
 
-func (p DummyVoid) Id() string                               { return "void" }
+func (p DummyVoid) Id() core.ResourceId                      { return core.ResourceId{Name: "void"} }
 func (f DummyVoid) Provider() string                         { return "DummyProvider" }
 func (f DummyVoid) KlothoConstructRef() []core.AnnotationKey { return nil }
 

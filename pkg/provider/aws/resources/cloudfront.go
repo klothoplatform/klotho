@@ -176,24 +176,18 @@ func NewCloudfrontDistribution(appName string, cdnId string) *CloudfrontDistribu
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (distro *CloudfrontDistribution) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (distro *CloudfrontDistribution) KlothoConstructRef() []core.AnnotationKey {
 	return distro.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (distro *CloudfrontDistribution) Id() string {
-	return fmt.Sprintf("%s:%s:%s", distro.Provider(), CLOUDFRONT_DISTRIBUTION_TYPE, distro.Name)
-}
-
-// Provider returns name of the provider the resource is correlated to
-func (oai *OriginAccessIdentity) Provider() string {
-	return AWS_PROVIDER
+func (distro *CloudfrontDistribution) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     CLOUDFRONT_DISTRIBUTION_TYPE,
+		Name:     distro.Name,
+	}
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
@@ -202,6 +196,10 @@ func (oai *OriginAccessIdentity) KlothoConstructRef() []core.AnnotationKey {
 }
 
 // Id returns the id of the cloud resource
-func (oai *OriginAccessIdentity) Id() string {
-	return fmt.Sprintf("%s:%s:%s", oai.Provider(), ORIGIN_ACCESS_IDENTITY_TYPE, oai.Name)
+func (oai *OriginAccessIdentity) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     ORIGIN_ACCESS_IDENTITY_TYPE,
+		Name:     oai.Name,
+	}
 }

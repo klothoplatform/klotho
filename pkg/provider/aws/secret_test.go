@@ -110,7 +110,7 @@ func TestGenerateSecretsResources(t *testing.T) {
 			tt.want.Assert(t, dag)
 
 			wantManagedPolicies := tt.wantManagedPolicies(func(secretId string) *resources.Secret {
-				resource := dag.GetResource(secretId)
+				resource := dag.GetResourceByVertexId(secretId)
 				assert.NotNil(resource)
 				if secret, foundSecret := resource.(*resources.Secret); foundSecret {
 					return secret
@@ -121,7 +121,7 @@ func TestGenerateSecretsResources(t *testing.T) {
 			})
 
 			wantInlinePolicies := tt.wantInlinePolicies(func(secretId string) *resources.Secret {
-				resource := dag.GetResource(secretId)
+				resource := dag.GetResourceByVertexId(secretId)
 				assert.NotNil(resource)
 				if secret, foundSecret := resource.(*resources.Secret); foundSecret {
 					return secret

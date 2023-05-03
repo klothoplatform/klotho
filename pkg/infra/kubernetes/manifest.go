@@ -45,14 +45,15 @@ type (
 	}
 )
 
-// Provider returns name of the provider the resource is correlated to
-func (manifest *Manifest) Provider() string { return "kubernetes" }
-
 // KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
 func (manifest *Manifest) KlothoConstructRef() []core.AnnotationKey { return manifest.ConstructRefs }
 
-func (manifest *Manifest) Id() string {
-	return fmt.Sprintf("%s:%s:%s", manifest.Provider(), MANIFEST_TYPE, manifest.Name)
+func (manifest *Manifest) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: "kubernetes",
+		Type:     MANIFEST_TYPE,
+		Name:     manifest.Name,
+	}
 }
 
 func addDeploymentManifest(kch *HelmChart, unit *HelmExecUnit) error {

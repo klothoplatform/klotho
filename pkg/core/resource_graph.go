@@ -15,7 +15,9 @@ type (
 
 func NewResourceGraph() *ResourceGraph {
 	return &ResourceGraph{
-		underlying: graph.NewDirected[Resource](),
+		underlying: graph.NewDirected(func(r Resource) string {
+			return r.Id().String()
+		}),
 	}
 }
 
@@ -48,19 +50,27 @@ func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Re
 	for _, res := range []Resource{deployedSecond, deployedFirst} {
 		rg.AddResource(res)
 	}
-	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.Id(), deployedFirst.Id()); cycle {
+	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.Id().String(), deployedFirst.Id().String()); cycle {
 		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond.Id(), deployedFirst.Id())
 	} else {
-		rg.underlying.AddEdge(deployedSecond.Id(), deployedFirst.Id())
+		rg.underlying.AddEdge(deployedSecond.Id().String(), deployedFirst.Id().String())
 		zap.S().Debugf("adding %s -> %s", deployedSecond.Id(), deployedFirst.Id())
 	}
 }
 
-func (rg *ResourceGraph) GetResource(id string) Resource {
+func (rg *ResourceGraph) GetResource(id ResourceId) Resource {
+	return rg.underlying.GetVertex(id.String())
+}
+
+func (rg *ResourceGraph) GetResourceByVertexId(id string) Resource {
 	return rg.underlying.GetVertex(id)
 }
 
-func (rg *ResourceGraph) GetDependency(source string, target string) *graph.Edge[Resource] {
+func (rg *ResourceGraph) GetDependency(source Resource, target Resource) *graph.Edge[Resource] {
+	return rg.underlying.GetEdge(rg.underlying.IdForNode(source), rg.underlying.IdForNode(target))
+}
+
+func (rg *ResourceGraph) GetDependencyByVertexIds(source string, target string) *graph.Edge[Resource] {
 	return rg.underlying.GetEdge(source, target)
 }
 

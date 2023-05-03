@@ -15,12 +15,16 @@ type (
 
 	// Resource describes a resource at the provider, infrastructure level
 	Resource interface {
-		// Provider returns name of the provider the resource is correlated to
-		Provider() string
 		// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 		KlothoConstructRef() []AnnotationKey
 		// Id returns the id of the cloud resource
-		Id() string
+		Id() ResourceId
+	}
+
+	ResourceId struct {
+		Provider string
+		Type     string
+		Name     string
 	}
 
 	// CloudResourceLink describes what Resources are necessary to ensure that a dependency between two Constructs are satisfied at an infrastructure level
@@ -53,3 +57,7 @@ type (
 const (
 	ALL_RESOURCES_IAC_VALUE = "*"
 )
+
+func (id ResourceId) String() string {
+	return id.Provider + ":" + id.Type + ":" + id.Name
+}

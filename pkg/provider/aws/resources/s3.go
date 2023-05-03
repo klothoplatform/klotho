@@ -51,19 +51,18 @@ func NewS3Bucket(fs core.Construct, appName string) *S3Bucket {
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (bucket *S3Bucket) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (bucket *S3Bucket) KlothoConstructRef() []core.AnnotationKey {
 	return bucket.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (bucket *S3Bucket) Id() string {
-	return fmt.Sprintf("%s:%s:%s", bucket.Provider(), S3_BUCKET_TYPE, bucket.Name)
+func (bucket *S3Bucket) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     S3_BUCKET_TYPE,
+		Name:     bucket.Name,
+	}
 }
 
 func NewS3Object(bucket *S3Bucket, objectName string, key string, path string) *S3Object {
@@ -76,19 +75,18 @@ func NewS3Object(bucket *S3Bucket, objectName string, key string, path string) *
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (object *S3Object) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (object *S3Object) KlothoConstructRef() []core.AnnotationKey {
 	return object.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (object *S3Object) Id() string {
-	return fmt.Sprintf("%s:%s:%s", object.Provider(), S3_OBJECT_TYPE, object.Name)
+func (object *S3Object) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     S3_OBJECT_TYPE,
+		Name:     object.Name,
+	}
 }
 
 func NewBucketPolicy(policyName string, bucket *S3Bucket, policy *PolicyDocument) *S3BucketPolicy {
@@ -100,17 +98,16 @@ func NewBucketPolicy(policyName string, bucket *S3Bucket, policy *PolicyDocument
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (policy *S3BucketPolicy) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (policy *S3BucketPolicy) KlothoConstructRef() []core.AnnotationKey {
 	return policy.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (policy *S3BucketPolicy) Id() string {
-	return fmt.Sprintf("%s:%s:%s", policy.Provider(), S3_BUCKET_POLICY_TYPE, policy.Name)
+func (policy *S3BucketPolicy) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     S3_BUCKET_POLICY_TYPE,
+		Name:     policy.Name,
+	}
 }

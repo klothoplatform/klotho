@@ -18,13 +18,13 @@ func TestCreateElasticache(t *testing.T) {
 	assert := assert.New(t)
 
 	assert.NotNil(ec)
-	assert.NotNil(dag.GetDependency(ec.Id(), ec.CloudwatchGroup.Id()))
-	assert.NotNil(dag.GetDependency(ec.Id(), ec.SubnetGroup.Id()))
+	assert.NotNil(dag.GetDependency(ec, ec.CloudwatchGroup))
+	assert.NotNil(dag.GetDependency(ec, ec.SubnetGroup))
 	for _, sn := range ec.SubnetGroup.Subnets {
-		assert.NotNil(dag.GetDependency(ec.SubnetGroup.Id(), sn.Id()))
+		assert.NotNil(dag.GetDependency(ec.SubnetGroup, sn))
 	}
 	for _, sg := range ec.SecurityGroups {
-		assert.NotNil(dag.GetDependency(ec.Id(), sg.Id()))
+		assert.NotNil(dag.GetDependency(ec, sg))
 	}
 	if assert.Len(ec.KlothoConstructRef(), 1) {
 		assert.Equal(source.Provenance(), ec.KlothoConstructRef()[0])

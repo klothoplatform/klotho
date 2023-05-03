@@ -36,14 +36,15 @@ type HelmChart struct {
 	Values           map[string]any
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (chart *HelmChart) Provider() string { return "kubernetes" }
-
 // KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
 func (chart *HelmChart) KlothoConstructRef() []core.AnnotationKey { return chart.ConstructRefs }
 
-func (chart *HelmChart) Id() string {
-	return fmt.Sprintf("%s:%s:%s", chart.Provider(), HELM_CHART_TYPE, chart.Name)
+func (chart *HelmChart) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: "kubernetes",
+		Type:     HELM_CHART_TYPE,
+		Name:     chart.Name,
+	}
 }
 func (t *HelmChart) GetOutputFiles() []core.File {
 	var outputFiles []core.File

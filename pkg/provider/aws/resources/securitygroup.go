@@ -1,8 +1,6 @@
 package resources
 
 import (
-	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 )
@@ -72,17 +70,16 @@ func GetSecurityGroup(cfg *config.Application, dag *core.ResourceGraph) *Securit
 	return sg
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (sg *SecurityGroup) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (sg *SecurityGroup) KlothoConstructRef() []core.AnnotationKey {
 	return sg.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (sg *SecurityGroup) Id() string {
-	return fmt.Sprintf("%s:%s:%s", sg.Provider(), SG_TYPE, sg.Name)
+func (sg *SecurityGroup) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     SG_TYPE,
+		Name:     sg.Name,
+	}
 }

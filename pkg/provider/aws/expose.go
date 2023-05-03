@@ -45,7 +45,7 @@ func (a *AWS) CreateRestApi(gateway *core.Gateway, result *core.ConstructGraph, 
 			continue
 		}
 		api_references = append(api_references, execUnit.Provenance())
-		routeTrigger := fmt.Sprintf("%s:%s:%s", route.ExecUnitName, route.Path, route.Verb)
+		routeTrigger := fmt.Sprintf("%s:%s", route.Path, route.Verb)
 		triggers[routeTrigger] = routeTrigger
 
 		// We split our path by segments so that we can create a resource per segment as per api gateway v1

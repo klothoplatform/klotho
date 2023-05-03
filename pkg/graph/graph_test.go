@@ -8,7 +8,7 @@ import (
 
 func TestEmptyGraph(t *testing.T) {
 	assert := assert.New(t)
-	d := NewDirected[DummyVertex]()
+	d := NewDirected(DummyVertex.Id)
 	assert.Empty(d.Roots())
 }
 
@@ -16,7 +16,7 @@ func TestSimpleGraph(t *testing.T) {
 	// A ┬─➤ B
 	//   └─➤ C
 	a, b, c := DummyVertex("a"), DummyVertex("b"), DummyVertex("c")
-	d := NewDirected[DummyVertex]()
+	d := NewDirected(DummyVertex.Id)
 	d.AddVertex(a)
 	d.AddVertex(b)
 	d.AddVertex(c)
@@ -32,11 +32,11 @@ func TestSimpleGraph(t *testing.T) {
 	test(t, "outgoing edges", func(assert *assert.Assertions) {
 		assert.ElementsMatch(
 			[]Edge[DummyVertex]{
-				Edge[DummyVertex]{
+				{
 					Source:      a,
 					Destination: b,
 				},
-				Edge[DummyVertex]{
+				{
 					Source:      a,
 					Destination: c,
 				},
@@ -47,13 +47,13 @@ func TestSimpleGraph(t *testing.T) {
 
 func TestCycleToSelf(t *testing.T) {
 	assert := assert.New(t)
-	d := NewDirected[DummyVertex]()
+	d := NewDirected(DummyVertex.Id)
 	v := DummyVertex("dummy")
 	d.AddVertex(v)
 	d.AddEdge(v.Id(), v.Id())
 	assert.Equal(
 		[]Edge[DummyVertex]{
-			Edge[DummyVertex]{
+			{
 				Source:      v,
 				Destination: v,
 			},
@@ -63,7 +63,7 @@ func TestCycleToSelf(t *testing.T) {
 
 func TestCycle(t *testing.T) {
 	assert := assert.New(t)
-	d := NewDirected[DummyVertex]()
+	d := NewDirected(DummyVertex.Id)
 	v1 := DummyVertex("hello")
 	v2 := DummyVertex("world")
 	d.AddVertex(v1)
@@ -72,7 +72,7 @@ func TestCycle(t *testing.T) {
 	d.AddEdge(v2.Id(), v1.Id())
 	assert.Equal(
 		[]Edge[DummyVertex]{
-			Edge[DummyVertex]{
+			{
 				Source:      v1,
 				Destination: v2,
 			},
@@ -80,7 +80,7 @@ func TestCycle(t *testing.T) {
 		d.OutgoingEdges(v1))
 	assert.Equal(
 		[]Edge[DummyVertex]{
-			Edge[DummyVertex]{
+			{
 				Source:      v2,
 				Destination: v1,
 			},
@@ -90,14 +90,14 @@ func TestCycle(t *testing.T) {
 
 func TestNegativeCases(t *testing.T) {
 	test(t, "duplicate vertex", func(assert *assert.Assertions) {
-		d := NewDirected[DummyVertex]()
+		d := NewDirected(DummyVertex.Id)
 		v := DummyVertex("dummy")
 		d.AddVertex(v)
 		d.AddVertex(v)
 		assert.Equal([]DummyVertex{v}, d.Roots())
 	})
 	test(t, "duplicate edge", func(assert *assert.Assertions) {
-		d := NewDirected[DummyVertex]()
+		d := NewDirected(DummyVertex.Id)
 		v1 := DummyVertex("hello")
 		v2 := DummyVertex("world")
 		d.AddVertex(v1)
@@ -106,7 +106,7 @@ func TestNegativeCases(t *testing.T) {
 		d.AddEdge(v1.Id(), v2.Id())
 		assert.Equal(
 			[]Edge[DummyVertex]{
-				Edge[DummyVertex]{
+				{
 					Source:      v1,
 					Destination: v2,
 				},
