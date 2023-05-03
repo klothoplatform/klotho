@@ -1,38 +1,15 @@
 package iac2
 
 import (
-	"fmt"
-	"go/types"
 	"io/fs"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
-	"github.com/pkg/errors"
 	assert "github.com/stretchr/testify/assert"
-	"golang.org/x/tools/go/packages"
-)
-
-type (
-	Methods struct {
-		// signatures is the set of all methods declared on a type. Each signature follows the general format:
-		//
-		//	<name> func(<args>) <return type>
-		//
-		// The args do not include the receiver type. For example:
-		//
-		//	KlothoConstructRef func() []github.com/klothoplatform/klotho/pkg/core.AnnotationKey
-		signatures  map[string]struct{}
-		isInterface bool
-	}
-
-	TypeRef struct {
-		pkg  string
-		name string
-	}
 )
 
 // TestKnownTemplates performs several tests to make sure that our Go structs match up with the factory.ts templates.
@@ -55,74 +32,22 @@ type (
 // we use the reflective [packages.Load] to find all the types within that package, and then filter down to those types
 // that conform to core.Resource. Then we simply check that each one of those is in the list of types we checked.
 func TestKnownTemplates(t *testing.T) {
-	var allResources = []core.Resource{
-		&resources.Region{},
-		&resources.Vpc{},
-		&resources.VpcEndpoint{},
-		&kubernetes.HelmChart{},
-		&resources.LambdaFunction{},
-		&resources.EcrImage{},
-		&resources.LogGroup{},
-		&resources.ElasticIp{},
-		&resources.EksCluster{},
-		&resources.EksNodeGroup{},
-		&resources.EksFargateProfile{},
-		&resources.EksAddon{},
-		&resources.NatGateway{},
-		&resources.Subnet{},
-		&resources.InternetGateway{},
-		&resources.IamRole{},
-		&resources.IamPolicy{},
-		&resources.EcrRepository{},
-		&resources.S3Bucket{},
-		&resources.S3Object{},
-		&resources.DynamodbTable{},
-		&resources.Secret{},
-		&resources.SecretVersion{},
-		&resources.VpcLink{},
-		&resources.RestApi{},
-		&resources.ApiDeployment{},
-		&resources.ApiIntegration{},
-		&resources.ApiMethod{},
-		&resources.ApiResource{},
-		&resources.ApiStage{},
-		&resources.LambdaPermission{},
-		&resources.ElasticacheCluster{},
-		&resources.ElasticacheSubnetgroup{},
-		&resources.SecurityGroup{},
-		&resources.AvailabilityZones{},
-		&resources.AccountId{},
-		&resources.CloudfrontDistribution{},
-		&resources.OriginAccessIdentity{},
-		&resources.S3BucketPolicy{},
-		&kubernetes.HelmChart{},
-		&kubernetes.Kubeconfig{},
-		&resources.LoadBalancer{},
-		&resources.TargetGroup{},
-		&resources.Listener{},
-		&resources.RdsInstance{},
-		&resources.RdsProxy{},
-		&resources.RdsSubnetGroup{},
-		&resources.RdsProxyTargetGroup{},
-		&kubernetes.Manifest{},
+	allResources := resources.ListAll()
+	allResources = append(allResources,
 		&KubernetesProvider{},
 		&RolePolicyAttachment{},
-		&resources.PrivateDnsNamespace{},
-		&kubernetes.KustomizeDirectory{},
-		&resources.OpenIdConnectProvider{},
 		&RouteTableAssociation{},
-		&resources.RouteTable{},
 		&SecurityGroupRule{},
-	}
+	)
 
 	tp := standardTemplatesProvider()
-	testedTypes := make(map[TypeRef]struct{})
+	testedTypes := make(map[coretesting.TypeRef]struct{})
 	for _, res := range allResources {
 		resType := reflect.TypeOf(res)
 		for resType.Kind() == reflect.Pointer {
 			resType = resType.Elem()
 		}
-		testedTypes[TypeRef{pkg: resType.PkgPath(), name: resType.Name()}] = struct{}{}
+		testedTypes[coretesting.TypeRef{Pkg: resType.PkgPath(), Name: resType.Name()}] = struct{}{}
 		t.Run(resType.String(), func(t *testing.T) {
 			var tmpl ResourceCreationTemplate
 
@@ -178,34 +103,8 @@ func TestKnownTemplates(t *testing.T) {
 		})
 	}
 	t.Run("all types tested", func(t *testing.T) {
-		a := assert.New(t)
-
-		// Find the methods for core.Resource
-		var t2 reflect.Type = reflect.TypeOf((*core.Resource)(nil)).Elem()
-		coreResourceRef := TypeRef{
-			pkg:  t2.PkgPath(),
-			name: t2.Name(),
-		}
-		coreTypes, err := getTypesInPackage(coreResourceRef.pkg)
-		if !a.NoError(err) {
-			return
-		}
-		coreResourceType := coreTypes[coreResourceRef]
-		if !a.NotEmptyf(coreResourceType, `couldn't find %v!`, coreResourceRef) {
-			return
-		}
-
-		// Find all structs that implement core.Resource
-		resourcesTypes, err := getTypesInPackage("github.com/klothoplatform/klotho/pkg/provider/aws/...")
-		if !a.NoError(err) {
-			return
-		}
-		for ref, methods := range resourcesTypes {
-			// Ignore all interfaces, and all structs/typedefs that don't implement core.Resource
-			if methods.isInterface || !methods.containsAllMethodsIn(coreResourceType) {
-				continue
-			}
-			t.Run(ref.name, func(t *testing.T) {
+		for _, ref := range coretesting.FindAllResources(assert.New(t), allResources) {
+			t.Run(ref.Name, func(t *testing.T) {
 				assert := assert.New(t)
 				assert.Contains(
 					testedTypes,
@@ -291,65 +190,4 @@ func buildExpectedTsType(out *strings.Builder, tp *templatesProvider, t reflect.
 		out.WriteString(`pulumi.Output<any>`)
 	}
 	return nil
-}
-
-// getTypesInPackage finds all types within a package (which may be "..."-ed).
-func getTypesInPackage(packageName string) (map[TypeRef]Methods, error) {
-	config := &packages.Config{Mode: packages.NeedName | packages.NeedTypes | packages.NeedTypesInfo}
-	pkgs, err := packages.Load(config, packageName)
-	if err != nil {
-		return nil, err
-	}
-	result := make(map[TypeRef]Methods)
-	for _, pkg := range pkgs {
-		for _, obj := range pkg.TypesInfo.Defs {
-			if obj == nil {
-				continue
-			}
-			if _, ok := obj.(*types.TypeName); !ok {
-				continue
-			}
-			typ, ok := obj.Type().(*types.Named)
-			if !ok {
-				continue
-			}
-			key := TypeRef{
-				pkg:  pkg.PkgPath,
-				name: obj.Name(),
-			}
-			result[key] = getMethods(typ)
-		}
-	}
-	if len(result) == 0 {
-		return nil, errors.Errorf(`couldn't find any packages in %s`, packageName)
-	}
-	return result, nil
-}
-
-func getMethods(t *types.Named) Methods {
-	type hasMethods interface {
-		NumMethods() int
-		Method(int) *types.Func
-	}
-	result := Methods{}
-	var tMethods hasMethods = t
-	if underlyingInterface, ok := t.Underlying().(*types.Interface); ok {
-		tMethods = underlyingInterface
-		result.isInterface = true
-	}
-	result.signatures = make(map[string]struct{}, tMethods.NumMethods())
-	for i := 0; i < tMethods.NumMethods(); i++ {
-		method := tMethods.Method(i)
-		result.signatures[fmt.Sprintf(`%s %s`, method.Name(), method.Type().String())] = struct{}{}
-	}
-	return result
-}
-
-func (m Methods) containsAllMethodsIn(other Methods) bool {
-	for sig := range other.signatures {
-		if _, exists := m.signatures[sig]; !exists {
-			return false
-		}
-	}
-	return true
 }
