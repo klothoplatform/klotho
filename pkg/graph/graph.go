@@ -13,23 +13,21 @@ const (
 )
 
 type (
-	Directed[V Identifiable] struct {
+	Directed[V any] struct {
 		underlying graph.Graph[string, V]
+		hasher     func(V) string
 	}
 
 	Edge[V any] struct {
 		Source      V
 		Destination V
 	}
-
-	Identifiable interface {
-		Id() string
-	}
 )
 
-func NewDirected[V Identifiable]() *Directed[V] {
+func NewDirected[V any](hasher func(V) string) *Directed[V] {
 	return &Directed[V]{
-		underlying: graph.New(V.Id, graph.Directed(), graph.Rooted()),
+		underlying: graph.New(hasher, graph.Directed(), graph.Rooted()),
+		hasher:     hasher,
 	}
 }
 
@@ -98,7 +96,7 @@ func (d *Directed[V]) IncomingVertices(to V) []V {
 func (d *Directed[V]) AddVerticesAndEdge(source V, dest V) {
 	d.AddVertex(source)
 	d.AddVertex(dest)
-	err := d.underlying.AddEdge(source.Id(), dest.Id())
+	err := d.underlying.AddEdge(d.hasher(source), d.hasher(dest))
 	if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
 		zap.S().With("error", zap.Error(err)).Errorf(
 			`Unexpected error while adding edge between "%v" and "%v"`, source, dest)
@@ -133,7 +131,7 @@ func (d *Directed[V]) GetAllVertices() []V {
 	var ids []string
 	for vId := range predecessors {
 		if v, err := d.underlying.Vertex(vId); err == nil {
-			ids = append(ids, v.Id())
+			ids = append(ids, d.hasher(v))
 		} else {
 			zap.S().Errorf(`Couldn't resolve vertex with id="%s". %s`, vId, ourFault)
 		}
@@ -160,6 +158,10 @@ func (d *Directed[V]) GetEdge(source string, target string) *Edge[V] {
 			`Unexpected error while getting vertex for "%v"`, source)
 		return nil
 	}
+}
+
+func (d *Directed[V]) IdForNode(v V) string {
+	return d.hasher(v)
 }
 
 func (d *Directed[V]) GetAllEdges() []Edge[V] {
@@ -193,7 +195,7 @@ func (d *Directed[V]) CreatesCycle(source string, dest string) (bool, error) {
 	return graph.CreatesCycle(d.underlying, source, dest)
 }
 
-func handleOutgoingEdges[V Identifiable, O any](d *Directed[V], from V, generate func(destination V) O) []O {
+func handleOutgoingEdges[V any, O any](d *Directed[V], from V, generate func(destination V) O) []O {
 	// Note: this is very inefficient. The graph library we use doesn't let us get just the roots, so we pull in
 	// the full predecessor map, get all the ids with no outgoing edges, and then look up the vertex for each one
 	// of those.
@@ -207,12 +209,12 @@ func handleOutgoingEdges[V Identifiable, O any](d *Directed[V], from V, generate
 		panic(err)
 	}
 	var results []O
-	vertexAdjacency, ok := fullAdjacency[from.Id()]
+	vertexAdjacency, ok := fullAdjacency[d.hasher(from)]
 	if !ok {
 		return results
 	}
 	for _, edge := range vertexAdjacency {
-		if edge.Source != from.Id() {
+		if edge.Source != d.hasher(from) {
 			continue
 		}
 		if toV, err := d.underlying.Vertex(edge.Target); err == nil {
@@ -226,7 +228,7 @@ func handleOutgoingEdges[V Identifiable, O any](d *Directed[V], from V, generate
 	return results
 }
 
-func handleIncomingEdges[V Identifiable, O any](d *Directed[V], to V, generate func(destination V) O) []O {
+func handleIncomingEdges[V any, O any](d *Directed[V], to V, generate func(destination V) O) []O {
 	// Note: this is very inefficient. The graph library we use doesn't let us get just the roots, so we pull in
 	// the full predecessor map, get all the ids with no outgoing edges, and then look up the vertex for each one
 	// of those.
@@ -242,7 +244,7 @@ func handleIncomingEdges[V Identifiable, O any](d *Directed[V], to V, generate f
 	var results []O
 	for _, v := range fullAdjacency {
 		for _, edge := range v {
-			if edge.Target != to.Id() {
+			if edge.Target != d.hasher(to) {
 				continue
 			}
 			if toV, err := d.underlying.Vertex(edge.Source); err == nil {

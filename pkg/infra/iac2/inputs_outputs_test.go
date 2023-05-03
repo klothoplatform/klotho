@@ -43,7 +43,8 @@ func TestKnownTemplates(t *testing.T) {
 	tp := standardTemplatesProvider()
 	testedTypes := make(map[coretesting.TypeRef]struct{})
 	for _, res := range allResources {
-		resType := reflect.TypeOf(res)
+		baseResourceType := reflect.TypeOf(res)
+		resType := baseResourceType
 		for resType.Kind() == reflect.Pointer {
 			resType = resType.Elem()
 		}
@@ -75,23 +76,40 @@ func TestKnownTemplates(t *testing.T) {
 					t.Run(inputName, func(t *testing.T) {
 						assert := assert.New(t)
 
-						field, fieldFound := resType.FieldByName(inputName)
+						var inputType reflect.Type
 
-						if !assert.Truef(fieldFound, `missing field`, field.Name) {
+						if field, fieldFound := resType.FieldByName(inputName); fieldFound {
+							assert.Truef(field.IsExported(), `field is not exported`, field.Name)
+							inputType = field.Type
+						} else {
+							method, methodFound := resType.MethodByName(inputName)
+							if !methodFound {
+								// Fallback to the base resource type in case the method is defined on a pointer receiver
+								method, methodFound = baseResourceType.MethodByName(inputName)
+							}
+							if methodFound {
+								assert.Truef(method.IsExported(), `method '%s' is not exported`, method.Name)
+								assert.Truef(method.Type.NumIn() == 1, `method '%s' has more than one (%d) input`, method.Name, method.Type.NumIn())
+								assert.Truef(method.Type.NumOut() > 0, `method '%s' has no output`, method.Name)
+								assert.Truef(method.Type.NumOut() <= 2, `method '%s' has too many (%d) output`, method.Name, method.Type.NumOut())
+								inputType = method.Type.Out(0)
+							}
+						}
+
+						if !assert.NotNil(inputType, `%T missing field/method '%s'`, res, inputName) {
 							return
 						}
-						assert.Truef(field.IsExported(), `field is not exported`, field.Name)
 
-						if field.Type.Kind() == reflect.Interface && field.Type == reflect.TypeOf((*core.Resource)(nil)).Elem() {
+						if inputType.Kind() == reflect.Interface && inputType == reflect.TypeOf((*core.Resource)(nil)).Elem() {
 							return
 						}
 						// avoids fields which use nested template or document functionality
-						if field.Type.Kind() == reflect.Struct || field.Type.Kind() == reflect.Pointer && field.Type != reflect.TypeOf((*core.Resource)(nil)).Elem() || field.Type != reflect.TypeOf((*core.IaCValue)(nil)).Elem() {
+						if inputType.Kind() == reflect.Struct || inputType.Kind() == reflect.Pointer && inputType != reflect.TypeOf((*core.Resource)(nil)).Elem() || inputType != reflect.TypeOf((*core.IaCValue)(nil)).Elem() {
 							return
 						}
 
 						expectedType := &strings.Builder{}
-						if err := buildExpectedTsType(expectedType, tp, field.Type); !assert.NoError(err) {
+						if err := buildExpectedTsType(expectedType, tp, inputType); !assert.NoError(err) {
 							return
 						}
 						assert.NotEmpty(expectedType, `couldn't determine expected type'`)

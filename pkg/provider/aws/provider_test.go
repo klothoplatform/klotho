@@ -1,9 +1,10 @@
 package aws
 
 import (
+	"testing"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestAwsMapResourceDirectlyToConstruct(t *testing.T) {
@@ -54,11 +55,11 @@ type (
 	dummyConstruct string
 )
 
-func (dr dummyResource) Provider() string { return "TEST" }
-
 func (dr dummyResource) KlothoConstructRef() []core.AnnotationKey { return nil }
 
-func (dr dummyResource) Id() string { return string(dr) }
+func (dr dummyResource) Id() core.ResourceId {
+	return core.ResourceId{Provider: "test", Type: "", Name: string(dr)}
+}
 
 func (dc dummyConstruct) Provenance() core.AnnotationKey { return core.AnnotationKey{} }
 

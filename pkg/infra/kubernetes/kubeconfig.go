@@ -1,8 +1,6 @@
 package kubernetes
 
 import (
-	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 )
 
@@ -53,10 +51,12 @@ type (
 	}
 )
 
-func (k Kubeconfig) Provider() string { return "kubernetes" }
-
 func (k Kubeconfig) KlothoConstructRef() []core.AnnotationKey { return k.ConstructsRef }
 
-func (k Kubeconfig) Id() string {
-	return fmt.Sprintf("%s:%s:%s", k.Provider(), KUBE_CONFIG_TYPE, k.Name)
+func (k Kubeconfig) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: "kubernetes",
+		Type:     KUBE_CONFIG_TYPE,
+		Name:     k.Name,
+	}
 }

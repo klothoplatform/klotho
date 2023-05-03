@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"strings"
 
@@ -10,10 +11,11 @@ import (
 )
 
 const (
-	IAM_ROLE_TYPE      = "iam_role"
-	IAM_POLICY_TYPE    = "iam_policy"
-	OIDC_PROVIDER_TYPE = "iam_oidc_provider"
-	VERSION            = "2012-10-17"
+	IAM_ROLE_TYPE       = "iam_role"
+	IAM_POLICY_TYPE     = "iam_policy"
+	OIDC_PROVIDER_TYPE  = "iam_oidc_provider"
+	IAM_STATEMENT_ENTRY = "iam_statement_entry"
+	VERSION             = "2012-10-17"
 )
 
 var roleSanitizer = aws.IamRoleSanitizer
@@ -230,19 +232,18 @@ func NewIamRole(appName string, roleName string, ref []core.AnnotationKey, assum
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (role *IamRole) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (role *IamRole) KlothoConstructRef() []core.AnnotationKey {
 	return role.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (role *IamRole) Id() string {
-	return fmt.Sprintf("%s:%s:%s", role.Provider(), IAM_ROLE_TYPE, role.Name)
+func (role *IamRole) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     IAM_ROLE_TYPE,
+		Name:     role.Name,
+	}
 }
 
 // Id returns the id of the cloud resource
@@ -266,24 +267,18 @@ func NewIamInlinePolicy(policyName string, ref core.AnnotationKey, policy *Polic
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (policy *IamPolicy) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (policy *IamPolicy) KlothoConstructRef() []core.AnnotationKey {
 	return policy.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (policy *IamPolicy) Id() string {
-	return fmt.Sprintf("%s:%s:%s", policy.Provider(), IAM_POLICY_TYPE, policy.Name)
-}
-
-// Provider returns name of the provider the resource is correlated to
-func (oidc *OpenIdConnectProvider) Provider() string {
-	return AWS_PROVIDER
+func (policy *IamPolicy) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     IAM_POLICY_TYPE,
+		Name:     policy.Name,
+	}
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
@@ -292,27 +287,29 @@ func (oidc *OpenIdConnectProvider) KlothoConstructRef() []core.AnnotationKey {
 }
 
 // Id returns the id of the cloud resource
-func (oidc *OpenIdConnectProvider) Id() string {
-	return fmt.Sprintf("%s:%s:%s", oidc.Provider(), OIDC_PROVIDER_TYPE, oidc.Name)
+func (oidc *OpenIdConnectProvider) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     OIDC_PROVIDER_TYPE,
+		Name:     oidc.Name,
+	}
 }
 
-func (s StatementEntry) Id() string {
-	var id strings.Builder
+func (s StatementEntry) Id() core.ResourceId {
+	resourcesHash := sha256.New()
 	for _, r := range s.Resource {
-		id.WriteString(r.Resource.Id())
-		id.WriteRune(':')
-		id.WriteString(r.Property)
+		_, _ = fmt.Fprintf(resourcesHash, "%s.%s", r.Resource.Id(), r.Property)
 	}
-	id.WriteString("::")
-	id.WriteString(s.Effect)
-	id.WriteString("::")
-	id.WriteString(strings.Join(s.Action, ","))
 
-	return id.String()
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     IAM_STATEMENT_ENTRY,
+		Name:     fmt.Sprintf("%x/%s/%s", resourcesHash.Sum(nil), s.Effect, strings.Join(s.Action, ",")),
+	}
 }
 
 func (d *PolicyDocument) Deduplicate() {
-	keys := make(map[string]struct{})
+	keys := make(map[core.ResourceId]struct{})
 	var unique []StatementEntry
 	for _, stmt := range d.Statement {
 		id := stmt.Id()

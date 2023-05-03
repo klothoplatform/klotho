@@ -67,19 +67,18 @@ func NewLoadBalancer(appName string, lbName string, refs []core.AnnotationKey, s
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (lb *LoadBalancer) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (lb *LoadBalancer) KlothoConstructRef() []core.AnnotationKey {
 	return lb.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (lb *LoadBalancer) Id() string {
-	return fmt.Sprintf("%s:%s:%s", lb.Provider(), LOAD_BALANCER_TYPE, lb.Name)
+func (lb *LoadBalancer) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     LOAD_BALANCER_TYPE,
+		Name:     lb.Name,
+	}
 }
 
 func NewTargetGroup(appName string, tgName string, refs []core.AnnotationKey, port int, protocol string, vpc *Vpc, targetType string) *TargetGroup {
@@ -93,19 +92,18 @@ func NewTargetGroup(appName string, tgName string, refs []core.AnnotationKey, po
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (tg *TargetGroup) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (tg *TargetGroup) KlothoConstructRef() []core.AnnotationKey {
 	return tg.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (tg *TargetGroup) Id() string {
-	return fmt.Sprintf("%s:%s:%s", tg.Provider(), TARGET_GROUP_TYPE, tg.Name)
+func (tg *TargetGroup) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     TARGET_GROUP_TYPE,
+		Name:     tg.Name,
+	}
 }
 
 func NewListener(name string, lb *LoadBalancer, ref []core.AnnotationKey, port int, protocol string, defaultActions []*LBAction) *Listener {
@@ -119,17 +117,16 @@ func NewListener(name string, lb *LoadBalancer, ref []core.AnnotationKey, port i
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (tg *Listener) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (tg *Listener) KlothoConstructRef() []core.AnnotationKey {
 	return tg.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (tg *Listener) Id() string {
-	return fmt.Sprintf("%s:%s:%s", tg.Provider(), LISTENER_TYPE, tg.Name)
+func (tg *Listener) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     LISTENER_TYPE,
+		Name:     tg.Name,
+	}
 }

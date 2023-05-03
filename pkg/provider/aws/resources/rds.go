@@ -207,19 +207,18 @@ func NewRdsInstance(orm *core.Orm, appName string, subnetGroup *RdsSubnetGroup, 
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (rds *RdsInstance) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (rds *RdsInstance) KlothoConstructRef() []core.AnnotationKey {
 	return rds.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (rds *RdsInstance) Id() string {
-	return fmt.Sprintf("%s:%s:%s", rds.Provider(), RDS_INSTANCE_TYPE, rds.Name)
+func (rds *RdsInstance) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     RDS_INSTANCE_TYPE,
+		Name:     rds.Name,
+	}
 }
 func (rds *RdsInstance) GetOutputFiles() []core.File {
 	return []core.File{rds.CredentialsFile}
@@ -233,19 +232,18 @@ func NewRdsSubnetGroup(orm *core.Orm, appName string, subnets []*Subnet) *RdsSub
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (rds *RdsSubnetGroup) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (rds *RdsSubnetGroup) KlothoConstructRef() []core.AnnotationKey {
 	return rds.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (rds *RdsSubnetGroup) Id() string {
-	return fmt.Sprintf("%s:%s:%s", rds.Provider(), RDS_SUBNET_GROUP_TYPE, rds.Name)
+func (rds *RdsSubnetGroup) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     RDS_SUBNET_GROUP_TYPE,
+		Name:     rds.Name,
+	}
 }
 
 func NewRdsProxy(orm *core.Orm, appName string, securityGroups []*SecurityGroup, subnets []*Subnet, role *IamRole, secret *Secret) *RdsProxy {
@@ -269,19 +267,18 @@ func NewRdsProxy(orm *core.Orm, appName string, securityGroups []*SecurityGroup,
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (rds *RdsProxy) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (rds *RdsProxy) KlothoConstructRef() []core.AnnotationKey {
 	return rds.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (rds *RdsProxy) Id() string {
-	return fmt.Sprintf("%s:%s:%s", rds.Provider(), RDS_PROXY_TYPE, rds.Name)
+func (rds *RdsProxy) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     RDS_PROXY_TYPE,
+		Name:     rds.Name,
+	}
 }
 
 func NewRdsProxyTargetGroup(orm *core.Orm, appName string, instance *RdsInstance, proxy *RdsProxy) *RdsProxyTargetGroup {
@@ -299,17 +296,16 @@ func NewRdsProxyTargetGroup(orm *core.Orm, appName string, instance *RdsInstance
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (rds *RdsProxyTargetGroup) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (rds *RdsProxyTargetGroup) KlothoConstructRef() []core.AnnotationKey {
 	return rds.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (rds *RdsProxyTargetGroup) Id() string {
-	return fmt.Sprintf("%s:%s:%s", rds.Provider(), RDS_PROXY_TARGET_GROUP, rds.Name)
+func (rds *RdsProxyTargetGroup) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     RDS_PROXY_TARGET_GROUP,
+		Name:     rds.Name,
+	}
 }

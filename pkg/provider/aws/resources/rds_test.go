@@ -89,7 +89,7 @@ func Test_CreateRdsInstance(t *testing.T) {
 			assert.ElementsMatch(instance.ConstructsRef, []core.AnnotationKey{orm.AnnotationKey})
 			tt.want.Assert(t, dag)
 			if tt.proxyEnabled {
-				res := dag.GetResource("aws:rds_instance:test-app-test")
+				res := dag.GetResource(core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "test-app-test"})
 				instance, ok := res.(*RdsInstance)
 				if !assert.True(ok) {
 					return

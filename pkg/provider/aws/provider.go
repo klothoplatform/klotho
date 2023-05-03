@@ -38,7 +38,7 @@ func (a *AWS) MapResourceDirectlyToConstruct(resource core.Resource, construct c
 	}
 	newList := append(a.constructIdToResources[construct.Id()], resource)
 	sort.Slice(newList, func(i, j int) bool {
-		return newList[i].Id() < newList[j].Id()
+		return newList[i].Id().String() < newList[j].Id().String()
 	})
 	a.constructIdToResources[construct.Id()] = newList
 }

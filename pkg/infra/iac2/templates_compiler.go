@@ -51,7 +51,7 @@ type (
 		// resourceVarNames is a set of all variable names
 		resourceVarNames map[string]struct{}
 		// resourceVarNamesById is a map from resource id to the variable name for that resource
-		resourceVarNamesById map[string]string
+		resourceVarNamesById map[core.ResourceId]string
 		// ctx is a pointer to the current context being used within the templates compiler. This context is used when parsing values within nested templates.
 		ctx *NestedCtx
 	}
@@ -80,7 +80,7 @@ func CreateTemplatesCompiler(resources *core.ResourceGraph) *TemplatesCompiler {
 		templatesProvider:    standardTemplatesProvider(),
 		resourceGraph:        resources,
 		resourceVarNames:     make(map[string]struct{}),
-		resourceVarNamesById: make(map[string]string),
+		resourceVarNamesById: make(map[core.ResourceId]string),
 	}
 }
 
@@ -104,7 +104,7 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 	}
 	for i := len(vertexIds) - 1; i >= 0; i-- {
 		id := vertexIds[i]
-		resource := tc.resourceGraph.GetResource(id)
+		resource := tc.resourceGraph.GetResourceByVertexId(id)
 		switch resource.(type) {
 		case *resources.AccountId, *resources.Region:
 			continue // skip resources that we know are rendered outside of the body
@@ -631,12 +631,12 @@ func (tc TemplatesCompiler) getVarName(v core.Resource) string {
 	return tc.getVarNameByResourceId(v.Id())
 }
 
-func (tc TemplatesCompiler) getVarNameByResourceId(id string) string {
+func (tc TemplatesCompiler) getVarNameByResourceId(id core.ResourceId) string {
 	if name, alreadyResolved := tc.resourceVarNamesById[id]; alreadyResolved {
 		return name
 	}
 	// Generate something like "lambdaFoo", where Lambda is the name of the struct and "foo" is the id
-	desiredName := lowercaseFirst(toUpperCamel(id))
+	desiredName := lowercaseFirst(toUpperCamel(id.String()))
 	resolvedName := desiredName
 	for i := 1; ; i++ {
 		_, varNameTaken := tc.resourceVarNames[resolvedName]

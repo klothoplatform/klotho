@@ -25,7 +25,7 @@ func Test_NewDynamodbTable(t *testing.T) {
 	assert.NoError(dynamodbTable.Validate())
 }
 
-func Test_DynamodbTableProvider(t *testing.T) {
+func Test_DynamodbTable(t *testing.T) {
 	assert := assert.New(t)
 	construct := TestConstruct{AnnotationKey: core.AnnotationKey{
 		Capability: "persist",
@@ -36,31 +36,7 @@ func Test_DynamodbTableProvider(t *testing.T) {
 		{Name: "sk", Type: "S"},
 	}
 	dynamodbTable := NewDynamodbTable(construct, "table-name", attributes)
-	assert.Equal(dynamodbTable.Provider(), AWS_PROVIDER)
-}
-
-func Test_DynamodbTableId(t *testing.T) {
-	assert := assert.New(t)
-	construct := TestConstruct{AnnotationKey: core.AnnotationKey{
-		Capability: "persist",
-		ID:         "my-table",
-	}}
-	attributes := []DynamodbTableAttribute{
-		{Name: "pk", Type: "S"},
-		{Name: "sk", Type: "S"},
-	}
-	dynamodbTable := NewDynamodbTable(construct, "table-name", attributes)
-	assert.Equal(dynamodbTable.Id(), "aws:dynamodb_table:table-name")
-}
-
-func Test_DynamodbTableKlothoConstructRef(t *testing.T) {
-	assert := assert.New(t)
-	attributes := []DynamodbTableAttribute{
-		{Name: "pk", Type: "S"},
-		{Name: "sk", Type: "S"},
-	}
-	dynamodbTable := NewDynamodbTable(nil, "table-name", attributes)
-	assert.Nil(dynamodbTable.ConstructsRef)
+	assert.Equal(core.ResourceId{Provider: AWS_PROVIDER, Type: "dynamodb_table", Name: "table-name"}, dynamodbTable.Id())
 }
 
 type TestConstruct struct {

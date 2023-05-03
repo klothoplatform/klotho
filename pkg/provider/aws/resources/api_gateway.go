@@ -50,7 +50,6 @@ type (
 	}
 
 	VpcLink struct {
-		Name          string
 		ConstructsRef []core.AnnotationKey
 		Target        core.Resource
 	}
@@ -94,19 +93,18 @@ func NewRestApi(appName string, gw *core.Gateway) *RestApi {
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (api *RestApi) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (api *RestApi) KlothoConstructRef() []core.AnnotationKey {
 	return api.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (api *RestApi) Id() string {
-	return fmt.Sprintf("%s:%s:%s", api.Provider(), API_GATEWAY_REST_TYPE, api.Name)
+func (api *RestApi) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     API_GATEWAY_REST_TYPE,
+		Name:     api.Name,
+	}
 }
 
 func NewApiResource(currSegment string, api *RestApi, refs []core.AnnotationKey, pathPart string, parentResource *ApiResource) *ApiResource {
@@ -119,19 +117,18 @@ func NewApiResource(currSegment string, api *RestApi, refs []core.AnnotationKey,
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (res *ApiResource) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (res *ApiResource) KlothoConstructRef() []core.AnnotationKey {
 	return res.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (res *ApiResource) Id() string {
-	return fmt.Sprintf("%s:%s:%s", res.Provider(), API_GATEWAY_RESOURCE_TYPE, res.Name)
+func (res *ApiResource) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     API_GATEWAY_RESOURCE_TYPE,
+		Name:     res.Name,
+	}
 }
 
 func NewApiMethod(resource *ApiResource, api *RestApi, refs []core.AnnotationKey, httpMethod string, requestParams map[string]bool) *ApiMethod {
@@ -150,32 +147,25 @@ func NewApiMethod(resource *ApiResource, api *RestApi, refs []core.AnnotationKey
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (method *ApiMethod) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (method *ApiMethod) KlothoConstructRef() []core.AnnotationKey {
 	return method.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (method *ApiMethod) Id() string {
-	return fmt.Sprintf("%s:%s:%s", method.Provider(), API_GATEWAY_METHOD_TYPE, method.Name)
+func (method *ApiMethod) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     API_GATEWAY_METHOD_TYPE,
+		Name:     method.Name,
+	}
 }
 
 func NewVpcLink(resource core.Resource, refs []core.AnnotationKey) *VpcLink {
 	return &VpcLink{
-		Name:          resource.Id(),
 		ConstructsRef: refs,
 		Target:        resource,
 	}
-}
-
-// Provider returns name of the provider the resource is correlated to
-func (link *VpcLink) Provider() string {
-	return AWS_PROVIDER
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
@@ -184,8 +174,16 @@ func (link *VpcLink) KlothoConstructRef() []core.AnnotationKey {
 }
 
 // Id returns the id of the cloud resource
-func (link *VpcLink) Id() string {
-	return fmt.Sprintf("%s:%s:%s", link.Provider(), VPC_LINK_TYPE, link.Name)
+func (res *VpcLink) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     VPC_LINK_TYPE,
+		Name:     res.Target.Id().String(),
+	}
+}
+
+func (res *VpcLink) Name() string {
+	return res.Id().Name
 }
 
 func NewApiIntegration(method *ApiMethod, refs []core.AnnotationKey, integrationMethod string, integrationType string, vpcLink *VpcLink, uri core.IaCValue, requestParameters map[string]string) *ApiIntegration {
@@ -203,19 +201,18 @@ func NewApiIntegration(method *ApiMethod, refs []core.AnnotationKey, integration
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (integration *ApiIntegration) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (integration *ApiIntegration) KlothoConstructRef() []core.AnnotationKey {
 	return integration.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (integration *ApiIntegration) Id() string {
-	return fmt.Sprintf("%s:%s:%s", integration.Provider(), API_GATEWAY_INTEGRATION_TYPE, integration.Name)
+func (integration *ApiIntegration) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     API_GATEWAY_INTEGRATION_TYPE,
+		Name:     integration.Name,
+	}
 }
 
 func NewApiDeployment(api *RestApi, refs []core.AnnotationKey, triggers map[string]string) *ApiDeployment {
@@ -227,19 +224,18 @@ func NewApiDeployment(api *RestApi, refs []core.AnnotationKey, triggers map[stri
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (deployment *ApiDeployment) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (deployment *ApiDeployment) KlothoConstructRef() []core.AnnotationKey {
 	return deployment.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (deployment *ApiDeployment) Id() string {
-	return fmt.Sprintf("%s:%s:%s", deployment.Provider(), API_GATEWAY_DEPLOYMENT_TYPE, deployment.Name)
+func (deployment *ApiDeployment) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     API_GATEWAY_DEPLOYMENT_TYPE,
+		Name:     deployment.Name,
+	}
 }
 
 func NewApiStage(deployment *ApiDeployment, stageName string, refs []core.AnnotationKey) *ApiStage {
@@ -252,17 +248,16 @@ func NewApiStage(deployment *ApiDeployment, stageName string, refs []core.Annota
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (stage *ApiStage) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (stage *ApiStage) KlothoConstructRef() []core.AnnotationKey {
 	return stage.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (stage *ApiStage) Id() string {
-	return fmt.Sprintf("%s:%s:%s", stage.Provider(), API_GATEWAY_STAGE_TYPE, stage.Name)
+func (stage *ApiStage) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     API_GATEWAY_STAGE_TYPE,
+		Name:     stage.Name,
+	}
 }

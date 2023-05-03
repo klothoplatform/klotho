@@ -92,17 +92,16 @@ func NewDynamodbTable(construct core.Construct, name string, attributes []Dynamo
 	return table
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (table *DynamodbTable) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (table *DynamodbTable) KlothoConstructRef() []core.AnnotationKey {
 	return table.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (table *DynamodbTable) Id() string {
-	return fmt.Sprintf("%s:%s:%s", table.Provider(), DYNAMODB_TABLE_TYPE, table.Name)
+func (table *DynamodbTable) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     DYNAMODB_TABLE_TYPE,
+		Name:     table.Name,
+	}
 }

@@ -22,6 +22,7 @@ func Test_GenerateOrmResources(t *testing.T) {
 			name:         "proxy enabled",
 			proxyEnabled: true,
 			want: coretesting.ResourcesExpectation{
+				AssertSubset: true,
 				Deps: []coretesting.StringDep{
 					{Source: "aws:rds_proxy:test-app-test", Destination: "aws:vpc_subnet:test_app_private1"},
 					{Source: "aws:rds_proxy:test-app-test", Destination: "aws:vpc_subnet:test_app_private2"},
@@ -43,9 +44,7 @@ func Test_GenerateOrmResources(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			for _, dep := range tt.want.Deps {
-				assert.NotNilf(dag.GetDependency(dep.Source, dep.Destination), "Did not find dependency for %s -> %s", dep.Source, dep.Destination)
-			}
+			tt.want.Assert(t, dag)
 			assert.Len(aws.constructIdToResources[orm.Id()], 2)
 		})
 	}

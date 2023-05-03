@@ -1,8 +1,6 @@
 package resources
 
 import (
-	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
@@ -29,17 +27,16 @@ func NewPrivateDnsNamespace(appName string, refs []core.AnnotationKey, vpc *Vpc)
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (ns *PrivateDnsNamespace) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (ns *PrivateDnsNamespace) KlothoConstructRef() []core.AnnotationKey {
 	return ns.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (ns *PrivateDnsNamespace) Id() string {
-	return fmt.Sprintf("%s:%s:%s", ns.Provider(), PRIVATE_DNS_NAMESPACE_TYPE, ns.Name)
+func (ns *PrivateDnsNamespace) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     PRIVATE_DNS_NAMESPACE_TYPE,
+		Name:     ns.Name,
+	}
 }

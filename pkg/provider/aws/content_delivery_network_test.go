@@ -26,7 +26,7 @@ func Test_createCDNs(t *testing.T) {
 		constructIdToResources map[string][]core.Resource
 		cfg                    config.Application
 		want                   coretesting.ResourcesExpectation
-		wantRefs               map[string][]core.AnnotationKey
+		wantRefs               map[core.ResourceId][]core.AnnotationKey
 		wantErr                bool
 	}{
 		{
@@ -61,7 +61,7 @@ func Test_createCDNs(t *testing.T) {
 					{Source: "aws:s3_bucket_policy:test-su-su", Destination: "aws:s3_bucket:test-su"},
 				},
 			},
-			wantRefs: map[string][]core.AnnotationKey{
+			wantRefs: map[core.ResourceId][]core.AnnotationKey{
 				distro.Id(): {su.Provenance()},
 			},
 		},
@@ -92,7 +92,7 @@ func Test_createCDNs(t *testing.T) {
 					{Source: "aws:cloudfront_distribution:test-cdn", Destination: "aws:api_stage:test-gw-stage"},
 				},
 			},
-			wantRefs: map[string][]core.AnnotationKey{
+			wantRefs: map[core.ResourceId][]core.AnnotationKey{
 				distro.Id(): {gw.Provenance()},
 			},
 		},
@@ -139,7 +139,7 @@ func Test_createCDNs(t *testing.T) {
 					{Source: "aws:s3_bucket_policy:test-su-su", Destination: "aws:s3_bucket:test-su"},
 				},
 			},
-			wantRefs: map[string][]core.AnnotationKey{
+			wantRefs: map[core.ResourceId][]core.AnnotationKey{
 				distro.Id():  {su.Provenance()},
 				distro2.Id(): {gw.Provenance()},
 			},

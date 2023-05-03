@@ -51,19 +51,18 @@ func NewLambdaFunction(unit *core.ExecutionUnit, cfg *config.Application, role *
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (lambda *LambdaFunction) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (lambda *LambdaFunction) KlothoConstructRef() []core.AnnotationKey {
 	return lambda.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (lambda *LambdaFunction) Id() string {
-	return fmt.Sprintf("%s:%s:%s", lambda.Provider(), LAMBDA_FUNCTION_TYPE, lambda.Name)
+func (lambda *LambdaFunction) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     LAMBDA_FUNCTION_TYPE,
+		Name:     lambda.Name,
+	}
 }
 
 func NewLambdaPermission(function *LambdaFunction, source core.IaCValue, principal string, action string, ref []core.AnnotationKey) *LambdaPermission {
@@ -77,17 +76,16 @@ func NewLambdaPermission(function *LambdaFunction, source core.IaCValue, princip
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (permission *LambdaPermission) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (permission *LambdaPermission) KlothoConstructRef() []core.AnnotationKey {
 	return permission.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (permission *LambdaPermission) Id() string {
-	return fmt.Sprintf("%s:%s:%s", permission.Provider(), LAMBDA_PERMISSION_TYPE, permission.Name)
+func (permission *LambdaPermission) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     LAMBDA_PERMISSION_TYPE,
+		Name:     permission.Name,
+	}
 }

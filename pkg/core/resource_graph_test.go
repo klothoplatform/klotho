@@ -13,7 +13,7 @@ type NestedResources struct {
 }
 
 type testResource struct {
-	ID string
+	Name string
 
 	NestedResources NestedResources
 
@@ -34,66 +34,65 @@ type testResource struct {
 	IacValuePtrMap map[string]*IaCValue
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (tr *testResource) Provider() string {
-	return "test"
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (tr *testResource) KlothoConstructRef() []AnnotationKey {
 	return nil
 }
 
 // Id returns the id of the cloud resource
-func (tr *testResource) Id() string {
-	return tr.ID
+func (tr *testResource) Id() ResourceId {
+	return ResourceId{
+		Provider: "test-provider",
+		Type:     "test-type",
+		Name:     tr.Name,
+	}
 }
 
 func TestResourceGraph_AddDependenciesReflect(t *testing.T) {
 	tr := &testResource{
-		ID: "source",
+		Name: "id",
 
 		NestedResources: NestedResources{
-			Resource:      &testResource{ID: "nested"},
-			ResourceArray: []Resource{&testResource{ID: "nested_arr1"}, &testResource{ID: "nested_arr2"}},
+			Resource:      &testResource{Name: "nested"},
+			ResourceArray: []Resource{&testResource{Name: "nested_arr1"}, &testResource{Name: "nested_arr2"}},
 			ResourceMap: map[string]Resource{
-				"one": &testResource{ID: "nested_map1"},
-				"two": &testResource{ID: "nested_map2"},
+				"one": &testResource{Name: "nested_map1"},
+				"two": &testResource{Name: "nested_map2"},
 			},
 		},
 
-		SingleDependency:   &testResource{ID: "single", NestedResources: NestedResources{Resource: &testResource{ID: "nested_single"}}},
-		SpecificDependency: &testResource{ID: "single_specific"},
+		SingleDependency:   &testResource{Name: "single", NestedResources: NestedResources{Resource: &testResource{Name: "nested_single"}}},
+		SpecificDependency: &testResource{Name: "single_specific"},
 
-		DependencyArray:  []Resource{&testResource{ID: "arr1"}, &testResource{ID: "arr2"}},
-		SpecificDepArray: []*testResource{{ID: "spec_arr1"}, {ID: "spec_arr2"}},
+		DependencyArray:  []Resource{&testResource{Name: "arr1"}, &testResource{Name: "arr2"}},
+		SpecificDepArray: []*testResource{{Name: "spec_arr1"}, {Name: "spec_arr2"}},
 
 		DependencyMap: map[string]Resource{
-			"one": &testResource{ID: "map1"},
-			"two": &testResource{ID: "map2"},
+			"one": &testResource{Name: "map1"},
+			"two": &testResource{Name: "map2"},
 		},
 		SpecificDepMap: map[string]*testResource{
-			"one": {ID: "spec_map1"},
-			"two": {ID: "spec_map2"},
+			"one": {Name: "spec_map1"},
+			"two": {Name: "spec_map2"},
 		},
 
-		IacValue:    IaCValue{Resource: &testResource{ID: "value1"}},
-		IacValuePtr: &IaCValue{Resource: &testResource{ID: "value2"}},
+		IacValue:    IaCValue{Resource: &testResource{Name: "value1"}},
+		IacValuePtr: &IaCValue{Resource: &testResource{Name: "value2"}},
 		IacValueArr: []IaCValue{
-			{Resource: &testResource{ID: "value_arr1"}},
-			{Resource: &testResource{ID: "value_arr2"}},
+			{Resource: &testResource{Name: "value_arr1"}},
+			{Resource: &testResource{Name: "value_arr2"}},
 		},
 		IacValuePtrArr: []*IaCValue{
-			{Resource: &testResource{ID: "value_ptr_arr1"}},
-			{Resource: &testResource{ID: "value_ptr_arr2"}},
+			{Resource: &testResource{Name: "value_ptr_arr1"}},
+			{Resource: &testResource{Name: "value_ptr_arr2"}},
 		},
 		IacValueMap: map[string]IaCValue{
-			"one": {Resource: &testResource{ID: "value_map1"}},
-			"two": {Resource: &testResource{ID: "value_map2"}},
+			"one": {Resource: &testResource{Name: "value_map1"}},
+			"two": {Resource: &testResource{Name: "value_map2"}},
 		},
 		IacValuePtrMap: map[string]*IaCValue{
-			"one": {Resource: &testResource{ID: "value_ptr_map1"}},
-			"two": {Resource: &testResource{ID: "value_ptr_map2"}},
+			"one": {Resource: &testResource{Name: "value_ptr_map1"}},
+			"two": {Resource: &testResource{Name: "value_ptr_map2"}},
 		},
 	}
 
@@ -118,7 +117,7 @@ func TestResourceGraph_AddDependenciesReflect(t *testing.T) {
 		"nested_arr1", "nested_arr2",
 		"nested_map1", "nested_map2",
 	} {
-		assert.NotNil(dag.GetDependency(tr.ID, target), "source -> %s", target)
+		assert.NotNil(dag.GetDependencyByVertexIds(tr.Id().String(), (&testResource{Name: target}).Id().String()), "source -> %s", target)
 	}
-	assert.Nil(dag.GetDependency(tr.ID, "nested_single"))
+	assert.Nil(dag.GetDependencyByVertexIds(tr.Id().String(), (&testResource{Name: "nested_single"}).Id().String()))
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -77,19 +76,7 @@ func Test_GenerateStaticUnitResources(t *testing.T) {
 				return
 			}
 
-			tiedResources, found := aws.GetResourcesDirectlyTiedToConstruct(unit)
-			assert.True(found)
-			mappedIds := []string{}
-			for _, res := range tiedResources {
-				mappedIds = append(mappedIds, res.Id())
-			}
-			assert.ElementsMatch(tt.want.Nodes, mappedIds)
-			for _, res := range dag.ListResources() {
-				if bucket, ok := res.(*resources.S3Bucket); ok {
-					assert.Equal(bucket.IndexDocument, tt.indexDocument)
-
-				}
-			}
+			tt.want.Assert(t, dag)
 		})
 
 	}

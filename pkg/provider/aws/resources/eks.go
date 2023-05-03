@@ -788,24 +788,18 @@ func NewEksCluster(appName string, clusterName string, subnets []*Subnet, securi
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (cluster *EksCluster) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (cluster *EksCluster) KlothoConstructRef() []core.AnnotationKey {
 	return cluster.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (cluster *EksCluster) Id() string {
-	return fmt.Sprintf("%s:%s:%s", cluster.Provider(), EKS_CLUSTER_TYPE, cluster.Name)
-}
-
-// Provider returns name of the provider the resource is correlated to
-func (addon *EksAddon) Provider() string {
-	return AWS_PROVIDER
+func (cluster *EksCluster) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     EKS_CLUSTER_TYPE,
+		Name:     cluster.Name,
+	}
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
@@ -814,8 +808,12 @@ func (addon *EksAddon) KlothoConstructRef() []core.AnnotationKey {
 }
 
 // Id returns the id of the cloud resource
-func (addon *EksAddon) Id() string {
-	return fmt.Sprintf("%s:%s:%s", addon.Provider(), EKS_ADDON_TYPE, addon.Name)
+func (addon *EksAddon) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     EKS_ADDON_TYPE,
+		Name:     addon.Name,
+	}
 }
 
 func NewEksFargateProfile(cluster *EksCluster, subnets []*Subnet, nodeRole *IamRole, ref []core.AnnotationKey) *EksFargateProfile {
@@ -828,24 +826,18 @@ func NewEksFargateProfile(cluster *EksCluster, subnets []*Subnet, nodeRole *IamR
 	}
 }
 
-// Provider returns name of the provider the resource is correlated to
-func (profile *EksFargateProfile) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (profile *EksFargateProfile) KlothoConstructRef() []core.AnnotationKey {
 	return profile.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (profile *EksFargateProfile) Id() string {
-	return fmt.Sprintf("%s:%s:%s", profile.Provider(), EKS_FARGATE_PROFILE_TYPE, profile.Name)
-}
-
-// Provider returns name of the provider the resource is correlated to
-func (group *EksNodeGroup) Provider() string {
-	return AWS_PROVIDER
+func (profile *EksFargateProfile) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     EKS_FARGATE_PROFILE_TYPE,
+		Name:     profile.Name,
+	}
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
@@ -854,8 +846,12 @@ func (group *EksNodeGroup) KlothoConstructRef() []core.AnnotationKey {
 }
 
 // Id returns the id of the cloud resource
-func (group *EksNodeGroup) Id() string {
-	return fmt.Sprintf("%s:%s:%s", group.Provider(), EKS_NODE_GROUP_TYPE, group.Name)
+func (group *EksNodeGroup) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     EKS_NODE_GROUP_TYPE,
+		Name:     group.Name,
+	}
 }
 
 func amiFromInstanceType(instanceType string) string {

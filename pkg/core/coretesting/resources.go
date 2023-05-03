@@ -70,11 +70,11 @@ func (expect ResourcesExpectation) ElementsMatchPretty(t *testing.T, expected an
 func ResoucesFromDAG(dag *core.ResourceGraph) ResourcesExpectation {
 	var nodes []string
 	for _, r := range dag.ListResources() {
-		nodes = append(nodes, r.Id())
+		nodes = append(nodes, r.Id().String())
 	}
 	var deps []StringDep
 	for _, e := range dag.ListDependencies() {
-		deps = append(deps, StringDep{Source: e.Source.Id(), Destination: e.Destination.Id()})
+		deps = append(deps, StringDep{Source: e.Source.Id().String(), Destination: e.Destination.Id().String()})
 	}
 
 	return ResourcesExpectation{

@@ -18,7 +18,7 @@ type (
 
 func NewConstructGraph() *ConstructGraph {
 	return &ConstructGraph{
-		underlying: graph.NewDirected[Construct](),
+		underlying: graph.NewDirected(Construct.Id),
 	}
 }
 

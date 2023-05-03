@@ -36,24 +36,18 @@ var (
 	elasticacheClusterSanitizer = aws.ElasticacheClusterSanitizer
 )
 
-// Provider returns name of the provider the resource is correlated to
-func (ec *ElasticacheCluster) Provider() string {
-	return AWS_PROVIDER
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (ec *ElasticacheCluster) KlothoConstructRef() []core.AnnotationKey {
 	return ec.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (ec *ElasticacheCluster) Id() string {
-	return fmt.Sprintf("%s:%s:%s", ec.Provider(), EC_TYPE, ec.Name)
-}
-
-// Provider returns name of the provider the resource is correlated to
-func (ecsn *ElasticacheSubnetgroup) Provider() string {
-	return AWS_PROVIDER
+func (ec *ElasticacheCluster) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     EC_TYPE,
+		Name:     ec.Name,
+	}
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
@@ -62,8 +56,12 @@ func (ecsn *ElasticacheSubnetgroup) KlothoConstructRef() []core.AnnotationKey {
 }
 
 // Id returns the id of the cloud resource
-func (ecsn *ElasticacheSubnetgroup) Id() string {
-	return fmt.Sprintf("%s:%s:%s", ecsn.Provider(), ECSN_TYPE, ecsn.Name)
+func (ecsn *ElasticacheSubnetgroup) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     ECSN_TYPE,
+		Name:     ecsn.Name,
+	}
 }
 
 func CreateElasticache(cfg *config.Application, dag *core.ResourceGraph, source core.Construct) *ElasticacheCluster {

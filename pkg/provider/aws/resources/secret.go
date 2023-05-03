@@ -1,8 +1,6 @@
 package resources
 
 import (
-	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
@@ -49,26 +47,26 @@ func NewSecretVersion(secret *Secret, filePath string) *SecretVersion {
 	}
 }
 
-func (s *Secret) Provider() string {
-	return AWS_PROVIDER
-}
-
 func (s *Secret) KlothoConstructRef() []core.AnnotationKey {
 	return s.ConstructsRef
 }
 
-func (s *Secret) Id() string {
-	return fmt.Sprintf("%s:%s:%s", s.Provider(), SECRET_TYPE, s.Name)
-}
-
-func (sv *SecretVersion) Provider() string {
-	return AWS_PROVIDER
+func (s *Secret) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     SECRET_TYPE,
+		Name:     s.Name,
+	}
 }
 
 func (sv *SecretVersion) KlothoConstructRef() []core.AnnotationKey {
 	return sv.ConstructsRef
 }
 
-func (sv *SecretVersion) Id() string {
-	return fmt.Sprintf("%s:%s:%s", sv.Provider(), SECRET_VERSION_TYPE, sv.secretNameUnSanitized)
+func (sv *SecretVersion) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     SECRET_VERSION_TYPE,
+		Name:     sv.secretNameUnSanitized,
+	}
 }

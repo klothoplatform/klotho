@@ -10,7 +10,7 @@ import (
 
 func Test_AddConstruct(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected[Construct]()
+	g := graph.NewDirected(Construct.Id)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
@@ -26,7 +26,7 @@ func Test_AddConstruct(t *testing.T) {
 
 func Test_AddDependency(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected[Construct]()
+	g := graph.NewDirected(Construct.Id)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
@@ -45,7 +45,7 @@ func Test_AddDependency(t *testing.T) {
 
 func Test_GetConstruct(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected[Construct]()
+	g := graph.NewDirected(Construct.Id)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
@@ -63,7 +63,7 @@ func Test_GetConstruct(t *testing.T) {
 
 func Test_ListConstructs(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected[Construct]()
+	g := graph.NewDirected(Construct.Id)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
@@ -78,7 +78,7 @@ func Test_ListConstructs(t *testing.T) {
 
 func Test_ListDependencies(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected[Construct]()
+	g := graph.NewDirected(Construct.Id)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
@@ -137,7 +137,7 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := graph.NewDirected[Construct]()
+			g := graph.NewDirected(Construct.Id)
 			constructGraph := ConstructGraph{
 				underlying: g,
 			}
@@ -207,7 +207,7 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := graph.NewDirected[Construct]()
+			g := graph.NewDirected(Construct.Id)
 			constructGraph := ConstructGraph{
 				underlying: g,
 			}
@@ -275,7 +275,7 @@ func Test_GetResourcesOfCapability(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := graph.NewDirected[Construct]()
+			g := graph.NewDirected(Construct.Id)
 			constructGraph := ConstructGraph{
 				underlying: g,
 			}
