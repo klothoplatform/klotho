@@ -112,6 +112,9 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 		switch resource.(type) {
 		case *resources.AccountId, *resources.Region:
 			continue // skip resources that we know are rendered outside of the body
+		case *Imported, Imported:
+			// Imported resources are handled by the rendering of their base resource
+			continue
 		}
 		err := tc.renderResource(out, resource)
 		errs.Append(err)
@@ -121,7 +124,6 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 				return err
 			}
 		}
-
 	}
 	return errs.ErrOrNil()
 }
@@ -131,6 +133,9 @@ func (tc TemplatesCompiler) RenderImports(out io.Writer) error {
 
 	allImports := make(map[string]struct{})
 	for _, res := range tc.resourceGraph.ListResources() {
+		if !tc.hasTemplate(res) {
+			continue
+		}
 		tmpl, err := tc.getTemplate(res)
 		if err != nil {
 			errs.Append(err)
@@ -207,6 +212,14 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 	tmpl, err := tc.getTemplate(resource)
 	if err != nil {
 		return err
+	}
+
+	deps := tc.resourceGraph.GetAllDownstreamResources(resource)
+	for _, dep := range deps {
+		imp, ok := dep.(*Imported)
+		if ok {
+			return tc.renderResourceImport(out, resource, imp, tmpl)
+		}
 	}
 
 	errs := multierr.Error{}
@@ -691,6 +704,11 @@ func (tc TemplatesCompiler) parseVal(val reflect.Value) (string, error) {
 	return tc.resolveStructInput(tc.ctx.rootVal, val, tc.ctx.useDoubleQuotes, tc.ctx.appliedOutputs)
 }
 
+func (tp templatesProvider) hasTemplate(v core.Resource) bool {
+	_, ok := tp.resourceTemplatesByStructName[structName(v)]
+	return ok
+}
+
 func (tp templatesProvider) getTemplate(v core.Resource) (ResourceCreationTemplate, error) {
 	return tp.getTemplateForType(structName(v))
 }
@@ -703,7 +721,7 @@ func (tp templatesProvider) getTemplateForType(typeName string) (ResourceCreatio
 	templateName := camelToSnake(typeName)
 	contents, err := fs.ReadFile(tp.templates, templateName+`/factory.ts`)
 	if err != nil {
-		return ResourceCreationTemplate{}, err
+		return ResourceCreationTemplate{}, errors.Wrapf(err, "could not find template for %s", typeName)
 	}
 	template := ParseResourceCreationTemplate(typeName, contents)
 	tp.resourceTemplatesByStructName[typeName] = template
@@ -858,4 +876,11 @@ func (tc TemplatesCompiler) associateRouteTable(out io.Writer, rt *resources.Rou
 	}
 
 	return errs.ErrOrNil()
+}
+
+func (tc TemplatesCompiler) renderResourceImport(out io.Writer, source core.Resource, imp *Imported, tmpl ResourceCreationTemplate) error {
+	// TODO delegate to a factory 'import' function on the template or something to allow for customisation
+	varName := tc.getVarName(source)
+	_, err := fmt.Fprintf(out, `const %s = %s.get("%s", "%s")`, varName, tmpl.OutputType, source.Id().Name, imp.ID)
+	return err
 }
