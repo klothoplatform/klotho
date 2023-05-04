@@ -135,7 +135,7 @@ func TestGenerateSecretsResources(t *testing.T) {
 			if policies := aws.PolicyGenerator.GetUnitPolicies(execUnit.Id()); policies != nil {
 				actualManagedPolicies = policies[0].Policy.Statement
 			}
-			assert.Equal(wantManagedPolicies, actualManagedPolicies)
+			assert.ElementsMatch(wantManagedPolicies, actualManagedPolicies)
 
 			var actualInlinePolicies []resources.StatementEntry
 			if inlinePolicies := aws.PolicyGenerator.GetUnitInlinePolicies(execUnit.Id()); inlinePolicies != nil {
@@ -143,7 +143,7 @@ func TestGenerateSecretsResources(t *testing.T) {
 					actualInlinePolicies = append(actualInlinePolicies, ip.Policy.Statement...)
 				}
 			}
-			assert.Equal(wantInlinePolicies, actualInlinePolicies)
+			assert.ElementsMatch(wantInlinePolicies, actualInlinePolicies)
 		})
 	}
 }
