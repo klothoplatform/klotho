@@ -67,6 +67,10 @@ var (
 	standardTemplates embed.FS
 )
 
+var (
+	errType = reflect.TypeOf((*error)(nil)).Elem()
+)
+
 func (s stringTemplateValue) Parse() (string, error) {
 	return s.value, nil
 }
@@ -175,6 +179,22 @@ func (tc TemplatesCompiler) RenderPackageJSON() (*javascript.NodePackageJson, er
 	return &mainPJson, nil
 }
 
+func validTemplateMethod(method reflect.Value) error {
+	if !method.IsValid() {
+		return errors.New("no method found")
+	}
+	if method.Type().NumIn() != 0 {
+		return errors.Errorf("too many inputs (%d) in method", method.Type().NumIn())
+	}
+	if method.Type().NumOut() < 1 || method.Type().NumOut() > 2 {
+		return errors.Errorf("invalid number of outputs (%d) in method", method.Type().NumOut())
+	}
+	if method.Type().NumOut() > 1 && !method.Type().Out(1).Implements(errType) {
+		return errors.New("second output of method must be an error")
+	}
+	return nil
+}
+
 func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource) error {
 	defer func() {
 		r := recover()
@@ -191,7 +211,8 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 
 	errs := multierr.Error{}
 
-	resourceVal := reflect.ValueOf(resource)
+	baseResourceVal := reflect.ValueOf(resource)
+	resourceVal := baseResourceVal
 	for resourceVal.Kind() == reflect.Pointer {
 		resourceVal = resourceVal.Elem()
 	}
@@ -218,6 +239,20 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 				return
 			}
 			childVal := resourceVal.FieldByName(fieldName)
+			if !childVal.IsValid() {
+				// Not a field, try method similar to how text/template does
+				method := resourceVal.MethodByName(fieldName)
+				if !method.IsValid() {
+					// Not a method with non-pointer receiver, try on the base value for pointer receiver method
+					method = baseResourceVal.MethodByName(fieldName)
+				}
+				if err := validTemplateMethod(method); err != nil {
+					errs.Append(err)
+					return
+				}
+				eval := method.Call(nil)
+				childVal = eval[0]
+			}
 
 			var appliedoutputs []AppliedOutput
 			buf := strings.Builder{}
