@@ -46,9 +46,3 @@ func TestKvIteratorStable(t *testing.T) {
 	})
 	assert.Equal("abc", verticesList)
 }
-
-type dummyVertex string
-
-func (d dummyVertex) Id() string {
-	return string(d)
-}
