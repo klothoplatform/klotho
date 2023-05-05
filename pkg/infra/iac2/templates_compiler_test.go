@@ -222,7 +222,7 @@ func Test_renderGlueVars(t *testing.T) {
 				{Provider: "aws", Type: "lambda_function", Name: "test_"}: "testFunction",
 				{Provider: "aws", Type: "iam_policy", Name: "test-t"}:     "testPolicy",
 			},
-			want: "\n\nconst awsRolePolicyAttachTestTTestT = new aws.iam.RolePolicyAttachment(`test-t-test-t`, {\n\t\t\t\t\t\tpolicyArn: testPolicy.arn,\n\t\t\t\t\t\trole: testRole\n\t\t\t\t\t});",
+			want: "\n\nconst rolePolicyAttachTestTTestT = new aws.iam.RolePolicyAttachment(`test-t-test-t`, {\n\t\t\t\t\t\tpolicyArn: testPolicy.arn,\n\t\t\t\t\t\trole: testRole\n\t\t\t\t\t});",
 		},
 		{
 			name:        "routeTableAssociation",
@@ -241,7 +241,7 @@ func Test_renderGlueVars(t *testing.T) {
 				{Provider: "aws", Type: "route_table", Name: "rt1"}: "testRouteTable",
 				{Provider: "aws", Type: "vpc_subnet", Name: "s1"}:   "subnet1",
 			},
-			want: "\n\nconst pulumiRouteTableAssociationS1 = new aws.ec2.RouteTableAssociation(`s1`, {\n\t\t\t\tsubnetId: subnet1.id,\n\t\t\trouteTableId: testRouteTable.id,\n\t\t\t});\n\n",
+			want: "\n\nconst routeTableAssociationS1 = new aws.ec2.RouteTableAssociation(`s1`, {\n\t\t\t\tsubnetId: subnetS1.id,\n\t\t\trouteTableId: testRouteTable.id,\n\t\t\t});\n\n",
 		},
 	}
 	for _, tt := range cases {
@@ -320,7 +320,7 @@ func Test_handleIaCValue(t *testing.T) {
 			resourceVarNamesById: map[core.ResourceId]string{
 				{Provider: "aws", Type: "availability_zones", Name: "AvailabilityZones"}: "azs",
 			},
-			want: "awsAvailabilityZones.names[2]",
+			want: "availabilityZones.names[2]",
 		},
 		{
 			name: "nlb uri",

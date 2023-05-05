@@ -688,13 +688,18 @@ func (tc TemplatesCompiler) getVarNameByResourceId(id core.ResourceId) string {
 	if name, alreadyResolved := tc.resourceVarNamesById[id]; alreadyResolved {
 		return name
 	}
-	// Generate something like "lambdaFoo", where Lambda is the name of the struct and "foo" is the id
-	desiredName := lowercaseFirst(toUpperCamel(id.String()))
+	// Generate something like "lambdaFoo", where Lambda is the type of the resource and "foo" is the id
+	// Omit the provider for shorter, easier names. For the most part there will only be 1 per file.
+	desiredName := lowercaseFirst(toUpperCamel(fmt.Sprintf("%s:%s:%s", id.Namespace, id.Type, id.Name)))
 	resolvedName := desiredName
-	for i := 1; ; i++ {
+	for i := 0; ; i++ {
 		_, varNameTaken := tc.resourceVarNames[resolvedName]
 		if varNameTaken {
-			resolvedName = fmt.Sprintf("%s_%d", desiredName, i)
+			if i == 0 {
+				resolvedName = lowercaseFirst(toUpperCamel(id.String()))
+			} else {
+				resolvedName = fmt.Sprintf("%s_%d", desiredName, i)
+			}
 		} else {
 			break
 		}
@@ -707,11 +712,6 @@ func (tc TemplatesCompiler) getVarNameByResourceId(id core.ResourceId) string {
 // parseVal parses the supplied value for nested tempaltes
 func (tc TemplatesCompiler) parseVal(val reflect.Value) (string, error) {
 	return tc.resolveStructInput(tc.ctx.rootVal, val, tc.ctx.useDoubleQuotes, tc.ctx.appliedOutputs)
-}
-
-func (tp templatesProvider) hasTemplate(v core.Resource) bool {
-	_, ok := tp.resourceTemplatesByStructName[structName(v)]
-	return ok
 }
 
 func (tp templatesProvider) getTemplate(v core.Resource) (ResourceCreationTemplate, error) {

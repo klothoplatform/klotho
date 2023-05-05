@@ -81,10 +81,14 @@ func (sg *SecurityGroup) KlothoConstructRef() []core.AnnotationKey {
 
 // Id returns the id of the cloud resource
 func (sg *SecurityGroup) Id() core.ResourceId {
-	return core.ResourceId{
-		Provider:  AWS_PROVIDER,
-		Type:      SG_TYPE,
-		Namespace: sg.Vpc.Name,
-		Name:      sg.Name,
+	id := core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     SG_TYPE,
+		Name:     sg.Name,
 	}
+	if sg.Vpc != nil {
+		// Realistically, this should only be the case for tests
+		id.Namespace = sg.Vpc.Name
+	}
+	return id
 }
