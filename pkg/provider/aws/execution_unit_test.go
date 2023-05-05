@@ -151,6 +151,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 					{Source: "aws:nat_gateway:test_public1", Destination: "aws:subnet_public:test:test_public1"},
 					{Source: "aws:nat_gateway:test_public2", Destination: "aws:elastic_ip:test_public2"},
 					{Source: "aws:nat_gateway:test_public2", Destination: "aws:subnet_public:test:test_public2"},
+					{Source: "aws:route_table:test-public", Destination: "aws:internet_gateway:test_igw1"},
 					{Source: "aws:route_table:test-public", Destination: "aws:subnet_public:test:test_public1"},
 					{Source: "aws:route_table:test-public", Destination: "aws:subnet_public:test:test_public2"},
 					{Source: "aws:route_table:test-public", Destination: "aws:vpc:test"},
