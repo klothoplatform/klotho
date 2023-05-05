@@ -32,41 +32,45 @@ func GetSecurityGroup(cfg *config.Application, dag *core.ResourceGraph) *Securit
 			return sg
 		}
 	}
+
 	vpc := GetVpc(cfg, dag)
-	vpcIngressRule := SecurityGroupRule{
-		Description: "Allow ingress traffic from ip addresses within the vpc",
-		CidrBlocks: []core.IaCValue{
-			{Resource: vpc, Property: CIDR_BLOCK_IAC_VALUE},
-		},
-		FromPort: 0,
-		Protocol: "-1",
-		ToPort:   0,
-	}
-	selfIngressRule := SecurityGroupRule{
-		Description: "Allow ingress traffic from within the same security group",
-		FromPort:    0,
-		Protocol:    "-1",
-		ToPort:      0,
-		Self:        true,
-	}
-	AllOutboundRule := SecurityGroupRule{
-		Description: "Allows all outbound IPv4 traffic.",
-		FromPort:    0,
-		Protocol:    "-1",
-		ToPort:      0,
-		CidrBlocks: []core.IaCValue{
-			{Property: "0.0.0.0/0"},
-		},
-	}
 
 	sg := &SecurityGroup{
-		Name:         cfg.AppName,
-		Vpc:          vpc,
-		IngressRules: []SecurityGroupRule{vpcIngressRule, selfIngressRule},
-		EgressRules:  []SecurityGroupRule{AllOutboundRule},
+		Name: cfg.AppName,
+		Vpc:  vpc,
 	}
-	dag.AddResource(sg)
-	dag.AddDependency(sg, sg.Vpc)
+	if _, ok := cfg.Import[sg.Id()]; !ok {
+		vpcIngressRule := SecurityGroupRule{
+			Description: "Allow ingress traffic from ip addresses within the vpc",
+			CidrBlocks: []core.IaCValue{
+				{Resource: vpc, Property: CIDR_BLOCK_IAC_VALUE},
+			},
+			FromPort: 0,
+			Protocol: "-1",
+			ToPort:   0,
+		}
+		selfIngressRule := SecurityGroupRule{
+			Description: "Allow ingress traffic from within the same security group",
+			FromPort:    0,
+			Protocol:    "-1",
+			ToPort:      0,
+			Self:        true,
+		}
+		sg.IngressRules = append(sg.IngressRules, vpcIngressRule, selfIngressRule)
+
+		allOutboundRule := SecurityGroupRule{
+			Description: "Allows all outbound IPv4 traffic.",
+			FromPort:    0,
+			Protocol:    "-1",
+			ToPort:      0,
+			CidrBlocks: []core.IaCValue{
+				{Property: "0.0.0.0/0"},
+			},
+		}
+		sg.EgressRules = append(sg.EgressRules, allOutboundRule)
+	}
+
+	dag.AddDependenciesReflect(sg)
 	return sg
 }
 
@@ -78,8 +82,9 @@ func (sg *SecurityGroup) KlothoConstructRef() []core.AnnotationKey {
 // Id returns the id of the cloud resource
 func (sg *SecurityGroup) Id() core.ResourceId {
 	return core.ResourceId{
-		Provider: AWS_PROVIDER,
-		Type:     SG_TYPE,
-		Name:     sg.Name,
+		Provider:  AWS_PROVIDER,
+		Type:      SG_TYPE,
+		Namespace: sg.Vpc.Name,
+		Name:      sg.Name,
 	}
 }

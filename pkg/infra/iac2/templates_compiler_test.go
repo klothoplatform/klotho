@@ -14,6 +14,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"github.com/klothoplatform/klotho/pkg/provider/imports"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,7 +43,7 @@ func TestOutputBody(t *testing.T) {
 	graph.AddDependency(parent, void)
 	graph.AddDependency(fizz, buzz)
 	graph.AddDependency(void, fizz)
-	graph.AddDependency(thingToImport, &Imported{ID: "fizz-123"})
+	graph.AddDependency(thingToImport, &imports.Imported{ID: "fizz-123"})
 
 	compiler := CreateTemplatesCompiler(graph)
 	compiler.templates = filesMapToFsMap(dummyTemplateFiles)
@@ -296,7 +297,7 @@ func Test_handleIaCValue(t *testing.T) {
 		{
 			name: "value with applied outputs, cluster oidc arn",
 			value: core.IaCValue{
-				Resource: resources.NewEksCluster("test-app", "cluster1", nil, nil, nil),
+				Resource: resources.NewEksCluster("test-app", "cluster1", nil, nil, nil, nil),
 				Property: resources.OIDC_SUB_IAC_VALUE,
 			},
 			resourceVarNamesById: map[core.ResourceId]string{

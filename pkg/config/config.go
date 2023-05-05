@@ -8,6 +8,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/pelletier/go-toml/v2"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,18 +26,19 @@ type (
 		Path   string `json:"path" yaml:"path" toml:"path"`
 		OutDir string `json:"out_dir" yaml:"out_dir" toml:"out_dir"`
 
-		Defaults            Defaults                  `json:"defaults" yaml:"defaults" toml:"defaults"`
-		ExecutionUnits      map[string]*ExecutionUnit `json:"execution_units,omitempty" yaml:"execution_units,omitempty" toml:"execution_units,omitempty"`
-		StaticUnit          map[string]*StaticUnit    `json:"static_unit,omitempty" yaml:"static_unit,omitempty" toml:"static_unit,omitempty"`
-		Exposed             map[string]*Expose        `json:"exposed,omitempty" yaml:"exposed,omitempty" toml:"exposed,omitempty"`
-		PersistKv           map[string]*Persist       `json:"persist_kv,omitempty" yaml:"persist_kv,omitempty" toml:"persist_kv,omitempty"`
-		PersistOrm          map[string]*Persist       `json:"persist_orm,omitempty" yaml:"persist_orm,omitempty" toml:"persist_orm,omitempty"`
-		PersistFs           map[string]*Persist       `json:"persist_fs,omitempty" yaml:"persist_fs,omitempty" toml:"persist_fs,omitempty"`
-		PersistSecrets      map[string]*Persist       `json:"persist_secrets,omitempty" yaml:"persist_secrets,omitempty" toml:"persist_secrets,omitempty"`
-		PersistRedisNode    map[string]*Persist       `json:"persist_redis_node,omitempty" yaml:"persist_redis_node,omitempty" toml:"persist_redis_node,omitempty"`
-		PersistRedisCluster map[string]*Persist       `json:"persist_redis_cluster,omitempty" yaml:"persist_redis_cluster,omitempty" toml:"persist_redis_cluster,omitempty"`
-		Config              map[string]*Config        `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
-		Links               []CloudResourceLink       `json:"links,omitempty" yaml:"links,omitempty" toml:"links,omitempty"`
+		Defaults            Defaults                   `json:"defaults" yaml:"defaults" toml:"defaults"`
+		ExecutionUnits      map[string]*ExecutionUnit  `json:"execution_units,omitempty" yaml:"execution_units,omitempty" toml:"execution_units,omitempty"`
+		StaticUnit          map[string]*StaticUnit     `json:"static_unit,omitempty" yaml:"static_unit,omitempty" toml:"static_unit,omitempty"`
+		Exposed             map[string]*Expose         `json:"exposed,omitempty" yaml:"exposed,omitempty" toml:"exposed,omitempty"`
+		PersistKv           map[string]*Persist        `json:"persist_kv,omitempty" yaml:"persist_kv,omitempty" toml:"persist_kv,omitempty"`
+		PersistOrm          map[string]*Persist        `json:"persist_orm,omitempty" yaml:"persist_orm,omitempty" toml:"persist_orm,omitempty"`
+		PersistFs           map[string]*Persist        `json:"persist_fs,omitempty" yaml:"persist_fs,omitempty" toml:"persist_fs,omitempty"`
+		PersistSecrets      map[string]*Persist        `json:"persist_secrets,omitempty" yaml:"persist_secrets,omitempty" toml:"persist_secrets,omitempty"`
+		PersistRedisNode    map[string]*Persist        `json:"persist_redis_node,omitempty" yaml:"persist_redis_node,omitempty" toml:"persist_redis_node,omitempty"`
+		PersistRedisCluster map[string]*Persist        `json:"persist_redis_cluster,omitempty" yaml:"persist_redis_cluster,omitempty" toml:"persist_redis_cluster,omitempty"`
+		Config              map[string]*Config         `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
+		Links               []CloudResourceLink        `json:"links,omitempty" yaml:"links,omitempty" toml:"links,omitempty"`
+		Import              map[core.ResourceId]string `json:"import,omitempty" yaml:"import,omitempty" toml:"import,omitempty"`
 	}
 
 	CloudResourceLink struct {
@@ -128,6 +130,7 @@ func ReadConfig(fpath string) (Application, error) {
 		err = toml.NewDecoder(f).Decode(&appCfg)
 		appCfg.Format = "toml"
 	}
+	zap.S().Infof("Read config: %+v", appCfg)
 	return appCfg, err
 }
 

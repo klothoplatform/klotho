@@ -5,7 +5,6 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"io"
 	"io/fs"
 	"path"
@@ -13,6 +12,9 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+
+	"github.com/klothoplatform/klotho/pkg/provider/aws"
+	"github.com/klothoplatform/klotho/pkg/provider/imports"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
@@ -112,7 +114,7 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 		switch resource.(type) {
 		case *resources.AccountId, *resources.Region:
 			continue // skip resources that we know are rendered outside of the body
-		case *Imported, Imported:
+		case *imports.Imported:
 			// Imported resources are handled by the rendering of their base resource
 			continue
 		}
@@ -133,7 +135,8 @@ func (tc TemplatesCompiler) RenderImports(out io.Writer) error {
 
 	allImports := make(map[string]struct{})
 	for _, res := range tc.resourceGraph.ListResources() {
-		if !tc.hasTemplate(res) {
+		switch res.(type) {
+		case *imports.Imported:
 			continue
 		}
 		tmpl, err := tc.getTemplate(res)
@@ -176,7 +179,9 @@ func (tc TemplatesCompiler) RenderPackageJSON() (*javascript.NodePackageJson, er
 			errs.Append(err)
 			continue
 		}
-		mainPJson.Merge(&pJson)
+		if pJson != nil {
+			mainPJson.Merge(pJson)
+		}
 	}
 	if err := errs.ErrOrNil(); err != nil {
 		return &mainPJson, err
@@ -214,9 +219,9 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 		return err
 	}
 
-	deps := tc.resourceGraph.GetAllDownstreamResources(resource)
+	deps := tc.resourceGraph.GetDownstreamResources(resource)
 	for _, dep := range deps {
-		imp, ok := dep.(*Imported)
+		imp, ok := dep.(*imports.Imported)
 		if ok {
 			return tc.renderResourceImport(out, resource, imp, tmpl)
 		}
@@ -765,19 +770,23 @@ func (tp templatesProvider) getNestedTemplate(templatePath string, tc TemplatesC
 	return tmpl, nil
 }
 
-func (tc TemplatesCompiler) GetPackageJSON(v core.Resource) (javascript.NodePackageJson, error) {
-	packageContent := javascript.NodePackageJson{}
+func (tc TemplatesCompiler) GetPackageJSON(v core.Resource) (*javascript.NodePackageJson, error) {
 	typeName := structName(v)
 	templateName := camelToSnake(typeName)
-	contents, err := fs.ReadFile(tc.templates, templateName+`/package.json`)
+	templateFilePath := templateName + `/package.json`
+	contents, err := fs.ReadFile(tc.templates, templateFilePath)
 	if err != nil {
-		return *packageContent.Clone(), err
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
 	}
+	var packageContent *javascript.NodePackageJson
 	err = json.NewDecoder(bytes.NewReader(contents)).Decode(&packageContent)
 	if err != nil {
-		return *packageContent.Clone(), err
+		return packageContent, err
 	}
-	return *packageContent.Clone(), nil
+	return packageContent, nil
 }
 
 // renderGlueVars renders additional variables associated with a given resource that do not represent specific cloud resources
@@ -878,7 +887,7 @@ func (tc TemplatesCompiler) associateRouteTable(out io.Writer, rt *resources.Rou
 	return errs.ErrOrNil()
 }
 
-func (tc TemplatesCompiler) renderResourceImport(out io.Writer, source core.Resource, imp *Imported, tmpl ResourceCreationTemplate) error {
+func (tc TemplatesCompiler) renderResourceImport(out io.Writer, source core.Resource, imp *imports.Imported, tmpl ResourceCreationTemplate) error {
 	// TODO delegate to a factory 'import' function on the template or something to allow for customisation
 	varName := tc.getVarName(source)
 	_, err := fmt.Fprintf(out, `const %s = %s.get("%s", "%s")`, varName, tmpl.OutputType, source.Id().Name, imp.ID)
