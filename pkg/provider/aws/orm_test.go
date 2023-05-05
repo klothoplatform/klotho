@@ -24,11 +24,11 @@ func Test_GenerateOrmResources(t *testing.T) {
 			want: coretesting.ResourcesExpectation{
 				AssertSubset: true,
 				Deps: []coretesting.StringDep{
-					{Source: "aws:rds_proxy:test-app-test", Destination: "aws:vpc_subnet:test_app_private1"},
-					{Source: "aws:rds_proxy:test-app-test", Destination: "aws:vpc_subnet:test_app_private2"},
-					{Source: "aws:security_group:test-app", Destination: "aws:vpc:test_app"},
-					{Source: "aws:rds_subnet_group:test-app-test", Destination: "aws:vpc_subnet:test_app_private1"},
-					{Source: "aws:rds_subnet_group:test-app-test", Destination: "aws:vpc_subnet:test_app_private2"},
+					{Source: "aws:rds_proxy:test-app-test", Destination: "aws:subnet_private:test_app:test_app_private1"},
+					{Source: "aws:rds_proxy:test-app-test", Destination: "aws:subnet_private:test_app:test_app_private1"},
+					{Source: "aws:security_group:test_app:test-app", Destination: "aws:vpc:test_app"},
+					{Source: "aws:rds_subnet_group:test-app-test", Destination: "aws:subnet_private:test_app:test_app_private1"},
+					{Source: "aws:rds_subnet_group:test-app-test", Destination: "aws:subnet_private:test_app:test_app_private1"},
 				},
 			},
 		},

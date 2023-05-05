@@ -112,7 +112,6 @@ func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 		Name: fmt.Sprintf("%s-public", vpc.Name),
 		Vpc:  vpc,
 	}
-	dag.AddDependenciesReflect(publicRt)
 
 	importId := config.Import[vpc.Id()]
 	if importId == "" {
@@ -121,6 +120,7 @@ func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 
 		publicRt.Routes = append(publicRt.Routes, &RouteTableRoute{CidrBlock: "0.0.0.0/0", GatewayId: core.IaCValue{Resource: igw, Property: ID_IAC_VALUE}})
 	}
+	dag.AddDependenciesReflect(publicRt)
 
 	var importSubnetIds []core.ResourceId
 	for id := range config.Import {
@@ -412,12 +412,16 @@ func (subnet *Subnet) KlothoConstructRef() []core.AnnotationKey {
 
 // Id returns the id of the cloud resource
 func (subnet *Subnet) Id() core.ResourceId {
-	return core.ResourceId{
-		Provider:  AWS_PROVIDER,
-		Type:      VPC_SUBNET_TYPE_PREFIX + subnet.Type,
-		Namespace: subnet.Vpc.Name,
-		Name:      subnet.Name,
+	id := core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     VPC_SUBNET_TYPE_PREFIX + subnet.Type,
+		Name:     subnet.Name,
 	}
+	if subnet.Vpc != nil {
+		// Realistically, this should only be the case for tests
+		id.Namespace = subnet.Vpc.Name
+	}
+	return id
 }
 
 func (subnet *Subnet) SetTypeFromId(id core.ResourceId) error {
