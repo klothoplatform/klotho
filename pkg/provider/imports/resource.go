@@ -1,4 +1,4 @@
-package iac2
+package imports
 
 import "github.com/klothoplatform/klotho/pkg/core"
 
@@ -14,7 +14,7 @@ func (imp Imported) KlothoConstructRef() []core.AnnotationKey {
 
 func (imp Imported) Id() core.ResourceId {
 	return core.ResourceId{
-		Provider: "pulumi",
+		Provider: "internal",
 		Type:     "import",
 		Name:     imp.ID,
 	}

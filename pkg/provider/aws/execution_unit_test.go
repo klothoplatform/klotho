@@ -19,7 +19,7 @@ func Test_GenerateExecUnitResources(t *testing.T) {
 	bucket := resources.NewS3Bucket(fs, "test")
 	policy1 := &resources.IamPolicy{Name: "policy1"}
 	policy2 := &resources.IamPolicy{Name: "policy2"}
-	cluster := resources.NewEksCluster("test", resources.DEFAULT_CLUSTER_NAME, nil, nil, nil)
+	cluster := resources.NewEksCluster("test", resources.DEFAULT_CLUSTER_NAME, nil, nil, nil, nil)
 	oidc := &resources.OpenIdConnectProvider{Name: cluster.Name}
 	chart := &kubernetes.HelmChart{
 		Name:           "chart",

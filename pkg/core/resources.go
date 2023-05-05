@@ -1,7 +1,10 @@
 package core
 
 import (
+	"strings"
+
 	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/pkg/errors"
 )
 
 type (
@@ -24,7 +27,11 @@ type (
 	ResourceId struct {
 		Provider string
 		Type     string
-		Name     string
+		// Namespace is optional and is used to disambiguate resources that might have
+		// the same name. It can also be used to associate an imported resource with
+		// a specific namespace such as a subnet to a VPC.
+		Namespace string
+		Name      string
 	}
 
 	// CloudResourceLink describes what Resources are necessary to ensure that a dependency between two Constructs are satisfied at an infrastructure level
@@ -59,5 +66,29 @@ const (
 )
 
 func (id ResourceId) String() string {
-	return id.Provider + ":" + id.Type + ":" + id.Name
+	s := id.Provider + ":" + id.Type
+	if id.Namespace != "" {
+		s += ":" + id.Namespace
+	}
+	return s + ":" + id.Name
+}
+
+func (id *ResourceId) MarshalText() ([]byte, error) {
+	return []byte(id.String()), nil
+}
+
+func (id *ResourceId) UnmarshalText(data []byte) error {
+	parts := strings.Split(string(data), ":")
+	if len(parts) < 3 || len(parts) > 4 {
+		return errors.Errorf("invalid number of parts (%d) in resource id '%s'", len(parts), string(data))
+	}
+	id.Provider = parts[0]
+	id.Type = parts[1]
+	if len(parts) == 4 {
+		id.Namespace = parts[2]
+		id.Name = parts[3]
+	} else {
+		id.Name = parts[2]
+	}
+	return nil
 }

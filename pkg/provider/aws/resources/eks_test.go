@@ -110,7 +110,7 @@ func Test_CreateEksCluster(t *testing.T) {
 			dag.AddDependency(subnet, vpc)
 			dag.AddDependency(vpc, region)
 
-			assert.NoError(CreateEksCluster(&cfg, clusterName, []*Subnet{subnet}, nil, eus, dag))
+			assert.NoError(CreateEksCluster(&cfg, clusterName, vpc, nil, eus, dag))
 			for _, r := range dag.ListResources() {
 				if cluster, ok := r.(*EksCluster); ok {
 					assert.Len(cluster.Manifests, 4)
@@ -128,7 +128,7 @@ func Test_CreateEksCluster(t *testing.T) {
 func Test_InstallCloudMapController(t *testing.T) {
 	assert := assert.New(t)
 	dag := core.NewResourceGraph()
-	cluster := NewEksCluster("test", "cluster", nil, nil, nil)
+	cluster := NewEksCluster("test", "cluster", nil, nil, nil, nil)
 	nodeGroup1 := &EksNodeGroup{
 		Name:    "nodegroup1",
 		Cluster: cluster,
@@ -173,7 +173,7 @@ func Test_InstallCloudMapController(t *testing.T) {
 func Test_getClustersNodeGroups(t *testing.T) {
 	assert := assert.New(t)
 	dag := core.NewResourceGraph()
-	cluster := NewEksCluster("test", "cluster", nil, nil, nil)
+	cluster := NewEksCluster("test", "cluster", nil, nil, nil, nil)
 	nodeGroup1 := &EksNodeGroup{
 		Name:    "nodegroup1",
 		Cluster: cluster,

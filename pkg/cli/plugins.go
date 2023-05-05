@@ -19,6 +19,7 @@ import (
 	pyRuntimes "github.com/klothoplatform/klotho/pkg/lang/python/runtimes"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider"
+	"github.com/klothoplatform/klotho/pkg/provider/imports"
 	"github.com/klothoplatform/klotho/pkg/provider/providers"
 	staticunit "github.com/klothoplatform/klotho/pkg/static_unit"
 	"github.com/klothoplatform/klotho/pkg/visualizer"
@@ -116,12 +117,13 @@ func (b *PluginSetBuilder) setupProvider() (err error) {
 	if b.provider != nil {
 		return nil
 	}
+	b.Provider = append(b.Provider, kubernetes.Kubernetes{Config: b.Cfg})
 
 	b.provider, err = providers.GetProvider(b.Cfg)
 	if err == nil {
 		b.Provider = append(b.Provider, b.provider)
 	}
-	b.Provider = append([]compiler.ProviderPlugin{kubernetes.Kubernetes{Config: b.Cfg}}, b.Provider...)
+	b.Provider = append(b.Provider, imports.Plugin{Config: b.Cfg})
 	return
 }
 

@@ -99,6 +99,7 @@ type (
 		Name           string
 		ConstructsRef  []core.AnnotationKey
 		ClusterRole    *IamRole
+		Vpc            *Vpc
 		Subnets        []*Subnet
 		SecurityGroups []*SecurityGroup
 		Manifests      []core.File
@@ -147,24 +148,19 @@ type (
 //
 // The method will also create a fargate profile in the default namespace and a single NodeGroup.
 // The method will create all the corresponding IAM Roles necessary and attach all the execution units references to the following objects
-func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Subnet, securityGroups []*SecurityGroup, units []*core.ExecutionUnit, dag *core.ResourceGraph) error {
+func CreateEksCluster(cfg *config.Application, clusterName string, vpc *Vpc, securityGroups []*SecurityGroup, units []*core.ExecutionUnit, dag *core.ResourceGraph) error {
 	references := []core.AnnotationKey{}
 	for _, u := range units {
 		references = append(references, u.Provenance())
 	}
-	privateSubnets := []*Subnet{}
-	for _, sub := range subnets {
-		if sub.Type == PrivateSubnet {
-			privateSubnets = append(privateSubnets, sub)
-		}
-	}
 
 	appName := cfg.AppName
+	subnets := vpc.GetVpcSubnets(dag)
 
 	clusterRole := createClusterAdminRole(appName, clusterName+"-k8sAdmin", references)
 	dag.AddResource(clusterRole)
 
-	cluster := NewEksCluster(appName, clusterName, subnets, securityGroups, clusterRole)
+	cluster := NewEksCluster(appName, clusterName, vpc, subnets, securityGroups, clusterRole)
 	cluster.ConstructsRef = references
 	dag.AddDependenciesReflect(cluster)
 
@@ -200,7 +196,7 @@ func CreateEksCluster(cfg *config.Application, clusterName string, subnets []*Su
 	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
 	dag.AddDependenciesReflect(fargateRole)
 
-	profile := NewEksFargateProfile(cluster, privateSubnets, fargateRole, references)
+	profile := NewEksFargateProfile(cluster, subnets, fargateRole, references)
 	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
 	dag.AddDependenciesReflect(profile)
 
@@ -580,7 +576,7 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 				"name":   saName,
 			},
 			"region": core.IaCValue{Resource: NewRegion(), Property: NAME_IAC_VALUE},
-			"vpcId":  core.IaCValue{Resource: cluster.Subnets[0].Vpc, Property: ID_IAC_VALUE},
+			"vpcId":  core.IaCValue{Resource: cluster.Vpc, Property: ID_IAC_VALUE},
 			"podLabels": map[string]string{
 				"app": "aws-lb-controller",
 			},
@@ -729,7 +725,7 @@ func GetEksCluster(appName string, clusterId string, dag *core.ResourceGraph) *E
 	if clusterId == "" {
 		clusterId = DEFAULT_CLUSTER_NAME
 	}
-	cluster := NewEksCluster(appName, clusterId, nil, nil, nil)
+	cluster := NewEksCluster(appName, clusterId, nil, nil, nil, nil)
 	resource := dag.GetResource(cluster.Id())
 	if existingCluster, ok := resource.(*EksCluster); ok {
 		return existingCluster
@@ -779,9 +775,10 @@ func createNodeRole(appName string, roleName string, refs []core.AnnotationKey) 
 	return nodeRole
 }
 
-func NewEksCluster(appName string, clusterName string, subnets []*Subnet, securityGroups []*SecurityGroup, role *IamRole) *EksCluster {
+func NewEksCluster(appName string, clusterName string, vpc *Vpc, subnets []*Subnet, securityGroups []*SecurityGroup, role *IamRole) *EksCluster {
 	return &EksCluster{
 		Name:           clusterSanitizer.Apply(fmt.Sprintf("%s-%s", appName, clusterName)),
+		Vpc:            vpc,
 		Subnets:        subnets,
 		SecurityGroups: securityGroups,
 		ClusterRole:    role,
