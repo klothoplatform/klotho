@@ -113,7 +113,7 @@ func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 		Vpc:  vpc,
 	}
 
-	importId := config.Import[vpc.Id()]
+	importId := config.Imports[vpc.Id()]
 	if importId == "" {
 		igw := NewInternetGateway(appName, "igw1", vpc)
 		dag.AddDependenciesReflect(igw)
@@ -123,7 +123,7 @@ func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 	dag.AddDependenciesReflect(publicRt)
 
 	var importSubnetIds []core.ResourceId
-	for id := range config.Import {
+	for id := range config.Imports {
 		if id.Provider == AWS_PROVIDER && strings.HasPrefix(id.Type, VPC_SUBNET_TYPE_PREFIX) {
 			importSubnetIds = append(importSubnetIds, id)
 		}

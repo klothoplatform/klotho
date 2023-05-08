@@ -39,7 +39,7 @@ func GetSecurityGroup(cfg *config.Application, dag *core.ResourceGraph) *Securit
 		Name: cfg.AppName,
 		Vpc:  vpc,
 	}
-	if _, ok := cfg.Import[sg.Id()]; !ok {
+	if _, ok := cfg.Imports[sg.Id()]; !ok {
 		vpcIngressRule := SecurityGroupRule{
 			Description: "Allow ingress traffic from ip addresses within the vpc",
 			CidrBlocks: []core.IaCValue{
