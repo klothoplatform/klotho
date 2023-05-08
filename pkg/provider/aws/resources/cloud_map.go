@@ -19,6 +19,10 @@ type (
 	}
 )
 
+func (lambda *PrivateDnsNamespace) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 func NewPrivateDnsNamespace(appName string, refs []core.AnnotationKey, vpc *Vpc) *PrivateDnsNamespace {
 	return &PrivateDnsNamespace{
 		Name:          privateDnsNamespaceSanitizer.Apply(appName),

@@ -60,6 +60,9 @@ func (dr dummyResource) KlothoConstructRef() []core.AnnotationKey { return nil }
 func (dr dummyResource) Id() core.ResourceId {
 	return core.ResourceId{Provider: "test", Type: "", Name: string(dr)}
 }
+func (f dummyResource) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	return nil, nil
+}
 
 func (dc dummyConstruct) Provenance() core.AnnotationKey { return core.AnnotationKey{} }
 

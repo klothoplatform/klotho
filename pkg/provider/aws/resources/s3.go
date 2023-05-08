@@ -43,6 +43,18 @@ type (
 	}
 )
 
+func (lambda *S3Bucket) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *S3Object) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *S3BucketPolicy) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 func NewS3Bucket(fs core.Construct, appName string) *S3Bucket {
 	return &S3Bucket{
 		Name:          bucketSanitizer.Apply(fmt.Sprintf("%s-%s", appName, fs.Provenance().ID)),

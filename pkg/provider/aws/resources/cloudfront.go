@@ -82,6 +82,13 @@ type (
 	}
 )
 
+func (lambda *CloudfrontDistribution) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+func (lambda *OriginAccessIdentity) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 // CreateS3Origin creates an origin for a static unit, given its bucket, and attaches it to the Cloudfront distribution passed in
 func CreateS3Origin(unit *core.StaticUnit, bucket *S3Bucket, distribution *CloudfrontDistribution, dag *core.ResourceGraph) {
 

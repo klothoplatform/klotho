@@ -36,6 +36,10 @@ type HelmChart struct {
 	Values           map[string]any
 }
 
+func (lambda *HelmChart) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 // KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
 func (chart *HelmChart) KlothoConstructRef() []core.AnnotationKey { return chart.ConstructRefs }
 

@@ -37,6 +37,10 @@ const (
 	DYNAMODB_TABLE_INDEX_IAC_VALUE  = "dynamodb_table__index"
 )
 
+func (lambda *DynamodbTable) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 func (table *DynamodbTable) Validate() error {
 	var merr multierr.Error
 	if table.BillingMode != PAY_PER_REQUEST && table.BillingMode != PROVISIONED {

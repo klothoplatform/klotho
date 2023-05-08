@@ -86,6 +86,175 @@ type (
 	}
 )
 
+func (vpc *Vpc) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	type vpcMetadata struct {
+		AppName string
+	}
+	data := &vpcMetadata{}
+	decoder := getMapDecoder(data)
+	err := decoder.Decode(metadata)
+	if err != nil {
+		return vpc, err
+	}
+	vpc = &Vpc{
+		Name:               aws.VpcSanitizer.Apply(data.AppName),
+		CidrBlock:          "10.0.0.0/16",
+		EnableDnsSupport:   true,
+		EnableDnsHostnames: true,
+	}
+	err = dag.CreateRecursively(vpc, metadata)
+	return vpc, err
+}
+
+func (eip *ElasticIp) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	type eipMetadata struct {
+		AppName string
+		IpName  string
+	}
+	data := &eipMetadata{}
+	decoder := getMapDecoder(data)
+	err := decoder.Decode(metadata)
+	if err != nil {
+		return eip, err
+	}
+
+	eip = &ElasticIp{
+		Name: elasticIpSanitizer.Apply(fmt.Sprintf("%s-%s", data.AppName, data.IpName)),
+	}
+	err = dag.CreateRecursively(eip, metadata)
+
+	return eip, nil
+}
+
+func (igw *InternetGateway) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	type igwMetadata struct {
+		AppName string
+	}
+	data := &igwMetadata{}
+	decoder := getMapDecoder(data)
+	err := decoder.Decode(metadata)
+	if err != nil {
+		return igw, err
+	}
+
+	igw = &InternetGateway{
+		Name: igwSanitizer.Apply(fmt.Sprintf("%s-igw", data.AppName)),
+	}
+
+	err = dag.CreateRecursively(igw, metadata)
+	return igw, err
+}
+
+func (nat *NatGateway) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+
+	type natMetadata struct {
+		AppName string
+		AZ      string
+	}
+	data := &natMetadata{}
+	decoder := getMapDecoder(data)
+	err := decoder.Decode(metadata)
+	if err != nil {
+		return nat, err
+	}
+
+	metadata["IpName"] = data.AZ
+
+	nat = &NatGateway{
+		Name: natGatewaySanitizer.Apply(fmt.Sprintf("%s-%s", data.AppName, data.AZ)),
+		Subnet: &Subnet{
+			Type: PublicSubnet,
+			AvailabilityZone: core.IaCValue{
+				Resource: NewAvailabilityZones(),
+				Property: data.AZ,
+			},
+		},
+	}
+	err = dag.CreateRecursively(nat, metadata)
+	return nat, err
+}
+
+func (subnet *Subnet) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	type subnetMetadata struct {
+		AppName string
+		Refs    []core.AnnotationKey
+	}
+	subnetData := &subnetMetadata{}
+	decoder := getMapDecoder(subnetData)
+	err := decoder.Decode(metadata)
+	if err != nil {
+		return subnet, err
+	}
+
+	subnetName := subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", subnetData.AppName, subnet.Type, subnet.AvailabilityZone.Property))
+	subnet.Name = subnetName
+
+	if subnet.Type == PrivateSubnet {
+		nat := NatGateway{}
+		metadata["AZ"] = subnet.AvailabilityZone.Property
+		subnetNat, err := nat.Create(dag, metadata)
+		metadata["Gateway"] = subnetNat
+		if err != nil {
+			return subnet, err
+		}
+		if subnet.AvailabilityZone.Property == "0" {
+			subnet.CidrBlock = "10.0.0.0/18"
+		} else if subnet.AvailabilityZone.Property == "1" {
+			subnet.CidrBlock = "10.0.64.0/18"
+		}
+	} else if subnet.Type == PublicSubnet {
+		igw := InternetGateway{}
+		fullIgw, err := igw.Create(dag, metadata)
+		metadata["Gateway"] = fullIgw
+
+		if err != nil {
+			return subnet, err
+		}
+		if subnet.AvailabilityZone.Property == "0" {
+			subnet.CidrBlock = "10.0.128.0/18"
+		} else if subnet.AvailabilityZone.Property == "1" {
+			subnet.CidrBlock = "10.0.192.0/18"
+
+		}
+	}
+	rt := RouteTable{}
+	rt.Create(dag, metadata)
+
+	mapPublicIpOnLaunch := false
+	if subnet.Type == PublicSubnet {
+		mapPublicIpOnLaunch = true
+	}
+
+	subnet.MapPublicIpOnLaunch = mapPublicIpOnLaunch
+	err = dag.CreateRecursively(subnet, metadata)
+	return subnet, err
+}
+
+func (lambda *VpcEndpoint) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (rt *RouteTable) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	type routeTableMetadata struct {
+		Gateway core.Resource
+	}
+	data := &routeTableMetadata{}
+	decoder := getMapDecoder(data)
+	err := decoder.Decode(metadata)
+	if err != nil {
+		return rt, err
+	}
+
+	rt = &RouteTable{
+		Name: data.Gateway.Id().Name,
+		Routes: []*RouteTableRoute{
+			{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: data.Gateway, Property: ID_IAC_VALUE}},
+		},
+	}
+	err = dag.CreateRecursively(rt, metadata)
+	return rt, err
+}
+
 // CreateNetwork takes in a config and uses the appName to create an aws network and inject it into the dag.
 //
 // The network consists of:

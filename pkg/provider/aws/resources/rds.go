@@ -107,6 +107,22 @@ type (
 	}
 )
 
+func (lambda *RdsInstance) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *RdsSubnetGroup) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *RdsProxy) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 // CreateRdsInstance takes in an orm construct and creates the necessary resources to support creating a functional RDS Orm implementation
 //
 // If proxy is enabled, a corresponding proxy, secret, and remaining resources will be created.

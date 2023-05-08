@@ -51,6 +51,10 @@ type (
 	}
 )
 
+func (lambda *Kubeconfig) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 func (k Kubeconfig) KlothoConstructRef() []core.AnnotationKey { return k.ConstructsRef }
 
 func (k Kubeconfig) Id() core.ResourceId {

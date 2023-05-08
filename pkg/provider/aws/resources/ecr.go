@@ -30,6 +30,63 @@ type (
 	}
 )
 
+func (repo *EcrRepository) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	type repoMetadata struct {
+		AppName string
+		Refs    []core.AnnotationKey
+	}
+
+	if repo == nil {
+		repoMetadata := &repoMetadata{}
+		decoder := getMapDecoder(repoMetadata)
+		err := decoder.Decode(metadata)
+		if err != nil {
+			return repo, err
+		}
+		repo = &EcrRepository{
+			Name:          repoMetadata.AppName,
+			ForceDelete:   true,
+			ConstructsRef: repoMetadata.Refs,
+		}
+	}
+
+	err := dag.CreateRecursively(repo, metadata)
+	return repo, err
+}
+
+func (image *EcrImage) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	type imageMetadata struct {
+		AppName        string
+		Refs           []core.AnnotationKey
+		Unit           string
+		DockerfilePath string
+	}
+	fmt.Println(image)
+
+	if image == nil {
+		fmt.Println("image is nil")
+		imageMetadata := &imageMetadata{}
+		decoder := getMapDecoder(imageMetadata)
+		err := decoder.Decode(metadata)
+		if err != nil {
+			return image, err
+		}
+		fmt.Println("setting image")
+		image = &EcrImage{
+			Name:          fmt.Sprintf("%s-%s", imageMetadata.AppName, imageMetadata.Unit),
+			ConstructsRef: imageMetadata.Refs,
+			Context:       fmt.Sprintf("./%s", imageMetadata.Unit),
+			Dockerfile:    fmt.Sprintf("./%s/%s", imageMetadata.Unit, imageMetadata.DockerfilePath),
+			ExtraOptions:  []string{"--platform", "linux/amd64", "--quiet"},
+		}
+	}
+
+	fmt.Println(image)
+
+	err := dag.CreateRecursively(image, metadata)
+	return image, err
+}
+
 func GenerateEcrRepoAndImage(appName string, unit *core.ExecutionUnit, dag *core.ResourceGraph) (*EcrImage, error) {
 	// See if we have already created an ecr repository for the app and if not create one, otherwise add a ref to this exec unit
 	var repo *EcrRepository

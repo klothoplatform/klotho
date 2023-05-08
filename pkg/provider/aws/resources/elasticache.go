@@ -36,6 +36,14 @@ var (
 	elasticacheClusterSanitizer = aws.ElasticacheClusterSanitizer
 )
 
+func (lambda *ElasticacheCluster) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *ElasticacheSubnetgroup) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (ec *ElasticacheCluster) KlothoConstructRef() []core.AnnotationKey {
 	return ec.ConstructsRef

@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -11,21 +12,8 @@ import (
 	"go.uber.org/zap"
 )
 
-func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
+func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGraph) (err error) {
 	log := zap.S()
-
-	createNetwork, err := a.shouldCreateNetwork(result)
-	if err != nil {
-		return
-	}
-	if createNetwork {
-		_ = resources.CreateNetwork(a.Config, dag)
-	}
-
-	err = a.createEksClusters(result, dag)
-	if err != nil {
-		return
-	}
 	constructIds, err := result.TopologicalSort()
 	if err != nil {
 		return
@@ -38,45 +26,95 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 		log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
 		switch construct := construct.(type) {
 		case *core.ExecutionUnit:
-			merr.Append(a.GenerateExecUnitResources(construct, result, dag))
-		case *core.StaticUnit:
-			merr.Append(a.GenerateStaticUnitResources(construct, dag))
-		case *core.Gateway:
-			merr.Append(a.GenerateExposeResources(construct, result, dag))
-		case *core.Fs:
-			merr.Append(a.GenerateFsResources(construct, result, dag))
-		case *core.Secrets:
-			merr.Append(a.GenerateSecretsResources(construct, result, dag))
-		case *core.Kv:
-			merr.Append(a.GenerateKvResources(construct, result, dag))
-		case *core.RedisNode:
-			merr.Append(a.GenerateRedisResources(construct, result, dag))
-		case *core.Orm:
-			merr.Append(a.GenerateOrmResources(construct, result, dag))
-		case *core.InternalResource:
-			merr.Append(a.GenerateFsResources(construct, result, dag))
-		case *core.Config:
-			merr.Append(a.GenerateConfigResources(construct, result, dag))
-		default:
-			// TODO convert to error once migration to ifc2 is complete
-			log.Warnf("Unsupported resource %s", construct.Id())
+			fmt.Println("should be creating lambda and deps")
+			lambda := resources.InitializeLambdaFunction(construct, a.Config)
+			_, err := lambda.Create(dag, map[string]any{
+				"AppName":          a.Config.AppName,
+				"DockerfilePath":   construct.DockerfilePath,
+				"Unit":             construct.ID,
+				"Refs":             []core.AnnotationKey{construct.AnnotationKey},
+				"NetworkPlacement": a.Config.GetExecutionUnit(construct.ID).NetworkPlacement,
+				"Vpc":              true,
+			})
+			merr.Append(err)
 		}
 	}
-	if err = merr.ErrOrNil(); err != nil {
-		return
+	return merr.ErrOrNil()
+}
+
+func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
+	err = a.ExpandConstructs(result, dag)
+	for _, res := range dag.ListResources() {
+		fmt.Println(res.Id().String())
 	}
-	err = a.handleExecUnitProxy(result, dag)
-	if err != nil {
-		return
+	for _, dep := range dag.ListDependencies() {
+		fmt.Printf("%s -> %s\n", dep.Source.Id().String(), dep.Destination.Id().String())
 	}
-	err = a.convertExecUnitParams(result, dag)
-	if err != nil {
-		return
-	}
-	err = a.createCDNs(result, dag)
-	if err != nil {
-		return
-	}
+	// log := zap.S()
+
+	// createNetwork, err := a.shouldCreateNetwork(result)
+	// if err != nil {
+	// 	return
+	// }
+	// if createNetwork {
+	// 	_ = resources.CreateNetwork(a.Config, dag)
+	// }
+
+	// err = a.createEksClusters(result, dag)
+	// if err != nil {
+	// 	return
+	// }
+	// constructIds, err := result.TopologicalSort()
+	// if err != nil {
+	// 	return
+	// }
+	// // We want to reverse the list so that we start at the leaf nodes. This allows us to check downstream dependencies each time and process them.
+	// reverseInPlace(constructIds)
+	// var merr multierr.Error
+	// for _, id := range constructIds {
+	// 	construct := result.GetConstruct(id)
+	// 	log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
+	// 	switch construct := construct.(type) {
+	// 	case *core.ExecutionUnit:
+	// 		merr.Append(a.GenerateExecUnitResources(construct, result, dag))
+	// 	case *core.StaticUnit:
+	// 		merr.Append(a.GenerateStaticUnitResources(construct, dag))
+	// 	case *core.Gateway:
+	// 		merr.Append(a.GenerateExposeResources(construct, result, dag))
+	// 	case *core.Fs:
+	// 		merr.Append(a.GenerateFsResources(construct, result, dag))
+	// 	case *core.Secrets:
+	// 		merr.Append(a.GenerateSecretsResources(construct, result, dag))
+	// 	case *core.Kv:
+	// 		merr.Append(a.GenerateKvResources(construct, result, dag))
+	// 	case *core.RedisNode:
+	// 		merr.Append(a.GenerateRedisResources(construct, result, dag))
+	// 	case *core.Orm:
+	// 		merr.Append(a.GenerateOrmResources(construct, result, dag))
+	// 	case *core.InternalResource:
+	// 		merr.Append(a.GenerateFsResources(construct, result, dag))
+	// 	case *core.Config:
+	// 		merr.Append(a.GenerateConfigResources(construct, result, dag))
+	// 	default:
+	// 		// TODO convert to error once migration to ifc2 is complete
+	// 		log.Warnf("Unsupported resource %s", construct.Id())
+	// 	}
+	// }
+	// if err = merr.ErrOrNil(); err != nil {
+	// 	return
+	// }
+	// err = a.handleExecUnitProxy(result, dag)
+	// if err != nil {
+	// 	return
+	// }
+	// err = a.convertExecUnitParams(result, dag)
+	// if err != nil {
+	// 	return
+	// }
+	// err = a.createCDNs(result, dag)
+	// if err != nil {
+	// 	return
+	// }
 	return
 }
 

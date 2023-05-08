@@ -85,6 +85,28 @@ type (
 	}
 )
 
+func (lambda *RestApi) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+func (lambda *ApiResource) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+func (lambda *ApiMethod) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+func (lambda *VpcLink) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+func (lambda *ApiIntegration) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+func (lambda *ApiDeployment) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+func (lambda *ApiStage) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 func NewRestApi(appName string, gw *core.Gateway) *RestApi {
 	return &RestApi{
 		Name:             restApiSanitizer.Apply(fmt.Sprintf("%s-%s", appName, gw.ID)),

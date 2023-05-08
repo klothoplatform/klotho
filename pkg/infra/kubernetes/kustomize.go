@@ -17,6 +17,10 @@ type (
 	}
 )
 
+func (lambda *KustomizeDirectory) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 // KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
 func (dir *KustomizeDirectory) KlothoConstructRef() []core.AnnotationKey { return dir.ConstructRefs }
 

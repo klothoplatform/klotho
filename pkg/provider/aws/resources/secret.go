@@ -25,6 +25,14 @@ type (
 const SECRET_TYPE = "secret"
 const SECRET_VERSION_TYPE = "secret_version"
 
+func (lambda *Secret) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *SecretVersion) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 func NewSecret(annot core.AnnotationKey, secretName string, appName string) *Secret {
 	plainName := appName
 	if secretName != "" {

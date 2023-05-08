@@ -1,9 +1,11 @@
 package core
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/multierr"
 	"go.uber.org/zap"
 )
 
@@ -234,4 +236,89 @@ func (rg *ResourceGraph) getAllDownstreamResourcesSet(source Resource, upstreams
 		rg.getAllDownstreamResourcesSet(r, upstreams)
 	}
 	return upstreams
+}
+
+func (rg *ResourceGraph) CreateRecursively(res Resource, metadata map[string]any) error {
+	var merr multierr.Error
+	rg.AddResource(res)
+
+	source := reflect.ValueOf(res)
+	for source.Kind() == reflect.Pointer {
+		source = source.Elem()
+	}
+	for i := 0; i < source.NumField(); i++ {
+		targetValue := source.Field(i)
+		merr.Append(rg.actOnValue(targetValue, res, metadata))
+	}
+	return merr.ErrOrNil()
+}
+
+func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, metadata map[string]any) error {
+	switch value := targetValue.Interface().(type) {
+	case Resource:
+		resource, err := value.Create(rg, metadata)
+		if err == nil && resource != nil {
+			fmt.Println(resource)
+			rg.AddDependency(res, resource)
+			targetValue.Set(reflect.ValueOf(resource))
+		} else {
+			return err
+		}
+	case *IaCValue:
+		if value.Resource != nil {
+			resource, err := value.Resource.Create(rg, metadata)
+			if err == nil && resource != nil {
+				rg.AddDependency(res, resource)
+				value.Resource = resource
+				targetValue.Set(reflect.ValueOf(value))
+			} else {
+				return err
+			}
+		}
+	case IaCValue:
+		if value.Resource != nil {
+			resource, err := value.Resource.Create(rg, metadata)
+			if err == nil && resource != nil {
+				value.Resource = resource
+				rg.AddDependency(res, resource)
+				targetValue.Set(reflect.ValueOf(value))
+			} else {
+				return err
+			}
+		}
+	default:
+		correspondingValue := targetValue
+		for correspondingValue.Kind() == reflect.Pointer {
+			correspondingValue = targetValue.Elem()
+		}
+
+		err := rg.checkChild(correspondingValue, res, metadata)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (rg *ResourceGraph) checkChild(child reflect.Value, res Resource, metadata map[string]any) error {
+	var merr multierr.Error
+	switch child.Kind() {
+	case reflect.Struct:
+		for i := 0; i < child.NumField(); i++ {
+			childVal := child.Field(i)
+			merr.Append(rg.actOnValue(childVal, res, metadata))
+		}
+	case reflect.Slice, reflect.Array:
+		for elemIdx := 0; elemIdx < child.Len(); elemIdx++ {
+			elemValue := child.Index(elemIdx)
+			merr.Append(rg.actOnValue(elemValue, res, metadata))
+		}
+
+	case reflect.Map:
+		for iter := child.MapRange(); iter.Next(); {
+			elemValue := iter.Value()
+			merr.Append(rg.actOnValue(elemValue, res, metadata))
+		}
+	}
+	return merr.ErrOrNil()
 }

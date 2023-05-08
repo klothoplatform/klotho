@@ -19,6 +19,8 @@ type (
 		KlothoConstructRef() []AnnotationKey
 		// Id returns the id of the cloud resource
 		Id() ResourceId
+		// Create modifies itself to be a completed instance of the resource given a set of metadata
+		Create(dag *ResourceGraph, metadata map[string]any) (Resource, error)
 	}
 
 	ResourceId struct {

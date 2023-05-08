@@ -147,6 +147,40 @@ type (
 	}
 )
 
+func (role *IamRole) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+
+	type roleMetadata struct {
+		RoleName            string
+		Refs                []core.AnnotationKey
+		AssumeRolePolicyDoc *PolicyDocument
+	}
+
+	if role == nil {
+		roleMetadata := &roleMetadata{}
+		decoder := getMapDecoder(roleMetadata)
+		err := decoder.Decode(metadata)
+		if err != nil {
+			return role, err
+		}
+		role = &IamRole{
+			Name:                roleSanitizer.Apply(roleMetadata.RoleName),
+			ConstructsRef:       roleMetadata.Refs,
+			AssumeRolePolicyDoc: roleMetadata.AssumeRolePolicyDoc,
+		}
+	}
+
+	err := dag.CreateRecursively(role, metadata)
+	return role, err
+}
+
+func (lambda *IamPolicy) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *OpenIdConnectProvider) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 func NewPolicyGenerator() *PolicyGenerator {
 	p := &PolicyGenerator{
 		unitsPolicies:       make(map[string][]*IamPolicy),

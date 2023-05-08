@@ -20,6 +20,10 @@ type (
 	}
 )
 
+func (lambda *LogGroup) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 func NewLogGroup(appName string, logGroupName string, ref core.AnnotationKey, retention int) *LogGroup {
 	return &LogGroup{
 		Name:            logGroupSanitizer.Apply(fmt.Sprintf("%s-%s", appName, logGroupName)),

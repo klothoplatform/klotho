@@ -31,7 +31,29 @@ type (
 		SecurityGroupId core.IaCValue
 		Type            string
 	}
+
+	RolePolicyAttachment struct {
+		Name   string
+		Policy *resources.IamPolicy
+		Role   *resources.IamRole
+	}
 )
+
+func (lambda *KubernetesProvider) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *RouteTableAssociation) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *SecurityGroupRule) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *RolePolicyAttachment) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
 
 func (e *KubernetesProvider) KlothoConstructRef() []core.AnnotationKey {
 	return e.ConstructsRef
@@ -59,14 +81,6 @@ func (e *RouteTableAssociation) Id() core.ResourceId {
 
 const (
 	IAM_ROLE_POLICY_ATTACH_TYPE = "role_policy_attach"
-)
-
-type (
-	RolePolicyAttachment struct {
-		Name   string
-		Policy *resources.IamPolicy
-		Role   *resources.IamRole
-	}
 )
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to

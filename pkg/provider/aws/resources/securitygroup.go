@@ -25,6 +25,52 @@ type (
 
 const SG_TYPE = "security_group"
 
+func (sg *SecurityGroup) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	type vpcMetadata struct {
+		AppName string
+	}
+	data := &vpcMetadata{}
+	decoder := getMapDecoder(data)
+	err := decoder.Decode(metadata)
+	if err != nil {
+		return sg, err
+	}
+
+	sg = &SecurityGroup{
+		Name: data.AppName,
+	}
+
+	err = dag.CreateRecursively(sg, metadata)
+
+	sg.IngressRules = append(sg.IngressRules, SecurityGroupRule{
+		Description: "Allow ingress traffic from ip addresses within the vpc",
+		CidrBlocks: []core.IaCValue{
+			{Resource: sg.Vpc, Property: CIDR_BLOCK_IAC_VALUE},
+		},
+		FromPort: 0,
+		Protocol: "-1",
+		ToPort:   0,
+	})
+	sg.IngressRules = append(sg.IngressRules, SecurityGroupRule{
+		Description: "Allow ingress traffic from within the same security group",
+		FromPort:    0,
+		Protocol:    "-1",
+		ToPort:      0,
+		Self:        true,
+	})
+	sg.EgressRules = append(sg.EgressRules, SecurityGroupRule{
+		Description: "Allows all outbound IPv4 traffic.",
+		FromPort:    0,
+		Protocol:    "-1",
+		ToPort:      0,
+		CidrBlocks: []core.IaCValue{
+			{Property: "0.0.0.0/0"},
+		},
+	})
+	return sg, err
+
+}
+
 // GetSecurityGroup returns the security group if one exists, otherwise creates one, then returns it
 func GetSecurityGroup(cfg *config.Application, dag *core.ResourceGraph) *SecurityGroup {
 	for _, r := range dag.ListResources() {

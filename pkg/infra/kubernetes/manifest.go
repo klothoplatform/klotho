@@ -45,6 +45,10 @@ type (
 	}
 )
 
+func (lambda *Manifest) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 // KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
 func (manifest *Manifest) KlothoConstructRef() []core.AnnotationKey { return manifest.ConstructRefs }
 

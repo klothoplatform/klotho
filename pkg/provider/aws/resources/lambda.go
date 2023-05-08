@@ -39,6 +39,68 @@ type (
 	}
 )
 
+func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+
+	type lambdaMetadata struct {
+		AppName          string
+		Refs             []core.AnnotationKey
+		Unit             string
+		Vpc              bool
+		NetworkPlacement string
+	}
+	lambdaData := &lambdaMetadata{}
+	decoder := getMapDecoder(lambdaData)
+	err := decoder.Decode(metadata)
+	if err != nil {
+		return lambda, err
+	}
+
+	metadata["RoleName"] = fmt.Sprintf("%s-ExecutionRole", lambda.Name)
+	metadata["Refs"] = lambda.ConstructsRef
+	metadata["AssumeRolePolicyDoc"] = LAMBDA_ASSUMER_ROLE_POLICY
+
+	if lambdaData.Vpc {
+		subnetType := PrivateSubnet
+		if lambdaData.NetworkPlacement == "public" {
+			subnetType = PublicSubnet
+		}
+		lambda.Subnets = []*Subnet{
+			{
+				Type: subnetType,
+				AvailabilityZone: core.IaCValue{
+					Resource: NewAvailabilityZones(),
+					Property: "0",
+				},
+			},
+			{
+				Type: subnetType,
+				AvailabilityZone: core.IaCValue{
+					Resource: NewAvailabilityZones(),
+					Property: "1",
+				},
+			},
+		}
+		lambda.SecurityGroups = make([]*SecurityGroup, 1)
+	}
+
+	err = dag.CreateRecursively(lambda, metadata)
+	return lambda, err
+}
+
+func (lambda *LambdaPermission) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func InitializeLambdaFunction(unit *core.ExecutionUnit, cfg *config.Application) *LambdaFunction {
+	params := config.ConvertFromInfraParams[config.ServerlessTypeParams](cfg.GetExecutionUnit(unit.ID).InfraParams)
+	return &LambdaFunction{
+		Name:          lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", cfg.AppName, unit.ID)),
+		ConstructsRef: []core.AnnotationKey{unit.Provenance()},
+		MemorySize:    params.Memory,
+		Timeout:       params.Timeout,
+	}
+}
+
 func NewLambdaFunction(unit *core.ExecutionUnit, cfg *config.Application, role *IamRole, image *EcrImage) *LambdaFunction {
 	params := config.ConvertFromInfraParams[config.ServerlessTypeParams](cfg.GetExecutionUnit(unit.ID).InfraParams)
 	return &LambdaFunction{

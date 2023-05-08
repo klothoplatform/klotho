@@ -38,6 +38,9 @@ type testResource struct {
 func (tr *testResource) KlothoConstructRef() []AnnotationKey {
 	return nil
 }
+func (tr *testResource) Create(dag *ResourceGraph, metadata map[string]any) (Resource, error) {
+	return nil, nil
+}
 
 // Id returns the id of the cloud resource
 func (tr *testResource) Id() ResourceId {

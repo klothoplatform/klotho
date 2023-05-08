@@ -56,6 +56,18 @@ type (
 	}
 )
 
+func (lambda *LoadBalancer) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *TargetGroup) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *Listener) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 func NewLoadBalancer(appName string, lbName string, refs []core.AnnotationKey, scheme string, lbType string, subnets []*Subnet, securityGroups []*SecurityGroup) *LoadBalancer {
 	return &LoadBalancer{
 		Name:           loadBalancerSanitizer.Apply(fmt.Sprintf("%s-%s", appName, lbName)),

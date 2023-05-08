@@ -143,6 +143,22 @@ type (
 	}
 )
 
+func (lambda *EksCluster) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *EksFargateProfile) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *EksNodeGroup) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
+func (lambda *EksAddon) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 // CreateEksCluster will create a cluster in the subnets provided, with the attached additional security groups
 //
 // The method will also create a fargate profile in the default namespace and a single NodeGroup.
