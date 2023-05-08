@@ -116,6 +116,7 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 			continue // skip resources that we know are rendered outside of the body
 		case *imports.Imported:
 			// Imported resources are handled by the rendering of their base resource
+			//? Should this ignore all .Provider == "internal" instead?
 			continue
 		}
 		err := tc.renderResource(out, resource)

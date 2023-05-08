@@ -143,6 +143,8 @@ func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 				dag.AddDependenciesReflect(sn)
 			}
 		}
+		// TODO either add or check the auxillary resources such as
+		// gateways, route tables, etc.
 	} else {
 		azs := NewAvailabilityZones()
 		dag.AddDependency(azs, region)
