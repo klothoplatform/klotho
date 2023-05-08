@@ -7,7 +7,7 @@ interface Args {
     FromPort: number
     ToPort: number
     Protocol: string
-    CidrBlocks: string[]
+    CidrBlocks: pulumi.Input<string>[]
     SecurityGroupId: pulumi.Input<string>
     Type: string
 }

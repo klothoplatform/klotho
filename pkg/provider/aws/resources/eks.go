@@ -196,7 +196,13 @@ func CreateEksCluster(cfg *config.Application, clusterName string, vpc *Vpc, sec
 	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
 	dag.AddDependenciesReflect(fargateRole)
 
-	profile := NewEksFargateProfile(cluster, subnets, fargateRole, references)
+	privateSubnets := make([]*Subnet, 0, len(subnets))
+	for _, sub := range subnets {
+		if sub.Type == PrivateSubnet {
+			privateSubnets = append(privateSubnets, sub)
+		}
+	}
+	profile := NewEksFargateProfile(cluster, privateSubnets, fargateRole, references)
 	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
 	dag.AddDependenciesReflect(profile)
 
