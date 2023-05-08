@@ -16,7 +16,7 @@ func (p Plugin) Name() string {
 
 func (p Plugin) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
 	log := zap.S()
-	for resId, importId := range p.Config.Import {
+	for resId, importId := range p.Config.Imports {
 		res := dag.GetResource(resId)
 		if res == nil {
 			log.Warnf("No resource found for import '%s'", resId)

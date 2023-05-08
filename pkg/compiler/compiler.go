@@ -2,17 +2,14 @@ package compiler
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/validation"
-	"github.com/pelletier/go-toml/v2"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v2"
 )
 
 type (
@@ -118,23 +115,7 @@ func (c *Compiler) Compile() error {
 func (c *Compiler) createConfigOutputFile() error {
 	c.Document.Configuration.UpdateForResources(c.Document.Constructs.ListConstructs())
 	buf := new(bytes.Buffer)
-	var err error
-	switch c.Document.Configuration.Format {
-	case "toml":
-		enc := toml.NewEncoder(buf)
-		enc.SetArraysMultiline(true)
-		enc.SetIndentTables(true)
-		err = enc.Encode(c.Document.Configuration)
-
-	case "json":
-		err = json.NewEncoder(buf).Encode(c.Document.Configuration)
-
-	case "yaml":
-		err = yaml.NewEncoder(buf).Encode(c.Document.Configuration)
-
-	default:
-		err = errors.Errorf("unsupported config format: %s", c.Document.Configuration.Format)
-	}
+	err := c.Document.Configuration.WriteTo(buf)
 	if err != nil {
 		return err
 	}

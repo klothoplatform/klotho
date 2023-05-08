@@ -73,7 +73,7 @@ func (id ResourceId) String() string {
 	return s + ":" + id.Name
 }
 
-func (id *ResourceId) MarshalText() ([]byte, error) {
+func (id ResourceId) MarshalText() ([]byte, error) {
 	return []byte(id.String()), nil
 }
 
@@ -91,4 +91,20 @@ func (id *ResourceId) UnmarshalText(data []byte) error {
 		id.Name = parts[2]
 	}
 	return nil
+}
+
+func (id ResourceId) MarshalYAML() ([]byte, error) {
+	return id.MarshalText()
+}
+
+func (id *ResourceId) UnmarshalYAML(data []byte) error {
+	return id.UnmarshalText(data)
+}
+
+func (id ResourceId) MarshalTOML() ([]byte, error) {
+	return id.MarshalText()
+}
+
+func (id *ResourceId) UnmarshalTOML(data []byte) error {
+	return id.UnmarshalText(data)
 }

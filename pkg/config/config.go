@@ -2,13 +2,13 @@ package config
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/pelletier/go-toml/v2"
-	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -38,7 +38,7 @@ type (
 		PersistRedisCluster map[string]*Persist        `json:"persist_redis_cluster,omitempty" yaml:"persist_redis_cluster,omitempty" toml:"persist_redis_cluster,omitempty"`
 		Config              map[string]*Config         `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
 		Links               []CloudResourceLink        `json:"links,omitempty" yaml:"links,omitempty" toml:"links,omitempty"`
-		Import              map[core.ResourceId]string `json:"import,omitempty" yaml:"import,omitempty" toml:"import,omitempty"`
+		Imports             map[core.ResourceId]string `json:"imports,omitempty" yaml:"imports,omitempty" toml:"imports,omitempty"`
 	}
 
 	CloudResourceLink struct {
@@ -117,21 +117,45 @@ func ReadConfig(fpath string) (Application, error) {
 	}
 	defer f.Close() // nolint:errcheck
 
+	return ReadConfigReader(fpath, f)
+}
+
+func ReadConfigReader(fpath string, reader io.Reader) (Application, error) {
+	var appCfg Application
+
 	switch filepath.Ext(fpath) {
 	case ".json":
-		err = json.NewDecoder(f).Decode(&appCfg)
+		err := json.NewDecoder(reader).Decode(&appCfg)
 		appCfg.Format = "json"
+		return appCfg, err
 
 	case ".yaml", ".yml":
-		err = yaml.NewDecoder(f).Decode(&appCfg)
+		err := yaml.NewDecoder(reader).Decode(&appCfg)
 		appCfg.Format = "yaml"
+		return appCfg, err
 
 	case ".toml":
-		err = toml.NewDecoder(f).Decode(&appCfg)
+		err := toml.NewDecoder(reader).Decode(&appCfg)
 		appCfg.Format = "toml"
+		return appCfg, err
 	}
-	zap.S().Infof("Read config: %+v", appCfg)
-	return appCfg, err
+
+	return appCfg, nil
+}
+
+func (a *Application) WriteTo(writer io.Writer) error {
+	switch a.Format {
+	case "json":
+		return json.NewEncoder(writer).Encode(a)
+
+	case "yaml":
+		return yaml.NewEncoder(writer).Encode(a)
+
+	case "toml":
+		return toml.NewEncoder(writer).Encode(a)
+	}
+
+	return nil
 }
 
 func (a *Application) AddLinks(links []core.CloudResourceLink) {

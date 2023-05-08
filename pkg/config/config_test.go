@@ -1,6 +1,8 @@
 package config
 
 import (
+	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -257,6 +259,50 @@ func Test_MergeInfraParams(t *testing.T) {
 			tt.cfg.ApplyDefaults(tt.defaults)
 			assert.Equal(tt.want, tt.cfg)
 
+		})
+	}
+}
+
+func TestReadConfigReader(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  Application
+	}{
+		{
+			name: "empty config",
+			cfg:  Application{},
+		},
+		{
+			name: "config with imports",
+			cfg: Application{
+				Imports: map[core.ResourceId]string{
+					{Provider: "prov", Type: "type", Namespace: "ns", Name: "name"}: "1",
+					{Provider: "prov", Type: "type", Name: "name"}:                  "2",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, cfgFmt := range []string{"json", "yaml", "toml"} {
+				t.Run(cfgFmt, func(t *testing.T) {
+					assert := assert.New(t)
+					tt.cfg.Format = cfgFmt
+
+					buf := new(bytes.Buffer)
+					err := tt.cfg.WriteTo(buf)
+					if !assert.NoError(err) {
+						return
+					}
+					t.Logf("config:\n%s", buf.String())
+
+					cfg, err := ReadConfigReader(fmt.Sprintf("klotho.%s", cfgFmt), buf)
+					if !assert.NoError(err) {
+						return
+					}
+					assert.Equal(tt.cfg, cfg)
+				})
+			}
 		})
 	}
 }
