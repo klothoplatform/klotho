@@ -822,9 +822,12 @@ func (tc TemplatesCompiler) addIngressRuleToCluster(out io.Writer, cluster *reso
 	_, err := out.Write([]byte("\n\n"))
 	errs.Append(err)
 
-	cidrBlocks := []string{}
-	for _, subnet := range cluster.Subnets {
-		cidrBlocks = append(cidrBlocks, subnet.CidrBlock)
+	cidrBlocks := make([]core.IaCValue, len(cluster.Subnets))
+	for i, subnet := range cluster.Subnets {
+		cidrBlocks[i] = core.IaCValue{
+			Resource: subnet,
+			Property: resources.CIDR_BLOCK_IAC_VALUE,
+		}
 	}
 
 	sgRule := &SecurityGroupRule{
