@@ -93,14 +93,6 @@ func (id *ResourceId) UnmarshalText(data []byte) error {
 	return nil
 }
 
-func (id ResourceId) MarshalYAML() ([]byte, error) {
-	return id.MarshalText()
-}
-
-func (id *ResourceId) UnmarshalYAML(data []byte) error {
-	return id.UnmarshalText(data)
-}
-
 func (id ResourceId) MarshalTOML() ([]byte, error) {
 	return id.MarshalText()
 }
