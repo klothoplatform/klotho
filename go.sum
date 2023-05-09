@@ -435,8 +435,8 @@ github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/klauspost/compress v1.15.14 h1:i7WCKDToww0wA+9qrUZ1xOjp218vfFo3nTU6UHp+gOc=
 github.com/klauspost/compress v1.15.14/go.mod h1:QPwzmACJjUTFsnSHH934V6woptycfrDDJnH7hvFVbGM=
-github.com/klothoplatform/go-toml/v2 v2.0.0-20230508161525-5b6d4ee8b2d9 h1:HfSA9RKlcEvpF2s3rk0NdU7a4hechWwQ24J9Sp9FRgQ=
-github.com/klothoplatform/go-toml/v2 v2.0.0-20230508161525-5b6d4ee8b2d9/go.mod h1:Rx8EVrBQLLFtSg5qlhPUUFBYSYM6/AxUviY6pVtCfE8=
+github.com/klothoplatform/go-toml/v2 v2.0.0-20230509142120-9b7250d54e18 h1:jk2WQkfPr+m35RR1dMUUCXPNKDnHl51a5EBULq4Z4lM=
+github.com/klothoplatform/go-toml/v2 v2.0.0-20230509142120-9b7250d54e18/go.mod h1:Rx8EVrBQLLFtSg5qlhPUUFBYSYM6/AxUviY6pVtCfE8=
 github.com/klothoplatform/go-tree-sitter v0.1.1 h1:UO9bDCP6jJfKHUPv0P+8wLM6FJ4tCRNu3Hj2EQE51wk=
 github.com/klothoplatform/go-tree-sitter v0.1.1/go.mod h1:q99oHDsbP0xRwmn7Vmob8gbSMNyvJ83OauXPSuHQuKE=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=

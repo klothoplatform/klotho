@@ -37,7 +37,8 @@ require (
 )
 
 // Replacement to support text keys in toml files. Remove once feature/text_keys branch has been upstreamed
-replace github.com/pelletier/go-toml/v2 => github.com/klothoplatform/go-toml/v2 v2.0.0-20230508161525-5b6d4ee8b2d9
+// https://github.com/pelletier/go-toml/pull/863
+replace github.com/pelletier/go-toml/v2 => github.com/klothoplatform/go-toml/v2 v2.0.0-20230509142120-9b7250d54e18
 
 require (
 	github.com/dprotaso/go-yit v0.0.0-20191028211022-135eb7262960 // indirect
