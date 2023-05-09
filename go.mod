@@ -17,7 +17,7 @@ require (
 	github.com/kopoli/go-terminal-size v0.0.0-20170219200355-5c97524c8b54
 	github.com/lithammer/dedent v1.1.0
 	github.com/pborman/ansi v1.0.0
-	github.com/pelletier/go-toml/v2 v2.0.6
+	github.com/pelletier/go-toml/v2 v2.0.8-0.20230509155657-d34104d49374
 	github.com/pkg/errors v0.9.1
 	github.com/schollz/progressbar/v3 v3.13.0
 	github.com/smacker/go-tree-sitter v0.0.0-20220209044044-0d3022e933c3
@@ -35,10 +35,6 @@ require (
 	sigs.k8s.io/aws-load-balancer-controller v0.0.0-20221203001353-edeb4f1c1312
 	sigs.k8s.io/yaml v1.3.0
 )
-
-// Replacement to support text keys in toml files. Remove once feature/text_keys branch has been upstreamed
-// https://github.com/pelletier/go-toml/pull/863
-replace github.com/pelletier/go-toml/v2 => github.com/klothoplatform/go-toml/v2 v2.0.0-20230509142120-9b7250d54e18
 
 require (
 	github.com/dprotaso/go-yit v0.0.0-20191028211022-135eb7262960 // indirect
