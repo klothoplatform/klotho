@@ -141,7 +141,7 @@ func (eip *ElasticIp) Create(dag *core.ResourceGraph, metadata map[string]any) (
 		err = dag.CreateRecursively(eip, metadata)
 	}
 
-	return eip, nil
+	return eip, err
 }
 
 func (igw *InternetGateway) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
@@ -266,7 +266,10 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, metadata map[string]any) (
 			}
 		}
 		rt := RouteTable{}
-		rt.Create(dag, metadata)
+		_, err := rt.Create(dag, metadata)
+		if err != nil {
+			return subnet, err
+		}
 
 		mapPublicIpOnLaunch := false
 		if subnet.Type == PublicSubnet {
