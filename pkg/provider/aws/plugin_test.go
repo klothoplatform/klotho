@@ -7,10 +7,63 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
+
+func Test_ExpandConstructs(t *testing.T) {
+	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, DockerfilePath: "path"}
+	cases := []struct {
+		name       string
+		constructs []core.Construct
+		config     *config.Application
+		want       coretesting.ResourcesExpectation
+	}{
+		{
+			name:       "single exec unit",
+			constructs: []core.Construct{eu},
+			config:     &config.Application{AppName: "my-app"},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:ecr_image:my-app-test",
+					"aws:ecr_repo:my-app",
+					"aws:iam_role:my-app-test-ExecutionRole",
+					"aws:lambda_function:my-app-test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:ecr_image:my-app-test", Destination: "aws:ecr_repo:my-app"},
+					{Source: "aws:lambda_function:my-app-test", Destination: "aws:ecr_image:my-app-test"},
+					{Source: "aws:lambda_function:my-app-test", Destination: "aws:iam_role:my-app-test-ExecutionRole"},
+				},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			dag := core.NewResourceGraph()
+			result := core.NewConstructGraph()
+
+			for _, construct := range tt.constructs {
+				result.AddConstruct(construct)
+			}
+
+			aws := AWS{
+				Config: tt.config,
+			}
+			err := aws.ExpandConstructs(result, dag)
+
+			if !assert.NoError(err) {
+				return
+			}
+
+			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
+			tt.want.Assert(t, dag)
+		})
+	}
+}
 
 func Test_shouldCreateNetwork(t *testing.T) {
 	cases := []struct {

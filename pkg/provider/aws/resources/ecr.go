@@ -36,21 +36,25 @@ func (repo *EcrRepository) Create(dag *core.ResourceGraph, metadata map[string]a
 		Refs    []core.AnnotationKey
 	}
 
-	if repo == nil {
-		repoMetadata := &repoMetadata{}
-		decoder := getMapDecoder(repoMetadata)
-		err := decoder.Decode(metadata)
-		if err != nil {
-			return repo, err
-		}
-		repo = &EcrRepository{
-			Name:          repoMetadata.AppName,
-			ForceDelete:   true,
-			ConstructsRef: repoMetadata.Refs,
-		}
+	data := &repoMetadata{}
+	decoder := getMapDecoder(data)
+	err := decoder.Decode(metadata)
+	if err != nil {
+		return repo, err
+	}
+	repo = &EcrRepository{
+		Name:          data.AppName,
+		ForceDelete:   true,
+		ConstructsRef: data.Refs,
 	}
 
-	err := dag.CreateRecursively(repo, metadata)
+	existingRepo := core.GetResourceOfType[*EcrRepository](dag, repo.Id().String())
+	if existingRepo != nil {
+		repo = *existingRepo
+		repo.ConstructsRef = append(repo.ConstructsRef, data.Refs...)
+	} else {
+		err = dag.CreateRecursively(repo, metadata)
+	}
 	return repo, err
 }
 
@@ -61,29 +65,28 @@ func (image *EcrImage) Create(dag *core.ResourceGraph, metadata map[string]any) 
 		Unit           string
 		DockerfilePath string
 	}
-	fmt.Println(image)
 
-	if image == nil {
-		fmt.Println("image is nil")
-		imageMetadata := &imageMetadata{}
-		decoder := getMapDecoder(imageMetadata)
-		err := decoder.Decode(metadata)
-		if err != nil {
-			return image, err
-		}
-		fmt.Println("setting image")
-		image = &EcrImage{
-			Name:          fmt.Sprintf("%s-%s", imageMetadata.AppName, imageMetadata.Unit),
-			ConstructsRef: imageMetadata.Refs,
-			Context:       fmt.Sprintf("./%s", imageMetadata.Unit),
-			Dockerfile:    fmt.Sprintf("./%s/%s", imageMetadata.Unit, imageMetadata.DockerfilePath),
-			ExtraOptions:  []string{"--platform", "linux/amd64", "--quiet"},
-		}
+	data := &imageMetadata{}
+	decoder := getMapDecoder(data)
+	err := decoder.Decode(metadata)
+	if err != nil {
+		return image, err
+	}
+	name := fmt.Sprintf("%s-%s", data.AppName, data.Unit)
+	image = &EcrImage{
+		Name:          name,
+		ConstructsRef: data.Refs,
+		Context:       fmt.Sprintf("./%s", data.Unit),
+		Dockerfile:    fmt.Sprintf("./%s/%s", data.Unit, data.DockerfilePath),
+		ExtraOptions:  []string{"--platform", "linux/amd64", "--quiet"},
 	}
 
-	fmt.Println(image)
+	existingImage := core.GetResourceOfType[*EcrImage](dag, image.Id().String())
+	if existingImage != nil {
+		return image, fmt.Errorf("ecr image with name %s already exists", name)
+	}
 
-	err := dag.CreateRecursively(image, metadata)
+	err = dag.CreateRecursively(image, metadata)
 	return image, err
 }
 

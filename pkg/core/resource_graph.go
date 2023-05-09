@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/graph"
@@ -62,6 +61,18 @@ func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Re
 
 func (rg *ResourceGraph) GetResource(id ResourceId) Resource {
 	return rg.underlying.GetVertex(id.String())
+}
+
+func GetResourceOfType[T Resource](g *ResourceGraph, id string) *T {
+	vertices := g.underlying.GetAllVertices()
+	for _, v := range vertices {
+		if vT, ok := v.(T); ok {
+			if vT.Id().String() == id {
+				return &vT
+			}
+		}
+	}
+	return nil
 }
 
 func (rg *ResourceGraph) GetResourceByVertexId(id string) Resource {
@@ -238,6 +249,12 @@ func (rg *ResourceGraph) getAllDownstreamResourcesSet(source Resource, upstreams
 	return upstreams
 }
 
+// CreateRecursively takes in a resource and set of metadata and looks at any fields which point to specific dependencies which match the Resource Interface
+// If a specific dependency is found, the .Create method will be called to create the parent resource.
+// Each specific dependency value will be updated on the resources field itself
+// This method will recurse down each one of the resources fields and do a DFS until a Resource is found
+//
+// IaCValues today are not labeled as a specific resource, so the value must already be present. This method will still add the dependency, but does not have the knowledge of which resource to create
 func (rg *ResourceGraph) CreateRecursively(res Resource, metadata map[string]any) error {
 	var merr multierr.Error
 	rg.AddResource(res)
@@ -248,29 +265,36 @@ func (rg *ResourceGraph) CreateRecursively(res Resource, metadata map[string]any
 	}
 	for i := 0; i < source.NumField(); i++ {
 		targetValue := source.Field(i)
-		merr.Append(rg.actOnValue(targetValue, res, metadata))
+		merr.Append(rg.actOnValue(targetValue, res, metadata, nil, reflect.Value{}))
 	}
 	return merr.ErrOrNil()
 }
 
-func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, metadata map[string]any) error {
+func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, metadata map[string]any, parent *reflect.Value, index reflect.Value) error {
 	switch value := targetValue.Interface().(type) {
 	case Resource:
 		resource, err := value.Create(rg, metadata)
 		if err == nil && resource != nil {
-			fmt.Println(resource)
 			rg.AddDependency(res, resource)
-			targetValue.Set(reflect.ValueOf(resource))
+			if parent != nil {
+				parent.SetMapIndex(index, reflect.ValueOf(resource))
+			} else {
+				targetValue.Set(reflect.ValueOf(resource))
+			}
 		} else {
 			return err
 		}
 	case *IaCValue:
-		if value.Resource != nil {
+		if value != nil && value.Resource != nil {
 			resource, err := value.Resource.Create(rg, metadata)
 			if err == nil && resource != nil {
 				rg.AddDependency(res, resource)
 				value.Resource = resource
-				targetValue.Set(reflect.ValueOf(value))
+				if parent != nil {
+					parent.SetMapIndex(index, reflect.ValueOf(value))
+				} else {
+					targetValue.Set(reflect.ValueOf(value))
+				}
 			} else {
 				return err
 			}
@@ -281,7 +305,12 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 			if err == nil && resource != nil {
 				value.Resource = resource
 				rg.AddDependency(res, resource)
-				targetValue.Set(reflect.ValueOf(value))
+
+				if parent != nil {
+					parent.SetMapIndex(index, reflect.ValueOf(value))
+				} else {
+					targetValue.Set(reflect.ValueOf(value))
+				}
 			} else {
 				return err
 			}
@@ -306,18 +335,19 @@ func (rg *ResourceGraph) checkChild(child reflect.Value, res Resource, metadata 
 	case reflect.Struct:
 		for i := 0; i < child.NumField(); i++ {
 			childVal := child.Field(i)
-			merr.Append(rg.actOnValue(childVal, res, metadata))
+			merr.Append(rg.actOnValue(childVal, res, metadata, nil, reflect.Value{}))
 		}
 	case reflect.Slice, reflect.Array:
+		child.Type().Elem()
 		for elemIdx := 0; elemIdx < child.Len(); elemIdx++ {
 			elemValue := child.Index(elemIdx)
-			merr.Append(rg.actOnValue(elemValue, res, metadata))
+			merr.Append(rg.actOnValue(elemValue, res, metadata, nil, reflect.Value{}))
 		}
 
 	case reflect.Map:
-		for iter := child.MapRange(); iter.Next(); {
-			elemValue := iter.Value()
-			merr.Append(rg.actOnValue(elemValue, res, metadata))
+		for _, key := range child.MapKeys() {
+			elemValue := child.MapIndex(key)
+			merr.Append(rg.actOnValue(elemValue, res, metadata, &child, key))
 		}
 	}
 	return merr.ErrOrNil()

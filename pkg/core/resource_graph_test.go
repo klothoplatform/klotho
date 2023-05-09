@@ -1,8 +1,10 @@
 package core
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,7 +41,15 @@ func (tr *testResource) KlothoConstructRef() []AnnotationKey {
 	return nil
 }
 func (tr *testResource) Create(dag *ResourceGraph, metadata map[string]any) (Resource, error) {
-	return nil, nil
+	currName := ""
+	if strName, ok := metadata["name"].(string); ok {
+		currName = strName + uuid.NewString()
+	} else {
+		return tr, fmt.Errorf("Failure")
+	}
+
+	tr = &testResource{Name: currName}
+	return tr, nil
 }
 
 // Id returns the id of the cloud resource
@@ -123,4 +133,66 @@ func TestResourceGraph_AddDependenciesReflect(t *testing.T) {
 		assert.NotNil(dag.GetDependencyByVertexIds(tr.Id().String(), (&testResource{Name: target}).Id().String()), "source -> %s", target)
 	}
 	assert.Nil(dag.GetDependencyByVertexIds(tr.Id().String(), (&testResource{Name: "nested_single"}).Id().String()))
+}
+
+func TestResourceGraph_CreateRecursively(t *testing.T) {
+	tr := &testResource{
+		Name: "id",
+
+		NestedResources: NestedResources{
+			Resource:      &testResource{Name: "nested"},
+			ResourceArray: []Resource{&testResource{Name: "nested_arr1"}, &testResource{Name: "nested_arr2"}},
+			ResourceMap: map[string]Resource{
+				"one": &testResource{Name: "nested_map1"},
+				"two": &testResource{Name: "nested_map2"},
+			},
+		},
+
+		SingleDependency: &testResource{Name: "single", NestedResources: NestedResources{Resource: &testResource{Name: "nested_single"}}},
+
+		DependencyArray:  []Resource{&testResource{Name: "arr1"}, &testResource{Name: "arr2"}},
+		SpecificDepArray: []*testResource{{Name: "spec_arr1"}, {Name: "spec_arr2"}},
+
+		DependencyMap: map[string]Resource{
+			"one": &testResource{Name: "map1"},
+			"two": &testResource{Name: "map2"},
+		},
+		SpecificDepMap: map[string]*testResource{
+			"one": {Name: "spec_map1"},
+			"two": {Name: "spec_map2"},
+		},
+
+		IacValue:    IaCValue{Resource: &testResource{Name: "value1"}},
+		IacValuePtr: &IaCValue{Resource: &testResource{Name: "value2"}},
+		IacValueArr: []IaCValue{
+			{Resource: &testResource{Name: "value_arr1"}},
+			{Resource: &testResource{Name: "value_arr2"}},
+		},
+		IacValuePtrArr: []*IaCValue{
+			{Resource: &testResource{Name: "value_ptr_arr1"}},
+			{Resource: &testResource{Name: "value_ptr_arr2"}},
+		},
+		IacValueMap: map[string]IaCValue{
+			"one": {Resource: &testResource{Name: "value_map1"}},
+			"two": {Resource: &testResource{Name: "value_map2"}},
+		},
+		IacValuePtrMap: map[string]*IaCValue{
+			"one": {Resource: &testResource{Name: "value_ptr_map1"}},
+			"two": {Resource: &testResource{Name: "value_ptr_map2"}},
+		},
+	}
+
+	dag := NewResourceGraph()
+
+	err := dag.CreateRecursively(tr, map[string]any{"name": "1"})
+
+	assert := assert.New(t)
+
+	if !assert.NoError(err) {
+		return
+	}
+	assert.Len(dag.ListResources(), 26)
+	assert.Len(dag.ListDependencies(), 25)
+	assert.NotNil(tr.SpecificDependency)
+
 }

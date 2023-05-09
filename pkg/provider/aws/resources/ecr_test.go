@@ -5,8 +5,138 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
+
+func Test_RepositoryCreate(t *testing.T) {
+	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	cases := []struct {
+		name string
+		repo *EcrRepository
+		want coretesting.ResourcesExpectation
+	}{
+		{
+			name: "nil repo",
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:ecr_repo:my-app",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+		},
+		{
+			name: "existing repo",
+			repo: &EcrRepository{Name: "my-app", ConstructsRef: initialRefs, ForceDelete: true},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:ecr_repo:my-app",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			dag := core.NewResourceGraph()
+			if tt.repo != nil {
+				dag.AddResource(tt.repo)
+			}
+			metadata := map[string]any{
+				"AppName": "my-app",
+				"Refs":    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+			}
+
+			updatedRepo, err := tt.repo.Create(dag, metadata)
+
+			if !assert.NoError(err) {
+				return
+			}
+
+			tt.want.Assert(t, dag)
+
+			repo, ok := updatedRepo.(*EcrRepository)
+			if !assert.True(ok) {
+				return
+			}
+
+			assert.Equal(repo.Name, "my-app")
+			assert.Equal(repo.ForceDelete, true)
+			if tt.repo == nil {
+				assert.ElementsMatch(repo.ConstructsRef, metadata["Refs"])
+			} else {
+				assert.ElementsMatch(repo.ConstructsRef, tt.repo.ConstructsRef)
+			}
+		})
+	}
+}
+
+func Test_ImageCreate(t *testing.T) {
+	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	cases := []struct {
+		name    string
+		image   *EcrImage
+		want    coretesting.ResourcesExpectation
+		wantErr bool
+	}{
+		{
+			name: "nil repo",
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:ecr_image:my-app-test-unit",
+					"aws:ecr_repo:my-app",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:ecr_image:my-app-test-unit", Destination: "aws:ecr_repo:my-app"},
+				},
+			},
+		},
+		{
+			name:    "existing image",
+			image:   &EcrImage{Name: "my-app-test-unit", ConstructsRef: initialRefs},
+			wantErr: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			dag := core.NewResourceGraph()
+			if tt.image != nil {
+				dag.AddResource(tt.image)
+			}
+			metadata := map[string]any{
+				"AppName":        "my-app",
+				"Refs":           []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				"Unit":           "test-unit",
+				"DockerfilePath": "path",
+			}
+
+			updatedImage, err := tt.image.Create(dag, metadata)
+
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
+			if !assert.NoError(err) {
+				return
+			}
+			tt.want.Assert(t, dag)
+
+			image, ok := updatedImage.(*EcrImage)
+			if !assert.True(ok) {
+				return
+			}
+
+			assert.Equal(image.Name, "my-app-test-unit")
+			assert.Equal(image.ConstructsRef, metadata["Refs"])
+			assert.Equal(image.Context, "./test-unit")
+			assert.ElementsMatch(image.ExtraOptions, []string{"--platform", "linux/amd64", "--quiet"})
+			assert.Equal(image.Dockerfile, "./test-unit/path")
+
+		})
+	}
+}
 
 func Test_GenerateExecUnitResources(t *testing.T) {
 	appName := "test-app"

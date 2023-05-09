@@ -47,12 +47,26 @@ func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, metadata map[strin
 		Unit             string
 		Vpc              bool
 		NetworkPlacement string
+		Params           config.ServerlessTypeParams
 	}
 	lambdaData := &lambdaMetadata{}
 	decoder := getMapDecoder(lambdaData)
 	err := decoder.Decode(metadata)
 	if err != nil {
 		return lambda, err
+	}
+
+	name := lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", lambdaData.AppName, lambdaData.Unit))
+	lambda = &LambdaFunction{
+		Name:          name,
+		ConstructsRef: lambdaData.Refs,
+		MemorySize:    lambdaData.Params.Memory,
+		Timeout:       lambdaData.Params.Timeout,
+	}
+
+	existingLambda := core.GetResourceOfType[*LambdaFunction](dag, lambda.Id().String())
+	if existingLambda != nil {
+		return lambda, fmt.Errorf("lambda with name %s already exists", name)
 	}
 
 	metadata["RoleName"] = fmt.Sprintf("%s-ExecutionRole", lambda.Name)
@@ -89,16 +103,6 @@ func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, metadata map[strin
 
 func (lambda *LambdaPermission) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
 	panic("Not Implemented")
-}
-
-func InitializeLambdaFunction(unit *core.ExecutionUnit, cfg *config.Application) *LambdaFunction {
-	params := config.ConvertFromInfraParams[config.ServerlessTypeParams](cfg.GetExecutionUnit(unit.ID).InfraParams)
-	return &LambdaFunction{
-		Name:          lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", cfg.AppName, unit.ID)),
-		ConstructsRef: []core.AnnotationKey{unit.Provenance()},
-		MemorySize:    params.Memory,
-		Timeout:       params.Timeout,
-	}
 }
 
 func NewLambdaFunction(unit *core.ExecutionUnit, cfg *config.Application, role *IamRole, image *EcrImage) *LambdaFunction {
