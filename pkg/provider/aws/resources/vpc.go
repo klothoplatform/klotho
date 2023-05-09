@@ -278,6 +278,9 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, metadata map[string]any) (
 
 		subnet.MapPublicIpOnLaunch = mapPublicIpOnLaunch
 		err = dag.CreateRecursively(subnet, metadata)
+		if err != nil {
+			return subnet, err
+		}
 	}
 	return subnet, err
 }
