@@ -136,6 +136,85 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "single fargate k8s exec unit",
+			unit: eu,
+			chart: &kubernetes.HelmChart{
+				ExecutionUnits: []*kubernetes.HelmExecUnit{{Name: eu.ID}},
+				Values:         make(map[string]any),
+			},
+			config: &config.Application{AppName: "my-app",
+				ExecutionUnits: map[string]*config.ExecutionUnit{
+					"test": {
+						Type:             kubernetes.KubernetesType,
+						NetworkPlacement: "private",
+						InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{
+							NodeType:     "fargate",
+							InstanceType: "t3.medium",
+							DiskSizeGiB:  20,
+							ClusterId:    "cluster1",
+						}),
+					},
+				},
+			},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:availability_zones:AvailabilityZones",
+					"aws:eks_cluster:my-app-cluster1",
+					"aws:eks_fargate_profile:my-app_cluster1",
+					"aws:elastic_ip:my_app_0",
+					"aws:elastic_ip:my_app_1",
+					"aws:iam_role:my-app-cluster1-ClusterAdmin",
+					"aws:iam_role:my-app_cluster1-PodExecutionRole",
+					"aws:internet_gateway:my_app_igw",
+					"aws:nat_gateway:my_app_0",
+					"aws:nat_gateway:my_app_1",
+					"aws:route_table:my_app_0",
+					"aws:route_table:my_app_1",
+					"aws:route_table:my_app_igw",
+					"aws:security_group:my-app",
+					"aws:vpc:my_app",
+					"aws:vpc_subnet:my_app_private0",
+					"aws:vpc_subnet:my_app_private1",
+					"aws:vpc_subnet:my_app_public0",
+					"aws:vpc_subnet:my_app_public1",
+					"kubernetes:helm_chart:",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:eks_cluster:my-app-cluster1", Destination: "aws:iam_role:my-app-cluster1-ClusterAdmin"},
+					{Source: "aws:eks_cluster:my-app-cluster1", Destination: "aws:security_group:my-app"},
+					{Source: "aws:eks_cluster:my-app-cluster1", Destination: "aws:vpc_subnet:my_app_private0"},
+					{Source: "aws:eks_cluster:my-app-cluster1", Destination: "aws:vpc_subnet:my_app_private1"},
+					{Source: "aws:eks_cluster:my-app-cluster1", Destination: "aws:vpc_subnet:my_app_public0"},
+					{Source: "aws:eks_cluster:my-app-cluster1", Destination: "aws:vpc_subnet:my_app_public1"},
+					{Source: "aws:eks_fargate_profile:my-app_cluster1", Destination: "aws:eks_cluster:my-app-cluster1"},
+					{Source: "aws:eks_fargate_profile:my-app_cluster1", Destination: "aws:iam_role:my-app_cluster1-PodExecutionRole"},
+					{Source: "aws:eks_fargate_profile:my-app_cluster1", Destination: "aws:vpc_subnet:my_app_private0"},
+					{Source: "aws:eks_fargate_profile:my-app_cluster1", Destination: "aws:vpc_subnet:my_app_private1"},
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_0"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:vpc_subnet:my_app_public0"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_1"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:vpc_subnet:my_app_public1"},
+					{Source: "aws:route_table:my_app_0", Destination: "aws:nat_gateway:my_app_0"},
+					{Source: "aws:route_table:my_app_0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:route_table:my_app_1", Destination: "aws:nat_gateway:my_app_1"},
+					{Source: "aws:route_table:my_app_1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:route_table:my_app_igw", Destination: "aws:internet_gateway:my_app_igw"},
+					{Source: "aws:route_table:my_app_igw", Destination: "aws:vpc:my_app"},
+					{Source: "aws:security_group:my-app", Destination: "aws:vpc:my_app"},
+					{Source: "aws:vpc_subnet:my_app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:my_app_private0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:vpc_subnet:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:my_app_private1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:vpc_subnet:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:my_app_public0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:vpc_subnet:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:my_app_public1", Destination: "aws:vpc:my_app"},
+					{Source: "kubernetes:helm_chart:", Destination: "aws:eks_cluster:my-app-cluster1"},
+				},
+			},
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -153,7 +232,6 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 			tt.want.Assert(t, dag)
 		})
 	}

@@ -239,16 +239,25 @@ func (profile *EksFargateProfile) Create(dag *core.ResourceGraph, params EksFarg
 	existingProfile := dag.GetResourceByVertexId(profile.Id().String())
 	if existingProfile != nil {
 		graphProfile := existingProfile.(*EksFargateProfile)
+		addSelector := true
+		for _, selector := range graphProfile.Selectors {
+			if selector.Namespace == params.Namespace {
+				addSelector = false
+			}
+		}
+		if addSelector {
+			graphProfile.Selectors = append(graphProfile.Selectors, &FargateProfileSelector{Namespace: params.Namespace, Labels: map[string]string{"klotho-fargate-enabled": "true"}})
+		}
 		graphProfile.ConstructsRef = append(graphProfile.ConstructsRef, params.Refs...)
 	} else {
-
-		profile.Selectors = []*FargateProfileSelector{&FargateProfileSelector{Namespace: params.Namespace, Labels: map[string]string{"klotho-fargate-enabled": "true"}}}
+		profile.ConstructsRef = params.Refs
+		profile.Selectors = []*FargateProfileSelector{{Namespace: params.Namespace, Labels: map[string]string{"klotho-fargate-enabled": "true"}}}
 		subParams := map[string]any{
 			"Cluster": params,
 			"PodExecutionRole": RoleCreateParams{
 				RoleName:            fmt.Sprintf("%s-PodExecutionRole", profile.Name),
 				Refs:                params.Refs,
-				AssumeRolePolicyDoc: EC2_ASSUMER_ROLE_POLICY,
+				AssumeRolePolicyDoc: EKS_FARGATE_ASSUME_ROLE_POLICY,
 				AwsManagedPolicies: []string{
 					"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
 					"arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy",

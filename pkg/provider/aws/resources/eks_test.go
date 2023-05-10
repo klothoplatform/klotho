@@ -127,6 +127,158 @@ func Test_EksClusterCreate(t *testing.T) {
 	}
 }
 
+func Test_EksFargateProfileCreate(t *testing.T) {
+	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	cases := []struct {
+		name    string
+		profile *EksFargateProfile
+		want    coretesting.ResourcesExpectation
+	}{
+		{
+			name: "nil profile",
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:availability_zones:AvailabilityZones",
+					"aws:eks_cluster:app-my-cluster",
+					"aws:eks_fargate_profile:app_my-cluster",
+					"aws:elastic_ip:app_0",
+					"aws:elastic_ip:app_1",
+					"aws:iam_role:app-my-cluster-ClusterAdmin",
+					"aws:iam_role:app_my-cluster-PodExecutionRole",
+					"aws:internet_gateway:app_igw",
+					"aws:nat_gateway:app_0",
+					"aws:nat_gateway:app_1",
+					"aws:route_table:app_0",
+					"aws:route_table:app_1",
+					"aws:route_table:app_igw",
+					"aws:security_group:app",
+					"aws:vpc:app",
+					"aws:vpc_subnet:app_private0",
+					"aws:vpc_subnet:app_private1",
+					"aws:vpc_subnet:app_public0",
+					"aws:vpc_subnet:app_public1",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:iam_role:app-my-cluster-ClusterAdmin"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:security_group:app"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:vpc_subnet:app_private0"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:vpc_subnet:app_private1"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:vpc_subnet:app_public0"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:vpc_subnet:app_public1"},
+					{Source: "aws:eks_fargate_profile:app_my-cluster", Destination: "aws:eks_cluster:app-my-cluster"},
+					{Source: "aws:eks_fargate_profile:app_my-cluster", Destination: "aws:iam_role:app_my-cluster-PodExecutionRole"},
+					{Source: "aws:eks_fargate_profile:app_my-cluster", Destination: "aws:vpc_subnet:app_private0"},
+					{Source: "aws:eks_fargate_profile:app_my-cluster", Destination: "aws:vpc_subnet:app_private1"},
+					{Source: "aws:internet_gateway:app_igw", Destination: "aws:vpc:app"},
+					{Source: "aws:nat_gateway:app_0", Destination: "aws:elastic_ip:app_0"},
+					{Source: "aws:nat_gateway:app_0", Destination: "aws:vpc_subnet:app_public0"},
+					{Source: "aws:nat_gateway:app_1", Destination: "aws:elastic_ip:app_1"},
+					{Source: "aws:nat_gateway:app_1", Destination: "aws:vpc_subnet:app_public1"},
+					{Source: "aws:route_table:app_0", Destination: "aws:nat_gateway:app_0"},
+					{Source: "aws:route_table:app_0", Destination: "aws:vpc:app"},
+					{Source: "aws:route_table:app_1", Destination: "aws:nat_gateway:app_1"},
+					{Source: "aws:route_table:app_1", Destination: "aws:vpc:app"},
+					{Source: "aws:route_table:app_igw", Destination: "aws:internet_gateway:app_igw"},
+					{Source: "aws:route_table:app_igw", Destination: "aws:vpc:app"},
+					{Source: "aws:security_group:app", Destination: "aws:vpc:app"},
+					{Source: "aws:vpc_subnet:app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:app_private0", Destination: "aws:vpc:app"},
+					{Source: "aws:vpc_subnet:app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:app_private1", Destination: "aws:vpc:app"},
+					{Source: "aws:vpc_subnet:app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:app_public0", Destination: "aws:vpc:app"},
+					{Source: "aws:vpc_subnet:app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:app_public1", Destination: "aws:vpc:app"},
+				},
+			},
+		},
+		{
+			name:    "existing profile",
+			profile: &EksFargateProfile{Name: "app_my-cluster", ConstructsRef: initialRefs},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:eks_fargate_profile:app_my-cluster",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+		},
+		{
+			name: "existing profile add selector",
+			profile: &EksFargateProfile{
+				Name:          "app_my-cluster",
+				ConstructsRef: initialRefs,
+				Selectors:     []*FargateProfileSelector{{Namespace: "namespace1", Labels: map[string]string{"klotho-fargate-enabled": "true"}}},
+			},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:eks_fargate_profile:app_my-cluster",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			dag := core.NewResourceGraph()
+			if tt.profile != nil {
+				dag.AddResource(tt.profile)
+			}
+			metadata := EksFargateProfileCreateParams{
+				NetworkType: "private",
+				AppName:     "app",
+				ClusterName: "my-cluster",
+				Refs:        []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Namespace:   "default",
+			}
+			profile := &EksFargateProfile{}
+			err := profile.Create(dag, metadata)
+
+			if !assert.NoError(err) {
+				return
+			}
+			tt.want.Assert(t, dag)
+
+			graphProfile := dag.GetResourceByVertexId(profile.Id().String()).(*EksFargateProfile)
+
+			assert.Equal(graphProfile.Name, "app_my-cluster")
+			if tt.profile == nil {
+				assert.Equal(graphProfile.ConstructsRef, metadata.Refs)
+				assert.ElementsMatch(graphProfile.Selectors, []*FargateProfileSelector{{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}}})
+				assert.Equal(graphProfile.PodExecutionRole.AssumeRolePolicyDoc, EKS_FARGATE_ASSUME_ROLE_POLICY)
+				assert.ElementsMatch(graphProfile.PodExecutionRole.AwsManagedPolicies, []string{
+					"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+					"arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy",
+				})
+				assert.Len(graphProfile.PodExecutionRole.InlinePolicies, 1)
+				assert.Len(graphProfile.PodExecutionRole.InlinePolicies[0].Policy.Statement, 1)
+				assert.Equal(graphProfile.PodExecutionRole.InlinePolicies[0].Policy.Statement, []StatementEntry{
+					{
+						Effect: "Allow",
+						Action: []string{
+							"logs:CreateLogStream",
+							"logs:CreateLogGroup",
+							"logs:DescribeLogStreams",
+							"logs:PutLogEvents",
+						},
+						Resource: []core.IaCValue{{Property: "*"}},
+					},
+				})
+			} else {
+				if tt.profile.Selectors[0].Namespace == "default" {
+					assert.ElementsMatch(graphProfile.Selectors, []*FargateProfileSelector{{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}}})
+				} else {
+					assert.ElementsMatch(graphProfile.Selectors, []*FargateProfileSelector{
+						{Namespace: "namespace1", Labels: map[string]string{"klotho-fargate-enabled": "true"}},
+						{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}},
+					})
+				}
+				assert.Equal(graphProfile.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+			}
+		})
+	}
+}
+
 func Test_EksNodeGroupCreate(t *testing.T) {
 	initialRefs := []core.AnnotationKey{{ID: "first"}}
 	cases := []struct {
@@ -139,16 +291,19 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
-					"aws:eks_node_group:my-cluster_private_t3_medium",
+					"aws:eks_cluster:app-my-cluster",
+					"aws:eks_node_group:app_my-cluster_private_t3_medium",
 					"aws:elastic_ip:app_0",
 					"aws:elastic_ip:app_1",
-					"aws:iam_role:my-cluster_private_t3_medium-NodeRole",
+					"aws:iam_role:app-my-cluster-ClusterAdmin",
+					"aws:iam_role:app_my-cluster_private_t3_medium-NodeRole",
 					"aws:internet_gateway:app_igw",
 					"aws:nat_gateway:app_0",
 					"aws:nat_gateway:app_1",
 					"aws:route_table:app_0",
 					"aws:route_table:app_1",
 					"aws:route_table:app_igw",
+					"aws:security_group:app",
 					"aws:vpc:app",
 					"aws:vpc_subnet:app_private0",
 					"aws:vpc_subnet:app_private1",
@@ -156,9 +311,16 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 					"aws:vpc_subnet:app_public1",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:eks_node_group:my-cluster_private_t3_medium", Destination: "aws:iam_role:my-cluster_private_t3_medium-NodeRole"},
-					{Source: "aws:eks_node_group:my-cluster_private_t3_medium", Destination: "aws:vpc_subnet:app_private0"},
-					{Source: "aws:eks_node_group:my-cluster_private_t3_medium", Destination: "aws:vpc_subnet:app_private1"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:iam_role:app-my-cluster-ClusterAdmin"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:security_group:app"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:vpc_subnet:app_private0"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:vpc_subnet:app_private1"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:vpc_subnet:app_public0"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:vpc_subnet:app_public1"},
+					{Source: "aws:eks_node_group:app_my-cluster_private_t3_medium", Destination: "aws:eks_cluster:app-my-cluster"},
+					{Source: "aws:eks_node_group:app_my-cluster_private_t3_medium", Destination: "aws:iam_role:app_my-cluster_private_t3_medium-NodeRole"},
+					{Source: "aws:eks_node_group:app_my-cluster_private_t3_medium", Destination: "aws:vpc_subnet:app_private0"},
+					{Source: "aws:eks_node_group:app_my-cluster_private_t3_medium", Destination: "aws:vpc_subnet:app_private1"},
 					{Source: "aws:internet_gateway:app_igw", Destination: "aws:vpc:app"},
 					{Source: "aws:nat_gateway:app_0", Destination: "aws:elastic_ip:app_0"},
 					{Source: "aws:nat_gateway:app_0", Destination: "aws:vpc_subnet:app_public0"},
@@ -170,6 +332,7 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 					{Source: "aws:route_table:app_1", Destination: "aws:vpc:app"},
 					{Source: "aws:route_table:app_igw", Destination: "aws:internet_gateway:app_igw"},
 					{Source: "aws:route_table:app_igw", Destination: "aws:vpc:app"},
+					{Source: "aws:security_group:app", Destination: "aws:vpc:app"},
 					{Source: "aws:vpc_subnet:app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:vpc_subnet:app_private0", Destination: "aws:vpc:app"},
 					{Source: "aws:vpc_subnet:app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
@@ -183,10 +346,10 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 		},
 		{
 			name: "existing cluster",
-			ng:   &EksNodeGroup{Name: "my-cluster_private_t3_medium", ConstructsRef: initialRefs, DiskSize: 10},
+			ng:   &EksNodeGroup{Name: "app_my-cluster_private_t3_medium", ConstructsRef: initialRefs, DiskSize: 10},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:eks_node_group:my-cluster_private_t3_medium",
+					"aws:eks_node_group:app_my-cluster_private_t3_medium",
 				},
 				Deps: []coretesting.StringDep{},
 			},
@@ -217,7 +380,7 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 
 			graphNG := dag.GetResourceByVertexId(nodeGroup.Id().String()).(*EksNodeGroup)
 
-			assert.Equal(graphNG.Name, "my-cluster_private_t3_medium")
+			assert.Equal(graphNG.Name, "app_my-cluster_private_t3_medium")
 			if tt.ng == nil {
 				assert.Equal(graphNG.ConstructsRef, metadata.Refs)
 				assert.Equal(graphNG.DiskSize, 20)

@@ -27,6 +27,20 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 			return err
 		}
 	case kubernetes.KubernetesType:
+		params := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams)
+		if params.NodeType == "fargate" {
+			fargateProfile := &resources.EksFargateProfile{}
+			err := fargateProfile.Create(dag, resources.EksFargateProfileCreateParams{
+				ClusterName: params.ClusterId,
+				Refs:        []core.AnnotationKey{unit.AnnotationKey},
+				AppName:     a.Config.AppName,
+				NetworkType: a.Config.GetExecutionUnit(unit.ID).NetworkPlacement,
+				Namespace:   "default",
+			})
+			if err != nil {
+				return err
+			}
+		}
 		helmChart, err := findUnitsHelmChart(unit, dag)
 		if err != nil {
 			return err
@@ -39,7 +53,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 			"ClustersProvider": resources.EksClusterCreateParams{
 				Refs:        []core.AnnotationKey{unit.AnnotationKey},
 				AppName:     a.Config.AppName,
-				ClusterName: config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams).ClusterId,
+				ClusterName: params.ClusterId,
 			},
 		}
 		subParams["Values"] = a.handleHelmChartAwsValues(helmChart, unit)
