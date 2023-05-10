@@ -273,7 +273,6 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams)
 		if err != nil {
 			return err
 		}
-		fmt.Println("Adding dep for az")
 		dag.AddDependency(subnet, NewAvailabilityZones())
 	}
 	return nil
