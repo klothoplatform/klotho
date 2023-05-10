@@ -14,8 +14,8 @@ import (
 
 // TestAllTypesHaveIcons is an integration test — not a unit test!
 //
-// To run it, set the env var KLOTHO_VIZ_BASE_URL to a visualizer service endpoint. For local testing, this is probably
-// "http://localhost:3000". If the env var isn't set, this test will be skipped.
+// To run it, set the env var KLOTHO_VIZ_URL_BASE to a visualizer service endpoint. For local testing, this is probably
+// "http://localhost:3000" or "https://viz-dev.klo.dev". If the env var isn't set, this test will be skipped.
 func TestAllTypesHaveIcons(t *testing.T) {
 	if !visualizerBaseUrlEnv.IsSet() {
 		t.Skipf(`Skipping because %s isn't set`, visualizerBaseUrlEnv)
