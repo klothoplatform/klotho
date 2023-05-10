@@ -8,6 +8,6 @@ import (
 func subnetProperties(res *resources.Subnet, dag *core.ResourceGraph) map[string]any {
 	return map[string]any{
 		"cidr_block": res.CidrBlock,
-		"public":     res.IsPublic(dag),
+		"public":     res.Type == resources.PublicSubnet,
 	}
 }
