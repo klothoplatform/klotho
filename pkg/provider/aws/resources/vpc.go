@@ -2,6 +2,7 @@ package resources
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -86,164 +87,146 @@ type (
 	}
 )
 
-func (vpc *Vpc) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	type vpcMetadata struct {
-		AppName string
-		Refs    []core.AnnotationKey
-	}
-	data := &vpcMetadata{}
-	decoder := getMapDecoder(data)
-	err := decoder.Decode(metadata)
-	if err != nil {
-		return vpc, err
-	}
-	vpc = &Vpc{
-		Name:               aws.VpcSanitizer.Apply(data.AppName),
-		ConstructsRef:      data.Refs,
-		CidrBlock:          "10.0.0.0/16",
-		EnableDnsSupport:   true,
-		EnableDnsHostnames: true,
-	}
+type VpcCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+}
 
-	existingVpc := core.GetResourceOfType[*Vpc](dag, vpc.Id().String())
+func (vpc *Vpc) Create(dag *core.ResourceGraph, params VpcCreateParams) error {
+
+	vpc.Name = aws.VpcSanitizer.Apply(params.AppName)
+	vpc.ConstructsRef = params.Refs
+	vpc.CidrBlock = "10.0.0.0/16"
+	vpc.EnableDnsSupport = true
+	vpc.EnableDnsHostnames = true
+
+	existingVpc := dag.GetResourceByVertexId(vpc.Id().String())
 	if existingVpc != nil {
-		vpc = *existingVpc
-		vpc.ConstructsRef = append(vpc.ConstructsRef, data.Refs...)
+		graphVpc := existingVpc.(*Vpc)
+		graphVpc.ConstructsRef = append(graphVpc.KlothoConstructRef(), params.Refs...)
 	} else {
-		err = dag.CreateRecursively(vpc, metadata)
+		dag.AddResource(vpc)
 	}
 
-	return vpc, err
+	return nil
 }
 
-func (eip *ElasticIp) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	type eipMetadata struct {
-		AppName string
-		IpName  string
-		Refs    []core.AnnotationKey
-	}
-	data := &eipMetadata{}
-	decoder := getMapDecoder(data)
-	err := decoder.Decode(metadata)
-	if err != nil {
-		return eip, err
-	}
+type EipCreateParams struct {
+	AppName string
+	IpName  string
+	Refs    []core.AnnotationKey
+}
 
-	eip = &ElasticIp{
-		Name:          elasticIpSanitizer.Apply(fmt.Sprintf("%s-%s", data.AppName, data.IpName)),
-		ConstructsRef: data.Refs,
-	}
-	existingEip := core.GetResourceOfType[*ElasticIp](dag, eip.Id().String())
+func (eip *ElasticIp) Create(dag *core.ResourceGraph, params EipCreateParams) error {
+	eip.Name = elasticIpSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.IpName))
+	eip.ConstructsRef = params.Refs
+	existingEip := dag.GetResourceByVertexId(eip.Id().String())
 	if existingEip != nil {
-		eip = *existingEip
-		eip.ConstructsRef = append(eip.ConstructsRef, data.Refs...)
+		graphEip := existingEip.(*ElasticIp)
+		graphEip.ConstructsRef = append(graphEip.ConstructsRef, params.Refs...)
 	} else {
-		err = dag.CreateRecursively(eip, metadata)
+		dag.AddResource(eip)
 	}
-
-	return eip, err
+	return nil
 }
 
-func (igw *InternetGateway) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	type igwMetadata struct {
-		AppName string
-		Refs    []core.AnnotationKey
-	}
-	data := &igwMetadata{}
-	decoder := getMapDecoder(data)
-	err := decoder.Decode(metadata)
-	if err != nil {
-		return igw, err
-	}
+type IgwCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+}
 
-	igw = &InternetGateway{
-		Name:          igwSanitizer.Apply(fmt.Sprintf("%s-igw", data.AppName)),
-		ConstructsRef: data.Refs,
-	}
-	existingIgw := core.GetResourceOfType[*InternetGateway](dag, igw.Id().String())
+func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreateParams) error {
+
+	igw.Name = igwSanitizer.Apply(fmt.Sprintf("%s-igw", params.AppName))
+	igw.ConstructsRef = params.Refs
+
+	existingIgw := dag.GetResourceByVertexId(igw.Id().String())
+
 	if existingIgw != nil {
-		igw = *existingIgw
-		igw.ConstructsRef = append(igw.ConstructsRef, data.Refs...)
+		graphIgw := existingIgw.(*InternetGateway)
+		graphIgw.ConstructsRef = append(graphIgw.ConstructsRef, params.Refs...)
 	} else {
-		err = dag.CreateRecursively(igw, metadata)
-	}
-
-	return igw, err
-}
-
-func (nat *NatGateway) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-
-	type natMetadata struct {
-		AppName string
-		Refs    []core.AnnotationKey
-		AZ      string
-	}
-	data := &natMetadata{}
-	decoder := getMapDecoder(data)
-	err := decoder.Decode(metadata)
-	if err != nil {
-		return nat, err
-	}
-
-	metadata["IpName"] = data.AZ
-
-	nat = &NatGateway{
-		Name:          natGatewaySanitizer.Apply(fmt.Sprintf("%s-%s", data.AppName, data.AZ)),
-		ConstructsRef: data.Refs,
-		Subnet: &Subnet{
-			Type: PublicSubnet,
-			AvailabilityZone: core.IaCValue{
-				Resource: NewAvailabilityZones(),
-				Property: data.AZ,
+		err := dag.CreateDependencies(igw, map[string]any{
+			"Vpc": VpcCreateParams{
+				AppName: params.AppName,
+				Refs:    params.Refs,
 			},
-		},
+		})
+		if err != nil {
+			return err
+		}
 	}
-	existingNat := core.GetResourceOfType[*NatGateway](dag, nat.Id().String())
-	if existingNat != nil {
-		nat = *existingNat
-		nat.ConstructsRef = append(nat.ConstructsRef, data.Refs...)
-	} else {
-		err = dag.CreateRecursively(nat, metadata)
-	}
-	return nat, err
+	return nil
 }
 
-func (subnet *Subnet) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	type subnetMetadata struct {
-		AppName string
-		Refs    []core.AnnotationKey
-	}
-	data := &subnetMetadata{}
-	decoder := getMapDecoder(data)
-	err := decoder.Decode(metadata)
-	if err != nil {
-		return subnet, err
-	}
+type NatCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	AZ      string
+}
 
-	if subnet.Type == "" {
-		return subnet, fmt.Errorf("subnet type must be set for creation")
-	}
+func (nat *NatGateway) Create(dag *core.ResourceGraph, params NatCreateParams) error {
 
-	if subnet.AvailabilityZone.Property == "" {
-		return subnet, fmt.Errorf("az must be set for creation")
-	}
+	nat.Name = natGatewaySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.AZ))
+	nat.ConstructsRef = params.Refs
 
-	subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", data.AppName, subnet.Type, subnet.AvailabilityZone.Property))
-	subnet.ConstructsRef = data.Refs
-
-	existingSubnet := core.GetResourceOfType[*Subnet](dag, subnet.Id().String())
-	if existingSubnet != nil {
-		subnet = *existingSubnet
-		subnet.ConstructsRef = append(subnet.ConstructsRef, data.Refs...)
+	existingNat := dag.GetResourceByVertexId(nat.Id().String())
+	if existingNat != nil {
+		graphNat := existingNat.(*NatGateway)
+		graphNat.ConstructsRef = append(graphNat.ConstructsRef, params.Refs...)
 	} else {
+		subResourceParams := map[string]any{
+			"Subnet": SubnetCreateParams{
+				AppName: params.AppName,
+				Refs:    params.Refs,
+				AZ:      params.AZ,
+				Type:    PublicSubnet,
+			},
+			"ElasticIp": EipCreateParams{
+				AppName: params.AppName,
+				Refs:    params.Refs,
+				IpName:  params.AZ,
+			},
+		}
+		err := dag.CreateDependencies(nat, subResourceParams)
+		return err
+	}
+	return nil
+}
 
+type SubnetCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	AZ      string
+	Type    string
+}
+
+func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams) error {
+	subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", params.AppName, params.Type, params.AZ))
+	subnet.ConstructsRef = params.Refs
+	subnet.AvailabilityZone = core.IaCValue{Resource: NewAvailabilityZones(), Property: params.AZ}
+	subnet.Type = params.Type
+
+	existingSubnet := dag.GetResourceByVertexId(subnet.Id().String())
+	if existingSubnet != nil {
+		graphSubnet := existingSubnet.(*Subnet)
+		graphSubnet.ConstructsRef = append(graphSubnet.ConstructsRef, params.Refs...)
+	} else {
+		routeTableParams := RouteTableCreateParams{
+			AppName: params.AppName,
+			Refs:    params.Refs,
+		}
 		if subnet.Type == PrivateSubnet {
-			nat := NatGateway{}
-			metadata["AZ"] = subnet.AvailabilityZone.Property
-			subnetNat, err := nat.Create(dag, metadata)
-			metadata["Gateway"] = subnetNat
+			nat := &NatGateway{}
+			natParams := NatCreateParams{
+				AppName: params.AppName,
+				Refs:    params.Refs,
+				AZ:      params.AZ,
+			}
+			err := nat.Create(dag, natParams)
+			routeTableParams.NatGateway = nat
 			if err != nil {
-				return subnet, err
+				return err
 			}
 			if subnet.AvailabilityZone.Property == "0" {
 				subnet.CidrBlock = "10.0.0.0/18"
@@ -251,12 +234,16 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, metadata map[string]any) (
 				subnet.CidrBlock = "10.0.64.0/18"
 			}
 		} else if subnet.Type == PublicSubnet {
-			igw := InternetGateway{}
-			fullIgw, err := igw.Create(dag, metadata)
-			metadata["Gateway"] = fullIgw
+			igw := &InternetGateway{}
+			igwParams := IgwCreateParams{
+				AppName: params.AppName,
+				Refs:    params.Refs,
+			}
+			err := igw.Create(dag, igwParams)
+			routeTableParams.InternetGateway = igw
 
 			if err != nil {
-				return subnet, err
+				return err
 			}
 			if subnet.AvailabilityZone.Property == "0" {
 				subnet.CidrBlock = "10.0.128.0/18"
@@ -266,9 +253,9 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, metadata map[string]any) (
 			}
 		}
 		rt := RouteTable{}
-		_, err := rt.Create(dag, metadata)
+		err := rt.Create(dag, routeTableParams)
 		if err != nil {
-			return subnet, err
+			return err
 		}
 
 		mapPublicIpOnLaunch := false
@@ -277,45 +264,87 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, metadata map[string]any) (
 		}
 
 		subnet.MapPublicIpOnLaunch = mapPublicIpOnLaunch
-		err = dag.CreateRecursively(subnet, metadata)
+		err = dag.CreateDependencies(subnet, map[string]any{
+			"Vpc": VpcCreateParams{
+				AppName: params.AppName,
+				Refs:    params.Refs,
+			},
+		})
 		if err != nil {
-			return subnet, err
+			return err
 		}
+		fmt.Println("Adding dep for az")
+		dag.AddDependency(subnet, NewAvailabilityZones())
 	}
-	return subnet, err
+	return nil
 }
 
-func (lambda *VpcEndpoint) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+func (lambda *VpcEndpoint) Create(dag *core.ResourceGraph, metadata map[string]any) error {
 	panic("Not Implemented")
 }
 
-func (rt *RouteTable) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	type routeTableMetadata struct {
-		Gateway core.Resource
-		Refs    []core.AnnotationKey
+type RouteTableCreateParams struct {
+	AppName         string
+	NatGateway      core.Resource
+	InternetGateway core.Resource
+	Refs            []core.AnnotationKey
+}
+
+func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreateParams) error {
+
+	natExists := false
+	if params.NatGateway != nil {
+		natExists = !reflect.ValueOf(params.NatGateway).IsZero()
 	}
-	data := &routeTableMetadata{}
-	decoder := getMapDecoder(data)
-	err := decoder.Decode(metadata)
-	if err != nil {
-		return rt, err
+	igwExists := false
+	if params.InternetGateway != nil {
+		igwExists = !reflect.ValueOf(params.InternetGateway).IsZero()
 	}
 
-	rt = &RouteTable{
-		Name:          data.Gateway.Id().Name,
-		ConstructsRef: data.Refs,
-		Routes: []*RouteTableRoute{
-			{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: data.Gateway, Property: ID_IAC_VALUE}},
-		},
+	if natExists && igwExists {
+		return fmt.Errorf("cannot have routes to both a nat and igw")
 	}
-	existingRt := core.GetResourceOfType[*RouteTable](dag, rt.Id().String())
+	rt.Name = subnetSanitizer.Apply(params.AppName)
+	rt.ConstructsRef = params.Refs
+
+	if natExists {
+		nat := dag.GetResourceByVertexId(params.NatGateway.Id().String())
+		if nat == nil {
+			return fmt.Errorf("no nat gateway exists in the graph")
+		}
+		rt.Name = subnetSanitizer.Apply(nat.Id().Name)
+		rt.Routes = []*RouteTableRoute{
+			{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: nat, Property: ID_IAC_VALUE}},
+		}
+	} else if igwExists {
+		igw := dag.GetResourceByVertexId(params.InternetGateway.Id().String())
+		if igw == nil {
+			return fmt.Errorf("no nat gateway exists in the graph")
+		}
+		rt.Name = subnetSanitizer.Apply(igw.Id().Name)
+		rt.Routes = []*RouteTableRoute{
+			{CidrBlock: "0.0.0.0/0", GatewayId: core.IaCValue{Resource: igw, Property: ID_IAC_VALUE}},
+		}
+	}
+
+	existingRt := dag.GetResourceByVertexId(rt.Id().String())
 	if existingRt != nil {
-		rt = *existingRt
-		rt.ConstructsRef = append(rt.ConstructsRef, data.Refs...)
+		graphRt := existingRt.(*RouteTable)
+		graphRt.ConstructsRef = append(graphRt.ConstructsRef, params.Refs...)
 	} else {
-		err = dag.CreateRecursively(rt, metadata)
+		subParams := map[string]any{
+			"Vpc": VpcCreateParams{
+				AppName: params.AppName,
+				Refs:    params.Refs,
+			},
+		}
+		err := dag.CreateDependencies(rt, subParams)
+		if err != nil {
+			return err
+		}
+		dag.AddDependenciesReflect(rt)
 	}
-	return rt, err
+	return nil
 }
 
 // CreateNetwork takes in a config and uses the appName to create an aws network and inject it into the dag.

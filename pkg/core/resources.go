@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/mitchellh/mapstructure"
 )
 
 type (
@@ -19,8 +20,12 @@ type (
 		KlothoConstructRef() []AnnotationKey
 		// Id returns the id of the cloud resource
 		Id() ResourceId
+	}
+
+	CreateableResource[P any] interface {
+		Resource
 		// Create modifies itself to be a completed instance of the resource given a set of metadata
-		Create(dag *ResourceGraph, metadata map[string]any) (Resource, error)
+		Create(dag *ResourceGraph, params P) error
 	}
 
 	ResourceId struct {
@@ -62,4 +67,12 @@ const (
 
 func (id ResourceId) String() string {
 	return id.Provider + ":" + id.Type + ":" + id.Name
+}
+
+func GetMapDecoder(result interface{}) *mapstructure.Decoder {
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{ErrorUnset: true, Result: result})
+	if err != nil {
+		panic(err)
+	}
+	return decoder
 }

@@ -3,10 +3,75 @@ package resources
 import (
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
+
+func Test_SecurityGroupCreate(t *testing.T) {
+	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	cases := []struct {
+		name string
+		sg   *SecurityGroup
+		want coretesting.ResourcesExpectation
+	}{
+		{
+			name: "nil role",
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:security_group:my-app",
+					"aws:vpc:my_app",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:security_group:my-app", Destination: "aws:vpc:my_app"},
+				},
+			},
+		},
+		{
+			name: "existing role",
+			sg:   &SecurityGroup{Name: "my-app", ConstructsRef: initialRefs},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:security_group:my-app",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			dag := core.NewResourceGraph()
+			if tt.sg != nil {
+				dag.AddResource(tt.sg)
+			}
+			metadata := SecurityGroupCreateParams{
+				AppName: "my-app",
+				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+			}
+			sg := &SecurityGroup{}
+			err := sg.Create(dag, metadata)
+
+			if !assert.NoError(err) {
+				return
+			}
+			tt.want.Assert(t, dag)
+
+			assert.Equal(sg.Name, "my-app")
+			if tt.sg == nil {
+				assert.Len(sg.IngressRules, 2)
+				assert.Len(sg.EgressRules, 1)
+				assert.Equal(sg.ConstructsRef, metadata.Refs)
+			} else {
+				sg := dag.GetResourceByVertexId(sg.Id().String())
+				assert.Equal(sg, tt.sg)
+				assert.ElementsMatch(sg.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+			}
+		})
+	}
+}
 
 func Test_GetSecurityGroup(t *testing.T) {
 	vpc := NewVpc("test")

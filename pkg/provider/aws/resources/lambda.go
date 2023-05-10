@@ -39,66 +39,73 @@ type (
 	}
 )
 
-func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+type LambdaCreateParams struct {
+	AppName          string
+	Unit             *core.ExecutionUnit
+	Vpc              bool
+	NetworkPlacement string
+	Params           config.ServerlessTypeParams
+}
 
-	type lambdaMetadata struct {
-		AppName          string
-		Refs             []core.AnnotationKey
-		Unit             string
-		Vpc              bool
-		NetworkPlacement string
-		Params           config.ServerlessTypeParams
-	}
-	lambdaData := &lambdaMetadata{}
-	decoder := getMapDecoder(lambdaData)
-	err := decoder.Decode(metadata)
-	if err != nil {
-		return lambda, err
-	}
+func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreateParams) error {
 
-	name := lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", lambdaData.AppName, lambdaData.Unit))
-	lambda = &LambdaFunction{
-		Name:          name,
-		ConstructsRef: lambdaData.Refs,
-		MemorySize:    lambdaData.Params.Memory,
-		Timeout:       lambdaData.Params.Timeout,
-	}
+	name := lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Unit.ID))
+	lambda.Name = name
+	lambda.ConstructsRef = []core.AnnotationKey{params.Unit.AnnotationKey}
+	lambda.MemorySize = params.Params.Memory
+	lambda.Timeout = params.Params.Timeout
 
-	existingLambda := core.GetResourceOfType[*LambdaFunction](dag, lambda.Id().String())
+	existingLambda := dag.GetResourceByVertexId(lambda.Id().String())
 	if existingLambda != nil {
-		return lambda, fmt.Errorf("lambda with name %s already exists", name)
+		return fmt.Errorf("lambda with name %s already exists", name)
 	}
 
-	metadata["RoleName"] = fmt.Sprintf("%s-ExecutionRole", lambda.Name)
-	metadata["Refs"] = lambda.ConstructsRef
-	metadata["AssumeRolePolicyDoc"] = LAMBDA_ASSUMER_ROLE_POLICY
+	subParams := map[string]any{
+		"Role": RoleCreateParams{
+			RoleName:            fmt.Sprintf("%s-ExecutionRole", lambda.Name),
+			Refs:                lambda.ConstructsRef,
+			AssumeRolePolicyDoc: LAMBDA_ASSUMER_ROLE_POLICY,
+		},
+		"Image": ImageCreateParams{
+			AppName:        params.AppName,
+			Refs:           lambda.ConstructsRef,
+			Unit:           params.Unit.ID,
+			DockerfilePath: params.Unit.DockerfilePath,
+		},
+	}
 
-	if lambdaData.Vpc {
+	if params.Vpc {
 		subnetType := PrivateSubnet
-		if lambdaData.NetworkPlacement == "public" {
+		if params.NetworkPlacement == "public" {
 			subnetType = PublicSubnet
 		}
-		lambda.Subnets = []*Subnet{
+		lambda.Subnets = make([]*Subnet, 2)
+		lambda.SecurityGroups = make([]*SecurityGroup, 1)
+
+		subParams["Subnets"] = []SubnetCreateParams{
 			{
-				Type: subnetType,
-				AvailabilityZone: core.IaCValue{
-					Resource: NewAvailabilityZones(),
-					Property: "0",
-				},
+				AppName: params.AppName,
+				Refs:    lambda.ConstructsRef,
+				AZ:      "0",
+				Type:    subnetType,
 			},
 			{
-				Type: subnetType,
-				AvailabilityZone: core.IaCValue{
-					Resource: NewAvailabilityZones(),
-					Property: "1",
-				},
+				AppName: params.AppName,
+				Refs:    lambda.ConstructsRef,
+				AZ:      "1",
+				Type:    subnetType,
 			},
 		}
-		lambda.SecurityGroups = make([]*SecurityGroup, 1)
+		subParams["SecurityGroups"] = []SecurityGroupCreateParams{
+			{
+				AppName: params.AppName,
+				Refs:    lambda.ConstructsRef,
+			},
+		}
 	}
 
-	err = dag.CreateRecursively(lambda, metadata)
-	return lambda, err
+	err := dag.CreateDependencies(lambda, subParams)
+	return err
 }
 
 func (lambda *LambdaPermission) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {

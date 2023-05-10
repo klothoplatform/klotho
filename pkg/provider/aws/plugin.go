@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -27,18 +28,19 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 		log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
 		switch construct := construct.(type) {
 		case *core.ExecutionUnit:
-			var lambda resources.LambdaFunction
-			_, err := lambda.Create(dag, map[string]any{
-				"AppName":          a.Config.AppName,
-				"DockerfilePath":   construct.DockerfilePath,
-				"Unit":             construct.ID,
-				"Refs":             []core.AnnotationKey{construct.AnnotationKey},
-				"NetworkPlacement": a.Config.GetExecutionUnit(construct.ID).NetworkPlacement,
-				"Vpc":              false,
-				"Params":           config.ConvertFromInfraParams[config.ServerlessTypeParams](a.Config.GetExecutionUnit(construct.ID).InfraParams),
-			})
-
-			merr.Append(err)
+			switch a.Config.GetExecutionUnit(construct.ID).Type {
+			case Lambda:
+				var lambda resources.LambdaFunction
+				fmt.Println("calling lambda create")
+				err := lambda.Create(dag, resources.LambdaCreateParams{
+					AppName:          a.Config.AppName,
+					Unit:             construct,
+					Vpc:              false,
+					NetworkPlacement: a.Config.GetExecutionUnit(construct.ID).NetworkPlacement,
+					Params:           config.ConvertFromInfraParams[config.ServerlessTypeParams](a.Config.GetExecutionUnit(construct.ID).InfraParams),
+				})
+				merr.Append(err)
+			}
 		}
 	}
 	return merr.ErrOrNil()

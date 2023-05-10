@@ -108,18 +108,15 @@ func Test_LambdaCreate(t *testing.T) {
 				dag.AddResource(tt.lambda)
 			}
 
-			metadata := map[string]any{
-				"AppName":          "my-app",
-				"DockerfilePath":   eu.DockerfilePath,
-				"Unit":             eu.ID,
-				"Refs":             []*core.AnnotationKey{&eu.AnnotationKey},
-				"NetworkPlacement": "private",
-				"Vpc":              tt.vpc,
-				"Params":           config.ServerlessTypeParams{Timeout: 60, Memory: 250},
+			metadata := LambdaCreateParams{
+				AppName:          "my-app",
+				Unit:             eu,
+				NetworkPlacement: "private",
+				Vpc:              tt.vpc,
+				Params:           config.ServerlessTypeParams{Timeout: 60, Memory: 250},
 			}
-
-			updatedLambda, err := tt.lambda.Create(dag, metadata)
-
+			lambda := &LambdaFunction{}
+			err := lambda.Create(dag, metadata)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -127,14 +124,7 @@ func Test_LambdaCreate(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-
-			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 			tt.want.Assert(t, dag)
-
-			lambda, ok := updatedLambda.(*LambdaFunction)
-			if !assert.True(ok) {
-				return
-			}
 
 			assert.Equal(lambda.Name, "my-app-test")
 			assert.Equal(lambda.Image.Dockerfile, fmt.Sprintf("./%s/%s", eu.ID, eu.DockerfilePath))
@@ -142,7 +132,7 @@ func Test_LambdaCreate(t *testing.T) {
 			assert.Equal(lambda.Role.Name, "my-app-test-ExecutionRole")
 			assert.Equal(lambda.MemorySize, 250)
 			assert.Equal(lambda.Timeout, 60)
-			assert.ElementsMatch(lambda.ConstructsRef, metadata["Refs"])
+			assert.ElementsMatch(lambda.ConstructsRef, []core.AnnotationKey{eu.AnnotationKey})
 		})
 	}
 }

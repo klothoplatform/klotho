@@ -43,12 +43,13 @@ func Test_RepositoryCreate(t *testing.T) {
 			if tt.repo != nil {
 				dag.AddResource(tt.repo)
 			}
-			metadata := map[string]any{
-				"AppName": "my-app",
-				"Refs":    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+			metadata := RepoCreateParams{
+				AppName: "my-app",
+				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 			}
 
-			updatedRepo, err := tt.repo.Create(dag, metadata)
+			repo := &EcrRepository{}
+			err := repo.Create(dag, metadata)
 
 			if !assert.NoError(err) {
 				return
@@ -56,17 +57,14 @@ func Test_RepositoryCreate(t *testing.T) {
 
 			tt.want.Assert(t, dag)
 
-			repo, ok := updatedRepo.(*EcrRepository)
-			if !assert.True(ok) {
-				return
-			}
-
 			assert.Equal(repo.Name, "my-app")
 			assert.Equal(repo.ForceDelete, true)
 			if tt.repo == nil {
-				assert.ElementsMatch(repo.ConstructsRef, metadata["Refs"])
+				assert.ElementsMatch(repo.ConstructsRef, metadata.Refs)
 			} else {
-				assert.ElementsMatch(repo.ConstructsRef, tt.repo.ConstructsRef)
+				repo := dag.GetResourceByVertexId(repo.Id().String())
+				assert.Equal(repo, tt.repo)
+				assert.ElementsMatch(repo.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
 		})
 	}
@@ -105,14 +103,14 @@ func Test_ImageCreate(t *testing.T) {
 			if tt.image != nil {
 				dag.AddResource(tt.image)
 			}
-			metadata := map[string]any{
-				"AppName":        "my-app",
-				"Refs":           []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
-				"Unit":           "test-unit",
-				"DockerfilePath": "path",
+			metadata := ImageCreateParams{
+				AppName:        "my-app",
+				Refs:           []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Unit:           "test-unit",
+				DockerfilePath: "path",
 			}
-
-			updatedImage, err := tt.image.Create(dag, metadata)
+			image := &EcrImage{}
+			err := image.Create(dag, metadata)
 
 			if tt.wantErr {
 				assert.Error(err)
@@ -123,17 +121,11 @@ func Test_ImageCreate(t *testing.T) {
 			}
 			tt.want.Assert(t, dag)
 
-			image, ok := updatedImage.(*EcrImage)
-			if !assert.True(ok) {
-				return
-			}
-
 			assert.Equal(image.Name, "my-app-test-unit")
-			assert.Equal(image.ConstructsRef, metadata["Refs"])
+			assert.Equal(image.ConstructsRef, metadata.Refs)
 			assert.Equal(image.Context, "./test-unit")
 			assert.ElementsMatch(image.ExtraOptions, []string{"--platform", "linux/amd64", "--quiet"})
 			assert.Equal(image.Dockerfile, "./test-unit/path")
-
 		})
 	}
 }

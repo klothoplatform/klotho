@@ -147,30 +147,24 @@ type (
 	}
 )
 
-func (role *IamRole) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+type RoleCreateParams struct {
+	RoleName            string
+	Refs                []core.AnnotationKey
+	AssumeRolePolicyDoc *PolicyDocument
+}
 
-	type roleMetadata struct {
-		RoleName            string
-		Refs                []core.AnnotationKey
-		AssumeRolePolicyDoc *PolicyDocument
+func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) error {
+	role.Name = roleSanitizer.Apply(params.RoleName)
+	role.ConstructsRef = params.Refs
+	role.AssumeRolePolicyDoc = params.AssumeRolePolicyDoc
+
+	existingRole := dag.GetResourceByVertexId(role.Id().String())
+	if existingRole != nil {
+		return fmt.Errorf("iam role with name %s already exists", role.Name)
 	}
 
-	if role == nil {
-		roleMetadata := &roleMetadata{}
-		decoder := getMapDecoder(roleMetadata)
-		err := decoder.Decode(metadata)
-		if err != nil {
-			return role, err
-		}
-		role = &IamRole{
-			Name:                roleSanitizer.Apply(roleMetadata.RoleName),
-			ConstructsRef:       roleMetadata.Refs,
-			AssumeRolePolicyDoc: roleMetadata.AssumeRolePolicyDoc,
-		}
-	}
-
-	err := dag.CreateRecursively(role, metadata)
-	return role, err
+	dag.AddResource(role)
+	return nil
 }
 
 func (lambda *IamPolicy) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {

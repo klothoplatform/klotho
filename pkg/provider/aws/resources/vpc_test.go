@@ -45,22 +45,18 @@ func Test_VpcCreate(t *testing.T) {
 			if tt.vpc != nil {
 				dag.AddResource(tt.vpc)
 			}
-			metadata := map[string]any{
-				"AppName": "my-app",
-				"Refs":    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+			metadata := VpcCreateParams{
+				AppName: "my-app",
+				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 			}
 
-			updatedVpc, err := tt.vpc.Create(dag, metadata)
+			vpc := &Vpc{}
+			err := vpc.Create(dag, metadata)
 
 			if !assert.NoError(err) {
 				return
 			}
 			tt.want.Assert(t, dag)
-
-			vpc, ok := updatedVpc.(*Vpc)
-			if !assert.True(ok) {
-				return
-			}
 
 			assert.Equal(vpc.Name, "my_app")
 
@@ -68,12 +64,10 @@ func Test_VpcCreate(t *testing.T) {
 				assert.Equal(vpc.CidrBlock, "10.0.0.0/16")
 				assert.True(vpc.EnableDnsHostnames)
 				assert.True(vpc.EnableDnsSupport)
-				assert.Equal(vpc.ConstructsRef, metadata["Refs"])
+				assert.Equal(vpc.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Equal(vpc.CidrBlock, tt.vpc.CidrBlock)
-				assert.Equal(vpc.EnableDnsHostnames, tt.vpc.EnableDnsHostnames)
-				assert.Equal(vpc.EnableDnsSupport, tt.vpc.EnableDnsSupport)
-				assert.Equal(vpc.ConstructsRef, tt.vpc.ConstructsRef)
+				vpc := dag.GetResourceByVertexId(tt.vpc.Id().String())
+				assert.Equal(vpc.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
 		})
 	}
@@ -113,29 +107,26 @@ func Test_ElasticIpCreate(t *testing.T) {
 			if tt.eip != nil {
 				dag.AddResource(tt.eip)
 			}
-			metadata := map[string]any{
-				"AppName": "my-app",
-				"IpName":  "ip0",
-				"Refs":    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+			metadata := EipCreateParams{
+				AppName: "my-app",
+				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				IpName:  "ip0",
 			}
 
-			updatedEip, err := tt.eip.Create(dag, metadata)
+			eip := &ElasticIp{}
+			err := eip.Create(dag, metadata)
 
 			if !assert.NoError(err) {
 				return
 			}
 			tt.want.Assert(t, dag)
 
-			eip, ok := updatedEip.(*ElasticIp)
-			if !assert.True(ok) {
-				return
-			}
-
 			assert.Equal(eip.Name, "my_app_ip0")
 			if tt.eip == nil {
-				assert.Equal(eip.ConstructsRef, metadata["Refs"])
+				assert.Equal(eip.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Equal(eip.ConstructsRef, tt.eip.ConstructsRef)
+				eip := dag.GetResourceByVertexId(tt.eip.Id().String())
+				assert.Equal(eip.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
 		})
 	}
@@ -178,30 +169,26 @@ func Test_InternetGatewayCreate(t *testing.T) {
 			if tt.igw != nil {
 				dag.AddResource(tt.igw)
 			}
-			metadata := map[string]any{
-				"AppName": "my-app",
-				"Refs":    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+			metadata := IgwCreateParams{
+				AppName: "my-app",
+				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 			}
 
-			updatedIgw, err := tt.igw.Create(dag, metadata)
+			igw := &InternetGateway{}
+			err := igw.Create(dag, metadata)
 
 			if !assert.NoError(err) {
 				return
 			}
 			tt.want.Assert(t, dag)
 
-			igw, ok := updatedIgw.(*InternetGateway)
-			if !assert.True(ok) {
-				return
-			}
-
 			assert.Equal(igw.Name, "my_app_igw")
 			if tt.igw == nil {
 				assert.NotNil(igw.Vpc)
-				assert.Equal(igw.ConstructsRef, metadata["Refs"])
+				assert.Equal(igw.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Nil(igw.Vpc)
-				assert.Equal(igw.ConstructsRef, tt.igw.ConstructsRef)
+				igw := dag.GetResourceByVertexId(tt.igw.Id().String())
+				assert.Equal(igw.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
 		})
 	}
@@ -255,33 +242,28 @@ func Test_NatGatewayCreate(t *testing.T) {
 			if tt.nat != nil {
 				dag.AddResource(tt.nat)
 			}
-			metadata := map[string]any{
-				"AppName": "my-app",
-				"Refs":    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
-				"AZ":      "0",
+			metadata := NatCreateParams{
+				AppName: "my-app",
+				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				AZ:      "0",
 			}
 
-			updatedNat, err := tt.nat.Create(dag, metadata)
+			nat := &NatGateway{}
+			err := nat.Create(dag, metadata)
 
 			if !assert.NoError(err) {
 				return
 			}
 			tt.want.Assert(t, dag)
 
-			nat, ok := updatedNat.(*NatGateway)
-			if !assert.True(ok) {
-				return
-			}
-
 			assert.Equal(nat.Name, "my_app_0")
 			if tt.nat == nil {
 				assert.NotNil(nat.Subnet)
 				assert.NotNil(nat.ElasticIp)
-				assert.Equal(nat.ConstructsRef, metadata["Refs"])
+				assert.Equal(nat.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Nil(nat.Subnet)
-				assert.Nil(nat.ElasticIp)
-				assert.Equal(nat.ConstructsRef, tt.nat.ConstructsRef)
+				nat := dag.GetResourceByVertexId(tt.nat.Id().String())
+				assert.Equal(nat.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
 		})
 	}
@@ -321,6 +303,7 @@ func Test_SubnetCreate(t *testing.T) {
 					{Source: "aws:route_table:my_app_igw", Destination: "aws:internet_gateway:my_app_igw"},
 					{Source: "aws:route_table:my_app_igw", Destination: "aws:vpc:my_app"},
 					{Source: "aws:vpc_subnet:my_app_private0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:vpc_subnet:my_app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:vpc_subnet:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:vpc_subnet:my_app_public0", Destination: "aws:vpc:my_app"},
 				},
@@ -351,6 +334,7 @@ func Test_SubnetCreate(t *testing.T) {
 					{Source: "aws:route_table:my_app_igw", Destination: "aws:internet_gateway:my_app_igw"},
 					{Source: "aws:route_table:my_app_igw", Destination: "aws:vpc:my_app"},
 					{Source: "aws:vpc_subnet:my_app_private1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:vpc_subnet:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:vpc_subnet:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:vpc_subnet:my_app_public1", Destination: "aws:vpc:my_app"},
 				},
@@ -363,6 +347,7 @@ func Test_SubnetCreate(t *testing.T) {
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:internet_gateway:my_app_igw",
+					"aws:availability_zones:AvailabilityZones",
 					"aws:route_table:my_app_igw",
 					"aws:vpc:my_app",
 					"aws:vpc_subnet:my_app_public0",
@@ -370,6 +355,7 @@ func Test_SubnetCreate(t *testing.T) {
 				Deps: []coretesting.StringDep{
 					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
 					{Source: "aws:route_table:my_app_igw", Destination: "aws:internet_gateway:my_app_igw"},
+					{Source: "aws:vpc_subnet:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:route_table:my_app_igw", Destination: "aws:vpc:my_app"},
 					{Source: "aws:vpc_subnet:my_app_public0", Destination: "aws:vpc:my_app"},
 				},
@@ -383,6 +369,7 @@ func Test_SubnetCreate(t *testing.T) {
 				Nodes: []string{
 					"aws:internet_gateway:my_app_igw",
 					"aws:route_table:my_app_igw",
+					"aws:availability_zones:AvailabilityZones",
 					"aws:vpc:my_app",
 					"aws:vpc_subnet:my_app_public1",
 				},
@@ -391,6 +378,7 @@ func Test_SubnetCreate(t *testing.T) {
 					{Source: "aws:route_table:my_app_igw", Destination: "aws:internet_gateway:my_app_igw"},
 					{Source: "aws:route_table:my_app_igw", Destination: "aws:vpc:my_app"},
 					{Source: "aws:vpc_subnet:my_app_public1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:vpc_subnet:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
 				},
 			},
 		},
@@ -405,16 +393,6 @@ func Test_SubnetCreate(t *testing.T) {
 				Deps: []coretesting.StringDep{},
 			},
 		},
-		{
-			name:    "no type set for subnet",
-			subnet:  &Subnet{AvailabilityZone: core.IaCValue{Property: "0"}},
-			wantErr: true,
-		},
-		{
-			name:    "no az set for subnet",
-			subnet:  &Subnet{Type: PrivateSubnet},
-			wantErr: true,
-		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -423,13 +401,14 @@ func Test_SubnetCreate(t *testing.T) {
 			if tt.addToDag {
 				dag.AddResource(tt.subnet)
 			}
-			metadata := map[string]any{
-				"AppName": "my-app",
-				"Refs":    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
-				"AZ":      tt.subnet.AvailabilityZone.Property,
+			metadata := SubnetCreateParams{
+				AppName: "my-app",
+				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				AZ:      tt.subnet.AvailabilityZone.Property,
+				Type:    tt.subnet.Type,
 			}
-
-			updatedSubnet, err := tt.subnet.Create(dag, metadata)
+			subnet := &Subnet{}
+			err := subnet.Create(dag, metadata)
 
 			if tt.wantErr {
 				assert.Error(err)
@@ -439,12 +418,6 @@ func Test_SubnetCreate(t *testing.T) {
 				return
 			}
 			tt.want.Assert(t, dag)
-
-			subnet, ok := updatedSubnet.(*Subnet)
-
-			if !assert.True(ok) {
-				return
-			}
 
 			assert.Equal(subnet.Name, fmt.Sprintf("my_app_%s%s", tt.subnet.Type, tt.subnet.AvailabilityZone.Property))
 			assert.Equal(subnet.CidrBlock, tt.subnet.CidrBlock)
@@ -456,10 +429,10 @@ func Test_SubnetCreate(t *testing.T) {
 				assert.False(subnet.MapPublicIpOnLaunch)
 			}
 			if tt.addToDag == false {
-				assert.Equal(subnet.ConstructsRef, metadata["Refs"])
+				assert.Equal(subnet.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Nil(subnet.Vpc)
-				assert.Equal(subnet.ConstructsRef, tt.subnet.ConstructsRef)
+				subnet := dag.GetResourceByVertexId(tt.subnet.Id().String())
+				assert.Equal(subnet.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
 		})
 	}
@@ -468,45 +441,68 @@ func Test_SubnetCreate(t *testing.T) {
 func Test_RouteTableCreate(t *testing.T) {
 	initialRefs := []core.AnnotationKey{{ID: "first"}}
 	cases := []struct {
-		name string
-		rt   *RouteTable
-		want coretesting.ResourcesExpectation
+		name    string
+		rt      *RouteTable
+		nat     *NatGateway
+		igw     *InternetGateway
+		want    coretesting.ResourcesExpectation
+		wantErr bool
 	}{
 		{
-			name: "nil route table",
+			name: "nil route table - nat",
+			nat:  &NatGateway{Name: "nat0"},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:availability_zones:AvailabilityZones",
-					"aws:elastic_ip:my_app_0",
-					"aws:internet_gateway:my_app_igw",
-					"aws:nat_gateway:my_app_0",
-					"aws:route_table:0",
-					"aws:route_table:my_app_igw",
+					"aws:nat_gateway:nat0",
+					"aws:route_table:nat0",
 					"aws:vpc:my_app",
-					"aws:vpc_subnet:my_app_public0",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
-					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_0"},
-					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:vpc_subnet:my_app_public0"},
-					{Source: "aws:route_table:0", Destination: "aws:nat_gateway:my_app_0"},
-					{Source: "aws:route_table:0", Destination: "aws:vpc:my_app"},
-					{Source: "aws:route_table:my_app_igw", Destination: "aws:internet_gateway:my_app_igw"},
-					{Source: "aws:route_table:my_app_igw", Destination: "aws:vpc:my_app"},
-					{Source: "aws:vpc_subnet:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:vpc_subnet:my_app_public0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:route_table:nat0", Destination: "aws:nat_gateway:nat0"},
+					{Source: "aws:route_table:nat0", Destination: "aws:vpc:my_app"},
+				},
+			},
+		},
+		{
+			name: "nil route table - igw",
+			igw:  &InternetGateway{Name: "igw0"},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:internet_gateway:igw0",
+					"aws:route_table:igw0",
+					"aws:vpc:my_app",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:route_table:igw0", Destination: "aws:internet_gateway:igw0"},
+					{Source: "aws:route_table:igw0", Destination: "aws:vpc:my_app"},
 				},
 			},
 		},
 		{
 			name: "existing rt",
-			rt:   &RouteTable{Name: "0", ConstructsRef: initialRefs},
+			rt:   &RouteTable{Name: "my_app", ConstructsRef: initialRefs},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:route_table:0",
+					"aws:route_table:my_app",
 				},
 				Deps: []coretesting.StringDep{},
 			},
+		},
+		{
+			name:    "nat not in graph",
+			nat:     &NatGateway{Name: "nat0"},
+			wantErr: true,
+		},
+		{
+			name:    "igw not in graph",
+			igw:     &InternetGateway{Name: "igw0"},
+			wantErr: true,
+		},
+		{
+			name:    "both igw and nat fail",
+			nat:     &NatGateway{Name: "nat0"},
+			igw:     &InternetGateway{Name: "igw0"},
+			wantErr: true,
 		},
 	}
 	for _, tt := range cases {
@@ -516,37 +512,51 @@ func Test_RouteTableCreate(t *testing.T) {
 			if tt.rt != nil {
 				dag.AddResource(tt.rt)
 			}
-			gw := &NatGateway{Name: "0"}
-			metadata := map[string]any{
-				"AppName": "my-app",
-				"AZ":      "0",
-				"Refs":    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
-				"Gateway": gw,
+			if tt.nat != nil && !tt.wantErr {
+				dag.AddResource(tt.nat)
+			}
+			if tt.igw != nil && !tt.wantErr {
+				dag.AddResource(tt.igw)
+			}
+			metadata := RouteTableCreateParams{
+				AppName:         "my-app",
+				Refs:            []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				NatGateway:      tt.nat,
+				InternetGateway: tt.igw,
 			}
 
-			updatedRouteTable, err := tt.rt.Create(dag, metadata)
+			rt := &RouteTable{}
+			err := rt.Create(dag, metadata)
 
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
 			if !assert.NoError(err) {
 				return
 			}
 			tt.want.Assert(t, dag)
 
-			routeTable, ok := updatedRouteTable.(*RouteTable)
-
-			if !assert.True(ok) {
-				return
+			if tt.nat != nil {
+				assert.Equal(rt.Name, "nat0")
+			}
+			if tt.igw != nil {
+				assert.Equal(rt.Name, "igw0")
 			}
 
-			assert.Equal(routeTable.Name, "0")
-
 			if tt.rt == nil {
-				assert.NotNil(routeTable.Vpc)
-				assert.Equal(routeTable.Routes[0].CidrBlock, "0.0.0.0/0")
-				assert.Equal(routeTable.Routes[0].NatGatewayId.Resource.Id().String(), "aws:nat_gateway:my_app_0")
-				assert.Equal(routeTable.ConstructsRef, metadata["Refs"])
+				assert.NotNil(rt.Vpc)
+				assert.Equal(rt.Routes[0].CidrBlock, "0.0.0.0/0")
+				if tt.nat != nil {
+					assert.Equal(rt.Routes[0].NatGatewayId.Resource.Id().String(), "aws:nat_gateway:nat0")
+				} else if tt.igw != nil {
+					assert.Equal(rt.Routes[0].GatewayId.Resource.Id().String(), "aws:internet_gateway:igw0")
+				}
+				assert.Equal(rt.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Nil(routeTable.Vpc)
-				assert.Equal(routeTable.ConstructsRef, tt.rt.ConstructsRef)
+				rt := dag.GetResourceByVertexId(tt.rt.Id().String())
+				assert.Equal(rt, tt.rt)
+				assert.Equal(rt.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
 		})
 	}

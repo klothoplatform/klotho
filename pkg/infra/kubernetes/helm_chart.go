@@ -36,8 +36,23 @@ type HelmChart struct {
 	Values           map[string]any
 }
 
-func (lambda *HelmChart) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+func (chart *HelmChart) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	type chartMetadata struct {
+		AppName          string
+		Refs             []core.AnnotationKey
+		Provider         core.IaCValue
+		Vpc              bool
+		NetworkPlacement string
+		Params           config.KubernetesTypeParams
+	}
+	data := &chartMetadata{}
+	decoder := core.GetMapDecoder(data)
+	err := decoder.Decode(metadata)
+	if err != nil {
+		return chart, err
+	}
+
+	return chart, nil
 }
 
 // KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to

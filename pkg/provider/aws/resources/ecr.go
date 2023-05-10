@@ -30,64 +30,53 @@ type (
 	}
 )
 
-func (repo *EcrRepository) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	type repoMetadata struct {
-		AppName string
-		Refs    []core.AnnotationKey
-	}
-
-	data := &repoMetadata{}
-	decoder := getMapDecoder(data)
-	err := decoder.Decode(metadata)
-	if err != nil {
-		return repo, err
-	}
-	repo = &EcrRepository{
-		Name:          data.AppName,
-		ForceDelete:   true,
-		ConstructsRef: data.Refs,
-	}
-
-	existingRepo := core.GetResourceOfType[*EcrRepository](dag, repo.Id().String())
-	if existingRepo != nil {
-		repo = *existingRepo
-		repo.ConstructsRef = append(repo.ConstructsRef, data.Refs...)
-	} else {
-		err = dag.CreateRecursively(repo, metadata)
-	}
-	return repo, err
+type RepoCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
 }
 
-func (image *EcrImage) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	type imageMetadata struct {
-		AppName        string
-		Refs           []core.AnnotationKey
-		Unit           string
-		DockerfilePath string
-	}
+func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreateParams) error {
+	repo.Name = params.AppName
+	repo.ForceDelete = true
+	repo.ConstructsRef = params.Refs
 
-	data := &imageMetadata{}
-	decoder := getMapDecoder(data)
-	err := decoder.Decode(metadata)
-	if err != nil {
-		return image, err
+	existingRepo := dag.GetResourceByVertexId(repo.Id().String())
+	if existingRepo != nil {
+		graphRepo := existingRepo.(*EcrRepository)
+		graphRepo.ConstructsRef = append(graphRepo.KlothoConstructRef(), params.Refs...)
+	} else {
+		dag.AddResource(repo)
 	}
-	name := fmt.Sprintf("%s-%s", data.AppName, data.Unit)
-	image = &EcrImage{
-		Name:          name,
-		ConstructsRef: data.Refs,
-		Context:       fmt.Sprintf("./%s", data.Unit),
-		Dockerfile:    fmt.Sprintf("./%s/%s", data.Unit, data.DockerfilePath),
-		ExtraOptions:  []string{"--platform", "linux/amd64", "--quiet"},
-	}
+	return nil
+}
 
-	existingImage := core.GetResourceOfType[*EcrImage](dag, image.Id().String())
+type ImageCreateParams struct {
+	AppName        string
+	Refs           []core.AnnotationKey
+	Unit           string
+	DockerfilePath string
+}
+
+func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams) error {
+	name := fmt.Sprintf("%s-%s", params.AppName, params.Unit)
+	image.Name = name
+	image.ConstructsRef = params.Refs
+	image.Context = fmt.Sprintf("./%s", params.Unit)
+	image.Dockerfile = fmt.Sprintf("./%s/%s", params.Unit, params.DockerfilePath)
+	image.ExtraOptions = []string{"--platform", "linux/amd64", "--quiet"}
+
+	existingImage := dag.GetResourceByVertexId(image.Id().String())
 	if existingImage != nil {
-		return image, fmt.Errorf("ecr image with name %s already exists", name)
+		return fmt.Errorf("ecr image with name %s already exists", name)
 	}
 
-	err = dag.CreateRecursively(image, metadata)
-	return image, err
+	err := dag.CreateDependencies(image, map[string]any{
+		"Repo": RepoCreateParams{
+			AppName: params.AppName,
+			Refs:    params.Refs,
+		},
+	})
+	return err
 }
 
 func GenerateEcrRepoAndImage(appName string, unit *core.ExecutionUnit, dag *core.ResourceGraph) (*EcrImage, error) {

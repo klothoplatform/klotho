@@ -12,6 +12,40 @@ import (
 	"go.uber.org/zap"
 )
 
+func (a *AWS) handleHelmChartAwsValues(dag *core.ResourceGraph, unit *core.ExecutionUnit, chart *kubernetes.HelmChart) {
+	for _, val := range chart.ProviderValues {
+		if val.ExecUnitName != unit.ID {
+			continue
+		}
+		switch kubernetes.ProviderValueTypes(val.Type) {
+		case kubernetes.ImageTransformation:
+			chart.Values[val.Key] = core.IaCValue{
+				Resource: &resources.EcrImage{},
+				Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
+			}
+		case kubernetes.ServiceAccountAnnotationTransformation:
+			chart.Values[val.Key] = core.IaCValue{
+				Resource: &resources.IamRole{},
+				Property: resources.ARN_IAC_VALUE,
+			}
+		case kubernetes.InstanceTypeKey:
+			chart.Values[val.Key] = core.IaCValue{
+				Property: "eks.amazonaws.com/nodegroup",
+			}
+		case kubernetes.InstanceTypeValue:
+			chart.Values[val.Key] = core.IaCValue{
+				Resource: &resources.EksNodeGroup{},
+				Property: resources.NODE_GROUP_NAME_IAC_VALUE,
+			}
+		case kubernetes.TargetGroupTransformation:
+			chart.Values[val.Key] = core.IaCValue{
+				Resource: &resources.TargetGroup{},
+				Property: resources.ARN_IAC_VALUE,
+			}
+		}
+	}
+}
+
 // GenerateExecUnitResources generates the necessary AWS resources for a given execution unit and adds them to the resource graph
 func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	log := zap.S()

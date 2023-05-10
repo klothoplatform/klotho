@@ -26,30 +26,6 @@ type (
 	}
 )
 
-func (region *Region) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	region = &Region{
-		Name:          "region",
-		ConstructsRef: []core.AnnotationKey{},
-	}
-	err := dag.CreateRecursively(region, metadata)
-	return region, err
-}
-func (account *AccountId) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	account = &AccountId{
-		Name:          "AccountId",
-		ConstructsRef: []core.AnnotationKey{},
-	}
-	err := dag.CreateRecursively(account, metadata)
-	return account, err
-}
-func (az *AvailabilityZones) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	az = &AvailabilityZones{
-		Name:          "AvailabilityZones",
-		ConstructsRef: []core.AnnotationKey{},
-	}
-	err := dag.CreateRecursively(az, metadata)
-	return az, err
-}
 func NewRegion() *Region {
 	return &Region{
 		Name:          "region",
@@ -67,7 +43,7 @@ func (region *Region) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     REGION_TYPE,
-		Name:     region.Name,
+		Name:     "region",
 	}
 }
 
@@ -88,7 +64,7 @@ func (azs *AvailabilityZones) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     AVAILABILITY_ZONES_TYPE,
-		Name:     azs.Name,
+		Name:     "AvailabilityZones",
 	}
 }
 
@@ -109,6 +85,6 @@ func (id *AccountId) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     ACCOUNT_ID_TYPE,
-		Name:     id.Name,
+		Name:     "AccountId",
 	}
 }

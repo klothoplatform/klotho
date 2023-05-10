@@ -24,7 +24,7 @@ func Test_ExpandConstructs(t *testing.T) {
 		{
 			name:       "single exec unit",
 			constructs: []core.Construct{eu},
-			config:     &config.Application{AppName: "my-app"},
+			config:     &config.Application{AppName: "my-app", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: Lambda}}},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ecr_image:my-app-test",
@@ -58,8 +58,6 @@ func Test_ExpandConstructs(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-
-			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 			tt.want.Assert(t, dag)
 		})
 	}

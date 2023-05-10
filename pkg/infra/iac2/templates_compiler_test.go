@@ -315,7 +315,7 @@ func Test_handleIaCValue(t *testing.T) {
 			resourceVarNamesById: map[core.ResourceId]string{
 				{Provider: "aws", Type: "availability_zones", Name: "AvailabilityZones"}: "azs",
 			},
-			want: "awsAvailabilityZones.names[2]",
+			want: "azs.names[2]",
 		},
 		{
 			name: "nlb uri",
