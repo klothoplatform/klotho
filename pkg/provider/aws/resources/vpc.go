@@ -147,10 +147,7 @@ func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreatePara
 		graphIgw.ConstructsRef = append(graphIgw.ConstructsRef, params.Refs...)
 	} else {
 		err := dag.CreateDependencies(igw, map[string]any{
-			"Vpc": VpcCreateParams{
-				AppName: params.AppName,
-				Refs:    params.Refs,
-			},
+			"Vpc": params,
 		})
 		if err != nil {
 			return err
