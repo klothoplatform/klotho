@@ -19,7 +19,7 @@ func (imp Imported) KlothoConstructRef() []core.AnnotationKey {
 
 func (imp Imported) Id() core.ResourceId {
 	return core.ResourceId{
-		Provider: "internal",
+		Provider: core.InternalProvider,
 		Type:     "import",
 		Name:     imp.ID,
 	}

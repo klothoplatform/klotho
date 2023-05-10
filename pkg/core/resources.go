@@ -63,6 +63,13 @@ type (
 
 const (
 	ALL_RESOURCES_IAC_VALUE = "*"
+
+	// InternalProvider is used for resources that don't directly correspond to a deployed resource,
+	// but are used to convey data or metadata about resources that should be respected during IaC rendering.
+	// A notable usage is for imported resources.
+	//? Do we want to revisit how to accomplish this? It was originally implemented to avoid duplicated
+	// fields or methods across various resources.
+	InternalProvider = "internal"
 )
 
 func (id ResourceId) String() string {

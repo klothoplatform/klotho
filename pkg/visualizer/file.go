@@ -74,7 +74,7 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 	}
 	for _, resourceId := range resourceIds {
 		resource := f.DAG.GetResourceByVertexId(resourceId)
-		if resource.Id().Provider == "internal" {
+		if resource.Id().Provider == core.InternalProvider {
 			// Don't show internal resources such as imported in the topology
 			// TODO maybe make some way of indicating imported resources in the visualizer
 			continue
