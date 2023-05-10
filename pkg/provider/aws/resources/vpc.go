@@ -265,10 +265,7 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams)
 
 		subnet.MapPublicIpOnLaunch = mapPublicIpOnLaunch
 		err = dag.CreateDependencies(subnet, map[string]any{
-			"Vpc": VpcCreateParams{
-				AppName: params.AppName,
-				Refs:    params.Refs,
-			},
+			"Vpc": params,
 		})
 		if err != nil {
 			return err

@@ -391,7 +391,7 @@ func (rg *ResourceGraph) checkChild(child reflect.Value, res Resource, metadata 
 	case reflect.Struct:
 		params := reflect.ValueOf(metadata)
 		if params.Kind() != reflect.Map {
-			return fmt.Errorf("Field %s params does not conform to type for structs", child.Type().String())
+			return fmt.Errorf("field %s params does not conform to type for structs", child.Type().String())
 		}
 		for i := 0; i < child.NumField(); i++ {
 			childVal := child.Field(i)
@@ -407,9 +407,9 @@ func (rg *ResourceGraph) checkChild(child reflect.Value, res Resource, metadata 
 	case reflect.Slice, reflect.Array:
 		params := reflect.ValueOf(metadata)
 		if params.Kind() != reflect.Slice && params.Kind() != reflect.Array {
-			return fmt.Errorf("Field %s does not match parent type %s", params.Type().String(), child.Type().String())
+			return fmt.Errorf("field %s does not match parent type %s", params.Type().String(), child.Type().String())
 		} else if params.Len() != child.Len() {
-			return fmt.Errorf("Field %s does not have the same number of elements as parent", child.Type().String())
+			return fmt.Errorf("field %s does not have the same number of elements as parent", child.Type().String())
 		}
 		for elemIdx := 0; elemIdx < child.Len(); elemIdx++ {
 			elemValue := child.Index(elemIdx)
@@ -418,7 +418,7 @@ func (rg *ResourceGraph) checkChild(child reflect.Value, res Resource, metadata 
 	case reflect.Map:
 		params := reflect.ValueOf(metadata)
 		if params.Kind() != reflect.Map {
-			return fmt.Errorf("Field %s params does not conform to type for maps", child.Type().String())
+			return fmt.Errorf("field %s params does not conform to type for maps", child.Type().String())
 		}
 		for _, key := range child.MapKeys() {
 			elemValue := child.MapIndex(key)

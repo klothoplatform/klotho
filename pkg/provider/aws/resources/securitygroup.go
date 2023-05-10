@@ -41,10 +41,7 @@ func (sg *SecurityGroup) Create(dag *core.ResourceGraph, params SecurityGroupCre
 		graphSG.ConstructsRef = append(graphSG.ConstructsRef, params.Refs...)
 	} else {
 		err := dag.CreateDependencies(sg, map[string]any{
-			"Vpc": VpcCreateParams{
-				AppName: params.AppName,
-				Refs:    params.Refs,
-			},
+			"Vpc": params,
 		})
 
 		sg.IngressRules = append(sg.IngressRules, SecurityGroupRule{
