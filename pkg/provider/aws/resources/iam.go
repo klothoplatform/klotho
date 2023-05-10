@@ -151,12 +151,16 @@ type RoleCreateParams struct {
 	RoleName            string
 	Refs                []core.AnnotationKey
 	AssumeRolePolicyDoc *PolicyDocument
+	AwsManagedPolicies  []string
+	InlinePolicies      []*IamInlinePolicy
 }
 
 func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) error {
 	role.Name = roleSanitizer.Apply(params.RoleName)
 	role.ConstructsRef = params.Refs
 	role.AssumeRolePolicyDoc = params.AssumeRolePolicyDoc
+	role.AwsManagedPolicies = params.AwsManagedPolicies
+	role.InlinePolicies = params.InlinePolicies
 
 	existingRole := dag.GetResourceByVertexId(role.Id().String())
 	if existingRole != nil {
@@ -287,10 +291,10 @@ func NewIamPolicy(appName string, policyName string, ref core.AnnotationKey, pol
 	}
 }
 
-func NewIamInlinePolicy(policyName string, ref core.AnnotationKey, policy *PolicyDocument) *IamInlinePolicy {
+func NewIamInlinePolicy(policyName string, refs []core.AnnotationKey, policy *PolicyDocument) *IamInlinePolicy {
 	return &IamInlinePolicy{
 		Name:          policySanitizer.Apply(policyName),
-		ConstructsRef: []core.AnnotationKey{ref},
+		ConstructsRef: refs,
 		Policy:        policy,
 	}
 }

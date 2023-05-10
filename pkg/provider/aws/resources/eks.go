@@ -142,17 +142,239 @@ type (
 		ClusterName   core.IaCValue
 	}
 )
-
-func (lambda *EksCluster) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+type EksClusterCreateParams struct {
+	Refs        []core.AnnotationKey
+	AppName     string
+	ClusterName string
 }
 
-func (lambda *EksFargateProfile) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCreateParams) error {
+
+	cluster.Name = clusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.ClusterName))
+
+	existingCluster := dag.GetResourceByVertexId(cluster.Id().String())
+	if existingCluster != nil {
+		graphCluster := existingCluster.(*EksCluster)
+		graphCluster.ConstructsRef = append(graphCluster.ConstructsRef, params.Refs...)
+	} else {
+		cluster.ConstructsRef = params.Refs
+		cluster.Subnets = make([]*Subnet, 4)
+		cluster.SecurityGroups = make([]*SecurityGroup, 1)
+
+		subParams := map[string]any{
+			"ClusterRole": RoleCreateParams{
+				RoleName:            fmt.Sprintf("%s-ClusterAdmin", cluster.Name),
+				Refs:                params.Refs,
+				AssumeRolePolicyDoc: EKS_ASSUME_ROLE_POLICY,
+				AwsManagedPolicies: []string{
+					"arn:aws:iam::aws:policy/AmazonEKSClusterPolicy",
+				},
+			},
+			"Subnets": []SubnetCreateParams{
+				{
+					AppName: params.AppName,
+					Refs:    cluster.ConstructsRef,
+					AZ:      "0",
+					Type:    PrivateSubnet,
+				},
+				{
+					AppName: params.AppName,
+					Refs:    cluster.ConstructsRef,
+					AZ:      "1",
+					Type:    PrivateSubnet,
+				},
+				{
+					AppName: params.AppName,
+					Refs:    cluster.ConstructsRef,
+					AZ:      "0",
+					Type:    PublicSubnet,
+				},
+				{
+					AppName: params.AppName,
+					Refs:    cluster.ConstructsRef,
+					AZ:      "1",
+					Type:    PublicSubnet,
+				},
+			},
+			"SecurityGroups": []SecurityGroupCreateParams{
+				{
+					AppName: params.AppName,
+					Refs:    cluster.ConstructsRef,
+				},
+			},
+		}
+
+		err := dag.CreateDependencies(cluster, subParams)
+		if err != nil {
+			return err
+		}
+		dag.AddDependenciesReflect(cluster)
+		// Add the kubeconfig after the dependencies reflect call otherwise we will have a circular dependency
+		cluster.Kubeconfig = createEKSKubeconfig(cluster, NewRegion())
+		cluster.SecurityGroups[0].IngressRules = append(cluster.SecurityGroups[0].IngressRules, SecurityGroupRule{
+			Description: "Allows ingress traffic from the EKS control plane",
+			FromPort:    9443,
+			Protocol:    "TCP",
+			ToPort:      9443,
+			CidrBlocks: []core.IaCValue{
+				{Property: "0.0.0.0/0"},
+			},
+		})
+	}
+
+	return nil
 }
 
-func (lambda *EksNodeGroup) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+type EksFargateProfileCreateParams struct {
+	ClusterName string
+	Refs        []core.AnnotationKey
+	AppName     string
+	NetworkType string
+	Namespace   string
+}
+
+func (profile *EksFargateProfile) Create(dag *core.ResourceGraph, params EksFargateProfileCreateParams) error {
+	profile.Name = profileSanitizer.Apply(fmt.Sprintf("%s_%s", params.AppName, params.ClusterName))
+
+	existingProfile := dag.GetResourceByVertexId(profile.Id().String())
+	if existingProfile != nil {
+		graphProfile := existingProfile.(*EksFargateProfile)
+		graphProfile.ConstructsRef = append(graphProfile.ConstructsRef, params.Refs...)
+	} else {
+
+		profile.Selectors = []*FargateProfileSelector{&FargateProfileSelector{Namespace: params.Namespace, Labels: map[string]string{"klotho-fargate-enabled": "true"}}}
+		subParams := map[string]any{
+			"Cluster": params,
+			"PodExecutionRole": RoleCreateParams{
+				RoleName:            fmt.Sprintf("%s-PodExecutionRole", profile.Name),
+				Refs:                params.Refs,
+				AssumeRolePolicyDoc: EC2_ASSUMER_ROLE_POLICY,
+				AwsManagedPolicies: []string{
+					"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+					"arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy",
+				},
+				InlinePolicies: []*IamInlinePolicy{
+					NewIamInlinePolicy("fargate-pod-execution-policy", params.Refs,
+						&PolicyDocument{Version: VERSION, Statement: []StatementEntry{
+							{
+								Effect: "Allow",
+								Action: []string{
+									"logs:CreateLogStream",
+									"logs:CreateLogGroup",
+									"logs:DescribeLogStreams",
+									"logs:PutLogEvents",
+								},
+								Resource: []core.IaCValue{{Property: "*"}},
+							},
+						},
+						}),
+				},
+			},
+		}
+
+		subnetType := PrivateSubnet
+		if params.NetworkType == "public" {
+			subnetType = PublicSubnet
+		}
+		profile.Subnets = make([]*Subnet, 2)
+
+		subParams["Subnets"] = []SubnetCreateParams{
+			{
+				AppName: params.AppName,
+				Refs:    profile.ConstructsRef,
+				AZ:      "0",
+				Type:    subnetType,
+			},
+			{
+				AppName: params.AppName,
+				Refs:    profile.ConstructsRef,
+				AZ:      "1",
+				Type:    subnetType,
+			},
+		}
+		err := dag.CreateDependencies(profile, subParams)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type EksNodeGroupCreateParams struct {
+	InstanceType string
+	NetworkType  string
+	DiskSizeGiB  int
+	Refs         []core.AnnotationKey
+	AppName      string
+	ClusterName  string
+}
+
+func (nodeGroup *EksNodeGroup) Create(dag *core.ResourceGraph, params EksNodeGroupCreateParams) error {
+
+	nodeGroup.Name = fmt.Sprintf("%s_%s", params.AppName, NodeGroupName(params.ClusterName, params.NetworkType, params.InstanceType))
+
+	existingNodeGroup := dag.GetResourceByVertexId(nodeGroup.Id().String())
+	if existingNodeGroup != nil {
+		graphNG := existingNodeGroup.(*EksNodeGroup)
+		graphNG.ConstructsRef = append(graphNG.ConstructsRef, params.Refs...)
+		if params.DiskSizeGiB > graphNG.DiskSize {
+			graphNG.DiskSize = params.DiskSizeGiB
+		}
+	} else {
+		nodeGroup.ConstructsRef = params.Refs
+		nodeGroup.DiskSize = params.DiskSizeGiB
+		nodeGroup.AmiType = amiFromInstanceType(params.InstanceType)
+		nodeGroup.InstanceTypes = []string{params.InstanceType}
+		nodeGroup.Labels = map[string]string{
+			"network_placement": params.NetworkType,
+		}
+		// TODO make these configurable
+		nodeGroup.DesiredSize = 2
+		nodeGroup.MaxSize = 2
+		nodeGroup.MinSize = 1
+		nodeGroup.MaxUnavailable = 1
+
+		subParams := map[string]any{
+			"NodeRole": RoleCreateParams{
+				RoleName:            fmt.Sprintf("%s-NodeRole", nodeGroup.Name),
+				Refs:                params.Refs,
+				AssumeRolePolicyDoc: EC2_ASSUMER_ROLE_POLICY,
+				AwsManagedPolicies: []string{
+					"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+					"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+					"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
+					"arn:aws:iam::aws:policy/AWSCloudMapFullAccess",
+					"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
+					"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+				},
+			},
+			"Cluster": params,
+		}
+		subnetType := PrivateSubnet
+		if params.NetworkType == "public" {
+			subnetType = PublicSubnet
+		}
+		nodeGroup.Subnets = make([]*Subnet, 2)
+
+		subParams["Subnets"] = []SubnetCreateParams{
+			{
+				AppName: params.AppName,
+				Refs:    nodeGroup.ConstructsRef,
+				AZ:      "0",
+				Type:    subnetType,
+			},
+			{
+				AppName: params.AppName,
+				Refs:    nodeGroup.ConstructsRef,
+				AZ:      "1",
+				Type:    subnetType,
+			},
+		}
+
+		dag.CreateDependencies(nodeGroup, subParams)
+	}
+
+	return nil
 }
 
 func (lambda *EksAddon) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
@@ -703,6 +925,36 @@ func (cluster *EksCluster) getOidc(dag *core.ResourceGraph) *OpenIdConnectProvid
 	return nil
 }
 
+func GetServiceAccountAssumeRolePolicy(serviceAccountName string) *PolicyDocument {
+	return &PolicyDocument{
+		Version: VERSION,
+		Statement: []StatementEntry{
+			{
+				Effect: "Allow",
+				Principal: &Principal{
+					Federated: core.IaCValue{
+						Resource: &OpenIdConnectProvider{},
+						Property: ARN_IAC_VALUE,
+					},
+				},
+				Action: []string{"sts:AssumeRoleWithWebIdentity"},
+				Condition: &Condition{
+					StringEquals: map[core.IaCValue]string{
+						{
+							Resource: &OpenIdConnectProvider{},
+							Property: OIDC_SUB_IAC_VALUE,
+						}: fmt.Sprintf("system:serviceaccount:default:%s", k8sSanitizer.MetadataNameSanitizer.Apply(serviceAccountName)), // TODO: Replace default with the namespace when we expose via configuration
+						{
+							Resource: &OpenIdConnectProvider{},
+							Property: OIDC_AUD_IAC_VALUE,
+						}: "sts.amazonaws.com",
+					},
+				},
+			},
+		},
+	}
+}
+
 func (cluster *EksCluster) GetServiceAccountAssumeRolePolicy(serviceAccountName string, dag *core.ResourceGraph) (*PolicyDocument, error) {
 	oidc := cluster.getOidc(dag)
 	if oidc == nil {
@@ -762,7 +1014,7 @@ func createClusterAdminRole(appName string, roleName string, refs []core.Annotat
 func createPodExecutionRole(appName string, roleName string, refs []core.AnnotationKey) *IamRole {
 	fargateRole := NewIamRole(appName, roleName, refs, EKS_FARGATE_ASSUME_ROLE_POLICY)
 	fargateRole.InlinePolicies = []*IamInlinePolicy{
-		NewIamInlinePolicy("fargate-pod-execution-policy", refs[0],
+		NewIamInlinePolicy("fargate-pod-execution-policy", refs,
 			&PolicyDocument{Version: VERSION, Statement: []StatementEntry{
 				{
 					Effect: "Allow",

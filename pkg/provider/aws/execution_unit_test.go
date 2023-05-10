@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -12,6 +13,319 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
+
+func Test_ExpandExecutionUnit(t *testing.T) {
+	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, DockerfilePath: "path"}
+	cases := []struct {
+		name   string
+		unit   *core.ExecutionUnit
+		chart  *kubernetes.HelmChart
+		config *config.Application
+		want   coretesting.ResourcesExpectation
+	}{
+		{
+			name:   "single lambda exec unit",
+			unit:   eu,
+			config: &config.Application{AppName: "my-app", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: Lambda}}},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:ecr_image:my-app-test",
+					"aws:ecr_repo:my-app",
+					"aws:iam_role:my-app-test-ExecutionRole",
+					"aws:lambda_function:my-app-test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:ecr_image:my-app-test", Destination: "aws:ecr_repo:my-app"},
+					{Source: "aws:lambda_function:my-app-test", Destination: "aws:ecr_image:my-app-test"},
+					{Source: "aws:lambda_function:my-app-test", Destination: "aws:iam_role:my-app-test-ExecutionRole"},
+				},
+			},
+		},
+		{
+			name: "single k8s exec unit",
+			unit: eu,
+			chart: &kubernetes.HelmChart{
+				ExecutionUnits: []*kubernetes.HelmExecUnit{{Name: eu.ID}},
+				ProviderValues: []kubernetes.HelmChartValue{
+					{
+						ExecUnitName: eu.ID,
+						Type:         string(kubernetes.ServiceAccountAnnotationTransformation),
+						Key:          "ROLE",
+					},
+					{
+						ExecUnitName: eu.ID,
+						Type:         string(kubernetes.ImageTransformation),
+						Key:          "IMAGE",
+					},
+					{
+						ExecUnitName: eu.ID,
+						Type:         string(kubernetes.InstanceTypeKey),
+						Key:          "SHOULDNT BE HANDLED",
+					},
+				},
+				Values: make(map[string]any),
+			},
+			config: &config.Application{AppName: "my-app",
+				ExecutionUnits: map[string]*config.ExecutionUnit{
+					"test": {
+						Type:             kubernetes.KubernetesType,
+						NetworkPlacement: "private",
+						InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{
+							InstanceType: "t3.medium",
+							DiskSizeGiB:  20,
+							ClusterId:    "cluster1",
+						}),
+					},
+				},
+			},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:availability_zones:AvailabilityZones",
+					"aws:ecr_image:my-app-test",
+					"aws:ecr_repo:my-app",
+					"aws:eks_cluster:my-app-cluster1",
+					"aws:elastic_ip:my_app_0",
+					"aws:elastic_ip:my_app_1",
+					"aws:iam_role:my-app-cluster1-ClusterAdmin",
+					"aws:iam_role:my-app-test-ExecutionRole",
+					"aws:internet_gateway:my_app_igw",
+					"aws:nat_gateway:my_app_0",
+					"aws:nat_gateway:my_app_1",
+					"aws:route_table:my_app_0",
+					"aws:route_table:my_app_1",
+					"aws:route_table:my_app_igw",
+					"aws:security_group:my-app",
+					"aws:vpc:my_app",
+					"aws:vpc_subnet:my_app_private0",
+					"aws:vpc_subnet:my_app_private1",
+					"aws:vpc_subnet:my_app_public0",
+					"aws:vpc_subnet:my_app_public1",
+					"kubernetes:helm_chart:",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:ecr_image:my-app-test", Destination: "aws:ecr_repo:my-app"},
+					{Source: "aws:eks_cluster:my-app-cluster1", Destination: "aws:iam_role:my-app-cluster1-ClusterAdmin"},
+					{Source: "aws:eks_cluster:my-app-cluster1", Destination: "aws:security_group:my-app"},
+					{Source: "aws:eks_cluster:my-app-cluster1", Destination: "aws:vpc_subnet:my_app_private0"},
+					{Source: "aws:eks_cluster:my-app-cluster1", Destination: "aws:vpc_subnet:my_app_private1"},
+					{Source: "aws:eks_cluster:my-app-cluster1", Destination: "aws:vpc_subnet:my_app_public0"},
+					{Source: "aws:eks_cluster:my-app-cluster1", Destination: "aws:vpc_subnet:my_app_public1"},
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_0"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:vpc_subnet:my_app_public0"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_1"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:vpc_subnet:my_app_public1"},
+					{Source: "aws:route_table:my_app_0", Destination: "aws:nat_gateway:my_app_0"},
+					{Source: "aws:route_table:my_app_0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:route_table:my_app_1", Destination: "aws:nat_gateway:my_app_1"},
+					{Source: "aws:route_table:my_app_1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:route_table:my_app_igw", Destination: "aws:internet_gateway:my_app_igw"},
+					{Source: "aws:route_table:my_app_igw", Destination: "aws:vpc:my_app"},
+					{Source: "aws:security_group:my-app", Destination: "aws:vpc:my_app"},
+					{Source: "aws:vpc_subnet:my_app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:my_app_private0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:vpc_subnet:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:my_app_private1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:vpc_subnet:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:my_app_public0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:vpc_subnet:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:my_app_public1", Destination: "aws:vpc:my_app"},
+					{Source: "kubernetes:helm_chart:", Destination: "aws:ecr_image:my-app-test"},
+					{Source: "kubernetes:helm_chart:", Destination: "aws:eks_cluster:my-app-cluster1"},
+					{Source: "kubernetes:helm_chart:", Destination: "aws:iam_role:my-app-test-ExecutionRole"},
+				},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			dag := core.NewResourceGraph()
+			if tt.chart != nil {
+				dag.AddResource(tt.chart)
+			}
+
+			aws := AWS{
+				Config: tt.config,
+			}
+			err := aws.expandExecutionUnit(dag, tt.unit)
+
+			if !assert.NoError(err) {
+				return
+			}
+			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
+			tt.want.Assert(t, dag)
+		})
+	}
+}
+
+func Test_handleHelmChartAwsValues(t *testing.T) {
+	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, DockerfilePath: "path"}
+	config := &config.Application{AppName: "my-app",
+		ExecutionUnits: map[string]*config.ExecutionUnit{
+			"test": {
+				Type:             kubernetes.KubernetesType,
+				NetworkPlacement: "private",
+				InfraParams: config.ConvertToInfraParams(config.KubernetesTypeParams{
+					InstanceType: "t3.medium",
+					DiskSizeGiB:  20,
+					ClusterId:    "cluster1",
+				}),
+			},
+		},
+	}
+	type testResult struct {
+		params map[string]any
+		values map[string]any
+	}
+	cases := []struct {
+		name  string
+		unit  *core.ExecutionUnit
+		value kubernetes.HelmChartValue
+		want  testResult
+	}{
+		{
+			name: "ImageTransformation",
+			unit: eu,
+			value: kubernetes.HelmChartValue{
+				ExecUnitName: eu.ID,
+				Type:         string(kubernetes.ImageTransformation),
+				Key:          "IMAGE",
+			},
+			want: testResult{
+				params: map[string]any{
+					"IMAGE": resources.ImageCreateParams{
+						AppName:        config.AppName,
+						Refs:           []core.AnnotationKey{eu.AnnotationKey},
+						Unit:           eu.ID,
+						DockerfilePath: eu.DockerfilePath,
+					},
+				},
+				values: map[string]any{
+					"IMAGE": core.IaCValue{
+						Resource: &resources.EcrImage{},
+						Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
+					},
+				},
+			},
+		},
+		{
+			name: "ServiceAccountAnnotationTransformation",
+			unit: eu,
+			value: kubernetes.HelmChartValue{
+				ExecUnitName: eu.ID,
+				Type:         string(kubernetes.ServiceAccountAnnotationTransformation),
+				Key:          "SERVICEACCOUNT",
+			},
+			want: testResult{
+				params: map[string]any{
+					"SERVICEACCOUNT": resources.RoleCreateParams{
+						RoleName:            fmt.Sprintf("%s-%s-ExecutionRole", config.AppName, eu.ID),
+						Refs:                []core.AnnotationKey{eu.AnnotationKey},
+						AssumeRolePolicyDoc: resources.GetServiceAccountAssumeRolePolicy(eu.ID),
+					},
+				},
+				values: map[string]any{
+					"SERVICEACCOUNT": core.IaCValue{
+						Resource: &resources.IamRole{},
+						Property: resources.ARN_IAC_VALUE,
+					},
+				},
+			},
+		},
+		{
+			name: "InstanceTypeKey",
+			unit: eu,
+			value: kubernetes.HelmChartValue{
+				ExecUnitName: eu.ID,
+				Type:         string(kubernetes.InstanceTypeKey),
+				Key:          "SERVICEACCOUNT",
+			},
+			want: testResult{
+				params: make(map[string]any),
+				values: map[string]any{
+					"SERVICEACCOUNT": core.IaCValue{
+						Property: "eks.amazonaws.com/nodegroup",
+					},
+				},
+			},
+		},
+		{
+			name: "InstanceTypeValue",
+			unit: eu,
+			value: kubernetes.HelmChartValue{
+				ExecUnitName: eu.ID,
+				Type:         string(kubernetes.InstanceTypeValue),
+				Key:          "InstanceTypeValue",
+			},
+			want: testResult{
+				params: map[string]any{
+					"InstanceTypeValue": resources.EksNodeGroupCreateParams{
+						NetworkType:  "private",
+						InstanceType: "t3.medium",
+						DiskSizeGiB:  20,
+						ClusterName:  "cluster1",
+						AppName:      config.AppName,
+						Refs:         []core.AnnotationKey{eu.AnnotationKey},
+					},
+				},
+				values: map[string]any{
+					"InstanceTypeValue": core.IaCValue{
+						Resource: &resources.EksNodeGroup{},
+						Property: resources.NODE_GROUP_NAME_IAC_VALUE,
+					},
+				},
+			},
+		},
+		{
+			name: "TargetGroupTransformation",
+			unit: eu,
+			value: kubernetes.HelmChartValue{
+				ExecUnitName: eu.ID,
+				Type:         string(kubernetes.TargetGroupTransformation),
+				Key:          "TargetGroupTransformation",
+			},
+			want: testResult{
+				params: map[string]any{
+					"TargetGroupTransformation": resources.TargetGroupCreateParams{
+						AppName:         config.AppName,
+						Refs:            []core.AnnotationKey{eu.AnnotationKey},
+						TargetGroupName: eu.ID,
+						Port:            eu.Port,
+						Protocol:        "TCP",
+						TargetType:      "ip",
+					},
+				},
+				values: map[string]any{
+					"TargetGroupTransformation": core.IaCValue{
+						Resource: &resources.TargetGroup{},
+						Property: resources.ARN_IAC_VALUE,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			chart := &kubernetes.HelmChart{}
+			chart.Values = make(map[string]any)
+			chart.ProviderValues = append(chart.ProviderValues, tt.value)
+
+			aws := AWS{
+				Config: config,
+			}
+			result := aws.handleHelmChartAwsValues(chart, tt.unit)
+			assert.Equal(tt.want.values, chart.Values)
+			if tt.value.Type == string(kubernetes.ServiceAccountAnnotationTransformation) {
+				assert.Equal(tt.want.params["RoleName"], result["RoleName"])
+				assert.Equal(tt.want.params["Refs"], result["Refs"])
+			} else {
+				assert.Equal(tt.want.params, result)
+			}
+		})
+	}
+}
 
 func Test_GenerateExecUnitResources(t *testing.T) {
 	unit := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}

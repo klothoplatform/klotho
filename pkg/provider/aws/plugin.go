@@ -1,10 +1,8 @@
 package aws
 
 import (
-	"fmt"
 	"sort"
 
-	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -28,19 +26,7 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 		log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
 		switch construct := construct.(type) {
 		case *core.ExecutionUnit:
-			switch a.Config.GetExecutionUnit(construct.ID).Type {
-			case Lambda:
-				var lambda resources.LambdaFunction
-				fmt.Println("calling lambda create")
-				err := lambda.Create(dag, resources.LambdaCreateParams{
-					AppName:          a.Config.AppName,
-					Unit:             construct,
-					Vpc:              false,
-					NetworkPlacement: a.Config.GetExecutionUnit(construct.ID).NetworkPlacement,
-					Params:           config.ConvertFromInfraParams[config.ServerlessTypeParams](a.Config.GetExecutionUnit(construct.ID).InfraParams),
-				})
-				merr.Append(err)
-			}
+			merr.Append(a.expandExecutionUnit(dag, construct))
 		}
 	}
 	return merr.ErrOrNil()

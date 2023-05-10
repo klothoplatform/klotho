@@ -12,6 +12,109 @@ import (
 	"go.uber.org/zap"
 )
 
+func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionUnit) error {
+	switch a.Config.GetExecutionUnit(unit.ID).Type {
+	case Lambda:
+		var lambda resources.LambdaFunction
+		err := lambda.Create(dag, resources.LambdaCreateParams{
+			AppName:          a.Config.AppName,
+			Unit:             unit,
+			Vpc:              false,
+			NetworkPlacement: a.Config.GetExecutionUnit(unit.ID).NetworkPlacement,
+			Params:           config.ConvertFromInfraParams[config.ServerlessTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams),
+		})
+		if err != nil {
+			return err
+		}
+	case kubernetes.KubernetesType:
+		helmChart, err := findUnitsHelmChart(unit, dag)
+		if err != nil {
+			return err
+		}
+		helmChart.ClustersProvider = core.IaCValue{
+			Resource: &resources.EksCluster{},
+			Property: resources.CLUSTER_PROVIDER_IAC_VALUE,
+		}
+		subParams := map[string]any{
+			"ClustersProvider": resources.EksClusterCreateParams{
+				Refs:        []core.AnnotationKey{unit.AnnotationKey},
+				AppName:     a.Config.AppName,
+				ClusterName: config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams).ClusterId,
+			},
+		}
+		subParams["Values"] = a.handleHelmChartAwsValues(helmChart, unit)
+		err = dag.CreateDependencies(helmChart, subParams)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.ExecutionUnit) (valueParams map[string]any) {
+	valueParams = make(map[string]any)
+	for _, val := range chart.ProviderValues {
+		if val.ExecUnitName != unit.ID {
+			continue
+		}
+		switch kubernetes.ProviderValueTypes(val.Type) {
+		case kubernetes.ImageTransformation:
+			chart.Values[val.Key] = core.IaCValue{
+				Resource: &resources.EcrImage{},
+				Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
+			}
+			valueParams[val.Key] = resources.ImageCreateParams{
+				AppName:        a.Config.AppName,
+				Refs:           []core.AnnotationKey{unit.AnnotationKey},
+				Unit:           unit.ID,
+				DockerfilePath: unit.DockerfilePath,
+			}
+		case kubernetes.ServiceAccountAnnotationTransformation:
+			chart.Values[val.Key] = core.IaCValue{
+				Resource: &resources.IamRole{},
+				Property: resources.ARN_IAC_VALUE,
+			}
+			valueParams[val.Key] = resources.RoleCreateParams{
+				RoleName:            fmt.Sprintf("%s-%s-ExecutionRole", a.Config.AppName, unit.ID),
+				Refs:                []core.AnnotationKey{unit.AnnotationKey},
+				AssumeRolePolicyDoc: resources.GetServiceAccountAssumeRolePolicy(unit.ID),
+			}
+		case kubernetes.InstanceTypeKey:
+			chart.Values[val.Key] = core.IaCValue{
+				Property: "eks.amazonaws.com/nodegroup",
+			}
+		case kubernetes.InstanceTypeValue:
+			chart.Values[val.Key] = core.IaCValue{
+				Resource: &resources.EksNodeGroup{},
+				Property: resources.NODE_GROUP_NAME_IAC_VALUE,
+			}
+			params := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams)
+			valueParams[val.Key] = resources.EksNodeGroupCreateParams{
+				InstanceType: params.InstanceType,
+				NetworkType:  a.Config.GetExecutionUnit(unit.ID).NetworkPlacement,
+				DiskSizeGiB:  params.DiskSizeGiB,
+				AppName:      a.Config.AppName,
+				ClusterName:  params.ClusterId,
+				Refs:         []core.AnnotationKey{unit.AnnotationKey},
+			}
+		case kubernetes.TargetGroupTransformation:
+			chart.Values[val.Key] = core.IaCValue{
+				Resource: &resources.TargetGroup{},
+				Property: resources.ARN_IAC_VALUE,
+			}
+			valueParams[val.Key] = resources.TargetGroupCreateParams{
+				AppName:         a.Config.AppName,
+				Refs:            []core.AnnotationKey{unit.AnnotationKey},
+				TargetGroupName: unit.ID,
+				Port:            unit.Port,
+				Protocol:        "TCP",
+				TargetType:      "ip",
+			}
+		}
+	}
+	return valueParams
+}
+
 // GenerateExecUnitResources generates the necessary AWS resources for a given execution unit and adds them to the resource graph
 func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	log := zap.S()

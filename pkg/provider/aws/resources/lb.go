@@ -60,8 +60,36 @@ func (lambda *LoadBalancer) Create(dag *core.ResourceGraph, metadata map[string]
 	panic("Not Implemented")
 }
 
-func (lambda *TargetGroup) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+type TargetGroupCreateParams struct {
+	AppName         string
+	Refs            []core.AnnotationKey
+	TargetGroupName string
+	Port            int
+	Protocol        string
+	TargetType      string
+}
+
+func (targetGroup *TargetGroup) Create(dag *core.ResourceGraph, params TargetGroupCreateParams) error {
+	targetGroup.Name = targetGroupSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.TargetGroupName))
+
+	existingTg := dag.GetResourceByVertexId(targetGroup.Id().String())
+	if existingTg != nil {
+		return fmt.Errorf("target group already exists with name %s", targetGroup.Name)
+	}
+
+	targetGroup.ConstructsRef = params.Refs
+	targetGroup.Port = params.Port
+	if params.Port == 0 {
+		targetGroup.Port = 3000
+	}
+	targetGroup.Protocol = params.Protocol
+	targetGroup.TargetType = params.TargetType
+
+	dag.CreateDependencies(targetGroup, map[string]any{
+		"Vpc": params,
+	})
+
+	return nil
 }
 
 func (lambda *Listener) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {

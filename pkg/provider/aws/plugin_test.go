@@ -18,6 +18,7 @@ func Test_ExpandConstructs(t *testing.T) {
 	cases := []struct {
 		name       string
 		constructs []core.Construct
+		chart      *kubernetes.HelmChart
 		config     *config.Application
 		want       coretesting.ResourcesExpectation
 	}{
@@ -49,6 +50,9 @@ func Test_ExpandConstructs(t *testing.T) {
 			for _, construct := range tt.constructs {
 				result.AddConstruct(construct)
 			}
+			if tt.chart != nil {
+				dag.AddResource(tt.chart)
+			}
 
 			aws := AWS{
 				Config: tt.config,
@@ -58,6 +62,7 @@ func Test_ExpandConstructs(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
+			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 			tt.want.Assert(t, dag)
 		})
 	}
