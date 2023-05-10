@@ -380,7 +380,10 @@ func (nodeGroup *EksNodeGroup) Create(dag *core.ResourceGraph, params EksNodeGro
 			},
 		}
 
-		dag.CreateDependencies(nodeGroup, subParams)
+		err := dag.CreateDependencies(nodeGroup, subParams)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

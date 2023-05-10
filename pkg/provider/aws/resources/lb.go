@@ -85,11 +85,11 @@ func (targetGroup *TargetGroup) Create(dag *core.ResourceGraph, params TargetGro
 	targetGroup.Protocol = params.Protocol
 	targetGroup.TargetType = params.TargetType
 
-	dag.CreateDependencies(targetGroup, map[string]any{
+	err := dag.CreateDependencies(targetGroup, map[string]any{
 		"Vpc": params,
 	})
 
-	return nil
+	return err
 }
 
 func (lambda *Listener) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
