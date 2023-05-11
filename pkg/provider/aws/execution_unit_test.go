@@ -422,7 +422,10 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 			aws := AWS{
 				Config: config,
 			}
-			result := aws.handleHelmChartAwsValues(chart, tt.unit, core.NewResourceGraph())
+			result, err := aws.handleHelmChartAwsValues(chart, tt.unit, core.NewResourceGraph())
+			if !assert.NoError(err) {
+				return
+			}
 			assert.Equal(tt.want.values, chart.Values)
 			if tt.value.Type == string(kubernetes.ServiceAccountAnnotationTransformation) {
 				assert.Equal(tt.want.params["RoleName"], result["RoleName"])

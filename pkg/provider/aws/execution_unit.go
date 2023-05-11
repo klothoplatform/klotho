@@ -56,7 +56,10 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 				ClusterName: params.ClusterId,
 			},
 		}
-		subParams["Values"] = a.handleHelmChartAwsValues(helmChart, unit, dag)
+		subParams["Values"], err = a.handleHelmChartAwsValues(helmChart, unit, dag)
+		if err != nil {
+			return err
+		}
 		err = dag.CreateDependencies(helmChart, subParams)
 		if err != nil {
 			return err
@@ -65,7 +68,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 	return nil
 }
 
-func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.ExecutionUnit, dag *core.ResourceGraph) (valueParams map[string]any) {
+func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.ExecutionUnit, dag *core.ResourceGraph) (valueParams map[string]any, err error) {
 	valueParams = make(map[string]any)
 	for _, val := range chart.ProviderValues {
 		if val.ExecUnitName != unit.ID {
@@ -90,7 +93,7 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 				Property: resources.ARN_IAC_VALUE,
 			}
 			oidc := &resources.OpenIdConnectProvider{}
-			oidc.Create(dag, resources.OidcCreateParams{
+			err = oidc.Create(dag, resources.OidcCreateParams{
 				AppName:     a.Config.AppName,
 				ClusterName: params.ClusterId,
 				Refs:        []core.AnnotationKey{unit.AnnotationKey},
@@ -132,7 +135,7 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 			}
 		}
 	}
-	return valueParams
+	return
 }
 
 // GenerateExecUnitResources generates the necessary AWS resources for a given execution unit and adds them to the resource graph
