@@ -3,10 +3,12 @@ package resources
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
+	"go.uber.org/zap"
 )
 
 var elasticIpSanitizer = aws.SubnetSanitizer
@@ -20,13 +22,13 @@ const (
 	PublicSubnet   = "public"
 	IsolatedSubnet = "isolated"
 
-	ELASTIC_IP_TYPE       = "elastic_ip"
-	INTERNET_GATEWAY_TYPE = "internet_gateway"
-	NAT_GATEWAY_TYPE      = "nat_gateway"
-	VPC_SUBNET_TYPE       = "vpc_subnet"
-	VPC_ENDPOINT_TYPE     = "vpc_endpoint"
-	VPC_TYPE              = "vpc"
-	ROUTE_TABLE_TYPE      = "route_table"
+	ELASTIC_IP_TYPE        = "elastic_ip"
+	INTERNET_GATEWAY_TYPE  = "internet_gateway"
+	NAT_GATEWAY_TYPE       = "nat_gateway"
+	VPC_SUBNET_TYPE_PREFIX = "subnet_"
+	VPC_ENDPOINT_TYPE      = "vpc_endpoint"
+	VPC_TYPE               = "vpc"
+	ROUTE_TABLE_TYPE       = "route_table"
 
 	CIDR_BLOCK_IAC_VALUE = "cidr_block"
 )
@@ -357,84 +359,109 @@ func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
 	if dag.GetResource(vpc.Id()) != nil {
 		return vpc
 	}
-
 	region := NewRegion()
-	azs := NewAvailabilityZones()
-	igw := NewInternetGateway(appName, "igw1", vpc)
+	dag.AddDependency(vpc, region)
+
 	publicRt := &RouteTable{
 		Name: fmt.Sprintf("%s-public", vpc.Name),
 		Vpc:  vpc,
-		Routes: []*RouteTableRoute{
-			{CidrBlock: "0.0.0.0/0", GatewayId: core.IaCValue{Resource: igw, Property: ID_IAC_VALUE}},
-		},
+	}
+
+	importId := config.Imports[vpc.Id()]
+	if importId == "" {
+		igw := NewInternetGateway(appName, "igw1", vpc)
+		dag.AddDependenciesReflect(igw)
+
+		publicRt.Routes = append(publicRt.Routes, &RouteTableRoute{CidrBlock: "0.0.0.0/0", GatewayId: core.IaCValue{Resource: igw, Property: ID_IAC_VALUE}})
 	}
 	dag.AddDependenciesReflect(publicRt)
 
-	dag.AddResource(region)
-	dag.AddDependency(azs, region)
-	dag.AddResource(vpc)
-	dag.AddDependency(vpc, region)
-	dag.AddResource(igw)
-	dag.AddDependency(igw, vpc)
-
-	az1 := core.IaCValue{
-		Resource: azs,
-		Property: "0",
-	}
-	az2 := core.IaCValue{
-		Resource: azs,
-		Property: "1",
+	var importSubnetIds []core.ResourceId
+	for id := range config.Imports {
+		if id.Provider == AWS_PROVIDER && strings.HasPrefix(id.Type, VPC_SUBNET_TYPE_PREFIX) {
+			importSubnetIds = append(importSubnetIds, id)
+		}
 	}
 
-	public1 := CreatePublicSubnet("public1", az1, vpc, "10.0.128.0/18", dag)
+	if len(importSubnetIds) > 0 {
+		for _, id := range importSubnetIds {
+			sn := &Subnet{
+				Name: id.Name,
+				Vpc:  vpc,
+			}
+			err := sn.SetTypeFromId(id)
+			if err != nil {
+				//? Should we return an error here instead of warning?
+				zap.S().Warnf("Failed to import subnet, ignoring: %v", err)
+			} else {
+				dag.AddDependenciesReflect(sn)
+			}
+		}
+		// TODO either add or check the auxillary resources such as
+		// gateways, route tables, etc.
+	} else {
+		azs := NewAvailabilityZones()
+		dag.AddDependency(azs, region)
+		az1 := core.IaCValue{
+			Resource: azs,
+			Property: "0",
+		}
+		az2 := core.IaCValue{
+			Resource: azs,
+			Property: "1",
+		}
 
-	ip1 := NewElasticIp(appName, "public1")
-	dag.AddDependenciesReflect(ip1)
-	natGateway1 := NewNatGateway(appName, "public1", public1, ip1)
-	dag.AddDependenciesReflect(natGateway1)
+		public1 := CreatePublicSubnet("public1", az1, vpc, "10.0.128.0/18", dag)
 
-	public2 := CreatePublicSubnet("public2", az2, vpc, "10.0.192.0/18", dag)
+		ip1 := NewElasticIp(appName, "public1")
+		dag.AddDependenciesReflect(ip1)
+		natGateway1 := NewNatGateway(appName, "public1", public1, ip1)
+		dag.AddDependenciesReflect(natGateway1)
 
-	ip2 := NewElasticIp(appName, "public2")
-	dag.AddDependenciesReflect(ip2)
-	natGateway2 := NewNatGateway(appName, "public2", public2, ip2)
-	dag.AddDependenciesReflect(natGateway2)
+		public2 := CreatePublicSubnet("public2", az2, vpc, "10.0.192.0/18", dag)
 
-	dag.AddDependency(publicRt, public1)
-	dag.AddDependency(publicRt, public2)
+		ip2 := NewElasticIp(appName, "public2")
+		dag.AddDependenciesReflect(ip2)
+		natGateway2 := NewNatGateway(appName, "public2", public2, ip2)
+		dag.AddDependenciesReflect(natGateway2)
 
-	private1 := CreatePrivateSubnet(appName, "private1", az1, vpc, "10.0.0.0/18", dag)
+		dag.AddDependency(publicRt, public1)
+		dag.AddDependency(publicRt, public2)
 
-	rt1 := &RouteTable{
-		Name: private1.Name,
-		Vpc:  vpc,
-		Routes: []*RouteTableRoute{
-			{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: natGateway1, Property: ID_IAC_VALUE}},
-		},
+		private1 := CreatePrivateSubnet(appName, "private1", az1, vpc, "10.0.0.0/18", dag)
+
+		rt1 := &RouteTable{
+			Name: private1.Name,
+			Vpc:  vpc,
+			Routes: []*RouteTableRoute{
+				{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: natGateway1, Property: ID_IAC_VALUE}},
+			},
+		}
+		dag.AddDependenciesReflect(rt1)
+		dag.AddDependency(rt1, private1)
+
+		private2 := CreatePrivateSubnet(appName, "private2", az2, vpc, "10.0.64.0/18", dag)
+		rt2 := &RouteTable{
+			Name: private2.Name,
+			Vpc:  vpc,
+			Routes: []*RouteTableRoute{
+				{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: natGateway2, Property: ID_IAC_VALUE}},
+			},
+		}
+		dag.AddDependenciesReflect(rt2)
+		dag.AddDependency(rt2, private2)
+
+		routeTables := []*RouteTable{publicRt, rt1, rt2}
+
+		// VPC Endpoints are dependent upon the subnets so we need to ensure the subnets are created first
+		CreateGatewayVpcEndpoint("s3", vpc, region, routeTables, dag)
+		CreateGatewayVpcEndpoint("dynamodb", vpc, region, routeTables, dag)
+
+		CreateInterfaceVpcEndpoint("lambda", vpc, region, dag, config)
+		CreateInterfaceVpcEndpoint("sqs", vpc, region, dag, config)
+		CreateInterfaceVpcEndpoint("sns", vpc, region, dag, config)
+		CreateInterfaceVpcEndpoint("secretsmanager", vpc, region, dag, config)
 	}
-	dag.AddDependenciesReflect(rt1)
-	dag.AddDependency(rt1, private1)
-
-	private2 := CreatePrivateSubnet(appName, "private2", az2, vpc, "10.0.64.0/18", dag)
-	rt2 := &RouteTable{
-		Name: private2.Name,
-		Vpc:  vpc,
-		Routes: []*RouteTableRoute{
-			{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: natGateway2, Property: ID_IAC_VALUE}},
-		},
-	}
-	dag.AddDependenciesReflect(rt2)
-	dag.AddDependency(rt2, private2)
-
-	routeTables := []*RouteTable{publicRt, rt1, rt2}
-	// VPC Endpoints are dependent upon the subnets so we need to ensure the subnets are created first
-	CreateGatewayVpcEndpoint("s3", vpc, region, routeTables, dag)
-	CreateGatewayVpcEndpoint("dynamodb", vpc, region, routeTables, dag)
-
-	CreateInterfaceVpcEndpoint("lambda", vpc, region, dag, config)
-	CreateInterfaceVpcEndpoint("sqs", vpc, region, dag, config)
-	CreateInterfaceVpcEndpoint("sns", vpc, region, dag, config)
-	CreateInterfaceVpcEndpoint("secretsmanager", vpc, region, dag, config)
 
 	return vpc
 }
@@ -624,11 +651,27 @@ func (subnet *Subnet) KlothoConstructRef() []core.AnnotationKey {
 
 // Id returns the id of the cloud resource
 func (subnet *Subnet) Id() core.ResourceId {
-	return core.ResourceId{
+	id := core.ResourceId{
 		Provider: AWS_PROVIDER,
-		Type:     VPC_SUBNET_TYPE,
+		Type:     VPC_SUBNET_TYPE_PREFIX + subnet.Type,
 		Name:     subnet.Name,
 	}
+	if subnet.Vpc != nil {
+		// Realistically, this should only be the case for tests
+		id.Namespace = subnet.Vpc.Name
+	}
+	return id
+}
+
+func (subnet *Subnet) SetTypeFromId(id core.ResourceId) error {
+	if id.Provider != AWS_PROVIDER || !strings.HasPrefix(id.Type, VPC_SUBNET_TYPE_PREFIX) {
+		return fmt.Errorf("invalid id '%s' for partial subnet '%s'", id, subnet.Name)
+	}
+	if subnet.Vpc.Name != id.Namespace {
+		return fmt.Errorf("invalid id '%s' not matching subnet vpc: %s in partial subnet '%s'", id, subnet.Vpc.Name, subnet.Name)
+	}
+	subnet.Type = strings.TrimPrefix(id.Type, VPC_SUBNET_TYPE_PREFIX)
+	return nil
 }
 
 func NewVpcEndpoint(service string, vpc *Vpc, endpointType string, region *Region, subnets []*Subnet) *VpcEndpoint {

@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -25,18 +26,19 @@ type (
 		Path   string `json:"path" yaml:"path" toml:"path"`
 		OutDir string `json:"out_dir" yaml:"out_dir" toml:"out_dir"`
 
-		Defaults            Defaults                  `json:"defaults" yaml:"defaults" toml:"defaults"`
-		ExecutionUnits      map[string]*ExecutionUnit `json:"execution_units,omitempty" yaml:"execution_units,omitempty" toml:"execution_units,omitempty"`
-		StaticUnit          map[string]*StaticUnit    `json:"static_unit,omitempty" yaml:"static_unit,omitempty" toml:"static_unit,omitempty"`
-		Exposed             map[string]*Expose        `json:"exposed,omitempty" yaml:"exposed,omitempty" toml:"exposed,omitempty"`
-		PersistKv           map[string]*Persist       `json:"persist_kv,omitempty" yaml:"persist_kv,omitempty" toml:"persist_kv,omitempty"`
-		PersistOrm          map[string]*Persist       `json:"persist_orm,omitempty" yaml:"persist_orm,omitempty" toml:"persist_orm,omitempty"`
-		PersistFs           map[string]*Persist       `json:"persist_fs,omitempty" yaml:"persist_fs,omitempty" toml:"persist_fs,omitempty"`
-		PersistSecrets      map[string]*Persist       `json:"persist_secrets,omitempty" yaml:"persist_secrets,omitempty" toml:"persist_secrets,omitempty"`
-		PersistRedisNode    map[string]*Persist       `json:"persist_redis_node,omitempty" yaml:"persist_redis_node,omitempty" toml:"persist_redis_node,omitempty"`
-		PersistRedisCluster map[string]*Persist       `json:"persist_redis_cluster,omitempty" yaml:"persist_redis_cluster,omitempty" toml:"persist_redis_cluster,omitempty"`
-		Config              map[string]*Config        `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
-		Links               []CloudResourceLink       `json:"links,omitempty" yaml:"links,omitempty" toml:"links,omitempty"`
+		Defaults            Defaults                   `json:"defaults" yaml:"defaults" toml:"defaults"`
+		ExecutionUnits      map[string]*ExecutionUnit  `json:"execution_units,omitempty" yaml:"execution_units,omitempty" toml:"execution_units,omitempty"`
+		StaticUnit          map[string]*StaticUnit     `json:"static_unit,omitempty" yaml:"static_unit,omitempty" toml:"static_unit,omitempty"`
+		Exposed             map[string]*Expose         `json:"exposed,omitempty" yaml:"exposed,omitempty" toml:"exposed,omitempty"`
+		PersistKv           map[string]*Persist        `json:"persist_kv,omitempty" yaml:"persist_kv,omitempty" toml:"persist_kv,omitempty"`
+		PersistOrm          map[string]*Persist        `json:"persist_orm,omitempty" yaml:"persist_orm,omitempty" toml:"persist_orm,omitempty"`
+		PersistFs           map[string]*Persist        `json:"persist_fs,omitempty" yaml:"persist_fs,omitempty" toml:"persist_fs,omitempty"`
+		PersistSecrets      map[string]*Persist        `json:"persist_secrets,omitempty" yaml:"persist_secrets,omitempty" toml:"persist_secrets,omitempty"`
+		PersistRedisNode    map[string]*Persist        `json:"persist_redis_node,omitempty" yaml:"persist_redis_node,omitempty" toml:"persist_redis_node,omitempty"`
+		PersistRedisCluster map[string]*Persist        `json:"persist_redis_cluster,omitempty" yaml:"persist_redis_cluster,omitempty" toml:"persist_redis_cluster,omitempty"`
+		Config              map[string]*Config         `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
+		Links               []CloudResourceLink        `json:"links,omitempty" yaml:"links,omitempty" toml:"links,omitempty"`
+		Imports             map[core.ResourceId]string `json:"imports,omitempty" yaml:"imports,omitempty" toml:"imports,omitempty"`
 	}
 
 	CloudResourceLink struct {
@@ -115,20 +117,45 @@ func ReadConfig(fpath string) (Application, error) {
 	}
 	defer f.Close() // nolint:errcheck
 
+	return ReadConfigReader(fpath, f)
+}
+
+func ReadConfigReader(fpath string, reader io.Reader) (Application, error) {
+	var appCfg Application
+
 	switch filepath.Ext(fpath) {
 	case ".json":
-		err = json.NewDecoder(f).Decode(&appCfg)
+		err := json.NewDecoder(reader).Decode(&appCfg)
 		appCfg.Format = "json"
+		return appCfg, err
 
 	case ".yaml", ".yml":
-		err = yaml.NewDecoder(f).Decode(&appCfg)
+		err := yaml.NewDecoder(reader).Decode(&appCfg)
 		appCfg.Format = "yaml"
+		return appCfg, err
 
 	case ".toml":
-		err = toml.NewDecoder(f).Decode(&appCfg)
+		err := toml.NewDecoder(reader).Decode(&appCfg)
 		appCfg.Format = "toml"
+		return appCfg, err
 	}
-	return appCfg, err
+
+	return appCfg, nil
+}
+
+func (a *Application) WriteTo(writer io.Writer) error {
+	switch a.Format {
+	case "json":
+		return json.NewEncoder(writer).Encode(a)
+
+	case "yaml":
+		return yaml.NewEncoder(writer).Encode(a)
+
+	case "toml":
+		return toml.NewEncoder(writer).Encode(a)
+	}
+
+	return nil
 }
 
 func (a *Application) AddLinks(links []core.CloudResourceLink) {

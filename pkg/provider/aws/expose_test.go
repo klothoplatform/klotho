@@ -21,13 +21,33 @@ func Test_CreateRestApi(t *testing.T) {
 	unit2 := &core.ExecutionUnit{
 		AnnotationKey: core.AnnotationKey{ID: "test2", Capability: annotation.ExecutionUnitCapability},
 	}
+
+	makeCluster := func() []core.Resource {
+		vpc := &resources.Vpc{Name: "test"}
+		cluster := &resources.EksCluster{
+			Name:          "Cluster",
+			Vpc:           vpc,
+			ConstructsRef: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey},
+			Subnets:       []*resources.Subnet{resources.NewSubnet("1", vpc, "", "", core.IaCValue{})},
+		}
+		chart := &kubernetes.HelmChart{
+			Name:          "chart",
+			ConstructRefs: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey},
+			ExecutionUnits: []*kubernetes.HelmExecUnit{
+				{Name: "test"},
+				{Name: "test2"},
+			},
+		}
+		oidc := &resources.OpenIdConnectProvider{Name: "test", Cluster: cluster}
+		return []core.Resource{vpc, cluster, chart, oidc}
+	}
+
 	cases := []struct {
 		name                   string
 		gw                     *core.Gateway
 		units                  []*core.ExecutionUnit
 		constructIdToResources map[string][]core.Resource
 		existingResources      []core.Resource
-		existingDependencies   []graph.Edge[core.Resource]
 		cfg                    config.Application
 		want                   coretesting.ResourcesExpectation
 		wantErr                bool
@@ -229,29 +249,7 @@ func Test_CreateRestApi(t *testing.T) {
 					resources.NewLoadBalancer(appName, unit2.ID, nil, "internal", "network", nil, nil),
 				},
 			},
-			existingResources: []core.Resource{
-				&resources.EksCluster{
-					Name:          "Cluster",
-					ConstructsRef: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey},
-					Subnets:       []*resources.Subnet{resources.NewSubnet("1", resources.NewVpc("test"), "", "", core.IaCValue{})},
-				},
-				&kubernetes.HelmChart{
-					Name:          "chart",
-					ConstructRefs: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey},
-					ExecutionUnits: []*kubernetes.HelmExecUnit{
-						{Name: "test"},
-						{Name: "test2"},
-					},
-				},
-				&resources.OpenIdConnectProvider{Name: "test"},
-			},
-			existingDependencies: []graph.Edge[core.Resource]{
-				{Source: &resources.OpenIdConnectProvider{Name: "test"}, Destination: &resources.EksCluster{
-					Name:          "Cluster",
-					ConstructsRef: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey},
-					Subnets:       []*resources.Subnet{resources.NewSubnet("1", resources.NewVpc("test"), "", "", core.IaCValue{})},
-				}},
-			},
+			existingResources: makeCluster(),
 			cfg: config.Application{
 				AppName: appName,
 				Defaults: config.Defaults{
@@ -282,6 +280,7 @@ func Test_CreateRestApi(t *testing.T) {
 					"aws:iam_role:Cluster-alb-controller",
 					"aws:region:region",
 					"aws:vpc:test",
+					"aws:subnet_:test:test_1",
 					"kubernetes:helm_chart:Cluster-alb-controller",
 					"kubernetes:manifest:Cluster-alb-controller-service-account",
 					"aws:iam_oidc_provider:test",
@@ -339,6 +338,8 @@ func Test_CreateRestApi(t *testing.T) {
 					{Source: "kubernetes:manifest:Cluster-alb-controller-service-account", Destination: "aws:eks_cluster:Cluster"},
 					{Source: "kubernetes:manifest:Cluster-alb-controller-service-account", Destination: "aws:iam_role:Cluster-alb-controller"},
 					{Source: "kubernetes:helm_chart:chart", Destination: "kubernetes:helm_chart:Cluster-alb-controller"},
+					{Source: "aws:eks_cluster:Cluster", Destination: "aws:subnet_:test:test_1"},
+					{Source: "aws:eks_cluster:Cluster", Destination: "aws:vpc:test"},
 				},
 			},
 		},
@@ -358,10 +359,7 @@ func Test_CreateRestApi(t *testing.T) {
 				}
 			}
 			for _, res := range tt.existingResources {
-				dag.AddResource(res)
-			}
-			for _, dep := range tt.existingDependencies {
-				dag.AddDependency(dep.Source, dep.Destination)
+				dag.AddDependenciesReflect(res)
 			}
 			result := core.NewConstructGraph()
 			result.AddConstruct(tt.gw)

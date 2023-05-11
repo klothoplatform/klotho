@@ -5,7 +5,6 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"io"
 	"io/fs"
 	"path"
@@ -13,6 +12,9 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+
+	"github.com/klothoplatform/klotho/pkg/provider/aws"
+	"github.com/klothoplatform/klotho/pkg/provider/imports"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
@@ -112,6 +114,10 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 		switch resource.(type) {
 		case *resources.AccountId, *resources.Region:
 			continue // skip resources that we know are rendered outside of the body
+		case *imports.Imported:
+			// Imported resources are handled by the rendering of their base resource
+			//? Should this ignore all .Provider == "internal" instead?
+			continue
 		}
 		err := tc.renderResource(out, resource)
 		errs.Append(err)
@@ -121,7 +127,6 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 				return err
 			}
 		}
-
 	}
 	return errs.ErrOrNil()
 }
@@ -131,6 +136,10 @@ func (tc TemplatesCompiler) RenderImports(out io.Writer) error {
 
 	allImports := make(map[string]struct{})
 	for _, res := range tc.resourceGraph.ListResources() {
+		switch res.(type) {
+		case *imports.Imported:
+			continue
+		}
 		tmpl, err := tc.getTemplate(res)
 		if err != nil {
 			errs.Append(err)
@@ -171,7 +180,9 @@ func (tc TemplatesCompiler) RenderPackageJSON() (*javascript.NodePackageJson, er
 			errs.Append(err)
 			continue
 		}
-		mainPJson.Merge(&pJson)
+		if pJson != nil {
+			mainPJson.Merge(pJson)
+		}
 	}
 	if err := errs.ErrOrNil(); err != nil {
 		return &mainPJson, err
@@ -207,6 +218,14 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 	tmpl, err := tc.getTemplate(resource)
 	if err != nil {
 		return err
+	}
+
+	deps := tc.resourceGraph.GetDownstreamResources(resource)
+	for _, dep := range deps {
+		imp, ok := dep.(*imports.Imported)
+		if ok {
+			return tc.renderResourceImport(out, resource, imp, tmpl)
+		}
 	}
 
 	errs := multierr.Error{}
@@ -670,13 +689,18 @@ func (tc TemplatesCompiler) getVarNameByResourceId(id core.ResourceId) string {
 	if name, alreadyResolved := tc.resourceVarNamesById[id]; alreadyResolved {
 		return name
 	}
-	// Generate something like "lambdaFoo", where Lambda is the name of the struct and "foo" is the id
-	desiredName := lowercaseFirst(toUpperCamel(id.String()))
+	// Generate something like "lambdaFoo", where Lambda is the type of the resource and "foo" is the id
+	// Omit the provider for shorter, easier names. For the most part there will only be 1 per file.
+	desiredName := lowercaseFirst(toUpperCamel(fmt.Sprintf("%s:%s:%s", id.Namespace, id.Type, id.Name)))
 	resolvedName := desiredName
-	for i := 1; ; i++ {
+	for i := 0; ; i++ {
 		_, varNameTaken := tc.resourceVarNames[resolvedName]
 		if varNameTaken {
-			resolvedName = fmt.Sprintf("%s_%d", desiredName, i)
+			if i == 0 {
+				resolvedName = lowercaseFirst(toUpperCamel(id.String()))
+			} else {
+				resolvedName = fmt.Sprintf("%s_%d", desiredName, i)
+			}
 		} else {
 			break
 		}
@@ -703,7 +727,7 @@ func (tp templatesProvider) getTemplateForType(typeName string) (ResourceCreatio
 	templateName := camelToSnake(typeName)
 	contents, err := fs.ReadFile(tp.templates, templateName+`/factory.ts`)
 	if err != nil {
-		return ResourceCreationTemplate{}, err
+		return ResourceCreationTemplate{}, errors.Wrapf(err, "could not find template for %s", typeName)
 	}
 	template := ParseResourceCreationTemplate(typeName, contents)
 	tp.resourceTemplatesByStructName[typeName] = template
@@ -747,19 +771,23 @@ func (tp templatesProvider) getNestedTemplate(templatePath string, tc TemplatesC
 	return tmpl, nil
 }
 
-func (tc TemplatesCompiler) GetPackageJSON(v core.Resource) (javascript.NodePackageJson, error) {
-	packageContent := javascript.NodePackageJson{}
+func (tc TemplatesCompiler) GetPackageJSON(v core.Resource) (*javascript.NodePackageJson, error) {
 	typeName := structName(v)
 	templateName := camelToSnake(typeName)
-	contents, err := fs.ReadFile(tc.templates, templateName+`/package.json`)
+	templateFilePath := templateName + `/package.json`
+	contents, err := fs.ReadFile(tc.templates, templateFilePath)
 	if err != nil {
-		return *packageContent.Clone(), err
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
 	}
+	var packageContent *javascript.NodePackageJson
 	err = json.NewDecoder(bytes.NewReader(contents)).Decode(&packageContent)
 	if err != nil {
-		return *packageContent.Clone(), err
+		return packageContent, err
 	}
-	return *packageContent.Clone(), nil
+	return packageContent, nil
 }
 
 // renderGlueVars renders additional variables associated with a given resource that do not represent specific cloud resources
@@ -795,9 +823,12 @@ func (tc TemplatesCompiler) addIngressRuleToCluster(out io.Writer, cluster *reso
 	_, err := out.Write([]byte("\n\n"))
 	errs.Append(err)
 
-	cidrBlocks := []string{}
-	for _, subnet := range cluster.Subnets {
-		cidrBlocks = append(cidrBlocks, subnet.CidrBlock)
+	cidrBlocks := make([]core.IaCValue, len(cluster.Subnets))
+	for i, subnet := range cluster.Subnets {
+		cidrBlocks[i] = core.IaCValue{
+			Resource: subnet,
+			Property: resources.CIDR_BLOCK_IAC_VALUE,
+		}
 	}
 
 	sgRule := &SecurityGroupRule{
@@ -858,4 +889,11 @@ func (tc TemplatesCompiler) associateRouteTable(out io.Writer, rt *resources.Rou
 	}
 
 	return errs.ErrOrNil()
+}
+
+func (tc TemplatesCompiler) renderResourceImport(out io.Writer, source core.Resource, imp *imports.Imported, tmpl ResourceCreationTemplate) error {
+	// TODO delegate to a factory 'import' function on the template or something to allow for customisation
+	varName := tc.getVarName(source)
+	_, err := fmt.Fprintf(out, `const %s = %s.get("%s", "%s")`, varName, tmpl.OutputType, source.Id().Name, imp.ID)
+	return err
 }

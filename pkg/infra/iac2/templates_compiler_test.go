@@ -14,6 +14,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"github.com/klothoplatform/klotho/pkg/provider/imports"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,6 +32,7 @@ func TestOutputBody(t *testing.T) {
 			Arr: []string{"val1", "val2"},
 		},
 	}
+	thingToImport := &DummyFizz{Value: "imported"}
 	graph := core.NewResourceGraph()
 	graph.AddResource(fizz)
 	graph.AddResource(buzz)
@@ -41,6 +43,7 @@ func TestOutputBody(t *testing.T) {
 	graph.AddDependency(parent, void)
 	graph.AddDependency(fizz, buzz)
 	graph.AddDependency(void, fizz)
+	graph.AddDependency(thingToImport, &imports.Imported{ID: "fizz-123"})
 
 	compiler := CreateTemplatesCompiler(graph)
 	compiler.templates = filesMapToFsMap(dummyTemplateFiles)
@@ -58,6 +61,8 @@ func TestOutputBody(t *testing.T) {
 			"const fizzMyHello = new aws.fizz.DummyResource(`my-hello`);",
 			"",
 			"fs.ReadFile();",
+			"",
+			`const fizzImported = aws.fizz.DummyResource.get("fizz-imported", "fizz-123")`,
 			"",
 			"const bigMain = new DummyParent(",
 			"				fizzMyHello,",
@@ -217,7 +222,7 @@ func Test_renderGlueVars(t *testing.T) {
 				{Provider: "aws", Type: "lambda_function", Name: "test_"}: "testFunction",
 				{Provider: "aws", Type: "iam_policy", Name: "test-t"}:     "testPolicy",
 			},
-			want: "\n\nconst awsRolePolicyAttachTestTTestT = new aws.iam.RolePolicyAttachment(`test-t-test-t`, {\n\t\t\t\t\t\tpolicyArn: testPolicy.arn,\n\t\t\t\t\t\trole: testRole\n\t\t\t\t\t});",
+			want: "\n\nconst rolePolicyAttachTestTTestT = new aws.iam.RolePolicyAttachment(`test-t-test-t`, {\n\t\t\t\t\t\tpolicyArn: testPolicy.arn,\n\t\t\t\t\t\trole: testRole\n\t\t\t\t\t});",
 		},
 		{
 			name:        "routeTableAssociation",
@@ -236,7 +241,7 @@ func Test_renderGlueVars(t *testing.T) {
 				{Provider: "aws", Type: "route_table", Name: "rt1"}: "testRouteTable",
 				{Provider: "aws", Type: "vpc_subnet", Name: "s1"}:   "subnet1",
 			},
-			want: "\n\nconst pulumiRouteTableAssociationS1 = new aws.ec2.RouteTableAssociation(`s1`, {\n\t\t\t\tsubnetId: subnet1.id,\n\t\t\trouteTableId: testRouteTable.id,\n\t\t\t});\n\n",
+			want: "\n\nconst routeTableAssociationS1 = new aws.ec2.RouteTableAssociation(`s1`, {\n\t\t\t\tsubnetId: subnetS1.id,\n\t\t\trouteTableId: testRouteTable.id,\n\t\t\t});\n\n",
 		},
 	}
 	for _, tt := range cases {
@@ -292,7 +297,7 @@ func Test_handleIaCValue(t *testing.T) {
 		{
 			name: "value with applied outputs, cluster oidc arn",
 			value: core.IaCValue{
-				Resource: resources.NewEksCluster("test-app", "cluster1", nil, nil, nil),
+				Resource: resources.NewEksCluster("test-app", "cluster1", nil, nil, nil, nil),
 				Property: resources.OIDC_SUB_IAC_VALUE,
 			},
 			resourceVarNamesById: map[core.ResourceId]string{

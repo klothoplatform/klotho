@@ -27,7 +27,7 @@ type (
 		FromPort        int
 		ToPort          int
 		Protocol        string
-		CidrBlocks      []string
+		CidrBlocks      []core.IaCValue
 		SecurityGroupId core.IaCValue
 		Type            string
 	}

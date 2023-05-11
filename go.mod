@@ -17,12 +17,12 @@ require (
 	github.com/kopoli/go-terminal-size v0.0.0-20170219200355-5c97524c8b54
 	github.com/lithammer/dedent v1.1.0
 	github.com/pborman/ansi v1.0.0
-	github.com/pelletier/go-toml/v2 v2.0.6
+	github.com/pelletier/go-toml/v2 v2.0.8-0.20230509155657-d34104d49374
 	github.com/pkg/errors v0.9.1
 	github.com/schollz/progressbar/v3 v3.13.0
 	github.com/smacker/go-tree-sitter v0.0.0-20220209044044-0d3022e933c3
 	github.com/spf13/cobra v1.6.1
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
 	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.19.1
