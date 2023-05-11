@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -162,27 +163,75 @@ myCache = Cache(cache_class=keyvalue.KVStore, my_arg="value", serializer=keyvalu
 
 // FS Tests
 func Test_persister_queryFs(t *testing.T) {
-	tests := []struct {
-		name            string
-		source          string
+	type result struct {
 		matchName       string
 		matchExpression string
+	}
+	tests := []struct {
+		name   string
+		source string
+		want   []result
 	}{
 		{
-			name:            "aiofiles import match",
-			source:          "import aiofiles",
-			matchName:       "aiofiles",
-			matchExpression: "import aiofiles",
+			name:   "aiofiles import match",
+			source: "import aiofiles",
+			want: []result{
+				{
+					matchName:       "aiofiles",
+					matchExpression: "import aiofiles",
+				},
+			},
 		},
 		{
-			name:            "aiofiles import alias match",
-			source:          "import aiofiles as fs",
-			matchName:       "fs",
-			matchExpression: "import aiofiles as fs",
+			name:   "aiofiles import alias match",
+			source: "import aiofiles as fs",
+			want: []result{
+				{
+					matchName:       "fs",
+					matchExpression: "import aiofiles as fs",
+				},
+			},
 		},
 		{
 			name:   "other 'import not matched",
 			source: "import other",
+			want:   []result{{}},
+		},
+		{
+			name:   "imported with alias",
+			source: `import aiofiles as fs`,
+			want: []result{
+				{
+					matchName:       "fs",
+					matchExpression: `import aiofiles as fs`,
+				},
+			},
+		},
+		{
+			name: "imported twice with different aliases; use first",
+			source: testutil.UnIndent(`
+				import aiofiles as first
+				import aiofiles as second`),
+			want: []result{
+				{
+					matchName:       "first",
+					matchExpression: `import aiofiles as first`,
+				},
+				{},
+			},
+		},
+		{
+			name: "imported twice with different aliases; use second",
+			source: testutil.UnIndent(`
+				import aiofiles as first
+				import aiofiles as second`),
+			want: []result{
+				{},
+				{
+					matchName:       "second",
+					matchExpression: `import aiofiles as second`,
+				},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -193,24 +242,32 @@ func Test_persister_queryFs(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
+			rootNode := f.Tree().RootNode()
 
-			cap := &core.Annotation{
-				Capability: &annotation.Capability{Name: annotation.PersistCapability},
-				Node:       f.Tree().RootNode(),
-			}
+			for childIdx := 0; childIdx < int(rootNode.ChildCount()); childIdx++ {
+				childNode := rootNode.Child(childIdx)
+				want := tt.want[childIdx]
 
-			p := persister{}
-
-			kvResult := p.queryFS(f, cap, true)
-
-			if tt.matchExpression != "" || tt.matchName != "" {
-				if assert.NotNil(kvResult) {
-					assert.Equal(tt.matchExpression, kvResult.expression)
-					assert.Equal(tt.matchName, kvResult.name)
+				cap := &core.Annotation{
+					Capability: &annotation.Capability{Name: annotation.PersistCapability},
+					Node:       childNode,
 				}
-			} else {
-				assert.Nil(kvResult)
+
+				p := persister{}
+
+				kvResult := p.queryFS(f, cap, true)
+
+				if want.matchExpression != "" || want.matchName != "" {
+					if assert.NotNil(kvResult) {
+						assert.Equal(want.matchExpression, kvResult.expression)
+						assert.Equal(want.matchName, kvResult.name)
+					}
+				} else {
+					assert.Nil(kvResult)
+				}
+
 			}
+
 		})
 	}
 }

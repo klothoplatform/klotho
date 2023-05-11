@@ -174,15 +174,14 @@ func TestFindImports(t *testing.T) {
 				},
 			},
 		},
-		{ // TODO https://github.com/klothoplatform/klotho/issues/567
+		{
 			name: "import module aliased twice",
 			source: `
 				import module1 as a
 				import module1 as b
 `,
 			want: map[string]Import{
-				"module1": {Name: "module1", Alias: "a"},
-				// missing alias 'b'
+				"module1": {Name: "module1", Alias: "TODO a and b"},
 			},
 		},
 	}
@@ -607,6 +606,7 @@ func TestFindImportedFile(t *testing.T) {
 func validateImport(assert *assert.Assertions, content []byte, expected Import, actual Import) {
 	assert.Equal(expected.ParentModule, actual.ParentModule)
 	assert.Equal(expected.Name, actual.Name)
+	assert.Equal(expected.Alias, actual.Alias)
 
 	assert.Equal(len(expected.ImportedAttributes), len(actual.ImportedAttributes))
 	for i := range expected.ImportedAttributes {
