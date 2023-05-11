@@ -220,8 +220,14 @@ func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCrea
 				{Property: "0.0.0.0/0"},
 			},
 		})
+		cluster.installVpcCniAddon(cluster.ConstructsRef, dag)
+		addedCharts := createAddOns(cluster, cluster.ConstructsRef)
+		for _, chart := range addedCharts {
+			for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
+				dag.AddDependency(chart, nodeGroup)
+			}
+		}
 	}
-
 	return nil
 }
 
@@ -305,6 +311,10 @@ func (profile *EksFargateProfile) Create(dag *core.ResourceGraph, params EksFarg
 		if err != nil {
 			return err
 		}
+		err = profile.Cluster.createFargateLogging(profile.ConstructsRef, dag)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -383,6 +393,13 @@ func (nodeGroup *EksNodeGroup) Create(dag *core.ResourceGraph, params EksNodeGro
 		err := dag.CreateDependencies(nodeGroup, subParams)
 		if err != nil {
 			return err
+		}
+		err = nodeGroup.Cluster.installFluentBit(nodeGroup.ConstructsRef, dag)
+		if err != nil {
+			return err
+		}
+		if strings.HasSuffix(strings.ToLower(nodeGroup.AmiType), "_gpu") {
+			nodeGroup.Cluster.installNvidiaDevicePlugin(dag)
 		}
 	}
 
@@ -937,7 +954,7 @@ func (cluster *EksCluster) getOidc(dag *core.ResourceGraph) *OpenIdConnectProvid
 	return nil
 }
 
-func GetServiceAccountAssumeRolePolicy(serviceAccountName string) *PolicyDocument {
+func GetServiceAccountAssumeRolePolicy(serviceAccountName string, oidc *OpenIdConnectProvider) *PolicyDocument {
 	return &PolicyDocument{
 		Version: VERSION,
 		Statement: []StatementEntry{
@@ -945,7 +962,7 @@ func GetServiceAccountAssumeRolePolicy(serviceAccountName string) *PolicyDocumen
 				Effect: "Allow",
 				Principal: &Principal{
 					Federated: core.IaCValue{
-						Resource: &OpenIdConnectProvider{},
+						Resource: oidc,
 						Property: ARN_IAC_VALUE,
 					},
 				},
@@ -953,11 +970,11 @@ func GetServiceAccountAssumeRolePolicy(serviceAccountName string) *PolicyDocumen
 				Condition: &Condition{
 					StringEquals: map[core.IaCValue]string{
 						{
-							Resource: &OpenIdConnectProvider{},
+							Resource: oidc,
 							Property: OIDC_SUB_IAC_VALUE,
 						}: fmt.Sprintf("system:serviceaccount:default:%s", k8sSanitizer.MetadataNameSanitizer.Apply(serviceAccountName)), // TODO: Replace default with the namespace when we expose via configuration
 						{
-							Resource: &OpenIdConnectProvider{},
+							Resource: oidc,
 							Property: OIDC_AUD_IAC_VALUE,
 						}: "sts.amazonaws.com",
 					},

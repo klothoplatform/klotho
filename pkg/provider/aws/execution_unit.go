@@ -56,7 +56,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 				ClusterName: params.ClusterId,
 			},
 		}
-		subParams["Values"] = a.handleHelmChartAwsValues(helmChart, unit)
+		subParams["Values"] = a.handleHelmChartAwsValues(helmChart, unit, dag)
 		err = dag.CreateDependencies(helmChart, subParams)
 		if err != nil {
 			return err
@@ -65,12 +65,13 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 	return nil
 }
 
-func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.ExecutionUnit) (valueParams map[string]any) {
+func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.ExecutionUnit, dag *core.ResourceGraph) (valueParams map[string]any) {
 	valueParams = make(map[string]any)
 	for _, val := range chart.ProviderValues {
 		if val.ExecUnitName != unit.ID {
 			continue
 		}
+		params := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams)
 		switch kubernetes.ProviderValueTypes(val.Type) {
 		case kubernetes.ImageTransformation:
 			chart.Values[val.Key] = core.IaCValue{
@@ -88,10 +89,16 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 				Resource: &resources.IamRole{},
 				Property: resources.ARN_IAC_VALUE,
 			}
+			oidc := &resources.OpenIdConnectProvider{}
+			oidc.Create(dag, resources.OidcCreateParams{
+				AppName:     a.Config.AppName,
+				ClusterName: params.ClusterId,
+				Refs:        []core.AnnotationKey{unit.AnnotationKey},
+			})
 			valueParams[val.Key] = resources.RoleCreateParams{
 				RoleName:            fmt.Sprintf("%s-%s-ExecutionRole", a.Config.AppName, unit.ID),
 				Refs:                []core.AnnotationKey{unit.AnnotationKey},
-				AssumeRolePolicyDoc: resources.GetServiceAccountAssumeRolePolicy(unit.ID),
+				AssumeRolePolicyDoc: resources.GetServiceAccountAssumeRolePolicy(unit.ID, oidc),
 			}
 		case kubernetes.InstanceTypeKey:
 			chart.Values[val.Key] = core.IaCValue{
@@ -102,7 +109,6 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 				Resource: &resources.EksNodeGroup{},
 				Property: resources.NODE_GROUP_NAME_IAC_VALUE,
 			}
-			params := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams)
 			valueParams[val.Key] = resources.EksNodeGroupCreateParams{
 				InstanceType: params.InstanceType,
 				NetworkType:  a.Config.GetExecutionUnit(unit.ID).NetworkPlacement,

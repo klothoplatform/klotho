@@ -63,6 +63,113 @@ func Test_RoleCreate(t *testing.T) {
 	}
 }
 
+func Test_OidcCreate(t *testing.T) {
+	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	cases := []struct {
+		name string
+		oidc *OpenIdConnectProvider
+		want coretesting.ResourcesExpectation
+	}{
+		{
+			name: "nil role",
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:availability_zones:AvailabilityZones",
+					"aws:eks_addon:app-my-cluster-addon-vpc-cni",
+					"aws:eks_cluster:app-my-cluster",
+					"aws:elastic_ip:app_0",
+					"aws:elastic_ip:app_1",
+					"aws:iam_oidc_provider:app-my-cluster",
+					"aws:iam_role:app-my-cluster-ClusterAdmin",
+					"aws:internet_gateway:app_igw",
+					"aws:nat_gateway:app_0",
+					"aws:nat_gateway:app_1",
+					"aws:route_table:app_0",
+					"aws:route_table:app_1",
+					"aws:route_table:app_igw",
+					"aws:security_group:app",
+					"aws:vpc:app",
+					"aws:vpc_subnet:app_private0",
+					"aws:vpc_subnet:app_private1",
+					"aws:vpc_subnet:app_public0",
+					"aws:vpc_subnet:app_public1",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:eks_addon:app-my-cluster-addon-vpc-cni", Destination: "aws:eks_cluster:app-my-cluster"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:iam_role:app-my-cluster-ClusterAdmin"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:security_group:app"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:vpc_subnet:app_private0"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:vpc_subnet:app_private1"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:vpc_subnet:app_public0"},
+					{Source: "aws:eks_cluster:app-my-cluster", Destination: "aws:vpc_subnet:app_public1"},
+					{Source: "aws:iam_oidc_provider:app-my-cluster", Destination: "aws:eks_cluster:app-my-cluster"},
+					{Source: "aws:internet_gateway:app_igw", Destination: "aws:vpc:app"},
+					{Source: "aws:nat_gateway:app_0", Destination: "aws:elastic_ip:app_0"},
+					{Source: "aws:nat_gateway:app_0", Destination: "aws:vpc_subnet:app_public0"},
+					{Source: "aws:nat_gateway:app_1", Destination: "aws:elastic_ip:app_1"},
+					{Source: "aws:nat_gateway:app_1", Destination: "aws:vpc_subnet:app_public1"},
+					{Source: "aws:route_table:app_0", Destination: "aws:nat_gateway:app_0"},
+					{Source: "aws:route_table:app_0", Destination: "aws:vpc:app"},
+					{Source: "aws:route_table:app_1", Destination: "aws:nat_gateway:app_1"},
+					{Source: "aws:route_table:app_1", Destination: "aws:vpc:app"},
+					{Source: "aws:route_table:app_igw", Destination: "aws:internet_gateway:app_igw"},
+					{Source: "aws:route_table:app_igw", Destination: "aws:vpc:app"},
+					{Source: "aws:security_group:app", Destination: "aws:vpc:app"},
+					{Source: "aws:vpc_subnet:app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:app_private0", Destination: "aws:vpc:app"},
+					{Source: "aws:vpc_subnet:app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:app_private1", Destination: "aws:vpc:app"},
+					{Source: "aws:vpc_subnet:app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:app_public0", Destination: "aws:vpc:app"},
+					{Source: "aws:vpc_subnet:app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:vpc_subnet:app_public1", Destination: "aws:vpc:app"},
+				},
+			},
+		},
+		{
+			name: "existing role",
+			oidc: &OpenIdConnectProvider{Name: "app-my-cluster", ConstructsRef: initialRefs},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:iam_oidc_provider:app-my-cluster",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			dag := core.NewResourceGraph()
+			if tt.oidc != nil {
+				dag.AddResource(tt.oidc)
+			}
+			metadata := OidcCreateParams{
+				ClusterName: "my-cluster",
+				Refs:        []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				AppName:     "app",
+			}
+			oidc := &OpenIdConnectProvider{}
+			err := oidc.Create(dag, metadata)
+
+			if !assert.NoError(err) {
+				return
+			}
+			tt.want.Assert(t, dag)
+
+			graphOidc := dag.GetResourceByVertexId(oidc.Id().String()).(*OpenIdConnectProvider)
+
+			assert.Equal(graphOidc.Name, "app-my-cluster")
+			if tt.oidc == nil {
+				assert.Equal(graphOidc.ConstructsRef, metadata.Refs)
+			} else {
+				assert.Equal(graphOidc.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+
+			}
+		})
+	}
+}
+
 func Test_AddAllowPolicyToUnit(t *testing.T) {
 	bucket := NewS3Bucket(&core.Fs{}, "test-app")
 	unitId := "testUnit"

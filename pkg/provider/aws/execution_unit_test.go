@@ -59,8 +59,8 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 					},
 					{
 						ExecUnitName: eu.ID,
-						Type:         string(kubernetes.InstanceTypeKey),
-						Key:          "SHOULDNT BE HANDLED",
+						Type:         string(kubernetes.InstanceTypeValue),
+						Key:          "InstanceType",
 					},
 				},
 				Values: make(map[string]any),
@@ -101,6 +101,13 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 					"aws:vpc_subnet:my_app_public0",
 					"aws:vpc_subnet:my_app_public1",
 					"kubernetes:helm_chart:",
+					"aws:iam_oidc_provider:my-app-cluster1",
+					"aws:eks_addon:my-app-cluster1-addon-vpc-cni",
+					"aws:eks_node_group:my-app_cluster1_private_t3_medium",
+					"aws:iam_role:my-app_cluster1_private_t3_medium-NodeRole",
+					"kubernetes:manifest:my-app-cluster1-awmazon-cloudwatch-ns",
+					"kubernetes:manifest:my-app-cluster1-fluent-bit",
+					"kubernetes:manifest:my-app-cluster1-fluent-bit-cluster-info-config-map",
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:ecr_image:my-app-test", Destination: "aws:ecr_repo:my-app"},
@@ -133,6 +140,18 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 					{Source: "kubernetes:helm_chart:", Destination: "aws:ecr_image:my-app-test"},
 					{Source: "kubernetes:helm_chart:", Destination: "aws:eks_cluster:my-app-cluster1"},
 					{Source: "kubernetes:helm_chart:", Destination: "aws:iam_role:my-app-test-ExecutionRole"},
+					{Source: "aws:eks_addon:my-app-cluster1-addon-vpc-cni", Destination: "aws:eks_cluster:my-app-cluster1"},
+					{Source: "aws:iam_oidc_provider:my-app-cluster1", Destination: "aws:eks_cluster:my-app-cluster1"},
+					{Source: "aws:eks_node_group:my-app_cluster1_private_t3_medium", Destination: "aws:eks_cluster:my-app-cluster1"},
+					{Source: "aws:eks_node_group:my-app_cluster1_private_t3_medium", Destination: "aws:iam_role:my-app_cluster1_private_t3_medium-NodeRole"},
+					{Source: "aws:eks_node_group:my-app_cluster1_private_t3_medium", Destination: "aws:vpc_subnet:my_app_private0"},
+					{Source: "aws:eks_node_group:my-app_cluster1_private_t3_medium", Destination: "aws:vpc_subnet:my_app_private1"},
+					{Source: "kubernetes:helm_chart:", Destination: "aws:eks_node_group:my-app_cluster1_private_t3_medium"},
+					{Source: "kubernetes:manifest:my-app-cluster1-awmazon-cloudwatch-ns", Destination: "aws:eks_cluster:my-app-cluster1"},
+					{Source: "kubernetes:manifest:my-app-cluster1-fluent-bit", Destination: "aws:eks_cluster:my-app-cluster1"},
+					{Source: "kubernetes:manifest:my-app-cluster1-fluent-bit", Destination: "kubernetes:manifest:my-app-cluster1-fluent-bit-cluster-info-config-map"},
+					{Source: "kubernetes:manifest:my-app-cluster1-fluent-bit-cluster-info-config-map", Destination: "aws:eks_cluster:my-app-cluster1"},
+					{Source: "kubernetes:manifest:my-app-cluster1-fluent-bit-cluster-info-config-map", Destination: "kubernetes:manifest:my-app-cluster1-awmazon-cloudwatch-ns"},
 				},
 			},
 		},
@@ -179,6 +198,10 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 					"aws:vpc_subnet:my_app_public0",
 					"aws:vpc_subnet:my_app_public1",
 					"kubernetes:helm_chart:",
+					"aws:eks_addon:my-app-cluster1-addon-vpc-cni",
+					"aws:region:region",
+					"kubernetes:manifest:my-app-cluster1-aws-observability-config-map",
+					"kubernetes:manifest:my-app-cluster1-aws-observability-ns",
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:eks_cluster:my-app-cluster1", Destination: "aws:iam_role:my-app-cluster1-ClusterAdmin"},
@@ -212,6 +235,11 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 					{Source: "aws:vpc_subnet:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:vpc_subnet:my_app_public1", Destination: "aws:vpc:my_app"},
 					{Source: "kubernetes:helm_chart:", Destination: "aws:eks_cluster:my-app-cluster1"},
+					{Source: "aws:eks_addon:my-app-cluster1-addon-vpc-cni", Destination: "aws:eks_cluster:my-app-cluster1"},
+					{Source: "kubernetes:manifest:my-app-cluster1-aws-observability-config-map", Destination: "aws:eks_cluster:my-app-cluster1"},
+					{Source: "kubernetes:manifest:my-app-cluster1-aws-observability-config-map", Destination: "aws:region:region"},
+					{Source: "kubernetes:manifest:my-app-cluster1-aws-observability-config-map", Destination: "kubernetes:manifest:my-app-cluster1-aws-observability-ns"},
+					{Source: "kubernetes:manifest:my-app-cluster1-aws-observability-ns", Destination: "aws:eks_cluster:my-app-cluster1"},
 				},
 			},
 		},
@@ -239,6 +267,7 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 
 func Test_handleHelmChartAwsValues(t *testing.T) {
 	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, DockerfilePath: "path"}
+	oidc := &resources.OpenIdConnectProvider{}
 	config := &config.Application{AppName: "my-app",
 		ExecutionUnits: map[string]*config.ExecutionUnit{
 			"test": {
@@ -300,7 +329,7 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 					"SERVICEACCOUNT": resources.RoleCreateParams{
 						RoleName:            fmt.Sprintf("%s-%s-ExecutionRole", config.AppName, eu.ID),
 						Refs:                []core.AnnotationKey{eu.AnnotationKey},
-						AssumeRolePolicyDoc: resources.GetServiceAccountAssumeRolePolicy(eu.ID),
+						AssumeRolePolicyDoc: resources.GetServiceAccountAssumeRolePolicy(eu.ID, oidc),
 					},
 				},
 				values: map[string]any{
@@ -393,7 +422,7 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 			aws := AWS{
 				Config: config,
 			}
-			result := aws.handleHelmChartAwsValues(chart, tt.unit)
+			result := aws.handleHelmChartAwsValues(chart, tt.unit, core.NewResourceGraph())
 			assert.Equal(tt.want.values, chart.Values)
 			if tt.value.Type == string(kubernetes.ServiceAccountAnnotationTransformation) {
 				assert.Equal(tt.want.params["RoleName"], result["RoleName"])

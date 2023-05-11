@@ -175,8 +175,33 @@ func (lambda *IamPolicy) Create(dag *core.ResourceGraph, metadata map[string]any
 	panic("Not Implemented")
 }
 
-func (lambda *OpenIdConnectProvider) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+type OidcCreateParams struct {
+	AppName     string
+	ClusterName string
+	Refs        []core.AnnotationKey
+}
+
+func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCreateParams) error {
+	oidc.Name = fmt.Sprintf("%s-%s", params.AppName, params.ClusterName)
+
+	existingOidc := dag.GetResourceByVertexId(oidc.Id().String())
+	if existingOidc != nil {
+		graphOidc := existingOidc.(*OpenIdConnectProvider)
+		graphOidc.ConstructsRef = append(graphOidc.ConstructsRef, params.Refs...)
+	} else {
+		oidc.ConstructsRef = params.Refs
+		oidc.ClientIdLists = []string{"sts.amazonaws.com"}
+		oidc.Region = NewRegion()
+
+		subParams := map[string]any{
+			"Cluster": params,
+		}
+		err := dag.CreateDependencies(oidc, subParams)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func NewPolicyGenerator() *PolicyGenerator {
