@@ -436,8 +436,8 @@ func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, 
 	}
 	aiocacheImported := len(aiocacheImport.ImportedAttributes) == 0
 	cacheImport, cacheImported := aiocacheImport.ImportedAttributes["Cache"]
-	//functionHostName := aiocacheImport.Name
-	//cacheFunction := cacheImport.Name
+	functionHostName := aiocacheImport.Name
+	cacheFunction := cacheImport.Name
 
 	nextMatch := DoQuery(annotation.Node, persistKV)
 
