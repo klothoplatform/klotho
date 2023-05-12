@@ -2,9 +2,10 @@ package testutil
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
-	"strings"
 )
 
 // UnIndent removes a level of indentation from the given string. The rules are very simple:

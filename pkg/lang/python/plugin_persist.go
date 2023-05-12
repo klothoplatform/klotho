@@ -496,43 +496,49 @@ func (p *persister) queryFS(file *core.SourceFile, annotation *core.Annotation, 
 		return nil
 	}
 
-	varName := ""
-	if fsSpecImport.Alias != "" {
-		varName = fsSpecImport.Alias
+	var varNames map[string]struct{}
+	if len(fsSpecImport.UsedAs) != 0 {
+		varNames = fsSpecImport.UsedAs
 	} else if len(fsSpecImport.ImportedAttributes) == 0 {
-		varName = fsSpecImport.Name
+		varNames = map[string]struct{}{fsSpecImport.Name: {}}
 	} else {
 		return nil
 	}
 
+	var matchedVarName string
+	var matchedImportStatement string
 	nextMatch := DoQuery(annotation.Node, findImports)
+	for {
+		match, found := nextMatch()
+		if !found {
+			break
+		}
 
-	match, found := nextMatch()
-	if !found {
-		return nil
+		module, aliasedModule, alias, importStatement := match["module"], match["aliasedModule"], match["alias"], match["importStatement"]
+
+		var importedAs string
+		if aliasedModule != nil {
+			importedAs = alias.Content()
+		} else {
+			importedAs = module.Content()
+		}
+		if _, found := varNames[importedAs]; found {
+			if matchedVarName == "" {
+				matchedVarName = importedAs
+				matchedImportStatement = importStatement.Content()
+			} else {
+				log.Warn(`too many assignments matched for fs_storage`)
+			}
+		}
 	}
 
-	module, aliasedModule, alias, importStatement := match["module"], match["aliasedModule"], match["alias"], match["importStatement"]
-
-	// this assignment/invocation is unrelated to aiofile instantiation found from the matching import
-	if aliasedModule != nil {
-		if !query.NodeContentEquals(alias, varName) {
-			return nil
-		}
-	} else if !query.NodeContentEquals(module, varName) {
-		return nil
-	}
-
-	if _, found := nextMatch(); found {
-		if enableWarnings {
-			log.Warn("too many assignments for fs_storage")
-		}
+	if matchedVarName == "" {
 		return nil
 	}
 
 	return &persistResult{
-		name:       varName,
-		expression: importStatement.Content(),
+		name:       matchedVarName,
+		expression: matchedImportStatement,
 	}
 }
 
@@ -552,9 +558,10 @@ func (p *persister) queryORM(file *core.SourceFile, annotation *core.Annotation,
 	if engineImport.Alias != "" {
 		engineFunction = engineImport.Alias
 	}
-	if sqlalchemyImport.Alias != "" {
-		sqlalchemyImportName = sqlalchemyImport.Alias
-	}
+	//if sqlalchemyImport.Alias != "" {
+	//	sqlalchemyImportName = sqlalchemyImport.Alias
+	//}
+	panic("TODO")
 
 	nextMatch := DoQuery(annotation.Node, orm)
 
@@ -666,9 +673,10 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 	} else if clusterConstructorImport.Alias != "" {
 		clusterRedisFunction = clusterConstructorImport.Alias
 	}
-	if redisImport.Alias != "" {
-		redisImportName = redisImport.Alias
-	}
+	//if redisImport.Alias != "" {
+	//	redisImportName = redisImport.Alias
+	//}
+	panic("TODO")
 	if clustermoduleImport.Alias != "" {
 		clustermoduleImportName = clustermoduleImport.Alias
 	}

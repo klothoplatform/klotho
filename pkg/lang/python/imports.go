@@ -20,7 +20,10 @@ type Import struct {
 	// Given a statement `from foo import bar as the_bar` the attribute name is `bar`.
 	ImportedAttributes map[string]Attribute
 	Node               *sitter.Node
-	Alias              string
+	// UsedAs is the names of the module as it will be used in the (python) code. These are either the (possibly
+	// qualified) module name, or the aliases. If this module was imported several times, each one will have an entry
+	// in this set (removing duplicates, of course).
+	UsedAs map[string]struct{}
 }
 
 type Attribute struct {
@@ -30,20 +33,6 @@ type Attribute struct {
 }
 
 type Imports map[string]Import
-
-// ImportedAs returns the name of the module as it will be used in the (python) code. This is either the (possibly
-// qualified) module name, or the alias.
-func (imp Import) ImportedAs() string {
-	if imp.Alias != "" {
-		return imp.Alias
-	} else {
-		name := imp.Name
-		if imp.ParentModule != "" {
-			name = imp.ParentModule + "." + name
-		}
-		return name
-	}
-}
 
 func (imp Import) ModuleDir() string {
 	moduleRoot := ""
@@ -169,7 +158,20 @@ func FindImports(file *core.SourceFile) Imports {
 
 		i.ParentModule = parent
 		i.Name = moduleName
-		i.Alias = aliasName
+
+		if len(i.ImportedAttributes) == 0 {
+			if aliasName == "" {
+				// convert it into the (possibly qualified) module name.
+				aliasName = moduleName
+				if parent != "" {
+					aliasName = parent + "." + aliasName
+				}
+			}
+			if i.UsedAs == nil {
+				i.UsedAs = make(map[string]struct{})
+			}
+			i.UsedAs[aliasName] = struct{}{}
+		}
 
 		fileImports[qualifiedModuleName] = i
 	}
@@ -241,7 +243,7 @@ func dependenciesForImport(relativeToPath string, spec Import, files map[string]
 
 		if len(spec.ImportedAttributes) == 0 {
 			sourceFile := files[relativeToPath].(*core.SourceFile)
-			importRefs := referencesForImport(sourceFile.Tree().RootNode(), spec.ImportedAs())
+			importRefs := referencesForImport(sourceFile.Tree().RootNode(), spec.UsedAs)
 			refs.AddAll(importRefs)
 		} else {
 			for _, attr := range spec.ImportedAttributes {
@@ -269,7 +271,7 @@ func dependenciesForImport(relativeToPath string, spec Import, files map[string]
 			deps[modulePath] = refs
 		}
 
-		importRefs := referencesForImport(moduleFile.Tree().RootNode(), attr.UsedAs())
+		importRefs := referencesForImport(moduleFile.Tree().RootNode(), map[string]struct{}{attr.UsedAs(): {}})
 		refs.AddAll(importRefs)
 	}
 
@@ -278,7 +280,7 @@ func dependenciesForImport(relativeToPath string, spec Import, files map[string]
 
 // referencesForImport returns all references of importModule within the program. If the import is aliased, importModule should be the alias
 // and not the real module name.
-func referencesForImport(program *sitter.Node, importModule string) core.References {
+func referencesForImport(program *sitter.Node, importModules map[string]struct{}) core.References {
 	refs := make(core.References)
 	nextAttrUsage := DoQuery(program, FindQualifiedAttrUsage)
 	for {
@@ -287,7 +289,7 @@ func referencesForImport(program *sitter.Node, importModule string) core.Referen
 			break
 		}
 		objName, attrName := attrUsage["obj_name"], attrUsage["attr_name"]
-		if objName.Content() == importModule {
+		if _, found := importModules[objName.Content()]; found {
 			attrNameStr := attrName.Content()
 			refs[attrNameStr] = struct{}{}
 		}

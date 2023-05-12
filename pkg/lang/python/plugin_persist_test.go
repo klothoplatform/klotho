@@ -170,7 +170,8 @@ func Test_persister_queryFs(t *testing.T) {
 	tests := []struct {
 		name   string
 		source string
-		want   []result
+		// want is a slice of results, each corresponding to one top-level node in the source
+		want []result
 	}{
 		{
 			name:   "aiofiles import match",
@@ -208,7 +209,7 @@ func Test_persister_queryFs(t *testing.T) {
 			},
 		},
 		{
-			name: "imported twice with different aliases; use first",
+			name: "imported twice with different aliases",
 			source: testutil.UnIndent(`
 				import aiofiles as first
 				import aiofiles as second`),
@@ -217,16 +218,6 @@ func Test_persister_queryFs(t *testing.T) {
 					matchName:       "first",
 					matchExpression: `import aiofiles as first`,
 				},
-				{},
-			},
-		},
-		{
-			name: "imported twice with different aliases; use second",
-			source: testutil.UnIndent(`
-				import aiofiles as first
-				import aiofiles as second`),
-			want: []result{
-				{},
 				{
 					matchName:       "second",
 					matchExpression: `import aiofiles as second`,
@@ -263,11 +254,9 @@ func Test_persister_queryFs(t *testing.T) {
 						assert.Equal(want.matchName, kvResult.name)
 					}
 				} else {
-					assert.Nil(kvResult)
+					assert.Nilf(kvResult, "for item %d", childIdx)
 				}
-
 			}
-
 		})
 	}
 }
