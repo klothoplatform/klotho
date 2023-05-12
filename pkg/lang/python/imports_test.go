@@ -130,8 +130,23 @@ func TestFindImports(t *testing.T) {
 				"mymodule": {
 					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
-						"attribute1": {Name: "attribute1", Alias: "a1"},
-						"attribute2": {Name: "attribute2", Alias: "a2"},
+						"attribute1": {Name: "attribute1", UsedAs: testutil.NewSet("a1")},
+						"attribute2": {Name: "attribute2", UsedAs: testutil.NewSet("a2")},
+					}},
+			},
+		},
+		{
+			name: "from module import attributes aliased multiple times",
+			source: testutil.UnIndent(`
+				from mymodule import attribute1
+				from mymodule import attribute1 as a1
+				from mymodule import attribute1 as a2
+				`),
+			want: map[string]Import{
+				"mymodule": {
+					Name: "mymodule",
+					ImportedAttributes: map[string]Attribute{
+						"attribute1": {Name: "attribute1", UsedAs: testutil.NewSet("attribute1", "a1", "a2")},
 					}},
 			},
 		},
@@ -274,6 +289,18 @@ func TestResolveFileDependencies(t *testing.T) {
 		},
 		{
 			name: "import attribute with alias",
+			input: map[string]string{
+				"main.py":  `from other import method_a as aaa`,
+				"other.py": `pass`,
+			},
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
+					"other.py": testutil.NewSet("method_a"),
+				},
+				"other.py": map[string]core.References{},
+			},
+		},
+		{
 			input: map[string]string{
 				"main.py":  `from other import method_a as aaa`,
 				"other.py": `pass`,

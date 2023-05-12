@@ -31,10 +31,17 @@ func Test_persister_queryKV(t *testing.T) {
 			matchExpression: "myCache=aiocache.Cache(aiocache.Cache.MEMORY)",
 		},
 		{
+			name: "aiocache import with alias",
+			source: testutil.UnIndent(`
+				import aiocache as a
+				myCache=a.Cache(a.Cache.MEMORY)`),
+			matchName:       "myCache",
+			matchExpression: "myCache=aiocache.Cache(aiocache.Cache.MEMORY)",
+		},
+		{
 			name:   "other 'Cache' function not matched",
 			source: "import other\nmyCache=other.Cache(aiocache.Cache.MEMORY)\nmyCache=Cache(aiocache.Cache.MEMORY)",
 		},
-		// TODO: add cases for import aliases when adding alias support
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

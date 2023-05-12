@@ -24,9 +24,19 @@ func NodeContentEquals(node *sitter.Node, s string) bool {
 	return false
 }
 
-func NodeContentIn[K any](node *sitter.Node, m map[string]K) bool {
-	_, keyExists := m[node.Content()]
+// NodeContentIn returns whether the node's content is a key in the given map. It is just shorthand for:
+//
+//	_, result := GetMatchingNodeContent(node, m)
+func NodeContentIn(node *sitter.Node, m map[string]struct{}) bool {
+	_, keyExists := GetMatchingNodeContent(node, m)
 	return keyExists
+}
+
+// GetMatchingNodeContent returns the node's content, and whether that node content is a key in the given set.
+func GetMatchingNodeContent(node *sitter.Node, m map[string]struct{}) (string, bool) {
+	content := node.Content()
+	_, keyExists := m[content]
+	return content, keyExists
 }
 
 func NodeContentRegex(node *sitter.Node, regex *regexp.Regexp) bool {

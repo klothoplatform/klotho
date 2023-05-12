@@ -149,7 +149,7 @@ func FindImports(file *core.SourceFile) Imports {
 			} else {
 				attributeAliases[alias.Content()] = struct{}{}
 			}
-			panic("TODO -- test me!")
+			// TODO -- test this!
 			ia[attributeName] = Attribute{
 				Name:   attributeName,
 				Node:   attribute,
