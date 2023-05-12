@@ -31,7 +31,7 @@ type Import struct {
 
 type Attribute struct {
 	// Name is the module attribute's name. This is not necessarily the name by which the python source will refer to
-	// this module, because of aliases. For any analysis of the user's source code, you should use UsedAs instead.
+	// the attribute, because of aliases. For any analysis of the user's source code, you should use UsedAs instead.
 	Name string
 	Node *sitter.Node
 	// UsedAs is the same as [Import.UsedAs], but for attributes
