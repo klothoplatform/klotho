@@ -54,6 +54,10 @@ func (imp Import) ModuleDir() string {
 	return moduleRoot
 }
 
+func FindFileImports(file *core.SourceFile) Imports {
+	return FindImports(file.Tree().RootNode())
+}
+
 // FindImports returns a map containing each import statement within the file, as a map keyed by the import's qualified
 // name.
 //
@@ -62,8 +66,8 @@ func (imp Import) ModuleDir() string {
 //	import module_a                     # key is "module_a"
 //	import module_b as the_b            # key is "module_b"
 //	import module_c.module_cc as the_c  # key is "module_c.module_cc"
-func FindImports(file *core.SourceFile) Imports {
-	nextMatch := DoQuery(file.Tree().RootNode(), findImports)
+func FindImports(node *sitter.Node) Imports {
+	nextMatch := DoQuery(node, findImports)
 	fileImports := Imports{}
 	for {
 		match, found := nextMatch()
@@ -208,7 +212,7 @@ func ResolveFileDependencies(files map[string]core.File) (core.FileDependencies,
 			imported[initPy] = core.References{}
 		}
 
-		imports := FindImports(pyFile)
+		imports := FindFileImports(pyFile)
 		for _, importSpec := range imports {
 			deps, err := dependenciesForImport(filePath, importSpec, files)
 			if err != nil {

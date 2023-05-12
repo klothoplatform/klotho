@@ -232,6 +232,34 @@ func Test_persister_queryFs(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:    "attribute import",
+			imports: []string{`from aiofiles import open`},
+			want: []result{
+				{},
+			},
+		},
+		{
+			name:    "attribute import with alias",
+			imports: []string{`from aiofiles import open as o`},
+			want: []result{
+				{},
+			},
+		},
+		{
+			name: "both supported and unsupported imports",
+			imports: []string{
+				`import aiofiles`,
+				`from aiofiles import open`,
+			},
+			want: []result{
+				{
+					matchName:       "aiofiles",
+					matchExpression: `import aiofiles`,
+				},
+				{},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -243,7 +271,7 @@ func Test_persister_queryFs(t *testing.T) {
 			}
 
 			for idx, imp := range tt.imports {
-				childNode := testutil.FindNodeByContent(f.Tree(), imp)
+				childNode := testutil.FindNodeByContent(f.Tree().RootNode(), imp)
 				want := tt.want[idx]
 
 				cap := &core.Annotation{
@@ -638,7 +666,7 @@ func Test_persister_queryOrm(t *testing.T) {
 				return
 			}
 
-			annotatedNode := testutil.FindNodeByContent(f.Tree(), tt.annotatedLine)
+			annotatedNode := testutil.FindNodeByContent(f.Tree().RootNode(), tt.annotatedLine)
 			if !assert.NotNil(annotatedNode, "bug in the test: couldn't find annotated node") {
 				return
 			}

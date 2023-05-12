@@ -224,7 +224,7 @@ func TestFindImports(t *testing.T) {
 				return
 			}
 
-			imports := FindImports(f)
+			imports := FindFileImports(f)
 			if len(tt.want) != len(imports) {
 				t.Log(imports)
 			}

@@ -428,7 +428,7 @@ type persistResult struct {
 func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, enableWarnings bool) *persistResult {
 	log := zap.L().With(logging.FileField(file), logging.AnnotationField(annotation))
 
-	imports := FindImports(file)
+	imports := FindFileImports(file)
 
 	aiocacheImport, ok := imports["aiocache"]
 	if !ok {
@@ -487,7 +487,7 @@ func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, 
 func (p *persister) queryFS(file *core.SourceFile, annotation *core.Annotation, enableWarnings bool) *persistResult {
 	log := zap.L().With(logging.FileField(file), logging.AnnotationField(annotation))
 
-	imports := FindImports(file)
+	imports := FindImports(annotation.Node)
 
 	fsSpecImport, ok := imports["aiofiles"]
 	if !ok {
@@ -497,7 +497,7 @@ func (p *persister) queryFS(file *core.SourceFile, annotation *core.Annotation, 
 	varNames := fsSpecImport.UsedAs
 	if len(varNames) == 0 {
 		// this means it's an attribute-import: "from aiofiles import f", which we don't support
-		log.Warn("Unsupported import")
+		log.Warn(`Unsupported import. Use "import aiofiles" (with no "from") instead.`)
 		return nil
 	}
 
@@ -513,11 +513,11 @@ func (p *persister) queryFS(file *core.SourceFile, annotation *core.Annotation, 
 	// this assignment/invocation is unrelated to aiofile instantiation found from the matching import
 	var varName string
 	if aliasedModule != nil {
-		if content, matched := query.GetMatchingNodeContent(alias, varNames); matched {
-			varName = content
+		if query.NodeContentIn(alias, varNames) {
+			varName = alias.Content()
 		}
-	} else if content, matched := query.GetMatchingNodeContent(module, varNames); matched {
-		varName = content
+	} else if query.NodeContentIn(module, varNames) {
+		varName = module.Content()
 	}
 	if varName == "" {
 		return nil
@@ -539,7 +539,7 @@ func (p *persister) queryFS(file *core.SourceFile, annotation *core.Annotation, 
 func (p *persister) queryORM(file *core.SourceFile, annotation *core.Annotation, enableWarnings bool) *persistResult {
 	log := zap.L().With(logging.FileField(file), logging.AnnotationField(annotation))
 
-	imports := FindImports(file)
+	imports := FindFileImports(file)
 
 	sqlalchemyImport, ok := imports["sqlalchemy"]
 	if !ok {
@@ -632,7 +632,7 @@ func (p *persister) querySecret(file *core.SourceFile, name string) ([]string, e
 func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotation, enableWarnings bool) *persistResult {
 	log := zap.L().With(logging.FileField(file), logging.AnnotationField(annotation))
 
-	imports := FindImports(file)
+	imports := FindFileImports(file)
 
 	redisImport, ok := imports["redis"]
 	redisClusterImport, cok := imports["redis.cluster"]
