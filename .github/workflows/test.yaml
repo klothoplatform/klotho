@@ -2,7 +2,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: '*'
+    branches: ['*']
 concurrency:
   cancel-in-progress: true
   group: unit-tests-${{ github.ref }}
