@@ -428,7 +428,7 @@ type persistResult struct {
 func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, enableWarnings bool) *persistResult {
 	log := zap.L().With(logging.FileField(file), logging.AnnotationField(annotation))
 
-	imports := FindImports(file)
+	imports := FindFileImports(file)
 
 	aiocacheImport, ok := imports["aiocache"]
 	if !ok {
@@ -436,8 +436,6 @@ func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, 
 	}
 	aiocacheImported := len(aiocacheImport.ImportedAttributes) == 0
 	cacheImport, cacheImported := aiocacheImport.ImportedAttributes["Cache"]
-	functionHostName := aiocacheImport.Name
-	cacheFunction := cacheImport.Name
 
 	nextMatch := DoQuery(annotation.Node, persistKV)
 
@@ -449,12 +447,12 @@ func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, 
 	expression, name, functionHost, function := match["expression"], match["name"], match["functionHost"], match["function"]
 
 	// this assignment/invocation is unrelated to aiocache.Cache instantiation
-	if !aiocacheImported && !query.NodeContentEquals(function, cacheFunction) {
+	if !aiocacheImported && !query.NodeContentIn(function, cacheImport.UsedAs) {
 		return nil
 	}
 
 	// this Cache() invocation belongs to an object other the aiocache module
-	if aiocacheImported && functionHost != nil && !query.NodeContentEquals(functionHost, functionHostName) {
+	if aiocacheImported && functionHost != nil && !query.NodeContentIn(functionHost, aiocacheImport.UsedAs) {
 		return nil
 	}
 
@@ -489,19 +487,17 @@ func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, 
 func (p *persister) queryFS(file *core.SourceFile, annotation *core.Annotation, enableWarnings bool) *persistResult {
 	log := zap.L().With(logging.FileField(file), logging.AnnotationField(annotation))
 
-	imports := FindImports(file)
+	imports := FindImports(annotation.Node)
 
 	fsSpecImport, ok := imports["aiofiles"]
 	if !ok {
 		return nil
 	}
 
-	varName := ""
-	if fsSpecImport.Alias != "" {
-		varName = fsSpecImport.Alias
-	} else if len(fsSpecImport.ImportedAttributes) == 0 {
-		varName = fsSpecImport.Name
-	} else {
+	varNames := fsSpecImport.UsedAs
+	if len(varNames) == 0 {
+		// this means it's an attribute-import: "from aiofiles import f", which we don't support
+		log.Warn(`Unsupported import. Use "import aiofiles" (with no "from") instead.`)
 		return nil
 	}
 
@@ -515,11 +511,15 @@ func (p *persister) queryFS(file *core.SourceFile, annotation *core.Annotation, 
 	module, aliasedModule, alias, importStatement := match["module"], match["aliasedModule"], match["alias"], match["importStatement"]
 
 	// this assignment/invocation is unrelated to aiofile instantiation found from the matching import
+	var varName string
 	if aliasedModule != nil {
-		if !query.NodeContentEquals(alias, varName) {
-			return nil
+		if query.NodeContentIn(alias, varNames) {
+			varName = alias.Content()
 		}
-	} else if !query.NodeContentEquals(module, varName) {
+	} else if query.NodeContentIn(module, varNames) {
+		varName = module.Content()
+	}
+	if varName == "" {
 		return nil
 	}
 
@@ -539,22 +539,14 @@ func (p *persister) queryFS(file *core.SourceFile, annotation *core.Annotation, 
 func (p *persister) queryORM(file *core.SourceFile, annotation *core.Annotation, enableWarnings bool) *persistResult {
 	log := zap.L().With(logging.FileField(file), logging.AnnotationField(annotation))
 
-	imports := FindImports(file)
+	imports := FindFileImports(file)
 
 	sqlalchemyImport, ok := imports["sqlalchemy"]
 	if !ok {
 		return nil
 	}
 	sqlalchemyImported := len(sqlalchemyImport.ImportedAttributes) == 0
-	sqlalchemyImportName := sqlalchemyImport.Name
 	engineImport, engineImported := sqlalchemyImport.ImportedAttributes["create_engine"]
-	engineFunction := engineImport.Name
-	if engineImport.Alias != "" {
-		engineFunction = engineImport.Alias
-	}
-	if sqlalchemyImport.Alias != "" {
-		sqlalchemyImportName = sqlalchemyImport.Alias
-	}
 
 	nextMatch := DoQuery(annotation.Node, orm)
 
@@ -566,12 +558,12 @@ func (p *persister) queryORM(file *core.SourceFile, annotation *core.Annotation,
 	engineVar, funcCall, connString, module := match["engineVar"], match["funcCall"], match["connString"], match["module"]
 
 	// this assignment/invocation is unrelated to sqlAlchemy.create_engine instantiation
-	if !sqlalchemyImported && !query.NodeContentEquals(funcCall, engineFunction) {
+	if !sqlalchemyImported && !query.NodeContentIn(funcCall, engineImport.UsedAs) {
 		return nil
 	}
 
 	// this create_engine() invocation belongs to an object other the aiocache module
-	if sqlalchemyImported && module != nil && !query.NodeContentEquals(module, sqlalchemyImportName) {
+	if sqlalchemyImported && module != nil && !query.NodeContentIn(module, sqlalchemyImport.UsedAs) {
 		return nil
 	}
 
@@ -640,7 +632,7 @@ func (p *persister) querySecret(file *core.SourceFile, name string) ([]string, e
 func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotation, enableWarnings bool) *persistResult {
 	log := zap.L().With(logging.FileField(file), logging.AnnotationField(annotation))
 
-	imports := FindImports(file)
+	imports := FindFileImports(file)
 
 	redisImport, ok := imports["redis"]
 	redisClusterImport, cok := imports["redis.cluster"]
@@ -648,29 +640,18 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 		return nil
 	}
 	redisImported := len(redisClusterImport.ImportedAttributes) == 0
-	redisImportName := redisImport.Name
 	constructorImport, constructorImported := redisImport.ImportedAttributes["Redis"]
 	clusterConstructorImport, clusterConstructorImported := redisClusterImport.ImportedAttributes["RedisCluster"]
 	clustermoduleImport, clusterModuleImported := redisImport.ImportedAttributes["cluster"]
-	clusterRedisFunction := clusterConstructorImport.Name
-	clustermoduleImportName := clustermoduleImport.Name
 
-	redisFunction := constructorImport.Name
-	if redisFunction == "" {
-		redisFunction = "Redis"
-	} else if constructorImport.Alias != "" {
-		redisFunction = constructorImport.Alias
+	redisFunctions := constructorImport.UsedAs
+	if redisFunctions == nil {
+		// This is when there's an "import redis" (as opposed to "from redis import Redis")
+		redisFunctions = map[string]struct{}{"Redis": {}}
 	}
-	if clusterRedisFunction == "" {
-		clusterRedisFunction = "RedisCluster"
-	} else if clusterConstructorImport.Alias != "" {
-		clusterRedisFunction = clusterConstructorImport.Alias
-	}
-	if redisImport.Alias != "" {
-		redisImportName = redisImport.Alias
-	}
-	if clustermoduleImport.Alias != "" {
-		clustermoduleImportName = clustermoduleImport.Alias
+	clusterRedisFunctions := clusterConstructorImport.UsedAs
+	if clusterRedisFunctions == nil {
+		clusterRedisFunctions = map[string]struct{}{"RedisCluster": {}}
 	}
 
 	nextMatch := DoQuery(annotation.Node, redis)
@@ -683,17 +664,17 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 	redisVar, funcCall, args, module, subModule := match["redisVar"], match["funcCall"], match["args"], match["module"], match["subModule"]
 
 	// this Redis() or RedisCluster() invocation belongs to an object other the redis module
-	if redisImported && !clusterModuleImported && module != nil && !query.NodeContentEquals(module, redisImportName) {
+	if redisImported && !clusterModuleImported && module != nil && !query.NodeContentIn(module, redisImport.UsedAs) {
 		return nil
 	}
 
 	// import is similar to `from redis import cluster` and the RedisCluster call does not use cluster module
-	if clusterModuleImported && !query.NodeContentEquals(module, clustermoduleImportName) {
+	if clusterModuleImported && !query.NodeContentIn(module, clustermoduleImport.UsedAs) {
 		return nil
 	}
 
 	// Redis is not self imported and the function call does not match the redis or redis cluster function call from the import
-	if !redisImported && (!query.NodeContentEquals(funcCall, redisFunction) && (!query.NodeContentEquals(funcCall, clusterRedisFunction))) {
+	if !redisImported && (!query.NodeContentIn(funcCall, redisFunctions) && (!query.NodeContentIn(funcCall, clusterRedisFunctions))) {
 		return nil
 	}
 
@@ -710,7 +691,7 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 	var construct core.Construct
 
 	construct = &core.RedisNode{}
-	if funcCall.Content() == clusterRedisFunction {
+	if _, isClusterRedisFunc := clusterRedisFunctions[funcCall.Content()]; isClusterRedisFunc {
 		construct = &core.RedisCluster{}
 	}
 

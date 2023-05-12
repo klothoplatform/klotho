@@ -1,11 +1,11 @@
 package python
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,44 +19,47 @@ func TestFindImports(t *testing.T) {
 			name:   "import module",
 			source: "import mymodule",
 			want: map[string]Import{
-				"mymodule": {Name: "mymodule"},
+				"mymodule": {Name: "mymodule", UsedAs: testutil.NewSet("mymodule")},
 			},
 		},
 		{
 			name:   "import module aliased",
 			source: "import mymodule as m",
 			want: map[string]Import{
-				"mymodule": {Name: "mymodule", Alias: "m"},
+				"mymodule": {Name: "mymodule", UsedAs: testutil.NewSet("m")},
 			},
 		},
 		{
 			name:   "import modules",
 			source: "import mymodule1, mymodule2",
 			want: map[string]Import{
-				"mymodule1": {Name: "mymodule1"},
-				"mymodule2": {Name: "mymodule2"},
+				"mymodule1": {Name: "mymodule1", UsedAs: testutil.NewSet("mymodule1")},
+				"mymodule2": {Name: "mymodule2", UsedAs: testutil.NewSet("mymodule2")},
 			},
 		},
 		{
 			name:   "import modules aliased",
 			source: "import mymodule1 as m1, mymodule2 as m2",
 			want: map[string]Import{
-				"mymodule1": {Name: "mymodule1", Alias: "m1"},
-				"mymodule2": {Name: "mymodule2", Alias: "m2"},
+				"mymodule1": {Name: "mymodule1", UsedAs: testutil.NewSet("m1")},
+				"mymodule2": {Name: "mymodule2", UsedAs: testutil.NewSet("m2")},
 			},
 		},
 		{
 			name:   "import submodule",
 			source: "import mymodule.submodule",
 			want: map[string]Import{
-				"mymodule.submodule": {ParentModule: "mymodule", Name: "submodule"},
+				"mymodule.submodule": {
+					ParentModule: "mymodule",
+					Name:         "submodule",
+					UsedAs:       testutil.NewSet("mymodule.submodule")},
 			},
 		},
 		{
 			name:   "import submodule aliased",
 			source: "import mymodule.submodule as w",
 			want: map[string]Import{
-				"mymodule.submodule": {ParentModule: "mymodule", Name: "submodule", Alias: "w"},
+				"mymodule.submodule": {ParentModule: "mymodule", Name: "submodule", UsedAs: testutil.NewSet("w")},
 			},
 		},
 		{
@@ -66,7 +69,7 @@ func TestFindImports(t *testing.T) {
 				"mymodule.submodule1.submodule2": {
 					ParentModule: "mymodule.submodule1",
 					Name:         "submodule2",
-					Alias:        "w",
+					UsedAs:       testutil.NewSet("w"),
 				},
 			},
 		},
@@ -78,12 +81,12 @@ func TestFindImports(t *testing.T) {
 					ParentModule: "..",
 					Name:         "",
 					ImportedAttributes: map[string]Attribute{
-						"mymodule": {Name: "mymodule"},
+						"mymodule": {Name: "mymodule", UsedAs: testutil.NewSet("mymodule")},
 					}},
 				"..parent": {
 					ParentModule:       "..",
 					Name:               "parent",
-					ImportedAttributes: map[string]Attribute{"child.attribute": {Name: "child.attribute"}},
+					ImportedAttributes: map[string]Attribute{"child.attribute": {Name: "child.attribute", UsedAs: testutil.NewSet("child.attribute")}},
 				},
 			},
 		},
@@ -94,7 +97,7 @@ func TestFindImports(t *testing.T) {
 				"mymodule": {
 					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
-						"attribute": {Name: "attribute"},
+						"attribute": {Name: "attribute", UsedAs: testutil.NewSet("attribute")},
 					}},
 			},
 		},
@@ -106,8 +109,8 @@ func TestFindImports(t *testing.T) {
 				"mymodule": {
 					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
-						"attribute1": {Name: "attribute1"},
-						"attribute2": {Name: "attribute2"},
+						"attribute1": {Name: "attribute1", UsedAs: testutil.NewSet("attribute1")},
+						"attribute2": {Name: "attribute2", UsedAs: testutil.NewSet("attribute2")},
 					}},
 			},
 		},
@@ -118,8 +121,8 @@ func TestFindImports(t *testing.T) {
 				"mymodule": {
 					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
-						"attribute1": {Name: "attribute1"},
-						"attribute2": {Name: "attribute2"},
+						"attribute1": {Name: "attribute1", UsedAs: testutil.NewSet("attribute1")},
+						"attribute2": {Name: "attribute2", UsedAs: testutil.NewSet("attribute2")},
 					}},
 			},
 		},
@@ -130,8 +133,23 @@ func TestFindImports(t *testing.T) {
 				"mymodule": {
 					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
-						"attribute1": {Name: "attribute1", Alias: "a1"},
-						"attribute2": {Name: "attribute2", Alias: "a2"},
+						"attribute1": {Name: "attribute1", UsedAs: testutil.NewSet("a1")},
+						"attribute2": {Name: "attribute2", UsedAs: testutil.NewSet("a2")},
+					}},
+			},
+		},
+		{
+			name: "from module import attributes aliased multiple times",
+			source: testutil.UnIndent(`
+				from mymodule import attribute1
+				from mymodule import attribute1 as a1
+				from mymodule import attribute1 as a2
+				`),
+			want: map[string]Import{
+				"mymodule": {
+					Name: "mymodule",
+					ImportedAttributes: map[string]Attribute{
+						"attribute1": {Name: "attribute1", UsedAs: testutil.NewSet("attribute1", "a1", "a2")},
 					}},
 			},
 		},
@@ -139,7 +157,7 @@ func TestFindImports(t *testing.T) {
 			name:   "import sibling",
 			source: "from . import mymodule",
 			want: map[string]Import{
-				".": {ParentModule: ".", ImportedAttributes: map[string]Attribute{"mymodule": {Name: "mymodule"}}},
+				".": {ParentModule: ".", ImportedAttributes: map[string]Attribute{"mymodule": {Name: "mymodule", UsedAs: testutil.NewSet("mymodule")}}},
 			},
 		},
 		{
@@ -152,37 +170,48 @@ func TestFindImports(t *testing.T) {
 			`,
 			want: map[string]Import{
 				"module1": {
-					Name: "module1",
+					Name:   "module1",
+					UsedAs: testutil.NewSet("module1"),
 				},
 				"module2.submodule1": {
 					ParentModule: "module2",
 					Name:         "submodule1",
+					UsedAs:       testutil.NewSet("module2.submodule1"),
 				},
 				"module3": {
 					Name: "module3",
 					ImportedAttributes: map[string]Attribute{
-						"attribute1": {Name: "attribute1"},
-						"attribute2": {Name: "attribute2"},
+						"attribute1": {Name: "attribute1", UsedAs: testutil.NewSet("attribute1")},
+						"attribute2": {Name: "attribute2", UsedAs: testutil.NewSet("attribute2")},
 					},
 				},
 				"..": {
 					ParentModule: "..",
 					Name:         "",
 					ImportedAttributes: map[string]Attribute{
-						"attribute1": {Name: "attribute1"},
+						"attribute1": {Name: "attribute1", UsedAs: testutil.NewSet("attribute1")},
 					},
 				},
 			},
 		},
-		{ // TODO https://github.com/klothoplatform/klotho/issues/567
+		{
 			name: "import module aliased twice",
 			source: `
 				import module1 as a
 				import module1 as b
 `,
 			want: map[string]Import{
-				"module1": {Name: "module1", Alias: "a"},
-				// missing alias 'b'
+				"module1": {Name: "module1", UsedAs: testutil.NewSet("a", "b")},
+			},
+		},
+		{
+			name: "imported twice once with alias",
+			source: `
+				import module1
+				import module1 as a
+`,
+			want: map[string]Import{
+				"module1": {Name: "module1", UsedAs: testutil.NewSet("module1", "a")},
 			},
 		},
 	}
@@ -195,9 +224,9 @@ func TestFindImports(t *testing.T) {
 				return
 			}
 
-			imports := FindImports(f)
+			imports := FindFileImports(f)
 			if len(tt.want) != len(imports) {
-				fmt.Println(imports)
+				t.Log(imports)
 			}
 			assert.Equal(len(tt.want), len(imports))
 			for qualifiedName, i := range imports {
@@ -225,7 +254,7 @@ func TestResolveFileDependencies(t *testing.T) {
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other.py": NewSet("my_method"),
+					"other.py": testutil.NewSet("my_method"),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -238,7 +267,7 @@ func TestResolveFileDependencies(t *testing.T) {
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"shared/other.py": NewSet[string](),
+					"shared/other.py": testutil.NewSet[string](),
 				},
 				"shared/other.py": map[string]core.References{},
 			},
@@ -251,7 +280,7 @@ func TestResolveFileDependencies(t *testing.T) {
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other.py": NewSet("method_a", "method_2"),
+					"other.py": testutil.NewSet("method_a", "method_2"),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -264,7 +293,19 @@ func TestResolveFileDependencies(t *testing.T) {
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other.py": NewSet("method_a"),
+					"other.py": testutil.NewSet("method_a"),
+				},
+				"other.py": map[string]core.References{},
+			},
+		},
+		{
+			input: map[string]string{
+				"main.py":  `from other import method_a as aaa`,
+				"other.py": `pass`,
+			},
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
+					"other.py": testutil.NewSet("method_a"),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -280,7 +321,7 @@ other.hello_world()
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other.py": NewSet("hello_world"),
+					"other.py": testutil.NewSet("hello_world"),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -296,7 +337,7 @@ print(other.hello_world)
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other.py": NewSet("hello_world"),
+					"other.py": testutil.NewSet("hello_world"),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -309,7 +350,7 @@ print(other.hello_world)
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other.py": NewSet[string](),
+					"other.py": testutil.NewSet[string](),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -325,7 +366,7 @@ some_other.hello_world()
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other.py": NewSet("hello_world"),
+					"other.py": testutil.NewSet("hello_world"),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -338,7 +379,7 @@ some_other.hello_world()
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other/hello.py": NewSet[string](),
+					"other/hello.py": testutil.NewSet[string](),
 				},
 				"other/hello.py": map[string]core.References{},
 			},
@@ -351,7 +392,7 @@ some_other.hello_world()
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other/hello.py": NewSet("a"),
+					"other/hello.py": testutil.NewSet("a"),
 				},
 				"other/hello.py": map[string]core.References{},
 			},
@@ -368,7 +409,7 @@ other.hello.say_hi()
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other/hello.py": NewSet("say_hi"),
+					"other/hello.py": testutil.NewSet("say_hi"),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -385,7 +426,7 @@ other.hello.world.say_hi()
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other/hello/world.py": NewSet("say_hi"),
+					"other/hello/world.py": testutil.NewSet("say_hi"),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -399,8 +440,8 @@ other.hello.world.say_hi()
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"foo.py":  NewSet("bar"),
-					"fizz.py": NewSet("buzz"),
+					"foo.py":  testutil.NewSet("bar"),
+					"fizz.py": testutil.NewSet("buzz"),
 				},
 				"foo.py":  map[string]core.References{},
 				"fizz.py": map[string]core.References{},
@@ -425,7 +466,7 @@ other.hello.world.say_hi()
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other.py": NewSet[string](),
+					"other.py": testutil.NewSet[string](),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -438,7 +479,7 @@ other.hello.world.say_hi()
 			},
 			expect: map[string]core.Imported{
 				"mod/main.py": map[string]core.References{
-					"other.py": NewSet[string](),
+					"other.py": testutil.NewSet[string](),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -451,7 +492,7 @@ other.hello.world.say_hi()
 			},
 			expect: map[string]core.Imported{
 				"main.py": map[string]core.References{
-					"other.py": NewSet[string](),
+					"other.py": testutil.NewSet[string](),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -464,7 +505,7 @@ other.hello.world.say_hi()
 			},
 			expect: map[string]core.Imported{
 				"mod/main.py": map[string]core.References{
-					"other.py": NewSet[string](),
+					"other.py": testutil.NewSet[string](),
 				},
 				"other.py": map[string]core.References{},
 			},
@@ -607,6 +648,7 @@ func TestFindImportedFile(t *testing.T) {
 func validateImport(assert *assert.Assertions, content []byte, expected Import, actual Import) {
 	assert.Equal(expected.ParentModule, actual.ParentModule)
 	assert.Equal(expected.Name, actual.Name)
+	assert.Equal(expected.UsedAs, actual.UsedAs)
 
 	assert.Equal(len(expected.ImportedAttributes), len(actual.ImportedAttributes))
 	for i := range expected.ImportedAttributes {
@@ -619,41 +661,33 @@ func validateAttribute(assert *assert.Assertions, content []byte, expected Attri
 
 }
 
-func NewSet[K comparable](elements ...K) map[K]struct{} {
-	result := make(map[K]struct{}, len(elements))
-	for _, elem := range elements {
-		result[elem] = struct{}{}
-	}
-	return result
-}
-
 func Test_referencesForImport(t *testing.T) {
 	tests := []struct {
-		name         string
-		program      string
-		importModule string
-		want         core.References
+		name          string
+		program       string
+		importModules map[string]struct{}
+		want          core.References
 	}{
 		{
 			name: "imported function call",
 			program: `import blah
 blah.foo()`,
-			importModule: "blah",
-			want:         core.References{"foo": {}},
+			importModules: testutil.NewSet("blah"),
+			want:          core.References{"foo": {}},
 		},
 		{
 			name: "imported constant",
 			program: `import blah
 b = blah.a + 1`,
-			importModule: "blah",
-			want:         core.References{"a": {}},
+			importModules: testutil.NewSet("blah"),
+			want:          core.References{"a": {}},
 		},
 		{
 			name: "imported subproperty",
 			program: `import blah
 blah.a.b()`,
-			importModule: "blah",
-			want:         core.References{"a": {}},
+			importModules: testutil.NewSet("blah"),
+			want:          core.References{"a": {}},
 		},
 	}
 	for _, tt := range tests {
@@ -665,7 +699,7 @@ blah.a.b()`,
 				return
 			}
 
-			got := referencesForImport(parsed.Tree().RootNode(), tt.importModule)
+			got := referencesForImport(parsed.Tree().RootNode(), tt.importModules)
 			assert.Equal(tt.want, got)
 		})
 	}

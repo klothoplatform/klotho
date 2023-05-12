@@ -24,6 +24,12 @@ func NodeContentEquals(node *sitter.Node, s string) bool {
 	return false
 }
 
+// NodeContentIn returns whether the node's content is a key in the given set.
+func NodeContentIn(node *sitter.Node, m map[string]struct{}) bool {
+	_, keyExists := m[node.Content()]
+	return keyExists
+}
+
 func NodeContentRegex(node *sitter.Node, regex *regexp.Regexp) bool {
 	content := node.Content()
 	return regex.MatchString(content)

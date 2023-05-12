@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,10 +31,17 @@ func Test_persister_queryKV(t *testing.T) {
 			matchExpression: "myCache=aiocache.Cache(aiocache.Cache.MEMORY)",
 		},
 		{
+			name: "aiocache import with alias",
+			source: testutil.UnIndent(`
+				import aiocache as a
+				myCache=a.Cache(a.Cache.MEMORY)`),
+			matchName:       "myCache",
+			matchExpression: "myCache=a.Cache(a.Cache.MEMORY)",
+		},
+		{
 			name:   "other 'Cache' function not matched",
 			source: "import other\nmyCache=other.Cache(aiocache.Cache.MEMORY)\nmyCache=Cache(aiocache.Cache.MEMORY)",
 		},
-		// TODO: add cases for import aliases when adding alias support
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -162,54 +170,127 @@ myCache = Cache(cache_class=keyvalue.KVStore, my_arg="value", serializer=keyvalu
 
 // FS Tests
 func Test_persister_queryFs(t *testing.T) {
-	tests := []struct {
-		name            string
-		source          string
+	type result struct {
 		matchName       string
 		matchExpression string
+	}
+	tests := []struct {
+		name    string
+		imports []string
+		// want is a slice of results, each corresponding to one top-level node in the source
+		want []result
 	}{
 		{
-			name:            "aiofiles import match",
-			source:          "import aiofiles",
-			matchName:       "aiofiles",
-			matchExpression: "import aiofiles",
+			name:    "aiofiles import match",
+			imports: []string{"import aiofiles"},
+			want: []result{
+				{
+					matchName:       "aiofiles",
+					matchExpression: "import aiofiles",
+				},
+			},
 		},
 		{
-			name:            "aiofiles import alias match",
-			source:          "import aiofiles as fs",
-			matchName:       "fs",
-			matchExpression: "import aiofiles as fs",
+			name:    "aiofiles import alias match",
+			imports: []string{"import aiofiles as fs"},
+			want: []result{
+				{
+					matchName:       "fs",
+					matchExpression: "import aiofiles as fs",
+				},
+			},
 		},
 		{
-			name:   "other 'import not matched",
-			source: "import other",
+			name:    "other 'import not matched",
+			imports: []string{"import other"},
+			want:    []result{{}},
+		},
+		{
+			name:    "imported with alias",
+			imports: []string{`import aiofiles as fs`},
+			want: []result{
+				{
+					matchName:       "fs",
+					matchExpression: `import aiofiles as fs`,
+				},
+			},
+		},
+		{
+			name: "imported twice with different aliases",
+			imports: []string{
+				`import aiofiles as first`,
+				`import aiofiles as second`,
+			},
+			want: []result{
+				{
+					matchName:       "first",
+					matchExpression: `import aiofiles as first`,
+				},
+				{
+					matchName:       "second",
+					matchExpression: `import aiofiles as second`,
+				},
+			},
+		},
+		{
+			name:    "attribute import",
+			imports: []string{`from aiofiles import open`},
+			want: []result{
+				{},
+			},
+		},
+		{
+			name:    "attribute import with alias",
+			imports: []string{`from aiofiles import open as o`},
+			want: []result{
+				{},
+			},
+		},
+		{
+			name: "both supported and unsupported imports",
+			imports: []string{
+				`import aiofiles`,
+				`from aiofiles import open`,
+			},
+			want: []result{
+				{
+					matchName:       "aiofiles",
+					matchExpression: `import aiofiles`,
+				},
+				{},
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := NewFile("test.py", strings.NewReader(tt.source))
+			f, err := NewFile("test.py", strings.NewReader(strings.Join(tt.imports, "\n")))
 			if !assert.NoError(err) {
 				return
 			}
 
-			cap := &core.Annotation{
-				Capability: &annotation.Capability{Name: annotation.PersistCapability},
-				Node:       f.Tree().RootNode(),
-			}
+			for idx, imp := range tt.imports {
+				childNode := testutil.FindNodeByContent(f.Tree().RootNode(), imp)
+				want := tt.want[idx]
 
-			p := persister{}
-
-			kvResult := p.queryFS(f, cap, true)
-
-			if tt.matchExpression != "" || tt.matchName != "" {
-				if assert.NotNil(kvResult) {
-					assert.Equal(tt.matchExpression, kvResult.expression)
-					assert.Equal(tt.matchName, kvResult.name)
+				cap := &core.Annotation{
+					Capability: &annotation.Capability{Name: annotation.PersistCapability},
+					Node:       childNode,
 				}
-			} else {
-				assert.Nil(kvResult)
+
+				p := persister{}
+
+				kvResult := p.queryFS(f, cap, true)
+
+				if want.matchExpression != "" || want.matchName != "" {
+					if assert.NotNil(kvResult) {
+						assert.Equal(want.matchExpression, kvResult.expression)
+						assert.Equal(want.matchName, kvResult.name)
+					}
+				} else {
+					assert.Nilf(kvResult, "for item %d", idx)
+				}
 			}
 		})
 	}
@@ -467,110 +548,132 @@ import klotho_runtime.secret as fs`,
 func Test_persister_queryOrm(t *testing.T) {
 	tests := []struct {
 		name            string
-		source          string
+		imports         string
+		annotatedLine   string
 		matchName       string
 		matchExpression string
 	}{
 		{
-			name: "create engine constructor import match",
-			source: `
-			from sqlalchemy import create_engine
-			engine = create_engine("sqlite://", echo=True, future=True)
-			`,
+			name:            "create engine constructor import match",
+			imports:         `from sqlalchemy import create_engine`,
+			annotatedLine:   `engine = create_engine("sqlite://", echo=True, future=True)`,
 			matchName:       "engine",
 			matchExpression: "\"sqlite://\"",
 		},
 		{
-			name: "sqlalchemy import match",
-			source: `
-			import sqlalchemy
-			engine = sqlalchemy.create_engine("sqlite://", echo=True, future=True)
-			`,
+			name:            "sqlalchemy import match",
+			imports:         `import sqlalchemy`,
+			annotatedLine:   `engine = sqlalchemy.create_engine("sqlite://", echo=True, future=True)`,
 			matchName:       "engine",
 			matchExpression: "\"sqlite://\"",
 		},
 		{
-			name: "sqlalchemy import match as alias",
-			source: `
-			import sqlalchemy as sql
-			engine = sql.create_engine("sqlite://", echo=True, future=True)
-			`,
+			name:            "sqlalchemy import match as alias",
+			imports:         `import sqlalchemy as sql`,
+			annotatedLine:   `engine = sql.create_engine("sqlite://", echo=True, future=True)`,
 			matchName:       "engine",
 			matchExpression: "\"sqlite://\"",
 		},
 		{
-			name: "sqlalchemy import match as attribute alias",
-			source: `
-			from sqlalchemy import create_engine as eng
-			engine = eng("sqlite://", echo=True, future=True)
-			`,
+			name:            "sqlalchemy import match as attribute alias",
+			imports:         `from sqlalchemy import create_engine as eng`,
+			annotatedLine:   `engine = eng("sqlite://", echo=True, future=True)`,
 			matchName:       "engine",
 			matchExpression: "\"sqlite://\"",
 		},
 		{
-			name: "create engine constructor import match only conn string",
-			source: `
-			from sqlalchemy import create_engine
-			engine = create_engine("sqlite://")
-			`,
+			name:            "create engine constructor import match only conn string",
+			imports:         `from sqlalchemy import create_engine`,
+			annotatedLine:   `engine = create_engine("sqlite://")`,
 			matchName:       "engine",
 			matchExpression: "\"sqlite://\"",
 		},
 		{
-			name: "create engine constructor import match no conn string",
-			source: `
-			from sqlalchemy import create_engine
-			engine = create_engine()
-			`,
+			name:          "create engine constructor import match no conn string",
+			imports:       `from sqlalchemy import create_engine`,
+			annotatedLine: `engine = create_engine()`,
 		},
 		{
-			name: "create engine constructor import match only conn string as fstring",
-			source: `
-			from sqlalchemy import create_engine
-			engine = create_engine(f'sqlite://{foo}')
-			`,
+			name:            "create engine constructor import match only conn string as fstring",
+			imports:         `from sqlalchemy import create_engine`,
+			annotatedLine:   `engine = create_engine(f'sqlite://{foo}')`,
 			matchName:       "engine",
 			matchExpression: "f'sqlite://{foo}'",
 		},
 		{
-			name: "create engine constructor import match only conn string as method",
-			source: `
-			from sqlalchemy import create_engine
-			engine = create_engine(method())
-			`,
+			name:            "create engine constructor import match only conn string as method",
+			imports:         `from sqlalchemy import create_engine`,
+			annotatedLine:   `engine = create_engine(method())`,
 			matchName:       "engine",
 			matchExpression: "method()",
 		},
 		{
 			name: "other import function not matched",
-			source: `
-			import other
-			import sqlalchemy
-			myCache = other.create_engine("sqlite://", echo=True, future=True)
-			`,
+			imports: testutil.UnIndent(`
+				import other
+				import sqlalchemy`),
+			annotatedLine: `myCache = other.create_engine("sqlite://", echo=True, future=True)`,
 		},
 		{
 			name: "other 'create_engine' function not matched",
-			source: `
-			from other import create_engine
-			from sqlalchemy import something
-			myCache = other.create_engine("sqlite://", echo=True, future=True)
-			`,
+			imports: testutil.UnIndent(`
+				from other import create_engine
+				from sqlalchemy import something`),
+			annotatedLine: `myCache = other.create_engine("sqlite://", echo=True, future=True)`,
 		},
-		// TODO: add cases for import aliases when adding alias support
+		{
+			name:            "import sqlalchemy with alias",
+			imports:         `import sqlalchemy as s`,
+			annotatedLine:   `engine = s.create_engine("sqlite://", echo=True, future=True)`,
+			matchName:       "engine",
+			matchExpression: "\"sqlite://\"",
+		},
+		{
+			name:            "import sqlalchemy with alias",
+			imports:         `import sqlalchemy as s`,
+			annotatedLine:   `engine = s.create_engine("sqlite://", echo=True, future=True)`,
+			matchName:       "engine",
+			matchExpression: "\"sqlite://\"",
+		},
+		{
+			name:            "import create_engine with alias",
+			imports:         `from sqlalchemy import create_engine as ce`,
+			annotatedLine:   `engine = ce(method())`,
+			matchName:       "engine",
+			matchExpression: "method()",
+		},
+		{
+			name: "multiple imports with alias",
+			imports: testutil.UnIndent(`
+				import sqlalchemy
+				from sqlalchemy import create_engine as something
+				from sqlalchemy import create_engine as ce`),
+			annotatedLine:   `engine = ce(method())`,
+			matchName:       "engine",
+			matchExpression: "method()",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := NewFile("test.py", strings.NewReader(tt.source))
+			if !assert.NotContains(tt.annotatedLine, "\n", `bug in the test: "annotated"" line must be a single line`) {
+				return
+			}
+
+			f, err := NewFile("test.py", strings.NewReader(tt.imports+"\n"+tt.annotatedLine))
 			if !assert.NoError(err) {
+				return
+			}
+
+			annotatedNode := testutil.FindNodeByContent(f.Tree().RootNode(), tt.annotatedLine)
+			if !assert.NotNil(annotatedNode, "bug in the test: couldn't find annotated node") {
 				return
 			}
 
 			cap := &core.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
-				Node:       f.Tree().RootNode(),
+				Node:       annotatedNode,
 			}
 
 			p := persister{}
