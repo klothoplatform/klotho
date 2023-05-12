@@ -19,7 +19,7 @@ func TestFindImports(t *testing.T) {
 			name:   "import module",
 			source: "import mymodule",
 			want: map[string]Import{
-				"mymodule": {Name: "mymodule"},
+				"mymodule": {Name: "mymodule", UsedAs: testutil.NewSet("mymodule")},
 			},
 		},
 		{
@@ -33,8 +33,8 @@ func TestFindImports(t *testing.T) {
 			name:   "import modules",
 			source: "import mymodule1, mymodule2",
 			want: map[string]Import{
-				"mymodule1": {Name: "mymodule1"},
-				"mymodule2": {Name: "mymodule2"},
+				"mymodule1": {Name: "mymodule1", UsedAs: testutil.NewSet("mymodule1")},
+				"mymodule2": {Name: "mymodule2", UsedAs: testutil.NewSet("mymodule2")},
 			},
 		},
 		{
@@ -49,7 +49,10 @@ func TestFindImports(t *testing.T) {
 			name:   "import submodule",
 			source: "import mymodule.submodule",
 			want: map[string]Import{
-				"mymodule.submodule": {ParentModule: "mymodule", Name: "submodule"},
+				"mymodule.submodule": {
+					ParentModule: "mymodule",
+					Name:         "submodule",
+					UsedAs:       testutil.NewSet("mymodule.submodule")},
 			},
 		},
 		{
@@ -78,12 +81,12 @@ func TestFindImports(t *testing.T) {
 					ParentModule: "..",
 					Name:         "",
 					ImportedAttributes: map[string]Attribute{
-						"mymodule": {Name: "mymodule"},
+						"mymodule": {Name: "mymodule", UsedAs: testutil.NewSet("mymodule")},
 					}},
 				"..parent": {
 					ParentModule:       "..",
 					Name:               "parent",
-					ImportedAttributes: map[string]Attribute{"child.attribute": {Name: "child.attribute"}},
+					ImportedAttributes: map[string]Attribute{"child.attribute": {Name: "child.attribute", UsedAs: testutil.NewSet("child.attribute")}},
 				},
 			},
 		},
@@ -94,7 +97,7 @@ func TestFindImports(t *testing.T) {
 				"mymodule": {
 					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
-						"attribute": {Name: "attribute"},
+						"attribute": {Name: "attribute", UsedAs: testutil.NewSet("attribute")},
 					}},
 			},
 		},
@@ -106,8 +109,8 @@ func TestFindImports(t *testing.T) {
 				"mymodule": {
 					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
-						"attribute1": {Name: "attribute1"},
-						"attribute2": {Name: "attribute2"},
+						"attribute1": {Name: "attribute1", UsedAs: testutil.NewSet("attribute1")},
+						"attribute2": {Name: "attribute2", UsedAs: testutil.NewSet("attribute2")},
 					}},
 			},
 		},
@@ -118,8 +121,8 @@ func TestFindImports(t *testing.T) {
 				"mymodule": {
 					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
-						"attribute1": {Name: "attribute1"},
-						"attribute2": {Name: "attribute2"},
+						"attribute1": {Name: "attribute1", UsedAs: testutil.NewSet("attribute1")},
+						"attribute2": {Name: "attribute2", UsedAs: testutil.NewSet("attribute2")},
 					}},
 			},
 		},
@@ -154,7 +157,7 @@ func TestFindImports(t *testing.T) {
 			name:   "import sibling",
 			source: "from . import mymodule",
 			want: map[string]Import{
-				".": {ParentModule: ".", ImportedAttributes: map[string]Attribute{"mymodule": {Name: "mymodule"}}},
+				".": {ParentModule: ".", ImportedAttributes: map[string]Attribute{"mymodule": {Name: "mymodule", UsedAs: testutil.NewSet("mymodule")}}},
 			},
 		},
 		{
@@ -167,24 +170,26 @@ func TestFindImports(t *testing.T) {
 			`,
 			want: map[string]Import{
 				"module1": {
-					Name: "module1",
+					Name:   "module1",
+					UsedAs: testutil.NewSet("module1"),
 				},
 				"module2.submodule1": {
 					ParentModule: "module2",
 					Name:         "submodule1",
+					UsedAs:       testutil.NewSet("module2.submodule1"),
 				},
 				"module3": {
 					Name: "module3",
 					ImportedAttributes: map[string]Attribute{
-						"attribute1": {Name: "attribute1"},
-						"attribute2": {Name: "attribute2"},
+						"attribute1": {Name: "attribute1", UsedAs: testutil.NewSet("attribute1")},
+						"attribute2": {Name: "attribute2", UsedAs: testutil.NewSet("attribute2")},
 					},
 				},
 				"..": {
 					ParentModule: "..",
 					Name:         "",
 					ImportedAttributes: map[string]Attribute{
-						"attribute1": {Name: "attribute1"},
+						"attribute1": {Name: "attribute1", UsedAs: testutil.NewSet("attribute1")},
 					},
 				},
 			},
@@ -222,13 +227,6 @@ func TestFindImports(t *testing.T) {
 			imports := FindImports(f)
 			if len(tt.want) != len(imports) {
 				t.Log(imports)
-			}
-			// fix up all the wanted imports to give them aliases, if they don't already have them
-			for k, imp := range tt.want {
-				if imp.UsedAs == nil && len(imp.ImportedAttributes) == 0 {
-					imp.UsedAs = testutil.NewSet(k)
-					tt.want[k] = imp
-				}
 			}
 			assert.Equal(len(tt.want), len(imports))
 			for qualifiedName, i := range imports {

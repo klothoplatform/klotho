@@ -436,8 +436,6 @@ func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, 
 	}
 	aiocacheImported := len(aiocacheImport.ImportedAttributes) == 0
 	cacheImport, cacheImported := aiocacheImport.ImportedAttributes["Cache"]
-	functionHostName := aiocacheImport.Name
-	cacheFunction := cacheImport.Name
 
 	nextMatch := DoQuery(annotation.Node, persistKV)
 
@@ -449,12 +447,12 @@ func (p *persister) queryKV(file *core.SourceFile, annotation *core.Annotation, 
 	expression, name, functionHost, function := match["expression"], match["name"], match["functionHost"], match["function"]
 
 	// this assignment/invocation is unrelated to aiocache.Cache instantiation
-	if !aiocacheImported && !query.NodeContentEquals(function, cacheFunction) {
+	if !aiocacheImported && !query.NodeContentIn(function, cacheImport.UsedAs) {
 		return nil
 	}
 
 	// this Cache() invocation belongs to an object other the aiocache module
-	if aiocacheImported && functionHost != nil && !query.NodeContentEquals(functionHost, functionHostName) {
+	if aiocacheImported && functionHost != nil && !query.NodeContentIn(functionHost, aiocacheImport.UsedAs) {
 		return nil
 	}
 
