@@ -24,6 +24,11 @@ func NodeContentEquals(node *sitter.Node, s string) bool {
 	return false
 }
 
+func NodeContentIn[K any](node *sitter.Node, m map[string]K) bool {
+	_, keyExists := m[node.Content()]
+	return keyExists
+}
+
 func NodeContentRegex(node *sitter.Node, regex *regexp.Regexp) bool {
 	content := node.Content()
 	return regex.MatchString(content)

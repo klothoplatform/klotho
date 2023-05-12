@@ -27,9 +27,10 @@ type Import struct {
 }
 
 type Attribute struct {
-	Name  string
-	Node  *sitter.Node
-	Alias string
+	Name string
+	Node *sitter.Node
+	// UsedAs is the same as [Import.UsedAs], but for attributes
+	UsedAs map[string]struct{}
 }
 
 type Imports map[string]Import
@@ -46,14 +47,6 @@ func (imp Import) ModuleDir() string {
 		moduleRoot += imp.Name
 	}
 	return moduleRoot
-}
-
-func (attr Attribute) UsedAs() string {
-	if attr.Alias != "" {
-		return attr.Alias
-	} else {
-		return attr.Name
-	}
 }
 
 // FindImports returns a map containing each import statement within the file, as a map keyed by the import's qualified
@@ -135,21 +128,32 @@ func FindImports(file *core.SourceFile) Imports {
 			qualifiedModuleName += "." + moduleName
 		}
 		i := fileImports[qualifiedModuleName]
-		// technically, this may be a submodule, but we can't tell without deeper analysis of the imported file
+		// this may be a submodule, but we can't tell without deeper analysis of the imported file
 		if attribute != nil {
 			attributeName := attribute.Content()
 			ia := i.ImportedAttributes
 			if ia == nil {
 				ia = map[string]Attribute{}
 			}
-			aliasFrom := ""
-			if alias != nil {
-				aliasFrom = alias.Content()
+			// Upsert a "UsedAs" map for this attribute
+			var attributeAliases map[string]struct{}
+			if existingIa, exists := ia[attributeName]; exists {
+				attributeAliases = existingIa.UsedAs
 			}
+			if attributeAliases == nil {
+				attributeAliases = make(map[string]struct{})
+			}
+			// Insert either the attribute name, or the alias if it exists
+			if alias == nil {
+				attributeAliases[attributeName] = struct{}{}
+			} else {
+				attributeAliases[alias.Content()] = struct{}{}
+			}
+			panic("TODO -- test me!")
 			ia[attributeName] = Attribute{
-				Name:  attributeName,
-				Node:  attribute,
-				Alias: aliasFrom,
+				Name:   attributeName,
+				Node:   attribute,
+				UsedAs: attributeAliases,
 			}
 			i.ImportedAttributes = ia
 		} else {
@@ -271,7 +275,7 @@ func dependenciesForImport(relativeToPath string, spec Import, files map[string]
 			deps[modulePath] = refs
 		}
 
-		importRefs := referencesForImport(moduleFile.Tree().RootNode(), map[string]struct{}{attr.UsedAs(): {}})
+		importRefs := referencesForImport(moduleFile.Tree().RootNode(), attr.UsedAs)
 		refs.AddAll(importRefs)
 	}
 
