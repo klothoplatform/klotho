@@ -33,7 +33,7 @@ func TestAllTypesHaveIcons(t *testing.T) {
 				assert := assert.New(t)
 				typeNameBuf := bytes.Buffer{}
 				typeNameBuf.WriteString(typeName)
-				_, err := api.request(http.MethodGet, `validate-types`, `application/text`, ``, &typeNameBuf)
+				_, err := api.request(http.MethodPost, `validate-types`, `application/text`, ``, &typeNameBuf)
 				assert.NoError(err)
 			})
 		}
