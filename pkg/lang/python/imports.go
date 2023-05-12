@@ -15,7 +15,10 @@ import (
 // TODO: capture import scope (e.g. IsGlobal/IsLocal)
 type Import struct {
 	ParentModule string
-	Name         string
+	// Name is the unqualified name of the actual module. This is not necessarily the name by which the python source
+	// will refer to this module, because of aliases and qualified imports. For any analysis of the user's source code,
+	// you should use UsedAs instead.
+	Name string
 	// ImportedAttributes is a map from attribute name, to information about that attribute.
 	// Given a statement `from foo import bar as the_bar` the attribute name is `bar`.
 	ImportedAttributes map[string]Attribute
@@ -27,6 +30,8 @@ type Import struct {
 }
 
 type Attribute struct {
+	// Name is the module attribute's name. This is not necessarily the name by which the python source will refer to
+	// this module, because of aliases. For any analysis of the user's source code, you should use UsedAs instead.
 	Name string
 	Node *sitter.Node
 	// UsedAs is the same as [Import.UsedAs], but for attributes
