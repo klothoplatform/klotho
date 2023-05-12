@@ -175,14 +175,14 @@ func Test_persister_queryFs(t *testing.T) {
 		matchExpression string
 	}
 	tests := []struct {
-		name   string
-		source string
+		name    string
+		imports []string
 		// want is a slice of results, each corresponding to one top-level node in the source
 		want []result
 	}{
 		{
-			name:   "aiofiles import match",
-			source: "import aiofiles",
+			name:    "aiofiles import match",
+			imports: []string{"import aiofiles"},
 			want: []result{
 				{
 					matchName:       "aiofiles",
@@ -191,8 +191,8 @@ func Test_persister_queryFs(t *testing.T) {
 			},
 		},
 		{
-			name:   "aiofiles import alias match",
-			source: "import aiofiles as fs",
+			name:    "aiofiles import alias match",
+			imports: []string{"import aiofiles as fs"},
 			want: []result{
 				{
 					matchName:       "fs",
@@ -201,13 +201,13 @@ func Test_persister_queryFs(t *testing.T) {
 			},
 		},
 		{
-			name:   "other 'import not matched",
-			source: "import other",
-			want:   []result{{}},
+			name:    "other 'import not matched",
+			imports: []string{"import other"},
+			want:    []result{{}},
 		},
 		{
-			name:   "imported with alias",
-			source: `import aiofiles as fs`,
+			name:    "imported with alias",
+			imports: []string{`import aiofiles as fs`},
 			want: []result{
 				{
 					matchName:       "fs",
@@ -217,9 +217,10 @@ func Test_persister_queryFs(t *testing.T) {
 		},
 		{
 			name: "imported twice with different aliases",
-			source: testutil.UnIndent(`
-				import aiofiles as first
-				import aiofiles as second`),
+			imports: []string{
+				`import aiofiles as first`,
+				`import aiofiles as second`,
+			},
 			want: []result{
 				{
 					matchName:       "first",
@@ -236,15 +237,14 @@ func Test_persister_queryFs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := NewFile("test.py", strings.NewReader(tt.source))
+			f, err := NewFile("test.py", strings.NewReader(strings.Join(tt.imports, "\n")))
 			if !assert.NoError(err) {
 				return
 			}
-			rootNode := f.Tree().RootNode()
 
-			for childIdx := 0; childIdx < int(rootNode.ChildCount()); childIdx++ {
-				childNode := rootNode.Child(childIdx)
-				want := tt.want[childIdx]
+			for idx, imp := range tt.imports {
+				childNode := testutil.FindNodeByContent(f.Tree(), imp)
+				want := tt.want[idx]
 
 				cap := &core.Annotation{
 					Capability: &annotation.Capability{Name: annotation.PersistCapability},
@@ -261,7 +261,7 @@ func Test_persister_queryFs(t *testing.T) {
 						assert.Equal(want.matchName, kvResult.name)
 					}
 				} else {
-					assert.Nilf(kvResult, "for item %d", childIdx)
+					assert.Nilf(kvResult, "for item %d", idx)
 				}
 			}
 		})
