@@ -640,12 +640,9 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 		return nil
 	}
 	redisImported := len(redisClusterImport.ImportedAttributes) == 0
-	//redisImportName := redisImport.Name
 	constructorImport, constructorImported := redisImport.ImportedAttributes["Redis"]
 	clusterConstructorImport, clusterConstructorImported := redisClusterImport.ImportedAttributes["RedisCluster"]
 	clustermoduleImport, clusterModuleImported := redisImport.ImportedAttributes["cluster"]
-	//clusterRedisFunction := clusterConstructorImport.Name
-	//clustermoduleImportName := clustermoduleImport.Name
 
 	redisFunctions := constructorImport.UsedAs
 	if redisFunctions == nil {
@@ -656,25 +653,6 @@ func (p *persister) queryRedis(file *core.SourceFile, annotation *core.Annotatio
 	if clusterRedisFunctions == nil {
 		clusterRedisFunctions = map[string]struct{}{"RedisCluster": {}}
 	}
-
-	//redisFunction := constructorImport.Name
-	//if redisFunction == "" {
-	//	redisFunction = "Redis"
-	//} else if constructorImport.Alias != "" {
-	//	redisFunction = constructorImport.Alias
-	//}
-	//if clusterRedisFunction == "" {
-	//	clusterRedisFunction = "RedisCluster"
-	//} else if clusterConstructorImport.Alias != "" {
-	//	clusterRedisFunction = clusterConstructorImport.Alias
-	//}
-
-	//if redisImport.Alias != "" {
-	//	redisImportName = redisImport.Alias
-	//}
-	//if clustermoduleImport.Alias != "" {
-	//	clustermoduleImportName = clustermoduleImport.Alias
-	//}
 
 	nextMatch := DoQuery(annotation.Node, redis)
 
