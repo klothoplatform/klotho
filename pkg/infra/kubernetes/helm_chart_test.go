@@ -120,7 +120,7 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			units: []string{"unit1"},
 			fileUnits: map[string]string{
 				"HorizontalPodAutoscaler.yaml": testutil.UnIndent(`
-                    apiVersion: autoscaling/v2beta2
+                    apiVersion: autoscaling/v2
                     kind: HorizontalPodAutoscaler
                     metadata:
                       name: example-hpa
@@ -231,7 +231,7 @@ func Test_AssignFilesToUnits(t *testing.T) {
 			units: []string{"unit1", "unit2"},
 			fileUnits: map[string]string{
 				"HorizontalPodAutoscaler.yaml": testutil.UnIndent(`
-                    apiVersion: autoscaling/v2beta2
+                    apiVersion: autoscaling/v2
                     kind: HorizontalPodAutoscaler
                     metadata:
                       name: unit1
@@ -788,7 +788,7 @@ func Test_addHorizontalPodAutoscaler(t *testing.T) {
 			want: result{
 				hpaPath: "test/templates/unit-horizontal-pod-autoscaler.yaml",
 				hpaFile: testutil.UnIndent(`
-                    apiVersion: autoscaling/v2beta2
+                    apiVersion: autoscaling/v2
                     kind: HorizontalPodAutoscaler
                     metadata:
                       creationTimestamp: null
@@ -816,9 +816,7 @@ func Test_addHorizontalPodAutoscaler(t *testing.T) {
                         kind: Deployment
                         name: unit
                     status:
-                      conditions: null
                       currentMetrics: null
-                      currentReplicas: 0
                       desiredReplicas: 0`),
 				values: nil,
 			},
