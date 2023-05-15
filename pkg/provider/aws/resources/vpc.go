@@ -398,13 +398,10 @@ func (subnet *Subnet) KlothoConstructRef() []core.AnnotationKey {
 // Id returns the id of the cloud resource
 func (subnet *Subnet) Id() core.ResourceId {
 	id := core.ResourceId{
-		Provider: AWS_PROVIDER,
-		Type:     VPC_SUBNET_TYPE_PREFIX + subnet.Type,
-		Name:     subnet.Name,
-	}
-	if subnet.Vpc != nil {
-		// Realistically, this should only be the case for tests
-		id.Namespace = subnet.Vpc.Name
+		Provider:  AWS_PROVIDER,
+		Type:      VPC_SUBNET_TYPE_PREFIX + subnet.Type,
+		Namespace: subnet.Vpc.Name,
+		Name:      subnet.Name,
 	}
 	return id
 }

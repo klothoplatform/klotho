@@ -191,6 +191,7 @@ func TestResolveStructInput(t *testing.T) {
 
 func Test_renderGlueVars(t *testing.T) {
 	unit := &core.ExecutionUnit{}
+	vpc := &resources.Vpc{Name: "vpc"}
 	cases := []struct {
 		name                 string
 		subResource          core.Resource
@@ -228,20 +229,21 @@ func Test_renderGlueVars(t *testing.T) {
 			name:        "routeTableAssociation",
 			subResource: &resources.RouteTable{Name: "rt1"},
 			nodes: []core.Resource{
+				vpc,
 				&resources.RouteTable{Name: "rt1"},
-				&resources.Subnet{Name: "s1"},
+				&resources.Subnet{Name: "s1", Vpc: vpc},
 			},
 			edges: []graph.Edge[core.Resource]{
 				{
 					Source:      &resources.RouteTable{Name: "rt1"},
-					Destination: &resources.Subnet{Name: "s1"},
+					Destination: &resources.Subnet{Name: "s1", Vpc: vpc},
 				},
 			},
 			resourceVarNamesById: map[core.ResourceId]string{
 				{Provider: "aws", Type: "route_table", Name: "rt1"}: "testRouteTable",
 				{Provider: "aws", Type: "vpc_subnet", Name: "s1"}:   "subnet1",
 			},
-			want: "\n\nconst routeTableAssociationS1 = new aws.ec2.RouteTableAssociation(`s1`, {\n\t\t\t\tsubnetId: subnetS1.id,\n\t\t\trouteTableId: testRouteTable.id,\n\t\t\t});\n\n",
+			want: "\n\nconst routeTableAssociationS1 = new aws.ec2.RouteTableAssociation(`s1`, {\n\t\t\t\tsubnetId: vpcSubnetS1.id,\n\t\t\trouteTableId: testRouteTable.id,\n\t\t\t});\n\n",
 		},
 	}
 	for _, tt := range cases {
