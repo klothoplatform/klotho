@@ -236,11 +236,12 @@ func Test_createNodeRole(t *testing.T) {
 
 func Test_createNodeGroups(t *testing.T) {
 	cluster := &EksCluster{Name: "cluster"}
+	vpc := &Vpc{Name: "vpc"}
 	subnets := []*Subnet{
-		{Name: "private 1", Type: PrivateSubnet},
-		{Name: "private 2", Type: PrivateSubnet},
-		{Name: "public 1", Type: PublicSubnet},
-		{Name: "public 2", Type: PublicSubnet},
+		{Name: "private 1", Type: PrivateSubnet, Vpc: vpc},
+		{Name: "private 2", Type: PrivateSubnet, Vpc: vpc},
+		{Name: "public 1", Type: PublicSubnet, Vpc: vpc},
+		{Name: "public 2", Type: PublicSubnet, Vpc: vpc},
 	}
 	type NodeGroupExpect struct {
 		Name     string
