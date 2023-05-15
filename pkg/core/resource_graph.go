@@ -50,6 +50,7 @@ func (rg *ResourceGraph) AddResource(resource Resource) {
 //
 //	rg.AddDependency(lambda, lambda.Role)
 func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Resource) {
+
 	for _, res := range []Resource{deployedSecond, deployedFirst} {
 		rg.AddResource(res)
 	}
@@ -275,6 +276,7 @@ func (rg *ResourceGraph) getAllDownstreamResourcesSet(source Resource, upstreams
 func (rg *ResourceGraph) CreateDependencies(res Resource, params map[string]any) error {
 	var merr multierr.Error
 	source := reflect.ValueOf(res)
+
 	for source.Kind() == reflect.Pointer {
 		source = source.Elem()
 	}
@@ -285,6 +287,7 @@ func (rg *ResourceGraph) CreateDependencies(res Resource, params map[string]any)
 			merr.Append(rg.actOnValue(targetValue, res, fieldsParams, nil, reflect.Value{}))
 		}
 	}
+	rg.AddDependenciesReflect(res)
 	return merr.ErrOrNil()
 }
 
@@ -300,7 +303,6 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 			value = currValue
 		}
 		if err == nil && value != nil {
-			rg.AddDependency(res, value)
 			if parent != nil {
 				parent.SetMapIndex(index, reflect.ValueOf(value))
 			} else {
@@ -317,7 +319,6 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 				value.Resource = currValue
 			}
 			if err == nil && value.Resource != nil {
-				rg.AddDependency(res, value.Resource)
 				if parent != nil {
 					parent.SetMapIndex(index, reflect.ValueOf(value))
 				} else {
@@ -335,7 +336,6 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 				value.Resource = currValue
 			}
 			if err == nil && value.Resource != nil {
-				rg.AddDependency(res, value.Resource)
 				if parent != nil {
 					parent.SetMapIndex(index, reflect.ValueOf(value))
 				} else {

@@ -206,70 +206,70 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams)
 	subnet.AvailabilityZone = core.IaCValue{Resource: NewAvailabilityZones(), Property: params.AZ}
 	subnet.Type = params.Type
 
-	existingSubnet := dag.GetResourceByVertexId(subnet.Id().String())
-	if existingSubnet != nil {
-		graphSubnet := existingSubnet.(*Subnet)
-		graphSubnet.ConstructsRef = append(graphSubnet.ConstructsRef, params.Refs...)
-	} else {
-		routeTableParams := RouteTableCreateParams{
+	routeTableParams := RouteTableCreateParams{
+		AppName: params.AppName,
+		Refs:    params.Refs,
+	}
+	if subnet.Type == PrivateSubnet {
+		nat := &NatGateway{}
+		natParams := NatCreateParams{
+			AppName: params.AppName,
+			Refs:    params.Refs,
+			AZ:      params.AZ,
+		}
+		err := nat.Create(dag, natParams)
+		routeTableParams.NatGateway = nat
+		if err != nil {
+			return err
+		}
+		if subnet.AvailabilityZone.Property == "0" {
+			subnet.CidrBlock = "10.0.0.0/18"
+		} else if subnet.AvailabilityZone.Property == "1" {
+			subnet.CidrBlock = "10.0.64.0/18"
+		}
+	} else if subnet.Type == PublicSubnet {
+		igw := &InternetGateway{}
+		igwParams := IgwCreateParams{
 			AppName: params.AppName,
 			Refs:    params.Refs,
 		}
-		if subnet.Type == PrivateSubnet {
-			nat := &NatGateway{}
-			natParams := NatCreateParams{
-				AppName: params.AppName,
-				Refs:    params.Refs,
-				AZ:      params.AZ,
-			}
-			err := nat.Create(dag, natParams)
-			routeTableParams.NatGateway = nat
-			if err != nil {
-				return err
-			}
-			if subnet.AvailabilityZone.Property == "0" {
-				subnet.CidrBlock = "10.0.0.0/18"
-			} else if subnet.AvailabilityZone.Property == "1" {
-				subnet.CidrBlock = "10.0.64.0/18"
-			}
-		} else if subnet.Type == PublicSubnet {
-			igw := &InternetGateway{}
-			igwParams := IgwCreateParams{
-				AppName: params.AppName,
-				Refs:    params.Refs,
-			}
-			err := igw.Create(dag, igwParams)
-			routeTableParams.InternetGateway = igw
+		err := igw.Create(dag, igwParams)
+		routeTableParams.InternetGateway = igw
 
-			if err != nil {
-				return err
-			}
-			if subnet.AvailabilityZone.Property == "0" {
-				subnet.CidrBlock = "10.0.128.0/18"
-			} else if subnet.AvailabilityZone.Property == "1" {
-				subnet.CidrBlock = "10.0.192.0/18"
-
-			}
-		}
-		rt := RouteTable{}
-		err := rt.Create(dag, routeTableParams)
 		if err != nil {
 			return err
 		}
+		if subnet.AvailabilityZone.Property == "0" {
+			subnet.CidrBlock = "10.0.128.0/18"
+		} else if subnet.AvailabilityZone.Property == "1" {
+			subnet.CidrBlock = "10.0.192.0/18"
 
-		mapPublicIpOnLaunch := false
-		if subnet.Type == PublicSubnet {
-			mapPublicIpOnLaunch = true
 		}
+	}
+	rt := RouteTable{}
+	err := rt.Create(dag, routeTableParams)
+	if err != nil {
+		return err
+	}
 
-		subnet.MapPublicIpOnLaunch = mapPublicIpOnLaunch
-		err = dag.CreateDependencies(subnet, map[string]any{
-			"Vpc": params,
-		})
-		if err != nil {
-			return err
-		}
-		dag.AddDependency(subnet, NewAvailabilityZones())
+	mapPublicIpOnLaunch := false
+	if subnet.Type == PublicSubnet {
+		mapPublicIpOnLaunch = true
+	}
+
+	subnet.MapPublicIpOnLaunch = mapPublicIpOnLaunch
+	err = dag.CreateDependencies(subnet, map[string]any{
+		"Vpc": params,
+	})
+	if err != nil {
+		return err
+	}
+	dag.AddDependency(subnet, NewAvailabilityZones())
+
+	existingSubnet := dag.GetResourceByVertexId(subnet.Id().String())
+	if existingSubnet != nil {
+		graphSubnet := existingSubnet.(*Subnet)
+		graphSubnet.ConstructsRef = core.DedupeAnnotationKeys(append(graphSubnet.ConstructsRef, params.Refs...))
 	}
 	return nil
 }

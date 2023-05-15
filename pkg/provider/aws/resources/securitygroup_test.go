@@ -18,25 +18,28 @@ func Test_SecurityGroupCreate(t *testing.T) {
 		want coretesting.ResourcesExpectation
 	}{
 		{
-			name: "nil role",
+			name: "nil sg",
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:security_group:my-app",
+					"aws:security_group:my_app:my-app",
 					"aws:vpc:my_app",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:security_group:my-app", Destination: "aws:vpc:my_app"},
+					{Source: "aws:security_group:my_app:my-app", Destination: "aws:vpc:my_app"},
 				},
 			},
 		},
 		{
-			name: "existing role",
-			sg:   &SecurityGroup{Name: "my-app", ConstructsRef: initialRefs},
+			name: "existing sg",
+			sg:   &SecurityGroup{Name: "my-app", ConstructsRef: initialRefs, Vpc: &Vpc{Name: "my_app"}},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:security_group:my-app",
+					"aws:security_group:my_app:my-app",
+					"aws:vpc:my_app",
 				},
-				Deps: []coretesting.StringDep{},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:security_group:my_app:my-app", Destination: "aws:vpc:my_app"},
+				},
 			},
 		},
 	}
@@ -45,7 +48,7 @@ func Test_SecurityGroupCreate(t *testing.T) {
 			assert := assert.New(t)
 			dag := core.NewResourceGraph()
 			if tt.sg != nil {
-				dag.AddResource(tt.sg)
+				dag.AddDependenciesReflect(tt.sg)
 			}
 			metadata := SecurityGroupCreateParams{
 				AppName: "my-app",

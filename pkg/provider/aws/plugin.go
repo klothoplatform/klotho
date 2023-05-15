@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -31,7 +30,6 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 			switch a.Config.GetExecutionUnit(construct.ID).Type {
 			case Lambda:
 				var lambda resources.LambdaFunction
-				fmt.Println("calling lambda create")
 				err := lambda.Create(dag, resources.LambdaCreateParams{
 					AppName:          a.Config.AppName,
 					Unit:             construct,
