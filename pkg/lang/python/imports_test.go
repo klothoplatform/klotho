@@ -18,21 +18,21 @@ func TestFindImports(t *testing.T) {
 		{
 			name:   "import module",
 			source: "import mymodule",
-			want: map[string]Import{
+			want: Imports{
 				"mymodule": {Name: "mymodule", UsedAs: testutil.NewSet("mymodule")},
 			},
 		},
 		{
 			name:   "import module aliased",
 			source: "import mymodule as m",
-			want: map[string]Import{
+			want: Imports{
 				"mymodule": {Name: "mymodule", UsedAs: testutil.NewSet("m")},
 			},
 		},
 		{
 			name:   "import modules",
 			source: "import mymodule1, mymodule2",
-			want: map[string]Import{
+			want: Imports{
 				"mymodule1": {Name: "mymodule1", UsedAs: testutil.NewSet("mymodule1")},
 				"mymodule2": {Name: "mymodule2", UsedAs: testutil.NewSet("mymodule2")},
 			},
@@ -40,7 +40,7 @@ func TestFindImports(t *testing.T) {
 		{
 			name:   "import modules aliased",
 			source: "import mymodule1 as m1, mymodule2 as m2",
-			want: map[string]Import{
+			want: Imports{
 				"mymodule1": {Name: "mymodule1", UsedAs: testutil.NewSet("m1")},
 				"mymodule2": {Name: "mymodule2", UsedAs: testutil.NewSet("m2")},
 			},
@@ -48,7 +48,7 @@ func TestFindImports(t *testing.T) {
 		{
 			name:   "import submodule",
 			source: "import mymodule.submodule",
-			want: map[string]Import{
+			want: Imports{
 				"mymodule.submodule": {
 					ParentModule: "mymodule",
 					Name:         "submodule",
@@ -58,14 +58,14 @@ func TestFindImports(t *testing.T) {
 		{
 			name:   "import submodule aliased",
 			source: "import mymodule.submodule as w",
-			want: map[string]Import{
+			want: Imports{
 				"mymodule.submodule": {ParentModule: "mymodule", Name: "submodule", UsedAs: testutil.NewSet("w")},
 			},
 		},
 		{
 			name:   "import aliased nested submodule",
 			source: "import mymodule.submodule1.submodule2 as w",
-			want: map[string]Import{
+			want: Imports{
 				"mymodule.submodule1.submodule2": {
 					ParentModule: "mymodule.submodule1",
 					Name:         "submodule2",
@@ -74,9 +74,9 @@ func TestFindImports(t *testing.T) {
 			},
 		},
 		{
-			name:   "import relative module",
+			name:   "import relative parent module",
 			source: "from .. import mymodule\nfrom ..parent import child.attribute",
-			want: map[string]Import{
+			want: Imports{
 				"..": {
 					ParentModule: "..",
 					Name:         "",
@@ -91,9 +91,27 @@ func TestFindImports(t *testing.T) {
 			},
 		},
 		{
+			name:   "import relative sibling module",
+			source: "from . import foo\nfrom .foo import bar",
+			want: Imports{
+				".": {
+					ParentModule: ".",
+					Name:         "",
+					ImportedAttributes: map[string]Attribute{
+						"foo": {Name: "foo", UsedAs: testutil.NewSet("foo")},
+					}},
+				".foo": {
+					ParentModule: ".",
+					Name:         "foo",
+					ImportedAttributes: map[string]Attribute{
+						"bar": {Name: "bar", UsedAs: testutil.NewSet("bar")},
+					}},
+			},
+		},
+		{
 			name:   "from module import attribute",
 			source: "from mymodule import attribute",
-			want: map[string]Import{
+			want: Imports{
 				"mymodule": {
 					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
@@ -105,7 +123,7 @@ func TestFindImports(t *testing.T) {
 			name: "import multiple attributes from module in separate imports",
 			source: `from mymodule import attribute1
 			         from mymodule import attribute2`,
-			want: map[string]Import{
+			want: Imports{
 				"mymodule": {
 					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
@@ -117,7 +135,7 @@ func TestFindImports(t *testing.T) {
 		{
 			name:   "from module import attributes",
 			source: "from mymodule import attribute1, attribute2",
-			want: map[string]Import{
+			want: Imports{
 				"mymodule": {
 					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
@@ -129,7 +147,7 @@ func TestFindImports(t *testing.T) {
 		{
 			name:   "from module import attributes aliased",
 			source: "from mymodule import attribute1 as a1, attribute2 as a2",
-			want: map[string]Import{
+			want: Imports{
 				"mymodule": {
 					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
@@ -145,7 +163,7 @@ func TestFindImports(t *testing.T) {
 				from mymodule import attribute1 as a1
 				from mymodule import attribute1 as a2
 				`),
-			want: map[string]Import{
+			want: Imports{
 				"mymodule": {
 					Name: "mymodule",
 					ImportedAttributes: map[string]Attribute{
@@ -156,7 +174,7 @@ func TestFindImports(t *testing.T) {
 		{
 			name:   "import sibling",
 			source: "from . import mymodule",
-			want: map[string]Import{
+			want: Imports{
 				".": {ParentModule: ".", ImportedAttributes: map[string]Attribute{"mymodule": {Name: "mymodule", UsedAs: testutil.NewSet("mymodule")}}},
 			},
 		},
@@ -168,7 +186,7 @@ func TestFindImports(t *testing.T) {
 					from module3 import attribute1, attribute2
 					from .. import attribute1
 			`,
-			want: map[string]Import{
+			want: Imports{
 				"module1": {
 					Name:   "module1",
 					UsedAs: testutil.NewSet("module1"),
@@ -200,7 +218,7 @@ func TestFindImports(t *testing.T) {
 				import module1 as a
 				import module1 as b
 `,
-			want: map[string]Import{
+			want: Imports{
 				"module1": {Name: "module1", UsedAs: testutil.NewSet("a", "b")},
 			},
 		},
@@ -210,7 +228,7 @@ func TestFindImports(t *testing.T) {
 				import module1
 				import module1 as a
 `,
-			want: map[string]Import{
+			want: Imports{
 				"module1": {Name: "module1", UsedAs: testutil.NewSet("module1", "a")},
 			},
 		},
@@ -225,17 +243,48 @@ func TestFindImports(t *testing.T) {
 			}
 
 			imports := FindFileImports(f)
-			if len(tt.want) != len(imports) {
-				t.Log(imports)
-			}
-			assert.Equal(len(tt.want), len(imports))
-			for qualifiedName, i := range imports {
-				if expected, ok := tt.want[qualifiedName]; assert.Truef(ok, "import not found for name: %s", qualifiedName) {
-					validateImport(assert, f.Program(), expected, i)
-				}
-			}
+			assertImportsEqual(t, f.Program(), tt.want, imports)
 		})
 	}
+}
+
+func assertImportsEqual(t *testing.T, program []byte, expect, actual Imports) {
+	assert := assert.New(t)
+	expectKeys := make([]string, 0, len(expect))
+	actualKeys := make([]string, 0, len(actual))
+	for k := range expect {
+		expectKeys = append(expectKeys, k)
+	}
+	for k := range actual {
+		actualKeys = append(actualKeys, k)
+	}
+	if !assert.ElementsMatch(expectKeys, actualKeys, "import keys") {
+		for k, v := range actual {
+			t.Logf("actual[%q] = %#v", k, v)
+		}
+		return
+	}
+
+	for k, expectV := range expect {
+		actualV := actual[k]
+		validateImport(assert, program, expectV, actualV)
+	}
+}
+
+func validateImport(assert *assert.Assertions, content []byte, expected Import, actual Import) {
+	assert.Equal(expected.ParentModule, actual.ParentModule, "ParentModule")
+	assert.Equal(expected.Name, actual.Name, "Name")
+	assert.Equal(expected.UsedAs, actual.UsedAs, "UsedAs")
+
+	expectedAttrs := make([]string, 0, len(expected.ImportedAttributes))
+	actualAttrs := make([]string, 0, len(actual.ImportedAttributes))
+	for i := range expected.ImportedAttributes {
+		expectedAttrs = append(expectedAttrs, expected.ImportedAttributes[i].Name)
+	}
+	for i := range actual.ImportedAttributes {
+		actualAttrs = append(actualAttrs, actual.ImportedAttributes[i].Name)
+	}
+	assert.ElementsMatch(expectedAttrs, actualAttrs, "imported attributes")
 }
 
 func TestResolveFileDependencies(t *testing.T) {
@@ -643,22 +692,6 @@ func TestFindImportedFile(t *testing.T) {
 			assert.Equal(tt.expect, actual)
 		})
 	}
-}
-
-func validateImport(assert *assert.Assertions, content []byte, expected Import, actual Import) {
-	assert.Equal(expected.ParentModule, actual.ParentModule)
-	assert.Equal(expected.Name, actual.Name)
-	assert.Equal(expected.UsedAs, actual.UsedAs)
-
-	assert.Equal(len(expected.ImportedAttributes), len(actual.ImportedAttributes))
-	for i := range expected.ImportedAttributes {
-		validateAttribute(assert, content, expected.ImportedAttributes[i], actual.ImportedAttributes[i])
-	}
-}
-
-func validateAttribute(assert *assert.Assertions, content []byte, expected Attribute, actual Attribute) {
-	assert.Equal(expected.Name, actual.Name)
-
 }
 
 func Test_referencesForImport(t *testing.T) {
