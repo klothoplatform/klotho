@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	apps "k8s.io/api/apps/v1"
-	autoscaling "k8s.io/api/autoscaling/v2beta2"
+	autoscaling "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	yaml2 "k8s.io/apimachinery/pkg/util/yaml"
 	k8s_yaml "sigs.k8s.io/yaml"
@@ -727,7 +727,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
 		{
 			name: "Basic HPA, no cfg",
 			file: testutil.UnIndent(`
-                apiVersion: autoscaling/v2beta2
+                apiVersion: autoscaling/v2
                 kind: HorizontalPodAutoscaler
                 metadata:
                   name: testUnit
@@ -739,7 +739,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
 			want: result{
 				values: nil,
 				newFile: testutil.UnIndent(`
-                apiVersion: autoscaling/v2beta2
+                apiVersion: autoscaling/v2
                 kind: HorizontalPodAutoscaler
                 metadata:
                   creationTimestamp: null
@@ -751,9 +751,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
                     kind: Deployment
                     name: testUnit
                 status:
-                  conditions: null
                   currentMetrics: null
-                  currentReplicas: 0
                   desiredReplicas: 0`),
 			},
 		},
@@ -763,7 +761,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
 				"replicas": 13,
 			}},
 			file: testutil.UnIndent(`
-                apiVersion: autoscaling/v2beta2
+                apiVersion: autoscaling/v2
                 kind: HorizontalPodAutoscaler
                 metadata:
                   name: testUnit
@@ -775,7 +773,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
 			want: result{
 				values: nil,
 				newFile: testutil.UnIndent(`
-                apiVersion: autoscaling/v2beta2
+                apiVersion: autoscaling/v2
                 kind: HorizontalPodAutoscaler
                 metadata:
                   creationTimestamp: null
@@ -788,9 +786,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
                     kind: Deployment
                     name: testUnit
                 status:
-                  conditions: null
                   currentMetrics: null
-                  currentReplicas: 0
                   desiredReplicas: 0`),
 			},
 		},
@@ -802,7 +798,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
 				},
 			}},
 			file: testutil.UnIndent(`
-                apiVersion: autoscaling/v2beta2
+                apiVersion: autoscaling/v2
                 kind: HorizontalPodAutoscaler
                 metadata:
                   name: testUnit
@@ -815,7 +811,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
 			want: result{
 				values: nil,
 				newFile: testutil.UnIndent(`
-                apiVersion: autoscaling/v2beta2
+                apiVersion: autoscaling/v2
                 kind: HorizontalPodAutoscaler
                 metadata:
                   creationTimestamp: null
@@ -828,9 +824,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
                     kind: Deployment
                     name: testUnit
                 status:
-                  conditions: null
                   currentMetrics: null
-                  currentReplicas: 0
                   desiredReplicas: 0`),
 			},
 		},
@@ -842,7 +836,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
 				},
 			}},
 			file: testutil.UnIndent(`
-                apiVersion: autoscaling/v2beta2
+                apiVersion: autoscaling/v2
                 kind: HorizontalPodAutoscaler
                 metadata:
                   name: testUnit
@@ -854,7 +848,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
 			want: result{
 				values: nil,
 				newFile: testutil.UnIndent(`
-                apiVersion: autoscaling/v2beta2
+                apiVersion: autoscaling/v2
                 kind: HorizontalPodAutoscaler
                 metadata:
                   creationTimestamp: null
@@ -873,9 +867,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
                     kind: Deployment
                     name: testUnit
                 status:
-                  conditions: null
                   currentMetrics: null
-                  currentReplicas: 0
                   desiredReplicas: 0`),
 			},
 		},
@@ -887,7 +879,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
 				},
 			}},
 			file: testutil.UnIndent(`
-                apiVersion: autoscaling/v2beta2
+                apiVersion: autoscaling/v2
                 kind: HorizontalPodAutoscaler
                 metadata:
                   name: testUnit
@@ -904,7 +896,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
 			want: result{
 				values: nil,
 				newFile: testutil.UnIndent(`
-                apiVersion: autoscaling/v2beta2
+                apiVersion: autoscaling/v2
                 kind: HorizontalPodAutoscaler
                 metadata:
                   creationTimestamp: null
@@ -923,9 +915,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
                     kind: Deployment
                     name: testUnit
                 status:
-                  conditions: null
                   currentMetrics: null
-                  currentReplicas: 0
                   desiredReplicas: 0`),
 			},
 		},
@@ -937,7 +927,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
 				},
 			}},
 			file: testutil.UnIndent(`
-                apiVersion: autoscaling/v2beta2
+                apiVersion: autoscaling/v2
                 kind: HorizontalPodAutoscaler
                 metadata:
                   name: testUnit
@@ -949,7 +939,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
 			want: result{
 				values: nil,
 				newFile: testutil.UnIndent(`
-                apiVersion: autoscaling/v2beta2
+                apiVersion: autoscaling/v2
                 kind: HorizontalPodAutoscaler
                 metadata:
                   creationTimestamp: null
@@ -968,9 +958,7 @@ func Test_transformHorizontalPodAutoscaler(t *testing.T) {
                     kind: Deployment
                     name: testUnit
                 status:
-                  conditions: null
                   currentMetrics: null
-                  currentReplicas: 0
                   desiredReplicas: 0`),
 			},
 		},
