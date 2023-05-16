@@ -40,13 +40,10 @@ type Attribute struct {
 
 type Imports map[string]Import
 
-func (imp Import) ModuleDir() string {
-	moduleRoot := ""
-	if imp.ParentModule != "" {
-		moduleRoot = imp.ParentModule
-	}
+func (imp Import) FullyQualifiedModule() string {
+	moduleRoot := imp.ParentModule
 	if imp.Name != "" {
-		if moduleRoot != "" {
+		if moduleRoot != "" && !strings.HasSuffix(moduleRoot, ".") {
 			moduleRoot += "."
 		}
 		moduleRoot += imp.Name
@@ -231,60 +228,30 @@ func ResolveFileDependencies(files map[string]core.File) (core.FileDependencies,
 // dependenciesForImport returns all imports specified by spec
 func dependenciesForImport(relativeToPath string, spec Import, files map[string]core.File) (core.Imported, error) {
 	deps := make(core.Imported)
+	moduleDir := spec.FullyQualifiedModule()
+	importerFile := files[relativeToPath].(*core.SourceFile)
 
-	moduleRoot := spec.ModuleDir()
-
-	importedModule, err := findImportedFile(spec.Name, relativeToPath, files)
+	rootModule, err := findImportedFile(moduleDir, relativeToPath, files)
 	if err != nil {
 		return nil, err
 	}
-
-	if importedModule == "" {
-		importedModule, err = findImportedFile(moduleRoot, relativeToPath, files)
-		if err != nil {
-			return nil, err
-		}
+	if rootModule != "" {
+		deps[rootModule] = referencesForImport(importerFile.Tree().RootNode(), spec.UsedAs)
 	}
 
-	if importedModule != "" {
-		refs, ok := deps[importedModule]
-		if !ok {
-			refs = make(core.References)
-			deps[importedModule] = refs
-		}
-
-		if len(spec.ImportedAttributes) == 0 {
-			sourceFile := files[relativeToPath].(*core.SourceFile)
-			importRefs := referencesForImport(sourceFile.Tree().RootNode(), spec.UsedAs)
-			refs.AddAll(importRefs)
-		} else {
-			for _, attr := range spec.ImportedAttributes {
-				refs.Add(attr.Name)
-			}
-		}
-		return deps, nil
-	}
-
-	if moduleRoot != "" && !strings.HasSuffix(moduleRoot, ".") {
-		moduleRoot += "."
-	}
 	for _, attr := range spec.ImportedAttributes {
-		modulePath, err := findImportedFile(moduleRoot+attr.Name, relativeToPath, files)
+		attrImport := Import{ParentModule: moduleDir, Name: attr.Name}
+		attrModule, err := findImportedFile(attrImport.FullyQualifiedModule(), relativeToPath, files)
 		if err != nil {
 			return nil, err
 		}
-		if modulePath == "" {
-			continue
+		if attrModule == "" {
+			if rootRefs, ok := deps[rootModule]; ok {
+				rootRefs.Add(attr.Name)
+			}
+		} else {
+			deps[attrModule] = referencesForImport(importerFile.Tree().RootNode(), attr.UsedAs)
 		}
-		moduleFile := files[modulePath].(*core.SourceFile)
-		refs, ok := deps[modulePath]
-		if !ok {
-			refs = make(core.References)
-			deps[modulePath] = refs
-		}
-
-		importRefs := referencesForImport(moduleFile.Tree().RootNode(), attr.UsedAs)
-		refs.AddAll(importRefs)
 	}
 
 	return deps, nil
