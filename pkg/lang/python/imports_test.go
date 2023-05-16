@@ -560,6 +560,22 @@ other.hello.world.say_hi()
 				"other.py": map[string]core.References{},
 			},
 		},
+		{
+			name: "import multiple with submodule",
+			input: map[string]string{
+				"main.py":    `from foo import bar, baz`,
+				"foo.py":     `pass`,
+				"foo/bar.py": `pass`,
+			},
+			expect: map[string]core.Imported{
+				"main.py": map[string]core.References{
+					"foo.py":     testutil.NewSet("baz"),
+					"foo/bar.py": testutil.NewSet[string](),
+				},
+				"foo.py":     map[string]core.References{},
+				"foo/bar.py": map[string]core.References{},
+			},
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
