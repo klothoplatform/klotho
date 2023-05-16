@@ -1,6 +1,8 @@
 package python
 
 import (
+	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -92,7 +94,7 @@ func TestFindImports(t *testing.T) {
 		},
 		{
 			name:   "import relative sibling module",
-			source: "from . import foo\nfrom .foo import bar",
+			source: "from . import foo\nfrom .foo import bar\nfrom .x.y.z import a",
 			want: Imports{
 				".": {
 					ParentModule: ".",
@@ -105,6 +107,12 @@ func TestFindImports(t *testing.T) {
 					Name:         "foo",
 					ImportedAttributes: map[string]Attribute{
 						"bar": {Name: "bar", UsedAs: testutil.NewSet("bar")},
+					}},
+				".x.y.z": {
+					ParentModule: ".x.y",
+					Name:         "z",
+					ImportedAttributes: map[string]Attribute{
+						"a": {Name: "a", UsedAs: testutil.NewSet("a")},
 					}},
 			},
 		},
@@ -169,13 +177,6 @@ func TestFindImports(t *testing.T) {
 					ImportedAttributes: map[string]Attribute{
 						"attribute1": {Name: "attribute1", UsedAs: testutil.NewSet("attribute1", "a1", "a2")},
 					}},
-			},
-		},
-		{
-			name:   "import sibling",
-			source: "from . import mymodule",
-			want: Imports{
-				".": {ParentModule: ".", ImportedAttributes: map[string]Attribute{"mymodule": {Name: "mymodule", UsedAs: testutil.NewSet("mymodule")}}},
 			},
 		},
 		{
@@ -249,6 +250,7 @@ func TestFindImports(t *testing.T) {
 }
 
 func assertImportsEqual(t *testing.T, program []byte, expect, actual Imports) {
+	t.Helper()
 	assert := assert.New(t)
 	expectKeys := make([]string, 0, len(expect))
 	actualKeys := make([]string, 0, len(actual))
@@ -259,19 +261,18 @@ func assertImportsEqual(t *testing.T, program []byte, expect, actual Imports) {
 		actualKeys = append(actualKeys, k)
 	}
 	if !assert.ElementsMatch(expectKeys, actualKeys, "import keys") {
-		for k, v := range actual {
-			t.Logf("actual[%q] = %#v", k, v)
-		}
 		return
 	}
 
 	for k, expectV := range expect {
 		actualV := actual[k]
-		validateImport(assert, program, expectV, actualV)
+		validateImport(t, program, expectV, actualV)
 	}
 }
 
-func validateImport(assert *assert.Assertions, content []byte, expected Import, actual Import) {
+func validateImport(t *testing.T, content []byte, expected Import, actual Import) {
+	t.Helper()
+	assert := assert.New(t)
 	assert.Equal(expected.ParentModule, actual.ParentModule, "ParentModule")
 	assert.Equal(expected.Name, actual.Name, "Name")
 	assert.Equal(expected.UsedAs, actual.UsedAs, "UsedAs")
@@ -830,6 +831,192 @@ func Test_pythonModuleToPath(t *testing.T) {
 				return
 			}
 			assert.Equal(tt.want, got)
+		})
+	}
+}
+
+func Test_dependenciesForImport(t *testing.T) {
+	// For ease of understanding, all test cases operate in the following directory structure:
+	// .
+	// ├─ app/
+	// │  ├─ models/
+	// │  │  └─ data.py
+	// │  └─ main.py
+	// ├─ shared/
+	// │  ├─ util.py
+	// │  └─ blah.py
+	// ├─ foo.py
+	// └─ bar.py
+	baseFiles := map[string]core.File{
+		"app/main.py":        nil,
+		"app/models/data.py": nil,
+		"shared/util.py":     nil,
+		"shared/blah.py":     nil,
+		"foo.py":             nil,
+		"bar.py":             nil,
+	}
+	tests := []struct {
+		name           string
+		relativeToPath string
+		spec           Import
+		want           core.Imported
+		wantErr        bool
+	}{
+		{
+			name: "direct import",
+			// import foo
+			spec:           Import{Name: "foo"},
+			relativeToPath: "bar.py",
+			want:           core.Imported{"foo.py": {}},
+		},
+		{
+			name: "reference imports",
+			// import foo
+			spec:           Import{Name: "foo"},
+			relativeToPath: "bar.py",
+			want:           core.Imported{"foo.py": {"x": {}}},
+		},
+		{
+			name: "import non-module attributes",
+			// from foo import x
+			spec:           Import{Name: "foo", ImportedAttributes: map[string]Attribute{"x": {}}},
+			relativeToPath: "bar.py",
+			want:           core.Imported{"foo.py": {"x": {}}},
+		},
+		{
+			name: "import sibling module",
+			// from . import foo
+			spec:           Import{ParentModule: ".", ImportedAttributes: map[string]Attribute{"foo": {}}},
+			relativeToPath: "bar.py",
+			want:           core.Imported{"foo.py": {}},
+		},
+		{
+			name: "import module attributes",
+			// from .models import data
+			spec:           Import{ParentModule: ".", Name: "models", ImportedAttributes: map[string]Attribute{"data": {}}},
+			relativeToPath: "app/main.py",
+			want:           core.Imported{"app/models/data.py": {}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			// Make a copy of the base files so the test can add the 'relativeToPath' file
+			// with content based on the expected references.
+			files := make(map[string]core.File)
+			for p, f := range baseFiles {
+				files[p] = f
+			}
+
+			if tt.spec.UsedAs == nil {
+				tt.spec.UsedAs = map[string]struct{}{"test": {}}
+			}
+
+			// Create a file with the expected references for use by any
+			// referencesForImport calls.
+			fileBuf := new(bytes.Buffer)
+			for used := range tt.spec.UsedAs {
+				fmt.Fprintf(fileBuf, "import %s as %s\n", tt.spec.FullyQualifiedModule(), used)
+				for _, refs := range tt.want {
+					for ref := range refs {
+						fmt.Fprintf(fileBuf, "%s.%s\n", used, ref)
+					}
+				}
+			}
+
+			// Fill in the ImportedAttributes to allow more short-hand specification
+			// in the test cases.
+			for attrName, attr := range tt.spec.ImportedAttributes {
+				attr.Name = attrName
+				if len(attr.UsedAs) == 0 {
+					attr.UsedAs = map[string]struct{}{attr.Name: {}}
+				}
+				tt.spec.ImportedAttributes[attrName] = attr
+			}
+
+			file, err := NewFile(tt.relativeToPath, fileBuf)
+			if !assert.NoError(err) {
+				return
+			}
+			files[tt.relativeToPath] = file
+
+			got, err := dependenciesForImport(tt.relativeToPath, tt.spec, files)
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			} else if !assert.NoError(err) {
+				return
+			}
+			assertImportedEqual(t, tt.want, got)
+		})
+	}
+}
+
+func assertImportedEqual(t *testing.T, want, got core.Imported) {
+	t.Helper()
+
+	assert := assert.New(t)
+
+	gotKeys := make([]string, 0, len(got))
+	wantKeys := make([]string, 0, len(want))
+	for k := range got {
+		gotKeys = append(gotKeys, k)
+	}
+	for k := range want {
+		wantKeys = append(wantKeys, k)
+	}
+	if !assert.ElementsMatch(wantKeys, gotKeys) {
+		return
+	}
+
+	for k, wantV := range want {
+		gotV := got[k]
+		assert.Equal(wantV, gotV, "key '%s'", k)
+	}
+}
+
+func TestImport_FullyQualifiedModule(t *testing.T) {
+	tests := []struct {
+		name string
+		imp  Import
+		want string
+	}{
+		{
+			name: "name only",
+			imp:  Import{Name: "foo"},
+			want: "foo",
+		},
+		{
+			name: "parent only",
+			imp:  Import{ParentModule: "."},
+			want: ".",
+		},
+		{
+			name: "name and parent relative",
+			imp:  Import{ParentModule: ".", Name: "foo"},
+			want: ".foo",
+		},
+		{
+			name: "name and parent absolute",
+			imp:  Import{ParentModule: "blah", Name: "foo"},
+			want: "blah.foo",
+		},
+		{
+			name: "many parents",
+			imp:  Import{ParentModule: "x.y.z", Name: "foo"},
+			want: "x.y.z.foo",
+		},
+		{
+			name: "many parents relative",
+			imp:  Import{ParentModule: ".x.y.z", Name: "foo"},
+			want: ".x.y.z.foo",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.imp.FullyQualifiedModule()
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
