@@ -44,6 +44,8 @@ func (imp Import) FullyQualifiedModule() string {
 	moduleRoot := imp.ParentModule
 	if imp.Name != "" {
 		if moduleRoot != "" && !strings.HasSuffix(moduleRoot, ".") {
+			// Only add a '.' delimiter if one doesn't already exist.
+			// It should only exist for `.ParentModule` in ['.' and '..'] cases
 			moduleRoot += "."
 		}
 		moduleRoot += imp.Name
