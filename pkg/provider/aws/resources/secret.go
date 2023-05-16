@@ -1,6 +1,8 @@
 package resources
 
 import (
+	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
@@ -25,12 +27,36 @@ type (
 const SECRET_TYPE = "secret"
 const SECRET_VERSION_TYPE = "secret_version"
 
-func (lambda *Secret) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+type SecretCreateParams struct {
+	AppName    string
+	Refs       []core.AnnotationKey
+	SecretName string
 }
 
-func (lambda *SecretVersion) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+func (secret *Secret) Create(dag *core.ResourceGraph, params SecretCreateParams) error {
+	secret.Name = aws.SecretSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.SecretName))
+	secret.ConstructsRef = params.Refs
+	dag.AddResource(secret)
+	return nil
+}
+
+type SecretVersionCreateParams struct {
+	AppName    string
+	Refs       []core.AnnotationKey
+	SecretName string
+	Path       string
+	Type       string
+}
+
+func (sv *SecretVersion) Create(dag *core.ResourceGraph, params SecretVersionCreateParams) error {
+	sv.SecretName = aws.SecretSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.SecretName))
+	sv.Path = params.Path
+	sv.ConstructsRef = params.Refs
+	sv.Type = params.Type
+	dag.CreateDependencies(sv, map[string]any{
+		"Secret": params,
+	})
+	return nil
 }
 
 func NewSecret(annot core.AnnotationKey, secretName string, appName string) *Secret {

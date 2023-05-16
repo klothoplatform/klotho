@@ -20,8 +20,8 @@ func TestSimpleGraph(t *testing.T) {
 	d.AddVertex(a)
 	d.AddVertex(b)
 	d.AddVertex(c)
-	d.AddEdge(a.Id(), b.Id())
-	d.AddEdge(a.Id(), c.Id())
+	d.AddEdge(a.Id(), b.Id(), nil)
+	d.AddEdge(a.Id(), c.Id(), nil)
 
 	test(t, "roots", func(assert *assert.Assertions) {
 		assert.Equal([]DummyVertex{a}, d.Roots())
@@ -50,7 +50,7 @@ func TestCycleToSelf(t *testing.T) {
 	d := NewDirected(DummyVertex.Id)
 	v := DummyVertex("dummy")
 	d.AddVertex(v)
-	d.AddEdge(v.Id(), v.Id())
+	d.AddEdge(v.Id(), v.Id(), nil)
 	assert.Equal(
 		[]Edge[DummyVertex]{
 			{
@@ -68,8 +68,8 @@ func TestCycle(t *testing.T) {
 	v2 := DummyVertex("world")
 	d.AddVertex(v1)
 	d.AddVertex(v2)
-	d.AddEdge(v1.Id(), v2.Id())
-	d.AddEdge(v2.Id(), v1.Id())
+	d.AddEdge(v1.Id(), v2.Id(), nil)
+	d.AddEdge(v2.Id(), v1.Id(), nil)
 	assert.Equal(
 		[]Edge[DummyVertex]{
 			{
@@ -102,8 +102,8 @@ func TestNegativeCases(t *testing.T) {
 		v2 := DummyVertex("world")
 		d.AddVertex(v1)
 		d.AddVertex(v2)
-		d.AddEdge(v1.Id(), v2.Id())
-		d.AddEdge(v1.Id(), v2.Id())
+		d.AddEdge(v1.Id(), v2.Id(), nil)
+		d.AddEdge(v1.Id(), v2.Id(), nil)
 		assert.Equal(
 			[]Edge[DummyVertex]{
 				{

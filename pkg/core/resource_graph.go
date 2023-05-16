@@ -57,7 +57,20 @@ func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Re
 	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.Id().String(), deployedFirst.Id().String()); cycle {
 		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond.Id(), deployedFirst.Id())
 	} else {
-		rg.underlying.AddEdge(deployedSecond.Id().String(), deployedFirst.Id().String())
+		rg.underlying.AddEdge(deployedSecond.Id().String(), deployedFirst.Id().String(), nil)
+		zap.S().Debugf("adding %s -> %s", deployedSecond.Id(), deployedFirst.Id())
+	}
+}
+
+func (rg *ResourceGraph) AddDependencyWithData(deployedSecond Resource, deployedFirst Resource, data any) {
+
+	for _, res := range []Resource{deployedSecond, deployedFirst} {
+		rg.AddResource(res)
+	}
+	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.Id().String(), deployedFirst.Id().String()); cycle {
+		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond.Id(), deployedFirst.Id())
+	} else {
+		rg.underlying.AddEdge(deployedSecond.Id().String(), deployedFirst.Id().String(), data)
 		zap.S().Debugf("adding %s -> %s", deployedSecond.Id(), deployedFirst.Id())
 	}
 }
@@ -76,6 +89,10 @@ func (rg *ResourceGraph) GetDependency(source Resource, target Resource) *graph.
 
 func (rg *ResourceGraph) GetDependencyByVertexIds(source string, target string) *graph.Edge[Resource] {
 	return rg.underlying.GetEdge(source, target)
+}
+
+func (rg *ResourceGraph) RemoveDependency(source string, target string) error {
+	return rg.underlying.RemoveEdge(source, target)
 }
 
 func (rg *ResourceGraph) ListResources() []Resource {
@@ -289,6 +306,26 @@ func (rg *ResourceGraph) CreateDependencies(res Resource, params map[string]any)
 	}
 	rg.AddDependenciesReflect(res)
 	return merr.ErrOrNil()
+}
+
+func CreateResource[T Resource](rg *ResourceGraph, params any) (resource T, err error) {
+
+	res := reflect.New(reflect.TypeOf(resource).Elem()).Interface()
+	err = rg.callCreate(reflect.ValueOf(res), params)
+	if err != nil {
+		return
+	}
+	castedRes, ok := res.(Resource)
+	if !ok {
+		err = fmt.Errorf("unable to cast to type Resource")
+		return
+	}
+
+	currValue := rg.GetResourceByVertexId(castedRes.Id().String())
+	if currValue != nil {
+		return currValue.(T), nil
+	}
+	return castedRes.(T), nil
 }
 
 func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, metadata any, parent *reflect.Value, index reflect.Value) error {

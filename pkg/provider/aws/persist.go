@@ -17,7 +17,7 @@ func (a *AWS) GenerateFsResources(construct core.Construct, result *core.Constru
 		{Resource: bucket, Property: resources.ALL_BUCKET_DIRECTORY_IAC_VALUE},
 	}
 	policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
-	policy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-s3", construct.Id()), construct.Provenance(), policyDoc)
+	policy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-s3", construct.Id()), []core.AnnotationKey{construct.Provenance()}, policyDoc)
 	upstreamResources := result.GetUpstreamConstructs(construct)
 	for _, res := range upstreamResources {
 		unit, ok := res.(*core.ExecutionUnit)

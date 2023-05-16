@@ -167,10 +167,17 @@ func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) er
 	return nil
 }
 
-func (lambda *IamPolicy) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+type IamPolicyCreateParams struct {
+	AppName    string
+	PolicyName string
+	Refs       []core.AnnotationKey
 }
 
+func (policy *IamPolicy) Create(dag *core.ResourceGraph, params IamPolicyCreateParams) error {
+	policy.Name = policySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.PolicyName))
+	policy.ConstructsRef = params.Refs
+	return nil
+}
 func (lambda *OpenIdConnectProvider) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
 	panic("Not Implemented")
 }
@@ -287,10 +294,10 @@ func NewIamPolicy(appName string, policyName string, ref core.AnnotationKey, pol
 	}
 }
 
-func NewIamInlinePolicy(policyName string, ref core.AnnotationKey, policy *PolicyDocument) *IamInlinePolicy {
+func NewIamInlinePolicy(policyName string, refs []core.AnnotationKey, policy *PolicyDocument) *IamInlinePolicy {
 	return &IamInlinePolicy{
 		Name:          policySanitizer.Apply(policyName),
-		ConstructsRef: []core.AnnotationKey{ref},
+		ConstructsRef: refs,
 		Policy:        policy,
 	}
 }

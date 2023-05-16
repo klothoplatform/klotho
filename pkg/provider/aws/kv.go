@@ -46,7 +46,7 @@ func (a *AWS) GenerateKvResources(kv *core.Kv, result *core.ConstructGraph, dag 
 				{Resource: table, Property: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
 			}
 			policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
-			policy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-kv-dynamodb", unit.ID), kv.Provenance(), policyDoc)
+			policy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-kv-dynamodb", unit.ID), []core.AnnotationKey{kv.Provenance()}, policyDoc)
 			a.PolicyGenerator.AddInlinePolicyToUnit(unit.Id(), policy)
 		}
 	}

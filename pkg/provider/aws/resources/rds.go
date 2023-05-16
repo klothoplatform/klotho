@@ -107,20 +107,157 @@ type (
 	}
 )
 
-func (lambda *RdsInstance) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+type RdsInstanceCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	Name    string
 }
 
-func (lambda *RdsSubnetGroup) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceCreateParams) error {
+
+	name := rdsInstanceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	instance.Name = name
+
+	existingInstance := dag.GetResourceByVertexId(instance.Id().String())
+	if existingInstance != nil {
+		return fmt.Errorf("RdsInstance with name %s already exists", name)
+	}
+
+	instance.ConstructsRef = params.Refs
+	instance.IamDatabaseAuthenticationEnabled = true
+	instance.DatabaseName = params.Name
+	instance.Username = generateUsername()
+	instance.Password = generatePassword()
+	instance.Engine = "postgres"
+	instance.EngineVersion = "13.7"
+	instance.InstanceClass = "db.t4g.micro"
+	instance.SkipFinalSnapshot = true
+	instance.AllocatedStorage = 20
+	credsBytes := []byte(fmt.Sprintf("{\n\"username\": \"%s\",\n\"password\": \"%s\"\n}", instance.Username, instance.Password))
+	credsPath := fmt.Sprintf("secrets/%s", params.Name)
+	instance.CredentialsFile = &core.RawFile{
+		FPath:   credsPath,
+		Content: credsBytes,
+	}
+	instance.CredentialsPath = credsPath
+
+	instance.SecurityGroups = make([]*SecurityGroup, 1)
+	subParams := map[string]any{
+		"SecurityGroups": []SecurityGroupCreateParams{
+			{
+				AppName: params.AppName,
+				Refs:    params.Refs,
+			},
+		},
+		"SubnetGroup": RdsSubnetGroupCreateParams{
+			Refs: params.Refs,
+			Name: params.Name,
+			Subnets: []SubnetCreateParams{
+				{
+					AppName: params.AppName,
+					Refs:    params.Refs,
+					AZ:      "0",
+					Type:    PrivateSubnet,
+				},
+				{
+					AppName: params.AppName,
+					Refs:    params.Refs,
+					AZ:      "1",
+					Type:    PrivateSubnet,
+				},
+			},
+		},
+	}
+	err := dag.CreateDependencies(instance, subParams)
+	return err
 }
 
-func (lambda *RdsProxy) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+type RdsSubnetGroupCreateParams struct {
+	AppName string
+	Name    string
+	Refs    []core.AnnotationKey
+	Subnets []SubnetCreateParams
+	Tags    map[string]string
 }
 
-func (lambda *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSubnetGroupCreateParams) error {
+	subnetGroup.Name = rdsSubnetSanitizer.Apply(params.Name)
+	subnetGroup.ConstructsRef = params.Refs
+	subnetGroup.Tags = params.Tags
+	dag.CreateDependencies(subnetGroup, map[string]any{
+		"Subnets": params.Subnets,
+	})
+	return nil
+}
+
+type RdsProxyCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	Name    string
+}
+
+func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreateParams) error {
+
+	if proxy.Name != "" {
+
+	}
+
+	name := rdsProxySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+
+	proxy.Name = name
+	proxy.ConstructsRef = params.Refs
+	proxy.DebugLogging = false
+	proxy.EngineFamily = "POSTGRESQL"
+	proxy.IdleClientTimeout = 1800
+	proxy.RequireTls = false
+	proxy.SecurityGroups = make([]*SecurityGroup, 1)
+
+	existingProxy := dag.GetResource(proxy.Id())
+	if existingProxy != nil {
+		return fmt.Errorf("RdsProxy with name %s already exists", name)
+
+	}
+
+	subParams := map[string]any{
+		"Role": RoleCreateParams{
+			RoleName:            fmt.Sprintf("%s-RdsProxyRole", proxy.Name),
+			Refs:                proxy.ConstructsRef,
+			AssumeRolePolicyDoc: RDS_ASSUME_ROLE_POLICY,
+		},
+		"SecurityGroups": []SecurityGroupCreateParams{
+			{
+				AppName: params.AppName,
+				Refs:    proxy.ConstructsRef,
+			},
+		},
+	}
+
+	err := dag.CreateDependencies(proxy, subParams)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type RdsProxyTargetGroupCreateParams struct {
+	AppName string
+	Name    string
+	Refs    []core.AnnotationKey
+}
+
+func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTargetGroupCreateParams) error {
+
+	tg.Name = rdsProxySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	tg.ConstructsRef = params.Refs
+	tg.ConnectionPoolConfigurationInfo = &ConnectionPoolConfigurationInfo{
+		ConnectionBorrowTimeout:   120,
+		MaxConnectionsPercent:     100,
+		MaxIdleConnectionsPercent: 50,
+	}
+	tg.TargetGroupName = "default"
+	dag.AddResource(tg)
+	return nil
 }
 
 // CreateRdsInstance takes in an orm construct and creates the necessary resources to support creating a functional RDS Orm implementation
