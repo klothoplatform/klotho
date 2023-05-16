@@ -35,6 +35,7 @@ const (
 	ID_IAC_VALUE                                  = "id"
 	AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE = "aws_observ_cm_region"
 	NODE_GROUP_NAME_IAC_VALUE                     = "node_group_name"
+	ALB_CONTROLLER_READINESS_GATE_IAC_VALUE       = "alb_controller_readiness_gate"
 
 	AWS_OBSERVABILITY_NS_PATH         = "aws_observability_namespace.yaml"
 	AWS_OBSERVABILITY_CONFIG_MAP_PATH = "aws_observability_configmap.yaml"
@@ -586,6 +587,11 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 			"podLabels": map[string]string{
 				"app": "aws-lb-controller",
 			},
+			// objectSelector is used to select pods to inject the pod readiness gate into
+			// (see https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.4/deploy/pod_readiness_gate/)
+			"objectSelector": map[string]any{"matchLabels": map[string]any{"elbv2.k8s.aws/pod-readiness-gate-inject": "enabled"}},
+			// webhookNamespaceSelector is set to an empty matchExpressions to allow the pod readiness gate to be installed in any namespace
+			"webhookNamespaceSelectors": map[string]any{"matchExpressions": []any{}},
 		},
 	}
 	dag.AddDependenciesReflect(albChart)

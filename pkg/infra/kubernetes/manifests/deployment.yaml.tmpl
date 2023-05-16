@@ -19,6 +19,7 @@ spec:
     metadata:
       labels:
         execUnit: {{ .ExecUnitName }}
+        elbv2.k8s.aws/pod-readiness-gate-inject: enabled
     spec:
       containers:
       - image: REPLACE_ME
