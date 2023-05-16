@@ -720,6 +720,7 @@ spec:
     metadata:
       creationTimestamp: null
       labels:
+        elbv2.k8s.aws/pod-readiness-gate-inject: enabled
         execUnit: unit
         klotho-fargate-enabled: "false"
     spec:
