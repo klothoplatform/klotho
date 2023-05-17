@@ -1,9 +1,12 @@
 package core
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/multierr"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -47,13 +50,30 @@ func (rg *ResourceGraph) AddResource(resource Resource) {
 //
 //	rg.AddDependency(lambda, lambda.Role)
 func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Resource) {
+
 	for _, res := range []Resource{deployedSecond, deployedFirst} {
 		rg.AddResource(res)
 	}
 	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.Id().String(), deployedFirst.Id().String()); cycle {
 		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond.Id(), deployedFirst.Id())
 	} else {
-		rg.underlying.AddEdge(deployedSecond.Id().String(), deployedFirst.Id().String())
+		rg.underlying.AddEdge(deployedSecond.Id().String(), deployedFirst.Id().String(), nil)
+		zap.S().Debugf("adding %s -> %s", deployedSecond.Id(), deployedFirst.Id())
+	}
+}
+
+// AddDependencyWithData Adds a dependency such that `deployedSecond` has to be deployed after `deployedFirst`. This makes the left-to-right
+// association consistent with our visualizer, and with the Go struct graph.
+// This method also allows any edge data to be attached to the dependency in the ResourceGraph
+func (rg *ResourceGraph) AddDependencyWithData(deployedSecond Resource, deployedFirst Resource, data any) {
+
+	for _, res := range []Resource{deployedSecond, deployedFirst} {
+		rg.AddResource(res)
+	}
+	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.Id().String(), deployedFirst.Id().String()); cycle {
+		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond.Id(), deployedFirst.Id())
+	} else {
+		rg.underlying.AddEdge(deployedSecond.Id().String(), deployedFirst.Id().String(), data)
 		zap.S().Debugf("adding %s -> %s", deployedSecond.Id(), deployedFirst.Id())
 	}
 }
@@ -72,6 +92,10 @@ func (rg *ResourceGraph) GetDependency(source Resource, target Resource) *graph.
 
 func (rg *ResourceGraph) GetDependencyByVertexIds(source string, target string) *graph.Edge[Resource] {
 	return rg.underlying.GetEdge(source, target)
+}
+
+func (rg *ResourceGraph) RemoveDependency(source string, target string) error {
+	return rg.underlying.RemoveEdge(source, target)
 }
 
 func (rg *ResourceGraph) ListResources() []Resource {
@@ -234,4 +258,215 @@ func (rg *ResourceGraph) getAllDownstreamResourcesSet(source Resource, upstreams
 		rg.getAllDownstreamResourcesSet(r, upstreams)
 	}
 	return upstreams
+}
+
+// CreateDependencies takes in a resource and set of metadata and looks at any fields which point to specific dependencies which match the Resource Interface
+// If a specific dependency is found, the .Create method will be called to create the parent resource.
+// Each specific dependency value will be updated on the resources field itself
+// This method will recurse down each one of the resources fields and do a DFS until a Resource is found
+//
+// Before adding a dependency and setting the value on the resource's field, the method will ensure there is no existing node in the graph for the named node created
+// If there is an existing node, the method will ensure the resource's field is set to point to the already existent node
+//
+// IaCValues today are not labeled as a specific resource, so the value must already be present. This method will still add the dependency and ensure the resource is created based on the params passed in, but
+// does not have the knowledge of which resource to create
+//
+//	T params are a map of the reflection field names, to their respective fields
+//
+// Example:
+// for a struct:
+//
+//	 Test{
+//	   Field1 Resource
+//	   Field2 Resource
+//	}
+//
+// The corresponding params would be:
+//
+//	params := map[string]any{
+//	   "Field1": ResourceParams
+//	   "Field2": ResourceParams
+//	}
+//
+// Params for direct resources or IaCValues correlate to the field they are for
+// For params on fields which correlate to the following types, the formats are:
+//   - Map: map[string]ParamType    (the string key corresponds to the key in the map)
+//   - Struct: map[string]ParamType (the string key corresponds to the field in the struct)
+//   - Array or slice: []ParamType
+func (rg *ResourceGraph) CreateDependencies(res Resource, params map[string]any) error {
+	var merr multierr.Error
+	source := reflect.ValueOf(res)
+
+	for source.Kind() == reflect.Pointer {
+		source = source.Elem()
+	}
+	for i := 0; i < source.NumField(); i++ {
+		targetValue := source.Field(i)
+		fieldsParams := params[source.Type().Field(i).Name]
+		if fieldsParams != nil {
+			merr.Append(rg.actOnValue(targetValue, res, fieldsParams, nil, reflect.Value{}))
+		}
+	}
+	rg.AddDependenciesReflect(res)
+	return merr.ErrOrNil()
+}
+
+// CreateResource is a wrapper around a Resources .Create method
+//
+// CreateResource provides safety in assuring that the up to date resource (which is inline with what exists in the ResourceGraph) is returned
+func CreateResource[T Resource](rg *ResourceGraph, params any) (resource T, err error) {
+
+	res := reflect.New(reflect.TypeOf(resource).Elem()).Interface()
+	err = rg.callCreate(reflect.ValueOf(res), params)
+	if err != nil {
+		return
+	}
+	castedRes, ok := res.(Resource)
+	if !ok {
+		err = fmt.Errorf("unable to cast to type Resource")
+		return
+	}
+
+	currValue := rg.GetResourceByVertexId(castedRes.Id().String())
+	if currValue != nil {
+		return currValue.(T), nil
+	}
+	return castedRes.(T), nil
+}
+
+func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, metadata any, parent *reflect.Value, index reflect.Value) error {
+	switch value := targetValue.Interface().(type) {
+	case Resource:
+		if targetValue.IsNil() {
+			value = reflect.New(targetValue.Type().Elem()).Interface().(Resource)
+		}
+		err := rg.callCreate(reflect.ValueOf(value), metadata)
+		currValue := rg.GetResourceByVertexId(value.Id().String())
+		if currValue != nil {
+			value = currValue
+		}
+		if err == nil && value != nil {
+			if parent != nil {
+				parent.SetMapIndex(index, reflect.ValueOf(value))
+			} else {
+				targetValue.Set(reflect.ValueOf(value))
+			}
+		} else {
+			return err
+		}
+	case *IaCValue:
+		if value != nil && value.Resource != nil {
+			err := rg.callCreate(reflect.ValueOf(value.Resource), metadata)
+			currValue := rg.GetResourceByVertexId(value.Resource.Id().String())
+			if currValue != nil {
+				value.Resource = currValue
+			}
+			if err == nil && value.Resource != nil {
+				if parent != nil {
+					parent.SetMapIndex(index, reflect.ValueOf(value))
+				} else {
+					targetValue.Set(reflect.ValueOf(value))
+				}
+			} else {
+				return err
+			}
+		}
+	case IaCValue:
+		if value.Resource != nil {
+			err := rg.callCreate(reflect.ValueOf(value.Resource), metadata)
+			currValue := rg.GetResourceByVertexId(value.Resource.Id().String())
+			if currValue != nil {
+				value.Resource = currValue
+			}
+			if err == nil && value.Resource != nil {
+				if parent != nil {
+					parent.SetMapIndex(index, reflect.ValueOf(value))
+				} else {
+					targetValue.Set(reflect.ValueOf(value))
+				}
+			} else {
+				return err
+			}
+		}
+	default:
+		correspondingValue := targetValue
+		for correspondingValue.Kind() == reflect.Pointer {
+			correspondingValue = targetValue.Elem()
+		}
+
+		err := rg.checkChild(correspondingValue, res, metadata)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (rg *ResourceGraph) callCreate(targetValue reflect.Value, metadata any) error {
+	method := targetValue.MethodByName("Create")
+	if method.IsValid() {
+		var callArgs []reflect.Value
+		callArgs = append(callArgs, reflect.ValueOf(rg))
+		params := reflect.New(method.Type().In(1)).Interface()
+		decoder := GetMapDecoder(params)
+		err := decoder.Decode(metadata)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("error decoding the following type %s", reflect.New(method.Type().In(1)).Type().String()))
+		}
+		callArgs = append(callArgs, reflect.ValueOf(params).Elem())
+		eval := method.Call(callArgs)
+		if eval[0].IsNil() {
+			return nil
+		} else {
+			err, ok := eval[0].Interface().(error)
+			if !ok {
+				return fmt.Errorf("return type should be an error")
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func (rg *ResourceGraph) checkChild(child reflect.Value, res Resource, metadata any) error {
+	var merr multierr.Error
+	switch child.Kind() {
+	case reflect.Struct:
+		params := reflect.ValueOf(metadata)
+		if params.Kind() != reflect.Map {
+			return fmt.Errorf("field %s params does not conform to type for structs", child.Type().String())
+		}
+		for i := 0; i < child.NumField(); i++ {
+			childVal := child.Field(i)
+			fieldName := child.Type().Field(i).Name
+
+			// Loop over the keys of the params map and see if anything correlates to the field in the struct. If so then we will act on that field of the struct
+			for _, key := range params.MapKeys() {
+				if key.String() == fieldName {
+					merr.Append(rg.actOnValue(childVal, res, params.MapIndex(reflect.ValueOf(fieldName)).Interface(), nil, reflect.Value{}))
+				}
+			}
+		}
+	case reflect.Slice, reflect.Array:
+		params := reflect.ValueOf(metadata)
+		if params.Kind() != reflect.Slice && params.Kind() != reflect.Array {
+			return fmt.Errorf("field %s does not match parent type %s", params.Type().String(), child.Type().String())
+		} else if params.Len() != child.Len() {
+			return fmt.Errorf("field %s does not have the same number of elements as parent", child.Type().String())
+		}
+		for elemIdx := 0; elemIdx < child.Len(); elemIdx++ {
+			elemValue := child.Index(elemIdx)
+			merr.Append(rg.actOnValue(elemValue, res, params.Index(elemIdx).Interface(), nil, reflect.Value{}))
+		}
+	case reflect.Map:
+		params := reflect.ValueOf(metadata)
+		if params.Kind() != reflect.Map {
+			return fmt.Errorf("field %s params does not conform to type for maps", child.Type().String())
+		}
+		for _, key := range child.MapKeys() {
+			elemValue := child.MapIndex(key)
+			merr.Append(rg.actOnValue(elemValue, res, params.MapIndex(key).Interface(), &child, key))
+		}
+	}
+	return merr.ErrOrNil()
 }

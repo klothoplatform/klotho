@@ -144,7 +144,7 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 			g.AddVertex(tt.construct)
 			for _, c := range tt.deps {
 				g.AddVertex(c)
-				g.AddEdge(tt.construct.Id(), c.Id())
+				g.AddEdge(tt.construct.Id(), c.Id(), nil)
 			}
 			deps := constructGraph.GetDownstreamDependencies(tt.construct)
 			if tt.want != nil && !assert.NotNil(deps) {
@@ -214,7 +214,7 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 			g.AddVertex(tt.construct)
 			for _, c := range tt.deps {
 				g.AddVertex(c)
-				g.AddEdge(c.Id(), tt.construct.Id())
+				g.AddEdge(c.Id(), tt.construct.Id(), nil)
 			}
 			deps := constructGraph.GetUpstreamDependencies(tt.construct)
 			if tt.want != nil && !assert.NotNil(deps) {

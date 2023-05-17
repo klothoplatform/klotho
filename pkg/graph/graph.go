@@ -21,6 +21,7 @@ type (
 	Edge[V any] struct {
 		Source      V
 		Destination V
+		Properties  graph.EdgeProperties
 	}
 )
 
@@ -103,8 +104,8 @@ func (d *Directed[V]) AddVerticesAndEdge(source V, dest V) {
 	}
 }
 
-func (d *Directed[V]) AddEdge(source string, dest string) {
-	err := d.underlying.AddEdge(source, dest)
+func (d *Directed[V]) AddEdge(source string, dest string, data any) {
+	err := d.underlying.AddEdge(source, dest, graph.EdgeData(data))
 	if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
 		zap.S().With("error", zap.Error(err)).Errorf(
 			`Unexpected error while adding edge between "%v" and "%v"`, source, dest)
@@ -148,7 +149,7 @@ func (d *Directed[V]) GetEdge(source string, target string) *Edge[V] {
 	v, err := d.underlying.Edge(source, target)
 	switch {
 	case err == nil:
-		return &Edge[V]{Source: v.Source, Destination: v.Target}
+		return &Edge[V]{Source: v.Source, Destination: v.Target, Properties: v.Properties}
 
 	case errors.Is(err, graph.ErrEdgeNotFound):
 		return nil
@@ -158,6 +159,10 @@ func (d *Directed[V]) GetEdge(source string, target string) *Edge[V] {
 			`Unexpected error while getting vertex for "%v"`, source)
 		return nil
 	}
+}
+
+func (d *Directed[V]) RemoveEdge(source string, target string) error {
+	return d.underlying.RemoveEdge(source, target)
 }
 
 func (d *Directed[V]) IdForNode(v V) string {
@@ -185,7 +190,7 @@ func (d *Directed[V]) GetAllEdges() []Edge[V] {
 				zap.S().With(zap.Error(err)).Errorf(
 					`Ignoring edge %v because I couldn't resolve the destination vertex. %s`, edge, ourFault)
 			}
-			results = append(results, Edge[V]{Source: sourceV, Destination: destV})
+			results = append(results, Edge[V]{Source: sourceV, Destination: destV, Properties: edge.Properties})
 		}
 	}
 	return results
