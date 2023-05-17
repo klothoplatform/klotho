@@ -146,6 +146,12 @@ var podTransformer = manifestTransformer[*corev1.Pod]{
 			pod.Labels = make(map[string]string)
 		}
 		pod.Labels["execUnit"] = unit.Name
+
+		// If this pod is bound to a target group, this label informs the ALB Controller to inject a pod readiness gate.
+		if unit.TargetGroupBinding != nil {
+			pod.Labels["elbv2.k8s.aws/pod-readiness-gate-inject"] = "enabled"
+		}
+
 		pod.Spec.ServiceAccountName = unit.getServiceAccountName()
 
 		output, err := yaml.Marshal(pod)
@@ -204,6 +210,10 @@ var deploymentTransformer = manifestTransformer[*apps.Deployment]{
 		}
 		deployment.Spec.Template.Labels["execUnit"] = unit.Name
 		deployment.Spec.Template.Spec.ServiceAccountName = unit.getServiceAccountName()
+		// If this pod is bound to a target group, this label informs the ALB Controller to inject a pod readiness gate.
+		if unit.TargetGroupBinding != nil {
+			deployment.Spec.Template.Labels["elbv2.k8s.aws/pod-readiness-gate-inject"] = "enabled"
+		}
 		extraLabels.addTo(deployment.Spec.Template.Labels)
 
 		if deployment.Spec.Selector.MatchLabels == nil {
