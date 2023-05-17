@@ -209,6 +209,11 @@ func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreatePara
 		proxy.Subnets = make([]*Subnet, 2)
 		proxy.SecurityGroups = make([]*SecurityGroup, 1)
 		err := dag.CreateDependencies(proxy, map[string]any{
+			"Role": RoleCreateParams{
+				AppName: params.AppName,
+				Name:    fmt.Sprintf("%s-ProxyRole", params.Name),
+				Refs:    proxy.ConstructsRef,
+			},
 			"SecurityGroups": []SecurityGroupCreateParams{
 				{
 					AppName: params.AppName,

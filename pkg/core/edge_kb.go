@@ -254,14 +254,18 @@ func ExpandEdges(kb EdgeKB, dag *ResourceGraph) (err error) {
 					merr.Append(err)
 				}
 
-				resourceCache[from] = fromNode
+				if fromNode != nil {
+					resourceCache[from] = fromNode
+				}
 				fromNodeInGraph := dag.GetResource(fromNode.Id())
 				if fromNodeInGraph != nil {
 					resourceCache[from] = fromNodeInGraph
 				}
-				resourceCache[to] = toNode
+				if toNode != nil {
+					resourceCache[to] = toNode
+				}
 				toNodeInGraph := dag.GetResource(toNode.Id())
-				if fromNodeInGraph != nil {
+				if toNodeInGraph != nil {
 					resourceCache[to] = toNodeInGraph
 				}
 			}
