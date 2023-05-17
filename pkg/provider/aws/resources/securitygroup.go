@@ -25,6 +25,34 @@ type (
 
 const SG_TYPE = "security_group"
 
+type SecurityGroupCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+}
+
+// Create takes in an all necessary parameters to generate the SecurityGroup name and ensure that the SecurityGroup is correlated to the constructs which required its creation.
+//
+// This method will also create dependent resources which are necessary for functionality. Those resources are:
+//   - VPC
+func (sg *SecurityGroup) Create(dag *core.ResourceGraph, params SecurityGroupCreateParams) error {
+
+	sg.Name = params.AppName
+	sg.ConstructsRef = params.Refs
+	err := dag.CreateDependencies(sg, map[string]any{
+		"Vpc": params,
+	})
+	if err != nil {
+		return err
+	}
+
+	existingSG := dag.GetResource(sg.Id())
+	if existingSG != nil {
+		graphSG := existingSG.(*SecurityGroup)
+		graphSG.ConstructsRef = core.DedupeAnnotationKeys(append(graphSG.ConstructsRef, params.Refs...))
+	}
+	return nil
+}
+
 // GetSecurityGroup returns the security group if one exists, otherwise creates one, then returns it
 func GetSecurityGroup(cfg *config.Application, dag *core.ResourceGraph) *SecurityGroup {
 	for _, r := range dag.ListResources() {

@@ -35,15 +35,15 @@ type RepoCreateParams struct {
 	Refs    []core.AnnotationKey
 }
 
+// Create takes in an all necessary parameters to generate the EcrRepository name and ensure that the EcrRepository is correlated to the constructs which required its creation.
 func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreateParams) error {
 	repo.Name = params.AppName
-	repo.ForceDelete = true
 	repo.ConstructsRef = params.Refs
 
-	existingRepo := dag.GetResourceByVertexId(repo.Id().String())
+	existingRepo := dag.GetResource(repo.Id())
 	if existingRepo != nil {
 		graphRepo := existingRepo.(*EcrRepository)
-		graphRepo.ConstructsRef = append(graphRepo.KlothoConstructRef(), params.Refs...)
+		graphRepo.ConstructsRef = core.DedupeAnnotationKeys(append(graphRepo.KlothoConstructRef(), params.Refs...))
 	} else {
 		dag.AddResource(repo)
 	}
@@ -56,12 +56,15 @@ type ImageCreateParams struct {
 	Name    string
 }
 
+// Create takes in an all necessary parameters to generate the EcrImage name and ensure that the EcrImage is correlated to the constructs which required its creation.
+//
+// This method also creates the direct dependent resource, EcrRepository.
 func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams) error {
 	name := fmt.Sprintf("%s-%s", params.AppName, params.Name)
 	image.Name = name
 	image.ConstructsRef = params.Refs
 
-	existingImage := dag.GetResourceByVertexId(image.Id().String())
+	existingImage := dag.GetResource(image.Id())
 	if existingImage != nil {
 		return fmt.Errorf("ecr image with name %s already exists", name)
 	}

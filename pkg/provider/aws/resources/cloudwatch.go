@@ -34,7 +34,7 @@ func (logGroup *LogGroup) Create(dag *core.ResourceGraph, params CloudwatchLogGr
 	existingLogGroup := dag.GetResource(logGroup.Id())
 	if existingLogGroup != nil {
 		graphLogGroup := existingLogGroup.(*LogGroup)
-		graphLogGroup.ConstructsRef = append(graphLogGroup.KlothoConstructRef(), params.Refs...)
+		graphLogGroup.ConstructsRef = core.DedupeAnnotationKeys(append(graphLogGroup.KlothoConstructRef(), params.Refs...))
 	} else {
 		dag.AddResource(logGroup)
 	}

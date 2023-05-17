@@ -10,17 +10,15 @@ import (
 )
 
 func Test_LambdaCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, DockerfilePath: "path"}
+	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
 	cases := []struct {
 		name    string
 		lambda  *LambdaFunction
-		vpc     bool
 		want    coretesting.ResourcesExpectation
 		wantErr bool
 	}{
 		{
 			name: "nil lambda",
-			vpc:  false,
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ecr_image:my-app-test",
@@ -40,7 +38,6 @@ func Test_LambdaCreate(t *testing.T) {
 		{
 			name:    "existing lambda",
 			lambda:  &LambdaFunction{Name: "my-app-test"},
-			vpc:     false,
 			wantErr: true,
 		},
 	}
@@ -69,6 +66,9 @@ func Test_LambdaCreate(t *testing.T) {
 				return
 			}
 			tt.want.Assert(t, dag)
+
+			graphLambda := dag.GetResource(lambda.Id())
+			lambda = graphLambda.(*LambdaFunction)
 
 			assert.Equal(lambda.Name, "my-app-test")
 			assert.ElementsMatch(lambda.ConstructsRef, []core.AnnotationKey{eu.AnnotationKey})
