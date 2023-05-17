@@ -3,9 +3,64 @@ package resources
 import (
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
+
+func Test_RoleCreate(t *testing.T) {
+	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	cases := []struct {
+		name    string
+		role    *IamRole
+		want    coretesting.ResourcesExpectation
+		wantErr bool
+	}{
+		{
+			name: "nil role",
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:iam_role:my-app-executionRole",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+		},
+		{
+			name:    "existing role",
+			role:    &IamRole{Name: "my-app-executionRole", ConstructsRef: initialRefs},
+			wantErr: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			dag := core.NewResourceGraph()
+			if tt.role != nil {
+				dag.AddResource(tt.role)
+			}
+			metadata := RoleCreateParams{
+				AppName: "my-app",
+				Name:    "executionRole",
+				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+			}
+			role := &IamRole{}
+			err := role.Create(dag, metadata)
+
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
+			if !assert.NoError(err) {
+				return
+			}
+			tt.want.Assert(t, dag)
+
+			assert.Equal(role.Name, "my-app-executionRole")
+			assert.Equal(role.ConstructsRef, metadata.Refs)
+		})
+	}
+}
 
 func Test_AddAllowPolicyToUnit(t *testing.T) {
 	bucket := NewS3Bucket(&core.Fs{}, "test-app")

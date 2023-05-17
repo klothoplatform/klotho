@@ -39,6 +39,54 @@ type (
 	}
 )
 
+type LambdaCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	Name    string
+}
+
+// Create takes in an all necessary parameters to generate the lambdas name and ensure that the lambda is correlated to the constructs which required its creation.
+//
+// This method will also create dependent resources which are necessary for functionality. Those resources are:
+//   - Iam Role
+//   - Cloudwatch LogGroup
+//   - Ecr Image
+func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreateParams) error {
+
+	name := lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	lambda.Name = name
+	lambda.ConstructsRef = params.Refs
+
+	existingLambda := dag.GetResourceByVertexId(lambda.Id().String())
+	if existingLambda != nil {
+		return fmt.Errorf("lambda with name %s already exists", name)
+	}
+
+	logGroup, err := core.CreateResource[*LogGroup](dag, params)
+	if err != nil {
+		return err
+	}
+	dag.AddDependency(lambda, logGroup)
+	subParams := map[string]any{
+		"Role": RoleCreateParams{
+			AppName: params.AppName,
+			Name:    fmt.Sprintf("%s-ExecutionRole", params.Name),
+			Refs:    lambda.ConstructsRef,
+		},
+		"Image": params,
+	}
+
+	err = dag.CreateDependencies(lambda, subParams)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (lambda *LambdaPermission) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 func NewLambdaFunction(unit *core.ExecutionUnit, cfg *config.Application, role *IamRole, image *EcrImage) *LambdaFunction {
 	params := config.ConvertFromInfraParams[config.ServerlessTypeParams](cfg.GetExecutionUnit(unit.ID).InfraParams)
 	return &LambdaFunction{

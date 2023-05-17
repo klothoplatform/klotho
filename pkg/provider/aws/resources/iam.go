@@ -147,6 +147,30 @@ type (
 	}
 )
 
+type RoleCreateParams struct {
+	AppName string
+	Name    string
+	Refs    []core.AnnotationKey
+}
+
+// Create takes in an all necessary parameters to generate the Roles name and ensure that the Role is correlated to the constructs which required its creation.
+func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) error {
+	role.Name = roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	role.ConstructsRef = params.Refs
+
+	existingRole := dag.GetResource(role.Id())
+	if existingRole != nil {
+		return fmt.Errorf("iam role with name %s already exists", role.Name)
+	}
+
+	dag.AddResource(role)
+	return nil
+}
+
+func (lambda *OpenIdConnectProvider) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	panic("Not Implemented")
+}
+
 func NewPolicyGenerator() *PolicyGenerator {
 	p := &PolicyGenerator{
 		unitsPolicies:       make(map[string][]*IamPolicy),
@@ -259,10 +283,10 @@ func NewIamPolicy(appName string, policyName string, ref core.AnnotationKey, pol
 	}
 }
 
-func NewIamInlinePolicy(policyName string, ref core.AnnotationKey, policy *PolicyDocument) *IamInlinePolicy {
+func NewIamInlinePolicy(policyName string, refs []core.AnnotationKey, policy *PolicyDocument) *IamInlinePolicy {
 	return &IamInlinePolicy{
 		Name:          policySanitizer.Apply(policyName),
-		ConstructsRef: []core.AnnotationKey{ref},
+		ConstructsRef: refs,
 		Policy:        policy,
 	}
 }

@@ -12,6 +12,25 @@ import (
 	"go.uber.org/zap"
 )
 
+// expandExecutionUnit takes in a single execution unit and expands the generic construct into a set of resource's based on the units configuration.
+func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionUnit) error {
+	switch a.Config.GetExecutionUnit(unit.ID).Type {
+	case Lambda:
+		lambda, err := core.CreateResource[*resources.LambdaFunction](dag, resources.LambdaCreateParams{
+			AppName: a.Config.AppName,
+			Refs:    []core.AnnotationKey{unit.AnnotationKey},
+			Name:    unit.ID,
+		})
+		a.MapResourceDirectlyToConstruct(lambda, unit)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unsupported execution unit type %s", a.Config.GetExecutionUnit(unit.ID).Type)
+	}
+	return nil
+}
+
 // GenerateExecUnitResources generates the necessary AWS resources for a given execution unit and adds them to the resource graph
 func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	log := zap.S()
