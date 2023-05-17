@@ -60,8 +60,8 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 				return
 			}
 			tt.want.Assert(t, dag)
-			resources, _ := aws.GetResourcesDirectlyTiedToConstruct(tt.unit)
-			assert.Len(resources, 1)
+			resource := aws.GetResourceTiedToConstruct(tt.unit)
+			assert.NotNil(resource)
 		})
 	}
 }

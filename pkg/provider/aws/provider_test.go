@@ -50,6 +50,26 @@ func TestAwsMapResourceDirectlyToConstruct(t *testing.T) {
 	})
 }
 
+func TestAwsMapResourceToConstruct(t *testing.T) {
+	t.Run("empty AWS struct, MapResourceDirectlyToConstruct", func(t *testing.T) {
+		assert := assert.New(t)
+		a := AWS{}
+		err := a.MapResourceToConstruct(dummyResource("res"), dummyConstruct("cons"))
+		assert.NoError(err)
+		assert.Equal(
+			map[string]core.Resource{
+				"cons": dummyResource("res"),
+			},
+			a.constructIdToResource)
+	})
+	t.Run("empty AWS struct, MapResourceDirectlyToConstruct", func(t *testing.T) {
+		assert := assert.New(t)
+		a := AWS{}
+		res := a.GetResourceTiedToConstruct(dummyConstruct("cons"))
+		assert.Nil(res)
+	})
+}
+
 type (
 	dummyResource  string
 	dummyConstruct string
@@ -59,6 +79,9 @@ func (dr dummyResource) KlothoConstructRef() []core.AnnotationKey { return nil }
 
 func (dr dummyResource) Id() core.ResourceId {
 	return core.ResourceId{Provider: "test", Type: "", Name: string(dr)}
+}
+func (f dummyResource) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
+	return nil, nil
 }
 
 func (dc dummyConstruct) Provenance() core.AnnotationKey { return core.AnnotationKey{} }

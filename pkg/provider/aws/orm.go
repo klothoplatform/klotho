@@ -19,7 +19,10 @@ func (a *AWS) expandOrm(dag *core.ResourceGraph, orm *core.Orm) error {
 		if err != nil {
 			return err
 		}
-		a.MapResourceDirectlyToConstruct(instance, orm)
+		err = a.MapResourceToConstruct(instance, orm)
+		if err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unsupported orm type %s", a.Config.GetPersistOrm(orm.ID).Type)
 	}
