@@ -43,7 +43,7 @@ func (region *Region) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     REGION_TYPE,
-		Name:     region.Name,
+		Name:     "region",
 	}
 }
 
@@ -64,7 +64,7 @@ func (azs *AvailabilityZones) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     AVAILABILITY_ZONES_TYPE,
-		Name:     azs.Name,
+		Name:     "AvailabilityZones",
 	}
 }
 
@@ -85,6 +85,6 @@ func (id *AccountId) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     ACCOUNT_ID_TYPE,
-		Name:     id.Name,
+		Name:     "AccountId",
 	}
 }

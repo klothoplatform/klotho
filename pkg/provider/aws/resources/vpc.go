@@ -88,6 +88,230 @@ type (
 	}
 )
 
+type VpcCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+}
+
+// Create takes in an all necessary parameters to generate the Vpc name and ensure that the Vpc is correlated to the constructs which required its creation.
+func (vpc *Vpc) Create(dag *core.ResourceGraph, params VpcCreateParams) error {
+
+	vpc.Name = aws.VpcSanitizer.Apply(params.AppName)
+	vpc.ConstructsRef = params.Refs
+
+	existingVpc := dag.GetResource(vpc.Id())
+	if existingVpc != nil {
+		graphVpc := existingVpc.(*Vpc)
+		graphVpc.ConstructsRef = append(graphVpc.KlothoConstructRef(), params.Refs...)
+	} else {
+		dag.AddResource(vpc)
+	}
+
+	return nil
+}
+
+type EipCreateParams struct {
+	AppName string
+	IpName  string
+	Refs    []core.AnnotationKey
+}
+
+// Create takes in an all necessary parameters to generate the ElasticIP name and ensure that the ElasticIP is correlated to the constructs which required its creation.
+func (eip *ElasticIp) Create(dag *core.ResourceGraph, params EipCreateParams) error {
+	eip.Name = elasticIpSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.IpName))
+	eip.ConstructsRef = params.Refs
+	existingEip := dag.GetResourceByVertexId(eip.Id().String())
+	if existingEip != nil {
+		graphEip := existingEip.(*ElasticIp)
+		graphEip.ConstructsRef = append(graphEip.ConstructsRef, params.Refs...)
+	} else {
+		dag.AddResource(eip)
+	}
+	return nil
+}
+
+type IgwCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+}
+
+// Create takes in an all necessary parameters to generate the InternetGateway name and ensure that the InternetGateway is correlated to the constructs which required its creation.
+//
+// This method will also create dependent resources which are necessary for functionality. Those resources are:
+//   - VPC
+func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreateParams) error {
+
+	igw.Name = igwSanitizer.Apply(fmt.Sprintf("%s-igw", params.AppName))
+	igw.ConstructsRef = params.Refs
+
+	existingIgw := dag.GetResourceByVertexId(igw.Id().String())
+
+	if existingIgw != nil {
+		graphIgw := existingIgw.(*InternetGateway)
+		graphIgw.ConstructsRef = append(graphIgw.ConstructsRef, params.Refs...)
+	} else {
+		err := dag.CreateDependencies(igw, map[string]any{
+			"Vpc": params,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type NatCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	AZ      string
+}
+
+// Create takes in an all necessary parameters to generate the NatGateway name and ensure that the NatGateway is correlated to the constructs which required its creation.
+//
+// This method will also create dependent resources which are necessary for functionality. Those resources are:
+//   - Subnet
+//   - Elastic IP
+func (nat *NatGateway) Create(dag *core.ResourceGraph, params NatCreateParams) error {
+
+	nat.Name = natGatewaySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.AZ))
+	nat.ConstructsRef = params.Refs
+
+	existingNat := dag.GetResourceByVertexId(nat.Id().String())
+	if existingNat != nil {
+		graphNat := existingNat.(*NatGateway)
+		graphNat.ConstructsRef = append(graphNat.ConstructsRef, params.Refs...)
+	} else {
+		subResourceParams := map[string]any{
+			"Subnet": SubnetCreateParams{
+				AppName: params.AppName,
+				Refs:    params.Refs,
+				AZ:      params.AZ,
+				Type:    PublicSubnet,
+			},
+			"ElasticIp": EipCreateParams{
+				AppName: params.AppName,
+				Refs:    params.Refs,
+				IpName:  params.AZ,
+			},
+		}
+		err := dag.CreateDependencies(nat, subResourceParams)
+		return err
+	}
+	return nil
+}
+
+type SubnetCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	AZ      string
+	Type    string
+}
+
+// Create takes in an all necessary parameters to generate the Subnet name and ensure that the Subnet is correlated to the constructs which required its creation.
+//
+// This method will also create dependent resources which are necessary for functionality. Those resources are:
+//   - VPC
+//   - Route Table
+//   - Nat Gateway (if subnet is private)
+//   - Internet Gateway (if subnet is private)
+func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams) error {
+	subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", params.AppName, params.Type, params.AZ))
+	subnet.ConstructsRef = params.Refs
+	subnet.AvailabilityZone = core.IaCValue{Resource: NewAvailabilityZones(), Property: params.AZ}
+	subnet.Type = params.Type
+
+	routeTableParams := RouteTableCreateParams{
+		AppName: params.AppName,
+		Refs:    params.Refs,
+	}
+	if subnet.Type == PrivateSubnet {
+		routeTableParams.Name = fmt.Sprintf("%s%s", params.Type, params.AZ)
+	} else {
+		routeTableParams.Name = fmt.Sprintf(params.Type)
+	}
+	rt := &RouteTable{}
+	err := rt.Create(dag, routeTableParams)
+	if err != nil {
+		return err
+	}
+	if subnet.Type == PrivateSubnet {
+		nat := &NatGateway{}
+		natParams := NatCreateParams{
+			AppName: params.AppName,
+			Refs:    params.Refs,
+			AZ:      params.AZ,
+		}
+		err := nat.Create(dag, natParams)
+		if err != nil {
+			return err
+		}
+		dag.AddDependency(rt, nat)
+	} else if subnet.Type == PublicSubnet {
+		igw := &InternetGateway{}
+		igwParams := IgwCreateParams{
+			AppName: params.AppName,
+			Refs:    params.Refs,
+		}
+		err := igw.Create(dag, igwParams)
+		if err != nil {
+			return err
+		}
+		dag.AddDependency(rt, igw)
+	}
+
+	err = dag.CreateDependencies(subnet, map[string]any{
+		"Vpc": params,
+	})
+	if err != nil {
+		return err
+	}
+	dag.AddDependency(subnet, NewAvailabilityZones())
+	dag.AddDependency(rt, subnet)
+
+	// We must check to see if there is an existent subnet after calling create dependencies because the id of the subnet has a namespace based on the vpc
+	existingSubnet := dag.GetResourceByVertexId(subnet.Id().String())
+	if existingSubnet != nil {
+		graphSubnet := existingSubnet.(*Subnet)
+		graphSubnet.ConstructsRef = core.DedupeAnnotationKeys(append(graphSubnet.ConstructsRef, params.Refs...))
+	}
+	return nil
+}
+
+type RouteTableCreateParams struct {
+	AppName string
+	Name    string
+	Refs    []core.AnnotationKey
+}
+
+// Create takes in an all necessary parameters to generate the RouteTable name and ensure that the RouteTable is correlated to the constructs which required its creation.
+//
+// This method will also create dependent resources which are necessary for functionality. Those resources are:
+//   - VPC
+func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreateParams) error {
+
+	rt.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+
+	subParams := map[string]any{
+		"Vpc": VpcCreateParams{
+			AppName: params.AppName,
+			Refs:    params.Refs,
+		},
+	}
+	err := dag.CreateDependencies(rt, subParams)
+	if err != nil {
+		return err
+	}
+	dag.AddDependenciesReflect(rt)
+
+	// We must check to see if there is an existent route table after calling create dependencies because the id of the subnet can contain a namespace based on the vpc
+	existingRt := dag.GetResourceByVertexId(rt.Id().String())
+	if existingRt != nil {
+		graphRt := existingRt.(*RouteTable)
+		graphRt.ConstructsRef = core.DedupeAnnotationKeys(append(graphRt.ConstructsRef, params.Refs...))
+	}
+	return nil
+}
+
 // CreateNetwork takes in a config and uses the appName to create an aws network and inject it into the dag.
 //
 // The network consists of:

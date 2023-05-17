@@ -107,6 +107,85 @@ type (
 	}
 )
 
+type RdsInstanceCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	Name    string
+}
+
+// Create takes in an all necessary parameters to generate the RdsInstance name and ensure that the RdsInstance is correlated to the constructs which required its creation.
+//
+// This method will also create dependent resources which are necessary for functionality. Those resources are:
+//   - RDS Subnet Group
+//   - Security Groups
+func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceCreateParams) error {
+
+	name := rdsInstanceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	instance.Name = name
+	instance.ConstructsRef = params.Refs
+
+	existingInstance := dag.GetResource(instance.Id())
+	if existingInstance != nil {
+		return fmt.Errorf("RdsInstance with name %s already exists", name)
+	}
+
+	instance.SecurityGroups = make([]*SecurityGroup, 1)
+	subParams := map[string]any{
+		"SecurityGroups": []SecurityGroupCreateParams{
+			{
+				AppName: params.AppName,
+				Refs:    params.Refs,
+			},
+		},
+		"SubnetGroup": params,
+	}
+	err := dag.CreateDependencies(instance, subParams)
+	return err
+}
+
+type RdsSubnetGroupCreateParams struct {
+	AppName string
+	Name    string
+	Refs    []core.AnnotationKey
+}
+
+// Create takes in an all necessary parameters to generate the RdsSubnetGroup name and ensure that the RdsSubnetGroup is correlated to the constructs which required its creation.
+//
+// This method will also create dependent resources which are necessary for functionality. Those resources are:
+//   - Subnets
+func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSubnetGroupCreateParams) error {
+	subnetGroup.Name = rdsSubnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	subnetGroup.ConstructsRef = params.Refs
+
+	existingSubnetGroup := dag.GetResource(subnetGroup.Id())
+	if existingSubnetGroup != nil {
+		graphSubnetGroup := existingSubnetGroup.(*RdsSubnetGroup)
+		graphSubnetGroup.ConstructsRef = core.DedupeAnnotationKeys(append(graphSubnetGroup.KlothoConstructRef(), params.Refs...))
+	} else {
+		subnetGroup.Subnets = make([]*Subnet, 2)
+		err := dag.CreateDependencies(subnetGroup, map[string]any{
+			"Subnets": []SubnetCreateParams{
+				{
+					AppName: params.AppName,
+					Refs:    params.Refs,
+					AZ:      "0",
+					Type:    PrivateSubnet,
+				},
+				{
+					AppName: params.AppName,
+					Refs:    params.Refs,
+					AZ:      "1",
+					Type:    PrivateSubnet,
+				},
+			},
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // CreateRdsInstance takes in an orm construct and creates the necessary resources to support creating a functional RDS Orm implementation
 //
 // If proxy is enabled, a corresponding proxy, secret, and remaining resources will be created.

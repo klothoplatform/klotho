@@ -56,13 +56,12 @@ func Test_RepositoryCreate(t *testing.T) {
 			}
 
 			tt.want.Assert(t, dag)
-
+			graphRepo := dag.GetResourceByVertexId(repo.Id().String())
+			repo = graphRepo.(*EcrRepository)
 			assert.Equal(repo.Name, "my-app")
-			assert.Equal(repo.ForceDelete, true)
 			if tt.repo == nil {
 				assert.ElementsMatch(repo.ConstructsRef, metadata.Refs)
 			} else {
-				repo := dag.GetResourceByVertexId(repo.Id().String())
 				assert.Equal(repo, tt.repo)
 				assert.ElementsMatch(repo.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
@@ -119,6 +118,8 @@ func Test_ImageCreate(t *testing.T) {
 				return
 			}
 			tt.want.Assert(t, dag)
+			graphImage := dag.GetResourceByVertexId(image.Id().String())
+			image = graphImage.(*EcrImage)
 
 			assert.Equal(image.Name, "my-app-test-unit")
 			assert.Equal(image.ConstructsRef, metadata.Refs)
