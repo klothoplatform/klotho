@@ -320,6 +320,7 @@ func Test_RdsProxyCreate(t *testing.T) {
 			if tt.proxy == nil {
 				assert.Len(proxy.Subnets, 2)
 				assert.Len(proxy.SecurityGroups, 1)
+				assert.NotNil(proxy.Role)
 				assert.Equal(proxy.ConstructsRef, metadata.Refs)
 			} else {
 				assert.Equal(proxy.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}))
