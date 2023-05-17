@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 )
 
@@ -106,4 +107,12 @@ func (id ResourceId) MarshalTOML() ([]byte, error) {
 
 func (id *ResourceId) UnmarshalTOML(data []byte) error {
 	return id.UnmarshalText(data)
+}
+
+func GetMapDecoder(result interface{}) *mapstructure.Decoder {
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{ErrorUnset: true, Result: result})
+	if err != nil {
+		panic(err)
+	}
+	return decoder
 }

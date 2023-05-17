@@ -36,7 +36,7 @@ func (cg *ConstructGraph) AddConstruct(construct Construct) {
 }
 
 func (cg *ConstructGraph) AddDependency(source string, dest string) {
-	cg.underlying.AddEdge(source, dest)
+	cg.underlying.AddEdge(source, dest, nil)
 }
 
 func (cg *ConstructGraph) GetConstruct(key string) Construct {
