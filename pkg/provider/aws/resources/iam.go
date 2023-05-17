@@ -167,10 +167,23 @@ func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) er
 	return nil
 }
 
-func (lambda *OpenIdConnectProvider) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+type IamPolicyCreateParams struct {
+	AppName string
+	Name    string
+	Refs    []core.AnnotationKey
 }
 
+// Create takes in an all necessary parameters to generate the IamPolicy name and ensure that the IamPolicy is correlated to the constructs which required its creation.
+func (policy *IamPolicy) Create(dag *core.ResourceGraph, params IamPolicyCreateParams) error {
+	policy.Name = policySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	policy.ConstructsRef = params.Refs
+	existingPolicy := dag.GetResource(policy.Id())
+	if existingPolicy != nil {
+		return fmt.Errorf("iam policy with name %s already exists", policy.Name)
+	}
+	dag.AddResource(policy)
+	return nil
+}
 func NewPolicyGenerator() *PolicyGenerator {
 	p := &PolicyGenerator{
 		unitsPolicies:       make(map[string][]*IamPolicy),
