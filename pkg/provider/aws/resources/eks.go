@@ -753,7 +753,7 @@ func createClusterAdminRole(appName string, roleName string, refs []core.Annotat
 func createPodExecutionRole(appName string, roleName string, refs []core.AnnotationKey) *IamRole {
 	fargateRole := NewIamRole(appName, roleName, refs, EKS_FARGATE_ASSUME_ROLE_POLICY)
 	fargateRole.InlinePolicies = []*IamInlinePolicy{
-		NewIamInlinePolicy("fargate-pod-execution-policy", refs[0],
+		NewIamInlinePolicy("fargate-pod-execution-policy", refs,
 			&PolicyDocument{Version: VERSION, Statement: []StatementEntry{
 				{
 					Effect: "Allow",

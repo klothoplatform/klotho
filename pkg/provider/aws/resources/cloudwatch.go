@@ -20,6 +20,27 @@ type (
 	}
 )
 
+type CloudwatchLogGroupCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	Name    string
+}
+
+// Create takes in an all necessary parameters to generate the LogGroup name and ensure that the LogGroup is correlated to the constructs which required its creation.
+func (logGroup *LogGroup) Create(dag *core.ResourceGraph, params CloudwatchLogGroupCreateParams) error {
+	logGroup.Name = logGroupSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	logGroup.ConstructsRef = params.Refs
+
+	existingLogGroup := dag.GetResource(logGroup.Id())
+	if existingLogGroup != nil {
+		graphLogGroup := existingLogGroup.(*LogGroup)
+		graphLogGroup.ConstructsRef = append(graphLogGroup.KlothoConstructRef(), params.Refs...)
+	} else {
+		dag.AddResource(logGroup)
+	}
+	return nil
+}
+
 func NewLogGroup(appName string, logGroupName string, ref core.AnnotationKey, retention int) *LogGroup {
 	return &LogGroup{
 		Name:            logGroupSanitizer.Apply(fmt.Sprintf("%s-%s", appName, logGroupName)),

@@ -25,7 +25,7 @@ func (a *AWS) GenerateOrmResources(construct *core.Orm, result *core.ConstructGr
 		unit, ok := res.(*core.ExecutionUnit)
 		if ok {
 			a.PolicyGenerator.AddInlinePolicyToUnit(unit.Id(),
-				resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), unit.Provenance(), policyDoc))
+				resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), []core.AnnotationKey{unit.Provenance()}, policyDoc))
 		}
 	}
 	return nil

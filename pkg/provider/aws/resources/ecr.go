@@ -30,6 +30,51 @@ type (
 	}
 )
 
+type RepoCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+}
+
+func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreateParams) error {
+	repo.Name = params.AppName
+	repo.ForceDelete = true
+	repo.ConstructsRef = params.Refs
+
+	existingRepo := dag.GetResourceByVertexId(repo.Id().String())
+	if existingRepo != nil {
+		graphRepo := existingRepo.(*EcrRepository)
+		graphRepo.ConstructsRef = append(graphRepo.KlothoConstructRef(), params.Refs...)
+	} else {
+		dag.AddResource(repo)
+	}
+	return nil
+}
+
+type ImageCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	Name    string
+}
+
+func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams) error {
+	name := fmt.Sprintf("%s-%s", params.AppName, params.Name)
+	image.Name = name
+	image.ConstructsRef = params.Refs
+
+	existingImage := dag.GetResourceByVertexId(image.Id().String())
+	if existingImage != nil {
+		return fmt.Errorf("ecr image with name %s already exists", name)
+	}
+
+	err := dag.CreateDependencies(image, map[string]any{
+		"Repo": RepoCreateParams{
+			AppName: params.AppName,
+			Refs:    params.Refs,
+		},
+	})
+	return err
+}
+
 func GenerateEcrRepoAndImage(appName string, unit *core.ExecutionUnit, dag *core.ResourceGraph) (*EcrImage, error) {
 	// See if we have already created an ecr repository for the app and if not create one, otherwise add a ref to this exec unit
 	var repo *EcrRepository
