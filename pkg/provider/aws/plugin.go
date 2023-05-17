@@ -11,6 +11,62 @@ import (
 	"go.uber.org/zap"
 )
 
+// ExpandConstructs looks at all existing constructs in the construct graph and turns them into their respective AWS Resources
+func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGraph) (err error) {
+	log := zap.S()
+	constructIds, err := result.TopologicalSort()
+	if err != nil {
+		return
+	}
+	// We want to reverse the list so that we start at the leaf nodes. This allows us to check downstream dependencies each time and process them.
+	reverseInPlace(constructIds)
+	var merr multierr.Error
+	for _, id := range constructIds {
+		construct := result.GetConstruct(id)
+		log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
+		switch construct := construct.(type) {
+		case *core.ExecutionUnit:
+			merr.Append(a.expandExecutionUnit(dag, construct))
+		case *core.Orm:
+			merr.Append(a.expandOrm(dag, construct))
+		}
+	}
+	return merr.ErrOrNil()
+}
+
+func (a *AWS) CopyConstructEdgesToDag(result *core.ConstructGraph, dag *core.ResourceGraph) (err error) {
+	var merr multierr.Error
+	for _, dep := range result.ListDependencies() {
+		sourceResource := a.GetResourceTiedToConstruct(dep.Source)
+		if sourceResource == nil {
+			merr.Append(errors.Errorf("unable to copy edge, no resource tied to construct %s", dep.Source.Id()))
+			continue
+		}
+		targetResource := a.GetResourceTiedToConstruct(dep.Destination)
+		if targetResource == nil {
+			merr.Append(errors.Errorf("unable to copy edge, no resource tied to construct %s", dep.Destination.Id()))
+			continue
+		}
+
+		data := core.EdgeData{AppName: a.Config.AppName, Source: sourceResource, Destination: targetResource}
+		if unit, ok := dep.Source.(*core.ExecutionUnit); ok {
+			if _, ok := dep.Destination.(*core.Orm); ok {
+				data.Constraint = core.EdgeConstraint{
+					NodeMustExist:    []core.Resource{&resources.RdsProxy{}},
+					NodeMustNotExist: []core.Resource{&resources.IamRole{}},
+				}
+			}
+			for _, envVar := range unit.EnvironmentVariables {
+				if envVar.Construct == dep.Destination {
+					data.EnvironmentVariables = []core.EnvironmentVariable{envVar}
+				}
+			}
+		}
+		dag.AddDependencyWithData(sourceResource, targetResource, data)
+	}
+	return merr.ErrOrNil()
+}
+
 func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
 	log := zap.S()
 

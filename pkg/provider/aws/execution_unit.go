@@ -21,7 +21,10 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 			Refs:    []core.AnnotationKey{unit.AnnotationKey},
 			Name:    unit.ID,
 		})
-		a.MapResourceDirectlyToConstruct(lambda, unit)
+		if err != nil {
+			return err
+		}
+		err = a.MapResourceToConstruct(lambda, unit)
 		if err != nil {
 			return err
 		}

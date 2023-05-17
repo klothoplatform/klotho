@@ -91,8 +91,8 @@ func Test_ExpandOrm(t *testing.T) {
 			}
 			tt.want.Assert(t, dag)
 			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
-			resources, _ := aws.GetResourcesDirectlyTiedToConstruct(tt.orm)
-			assert.Len(resources, 1)
+			resource := aws.GetResourceTiedToConstruct(tt.orm)
+			assert.NotNil(resource)
 		})
 	}
 }
