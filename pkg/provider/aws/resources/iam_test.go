@@ -62,6 +62,59 @@ func Test_RoleCreate(t *testing.T) {
 	}
 }
 
+func Test_PolicyCreate(t *testing.T) {
+	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	cases := []struct {
+		name    string
+		policy  *IamPolicy
+		want    coretesting.ResourcesExpectation
+		wantErr bool
+	}{
+		{
+			name: "nil policy",
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:iam_policy:my-app-policy",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+		},
+		{
+			name:    "existing policy",
+			policy:  &IamPolicy{Name: "my-app-policy", ConstructsRef: initialRefs},
+			wantErr: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			dag := core.NewResourceGraph()
+			if tt.policy != nil {
+				dag.AddResource(tt.policy)
+			}
+			metadata := IamPolicyCreateParams{
+				AppName: "my-app",
+				Name:    "policy",
+				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+			}
+			policy := &IamPolicy{}
+			err := policy.Create(dag, metadata)
+
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
+			if !assert.NoError(err) {
+				return
+			}
+			tt.want.Assert(t, dag)
+
+			assert.Equal(policy.Name, "my-app-policy")
+			assert.Equal(policy.ConstructsRef, metadata.Refs)
+		})
+	}
+}
+
 func Test_AddAllowPolicyToUnit(t *testing.T) {
 	bucket := NewS3Bucket(&core.Fs{}, "test-app")
 	unitId := "testUnit"

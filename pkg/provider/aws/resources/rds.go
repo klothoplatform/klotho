@@ -186,6 +186,78 @@ func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSub
 	return nil
 }
 
+type RdsProxyCreateParams struct {
+	AppName string
+	Name    string
+	Refs    []core.AnnotationKey
+}
+
+// Create takes in an all necessary parameters to generate the RdsProxy name and ensure that the RdsProxy is correlated to the constructs which required its creation.
+//
+// This method will also create dependent resources which are necessary for functionality. Those resources are:
+//   - Subnets
+//   - SecurityGroups
+func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreateParams) error {
+	proxy.Name = rdsSubnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	proxy.ConstructsRef = params.Refs
+
+	existingProxy := dag.GetResource(proxy.Id())
+	if existingProxy != nil {
+		graphProxy := existingProxy.(*RdsProxy)
+		graphProxy.ConstructsRef = core.DedupeAnnotationKeys(append(graphProxy.KlothoConstructRef(), params.Refs...))
+	} else {
+		proxy.Subnets = make([]*Subnet, 2)
+		proxy.SecurityGroups = make([]*SecurityGroup, 1)
+		err := dag.CreateDependencies(proxy, map[string]any{
+			"SecurityGroups": []SecurityGroupCreateParams{
+				{
+					AppName: params.AppName,
+					Refs:    params.Refs,
+				},
+			},
+			"Subnets": []SubnetCreateParams{
+				{
+					AppName: params.AppName,
+					Refs:    params.Refs,
+					AZ:      "0",
+					Type:    PrivateSubnet,
+				},
+				{
+					AppName: params.AppName,
+					Refs:    params.Refs,
+					AZ:      "1",
+					Type:    PrivateSubnet,
+				},
+			},
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type RdsProxyTargetGroupCreateParams struct {
+	AppName string
+	Name    string
+	Refs    []core.AnnotationKey
+}
+
+// Create takes in an all necessary parameters to generate the RdsProxyTargetGroup name and ensure that the RdsProxyTargetGroup is correlated to the constructs which required its creation.
+func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTargetGroupCreateParams) error {
+
+	tg.Name = rdsProxySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	tg.ConstructsRef = params.Refs
+	existingTG := dag.GetResource(tg.Id())
+	if existingTG != nil {
+		graphTG := existingTG.(*RdsProxyTargetGroup)
+		graphTG.ConstructsRef = core.DedupeAnnotationKeys(append(graphTG.KlothoConstructRef(), params.Refs...))
+	} else {
+		dag.AddResource(tg)
+	}
+	return nil
+}
+
 // CreateRdsInstance takes in an orm construct and creates the necessary resources to support creating a functional RDS Orm implementation
 //
 // If proxy is enabled, a corresponding proxy, secret, and remaining resources will be created.
