@@ -35,7 +35,6 @@ const (
 	ID_IAC_VALUE                                  = "id"
 	AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE = "aws_observ_cm_region"
 	NODE_GROUP_NAME_IAC_VALUE                     = "node_group_name"
-	ALB_CONTROLLER_READINESS_GATE_IAC_VALUE       = "alb_controller_readiness_gate"
 
 	AWS_OBSERVABILITY_NS_PATH         = "aws_observability_namespace.yaml"
 	AWS_OBSERVABILITY_CONFIG_MAP_PATH = "aws_observability_configmap.yaml"

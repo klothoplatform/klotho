@@ -117,6 +117,12 @@ func (t *HelmChart) AssignFilesToUnits() error {
 func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.ExecutionUnit, cfg config.ExecutionUnit, constructGraph *core.ConstructGraph) ([]HelmChartValue, error) {
 	values := []HelmChartValue{}
 
+	upstreamValues, err := chart.handleUpstreamUnitDependencies(unit, constructGraph, cfg)
+	if err != nil {
+		return nil, err
+	}
+	values = append(values, upstreamValues...)
+
 	if shouldTransformImage(eu) {
 		if unit.Deployment != nil {
 			deploymentValues, err := deploymentTransformer.apply(unit, cfg)
@@ -168,11 +174,6 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 			values = append(values, serviceAccountValues...)
 		}
 	}
-	upstreamValues, err := chart.handleUpstreamUnitDependencies(unit, constructGraph, cfg)
-	if err != nil {
-		return nil, err
-	}
-	values = append(values, upstreamValues...)
 
 	unitEnvValues, err := unit.AddUnitsEnvironmentVariables(eu)
 	if err != nil {
