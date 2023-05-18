@@ -198,32 +198,48 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 func Test_configureResources(t *testing.T) {
 
 	cases := []struct {
-		name      string
-		config    *config.Application
-		resources []core.Resource
-		want      []core.Resource
+		name       string
+		config     *config.Application
+		constructs []core.Construct
+		resources  []core.Resource
+		want       []core.Resource
 	}{
 		{
 			name: "lambda and rds",
 			config: &config.Application{
 				AppName: "my-app",
+				ExecutionUnits: map[string]*config.ExecutionUnit{
+					"test": &config.ExecutionUnit{
+						InfraParams: config.ConvertToInfraParams(config.ServerlessTypeParams{Timeout: 100, Memory: 200}),
+					},
+				},
 			},
-			resources: []core.Resource{&resources.LambdaFunction{Name: "lambda"}, &resources.RdsProxy{Name: "rds"}},
-			want:      []core.Resource{&resources.LambdaFunction{Name: "lambda", Timeout: 180, MemorySize: 512, EnvironmentVariables: make(resources.EnvironmentVariables)}, &resources.RdsProxy{Name: "rds", EngineFamily: "POSTGRESQL", IdleClientTimeout: 1800}},
+			constructs: []core.Construct{
+				&core.ExecutionUnit{
+					AnnotationKey:        core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
+					EnvironmentVariables: core.EnvironmentVariables{core.NewEnvironmentVariable("env1", nil, "val1")}},
+			},
+			resources: []core.Resource{&resources.LambdaFunction{Name: "lambda", ConstructsRef: []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}}}, &resources.RdsProxy{Name: "rds"}},
+			want: []core.Resource{
+				&resources.LambdaFunction{Name: "lambda", Timeout: 100, MemorySize: 200, ConstructsRef: []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}}, EnvironmentVariables: resources.EnvironmentVariables{"env1": core.IaCValue{Property: "val1"}}},
+				&resources.RdsProxy{Name: "rds", EngineFamily: "POSTGRESQL", IdleClientTimeout: 1800}},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			dag := core.NewResourceGraph()
-
+			result := core.NewConstructGraph()
+			for _, construct := range tt.constructs {
+				result.AddConstruct(construct)
+			}
 			for _, res := range tt.resources {
 				dag.AddResource(res)
 			}
 			aws := AWS{
 				Config: tt.config,
 			}
-			err := aws.configureResources(dag)
+			err := aws.configureResources(result, dag)
 
 			if !assert.NoError(err) {
 				return
