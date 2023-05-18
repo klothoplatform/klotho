@@ -50,6 +50,16 @@ func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreatePara
 	return nil
 }
 
+type EcrRepositoryConfigureParams struct {
+	ForceDelete bool
+}
+
+// Configure sets the intristic characteristics of a vpc based on parameters passed in
+func (repo *EcrRepository) Configure(params EcrRepositoryConfigureParams) error {
+	repo.ForceDelete = true
+	return nil
+}
+
 type ImageCreateParams struct {
 	AppName string
 	Refs    []core.AnnotationKey
@@ -76,6 +86,16 @@ func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams)
 		},
 	})
 	return err
+}
+
+type EcrImageConfigureParams struct {
+	ExtraOptions []string
+}
+
+// Configure sets the intristic characteristics of a vpc based on parameters passed in
+func (image *EcrImage) Configure(params EcrImageConfigureParams) error {
+	image.ExtraOptions = []string{"--platform", "linux/amd64", "--quiet"}
+	return nil
 }
 
 func GenerateEcrRepoAndImage(appName string, unit *core.ExecutionUnit, dag *core.ResourceGraph) (*EcrImage, error) {

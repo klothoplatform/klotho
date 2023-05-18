@@ -34,6 +34,7 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 	return merr.ErrOrNil()
 }
 
+// CopyConstructEdgesToDag looks at the dependencies which existed in the construct graph and copies those dependencies into the resource graph so that the edges can be later expanded on
 func (a *AWS) CopyConstructEdgesToDag(result *core.ConstructGraph, dag *core.ResourceGraph) (err error) {
 	var merr multierr.Error
 	for _, dep := range result.ListDependencies() {
@@ -63,6 +64,15 @@ func (a *AWS) CopyConstructEdgesToDag(result *core.ConstructGraph, dag *core.Res
 			}
 		}
 		dag.AddDependencyWithData(sourceResource, targetResource, data)
+	}
+	return merr.ErrOrNil()
+}
+
+// configureResources calls every resource's Configure method, for resources that exist in the graph
+func (a *AWS) configureResources(dag *core.ResourceGraph) (err error) {
+	var merr multierr.Error
+	for _, resource := range dag.ListResources() {
+		merr.Append(dag.CallConfigure(resource, nil))
 	}
 	return merr.ErrOrNil()
 }

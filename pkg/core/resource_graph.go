@@ -428,6 +428,37 @@ func (rg *ResourceGraph) callCreate(targetValue reflect.Value, metadata any) err
 	return nil
 }
 
+// CallConfigure uses the resource graph to ensure the node passed in exists, then uses reflection to call the resources Configure method
+func (rg *ResourceGraph) CallConfigure(resource Resource, metadata any) error {
+
+	if rg.GetResource(resource.Id()) == nil {
+		return fmt.Errorf("resource with id %s cannot be configured since it does not exist in the ResourceGraph", resource.Id())
+	}
+
+	method := reflect.ValueOf(resource).MethodByName("Configure")
+	if method.IsValid() {
+		var callArgs []reflect.Value
+		params := reflect.New(method.Type().In(0)).Interface()
+		decoder := GetMapDecoder(params)
+		err := decoder.Decode(metadata)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("error decoding the following type %s", reflect.New(method.Type().In(0)).Type().String()))
+		}
+		callArgs = append(callArgs, reflect.ValueOf(params).Elem())
+		eval := method.Call(callArgs)
+		if eval[0].IsNil() {
+			return nil
+		} else {
+			err, ok := eval[0].Interface().(error)
+			if !ok {
+				return fmt.Errorf("return type should be an error")
+			}
+			return err
+		}
+	}
+	return nil
+}
+
 func (rg *ResourceGraph) checkChild(child reflect.Value, res Resource, metadata any) error {
 	var merr multierr.Error
 	switch child.Kind() {

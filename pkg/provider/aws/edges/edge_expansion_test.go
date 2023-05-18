@@ -1,7 +1,6 @@
 package edges
 
 import (
-	"fmt"
 	"testing"
 
 	dgraph "github.com/dominikbraun/graph"
@@ -73,6 +72,7 @@ func Test_ExpandEdges(t *testing.T) {
 					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_1"},
 					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public1"},
 					{Source: "aws:rds_proxy:my-app-rds", Destination: "aws:iam_role:my-app-rds-ProxyRole"},
+					{Source: "aws:rds_proxy:my-app-rds", Destination: "aws:secret:my-app-my-app-rds"},
 					{Source: "aws:rds_proxy:my-app-rds", Destination: "aws:secret_version:my-app-my-app-rds"},
 					{Source: "aws:rds_proxy:my-app-rds", Destination: "aws:security_group:my_app:my-app"},
 					{Source: "aws:rds_proxy:my-app-rds", Destination: "aws:subnet_private:my_app:my_app_private0"},
@@ -115,7 +115,6 @@ func Test_ExpandEdges(t *testing.T) {
 				return
 			}
 			tt.want.Assert(t, dag)
-			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 		})
 	}
 }
