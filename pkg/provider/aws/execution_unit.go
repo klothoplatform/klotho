@@ -34,6 +34,30 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 	return nil
 }
 
+func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs []core.AnnotationKey) (resources.LambdaFunctionConfigureParams, error) {
+	if len(refs) != 1 {
+		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("lambda must only have one construct reference")
+	}
+	lambdaConfig := resources.LambdaFunctionConfigureParams{}
+	construct := result.GetConstruct(refs[0].ToId())
+	if construct == nil {
+		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("construct with id %s does not exist", refs[0].ToId())
+	}
+	unit, ok := construct.(*core.ExecutionUnit)
+	if !ok {
+		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("lambda must only have a construct reference to an execution unit")
+	}
+	for _, env := range unit.EnvironmentVariables {
+		if env.Construct == nil {
+			lambdaConfig.EnvironmentVariables = append(lambdaConfig.EnvironmentVariables, env)
+		}
+	}
+	cfg := config.ConvertFromInfraParams[config.ServerlessTypeParams](a.Config.GetExecutionUnit(refs[0].ID).InfraParams)
+	lambdaConfig.MemorySize = cfg.Memory
+	lambdaConfig.Timeout = cfg.Timeout
+	return lambdaConfig, nil
+}
+
 // GenerateExecUnitResources generates the necessary AWS resources for a given execution unit and adds them to the resource graph
 func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	log := zap.S()

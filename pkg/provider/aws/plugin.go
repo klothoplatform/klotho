@@ -69,10 +69,18 @@ func (a *AWS) CopyConstructEdgesToDag(result *core.ConstructGraph, dag *core.Res
 }
 
 // configureResources calls every resource's Configure method, for resources that exist in the graph
-func (a *AWS) configureResources(dag *core.ResourceGraph) (err error) {
+func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.ResourceGraph) (err error) {
 	var merr multierr.Error
 	for _, resource := range dag.ListResources() {
-		merr.Append(dag.CallConfigure(resource, nil))
+		var configuration any
+		if lambda, ok := resource.(*resources.LambdaFunction); ok {
+			configuration, err = a.getLambdaConfiguration(result, dag, lambda.ConstructsRef)
+			if err != nil {
+				merr.Append(err)
+				continue
+			}
+		}
+		merr.Append(dag.CallConfigure(resource, configuration))
 	}
 	return merr.ErrOrNil()
 }

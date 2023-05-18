@@ -152,8 +152,6 @@ type RdsInstanceConfigureParams struct {
 	InstanceClass     string
 	SkipFinalSnapshot bool
 	AllocatedStorage  int
-	CredentialsFile   core.File
-	CredentialsPath   string
 }
 
 // Configure sets the intristic characteristics of a vpc based on parameters passed in

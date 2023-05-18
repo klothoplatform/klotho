@@ -84,13 +84,29 @@ func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreat
 }
 
 type LambdaFunctionConfigureParams struct {
-	ConnectionPoolConfigurationInfo ConnectionPoolConfigurationInfo
+	Timeout              int
+	MemorySize           int
+	EnvironmentVariables core.EnvironmentVariables
 }
 
 // Configure sets the intristic characteristics of a vpc based on parameters passed in
 func (lambda *LambdaFunction) Configure(params LambdaFunctionConfigureParams) error {
 	lambda.Timeout = 180
 	lambda.MemorySize = 512
+	if lambda.EnvironmentVariables == nil {
+		lambda.EnvironmentVariables = make(EnvironmentVariables)
+	}
+
+	if params.Timeout != 0 {
+		lambda.Timeout = params.Timeout
+	}
+	if params.MemorySize != 0 {
+		lambda.MemorySize = params.MemorySize
+	}
+	for _, env := range params.EnvironmentVariables {
+		lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Property: env.GetValue()}
+	}
+
 	return nil
 }
 
