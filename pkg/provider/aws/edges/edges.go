@@ -63,7 +63,9 @@ var KnowledgeBase = core.EdgeKB{
 				Refs:    core.DedupeAnnotationKeys(append(from.KlothoConstructRef(), to.KlothoConstructRef()...)),
 				Name:    proxy.Name,
 			})
-
+			if err != nil {
+				return err
+			}
 			dag.AddDependency(proxy, secretVersion)
 
 			secretPolicy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
@@ -89,7 +91,9 @@ var KnowledgeBase = core.EdgeKB{
 				Refs:    core.DedupeAnnotationKeys(append(from.KlothoConstructRef(), to.KlothoConstructRef()...)),
 				Name:    proxy.Name,
 			})
-
+			if err != nil {
+				return err
+			}
 			dag.AddDependency(proxy, secretVersion)
 
 			secretPolicy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{

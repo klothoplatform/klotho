@@ -110,6 +110,17 @@ func (vpc *Vpc) Create(dag *core.ResourceGraph, params VpcCreateParams) error {
 	return nil
 }
 
+type VpcConfigureParams struct {
+}
+
+// Configure sets the intristic characteristics of a vpc based on parameters passed in
+func (vpc *Vpc) Configure(params VpcConfigureParams) error {
+	vpc.CidrBlock = "10.0.0.0/16"
+	vpc.EnableDnsSupport = true
+	vpc.EnableDnsHostnames = true
+	return nil
+}
+
 type EipCreateParams struct {
 	AppName string
 	IpName  string
@@ -273,6 +284,29 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams)
 	if existingSubnet != nil {
 		graphSubnet := existingSubnet.(*Subnet)
 		graphSubnet.ConstructsRef = core.DedupeAnnotationKeys(append(graphSubnet.ConstructsRef, params.Refs...))
+	}
+	return nil
+}
+
+type SubnetConfigureParams struct {
+}
+
+// Configure sets the intristic characteristics of a vpc based on parameters passed in
+func (subnet *Subnet) Configure(params SubnetConfigureParams) error {
+	if subnet.Type == PrivateSubnet {
+		if subnet.AvailabilityZone.Property == "0" {
+			subnet.CidrBlock = "10.0.0.0/18"
+		} else if subnet.AvailabilityZone.Property == "1" {
+			subnet.CidrBlock = "10.0.64.0/18"
+		}
+	} else if subnet.Type == PublicSubnet {
+		if subnet.AvailabilityZone.Property == "0" {
+			subnet.CidrBlock = "10.0.128.0/18"
+		} else if subnet.AvailabilityZone.Property == "1" {
+			subnet.CidrBlock = "10.0.192.0/18"
+
+		}
+		subnet.MapPublicIpOnLaunch = true
 	}
 	return nil
 }

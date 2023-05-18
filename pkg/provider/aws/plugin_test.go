@@ -195,6 +195,47 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 	}
 }
 
+func Test_configureResources(t *testing.T) {
+
+	cases := []struct {
+		name      string
+		config    *config.Application
+		resources []core.Resource
+		want      []core.Resource
+	}{
+		{
+			name: "lambda and rds",
+			config: &config.Application{
+				AppName: "my-app",
+			},
+			resources: []core.Resource{&resources.LambdaFunction{Name: "lambda"}, &resources.RdsProxy{Name: "rds"}},
+			want:      []core.Resource{&resources.LambdaFunction{Name: "lambda", Timeout: 180, MemorySize: 512, EnvironmentVariables: make(resources.EnvironmentVariables)}, &resources.RdsProxy{Name: "rds", EngineFamily: "POSTGRESQL", IdleClientTimeout: 1800}},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			dag := core.NewResourceGraph()
+
+			for _, res := range tt.resources {
+				dag.AddResource(res)
+			}
+			aws := AWS{
+				Config: tt.config,
+			}
+			err := aws.configureResources(dag)
+
+			if !assert.NoError(err) {
+				return
+			}
+			for _, res := range tt.want {
+				graphRes := dag.GetResource(res.Id())
+				assert.Equal(graphRes, res)
+			}
+		})
+	}
+}
+
 func Test_shouldCreateNetwork(t *testing.T) {
 	cases := []struct {
 		name       string

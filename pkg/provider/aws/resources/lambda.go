@@ -83,8 +83,15 @@ func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreat
 	return nil
 }
 
-func (lambda *LambdaPermission) Create(dag *core.ResourceGraph, metadata map[string]any) (core.Resource, error) {
-	panic("Not Implemented")
+type LambdaFunctionConfigureParams struct {
+	ConnectionPoolConfigurationInfo ConnectionPoolConfigurationInfo
+}
+
+// Configure sets the intristic characteristics of a vpc based on parameters passed in
+func (lambda *LambdaFunction) Configure(params LambdaFunctionConfigureParams) error {
+	lambda.Timeout = 180
+	lambda.MemorySize = 512
+	return nil
 }
 
 func NewLambdaFunction(unit *core.ExecutionUnit, cfg *config.Application, role *IamRole, image *EcrImage) *LambdaFunction {

@@ -247,6 +247,7 @@ func Test_RdsProxyCreate(t *testing.T) {
 					"aws:subnet_public:my_app:my_app_public0",
 					"aws:subnet_public:my_app:my_app_public1",
 					"aws:vpc:my_app",
+					"aws:iam_role:my-app-test-ProxyRole",
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
@@ -276,6 +277,7 @@ func Test_RdsProxyCreate(t *testing.T) {
 					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
 					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:rds_proxy:my-app-test", Destination: "aws:iam_role:my-app-test-ProxyRole"},
 				},
 			},
 		},

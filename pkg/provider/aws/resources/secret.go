@@ -62,10 +62,25 @@ func (sv *SecretVersion) Create(dag *core.ResourceGraph, params SecretVersionCre
 	if existingSecret != nil {
 		return fmt.Errorf("SecretVersion with name %s already exists", sv.Name)
 	}
-	dag.CreateDependencies(sv, map[string]any{
+	err := dag.CreateDependencies(sv, map[string]any{
 		"Secret": params,
 	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
+type SecretVersionConfigureParams struct {
+	Type string
+	Path string
+}
+
+// Configure sets the intristic characteristics of a vpc based on parameters passed in
+func (sv *SecretVersion) Configure(params SecretVersionConfigureParams) error {
+	sv.Type = params.Type
+	sv.Path = params.Path
+	sv.SecretName = sv.Secret.Name
 	return nil
 }
 

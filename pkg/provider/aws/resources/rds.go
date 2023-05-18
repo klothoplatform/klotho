@@ -143,6 +143,42 @@ func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceC
 	return err
 }
 
+type RdsInstanceConfigureParams struct {
+	DatabaseName      string
+	Username          string
+	Password          string
+	Engine            string
+	EngineVersion     string
+	InstanceClass     string
+	SkipFinalSnapshot bool
+	AllocatedStorage  int
+	CredentialsFile   core.File
+	CredentialsPath   string
+}
+
+// Configure sets the intristic characteristics of a vpc based on parameters passed in
+func (instance *RdsInstance) Configure(params RdsInstanceConfigureParams) error {
+	instance.IamDatabaseAuthenticationEnabled = true
+	instance.SkipFinalSnapshot = true
+	instance.DatabaseName = params.DatabaseName
+	instance.Username = generateUsername()
+	instance.Password = generatePassword()
+
+	instance.Engine = "postgres"
+	instance.EngineVersion = "13.7"
+	instance.InstanceClass = "db.t4g.micro"
+	instance.AllocatedStorage = 20
+	credsBytes := []byte(fmt.Sprintf("{\n\"username\": \"%s\",\n\"password\": \"%s\"\n}", instance.Username, instance.Password))
+	credsPath := fmt.Sprintf("secrets/%s", instance.Name)
+	instance.CredentialsFile = &core.RawFile{
+		FPath:   credsPath,
+		Content: credsBytes,
+	}
+	instance.CredentialsPath = credsPath
+
+	return nil
+}
+
 type RdsSubnetGroupCreateParams struct {
 	AppName string
 	Name    string
@@ -242,6 +278,22 @@ func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreatePara
 	return nil
 }
 
+type RdsProxyConfigureParams struct {
+	EngineFamily      string
+	DebugLogging      bool
+	IdleClientTimeout int
+	RequireTls        bool
+}
+
+// Configure sets the intristic characteristics of a vpc based on parameters passed in
+func (proxy *RdsProxy) Configure(params RdsProxyConfigureParams) error {
+	proxy.DebugLogging = false
+	proxy.EngineFamily = "POSTGRESQL"
+	proxy.IdleClientTimeout = 1800
+	proxy.RequireTls = false
+	return nil
+}
+
 type RdsProxyTargetGroupCreateParams struct {
 	AppName string
 	Name    string
@@ -259,6 +311,20 @@ func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTa
 		graphTG.ConstructsRef = core.DedupeAnnotationKeys(append(graphTG.KlothoConstructRef(), params.Refs...))
 	} else {
 		dag.AddResource(tg)
+	}
+	return nil
+}
+
+type RdsProxyTargetGroupConfigureParams struct {
+	ConnectionPoolConfigurationInfo ConnectionPoolConfigurationInfo
+}
+
+// Configure sets the intristic characteristics of a vpc based on parameters passed in
+func (targetGroup *RdsProxyTargetGroup) Configure(params RdsProxyTargetGroupConfigureParams) error {
+	targetGroup.ConnectionPoolConfigurationInfo = &ConnectionPoolConfigurationInfo{
+		ConnectionBorrowTimeout:   120,
+		MaxConnectionsPercent:     100,
+		MaxIdleConnectionsPercent: 50,
 	}
 	return nil
 }
