@@ -26,7 +26,6 @@ type CloudwatchLogGroupCreateParams struct {
 	Name    string
 }
 
-// Create takes in an all necessary parameters to generate the LogGroup name and ensure that the LogGroup is correlated to the constructs which required its creation.
 func (logGroup *LogGroup) Create(dag *core.ResourceGraph, params CloudwatchLogGroupCreateParams) error {
 	logGroup.Name = logGroupSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	logGroup.ConstructsRef = params.Refs

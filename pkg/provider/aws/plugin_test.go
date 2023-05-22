@@ -11,6 +11,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
@@ -115,7 +116,6 @@ func Test_ExpandConstructs(t *testing.T) {
 				return
 			}
 			tt.want.Assert(t, dag)
-			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 		})
 	}
 }
@@ -149,11 +149,11 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 			want: []*graph.Edge[core.Resource]{
 				{Source: &resources.LambdaFunction{Name: "lambda"}, Destination: &resources.RdsInstance{Name: "rds"}, Properties: dgraph.EdgeProperties{
 					Attributes: make(map[string]string),
-					Data: core.EdgeData{
+					Data: knowledgebase.EdgeData{
 						AppName:     "my-app",
 						Source:      &resources.LambdaFunction{Name: "lambda"},
 						Destination: &resources.RdsInstance{Name: "rds"},
-						Constraint: core.EdgeConstraint{
+						Constraint: knowledgebase.EdgeConstraint{
 							NodeMustExist:    []core.Resource{&resources.RdsProxy{}},
 							NodeMustNotExist: []core.Resource{&resources.IamRole{}},
 						},
@@ -188,7 +188,6 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 			}
 			for _, dep := range tt.want {
 				edge := dag.GetDependency(dep.Source, dep.Destination)
-				fmt.Println(edge)
 				assert.Equal(edge, dep)
 			}
 		})

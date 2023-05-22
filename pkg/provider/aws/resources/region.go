@@ -4,11 +4,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 )
 
-const REGION_TYPE = "region"
-const AVAILABILITY_ZONES_TYPE = "availability_zones"
-const ACCOUNT_ID_TYPE = "account_id"
-const ARN_IAC_VALUE = "arn"
-
 type (
 	Region struct {
 		Name          string
@@ -26,9 +21,19 @@ type (
 	}
 )
 
+const (
+	REGION_NAME             = "region"
+	AVAILABILITY_ZONES_NAME = "AvailabilityZones"
+	ACCOUNT_ID_NAME         = "AccountId"
+	REGION_TYPE             = "region"
+	AVAILABILITY_ZONES_TYPE = "availability_zones"
+	ACCOUNT_ID_TYPE         = "account_id"
+	ARN_IAC_VALUE           = "arn"
+)
+
 func NewRegion() *Region {
 	return &Region{
-		Name:          "region",
+		Name:          REGION_NAME,
 		ConstructsRef: []core.AnnotationKey{},
 	}
 }
@@ -43,13 +48,13 @@ func (region *Region) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     REGION_TYPE,
-		Name:     "region",
+		Name:     REGION_NAME,
 	}
 }
 
 func NewAvailabilityZones() *AvailabilityZones {
 	return &AvailabilityZones{
-		Name:          "AvailabilityZones",
+		Name:          AVAILABILITY_ZONES_NAME,
 		ConstructsRef: []core.AnnotationKey{},
 	}
 }
@@ -64,13 +69,13 @@ func (azs *AvailabilityZones) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     AVAILABILITY_ZONES_TYPE,
-		Name:     "AvailabilityZones",
+		Name:     AVAILABILITY_ZONES_NAME,
 	}
 }
 
 func NewAccountId() *AccountId {
 	return &AccountId{
-		Name:          "AccountId",
+		Name:          ACCOUNT_ID_NAME,
 		ConstructsRef: []core.AnnotationKey{},
 	}
 }
@@ -85,6 +90,6 @@ func (id *AccountId) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     ACCOUNT_ID_TYPE,
-		Name:     "AccountId",
+		Name:     ACCOUNT_ID_NAME,
 	}
 }

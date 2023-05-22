@@ -1,4 +1,4 @@
-package edges
+package knowledgebase
 
 import (
 	"testing"
@@ -7,6 +7,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,7 +26,7 @@ func Test_ConfigureEdge(t *testing.T) {
 					Source:      &resources.LambdaFunction{Name: "lambda", Subnets: []*resources.Subnet{{Name: "sub1"}}, Role: &resources.IamRole{}, EnvironmentVariables: make(resources.EnvironmentVariables)},
 					Destination: &resources.RdsInstance{Name: "rds"},
 					Properties: dgraph.EdgeProperties{
-						Data: core.EdgeData{
+						Data: knowledgebase.EdgeData{
 							AppName:              "my-app",
 							Source:               &resources.LambdaFunction{Name: "lambda"},
 							Destination:          &resources.RdsInstance{Name: "rds"},
@@ -67,7 +68,7 @@ func Test_ConfigureEdge(t *testing.T) {
 					Source:      &resources.LambdaFunction{Name: "lambda", Subnets: []*resources.Subnet{{Name: "sub1"}}, Role: &resources.IamRole{}, EnvironmentVariables: make(resources.EnvironmentVariables)},
 					Destination: &resources.RdsProxy{Name: "rds", Role: &resources.IamRole{Name: "ProxyRole"}, Auths: []*resources.ProxyAuth{{SecretArn: core.IaCValue{Resource: &resources.Secret{Name: "Secret"}}}}},
 					Properties: dgraph.EdgeProperties{
-						Data: core.EdgeData{
+						Data: knowledgebase.EdgeData{
 							AppName:              "my-app",
 							Source:               &resources.LambdaFunction{Name: "lambda"},
 							Destination:          &resources.RdsInstance{Name: "rds"},
@@ -79,7 +80,7 @@ func Test_ConfigureEdge(t *testing.T) {
 					Source:      &resources.RdsProxyTargetGroup{Name: "rds"},
 					Destination: &resources.RdsProxy{Name: "rds", Role: &resources.IamRole{Name: "ProxyRole"}, Auths: []*resources.ProxyAuth{{SecretArn: core.IaCValue{Resource: &resources.Secret{Name: "Secret"}}}}},
 					Properties: dgraph.EdgeProperties{
-						Data: core.EdgeData{
+						Data: knowledgebase.EdgeData{
 							AppName:              "my-app",
 							Source:               &resources.LambdaFunction{Name: "lambda"},
 							Destination:          &resources.RdsInstance{Name: "rds"},
@@ -100,10 +101,16 @@ func Test_ConfigureEdge(t *testing.T) {
 					Destination: &resources.Secret{Name: "Secret"},
 				},
 				{
-					Source:      &resources.RdsProxyTargetGroup{Name: "rds"},
-					Destination: &resources.RdsInstance{Name: "instance", CredentialsPath: "rds"},
+					Source: &resources.RdsProxyTargetGroup{
+						Name: "rds",
+						RdsProxy: &resources.RdsProxy{
+							Name:  "rds",
+							Auths: []*resources.ProxyAuth{{SecretArn: core.IaCValue{Resource: &resources.Secret{Name: "Secret"}}}},
+						},
+					},
+					Destination: &resources.RdsInstance{Name: "instance", CredentialsFile: &core.FileRef{FPath: "rds"}},
 					Properties: dgraph.EdgeProperties{
-						Data: core.EdgeData{
+						Data: knowledgebase.EdgeData{
 							AppName:              "my-app",
 							Source:               &resources.LambdaFunction{Name: "lambda"},
 							Destination:          &resources.RdsInstance{Name: "rds"},
@@ -127,7 +134,7 @@ func Test_ConfigureEdge(t *testing.T) {
 										{
 											Effect:   "Allow",
 											Action:   []string{"rds-db:connect"},
-											Resource: []core.IaCValue{{Resource: &resources.RdsInstance{Name: "instance", CredentialsPath: "rds"}, Property: resources.RDS_CONNECTION_ARN_IAC_VALUE}},
+											Resource: []core.IaCValue{{Resource: &resources.RdsInstance{Name: "instance", CredentialsFile: &core.FileRef{FPath: "rds"}}, Property: resources.RDS_CONNECTION_ARN_IAC_VALUE}},
 										},
 									},
 								},
@@ -162,7 +169,7 @@ func Test_ConfigureEdge(t *testing.T) {
 				dag.AddDependencyWithData(edge.Source, edge.Destination, edge.Properties.Data)
 			}
 
-			err := core.ConfigureFromEdgeData(KnowledgeBase, dag)
+			err := AwsKB.ConfigureFromEdgeData(dag)
 			if !assert.NoError(err) {
 				return
 			}

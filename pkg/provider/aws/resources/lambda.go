@@ -45,12 +45,6 @@ type LambdaCreateParams struct {
 	Name    string
 }
 
-// Create takes in an all necessary parameters to generate the lambdas name and ensure that the lambda is correlated to the constructs which required its creation.
-//
-// This method will also create dependent resources which are necessary for functionality. Those resources are:
-//   - Iam Role
-//   - Cloudwatch LogGroup
-//   - Ecr Image
 func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreateParams) error {
 
 	name := lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
@@ -89,7 +83,6 @@ type LambdaFunctionConfigureParams struct {
 	EnvironmentVariables core.EnvironmentVariables
 }
 
-// Configure sets the intristic characteristics of a vpc based on parameters passed in
 func (lambda *LambdaFunction) Configure(params LambdaFunctionConfigureParams) error {
 	lambda.Timeout = 180
 	lambda.MemorySize = 512

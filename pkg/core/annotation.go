@@ -50,21 +50,16 @@ func (a *Annotation) MarshalJSON() ([]byte, error) {
 }
 
 func DedupeAnnotationKeys(a []AnnotationKey) []AnnotationKey {
-	result := []AnnotationKey{}
+	result := make(map[AnnotationKey]struct{})
 	for _, key := range a {
-		dupe := false
-		for _, r := range result {
-			if key == r {
-				dupe = true
-			}
-		}
-		if !dupe {
-			result = append(result, key)
-		}
+		result[key] = struct{}{}
 	}
-	return result
+	keys := make([]AnnotationKey, 0, len(result))
+	for key := range result {
+		keys = append(keys, key)
+	}
+	return keys
 }
-
 func (a Annotation) Format(s fmt.State, verb rune) {
 	fmt.Fprintf(s, "@klotho::%s", a.Capability.Name)
 	if len(a.Capability.Directives) > 0 {

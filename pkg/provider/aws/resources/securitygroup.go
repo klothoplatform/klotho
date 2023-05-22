@@ -30,10 +30,6 @@ type SecurityGroupCreateParams struct {
 	Refs    []core.AnnotationKey
 }
 
-// Create takes in an all necessary parameters to generate the SecurityGroup name and ensure that the SecurityGroup is correlated to the constructs which required its creation.
-//
-// This method will also create dependent resources which are necessary for functionality. Those resources are:
-//   - VPC
 func (sg *SecurityGroup) Create(dag *core.ResourceGraph, params SecurityGroupCreateParams) error {
 
 	sg.Name = params.AppName

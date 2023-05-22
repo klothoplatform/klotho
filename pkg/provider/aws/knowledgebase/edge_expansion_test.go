@@ -1,4 +1,4 @@
-package edges
+package knowledgebase
 
 import (
 	"testing"
@@ -8,6 +8,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,11 +26,11 @@ func Test_ExpandEdges(t *testing.T) {
 				Source:      &resources.LambdaFunction{Name: "lambda"},
 				Destination: &resources.RdsInstance{Name: "rds"},
 				Properties: dgraph.EdgeProperties{
-					Data: core.EdgeData{
+					Data: knowledgebase.EdgeData{
 						AppName:     "my-app",
 						Source:      &resources.LambdaFunction{Name: "lambda"},
 						Destination: &resources.RdsInstance{Name: "rds"},
-						Constraint: core.EdgeConstraint{
+						Constraint: knowledgebase.EdgeConstraint{
 							NodeMustExist:    []core.Resource{&resources.RdsProxy{}},
 							NodeMustNotExist: []core.Resource{&resources.IamRole{}},
 						},
@@ -110,7 +111,7 @@ func Test_ExpandEdges(t *testing.T) {
 
 			dag.AddDependencyWithData(tt.edge.Source, tt.edge.Destination, tt.edge.Properties.Data)
 
-			err := core.ExpandEdges(KnowledgeBase, dag)
+			err := AwsKB.ExpandEdges(dag)
 			if !assert.NoError(err) {
 				return
 			}

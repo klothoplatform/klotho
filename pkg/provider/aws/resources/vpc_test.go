@@ -62,9 +62,9 @@ func Test_VpcCreate(t *testing.T) {
 			vpc = graphVpc.(*Vpc)
 			assert.Equal(vpc.Name, "my_app")
 			if tt.vpc == nil {
-				assert.Equal(vpc.ConstructsRef, metadata.Refs)
+				assert.ElementsMatch(vpc.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Equal(vpc.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.ElementsMatch(vpc.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
 		})
 	}
@@ -122,9 +122,9 @@ func Test_ElasticIpCreate(t *testing.T) {
 			eip = graphEip.(*ElasticIp)
 			assert.Equal(eip.Name, "my_app_ip0")
 			if tt.eip == nil {
-				assert.Equal(eip.ConstructsRef, metadata.Refs)
+				assert.ElementsMatch(eip.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Equal(eip.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.ElementsMatch(eip.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
 		})
 	}
@@ -185,9 +185,9 @@ func Test_InternetGatewayCreate(t *testing.T) {
 			assert.Equal(igw.Name, "my_app_igw")
 			if tt.igw == nil {
 				assert.NotNil(igw.Vpc)
-				assert.Equal(igw.ConstructsRef, metadata.Refs)
+				assert.ElementsMatch(igw.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Equal(igw.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.ElementsMatch(igw.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
 		})
 	}
@@ -262,9 +262,9 @@ func Test_NatGatewayCreate(t *testing.T) {
 			if tt.nat == nil {
 				assert.NotNil(nat.Subnet)
 				assert.NotNil(nat.ElasticIp)
-				assert.Equal(nat.ConstructsRef, metadata.Refs)
+				assert.ElementsMatch(nat.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Equal(nat.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.ElementsMatch(nat.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
 		})
 	}
@@ -444,9 +444,9 @@ func Test_SubnetCreate(t *testing.T) {
 			assert.Equal(subnet.Type, tt.subnet.Type)
 			assert.Equal(subnet.AvailabilityZone.Property, tt.subnet.AvailabilityZone.Property)
 			if tt.addToDag == false {
-				assert.Equal(subnet.ConstructsRef, metadata.Refs)
+				assert.ElementsMatch(subnet.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Equal(subnet.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.ElementsMatch(subnet.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
 		})
 	}
@@ -512,9 +512,9 @@ func Test_RouteTableCreate(t *testing.T) {
 			assert.Equal(rt.Name, "my_app_private0")
 			if tt.rt == nil {
 				assert.NotNil(rt.Vpc)
-				assert.Equal(rt.ConstructsRef, metadata.Refs)
+				assert.ElementsMatch(rt.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Equal(rt.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.ElementsMatch(rt.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}
 		})
 	}

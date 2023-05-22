@@ -5,6 +5,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
@@ -14,15 +15,8 @@ import (
 // ExpandConstructs looks at all existing constructs in the construct graph and turns them into their respective AWS Resources
 func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGraph) (err error) {
 	log := zap.S()
-	constructIds, err := result.TopologicalSort()
-	if err != nil {
-		return
-	}
-	// We want to reverse the list so that we start at the leaf nodes. This allows us to check downstream dependencies each time and process them.
-	reverseInPlace(constructIds)
 	var merr multierr.Error
-	for _, id := range constructIds {
-		construct := result.GetConstruct(id)
+	for _, construct := range result.ListConstructs() {
 		log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
 		switch construct := construct.(type) {
 		case *core.ExecutionUnit:
@@ -49,10 +43,10 @@ func (a *AWS) CopyConstructEdgesToDag(result *core.ConstructGraph, dag *core.Res
 			continue
 		}
 
-		data := core.EdgeData{AppName: a.Config.AppName, Source: sourceResource, Destination: targetResource}
+		data := knowledgebase.EdgeData{AppName: a.Config.AppName, Source: sourceResource, Destination: targetResource}
 		if unit, ok := dep.Source.(*core.ExecutionUnit); ok {
 			if _, ok := dep.Destination.(*core.Orm); ok {
-				data.Constraint = core.EdgeConstraint{
+				data.Constraint = knowledgebase.EdgeConstraint{
 					NodeMustExist:    []core.Resource{&resources.RdsProxy{}},
 					NodeMustNotExist: []core.Resource{&resources.IamRole{}},
 				}
@@ -73,8 +67,9 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 	var merr multierr.Error
 	for _, resource := range dag.ListResources() {
 		var configuration any
-		if lambda, ok := resource.(*resources.LambdaFunction); ok {
-			configuration, err = a.getLambdaConfiguration(result, dag, lambda.ConstructsRef)
+		switch res := resource.(type) {
+		case *resources.LambdaFunction:
+			configuration, err = a.getLambdaConfiguration(result, dag, res.ConstructsRef)
 			if err != nil {
 				merr.Append(err)
 				continue

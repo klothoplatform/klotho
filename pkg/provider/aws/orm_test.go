@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -90,7 +89,6 @@ func Test_ExpandOrm(t *testing.T) {
 				return
 			}
 			tt.want.Assert(t, dag)
-			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 			resource := aws.GetResourceTiedToConstruct(tt.orm)
 			assert.NotNil(resource)
 		})
