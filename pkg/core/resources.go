@@ -25,6 +25,15 @@ type (
 		Id() ResourceId
 	}
 
+	// ExpandableResource is a resource that can generate its own dependencies. See [CreateResource].
+	//
+	// As of the time of this writing, we don't actually use this interface; it's just here for IDE goodness
+	// (cross-references in our IDEs to this doc, auto-generate, etc).
+	ExpandableResource[K any] interface {
+		Resource
+		Create(dag *ResourceGraph, param K) error
+	}
+
 	ResourceId struct {
 		Provider string
 		Type     string
