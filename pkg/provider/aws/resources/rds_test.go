@@ -211,9 +211,9 @@ func Test_RdsSubnetGroupCreate(t *testing.T) {
 			assert.Equal(subnetGroup.Name, "my-app-test")
 			if tt.subnetGroup == nil {
 				assert.Len(subnetGroup.Subnets, 2)
-				assert.Equal(subnetGroup.ConstructsRef, metadata.Refs)
+				assert.ElementsMatch(subnetGroup.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Equal(subnetGroup.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}))
+				assert.ElementsMatch(subnetGroup.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}))
 			}
 		})
 	}

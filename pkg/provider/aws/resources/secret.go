@@ -80,7 +80,6 @@ type SecretVersionConfigureParams struct {
 func (sv *SecretVersion) Configure(params SecretVersionConfigureParams) error {
 	sv.Type = params.Type
 	sv.Path = params.Path
-	sv.SecretName = sv.Secret.Name
 	return nil
 }
 

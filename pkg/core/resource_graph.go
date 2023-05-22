@@ -51,9 +51,9 @@ func (rg *ResourceGraph) AddResource(resource Resource) {
 //	rg.AddDependency(lambda, lambda.Role)
 func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Resource) {
 
-	for _, res := range []Resource{deployedSecond, deployedFirst} {
-		rg.AddResource(res)
-	}
+	rg.AddResource(deployedSecond)
+	rg.AddResource(deployedFirst)
+
 	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.Id().String(), deployedFirst.Id().String()); cycle {
 		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond.Id(), deployedFirst.Id())
 	} else {
@@ -442,7 +442,7 @@ func (rg *ResourceGraph) CallConfigure(resource Resource, metadata any) error {
 		decoder := GetMapDecoder(params)
 		err := decoder.Decode(metadata)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("error decoding the following type %s", reflect.New(method.Type().In(0)).Type().String()))
+			return errors.Wrapf(err, fmt.Sprintf("error decoding the following type %s", reflect.New(method.Type().In(0)).Type()))
 		}
 		callArgs = append(callArgs, reflect.ValueOf(params).Elem())
 		eval := method.Call(callArgs)

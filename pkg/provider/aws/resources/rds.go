@@ -113,11 +113,6 @@ type RdsInstanceCreateParams struct {
 	Name    string
 }
 
-// Create takes in an all necessary parameters to generate the RdsInstance name and ensure that the RdsInstance is correlated to the constructs which required its creation.
-//
-// This method will also create dependent resources which are necessary for functionality. Those resources are:
-//   - RDS Subnet Group
-//   - Security Groups
 func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceCreateParams) error {
 
 	name := rdsInstanceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
@@ -154,7 +149,6 @@ type RdsInstanceConfigureParams struct {
 	AllocatedStorage  int
 }
 
-// Configure sets the intristic characteristics of a vpc based on parameters passed in
 func (instance *RdsInstance) Configure(params RdsInstanceConfigureParams) error {
 	instance.IamDatabaseAuthenticationEnabled = true
 	instance.SkipFinalSnapshot = true
@@ -172,8 +166,6 @@ func (instance *RdsInstance) Configure(params RdsInstanceConfigureParams) error 
 		FPath:   credsPath,
 		Content: credsBytes,
 	}
-	instance.CredentialsPath = credsPath
-
 	return nil
 }
 
@@ -183,10 +175,6 @@ type RdsSubnetGroupCreateParams struct {
 	Refs    []core.AnnotationKey
 }
 
-// Create takes in an all necessary parameters to generate the RdsSubnetGroup name and ensure that the RdsSubnetGroup is correlated to the constructs which required its creation.
-//
-// This method will also create dependent resources which are necessary for functionality. Those resources are:
-//   - Subnets
 func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSubnetGroupCreateParams) error {
 	subnetGroup.Name = rdsSubnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	subnetGroup.ConstructsRef = params.Refs
@@ -195,6 +183,7 @@ func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSub
 	if existingSubnetGroup != nil {
 		graphSubnetGroup := existingSubnetGroup.(*RdsSubnetGroup)
 		graphSubnetGroup.ConstructsRef = core.DedupeAnnotationKeys(append(graphSubnetGroup.KlothoConstructRef(), params.Refs...))
+		return nil
 	} else {
 		subnetGroup.Subnets = make([]*Subnet, 2)
 		err := dag.CreateDependencies(subnetGroup, map[string]any{
@@ -226,11 +215,6 @@ type RdsProxyCreateParams struct {
 	Refs    []core.AnnotationKey
 }
 
-// Create takes in an all necessary parameters to generate the RdsProxy name and ensure that the RdsProxy is correlated to the constructs which required its creation.
-//
-// This method will also create dependent resources which are necessary for functionality. Those resources are:
-//   - Subnets
-//   - SecurityGroups
 func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreateParams) error {
 	proxy.Name = rdsSubnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	proxy.ConstructsRef = params.Refs
@@ -239,6 +223,7 @@ func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreatePara
 	if existingProxy != nil {
 		graphProxy := existingProxy.(*RdsProxy)
 		graphProxy.ConstructsRef = core.DedupeAnnotationKeys(append(graphProxy.KlothoConstructRef(), params.Refs...))
+		return nil
 	} else {
 		proxy.Subnets = make([]*Subnet, 2)
 		proxy.SecurityGroups = make([]*SecurityGroup, 1)
@@ -283,7 +268,6 @@ type RdsProxyConfigureParams struct {
 	RequireTls        bool
 }
 
-// Configure sets the intristic characteristics of a vpc based on parameters passed in
 func (proxy *RdsProxy) Configure(params RdsProxyConfigureParams) error {
 	proxy.DebugLogging = false
 	proxy.EngineFamily = "POSTGRESQL"
@@ -298,7 +282,6 @@ type RdsProxyTargetGroupCreateParams struct {
 	Refs    []core.AnnotationKey
 }
 
-// Create takes in an all necessary parameters to generate the RdsProxyTargetGroup name and ensure that the RdsProxyTargetGroup is correlated to the constructs which required its creation.
 func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTargetGroupCreateParams) error {
 
 	tg.Name = rdsProxySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
@@ -307,6 +290,7 @@ func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTa
 	if existingTG != nil {
 		graphTG := existingTG.(*RdsProxyTargetGroup)
 		graphTG.ConstructsRef = core.DedupeAnnotationKeys(append(graphTG.KlothoConstructRef(), params.Refs...))
+		return nil
 	} else {
 		dag.AddResource(tg)
 	}

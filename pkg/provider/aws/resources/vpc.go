@@ -93,7 +93,6 @@ type VpcCreateParams struct {
 	Refs    []core.AnnotationKey
 }
 
-// Create takes in an all necessary parameters to generate the Vpc name and ensure that the Vpc is correlated to the constructs which required its creation.
 func (vpc *Vpc) Create(dag *core.ResourceGraph, params VpcCreateParams) error {
 
 	vpc.Name = aws.VpcSanitizer.Apply(params.AppName)
@@ -113,7 +112,6 @@ func (vpc *Vpc) Create(dag *core.ResourceGraph, params VpcCreateParams) error {
 type VpcConfigureParams struct {
 }
 
-// Configure sets the intristic characteristics of a vpc based on parameters passed in
 func (vpc *Vpc) Configure(params VpcConfigureParams) error {
 	vpc.CidrBlock = "10.0.0.0/16"
 	vpc.EnableDnsSupport = true
@@ -127,7 +125,6 @@ type EipCreateParams struct {
 	Refs    []core.AnnotationKey
 }
 
-// Create takes in an all necessary parameters to generate the ElasticIP name and ensure that the ElasticIP is correlated to the constructs which required its creation.
 func (eip *ElasticIp) Create(dag *core.ResourceGraph, params EipCreateParams) error {
 	eip.Name = elasticIpSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.IpName))
 	eip.ConstructsRef = params.Refs
@@ -146,10 +143,6 @@ type IgwCreateParams struct {
 	Refs    []core.AnnotationKey
 }
 
-// Create takes in an all necessary parameters to generate the InternetGateway name and ensure that the InternetGateway is correlated to the constructs which required its creation.
-//
-// This method will also create dependent resources which are necessary for functionality. Those resources are:
-//   - VPC
 func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreateParams) error {
 
 	igw.Name = igwSanitizer.Apply(fmt.Sprintf("%s-igw", params.AppName))
@@ -177,11 +170,6 @@ type NatCreateParams struct {
 	AZ      string
 }
 
-// Create takes in an all necessary parameters to generate the NatGateway name and ensure that the NatGateway is correlated to the constructs which required its creation.
-//
-// This method will also create dependent resources which are necessary for functionality. Those resources are:
-//   - Subnet
-//   - Elastic IP
 func (nat *NatGateway) Create(dag *core.ResourceGraph, params NatCreateParams) error {
 
 	nat.Name = natGatewaySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.AZ))
@@ -218,13 +206,6 @@ type SubnetCreateParams struct {
 	Type    string
 }
 
-// Create takes in an all necessary parameters to generate the Subnet name and ensure that the Subnet is correlated to the constructs which required its creation.
-//
-// This method will also create dependent resources which are necessary for functionality. Those resources are:
-//   - VPC
-//   - Route Table
-//   - Nat Gateway (if subnet is private)
-//   - Internet Gateway (if subnet is private)
 func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams) error {
 	subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", params.AppName, params.Type, params.AZ))
 	subnet.ConstructsRef = params.Refs
@@ -291,7 +272,6 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams)
 type SubnetConfigureParams struct {
 }
 
-// Configure sets the intristic characteristics of a vpc based on parameters passed in
 func (subnet *Subnet) Configure(params SubnetConfigureParams) error {
 	if subnet.Type == PrivateSubnet {
 		if subnet.AvailabilityZone.Property == "0" {
@@ -317,10 +297,6 @@ type RouteTableCreateParams struct {
 	Refs    []core.AnnotationKey
 }
 
-// Create takes in an all necessary parameters to generate the RouteTable name and ensure that the RouteTable is correlated to the constructs which required its creation.
-//
-// This method will also create dependent resources which are necessary for functionality. Those resources are:
-//   - VPC
 func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreateParams) error {
 
 	rt.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))

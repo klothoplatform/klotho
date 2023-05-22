@@ -1,7 +1,6 @@
 package resources
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -58,7 +57,6 @@ func Test_SecretCreate(t *testing.T) {
 			}
 			tt.want.Assert(t, dag)
 
-			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 			graphInstance := dag.GetResource(secret.Id())
 			secret = graphInstance.(*Secret)
 
@@ -119,7 +117,6 @@ func Test_SecretVersionCreate(t *testing.T) {
 			}
 			tt.want.Assert(t, dag)
 
-			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 			graphInstance := dag.GetResource(secret.Id())
 			secret = graphInstance.(*SecretVersion)
 

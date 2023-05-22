@@ -35,7 +35,6 @@ type RepoCreateParams struct {
 	Refs    []core.AnnotationKey
 }
 
-// Create takes in an all necessary parameters to generate the EcrRepository name and ensure that the EcrRepository is correlated to the constructs which required its creation.
 func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreateParams) error {
 	repo.Name = params.AppName
 	repo.ConstructsRef = params.Refs
@@ -54,7 +53,6 @@ type EcrRepositoryConfigureParams struct {
 	ForceDelete bool
 }
 
-// Configure sets the intristic characteristics of a vpc based on parameters passed in
 func (repo *EcrRepository) Configure(params EcrRepositoryConfigureParams) error {
 	repo.ForceDelete = true
 	return nil
@@ -66,9 +64,6 @@ type ImageCreateParams struct {
 	Name    string
 }
 
-// Create takes in an all necessary parameters to generate the EcrImage name and ensure that the EcrImage is correlated to the constructs which required its creation.
-//
-// This method also creates the direct dependent resource, EcrRepository.
 func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams) error {
 	name := fmt.Sprintf("%s-%s", params.AppName, params.Name)
 	image.Name = name

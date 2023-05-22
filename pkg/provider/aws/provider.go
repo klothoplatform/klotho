@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -53,9 +52,6 @@ func (a *AWS) GetResourcesDirectlyTiedToConstruct(construct core.Construct) ([]c
 func (a *AWS) MapResourceToConstruct(resource core.Resource, construct core.Construct) error {
 	if a.constructIdToResource == nil {
 		a.constructIdToResource = make(map[string]core.Resource)
-	}
-	if res, ok := a.constructIdToResource[construct.Id()]; ok {
-		return fmt.Errorf("resource, %s, is already tied to construct, %s", res.Id().String(), construct.Id())
 	}
 	a.constructIdToResource[construct.Id()] = resource
 	return nil

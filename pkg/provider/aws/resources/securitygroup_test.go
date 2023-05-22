@@ -67,7 +67,7 @@ func Test_SecurityGroupCreate(t *testing.T) {
 
 			assert.Equal(sg.Name, "my-app")
 			if tt.sg == nil {
-				assert.Equal(sg.ConstructsRef, metadata.Refs)
+				assert.ElementsMatch(sg.ConstructsRef, metadata.Refs)
 			} else {
 				assert.ElementsMatch(sg.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			}

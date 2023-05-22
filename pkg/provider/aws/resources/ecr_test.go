@@ -56,7 +56,7 @@ func Test_RepositoryCreate(t *testing.T) {
 			}
 
 			tt.want.Assert(t, dag)
-			graphRepo := dag.GetResourceByVertexId(repo.Id().String())
+			graphRepo := dag.GetResource(repo.Id())
 			repo = graphRepo.(*EcrRepository)
 			assert.Equal(repo.Name, "my-app")
 			if tt.repo == nil {
@@ -118,7 +118,7 @@ func Test_ImageCreate(t *testing.T) {
 				return
 			}
 			tt.want.Assert(t, dag)
-			graphImage := dag.GetResourceByVertexId(image.Id().String())
+			graphImage := dag.GetResource(image.Id())
 			image = graphImage.(*EcrImage)
 
 			assert.Equal(image.Name, "my-app-test-unit")

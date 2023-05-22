@@ -1,18 +1,19 @@
-package edges
+package knowledgebase
 
 import (
 	"fmt"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
-var KnowledgeBase = core.EdgeKB{
-	core.Edge{From: reflect.TypeOf(&resources.LambdaFunction{}), To: reflect.TypeOf(&resources.RdsInstance{})}: core.EdgeDetails{
-		ExpansionFunc: func(from, to core.Resource, dag *core.ResourceGraph, data core.EdgeData) error {
-			lambda := from.(*resources.LambdaFunction)
-			instance := to.(*resources.RdsInstance)
+var AwsKB = knowledgebase.EdgeKB{
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.LambdaFunction{}), Destination: reflect.TypeOf(&resources.RdsInstance{})}: knowledgebase.EdgeDetails{
+		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			lambda := source.(*resources.LambdaFunction)
+			instance := dest.(*resources.RdsInstance)
 			if len(lambda.Subnets) == 0 {
 				lambda.Subnets = instance.SubnetGroup.Subnets
 			}
@@ -21,11 +22,11 @@ var KnowledgeBase = core.EdgeKB{
 			}
 			return nil
 		},
-		Configure: func(from, to core.Resource, dag *core.ResourceGraph, data core.EdgeData) error {
-			lambda := from.(*resources.LambdaFunction)
-			instance := to.(*resources.RdsInstance)
+		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			lambda := source.(*resources.LambdaFunction)
+			instance := dest.(*resources.RdsInstance)
 			if len(lambda.Subnets) == 0 {
-				return fmt.Errorf("unable to expand edge [%s -> %s]: lambda function [%s] is not in a VPC",
+				return fmt.Errorf("unable Destination expand edge [%s -> %s]: lambda function [%s] is not in a VPC",
 					lambda.Id().String(), instance.Id().String(), lambda.Id().String())
 			}
 			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), core.DedupeAnnotationKeys(append(lambda.ConstructsRef, instance.ConstructsRef...)), instance.GetConnectionPolicyDocument())
@@ -37,10 +38,10 @@ var KnowledgeBase = core.EdgeKB{
 			return nil
 		},
 	},
-	core.Edge{From: reflect.TypeOf(&resources.LambdaFunction{}), To: reflect.TypeOf(&resources.RdsProxy{})}: core.EdgeDetails{
-		ExpansionFunc: func(from, to core.Resource, dag *core.ResourceGraph, data core.EdgeData) error {
-			lambda := from.(*resources.LambdaFunction)
-			proxy := to.(*resources.RdsProxy)
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.LambdaFunction{}), Destination: reflect.TypeOf(&resources.RdsProxy{})}: knowledgebase.EdgeDetails{
+		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			lambda := source.(*resources.LambdaFunction)
+			proxy := dest.(*resources.RdsProxy)
 			if len(lambda.Subnets) == 0 {
 				lambda.Subnets = proxy.Subnets
 			}
@@ -49,11 +50,11 @@ var KnowledgeBase = core.EdgeKB{
 			}
 			return nil
 		},
-		Configure: func(from, to core.Resource, dag *core.ResourceGraph, data core.EdgeData) error {
-			lambda := from.(*resources.LambdaFunction)
-			proxy := to.(*resources.RdsProxy)
+		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			lambda := source.(*resources.LambdaFunction)
+			proxy := dest.(*resources.RdsProxy)
 			if len(lambda.Subnets) == 0 {
-				return fmt.Errorf("unable to expand edge [%s -> %s]: lambda function [%s] is not in a VPC",
+				return fmt.Errorf("unable Destination expand edge [%s -> %s]: lambda function [%s] is not in a VPC",
 					lambda.Id().String(), proxy.Id().String(), lambda.Id().String())
 			}
 
@@ -76,10 +77,10 @@ var KnowledgeBase = core.EdgeKB{
 			return nil
 		},
 	},
-	core.Edge{From: reflect.TypeOf(&resources.RdsProxyTargetGroup{}), To: reflect.TypeOf(&resources.RdsInstance{})}: core.EdgeDetails{
-		ExpansionFunc: func(from, to core.Resource, dag *core.ResourceGraph, data core.EdgeData) error {
-			instance := to.(*resources.RdsInstance)
-			targetGroup := from.(*resources.RdsProxyTargetGroup)
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.RdsProxyTargetGroup{}), Destination: reflect.TypeOf(&resources.RdsInstance{})}: knowledgebase.EdgeDetails{
+		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			instance := dest.(*resources.RdsInstance)
+			targetGroup := source.(*resources.RdsProxyTargetGroup)
 			if targetGroup.Name == "" {
 				proxyTargetGroup, err := core.CreateResource[*resources.RdsProxyTargetGroup](dag, resources.RdsProxyTargetGroupCreateParams{
 					AppName: data.AppName,
@@ -93,34 +94,30 @@ var KnowledgeBase = core.EdgeKB{
 			}
 			return nil
 		},
-		Configure: func(from, to core.Resource, dag *core.ResourceGraph, data core.EdgeData) error {
-			instance := to.(*resources.RdsInstance)
-			targetGroup := from.(*resources.RdsProxyTargetGroup)
+		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			instance := dest.(*resources.RdsInstance)
+			targetGroup := source.(*resources.RdsProxyTargetGroup)
 
 			if targetGroup.RdsInstance == nil {
 				targetGroup.RdsInstance = instance
 			} else if targetGroup.RdsInstance != instance {
-				return fmt.Errorf("target group, %s, has edge to instance, %s, but internal property is set to a different instance", targetGroup.Name, instance.Name)
+				return fmt.Errorf("target group, %s, has edge Destination instance, %s, but internal property is set Destination a different instance", targetGroup.Name, instance.Name)
 			}
 
 			secret := targetGroup.RdsProxy.Auths[0].SecretArn.Resource.(*resources.Secret)
-			fmt.Println(secret.Id())
-			fmt.Println(dag.GetDownstreamResources(secret))
-			fmt.Println(dag.GetUpstreamDependencies(secret))
 			for _, res := range dag.GetDownstreamResources(secret) {
-				fmt.Println(res.Id())
 				if secretVersion, ok := res.(*resources.SecretVersion); ok {
-					secretVersion.Path = instance.CredentialsPath
+					secretVersion.Path = instance.CredentialsFile.Path()
 				}
 			}
 			return nil
 		},
 		ValidDestinations: []reflect.Type{reflect.TypeOf(&resources.RdsInstance{})},
 	},
-	core.Edge{From: reflect.TypeOf(&resources.RdsProxyTargetGroup{}), To: reflect.TypeOf(&resources.RdsProxy{})}: core.EdgeDetails{
-		ExpansionFunc: func(from, to core.Resource, dag *core.ResourceGraph, data core.EdgeData) error {
-			proxy := to.(*resources.RdsProxy)
-			targetGroup := from.(*resources.RdsProxyTargetGroup)
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.RdsProxyTargetGroup{}), Destination: reflect.TypeOf(&resources.RdsProxy{})}: knowledgebase.EdgeDetails{
+		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			proxy := dest.(*resources.RdsProxy)
+			targetGroup := source.(*resources.RdsProxyTargetGroup)
 			destination := data.Destination.(*resources.RdsInstance)
 			if proxy.Name == "" {
 				var err error
@@ -147,7 +144,7 @@ var KnowledgeBase = core.EdgeKB{
 			}
 			secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 				AppName: data.AppName,
-				Refs:    core.DedupeAnnotationKeys(append(from.KlothoConstructRef(), to.KlothoConstructRef()...)),
+				Refs:    core.DedupeAnnotationKeys(append(source.KlothoConstructRef(), dest.KlothoConstructRef()...)),
 				Name:    proxy.Name,
 			})
 			if err != nil {
@@ -173,25 +170,25 @@ var KnowledgeBase = core.EdgeKB{
 			dag.AddDependenciesReflect(proxy)
 			return nil
 		},
-		Configure: func(from, to core.Resource, dag *core.ResourceGraph, data core.EdgeData) error {
-			proxy := to.(*resources.RdsProxy)
-			targetGroup := from.(*resources.RdsProxyTargetGroup)
+		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			proxy := dest.(*resources.RdsProxy)
+			targetGroup := source.(*resources.RdsProxyTargetGroup)
 
 			if targetGroup.RdsProxy == nil {
 				targetGroup.RdsProxy = proxy
 			} else if targetGroup.RdsProxy != proxy {
-				return fmt.Errorf("target group, %s, has edge to proxy, %s, but internal property is set to a different proxy", targetGroup.Name, proxy.Name)
+				return fmt.Errorf("target group, %s, has edge Destination proxy, %s, but internal property is set Destination a different proxy", targetGroup.Name, proxy.Name)
 			}
 			return nil
 		},
 		ValidDestinations: []reflect.Type{reflect.TypeOf(&resources.RdsInstance{})},
 	},
-	core.Edge{From: reflect.TypeOf(&resources.RdsProxy{}), To: reflect.TypeOf(&resources.SecretVersion{})}: core.EdgeDetails{
-		ExpansionFunc: func(from, to core.Resource, dag *core.ResourceGraph, data core.EdgeData) error {
-			proxy := to.(*resources.RdsProxy)
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.RdsProxy{}), Destination: reflect.TypeOf(&resources.SecretVersion{})}: knowledgebase.EdgeDetails{
+		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			proxy := dest.(*resources.RdsProxy)
 			secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 				AppName: data.AppName,
-				Refs:    core.DedupeAnnotationKeys(append(from.KlothoConstructRef(), to.KlothoConstructRef()...)),
+				Refs:    core.DedupeAnnotationKeys(append(source.KlothoConstructRef(), dest.KlothoConstructRef()...)),
 				Name:    proxy.Name,
 			})
 			if err != nil {
@@ -211,16 +208,16 @@ var KnowledgeBase = core.EdgeKB{
 			dag.AddDependency(proxy.Role, secretPolicy)
 			return nil
 		},
-		Configure: func(from, to core.Resource, dag *core.ResourceGraph, data core.EdgeData) error {
-			secretVersion := to.(*resources.SecretVersion)
+		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			secretVersion := dest.(*resources.SecretVersion)
 			secretVersion.Type = "string"
 			return nil
 		},
 	},
-	core.Edge{From: reflect.TypeOf(&resources.IamPolicy{}), To: reflect.TypeOf(&resources.SecretVersion{})}: core.EdgeDetails{
-		Configure: func(from, to core.Resource, dag *core.ResourceGraph, data core.EdgeData) error {
-			policy := from.(*resources.IamPolicy)
-			secretVersion := to.(*resources.SecretVersion)
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.IamPolicy{}), Destination: reflect.TypeOf(&resources.SecretVersion{})}: knowledgebase.EdgeDetails{
+		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			policy := source.(*resources.IamPolicy)
+			secretVersion := dest.(*resources.SecretVersion)
 			secretPolicyDoc := resources.CreateAllowPolicyDocument([]string{"secretsmanager:GetSecretValue"}, []core.IaCValue{{Resource: secretVersion.Secret, Property: resources.ARN_IAC_VALUE}})
 			if policy.Policy == nil {
 				policy.Policy = secretPolicyDoc
@@ -230,19 +227,19 @@ var KnowledgeBase = core.EdgeKB{
 			return nil
 		},
 	},
-	core.Edge{From: reflect.TypeOf(&resources.IamRole{}), To: reflect.TypeOf(&resources.IamPolicy{})}: core.EdgeDetails{
-		Configure: func(from, to core.Resource, dag *core.ResourceGraph, data core.EdgeData) error {
-			policy := to.(*resources.IamPolicy)
-			role := from.(*resources.IamRole)
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.IamRole{}), Destination: reflect.TypeOf(&resources.IamPolicy{})}: knowledgebase.EdgeDetails{
+		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			policy := dest.(*resources.IamPolicy)
+			role := source.(*resources.IamRole)
 			role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{Resource: policy, Property: resources.ARN_IAC_VALUE})
 			return nil
 		},
 	},
-	core.Edge{From: reflect.TypeOf(&resources.RdsInstance{}), To: reflect.TypeOf(&resources.RdsSubnetGroup{})}: core.EdgeDetails{},
-	core.Edge{From: reflect.TypeOf(&resources.RdsInstance{}), To: reflect.TypeOf(&resources.SecurityGroup{})}:  core.EdgeDetails{},
-	core.Edge{From: reflect.TypeOf(&resources.LambdaFunction{}), To: reflect.TypeOf(&resources.IamRole{})}:     core.EdgeDetails{},
-	core.Edge{From: reflect.TypeOf(&resources.LambdaFunction{}), To: reflect.TypeOf(&resources.EcrImage{})}:    core.EdgeDetails{},
-	core.Edge{From: reflect.TypeOf(&resources.EcrImage{}), To: reflect.TypeOf(&resources.EcrRepository{})}:     core.EdgeDetails{},
-	core.Edge{From: reflect.TypeOf(&resources.SecurityGroup{}), To: reflect.TypeOf(&resources.Vpc{})}:          core.EdgeDetails{},
-	core.Edge{From: reflect.TypeOf(&resources.Subnet{}), To: reflect.TypeOf(&resources.Vpc{})}:                 core.EdgeDetails{},
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.RdsInstance{}), Destination: reflect.TypeOf(&resources.RdsSubnetGroup{})}: knowledgebase.EdgeDetails{},
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.RdsInstance{}), Destination: reflect.TypeOf(&resources.SecurityGroup{})}:  knowledgebase.EdgeDetails{},
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.LambdaFunction{}), Destination: reflect.TypeOf(&resources.IamRole{})}:     knowledgebase.EdgeDetails{},
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.LambdaFunction{}), Destination: reflect.TypeOf(&resources.EcrImage{})}:    knowledgebase.EdgeDetails{},
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.EcrImage{}), Destination: reflect.TypeOf(&resources.EcrRepository{})}:     knowledgebase.EdgeDetails{},
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.SecurityGroup{}), Destination: reflect.TypeOf(&resources.Vpc{})}:          knowledgebase.EdgeDetails{},
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.Subnet{}), Destination: reflect.TypeOf(&resources.Vpc{})}:                 knowledgebase.EdgeDetails{},
 }
