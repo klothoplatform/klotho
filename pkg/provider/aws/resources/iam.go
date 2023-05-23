@@ -153,7 +153,6 @@ type RoleCreateParams struct {
 	Refs    []core.AnnotationKey
 }
 
-// Create takes in an all necessary parameters to generate the Roles name and ensure that the Role is correlated to the constructs which required its creation.
 func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) error {
 	role.Name = roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	role.ConstructsRef = params.Refs
@@ -173,7 +172,6 @@ type IamPolicyCreateParams struct {
 	Refs    []core.AnnotationKey
 }
 
-// Create takes in an all necessary parameters to generate the IamPolicy name and ensure that the IamPolicy is correlated to the constructs which required its creation.
 func (policy *IamPolicy) Create(dag *core.ResourceGraph, params IamPolicyCreateParams) error {
 	policy.Name = policySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	policy.ConstructsRef = params.Refs
@@ -184,6 +182,36 @@ func (policy *IamPolicy) Create(dag *core.ResourceGraph, params IamPolicyCreateP
 	dag.AddResource(policy)
 	return nil
 }
+
+type OidcCreateParams struct {
+	AppName     string
+	ClusterName string
+	Refs        []core.AnnotationKey
+}
+
+func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCreateParams) error {
+	oidc.Name = fmt.Sprintf("%s-%s", params.AppName, params.ClusterName)
+
+	existingOidc := dag.GetResourceByVertexId(oidc.Id().String())
+	if existingOidc != nil {
+		graphOidc := existingOidc.(*OpenIdConnectProvider)
+		graphOidc.ConstructsRef = append(graphOidc.ConstructsRef, params.Refs...)
+	} else {
+		oidc.ConstructsRef = params.Refs
+		oidc.ClientIdLists = []string{"sts.amazonaws.com"}
+		oidc.Region = NewRegion()
+
+		subParams := map[string]any{
+			"Cluster": params,
+		}
+		err := dag.CreateDependencies(oidc, subParams)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func NewPolicyGenerator() *PolicyGenerator {
 	p := &PolicyGenerator{
 		unitsPolicies:       make(map[string][]*IamPolicy),
@@ -283,9 +311,29 @@ func (role *IamRole) Id() core.ResourceId {
 	}
 }
 
-// Id returns the id of the cloud resource
 func (role *IamRole) AddAwsManagedPolicies(policies []string) {
-	role.AwsManagedPolicies = append(role.AwsManagedPolicies, policies...)
+	currPolicies := map[string]bool{}
+	for _, pol := range role.AwsManagedPolicies {
+		currPolicies[pol] = true
+	}
+	for _, pol := range policies {
+		if !currPolicies[pol] {
+			role.AwsManagedPolicies = append(role.AwsManagedPolicies, pol)
+			currPolicies[pol] = true
+		}
+	}
+}
+
+func (role *IamRole) AddManagedPolicy(policy core.IaCValue) {
+	exists := false
+	for _, pol := range role.ManagedPolicies {
+		if pol == policy {
+			exists = true
+		}
+	}
+	if !exists {
+		role.ManagedPolicies = append(role.ManagedPolicies, policy)
+	}
 }
 
 func NewIamPolicy(appName string, policyName string, ref core.AnnotationKey, policy *PolicyDocument) *IamPolicy {

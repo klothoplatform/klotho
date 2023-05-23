@@ -58,6 +58,24 @@ func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.Reso
 	return lambdaConfig, nil
 }
 
+func (a *AWS) getImageConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs []core.AnnotationKey) (resources.EcrImageConfigureParams, error) {
+	if len(refs) != 1 {
+		return resources.EcrImageConfigureParams{}, fmt.Errorf("image must only have one construct reference but got %d: %v", len(refs), refs)
+	}
+	imageConfig := resources.EcrImageConfigureParams{}
+	construct := result.GetConstruct(refs[0].ToId())
+	if construct == nil {
+		return resources.EcrImageConfigureParams{}, fmt.Errorf("construct with id %s does not exist", refs[0].ToId())
+	}
+	unit, ok := construct.(*core.ExecutionUnit)
+	if !ok {
+		return resources.EcrImageConfigureParams{}, fmt.Errorf("image must only have a construct reference to an execution unit ExecutionUnit but got %T", construct)
+	}
+	imageConfig.Context = fmt.Sprintf("./%s", unit.ID)
+	imageConfig.Dockerfile = fmt.Sprintf("./%s/%s", unit.ID, unit.DockerfilePath)
+	return imageConfig, nil
+}
+
 // GenerateExecUnitResources generates the necessary AWS resources for a given execution unit and adds them to the resource graph
 func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	log := zap.S()
@@ -97,22 +115,22 @@ func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.C
 	unitsPolicies := a.PolicyGenerator.GetUnitPolicies(unit.Id())
 	for _, pol := range unitsPolicies {
 		dag.AddDependency(role, pol)
-		role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{
+		role.AddManagedPolicy(core.IaCValue{
 			Resource: pol,
 			Property: resources.ARN_IAC_VALUE,
 		})
 	}
 	switch execUnitCfg.Type {
 	case Lambda:
-		role.AwsManagedPolicies = append(role.AwsManagedPolicies, "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess")
+		role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"})
 		lambdaFunction := resources.NewLambdaFunction(unit, a.Config, role, image)
 		if resources.VpcExists(dag) {
 			vpc := resources.GetVpc(a.Config, dag)
 			lambdaFunction.Subnets = vpc.GetPrivateSubnets(dag)
 			lambdaFunction.SecurityGroups = vpc.GetSecurityGroups(dag)
-			role.AwsManagedPolicies = append(role.AwsManagedPolicies, "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole")
+			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"})
 		} else {
-			role.AwsManagedPolicies = append(role.AwsManagedPolicies, "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole")
+			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"})
 		}
 		dag.AddDependenciesReflect(lambdaFunction)
 		a.MapResourceDirectlyToConstruct(lambdaFunction, unit)

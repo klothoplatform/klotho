@@ -77,7 +77,7 @@ func Test_ConfigureEdge(t *testing.T) {
 					},
 				},
 				{
-					Source:      &resources.RdsProxyTargetGroup{Name: "rds"},
+					Source:      &resources.RdsProxyTargetGroup{Name: "rds", RdsInstance: &resources.RdsInstance{Name: "instance", CredentialsPath: "rds"}},
 					Destination: &resources.RdsProxy{Name: "rds", Role: &resources.IamRole{Name: "ProxyRole"}, Auths: []*resources.ProxyAuth{{SecretArn: core.IaCValue{Resource: &resources.Secret{Name: "Secret"}}}}},
 					Properties: dgraph.EdgeProperties{
 						Data: knowledgebase.EdgeData{
@@ -93,8 +93,8 @@ func Test_ConfigureEdge(t *testing.T) {
 					Destination: &resources.Secret{Name: "Secret"},
 				},
 				{
-					Source:      &resources.Secret{Name: "Secret"},
-					Destination: &resources.SecretVersion{Name: "sv"},
+					Source:      &resources.SecretVersion{Name: "sv"},
+					Destination: &resources.Secret{Name: "Secret"},
 				},
 				{
 					Source:      &resources.RdsProxy{Name: "rds"},
@@ -108,7 +108,7 @@ func Test_ConfigureEdge(t *testing.T) {
 							Auths: []*resources.ProxyAuth{{SecretArn: core.IaCValue{Resource: &resources.Secret{Name: "Secret"}}}},
 						},
 					},
-					Destination: &resources.RdsInstance{Name: "instance", CredentialsFile: &core.FileRef{FPath: "rds"}},
+					Destination: &resources.RdsInstance{Name: "instance", CredentialsFile: &core.FileRef{FPath: "rds"}, CredentialsPath: "rds"},
 					Properties: dgraph.EdgeProperties{
 						Data: knowledgebase.EdgeData{
 							AppName:              "my-app",
@@ -134,7 +134,7 @@ func Test_ConfigureEdge(t *testing.T) {
 										{
 											Effect:   "Allow",
 											Action:   []string{"rds-db:connect"},
-											Resource: []core.IaCValue{{Resource: &resources.RdsInstance{Name: "instance", CredentialsFile: &core.FileRef{FPath: "rds"}}, Property: resources.RDS_CONNECTION_ARN_IAC_VALUE}},
+											Resource: []core.IaCValue{{Resource: &resources.RdsInstance{Name: "instance", CredentialsPath: "rds", CredentialsFile: &core.FileRef{FPath: "rds"}}, Property: resources.RDS_CONNECTION_ARN_IAC_VALUE}},
 										},
 									},
 								},

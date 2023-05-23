@@ -168,7 +168,7 @@ func Test_ApiResourceCreate(t *testing.T) {
 			metadata := ApiResourceCreateParams{
 				AppName: "my-app",
 				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
-				Name:    "/my/api/route",
+				Path:    "/my/api/route",
 				ApiName: "my-api",
 			}
 
@@ -248,7 +248,7 @@ func Test_ApiIntegrationCreate(t *testing.T) {
 			metadata := ApiIntegrationCreateParams{
 				AppName:    "my-app",
 				Refs:       []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
-				Name:       "/my/api/route",
+				Path:       "/my/api/route",
 				ApiName:    "my-api",
 				HttpMethod: "post",
 			}
@@ -327,7 +327,7 @@ func Test_ApiMethodCreate(t *testing.T) {
 			metadata := ApiMethodCreateParams{
 				AppName:    "my-app",
 				Refs:       []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
-				Name:       "/my/api/route",
+				Path:       "/my/api/route",
 				ApiName:    "my-api",
 				HttpMethod: "post",
 			}
@@ -364,15 +364,14 @@ func Test_ApiMethodConfigure(t *testing.T) {
 		{
 			name: "filled params",
 			params: ApiMethodConfigureParams{
-				RequestParameters: map[string]bool{"test": true},
-				Authorization:     "IAM",
+				Authorization: "IAM",
 			},
-			want: &ApiMethod{RequestParameters: map[string]bool{"test": true}, Authorization: "IAM"},
+			want: &ApiMethod{Authorization: "IAM"},
 		},
 		{
 			name:   "defaults",
 			params: ApiMethodConfigureParams{},
-			want:   &ApiMethod{RequestParameters: map[string]bool{}, Authorization: "None"},
+			want:   &ApiMethod{Authorization: "None"},
 		},
 	}
 	for _, tt := range cases {

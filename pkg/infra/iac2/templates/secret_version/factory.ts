@@ -2,7 +2,7 @@ import * as aws from '@pulumi/aws'
 import * as fs from 'fs'
 
 interface Args {
-    SecretName: string
+    Name: string
     Secret: aws.secretsmanager.Secret
     Path: string
     Type: string
@@ -13,7 +13,7 @@ interface Args {
 function create(args: Args): void {
     if (fs.existsSync(args.Path)) {
         new aws.secretsmanager.SecretVersion(
-            args.SecretName,
+            args.Name,
             {
                 secretId: args.Secret.id,
                 //TMPL {{- if eq .Type.Raw "string" }}

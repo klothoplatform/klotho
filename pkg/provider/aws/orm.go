@@ -29,26 +29,20 @@ func (a *AWS) expandOrm(dag *core.ResourceGraph, orm *core.Orm) error {
 	return nil
 }
 
-func (a *AWS) GenerateOrmResources(construct *core.Orm, result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	vpc := resources.GetVpc(a.Config, dag)
-	securityGroups := []*resources.SecurityGroup{resources.GetSecurityGroup(a.Config, dag)}
-	privateSubnets := vpc.GetPrivateSubnets(dag)
-	instance, proxy, err := resources.CreateRdsInstance(a.Config, construct, true, privateSubnets, securityGroups, dag)
-	if err != nil {
-		return err
+func (a *AWS) getRdsConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs []core.AnnotationKey) (resources.RdsInstanceConfigureParams, error) {
+	if len(refs) != 1 {
+		return resources.RdsInstanceConfigureParams{}, fmt.Errorf("rds instance must only have one construct reference")
 	}
-	a.MapResourceDirectlyToConstruct(instance, construct)
-	if proxy != nil {
-		a.MapResourceDirectlyToConstruct(proxy, construct)
+	rdsConfig := resources.RdsInstanceConfigureParams{}
+	construct := result.GetConstruct(refs[0].ToId())
+	if construct == nil {
+		return resources.RdsInstanceConfigureParams{}, fmt.Errorf("construct with id %s does not exist", refs[0].ToId())
 	}
-	policyDoc := instance.GetConnectionPolicyDocument()
-	upstreamResources := result.GetUpstreamConstructs(construct)
-	for _, res := range upstreamResources {
-		unit, ok := res.(*core.ExecutionUnit)
-		if ok {
-			a.PolicyGenerator.AddInlinePolicyToUnit(unit.Id(),
-				resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), []core.AnnotationKey{unit.Provenance()}, policyDoc))
-		}
+	orm, ok := construct.(*core.Orm)
+	if !ok {
+		return resources.RdsInstanceConfigureParams{}, fmt.Errorf("rds instance must only have a construct reference to an orm")
 	}
-	return nil
+
+	rdsConfig.DatabaseName = orm.ID
+	return rdsConfig, nil
 }

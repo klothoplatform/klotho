@@ -148,13 +148,13 @@ func convertPath(path string, wildcardsToGreedy bool) string {
 type ApiResourceCreateParams struct {
 	AppName string
 	Refs    []core.AnnotationKey
-	Name    string
+	Path    string
 	ApiName string
 }
 
 func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceCreateParams) error {
 
-	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Path))
 	resource.Name = name
 	resource.ConstructsRef = params.Refs
 
@@ -164,7 +164,7 @@ func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceC
 		graphResource.ConstructsRef = append(graphResource.ConstructsRef, params.Refs...)
 		return nil
 	} else {
-		segments := strings.Split(params.Name, "/")
+		segments := strings.Split(params.Path, "/")
 		resource.PathPart = convertPath(segments[len(segments)-1], true)
 		subParams := map[string]any{
 			"RestApi": RestApiCreateParams{
@@ -172,10 +172,11 @@ func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceC
 				Name: params.ApiName,
 			},
 		}
-		if len(segments) > 2 {
+		// The root path is already created in api gw so we dont want to attempt to create an empty resource
+		if len(segments) > 1 && segments[len(segments)-2] != "" {
 			subParams["ParentResource"] = ApiResourceCreateParams{
 				AppName: params.AppName,
-				Name:    strings.Join(segments[:len(segments)-1], "/"),
+				Path:    strings.TrimSuffix(params.Path, fmt.Sprintf("/%s", resource.PathPart)),
 				Refs:    params.Refs,
 				ApiName: params.ApiName,
 			}
@@ -191,7 +192,7 @@ func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceC
 type ApiIntegrationCreateParams struct {
 	AppName    string
 	Refs       []core.AnnotationKey
-	Name       string
+	Path       string
 	ApiName    string
 	HttpMethod string
 }
@@ -199,7 +200,7 @@ type ApiIntegrationCreateParams struct {
 // Create takes in an all necessary parameters to generate the RestApi name and ensure that the RestApi is correlated to the constructs which required its creation.
 func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiIntegrationCreateParams) error {
 
-	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.Name, params.HttpMethod))
+	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.Path, params.HttpMethod))
 	integration.Name = name
 	integration.ConstructsRef = params.Refs
 
@@ -208,19 +209,22 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 		graphResource := existingResource.(*ApiIntegration)
 		graphResource.ConstructsRef = append(graphResource.ConstructsRef, params.Refs...)
 	} else {
-		err := dag.CreateDependencies(integration, map[string]any{
+		subParams := map[string]any{
 			"RestApi": RestApiCreateParams{
 				Refs: params.Refs,
 				Name: params.ApiName,
 			},
-			"Resource": ApiResourceCreateParams{
+			"Method": params,
+		}
+		if params.Path != "" && params.Path != "/" {
+			subParams["Resource"] = ApiResourceCreateParams{
 				AppName: params.AppName,
 				Refs:    params.Refs,
-				Name:    params.Name,
+				Path:    params.Path,
 				ApiName: params.ApiName,
-			},
-			"Method": params,
-		})
+			}
+		}
+		err := dag.CreateDependencies(integration, subParams)
 		if err != nil {
 			return err
 		}
@@ -231,7 +235,7 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 type ApiMethodCreateParams struct {
 	AppName    string
 	Refs       []core.AnnotationKey
-	Name       string
+	Path       string
 	ApiName    string
 	HttpMethod string
 }
@@ -239,7 +243,7 @@ type ApiMethodCreateParams struct {
 // Create takes in an all necessary parameters to generate the RestApi name and ensure that the RestApi is correlated to the constructs which required its creation.
 func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateParams) error {
 
-	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.Name, params.HttpMethod))
+	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.Path, params.HttpMethod))
 	method.Name = name
 	method.ConstructsRef = params.Refs
 	method.HttpMethod = params.HttpMethod
@@ -249,18 +253,22 @@ func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateP
 		graphResource := existingResource.(*ApiMethod)
 		graphResource.ConstructsRef = append(graphResource.ConstructsRef, params.Refs...)
 	} else {
-		err := dag.CreateDependencies(method, map[string]any{
+		subParams := map[string]any{
 			"RestApi": RestApiCreateParams{
 				Refs: params.Refs,
 				Name: params.ApiName,
 			},
-			"Resource": ApiResourceCreateParams{
+		}
+		if params.Path != "" && params.Path != "/" {
+			subParams["Resource"] = ApiResourceCreateParams{
 				AppName: params.AppName,
 				Refs:    params.Refs,
-				Name:    params.Name,
+				Path:    params.Path,
 				ApiName: params.ApiName,
-			},
-		})
+			}
+		}
+
+		err := dag.CreateDependencies(method, subParams)
 		if err != nil {
 			return err
 		}
@@ -269,19 +277,11 @@ func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateP
 }
 
 type ApiMethodConfigureParams struct {
-	RequestParameters map[string]bool
-	Authorization     string
+	Authorization string
 }
 
-// Configure sets the intristic characteristics of a vpc based on parameters passed in
 func (method *ApiMethod) Configure(params ApiMethodConfigureParams) error {
 	method.Authorization = "None"
-	if method.RequestParameters == nil {
-		method.RequestParameters = make(map[string]bool)
-	}
-	if params.RequestParameters != nil {
-		method.RequestParameters = params.RequestParameters
-	}
 	if params.Authorization != "" {
 		method.Authorization = params.Authorization
 	}
