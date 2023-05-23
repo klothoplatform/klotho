@@ -510,4 +510,40 @@ var AwsKB = knowledgebase.EdgeKB{
 	knowledgebase.Edge{Source: reflect.TypeOf(&resources.LambdaPermission{}), Destination: reflect.TypeOf(&resources.RestApi{})}: knowledgebase.EdgeDetails{
 		ValidDestinations: []reflect.Type{reflect.TypeOf(&resources.RestApi{})},
 	},
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.IamRole{}), Destination: reflect.TypeOf(&resources.DynamodbTable{})}: knowledgebase.EdgeDetails{
+		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role := source.(*resources.IamRole)
+			table := dest.(*resources.DynamodbTable)
+
+			actions := []string{"dynamodb:*"}
+			policyResources := []core.IaCValue{
+				{Resource: table, Property: resources.ARN_IAC_VALUE},
+				{Resource: table, Property: resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE},
+				{Resource: table, Property: resources.DYNAMODB_TABLE_INDEX_IAC_VALUE},
+				{Resource: table, Property: resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE},
+				{Resource: table, Property: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
+			}
+			doc := resources.CreateAllowPolicyDocument(actions, policyResources)
+			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-dynamodb-policy", table.Name), core.DedupeAnnotationKeys(append(role.ConstructsRef, table.ConstructsRef...)), doc)
+			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
+			return nil
+		},
+	},
+	knowledgebase.Edge{Source: reflect.TypeOf(&resources.LambdaFunction{}), Destination: reflect.TypeOf(&resources.DynamodbTable{})}: knowledgebase.EdgeDetails{
+		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			lambda := source.(*resources.LambdaFunction)
+			table := dest.(*resources.DynamodbTable)
+			dag.AddDependency(lambda.Role, table)
+			return nil
+		},
+		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			lambda := source.(*resources.LambdaFunction)
+			table := dest.(*resources.DynamodbTable)
+
+			for _, env := range data.EnvironmentVariables {
+				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: table, Property: env.GetValue()}
+			}
+			return nil
+		},
+	},
 }

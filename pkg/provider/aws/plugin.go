@@ -23,6 +23,8 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 			merr.Append(a.expandExpose(dag, construct))
 		case *core.Orm:
 			merr.Append(a.expandOrm(dag, construct))
+		case *core.Kv:
+			merr.Append(a.expandKv(dag, construct))
 		}
 	}
 	return merr.ErrOrNil()
@@ -46,9 +48,14 @@ func (a *AWS) CopyConstructEdgesToDag(result *core.ConstructGraph, dag *core.Res
 		data := knowledgebase.EdgeData{AppName: a.Config.AppName, Source: sourceResource, Destination: targetResource}
 		switch construct := dep.Source.(type) {
 		case *core.ExecutionUnit:
-			if _, ok := dep.Destination.(*core.Orm); ok {
+			switch dep.Destination.(type) {
+			case *core.Orm:
 				data.Constraint = knowledgebase.EdgeConstraint{
 					NodeMustExist: []core.Resource{&resources.RdsProxy{}},
+				}
+			case *core.Kv:
+				data.Constraint = knowledgebase.EdgeConstraint{
+					NodeMustNotExist: []core.Resource{&resources.IamPolicy{}},
 				}
 			}
 			for _, envVar := range construct.EnvironmentVariables {
@@ -92,6 +99,8 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 				merr.Append(err)
 				continue
 			}
+		case *resources.DynamodbTable:
+			configuration = a.getKvConfiguration()
 		}
 		merr.Append(dag.CallConfigure(resource, configuration))
 	}

@@ -1,54 +1,35 @@
 package aws
 
 import (
-	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
-	"go.uber.org/zap"
 )
 
-func (a *AWS) GenerateKvResources(kv *core.Kv, result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	table := resources.NewDynamodbTable(
-		kv,
-		fmt.Sprintf("KV_%s", a.Config.AppName),
-		[]resources.DynamodbTableAttribute{
+func (a *AWS) expandKv(dag *core.ResourceGraph, kv *core.Kv) error {
+	table, err := core.CreateResource[*resources.DynamodbTable](dag, resources.DynamodbTableCreateParams{
+		AppName: a.Config.AppName,
+		Refs:    []core.AnnotationKey{kv.AnnotationKey},
+		Name:    "kv",
+	})
+	if err != nil {
+		return err
+	}
+
+	err = a.MapResourceToConstruct(table, kv)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *AWS) getKvConfiguration() resources.DynamodbTableConfigureParams {
+	return resources.DynamodbTableConfigureParams{
+		Attributes: []resources.DynamodbTableAttribute{
 			{Name: "pk", Type: "S"},
 			{Name: "sk", Type: "S"},
 		},
-	)
-
-	if existingTable := dag.GetResource(table.Id()); existingTable == nil {
-		table.HashKey = "pk"
-		table.RangeKey = "sk"
-		if err := table.Validate(); err != nil {
-			return err
-		}
-		dag.AddResource(table)
-	} else {
-		table = existingTable.(*resources.DynamodbTable)
-		table.ConstructsRef = append(table.ConstructsRef, kv.AnnotationKey)
-		zap.L().Sugar().Debugf("skipping resource generation for [construct -> resource] relationship, [%s -> %s]: target resource already exists in the application's resource graph.", kv.ID, table.Id())
+		BillingMode: resources.PAY_PER_REQUEST,
+		HashKey:     "pk",
+		RangeKey:    "sk",
 	}
-
-	a.MapResourceDirectlyToConstruct(table, kv)
-
-	upstreamConstructs := result.GetUpstreamConstructs(kv)
-	for _, res := range upstreamConstructs {
-		unit, ok := res.(*core.ExecutionUnit)
-		if ok {
-			actions := []string{"dynamodb:*"}
-			policyResources := []core.IaCValue{
-				{Resource: table, Property: resources.ARN_IAC_VALUE},
-				{Resource: table, Property: resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE},
-				{Resource: table, Property: resources.DYNAMODB_TABLE_INDEX_IAC_VALUE},
-				{Resource: table, Property: resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE},
-				{Resource: table, Property: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
-			}
-			policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
-			policy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-kv-dynamodb", unit.ID), []core.AnnotationKey{kv.Provenance()}, policyDoc)
-			a.PolicyGenerator.AddInlinePolicyToUnit(unit.Id(), policy)
-		}
-	}
-	return nil
 }

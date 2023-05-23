@@ -82,6 +82,12 @@ func (rg *ResourceGraph) GetResource(id ResourceId) Resource {
 	return rg.underlying.GetVertex(id.String())
 }
 
+func GetResource[T Resource](g *ResourceGraph, id ResourceId) (resource T, ok bool) {
+	rR := g.GetResource(id)
+	resource, ok = rR.(T)
+	return
+}
+
 func (rg *ResourceGraph) GetResourceByVertexId(id string) Resource {
 	return rg.underlying.GetVertex(id)
 }
