@@ -544,7 +544,7 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 	}
 	role := NewIamRole(cluster.Name, "alb-controller", references, assumeRolePolicyDoc)
 	policy := createAlbControllerPolicy(cluster.Name, references[0])
-	role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{Resource: policy, Property: ARN_IAC_VALUE})
+	role.AddManagedPolicy(core.IaCValue{Resource: policy, Property: ARN_IAC_VALUE})
 
 	if err != nil {
 		return nil, err

@@ -99,11 +99,22 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 }
 
 func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
-	var merr multierr.Error
-	merr.Append(a.ExpandConstructs(result, dag))
-	merr.Append(a.CopyConstructEdgesToDag(result, dag))
-	merr.Append(awsKnowledgebase.AwsKB.ExpandEdges(dag))
-	merr.Append(a.configureResources(result, dag))
-	merr.Append(awsKnowledgebase.AwsKB.ConfigureFromEdgeData(dag))
-	return []core.CloudResourceLink{}, merr.ErrOrNil()
+	err = a.ExpandConstructs(result, dag)
+	if err != nil {
+		return
+	}
+	err = a.CopyConstructEdgesToDag(result, dag)
+	if err != nil {
+		return
+	}
+	err = awsKnowledgebase.AwsKB.ExpandEdges(dag)
+	if err != nil {
+		return
+	}
+	err = a.configureResources(result, dag)
+	if err != nil {
+		return
+	}
+	err = awsKnowledgebase.AwsKB.ConfigureFromEdgeData(dag)
+	return
 }

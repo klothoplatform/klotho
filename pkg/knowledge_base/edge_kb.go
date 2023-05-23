@@ -300,6 +300,7 @@ func (kb EdgeKB) ConfigureFromEdgeData(dag *core.ResourceGraph) (err error) {
 		edgeDetail, found := kb.GetEdgeDetails(source, destination)
 		if !found {
 			merr.Append(fmt.Errorf("invalid edge for edge %s -> %s", dep.Source.Id(), dep.Destination.Id()))
+			continue
 		}
 		if edgeDetail.Configure != nil {
 			err := edgeDetail.Configure(dep.Source, dep.Destination, dag, edgeData)

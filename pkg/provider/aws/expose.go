@@ -26,7 +26,7 @@ func (a *AWS) expandExpose(dag *core.ResourceGraph, expose *core.Gateway) error 
 			return err
 		}
 	default:
-		return fmt.Errorf("unsupported orm type %s", a.Config.GetExpose(expose.ID).Type)
+		return fmt.Errorf("unsupported expose type %s", a.Config.GetExpose(expose.ID).Type)
 	}
 	return nil
 }

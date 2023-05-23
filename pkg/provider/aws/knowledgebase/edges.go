@@ -26,15 +26,7 @@ var AwsKB = knowledgebase.EdgeKB{
 	knowledgebase.Edge{Source: reflect.TypeOf(&resources.LambdaFunction{}), Destination: reflect.TypeOf(&resources.Subnet{})}: knowledgebase.EdgeDetails{
 		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			lambda := source.(*resources.LambdaFunction)
-			addVpcRole := true
-			for _, pol := range lambda.Role.AwsManagedPolicies {
-				if pol == "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole" {
-					addVpcRole = false
-				}
-			}
-			if addVpcRole {
-				lambda.Role.AwsManagedPolicies = append(lambda.Role.AwsManagedPolicies, "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole")
-			}
+			lambda.Role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"})
 			return nil
 		},
 		ValidDestinations: []reflect.Type{reflect.TypeOf(&resources.Subnet{}), reflect.TypeOf(&resources.Vpc{})},
@@ -59,7 +51,7 @@ var AwsKB = knowledgebase.EdgeKB{
 			instance := dest.(*resources.RdsInstance)
 			if len(lambda.Subnets) == 0 {
 				return fmt.Errorf("unable to expand edge [%s -> %s]: lambda function [%s] is not in a VPC",
-					lambda.Id().String(), instance.Id().String(), lambda.Id().String())
+					lambda.Id(), instance.Id(), lambda.Id())
 			}
 			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), core.DedupeAnnotationKeys(append(lambda.ConstructsRef, instance.ConstructsRef...)), instance.GetConnectionPolicyDocument())
 			lambda.Role.InlinePolicies = append(lambda.Role.InlinePolicies, inlinePol)
@@ -284,7 +276,7 @@ var AwsKB = knowledgebase.EdgeKB{
 		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			policy := dest.(*resources.IamPolicy)
 			role := source.(*resources.IamRole)
-			role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{Resource: policy, Property: resources.ARN_IAC_VALUE})
+			role.AddManagedPolicy(core.IaCValue{Resource: policy, Property: resources.ARN_IAC_VALUE})
 			return nil
 		},
 	},
@@ -303,7 +295,7 @@ var AwsKB = knowledgebase.EdgeKB{
 		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			role := dest.(*resources.IamRole)
 			role.AssumeRolePolicyDoc = resources.LAMBDA_ASSUMER_ROLE_POLICY
-			role.AwsManagedPolicies = append(role.AwsManagedPolicies, "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole")
+			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"})
 			return nil
 		},
 		ValidDestinations: []reflect.Type{reflect.TypeOf(&resources.IamRole{})},
@@ -465,7 +457,7 @@ var AwsKB = knowledgebase.EdgeKB{
 				integration, err = core.CreateResource[*resources.ApiIntegration](dag, resources.ApiIntegrationCreateParams{
 					AppName:    data.AppName,
 					Refs:       refs,
-					Name:       route.Path,
+					Path:       route.Path,
 					ApiName:    restApi.Name,
 					HttpMethod: strings.ToUpper(string(route.Verb)),
 				})
@@ -476,16 +468,17 @@ var AwsKB = knowledgebase.EdgeKB{
 				integration.Type = "AWS_PROXY"
 				integration.Uri = core.IaCValue{Resource: function, Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE}
 				segments := strings.Split(route.Path, "/")
-				segment := segments[len(segments)-1]
 				methodRequestParams := map[string]bool{}
 				integrationRequestParams := map[string]string{}
-				if strings.Contains(segment, ":") {
-					// We strip the pathParam of the : and * characters (which signal path parameters or wildcard routes) to be able to inject them into our method and integration request parameters
-					pathParam := fmt.Sprintf("request.path.%s", segment)
-					pathParam = strings.ReplaceAll(pathParam, ":", "")
-					pathParam = strings.ReplaceAll(pathParam, "*", "")
-					methodRequestParams[fmt.Sprintf("method.%s", pathParam)] = true
-					integrationRequestParams[fmt.Sprintf("integration.%s", pathParam)] = fmt.Sprintf("method.%s", pathParam)
+				for _, segment := range segments {
+					if strings.Contains(segment, ":") {
+						// We strip the pathParam of the : and * characters (which signal path parameters or wildcard routes) to be able to inject them into our method and integration request parameters
+						pathParam := fmt.Sprintf("request.path.%s", segment)
+						pathParam = strings.ReplaceAll(pathParam, ":", "")
+						pathParam = strings.ReplaceAll(pathParam, "*", "")
+						methodRequestParams[fmt.Sprintf("method.%s", pathParam)] = true
+						integrationRequestParams[fmt.Sprintf("integration.%s", pathParam)] = fmt.Sprintf("method.%s", pathParam)
+					}
 				}
 				integration.RequestParameters = integrationRequestParams
 				integration.Method.RequestParameters = methodRequestParams

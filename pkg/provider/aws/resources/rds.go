@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
@@ -306,49 +305,6 @@ func (targetGroup *RdsProxyTargetGroup) Configure(params RdsProxyTargetGroupConf
 	return nil
 }
 
-// CreateRdsInstance takes in an orm construct and creates the necessary resources to support creating a functional RDS Orm implementation
-//
-// If proxy is enabled, a corresponding proxy, secret, and remaining resources will be created.
-// A username and password are generated for the rds instance and proxy credentials and are written to the compiled directory to be used within the IaC.
-func CreateRdsInstance(cfg *config.Application, orm *core.Orm, proxyEnabled bool, subnets []*Subnet, securityGroups []*SecurityGroup, dag *core.ResourceGraph) (*RdsInstance, *RdsProxy, error) {
-
-	subnetGroup := NewRdsSubnetGroup(orm, cfg.AppName, subnets)
-
-	instance := NewRdsInstance(orm, cfg.AppName, subnetGroup, securityGroups)
-	credsBytes := []byte(fmt.Sprintf("{\n\"username\": \"%s\",\n\"password\": \"%s\"\n}", instance.Username, instance.Password))
-	credsPath := fmt.Sprintf("secrets/%s", orm.Id())
-	instance.CredentialsFile = &core.RawFile{
-		FPath:   credsPath,
-		Content: credsBytes,
-	}
-	instance.CredentialsPath = credsPath
-
-	var proxy *RdsProxy
-	if proxyEnabled {
-		role := NewIamRole(cfg.AppName, fmt.Sprintf("%s-ormsecretrole", orm.ID), []core.AnnotationKey{orm.Provenance()}, RDS_ASSUME_ROLE_POLICY)
-		secret := NewSecret(orm.Provenance(), orm.Id(), cfg.AppName)
-
-		secretVersion := NewSecretVersion(secret, credsPath)
-		secretVersion.Type = "string"
-		secretPolicyDoc := CreateAllowPolicyDocument([]string{"secretsmanager:GetSecretValue"}, []core.IaCValue{{Resource: secret, Property: ARN_IAC_VALUE}})
-		secretPolicy := NewIamPolicy(cfg.AppName, fmt.Sprintf("%s-ormsecretpolicy", orm.ID), orm.AnnotationKey, secretPolicyDoc)
-		role.ManagedPolicies = append(role.ManagedPolicies, core.IaCValue{Resource: secretPolicy, Property: ARN_IAC_VALUE})
-		dag.AddDependency(secretPolicy, secret)
-
-		proxy = NewRdsProxy(orm, cfg.AppName, securityGroups, subnets, role, secret)
-		dag.AddDependency(proxy, secret)
-		proxyTargetGroup := NewRdsProxyTargetGroup(orm, cfg.AppName, instance, proxy)
-		dag.AddDependenciesReflect(secretVersion)
-		dag.AddDependenciesReflect(proxyTargetGroup)
-		dag.AddDependenciesReflect(proxy)
-		dag.AddDependenciesReflect(role)
-		dag.AddDependenciesReflect(secretPolicy)
-	}
-	dag.AddDependenciesReflect(instance)
-	dag.AddDependenciesReflect(subnetGroup)
-	return instance, proxy, nil
-}
-
 func (rds *RdsInstance) GetConnectionPolicyDocument() *PolicyDocument {
 	return CreateAllowPolicyDocument(
 		[]string{"rds-db:connect"},
@@ -388,24 +344,6 @@ func generatePassword() string {
 	return b.String()
 }
 
-func NewRdsInstance(orm *core.Orm, appName string, subnetGroup *RdsSubnetGroup, securityGroups []*SecurityGroup) *RdsInstance {
-	return &RdsInstance{
-		Name:                             rdsInstanceSanitizer.Apply(fmt.Sprintf("%s-%s", appName, orm.ID)),
-		ConstructsRef:                    []core.AnnotationKey{orm.Provenance()},
-		SubnetGroup:                      subnetGroup,
-		SecurityGroups:                   securityGroups,
-		IamDatabaseAuthenticationEnabled: true,
-		DatabaseName:                     orm.ID,
-		Username:                         generateUsername(),
-		Password:                         generatePassword(),
-		Engine:                           "postgres",
-		EngineVersion:                    "13.7",
-		InstanceClass:                    "db.t4g.micro",
-		SkipFinalSnapshot:                true,
-		AllocatedStorage:                 20,
-	}
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (rds *RdsInstance) KlothoConstructRef() []core.AnnotationKey {
 	return rds.ConstructsRef
@@ -423,14 +361,6 @@ func (rds *RdsInstance) GetOutputFiles() []core.File {
 	return []core.File{rds.CredentialsFile}
 }
 
-func NewRdsSubnetGroup(orm *core.Orm, appName string, subnets []*Subnet) *RdsSubnetGroup {
-	return &RdsSubnetGroup{
-		Name:          rdsSubnetSanitizer.Apply(fmt.Sprintf("%s-%s", appName, orm.ID)),
-		ConstructsRef: []core.AnnotationKey{orm.Provenance()},
-		Subnets:       subnets,
-	}
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (rds *RdsSubnetGroup) KlothoConstructRef() []core.AnnotationKey {
 	return rds.ConstructsRef
@@ -445,27 +375,6 @@ func (rds *RdsSubnetGroup) Id() core.ResourceId {
 	}
 }
 
-func NewRdsProxy(orm *core.Orm, appName string, securityGroups []*SecurityGroup, subnets []*Subnet, role *IamRole, secret *Secret) *RdsProxy {
-	return &RdsProxy{
-		Name:              rdsProxySanitizer.Apply(fmt.Sprintf("%s-%s", appName, orm.ID)),
-		ConstructsRef:     []core.AnnotationKey{orm.Provenance()},
-		DebugLogging:      false,
-		EngineFamily:      "POSTGRESQL",
-		IdleClientTimeout: 1800,
-		RequireTls:        false,
-		Role:              role,
-		SecurityGroups:    securityGroups,
-		Subnets:           subnets,
-		Auths: []*ProxyAuth{
-			{
-				AuthScheme: "SECRETS",
-				IamAuth:    "DISABLED",
-				SecretArn:  core.IaCValue{Resource: secret, Property: ARN_IAC_VALUE},
-			},
-		},
-	}
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (rds *RdsProxy) KlothoConstructRef() []core.AnnotationKey {
 	return rds.ConstructsRef
@@ -477,21 +386,6 @@ func (rds *RdsProxy) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     RDS_PROXY_TYPE,
 		Name:     rds.Name,
-	}
-}
-
-func NewRdsProxyTargetGroup(orm *core.Orm, appName string, instance *RdsInstance, proxy *RdsProxy) *RdsProxyTargetGroup {
-	return &RdsProxyTargetGroup{
-		Name:          lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", appName, orm.ID)),
-		ConstructsRef: []core.AnnotationKey{orm.Provenance()},
-		RdsInstance:   instance,
-		RdsProxy:      proxy,
-		ConnectionPoolConfigurationInfo: &ConnectionPoolConfigurationInfo{
-			ConnectionBorrowTimeout:   120,
-			MaxConnectionsPercent:     100,
-			MaxIdleConnectionsPercent: 50,
-		},
-		TargetGroupName: "default",
 	}
 }
 
