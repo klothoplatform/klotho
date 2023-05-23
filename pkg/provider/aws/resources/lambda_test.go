@@ -75,3 +75,82 @@ func Test_LambdaCreate(t *testing.T) {
 		})
 	}
 }
+
+func Test_LambdaPermissionCreate(t *testing.T) {
+	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	cases := []struct {
+		name       string
+		permission *LambdaPermission
+		paramName  string
+		want       coretesting.ResourcesExpectation
+	}{
+		{
+			name: "nil lambda",
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:lambda_permission:my_app_permission",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+		},
+		{
+			name:       "existing lambda",
+			permission: &LambdaPermission{Name: "my_app_permission", ConstructsRef: initialRefs},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:lambda_permission:my_app_permission",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+		},
+		{
+			name:       "existing lambda no appName",
+			paramName:  "my_app_permission",
+			permission: &LambdaPermission{Name: "my_app_permission", ConstructsRef: initialRefs},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:lambda_permission:my_app_permission",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+
+			assert := assert.New(t)
+			dag := core.NewResourceGraph()
+
+			if tt.permission != nil {
+				dag.AddResource(tt.permission)
+			}
+
+			metadata := LambdaPermissionCreateParams{
+				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Name:    "permission",
+				AppName: "my-app",
+			}
+			if tt.paramName != "" {
+				metadata.AppName = ""
+				metadata.Name = tt.paramName
+			}
+			permission := &LambdaPermission{}
+			err := permission.Create(dag, metadata)
+
+			if !assert.NoError(err) {
+				return
+			}
+			tt.want.Assert(t, dag)
+
+			graphLambdaPerm := dag.GetResource(permission.Id())
+			permission = graphLambdaPerm.(*LambdaPermission)
+
+			assert.Equal(permission.Name, "my_app_permission")
+			if tt.permission == nil {
+				assert.ElementsMatch(permission.ConstructsRef, metadata.Refs)
+			} else {
+				assert.ElementsMatch(permission.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+			}
+		})
+	}
+}

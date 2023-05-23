@@ -103,6 +103,30 @@ func (lambda *LambdaFunction) Configure(params LambdaFunctionConfigureParams) er
 	return nil
 }
 
+type LambdaPermissionCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	Name    string
+}
+
+func (permission *LambdaPermission) Create(dag *core.ResourceGraph, params LambdaPermissionCreateParams) error {
+
+	permission.Name = LambdaPermissionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	if params.AppName == "" {
+		permission.Name = LambdaPermissionSanitizer.Apply(params.Name)
+	}
+	permission.ConstructsRef = params.Refs
+
+	existingLambdaPermission := dag.GetResource(permission.Id())
+	if existingLambdaPermission != nil {
+		graphLambdaPermission := existingLambdaPermission.(*LambdaPermission)
+		graphLambdaPermission.ConstructsRef = core.DedupeAnnotationKeys(append(graphLambdaPermission.ConstructsRef, params.Refs...))
+		return nil
+	}
+	dag.AddResource(permission)
+	return nil
+}
+
 func NewLambdaFunction(unit *core.ExecutionUnit, cfg *config.Application, role *IamRole, image *EcrImage) *LambdaFunction {
 	params := config.ConvertFromInfraParams[config.ServerlessTypeParams](cfg.GetExecutionUnit(unit.ID).InfraParams)
 	return &LambdaFunction{

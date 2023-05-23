@@ -50,7 +50,6 @@ func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreatePara
 }
 
 type EcrRepositoryConfigureParams struct {
-	ForceDelete bool
 }
 
 func (repo *EcrRepository) Configure(params EcrRepositoryConfigureParams) error {
@@ -84,12 +83,21 @@ func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams)
 }
 
 type EcrImageConfigureParams struct {
-	ExtraOptions []string
+	Context    string
+	Dockerfile string
 }
 
 // Configure sets the intristic characteristics of a vpc based on parameters passed in
 func (image *EcrImage) Configure(params EcrImageConfigureParams) error {
 	image.ExtraOptions = []string{"--platform", "linux/amd64", "--quiet"}
+	if params.Dockerfile == "" {
+		return fmt.Errorf("image %s must have dockerfile set", image.Name)
+	}
+	image.Dockerfile = params.Dockerfile
+	if params.Context == "" {
+		return fmt.Errorf("image %s must have context set", image.Name)
+	}
+	image.Context = params.Context
 	return nil
 }
 
