@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_RepositoryCreate(t *testing.T) {
+func Test_EcrRepositoryCreate(t *testing.T) {
 	initialRefs := []core.AnnotationKey{{ID: "first"}}
 	cases := []struct {
 		name string
@@ -69,7 +69,7 @@ func Test_RepositoryCreate(t *testing.T) {
 	}
 }
 
-func Test_ImageCreate(t *testing.T) {
+func Test_EcrImageCreate(t *testing.T) {
 	initialRefs := []core.AnnotationKey{{ID: "first"}}
 	cases := []struct {
 		name    string
@@ -123,6 +123,52 @@ func Test_ImageCreate(t *testing.T) {
 
 			assert.Equal(image.Name, "my-app-test-unit")
 			assert.Equal(image.ConstructsRef, metadata.Refs)
+		})
+	}
+}
+
+func Test_EcrImageConfigure(t *testing.T) {
+	cases := []struct {
+		name    string
+		params  EcrImageConfigureParams
+		want    *EcrImage
+		wantErr bool
+	}{
+		{
+			name: "filled params",
+			params: EcrImageConfigureParams{
+				Context:    "context",
+				Dockerfile: "dockerfile",
+			},
+			want: &EcrImage{Context: "context", Dockerfile: "dockerfile", ExtraOptions: []string{"--platform", "linux/amd64", "--quiet"}},
+		},
+		{
+			name:    "no context",
+			params:  EcrImageConfigureParams{Dockerfile: "dockerfile"},
+			wantErr: true,
+		},
+		{
+			name:    "no dockerfile",
+			params:  EcrImageConfigureParams{Context: "dockerfile"},
+			wantErr: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			image := &EcrImage{}
+			err := image.Configure(tt.params)
+
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
+			if !assert.NoError(err) {
+				return
+			}
+
+			assert.Equal(tt.want, image)
 		})
 	}
 }

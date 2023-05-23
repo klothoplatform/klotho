@@ -139,14 +139,7 @@ func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceC
 }
 
 type RdsInstanceConfigureParams struct {
-	DatabaseName      string
-	Username          string
-	Password          string
-	Engine            string
-	EngineVersion     string
-	InstanceClass     string
-	SkipFinalSnapshot bool
-	AllocatedStorage  int
+	DatabaseName string
 }
 
 func (instance *RdsInstance) Configure(params RdsInstanceConfigureParams) error {
@@ -166,6 +159,7 @@ func (instance *RdsInstance) Configure(params RdsInstanceConfigureParams) error 
 		FPath:   credsPath,
 		Content: credsBytes,
 	}
+	instance.CredentialsPath = credsPath
 	return nil
 }
 
@@ -303,6 +297,7 @@ type RdsProxyTargetGroupConfigureParams struct {
 
 // Configure sets the intristic characteristics of a vpc based on parameters passed in
 func (targetGroup *RdsProxyTargetGroup) Configure(params RdsProxyTargetGroupConfigureParams) error {
+	targetGroup.TargetGroupName = "default"
 	targetGroup.ConnectionPoolConfigurationInfo = &ConnectionPoolConfigurationInfo{
 		ConnectionBorrowTimeout:   120,
 		MaxConnectionsPercent:     100,

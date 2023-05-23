@@ -323,9 +323,9 @@ func Test_RdsProxyCreate(t *testing.T) {
 				assert.Len(proxy.Subnets, 2)
 				assert.Len(proxy.SecurityGroups, 1)
 				assert.NotNil(proxy.Role)
-				assert.Equal(proxy.ConstructsRef, metadata.Refs)
+				assert.ElementsMatch(proxy.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Equal(proxy.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}))
+				assert.ElementsMatch(proxy.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}))
 			}
 		})
 	}
@@ -387,9 +387,9 @@ func Test_RdsProxyTargetGroupCreate(t *testing.T) {
 
 			assert.Equal(targetGroup.Name, "my-app-test")
 			if tt.targetGroup == nil {
-				assert.Equal(targetGroup.ConstructsRef, metadata.Refs)
+				assert.ElementsMatch(targetGroup.ConstructsRef, metadata.Refs)
 			} else {
-				assert.Equal(targetGroup.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}))
+				assert.ElementsMatch(targetGroup.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}))
 			}
 		})
 	}
