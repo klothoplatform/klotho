@@ -172,10 +172,11 @@ func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceC
 				Name: params.ApiName,
 			},
 		}
-		if len(segments) > 2 {
+		// The root path is already created in api gw so we dont want to attempt to create an empty resource
+		if len(segments) > 1 && segments[len(segments)-2] != "" {
 			subParams["ParentResource"] = ApiResourceCreateParams{
 				AppName: params.AppName,
-				Name:    strings.Join(segments[:len(segments)-1], "/"),
+				Name:    strings.TrimSuffix(params.Name, fmt.Sprintf("/%s", resource.PathPart)),
 				Refs:    params.Refs,
 				ApiName: params.ApiName,
 			}
@@ -208,19 +209,22 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 		graphResource := existingResource.(*ApiIntegration)
 		graphResource.ConstructsRef = append(graphResource.ConstructsRef, params.Refs...)
 	} else {
-		err := dag.CreateDependencies(integration, map[string]any{
+		subParams := map[string]any{
 			"RestApi": RestApiCreateParams{
 				Refs: params.Refs,
 				Name: params.ApiName,
 			},
-			"Resource": ApiResourceCreateParams{
+			"Method": params,
+		}
+		if params.Name != "" && params.Name != "/" {
+			subParams["Resource"] = ApiResourceCreateParams{
 				AppName: params.AppName,
 				Refs:    params.Refs,
 				Name:    params.Name,
 				ApiName: params.ApiName,
-			},
-			"Method": params,
-		})
+			}
+		}
+		err := dag.CreateDependencies(integration, subParams)
 		if err != nil {
 			return err
 		}
@@ -249,18 +253,22 @@ func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateP
 		graphResource := existingResource.(*ApiMethod)
 		graphResource.ConstructsRef = append(graphResource.ConstructsRef, params.Refs...)
 	} else {
-		err := dag.CreateDependencies(method, map[string]any{
+		subParams := map[string]any{
 			"RestApi": RestApiCreateParams{
 				Refs: params.Refs,
 				Name: params.ApiName,
 			},
-			"Resource": ApiResourceCreateParams{
+		}
+		if params.Name != "" && params.Name != "/" {
+			subParams["Resource"] = ApiResourceCreateParams{
 				AppName: params.AppName,
 				Refs:    params.Refs,
 				Name:    params.Name,
 				ApiName: params.ApiName,
-			},
-		})
+			}
+		}
+
+		err := dag.CreateDependencies(method, subParams)
 		if err != nil {
 			return err
 		}
