@@ -3,8 +3,10 @@ package resources
 import (
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
+	"github.com/pkg/errors"
 )
 
 var objectSanitizer = aws.S3ObjectSanitizer
@@ -63,6 +65,31 @@ func (bucket *S3Bucket) Id() core.ResourceId {
 		Type:     S3_BUCKET_TYPE,
 		Name:     bucket.Name,
 	}
+}
+
+type S3BucketCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	Name    string
+}
+
+func (bucket *S3Bucket) Create(dag *core.ResourceGraph, params S3BucketCreateParams) error {
+	bucket.Name = bucketSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+
+	if existing := dag.GetResource(bucket.Id()); existing != nil {
+		existingS3, ok := existing.(*S3Bucket)
+		if !ok {
+			return errors.Errorf(`found an existing element at %s, but it was not an S3Bucket`, bucket.Id().String())
+		}
+		// Multiple resources may create the same bucket (today, this specifically happens with our payload bucket). If
+		// that happens, just append the refs and exit early; the rest would have been idempotent.
+		existingS3.ConstructsRef = collectionutil.FlattenUnique(existingS3.ConstructsRef, params.Refs)
+		return nil
+	}
+
+	bucket.ConstructsRef = params.Refs
+	dag.AddResource(bucket)
+	return nil
 }
 
 func NewS3Object(bucket *S3Bucket, objectName string, key string, path string) *S3Object {
