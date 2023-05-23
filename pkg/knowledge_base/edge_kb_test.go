@@ -25,33 +25,33 @@ var TestKnowledgeBase = &EdgeKB{
 			a.Name = "name"
 			return nil
 		},
+		ValidDestinations: []reflect.Type{typeE},
 	},
 	Edge{Source: reflect.TypeOf(&A{}), Destination: reflect.TypeOf(&E{})}: EdgeDetails{
 		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
 			dag.AddDependency(source, dest)
 			return nil
 		},
-		ValidDestinations: []reflect.Type{typeE},
 	},
 	Edge{Source: reflect.TypeOf(&B{}), Destination: reflect.TypeOf(&C{})}: EdgeDetails{
 		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
 			dag.AddDependency(source, dest)
 			return nil
 		},
+		ValidDestinations: []reflect.Type{typeE},
 	},
 	Edge{Source: reflect.TypeOf(&C{}), Destination: reflect.TypeOf(&D{})}: EdgeDetails{
 		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
 			dag.AddDependency(source, dest)
 			return nil
 		},
-		ValidDestinations: []reflect.Type{typeE, typeD},
+		ValidDestinations: []reflect.Type{typeE},
 	},
 	Edge{Source: reflect.TypeOf(&C{}), Destination: reflect.TypeOf(&E{})}: EdgeDetails{
 		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
 			dag.AddDependency(source, dest)
 			return nil
 		},
-		ValidDestinations: []reflect.Type{typeE},
 	},
 	Edge{Source: reflect.TypeOf(&D{}), Destination: reflect.TypeOf(&B{})}: EdgeDetails{
 		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
@@ -65,7 +65,6 @@ var TestKnowledgeBase = &EdgeKB{
 			dag.AddDependency(source, dest)
 			return nil
 		},
-		ValidDestinations: []reflect.Type{typeE},
 	},
 }
 

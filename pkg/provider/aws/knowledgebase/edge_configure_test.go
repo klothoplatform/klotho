@@ -1,6 +1,7 @@
 package knowledgebase
 
 import (
+	"fmt"
 	"testing"
 
 	dgraph "github.com/dominikbraun/graph"
@@ -168,8 +169,14 @@ func Test_ConfigureEdge(t *testing.T) {
 			for _, edge := range tt.edge {
 				dag.AddDependencyWithData(edge.Source, edge.Destination, edge.Properties.Data)
 			}
-
-			err := AwsKB.ConfigureFromEdgeData(dag)
+			kb, err := GetAwsKnowledgeBase()
+			if !assert.NoError(err) {
+				return
+			}
+			for edge := range kb {
+				fmt.Println(edge)
+			}
+			err = kb.ConfigureFromEdgeData(dag)
 			if !assert.NoError(err) {
 				return
 			}

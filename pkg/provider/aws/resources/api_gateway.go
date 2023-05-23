@@ -176,7 +176,7 @@ func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceC
 		if len(segments) > 1 && segments[len(segments)-2] != "" {
 			subParams["ParentResource"] = ApiResourceCreateParams{
 				AppName: params.AppName,
-				Path:    strings.TrimSuffix(params.Path, fmt.Sprintf("/%s", resource.PathPart)),
+				Path:    strings.Join(segments[:len(segments)-1], "/"),
 				Refs:    params.Refs,
 				ApiName: params.ApiName,
 			}

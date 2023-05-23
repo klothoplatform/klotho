@@ -5,6 +5,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
@@ -13,6 +14,7 @@ type AWS struct {
 	constructIdToResources map[string][]core.Resource
 	constructIdToResource  map[string]core.Resource
 	PolicyGenerator        *resources.PolicyGenerator
+	KnowledgeBase          knowledgebase.EdgeKB
 }
 
 // MapResourceDirectlyToConstruct tells this AWS instance that the given resource was generated directly because of

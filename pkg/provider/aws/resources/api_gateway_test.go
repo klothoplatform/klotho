@@ -124,14 +124,13 @@ func Test_RestApiConfigure(t *testing.T) {
 
 func Test_ApiResourceCreate(t *testing.T) {
 	initialRefs := []core.AnnotationKey{{ID: "first"}}
-	cases := []struct {
-		name     string
-		resource *ApiResource
-		want     coretesting.ResourcesExpectation
-	}{
+	cases := []coretesting.CreateCase[ApiResourceCreateParams, *ApiResource]{
 		{
-			name: "nil repo",
-			want: coretesting.ResourcesExpectation{
+			Name: "nil resource",
+			Params: ApiResourceCreateParams{
+				Path: "/my/api/route",
+			},
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:api_resource:my-app-/my",
 					"aws:api_resource:my-app-/my/api",
@@ -146,51 +145,66 @@ func Test_ApiResourceCreate(t *testing.T) {
 					{Source: "aws:api_resource:my-app-/my/api/route", Destination: "aws:rest_api:my-api"},
 				},
 			},
+			Check: func(assert *assert.Assertions, resource *ApiResource) {
+				assert.Equal("my-app-/my/api/route", resource.Name)
+				assert.Equal(resource.PathPart, "route")
+				assert.ElementsMatch(resource.ConstructsRef, []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}})
+			},
 		},
 		{
-			name:     "existing repo",
-			resource: &ApiResource{Name: "my-app-/my/api/route", ConstructsRef: initialRefs},
-			want: coretesting.ResourcesExpectation{
+			Name: "existing resource",
+			Params: ApiResourceCreateParams{
+				Path: "/my/api/route",
+			},
+			Existing: &ApiResource{Name: "my-app-/my/api/route", ConstructsRef: initialRefs},
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:api_resource:my-app-/my/api/route",
 				},
 				Deps: []coretesting.StringDep{},
 			},
+			Check: func(assert *assert.Assertions, resource *ApiResource) {
+				assert.Equal("my-app-/my/api/route", resource.Name)
+				assert.ElementsMatch(resource.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+
+			},
+		},
+		{
+			Name: "path param nil resource",
+			Params: ApiResourceCreateParams{
+				Path: "/my/:api/route/:method",
+			},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:api_resource:my-app-/my",
+					"aws:api_resource:my-app-/my/-api",
+					"aws:api_resource:my-app-/my/-api/route",
+					"aws:api_resource:my-app-/my/-api/route/-method",
+					"aws:rest_api:my-api",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:api_resource:my-app-/my", Destination: "aws:rest_api:my-api"},
+					{Source: "aws:api_resource:my-app-/my/-api", Destination: "aws:api_resource:my-app-/my"},
+					{Source: "aws:api_resource:my-app-/my/-api", Destination: "aws:rest_api:my-api"},
+					{Source: "aws:api_resource:my-app-/my/-api/route", Destination: "aws:api_resource:my-app-/my/-api"},
+					{Source: "aws:api_resource:my-app-/my/-api/route", Destination: "aws:rest_api:my-api"},
+					{Source: "aws:api_resource:my-app-/my/-api/route/-method", Destination: "aws:api_resource:my-app-/my/-api/route"},
+					{Source: "aws:api_resource:my-app-/my/-api/route/-method", Destination: "aws:rest_api:my-api"},
+				},
+			},
+			Check: func(assert *assert.Assertions, resource *ApiResource) {
+				assert.Equal("my-app-/my/-api/route/-method", resource.Name)
+				assert.Equal(resource.PathPart, "{method}")
+				assert.ElementsMatch(resource.ConstructsRef, []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}})
+			},
 		},
 	}
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-			dag := core.NewResourceGraph()
-			if tt.resource != nil {
-				dag.AddResource(tt.resource)
-			}
-			metadata := ApiResourceCreateParams{
-				AppName: "my-app",
-				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
-				Path:    "/my/api/route",
-				ApiName: "my-api",
-			}
-
-			resource := &ApiResource{}
-			err := resource.Create(dag, metadata)
-
-			if !assert.NoError(err) {
-				return
-			}
-
-			tt.want.Assert(t, dag)
-
-			graphApiResource := dag.GetResource(resource.Id())
-			resource = graphApiResource.(*ApiResource)
-
-			assert.Equal(resource.Name, "my-app-/my/api/route")
-			if tt.resource == nil {
-				assert.Equal(resource.PathPart, "route")
-				assert.ElementsMatch(resource.ConstructsRef, metadata.Refs)
-			} else {
-				assert.ElementsMatch(resource.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
-			}
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params.AppName = "my-app"
+			tt.Params.Refs = []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}}
+			tt.Params.ApiName = "my-api"
+			tt.Run(t)
 		})
 	}
 }
