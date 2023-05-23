@@ -56,14 +56,17 @@ type (
 		Source core.Resource
 		// Destination refers to the initial target resource node when edge expansion is called
 		Destination core.Resource
+		// Routes refers to any api routes being satisfied by the edge
+		Routes []core.Route
 	}
 
 	Path []Edge
 )
 
 // GetEdgeDetails takes in a source and target to retrieve the edge details for the given key. Will return nil if no edge exists for the given source and target
-func (kb EdgeKB) GetEdgeDetails(source reflect.Type, target reflect.Type) EdgeDetails {
-	return kb[Edge{Source: source, Destination: target}]
+func (kb EdgeKB) GetEdgeDetails(source reflect.Type, target reflect.Type) (EdgeDetails, bool) {
+	detail, found := kb[Edge{Source: source, Destination: target}]
+	return detail, found
 }
 
 // GetEdgesWithSource will return all edges where the source type parameter is the From of the edge
@@ -131,8 +134,8 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 //   - if there is no expansion function and no ValidDestinations, assume all destinations are valid.
 //   - otherwise check to see if the path generations destination is valid for the edge
 func (kb EdgeKB) isValidForPath(edge Edge, dest reflect.Type) bool {
-	edgeDetail := kb.GetEdgeDetails(edge.Source, edge.Destination)
-	if edgeDetail.ExpansionFunc == nil || len(edgeDetail.ValidDestinations) == 0 {
+	edgeDetail, _ := kb.GetEdgeDetails(edge.Source, edge.Destination)
+	if len(edgeDetail.ValidDestinations) == 0 {
 		return true
 	}
 	for _, validDest := range edgeDetail.ValidDestinations {
@@ -208,7 +211,7 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph) (err error) {
 		// If we have more than 1 valid path we will always default to the direct path if it exists, otherwise we will raise an error since we cannot determine which path we are supposed to use.
 		if len(validPaths) > 1 {
 			for _, p := range validPaths {
-				if len(p) == 2 {
+				if len(p) == 1 {
 					zap.S().Debug("Defaulting to direct path")
 					validPath = p
 				}
@@ -222,7 +225,7 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph) (err error) {
 			validPath = validPaths[0]
 
 			// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
-			if len(validPath) > 2 {
+			if len(validPath) > 1 {
 				zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
 				err := dag.RemoveDependency(dep.Source.Id().String(), dep.Destination.Id().String())
 				if err != nil {
@@ -236,7 +239,7 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph) (err error) {
 			for _, edge := range validPath {
 				source := edge.Source
 				dest := edge.Destination
-				edgeDetail := kb.GetEdgeDetails(source, dest)
+				edgeDetail, _ := kb.GetEdgeDetails(source, dest)
 				sourceNode := resourceCache[source]
 				if source == reflect.TypeOf(dep.Source) {
 					sourceNode = dep.Source
@@ -285,8 +288,8 @@ func (kb EdgeKB) ConfigureFromEdgeData(dag *core.ResourceGraph) (err error) {
 	var merr multierr.Error
 	for _, dep := range dag.ListDependencies() {
 		zap.S().Debugf("Configuring Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
-		to := reflect.TypeOf(dep.Source)
-		from := reflect.TypeOf(dep.Destination)
+		source := reflect.TypeOf(dep.Source)
+		destination := reflect.TypeOf(dep.Destination)
 		edgeData := EdgeData{}
 		data, ok := dep.Properties.Data.(EdgeData)
 		if !ok && dep.Properties.Data != nil {
@@ -294,7 +297,10 @@ func (kb EdgeKB) ConfigureFromEdgeData(dag *core.ResourceGraph) (err error) {
 		} else if dep.Properties.Data != nil {
 			edgeData = data
 		}
-		edgeDetail := kb.GetEdgeDetails(to, from)
+		edgeDetail, found := kb.GetEdgeDetails(source, destination)
+		if !found {
+			merr.Append(fmt.Errorf("invalid edge for edge %s -> %s", dep.Source.Id(), dep.Destination.Id()))
+		}
 		if edgeDetail.Configure != nil {
 			err := edgeDetail.Configure(dep.Source, dep.Destination, dag, edgeData)
 			merr.Append(err)

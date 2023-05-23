@@ -58,6 +58,24 @@ func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.Reso
 	return lambdaConfig, nil
 }
 
+func (a *AWS) getImageConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs []core.AnnotationKey) (resources.EcrImageConfigureParams, error) {
+	if len(refs) != 1 {
+		return resources.EcrImageConfigureParams{}, fmt.Errorf("image must only have one construct reference")
+	}
+	imageConfig := resources.EcrImageConfigureParams{}
+	construct := result.GetConstruct(refs[0].ToId())
+	if construct == nil {
+		return resources.EcrImageConfigureParams{}, fmt.Errorf("construct with id %s does not exist", refs[0].ToId())
+	}
+	unit, ok := construct.(*core.ExecutionUnit)
+	if !ok {
+		return resources.EcrImageConfigureParams{}, fmt.Errorf("image must only have a construct reference to an execution unit")
+	}
+	imageConfig.Context = fmt.Sprintf("./%s", unit.ID)
+	imageConfig.Dockerfile = fmt.Sprintf("./%s/%s", unit.ID, unit.DockerfilePath)
+	return imageConfig, nil
+}
+
 // GenerateExecUnitResources generates the necessary AWS resources for a given execution unit and adds them to the resource graph
 func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	log := zap.S()

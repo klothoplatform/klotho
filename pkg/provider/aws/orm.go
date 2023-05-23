@@ -29,6 +29,23 @@ func (a *AWS) expandOrm(dag *core.ResourceGraph, orm *core.Orm) error {
 	return nil
 }
 
+func (a *AWS) getRdsConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs []core.AnnotationKey) (resources.RdsInstanceConfigureParams, error) {
+	if len(refs) != 1 {
+		return resources.RdsInstanceConfigureParams{}, fmt.Errorf("rds instance must only have one construct reference")
+	}
+	rdsConfig := resources.RdsInstanceConfigureParams{}
+	construct := result.GetConstruct(refs[0].ToId())
+	if construct == nil {
+		return resources.RdsInstanceConfigureParams{}, fmt.Errorf("construct with id %s does not exist", refs[0].ToId())
+	}
+	orm, ok := construct.(*core.Orm)
+	if !ok {
+		return resources.RdsInstanceConfigureParams{}, fmt.Errorf("rds instance must only have a construct reference to an orm")
+	}
+
+	rdsConfig.DatabaseName = orm.ID
+	return rdsConfig, nil
+}
 func (a *AWS) GenerateOrmResources(construct *core.Orm, result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	vpc := resources.GetVpc(a.Config, dag)
 	securityGroups := []*resources.SecurityGroup{resources.GetSecurityGroup(a.Config, dag)}
