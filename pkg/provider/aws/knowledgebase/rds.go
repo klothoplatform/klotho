@@ -2,18 +2,15 @@ package knowledgebase
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
-var RdsKB = knowledgebase.EdgeKB{
-	knowledgebase.NewEdge[*resources.RdsProxyTargetGroup, *resources.RdsInstance](): {
-		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			instance := dest.(*resources.RdsInstance)
-			targetGroup := source.(*resources.RdsProxyTargetGroup)
+var RdsKB = knowledgebase.Build(
+	knowledgebase.EdgeBuilder[*resources.RdsProxyTargetGroup, *resources.RdsInstance]{
+		Expand: func(targetGroup *resources.RdsProxyTargetGroup, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if targetGroup.Name == "" {
 				proxyTargetGroup, err := core.CreateResource[*resources.RdsProxyTargetGroup](dag, resources.RdsProxyTargetGroupCreateParams{
 					AppName: data.AppName,
@@ -28,10 +25,7 @@ var RdsKB = knowledgebase.EdgeKB{
 			}
 			return nil
 		},
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			instance := dest.(*resources.RdsInstance)
-			targetGroup := source.(*resources.RdsProxyTargetGroup)
-
+		Configure: func(targetGroup *resources.RdsProxyTargetGroup, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if targetGroup.RdsInstance == nil {
 				targetGroup.RdsInstance = instance
 			} else if targetGroup.RdsInstance.Name != instance.Name {
@@ -49,10 +43,8 @@ var RdsKB = knowledgebase.EdgeKB{
 			return nil
 		},
 	},
-	knowledgebase.NewEdge[*resources.RdsProxyTargetGroup, *resources.RdsProxy](): {
-		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			proxy := dest.(*resources.RdsProxy)
-			targetGroup := source.(*resources.RdsProxyTargetGroup)
+	knowledgebase.EdgeBuilder[*resources.RdsProxyTargetGroup, *resources.RdsProxy]{
+		Expand: func(targetGroup *resources.RdsProxyTargetGroup, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			destination := data.Destination.(*resources.RdsInstance)
 			if proxy.Name == "" {
 				var err error
@@ -81,7 +73,7 @@ var RdsKB = knowledgebase.EdgeKB{
 			}
 			secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 				AppName: data.AppName,
-				Refs:    core.DedupeAnnotationKeys(append(source.KlothoConstructRef(), dest.KlothoConstructRef()...)),
+				Refs:    core.DedupeAnnotationKeys(append(targetGroup.KlothoConstructRef(), proxy.KlothoConstructRef()...)),
 				Name:    proxy.Name,
 			})
 			if err != nil {
@@ -107,10 +99,7 @@ var RdsKB = knowledgebase.EdgeKB{
 			dag.AddDependenciesReflect(proxy)
 			return nil
 		},
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			proxy := dest.(*resources.RdsProxy)
-			targetGroup := source.(*resources.RdsProxyTargetGroup)
-
+		Configure: func(targetGroup *resources.RdsProxyTargetGroup, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if targetGroup.RdsProxy == nil {
 				targetGroup.RdsProxy = proxy
 			} else if targetGroup.RdsProxy.Name != proxy.Name {
@@ -126,14 +115,13 @@ var RdsKB = knowledgebase.EdgeKB{
 			}
 			return nil
 		},
-		ValidDestinations: []reflect.Type{reflect.TypeOf(&resources.RdsInstance{})},
+		ValidDestinations: []core.Resource{&resources.RdsInstance{}},
 	},
-	knowledgebase.NewEdge[*resources.RdsProxy, *resources.SecretVersion](): {
-		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			proxy := dest.(*resources.RdsProxy)
+	knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.SecretVersion]{
+		Expand: func(proxy *resources.RdsProxy, sv *resources.SecretVersion, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 				AppName: data.AppName,
-				Refs:    core.DedupeAnnotationKeys(append(source.KlothoConstructRef(), dest.KlothoConstructRef()...)),
+				Refs:    core.DedupeAnnotationKeys(append(proxy.KlothoConstructRef(), sv.KlothoConstructRef()...)),
 				Name:    proxy.Name,
 			})
 			if err != nil {
@@ -153,16 +141,15 @@ var RdsKB = knowledgebase.EdgeKB{
 			dag.AddDependency(proxy.Role, secretPolicy)
 			return nil
 		},
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			secretVersion := dest.(*resources.SecretVersion)
+		Configure: func(proxy *resources.RdsProxy, secretVersion *resources.SecretVersion, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			secretVersion.Type = "string"
 			return nil
 		},
 	},
-	knowledgebase.NewEdge[*resources.RdsSubnetGroup, *resources.Subnet]():      {},
-	knowledgebase.NewEdge[*resources.RdsInstance, *resources.RdsSubnetGroup](): {},
-	knowledgebase.NewEdge[*resources.RdsInstance, *resources.SecurityGroup]():  {},
-	knowledgebase.NewEdge[*resources.RdsProxy, *resources.SecurityGroup]():     {},
-	knowledgebase.NewEdge[*resources.RdsProxy, *resources.Subnet]():            {},
-	knowledgebase.NewEdge[*resources.RdsProxy, *resources.Secret]():            {},
-}
+	knowledgebase.EdgeBuilder[*resources.RdsSubnetGroup, *resources.Subnet]{},
+	knowledgebase.EdgeBuilder[*resources.RdsInstance, *resources.RdsSubnetGroup]{},
+	knowledgebase.EdgeBuilder[*resources.RdsInstance, *resources.SecurityGroup]{},
+	knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.SecurityGroup]{},
+	knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.Subnet]{},
+	knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.Secret]{},
+)

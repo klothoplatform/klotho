@@ -12,61 +12,59 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var TestKnowledgeBase = &EdgeKB{
-	Edge{Source: reflect.TypeOf(&A{}), Destination: reflect.TypeOf(&B{})}: EdgeDetails{
-		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
-			b := dest.(*B)
+var TestKnowledgeBase = Build(
+	EdgeBuilder[*A, *B]{
+		Expand: func(a *A, b *B, dag *core.ResourceGraph, data EdgeData) error {
 			b.Name = "B"
-			dag.AddDependency(source, dest)
+			dag.AddDependency(a, b)
 			return nil
 		},
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
-			a := source.(*A)
+		Configure: func(a *A, b *B, dag *core.ResourceGraph, data EdgeData) error {
 			a.Name = "name"
 			return nil
 		},
-		ValidDestinations: []reflect.Type{typeE},
+		ValidDestinations: []core.Resource{&E{}},
 	},
-	Edge{Source: reflect.TypeOf(&A{}), Destination: reflect.TypeOf(&E{})}: EdgeDetails{
-		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
-			dag.AddDependency(source, dest)
+	EdgeBuilder[*A, *E]{
+		Expand: func(a *A, e *E, dag *core.ResourceGraph, data EdgeData) error {
+			dag.AddDependency(a, e)
 			return nil
 		},
 	},
-	Edge{Source: reflect.TypeOf(&B{}), Destination: reflect.TypeOf(&C{})}: EdgeDetails{
-		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
-			dag.AddDependency(source, dest)
+	EdgeBuilder[*B, *C]{
+		Expand: func(b *B, c *C, dag *core.ResourceGraph, data EdgeData) error {
+			dag.AddDependency(b, c)
 			return nil
 		},
-		ValidDestinations: []reflect.Type{typeE},
+		ValidDestinations: []core.Resource{&E{}},
 	},
-	Edge{Source: reflect.TypeOf(&C{}), Destination: reflect.TypeOf(&D{})}: EdgeDetails{
-		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
-			dag.AddDependency(source, dest)
+	EdgeBuilder[*C, *D]{
+		Expand: func(c *C, d *D, dag *core.ResourceGraph, data EdgeData) error {
+			dag.AddDependency(c, d)
 			return nil
 		},
-		ValidDestinations: []reflect.Type{typeE},
+		ValidDestinations: []core.Resource{&E{}},
 	},
-	Edge{Source: reflect.TypeOf(&C{}), Destination: reflect.TypeOf(&E{})}: EdgeDetails{
-		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
-			dag.AddDependency(source, dest)
-			return nil
-		},
-	},
-	Edge{Source: reflect.TypeOf(&D{}), Destination: reflect.TypeOf(&B{})}: EdgeDetails{
-		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
-			dag.AddDependency(source, dest)
-			return nil
-		},
-		ValidDestinations: []reflect.Type{typeC},
-	},
-	Edge{Source: reflect.TypeOf(&D{}), Destination: reflect.TypeOf(&E{})}: EdgeDetails{
-		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
-			dag.AddDependency(source, dest)
+	EdgeBuilder[*C, *E]{
+		Expand: func(c *C, e *E, dag *core.ResourceGraph, data EdgeData) error {
+			dag.AddDependency(c, e)
 			return nil
 		},
 	},
-}
+	EdgeBuilder[*D, *B]{
+		Expand: func(d *D, b *B, dag *core.ResourceGraph, data EdgeData) error {
+			dag.AddDependency(d, b)
+			return nil
+		},
+		ValidDestinations: []core.Resource{&C{}},
+	},
+	EdgeBuilder[*D, *E]{
+		Expand: func(d *D, e *E, dag *core.ResourceGraph, data EdgeData) error {
+			dag.AddDependency(d, e)
+			return nil
+		},
+	},
+)
 
 var typeA = reflect.TypeOf(&A{})
 var typeB = reflect.TypeOf(&B{})

@@ -8,14 +8,11 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
-var NetworkingKB = knowledgebase.EdgeKB{
-	//Networking Edges
-	knowledgebase.NewEdge[*resources.NatGateway, *resources.Subnet](): {},
-	knowledgebase.NewEdge[*resources.RouteTable, *resources.Subnet](): {},
-	knowledgebase.NewEdge[*resources.RouteTable, *resources.NatGateway](): {
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			routeTable := source.(*resources.RouteTable)
-			nat := dest.(*resources.NatGateway)
+var NetworkingKB = knowledgebase.Build(
+	knowledgebase.EdgeBuilder[*resources.NatGateway, *resources.Subnet]{},
+	knowledgebase.EdgeBuilder[*resources.RouteTable, *resources.Subnet]{},
+	knowledgebase.EdgeBuilder[*resources.RouteTable, *resources.NatGateway]{
+		Configure: func(routeTable *resources.RouteTable, nat *resources.NatGateway, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, route := range routeTable.Routes {
 				if route.CidrBlock == "0.0.0.0/0" {
 					return fmt.Errorf("route table %s already has route for 0.0.0.0/0", routeTable.Name)
@@ -25,10 +22,8 @@ var NetworkingKB = knowledgebase.EdgeKB{
 			return nil
 		},
 	},
-	knowledgebase.NewEdge[*resources.RouteTable, *resources.InternetGateway](): {
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			igw := dest.(*resources.InternetGateway)
-			routeTable := source.(*resources.RouteTable)
+	knowledgebase.EdgeBuilder[*resources.RouteTable, *resources.InternetGateway]{
+		Configure: func(routeTable *resources.RouteTable, igw *resources.InternetGateway, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, route := range routeTable.Routes {
 				if route.CidrBlock == "0.0.0.0/0" {
 					return fmt.Errorf("route table %s already has route for 0.0.0.0/0", routeTable.Name)
@@ -38,14 +33,12 @@ var NetworkingKB = knowledgebase.EdgeKB{
 			return nil
 		},
 	},
-	knowledgebase.NewEdge[*resources.RouteTable, *resources.Vpc]():           {},
-	knowledgebase.NewEdge[*resources.InternetGateway, *resources.Vpc]():      {},
-	knowledgebase.NewEdge[*resources.Subnet, *resources.Vpc]():               {},
-	knowledgebase.NewEdge[*resources.Subnet, *resources.AvailabilityZones](): {},
-	knowledgebase.NewEdge[*resources.SecurityGroup, *resources.Vpc](): {
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			sg := source.(*resources.SecurityGroup)
-			vpc := dest.(*resources.Vpc)
+	knowledgebase.EdgeBuilder[*resources.RouteTable, *resources.Vpc]{},
+	knowledgebase.EdgeBuilder[*resources.InternetGateway, *resources.Vpc]{},
+	knowledgebase.EdgeBuilder[*resources.Subnet, *resources.Vpc]{},
+	knowledgebase.EdgeBuilder[*resources.Subnet, *resources.AvailabilityZones]{},
+	knowledgebase.EdgeBuilder[*resources.SecurityGroup, *resources.Vpc]{
+		Configure: func(sg *resources.SecurityGroup, vpc *resources.Vpc, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			vpcIngressRule := resources.SecurityGroupRule{
 				Description: "Allow ingress traffic from ip addresses within the vpc",
 				CidrBlocks: []core.IaCValue{
@@ -77,4 +70,4 @@ var NetworkingKB = knowledgebase.EdgeKB{
 			return nil
 		},
 	},
-}
+)

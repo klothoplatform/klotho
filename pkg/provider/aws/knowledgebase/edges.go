@@ -23,7 +23,7 @@ func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 	return awsKB, err
 }
 
-var AwsExtraEdgesKB = knowledgebase.EdgeKB{
-	knowledgebase.NewEdge[*resources.SecretVersion, *resources.Secret]():   {},
-	knowledgebase.NewEdge[*resources.EcrImage, *resources.EcrRepository](): {},
-}
+var AwsExtraEdgesKB = knowledgebase.Build(
+	knowledgebase.EdgeBuilder[*resources.SecretVersion, *resources.Secret]{},
+	knowledgebase.EdgeBuilder[*resources.EcrImage, *resources.EcrRepository]{},
+)

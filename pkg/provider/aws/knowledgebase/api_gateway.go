@@ -2,7 +2,6 @@ package knowledgebase
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -10,47 +9,43 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
-var ApiGatewayKB = knowledgebase.EdgeKB{
-	knowledgebase.NewEdge[*resources.ApiDeployment, *resources.RestApi]():  {},
-	knowledgebase.NewEdge[*resources.ApiStage, *resources.RestApi]():       {},
-	knowledgebase.NewEdge[*resources.ApiStage, *resources.ApiDeployment](): {},
-	knowledgebase.NewEdge[*resources.ApiMethod, *resources.RestApi]():      {},
-	knowledgebase.NewEdge[*resources.ApiDeployment, *resources.ApiMethod](): {
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			deployment := source.(*resources.ApiDeployment)
+var ApiGatewayKB = knowledgebase.Build(
+	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.RestApi]{},
+	knowledgebase.EdgeBuilder[*resources.ApiStage, *resources.RestApi]{},
+	knowledgebase.EdgeBuilder[*resources.ApiStage, *resources.ApiDeployment]{},
+	knowledgebase.EdgeBuilder[*resources.ApiMethod, *resources.RestApi]{},
+	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.ApiMethod]{
+		Configure: func(deployment *resources.ApiDeployment, method *resources.ApiMethod, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if deployment.Triggers == nil {
 				deployment.Triggers = make(map[string]string)
 			}
-			deployment.Triggers[dest.Id().Name] = dest.Id().Name
+			deployment.Triggers[method.Id().Name] = method.Id().Name
 			return nil
 		},
 	},
-	knowledgebase.NewEdge[*resources.ApiDeployment, *resources.ApiIntegration](): {
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			deployment := source.(*resources.ApiDeployment)
+	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.ApiIntegration]{
+		Configure: func(deployment *resources.ApiDeployment, integration *resources.ApiIntegration, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if deployment.Triggers == nil {
 				deployment.Triggers = make(map[string]string)
 			}
-			deployment.Triggers[dest.Id().Name] = dest.Id().Name
+			deployment.Triggers[integration.Id().Name] = integration.Id().Name
 			return nil
 		},
 	},
-	knowledgebase.NewEdge[*resources.ApiIntegration, *resources.RestApi](): {
-		ValidDestinations: []reflect.Type{reflect.TypeOf(&resources.LambdaFunction{})},
+	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.RestApi]{
+		ValidDestinations: []core.Resource{&resources.LambdaFunction{}},
 	},
-	knowledgebase.NewEdge[*resources.ApiResource, *resources.ApiResource]():    {},
-	knowledgebase.NewEdge[*resources.ApiResource, *resources.RestApi]():        {},
-	knowledgebase.NewEdge[*resources.ApiMethod, *resources.ApiResource]():      {},
-	knowledgebase.NewEdge[*resources.ApiIntegration, *resources.ApiResource](): {},
-	knowledgebase.NewEdge[*resources.ApiIntegration, *resources.ApiMethod]():   {},
-	knowledgebase.NewEdge[*resources.ApiIntegration, *resources.LambdaFunction](): {
-		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			integration := source.(*resources.ApiIntegration)
+	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.ApiResource]{},
+	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.RestApi]{},
+	knowledgebase.EdgeBuilder[*resources.ApiMethod, *resources.ApiResource]{},
+	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.ApiResource]{},
+	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.ApiMethod]{},
+	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.LambdaFunction]{
+		Expand: func(integration *resources.ApiIntegration, function *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			// This isnt an instance of an expanded path, rather an existing edge so ignore
 			if integration.Name != "" {
 				return nil
 			}
-			function := dest.(*resources.LambdaFunction)
 			restApi, ok := data.Source.(*resources.RestApi)
 			refs := core.DedupeAnnotationKeys(append(function.ConstructsRef, restApi.ConstructsRef...))
 			if !ok {
@@ -114,14 +109,12 @@ var ApiGatewayKB = knowledgebase.EdgeKB{
 			return nil
 		},
 	},
-	knowledgebase.NewEdge[*resources.LambdaPermission, *resources.RestApi](): {
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			permission := source.(*resources.LambdaPermission)
-			api := dest.(*resources.RestApi)
+	knowledgebase.EdgeBuilder[*resources.LambdaPermission, *resources.RestApi]{
+		Configure: func(permission *resources.LambdaPermission, api *resources.RestApi, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			permission.Principal = "apigateway.amazonaws.com"
 			permission.Action = "lambda:InvokeFunction"
 			permission.Source = core.IaCValue{Resource: api, Property: resources.API_GATEWAY_EXECUTION_CHILD_RESOURCES_IAC_VALUE}
 			return nil
 		},
 	},
-}
+)

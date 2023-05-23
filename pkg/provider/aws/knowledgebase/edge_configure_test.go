@@ -1,7 +1,6 @@
 package knowledgebase
 
 import (
-	"fmt"
 	"testing"
 
 	dgraph "github.com/dominikbraun/graph"
@@ -173,9 +172,7 @@ func Test_ConfigureEdge(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			for edge := range kb {
-				fmt.Println(edge)
-			}
+
 			err = kb.ConfigureFromEdgeData(dag)
 			if !assert.NoError(err) {
 				return

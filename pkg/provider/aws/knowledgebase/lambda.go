@@ -2,18 +2,15 @@ package knowledgebase
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
-var LambdaKB = knowledgebase.EdgeKB{
-	knowledgebase.NewEdge[*resources.LambdaPermission, *resources.LambdaFunction](): {
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			permission := source.(*resources.LambdaPermission)
-			function := dest.(*resources.LambdaFunction)
+var LambdaKB = knowledgebase.Build(
+	knowledgebase.EdgeBuilder[*resources.LambdaPermission, *resources.LambdaFunction]{
+		Configure: func(permission *resources.LambdaPermission, function *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if permission.Function != nil && permission.Function != function {
 				return fmt.Errorf("cannot configure edge %s -> %s, permission already tied to function %s", permission.Id(), function.Id(), permission.Function.Id())
 			}
@@ -21,19 +18,16 @@ var LambdaKB = knowledgebase.EdgeKB{
 			return nil
 		},
 	},
-	knowledgebase.NewEdge[*resources.LambdaFunction, *resources.Subnet](): {
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			lambda := source.(*resources.LambdaFunction)
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.Subnet]{
+		Configure: func(lambda *resources.LambdaFunction, subnet *resources.Subnet, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			lambda.Role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"})
 			return nil
 		},
-		ValidDestinations: []reflect.Type{reflect.TypeOf(&resources.Vpc{})},
+		ValidDestinations: []core.Resource{&resources.Vpc{}},
 	},
-	knowledgebase.NewEdge[*resources.LambdaFunction, *resources.SecurityGroup](): {},
-	knowledgebase.NewEdge[*resources.LambdaFunction, *resources.RdsInstance](): {
-		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			lambda := source.(*resources.LambdaFunction)
-			instance := dest.(*resources.RdsInstance)
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.SecurityGroup]{},
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.RdsInstance]{
+		Expand: func(lambda *resources.LambdaFunction, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if len(lambda.Subnets) == 0 {
 				lambda.Subnets = instance.SubnetGroup.Subnets
 			}
@@ -42,9 +36,7 @@ var LambdaKB = knowledgebase.EdgeKB{
 			}
 			return nil
 		},
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			lambda := source.(*resources.LambdaFunction)
-			instance := dest.(*resources.RdsInstance)
+		Configure: func(lambda *resources.LambdaFunction, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if len(lambda.Subnets) == 0 {
 				return fmt.Errorf("unable to expand edge [%s -> %s]: lambda function [%s] is not in a VPC",
 					lambda.Id(), instance.Id(), lambda.Id())
@@ -58,9 +50,8 @@ var LambdaKB = knowledgebase.EdgeKB{
 			return nil
 		},
 	},
-	knowledgebase.NewEdge[*resources.LambdaFunction, *resources.RdsProxy](): {
-		ExpansionFunc: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			lambda := source.(*resources.LambdaFunction)
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.RdsProxy]{
+		Expand: func(lambda *resources.LambdaFunction, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			instance := data.Destination.(*resources.RdsInstance)
 			if len(lambda.Subnets) == 0 {
 				lambda.Subnets = instance.SubnetGroup.Subnets
@@ -71,9 +62,7 @@ var LambdaKB = knowledgebase.EdgeKB{
 			dag.AddDependenciesReflect(lambda)
 			return nil
 		},
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			lambda := source.(*resources.LambdaFunction)
-			proxy := dest.(*resources.RdsProxy)
+		Configure: func(lambda *resources.LambdaFunction, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if len(lambda.Subnets) == 0 {
 				return fmt.Errorf("unable to expand edge [%s -> %s]: lambda function [%s] is not in a VPC",
 					lambda.Id().String(), proxy.Id().String(), lambda.Id().String())
@@ -97,16 +86,14 @@ var LambdaKB = knowledgebase.EdgeKB{
 			}
 			return nil
 		},
-		ValidDestinations: []reflect.Type{reflect.TypeOf(&resources.RdsInstance{})},
+		ValidDestinations: []core.Resource{&resources.RdsInstance{}},
 	},
-	knowledgebase.NewEdge[*resources.LambdaFunction, *resources.EcrImage](): {},
-	knowledgebase.NewEdge[*resources.LambdaFunction, *resources.LogGroup](): {
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			logGroup := dest.(*resources.LogGroup)
-			function := source.(*resources.LambdaFunction)
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.EcrImage]{},
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.LogGroup]{
+		Configure: func(function *resources.LambdaFunction, logGroup *resources.LogGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			logGroup.LogGroupName = fmt.Sprintf("/aws/lambda/%s", function.Name)
 			logGroup.RetentionInDays = 5
 			return nil
 		},
 	},
-}
+)

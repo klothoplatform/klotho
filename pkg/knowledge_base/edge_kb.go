@@ -137,12 +137,9 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 // isValidForPath determines if an edge is valid for an instance of path generation.
 //
 // The criteria is:
-//   - if there is no expansion function and no ValidDestinations, assume only the edges destination is valid.
-//   - otherwise check to see if the path generations destination is valid for the edge
+//   - check to see if the path generations destination is valid for the edge
 func (kb EdgeKB) isValidForPath(edge Edge, dest reflect.Type) bool {
 	edgeDetail, _ := kb.GetEdgeDetails(edge.Source, edge.Destination)
-	edgeDetail.ValidDestinations = append(edgeDetail.ValidDestinations, edge.Destination)
-
 	for _, validDest := range edgeDetail.ValidDestinations {
 		if validDest == dest {
 			return true
