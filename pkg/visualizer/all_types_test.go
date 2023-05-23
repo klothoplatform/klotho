@@ -2,6 +2,7 @@ package visualizer
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
@@ -25,16 +26,38 @@ func TestAllTypesHaveIcons(t *testing.T) {
 	testedTypes := make(coretesting.TypeRefSet)
 
 	api := visApi{client: http.DefaultClient}
+	typeNamesBuf := bytes.Buffer{}
+	for _, res := range allResources {
+		_, typeNames := typeNamesForResource(res)
+		for _, typeName := range typeNames {
+			typeNamesBuf.WriteString(typeName + "\n")
+		}
+	}
+	validationBytes, err := api.request(http.MethodPost, `validate-types`, `application/text`, "", &typeNamesBuf)
+	if !assert.NoError(t, err) {
+		statusCode, isBadStatus := err.(httpStatusBad)
+		if !isBadStatus || (statusCode != 400) {
+			// If it's a 400 we can keep going — that just means there were unvalidated types, which we'll check below.
+			// Anything else is unrecoverable.
+			return
+		}
+	}
+
+	var validations map[string]bool
+	err = json.Unmarshal(validationBytes, &validations)
+	if !assert.NoError(t, err) {
+		return
+	}
+
 	for _, res := range allResources {
 		provider, typeNames := typeNamesForResource(res)
 		for _, typeName := range typeNames {
 			t.Run(fmt.Sprintf("%s:%s", provider, typeName), func(t *testing.T) {
 				testedTypes.Add(res)
-				assert := assert.New(t)
-				typeNameBuf := bytes.Buffer{}
-				typeNameBuf.WriteString(typeName)
-				_, err := api.request(http.MethodGet, `validate-types`, `application/text`, ``, &typeNameBuf)
-				assert.NoError(err)
+				known, found := validations[typeName]
+				if assert.True(t, found) {
+					assert.True(t, known)
+				}
 			})
 		}
 	}
