@@ -50,7 +50,7 @@ func ListAll() []core.Resource {
 		&SecretVersion{},
 		&Secret{},
 		&SecurityGroup{},
-		&Subnet{},
+		&Subnet{Vpc: &Vpc{}},
 		&TargetGroup{},
 		&VpcEndpoint{},
 		&VpcLink{},
