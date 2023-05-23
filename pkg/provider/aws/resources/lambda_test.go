@@ -11,15 +11,11 @@ import (
 
 func Test_LambdaCreate(t *testing.T) {
 	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	cases := []struct {
-		name    string
-		lambda  *LambdaFunction
-		want    coretesting.ResourcesExpectation
-		wantErr bool
-	}{
+
+	cases := []coretesting.CreateCase[LambdaCreateParams, *LambdaFunction]{
 		{
-			name: "nil lambda",
-			want: coretesting.ResourcesExpectation{
+			Name: "nil lambda",
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ecr_image:my-app-test",
 					"aws:ecr_repo:my-app",
@@ -34,44 +30,26 @@ func Test_LambdaCreate(t *testing.T) {
 					{Source: "aws:lambda_function:my-app-test", Destination: "aws:log_group:my-app-test"},
 				},
 			},
+			Check: func(assert *assert.Assertions, lambda *LambdaFunction) {
+				assert.Equal(lambda.Name, "my-app-test")
+				assert.ElementsMatch(lambda.ConstructsRef, []core.AnnotationKey{eu.AnnotationKey})
+			},
 		},
 		{
-			name:    "existing lambda",
-			lambda:  &LambdaFunction{Name: "my-app-test"},
-			wantErr: true,
+			Name:     "existing lambda",
+			Existing: &LambdaFunction{Name: "my-app-test"},
+			WantErr:  true,
 		},
 	}
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-
-			assert := assert.New(t)
-			dag := core.NewResourceGraph()
-
-			if tt.lambda != nil {
-				dag.AddResource(tt.lambda)
-			}
-
-			metadata := LambdaCreateParams{
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = LambdaCreateParams{
 				AppName: "my-app",
 				Refs:    []core.AnnotationKey{eu.AnnotationKey},
 				Name:    eu.ID,
 			}
-			lambda := &LambdaFunction{}
-			err := lambda.Create(dag, metadata)
-			if tt.wantErr {
-				assert.Error(err)
-				return
-			}
-			if !assert.NoError(err) {
-				return
-			}
-			tt.want.Assert(t, dag)
 
-			graphLambda := dag.GetResource(lambda.Id())
-			lambda = graphLambda.(*LambdaFunction)
-
-			assert.Equal(lambda.Name, "my-app-test")
-			assert.ElementsMatch(lambda.ConstructsRef, []core.AnnotationKey{eu.AnnotationKey})
+			tt.Run(t)
 		})
 	}
 }
