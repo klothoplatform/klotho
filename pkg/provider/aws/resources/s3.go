@@ -92,6 +92,17 @@ func (bucket *S3Bucket) Create(dag *core.ResourceGraph, params S3BucketCreatePar
 	return nil
 }
 
+type S3BucketConfigureParams struct {
+	ForceDestroy  bool
+	IndexDocument string
+}
+
+func (bucket *S3Bucket) Configure(params S3BucketConfigureParams) error {
+	bucket.ForceDestroy = params.ForceDestroy
+	bucket.IndexDocument = params.IndexDocument
+	return nil
+}
+
 func NewS3Object(bucket *S3Bucket, objectName string, key string, path string) *S3Object {
 	return &S3Object{
 		Name:          objectSanitizer.Apply(fmt.Sprintf("%s-%s", bucket.Name, objectName)),

@@ -31,6 +31,11 @@ type (
 		Create(dag *ResourceGraph, param K) error
 	}
 
+	ConfigurableResource[K any] interface {
+		Resource
+		Configure(params K) error
+	}
+
 	ResourceId struct {
 		Provider string
 		Type     string
