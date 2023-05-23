@@ -158,7 +158,7 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph) (err error) {
 	var merr multierr.Error
 	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
 	for _, dep := range dag.ListDependencies() {
-		zap.S().Debug("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
+		zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
 
 		// We want to retrieve the edge data from the edge in the resource graph to use during expansion
 		edgeData := EdgeData{}

@@ -78,18 +78,35 @@ func (table *DynamodbTable) AttributeMap() (map[string]DynamodbTableAttribute, e
 	return attrs, merr.ErrOrNil()
 }
 
-func NewDynamodbTable(construct core.Construct, name string, attributes []DynamodbTableAttribute) *DynamodbTable {
-	table := &DynamodbTable{
-		Name:        aws.DynamoDBTableSanitizer.Apply(name),
-		Attributes:  attributes,
-		BillingMode: PAY_PER_REQUEST,
-	}
+type DynamodbTableCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	Name    string
+}
 
-	if construct != nil {
-		table.ConstructsRef = append(table.ConstructsRef, construct.Provenance())
+func (table *DynamodbTable) Create(dag *core.ResourceGraph, params DynamodbTableCreateParams) error {
+	table.Name = aws.DynamoDBTableSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	table.ConstructsRef = params.Refs
+	if existingTable, ok := core.GetResource[*DynamodbTable](dag, table.Id()); ok {
+		existingTable.ConstructsRef = core.DedupeAnnotationKeys(append(existingTable.KlothoConstructRef(), params.Refs...))
 	}
+	dag.AddResource(table)
+	return nil
+}
 
-	return table
+type DynamodbTableConfigureParams struct {
+	Attributes  []DynamodbTableAttribute
+	BillingMode string
+	HashKey     string
+	RangeKey    string
+}
+
+func (table *DynamodbTable) Configure(params DynamodbTableConfigureParams) error {
+	table.Attributes = params.Attributes
+	table.BillingMode = params.BillingMode
+	table.HashKey = params.HashKey
+	table.RangeKey = params.RangeKey
+	return nil
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to

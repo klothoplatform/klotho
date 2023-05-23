@@ -1,52 +1,53 @@
 package resources
 
 import (
+	"github.com/klothoplatform/klotho/pkg/annotation"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_NewDynamodbTable(t *testing.T) {
-	assert := assert.New(t)
-	construct := TestConstruct{AnnotationKey: core.AnnotationKey{
-		Capability: "persist",
-		ID:         "my-table",
-	}}
-	attributes := []DynamodbTableAttribute{
-		{Name: "pk", Type: "S"},
-		{Name: "sk", Type: "S"},
+func Test_DynamodbTableCreate(t *testing.T) {
+	kv := &core.Kv{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
+	existingKey := core.AnnotationKey{ID: "existing", Capability: annotation.PersistCapability}
+	cases := []coretesting.CreateCase[DynamodbTableCreateParams, *DynamodbTable]{
+		{
+			Name: "nil dynamodb table",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:dynamodb_table:my-app-kv",
+				},
+			},
+			Check: func(assert *assert.Assertions, table *DynamodbTable) {
+				assert.Equal(table.Name, "my-app-kv")
+				assert.ElementsMatch(table.ConstructsRef, []core.AnnotationKey{kv.AnnotationKey})
+			},
+		},
+		{
+			Name:     "existing dynamodb table",
+			Existing: &DynamodbTable{Name: "my-app-kv", ConstructsRef: []core.AnnotationKey{existingKey}},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:dynamodb_table:my-app-kv",
+				},
+			},
+			Check: func(assert *assert.Assertions, table *DynamodbTable) {
+				assert.Equal(table.Name, "my-app-kv")
+				assert.ElementsMatch(table.ConstructsRef, []core.AnnotationKey{kv.AnnotationKey, existingKey})
+			},
+		},
 	}
-	dynamodbTable := NewDynamodbTable(construct, "table-name", attributes)
-	assert.Equal("table-name", dynamodbTable.Name)
-	assert.Equal([]core.AnnotationKey{construct.Provenance()}, dynamodbTable.ConstructsRef)
-	assert.Equal(PAY_PER_REQUEST, dynamodbTable.BillingMode)
-	assert.Equal(attributes, dynamodbTable.Attributes)
-	assert.NoError(dynamodbTable.Validate())
-}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = DynamodbTableCreateParams{
+				AppName: "my-app",
+				Refs:    []core.AnnotationKey{kv.AnnotationKey},
+				Name:    "kv",
+			}
 
-func Test_DynamodbTable(t *testing.T) {
-	assert := assert.New(t)
-	construct := TestConstruct{AnnotationKey: core.AnnotationKey{
-		Capability: "persist",
-		ID:         "my-table",
-	}}
-	attributes := []DynamodbTableAttribute{
-		{Name: "pk", Type: "S"},
-		{Name: "sk", Type: "S"},
+			tt.Run(t)
+		})
 	}
-	dynamodbTable := NewDynamodbTable(construct, "table-name", attributes)
-	assert.Equal(core.ResourceId{Provider: AWS_PROVIDER, Type: "dynamodb_table", Name: "table-name"}, dynamodbTable.Id())
-}
-
-type TestConstruct struct {
-	AnnotationKey core.AnnotationKey
-}
-
-func (c TestConstruct) Provenance() core.AnnotationKey {
-	return c.AnnotationKey
-}
-
-func (c TestConstruct) Id() string {
-	return c.AnnotationKey.ID
 }
