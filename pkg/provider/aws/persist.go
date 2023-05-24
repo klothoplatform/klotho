@@ -28,8 +28,14 @@ func (a *AWS) GenerateFsResources(construct core.Construct, result *core.Constru
 	return nil
 }
 
-func (a *AWS) GenerateRedisResources(construct core.Construct, result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	ec := resources.CreateElasticache(a.Config, dag, construct)
-	a.MapResourceDirectlyToConstruct(ec, construct)
-	return nil
+func (a *AWS) expandRedisNode(dag *core.ResourceGraph, construct *core.RedisNode) error {
+	redis, err := core.CreateResource[*resources.ElasticacheCluster](dag, resources.ElasticacheClusterCreateParams{
+		AppName: a.Config.AppName,
+		Refs:    []core.AnnotationKey{construct.AnnotationKey},
+		Name:    construct.ID,
+	})
+	if err != nil {
+		return err
+	}
+	return a.MapResourceToConstruct(redis, construct)
 }

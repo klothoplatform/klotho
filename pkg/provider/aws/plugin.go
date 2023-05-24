@@ -24,6 +24,8 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 			merr.Append(a.expandOrm(dag, construct))
 		case *core.Kv:
 			merr.Append(a.expandKv(dag, construct))
+		case *core.RedisNode:
+			merr.Append(a.expandRedisNode(dag, construct))
 		}
 	}
 	return merr.ErrOrNil()
@@ -59,7 +61,7 @@ func (a *AWS) CopyConstructEdgesToDag(result *core.ConstructGraph, dag *core.Res
 			}
 			for _, envVar := range construct.EnvironmentVariables {
 				if envVar.Construct == dep.Destination {
-					data.EnvironmentVariables = []core.EnvironmentVariable{envVar}
+					data.EnvironmentVariables = append(data.EnvironmentVariables, envVar)
 				}
 			}
 		case *core.Gateway:

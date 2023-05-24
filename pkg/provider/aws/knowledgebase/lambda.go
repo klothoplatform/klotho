@@ -2,7 +2,6 @@ package knowledgebase
 
 import (
 	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -104,6 +103,24 @@ var LambdaKB = knowledgebase.Build(
 		Configure: func(lambda *resources.LambdaFunction, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
 				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: table, Property: env.GetValue()}
+			}
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.ElasticacheCluster]{
+		Expand: func(lambda *resources.LambdaFunction, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if len(lambda.Subnets) == 0 {
+				lambda.Subnets = cluster.SubnetGroup.Subnets
+			}
+			if len(lambda.SecurityGroups) == 0 {
+				lambda.SecurityGroups = cluster.SecurityGroups
+			}
+			dag.AddDependenciesReflect(lambda)
+			return nil
+		},
+		Configure: func(lambda *resources.LambdaFunction, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			for _, env := range data.EnvironmentVariables {
+				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: cluster, Property: env.GetValue()}
 			}
 			return nil
 		},

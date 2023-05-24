@@ -35,7 +35,11 @@ var IamKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.IamRole]{
 		Configure: func(lambda *resources.LambdaFunction, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			role.AssumeRolePolicyDoc = resources.LAMBDA_ASSUMER_ROLE_POLICY
-			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"})
+			if len(lambda.Subnets) == 0 {
+				role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"})
+			} else {
+				role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"})
+			}
 			return nil
 		},
 	},
