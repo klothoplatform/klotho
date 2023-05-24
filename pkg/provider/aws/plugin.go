@@ -4,7 +4,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/multierr"
-	awsKnowledgebase "github.com/klothoplatform/klotho/pkg/provider/aws/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -116,7 +115,7 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 	if err != nil {
 		return
 	}
-	err = awsKnowledgebase.AwsKB.ExpandEdges(dag)
+	err = a.KnowledgeBase.ExpandEdges(dag)
 	if err != nil {
 		return
 	}
@@ -124,6 +123,6 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 	if err != nil {
 		return
 	}
-	err = awsKnowledgebase.AwsKB.ConfigureFromEdgeData(dag)
+	err = a.KnowledgeBase.ConfigureFromEdgeData(dag)
 	return
 }

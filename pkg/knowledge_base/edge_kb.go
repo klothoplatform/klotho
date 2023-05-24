@@ -63,6 +63,12 @@ type (
 	Path []Edge
 )
 
+func NewEdge[Src core.Resource, Dest core.Resource]() Edge {
+	var src Src
+	var dest Dest
+	return Edge{Source: reflect.TypeOf(src), Destination: reflect.TypeOf(dest)}
+}
+
 // GetEdgeDetails takes in a source and target to retrieve the edge details for the given key. Will return nil if no edge exists for the given source and target
 func (kb EdgeKB) GetEdgeDetails(source reflect.Type, target reflect.Type) (EdgeDetails, bool) {
 	detail, found := kb[Edge{Source: source, Destination: target}]
@@ -131,13 +137,9 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 // isValidForPath determines if an edge is valid for an instance of path generation.
 //
 // The criteria is:
-//   - if there is no expansion function and no ValidDestinations, assume all destinations are valid.
-//   - otherwise check to see if the path generations destination is valid for the edge
+//   - check to see if the path generations destination is valid for the edge
 func (kb EdgeKB) isValidForPath(edge Edge, dest reflect.Type) bool {
 	edgeDetail, _ := kb.GetEdgeDetails(edge.Source, edge.Destination)
-	if len(edgeDetail.ValidDestinations) == 0 {
-		return true
-	}
 	for _, validDest := range edgeDetail.ValidDestinations {
 		if validDest == dest {
 			return true

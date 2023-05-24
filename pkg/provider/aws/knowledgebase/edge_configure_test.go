@@ -168,8 +168,12 @@ func Test_ConfigureEdge(t *testing.T) {
 			for _, edge := range tt.edge {
 				dag.AddDependencyWithData(edge.Source, edge.Destination, edge.Properties.Data)
 			}
+			kb, err := GetAwsKnowledgeBase()
+			if !assert.NoError(err) {
+				return
+			}
 
-			err := AwsKB.ConfigureFromEdgeData(dag)
+			err = kb.ConfigureFromEdgeData(dag)
 			if !assert.NoError(err) {
 				return
 			}

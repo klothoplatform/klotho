@@ -184,8 +184,11 @@ func Test_ExpandEdges(t *testing.T) {
 			dag := core.NewResourceGraph()
 
 			dag.AddDependencyWithData(tt.edge.Source, tt.edge.Destination, tt.edge.Properties.Data)
-
-			err := AwsKB.ExpandEdges(dag)
+			kb, err := GetAwsKnowledgeBase()
+			if !assert.NoError(err) {
+				return
+			}
+			err = kb.ExpandEdges(dag)
 			if !assert.NoError(err) {
 				return
 			}
