@@ -68,9 +68,6 @@ type ElasticacheClusterCreateParams struct {
 func (ec *ElasticacheCluster) Create(dag *core.ResourceGraph, params ElasticacheClusterCreateParams) error {
 	ec.Name = aws.ElasticacheClusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	ec.ConstructsRef = params.Refs
-	ec.NumCacheNodes = 1
-	ec.NodeType = "cache.t3.micro"
-	ec.Engine = "redis"
 	ec.SecurityGroups = make([]*SecurityGroup, 1)
 
 	if existingCluster, ok := core.GetResource[*ElasticacheCluster](dag, ec.Id()); ok {
@@ -101,15 +98,9 @@ type ElasticacheClusterConfigureParams struct {
 }
 
 func (ec *ElasticacheCluster) Configure(params ElasticacheClusterConfigureParams) error {
-	if params.Engine != "" {
-		ec.Engine = params.Engine
-	}
-	if params.NodeType != "" {
-		ec.NodeType = params.NodeType
-	}
-	if params.NumCacheNodes > 0 {
-		ec.NumCacheNodes = params.NumCacheNodes
-	}
+	ec.Engine = params.Engine
+	ec.NodeType = params.NodeType
+	ec.NumCacheNodes = params.NumCacheNodes
 	return nil
 }
 

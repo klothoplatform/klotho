@@ -102,6 +102,12 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 			}
 		case *resources.DynamodbTable:
 			configuration = a.getKvConfiguration()
+		case *resources.ElasticacheCluster:
+			configuration, err = a.getElasticacheConfiguration(result, res.ConstructsRef)
+			if err != nil {
+				merr.Append(err)
+				continue
+			}
 		}
 		merr.Append(dag.CallConfigure(resource, configuration))
 	}
