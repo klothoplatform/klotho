@@ -82,9 +82,6 @@ func Test_LoadBalancerCreate(t *testing.T) {
 				initialRefs.Add(eu.AnnotationKey)
 				assert.Equal(lb.ConstructsRef, initialRefs)
 			},
-		},
-	}
-	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = LoadBalancerCreateParams{
 				AppName:     "my-app",

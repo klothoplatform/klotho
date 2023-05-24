@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	"go.uber.org/zap"
@@ -163,7 +164,7 @@ type RoleCreateParams struct {
 
 func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) error {
 	role.Name = roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	role.ConstructsRef = params.Refs
+	role.ConstructsRef = collectionutil.FlattenUnique(params.Refs, []core.AnnotationKey{})
 
 	existingRole := dag.GetResource(role.Id())
 	if existingRole != nil {
