@@ -22,6 +22,8 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 			merr.Append(a.expandExpose(dag, construct))
 		case *core.Orm:
 			merr.Append(a.expandOrm(dag, construct))
+		case *core.Fs:
+			merr.Append(a.expandFs(dag, construct))
 		case *core.Kv:
 			merr.Append(a.expandKv(dag, construct))
 		case *core.RedisNode:
@@ -108,6 +110,8 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 				merr.Append(err)
 				continue
 			}
+		case *resources.S3Bucket:
+			configuration = a.getFsConfiguration()
 		}
 		merr.Append(dag.CallConfigure(resource, configuration))
 	}

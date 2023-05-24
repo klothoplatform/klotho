@@ -2,6 +2,7 @@ package knowledgebase
 
 import (
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -121,6 +122,18 @@ var LambdaKB = knowledgebase.Build(
 		Configure: func(lambda *resources.LambdaFunction, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
 				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: cluster, Property: env.GetValue()}
+			}
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.S3Bucket]{
+		Expand: func(lambda *resources.LambdaFunction, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			dag.AddDependency(lambda.Role, bucket)
+			return nil
+		},
+		Configure: func(lambda *resources.LambdaFunction, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			for _, env := range data.EnvironmentVariables {
+				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: bucket, Property: env.GetValue()}
 			}
 			return nil
 		},
