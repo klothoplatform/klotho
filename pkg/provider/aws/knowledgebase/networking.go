@@ -10,6 +10,7 @@ import (
 
 var NetworkingKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.NatGateway, *resources.Subnet]{},
+	knowledgebase.EdgeBuilder[*resources.NatGateway, *resources.ElasticIp]{},
 	knowledgebase.EdgeBuilder[*resources.RouteTable, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.RouteTable, *resources.NatGateway]{
 		Configure: func(routeTable *resources.RouteTable, nat *resources.NatGateway, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {

@@ -10,7 +10,7 @@ import (
 
 func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 	var err error
-	kbsToUse := []knowledgebase.EdgeKB{AwsExtraEdgesKB, IamKB, NetworkingKB, RdsKB, LambdaKB, ApiGatewayKB}
+	kbsToUse := []knowledgebase.EdgeKB{AwsExtraEdgesKB, IamKB, NetworkingKB, RdsKB, LambdaKB, ApiGatewayKB, ElasticacheKB}
 	awsKB := make(knowledgebase.EdgeKB)
 	for _, kb := range kbsToUse {
 		for edge, detail := range kb {
