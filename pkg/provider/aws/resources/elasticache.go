@@ -3,7 +3,6 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
@@ -30,10 +29,6 @@ type (
 const (
 	EC_TYPE   = "elasticache"
 	ECSN_TYPE = "elasticache_subnetgroup"
-)
-
-var (
-	elasticacheClusterSanitizer = aws.ElasticacheClusterSanitizer
 )
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
@@ -64,35 +59,82 @@ func (ecsn *ElasticacheSubnetgroup) Id() core.ResourceId {
 	}
 }
 
-func CreateElasticache(cfg *config.Application, dag *core.ResourceGraph, source core.Construct) *ElasticacheCluster {
-	ec := &ElasticacheCluster{
-		Name:            elasticacheClusterSanitizer.Apply(fmt.Sprintf("%s-%s", cfg.AppName, source.Provenance().ID)),
-		Engine:          "redis", // TODO determine this from the type of `source`
-		CloudwatchGroup: NewLogGroup(cfg.AppName, fmt.Sprintf("/aws/elasticache/%s-%s-persist-redis", cfg.AppName, source.Id()), source.Provenance(), 0),
-		SubnetGroup: &ElasticacheSubnetgroup{
-			Name:          elasticacheClusterSanitizer.Apply(fmt.Sprintf("%s-%s", cfg.AppName, source.Provenance().ID)),
-			Subnets:       GetSubnets(cfg, dag), // TODO when we allow for segmented networks, need to determine which network (subnets) this lives in
-			ConstructsRef: []core.AnnotationKey{source.Provenance()},
+type ElasticacheClusterCreateParams struct {
+	AppName string
+	Refs    []core.AnnotationKey
+	Name    string
+}
+
+func (ec *ElasticacheCluster) Create(dag *core.ResourceGraph, params ElasticacheClusterCreateParams) error {
+	ec.Name = aws.ElasticacheClusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	ec.ConstructsRef = params.Refs
+	ec.SecurityGroups = make([]*SecurityGroup, 1)
+
+	if existingCluster, ok := core.GetResource[*ElasticacheCluster](dag, ec.Id()); ok {
+		existingCluster.ConstructsRef = core.DedupeAnnotationKeys(append(existingCluster.KlothoConstructRef(), params.Refs...))
+	}
+
+	subParams := map[string]any{
+		"CloudwatchGroup": params,
+		"SubnetGroup": ElasticacheSubnetgroupCreateParams{
+			AppName: params.AppName,
+			Name:    fmt.Sprintf("%s-subnetgroup", params.Name),
+			Refs:    params.Refs,
 		},
-		SecurityGroups: []*SecurityGroup{GetSecurityGroup(cfg, dag)},
-		ConstructsRef:  []core.AnnotationKey{source.Provenance()},
-		NodeType:       "cache.t3.micro",
-		NumCacheNodes:  1,
-	}
-	dag.AddResource(ec)
-	dag.AddResource(ec.CloudwatchGroup)
-	dag.AddResource(ec.SubnetGroup)
-	dag.AddDependency(ec, ec.CloudwatchGroup)
-	dag.AddDependency(ec, ec.SubnetGroup)
-
-	for _, sg := range ec.SecurityGroups {
-		sg.ConstructsRef = append(sg.ConstructsRef, source.Provenance())
-		dag.AddDependency(ec, sg)
-	}
-	for _, sn := range ec.SubnetGroup.Subnets {
-		sn.ConstructsRef = append(sn.ConstructsRef, source.Provenance())
-		dag.AddDependency(ec.SubnetGroup, sn)
+		"SecurityGroups": []SecurityGroupCreateParams{{
+			AppName: params.AppName,
+			Refs:    params.Refs,
+		}},
 	}
 
-	return ec
+	err := dag.CreateDependencies(ec, subParams)
+	return err
+}
+
+type ElasticacheClusterConfigureParams struct {
+	Engine        string
+	NodeType      string
+	NumCacheNodes int
+}
+
+func (ec *ElasticacheCluster) Configure(params ElasticacheClusterConfigureParams) error {
+	ec.Engine = params.Engine
+	ec.NodeType = params.NodeType
+	ec.NumCacheNodes = params.NumCacheNodes
+	return nil
+}
+
+type ElasticacheSubnetgroupCreateParams struct {
+	Refs    []core.AnnotationKey
+	AppName string
+	Name    string
+}
+
+func (ecsn *ElasticacheSubnetgroup) Create(dag *core.ResourceGraph, params ElasticacheSubnetgroupCreateParams) error {
+	ecsn.Name = aws.ElasticacheClusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	ecsn.ConstructsRef = params.Refs
+	ecsn.Subnets = make([]*Subnet, 2)
+	if existingSubnetGroup, ok := core.GetResource[*ElasticacheSubnetgroup](dag, ecsn.Id()); ok {
+		existingSubnetGroup.ConstructsRef = core.DedupeAnnotationKeys(append(existingSubnetGroup.KlothoConstructRef(), params.Refs...))
+	}
+
+	subParams := map[string]any{
+		"Subnets": []SubnetCreateParams{
+			{
+				AppName: params.AppName,
+				Refs:    params.Refs,
+				AZ:      "0",
+				Type:    PrivateSubnet,
+			},
+			{
+				AppName: params.AppName,
+				Refs:    params.Refs,
+				AZ:      "1",
+				Type:    PrivateSubnet,
+			},
+		},
+	}
+
+	err := dag.CreateDependencies(ecsn, subParams)
+	return err
 }
