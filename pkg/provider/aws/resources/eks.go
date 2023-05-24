@@ -237,11 +237,9 @@ type EksFargateProfileCreateParams struct {
 func (profile *EksFargateProfile) Create(dag *core.ResourceGraph, params EksFargateProfileCreateParams) error {
 	profile.Name = profileSanitizer.Apply(fmt.Sprintf("%s_%s_%s", params.AppName, params.Name, params.NetworkType))
 
-	existingProfile := dag.GetResource(profile.Id())
-	if existingProfile != nil {
-		graphProfile := existingProfile.(*EksFargateProfile)
-
-		graphProfile.ConstructsRef.AddAll(params.Refs)
+	existingProfile, found := core.GetResource[*EksFargateProfile](dag, profile.Id())
+	if found {
+		existingProfile.ConstructsRef.AddAll(params.Refs)
 	} else {
 		profile.ConstructsRef = params.Refs
 		profile.Subnets = make([]*Subnet, 2)
@@ -383,6 +381,25 @@ func (nodeGroup *EksNodeGroup) Configure(params EksNodeGroupConfigureParams) err
 	nodeGroup.MinSize = 1
 	nodeGroup.MaxUnavailable = 1
 	nodeGroup.DiskSize = params.DiskSize
+	return nil
+}
+
+func (cluster *EksCluster) SetUpDefaultNodeGroup(dag *core.ResourceGraph, appName string) error {
+	_, err := core.CreateResource[*EksNodeGroup](dag, EksNodeGroupCreateParams{
+		InstanceType: "t3.medium",
+		NetworkType:  PrivateSubnet,
+		Refs:         cluster.ConstructsRef,
+		AppName:      appName,
+		ClusterName:  strings.TrimLeft(cluster.Name, fmt.Sprintf("%s-", appName)),
+	})
+	if err != nil {
+		return err
+	}
+	cluster.CreatePrerequisiteCharts(dag)
+	err = cluster.InstallFluentBit(cluster.ConstructsRef, dag)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -609,19 +626,27 @@ func (cluster *EksCluster) InstallAlbController(references core.AnnotationKeySet
 	if err != nil {
 		return nil, err
 	}
+
+	role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+		AppName: cluster.Name,
+		Name:    "alb-controller",
+		Refs:    references,
+	})
+	if err != nil {
+		return nil, err
+	}
 	assumeRolePolicyDoc := GetServiceAccountAssumeRolePolicy(saName, cluster.getOidc(dag))
 	if err != nil {
 		return nil, err
 	}
-	role := NewIamRole(cluster.Name, "alb-controller", references, assumeRolePolicyDoc)
 	var aRef core.AnnotationKey
 	for ref := range references {
 		aRef = ref
 		break
 	}
 	policy := createAlbControllerPolicy(cluster.Name, aRef)
-	role.AddManagedPolicy(core.IaCValue{Resource: policy, Property: ARN_IAC_VALUE})
-
+	role.AssumeRolePolicyDoc = assumeRolePolicyDoc
+	dag.AddDependency(role, policy)
 	if err != nil {
 		return nil, err
 	}
