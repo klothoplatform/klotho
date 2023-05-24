@@ -39,7 +39,6 @@ func (tt CreateCase[P, R]) Run(t *testing.T) {
 	} else if !assert.NoError(err) {
 		return
 	}
-
 	tt.Want.Assert(t, dag)
 
 	found := dag.GetResource(res.Id())
@@ -52,4 +51,29 @@ func (tt CreateCase[P, R]) Run(t *testing.T) {
 		return
 	}
 	tt.Check(assert, foundR)
+}
+
+type ConfigureCase[P any, R core.ConfigurableResource[P]] struct {
+	Name    string
+	Params  P
+	Want    R
+	WantErr bool
+}
+
+func (tt ConfigureCase[P, R]) Run(t *testing.T) {
+	assert := assert.New(t)
+
+	var res R
+	rType := reflect.TypeOf(res)
+	if rType.Kind() == reflect.Pointer {
+		res = reflect.New(rType.Elem()).Interface().(R)
+	}
+	err := res.Configure(tt.Params)
+	if tt.WantErr {
+		assert.Error(err)
+		return
+	} else if !assert.NoError(err) {
+		return
+	}
+	assert.Equal(tt.Want, res)
 }

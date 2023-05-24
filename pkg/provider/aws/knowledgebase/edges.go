@@ -10,7 +10,7 @@ import (
 
 func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 	var err error
-	kbsToUse := []knowledgebase.EdgeKB{AwsExtraEdgesKB, IamKB, NetworkingKB, RdsKB, LambdaKB, ApiGatewayKB, ElasticacheKB}
+	kbsToUse := []knowledgebase.EdgeKB{AwsExtraEdgesKB, IamKB, NetworkingKB, RdsKB, LambdaKB, ApiGatewayKB, EksKB, ElasticacheKB}
 	awsKB := make(knowledgebase.EdgeKB)
 	for _, kb := range kbsToUse {
 		for edge, detail := range kb {
@@ -26,4 +26,5 @@ func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 var AwsExtraEdgesKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.SecretVersion, *resources.Secret]{},
 	knowledgebase.EdgeBuilder[*resources.EcrImage, *resources.EcrRepository]{},
+	knowledgebase.EdgeBuilder[*resources.OpenIdConnectProvider, *resources.Region]{},
 )

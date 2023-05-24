@@ -183,7 +183,7 @@ func Test_ExpandEdges(t *testing.T) {
 			assert := assert.New(t)
 			dag := core.NewResourceGraph()
 			dag.AddDependencyWithData(tt.source, tt.dest, tt.data)
-			err := TestKnowledgeBase.ExpandEdges(dag)
+			err := TestKnowledgeBase.ExpandEdges(dag, "my-app")
 			assert.NoError(err)
 			assert.ElementsMatch(tt.want, dag.ListDependencies())
 		})

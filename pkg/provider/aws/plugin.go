@@ -104,6 +104,12 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 			}
 		case *resources.DynamodbTable:
 			configuration = a.getKvConfiguration()
+		case *resources.EksNodeGroup:
+			configuration, err = a.getNodeGroupConfiguration(result, dag, res.ConstructsRef)
+			if err != nil {
+				merr.Append(err)
+				continue
+			}
 		case *resources.ElasticacheCluster:
 			configuration, err = a.getElasticacheConfiguration(result, res.ConstructsRef)
 			if err != nil {
@@ -127,7 +133,7 @@ func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (l
 	if err != nil {
 		return
 	}
-	err = a.KnowledgeBase.ExpandEdges(dag)
+	err = a.KnowledgeBase.ExpandEdges(dag, a.Config.AppName)
 	if err != nil {
 		return
 	}

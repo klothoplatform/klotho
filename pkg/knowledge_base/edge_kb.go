@@ -155,7 +155,7 @@ func (kb EdgeKB) isValidForPath(edge Edge, dest reflect.Type) bool {
 //   - Check each of the valid paths against constraints passed in on the edge data
 //   - At this point we should only have 1 valid path (If we have more than 1 edge choose direct connection otherwise error)
 //   - Iterate through each edge in path calling expansion function on edge
-func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph) (err error) {
+func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph, appName string) (err error) {
 	zap.S().Debug("Expanding Edges")
 	var merr multierr.Error
 	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
@@ -170,6 +170,7 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph) (err error) {
 		} else if dep.Properties.Data != nil {
 			edgeData = data
 		}
+		edgeData.AppName = appName
 		// Find all possible paths given the initial source and destination node
 		paths := kb.FindPaths(reflect.TypeOf(dep.Source), reflect.TypeOf(dep.Destination))
 		validPaths := [][]Edge{}

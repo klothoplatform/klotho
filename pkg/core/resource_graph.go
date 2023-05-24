@@ -502,7 +502,11 @@ func (rg *ResourceGraph) checkChild(child reflect.Value, res Resource, metadata 
 		}
 		for _, key := range child.MapKeys() {
 			elemValue := child.MapIndex(key)
-			merr.Append(rg.actOnValue(elemValue, res, params.MapIndex(key).Interface(), &child, key))
+			for _, paramKey := range params.MapKeys() {
+				if key.String() == paramKey.String() {
+					merr.Append(rg.actOnValue(elemValue, res, params.MapIndex(key).Interface(), &child, key))
+				}
+			}
 		}
 	}
 	return merr.ErrOrNil()

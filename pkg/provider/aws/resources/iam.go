@@ -198,11 +198,13 @@ func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCr
 		graphOidc.ConstructsRef = append(graphOidc.ConstructsRef, params.Refs...)
 	} else {
 		oidc.ConstructsRef = params.Refs
-		oidc.ClientIdLists = []string{"sts.amazonaws.com"}
 		oidc.Region = NewRegion()
-
 		subParams := map[string]any{
-			"Cluster": params,
+			"Cluster": EksClusterCreateParams{
+				AppName: params.AppName,
+				Name:    params.ClusterName,
+				Refs:    params.Refs,
+			},
 		}
 		err := dag.CreateDependencies(oidc, subParams)
 		if err != nil {

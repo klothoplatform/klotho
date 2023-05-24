@@ -115,6 +115,105 @@ func Test_PolicyCreate(t *testing.T) {
 	}
 }
 
+func Test_OidcCreate(t *testing.T) {
+	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
+	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	cases := []coretesting.CreateCase[OidcCreateParams, *OpenIdConnectProvider]{
+		{
+			Name: "nil oidc",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:availability_zones:AvailabilityZones",
+					"aws:eks_addon:my-app-cluster-addon-vpc-cni",
+					"aws:eks_cluster:my-app-cluster",
+					"aws:elastic_ip:my_app_0",
+					"aws:elastic_ip:my_app_1",
+					"aws:iam_role:my-app-cluster-ClusterAdmin",
+					"aws:internet_gateway:my_app_igw",
+					"aws:nat_gateway:my_app_0",
+					"aws:nat_gateway:my_app_1",
+					"aws:route_table:my_app_private0",
+					"aws:route_table:my_app_private1",
+					"aws:route_table:my_app_public",
+					"aws:security_group:my_app:my-app",
+					"aws:subnet_private:my_app:my_app_private0",
+					"aws:subnet_private:my_app:my_app_private1",
+					"aws:subnet_public:my_app:my_app_public0",
+					"aws:subnet_public:my_app:my_app_public1",
+					"aws:vpc:my_app",
+					"aws:iam_oidc_provider:my-app-cluster",
+					"aws:region:region",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:eks_addon:my-app-cluster-addon-vpc-cni", Destination: "aws:eks_cluster:my-app-cluster"},
+					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:iam_role:my-app-cluster-ClusterAdmin"},
+					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:security_group:my_app:my-app"},
+					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:subnet_private:my_app:my_app_private0"},
+					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:subnet_private:my_app:my_app_private1"},
+					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:subnet_public:my_app:my_app_public0"},
+					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:vpc:my_app"},
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_0"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public0"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_1"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:route_table:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
+					{Source: "aws:route_table:my_app_private0", Destination: "aws:subnet_private:my_app:my_app_private0"},
+					{Source: "aws:route_table:my_app_private0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:subnet_private:my_app:my_app_private1"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public0"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
+					{Source: "aws:security_group:my_app:my-app", Destination: "aws:vpc:my_app"},
+					{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:iam_oidc_provider:my-app-cluster", Destination: "aws:eks_cluster:my-app-cluster"},
+					{Source: "aws:iam_oidc_provider:my-app-cluster", Destination: "aws:region:region"},
+				},
+			},
+			Check: func(assert *assert.Assertions, oidc *OpenIdConnectProvider) {
+				assert.Equal(oidc.Name, "my-app-cluster")
+				assert.NotNil(oidc.Cluster)
+				assert.ElementsMatch(oidc.ConstructsRef, []core.AnnotationKey{eu.AnnotationKey})
+			},
+		},
+		{
+			Name:     "existing oidc",
+			Existing: &OpenIdConnectProvider{Name: "my-app-cluster", ConstructsRef: initialRefs},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:iam_oidc_provider:my-app-cluster",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, oidc *OpenIdConnectProvider) {
+				assert.Equal(oidc.Name, "my-app-cluster")
+				assert.ElementsMatch(oidc.ConstructsRef, append(initialRefs, eu.AnnotationKey))
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = OidcCreateParams{
+				AppName:     "my-app",
+				Refs:        []core.AnnotationKey{eu.AnnotationKey},
+				ClusterName: "cluster",
+			}
+			tt.Run(t)
+		})
+	}
+}
+
 func Test_AddAllowPolicyToUnit(t *testing.T) {
 	bucket := NewS3Bucket(&core.Fs{}, "test-app")
 	unitId := "testUnit"
