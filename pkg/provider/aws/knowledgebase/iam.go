@@ -3,6 +3,7 @@ package knowledgebase
 import (
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -56,6 +57,20 @@ var IamKB = knowledgebase.Build(
 			doc := resources.CreateAllowPolicyDocument(actions, policyResources)
 			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-dynamodb-policy", table.Name), core.DedupeAnnotationKeys(append(role.ConstructsRef, table.ConstructsRef...)), doc)
 			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.S3Bucket]{
+		Configure: func(role *resources.IamRole, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role.InlinePolicies = append(role.InlinePolicies, resources.NewIamInlinePolicy(
+				fmt.Sprintf(`%s-access`, bucket.Name),
+				collectionutil.FlattenUnique(role.ConstructsRef, bucket.ConstructsRef),
+				resources.CreateAllowPolicyDocument(
+					[]string{"s3:*"},
+					[]core.IaCValue{
+						{Resource: bucket, Property: resources.ARN_IAC_VALUE},
+						{Resource: bucket, Property: resources.ALL_BUCKET_DIRECTORY_IAC_VALUE},
+					})))
 			return nil
 		},
 	},
