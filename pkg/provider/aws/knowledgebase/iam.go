@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
@@ -126,6 +127,20 @@ var IamKB = knowledgebase.Build(
 				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
 			}
 			role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(role.ConstructsRef[0].ID, oidc)
+      return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.S3Bucket]{
+		Configure: func(role *resources.IamRole, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role.InlinePolicies = append(role.InlinePolicies, resources.NewIamInlinePolicy(
+				fmt.Sprintf(`%s-access`, bucket.Name),
+				collectionutil.FlattenUnique(role.ConstructsRef, bucket.ConstructsRef),
+				resources.CreateAllowPolicyDocument(
+					[]string{"s3:*"},
+					[]core.IaCValue{
+						{Resource: bucket, Property: resources.ARN_IAC_VALUE},
+						{Resource: bucket, Property: resources.ALL_BUCKET_DIRECTORY_IAC_VALUE},
+					})))
 			return nil
 		},
 	},
