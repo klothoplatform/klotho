@@ -55,4 +55,49 @@ var IamKB = knowledgebase.Build(
 			return nil
 		},
 	},
+	knowledgebase.EdgeBuilder[*resources.EksCluster, *resources.IamRole]{
+		Configure: func(cluster *resources.EksCluster, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role.AssumeRolePolicyDoc = resources.EKS_ASSUME_ROLE_POLICY
+			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"})
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.EksFargateProfile, *resources.IamRole]{
+		Configure: func(profile *resources.EksFargateProfile, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role.AssumeRolePolicyDoc = resources.EKS_FARGATE_ASSUME_ROLE_POLICY
+			role.AddAwsManagedPolicies([]string{
+				"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+				"arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy",
+			})
+			role.InlinePolicies = append(role.InlinePolicies, resources.NewIamInlinePolicy("fargate-pod-execution-policy", profile.ConstructsRef,
+				&resources.PolicyDocument{Version: resources.VERSION, Statement: []resources.StatementEntry{
+					{
+						Effect: "Allow",
+						Action: []string{
+							"logs:CreateLogStream",
+							"logs:CreateLogGroup",
+							"logs:DescribeLogStreams",
+							"logs:PutLogEvents",
+						},
+						Resource: []core.IaCValue{{Property: "*"}},
+					},
+				},
+				}))
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.EksNodeGroup, *resources.IamRole]{
+		Configure: func(cluster *resources.EksNodeGroup, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role.AssumeRolePolicyDoc = resources.EC2_ASSUMER_ROLE_POLICY
+			role.AddAwsManagedPolicies([]string{
+				"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+				"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+				"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
+				"arn:aws:iam::aws:policy/AWSCloudMapFullAccess",
+				"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
+				"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+			})
+			return nil
+		},
+	},
 )

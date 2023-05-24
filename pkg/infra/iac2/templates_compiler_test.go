@@ -299,7 +299,7 @@ func Test_handleIaCValue(t *testing.T) {
 		{
 			name: "value with applied outputs, cluster oidc arn",
 			value: core.IaCValue{
-				Resource: resources.NewEksCluster("test-app", "cluster1", nil, nil, nil, nil),
+				Resource: &resources.EksCluster{Name: "test-app-cluster1"},
 				Property: resources.OIDC_SUB_IAC_VALUE,
 			},
 			resourceVarNamesById: map[core.ResourceId]string{

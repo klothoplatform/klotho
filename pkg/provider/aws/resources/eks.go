@@ -8,9 +8,7 @@ import (
 	"reflect"
 	"strings"
 
-	"go.uber.org/zap"
-
-	"github.com/klothoplatform/klotho/pkg/config"
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
@@ -144,192 +142,261 @@ type (
 	}
 )
 
-// CreateEksCluster will create a cluster in the subnets provided, with the attached additional security groups
-//
-// The method will also create a fargate profile in the default namespace and a single NodeGroup.
-// The method will create all the corresponding IAM Roles necessary and attach all the execution units references to the following objects
-func CreateEksCluster(cfg *config.Application, clusterName string, vpc *Vpc, securityGroups []*SecurityGroup, units []*core.ExecutionUnit, dag *core.ResourceGraph) error {
-	references := []core.AnnotationKey{}
-	for _, u := range units {
-		references = append(references, u.Provenance())
+type EksClusterCreateParams struct {
+	Refs    []core.AnnotationKey
+	AppName string
+	Name    string
+}
+
+func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCreateParams) error {
+
+	cluster.Name = clusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+
+	existingCluster := dag.GetResource(cluster.Id())
+	if existingCluster != nil {
+		graphCluster := existingCluster.(*EksCluster)
+		graphCluster.ConstructsRef = append(graphCluster.ConstructsRef, params.Refs...)
+	} else {
+		cluster.ConstructsRef = params.Refs
+		cluster.Subnets = make([]*Subnet, 4)
+		cluster.SecurityGroups = make([]*SecurityGroup, 1)
+
+		subParams := map[string]any{
+			"ClusterRole": RoleCreateParams{
+				AppName: params.AppName,
+				Name:    fmt.Sprintf("%s-ClusterAdmin", params.Name),
+				Refs:    params.Refs,
+			},
+			"Vpc": VpcCreateParams{
+				AppName: params.AppName,
+				Refs:    params.Refs,
+			},
+			"Subnets": []SubnetCreateParams{
+				{
+					AppName: params.AppName,
+					Refs:    cluster.ConstructsRef,
+					AZ:      "0",
+					Type:    PrivateSubnet,
+				},
+				{
+					AppName: params.AppName,
+					Refs:    cluster.ConstructsRef,
+					AZ:      "1",
+					Type:    PrivateSubnet,
+				},
+				{
+					AppName: params.AppName,
+					Refs:    cluster.ConstructsRef,
+					AZ:      "0",
+					Type:    PublicSubnet,
+				},
+				{
+					AppName: params.AppName,
+					Refs:    cluster.ConstructsRef,
+					AZ:      "1",
+					Type:    PublicSubnet,
+				},
+			},
+			"SecurityGroups": []SecurityGroupCreateParams{
+				{
+					AppName: params.AppName,
+					Refs:    cluster.ConstructsRef,
+				},
+			},
+		}
+
+		err := dag.CreateDependencies(cluster, subParams)
+		if err != nil {
+			return err
+		}
+		dag.AddDependenciesReflect(cluster)
+
+		// We create these add ons in cluster creation since there is edge which would create them
+		// These are always installed in every cluster, no matter the configuration
+		cluster.installVpcCniAddon(cluster.ConstructsRef, dag)
 	}
+	return nil
+}
 
-	appName := cfg.AppName
-	subnets := vpc.GetVpcSubnets(dag)
+type EksClusterConfigureParams struct {
+}
 
-	clusterRole := createClusterAdminRole(appName, clusterName+"-k8sAdmin", references)
-	dag.AddResource(clusterRole)
+func (cluster *EksCluster) Configure(params EksClusterConfigureParams) error {
+	// Add the kubeconfig after the dependencies are added otherwise we will have a circular dependency
+	cluster.Kubeconfig = createEKSKubeconfig(cluster, NewRegion())
+	return nil
+}
 
-	cluster := NewEksCluster(appName, clusterName, vpc, subnets, securityGroups, clusterRole)
-	cluster.ConstructsRef = references
-	dag.AddDependenciesReflect(cluster)
+type EksFargateProfileCreateParams struct {
+	ClusterName string
+	Refs        []core.AnnotationKey
+	AppName     string
+	Name        string
+	NetworkType string
+}
 
-	oidc := &OpenIdConnectProvider{
-		Name:          cluster.Name,
-		ConstructsRef: references,
-		ClientIdLists: []string{"sts.amazonaws.com"},
-		Region:        NewRegion(),
-		Cluster:       cluster,
-	}
-	dag.AddDependenciesReflect(oidc)
+func (profile *EksFargateProfile) Create(dag *core.ResourceGraph, params EksFargateProfileCreateParams) error {
+	profile.Name = profileSanitizer.Apply(fmt.Sprintf("%s_%s_%s", params.AppName, params.Name, params.NetworkType))
 
-	nodeGroups := createNodeGroups(cfg, dag, units, clusterName, cluster, subnets)
+	existingProfile := dag.GetResource(profile.Id())
+	if existingProfile != nil {
+		graphProfile := existingProfile.(*EksFargateProfile)
 
-	cluster.installVpcCniAddon(references, dag)
+		graphProfile.ConstructsRef = append(graphProfile.ConstructsRef, params.Refs...)
+	} else {
+		profile.ConstructsRef = params.Refs
+		profile.Subnets = make([]*Subnet, 2)
+		subParams := map[string]any{
+			"Cluster": EksClusterCreateParams{
+				Refs:    params.Refs,
+				AppName: params.AppName,
+				Name:    params.ClusterName,
+			},
+			"PodExecutionRole": RoleCreateParams{
+				Name:    fmt.Sprintf("%s-PodExecutionRole", params.Name),
+				Refs:    params.Refs,
+				AppName: params.AppName,
+			},
+		}
 
-	err := cluster.createFargateLogging(references, dag)
-	if err != nil {
-		zap.S().Warnf("Unable to set up Fargate logging manifests for cluster %s: %s", clusterName, err.Error())
-	}
-	err = cluster.installFluentBit(references, dag)
-	if err != nil {
-		zap.S().Warnf("Unable to set up fluent bit manifests for cluster %s: %s", clusterName, err.Error())
-	}
+		subnetType := PrivateSubnet
+		if params.NetworkType == "public" {
+			subnetType = PublicSubnet
+		}
+		profile.Subnets = make([]*Subnet, 2)
 
-	for _, ng := range cluster.GetClustersNodeGroups(dag) {
-		if strings.HasSuffix(strings.ToLower(ng.AmiType), "_gpu") {
-			cluster.installNvidiaDevicePlugin(dag)
-			break
+		subParams["Subnets"] = []SubnetCreateParams{
+			{
+				AppName: params.AppName,
+				Refs:    profile.ConstructsRef,
+				AZ:      "0",
+				Type:    subnetType,
+			},
+			{
+				AppName: params.AppName,
+				Refs:    profile.ConstructsRef,
+				AZ:      "1",
+				Type:    subnetType,
+			},
+		}
+		err := dag.CreateDependencies(profile, subParams)
+		if err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
-	fargateRole := createPodExecutionRole(appName, clusterName+"-FargateExecutionRole", references)
-	dag.AddDependenciesReflect(fargateRole)
+type EksFargateProfileConfigureParams struct {
+	Namespace string
+}
 
-	privateSubnets := make([]*Subnet, 0, len(subnets))
-	for _, sub := range subnets {
-		if sub.Type == PrivateSubnet {
-			privateSubnets = append(privateSubnets, sub)
+func (profile *EksFargateProfile) Configure(params EksFargateProfileConfigureParams) error {
+	namespace := "default"
+	if params.Namespace != "" {
+		namespace = params.Namespace
+	}
+	addSelector := true
+	for _, selector := range profile.Selectors {
+		if selector.Namespace == namespace {
+			addSelector = false
 		}
 	}
-	profile := NewEksFargateProfile(cluster, privateSubnets, fargateRole, references)
-	profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: "default", Labels: map[string]string{"klotho-fargate-enabled": "true"}})
-	dag.AddDependenciesReflect(profile)
-
-	var region *Region
-	region, err = findClusterRegion(dag, cluster)
-	if err != nil {
-		return err
+	if addSelector {
+		profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: namespace, Labels: map[string]string{"klotho-fargate-enabled": "true"}})
 	}
-	cluster.Kubeconfig = createEKSKubeconfig(cluster, region)
+	return nil
+}
 
-	for _, addOn := range createAddOns(cluster, references) {
-		dag.AddResource(addOn)
-		for _, nodeGroup := range nodeGroups {
-			dag.AddDependency(addOn, nodeGroup)
+type EksNodeGroupCreateParams struct {
+	InstanceType string
+	NetworkType  string
+	Refs         []core.AnnotationKey
+	AppName      string
+	ClusterName  string
+}
+
+func (nodeGroup *EksNodeGroup) Create(dag *core.ResourceGraph, params EksNodeGroupCreateParams) error {
+
+	name := NodeGroupName(params.ClusterName, params.NetworkType, params.InstanceType)
+	nodeGroup.Name = fmt.Sprintf("%s_%s", params.AppName, name)
+
+	existingNodeGroup, found := core.GetResource[*EksNodeGroup](dag, nodeGroup.Id())
+	if found {
+		existingNodeGroup.ConstructsRef = collectionutil.FlattenUnique(existingNodeGroup.ConstructsRef, params.Refs)
+	} else {
+		nodeGroup.ConstructsRef = params.Refs
+		nodeGroup.InstanceTypes = []string{params.InstanceType}
+		nodeGroup.Labels = map[string]string{
+			"network_placement": params.NetworkType,
+		}
+
+		subParams := map[string]any{
+			"NodeRole": RoleCreateParams{
+				Name:    fmt.Sprintf("%s-NodeRole", name),
+				Refs:    params.Refs,
+				AppName: params.AppName,
+			},
+			"Cluster": EksClusterCreateParams{
+				Refs:    params.Refs,
+				AppName: params.AppName,
+				Name:    params.ClusterName,
+			},
+		}
+		subnetType := PrivateSubnet
+		if params.NetworkType == "public" {
+			subnetType = PublicSubnet
+		}
+		nodeGroup.Subnets = make([]*Subnet, 2)
+
+		subParams["Subnets"] = []SubnetCreateParams{
+			{
+				AppName: params.AppName,
+				Refs:    nodeGroup.ConstructsRef,
+				AZ:      "0",
+				Type:    subnetType,
+			},
+			{
+				AppName: params.AppName,
+				Refs:    nodeGroup.ConstructsRef,
+				AZ:      "1",
+				Type:    subnetType,
+			},
+		}
+
+		err := dag.CreateDependencies(nodeGroup, subParams)
+		if err != nil {
+			return err
 		}
 	}
 
 	return nil
 }
 
-func findClusterRegion(dag *core.ResourceGraph, cluster *EksCluster) (*Region, error) {
-	var region *Region
-	for _, res := range dag.GetAllDownstreamResources(cluster) {
-		if r, ok := res.(*Region); ok {
-			region = r
-		}
-	}
-	if region == nil {
-		return nil, fmt.Errorf("downstream region not found for EksCluster with id, %s", cluster.Id())
-	}
-	return region, nil
+type EksNodeGroupConfigureParams struct {
+	DiskSize int
 }
 
-func createNodeGroups(cfg *config.Application, dag *core.ResourceGraph, units []*core.ExecutionUnit, clusterName string, cluster *EksCluster, subnets []*Subnet) []*EksNodeGroup {
-	type groupKey struct {
-		InstanceType string
-		NetworkType  string
-	}
-
-	type groupSpec struct {
-		DiskSizeGiB int
-		refs        []core.AnnotationKey
-	}
-
-	groupSpecs := make(map[groupKey]*groupSpec)
-
-	for _, unit := range units {
-		unitCfg := cfg.GetExecutionUnit(unit.ID)
-		params := unitCfg.GetExecutionUnitParamsAsKubernetes()
-		key := groupKey{InstanceType: params.InstanceType, NetworkType: unitCfg.NetworkPlacement}
-		spec := groupSpecs[key]
-		if spec == nil {
-			spec = &groupSpec{
-				DiskSizeGiB: 20,
-			}
-			groupSpecs[key] = spec
-		}
-		spec.refs = append(spec.refs, unit.AnnotationKey)
-		if params.DiskSizeGiB > spec.DiskSizeGiB {
-			spec.DiskSizeGiB = params.DiskSizeGiB
-		}
-	}
-
-	var groups []*EksNodeGroup
-
-	hasInstanceType := false
-	for gk := range groupSpecs {
-		if gk.InstanceType != "" {
-			hasInstanceType = true
-			break
-		}
-	}
-	if !hasInstanceType {
-		for gk, spec := range groupSpecs {
-			if gk.InstanceType == "" {
-				groupSpecs[groupKey{InstanceType: "t3.medium", NetworkType: gk.NetworkType}] = spec
-			}
-		}
-	}
-
-	for groupKey, spec := range groupSpecs {
-		if groupKey.InstanceType == "" {
-			continue
-		}
-		nodeGroup := &EksNodeGroup{
-			Name:          NodeGroupName(clusterName, groupKey.NetworkType, groupKey.InstanceType),
-			ConstructsRef: spec.refs,
-			Cluster:       cluster,
-			DiskSize:      spec.DiskSizeGiB,
-			AmiType:       amiFromInstanceType(groupKey.InstanceType),
-			InstanceTypes: []string{groupKey.InstanceType},
-			Labels: map[string]string{
-				"network_placement": groupKey.NetworkType,
-			},
-			// TODO make these configurable
-			DesiredSize:    2,
-			MaxSize:        2,
-			MinSize:        1,
-			MaxUnavailable: 1,
-		}
-		nodeGroup.NodeRole = createNodeRole(cfg.AppName, nodeGroup.Name, spec.refs)
-		dag.AddDependenciesReflect(nodeGroup.NodeRole)
-
-		for _, sn := range subnets {
-			if sn.Type == groupKey.NetworkType {
-				nodeGroup.Subnets = append(nodeGroup.Subnets, sn)
-			}
-		}
-
-		dag.AddDependenciesReflect(nodeGroup)
-
-		groups = append(groups, nodeGroup)
-	}
-
-	return groups
+func (nodeGroup *EksNodeGroup) Configure(params EksNodeGroupConfigureParams) error {
+	nodeGroup.AmiType = amiFromInstanceType(nodeGroup.InstanceTypes[0])
+	nodeGroup.DesiredSize = 2
+	nodeGroup.MaxSize = 2
+	nodeGroup.MinSize = 1
+	nodeGroup.MaxUnavailable = 1
+	nodeGroup.DiskSize = params.DiskSize
+	return nil
 }
 
 func NodeGroupName(clusterName string, networkPlacement string, instanceType string) string {
 	return nodeGroupSanitizer.Apply(fmt.Sprintf("%s_%s_%s", clusterName, networkPlacement, instanceType))
 }
 
-func createAddOns(cluster *EksCluster, provenance []core.AnnotationKey) []*kubernetes.HelmChart {
-	return []*kubernetes.HelmChart{
+func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
+	charts := []*kubernetes.HelmChart{
 		{
 			Name:          cluster.Name + `-metrics-server`,
 			Chart:         "metrics-server",
-			ConstructRefs: provenance,
+			ConstructRefs: cluster.ConstructsRef,
 			ClustersProvider: core.IaCValue{
 				Resource: cluster.Kubeconfig,
 				Property: CLUSTER_PROVIDER_IAC_VALUE,
@@ -339,7 +406,7 @@ func createAddOns(cluster *EksCluster, provenance []core.AnnotationKey) []*kuber
 		{
 			Name:          cluster.Name + `-cert-manager`,
 			Chart:         `cert-manager`,
-			ConstructRefs: provenance,
+			ConstructRefs: cluster.ConstructsRef,
 			ClustersProvider: core.IaCValue{
 				Resource: cluster.Kubeconfig,
 				Property: CLUSTER_PROVIDER_IAC_VALUE,
@@ -354,13 +421,18 @@ func createAddOns(cluster *EksCluster, provenance []core.AnnotationKey) []*kuber
 			},
 		},
 	}
+	for _, chart := range charts {
+		for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
+			dag.AddDependency(chart, nodeGroup)
+		}
+	}
 }
 
 func (cluster *EksCluster) GetOutputFiles() []core.File {
 	return cluster.Manifests
 }
 
-func (cluster *EksCluster) installNvidiaDevicePlugin(dag *core.ResourceGraph) {
+func (cluster *EksCluster) InstallNvidiaDevicePlugin(dag *core.ResourceGraph) {
 	manifest := &kubernetes.Manifest{
 		Name:     fmt.Sprintf("%s-%s", cluster.Name, "nvidia-device-plugin"),
 		FilePath: "https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.10/nvidia-device-plugin.yml",
@@ -379,7 +451,7 @@ func (cluster *EksCluster) installNvidiaDevicePlugin(dag *core.ResourceGraph) {
 	}
 }
 
-func (cluster *EksCluster) createFargateLogging(references []core.AnnotationKey, dag *core.ResourceGraph) error {
+func (cluster *EksCluster) CreateFargateLogging(references []core.AnnotationKey, dag *core.ResourceGraph) error {
 	namespaceOutputPath := path.Join(MANIFEST_PATH_PREFIX, AWS_OBSERVABILITY_NS_PATH)
 	content, err := fs.ReadFile(eksManifests, namespaceOutputPath)
 	if err != nil {
@@ -422,7 +494,7 @@ func (cluster *EksCluster) createFargateLogging(references []core.AnnotationKey,
 	return nil
 }
 
-func (cluster *EksCluster) installFluentBit(references []core.AnnotationKey, dag *core.ResourceGraph) error {
+func (cluster *EksCluster) InstallFluentBit(references []core.AnnotationKey, dag *core.ResourceGraph) error {
 	namespaceOutputPath := path.Join(MANIFEST_PATH_PREFIX, AMAZON_CLOUDWATCH_NS_PATH)
 	content, err := fs.ReadFile(eksManifests, namespaceOutputPath)
 	if err != nil {
@@ -729,73 +801,6 @@ func (cluster *EksCluster) GetServiceAccountAssumeRolePolicy(serviceAccountName 
 	}, nil
 }
 
-// GetEksCluster will return the resource with the name corresponding to the appName and ClusterId
-//
-// If the dag does not contain the resource or the resource is not an EksCluster, it will return nil
-func GetEksCluster(appName string, clusterId string, dag *core.ResourceGraph) *EksCluster {
-	if clusterId == "" {
-		clusterId = DEFAULT_CLUSTER_NAME
-	}
-	cluster := NewEksCluster(appName, clusterId, nil, nil, nil, nil)
-	resource := dag.GetResource(cluster.Id())
-	if existingCluster, ok := resource.(*EksCluster); ok {
-		return existingCluster
-	}
-	return nil
-}
-
-func createClusterAdminRole(appName string, roleName string, refs []core.AnnotationKey) *IamRole {
-	clusterRole := NewIamRole(appName, roleName, refs, EKS_ASSUME_ROLE_POLICY)
-	clusterRole.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"})
-	return clusterRole
-}
-
-func createPodExecutionRole(appName string, roleName string, refs []core.AnnotationKey) *IamRole {
-	fargateRole := NewIamRole(appName, roleName, refs, EKS_FARGATE_ASSUME_ROLE_POLICY)
-	fargateRole.InlinePolicies = []*IamInlinePolicy{
-		NewIamInlinePolicy("fargate-pod-execution-policy", refs,
-			&PolicyDocument{Version: VERSION, Statement: []StatementEntry{
-				{
-					Effect: "Allow",
-					Action: []string{
-						"logs:CreateLogStream",
-						"logs:CreateLogGroup",
-						"logs:DescribeLogStreams",
-						"logs:PutLogEvents",
-					},
-					Resource: []core.IaCValue{{Property: "*"}},
-				},
-			}})}
-	fargateRole.AddAwsManagedPolicies([]string{
-		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
-		"arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy",
-	})
-	return fargateRole
-}
-
-func createNodeRole(appName string, roleName string, refs []core.AnnotationKey) *IamRole {
-	nodeRole := NewIamRole(appName, roleName, refs, EC2_ASSUMER_ROLE_POLICY)
-	nodeRole.AddAwsManagedPolicies([]string{
-		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
-		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
-		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
-		"arn:aws:iam::aws:policy/AWSCloudMapFullAccess",
-		"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
-		"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
-	})
-	return nodeRole
-}
-
-func NewEksCluster(appName string, clusterName string, vpc *Vpc, subnets []*Subnet, securityGroups []*SecurityGroup, role *IamRole) *EksCluster {
-	return &EksCluster{
-		Name:           clusterSanitizer.Apply(fmt.Sprintf("%s-%s", appName, clusterName)),
-		Vpc:            vpc,
-		Subnets:        subnets,
-		SecurityGroups: securityGroups,
-		ClusterRole:    role,
-	}
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (cluster *EksCluster) KlothoConstructRef() []core.AnnotationKey {
 	return cluster.ConstructsRef
@@ -821,16 +826,6 @@ func (addon *EksAddon) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     EKS_ADDON_TYPE,
 		Name:     addon.Name,
-	}
-}
-
-func NewEksFargateProfile(cluster *EksCluster, subnets []*Subnet, nodeRole *IamRole, ref []core.AnnotationKey) *EksFargateProfile {
-	return &EksFargateProfile{
-		Name:             profileSanitizer.Apply(cluster.Name),
-		ConstructsRef:    ref,
-		Subnets:          subnets,
-		Cluster:          cluster,
-		PodExecutionRole: nodeRole,
 	}
 }
 
