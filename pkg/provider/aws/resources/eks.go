@@ -398,7 +398,7 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 			Chart:         "metrics-server",
 			ConstructRefs: cluster.ConstructsRef,
 			ClustersProvider: core.IaCValue{
-				Resource: cluster.Kubeconfig,
+				Resource: cluster,
 				Property: CLUSTER_PROVIDER_IAC_VALUE,
 			},
 			Repo: `https://kubernetes-sigs.github.io/metrics-server/`,
@@ -408,7 +408,7 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 			Chart:         `cert-manager`,
 			ConstructRefs: cluster.ConstructsRef,
 			ClustersProvider: core.IaCValue{
-				Resource: cluster.Kubeconfig,
+				Resource: cluster,
 				Property: CLUSTER_PROVIDER_IAC_VALUE,
 			},
 			Repo:    `https://charts.jetstack.io`,
@@ -610,7 +610,7 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 	if err != nil {
 		return nil, err
 	}
-	assumeRolePolicyDoc, err := cluster.GetServiceAccountAssumeRolePolicy(saName, dag)
+	assumeRolePolicyDoc := GetServiceAccountAssumeRolePolicy(saName, cluster.getOidc(dag))
 	if err != nil {
 		return nil, err
 	}
@@ -765,13 +765,7 @@ func (cluster *EksCluster) getOidc(dag *core.ResourceGraph) *OpenIdConnectProvid
 	}
 	return nil
 }
-
-func (cluster *EksCluster) GetServiceAccountAssumeRolePolicy(serviceAccountName string, dag *core.ResourceGraph) (*PolicyDocument, error) {
-	oidc := cluster.getOidc(dag)
-	if oidc == nil {
-		return nil, errors.Errorf("Could not find openIdConnectProvider for cluster %s", cluster.Name)
-	}
-
+func GetServiceAccountAssumeRolePolicy(serviceAccountName string, oidc *OpenIdConnectProvider) *PolicyDocument {
 	return &PolicyDocument{
 		Version: VERSION,
 		Statement: []StatementEntry{
@@ -798,7 +792,7 @@ func (cluster *EksCluster) GetServiceAccountAssumeRolePolicy(serviceAccountName 
 				},
 			},
 		},
-	}, nil
+	}
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to

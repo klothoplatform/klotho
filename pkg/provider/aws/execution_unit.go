@@ -3,13 +3,11 @@ package aws
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 )
 
 // expandExecutionUnit takes in a single execution unit and expands the generic construct into a set of resource's based on the units configuration.
@@ -28,10 +26,114 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 		if err != nil {
 			return err
 		}
+	case kubernetes.KubernetesType:
+		params := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams)
+		clusterName := params.ClusterId
+		if clusterName == "" {
+			clusterName = "cluster"
+		}
+		var fargateProfile *resources.EksFargateProfile
+		if params.NodeType == "fargate" {
+			fargateProfile = &resources.EksFargateProfile{}
+			err := fargateProfile.Create(dag, resources.EksFargateProfileCreateParams{
+				Name:        "klotho-fargate-profile",
+				ClusterName: clusterName,
+				Refs:        []core.AnnotationKey{unit.AnnotationKey},
+				AppName:     a.Config.AppName,
+				NetworkType: a.Config.GetExecutionUnit(unit.ID).NetworkPlacement,
+			})
+			if err != nil {
+				return err
+			}
+		}
+		helmChart, err := findUnitsHelmChart(unit, dag)
+		if err != nil {
+			return err
+		}
+		helmChart.ClustersProvider = core.IaCValue{
+			Resource: &resources.EksCluster{},
+			Property: resources.CLUSTER_PROVIDER_IAC_VALUE,
+		}
+		subParams := map[string]any{
+			"ClustersProvider": resources.EksClusterCreateParams{
+				Refs:    []core.AnnotationKey{unit.AnnotationKey},
+				AppName: a.Config.AppName,
+				Name:    clusterName,
+			},
+		}
+		subParams["Values"], err = a.handleHelmChartAwsValues(helmChart, unit, dag)
+		if err != nil {
+			return err
+		}
+		err = dag.CreateDependencies(helmChart, subParams)
+		if err != nil {
+			return err
+		}
+		if fargateProfile != nil {
+			dag.AddDependency(helmChart, fargateProfile)
+		}
+		err = a.MapResourceToConstruct(helmChart, unit)
+		if err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unsupported execution unit type %s", a.Config.GetExecutionUnit(unit.ID).Type)
 	}
 	return nil
+}
+
+func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.ExecutionUnit, dag *core.ResourceGraph) (valueParams map[string]any, err error) {
+	valueParams = make(map[string]any)
+	for _, val := range chart.ProviderValues {
+		if val.ExecUnitName != unit.ID {
+			continue
+		}
+		params := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams)
+		clusterName := params.ClusterId
+		if clusterName == "" {
+			clusterName = "cluster"
+		}
+		switch kubernetes.ProviderValueTypes(val.Type) {
+		case kubernetes.ImageTransformation:
+			chart.Values[val.Key] = core.IaCValue{
+				Resource: &resources.EcrImage{},
+				Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
+			}
+			valueParams[val.Key] = resources.ImageCreateParams{
+				AppName: a.Config.AppName,
+				Refs:    []core.AnnotationKey{unit.AnnotationKey},
+				Name:    unit.ID,
+			}
+		case kubernetes.ServiceAccountAnnotationTransformation:
+			chart.Values[val.Key] = core.IaCValue{
+				Resource: &resources.IamRole{},
+				Property: resources.ARN_IAC_VALUE,
+			}
+			valueParams[val.Key] = resources.RoleCreateParams{
+				Name:    fmt.Sprintf("%s-%s-ExecutionRole", a.Config.AppName, unit.ID),
+				Refs:    []core.AnnotationKey{unit.AnnotationKey},
+				AppName: a.Config.AppName,
+			}
+		case kubernetes.InstanceTypeKey:
+			chart.Values[val.Key] = core.IaCValue{
+				Property: "eks.amazonaws.com/nodegroup",
+			}
+		case kubernetes.InstanceTypeValue:
+			chart.Values[val.Key] = core.IaCValue{
+				Resource: &resources.EksNodeGroup{},
+				Property: resources.NODE_GROUP_NAME_IAC_VALUE,
+			}
+			valueParams[val.Key] = resources.EksNodeGroupCreateParams{
+				InstanceType: params.InstanceType,
+				NetworkType:  a.Config.GetExecutionUnit(unit.ID).NetworkPlacement,
+				AppName:      a.Config.AppName,
+				ClusterName:  clusterName,
+				Refs:         []core.AnnotationKey{unit.AnnotationKey},
+			}
+		case kubernetes.TargetGroupTransformation:
+		}
+	}
+	return
 }
 
 func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs []core.AnnotationKey) (resources.LambdaFunctionConfigureParams, error) {
@@ -76,144 +178,22 @@ func (a *AWS) getImageConfiguration(result *core.ConstructGraph, dag *core.Resou
 	return imageConfig, nil
 }
 
-// GenerateExecUnitResources generates the necessary AWS resources for a given execution unit and adds them to the resource graph
-func (a *AWS) GenerateExecUnitResources(unit *core.ExecutionUnit, result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	log := zap.S()
-
-	execUnitCfg := a.Config.GetExecutionUnit(unit.ID)
-
-	image, err := resources.GenerateEcrRepoAndImage(a.Config.AppName, unit, dag)
-	if err != nil {
-		return err
-	}
-
-	role := resources.NewIamRole(a.Config.AppName, fmt.Sprintf("%s-ExecutionRole", unit.ID), []core.AnnotationKey{unit.Provenance()}, GetAssumeRolePolicyForType(execUnitCfg))
-	dag.AddResource(role)
-	err = a.PolicyGenerator.AddUnitRole(unit.Id(), role)
-	if err != nil {
-		return err
-	}
-	for _, construct := range result.GetDownstreamConstructs(unit) {
-		resList, ok := a.GetResourcesDirectlyTiedToConstruct(construct)
-		// Skip over other execution units because we will handle their dependencies within the handleExecProxy function.
-		// We cant predict the order in which execution units will be handled within this function
-		if !ok && construct.Provenance().Capability != annotation.ExecutionUnitCapability {
-			return errors.Errorf("could not find resource for construct, %s, which unit, %s, depends on", construct.Id(), unit.Id())
+func (a *AWS) getNodeGroupConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs []core.AnnotationKey) (resources.EksNodeGroupConfigureParams, error) {
+	nodeGroupConfig := resources.EksNodeGroupConfigureParams{}
+	nodeGroupConfig.DiskSize = 20
+	for _, ref := range refs {
+		construct := result.GetConstruct(ref.ToId())
+		unit, ok := construct.(*core.ExecutionUnit)
+		if !ok {
+			return nodeGroupConfig, fmt.Errorf("node group must only have construct references to ExecutionUnits but got %T", construct)
 		}
-		for _, resource := range resList {
-			dag.AddDependency(role, resource)
+		cfg := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams)
+
+		if nodeGroupConfig.DiskSize < cfg.DiskSizeGiB {
+			nodeGroupConfig.DiskSize = cfg.DiskSizeGiB
 		}
 	}
-	for _, ip := range a.PolicyGenerator.GetUnitInlinePolicies(unit.Id()) {
-		role.InlinePolicies = append(role.InlinePolicies, ip)
-		for _, stmt := range ip.Policy.Statement {
-			for _, resource := range stmt.Resource {
-				dag.AddDependency(role, resource.Resource)
-			}
-		}
-	}
-	unitsPolicies := a.PolicyGenerator.GetUnitPolicies(unit.Id())
-	for _, pol := range unitsPolicies {
-		dag.AddDependency(role, pol)
-		role.AddManagedPolicy(core.IaCValue{
-			Resource: pol,
-			Property: resources.ARN_IAC_VALUE,
-		})
-	}
-	switch execUnitCfg.Type {
-	case Lambda:
-		role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"})
-		lambdaFunction := resources.NewLambdaFunction(unit, a.Config, role, image)
-		if resources.VpcExists(dag) {
-			vpc := resources.GetVpc(a.Config, dag)
-			lambdaFunction.Subnets = vpc.GetPrivateSubnets(dag)
-			lambdaFunction.SecurityGroups = vpc.GetSecurityGroups(dag)
-			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"})
-		} else {
-			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"})
-		}
-		dag.AddDependenciesReflect(lambdaFunction)
-		a.MapResourceDirectlyToConstruct(lambdaFunction, unit)
-
-		logGroup := resources.NewLogGroup(a.Config.AppName, fmt.Sprintf("/aws/lambda/%s", lambdaFunction.Name), unit.Provenance(), 5)
-		dag.AddResource(logGroup)
-		dag.AddDependency(lambdaFunction, logGroup)
-		return nil
-	case kubernetes.KubernetesType:
-		cfg := a.Config.GetExecutionUnit(unit.Provenance().ID)
-		params := cfg.GetExecutionUnitParamsAsKubernetes()
-		cluster := resources.GetEksCluster(a.Config.AppName, params.ClusterId, dag)
-		if cluster == nil {
-			return errors.Errorf("Expected to have cluster created for unit, %s, but did not find cluster in graph", unit.ID)
-		}
-		role.AssumeRolePolicyDoc, err = cluster.GetServiceAccountAssumeRolePolicy(unit.ID, dag)
-		dag.AddDependenciesReflect(role)
-		if err != nil {
-			return err
-		}
-		// transform kubernetes resources for EKS
-		for _, res := range dag.ListResources() {
-			if khChart, ok := res.(*kubernetes.HelmChart); ok {
-				for _, ref := range khChart.KlothoConstructRef() {
-					if ref.ToId() == unit.ToId() {
-						khChart.ClustersProvider = core.IaCValue{
-							Resource: cluster,
-							Property: resources.CLUSTER_PROVIDER_IAC_VALUE,
-						}
-						dag.AddDependenciesReflect(khChart)
-						for _, val := range khChart.ProviderValues {
-							if val.ExecUnitName != unit.ID {
-								continue
-							}
-							switch kubernetes.ProviderValueTypes(val.Type) {
-							case kubernetes.ImageTransformation:
-								khChart.Values[val.Key] = core.IaCValue{
-									Resource: image,
-									Property: resources.ECR_IMAGE_NAME_IAC_VALUE,
-								}
-								dag.AddDependency(khChart, image)
-							case kubernetes.ServiceAccountAnnotationTransformation:
-								khChart.Values[val.Key] = core.IaCValue{
-									Resource: role,
-									Property: resources.ARN_IAC_VALUE,
-								}
-								dag.AddDependency(khChart, role)
-							case kubernetes.InstanceTypeKey:
-								khChart.Values[val.Key] = core.IaCValue{
-									Property: "eks.amazonaws.com/nodegroup",
-								}
-							case kubernetes.InstanceTypeValue:
-								for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
-									for _, ref := range nodeGroup.ConstructsRef {
-										if ref.ToId() == unit.Id() {
-											dag.AddDependency(khChart, nodeGroup)
-											khChart.Values[val.Key] = core.IaCValue{
-												Resource: nodeGroup,
-												Property: resources.NODE_GROUP_NAME_IAC_VALUE,
-											}
-										}
-									}
-								}
-
-							case kubernetes.TargetGroupTransformation:
-								targetGroup := a.createEksLoadBalancer(result, dag, unit)
-								khChart.Values[val.Key] = core.IaCValue{
-									Resource: targetGroup,
-									Property: resources.ARN_IAC_VALUE,
-								}
-								dag.AddDependency(khChart, targetGroup)
-
-							}
-						}
-					}
-				}
-			}
-		}
-	default:
-		log.Errorf("Unsupported type, %s, for aws execution units", execUnitCfg.Type)
-
-	}
-	return nil
+	return nodeGroupConfig, nil
 }
 
 func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.ResourceGraph) error {
@@ -406,28 +386,4 @@ func GetAssumeRolePolicyForType(cfg config.ExecutionUnit) *resources.PolicyDocum
 		return resources.EC2_ASSUMER_ROLE_POLICY
 	}
 	return nil
-}
-
-func (a *AWS) createEksLoadBalancer(result *core.ConstructGraph, dag *core.ResourceGraph, unit *core.ExecutionUnit) *resources.TargetGroup {
-	gws := result.FindUpstreamGateways(unit)
-	refs := []core.AnnotationKey{unit.AnnotationKey}
-	for _, gw := range gws {
-		refs = append(refs, gw.AnnotationKey)
-	}
-	vpc := resources.GetVpc(a.Config, dag)
-	subnets := vpc.GetPrivateSubnets(dag)
-	lb := resources.NewLoadBalancer(a.Config.AppName, unit.ID, refs, "internal", "network", subnets, nil)
-	unitsPort := unit.Port
-	if unitsPort == 0 {
-		unitsPort = 3000
-	}
-	targetGroup := resources.NewTargetGroup(a.Config.AppName, unit.ID, refs, unitsPort, "TCP", vpc, "ip")
-	listener := resources.NewListener(unit.ID, lb, refs, 80, "TCP", []*resources.LBAction{
-		{TargetGroupArn: core.IaCValue{Resource: targetGroup, Property: resources.ARN_IAC_VALUE}, Type: "forward"},
-	})
-	dag.AddDependenciesReflect(lb)
-	dag.AddDependenciesReflect(targetGroup)
-	dag.AddDependenciesReflect(listener)
-	dag.AddDependency(listener, targetGroup)
-	return targetGroup
 }

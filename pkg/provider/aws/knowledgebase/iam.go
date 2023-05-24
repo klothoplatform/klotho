@@ -2,8 +2,10 @@ package knowledgebase
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
@@ -97,6 +99,29 @@ var IamKB = knowledgebase.Build(
 				"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
 				"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
 			})
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.IamRole]{
+		Expand: func(chart *kubernetes.HelmChart, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if len(role.ConstructsRef) > 1 {
+				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
+			}
+			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
+				AppName:     data.AppName,
+				ClusterName: strings.TrimLeft(chart.ClustersProvider.Resource.Id().Name, fmt.Sprintf("%s-", data.AppName)),
+				Refs:        role.ConstructsRef,
+			})
+			dag.AddDependency(role, oidc)
+			return err
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.OpenIdConnectProvider]{
+		Configure: func(role *resources.IamRole, oidc *resources.OpenIdConnectProvider, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if len(role.ConstructsRef) > 1 {
+				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
+			}
+			role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(role.ConstructsRef[0].ID, oidc)
 			return nil
 		},
 	},

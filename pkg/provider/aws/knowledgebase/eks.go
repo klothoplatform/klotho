@@ -1,6 +1,7 @@
 package knowledgebase
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -35,6 +36,23 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.EksFargateProfile, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.EksFargateProfile, *resources.EksCluster]{
 		Expand: func(profile *resources.EksFargateProfile, cluster *resources.EksCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if len(cluster.GetClustersNodeGroups(dag)) == 0 {
+				_, err := core.CreateResource[*resources.EksNodeGroup](dag, resources.EksNodeGroupCreateParams{
+					InstanceType: "t3.medium",
+					NetworkType:  resources.PrivateSubnet,
+					Refs:         cluster.ConstructsRef,
+					AppName:      data.AppName,
+					ClusterName:  strings.TrimLeft(cluster.Name, fmt.Sprintf("%s-", data.AppName)),
+				})
+				if err != nil {
+					return err
+				}
+				cluster.CreatePrerequisiteCharts(dag)
+				err = cluster.InstallFluentBit(cluster.ConstructsRef, dag)
+				if err != nil {
+					return err
+				}
+			}
 			err := cluster.CreateFargateLogging(profile.ConstructsRef, dag)
 			return err
 		},
@@ -53,10 +71,14 @@ var EksKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.EksNodeGroup, *resources.Subnet]{},
+	knowledgebase.EdgeBuilder[*resources.EksAddon, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksNodeGroup]{},
+	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EcrImage]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EksNodeGroup]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *kubernetes.Manifest]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.Region]{},
 )
