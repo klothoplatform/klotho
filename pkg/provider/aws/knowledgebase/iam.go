@@ -1,6 +1,8 @@
 package knowledgebase
 
 import (
+	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -34,6 +36,22 @@ var IamKB = knowledgebase.Build(
 		Configure: func(lambda *resources.LambdaFunction, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			role.AssumeRolePolicyDoc = resources.LAMBDA_ASSUMER_ROLE_POLICY
 			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"})
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.DynamodbTable]{
+		Configure: func(role *resources.IamRole, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			actions := []string{"dynamodb:*"}
+			policyResources := []core.IaCValue{
+				{Resource: table, Property: resources.ARN_IAC_VALUE},
+				{Resource: table, Property: resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE},
+				{Resource: table, Property: resources.DYNAMODB_TABLE_INDEX_IAC_VALUE},
+				{Resource: table, Property: resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE},
+				{Resource: table, Property: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
+			}
+			doc := resources.CreateAllowPolicyDocument(actions, policyResources)
+			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-dynamodb-policy", table.Name), core.DedupeAnnotationKeys(append(role.ConstructsRef, table.ConstructsRef...)), doc)
+			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
 			return nil
 		},
 	},

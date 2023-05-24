@@ -96,4 +96,16 @@ var LambdaKB = knowledgebase.Build(
 			return nil
 		},
 	},
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.DynamodbTable]{
+		Expand: func(lambda *resources.LambdaFunction, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			dag.AddDependency(lambda.Role, table)
+			return nil
+		},
+		Configure: func(lambda *resources.LambdaFunction, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			for _, env := range data.EnvironmentVariables {
+				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: table, Property: env.GetValue()}
+			}
+			return nil
+		},
+	},
 )
