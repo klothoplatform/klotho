@@ -15,9 +15,6 @@ type (
 
 	typedEdgeFunc[S core.Resource, D core.Resource] func(source S, destination D, dag *core.ResourceGraph, data EdgeData) error
 
-	typedEdgeDetails[S core.Resource, D core.Resource] struct {
-	}
-
 	edgeBuilder interface {
 		Edge() Edge
 		Details() EdgeDetails
