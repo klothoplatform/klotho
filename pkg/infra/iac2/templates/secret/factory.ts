@@ -2,7 +2,6 @@ import * as aws from '@pulumi/aws'
 
 interface Args {
     Name: string
-    SecretName: string
     protect: boolean
 }
 

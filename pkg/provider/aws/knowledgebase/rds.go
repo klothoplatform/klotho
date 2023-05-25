@@ -2,10 +2,10 @@ package knowledgebase
 
 import (
 	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"strings"
 )
 
 var RdsKB = knowledgebase.Build(
@@ -51,7 +51,7 @@ var RdsKB = knowledgebase.Build(
 				proxy, err = core.CreateResource[*resources.RdsProxy](dag, resources.RdsProxyCreateParams{
 					AppName: data.AppName,
 					Refs:    targetGroup.ConstructsRef,
-					Name:    destination.Name,
+					Name:    fmt.Sprintf("%s-proxy", strings.TrimPrefix(destination.Name, fmt.Sprintf("%s-", data.AppName))),
 				})
 				if err != nil {
 					return err
@@ -74,7 +74,7 @@ var RdsKB = knowledgebase.Build(
 			secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 				AppName: data.AppName,
 				Refs:    targetGroup.KlothoConstructRef().CloneWith(proxy.KlothoConstructRef()),
-				Name:    proxy.Name,
+				Name:    fmt.Sprintf("%s-credentials", strings.TrimPrefix(proxy.Name, fmt.Sprintf("%s-", data.AppName))),
 			})
 			if err != nil {
 				return err
@@ -84,7 +84,7 @@ var RdsKB = knowledgebase.Build(
 				IamAuth:    "DISABLED",
 				SecretArn:  core.IaCValue{Resource: secretVersion.Secret, Property: resources.ARN_IAC_VALUE},
 			})
-			dag.AddDependency(proxy, secretVersion)
+			dag.AddDependency(proxy, secretVersion.Secret)
 
 			secretPolicy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
 				AppName: data.AppName,
@@ -94,7 +94,7 @@ var RdsKB = knowledgebase.Build(
 			if err != nil {
 				return err
 			}
-			dag.AddDependency(secretPolicy, secretVersion)
+			dag.AddDependency(secretPolicy, secretVersion.Secret)
 			dag.AddDependency(proxy.Role, secretPolicy)
 			dag.AddDependenciesReflect(proxy)
 			return nil
@@ -110,6 +110,7 @@ var RdsKB = knowledgebase.Build(
 				for _, res := range dag.GetUpstreamResources(secret) {
 					if secretVersion, ok := res.(*resources.SecretVersion); ok {
 						secretVersion.Path = targetGroup.RdsInstance.CredentialsPath
+						secretVersion.Type = "string"
 					}
 				}
 			}

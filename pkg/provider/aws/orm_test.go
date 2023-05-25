@@ -89,8 +89,8 @@ func Test_ExpandOrm(t *testing.T) {
 				return
 			}
 			tt.want.Assert(t, dag)
-			resource := aws.GetResourceTiedToConstruct(tt.orm)
-			assert.NotNil(resource)
+			res, _ := aws.GetResourcesDirectlyTiedToConstruct(tt.orm)
+			assert.NotEmpty(res)
 		})
 	}
 }

@@ -22,10 +22,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 		if err != nil {
 			return err
 		}
-		err = a.MapResourceToConstruct(lambda, unit)
-		if err != nil {
-			return err
-		}
+		a.MapResourceDirectlyToConstruct(lambda, unit)
 	case kubernetes.KubernetesType:
 		params := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams)
 		clusterName := params.ClusterId
@@ -72,10 +69,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 		if fargateProfile != nil {
 			dag.AddDependency(helmChart, fargateProfile)
 		}
-		err = a.MapResourceToConstruct(helmChart, unit)
-		if err != nil {
-			return err
-		}
+		a.MapResourceDirectlyToConstruct(helmChart, unit)
 	default:
 		return fmt.Errorf("unsupported execution unit type %s", a.Config.GetExecutionUnit(unit.ID).Type)
 	}

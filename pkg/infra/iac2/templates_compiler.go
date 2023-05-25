@@ -541,7 +541,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 	switch property {
 	case string(core.SECRET_NAME):
 		secret := resource.(*resources.Secret)
-		return quoteTsString(secret.SecretName, true), nil
+		return quoteTsString(secret.Name, true), nil
 	case string(core.BUCKET_NAME):
 		return fmt.Sprintf("%s.bucket", tc.getVarName(resource)), nil
 	case string(core.KV_DYNAMODB_TABLE_NAME):

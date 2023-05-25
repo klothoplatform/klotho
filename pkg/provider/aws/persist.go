@@ -16,7 +16,8 @@ func (a *AWS) expandRedisNode(dag *core.ResourceGraph, construct *core.RedisNode
 	if err != nil {
 		return err
 	}
-	return a.MapResourceToConstruct(redis, construct)
+	a.MapResourceDirectlyToConstruct(redis, construct)
+	return nil
 }
 
 func (a *AWS) getElasticacheConfiguration(result *core.ConstructGraph, refs core.AnnotationKeySet) (resources.ElasticacheClusterConfigureParams, error) {
