@@ -41,7 +41,7 @@ var LambdaKB = knowledgebase.Build(
 				return fmt.Errorf("unable to expand edge [%s -> %s]: lambda function [%s] is not in a VPC",
 					lambda.Id(), instance.Id(), lambda.Id())
 			}
-			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), core.DedupeAnnotationKeys(append(lambda.ConstructsRef, instance.ConstructsRef...)), instance.GetConnectionPolicyDocument())
+			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), lambda.ConstructsRef.CloneWith(instance.ConstructsRef), instance.GetConnectionPolicyDocument())
 			lambda.Role.InlinePolicies = append(lambda.Role.InlinePolicies, inlinePol)
 
 			for _, env := range data.EnvironmentVariables {
@@ -73,8 +73,11 @@ var LambdaKB = knowledgebase.Build(
 				if tg, ok := res.(*resources.RdsProxyTargetGroup); ok {
 					for _, tgUpstream := range dag.GetDownstreamResources(tg) {
 						if instance, ok := tgUpstream.(*resources.RdsInstance); ok {
-							inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name),
-								core.DedupeAnnotationKeys(append(lambda.ConstructsRef, instance.ConstructsRef...)), instance.GetConnectionPolicyDocument())
+							inlinePol := resources.NewIamInlinePolicy(
+								fmt.Sprintf("%s-connectionpolicy", instance.Name),
+								lambda.ConstructsRef.CloneWith(instance.ConstructsRef),
+								instance.GetConnectionPolicyDocument(),
+							)
 							lambda.Role.InlinePolicies = append(lambda.Role.InlinePolicies, inlinePol)
 							dag.AddDependency(lambda.Role, instance)
 						}

@@ -59,7 +59,7 @@ func (a *AWS) createCDNs(result *core.ConstructGraph, dag *core.ResourceGraph) e
 				dag.AddDependency(distro, apiStage)
 				distro.DefaultCacheBehavior.DefaultTtl = 0
 				resources.CreateCustomOrigin(construct, apiStage, distro)
-				distro.ConstructsRef = append(distro.ConstructsRef, construct.Provenance())
+				distro.ConstructsRef.Add(construct.Provenance())
 			case *core.StaticUnit:
 				res, found := a.GetResourcesDirectlyTiedToConstruct(construct)
 				if !found {
@@ -77,7 +77,7 @@ func (a *AWS) createCDNs(result *core.ConstructGraph, dag *core.ResourceGraph) e
 				dag.AddDependency(distro, bucket)
 				distro.DefaultRootObject = bucket.IndexDocument
 				resources.CreateS3Origin(construct, bucket, distro, dag)
-				distro.ConstructsRef = append(distro.ConstructsRef, construct.Provenance())
+				distro.ConstructsRef.Add(construct.Provenance())
 			}
 		}
 		dag.AddDependenciesReflect(distro)

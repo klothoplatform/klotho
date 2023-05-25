@@ -16,13 +16,13 @@ const (
 type (
 	EcrRepository struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		ForceDelete   bool
 	}
 
 	EcrImage struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Repo          *EcrRepository
 		Context       string
 		Dockerfile    string
@@ -32,7 +32,7 @@ type (
 
 type RepoCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 }
 
 func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreateParams) error {
@@ -42,7 +42,7 @@ func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreatePara
 	existingRepo := dag.GetResource(repo.Id())
 	if existingRepo != nil {
 		graphRepo := existingRepo.(*EcrRepository)
-		graphRepo.ConstructsRef = core.DedupeAnnotationKeys(append(graphRepo.KlothoConstructRef(), params.Refs...))
+		graphRepo.ConstructsRef.AddAll(params.Refs)
 	} else {
 		dag.AddResource(repo)
 	}
@@ -59,7 +59,7 @@ func (repo *EcrRepository) Configure(params EcrRepositoryConfigureParams) error 
 
 type ImageCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Name    string
 }
 
@@ -114,7 +114,7 @@ func GenerateEcrRepoAndImage(appName string, unit *core.ExecutionUnit, dag *core
 		if !ok {
 			return nil, fmt.Errorf("expected resource with id, %s, to be ecr repository", repo.Id())
 		}
-		repo.ConstructsRef = append(repo.ConstructsRef, unit.Provenance())
+		repo.ConstructsRef.Add(unit.Provenance())
 	}
 
 	// Create image and make it dependent on the repository
@@ -128,12 +128,12 @@ func NewEcrRepository(appName string, ref core.AnnotationKey) *EcrRepository {
 	return &EcrRepository{
 		Name:          appName,
 		ForceDelete:   true,
-		ConstructsRef: []core.AnnotationKey{ref},
+		ConstructsRef: core.AnnotationKeySetOf(ref),
 	}
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (repo *EcrRepository) KlothoConstructRef() []core.AnnotationKey {
+func (repo *EcrRepository) KlothoConstructRef() core.AnnotationKeySet {
 	return repo.ConstructsRef
 }
 
@@ -153,7 +153,7 @@ func GenerateRepoId(name string) core.ResourceId {
 func NewEcrImage(unit *core.ExecutionUnit, appName string, repo *EcrRepository) *EcrImage {
 	return &EcrImage{
 		Name:          fmt.Sprintf("%s-%s", appName, unit.ID),
-		ConstructsRef: []core.AnnotationKey{unit.Provenance()},
+		ConstructsRef: core.AnnotationKeySetOf(unit.Provenance()),
 		Repo:          repo,
 		Context:       fmt.Sprintf("./%s", unit.ID),
 		Dockerfile:    fmt.Sprintf("./%s/%s", unit.ID, unit.DockerfilePath),
@@ -162,7 +162,7 @@ func NewEcrImage(unit *core.ExecutionUnit, appName string, repo *EcrRepository) 
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (image *EcrImage) KlothoConstructRef() []core.AnnotationKey {
+func (image *EcrImage) KlothoConstructRef() core.AnnotationKeySet {
 	return image.ConstructsRef
 }
 

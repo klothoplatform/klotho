@@ -184,9 +184,10 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 				khChart = &HelmChart{
 					ValuesFiles:   valuesFiles,
 					Directory:     chartDir,
-					ConstructRefs: []core.AnnotationKey{unit.Provenance()},
+					ConstructRefs: make(core.AnnotationKeySet),
 					Values:        make(map[string]any),
 				}
+				khChart.ConstructRefs.Add(unit.Provenance())
 				klothoCharts[chartDir] = khChart
 			} else {
 				foundDifference := false
@@ -208,7 +209,7 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 			}
 
 			khChart.ExecutionUnits = append(khChart.ExecutionUnits, &HelmExecUnit{Name: unit.ID, Namespace: "default"})
-			khChart.ConstructRefs = append(khChart.ConstructRefs, unit.AnnotationKey)
+			khChart.ConstructRefs.Add(unit.AnnotationKey)
 		}
 	}
 	return klothoCharts, errs.ErrOrNil()

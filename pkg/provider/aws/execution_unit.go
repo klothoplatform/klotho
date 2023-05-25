@@ -16,7 +16,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 	case Lambda:
 		lambda, err := core.CreateResource[*resources.LambdaFunction](dag, resources.LambdaCreateParams{
 			AppName: a.Config.AppName,
-			Refs:    []core.AnnotationKey{unit.AnnotationKey},
+			Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
 			Name:    unit.ID,
 		})
 		if err != nil {
@@ -38,7 +38,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 			err := fargateProfile.Create(dag, resources.EksFargateProfileCreateParams{
 				Name:        "klotho-fargate-profile",
 				ClusterName: clusterName,
-				Refs:        []core.AnnotationKey{unit.AnnotationKey},
+				Refs:        core.AnnotationKeySetOf(unit.AnnotationKey),
 				AppName:     a.Config.AppName,
 				NetworkType: a.Config.GetExecutionUnit(unit.ID).NetworkPlacement,
 			})
@@ -56,7 +56,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 		}
 		subParams := map[string]any{
 			"ClustersProvider": resources.EksClusterCreateParams{
-				Refs:    []core.AnnotationKey{unit.AnnotationKey},
+				Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
 				AppName: a.Config.AppName,
 				Name:    clusterName,
 			},
@@ -101,7 +101,7 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 			}
 			valueParams[val.Key] = resources.ImageCreateParams{
 				AppName: a.Config.AppName,
-				Refs:    []core.AnnotationKey{unit.AnnotationKey},
+				Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
 				Name:    unit.ID,
 			}
 		case kubernetes.ServiceAccountAnnotationTransformation:
@@ -111,7 +111,7 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 			}
 			valueParams[val.Key] = resources.RoleCreateParams{
 				Name:    fmt.Sprintf("%s-%s-ExecutionRole", a.Config.AppName, unit.ID),
-				Refs:    []core.AnnotationKey{unit.AnnotationKey},
+				Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
 				AppName: a.Config.AppName,
 			}
 		case kubernetes.InstanceTypeKey:
@@ -128,7 +128,7 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 				NetworkType:  a.Config.GetExecutionUnit(unit.ID).NetworkPlacement,
 				AppName:      a.Config.AppName,
 				ClusterName:  clusterName,
-				Refs:         []core.AnnotationKey{unit.AnnotationKey},
+				Refs:         core.AnnotationKeySetOf(unit.AnnotationKey),
 			}
 		case kubernetes.TargetGroupTransformation:
 		}
@@ -136,14 +136,15 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 	return
 }
 
-func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs []core.AnnotationKey) (resources.LambdaFunctionConfigureParams, error) {
-	if len(refs) != 1 {
+func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.AnnotationKeySet) (resources.LambdaFunctionConfigureParams, error) {
+	ref, oneRef := refs.GetSingle()
+	if !oneRef {
 		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("lambda must only have one construct reference")
 	}
 	lambdaConfig := resources.LambdaFunctionConfigureParams{}
-	construct := result.GetConstruct(refs[0].ToId())
+	construct := result.GetConstruct(ref.ToId())
 	if construct == nil {
-		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("construct with id %s does not exist", refs[0].ToId())
+		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref.ToId())
 	}
 	unit, ok := construct.(*core.ExecutionUnit)
 	if !ok {
@@ -154,20 +155,21 @@ func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.Reso
 			lambdaConfig.EnvironmentVariables = append(lambdaConfig.EnvironmentVariables, env)
 		}
 	}
-	cfg := config.ConvertFromInfraParams[config.ServerlessTypeParams](a.Config.GetExecutionUnit(refs[0].ID).InfraParams)
+	cfg := config.ConvertFromInfraParams[config.ServerlessTypeParams](a.Config.GetExecutionUnit(ref.ID).InfraParams)
 	lambdaConfig.MemorySize = cfg.Memory
 	lambdaConfig.Timeout = cfg.Timeout
 	return lambdaConfig, nil
 }
 
-func (a *AWS) getImageConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs []core.AnnotationKey) (resources.EcrImageConfigureParams, error) {
-	if len(refs) != 1 {
+func (a *AWS) getImageConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.AnnotationKeySet) (resources.EcrImageConfigureParams, error) {
+	ref, oneRef := refs.GetSingle()
+	if !oneRef {
 		return resources.EcrImageConfigureParams{}, fmt.Errorf("image must only have one construct reference but got %d: %v", len(refs), refs)
 	}
 	imageConfig := resources.EcrImageConfigureParams{}
-	construct := result.GetConstruct(refs[0].ToId())
+	construct := result.GetConstruct(ref.ToId())
 	if construct == nil {
-		return resources.EcrImageConfigureParams{}, fmt.Errorf("construct with id %s does not exist", refs[0].ToId())
+		return resources.EcrImageConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref.ToId())
 	}
 	unit, ok := construct.(*core.ExecutionUnit)
 	if !ok {
@@ -178,10 +180,10 @@ func (a *AWS) getImageConfiguration(result *core.ConstructGraph, dag *core.Resou
 	return imageConfig, nil
 }
 
-func (a *AWS) getNodeGroupConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs []core.AnnotationKey) (resources.EksNodeGroupConfigureParams, error) {
+func (a *AWS) getNodeGroupConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.AnnotationKeySet) (resources.EksNodeGroupConfigureParams, error) {
 	nodeGroupConfig := resources.EksNodeGroupConfigureParams{}
 	nodeGroupConfig.DiskSize = 20
-	for _, ref := range refs {
+	for ref := range refs {
 		construct := result.GetConstruct(ref.ToId())
 		unit, ok := construct.(*core.ExecutionUnit)
 		if !ok {
@@ -230,18 +232,18 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 						dag.AddResource(execPolicy)
 					}
 					// We do not add the policy to the units list in policy generator otherwise we will cause a circular dependency
-					execPolicy.ConstructsRef = append(execPolicy.ConstructsRef, unit.AnnotationKey)
+					execPolicy.ConstructsRef.Add(unit.AnnotationKey)
 					dag.AddDependency(a.PolicyGenerator.GetUnitRole(unit.Id()), execPolicy)
 					dag.AddDependency(execPolicy, targetLambda)
 				case kubernetes.KubernetesType:
-					privateNamespace := resources.NewPrivateDnsNamespace(a.Config.AppName, []core.AnnotationKey{unit.AnnotationKey}, resources.GetVpc(a.Config, dag))
+					privateNamespace := resources.NewPrivateDnsNamespace(a.Config.AppName, core.AnnotationKeySetOf(unit.AnnotationKey), resources.GetVpc(a.Config, dag))
 					if ns := dag.GetResource(privateNamespace.Id()); ns != nil {
 						namespace, ok := ns.(*resources.PrivateDnsNamespace)
 						if !ok {
 							return errors.Errorf("Found a non PrivateDnsNamespace with same id as global PrivateDnsNamespace, %s", namespace.Id())
 						}
 						privateNamespace = namespace
-						privateNamespace.ConstructsRef = append(privateNamespace.ConstructsRef, unit.Provenance())
+						privateNamespace.ConstructsRef.Add(unit.Provenance())
 					} else {
 						dag.AddDependenciesReflect(privateNamespace)
 					}
@@ -256,7 +258,7 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 					serviceDiscoveryPolicyDoc := resources.CreateAllowPolicyDocument([]string{"servicediscovery:DiscoverInstances"}, []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}})
 					execPolicy := resources.NewIamPolicy(a.Config.AppName, fmt.Sprintf("%s-servicediscovery", privateNamespace.Name), unit.AnnotationKey, serviceDiscoveryPolicyDoc)
 					dag.AddResource(execPolicy)
-					execPolicy.ConstructsRef = append(execPolicy.ConstructsRef, unit.AnnotationKey)
+					execPolicy.ConstructsRef.Add(unit.AnnotationKey)
 					dag.AddDependency(a.PolicyGenerator.GetUnitRole(unit.Id()), execPolicy)
 
 					cluster, err := findUnitsCluster(targetUnit, dag)
@@ -282,10 +284,8 @@ func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.Resourc
 func findUnitsCluster(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*resources.EksCluster, error) {
 	for _, res := range dag.ListResources() {
 		if r, ok := res.(*resources.EksCluster); ok {
-			for _, ref := range r.ConstructsRef {
-				if ref == unit.Provenance() {
-					return r, nil
-				}
+			if r.ConstructsRef.Has(unit.Provenance()) {
+				return r, nil
 			}
 		}
 	}

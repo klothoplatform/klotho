@@ -1,9 +1,10 @@
 package resources
 
 import (
+	"testing"
+
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
-	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
@@ -70,12 +71,12 @@ func Test_ElasticacheClusterCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, table *ElasticacheCluster) {
 				assert.Equal(table.Name, "my-app-test")
-				assert.ElementsMatch(table.ConstructsRef, []core.AnnotationKey{cluster.AnnotationKey})
+				assert.Equal(table.ConstructsRef, core.AnnotationKeySetOf(cluster.AnnotationKey))
 			},
 		},
 		{
 			Name:     "existing elasticache cluster",
-			Existing: &ElasticacheCluster{Name: "my-app-test", ConstructsRef: []core.AnnotationKey{existingKey}},
+			Existing: &ElasticacheCluster{Name: "my-app-test", ConstructsRef: core.AnnotationKeySetOf(existingKey)},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
@@ -130,7 +131,7 @@ func Test_ElasticacheClusterCreate(t *testing.T) {
 				}},
 			Check: func(assert *assert.Assertions, table *ElasticacheCluster) {
 				assert.Equal(table.Name, "my-app-test")
-				assert.ElementsMatch(table.ConstructsRef, []core.AnnotationKey{cluster.AnnotationKey, existingKey})
+				assert.Equal(table.ConstructsRef, core.AnnotationKeySetOf(cluster.AnnotationKey, existingKey))
 			},
 		},
 	}
@@ -138,7 +139,7 @@ func Test_ElasticacheClusterCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = ElasticacheClusterCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{cluster.AnnotationKey},
+				Refs:    core.AnnotationKeySetOf(cluster.AnnotationKey),
 				Name:    "test",
 			}
 

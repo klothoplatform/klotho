@@ -7,7 +7,7 @@ import (
 
 type (
 	KubernetesProvider struct {
-		ConstructsRef         []core.AnnotationKey
+		ConstructsRef         core.AnnotationKeySet
 		KubeConfig            core.Resource
 		Name                  string
 		EnableServerSideApply bool
@@ -15,13 +15,13 @@ type (
 
 	RouteTableAssociation struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Subnet        *resources.Subnet
 		RouteTable    *resources.RouteTable
 	}
 
 	SecurityGroupRule struct {
-		ConstructsRef   []core.AnnotationKey
+		ConstructsRef   core.AnnotationKeySet
 		Name            string
 		Description     string
 		FromPort        int
@@ -33,7 +33,7 @@ type (
 	}
 )
 
-func (e *KubernetesProvider) KlothoConstructRef() []core.AnnotationKey {
+func (e *KubernetesProvider) KlothoConstructRef() core.AnnotationKeySet {
 	return e.ConstructsRef
 }
 
@@ -45,7 +45,7 @@ func (e *KubernetesProvider) Id() core.ResourceId {
 	}
 }
 
-func (e *RouteTableAssociation) KlothoConstructRef() []core.AnnotationKey {
+func (e *RouteTableAssociation) KlothoConstructRef() core.AnnotationKeySet {
 	return e.ConstructsRef
 }
 
@@ -70,7 +70,7 @@ type (
 )
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (role *RolePolicyAttachment) KlothoConstructRef() []core.AnnotationKey {
+func (role *RolePolicyAttachment) KlothoConstructRef() core.AnnotationKeySet {
 	return nil
 }
 
@@ -83,7 +83,7 @@ func (role *RolePolicyAttachment) Id() core.ResourceId {
 	}
 }
 
-func (e *SecurityGroupRule) KlothoConstructRef() []core.AnnotationKey {
+func (e *SecurityGroupRule) KlothoConstructRef() core.AnnotationKeySet {
 	return e.ConstructsRef
 }
 

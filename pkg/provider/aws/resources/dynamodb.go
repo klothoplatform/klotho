@@ -14,7 +14,7 @@ const DYNAMODB_TABLE_TYPE = "dynamodb_table"
 type (
 	DynamodbTable struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Attributes    []DynamodbTableAttribute
 		BillingMode   string
 		HashKey       string
@@ -80,7 +80,7 @@ func (table *DynamodbTable) AttributeMap() (map[string]DynamodbTableAttribute, e
 
 type DynamodbTableCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Name    string
 }
 
@@ -88,7 +88,7 @@ func (table *DynamodbTable) Create(dag *core.ResourceGraph, params DynamodbTable
 	table.Name = aws.DynamoDBTableSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	table.ConstructsRef = params.Refs
 	if existingTable, ok := core.GetResource[*DynamodbTable](dag, table.Id()); ok {
-		existingTable.ConstructsRef = core.DedupeAnnotationKeys(append(existingTable.KlothoConstructRef(), params.Refs...))
+		existingTable.ConstructsRef.AddAll(params.Refs)
 	}
 	dag.AddResource(table)
 	return nil
@@ -110,7 +110,7 @@ func (table *DynamodbTable) Configure(params DynamodbTableConfigureParams) error
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (table *DynamodbTable) KlothoConstructRef() []core.AnnotationKey {
+func (table *DynamodbTable) KlothoConstructRef() core.AnnotationKeySet {
 	return table.ConstructsRef
 }
 

@@ -10,7 +10,7 @@ import (
 )
 
 func Test_RoleCreate(t *testing.T) {
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name    string
 		role    *IamRole
@@ -42,7 +42,7 @@ func Test_RoleCreate(t *testing.T) {
 			metadata := RoleCreateParams{
 				AppName: "my-app",
 				Name:    "executionRole",
-				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
 			}
 			role := &IamRole{}
 			err := role.Create(dag, metadata)
@@ -63,7 +63,7 @@ func Test_RoleCreate(t *testing.T) {
 }
 
 func Test_PolicyCreate(t *testing.T) {
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name    string
 		policy  *IamPolicy
@@ -95,7 +95,7 @@ func Test_PolicyCreate(t *testing.T) {
 			metadata := IamPolicyCreateParams{
 				AppName: "my-app",
 				Name:    "policy",
-				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
 			}
 			policy := &IamPolicy{}
 			err := policy.Create(dag, metadata)
@@ -117,7 +117,7 @@ func Test_PolicyCreate(t *testing.T) {
 
 func Test_OidcCreate(t *testing.T) {
 	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []coretesting.CreateCase[OidcCreateParams, *OpenIdConnectProvider]{
 		{
 			Name: "nil oidc",
@@ -184,7 +184,7 @@ func Test_OidcCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, oidc *OpenIdConnectProvider) {
 				assert.Equal(oidc.Name, "my-app-cluster")
 				assert.NotNil(oidc.Cluster)
-				assert.ElementsMatch(oidc.ConstructsRef, []core.AnnotationKey{eu.AnnotationKey})
+				assert.Equal(oidc.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
 			},
 		},
 		{
@@ -198,7 +198,8 @@ func Test_OidcCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, oidc *OpenIdConnectProvider) {
 				assert.Equal(oidc.Name, "my-app-cluster")
-				assert.ElementsMatch(oidc.ConstructsRef, append(initialRefs, eu.AnnotationKey))
+				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(oidc.ConstructsRef, expect)
 			},
 		},
 	}
@@ -206,7 +207,7 @@ func Test_OidcCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = OidcCreateParams{
 				AppName:     "my-app",
-				Refs:        []core.AnnotationKey{eu.AnnotationKey},
+				Refs:        core.AnnotationKeySetOf(eu.AnnotationKey),
 				ClusterName: "cluster",
 			}
 			tt.Run(t)
@@ -306,14 +307,14 @@ func Test_AddUnitRole(t *testing.T) {
 		{
 			name:          "Add role, none exists",
 			existingRoles: map[string]*IamRole{},
-			role:          NewIamRole("test-app", "test-role", []core.AnnotationKey{}, nil),
+			role:          NewIamRole("test-app", "test-role", core.AnnotationKeySetOf(), nil),
 		},
 		{
 			name: "Add role, one already exists",
 			existingRoles: map[string]*IamRole{
-				unitId: NewIamRole("test-app", "diff-role", []core.AnnotationKey{}, nil),
+				unitId: NewIamRole("test-app", "diff-role", core.AnnotationKeySetOf(), nil),
 			},
-			role:    NewIamRole("test-app", "test-role", []core.AnnotationKey{}, nil),
+			role:    NewIamRole("test-app", "test-role", core.AnnotationKeySetOf(), nil),
 			wantErr: true,
 		},
 	}

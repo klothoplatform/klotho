@@ -11,7 +11,7 @@ import (
 )
 
 func Test_SecurityGroupCreate(t *testing.T) {
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name string
 		sg   *SecurityGroup
@@ -52,7 +52,7 @@ func Test_SecurityGroupCreate(t *testing.T) {
 			}
 			metadata := SecurityGroupCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
 			}
 			sg := &SecurityGroup{}
 			err := sg.Create(dag, metadata)
@@ -67,9 +67,10 @@ func Test_SecurityGroupCreate(t *testing.T) {
 
 			assert.Equal(sg.Name, "my-app")
 			if tt.sg == nil {
-				assert.ElementsMatch(sg.ConstructsRef, metadata.Refs)
+				assert.Equal(sg.ConstructsRef, metadata.Refs)
 			} else {
-				assert.ElementsMatch(sg.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				expect := initialRefs.CloneWith(metadata.Refs)
+				assert.Equal(sg.KlothoConstructRef(), expect)
 			}
 		})
 	}

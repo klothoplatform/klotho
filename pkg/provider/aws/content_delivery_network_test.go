@@ -26,7 +26,7 @@ func Test_createCDNs(t *testing.T) {
 		constructIdToResources map[string][]core.Resource
 		cfg                    config.Application
 		want                   coretesting.ResourcesExpectation
-		wantRefs               map[core.ResourceId][]core.AnnotationKey
+		wantRefs               map[core.ResourceId]core.AnnotationKeySet
 		wantErr                bool
 	}{
 		{
@@ -61,8 +61,8 @@ func Test_createCDNs(t *testing.T) {
 					{Source: "aws:s3_bucket_policy:test-su-su", Destination: "aws:s3_bucket:test-su"},
 				},
 			},
-			wantRefs: map[core.ResourceId][]core.AnnotationKey{
-				distro.Id(): {su.Provenance()},
+			wantRefs: map[core.ResourceId]core.AnnotationKeySet{
+				distro.Id(): core.AnnotationKeySetOf(su.Provenance()),
 			},
 		},
 		{
@@ -92,8 +92,8 @@ func Test_createCDNs(t *testing.T) {
 					{Source: "aws:cloudfront_distribution:test-cdn", Destination: "aws:api_stage:test-gw-stage"},
 				},
 			},
-			wantRefs: map[core.ResourceId][]core.AnnotationKey{
-				distro.Id(): {gw.Provenance()},
+			wantRefs: map[core.ResourceId]core.AnnotationKeySet{
+				distro.Id(): core.AnnotationKeySetOf(gw.Provenance()),
 			},
 		},
 		{
@@ -139,9 +139,9 @@ func Test_createCDNs(t *testing.T) {
 					{Source: "aws:s3_bucket_policy:test-su-su", Destination: "aws:s3_bucket:test-su"},
 				},
 			},
-			wantRefs: map[core.ResourceId][]core.AnnotationKey{
-				distro.Id():  {su.Provenance()},
-				distro2.Id(): {gw.Provenance()},
+			wantRefs: map[core.ResourceId]core.AnnotationKeySet{
+				distro.Id():  core.AnnotationKeySetOf(su.Provenance()),
+				distro2.Id(): core.AnnotationKeySetOf(gw.Provenance()),
 			},
 		},
 	}
@@ -176,7 +176,7 @@ func Test_createCDNs(t *testing.T) {
 			tt.want.Assert(t, dag)
 
 			for key, val := range tt.wantRefs {
-				assert.ElementsMatch(val, dag.GetResource(key).KlothoConstructRef())
+				assert.Equal(val, dag.GetResource(key).KlothoConstructRef())
 			}
 		})
 

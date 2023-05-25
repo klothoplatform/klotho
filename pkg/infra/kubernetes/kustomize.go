@@ -11,14 +11,14 @@ const (
 type (
 	KustomizeDirectory struct {
 		Name             string
-		ConstructRefs    []core.AnnotationKey
+		ConstructRefs    core.AnnotationKeySet
 		Directory        string
 		ClustersProvider core.IaCValue
 	}
 )
 
 // KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
-func (dir *KustomizeDirectory) KlothoConstructRef() []core.AnnotationKey { return dir.ConstructRefs }
+func (dir *KustomizeDirectory) KlothoConstructRef() core.AnnotationKeySet { return dir.ConstructRefs }
 
 func (dir *KustomizeDirectory) Id() core.ResourceId {
 	return core.ResourceId{

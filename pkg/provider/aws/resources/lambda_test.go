@@ -32,7 +32,7 @@ func Test_LambdaCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, lambda *LambdaFunction) {
 				assert.Equal(lambda.Name, "my-app-test")
-				assert.ElementsMatch(lambda.ConstructsRef, []core.AnnotationKey{eu.AnnotationKey})
+				assert.Equal(lambda.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
 			},
 		},
 		{
@@ -45,7 +45,7 @@ func Test_LambdaCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = LambdaCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{eu.AnnotationKey},
+				Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
 				Name:    eu.ID,
 			}
 
@@ -55,7 +55,7 @@ func Test_LambdaCreate(t *testing.T) {
 }
 
 func Test_LambdaPermissionCreate(t *testing.T) {
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name       string
 		permission *LambdaPermission
@@ -104,7 +104,7 @@ func Test_LambdaPermissionCreate(t *testing.T) {
 			}
 
 			metadata := LambdaPermissionCreateParams{
-				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
 				Name:    "permission",
 				AppName: "my-app",
 			}
@@ -125,9 +125,10 @@ func Test_LambdaPermissionCreate(t *testing.T) {
 
 			assert.Equal(permission.Name, "my_app_permission")
 			if tt.permission == nil {
-				assert.ElementsMatch(permission.ConstructsRef, metadata.Refs)
+				assert.Equal(permission.ConstructsRef, metadata.Refs)
 			} else {
-				assert.ElementsMatch(permission.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.Equal(permission.KlothoConstructRef(), expect)
 			}
 		})
 	}

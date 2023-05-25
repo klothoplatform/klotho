@@ -28,7 +28,7 @@ type HelmChart struct {
 	Files          []core.File
 	ProviderValues []HelmChartValue
 
-	ConstructRefs    []core.AnnotationKey
+	ConstructRefs    core.AnnotationKeySet
 	ClustersProvider core.IaCValue
 	Repo             string
 	Version          string
@@ -37,7 +37,7 @@ type HelmChart struct {
 }
 
 // KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
-func (chart *HelmChart) KlothoConstructRef() []core.AnnotationKey { return chart.ConstructRefs }
+func (chart *HelmChart) KlothoConstructRef() core.AnnotationKeySet { return chart.ConstructRefs }
 
 func (chart *HelmChart) Id() core.ResourceId {
 	return core.ResourceId{

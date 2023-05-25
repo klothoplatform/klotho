@@ -11,14 +11,14 @@ type (
 	Secret struct {
 		Name          string
 		SecretName    string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 	}
 
 	SecretVersion struct {
 		SecretName    string
 		Secret        *Secret
 		Path          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Name          string
 		Type          string
 	}
@@ -29,7 +29,7 @@ const SECRET_VERSION_TYPE = "secret_version"
 
 type SecretCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Name    string
 }
 
@@ -47,7 +47,7 @@ func (secret *Secret) Create(dag *core.ResourceGraph, params SecretCreateParams)
 
 type SecretVersionCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Name    string
 }
 
@@ -91,7 +91,7 @@ func NewSecret(annot core.AnnotationKey, secretName string, appName string) *Sec
 	return &Secret{
 		Name:          plainName,
 		SecretName:    aws.SecretSanitizer.Apply(plainName),
-		ConstructsRef: []core.AnnotationKey{annot},
+		ConstructsRef: core.AnnotationKeySetOf(annot),
 	}
 }
 
@@ -105,7 +105,7 @@ func NewSecretVersion(secret *Secret, filePath string) *SecretVersion {
 	}
 }
 
-func (s *Secret) KlothoConstructRef() []core.AnnotationKey {
+func (s *Secret) KlothoConstructRef() core.AnnotationKeySet {
 	return s.ConstructsRef
 }
 
@@ -117,7 +117,7 @@ func (s *Secret) Id() core.ResourceId {
 	}
 }
 
-func (sv *SecretVersion) KlothoConstructRef() []core.AnnotationKey {
+func (sv *SecretVersion) KlothoConstructRef() core.AnnotationKeySet {
 	return sv.ConstructsRef
 }
 

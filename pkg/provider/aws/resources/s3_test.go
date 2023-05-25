@@ -22,16 +22,16 @@ func Test_S3BucketCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, bucket *S3Bucket) {
 				assert.Equal("my-app-payloads", bucket.Name)
-				assert.ElementsMatch(bucket.ConstructsRef, []core.AnnotationKey{annotationKey})
+				assert.Equal(bucket.ConstructsRef, core.AnnotationKeySetOf(annotationKey))
 			},
 		},
 		{
 			Name: "two payloads buckets converge",
 			Existing: &S3Bucket{
 				Name: "my-app-payloads",
-				ConstructsRef: []core.AnnotationKey{core.AnnotationKey{
+				ConstructsRef: core.AnnotationKeySetOf(core.AnnotationKey{
 					ID:         "some-other-eu",
-					Capability: annotation.ExecutionUnitCapability}},
+					Capability: annotation.ExecutionUnitCapability}),
 			},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
@@ -41,13 +41,13 @@ func Test_S3BucketCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, bucket *S3Bucket) {
 				assert.Equal("my-app-payloads", bucket.Name)
-				assert.ElementsMatch(bucket.ConstructsRef,
-					[]core.AnnotationKey{
+				assert.Equal(bucket.ConstructsRef,
+					core.AnnotationKeySetOf(
 						annotationKey,
 						core.AnnotationKey{
 							ID:         "some-other-eu",
 							Capability: annotation.ExecutionUnitCapability},
-					},
+					),
 				)
 			},
 		},
@@ -56,7 +56,7 @@ func Test_S3BucketCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = S3BucketCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{annotationKey},
+				Refs:    core.AnnotationKeySetOf(annotationKey),
 				Name:    "payloads",
 			}
 			tt.Run(t)

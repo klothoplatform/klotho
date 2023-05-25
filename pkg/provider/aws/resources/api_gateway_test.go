@@ -10,7 +10,7 @@ import (
 )
 
 func Test_RestApiCreate(t *testing.T) {
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name    string
 		api     *RestApi
@@ -57,7 +57,7 @@ func Test_RestApiCreate(t *testing.T) {
 			}
 			metadata := RestApiCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
 				Name:    "rest-api",
 			}
 			if tt.apiName != "" {
@@ -79,9 +79,10 @@ func Test_RestApiCreate(t *testing.T) {
 
 			assert.Equal(api.Name, "my-app-rest-api")
 			if tt.api == nil {
-				assert.ElementsMatch(api.ConstructsRef, metadata.Refs)
+				assert.Equal(api.ConstructsRef, metadata.Refs)
 			} else {
-				assert.ElementsMatch(api.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				initialRefs.Add(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability})
+				assert.Equal(api.KlothoConstructRef(), initialRefs)
 			}
 		})
 	}
@@ -123,7 +124,7 @@ func Test_RestApiConfigure(t *testing.T) {
 }
 
 func Test_ApiResourceCreate(t *testing.T) {
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []coretesting.CreateCase[ApiResourceCreateParams, *ApiResource]{
 		{
 			Name: "nil resource",
@@ -148,7 +149,7 @@ func Test_ApiResourceCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, resource *ApiResource) {
 				assert.Equal("my-app-/my/api/route", resource.Name)
 				assert.Equal(resource.PathPart, "route")
-				assert.ElementsMatch(resource.ConstructsRef, []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}})
+				assert.Equal(resource.ConstructsRef, core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			},
 		},
 		{
@@ -165,7 +166,8 @@ func Test_ApiResourceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, resource *ApiResource) {
 				assert.Equal("my-app-/my/api/route", resource.Name)
-				assert.ElementsMatch(resource.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.Equal(resource.KlothoConstructRef(), expect)
 
 			},
 		},
@@ -195,14 +197,14 @@ func Test_ApiResourceCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, resource *ApiResource) {
 				assert.Equal("my-app-/my/-api/route/-method", resource.Name)
 				assert.Equal(resource.PathPart, "{method}")
-				assert.ElementsMatch(resource.ConstructsRef, []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}})
+				assert.Equal(resource.ConstructsRef, core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params.AppName = "my-app"
-			tt.Params.Refs = []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}}
+			tt.Params.Refs = core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability})
 			tt.Params.ApiName = "my-api"
 			tt.Run(t)
 		})
@@ -210,7 +212,7 @@ func Test_ApiResourceCreate(t *testing.T) {
 }
 
 func Test_ApiIntegrationCreate(t *testing.T) {
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name        string
 		integration *ApiIntegration
@@ -261,7 +263,7 @@ func Test_ApiIntegrationCreate(t *testing.T) {
 			}
 			metadata := ApiIntegrationCreateParams{
 				AppName:    "my-app",
-				Refs:       []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Refs:       core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
 				Path:       "/my/api/route",
 				ApiName:    "my-api",
 				HttpMethod: "post",
@@ -284,16 +286,17 @@ func Test_ApiIntegrationCreate(t *testing.T) {
 				assert.NotNil(integration.RestApi)
 				assert.NotNil(integration.Method)
 				assert.NotNil(integration.Resource)
-				assert.ElementsMatch(integration.ConstructsRef, metadata.Refs)
+				assert.Equal(integration.ConstructsRef, metadata.Refs)
 			} else {
-				assert.ElementsMatch(integration.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.Equal(integration.KlothoConstructRef(), expect)
 			}
 		})
 	}
 }
 
 func Test_ApiMethodCreate(t *testing.T) {
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name   string
 		method *ApiMethod
@@ -340,7 +343,7 @@ func Test_ApiMethodCreate(t *testing.T) {
 			}
 			metadata := ApiMethodCreateParams{
 				AppName:    "my-app",
-				Refs:       []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Refs:       core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
 				Path:       "/my/api/route",
 				ApiName:    "my-api",
 				HttpMethod: "post",
@@ -361,9 +364,10 @@ func Test_ApiMethodCreate(t *testing.T) {
 			if tt.method == nil {
 				assert.NotNil(method.RestApi)
 				assert.NotNil(method.Resource)
-				assert.ElementsMatch(method.ConstructsRef, metadata.Refs)
+				assert.Equal(method.ConstructsRef, metadata.Refs)
 			} else {
-				assert.ElementsMatch(method.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.Equal(method.KlothoConstructRef(), expect)
 			}
 		})
 	}
@@ -405,7 +409,7 @@ func Test_ApiMethodConfigure(t *testing.T) {
 }
 
 func Test_ApiDeploymentCreate(t *testing.T) {
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name       string
 		deployment *ApiDeployment
@@ -443,7 +447,7 @@ func Test_ApiDeploymentCreate(t *testing.T) {
 			}
 			metadata := ApiDeploymentCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
 				Name:    "deployment",
 			}
 
@@ -461,16 +465,17 @@ func Test_ApiDeploymentCreate(t *testing.T) {
 			assert.Equal(deployment.Name, "my-app-deployment")
 			if tt.deployment == nil {
 				assert.NotNil(deployment.RestApi)
-				assert.ElementsMatch(deployment.ConstructsRef, metadata.Refs)
+				assert.Equal(deployment.ConstructsRef, metadata.Refs)
 			} else {
-				assert.ElementsMatch(deployment.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.Equal(deployment.KlothoConstructRef(), expect)
 			}
 		})
 	}
 }
 
 func Test_ApiStageCreate(t *testing.T) {
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name  string
 		stage *ApiStage
@@ -511,7 +516,7 @@ func Test_ApiStageCreate(t *testing.T) {
 			}
 			metadata := ApiStageCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
 				Name:    "stage",
 			}
 
@@ -529,9 +534,10 @@ func Test_ApiStageCreate(t *testing.T) {
 			assert.Equal(stage.Name, "my-app-stage")
 			if tt.stage == nil {
 				assert.NotNil(stage.RestApi)
-				assert.ElementsMatch(stage.ConstructsRef, metadata.Refs)
+				assert.Equal(stage.ConstructsRef, metadata.Refs)
 			} else {
-				assert.ElementsMatch(stage.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.Equal(stage.KlothoConstructRef(), expect)
 			}
 		})
 	}

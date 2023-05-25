@@ -28,6 +28,8 @@ type (
 	}
 
 	AnnotationMap map[AnnotationKey]*Annotation
+
+	AnnotationKeySet map[AnnotationKey]struct{}
 )
 
 var (
@@ -132,4 +134,57 @@ func (m AnnotationMap) InSourceOrder() []*Annotation {
 	})
 
 	return list
+}
+
+func (s *AnnotationKeySet) Add(k AnnotationKey) {
+	if *s == nil {
+		*s = make(AnnotationKeySet)
+	}
+	(*s)[k] = struct{}{}
+}
+
+func (s AnnotationKeySet) Has(k AnnotationKey) bool {
+	_, ok := s[k]
+	return ok
+}
+
+func (s AnnotationKeySet) Delete(k AnnotationKey) {
+	delete(s, k)
+}
+
+func (s *AnnotationKeySet) AddAll(ks AnnotationKeySet) {
+	for k := range ks {
+		s.Add(k)
+	}
+}
+
+func (s AnnotationKeySet) GetSingle() (AnnotationKey, bool) {
+	if len(s) != 1 {
+		return AnnotationKey{}, false
+	}
+	for k := range s {
+		return k, true
+	}
+	return AnnotationKey{}, false
+}
+
+func (s AnnotationKeySet) Clone() AnnotationKeySet {
+	clone := make(AnnotationKeySet)
+	clone.AddAll(s)
+	return clone
+}
+
+func (s AnnotationKeySet) CloneWith(ks AnnotationKeySet) AnnotationKeySet {
+	clone := make(AnnotationKeySet)
+	clone.AddAll(s)
+	clone.AddAll(ks)
+	return clone
+}
+
+func AnnotationKeySetOf(keys ...AnnotationKey) AnnotationKeySet {
+	s := make(AnnotationKeySet)
+	for _, k := range keys {
+		s.Add(k)
+	}
+	return s
 }
