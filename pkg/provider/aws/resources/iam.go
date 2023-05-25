@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	"go.uber.org/zap"
@@ -164,7 +163,7 @@ type RoleCreateParams struct {
 
 func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) error {
 	role.Name = roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	role.ConstructsRef = collectionutil.FlattenUnique(params.Refs, []core.AnnotationKey{})
+	role.ConstructsRef.AddAll(params.Refs)
 
 	existingRole := dag.GetResource(role.Id())
 	if existingRole != nil {
@@ -183,10 +182,11 @@ type IamPolicyCreateParams struct {
 
 func (policy *IamPolicy) Create(dag *core.ResourceGraph, params IamPolicyCreateParams) error {
 	policy.Name = policySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	policy.ConstructsRef = params.Refs
-	existingPolicy := dag.GetResource(policy.Id())
-	if existingPolicy != nil {
-		return fmt.Errorf("iam policy with name %s already exists", policy.Name)
+	policy.ConstructsRef = params.Refs.Clone()
+	existingPolicy, found := core.GetResource[*IamPolicy](dag, policy.Id())
+	if found {
+		existingPolicy.ConstructsRef.AddAll(params.Refs)
+		return nil
 	}
 	dag.AddResource(policy)
 	return nil
@@ -206,7 +206,7 @@ func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCr
 		graphOidc := existingOidc.(*OpenIdConnectProvider)
 		graphOidc.ConstructsRef.AddAll(params.Refs)
 	} else {
-		oidc.ConstructsRef = params.Refs
+		oidc.ConstructsRef = params.Refs.Clone()
 		oidc.Region = NewRegion()
 		subParams := map[string]any{
 			"Cluster": EksClusterCreateParams{

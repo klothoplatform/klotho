@@ -6,6 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
@@ -189,7 +190,7 @@ func (a *AWS) getNodeGroupConfiguration(result *core.ConstructGraph, dag *core.R
 		construct := result.GetConstruct(ref.ToId())
 		unit, ok := construct.(*core.ExecutionUnit)
 		if !ok {
-			return nodeGroupConfig, fmt.Errorf("node group must only have construct references to ExecutionUnits but got %T", construct)
+			continue
 		}
 		cfg := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams)
 
@@ -198,6 +199,38 @@ func (a *AWS) getNodeGroupConfiguration(result *core.ConstructGraph, dag *core.R
 		}
 	}
 	return nodeGroupConfig, nil
+}
+
+// handleEksProxy creates the necessary dependencies and resources for pods within the same helm chart to be able to use cloudmap to communicate
+func (a *AWS) handleEksProxy(source, dest *core.ExecutionUnit, chart *kubernetes.HelmChart, dag *core.ResourceGraph) error {
+	refs := core.AnnotationKeySetOf(source.AnnotationKey, dest.AnnotationKey)
+	privateDnsNamespace, err := core.CreateResource[*resources.PrivateDnsNamespace](dag, resources.PrivateDnsNamespaceCreateParams{
+		Refs:    refs,
+		AppName: a.Config.AppName,
+	})
+	if err != nil {
+		return err
+	}
+	dag.AddDependency(chart, privateDnsNamespace)
+	unitsRole := knowledgebase.GetRoleForUnit(chart, source.AnnotationKey)
+	if unitsRole == nil {
+		return fmt.Errorf("no role found for chart %s and source reference %s", chart.Id(), source.Id())
+	}
+	role := dag.GetResource(unitsRole.Id())
+	if role == nil {
+		return fmt.Errorf("no role found for chart %s and source reference %s", chart.Id(), source.Id())
+	}
+	policy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
+		AppName: a.Config.AppName,
+		Name:    "servicediscovery",
+		Refs:    refs,
+	})
+	if err != nil {
+		return err
+	}
+	dag.AddDependency(policy, privateDnsNamespace)
+	dag.AddDependency(role, policy)
+	return err
 }
 
 func findUnitsHelmChart(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*kubernetes.HelmChart, error) {
@@ -211,87 +244,4 @@ func findUnitsHelmChart(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*kub
 		}
 	}
 	return nil, fmt.Errorf("helm chart not found for unit with id, %s", unit.ID)
-}
-
-// convertExecUnitParams transforms the execution units environment variables to a map of key names and their corresponding core.IaCValue struct.
-//
-// If an environment variable does not pertain to a construct and is just a key, value string, the resource of the IaCValue will be left null.
-func (a *AWS) convertExecUnitParams(result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	execUnits := core.GetConstructsOfType[*core.ExecutionUnit](result)
-	for _, unit := range execUnits {
-
-		resourceEnvVars := make(resources.EnvironmentVariables)
-
-		// This set of environment variables correspond to the specific needs of the execution units and its dependencies
-		for _, envVar := range unit.EnvironmentVariables {
-			if envVar.Construct != nil {
-				resList, ok := a.GetResourcesDirectlyTiedToConstruct(envVar.GetConstruct())
-				if !ok {
-					return fmt.Errorf("resource not found for env var construct with id, %s", envVar.GetConstruct().Id())
-				}
-				for _, resource := range resList {
-					resourceEnvVars[envVar.Name] = core.IaCValue{
-						Resource: resource,
-						Property: envVar.Value,
-					}
-
-				}
-			} else {
-				resourceEnvVars[envVar.Name] = core.IaCValue{
-					Property: envVar.Value,
-				}
-			}
-		}
-
-		// Retrieve the actual resource and set the environment variables on it
-		resList, _ := a.GetResourcesDirectlyTiedToConstruct(unit)
-
-		// If the unit is a kubernetes unit, the helm chart wont be directly tied to the unit so we need to ensure we grab it
-		if a.Config.GetExecutionUnit(unit.ID).Type == kubernetes.KubernetesType {
-			chart, err := findUnitsHelmChart(unit, dag)
-			if err != nil {
-				return err
-			}
-			resList = append(resList, chart)
-		}
-		if len(resList) == 0 {
-			return fmt.Errorf("resource not found for construct with id, %s", unit.Id())
-		}
-		for _, resource := range resList {
-			switch r := resource.(type) {
-			case *resources.LambdaFunction:
-				r.EnvironmentVariables = resourceEnvVars
-			case *kubernetes.HelmChart:
-				for evName, evVal := range resourceEnvVars {
-					for _, val := range r.ProviderValues {
-						if val.EnvironmentVariable != nil && evName == val.EnvironmentVariable.GetName() {
-							r.Values[val.Key] = evVal
-							if evVal.Resource != nil && evVal.Resource != resource {
-								dag.AddDependency(resource, evVal.Resource)
-							}
-						}
-					}
-				}
-			}
-			dag.AddDependenciesReflect(resource)
-		}
-	}
-	return nil
-}
-
-// GetAssumeRolePolicyForType returns an assume role policy doc as a string, for the execution units corresponding IAM role
-func GetAssumeRolePolicyForType(cfg config.ExecutionUnit) *resources.PolicyDocument {
-	switch cfg.Type {
-	case Lambda:
-		return resources.LAMBDA_ASSUMER_ROLE_POLICY
-	case Ecs:
-		return resources.ECS_ASSUMER_ROLE_POLICY
-	case kubernetes.KubernetesType:
-		eksConfig := cfg.GetExecutionUnitParamsAsKubernetes()
-		if eksConfig.NodeType == string(resources.Fargate) {
-			return resources.EKS_FARGATE_ASSUME_ROLE_POLICY
-		}
-		return resources.EC2_ASSUMER_ROLE_POLICY
-	}
-	return nil
 }

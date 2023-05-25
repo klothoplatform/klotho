@@ -80,9 +80,14 @@ func Test_PolicyCreate(t *testing.T) {
 			},
 		},
 		{
-			name:    "existing policy",
-			policy:  &IamPolicy{Name: "my-app-policy", ConstructsRef: initialRefs},
-			wantErr: true,
+			name:   "existing policy",
+			policy: &IamPolicy{Name: "my-app-policy", ConstructsRef: initialRefs},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:iam_policy:my-app-policy",
+				},
+				Deps: []coretesting.StringDep{},
+			},
 		},
 	}
 	for _, tt := range cases {
@@ -109,8 +114,15 @@ func Test_PolicyCreate(t *testing.T) {
 			}
 			tt.want.Assert(t, dag)
 
+			policy, _ = core.GetResource[*IamPolicy](dag, policy.Id())
 			assert.Equal(policy.Name, "my-app-policy")
-			assert.Equal(policy.ConstructsRef, metadata.Refs)
+			if tt.policy == nil {
+				assert.Equal(policy.ConstructsRef, metadata.Refs)
+			} else {
+				initialRefs.Add(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability})
+				assert.Equal(policy.ConstructsRef, initialRefs)
+
+			}
 		})
 	}
 }

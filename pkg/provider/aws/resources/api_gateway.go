@@ -203,6 +203,7 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.Path, params.HttpMethod))
 	integration.Name = name
 	integration.ConstructsRef = params.Refs
+	integration.Route = convertPath(params.Path, false)
 
 	existingResource := dag.GetResource(integration.Id())
 	if existingResource != nil {
@@ -300,7 +301,9 @@ func (deployment *ApiDeployment) Create(dag *core.ResourceGraph, params ApiDeplo
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	deployment.Name = name
 	deployment.ConstructsRef = params.Refs
-
+	if deployment.Triggers == nil {
+		deployment.Triggers = make(map[string]string)
+	}
 	existingDeployment := dag.GetResource(deployment.Id())
 	if existingDeployment != nil {
 		graphDeployment := existingDeployment.(*ApiDeployment)

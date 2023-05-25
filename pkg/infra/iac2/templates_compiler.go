@@ -643,7 +643,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		if !ok {
 			return "", errors.Errorf("Unable to handle iac value for %s on type %s", resources.NLB_INTEGRATION_URI_IAC_VALUE, resourceVal.Type().Name())
 		}
-		return fmt.Sprintf("pulumi.interpolate`http://${%s.dnsName}%s`", tc.getVarName(resource), integration.Route), nil
+		return fmt.Sprintf("pulumi.interpolate`http://${%s.dnsName}%s`", tc.getVarName(resource), strings.ReplaceAll(integration.Route, "+", "")), nil
 	case resources.RDS_CONNECTION_ARN_IAC_VALUE:
 		switch res := v.Resource.(type) {
 		case *resources.RdsInstance:
