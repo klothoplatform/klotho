@@ -62,7 +62,7 @@ func Test_SecurityGroupCreate(t *testing.T) {
 			}
 			tt.want.Assert(t, dag)
 
-			graphSG := dag.GetResourceByVertexId(sg.Id().String())
+			graphSG := dag.GetResource(sg.Id())
 			sg = graphSG.(*SecurityGroup)
 
 			assert.Equal(sg.Name, "my-app")

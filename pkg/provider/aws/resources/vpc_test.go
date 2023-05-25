@@ -58,7 +58,7 @@ func Test_VpcCreate(t *testing.T) {
 			}
 			tt.want.Assert(t, dag)
 
-			graphVpc := dag.GetResourceByVertexId(vpc.Id().String())
+			graphVpc := dag.GetResource(vpc.Id())
 			vpc = graphVpc.(*Vpc)
 			assert.Equal(vpc.Name, "my_app")
 			if tt.vpc == nil {
@@ -118,7 +118,7 @@ func Test_ElasticIpCreate(t *testing.T) {
 			}
 			tt.want.Assert(t, dag)
 
-			graphEip := dag.GetResourceByVertexId(eip.Id().String())
+			graphEip := dag.GetResource(eip.Id())
 			eip = graphEip.(*ElasticIp)
 			assert.Equal(eip.Name, "my_app_ip0")
 			if tt.eip == nil {
@@ -180,7 +180,7 @@ func Test_InternetGatewayCreate(t *testing.T) {
 			}
 			tt.want.Assert(t, dag)
 
-			graphIgw := dag.GetResourceByVertexId(igw.Id().String())
+			graphIgw := dag.GetResource(igw.Id())
 			igw = graphIgw.(*InternetGateway)
 			assert.Equal(igw.Name, "my_app_igw")
 			if tt.igw == nil {
@@ -255,7 +255,7 @@ func Test_NatGatewayCreate(t *testing.T) {
 				return
 			}
 			tt.want.Assert(t, dag)
-			graphNat := dag.GetResourceByVertexId(nat.Id().String())
+			graphNat := dag.GetResource(nat.Id())
 			nat = graphNat.(*NatGateway)
 
 			assert.Equal(nat.Name, "my_app_0")
@@ -437,7 +437,7 @@ func Test_SubnetCreate(t *testing.T) {
 			}
 			tt.want.Assert(t, dag)
 
-			graphSubnet := dag.GetResourceByVertexId(subnet.Id().String())
+			graphSubnet := dag.GetResource(subnet.Id())
 			subnet = graphSubnet.(*Subnet)
 
 			assert.Equal(subnet.Name, fmt.Sprintf("my_app_%s%s", tt.subnet.Type, tt.subnet.AvailabilityZone.Property))
@@ -506,7 +506,7 @@ func Test_RouteTableCreate(t *testing.T) {
 			}
 			tt.want.Assert(t, dag)
 
-			graphRT := dag.GetResourceByVertexId(rt.Id().String())
+			graphRT := dag.GetResource(rt.Id())
 			rt = graphRT.(*RouteTable)
 
 			assert.Equal(rt.Name, "my_app_private0")

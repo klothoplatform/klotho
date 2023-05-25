@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
@@ -25,8 +24,8 @@ func TestGenerateSecretsResources(t *testing.T) {
 		secrets             []string
 		execUnit            *core.ExecutionUnit
 		want                coretesting.ResourcesExpectation
-		wantManagedPolicies func(secretResolver func(string) *resources.Secret) []resources.StatementEntry
-		wantInlinePolicies  func(secretResolver func(string) *resources.Secret) []resources.StatementEntry
+		wantManagedPolicies func(secretResolver func(core.ResourceId) *resources.Secret) []resources.StatementEntry
+		wantInlinePolicies  func(secretResolver func(core.ResourceId) *resources.Secret) []resources.StatementEntry
 	}{
 		{
 			name:     "two secrets",
@@ -44,10 +43,12 @@ func TestGenerateSecretsResources(t *testing.T) {
 					{Source: "aws:secret_version:AppName-secret2", Destination: "aws:secret:AppName-secret2"},
 				},
 			},
-			wantManagedPolicies: func(secretResolver func(string) *resources.Secret) []resources.StatementEntry { return nil },
-			wantInlinePolicies: func(secretResolver func(string) *resources.Secret) []resources.StatementEntry {
-				secret1 := secretResolver(fmt.Sprintf(`aws:secret:%s-secret1`, AppName))
-				secret2 := secretResolver(fmt.Sprintf(`aws:secret:%s-secret2`, AppName))
+			wantManagedPolicies: func(secretResolver func(core.ResourceId) *resources.Secret) []resources.StatementEntry { return nil },
+			wantInlinePolicies: func(secretResolver func(core.ResourceId) *resources.Secret) []resources.StatementEntry {
+				secret1 := &resources.Secret{Name: AppName + "-secret1"}
+				secret1 = secretResolver(secret1.Id())
+				secret2 := &resources.Secret{Name: AppName + "-secret2"}
+				secret2 = secretResolver(secret2.Id())
 				return []resources.StatementEntry{
 					{
 						Effect: "Allow",
@@ -76,8 +77,8 @@ func TestGenerateSecretsResources(t *testing.T) {
 			name:                "no secrets",
 			execUnit:            execUnit,
 			want:                coretesting.ResourcesExpectation{},
-			wantManagedPolicies: func(secretResolver func(string) *resources.Secret) []resources.StatementEntry { return nil },
-			wantInlinePolicies:  func(secretResolver func(string) *resources.Secret) []resources.StatementEntry { return nil },
+			wantManagedPolicies: func(secretResolver func(core.ResourceId) *resources.Secret) []resources.StatementEntry { return nil },
+			wantInlinePolicies:  func(secretResolver func(core.ResourceId) *resources.Secret) []resources.StatementEntry { return nil },
 		},
 	}
 	for _, tt := range cases {
@@ -109,8 +110,8 @@ func TestGenerateSecretsResources(t *testing.T) {
 
 			tt.want.Assert(t, dag)
 
-			wantManagedPolicies := tt.wantManagedPolicies(func(secretId string) *resources.Secret {
-				resource := dag.GetResourceByVertexId(secretId)
+			wantManagedPolicies := tt.wantManagedPolicies(func(secretId core.ResourceId) *resources.Secret {
+				resource := dag.GetResource(secretId)
 				assert.NotNil(resource)
 				if secret, foundSecret := resource.(*resources.Secret); foundSecret {
 					return secret
@@ -120,8 +121,8 @@ func TestGenerateSecretsResources(t *testing.T) {
 				return nil
 			})
 
-			wantInlinePolicies := tt.wantInlinePolicies(func(secretId string) *resources.Secret {
-				resource := dag.GetResourceByVertexId(secretId)
+			wantInlinePolicies := tt.wantInlinePolicies(func(secretId core.ResourceId) *resources.Secret {
+				resource := dag.GetResource(secretId)
 				assert.NotNil(resource)
 				if secret, foundSecret := resource.(*resources.Secret); foundSecret {
 					return secret

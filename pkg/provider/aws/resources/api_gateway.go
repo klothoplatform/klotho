@@ -102,7 +102,7 @@ func (api *RestApi) Create(dag *core.ResourceGraph, params RestApiCreateParams) 
 	api.Name = name
 	api.ConstructsRef = params.Refs
 
-	existingApi := dag.GetResourceByVertexId(api.Id().String())
+	existingApi := dag.GetResource(api.Id())
 	if existingApi != nil {
 		graphApi := existingApi.(*RestApi)
 		graphApi.ConstructsRef = core.DedupeAnnotationKeys(append(graphApi.ConstructsRef, params.Refs...))
@@ -158,7 +158,7 @@ func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceC
 	resource.Name = name
 	resource.ConstructsRef = params.Refs
 
-	existingResource := dag.GetResourceByVertexId(resource.Id().String())
+	existingResource := dag.GetResource(resource.Id())
 	if existingResource != nil {
 		graphResource := existingResource.(*ApiResource)
 		graphResource.ConstructsRef = append(graphResource.ConstructsRef, params.Refs...)
@@ -204,7 +204,7 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 	integration.Name = name
 	integration.ConstructsRef = params.Refs
 
-	existingResource := dag.GetResourceByVertexId(integration.Id().String())
+	existingResource := dag.GetResource(integration.Id())
 	if existingResource != nil {
 		graphResource := existingResource.(*ApiIntegration)
 		graphResource.ConstructsRef = append(graphResource.ConstructsRef, params.Refs...)
@@ -301,7 +301,7 @@ func (deployment *ApiDeployment) Create(dag *core.ResourceGraph, params ApiDeplo
 	deployment.Name = name
 	deployment.ConstructsRef = params.Refs
 
-	existingDeployment := dag.GetResourceByVertexId(deployment.Id().String())
+	existingDeployment := dag.GetResource(deployment.Id())
 	if existingDeployment != nil {
 		graphDeployment := existingDeployment.(*ApiDeployment)
 		graphDeployment.ConstructsRef = append(graphDeployment.ConstructsRef, params.Refs...)
@@ -329,7 +329,7 @@ func (stage *ApiStage) Create(dag *core.ResourceGraph, params ApiStageCreatePara
 	stage.Name = name
 	stage.ConstructsRef = params.Refs
 
-	existingResource := dag.GetResourceByVertexId(stage.Id().String())
+	existingResource := dag.GetResource(stage.Id())
 	if existingResource != nil {
 		graphResource := existingResource.(*ApiStage)
 		graphResource.ConstructsRef = append(graphResource.ConstructsRef, params.Refs...)

@@ -64,16 +64,15 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 	wh.Writef("  provider: %s\n", f.Provider)
 	wh.Write("  resources:\n")
 
-	resourceIds, err := f.DAG.TopologicalSort()
+	resources, err := f.DAG.TopologicalSort()
 	if err != nil {
 		return
 	}
-	for i := len(resourceIds)/2 - 1; i >= 0; i-- {
-		opp := len(resourceIds) - 1 - i
-		resourceIds[i], resourceIds[opp] = resourceIds[opp], resourceIds[i]
+	for i := len(resources)/2 - 1; i >= 0; i-- {
+		opp := len(resources) - 1 - i
+		resources[i], resources[opp] = resources[opp], resources[i]
 	}
-	for _, resourceId := range resourceIds {
-		resource := f.DAG.GetResourceByVertexId(resourceId)
+	for _, resource := range resources {
 		if resource.Id().Provider == core.InternalProvider {
 			// Don't show internal resources such as imported in the topology
 			// TODO maybe make some way of indicating imported resources in the visualizer
@@ -83,7 +82,7 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 		if key == "" {
 			continue
 		}
-		wh.Writef(indent+"%s: # %s\n", key, resourceId)
+		wh.Writef(indent+"%s: # %s\n", key, resource.Id())
 		properties := propFetcher.apply(resource, f.DAG)
 		if len(properties) > 0 {
 			writeYaml(properties, 2, wh)

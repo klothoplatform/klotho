@@ -128,7 +128,7 @@ type EipCreateParams struct {
 func (eip *ElasticIp) Create(dag *core.ResourceGraph, params EipCreateParams) error {
 	eip.Name = elasticIpSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.IpName))
 	eip.ConstructsRef = params.Refs
-	existingEip := dag.GetResourceByVertexId(eip.Id().String())
+	existingEip := dag.GetResource(eip.Id())
 	if existingEip != nil {
 		graphEip := existingEip.(*ElasticIp)
 		graphEip.ConstructsRef = append(graphEip.ConstructsRef, params.Refs...)
@@ -148,7 +148,7 @@ func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreatePara
 	igw.Name = igwSanitizer.Apply(fmt.Sprintf("%s-igw", params.AppName))
 	igw.ConstructsRef = params.Refs
 
-	existingIgw := dag.GetResourceByVertexId(igw.Id().String())
+	existingIgw := dag.GetResource(igw.Id())
 
 	if existingIgw != nil {
 		graphIgw := existingIgw.(*InternetGateway)
@@ -175,7 +175,7 @@ func (nat *NatGateway) Create(dag *core.ResourceGraph, params NatCreateParams) e
 	nat.Name = natGatewaySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.AZ))
 	nat.ConstructsRef = params.Refs
 
-	existingNat := dag.GetResourceByVertexId(nat.Id().String())
+	existingNat := dag.GetResource(nat.Id())
 	if existingNat != nil {
 		graphNat := existingNat.(*NatGateway)
 		graphNat.ConstructsRef = append(graphNat.ConstructsRef, params.Refs...)
@@ -261,7 +261,7 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams)
 	dag.AddDependency(rt, subnet)
 
 	// We must check to see if there is an existent subnet after calling create dependencies because the id of the subnet has a namespace based on the vpc
-	existingSubnet := dag.GetResourceByVertexId(subnet.Id().String())
+	existingSubnet := dag.GetResource(subnet.Id())
 	if existingSubnet != nil {
 		graphSubnet := existingSubnet.(*Subnet)
 		graphSubnet.ConstructsRef = core.DedupeAnnotationKeys(append(graphSubnet.ConstructsRef, params.Refs...))
@@ -314,7 +314,7 @@ func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreatePar
 	dag.AddDependenciesReflect(rt)
 
 	// We must check to see if there is an existent route table after calling create dependencies because the id of the subnet can contain a namespace based on the vpc
-	existingRt := dag.GetResourceByVertexId(rt.Id().String())
+	existingRt := dag.GetResource(rt.Id())
 	if existingRt != nil {
 		graphRt := existingRt.(*RouteTable)
 		graphRt.ConstructsRef = core.DedupeAnnotationKeys(append(graphRt.ConstructsRef, params.Refs...))

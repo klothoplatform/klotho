@@ -104,13 +104,12 @@ func standardTemplatesProvider() *templatesProvider {
 
 func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 	errs := multierr.Error{}
-	vertexIds, err := tc.resourceGraph.VertexIdsInTopologicalOrder()
+	res, err := tc.resourceGraph.TopologicalSort()
 	if err != nil {
 		return err
 	}
-	for i := len(vertexIds) - 1; i >= 0; i-- {
-		id := vertexIds[i]
-		resource := tc.resourceGraph.GetResourceByVertexId(id)
+	for i := len(res) - 1; i >= 0; i-- {
+		resource := res[i]
 		switch resource.(type) {
 		case *resources.AccountId, *resources.Region:
 			continue // skip resources that we know are rendered outside of the body

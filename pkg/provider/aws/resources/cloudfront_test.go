@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_CreateS3Origin(t *testing.T) {
-
 	unit := &core.StaticUnit{AnnotationKey: core.AnnotationKey{ID: "test"}}
 	bucket := NewS3Bucket(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "bucket"}}, "test")
 	distro := NewCloudfrontDistribution("test", "1")
@@ -18,9 +18,20 @@ func Test_CreateS3Origin(t *testing.T) {
 	dag := core.NewResourceGraph()
 	CreateS3Origin(unit, bucket, distro, dag)
 
-	assert.NotNil(dag.GetDependencyByVertexIds("aws:s3_bucket_policy:test-bucket-test", "aws:cloudfront_origin_access_identity:test-bucket-test"))
-	assert.NotNil(dag.GetDependencyByVertexIds("aws:s3_bucket_policy:test-bucket-test", "aws:s3_bucket:test-bucket"))
-	assert.NotNil(dag.GetDependencyByVertexIds("aws:cloudfront_distribution:test-1", "aws:cloudfront_origin_access_identity:test-bucket-test"))
+	want := coretesting.ResourcesExpectation{
+		Nodes: []string{
+			"aws:cloudfront_distribution:test-1",
+			"aws:cloudfront_origin_access_identity:test-bucket-test",
+			"aws:s3_bucket:test-bucket",
+			"aws:s3_bucket_policy:test-bucket-test",
+		},
+		Deps: []coretesting.StringDep{
+			{Source: "aws:cloudfront_distribution:test-1", Destination: "aws:cloudfront_origin_access_identity:test-bucket-test"},
+			{Source: "aws:s3_bucket_policy:test-bucket-test", Destination: "aws:cloudfront_origin_access_identity:test-bucket-test"},
+			{Source: "aws:s3_bucket_policy:test-bucket-test", Destination: "aws:s3_bucket:test-bucket"},
+		},
+	}
+	want.Assert(t, dag)
 
 	oai := dag.GetResource(core.ResourceId{Provider: "aws", Type: "cloudfront_origin_access_identity", Name: fmt.Sprintf("%s-%s", bucket.Name, unit.ID)})
 	if !assert.NotNil(oai) {
@@ -52,7 +63,9 @@ func Test_CreateS3Origin(t *testing.T) {
 		},
 	})
 
-	assert.Len(distro.Origins, 1)
+	if !assert.Len(distro.Origins, 1) {
+		return
+	}
 	s3Origin := distro.Origins[0]
 	assert.Equal(s3Origin.DomainName, core.IaCValue{
 		Resource: bucket,

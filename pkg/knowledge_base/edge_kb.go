@@ -230,7 +230,7 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph, appName string) (err error
 			// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
 			if len(validPath) > 1 {
 				zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
-				err := dag.RemoveDependency(dep.Source.Id().String(), dep.Destination.Id().String())
+				err := dag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
 				if err != nil {
 					merr.Append(err)
 					continue
