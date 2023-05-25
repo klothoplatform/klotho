@@ -121,6 +121,19 @@ func (rg *ResourceGraph) TopologicalSort() ([]Resource, error) {
 	return resources, nil
 }
 
+func (rg *ResourceGraph) ReverseTopologicalSort() ([]Resource, error) {
+	ids, err := rg.underlying.VertexIdsInTopologicalOrder()
+	if err != nil {
+		return nil, err
+	}
+	total := len(ids)
+	resources := make([]Resource, total)
+	for i := total; i > 0; i-- {
+		resources[total-i] = rg.underlying.GetVertex(ids[i-1])
+	}
+	return resources, nil
+}
+
 // AddDependenciesReflect uses reflection to inspect the fields of the resource given
 // and add dependencies for each dependency nested within the object.
 // Structs that are a type of a valid dependency, will not be recursed further as they will already have a

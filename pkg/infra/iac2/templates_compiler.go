@@ -104,12 +104,11 @@ func standardTemplatesProvider() *templatesProvider {
 
 func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 	errs := multierr.Error{}
-	res, err := tc.resourceGraph.TopologicalSort()
+	res, err := tc.resourceGraph.ReverseTopologicalSort()
 	if err != nil {
 		return err
 	}
-	for i := len(res) - 1; i >= 0; i-- {
-		resource := res[i]
+	for i, resource := range res {
 		switch resource.(type) {
 		case *resources.AccountId, *resources.Region:
 			continue // skip resources that we know are rendered outside of the body
@@ -120,7 +119,7 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 		}
 		err := tc.renderResource(out, resource)
 		errs.Append(err)
-		if i > 0 {
+		if i < len(res)-1 {
 			_, err = out.Write([]byte("\n\n"))
 			if err != nil {
 				return err
