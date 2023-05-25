@@ -58,7 +58,7 @@ func Test_CloudwatchLogGroupCreate(t *testing.T) {
 
 			tt.want.Assert(t, dag)
 
-			graphLogGroup := dag.GetResourceByVertexId(logGroup.Id().String())
+			graphLogGroup := dag.GetResource(logGroup.Id())
 			logGroup = graphLogGroup.(*LogGroup)
 
 			assert.Equal(logGroup.Name, "my-app-log-group")

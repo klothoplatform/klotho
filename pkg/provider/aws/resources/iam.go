@@ -192,7 +192,7 @@ type OidcCreateParams struct {
 func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCreateParams) error {
 	oidc.Name = fmt.Sprintf("%s-%s", params.AppName, params.ClusterName)
 
-	existingOidc := dag.GetResourceByVertexId(oidc.Id().String())
+	existingOidc := dag.GetResource(oidc.Id())
 	if existingOidc != nil {
 		graphOidc := existingOidc.(*OpenIdConnectProvider)
 		graphOidc.ConstructsRef.AddAll(params.Refs)

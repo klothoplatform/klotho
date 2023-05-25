@@ -129,9 +129,9 @@ func TestResourceGraph_AddDependenciesReflect(t *testing.T) {
 		"nested_arr1", "nested_arr2",
 		"nested_map1", "nested_map2",
 	} {
-		assert.NotNil(dag.GetDependencyByVertexIds(tr.Id().String(), (&testResource{Name: target}).Id().String()), "source -> %s", target)
+		assert.NotNil(dag.GetDependency(tr.Id(), (&testResource{Name: target}).Id()), "source -> %s", target)
 	}
-	assert.Nil(dag.GetDependencyByVertexIds(tr.Id().String(), (&testResource{Name: "nested_single"}).Id().String()))
+	assert.Nil(dag.GetDependency(tr.Id(), (&testResource{Name: "nested_single"}).Id()))
 }
 
 func TestResourceGraph_CreateDependencies(t *testing.T) {
@@ -254,6 +254,6 @@ func TestResourceGraph_CreateDependencies(t *testing.T) {
 		"nested_arr1", "nested_arr2",
 		"nested_map1", "nested_map2",
 	} {
-		assert.Nil(dag.GetDependencyByVertexIds(tr.Id().String(), (&testResource{Name: target}).Id().String()), "source -> %s", target)
+		assert.Nil(dag.GetDependency(tr.Id(), (&testResource{Name: target}).Id()), "source -> %s", target)
 	}
 }

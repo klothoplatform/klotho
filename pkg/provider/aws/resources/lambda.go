@@ -51,7 +51,7 @@ func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreat
 	lambda.Name = name
 	lambda.ConstructsRef = params.Refs
 
-	existingLambda := dag.GetResourceByVertexId(lambda.Id().String())
+	existingLambda := dag.GetResource(lambda.Id())
 	if existingLambda != nil {
 		return fmt.Errorf("lambda with name %s already exists", name)
 	}

@@ -50,26 +50,15 @@ func (rg *ResourceGraph) AddResource(resource Resource) {
 //
 //	rg.AddDependency(lambda, lambda.Role)
 func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Resource) {
-
-	rg.AddResource(deployedSecond)
-	rg.AddResource(deployedFirst)
-
-	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.Id().String(), deployedFirst.Id().String()); cycle {
-		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond.Id(), deployedFirst.Id())
-	} else {
-		rg.underlying.AddEdge(deployedSecond.Id().String(), deployedFirst.Id().String(), nil)
-		zap.S().Debugf("adding %s -> %s", deployedSecond.Id(), deployedFirst.Id())
-	}
+	rg.AddDependencyWithData(deployedSecond, deployedFirst, nil)
 }
 
 // AddDependencyWithData Adds a dependency such that `deployedSecond` has to be deployed after `deployedFirst`. This makes the left-to-right
 // association consistent with our visualizer, and with the Go struct graph.
 // This method also allows any edge data to be attached to the dependency in the ResourceGraph
 func (rg *ResourceGraph) AddDependencyWithData(deployedSecond Resource, deployedFirst Resource, data any) {
-
-	for _, res := range []Resource{deployedSecond, deployedFirst} {
-		rg.AddResource(res)
-	}
+	rg.AddResource(deployedSecond)
+	rg.AddResource(deployedFirst)
 	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.Id().String(), deployedFirst.Id().String()); cycle {
 		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond.Id(), deployedFirst.Id())
 	} else {
@@ -88,20 +77,12 @@ func GetResource[T Resource](g *ResourceGraph, id ResourceId) (resource T, ok bo
 	return
 }
 
-func (rg *ResourceGraph) GetResourceByVertexId(id string) Resource {
-	return rg.underlying.GetVertex(id)
+func (rg *ResourceGraph) GetDependency(source ResourceId, target ResourceId) *graph.Edge[Resource] {
+	return rg.underlying.GetEdge(source.String(), target.String())
 }
 
-func (rg *ResourceGraph) GetDependency(source Resource, target Resource) *graph.Edge[Resource] {
-	return rg.underlying.GetEdge(rg.underlying.IdForNode(source), rg.underlying.IdForNode(target))
-}
-
-func (rg *ResourceGraph) GetDependencyByVertexIds(source string, target string) *graph.Edge[Resource] {
-	return rg.underlying.GetEdge(source, target)
-}
-
-func (rg *ResourceGraph) RemoveDependency(source string, target string) error {
-	return rg.underlying.RemoveEdge(source, target)
+func (rg *ResourceGraph) RemoveDependency(source ResourceId, target ResourceId) error {
+	return rg.underlying.RemoveEdge(source.String(), target.String())
 }
 
 func (rg *ResourceGraph) ListResources() []Resource {
@@ -110,10 +91,6 @@ func (rg *ResourceGraph) ListResources() []Resource {
 
 func (rg *ResourceGraph) ListDependencies() []graph.Edge[Resource] {
 	return rg.underlying.GetAllEdges()
-}
-
-func (rg *ResourceGraph) VertexIdsInTopologicalOrder() ([]string, error) {
-	return rg.underlying.VertexIdsInTopologicalOrder()
 }
 
 func (rg *ResourceGraph) GetDownstreamDependencies(source Resource) []graph.Edge[Resource] {
@@ -132,8 +109,16 @@ func (rg *ResourceGraph) GetUpstreamResources(source Resource) []Resource {
 	return rg.underlying.IncomingVertices(source)
 }
 
-func (rg *ResourceGraph) TopologicalSort() ([]string, error) {
-	return rg.underlying.VertexIdsInTopologicalOrder()
+func (rg *ResourceGraph) TopologicalSort() ([]Resource, error) {
+	ids, err := rg.underlying.VertexIdsInTopologicalOrder()
+	if err != nil {
+		return nil, err
+	}
+	resources := make([]Resource, len(ids))
+	for i, id := range ids {
+		resources[i] = rg.underlying.GetVertex(id)
+	}
+	return resources, nil
 }
 
 // AddDependenciesReflect uses reflection to inspect the fields of the resource given
@@ -154,7 +139,6 @@ func (rg *ResourceGraph) TopologicalSort() ([]string, error) {
 // - `NestedSpecificDepArray []*K`
 // - `NestedDependencyMap  map[string]K`
 // - `NestedSpecificDepMap map[string]*K`
-
 func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
 	rg.AddResource(source)
 
@@ -234,7 +218,7 @@ func (rg *ResourceGraph) addDependenciesReflect(source Resource, targetValue ref
 
 func (rg *ResourceGraph) GetAllUpstreamResources(source Resource) []Resource {
 	var upstreams []Resource
-	upstreamsSet := map[Resource]struct{}{}
+	upstreamsSet := make(map[Resource]struct{})
 	for r := range rg.getAllUpstreamResourcesSet(source, upstreamsSet) {
 		upstreams = append(upstreams, r)
 	}
@@ -321,7 +305,6 @@ func (rg *ResourceGraph) CreateDependencies(res Resource, params map[string]any)
 //
 // CreateResource provides safety in assuring that the up to date resource (which is inline with what exists in the ResourceGraph) is returned
 func CreateResource[T Resource](rg *ResourceGraph, params any) (resource T, err error) {
-
 	res := reflect.New(reflect.TypeOf(resource).Elem()).Interface()
 	err = rg.callCreate(reflect.ValueOf(res), params)
 	if err != nil {
@@ -333,7 +316,7 @@ func CreateResource[T Resource](rg *ResourceGraph, params any) (resource T, err 
 		return
 	}
 
-	currValue := rg.GetResourceByVertexId(castedRes.Id().String())
+	currValue := rg.GetResource(castedRes.Id())
 	if currValue != nil {
 		return currValue.(T), nil
 	}
@@ -347,7 +330,7 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 			value = reflect.New(targetValue.Type().Elem()).Interface().(Resource)
 		}
 		err := rg.callCreate(reflect.ValueOf(value), metadata)
-		currValue := rg.GetResourceByVertexId(value.Id().String())
+		currValue := rg.GetResource(value.Id())
 		if currValue != nil {
 			value = currValue
 		}
@@ -363,7 +346,7 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 	case *IaCValue:
 		if value != nil && value.Resource != nil {
 			err := rg.callCreate(reflect.ValueOf(value.Resource), metadata)
-			currValue := rg.GetResourceByVertexId(value.Resource.Id().String())
+			currValue := rg.GetResource(value.Resource.Id())
 			if currValue != nil {
 				value.Resource = currValue
 			}
@@ -380,7 +363,7 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 	case IaCValue:
 		if value.Resource != nil {
 			err := rg.callCreate(reflect.ValueOf(value.Resource), metadata)
-			currValue := rg.GetResourceByVertexId(value.Resource.Id().String())
+			currValue := rg.GetResource(value.Resource.Id())
 			if currValue != nil {
 				value.Resource = currValue
 			}
@@ -436,7 +419,6 @@ func (rg *ResourceGraph) callCreate(targetValue reflect.Value, metadata any) err
 
 // CallConfigure uses the resource graph to ensure the node passed in exists, then uses reflection to call the resources Configure method
 func (rg *ResourceGraph) CallConfigure(resource Resource, metadata any) error {
-
 	if rg.GetResource(resource.Id()) == nil {
 		return fmt.Errorf("resource with id %s cannot be configured since it does not exist in the ResourceGraph", resource.Id())
 	}

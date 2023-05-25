@@ -184,7 +184,7 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 				return
 			}
 			for _, dep := range tt.want {
-				edge := dag.GetDependency(dep.Source, dep.Destination)
+				edge := dag.GetDependency(dep.Source.Id(), dep.Destination.Id())
 				assert.Equal(edge, dep)
 			}
 		})
