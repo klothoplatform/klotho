@@ -76,7 +76,7 @@ func Test_ElasticacheClusterCreate(t *testing.T) {
 		},
 		{
 			Name:     "existing elasticache cluster",
-			Existing: &ElasticacheCluster{Name: "my-app-test", ConstructsRef: core.AnnotationKeySetOf(existingKey)},
+			Existing: []core.Resource{&ElasticacheCluster{Name: "my-app-test", ConstructsRef: core.AnnotationKeySetOf(existingKey)}},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",

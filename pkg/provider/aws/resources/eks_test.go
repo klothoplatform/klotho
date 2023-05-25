@@ -80,7 +80,7 @@ func Test_EksClusterCreate(t *testing.T) {
 		},
 		{
 			Name:     "existing lambda",
-			Existing: &EksCluster{Name: "my-app-cluster", ConstructsRef: initialRefs},
+			Existing: []core.Resource{&EksCluster{Name: "my-app-cluster", ConstructsRef: initialRefs}},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:eks_cluster:my-app-cluster",
@@ -183,7 +183,7 @@ func Test_EksFargateProfileCreate(t *testing.T) {
 		},
 		{
 			Name:     "existing lambda",
-			Existing: &EksFargateProfile{Name: "my-app_profile_private", ConstructsRef: initialRefs},
+			Existing: []core.Resource{&EksFargateProfile{Name: "my-app_profile_private", ConstructsRef: initialRefs}},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:eks_fargate_profile:my-app_profile_private",
@@ -310,7 +310,7 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 		},
 		{
 			Name:     "existing lambda",
-			Existing: &EksNodeGroup{Name: "my-app_cluster_private_t3_medium", ConstructsRef: initialRefs},
+			Existing: []core.Resource{&EksNodeGroup{Name: "my-app_cluster_private_t3_medium", ConstructsRef: initialRefs}},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:eks_node_group:my-app_cluster_private_t3_medium",

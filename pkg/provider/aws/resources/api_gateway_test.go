@@ -157,7 +157,7 @@ func Test_ApiResourceCreate(t *testing.T) {
 			Params: ApiResourceCreateParams{
 				Path: "/my/api/route",
 			},
-			Existing: &ApiResource{Name: "my-app-/my/api/route", ConstructsRef: initialRefs},
+			Existing: []core.Resource{&ApiResource{Name: "my-app-/my/api/route", ConstructsRef: initialRefs}},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:api_resource:my-app-/my/api/route",

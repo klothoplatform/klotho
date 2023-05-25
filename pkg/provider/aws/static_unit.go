@@ -28,8 +28,7 @@ func (a *AWS) expandStaticUnit(dag *core.ResourceGraph, unit *core.StaticUnit) e
 	for _, f := range unit.Files() {
 		object, err := core.CreateResource[*resources.S3Object](dag, resources.S3ObjectCreateParams{
 			AppName:  a.Config.AppName,
-			Refs:     core.AnnotationKeySetOf(unit.AnnotationKey),
-			UnitName: unit.Provenance().ID,
+			Ref:      unit.AnnotationKey,
 			Name:     filepath.Base(f.Path()),
 			Key:      f.Path(),
 			FilePath: filepath.Join(unit.ID, f.Path()),
@@ -42,4 +41,10 @@ func (a *AWS) expandStaticUnit(dag *core.ResourceGraph, unit *core.StaticUnit) e
 		errs.Append(err)
 	}
 	return errs.ErrOrNil()
+}
+
+func (a *AWS) getStaticUnitObjectConfiguration() resources.S3ObjectConfigureParams {
+	return resources.S3ObjectConfigureParams{
+		// no fields; provided for consistency with other resources
+	}
 }

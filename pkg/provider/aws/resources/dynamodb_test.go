@@ -28,7 +28,7 @@ func Test_DynamodbTableCreate(t *testing.T) {
 		},
 		{
 			Name:     "existing dynamodb table",
-			Existing: &DynamodbTable{Name: "my-app-kv", ConstructsRef: core.AnnotationKeySetOf(existingKey)},
+			Existing: []core.Resource{&DynamodbTable{Name: "my-app-kv", ConstructsRef: core.AnnotationKeySetOf(existingKey)}},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:dynamodb_table:my-app-kv",

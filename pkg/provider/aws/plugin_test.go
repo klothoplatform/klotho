@@ -249,3 +249,79 @@ func Test_configureResources(t *testing.T) {
 		})
 	}
 }
+
+func Test_getS3BucketConfig(t *testing.T) {
+	cases := []struct {
+		name       string
+		constructs []core.Construct
+		want       resources.S3BucketConfigureParams
+		wantErr    bool
+	}{
+		{
+			name: "no constructs", // Not an expected case, but it should work anyway
+			want: getFsConfiguration(),
+		},
+		{
+			name: "fs construct",
+			constructs: []core.Construct{
+				&core.Fs{core.AnnotationKey{Capability: "fs", ID: "fs-a"}},
+			},
+			want: getFsConfiguration(),
+		},
+		{
+			name: "multiple exec units", // for lambda payloads
+			constructs: []core.Construct{
+				&core.Fs{core.AnnotationKey{Capability: "exec-proxy", ID: "unit-a"}},
+				&core.Fs{core.AnnotationKey{Capability: "exec-proxy", ID: "unit-b"}},
+			},
+			want: getFsConfiguration(),
+		},
+		{
+			name: "single static unit",
+			constructs: []core.Construct{
+				&core.StaticUnit{
+					AnnotationKey: core.AnnotationKey{Capability: "exec-proxy", ID: "unit-a"},
+					IndexDocument: "my index doc",
+				},
+			},
+			want: resources.S3BucketConfigureParams{
+				ForceDestroy:  true,
+				IndexDocument: "my index doc",
+			},
+		},
+		{
+			name: "multiple static units",
+			constructs: []core.Construct{
+				&core.StaticUnit{
+					AnnotationKey: core.AnnotationKey{Capability: "static", ID: "unit-a"},
+					IndexDocument: "my index doc 001",
+				},
+				&core.StaticUnit{
+					AnnotationKey: core.AnnotationKey{Capability: "static", ID: "unit-b"},
+					IndexDocument: "my index doc 002",
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			bucket := &resources.S3Bucket{}
+			constructs := core.NewConstructGraph()
+			for _, cons := range tt.constructs {
+				constructs.AddConstruct(cons)
+				bucket.ConstructsRef.Add(cons.Provenance())
+			}
+
+			actualConfig, actualErr := getS3BucketConfig(bucket, constructs)
+			if tt.wantErr {
+				assert.Error(actualErr)
+			} else {
+				assert.NoError(actualErr)
+				assert.Equal(tt.want, actualConfig)
+			}
+		})
+	}
+}

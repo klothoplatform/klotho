@@ -116,8 +116,7 @@ func (bucket *S3Bucket) Configure(params S3BucketConfigureParams) error {
 
 type S3ObjectCreateParams struct {
 	AppName  string
-	Refs     core.AnnotationKeySet
-	UnitName string
+	Ref      core.AnnotationKey
 	Name     string
 	Key      string
 	FilePath string
@@ -126,8 +125,8 @@ type S3ObjectCreateParams struct {
 func (object *S3Object) Create(dag *core.ResourceGraph, params S3ObjectCreateParams) error {
 	bucket, err := core.CreateResource[*S3Bucket](dag, S3BucketCreateParams{
 		AppName: params.AppName,
-		Refs:    params.Refs,
-		Name:    params.UnitName,
+		Refs:    core.AnnotationKeySetOf(params.Ref),
+		Name:    params.Ref.ID,
 	})
 	if err != nil {
 		return nil
@@ -138,7 +137,7 @@ func (object *S3Object) Create(dag *core.ResourceGraph, params S3ObjectCreatePar
 	if dag.GetResource(object.Id()) != nil {
 		return fmt.Errorf(`S3Object with name %s already exists`, object.Name)
 	}
-	object.ConstructsRef = params.Refs
+	object.ConstructsRef = core.AnnotationKeySetOf(params.Ref)
 	object.Key = params.Key
 	object.FilePath = params.FilePath
 	dag.AddDependency(object, bucket)

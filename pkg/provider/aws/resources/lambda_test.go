@@ -37,7 +37,7 @@ func Test_LambdaCreate(t *testing.T) {
 		},
 		{
 			Name:     "existing lambda",
-			Existing: &LambdaFunction{Name: "my-app-test"},
+			Existing: []core.Resource{&LambdaFunction{Name: "my-app-test"}},
 			WantErr:  true,
 		},
 	}
