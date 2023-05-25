@@ -64,13 +64,9 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 	wh.Writef("  provider: %s\n", f.Provider)
 	wh.Write("  resources:\n")
 
-	resources, err := f.DAG.TopologicalSort()
+	resources, err := f.DAG.ReverseTopologicalSort()
 	if err != nil {
 		return
-	}
-	for i := len(resources)/2 - 1; i >= 0; i-- {
-		opp := len(resources) - 1 - i
-		resources[i], resources[opp] = resources[opp], resources[i]
 	}
 	for _, resource := range resources {
 		if resource.Id().Provider == core.InternalProvider {
