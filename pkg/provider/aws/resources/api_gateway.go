@@ -29,13 +29,13 @@ var apiResourceSanitizer = aws.ApiResourceSanitizer
 type (
 	RestApi struct {
 		Name             string
-		ConstructsRef    []core.AnnotationKey
+		ConstructsRef    core.AnnotationKeySet
 		BinaryMediaTypes []string
 	}
 
 	ApiResource struct {
 		Name           string
-		ConstructsRef  []core.AnnotationKey
+		ConstructsRef  core.AnnotationKeySet
 		RestApi        *RestApi
 		PathPart       string
 		ParentResource *ApiResource
@@ -43,7 +43,7 @@ type (
 
 	ApiMethod struct {
 		Name              string
-		ConstructsRef     []core.AnnotationKey
+		ConstructsRef     core.AnnotationKeySet
 		RestApi           *RestApi
 		Resource          *ApiResource
 		HttpMethod        string
@@ -52,13 +52,13 @@ type (
 	}
 
 	VpcLink struct {
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Target        core.Resource
 	}
 
 	ApiIntegration struct {
 		Name                  string
-		ConstructsRef         []core.AnnotationKey
+		ConstructsRef         core.AnnotationKeySet
 		RestApi               *RestApi
 		Resource              *ApiResource
 		Method                *ApiMethod
@@ -73,14 +73,14 @@ type (
 
 	ApiDeployment struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		RestApi       *RestApi
 		Triggers      map[string]string
 	}
 
 	ApiStage struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		StageName     string
 		RestApi       *RestApi
 		Deployment    *ApiDeployment
@@ -89,7 +89,7 @@ type (
 
 type RestApiCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Name    string
 }
 
@@ -105,7 +105,7 @@ func (api *RestApi) Create(dag *core.ResourceGraph, params RestApiCreateParams) 
 	existingApi := dag.GetResourceByVertexId(api.Id().String())
 	if existingApi != nil {
 		graphApi := existingApi.(*RestApi)
-		graphApi.ConstructsRef = core.DedupeAnnotationKeys(append(graphApi.ConstructsRef, params.Refs...))
+		graphApi.ConstructsRef.AddAll(params.Refs)
 	} else {
 		dag.AddResource(api)
 	}
@@ -147,7 +147,7 @@ func convertPath(path string, wildcardsToGreedy bool) string {
 
 type ApiResourceCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Path    string
 	ApiName string
 }
@@ -161,7 +161,7 @@ func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceC
 	existingResource := dag.GetResourceByVertexId(resource.Id().String())
 	if existingResource != nil {
 		graphResource := existingResource.(*ApiResource)
-		graphResource.ConstructsRef = append(graphResource.ConstructsRef, params.Refs...)
+		graphResource.ConstructsRef.AddAll(params.Refs)
 		return nil
 	} else {
 		segments := strings.Split(params.Path, "/")
@@ -191,7 +191,7 @@ func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceC
 
 type ApiIntegrationCreateParams struct {
 	AppName    string
-	Refs       []core.AnnotationKey
+	Refs       core.AnnotationKeySet
 	Path       string
 	ApiName    string
 	HttpMethod string
@@ -207,7 +207,7 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 	existingResource := dag.GetResourceByVertexId(integration.Id().String())
 	if existingResource != nil {
 		graphResource := existingResource.(*ApiIntegration)
-		graphResource.ConstructsRef = append(graphResource.ConstructsRef, params.Refs...)
+		graphResource.ConstructsRef.AddAll(params.Refs)
 	} else {
 		subParams := map[string]any{
 			"RestApi": RestApiCreateParams{
@@ -234,7 +234,7 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 
 type ApiMethodCreateParams struct {
 	AppName    string
-	Refs       []core.AnnotationKey
+	Refs       core.AnnotationKeySet
 	Path       string
 	ApiName    string
 	HttpMethod string
@@ -251,7 +251,7 @@ func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateP
 	existingResource := dag.GetResource(method.Id())
 	if existingResource != nil {
 		graphResource := existingResource.(*ApiMethod)
-		graphResource.ConstructsRef = append(graphResource.ConstructsRef, params.Refs...)
+		graphResource.ConstructsRef.AddAll(params.Refs)
 	} else {
 		subParams := map[string]any{
 			"RestApi": RestApiCreateParams{
@@ -290,7 +290,7 @@ func (method *ApiMethod) Configure(params ApiMethodConfigureParams) error {
 
 type ApiDeploymentCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Name    string
 }
 
@@ -304,7 +304,7 @@ func (deployment *ApiDeployment) Create(dag *core.ResourceGraph, params ApiDeplo
 	existingDeployment := dag.GetResourceByVertexId(deployment.Id().String())
 	if existingDeployment != nil {
 		graphDeployment := existingDeployment.(*ApiDeployment)
-		graphDeployment.ConstructsRef = append(graphDeployment.ConstructsRef, params.Refs...)
+		graphDeployment.ConstructsRef.AddAll(params.Refs)
 	} else {
 		err := dag.CreateDependencies(deployment, map[string]any{
 			"RestApi": params,
@@ -318,7 +318,7 @@ func (deployment *ApiDeployment) Create(dag *core.ResourceGraph, params ApiDeplo
 
 type ApiStageCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Name    string
 }
 
@@ -332,7 +332,7 @@ func (stage *ApiStage) Create(dag *core.ResourceGraph, params ApiStageCreatePara
 	existingResource := dag.GetResourceByVertexId(stage.Id().String())
 	if existingResource != nil {
 		graphResource := existingResource.(*ApiStage)
-		graphResource.ConstructsRef = append(graphResource.ConstructsRef, params.Refs...)
+		graphResource.ConstructsRef.AddAll(params.Refs)
 		return nil
 	} else {
 		err := dag.CreateDependencies(stage, map[string]any{
@@ -362,13 +362,13 @@ func (stage *ApiStage) Configure(params ApiStageConfigureParams) error {
 func NewRestApi(appName string, gw *core.Gateway) *RestApi {
 	return &RestApi{
 		Name:             restApiSanitizer.Apply(fmt.Sprintf("%s-%s", appName, gw.ID)),
-		ConstructsRef:    []core.AnnotationKey{gw.AnnotationKey},
+		ConstructsRef:    core.AnnotationKeySetOf(gw.AnnotationKey),
 		BinaryMediaTypes: []string{"application/octet-stream", "image/*"},
 	}
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (api *RestApi) KlothoConstructRef() []core.AnnotationKey {
+func (api *RestApi) KlothoConstructRef() core.AnnotationKeySet {
 	return api.ConstructsRef
 }
 
@@ -381,7 +381,7 @@ func (api *RestApi) Id() core.ResourceId {
 	}
 }
 
-func NewApiResource(currSegment string, api *RestApi, refs []core.AnnotationKey, pathPart string, parentResource *ApiResource) *ApiResource {
+func NewApiResource(currSegment string, api *RestApi, refs core.AnnotationKeySet, pathPart string, parentResource *ApiResource) *ApiResource {
 	return &ApiResource{
 		Name:           apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", api.Name, currSegment)),
 		ConstructsRef:  refs,
@@ -392,7 +392,7 @@ func NewApiResource(currSegment string, api *RestApi, refs []core.AnnotationKey,
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (res *ApiResource) KlothoConstructRef() []core.AnnotationKey {
+func (res *ApiResource) KlothoConstructRef() core.AnnotationKeySet {
 	return res.ConstructsRef
 }
 
@@ -405,7 +405,7 @@ func (res *ApiResource) Id() core.ResourceId {
 	}
 }
 
-func NewApiMethod(resource *ApiResource, api *RestApi, refs []core.AnnotationKey, httpMethod string, requestParams map[string]bool) *ApiMethod {
+func NewApiMethod(resource *ApiResource, api *RestApi, refs core.AnnotationKeySet, httpMethod string, requestParams map[string]bool) *ApiMethod {
 	name := fmt.Sprintf("%s-%s", api.Name, httpMethod)
 	if resource != nil {
 		name = fmt.Sprintf("%s-%s", resource.Name, httpMethod)
@@ -422,7 +422,7 @@ func NewApiMethod(resource *ApiResource, api *RestApi, refs []core.AnnotationKey
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (method *ApiMethod) KlothoConstructRef() []core.AnnotationKey {
+func (method *ApiMethod) KlothoConstructRef() core.AnnotationKeySet {
 	return method.ConstructsRef
 }
 
@@ -435,7 +435,7 @@ func (method *ApiMethod) Id() core.ResourceId {
 	}
 }
 
-func NewVpcLink(resource core.Resource, refs []core.AnnotationKey) *VpcLink {
+func NewVpcLink(resource core.Resource, refs core.AnnotationKeySet) *VpcLink {
 	return &VpcLink{
 		ConstructsRef: refs,
 		Target:        resource,
@@ -443,7 +443,7 @@ func NewVpcLink(resource core.Resource, refs []core.AnnotationKey) *VpcLink {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (link *VpcLink) KlothoConstructRef() []core.AnnotationKey {
+func (link *VpcLink) KlothoConstructRef() core.AnnotationKeySet {
 	return link.ConstructsRef
 }
 
@@ -464,7 +464,7 @@ func (res *VpcLink) Name() string {
 	return res.Id().Name
 }
 
-func NewApiIntegration(method *ApiMethod, refs []core.AnnotationKey, integrationMethod string, integrationType string, vpcLink *VpcLink, uri core.IaCValue, requestParameters map[string]string) *ApiIntegration {
+func NewApiIntegration(method *ApiMethod, refs core.AnnotationKeySet, integrationMethod string, integrationType string, vpcLink *VpcLink, uri core.IaCValue, requestParameters map[string]string) *ApiIntegration {
 	return &ApiIntegration{
 		Name:                  method.Name,
 		ConstructsRef:         refs,
@@ -480,7 +480,7 @@ func NewApiIntegration(method *ApiMethod, refs []core.AnnotationKey, integration
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (integration *ApiIntegration) KlothoConstructRef() []core.AnnotationKey {
+func (integration *ApiIntegration) KlothoConstructRef() core.AnnotationKeySet {
 	return integration.ConstructsRef
 }
 
@@ -493,7 +493,7 @@ func (integration *ApiIntegration) Id() core.ResourceId {
 	}
 }
 
-func NewApiDeployment(api *RestApi, refs []core.AnnotationKey, triggers map[string]string) *ApiDeployment {
+func NewApiDeployment(api *RestApi, refs core.AnnotationKeySet, triggers map[string]string) *ApiDeployment {
 	return &ApiDeployment{
 		Name:          api.Name,
 		ConstructsRef: refs,
@@ -503,7 +503,7 @@ func NewApiDeployment(api *RestApi, refs []core.AnnotationKey, triggers map[stri
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (deployment *ApiDeployment) KlothoConstructRef() []core.AnnotationKey {
+func (deployment *ApiDeployment) KlothoConstructRef() core.AnnotationKeySet {
 	return deployment.ConstructsRef
 }
 
@@ -516,7 +516,7 @@ func (deployment *ApiDeployment) Id() core.ResourceId {
 	}
 }
 
-func NewApiStage(deployment *ApiDeployment, stageName string, refs []core.AnnotationKey) *ApiStage {
+func NewApiStage(deployment *ApiDeployment, stageName string, refs core.AnnotationKeySet) *ApiStage {
 	return &ApiStage{
 		Name:          fmt.Sprintf("%s-%s", deployment.Name, stageName),
 		ConstructsRef: refs,
@@ -527,7 +527,7 @@ func NewApiStage(deployment *ApiDeployment, stageName string, refs []core.Annota
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (stage *ApiStage) KlothoConstructRef() []core.AnnotationKey {
+func (stage *ApiStage) KlothoConstructRef() core.AnnotationKeySet {
 	return stage.ConstructsRef
 }
 

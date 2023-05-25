@@ -10,7 +10,7 @@ const (
 
 type (
 	Kubeconfig struct {
-		ConstructsRef  []core.AnnotationKey
+		ConstructsRef  core.AnnotationKeySet
 		Name           string
 		ApiVersion     string
 		Kind           string
@@ -51,7 +51,7 @@ type (
 	}
 )
 
-func (k Kubeconfig) KlothoConstructRef() []core.AnnotationKey { return k.ConstructsRef }
+func (k Kubeconfig) KlothoConstructRef() core.AnnotationKeySet { return k.ConstructsRef }
 
 func (k Kubeconfig) Id() core.ResourceId {
 	return core.ResourceId{

@@ -89,7 +89,7 @@ func Test_RdsInstanceCreate(t *testing.T) {
 
 			metadata := RdsInstanceCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{orm.AnnotationKey},
+				Refs:    core.AnnotationKeySetOf(orm.AnnotationKey),
 				Name:    orm.ID,
 			}
 			instance := &RdsInstance{}
@@ -107,14 +107,14 @@ func Test_RdsInstanceCreate(t *testing.T) {
 			instance = graphInstance.(*RdsInstance)
 
 			assert.Equal(instance.Name, "my-app-test")
-			assert.ElementsMatch(instance.ConstructsRef, []core.AnnotationKey{orm.AnnotationKey})
+			assert.Equal(instance.ConstructsRef, core.AnnotationKeySetOf(orm.AnnotationKey))
 		})
 	}
 }
 
 func Test_RdsSubnetGroupCreate(t *testing.T) {
 	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name        string
 		subnetGroup *RdsSubnetGroup
@@ -192,7 +192,7 @@ func Test_RdsSubnetGroupCreate(t *testing.T) {
 
 			metadata := RdsSubnetGroupCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{orm.AnnotationKey},
+				Refs:    core.AnnotationKeySetOf(orm.AnnotationKey),
 				Name:    orm.ID,
 			}
 			subnetGroup := &RdsSubnetGroup{}
@@ -209,9 +209,10 @@ func Test_RdsSubnetGroupCreate(t *testing.T) {
 			assert.Equal(subnetGroup.Name, "my-app-test")
 			if tt.subnetGroup == nil {
 				assert.Len(subnetGroup.Subnets, 2)
-				assert.ElementsMatch(subnetGroup.ConstructsRef, metadata.Refs)
+				assert.Equal(subnetGroup.ConstructsRef, metadata.Refs)
 			} else {
-				assert.ElementsMatch(subnetGroup.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}))
+				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(orm.AnnotationKey))
+				assert.Equal(subnetGroup.KlothoConstructRef(), expect)
 			}
 		})
 	}
@@ -219,7 +220,7 @@ func Test_RdsSubnetGroupCreate(t *testing.T) {
 
 func Test_RdsProxyCreate(t *testing.T) {
 	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name  string
 		proxy *RdsProxy
@@ -302,7 +303,7 @@ func Test_RdsProxyCreate(t *testing.T) {
 
 			metadata := RdsProxyCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{orm.AnnotationKey},
+				Refs:    core.AnnotationKeySetOf(orm.AnnotationKey),
 				Name:    orm.ID,
 			}
 			proxy := &RdsProxy{}
@@ -321,9 +322,10 @@ func Test_RdsProxyCreate(t *testing.T) {
 				assert.Len(proxy.Subnets, 2)
 				assert.Len(proxy.SecurityGroups, 1)
 				assert.NotNil(proxy.Role)
-				assert.ElementsMatch(proxy.ConstructsRef, metadata.Refs)
+				assert.Equal(proxy.ConstructsRef, metadata.Refs)
 			} else {
-				assert.ElementsMatch(proxy.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}))
+				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(orm.AnnotationKey))
+				assert.Equal(proxy.KlothoConstructRef(), expect)
 			}
 		})
 	}
@@ -331,7 +333,7 @@ func Test_RdsProxyCreate(t *testing.T) {
 
 func Test_RdsProxyTargetGroupCreate(t *testing.T) {
 	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name        string
 		targetGroup *RdsProxyTargetGroup
@@ -369,7 +371,7 @@ func Test_RdsProxyTargetGroupCreate(t *testing.T) {
 
 			metadata := RdsProxyTargetGroupCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{orm.AnnotationKey},
+				Refs:    core.AnnotationKeySetOf(orm.AnnotationKey),
 				Name:    orm.ID,
 			}
 			targetGroup := &RdsProxyTargetGroup{}
@@ -385,9 +387,10 @@ func Test_RdsProxyTargetGroupCreate(t *testing.T) {
 
 			assert.Equal(targetGroup.Name, "my-app-test")
 			if tt.targetGroup == nil {
-				assert.ElementsMatch(targetGroup.ConstructsRef, metadata.Refs)
+				assert.Equal(targetGroup.ConstructsRef, metadata.Refs)
 			} else {
-				assert.ElementsMatch(targetGroup.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}))
+				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(orm.AnnotationKey))
+				assert.Equal(targetGroup.KlothoConstructRef(), expect)
 			}
 		})
 	}

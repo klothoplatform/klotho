@@ -47,7 +47,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				return nil
 			}
 			restApi, ok := data.Source.(*resources.RestApi)
-			refs := core.DedupeAnnotationKeys(append(function.ConstructsRef, restApi.ConstructsRef...))
+			refs := function.ConstructsRef.CloneWith(restApi.ConstructsRef)
 			if !ok {
 				return fmt.Errorf("source of lambda to api integration expansion must be a rest api resource")
 			}
@@ -59,7 +59,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				var err error
 				integration, err = core.CreateResource[*resources.ApiIntegration](dag, resources.ApiIntegrationCreateParams{
 					AppName:    data.AppName,
-					Refs:       refs,
+					Refs:       refs.Clone(),
 					Path:       route.Path,
 					ApiName:    restApi.Name,
 					HttpMethod: strings.ToUpper(string(route.Verb)),

@@ -42,7 +42,7 @@ func Test_ConfigureEdge(t *testing.T) {
 					InlinePolicies: []*resources.IamInlinePolicy{
 						{
 							Name:          "rds-connectionpolicy",
-							ConstructsRef: []core.AnnotationKey{},
+							ConstructsRef: core.AnnotationKeySetOf(),
 							Policy: &resources.PolicyDocument{
 								Version: "2012-10-17",
 								Statement: []resources.StatementEntry{
@@ -127,7 +127,7 @@ func Test_ConfigureEdge(t *testing.T) {
 						InlinePolicies: []*resources.IamInlinePolicy{
 							{
 								Name:          "instance-connectionpolicy",
-								ConstructsRef: []core.AnnotationKey{},
+								ConstructsRef: core.AnnotationKeySetOf(),
 								Policy: &resources.PolicyDocument{
 									Version: "2012-10-17",
 									Statement: []resources.StatementEntry{

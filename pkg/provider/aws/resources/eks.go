@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
@@ -95,7 +94,7 @@ var eksManifests embed.FS
 type (
 	EksCluster struct {
 		Name           string
-		ConstructsRef  []core.AnnotationKey
+		ConstructsRef  core.AnnotationKeySet
 		ClusterRole    *IamRole
 		Vpc            *Vpc
 		Subnets        []*Subnet
@@ -106,7 +105,7 @@ type (
 
 	EksFargateProfile struct {
 		Name             string
-		ConstructsRef    []core.AnnotationKey
+		ConstructsRef    core.AnnotationKeySet
 		Cluster          *EksCluster
 		PodExecutionRole *IamRole
 		Selectors        []*FargateProfileSelector
@@ -120,7 +119,7 @@ type (
 
 	EksNodeGroup struct {
 		Name           string
-		ConstructsRef  []core.AnnotationKey
+		ConstructsRef  core.AnnotationKeySet
 		Cluster        *EksCluster
 		NodeRole       *IamRole
 		AmiType        string
@@ -136,14 +135,14 @@ type (
 
 	EksAddon struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		AddonName     string
 		ClusterName   core.IaCValue
 	}
 )
 
 type EksClusterCreateParams struct {
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	AppName string
 	Name    string
 }
@@ -155,7 +154,7 @@ func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCrea
 	existingCluster := dag.GetResource(cluster.Id())
 	if existingCluster != nil {
 		graphCluster := existingCluster.(*EksCluster)
-		graphCluster.ConstructsRef = append(graphCluster.ConstructsRef, params.Refs...)
+		graphCluster.ConstructsRef.AddAll(params.Refs)
 	} else {
 		cluster.ConstructsRef = params.Refs
 		cluster.Subnets = make([]*Subnet, 4)
@@ -229,7 +228,7 @@ func (cluster *EksCluster) Configure(params EksClusterConfigureParams) error {
 
 type EksFargateProfileCreateParams struct {
 	ClusterName string
-	Refs        []core.AnnotationKey
+	Refs        core.AnnotationKeySet
 	AppName     string
 	Name        string
 	NetworkType string
@@ -242,7 +241,7 @@ func (profile *EksFargateProfile) Create(dag *core.ResourceGraph, params EksFarg
 	if existingProfile != nil {
 		graphProfile := existingProfile.(*EksFargateProfile)
 
-		graphProfile.ConstructsRef = append(graphProfile.ConstructsRef, params.Refs...)
+		graphProfile.ConstructsRef.AddAll(params.Refs)
 	} else {
 		profile.ConstructsRef = params.Refs
 		profile.Subnets = make([]*Subnet, 2)
@@ -311,7 +310,7 @@ func (profile *EksFargateProfile) Configure(params EksFargateProfileConfigurePar
 type EksNodeGroupCreateParams struct {
 	InstanceType string
 	NetworkType  string
-	Refs         []core.AnnotationKey
+	Refs         core.AnnotationKeySet
 	AppName      string
 	ClusterName  string
 }
@@ -323,7 +322,7 @@ func (nodeGroup *EksNodeGroup) Create(dag *core.ResourceGraph, params EksNodeGro
 
 	existingNodeGroup, found := core.GetResource[*EksNodeGroup](dag, nodeGroup.Id())
 	if found {
-		existingNodeGroup.ConstructsRef = collectionutil.FlattenUnique(existingNodeGroup.ConstructsRef, params.Refs)
+		existingNodeGroup.ConstructsRef.AddAll(params.Refs)
 	} else {
 		nodeGroup.ConstructsRef = params.Refs
 		nodeGroup.InstanceTypes = []string{params.InstanceType}
@@ -446,12 +445,12 @@ func (cluster *EksCluster) InstallNvidiaDevicePlugin(dag *core.ResourceGraph) {
 	for _, ng := range cluster.GetClustersNodeGroups(dag) {
 		dag.AddDependency(manifest, ng)
 		if strings.HasSuffix(strings.ToLower(ng.AmiType), "_gpu") {
-			manifest.ConstructRefs = append(manifest.ConstructRefs, ng.ConstructsRef...)
+			manifest.ConstructRefs.AddAll(ng.ConstructsRef)
 		}
 	}
 }
 
-func (cluster *EksCluster) CreateFargateLogging(references []core.AnnotationKey, dag *core.ResourceGraph) error {
+func (cluster *EksCluster) CreateFargateLogging(references core.AnnotationKeySet, dag *core.ResourceGraph) error {
 	namespaceOutputPath := path.Join(MANIFEST_PATH_PREFIX, AWS_OBSERVABILITY_NS_PATH)
 	content, err := fs.ReadFile(eksManifests, namespaceOutputPath)
 	if err != nil {
@@ -494,7 +493,7 @@ func (cluster *EksCluster) CreateFargateLogging(references []core.AnnotationKey,
 	return nil
 }
 
-func (cluster *EksCluster) InstallFluentBit(references []core.AnnotationKey, dag *core.ResourceGraph) error {
+func (cluster *EksCluster) InstallFluentBit(references core.AnnotationKeySet, dag *core.ResourceGraph) error {
 	namespaceOutputPath := path.Join(MANIFEST_PATH_PREFIX, AMAZON_CLOUDWATCH_NS_PATH)
 	content, err := fs.ReadFile(eksManifests, namespaceOutputPath)
 	if err != nil {
@@ -555,7 +554,7 @@ func (cluster *EksCluster) InstallFluentBit(references []core.AnnotationKey, dag
 func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag *core.ResourceGraph) (*kubernetes.KustomizeDirectory, error) {
 	cloudMapController := &kubernetes.KustomizeDirectory{
 		Name:          fmt.Sprintf("%s-cloudmap-controller", cluster.Name),
-		ConstructRefs: []core.AnnotationKey{ref},
+		ConstructRefs: core.AnnotationKeySetOf(ref),
 		Directory:     "https://github.com/aws/aws-cloud-map-mcs-controller-for-k8s/config/controller_install_release",
 		ClustersProvider: core.IaCValue{
 			Resource: cluster,
@@ -566,7 +565,7 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 	if controller := dag.GetResource(cloudMapController.Id()); controller != nil {
 		if cm, ok := controller.(*kubernetes.KustomizeDirectory); ok {
 			cloudMapController = cm
-			cm.ConstructRefs = append(cm.ConstructRefs, ref)
+			cm.ConstructRefs.Add(ref)
 		} else {
 			return nil, errors.Errorf("Expected resource with id, %s, to be of type HelmChart, but was %s",
 				controller.Id(), reflect.ValueOf(controller).Type().Name())
@@ -579,7 +578,7 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 		}
 		clusterSet := &kubernetes.Manifest{
 			Name:          fmt.Sprintf("%s-%s", cluster.Name, "cluster-set"),
-			ConstructRefs: []core.AnnotationKey{ref},
+			ConstructRefs: core.AnnotationKeySetOf(ref),
 			FilePath:      clusterSetOutputPath,
 			Transformations: map[string]core.IaCValue{
 				`spec["value"]`: {Resource: cluster, Property: NAME_IAC_VALUE},
@@ -602,7 +601,7 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 	return cloudMapController, nil
 }
 
-func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey, dag *core.ResourceGraph) (*kubernetes.HelmChart, error) {
+func (cluster *EksCluster) InstallAlbController(references core.AnnotationKeySet, dag *core.ResourceGraph) (*kubernetes.HelmChart, error) {
 	serviceAccountName := "aws-load-balancer-controller"
 	saPath := "aws-load-balancer-controller-service-account.yaml"
 	outputPath := path.Join(MANIFEST_PATH_PREFIX, saPath)
@@ -615,7 +614,12 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 		return nil, err
 	}
 	role := NewIamRole(cluster.Name, "alb-controller", references, assumeRolePolicyDoc)
-	policy := createAlbControllerPolicy(cluster.Name, references[0])
+	var aRef core.AnnotationKey
+	for ref := range references {
+		aRef = ref
+		break
+	}
+	policy := createAlbControllerPolicy(cluster.Name, aRef)
 	role.AddManagedPolicy(core.IaCValue{Resource: policy, Property: ARN_IAC_VALUE})
 
 	if err != nil {
@@ -673,7 +677,7 @@ func (cluster *EksCluster) InstallAlbController(references []core.AnnotationKey,
 	return albChart, nil
 }
 
-func (cluster *EksCluster) installVpcCniAddon(references []core.AnnotationKey, dag *core.ResourceGraph) {
+func (cluster *EksCluster) installVpcCniAddon(references core.AnnotationKeySet, dag *core.ResourceGraph) {
 	addonName := "vpc-cni"
 	addon := &EksAddon{
 		Name:          fmt.Sprintf("%s-addon-%s", cluster.Name, addonName),
@@ -796,7 +800,7 @@ func GetServiceAccountAssumeRolePolicy(serviceAccountName string, oidc *OpenIdCo
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (cluster *EksCluster) KlothoConstructRef() []core.AnnotationKey {
+func (cluster *EksCluster) KlothoConstructRef() core.AnnotationKeySet {
 	return cluster.ConstructsRef
 }
 
@@ -810,7 +814,7 @@ func (cluster *EksCluster) Id() core.ResourceId {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (addon *EksAddon) KlothoConstructRef() []core.AnnotationKey {
+func (addon *EksAddon) KlothoConstructRef() core.AnnotationKeySet {
 	return addon.ConstructsRef
 }
 
@@ -824,7 +828,7 @@ func (addon *EksAddon) Id() core.ResourceId {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (profile *EksFargateProfile) KlothoConstructRef() []core.AnnotationKey {
+func (profile *EksFargateProfile) KlothoConstructRef() core.AnnotationKeySet {
 	return profile.ConstructsRef
 }
 
@@ -838,7 +842,7 @@ func (profile *EksFargateProfile) Id() core.ResourceId {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (group *EksNodeGroup) KlothoConstructRef() []core.AnnotationKey {
+func (group *EksNodeGroup) KlothoConstructRef() core.AnnotationKeySet {
 	return group.ConstructsRef
 }
 

@@ -41,7 +41,7 @@ type (
 	// RdsInstance represents an AWS RDS db instance
 	RdsInstance struct {
 		Name                             string
-		ConstructsRef                    []core.AnnotationKey
+		ConstructsRef                    core.AnnotationKeySet
 		SubnetGroup                      *RdsSubnetGroup
 		SecurityGroups                   []*SecurityGroup
 		DatabaseName                     string
@@ -60,7 +60,7 @@ type (
 	// RdsSubnetGroup represents an AWS RDS subnet group
 	RdsSubnetGroup struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Subnets       []*Subnet
 		Tags          map[string]string
 	}
@@ -68,7 +68,7 @@ type (
 	// RdsProxy represents an AWS RDS proxy instance
 	RdsProxy struct {
 		Name              string
-		ConstructsRef     []core.AnnotationKey
+		ConstructsRef     core.AnnotationKeySet
 		DebugLogging      bool
 		EngineFamily      string
 		IdleClientTimeout int
@@ -89,7 +89,7 @@ type (
 	// RdsProxyTargetGroup represents an AWS RDS proxy target group
 	RdsProxyTargetGroup struct {
 		Name                            string
-		ConstructsRef                   []core.AnnotationKey
+		ConstructsRef                   core.AnnotationKeySet
 		RdsInstance                     *RdsInstance
 		RdsProxy                        *RdsProxy
 		TargetGroupName                 string
@@ -108,7 +108,7 @@ type (
 
 type RdsInstanceCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Name    string
 }
 
@@ -165,7 +165,7 @@ func (instance *RdsInstance) Configure(params RdsInstanceConfigureParams) error 
 type RdsSubnetGroupCreateParams struct {
 	AppName string
 	Name    string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 }
 
 func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSubnetGroupCreateParams) error {
@@ -175,7 +175,7 @@ func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSub
 	existingSubnetGroup := dag.GetResource(subnetGroup.Id())
 	if existingSubnetGroup != nil {
 		graphSubnetGroup := existingSubnetGroup.(*RdsSubnetGroup)
-		graphSubnetGroup.ConstructsRef = core.DedupeAnnotationKeys(append(graphSubnetGroup.KlothoConstructRef(), params.Refs...))
+		graphSubnetGroup.ConstructsRef.AddAll(params.Refs)
 		return nil
 	} else {
 		subnetGroup.Subnets = make([]*Subnet, 2)
@@ -205,7 +205,7 @@ func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSub
 type RdsProxyCreateParams struct {
 	AppName string
 	Name    string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 }
 
 func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreateParams) error {
@@ -215,7 +215,7 @@ func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreatePara
 	existingProxy := dag.GetResource(proxy.Id())
 	if existingProxy != nil {
 		graphProxy := existingProxy.(*RdsProxy)
-		graphProxy.ConstructsRef = core.DedupeAnnotationKeys(append(graphProxy.KlothoConstructRef(), params.Refs...))
+		graphProxy.ConstructsRef.AddAll(params.Refs)
 		return nil
 	} else {
 		proxy.Subnets = make([]*Subnet, 2)
@@ -272,7 +272,7 @@ func (proxy *RdsProxy) Configure(params RdsProxyConfigureParams) error {
 type RdsProxyTargetGroupCreateParams struct {
 	AppName string
 	Name    string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 }
 
 func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTargetGroupCreateParams) error {
@@ -282,7 +282,7 @@ func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTa
 	existingTG := dag.GetResource(tg.Id())
 	if existingTG != nil {
 		graphTG := existingTG.(*RdsProxyTargetGroup)
-		graphTG.ConstructsRef = core.DedupeAnnotationKeys(append(graphTG.KlothoConstructRef(), params.Refs...))
+		graphTG.ConstructsRef.AddAll(params.Refs)
 		return nil
 	} else {
 		dag.AddResource(tg)
@@ -345,7 +345,7 @@ func generatePassword() string {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsInstance) KlothoConstructRef() []core.AnnotationKey {
+func (rds *RdsInstance) KlothoConstructRef() core.AnnotationKeySet {
 	return rds.ConstructsRef
 }
 
@@ -362,7 +362,7 @@ func (rds *RdsInstance) GetOutputFiles() []core.File {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsSubnetGroup) KlothoConstructRef() []core.AnnotationKey {
+func (rds *RdsSubnetGroup) KlothoConstructRef() core.AnnotationKeySet {
 	return rds.ConstructsRef
 }
 
@@ -376,7 +376,7 @@ func (rds *RdsSubnetGroup) Id() core.ResourceId {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsProxy) KlothoConstructRef() []core.AnnotationKey {
+func (rds *RdsProxy) KlothoConstructRef() core.AnnotationKeySet {
 	return rds.ConstructsRef
 }
 
@@ -390,7 +390,7 @@ func (rds *RdsProxy) Id() core.ResourceId {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsProxyTargetGroup) KlothoConstructRef() []core.AnnotationKey {
+func (rds *RdsProxyTargetGroup) KlothoConstructRef() core.AnnotationKeySet {
 	return rds.ConstructsRef
 }
 

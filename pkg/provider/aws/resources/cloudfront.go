@@ -19,7 +19,7 @@ const (
 type (
 	CloudfrontDistribution struct {
 		Name                         string
-		ConstructsRef                []core.AnnotationKey
+		ConstructsRef                core.AnnotationKeySet
 		Origins                      []*CloudfrontOrigin
 		CloudfrontDefaultCertificate bool
 		Enabled                      bool
@@ -77,7 +77,7 @@ type (
 
 	OriginAccessIdentity struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Comment       string
 	}
 )
@@ -87,7 +87,7 @@ func CreateS3Origin(unit *core.StaticUnit, bucket *S3Bucket, distribution *Cloud
 
 	oai := &OriginAccessIdentity{
 		Name:          fmt.Sprintf("%s-%s", bucket.Name, unit.ID),
-		ConstructsRef: []core.AnnotationKey{unit.AnnotationKey},
+		ConstructsRef: core.AnnotationKeySetOf(unit.AnnotationKey),
 		Comment:       "this is needed to setup s3 polices and make s3 not public.",
 	}
 
@@ -177,7 +177,7 @@ func NewCloudfrontDistribution(appName string, cdnId string) *CloudfrontDistribu
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (distro *CloudfrontDistribution) KlothoConstructRef() []core.AnnotationKey {
+func (distro *CloudfrontDistribution) KlothoConstructRef() core.AnnotationKeySet {
 	return distro.ConstructsRef
 }
 
@@ -191,7 +191,7 @@ func (distro *CloudfrontDistribution) Id() core.ResourceId {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (oai *OriginAccessIdentity) KlothoConstructRef() []core.AnnotationKey {
+func (oai *OriginAccessIdentity) KlothoConstructRef() core.AnnotationKeySet {
 	return oai.ConstructsRef
 }
 

@@ -214,9 +214,12 @@ func Test_configureResources(t *testing.T) {
 					AnnotationKey:        core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
 					EnvironmentVariables: core.EnvironmentVariables{core.NewEnvironmentVariable("env1", nil, "val1")}},
 			},
-			resources: []core.Resource{&resources.LambdaFunction{Name: "lambda", ConstructsRef: []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}}}, &resources.RdsProxy{Name: "rds"}},
+			resources: []core.Resource{
+				&resources.LambdaFunction{Name: "lambda", ConstructsRef: core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability})},
+				&resources.RdsProxy{Name: "rds"},
+			},
 			want: []core.Resource{
-				&resources.LambdaFunction{Name: "lambda", Timeout: 100, MemorySize: 200, ConstructsRef: []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}}, EnvironmentVariables: resources.EnvironmentVariables{"env1": core.IaCValue{Property: "val1"}}},
+				&resources.LambdaFunction{Name: "lambda", Timeout: 100, MemorySize: 200, ConstructsRef: core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}), EnvironmentVariables: resources.EnvironmentVariables{"env1": core.IaCValue{Property: "val1"}}},
 				&resources.RdsProxy{Name: "rds", EngineFamily: "POSTGRESQL", IdleClientTimeout: 1800}},
 		},
 	}

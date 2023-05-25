@@ -35,29 +35,29 @@ const (
 type (
 	Vpc struct {
 		Name               string
-		ConstructsRef      []core.AnnotationKey
+		ConstructsRef      core.AnnotationKeySet
 		CidrBlock          string
 		EnableDnsSupport   bool
 		EnableDnsHostnames bool
 	}
 	ElasticIp struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 	}
 	InternetGateway struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Vpc           *Vpc
 	}
 	NatGateway struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		ElasticIp     *ElasticIp
 		Subnet        *Subnet
 	}
 	Subnet struct {
 		Name                string
-		ConstructsRef       []core.AnnotationKey
+		ConstructsRef       core.AnnotationKeySet
 		CidrBlock           string
 		Vpc                 *Vpc
 		Type                string
@@ -66,7 +66,7 @@ type (
 	}
 	VpcEndpoint struct {
 		Name             string
-		ConstructsRef    []core.AnnotationKey
+		ConstructsRef    core.AnnotationKeySet
 		Vpc              *Vpc
 		Region           *Region
 		ServiceName      string
@@ -77,7 +77,7 @@ type (
 	}
 	RouteTable struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Vpc           *Vpc
 		Routes        []*RouteTableRoute
 	}
@@ -90,7 +90,7 @@ type (
 
 type VpcCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 }
 
 func (vpc *Vpc) Create(dag *core.ResourceGraph, params VpcCreateParams) error {
@@ -101,7 +101,7 @@ func (vpc *Vpc) Create(dag *core.ResourceGraph, params VpcCreateParams) error {
 	existingVpc := dag.GetResource(vpc.Id())
 	if existingVpc != nil {
 		graphVpc := existingVpc.(*Vpc)
-		graphVpc.ConstructsRef = append(graphVpc.KlothoConstructRef(), params.Refs...)
+		graphVpc.ConstructsRef.AddAll(params.Refs)
 	} else {
 		dag.AddResource(vpc)
 	}
@@ -122,7 +122,7 @@ func (vpc *Vpc) Configure(params VpcConfigureParams) error {
 type EipCreateParams struct {
 	AppName string
 	IpName  string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 }
 
 func (eip *ElasticIp) Create(dag *core.ResourceGraph, params EipCreateParams) error {
@@ -131,7 +131,7 @@ func (eip *ElasticIp) Create(dag *core.ResourceGraph, params EipCreateParams) er
 	existingEip := dag.GetResourceByVertexId(eip.Id().String())
 	if existingEip != nil {
 		graphEip := existingEip.(*ElasticIp)
-		graphEip.ConstructsRef = append(graphEip.ConstructsRef, params.Refs...)
+		graphEip.ConstructsRef.AddAll(params.Refs)
 	} else {
 		dag.AddResource(eip)
 	}
@@ -140,7 +140,7 @@ func (eip *ElasticIp) Create(dag *core.ResourceGraph, params EipCreateParams) er
 
 type IgwCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 }
 
 func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreateParams) error {
@@ -152,7 +152,7 @@ func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreatePara
 
 	if existingIgw != nil {
 		graphIgw := existingIgw.(*InternetGateway)
-		graphIgw.ConstructsRef = append(graphIgw.ConstructsRef, params.Refs...)
+		graphIgw.ConstructsRef.AddAll(params.Refs)
 	} else {
 		err := dag.CreateDependencies(igw, map[string]any{
 			"Vpc": params,
@@ -166,7 +166,7 @@ func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreatePara
 
 type NatCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	AZ      string
 }
 
@@ -178,7 +178,7 @@ func (nat *NatGateway) Create(dag *core.ResourceGraph, params NatCreateParams) e
 	existingNat := dag.GetResourceByVertexId(nat.Id().String())
 	if existingNat != nil {
 		graphNat := existingNat.(*NatGateway)
-		graphNat.ConstructsRef = append(graphNat.ConstructsRef, params.Refs...)
+		graphNat.ConstructsRef.AddAll(params.Refs)
 	} else {
 		subResourceParams := map[string]any{
 			"Subnet": SubnetCreateParams{
@@ -201,7 +201,7 @@ func (nat *NatGateway) Create(dag *core.ResourceGraph, params NatCreateParams) e
 
 type SubnetCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	AZ      string
 	Type    string
 }
@@ -264,7 +264,7 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams)
 	existingSubnet := dag.GetResourceByVertexId(subnet.Id().String())
 	if existingSubnet != nil {
 		graphSubnet := existingSubnet.(*Subnet)
-		graphSubnet.ConstructsRef = core.DedupeAnnotationKeys(append(graphSubnet.ConstructsRef, params.Refs...))
+		graphSubnet.ConstructsRef.AddAll(params.Refs)
 	}
 	return nil
 }
@@ -294,7 +294,7 @@ func (subnet *Subnet) Configure(params SubnetConfigureParams) error {
 type RouteTableCreateParams struct {
 	AppName string
 	Name    string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 }
 
 func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreateParams) error {
@@ -317,7 +317,7 @@ func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreatePar
 	existingRt := dag.GetResourceByVertexId(rt.Id().String())
 	if existingRt != nil {
 		graphRt := existingRt.(*RouteTable)
-		graphRt.ConstructsRef = core.DedupeAnnotationKeys(append(graphRt.ConstructsRef, params.Refs...))
+		graphRt.ConstructsRef.AddAll(params.Refs)
 	}
 	return nil
 }
@@ -553,7 +553,7 @@ func NewElasticIp(appName string, ipName string) *ElasticIp {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (subnet *ElasticIp) KlothoConstructRef() []core.AnnotationKey {
+func (subnet *ElasticIp) KlothoConstructRef() core.AnnotationKeySet {
 	return subnet.ConstructsRef
 }
 
@@ -574,7 +574,7 @@ func NewInternetGateway(appName string, igwName string, vpc *Vpc) *InternetGatew
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (igw *InternetGateway) KlothoConstructRef() []core.AnnotationKey {
+func (igw *InternetGateway) KlothoConstructRef() core.AnnotationKeySet {
 	return igw.ConstructsRef
 }
 
@@ -596,7 +596,7 @@ func NewNatGateway(appName string, natGatewayName string, subnet *Subnet, ip *El
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (natGateway *NatGateway) KlothoConstructRef() []core.AnnotationKey {
+func (natGateway *NatGateway) KlothoConstructRef() core.AnnotationKeySet {
 	return natGateway.ConstructsRef
 }
 
@@ -625,7 +625,7 @@ func NewSubnet(subnetName string, vpc *Vpc, cidrBlock string, subnetType string,
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (subnet *Subnet) KlothoConstructRef() []core.AnnotationKey {
+func (subnet *Subnet) KlothoConstructRef() core.AnnotationKeySet {
 	return subnet.ConstructsRef
 }
 
@@ -663,7 +663,7 @@ func NewVpcEndpoint(service string, vpc *Vpc, endpointType string, region *Regio
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (vpce *VpcEndpoint) KlothoConstructRef() []core.AnnotationKey {
+func (vpce *VpcEndpoint) KlothoConstructRef() core.AnnotationKeySet {
 	return vpce.ConstructsRef
 }
 
@@ -686,7 +686,7 @@ func NewVpc(appName string) *Vpc {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (vpc *Vpc) KlothoConstructRef() []core.AnnotationKey {
+func (vpc *Vpc) KlothoConstructRef() core.AnnotationKeySet {
 	return vpc.ConstructsRef
 }
 
@@ -700,7 +700,7 @@ func (vpc *Vpc) Id() core.ResourceId {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rt *RouteTable) KlothoConstructRef() []core.AnnotationKey {
+func (rt *RouteTable) KlothoConstructRef() core.AnnotationKeySet {
 	return rt.ConstructsRef
 }
 

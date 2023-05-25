@@ -1,9 +1,10 @@
 package resources
 
 import (
+	"testing"
+
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
-	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
@@ -22,12 +23,12 @@ func Test_DynamodbTableCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, table *DynamodbTable) {
 				assert.Equal(table.Name, "my-app-kv")
-				assert.ElementsMatch(table.ConstructsRef, []core.AnnotationKey{kv.AnnotationKey})
+				assert.Equal(table.ConstructsRef, core.AnnotationKeySetOf(kv.AnnotationKey))
 			},
 		},
 		{
 			Name:     "existing dynamodb table",
-			Existing: &DynamodbTable{Name: "my-app-kv", ConstructsRef: []core.AnnotationKey{existingKey}},
+			Existing: &DynamodbTable{Name: "my-app-kv", ConstructsRef: core.AnnotationKeySetOf(existingKey)},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:dynamodb_table:my-app-kv",
@@ -35,7 +36,7 @@ func Test_DynamodbTableCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, table *DynamodbTable) {
 				assert.Equal(table.Name, "my-app-kv")
-				assert.ElementsMatch(table.ConstructsRef, []core.AnnotationKey{kv.AnnotationKey, existingKey})
+				assert.Equal(table.ConstructsRef, core.AnnotationKeySetOf(kv.AnnotationKey, existingKey))
 			},
 		},
 	}
@@ -43,7 +44,7 @@ func Test_DynamodbTableCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = DynamodbTableCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{kv.AnnotationKey},
+				Refs:    core.AnnotationKeySetOf(kv.AnnotationKey),
 				Name:    "kv",
 			}
 

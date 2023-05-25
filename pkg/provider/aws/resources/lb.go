@@ -22,7 +22,7 @@ const (
 type (
 	LoadBalancer struct {
 		Name                   string
-		ConstructsRef          []core.AnnotationKey
+		ConstructsRef          core.AnnotationKeySet
 		IpAddressType          string
 		LoadBalancerAttributes map[string]string
 		Scheme                 string
@@ -34,7 +34,7 @@ type (
 
 	TargetGroup struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Port          int
 		Protocol      string
 		Vpc           *Vpc
@@ -44,7 +44,7 @@ type (
 
 	Listener struct {
 		Name           string
-		ConstructsRef  []core.AnnotationKey
+		ConstructsRef  core.AnnotationKeySet
 		Port           int
 		Protocol       string
 		LoadBalancer   *LoadBalancer
@@ -56,7 +56,7 @@ type (
 	}
 )
 
-func NewLoadBalancer(appName string, lbName string, refs []core.AnnotationKey, scheme string, lbType string, subnets []*Subnet, securityGroups []*SecurityGroup) *LoadBalancer {
+func NewLoadBalancer(appName string, lbName string, refs core.AnnotationKeySet, scheme string, lbType string, subnets []*Subnet, securityGroups []*SecurityGroup) *LoadBalancer {
 	return &LoadBalancer{
 		Name:           loadBalancerSanitizer.Apply(fmt.Sprintf("%s-%s", appName, lbName)),
 		ConstructsRef:  refs,
@@ -68,7 +68,7 @@ func NewLoadBalancer(appName string, lbName string, refs []core.AnnotationKey, s
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (lb *LoadBalancer) KlothoConstructRef() []core.AnnotationKey {
+func (lb *LoadBalancer) KlothoConstructRef() core.AnnotationKeySet {
 	return lb.ConstructsRef
 }
 
@@ -81,7 +81,7 @@ func (lb *LoadBalancer) Id() core.ResourceId {
 	}
 }
 
-func NewTargetGroup(appName string, tgName string, refs []core.AnnotationKey, port int, protocol string, vpc *Vpc, targetType string) *TargetGroup {
+func NewTargetGroup(appName string, tgName string, refs core.AnnotationKeySet, port int, protocol string, vpc *Vpc, targetType string) *TargetGroup {
 	return &TargetGroup{
 		Name:          targetGroupSanitizer.Apply(fmt.Sprintf("%s-%s", appName, tgName)),
 		ConstructsRef: refs,
@@ -93,7 +93,7 @@ func NewTargetGroup(appName string, tgName string, refs []core.AnnotationKey, po
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (tg *TargetGroup) KlothoConstructRef() []core.AnnotationKey {
+func (tg *TargetGroup) KlothoConstructRef() core.AnnotationKeySet {
 	return tg.ConstructsRef
 }
 
@@ -106,7 +106,7 @@ func (tg *TargetGroup) Id() core.ResourceId {
 	}
 }
 
-func NewListener(name string, lb *LoadBalancer, ref []core.AnnotationKey, port int, protocol string, defaultActions []*LBAction) *Listener {
+func NewListener(name string, lb *LoadBalancer, ref core.AnnotationKeySet, port int, protocol string, defaultActions []*LBAction) *Listener {
 	return &Listener{
 		Name:           targetGroupSanitizer.Apply(fmt.Sprintf("%s-%s", lb.Name, name)),
 		ConstructsRef:  ref,
@@ -118,7 +118,7 @@ func NewListener(name string, lb *LoadBalancer, ref []core.AnnotationKey, port i
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (tg *Listener) KlothoConstructRef() []core.AnnotationKey {
+func (tg *Listener) KlothoConstructRef() core.AnnotationKeySet {
 	return tg.ConstructsRef
 }
 

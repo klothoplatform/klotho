@@ -9,7 +9,7 @@ type (
 	SecurityGroup struct {
 		Name          string
 		Vpc           *Vpc
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		IngressRules  []SecurityGroupRule
 		EgressRules   []SecurityGroupRule
 	}
@@ -27,7 +27,7 @@ const SG_TYPE = "security_group"
 
 type SecurityGroupCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 }
 
 func (sg *SecurityGroup) Create(dag *core.ResourceGraph, params SecurityGroupCreateParams) error {
@@ -44,7 +44,7 @@ func (sg *SecurityGroup) Create(dag *core.ResourceGraph, params SecurityGroupCre
 	existingSG := dag.GetResource(sg.Id())
 	if existingSG != nil {
 		graphSG := existingSG.(*SecurityGroup)
-		graphSG.ConstructsRef = core.DedupeAnnotationKeys(append(graphSG.ConstructsRef, params.Refs...))
+		graphSG.ConstructsRef.AddAll(params.Refs)
 	}
 	return nil
 }
@@ -99,7 +99,7 @@ func GetSecurityGroup(cfg *config.Application, dag *core.ResourceGraph) *Securit
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (sg *SecurityGroup) KlothoConstructRef() []core.AnnotationKey {
+func (sg *SecurityGroup) KlothoConstructRef() core.AnnotationKeySet {
 	return sg.ConstructsRef
 }
 

@@ -43,7 +43,7 @@ func Test_SecretCreate(t *testing.T) {
 
 			metadata := SecretCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.PersistCapability}},
+				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}),
 				Name:    "test",
 			}
 			secret := &Secret{}
@@ -61,7 +61,7 @@ func Test_SecretCreate(t *testing.T) {
 			secret = graphInstance.(*Secret)
 
 			assert.Equal(secret.Name, "my-app-test")
-			assert.ElementsMatch(secret.ConstructsRef, metadata.Refs)
+			assert.Equal(secret.ConstructsRef, metadata.Refs)
 		})
 	}
 }
@@ -103,7 +103,7 @@ func Test_SecretVersionCreate(t *testing.T) {
 
 			metadata := SecretVersionCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.PersistCapability}},
+				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}),
 				Name:    "test",
 			}
 			secret := &SecretVersion{}
@@ -121,7 +121,7 @@ func Test_SecretVersionCreate(t *testing.T) {
 			secret = graphInstance.(*SecretVersion)
 
 			assert.Equal(secret.Name, "my-app-test")
-			assert.ElementsMatch(secret.ConstructsRef, metadata.Refs)
+			assert.Equal(secret.ConstructsRef, metadata.Refs)
 		})
 	}
 }

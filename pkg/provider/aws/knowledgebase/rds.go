@@ -73,7 +73,7 @@ var RdsKB = knowledgebase.Build(
 			}
 			secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 				AppName: data.AppName,
-				Refs:    core.DedupeAnnotationKeys(append(targetGroup.KlothoConstructRef(), proxy.KlothoConstructRef()...)),
+				Refs:    targetGroup.KlothoConstructRef().CloneWith(proxy.KlothoConstructRef()),
 				Name:    proxy.Name,
 			})
 			if err != nil {
@@ -121,7 +121,7 @@ var RdsKB = knowledgebase.Build(
 		Expand: func(proxy *resources.RdsProxy, sv *resources.SecretVersion, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 				AppName: data.AppName,
-				Refs:    core.DedupeAnnotationKeys(append(proxy.KlothoConstructRef(), sv.KlothoConstructRef()...)),
+				Refs:    proxy.KlothoConstructRef().CloneWith(sv.KlothoConstructRef()),
 				Name:    proxy.Name,
 			})
 			if err != nil {

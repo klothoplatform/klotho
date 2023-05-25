@@ -13,7 +13,7 @@ func (a *AWS) expandOrm(dag *core.ResourceGraph, orm *core.Orm) error {
 	case Rds_postgres:
 		instance, err := core.CreateResource[*resources.RdsInstance](dag, resources.RdsInstanceCreateParams{
 			AppName: a.Config.AppName,
-			Refs:    []core.AnnotationKey{orm.AnnotationKey},
+			Refs:    core.AnnotationKeySetOf(orm.AnnotationKey),
 			Name:    orm.ID,
 		})
 		if err != nil {
@@ -29,14 +29,15 @@ func (a *AWS) expandOrm(dag *core.ResourceGraph, orm *core.Orm) error {
 	return nil
 }
 
-func (a *AWS) getRdsConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs []core.AnnotationKey) (resources.RdsInstanceConfigureParams, error) {
-	if len(refs) != 1 {
+func (a *AWS) getRdsConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.AnnotationKeySet) (resources.RdsInstanceConfigureParams, error) {
+	ref, oneRef := refs.GetSingle()
+	if !oneRef {
 		return resources.RdsInstanceConfigureParams{}, fmt.Errorf("rds instance must only have one construct reference")
 	}
 	rdsConfig := resources.RdsInstanceConfigureParams{}
-	construct := result.GetConstruct(refs[0].ToId())
+	construct := result.GetConstruct(ref.ToId())
 	if construct == nil {
-		return resources.RdsInstanceConfigureParams{}, fmt.Errorf("construct with id %s does not exist", refs[0].ToId())
+		return resources.RdsInstanceConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref.ToId())
 	}
 	orm, ok := construct.(*core.Orm)
 	if !ok {

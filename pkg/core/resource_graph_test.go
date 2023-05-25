@@ -37,7 +37,7 @@ type testResource struct {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (tr *testResource) KlothoConstructRef() []AnnotationKey {
+func (tr *testResource) KlothoConstructRef() AnnotationKeySet {
 	return nil
 }
 

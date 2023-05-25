@@ -20,7 +20,7 @@ type (
 	// Resource describes a resource at the provider, infrastructure level
 	Resource interface {
 		// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-		KlothoConstructRef() []AnnotationKey
+		KlothoConstructRef() AnnotationKeySet
 		// Id returns the id of the cloud resource
 		Id() ResourceId
 	}

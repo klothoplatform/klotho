@@ -28,7 +28,7 @@ const (
 type (
 	Manifest struct {
 		Name             string
-		ConstructRefs    []core.AnnotationKey
+		ConstructRefs    core.AnnotationKeySet
 		FilePath         string
 		Transformations  map[string]core.IaCValue
 		ClustersProvider core.IaCValue
@@ -46,7 +46,7 @@ type (
 )
 
 // KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
-func (manifest *Manifest) KlothoConstructRef() []core.AnnotationKey { return manifest.ConstructRefs }
+func (manifest *Manifest) KlothoConstructRef() core.AnnotationKeySet { return manifest.ConstructRefs }
 
 func (manifest *Manifest) Id() core.ResourceId {
 	return core.ResourceId{

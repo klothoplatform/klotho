@@ -14,7 +14,7 @@ var logGroupSanitizer = aws.CloudwatchLogGroupSanitizer
 type (
 	LogGroup struct {
 		Name            string
-		ConstructsRef   []core.AnnotationKey
+		ConstructsRef   core.AnnotationKeySet
 		LogGroupName    string
 		RetentionInDays int
 	}
@@ -22,7 +22,7 @@ type (
 
 type CloudwatchLogGroupCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Name    string
 }
 
@@ -33,7 +33,7 @@ func (logGroup *LogGroup) Create(dag *core.ResourceGraph, params CloudwatchLogGr
 	existingLogGroup := dag.GetResource(logGroup.Id())
 	if existingLogGroup != nil {
 		graphLogGroup := existingLogGroup.(*LogGroup)
-		graphLogGroup.ConstructsRef = core.DedupeAnnotationKeys(append(graphLogGroup.KlothoConstructRef(), params.Refs...))
+		graphLogGroup.ConstructsRef.AddAll(params.Refs)
 	} else {
 		dag.AddResource(logGroup)
 	}
@@ -43,14 +43,14 @@ func (logGroup *LogGroup) Create(dag *core.ResourceGraph, params CloudwatchLogGr
 func NewLogGroup(appName string, logGroupName string, ref core.AnnotationKey, retention int) *LogGroup {
 	return &LogGroup{
 		Name:            logGroupSanitizer.Apply(fmt.Sprintf("%s-%s", appName, logGroupName)),
-		ConstructsRef:   []core.AnnotationKey{ref},
+		ConstructsRef:   core.AnnotationKeySetOf(ref),
 		LogGroupName:    logGroupSanitizer.Apply(logGroupName),
 		RetentionInDays: retention,
 	}
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (lg *LogGroup) KlothoConstructRef() []core.AnnotationKey {
+func (lg *LogGroup) KlothoConstructRef() core.AnnotationKeySet {
 	return lg.ConstructsRef
 }
 

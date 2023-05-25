@@ -10,7 +10,7 @@ import (
 )
 
 func Test_CloudwatchLogGroupCreate(t *testing.T) {
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name     string
 		logGroup *LogGroup
@@ -45,7 +45,7 @@ func Test_CloudwatchLogGroupCreate(t *testing.T) {
 			}
 			metadata := CloudwatchLogGroupCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
 				Name:    "log-group",
 			}
 
@@ -63,10 +63,11 @@ func Test_CloudwatchLogGroupCreate(t *testing.T) {
 
 			assert.Equal(logGroup.Name, "my-app-log-group")
 			if tt.logGroup == nil {
-				assert.ElementsMatch(logGroup.ConstructsRef, metadata.Refs)
+				assert.Equal(logGroup.ConstructsRef, metadata.Refs)
 			} else {
 				assert.Equal(logGroup, tt.logGroup)
-				assert.ElementsMatch(logGroup.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.Equal(logGroup.KlothoConstructRef(), expect)
 			}
 		})
 	}

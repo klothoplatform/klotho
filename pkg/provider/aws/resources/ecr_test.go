@@ -10,7 +10,7 @@ import (
 )
 
 func Test_EcrRepositoryCreate(t *testing.T) {
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name string
 		repo *EcrRepository
@@ -45,7 +45,7 @@ func Test_EcrRepositoryCreate(t *testing.T) {
 			}
 			metadata := RepoCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
 			}
 
 			repo := &EcrRepository{}
@@ -60,17 +60,18 @@ func Test_EcrRepositoryCreate(t *testing.T) {
 			repo = graphRepo.(*EcrRepository)
 			assert.Equal(repo.Name, "my-app")
 			if tt.repo == nil {
-				assert.ElementsMatch(repo.ConstructsRef, metadata.Refs)
+				assert.Equal(repo.ConstructsRef, metadata.Refs)
 			} else {
 				assert.Equal(repo, tt.repo)
-				assert.ElementsMatch(repo.KlothoConstructRef(), append(initialRefs, core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
+				assert.Equal(repo.KlothoConstructRef(), expect)
 			}
 		})
 	}
 }
 
 func Test_EcrImageCreate(t *testing.T) {
-	initialRefs := []core.AnnotationKey{{ID: "first"}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
 	cases := []struct {
 		name    string
 		image   *EcrImage
@@ -104,7 +105,7 @@ func Test_EcrImageCreate(t *testing.T) {
 			}
 			metadata := ImageCreateParams{
 				AppName: "my-app",
-				Refs:    []core.AnnotationKey{{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
 				Name:    "test-unit",
 			}
 			image := &EcrImage{}

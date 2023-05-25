@@ -300,7 +300,7 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 				params: map[string]any{
 					"IMAGE": resources.ImageCreateParams{
 						AppName: config.AppName,
-						Refs:    []core.AnnotationKey{eu.AnnotationKey},
+						Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
 						Name:    eu.ID,
 					},
 				},
@@ -324,7 +324,7 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 				params: map[string]any{
 					"SERVICEACCOUNT": resources.RoleCreateParams{
 						Name:    fmt.Sprintf("%s-%s-ExecutionRole", config.AppName, eu.ID),
-						Refs:    []core.AnnotationKey{eu.AnnotationKey},
+						Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
 						AppName: config.AppName,
 					},
 				},
@@ -368,7 +368,7 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 						InstanceType: "t3.medium",
 						ClusterName:  "cluster1",
 						AppName:      config.AppName,
-						Refs:         []core.AnnotationKey{eu.AnnotationKey},
+						Refs:         core.AnnotationKeySetOf(eu.AnnotationKey),
 					},
 				},
 				values: map[string]any{
@@ -410,7 +410,7 @@ func Test_handleExecUnitProxy(t *testing.T) {
 	unit2 := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "unit2"}}
 	chart := &kubernetes.HelmChart{
 		Name:          "chart",
-		ConstructRefs: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey},
+		ConstructRefs: core.AnnotationKeySetOf(unit1.AnnotationKey, unit2.AnnotationKey),
 		ExecutionUnits: []*kubernetes.HelmExecUnit{
 			{Name: unit1.ID},
 			{Name: unit2.ID},
@@ -470,7 +470,7 @@ func Test_handleExecUnitProxy(t *testing.T) {
 			},
 			config: config.Application{AppName: "test", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: kubernetes.KubernetesType}}},
 			existingResources: []core.Resource{
-				&resources.EksCluster{Name: "cluster", ConstructsRef: []core.AnnotationKey{unit1.AnnotationKey, unit2.AnnotationKey}},
+				&resources.EksCluster{Name: "cluster", ConstructsRef: core.AnnotationKeySetOf(unit1.AnnotationKey, unit2.AnnotationKey)},
 				chart},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
@@ -613,7 +613,7 @@ func Test_convertExecUnitParams(t *testing.T) {
 						Key:                 "BUCKETBUCKETNAME",
 					},
 				},
-				ConstructRefs: []core.AnnotationKey{{ID: "unit"}},
+				ConstructRefs: core.AnnotationKeySetOf(core.AnnotationKey{ID: "unit"}),
 				Values:        make(map[string]any),
 			},
 			wants: resources.EnvironmentVariables{

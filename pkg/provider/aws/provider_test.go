@@ -75,7 +75,7 @@ type (
 	dummyConstruct string
 )
 
-func (dr dummyResource) KlothoConstructRef() []core.AnnotationKey { return nil }
+func (dr dummyResource) KlothoConstructRef() core.AnnotationKeySet { return nil }
 
 func (dr dummyResource) Id() core.ResourceId {
 	return core.ResourceId{Provider: "test", Type: "", Name: string(dr)}

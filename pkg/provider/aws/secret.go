@@ -36,7 +36,7 @@ func (a *AWS) generateSecret(construct core.Construct, result *core.ConstructGra
 			Property: resources.ARN_IAC_VALUE,
 		}}
 		policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
-		policy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-secretsmanager", secret.Name), []core.AnnotationKey{construct.Provenance()}, policyDoc)
+		policy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-secretsmanager", secret.Name), core.AnnotationKeySetOf(construct.Provenance()), policyDoc)
 		a.PolicyGenerator.AddInlinePolicyToUnit(unit.Id(), policy)
 	}
 	return nil

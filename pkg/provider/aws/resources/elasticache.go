@@ -14,7 +14,7 @@ type (
 		CloudwatchGroup *LogGroup
 		SubnetGroup     *ElasticacheSubnetgroup
 		SecurityGroups  []*SecurityGroup
-		ConstructsRef   []core.AnnotationKey
+		ConstructsRef   core.AnnotationKeySet
 		NodeType        string
 		NumCacheNodes   int
 	}
@@ -22,7 +22,7 @@ type (
 	ElasticacheSubnetgroup struct {
 		Name          string
 		Subnets       []*Subnet
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 	}
 )
 
@@ -32,7 +32,7 @@ const (
 )
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ec *ElasticacheCluster) KlothoConstructRef() []core.AnnotationKey {
+func (ec *ElasticacheCluster) KlothoConstructRef() core.AnnotationKeySet {
 	return ec.ConstructsRef
 }
 
@@ -46,7 +46,7 @@ func (ec *ElasticacheCluster) Id() core.ResourceId {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ecsn *ElasticacheSubnetgroup) KlothoConstructRef() []core.AnnotationKey {
+func (ecsn *ElasticacheSubnetgroup) KlothoConstructRef() core.AnnotationKeySet {
 	return ecsn.ConstructsRef
 }
 
@@ -61,7 +61,7 @@ func (ecsn *ElasticacheSubnetgroup) Id() core.ResourceId {
 
 type ElasticacheClusterCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Name    string
 }
 
@@ -71,7 +71,7 @@ func (ec *ElasticacheCluster) Create(dag *core.ResourceGraph, params Elasticache
 	ec.SecurityGroups = make([]*SecurityGroup, 1)
 
 	if existingCluster, ok := core.GetResource[*ElasticacheCluster](dag, ec.Id()); ok {
-		existingCluster.ConstructsRef = core.DedupeAnnotationKeys(append(existingCluster.KlothoConstructRef(), params.Refs...))
+		existingCluster.ConstructsRef.AddAll(params.Refs)
 	}
 
 	subParams := map[string]any{
@@ -105,7 +105,7 @@ func (ec *ElasticacheCluster) Configure(params ElasticacheClusterConfigureParams
 }
 
 type ElasticacheSubnetgroupCreateParams struct {
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	AppName string
 	Name    string
 }
@@ -115,7 +115,7 @@ func (ecsn *ElasticacheSubnetgroup) Create(dag *core.ResourceGraph, params Elast
 	ecsn.ConstructsRef = params.Refs
 	ecsn.Subnets = make([]*Subnet, 2)
 	if existingSubnetGroup, ok := core.GetResource[*ElasticacheSubnetgroup](dag, ecsn.Id()); ok {
-		existingSubnetGroup.ConstructsRef = core.DedupeAnnotationKeys(append(existingSubnetGroup.KlothoConstructRef(), params.Refs...))
+		existingSubnetGroup.ConstructsRef.AddAll(params.Refs)
 	}
 
 	subParams := map[string]any{

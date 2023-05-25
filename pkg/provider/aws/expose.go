@@ -15,7 +15,7 @@ func (a *AWS) expandExpose(dag *core.ResourceGraph, expose *core.Gateway) error 
 	case ApiGateway:
 		stage, err := core.CreateResource[*resources.ApiStage](dag, resources.ApiStageCreateParams{
 			AppName: a.Config.AppName,
-			Refs:    []core.AnnotationKey{expose.AnnotationKey},
+			Refs:    core.AnnotationKeySetOf(expose.AnnotationKey),
 			Name:    expose.ID,
 		})
 		if err != nil {

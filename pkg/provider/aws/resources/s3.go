@@ -3,7 +3,6 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	"github.com/pkg/errors"
@@ -24,14 +23,14 @@ const (
 type (
 	S3Bucket struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		ForceDestroy  bool
 		IndexDocument string
 	}
 
 	S3Object struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Bucket        *S3Bucket
 		Key           string
 		FilePath      string
@@ -39,7 +38,7 @@ type (
 
 	S3BucketPolicy struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Bucket        *S3Bucket
 		Policy        *PolicyDocument
 	}
@@ -48,13 +47,13 @@ type (
 func NewS3Bucket(fs core.Construct, appName string) *S3Bucket {
 	return &S3Bucket{
 		Name:          bucketSanitizer.Apply(fmt.Sprintf("%s-%s", appName, fs.Provenance().ID)),
-		ConstructsRef: []core.AnnotationKey{fs.Provenance()},
+		ConstructsRef: core.AnnotationKeySetOf(fs.Provenance()),
 		ForceDestroy:  true,
 	}
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (bucket *S3Bucket) KlothoConstructRef() []core.AnnotationKey {
+func (bucket *S3Bucket) KlothoConstructRef() core.AnnotationKeySet {
 	return bucket.ConstructsRef
 }
 
@@ -69,7 +68,7 @@ func (bucket *S3Bucket) Id() core.ResourceId {
 
 type S3BucketCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Name    string
 }
 
@@ -83,7 +82,7 @@ func (bucket *S3Bucket) Create(dag *core.ResourceGraph, params S3BucketCreatePar
 		}
 		// Multiple resources may create the same bucket (today, this specifically happens with our payload bucket). If
 		// that happens, just append the refs and exit early; the rest would have been idempotent.
-		existingS3.ConstructsRef = collectionutil.FlattenUnique(existingS3.ConstructsRef, params.Refs)
+		existingS3.ConstructsRef.AddAll(params.Refs)
 		return nil
 	}
 
@@ -114,7 +113,7 @@ func NewS3Object(bucket *S3Bucket, objectName string, key string, path string) *
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (object *S3Object) KlothoConstructRef() []core.AnnotationKey {
+func (object *S3Object) KlothoConstructRef() core.AnnotationKeySet {
 	return object.ConstructsRef
 }
 
@@ -137,7 +136,7 @@ func NewBucketPolicy(policyName string, bucket *S3Bucket, policy *PolicyDocument
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (policy *S3BucketPolicy) KlothoConstructRef() []core.AnnotationKey {
+func (policy *S3BucketPolicy) KlothoConstructRef() core.AnnotationKeySet {
 	return policy.ConstructsRef
 }
 

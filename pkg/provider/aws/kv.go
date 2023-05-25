@@ -8,7 +8,7 @@ import (
 func (a *AWS) expandKv(dag *core.ResourceGraph, kv *core.Kv) error {
 	table, err := core.CreateResource[*resources.DynamodbTable](dag, resources.DynamodbTableCreateParams{
 		AppName: a.Config.AppName,
-		Refs:    []core.AnnotationKey{kv.AnnotationKey},
+		Refs:    core.AnnotationKeySetOf(kv.AnnotationKey),
 		Name:    "kv",
 	})
 	if err != nil {

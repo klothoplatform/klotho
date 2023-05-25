@@ -14,12 +14,12 @@ const (
 type (
 	PrivateDnsNamespace struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Vpc           *Vpc
 	}
 )
 
-func NewPrivateDnsNamespace(appName string, refs []core.AnnotationKey, vpc *Vpc) *PrivateDnsNamespace {
+func NewPrivateDnsNamespace(appName string, refs core.AnnotationKeySet, vpc *Vpc) *PrivateDnsNamespace {
 	return &PrivateDnsNamespace{
 		Name:          privateDnsNamespaceSanitizer.Apply(appName),
 		ConstructsRef: refs,
@@ -28,7 +28,7 @@ func NewPrivateDnsNamespace(appName string, refs []core.AnnotationKey, vpc *Vpc)
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ns *PrivateDnsNamespace) KlothoConstructRef() []core.AnnotationKey {
+func (ns *PrivateDnsNamespace) KlothoConstructRef() core.AnnotationKeySet {
 	return ns.ConstructsRef
 }
 

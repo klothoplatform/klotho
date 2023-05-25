@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
@@ -57,7 +56,7 @@ var IamKB = knowledgebase.Build(
 				{Resource: table, Property: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
 			}
 			doc := resources.CreateAllowPolicyDocument(actions, policyResources)
-			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-dynamodb-policy", table.Name), core.DedupeAnnotationKeys(append(role.ConstructsRef, table.ConstructsRef...)), doc)
+			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-dynamodb-policy", table.Name), role.ConstructsRef.CloneWith(table.ConstructsRef), doc)
 			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
 			return nil
 		},
@@ -123,18 +122,19 @@ var IamKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.OpenIdConnectProvider]{
 		Configure: func(role *resources.IamRole, oidc *resources.OpenIdConnectProvider, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if len(role.ConstructsRef) > 1 {
+			ref, oneRef := role.ConstructsRef.GetSingle()
+			if !oneRef {
 				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
 			}
-			role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(role.ConstructsRef[0].ID, oidc)
-      return nil
+			role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(ref.ID, oidc)
+			return nil
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.S3Bucket]{
 		Configure: func(role *resources.IamRole, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			role.InlinePolicies = append(role.InlinePolicies, resources.NewIamInlinePolicy(
 				fmt.Sprintf(`%s-access`, bucket.Name),
-				collectionutil.FlattenUnique(role.ConstructsRef, bucket.ConstructsRef),
+				role.ConstructsRef.CloneWith(bucket.ConstructsRef),
 				resources.CreateAllowPolicyDocument(
 					[]string{"s3:*"},
 					[]core.IaCValue{

@@ -19,7 +19,7 @@ var LambdaPermissionSanitizer = aws.LambdaPermissionSanitizer
 type (
 	LambdaFunction struct {
 		Name                 string
-		ConstructsRef        []core.AnnotationKey
+		ConstructsRef        core.AnnotationKeySet
 		Role                 *IamRole
 		Image                *EcrImage
 		EnvironmentVariables EnvironmentVariables
@@ -31,7 +31,7 @@ type (
 
 	LambdaPermission struct {
 		Name          string
-		ConstructsRef []core.AnnotationKey
+		ConstructsRef core.AnnotationKeySet
 		Function      *LambdaFunction
 		Principal     string
 		Source        core.IaCValue
@@ -41,7 +41,7 @@ type (
 
 type LambdaCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Name    string
 }
 
@@ -105,7 +105,7 @@ func (lambda *LambdaFunction) Configure(params LambdaFunctionConfigureParams) er
 
 type LambdaPermissionCreateParams struct {
 	AppName string
-	Refs    []core.AnnotationKey
+	Refs    core.AnnotationKeySet
 	Name    string
 }
 
@@ -120,7 +120,7 @@ func (permission *LambdaPermission) Create(dag *core.ResourceGraph, params Lambd
 	existingLambdaPermission := dag.GetResource(permission.Id())
 	if existingLambdaPermission != nil {
 		graphLambdaPermission := existingLambdaPermission.(*LambdaPermission)
-		graphLambdaPermission.ConstructsRef = core.DedupeAnnotationKeys(append(graphLambdaPermission.ConstructsRef, params.Refs...))
+		graphLambdaPermission.ConstructsRef.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(permission)
@@ -131,7 +131,7 @@ func NewLambdaFunction(unit *core.ExecutionUnit, cfg *config.Application, role *
 	params := config.ConvertFromInfraParams[config.ServerlessTypeParams](cfg.GetExecutionUnit(unit.ID).InfraParams)
 	return &LambdaFunction{
 		Name:          lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", cfg.AppName, unit.ID)),
-		ConstructsRef: []core.AnnotationKey{unit.Provenance()},
+		ConstructsRef: core.AnnotationKeySetOf(unit.Provenance()),
 		Role:          role,
 		Image:         image,
 		MemorySize:    params.Memory,
@@ -140,7 +140,7 @@ func NewLambdaFunction(unit *core.ExecutionUnit, cfg *config.Application, role *
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (lambda *LambdaFunction) KlothoConstructRef() []core.AnnotationKey {
+func (lambda *LambdaFunction) KlothoConstructRef() core.AnnotationKeySet {
 	return lambda.ConstructsRef
 }
 
@@ -153,7 +153,7 @@ func (lambda *LambdaFunction) Id() core.ResourceId {
 	}
 }
 
-func NewLambdaPermission(function *LambdaFunction, source core.IaCValue, principal string, action string, ref []core.AnnotationKey) *LambdaPermission {
+func NewLambdaPermission(function *LambdaFunction, source core.IaCValue, principal string, action string, ref core.AnnotationKeySet) *LambdaPermission {
 	return &LambdaPermission{
 		Name:          LambdaPermissionSanitizer.Apply(fmt.Sprintf("%s-%s", function.Name, source.Resource.Id())),
 		ConstructsRef: ref,
@@ -165,7 +165,7 @@ func NewLambdaPermission(function *LambdaFunction, source core.IaCValue, princip
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (permission *LambdaPermission) KlothoConstructRef() []core.AnnotationKey {
+func (permission *LambdaPermission) KlothoConstructRef() core.AnnotationKeySet {
 	return permission.ConstructsRef
 }
 
