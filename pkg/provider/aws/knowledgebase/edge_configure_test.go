@@ -156,7 +156,7 @@ func Test_ConfigureEdge(t *testing.T) {
 					Role:  &resources.IamRole{Name: "ProxyRole"},
 					Auths: []*resources.ProxyAuth{{SecretArn: core.IaCValue{Resource: &resources.Secret{Name: "Secret"}}}},
 				},
-				&resources.SecretVersion{Name: "sv", Path: "rds"},
+				&resources.SecretVersion{Name: "sv", Path: "rds", Type: "string"},
 			},
 		},
 	}

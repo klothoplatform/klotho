@@ -118,20 +118,20 @@ func (p *persister) handleFiles(unit *core.ExecutionUnit) error {
 			continue
 		}
 
-		resources, err := p.handleFile(js, unit)
+		constructs, err := p.handleFile(js, unit)
 		if err != nil {
 			errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.ID))
 		}
 
-		for _, r := range resources {
-			p.ConstructGraph.AddConstruct(r)
+		for _, c := range constructs {
+			p.ConstructGraph.AddConstruct(c)
 
 			_, isReferencedByExecUnit := unit.Executable.SourceFiles[js.Path()]
 
 			// a file containing capabilities without an execution unit indicates that the file's capabilities
 			// are imported by execution units in one or more separate files
 			if core.FileExecUnitName(js) != "" || isReferencedByExecUnit {
-				p.ConstructGraph.AddDependency(unit.Id(), r.Id())
+				p.ConstructGraph.AddDependency(unit.Id(), c.Id())
 			}
 		}
 	}
@@ -161,27 +161,27 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 			errs.Append(core.NewCompilerError(f, annot, errors.New("'id' is required")))
 		}
 
-		var resource core.Construct
+		var construct core.Construct
 		var err, runtimeErr, transformErr error
 		switch keyType.(type) {
 		case *core.Kv:
-			resource, transformErr = p.transformKV(unit, f, annot, pResult)
+			construct, transformErr = p.transformKV(unit, f, annot, pResult)
 			runtimeErr = p.runtime.AddKvRuntimeFiles(unit)
 		case *core.Fs:
 			var envVarName string
-			resource, envVarName, transformErr = p.transformFS(unit, f, annot, pResult)
+			construct, envVarName, transformErr = p.transformFS(unit, f, annot, pResult)
 			runtimeErr = p.runtime.AddFsRuntimeFiles(unit, envVarName, cap.ID)
 		case *core.Secrets:
-			resource, transformErr = p.transformSecret(f, annot, pResult)
+			construct, transformErr = p.transformSecret(f, annot, pResult)
 			runtimeErr = p.runtime.AddSecretRuntimeFiles(unit)
 		case *core.Orm:
-			resource, transformErr = p.transformORM(unit, f, annot, pResult)
+			construct, transformErr = p.transformORM(unit, f, annot, pResult)
 			runtimeErr = p.runtime.AddOrmRuntimeFiles(unit)
 		case *core.RedisCluster:
-			resource, transformErr = p.transformRedis(unit, f, annot, pResult, keyType)
+			construct, transformErr = p.transformRedis(unit, f, annot, pResult, keyType)
 			runtimeErr = p.runtime.AddRedisClusterRuntimeFiles(unit)
 		case *core.RedisNode:
-			resource, transformErr = p.transformRedis(unit, f, annot, pResult, keyType)
+			construct, transformErr = p.transformRedis(unit, f, annot, pResult, keyType)
 			runtimeErr = p.runtime.AddRedisNodeRuntimeFiles(unit)
 		default:
 			err = fmt.Errorf("type '%s' is invalid for the persist capability", keyType)
@@ -204,7 +204,7 @@ func (p *persister) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]
 		if err := p.runtime.TransformPersist(f, annot, keyType); err != nil {
 			return nil, err
 		}
-		resources = append(resources, resource)
+		resources = append(resources, construct)
 	}
 
 	return resources, errs.ErrOrNil()

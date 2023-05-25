@@ -21,10 +21,7 @@ func (a *AWS) expandExpose(dag *core.ResourceGraph, expose *core.Gateway) error 
 		if err != nil {
 			return err
 		}
-		err = a.MapResourceToConstruct(stage.RestApi, expose)
-		if err != nil {
-			return err
-		}
+		a.MapResourceDirectlyToConstruct(stage.RestApi, expose)
 	default:
 		return fmt.Errorf("unsupported expose type %s", a.Config.GetExpose(expose.ID).Type)
 	}

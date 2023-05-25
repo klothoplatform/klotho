@@ -44,8 +44,8 @@ func Test_ExpandKv(t *testing.T) {
 				return
 			}
 			tt.want.Assert(t, dag)
-			resource := aws.GetResourceTiedToConstruct(tt.kv)
-			assert.NotNil(resource)
+			res, _ := aws.GetResourcesDirectlyTiedToConstruct(tt.kv)
+			assert.NotEmpty(res)
 		})
 	}
 }
