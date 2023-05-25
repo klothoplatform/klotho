@@ -138,7 +138,7 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 
 func getS3BucketConfig(bucket *resources.S3Bucket, constructs *core.ConstructGraph) (resources.S3BucketConfigureParams, error) {
 	staticUnits := make(map[string]*core.StaticUnit)
-	for consRef, _ := range bucket.ConstructsRef {
+	for consRef := range bucket.ConstructsRef {
 		cons := constructs.GetConstruct(consRef.ToId())
 		if oneUnit, isUnit := cons.(*core.StaticUnit); isUnit {
 			staticUnits[oneUnit.ID] = oneUnit

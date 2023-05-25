@@ -264,15 +264,15 @@ func Test_getS3BucketConfig(t *testing.T) {
 		{
 			name: "fs construct",
 			constructs: []core.Construct{
-				&core.Fs{core.AnnotationKey{Capability: "fs", ID: "fs-a"}},
+				&core.Fs{AnnotationKey: core.AnnotationKey{Capability: "fs", ID: "fs-a"}},
 			},
 			want: getFsConfiguration(),
 		},
 		{
 			name: "multiple exec units", // for lambda payloads
 			constructs: []core.Construct{
-				&core.Fs{core.AnnotationKey{Capability: "exec-proxy", ID: "unit-a"}},
-				&core.Fs{core.AnnotationKey{Capability: "exec-proxy", ID: "unit-b"}},
+				&core.Fs{AnnotationKey: core.AnnotationKey{Capability: "exec-proxy", ID: "unit-a"}},
+				&core.Fs{AnnotationKey: core.AnnotationKey{Capability: "exec-proxy", ID: "unit-b"}},
 			},
 			want: getFsConfiguration(),
 		},
