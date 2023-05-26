@@ -18,11 +18,14 @@ function create(args: Args): void {
                 secretId: args.Secret.id,
                 //TMPL {{- if eq .Type.Raw "string" }}
                 secretString: fs.readFileSync(args.Path, 'utf-8').toString(),
-                //TMPL {{ else }}
+                //TMPL {{- else }}
                 //TMPL secretBinary: fs.readFileSync({{ .Path.Parse }}, 'base64').toString(),
-                //TMPL {{ end }}
+                //TMPL {{- end }}
             },
-            { protect: args.protect }
+            {
+                parent: args.Secret,
+                protect: args.protect,
+            }
         )
     }
 }

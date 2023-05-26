@@ -14,7 +14,8 @@ func (a *AWS) expandFs(dag *core.ResourceGraph, fs *core.Fs) error {
 	if err != nil {
 		return err
 	}
-	return a.MapResourceToConstruct(bucket, fs)
+	a.MapResourceDirectlyToConstruct(bucket, fs)
+	return nil
 }
 
 func getFsConfiguration() resources.S3BucketConfigureParams {

@@ -15,10 +15,7 @@ func (a *AWS) expandKv(dag *core.ResourceGraph, kv *core.Kv) error {
 		return err
 	}
 
-	err = a.MapResourceToConstruct(table, kv)
-	if err != nil {
-		return err
-	}
+	a.MapResourceDirectlyToConstruct(table, kv)
 	return nil
 }
 

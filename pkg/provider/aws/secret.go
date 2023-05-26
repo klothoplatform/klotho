@@ -2,42 +2,60 @@ package aws
 
 import (
 	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
-func (a *AWS) GenerateSecretsResources(construct *core.Secrets, result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	var merr multierr.Error
+func (a *AWS) expandSecrets(dag *core.ResourceGraph, construct *core.Secrets) error {
 	for _, secretName := range construct.Secrets {
-		merr.Append(a.generateSecret(construct, result, dag, secretName))
-	}
-	return merr.ErrOrNil()
-}
+		secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
+			AppName:      a.Config.AppName,
+			Refs:         core.AnnotationKeySetOf(construct.AnnotationKey),
+			Name:         secretName,
+			DetectedPath: secretName,
+		})
 
-func (a *AWS) generateSecret(construct core.Construct, result *core.ConstructGraph, dag *core.ResourceGraph, secretName string) error {
-	secret := resources.NewSecret(construct.Provenance(), secretName, a.Config.AppName)
-	dag.AddResource(secret)
-	a.MapResourceDirectlyToConstruct(secret, construct)
-
-	secretVersion := resources.NewSecretVersion(secret, secretName)
-	dag.AddDependenciesReflect(secretVersion)
-
-	for _, upstreamCons := range result.GetUpstreamConstructs(construct) {
-		unit, isUnit := upstreamCons.(*core.ExecutionUnit)
-		if !isUnit {
-			continue
+		if err != nil {
+			return err
 		}
 
-		actions := []string{`secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue`}
-		policyResources := []core.IaCValue{{
-			Resource: secret,
-			Property: resources.ARN_IAC_VALUE,
-		}}
-		policyDoc := resources.CreateAllowPolicyDocument(actions, policyResources)
-		policy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-secretsmanager", secret.Name), core.AnnotationKeySetOf(construct.Provenance()), policyDoc)
-		a.PolicyGenerator.AddInlinePolicyToUnit(unit.Id(), policy)
+		a.MapResourceDirectlyToConstruct(secretVersion.Secret, construct)
 	}
 	return nil
+}
+
+func (a *AWS) getSecretVersionConfiguration(secretVersion *resources.SecretVersion, result *core.ConstructGraph) (resources.SecretVersionConfigureParams, error) {
+	secretVersionConfig := resources.SecretVersionConfigureParams{
+		// use unmodified config by default
+		Type: secretVersion.Type,
+		Path: secretVersion.Path,
+	}
+	ref, oneRef := secretVersion.ConstructsRef.GetSingle()
+	if !oneRef {
+		zap.L().Sugar().Debugf("skipping resource configuration: secret version %s has multiple refs, using unmodified config", secretVersion.Id())
+		return secretVersionConfig, nil
+	}
+	constructR := result.GetConstruct(ref.ToId())
+	if constructR == nil {
+		return secretVersionConfig, fmt.Errorf("construct with id %s does not exist", ref.ToId())
+	}
+	switch construct := constructR.(type) {
+	case *core.Config:
+		cfg := a.Config.GetConfig(construct.ID)
+		if cfg.Path == "" {
+			return secretVersionConfig, errors.Errorf("'Path' required for config %s", construct.ID)
+		}
+		secretVersionConfig.Path = cfg.Path
+		secretVersionConfig.Type = "string"
+	case *core.Secrets:
+		secretVersionConfig.Path = secretVersion.DetectedPath
+		secretVersionConfig.Type = "binary"
+	default:
+		zap.L().Sugar().Debugf("skipping resource configuration: secret version %s has unsupported ref type %T, using unmodified config", secretVersion.Id(), constructR)
+		return secretVersionConfig, nil
+	}
+
+	return secretVersionConfig, nil
 }

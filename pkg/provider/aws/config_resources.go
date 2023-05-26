@@ -2,17 +2,23 @@ package aws
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
 )
 
-func (a *AWS) GenerateConfigResources(construct *core.Config, result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	if construct.Secret {
-		cfg := a.Config.GetConfig(construct.ID)
-		if cfg.Path == "" {
-			return errors.Errorf("'Path' required for config %s", construct.ID)
-		}
-		return a.generateSecret(construct, result, dag, cfg.Path)
+func (a *AWS) expandConfig(dag *core.ResourceGraph, construct *core.Config) error {
+	if !construct.Secret {
+		return errors.Errorf("unsupported: non-secret config for annotation '%s'", construct.ID)
+	}
+	secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
+		AppName: a.Config.AppName,
+		Refs:    core.AnnotationKeySetOf(construct.AnnotationKey),
+		Name:    construct.ID,
+	})
+	if err != nil {
+		return err
 	}
 
-	return errors.Errorf("unsupported: non-secret config for annotation '%s'", construct.ID)
+	a.MapResourceDirectlyToConstruct(secretVersion.Secret, construct)
+	return nil
 }

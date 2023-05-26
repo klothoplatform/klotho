@@ -10,13 +10,12 @@ import (
 type (
 	Secret struct {
 		Name          string
-		SecretName    string
 		ConstructsRef core.AnnotationKeySet
 	}
 
 	SecretVersion struct {
-		SecretName    string
 		Secret        *Secret
+		DetectedPath  string
 		Path          string
 		ConstructsRef core.AnnotationKeySet
 		Name          string
@@ -34,21 +33,21 @@ type SecretCreateParams struct {
 }
 
 // Create takes in an all necessary parameters to generate the Secret name and ensure that the Secret is correlated to the constructs which required its creation.
-func (secret *Secret) Create(dag *core.ResourceGraph, params SecretCreateParams) error {
-	secret.Name = aws.SecretSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	secret.ConstructsRef = params.Refs
-	existingSecret := dag.GetResource(secret.Id())
-	if existingSecret != nil {
-		return fmt.Errorf("Secret with name %s already exists", secret.Name)
+func (s *Secret) Create(dag *core.ResourceGraph, params SecretCreateParams) error {
+	s.Name = aws.SecretSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	s.ConstructsRef = params.Refs
+	if existingSecret, ok := core.GetResource[*Secret](dag, s.Id()); ok {
+		return fmt.Errorf("secret with name %s already exists", existingSecret.Name)
 	}
-	dag.AddResource(secret)
+	dag.AddResource(s)
 	return nil
 }
 
 type SecretVersionCreateParams struct {
-	AppName string
-	Refs    core.AnnotationKeySet
-	Name    string
+	AppName      string
+	Refs         core.AnnotationKeySet
+	Name         string
+	DetectedPath string
 }
 
 // Create takes in an all necessary parameters to generate the SecretVersion name and ensure that the SecretVersion is correlated to the constructs which required its creation.
@@ -58,6 +57,7 @@ type SecretVersionCreateParams struct {
 func (sv *SecretVersion) Create(dag *core.ResourceGraph, params SecretVersionCreateParams) error {
 	sv.Name = aws.SecretSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	sv.ConstructsRef = params.Refs
+	sv.DetectedPath = params.DetectedPath
 	existingSecret := dag.GetResource(sv.Id())
 	if existingSecret != nil {
 		return fmt.Errorf("SecretVersion with name %s already exists", sv.Name)
@@ -81,28 +81,6 @@ func (sv *SecretVersion) Configure(params SecretVersionConfigureParams) error {
 	sv.Type = params.Type
 	sv.Path = params.Path
 	return nil
-}
-
-func NewSecret(annot core.AnnotationKey, secretName string, appName string) *Secret {
-	plainName := appName
-	if secretName != "" {
-		plainName += "-" + secretName
-	}
-	return &Secret{
-		Name:          plainName,
-		SecretName:    aws.SecretSanitizer.Apply(plainName),
-		ConstructsRef: core.AnnotationKeySetOf(annot),
-	}
-}
-
-func NewSecretVersion(secret *Secret, filePath string) *SecretVersion {
-	return &SecretVersion{
-		SecretName:    secret.SecretName,
-		Secret:        secret,
-		Path:          filePath,
-		ConstructsRef: secret.ConstructsRef,
-		Name:          secret.Name,
-	}
 }
 
 func (s *Secret) KlothoConstructRef() core.AnnotationKeySet {

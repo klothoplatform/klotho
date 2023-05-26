@@ -36,10 +36,7 @@ func (a *AWS) expandStaticUnit(dag *core.ResourceGraph, unit *core.StaticUnit) e
 		return nil
 	case 1:
 		_, bucket := collectionutil.GetOneEntry(createdBuckets)
-		err := a.MapResourceToConstruct(bucket, unit)
-		if err != nil {
-			return err
-		}
+		a.MapResourceDirectlyToConstruct(bucket, unit)
 
 		cfg := a.Config.GetStaticUnit(unit.ID)
 		if cfg.ContentDeliveryNetwork.Id != "" {

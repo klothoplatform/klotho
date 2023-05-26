@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -35,6 +36,10 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 			merr.Append(a.expandRedisNode(dag, construct))
 		case *core.StaticUnit:
 			merr.Append(a.expandStaticUnit(dag, construct))
+		case *core.Secrets:
+			merr.Append(a.expandSecrets(dag, construct))
+		case *core.Config:
+			merr.Append(a.expandConfig(dag, construct))
 		}
 	}
 	return merr.ErrOrNil()
@@ -44,67 +49,78 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 func (a *AWS) CopyConstructEdgesToDag(result *core.ConstructGraph, dag *core.ResourceGraph) (err error) {
 	var merr multierr.Error
 	for _, dep := range result.ListDependencies() {
-		sourceResource := a.GetResourceTiedToConstruct(dep.Source)
-		if sourceResource == nil {
+		sourceResources, ok := a.GetResourcesDirectlyTiedToConstruct(dep.Source)
+		if !ok {
 			merr.Append(errors.Errorf("unable to copy edge, no resource tied to construct %s", dep.Source.Id()))
 			continue
 		}
-		targetResource := a.GetResourceTiedToConstruct(dep.Destination)
-		if targetResource == nil {
-			merr.Append(errors.Errorf("unable to copy edge, no resource tied to construct %s", dep.Destination.Id()))
-			continue
+		for _, sourceResource := range sourceResources {
+			destinationResources, ok := a.GetResourcesDirectlyTiedToConstruct(dep.Destination)
+			if !ok {
+				merr.Append(errors.Errorf("unable to copy edge, no resource tied to construct %s", dep.Destination.Id()))
+				continue
+			}
+			for _, destinationResource := range destinationResources {
+				merr.Append(a.copyConstructEdgeToDag(sourceResource, destinationResource, dep, dag))
+			}
 		}
+	}
+	return merr.ErrOrNil()
+}
 
-		data := knowledgebase.EdgeData{AppName: a.Config.AppName, Source: sourceResource, Destination: targetResource}
-		switch construct := dep.Source.(type) {
-		case *core.ExecutionUnit:
-			switch dep.Destination.(type) {
-			case *core.Orm:
-				data.Constraint = knowledgebase.EdgeConstraint{
-					NodeMustExist: []core.Resource{&resources.RdsProxy{}},
-				}
-			case *core.Kv:
-				data.Constraint = knowledgebase.EdgeConstraint{
-					NodeMustNotExist: []core.Resource{&resources.IamPolicy{}},
-				}
+func (a *AWS) copyConstructEdgeToDag(
+	sourceResource core.Resource,
+	destinationResource core.Resource,
+	dep graph.Edge[core.Construct],
+	dag *core.ResourceGraph) error {
+	data := knowledgebase.EdgeData{AppName: a.Config.AppName, Source: sourceResource, Destination: destinationResource}
+	switch construct := dep.Source.(type) {
+	case *core.ExecutionUnit:
+		switch dep.Destination.(type) {
+		case *core.Orm:
+			data.Constraint = knowledgebase.EdgeConstraint{
+				NodeMustExist: []core.Resource{&resources.RdsProxy{}},
 			}
-			for _, envVar := range construct.EnvironmentVariables {
-				if envVar.Construct == dep.Destination {
-					data.EnvironmentVariables = append(data.EnvironmentVariables, envVar)
-				}
+		case *core.Kv:
+			data.Constraint = knowledgebase.EdgeConstraint{
+				NodeMustNotExist: []core.Resource{&resources.IamPolicy{}},
 			}
-		case *core.Gateway:
-			for _, route := range construct.Routes {
-				if route.ExecUnitName == dep.Destination.Provenance().ID {
-					data.Routes = append(data.Routes, route)
-				}
+		}
+		for _, envVar := range construct.EnvironmentVariables {
+			if envVar.Construct == dep.Destination {
+				data.EnvironmentVariables = append(data.EnvironmentVariables, envVar)
 			}
-			// Because we dont have an understanding of what exists within the helm chart we cannot expand API -> Chart (we would need API -> k8s Service)
-			// To fix this we find the Target group being created for the value injected into the TargetGroupBinding Manifest and make that the targetResources
-			if chart, ok := targetResource.(*kubernetes.HelmChart); ok {
-				var targetTG *resources.TargetGroup
+		}
+	case *core.Gateway:
+		for _, route := range construct.Routes {
+			if route.ExecUnitName == dep.Destination.Provenance().ID {
+				data.Routes = append(data.Routes, route)
+			}
+			// Because we don't have an understanding of what exists within the helm chart we cannot expand API -> Chart (we would need API -> k8s Service)
+			// To fix this we find the Target group being created for the value injected into the TargetGroupBinding Manifest and make that the destinationResources
+			if chart, ok := destinationResource.(*kubernetes.HelmChart); ok {
+				var destinationTG *resources.TargetGroup
 				for _, val := range chart.Values {
 					if iacVal, ok := val.(core.IaCValue); ok {
 						if tg, ok := iacVal.Resource.(*resources.TargetGroup); ok {
 							for ref := range tg.ConstructsRef {
 								if ref.ID == dep.Destination.Provenance().ID {
-									targetTG = tg
+									destinationTG = tg
 								}
 							}
 						}
 					}
 				}
-				if targetTG == nil {
-					merr.Append(errors.Errorf("unable to find target group for edge, %s -> %s", dep.Source.Id(), dep.Destination.Id()))
-					continue
+				if destinationTG == nil {
+					return errors.Errorf("unable to find target group for edge, %s -> %s", dep.Source.Id(), dep.Destination.Id())
 				}
-				targetResource = targetTG
-				data.Destination = targetTG
+				destinationResource = destinationTG
+				data.Destination = destinationTG
 			}
 		}
-		dag.AddDependencyWithData(sourceResource, targetResource, data)
 	}
-	return merr.ErrOrNil()
+	dag.AddDependencyWithData(sourceResource, destinationResource, data)
+	return nil
 }
 
 // configureResources calls every resource's Configure method, for resources that exist in the graph
@@ -147,6 +163,12 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 			}
 		case *resources.S3Bucket:
 			configuration, err = getS3BucketConfig(res, result)
+			if err != nil {
+				merr.Append(err)
+				continue
+			}
+		case *resources.SecretVersion:
+			configuration, err = a.getSecretVersionConfiguration(res, result)
 			if err != nil {
 				merr.Append(err)
 				continue

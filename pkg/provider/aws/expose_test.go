@@ -61,8 +61,8 @@ func Test_ExpandExpose(t *testing.T) {
 				return
 			}
 			tt.want.Assert(t, dag)
-			resource := aws.GetResourceTiedToConstruct(tt.gw)
-			assert.NotNil(resource)
+			res, _ := aws.GetResourcesDirectlyTiedToConstruct(tt.gw)
+			assert.NotEmpty(res)
 		})
 	}
 }

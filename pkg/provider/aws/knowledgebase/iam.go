@@ -17,9 +17,17 @@ var IamKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.SecretVersion]{
-		Configure: func(policy *resources.IamPolicy, secretVersion *resources.SecretVersion, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			secretPolicyDoc := resources.CreateAllowPolicyDocument([]string{"secretsmanager:GetSecretValue"}, []core.IaCValue{{Resource: secretVersion.Secret, Property: resources.ARN_IAC_VALUE}})
+	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.Secret]{
+		Configure: func(role *resources.IamRole, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			secretPolicyDoc := resources.CreateAllowPolicyDocument([]string{"secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"}, []core.IaCValue{{Resource: secret, Property: resources.ARN_IAC_VALUE}})
+			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-secretpolicy", secret.Name), role.ConstructsRef.CloneWith(secret.ConstructsRef), secretPolicyDoc)
+			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.Secret]{
+		Configure: func(policy *resources.IamPolicy, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			secretPolicyDoc := resources.CreateAllowPolicyDocument([]string{"secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"}, []core.IaCValue{{Resource: secret, Property: resources.ARN_IAC_VALUE}})
 			if policy.Policy == nil {
 				policy.Policy = secretPolicyDoc
 			} else {
@@ -114,7 +122,7 @@ var IamKB = knowledgebase.Build(
 			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
 				AppName:     data.AppName,
 				ClusterName: strings.TrimLeft(chart.ClustersProvider.Resource.Id().Name, fmt.Sprintf("%s-", data.AppName)),
-				Refs:        role.ConstructsRef,
+				Refs:        role.ConstructsRef.Clone(),
 			})
 			dag.AddDependency(role, oidc)
 			return err
@@ -133,7 +141,7 @@ var IamKB = knowledgebase.Build(
 			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
 				AppName:     data.AppName,
 				ClusterName: strings.TrimLeft(manifest.ClustersProvider.Resource.Id().Name, fmt.Sprintf("%s-", data.AppName)),
-				Refs:        role.ConstructsRef,
+				Refs:        role.ConstructsRef.Clone(),
 			})
 			dag.AddDependency(role, oidc)
 			return err
