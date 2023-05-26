@@ -112,9 +112,6 @@ var ApiGatewayKB = knowledgebase.Build(
 				return nil
 			}
 			restApi, ok := data.Source.(*resources.RestApi)
-			refs := core.AnnotationKeySet{}
-			refs.AddAll(lb.ConstructsRef)
-			refs.AddAll(restApi.ConstructsRef)
 			if !ok {
 				return fmt.Errorf("source of eks to api integration expansion must be a rest api resource")
 			}
@@ -150,7 +147,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				var err error
 				integration, err = core.CreateResource[*resources.ApiIntegration](dag, resources.ApiIntegrationCreateParams{
 					AppName:    data.AppName,
-					Refs:       refs,
+					Refs:       lb.ConstructsRef.CloneWith(restApi.ConstructsRef),
 					Path:       route.Path,
 					ApiName:    restApi.Name,
 					HttpMethod: strings.ToUpper(string(route.Verb)),
