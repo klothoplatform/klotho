@@ -797,20 +797,6 @@ func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource core.Resource
 		errs.Append(tc.addIngressRuleToCluster(out, resource))
 	case *resources.RouteTable:
 		errs.Append(tc.associateRouteTable(out, resource))
-	case *resources.IamRole:
-		downStream := tc.resourceGraph.GetDownstreamResources(resource)
-		for _, res := range downStream {
-			if policy, ok := res.(*resources.IamPolicy); ok {
-				rpa := RolePolicyAttachment{
-					Name:   fmt.Sprintf("%s-%s", resource.Name, policy.Name),
-					Policy: policy,
-					Role:   resource,
-				}
-				_, err := out.Write([]byte("\n\n"))
-				errs.Append(err)
-				errs.Append(tc.renderResource(out, &rpa))
-			}
-		}
 	}
 	return errs.ErrOrNil()
 }

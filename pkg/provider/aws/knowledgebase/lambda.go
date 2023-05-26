@@ -153,4 +153,25 @@ var LambdaKB = knowledgebase.Build(
 			return nil
 		},
 	},
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.LambdaFunction]{
+		Expand: func(source, destination *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			policy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
+				AppName: data.AppName,
+				Refs:    source.ConstructsRef.CloneWith(destination.ConstructsRef),
+				Name:    fmt.Sprintf("%s-InvocationPolicy", destination.Id().Name),
+			})
+			dag.AddDependency(policy, destination)
+			if err != nil {
+				return err
+			}
+			attachment := &resources.RolePolicyAttachment{
+				Name:          fmt.Sprintf("%s-%s", source.Role.Name, policy.Name),
+				ConstructsRef: source.ConstructsRef.CloneWith(destination.ConstructsRef),
+				Policy:        policy,
+				Role:          source.Role,
+			}
+			dag.AddDependenciesReflect(attachment)
+			return nil
+		},
+	},
 )
