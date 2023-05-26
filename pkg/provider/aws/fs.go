@@ -17,7 +17,7 @@ func (a *AWS) expandFs(dag *core.ResourceGraph, fs *core.Fs) error {
 	return a.MapResourceToConstruct(bucket, fs)
 }
 
-func (a *AWS) getFsConfiguration() resources.S3BucketConfigureParams {
+func getFsConfiguration() resources.S3BucketConfigureParams {
 	return resources.S3BucketConfigureParams{
 		ForceDestroy: true,
 	}

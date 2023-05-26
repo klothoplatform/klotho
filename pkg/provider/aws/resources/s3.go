@@ -80,8 +80,9 @@ func (bucket *S3Bucket) Create(dag *core.ResourceGraph, params S3BucketCreatePar
 		if !ok {
 			return errors.Errorf(`found an existing element at %s, but it was not an S3Bucket`, bucket.Id().String())
 		}
-		// Multiple resources may create the same bucket (today, this specifically happens with our payload bucket). If
-		// that happens, just append the refs and exit early; the rest would have been idempotent.
+		// Multiple resources may create the same bucket (for example, this happens with our payload bucket and with
+		// static unit S3Objects). If that happens, just append the refs and exit early; the rest would have been
+		// idempotent.
 		existingS3.ConstructsRef.AddAll(params.Refs)
 		return nil
 	}
@@ -102,14 +103,30 @@ func (bucket *S3Bucket) Configure(params S3BucketConfigureParams) error {
 	return nil
 }
 
-func NewS3Object(bucket *S3Bucket, objectName string, key string, path string) *S3Object {
-	return &S3Object{
-		Name:          objectSanitizer.Apply(fmt.Sprintf("%s-%s", bucket.Name, objectName)),
-		ConstructsRef: bucket.KlothoConstructRef(),
-		Key:           key,
-		FilePath:      path,
-		Bucket:        bucket,
+type S3ObjectCreateParams struct {
+	AppName    string
+	Refs       core.AnnotationKeySet
+	BucketName string
+	Name       string
+	Key        string
+	FilePath   string
+}
+
+func (object *S3Object) Create(dag *core.ResourceGraph, params S3ObjectCreateParams) error {
+	object.Name = objectSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.BucketName, params.Name))
+	if dag.GetResource(object.Id()) != nil {
+		return fmt.Errorf(`S3Object with name %s already exists`, object.Name)
 	}
+	object.ConstructsRef = params.Refs
+	object.Key = params.Key
+	object.FilePath = params.FilePath
+	return dag.CreateDependencies(object, map[string]any{
+		"Bucket": S3BucketCreateParams{
+			AppName: params.AppName,
+			Refs:    params.Refs,
+			Name:    params.BucketName,
+		},
+	})
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to

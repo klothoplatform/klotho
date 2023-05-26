@@ -1,6 +1,10 @@
 package aws
 
 import (
+	"sort"
+	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
@@ -29,6 +33,8 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 			merr.Append(a.expandKv(dag, construct))
 		case *core.RedisNode:
 			merr.Append(a.expandRedisNode(dag, construct))
+		case *core.StaticUnit:
+			merr.Append(a.expandStaticUnit(dag, construct))
 		}
 	}
 	return merr.ErrOrNil()
@@ -140,11 +146,47 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 				continue
 			}
 		case *resources.S3Bucket:
-			configuration = a.getFsConfiguration()
+			configuration, err = getS3BucketConfig(res, result)
+			if err != nil {
+				merr.Append(err)
+				continue
+			}
 		}
 		merr.Append(dag.CallConfigure(resource, configuration))
 	}
 	return merr.ErrOrNil()
+}
+
+func getS3BucketConfig(bucket *resources.S3Bucket, constructs *core.ConstructGraph) (resources.S3BucketConfigureParams, error) {
+	staticUnits := make(map[string]*core.StaticUnit)
+	for consRef := range bucket.ConstructsRef {
+		cons := constructs.GetConstruct(consRef.ToId())
+		if oneUnit, isUnit := cons.(*core.StaticUnit); isUnit {
+			staticUnits[oneUnit.ID] = oneUnit
+		}
+	}
+	switch len(staticUnits) {
+	case 0:
+		// None of the bucket's constructs were static unit; assume it's an FS
+		return getFsConfiguration(), nil
+	case 1:
+		// The bucket came from a single static unit; gets its params
+		_, unit := collectionutil.GetOneEntry(staticUnits)
+		params := resources.S3BucketConfigureParams{
+			ForceDestroy:  true,
+			IndexDocument: unit.IndexDocument,
+		}
+		return params, nil
+	default:
+		// The bucket came from multiple static units; this is an error
+		ids := collectionutil.Keys(staticUnits)
+		sort.Strings(ids)
+		return resources.S3BucketConfigureParams{}, errors.Errorf(
+			`couldn't resolve configuration for bucket "%s" because I found multiple static units for it: %s`,
+			bucket.Id().String(),
+			strings.Join(ids, ","),
+		)
+	}
 }
 
 func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {

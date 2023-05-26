@@ -58,10 +58,8 @@ func (expect ResourcesExpectation) ElementsMatchPretty(t *testing.T, expected an
 
 	expectedStr := toStr(expected)
 	actualStr := toStr(actual)
-	if expectedStr != "" && actualStr != "" {
-		if !assert.Equal(t, expectedStr, actualStr) {
-			return
-		}
+	if !assert.Equal(t, expectedStr, actualStr) {
+		return
 	}
 
 	assert.ElementsMatch(t, expected, actual)

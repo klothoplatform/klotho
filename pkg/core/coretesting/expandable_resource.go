@@ -10,7 +10,7 @@ import (
 
 type CreateCase[P any, R core.ExpandableResource[P]] struct {
 	Name     string
-	Existing R
+	Existing core.Resource
 	Params   P
 	Want     ResourcesExpectation
 	Check    func(assertions *assert.Assertions, resource R)
@@ -21,14 +21,12 @@ func (tt CreateCase[P, R]) Run(t *testing.T) {
 	assert := assert.New(t)
 
 	dag := core.NewResourceGraph()
-	// We have to use reflect, since Go doesn't know that R is a pointer, or even something whose zero-type is
-	// comparable (so we can't do "var R zero; if tt.Existing != zero").
-	if !reflect.ValueOf(tt.Existing).IsZero() {
+	if tt.Existing != nil {
 		dag.AddResource(tt.Existing)
 	}
 
 	var res R
-	rType := reflect.TypeOf(tt.Existing)
+	rType := reflect.TypeOf(res)
 	if rType.Kind() == reflect.Pointer {
 		res = reflect.New(rType.Elem()).Interface().(R)
 	}
