@@ -6,7 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/knowledgebase"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/provider/aws/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 

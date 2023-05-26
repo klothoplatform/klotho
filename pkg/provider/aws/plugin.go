@@ -2,6 +2,7 @@ package aws
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -71,6 +72,28 @@ func (a *AWS) CopyConstructEdgesToDag(result *core.ConstructGraph, dag *core.Res
 				if route.ExecUnitName == dep.Destination.Provenance().ID {
 					data.Routes = append(data.Routes, route)
 				}
+			}
+			// Because we dont have an understanding of what exists within the helm chart we cannot expand API -> Chart (we would need API -> k8s Service)
+			// To fix this we find the Target group being created for the value injected into the TargetGroupBinding Manifest and make that the targetResources
+			if chart, ok := targetResource.(*kubernetes.HelmChart); ok {
+				var targetTG *resources.TargetGroup
+				for _, val := range chart.Values {
+					if iacVal, ok := val.(core.IaCValue); ok {
+						if tg, ok := iacVal.Resource.(*resources.TargetGroup); ok {
+							for ref := range tg.ConstructsRef {
+								if ref.ID == dep.Destination.Provenance().ID {
+									targetTG = tg
+								}
+							}
+						}
+					}
+				}
+				if targetTG == nil {
+					merr.Append(errors.Errorf("unable to find target group for edge, %s -> %s", dep.Source.Id(), dep.Destination.Id()))
+					continue
+				}
+				targetResource = targetTG
+				data.Destination = targetTG
 			}
 		}
 		dag.AddDependencyWithData(sourceResource, targetResource, data)

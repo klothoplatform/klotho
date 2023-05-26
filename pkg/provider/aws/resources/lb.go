@@ -56,15 +56,93 @@ type (
 	}
 )
 
-func NewLoadBalancer(appName string, lbName string, refs core.AnnotationKeySet, scheme string, lbType string, subnets []*Subnet, securityGroups []*SecurityGroup) *LoadBalancer {
-	return &LoadBalancer{
-		Name:           loadBalancerSanitizer.Apply(fmt.Sprintf("%s-%s", appName, lbName)),
-		ConstructsRef:  refs,
-		Scheme:         scheme,
-		SecurityGroups: securityGroups,
-		Subnets:        subnets,
-		Type:           lbType,
+type LoadBalancerCreateParams struct {
+	AppName     string
+	Refs        core.AnnotationKeySet
+	Name        string
+	NetworkType string
+}
+
+func (lb *LoadBalancer) Create(dag *core.ResourceGraph, params LoadBalancerCreateParams) error {
+	lb.Name = loadBalancerSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	lb.ConstructsRef = params.Refs
+
+	existingLb, found := core.GetResource[*LoadBalancer](dag, lb.Id())
+	if found {
+		existingLb.ConstructsRef.AddAll(params.Refs)
+		return nil
 	}
+
+	lb.Subnets = make([]*Subnet, 2)
+	subnetType := PrivateSubnet
+	if params.NetworkType == "public" {
+		subnetType = PublicSubnet
+	}
+	subParams := map[string]any{
+		"Subnets": []SubnetCreateParams{
+			{
+				AppName: params.AppName,
+				Refs:    lb.ConstructsRef,
+				AZ:      "0",
+				Type:    subnetType,
+			},
+			{
+				AppName: params.AppName,
+				Refs:    lb.ConstructsRef,
+				AZ:      "1",
+				Type:    subnetType,
+			},
+		},
+	}
+
+	err := dag.CreateDependencies(lb, subParams)
+	return err
+}
+
+type ListenerCreateParams struct {
+	AppName     string
+	Refs        core.AnnotationKeySet
+	Name        string
+	NetworkType string
+}
+
+func (listener *Listener) Create(dag *core.ResourceGraph, params ListenerCreateParams) error {
+	listener.Name = loadBalancerSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	listener.ConstructsRef = params.Refs
+
+	existingListener, found := core.GetResource[*Listener](dag, listener.Id())
+
+	if found {
+		existingListener.ConstructsRef.AddAll(params.Refs)
+		return nil
+	}
+
+	err := dag.CreateDependencies(listener, map[string]any{
+		"LoadBalancer": params,
+	})
+	return err
+}
+
+type TargetGroupCreateParams struct {
+	AppName string
+	Refs    core.AnnotationKeySet
+	Name    string
+}
+
+func (targetGroup *TargetGroup) Create(dag *core.ResourceGraph, params TargetGroupCreateParams) error {
+	targetGroup.Name = targetGroupSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	targetGroup.ConstructsRef = params.Refs
+
+	existingTg, found := core.GetResource[*TargetGroup](dag, targetGroup.Id())
+	if found {
+		existingTg.ConstructsRef.AddAll(params.Refs)
+		return nil
+	}
+
+	err := dag.CreateDependencies(targetGroup, map[string]any{
+		"Vpc": params,
+	})
+	return err
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
