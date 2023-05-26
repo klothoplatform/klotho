@@ -32,7 +32,10 @@ func (namespace *PrivateDnsNamespace) Create(dag *core.ResourceGraph, params Pri
 	if found {
 		existingNamespace.ConstructsRef.AddAll(params.Refs)
 	} else {
-		err := dag.CreateDependencies(namespace, map[string]any{"Vpc": params})
+		err := dag.CreateDependencies(namespace, map[string]any{"Vpc": VpcCreateParams{
+			AppName: params.AppName,
+			Refs:    params.Refs.Clone(),
+		}})
 		if err != nil {
 			return err
 		}

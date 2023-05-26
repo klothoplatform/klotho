@@ -159,8 +159,7 @@ var EksKB = knowledgebase.Build(
 			if role == nil {
 				return fmt.Errorf("no role found for chart %s and source reference %s in HelmChart to ddb RdsInstance expansion", chart.Id(), data.SourceRef.ToId())
 			}
-			refs := role.ConstructsRef.Clone()
-			refs.AddAll(instance.ConstructsRef)
+			refs := role.ConstructsRef.CloneWith(instance.ConstructsRef)
 			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), refs, instance.GetConnectionPolicyDocument())
 			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
 
@@ -200,11 +199,10 @@ var EksKB = knowledgebase.Build(
 )
 
 func GetRoleForUnit(chart *kubernetes.HelmChart, ref core.AnnotationKey) *resources.IamRole {
-	for _, val := range chart.Values {
-		if iacVal, ok := val.(core.IaCValue); ok {
-			if role, ok := iacVal.Resource.(*resources.IamRole); ok {
-				singleRef, ok := role.ConstructsRef.GetSingle()
-				if ok && singleRef == ref {
+	for key, val := range chart.Values {
+		if kubernetes.GenerateRoleArnPlaceholder(ref.ID) == key {
+			if iacVal, ok := val.(core.IaCValue); ok {
+				if role, ok := iacVal.Resource.(*resources.IamRole); ok {
 					return role
 				}
 			}
