@@ -128,7 +128,7 @@ func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceC
 		"SecurityGroups": []SecurityGroupCreateParams{
 			{
 				AppName: params.AppName,
-				Refs:    params.Refs,
+				Refs:    params.Refs.Clone(),
 			},
 		},
 		"SubnetGroup": params,

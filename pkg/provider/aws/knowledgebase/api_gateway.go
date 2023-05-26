@@ -131,7 +131,7 @@ var ApiGatewayKB = knowledgebase.Build(
 			}
 			listener, err := core.CreateResource[*resources.Listener](dag, resources.ListenerCreateParams{
 				AppName:     data.AppName,
-				Refs:        tg.ConstructsRef,
+				Refs:        tg.ConstructsRef.Clone(),
 				Name:        tg.Name,
 				NetworkType: resources.PrivateSubnet,
 			})

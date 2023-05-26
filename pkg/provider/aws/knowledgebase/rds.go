@@ -12,17 +12,18 @@ var RdsKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.RdsProxyTargetGroup, *resources.RdsInstance]{
 		Expand: func(targetGroup *resources.RdsProxyTargetGroup, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if targetGroup.Name == "" {
-				proxyTargetGroup, err := core.CreateResource[*resources.RdsProxyTargetGroup](dag, resources.RdsProxyTargetGroupCreateParams{
+				targetGroup, err := core.CreateResource[*resources.RdsProxyTargetGroup](dag, resources.RdsProxyTargetGroupCreateParams{
 					AppName: data.AppName,
-					Refs:    instance.ConstructsRef,
+					Refs:    instance.ConstructsRef.Clone(),
 					Name:    instance.Name,
 				})
 				if err != nil {
 					return err
 				}
-				proxyTargetGroup.RdsInstance = instance
-				dag.AddDependency(proxyTargetGroup, instance)
+				targetGroup.RdsInstance = instance
+				dag.AddDependency(targetGroup, instance)
 			}
+			targetGroup.ConstructsRef.AddAll(data.Source.KlothoConstructRef())
 			return nil
 		},
 		Configure: func(targetGroup *resources.RdsProxyTargetGroup, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -45,12 +46,12 @@ var RdsKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.RdsProxyTargetGroup, *resources.RdsProxy]{
 		Expand: func(targetGroup *resources.RdsProxyTargetGroup, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			var err error
 			destination := data.Destination.(*resources.RdsInstance)
 			if proxy.Name == "" {
-				var err error
 				proxy, err = core.CreateResource[*resources.RdsProxy](dag, resources.RdsProxyCreateParams{
 					AppName: data.AppName,
-					Refs:    targetGroup.ConstructsRef,
+					Refs:    data.Source.KlothoConstructRef().CloneWith(destination.KlothoConstructRef()),
 					Name:    fmt.Sprintf("%s-proxy", strings.TrimPrefix(destination.Name, fmt.Sprintf("%s-", data.AppName))),
 				})
 				if err != nil {
@@ -58,27 +59,32 @@ var RdsKB = knowledgebase.Build(
 				}
 				dag.AddDependencyWithData(data.Source, proxy, data)
 			}
+			proxy.ConstructsRef.AddAll(data.Source.KlothoConstructRef())
+			proxy.ConstructsRef.AddAll(destination.ConstructsRef)
 
 			if targetGroup.Name == "" {
-				proxyTargetGroup, err := core.CreateResource[*resources.RdsProxyTargetGroup](dag, resources.RdsProxyTargetGroupCreateParams{
+				targetGroup, err = core.CreateResource[*resources.RdsProxyTargetGroup](dag, resources.RdsProxyTargetGroupCreateParams{
 					AppName: data.AppName,
-					Refs:    proxy.ConstructsRef,
+					Refs:    proxy.ConstructsRef.Clone(),
 					Name:    destination.Name,
 				})
 				if err != nil {
 					return err
 				}
-				proxyTargetGroup.RdsProxy = proxy
-				dag.AddDependency(proxyTargetGroup, proxy)
 			}
+			targetGroup.ConstructsRef.AddAll(proxy.ConstructsRef)
+			targetGroup.RdsProxy = proxy
+			dag.AddDependency(targetGroup, proxy)
+
 			secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 				AppName: data.AppName,
-				Refs:    targetGroup.KlothoConstructRef().CloneWith(proxy.KlothoConstructRef()),
+				Refs:    proxy.KlothoConstructRef().Clone(),
 				Name:    fmt.Sprintf("%s-credentials", strings.TrimPrefix(proxy.Name, fmt.Sprintf("%s-", data.AppName))),
 			})
 			if err != nil {
 				return err
 			}
+
 			proxy.Auths = append(proxy.Auths, &resources.ProxyAuth{
 				AuthScheme: "SECRETS",
 				IamAuth:    "DISABLED",
@@ -89,7 +95,7 @@ var RdsKB = knowledgebase.Build(
 			secretPolicy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
 				AppName: data.AppName,
 				Name:    fmt.Sprintf("%s-ormsecretpolicy", proxy.Name),
-				Refs:    proxy.ConstructsRef,
+				Refs:    proxy.ConstructsRef.Clone(),
 			})
 			if err != nil {
 				return err
@@ -117,35 +123,6 @@ var RdsKB = knowledgebase.Build(
 			return nil
 		},
 		ValidDestinations: []core.Resource{&resources.RdsInstance{}},
-	},
-	knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.SecretVersion]{
-		Expand: func(proxy *resources.RdsProxy, sv *resources.SecretVersion, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
-				AppName: data.AppName,
-				Refs:    proxy.KlothoConstructRef().CloneWith(sv.KlothoConstructRef()),
-				Name:    proxy.Name,
-			})
-			if err != nil {
-				return err
-			}
-			dag.AddDependency(proxy, secretVersion)
-
-			secretPolicy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
-				AppName: data.AppName,
-				Name:    fmt.Sprintf("%s-ormsecretpolicy", proxy.Name),
-				Refs:    proxy.ConstructsRef,
-			})
-			if err != nil {
-				return err
-			}
-			dag.AddDependency(secretPolicy, secretVersion)
-			dag.AddDependency(proxy.Role, secretPolicy)
-			return nil
-		},
-		Configure: func(proxy *resources.RdsProxy, secretVersion *resources.SecretVersion, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			secretVersion.Type = "string"
-			return nil
-		},
 	},
 	knowledgebase.EdgeBuilder[*resources.RdsSubnetGroup, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.RdsInstance, *resources.RdsSubnetGroup]{},
