@@ -101,10 +101,6 @@ func (oai *OriginAccessIdentity) Create(dag *core.ResourceGraph, params OriginAc
 	return nil
 }
 
-// CreateS3Origin creates an origin for a static unit, given its bucket, and attaches it to the Cloudfront distribution passed in
-func CreateS3Origin(unit *core.StaticUnit, bucket *S3Bucket, distribution *CloudfrontDistribution, dag *core.ResourceGraph) {
-}
-
 // CreateCustomOrigin creates an origin for a gateway, given its api stage, and attaches it to the Cloudfront distribution passed in
 func CreateCustomOrigin(gw *core.Gateway, apiStage *ApiStage, distribution *CloudfrontDistribution) {
 	origin := &CloudfrontOrigin{

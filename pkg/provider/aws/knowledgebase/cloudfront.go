@@ -2,11 +2,15 @@ package knowledgebase
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"github.com/pkg/errors"
 )
 
 var CloudfrontKB = knowledgebase.Build(
@@ -32,6 +36,50 @@ var CloudfrontKB = knowledgebase.Build(
 		},
 		Configure: func(distro *resources.CloudfrontDistribution, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			distro.DefaultRootObject = bucket.IndexDocument
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.CloudfrontDistribution, *resources.ApiStage]{
+		Expand: func(distro *resources.CloudfrontDistribution, stage *resources.ApiStage, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			var gwId string
+			switch len(stage.ConstructsRef) {
+			case 0:
+				return errors.Errorf(`couldn't determine the id of the construct that created API stage "%s"`, stage.Id())
+			case 1:
+				cons, _ := collectionutil.GetOneEntry(stage.ConstructsRef)
+				gwId = cons.ID
+			default:
+				var ids []string
+				for _, cons := range collectionutil.Keys(stage.ConstructsRef) {
+					ids = append(ids, cons.ID)
+				}
+				sort.Strings(ids)
+				return errors.Errorf(
+					`couldn't determine the id of the construct that created API stage "%s": expected just one construct, but found [%s]`,
+					stage.Id(),
+					strings.Join(ids, ", "))
+
+			}
+			stageName := stage.StageName
+			if stageName == "" {
+				stageName = "stage" // TODO klotho#653
+			}
+			origin := &resources.CloudfrontOrigin{
+				CustomOriginConfig: resources.CustomOriginConfig{
+					HttpPort:             80,
+					HttpsPort:            443,
+					OriginProtocolPolicy: "https-only",
+					OriginSslProtocols:   []string{"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"},
+				},
+				DomainName: core.IaCValue{
+					Resource: stage,
+					Property: resources.STAGE_INVOKE_URL_IAC_VALUE,
+				},
+				OriginId:   gwId,
+				OriginPath: fmt.Sprintf("/%s", stageName),
+			}
+			distro.Origins = append(distro.Origins, origin)
+			distro.DefaultCacheBehavior.TargetOriginId = origin.OriginId
 			return nil
 		},
 	},
