@@ -3,7 +3,6 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
@@ -65,9 +64,13 @@ func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreat
 		"Role": RoleCreateParams{
 			AppName: params.AppName,
 			Name:    fmt.Sprintf("%s-ExecutionRole", params.Name),
-			Refs:    lambda.ConstructsRef,
+			Refs:    lambda.ConstructsRef.Clone(),
 		},
-		"Image": params,
+		"Image": ImageCreateParams{
+			AppName: params.AppName,
+			Name:    params.Name,
+			Refs:    lambda.ConstructsRef.Clone(),
+		},
 	}
 
 	err = dag.CreateDependencies(lambda, subParams)
@@ -125,18 +128,6 @@ func (permission *LambdaPermission) Create(dag *core.ResourceGraph, params Lambd
 	}
 	dag.AddResource(permission)
 	return nil
-}
-
-func NewLambdaFunction(unit *core.ExecutionUnit, cfg *config.Application, role *IamRole, image *EcrImage) *LambdaFunction {
-	params := config.ConvertFromInfraParams[config.ServerlessTypeParams](cfg.GetExecutionUnit(unit.ID).InfraParams)
-	return &LambdaFunction{
-		Name:          lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", cfg.AppName, unit.ID)),
-		ConstructsRef: core.AnnotationKeySetOf(unit.Provenance()),
-		Role:          role,
-		Image:         image,
-		MemorySize:    params.Memory,
-		Timeout:       params.Timeout,
-	}
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to

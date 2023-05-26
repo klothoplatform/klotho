@@ -200,17 +200,6 @@ func (a *AWS) getNodeGroupConfiguration(result *core.ConstructGraph, dag *core.R
 	return nodeGroupConfig, nil
 }
 
-func findUnitsCluster(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*resources.EksCluster, error) {
-	for _, res := range dag.ListResources() {
-		if r, ok := res.(*resources.EksCluster); ok {
-			if r.ConstructsRef.Has(unit.Provenance()) {
-				return r, nil
-			}
-		}
-	}
-	return nil, fmt.Errorf("eks cluster not found for unit with id, %s", unit.ID)
-}
-
 func findUnitsHelmChart(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*kubernetes.HelmChart, error) {
 	for _, res := range dag.ListResources() {
 		if r, ok := res.(*kubernetes.HelmChart); ok {

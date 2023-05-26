@@ -10,7 +10,6 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -190,7 +189,6 @@ func TestResolveStructInput(t *testing.T) {
 }
 
 func Test_renderGlueVars(t *testing.T) {
-	unit := &core.ExecutionUnit{}
 	vpc := &resources.Vpc{Name: "vpc"}
 	cases := []struct {
 		name                 string
@@ -200,31 +198,6 @@ func Test_renderGlueVars(t *testing.T) {
 		resourceVarNamesById map[core.ResourceId]string
 		want                 string
 	}{
-		{
-			name:        "role_policy_attachment",
-			subResource: resources.NewIamRole("test", "t", nil, nil),
-			nodes: []core.Resource{
-				resources.NewIamRole("test", "t", nil, nil),
-				resources.NewLambdaFunction(unit, &config.Application{AppName: "test"}, resources.NewIamRole("test", "t", nil, nil), &resources.EcrImage{}),
-				resources.NewIamPolicy("test", "t", unit.Provenance(), nil),
-			},
-			edges: []graph.Edge[core.Resource]{
-				{
-					Source:      resources.NewIamPolicy("test", "t", unit.Provenance(), nil),
-					Destination: resources.NewLambdaFunction(unit, &config.Application{AppName: "test"}, resources.NewIamRole("test", "t", nil, nil), &resources.EcrImage{}),
-				},
-				{
-					Source:      resources.NewIamRole("test", "t", nil, nil),
-					Destination: resources.NewIamPolicy("test", "t", unit.Provenance(), nil),
-				},
-			},
-			resourceVarNamesById: map[core.ResourceId]string{
-				{Provider: "aws", Type: "iam_role", Name: "test-t"}:       "testRole",
-				{Provider: "aws", Type: "lambda_function", Name: "test_"}: "testFunction",
-				{Provider: "aws", Type: "iam_policy", Name: "test-t"}:     "testPolicy",
-			},
-			want: "\n\nconst rolePolicyAttachTestTTestT = new aws.iam.RolePolicyAttachment(`test-t-test-t`, {\n\t\t\t\t\t\tpolicyArn: testPolicy.arn,\n\t\t\t\t\t\trole: testRole\n\t\t\t\t\t});",
-		},
 		{
 			name:        "routeTableAssociation",
 			subResource: &resources.RouteTable{Name: "rt1"},

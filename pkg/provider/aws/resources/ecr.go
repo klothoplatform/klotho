@@ -76,7 +76,7 @@ func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams)
 	err := dag.CreateDependencies(image, map[string]any{
 		"Repo": RepoCreateParams{
 			AppName: params.AppName,
-			Refs:    params.Refs,
+			Refs:    params.Refs.Clone(),
 		},
 	})
 	return err

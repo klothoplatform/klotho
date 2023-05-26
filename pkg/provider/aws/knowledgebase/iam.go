@@ -182,4 +182,6 @@ var IamKB = knowledgebase.Build(
 			return nil
 		},
 	},
+	knowledgebase.EdgeBuilder[*resources.RolePolicyAttachment, *resources.IamRole]{},
+	knowledgebase.EdgeBuilder[*resources.RolePolicyAttachment, *resources.IamPolicy]{},
 )
