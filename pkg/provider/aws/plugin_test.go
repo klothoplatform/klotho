@@ -9,6 +9,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
@@ -120,11 +121,11 @@ func Test_ExpandConstructs(t *testing.T) {
 
 func Test_CopyConstructEdgesToDag(t *testing.T) {
 	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-
 	eu := &core.ExecutionUnit{
 		AnnotationKey:        core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
 		EnvironmentVariables: core.EnvironmentVariables{core.GenerateOrmConnStringEnvVar(orm)},
 	}
+	gw := &core.Gateway{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}, Routes: []core.Route{{Path: "my/route", Verb: "get", ExecUnitName: eu.ID}}}
 	cases := []struct {
 		name                 string
 		constructs           []graph.Edge[core.Construct]
@@ -155,6 +156,32 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 							NodeMustExist: []core.Resource{&resources.RdsProxy{}},
 						},
 						EnvironmentVariables: []core.EnvironmentVariable{core.GenerateOrmConnStringEnvVar(orm)},
+					},
+				}},
+			},
+		},
+		{
+			name: "api and helm",
+			constructs: []graph.Edge[core.Construct]{
+				{Source: gw, Destination: eu},
+			},
+			config: &config.Application{
+				AppName: "my-app",
+			},
+			constructResourceMap: map[string]core.Resource{
+				"execution_unit:test": &kubernetes.HelmChart{Name: "lambda", Values: map[string]any{
+					"tg": core.IaCValue{Resource: &resources.TargetGroup{Name: "tg", ConstructsRef: core.AnnotationKeySetOf(eu.AnnotationKey)}},
+				}},
+				"expose:test": &resources.RestApi{Name: "api"},
+			},
+			want: []*graph.Edge[core.Resource]{
+				{Source: &resources.RestApi{Name: "api"}, Destination: &resources.TargetGroup{Name: "tg", ConstructsRef: core.AnnotationKeySetOf(eu.AnnotationKey)}, Properties: dgraph.EdgeProperties{
+					Attributes: make(map[string]string),
+					Data: knowledgebase.EdgeData{
+						AppName:     "my-app",
+						Source:      &resources.RestApi{Name: "api"},
+						Destination: &resources.TargetGroup{Name: "tg", ConstructsRef: core.AnnotationKeySetOf(eu.AnnotationKey)},
+						Routes:      []core.Route{{Path: "my/route", Verb: "get", ExecUnitName: eu.ID}},
 					},
 				}},
 			},

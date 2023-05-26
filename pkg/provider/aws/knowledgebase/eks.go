@@ -1,7 +1,6 @@
 package knowledgebase
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -37,18 +36,7 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.EksFargateProfile, *resources.EksCluster]{
 		Expand: func(profile *resources.EksFargateProfile, cluster *resources.EksCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if len(cluster.GetClustersNodeGroups(dag)) == 0 {
-				_, err := core.CreateResource[*resources.EksNodeGroup](dag, resources.EksNodeGroupCreateParams{
-					InstanceType: "t3.medium",
-					NetworkType:  resources.PrivateSubnet,
-					Refs:         cluster.ConstructsRef,
-					AppName:      data.AppName,
-					ClusterName:  strings.TrimLeft(cluster.Name, fmt.Sprintf("%s-", data.AppName)),
-				})
-				if err != nil {
-					return err
-				}
-				cluster.CreatePrerequisiteCharts(dag)
-				err = cluster.InstallFluentBit(cluster.ConstructsRef, dag)
+				err := cluster.SetUpDefaultNodeGroup(dag, data.AppName)
 				if err != nil {
 					return err
 				}
@@ -76,6 +64,28 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksNodeGroup]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EcrImage]{},
+	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *kubernetes.HelmChart]{},
+	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.TargetGroup]{
+		Expand: func(chart *kubernetes.HelmChart, targetGroup *resources.TargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			clusterProviderResource := chart.ClustersProvider.Resource
+			if cluster, ok := clusterProviderResource.(*resources.EksCluster); ok {
+				if len(cluster.GetClustersNodeGroups(dag)) == 0 {
+					err := cluster.SetUpDefaultNodeGroup(dag, data.AppName)
+					if err != nil {
+						return err
+					}
+				}
+				albChart, err := cluster.InstallAlbController(chart.ConstructRefs, dag)
+				if err != nil {
+					return err
+				}
+				dag.AddDependency(chart, albChart)
+			}
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Region]{},
+	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Vpc]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EksNodeGroup]{},

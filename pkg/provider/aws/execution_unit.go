@@ -131,6 +131,15 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 				Refs:         core.AnnotationKeySetOf(unit.AnnotationKey),
 			}
 		case kubernetes.TargetGroupTransformation:
+			chart.Values[val.Key] = core.IaCValue{
+				Resource: &resources.TargetGroup{},
+				Property: resources.ARN_IAC_VALUE,
+			}
+			valueParams[val.Key] = resources.TargetGroupCreateParams{
+				AppName: a.Config.AppName,
+				Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
+				Name:    unit.ID,
+			}
 		}
 	}
 	return

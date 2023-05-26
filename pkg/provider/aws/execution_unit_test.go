@@ -379,6 +379,30 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "TargetGroupTransformation",
+			unit: eu,
+			value: kubernetes.HelmChartValue{
+				ExecUnitName: eu.ID,
+				Type:         string(kubernetes.TargetGroupTransformation),
+				Key:          "TargetGroupTransformation",
+			},
+			want: testResult{
+				params: map[string]any{
+					"TargetGroupTransformation": resources.TargetGroupCreateParams{
+						AppName: config.AppName,
+						Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
+						Name:    eu.ID,
+					},
+				},
+				values: map[string]any{
+					"TargetGroupTransformation": core.IaCValue{
+						Resource: &resources.TargetGroup{},
+						Property: resources.ARN_IAC_VALUE,
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {

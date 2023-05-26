@@ -120,6 +120,25 @@ var IamKB = knowledgebase.Build(
 			return err
 		},
 	},
+	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.IamRole]{
+		Expand: func(manifest *kubernetes.Manifest, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			// For certain scenarios (like the alb controller) where we arent creating a service account for a unit derived in klotho, we have no understanding of what that service account is.
+			// Once we make specific kubernetes objects resources we could have that understanding
+			if role.AssumeRolePolicyDoc != nil {
+				return nil
+			}
+			if len(role.ConstructsRef) > 1 {
+				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
+			}
+			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
+				AppName:     data.AppName,
+				ClusterName: strings.TrimLeft(manifest.ClustersProvider.Resource.Id().Name, fmt.Sprintf("%s-", data.AppName)),
+				Refs:        role.ConstructsRef,
+			})
+			dag.AddDependency(role, oidc)
+			return err
+		},
+	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.OpenIdConnectProvider]{
 		Configure: func(role *resources.IamRole, oidc *resources.OpenIdConnectProvider, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			ref, oneRef := role.ConstructsRef.GetSingle()
