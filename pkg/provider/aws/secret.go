@@ -27,15 +27,15 @@ func (a *AWS) expandSecrets(dag *core.ResourceGraph, construct *core.Secrets) er
 }
 
 func (a *AWS) getSecretVersionConfiguration(secretVersion *resources.SecretVersion, result *core.ConstructGraph) (resources.SecretVersionConfigureParams, error) {
-	secretVersionConfig := resources.SecretVersionConfigureParams{}
-	if len(secretVersion.ConstructsRef) == 0 {
-		// this case may occur when a secret is created as part of edge expansion and is configured as part of that process
-		zap.L().Sugar().Debugf("skipping resource configuration: secret version %s has no construct references", secretVersion.Id())
-		return secretVersionConfig, nil
+	secretVersionConfig := resources.SecretVersionConfigureParams{
+		// use unmodified config by default
+		Type: secretVersion.Type,
+		Path: secretVersion.Path,
 	}
 	ref, oneRef := secretVersion.ConstructsRef.GetSingle()
 	if !oneRef {
-		return secretVersionConfig, fmt.Errorf("secret resource may only have one construct reference")
+		zap.L().Sugar().Debugf("skipping resource configuration: secret version %s has multiple refs, using unmodified config", secretVersion.Id())
+		return secretVersionConfig, nil
 	}
 	constructR := result.GetConstruct(ref.ToId())
 	if constructR == nil {
@@ -53,7 +53,8 @@ func (a *AWS) getSecretVersionConfiguration(secretVersion *resources.SecretVersi
 		secretVersionConfig.Path = secretVersion.DetectedPath
 		secretVersionConfig.Type = "binary"
 	default:
-		return secretVersionConfig, fmt.Errorf("secret resource must have a construct reference to a config or secrets")
+		zap.L().Sugar().Debugf("skipping resource configuration: secret version %s has unsupported ref type %T, using unmodified config", secretVersion.Id(), constructR)
+		return secretVersionConfig, nil
 	}
 
 	return secretVersionConfig, nil

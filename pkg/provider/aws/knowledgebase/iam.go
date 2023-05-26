@@ -122,7 +122,7 @@ var IamKB = knowledgebase.Build(
 			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
 				AppName:     data.AppName,
 				ClusterName: strings.TrimLeft(chart.ClustersProvider.Resource.Id().Name, fmt.Sprintf("%s-", data.AppName)),
-				Refs:        role.ConstructsRef,
+				Refs:        role.ConstructsRef.Clone(),
 			})
 			dag.AddDependency(role, oidc)
 			return err
@@ -141,7 +141,7 @@ var IamKB = knowledgebase.Build(
 			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
 				AppName:     data.AppName,
 				ClusterName: strings.TrimLeft(manifest.ClustersProvider.Resource.Id().Name, fmt.Sprintf("%s-", data.AppName)),
-				Refs:        role.ConstructsRef,
+				Refs:        role.ConstructsRef.Clone(),
 			})
 			dag.AddDependency(role, oidc)
 			return err

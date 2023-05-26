@@ -36,8 +36,7 @@ func (a *AWS) expandStaticUnit(dag *core.ResourceGraph, unit *core.StaticUnit) e
 			errs.Append(errors.Errorf(`Found too many buckets for unit %s. This is an internal error.`, unit.Id()))
 		}
 		_, bucket := collectionutil.GetOneEntry(createdBuckets)
-		err := a.MapResourceToConstruct(bucket, unit)
-		errs.Append(err)
+		a.MapResourceDirectlyToConstruct(bucket, unit)
 	}
 
 	return errs.ErrOrNil()
