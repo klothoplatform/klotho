@@ -92,7 +92,7 @@ func (oai *OriginAccessIdentity) Create(dag *core.ResourceGraph, params OriginAc
 	oai.Name = params.Name
 	oai.ConstructsRef = params.Refs
 	if dag.GetResource(oai.Id()) != nil {
-		return fmt.Errorf(`Origin Access Identity with name "%s" already exists`, oai.Name)
+		return fmt.Errorf(`an Origin Access Identity with name "%s" already exists`, oai.Name)
 	}
 
 	// This is technically a config, but it's always just this value, so it's fine (and convenient) to inline it here
