@@ -125,28 +125,6 @@ func CreateCustomOrigin(gw *core.Gateway, apiStage *ApiStage, distribution *Clou
 	distribution.DefaultCacheBehavior.TargetOriginId = origin.OriginId
 }
 
-func NewCloudfrontDistribution(appName string, cdnId string) *CloudfrontDistribution {
-	return &CloudfrontDistribution{
-		Name: cloudfrontDistributionSanitizer.Apply(fmt.Sprintf("%s-%s", appName, cdnId)),
-		DefaultCacheBehavior: &DefaultCacheBehavior{
-			AllowedMethods: []string{"DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"},
-			CachedMethods:  []string{"HEAD", "GET"},
-			ForwardedValues: ForwardedValues{
-				QueryString: true,
-				Cookies:     Cookies{Forward: "none"},
-			},
-			MinTtl:               0,
-			DefaultTtl:           3600,
-			MaxTtl:               86400,
-			ViewerProtocolPolicy: "allow-all",
-		},
-		Restrictions: &Restrictions{
-			GeoRestriction: GeoRestriction{RestrictionType: "none"},
-		},
-		CloudfrontDefaultCertificate: true,
-	}
-}
-
 type CloudfrontDistributionCreateParams struct {
 	CdnId   string
 	AppName string
