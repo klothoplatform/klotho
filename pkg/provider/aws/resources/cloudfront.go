@@ -5,6 +5,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
+	"github.com/pkg/errors"
 )
 
 var cloudfrontDistributionSanitizer = aws.CloudfrontDistributionSanitizer
@@ -82,56 +83,26 @@ type (
 	}
 )
 
+type OriginAccessIdentityCreateParams struct {
+	Name string
+	Refs core.AnnotationKeySet
+}
+
+func (oai *OriginAccessIdentity) Create(dag *core.ResourceGraph, params OriginAccessIdentityCreateParams) error {
+	oai.Name = params.Name
+	oai.ConstructsRef = params.Refs
+	if dag.GetResource(oai.Id()) != nil {
+		return fmt.Errorf(`Origin Access Identity with name "%s" already exists`, oai.Name)
+	}
+
+	// This is technically a config, but it's always just this value, so it's fine (and convenient) to inline it here
+
+	dag.AddResource(oai)
+	return nil
+}
+
 // CreateS3Origin creates an origin for a static unit, given its bucket, and attaches it to the Cloudfront distribution passed in
 func CreateS3Origin(unit *core.StaticUnit, bucket *S3Bucket, distribution *CloudfrontDistribution, dag *core.ResourceGraph) {
-
-	oai := &OriginAccessIdentity{
-		Name:          fmt.Sprintf("%s-%s", bucket.Name, unit.ID),
-		ConstructsRef: core.AnnotationKeySetOf(unit.AnnotationKey),
-		Comment:       "this is needed to setup s3 polices and make s3 not public.",
-	}
-
-	policyDoc := &PolicyDocument{
-		Version: VERSION,
-		Statement: []StatementEntry{
-			{
-				Effect: "Allow",
-				Principal: &Principal{
-					AWS: core.IaCValue{
-						Resource: oai,
-						Property: IAM_ARN_IAC_VALUE,
-					},
-				},
-				Action: []string{"s3:GetObject"},
-				Resource: []core.IaCValue{
-					{
-						Resource: bucket,
-						Property: ALL_BUCKET_DIRECTORY_IAC_VALUE,
-					},
-				},
-			},
-		},
-	}
-	bucketPolicy := NewBucketPolicy(unit.ID, bucket, policyDoc)
-	dag.AddDependency(bucketPolicy, oai)
-	dag.AddDependency(distribution, oai)
-	dag.AddDependency(bucketPolicy, bucket)
-	s3OriginConfig := S3OriginConfig{
-		OriginAccessIdentity: core.IaCValue{
-			Resource: oai,
-			Property: CLOUDFRONT_ACCESS_IDENTITY_PATH_IAC_VALUE,
-		},
-	}
-	origin := &CloudfrontOrigin{
-		S3OriginConfig: s3OriginConfig,
-		DomainName: core.IaCValue{
-			Resource: bucket,
-			Property: BUCKET_REGIONAL_DOMAIN_NAME_IAC_VALUE,
-		},
-		OriginId: unit.ID,
-	}
-	distribution.Origins = append(distribution.Origins, origin)
-	distribution.DefaultCacheBehavior.TargetOriginId = origin.OriginId
 }
 
 // CreateCustomOrigin creates an origin for a gateway, given its api stage, and attaches it to the Cloudfront distribution passed in
@@ -174,6 +145,41 @@ func NewCloudfrontDistribution(appName string, cdnId string) *CloudfrontDistribu
 		},
 		CloudfrontDefaultCertificate: true,
 	}
+}
+
+type CloudfrontDistributionCreateParams struct {
+	CdnId   string
+	AppName string
+	Refs    core.AnnotationKeySet
+}
+
+func (distro *CloudfrontDistribution) Create(dag *core.ResourceGraph, params CloudfrontDistributionCreateParams) error {
+	distro.Name = cloudfrontDistributionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.CdnId))
+	distro.ConstructsRef = params.Refs
+
+	if dag.GetResource(distro.Id()) != nil {
+		return errors.Errorf(`duplicate Cloudfront distribution "%s" (internal error)`, distro.Id())
+	}
+	dag.AddResource(distro)
+
+	// Some defaults. Someday these may move to a Configure (and be configurable), but not yet.
+	distro.DefaultCacheBehavior = &DefaultCacheBehavior{
+		AllowedMethods: []string{"DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"},
+		CachedMethods:  []string{"HEAD", "GET"},
+		ForwardedValues: ForwardedValues{
+			QueryString: true,
+			Cookies:     Cookies{Forward: "none"},
+		},
+		MinTtl:               0,
+		DefaultTtl:           3600,
+		MaxTtl:               86400,
+		ViewerProtocolPolicy: "allow-all",
+	}
+	distro.Restrictions = &Restrictions{
+		GeoRestriction: GeoRestriction{RestrictionType: "none"},
+	}
+	distro.CloudfrontDefaultCertificate = true
+	return nil
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to

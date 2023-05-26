@@ -28,7 +28,7 @@ type (
 	// ExpandableResource is a resource that can generate its own dependencies. See [CreateResource].
 	ExpandableResource[K any] interface {
 		Resource
-		Create(dag *ResourceGraph, param K) error
+		Create(dag *ResourceGraph, params K) error
 	}
 
 	ConfigurableResource[K any] interface {

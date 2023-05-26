@@ -8,7 +8,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 )
 
 func (a *AWS) expandStaticUnit(dag *core.ResourceGraph, unit *core.StaticUnit) error {
@@ -29,16 +28,33 @@ func (a *AWS) expandStaticUnit(dag *core.ResourceGraph, unit *core.StaticUnit) e
 		}
 		createdBuckets[object.Bucket.Id()] = object.Bucket
 	}
-	nBuckets := len(createdBuckets)
-	zap.L().With()
-	if nBuckets > 0 {
-		if nBuckets > 1 {
-			errs.Append(errors.Errorf(`Found too many buckets for unit %s. This is an internal error.`, unit.Id()))
-		}
+	if err := errs.ErrOrNil(); err != nil {
+		return err
+	}
+	switch len(createdBuckets) {
+	case 0:
+		return nil
+	case 1:
 		_, bucket := collectionutil.GetOneEntry(createdBuckets)
 		err := a.MapResourceToConstruct(bucket, unit)
-		errs.Append(err)
-	}
+		if err != nil {
+			return err
+		}
 
-	return errs.ErrOrNil()
+		cfg := a.Config.GetStaticUnit(unit.ID)
+		if cfg.ContentDeliveryNetwork.Id != "" {
+			distro, err := core.CreateResource[*resources.CloudfrontDistribution](dag, resources.CloudfrontDistributionCreateParams{
+				CdnId:   cfg.ContentDeliveryNetwork.Id,
+				AppName: a.Config.AppName,
+				Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
+			})
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(distro, bucket)
+		}
+		return nil
+	default:
+		return errors.Errorf(`Found too many buckets for unit %s. This is an internal error.`, unit.Id())
+	}
 }
