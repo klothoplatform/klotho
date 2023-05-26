@@ -189,7 +189,7 @@ func Test_OidcCreate(t *testing.T) {
 		},
 		{
 			Name:     "existing oidc",
-			Existing: []core.Resource{&OpenIdConnectProvider{Name: "my-app-cluster", ConstructsRef: initialRefs}},
+			Existing: &OpenIdConnectProvider{Name: "my-app-cluster", ConstructsRef: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:iam_oidc_provider:my-app-cluster",

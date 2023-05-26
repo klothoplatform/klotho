@@ -10,7 +10,7 @@ import (
 
 type CreateCase[P any, R core.ExpandableResource[P]] struct {
 	Name     string
-	Existing []core.Resource
+	Existing core.Resource
 	Params   P
 	Want     ResourcesExpectation
 	Check    func(assertions *assert.Assertions, resource R)
@@ -21,8 +21,8 @@ func (tt CreateCase[P, R]) Run(t *testing.T) {
 	assert := assert.New(t)
 
 	dag := core.NewResourceGraph()
-	for _, existing := range tt.Existing {
-		dag.AddResource(existing)
+	if tt.Existing != nil {
+		dag.AddResource(tt.Existing)
 	}
 
 	var res R

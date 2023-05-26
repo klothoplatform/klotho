@@ -128,8 +128,6 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 				merr.Append(err)
 				continue
 			}
-		case *resources.S3Object:
-			configuration = a.getStaticUnitObjectConfiguration()
 		}
 		merr.Append(dag.CallConfigure(resource, configuration))
 	}

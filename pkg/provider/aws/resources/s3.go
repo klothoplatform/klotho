@@ -103,52 +103,30 @@ func (bucket *S3Bucket) Configure(params S3BucketConfigureParams) error {
 	return nil
 }
 
-//
-//func NewS3Object(bucket *S3Bucket, objectName string, key string, path string) *S3Object {
-//	return &S3Object{
-//		Name:          objectSanitizer.Apply(fmt.Sprintf("%s-%s", bucket.Name, objectName)),
-//		ConstructsRef: bucket.KlothoConstructRef(),
-//		Key:           key,
-//		FilePath:      path,
-//		Bucket:        bucket,
-//	}
-//}
-
 type S3ObjectCreateParams struct {
-	AppName  string
-	Ref      core.AnnotationKey
-	Name     string
-	Key      string
-	FilePath string
+	AppName    string
+	Refs       core.AnnotationKeySet
+	BucketName string
+	Name       string
+	Key        string
+	FilePath   string
 }
 
 func (object *S3Object) Create(dag *core.ResourceGraph, params S3ObjectCreateParams) error {
-	bucket, err := core.CreateResource[*S3Bucket](dag, S3BucketCreateParams{
-		AppName: params.AppName,
-		Refs:    core.AnnotationKeySetOf(params.Ref),
-		Name:    params.Ref.ID,
-	})
-	if err != nil {
-		return nil
-	}
-
-	object.Name = objectSanitizer.Apply(fmt.Sprintf("%s-%s", bucket.Name, params.Name))
-	object.Bucket = bucket
+	object.Name = objectSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.BucketName, params.Name))
 	if dag.GetResource(object.Id()) != nil {
 		return fmt.Errorf(`S3Object with name %s already exists`, object.Name)
 	}
-	object.ConstructsRef = core.AnnotationKeySetOf(params.Ref)
+	object.ConstructsRef = params.Refs
 	object.Key = params.Key
 	object.FilePath = params.FilePath
-	dag.AddDependency(object, bucket)
-	return nil
-}
-
-type S3ObjectConfigureParams struct{}
-
-func (object *S3Object) Configure(params S3ObjectConfigureParams) error {
-	// nothing
-	return nil
+	return dag.CreateDependencies(object, map[string]any{
+		"Bucket": S3BucketCreateParams{
+			AppName: params.AppName,
+			Refs:    params.Refs,
+			Name:    params.BucketName,
+		},
+	})
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to

@@ -27,12 +27,12 @@ func Test_S3BucketCreate(t *testing.T) {
 		},
 		{
 			Name: "two payloads buckets converge",
-			Existing: []core.Resource{&S3Bucket{
+			Existing: &S3Bucket{
 				Name: "my-app-payloads",
 				ConstructsRef: core.AnnotationKeySetOf(core.AnnotationKey{
 					ID:         "some-other-eu",
 					Capability: annotation.ExecutionUnitCapability}),
-			}},
+			},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:s3_bucket:my-app-payloads",
@@ -84,10 +84,8 @@ func Test_S3ObjectCreate(t *testing.T) {
 			WantErr: false,
 		},
 		{
-			Name: "s3 bucket alrady there",
-			Existing: []core.Resource{
-				&S3Bucket{Name: "my-app-test"},
-			},
+			Name:     "s3 bucket alrady there",
+			Existing: &S3Bucket{Name: "my-app-test"},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:s3_object:my-app-test-payloads",
@@ -106,11 +104,12 @@ func Test_S3ObjectCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = S3ObjectCreateParams{
-				AppName:  "my-app",
-				Ref:      annotationKey,
-				Name:     "payloads",
-				Key:      "object-key",
-				FilePath: "local/path.txt",
+				AppName:    "my-app",
+				Refs:       core.AnnotationKeySetOf(annotationKey),
+				BucketName: annotationKey.ID,
+				Name:       "payloads",
+				Key:        "object-key",
+				FilePath:   "local/path.txt",
 			}
 			tt.Run(t)
 		})
