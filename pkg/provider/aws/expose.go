@@ -22,6 +22,19 @@ func (a *AWS) expandExpose(dag *core.ResourceGraph, expose *core.Gateway) error 
 			return err
 		}
 		a.MapResourceDirectlyToConstruct(stage.RestApi, expose)
+
+		cfg := a.Config.GetExpose(expose.ID)
+		if cfg.ContentDeliveryNetwork.Id != "" {
+			distro, err := core.CreateResource[*resources.CloudfrontDistribution](dag, resources.CloudfrontDistributionCreateParams{
+				CdnId:   cfg.ContentDeliveryNetwork.Id,
+				AppName: a.Config.AppName,
+				Refs:    core.AnnotationKeySetOf(expose.AnnotationKey),
+			})
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(distro, stage)
+		}
 	default:
 		return fmt.Errorf("unsupported expose type %s", a.Config.GetExpose(expose.ID).Type)
 	}

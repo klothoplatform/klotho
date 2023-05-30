@@ -13,6 +13,7 @@ func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 	kbsToUse := []knowledgebase.EdgeKB{
 		ApiGatewayKB,
 		AwsExtraEdgesKB,
+		CloudfrontKB,
 		EksKB,
 		ElasticacheKB,
 		IamKB,

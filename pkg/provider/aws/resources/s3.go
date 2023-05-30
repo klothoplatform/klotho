@@ -143,13 +143,20 @@ func (object *S3Object) Id() core.ResourceId {
 	}
 }
 
-func NewBucketPolicy(policyName string, bucket *S3Bucket, policy *PolicyDocument) *S3BucketPolicy {
-	return &S3BucketPolicy{
-		Name:          objectSanitizer.Apply(fmt.Sprintf("%s-%s", bucket.Name, policyName)),
-		ConstructsRef: bucket.KlothoConstructRef(),
-		Policy:        policy,
-		Bucket:        bucket,
+type S3BucketPolicyCreateParams struct {
+	Name       string
+	BucketName string
+	Refs       core.AnnotationKeySet
+}
+
+func (policy *S3BucketPolicy) Create(dag *core.ResourceGraph, params S3BucketPolicyCreateParams) error {
+	policy.Name = objectSanitizer.Apply(fmt.Sprintf("%s-%s", params.BucketName, params.Name))
+	policy.ConstructsRef = params.Refs
+	if dag.GetResource(policy.Id()) != nil {
+		return errors.Errorf(`a bucket policy named "%s" already exists (internal error)`, policy.Id().String())
 	}
+	dag.AddResource(policy)
+	return nil
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
