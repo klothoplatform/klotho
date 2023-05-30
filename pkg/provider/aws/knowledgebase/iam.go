@@ -171,4 +171,17 @@ var IamKB = knowledgebase.Build(
 			return nil
 		},
 	},
+	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.LambdaFunction]{
+		Configure: func(policy *resources.IamPolicy, function *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			statement := resources.CreateAllowPolicyDocument([]string{"lambda:InvokeFunction"}, []core.IaCValue{{Resource: function, Property: resources.ARN_IAC_VALUE}})
+			if policy.Policy == nil {
+				policy.Policy = statement
+			} else {
+				policy.Policy.Statement = append(policy.Policy.Statement, statement.Statement...)
+			}
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.RolePolicyAttachment, *resources.IamRole]{},
+	knowledgebase.EdgeBuilder[*resources.RolePolicyAttachment, *resources.IamPolicy]{},
 )

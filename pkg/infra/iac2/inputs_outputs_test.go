@@ -35,7 +35,6 @@ func TestKnownTemplates(t *testing.T) {
 	allResources := resources.ListAll()
 	allResources = append(allResources,
 		&KubernetesProvider{},
-		&RolePolicyAttachment{},
 		&RouteTableAssociation{},
 		&SecurityGroupRule{},
 	)

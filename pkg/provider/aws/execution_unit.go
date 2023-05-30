@@ -7,7 +7,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
-	"github.com/pkg/errors"
 )
 
 // expandExecutionUnit takes in a single execution unit and expands the generic construct into a set of resource's based on the units configuration.
@@ -199,100 +198,6 @@ func (a *AWS) getNodeGroupConfiguration(result *core.ConstructGraph, dag *core.R
 		}
 	}
 	return nodeGroupConfig, nil
-}
-
-func (a *AWS) handleExecUnitProxy(result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](result) {
-
-		downstreamConstructs := result.GetDownstreamConstructs(unit)
-		for _, construct := range downstreamConstructs {
-			if targetUnit, ok := construct.(*core.ExecutionUnit); ok {
-				switch a.Config.GetExecutionUnit(targetUnit.ID).Type {
-				case Lambda:
-					targetResources, _ := a.GetResourcesDirectlyTiedToConstruct(targetUnit)
-					var targetLambda *resources.LambdaFunction
-					var execPolicy *resources.IamPolicy
-					var execPolicyDoc *resources.PolicyDocument
-					for _, resource := range targetResources {
-						if lambdafunc, ok := resource.(*resources.LambdaFunction); ok {
-							targetLambda = lambdafunc
-						}
-						execPolicyDoc = resources.CreateAllowPolicyDocument([]string{"lambda:InvokeFunction"}, []core.IaCValue{{Resource: targetLambda, Property: resources.ARN_IAC_VALUE}})
-						if execPol, ok := resource.(*resources.IamPolicy); ok {
-							if len(execPol.Policy.Statement) == 1 {
-								statement := execPol.Policy.Statement[0]
-								if statement.Action[0] == execPolicyDoc.Statement[0].Action[0] && statement.Resource[0] == execPolicyDoc.Statement[0].Resource[0] {
-									execPolicy = execPol
-								}
-							}
-						}
-					}
-					if targetLambda == nil {
-						return errors.Errorf("Could not find a lambda function tied to execution unit %s", targetUnit.ID)
-					}
-					if execPolicy == nil {
-						execPolicy = resources.NewIamPolicy(a.Config.AppName, fmt.Sprintf("%s-invoke", targetUnit.ID), targetUnit.Provenance(), execPolicyDoc)
-						dag.AddResource(execPolicy)
-					}
-					// We do not add the policy to the units list in policy generator otherwise we will cause a circular dependency
-					execPolicy.ConstructsRef.Add(unit.AnnotationKey)
-					dag.AddDependency(a.PolicyGenerator.GetUnitRole(unit.Id()), execPolicy)
-					dag.AddDependency(execPolicy, targetLambda)
-				case kubernetes.KubernetesType:
-					privateNamespace := resources.NewPrivateDnsNamespace(a.Config.AppName, core.AnnotationKeySetOf(unit.AnnotationKey), resources.GetVpc(a.Config, dag))
-					if ns := dag.GetResource(privateNamespace.Id()); ns != nil {
-						namespace, ok := ns.(*resources.PrivateDnsNamespace)
-						if !ok {
-							return errors.Errorf("Found a non PrivateDnsNamespace with same id as global PrivateDnsNamespace, %s", namespace.Id())
-						}
-						privateNamespace = namespace
-						privateNamespace.ConstructsRef.Add(unit.Provenance())
-					} else {
-						dag.AddDependenciesReflect(privateNamespace)
-					}
-
-					// Add a dependency from clusters to the namespace so its available before any pods could come up
-					for _, resource := range dag.ListResources() {
-						if cluster, ok := resource.(*resources.EksCluster); ok {
-							dag.AddDependency(cluster, privateNamespace)
-						}
-					}
-
-					serviceDiscoveryPolicyDoc := resources.CreateAllowPolicyDocument([]string{"servicediscovery:DiscoverInstances"}, []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}})
-					execPolicy := resources.NewIamPolicy(a.Config.AppName, fmt.Sprintf("%s-servicediscovery", privateNamespace.Name), unit.AnnotationKey, serviceDiscoveryPolicyDoc)
-					dag.AddResource(execPolicy)
-					execPolicy.ConstructsRef.Add(unit.AnnotationKey)
-					dag.AddDependency(a.PolicyGenerator.GetUnitRole(unit.Id()), execPolicy)
-
-					cluster, err := findUnitsCluster(targetUnit, dag)
-					if err != nil {
-						return err
-					}
-					cloudmap, err := cluster.InstallCloudMapController(targetUnit.AnnotationKey, dag)
-					if err != nil {
-						return err
-					}
-					klothoChart, err := findUnitsHelmChart(unit, dag)
-					if err != nil {
-						return err
-					}
-					dag.AddDependency(klothoChart, cloudmap)
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func findUnitsCluster(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*resources.EksCluster, error) {
-	for _, res := range dag.ListResources() {
-		if r, ok := res.(*resources.EksCluster); ok {
-			if r.ConstructsRef.Has(unit.Provenance()) {
-				return r, nil
-			}
-		}
-	}
-	return nil, fmt.Errorf("eks cluster not found for unit with id, %s", unit.ID)
 }
 
 func findUnitsHelmChart(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*kubernetes.HelmChart, error) {

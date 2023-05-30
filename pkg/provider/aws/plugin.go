@@ -28,7 +28,7 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 			merr.Append(a.expandExpose(dag, construct))
 		case *core.Orm:
 			merr.Append(a.expandOrm(dag, construct))
-		case *core.Fs:
+		case *core.Fs, *core.InternalResource:
 			merr.Append(a.expandFs(dag, construct))
 		case *core.Kv:
 			merr.Append(a.expandKv(dag, construct))
@@ -87,7 +87,7 @@ func (a *AWS) copyConstructEdgeToDag(
 			}
 		}
 		for _, envVar := range construct.EnvironmentVariables {
-			if envVar.Construct == dep.Destination {
+			if envVar.Construct != nil && envVar.Construct.Id() == dep.Destination.Id() {
 				data.EnvironmentVariables = append(data.EnvironmentVariables, envVar)
 			}
 		}

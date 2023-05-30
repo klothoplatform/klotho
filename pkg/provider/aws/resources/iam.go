@@ -11,11 +11,12 @@ import (
 )
 
 const (
-	IAM_ROLE_TYPE       = "iam_role"
-	IAM_POLICY_TYPE     = "iam_policy"
-	OIDC_PROVIDER_TYPE  = "iam_oidc_provider"
-	IAM_STATEMENT_ENTRY = "iam_statement_entry"
-	VERSION             = "2012-10-17"
+	IAM_ROLE_TYPE                   = "iam_role"
+	IAM_POLICY_TYPE                 = "iam_policy"
+	OIDC_PROVIDER_TYPE              = "iam_oidc_provider"
+	IAM_STATEMENT_ENTRY             = "iam_statement_entry"
+	IAM_ROLE_POLICY_ATTACHMENT_TYPE = "role_policy_attachment"
+	VERSION                         = "2012-10-17"
 )
 
 var roleSanitizer = aws.IamRoleSanitizer
@@ -144,6 +145,13 @@ type (
 		ClientIdLists []string
 		Cluster       *EksCluster
 		Region        *Region
+	}
+
+	RolePolicyAttachment struct {
+		Name          string
+		ConstructsRef core.AnnotationKeySet
+		Policy        *IamPolicy
+		Role          *IamRole
 	}
 )
 
@@ -379,6 +387,20 @@ func (oidc *OpenIdConnectProvider) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     OIDC_PROVIDER_TYPE,
 		Name:     oidc.Name,
+	}
+}
+
+// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (role *RolePolicyAttachment) KlothoConstructRef() core.AnnotationKeySet {
+	return nil
+}
+
+// Id returns the id of the cloud resource
+func (role *RolePolicyAttachment) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     IAM_ROLE_POLICY_ATTACHMENT_TYPE,
+		Name:     role.Name,
 	}
 }
 
