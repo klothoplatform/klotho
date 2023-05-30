@@ -11,12 +11,12 @@ import (
 )
 
 const (
-	IAM_ROLE_TYPE               = "iam_role"
-	IAM_POLICY_TYPE             = "iam_policy"
-	OIDC_PROVIDER_TYPE          = "iam_oidc_provider"
-	IAM_STATEMENT_ENTRY         = "iam_statement_entry"
-	IAM_ROLE_POLICY_ATTACH_TYPE = "role_policy_attach"
-	VERSION                     = "2012-10-17"
+	IAM_ROLE_TYPE                   = "iam_role"
+	IAM_POLICY_TYPE                 = "iam_policy"
+	OIDC_PROVIDER_TYPE              = "iam_oidc_provider"
+	IAM_STATEMENT_ENTRY             = "iam_statement_entry"
+	IAM_ROLE_POLICY_ATTACHMENT_TYPE = "role_policy_attachment"
+	VERSION                         = "2012-10-17"
 )
 
 var roleSanitizer = aws.IamRoleSanitizer
@@ -399,7 +399,7 @@ func (role *RolePolicyAttachment) KlothoConstructRef() core.AnnotationKeySet {
 func (role *RolePolicyAttachment) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
-		Type:     IAM_ROLE_POLICY_ATTACH_TYPE,
+		Type:     IAM_ROLE_POLICY_ATTACHMENT_TYPE,
 		Name:     role.Name,
 	}
 }
