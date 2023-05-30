@@ -117,7 +117,15 @@ func (kb EdgeKB) FindPaths(source reflect.Type, dest reflect.Type) []Path {
 func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge, visited map[reflect.Type]bool) (result []Path) {
 	visited[source] = true
 	if source == dest {
-		result = append(result, stack)
+		// For resources which can have dependencies between themselves we have to add that path to the stack if it is a valid edge
+		if len(stack) == 0 {
+			if _, found := kb.GetEdgeDetails(source, dest); found {
+				stack = append(stack, Edge{Source: source, Destination: dest})
+			}
+		}
+		if len(stack) != 0 {
+			result = append(result, stack)
+		}
 	} else {
 		for _, e := range kb.GetEdgesWithSource(source) {
 			if e.Source == source && !visited[e.Destination] && kb.isValidForPath(e, dest) {

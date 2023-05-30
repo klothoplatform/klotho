@@ -43,6 +43,7 @@ func ListAll() []core.Resource {
 		&RdsSubnetGroup{},
 		&Region{},
 		&RestApi{},
+		&RolePolicyAttachment{},
 		&RouteTable{},
 		&S3BucketPolicy{},
 		&S3Bucket{},

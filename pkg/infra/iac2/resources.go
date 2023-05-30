@@ -57,32 +57,6 @@ func (e *RouteTableAssociation) Id() core.ResourceId {
 	}
 }
 
-const (
-	IAM_ROLE_POLICY_ATTACH_TYPE = "role_policy_attach"
-)
-
-type (
-	RolePolicyAttachment struct {
-		Name   string
-		Policy *resources.IamPolicy
-		Role   *resources.IamRole
-	}
-)
-
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (role *RolePolicyAttachment) KlothoConstructRef() core.AnnotationKeySet {
-	return nil
-}
-
-// Id returns the id of the cloud resource
-func (role *RolePolicyAttachment) Id() core.ResourceId {
-	return core.ResourceId{
-		Provider: resources.AWS_PROVIDER,
-		Type:     IAM_ROLE_POLICY_ATTACH_TYPE,
-		Name:     role.Name,
-	}
-}
-
 func (e *SecurityGroupRule) KlothoConstructRef() core.AnnotationKeySet {
 	return e.ConstructsRef
 }
