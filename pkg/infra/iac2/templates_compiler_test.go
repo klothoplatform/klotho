@@ -260,7 +260,7 @@ func Test_handleIaCValue(t *testing.T) {
 			resourceVarNamesById: map[core.ResourceId]string{
 				{Provider: "aws", Type: "s3_bucket", Name: "test-app-"}: "testBucket",
 			},
-			want: "testBucket.bucket",
+			want: "s3BucketTestApp.bucket",
 		},
 		{
 			name: "string value, nil resource",
