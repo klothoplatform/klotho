@@ -14,6 +14,7 @@ const (
 	CLOUDFRONT_DISTRIBUTION_TYPE              = "cloudfront_distribution"
 	ORIGIN_ACCESS_IDENTITY_TYPE               = "cloudfront_origin_access_identity"
 	IAM_ARN_IAC_VALUE                         = "iam_arn"
+	API_STAGE_PATH_VALUE                      = "api_stage_name"
 	CLOUDFRONT_ACCESS_IDENTITY_PATH_IAC_VALUE = "cloudfront_access_identity_path"
 )
 
@@ -60,7 +61,7 @@ type (
 	CloudfrontOrigin struct {
 		DomainName         core.IaCValue
 		OriginId           string
-		OriginPath         string
+		OriginPath         core.IaCValue
 		S3OriginConfig     S3OriginConfig
 		CustomOriginConfig CustomOriginConfig
 	}
@@ -99,26 +100,6 @@ func (oai *OriginAccessIdentity) Create(dag *core.ResourceGraph, params OriginAc
 
 	dag.AddResource(oai)
 	return nil
-}
-
-// CreateCustomOrigin creates an origin for a gateway, given its api stage, and attaches it to the Cloudfront distribution passed in
-func CreateCustomOrigin(gw *core.Gateway, apiStage *ApiStage, distribution *CloudfrontDistribution) {
-	origin := &CloudfrontOrigin{
-		CustomOriginConfig: CustomOriginConfig{
-			HttpPort:             80,
-			HttpsPort:            443,
-			OriginProtocolPolicy: "https-only",
-			OriginSslProtocols:   []string{"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"},
-		},
-		DomainName: core.IaCValue{
-			Resource: apiStage,
-			Property: STAGE_INVOKE_URL_IAC_VALUE,
-		},
-		OriginId:   gw.ID,
-		OriginPath: fmt.Sprintf("/%s", apiStage.StageName),
-	}
-	distribution.Origins = append(distribution.Origins, origin)
-	distribution.DefaultCacheBehavior.TargetOriginId = origin.OriginId
 }
 
 type CloudfrontDistributionCreateParams struct {

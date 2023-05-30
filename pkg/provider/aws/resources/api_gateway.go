@@ -81,7 +81,6 @@ type (
 	ApiStage struct {
 		Name          string
 		ConstructsRef core.AnnotationKeySet
-		StageName     string
 		RestApi       *RestApi
 		Deployment    *ApiDeployment
 	}
@@ -346,19 +345,6 @@ func (stage *ApiStage) Create(dag *core.ResourceGraph, params ApiStageCreatePara
 	return nil
 }
 
-type ApiStageConfigureParams struct {
-	StageName string
-}
-
-// Configure sets the intristic characteristics of a vpc based on parameters passed in
-func (stage *ApiStage) Configure(params ApiStageConfigureParams) error {
-	stage.StageName = "stage"
-	if params.StageName != "" {
-		stage.StageName = params.StageName
-	}
-	return nil
-}
-
 func NewRestApi(appName string, gw *core.Gateway) *RestApi {
 	return &RestApi{
 		Name:             restApiSanitizer.Apply(fmt.Sprintf("%s-%s", appName, gw.ID)),
@@ -522,7 +508,6 @@ func NewApiStage(deployment *ApiDeployment, stageName string, refs core.Annotati
 		ConstructsRef: refs,
 		Deployment:    deployment,
 		RestApi:       deployment.RestApi,
-		StageName:     stageName,
 	}
 }
 
