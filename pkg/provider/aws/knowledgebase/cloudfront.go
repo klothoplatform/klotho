@@ -39,7 +39,7 @@ var CloudfrontKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.CloudfrontDistribution, *resources.ApiStage]{
-		Expand: func(distro *resources.CloudfrontDistribution, stage *resources.ApiStage, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(distro *resources.CloudfrontDistribution, stage *resources.ApiStage, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			var gwId string
 			switch len(stage.ConstructsRef) {
 			case 0:

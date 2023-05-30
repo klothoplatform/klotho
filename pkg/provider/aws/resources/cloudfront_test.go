@@ -20,8 +20,8 @@ func Test_CloudfrontDistributionCreate(t *testing.T) {
 				Deps: nil,
 			},
 			Check: func(assert *assert.Assertions, distro *CloudfrontDistribution) {
-				assert.NotNil(distro.Restrictions)
-				assert.NotNil(distro.DefaultCacheBehavior)
+				assert.Nil(distro.Restrictions)
+				assert.Nil(distro.DefaultCacheBehavior)
 			},
 		},
 		{

@@ -114,7 +114,14 @@ func (distro *CloudfrontDistribution) Create(dag *core.ResourceGraph, params Clo
 	}
 	dag.AddResource(distro)
 
-	// Some defaults. Someday these may move to a Configure (and be configurable), but not yet. See #652.
+	return nil
+}
+
+type CloudfrontDistributionConfigureParams struct {
+	// Intentionally empty; we may want to expose parts of the configuration later, though.
+}
+
+func (distro *CloudfrontDistribution) Configure(params CloudfrontDistributionConfigureParams) error {
 	distro.DefaultCacheBehavior = &DefaultCacheBehavior{
 		AllowedMethods: []string{"DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"},
 		CachedMethods:  []string{"HEAD", "GET"},
