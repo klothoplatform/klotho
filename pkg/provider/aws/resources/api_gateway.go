@@ -508,15 +508,6 @@ func (deployment *ApiDeployment) Id() core.ResourceId {
 	}
 }
 
-func NewApiStage(deployment *ApiDeployment, stageName string, refs core.AnnotationKeySet) *ApiStage {
-	return &ApiStage{
-		Name:          fmt.Sprintf("%s-%s", deployment.Name, stageName),
-		ConstructsRef: refs,
-		Deployment:    deployment,
-		RestApi:       deployment.RestApi,
-	}
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (stage *ApiStage) KlothoConstructRef() core.AnnotationKeySet {
 	return stage.ConstructsRef
