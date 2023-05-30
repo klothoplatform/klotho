@@ -2,12 +2,15 @@ package compiler
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
+	"github.com/google/shlex"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/logging"
@@ -31,6 +34,8 @@ type (
 		PostWriteHooks map[string]string `yaml:"post-write-hooks,omitempty"`
 	}
 )
+
+var unquotedCharsRe = regexp.MustCompile(`^[\w.{}:>=<@/-]*$`)
 
 func (doc *CompilationDocument) OutputTo(dest string) error {
 	errs := make(chan error)
@@ -63,8 +68,8 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 			file.Close()
 
 			fileExt := filepath.Ext(path)
-			if strings.HasPrefix(fileExt, ".") {
-				fileExt = fileExt[1:]
+			if fileExt != "" {
+				fileExt = strings.TrimPrefix(fileExt, ".")
 				if hook, found := doc.OutputOptions.PostWriteHooks[fileExt]; found {
 					log := zap.S().With(logging.FileField(f))
 					hookErr := postCompileHook(dest, f, hook, log)
@@ -91,7 +96,10 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 }
 
 func postCompileHook(dir string, file core.File, hook string, log *zap.SugaredLogger) error {
-	hookSegments := strings.Split(hook, " ")
+	hookSegments, err := shlex.Split(hook)
+	if err != nil {
+		return err
+	}
 	if len(hookSegments) == 0 {
 		return errors.New(`empty formatter command`)
 	}
@@ -104,8 +112,16 @@ func postCompileHook(dir string, file core.File, hook string, log *zap.SugaredLo
 	}
 
 	cmd := exec.Command(hookSegments[0], args...)
-	log.Infof(`running post-output hook: %s`, strings.Join(cmd.Args, " "))
 	cmd.Dir = dir
+
+	quotedArgs := cmd.Args
+	for i, arg := range quotedArgs {
+		if !unquotedCharsRe.MatchString(arg) {
+			quotedArgs[i] = fmt.Sprintf(`%#v`, arg)
+		}
+	}
+	log.Infof(`running post-output hook: %s`, strings.Join(quotedArgs, " "))
+
 	return cmd.Run()
 }
 
