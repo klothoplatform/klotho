@@ -95,9 +95,6 @@ func (oai *OriginAccessIdentity) Create(dag *core.ResourceGraph, params OriginAc
 	if dag.GetResource(oai.Id()) != nil {
 		return fmt.Errorf(`an Origin Access Identity with name "%s" already exists`, oai.Name)
 	}
-
-	// This is technically a config, but it's always just this value, so it's fine (and convenient) to inline it here
-
 	dag.AddResource(oai)
 	return nil
 }
@@ -117,7 +114,7 @@ func (distro *CloudfrontDistribution) Create(dag *core.ResourceGraph, params Clo
 	}
 	dag.AddResource(distro)
 
-	// Some defaults. Someday these may move to a Configure (and be configurable), but not yet.
+	// Some defaults. Someday these may move to a Configure (and be configurable), but not yet. See #652.
 	distro.DefaultCacheBehavior = &DefaultCacheBehavior{
 		AllowedMethods: []string{"DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"},
 		CachedMethods:  []string{"HEAD", "GET"},

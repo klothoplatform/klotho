@@ -3,7 +3,6 @@ package knowledgebase
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -55,9 +54,9 @@ var CloudfrontKB = knowledgebase.Build(
 				}
 				sort.Strings(ids)
 				return errors.Errorf(
-					`couldn't determine the id of the construct that created API stage "%s": expected just one construct, but found [%s]`,
+					`couldn't determine the id of the construct that created API stage "%s": expected just one construct, but found %v`,
 					stage.Id(),
-					strings.Join(ids, ", "))
+					ids)
 
 			}
 			origin := &resources.CloudfrontOrigin{
