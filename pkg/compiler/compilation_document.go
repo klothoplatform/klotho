@@ -2,12 +2,12 @@ package compiler
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/google/shlex"
@@ -71,8 +71,7 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 			if fileExt != "" {
 				fileExt = strings.TrimPrefix(fileExt, ".")
 				if hook, found := doc.OutputOptions.PostWriteHooks[fileExt]; found {
-					log := zap.S().With(logging.FileField(f))
-					hookErr := postCompileHook(dest, f, hook, log)
+					hookErr := postCompileHook(dest, f, hook)
 					if hookErr != nil {
 						zap.S().With(zap.Error(hookErr), logging.FileField(f)).Warnf(
 							`failed to apply post-output hook to %s: %s`,
@@ -95,7 +94,7 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 	return nil
 }
 
-func postCompileHook(dir string, file core.File, hook string, log *zap.SugaredLogger) error {
+func postCompileHook(dir string, file core.File, hook string) error {
 	hookSegments, err := shlex.Split(hook)
 	if err != nil {
 		return err
@@ -117,10 +116,10 @@ func postCompileHook(dir string, file core.File, hook string, log *zap.SugaredLo
 	quotedArgs := cmd.Args
 	for i, arg := range quotedArgs {
 		if !unquotedCharsRe.MatchString(arg) {
-			quotedArgs[i] = fmt.Sprintf(`%#v`, arg)
+			quotedArgs[i] = strconv.Quote(arg)
 		}
 	}
-	log.Infof(`running post-output hook: %s`, strings.Join(quotedArgs, " "))
+	zap.S().With(logging.FileField(file)).Infof(`running post-output hook: %s`, strings.Join(quotedArgs, " "))
 
 	return cmd.Run()
 }
