@@ -177,16 +177,20 @@ var EksKB = knowledgebase.Build(
 			}
 			upstreamResources := dag.GetUpstreamResources(proxy)
 			for _, res := range upstreamResources {
-				if tg, ok := res.(*resources.RdsProxyTargetGroup); ok {
-					for _, tgUpstream := range dag.GetDownstreamResources(tg) {
-						if instance, ok := tgUpstream.(*resources.RdsInstance); ok {
-							refs := role.ConstructsRef.Clone()
-							refs.AddAll(instance.ConstructsRef)
-							inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), refs, instance.GetConnectionPolicyDocument())
-							role.InlinePolicies = append(role.InlinePolicies, inlinePol)
-							dag.AddDependency(role, instance)
-						}
+				tg, ok := res.(*resources.RdsProxyTargetGroup)
+				if !ok {
+					continue
+				}
+				for _, tgUpstream := range dag.GetDownstreamResources(tg) {
+					instance, ok := tgUpstream.(*resources.RdsInstance)
+					if !ok {
+						continue
 					}
+					refs := role.ConstructsRef.Clone()
+					refs.AddAll(instance.ConstructsRef)
+					inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), refs, instance.GetConnectionPolicyDocument())
+					role.InlinePolicies = append(role.InlinePolicies, inlinePol)
+					dag.AddDependency(role, instance)
 				}
 			}
 			for _, env := range data.EnvironmentVariables {

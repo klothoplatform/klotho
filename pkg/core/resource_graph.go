@@ -57,6 +57,9 @@ func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Re
 // association consistent with our visualizer, and with the Go struct graph.
 // This method also allows any edge data to be attached to the dependency in the ResourceGraph
 func (rg *ResourceGraph) AddDependencyWithData(deployedSecond Resource, deployedFirst Resource, data any) {
+	if deployedSecond.Id() == deployedFirst.Id() {
+		return
+	}
 	rg.AddResource(deployedSecond)
 	rg.AddResource(deployedFirst)
 	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.Id().String(), deployedFirst.Id().String()); cycle {
