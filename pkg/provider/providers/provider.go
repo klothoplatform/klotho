@@ -7,7 +7,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/provider/aws/knowledgebase"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
 func GetProvider(cfg *config.Application) (provider.Provider, error) {
@@ -18,9 +17,8 @@ func GetProvider(cfg *config.Application) (provider.Provider, error) {
 	case "aws":
 		kb, err := knowledgebase.GetAwsKnowledgeBase()
 		return &aws.AWS{
-			Config:          cfg,
-			PolicyGenerator: resources.NewPolicyGenerator(),
-			KnowledgeBase:   kb,
+			Config:        cfg,
+			KnowledgeBase: kb,
 		}, err
 	}
 

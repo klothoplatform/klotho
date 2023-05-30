@@ -31,6 +31,14 @@ type (
 		SecurityGroupId core.IaCValue
 		Type            string
 	}
+
+	TargetGroupAttachment struct {
+		ConstructsRef  core.AnnotationKeySet
+		Name           string
+		TargetGroupArn core.IaCValue
+		TargetId       core.IaCValue
+		Port           int
+	}
 )
 
 func (e *KubernetesProvider) KlothoConstructRef() core.AnnotationKeySet {
@@ -65,6 +73,18 @@ func (e *SecurityGroupRule) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: "pulumi",
 		Type:     "security_group_rule",
+		Name:     e.Name,
+	}
+}
+
+func (e *TargetGroupAttachment) KlothoConstructRef() core.AnnotationKeySet {
+	return e.ConstructsRef
+}
+
+func (e *TargetGroupAttachment) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: "pulumi",
+		Type:     "target_group_attachment",
 		Name:     e.Name,
 	}
 }

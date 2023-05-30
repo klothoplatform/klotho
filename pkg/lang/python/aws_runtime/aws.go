@@ -108,7 +108,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 		if err != nil {
 			return err
 		}
-	case aws.Ecs, kubernetes.KubernetesType, aws.AppRunner:
+	case aws.Ecs, kubernetes.KubernetesType, aws.AppRunner, aws.Ec2Instance:
 		dockerFile = dockerfileFargate
 		dispatcher = dispatcherFargate
 		requirements = execRequirementsFargate

@@ -176,11 +176,47 @@ var IamKB = knowledgebase.Build(
 			return nil
 		},
 	},
+	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.RdsInstance]{
+		Configure: func(role *resources.IamRole, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name),
+				role.ConstructsRef.CloneWith(instance.ConstructsRef), instance.GetConnectionPolicyDocument())
+			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.RdsProxy]{},
 	knowledgebase.EdgeBuilder[*resources.RolePolicyAttachment, *resources.IamRole]{},
 	knowledgebase.EdgeBuilder[*resources.RolePolicyAttachment, *resources.IamPolicy]{},
 	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.PrivateDnsNamespace]{
 		Configure: func(policy *resources.IamPolicy, namespace *resources.PrivateDnsNamespace, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"servicediscovery:DiscoverInstances"}, []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}}))
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.InstanceProfile, *resources.IamRole]{
+		Configure: func(source *resources.InstanceProfile, destination *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			inlinePolicy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-instanceProfilePolicy", source.Name), source.ConstructsRef.CloneWith(destination.ConstructsRef),
+				&resources.PolicyDocument{
+					Version: resources.VERSION,
+					Statement: resources.CreateAllowPolicyDocument([]string{
+						"iam:ListInstanceProfiles",
+						"ec2:Describe*",
+						"ec2:Search*",
+						"ec2:Get*",
+					}, []core.IaCValue{{Property: "*"}}).Statement,
+				},
+			)
+			inlinePolicy.Policy.Statement = append(inlinePolicy.Policy.Statement, resources.StatementEntry{
+				Effect:   "Allow",
+				Action:   []string{"iam:PassRole"},
+				Resource: []core.IaCValue{{Property: "*"}},
+				Condition: &resources.Condition{
+					StringEquals: map[core.IaCValue]string{
+						{Property: "iam:PassedToService"}: "ec2.amazonaws.com",
+					},
+				},
+			})
+			destination.InlinePolicies = append(destination.InlinePolicies, inlinePolicy)
 			return nil
 		},
 	},

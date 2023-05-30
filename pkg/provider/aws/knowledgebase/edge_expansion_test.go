@@ -34,7 +34,7 @@ func Test_ExpandEdges(t *testing.T) {
 							SubnetGroup: &resources.RdsSubnetGroup{Subnets: []*resources.Subnet{{Name: "subnet1", Vpc: &resources.Vpc{}}}}},
 						Constraint: knowledgebase.EdgeConstraint{
 							NodeMustExist:    []core.Resource{&resources.RdsProxy{}},
-							NodeMustNotExist: []core.Resource{&kubernetes.HelmChart{}},
+							NodeMustNotExist: []core.Resource{&resources.Ec2Instance{}, &kubernetes.HelmChart{}},
 						},
 						EnvironmentVariables: []core.EnvironmentVariable{core.GenerateOrmConnStringEnvVar(orm)},
 					},

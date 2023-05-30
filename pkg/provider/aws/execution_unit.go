@@ -23,6 +23,16 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 			return err
 		}
 		a.MapResourceDirectlyToConstruct(lambda, unit)
+	case Ec2Instance:
+		instance, err := core.CreateResource[*resources.Ec2Instance](dag, resources.Ec2InstanceCreateParams{
+			AppName: a.Config.AppName,
+			Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
+			Name:    unit.ID,
+		})
+		if err != nil {
+			return err
+		}
+		a.MapResourceDirectlyToConstruct(instance, unit)
 	case kubernetes.KubernetesType:
 		params := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams)
 		clusterName := params.ClusterId

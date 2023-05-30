@@ -35,6 +35,7 @@ var LambdaKB = knowledgebase.Build(
 			if len(lambda.SecurityGroups) == 0 {
 				lambda.SecurityGroups = instance.SecurityGroups
 			}
+			dag.AddDependenciesReflect(lambda)
 			return nil
 		},
 		Configure: func(lambda *resources.LambdaFunction, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -42,9 +43,6 @@ var LambdaKB = knowledgebase.Build(
 				return fmt.Errorf("unable to expand edge [%s -> %s]: lambda function [%s] is not in a VPC",
 					lambda.Id(), instance.Id(), lambda.Id())
 			}
-			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), lambda.ConstructsRef.CloneWith(instance.ConstructsRef), instance.GetConnectionPolicyDocument())
-			lambda.Role.InlinePolicies = append(lambda.Role.InlinePolicies, inlinePol)
-
 			for _, env := range data.EnvironmentVariables {
 				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: instance, Property: env.GetValue()}
 			}
@@ -67,23 +65,6 @@ var LambdaKB = knowledgebase.Build(
 			if len(lambda.Subnets) == 0 {
 				return fmt.Errorf("unable to expand edge [%s -> %s]: lambda function [%s] is not in a VPC",
 					lambda.Id().String(), proxy.Id().String(), lambda.Id().String())
-			}
-
-			upstreamResources := dag.GetUpstreamResources(proxy)
-			for _, res := range upstreamResources {
-				if tg, ok := res.(*resources.RdsProxyTargetGroup); ok {
-					for _, tgUpstream := range dag.GetDownstreamResources(tg) {
-						if instance, ok := tgUpstream.(*resources.RdsInstance); ok {
-							inlinePol := resources.NewIamInlinePolicy(
-								fmt.Sprintf("%s-connectionpolicy", instance.Name),
-								lambda.ConstructsRef.CloneWith(instance.ConstructsRef),
-								instance.GetConnectionPolicyDocument(),
-							)
-							lambda.Role.InlinePolicies = append(lambda.Role.InlinePolicies, inlinePol)
-							dag.AddDependency(lambda.Role, instance)
-						}
-					}
-				}
 			}
 			for _, env := range data.EnvironmentVariables {
 				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: proxy, Property: env.GetValue()}

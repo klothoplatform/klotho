@@ -140,6 +140,9 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 			},
 			config: &config.Application{
 				AppName: "my-app",
+				ExecutionUnits: map[string]*config.ExecutionUnit{
+					"test": {Type: Lambda},
+				},
 			},
 			constructResourceMap: map[string][]core.Resource{
 				"execution_unit:test": {&resources.LambdaFunction{Name: "lambda"}},
@@ -154,7 +157,7 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 						Destination: &resources.RdsInstance{Name: "rds"},
 						Constraint: knowledgebase.EdgeConstraint{
 							NodeMustExist:    []core.Resource{&resources.RdsProxy{}},
-							NodeMustNotExist: []core.Resource{&kubernetes.HelmChart{}},
+							NodeMustNotExist: []core.Resource{&resources.Ec2Instance{}, &kubernetes.HelmChart{}},
 						},
 						EnvironmentVariables: []core.EnvironmentVariable{core.GenerateOrmConnStringEnvVar(orm)},
 					},

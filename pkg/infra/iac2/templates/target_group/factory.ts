@@ -6,7 +6,6 @@ interface Args {
     Protocol: string
     Vpc: aws.ec2.Vpc
     TargetType: string
-    Tags: Record<string, string>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -16,6 +15,5 @@ function create(args: Args): aws.lb.TargetGroup {
         protocol: args.Protocol,
         targetType: args.TargetType,
         vpcId: args.Vpc.id,
-        tags: args.Tags,
     })
 }
