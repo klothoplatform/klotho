@@ -662,6 +662,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 			tc.getVarName(region), tc.getVarName(v.Resource)), nil
 	case resources.NODE_GROUP_NAME_IAC_VALUE:
 		return fmt.Sprintf(`%s.nodeGroupName`, tc.getVarName(resource)), nil
+	case resources.API_STAGE_PATH_VALUE:
+		return fmt.Sprintf("pulumi.interpolate`/${%s.stageName}`", tc.getVarName(resource)), nil
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property %T.%s", resource, property)

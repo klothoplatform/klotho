@@ -60,10 +60,6 @@ var CloudfrontKB = knowledgebase.Build(
 					strings.Join(ids, ", "))
 
 			}
-			stageName := stage.StageName
-			if stageName == "" {
-				stageName = "stage" // TODO klotho#653
-			}
 			origin := &resources.CloudfrontOrigin{
 				CustomOriginConfig: resources.CustomOriginConfig{
 					HttpPort:             80,
@@ -76,7 +72,7 @@ var CloudfrontKB = knowledgebase.Build(
 					Property: resources.STAGE_INVOKE_URL_IAC_VALUE,
 				},
 				OriginId:   gwId,
-				OriginPath: fmt.Sprintf("/%s", stageName),
+				OriginPath: core.IaCValue{Resource: stage, Property: resources.API_STAGE_PATH_VALUE},
 			}
 			distro.Origins = append(distro.Origins, origin)
 			distro.DefaultCacheBehavior.TargetOriginId = origin.OriginId

@@ -359,14 +359,6 @@ func (stage *ApiStage) Configure(params ApiStageConfigureParams) error {
 	return nil
 }
 
-func NewRestApi(appName string, gw *core.Gateway) *RestApi {
-	return &RestApi{
-		Name:             restApiSanitizer.Apply(fmt.Sprintf("%s-%s", appName, gw.ID)),
-		ConstructsRef:    core.AnnotationKeySetOf(gw.AnnotationKey),
-		BinaryMediaTypes: []string{"application/octet-stream", "image/*"},
-	}
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (api *RestApi) KlothoConstructRef() core.AnnotationKeySet {
 	return api.ConstructsRef
@@ -522,7 +514,6 @@ func NewApiStage(deployment *ApiDeployment, stageName string, refs core.Annotati
 		ConstructsRef: refs,
 		Deployment:    deployment,
 		RestApi:       deployment.RestApi,
-		StageName:     stageName,
 	}
 }
 
