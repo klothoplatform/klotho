@@ -3,11 +3,14 @@ package compiler
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -21,6 +24,11 @@ type (
 		Configuration    *config.Application
 		Resources        *core.ResourceGraph
 		OutputFiles      []core.File
+		OutputOptions    OutputOptions
+	}
+
+	OutputOptions struct {
+		PostWriteHooks map[string]string `yaml:"post-write-hooks,omitempty"`
 	}
 )
 
@@ -53,6 +61,22 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 			}
 			_, err = f.WriteTo(file)
 			file.Close()
+
+			fileExt := filepath.Ext(path)
+			if strings.HasPrefix(fileExt, ".") {
+				fileExt = fileExt[1:]
+				if hook, found := doc.OutputOptions.PostWriteHooks[fileExt]; found {
+					log := zap.S().With(logging.FileField(f))
+					hookErr := postCompileHook(dest, f, hook, log)
+					if hookErr != nil {
+						zap.S().With(zap.Error(hookErr), logging.FileField(f)).Warnf(
+							`failed to apply post-output hook to %s: %s`,
+							f.Path(),
+							hookErr.Error())
+					}
+				}
+			}
+
 			errs <- err
 		}(files[idx])
 	}
@@ -64,6 +88,25 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 		}
 	}
 	return nil
+}
+
+func postCompileHook(dir string, file core.File, hook string, log *zap.SugaredLogger) error {
+	hookSegments := strings.Split(hook, " ")
+	if len(hookSegments) == 0 {
+		return errors.New(`empty formatter command`)
+	}
+	var args []string
+	for _, arg := range hookSegments[1:] {
+		if arg == "{}" {
+			arg = file.Path()
+		}
+		args = append(args, arg)
+	}
+
+	cmd := exec.Command(hookSegments[0], args...)
+	log.Infof(`running post-output hook: %s`, strings.Join(cmd.Args, " "))
+	cmd.Dir = dir
+	return cmd.Run()
 }
 
 func (document *CompilationDocument) OutputResources() (resourceCounts map[string]int, err error) {
