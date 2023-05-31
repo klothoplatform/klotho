@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/cli_config"
+	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/yaml_util"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -17,8 +18,9 @@ const configFileName = "options.yaml"
 
 type (
 	Options struct {
-		Update UpdateOptions `yaml:",omitempty"`
-		UI     UIOptions     `yaml:",omitempty"`
+		Update UpdateOptions          `yaml:",omitempty"`
+		UI     UIOptions              `yaml:",omitempty"`
+		Output compiler.OutputOptions `yaml:",omitempty"`
 	}
 
 	UpdateOptions struct {
