@@ -78,10 +78,7 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 				if hook, found := postWriteHooks[fileExt]; found {
 					hookErr := postCompileHook(dest, f, hook)
 					if hookErr != nil {
-						zap.S().With(zap.Error(hookErr), logging.FileField(f)).Warnf(
-							`failed to apply post-output hook to %s: %s`,
-							f.Path(),
-							hookErr.Error())
+						zap.S().Warnf(`failed to apply post-output hook to %s/%s: %s`, dest, f.Path(), hookErr.Error())
 					}
 				}
 			}
