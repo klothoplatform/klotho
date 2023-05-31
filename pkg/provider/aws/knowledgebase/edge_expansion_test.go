@@ -8,6 +8,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
@@ -33,7 +34,7 @@ func Test_ExpandEdges(t *testing.T) {
 							SubnetGroup: &resources.RdsSubnetGroup{Subnets: []*resources.Subnet{{Name: "subnet1", Vpc: &resources.Vpc{}}}}},
 						Constraint: knowledgebase.EdgeConstraint{
 							NodeMustExist:    []core.Resource{&resources.RdsProxy{}},
-							NodeMustNotExist: []core.Resource{&resources.IamRole{}},
+							NodeMustNotExist: []core.Resource{&kubernetes.HelmChart{}},
 						},
 						EnvironmentVariables: []core.EnvironmentVariable{core.GenerateOrmConnStringEnvVar(orm)},
 					},

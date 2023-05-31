@@ -317,12 +317,11 @@ func (nodeGroup *EksNodeGroup) Create(dag *core.ResourceGraph, params EksNodeGro
 
 	name := NodeGroupName(params.ClusterName, params.NetworkType, params.InstanceType)
 	nodeGroup.Name = fmt.Sprintf("%s_%s", params.AppName, name)
-
 	existingNodeGroup, found := core.GetResource[*EksNodeGroup](dag, nodeGroup.Id())
 	if found {
 		existingNodeGroup.ConstructsRef.AddAll(params.Refs)
 	} else {
-		nodeGroup.ConstructsRef = params.Refs
+		nodeGroup.ConstructsRef = params.Refs.Clone()
 		nodeGroup.InstanceTypes = []string{params.InstanceType}
 		nodeGroup.Labels = map[string]string{
 			"network_placement": params.NetworkType,
@@ -568,10 +567,10 @@ func (cluster *EksCluster) InstallFluentBit(references core.AnnotationKeySet, da
 	return nil
 }
 
-func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag *core.ResourceGraph) (*kubernetes.KustomizeDirectory, error) {
+func (cluster *EksCluster) InstallCloudMapController(refs core.AnnotationKeySet, dag *core.ResourceGraph) (*kubernetes.KustomizeDirectory, error) {
 	cloudMapController := &kubernetes.KustomizeDirectory{
 		Name:          fmt.Sprintf("%s-cloudmap-controller", cluster.Name),
-		ConstructRefs: core.AnnotationKeySetOf(ref),
+		ConstructRefs: refs,
 		Directory:     "https://github.com/aws/aws-cloud-map-mcs-controller-for-k8s/config/controller_install_release",
 		ClustersProvider: core.IaCValue{
 			Resource: cluster,
@@ -582,7 +581,7 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 	if controller := dag.GetResource(cloudMapController.Id()); controller != nil {
 		if cm, ok := controller.(*kubernetes.KustomizeDirectory); ok {
 			cloudMapController = cm
-			cm.ConstructRefs.Add(ref)
+			cm.ConstructRefs.AddAll(refs)
 		} else {
 			return nil, errors.Errorf("Expected resource with id, %s, to be of type HelmChart, but was %s",
 				controller.Id(), reflect.ValueOf(controller).Type().Name())
@@ -595,7 +594,7 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 		}
 		clusterSet := &kubernetes.Manifest{
 			Name:          fmt.Sprintf("%s-%s", cluster.Name, "cluster-set"),
-			ConstructRefs: core.AnnotationKeySetOf(ref),
+			ConstructRefs: refs,
 			FilePath:      clusterSetOutputPath,
 			Transformations: map[string]core.IaCValue{
 				`spec["value"]`: {Resource: cluster, Property: NAME_IAC_VALUE},
@@ -618,7 +617,7 @@ func (cluster *EksCluster) InstallCloudMapController(ref core.AnnotationKey, dag
 	return cloudMapController, nil
 }
 
-func (cluster *EksCluster) InstallAlbController(references core.AnnotationKeySet, dag *core.ResourceGraph) (*kubernetes.HelmChart, error) {
+func (cluster *EksCluster) InstallAlbController(references core.AnnotationKeySet, dag *core.ResourceGraph, appName string) (*kubernetes.HelmChart, error) {
 	serviceAccountName := "aws-load-balancer-controller"
 	saPath := "aws-load-balancer-controller-service-account.yaml"
 	outputPath := path.Join(MANIFEST_PATH_PREFIX, saPath)
@@ -628,24 +627,25 @@ func (cluster *EksCluster) InstallAlbController(references core.AnnotationKeySet
 	}
 
 	role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
-		AppName: cluster.Name,
+		AppName: appName,
 		Name:    "alb-controller",
 		Refs:    references,
 	})
 	if err != nil {
 		return nil, err
 	}
-	assumeRolePolicyDoc := GetServiceAccountAssumeRolePolicy(saName, cluster.getOidc(dag))
-	if err != nil {
-		return nil, err
-	}
+	oidc, err := core.CreateResource[*OpenIdConnectProvider](dag, OidcCreateParams{
+		AppName:     appName,
+		ClusterName: strings.TrimLeft(cluster.Name, fmt.Sprintf("%s-", appName)),
+		Refs:        role.ConstructsRef.Clone(),
+	})
 	var aRef core.AnnotationKey
 	for ref := range references {
 		aRef = ref
 		break
 	}
+	dag.AddDependency(role, oidc)
 	policy := createAlbControllerPolicy(cluster.Name, aRef)
-	role.AssumeRolePolicyDoc = assumeRolePolicyDoc
 	dag.AddDependency(role, policy)
 	if err != nil {
 		return nil, err
@@ -786,14 +786,6 @@ func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeco
 	}
 }
 
-func (cluster *EksCluster) getOidc(dag *core.ResourceGraph) *OpenIdConnectProvider {
-	for _, res := range dag.GetUpstreamResources(cluster) {
-		if oidc, ok := res.(*OpenIdConnectProvider); ok {
-			return oidc
-		}
-	}
-	return nil
-}
 func GetServiceAccountAssumeRolePolicy(serviceAccountName string, oidc *OpenIdConnectProvider) *PolicyDocument {
 	return &PolicyDocument{
 		Version: VERSION,

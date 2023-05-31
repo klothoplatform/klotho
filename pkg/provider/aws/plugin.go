@@ -74,22 +74,53 @@ func (a *AWS) copyConstructEdgeToDag(
 	dep graph.Edge[core.Construct],
 	dag *core.ResourceGraph) error {
 	data := knowledgebase.EdgeData{AppName: a.Config.AppName, Source: sourceResource, Destination: destinationResource}
+
 	switch construct := dep.Source.(type) {
 	case *core.ExecutionUnit:
-		switch dep.Destination.(type) {
-		case *core.Orm:
-			data.Constraint = knowledgebase.EdgeConstraint{
-				NodeMustExist: []core.Resource{&resources.RdsProxy{}},
-			}
-		case *core.Kv:
-			data.Constraint = knowledgebase.EdgeConstraint{
-				NodeMustNotExist: []core.Resource{&resources.IamPolicy{}},
-			}
+		if a.Config.GetExecutionUnit(construct.ID).Type == kubernetes.KubernetesType {
+			data.SourceRef = construct.AnnotationKey
 		}
 		for _, envVar := range construct.EnvironmentVariables {
 			if envVar.Construct != nil && envVar.Construct.Id() == dep.Destination.Id() {
 				data.EnvironmentVariables = append(data.EnvironmentVariables, envVar)
 			}
+		}
+		switch dest := dep.Destination.(type) {
+		case *core.Orm:
+			data.Constraint = knowledgebase.EdgeConstraint{
+				NodeMustExist: []core.Resource{&resources.RdsProxy{}},
+			}
+			// Because we dont understand resource types, our edges cant depict what is truly valid and what isnt yet. Example
+			// 	found multiple paths which satisfy constraints for edge aws:lambda_function:lambda -> aws:rds_instance:rds.
+			// Paths: [[{*resources.LambdaFunction *resources.RdsProxy} {*resources.RdsProxyTargetGroup *resources.RdsProxy} {*resources.RdsProxyTargetGroup *resources.RdsInstance}]
+			// [{*resources.LambdaFunction *resources.RdsProxy} {*kubernetes.HelmChart *resources.RdsProxy} {*kubernetes.HelmChart *resources.RdsInstance}]]
+			// When we can classify lambda and helm as compute then we can understand that there is no need for the data flow in this manner
+			if a.Config.GetExecutionUnit(construct.ID).Type == kubernetes.KubernetesType {
+				data.Constraint.NodeMustNotExist = append(data.Constraint.NodeMustNotExist, &resources.LambdaFunction{})
+			} else {
+				data.Constraint.NodeMustNotExist = append(data.Constraint.NodeMustNotExist, &kubernetes.HelmChart{})
+			}
+		case *core.Kv:
+			data.Constraint = knowledgebase.EdgeConstraint{
+				NodeMustNotExist: []core.Resource{&resources.IamPolicy{}},
+			}
+		case *core.ExecutionUnit:
+			// We have to handle this case here since we dont understand what exists within a helm chart yet outside of the notion of constructs
+			// We will be able to move this to edges once we build a better understanding of kubernetes resources
+			if a.Config.GetExecutionUnit(dest.ID).Type == kubernetes.KubernetesType && a.Config.GetExecutionUnit(construct.ID).Type == kubernetes.KubernetesType {
+				if chart, ok := destinationResource.(*kubernetes.HelmChart); ok {
+					err := a.handleEksProxy(construct, dest, chart, dag)
+					if err != nil {
+						return err
+					}
+				} else {
+					return errors.Errorf("unable to copy edge %s -> %s, target resource must be a helm chart for kubernetes proxy", dep.Source.Id(), dep.Destination.Id())
+				}
+			}
+		}
+	case *core.Kv:
+		data.Constraint = knowledgebase.EdgeConstraint{
+			NodeMustNotExist: []core.Resource{&resources.IamPolicy{}},
 		}
 	case *core.Gateway:
 		for _, route := range construct.Routes {
@@ -119,6 +150,7 @@ func (a *AWS) copyConstructEdgeToDag(
 			}
 		}
 	}
+
 	dag.AddDependencyWithData(sourceResource, destinationResource, data)
 	return nil
 }

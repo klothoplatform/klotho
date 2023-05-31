@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
@@ -172,6 +173,72 @@ var LambdaKB = knowledgebase.Build(
 			}
 			dag.AddDependenciesReflect(attachment)
 			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *kubernetes.HelmChart]{
+		Expand: func(lambda *resources.LambdaFunction, destination *kubernetes.HelmChart, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if len(lambda.Subnets) == 0 {
+				lambda.Subnets = make([]*resources.Subnet, 2)
+				subparams := map[string]any{
+					"Subnets": []resources.SubnetCreateParams{
+						{
+							AppName: data.AppName,
+							Refs:    lambda.ConstructsRef,
+							AZ:      "0",
+							Type:    resources.PrivateSubnet,
+						},
+						{
+							AppName: data.AppName,
+							Refs:    lambda.ConstructsRef,
+							AZ:      "1",
+							Type:    resources.PrivateSubnet,
+						},
+					},
+				}
+				if len(lambda.SecurityGroups) == 0 {
+					lambda.SecurityGroups = make([]*resources.SecurityGroup, 1)
+					subparams["SecurityGroups"] = []resources.SecurityGroupCreateParams{
+						{
+							AppName: data.AppName,
+							Refs:    lambda.ConstructsRef,
+						},
+					}
+				}
+				err := dag.CreateDependencies(lambda, subparams)
+				if err != nil {
+					return err
+				}
+			}
+			refs := lambda.ConstructsRef.CloneWith(destination.ConstructRefs)
+			privateDnsNamespace, err := core.CreateResource[*resources.PrivateDnsNamespace](dag, resources.PrivateDnsNamespaceCreateParams{
+				Refs:    refs,
+				AppName: data.AppName,
+			})
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(destination, privateDnsNamespace)
+			policy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
+				AppName: data.AppName,
+				Name:    "servicediscovery",
+				Refs:    refs,
+			})
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(policy, privateDnsNamespace)
+			dag.AddDependency(lambda.Role, policy)
+			if err != nil {
+				return err
+			}
+			clusterProvider := destination.ClustersProvider.Resource
+			cluster, ok := clusterProvider.(*resources.EksCluster)
+			if !ok {
+				return fmt.Errorf("cluster provider resource for %s, must be an eks cluster, was %T", destination.Id(), clusterProvider)
+			}
+			cmController, err := cluster.InstallCloudMapController(refs, dag)
+			dag.AddDependency(destination, cmController)
+			return err
 		},
 	},
 )

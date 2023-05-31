@@ -16,18 +16,12 @@ var ApiGatewayKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.ApiMethod, *resources.RestApi]{},
 	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.ApiMethod]{
 		Configure: func(deployment *resources.ApiDeployment, method *resources.ApiMethod, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if deployment.Triggers == nil {
-				deployment.Triggers = make(map[string]string)
-			}
 			deployment.Triggers[method.Id().Name] = method.Id().Name
 			return nil
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.ApiIntegration]{
 		Configure: func(deployment *resources.ApiDeployment, integration *resources.ApiIntegration, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if deployment.Triggers == nil {
-				deployment.Triggers = make(map[string]string)
-			}
 			deployment.Triggers[integration.Id().Name] = integration.Id().Name
 			return nil
 		},
@@ -98,6 +92,8 @@ var ApiGatewayKB = knowledgebase.Build(
 				for _, res := range dag.GetUpstreamResources(restApi) {
 					switch resource := res.(type) {
 					case *resources.ApiDeployment:
+						// Add trigger about the integration uri reosurce so that we trigger on compute changes
+						resource.Triggers[fmt.Sprintf("%s-target", integration.Name)] = function.Id().Name
 						dag.AddDependency(resource, integration.Method)
 						dag.AddDependency(resource, integration)
 					}
@@ -116,9 +112,6 @@ var ApiGatewayKB = knowledgebase.Build(
 				return nil
 			}
 			restApi, ok := data.Source.(*resources.RestApi)
-			refs := core.AnnotationKeySet{}
-			refs.AddAll(lb.ConstructsRef)
-			refs.AddAll(restApi.ConstructsRef)
 			if !ok {
 				return fmt.Errorf("source of eks to api integration expansion must be a rest api resource")
 			}
@@ -154,7 +147,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				var err error
 				integration, err = core.CreateResource[*resources.ApiIntegration](dag, resources.ApiIntegrationCreateParams{
 					AppName:    data.AppName,
-					Refs:       refs,
+					Refs:       lb.ConstructsRef.CloneWith(restApi.ConstructsRef),
 					Path:       route.Path,
 					ApiName:    restApi.Name,
 					HttpMethod: strings.ToUpper(string(route.Verb)),
@@ -190,6 +183,8 @@ var ApiGatewayKB = knowledgebase.Build(
 				for _, res := range dag.GetUpstreamResources(restApi) {
 					switch resource := res.(type) {
 					case *resources.ApiDeployment:
+						// Add trigger about the integration uri reosurce so that we trigger on compute changes
+						resource.Triggers[fmt.Sprintf("%s-target", integration.Name)] = listener.LoadBalancer.Id().Name
 						dag.AddDependency(resource, integration.Method)
 						dag.AddDependency(resource, integration)
 					}

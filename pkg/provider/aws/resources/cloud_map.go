@@ -19,12 +19,28 @@ type (
 	}
 )
 
-func NewPrivateDnsNamespace(appName string, refs core.AnnotationKeySet, vpc *Vpc) *PrivateDnsNamespace {
-	return &PrivateDnsNamespace{
-		Name:          privateDnsNamespaceSanitizer.Apply(appName),
-		ConstructsRef: refs,
-		Vpc:           vpc,
+type PrivateDnsNamespaceCreateParams struct {
+	AppName string
+	Refs    core.AnnotationKeySet
+}
+
+func (namespace *PrivateDnsNamespace) Create(dag *core.ResourceGraph, params PrivateDnsNamespaceCreateParams) error {
+	namespace.Name = privateDnsNamespaceSanitizer.Apply(params.AppName)
+	namespace.ConstructsRef = params.Refs
+
+	existingNamespace, found := core.GetResource[*PrivateDnsNamespace](dag, namespace.Id())
+	if found {
+		existingNamespace.ConstructsRef.AddAll(params.Refs)
+	} else {
+		err := dag.CreateDependencies(namespace, map[string]any{"Vpc": VpcCreateParams{
+			AppName: params.AppName,
+			Refs:    params.Refs.Clone(),
+		}})
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to

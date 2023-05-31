@@ -37,7 +37,7 @@ type RepoCreateParams struct {
 
 func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreateParams) error {
 	repo.Name = params.AppName
-	repo.ConstructsRef = params.Refs
+	repo.ConstructsRef = params.Refs.Clone()
 
 	existingRepo := dag.GetResource(repo.Id())
 	if existingRepo != nil {
@@ -66,7 +66,7 @@ type ImageCreateParams struct {
 func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams) error {
 	name := fmt.Sprintf("%s-%s", params.AppName, params.Name)
 	image.Name = name
-	image.ConstructsRef = params.Refs
+	image.ConstructsRef = params.Refs.Clone()
 
 	existingImage := dag.GetResource(image.Id())
 	if existingImage != nil {
