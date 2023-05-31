@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/google/shlex"
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/logging"
@@ -38,6 +39,10 @@ type (
 var unquotedCharsRe = regexp.MustCompile(`^[\w.{}:>=<@/-]*$`)
 
 func (doc *CompilationDocument) OutputTo(dest string) error {
+
+	postWriteHooks := newDefaultPostWriteHooksMap()
+	collectionutil.Extend(doc.OutputOptions.PostWriteHooks).Into(postWriteHooks)
+
 	errs := make(chan error)
 	files := doc.OutputFiles
 	for idx := range files {
@@ -70,7 +75,7 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 			fileExt := filepath.Ext(path)
 			if fileExt != "" {
 				fileExt = strings.TrimPrefix(fileExt, ".")
-				if hook, found := doc.OutputOptions.PostWriteHooks[fileExt]; found {
+				if hook, found := postWriteHooks[fileExt]; found {
 					hookErr := postCompileHook(dest, f, hook)
 					if hookErr != nil {
 						zap.S().With(zap.Error(hookErr), logging.FileField(f)).Warnf(
@@ -196,4 +201,10 @@ func (document *CompilationDocument) OutputHelpers(outDir string) error {
 		}
 	}
 	return merr.ErrOrNil()
+}
+
+func newDefaultPostWriteHooksMap() map[string]string {
+	return map[string]string{
+		"ts": `npx prettier -w {}`,
+	}
 }
