@@ -27,12 +27,7 @@ var IamKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.Secret]{
 		Configure: func(policy *resources.IamPolicy, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			secretPolicyDoc := resources.CreateAllowPolicyDocument([]string{"secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"}, []core.IaCValue{{Resource: secret, Property: resources.ARN_IAC_VALUE}})
-			if policy.Policy == nil {
-				policy.Policy = secretPolicyDoc
-			} else {
-				policy.Policy.Statement = append(policy.Policy.Statement, secretPolicyDoc.Statement...)
-			}
+			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"}, []core.IaCValue{{Resource: secret, Property: resources.ARN_IAC_VALUE}}))
 			return nil
 		},
 	},
@@ -177,12 +172,7 @@ var IamKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.LambdaFunction]{
 		Configure: func(policy *resources.IamPolicy, function *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			statement := resources.CreateAllowPolicyDocument([]string{"lambda:InvokeFunction"}, []core.IaCValue{{Resource: function, Property: resources.ARN_IAC_VALUE}})
-			if policy.Policy == nil {
-				policy.Policy = statement
-			} else {
-				policy.Policy.Statement = append(policy.Policy.Statement, statement.Statement...)
-			}
+			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"lambda:InvokeFunction"}, []core.IaCValue{{Resource: function, Property: resources.ARN_IAC_VALUE}}))
 			return nil
 		},
 	},
@@ -190,13 +180,7 @@ var IamKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.RolePolicyAttachment, *resources.IamPolicy]{},
 	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.PrivateDnsNamespace]{
 		Configure: func(policy *resources.IamPolicy, namespace *resources.PrivateDnsNamespace, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if policy.Policy == nil {
-				policy.Policy = resources.CreateAllowPolicyDocument([]string{"servicediscovery:DiscoverInstances"}, []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}})
-				return nil
-			}
-			statement := resources.CreateAllowPolicyDocument([]string{"servicediscovery:DiscoverInstances"}, []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}}).Statement
-			policy.Policy.Statement = append(policy.Policy.Statement, statement...)
-			policy.Policy.Deduplicate()
+			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"servicediscovery:DiscoverInstances"}, []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}}))
 			return nil
 		},
 	},

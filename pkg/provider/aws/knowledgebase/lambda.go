@@ -209,9 +209,7 @@ var LambdaKB = knowledgebase.Build(
 					return err
 				}
 			}
-			refs := core.AnnotationKeySet{}
-			refs.AddAll(lambda.ConstructsRef)
-			refs.AddAll(destination.ConstructRefs)
+			refs := lambda.ConstructsRef.CloneWith(destination.ConstructRefs)
 			privateDnsNamespace, err := core.CreateResource[*resources.PrivateDnsNamespace](dag, resources.PrivateDnsNamespaceCreateParams{
 				Refs:    refs,
 				AppName: data.AppName,

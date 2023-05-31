@@ -363,6 +363,16 @@ func NewIamInlinePolicy(policyName string, refs core.AnnotationKeySet, policy *P
 	}
 }
 
+func (policy *IamPolicy) AddPolicyDocument(doc *PolicyDocument) {
+	if policy.Policy == nil {
+		policy.Policy = doc
+		return
+	}
+	statement := doc.Statement
+	policy.Policy.Statement = append(policy.Policy.Statement, statement...)
+	policy.Policy.Deduplicate()
+}
+
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (policy *IamPolicy) KlothoConstructRef() core.AnnotationKeySet {
 	return policy.ConstructsRef
