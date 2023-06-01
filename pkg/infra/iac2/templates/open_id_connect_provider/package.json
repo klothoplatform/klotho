@@ -2,7 +2,7 @@
     "name": "open_id_connect_provider",
     "dependencies": {
         "@pulumi/aws": "^5.37.0",
-        "@pulumi/pulumi": "^3.65.0",
+        "@pulumi/pulumi": "^3.69.0",
         "@pulumi/eks": "^0.42.0"
     }
 }
