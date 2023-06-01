@@ -1,0 +1,6 @@
+{
+    "name": "kms_key_replica",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}
