@@ -14,22 +14,22 @@ import (
 var packageJsonsFs embed.FS
 
 func Test_SameVersionOfDeps(t *testing.T) {
+	topLevelAssert := assert.New(t)
 	// Find all of the versions across all jsons
 	versionsByName := make(map[string]map[string]struct{})
-	fs.WalkDir(packageJsonsFs, ".", func(path string, d fs.DirEntry, err error) error {
-		assert := assert.New(t)
-		if !assert.NoError(err) {
+	err := fs.WalkDir(packageJsonsFs, ".", func(path string, d fs.DirEntry, err error) error {
+		if !topLevelAssert.NoError(err) {
 			return err
 		}
 		if d.IsDir() {
 			return nil
 		}
 		contents, err := fs.ReadFile(packageJsonsFs, path)
-		if !assert.NoError(err) {
+		if !topLevelAssert.NoError(err) {
 			return err
 		}
 		var jsonObj packageJson
-		if err = json.Unmarshal(contents, &jsonObj); !assert.NoError(err) {
+		if err = json.Unmarshal(contents, &jsonObj); !topLevelAssert.NoError(err) {
 			return err
 		}
 		for name, version := range jsonObj.Dependencies {
@@ -42,7 +42,10 @@ func Test_SameVersionOfDeps(t *testing.T) {
 		}
 		return nil
 	})
-	assert.New(t).NotEmpty(versionsByName)
+	if !topLevelAssert.NoError(err) {
+		return
+	}
+	topLevelAssert.NotEmpty(versionsByName)
 
 	for name, versions := range versionsByName {
 		t.Run(name, func(t *testing.T) {
