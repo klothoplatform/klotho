@@ -1,0 +1,6 @@
+{
+    "name": "kinesis_stream_consumer",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

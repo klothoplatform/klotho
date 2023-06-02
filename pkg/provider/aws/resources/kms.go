@@ -90,7 +90,7 @@ func (alias *KmsAlias) Create(dag *core.ResourceGraph, params KmsAliasCreatePara
 	alias.Name = name
 	alias.ConstructsRef = params.Key.ConstructsRef.Clone()
 	alias.TargetKey = params.Key
-	alias.AliasName = fmt.Sprintf("alias/%s", params.Name)
+	alias.AliasName = aws.KmsKeySanitizer.Apply(fmt.Sprintf("alias/%s", params.Name))
 	existingKey, found := core.GetResource[*KmsAlias](dag, alias.Id())
 	if found {
 		existingKey.ConstructsRef.AddAll(params.Key.ConstructsRef)
