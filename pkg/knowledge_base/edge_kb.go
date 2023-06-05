@@ -24,8 +24,12 @@ type (
 		ExpansionFunc ExpandEdge
 		// Configure is a function used to configure the To and From resources and necessary dependent resources, to ensure the nodes will guarantee correct functionality.
 		Configure ConfigureEdge
-		// ValidDestinations is a list of end destinations the edge supports. This field is used within determining the path (edge expansion) between two resources.
+		// ValidDestinations is a list of end destinations the edge supports.
+		// This field is used within determining the path (edge expansion) between two resources.
 		ValidDestinations []reflect.Type
+		// ReverseDirection is specified when the data flow is in the opposite direction of the edge
+		// This is used in scenarios where we want to find paths, only allowing specific edges to be bidirectional
+		ReverseDirection bool
 	}
 
 	// EdgeKB is a map (knowledge base) of edges and their respective details used to configure ResourceGraphs
@@ -136,7 +140,8 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 			}
 		}
 		for _, e := range kb.GetEdgesWithTarget(source) {
-			if e.Destination == source && !visited[e.Source] && kb.isValidForPath(e, dest) {
+			det, _ := kb.GetEdgeDetails(e.Source, e.Destination)
+			if det.ReverseDirection && e.Destination == source && !visited[e.Source] && kb.isValidForPath(e, dest) {
 				result = append(result, kb.findPaths(e.Source, dest, append(stack, e), visited)...)
 			}
 		}
@@ -221,74 +226,72 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph, appName string) (err error
 
 		zap.S().Debugf("Found valid paths %s", validPaths)
 		var validPath []Edge
-
-		// If we have more than 1 valid path we will always default to the direct path if it exists, otherwise we will raise an error since we cannot determine which path we are supposed to use.
-		if len(validPaths) > 1 {
-			for _, p := range validPaths {
-				if len(p) == 1 {
-					zap.S().Debug("Defaulting to direct path")
-					validPath = p
-				}
-			}
+		// Get the shortest route that satisfied constraints
+		for _, path := range validPaths {
 			if len(validPath) == 0 {
-				merr.Append(fmt.Errorf("found multiple paths which satisfy constraints for edge %s -> %s. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), validPaths))
+				validPath = path
+			} else if len(path) < len(validPath) {
+				validPath = path
+			} else if len(path) == len(validPath) {
+				merr.Append(fmt.Errorf("found multiple paths which satisfy constraints for edge %s -> %s and are the same length. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), validPaths))
+				continue
 			}
-		} else if len(validPaths) == 0 {
+		}
+		if len(validPath) == 0 {
 			merr.Append(fmt.Errorf("found no paths which satisfy constraints for edge %s -> %s. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), validPaths))
-		} else {
-			validPath = validPaths[0]
+			continue
+		}
 
-			// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
-			if len(validPath) > 1 {
-				zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
-				err := dag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
-				if err != nil {
-					merr.Append(err)
-					continue
-				}
+		// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
+		if len(validPath) > 1 {
+			zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
+			err := dag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
+			if err != nil {
+				merr.Append(err)
+				continue
+			}
+		}
+
+		// resourceCache is used to always pass the graphs nodes into the Expand functions if they exist. We do this so that we operate on nodes which already exist
+		resourceCache := map[reflect.Type]core.Resource{}
+		for _, edge := range validPath {
+			source := edge.Source
+			dest := edge.Destination
+			edgeDetail, _ := kb.GetEdgeDetails(source, dest)
+			sourceNode := resourceCache[source]
+			if source == reflect.TypeOf(dep.Source) {
+				sourceNode = dep.Source
+			}
+			if sourceNode == nil {
+				sourceNode = reflect.New(source.Elem()).Interface().(core.Resource)
 			}
 
-			// resourceCache is used to always pass the graphs nodes into the Expand functions if they exist. We do this so that we operate on nodes which already exist
-			resourceCache := map[reflect.Type]core.Resource{}
-			for _, edge := range validPath {
-				source := edge.Source
-				dest := edge.Destination
-				edgeDetail, _ := kb.GetEdgeDetails(source, dest)
-				sourceNode := resourceCache[source]
-				if source == reflect.TypeOf(dep.Source) {
-					sourceNode = dep.Source
-				}
-				if sourceNode == nil {
-					sourceNode = reflect.New(source.Elem()).Interface().(core.Resource)
-				}
+			destNode := resourceCache[dest]
+			if dest == reflect.TypeOf(dep.Destination) {
+				destNode = dep.Destination
+			}
+			if destNode == nil {
+				destNode = reflect.New(dest.Elem()).Interface().(core.Resource)
+			}
 
-				destNode := resourceCache[dest]
-				if dest == reflect.TypeOf(dep.Destination) {
-					destNode = dep.Destination
-				}
-				if destNode == nil {
-					destNode = reflect.New(dest.Elem()).Interface().(core.Resource)
-				}
+			if edgeDetail.ExpansionFunc != nil {
+				err := edgeDetail.ExpansionFunc(sourceNode, destNode, dag, edgeData)
+				merr.Append(err)
+			}
 
-				if edgeDetail.ExpansionFunc != nil {
-					err := edgeDetail.ExpansionFunc(sourceNode, destNode, dag, edgeData)
-					merr.Append(err)
-				}
-
-				if sourceNode != nil {
-					resourceCache[source] = sourceNode
-				}
-				sourceNodeInGraph := dag.GetResource(sourceNode.Id())
-				if sourceNodeInGraph != nil {
-					resourceCache[source] = sourceNodeInGraph
-				}
-				if destNode != nil {
-					resourceCache[dest] = destNode
-				}
-				destNodeInGraph := dag.GetResource(destNode.Id())
-				if destNodeInGraph != nil {
-					resourceCache[dest] = destNodeInGraph
-				}
+			if sourceNode != nil {
+				resourceCache[source] = sourceNode
+			}
+			sourceNodeInGraph := dag.GetResource(sourceNode.Id())
+			if sourceNodeInGraph != nil {
+				resourceCache[source] = sourceNodeInGraph
+			}
+			if destNode != nil {
+				resourceCache[dest] = destNode
+			}
+			destNodeInGraph := dag.GetResource(destNode.Id())
+			if destNodeInGraph != nil {
+				resourceCache[dest] = destNodeInGraph
 			}
 		}
 

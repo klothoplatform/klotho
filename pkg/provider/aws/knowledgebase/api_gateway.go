@@ -1,6 +1,7 @@
 package knowledgebase
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -27,6 +28,7 @@ var ApiGatewayKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.RestApi]{
+		ReverseDirection:  true,
 		ValidDestinations: []core.Resource{&resources.LambdaFunction{}, &resources.TargetGroup{}, &resources.Ec2Instance{}},
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.ApiResource]{},
@@ -82,18 +84,14 @@ var ApiGatewayKB = knowledgebase.Build(
 				return fmt.Errorf("source of eks to api integration expansion must be a rest api resource")
 			}
 
-			var tg *resources.TargetGroup
-			var isTgDest bool
-			tg, isTgDest = data.Destination.(*resources.TargetGroup)
+			tg, isTgDest := data.Destination.(*resources.TargetGroup)
 			if isTgDest {
 				tg.Protocol = "TCP"
 				tg.TargetType = "ip"
 			}
 
-			var instance *resources.Ec2Instance
-			var isEc2Dest bool
 			var err error
-			instance, isEc2Dest = data.Destination.(*resources.Ec2Instance)
+			instance, isEc2Dest := data.Destination.(*resources.Ec2Instance)
 			if isEc2Dest {
 				tg, err = core.CreateResource[*resources.TargetGroup](dag, resources.TargetGroupCreateParams{
 					AppName: data.AppName,
@@ -131,11 +129,7 @@ var ApiGatewayKB = knowledgebase.Build(
 			listener.LoadBalancer.Scheme = "internal"
 			listener.DefaultActions = []*resources.LBAction{{TargetGroupArn: core.IaCValue{Resource: tg, Property: resources.ARN_IAC_VALUE}, Type: "forward"}}
 			listener.Port = 80
-			if isTgDest {
-				listener.Protocol = "TCP"
-			} else {
-				listener.Protocol = "HTTPS"
-			}
+			listener.Protocol = tg.Protocol
 			vpcLink := &resources.VpcLink{
 				Target:        listener.LoadBalancer,
 				ConstructsRef: listener.LoadBalancer.ConstructsRef,
@@ -163,8 +157,8 @@ var ApiGatewayKB = knowledgebase.Build(
 )
 
 func createRoutesForIntegration(appName string, routes []core.Route, refs core.AnnotationKeySet, dag *core.ResourceGraph, vpcLink *resources.VpcLink, restApi *resources.RestApi, uri core.IaCValue) error {
+	var merr error
 	for _, route := range routes {
-		var err error
 		integration, err := core.CreateResource[*resources.ApiIntegration](dag, resources.ApiIntegrationCreateParams{
 			AppName:    appName,
 			Refs:       refs,
@@ -173,7 +167,8 @@ func createRoutesForIntegration(appName string, routes []core.Route, refs core.A
 			HttpMethod: strings.ToUpper(string(route.Verb)),
 		})
 		if err != nil {
-			return err
+			merr = errors.Join(merr, err)
+			continue
 		}
 
 		if vpcLink != nil {
@@ -212,5 +207,5 @@ func createRoutesForIntegration(appName string, routes []core.Route, refs core.A
 		}
 		dag.AddDependenciesReflect(integration)
 	}
-	return nil
+	return merr
 }

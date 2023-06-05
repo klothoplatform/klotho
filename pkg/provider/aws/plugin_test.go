@@ -156,8 +156,7 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 						Source:      &resources.LambdaFunction{Name: "lambda"},
 						Destination: &resources.RdsInstance{Name: "rds"},
 						Constraint: knowledgebase.EdgeConstraint{
-							NodeMustExist:    []core.Resource{&resources.RdsProxy{}},
-							NodeMustNotExist: []core.Resource{&resources.Ec2Instance{}, &kubernetes.HelmChart{}},
+							NodeMustExist: []core.Resource{&resources.RdsProxy{}},
 						},
 						EnvironmentVariables: []core.EnvironmentVariable{core.GenerateOrmConnStringEnvVar(orm)},
 					},

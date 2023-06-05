@@ -10,9 +10,11 @@ var LbKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.TargetGroup, *resources.Vpc]{},
 	knowledgebase.EdgeBuilder[*resources.Listener, *resources.TargetGroup]{
 		ValidDestinations: []core.Resource{&resources.Ec2Instance{}},
+		ReverseDirection:  true,
 	},
 	knowledgebase.EdgeBuilder[*resources.Listener, *resources.LoadBalancer]{
 		ValidDestinations: []core.Resource{&resources.TargetGroup{}, &resources.Ec2Instance{}},
+		ReverseDirection:  true,
 	},
 	knowledgebase.EdgeBuilder[*resources.LoadBalancer, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.LoadBalancer, *resources.SecurityGroup]{},

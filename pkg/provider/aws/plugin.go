@@ -90,19 +90,6 @@ func (a *AWS) copyConstructEdgeToDag(
 			data.Constraint = knowledgebase.EdgeConstraint{
 				NodeMustExist: []core.Resource{&resources.RdsProxy{}},
 			}
-			// Because we dont understand resource types, our edges cant depict what is truly valid and what isnt yet. Example
-			// 	found multiple paths which satisfy constraints for edge aws:lambda_function:lambda -> aws:rds_instance:rds.
-			// Paths: [[{*resources.LambdaFunction *resources.RdsProxy} {*resources.RdsProxyTargetGroup *resources.RdsProxy} {*resources.RdsProxyTargetGroup *resources.RdsInstance}]
-			// [{*resources.LambdaFunction *resources.RdsProxy} {*kubernetes.HelmChart *resources.RdsProxy} {*kubernetes.HelmChart *resources.RdsInstance}]]
-			// When we can classify lambda and helm as compute then we can understand that there is no need for the data flow in this manner
-			switch a.Config.GetExecutionUnit(construct.ID).Type {
-			case Lambda:
-				data.Constraint.NodeMustNotExist = append(data.Constraint.NodeMustNotExist, &resources.Ec2Instance{}, &kubernetes.HelmChart{})
-			case kubernetes.KubernetesType:
-				data.Constraint.NodeMustNotExist = append(data.Constraint.NodeMustNotExist, &resources.Ec2Instance{}, &resources.LambdaFunction{})
-			case Ec2Instance:
-				data.Constraint.NodeMustNotExist = append(data.Constraint.NodeMustNotExist, &resources.LambdaFunction{}, &kubernetes.HelmChart{})
-			}
 		case *core.Kv:
 			data.Constraint = knowledgebase.EdgeConstraint{
 				NodeMustNotExist: []core.Resource{&resources.IamPolicy{}},

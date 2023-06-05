@@ -51,6 +51,7 @@ var RdsKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.RdsProxyTargetGroup, *resources.RdsProxy]{
+		ReverseDirection: true,
 		Expand: func(targetGroup *resources.RdsProxyTargetGroup, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			var err error
 			destination := data.Destination.(*resources.RdsInstance)
