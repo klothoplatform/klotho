@@ -28,6 +28,8 @@ func ListAll() []core.Resource {
 		&IamPolicy{},
 		&IamRole{},
 		&InternetGateway{},
+		&KinesisStreamConsumer{},
+		&KinesisStream{},
 		&KmsAlias{},
 		&KmsKey{},
 		&KmsReplicaKey{},
