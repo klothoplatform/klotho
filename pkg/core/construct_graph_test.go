@@ -75,7 +75,7 @@ func Test_ListConstructs(t *testing.T) {
 	eu := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
 	g.AddVertex(kv)
 	g.AddVertex(eu)
-	constructs := ListConstructs(&constructGraph)
+	constructs := ListConstructs[BaseConstruct](&constructGraph)
 	expect := []BaseConstruct{kv, eu}
 	assert.ElementsMatch(expect, constructs)
 }
@@ -90,7 +90,7 @@ func Test_ListDependencies(t *testing.T) {
 	eu := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
 	g.AddVertex(kv)
 	g.AddVertex(eu)
-	constructs := ListConstructs(&constructGraph)
+	constructs := ListConstructs[BaseConstruct](&constructGraph)
 	expect := []Construct{kv, eu}
 	assert.ElementsMatch(expect, constructs)
 }
@@ -100,7 +100,7 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 		name      string
 		construct Construct
 		deps      []Construct
-		want      []graph.Edge[Construct]
+		want      []graph.Edge[BaseConstruct]
 	}{
 		{
 			name:      "single dependency",
@@ -108,7 +108,7 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 			deps: []Construct{
 				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 			},
-			want: []graph.Edge[Construct]{
+			want: []graph.Edge[BaseConstruct]{
 				{
 					Source:      &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
 					Destination: &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
@@ -122,7 +122,7 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test2", Capability: annotation.ExecutionUnitCapability}},
 			},
-			want: []graph.Edge[Construct]{
+			want: []graph.Edge[BaseConstruct]{
 				{
 					Source:      &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
 					Destination: &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
@@ -170,7 +170,7 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 		name      string
 		construct Construct
 		deps      []Construct
-		want      []graph.Edge[Construct]
+		want      []graph.Edge[BaseConstruct]
 	}{
 		{
 			name:      "single dependency",
@@ -178,7 +178,7 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 			deps: []Construct{
 				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 			},
-			want: []graph.Edge[Construct]{
+			want: []graph.Edge[BaseConstruct]{
 				{
 					Source:      &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 					Destination: &Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},
@@ -192,7 +192,7 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test2", Capability: annotation.ExecutionUnitCapability}},
 			},
-			want: []graph.Edge[Construct]{
+			want: []graph.Edge[BaseConstruct]{
 				{
 					Source:      &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 					Destination: &Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},

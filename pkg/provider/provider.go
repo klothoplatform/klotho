@@ -68,7 +68,7 @@ func HandleProviderValidation(p Provider, config *config.Application, constructG
 			}
 		}
 		if !resourceValid {
-			errs.Append(errors.Errorf(`Provider "%s" does not support %s of type %s.\nValid resource types are: %v`, p.Name(), reflect.ValueOf(resource).Type(), resourceType, mapping, ", "))
+			errs.Append(errors.Errorf(`Provider "%s" does not support %s of type %s.\nValid resource types are: %v`, p.Name(), reflect.ValueOf(resource).Type(), resourceType, mapping))
 		}
 	}
 

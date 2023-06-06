@@ -7,6 +7,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/stretchr/testify/assert"
 )
@@ -706,8 +707,8 @@ func TestExpose_Transform(t *testing.T) {
 					break
 				}
 				aDep := depsArr[i]
-				assert.Equal(eDep.Source.Provenance(), aDep.Source.Provenance())
-				assert.Equal(eDep.Destination.Provenance(), aDep.Destination.Provenance())
+				assert.Equal(eDep.Source.Provenance(), coretesting.TryGetProvenance(assert, aDep.Source))
+				assert.Equal(eDep.Destination.Provenance(), coretesting.TryGetProvenance(assert, aDep.Destination))
 			}
 		})
 	}
