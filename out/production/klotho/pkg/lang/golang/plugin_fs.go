@@ -32,7 +32,7 @@ func (p PersistFsPlugin) Transform(input *core.InputFiles, fileDeps *core.FileDe
 
 			for _, r := range resources {
 				constructGraph.AddConstruct(r)
-				constructGraph.AddDependency(unit.RId(), r.RId())
+				constructGraph.AddDependency(unit.Id(), r.Id())
 			}
 		}
 	}

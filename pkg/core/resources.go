@@ -9,20 +9,25 @@ import (
 )
 
 type (
-	// Construct describes a resource at the source code, Klotho annotation level
-	Construct interface {
-		// Provenance returns the AnnotationKey that the construct was created by
-		Provenance() AnnotationKey
+	// BaseConstruct is an abstract concept for some node-type-thing in a resource-ish graph. More concretely, it is
+	// either a Construct or a Resource.
+	BaseConstruct interface {
 		// Id returns the unique id of the construct
 		Id() ResourceId
 	}
 
+	// Construct describes a resource at the source code, Klotho annotation level
+	Construct interface {
+		BaseConstruct
+		// Provenance returns the AnnotationKey that the construct was created by
+		Provenance() AnnotationKey
+	}
+
 	// Resource describes a resource at the provider, infrastructure level
 	Resource interface {
+		BaseConstruct
 		// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 		KlothoConstructRef() AnnotationKeySet
-		// Id returns the id of the cloud resource
-		Id() ResourceId
 	}
 
 	// ExpandableResource is a resource that can generate its own dependencies. See [CreateResource].
@@ -100,6 +105,14 @@ func (cid ConstructId) ToRid() ResourceId {
 		Type:     cid.Capability,
 		Name:     cid.ID,
 	}
+}
+
+func IsConstructOfCapability(baseConstruct BaseConstruct, cap string) bool {
+	cons, ok := baseConstruct.(Construct)
+	if !ok {
+		return false
+	}
+	return cons.Provenance().Capability == cap
 }
 
 func (id ResourceId) String() string {

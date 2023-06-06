@@ -20,7 +20,7 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 	log := zap.S()
 	var merr multierr.Error
 	for _, construct := range result.ListConstructs() {
-		log.Debugf("Converting construct with id, %s, to aws resources", construct.RId())
+		log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
 		switch construct := construct.(type) {
 		case *core.ExecutionUnit:
 			merr.Append(a.expandExecutionUnit(dag, construct))
@@ -51,13 +51,13 @@ func (a *AWS) CopyConstructEdgesToDag(result *core.ConstructGraph, dag *core.Res
 	for _, dep := range result.ListDependencies() {
 		sourceResources, ok := a.GetResourcesDirectlyTiedToConstruct(dep.Source)
 		if !ok {
-			merr.Append(errors.Errorf("unable to copy edge, no resource tied to construct %s", dep.Source.RId()))
+			merr.Append(errors.Errorf("unable to copy edge, no resource tied to construct %s", dep.Source.Id()))
 			continue
 		}
 		for _, sourceResource := range sourceResources {
 			destinationResources, ok := a.GetResourcesDirectlyTiedToConstruct(dep.Destination)
 			if !ok {
-				merr.Append(errors.Errorf("unable to copy edge, no resource tied to construct %s", dep.Destination.RId()))
+				merr.Append(errors.Errorf("unable to copy edge, no resource tied to construct %s", dep.Destination.Id()))
 				continue
 			}
 			for _, destinationResource := range destinationResources {
@@ -81,7 +81,7 @@ func (a *AWS) copyConstructEdgeToDag(
 			data.SourceRef = construct.AnnotationKey
 		}
 		for _, envVar := range construct.EnvironmentVariables {
-			if envVar.Construct != nil && envVar.Construct.RId() == dep.Destination.RId() {
+			if envVar.Construct != nil && envVar.Construct.Id() == dep.Destination.Id() {
 				data.EnvironmentVariables = append(data.EnvironmentVariables, envVar)
 			}
 		}
@@ -114,7 +114,7 @@ func (a *AWS) copyConstructEdgeToDag(
 						return err
 					}
 				} else {
-					return errors.Errorf("unable to copy edge %s -> %s, target resource must be a helm chart for kubernetes proxy", dep.Source.RId(), dep.Destination.RId())
+					return errors.Errorf("unable to copy edge %s -> %s, target resource must be a helm chart for kubernetes proxy", dep.Source.Id(), dep.Destination.Id())
 				}
 			}
 		}
@@ -143,7 +143,7 @@ func (a *AWS) copyConstructEdgeToDag(
 					}
 				}
 				if destinationTG == nil {
-					return errors.Errorf("unable to find target group for edge, %s -> %s", dep.Source.RId(), dep.Destination.RId())
+					return errors.Errorf("unable to find target group for edge, %s -> %s", dep.Source.Id(), dep.Destination.Id())
 				}
 				destinationResource = destinationTG
 				data.Destination = destinationTG
@@ -214,7 +214,7 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 func getS3BucketConfig(bucket *resources.S3Bucket, constructs *core.ConstructGraph) (resources.S3BucketConfigureParams, error) {
 	staticUnits := make(map[string]*core.StaticUnit)
 	for consRef := range bucket.ConstructsRef {
-		cons := constructs.GetConstruct(consRef.ToId())
+		cons := constructs.GetConstruct(core.ConstructId(consRef).ToRid())
 		if oneUnit, isUnit := cons.(*core.StaticUnit); isUnit {
 			staticUnits[oneUnit.ID] = oneUnit
 		}

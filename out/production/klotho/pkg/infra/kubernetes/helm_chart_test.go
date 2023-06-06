@@ -651,7 +651,7 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 			for _, dep := range tt.deps {
 				constructGraph.AddConstruct(dep.Source)
 				constructGraph.AddConstruct(dep.Destination)
-				constructGraph.AddDependency(dep.Source.RId(), dep.Destination.RId())
+				constructGraph.AddDependency(dep.Source.Id(), dep.Destination.Id())
 			}
 			chart := HelmChart{
 				Name:           "test",

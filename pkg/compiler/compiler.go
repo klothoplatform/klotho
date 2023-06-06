@@ -113,7 +113,7 @@ func (c *Compiler) Compile() error {
 }
 
 func (c *Compiler) createConfigOutputFile() error {
-	c.Document.Configuration.UpdateForResources(c.Document.Constructs.ListConstructs())
+	c.Document.Configuration.UpdateForResources(core.ListConstructs[core.Construct](c.Document.Constructs))
 	buf := new(bytes.Buffer)
 	err := c.Document.Configuration.WriteTo(buf)
 	if err != nil {

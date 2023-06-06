@@ -150,7 +150,7 @@ func handlePersist(directiveResult EnvironmentVariableDirectiveResult, cap *anno
 	}
 
 	constructGraph.AddConstruct(resource)
-	constructGraph.AddDependency(unit.RId(), resource.RId())
+	constructGraph.AddDependency(unit.Id(), resource.Id())
 	variables := core.EnvironmentVariables{}
 	for _, variable := range directiveResult.variables {
 		variable.Construct = resource

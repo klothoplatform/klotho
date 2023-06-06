@@ -18,7 +18,6 @@ package provider
 
 import (
 	"reflect"
-	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -51,14 +50,14 @@ func HandleProviderValidation(p Provider, config *config.Application, constructG
 
 	var errs multierr.Error
 	log := zap.L().Sugar()
-	for _, resource := range constructGraph.ListConstructs() {
+	for _, resource := range core.ListConstructs[core.Construct](constructGraph) {
 		if _, ok := resource.(*core.InternalResource); ok {
 			continue
 		}
 		resourceValid := false
 		mapping := p.GetKindTypeMappings(resource)
 		if len(mapping) == 0 {
-			errs.Append(errors.Errorf("Provider, %s, Does not support %s ", p.Name(), reflect.ValueOf(resource).Type()))
+			errs.Append(errors.Errorf(`Provider "%s" does not support %s `, p.Name(), reflect.ValueOf(resource).Type()))
 			continue
 		}
 		resourceType := config.GetResourceType(resource)
@@ -69,7 +68,7 @@ func HandleProviderValidation(p Provider, config *config.Application, constructG
 			}
 		}
 		if !resourceValid {
-			errs.Append(errors.Errorf("Provider, %s, Does not support %s and type, %s, pair.\nValid resource types are: %s", p.Name(), reflect.ValueOf(resource).Type(), resourceType, strings.Join(mapping, ", ")))
+			errs.Append(errors.Errorf(`Provider "%s" does not support %s of type %s.\nValid resource types are: %v`, p.Name(), reflect.ValueOf(resource).Type(), resourceType, mapping, ", "))
 		}
 	}
 

@@ -40,7 +40,7 @@ func (p *Secrets) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *Secrets) RId() ResourceId {
+func (p *Secrets) Id() ResourceId {
 	return ConstructId(p.AnnotationKey).ToRid()
 }
 
@@ -48,7 +48,7 @@ func (p *Fs) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *Fs) RId() ResourceId {
+func (p *Fs) Id() ResourceId {
 	return ConstructId(p.AnnotationKey).ToRid()
 }
 
@@ -56,7 +56,7 @@ func (p *Kv) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *Kv) RId() ResourceId {
+func (p *Kv) Id() ResourceId {
 	return ConstructId(p.AnnotationKey).ToRid()
 }
 
@@ -64,7 +64,7 @@ func (p *Orm) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *Orm) RId() ResourceId {
+func (p *Orm) Id() ResourceId {
 	return ConstructId(p.AnnotationKey).ToRid()
 }
 
@@ -72,7 +72,7 @@ func (p *RedisNode) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *RedisNode) RId() ResourceId {
+func (p *RedisNode) Id() ResourceId {
 	return ConstructId(p.AnnotationKey).ToRid()
 }
 
@@ -80,7 +80,7 @@ func (p *RedisCluster) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *RedisCluster) RId() ResourceId {
+func (p *RedisCluster) Id() ResourceId {
 	return ConstructId(p.AnnotationKey).ToRid()
 }
 

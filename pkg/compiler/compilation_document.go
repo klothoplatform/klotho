@@ -138,7 +138,7 @@ func (document *CompilationDocument) OutputResources() (resourceCounts map[strin
 	resourceCounts = make(map[string]int)
 	var resourcesOutput []interface{}
 	var merr multierr.Error
-	for _, construct := range result.ListConstructs() {
+	for _, construct := range core.ListConstructs[core.Construct](result) {
 		resourceCounts[construct.Provenance().Capability] = resourceCounts[construct.Provenance().Capability] + 1
 
 		switch r := construct.(type) {

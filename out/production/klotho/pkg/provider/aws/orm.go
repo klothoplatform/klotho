@@ -32,7 +32,7 @@ func (a *AWS) getRdsConfiguration(result *core.ConstructGraph, dag *core.Resourc
 		return resources.RdsInstanceConfigureParams{}, fmt.Errorf("rds instance must only have one construct reference")
 	}
 	rdsConfig := resources.RdsInstanceConfigureParams{}
-	construct := result.GetConstruct(ref.ToId())
+	construct := result.GetConstruct(core.ConstructId(ref).ToRid())
 	if construct == nil {
 		return resources.RdsInstanceConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref.ToId())
 	}

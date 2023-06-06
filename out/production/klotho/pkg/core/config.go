@@ -16,7 +16,7 @@ func (p *Config) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *Config) RId() ResourceId {
+func (p *Config) Id() ResourceId {
 	return ConstructId(p.AnnotationKey).ToRid()
 }
 

@@ -38,14 +38,14 @@ func (a *AWS) MapResourceDirectlyToConstruct(resource core.Resource, construct c
 	if a.constructIdToResources == nil {
 		a.constructIdToResources = make(map[core.ResourceId][]core.Resource)
 	}
-	newList := append(a.constructIdToResources[construct.RId()], resource)
+	newList := append(a.constructIdToResources[construct.Id()], resource)
 	sort.Slice(newList, func(i, j int) bool {
 		return newList[i].Id().String() < newList[j].Id().String()
 	})
-	a.constructIdToResources[construct.RId()] = newList
+	a.constructIdToResources[construct.Id()] = newList
 }
 
 func (a *AWS) GetResourcesDirectlyTiedToConstruct(construct core.Construct) ([]core.Resource, bool) {
-	resources, found := a.constructIdToResources[construct.RId()]
+	resources, found := a.constructIdToResources[construct.Id()]
 	return resources, found
 }

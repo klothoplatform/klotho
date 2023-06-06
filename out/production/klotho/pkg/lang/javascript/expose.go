@@ -56,7 +56,7 @@ func findListener(cap *core.Annotation) exposeListenResult {
 func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.ConstructGraph, log *zap.Logger) {
 	for spec, routes := range info.RoutesByGateway {
 		gw := core.NewGateway(core.AnnotationKey{ID: spec.gatewayId, Capability: annotation.ExposeCapability})
-		if existing := constructGraph.GetConstruct(gw.RId()); existing != nil {
+		if existing := constructGraph.GetConstruct(gw.Id()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath
@@ -103,13 +103,17 @@ func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.Construc
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
 				targetUnit = info.Unit.ID
 			}
-			depKey := core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}
-			if constructGraph.GetConstruct(depKey.RToId()) == nil {
+			depKey := core.ResourceId{
+				Provider: core.AbstractConstructProvider,
+				Type:     annotation.ExecutionUnitCapability,
+				Name:     targetUnit,
+			}
+			if constructGraph.GetConstruct(depKey) == nil {
 				// The unit defined in the target does not exist, fall back to current one (for running in single-exec mode).
 				// TODO when there are ways to combine units, we'll need a more sophisticated way to see which unit the target maps to.
-				depKey.ID = info.Unit.ID
+				depKey.Name = info.Unit.ID
 			}
-			constructGraph.AddDependency(gw.Id(), depKey.ToId())
+			constructGraph.AddDependency(gw.Id(), depKey)
 		}
 	}
 }

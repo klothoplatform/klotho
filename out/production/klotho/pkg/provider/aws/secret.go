@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/pkg/errors"
@@ -37,7 +38,7 @@ func (a *AWS) getSecretVersionConfiguration(secretVersion *resources.SecretVersi
 		zap.L().Sugar().Debugf("skipping resource configuration: secret version %s has multiple refs, using unmodified config", secretVersion.Id())
 		return secretVersionConfig, nil
 	}
-	constructR := result.GetConstruct(ref.ToId())
+	constructR := result.GetConstruct(core.ConstructId(ref).ToRid())
 	if constructR == nil {
 		return secretVersionConfig, fmt.Errorf("construct with id %s does not exist", ref.ToId())
 	}

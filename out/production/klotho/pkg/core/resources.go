@@ -9,20 +9,25 @@ import (
 )
 
 type (
+	// BaseConstruct is an abstract concept for some node-type-thing in a resource-ish graph. More concretely, it is
+	// either a Construct or a Resource.
+	BaseConstruct interface {
+		// Id returns the unique id of the construct
+		Id() ResourceId
+	}
+
 	// Construct describes a resource at the source code, Klotho annotation level
 	Construct interface {
+		BaseConstruct
 		// Provenance returns the AnnotationKey that the construct was created by
 		Provenance() AnnotationKey
-		// RId returns the unique id of the construct
-		RId() ResourceId
 	}
 
 	// Resource describes a resource at the provider, infrastructure level
 	Resource interface {
+		BaseConstruct
 		// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 		KlothoConstructRef() AnnotationKeySet
-		// Id returns the id of the cloud resource
-		Id() ResourceId
 	}
 
 	// ExpandableResource is a resource that can generate its own dependencies. See [CreateResource].

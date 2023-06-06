@@ -65,7 +65,7 @@ func (p *Gateway) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *Gateway) RId() ResourceId {
+func (p *Gateway) Id() ResourceId {
 	return ConstructId(p.AnnotationKey).ToRid()
 }
 

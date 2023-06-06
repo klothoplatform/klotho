@@ -12,19 +12,19 @@ import (
 
 type (
 	ConstructGraph struct {
-		underlying *graph.Directed[Construct]
+		underlying *graph.Directed[BaseConstruct]
 	}
 )
 
 func NewConstructGraph() *ConstructGraph {
 	return &ConstructGraph{
-		underlying: graph.NewDirected(func(v Construct) string {
-			return v.RId().String()
+		underlying: graph.NewDirected(func(v BaseConstruct) string {
+			return v.Id().String()
 		}),
 	}
 }
 
-func (cg *ConstructGraph) GetRoots() []Construct {
+func (cg *ConstructGraph) GetRoots() []BaseConstruct {
 	return cg.underlying.Roots()
 }
 
@@ -32,8 +32,8 @@ func (cg *ConstructGraph) TopologicalSort() ([]string, error) {
 	return cg.underlying.VertexIdsInTopologicalOrder()
 }
 
-func (cg *ConstructGraph) AddConstruct(construct Construct) {
-	zap.S().Infof("Adding resource %s", construct.RId())
+func (cg *ConstructGraph) AddConstruct(construct BaseConstruct) {
+	zap.S().Infof("Adding resource %s", construct.Id())
 	cg.underlying.AddVertex(construct)
 }
 
@@ -41,40 +41,39 @@ func (cg *ConstructGraph) AddDependency(source ResourceId, dest ResourceId) {
 	cg.underlying.AddEdge(source.String(), dest.String(), nil)
 }
 
-func (cg *ConstructGraph) GetConstruct(key ResourceId) Construct {
+func (cg *ConstructGraph) GetConstruct(key ResourceId) BaseConstruct {
 	return cg.underlying.GetVertex(key.String())
 }
 
-func (cg *ConstructGraph) ListConstructs() []Construct {
+func (cg *ConstructGraph) ListConstructs() []BaseConstruct {
 	return cg.underlying.GetAllVertices()
 }
 
-func (cg *ConstructGraph) ListDependencies() []graph.Edge[Construct] {
+func (cg *ConstructGraph) ListDependencies() []graph.Edge[BaseConstruct] {
 	return cg.underlying.GetAllEdges()
 }
 
-func (cg *ConstructGraph) GetDownstreamDependencies(source Construct) []graph.Edge[Construct] {
+func (cg *ConstructGraph) GetDownstreamDependencies(source BaseConstruct) []graph.Edge[BaseConstruct] {
 	return cg.underlying.OutgoingEdges(source)
 }
 
-func (cg *ConstructGraph) GetDownstreamConstructs(source Construct) []Construct {
+func (cg *ConstructGraph) GetDownstreamConstructs(source BaseConstruct) []BaseConstruct {
 	return cg.underlying.OutgoingVertices(source)
 }
 
-func (cg *ConstructGraph) GetUpstreamDependencies(source Construct) []graph.Edge[Construct] {
+func (cg *ConstructGraph) GetUpstreamDependencies(source BaseConstruct) []graph.Edge[BaseConstruct] {
 	return cg.underlying.IncomingEdges(source)
 }
 
-func (cg *ConstructGraph) GetUpstreamConstructs(source Construct) []Construct {
+func (cg *ConstructGraph) GetUpstreamConstructs(source BaseConstruct) []BaseConstruct {
 	return cg.underlying.IncomingVertices(source)
 }
 
-func (cg *ConstructGraph) GetResourcesOfCapability(capability string) (filtered []Construct) {
+func (cg *ConstructGraph) GetResourcesOfCapability(capability string) (filtered []BaseConstruct) {
 	vertices := cg.underlying.GetAllVertices()
 	for _, v := range vertices {
-		if v.Provenance().Capability == capability {
+		if vCons, ok := v.(Construct); ok && vCons.Provenance().Capability == capability {
 			filtered = append(filtered, v)
-
 		}
 	}
 	return

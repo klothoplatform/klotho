@@ -687,17 +687,17 @@ func TestExpose_Transform(t *testing.T) {
 				eDeps = append(eDeps, parseDep(dep))
 			}
 			sort.Slice(eDeps, func(i, j int) bool {
-				if eDeps[i].Source.RId() == eDeps[j].Source.RId() {
-					return eDeps[i].Destination.RId().String() < eDeps[j].Destination.RId().String()
+				if eDeps[i].Source.Id() == eDeps[j].Source.Id() {
+					return eDeps[i].Destination.Id().String() < eDeps[j].Destination.Id().String()
 				} else {
-					return eDeps[i].Source.RId().String() < eDeps[j].Source.RId().String()
+					return eDeps[i].Source.Id().String() < eDeps[j].Source.Id().String()
 				}
 			})
 			sort.Slice(depsArr, func(i, j int) bool {
-				if depsArr[i].Source.RId() == depsArr[j].Source.RId() {
-					return depsArr[i].Destination.RId().String() < depsArr[j].Destination.RId().String()
+				if depsArr[i].Source.Id() == depsArr[j].Source.Id() {
+					return depsArr[i].Destination.Id().String() < depsArr[j].Destination.Id().String()
 				} else {
-					return depsArr[i].Source.RId().String() < depsArr[j].Source.RId().String()
+					return depsArr[i].Source.Id().String() < depsArr[j].Source.Id().String()
 				}
 			})
 

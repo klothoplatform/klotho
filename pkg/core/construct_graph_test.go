@@ -75,8 +75,8 @@ func Test_ListConstructs(t *testing.T) {
 	eu := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
 	g.AddVertex(kv)
 	g.AddVertex(eu)
-	constructs := constructGraph.ListConstructs()
-	expect := []Construct{kv, eu}
+	constructs := ListConstructs(&constructGraph)
+	expect := []BaseConstruct{kv, eu}
 	assert.ElementsMatch(expect, constructs)
 }
 
@@ -90,7 +90,7 @@ func Test_ListDependencies(t *testing.T) {
 	eu := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
 	g.AddVertex(kv)
 	g.AddVertex(eu)
-	constructs := constructGraph.ListConstructs()
+	constructs := ListConstructs(&constructGraph)
 	expect := []Construct{kv, eu}
 	assert.ElementsMatch(expect, constructs)
 }
@@ -141,9 +141,7 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := graph.NewDirected(func(v Construct) string {
-				return v.Id().String()
-			})
+			g := graph.NewDirected(construct2Hash)
 			constructGraph := ConstructGraph{
 				underlying: g,
 			}
@@ -298,6 +296,6 @@ func Test_GetResourcesOfCapability(t *testing.T) {
 
 }
 
-func construct2Hash(c Construct) string {
+func construct2Hash(c BaseConstruct) string {
 	return c.Id().String()
 }

@@ -197,7 +197,7 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 			for _, dep := range tt.constructs {
 				result.AddConstruct(dep.Source)
 				result.AddConstruct(dep.Destination)
-				result.AddDependency(dep.Source.RId(), dep.Destination.RId())
+				result.AddDependency(dep.Source.Id(), dep.Destination.Id())
 			}
 			for _, rs := range tt.constructResourceMap {
 				for _, r := range rs {
@@ -358,7 +358,7 @@ func Test_getS3BucketConfig(t *testing.T) {
 
 func stubId(cap string) core.ResourceId {
 	return core.ResourceId{
-		Provider: "test",
+		Provider: core.AbstractConstructProvider,
 		Type:     cap,
 		Name:     "test",
 	}
