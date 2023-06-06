@@ -42,6 +42,8 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 			merr.Append(a.expandSecrets(dag, construct))
 		case *core.Config:
 			merr.Append(a.expandConfig(dag, construct))
+		case core.Resource:
+			dag.AddResource(construct)
 		}
 	}
 	return merr.ErrOrNil()
