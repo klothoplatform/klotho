@@ -13,8 +13,8 @@ type (
 	Construct interface {
 		// Provenance returns the AnnotationKey that the construct was created by
 		Provenance() AnnotationKey
-		// RId returns the unique id of the construct
-		RId() ResourceId
+		// Id returns the unique id of the construct
+		Id() ResourceId
 	}
 
 	// Resource describes a resource at the provider, infrastructure level

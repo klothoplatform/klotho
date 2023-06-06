@@ -59,7 +59,7 @@ func (p *persister) handleFiles(unit *core.ExecutionUnit) error {
 			// a file containing capabilities without an execution unit indicates that the file's capabilities
 			// are imported by execution units in one or more separate files
 			if core.FileExecUnitName(pySource) != "" || p.isFileReferencedByExecUnit(pySource, unit) {
-				p.ConstructGraph.AddDependency(unit.RId(), r.RId())
+				p.ConstructGraph.AddDependency(unit.Id(), r.Id())
 			}
 		}
 	}

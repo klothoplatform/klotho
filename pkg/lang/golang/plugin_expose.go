@@ -114,7 +114,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 	for spec, routes := range h.RoutesByGateway {
 		gwName := spec.Id
 		gw := core.NewGateway(core.AnnotationKey{ID: gwName, Capability: annotation.ExposeCapability})
-		if existing := h.ConstructGraph.GetConstruct(gw.RId()); existing != nil {
+		if existing := h.ConstructGraph.GetConstruct(gw.Id()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath
@@ -140,7 +140,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
 				targetUnit = unit.ID
 			}
-			h.ConstructGraph.AddDependency(gw.RId(), core.ResourceId{
+			h.ConstructGraph.AddDependency(gw.Id(), core.ResourceId{
 				Provider: core.AbstractConstructProvider,
 				Type:     annotation.ExecutionUnitCapability,
 				Name:     targetUnit,

@@ -214,11 +214,11 @@ func (a *AWS) handleEksProxy(source, dest *core.ExecutionUnit, chart *kubernetes
 	dag.AddDependency(chart, privateDnsNamespace)
 	unitsRole := knowledgebase.GetIamRoleForUnit(chart, source.AnnotationKey)
 	if unitsRole == nil {
-		return fmt.Errorf("no role found for chart %s and source reference %s", chart.Id(), source.RId())
+		return fmt.Errorf("no role found for chart %s and source reference %s", chart.Id(), source.Id())
 	}
 	role := dag.GetResource(unitsRole.Id())
 	if role == nil {
-		return fmt.Errorf("no role found for chart %s based on source reference %s, for role %s", chart.Id(), source.RId(), unitsRole.Id())
+		return fmt.Errorf("no role found for chart %s based on source reference %s, for role %s", chart.Id(), source.Id(), unitsRole.Id())
 	}
 	policy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
 		AppName: a.Config.AppName,

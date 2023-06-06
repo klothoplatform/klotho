@@ -80,7 +80,7 @@ func (p *ExecutionUnit) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *ExecutionUnit) RId() ResourceId {
+func (p *ExecutionUnit) Id() ResourceId {
 	return ConstructId(p.AnnotationKey).ToRid()
 }
 

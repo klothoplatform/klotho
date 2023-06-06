@@ -19,7 +19,7 @@ type (
 func NewConstructGraph() *ConstructGraph {
 	return &ConstructGraph{
 		underlying: graph.NewDirected(func(v Construct) string {
-			return v.RId().String()
+			return v.Id().String()
 		}),
 	}
 }
@@ -33,7 +33,7 @@ func (cg *ConstructGraph) TopologicalSort() ([]string, error) {
 }
 
 func (cg *ConstructGraph) AddConstruct(construct Construct) {
-	zap.S().Infof("Adding resource %s", construct.RId())
+	zap.S().Infof("Adding resource %s", construct.Id())
 	cg.underlying.AddVertex(construct)
 }
 

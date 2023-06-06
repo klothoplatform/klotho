@@ -18,7 +18,7 @@ func (p *StaticUnit) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *StaticUnit) RId() ResourceId {
+func (p *StaticUnit) Id() ResourceId {
 	return ConstructId(p.AnnotationKey).ToRid()
 }
 

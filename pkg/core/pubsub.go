@@ -25,7 +25,7 @@ func (p *PubSub) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *PubSub) RId() ResourceId {
+func (p *PubSub) Id() ResourceId {
 	return ConstructId(p.AnnotationKey).ToRid()
 }
 

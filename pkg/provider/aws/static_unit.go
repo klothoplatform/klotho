@@ -53,6 +53,6 @@ func (a *AWS) expandStaticUnit(dag *core.ResourceGraph, unit *core.StaticUnit) e
 		return nil
 	default:
 		bucketIds := collectionutil.Keys(createdBuckets)
-		return errors.Errorf(`Found too many buckets %v for unit %s. This is an internal error.`, bucketIds, unit.RId())
+		return errors.Errorf(`Found too many buckets %v for unit %s. This is an internal error.`, bucketIds, unit.Id())
 	}
 }

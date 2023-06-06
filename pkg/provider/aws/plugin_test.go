@@ -197,7 +197,7 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 			for _, dep := range tt.constructs {
 				result.AddConstruct(dep.Source)
 				result.AddConstruct(dep.Destination)
-				result.AddDependency(dep.Source.RId(), dep.Destination.RId())
+				result.AddDependency(dep.Source.Id(), dep.Destination.Id())
 			}
 			for _, rs := range tt.constructResourceMap {
 				for _, r := range rs {
