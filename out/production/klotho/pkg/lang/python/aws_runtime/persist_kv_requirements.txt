@@ -1,3 +1,0 @@
-# klotho::persist (kv)
-boto3>=1.24.96, <2.0.0
-cerealbox>=0.1.2, <1.0.0

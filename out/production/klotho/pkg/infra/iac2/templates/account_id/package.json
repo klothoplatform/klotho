@@ -1,7 +1,0 @@
-{
-    "name": "account_id",
-    "dependencies": {
-        "@pulumi/aws": "^5.37.0",
-        "@pulumi/pulumi": "^3.69.0"
-    }
-}

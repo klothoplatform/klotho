@@ -1,6 +1,0 @@
-{
-    "name": "api_resource",
-    "dependencies": {
-        "@pulumi/aws": "^5.37.0"
-    }
-}

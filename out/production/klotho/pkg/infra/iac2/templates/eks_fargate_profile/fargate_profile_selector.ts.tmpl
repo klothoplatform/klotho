@@ -1,8 +1,0 @@
-{
-    namespace: "{{ .Namespace }}",
-    labels: {
-    {{ range $key, $value := .Labels }}
-        "{{ $key }}": "{{ $value }}"
-    {{ end }}
-    },
-},

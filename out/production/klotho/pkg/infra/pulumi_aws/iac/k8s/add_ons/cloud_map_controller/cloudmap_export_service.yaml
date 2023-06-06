@@ -1,5 +1,0 @@
-kind: ServiceExport
-apiVersion: multicluster.x-k8s.io/v1alpha1
-metadata:
-  namespace: [Your service namespace here]
-  name: [Your service name]
