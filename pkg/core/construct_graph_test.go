@@ -10,13 +10,13 @@ import (
 
 func Test_AddConstruct(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected(Construct.Id)
+	g := graph.NewDirected(construct2Hash)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
 	gw := &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}}
 	constructGraph.AddConstruct(gw)
-	construct := g.GetVertex("expose:test")
+	construct := g.GetVertex("klotho:expose:test")
 	storedGw, ok := construct.(*Gateway)
 	if !assert.True(ok) {
 		return
@@ -26,7 +26,7 @@ func Test_AddConstruct(t *testing.T) {
 
 func Test_AddDependency(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected(Construct.Id)
+	g := graph.NewDirected(construct2Hash)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
@@ -34,8 +34,8 @@ func Test_AddDependency(t *testing.T) {
 	eu := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
 	g.AddVertex(kv)
 	g.AddVertex(eu)
-	constructGraph.AddDependency(eu.Id(), kv.Id())
-	edge := g.GetEdge(eu.Id(), kv.Id())
+	constructGraph.AddDependency(eu.RId(), kv.RId())
+	edge := g.GetEdge(eu.RId().String(), kv.RId().String())
 	if !assert.NotNil(edge) {
 		return
 	}
@@ -45,25 +45,29 @@ func Test_AddDependency(t *testing.T) {
 
 func Test_GetConstruct(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected(Construct.Id)
+	g := graph.NewDirected(construct2Hash)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
 	gw := &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}}
 	g.AddVertex(gw)
-	construct := constructGraph.GetConstruct(gw.Id())
+	construct := constructGraph.GetConstruct(gw.RId())
 	storedGw, ok := construct.(*Gateway)
 	if !assert.True(ok) {
 		return
 	}
 	assert.Equal(storedGw, gw)
-	nilConstruct := constructGraph.GetConstruct(AnnotationKey{ID: "fake"}.ToId())
+	nilConstruct := constructGraph.GetConstruct(ResourceId{
+		Provider: AbstractConstructProvider,
+		Type:     annotation.ExposeCapability,
+		Name:     "fake",
+	})
 	assert.Nil(nilConstruct)
 }
 
 func Test_ListConstructs(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected(Construct.Id)
+	g := graph.NewDirected(construct2Hash)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
@@ -78,7 +82,7 @@ func Test_ListConstructs(t *testing.T) {
 
 func Test_ListDependencies(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected(Construct.Id)
+	g := graph.NewDirected(construct2Hash)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
@@ -137,14 +141,16 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := graph.NewDirected(Construct.Id)
+			g := graph.NewDirected(func(v Construct) string {
+				return v.RId().String()
+			})
 			constructGraph := ConstructGraph{
 				underlying: g,
 			}
 			g.AddVertex(tt.construct)
 			for _, c := range tt.deps {
 				g.AddVertex(c)
-				g.AddEdge(tt.construct.Id(), c.Id(), nil)
+				g.AddEdge(tt.construct.RId().String(), c.RId().String(), nil)
 			}
 			deps := constructGraph.GetDownstreamDependencies(tt.construct)
 			if tt.want != nil && !assert.NotNil(deps) {
@@ -207,14 +213,14 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := graph.NewDirected(Construct.Id)
+			g := graph.NewDirected(construct2Hash)
 			constructGraph := ConstructGraph{
 				underlying: g,
 			}
 			g.AddVertex(tt.construct)
 			for _, c := range tt.deps {
 				g.AddVertex(c)
-				g.AddEdge(c.Id(), tt.construct.Id(), nil)
+				g.AddEdge(c.RId().String(), tt.construct.RId().String(), nil)
 			}
 			deps := constructGraph.GetUpstreamDependencies(tt.construct)
 			if tt.want != nil && !assert.NotNil(deps) {
@@ -275,7 +281,7 @@ func Test_GetResourcesOfCapability(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := graph.NewDirected(Construct.Id)
+			g := graph.NewDirected(construct2Hash)
 			constructGraph := ConstructGraph{
 				underlying: g,
 			}
@@ -290,4 +296,8 @@ func Test_GetResourcesOfCapability(t *testing.T) {
 		})
 	}
 
+}
+
+func construct2Hash(c Construct) string {
+	return c.RId().String()
 }

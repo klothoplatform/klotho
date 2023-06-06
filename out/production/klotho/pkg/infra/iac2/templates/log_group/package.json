@@ -1,0 +1,6 @@
+{
+    "name": "log_group",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

@@ -1,0 +1,6 @@
+{
+    "name": "rest_api",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

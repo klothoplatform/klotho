@@ -1,0 +1,8 @@
+# create aws-observability namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aws-observability
+  labels:
+    name: aws-observability
+    aws-observability: enabled

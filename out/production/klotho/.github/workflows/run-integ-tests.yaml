@@ -1,0 +1,344 @@
+on:
+  workflow_dispatch:
+    inputs:
+      test-app-repo:
+        description: The repo of the app to test, in Organization/Repo format
+        required: true
+        type: string
+        default: klothoplatform/sample-apps
+      test-app-ref:
+        description: Git SHA or branch name of test-app-repo
+        required: false
+        type: string
+        default: main
+      test-app-overrides:
+        description: comma-delimited list of dirs within test-app-repo to run (if empty, runs all)
+        required: false
+        type: string
+      region:
+        description: the AWS region to deploy to, other than redis tests
+        required: false
+        type: string
+        default: us-east-2
+  workflow_call:
+    # same inputs as workflow_dispatch
+    inputs:
+      test-app-repo:
+        description: The repo of the app to test, in Organization/Repo format
+        required: true
+        type: string
+      test-app-ref:
+        description: Git SHA or branch name of test-app-repo
+        required: false
+        type: string
+        default: main
+      test-app-overrides:
+        description: comma-delimited list of dirs within test-app-repo
+        required: false
+        type: string
+      region:
+        description: the AWS region to deploy to
+        required: false
+        type: string
+        default: us-east-2
+      pre-build-script: # This input is intentionally NOT in workflow_dispatch
+        description: path to a script (within the caller's repo) to invoke before `go build`. must be executable.
+        required: false
+        type: string
+        default: ''
+concurrency: integ-tests
+name: run integration tests
+jobs:
+  list-apps: # creates the to_test output
+    runs-on: ubuntu-latest
+    outputs:
+      to_test: ${{ steps.find_dirs.outputs.to_test }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.test-app-repo }}
+          ref: ${{ inputs.test-app-ref }}
+      - name: find test dirs
+        id: find_dirs
+        run: |
+          set -x
+          dirs_with_tests="$(
+            for d in $(find * -type d -maxdepth 0 || printf ''); do
+              TESTABLE_APP=$(jq &>/dev/null -e '.scripts."integ-test"' $d/package.json && echo "$d")
+              if grep -s -q "^integ-test:" "${d}/Makefile"; then
+                TESTABLE_APP=$d
+              fi
+              if [[ -n "${TESTABLE_APP}" ]]; then
+                echo $TESTABLE_APP
+              fi
+            done
+            exit 0 # otherwise, will fail if the last dir failed the jq match
+          )"
+          if [[ -n "$APP_NAME_OVERRIDES" ]]; then
+            echo "Applying overrides: $APP_NAME_OVERRIDES"
+            dirs_with_tests="$(echo "$dirs_with_tests" | grep -xFf <(echo "$APP_NAME_OVERRIDES" | tr , "\n"))"
+          else
+            echo "No app name overrides."
+          fi
+          test_cases="$(echo "$dirs_with_tests" | jq -c -R --slurp 'split("\n") | map(select(length > 0))')"
+          if [[ "$as_json" == '[]' ]]; then
+            echo "::error ::No tests found"
+            exit 1
+          fi
+          echo "$test_cases" | jq .
+          echo "to_test=$test_cases" > $GITHUB_OUTPUT
+        env:
+          APP_NAME_OVERRIDES: ${{ inputs.test-app-overrides }}
+
+  build-klotho: # creates the klotho artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout klotho
+        uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.20.4'
+      - name: pre-build
+        if: ${{ inputs.pre-build-script }}
+        run: ${{ inputs.pre-build-script }}
+      - name: build
+        run: |
+          go generate ./...
+          go build ./cmd/klotho
+      - name: upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: klotho
+          path: klotho
+          retention-days: 1
+
+  setup-tests: # creates the test_resources artifact
+    runs-on: ubuntu-latest
+    environment: integ_test
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.test-app-repo }}
+          ref: ${{ inputs.test-app-ref }}
+      - name: Use Node.js 16.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+      - name: shared resources
+        run: |
+          set -x
+          cd _test_resources
+          npm i
+          pulumi -s integ-test-shared-${{ env.AWS_REGION }} stack select --create
+          pulumi stack tag set usage integ-test
+          pulumi config refresh || true
+          pulumi up -y --refresh
+          pulumi stack export > ../test_resources.json
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ''
+          AWS_REGION: ${{ inputs.region }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: upload shared resources
+        uses: actions/upload-artifact@v3
+        with:
+          name: test_resources
+          path: test_resources.json
+          retention-days: 1
+
+  sample-app:
+    needs: [build-klotho, list-apps, setup-tests]
+    runs-on: ubuntu-latest
+    environment: integ_test
+    strategy:
+      fail-fast: false
+      matrix:
+        app_to_test: ${{ fromJson(needs.list-apps.outputs.to_test) }}
+    steps:
+      - name: versions
+        run: |
+          echo "pulumi $(pulumi version)"
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.test-app-repo }}
+          ref: ${{ inputs.test-app-ref }}
+      - name: Use Node.js 16.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+      - name: get sample app language
+        id: get_language
+        run: echo language=$(echo "${{ matrix.app_to_test }}" | cut -d "-" -f 1) >> $GITHUB_OUTPUT
+      - name: download klotho
+        uses: actions/download-artifact@v3
+        with:
+          name: klotho
+          path: /usr/local/bin
+      - name: import resources
+        uses: actions/download-artifact@v3
+        with:
+          name: test_resources
+      - name: install klotho
+        run: |
+          chmod +x /usr/local/bin/klotho
+      - name: typescript compilation
+        if: steps.get_language.outputs.language == 'ts'
+        working-directory: ${{ matrix.app_to_test }}
+        run: |
+          npm install
+          npx tsc
+      - name: run klotho
+        working-directory: ${{ matrix.app_to_test }}
+        run: |
+          STACK_NAME="integ-test-${{ matrix.app_to_test }}-$GITHUB_RUN_ID"
+          if [ $(echo "$STACK_NAME" | wc -m) -ge 50 ]; then
+            STACK_NAME="integ-test-$(echo '${{ matrix.app_to_test }}' | sed -r 's/^(.{12}).*(.{15})/\1-\2/')-$GITHUB_RUN_ID"
+          fi
+          echo "STACK_NAME=$STACK_NAME" >> $GITHUB_ENV
+          if [[ -f test/klotho.yaml ]]; then 
+            klotho --app $STACK_NAME -p aws -c test/klotho.yaml #need app name to always be consistent for pre deploy hooks
+          else
+            klotho . --app $STACK_NAME -p aws
+          fi
+        env:
+          KLOTHO_ID_TOKEN: ${{ secrets.KLOTHO_CREDS_ID_TOKEN }}
+      - name: pulumi npm install
+        working-directory: ${{ matrix.app_to_test }}
+        run: |
+          npm install --prefix compiled
+      - name: pulumi stack options
+        working-directory: ${{ matrix.app_to_test }}
+        run: |
+          set -u
+          if [[ -e test/pulumi ]]; then
+            echo "POLICY_PACK=$(readlink -f test/pulumi)" >> $GITHUB_ENV
+          fi
+          # Configure the hooks here, too. This lets us conditionally run them in later steps, which is a nice visual
+          if [[ -f test/integ_test_hooks/pre-deploy.sh ]]; then
+            echo "BEFORE_DEPLOY_HOOK=$(readlink -f test/integ_test_hooks/pre-deploy.sh)" >> $GITHUB_ENV
+          fi
+          echo '::group::Configuration'
+          cd compiled
+          pulumi -s "$STACK_NAME" stack select --create
+          pulumi -s "$STACK_NAME" stack tag set usage integ-test
+          pulumi -s "$STACK_NAME" config refresh || true # refresh the stack, just in case it exists from a previous attempt. Ignore if that fails
+          echo "(It's fine if this said 'error: no previous deployment'.)"
+          pip install -r $GITHUB_WORKSPACE/_test_resources/requirements.txt
+          python $GITHUB_WORKSPACE/_test_resources/add_shared_resources.py "Pulumi.$STACK_NAME.yaml"
+          echo '::endgroup'
+        env:
+          AWS_REGION: ${{ inputs.region }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ''
+      - name: pre-deploy hook
+        working-directory: ${{ matrix.app_to_test }}
+        if: env.BEFORE_DEPLOY_HOOK
+        run: |
+          echo Running pre deploy hook: $BEFORE_DEPLOY_HOOK
+          bash "$BEFORE_DEPLOY_HOOK"
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ''
+      - name: pulumi up
+        uses: klothoplatform/gh-action-retry@v1
+        with:
+          description: pulumi up
+          working-directory: ${{ matrix.app_to_test }}
+          script: |
+            pulumi -C compiled -s "$STACK_NAME" up --refresh --yes
+            pulumi_out="$(pulumi -C compiled -s "$STACK_NAME" stack output --json)"
+            echo "$pulumi_out" | jq .
+            API_ENDPOINT="$(echo "$pulumi_out" | jq -er '.apiUrls[0]')"
+            echo "API_ENDPOINT=$API_ENDPOINT" >> $GITHUB_ENV # used by integ-test runners below
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ''
+      - name: TypeScript - run integ tests
+        if: steps.get_language.outputs.language == 'ts'
+        uses: klothoplatform/gh-action-retry@v1
+        with:
+          description: npm run integ-test
+          working-directory: ${{ matrix.app_to_test }}
+          script: npm run integ-test
+      - name: Python - run integ tests
+        if: steps.get_language.outputs.language == 'py'
+        uses: klothoplatform/gh-action-retry@v1
+        with:
+          description: make integ-test
+          working-directory: ${{ matrix.app_to_test }}
+          script: make install integ-test
+      - name: wait a bit for logs to propagate
+        if: always()
+        run: sleep 15
+      - name: gather logs
+        if: failure()
+        working-directory: ${{ matrix.app_to_test }}
+        run: |
+          mkdir "$RUNNER_TEMP/cw-logs"
+          echo "Writing logs to $RUNNER_TEMP/cw-logs"
+          cw_logs="$(pulumi -C compiled -s "$STACK_NAME" stack export | jq -r '.deployment.resources[] | select(.type == "aws:cloudwatch/logGroup:LogGroup") | .outputs.id')"
+          for log_group in $cw_logs ; do
+            log_to="$RUNNER_TEMP/cw-logs/logs-$(basename "$log_group").txt"
+            touch "$log_to"
+            echo "::group::Gathering streams for $log_group"
+            for stream in $(aws logs describe-log-streams --log-group-name "$log_group" --query 'logStreams[].logStreamName' --output text) ; do
+              echo >&2 "reading stream $stream"
+              aws logs get-log-events --log-group-name "$log_group" --log-stream-name "$stream" | jq -r '.events[] | [.timestamp, .message] | join(" ")' >> "$log_to"
+            done
+            echo "::endgroup::"
+            sort -u -o "$log_to" "$log_to"
+          done
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ''
+      - name: upload logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: cloudwatch-logs-${{ matrix.app_to_test }}
+          path: ${{ runner.temp }}/cw-logs/
+      - name: pulumi destroy
+        if: always()
+        uses: klothoplatform/gh-action-retry@v1
+        with:
+          description: pulumi destroy
+          working-directory: ${{ matrix.app_to_test }}
+          script: |
+            echo "::group::pulumi destroy"
+            if pulumi -C compiled -s "$STACK_NAME" destroy --refresh --yes ; then
+              echo "::endgroup::"
+              echo "::group::stack rm"
+              pulumi -C compiled -s "$STACK_NAME" stack rm --yes # omitting --force intentionally: if this fails, we want the stack around so we can fix it
+              echo "::endgroup::"
+            else
+              echo "::endgroup::"
+              if [[ -f test/integ_test_hooks/between-destroy-retries.sh ]]; then
+                pulumi -C compiled -s "$STACK_NAME" refresh --yes
+                echo "::group::between-destroy-attempts hook"
+                bash test/integ_test_hooks/between-destroy-retries.sh
+                echo "::endgroup::"
+              fi
+              exit 1
+            fi
+        env:
+          STACK_NAME: ${{ env.STACK_NAME }}
+          AWS_REGION: ${{ inputs.region }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ''

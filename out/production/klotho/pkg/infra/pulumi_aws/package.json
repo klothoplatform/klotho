@@ -1,0 +1,24 @@
+{
+    "name": "pulumiproj",
+    "dependencies": {
+        "@pulumi/aws": "^5.16.0",
+        "@pulumi/awsx": "^0.40.1",
+        "@pulumi/command": "^0.5.2",
+        "@pulumi/eks": "^0.42.0",
+        "@pulumi/kubernetes": "^3.21.4",
+        "@pulumi/kubernetes-cert-manager": "^0.0.3",
+        "@pulumi/kubernetesx": "^0.1.6",
+        "@pulumi/pulumi": "^3.40.2",
+        "axios": "^0.27.2",
+        "cdk8s-cli": "^2.1.4",
+        "patch-package": "^6.4.7",
+        "requestretry": "^7.0.2",
+        "simple-sha256": "^1.1.0",
+        "multimap": "^1.1.0"
+    },
+    "devDependencies": {
+        "@types/node": "^16.11.64",
+        "@types/uuid": "^8.3.4",
+        "@types/multimap": "^1.1.2"
+    }
+}

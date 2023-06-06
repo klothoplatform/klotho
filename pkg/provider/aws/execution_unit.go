@@ -145,7 +145,7 @@ func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.Reso
 		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("lambda must only have one construct reference")
 	}
 	lambdaConfig := resources.LambdaFunctionConfigureParams{}
-	construct := result.GetConstruct(ref.ToId())
+	construct := result.GetConstruct(core.ConstructId(ref).ToRid())
 	if construct == nil {
 		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref.ToId())
 	}
@@ -170,7 +170,7 @@ func (a *AWS) getImageConfiguration(result *core.ConstructGraph, dag *core.Resou
 		return resources.EcrImageConfigureParams{}, fmt.Errorf("image must only have one construct reference but got %d: %v", len(refs), refs)
 	}
 	imageConfig := resources.EcrImageConfigureParams{}
-	construct := result.GetConstruct(ref.ToId())
+	construct := result.GetConstruct(core.ConstructId(ref).ToRid())
 	if construct == nil {
 		return resources.EcrImageConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref.ToId())
 	}
@@ -187,7 +187,7 @@ func (a *AWS) getNodeGroupConfiguration(result *core.ConstructGraph, dag *core.R
 	nodeGroupConfig := resources.EksNodeGroupConfigureParams{}
 	nodeGroupConfig.DiskSize = 20
 	for ref := range refs {
-		construct := result.GetConstruct(ref.ToId())
+		construct := result.GetConstruct(core.ConstructId(ref).ToRid())
 		unit, ok := construct.(*core.ExecutionUnit)
 		if !ok {
 			continue
@@ -214,11 +214,11 @@ func (a *AWS) handleEksProxy(source, dest *core.ExecutionUnit, chart *kubernetes
 	dag.AddDependency(chart, privateDnsNamespace)
 	unitsRole := knowledgebase.GetIamRoleForUnit(chart, source.AnnotationKey)
 	if unitsRole == nil {
-		return fmt.Errorf("no role found for chart %s and source reference %s", chart.Id(), source.Id())
+		return fmt.Errorf("no role found for chart %s and source reference %s", chart.Id(), source.RId())
 	}
 	role := dag.GetResource(unitsRole.Id())
 	if role == nil {
-		return fmt.Errorf("no role found for chart %s based on source reference %s, for role %s", chart.Id(), source.Id(), unitsRole.Id())
+		return fmt.Errorf("no role found for chart %s based on source reference %s, for role %s", chart.Id(), source.RId(), unitsRole.Id())
 	}
 	policy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
 		AppName: a.Config.AppName,

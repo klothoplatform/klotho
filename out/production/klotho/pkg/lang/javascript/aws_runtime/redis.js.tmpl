@@ -1,0 +1,18 @@
+//@ts-nocheck
+'use strict';
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getParams = void 0;
+function getParams(dbName, params) {
+    let newParams = {
+        ...params,
+        socket: {
+            ...params['socket'],
+            host: process.env[`${dbName.toUpperCase()}_PERSIST_REDIS_HOST`],
+            port: process.env[`${dbName.toUpperCase()}_PERSIST_REDIS_PORT`],
+        },
+    };
+    return {
+        ...newParams,
+    };
+}
+exports.getParams = getParams;
