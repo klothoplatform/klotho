@@ -83,6 +83,9 @@ func (p TestProvider) GetDefaultConfig() config.Defaults {
 	return config.Defaults{}
 
 }
+func (p TestProvider) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error {
+	return nil
+}
 func (a TestProvider) GetKindTypeMappings(construct core.Construct) []string {
 	switch construct.(type) {
 	case *core.ExecutionUnit:

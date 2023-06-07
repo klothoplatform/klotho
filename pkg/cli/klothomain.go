@@ -400,36 +400,32 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	constructs := core.NewConstructGraph()
-
-	if cfg.constructGraph != "" {
-		plugins.AnalysisAndTransform = nil
-		createdGraph, err := core.CreateConstructGraphFromFile(cfg.constructGraph)
-		if err != nil {
-			return err
-		}
-		constructs = createdGraph
-	}
-
 	document := compiler.CompilationDocument{
 		InputFiles:       input,
 		FileDependencies: &core.FileDependencies{},
-		Constructs:       constructs,
+		Constructs:       core.NewConstructGraph(),
 		Configuration:    &appCfg,
 		Resources:        core.NewResourceGraph(),
 		OutputOptions:    options.Output,
 	}
 
-	compiler := compiler.Compiler{
+	klothoCompiler := compiler.Compiler{
 		AnalysisAndTransformationPlugins: plugins.AnalysisAndTransform,
 		ProviderPlugins:                  plugins.Provider,
 		IaCPlugins:                       plugins.IaC,
 		Document:                         document,
 	}
 
+	if cfg.constructGraph != "" {
+		err = klothoCompiler.LoadConstructGraphFromFile(cfg.constructGraph)
+		if err != nil {
+			return err
+		}
+	}
+
 	analyticsClient.Info(klothoName + " compiling")
 
-	err = compiler.Compile()
+	err = klothoCompiler.Compile()
 	if err != nil || hadErrors.Load() {
 		if err != nil {
 			errHandler.PrintErr(err)

@@ -62,11 +62,15 @@ func (rg *ResourceGraph) AddDependencyWithData(deployedSecond Resource, deployed
 	}
 	rg.AddResource(deployedSecond)
 	rg.AddResource(deployedFirst)
-	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.Id().String(), deployedFirst.Id().String()); cycle {
-		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond.Id(), deployedFirst.Id())
+	rg.AddDependencyById(deployedSecond.Id(), deployedFirst.Id(), data)
+}
+
+func (rg *ResourceGraph) AddDependencyById(deployedSecond ResourceId, deployedFirst ResourceId, data any) {
+	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.String(), deployedFirst.String()); cycle {
+		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond, deployedFirst)
 	} else {
-		rg.underlying.AddEdge(deployedSecond.Id().String(), deployedFirst.Id().String(), data)
-		zap.S().Debugf("adding %s -> %s", deployedSecond.Id(), deployedFirst.Id())
+		rg.underlying.AddEdge(deployedSecond.String(), deployedFirst.String(), data)
+		zap.S().Debugf("adding %s -> %s", deployedSecond, deployedFirst)
 	}
 }
 

@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"fmt"
+	"reflect"
 	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -46,4 +48,57 @@ func (a *AWS) MapResourceDirectlyToConstruct(resource core.Resource, construct c
 func (a *AWS) GetResourcesDirectlyTiedToConstruct(construct core.BaseConstruct) ([]core.Resource, bool) {
 	resources, found := a.constructIdToResources[construct.Id()]
 	return resources, found
+}
+
+func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error {
+	typeToResource := make(map[string]core.Resource)
+	namespacedResources := make(map[string][]core.Resource)
+	for _, res := range resources.ListAll() {
+		typeToResource[res.Id().Type] = res
+	}
+	// Subnets are special because they have a type that is not the same as their resource type since it uses a characteristic of the subnet
+	typeToResource["subnet_private"] = &resources.Subnet{}
+	typeToResource["subnet_public"] = &resources.Subnet{}
+
+	for _, node := range graph.Resources {
+		res, ok := typeToResource[node.Type]
+		if !ok {
+			return fmt.Errorf("unable to find resource of type %s", node.Type)
+		}
+		reflect.ValueOf(res).Elem().FieldByName("Name").SetString(node.Name)
+		if node.Namespace != "" {
+			namespacedResources[node.Namespace] = append(namespacedResources[node.Namespace], res)
+			continue
+		}
+		dag.AddConstruct(res)
+	}
+
+	// For anything namespaced, we will call the Load Method with the namespace and dag as the argument.
+	// This will allow the resource to be loaded into the graph since its id relies on the namespaced object
+	for namespace, resources := range namespacedResources {
+		for _, res := range resources {
+			method := reflect.ValueOf(res).MethodByName("Load")
+			if method.IsValid() {
+				var callArgs []reflect.Value
+				callArgs = append(callArgs, reflect.ValueOf(namespace))
+				callArgs = append(callArgs, reflect.ValueOf(dag))
+				eval := method.Call(callArgs)
+				if eval[0].IsNil() {
+					return nil
+				} else {
+					err, ok := eval[0].Interface().(error)
+					if !ok {
+						return fmt.Errorf("return type should be an error")
+					}
+					return err
+				}
+			}
+			dag.AddConstruct(res)
+		}
+	}
+
+	for _, edge := range graph.Edges {
+		dag.AddDependency(edge.Source, edge.Destination)
+	}
+	return nil
 }
