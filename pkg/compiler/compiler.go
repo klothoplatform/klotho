@@ -25,7 +25,7 @@ type (
 
 	ProviderPlugin interface {
 		Plugin
-		Translate(result *core.ConstructGraph, dag *core.ResourceGraph) ([]core.CloudResourceLink, error)
+		Translate(result *core.ConstructGraph, dag *core.ResourceGraph) error
 	}
 
 	IaCPlugin interface {
@@ -89,7 +89,7 @@ func (c *Compiler) Compile() error {
 				return core.NewPluginError(p.Name(), err)
 			}
 		}
-		_, err := p.Translate(c.Document.Constructs, c.Document.Resources)
+		err := p.Translate(c.Document.Constructs, c.Document.Resources)
 		if err != nil {
 			return core.NewPluginError(p.Name(), err)
 		}

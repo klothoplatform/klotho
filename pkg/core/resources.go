@@ -3,7 +3,6 @@ package core
 import (
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 )
@@ -49,16 +48,6 @@ type (
 		// a specific namespace such as a subnet to a VPC.
 		Namespace string
 		Name      string
-	}
-
-	// CloudResourceLink describes what Resources are necessary to ensure that a dependency between two Constructs are satisfied at an infrastructure level
-	CloudResourceLink interface {
-		// Dependency returns the klotho resource dependencies this link correlates to
-		Dependency() *graph.Edge[Construct] // Edge in the klothoconstructDag
-		// Resources returns a set of resources which make up the Link
-		Resources() map[Resource]struct{}
-		// Type returns type of link, correlating to its Link ID
-		Type() string
 	}
 
 	// IaCValue is a struct that defines a value we need to grab from a specific resource. It is up to the plugins to make the determination of how to retrieve the value

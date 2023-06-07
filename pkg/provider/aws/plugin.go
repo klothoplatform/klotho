@@ -252,7 +252,7 @@ func getS3BucketConfig(bucket *resources.S3Bucket, constructs *core.ConstructGra
 	}
 }
 
-func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
+func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (err error) {
 	err = a.ExpandConstructs(result, dag)
 	if err != nil {
 		return

@@ -72,8 +72,8 @@ func Test_validation_handleProviderValidation(t *testing.T) {
 type TestProvider struct {
 }
 
-func (p TestProvider) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
-	return nil, nil
+func (p TestProvider) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) error {
+	return nil
 }
 func (p TestProvider) Name() string { return "test" }
 func (p TestProvider) Validate(config *config.Application, constructGraph *core.ConstructGraph) error {
