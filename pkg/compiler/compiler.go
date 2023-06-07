@@ -89,11 +89,10 @@ func (c *Compiler) Compile() error {
 				return core.NewPluginError(p.Name(), err)
 			}
 		}
-		links, err := p.Translate(c.Document.Constructs, c.Document.Resources)
+		_, err := p.Translate(c.Document.Constructs, c.Document.Resources)
 		if err != nil {
 			return core.NewPluginError(p.Name(), err)
 		}
-		c.Document.Configuration.AddLinks(links)
 		log.Debug("completed")
 	}
 
