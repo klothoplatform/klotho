@@ -12,17 +12,19 @@ import (
 
 type (
 	ConstructGraph struct {
-		underlying *graph.Directed[Construct]
+		underlying *graph.Directed[BaseConstruct]
 	}
 )
 
 func NewConstructGraph() *ConstructGraph {
 	return &ConstructGraph{
-		underlying: graph.NewDirected(Construct.Id),
+		underlying: graph.NewDirected(func(v BaseConstruct) string {
+			return v.Id().String()
+		}),
 	}
 }
 
-func (cg *ConstructGraph) GetRoots() []Construct {
+func (cg *ConstructGraph) GetRoots() []BaseConstruct {
 	return cg.underlying.Roots()
 }
 
@@ -30,49 +32,54 @@ func (cg *ConstructGraph) TopologicalSort() ([]string, error) {
 	return cg.underlying.VertexIdsInTopologicalOrder()
 }
 
-func (cg *ConstructGraph) AddConstruct(construct Construct) {
+func (cg *ConstructGraph) AddConstruct(construct BaseConstruct) {
 	zap.S().Infof("Adding resource %s", construct.Id())
 	cg.underlying.AddVertex(construct)
 }
 
-func (cg *ConstructGraph) AddDependency(source string, dest string) {
-	cg.underlying.AddEdge(source, dest, nil)
+func (cg *ConstructGraph) AddDependency(source ResourceId, dest ResourceId) {
+	cg.underlying.AddEdge(source.String(), dest.String(), nil)
 }
 
-func (cg *ConstructGraph) GetConstruct(key string) Construct {
-	return cg.underlying.GetVertex(key)
+func (cg *ConstructGraph) GetConstruct(key ResourceId) BaseConstruct {
+	return cg.underlying.GetVertex(key.String())
 }
 
-func (cg *ConstructGraph) ListConstructs() []Construct {
-	return cg.underlying.GetAllVertices()
+func ListConstructs[C BaseConstruct](cg *ConstructGraph) []C {
+	var result []C
+	for _, v := range cg.underlying.GetAllVertices() {
+		if vc, ok := v.(C); ok {
+			result = append(result, vc)
+		}
+	}
+	return result
 }
 
-func (cg *ConstructGraph) ListDependencies() []graph.Edge[Construct] {
+func (cg *ConstructGraph) ListDependencies() []graph.Edge[BaseConstruct] {
 	return cg.underlying.GetAllEdges()
 }
 
-func (cg *ConstructGraph) GetDownstreamDependencies(source Construct) []graph.Edge[Construct] {
+func (cg *ConstructGraph) GetDownstreamDependencies(source BaseConstruct) []graph.Edge[BaseConstruct] {
 	return cg.underlying.OutgoingEdges(source)
 }
 
-func (cg *ConstructGraph) GetDownstreamConstructs(source Construct) []Construct {
+func (cg *ConstructGraph) GetDownstreamConstructs(source BaseConstruct) []BaseConstruct {
 	return cg.underlying.OutgoingVertices(source)
 }
 
-func (cg *ConstructGraph) GetUpstreamDependencies(source Construct) []graph.Edge[Construct] {
+func (cg *ConstructGraph) GetUpstreamDependencies(source BaseConstruct) []graph.Edge[BaseConstruct] {
 	return cg.underlying.IncomingEdges(source)
 }
 
-func (cg *ConstructGraph) GetUpstreamConstructs(source Construct) []Construct {
+func (cg *ConstructGraph) GetUpstreamConstructs(source BaseConstruct) []BaseConstruct {
 	return cg.underlying.IncomingVertices(source)
 }
 
 func (cg *ConstructGraph) GetResourcesOfCapability(capability string) (filtered []Construct) {
 	vertices := cg.underlying.GetAllVertices()
 	for _, v := range vertices {
-		if v.Provenance().Capability == capability {
-			filtered = append(filtered, v)
-
+		if vCons, ok := v.(Construct); ok && vCons.Provenance().Capability == capability {
+			filtered = append(filtered, vCons)
 		}
 	}
 	return
@@ -88,7 +95,7 @@ func GetConstructsOfType[T Construct](g *ConstructGraph) (filtered []T) {
 	return
 }
 
-func GetConstruct[T Construct](g *ConstructGraph, key string) (construct T, ok bool) {
+func GetConstruct[T Construct](g *ConstructGraph, key ResourceId) (construct T, ok bool) {
 	cR := g.GetConstruct(key)
 	construct, ok = cR.(T)
 	return
@@ -195,7 +202,19 @@ func CreateConstructGraphFromFile(path string) (*ConstructGraph, error) {
 	}
 
 	for _, edge := range input.Edges {
-		graph.AddDependency(keys[edge.Source].ToId(), keys[edge.Destination].ToId())
+		src, dst := keys[edge.Source], keys[edge.Destination]
+		graph.AddDependency(
+			ResourceId{
+				Provider: AbstractConstructProvider,
+				Type:     src.Capability,
+				Name:     src.ID,
+			},
+			ResourceId{
+				Provider: AbstractConstructProvider,
+				Type:     dst.Capability,
+				Name:     dst.ID,
+			},
+		)
 	}
 
 	return graph, err

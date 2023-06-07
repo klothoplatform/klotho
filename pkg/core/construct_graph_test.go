@@ -10,13 +10,13 @@ import (
 
 func Test_AddConstruct(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected(Construct.Id)
+	g := graph.NewDirected(construct2Hash)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
 	gw := &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}}
 	constructGraph.AddConstruct(gw)
-	construct := g.GetVertex("expose:test")
+	construct := g.GetVertex("klotho:expose:test")
 	storedGw, ok := construct.(*Gateway)
 	if !assert.True(ok) {
 		return
@@ -26,7 +26,7 @@ func Test_AddConstruct(t *testing.T) {
 
 func Test_AddDependency(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected(Construct.Id)
+	g := graph.NewDirected(construct2Hash)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
@@ -35,7 +35,7 @@ func Test_AddDependency(t *testing.T) {
 	g.AddVertex(kv)
 	g.AddVertex(eu)
 	constructGraph.AddDependency(eu.Id(), kv.Id())
-	edge := g.GetEdge(eu.Id(), kv.Id())
+	edge := g.GetEdge(eu.Id().String(), kv.Id().String())
 	if !assert.NotNil(edge) {
 		return
 	}
@@ -45,7 +45,7 @@ func Test_AddDependency(t *testing.T) {
 
 func Test_GetConstruct(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected(Construct.Id)
+	g := graph.NewDirected(construct2Hash)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
@@ -57,13 +57,17 @@ func Test_GetConstruct(t *testing.T) {
 		return
 	}
 	assert.Equal(storedGw, gw)
-	nilConstruct := constructGraph.GetConstruct(AnnotationKey{ID: "fake"}.ToId())
+	nilConstruct := constructGraph.GetConstruct(ResourceId{
+		Provider: AbstractConstructProvider,
+		Type:     annotation.ExposeCapability,
+		Name:     "fake",
+	})
 	assert.Nil(nilConstruct)
 }
 
 func Test_ListConstructs(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected(Construct.Id)
+	g := graph.NewDirected(construct2Hash)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
@@ -71,14 +75,14 @@ func Test_ListConstructs(t *testing.T) {
 	eu := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
 	g.AddVertex(kv)
 	g.AddVertex(eu)
-	constructs := constructGraph.ListConstructs()
-	expect := []Construct{kv, eu}
+	constructs := ListConstructs[BaseConstruct](&constructGraph)
+	expect := []BaseConstruct{kv, eu}
 	assert.ElementsMatch(expect, constructs)
 }
 
 func Test_ListDependencies(t *testing.T) {
 	assert := assert.New(t)
-	g := graph.NewDirected(Construct.Id)
+	g := graph.NewDirected(construct2Hash)
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
@@ -86,7 +90,7 @@ func Test_ListDependencies(t *testing.T) {
 	eu := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
 	g.AddVertex(kv)
 	g.AddVertex(eu)
-	constructs := constructGraph.ListConstructs()
+	constructs := ListConstructs[BaseConstruct](&constructGraph)
 	expect := []Construct{kv, eu}
 	assert.ElementsMatch(expect, constructs)
 }
@@ -96,7 +100,7 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 		name      string
 		construct Construct
 		deps      []Construct
-		want      []graph.Edge[Construct]
+		want      []graph.Edge[BaseConstruct]
 	}{
 		{
 			name:      "single dependency",
@@ -104,7 +108,7 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 			deps: []Construct{
 				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 			},
-			want: []graph.Edge[Construct]{
+			want: []graph.Edge[BaseConstruct]{
 				{
 					Source:      &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
 					Destination: &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
@@ -118,7 +122,7 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test2", Capability: annotation.ExecutionUnitCapability}},
 			},
-			want: []graph.Edge[Construct]{
+			want: []graph.Edge[BaseConstruct]{
 				{
 					Source:      &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
 					Destination: &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
@@ -137,14 +141,14 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := graph.NewDirected(Construct.Id)
+			g := graph.NewDirected(construct2Hash)
 			constructGraph := ConstructGraph{
 				underlying: g,
 			}
 			g.AddVertex(tt.construct)
 			for _, c := range tt.deps {
 				g.AddVertex(c)
-				g.AddEdge(tt.construct.Id(), c.Id(), nil)
+				g.AddEdge(tt.construct.Id().String(), c.Id().String(), nil)
 			}
 			deps := constructGraph.GetDownstreamDependencies(tt.construct)
 			if tt.want != nil && !assert.NotNil(deps) {
@@ -166,7 +170,7 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 		name      string
 		construct Construct
 		deps      []Construct
-		want      []graph.Edge[Construct]
+		want      []graph.Edge[BaseConstruct]
 	}{
 		{
 			name:      "single dependency",
@@ -174,7 +178,7 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 			deps: []Construct{
 				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 			},
-			want: []graph.Edge[Construct]{
+			want: []graph.Edge[BaseConstruct]{
 				{
 					Source:      &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 					Destination: &Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},
@@ -188,7 +192,7 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test2", Capability: annotation.ExecutionUnitCapability}},
 			},
-			want: []graph.Edge[Construct]{
+			want: []graph.Edge[BaseConstruct]{
 				{
 					Source:      &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
 					Destination: &Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},
@@ -207,14 +211,14 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := graph.NewDirected(Construct.Id)
+			g := graph.NewDirected(construct2Hash)
 			constructGraph := ConstructGraph{
 				underlying: g,
 			}
 			g.AddVertex(tt.construct)
 			for _, c := range tt.deps {
 				g.AddVertex(c)
-				g.AddEdge(c.Id(), tt.construct.Id(), nil)
+				g.AddEdge(c.Id().String(), tt.construct.Id().String(), nil)
 			}
 			deps := constructGraph.GetUpstreamDependencies(tt.construct)
 			if tt.want != nil && !assert.NotNil(deps) {
@@ -275,7 +279,7 @@ func Test_GetResourcesOfCapability(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := graph.NewDirected(Construct.Id)
+			g := graph.NewDirected(construct2Hash)
 			constructGraph := ConstructGraph{
 				underlying: g,
 			}
@@ -290,4 +294,8 @@ func Test_GetResourcesOfCapability(t *testing.T) {
 		})
 	}
 
+}
+
+func construct2Hash(c BaseConstruct) string {
+	return c.Id().String()
 }

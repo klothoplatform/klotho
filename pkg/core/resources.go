@@ -3,26 +3,30 @@ package core
 import (
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 )
 
 type (
+	// BaseConstruct is an abstract concept for some node-type-thing in a resource-ish graph. More concretely, it is
+	// either a Construct or a Resource.
+	BaseConstruct interface {
+		// Id returns the unique id of the construct
+		Id() ResourceId
+	}
+
 	// Construct describes a resource at the source code, Klotho annotation level
 	Construct interface {
+		BaseConstruct
 		// Provenance returns the AnnotationKey that the construct was created by
 		Provenance() AnnotationKey
-		// Id returns the unique Id of the construct
-		Id() string
 	}
 
 	// Resource describes a resource at the provider, infrastructure level
 	Resource interface {
+		BaseConstruct
 		// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 		KlothoConstructRef() AnnotationKeySet
-		// Id returns the id of the cloud resource
-		Id() ResourceId
 	}
 
 	// ExpandableResource is a resource that can generate its own dependencies. See [CreateResource].
@@ -46,16 +50,6 @@ type (
 		Name      string
 	}
 
-	// CloudResourceLink describes what Resources are necessary to ensure that a dependency between two Constructs are satisfied at an infrastructure level
-	CloudResourceLink interface {
-		// Dependency returns the klotho resource dependencies this link correlates to
-		Dependency() *graph.Edge[Construct] // Edge in the klothoconstructDag
-		// Resources returns a set of resources which make up the Link
-		Resources() map[Resource]struct{}
-		// Type returns type of link, correlating to its Link ID
-		Type() string
-	}
-
 	// IaCValue is a struct that defines a value we need to grab from a specific resource. It is up to the plugins to make the determination of how to retrieve the value
 	IaCValue struct {
 		// Resource is the resource the IaCValue is correlated to
@@ -71,6 +65,12 @@ type (
 	HasLocalOutput interface {
 		OutputTo(dest string) error
 	}
+
+	// ConstructId is an AnnotationKey that can turn itself into a ResourceId. It is provided as a convenience type.
+	// If you have an AnnotationId and want a ResourceId corresponding to that annotation's abstract construct, do:
+	//
+	// 	resourceId := ConstructId(consId).ToRid()
+	ConstructId AnnotationKey
 )
 
 const (
@@ -82,7 +82,27 @@ const (
 	//? Do we want to revisit how to accomplish this? It was originally implemented to avoid duplicated
 	// fields or methods across various resources.
 	InternalProvider = "internal"
+
+	// AbstractConstructProvider is the provider for abstract constructs — those that don't correspond to deployable
+	// resources directly, but instead expand into other constructs.
+	AbstractConstructProvider = "klotho"
 )
+
+func (cid ConstructId) ToRid() ResourceId {
+	return ResourceId{
+		Provider: AbstractConstructProvider,
+		Type:     cid.Capability,
+		Name:     cid.ID,
+	}
+}
+
+func IsConstructOfCapability(baseConstruct BaseConstruct, cap string) bool {
+	cons, ok := baseConstruct.(Construct)
+	if !ok {
+		return false
+	}
+	return cons.Provenance().Capability == cap
+}
 
 func (id ResourceId) String() string {
 	s := id.Provider + ":" + id.Type

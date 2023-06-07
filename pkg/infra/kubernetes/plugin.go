@@ -30,18 +30,18 @@ type Kubernetes struct {
 
 func (p Kubernetes) Name() string { return "kubernetes" }
 
-func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
+func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.ResourceGraph) error {
 	var errs multierr.Error
 	p.log = zap.L().Sugar()
 	helmHelper, err := helm.NewHelmHelper()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	p.helmHelper = helmHelper
 
 	klothoCharts, err := p.getKlothoCharts(constructGraph)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// For exec units that specify their own chart, we want to render and replace
@@ -95,10 +95,13 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 		}
 
 		for _, unit := range khChart.ExecutionUnits {
-			eu, ok := core.GetConstruct[*core.ExecutionUnit](constructGraph,
-				core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: unit.Name}.ToId())
+			eu, ok := core.GetConstruct[*core.ExecutionUnit](constructGraph, core.ResourceId{
+				Provider: core.AbstractConstructProvider,
+				Type:     annotation.ExecutionUnitCapability,
+				Name:     unit.Name,
+			})
 			if !ok {
-				return nil, fmt.Errorf("unable to handle nonexistent execution unit: %s", unit.Name)
+				return fmt.Errorf("unable to handle nonexistent execution unit: %s", unit.Name)
 			}
 
 			cfg := p.Config.GetExecutionUnit(unit.Name)
@@ -123,7 +126,7 @@ func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.Res
 		dag.AddResource(khChart)
 	}
 
-	return links, errs.ErrOrNil()
+	return errs.ErrOrNil()
 }
 
 func (p *Kubernetes) setHelmChartDirectory(path string, cfg *config.ExecutionUnit, unitName string) (bool, error) {

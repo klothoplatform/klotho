@@ -190,11 +190,11 @@ func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, const
 	needsTargetGroupBinding := false
 	needsServiceExport := false
 	for _, source := range sources {
-		if source.Provenance().Capability == annotation.ExposeCapability {
+		if core.IsConstructOfCapability(source, annotation.ExposeCapability) {
 			needService = true
 			needsTargetGroupBinding = true
 		}
-		if source.Provenance().Capability == annotation.ExecutionUnitCapability {
+		if core.IsConstructOfCapability(source, annotation.ExecutionUnitCapability) {
 			needService = true
 			needsServiceExport = true
 		}

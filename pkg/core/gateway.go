@@ -65,8 +65,8 @@ func (p *Gateway) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *Gateway) Id() string {
-	return p.AnnotationKey.ToId()
+func (p *Gateway) Id() ResourceId {
+	return ConstructId(p.AnnotationKey).ToRid()
 }
 
 func (gw *Gateway) AddRoute(route Route, unit *ExecutionUnit) string {

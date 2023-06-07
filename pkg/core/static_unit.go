@@ -18,8 +18,8 @@ func (p *StaticUnit) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *StaticUnit) Id() string {
-	return p.AnnotationKey.ToId()
+func (p *StaticUnit) Id() ResourceId {
+	return ConstructId(p.AnnotationKey).ToRid()
 }
 
 func (unit *StaticUnit) OutputTo(dest string) error {

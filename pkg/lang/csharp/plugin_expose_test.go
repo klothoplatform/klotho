@@ -7,6 +7,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/stretchr/testify/assert"
 )
@@ -688,16 +689,16 @@ func TestExpose_Transform(t *testing.T) {
 			}
 			sort.Slice(eDeps, func(i, j int) bool {
 				if eDeps[i].Source.Id() == eDeps[j].Source.Id() {
-					return eDeps[i].Destination.Id() < eDeps[j].Destination.Id()
+					return eDeps[i].Destination.Id().String() < eDeps[j].Destination.Id().String()
 				} else {
-					return eDeps[i].Source.Id() < eDeps[j].Source.Id()
+					return eDeps[i].Source.Id().String() < eDeps[j].Source.Id().String()
 				}
 			})
 			sort.Slice(depsArr, func(i, j int) bool {
 				if depsArr[i].Source.Id() == depsArr[j].Source.Id() {
-					return depsArr[i].Destination.Id() < depsArr[j].Destination.Id()
+					return depsArr[i].Destination.Id().String() < depsArr[j].Destination.Id().String()
 				} else {
-					return depsArr[i].Source.Id() < depsArr[j].Source.Id()
+					return depsArr[i].Source.Id().String() < depsArr[j].Source.Id().String()
 				}
 			})
 
@@ -706,8 +707,8 @@ func TestExpose_Transform(t *testing.T) {
 					break
 				}
 				aDep := depsArr[i]
-				assert.Equal(eDep.Source.Provenance(), aDep.Source.Provenance())
-				assert.Equal(eDep.Destination.Provenance(), aDep.Destination.Provenance())
+				assert.Equal(eDep.Source.Provenance(), coretesting.TryGetProvenance(assert, aDep.Source))
+				assert.Equal(eDep.Destination.Provenance(), coretesting.TryGetProvenance(assert, aDep.Destination))
 			}
 		})
 	}

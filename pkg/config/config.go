@@ -37,14 +37,7 @@ type (
 		PersistRedisNode    map[string]*Persist        `json:"persist_redis_node,omitempty" yaml:"persist_redis_node,omitempty" toml:"persist_redis_node,omitempty"`
 		PersistRedisCluster map[string]*Persist        `json:"persist_redis_cluster,omitempty" yaml:"persist_redis_cluster,omitempty" toml:"persist_redis_cluster,omitempty"`
 		Config              map[string]*Config         `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
-		Links               []CloudResourceLink        `json:"links,omitempty" yaml:"links,omitempty" toml:"links,omitempty"`
 		Imports             map[core.ResourceId]string `json:"imports,omitempty" yaml:"imports,omitempty" toml:"imports,omitempty"`
-	}
-
-	CloudResourceLink struct {
-		Source string `json:"source,omitempty" yaml:"source,omitempty" toml:"source,omitempty"`
-		Target string `json:"target,omitempty" yaml:"target,omitempty" toml:"target,omitempty"`
-		Type   string `json:"type,omitempty" yaml:"type,omitempty" toml:"type,omitempty"`
 	}
 
 	ContentDeliveryNetwork struct {
@@ -156,16 +149,6 @@ func (a *Application) WriteTo(writer io.Writer) error {
 	}
 
 	return nil
-}
-
-func (a *Application) AddLinks(links []core.CloudResourceLink) {
-	for _, link := range links {
-		a.Links = append(a.Links, CloudResourceLink{
-			Source: link.Dependency().Source.Id(),
-			Target: link.Dependency().Destination.Id(),
-			Type:   link.Type(),
-		})
-	}
 }
 
 func (a Application) GetResourceType(resource core.Construct) string {
