@@ -47,8 +47,8 @@ func (a *AWS) MapResourceDirectlyToConstruct(resource core.Resource, construct c
 }
 
 func (a *AWS) GetResourcesDirectlyTiedToConstruct(construct core.BaseConstruct) ([]core.Resource, bool) {
-	awsResources, found := a.constructIdToResources[construct.Id()]
-	return awsResources, found
+	constructsResources, found := a.constructIdToResources[construct.Id()]
+	return constructsResources, found
 }
 
 func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error {
@@ -94,8 +94,8 @@ func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error 
 
 	// For anything namespaced, we will call the Load Method with the namespace and dag as the argument.
 	// This will allow the resource to be loaded into the graph since its id relies on the namespaced object
-	for namespace, awsResources := range namespacedResources {
-		for _, res := range awsResources {
+	for namespace, namespaceResources := range namespacedResources {
+		for _, res := range namespaceResources {
 			method := reflect.ValueOf(res).MethodByName("Load")
 			if method.IsValid() {
 				var callArgs []reflect.Value
