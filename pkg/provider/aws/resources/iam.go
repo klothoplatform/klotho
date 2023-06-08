@@ -163,7 +163,7 @@ type RoleCreateParams struct {
 
 func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) error {
 	role.Name = roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	role.ConstructsRef.AddAll(params.Refs)
+	role.ConstructsRef = params.Refs.Clone()
 
 	existingRole := dag.GetResource(role.Id())
 	if existingRole != nil {
@@ -231,7 +231,7 @@ type InstanceProfileCreateParams struct {
 
 func (profile *InstanceProfile) Create(dag *core.ResourceGraph, params InstanceProfileCreateParams) error {
 	profile.Name = roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	profile.ConstructsRef = params.Refs
+	profile.ConstructsRef = params.Refs.Clone()
 	existingProfile, found := core.GetResource[*InstanceProfile](dag, profile.Id())
 	if found {
 		existingProfile.ConstructsRef.AddAll(params.Refs)

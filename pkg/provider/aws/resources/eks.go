@@ -156,7 +156,7 @@ func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCrea
 		graphCluster := existingCluster.(*EksCluster)
 		graphCluster.ConstructsRef.AddAll(params.Refs)
 	} else {
-		cluster.ConstructsRef = params.Refs
+		cluster.ConstructsRef = params.Refs.Clone()
 		cluster.Subnets = make([]*Subnet, 4)
 		cluster.SecurityGroups = make([]*SecurityGroup, 1)
 
@@ -241,7 +241,7 @@ func (profile *EksFargateProfile) Create(dag *core.ResourceGraph, params EksFarg
 	if found {
 		existingProfile.ConstructsRef.AddAll(params.Refs)
 	} else {
-		profile.ConstructsRef = params.Refs
+		profile.ConstructsRef = params.Refs.Clone()
 		profile.Subnets = make([]*Subnet, 2)
 		subParams := map[string]any{
 			"Cluster": EksClusterCreateParams{

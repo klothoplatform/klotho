@@ -100,7 +100,7 @@ func (api *RestApi) Create(dag *core.ResourceGraph, params RestApiCreateParams) 
 		name = restApiSanitizer.Apply(params.Name)
 	}
 	api.Name = name
-	api.ConstructsRef = params.Refs
+	api.ConstructsRef = params.Refs.Clone()
 
 	existingApi := dag.GetResource(api.Id())
 	if existingApi != nil {
@@ -156,7 +156,7 @@ func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceC
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Path))
 	resource.Name = name
-	resource.ConstructsRef = params.Refs
+	resource.ConstructsRef = params.Refs.Clone()
 
 	existingResource := dag.GetResource(resource.Id())
 	if existingResource != nil {
@@ -202,7 +202,7 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.Path, params.HttpMethod))
 	integration.Name = name
-	integration.ConstructsRef = params.Refs
+	integration.ConstructsRef = params.Refs.Clone()
 	integration.Route = convertPath(params.Path, false)
 
 	existingResource := dag.GetResource(integration.Id())
@@ -246,7 +246,7 @@ func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateP
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.Path, params.HttpMethod))
 	method.Name = name
-	method.ConstructsRef = params.Refs
+	method.ConstructsRef = params.Refs.Clone()
 	method.HttpMethod = params.HttpMethod
 
 	existingResource := dag.GetResource(method.Id())
@@ -300,7 +300,7 @@ func (deployment *ApiDeployment) Create(dag *core.ResourceGraph, params ApiDeplo
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	deployment.Name = name
-	deployment.ConstructsRef = params.Refs
+	deployment.ConstructsRef = params.Refs.Clone()
 	if deployment.Triggers == nil {
 		deployment.Triggers = make(map[string]string)
 	}
@@ -330,7 +330,7 @@ func (stage *ApiStage) Create(dag *core.ResourceGraph, params ApiStageCreatePara
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	stage.Name = name
-	stage.ConstructsRef = params.Refs
+	stage.ConstructsRef = params.Refs.Clone()
 
 	existingResource := dag.GetResource(stage.Id())
 	if existingResource != nil {

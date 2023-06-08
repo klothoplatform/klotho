@@ -28,7 +28,7 @@ type CloudwatchLogGroupCreateParams struct {
 
 func (logGroup *LogGroup) Create(dag *core.ResourceGraph, params CloudwatchLogGroupCreateParams) error {
 	logGroup.Name = logGroupSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	logGroup.ConstructsRef = params.Refs
+	logGroup.ConstructsRef = params.Refs.Clone()
 
 	existingLogGroup := dag.GetResource(logGroup.Id())
 	if existingLogGroup != nil {

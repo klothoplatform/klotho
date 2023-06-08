@@ -72,7 +72,7 @@ type LoadBalancerCreateParams struct {
 
 func (lb *LoadBalancer) Create(dag *core.ResourceGraph, params LoadBalancerCreateParams) error {
 	lb.Name = loadBalancerSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	lb.ConstructsRef = params.Refs
+	lb.ConstructsRef = params.Refs.Clone()
 
 	existingLb, found := core.GetResource[*LoadBalancer](dag, lb.Id())
 	if found {
@@ -115,7 +115,7 @@ type ListenerCreateParams struct {
 
 func (listener *Listener) Create(dag *core.ResourceGraph, params ListenerCreateParams) error {
 	listener.Name = loadBalancerSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	listener.ConstructsRef = params.Refs
+	listener.ConstructsRef = params.Refs.Clone()
 
 	existingListener, found := core.GetResource[*Listener](dag, listener.Id())
 
@@ -136,17 +136,17 @@ type TargetGroupCreateParams struct {
 	Name    string
 }
 
-func (targetGroup *TargetGroup) Create(dag *core.ResourceGraph, params TargetGroupCreateParams) error {
-	targetGroup.Name = targetGroupSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	targetGroup.ConstructsRef = params.Refs
+func (tg *TargetGroup) Create(dag *core.ResourceGraph, params TargetGroupCreateParams) error {
+	tg.Name = targetGroupSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	tg.ConstructsRef = params.Refs.Clone()
 
-	existingTg, found := core.GetResource[*TargetGroup](dag, targetGroup.Id())
+	existingTg, found := core.GetResource[*TargetGroup](dag, tg.Id())
 	if found {
 		existingTg.ConstructsRef.AddAll(params.Refs)
 		return nil
 	}
 
-	err := dag.CreateDependencies(targetGroup, map[string]any{
+	err := dag.CreateDependencies(tg, map[string]any{
 		"Vpc": params,
 	})
 	return err
@@ -193,15 +193,15 @@ func (tg *TargetGroup) Id() core.ResourceId {
 }
 
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (tg *Listener) KlothoConstructRef() core.AnnotationKeySet {
-	return tg.ConstructsRef
+func (listener *Listener) KlothoConstructRef() core.AnnotationKeySet {
+	return listener.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (tg *Listener) Id() core.ResourceId {
+func (listener *Listener) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     LISTENER_TYPE,
-		Name:     tg.Name,
+		Name:     listener.Name,
 	}
 }

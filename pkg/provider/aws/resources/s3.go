@@ -87,7 +87,7 @@ func (bucket *S3Bucket) Create(dag *core.ResourceGraph, params S3BucketCreatePar
 		return nil
 	}
 
-	bucket.ConstructsRef = params.Refs
+	bucket.ConstructsRef = params.Refs.Clone()
 	dag.AddResource(bucket)
 	return nil
 }
@@ -117,7 +117,7 @@ func (object *S3Object) Create(dag *core.ResourceGraph, params S3ObjectCreatePar
 	if dag.GetResource(object.Id()) != nil {
 		return fmt.Errorf(`S3Object with name %s already exists`, object.Name)
 	}
-	object.ConstructsRef = params.Refs
+	object.ConstructsRef = params.Refs.Clone()
 	object.Key = params.Key
 	object.FilePath = params.FilePath
 	return dag.CreateDependencies(object, map[string]any{
@@ -151,7 +151,7 @@ type S3BucketPolicyCreateParams struct {
 
 func (policy *S3BucketPolicy) Create(dag *core.ResourceGraph, params S3BucketPolicyCreateParams) error {
 	policy.Name = objectSanitizer.Apply(fmt.Sprintf("%s-%s", params.BucketName, params.Name))
-	policy.ConstructsRef = params.Refs
+	policy.ConstructsRef = params.Refs.Clone()
 	if dag.GetResource(policy.Id()) != nil {
 		return errors.Errorf(`a bucket policy named "%s" already exists (internal error)`, policy.Id().String())
 	}

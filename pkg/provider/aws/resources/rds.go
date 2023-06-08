@@ -116,7 +116,7 @@ func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceC
 
 	name := rdsInstanceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	instance.Name = name
-	instance.ConstructsRef = params.Refs
+	instance.ConstructsRef = params.Refs.Clone()
 
 	existingInstance := dag.GetResource(instance.Id())
 	if existingInstance != nil {
@@ -170,7 +170,7 @@ type RdsSubnetGroupCreateParams struct {
 
 func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSubnetGroupCreateParams) error {
 	subnetGroup.Name = rdsSubnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	subnetGroup.ConstructsRef = params.Refs
+	subnetGroup.ConstructsRef = params.Refs.Clone()
 
 	existingSubnetGroup := dag.GetResource(subnetGroup.Id())
 	if existingSubnetGroup != nil {
@@ -210,7 +210,7 @@ type RdsProxyCreateParams struct {
 
 func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreateParams) error {
 	proxy.Name = rdsSubnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	proxy.ConstructsRef = params.Refs
+	proxy.ConstructsRef = params.Refs.Clone()
 
 	existingProxy := dag.GetResource(proxy.Id())
 	if existingProxy != nil {
@@ -278,7 +278,7 @@ type RdsProxyTargetGroupCreateParams struct {
 func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTargetGroupCreateParams) error {
 
 	tg.Name = rdsProxySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	tg.ConstructsRef = params.Refs
+	tg.ConstructsRef = params.Refs.Clone()
 	existingTG := dag.GetResource(tg.Id())
 	if existingTG != nil {
 		graphTG := existingTG.(*RdsProxyTargetGroup)

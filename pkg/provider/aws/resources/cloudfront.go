@@ -91,7 +91,7 @@ type OriginAccessIdentityCreateParams struct {
 
 func (oai *OriginAccessIdentity) Create(dag *core.ResourceGraph, params OriginAccessIdentityCreateParams) error {
 	oai.Name = params.Name
-	oai.ConstructsRef = params.Refs
+	oai.ConstructsRef = params.Refs.Clone()
 	if dag.GetResource(oai.Id()) != nil {
 		return fmt.Errorf(`an Origin Access Identity with name "%s" already exists`, oai.Name)
 	}
@@ -107,7 +107,7 @@ type CloudfrontDistributionCreateParams struct {
 
 func (distro *CloudfrontDistribution) Create(dag *core.ResourceGraph, params CloudfrontDistributionCreateParams) error {
 	distro.Name = cloudfrontDistributionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.CdnId))
-	distro.ConstructsRef = params.Refs
+	distro.ConstructsRef = params.Refs.Clone()
 
 	if dag.GetResource(distro.Id()) != nil {
 		return errors.Errorf(`duplicate Cloudfront distribution "%s" (internal error)`, distro.Id())

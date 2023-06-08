@@ -96,7 +96,7 @@ type VpcCreateParams struct {
 func (vpc *Vpc) Create(dag *core.ResourceGraph, params VpcCreateParams) error {
 
 	vpc.Name = aws.VpcSanitizer.Apply(params.AppName)
-	vpc.ConstructsRef = params.Refs
+	vpc.ConstructsRef = params.Refs.Clone()
 
 	existingVpc := dag.GetResource(vpc.Id())
 	if existingVpc != nil {
@@ -127,7 +127,7 @@ type EipCreateParams struct {
 
 func (eip *ElasticIp) Create(dag *core.ResourceGraph, params EipCreateParams) error {
 	eip.Name = elasticIpSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.IpName))
-	eip.ConstructsRef = params.Refs
+	eip.ConstructsRef = params.Refs.Clone()
 	existingEip := dag.GetResource(eip.Id())
 	if existingEip != nil {
 		graphEip := existingEip.(*ElasticIp)
@@ -146,7 +146,7 @@ type IgwCreateParams struct {
 func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreateParams) error {
 
 	igw.Name = igwSanitizer.Apply(fmt.Sprintf("%s-igw", params.AppName))
-	igw.ConstructsRef = params.Refs
+	igw.ConstructsRef = params.Refs.Clone()
 
 	existingIgw := dag.GetResource(igw.Id())
 
@@ -173,7 +173,7 @@ type NatCreateParams struct {
 func (nat *NatGateway) Create(dag *core.ResourceGraph, params NatCreateParams) error {
 
 	nat.Name = natGatewaySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.AZ))
-	nat.ConstructsRef = params.Refs
+	nat.ConstructsRef = params.Refs.Clone()
 
 	existingNat := dag.GetResource(nat.Id())
 	if existingNat != nil {
@@ -208,7 +208,7 @@ type SubnetCreateParams struct {
 
 func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams) error {
 	subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", params.AppName, params.Type, params.AZ))
-	subnet.ConstructsRef = params.Refs
+	subnet.ConstructsRef = params.Refs.Clone()
 	subnet.AvailabilityZone = core.IaCValue{Resource: NewAvailabilityZones(), Property: params.AZ}
 	subnet.Type = params.Type
 
@@ -298,8 +298,8 @@ type RouteTableCreateParams struct {
 }
 
 func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreateParams) error {
-
 	rt.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	rt.ConstructsRef = params.Refs.Clone()
 
 	subParams := map[string]any{
 		"Vpc": VpcCreateParams{
