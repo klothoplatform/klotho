@@ -1,7 +1,6 @@
 package knowledgebase
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -118,7 +117,6 @@ func Test_FindPaths(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			result := TestKnowledgeBase.FindPaths(reflect.TypeOf(tt.source), reflect.TypeOf(tt.dest))
-			fmt.Println(result)
 			assert.ElementsMatch(tt.want, result)
 		})
 	}

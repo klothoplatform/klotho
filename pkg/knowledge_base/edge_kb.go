@@ -134,11 +134,19 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 			result = append(result, stack)
 		}
 	} else {
+		// When we are not at the destination we want to recursively call findPaths on all edges which have the source as the current node
+		// This is checking all edges which have a direction of From -> To
 		for _, e := range kb.GetEdgesWithSource(source) {
-			if e.Source == source && !visited[e.Destination] && kb.isValidForPath(e, dest) {
+			det, _ := kb.GetEdgeDetails(e.Source, e.Destination)
+			if !det.ReverseDirection && e.Source == source && !visited[e.Destination] && kb.isValidForPath(e, dest) {
 				result = append(result, kb.findPaths(e.Destination, dest, append(stack, e), visited)...)
 			}
 		}
+		// When we are not at the destination we want to recursively call findPaths on all edges which have the target as the current node
+		// This is checking all edges which have a path direction of To -> From, which is opposite of their dependencies on each other
+		//
+		// An example of this scenario is in the AWS knowledge base where RdsProxyTarget -> RdsProxy  and RdsProxyTarget -> RdsInstance are valid edges
+		// However we would expect the path to be RdsProxy -> RdsProxyTarget -> RdsInstance, so to satisfy understanding the path to connect other nodes, we must understand the direction of both the IaC dependency and data flow dependency
 		for _, e := range kb.GetEdgesWithTarget(source) {
 			det, _ := kb.GetEdgeDetails(e.Source, e.Destination)
 			if det.ReverseDirection && e.Destination == source && !visited[e.Source] && kb.isValidForPath(e, dest) {
