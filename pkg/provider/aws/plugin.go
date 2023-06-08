@@ -166,6 +166,18 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 				merr.Append(err)
 				continue
 			}
+		case *resources.EcsService:
+			configuration, err = a.getEcsServiceConfiguration(result, res.ConstructsRef)
+			if err != nil {
+				merr.Append(err)
+				continue
+			}
+		case *resources.EcsTaskDefinition:
+			configuration, err = a.getEcsTaskDefinitionConfiguration(result, res.ConstructsRef)
+			if err != nil {
+				merr.Append(err)
+				continue
+			}
 		case *resources.RdsInstance:
 			configuration, err = a.getRdsConfiguration(result, dag, res.ConstructsRef)
 			if err != nil {

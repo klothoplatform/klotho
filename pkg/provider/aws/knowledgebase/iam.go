@@ -48,6 +48,13 @@ var IamKB = knowledgebase.Build(
 			return nil
 		},
 	},
+	knowledgebase.EdgeBuilder[*resources.EcsTaskDefinition, *resources.IamRole]{
+		Configure: func(taskDef *resources.EcsTaskDefinition, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role.AssumeRolePolicyDoc = resources.ECS_ASSUMER_ROLE_POLICY
+			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"})
+			return nil
+		},
+	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.DynamodbTable]{
 		Configure: func(role *resources.IamRole, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			actions := []string{"dynamodb:*"}

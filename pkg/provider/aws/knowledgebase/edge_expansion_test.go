@@ -260,6 +260,7 @@ func Test_ExpandEdges(t *testing.T) {
 					{Source: "aws:load_balancer:my-app-tg", Destination: "aws:subnet_private:my_app:my_app_private0"},
 					{Source: "aws:load_balancer:my-app-tg", Destination: "aws:subnet_private:my_app:my_app_private1"},
 					{Source: "aws:load_balancer_listener:my-app-tg", Destination: "aws:load_balancer:my-app-tg"},
+					{Source: "aws:load_balancer_listener:my-app-tg", Destination: "aws:target_group:tg"},
 					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_0"},
 					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public0"},
 					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_1"},
