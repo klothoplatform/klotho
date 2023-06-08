@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -53,24 +54,42 @@ func (a *AWS) GetResourcesDirectlyTiedToConstruct(construct core.BaseConstruct) 
 func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error {
 	typeToResource := make(map[string]core.Resource)
 	namespacedResources := make(map[string][]core.Resource)
+	createdResources := make(map[core.ResourceId]core.Resource)
 	for _, res := range resources.ListAll() {
 		typeToResource[res.Id().Type] = res
 	}
 	// Subnets are special because they have a type that is not the same as their resource type since it uses a characteristic of the subnet
 	typeToResource["subnet_private"] = &resources.Subnet{}
 	typeToResource["subnet_public"] = &resources.Subnet{}
-
+	var joinedErr error
 	for _, node := range graph.Resources {
 		res, ok := typeToResource[node.Type]
 		if !ok {
-			return fmt.Errorf("unable to find resource of type %s", node.Type)
-		}
-		reflect.ValueOf(res).Elem().FieldByName("Name").SetString(node.Name)
-		if node.Namespace != "" {
-			namespacedResources[node.Namespace] = append(namespacedResources[node.Namespace], res)
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to find resource of type %s", node.Type))
 			continue
 		}
-		dag.AddConstruct(res)
+		newResource := reflect.New(reflect.TypeOf(res).Elem()).Interface()
+		resource, ok := newResource.(core.Resource)
+		if !ok {
+			errors.Join(joinedErr, fmt.Errorf("item %s of type %T is not of type core.Resource", node, newResource))
+			continue
+		}
+		reflect.ValueOf(resource).Elem().FieldByName("Name").SetString(node.Name)
+		if subnet, ok := resource.(*resources.Subnet); ok {
+			if node.Type == "subnet_public" {
+				subnet.Type = resources.PublicSubnet
+			} else if node.Type == "subnet_private" {
+				subnet.Type = resources.PrivateSubnet
+			}
+		}
+		if node.Namespace != "" {
+			namespacedResources[node.Namespace] = append(namespacedResources[node.Namespace], resource)
+			createdResources[node] = resource
+			continue
+		}
+
+		dag.AddConstruct(resource)
+		createdResources[node] = resource
 	}
 
 	// For anything namespaced, we will call the Load Method with the namespace and dag as the argument.
@@ -83,14 +102,14 @@ func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error 
 				callArgs = append(callArgs, reflect.ValueOf(namespace))
 				callArgs = append(callArgs, reflect.ValueOf(dag))
 				eval := method.Call(callArgs)
-				if eval[0].IsNil() {
-					return nil
-				} else {
+				if !eval[0].IsNil() {
 					err, ok := eval[0].Interface().(error)
 					if !ok {
-						return fmt.Errorf("return type should be an error")
+						joinedErr = errors.Join(joinedErr, fmt.Errorf("return type should be an error"))
+						continue
 					}
-					return err
+					joinedErr = errors.Join(joinedErr, err)
+					continue
 				}
 			}
 			dag.AddConstruct(res)
@@ -98,7 +117,17 @@ func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error 
 	}
 
 	for _, edge := range graph.Edges {
-		dag.AddDependency(edge.Source, edge.Destination)
+		src, found := createdResources[edge.Source]
+		if !found {
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("could not find created resource for %s", edge.Source))
+			continue
+		}
+		dst, found := createdResources[edge.Destination]
+		if !found {
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("could not find created resource for %s", edge.Destination))
+			continue
+		}
+		dag.AddDependency(src.Id(), dst.Id())
 	}
-	return nil
+	return joinedErr
 }

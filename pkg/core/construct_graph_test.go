@@ -3,6 +3,7 @@ package core
 import (
 	"testing"
 
+	dgraph "github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/stretchr/testify/assert"
@@ -294,6 +295,77 @@ func Test_GetResourcesOfCapability(t *testing.T) {
 		})
 	}
 
+}
+
+func Test_LoadConstructsIntoGraph(t *testing.T) {
+	type result struct {
+		nodes []BaseConstruct
+		edges []graph.Edge[BaseConstruct]
+	}
+	tests := []struct {
+		name       string
+		constructs OutputGraph
+		want       result
+	}{
+		{
+			name: "single construct",
+			constructs: OutputGraph{
+				Resources: []ResourceId{
+					{Provider: AbstractConstructProvider, Type: "execution_unit", Name: "test_eu"},
+					{Provider: AbstractConstructProvider, Type: "static_unit", Name: "test_static"},
+					{Provider: AbstractConstructProvider, Type: "expose", Name: "test_expose"},
+					{Provider: AbstractConstructProvider, Type: "orm", Name: "test_orm"},
+					{Provider: AbstractConstructProvider, Type: "kv", Name: "test_kv"},
+					{Provider: AbstractConstructProvider, Type: "fs", Name: "test_fs"},
+					{Provider: AbstractConstructProvider, Type: "secret", Name: "test_secret"},
+					{Provider: AbstractConstructProvider, Type: "redis_node", Name: "test_redis"},
+				},
+				Edges: []OutputEdge{
+					{
+						Source:      ResourceId{Provider: AbstractConstructProvider, Type: "execution_unit", Name: "test_eu"},
+						Destination: ResourceId{Provider: AbstractConstructProvider, Type: "redis_node", Name: "test_redis"},
+					},
+					{
+						Source:      ResourceId{Provider: AbstractConstructProvider, Type: "expose", Name: "test_expose"},
+						Destination: ResourceId{Provider: AbstractConstructProvider, Type: "execution_unit", Name: "test_eu"},
+					},
+				},
+			},
+			want: result{
+				nodes: []BaseConstruct{
+					&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test_eu", Capability: annotation.ExecutionUnitCapability}},
+					&StaticUnit{AnnotationKey: AnnotationKey{ID: "test_static", Capability: annotation.StaticUnitCapability}},
+					&Gateway{AnnotationKey: AnnotationKey{ID: "test_expose", Capability: annotation.ExposeCapability}},
+					&Orm{AnnotationKey: AnnotationKey{ID: "test_orm", Capability: annotation.PersistCapability}},
+					&Kv{AnnotationKey: AnnotationKey{ID: "test_kv", Capability: annotation.PersistCapability}},
+					&Fs{AnnotationKey: AnnotationKey{ID: "test_fs", Capability: annotation.PersistCapability}},
+					&RedisNode{AnnotationKey: AnnotationKey{ID: "test_redis", Capability: annotation.PersistCapability}},
+					&Config{AnnotationKey: AnnotationKey{ID: "test_secret", Capability: annotation.ConfigCapability}, Secret: true},
+				},
+				edges: []graph.Edge[BaseConstruct]{
+					{
+						Source:      &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test_eu", Capability: annotation.ExecutionUnitCapability}},
+						Destination: &RedisNode{AnnotationKey: AnnotationKey{ID: "test_redis", Capability: annotation.PersistCapability}},
+						Properties:  dgraph.EdgeProperties{Attributes: map[string]string{}},
+					},
+					{
+						Source:      &Gateway{AnnotationKey: AnnotationKey{ID: "test_expose", Capability: annotation.ExposeCapability}},
+						Destination: &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test_eu", Capability: annotation.ExecutionUnitCapability}},
+						Properties:  dgraph.EdgeProperties{Attributes: map[string]string{}},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			graph := NewConstructGraph()
+			LoadConstructsIntoGraph(tt.constructs, graph)
+			assert.ElementsMatch(tt.want.nodes, ListConstructs[BaseConstruct](graph))
+			assert.ElementsMatch(tt.want.edges, graph.ListDependencies())
+		})
+	}
 }
 
 func construct2Hash(c BaseConstruct) string {

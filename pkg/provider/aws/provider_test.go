@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,6 +49,56 @@ func TestAwsMapResourceDirectlyToConstruct(t *testing.T) {
 			[]core.Resource{dummyResource("res_a"), dummyResource("res_b"), dummyResource("res_c")},
 			resList)
 	})
+}
+
+func Test_LoadGraph(t *testing.T) {
+	tests := []struct {
+		name       string
+		constructs core.OutputGraph
+		want       coretesting.ResourcesExpectation
+	}{
+		{
+			name: "single construct",
+			constructs: core.OutputGraph{
+				Resources: []core.ResourceId{
+					{Provider: "aws", Type: "vpc", Name: "vpc"},
+					{Provider: "aws", Type: "subnet_private", Name: "spriv", Namespace: "vpc"},
+					{Provider: "aws", Type: "subnet_public", Name: "spub", Namespace: "vpc"},
+					{Provider: "aws", Type: "lambda_function", Name: "test_func"},
+					{Provider: "aws", Type: "lambda_function", Name: "test_func2"},
+				},
+				Edges: []core.OutputEdge{
+					{
+						Source:      core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "test_func"},
+						Destination: core.ResourceId{Provider: "aws", Type: "subnet_private", Name: "spriv", Namespace: "vpc"},
+					},
+				},
+			},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:subnet_private:vpc:spriv",
+					"aws:subnet_public:vpc:spub",
+					"aws:lambda_function:test_func",
+					"aws:lambda_function:test_func2",
+					"aws:vpc:vpc",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:lambda_function:test_func", Destination: "aws:subnet_private:vpc:spriv"},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			graph := core.NewConstructGraph()
+			aws := &AWS{}
+			err := aws.LoadGraph(tt.constructs, graph)
+			if !assert.NoError(t, err) {
+				return
+			}
+			tt.want.AssertConstructs(t, graph)
+		})
+	}
 }
 
 type (

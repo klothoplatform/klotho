@@ -146,6 +146,11 @@ func (c *Compiler) LoadConstructGraphFromFile(path string) error {
 		return err
 	}
 
+	err = core.LoadConstructsIntoGraph(input, c.Document.Constructs)
+	if err != nil {
+		return err
+	}
+
 	c.AnalysisAndTransformationPlugins = nil
 	for _, provider := range c.ProviderPlugins {
 		err := provider.LoadGraph(input, c.Document.Constructs)

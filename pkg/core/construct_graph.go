@@ -137,38 +137,42 @@ func (cg *ConstructGraph) FindUpstreamGateways(unit *ExecutionUnit) []*Gateway {
 func LoadConstructsIntoGraph(input OutputGraph, graph *ConstructGraph) error {
 
 	for _, res := range input.Resources {
-		switch res.Type {
-		case "execution_unit":
-			unit := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.ExecutionUnitCapability}}
-			graph.AddConstruct(unit)
-		case "static_unit":
-			unit := &StaticUnit{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.StaticUnitCapability}}
-			graph.AddConstruct(unit)
-		case "orm":
-			unit := &Orm{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
-			graph.AddConstruct(unit)
-		case "kv":
-			unit := &Kv{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
-			graph.AddConstruct(unit)
-		case "redis_node":
-			unit := &RedisNode{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
-			graph.AddConstruct(unit)
-		case "fs":
-			unit := &Fs{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
-			graph.AddConstruct(unit)
-		case "secret":
-			unit := &Config{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}, Secret: true}
-			graph.AddConstruct(unit)
-		case "expose":
-			unit := &Gateway{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.ExposeCapability}}
-			graph.AddConstruct(unit)
-
-		}
+		graph.AddConstruct(getConstructFromInputId(res))
 	}
 
 	for _, edge := range input.Edges {
-		graph.AddDependency(edge.Source, edge.Destination)
+		graph.AddDependency(getConstructFromInputId(edge.Source).Id(), getConstructFromInputId(edge.Destination).Id())
 	}
 
+	return nil
+}
+
+func getConstructFromInputId(res ResourceId) Construct {
+	switch res.Type {
+	case "execution_unit":
+		unit := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.ExecutionUnitCapability}}
+		return unit
+	case "static_unit":
+		unit := &StaticUnit{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.StaticUnitCapability}}
+		return unit
+	case "orm":
+		unit := &Orm{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
+		return unit
+	case "kv":
+		unit := &Kv{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
+		return unit
+	case "redis_node":
+		unit := &RedisNode{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
+		return unit
+	case "fs":
+		unit := &Fs{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
+		return unit
+	case "secret":
+		unit := &Config{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.ConfigCapability}, Secret: true}
+		return unit
+	case "expose":
+		unit := &Gateway{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.ExposeCapability}}
+		return unit
+	}
 	return nil
 }
