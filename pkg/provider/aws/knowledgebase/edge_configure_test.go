@@ -36,26 +36,9 @@ func Test_ConfigureEdge(t *testing.T) {
 				},
 			},
 			want: []core.Resource{&resources.LambdaFunction{
-				Name:    "lambda",
-				Subnets: []*resources.Subnet{{Name: "sub1"}},
-				Role: &resources.IamRole{
-					InlinePolicies: []*resources.IamInlinePolicy{
-						{
-							Name:          "rds-connectionpolicy",
-							ConstructsRef: core.AnnotationKeySetOf(),
-							Policy: &resources.PolicyDocument{
-								Version: "2012-10-17",
-								Statement: []resources.StatementEntry{
-									{
-										Effect:   "Allow",
-										Action:   []string{"rds-db:connect"},
-										Resource: []core.IaCValue{{Resource: &resources.RdsInstance{Name: "rds"}, Property: resources.RDS_CONNECTION_ARN_IAC_VALUE}},
-									},
-								},
-							},
-						},
-					},
-				},
+				Name:                 "lambda",
+				Subnets:              []*resources.Subnet{{Name: "sub1"}},
+				Role:                 &resources.IamRole{},
 				EnvironmentVariables: resources.EnvironmentVariables{"TEST_PERSIST_ORM_CONNECTION": core.IaCValue{Resource: &resources.RdsInstance{Name: "rds"}, Property: string(core.CONNECTION_STRING)}},
 			},
 				&resources.RdsInstance{Name: "rds"},
@@ -123,24 +106,7 @@ func Test_ConfigureEdge(t *testing.T) {
 				&resources.LambdaFunction{
 					Name:    "lambda",
 					Subnets: []*resources.Subnet{{Name: "sub1"}},
-					Role: &resources.IamRole{
-						InlinePolicies: []*resources.IamInlinePolicy{
-							{
-								Name:          "instance-connectionpolicy",
-								ConstructsRef: core.AnnotationKeySetOf(),
-								Policy: &resources.PolicyDocument{
-									Version: "2012-10-17",
-									Statement: []resources.StatementEntry{
-										{
-											Effect:   "Allow",
-											Action:   []string{"rds-db:connect"},
-											Resource: []core.IaCValue{{Resource: &resources.RdsInstance{Name: "instance", CredentialsPath: "rds", CredentialsFile: &core.FileRef{FPath: "rds"}}, Property: resources.RDS_CONNECTION_ARN_IAC_VALUE}},
-										},
-									},
-								},
-							},
-						},
-					},
+					Role:    &resources.IamRole{},
 					EnvironmentVariables: resources.EnvironmentVariables{"TEST_PERSIST_ORM_CONNECTION": core.IaCValue{
 						Resource: &resources.RdsProxy{
 							Name:  "rds",

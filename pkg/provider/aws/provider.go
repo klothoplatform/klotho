@@ -6,13 +6,11 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
 type AWS struct {
 	Config                 *config.Application
 	constructIdToResources map[core.ResourceId][]core.Resource
-	PolicyGenerator        *resources.PolicyGenerator
 	KnowledgeBase          knowledgebase.EdgeKB
 }
 

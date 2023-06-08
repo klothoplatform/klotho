@@ -664,6 +664,9 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf(`%s.nodeGroupName`, tc.getVarName(resource)), nil
 	case resources.API_STAGE_PATH_VALUE:
 		return fmt.Sprintf("pulumi.interpolate`/${%s.stageName}`", tc.getVarName(resource)), nil
+	case resources.TARGET_GROUP_ARN_IAC_VALUE:
+		return fmt.Sprintf("%s.targetGroupArn", tc.getVarName(resource)), nil
+
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property %T.%s", resource, property)
@@ -799,6 +802,8 @@ func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource core.Resource
 		errs.Append(tc.addIngressRuleToCluster(out, resource))
 	case *resources.RouteTable:
 		errs.Append(tc.associateRouteTable(out, resource))
+	case *resources.TargetGroup:
+		errs.Append(tc.attachToTargetGroup(out, resource))
 	}
 	return errs.ErrOrNil()
 }
@@ -872,6 +877,30 @@ func (tc TemplatesCompiler) associateRouteTable(out io.Writer, rt *resources.Rou
 			_, err := out.Write([]byte("\n\n"))
 			errs.Append(err)
 		}
+	}
+
+	return errs.ErrOrNil()
+}
+
+func (tc TemplatesCompiler) attachToTargetGroup(out io.Writer, tg *resources.TargetGroup) error {
+	var errs multierr.Error
+
+	_, err := out.Write([]byte("\n\n"))
+	errs.Append(err)
+
+	for _, target := range tg.Targets {
+
+		attachment := &TargetGroupAttachment{
+			Name:           target.Id.Resource.Id().String(),
+			Port:           target.Port,
+			TargetGroupArn: core.IaCValue{Resource: tg, Property: resources.ARN_IAC_VALUE},
+			TargetId:       core.IaCValue{Resource: target.Id.Resource, Property: resources.ID_IAC_VALUE},
+		}
+		errs.Append(tc.renderResource(out, attachment))
+
+		_, err := out.Write([]byte("\n\n"))
+		errs.Append(err)
+
 	}
 
 	return errs.ErrOrNil()

@@ -2,10 +2,11 @@ package knowledgebase
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
-	"strings"
 )
 
 var RdsKB = knowledgebase.Build(
@@ -24,6 +25,11 @@ var RdsKB = knowledgebase.Build(
 				dag.AddDependency(targetGroup, instance)
 			}
 			targetGroup.ConstructsRef.AddAll(data.Source.KlothoConstructRef())
+			for _, res := range dag.GetUpstreamResources(data.Source) {
+				if role, ok := res.(*resources.IamRole); ok {
+					dag.AddDependency(role, instance)
+				}
+			}
 			return nil
 		},
 		Configure: func(targetGroup *resources.RdsProxyTargetGroup, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -45,6 +51,7 @@ var RdsKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.RdsProxyTargetGroup, *resources.RdsProxy]{
+		ReverseDirection: true,
 		Expand: func(targetGroup *resources.RdsProxyTargetGroup, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			var err error
 			destination := data.Destination.(*resources.RdsInstance)

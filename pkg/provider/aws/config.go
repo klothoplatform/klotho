@@ -23,6 +23,7 @@ func (a *AWS) Validate(config *config.Application, constructGraph *core.Construc
 const (
 	Ecs                    = "ecs"
 	Lambda                 = "lambda"
+	Ec2Instance            = "ec2"
 	Rds_postgres           = "rds_postgres"
 	Secrets_manager        = "secrets_manager"
 	S3                     = "s3"
@@ -126,7 +127,7 @@ func (a *AWS) GetDefaultConfig() config.Defaults {
 func (a *AWS) GetKindTypeMappings(construct core.Construct) []string {
 	switch construct.(type) {
 	case *core.ExecutionUnit:
-		return []string{kubernetes.KubernetesType, Ecs, Lambda}
+		return []string{kubernetes.KubernetesType, Ecs, Lambda, Ec2Instance}
 	case *core.Gateway:
 		return []string{string(ApiGateway), string(Alb)}
 	case *core.StaticUnit:

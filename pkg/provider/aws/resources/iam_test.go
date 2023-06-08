@@ -227,128 +227,51 @@ func Test_OidcCreate(t *testing.T) {
 	}
 }
 
-func Test_AddAllowPolicyToUnit(t *testing.T) {
-	bucket := NewS3Bucket(&core.Fs{}, "test-app")
-	unitId := "testUnit"
-
-	cases := []struct {
-		name             string
-		existingPolicies map[string][]*IamPolicy
-		actions          []string
-		resource         []core.IaCValue
-		want             StatementEntry
-	}{
+func Test_InstanceProfileCreate(t *testing.T) {
+	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
+	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	cases := []coretesting.CreateCase[InstanceProfileCreateParams, *InstanceProfile]{
 		{
-			name:             "Add policy, none exists",
-			existingPolicies: map[string][]*IamPolicy{},
-			actions:          []string{"s3:*"},
-			resource:         []core.IaCValue{{Resource: bucket, Property: ARN_IAC_VALUE}, {Resource: bucket, Property: ALL_BUCKET_DIRECTORY_IAC_VALUE}},
-			want: StatementEntry{
-				Effect:   "Allow",
-				Action:   []string{"s3:*"},
-				Resource: []core.IaCValue{{Resource: bucket, Property: ARN_IAC_VALUE}, {Resource: bucket, Property: ALL_BUCKET_DIRECTORY_IAC_VALUE}},
+			Name: "nil profile",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:iam_instance_profile:my-app-profile",
+					"aws:iam_role:my-app-profile",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:iam_instance_profile:my-app-profile", Destination: "aws:iam_role:my-app-profile"},
+				},
+			},
+			Check: func(assert *assert.Assertions, profile *InstanceProfile) {
+				assert.Equal(profile.Name, "my-app-profile")
+				assert.NotNil(profile.Role)
+				assert.Equal(profile.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
 			},
 		},
 		{
-			name: "Add policy, one already exists",
-			existingPolicies: map[string][]*IamPolicy{
-				unitId: {
-					{
-						Name: "test_policy",
-						Policy: &PolicyDocument{
-							Version: VERSION,
-							Statement: []StatementEntry{
-								{
-									Effect:   "Allow",
-									Action:   []string{"dynamodb:*"},
-									Resource: []core.IaCValue{{Resource: bucket, Property: ARN_IAC_VALUE}, {Resource: bucket, Property: ALL_BUCKET_DIRECTORY_IAC_VALUE}},
-								},
-							},
-						},
-					},
+			Name:     "existing profile",
+			Existing: &InstanceProfile{Name: "my-app-profile", ConstructsRef: initialRefs},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:iam_instance_profile:my-app-profile",
 				},
+				Deps: []coretesting.StringDep{},
 			},
-			actions:  []string{"s3:*"},
-			resource: []core.IaCValue{{Resource: bucket, Property: ARN_IAC_VALUE}, {Resource: bucket, Property: ALL_BUCKET_DIRECTORY_IAC_VALUE}},
-			want: StatementEntry{
-				Effect:   "Allow",
-				Action:   []string{"dynamodb:*"},
-				Resource: []core.IaCValue{{Resource: bucket, Property: ARN_IAC_VALUE}, {Resource: bucket, Property: ALL_BUCKET_DIRECTORY_IAC_VALUE}},
+			Check: func(assert *assert.Assertions, profile *InstanceProfile) {
+				assert.Equal(profile.Name, "my-app-profile")
+				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(profile.ConstructsRef, expect)
 			},
 		},
 	}
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			p := PolicyGenerator{
-				unitsPolicies: tt.existingPolicies,
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = InstanceProfileCreateParams{
+				AppName: "my-app",
+				Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
+				Name:    "profile",
 			}
-
-			policy := &IamPolicy{
-				Name: "test_policy",
-				Policy: &PolicyDocument{
-					Version: VERSION,
-					Statement: []StatementEntry{
-						{
-							Action:   tt.actions,
-							Effect:   "Allow",
-							Resource: tt.resource,
-						},
-					},
-				},
-			}
-
-			p.AddAllowPolicyToUnit(unitId, policy)
-			policies := p.unitsPolicies[unitId]
-			assert.Len(policies, 1)
-			assert.Contains(policies[0].Policy.Statement, tt.want)
+			tt.Run(t)
 		})
-
-	}
-}
-
-func Test_AddUnitRole(t *testing.T) {
-	unitId := "testUnit"
-	cases := []struct {
-		name          string
-		existingRoles map[string]*IamRole
-		role          *IamRole
-		wantErr       bool
-	}{
-		{
-			name:          "Add role, none exists",
-			existingRoles: map[string]*IamRole{},
-			role:          NewIamRole("test-app", "test-role", core.AnnotationKeySetOf(), nil),
-		},
-		{
-			name: "Add role, one already exists",
-			existingRoles: map[string]*IamRole{
-				unitId: NewIamRole("test-app", "diff-role", core.AnnotationKeySetOf(), nil),
-			},
-			role:    NewIamRole("test-app", "test-role", core.AnnotationKeySetOf(), nil),
-			wantErr: true,
-		},
-	}
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			p := PolicyGenerator{
-				unitToRole: tt.existingRoles,
-			}
-
-			err := p.AddUnitRole(unitId, tt.role)
-			if tt.wantErr {
-				assert.Error(err)
-				return
-			}
-			if !assert.NoError(err) {
-				return
-			}
-			role := p.unitToRole[unitId]
-			assert.Equal(role, tt.role)
-		})
-
 	}
 }

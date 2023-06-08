@@ -11,6 +11,7 @@ type (
 		Expand            typedEdgeFunc[S, D]
 		Configure         typedEdgeFunc[S, D]
 		ValidDestinations []core.Resource
+		ReverseDirection  bool
 	}
 
 	typedEdgeFunc[S core.Resource, D core.Resource] func(source S, destination D, dag *core.ResourceGraph, data EdgeData) error
@@ -56,6 +57,7 @@ func (e EdgeBuilder[S, D]) Details() EdgeDetails {
 			return nil
 		},
 		ValidDestinations: destTypes,
+		ReverseDirection:  e.ReverseDirection,
 	}
 }
 

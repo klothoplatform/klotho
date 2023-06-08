@@ -37,6 +37,7 @@ func TestKnownTemplates(t *testing.T) {
 		&KubernetesProvider{},
 		&RouteTableAssociation{},
 		&SecurityGroupRule{},
+		&TargetGroupAttachment{},
 	)
 
 	tp := standardTemplatesProvider()

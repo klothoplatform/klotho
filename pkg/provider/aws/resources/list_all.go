@@ -9,6 +9,7 @@ func ListAll() []core.Resource {
 	return []core.Resource{
 		&AccountId{},
 		&ApiDeployment{},
+		&AMI{},
 		&ApiIntegration{},
 		&ApiMethod{},
 		&ApiResource{},
@@ -18,6 +19,7 @@ func ListAll() []core.Resource {
 		&DynamodbTable{},
 		&EcrImage{},
 		&EcrRepository{},
+		&Ec2Instance{},
 		&EksAddon{},
 		&EksCluster{},
 		&EksFargateProfile{},
@@ -27,6 +29,7 @@ func ListAll() []core.Resource {
 		&ElasticacheSubnetgroup{},
 		&IamPolicy{},
 		&IamRole{},
+		&InstanceProfile{},
 		&InternetGateway{},
 		&KinesisStreamConsumer{},
 		&KinesisStream{},

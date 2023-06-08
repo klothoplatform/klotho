@@ -17,6 +17,7 @@ const (
 	TARGET_GROUP_TYPE             = "target_group"
 	LISTENER_TYPE                 = "load_balancer_listener"
 	NLB_INTEGRATION_URI_IAC_VALUE = "nlb_uri"
+	TARGET_GROUP_ARN_IAC_VALUE    = "target_group_arn"
 )
 
 type (
@@ -39,7 +40,13 @@ type (
 		Protocol      string
 		Vpc           *Vpc
 		TargetType    string
+		Targets       []*Target
 		Tags          map[string]string
+	}
+
+	Target struct {
+		Id   core.IaCValue
+		Port int
 	}
 
 	Listener struct {
@@ -159,14 +166,15 @@ func (lb *LoadBalancer) Id() core.ResourceId {
 	}
 }
 
-func NewTargetGroup(appName string, tgName string, refs core.AnnotationKeySet, port int, protocol string, vpc *Vpc, targetType string) *TargetGroup {
-	return &TargetGroup{
-		Name:          targetGroupSanitizer.Apply(fmt.Sprintf("%s-%s", appName, tgName)),
-		ConstructsRef: refs,
-		Port:          port,
-		Protocol:      protocol,
-		Vpc:           vpc,
-		TargetType:    targetType,
+func (tg *TargetGroup) AddTarget(target *Target) {
+	addTarget := true
+	for _, t := range tg.Targets {
+		if t.Id.Resource == target.Id.Resource {
+			addTarget = false
+		}
+	}
+	if addTarget {
+		tg.Targets = append(tg.Targets, target)
 	}
 }
 
@@ -181,17 +189,6 @@ func (tg *TargetGroup) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     TARGET_GROUP_TYPE,
 		Name:     tg.Name,
-	}
-}
-
-func NewListener(name string, lb *LoadBalancer, ref core.AnnotationKeySet, port int, protocol string, defaultActions []*LBAction) *Listener {
-	return &Listener{
-		Name:           targetGroupSanitizer.Apply(fmt.Sprintf("%s-%s", lb.Name, name)),
-		ConstructsRef:  ref,
-		Port:           port,
-		Protocol:       protocol,
-		LoadBalancer:   lb,
-		DefaultActions: defaultActions,
 	}
 }
 

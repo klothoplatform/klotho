@@ -96,7 +96,6 @@ func Test_FindPaths(t *testing.T) {
 			want: []Path{
 				{{typeB, typeC}, {typeC, typeD}, {typeD, typeE}},
 				{{typeB, typeC}, {typeC, typeE}},
-				{{typeA, typeB}, {typeA, typeE}},
 			},
 		},
 		{
@@ -117,7 +116,6 @@ func Test_FindPaths(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-
 			result := TestKnowledgeBase.FindPaths(reflect.TypeOf(tt.source), reflect.TypeOf(tt.dest))
 			assert.ElementsMatch(tt.want, result)
 		})

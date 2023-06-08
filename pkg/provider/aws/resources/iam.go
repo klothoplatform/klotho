@@ -7,7 +7,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
-	"go.uber.org/zap"
 )
 
 const (
@@ -17,6 +16,7 @@ const (
 	IAM_STATEMENT_ENTRY             = "iam_statement_entry"
 	IAM_ROLE_POLICY_ATTACHMENT_TYPE = "role_policy_attachment"
 	VERSION                         = "2012-10-17"
+	INSTANCE_PROFILE_TYPE           = "iam_instance_profile"
 )
 
 var roleSanitizer = aws.IamRoleSanitizer
@@ -109,12 +109,6 @@ type (
 		Policy        *PolicyDocument
 	}
 
-	PolicyGenerator struct {
-		unitToRole          map[string]*IamRole
-		unitsInlinePolicies map[string]map[string]*IamInlinePolicy
-		unitsPolicies       map[string][]*IamPolicy
-	}
-
 	PolicyDocument struct {
 		Version   string
 		Statement []StatementEntry
@@ -151,6 +145,12 @@ type (
 		Name          string
 		ConstructsRef core.AnnotationKeySet
 		Policy        *IamPolicy
+		Role          *IamRole
+	}
+
+	InstanceProfile struct {
+		Name          string
+		ConstructsRef core.AnnotationKeySet
 		Role          *IamRole
 	}
 )
@@ -223,68 +223,23 @@ func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCr
 	return nil
 }
 
-func NewPolicyGenerator() *PolicyGenerator {
-	p := &PolicyGenerator{
-		unitsPolicies:       make(map[string][]*IamPolicy),
-		unitsInlinePolicies: make(map[string]map[string]*IamInlinePolicy),
-		unitToRole:          make(map[string]*IamRole),
-	}
-	return p
+type InstanceProfileCreateParams struct {
+	AppName string
+	Name    string
+	Refs    core.AnnotationKeySet
 }
 
-func (p *PolicyGenerator) AddAllowPolicyToUnit(unitId string, policy *IamPolicy) {
-	policies, found := p.unitsPolicies[unitId]
-	if !found {
-		p.unitsPolicies[unitId] = []*IamPolicy{policy}
-	} else {
-		for _, pol := range policies {
-			if policy.Name == pol.Name {
-				return
-			}
-		}
-		p.unitsPolicies[unitId] = append(p.unitsPolicies[unitId], policy)
+func (profile *InstanceProfile) Create(dag *core.ResourceGraph, params InstanceProfileCreateParams) error {
+	profile.Name = roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	profile.ConstructsRef = params.Refs
+	existingProfile, found := core.GetResource[*InstanceProfile](dag, profile.Id())
+	if found {
+		existingProfile.ConstructsRef.AddAll(params.Refs)
+		return nil
 	}
-}
-
-func (p *PolicyGenerator) AddUnitRole(unitId string, role *IamRole) error {
-	if _, found := p.unitToRole[unitId]; found {
-		return fmt.Errorf("unit with id, %s, is already mapped to an IAM Role", unitId)
-	}
-	p.unitToRole[unitId] = role
-	return nil
-}
-
-func (p *PolicyGenerator) AddInlinePolicyToUnit(unitId string, policy *IamInlinePolicy) {
-	inlinePolicies, ok := p.unitsInlinePolicies[unitId]
-	if !ok {
-		p.unitsInlinePolicies[unitId] = map[string]*IamInlinePolicy{policy.Name: policy}
-		return
-	}
-	for name := range inlinePolicies {
-		if policy.Name == name {
-			// TODO: handle duplicates
-			zap.L().Sugar().Debugf("duplicate policy with name '%s' in unit '%s' ignored", name, unitId)
-		}
-	}
-	p.unitsInlinePolicies[unitId][policy.Name] = policy
-}
-
-func (p *PolicyGenerator) GetUnitInlinePolicies(unitId string) []*IamInlinePolicy {
-	var policies []*IamInlinePolicy
-	for _, policy := range p.unitsInlinePolicies[unitId] {
-		policies = append(policies, policy)
-	}
-	return policies
-}
-
-func (p *PolicyGenerator) GetUnitRole(unitId string) *IamRole {
-	role := p.unitToRole[unitId]
-	return role
-}
-
-func (p *PolicyGenerator) GetUnitPolicies(unitId string) []*IamPolicy {
-	policies := p.unitsPolicies[unitId]
-	return policies
+	return dag.CreateDependencies(profile, map[string]any{
+		"Role": params,
+	})
 }
 
 func CreateAllowPolicyDocument(actions []string, resources []core.IaCValue) *PolicyDocument {
@@ -297,14 +252,6 @@ func CreateAllowPolicyDocument(actions []string, resources []core.IaCValue) *Pol
 				Resource: resources,
 			},
 		},
-	}
-}
-
-func NewIamRole(appName string, roleName string, ref core.AnnotationKeySet, assumeRolePolicy *PolicyDocument) *IamRole {
-	return &IamRole{
-		Name:                roleSanitizer.Apply(fmt.Sprintf("%s-%s", appName, roleName)),
-		ConstructsRef:       ref,
-		AssumeRolePolicyDoc: assumeRolePolicy,
 	}
 }
 
@@ -412,6 +359,19 @@ func (role *RolePolicyAttachment) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     IAM_ROLE_POLICY_ATTACHMENT_TYPE,
 		Name:     role.Name,
+	}
+}
+
+func (profile *InstanceProfile) KlothoConstructRef() core.AnnotationKeySet {
+	return profile.ConstructsRef
+}
+
+// Id returns the id of the cloud resource
+func (profile *InstanceProfile) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: AWS_PROVIDER,
+		Type:     INSTANCE_PROFILE_TYPE,
+		Name:     profile.Name,
 	}
 }
 
