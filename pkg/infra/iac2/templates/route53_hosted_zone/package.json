@@ -1,0 +1,6 @@
+{
+    "name": "route53_hosted_zone",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

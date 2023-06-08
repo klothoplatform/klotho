@@ -1,7 +1,7 @@
 {
     "name": "kubernetes_provider",
     "dependencies": {
-        "@pulumi/pulumi": "^3.65.0",
+        "@pulumi/pulumi": "^3.69.0",
         "@pulumi/kubernetes": "^3.21.4"
     }
 }

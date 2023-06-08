@@ -1,6 +1,6 @@
 {
     "name": "kubeconfig",
     "dependencies": {
-        "@pulumi/pulumi": "^3.65.0"
+        "@pulumi/pulumi": "^3.69.0"
     }
 }

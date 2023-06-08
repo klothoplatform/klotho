@@ -80,7 +80,7 @@ func GetResourceCount(counts map[string]int) (resourceCounts []string) {
 }
 
 func GetResourceTypeCount(result *core.ConstructGraph, cfg *config.Application) (resourceCounts []string) {
-	for _, res := range result.ListConstructs() {
+	for _, res := range core.ListConstructs[core.Construct](result) {
 		resType := cfg.GetResourceType(res)
 		if resType != "" {
 			resourceCounts = append(resourceCounts, resType)

@@ -3,11 +3,18 @@ package compiler
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 
+	"github.com/google/shlex"
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -21,10 +28,21 @@ type (
 		Configuration    *config.Application
 		Resources        *core.ResourceGraph
 		OutputFiles      []core.File
+		OutputOptions    OutputOptions
+	}
+
+	OutputOptions struct {
+		PostWriteHooks map[string]string `yaml:"post-write-hooks,omitempty"`
 	}
 )
 
+var unquotedCharsRe = regexp.MustCompile(`^[\w.{}:>=<@/-]*$`)
+
 func (doc *CompilationDocument) OutputTo(dest string) error {
+
+	postWriteHooks := newDefaultPostWriteHooksMap()
+	collectionutil.Extend(doc.OutputOptions.PostWriteHooks).Into(postWriteHooks)
+
 	errs := make(chan error)
 	files := doc.OutputFiles
 	for idx := range files {
@@ -53,6 +71,18 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 			}
 			_, err = f.WriteTo(file)
 			file.Close()
+
+			fileExt := filepath.Ext(path)
+			if fileExt != "" {
+				fileExt = strings.TrimPrefix(fileExt, ".")
+				if hook, found := postWriteHooks[fileExt]; found {
+					hookErr := postCompileHook(dest, f, hook)
+					if hookErr != nil {
+						zap.S().Warnf(`failed to apply post-output hook to %s/%s: %s`, dest, f.Path(), hookErr.Error())
+					}
+				}
+			}
+
 			errs <- err
 		}(files[idx])
 	}
@@ -64,6 +94,36 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 		}
 	}
 	return nil
+}
+
+func postCompileHook(dir string, file core.File, hook string) error {
+	hookSegments, err := shlex.Split(hook)
+	if err != nil {
+		return err
+	}
+	if len(hookSegments) == 0 {
+		return errors.New(`empty formatter command`)
+	}
+	var args []string
+	for _, arg := range hookSegments[1:] {
+		if arg == "{}" {
+			arg = file.Path()
+		}
+		args = append(args, arg)
+	}
+
+	cmd := exec.Command(hookSegments[0], args...)
+	cmd.Dir = dir
+
+	quotedArgs := cmd.Args
+	for i, arg := range quotedArgs {
+		if !unquotedCharsRe.MatchString(arg) {
+			quotedArgs[i] = strconv.Quote(arg)
+		}
+	}
+	zap.S().With(logging.FileField(file)).Infof(`running post-output hook: %s`, strings.Join(quotedArgs, " "))
+
+	return cmd.Run()
 }
 
 func (document *CompilationDocument) OutputResources() (resourceCounts map[string]int, err error) {
@@ -78,7 +138,7 @@ func (document *CompilationDocument) OutputResources() (resourceCounts map[strin
 	resourceCounts = make(map[string]int)
 	var resourcesOutput []interface{}
 	var merr multierr.Error
-	for _, construct := range result.ListConstructs() {
+	for _, construct := range core.ListConstructs[core.Construct](result) {
 		resourceCounts[construct.Provenance().Capability] = resourceCounts[construct.Provenance().Capability] + 1
 
 		switch r := construct.(type) {
@@ -138,4 +198,10 @@ func (document *CompilationDocument) OutputHelpers(outDir string) error {
 		}
 	}
 	return merr.ErrOrNil()
+}
+
+func newDefaultPostWriteHooksMap() map[string]string {
+	return map[string]string{
+		"ts": `npx prettier -w {}`,
+	}
 }

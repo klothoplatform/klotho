@@ -130,7 +130,7 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 		name                 string
 		constructs           []graph.Edge[core.Construct]
 		config               *config.Application
-		constructResourceMap map[string][]core.Resource
+		constructResourceMap map[core.ResourceId][]core.Resource
 		want                 []*graph.Edge[core.Resource]
 	}{
 		{
@@ -144,9 +144,9 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 					"test": {Type: Lambda},
 				},
 			},
-			constructResourceMap: map[string][]core.Resource{
-				"execution_unit:test": {&resources.LambdaFunction{Name: "lambda"}},
-				"persist:test":        {&resources.RdsInstance{Name: "rds"}},
+			constructResourceMap: map[core.ResourceId][]core.Resource{
+				stubId("execution_unit"): {&resources.LambdaFunction{Name: "lambda"}},
+				stubId("persist"):        {&resources.RdsInstance{Name: "rds"}},
 			},
 			want: []*graph.Edge[core.Resource]{
 				{Source: &resources.LambdaFunction{Name: "lambda"}, Destination: &resources.RdsInstance{Name: "rds"}, Properties: dgraph.EdgeProperties{
@@ -171,11 +171,11 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 			config: &config.Application{
 				AppName: "my-app",
 			},
-			constructResourceMap: map[string][]core.Resource{
-				"execution_unit:test": {&kubernetes.HelmChart{Name: "lambda", Values: map[string]any{
+			constructResourceMap: map[core.ResourceId][]core.Resource{
+				stubId("execution_unit"): {&kubernetes.HelmChart{Name: "lambda", Values: map[string]any{
 					"tg": core.IaCValue{Resource: &resources.TargetGroup{Name: "tg", ConstructsRef: core.AnnotationKeySetOf(eu.AnnotationKey)}},
 				}}},
-				"expose:test": {&resources.RestApi{Name: "api"}},
+				stubId("expose"): {&resources.RestApi{Name: "api"}},
 			},
 			want: []*graph.Edge[core.Resource]{
 				{Source: &resources.RestApi{Name: "api"}, Destination: &resources.TargetGroup{Name: "tg", ConstructsRef: core.AnnotationKeySetOf(eu.AnnotationKey)}, Properties: dgraph.EdgeProperties{
@@ -355,5 +355,13 @@ func Test_getS3BucketConfig(t *testing.T) {
 				assert.Equal(tt.want, actualConfig)
 			}
 		})
+	}
+}
+
+func stubId(cap string) core.ResourceId {
+	return core.ResourceId{
+		Provider: core.AbstractConstructProvider,
+		Type:     cap,
+		Name:     "test",
 	}
 }

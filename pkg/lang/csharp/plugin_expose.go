@@ -182,7 +182,11 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
 				targetUnit = unit.ID
 			}
-			h.ConstructGraph.AddDependency(gw.Id(), core.AnnotationKey{ID: targetUnit, Capability: annotation.ExecutionUnitCapability}.ToId())
+			h.ConstructGraph.AddDependency(gw.Id(), core.ResourceId{
+				Provider: core.AbstractConstructProvider,
+				Type:     annotation.ExecutionUnitCapability,
+				Name:     targetUnit,
+			})
 		}
 	}
 

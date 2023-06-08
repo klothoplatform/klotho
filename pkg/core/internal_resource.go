@@ -12,6 +12,6 @@ func (p *InternalResource) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *InternalResource) Id() string {
-	return p.AnnotationKey.ToId()
+func (p *InternalResource) Id() ResourceId {
+	return ConstructId(p.AnnotationKey).ToRid()
 }

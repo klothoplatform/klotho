@@ -40,48 +40,48 @@ func (p *Secrets) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *Secrets) Id() string {
-	return p.AnnotationKey.ToId()
+func (p *Secrets) Id() ResourceId {
+	return ConstructId(p.AnnotationKey).ToRid()
 }
 
 func (p *Fs) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *Fs) Id() string {
-	return p.AnnotationKey.ToId()
+func (p *Fs) Id() ResourceId {
+	return ConstructId(p.AnnotationKey).ToRid()
 }
 
 func (p *Kv) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *Kv) Id() string {
-	return p.AnnotationKey.ToId()
+func (p *Kv) Id() ResourceId {
+	return ConstructId(p.AnnotationKey).ToRid()
 }
 
 func (p *Orm) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *Orm) Id() string {
-	return p.AnnotationKey.ToId()
+func (p *Orm) Id() ResourceId {
+	return ConstructId(p.AnnotationKey).ToRid()
 }
 
 func (p *RedisNode) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *RedisNode) Id() string {
-	return p.AnnotationKey.ToId()
+func (p *RedisNode) Id() ResourceId {
+	return ConstructId(p.AnnotationKey).ToRid()
 }
 
 func (p *RedisCluster) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *RedisCluster) Id() string {
-	return p.AnnotationKey.ToId()
+func (p *RedisCluster) Id() ResourceId {
+	return ConstructId(p.AnnotationKey).ToRid()
 }
 
 func GenerateRedisHostEnvVar(cfg Construct) environmentVariable {

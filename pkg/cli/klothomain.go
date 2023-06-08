@@ -417,6 +417,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		Constructs:       constructs,
 		Configuration:    &appCfg,
 		Resources:        core.NewResourceGraph(),
+		OutputOptions:    options.Output,
 	}
 
 	compiler := compiler.Compiler{

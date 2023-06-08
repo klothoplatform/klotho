@@ -13,8 +13,8 @@ func TestAwsMapResourceDirectlyToConstruct(t *testing.T) {
 		a := AWS{}
 		a.MapResourceDirectlyToConstruct(dummyResource("res"), dummyConstruct("cons"))
 		assert.Equal(
-			map[string][]core.Resource{
-				"cons": {dummyResource("res")},
+			map[core.ResourceId][]core.Resource{
+				dummyConstruct("cons").Id(): {dummyResource("res")},
 			},
 			a.constructIdToResources)
 	})
@@ -30,16 +30,16 @@ func TestAwsMapResourceDirectlyToConstruct(t *testing.T) {
 		a.MapResourceDirectlyToConstruct(dummyResource("res_b"), dummyConstruct("cons"))
 		a.MapResourceDirectlyToConstruct(dummyResource("res_a"), dummyConstruct("cons"))
 		assert.Equal(
-			map[string][]core.Resource{
-				"cons": {dummyResource("res_a"), dummyResource("res_b")}, // note: NOT the order they were added above!
+			map[core.ResourceId][]core.Resource{
+				dummyConstruct("cons").Id(): {dummyResource("res_a"), dummyResource("res_b")}, // note: NOT the order they were added above!
 			},
 			a.constructIdToResources)
 	})
 	t.Run("returns multiple resources", func(t *testing.T) {
 		assert := assert.New(t)
 		a := AWS{
-			constructIdToResources: map[string][]core.Resource{
-				"cons": {dummyResource("res_a"), dummyResource("res_b"), dummyResource("res_c")},
+			constructIdToResources: map[core.ResourceId][]core.Resource{
+				dummyConstruct("cons").Id(): {dummyResource("res_a"), dummyResource("res_b"), dummyResource("res_c")},
 			},
 		}
 		resList, found := a.GetResourcesDirectlyTiedToConstruct(dummyConstruct("cons"))
@@ -66,4 +66,10 @@ func (f dummyResource) Create(dag *core.ResourceGraph, metadata map[string]any) 
 
 func (dc dummyConstruct) Provenance() core.AnnotationKey { return core.AnnotationKey{} }
 
-func (dc dummyConstruct) Id() string { return string(dc) }
+func (dc dummyConstruct) Id() core.ResourceId {
+	return core.ResourceId{
+		Provider: "dummy",
+		Type:     "dummy",
+		Name:     string(dc),
+	}
+}

@@ -80,9 +80,10 @@ func (p *ExecutionUnit) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *ExecutionUnit) Id() string {
-	return p.AnnotationKey.ToId()
+func (p *ExecutionUnit) Id() ResourceId {
+	return ConstructId(p.AnnotationKey).ToRid()
 }
+
 func (unit *ExecutionUnit) OutputTo(dest string) error {
 	errs := make(chan error)
 	files := unit.Files()

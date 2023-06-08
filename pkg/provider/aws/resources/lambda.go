@@ -144,17 +144,6 @@ func (lambda *LambdaFunction) Id() core.ResourceId {
 	}
 }
 
-func NewLambdaPermission(function *LambdaFunction, source core.IaCValue, principal string, action string, ref core.AnnotationKeySet) *LambdaPermission {
-	return &LambdaPermission{
-		Name:          LambdaPermissionSanitizer.Apply(fmt.Sprintf("%s-%s", function.Name, source.Resource.Id())),
-		ConstructsRef: ref,
-		Function:      function,
-		Source:        source,
-		Action:        action,
-		Principal:     principal,
-	}
-}
-
 // KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (permission *LambdaPermission) KlothoConstructRef() core.AnnotationKeySet {
 	return permission.ConstructsRef

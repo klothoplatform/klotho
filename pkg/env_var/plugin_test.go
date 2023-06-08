@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/stretchr/testify/assert"
 )
@@ -177,7 +178,7 @@ const a = 1`,
 
 			downstreamDeps := result.GetDownstreamDependencies(unit)
 			assert.Len(downstreamDeps, 1)
-			assert.Equal(tt.want.resource.Provenance().ID, downstreamDeps[0].Destination.Provenance().ID)
+			assert.Equal(tt.want.resource.Provenance().ID, coretesting.TryGetProvenance(assert, downstreamDeps[0].Destination).ID)
 
 			assert.Len(unit.EnvironmentVariables, len(tt.want.envVars))
 			for _, envVar := range tt.want.envVars {

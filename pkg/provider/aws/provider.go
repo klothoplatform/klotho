@@ -10,7 +10,7 @@ import (
 
 type AWS struct {
 	Config                 *config.Application
-	constructIdToResources map[string][]core.Resource
+	constructIdToResources map[core.ResourceId][]core.Resource
 	KnowledgeBase          knowledgebase.EdgeKB
 }
 
@@ -32,9 +32,9 @@ type AWS struct {
 //	  └─ Resource{C}  // also call it for this
 //	       │
 //	       └─ Resource{D}  // do NOT call it for this
-func (a *AWS) MapResourceDirectlyToConstruct(resource core.Resource, construct core.Construct) {
+func (a *AWS) MapResourceDirectlyToConstruct(resource core.Resource, construct core.BaseConstruct) {
 	if a.constructIdToResources == nil {
-		a.constructIdToResources = make(map[string][]core.Resource)
+		a.constructIdToResources = make(map[core.ResourceId][]core.Resource)
 	}
 	newList := append(a.constructIdToResources[construct.Id()], resource)
 	sort.Slice(newList, func(i, j int) bool {
@@ -43,7 +43,7 @@ func (a *AWS) MapResourceDirectlyToConstruct(resource core.Resource, construct c
 	a.constructIdToResources[construct.Id()] = newList
 }
 
-func (a *AWS) GetResourcesDirectlyTiedToConstruct(construct core.Construct) ([]core.Resource, bool) {
+func (a *AWS) GetResourcesDirectlyTiedToConstruct(construct core.BaseConstruct) ([]core.Resource, bool) {
 	resources, found := a.constructIdToResources[construct.Id()]
 	return resources, found
 }

@@ -16,8 +16,8 @@ func (p *Config) Provenance() AnnotationKey {
 	return p.AnnotationKey
 }
 
-func (p *Config) Id() string {
-	return p.AnnotationKey.ToId()
+func (p *Config) Id() ResourceId {
+	return ConstructId(p.AnnotationKey).ToRid()
 }
 
 func GenerateSecretEnvVar(cfg *Config) environmentVariable {

@@ -18,7 +18,7 @@ func (p Plugin) Name() string {
 	return "imports"
 }
 
-func (p Plugin) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
+func (p Plugin) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	log := zap.S()
 	for resId, importId := range p.Config.Imports {
 		res := dag.GetResource(resId)
@@ -28,5 +28,5 @@ func (p Plugin) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) 
 		}
 		dag.AddDependency(res, &Imported{ID: importId})
 	}
-	return
+	return nil
 }

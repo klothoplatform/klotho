@@ -19,7 +19,7 @@ import (
 func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGraph) (err error) {
 	log := zap.S()
 	var merr multierr.Error
-	for _, construct := range result.ListConstructs() {
+	for _, construct := range core.ListConstructs[core.BaseConstruct](result) {
 		log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
 		switch construct := construct.(type) {
 		case *core.ExecutionUnit:
@@ -28,7 +28,9 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 			merr.Append(a.expandExpose(dag, construct))
 		case *core.Orm:
 			merr.Append(a.expandOrm(dag, construct))
-		case *core.Fs, *core.InternalResource:
+		case *core.Fs:
+			merr.Append(a.expandFs(dag, construct))
+		case *core.InternalResource:
 			merr.Append(a.expandFs(dag, construct))
 		case *core.Kv:
 			merr.Append(a.expandKv(dag, construct))
@@ -40,6 +42,8 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 			merr.Append(a.expandSecrets(dag, construct))
 		case *core.Config:
 			merr.Append(a.expandConfig(dag, construct))
+		case core.Resource:
+			dag.AddResource(construct)
 		}
 	}
 	return merr.ErrOrNil()
@@ -71,7 +75,7 @@ func (a *AWS) CopyConstructEdgesToDag(result *core.ConstructGraph, dag *core.Res
 func (a *AWS) copyConstructEdgeToDag(
 	sourceResource core.Resource,
 	destinationResource core.Resource,
-	dep graph.Edge[core.Construct],
+	dep graph.Edge[core.BaseConstruct],
 	dag *core.ResourceGraph) error {
 	data := knowledgebase.EdgeData{AppName: a.Config.AppName, Source: sourceResource, Destination: destinationResource}
 
@@ -114,7 +118,12 @@ func (a *AWS) copyConstructEdgeToDag(
 		}
 	case *core.Gateway:
 		for _, route := range construct.Routes {
-			if route.ExecUnitName == dep.Destination.Provenance().ID {
+			dstCons, ok := dep.Destination.(core.Construct)
+			if !ok {
+				zap.S().Warnf(`Can't connect %s to concrete resource %s`, construct.Id(), dep.Destination.Id())
+				continue
+			}
+			if route.ExecUnitName == dstCons.Provenance().ID {
 				data.Routes = append(data.Routes, route)
 			}
 			// Because we don't have an understanding of what exists within the helm chart we cannot expand API -> Chart (we would need API -> k8s Service)
@@ -125,7 +134,7 @@ func (a *AWS) copyConstructEdgeToDag(
 					if iacVal, ok := val.(core.IaCValue); ok {
 						if tg, ok := iacVal.Resource.(*resources.TargetGroup); ok {
 							for ref := range tg.ConstructsRef {
-								if ref.ID == dep.Destination.Provenance().ID {
+								if ref.ID == dstCons.Provenance().ID {
 									destinationTG = tg
 								}
 							}
@@ -204,7 +213,7 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 func getS3BucketConfig(bucket *resources.S3Bucket, constructs *core.ConstructGraph) (resources.S3BucketConfigureParams, error) {
 	staticUnits := make(map[string]*core.StaticUnit)
 	for consRef := range bucket.ConstructsRef {
-		cons := constructs.GetConstruct(consRef.ToId())
+		cons := constructs.GetConstruct(core.ConstructId(consRef).ToRid())
 		if oneUnit, isUnit := cons.(*core.StaticUnit); isUnit {
 			staticUnits[oneUnit.ID] = oneUnit
 		}
@@ -233,7 +242,7 @@ func getS3BucketConfig(bucket *resources.S3Bucket, constructs *core.ConstructGra
 	}
 }
 
-func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (links []core.CloudResourceLink, err error) {
+func (a *AWS) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) (err error) {
 	err = a.ExpandConstructs(result, dag)
 	if err != nil {
 		return
