@@ -361,7 +361,10 @@ func Test_LoadConstructsIntoGraph(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			graph := NewConstructGraph()
-			LoadConstructsIntoGraph(tt.constructs, graph)
+			err := LoadConstructsIntoGraph(tt.constructs, graph)
+			if !assert.NoError(err) {
+				return
+			}
 			assert.ElementsMatch(tt.want.nodes, ListConstructs[BaseConstruct](graph))
 			assert.ElementsMatch(tt.want.edges, graph.ListDependencies())
 		})

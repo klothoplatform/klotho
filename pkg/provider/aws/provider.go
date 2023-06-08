@@ -71,7 +71,7 @@ func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error 
 		newResource := reflect.New(reflect.TypeOf(res).Elem()).Interface()
 		resource, ok := newResource.(core.Resource)
 		if !ok {
-			errors.Join(joinedErr, fmt.Errorf("item %s of type %T is not of type core.Resource", node, newResource))
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("item %s of type %T is not of type core.Resource", node, newResource))
 			continue
 		}
 		reflect.ValueOf(resource).Elem().FieldByName("Name").SetString(node.Name)
