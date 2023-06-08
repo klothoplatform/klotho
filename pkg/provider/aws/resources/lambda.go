@@ -48,7 +48,7 @@ func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreat
 
 	name := lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	lambda.Name = name
-	lambda.ConstructsRef = params.Refs
+	lambda.ConstructsRef = params.Refs.Clone()
 
 	existingLambda := dag.GetResource(lambda.Id())
 	if existingLambda != nil {
@@ -118,7 +118,7 @@ func (permission *LambdaPermission) Create(dag *core.ResourceGraph, params Lambd
 	if params.AppName == "" {
 		permission.Name = LambdaPermissionSanitizer.Apply(params.Name)
 	}
-	permission.ConstructsRef = params.Refs
+	permission.ConstructsRef = params.Refs.Clone()
 
 	existingLambdaPermission := dag.GetResource(permission.Id())
 	if existingLambdaPermission != nil {

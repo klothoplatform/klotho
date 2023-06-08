@@ -86,7 +86,7 @@ type DynamodbTableCreateParams struct {
 
 func (table *DynamodbTable) Create(dag *core.ResourceGraph, params DynamodbTableCreateParams) error {
 	table.Name = aws.DynamoDBTableSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	table.ConstructsRef = params.Refs
+	table.ConstructsRef = params.Refs.Clone()
 	if existingTable, ok := core.GetResource[*DynamodbTable](dag, table.Id()); ok {
 		existingTable.ConstructsRef.AddAll(params.Refs)
 	}

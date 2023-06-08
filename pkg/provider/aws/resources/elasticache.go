@@ -67,7 +67,7 @@ type ElasticacheClusterCreateParams struct {
 
 func (ec *ElasticacheCluster) Create(dag *core.ResourceGraph, params ElasticacheClusterCreateParams) error {
 	ec.Name = aws.ElasticacheClusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	ec.ConstructsRef = params.Refs
+	ec.ConstructsRef = params.Refs.Clone()
 	ec.SecurityGroups = make([]*SecurityGroup, 1)
 
 	if existingCluster, ok := core.GetResource[*ElasticacheCluster](dag, ec.Id()); ok {
@@ -112,7 +112,7 @@ type ElasticacheSubnetgroupCreateParams struct {
 
 func (ecsn *ElasticacheSubnetgroup) Create(dag *core.ResourceGraph, params ElasticacheSubnetgroupCreateParams) error {
 	ecsn.Name = aws.ElasticacheClusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	ecsn.ConstructsRef = params.Refs
+	ecsn.ConstructsRef = params.Refs.Clone()
 	ecsn.Subnets = make([]*Subnet, 2)
 	if existingSubnetGroup, ok := core.GetResource[*ElasticacheSubnetgroup](dag, ecsn.Id()); ok {
 		existingSubnetGroup.ConstructsRef.AddAll(params.Refs)

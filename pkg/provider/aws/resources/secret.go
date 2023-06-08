@@ -35,7 +35,7 @@ type SecretCreateParams struct {
 // Create takes in an all necessary parameters to generate the Secret name and ensure that the Secret is correlated to the constructs which required its creation.
 func (s *Secret) Create(dag *core.ResourceGraph, params SecretCreateParams) error {
 	s.Name = aws.SecretSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	s.ConstructsRef = params.Refs
+	s.ConstructsRef = params.Refs.Clone()
 	if existingSecret, ok := core.GetResource[*Secret](dag, s.Id()); ok {
 		return fmt.Errorf("secret with name %s already exists", existingSecret.Name)
 	}
@@ -56,7 +56,7 @@ type SecretVersionCreateParams struct {
 //   - Secret
 func (sv *SecretVersion) Create(dag *core.ResourceGraph, params SecretVersionCreateParams) error {
 	sv.Name = aws.SecretSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	sv.ConstructsRef = params.Refs
+	sv.ConstructsRef = params.Refs.Clone()
 	sv.DetectedPath = params.DetectedPath
 	existingSecret := dag.GetResource(sv.Id())
 	if existingSecret != nil {

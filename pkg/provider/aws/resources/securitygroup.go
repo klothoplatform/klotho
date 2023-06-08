@@ -33,7 +33,7 @@ type SecurityGroupCreateParams struct {
 func (sg *SecurityGroup) Create(dag *core.ResourceGraph, params SecurityGroupCreateParams) error {
 
 	sg.Name = params.AppName
-	sg.ConstructsRef = params.Refs
+	sg.ConstructsRef = params.Refs.Clone()
 	err := dag.CreateDependencies(sg, map[string]any{
 		"Vpc": params,
 	})

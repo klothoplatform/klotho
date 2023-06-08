@@ -26,7 +26,7 @@ type PrivateDnsNamespaceCreateParams struct {
 
 func (namespace *PrivateDnsNamespace) Create(dag *core.ResourceGraph, params PrivateDnsNamespaceCreateParams) error {
 	namespace.Name = privateDnsNamespaceSanitizer.Apply(params.AppName)
-	namespace.ConstructsRef = params.Refs
+	namespace.ConstructsRef = params.Refs.Clone()
 
 	existingNamespace, found := core.GetResource[*PrivateDnsNamespace](dag, namespace.Id())
 	if found {

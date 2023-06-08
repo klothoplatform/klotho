@@ -37,7 +37,7 @@ type Ec2InstanceCreateParams struct {
 
 func (instance *Ec2Instance) Create(dag *core.ResourceGraph, params Ec2InstanceCreateParams) error {
 	instance.Name = aws.Ec2InstanceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	instance.ConstructsRef = params.Refs
+	instance.ConstructsRef = params.Refs.Clone()
 
 	existingInstance, found := core.GetResource[*Ec2Instance](dag, instance.Id())
 	if found {
@@ -79,7 +79,7 @@ type AMICreateParams struct {
 
 func (ami *AMI) Create(dag *core.ResourceGraph, params AMICreateParams) error {
 	ami.Name = aws.Ec2InstanceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	ami.ConstructsRef = params.Refs
+	ami.ConstructsRef = params.Refs.Clone()
 
 	existingAMI, found := core.GetResource[*AMI](dag, ami.Id())
 	if found {
