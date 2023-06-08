@@ -41,13 +41,13 @@ type (
 	}
 
 	ResourceId struct {
-		Provider string
-		Type     string
+		Provider string `yaml:"provider" toml:"provider"`
+		Type     string `yaml:"type" toml:"type"`
 		// Namespace is optional and is used to disambiguate resources that might have
 		// the same name. It can also be used to associate an imported resource with
 		// a specific namespace such as a subnet to a VPC.
-		Namespace string
-		Name      string
+		Namespace string `yaml:"namespace" toml:"namespace"`
+		Name      string `yaml:"name" toml:"name"`
 	}
 
 	// IaCValue is a struct that defines a value we need to grab from a specific resource. It is up to the plugins to make the determination of how to retrieve the value

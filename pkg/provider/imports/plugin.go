@@ -30,3 +30,7 @@ func (p Plugin) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) 
 	}
 	return nil
 }
+
+func (p Plugin) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error {
+	return nil
+}

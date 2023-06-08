@@ -18,6 +18,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v2"
 )
 
 type (
@@ -188,6 +189,39 @@ func (document *CompilationDocument) OutputResources() (resourceCounts map[strin
 	err = merr.ErrOrNil()
 
 	return
+}
+
+func (document *CompilationDocument) OutputGraph(outDir string) error {
+	err := os.MkdirAll(outDir, 0777)
+	if err != nil {
+		return err
+	}
+	var merr multierr.Error
+
+	f, err := os.Create(path.Join(outDir, "resources.yaml"))
+	if err != nil {
+		return errors.Wrap(err, "error creating resource dump")
+	} else {
+		defer f.Close()
+		enc := yaml.NewEncoder(f)
+
+		outputGraph := core.OutputGraph{}
+		for _, res := range document.Resources.ListResources() {
+			outputGraph.Resources = append(outputGraph.Resources, res.Id())
+		}
+
+		for _, dep := range document.Resources.ListDependencies() {
+			outputGraph.Edges = append(outputGraph.Edges, core.OutputEdge{
+				Source:      dep.Source.Id(),
+				Destination: dep.Destination.Id(),
+			})
+		}
+		err = enc.Encode(outputGraph)
+		if err != nil {
+			merr.Append(errors.Wrap(err, "error writing resources"))
+		}
+	}
+	return merr.ErrOrNil()
 }
 
 func (document *CompilationDocument) OutputHelpers(outDir string) error {

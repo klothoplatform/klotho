@@ -1,18 +1,23 @@
 package core
 
 import (
-	"os"
-
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v2"
 )
 
 type (
 	ConstructGraph struct {
 		underlying *graph.Directed[BaseConstruct]
+	}
+
+	OutputEdge struct {
+		Source      ResourceId `yaml:"source"`
+		Destination ResourceId `yaml:"destination"`
+	}
+	OutputGraph struct {
+		Resources []ResourceId `yaml:"resources"`
+		Edges     []OutputEdge `yaml:"edges"`
 	}
 )
 
@@ -129,93 +134,45 @@ func (cg *ConstructGraph) FindUpstreamGateways(unit *ExecutionUnit) []*Gateway {
 	return gateways
 }
 
-func CreateConstructGraphFromFile(path string) (*ConstructGraph, error) {
+func LoadConstructsIntoGraph(input OutputGraph, graph *ConstructGraph) error {
 
-	type ConstructRepresentation struct {
-		Kind string `yaml:"kind"`
-	}
-
-	type EdgeRepresentation struct {
-		Source      string `yaml:"source"`
-		Destination string `yaml:"destination"`
-	}
-
-	type ConstructGraphRepresentation struct {
-		Nodes map[string]ConstructRepresentation `yaml:"nodes"`
-		Edges []EdgeRepresentation               `yaml:"edges"`
-	}
-
-	graph := NewConstructGraph()
-	input := ConstructGraphRepresentation{
-		Nodes: map[string]ConstructRepresentation{},
-	}
-	keys := map[string]AnnotationKey{}
-
-	f, err := os.Open(path)
-	if err != nil {
-		return graph, err
-	}
-	defer f.Close() // nolint:errcheck
-
-	err = yaml.NewDecoder(f).Decode(&input)
-	if err != nil {
-		return graph, err
-	}
-
-	for id, construct := range input.Nodes {
-		switch construct.Kind {
-		case "execution_unit":
-			unit := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.ExecutionUnitCapability}}
-			graph.AddConstruct(unit)
-			keys[id] = unit.AnnotationKey
-		case "static_unit":
-			unit := &StaticUnit{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.StaticUnitCapability}}
-			graph.AddConstruct(unit)
-			keys[id] = unit.AnnotationKey
-		case "orm":
-			unit := &Orm{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.PersistCapability}}
-			graph.AddConstruct(unit)
-			keys[id] = unit.AnnotationKey
-		case "kv":
-			unit := &Kv{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.PersistCapability}}
-			graph.AddConstruct(unit)
-			keys[id] = unit.AnnotationKey
-		case "redis_node":
-			unit := &RedisNode{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.PersistCapability}}
-			graph.AddConstruct(unit)
-			keys[id] = unit.AnnotationKey
-		case "fs":
-			unit := &Fs{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.PersistCapability}}
-			graph.AddConstruct(unit)
-			keys[id] = unit.AnnotationKey
-		case "secret":
-			unit := &Config{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.PersistCapability}, Secret: true}
-			graph.AddConstruct(unit)
-			keys[id] = unit.AnnotationKey
-		case "expose":
-			unit := &Gateway{AnnotationKey: AnnotationKey{ID: id, Capability: annotation.ExposeCapability}}
-			graph.AddConstruct(unit)
-			keys[id] = unit.AnnotationKey
-		default:
-			return graph, errors.Errorf("Unsupported kind %s in construct graph creation", construct.Kind)
-		}
+	for _, res := range input.Resources {
+		graph.AddConstruct(getConstructFromInputId(res))
 	}
 
 	for _, edge := range input.Edges {
-		src, dst := keys[edge.Source], keys[edge.Destination]
-		graph.AddDependency(
-			ResourceId{
-				Provider: AbstractConstructProvider,
-				Type:     src.Capability,
-				Name:     src.ID,
-			},
-			ResourceId{
-				Provider: AbstractConstructProvider,
-				Type:     dst.Capability,
-				Name:     dst.ID,
-			},
-		)
+		graph.AddDependency(getConstructFromInputId(edge.Source).Id(), getConstructFromInputId(edge.Destination).Id())
 	}
 
-	return graph, err
+	return nil
+}
+
+func getConstructFromInputId(res ResourceId) Construct {
+	switch res.Type {
+	case "execution_unit":
+		unit := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.ExecutionUnitCapability}}
+		return unit
+	case "static_unit":
+		unit := &StaticUnit{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.StaticUnitCapability}}
+		return unit
+	case "orm":
+		unit := &Orm{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
+		return unit
+	case "kv":
+		unit := &Kv{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
+		return unit
+	case "redis_node":
+		unit := &RedisNode{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
+		return unit
+	case "fs":
+		unit := &Fs{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
+		return unit
+	case "secret":
+		unit := &Config{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.ConfigCapability}, Secret: true}
+		return unit
+	case "expose":
+		unit := &Gateway{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.ExposeCapability}}
+		return unit
+	}
+	return nil
 }

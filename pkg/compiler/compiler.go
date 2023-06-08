@@ -3,6 +3,7 @@ package compiler
 import (
 	"bytes"
 	"fmt"
+	"os"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -10,6 +11,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/validation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v2"
 )
 
 type (
@@ -26,6 +28,7 @@ type (
 	ProviderPlugin interface {
 		Plugin
 		Translate(result *core.ConstructGraph, dag *core.ResourceGraph) error
+		LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error
 	}
 
 	IaCPlugin interface {
@@ -104,6 +107,10 @@ func (c *Compiler) Compile() error {
 		}
 		c.Document.OutputFiles = append(c.Document.OutputFiles, files...)
 	}
+	err = c.Document.OutputGraph(c.Document.Configuration.OutDir)
+	if err != nil {
+		return errors.Wrap(err, "Unable to output graph")
+	}
 	err = c.createConfigOutputFile()
 	if err != nil {
 		return errors.Wrap(err, "Unable to output Klotho configuration file")
@@ -122,5 +129,34 @@ func (c *Compiler) createConfigOutputFile() error {
 		FPath:   fmt.Sprintf("klotho.%s", c.Document.Configuration.Format),
 		Content: buf.Bytes(),
 	})
+	return nil
+}
+
+func (c *Compiler) LoadConstructGraphFromFile(path string) error {
+
+	input := core.OutputGraph{}
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close() // nolint:errcheck
+
+	err = yaml.NewDecoder(f).Decode(&input)
+	if err != nil {
+		return err
+	}
+
+	err = core.LoadConstructsIntoGraph(input, c.Document.Constructs)
+	if err != nil {
+		return err
+	}
+
+	c.AnalysisAndTransformationPlugins = nil
+	for _, provider := range c.ProviderPlugins {
+		err := provider.LoadGraph(input, c.Document.Constructs)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

@@ -38,6 +38,18 @@ func (expect ResourcesExpectation) Assert(t *testing.T, dag *core.ResourceGraph)
 	}
 }
 
+func (expect ResourcesExpectation) AssertConstructs(t *testing.T, graph *core.ConstructGraph) {
+	got := ConstructsFromGraph(graph)
+
+	if expect.AssertSubset {
+		assert.Subset(t, got.Nodes, expect.Nodes)
+		assert.Subset(t, got.Deps, expect.Deps)
+	} else {
+		expect.ElementsMatchPretty(t, expect.Nodes, got.Nodes)
+		expect.ElementsMatchPretty(t, expect.Deps, got.Deps)
+	}
+}
+
 // ElementsMatchPretty invokes [assert.ElementsMatch], but first does a string-based check based on the elements;
 // string representation. This means in the common case that unequal strings are enough to demonstrate inequality, we'll
 // get a nicer diff.
@@ -72,6 +84,22 @@ func ResoucesFromDAG(dag *core.ResourceGraph) ResourcesExpectation {
 	}
 	var deps []StringDep
 	for _, e := range dag.ListDependencies() {
+		deps = append(deps, StringDep{Source: e.Source.Id().String(), Destination: e.Destination.Id().String()})
+	}
+
+	return ResourcesExpectation{
+		Nodes: nodes,
+		Deps:  deps,
+	}
+}
+
+func ConstructsFromGraph(graph *core.ConstructGraph) ResourcesExpectation {
+	var nodes []string
+	for _, r := range core.ListConstructs[core.BaseConstruct](graph) {
+		nodes = append(nodes, r.Id().String())
+	}
+	var deps []StringDep
+	for _, e := range graph.ListDependencies() {
 		deps = append(deps, StringDep{Source: e.Source.Id().String(), Destination: e.Destination.Id().String()})
 	}
 

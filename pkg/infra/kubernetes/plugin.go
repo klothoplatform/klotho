@@ -28,6 +28,10 @@ type Kubernetes struct {
 	helmHelper *helm.HelmHelper
 }
 
+func (p Kubernetes) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error {
+	return nil
+}
+
 func (p Kubernetes) Name() string { return "kubernetes" }
 
 func (p Kubernetes) Translate(constructGraph *core.ConstructGraph, dag *core.ResourceGraph) error {

@@ -640,6 +640,20 @@ func (subnet *Subnet) Id() core.ResourceId {
 	return id
 }
 
+func (subnet *Subnet) Load(namespace string, dag *core.ConstructGraph) error {
+	namespacedVpc := &Vpc{Name: namespace}
+	vpc := dag.GetConstruct(namespacedVpc.Id())
+	if vpc == nil {
+		return fmt.Errorf("cannot load subnet with name %s because namespace vpc %s does not exist", subnet.Name, namespace)
+	}
+	if vpc, ok := vpc.(*Vpc); !ok {
+		return fmt.Errorf("cannot load subnet with name %s because namespace vpc %s is not a vpc", subnet.Name, namespace)
+	} else {
+		subnet.Vpc = vpc
+	}
+	return nil
+}
+
 func (subnet *Subnet) SetTypeFromId(id core.ResourceId) error {
 	if id.Provider != AWS_PROVIDER || !strings.HasPrefix(id.Type, VPC_SUBNET_TYPE_PREFIX) {
 		return fmt.Errorf("invalid id '%s' for partial subnet '%s'", id, subnet.Name)
