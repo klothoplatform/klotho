@@ -29,7 +29,7 @@ var ApiGatewayKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.RestApi]{
 		ReverseDirection:  true,
-		ValidDestinations: []core.Resource{&resources.LambdaFunction{}, &resources.TargetGroup{}, &resources.Ec2Instance{}},
+		ValidDestinations: []core.Resource{&resources.LambdaFunction{}, &resources.TargetGroup{}, &resources.Ec2Instance{}, &resources.EcsService{}},
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.ApiResource]{},
 	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.RestApi]{},
@@ -84,13 +84,34 @@ var ApiGatewayKB = knowledgebase.Build(
 				return fmt.Errorf("source of eks to api integration expansion must be a rest api resource")
 			}
 
-			tg, isTgDest := data.Destination.(*resources.TargetGroup)
-			if isTgDest {
+			var tg *resources.TargetGroup
+			var err error
+			isTgDest := false
+			ecsService, isEcsDest := data.Destination.(*resources.EcsService)
+			if isEcsDest {
+				tg, err = core.CreateResource[*resources.TargetGroup](dag, resources.TargetGroupCreateParams{
+					AppName: data.AppName,
+					Refs:    ecsService.ConstructsRef.CloneWith(restApi.ConstructsRef),
+					Name:    ecsService.Name,
+				})
+				tg.Protocol = "TCP"
+				tg.TargetType = "ip"
+				if err != nil {
+					return err
+				}
+				ecsService.LoadBalancers = append(ecsService.LoadBalancers, resources.EcsServiceLoadBalancerConfig{
+					ContainerName:  ecsService.TaskDefinition.Name,
+					ContainerPort:  3000,
+					TargetGroupArn: core.IaCValue{Resource: tg, Property: resources.ARN_IAC_VALUE},
+				})
+
+				dag.AddDependency(ecsService, tg)
+				dag.AddDependenciesReflect(ecsService)
+			} else if tg, isTgDest = data.Destination.(*resources.TargetGroup); isTgDest {
 				tg.Protocol = "TCP"
 				tg.TargetType = "ip"
 			}
 
-			var err error
 			instance, isEc2Dest := data.Destination.(*resources.Ec2Instance)
 			if isEc2Dest {
 				tg, err = core.CreateResource[*resources.TargetGroup](dag, resources.TargetGroupCreateParams{
@@ -105,9 +126,10 @@ var ApiGatewayKB = knowledgebase.Build(
 				tg.TargetType = "instance"
 				dag.AddDependency(tg, instance)
 			}
+			tg.Port = 3000
 
-			if !isEc2Dest && !isTgDest {
-				return fmt.Errorf("destination of api integration -> load balancer expansion must be a target group or ec2 instance, but got %T", data.Destination)
+			if !isEc2Dest && !isTgDest && !isEcsDest {
+				return fmt.Errorf("destination of api integration -> load balancer expansion must be a target group, ecs service, or ec2 instance, but got %T", data.Destination)
 			}
 
 			listener, err := core.CreateResource[*resources.Listener](dag, resources.ListenerCreateParams{
@@ -119,9 +141,6 @@ var ApiGatewayKB = knowledgebase.Build(
 			if err != nil {
 				return err
 			}
-			tg.Port = 3000
-			tg.Protocol = "TCP"
-			tg.TargetType = "ip"
 			if listener.LoadBalancer == nil {
 				return fmt.Errorf("no load balancer was generated for expansion from %s -> %s", data.Source.Id(), data.Destination.Id())
 			}
@@ -130,6 +149,8 @@ var ApiGatewayKB = knowledgebase.Build(
 			listener.DefaultActions = []*resources.LBAction{{TargetGroupArn: core.IaCValue{Resource: tg, Property: resources.ARN_IAC_VALUE}, Type: "forward"}}
 			listener.Port = 80
 			listener.Protocol = tg.Protocol
+			dag.AddDependenciesReflect(listener)
+
 			vpcLink := &resources.VpcLink{
 				Target:        listener.LoadBalancer,
 				ConstructsRef: listener.LoadBalancer.ConstructsRef,
@@ -142,7 +163,7 @@ var ApiGatewayKB = knowledgebase.Build(
 			dag.AddDependenciesReflect(vpcLink)
 			return nil
 		},
-		ValidDestinations: []core.Resource{&resources.TargetGroup{}, &resources.Ec2Instance{}},
+		ValidDestinations: []core.Resource{&resources.TargetGroup{}, &resources.Ec2Instance{}, &resources.EcsService{}},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaPermission, *resources.RestApi]{
 		Configure: func(permission *resources.LambdaPermission, api *resources.RestApi, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {

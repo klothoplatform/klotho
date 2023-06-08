@@ -9,10 +9,10 @@ import (
 var LbKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.TargetGroup, *resources.Vpc]{},
 	knowledgebase.EdgeBuilder[*resources.Listener, *resources.TargetGroup]{
-		ValidDestinations: []core.Resource{&resources.Ec2Instance{}},
+		ValidDestinations: []core.Resource{&resources.Ec2Instance{}, &resources.EcsService{}},
 	},
 	knowledgebase.EdgeBuilder[*resources.Listener, *resources.LoadBalancer]{
-		ValidDestinations: []core.Resource{&resources.TargetGroup{}, &resources.Ec2Instance{}},
+		ValidDestinations: []core.Resource{&resources.TargetGroup{}, &resources.Ec2Instance{}, &resources.EcsService{}},
 		ReverseDirection:  true,
 	},
 	knowledgebase.EdgeBuilder[*resources.LoadBalancer, *resources.Subnet]{},
@@ -27,4 +27,5 @@ var LbKB = knowledgebase.Build(
 			return nil
 		},
 	},
+	knowledgebase.EdgeBuilder[*resources.TargetGroup, *resources.EcsService]{},
 )

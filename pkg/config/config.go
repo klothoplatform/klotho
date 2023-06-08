@@ -353,3 +353,12 @@ func overrideValue[T comparable](src *T, override T) {
 	}
 	*src = override
 }
+
+// ValueOrDefault returns the input value if it is not nil or zero, otherwise it returns the default value
+func ValueOrDefault[T any](input T, defaultValue T) T {
+	t := reflect.ValueOf(input)
+	if !t.IsValid() || (t.IsValid() && t.IsZero()) {
+		return defaultValue
+	}
+	return input
+}

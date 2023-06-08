@@ -29,10 +29,23 @@ type (
 	}
 
 	ContainerTypeParams struct {
-		// Cpu specifies the limit per pod in millicores
+		// Cpu specifies the number of cpu units to allocate to the ECS task
 		Cpu int `json:"cpu,omitempty" yaml:"cpu,omitempty" toml:"cpu,omitempty"`
-		// Memory specifies the limit per pod in MB
+		// DesiredCount specifies the number of instances of an ECS task definition to deploy and keep running
+		DesiredCount int `json:"desired_count,omitempty" yaml:"desired_count,omitempty" toml:"desired_count,omitempty"`
+		// Memory specifies the memory allocation for the ECS task (in MiB)
 		Memory int `json:"memory,omitempty" yaml:"memory,omitempty" toml:"memory,omitempty"`
+		// ForceNewDeployment specifies whether to force a new deployment of the ECS service's task definition
+		ForceNewDeployment bool `json:"force_new_deployment,omitempty" yaml:"force_new_deployment,omitempty" toml:"force_new_deployment,omitempty"`
+		// DeploymentCircuitBreaker specifies the deployment circuit breaker configuration for the ECS service
+		DeploymentCircuitBreaker EcsDeploymentCircuitBreaker `json:"deployment_circuit_breaker,omitempty" yaml:"deployment_circuit_breaker,omitempty" toml:"deployment_circuit_breaker,omitempty"`
+	}
+
+	EcsDeploymentCircuitBreaker struct {
+		// Enable specifies whether to enable the deployment circuit breaker
+		Enable bool `json:"enable,omitempty" yaml:"enable,omitempty" toml:"enable,omitempty"`
+		// Rollback specifies whether to roll back the service if a deployment fails
+		Rollback bool `json:"rollback,omitempty" yaml:"rollback,omitempty" toml:"rollback,omitempty"`
 	}
 
 	// KubernetesKindParams represents the KindParams, configurability, of execution units which match the kubernetes compatibility

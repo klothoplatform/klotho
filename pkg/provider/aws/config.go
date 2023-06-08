@@ -44,8 +44,14 @@ var (
 	}
 
 	ecsDefaults = config.ContainerTypeParams{
-		Memory: 512,
-		Cpu:    256,
+		Memory:             512,
+		Cpu:                256,
+		DesiredCount:       1,
+		ForceNewDeployment: true,
+		DeploymentCircuitBreaker: config.EcsDeploymentCircuitBreaker{
+			Enable:   true,
+			Rollback: false,
+		},
 	}
 
 	lambdaDefaults = config.ServerlessTypeParams{

@@ -80,6 +80,19 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 			dag.AddDependency(helmChart, fargateProfile)
 		}
 		a.MapResourceDirectlyToConstruct(helmChart, unit)
+	case Ecs:
+		networkPlacement := a.Config.GetExecutionUnit(unit.ID).NetworkPlacement
+		ecsService, err := core.CreateResource[*resources.EcsService](dag, resources.EcsServiceCreateParams{
+			AppName:          a.Config.AppName,
+			Refs:             core.AnnotationKeySetOf(unit.AnnotationKey),
+			Name:             unit.ID,
+			LaunchType:       resources.LAUNCH_TYPE_FARGATE,
+			NetworkPlacement: networkPlacement,
+		})
+		if err != nil {
+			return err
+		}
+		a.MapResourceDirectlyToConstruct(ecsService, unit)
 	default:
 		return fmt.Errorf("unsupported execution unit type %s", a.Config.GetExecutionUnit(unit.ID).Type)
 	}
@@ -172,6 +185,52 @@ func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.Reso
 	lambdaConfig.MemorySize = cfg.Memory
 	lambdaConfig.Timeout = cfg.Timeout
 	return lambdaConfig, nil
+}
+
+func (a *AWS) getEcsServiceConfiguration(result *core.ConstructGraph, refs core.AnnotationKeySet) (resources.EcsServiceConfigureParams, error) {
+	serviceConfig := resources.EcsServiceConfigureParams{}
+	ref, oneRef := refs.GetSingle()
+	if !oneRef {
+		return serviceConfig, fmt.Errorf("ecs service must only have one construct reference")
+	}
+	construct := result.GetConstruct(core.ConstructId(ref).ToRid())
+	if construct == nil {
+		return serviceConfig, fmt.Errorf("construct with id %s does not exist", ref.ToId())
+	}
+
+	cfg := config.ConvertFromInfraParams[config.ContainerTypeParams](a.Config.GetExecutionUnit(ref.ID).InfraParams)
+	serviceConfig.DesiredCount = cfg.DesiredCount
+	serviceConfig.ForceNewDeployment = cfg.ForceNewDeployment
+	serviceConfig.DeploymentCircuitBreaker = &resources.EcsServiceDeploymentCircuitBreaker{
+		Enable:   cfg.DeploymentCircuitBreaker.Enable,
+		Rollback: cfg.DeploymentCircuitBreaker.Rollback,
+	}
+	return serviceConfig, nil
+}
+
+func (a *AWS) getEcsTaskDefinitionConfiguration(result *core.ConstructGraph, refs core.AnnotationKeySet) (resources.EcsTaskDefinitionConfigureParams, error) {
+	taskDefConfig := resources.EcsTaskDefinitionConfigureParams{}
+	ref, oneRef := refs.GetSingle()
+	if !oneRef {
+		return taskDefConfig, fmt.Errorf("ecs task definition must only have one construct reference")
+	}
+	construct := result.GetConstruct(core.ConstructId(ref).ToRid())
+	if construct == nil {
+		return taskDefConfig, fmt.Errorf("construct with id %s does not exist", ref.ToId())
+	}
+	unit, ok := construct.(*core.ExecutionUnit)
+	if !ok {
+		return taskDefConfig, fmt.Errorf("ecs task definition must only have a construct reference to an execution unit")
+	}
+	for _, env := range unit.EnvironmentVariables {
+		if env.Construct == nil {
+			taskDefConfig.EnvironmentVariables = append(taskDefConfig.EnvironmentVariables, env)
+		}
+	}
+	cfg := config.ConvertFromInfraParams[config.ContainerTypeParams](a.Config.GetExecutionUnit(ref.ID).InfraParams)
+	taskDefConfig.Memory = cfg.Memory
+	taskDefConfig.Cpu = cfg.Cpu
+	return taskDefConfig, nil
 }
 
 func (a *AWS) getImageConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.AnnotationKeySet) (resources.EcrImageConfigureParams, error) {
