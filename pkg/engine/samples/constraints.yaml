@@ -1,0 +1,21 @@
+- scope: application
+  operator: add
+  node: klotho:execution_unit:my_compute
+- scope: application
+  operator: add
+  node: klotho:orm:my_orm
+- scope: construct
+  operator: equals
+  target: klotho:orm:my_orm
+  type: rds_instance
+- scope: application
+  operator: add
+  edge: 
+    source: klotho:execution_unit:my_compute
+    target: klotho:orm:my_orm
+- scope: edge
+  operator: must_contain
+  target: 
+    source: klotho:execution_unit:my_compute
+    target: klotho:orm:my_orm
+  node: aws:rds_proxy:my_proxy
