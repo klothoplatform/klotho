@@ -1,0 +1,6 @@
+{
+    "name": "document_db_cluster",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

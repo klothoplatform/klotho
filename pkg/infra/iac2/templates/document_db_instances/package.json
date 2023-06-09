@@ -1,0 +1,6 @@
+{
+    "name": "document_db_instance",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}
