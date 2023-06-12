@@ -1,9 +1,12 @@
 package engine
 
 import (
+<<<<<<< HEAD
 	"errors"
 	"fmt"
 
+=======
+>>>>>>> 7a5a19d (fix)
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
