@@ -1,4 +1,4 @@
-package engine
+package constraints
 
 import (
 	"testing"
@@ -49,6 +49,14 @@ func Test_ParseConstraintsFromFile(t *testing.T) {
 							Target: core.ResourceId{Provider: core.AbstractConstructProvider, Type: "orm", Name: "my_orm"},
 						},
 						Node: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					},
+				},
+				NodeConstraintScope: {
+					&NodeConstraint{
+						Operator: EqualsConstraintOperator,
+						Target:   core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+						Property: "db_instance_class",
+						Value:    "db.t3.micro",
 					},
 				},
 			},
