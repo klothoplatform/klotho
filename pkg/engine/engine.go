@@ -1,8 +1,6 @@
 package engine
 
 import (
-	"errors"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
@@ -51,73 +49,4 @@ func (e *Engine) LoadContext(InitialState *core.ConstructGraph, Constraints map[
 		Constraints:  Constraints,
 		Dag:          core.NewResourceGraph(),
 	}
-}
-
-func (e *Engine) Run(graph *core.ConstructGraph, constraints []constraints.Constraint, appName string) (*core.ResourceGraph, error) {
-
-	dag := core.NewResourceGraph()
-
-	// First we look at all application constraints to see what is going to be added and removed from the construct graph
-	// for _, constraint := range e.Context.Constraints[constraints.ApplicationConstraintScope] {
-	// 	err := constraint.Apply(e)
-	// 	if err != nil {
-	// 		return dag, err
-	// 	}
-	// }
-
-	// for i := 1; i < 5; i++ {
-	// 	zap.S().Infof("Running engine iteration %d", i)
-
-	// 	err := e.Provider.ExpandConstructs(graph, dag)
-	// 	if err != nil {
-	// 		return dag, err
-	// 	}
-
-	// 	err = e.KnowledgeBase.ExpandEdges(dag, appName)
-	// 	if err != nil {
-	// 		return dag, err
-	// 	}
-	// 	validated, err := ValidateAndApply(dag, constraints)
-	// 	if err != nil {
-	// 		return dag, err
-	// 	}
-	// 	if validated {
-	// 		break
-	// 	}
-	// }
-
-	var configurationErr error
-	for _, resource := range dag.ListResources() {
-		// Here we would apply the configuration based on node constraints we got
-		var configuration any
-		err := dag.CallConfigure(resource, configuration)
-		if err != nil {
-			errors.Join(configurationErr, err)
-		}
-	}
-	if configurationErr != nil {
-		return dag, configurationErr
-	}
-
-	err := e.KnowledgeBase.ConfigureFromEdgeData(dag)
-	if err != nil {
-		return dag, err
-	}
-
-	return dag, nil
-}
-
-func ValidateAndApply(graph *core.ResourceGraph, constraints []constraints.Constraint) (bool, error) {
-	var joinedErr error
-	allSatisfied := true
-	// for _, constraint := range constraints {
-	// 	if !constraint.IsSatisfied(graph) {
-	// 		allSatisfied = false
-	// 		err := constraint.Apply(graph)
-	// 		if err != nil {
-	// 			return false, err
-	// 		}
-	// 	}
-	// }
-	return allSatisfied, joinedErr
 }
