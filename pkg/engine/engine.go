@@ -22,7 +22,6 @@ type (
 		InitialState *core.ConstructGraph
 		Dag          *core.ResourceGraph
 		Decisions    []Decision
-		Resources    []core.Resource
 	}
 
 	// Decision is a struct that represents a decision made by the engine
