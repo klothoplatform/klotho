@@ -236,66 +236,66 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 
 }
 
-// func Test_GetResourcesOfCapability(t *testing.T) {
-// 	tests := []struct {
-// 		name       string
-// 		constructs []Construct
-// 		capability string
-// 		want       []Construct
-// 	}{
-// 		{
-// 			name:       "single capability construct",
-// 			constructs: []Construct{&Kv{Name: "test"}},
-// 			capability: annotation.PersistCapability,
-// 			want: []Construct{
-// 				&Kv{Name: "test"},
-// 			},
-// 		},
-// 		{
-// 			name: "multiple capability construct",
-// 			constructs: []Construct{
-// 				&Kv{Name: "test"},
-// 				&Orm{Name: "test2"},
-// 			},
-// 			capability: annotation.PersistCapability,
-// 			want: []Construct{
-// 				&Kv{Name: "test"},
-// 				&Orm{Name: "test2"},
-// 			},
-// 		},
-// 		{
-// 			name: "no capability construct",
-// 			constructs: []Construct{
-// 				&Kv{Name: "test"},
-// 				&Orm{Name: "test2"},
-// 			},
-// 			capability: annotation.ExposeCapability,
-// 		},
-// 		{
-// 			name:       "no constructs",
-// 			constructs: []Construct{},
-// 			capability: annotation.ExposeCapability,
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			assert := assert.New(t)
-// 			g := graph.NewDirected(construct2Hash)
-// 			constructGraph := ConstructGraph{
-// 				underlying: g,
-// 			}
-// 			for _, c := range tt.constructs {
-// 				g.AddVertex(c)
-// 			}
-// 			constructs := constructGraph.GetResourcesOfCapability(tt.capability)
-// 			if tt.want != nil && !assert.NotNil(constructs) {
-// 				return
-// 			}
-// 			assert.ElementsMatch(tt.want, constructs)
-// 		})
-// 	}
+func Test_GetResourcesOfCapability(t *testing.T) {
+	tests := []struct {
+		name       string
+		constructs []Construct
+		capability string
+		want       []Construct
+	}{
+		{
+			name:       "single capability construct",
+			constructs: []Construct{&Kv{Name: "test"}},
+			capability: annotation.PersistCapability,
+			want: []Construct{
+				&Kv{Name: "test"},
+			},
+		},
+		{
+			name: "multiple capability construct",
+			constructs: []Construct{
+				&Kv{Name: "test"},
+				&Orm{Name: "test2"},
+			},
+			capability: annotation.PersistCapability,
+			want: []Construct{
+				&Kv{Name: "test"},
+				&Orm{Name: "test2"},
+			},
+		},
+		{
+			name: "no capability construct",
+			constructs: []Construct{
+				&Kv{Name: "test"},
+				&Orm{Name: "test2"},
+			},
+			capability: annotation.ExposeCapability,
+		},
+		{
+			name:       "no constructs",
+			constructs: []Construct{},
+			capability: annotation.ExposeCapability,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			g := graph.NewDirected(construct2Hash)
+			constructGraph := ConstructGraph{
+				underlying: g,
+			}
+			for _, c := range tt.constructs {
+				g.AddVertex(c)
+			}
+			constructs := constructGraph.GetResourcesOfCapability(tt.capability)
+			if tt.want != nil && !assert.NotNil(constructs) {
+				return
+			}
+			assert.ElementsMatch(tt.want, constructs)
+		})
+	}
 
-// }
+}
 
 func Test_LoadConstructsIntoGraph(t *testing.T) {
 	type result struct {

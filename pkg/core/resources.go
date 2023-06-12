@@ -23,13 +23,11 @@ type (
 		AnnotationCapability() string
 	}
 
-	// BaseConstructsRefSet is a set of BaseConstructs
 	BaseConstructSet map[BaseConstruct]struct{}
 
 	// Resource describes a resource at the provider, infrastructure level
 	Resource interface {
 		BaseConstruct
-		// BaseConstructsRef returns a set of BaseConstructs which caused the creation of this resource
 		BaseConstructsRef() BaseConstructSet
 	}
 
