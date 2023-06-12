@@ -1,4 +1,4 @@
-package engine
+package constraints
 
 import (
 	"errors"
@@ -17,6 +17,16 @@ type (
 	Constraint interface {
 		// Scope returns where on the resource graph the constraint is applied
 		Scope() ConstraintScope
+		// IsSatisfied returns whether or not the constraint is satisfied based on the resource graph
+		// For a resource graph to be valid all constraints must be satisfied
+		IsSatisfied(dag *core.ResourceGraph) bool
+		// Apply applies the constraint to the resource graph
+		// Apply is only called if the constraint is not satisfied
+		// Apply should return an error if the constraint cannot be applied
+		Apply(dag *core.ResourceGraph) error
+		// Conflict returns whether or not the constraint conflicts with another constraint
+		// If constraints conflict, then the constraints passed in are unsolveable
+		Conflict(other Constraint) bool
 	}
 
 	// BaseConstraint is the base struct for all constraints
@@ -29,37 +39,6 @@ type (
 	Edge struct {
 		Source core.ResourceId `yaml:"source"`
 		Target core.ResourceId `yaml:"target"`
-	}
-
-	// ApplicationConstraint is a struct that represents constraints that can be applied on the entire resource graph
-	ApplicationConstraint struct {
-		Operator ConstraintOperator `yaml:"operator"`
-		Node     core.ResourceId    `yaml:"node"`
-		Edge     Edge               `yaml:"edge"`
-	}
-
-	// ConstructConstraint is a struct that represents constraints that can be applied on a specific construct in the resource graph
-	ConstructConstraint struct {
-		Operator   ConstraintOperator `yaml:"operator"`
-		Target     core.ResourceId    `yaml:"target"`
-		Type       string             `yaml:"type"`
-		Attributes map[string]any     `yaml:"attributes"`
-	}
-
-	// EdgeConstraint is a struct that represents constraints that can be applied on a specific edge in the resource graph
-	EdgeConstraint struct {
-		Operator ConstraintOperator `yaml:"operator"`
-		Target   Edge               `yaml:"target"`
-		Node     core.ResourceId    `yaml:"node"`
-	}
-
-	// NodeConstraint is a struct that represents constraints that can be applied on a specific node in the resource graph.
-	// NodeConstraints are used to control intrinsic properties of a node in the resource graph
-	NodeConstraint struct {
-		BaseConstraint
-		Target   core.ResourceId
-		Property string
-		Value    any
 	}
 
 	// ConstraintScope is an enum that represents the different scopes that a constraint can be applied to
@@ -79,24 +58,18 @@ const (
 	MustNotExistConstraintOperator   ConstraintOperator = "must_not_exist"
 	MustNotContainConstraintOperator ConstraintOperator = "must_not_contain"
 	AddConstraintOperator            ConstraintOperator = "add"
+	RemoveConstraintOperator         ConstraintOperator = "remove"
+	ReplaceConstraintOperator        ConstraintOperator = "replace"
 	EqualsConstraintOperator         ConstraintOperator = "equals"
 )
 
-func (b *ApplicationConstraint) Scope() ConstraintScope {
-	return ApplicationConstraintScope
-}
-
-func (b *ConstructConstraint) Scope() ConstraintScope {
-	return ConstructConstraintScope
-}
-
-func (b *EdgeConstraint) Scope() ConstraintScope {
-	return EdgeConstraintScope
-}
-
 // DecodeYAMLNode is a helper function that decodes a yaml node into a struct representing different constraints
-func DecodeYAMLNode[T Constraint](node *yaml.Node) (constraint T, err error) {
-	constraint = reflect.New(reflect.TypeOf(constraint).Elem()).Interface().(T)
+func DecodeYAMLNode[T interface {
+	Constraint
+	*I
+}, I any](node *yaml.Node) (constraint T, err error) {
+	constraint = new(I)
+	// constraint = reflect.New(reflect.TypeOf(constraint).Elem()).Interface().(T)
 	err = extraFields(node, reflect.ValueOf(constraint))
 	if err != nil {
 		return constraint, err
@@ -106,6 +79,8 @@ func DecodeYAMLNode[T Constraint](node *yaml.Node) (constraint T, err error) {
 }
 
 // ParseConstraintsFromFile is a helper function that parses a yaml file into a map of constraints
+//
+// Future spec may include ordering of the application of constraints, but for now we assume that the order of the constraints is based on the yaml file and they cannot be grouped outside of scope
 func ParseConstraintsFromFile(path string) (map[ConstraintScope][]Constraint, error) {
 	constraints := map[ConstraintScope][]Constraint{}
 	f, err := os.Open(path)
@@ -129,12 +104,16 @@ func ParseConstraintsFromFile(path string) (map[ConstraintScope][]Constraint, er
 				joinedErr = errors.Join(joinedErr, err)
 				continue
 			}
-			fmt.Println(base)
 			switch base.Scope {
 			case ApplicationConstraintScope:
 				appConstraint, err := DecodeYAMLNode[*ApplicationConstraint](a)
 				if err != nil {
 					joinedErr = errors.Join(joinedErr, err)
+					continue
+				}
+				validOperators := []string{string(AddConstraintOperator), string(RemoveConstraintOperator), string(ReplaceConstraintOperator)}
+				if !slices.Contains(validOperators, string(appConstraint.Operator)) {
+					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", appConstraint.Operator))
 					continue
 				}
 				constraints[ApplicationConstraintScope] = append(constraints[ApplicationConstraintScope], appConstraint)
@@ -144,6 +123,11 @@ func ParseConstraintsFromFile(path string) (map[ConstraintScope][]Constraint, er
 					joinedErr = errors.Join(joinedErr, err)
 					continue
 				}
+				validOperators := []string{string(EqualsConstraintOperator), string(MustContainConstraintOperator), string(MustNotContainConstraintOperator)}
+				if !slices.Contains(validOperators, string(constraint.Operator)) {
+					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", constraint.Operator))
+					continue
+				}
 				constraints[ConstructConstraintScope] = append(constraints[ConstructConstraintScope], constraint)
 			case EdgeConstraintScope:
 				constraint, err := DecodeYAMLNode[*EdgeConstraint](a)
@@ -151,7 +135,24 @@ func ParseConstraintsFromFile(path string) (map[ConstraintScope][]Constraint, er
 					joinedErr = errors.Join(joinedErr, err)
 					continue
 				}
+				validOperators := []string{string(MustContainConstraintOperator), string(MustNotContainConstraintOperator)}
+				if !slices.Contains(validOperators, string(constraint.Operator)) {
+					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", constraint.Operator))
+					continue
+				}
 				constraints[EdgeConstraintScope] = append(constraints[EdgeConstraintScope], constraint)
+			case NodeConstraintScope:
+				constraint, err := DecodeYAMLNode[*NodeConstraint](a)
+				if err != nil {
+					joinedErr = errors.Join(joinedErr, err)
+					continue
+				}
+				validOperators := []string{string(EqualsConstraintOperator)}
+				if !slices.Contains(validOperators, string(constraint.Operator)) {
+					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", constraint.Operator))
+					continue
+				}
+				constraints[NodeConstraintScope] = append(constraints[NodeConstraintScope], constraint)
 			}
 		}
 	}
