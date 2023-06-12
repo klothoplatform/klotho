@@ -20,7 +20,7 @@ func (p Assets) Name() string { return "Assets" }
 func (p Assets) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	units := make(map[string]*core.ExecutionUnit)
 	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
-		units[unit.ID] = unit
+		units[unit.Name] = unit
 	}
 
 	var errs multierr.Error

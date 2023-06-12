@@ -6,7 +6,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/stretchr/testify/assert"
 )
@@ -35,16 +34,16 @@ func Test_envVarPlugin(t *testing.T) {
 */
 const a = 1`,
 			want: testResult{
-				resource: &core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "myRedisNode", Capability: annotation.PersistCapability}},
+				resource: &core.RedisNode{Name: "myRedisNode"},
 				envVars: core.EnvironmentVariables{
 					{
 						Name:      "REDIS_NODE_HOST",
-						Construct: &core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "myRedisNode", Capability: annotation.PersistCapability}},
+						Construct: &core.RedisNode{Name: "myRedisNode"},
 						Value:     "host",
 					},
 					{
 						Name:      "REDIS_NODE_PORT",
-						Construct: &core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "myRedisNode", Capability: annotation.PersistCapability}},
+						Construct: &core.RedisNode{Name: "myRedisNode"},
 						Value:     "port",
 					},
 				},
@@ -63,16 +62,16 @@ const a = 1`,
 */
 const a = 1`,
 			want: testResult{
-				resource: &core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "myRedisCluster", Capability: annotation.PersistCapability}},
+				resource: &core.RedisCluster{Name: "myRedisCluster"},
 				envVars: core.EnvironmentVariables{
 					{
 						Name:      "REDIS_HOST",
-						Construct: &core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "myRedisCluster", Capability: annotation.PersistCapability}},
+						Construct: &core.RedisCluster{Name: "myRedisCluster"},
 						Value:     "host",
 					},
 					{
 						Name:      "REDIS_PORT",
-						Construct: &core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "myRedisCluster", Capability: annotation.PersistCapability}},
+						Construct: &core.RedisCluster{Name: "myRedisCluster"},
 						Value:     "port",
 					},
 				},
@@ -90,11 +89,11 @@ const a = 1`,
 */
 const a = 1`,
 			want: testResult{
-				resource: &core.Orm{AnnotationKey: core.AnnotationKey{ID: "myOrm", Capability: annotation.PersistCapability}},
+				resource: &core.Orm{Name: "myOrm"},
 				envVars: core.EnvironmentVariables{
 					{
 						Name:      "ORM_CONNECTION_STRING",
-						Construct: &core.Orm{AnnotationKey: core.AnnotationKey{ID: "myOrm", Capability: annotation.PersistCapability}},
+						Construct: &core.Orm{Name: "myOrm"},
 						Value:     "connection_string",
 					},
 				},
@@ -159,7 +158,7 @@ const a = 1`,
 			}
 			p := EnvVarInjection{}
 
-			unit := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "unit"}}
+			unit := &core.ExecutionUnit{Name: "unit"}
 			unit.Add(f)
 			result := core.NewConstructGraph()
 			result.AddConstruct(unit)
@@ -178,7 +177,7 @@ const a = 1`,
 
 			downstreamDeps := result.GetDownstreamDependencies(unit)
 			assert.Len(downstreamDeps, 1)
-			assert.Equal(tt.want.resource.Provenance().ID, coretesting.TryGetProvenance(assert, downstreamDeps[0].Destination).ID)
+			assert.Equal(tt.want.resource.Id(), downstreamDeps[0].Destination.Id())
 
 			assert.Len(unit.EnvironmentVariables, len(tt.want.envVars))
 			for _, envVar := range tt.want.envVars {
@@ -186,7 +185,7 @@ const a = 1`,
 					if envVar.Name == unitVar.Name {
 						assert.Equal(envVar.Name, unitVar.Name)
 						assert.Equal(envVar.Value, unitVar.Value)
-						assert.Equal(envVar.Construct.Provenance(), unitVar.Construct.Provenance())
+						assert.Equal(envVar.Construct.Id(), unitVar.Construct.Id())
 
 					}
 				}

@@ -16,13 +16,13 @@ const (
 type (
 	EcrRepository struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		ForceDelete   bool
 	}
 
 	EcrImage struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Repo          *EcrRepository
 		Context       string
 		Dockerfile    string
@@ -32,7 +32,7 @@ type (
 
 type RepoCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreateParams) error {
@@ -59,7 +59,7 @@ func (repo *EcrRepository) Configure(params EcrRepositoryConfigureParams) error 
 
 type ImageCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 }
 
@@ -101,68 +101,22 @@ func (image *EcrImage) Configure(params EcrImageConfigureParams) error {
 	return nil
 }
 
-func GenerateEcrRepoAndImage(appName string, unit *core.ExecutionUnit, dag *core.ResourceGraph) (*EcrImage, error) {
-	// See if we have already created an ecr repository for the app and if not create one, otherwise add a ref to this exec unit
-	var repo *EcrRepository
-	existingRepo := dag.GetResource(GenerateRepoId(appName))
-	if existingRepo == nil {
-		repo = NewEcrRepository(appName, unit.Provenance())
-		dag.AddResource(repo)
-	} else {
-		var ok bool
-		repo, ok = existingRepo.(*EcrRepository)
-		if !ok {
-			return nil, fmt.Errorf("expected resource with id, %s, to be ecr repository", repo.Id())
-		}
-		repo.ConstructsRef.Add(unit.Provenance())
-	}
-
-	// Create image and make it dependent on the repository
-	image := NewEcrImage(unit, appName, repo)
-	dag.AddResource(image)
-	dag.AddDependency(image, repo)
-	return image, nil
-}
-
-func NewEcrRepository(appName string, ref core.AnnotationKey) *EcrRepository {
-	return &EcrRepository{
-		Name:          appName,
-		ForceDelete:   true,
-		ConstructsRef: core.AnnotationKeySetOf(ref),
-	}
-}
-
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (repo *EcrRepository) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (repo *EcrRepository) BaseConstructsRef() core.BaseConstructSet {
 	return repo.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
 func (repo *EcrRepository) Id() core.ResourceId {
-	return GenerateRepoId(repo.Name)
-}
-
-func GenerateRepoId(name string) core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     ECR_REPO_TYPE,
-		Name:     name,
+		Name:     repo.Name,
 	}
 }
 
-func NewEcrImage(unit *core.ExecutionUnit, appName string, repo *EcrRepository) *EcrImage {
-	return &EcrImage{
-		Name:          fmt.Sprintf("%s-%s", appName, unit.ID),
-		ConstructsRef: core.AnnotationKeySetOf(unit.Provenance()),
-		Repo:          repo,
-		Context:       fmt.Sprintf("./%s", unit.ID),
-		Dockerfile:    fmt.Sprintf("./%s/%s", unit.ID, unit.DockerfilePath),
-		ExtraOptions:  []string{"--platform", "linux/amd64", "--quiet"},
-	}
-}
-
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (image *EcrImage) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (image *EcrImage) BaseConstructsRef() core.BaseConstructSet {
 	return image.ConstructsRef
 }
 

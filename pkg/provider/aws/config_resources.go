@@ -8,12 +8,12 @@ import (
 
 func (a *AWS) expandConfig(dag *core.ResourceGraph, construct *core.Config) error {
 	if !construct.Secret {
-		return errors.Errorf("unsupported: non-secret config for annotation '%s'", construct.ID)
+		return errors.Errorf("unsupported: non-secret config for annotation '%s'", construct.Name)
 	}
 	secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 		AppName: a.Config.AppName,
-		Refs:    core.AnnotationKeySetOf(construct.AnnotationKey),
-		Name:    construct.ID,
+		Refs:    core.BaseConstructSetOf(construct),
+		Name:    construct.Name,
 	})
 	if err != nil {
 		return err

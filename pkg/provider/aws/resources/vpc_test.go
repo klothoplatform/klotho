@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
@@ -12,7 +11,8 @@ import (
 )
 
 func Test_VpcCreate(t *testing.T) {
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name string
 		vpc  *Vpc
@@ -47,7 +47,7 @@ func Test_VpcCreate(t *testing.T) {
 			}
 			metadata := VpcCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
+				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
 			}
 
 			vpc := &Vpc{}
@@ -65,14 +65,15 @@ func Test_VpcCreate(t *testing.T) {
 				assert.Equal(vpc.ConstructsRef, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(metadata.Refs)
-				assert.Equal(vpc.KlothoConstructRef(), expect)
+				assert.Equal(vpc.BaseConstructsRef(), expect)
 			}
 		})
 	}
 }
 
 func Test_ElasticIpCreate(t *testing.T) {
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name string
 		eip  *ElasticIp
@@ -107,7 +108,7 @@ func Test_ElasticIpCreate(t *testing.T) {
 			}
 			metadata := EipCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
+				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
 				IpName:  "ip0",
 			}
 
@@ -126,14 +127,15 @@ func Test_ElasticIpCreate(t *testing.T) {
 				assert.Equal(eip.ConstructsRef, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(metadata.Refs)
-				assert.Equal(eip.KlothoConstructRef(), expect)
+				assert.Equal(eip.BaseConstructsRef(), expect)
 			}
 		})
 	}
 }
 
 func Test_InternetGatewayCreate(t *testing.T) {
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name string
 		igw  *InternetGateway
@@ -171,7 +173,7 @@ func Test_InternetGatewayCreate(t *testing.T) {
 			}
 			metadata := IgwCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
+				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
 			}
 
 			igw := &InternetGateway{}
@@ -190,14 +192,15 @@ func Test_InternetGatewayCreate(t *testing.T) {
 				assert.Equal(igw.ConstructsRef, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(metadata.Refs)
-				assert.Equal(igw.KlothoConstructRef(), expect)
+				assert.Equal(igw.BaseConstructsRef(), expect)
 			}
 		})
 	}
 }
 
 func Test_NatGatewayCreate(t *testing.T) {
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name string
 		nat  *NatGateway
@@ -247,7 +250,7 @@ func Test_NatGatewayCreate(t *testing.T) {
 			}
 			metadata := NatCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
+				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
 				AZ:      "0",
 			}
 
@@ -268,14 +271,15 @@ func Test_NatGatewayCreate(t *testing.T) {
 				assert.Equal(nat.ConstructsRef, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(metadata.Refs)
-				assert.Equal(nat.KlothoConstructRef(), expect)
+				assert.Equal(nat.BaseConstructsRef(), expect)
 			}
 		})
 	}
 }
 
 func Test_SubnetCreate(t *testing.T) {
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name     string
 		subnet   *Subnet
@@ -425,7 +429,7 @@ func Test_SubnetCreate(t *testing.T) {
 			}
 			metadata := SubnetCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
+				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
 				AZ:      tt.subnet.AvailabilityZone.Property,
 				Type:    tt.subnet.Type,
 			}
@@ -451,14 +455,15 @@ func Test_SubnetCreate(t *testing.T) {
 				assert.Equal(subnet.ConstructsRef, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(metadata.Refs)
-				assert.Equal(subnet.KlothoConstructRef(), expect)
+				assert.Equal(subnet.BaseConstructsRef(), expect)
 			}
 		})
 	}
 }
 
 func Test_RouteTableCreate(t *testing.T) {
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name string
 		rt   *RouteTable
@@ -499,7 +504,7 @@ func Test_RouteTableCreate(t *testing.T) {
 			}
 			metadata := RouteTableCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
+				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
 				Name:    "private0",
 			}
 
@@ -520,7 +525,7 @@ func Test_RouteTableCreate(t *testing.T) {
 				assert.Equal(rt.ConstructsRef, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(metadata.Refs)
-				assert.Equal(rt.KlothoConstructRef(), expect)
+				assert.Equal(rt.BaseConstructsRef(), expect)
 			}
 		})
 	}

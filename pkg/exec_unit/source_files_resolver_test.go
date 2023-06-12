@@ -74,7 +74,7 @@ func TestSourceFilesResolver_Resolve(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			testUnit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "main", Capability: annotation.ExecutionUnitCapability}, Executable: core.NewExecutable()}
+			testUnit := core.ExecutionUnit{Name: "main", Executable: core.NewExecutable()}
 			for path, unit := range tt.fileUnits {
 				f, err := core.NewSourceFile(path, strings.NewReader(unit), testAnnotationLang)
 				if assert.Nil(err) {

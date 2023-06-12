@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	assert2 "github.com/stretchr/testify/assert"
 )
@@ -204,7 +203,7 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 			assert.Equal(len(tt.expectedUnits), len(tt.units))
 
 			for _, unit := range tt.units {
-				eu := tt.expectedUnits[unit.ID]
+				eu := tt.expectedUnits[unit.Name]
 				assert.Equal(eu.executableType, unit.Executable.Type)
 				assert.ElementsMatch(eu.expectedFiles["allFiles"], keys(unit.Files()))
 				assert.ElementsMatch(eu.expectedFiles["entrypoints"], keys(unit.Executable.Entrypoints))
@@ -225,7 +224,7 @@ func keys[K comparable, V any](m map[K]V) []K {
 }
 
 func execUnit(name string, files ...taggedFile) *core.ExecutionUnit {
-	unit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: name, Capability: annotation.ExecutionUnitCapability}, Executable: core.NewExecutable()}
+	unit := core.ExecutionUnit{Name: name, Executable: core.NewExecutable()}
 	for _, tf := range files {
 		f := file(tf.path, tf.content)
 

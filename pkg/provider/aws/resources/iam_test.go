@@ -3,14 +3,14 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_RoleCreate(t *testing.T) {
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name    string
 		role    *IamRole
@@ -42,7 +42,7 @@ func Test_RoleCreate(t *testing.T) {
 			metadata := RoleCreateParams{
 				AppName: "my-app",
 				Name:    "executionRole",
-				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
+				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
 			}
 			role := &IamRole{}
 			err := role.Create(dag, metadata)
@@ -63,7 +63,8 @@ func Test_RoleCreate(t *testing.T) {
 }
 
 func Test_PolicyCreate(t *testing.T) {
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name    string
 		policy  *IamPolicy
@@ -100,7 +101,7 @@ func Test_PolicyCreate(t *testing.T) {
 			metadata := IamPolicyCreateParams{
 				AppName: "my-app",
 				Name:    "policy",
-				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
+				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
 			}
 			policy := &IamPolicy{}
 			err := policy.Create(dag, metadata)
@@ -119,7 +120,7 @@ func Test_PolicyCreate(t *testing.T) {
 			if tt.policy == nil {
 				assert.Equal(policy.ConstructsRef, metadata.Refs)
 			} else {
-				initialRefs.Add(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability})
+				initialRefs.Add(&core.ExecutionUnit{Name: "test"})
 				assert.Equal(policy.ConstructsRef, initialRefs)
 
 			}
@@ -128,8 +129,9 @@ func Test_PolicyCreate(t *testing.T) {
 }
 
 func Test_OidcCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[OidcCreateParams, *OpenIdConnectProvider]{
 		{
 			Name: "nil oidc",
@@ -196,7 +198,7 @@ func Test_OidcCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, oidc *OpenIdConnectProvider) {
 				assert.Equal(oidc.Name, "my-app-cluster")
 				assert.NotNil(oidc.Cluster)
-				assert.Equal(oidc.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(oidc.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -210,7 +212,7 @@ func Test_OidcCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, oidc *OpenIdConnectProvider) {
 				assert.Equal(oidc.Name, "my-app-cluster")
-				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(eu.AnnotationKey))
+				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
 				assert.Equal(oidc.ConstructsRef, expect)
 			},
 		},
@@ -219,7 +221,7 @@ func Test_OidcCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = OidcCreateParams{
 				AppName:     "my-app",
-				Refs:        core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:        core.BaseConstructSetOf(eu),
 				ClusterName: "cluster",
 			}
 			tt.Run(t)
@@ -228,8 +230,9 @@ func Test_OidcCreate(t *testing.T) {
 }
 
 func Test_InstanceProfileCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[InstanceProfileCreateParams, *InstanceProfile]{
 		{
 			Name: "nil profile",
@@ -245,7 +248,7 @@ func Test_InstanceProfileCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, profile *InstanceProfile) {
 				assert.Equal(profile.Name, "my-app-profile")
 				assert.NotNil(profile.Role)
-				assert.Equal(profile.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(profile.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -259,7 +262,7 @@ func Test_InstanceProfileCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, profile *InstanceProfile) {
 				assert.Equal(profile.Name, "my-app-profile")
-				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(eu.AnnotationKey))
+				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
 				assert.Equal(profile.ConstructsRef, expect)
 			},
 		},
@@ -268,7 +271,7 @@ func Test_InstanceProfileCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = InstanceProfileCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:    core.BaseConstructSetOf(eu),
 				Name:    "profile",
 			}
 			tt.Run(t)

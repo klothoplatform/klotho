@@ -254,7 +254,7 @@ func Test_handleIaCValue(t *testing.T) {
 		{
 			name: "bucket name",
 			value: core.IaCValue{
-				Resource: resources.NewS3Bucket(&core.Fs{}, "test-app"),
+				Resource: &resources.S3Bucket{Name: "test-app"},
 				Property: string(core.BUCKET_NAME),
 			},
 			resourceVarNamesById: map[core.ResourceId]string{
@@ -363,21 +363,21 @@ type (
 	}
 )
 
-func (f *DummyFizz) Id() core.ResourceId                       { return core.ResourceId{Name: "fizz-" + f.Value} }
-func (f *DummyFizz) Provider() string                          { return "DummyProvider" }
-func (f *DummyFizz) KlothoConstructRef() core.AnnotationKeySet { return nil }
+func (f *DummyFizz) Id() core.ResourceId                      { return core.ResourceId{Name: "fizz-" + f.Value} }
+func (f *DummyFizz) Provider() string                         { return "DummyProvider" }
+func (f *DummyFizz) BaseConstructsRef() core.BaseConstructSet { return nil }
 
-func (b DummyBuzz) Id() core.ResourceId                       { return core.ResourceId{Name: "buzz-shared"} }
-func (f DummyBuzz) Provider() string                          { return "DummyProvider" }
-func (f DummyBuzz) KlothoConstructRef() core.AnnotationKeySet { return nil }
+func (b DummyBuzz) Id() core.ResourceId                      { return core.ResourceId{Name: "buzz-shared"} }
+func (f DummyBuzz) Provider() string                         { return "DummyProvider" }
+func (f DummyBuzz) BaseConstructsRef() core.BaseConstructSet { return nil }
 
-func (p *DummyBig) Id() core.ResourceId                       { return core.ResourceId{Name: "big-" + p.id} }
-func (f *DummyBig) Provider() string                          { return "DummyProvider" }
-func (f *DummyBig) KlothoConstructRef() core.AnnotationKeySet { return nil }
+func (p *DummyBig) Id() core.ResourceId                      { return core.ResourceId{Name: "big-" + p.id} }
+func (f *DummyBig) Provider() string                         { return "DummyProvider" }
+func (f *DummyBig) BaseConstructsRef() core.BaseConstructSet { return nil }
 
-func (p DummyVoid) Id() core.ResourceId                       { return core.ResourceId{Name: "void"} }
-func (f DummyVoid) Provider() string                          { return "DummyProvider" }
-func (f DummyVoid) KlothoConstructRef() core.AnnotationKeySet { return nil }
+func (p DummyVoid) Id() core.ResourceId                      { return core.ResourceId{Name: "void"} }
+func (f DummyVoid) Provider() string                         { return "DummyProvider" }
+func (f DummyVoid) BaseConstructsRef() core.BaseConstructSet { return nil }
 
 var dummyTemplateFiles = map[string]string{
 	`dummy_fizz/factory.ts`: `

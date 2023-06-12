@@ -66,7 +66,7 @@ func (p *ExpressHandler) transformSingle(constructGraph *core.ConstructGraph, un
 
 	execUnitInfo := execUnitExposeInfo{Unit: unit, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
 	p.output = expressOutput{}
-	p.log = zap.L().With(zap.String("unit", unit.ID))
+	p.log = zap.L().With(zap.String("unit", unit.Name))
 
 	var errs multierr.Error
 
@@ -215,7 +215,7 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, constru
 		}
 		info.RoutesByGateway[gwSpec] = []gatewayRouteDefinition{}
 
-		localRoutes := h.handleLocalRoutes(listener.f, listenVarName, "", info.Unit.ID)
+		localRoutes := h.handleLocalRoutes(listener.f, listenVarName, "", info.Unit.Name)
 		if len(localRoutes) > 0 {
 			h.log.Sugar().Infof("Found %d route(s) on server '%s'", len(localRoutes), listenVarName)
 			info.RoutesByGateway[gwSpec] = append(info.RoutesByGateway[gwSpec], localRoutes...)
@@ -236,7 +236,7 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, constru
 			var routes []gatewayRouteDefinition
 			if imp == (Import{}) {
 				// not an imported router, assume it's defined locally
-				routes = h.handleLocalRoutes(mw.f, mwImportName, mw.Path, info.Unit.ID)
+				routes = h.handleLocalRoutes(mw.f, mwImportName, mw.Path, info.Unit.Name)
 			} else {
 				path := imp.Source
 				if path[0] != '.' {
@@ -268,7 +268,7 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, constru
 					exportName = exportNode.Content()
 				}
 
-				if mwUnit := core.FileExecUnitName(mwFile); mwUnit != "" && info.Unit.ID != mwUnit {
+				if mwUnit := core.FileExecUnitName(mwFile); mwUnit != "" && info.Unit.Name != mwUnit {
 					importAssign := imp.ImportNode
 					mwUse := mw.UseExpr. // call_expression
 								Parent() // expression_statement
@@ -282,7 +282,7 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, constru
 					continue // we have no routes to add, and make sure we don't log the "no routes" warning
 				} else {
 					// TODO check if mw is a Router and only handle the local routes if so
-					routes = h.handleLocalRoutes(mwFile, exportName, mw.Path, info.Unit.ID)
+					routes = h.handleLocalRoutes(mwFile, exportName, mw.Path, info.Unit.Name)
 				}
 			}
 			if len(routes) == 0 {

@@ -15,7 +15,7 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 	tests := []struct {
 		name    string
 		annot   core.Annotation
-		want    core.AnnotationKey
+		want    core.Construct
 		result  []core.Construct
 		wantErr bool
 	}{
@@ -25,9 +25,11 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 				Capability: &annotation.Capability{Name: annotation.ExecutionUnitCapability, ID: "test"},
 			},
 			result: []core.Construct{&core.ExecutionUnit{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
+				Name: "test",
 			}},
-			want: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
+			want: &core.ExecutionUnit{
+				Name: "test",
+			},
 		},
 		{
 			name: "pubsub match",
@@ -35,9 +37,11 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 				Capability: &annotation.Capability{Name: annotation.PubSubCapability, ID: "test"},
 			},
 			result: []core.Construct{&core.PubSub{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PubSubCapability},
+				Name: "test",
 			}},
-			want: core.AnnotationKey{ID: "test", Capability: annotation.PubSubCapability},
+			want: &core.PubSub{
+				Name: "test",
+			},
 		},
 		{
 			name: "gateway match",
@@ -45,9 +49,11 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 				Capability: &annotation.Capability{Name: annotation.ExposeCapability, ID: "test"},
 			},
 			result: []core.Construct{&core.Gateway{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability},
+				Name: "test",
 			}},
-			want: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability},
+			want: &core.Gateway{
+				Name: "test",
+			},
 		},
 		{
 			name: "embed assets match",
@@ -62,9 +68,11 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
 			result: []core.Construct{&core.Fs{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+				Name: "test",
 			}},
-			want: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+			want: &core.Fs{
+				Name: "test",
+			},
 		},
 		{
 			name: "persist kv match",
@@ -72,9 +80,11 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
 			result: []core.Construct{&core.Kv{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+				Name: "test",
 			}},
-			want: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+			want: &core.Kv{
+				Name: "test",
+			},
 		},
 		{
 			name: "persist orm match",
@@ -82,9 +92,11 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
 			result: []core.Construct{&core.Orm{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+				Name: "test",
 			}},
-			want: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+			want: &core.Orm{
+				Name: "test",
+			},
 		},
 		{
 			name: "persist redis cluster match",
@@ -92,9 +104,11 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
 			result: []core.Construct{&core.RedisCluster{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+				Name: "test",
 			}},
-			want: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+			want: &core.RedisCluster{
+				Name: "test",
+			},
 		},
 		{
 			name: "persist redis node match",
@@ -102,9 +116,11 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
 			result: []core.Construct{&core.RedisNode{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+				Name: "test",
 			}},
-			want: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+			want: &core.RedisNode{
+				Name: "test",
+			},
 		},
 		{
 			name: "persist secret match",
@@ -112,9 +128,11 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
 			result: []core.Construct{&core.Secrets{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+				Name: "test",
 			}},
-			want: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+			want: &core.Secrets{
+				Name: "test",
+			},
 		},
 		{
 			name: "no match on capability should return empty resource",
@@ -122,9 +140,8 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 				Capability: &annotation.Capability{Name: annotation.ExecutionUnitCapability, ID: "test"},
 			},
 			result: []core.Construct{&core.Kv{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+				Name: "test",
 			}},
-			want: core.AnnotationKey{},
 		},
 		{
 			name: "no match on id should return empty resource",
@@ -132,9 +149,8 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
 			result: []core.Construct{&core.Kv{
-				AnnotationKey: core.AnnotationKey{ID: "nope", Capability: annotation.PersistCapability},
+				Name: "nope",
 			}},
-			want: core.AnnotationKey{},
 		},
 		{
 			name: "only one match should succeed",
@@ -143,12 +159,14 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 			},
 			result: []core.Construct{
 				&core.Kv{
-					AnnotationKey: core.AnnotationKey{ID: "nope", Capability: annotation.PersistCapability},
+					Name: "nope",
 				},
 				&core.Kv{
-					AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+					Name: "test",
 				}},
-			want: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+			want: &core.Kv{
+				Name: "test",
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -179,10 +197,10 @@ func Test_validation_handleResources(t *testing.T) {
 			name: "diff resources duplicate ids",
 			result: []core.Construct{
 				&core.ExecutionUnit{
-					AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
+					Name: "test",
 				},
 				&core.Gateway{
-					AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability},
+					Name: "test",
 				},
 			},
 			wantErr: false,
@@ -191,10 +209,10 @@ func Test_validation_handleResources(t *testing.T) {
 			name: "persist different ids",
 			result: []core.Construct{
 				&core.Kv{
-					AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+					Name: "test",
 				},
 				&core.Kv{
-					AnnotationKey: core.AnnotationKey{ID: "another", Capability: annotation.PersistCapability},
+					Name: "another",
 				},
 			},
 			wantErr: false,
@@ -203,10 +221,10 @@ func Test_validation_handleResources(t *testing.T) {
 			name: "persist duplicate ids",
 			result: []core.Construct{
 				&core.Kv{
-					AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+					Name: "test",
 				},
 				&core.Kv{
-					AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+					Name: "test",
 				},
 			},
 			wantErr: false,
@@ -244,7 +262,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		{
 			name: "exec unit match",
 			result: []core.Construct{&core.ExecutionUnit{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
+				Name: "test",
 			}},
 			cfg: config.Application{
 				Provider: "aws",
@@ -256,7 +274,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		{
 			name: "exec unit mismatch",
 			result: []core.Construct{&core.ExecutionUnit{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
+				Name: "test",
 			}},
 			cfg: config.Application{
 				Provider: "aws",
@@ -269,7 +287,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		{
 			name: "persist match",
 			result: []core.Construct{&core.Kv{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+				Name: "test",
 			}},
 			cfg: config.Application{
 				Provider: "aws",
@@ -281,7 +299,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		{
 			name: "persist mismatch",
 			result: []core.Construct{&core.Kv{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability},
+				Name: "test",
 			}},
 			cfg: config.Application{
 				Provider: "aws",
@@ -294,7 +312,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		{
 			name: "expose match",
 			result: []core.Construct{&core.Gateway{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability},
+				Name: "test",
 			}},
 			cfg: config.Application{
 				Provider: "aws",
@@ -306,7 +324,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		{
 			name: "expose mismatch",
 			result: []core.Construct{&core.Gateway{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability},
+				Name: "test",
 			}},
 			cfg: config.Application{
 				Provider: "aws",
@@ -319,7 +337,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		{
 			name: "static unit match",
 			result: []core.Construct{&core.StaticUnit{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.StaticUnitCapability},
+				Name: "test",
 			}},
 			cfg: config.Application{
 				Provider: "aws",
@@ -331,7 +349,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		{
 			name: "static unit mismatch",
 			result: []core.Construct{&core.StaticUnit{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.StaticUnitCapability},
+				Name: "test",
 			}},
 			cfg: config.Application{
 				Provider: "aws",
@@ -344,7 +362,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		{
 			name: "config resource match",
 			result: []core.Construct{&core.Config{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ConfigCapability},
+				Name: "test",
 			}},
 			cfg: config.Application{
 				Provider: "aws",
@@ -356,7 +374,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		{
 			name: "config resource mismatch",
 			result: []core.Construct{&core.Config{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ConfigCapability},
+				Name: "test",
 			}},
 			cfg: config.Application{
 				Provider: "aws",

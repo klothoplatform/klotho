@@ -112,7 +112,7 @@ func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotat
 	case *core.RedisNode:
 		importModule = "redis_node"
 	default:
-		return fmt.Errorf("could not get runtime import file name for persist type: %v", construct.Provenance().ID)
+		return fmt.Errorf("could not get runtime import file name for persist type: %v", construct.Id().Name)
 	}
 
 	err := javascript.EnsureRuntimeImportFile(importModule, importModule, file)
@@ -244,7 +244,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.ID,
+		ExecUnitName:   unit.Name,
 	}
 
 	exposeData, err := getExposeTemplateData(unit, constructGraph)
@@ -260,7 +260,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 		}
 	}
 	if pjsonPath == "" {
-		return errors.Errorf("No `package.json` found for execution unit %s", unit.ID)
+		return errors.Errorf("No `package.json` found for execution unit %s", unit.Name)
 	}
 	templateData.ProjectFilePath = pjsonPath
 	if pjson := unit.Get(pjsonPath); pjson != nil {
@@ -282,7 +282,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 				// has a specific execution unit annotation. In that case, just skip its import
 				// by zeroing out the field.
 				templateData.MainModule = ""
-				zap.S().Debugf("Skipping 'main' from package.json: %s due to not in unit %s", templateData.MainModule, unit.ID)
+				zap.S().Debugf("Skipping 'main' from package.json: %s due to not in unit %s", templateData.MainModule, unit.Name)
 			}
 		}
 	}
@@ -311,8 +311,8 @@ func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.Constr
 		if sourceGateway != nil && (sourceGateway.DefinedIn != gw.DefinedIn || sourceGateway.ExportVarName != gw.ExportVarName) {
 			return ExposeTemplateData{},
 				errors.Errorf("multiple gateways cannot target different web applications in the same execution unit: [%s -> %s],[%s -> %s]",
-					gw.ID, unit.ID,
-					sourceGateway.ID, unit.ID)
+					gw.Name, unit.Name,
+					sourceGateway.Name, unit.Name)
 		}
 		sourceGateway = gw
 	}
@@ -328,7 +328,7 @@ func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.Constr
 func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) error {
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.ID,
+		ExecUnitName:   unit.Name,
 	}
 	err := javascript.AddRuntimeFiles(unit, files, templateData)
 	return err
@@ -337,7 +337,7 @@ func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) e
 func (r *AwsRuntime) AddRuntimeFile(unit *core.ExecutionUnit, path string, content []byte) error {
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.ID,
+		ExecUnitName:   unit.Name,
 	}
 	err := javascript.AddRuntimeFile(unit, templateData, path, content)
 	return err

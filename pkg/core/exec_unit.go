@@ -15,7 +15,7 @@ import (
 
 type (
 	ExecutionUnit struct {
-		AnnotationKey
+		Name                 string
 		files                ConcurrentMap[string, File]
 		Executable           Executable
 		EnvironmentVariables EnvironmentVariables
@@ -67,7 +67,7 @@ func NewExecutable() Executable {
 	}
 }
 
-var ExecutionUnitKind = "exec_unit"
+const EXECUTION_UNIT_TYPE = "execution_unit"
 
 var (
 	ExecutableTypeNodeJS = ExecutableType("NodeJS")
@@ -76,12 +76,15 @@ var (
 	ExecutableTypeCSharp = ExecutableType("CSharp")
 )
 
-func (p *ExecutionUnit) Provenance() AnnotationKey {
-	return p.AnnotationKey
-}
-
 func (p *ExecutionUnit) Id() ResourceId {
-	return ConstructId(p.AnnotationKey).ToRid()
+	return ResourceId{
+		Provider: AbstractConstructProvider,
+		Type:     EXECUTION_UNIT_TYPE,
+		Name:     p.Name,
+	}
+}
+func (p *ExecutionUnit) AnnotationCapability() string {
+	return annotation.ExecutionUnitCapability
 }
 
 func (unit *ExecutionUnit) OutputTo(dest string) error {
@@ -89,7 +92,7 @@ func (unit *ExecutionUnit) OutputTo(dest string) error {
 	files := unit.Files()
 	for idx := range files {
 		go func(f File) {
-			path := filepath.Join(dest, unit.ID, f.Path())
+			path := filepath.Join(dest, unit.Name, f.Path())
 			dir := filepath.Dir(path)
 			err := os.MkdirAll(dir, 0777)
 			if err != nil {
@@ -203,7 +206,7 @@ func (unit *ExecutionUnit) GetDeclaringFiles() []*SourceFile {
 	var coreFiles []*SourceFile
 	for _, f := range unit.Files() {
 		astF, ok := f.(*SourceFile)
-		if ok && FileExecUnitName(astF) == unit.ID {
+		if ok && FileExecUnitName(astF) == unit.Name {
 			coreFiles = append(coreFiles, astF)
 		}
 	}

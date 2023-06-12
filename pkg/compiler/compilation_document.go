@@ -140,13 +140,13 @@ func (document *CompilationDocument) OutputResources() (resourceCounts map[strin
 	var resourcesOutput []interface{}
 	var merr multierr.Error
 	for _, construct := range core.ListConstructs[core.Construct](result) {
-		resourceCounts[construct.Provenance().Capability] = resourceCounts[construct.Provenance().Capability] + 1
+		resourceCounts[construct.AnnotationCapability()] = resourceCounts[construct.AnnotationCapability()] + 1
 
 		switch r := construct.(type) {
 		case *core.ExecutionUnit:
 			resOut := map[string]interface{}{
-				"Type": r.Provenance().Capability,
-				"Name": r.Provenance().ID,
+				"Type": r.AnnotationCapability(),
+				"Name": r.Id().Name,
 			}
 			var files []string
 			for _, f := range r.Files() {
@@ -162,10 +162,10 @@ func (document *CompilationDocument) OutputResources() (resourceCounts map[strin
 		if !ok {
 			continue
 		}
-		zap.L().Debug("Output", zap.String("type", construct.Provenance().Capability), zap.String("name", construct.Provenance().ID))
+		zap.L().Debug("Output", zap.String("type", construct.AnnotationCapability()), zap.String("name", construct.Id().Name))
 		err = output.OutputTo(outDir)
 		if err != nil {
-			merr.Append(errors.Wrapf(err, "error outputting resource %+v", construct.Provenance()))
+			merr.Append(errors.Wrapf(err, "error outputting resource %+v", construct))
 		}
 	}
 

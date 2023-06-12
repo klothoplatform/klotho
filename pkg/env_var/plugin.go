@@ -133,18 +133,11 @@ func handlePersist(directiveResult EnvironmentVariableDirectiveResult, cap *anno
 	var resource core.Construct
 	switch directiveResult.kind {
 	case "orm":
-		resource = &core.Orm{
-			AnnotationKey: core.AnnotationKey{ID: cap.ID, Capability: cap.Name},
-		}
+		resource = &core.Orm{Name: cap.ID}
 	case "redis_cluster":
-		resource = &core.RedisCluster{
-			AnnotationKey: core.AnnotationKey{ID: cap.ID, Capability: cap.Name},
-		}
-
+		resource = &core.RedisCluster{Name: cap.ID}
 	case "redis_node":
-		resource = &core.RedisNode{
-			AnnotationKey: core.AnnotationKey{ID: cap.ID, Capability: cap.Name},
-		}
+		resource = &core.RedisNode{Name: cap.ID}
 	default:
 		return fmt.Errorf("unsupported 'kind', %s", directiveResult.kind)
 	}

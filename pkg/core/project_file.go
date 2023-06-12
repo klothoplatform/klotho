@@ -17,7 +17,7 @@ type projectFileMatch struct {
 // CheckForProjectFile will find an existing inputFile, corresponding to the filename param,that best matches the path where the execution unit annotation
 // lives and returns the path to the corresponding project file
 func CheckForProjectFile(inputFiles *InputFiles, unit *ExecutionUnit, filename string) string {
-	log := zap.L().With(zap.String("unit", unit.ID)).Sugar()
+	log := zap.L().With(zap.String("unit", unit.Name)).Sugar()
 	currMatch := projectFileMatch{}
 
 	unitDeclarers := unit.GetDeclaringFiles()

@@ -118,7 +118,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.ID,
+		ExecUnitName:   unit.Name,
 	}
 
 	var err error
@@ -142,7 +142,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 		}
 	}
 	if reqTxtPath == "" {
-		return errors.Errorf("No `requirements.txt` found for execution unit %s", unit.ID)
+		return errors.Errorf("No `requirements.txt` found for execution unit %s", unit.Name)
 	}
 	templateData.ProjectFilePath = reqTxtPath
 	if runtime.ShouldOverrideDockerfile(unit) {
@@ -180,8 +180,8 @@ func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.Constr
 		if sourceGateway != nil && (sourceGateway.DefinedIn != gw.DefinedIn || sourceGateway.ExportVarName != gw.ExportVarName) {
 			return ExposeTemplateData{},
 				errors.Errorf("multiple gateways cannot target different web applications in the same execution unit: [%s -> %s],[%s -> %s]",
-					gw.ID, unit.ID,
-					sourceGateway.ID, unit.ID)
+					gw.Name, unit.Name,
+					sourceGateway.Name, unit.Name)
 		}
 		sourceGateway = gw
 	}
@@ -275,7 +275,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) error {
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.ID,
+		ExecUnitName:   unit.Name,
 	}
 	err := python.AddRuntimeFiles(unit, files, templateData)
 	return err
@@ -284,7 +284,7 @@ func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) e
 func (r *AwsRuntime) AddRuntimeFile(unit *core.ExecutionUnit, path string, content []byte) error {
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.ID,
+		ExecUnitName:   unit.Name,
 	}
 	err := python.AddRuntimeFile(unit, templateData, path, content)
 	return err

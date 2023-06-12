@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -45,12 +44,13 @@ var CloudfrontKB = knowledgebase.Build(
 			case 0:
 				return errors.Errorf(`couldn't determine the id of the construct that created API stage "%s"`, stage.Id())
 			case 1:
-				cons, _ := collectionutil.GetOneEntry(stage.ConstructsRef)
-				gwId = cons.ID
+				for cons := range stage.ConstructsRef {
+					gwId = cons.Id().Name
+				}
 			default:
 				var ids []string
-				for _, cons := range collectionutil.Keys(stage.ConstructsRef) {
-					ids = append(ids, cons.ID)
+				for cons := range stage.ConstructsRef {
+					ids = append(ids, cons.Id().Name)
 				}
 				sort.Strings(ids)
 				return errors.Errorf(
@@ -85,13 +85,13 @@ type s3ToCloudfrontConnection struct {
 	distro    *resources.CloudfrontDistribution
 	bucket    *resources.S3Bucket
 	dag       *core.ResourceGraph
-	construct core.AnnotationKey
+	construct core.BaseConstruct
 }
 
 func (conn s3ToCloudfrontConnection) createOai() (*resources.OriginAccessIdentity, error) {
 	oai, err := core.CreateResource[*resources.OriginAccessIdentity](conn.dag, resources.OriginAccessIdentityCreateParams{
-		Name: fmt.Sprintf("%s-%s", conn.bucket.Name, conn.construct.ID),
-		Refs: core.AnnotationKeySetOf(conn.construct),
+		Name: fmt.Sprintf("%s-%s", conn.bucket.Name, conn.construct.Id().Name),
+		Refs: core.BaseConstructSetOf(conn.construct),
 	})
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func (conn s3ToCloudfrontConnection) createOai() (*resources.OriginAccessIdentit
 			Resource: conn.bucket,
 			Property: resources.BUCKET_REGIONAL_DOMAIN_NAME_IAC_VALUE,
 		},
-		OriginId: conn.construct.ID,
+		OriginId: conn.construct.Id().Name,
 	}
 	conn.distro.Origins = append(conn.distro.Origins, origin)
 	conn.distro.DefaultCacheBehavior.TargetOriginId = origin.OriginId
@@ -121,9 +121,9 @@ func (conn s3ToCloudfrontConnection) createOai() (*resources.OriginAccessIdentit
 
 func (conn s3ToCloudfrontConnection) attachPolicy(oai *resources.OriginAccessIdentity) error {
 	policy, err := core.CreateResource[*resources.S3BucketPolicy](conn.dag, resources.S3BucketPolicyCreateParams{
-		Name:       conn.construct.ID,
+		Name:       conn.construct.Id().Name,
 		BucketName: conn.bucket.Name,
-		Refs:       core.AnnotationKeySetOf(conn.construct),
+		Refs:       core.BaseConstructSetOf(conn.construct),
 	})
 	if err != nil {
 		return err

@@ -7,7 +7,7 @@ import (
 
 type (
 	KubernetesProvider struct {
-		ConstructsRef         core.AnnotationKeySet
+		ConstructsRef         core.BaseConstructSet
 		KubeConfig            core.Resource
 		Name                  string
 		EnableServerSideApply bool
@@ -15,13 +15,13 @@ type (
 
 	RouteTableAssociation struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Subnet        *resources.Subnet
 		RouteTable    *resources.RouteTable
 	}
 
 	SecurityGroupRule struct {
-		ConstructsRef   core.AnnotationKeySet
+		ConstructsRef   core.BaseConstructSet
 		Name            string
 		Description     string
 		FromPort        int
@@ -33,7 +33,7 @@ type (
 	}
 
 	TargetGroupAttachment struct {
-		ConstructsRef  core.AnnotationKeySet
+		ConstructsRef  core.BaseConstructSet
 		Name           string
 		TargetGroupArn core.IaCValue
 		TargetId       core.IaCValue
@@ -41,7 +41,7 @@ type (
 	}
 )
 
-func (e *KubernetesProvider) KlothoConstructRef() core.AnnotationKeySet {
+func (e *KubernetesProvider) BaseConstructsRef() core.BaseConstructSet {
 	return e.ConstructsRef
 }
 
@@ -53,7 +53,7 @@ func (e *KubernetesProvider) Id() core.ResourceId {
 	}
 }
 
-func (e *RouteTableAssociation) KlothoConstructRef() core.AnnotationKeySet {
+func (e *RouteTableAssociation) BaseConstructsRef() core.BaseConstructSet {
 	return e.ConstructsRef
 }
 
@@ -65,7 +65,7 @@ func (e *RouteTableAssociation) Id() core.ResourceId {
 	}
 }
 
-func (e *SecurityGroupRule) KlothoConstructRef() core.AnnotationKeySet {
+func (e *SecurityGroupRule) BaseConstructsRef() core.BaseConstructSet {
 	return e.ConstructsRef
 }
 
@@ -77,7 +77,7 @@ func (e *SecurityGroupRule) Id() core.ResourceId {
 	}
 }
 
-func (e *TargetGroupAttachment) KlothoConstructRef() core.AnnotationKeySet {
+func (e *TargetGroupAttachment) BaseConstructsRef() core.BaseConstructSet {
 	return e.ConstructsRef
 }
 

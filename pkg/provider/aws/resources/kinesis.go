@@ -15,7 +15,7 @@ const (
 type (
 	KinesisStream struct {
 		Name                 string
-		ConstructsRef        core.AnnotationKeySet
+		ConstructsRef        core.BaseConstructSet
 		RetentionPeriodHours int
 		ShardCount           int
 		StreamEncryption     *StreamEncryption
@@ -33,7 +33,7 @@ type (
 
 	KinesisStreamConsumer struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		ConsumerName  string
 		Stream        *KinesisStream
 	}
@@ -41,7 +41,7 @@ type (
 
 type KinesisStreamCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 }
 
@@ -91,8 +91,8 @@ func (consumer *KinesisStreamConsumer) Create(dag *core.ResourceGraph, params Ki
 	return nil
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (stream *KinesisStream) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (stream *KinesisStream) BaseConstructsRef() core.BaseConstructSet {
 	return stream.ConstructsRef
 }
 
@@ -105,8 +105,8 @@ func (stream *KinesisStream) Id() core.ResourceId {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (consumer *KinesisStreamConsumer) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (consumer *KinesisStreamConsumer) BaseConstructsRef() core.BaseConstructSet {
 	return consumer.ConstructsRef
 }
 

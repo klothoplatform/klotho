@@ -53,7 +53,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.ID,
+		ExecUnitName:   unit.Name,
 	}
 
 	if runtime.ShouldOverrideDockerfile(unit) {

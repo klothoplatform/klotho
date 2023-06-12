@@ -40,8 +40,8 @@ func Test_GenerateRoleArnPlaceholder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			testUnit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: tt.name}}
-			placeholder := GenerateRoleArnPlaceholder(testUnit.ID)
+			testUnit := core.ExecutionUnit{Name: tt.name}
+			placeholder := GenerateRoleArnPlaceholder(testUnit.Name)
 			assert.Equal(tt.want, placeholder)
 		})
 	}
@@ -69,8 +69,8 @@ func Test_GenerateImagePlaceholder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			testUnit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: tt.name}}
-			placeholder := GenerateImagePlaceholder(testUnit.ID)
+			testUnit := core.ExecutionUnit{Name: tt.name}
+			placeholder := GenerateImagePlaceholder(testUnit.Name)
 			assert.Equal(tt.want, placeholder)
 		})
 	}
@@ -98,8 +98,8 @@ func Test_GenerateTargetGroupBindingPlaceholder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			testUnit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: tt.name}}
-			placeholder := GenerateTargetGroupBindingPlaceholder(testUnit.ID)
+			testUnit := core.ExecutionUnit{Name: tt.name}
+			placeholder := GenerateTargetGroupBindingPlaceholder(testUnit.Name)
 			assert.Equal(tt.want, placeholder)
 		})
 	}
@@ -154,7 +154,7 @@ func Test_shouldTransformImage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			testUnit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: tt.name}}
+			testUnit := core.ExecutionUnit{Name: tt.name}
 
 			for path, file := range tt.fileUnits {
 				if strings.Contains(path, "Dockerfile") {
@@ -202,7 +202,7 @@ func Test_shouldTransformServiceAccount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			testUnit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: tt.name}}
+			testUnit := core.ExecutionUnit{Name: tt.name}
 
 			for path, file := range tt.fileUnits {
 				if strings.Contains(path, "Dockerfile") {
@@ -1293,28 +1293,28 @@ status: {}
 						Kind:                "Deployment",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTREDISPERSISTREDISHOST",
-						EnvironmentVariable: core.GenerateRedisHostEnvVar(&core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "testRedis"}}),
+						EnvironmentVariable: core.GenerateRedisHostEnvVar(&core.RedisCluster{Name: "testRedis"}),
 					},
 					{
 						ExecUnitName:        "testUnit",
 						Kind:                "Deployment",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTBUCKETBUCKETNAME",
-						EnvironmentVariable: core.GenerateBucketEnvVar(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "testBucket"}}),
+						EnvironmentVariable: core.GenerateBucketEnvVar(&core.Fs{Name: "testBucket"}),
 					},
 					{
 						ExecUnitName:        "testUnit",
 						Kind:                "Deployment",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTORMPERSISTORMCONNECTION",
-						EnvironmentVariable: core.GenerateOrmConnStringEnvVar(&core.Orm{AnnotationKey: core.AnnotationKey{ID: "testOrm"}}),
+						EnvironmentVariable: core.GenerateOrmConnStringEnvVar(&core.Orm{Name: "testOrm"}),
 					},
 					{
 						ExecUnitName:        "testUnit",
 						Kind:                "Deployment",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTSECRETCONFIGSECRET",
-						EnvironmentVariable: core.GenerateSecretEnvVar(&core.Config{AnnotationKey: core.AnnotationKey{ID: "testSecret"}, Secret: true}),
+						EnvironmentVariable: core.GenerateSecretEnvVar(&core.Config{Name: "testSecret", Secret: true}),
 					},
 				},
 			},
@@ -1361,28 +1361,28 @@ status: {}
 						Kind:                "Pod",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTREDISPERSISTREDISHOST",
-						EnvironmentVariable: core.GenerateRedisHostEnvVar(&core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "testRedis"}}),
+						EnvironmentVariable: core.GenerateRedisHostEnvVar(&core.RedisCluster{Name: "testRedis"}),
 					},
 					{
 						ExecUnitName:        "unit",
 						Kind:                "Pod",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTBUCKETBUCKETNAME",
-						EnvironmentVariable: core.GenerateBucketEnvVar(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "testBucket"}}),
+						EnvironmentVariable: core.GenerateBucketEnvVar(&core.Fs{Name: "testBucket"}),
 					},
 					{
 						ExecUnitName:        "unit",
 						Kind:                "Pod",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTORMPERSISTORMCONNECTION",
-						EnvironmentVariable: core.GenerateOrmConnStringEnvVar(&core.Orm{AnnotationKey: core.AnnotationKey{ID: "testOrm"}}),
+						EnvironmentVariable: core.GenerateOrmConnStringEnvVar(&core.Orm{Name: "testOrm"}),
 					},
 					{
 						ExecUnitName:        "unit",
 						Kind:                "Pod",
 						Type:                string(EnvironmentVariableTransformation),
 						Key:                 "TESTSECRETCONFIGSECRET",
-						EnvironmentVariable: core.GenerateSecretEnvVar(&core.Config{AnnotationKey: core.AnnotationKey{ID: "testSecret"}, Secret: true}),
+						EnvironmentVariable: core.GenerateSecretEnvVar(&core.Config{Name: "testSecret", Secret: true}),
 					},
 				},
 			},
@@ -1403,12 +1403,12 @@ status: {}
 			assert := assert.New(t)
 
 			eunit := core.ExecutionUnit{
-				AnnotationKey: core.AnnotationKey{ID: tt.unit.Name},
+				Name: tt.unit.Name,
 			}
-			eunit.EnvironmentVariables.Add(core.GenerateBucketEnvVar(&core.Fs{AnnotationKey: core.AnnotationKey{ID: "testBucket"}}))
-			eunit.EnvironmentVariables.Add(core.GenerateRedisHostEnvVar(&core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "testRedis"}}))
-			eunit.EnvironmentVariables.Add(core.GenerateSecretEnvVar(&core.Config{AnnotationKey: core.AnnotationKey{ID: "testSecret"}, Secret: true}))
-			eunit.EnvironmentVariables.Add(core.GenerateOrmConnStringEnvVar(&core.Orm{AnnotationKey: core.AnnotationKey{ID: "testOrm"}}))
+			eunit.EnvironmentVariables.Add(core.GenerateBucketEnvVar(&core.Fs{Name: "testBucket"}))
+			eunit.EnvironmentVariables.Add(core.GenerateRedisHostEnvVar(&core.RedisCluster{Name: "testRedis"}))
+			eunit.EnvironmentVariables.Add(core.GenerateSecretEnvVar(&core.Config{Name: "testSecret", Secret: true}))
+			eunit.EnvironmentVariables.Add(core.GenerateOrmConnStringEnvVar(&core.Orm{Name: "testOrm"}))
 
 			if tt.deploymentYaml != "" {
 				f, err := yaml.NewFile("deployment.yaml", strings.NewReader(tt.deploymentYaml))

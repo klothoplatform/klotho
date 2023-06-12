@@ -3,15 +3,15 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_Route53HostedZoneCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[Route53HostedZoneCreateParams, *Route53HostedZone]{
 		{
 			Name: "nil private zone",
@@ -28,7 +28,7 @@ func Test_Route53HostedZoneCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, zone *Route53HostedZone) {
 				assert.Equal(zone.Name, "my-app-zone")
 				assert.NotNil(zone.Vpc)
-				assert.Equal(zone.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(zone.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -43,7 +43,7 @@ func Test_Route53HostedZoneCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, zone *Route53HostedZone) {
 				assert.Equal(zone.Name, "my-app-zone")
 				assert.Nil(zone.Vpc)
-				assert.Equal(zone.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(zone.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -57,7 +57,7 @@ func Test_Route53HostedZoneCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, zone *Route53HostedZone) {
 				assert.Equal(zone.Name, "my-app-zone")
-				initialRefs.Add(eu.AnnotationKey)
+				initialRefs.Add(eu)
 				assert.Equal(zone.ConstructsRef, initialRefs)
 			},
 		},
@@ -66,7 +66,7 @@ func Test_Route53HostedZoneCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = Route53HostedZoneCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:    core.BaseConstructSetOf(eu),
 				Type:    tt.Params.Type,
 				Name:    "zone",
 			}
@@ -76,8 +76,9 @@ func Test_Route53HostedZoneCreate(t *testing.T) {
 }
 
 func Test_Route53RecordCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[Route53RecordCreateParams, *Route53Record]{
 		{
 			Name: "nil private zone",
@@ -93,7 +94,7 @@ func Test_Route53RecordCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, record *Route53Record) {
 				assert.Equal(record.Name, "my-app-zone-record")
 				assert.NotNil(record.Zone)
-				assert.Equal(record.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(record.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -107,7 +108,7 @@ func Test_Route53RecordCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, record *Route53Record) {
 				assert.Equal(record.Name, "my-app-zone-record")
-				initialRefs.Add(eu.AnnotationKey)
+				initialRefs.Add(eu)
 				assert.Equal(record.ConstructsRef, initialRefs)
 			},
 		},
@@ -115,7 +116,7 @@ func Test_Route53RecordCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = Route53RecordCreateParams{
-				Refs:       core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:       core.BaseConstructSetOf(eu),
 				Zone:       &Route53HostedZone{Name: "my-app-zone", ConstructsRef: initialRefs},
 				DomainName: "record",
 			}
@@ -125,8 +126,9 @@ func Test_Route53RecordCreate(t *testing.T) {
 }
 
 func Test_Route53HealthCheckCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[Route53HealthCheckCreateParams, *Route53HealthCheck]{
 		{
 			Name: "nil check ip",
@@ -139,7 +141,7 @@ func Test_Route53HealthCheckCreate(t *testing.T) {
 			Params: Route53HealthCheckCreateParams{IpAddress: "10.0.0.0"},
 			Check: func(assert *assert.Assertions, healthCheck *Route53HealthCheck) {
 				assert.Equal(healthCheck.Name, "my-app-10.0.0.0")
-				assert.Equal(healthCheck.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(healthCheck.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -153,7 +155,7 @@ func Test_Route53HealthCheckCreate(t *testing.T) {
 			Params: Route53HealthCheckCreateParams{Fqdn: "example.com"},
 			Check: func(assert *assert.Assertions, healthCheck *Route53HealthCheck) {
 				assert.Equal(healthCheck.Name, "my-app-example.com")
-				assert.Equal(healthCheck.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(healthCheck.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -168,7 +170,7 @@ func Test_Route53HealthCheckCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, healthCheck *Route53HealthCheck) {
 				assert.Equal(healthCheck.Name, "my-app-check")
-				initialRefs.Add(eu.AnnotationKey)
+				initialRefs.Add(eu)
 				assert.Equal(healthCheck.ConstructsRef, initialRefs)
 			},
 		},
@@ -182,7 +184,7 @@ func Test_Route53HealthCheckCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = Route53HealthCheckCreateParams{
-				Refs:      core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:      core.BaseConstructSetOf(eu),
 				AppName:   "my-app",
 				IpAddress: tt.Params.IpAddress,
 				Fqdn:      tt.Params.Fqdn,

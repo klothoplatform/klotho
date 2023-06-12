@@ -24,7 +24,7 @@ var RdsKB = knowledgebase.Build(
 				targetGroup.RdsInstance = instance
 				dag.AddDependency(targetGroup, instance)
 			}
-			targetGroup.ConstructsRef.AddAll(data.Source.KlothoConstructRef())
+			targetGroup.ConstructsRef.AddAll(data.Source.BaseConstructsRef())
 			for _, res := range dag.GetUpstreamResources(data.Source) {
 				if role, ok := res.(*resources.IamRole); ok {
 					dag.AddDependency(role, instance)
@@ -58,7 +58,7 @@ var RdsKB = knowledgebase.Build(
 			if proxy.Name == "" {
 				proxy, err = core.CreateResource[*resources.RdsProxy](dag, resources.RdsProxyCreateParams{
 					AppName: data.AppName,
-					Refs:    data.Source.KlothoConstructRef().CloneWith(destination.KlothoConstructRef()),
+					Refs:    data.Source.BaseConstructsRef().CloneWith(destination.BaseConstructsRef()),
 					Name:    fmt.Sprintf("%s-proxy", strings.TrimPrefix(destination.Name, fmt.Sprintf("%s-", data.AppName))),
 				})
 				if err != nil {
@@ -66,7 +66,7 @@ var RdsKB = knowledgebase.Build(
 				}
 				dag.AddDependencyWithData(data.Source, proxy, data)
 			}
-			proxy.ConstructsRef.AddAll(data.Source.KlothoConstructRef())
+			proxy.ConstructsRef.AddAll(data.Source.BaseConstructsRef())
 			proxy.ConstructsRef.AddAll(destination.ConstructsRef)
 
 			if targetGroup.Name == "" {
@@ -85,7 +85,7 @@ var RdsKB = knowledgebase.Build(
 
 			secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 				AppName: data.AppName,
-				Refs:    proxy.KlothoConstructRef().Clone(),
+				Refs:    proxy.BaseConstructsRef().Clone(),
 				Name:    fmt.Sprintf("%s-credentials", strings.TrimPrefix(proxy.Name, fmt.Sprintf("%s-", data.AppName))),
 			})
 			if err != nil {

@@ -14,7 +14,7 @@ type (
 		CloudwatchGroup *LogGroup
 		SubnetGroup     *ElasticacheSubnetgroup
 		SecurityGroups  []*SecurityGroup
-		ConstructsRef   core.AnnotationKeySet
+		ConstructsRef   core.BaseConstructSet
 		NodeType        string
 		NumCacheNodes   int
 	}
@@ -22,7 +22,7 @@ type (
 	ElasticacheSubnetgroup struct {
 		Name          string
 		Subnets       []*Subnet
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 	}
 )
 
@@ -31,8 +31,8 @@ const (
 	ECSN_TYPE = "elasticache_subnetgroup"
 )
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ec *ElasticacheCluster) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (ec *ElasticacheCluster) BaseConstructsRef() core.BaseConstructSet {
 	return ec.ConstructsRef
 }
 
@@ -45,8 +45,8 @@ func (ec *ElasticacheCluster) Id() core.ResourceId {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ecsn *ElasticacheSubnetgroup) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (ecsn *ElasticacheSubnetgroup) BaseConstructsRef() core.BaseConstructSet {
 	return ecsn.ConstructsRef
 }
 
@@ -61,7 +61,7 @@ func (ecsn *ElasticacheSubnetgroup) Id() core.ResourceId {
 
 type ElasticacheClusterCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 }
 
@@ -105,7 +105,7 @@ func (ec *ElasticacheCluster) Configure(params ElasticacheClusterConfigureParams
 }
 
 type ElasticacheSubnetgroupCreateParams struct {
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	AppName string
 	Name    string
 }

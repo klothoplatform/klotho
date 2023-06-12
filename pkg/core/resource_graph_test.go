@@ -36,8 +36,8 @@ type testResource struct {
 	IacValuePtrMap map[string]*IaCValue
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (tr *testResource) KlothoConstructRef() AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (tr *testResource) BaseConstructsRef() BaseConstructSet {
 	return nil
 }
 

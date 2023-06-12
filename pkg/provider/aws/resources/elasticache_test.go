@@ -3,7 +3,6 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -11,8 +10,8 @@ import (
 )
 
 func Test_ElasticacheClusterCreate(t *testing.T) {
-	cluster := &core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	existingKey := core.AnnotationKey{ID: "existing", Capability: annotation.PersistCapability}
+	cluster := &core.RedisNode{Name: "test"}
+	existingKey := &core.RedisNode{Name: "existing"}
 	cases := []coretesting.CreateCase[ElasticacheClusterCreateParams, *ElasticacheCluster]{
 		{
 			Name: "nil elasticache cluster",
@@ -71,12 +70,12 @@ func Test_ElasticacheClusterCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, table *ElasticacheCluster) {
 				assert.Equal(table.Name, "my-app-test")
-				assert.Equal(table.ConstructsRef, core.AnnotationKeySetOf(cluster.AnnotationKey))
+				assert.Equal(table.ConstructsRef, core.BaseConstructSetOf(cluster))
 			},
 		},
 		{
 			Name:     "existing elasticache cluster",
-			Existing: &ElasticacheCluster{Name: "my-app-test", ConstructsRef: core.AnnotationKeySetOf(existingKey)},
+			Existing: &ElasticacheCluster{Name: "my-app-test", ConstructsRef: core.BaseConstructSetOf(existingKey)},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
@@ -131,7 +130,7 @@ func Test_ElasticacheClusterCreate(t *testing.T) {
 				}},
 			Check: func(assert *assert.Assertions, table *ElasticacheCluster) {
 				assert.Equal(table.Name, "my-app-test")
-				assert.Equal(table.ConstructsRef, core.AnnotationKeySetOf(cluster.AnnotationKey, existingKey))
+				assert.Equal(table.ConstructsRef, core.BaseConstructSetOf(cluster, existingKey))
 			},
 		},
 	}
@@ -139,7 +138,7 @@ func Test_ElasticacheClusterCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = ElasticacheClusterCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(cluster.AnnotationKey),
+				Refs:    core.BaseConstructSetOf(cluster),
 				Name:    "test",
 			}
 

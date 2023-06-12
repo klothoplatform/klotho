@@ -10,14 +10,14 @@ import (
 type (
 	Secret struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 	}
 
 	SecretVersion struct {
 		Secret        *Secret
 		DetectedPath  string
 		Path          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Name          string
 		Type          string
 	}
@@ -28,7 +28,7 @@ const SECRET_VERSION_TYPE = "secret_version"
 
 type SecretCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 }
 
@@ -45,7 +45,7 @@ func (s *Secret) Create(dag *core.ResourceGraph, params SecretCreateParams) erro
 
 type SecretVersionCreateParams struct {
 	AppName      string
-	Refs         core.AnnotationKeySet
+	Refs         core.BaseConstructSet
 	Name         string
 	DetectedPath string
 }
@@ -83,7 +83,7 @@ func (sv *SecretVersion) Configure(params SecretVersionConfigureParams) error {
 	return nil
 }
 
-func (s *Secret) KlothoConstructRef() core.AnnotationKeySet {
+func (s *Secret) BaseConstructsRef() core.BaseConstructSet {
 	return s.ConstructsRef
 }
 
@@ -95,7 +95,7 @@ func (s *Secret) Id() core.ResourceId {
 	}
 }
 
-func (sv *SecretVersion) KlothoConstructRef() core.AnnotationKeySet {
+func (sv *SecretVersion) BaseConstructsRef() core.BaseConstructSet {
 	return sv.ConstructsRef
 }
 

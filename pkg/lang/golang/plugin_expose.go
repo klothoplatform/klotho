@@ -85,14 +85,14 @@ func (p *Expose) transformSingle(constructGraph *core.ConstructGraph, unit *core
 	h := &restAPIHandler{ConstructGraph: constructGraph, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition), runtime: p.runtime}
 	err := h.handle(unit)
 	if err != nil {
-		err = core.WrapErrf(err, "Chi handler failure for %s", unit.ID)
+		err = core.WrapErrf(err, "Chi handler failure for %s", unit.Name)
 	}
 	return err
 }
 
 func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 	h.Unit = unit
-	h.log = zap.L().With(zap.String("unit", unit.ID))
+	h.log = zap.L().With(zap.String("unit", unit.Name))
 
 	var errs multierr.Error
 	for _, f := range unit.Files() {
@@ -113,7 +113,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 
 	for spec, routes := range h.RoutesByGateway {
 		gwName := spec.Id
-		gw := core.NewGateway(core.AnnotationKey{ID: gwName, Capability: annotation.ExposeCapability})
+		gw := core.NewGateway(gwName)
 		if existing := h.ConstructGraph.GetConstruct(gw.Id()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
@@ -138,7 +138,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 			targetUnit := core.FileExecUnitName(targetFile)
 			if targetUnit == "" {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
-				targetUnit = unit.ID
+				targetUnit = unit.Name
 			}
 			h.ConstructGraph.AddDependency(gw.Id(), core.ResourceId{
 				Provider: core.AbstractConstructProvider,
@@ -367,7 +367,7 @@ func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, router chiRoute
 		route := core.Route{
 			Verb:          core.Verb(vfunc.Verb),
 			Path:          sanitizeChiPath(path.Join(h.RootPath, prefix, vfunc.Path)),
-			ExecUnitName:  h.Unit.ID,
+			ExecUnitName:  h.Unit.Name,
 			HandledInFile: f.Path(),
 		}
 		log.Sugar().Debugf("Found route function %s %s for '%s'", route.Verb, route.Path, router.Name)
@@ -605,7 +605,7 @@ func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *s
 		route := core.Route{
 			Verb:          core.Verb(vfunc.Verb),
 			Path:          sanitizeChiPath(path.Join(h.RootPath, m.Path, vfunc.Path)),
-			ExecUnitName:  h.Unit.ID,
+			ExecUnitName:  h.Unit.Name,
 			HandledInFile: f.Path(),
 		}
 		log.Sugar().Debugf("Found route function %s %s from '%s.%s'", route.Verb, route.Path, m.PkgAlias, m.FuncName)

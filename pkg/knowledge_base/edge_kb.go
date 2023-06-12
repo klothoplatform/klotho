@@ -64,7 +64,7 @@ type (
 		Routes []core.Route
 		// SourceRef denotes the source annotation being used during expansion or configuration
 		// This is a temporary field due to helm chart being the lowest level of kubernetes resource at the moment
-		SourceRef core.AnnotationKey
+		SourceRef core.BaseConstruct
 	}
 
 	Path []Edge

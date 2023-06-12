@@ -16,7 +16,7 @@ const (
 type (
 	KmsKey struct {
 		Name                string
-		ConstructsRef       core.AnnotationKeySet
+		ConstructsRef       core.BaseConstructSet
 		Description         string
 		Enabled             bool
 		EnableKeyRotation   bool
@@ -29,14 +29,14 @@ type (
 
 	KmsAlias struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		AliasName     string
 		TargetKey     *KmsKey
 	}
 
 	KmsReplicaKey struct {
 		Name                string
-		ConstructsRef       core.AnnotationKeySet
+		ConstructsRef       core.BaseConstructSet
 		Description         string
 		Enabled             bool
 		KeyPolicy           *PolicyDocument
@@ -47,7 +47,7 @@ type (
 
 type KmsKeyCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 }
 
@@ -129,8 +129,8 @@ func (key *KmsReplicaKey) Configure(params KmsReplicaKeyConfigureParams) error {
 	return nil
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (key *KmsKey) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (key *KmsKey) BaseConstructsRef() core.BaseConstructSet {
 	return key.ConstructsRef
 }
 
@@ -143,8 +143,8 @@ func (key *KmsKey) Id() core.ResourceId {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (alias *KmsAlias) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (alias *KmsAlias) BaseConstructsRef() core.BaseConstructSet {
 	return alias.ConstructsRef
 }
 
@@ -157,8 +157,8 @@ func (alias *KmsAlias) Id() core.ResourceId {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (replica *KmsReplicaKey) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (replica *KmsReplicaKey) BaseConstructsRef() core.BaseConstructSet {
 	return replica.ConstructsRef
 }
 

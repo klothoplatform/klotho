@@ -13,7 +13,7 @@ type Imported struct {
 	ID string
 }
 
-func (imp Imported) KlothoConstructRef() core.AnnotationKeySet {
+func (imp Imported) BaseConstructsRef() core.BaseConstructSet {
 	return nil
 }
 

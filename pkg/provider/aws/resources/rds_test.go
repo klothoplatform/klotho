@@ -3,14 +3,13 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_RdsInstanceCreate(t *testing.T) {
-	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
+	orm := &core.Orm{Name: "test"}
 	cases := []struct {
 		name     string
 		instance *RdsInstance
@@ -89,8 +88,8 @@ func Test_RdsInstanceCreate(t *testing.T) {
 
 			metadata := RdsInstanceCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(orm.AnnotationKey),
-				Name:    orm.ID,
+				Refs:    core.BaseConstructSetOf(orm),
+				Name:    orm.Name,
 			}
 			instance := &RdsInstance{}
 			err := instance.Create(dag, metadata)
@@ -107,14 +106,15 @@ func Test_RdsInstanceCreate(t *testing.T) {
 			instance = graphInstance.(*RdsInstance)
 
 			assert.Equal(instance.Name, "my-app-test")
-			assert.Equal(instance.ConstructsRef, core.AnnotationKeySetOf(orm.AnnotationKey))
+			assert.Equal(instance.ConstructsRef, core.BaseConstructSetOf(orm))
 		})
 	}
 }
 
 func Test_RdsSubnetGroupCreate(t *testing.T) {
-	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	orm := &core.Orm{Name: "test"}
+	eu := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name        string
 		subnetGroup *RdsSubnetGroup
@@ -192,8 +192,8 @@ func Test_RdsSubnetGroupCreate(t *testing.T) {
 
 			metadata := RdsSubnetGroupCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(orm.AnnotationKey),
-				Name:    orm.ID,
+				Refs:    core.BaseConstructSetOf(orm),
+				Name:    orm.Name,
 			}
 			subnetGroup := &RdsSubnetGroup{}
 			err := subnetGroup.Create(dag, metadata)
@@ -211,16 +211,17 @@ func Test_RdsSubnetGroupCreate(t *testing.T) {
 				assert.Len(subnetGroup.Subnets, 2)
 				assert.Equal(subnetGroup.ConstructsRef, metadata.Refs)
 			} else {
-				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(orm.AnnotationKey))
-				assert.Equal(subnetGroup.KlothoConstructRef(), expect)
+				expect := initialRefs.CloneWith(core.BaseConstructSetOf(orm))
+				assert.Equal(subnetGroup.BaseConstructsRef(), expect)
 			}
 		})
 	}
 }
 
 func Test_RdsProxyCreate(t *testing.T) {
-	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	orm := &core.Orm{Name: "test"}
+	eu := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name  string
 		proxy *RdsProxy
@@ -303,8 +304,8 @@ func Test_RdsProxyCreate(t *testing.T) {
 
 			metadata := RdsProxyCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(orm.AnnotationKey),
-				Name:    orm.ID,
+				Refs:    core.BaseConstructSetOf(orm),
+				Name:    orm.Name,
 			}
 			proxy := &RdsProxy{}
 			err := proxy.Create(dag, metadata)
@@ -324,16 +325,17 @@ func Test_RdsProxyCreate(t *testing.T) {
 				assert.NotNil(proxy.Role)
 				assert.Equal(proxy.ConstructsRef, metadata.Refs)
 			} else {
-				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(orm.AnnotationKey))
-				assert.Equal(proxy.KlothoConstructRef(), expect)
+				expect := initialRefs.CloneWith(core.BaseConstructSetOf(orm))
+				assert.Equal(proxy.BaseConstructsRef(), expect)
 			}
 		})
 	}
 }
 
 func Test_RdsProxyTargetGroupCreate(t *testing.T) {
-	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	orm := &core.Orm{Name: "test"}
+	eu := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name        string
 		targetGroup *RdsProxyTargetGroup
@@ -371,8 +373,8 @@ func Test_RdsProxyTargetGroupCreate(t *testing.T) {
 
 			metadata := RdsProxyTargetGroupCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(orm.AnnotationKey),
-				Name:    orm.ID,
+				Refs:    core.BaseConstructSetOf(orm),
+				Name:    orm.Name,
 			}
 			targetGroup := &RdsProxyTargetGroup{}
 			err := targetGroup.Create(dag, metadata)
@@ -389,8 +391,8 @@ func Test_RdsProxyTargetGroupCreate(t *testing.T) {
 			if tt.targetGroup == nil {
 				assert.Equal(targetGroup.ConstructsRef, metadata.Refs)
 			} else {
-				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(orm.AnnotationKey))
-				assert.Equal(targetGroup.KlothoConstructRef(), expect)
+				expect := initialRefs.CloneWith(core.BaseConstructSetOf(orm))
+				assert.Equal(targetGroup.BaseConstructsRef(), expect)
 			}
 		})
 	}

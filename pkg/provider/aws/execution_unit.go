@@ -12,12 +12,12 @@ import (
 
 // expandExecutionUnit takes in a single execution unit and expands the generic construct into a set of resource's based on the units configuration.
 func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionUnit) error {
-	switch a.Config.GetExecutionUnit(unit.ID).Type {
+	switch a.Config.GetExecutionUnit(unit.Name).Type {
 	case Lambda:
 		lambda, err := core.CreateResource[*resources.LambdaFunction](dag, resources.LambdaCreateParams{
 			AppName: a.Config.AppName,
-			Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
-			Name:    unit.ID,
+			Refs:    core.BaseConstructSetOf(unit),
+			Name:    unit.Name,
 		})
 		if err != nil {
 			return err
@@ -26,15 +26,15 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 	case Ec2Instance:
 		instance, err := core.CreateResource[*resources.Ec2Instance](dag, resources.Ec2InstanceCreateParams{
 			AppName: a.Config.AppName,
-			Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
-			Name:    unit.ID,
+			Refs:    core.BaseConstructSetOf(unit),
+			Name:    unit.Name,
 		})
 		if err != nil {
 			return err
 		}
 		a.MapResourceDirectlyToConstruct(instance, unit)
 	case kubernetes.KubernetesType:
-		params := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams)
+		params := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.Name).InfraParams)
 		clusterName := params.ClusterId
 		if clusterName == "" {
 			clusterName = "cluster"
@@ -45,9 +45,9 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 			err := fargateProfile.Create(dag, resources.EksFargateProfileCreateParams{
 				Name:        "klotho-fargate-profile",
 				ClusterName: clusterName,
-				Refs:        core.AnnotationKeySetOf(unit.AnnotationKey),
+				Refs:        core.BaseConstructSetOf(unit),
 				AppName:     a.Config.AppName,
-				NetworkType: a.Config.GetExecutionUnit(unit.ID).NetworkPlacement,
+				NetworkType: a.Config.GetExecutionUnit(unit.Name).NetworkPlacement,
 			})
 			if err != nil {
 				return err
@@ -63,7 +63,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 		}
 		subParams := map[string]any{
 			"ClustersProvider": resources.EksClusterCreateParams{
-				Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
+				Refs:    core.BaseConstructSetOf(unit),
 				AppName: a.Config.AppName,
 				Name:    clusterName,
 			},
@@ -81,11 +81,11 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 		}
 		a.MapResourceDirectlyToConstruct(helmChart, unit)
 	case Ecs:
-		networkPlacement := a.Config.GetExecutionUnit(unit.ID).NetworkPlacement
+		networkPlacement := a.Config.GetExecutionUnit(unit.Name).NetworkPlacement
 		ecsService, err := core.CreateResource[*resources.EcsService](dag, resources.EcsServiceCreateParams{
 			AppName:          a.Config.AppName,
-			Refs:             core.AnnotationKeySetOf(unit.AnnotationKey),
-			Name:             unit.ID,
+			Refs:             core.BaseConstructSetOf(unit),
+			Name:             unit.Name,
 			LaunchType:       resources.LAUNCH_TYPE_FARGATE,
 			NetworkPlacement: networkPlacement,
 		})
@@ -94,7 +94,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 		}
 		a.MapResourceDirectlyToConstruct(ecsService, unit)
 	default:
-		return fmt.Errorf("unsupported execution unit type %s", a.Config.GetExecutionUnit(unit.ID).Type)
+		return fmt.Errorf("unsupported execution unit type %s", a.Config.GetExecutionUnit(unit.Name).Type)
 	}
 	return nil
 }
@@ -102,10 +102,10 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.ExecutionUnit, dag *core.ResourceGraph) (valueParams map[string]any, err error) {
 	valueParams = make(map[string]any)
 	for _, val := range chart.ProviderValues {
-		if val.ExecUnitName != unit.ID {
+		if val.ExecUnitName != unit.Name {
 			continue
 		}
-		params := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams)
+		params := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.Name).InfraParams)
 		clusterName := params.ClusterId
 		if clusterName == "" {
 			clusterName = "cluster"
@@ -118,8 +118,8 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 			}
 			valueParams[val.Key] = resources.ImageCreateParams{
 				AppName: a.Config.AppName,
-				Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
-				Name:    unit.ID,
+				Refs:    core.BaseConstructSetOf(unit),
+				Name:    unit.Name,
 			}
 		case kubernetes.ServiceAccountAnnotationTransformation:
 			chart.Values[val.Key] = core.IaCValue{
@@ -127,8 +127,8 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 				Property: resources.ARN_IAC_VALUE,
 			}
 			valueParams[val.Key] = resources.RoleCreateParams{
-				Name:    fmt.Sprintf("%s-%s-ExecutionRole", a.Config.AppName, unit.ID),
-				Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
+				Name:    fmt.Sprintf("%s-%s-ExecutionRole", a.Config.AppName, unit.Name),
+				Refs:    core.BaseConstructSetOf(unit),
 				AppName: a.Config.AppName,
 			}
 		case kubernetes.InstanceTypeKey:
@@ -142,10 +142,10 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 			}
 			valueParams[val.Key] = resources.EksNodeGroupCreateParams{
 				InstanceType: params.InstanceType,
-				NetworkType:  a.Config.GetExecutionUnit(unit.ID).NetworkPlacement,
+				NetworkType:  a.Config.GetExecutionUnit(unit.Name).NetworkPlacement,
 				AppName:      a.Config.AppName,
 				ClusterName:  clusterName,
-				Refs:         core.AnnotationKeySetOf(unit.AnnotationKey),
+				Refs:         core.BaseConstructSetOf(unit),
 			}
 		case kubernetes.TargetGroupTransformation:
 			chart.Values[val.Key] = core.IaCValue{
@@ -154,23 +154,26 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 			}
 			valueParams[val.Key] = resources.TargetGroupCreateParams{
 				AppName: a.Config.AppName,
-				Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
-				Name:    unit.ID,
+				Refs:    core.BaseConstructSetOf(unit),
+				Name:    unit.Name,
 			}
 		}
 	}
 	return
 }
 
-func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.AnnotationKeySet) (resources.LambdaFunctionConfigureParams, error) {
-	ref, oneRef := refs.GetSingle()
-	if !oneRef {
+func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.BaseConstructSet) (resources.LambdaFunctionConfigureParams, error) {
+	if len(refs) > 1 || len(refs) == 0 {
 		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("lambda must only have one construct reference")
 	}
+	var ref core.BaseConstruct
+	for r := range refs {
+		ref = r
+	}
 	lambdaConfig := resources.LambdaFunctionConfigureParams{}
-	construct := result.GetConstruct(core.ConstructId(ref).ToRid())
+	construct := result.GetConstruct(ref.Id())
 	if construct == nil {
-		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref.ToId())
+		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref.Id())
 	}
 	unit, ok := construct.(*core.ExecutionUnit)
 	if !ok {
@@ -181,24 +184,27 @@ func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.Reso
 			lambdaConfig.EnvironmentVariables = append(lambdaConfig.EnvironmentVariables, env)
 		}
 	}
-	cfg := config.ConvertFromInfraParams[config.ServerlessTypeParams](a.Config.GetExecutionUnit(ref.ID).InfraParams)
+	cfg := config.ConvertFromInfraParams[config.ServerlessTypeParams](a.Config.GetExecutionUnit(ref.Id().Name).InfraParams)
 	lambdaConfig.MemorySize = cfg.Memory
 	lambdaConfig.Timeout = cfg.Timeout
 	return lambdaConfig, nil
 }
 
-func (a *AWS) getEcsServiceConfiguration(result *core.ConstructGraph, refs core.AnnotationKeySet) (resources.EcsServiceConfigureParams, error) {
+func (a *AWS) getEcsServiceConfiguration(result *core.ConstructGraph, refs core.BaseConstructSet) (resources.EcsServiceConfigureParams, error) {
 	serviceConfig := resources.EcsServiceConfigureParams{}
-	ref, oneRef := refs.GetSingle()
-	if !oneRef {
+	if len(refs) > 1 || len(refs) == 0 {
 		return serviceConfig, fmt.Errorf("ecs service must only have one construct reference")
 	}
-	construct := result.GetConstruct(core.ConstructId(ref).ToRid())
+	var ref core.BaseConstruct
+	for r := range refs {
+		ref = r
+	}
+	construct := result.GetConstruct(ref.Id())
 	if construct == nil {
-		return serviceConfig, fmt.Errorf("construct with id %s does not exist", ref.ToId())
+		return serviceConfig, fmt.Errorf("construct with id %s does not exist", ref.Id())
 	}
 
-	cfg := config.ConvertFromInfraParams[config.ContainerTypeParams](a.Config.GetExecutionUnit(ref.ID).InfraParams)
+	cfg := config.ConvertFromInfraParams[config.ContainerTypeParams](a.Config.GetExecutionUnit(ref.Id().Name).InfraParams)
 	serviceConfig.DesiredCount = cfg.DesiredCount
 	serviceConfig.ForceNewDeployment = cfg.ForceNewDeployment
 	serviceConfig.DeploymentCircuitBreaker = &resources.EcsServiceDeploymentCircuitBreaker{
@@ -208,15 +214,18 @@ func (a *AWS) getEcsServiceConfiguration(result *core.ConstructGraph, refs core.
 	return serviceConfig, nil
 }
 
-func (a *AWS) getEcsTaskDefinitionConfiguration(result *core.ConstructGraph, refs core.AnnotationKeySet) (resources.EcsTaskDefinitionConfigureParams, error) {
+func (a *AWS) getEcsTaskDefinitionConfiguration(result *core.ConstructGraph, refs core.BaseConstructSet) (resources.EcsTaskDefinitionConfigureParams, error) {
 	taskDefConfig := resources.EcsTaskDefinitionConfigureParams{}
-	ref, oneRef := refs.GetSingle()
-	if !oneRef {
+	if len(refs) > 1 || len(refs) == 0 {
 		return taskDefConfig, fmt.Errorf("ecs task definition must only have one construct reference")
 	}
-	construct := result.GetConstruct(core.ConstructId(ref).ToRid())
+	var ref core.BaseConstruct
+	for r := range refs {
+		ref = r
+	}
+	construct := result.GetConstruct(ref.Id())
 	if construct == nil {
-		return taskDefConfig, fmt.Errorf("construct with id %s does not exist", ref.ToId())
+		return taskDefConfig, fmt.Errorf("construct with id %s does not exist", ref.Id())
 	}
 	unit, ok := construct.(*core.ExecutionUnit)
 	if !ok {
@@ -227,41 +236,44 @@ func (a *AWS) getEcsTaskDefinitionConfiguration(result *core.ConstructGraph, ref
 			taskDefConfig.EnvironmentVariables = append(taskDefConfig.EnvironmentVariables, env)
 		}
 	}
-	cfg := config.ConvertFromInfraParams[config.ContainerTypeParams](a.Config.GetExecutionUnit(ref.ID).InfraParams)
+	cfg := config.ConvertFromInfraParams[config.ContainerTypeParams](a.Config.GetExecutionUnit(ref.Id().Name).InfraParams)
 	taskDefConfig.Memory = cfg.Memory
 	taskDefConfig.Cpu = cfg.Cpu
 	return taskDefConfig, nil
 }
 
-func (a *AWS) getImageConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.AnnotationKeySet) (resources.EcrImageConfigureParams, error) {
-	ref, oneRef := refs.GetSingle()
-	if !oneRef {
+func (a *AWS) getImageConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.BaseConstructSet) (resources.EcrImageConfigureParams, error) {
+	if len(refs) > 1 || len(refs) == 0 {
 		return resources.EcrImageConfigureParams{}, fmt.Errorf("image must only have one construct reference but got %d: %v", len(refs), refs)
 	}
+	var ref core.BaseConstruct
+	for r := range refs {
+		ref = r
+	}
 	imageConfig := resources.EcrImageConfigureParams{}
-	construct := result.GetConstruct(core.ConstructId(ref).ToRid())
+	construct := result.GetConstruct(ref.Id())
 	if construct == nil {
-		return resources.EcrImageConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref.ToId())
+		return resources.EcrImageConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref.Id())
 	}
 	unit, ok := construct.(*core.ExecutionUnit)
 	if !ok {
 		return resources.EcrImageConfigureParams{}, fmt.Errorf("image must only have a construct reference to an execution unit ExecutionUnit but got %T", construct)
 	}
-	imageConfig.Context = fmt.Sprintf("./%s", unit.ID)
-	imageConfig.Dockerfile = fmt.Sprintf("./%s/%s", unit.ID, unit.DockerfilePath)
+	imageConfig.Context = fmt.Sprintf("./%s", unit.Name)
+	imageConfig.Dockerfile = fmt.Sprintf("./%s/%s", unit.Name, unit.DockerfilePath)
 	return imageConfig, nil
 }
 
-func (a *AWS) getNodeGroupConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.AnnotationKeySet) (resources.EksNodeGroupConfigureParams, error) {
+func (a *AWS) getNodeGroupConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.BaseConstructSet) (resources.EksNodeGroupConfigureParams, error) {
 	nodeGroupConfig := resources.EksNodeGroupConfigureParams{}
 	nodeGroupConfig.DiskSize = 20
 	for ref := range refs {
-		construct := result.GetConstruct(core.ConstructId(ref).ToRid())
+		construct := result.GetConstruct(ref.Id())
 		unit, ok := construct.(*core.ExecutionUnit)
 		if !ok {
 			continue
 		}
-		cfg := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.ID).InfraParams)
+		cfg := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.Name).InfraParams)
 
 		if nodeGroupConfig.DiskSize < cfg.DiskSizeGiB {
 			nodeGroupConfig.DiskSize = cfg.DiskSizeGiB
@@ -272,7 +284,7 @@ func (a *AWS) getNodeGroupConfiguration(result *core.ConstructGraph, dag *core.R
 
 // handleEksProxy creates the necessary dependencies and resources for pods within the same helm chart to be able to use cloudmap to communicate
 func (a *AWS) handleEksProxy(source, dest *core.ExecutionUnit, chart *kubernetes.HelmChart, dag *core.ResourceGraph) error {
-	refs := core.AnnotationKeySetOf(source.AnnotationKey, dest.AnnotationKey)
+	refs := core.BaseConstructSetOf(source, dest)
 	privateDnsNamespace, err := core.CreateResource[*resources.PrivateDnsNamespace](dag, resources.PrivateDnsNamespaceCreateParams{
 		Refs:    refs,
 		AppName: a.Config.AppName,
@@ -281,7 +293,7 @@ func (a *AWS) handleEksProxy(source, dest *core.ExecutionUnit, chart *kubernetes
 		return err
 	}
 	dag.AddDependency(chart, privateDnsNamespace)
-	unitsRole := knowledgebase.GetIamRoleForUnit(chart, source.AnnotationKey)
+	unitsRole := knowledgebase.GetIamRoleForUnit(chart, source)
 	if unitsRole == nil {
 		return fmt.Errorf("no role found for chart %s and source reference %s", chart.Id(), source.Id())
 	}
@@ -306,11 +318,11 @@ func findUnitsHelmChart(unit *core.ExecutionUnit, dag *core.ResourceGraph) (*kub
 	for _, res := range dag.ListResources() {
 		if r, ok := res.(*kubernetes.HelmChart); ok {
 			for _, ref := range r.ExecutionUnits {
-				if ref.Name == unit.Provenance().ID {
+				if ref.Name == unit.Name {
 					return r, nil
 				}
 			}
 		}
 	}
-	return nil, fmt.Errorf("helm chart not found for unit with id, %s", unit.ID)
+	return nil, fmt.Errorf("helm chart not found for unit with id, %s", unit.Name)
 }

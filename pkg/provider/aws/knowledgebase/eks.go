@@ -115,7 +115,7 @@ var EksKB = knowledgebase.Build(
 		Expand: func(chart *kubernetes.HelmChart, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			role := GetIamRoleForUnit(chart, data.SourceRef)
 			if role == nil {
-				return fmt.Errorf("no role found for chart %s and source reference %s in HelmChart to ddb DynamodbTable expansion", chart.Id(), data.SourceRef.ToId())
+				return fmt.Errorf("no role found for chart %s and source reference %s in HelmChart to ddb DynamodbTable expansion", chart.Id(), data.SourceRef.Id())
 			}
 			dag.AddDependency(role, table)
 			return nil
@@ -140,7 +140,7 @@ var EksKB = knowledgebase.Build(
 		Expand: func(chart *kubernetes.HelmChart, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			role := GetIamRoleForUnit(chart, data.SourceRef)
 			if role == nil {
-				return fmt.Errorf("no role found for chart %s and source reference %s in HelmChart to S3Bucket expansion", chart.Id(), data.SourceRef.ToId())
+				return fmt.Errorf("no role found for chart %s and source reference %s in HelmChart to S3Bucket expansion", chart.Id(), data.SourceRef.Id())
 			}
 			dag.AddDependency(role, bucket)
 			return nil
@@ -157,7 +157,7 @@ var EksKB = knowledgebase.Build(
 
 			role := GetIamRoleForUnit(chart, data.SourceRef)
 			if role == nil {
-				return fmt.Errorf("no role found for chart %s and source reference %s in HelmChart to ddb RdsInstance expansion", chart.Id(), data.SourceRef.ToId())
+				return fmt.Errorf("no role found for chart %s and source reference %s in HelmChart to ddb RdsInstance expansion", chart.Id(), data.SourceRef.Id())
 			}
 			refs := role.ConstructsRef.CloneWith(instance.ConstructsRef)
 			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), refs, instance.GetConnectionPolicyDocument())
@@ -173,7 +173,7 @@ var EksKB = knowledgebase.Build(
 		Configure: func(chart *kubernetes.HelmChart, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			role := GetIamRoleForUnit(chart, data.SourceRef)
 			if role == nil {
-				return fmt.Errorf("no role found for chart %s and source reference %s in HelmChart to ddb RdsProxy expansion", chart.Id(), data.SourceRef.ToId())
+				return fmt.Errorf("no role found for chart %s and source reference %s in HelmChart to ddb RdsProxy expansion", chart.Id(), data.SourceRef.Id())
 			}
 			upstreamResources := dag.GetUpstreamResources(proxy)
 			for _, res := range upstreamResources {
@@ -202,8 +202,8 @@ var EksKB = knowledgebase.Build(
 	},
 )
 
-func GetIamRoleForUnit(chart *kubernetes.HelmChart, ref core.AnnotationKey) *resources.IamRole {
-	rolePlaceholder := kubernetes.GenerateRoleArnPlaceholder(ref.ID)
+func GetIamRoleForUnit(chart *kubernetes.HelmChart, ref core.BaseConstruct) *resources.IamRole {
+	rolePlaceholder := kubernetes.GenerateRoleArnPlaceholder(ref.Id().Name)
 	for key, val := range chart.Values {
 		if rolePlaceholder == key {
 			if iacVal, ok := val.(core.IaCValue); ok {

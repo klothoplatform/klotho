@@ -30,7 +30,7 @@ func (l NodeJSExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 	defaultPackageJson, _ := inputFiles["package.json"].(*PackageFile)
 	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
 		if unit.Executable.Type != "" {
-			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.ID, unit.Executable.Type)
+			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.Name, unit.Executable.Type)
 			continue
 		}
 
@@ -40,7 +40,7 @@ func (l NodeJSExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 			packageJson, _ = inputFiles[packageJsonPath].(*PackageFile)
 		}
 		if packageJson == nil {
-			zap.L().Sugar().Debugf("package.json not found in execution_unit: %s", unit.ID)
+			zap.L().Sugar().Debugf("package.json not found in execution_unit: %s", unit.Name)
 			return nil
 		}
 
@@ -51,7 +51,7 @@ func (l NodeJSExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 		for _, file := range unit.FilesOfLang(js) {
 			for _, annot := range file.Annotations() {
 				cap := annot.Capability
-				if cap.Name == annotation.ExecutionUnitCapability && cap.ID == unit.ID {
+				if cap.Name == annotation.ExecutionUnitCapability && cap.ID == unit.Name {
 					unit.AddEntrypoint(file)
 				}
 			}
@@ -60,7 +60,7 @@ func (l NodeJSExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 		if len(unit.Executable.Entrypoints) == 0 {
 			err = addEntrypointFromPackageJson(packageJson, unit)
 			if err != nil {
-				return core.WrapErrf(err, "entrypoint resolution from package.json failed for execution unit: %s", unit.ID)
+				return core.WrapErrf(err, "entrypoint resolution from package.json failed for execution unit: %s", unit.Name)
 			}
 		}
 
@@ -80,7 +80,7 @@ func (l NodeJSExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 func refreshUpstreamEntrypoints(unit *core.ExecutionUnit) {
 	for f := range unit.Executable.SourceFiles {
 		if file, ok := unit.Get(f).(*core.SourceFile); ok && file.IsAnnotatedWith(annotation.ExposeCapability) {
-			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.ID, f)
+			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.Name, f)
 			unit.AddEntrypoint(file)
 		}
 	}
@@ -89,7 +89,7 @@ func refreshUpstreamEntrypoints(unit *core.ExecutionUnit) {
 func refreshSourceFiles(unit *core.ExecutionUnit) error {
 	sourceFiles, err := upstreamDependencyResolver.Resolve(unit)
 	if err != nil {
-		return core.WrapErrf(err, "file dependency resolution failed for execution unit: %s", unit.ID)
+		return core.WrapErrf(err, "file dependency resolution failed for execution unit: %s", unit.Name)
 	}
 	for k, v := range sourceFiles {
 		unit.Executable.SourceFiles[k] = v
@@ -114,7 +114,7 @@ func warnIfContainsES6Import(file core.File) {
 
 func resolveDefaultEntrypoint(unit *core.ExecutionUnit) {
 	if indexJs := unit.Get("index.js"); indexJs != nil {
-		zap.L().Sugar().Debugf("Adding execution unit entrypoint: [default] -> [%s] -> %s", unit.ID, indexJs.Path())
+		zap.L().Sugar().Debugf("Adding execution unit entrypoint: [default] -> [%s] -> %s", unit.Name, indexJs.Path())
 		unit.AddEntrypoint(indexJs)
 	}
 }
@@ -130,7 +130,7 @@ func addEntrypointFromPackageJson(packageJson *PackageFile, unit *core.Execution
 		if mainFileR := unit.Get(main); mainFileR != nil {
 			if mainFile, ok := mainFileR.(*core.SourceFile); ok {
 				unit.AddEntrypoint(mainFile)
-				zap.L().Sugar().Debugf("Adding execution unit entrypoint: [package.json#main] -> [%s] -> %s", unit.ID, mainFile.Path())
+				zap.L().Sugar().Debugf("Adding execution unit entrypoint: [package.json#main] -> [%s] -> %s", unit.Name, mainFile.Path())
 			}
 		}
 	}

@@ -24,7 +24,7 @@ func FindASPDotnetCoreStartupClass(unit *core.ExecutionUnit) (*ASPDotNetCoreStar
 			for _, t := range types {
 				if cls, found := getDotnetCoreStartupClass(t.Node); found {
 					if startupClass != nil {
-						return nil, fmt.Errorf("multiple ASP.NET Core startup classes found in execution unit [%s] <- [%s, %s]", unit.ID, startupClass.Class.Name, cls.Class.Name)
+						return nil, fmt.Errorf("multiple ASP.NET Core startup classes found in execution unit [%s] <- [%s, %s]", unit.Name, startupClass.Class.Name, cls.Class.Name)
 					} else {
 						startupClass = &cls
 					}
@@ -35,7 +35,7 @@ func FindASPDotnetCoreStartupClass(unit *core.ExecutionUnit) (*ASPDotNetCoreStar
 	for _, declarer := range declarers {
 		execUnitAnnotations := filter.NewSimpleFilter[*core.Annotation](func(a *core.Annotation) bool {
 			return a.Capability.Name == annotation.ExecutionUnitCapability &&
-				a.Capability.ID == unit.ID
+				a.Capability.ID == unit.Name
 		}).Apply(declarer.Annotations().InSourceOrder()...)
 
 		if len(execUnitAnnotations) == 0 {
@@ -45,7 +45,7 @@ func FindASPDotnetCoreStartupClass(unit *core.ExecutionUnit) (*ASPDotNetCoreStar
 		for _, a := range execUnitAnnotations {
 			if cls, found := getDotnetCoreStartupClass(a.Node); found {
 				if startupClass != nil {
-					return nil, fmt.Errorf("multiple ASP.NET Core startup classes found in execution unit [%s] <- [%s, %s]", unit.ID, startupClass.Class.Name, cls.Class.Name)
+					return nil, fmt.Errorf("multiple ASP.NET Core startup classes found in execution unit [%s] <- [%s, %s]", unit.Name, startupClass.Class.Name, cls.Class.Name)
 				} else {
 					startupClass = &cls
 				}

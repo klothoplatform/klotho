@@ -3,7 +3,6 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +42,7 @@ func Test_SecretCreate(t *testing.T) {
 
 			metadata := SecretCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}),
+				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
 				Name:    "test",
 			}
 			secret := &Secret{}
@@ -103,7 +102,7 @@ func Test_SecretVersionCreate(t *testing.T) {
 
 			metadata := SecretVersionCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}),
+				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
 				Name:    "test",
 			}
 			secret := &SecretVersion{}

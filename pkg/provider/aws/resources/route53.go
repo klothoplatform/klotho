@@ -15,7 +15,7 @@ const (
 type (
 	Route53HostedZone struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Vpc           *Vpc
 		ForceDestroy  bool
 	}
@@ -23,7 +23,7 @@ type (
 	Route53Record struct {
 		Name          string
 		DomainName    string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Zone          *Route53HostedZone
 		Type          string
 		Records       []core.IaCValue
@@ -33,7 +33,7 @@ type (
 
 	Route53HealthCheck struct {
 		Name             string
-		ConstructsRef    core.AnnotationKeySet
+		ConstructsRef    core.BaseConstructSet
 		Type             string
 		Disabled         bool
 		FailureThreshold int
@@ -47,7 +47,7 @@ type (
 
 type Route53HostedZoneCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 	Type    string
 }
@@ -81,7 +81,7 @@ func (zone *Route53HostedZone) Configure(params Route53HostedZoneConfigureParams
 }
 
 type Route53RecordCreateParams struct {
-	Refs       core.AnnotationKeySet
+	Refs       core.BaseConstructSet
 	DomainName string
 	Zone       *Route53HostedZone
 }
@@ -121,7 +121,7 @@ func (record *Route53Record) Configure(params Route53RecordConfigureParams) erro
 }
 
 type Route53HealthCheckCreateParams struct {
-	Refs      core.AnnotationKeySet
+	Refs      core.BaseConstructSet
 	AppName   string
 	Fqdn      string
 	IpAddress string
@@ -178,8 +178,8 @@ func (healthCheck *Route53HealthCheck) Configure(params Route53HealthCheckConfig
 	return nil
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (zone *Route53HostedZone) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (zone *Route53HostedZone) BaseConstructsRef() core.BaseConstructSet {
 	return zone.ConstructsRef
 }
 
@@ -192,7 +192,7 @@ func (zone *Route53HostedZone) Id() core.ResourceId {
 	}
 }
 
-func (record *Route53Record) KlothoConstructRef() core.AnnotationKeySet {
+func (record *Route53Record) BaseConstructsRef() core.BaseConstructSet {
 	return record.ConstructsRef
 }
 
@@ -205,7 +205,7 @@ func (record *Route53Record) Id() core.ResourceId {
 	}
 }
 
-func (hc *Route53HealthCheck) KlothoConstructRef() core.AnnotationKeySet {
+func (hc *Route53HealthCheck) BaseConstructsRef() core.BaseConstructSet {
 	return hc.ConstructsRef
 }
 

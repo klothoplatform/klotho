@@ -14,14 +14,14 @@ const (
 type (
 	PrivateDnsNamespace struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Vpc           *Vpc
 	}
 )
 
 type PrivateDnsNamespaceCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (namespace *PrivateDnsNamespace) Create(dag *core.ResourceGraph, params PrivateDnsNamespaceCreateParams) error {
@@ -43,8 +43,8 @@ func (namespace *PrivateDnsNamespace) Create(dag *core.ResourceGraph, params Pri
 	return nil
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ns *PrivateDnsNamespace) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (ns *PrivateDnsNamespace) BaseConstructsRef() core.BaseConstructSet {
 	return ns.ConstructsRef
 }
 

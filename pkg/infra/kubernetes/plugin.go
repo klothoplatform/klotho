@@ -161,7 +161,7 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 	var errs multierr.Error
 	klothoCharts := make(map[string]*HelmChart)
 	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
-		cfg := p.Config.GetExecutionUnit(unit.ID)
+		cfg := p.Config.GetExecutionUnit(unit.Name)
 
 		if cfg.HelmChartOptions.Directory == "" {
 			for _, f := range unit.GetDeclaringFiles() {
@@ -169,8 +169,8 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 				caps := f.Annotations()
 				for _, annot := range caps {
 					cap := annot.Capability
-					if cap.Name == annotation.ExecutionUnitCapability && cap.ID == unit.ID {
-						set, err := p.setHelmChartDirectory(f.Path(), &cfg, unit.ID)
+					if cap.Name == annotation.ExecutionUnitCapability && cap.ID == unit.Name {
+						set, err := p.setHelmChartDirectory(f.Path(), &cfg, unit.Name)
 						if err != nil {
 							errs.Append(err)
 						}
@@ -191,10 +191,10 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 				khChart = &HelmChart{
 					ValuesFiles:   valuesFiles,
 					Directory:     chartDir,
-					ConstructRefs: make(core.AnnotationKeySet),
+					ConstructRefs: make(core.BaseConstructSet),
 					Values:        make(map[string]any),
 				}
-				khChart.ConstructRefs.Add(unit.Provenance())
+				khChart.ConstructRefs.Add(unit)
 				klothoCharts[chartDir] = khChart
 			} else {
 				foundDifference := false
@@ -215,8 +215,8 @@ func (p *Kubernetes) getKlothoCharts(constructGraph *core.ConstructGraph) (map[s
 				}
 			}
 
-			khChart.ExecutionUnits = append(khChart.ExecutionUnits, &HelmExecUnit{Name: unit.ID, Namespace: "default"})
-			khChart.ConstructRefs.Add(unit.AnnotationKey)
+			khChart.ExecutionUnits = append(khChart.ExecutionUnits, &HelmExecUnit{Name: unit.Name, Namespace: "default"})
+			khChart.ConstructRefs.Add(unit)
 		}
 	}
 	return klothoCharts, errs.ErrOrNil()

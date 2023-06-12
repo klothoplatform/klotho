@@ -81,8 +81,8 @@ func (a *AWS) copyConstructEdgeToDag(
 
 	switch construct := dep.Source.(type) {
 	case *core.ExecutionUnit:
-		if a.Config.GetExecutionUnit(construct.ID).Type == kubernetes.KubernetesType {
-			data.SourceRef = construct.AnnotationKey
+		if a.Config.GetExecutionUnit(construct.Name).Type == kubernetes.KubernetesType {
+			data.SourceRef = construct
 		}
 		for _, envVar := range construct.EnvironmentVariables {
 			if envVar.Construct != nil && envVar.Construct.Id() == dep.Destination.Id() {
@@ -101,7 +101,7 @@ func (a *AWS) copyConstructEdgeToDag(
 		case *core.ExecutionUnit:
 			// We have to handle this case here since we dont understand what exists within a helm chart yet outside of the notion of constructs
 			// We will be able to move this to edges once we build a better understanding of kubernetes resources
-			if a.Config.GetExecutionUnit(dest.ID).Type == kubernetes.KubernetesType && a.Config.GetExecutionUnit(construct.ID).Type == kubernetes.KubernetesType {
+			if a.Config.GetExecutionUnit(dest.Name).Type == kubernetes.KubernetesType && a.Config.GetExecutionUnit(construct.Name).Type == kubernetes.KubernetesType {
 				if chart, ok := destinationResource.(*kubernetes.HelmChart); ok {
 					err := a.handleEksProxy(construct, dest, chart, dag)
 					if err != nil {
@@ -123,7 +123,7 @@ func (a *AWS) copyConstructEdgeToDag(
 				zap.S().Warnf(`Can't connect %s to concrete resource %s`, construct.Id(), dep.Destination.Id())
 				continue
 			}
-			if route.ExecUnitName == dstCons.Provenance().ID {
+			if route.ExecUnitName == dstCons.Id().Name {
 				data.Routes = append(data.Routes, route)
 			}
 			// Because we don't have an understanding of what exists within the helm chart we cannot expand API -> Chart (we would need API -> k8s Service)
@@ -134,7 +134,7 @@ func (a *AWS) copyConstructEdgeToDag(
 					if iacVal, ok := val.(core.IaCValue); ok {
 						if tg, ok := iacVal.Resource.(*resources.TargetGroup); ok {
 							for ref := range tg.ConstructsRef {
-								if ref.ID == dstCons.Provenance().ID {
+								if ref.Id().Name == dstCons.Id().Name {
 									destinationTG = tg
 								}
 							}
@@ -225,9 +225,9 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 func getS3BucketConfig(bucket *resources.S3Bucket, constructs *core.ConstructGraph) (resources.S3BucketConfigureParams, error) {
 	staticUnits := make(map[string]*core.StaticUnit)
 	for consRef := range bucket.ConstructsRef {
-		cons := constructs.GetConstruct(core.ConstructId(consRef).ToRid())
+		cons := constructs.GetConstruct(consRef.Id())
 		if oneUnit, isUnit := cons.(*core.StaticUnit); isUnit {
-			staticUnits[oneUnit.ID] = oneUnit
+			staticUnits[oneUnit.Name] = oneUnit
 		}
 	}
 	switch len(staticUnits) {

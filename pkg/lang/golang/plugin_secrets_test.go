@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
@@ -146,12 +145,7 @@ import (
 v, err := runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder=string", path))
 `,
 			want: testResult{
-				resource: core.Config{
-					AnnotationKey: core.AnnotationKey{
-						ID:         "test",
-						Capability: annotation.ConfigCapability,
-					},
-				},
+				resource: core.Config{Name: "test"},
 				content: `package fs
 
 import (
@@ -190,12 +184,7 @@ import (
 var v, err = runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder=string", path))
 `,
 			want: testResult{
-				resource: core.Config{
-					AnnotationKey: core.AnnotationKey{
-						ID:         "test",
-						Capability: annotation.ConfigCapability,
-					},
-				},
+				resource: core.Config{Name: "test"},
 				content: `package fs
 
 import (
@@ -236,12 +225,7 @@ var err error
 v, err = runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder=string", path))
 `,
 			want: testResult{
-				resource: core.Config{
-					AnnotationKey: core.AnnotationKey{
-						ID:         "test",
-						Capability: annotation.ConfigCapability,
-					},
-				},
+				resource: core.Config{Name: "test"},
 				content: `package fs
 
 import (
@@ -294,7 +278,7 @@ var queryParams string
 				return
 			}
 
-			assert.Equal(tt.want.resource.Provenance(), result.Provenance())
+			assert.Equal(tt.want.resource.Id(), result.Id())
 			assert.Equal(tt.want.content, string(f.Program()))
 		})
 	}

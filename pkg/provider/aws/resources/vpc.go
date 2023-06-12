@@ -35,29 +35,29 @@ const (
 type (
 	Vpc struct {
 		Name               string
-		ConstructsRef      core.AnnotationKeySet
+		ConstructsRef      core.BaseConstructSet
 		CidrBlock          string
 		EnableDnsSupport   bool
 		EnableDnsHostnames bool
 	}
 	ElasticIp struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 	}
 	InternetGateway struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Vpc           *Vpc
 	}
 	NatGateway struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		ElasticIp     *ElasticIp
 		Subnet        *Subnet
 	}
 	Subnet struct {
 		Name                string
-		ConstructsRef       core.AnnotationKeySet
+		ConstructsRef       core.BaseConstructSet
 		CidrBlock           string
 		Vpc                 *Vpc
 		Type                string
@@ -66,7 +66,7 @@ type (
 	}
 	VpcEndpoint struct {
 		Name             string
-		ConstructsRef    core.AnnotationKeySet
+		ConstructsRef    core.BaseConstructSet
 		Vpc              *Vpc
 		Region           *Region
 		ServiceName      string
@@ -77,7 +77,7 @@ type (
 	}
 	RouteTable struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Vpc           *Vpc
 		Routes        []*RouteTableRoute
 	}
@@ -90,7 +90,7 @@ type (
 
 type VpcCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (vpc *Vpc) Create(dag *core.ResourceGraph, params VpcCreateParams) error {
@@ -122,7 +122,7 @@ func (vpc *Vpc) Configure(params VpcConfigureParams) error {
 type EipCreateParams struct {
 	AppName string
 	IpName  string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (eip *ElasticIp) Create(dag *core.ResourceGraph, params EipCreateParams) error {
@@ -140,7 +140,7 @@ func (eip *ElasticIp) Create(dag *core.ResourceGraph, params EipCreateParams) er
 
 type IgwCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreateParams) error {
@@ -166,7 +166,7 @@ func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreatePara
 
 type NatCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	AZ      string
 }
 
@@ -201,7 +201,7 @@ func (nat *NatGateway) Create(dag *core.ResourceGraph, params NatCreateParams) e
 
 type SubnetCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	AZ      string
 	Type    string
 }
@@ -294,7 +294,7 @@ func (subnet *Subnet) Configure(params SubnetConfigureParams) error {
 type RouteTableCreateParams struct {
 	AppName string
 	Name    string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreateParams) error {
@@ -552,8 +552,8 @@ func NewElasticIp(appName string, ipName string) *ElasticIp {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (subnet *ElasticIp) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (subnet *ElasticIp) BaseConstructsRef() core.BaseConstructSet {
 	return subnet.ConstructsRef
 }
 
@@ -573,8 +573,8 @@ func NewInternetGateway(appName string, igwName string, vpc *Vpc) *InternetGatew
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (igw *InternetGateway) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (igw *InternetGateway) BaseConstructsRef() core.BaseConstructSet {
 	return igw.ConstructsRef
 }
 
@@ -595,8 +595,8 @@ func NewNatGateway(appName string, natGatewayName string, subnet *Subnet, ip *El
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (natGateway *NatGateway) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (natGateway *NatGateway) BaseConstructsRef() core.BaseConstructSet {
 	return natGateway.ConstructsRef
 }
 
@@ -624,8 +624,8 @@ func NewSubnet(subnetName string, vpc *Vpc, cidrBlock string, subnetType string,
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (subnet *Subnet) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (subnet *Subnet) BaseConstructsRef() core.BaseConstructSet {
 	return subnet.ConstructsRef
 }
 
@@ -676,8 +676,8 @@ func NewVpcEndpoint(service string, vpc *Vpc, endpointType string, region *Regio
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (vpce *VpcEndpoint) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (vpce *VpcEndpoint) BaseConstructsRef() core.BaseConstructSet {
 	return vpce.ConstructsRef
 }
 
@@ -699,8 +699,8 @@ func NewVpc(appName string) *Vpc {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (vpc *Vpc) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (vpc *Vpc) BaseConstructsRef() core.BaseConstructSet {
 	return vpc.ConstructsRef
 }
 
@@ -713,8 +713,8 @@ func (vpc *Vpc) Id() core.ResourceId {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rt *RouteTable) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rt *RouteTable) BaseConstructsRef() core.BaseConstructSet {
 	return rt.ConstructsRef
 }
 

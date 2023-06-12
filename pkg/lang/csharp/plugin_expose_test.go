@@ -5,9 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/stretchr/testify/assert"
 )
@@ -196,8 +194,8 @@ func TestExpose_Transform(t *testing.T) {
 	parseDep := func(dep string) graph.Edge[core.Construct] {
 		parts := strings.Split(dep, ":")
 		return graph.Edge[core.Construct]{
-			Source:      &core.Gateway{AnnotationKey: core.AnnotationKey{Capability: annotation.ExposeCapability, ID: parts[0]}},
-			Destination: &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: parts[1]}},
+			Source:      &core.Gateway{Name: parts[0]},
+			Destination: &core.ExecutionUnit{Name: parts[1]},
 		}
 	}
 
@@ -617,8 +615,8 @@ func TestExpose_Transform(t *testing.T) {
 			result := core.NewConstructGraph()
 			for uName, files := range tt.units {
 				unit := &core.ExecutionUnit{
-					Executable:    core.NewExecutable(),
-					AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: uName},
+					Executable: core.NewExecutable(),
+					Name:       uName,
 				}
 				for _, f := range files {
 					sf, err := core.NewSourceFile(f.Path, strings.NewReader(f.Content), Language)
@@ -639,7 +637,7 @@ func TestExpose_Transform(t *testing.T) {
 			assert.Equal(len(tt.expectedGateways), len(gateways))
 
 			sort.Slice(gateways, func(i, j int) bool {
-				return gateways[i].ID < gateways[j].ID
+				return gateways[i].Name < gateways[j].Name
 			})
 			sort.Slice(tt.expectedGateways, func(i, j int) bool {
 				return tt.expectedGateways[i].Name < tt.expectedGateways[j].Name
@@ -707,8 +705,8 @@ func TestExpose_Transform(t *testing.T) {
 					break
 				}
 				aDep := depsArr[i]
-				assert.Equal(eDep.Source.Provenance(), coretesting.TryGetProvenance(assert, aDep.Source))
-				assert.Equal(eDep.Destination.Provenance(), coretesting.TryGetProvenance(assert, aDep.Destination))
+				assert.Equal(eDep.Source.Id(), aDep.Source.Id())
+				assert.Equal(eDep.Destination.Id(), aDep.Destination.Id())
 			}
 		})
 	}

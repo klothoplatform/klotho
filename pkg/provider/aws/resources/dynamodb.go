@@ -14,7 +14,7 @@ const DYNAMODB_TABLE_TYPE = "dynamodb_table"
 type (
 	DynamodbTable struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Attributes    []DynamodbTableAttribute
 		BillingMode   string
 		HashKey       string
@@ -80,7 +80,7 @@ func (table *DynamodbTable) AttributeMap() (map[string]DynamodbTableAttribute, e
 
 type DynamodbTableCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 }
 
@@ -109,8 +109,8 @@ func (table *DynamodbTable) Configure(params DynamodbTableConfigureParams) error
 	return nil
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (table *DynamodbTable) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (table *DynamodbTable) BaseConstructsRef() core.BaseConstructSet {
 	return table.ConstructsRef
 }
 

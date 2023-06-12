@@ -3,15 +3,15 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_KmsKeyCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[KmsKeyCreateParams, *KmsKey]{
 		{
 			Name: "nil kms key",
@@ -23,7 +23,7 @@ func Test_KmsKeyCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, record *KmsKey) {
 				assert.Equal(record.Name, "my-app-key")
-				assert.Equal(record.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(record.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -37,7 +37,7 @@ func Test_KmsKeyCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, record *KmsKey) {
 				assert.Equal(record.Name, "my-app-key")
-				initialRefs.Add(eu.AnnotationKey)
+				initialRefs.Add(eu)
 				assert.Equal(record.ConstructsRef, initialRefs)
 			},
 		},
@@ -45,7 +45,7 @@ func Test_KmsKeyCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = KmsKeyCreateParams{
-				Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:    core.BaseConstructSetOf(eu),
 				AppName: "my-app",
 				Name:    "key",
 			}
@@ -55,8 +55,9 @@ func Test_KmsKeyCreate(t *testing.T) {
 }
 
 func Test_KmsAliasCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[KmsAliasCreateParams, *KmsAlias]{
 		{
 			Name: "nil kms key",
@@ -73,7 +74,7 @@ func Test_KmsAliasCreate(t *testing.T) {
 				assert.Equal(record.Name, "my-app-key-alias")
 				assert.NotNil(record.TargetKey)
 				assert.Equal(record.AliasName, "alias/alias")
-				assert.Equal(record.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(record.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -87,7 +88,7 @@ func Test_KmsAliasCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, record *KmsAlias) {
 				assert.Equal(record.Name, "my-app-key-alias")
-				initialRefs.Add(eu.AnnotationKey)
+				initialRefs.Add(eu)
 				assert.Equal(record.ConstructsRef, initialRefs)
 			},
 		},
@@ -95,7 +96,7 @@ func Test_KmsAliasCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = KmsAliasCreateParams{
-				Key:  &KmsKey{Name: "my-app-key", ConstructsRef: core.AnnotationKeySetOf(eu.AnnotationKey)},
+				Key:  &KmsKey{Name: "my-app-key", ConstructsRef: core.BaseConstructSetOf(eu)},
 				Name: "alias",
 			}
 			tt.Run(t)
@@ -104,8 +105,9 @@ func Test_KmsAliasCreate(t *testing.T) {
 }
 
 func Test_KmsReplicaKeyCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[KmsReplicaKeyCreateParams, *KmsReplicaKey]{
 		{
 			Name: "nil kms key replica",
@@ -121,7 +123,7 @@ func Test_KmsReplicaKeyCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, record *KmsReplicaKey) {
 				assert.Equal(record.Name, "my-app-key-replica")
 				assert.NotNil(record.PrimaryKey)
-				assert.Equal(record.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(record.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -135,7 +137,7 @@ func Test_KmsReplicaKeyCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, record *KmsReplicaKey) {
 				assert.Equal(record.Name, "my-app-key-replica")
-				initialRefs.Add(eu.AnnotationKey)
+				initialRefs.Add(eu)
 				assert.Equal(record.ConstructsRef, initialRefs)
 			},
 		},
@@ -143,7 +145,7 @@ func Test_KmsReplicaKeyCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = KmsReplicaKeyCreateParams{
-				Key:  &KmsKey{Name: "my-app-key", ConstructsRef: core.AnnotationKeySetOf(eu.AnnotationKey)},
+				Key:  &KmsKey{Name: "my-app-key", ConstructsRef: core.BaseConstructSetOf(eu)},
 				Name: "replica",
 			}
 			tt.Run(t)

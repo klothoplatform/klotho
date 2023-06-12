@@ -3,14 +3,14 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_S3BucketCreate(t *testing.T) {
-	annotationKey := core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}
+	fs := &core.Fs{Name: "first"}
+	other := &core.Fs{Name: "some-other-eu"}
 	cases := []coretesting.CreateCase[S3BucketCreateParams, *S3Bucket]{
 		{
 			Name: "single payloads bucket",
@@ -22,16 +22,14 @@ func Test_S3BucketCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, bucket *S3Bucket) {
 				assert.Equal("my-app-payloads", bucket.Name)
-				assert.Equal(bucket.ConstructsRef, core.AnnotationKeySetOf(annotationKey))
+				assert.Equal(bucket.ConstructsRef, core.BaseConstructSetOf(fs))
 			},
 		},
 		{
 			Name: "two payloads buckets converge",
 			Existing: &S3Bucket{
-				Name: "my-app-payloads",
-				ConstructsRef: core.AnnotationKeySetOf(core.AnnotationKey{
-					ID:         "some-other-eu",
-					Capability: annotation.ExecutionUnitCapability}),
+				Name:          "my-app-payloads",
+				ConstructsRef: core.BaseConstructSetOf(other),
 			},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
@@ -42,11 +40,9 @@ func Test_S3BucketCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, bucket *S3Bucket) {
 				assert.Equal("my-app-payloads", bucket.Name)
 				assert.Equal(bucket.ConstructsRef,
-					core.AnnotationKeySetOf(
-						annotationKey,
-						core.AnnotationKey{
-							ID:         "some-other-eu",
-							Capability: annotation.ExecutionUnitCapability},
+					core.BaseConstructSetOf(
+						fs,
+						other,
 					),
 				)
 			},
@@ -56,7 +52,7 @@ func Test_S3BucketCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = S3BucketCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(annotationKey),
+				Refs:    core.BaseConstructSetOf(fs),
 				Name:    "payloads",
 			}
 			tt.Run(t)
@@ -65,7 +61,7 @@ func Test_S3BucketCreate(t *testing.T) {
 }
 
 func Test_S3ObjectCreate(t *testing.T) {
-	annotationKey := core.AnnotationKey{ID: "test", Capability: annotation.StaticUnitCapability}
+	annotationKey := &core.StaticUnit{Name: "test"}
 	cases := []coretesting.CreateCase[S3ObjectCreateParams, *S3Object]{
 		{
 			Name: "s3 bucket missing",
@@ -105,8 +101,8 @@ func Test_S3ObjectCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = S3ObjectCreateParams{
 				AppName:    "my-app",
-				Refs:       core.AnnotationKeySetOf(annotationKey),
-				BucketName: annotationKey.ID,
+				Refs:       core.BaseConstructSetOf(annotationKey),
+				BucketName: annotationKey.Name,
 				Name:       "payloads",
 				Key:        "object-key",
 				FilePath:   "local/path.txt",

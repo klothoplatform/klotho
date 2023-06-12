@@ -100,7 +100,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 
 	templateData := TemplateData{
 		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.ID,
+		ExecUnitName:   unit.Name,
 		CSProjFile:     projectFile.Path(),
 		Expose:         exposeData,
 		AssemblyName:   assembly,
@@ -130,7 +130,7 @@ func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, constructGr
 	var sgw *core.Gateway
 	var sgwApiType string
 	for _, gw := range upstreamGateways {
-		gwCfg := r.Cfg.GetExpose(gw.ID)
+		gwCfg := r.Cfg.GetExpose(gw.Name)
 		kindParams := r.Cfg.GetExposeKindParams(gwCfg)
 		var gwApiType string
 		if params, ok := kindParams.(config.GatewayTypeParams); ok {
@@ -140,14 +140,14 @@ func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, constructGr
 			if sgw.DefinedIn != gw.DefinedIn || sgw.ExportVarName != gw.ExportVarName {
 				return ExposeTemplateData{},
 					errors.Errorf("multiple gateways cannot target different web applications in the same execution unit: [%s -> %s],[%s -> %s]",
-						gw.ID, unit.ID,
-						sgw.ID, unit.ID)
+						gw.Name, unit.Name,
+						sgw.Name, unit.Name)
 			}
 			if sgwApiType != gwApiType {
 				return ExposeTemplateData{},
 					errors.Errorf("an execution unit cannot be targeted by different gateways with different API types : [%s:%s -> %s],[%s:%s -> %s]",
-						gwApiType, gw.ID, unit.ID,
-						sgwApiType, sgw.ID, unit.ID)
+						gwApiType, gw.Name, unit.Name,
+						sgwApiType, sgw.Name, unit.Name)
 			}
 		}
 		sgw = gw
@@ -163,7 +163,7 @@ func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, constructGr
 		return ExposeTemplateData{}, err
 	}
 
-	unitType := r.Cfg.GetExecutionUnit(unit.ID).Type
+	unitType := r.Cfg.GetExecutionUnit(unit.Name).Type
 
 	if unitType != "lambda" {
 		return ExposeTemplateData{}, fmt.Errorf("unit type \"%s\" is not supported in C# execution units", unitType)

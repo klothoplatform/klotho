@@ -120,7 +120,7 @@ func (p *persister) handleFiles(unit *core.ExecutionUnit) error {
 
 		constructs, err := p.handleFile(js, unit)
 		if err != nil {
-			errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.ID))
+			errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.Name))
 		}
 
 		for _, c := range constructs {
@@ -222,10 +222,7 @@ func (p *persister) transformSecret(file *core.SourceFile, cap *core.Annotation,
 	}
 
 	result := &core.Secrets{
-		AnnotationKey: core.AnnotationKey{
-			Capability: cap.Capability.Name,
-			ID:         cap.Capability.ID,
-		},
+		Name:    cap.Capability.Name,
 		Secrets: secrets,
 	}
 
@@ -238,10 +235,7 @@ func (p *persister) transformFS(unit *core.ExecutionUnit, file *core.SourceFile,
 	}
 
 	result := &core.Fs{
-		AnnotationKey: core.AnnotationKey{
-			Capability: cap.Capability.Name,
-			ID:         cap.Capability.ID,
-		},
+		Name: cap.Capability.ID,
 	}
 
 	fsEnvVar := core.GenerateBucketEnvVar(result)
@@ -269,10 +263,7 @@ func (p *persister) transformKV(unit *core.ExecutionUnit, file *core.SourceFile,
 	}
 
 	result := &core.Kv{
-		AnnotationKey: core.AnnotationKey{
-			Capability: cap.Capability.Name,
-			ID:         cap.Capability.ID,
-		},
+		Name: cap.Capability.ID,
 	}
 
 	envVar := core.GenerateKvTableNameEnvVar(result)
@@ -283,10 +274,7 @@ func (p *persister) transformKV(unit *core.ExecutionUnit, file *core.SourceFile,
 
 func (p *persister) transformORM(unit *core.ExecutionUnit, file *core.SourceFile, cap *core.Annotation, ormR *persistResult) (core.Construct, error) {
 	result := &core.Orm{
-		AnnotationKey: core.AnnotationKey{
-			Capability: cap.Capability.Name,
-			ID:         cap.Capability.ID,
-		},
+		Name: cap.Capability.ID,
 	}
 	envVar := core.GenerateOrmConnStringEnvVar(result)
 
@@ -325,18 +313,12 @@ func (p *persister) transformRedis(unit *core.ExecutionUnit, file *core.SourceFi
 	switch construct.(type) {
 	case *core.RedisCluster:
 		result = &core.RedisCluster{
-			AnnotationKey: core.AnnotationKey{
-				Capability: cap.Capability.Name,
-				ID:         cap.Capability.ID,
-			},
+			Name: cap.Capability.ID,
 		}
 		importName = "redis_cluster"
 	case *core.RedisNode:
 		result = &core.RedisNode{
-			AnnotationKey: core.AnnotationKey{
-				Capability: cap.Capability.Name,
-				ID:         cap.Capability.ID,
-			},
+			Name: cap.Capability.ID,
 		}
 		importName = "redis_node"
 	}

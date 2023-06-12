@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	dgraph "github.com/dominikbraun/graph"
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
@@ -15,7 +14,7 @@ import (
 )
 
 func Test_ExpandEdges(t *testing.T) {
-	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
+	orm := &core.Orm{Name: "test"}
 	cases := []struct {
 		name string
 		edge graph.Edge[core.Resource]

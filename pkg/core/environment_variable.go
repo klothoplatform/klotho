@@ -1,7 +1,6 @@
 package core
 
 import (
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/sanitization"
 	"go.uber.org/zap"
 )
@@ -66,7 +65,7 @@ var (
 
 var InternalStorageVariable = environmentVariable{
 	Name:      KLOTHO_PROXY_ENV_VAR_NAME,
-	Construct: &InternalResource{AnnotationKey: AnnotationKey{ID: KlothoPayloadName, Capability: annotation.InternalCapability}},
+	Construct: &InternalResource{Name: KlothoPayloadName},
 	Value:     string(BUCKET_NAME),
 }
 

@@ -3,15 +3,15 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_LoadBalancerCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[LoadBalancerCreateParams, *LoadBalancer]{
 		{
 			Name: "nil load balancer",
@@ -65,7 +65,7 @@ func Test_LoadBalancerCreate(t *testing.T) {
 				assert.Equal(lb.Name, "my-app-lb")
 				assert.Len(lb.Subnets, 2)
 				assert.Len(lb.SecurityGroups, 0)
-				assert.Equal(lb.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(lb.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -79,7 +79,7 @@ func Test_LoadBalancerCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, lb *LoadBalancer) {
 				assert.Equal(lb.Name, "my-app-lb")
-				initialRefs.Add(eu.AnnotationKey)
+				initialRefs.Add(eu)
 				assert.Equal(lb.ConstructsRef, initialRefs)
 			},
 		},
@@ -88,7 +88,7 @@ func Test_LoadBalancerCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = LoadBalancerCreateParams{
 				AppName:     "my-app",
-				Refs:        core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:        core.BaseConstructSetOf(eu),
 				NetworkType: PrivateSubnet,
 				Name:        "lb",
 			}
@@ -98,8 +98,9 @@ func Test_LoadBalancerCreate(t *testing.T) {
 }
 
 func Test_TargetGroupCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[TargetGroupCreateParams, *TargetGroup]{
 		{
 			Name: "nil target group",
@@ -115,7 +116,7 @@ func Test_TargetGroupCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, tg *TargetGroup) {
 				assert.Equal(tg.Name, "my-app-tg")
 				assert.NotNil(tg.Vpc)
-				assert.Equal(tg.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(tg.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -129,7 +130,7 @@ func Test_TargetGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, tg *TargetGroup) {
 				assert.Equal(tg.Name, "my-app-tg")
-				initialRefs.Add(eu.AnnotationKey)
+				initialRefs.Add(eu)
 				assert.Equal(tg.ConstructsRef, initialRefs)
 			},
 		},
@@ -138,7 +139,7 @@ func Test_TargetGroupCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = TargetGroupCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:    core.BaseConstructSetOf(eu),
 				Name:    "tg",
 			}
 			tt.Run(t)
@@ -147,8 +148,9 @@ func Test_TargetGroupCreate(t *testing.T) {
 }
 
 func Test_ListenerCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[ListenerCreateParams, *Listener]{
 		{
 			Name: "nil target group",
@@ -203,7 +205,7 @@ func Test_ListenerCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, listener *Listener) {
 				assert.Equal(listener.Name, "my-app-listener")
 				assert.NotNil(listener.LoadBalancer)
-				assert.Equal(listener.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(listener.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -217,7 +219,7 @@ func Test_ListenerCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, listener *Listener) {
 				assert.Equal(listener.Name, "my-app-listener")
-				initialRefs.Add(eu.AnnotationKey)
+				initialRefs.Add(eu)
 				assert.Equal(listener.ConstructsRef, initialRefs)
 			},
 		},
@@ -226,7 +228,7 @@ func Test_ListenerCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = ListenerCreateParams{
 				AppName:     "my-app",
-				Refs:        core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:        core.BaseConstructSetOf(eu),
 				Name:        "listener",
 				NetworkType: PrivateSubnet,
 			}

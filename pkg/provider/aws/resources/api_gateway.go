@@ -29,13 +29,13 @@ var apiResourceSanitizer = aws.ApiResourceSanitizer
 type (
 	RestApi struct {
 		Name             string
-		ConstructsRef    core.AnnotationKeySet
+		ConstructsRef    core.BaseConstructSet
 		BinaryMediaTypes []string
 	}
 
 	ApiResource struct {
 		Name           string
-		ConstructsRef  core.AnnotationKeySet
+		ConstructsRef  core.BaseConstructSet
 		RestApi        *RestApi
 		PathPart       string
 		ParentResource *ApiResource
@@ -43,7 +43,7 @@ type (
 
 	ApiMethod struct {
 		Name              string
-		ConstructsRef     core.AnnotationKeySet
+		ConstructsRef     core.BaseConstructSet
 		RestApi           *RestApi
 		Resource          *ApiResource
 		HttpMethod        string
@@ -52,13 +52,13 @@ type (
 	}
 
 	VpcLink struct {
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Target        core.Resource
 	}
 
 	ApiIntegration struct {
 		Name                  string
-		ConstructsRef         core.AnnotationKeySet
+		ConstructsRef         core.BaseConstructSet
 		RestApi               *RestApi
 		Resource              *ApiResource
 		Method                *ApiMethod
@@ -73,14 +73,14 @@ type (
 
 	ApiDeployment struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		RestApi       *RestApi
 		Triggers      map[string]string
 	}
 
 	ApiStage struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		StageName     string
 		RestApi       *RestApi
 		Deployment    *ApiDeployment
@@ -89,7 +89,7 @@ type (
 
 type RestApiCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 }
 
@@ -147,7 +147,7 @@ func convertPath(path string, wildcardsToGreedy bool) string {
 
 type ApiResourceCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Path    string
 	ApiName string
 }
@@ -191,7 +191,7 @@ func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceC
 
 type ApiIntegrationCreateParams struct {
 	AppName    string
-	Refs       core.AnnotationKeySet
+	Refs       core.BaseConstructSet
 	Path       string
 	ApiName    string
 	HttpMethod string
@@ -235,7 +235,7 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 
 type ApiMethodCreateParams struct {
 	AppName    string
-	Refs       core.AnnotationKeySet
+	Refs       core.BaseConstructSet
 	Path       string
 	ApiName    string
 	HttpMethod string
@@ -291,7 +291,7 @@ func (method *ApiMethod) Configure(params ApiMethodConfigureParams) error {
 
 type ApiDeploymentCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 }
 
@@ -321,7 +321,7 @@ func (deployment *ApiDeployment) Create(dag *core.ResourceGraph, params ApiDeplo
 
 type ApiStageCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 }
 
@@ -362,8 +362,8 @@ func (stage *ApiStage) Configure(params ApiStageConfigureParams) error {
 	return nil
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (api *RestApi) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (api *RestApi) BaseConstructsRef() core.BaseConstructSet {
 	return api.ConstructsRef
 }
 
@@ -376,18 +376,8 @@ func (api *RestApi) Id() core.ResourceId {
 	}
 }
 
-func NewApiResource(currSegment string, api *RestApi, refs core.AnnotationKeySet, pathPart string, parentResource *ApiResource) *ApiResource {
-	return &ApiResource{
-		Name:           apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", api.Name, currSegment)),
-		ConstructsRef:  refs,
-		RestApi:        api,
-		PathPart:       pathPart,
-		ParentResource: parentResource,
-	}
-}
-
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (res *ApiResource) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (res *ApiResource) BaseConstructsRef() core.BaseConstructSet {
 	return res.ConstructsRef
 }
 
@@ -400,24 +390,8 @@ func (res *ApiResource) Id() core.ResourceId {
 	}
 }
 
-func NewApiMethod(resource *ApiResource, api *RestApi, refs core.AnnotationKeySet, httpMethod string, requestParams map[string]bool) *ApiMethod {
-	name := fmt.Sprintf("%s-%s", api.Name, httpMethod)
-	if resource != nil {
-		name = fmt.Sprintf("%s-%s", resource.Name, httpMethod)
-	}
-	return &ApiMethod{
-		Name:              name,
-		ConstructsRef:     refs,
-		RestApi:           api,
-		Resource:          resource,
-		HttpMethod:        httpMethod,
-		RequestParameters: requestParams,
-		Authorization:     "None",
-	}
-}
-
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (method *ApiMethod) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (method *ApiMethod) BaseConstructsRef() core.BaseConstructSet {
 	return method.ConstructsRef
 }
 
@@ -430,15 +404,8 @@ func (method *ApiMethod) Id() core.ResourceId {
 	}
 }
 
-func NewVpcLink(resource core.Resource, refs core.AnnotationKeySet) *VpcLink {
-	return &VpcLink{
-		ConstructsRef: refs,
-		Target:        resource,
-	}
-}
-
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (link *VpcLink) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (link *VpcLink) BaseConstructsRef() core.BaseConstructSet {
 	return link.ConstructsRef
 }
 
@@ -459,23 +426,8 @@ func (res *VpcLink) Name() string {
 	return res.Id().Name
 }
 
-func NewApiIntegration(method *ApiMethod, refs core.AnnotationKeySet, integrationMethod string, integrationType string, vpcLink *VpcLink, uri core.IaCValue, requestParameters map[string]string) *ApiIntegration {
-	return &ApiIntegration{
-		Name:                  method.Name,
-		ConstructsRef:         refs,
-		RestApi:               method.RestApi,
-		Resource:              method.Resource,
-		Method:                method,
-		IntegrationHttpMethod: integrationMethod,
-		Type:                  integrationType,
-		VpcLink:               vpcLink,
-		Uri:                   uri,
-		RequestParameters:     requestParameters,
-	}
-}
-
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (integration *ApiIntegration) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (integration *ApiIntegration) BaseConstructsRef() core.BaseConstructSet {
 	return integration.ConstructsRef
 }
 
@@ -488,17 +440,8 @@ func (integration *ApiIntegration) Id() core.ResourceId {
 	}
 }
 
-func NewApiDeployment(api *RestApi, refs core.AnnotationKeySet, triggers map[string]string) *ApiDeployment {
-	return &ApiDeployment{
-		Name:          api.Name,
-		ConstructsRef: refs,
-		RestApi:       api,
-		Triggers:      triggers,
-	}
-}
-
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (deployment *ApiDeployment) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (deployment *ApiDeployment) BaseConstructsRef() core.BaseConstructSet {
 	return deployment.ConstructsRef
 }
 
@@ -511,8 +454,8 @@ func (deployment *ApiDeployment) Id() core.ResourceId {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (stage *ApiStage) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (stage *ApiStage) BaseConstructsRef() core.BaseConstructSet {
 	return stage.ConstructsRef
 }
 

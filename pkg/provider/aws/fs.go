@@ -8,8 +8,8 @@ import (
 func (a *AWS) expandFs(dag *core.ResourceGraph, fs core.Construct) error {
 	bucket, err := core.CreateResource[*resources.S3Bucket](dag, resources.S3BucketCreateParams{
 		AppName: a.Config.AppName,
-		Refs:    core.AnnotationKeySetOf(fs.Provenance()),
-		Name:    fs.Provenance().ID,
+		Refs:    core.BaseConstructSetOf(fs),
+		Name:    fs.Id().Name,
 	})
 	if err != nil {
 		return err

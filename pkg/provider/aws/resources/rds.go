@@ -41,7 +41,7 @@ type (
 	// RdsInstance represents an AWS RDS db instance
 	RdsInstance struct {
 		Name                             string
-		ConstructsRef                    core.AnnotationKeySet
+		ConstructsRef                    core.BaseConstructSet
 		SubnetGroup                      *RdsSubnetGroup
 		SecurityGroups                   []*SecurityGroup
 		DatabaseName                     string
@@ -60,7 +60,7 @@ type (
 	// RdsSubnetGroup represents an AWS RDS subnet group
 	RdsSubnetGroup struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Subnets       []*Subnet
 		Tags          map[string]string
 	}
@@ -68,7 +68,7 @@ type (
 	// RdsProxy represents an AWS RDS proxy instance
 	RdsProxy struct {
 		Name              string
-		ConstructsRef     core.AnnotationKeySet
+		ConstructsRef     core.BaseConstructSet
 		DebugLogging      bool
 		EngineFamily      string
 		IdleClientTimeout int
@@ -89,7 +89,7 @@ type (
 	// RdsProxyTargetGroup represents an AWS RDS proxy target group
 	RdsProxyTargetGroup struct {
 		Name                            string
-		ConstructsRef                   core.AnnotationKeySet
+		ConstructsRef                   core.BaseConstructSet
 		RdsInstance                     *RdsInstance
 		RdsProxy                        *RdsProxy
 		TargetGroupName                 string
@@ -108,7 +108,7 @@ type (
 
 type RdsInstanceCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 }
 
@@ -165,7 +165,7 @@ func (instance *RdsInstance) Configure(params RdsInstanceConfigureParams) error 
 type RdsSubnetGroupCreateParams struct {
 	AppName string
 	Name    string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSubnetGroupCreateParams) error {
@@ -205,7 +205,7 @@ func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSub
 type RdsProxyCreateParams struct {
 	AppName string
 	Name    string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreateParams) error {
@@ -272,7 +272,7 @@ func (proxy *RdsProxy) Configure(params RdsProxyConfigureParams) error {
 type RdsProxyTargetGroupCreateParams struct {
 	AppName string
 	Name    string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTargetGroupCreateParams) error {
@@ -344,8 +344,8 @@ func generatePassword() string {
 	return b.String()
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsInstance) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rds *RdsInstance) BaseConstructsRef() core.BaseConstructSet {
 	return rds.ConstructsRef
 }
 
@@ -361,8 +361,8 @@ func (rds *RdsInstance) GetOutputFiles() []core.File {
 	return []core.File{rds.CredentialsFile}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsSubnetGroup) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rds *RdsSubnetGroup) BaseConstructsRef() core.BaseConstructSet {
 	return rds.ConstructsRef
 }
 
@@ -375,8 +375,8 @@ func (rds *RdsSubnetGroup) Id() core.ResourceId {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsProxy) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rds *RdsProxy) BaseConstructsRef() core.BaseConstructSet {
 	return rds.ConstructsRef
 }
 
@@ -389,8 +389,8 @@ func (rds *RdsProxy) Id() core.ResourceId {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsProxyTargetGroup) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rds *RdsProxyTargetGroup) BaseConstructsRef() core.BaseConstructSet {
 	return rds.ConstructsRef
 }
 

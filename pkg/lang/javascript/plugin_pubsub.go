@@ -64,10 +64,7 @@ func (p Pubsub) Transform(input *core.InputFiles, fileDeps *core.FileDependencie
 			}
 			if _, ok := p.emitters[spec]; !ok {
 				resource := core.PubSub{
-					AnnotationKey: core.AnnotationKey{
-						ID:         value.Annotation.Capability.ID,
-						Capability: value.Annotation.Capability.Name,
-					},
+					Name: value.Annotation.Capability.ID,
 					Path: spec.DefinedIn,
 				}
 				p.emitters[spec] = &emitterValue{
@@ -121,7 +118,7 @@ func (p *Pubsub) rewriteEmitters(unit *core.ExecutionUnit, fileVars map[string]V
 		}
 		err := p.rewriteFileEmitters(js, fileVars[js.Path()])
 		if err != nil {
-			errs.Append(core.WrapErrf(err, "failed to handle pubsub in unit %s", unit.ID))
+			errs.Append(core.WrapErrf(err, "failed to handle pubsub in unit %s", unit.Name))
 		}
 	}
 
@@ -174,8 +171,8 @@ func (p *Pubsub) findProxiesNeeded(unit *core.ExecutionUnit) error {
 			pEvents := p.findPublisherTopics(js, spec)
 			if len(pEvents) > 0 {
 				for _, event := range pEvents {
-					value.Resource.AddPublisher(event, unit.Provenance())
-					value.Publishers = append(value.Publishers, emitterUsage{filePath: f.Path(), event: event, unitId: unit.ID})
+					value.Resource.AddPublisher(event, unit.Id())
+					value.Publishers = append(value.Publishers, emitterUsage{filePath: f.Path(), event: event, unitId: unit.Name})
 					log.Debugf("Adding publisher to '%s'", event)
 				}
 				p.ConstructGraph.AddDependency(unit.Id(), value.Resource.Id())
@@ -184,8 +181,8 @@ func (p *Pubsub) findProxiesNeeded(unit *core.ExecutionUnit) error {
 			sEvents := p.findSubscriberTopics(js, spec)
 			if len(sEvents) > 0 {
 				for _, event := range sEvents {
-					value.Resource.AddSubscriber(event, unit.Provenance())
-					value.Subscribers = append(value.Subscribers, emitterUsage{filePath: f.Path(), event: event, unitId: unit.ID})
+					value.Resource.AddSubscriber(event, unit.Id())
+					value.Subscribers = append(value.Subscribers, emitterUsage{filePath: f.Path(), event: event, unitId: unit.Name})
 					log.Debugf("Adding subscriber to '%s'", event)
 				}
 				p.ConstructGraph.AddDependency(value.Resource.Id(), unit.Id())
@@ -254,7 +251,7 @@ func (p *Pubsub) generateProxies(filepath string, emitters []EmitterSubscriberPr
 		if existing := unit.Get(filepath); existing != nil {
 			existing := existing.(*core.SourceFile)
 			if bytes.Contains(existing.Program(), []byte(emitters[0].VarName)) {
-				log.Debugf("File already contains var in unit %s", unit.ID)
+				log.Debugf("File already contains var in unit %s", unit.Name)
 				continue
 			}
 			appendBuf.Reset()
@@ -265,7 +262,7 @@ func (p *Pubsub) generateProxies(filepath string, emitters []EmitterSubscriberPr
 			if err != nil {
 				merr.Append(err)
 			}
-			log.Debugf("Appending pubsub proxy to unit %s", unit.ID)
+			log.Debugf("Appending pubsub proxy to unit %s", unit.Name)
 		} else {
 			unit.Add(f)
 		}

@@ -28,7 +28,7 @@ func (p PersistSecretsPlugin) Transform(input *core.InputFiles, fileDeps *core.F
 		for _, goSource := range unit.FilesOfLang(goLang) {
 			resources, err := p.handleFile(goSource, unit)
 			if err != nil {
-				errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.ID))
+				errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.Name))
 				continue
 			}
 
@@ -71,10 +71,7 @@ func (p *PersistSecretsPlugin) handleFile(f *core.SourceFile, unit *core.Executi
 
 func (p *PersistSecretsPlugin) transformSecret(f *core.SourceFile, cap *core.Annotation, result *persistSecretResult, unit *core.ExecutionUnit) (core.Construct, error) {
 	secret := &core.Config{
-		AnnotationKey: core.AnnotationKey{
-			ID:         cap.Capability.ID,
-			Capability: cap.Capability.Name,
-		},
+		Name:   cap.Capability.ID,
 		Secret: true,
 	}
 

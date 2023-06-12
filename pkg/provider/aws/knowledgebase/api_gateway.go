@@ -177,7 +177,7 @@ var ApiGatewayKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.VpcLink, *resources.LoadBalancer]{},
 )
 
-func createRoutesForIntegration(appName string, routes []core.Route, refs core.AnnotationKeySet, dag *core.ResourceGraph, vpcLink *resources.VpcLink, restApi *resources.RestApi, uri core.IaCValue) error {
+func createRoutesForIntegration(appName string, routes []core.Route, refs core.BaseConstructSet, dag *core.ResourceGraph, vpcLink *resources.VpcLink, restApi *resources.RestApi, uri core.IaCValue) error {
 	var merr error
 	for _, route := range routes {
 		integration, err := core.CreateResource[*resources.ApiIntegration](dag, resources.ApiIntegrationCreateParams{

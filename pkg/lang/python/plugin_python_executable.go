@@ -25,7 +25,7 @@ func (l PythonExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 	defaultRequirementsTxt, _ := inputFiles["requirements.txt"].(*RequirementsTxt)
 	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
 		if unit.Executable.Type != "" {
-			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.ID, unit.Executable.Type)
+			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.Name, unit.Executable.Type)
 			continue
 		}
 
@@ -35,7 +35,7 @@ func (l PythonExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 			requirementsTxt, _ = inputFiles[requirementsTxtPath].(*RequirementsTxt)
 		}
 		if requirementsTxt == nil {
-			zap.L().Sugar().Debugf("requirements.txt not found in execution_unit: %s", unit.ID)
+			zap.L().Sugar().Debugf("requirements.txt not found in execution_unit: %s", unit.Name)
 			return nil
 		}
 
@@ -45,7 +45,7 @@ func (l PythonExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 		for _, file := range unit.FilesOfLang(py) {
 			for _, annot := range file.Annotations() {
 				cap := annot.Capability
-				if cap.Name == annotation.ExecutionUnitCapability && cap.ID == unit.ID {
+				if cap.Name == annotation.ExecutionUnitCapability && cap.ID == unit.Name {
 					unit.AddEntrypoint(file)
 				}
 			}
@@ -67,7 +67,7 @@ func (l PythonExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 func refreshUpstreamEntrypoints(unit *core.ExecutionUnit) {
 	for f := range unit.Executable.SourceFiles {
 		if file, ok := unit.Get(f).(*core.SourceFile); ok && file.IsAnnotatedWith(annotation.ExposeCapability) {
-			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.ID, f)
+			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.Name, f)
 			unit.AddEntrypoint(file)
 		}
 	}
@@ -76,7 +76,7 @@ func refreshUpstreamEntrypoints(unit *core.ExecutionUnit) {
 func refreshSourceFiles(unit *core.ExecutionUnit) error {
 	sourceFiles, err := upstreamDependencyResolver.Resolve(unit)
 	if err != nil {
-		return core.WrapErrf(err, "file dependency resolution failed for execution unit: %s", unit.ID)
+		return core.WrapErrf(err, "file dependency resolution failed for execution unit: %s", unit.Name)
 	}
 	for k, v := range sourceFiles {
 		unit.Executable.SourceFiles[k] = v
@@ -87,7 +87,7 @@ func refreshSourceFiles(unit *core.ExecutionUnit) error {
 func resolveDefaultEntrypoint(unit *core.ExecutionUnit) {
 	for _, fallbackPath := range []string{"main.py", "app/main.py", "app.py", "app/app.py"} {
 		if entrypoint := unit.Get(fallbackPath); entrypoint != nil {
-			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [default] -> [%s] -> %s", unit.ID, entrypoint.Path())
+			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [default] -> [%s] -> %s", unit.Name, entrypoint.Path())
 			unit.AddEntrypoint(entrypoint)
 		}
 	}

@@ -28,7 +28,7 @@ type HelmChart struct {
 	Files          []core.File
 	ProviderValues []HelmChartValue
 
-	ConstructRefs    core.AnnotationKeySet
+	ConstructRefs    core.BaseConstructSet
 	ClustersProvider core.IaCValue
 	Repo             string
 	Version          string
@@ -36,8 +36,8 @@ type HelmChart struct {
 	Values           map[string]any
 }
 
-// KlothoConstructRef returns a slice containing the ids of any Klotho constructs is correlated to
-func (chart *HelmChart) KlothoConstructRef() core.AnnotationKeySet { return chart.ConstructRefs }
+// BaseConstructsRef returns a slice containing the ids of any Klotho constructs is correlated to
+func (chart *HelmChart) BaseConstructsRef() core.BaseConstructSet { return chart.ConstructRefs }
 
 func (chart *HelmChart) Id() core.ResourceId {
 	return core.ResourceId{
@@ -185,16 +185,16 @@ func (chart *HelmChart) handleExecutionUnit(unit *HelmExecUnit, eu *core.Executi
 }
 
 func (chart *HelmChart) handleUpstreamUnitDependencies(unit *HelmExecUnit, constructGraph *core.ConstructGraph, cfg config.ExecutionUnit) (values []HelmChartValue, err error) {
-	sources := constructGraph.GetUpstreamConstructs(&core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: unit.Name, Capability: annotation.ExecutionUnitCapability}})
+	sources := constructGraph.GetUpstreamConstructs(&core.ExecutionUnit{Name: unit.Name})
 	needService := false
 	needsTargetGroupBinding := false
 	needsServiceExport := false
 	for _, source := range sources {
-		if core.IsConstructOfCapability(source, annotation.ExposeCapability) {
+		if core.IsConstructOfAnnotationCapability(source, annotation.ExposeCapability) {
 			needService = true
 			needsTargetGroupBinding = true
 		}
-		if core.IsConstructOfCapability(source, annotation.ExecutionUnitCapability) {
+		if core.IsConstructOfAnnotationCapability(source, annotation.ExecutionUnitCapability) {
 			needService = true
 			needsServiceExport = true
 		}

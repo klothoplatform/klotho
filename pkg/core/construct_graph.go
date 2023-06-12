@@ -1,7 +1,10 @@
 package core
 
 import (
-	"github.com/klothoplatform/klotho/pkg/annotation"
+	"errors"
+	"fmt"
+	"reflect"
+
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"go.uber.org/zap"
 )
@@ -83,7 +86,7 @@ func (cg *ConstructGraph) GetUpstreamConstructs(source BaseConstruct) []BaseCons
 func (cg *ConstructGraph) GetResourcesOfCapability(capability string) (filtered []Construct) {
 	vertices := cg.underlying.GetAllVertices()
 	for _, v := range vertices {
-		if vCons, ok := v.(Construct); ok && vCons.Provenance().Capability == capability {
+		if vCons, ok := v.(Construct); ok && vCons.AnnotationCapability() == capability {
 			filtered = append(filtered, vCons)
 		}
 	}
@@ -113,7 +116,7 @@ func (cg *ConstructGraph) GetExecUnitForPath(fp string) (*ExecutionUnit, File) {
 		f := eu.Get(fp)
 		if f != nil {
 			astF, ok := f.(*SourceFile)
-			if ok && (best == nil || FileExecUnitName(astF) == eu.Provenance().ID) {
+			if ok && (best == nil || FileExecUnitName(astF) == eu.Name) {
 				best = eu
 				bestFile = f
 			}
@@ -136,43 +139,50 @@ func (cg *ConstructGraph) FindUpstreamGateways(unit *ExecutionUnit) []*Gateway {
 
 func LoadConstructsIntoGraph(input OutputGraph, graph *ConstructGraph) error {
 
+	var joinedErr error
 	for _, res := range input.Resources {
-		graph.AddConstruct(getConstructFromInputId(res))
+		construct, err := getConstructFromInputId(res)
+		if err != nil {
+			joinedErr = errors.Join(joinedErr, err)
+			continue
+		}
+		graph.AddConstruct(construct)
 	}
 
 	for _, edge := range input.Edges {
-		graph.AddDependency(getConstructFromInputId(edge.Source).Id(), getConstructFromInputId(edge.Destination).Id())
+		shouldAdd := true
+		src, err := getConstructFromInputId(edge.Source)
+		if err != nil {
+			joinedErr = errors.Join(joinedErr, err)
+			shouldAdd = false
+		}
+		dst, err := getConstructFromInputId(edge.Destination)
+		if err != nil {
+			joinedErr = errors.Join(joinedErr, err)
+			shouldAdd = false
+		}
+		if shouldAdd {
+			graph.AddDependency(src.Id(), dst.Id())
+		}
 	}
 
 	return nil
 }
 
-func getConstructFromInputId(res ResourceId) Construct {
-	switch res.Type {
-	case "execution_unit":
-		unit := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.ExecutionUnitCapability}}
-		return unit
-	case "static_unit":
-		unit := &StaticUnit{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.StaticUnitCapability}}
-		return unit
-	case "orm":
-		unit := &Orm{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
-		return unit
-	case "kv":
-		unit := &Kv{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
-		return unit
-	case "redis_node":
-		unit := &RedisNode{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
-		return unit
-	case "fs":
-		unit := &Fs{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.PersistCapability}}
-		return unit
-	case "secret":
-		unit := &Config{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.ConfigCapability}, Secret: true}
-		return unit
-	case "expose":
-		unit := &Gateway{AnnotationKey: AnnotationKey{ID: res.Name, Capability: annotation.ExposeCapability}}
-		return unit
+func getConstructFromInputId(res ResourceId) (Construct, error) {
+	typeToResource := make(map[string]Construct)
+	for _, construct := range ListAllConstructs() {
+		typeToResource[construct.Id().Type] = construct
 	}
-	return nil
+	construct, ok := typeToResource[res.Type]
+	if !ok {
+		return nil, fmt.Errorf("unable to find resource of type %s", res.Type)
+	}
+	newConstruct := reflect.New(reflect.TypeOf(construct).Elem()).Interface()
+	construct, ok = newConstruct.(Construct)
+	if !ok {
+		return nil, fmt.Errorf("item %s of type %T is not of type core.Resource", res, newConstruct)
+	}
+	reflect.ValueOf(construct).Elem().FieldByName("Name").SetString(res.Name)
+	return construct, nil
 }

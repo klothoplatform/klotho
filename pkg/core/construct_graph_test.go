@@ -15,7 +15,7 @@ func Test_AddConstruct(t *testing.T) {
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
-	gw := &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}}
+	gw := &Gateway{Name: "test"}
 	constructGraph.AddConstruct(gw)
 	construct := g.GetVertex("klotho:expose:test")
 	storedGw, ok := construct.(*Gateway)
@@ -31,8 +31,8 @@ func Test_AddDependency(t *testing.T) {
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
-	kv := &Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	eu := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
+	kv := &Kv{Name: "test"}
+	eu := &ExecutionUnit{Name: "test"}
 	g.AddVertex(kv)
 	g.AddVertex(eu)
 	constructGraph.AddDependency(eu.Id(), kv.Id())
@@ -50,7 +50,7 @@ func Test_GetConstruct(t *testing.T) {
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
-	gw := &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}}
+	gw := &Gateway{Name: "test"}
 	g.AddVertex(gw)
 	construct := constructGraph.GetConstruct(gw.Id())
 	storedGw, ok := construct.(*Gateway)
@@ -72,8 +72,8 @@ func Test_ListConstructs(t *testing.T) {
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
-	kv := &Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	eu := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
+	kv := &Kv{Name: "test"}
+	eu := &ExecutionUnit{Name: "test"}
 	g.AddVertex(kv)
 	g.AddVertex(eu)
 	constructs := ListConstructs[BaseConstruct](&constructGraph)
@@ -87,8 +87,8 @@ func Test_ListDependencies(t *testing.T) {
 	constructGraph := ConstructGraph{
 		underlying: g,
 	}
-	kv := &Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	eu := &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
+	kv := &Kv{Name: "test"}
+	eu := &ExecutionUnit{Name: "test"}
 	g.AddVertex(kv)
 	g.AddVertex(eu)
 	constructs := ListConstructs[BaseConstruct](&constructGraph)
@@ -105,38 +105,38 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 	}{
 		{
 			name:      "single dependency",
-			construct: &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
+			construct: &Gateway{Name: "test"},
 			deps: []Construct{
-				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				&ExecutionUnit{Name: "test"},
 			},
 			want: []graph.Edge[BaseConstruct]{
 				{
-					Source:      &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
-					Destination: &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+					Source:      &Gateway{Name: "test"},
+					Destination: &ExecutionUnit{Name: "test"},
 				},
 			},
 		},
 		{
 			name:      "multiple dependencies",
-			construct: &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
+			construct: &Gateway{Name: "test"},
 			deps: []Construct{
-				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
-				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test2", Capability: annotation.ExecutionUnitCapability}},
+				&ExecutionUnit{Name: "test"},
+				&ExecutionUnit{Name: "test2"},
 			},
 			want: []graph.Edge[BaseConstruct]{
 				{
-					Source:      &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
-					Destination: &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+					Source:      &Gateway{Name: "test"},
+					Destination: &ExecutionUnit{Name: "test"},
 				},
 				{
-					Source:      &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
-					Destination: &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test2", Capability: annotation.ExecutionUnitCapability}},
+					Source:      &Gateway{Name: "test"},
+					Destination: &ExecutionUnit{Name: "test2"},
 				},
 			},
 		},
 		{
 			name:      "no dependencies",
-			construct: &Gateway{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
+			construct: &Gateway{Name: "test"},
 		},
 	}
 	for _, tt := range tests {
@@ -175,38 +175,38 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 	}{
 		{
 			name:      "single dependency",
-			construct: &Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},
+			construct: &Kv{Name: "test"},
 			deps: []Construct{
-				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
+				&ExecutionUnit{Name: "test"},
 			},
 			want: []graph.Edge[BaseConstruct]{
 				{
-					Source:      &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
-					Destination: &Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},
+					Source:      &ExecutionUnit{Name: "test"},
+					Destination: &Kv{Name: "test"},
 				},
 			},
 		},
 		{
 			name:      "multiple dependencies",
-			construct: &Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},
+			construct: &Kv{Name: "test"},
 			deps: []Construct{
-				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
-				&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test2", Capability: annotation.ExecutionUnitCapability}},
+				&ExecutionUnit{Name: "test"},
+				&ExecutionUnit{Name: "test2"},
 			},
 			want: []graph.Edge[BaseConstruct]{
 				{
-					Source:      &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}},
-					Destination: &Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},
+					Source:      &ExecutionUnit{Name: "test"},
+					Destination: &Kv{Name: "test"},
 				},
 				{
-					Source:      &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test2", Capability: annotation.ExecutionUnitCapability}},
-					Destination: &Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},
+					Source:      &ExecutionUnit{Name: "test2"},
+					Destination: &Kv{Name: "test"},
 				},
 			},
 		},
 		{
 			name:      "no dependencies",
-			construct: &Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},
+			construct: &Kv{Name: "test"},
 		},
 	}
 	for _, tt := range tests {
@@ -245,29 +245,29 @@ func Test_GetResourcesOfCapability(t *testing.T) {
 	}{
 		{
 			name:       "single capability construct",
-			constructs: []Construct{&Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}},
+			constructs: []Construct{&Kv{Name: "test"}},
 			capability: annotation.PersistCapability,
 			want: []Construct{
-				&Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},
+				&Kv{Name: "test"},
 			},
 		},
 		{
 			name: "multiple capability construct",
 			constructs: []Construct{
-				&Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},
-				&Orm{AnnotationKey: AnnotationKey{ID: "test2", Capability: annotation.PersistCapability}},
+				&Kv{Name: "test"},
+				&Orm{Name: "test2"},
 			},
 			capability: annotation.PersistCapability,
 			want: []Construct{
-				&Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},
-				&Orm{AnnotationKey: AnnotationKey{ID: "test2", Capability: annotation.PersistCapability}},
+				&Kv{Name: "test"},
+				&Orm{Name: "test2"},
 			},
 		},
 		{
 			name: "no capability construct",
 			constructs: []Construct{
-				&Kv{AnnotationKey: AnnotationKey{ID: "test", Capability: annotation.PersistCapability}},
-				&Orm{AnnotationKey: AnnotationKey{ID: "test2", Capability: annotation.PersistCapability}},
+				&Kv{Name: "test"},
+				&Orm{Name: "test2"},
 			},
 			capability: annotation.ExposeCapability,
 		},
@@ -317,7 +317,7 @@ func Test_LoadConstructsIntoGraph(t *testing.T) {
 					{Provider: AbstractConstructProvider, Type: "orm", Name: "test_orm"},
 					{Provider: AbstractConstructProvider, Type: "kv", Name: "test_kv"},
 					{Provider: AbstractConstructProvider, Type: "fs", Name: "test_fs"},
-					{Provider: AbstractConstructProvider, Type: "secret", Name: "test_secret"},
+					{Provider: AbstractConstructProvider, Type: "config", Name: "test_secret"},
 					{Provider: AbstractConstructProvider, Type: "redis_node", Name: "test_redis"},
 				},
 				Edges: []OutputEdge{
@@ -333,24 +333,24 @@ func Test_LoadConstructsIntoGraph(t *testing.T) {
 			},
 			want: result{
 				nodes: []BaseConstruct{
-					&ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test_eu", Capability: annotation.ExecutionUnitCapability}},
-					&StaticUnit{AnnotationKey: AnnotationKey{ID: "test_static", Capability: annotation.StaticUnitCapability}},
-					&Gateway{AnnotationKey: AnnotationKey{ID: "test_expose", Capability: annotation.ExposeCapability}},
-					&Orm{AnnotationKey: AnnotationKey{ID: "test_orm", Capability: annotation.PersistCapability}},
-					&Kv{AnnotationKey: AnnotationKey{ID: "test_kv", Capability: annotation.PersistCapability}},
-					&Fs{AnnotationKey: AnnotationKey{ID: "test_fs", Capability: annotation.PersistCapability}},
-					&RedisNode{AnnotationKey: AnnotationKey{ID: "test_redis", Capability: annotation.PersistCapability}},
-					&Config{AnnotationKey: AnnotationKey{ID: "test_secret", Capability: annotation.ConfigCapability}, Secret: true},
+					&ExecutionUnit{Name: "test_eu"},
+					&StaticUnit{Name: "test_static"},
+					&Gateway{Name: "test_expose"},
+					&Orm{Name: "test_orm"},
+					&Kv{Name: "test_kv"},
+					&Fs{Name: "test_fs"},
+					&RedisNode{Name: "test_redis"},
+					&Config{Name: "test_secret", Secret: false},
 				},
 				edges: []graph.Edge[BaseConstruct]{
 					{
-						Source:      &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test_eu", Capability: annotation.ExecutionUnitCapability}},
-						Destination: &RedisNode{AnnotationKey: AnnotationKey{ID: "test_redis", Capability: annotation.PersistCapability}},
+						Source:      &ExecutionUnit{Name: "test_eu"},
+						Destination: &RedisNode{Name: "test_redis"},
 						Properties:  dgraph.EdgeProperties{Attributes: map[string]string{}},
 					},
 					{
-						Source:      &Gateway{AnnotationKey: AnnotationKey{ID: "test_expose", Capability: annotation.ExposeCapability}},
-						Destination: &ExecutionUnit{AnnotationKey: AnnotationKey{ID: "test_eu", Capability: annotation.ExecutionUnitCapability}},
+						Source:      &Gateway{Name: "test_expose"},
+						Destination: &ExecutionUnit{Name: "test_eu"},
 						Properties:  dgraph.EdgeProperties{Attributes: map[string]string{}},
 					},
 				},
