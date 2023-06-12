@@ -55,7 +55,7 @@ func findListener(cap *core.Annotation) exposeListenResult {
 
 func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.ConstructGraph, log *zap.Logger) {
 	for spec, routes := range info.RoutesByGateway {
-		gw := core.NewGateway(core.AnnotationKey{ID: spec.gatewayId, Capability: annotation.ExposeCapability})
+		gw := core.NewGateway(spec.gatewayId)
 		if existing := constructGraph.GetConstruct(gw.Id()); existing != nil {
 			gw = existing.(*core.Gateway)
 		} else {
@@ -69,7 +69,7 @@ func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.Construc
 				{
 					Route: core.Route{
 						Path:          "/",
-						ExecUnitName:  info.Unit.ID,
+						ExecUnitName:  info.Unit.Name,
 						Verb:          core.Verb("ANY"),
 						HandledInFile: spec.FilePath,
 					},
@@ -78,7 +78,7 @@ func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.Construc
 				{
 					Route: core.Route{
 						Path:          "/:proxy*",
-						ExecUnitName:  info.Unit.ID,
+						ExecUnitName:  info.Unit.Name,
 						Verb:          core.Verb("ANY"),
 						HandledInFile: spec.FilePath,
 					},
@@ -101,7 +101,7 @@ func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.Construc
 			targetUnit := core.FileExecUnitName(targAST)
 			if targetUnit == "" {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
-				targetUnit = info.Unit.ID
+				targetUnit = info.Unit.Name
 			}
 			depKey := core.ResourceId{
 				Provider: core.AbstractConstructProvider,
@@ -111,7 +111,7 @@ func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.Construc
 			if constructGraph.GetConstruct(depKey) == nil {
 				// The unit defined in the target does not exist, fall back to current one (for running in single-exec mode).
 				// TODO when there are ways to combine units, we'll need a more sophisticated way to see which unit the target maps to.
-				depKey.Name = info.Unit.ID
+				depKey.Name = info.Unit.Name
 			}
 			constructGraph.AddDependency(gw.Id(), depKey)
 		}

@@ -1,16 +1,18 @@
 package core
 
+import "github.com/klothoplatform/klotho/pkg/annotation"
+
 type (
 	PubSub struct {
-		AnnotationKey
+		Name   string
 		Path   string
 		Events map[string]*Event
 	}
 
 	Event struct {
 		Name        string
-		Publishers  []AnnotationKey
-		Subscribers []AnnotationKey
+		Publishers  []ResourceId
+		Subscribers []ResourceId
 	}
 
 	EventReference struct {
@@ -19,17 +21,21 @@ type (
 	}
 )
 
-const PubSubKind = "pubsub"
-
-func (p *PubSub) Provenance() AnnotationKey {
-	return p.AnnotationKey
-}
+const PUBSUB_TYPE = "pubsub"
 
 func (p *PubSub) Id() ResourceId {
-	return ConstructId(p.AnnotationKey).ToRid()
+	return ResourceId{
+		Provider: AbstractConstructProvider,
+		Type:     PUBSUB_TYPE,
+		Name:     p.Name,
+	}
 }
 
-func (p *PubSub) AddPublisher(event string, key AnnotationKey) {
+func (p *PubSub) AnnotationCapability() string {
+	return annotation.PubSubCapability
+}
+
+func (p *PubSub) AddPublisher(event string, key ResourceId) {
 	if p.Events == nil {
 		p.Events = make(map[string]*Event)
 	}
@@ -41,7 +47,7 @@ func (p *PubSub) AddPublisher(event string, key AnnotationKey) {
 	e.Publishers = append(e.Publishers, key)
 }
 
-func (p *PubSub) AddSubscriber(event string, key AnnotationKey) {
+func (p *PubSub) AddSubscriber(event string, key ResourceId) {
 	if p.Events == nil {
 		p.Events = make(map[string]*Event)
 	}

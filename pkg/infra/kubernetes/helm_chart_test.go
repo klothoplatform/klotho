@@ -7,7 +7,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/testutil"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
@@ -539,7 +538,7 @@ func Test_handleExecutionUnit(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: testUnitName, Capability: annotation.ExecutionUnitCapability}}
+			eu := &core.ExecutionUnit{Name: testUnitName}
 			if tt.hasDockerfile {
 				dockerF, err := dockerfile.NewFile("Dockerfile", bytes.NewBuffer([]byte{}))
 				if !assert.NoError(err) {
@@ -549,7 +548,7 @@ func Test_handleExecutionUnit(t *testing.T) {
 			}
 			constructGraph := core.NewConstructGraph()
 
-			testUnit := &HelmExecUnit{Name: eu.ID}
+			testUnit := &HelmExecUnit{Name: eu.Name}
 			chart := &HelmChart{
 				Name:           "test",
 				Namespace:      "default",
@@ -585,8 +584,8 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 			unit: &HelmExecUnit{Name: "unit", Namespace: "default"},
 			deps: []graph.Edge[core.Construct]{
 				{
-					Source:      &core.Gateway{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
-					Destination: &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "unit"}},
+					Source:      &core.Gateway{Name: "test"},
+					Destination: &core.ExecutionUnit{Name: "unit"},
 				},
 			},
 			want: testResult{
@@ -606,8 +605,8 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 			unit: &HelmExecUnit{Name: "unit", Namespace: "default"},
 			deps: []graph.Edge[core.Construct]{
 				{
-					Source:      &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "test"}},
-					Destination: &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "unit"}},
+					Source:      &core.ExecutionUnit{Name: "test"},
+					Destination: &core.ExecutionUnit{Name: "unit"},
 				},
 			},
 			want: testResult{
@@ -619,12 +618,12 @@ func Test_handleUpstreamUnitDependencies(t *testing.T) {
 			unit: &HelmExecUnit{Name: "unit", Namespace: "default"},
 			deps: []graph.Edge[core.Construct]{
 				{
-					Source:      &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "test"}},
-					Destination: &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "unit"}},
+					Source:      &core.ExecutionUnit{Name: "test"},
+					Destination: &core.ExecutionUnit{Name: "unit"},
 				},
 				{
-					Source:      &core.Gateway{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}},
-					Destination: &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{Capability: annotation.ExecutionUnitCapability, ID: "unit"}},
+					Source:      &core.Gateway{Name: "test"},
+					Destination: &core.ExecutionUnit{Name: "unit"},
 				},
 			},
 			want: testResult{

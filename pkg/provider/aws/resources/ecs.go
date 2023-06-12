@@ -2,10 +2,11 @@ package resources
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
-	"strconv"
 )
 
 const (
@@ -23,7 +24,7 @@ const (
 type (
 	EcsTaskDefinition struct {
 		Name                    string
-		ConstructsRef           core.AnnotationKeySet
+		ConstructsRef           core.BaseConstructSet
 		Image                   *EcrImage
 		EnvironmentVariables    EnvironmentVariables
 		Cpu                     string
@@ -45,13 +46,13 @@ type (
 
 	EcsCluster struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		//TODO: add support for cluster configuration
 	}
 
 	EcsService struct {
 		Name                     string
-		ConstructsRef            core.AnnotationKeySet
+		ConstructsRef            core.BaseConstructSet
 		AssignPublicIp           bool
 		Cluster                  *EcsCluster
 		DeploymentCircuitBreaker *EcsServiceDeploymentCircuitBreaker
@@ -77,7 +78,7 @@ type (
 
 	EcsServiceCreateParams struct {
 		AppName          string
-		Refs             core.AnnotationKeySet
+		Refs             core.BaseConstructSet
 		Name             string
 		LaunchType       string
 		NetworkPlacement string
@@ -92,7 +93,7 @@ type (
 
 	EcsTaskDefinitionCreateParams struct {
 		AppName string
-		Refs    core.AnnotationKeySet
+		Refs    core.BaseConstructSet
 		Name    string
 	}
 
@@ -105,7 +106,7 @@ type (
 
 	EcsClusterCreateParams struct {
 		AppName string
-		Refs    core.AnnotationKeySet
+		Refs    core.BaseConstructSet
 		Name    string
 	}
 )
@@ -171,7 +172,7 @@ func (td *EcsTaskDefinition) Configure(params EcsTaskDefinitionConfigureParams) 
 	return nil
 }
 
-func (td *EcsTaskDefinition) KlothoConstructRef() core.AnnotationKeySet {
+func (td *EcsTaskDefinition) BaseConstructsRef() core.BaseConstructSet {
 	return td.ConstructsRef
 }
 
@@ -248,7 +249,7 @@ func (s *EcsService) Configure(params EcsServiceConfigureParams) error {
 	return nil
 }
 
-func (s *EcsService) KlothoConstructRef() core.AnnotationKeySet {
+func (s *EcsService) BaseConstructsRef() core.BaseConstructSet {
 	return s.ConstructsRef
 }
 
@@ -272,7 +273,7 @@ func (c *EcsCluster) Create(dag *core.ResourceGraph, params EcsClusterCreatePara
 	return nil
 }
 
-func (c *EcsCluster) KlothoConstructRef() core.AnnotationKeySet {
+func (c *EcsCluster) BaseConstructsRef() core.BaseConstructSet {
 	return c.ConstructsRef
 }
 

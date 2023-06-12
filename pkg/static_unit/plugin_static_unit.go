@@ -46,10 +46,7 @@ func (p StaticUnitSplit) Transform(input *core.InputFiles, fileDeps *core.FileDe
 					errs.Append(cause)
 				}
 				newUnit := &core.StaticUnit{
-					AnnotationKey: core.AnnotationKey{
-						ID:         cap.ID,
-						Capability: cap.Name,
-					},
+					Name: cap.ID,
 				}
 
 				indexDocument, ok := cap.Directives.String("index_document")

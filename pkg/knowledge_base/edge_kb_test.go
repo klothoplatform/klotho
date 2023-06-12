@@ -206,17 +206,17 @@ type (
 	}
 )
 
-func (f *A) Id() core.ResourceId                       { return core.ResourceId{Name: "A" + f.Name} }
-func (f *A) KlothoConstructRef() core.AnnotationKeySet { return nil }
+func (f *A) Id() core.ResourceId                      { return core.ResourceId{Name: "A" + f.Name} }
+func (f *A) BaseConstructsRef() core.BaseConstructSet { return nil }
 
-func (b B) Id() core.ResourceId                       { return core.ResourceId{Name: "B" + b.Name} }
-func (f B) KlothoConstructRef() core.AnnotationKeySet { return nil }
+func (b B) Id() core.ResourceId                      { return core.ResourceId{Name: "B" + b.Name} }
+func (f B) BaseConstructsRef() core.BaseConstructSet { return nil }
 
-func (p *C) Id() core.ResourceId                       { return core.ResourceId{Name: "C" + p.Name} }
-func (f *C) KlothoConstructRef() core.AnnotationKeySet { return nil }
+func (p *C) Id() core.ResourceId                      { return core.ResourceId{Name: "C" + p.Name} }
+func (f *C) BaseConstructsRef() core.BaseConstructSet { return nil }
 
-func (p *D) Id() core.ResourceId                       { return core.ResourceId{Name: "D" + p.Name} }
-func (f *D) KlothoConstructRef() core.AnnotationKeySet { return nil }
+func (p *D) Id() core.ResourceId                      { return core.ResourceId{Name: "D" + p.Name} }
+func (f *D) BaseConstructsRef() core.BaseConstructSet { return nil }
 
-func (p *E) Id() core.ResourceId                       { return core.ResourceId{Name: "E" + p.Name} }
-func (f *E) KlothoConstructRef() core.AnnotationKeySet { return nil }
+func (p *E) Id() core.ResourceId                      { return core.ResourceId{Name: "E" + p.Name} }
+func (f *E) BaseConstructsRef() core.BaseConstructSet { return nil }

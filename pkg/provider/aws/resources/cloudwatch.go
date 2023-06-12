@@ -14,7 +14,7 @@ var logGroupSanitizer = aws.CloudwatchLogGroupSanitizer
 type (
 	LogGroup struct {
 		Name            string
-		ConstructsRef   core.AnnotationKeySet
+		ConstructsRef   core.BaseConstructSet
 		LogGroupName    string
 		RetentionInDays int
 	}
@@ -22,7 +22,7 @@ type (
 
 type CloudwatchLogGroupCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 }
 
@@ -40,17 +40,8 @@ func (logGroup *LogGroup) Create(dag *core.ResourceGraph, params CloudwatchLogGr
 	return nil
 }
 
-func NewLogGroup(appName string, logGroupName string, ref core.AnnotationKey, retention int) *LogGroup {
-	return &LogGroup{
-		Name:            logGroupSanitizer.Apply(fmt.Sprintf("%s-%s", appName, logGroupName)),
-		ConstructsRef:   core.AnnotationKeySetOf(ref),
-		LogGroupName:    logGroupSanitizer.Apply(logGroupName),
-		RetentionInDays: retention,
-	}
-}
-
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (lg *LogGroup) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (lg *LogGroup) BaseConstructsRef() core.BaseConstructSet {
 	return lg.ConstructsRef
 }
 

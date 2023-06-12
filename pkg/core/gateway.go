@@ -1,8 +1,10 @@
 package core
 
+import "github.com/klothoplatform/klotho/pkg/annotation"
+
 type (
 	Gateway struct {
-		AnnotationKey
+		Name   string
 		Routes []Route
 		// Map of gateway targets with the exec unit name as the key
 		DefinedIn     string
@@ -37,6 +39,8 @@ const (
 	VerbPatch   = Verb("PATCH")
 	VerbOptions = Verb("OPTIONS")
 	VerbHead    = Verb("HEAD")
+
+	GATEWAY_TYPE = "expose"
 )
 
 var (
@@ -55,20 +59,22 @@ var (
 	}
 )
 
-func NewGateway(key AnnotationKey) *Gateway {
+func NewGateway(name string) *Gateway {
 	return &Gateway{
-		AnnotationKey: key,
+		Name: name,
 	}
 }
 
-func (p *Gateway) Provenance() AnnotationKey {
-	return p.AnnotationKey
-}
-
 func (p *Gateway) Id() ResourceId {
-	return ConstructId(p.AnnotationKey).ToRid()
+	return ResourceId{
+		Provider: AbstractConstructProvider,
+		Type:     GATEWAY_TYPE,
+		Name:     p.Name,
+	}
 }
-
+func (p *Gateway) AnnotationCapability() string {
+	return annotation.ExposeCapability
+}
 func (gw *Gateway) AddRoute(route Route, unit *ExecutionUnit) string {
 	for _, r := range gw.Routes {
 		if r.Path == route.Path && r.Verb == route.Verb {

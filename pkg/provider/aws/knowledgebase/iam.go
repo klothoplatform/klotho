@@ -155,11 +155,14 @@ var IamKB = knowledgebase.Build(
 				role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy("aws-load-balancer-controller", oidc)
 				return nil
 			}
-			ref, oneRef := role.ConstructsRef.GetSingle()
-			if !oneRef {
+			if len(role.ConstructsRef) > 1 {
 				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
 			}
-			role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(ref.ID, oidc)
+			var ref core.BaseConstruct
+			for cons := range role.ConstructsRef {
+				ref = cons
+			}
+			role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(ref.Id().Name, oidc)
 			return nil
 		},
 	},

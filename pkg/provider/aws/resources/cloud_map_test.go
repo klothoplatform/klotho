@@ -3,15 +3,15 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_PrivateDnsNamespaceCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []coretesting.CreateCase[PrivateDnsNamespaceCreateParams, *PrivateDnsNamespace]{
 		{
 			Name: "nil profile",
@@ -27,7 +27,7 @@ func Test_PrivateDnsNamespaceCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, namespace *PrivateDnsNamespace) {
 				assert.Equal(namespace.Name, "my-app")
 				assert.NotNil(namespace.Vpc)
-				assert.Equal(namespace.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(namespace.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -41,7 +41,7 @@ func Test_PrivateDnsNamespaceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, namespace *PrivateDnsNamespace) {
 				assert.Equal(namespace.Name, "my-app")
-				initialRefs.Add(eu.AnnotationKey)
+				initialRefs.Add(eu2)
 				assert.Equal(namespace.ConstructsRef, initialRefs)
 			},
 		},
@@ -50,7 +50,7 @@ func Test_PrivateDnsNamespaceCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = PrivateDnsNamespaceCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:    core.BaseConstructSetOf(eu),
 			}
 			tt.Run(t)
 		})

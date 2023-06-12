@@ -3,14 +3,15 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_CloudwatchLogGroupCreate(t *testing.T) {
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "first"}
+	eu2 := &core.ExecutionUnit{Name: "test"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name     string
 		logGroup *LogGroup
@@ -45,7 +46,7 @@ func Test_CloudwatchLogGroupCreate(t *testing.T) {
 			}
 			metadata := CloudwatchLogGroupCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
+				Refs:    core.BaseConstructSetOf(eu2),
 				Name:    "log-group",
 			}
 
@@ -66,8 +67,8 @@ func Test_CloudwatchLogGroupCreate(t *testing.T) {
 				assert.Equal(logGroup.ConstructsRef, metadata.Refs)
 			} else {
 				assert.Equal(logGroup, tt.logGroup)
-				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
-				assert.Equal(logGroup.KlothoConstructRef(), expect)
+				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
+				assert.Equal(logGroup.BaseConstructsRef(), expect)
 			}
 		})
 	}

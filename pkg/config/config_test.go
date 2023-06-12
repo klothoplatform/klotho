@@ -25,7 +25,7 @@ func Test_GetResourceType(t *testing.T) {
 					},
 				},
 			},
-			resource: &core.Gateway{AnnotationKey: core.AnnotationKey{ID: "test"}},
+			resource: &core.Gateway{Name: "test"},
 			want:     "apigateway",
 		},
 		{
@@ -37,7 +37,7 @@ func Test_GetResourceType(t *testing.T) {
 					},
 				},
 			},
-			resource: &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test"}},
+			resource: &core.ExecutionUnit{Name: "test"},
 			want:     "lambda",
 		},
 		{
@@ -49,7 +49,7 @@ func Test_GetResourceType(t *testing.T) {
 					},
 				},
 			},
-			resource: &core.Kv{AnnotationKey: core.AnnotationKey{ID: "test"}},
+			resource: &core.Kv{Name: "test"},
 			want:     "dynamodb",
 		},
 	}
@@ -86,8 +86,8 @@ func Test_UpdateForResources(t *testing.T) {
 					},
 				},
 			},
-			resources: []core.Construct{&core.Gateway{AnnotationKey: core.AnnotationKey{ID: "test"}}, &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test"}},
-				&core.Kv{AnnotationKey: core.AnnotationKey{ID: "test"}}},
+			resources: []core.Construct{&core.Gateway{Name: "test"}, &core.ExecutionUnit{Name: "test"},
+				&core.Kv{Name: "test"}},
 			want: Application{
 				Defaults: Defaults{
 					Expose: KindDefaults{

@@ -176,7 +176,7 @@ exports.e1 = new something.EventEmitter()`,
 
 			var annots []*core.Annotation
 			for _, a := range f.Annotations() {
-				if a.Capability.Name == core.PubSubKind {
+				if a.Capability.Name == annotation.PubSubCapability {
 					annots = append(annots, a)
 				}
 			}

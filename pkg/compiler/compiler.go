@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/validation"
@@ -61,7 +60,7 @@ func (c *Compiler) Compile() error {
 	// Add our internal resource to be used for provider specific implementations. ex) aws dispatcher requires the payloads bucket and so does proxy
 	// TODO: We could likely move this into runtime, but until we refactor that to be common we can keep this here so it lives in one place.
 	// We previously always created the payloads bucket so the behavior is no different
-	internalResource := &core.InternalResource{AnnotationKey: core.AnnotationKey{ID: core.KlothoPayloadName, Capability: annotation.InternalCapability}}
+	internalResource := &core.InternalResource{Name: core.KlothoPayloadName}
 	c.Document.Constructs.AddConstruct(internalResource)
 
 	for _, p := range c.AnalysisAndTransformationPlugins {

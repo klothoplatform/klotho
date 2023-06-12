@@ -10,8 +10,8 @@ import (
 func (a *AWS) expandRedisNode(dag *core.ResourceGraph, construct *core.RedisNode) error {
 	redis, err := core.CreateResource[*resources.ElasticacheCluster](dag, resources.ElasticacheClusterCreateParams{
 		AppName: a.Config.AppName,
-		Refs:    core.AnnotationKeySetOf(construct.AnnotationKey),
-		Name:    construct.ID,
+		Refs:    core.BaseConstructSetOf(construct),
+		Name:    construct.Name,
 	})
 	if err != nil {
 		return err
@@ -20,13 +20,16 @@ func (a *AWS) expandRedisNode(dag *core.ResourceGraph, construct *core.RedisNode
 	return nil
 }
 
-func (a *AWS) getElasticacheConfiguration(result *core.ConstructGraph, refs core.AnnotationKeySet) (resources.ElasticacheClusterConfigureParams, error) {
+func (a *AWS) getElasticacheConfiguration(result *core.ConstructGraph, refs core.BaseConstructSet) (resources.ElasticacheClusterConfigureParams, error) {
 	clusterConfig := resources.ElasticacheClusterConfigureParams{}
-	ref, oneRef := refs.GetSingle()
-	if !oneRef {
+	if len(refs) > 1 {
 		return clusterConfig, fmt.Errorf("elasticache cluster must only have one construct reference")
 	}
-	construct := result.GetConstruct(core.ConstructId(ref).ToRid())
+	var ref core.BaseConstruct
+	for r := range refs {
+		ref = r
+	}
+	construct := result.GetConstruct(ref.Id())
 	if construct == nil {
 		return clusterConfig, fmt.Errorf("construct with id %s does not exist", ref)
 	}

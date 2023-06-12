@@ -32,9 +32,9 @@ func (p PruneUncategorizedFiles) Transform(input *core.InputFiles, fileDeps *cor
 
 			unit.Remove(path)
 			count++
-			log.Debugf("Removed file: '%s' from execution unit: %s", path, unit.ID)
+			log.Debugf("Removed file: '%s' from execution unit: %s", path, unit.Name)
 		}
-		log.Debugf("Removed %d uncategorized files from execution unit: %s", count, unit.ID)
+		log.Debugf("Removed %d uncategorized files from execution unit: %s", count, unit.Name)
 	}
 	return nil
 }

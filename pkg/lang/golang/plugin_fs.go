@@ -26,7 +26,7 @@ func (p PersistFsPlugin) Transform(input *core.InputFiles, fileDeps *core.FileDe
 		for _, goSource := range unit.FilesOfLang(goLang) {
 			resources, err := p.handleFile(goSource, unit)
 			if err != nil {
-				errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.ID))
+				errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.Name))
 				continue
 			}
 
@@ -63,9 +63,7 @@ func (p *PersistFsPlugin) handleFile(f *core.SourceFile, unit *core.ExecutionUni
 }
 
 func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, result *persistResult, unit *core.ExecutionUnit) (core.Construct, error) {
-	fs := &core.Fs{
-		AnnotationKey: core.AnnotationKey{Capability: cap.Capability.Name, ID: cap.Capability.ID},
-	}
+	fs := &core.Fs{Name: cap.Capability.ID}
 
 	fsEnvVar := core.GenerateBucketEnvVar(fs)
 

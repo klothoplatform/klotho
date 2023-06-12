@@ -13,7 +13,7 @@ func (a *AWS) expandSecrets(dag *core.ResourceGraph, construct *core.Secrets) er
 	for _, secretName := range construct.Secrets {
 		secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 			AppName:      a.Config.AppName,
-			Refs:         core.AnnotationKeySetOf(construct.AnnotationKey),
+			Refs:         core.BaseConstructSetOf(construct),
 			Name:         secretName,
 			DetectedPath: secretName,
 		})
@@ -33,20 +33,23 @@ func (a *AWS) getSecretVersionConfiguration(secretVersion *resources.SecretVersi
 		Type: secretVersion.Type,
 		Path: secretVersion.Path,
 	}
-	ref, oneRef := secretVersion.ConstructsRef.GetSingle()
-	if !oneRef {
+	if len(secretVersion.ConstructsRef) > 1 {
 		zap.L().Sugar().Debugf("skipping resource configuration: secret version %s has multiple refs, using unmodified config", secretVersion.Id())
 		return secretVersionConfig, nil
 	}
-	constructR := result.GetConstruct(core.ConstructId(ref).ToRid())
+	var ref core.BaseConstruct
+	for r := range secretVersion.ConstructsRef {
+		ref = r
+	}
+	constructR := result.GetConstruct(ref.Id())
 	if constructR == nil {
-		return secretVersionConfig, fmt.Errorf("construct with id %s does not exist", ref.ToId())
+		return secretVersionConfig, fmt.Errorf("construct with id %s does not exist", ref.Id())
 	}
 	switch construct := constructR.(type) {
 	case *core.Config:
-		cfg := a.Config.GetConfig(construct.ID)
+		cfg := a.Config.GetConfig(construct.Name)
 		if cfg.Path == "" {
-			return secretVersionConfig, errors.Errorf("'Path' required for config %s", construct.ID)
+			return secretVersionConfig, errors.Errorf("'Path' required for config %s", construct.Name)
 		}
 		secretVersionConfig.Path = cfg.Path
 		secretVersionConfig.Type = "string"

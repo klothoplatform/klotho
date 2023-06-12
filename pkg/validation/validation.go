@@ -82,7 +82,7 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 	for unit := range p.UserConfigOverrides.ExecutionUnits {
 		resources := constructGraph.GetResourcesOfCapability(annotation.ExecutionUnitCapability)
 		resource := getResourceById(unit, resources)
-		if resource == (core.AnnotationKey{}) {
+		if resource == nil {
 			log.Warnf("Unknown execution unit in config override, \"%s\".", unit)
 		}
 	}
@@ -96,7 +96,7 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 			}
 		}
 		resource := getResourceById(persistResource, resources)
-		if resource == (core.AnnotationKey{}) {
+		if resource == nil {
 			log.Warnf("Unknown persist_kv in config override, \"%s\".", persistResource)
 		}
 	}
@@ -110,7 +110,7 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 			}
 		}
 		resource := getResourceById(persistResource, resources)
-		if resource == (core.AnnotationKey{}) {
+		if resource == nil {
 			log.Warnf("Unknown persist_fs in config override, \"%s\".", persistResource)
 		}
 	}
@@ -124,7 +124,7 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 			}
 		}
 		resource := getResourceById(persistResource, resources)
-		if resource == (core.AnnotationKey{}) {
+		if resource == nil {
 			log.Warnf("Unknown persist_orm in config override, \"%s\".", persistResource)
 		}
 	}
@@ -138,7 +138,7 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 			}
 		}
 		resource := getResourceById(persistResource, resources)
-		if resource == (core.AnnotationKey{}) {
+		if resource == nil {
 			log.Warnf("Unknown persist in config override, \"%s\".", persistResource)
 		}
 	}
@@ -152,7 +152,7 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 			}
 		}
 		resource := getResourceById(persistResource, resources)
-		if resource == (core.AnnotationKey{}) {
+		if resource == nil {
 			log.Warnf("Unknown persist in config override, \"%s\".", persistResource)
 		}
 	}
@@ -166,7 +166,7 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 			}
 		}
 		resource := getResourceById(persistResource, resources)
-		if resource == (core.AnnotationKey{}) {
+		if resource == nil {
 			log.Warnf("Unknown persist in config override, \"%s\".", persistResource)
 		}
 	}
@@ -174,7 +174,7 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 	for exposeResource := range p.UserConfigOverrides.Exposed {
 		resources := constructGraph.GetResourcesOfCapability(annotation.ExposeCapability)
 		resource := getResourceById(exposeResource, resources)
-		if resource == (core.AnnotationKey{}) {
+		if resource == nil {
 			log.Warnf("Unknown expose in config override, \"%s\".", exposeResource)
 		}
 	}
@@ -182,7 +182,7 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 	for unit := range p.UserConfigOverrides.StaticUnit {
 		resources := constructGraph.GetResourcesOfCapability(annotation.StaticUnitCapability)
 		resource := getResourceById(unit, resources)
-		if resource == (core.AnnotationKey{}) {
+		if resource == nil {
 			log.Warnf("Unknown static unit in config override, \"%s\".", unit)
 		}
 	}
@@ -190,13 +190,13 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 	for unit := range p.UserConfigOverrides.Config {
 		resources := constructGraph.GetResourcesOfCapability(annotation.ConfigCapability)
 		resource := getResourceById(unit, resources)
-		if resource == (core.AnnotationKey{}) {
+		if resource == nil {
 			log.Warnf("Unknown config resource in config override, \"%s\".", unit)
 		}
 	}
 }
 
-func (p *ConstructValidation) checkAnnotationForResource(annot *core.Annotation, constructGraph *core.ConstructGraph, log *zap.SugaredLogger) core.AnnotationKey {
+func (p *ConstructValidation) checkAnnotationForResource(annot *core.Annotation, constructGraph *core.ConstructGraph, log *zap.SugaredLogger) core.Construct {
 	resources := []core.Construct{}
 
 	switch annot.Capability.Name {
@@ -215,22 +215,22 @@ func (p *ConstructValidation) checkAnnotationForResource(annot *core.Annotation,
 	case annotation.AssetCapability:
 	default:
 		log.Warnf("Unknown annotation capability %s.", annot.Capability.Name)
-		return core.AnnotationKey{}
+		return nil
 	}
 
 	resource := getResourceById(annot.Capability.ID, resources)
-	if resource == (core.AnnotationKey{}) && annot.Capability.Name != annotation.AssetCapability {
+	if resource == nil && annot.Capability.Name != annotation.AssetCapability {
 		log.Warn("No resource was generated for the annotation.")
 	}
 	return resource
 }
 
-func getResourceById(id string, resources []core.Construct) core.AnnotationKey {
-	var resource core.AnnotationKey
+func getResourceById(id string, resources []core.Construct) core.Construct {
+	var resource core.Construct
 	for _, res := range resources {
-		if res.Provenance().ID == id {
-			if resource == (core.AnnotationKey{}) {
-				return res.Provenance()
+		if res.Id().Name == id {
+			if resource == nil {
+				return res
 			}
 		}
 	}
@@ -241,10 +241,10 @@ func validateNoDuplicateIds[T core.Construct](constructGraph *core.ConstructGrap
 	unitIds := make(map[string]struct{})
 	units := core.GetConstructsOfType[T](constructGraph)
 	for _, unit := range units {
-		if _, ok := unitIds[unit.Provenance().ID]; ok {
-			return fmt.Errorf(`multiple objects with the same name, "%s"`, unit.Provenance().ID)
+		if _, ok := unitIds[unit.Id().Name]; ok {
+			return fmt.Errorf(`multiple objects with the same name, "%s"`, unit.Id().Name)
 		}
-		unitIds[unit.Provenance().ID] = struct{}{}
+		unitIds[unit.Id().Name] = struct{}{}
 	}
 	return nil
 }

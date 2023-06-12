@@ -21,7 +21,7 @@ const (
 type (
 	CloudfrontDistribution struct {
 		Name                         string
-		ConstructsRef                core.AnnotationKeySet
+		ConstructsRef                core.BaseConstructSet
 		Origins                      []*CloudfrontOrigin
 		CloudfrontDefaultCertificate bool
 		Enabled                      bool
@@ -79,14 +79,14 @@ type (
 
 	OriginAccessIdentity struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Comment       string
 	}
 )
 
 type OriginAccessIdentityCreateParams struct {
 	Name string
-	Refs core.AnnotationKeySet
+	Refs core.BaseConstructSet
 }
 
 func (oai *OriginAccessIdentity) Create(dag *core.ResourceGraph, params OriginAccessIdentityCreateParams) error {
@@ -102,7 +102,7 @@ func (oai *OriginAccessIdentity) Create(dag *core.ResourceGraph, params OriginAc
 type CloudfrontDistributionCreateParams struct {
 	CdnId   string
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (distro *CloudfrontDistribution) Create(dag *core.ResourceGraph, params CloudfrontDistributionCreateParams) error {
@@ -141,8 +141,8 @@ func (distro *CloudfrontDistribution) Configure(params CloudfrontDistributionCon
 	return nil
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (distro *CloudfrontDistribution) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (distro *CloudfrontDistribution) BaseConstructsRef() core.BaseConstructSet {
 	return distro.ConstructsRef
 }
 
@@ -155,8 +155,8 @@ func (distro *CloudfrontDistribution) Id() core.ResourceId {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (oai *OriginAccessIdentity) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (oai *OriginAccessIdentity) BaseConstructsRef() core.BaseConstructSet {
 	return oai.ConstructsRef
 }
 

@@ -47,7 +47,7 @@ func (p NestJsHandler) Transform(input *core.InputFiles, fileDeps *core.FileDepe
 func (p *NestJsHandler) transformSingle(constructGraph *core.ConstructGraph, unit *core.ExecutionUnit) error {
 
 	execUnitInfo := execUnitExposeInfo{Unit: unit, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
-	p.log = zap.L().With(zap.String("unit", unit.ID))
+	p.log = zap.L().With(zap.String("unit", unit.Name))
 
 	var errs multierr.Error
 
@@ -136,7 +136,7 @@ func (p *NestJsHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit)
 func (h *NestJsHandler) assignRoutesToGateway(info *execUnitExposeInfo) error {
 	var errs multierr.Error
 
-	controllers := h.findControllers(info.Unit.ID)
+	controllers := h.findControllers(info.Unit.Name)
 	modules := h.findModules(controllers)
 
 	for _, factory := range h.output.factories {

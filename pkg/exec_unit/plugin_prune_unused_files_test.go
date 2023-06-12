@@ -3,7 +3,6 @@ package execunit
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,7 +29,7 @@ func TestPruneUncategorizedFiles_Transform(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			testUnit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "main", Capability: annotation.ExecutionUnitCapability}, Executable: core.NewExecutable()}
+			testUnit := core.ExecutionUnit{Name: "main", Executable: core.NewExecutable()}
 			for _, path := range tt.unitFiles {
 				testUnit.Add(&core.FileRef{FPath: path})
 			}

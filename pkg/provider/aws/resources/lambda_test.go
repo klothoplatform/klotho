@@ -3,15 +3,13 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_LambdaCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-
+	eu := &core.ExecutionUnit{Name: "test"}
 	cases := []coretesting.CreateCase[LambdaCreateParams, *LambdaFunction]{
 		{
 			Name: "nil lambda",
@@ -32,7 +30,7 @@ func Test_LambdaCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, lambda *LambdaFunction) {
 				assert.Equal(lambda.Name, "my-app-test")
-				assert.Equal(lambda.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(lambda.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -45,8 +43,8 @@ func Test_LambdaCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = LambdaCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
-				Name:    eu.ID,
+				Refs:    core.BaseConstructSetOf(eu),
+				Name:    eu.Name,
 			}
 
 			tt.Run(t)
@@ -55,7 +53,9 @@ func Test_LambdaCreate(t *testing.T) {
 }
 
 func Test_LambdaPermissionCreate(t *testing.T) {
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "first"}
+	eu2 := &core.ExecutionUnit{Name: "test"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name       string
 		permission *LambdaPermission
@@ -104,7 +104,7 @@ func Test_LambdaPermissionCreate(t *testing.T) {
 			}
 
 			metadata := LambdaPermissionCreateParams{
-				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
+				Refs:    core.BaseConstructSetOf(eu2),
 				Name:    "permission",
 				AppName: "my-app",
 			}
@@ -127,8 +127,8 @@ func Test_LambdaPermissionCreate(t *testing.T) {
 			if tt.permission == nil {
 				assert.Equal(permission.ConstructsRef, metadata.Refs)
 			} else {
-				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}))
-				assert.Equal(permission.KlothoConstructRef(), expect)
+				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
+				assert.Equal(permission.BaseConstructsRef(), expect)
 			}
 		})
 	}

@@ -3,23 +3,31 @@ package core
 import (
 	"os"
 	"path/filepath"
+
+	"github.com/klothoplatform/klotho/pkg/annotation"
 )
 
 type (
 	StaticUnit struct {
-		AnnotationKey
+		Name          string
 		IndexDocument string
 		StaticFiles   ConcurrentMap[string, File]
 		SharedFiles   ConcurrentMap[string, File]
 	}
 )
 
-func (p *StaticUnit) Provenance() AnnotationKey {
-	return p.AnnotationKey
-}
+const STATIC_UNIT_TYPE = "static_unit"
 
 func (p *StaticUnit) Id() ResourceId {
-	return ConstructId(p.AnnotationKey).ToRid()
+	return ResourceId{
+		Provider: AbstractConstructProvider,
+		Type:     STATIC_UNIT_TYPE,
+		Name:     p.Name,
+	}
+}
+
+func (p *StaticUnit) AnnotationCapability() string {
+	return annotation.StaticUnitCapability
 }
 
 func (unit *StaticUnit) OutputTo(dest string) error {
@@ -27,7 +35,7 @@ func (unit *StaticUnit) OutputTo(dest string) error {
 	files := unit.Files()
 	for idx := range files {
 		go func(f File) {
-			path := filepath.Join(dest, unit.ID, f.Path())
+			path := filepath.Join(dest, unit.Name, f.Path())
 			dir := filepath.Dir(path)
 			err := os.MkdirAll(dir, 0777)
 			if err != nil {

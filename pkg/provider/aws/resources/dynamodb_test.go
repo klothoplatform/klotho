@@ -3,7 +3,6 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -11,8 +10,8 @@ import (
 )
 
 func Test_DynamodbTableCreate(t *testing.T) {
-	kv := &core.Kv{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
-	existingKey := core.AnnotationKey{ID: "existing", Capability: annotation.PersistCapability}
+	kv := &core.Kv{Name: "test"}
+	existingKey := &core.Kv{Name: "existing"}
 	cases := []coretesting.CreateCase[DynamodbTableCreateParams, *DynamodbTable]{
 		{
 			Name: "nil dynamodb table",
@@ -23,12 +22,12 @@ func Test_DynamodbTableCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, table *DynamodbTable) {
 				assert.Equal(table.Name, "my-app-kv")
-				assert.Equal(table.ConstructsRef, core.AnnotationKeySetOf(kv.AnnotationKey))
+				assert.Equal(table.ConstructsRef, core.BaseConstructSetOf(kv))
 			},
 		},
 		{
 			Name:     "existing dynamodb table",
-			Existing: &DynamodbTable{Name: "my-app-kv", ConstructsRef: core.AnnotationKeySetOf(existingKey)},
+			Existing: &DynamodbTable{Name: "my-app-kv", ConstructsRef: core.BaseConstructSetOf(existingKey)},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:dynamodb_table:my-app-kv",
@@ -36,7 +35,7 @@ func Test_DynamodbTableCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, table *DynamodbTable) {
 				assert.Equal(table.Name, "my-app-kv")
-				assert.Equal(table.ConstructsRef, core.AnnotationKeySetOf(kv.AnnotationKey, existingKey))
+				assert.Equal(table.ConstructsRef, core.BaseConstructSetOf(kv, existingKey))
 			},
 		},
 	}
@@ -44,7 +43,7 @@ func Test_DynamodbTableCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = DynamodbTableCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(kv.AnnotationKey),
+				Refs:    core.BaseConstructSetOf(kv),
 				Name:    "kv",
 			}
 

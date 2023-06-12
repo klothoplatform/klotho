@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
@@ -14,7 +13,7 @@ import (
 )
 
 func Test_ExpandExecutionUnit(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, DockerfilePath: "path"}
+	eu := &core.ExecutionUnit{Name: "test", DockerfilePath: "path"}
 	cases := []struct {
 		name   string
 		unit   *core.ExecutionUnit
@@ -46,20 +45,20 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 			name: "single k8s exec unit",
 			unit: eu,
 			chart: &kubernetes.HelmChart{
-				ExecutionUnits: []*kubernetes.HelmExecUnit{{Name: eu.ID}},
+				ExecutionUnits: []*kubernetes.HelmExecUnit{{Name: eu.Name}},
 				ProviderValues: []kubernetes.HelmChartValue{
 					{
-						ExecUnitName: eu.ID,
+						ExecUnitName: eu.Name,
 						Type:         string(kubernetes.ServiceAccountAnnotationTransformation),
 						Key:          "ROLE",
 					},
 					{
-						ExecUnitName: eu.ID,
+						ExecUnitName: eu.Name,
 						Type:         string(kubernetes.ImageTransformation),
 						Key:          "IMAGE",
 					},
 					{
-						ExecUnitName: eu.ID,
+						ExecUnitName: eu.Name,
 						Type:         string(kubernetes.InstanceTypeValue),
 						Key:          "InstanceType",
 					},
@@ -155,7 +154,7 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 			name: "single fargate k8s exec unit",
 			unit: eu,
 			chart: &kubernetes.HelmChart{
-				ExecutionUnits: []*kubernetes.HelmExecUnit{{Name: eu.ID}},
+				ExecutionUnits: []*kubernetes.HelmExecUnit{{Name: eu.Name}},
 				Values:         make(map[string]any),
 			},
 			config: &config.Application{AppName: "my-app",
@@ -263,7 +262,7 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 }
 
 func Test_handleHelmChartAwsValues(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, DockerfilePath: "path"}
+	eu := &core.ExecutionUnit{Name: "test", DockerfilePath: "path"}
 	config := &config.Application{AppName: "my-app",
 		ExecutionUnits: map[string]*config.ExecutionUnit{
 			"test": {
@@ -291,7 +290,7 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 			name: "ImageTransformation",
 			unit: eu,
 			value: kubernetes.HelmChartValue{
-				ExecUnitName: eu.ID,
+				ExecUnitName: eu.Name,
 				Type:         string(kubernetes.ImageTransformation),
 				Key:          "IMAGE",
 			},
@@ -299,8 +298,8 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 				params: map[string]any{
 					"IMAGE": resources.ImageCreateParams{
 						AppName: config.AppName,
-						Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
-						Name:    eu.ID,
+						Refs:    core.BaseConstructSetOf(eu),
+						Name:    eu.Name,
 					},
 				},
 				values: map[string]any{
@@ -315,15 +314,15 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 			name: "ServiceAccountAnnotationTransformation",
 			unit: eu,
 			value: kubernetes.HelmChartValue{
-				ExecUnitName: eu.ID,
+				ExecUnitName: eu.Name,
 				Type:         string(kubernetes.ServiceAccountAnnotationTransformation),
 				Key:          "SERVICEACCOUNT",
 			},
 			want: testResult{
 				params: map[string]any{
 					"SERVICEACCOUNT": resources.RoleCreateParams{
-						Name:    fmt.Sprintf("%s-%s-ExecutionRole", config.AppName, eu.ID),
-						Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
+						Name:    fmt.Sprintf("%s-%s-ExecutionRole", config.AppName, eu.Name),
+						Refs:    core.BaseConstructSetOf(eu),
 						AppName: config.AppName,
 					},
 				},
@@ -339,7 +338,7 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 			name: "InstanceTypeKey",
 			unit: eu,
 			value: kubernetes.HelmChartValue{
-				ExecUnitName: eu.ID,
+				ExecUnitName: eu.Name,
 				Type:         string(kubernetes.InstanceTypeKey),
 				Key:          "SERVICEACCOUNT",
 			},
@@ -356,7 +355,7 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 			name: "InstanceTypeValue",
 			unit: eu,
 			value: kubernetes.HelmChartValue{
-				ExecUnitName: eu.ID,
+				ExecUnitName: eu.Name,
 				Type:         string(kubernetes.InstanceTypeValue),
 				Key:          "InstanceTypeValue",
 			},
@@ -367,7 +366,7 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 						InstanceType: "t3.medium",
 						ClusterName:  "cluster1",
 						AppName:      config.AppName,
-						Refs:         core.AnnotationKeySetOf(eu.AnnotationKey),
+						Refs:         core.BaseConstructSetOf(eu),
 					},
 				},
 				values: map[string]any{
@@ -382,7 +381,7 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 			name: "TargetGroupTransformation",
 			unit: eu,
 			value: kubernetes.HelmChartValue{
-				ExecUnitName: eu.ID,
+				ExecUnitName: eu.Name,
 				Type:         string(kubernetes.TargetGroupTransformation),
 				Key:          "TargetGroupTransformation",
 			},
@@ -390,8 +389,8 @@ func Test_handleHelmChartAwsValues(t *testing.T) {
 				params: map[string]any{
 					"TargetGroupTransformation": resources.TargetGroupCreateParams{
 						AppName: config.AppName,
-						Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
-						Name:    eu.ID,
+						Refs:    core.BaseConstructSetOf(eu),
+						Name:    eu.Name,
 					},
 				},
 				values: map[string]any{

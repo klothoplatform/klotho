@@ -3,7 +3,6 @@ package provider
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
@@ -19,7 +18,7 @@ func Test_validation_handleProviderValidation(t *testing.T) {
 		{
 			name: "exec unit match",
 			result: []core.Construct{&core.ExecutionUnit{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
+				Name: "test",
 			}},
 			cfg: config.Application{
 				Provider: "aws",
@@ -34,7 +33,7 @@ func Test_validation_handleProviderValidation(t *testing.T) {
 		{
 			name: "exec unit mismatch",
 			result: []core.Construct{&core.ExecutionUnit{
-				AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
+				Name: "test",
 			}},
 			cfg: config.Application{
 				Provider: "aws",

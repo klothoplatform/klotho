@@ -3,7 +3,6 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
@@ -11,7 +10,8 @@ import (
 )
 
 func Test_SecurityGroupCreate(t *testing.T) {
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu)
 	cases := []struct {
 		name string
 		sg   *SecurityGroup
@@ -52,7 +52,7 @@ func Test_SecurityGroupCreate(t *testing.T) {
 			}
 			metadata := SecurityGroupCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}),
+				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
 			}
 			sg := &SecurityGroup{}
 			err := sg.Create(dag, metadata)
@@ -70,7 +70,7 @@ func Test_SecurityGroupCreate(t *testing.T) {
 				assert.Equal(sg.ConstructsRef, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(metadata.Refs)
-				assert.Equal(sg.KlothoConstructRef(), expect)
+				assert.Equal(sg.BaseConstructsRef(), expect)
 			}
 		})
 	}

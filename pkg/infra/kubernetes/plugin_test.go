@@ -279,7 +279,7 @@ func Test_getKlothoCharts(t *testing.T) {
 			inputFiles := &core.InputFiles{}
 			for idx, fileUnit := range tt.fileUnits {
 				execUnitName := fmt.Sprintf("main%d", idx)
-				testUnit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: execUnitName, Capability: annotation.ExecutionUnitCapability}}
+				testUnit := core.ExecutionUnit{Name: execUnitName}
 				for path, file := range fileUnit {
 					f, err := core.NewSourceFile(path, strings.NewReader(file), testLang)
 					if assert.Nil(err) {

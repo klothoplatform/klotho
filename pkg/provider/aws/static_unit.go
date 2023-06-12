@@ -16,11 +16,11 @@ func (a *AWS) expandStaticUnit(dag *core.ResourceGraph, unit *core.StaticUnit) e
 	for _, f := range unit.Files() {
 		object, err := core.CreateResource[*resources.S3Object](dag, resources.S3ObjectCreateParams{
 			AppName:    a.Config.AppName,
-			Refs:       core.AnnotationKeySetOf(unit.AnnotationKey),
-			BucketName: unit.Provenance().ID,
+			Refs:       core.BaseConstructSetOf(unit),
+			BucketName: unit.Name,
 			Name:       filepath.Base(f.Path()),
 			Key:        f.Path(),
-			FilePath:   filepath.Join(unit.ID, f.Path()),
+			FilePath:   filepath.Join(unit.Name, f.Path()),
 		})
 		if err != nil {
 			errs.Append(err)
@@ -38,12 +38,12 @@ func (a *AWS) expandStaticUnit(dag *core.ResourceGraph, unit *core.StaticUnit) e
 		_, bucket := collectionutil.GetOneEntry(createdBuckets)
 		a.MapResourceDirectlyToConstruct(bucket, unit)
 
-		cfg := a.Config.GetStaticUnit(unit.ID)
+		cfg := a.Config.GetStaticUnit(unit.Name)
 		if cfg.ContentDeliveryNetwork.Id != "" {
 			distro, err := core.CreateResource[*resources.CloudfrontDistribution](dag, resources.CloudfrontDistributionCreateParams{
 				CdnId:   cfg.ContentDeliveryNetwork.Id,
 				AppName: a.Config.AppName,
-				Refs:    core.AnnotationKeySetOf(unit.AnnotationKey),
+				Refs:    core.BaseConstructSetOf(unit),
 			})
 			if err != nil {
 				return err

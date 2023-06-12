@@ -1,17 +1,24 @@
 package core
 
+import "github.com/klothoplatform/klotho/pkg/annotation"
+
 type (
 	InternalResource struct {
-		AnnotationKey
+		Name string
 	}
 )
 
 const KlothoPayloadName = "InternalKlothoPayloads"
-
-func (p *InternalResource) Provenance() AnnotationKey {
-	return p.AnnotationKey
-}
+const INTERNAL_TYPE = "internal"
 
 func (p *InternalResource) Id() ResourceId {
-	return ConstructId(p.AnnotationKey).ToRid()
+	return ResourceId{
+		Provider: AbstractConstructProvider,
+		Type:     INTERNAL_TYPE,
+		Name:     p.Name,
+	}
+}
+
+func (p *InternalResource) AnnotationCapability() string {
+	return annotation.InternalCapability
 }

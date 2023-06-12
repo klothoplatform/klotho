@@ -22,7 +22,7 @@ type (
 		//
 		// The args do not include the receiver type. For example:
 		//
-		//	KlothoConstructRef func() []github.com/klothoplatform/klotho/pkg/core.AnnotationKey
+		//	BaseConstructsRef func() []github.com/klothoplatform/klotho/pkg/core.AnnotationKey
 		signatures  map[string]struct{}
 		isInterface bool
 	}

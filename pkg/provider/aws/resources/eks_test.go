@@ -3,15 +3,15 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_EksClusterCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[EksClusterCreateParams, *EksCluster]{
 		{
 			Name: "nil lambda",
@@ -75,7 +75,7 @@ func Test_EksClusterCreate(t *testing.T) {
 				assert.Equal(cluster.Name, "my-app-cluster")
 				assert.NotNil(cluster.Vpc)
 				assert.Len(cluster.SecurityGroups, 1)
-				assert.Equal(cluster.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(cluster.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -89,7 +89,7 @@ func Test_EksClusterCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, cluster *EksCluster) {
 				assert.Equal(cluster.Name, "my-app-cluster")
-				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(eu.AnnotationKey))
+				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
 				assert.Equal(cluster.ConstructsRef, expect)
 			},
 		},
@@ -98,7 +98,7 @@ func Test_EksClusterCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = EksClusterCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:    core.BaseConstructSetOf(eu),
 				Name:    "cluster",
 			}
 			tt.Run(t)
@@ -107,8 +107,9 @@ func Test_EksClusterCreate(t *testing.T) {
 }
 
 func Test_EksFargateProfileCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[EksFargateProfileCreateParams, *EksFargateProfile]{
 		{
 			Name: "nil profile",
@@ -178,7 +179,7 @@ func Test_EksFargateProfileCreate(t *testing.T) {
 				assert.Equal(profile.Name, "my-app_profile_private")
 				assert.NotNil(profile.Cluster)
 				assert.Len(profile.Subnets, 2)
-				assert.Equal(profile.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(profile.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -192,7 +193,7 @@ func Test_EksFargateProfileCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, profile *EksFargateProfile) {
 				assert.Equal(profile.Name, "my-app_profile_private")
-				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(eu.AnnotationKey))
+				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
 				assert.Equal(profile.ConstructsRef, expect)
 			},
 		},
@@ -201,7 +202,7 @@ func Test_EksFargateProfileCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = EksFargateProfileCreateParams{
 				AppName:     "my-app",
-				Refs:        core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:        core.BaseConstructSetOf(eu),
 				Name:        "profile",
 				NetworkType: PrivateSubnet,
 				ClusterName: "cluster",
@@ -234,8 +235,9 @@ func Test_EksFargateProfileConfigure(t *testing.T) {
 }
 
 func Test_EksNodeGroupCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[EksNodeGroupCreateParams, *EksNodeGroup]{
 		{
 			Name: "nil profile",
@@ -305,7 +307,7 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 				assert.Equal(nodegroup.Name, "my-app_cluster_private_t3_medium")
 				assert.NotNil(nodegroup.Cluster)
 				assert.Len(nodegroup.Subnets, 2)
-				assert.Equal(nodegroup.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(nodegroup.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -319,7 +321,7 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, nodegroup *EksNodeGroup) {
 				assert.Equal(nodegroup.Name, "my-app_cluster_private_t3_medium")
-				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(eu.AnnotationKey))
+				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
 				assert.Equal(nodegroup.ConstructsRef, expect)
 			},
 		},
@@ -328,7 +330,7 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = EksNodeGroupCreateParams{
 				AppName:      "my-app",
-				Refs:         core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:         core.BaseConstructSetOf(eu),
 				InstanceType: "t3.medium",
 				NetworkType:  PrivateSubnet,
 				ClusterName:  "cluster",

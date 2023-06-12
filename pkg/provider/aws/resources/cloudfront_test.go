@@ -9,7 +9,7 @@ import (
 )
 
 func Test_CloudfrontDistributionCreate(t *testing.T) {
-	eu := &core.StaticUnit{AnnotationKey: core.AnnotationKey{ID: "test"}}
+	eu := &core.StaticUnit{Name: "test"}
 	cases := []coretesting.CreateCase[CloudfrontDistributionCreateParams, *CloudfrontDistribution]{
 		{
 			Name: "new",
@@ -36,7 +36,7 @@ func Test_CloudfrontDistributionCreate(t *testing.T) {
 			tt.Params = CloudfrontDistributionCreateParams{
 				CdnId:   "some_cdn",
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:    core.BaseConstructSetOf(eu),
 			}
 			tt.Run(t)
 		})

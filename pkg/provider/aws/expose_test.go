@@ -3,7 +3,6 @@ package aws
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
@@ -11,7 +10,7 @@ import (
 )
 
 func Test_ExpandExpose(t *testing.T) {
-	gw := &core.Gateway{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
+	gw := &core.Gateway{Name: "test"}
 	cases := []struct {
 		name    string
 		gw      *core.Gateway

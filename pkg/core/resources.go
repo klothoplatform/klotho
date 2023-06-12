@@ -18,15 +18,19 @@ type (
 	// Construct describes a resource at the source code, Klotho annotation level
 	Construct interface {
 		BaseConstruct
-		// Provenance returns the AnnotationKey that the construct was created by
-		Provenance() AnnotationKey
+
+		// AnnotationCapability returns the annotation capability of the construct. This helps us tie the annotation types to the constructs for the time being
+		AnnotationCapability() string
 	}
+
+	// BaseConstructsRefSet is a set of BaseConstructs
+	BaseConstructSet map[BaseConstruct]struct{}
 
 	// Resource describes a resource at the provider, infrastructure level
 	Resource interface {
 		BaseConstruct
-		// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-		KlothoConstructRef() AnnotationKeySet
+		// BaseConstructsRef returns a set of BaseConstructs which caused the creation of this resource
+		BaseConstructsRef() BaseConstructSet
 	}
 
 	// ExpandableResource is a resource that can generate its own dependencies. See [CreateResource].
@@ -65,12 +69,6 @@ type (
 	HasLocalOutput interface {
 		OutputTo(dest string) error
 	}
-
-	// ConstructId is an AnnotationKey that can turn itself into a ResourceId. It is provided as a convenience type.
-	// If you have an AnnotationId and want a ResourceId corresponding to that annotation's abstract construct, do:
-	//
-	// 	resourceId := ConstructId(consId).ToRid()
-	ConstructId AnnotationKey
 )
 
 const (
@@ -88,20 +86,28 @@ const (
 	AbstractConstructProvider = "klotho"
 )
 
-func (cid ConstructId) ToRid() ResourceId {
-	return ResourceId{
-		Provider: AbstractConstructProvider,
-		Type:     cid.Capability,
-		Name:     cid.ID,
-	}
-}
-
-func IsConstructOfCapability(baseConstruct BaseConstruct, cap string) bool {
+func IsConstructOfAnnotationCapability(baseConstruct BaseConstruct, cap string) bool {
 	cons, ok := baseConstruct.(Construct)
 	if !ok {
 		return false
 	}
-	return cons.Provenance().Capability == cap
+	return cons.AnnotationCapability() == cap
+}
+
+func ListAllConstructs() []Construct {
+	return []Construct{
+		&ExecutionUnit{},
+		&Gateway{},
+		&StaticUnit{},
+		&Orm{},
+		&PubSub{},
+		&Secrets{},
+		&Kv{},
+		&Fs{},
+		&Config{},
+		&RedisCluster{},
+		&RedisNode{},
+	}
 }
 
 func (id ResourceId) String() string {
@@ -146,4 +152,47 @@ func GetMapDecoder(result interface{}) *mapstructure.Decoder {
 		panic(err)
 	}
 	return decoder
+}
+
+func (s *BaseConstructSet) Add(k BaseConstruct) {
+	if *s == nil {
+		*s = make(BaseConstructSet)
+	}
+	(*s)[k] = struct{}{}
+}
+
+func (s BaseConstructSet) Has(k BaseConstruct) bool {
+	_, ok := s[k]
+	return ok
+}
+
+func (s BaseConstructSet) Delete(k BaseConstruct) {
+	delete(s, k)
+}
+
+func (s *BaseConstructSet) AddAll(ks BaseConstructSet) {
+	for k := range ks {
+		s.Add(k)
+	}
+}
+
+func (s BaseConstructSet) Clone() BaseConstructSet {
+	clone := make(BaseConstructSet)
+	clone.AddAll(s)
+	return clone
+}
+
+func (s BaseConstructSet) CloneWith(ks BaseConstructSet) BaseConstructSet {
+	clone := make(BaseConstructSet)
+	clone.AddAll(s)
+	clone.AddAll(ks)
+	return clone
+}
+
+func BaseConstructSetOf(keys ...BaseConstruct) BaseConstructSet {
+	s := make(BaseConstructSet)
+	for _, k := range keys {
+		s.Add(k)
+	}
+	return s
 }

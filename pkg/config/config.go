@@ -154,43 +154,43 @@ func (a *Application) WriteTo(writer io.Writer) error {
 func (a Application) GetResourceType(resource core.Construct) string {
 	switch resource.(type) {
 	case *core.ExecutionUnit:
-		cfg := a.GetExecutionUnit(resource.Provenance().ID)
+		cfg := a.GetExecutionUnit(resource.Id().Name)
 		return cfg.Type
 
 	case *core.StaticUnit:
-		cfg := a.GetStaticUnit(resource.Provenance().ID)
+		cfg := a.GetStaticUnit(resource.Id().Name)
 		return cfg.Type
 
 	case *core.Gateway:
-		cfg := a.GetExpose(resource.Provenance().ID)
+		cfg := a.GetExpose(resource.Id().Name)
 		return cfg.Type
 
 	case *core.Fs:
-		cfg := a.GetPersistFs(resource.Provenance().ID)
+		cfg := a.GetPersistFs(resource.Id().Name)
 		return cfg.Type
 
 	case *core.Kv:
-		cfg := a.GetPersistKv(resource.Provenance().ID)
+		cfg := a.GetPersistKv(resource.Id().Name)
 		return cfg.Type
 
 	case *core.Orm:
-		cfg := a.GetPersistOrm(resource.Provenance().ID)
+		cfg := a.GetPersistOrm(resource.Id().Name)
 		return cfg.Type
 
 	case *core.Secrets:
-		cfg := a.GetPersistSecrets(resource.Provenance().ID)
+		cfg := a.GetPersistSecrets(resource.Id().Name)
 		return cfg.Type
 
 	case *core.RedisCluster:
-		cfg := a.GetPersistRedisCluster(resource.Provenance().ID)
+		cfg := a.GetPersistRedisCluster(resource.Id().Name)
 		return cfg.Type
 
 	case *core.RedisNode:
-		cfg := a.GetPersistRedisNode(resource.Provenance().ID)
+		cfg := a.GetPersistRedisNode(resource.Id().Name)
 		return cfg.Type
 
 	case *core.Config:
-		cfg := a.GetConfig(resource.Provenance().ID)
+		cfg := a.GetConfig(resource.Id().Name)
 		return cfg.Type
 	}
 	return ""
@@ -201,40 +201,40 @@ func (a *Application) UpdateForResources(res []core.Construct) {
 	for _, r := range res {
 		switch r.(type) {
 		case *core.ExecutionUnit:
-			cfg := a.GetExecutionUnit(r.Provenance().ID)
-			a.ExecutionUnits[r.Provenance().ID] = &cfg
+			cfg := a.GetExecutionUnit(r.Id().Name)
+			a.ExecutionUnits[r.Id().Name] = &cfg
 
 		case *core.StaticUnit:
-			cfg := a.GetStaticUnit(r.Provenance().ID)
-			a.StaticUnit[r.Provenance().ID] = &cfg
+			cfg := a.GetStaticUnit(r.Id().Name)
+			a.StaticUnit[r.Id().Name] = &cfg
 
 		case *core.Gateway:
-			cfg := a.GetExpose(r.Provenance().ID)
-			a.Exposed[r.Provenance().ID] = &cfg
+			cfg := a.GetExpose(r.Id().Name)
+			a.Exposed[r.Id().Name] = &cfg
 
 		case *core.Fs:
-			cfg := a.GetPersistFs(r.Provenance().ID)
-			a.PersistFs[r.Provenance().ID] = &cfg
+			cfg := a.GetPersistFs(r.Id().Name)
+			a.PersistFs[r.Id().Name] = &cfg
 
 		case *core.Kv:
-			cfg := a.GetPersistKv(r.Provenance().ID)
-			a.PersistKv[r.Provenance().ID] = &cfg
+			cfg := a.GetPersistKv(r.Id().Name)
+			a.PersistKv[r.Id().Name] = &cfg
 
 		case *core.Orm:
-			cfg := a.GetPersistOrm(r.Provenance().ID)
-			a.PersistOrm[r.Provenance().ID] = &cfg
+			cfg := a.GetPersistOrm(r.Id().Name)
+			a.PersistOrm[r.Id().Name] = &cfg
 
 		case *core.Secrets:
-			cfg := a.GetPersistSecrets(r.Provenance().ID)
-			a.PersistSecrets[r.Provenance().ID] = &cfg
+			cfg := a.GetPersistSecrets(r.Id().Name)
+			a.PersistSecrets[r.Id().Name] = &cfg
 
 		case *core.RedisCluster:
-			cfg := a.GetPersistRedisCluster(r.Provenance().ID)
-			a.PersistRedisCluster[r.Provenance().ID] = &cfg
+			cfg := a.GetPersistRedisCluster(r.Id().Name)
+			a.PersistRedisCluster[r.Id().Name] = &cfg
 
 		case *core.RedisNode:
-			cfg := a.GetPersistRedisNode(r.Provenance().ID)
-			a.PersistRedisNode[r.Provenance().ID] = &cfg
+			cfg := a.GetPersistRedisNode(r.Id().Name)
+			a.PersistRedisNode[r.Id().Name] = &cfg
 		}
 	}
 }

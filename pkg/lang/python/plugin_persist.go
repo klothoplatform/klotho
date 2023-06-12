@@ -50,7 +50,7 @@ func (p *persister) handleFiles(unit *core.ExecutionUnit) error {
 
 		resources, err := p.handleFile(pySource, unit)
 		if err != nil {
-			errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.ID))
+			errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.Name))
 		}
 
 		for _, r := range resources {
@@ -209,10 +209,7 @@ func (p *persister) transformKV(original *core.SourceFile, modified *core.Source
 	}
 
 	result := &core.Kv{
-		AnnotationKey: core.AnnotationKey{
-			ID:         cap.Capability.ID,
-			Capability: cap.Capability.Name,
-		},
+		Name: cap.Capability.ID,
 	}
 	envVar := core.GenerateKvTableNameEnvVar(result)
 	unit.EnvironmentVariables.Add(envVar)
@@ -221,10 +218,7 @@ func (p *persister) transformKV(original *core.SourceFile, modified *core.Source
 
 func (p *persister) transformFS(original *core.SourceFile, modified *core.SourceFile, cap *core.Annotation, fsR *persistResult, unit *core.ExecutionUnit) (core.Construct, error) {
 	result := &core.Fs{
-		AnnotationKey: core.AnnotationKey{
-			ID:         cap.Capability.ID,
-			Capability: cap.Capability.Name,
-		},
+		Name: cap.Capability.ID,
 	}
 	nodeContent := cap.Node.Content()
 
@@ -286,10 +280,7 @@ func (p *persister) transformSecret(original *core.SourceFile, modified *core.So
 	}
 
 	result := &core.Secrets{
-		AnnotationKey: core.AnnotationKey{
-			ID:         cap.Capability.ID,
-			Capability: cap.Capability.Name,
-		},
+		Name:    cap.Capability.ID,
 		Secrets: secrets,
 	}
 
@@ -298,10 +289,7 @@ func (p *persister) transformSecret(original *core.SourceFile, modified *core.So
 
 func (p *persister) transformORM(original *core.SourceFile, modified *core.SourceFile, cap *core.Annotation, ormR *persistResult, unit *core.ExecutionUnit) (core.Construct, error) {
 	result := &core.Orm{
-		AnnotationKey: core.AnnotationKey{
-			ID:         cap.Capability.ID,
-			Capability: cap.Capability.Name,
-		},
+		Name: cap.Capability.ID,
 	}
 	nodeContent := cap.Node.Content()
 
@@ -348,18 +336,12 @@ func (p *persister) transformRedis(original *core.SourceFile, modified *core.Sou
 	switch redisR.construct.(type) {
 	case *core.RedisCluster:
 		result = &core.RedisCluster{
-			AnnotationKey: core.AnnotationKey{
-				ID:         cap.Capability.ID,
-				Capability: cap.Capability.Name,
-			},
+			Name: cap.Capability.ID,
 		}
 		isCluster = true
 	case *core.RedisNode:
 		result = &core.RedisNode{
-			AnnotationKey: core.AnnotationKey{
-				ID:         cap.Capability.ID,
-				Capability: cap.Capability.Name,
-			},
+			Name: cap.Capability.ID,
 		}
 	}
 

@@ -3,7 +3,6 @@ package aws
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
@@ -11,7 +10,7 @@ import (
 )
 
 func Test_ExpandOrm(t *testing.T) {
-	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
+	orm := &core.Orm{Name: "test"}
 	cases := []struct {
 		name   string
 		orm    *core.Orm

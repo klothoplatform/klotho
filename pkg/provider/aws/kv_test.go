@@ -1,17 +1,17 @@
 package aws
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
+	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_ExpandKv(t *testing.T) {
-	kv := &core.Kv{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
+	kv := &core.Kv{Name: "test"}
 	cases := []struct {
 		name   string
 		kv     *core.Kv

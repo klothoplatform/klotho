@@ -822,7 +822,7 @@ engine = create_engine(os.environ.get("SQLALCHEMY_PERSIST_ORM_CONNECTION"))`,
 			assert.Equal(core.EnvironmentVariables{
 				{
 					Name:      "SQLALCHEMY_PERSIST_ORM_CONNECTION",
-					Construct: &core.Orm{AnnotationKey: core.AnnotationKey{ID: "sqlAlchemy", Capability: annotation.PersistCapability}},
+					Construct: &core.Orm{Name: "sqlAlchemy"},
 					Value:     "connection_string",
 				},
 			}, unit.EnvironmentVariables)
@@ -1027,7 +1027,7 @@ import redis
 # }
 client = redis.Redis(host='localhost', port=6379)
 `,
-			redisConstruct: &core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
+			redisConstruct: &core.RedisNode{Name: "redis"},
 			want: `
 import redis
 import os
@@ -1045,7 +1045,7 @@ from redis import Redis
 #   id = "redis"
 # }
 client = Redis(host='localhost', port=6379)`,
-			redisConstruct: &core.RedisNode{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
+			redisConstruct: &core.RedisNode{Name: "redis"},
 			want: `
 from redis import Redis
 import os
@@ -1063,7 +1063,7 @@ import redis
 # }
 client = redis.cluster.RedisCluster(host='localhost', port=6379)
 `,
-			redisConstruct: &core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
+			redisConstruct: &core.RedisCluster{Name: "redis"},
 			want: `
 import redis
 import os
@@ -1081,7 +1081,7 @@ from redis import cluster
 #   id = "redis"
 # }
 client = cluster.RedisCluster(host='localhost', port=6379)`,
-			redisConstruct: &core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
+			redisConstruct: &core.RedisCluster{Name: "redis"},
 			want: `
 from redis import cluster
 import os
@@ -1098,7 +1098,7 @@ from redis.cluster import RedisCluster
 #   id = "redis"
 # }
 client = RedisCluster(host='localhost', port=6379)`,
-			redisConstruct: &core.RedisCluster{AnnotationKey: core.AnnotationKey{ID: "redis", Capability: annotation.PersistCapability}},
+			redisConstruct: &core.RedisCluster{Name: "redis"},
 			want: `
 from redis.cluster import RedisCluster
 import os

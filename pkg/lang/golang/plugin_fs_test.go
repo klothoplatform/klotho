@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
@@ -144,12 +143,7 @@ import (
 bucket, err := blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))
 `,
 			want: testResult{
-				resource: core.Fs{
-					AnnotationKey: core.AnnotationKey{
-						ID:         "test",
-						Capability: annotation.PersistCapability,
-					},
-				},
+				resource: core.Fs{Name: "test"},
 				content: `package fs
 
 import (
@@ -181,12 +175,7 @@ import (
 var bucket, err = blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))
 `,
 			want: testResult{
-				resource: core.Fs{
-					AnnotationKey: core.AnnotationKey{
-						ID:         "test",
-						Capability: annotation.PersistCapability,
-					},
-				},
+				resource: core.Fs{Name: "test"},
 				content: `package fs
 
 import (
@@ -220,12 +209,7 @@ var err error
 bucket, err = blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))
 `,
 			want: testResult{
-				resource: core.Fs{
-					AnnotationKey: core.AnnotationKey{
-						ID:         "test",
-						Capability: annotation.PersistCapability,
-					},
-				},
+				resource: core.Fs{Name: "test"},
 				content: `package fs
 
 import (
@@ -271,7 +255,7 @@ bucket, err = blob.OpenBucket(context.Background(), "s3://" + os.Getenv("TEST_BU
 				return
 			}
 
-			assert.Equal(tt.want.resource.Provenance(), result.Provenance())
+			assert.Equal(tt.want.resource.Id(), result.Id())
 			assert.Equal(tt.want.content, string(f.Program()))
 		})
 	}

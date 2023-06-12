@@ -90,7 +90,7 @@ var EKS_ASSUME_ROLE_POLICY = &PolicyDocument{
 type (
 	IamRole struct {
 		Name                string
-		ConstructsRef       core.AnnotationKeySet
+		ConstructsRef       core.BaseConstructSet
 		AssumeRolePolicyDoc *PolicyDocument
 		ManagedPolicies     []core.IaCValue
 		AwsManagedPolicies  []string
@@ -99,13 +99,13 @@ type (
 
 	IamPolicy struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Policy        *PolicyDocument
 	}
 
 	IamInlinePolicy struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Policy        *PolicyDocument
 	}
 
@@ -135,7 +135,7 @@ type (
 
 	OpenIdConnectProvider struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		ClientIdLists []string
 		Cluster       *EksCluster
 		Region        *Region
@@ -143,14 +143,14 @@ type (
 
 	RolePolicyAttachment struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Policy        *IamPolicy
 		Role          *IamRole
 	}
 
 	InstanceProfile struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Role          *IamRole
 	}
 )
@@ -158,7 +158,7 @@ type (
 type RoleCreateParams struct {
 	AppName string
 	Name    string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) error {
@@ -177,7 +177,7 @@ func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) er
 type IamPolicyCreateParams struct {
 	AppName string
 	Name    string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (policy *IamPolicy) Create(dag *core.ResourceGraph, params IamPolicyCreateParams) error {
@@ -195,7 +195,7 @@ func (policy *IamPolicy) Create(dag *core.ResourceGraph, params IamPolicyCreateP
 type OidcCreateParams struct {
 	AppName     string
 	ClusterName string
-	Refs        core.AnnotationKeySet
+	Refs        core.BaseConstructSet
 }
 
 func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCreateParams) error {
@@ -226,7 +226,7 @@ func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCr
 type InstanceProfileCreateParams struct {
 	AppName string
 	Name    string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (profile *InstanceProfile) Create(dag *core.ResourceGraph, params InstanceProfileCreateParams) error {
@@ -255,8 +255,8 @@ func CreateAllowPolicyDocument(actions []string, resources []core.IaCValue) *Pol
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (role *IamRole) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (role *IamRole) BaseConstructsRef() core.BaseConstructSet {
 	return role.ConstructsRef
 }
 
@@ -294,15 +294,15 @@ func (role *IamRole) AddManagedPolicy(policy core.IaCValue) {
 	}
 }
 
-func NewIamPolicy(appName string, policyName string, ref core.AnnotationKey, policy *PolicyDocument) *IamPolicy {
+func NewIamPolicy(appName string, policyName string, ref core.BaseConstruct, policy *PolicyDocument) *IamPolicy {
 	return &IamPolicy{
 		Name:          policySanitizer.Apply(fmt.Sprintf("%s-%s", appName, policyName)),
-		ConstructsRef: core.AnnotationKeySetOf(ref),
+		ConstructsRef: core.BaseConstructSetOf(ref),
 		Policy:        policy,
 	}
 }
 
-func NewIamInlinePolicy(policyName string, refs core.AnnotationKeySet, policy *PolicyDocument) *IamInlinePolicy {
+func NewIamInlinePolicy(policyName string, refs core.BaseConstructSet, policy *PolicyDocument) *IamInlinePolicy {
 	return &IamInlinePolicy{
 		Name:          policySanitizer.Apply(policyName),
 		ConstructsRef: refs,
@@ -320,8 +320,8 @@ func (policy *IamPolicy) AddPolicyDocument(doc *PolicyDocument) {
 	policy.Policy.Deduplicate()
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (policy *IamPolicy) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (policy *IamPolicy) BaseConstructsRef() core.BaseConstructSet {
 	return policy.ConstructsRef
 }
 
@@ -334,8 +334,8 @@ func (policy *IamPolicy) Id() core.ResourceId {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (oidc *OpenIdConnectProvider) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (oidc *OpenIdConnectProvider) BaseConstructsRef() core.BaseConstructSet {
 	return oidc.ConstructsRef
 }
 
@@ -348,8 +348,8 @@ func (oidc *OpenIdConnectProvider) Id() core.ResourceId {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (role *RolePolicyAttachment) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (role *RolePolicyAttachment) BaseConstructsRef() core.BaseConstructSet {
 	return nil
 }
 
@@ -362,7 +362,7 @@ func (role *RolePolicyAttachment) Id() core.ResourceId {
 	}
 }
 
-func (profile *InstanceProfile) KlothoConstructRef() core.AnnotationKeySet {
+func (profile *InstanceProfile) BaseConstructsRef() core.BaseConstructSet {
 	return profile.ConstructsRef
 }
 

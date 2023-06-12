@@ -23,14 +23,14 @@ const (
 type (
 	S3Bucket struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		ForceDestroy  bool
 		IndexDocument string
 	}
 
 	S3Object struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Bucket        *S3Bucket
 		Key           string
 		FilePath      string
@@ -38,22 +38,14 @@ type (
 
 	S3BucketPolicy struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Bucket        *S3Bucket
 		Policy        *PolicyDocument
 	}
 )
 
-func NewS3Bucket(fs core.Construct, appName string) *S3Bucket {
-	return &S3Bucket{
-		Name:          bucketSanitizer.Apply(fmt.Sprintf("%s-%s", appName, fs.Provenance().ID)),
-		ConstructsRef: core.AnnotationKeySetOf(fs.Provenance()),
-		ForceDestroy:  true,
-	}
-}
-
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (bucket *S3Bucket) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (bucket *S3Bucket) BaseConstructsRef() core.BaseConstructSet {
 	return bucket.ConstructsRef
 }
 
@@ -68,7 +60,7 @@ func (bucket *S3Bucket) Id() core.ResourceId {
 
 type S3BucketCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 }
 
@@ -105,7 +97,7 @@ func (bucket *S3Bucket) Configure(params S3BucketConfigureParams) error {
 
 type S3ObjectCreateParams struct {
 	AppName    string
-	Refs       core.AnnotationKeySet
+	Refs       core.BaseConstructSet
 	BucketName string
 	Name       string
 	Key        string
@@ -129,8 +121,8 @@ func (object *S3Object) Create(dag *core.ResourceGraph, params S3ObjectCreatePar
 	})
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (object *S3Object) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (object *S3Object) BaseConstructsRef() core.BaseConstructSet {
 	return object.ConstructsRef
 }
 
@@ -146,7 +138,7 @@ func (object *S3Object) Id() core.ResourceId {
 type S3BucketPolicyCreateParams struct {
 	Name       string
 	BucketName string
-	Refs       core.AnnotationKeySet
+	Refs       core.BaseConstructSet
 }
 
 func (policy *S3BucketPolicy) Create(dag *core.ResourceGraph, params S3BucketPolicyCreateParams) error {
@@ -159,8 +151,8 @@ func (policy *S3BucketPolicy) Create(dag *core.ResourceGraph, params S3BucketPol
 	return nil
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (policy *S3BucketPolicy) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (policy *S3BucketPolicy) BaseConstructsRef() core.BaseConstructSet {
 	return policy.ConstructsRef
 }
 

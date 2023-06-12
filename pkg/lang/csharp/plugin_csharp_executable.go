@@ -27,7 +27,7 @@ func (l CSharpExecutable) Name() string {
 func (l CSharpExecutable) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
 	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
 		if unit.Executable.Type != "" {
-			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.ID, unit.Executable.Type)
+			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.Name, unit.Executable.Type)
 			continue
 		}
 
@@ -39,7 +39,7 @@ func (l CSharpExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 			}
 		}
 		if csProjFile == nil {
-			zap.L().Sugar().Debugf(`"MSBuild Project File (.csproj)" not found in execution_unit: %s`, unit.ID)
+			zap.L().Sugar().Debugf(`"MSBuild Project File (.csproj)" not found in execution_unit: %s`, unit.Name)
 			return nil
 		}
 
@@ -53,8 +53,8 @@ func (l CSharpExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 			unit.AddSourceFile(file)
 			for _, annot := range file.Annotations() {
 				cap := annot.Capability
-				if cap.Name == annotation.ExecutionUnitCapability && cap.ID == unit.ID {
-					zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.ID, file.Path())
+				if cap.Name == annotation.ExecutionUnitCapability && cap.ID == unit.Name {
+					zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.Name, file.Path())
 					unit.AddEntrypoint(file)
 				}
 			}
@@ -76,7 +76,7 @@ func (l CSharpExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 func (l CSharpExecutable) resolveDefaultEntrypoint(unit *core.ExecutionUnit) {
 	for _, fallbackPath := range []string{l.Config.AppName + ".cs", "Program.cs", "Application.cs"} {
 		if entrypoint := unit.Get(fallbackPath); entrypoint != nil {
-			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [default] -> [%s] -> %s", unit.ID, entrypoint.Path())
+			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [default] -> [%s] -> %s", unit.Name, entrypoint.Path())
 			unit.AddEntrypoint(entrypoint)
 		}
 	}
@@ -84,7 +84,7 @@ func (l CSharpExecutable) resolveDefaultEntrypoint(unit *core.ExecutionUnit) {
 func refreshUpstreamEntrypoints(unit *core.ExecutionUnit) {
 	for f := range unit.Executable.SourceFiles {
 		if file, ok := unit.Get(f).(*core.SourceFile); ok && file.IsAnnotatedWith(annotation.ExposeCapability) {
-			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.ID, f)
+			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.Name, f)
 			unit.AddEntrypoint(file)
 		}
 	}
@@ -93,7 +93,7 @@ func refreshUpstreamEntrypoints(unit *core.ExecutionUnit) {
 func refreshSourceFiles(unit *core.ExecutionUnit) error {
 	sourceFiles, err := upstreamDependencyResolver.Resolve(unit)
 	if err != nil {
-		return core.WrapErrf(err, "file dependency resolution failed for execution unit: %s", unit.ID)
+		return core.WrapErrf(err, "file dependency resolution failed for execution unit: %s", unit.Name)
 	}
 	for k, v := range sourceFiles {
 		unit.Executable.SourceFiles[k] = v

@@ -15,7 +15,7 @@ const (
 type (
 	Ec2Instance struct {
 		Name            string
-		ConstructsRef   core.AnnotationKeySet
+		ConstructsRef   core.BaseConstructSet
 		InstanceProfile *InstanceProfile
 		SecurityGroups  []*SecurityGroup
 		Subnet          *Subnet
@@ -25,14 +25,14 @@ type (
 
 	AMI struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 	}
 )
 
 type Ec2InstanceCreateParams struct {
 	Name    string
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (instance *Ec2Instance) Create(dag *core.ResourceGraph, params Ec2InstanceCreateParams) error {
@@ -74,7 +74,7 @@ type Ec2InstanceConfigureParams struct {
 type AMICreateParams struct {
 	Name    string
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 }
 
 func (ami *AMI) Create(dag *core.ResourceGraph, params AMICreateParams) error {
@@ -98,8 +98,8 @@ func (instance *Ec2Instance) Configure(params Ec2InstanceConfigureParams) error 
 	return nil
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (instance *Ec2Instance) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (instance *Ec2Instance) BaseConstructsRef() core.BaseConstructSet {
 	return instance.ConstructsRef
 }
 
@@ -112,8 +112,8 @@ func (instance *Ec2Instance) Id() core.ResourceId {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ami *AMI) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (ami *AMI) BaseConstructsRef() core.BaseConstructSet {
 	return ami.ConstructsRef
 }
 

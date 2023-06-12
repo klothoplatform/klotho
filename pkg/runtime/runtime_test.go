@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +51,7 @@ FROM public.ecr.aws/lambda/nodejs:16
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			unit := core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "unit", Capability: annotation.ExecutionUnitCapability}}
+			unit := core.ExecutionUnit{Name: "unit"}
 			if tt.source != "" {
 				f, _ := dockerfile.NewFile("Dockerfile", strings.NewReader(tt.source))
 				unit.Add(f)

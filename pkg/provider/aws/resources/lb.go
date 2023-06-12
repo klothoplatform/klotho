@@ -23,7 +23,7 @@ const (
 type (
 	LoadBalancer struct {
 		Name                   string
-		ConstructsRef          core.AnnotationKeySet
+		ConstructsRef          core.BaseConstructSet
 		IpAddressType          string
 		LoadBalancerAttributes map[string]string
 		Scheme                 string
@@ -35,7 +35,7 @@ type (
 
 	TargetGroup struct {
 		Name          string
-		ConstructsRef core.AnnotationKeySet
+		ConstructsRef core.BaseConstructSet
 		Port          int
 		Protocol      string
 		Vpc           *Vpc
@@ -51,7 +51,7 @@ type (
 
 	Listener struct {
 		Name           string
-		ConstructsRef  core.AnnotationKeySet
+		ConstructsRef  core.BaseConstructSet
 		Port           int
 		Protocol       string
 		LoadBalancer   *LoadBalancer
@@ -65,7 +65,7 @@ type (
 
 type LoadBalancerCreateParams struct {
 	AppName     string
-	Refs        core.AnnotationKeySet
+	Refs        core.BaseConstructSet
 	Name        string
 	NetworkType string
 }
@@ -108,7 +108,7 @@ func (lb *LoadBalancer) Create(dag *core.ResourceGraph, params LoadBalancerCreat
 
 type ListenerCreateParams struct {
 	AppName     string
-	Refs        core.AnnotationKeySet
+	Refs        core.BaseConstructSet
 	Name        string
 	NetworkType string
 }
@@ -132,7 +132,7 @@ func (listener *Listener) Create(dag *core.ResourceGraph, params ListenerCreateP
 
 type TargetGroupCreateParams struct {
 	AppName string
-	Refs    core.AnnotationKeySet
+	Refs    core.BaseConstructSet
 	Name    string
 }
 
@@ -152,8 +152,8 @@ func (tg *TargetGroup) Create(dag *core.ResourceGraph, params TargetGroupCreateP
 	return err
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (lb *LoadBalancer) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (lb *LoadBalancer) BaseConstructsRef() core.BaseConstructSet {
 	return lb.ConstructsRef
 }
 
@@ -178,8 +178,8 @@ func (tg *TargetGroup) AddTarget(target *Target) {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (tg *TargetGroup) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (tg *TargetGroup) BaseConstructsRef() core.BaseConstructSet {
 	return tg.ConstructsRef
 }
 
@@ -192,8 +192,8 @@ func (tg *TargetGroup) Id() core.ResourceId {
 	}
 }
 
-// KlothoConstructRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (listener *Listener) KlothoConstructRef() core.AnnotationKeySet {
+// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (listener *Listener) BaseConstructsRef() core.BaseConstructSet {
 	return listener.ConstructsRef
 }
 

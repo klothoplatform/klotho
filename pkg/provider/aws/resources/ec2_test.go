@@ -3,15 +3,15 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_Ec2InstanceCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[Ec2InstanceCreateParams, *Ec2Instance]{
 		{
 			Name: "nil instance",
@@ -60,7 +60,7 @@ func Test_Ec2InstanceCreate(t *testing.T) {
 				assert.NotNil(instance.AMI)
 				assert.NotNil(instance.Subnet)
 				assert.Len(instance.SecurityGroups, 1)
-				assert.Equal(instance.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(instance.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -74,7 +74,7 @@ func Test_Ec2InstanceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, instance *Ec2Instance) {
 				assert.Equal(instance.Name, "my-app-profile")
-				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(eu.AnnotationKey))
+				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
 				assert.Equal(instance.ConstructsRef, expect)
 			},
 		},
@@ -83,7 +83,7 @@ func Test_Ec2InstanceCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = Ec2InstanceCreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:    core.BaseConstructSetOf(eu),
 				Name:    "profile",
 			}
 			tt.Run(t)
@@ -92,8 +92,9 @@ func Test_Ec2InstanceCreate(t *testing.T) {
 }
 
 func Test_AMICreate(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}}
-	initialRefs := core.AnnotationKeySetOf(core.AnnotationKey{ID: "first"})
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[AMICreateParams, *AMI]{
 		{
 			Name: "nil instance",
@@ -105,7 +106,7 @@ func Test_AMICreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ami *AMI) {
 				assert.Equal(ami.Name, "my-app-profile")
-				assert.Equal(ami.ConstructsRef, core.AnnotationKeySetOf(eu.AnnotationKey))
+				assert.Equal(ami.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -119,7 +120,7 @@ func Test_AMICreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ami *AMI) {
 				assert.Equal(ami.Name, "my-app-profile")
-				expect := initialRefs.CloneWith(core.AnnotationKeySetOf(eu.AnnotationKey))
+				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
 				assert.Equal(ami.ConstructsRef, expect)
 			},
 		},
@@ -128,7 +129,7 @@ func Test_AMICreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = AMICreateParams{
 				AppName: "my-app",
-				Refs:    core.AnnotationKeySetOf(eu.AnnotationKey),
+				Refs:    core.BaseConstructSetOf(eu),
 				Name:    "profile",
 			}
 			tt.Run(t)

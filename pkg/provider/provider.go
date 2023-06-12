@@ -61,7 +61,7 @@ func HandleProviderValidation(p Provider, config *config.Application, constructG
 			continue
 		}
 		resourceType := config.GetResourceType(resource)
-		log.Debugf("Checking if provider, %s, supports %s and type, %s, pair.", p.Name(), resource.Provenance().Capability, resourceType)
+		log.Debugf("Checking if provider, %s, supports %s and type, %s, pair.", p.Name(), resource.AnnotationCapability(), resourceType)
 		for _, validType := range mapping {
 			if validType == resourceType {
 				resourceValid = true

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	dgraph "github.com/dominikbraun/graph"
-	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
@@ -16,8 +15,8 @@ import (
 )
 
 func Test_ExpandConstructs(t *testing.T) {
-	eu := &core.ExecutionUnit{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}, DockerfilePath: "path"}
-	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
+	eu := &core.ExecutionUnit{Name: "test", DockerfilePath: "path"}
+	orm := &core.Orm{Name: "test"}
 	cases := []struct {
 		name       string
 		constructs []core.Construct
@@ -120,12 +119,12 @@ func Test_ExpandConstructs(t *testing.T) {
 }
 
 func Test_CopyConstructEdgesToDag(t *testing.T) {
-	orm := &core.Orm{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.PersistCapability}}
+	orm := &core.Orm{Name: "test"}
 	eu := &core.ExecutionUnit{
-		AnnotationKey:        core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
+		Name:                 "test",
 		EnvironmentVariables: core.EnvironmentVariables{core.GenerateOrmConnStringEnvVar(orm)},
 	}
-	gw := &core.Gateway{AnnotationKey: core.AnnotationKey{ID: "test", Capability: annotation.ExposeCapability}, Routes: []core.Route{{Path: "my/route", Verb: "get", ExecUnitName: eu.ID}}}
+	gw := &core.Gateway{Name: "test", Routes: []core.Route{{Path: "my/route", Verb: "get", ExecUnitName: eu.Name}}}
 	cases := []struct {
 		name                 string
 		constructs           []graph.Edge[core.Construct]
@@ -146,7 +145,7 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 			},
 			constructResourceMap: map[core.ResourceId][]core.Resource{
 				stubId("execution_unit"): {&resources.LambdaFunction{Name: "lambda"}},
-				stubId("persist"):        {&resources.RdsInstance{Name: "rds"}},
+				stubId("orm"):            {&resources.RdsInstance{Name: "rds"}},
 			},
 			want: []*graph.Edge[core.Resource]{
 				{Source: &resources.LambdaFunction{Name: "lambda"}, Destination: &resources.RdsInstance{Name: "rds"}, Properties: dgraph.EdgeProperties{
@@ -173,18 +172,18 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 			},
 			constructResourceMap: map[core.ResourceId][]core.Resource{
 				stubId("execution_unit"): {&kubernetes.HelmChart{Name: "lambda", Values: map[string]any{
-					"tg": core.IaCValue{Resource: &resources.TargetGroup{Name: "tg", ConstructsRef: core.AnnotationKeySetOf(eu.AnnotationKey)}},
+					"tg": core.IaCValue{Resource: &resources.TargetGroup{Name: "tg", ConstructsRef: core.BaseConstructSetOf(eu)}},
 				}}},
 				stubId("expose"): {&resources.RestApi{Name: "api"}},
 			},
 			want: []*graph.Edge[core.Resource]{
-				{Source: &resources.RestApi{Name: "api"}, Destination: &resources.TargetGroup{Name: "tg", ConstructsRef: core.AnnotationKeySetOf(eu.AnnotationKey)}, Properties: dgraph.EdgeProperties{
+				{Source: &resources.RestApi{Name: "api"}, Destination: &resources.TargetGroup{Name: "tg", ConstructsRef: core.BaseConstructSetOf(eu)}, Properties: dgraph.EdgeProperties{
 					Attributes: make(map[string]string),
 					Data: knowledgebase.EdgeData{
 						AppName:     "my-app",
 						Source:      &resources.RestApi{Name: "api"},
-						Destination: &resources.TargetGroup{Name: "tg", ConstructsRef: core.AnnotationKeySetOf(eu.AnnotationKey)},
-						Routes:      []core.Route{{Path: "my/route", Verb: "get", ExecUnitName: eu.ID}},
+						Destination: &resources.TargetGroup{Name: "tg", ConstructsRef: core.BaseConstructSetOf(eu)},
+						Routes:      []core.Route{{Path: "my/route", Verb: "get", ExecUnitName: eu.Name}},
 					},
 				}},
 			},
@@ -224,6 +223,7 @@ func Test_CopyConstructEdgesToDag(t *testing.T) {
 }
 
 func Test_configureResources(t *testing.T) {
+	eu := &core.ExecutionUnit{Name: "test"}
 	cases := []struct {
 		name       string
 		config     *config.Application
@@ -243,15 +243,15 @@ func Test_configureResources(t *testing.T) {
 			},
 			constructs: []core.Construct{
 				&core.ExecutionUnit{
-					AnnotationKey:        core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability},
+					Name:                 "test",
 					EnvironmentVariables: core.EnvironmentVariables{core.NewEnvironmentVariable("env1", nil, "val1")}},
 			},
 			resources: []core.Resource{
-				&resources.LambdaFunction{Name: "lambda", ConstructsRef: core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability})},
+				&resources.LambdaFunction{Name: "lambda", ConstructsRef: core.BaseConstructSetOf(eu)},
 				&resources.RdsProxy{Name: "rds"},
 			},
 			want: []core.Resource{
-				&resources.LambdaFunction{Name: "lambda", Timeout: 100, MemorySize: 200, ConstructsRef: core.AnnotationKeySetOf(core.AnnotationKey{ID: "test", Capability: annotation.ExecutionUnitCapability}), EnvironmentVariables: resources.EnvironmentVariables{"env1": core.IaCValue{Property: "val1"}}},
+				&resources.LambdaFunction{Name: "lambda", Timeout: 100, MemorySize: 200, ConstructsRef: core.BaseConstructSetOf(eu), EnvironmentVariables: resources.EnvironmentVariables{"env1": core.IaCValue{Property: "val1"}}},
 				&resources.RdsProxy{Name: "rds", EngineFamily: "POSTGRESQL", IdleClientTimeout: 1800}},
 		},
 	}
@@ -296,15 +296,15 @@ func Test_getS3BucketConfig(t *testing.T) {
 		{
 			name: "fs construct",
 			constructs: []core.Construct{
-				&core.Fs{AnnotationKey: core.AnnotationKey{Capability: "fs", ID: "fs-a"}},
+				&core.Fs{Name: "fs-a"},
 			},
 			want: getFsConfiguration(),
 		},
 		{
 			name: "multiple exec units", // for lambda payloads
 			constructs: []core.Construct{
-				&core.Fs{AnnotationKey: core.AnnotationKey{Capability: "exec-proxy", ID: "unit-a"}},
-				&core.Fs{AnnotationKey: core.AnnotationKey{Capability: "exec-proxy", ID: "unit-b"}},
+				&core.Fs{Name: "unit-a"},
+				&core.Fs{Name: "unit-b"},
 			},
 			want: getFsConfiguration(),
 		},
@@ -312,7 +312,7 @@ func Test_getS3BucketConfig(t *testing.T) {
 			name: "single static unit",
 			constructs: []core.Construct{
 				&core.StaticUnit{
-					AnnotationKey: core.AnnotationKey{Capability: "exec-proxy", ID: "unit-a"},
+					Name:          "unit-a",
 					IndexDocument: "my index doc",
 				},
 			},
@@ -325,11 +325,11 @@ func Test_getS3BucketConfig(t *testing.T) {
 			name: "multiple static units",
 			constructs: []core.Construct{
 				&core.StaticUnit{
-					AnnotationKey: core.AnnotationKey{Capability: "static", ID: "unit-a"},
+					Name:          "unit-a",
 					IndexDocument: "my index doc 001",
 				},
 				&core.StaticUnit{
-					AnnotationKey: core.AnnotationKey{Capability: "static", ID: "unit-b"},
+					Name:          "unit-b",
 					IndexDocument: "my index doc 002",
 				},
 			},
@@ -344,7 +344,7 @@ func Test_getS3BucketConfig(t *testing.T) {
 			constructs := core.NewConstructGraph()
 			for _, cons := range tt.constructs {
 				constructs.AddConstruct(cons)
-				bucket.ConstructsRef.Add(cons.Provenance())
+				bucket.ConstructsRef.Add(cons)
 			}
 
 			actualConfig, actualErr := getS3BucketConfig(bucket, constructs)

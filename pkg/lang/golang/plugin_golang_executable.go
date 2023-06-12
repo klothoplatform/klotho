@@ -19,7 +19,7 @@ func (l GolangExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 	defaultGoMod, _ := input.Files()["go.mod"].(*GoMod)
 	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
 		if unit.Executable.Type != "" {
-			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.ID, unit.Executable.Type)
+			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.Name, unit.Executable.Type)
 			continue
 		}
 
@@ -29,7 +29,7 @@ func (l GolangExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 			goMod, _ = inputFiles[goModPath].(*GoMod)
 		}
 		if goMod == nil {
-			zap.L().Sugar().Debugf("go.mod not found in execution_unit: %s", unit.ID)
+			zap.L().Sugar().Debugf("go.mod not found in execution_unit: %s", unit.Name)
 			return nil
 		}
 
@@ -44,7 +44,7 @@ func (l GolangExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 
 		for f := range unit.Executable.SourceFiles {
 			if file, ok := unit.Get(f).(*core.SourceFile); ok && file.IsAnnotatedWith(annotation.ExposeCapability) {
-				zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.ID, f)
+				zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.Name, f)
 				unit.AddEntrypoint(file)
 			}
 		}
@@ -59,7 +59,7 @@ func (l GolangExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 func resolveDefaultEntrypoint(unit *core.ExecutionUnit) {
 	for _, fallbackPath := range []string{"main.go"} {
 		if entrypoint := unit.Get(fallbackPath); entrypoint != nil {
-			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [default] -> [%s] -> %s", unit.ID, entrypoint.Path())
+			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [default] -> [%s] -> %s", unit.Name, entrypoint.Path())
 			unit.AddEntrypoint(entrypoint)
 		}
 	}
