@@ -27,7 +27,7 @@ func (a *AWS) expandOrm(dag *core.ResourceGraph, orm *core.Orm) error {
 }
 
 func (a *AWS) getRdsConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.BaseConstructSet) (resources.RdsInstanceConfigureParams, error) {
-	if len(refs) > 1 {
+	if len(refs) > 1 || len(refs) == 0 {
 		return resources.RdsInstanceConfigureParams{}, fmt.Errorf("rds instance must only have one construct reference")
 	}
 	var ref core.BaseConstruct

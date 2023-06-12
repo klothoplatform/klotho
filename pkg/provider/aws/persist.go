@@ -22,7 +22,7 @@ func (a *AWS) expandRedisNode(dag *core.ResourceGraph, construct *core.RedisNode
 
 func (a *AWS) getElasticacheConfiguration(result *core.ConstructGraph, refs core.BaseConstructSet) (resources.ElasticacheClusterConfigureParams, error) {
 	clusterConfig := resources.ElasticacheClusterConfigureParams{}
-	if len(refs) > 1 {
+	if len(refs) > 1 || len(refs) == 0 {
 		return clusterConfig, fmt.Errorf("elasticache cluster must only have one construct reference")
 	}
 	var ref core.BaseConstruct

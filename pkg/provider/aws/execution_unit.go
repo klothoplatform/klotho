@@ -163,7 +163,7 @@ func (a *AWS) handleHelmChartAwsValues(chart *kubernetes.HelmChart, unit *core.E
 }
 
 func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.BaseConstructSet) (resources.LambdaFunctionConfigureParams, error) {
-	if len(refs) > 1 {
+	if len(refs) > 1 || len(refs) == 0 {
 		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("lambda must only have one construct reference")
 	}
 	var ref core.BaseConstruct
@@ -192,7 +192,7 @@ func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.Reso
 
 func (a *AWS) getEcsServiceConfiguration(result *core.ConstructGraph, refs core.BaseConstructSet) (resources.EcsServiceConfigureParams, error) {
 	serviceConfig := resources.EcsServiceConfigureParams{}
-	if len(refs) > 1 {
+	if len(refs) > 1 || len(refs) == 0 {
 		return serviceConfig, fmt.Errorf("ecs service must only have one construct reference")
 	}
 	var ref core.BaseConstruct
@@ -216,7 +216,7 @@ func (a *AWS) getEcsServiceConfiguration(result *core.ConstructGraph, refs core.
 
 func (a *AWS) getEcsTaskDefinitionConfiguration(result *core.ConstructGraph, refs core.BaseConstructSet) (resources.EcsTaskDefinitionConfigureParams, error) {
 	taskDefConfig := resources.EcsTaskDefinitionConfigureParams{}
-	if len(refs) > 1 {
+	if len(refs) > 1 || len(refs) == 0 {
 		return taskDefConfig, fmt.Errorf("ecs task definition must only have one construct reference")
 	}
 	var ref core.BaseConstruct
@@ -243,7 +243,7 @@ func (a *AWS) getEcsTaskDefinitionConfiguration(result *core.ConstructGraph, ref
 }
 
 func (a *AWS) getImageConfiguration(result *core.ConstructGraph, dag *core.ResourceGraph, refs core.BaseConstructSet) (resources.EcrImageConfigureParams, error) {
-	if len(refs) > 1 {
+	if len(refs) > 1 || len(refs) == 0 {
 		return resources.EcrImageConfigureParams{}, fmt.Errorf("image must only have one construct reference but got %d: %v", len(refs), refs)
 	}
 	var ref core.BaseConstruct
