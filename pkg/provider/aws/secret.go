@@ -37,13 +37,13 @@ func (a *AWS) getSecretVersionConfiguration(secretVersion *resources.SecretVersi
 		zap.L().Sugar().Debugf("skipping resource configuration: secret version %s has multiple refs, using unmodified config", secretVersion.Id())
 		return secretVersionConfig, nil
 	}
-	var ref core.BaseConstruct
+	var ref core.ResourceId
 	for r := range secretVersion.ConstructsRef {
 		ref = r
 	}
-	constructR := result.GetConstruct(ref.Id())
+	constructR := result.GetConstruct(ref)
 	if constructR == nil {
-		return secretVersionConfig, fmt.Errorf("construct with id %s does not exist", ref.Id())
+		return secretVersionConfig, fmt.Errorf("construct with id %s does not exist", ref)
 	}
 	switch construct := constructR.(type) {
 	case *core.Config:

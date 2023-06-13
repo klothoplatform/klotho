@@ -640,7 +640,7 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 		Refs:        role.ConstructsRef.Clone(),
 	})
 	var aRef core.BaseConstruct
-	for ref := range references {
+	for _, ref := range references {
 		aRef = ref
 		break
 	}

@@ -3,9 +3,9 @@ package constraints
 import (
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"gopkg.in/yaml.v3"
 	"k8s.io/utils/strings/slices"
@@ -20,9 +20,6 @@ type (
 		// IsSatisfied returns whether or not the constraint is satisfied based on the resource graph
 		// For a resource graph to be valid all constraints must be satisfied
 		IsSatisfied(dag *core.ResourceGraph) bool
-		// Conflict returns whether or not the constraint conflicts with another constraint
-		// If constraints conflict, then the constraints passed in are unsolveable
-		Conflict(other Constraint) bool
 		// Validate returns whether or not the constraint is valid
 		Validate() error
 	}
@@ -49,7 +46,7 @@ const (
 	ApplicationConstraintScope ConstraintScope = "application"
 	ConstructConstraintScope   ConstraintScope = "construct"
 	EdgeConstraintScope        ConstraintScope = "edge"
-	NodeConstraintScope        ConstraintScope = "node"
+	ResourceConstraintScope    ConstraintScope = "resource"
 
 	MustExistConstraintOperator      ConstraintOperator = "must_exist"
 	MustNotExistConstraintOperator   ConstraintOperator = "must_not_exist"
@@ -76,21 +73,16 @@ func DecodeYAMLNode[T interface {
 	return constraint, err
 }
 
-// ParseConstraintsFromFile is a helper function that parses a yaml file into a map of constraints
+// ParseConstraintsFromFile parses a yaml file into a map of constraints
 //
 // Future spec may include ordering of the application of constraints, but for now we assume that the order of the constraints is based on the yaml file and they cannot be grouped outside of scope
-func ParseConstraintsFromFile(path string) (map[ConstraintScope][]Constraint, error) {
+func ParseConstraintsFromFile(bytes []byte) (map[ConstraintScope][]Constraint, error) {
 	constraints := map[ConstraintScope][]Constraint{}
-	f, err := os.Open(path)
-	if err != nil {
-		return constraints, err
-	}
-	defer f.Close() // nolint:errcheck
 
 	node := &yaml.Node{}
-	err = yaml.NewDecoder(f).Decode(node)
+	err := yaml.Unmarshal(bytes, node)
 	if err != nil {
-		return constraints, err
+		return nil, err
 	}
 
 	var joinedErr error
@@ -104,25 +96,25 @@ func ParseConstraintsFromFile(path string) (map[ConstraintScope][]Constraint, er
 			}
 			switch base.Scope {
 			case ApplicationConstraintScope:
-				appConstraint, err := DecodeYAMLNode[*ApplicationConstraint](a)
+				constraint, err := DecodeYAMLNode[*ApplicationConstraint](a)
 				if err != nil {
 					joinedErr = errors.Join(joinedErr, err)
 					continue
 				}
-				validOperators := []string{string(AddConstraintOperator), string(RemoveConstraintOperator), string(ReplaceConstraintOperator)}
-				if !slices.Contains(validOperators, string(appConstraint.Operator)) {
-					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", appConstraint.Operator))
+				validOperators := []ConstraintOperator{AddConstraintOperator, RemoveConstraintOperator, ReplaceConstraintOperator}
+				if !collectionutil.Contains(validOperators, constraint.Operator) {
+					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", constraint.Operator))
 					continue
 				}
-				constraints[ApplicationConstraintScope] = append(constraints[ApplicationConstraintScope], appConstraint)
+				constraints[ApplicationConstraintScope] = append(constraints[ApplicationConstraintScope], constraint)
 			case ConstructConstraintScope:
 				constraint, err := DecodeYAMLNode[*ConstructConstraint](a)
 				if err != nil {
 					joinedErr = errors.Join(joinedErr, err)
 					continue
 				}
-				validOperators := []string{string(EqualsConstraintOperator)}
-				if !slices.Contains(validOperators, string(constraint.Operator)) {
+				validOperators := []ConstraintOperator{EqualsConstraintOperator}
+				if !collectionutil.Contains(validOperators, constraint.Operator) {
 					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", constraint.Operator))
 					continue
 				}
@@ -133,24 +125,24 @@ func ParseConstraintsFromFile(path string) (map[ConstraintScope][]Constraint, er
 					joinedErr = errors.Join(joinedErr, err)
 					continue
 				}
-				validOperators := []string{string(MustContainConstraintOperator), string(MustNotContainConstraintOperator), string(MustExistConstraintOperator), string(MustNotExistConstraintOperator)}
-				if !slices.Contains(validOperators, string(constraint.Operator)) {
+				validOperators := []ConstraintOperator{MustContainConstraintOperator, MustNotContainConstraintOperator, MustExistConstraintOperator, MustNotExistConstraintOperator}
+				if !collectionutil.Contains(validOperators, constraint.Operator) {
 					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", constraint.Operator))
 					continue
 				}
 				constraints[EdgeConstraintScope] = append(constraints[EdgeConstraintScope], constraint)
-			case NodeConstraintScope:
-				constraint, err := DecodeYAMLNode[*NodeConstraint](a)
+			case ResourceConstraintScope:
+				constraint, err := DecodeYAMLNode[*ResourceConstraint](a)
 				if err != nil {
 					joinedErr = errors.Join(joinedErr, err)
 					continue
 				}
-				validOperators := []string{string(EqualsConstraintOperator)}
-				if !slices.Contains(validOperators, string(constraint.Operator)) {
+				validOperators := []ConstraintOperator{EqualsConstraintOperator}
+				if !collectionutil.Contains(validOperators, constraint.Operator) {
 					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", constraint.Operator))
 					continue
 				}
-				constraints[NodeConstraintScope] = append(constraints[NodeConstraintScope], constraint)
+				constraints[ResourceConstraintScope] = append(constraints[ResourceConstraintScope], constraint)
 			}
 		}
 	}
@@ -160,9 +152,14 @@ func ParseConstraintsFromFile(path string) (map[ConstraintScope][]Constraint, er
 // extraFields is a helper function that checks if there are any extra fields in a yaml node that are not in the struct
 // Because you cant use the KnownFields in a nodes decode funtion we handle it ourselves
 func extraFields(n *yaml.Node, object reflect.Value) error {
-	knownFields := []string{}
+	knownFields := []string{"scope"}
 	for i := 0; i < object.Elem().NumField(); i++ {
-		knownFields = append(knownFields, object.Elem().Type().Field(i).Tag.Get("yaml"))
+		fieldName := object.Elem().Type().Field(i).Name
+		yamlTag := object.Elem().Type().Field(i).Tag.Get("yaml")
+		if yamlTag != "" {
+			fieldName = yamlTag
+		}
+		knownFields = append(knownFields, fieldName)
 	}
 
 	if n.Kind != yaml.MappingNode {
@@ -174,7 +171,7 @@ func extraFields(n *yaml.Node, object reflect.Value) error {
 	}
 
 	for k := range m {
-		if !slices.Contains(knownFields, k) && k != "scope" {
+		if !slices.Contains(knownFields, k) {
 			return fmt.Errorf("unexpected field %s", k)
 		}
 	}

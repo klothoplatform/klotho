@@ -25,11 +25,11 @@ func (a *AWS) getElasticacheConfiguration(result *core.ConstructGraph, refs core
 	if len(refs) > 1 || len(refs) == 0 {
 		return clusterConfig, fmt.Errorf("elasticache cluster must only have one construct reference")
 	}
-	var ref core.BaseConstruct
+	var ref core.ResourceId
 	for r := range refs {
 		ref = r
 	}
-	construct := result.GetConstruct(ref.Id())
+	construct := result.GetConstruct(ref)
 	if construct == nil {
 		return clusterConfig, fmt.Errorf("construct with id %s does not exist", ref)
 	}

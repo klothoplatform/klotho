@@ -134,7 +134,7 @@ func (a *AWS) copyConstructEdgeToDag(
 					if iacVal, ok := val.(core.IaCValue); ok {
 						if tg, ok := iacVal.Resource.(*resources.TargetGroup); ok {
 							for ref := range tg.ConstructsRef {
-								if ref.Id().Name == dstCons.Id().Name {
+								if ref.Name == dstCons.Id().Name {
 									destinationTG = tg
 								}
 							}
@@ -225,7 +225,7 @@ func (a *AWS) configureResources(result *core.ConstructGraph, dag *core.Resource
 func getS3BucketConfig(bucket *resources.S3Bucket, constructs *core.ConstructGraph) (resources.S3BucketConfigureParams, error) {
 	staticUnits := make(map[string]*core.StaticUnit)
 	for consRef := range bucket.ConstructsRef {
-		cons := constructs.GetConstruct(consRef.Id())
+		cons := constructs.GetConstruct(consRef)
 		if oneUnit, isUnit := cons.(*core.StaticUnit); isUnit {
 			staticUnits[oneUnit.Name] = oneUnit
 		}
