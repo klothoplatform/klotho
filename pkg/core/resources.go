@@ -166,6 +166,15 @@ func (s BaseConstructSet) Has(k ResourceId) bool {
 	return ok
 }
 
+func (s BaseConstructSet) HasId(k ResourceId) bool {
+	for c := range s {
+		if c.Id() == k {
+			return true
+		}
+	}
+	return false
+}
+
 func (s BaseConstructSet) Delete(k BaseConstruct) {
 	delete(s, k.Id())
 }

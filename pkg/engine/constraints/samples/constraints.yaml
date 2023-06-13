@@ -8,11 +8,6 @@
   operator: equals
   target: klotho:orm:my_orm
   type: rds_instance
-- scope: application
-  operator: add
-  edge: 
-    source: klotho:execution_unit:my_compute
-    target: klotho:orm:my_orm
 - scope: edge
   operator: must_contain
   target: 

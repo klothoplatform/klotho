@@ -262,7 +262,6 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
-
 			want: false,
 		},
 		{
