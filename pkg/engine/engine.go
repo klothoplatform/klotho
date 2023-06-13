@@ -8,6 +8,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
+	"go.uber.org/zap"
 )
 
 type (
@@ -83,7 +84,14 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			appliedConstraints[constraints.EdgeConstraintScope][constraint] = true
 		}
 	}
-
+	fmt.Println("initial state")
+	for _, res := range e.Context.InitialState.ListConstructs() {
+		fmt.Println(res.Id())
+	}
+	fmt.Println("working state")
+	for _, res := range e.Context.WorkingState.ListConstructs() {
+		fmt.Println(res.Id())
+	}
 	err := e.ExpandConstructsAndCopyEdges()
 	if err != nil {
 		return nil, err
@@ -109,10 +117,21 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		return e.Context.EndState, err
 	}
 
+	// for _, res := range e.Context.EndState.ListResources() {
+	// 	fmt.Println(res.Id())
+	// }
+	// for _, res := range e.Context.EndState.ListDependencies() {
+	// 	fmt.Printf(" %s -> %s\n", res.Source.Id(), res.Destination.Id())
+	// }
+
 	unsatisfiedConstraints := e.ValidateConstraints()
 
 	if len(unsatisfiedConstraints) > 0 {
-		return e.Context.EndState, fmt.Errorf("unsatisfied constraints: %v", unsatisfiedConstraints)
+		constraintsString := ""
+		for _, constraint := range unsatisfiedConstraints {
+			constraintsString += fmt.Sprintf("%s\n", constraint)
+		}
+		return e.Context.EndState, fmt.Errorf("unsatisfied constraints: %s", constraintsString)
 	}
 
 	return e.Context.EndState, nil
@@ -122,10 +141,11 @@ func (e *Engine) ExpandConstructsAndCopyEdges() error {
 	var joinedErr error
 	for _, res := range e.Context.WorkingState.ListConstructs() {
 		// If the res is a resource, copy it over directly, otherwise we need to expand it
-		if res.Id().Provider != core.AbstractConstructProvider {
+		if res.Id().Provider == core.AbstractConstructProvider {
+			zap.S().Debugf("Expanding construct %s", res.Id())
 			construct, ok := res.(core.Construct)
 			if !ok {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to cast base construct %s to construct", res.Id()))
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to cast base construct %s to construct while expanding construct", res.Id()))
 				continue
 			}
 			mappedResources, err := e.Provider.ExpandConstruct(construct, e.Context.EndState)
@@ -134,9 +154,10 @@ func (e *Engine) ExpandConstructsAndCopyEdges() error {
 			}
 			e.Context.constructToResourceMapping[res.Id()] = append(e.Context.constructToResourceMapping[res.Id()], mappedResources...)
 		} else {
+			zap.S().Debugf("Copying resource over %s", res.Id())
 			resource, ok := res.(core.Resource)
 			if !ok {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to cast base construct %s to construct", res.Id()))
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to cast base construct %s to resource while copying over resource", res.Id()))
 				continue
 			}
 			e.Context.EndState.AddResource(resource)
@@ -180,6 +201,7 @@ func (e *Engine) ExpandConstructsAndCopyEdges() error {
 
 		for _, srcNode := range srcNodes {
 			for _, dstNode := range dstNodes {
+				zap.S().Debugf("Copying dependency %s -> %s", srcNode.Id(), dstNode.Id())
 				e.Context.EndState.AddDependency(srcNode, dstNode)
 			}
 		}

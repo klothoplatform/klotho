@@ -148,14 +148,14 @@ func (c *Compiler) LoadConstructGraphFromFile(path string) error {
 
 	err = core.LoadConstructsIntoGraph(input, c.Document.Constructs)
 	if err != nil {
-		return err
+		return errors.Errorf("Error Loading graph for constructs %s", err.Error())
 	}
 
 	c.AnalysisAndTransformationPlugins = nil
 	for _, provider := range c.ProviderPlugins {
 		err := provider.LoadGraph(input, c.Document.Constructs)
 		if err != nil {
-			return err
+			return errors.Errorf("Error Loading graph for provider %s. %s", provider.Name(), err.Error())
 		}
 	}
 	return nil
@@ -180,6 +180,7 @@ func (c *Compiler) LoadConstraintsFromFile(path string) (map[constraints.Constra
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(input)
 
 	bytesArr, err := yaml.Marshal(input.Constraints)
 	if err != nil {

@@ -430,14 +430,17 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		engine := engine.NewEngine(provider, kb)
 		err = klothoCompiler.LoadConstructGraphFromFile(cfg.constructGraph)
 		if err != nil {
-			return err
+			return errors.Errorf("failed to load construct graph: %s", err.Error())
 		}
-		c, err := klothoCompiler.LoadConstraintsFromFile(cfg.outDir)
+		c, err := klothoCompiler.LoadConstraintsFromFile(cfg.constructGraph)
 		if err != nil {
-			return err
+			return errors.Errorf("failed to load constraints: %s", err.Error())
 		}
 		engine.LoadContext(klothoCompiler.Document.Constructs, c, cfg.appName)
 		dag, err := engine.Run()
+		if err != nil {
+			return errors.Errorf("failed to run engine: %s", err.Error())
+		}
 		klothoCompiler.Document.Resources = dag
 		err = klothoCompiler.Document.OutputGraph(cfg.outDir)
 		if err != nil {

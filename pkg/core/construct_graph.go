@@ -33,9 +33,16 @@ func NewConstructGraph() *ConstructGraph {
 }
 
 func (cg *ConstructGraph) Clone() *ConstructGraph {
-	return &ConstructGraph{
+	newGraph := &ConstructGraph{
 		underlying: graph.NewLike(cg.underlying),
 	}
+	for _, v := range cg.ListConstructs() {
+		newGraph.AddConstruct(v)
+	}
+	for _, dep := range cg.ListDependencies() {
+		newGraph.AddDependency(dep.Source.Id(), dep.Destination.Id())
+	}
+	return newGraph
 }
 
 func (cg *ConstructGraph) GetRoots() []BaseConstruct {

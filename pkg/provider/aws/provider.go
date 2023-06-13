@@ -64,6 +64,9 @@ func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error 
 	typeToResource["subnet_public"] = &resources.Subnet{}
 	var joinedErr error
 	for _, node := range graph.Resources {
+		if node.Provider != "aws" {
+			continue
+		}
 		res, ok := typeToResource[node.Type]
 		if !ok {
 			joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to find resource of type %s", node.Type))
@@ -118,6 +121,9 @@ func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error 
 	}
 
 	for _, edge := range graph.Edges {
+		if edge.Source.Provider != "aws" || edge.Destination.Provider != "aws" {
+			continue
+		}
 		src, found := createdResources[edge.Source]
 		if !found {
 			joinedErr = errors.Join(joinedErr, fmt.Errorf("could not find created resource for %s", edge.Source))
