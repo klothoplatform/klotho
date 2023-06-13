@@ -51,6 +51,7 @@ func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowle
 		for _, res := range mappedConstructResources[constraint.Target.Source] {
 			src = append(src, res.Id())
 		}
+		src = append(src, mappedConstructResources[constraint.Target.Source]...)
 	} else {
 		src = append(src, constraint.Target.Source)
 	}
