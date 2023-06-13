@@ -8,7 +8,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.2.0
 	github.com/coreos/go-semver v0.3.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/dominikbraun/graph v0.16.1
+	github.com/dominikbraun/graph v0.22.2
 	github.com/fatih/color v1.13.0
 	github.com/gojek/heimdall/v7 v7.0.2
 	github.com/golang-jwt/jwt/v4 v4.4.3

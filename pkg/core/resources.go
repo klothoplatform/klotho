@@ -67,6 +67,8 @@ type (
 	HasLocalOutput interface {
 		OutputTo(dest string) error
 	}
+
+	Capability string
 )
 
 const (
@@ -162,6 +164,15 @@ func (s *BaseConstructSet) Add(k BaseConstruct) {
 func (s BaseConstructSet) Has(k BaseConstruct) bool {
 	_, ok := s[k]
 	return ok
+}
+
+func (s BaseConstructSet) HasId(k ResourceId) bool {
+	for c := range s {
+		if c.Id() == k {
+			return true
+		}
+	}
+	return false
 }
 
 func (s BaseConstructSet) Delete(k BaseConstruct) {
