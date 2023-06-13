@@ -45,10 +45,10 @@ func NewEngine(provider provider.Provider, kb knowledgebase.EdgeKB) *Engine {
 	}
 }
 
-func (e *Engine) LoadContext(InitialState *core.ConstructGraph, Constraints map[constraints.ConstraintScope][]constraints.Constraint) {
+func (e *Engine) LoadContext(initialState *core.ConstructGraph, constraints map[constraints.ConstraintScope][]constraints.Constraint) {
 	e.Context = EngineContext{
-		InitialState: InitialState,
-		Constraints:  Constraints,
+		InitialState: initialState,
+		Constraints:  constraints,
 		Dag:          core.NewResourceGraph(),
 	}
 }

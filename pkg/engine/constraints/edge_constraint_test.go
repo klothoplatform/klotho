@@ -1,7 +1,6 @@
 package constraints
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -348,8 +347,7 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 					Name: "my_proxy",
 				},
 			},
-			edges: []Edge{},
-			want:  true,
+			want: true,
 		},
 		{
 			name: "must not exist not satisfied",
@@ -403,8 +401,7 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 					Name: "my_proxy",
 				},
 			},
-			edges: []Edge{},
-			want:  false,
+			want: false,
 		},
 		{
 			name: "must exist satisfied",
@@ -441,7 +438,6 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fmt.Println(tt.name)
 			assert := assert.New(t)
 			dag := core.NewResourceGraph()
 			for _, res := range tt.resources {

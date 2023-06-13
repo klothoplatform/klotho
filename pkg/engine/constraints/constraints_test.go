@@ -10,12 +10,32 @@ import (
 func Test_ParseConstraintsFromFile(t *testing.T) {
 	tests := []struct {
 		name string
-		path string
+		file []byte
 		want map[ConstraintScope][]Constraint
 	}{
 		{
 			name: "test",
-			path: "./samples/constraints.yaml",
+			file: []byte(`- scope: application
+  operator: add
+  node: klotho:execution_unit:my_compute
+- scope: application
+  operator: add
+  node: klotho:orm:my_orm
+- scope: construct
+  operator: equals
+  target: klotho:orm:my_orm
+  type: rds_instance
+- scope: edge
+  operator: must_contain
+  target: 
+    source: klotho:execution_unit:my_compute
+    target: klotho:orm:my_orm
+  node: aws:rds_proxy:my_proxy
+- scope: resource
+  operator: equals
+  target: aws:rds_instance:my_instance
+  property: db_instance_class
+  value: db.t3.micro`),
 			want: map[ConstraintScope][]Constraint{
 				ApplicationConstraintScope: {
 					&ApplicationConstraint{
@@ -44,8 +64,8 @@ func Test_ParseConstraintsFromFile(t *testing.T) {
 						Node: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 					},
 				},
-				NodeConstraintScope: {
-					&NodeConstraint{
+				ResourceConstraintScope: {
+					&ResourceConstraint{
 						Operator: EqualsConstraintOperator,
 						Target:   core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 						Property: "db_instance_class",
@@ -58,7 +78,7 @@ func Test_ParseConstraintsFromFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			result, err := ParseConstraintsFromFile(tt.path)
+			result, err := ParseConstraintsFromFile(tt.file)
 			if !assert.NoError(err) {
 				return
 			}

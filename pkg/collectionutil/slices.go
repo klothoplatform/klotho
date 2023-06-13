@@ -22,3 +22,12 @@ func FlattenUnique[E comparable](slices ...[]E) []E {
 
 	return result
 }
+
+func Contains[E comparable](slice []E, elem E) bool {
+	for _, e := range slice {
+		if e == elem {
+			return true
+		}
+	}
+	return false
+}

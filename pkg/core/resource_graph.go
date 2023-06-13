@@ -27,7 +27,7 @@ func NewResourceGraph() *ResourceGraph {
 func (rg *ResourceGraph) ShortestPath(source ResourceId, dest ResourceId) ([]Resource, error) {
 	ids, err := rg.underlying.ShortestPath(source.String(), dest.String())
 	if err != nil {
-		return []Resource{}, err
+		return nil, err
 	}
 	resources := make([]Resource, len(ids))
 	for i, id := range ids {
@@ -97,9 +97,9 @@ func GetResource[T Resource](g *ResourceGraph, id ResourceId) (resource T, ok bo
 }
 
 func (rg *ResourceGraph) FindResourcesWithRef(id ResourceId) []Resource {
-	result := []Resource{}
+	var result []Resource
 	for _, resource := range rg.ListResources() {
-		if resource.BaseConstructsRef().HasId(id) {
+		if resource.BaseConstructsRef().Has(id) {
 			result = append(result, resource)
 		}
 	}

@@ -8,6 +8,20 @@ import (
 
 type (
 	// EdgeConstraint is a struct that represents constraints that can be applied on a specific edge in the resource graph
+	//
+	// Example
+	//
+	// To specify a constraint showing an edge must contain an intermediate node in its path, use the yaml below.
+	//
+	//- scope: edge
+	//  operator: must_contain
+	//  target:
+	//    source: klotho:execution_unit:my_compute
+	//    target: klotho:orm:my_orm
+	//  node: aws:rds_proxy:my_proxy
+	//
+	// The end result of this should be a path of klotho:execution_unit:my_compute -> aws:rds_proxy:my_proxy -> klotho:orm:my_orm with N intermediate nodes to satisfy the path's expansion
+
 	EdgeConstraint struct {
 		Operator ConstraintOperator `yaml:"operator"`
 		Target   Edge               `yaml:"target"`
@@ -15,11 +29,11 @@ type (
 	}
 )
 
-func (b *EdgeConstraint) Scope() ConstraintScope {
+func (constraint *EdgeConstraint) Scope() ConstraintScope {
 	return EdgeConstraintScope
 }
 
-func (b *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph) bool {
+func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph) bool {
 
 	var src []core.ResourceId
 	var dst []core.ResourceId
@@ -28,26 +42,29 @@ func (b *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph) bool {
 	// This relies on resources only referencing an abstract provider if they are the direct child of the abstract construct
 	// example
 	// when we expand execution unit, the lambda would reference the execution unit as a construct, but the role and other resources would reference the lambda
-	if b.Target.Source.Provider == core.AbstractConstructProvider {
-		for _, res := range dag.FindResourcesWithRef(b.Target.Source) {
+	if constraint.Target.Source.Provider == core.AbstractConstructProvider {
+		for _, res := range dag.FindResourcesWithRef(constraint.Target.Source) {
 			src = append(src, res.Id())
 		}
 	} else {
-		src = append(src, b.Target.Source)
+		src = append(src, constraint.Target.Source)
 	}
 
-	if b.Target.Target.Provider == core.AbstractConstructProvider {
-		for _, res := range dag.FindResourcesWithRef(b.Target.Target) {
+	if constraint.Target.Target.Provider == core.AbstractConstructProvider {
+		for _, res := range dag.FindResourcesWithRef(constraint.Target.Target) {
 			dst = append(dst, res.Id())
 		}
 	} else {
-		dst = append(dst, b.Target.Target)
+		dst = append(dst, constraint.Target.Target)
 	}
 
 	for _, s := range src {
 		for _, d := range dst {
-			path, _ := dag.ShortestPath(s, d)
-			if !b.checkSatisfication(path) {
+			path, err := dag.ShortestPath(s, d)
+			if err != nil {
+				return false
+			}
+			if !constraint.checkSatisfication(path) {
 				return false
 			}
 		}
@@ -55,19 +72,19 @@ func (b *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph) bool {
 	return true
 }
 
-func (b *EdgeConstraint) checkSatisfication(path []core.Resource) bool {
-	// Currently we only support MustContain & MustNotContainConstraintOperator searching for if the node exists in the shortest path
-	// We will likely want to search all paths to see if ANY contain the node. There's an open issue for this https://github.com/dominikbraun/graph/issues/82
-	switch b.Operator {
+func (constraint *EdgeConstraint) checkSatisfication(path []core.Resource) bool {
+	// Currently we only support searching for if the node exists in the shortest path
+	// We will likely want to search all paths to see if ANY contain the node. There's an open issue for this https://githuconstraint.com/dominikbraun/graph/issues/82
+	switch constraint.Operator {
 	case MustContainConstraintOperator:
 		for _, res := range path {
-			if res.Id() == b.Node {
+			if res.Id() == constraint.Node {
 				return true
 			}
 		}
 	case MustNotContainConstraintOperator:
 		for _, res := range path {
-			if res.Id() == b.Node {
+			if res.Id() == constraint.Node {
 				return false
 			}
 		}
@@ -80,18 +97,14 @@ func (b *EdgeConstraint) checkSatisfication(path []core.Resource) bool {
 	return false
 }
 
-func (b *EdgeConstraint) Conflict(other Constraint) bool {
-	return false
-}
-
-func (b *EdgeConstraint) Validate() error {
-	if b.Target.Source == b.Target.Target {
+func (constraint *EdgeConstraint) Validate() error {
+	if constraint.Target.Source == constraint.Target.Target {
 		return fmt.Errorf("edge constraint must not have a source and target be the same node")
 	}
-	if (b.Target.Source == core.ResourceId{} || b.Target.Target == core.ResourceId{}) {
+	if (constraint.Target.Source == core.ResourceId{} || constraint.Target.Target == core.ResourceId{}) {
 		return fmt.Errorf("edge constraint must have a source and target defined")
 	}
-	if (b.Node == core.ResourceId{}) {
+	if (constraint.Node == core.ResourceId{}) {
 		return fmt.Errorf("edge constraint must have a node defined")
 	}
 	return nil

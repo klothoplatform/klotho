@@ -11,13 +11,13 @@ import (
 func Test_NodeConstraint_IsSatisfied(t *testing.T) {
 	tests := []struct {
 		name       string
-		constraint NodeConstraint
+		constraint ResourceConstraint
 		resources  []core.Resource
 		want       bool
 	}{
 		{
 			name: "property value is correct",
-			constraint: NodeConstraint{
+			constraint: ResourceConstraint{
 				Operator: EqualsConstraintOperator,
 				Target:   core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				Property: "InstanceClass",
@@ -33,7 +33,7 @@ func Test_NodeConstraint_IsSatisfied(t *testing.T) {
 		},
 		{
 			name: "property value is incorrect",
-			constraint: NodeConstraint{
+			constraint: ResourceConstraint{
 				Operator: EqualsConstraintOperator,
 				Target:   core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				Property: "InstanceClass",
@@ -49,7 +49,7 @@ func Test_NodeConstraint_IsSatisfied(t *testing.T) {
 		},
 		{
 			name: "property value is nil",
-			constraint: NodeConstraint{
+			constraint: ResourceConstraint{
 				Operator: EqualsConstraintOperator,
 				Target:   core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				Property: "InstanceClass",
@@ -64,7 +64,7 @@ func Test_NodeConstraint_IsSatisfied(t *testing.T) {
 		},
 		{
 			name: "resource does not exist",
-			constraint: NodeConstraint{
+			constraint: ResourceConstraint{
 				Operator: EqualsConstraintOperator,
 				Target:   core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				Property: "InstanceClass",

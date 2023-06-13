@@ -62,7 +62,13 @@ func (d *Directed[V]) VertexIdsInTopologicalOrder() ([]string, error) {
 }
 
 func (d *Directed[V]) ShortestPath(source, target string) ([]string, error) {
-	return graph.ShortestPath(d.underlying, source, target)
+	path, err := graph.ShortestPath(d.underlying, source, target)
+	if err != nil && errors.Is(err, graph.ErrTargetNotReachable) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return path, nil
 }
 
 func (d *Directed[V]) OutgoingEdges(from V) []Edge[V] {
@@ -85,7 +91,7 @@ func (d *Directed[V]) IncomingEdges(to V) []Edge[V] {
 
 func (d *Directed[V]) RemoveVertex(v string) error {
 	err := d.underlying.RemoveVertex(v)
-	if err != nil && !errors.Is(err, graph.ErrVertexHasEdges) {
+	if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
 		zap.S().With(zap.Error(err)).Errorf(`Unexpected error while adding %s. %s`, v, ourFault)
 		return err
 	} else if errors.Is(err, graph.ErrVertexNotFound) {

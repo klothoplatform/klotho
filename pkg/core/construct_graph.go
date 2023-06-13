@@ -86,7 +86,7 @@ func (cg *ConstructGraph) GetUpstreamConstructs(source BaseConstruct) []BaseCons
 func (cg *ConstructGraph) ShortestPath(source ResourceId, dest ResourceId) ([]BaseConstruct, error) {
 	ids, err := cg.underlying.ShortestPath(source.String(), dest.String())
 	if err != nil {
-		return []BaseConstruct{}, err
+		return nil, err
 	}
 	resources := make([]BaseConstruct, len(ids))
 	for i, id := range ids {
