@@ -4,8 +4,8 @@ import * as pulumi from "@pulumi/pulumi";
 interface Args {
     Name: string
     AvailabilityZones: pulumi.Output<pulumi.UnwrappedObject<aws.GetAvailabilityZonesArgs>>
-    MasterPassword: string
     MasterUsername: string
+    MasterPassword: string
 }
 
 // noinspection JSUnusedLocalSymbols

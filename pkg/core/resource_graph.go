@@ -31,6 +31,16 @@ func (rg *ResourceGraph) AddResource(resource Resource) {
 	}
 }
 
+func ListResources[R Resource](rg *ResourceGraph) []R {
+	var result []R
+	for _, v := range rg.underlying.GetAllVertices() {
+		if vc, ok := v.(R); ok {
+			result = append(result, vc)
+		}
+	}
+	return result
+}
+
 // Adds a dependency such that `deployedSecond` has to be deployed after `deployedFirst`. This makes the left-to-right
 // association consistent with our visualizer, and with the Go struct graph.
 //

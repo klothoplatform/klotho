@@ -12,6 +12,10 @@ var CloudfrontDistributionSanitizer = sanitization.NewSanitizer(
 		// strip any leading non alpha characters
 		{
 			Pattern:     regexp.MustCompile(`[^a-zA-Z0-9_-]+`),
-			Replacement: "-",
+			Replacement: "Klo$1",
+		},
+		{
+			Pattern:     regexp.MustCompile(`-?-$`),
+			Replacement: "",
 		},
 	}, 64)
