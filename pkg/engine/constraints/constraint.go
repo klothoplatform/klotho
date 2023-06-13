@@ -20,13 +20,11 @@ type (
 		// IsSatisfied returns whether or not the constraint is satisfied based on the resource graph
 		// For a resource graph to be valid all constraints must be satisfied
 		IsSatisfied(dag *core.ResourceGraph) bool
-		// Apply applies the constraint to the resource graph
-		// Apply is only called if the constraint is not satisfied
-		// Apply should return an error if the constraint cannot be applied
-		Apply(dag *core.ResourceGraph) error
 		// Conflict returns whether or not the constraint conflicts with another constraint
 		// If constraints conflict, then the constraints passed in are unsolveable
 		Conflict(other Constraint) bool
+		// Validate returns whether or not the constraint is valid
+		Validate() error
 	}
 
 	// BaseConstraint is the base struct for all constraints
@@ -54,8 +52,8 @@ const (
 	NodeConstraintScope        ConstraintScope = "node"
 
 	MustExistConstraintOperator      ConstraintOperator = "must_exist"
-	MustContainConstraintOperator    ConstraintOperator = "must_contain"
 	MustNotExistConstraintOperator   ConstraintOperator = "must_not_exist"
+	MustContainConstraintOperator    ConstraintOperator = "must_contain"
 	MustNotContainConstraintOperator ConstraintOperator = "must_not_contain"
 	AddConstraintOperator            ConstraintOperator = "add"
 	RemoveConstraintOperator         ConstraintOperator = "remove"
@@ -123,7 +121,7 @@ func ParseConstraintsFromFile(path string) (map[ConstraintScope][]Constraint, er
 					joinedErr = errors.Join(joinedErr, err)
 					continue
 				}
-				validOperators := []string{string(EqualsConstraintOperator), string(MustContainConstraintOperator), string(MustNotContainConstraintOperator)}
+				validOperators := []string{string(EqualsConstraintOperator)}
 				if !slices.Contains(validOperators, string(constraint.Operator)) {
 					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", constraint.Operator))
 					continue
@@ -135,7 +133,7 @@ func ParseConstraintsFromFile(path string) (map[ConstraintScope][]Constraint, er
 					joinedErr = errors.Join(joinedErr, err)
 					continue
 				}
-				validOperators := []string{string(MustContainConstraintOperator), string(MustNotContainConstraintOperator)}
+				validOperators := []string{string(MustContainConstraintOperator), string(MustNotContainConstraintOperator), string(MustExistConstraintOperator), string(MustNotExistConstraintOperator)}
 				if !slices.Contains(validOperators, string(constraint.Operator)) {
 					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", constraint.Operator))
 					continue

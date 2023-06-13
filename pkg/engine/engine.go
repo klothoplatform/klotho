@@ -10,9 +10,12 @@ import (
 type (
 	// Engine is a struct that represents the object which processes the resource graph and applies constraints
 	Engine struct {
-		Provider      provider.Provider
+		// The provider that the engine is running against
+		Provider provider.Provider
+		// The knowledge base that the engine is running against
 		KnowledgeBase knowledgebase.EdgeKB
-		Context       EngineContext
+		// The context of the engine
+		Context EngineContext
 	}
 
 	// EngineContext is a struct that represents the context of the engine

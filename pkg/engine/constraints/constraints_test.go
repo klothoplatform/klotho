@@ -26,13 +26,6 @@ func Test_ParseConstraintsFromFile(t *testing.T) {
 						Operator: AddConstraintOperator,
 						Node:     core.ResourceId{Provider: core.AbstractConstructProvider, Type: "orm", Name: "my_orm"},
 					},
-					&ApplicationConstraint{
-						Operator: AddConstraintOperator,
-						Edge: Edge{
-							Source: core.ResourceId{Provider: core.AbstractConstructProvider, Type: "execution_unit", Name: "my_compute"},
-							Target: core.ResourceId{Provider: core.AbstractConstructProvider, Type: "orm", Name: "my_orm"},
-						},
-					},
 				},
 				ConstructConstraintScope: {
 					&ConstructConstraint{

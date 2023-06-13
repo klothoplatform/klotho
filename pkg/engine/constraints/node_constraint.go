@@ -1,6 +1,11 @@
 package constraints
 
-import "github.com/klothoplatform/klotho/pkg/core"
+import (
+	"errors"
+	"reflect"
+
+	"github.com/klothoplatform/klotho/pkg/core"
+)
 
 type (
 	// NodeConstraint is a struct that represents constraints that can be applied on a specific node in the resource graph.
@@ -18,13 +23,28 @@ func (b *NodeConstraint) Scope() ConstraintScope {
 }
 
 func (b *NodeConstraint) IsSatisfied(dag *core.ResourceGraph) bool {
+	switch b.Operator {
+	case EqualsConstraintOperator:
+		res := dag.GetResource(b.Target)
+		if res == nil {
+			return false
+		}
+		val := reflect.ValueOf(res).Elem().FieldByName(b.Property)
+		return val.Interface() == b.Value
+	}
 	return false
-}
-
-func (b *NodeConstraint) Apply(dag *core.ResourceGraph) error {
-	return nil
 }
 
 func (b *NodeConstraint) Conflict(other Constraint) bool {
 	return false
+}
+
+func (b *NodeConstraint) Validate() error {
+	if b.Target.Provider == core.AbstractConstructProvider {
+		return errors.New("node constraint cannot be applied to an abstract construct")
+	}
+	if b.Property == "" || reflect.ValueOf(b.Value).IsZero() {
+		return errors.New("node constraint must have a property and value defined")
+	}
+	return nil
 }
