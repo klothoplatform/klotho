@@ -303,7 +303,6 @@ func (e *Engine) ApplyEdgeConstraint(constraint *constraints.EdgeConstraint) err
 	switch constraint.Operator {
 	case constraints.MustExistConstraintOperator:
 		e.Context.WorkingState.AddDependency(constraint.Target.Source, constraint.Target.Target)
-
 	case constraints.MustNotExistConstraintOperator:
 		if constraint.Target.Source.Provider == core.AbstractConstructProvider && constraint.Target.Target.Provider == core.AbstractConstructProvider {
 			decision.Edges = []constraints.Edge{constraint.Target}
