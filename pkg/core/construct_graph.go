@@ -150,23 +150,10 @@ func LoadConstructsIntoGraph(input OutputGraph, graph *ConstructGraph) error {
 	}
 
 	for _, edge := range input.Edges {
-		shouldAdd := true
-		src, err := getConstructFromInputId(edge.Source)
-		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
-			shouldAdd = false
-		}
-		dst, err := getConstructFromInputId(edge.Destination)
-		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
-			shouldAdd = false
-		}
-		if shouldAdd {
-			graph.AddDependency(src.Id(), dst.Id())
-		}
+		graph.AddDependency(edge.Source, edge.Destination)
 	}
 
-	return nil
+	return joinedErr
 }
 
 func getConstructFromInputId(res ResourceId) (Construct, error) {
