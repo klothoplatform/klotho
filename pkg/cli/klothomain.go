@@ -23,8 +23,10 @@ import (
 	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/input"
 	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/klothoplatform/klotho/pkg/provider/providers"
 	"github.com/klothoplatform/klotho/pkg/updater"
 )
 
@@ -417,10 +419,31 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	if cfg.constructGraph != "" {
+		provider, err := providers.GetProvider(&appCfg)
+		if err != nil {
+			return err
+		}
+		kb, err := providers.GetKnowledgeBase(&appCfg)
+		if err != nil {
+			return err
+		}
+		engine := engine.NewEngine(provider, kb)
 		err = klothoCompiler.LoadConstructGraphFromFile(cfg.constructGraph)
 		if err != nil {
 			return err
 		}
+		c, err := klothoCompiler.LoadConstraintsFromFile(cfg.outDir)
+		if err != nil {
+			return err
+		}
+		engine.LoadContext(klothoCompiler.Document.Constructs, c, cfg.appName)
+		dag, err := engine.Run()
+		klothoCompiler.Document.Resources = dag
+		err = klothoCompiler.Document.OutputGraph(cfg.outDir)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 
 	analyticsClient.Info(klothoName + " compiling")

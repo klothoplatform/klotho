@@ -76,6 +76,11 @@ func NewEdge[Src core.Resource, Dest core.Resource]() Edge {
 	return Edge{Source: reflect.TypeOf(src), Destination: reflect.TypeOf(dest)}
 }
 
+// GetEdge takes in a source and target to retrieve the edge details for the given key. Will return nil if no edge exists for the given source and target
+func (kb EdgeKB) GetEdge(source core.Resource, target core.Resource) (EdgeDetails, bool) {
+	return kb.GetEdgeDetails(reflect.TypeOf(source), reflect.TypeOf(target))
+}
+
 // GetEdgeDetails takes in a source and target to retrieve the edge details for the given key. Will return nil if no edge exists for the given source and target
 func (kb EdgeKB) GetEdgeDetails(source reflect.Type, target reflect.Type) (EdgeDetails, bool) {
 	detail, found := kb[Edge{Source: source, Destination: target}]

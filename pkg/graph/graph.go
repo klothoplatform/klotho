@@ -32,6 +32,13 @@ func NewDirected[V any](hasher func(V) string) *Directed[V] {
 	}
 }
 
+func NewLike[V any](other *Directed[V]) *Directed[V] {
+	return &Directed[V]{
+		underlying: graph.NewLike(other.underlying),
+		hasher:     other.hasher,
+	}
+}
+
 func (d *Directed[V]) Roots() []V {
 	// Note: this is inefficient. The graph library we use doesn't let us get just the roots, so we pull in
 	// the full predecessor map, get all the ids with no outgoing edges, and then look up the vertex for each one

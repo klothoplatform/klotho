@@ -19,7 +19,7 @@ type (
 		Scope() ConstraintScope
 		// IsSatisfied returns whether or not the constraint is satisfied based on the resource graph
 		// For a resource graph to be valid all constraints must be satisfied
-		IsSatisfied(dag *core.ResourceGraph, mappedConstructResources map[core.ResourceId][]core.ResourceId) bool
+		IsSatisfied(dag *core.ResourceGraph, mappedConstructResources map[core.ResourceId][]core.Resource) bool
 		// Validate returns whether or not the constraint is valid
 		Validate() error
 	}
@@ -64,7 +64,6 @@ func DecodeYAMLNode[T interface {
 	*I
 }, I any](node *yaml.Node) (constraint T, err error) {
 	constraint = new(I)
-	// constraint = reflect.New(reflect.TypeOf(constraint).Elem()).Interface().(T)
 	err = extraFields(node, reflect.ValueOf(constraint))
 	if err != nil {
 		return constraint, err

@@ -32,6 +32,12 @@ func NewConstructGraph() *ConstructGraph {
 	}
 }
 
+func (cg *ConstructGraph) Clone() *ConstructGraph {
+	return &ConstructGraph{
+		underlying: graph.NewLike(cg.underlying),
+	}
+}
+
 func (cg *ConstructGraph) GetRoots() []BaseConstruct {
 	return cg.underlying.Roots()
 }
@@ -45,8 +51,54 @@ func (cg *ConstructGraph) AddConstruct(construct BaseConstruct) {
 	cg.underlying.AddVertex(construct)
 }
 
+func (cg *ConstructGraph) RemoveConstructAndEdges(construct BaseConstruct) error {
+	// Since its a construct we just assume every single edge can be removed
+	for _, edge := range cg.GetDownstreamDependencies(construct) {
+		err := cg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		if err != nil {
+			return err
+		}
+	}
+	for _, edge := range cg.GetUpstreamDependencies(construct) {
+		err := cg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		if err != nil {
+			return err
+		}
+	}
+	return cg.RemoveConstruct(construct)
+}
+
+func (cg *ConstructGraph) ReplaceConstruct(construct BaseConstruct, new BaseConstruct) error {
+	cg.AddConstruct(new)
+	// Since its a construct we just assume every single edge can be removed
+	for _, edge := range cg.GetDownstreamDependencies(construct) {
+		cg.AddDependency(new.Id(), edge.Destination.Id())
+		err := cg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		if err != nil {
+			return err
+		}
+	}
+	for _, edge := range cg.GetUpstreamDependencies(construct) {
+		cg.AddDependency(edge.Source.Id(), new.Id())
+		err := cg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		if err != nil {
+			return err
+		}
+	}
+	return cg.RemoveConstruct(construct)
+}
+
+func (cg *ConstructGraph) RemoveConstruct(construct BaseConstruct) error {
+	zap.S().Infof("Removing resource %s", construct.Id())
+	return cg.underlying.RemoveVertex(construct.Id().String())
+}
+
 func (cg *ConstructGraph) AddDependency(source ResourceId, dest ResourceId) {
 	cg.underlying.AddEdge(source.String(), dest.String(), nil)
+}
+
+func (cg *ConstructGraph) RemoveDependency(source ResourceId, dest ResourceId) error {
+	return cg.underlying.RemoveEdge(source.String(), dest.String())
 }
 
 func (cg *ConstructGraph) GetConstruct(key ResourceId) BaseConstruct {
@@ -65,6 +117,10 @@ func ListConstructs[C BaseConstruct](cg *ConstructGraph) []C {
 
 func (cg *ConstructGraph) ListDependencies() []graph.Edge[BaseConstruct] {
 	return cg.underlying.GetAllEdges()
+}
+
+func (cg *ConstructGraph) ListConstructs() []BaseConstruct {
+	return cg.underlying.GetAllVertices()
 }
 
 func (cg *ConstructGraph) GetDownstreamDependencies(source BaseConstruct) []graph.Edge[BaseConstruct] {
@@ -153,7 +209,7 @@ func LoadConstructsIntoGraph(input OutputGraph, graph *ConstructGraph) error {
 
 	var joinedErr error
 	for _, res := range input.Resources {
-		construct, err := getConstructFromInputId(res)
+		construct, err := GetConstructFromInputId(res)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
 			continue
@@ -168,7 +224,7 @@ func LoadConstructsIntoGraph(input OutputGraph, graph *ConstructGraph) error {
 	return joinedErr
 }
 
-func getConstructFromInputId(res ResourceId) (Construct, error) {
+func GetConstructFromInputId(res ResourceId) (Construct, error) {
 	typeToResource := make(map[string]Construct)
 	for _, construct := range ListAllConstructs() {
 		typeToResource[construct.Id().Type] = construct

@@ -81,7 +81,7 @@ func Test_ConstructConstraint_IsSatisfied(t *testing.T) {
 			for _, res := range tt.resources {
 				dag.AddResource(res)
 			}
-			result := tt.constraint.IsSatisfied(dag, make(map[core.ResourceId][]core.ResourceId))
+			result := tt.constraint.IsSatisfied(dag, make(map[core.ResourceId][]core.Resource))
 			assert.Equal(tt.want, result)
 		})
 	}

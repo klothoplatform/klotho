@@ -33,7 +33,7 @@ func (constraint *EdgeConstraint) Scope() ConstraintScope {
 	return EdgeConstraintScope
 }
 
-func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, mappedConstructResources map[core.ResourceId][]core.ResourceId) bool {
+func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, mappedConstructResources map[core.ResourceId][]core.Resource) bool {
 
 	var src []core.ResourceId
 	var dst []core.ResourceId
@@ -46,15 +46,19 @@ func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, mappedCon
 		if len(mappedConstructResources[constraint.Target.Source]) == 0 {
 			return false
 		}
-		src = append(src, mappedConstructResources[constraint.Target.Source]...)
+		for _, res := range mappedConstructResources[constraint.Target.Source] {
+			src = append(src, res.Id())
+		}
 	} else {
 		src = append(src, constraint.Target.Source)
 	}
 
 	if constraint.Target.Target.Provider == core.AbstractConstructProvider {
-		dst = append(dst, mappedConstructResources[constraint.Target.Target]...)
 		if len(mappedConstructResources[constraint.Target.Target]) == 0 {
 			return false
+		}
+		for _, res := range mappedConstructResources[constraint.Target.Target] {
+			dst = append(dst, res.Id())
 		}
 	} else {
 		dst = append(dst, constraint.Target.Target)

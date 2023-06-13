@@ -33,6 +33,8 @@ type (
 		GetKindTypeMappings(construct core.Construct) []string
 		GetDefaultConfig() config.Defaults
 		compiler.ValidatingPlugin
+		CreateResourceFromId(id core.ResourceId, dag *core.ResourceGraph) (core.Resource, error)
+		ExpandConstruct(construct core.Construct, dag *core.ResourceGraph) (directlyMappedResources []core.Resource, err error)
 	}
 
 	TemplateConfig struct {
