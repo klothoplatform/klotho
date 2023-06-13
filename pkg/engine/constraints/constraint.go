@@ -19,7 +19,7 @@ type (
 		Scope() ConstraintScope
 		// IsSatisfied returns whether or not the constraint is satisfied based on the resource graph
 		// For a resource graph to be valid all constraints must be satisfied
-		IsSatisfied(dag *core.ResourceGraph) bool
+		IsSatisfied(dag *core.ResourceGraph, mappedConstructResources map[core.ResourceId][]core.ResourceId) bool
 		// Validate returns whether or not the constraint is valid
 		Validate() error
 	}

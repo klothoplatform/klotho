@@ -33,7 +33,7 @@ func (constraint *EdgeConstraint) Scope() ConstraintScope {
 	return EdgeConstraintScope
 }
 
-func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph) bool {
+func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, mappedConstructResources map[core.ResourceId][]core.ResourceId) bool {
 
 	var src []core.ResourceId
 	var dst []core.ResourceId
@@ -43,16 +43,18 @@ func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph) bool {
 	// example
 	// when we expand execution unit, the lambda would reference the execution unit as a construct, but the role and other resources would reference the lambda
 	if constraint.Target.Source.Provider == core.AbstractConstructProvider {
-		for _, res := range dag.FindResourcesWithRef(constraint.Target.Source) {
-			src = append(src, res.Id())
+		if len(mappedConstructResources[constraint.Target.Source]) == 0 {
+			return false
 		}
+		src = append(src, mappedConstructResources[constraint.Target.Source]...)
 	} else {
 		src = append(src, constraint.Target.Source)
 	}
 
 	if constraint.Target.Target.Provider == core.AbstractConstructProvider {
-		for _, res := range dag.FindResourcesWithRef(constraint.Target.Target) {
-			dst = append(dst, res.Id())
+		dst = append(dst, mappedConstructResources[constraint.Target.Target]...)
+		if len(mappedConstructResources[constraint.Target.Target]) == 0 {
+			return false
 		}
 	} else {
 		dst = append(dst, constraint.Target.Target)

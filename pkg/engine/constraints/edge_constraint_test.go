@@ -10,11 +10,12 @@ import (
 
 func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 	tests := []struct {
-		name       string
-		constraint EdgeConstraint
-		resources  []core.Resource
-		edges      []Edge
-		want       bool
+		name            string
+		constraint      EdgeConstraint
+		resources       []core.Resource
+		edges           []Edge
+		mappedResources map[core.ResourceId][]core.ResourceId
+		want            bool
 	}{
 		{
 			name: "must contain is satisfied - resource to resource",
@@ -64,8 +65,7 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 					Name: "my_instance",
 				},
 				&resources.LambdaFunction{
-					Name:          "my_function",
-					ConstructsRef: core.BaseConstructSetOf(&core.ExecutionUnit{Name: "my_function"}),
+					Name: "my_function",
 				},
 				&resources.RdsProxy{
 					Name: "my_proxy",
@@ -79,6 +79,11 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 				{
 					Source: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+				},
+			},
+			mappedResources: map[core.ResourceId][]core.ResourceId{
+				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
+					core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
 				},
 			},
 			want: true,
@@ -116,6 +121,14 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
+			mappedResources: map[core.ResourceId][]core.ResourceId{
+				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
+					core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+				},
+				{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"}: {
+					core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+				},
+			},
 			want: true,
 		},
 		{
@@ -130,20 +143,16 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			},
 			resources: []core.Resource{
 				&resources.RdsInstance{
-					Name:          "my_instance",
-					ConstructsRef: core.BaseConstructSetOf(&core.Orm{Name: "my_instance"}),
+					Name: "my_instance",
 				},
 				&resources.LambdaFunction{
-					Name:          "my_function",
-					ConstructsRef: core.BaseConstructSetOf(&core.ExecutionUnit{Name: "my_function"}),
+					Name: "my_function",
 				},
 				&resources.RdsInstance{
-					Name:          "my_instance2",
-					ConstructsRef: core.BaseConstructSetOf(&core.Orm{Name: "my_instance"}),
+					Name: "my_instance2",
 				},
 				&resources.LambdaFunction{
-					Name:          "my_function2",
-					ConstructsRef: core.BaseConstructSetOf(&core.ExecutionUnit{Name: "my_function"}),
+					Name: "my_function2",
 				},
 				&resources.RdsProxy{
 					Name: "my_proxy",
@@ -165,6 +174,20 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 				{
 					Source: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance2"},
+				},
+			},
+			mappedResources: map[core.ResourceId][]core.ResourceId{
+				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
+					core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+				},
+				{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"}: {
+					core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+				},
+				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
+					core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function2"},
+				},
+				{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"}: {
+					core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance2"},
 				},
 			},
 			want: true,
@@ -239,6 +262,7 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
+
 			want: false,
 		},
 		{
@@ -446,7 +470,7 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			for _, edge := range tt.edges {
 				dag.AddDependencyById(edge.Source, edge.Target, nil)
 			}
-			result := tt.constraint.IsSatisfied(dag)
+			result := tt.constraint.IsSatisfied(dag, tt.mappedResources)
 			assert.Equal(tt.want, result)
 		})
 	}

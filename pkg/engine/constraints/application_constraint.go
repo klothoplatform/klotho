@@ -29,7 +29,7 @@ func (constraint *ApplicationConstraint) Scope() ConstraintScope {
 	return ApplicationConstraintScope
 }
 
-func (constraint *ApplicationConstraint) IsSatisfied(dag *core.ResourceGraph) bool {
+func (constraint *ApplicationConstraint) IsSatisfied(dag *core.ResourceGraph, mappedConstructResources map[core.ResourceId][]core.ResourceId) bool {
 	switch constraint.Operator {
 	case AddConstraintOperator:
 		// If the add was for a construct, we need to check if any resource references the construct
