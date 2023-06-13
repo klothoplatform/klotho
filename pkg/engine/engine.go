@@ -99,7 +99,14 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			appliedConstraints[constraints.EdgeConstraintScope][constraint] = true
 		}
 	}
-
+	fmt.Println("initial state")
+	for _, res := range e.Context.InitialState.ListConstructs() {
+		fmt.Println(res.Id())
+	}
+	fmt.Println("working state")
+	for _, res := range e.Context.WorkingState.ListConstructs() {
+		fmt.Println(res.Id())
+	}
 	err := e.ExpandConstructsAndCopyEdges()
 	if err != nil {
 		return nil, err
@@ -133,6 +140,13 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 	if err != nil {
 		return e.Context.EndState, err
 	}
+
+	// for _, res := range e.Context.EndState.ListResources() {
+	// 	fmt.Println(res.Id())
+	// }
+	// for _, res := range e.Context.EndState.ListDependencies() {
+	// 	fmt.Printf(" %s -> %s\n", res.Source.Id(), res.Destination.Id())
+	// }
 
 	unsatisfiedConstraints := e.ValidateConstraints()
 

@@ -180,6 +180,7 @@ func (c *Compiler) LoadConstraintsFromFile(path string) (map[constraints.Constra
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(input)
 
 	bytesArr, err := yaml.Marshal(input.Constraints)
 	if err != nil {
