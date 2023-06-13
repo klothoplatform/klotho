@@ -21,10 +21,11 @@ type (
 	// EngineContext is a struct that represents the context of the engine
 	// The context is used to store the state of the engine
 	EngineContext struct {
-		Constraints  map[constraints.ConstraintScope][]constraints.Constraint
-		InitialState *core.ConstructGraph
-		Dag          *core.ResourceGraph
-		Decisions    []Decision
+		Constraints                map[constraints.ConstraintScope][]constraints.Constraint
+		InitialState               *core.ConstructGraph
+		Dag                        *core.ResourceGraph
+		Decisions                  []Decision
+		constructToResourceMapping map[core.ResourceId][]core.ResourceId
 	}
 
 	// Decision is a struct that represents a decision made by the engine
