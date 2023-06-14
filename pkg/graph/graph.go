@@ -148,8 +148,7 @@ func (d *Directed[V]) AddEdge(source string, dest string, data any) {
 		} else {
 			fmt.Println("adding the replacement edge")
 			fmt.Println(data)
-			// fmt.Println(graph.EdgeData(data))
-			d.AddEdge(source, dest, graph.EdgeData(data))
+			d.AddEdge(source, dest, data)
 		}
 	}
 }

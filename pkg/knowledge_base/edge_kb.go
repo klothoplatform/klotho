@@ -194,6 +194,7 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph, appName string) (err error
 		// We want to retrieve the edge data from the edge in the resource graph to use during expansion
 		edgeData := EdgeData{}
 		data, ok := dep.Properties.Data.(EdgeData)
+		fmt.Println(ok)
 		fmt.Println(data)
 		if !ok && dep.Properties.Data != nil {
 			merr.Append(fmt.Errorf("edge properties for edge %s -> %s, do not satisfy edge data format during expansion", dep.Source.Id(), dep.Destination.Id()))
