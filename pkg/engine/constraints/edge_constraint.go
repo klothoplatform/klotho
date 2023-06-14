@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
 
 type (
@@ -33,7 +35,7 @@ func (constraint *EdgeConstraint) Scope() ConstraintScope {
 	return EdgeConstraintScope
 }
 
-func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, mappedConstructResources map[core.ResourceId][]core.Resource) bool {
+func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource) bool {
 
 	var src []core.ResourceId
 	var dst []core.ResourceId
@@ -67,15 +69,39 @@ func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, mappedCon
 	for _, s := range src {
 		for _, d := range dst {
 			path, err := dag.ShortestPath(s, d)
-			fmt.Println(s)
-
-			fmt.Println(d)
-			fmt.Println(path)
 			if err != nil {
 				return false
 			}
-			if !constraint.checkSatisfication(path) {
+			// If theres no path in the dag we need to determine if there is a path due to inverted edges in the kb being used by the engine
+			if len(path) == 0 {
+				srcRes := dag.GetResource(s)
+				if srcRes == nil {
+					return false
+				}
+				dstRes := dag.GetResource(d)
+				if dstRes == nil {
+					return false
+				}
+				paths := kb.FindPathsInGraph(srcRes, dstRes, dag)
+				if len(paths) == 0 {
+					paths = append(paths, []graph.Edge[core.Resource]{})
+				}
+
+				for _, p := range paths {
+					path := []core.Resource{}
+					for _, res := range p {
+						path = append(path, res.Source)
+						path = append(path, res.Destination)
+					}
+					if constraint.checkSatisfication(path) {
+						return true
+					}
+				}
 				return false
+			} else {
+				if !constraint.checkSatisfication(path) {
+					return false
+				}
 			}
 		}
 	}

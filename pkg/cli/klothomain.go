@@ -24,6 +24,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/input"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/provider/providers"
@@ -437,7 +438,13 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		if err != nil {
 			return errors.Errorf("failed to load constraints: %s", err.Error())
 		}
+		k8sPlugin := kubernetes.Kubernetes{Config: &appCfg}
+
 		engine.LoadContext(document.Constructs, c, cfg.appName)
+		err = k8sPlugin.Translate(document.Constructs, engine.Context.EndState)
+		if err != nil {
+			return errors.Errorf("failed to run kubernetes plugin: %s", err.Error())
+		}
 		dag, err := engine.Run()
 		if err != nil {
 			return errors.Errorf("failed to run engine: %s", err.Error())

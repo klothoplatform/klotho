@@ -174,7 +174,7 @@ func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
 				dag.AddResource(res)
 			}
 			for _, constraint := range tt.constraint {
-				result := constraint.IsSatisfied(dag, make(map[core.ResourceId][]core.Resource))
+				result := constraint.IsSatisfied(dag, nil, make(map[core.ResourceId][]core.Resource))
 				assert.Equalf(tt.want, result, "constraint %s is not satisfied", constraint)
 			}
 		})

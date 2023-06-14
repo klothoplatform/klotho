@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"go.uber.org/zap"
 )
@@ -194,14 +195,13 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph, appName string) (err error
 		// We want to retrieve the edge data from the edge in the resource graph to use during expansion
 		edgeData := EdgeData{}
 		data, ok := dep.Properties.Data.(EdgeData)
-		fmt.Println(ok)
-		fmt.Println(data)
 		if !ok && dep.Properties.Data != nil {
 			merr.Append(fmt.Errorf("edge properties for edge %s -> %s, do not satisfy edge data format during expansion", dep.Source.Id(), dep.Destination.Id()))
 		} else if dep.Properties.Data != nil {
 			edgeData = data
 		}
 		edgeData.AppName = appName
+		// We attach the dependencies source and destination nodes for context during expansion
 		edgeData.Source = dep.Source
 		edgeData.Destination = dep.Destination
 		// Find all possible paths given the initial source and destination node
@@ -352,4 +352,53 @@ func (kb EdgeKB) ConfigureFromEdgeData(dag *core.ResourceGraph) (err error) {
 		}
 	}
 	return merr.ErrOrNil()
+}
+
+// FindPathsInGraph takes in a source and destination type and finds all valid paths to get from source to destination.
+//
+// Find paths does a Depth First Search to search through all edges in the knowledge base.
+// The function tracks visited edges to prevent cycles during execution
+// It also checks the ValidDestinations for each edge against the original destination node to ensure that the edge is allowed to be used in the instance of the path generation
+//
+// The method will return all paths found
+func (kb EdgeKB) FindPathsInGraph(source core.Resource, dest core.Resource, dag *core.ResourceGraph) [][]graph.Edge[core.Resource] {
+	zap.S().Debugf("Finding Paths from %s -> %s", source, dest)
+	visitedEdges := map[core.Resource]bool{}
+	stack := []graph.Edge[core.Resource]{}
+	return kb.findPathsInGraph(source, dest, stack, visitedEdges, dag)
+}
+
+// findPathsInGraph performs the recursive calls of the parent FindPath function
+//
+// It works under the assumption that an edge is bidirectional and uses the edges ValidDestinations field to determine when that assumption is incorrect
+func (kb EdgeKB) findPathsInGraph(source, dest core.Resource, stack []graph.Edge[core.Resource], visited map[core.Resource]bool, dag *core.ResourceGraph) (result [][]graph.Edge[core.Resource]) {
+	visited[source] = true
+	if source == dest {
+		if len(stack) != 0 {
+			result = append(result, stack)
+		}
+	} else {
+		// When we are not at the destination we want to recursively call findPaths on all edges which have the source as the current node
+		// This is checking all edges which have a direction of From -> To
+		for _, edge := range dag.GetDownstreamDependencies(source) {
+			det, _ := kb.GetEdgeDetails(reflect.TypeOf(edge.Source), reflect.TypeOf(edge.Destination))
+			if !det.ReverseDirection && edge.Source == source && !visited[edge.Destination] {
+				result = append(result, kb.findPathsInGraph(edge.Destination, dest, append(stack, edge), visited, dag)...)
+			}
+		}
+		// When we are not at the destination we want to recursively call findPaths on all edges which have the target as the current node
+		// This is checking all edges which have a path direction of To -> From, which is opposite of their dependencies on each other
+		//
+		// An example of this scenario is in the AWS knowledge base where RdsProxyTarget -> RdsProxy  and RdsProxyTarget -> RdsInstance are valid edges
+		// However we would expect the path to be RdsProxy -> RdsProxyTarget -> RdsInstance, so to satisfy understanding the path to connect other nodes, we must understand the direction of both the IaC dependency and data flow dependency
+
+		for _, edge := range dag.GetUpstreamDependencies(source) {
+			det, _ := kb.GetEdgeDetails(reflect.TypeOf(edge.Source), reflect.TypeOf(edge.Destination))
+			if det.ReverseDirection && edge.Destination == source && !visited[edge.Source] {
+				result = append(result, kb.findPathsInGraph(edge.Source, dest, append(stack, edge), visited, dag)...)
+			}
+		}
+	}
+	delete(visited, source)
+	return result
 }

@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
 
 type (
@@ -34,7 +35,7 @@ func (constraint *ResourceConstraint) Scope() ConstraintScope {
 	return EdgeConstraintScope
 }
 
-func (constraint *ResourceConstraint) IsSatisfied(dag *core.ResourceGraph, mappedConstructResources map[core.ResourceId][]core.Resource) bool {
+func (constraint *ResourceConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource) bool {
 	switch constraint.Operator {
 	case EqualsConstraintOperator:
 		res := dag.GetResource(constraint.Target)

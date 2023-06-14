@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
 
 type (
@@ -31,7 +32,7 @@ func (constraint *ConstructConstraint) Scope() ConstraintScope {
 	return ConstructConstraintScope
 }
 
-func (constraint *ConstructConstraint) IsSatisfied(dag *core.ResourceGraph, mappedConstructResources map[core.ResourceId][]core.Resource) bool {
+func (constraint *ConstructConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource) bool {
 	switch constraint.Operator {
 	case EqualsConstraintOperator:
 		// Well look at all resources to see if there is a resource matching the type, that references the base construct passed in

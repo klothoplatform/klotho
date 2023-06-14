@@ -396,7 +396,6 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 					data.Constraint.NodeMustNotExist = append(data.Constraint.NodeMustNotExist, resource)
 				}
 			}
-			fmt.Printf("Adding edge data %v for %s -> %s\n", data, src.Id(), dst.Id())
 			zap.S().Debugf("Adding edge data %v for %s -> %s", data, src.Id(), dst.Id())
 			e.Context.EndState.AddDependencyWithData(src, dst, data)
 		}
@@ -410,7 +409,7 @@ func (e *Engine) ValidateConstraints() []constraints.Constraint {
 	var unsatisfied []constraints.Constraint
 	for _, contextConstraints := range e.Context.Constraints {
 		for _, constraint := range contextConstraints {
-			if !constraint.IsSatisfied(e.Context.EndState, e.Context.constructToResourceMapping) {
+			if !constraint.IsSatisfied(e.Context.EndState, e.KnowledgeBase, e.Context.constructToResourceMapping) {
 				unsatisfied = append(unsatisfied, constraint)
 			}
 		}
