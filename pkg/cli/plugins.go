@@ -54,7 +54,7 @@ func (b *PluginSetBuilder) AddAll() error {
 }
 
 func (b *PluginSetBuilder) AddVisualizerPlugin() error {
-	b.IaC = append(b.IaC, visualizer.Plugin{Config: b.Cfg, Client: http.DefaultClient})
+	b.IaC = append(b.IaC, visualizer.Plugin{AppName: b.Cfg.AppName, Provider: b.Cfg.Provider, Client: http.DefaultClient})
 	return nil
 }
 

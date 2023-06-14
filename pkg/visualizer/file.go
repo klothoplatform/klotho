@@ -15,9 +15,10 @@ const indent = "    "
 
 type (
 	File struct {
-		AppName  string
-		Provider string
-		DAG      *core.ResourceGraph
+		PathPrefix string
+		AppName    string
+		Provider   string
+		DAG        *core.ResourceGraph
 	}
 
 	// FetchPropertiesFunc is a function that takes a resource of some type, and returns some properties for it.
@@ -49,7 +50,7 @@ type (
 )
 
 func (f *File) Path() string {
-	return "topology.yaml"
+	return fmt.Sprintf("%stopology.yaml", f.PathPrefix)
 }
 
 func (f *File) Clone() core.File {
@@ -80,6 +81,23 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 		}
 		wh.Writef(indent+"%s: # %s\n", key, resource.Id())
 		properties := propFetcher.apply(resource, f.DAG)
+
+		// Add any edge properties as metadata
+		_, props := f.DAG.GetResourceWithProperties(resource.Id())
+		if properties == nil {
+			properties = make(map[string]any)
+		}
+		for key, val := range props {
+			if _, ok := properties[key]; !ok {
+				valRes := f.DAG.GetResourceFromString(val)
+				if valRes != nil {
+					properties[key] = f.KeyFor(valRes)
+				} else {
+					properties[key] = val
+				}
+			}
+		}
+
 		if len(properties) > 0 {
 			writeYaml(properties, 2, wh)
 		}
