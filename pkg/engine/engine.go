@@ -396,7 +396,6 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 					data.Constraint.NodeMustNotExist = append(data.Constraint.NodeMustNotExist, resource)
 				}
 			}
-			fmt.Printf("Adding edge data %v for %s -> %s\n", data, src.Id(), dst.Id())
 			zap.S().Debugf("Adding edge data %v for %s -> %s", data, src.Id(), dst.Id())
 			e.Context.EndState.AddDependencyWithData(src, dst, data)
 		}

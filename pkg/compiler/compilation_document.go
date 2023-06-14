@@ -2,7 +2,6 @@ package compiler
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -49,7 +48,6 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 	files := doc.OutputFiles
 	for idx := range files {
 		go func(f core.File) {
-			fmt.Println(f.Path())
 			path := filepath.Join(dest, f.Path())
 			dir := filepath.Dir(path)
 			err := os.MkdirAll(dir, 0777)
