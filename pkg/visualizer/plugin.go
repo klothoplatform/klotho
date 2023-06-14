@@ -8,14 +8,14 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/cli_config"
-	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"go.uber.org/zap"
 )
 
 type Plugin struct {
-	Config *config.Application
-	Client *http.Client
+	AppName  string
+	Provider string
+	Client   *http.Client
 }
 
 type (
@@ -85,8 +85,8 @@ func (p Plugin) Translate(dag *core.ResourceGraph) ([]core.File, error) {
 	}
 
 	spec := &File{
-		AppName:  p.Config.AppName,
-		Provider: p.Config.Provider,
+		AppName:  p.AppName,
+		Provider: p.Provider,
 		DAG:      dag,
 	}
 
@@ -97,6 +97,46 @@ func (p Plugin) Translate(dag *core.ResourceGraph) ([]core.File, error) {
 
 	diagram := &core.RawFile{
 		FPath:   "diagram.png",
+		Content: resp,
+	}
+
+	return []core.File{
+		spec,
+		diagram,
+	}, nil
+}
+
+// Translate implements compiler.IaCPlugin - although it's not strictly an IaC plugin, it uses the same API
+func (p Plugin) Generate(dag *core.ResourceGraph, filenamePrefix string) ([]core.File, error) {
+	api := visApi{client: p.Client}
+
+	if validateTypes {
+		types := TypesChecker{DAG: dag}
+
+		if resp, err := api.request(http.MethodGet, `validate-types`, `application/text`, ``, types); err != nil {
+			if badStatus, isBadStatus := err.(httpStatusBad); isBadStatus {
+				unknowns := strings.ReplaceAll(string(resp), "\n", "\n•  ")
+				zap.S().Warnf("Failed to validate all types in visualizer (%d). %s", badStatus, unknowns)
+			} else {
+				zap.S().With(zap.Error(err)).Warnf("Failed to validate types in visualizer: %v", err)
+			}
+		}
+	}
+
+	spec := &File{
+		PathPrefix: fmt.Sprintf("%s-", filenamePrefix),
+		AppName:    p.AppName,
+		Provider:   p.Provider,
+		DAG:        dag,
+	}
+
+	resp, err := api.request(http.MethodPost, `generate-infra-diagram`, "application/yaml", "image/png", spec)
+	if err != nil {
+		return nil, err
+	}
+
+	diagram := &core.RawFile{
+		FPath:   fmt.Sprintf("%s-diagram.png", filenamePrefix),
 		Content: resp,
 	}
 
