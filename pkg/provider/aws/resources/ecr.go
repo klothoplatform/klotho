@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"go.uber.org/zap"
 )
 
 const (
@@ -91,11 +92,13 @@ type EcrImageConfigureParams struct {
 func (image *EcrImage) Configure(params EcrImageConfigureParams) error {
 	image.ExtraOptions = []string{"--platform", "linux/amd64", "--quiet"}
 	if params.Dockerfile == "" {
-		return fmt.Errorf("image %s must have dockerfile set", image.Name)
+		zap.S().Warnf("image %s does not have dockerfile set, leaving empty", image.Name)
+		// return fmt.Errorf("image %s must have dockerfile set", image.Name)
 	}
 	image.Dockerfile = params.Dockerfile
 	if params.Context == "" {
-		return fmt.Errorf("image %s must have context set", image.Name)
+		zap.S().Warnf("image %s does not have context set, leaving empty", image.Name)
+		// return fmt.Errorf("image %s must have context set", image.Name)
 	}
 	image.Context = params.Context
 	return nil

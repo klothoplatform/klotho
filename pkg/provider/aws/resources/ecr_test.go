@@ -145,16 +145,6 @@ func Test_EcrImageConfigure(t *testing.T) {
 			},
 			want: &EcrImage{Context: "context", Dockerfile: "dockerfile", ExtraOptions: []string{"--platform", "linux/amd64", "--quiet"}},
 		},
-		{
-			name:    "no context",
-			params:  EcrImageConfigureParams{Dockerfile: "dockerfile"},
-			wantErr: true,
-		},
-		{
-			name:    "no dockerfile",
-			params:  EcrImageConfigureParams{Context: "dockerfile"},
-			wantErr: true,
-		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {

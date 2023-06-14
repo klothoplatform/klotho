@@ -7,6 +7,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
+	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
 )
@@ -117,6 +118,15 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 	err = e.KnowledgeBase.ExpandEdges(e.Context.EndState, e.Context.AppName)
 	if err != nil {
 		return nil, err
+	}
+
+	var merr multierr.Error
+	for _, resource := range e.Context.EndState.ListResources() {
+		var configuration any
+		merr.Append(e.Context.EndState.CallConfigure(resource, configuration))
+	}
+	if merr.ErrOrNil() != nil {
+		return e.Context.EndState, merr.ErrOrNil()
 	}
 
 	err = e.KnowledgeBase.ConfigureFromEdgeData(e.Context.EndState)

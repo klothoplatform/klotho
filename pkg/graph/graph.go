@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/dominikbraun/graph"
@@ -145,7 +146,10 @@ func (d *Directed[V]) AddEdge(source string, dest string, data any) {
 			zap.S().With("error", zap.Error(err)).Errorf(
 				`Unexpected error while removing edge between "%v" and "%v". failed to replace edge`, source, dest)
 		} else {
-			d.underlying.AddEdge(source, dest, graph.EdgeData(data))
+			fmt.Println("adding the replacement edge")
+			fmt.Println(data)
+			// fmt.Println(graph.EdgeData(data))
+			d.AddEdge(source, dest, graph.EdgeData(data))
 		}
 	}
 }
