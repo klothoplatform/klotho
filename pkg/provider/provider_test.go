@@ -88,7 +88,7 @@ func (p TestProvider) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph
 func (p TestProvider) CreateResourceFromId(id core.ResourceId, dag *core.ResourceGraph) (core.Resource, error) {
 	return nil, nil
 }
-func (p TestProvider) ExpandConstruct(construct core.Construct, dag *core.ResourceGraph) ([]core.Resource, error) {
+func (p TestProvider) ExpandConstruct(construct core.Construct, dag *core.ResourceGraph, constructType string) ([]core.Resource, error) {
 	return nil, nil
 }
 func (a TestProvider) GetKindTypeMappings(construct core.Construct) []string {

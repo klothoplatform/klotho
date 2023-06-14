@@ -194,6 +194,7 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph, appName string) (err error
 		// We want to retrieve the edge data from the edge in the resource graph to use during expansion
 		edgeData := EdgeData{}
 		data, ok := dep.Properties.Data.(EdgeData)
+
 		if !ok && dep.Properties.Data != nil {
 			merr.Append(fmt.Errorf("edge properties for edge %s -> %s, do not satisfy edge data format", dep.Source.Id(), dep.Destination.Id()))
 		} else if dep.Properties.Data != nil {
@@ -204,7 +205,6 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph, appName string) (err error
 		paths := kb.FindPaths(reflect.TypeOf(dep.Source), reflect.TypeOf(dep.Destination))
 		validPaths := [][]Edge{}
 		for _, path := range paths {
-
 			// Ensure that the path satisfies the NodeMustExist edge constraint
 			if edgeData.Constraint.NodeMustExist != nil {
 				nodeFound := false
@@ -277,6 +277,11 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph, appName string) (err error
 			}
 			if sourceNode == nil {
 				sourceNode = reflect.New(source.Elem()).Interface().(core.Resource)
+				for _, mustExistRes := range edgeData.Constraint.NodeMustExist {
+					if mustExistRes.Id().Type == sourceNode.Id().Type && mustExistRes.Id().Provider == sourceNode.Id().Provider && mustExistRes.Id().Namespace == sourceNode.Id().Namespace {
+						sourceNode = mustExistRes
+					}
+				}
 			}
 
 			destNode := resourceCache[dest]
@@ -285,6 +290,12 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph, appName string) (err error
 			}
 			if destNode == nil {
 				destNode = reflect.New(dest.Elem()).Interface().(core.Resource)
+				for _, mustExistRes := range edgeData.Constraint.NodeMustExist {
+					if mustExistRes.Id().Type == destNode.Id().Type && mustExistRes.Id().Provider == destNode.Id().Provider && mustExistRes.Id().Namespace == destNode.Id().Namespace {
+						destNode = mustExistRes
+					}
+				}
+
 			}
 
 			if edgeDetail.ExpansionFunc != nil {

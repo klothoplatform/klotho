@@ -259,7 +259,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 			cmd.SilenceUsage = true
 		},
 	}
-	defer analyticsClient.PanicHandler(&err, errHandler)
+	// defer analyticsClient.PanicHandler(&err, errHandler)
 
 	updateStream := options.Update.Stream.OrDefault(km.DefaultUpdateStream)
 	analyticsClient.AppendProperty("updateStream", updateStream)
@@ -402,12 +402,11 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	document := compiler.CompilationDocument{
+	document := &compiler.CompilationDocument{
 		InputFiles:       input,
 		FileDependencies: &core.FileDependencies{},
 		Constructs:       core.NewConstructGraph(),
 		Configuration:    &appCfg,
-		Resources:        core.NewResourceGraph(),
 		OutputOptions:    options.Output,
 	}
 
@@ -419,6 +418,8 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	if cfg.constructGraph != "" {
+		klothoCompiler.AnalysisAndTransformationPlugins = nil
+		klothoCompiler.ProviderPlugins = nil
 		provider, err := providers.GetProvider(&appCfg)
 		if err != nil {
 			return err
@@ -436,17 +437,19 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		if err != nil {
 			return errors.Errorf("failed to load constraints: %s", err.Error())
 		}
-		engine.LoadContext(klothoCompiler.Document.Constructs, c, cfg.appName)
+		engine.LoadContext(document.Constructs, c, cfg.appName)
 		dag, err := engine.Run()
 		if err != nil {
 			return errors.Errorf("failed to run engine: %s", err.Error())
 		}
-		klothoCompiler.Document.Resources = dag
+		document.Resources = dag
 		err = klothoCompiler.Document.OutputGraph(cfg.outDir)
 		if err != nil {
 			return err
 		}
-		return nil
+
+	} else {
+		document.Resources = core.NewResourceGraph()
 	}
 
 	analyticsClient.Info(klothoName + " compiling")

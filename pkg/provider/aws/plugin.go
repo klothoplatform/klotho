@@ -16,14 +16,14 @@ import (
 	"go.uber.org/zap"
 )
 
-func (a *AWS) ExpandConstruct(construct core.Construct, dag *core.ResourceGraph) (directlyMappedResources []core.Resource, err error) {
+func (a *AWS) ExpandConstruct(construct core.Construct, dag *core.ResourceGraph, constructType string) (directlyMappedResources []core.Resource, err error) {
 	switch construct := construct.(type) {
 	case *core.ExecutionUnit:
-		err = a.expandExecutionUnit(dag, construct)
+		err = a.expandExecutionUnit(dag, construct, constructType)
 	case *core.Gateway:
-		err = a.expandExpose(dag, construct)
+		err = a.expandExpose(dag, construct, constructType)
 	case *core.Orm:
-		err = a.expandOrm(dag, construct)
+		err = a.expandOrm(dag, construct, constructType)
 	case *core.Fs:
 		err = a.expandFs(dag, construct)
 	case *core.InternalResource:
@@ -53,11 +53,11 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 		log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
 		switch construct := construct.(type) {
 		case *core.ExecutionUnit:
-			merr.Append(a.expandExecutionUnit(dag, construct))
+			merr.Append(a.expandExecutionUnit(dag, construct, a.Config.GetExecutionUnit(construct.Name).Type))
 		case *core.Gateway:
-			merr.Append(a.expandExpose(dag, construct))
+			merr.Append(a.expandExpose(dag, construct, a.Config.GetExpose(construct.Name).Type))
 		case *core.Orm:
-			merr.Append(a.expandOrm(dag, construct))
+			merr.Append(a.expandOrm(dag, construct, a.Config.GetPersistOrm(construct.Name).Type))
 		case *core.Fs:
 			merr.Append(a.expandFs(dag, construct))
 		case *core.InternalResource:

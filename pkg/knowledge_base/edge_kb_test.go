@@ -206,17 +206,17 @@ type (
 	}
 )
 
-func (f *A) Id() core.ResourceId                      { return core.ResourceId{Name: "A" + f.Name} }
+func (f *A) Id() core.ResourceId                      { return core.ResourceId{Type: "A", Name: "A" + f.Name} }
 func (f *A) BaseConstructsRef() core.BaseConstructSet { return nil }
 
-func (b B) Id() core.ResourceId                      { return core.ResourceId{Name: "B" + b.Name} }
+func (b B) Id() core.ResourceId                      { return core.ResourceId{Type: "B", Name: "B" + b.Name} }
 func (f B) BaseConstructsRef() core.BaseConstructSet { return nil }
 
-func (p *C) Id() core.ResourceId                      { return core.ResourceId{Name: "C" + p.Name} }
+func (p *C) Id() core.ResourceId                      { return core.ResourceId{Type: "C", Name: "C" + p.Name} }
 func (f *C) BaseConstructsRef() core.BaseConstructSet { return nil }
 
-func (p *D) Id() core.ResourceId                      { return core.ResourceId{Name: "D" + p.Name} }
+func (p *D) Id() core.ResourceId                      { return core.ResourceId{Type: "D", Name: "D" + p.Name} }
 func (f *D) BaseConstructsRef() core.BaseConstructSet { return nil }
 
-func (p *E) Id() core.ResourceId                      { return core.ResourceId{Name: "E" + p.Name} }
+func (p *E) Id() core.ResourceId                      { return core.ResourceId{Type: "E", Name: "E" + p.Name} }
 func (f *E) BaseConstructsRef() core.BaseConstructSet { return nil }

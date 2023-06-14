@@ -29,8 +29,8 @@ func Test_ExpandConstructs(t *testing.T) {
 			config: &config.Application{
 				AppName: "my-app",
 				Defaults: config.Defaults{
-					ExecutionUnit: config.KindDefaults{Type: Lambda},
-					PersistOrm:    defaultConfig.PersistOrm,
+					ExecutionUnit: config.KindDefaults{Type: resources.LAMBDA_FUNCTION_TYPE},
+					PersistOrm:    config.KindDefaults{Type: resources.RDS_INSTANCE_TYPE},
 				},
 			},
 			want: coretesting.ResourcesExpectation{
