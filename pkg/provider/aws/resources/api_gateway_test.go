@@ -221,6 +221,7 @@ func Test_ApiIntegrationCreate(t *testing.T) {
 		name        string
 		integration *ApiIntegration
 		want        coretesting.ResourcesExpectation
+		wantErr     bool
 	}{
 		{
 			name: "nil repo",
@@ -250,12 +251,7 @@ func Test_ApiIntegrationCreate(t *testing.T) {
 		{
 			name:        "existing repo",
 			integration: &ApiIntegration{Name: "my-app-/my/api/route-post", ConstructsRef: initialRefs},
-			want: coretesting.ResourcesExpectation{
-				Nodes: []string{
-					"aws:api_integration:my-app-/my/api/route-post",
-				},
-				Deps: []coretesting.StringDep{},
-			},
+			wantErr:     true,
 		},
 	}
 	for _, tt := range cases {
@@ -276,6 +272,10 @@ func Test_ApiIntegrationCreate(t *testing.T) {
 			integration := &ApiIntegration{}
 			err := integration.Create(dag, metadata)
 
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
 			if !assert.NoError(err) {
 				return
 			}

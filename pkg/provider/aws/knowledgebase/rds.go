@@ -65,6 +65,41 @@ var RdsKB = knowledgebase.Build(
 					return err
 				}
 				dag.AddDependencyWithData(data.Source, proxy, data)
+			} else {
+				// TODO: We need to make add dependencies reflect ignore the refs since that causes cycles
+				proxy.Subnets = make([]*resources.Subnet, 2)
+				proxy.SecurityGroups = make([]*resources.SecurityGroup, 1)
+				err := dag.CreateDependencies(proxy, map[string]any{
+					"Role": resources.RoleCreateParams{
+						AppName: data.AppName,
+						Name:    fmt.Sprintf("%s-ProxyRole", proxy.Name),
+						Refs:    proxy.ConstructsRef,
+					},
+					"SecurityGroups": []resources.SecurityGroupCreateParams{
+						{
+							AppName: data.AppName,
+							Refs:    core.BaseConstructSetOf(),
+						},
+					},
+					"Subnets": []resources.SubnetCreateParams{
+						{
+							AppName: data.AppName,
+							Refs:    core.BaseConstructSetOf(),
+							AZ:      "0",
+							Type:    resources.PrivateSubnet,
+						},
+						{
+							AppName: data.AppName,
+							Refs:    core.BaseConstructSetOf(),
+							AZ:      "1",
+							Type:    resources.PrivateSubnet,
+						},
+					},
+				})
+				if err != nil {
+					return err
+				}
+				dag.AddDependencyWithData(data.Source, proxy, data)
 			}
 			proxy.ConstructsRef.AddAll(data.Source.BaseConstructsRef())
 			proxy.ConstructsRef.AddAll(destination.ConstructsRef)

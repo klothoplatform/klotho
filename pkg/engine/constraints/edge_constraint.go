@@ -67,6 +67,10 @@ func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, mappedCon
 	for _, s := range src {
 		for _, d := range dst {
 			path, err := dag.ShortestPath(s, d)
+			fmt.Println(s)
+
+			fmt.Println(d)
+			fmt.Println(path)
 			if err != nil {
 				return false
 			}

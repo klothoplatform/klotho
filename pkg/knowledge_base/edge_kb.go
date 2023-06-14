@@ -202,6 +202,8 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph, appName string) (err error
 			edgeData = data
 		}
 		edgeData.AppName = appName
+		edgeData.Source = dep.Source
+		edgeData.Destination = dep.Destination
 		// Find all possible paths given the initial source and destination node
 		paths := kb.FindPaths(reflect.TypeOf(dep.Source), reflect.TypeOf(dep.Destination))
 		validPaths := [][]Edge{}
