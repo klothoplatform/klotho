@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/validation"
 	"github.com/pkg/errors"
@@ -25,24 +25,14 @@ type (
 		Transform(*core.InputFiles, *core.FileDependencies, *core.ConstructGraph) error
 	}
 
-	ProviderPlugin interface {
-		Plugin
-		Translate(result *core.ConstructGraph, dag *core.ResourceGraph) error
-		LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error
-	}
-
 	IaCPlugin interface {
 		Plugin
 		Translate(cloudGraph *core.ResourceGraph) ([]core.File, error)
 	}
 
-	ValidatingPlugin interface {
-		Validate(config *config.Application, constructGraph *core.ConstructGraph) error
-	}
-
 	Compiler struct {
 		AnalysisAndTransformationPlugins []AnalysisAndTransformationPlugin
-		ProviderPlugins                  []ProviderPlugin
+		Engine                           engine.Engine
 		IaCPlugins                       []IaCPlugin
 		Document                         *CompilationDocument
 	}
@@ -83,21 +73,7 @@ func (c *Compiler) Compile() error {
 		return err
 	}
 
-	for _, p := range c.ProviderPlugins {
-		log := zap.L().With(zap.String("plugin", p.Name()))
-		log.Debug("starting")
-		if validator, ok := p.(ValidatingPlugin); ok {
-			err := validator.Validate(c.Document.Configuration, c.Document.Constructs)
-			if err != nil {
-				return core.NewPluginError(p.Name(), err)
-			}
-		}
-		err := p.Translate(c.Document.Constructs, c.Document.Resources)
-		if err != nil {
-			return core.NewPluginError(p.Name(), err)
-		}
-		log.Debug("completed")
-	}
+	c.Engine.LoadContext(c.Document.Constructs, make(map[constraints.ConstraintScope][]constraints.Constraint), c.Document.Configuration.AppName)
 
 	for _, p := range c.IaCPlugins {
 		// TODO logging
@@ -152,12 +128,11 @@ func (c *Compiler) LoadConstructGraphFromFile(path string) error {
 	}
 
 	c.AnalysisAndTransformationPlugins = nil
-	for _, provider := range c.ProviderPlugins {
-		err := provider.LoadGraph(input, c.Document.Constructs)
-		if err != nil {
-			return errors.Errorf("Error Loading graph for provider %s. %s", provider.Name(), err.Error())
-		}
+	err = c.Engine.Provider.LoadGraph(input, c.Document.Constructs)
+	if err != nil {
+		return errors.Errorf("Error Loading graph for provider %s. %s", c.Engine.Provider.Name(), err.Error())
 	}
+
 	return nil
 }
 
