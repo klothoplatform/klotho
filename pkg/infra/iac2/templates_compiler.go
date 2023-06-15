@@ -13,7 +13,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/provider/imports"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -570,7 +569,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf("%s.invokeArn", tc.getVarName(resource)), nil
 	case core.ALL_RESOURCES_IAC_VALUE:
 		return "*", nil
-	case aws.API_GATEWAY_EXECUTION_CHILD_RESOURCES_IAC_VALUE:
+	case resources.API_GATEWAY_EXECUTION_CHILD_RESOURCES_IAC_VALUE:
 		return fmt.Sprintf("pulumi.interpolate`${%s.executionArn}/*`", tc.getVarName(v.Resource)), nil
 
 	case string(core.HOST):

@@ -397,8 +397,6 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 	err = km.PluginSetup(plugins)
 
-	appCfg.MergeDefaults(plugins.provider.GetDefaultConfig())
-
 	if err != nil {
 		return err
 	}
@@ -413,14 +411,12 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 
 	klothoCompiler := compiler.Compiler{
 		AnalysisAndTransformationPlugins: plugins.AnalysisAndTransform,
-		ProviderPlugins:                  plugins.Provider,
 		IaCPlugins:                       plugins.IaC,
 		Document:                         document,
 	}
 
 	if cfg.constructGraph != "" {
 		klothoCompiler.AnalysisAndTransformationPlugins = nil
-		klothoCompiler.ProviderPlugins = nil
 		provider, err := providers.GetProvider(&appCfg)
 		if err != nil {
 			return err
