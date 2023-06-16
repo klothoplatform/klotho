@@ -23,7 +23,7 @@ const (
 type (
 	LoadBalancer struct {
 		Name                   string
-		ConstructsRef          core.BaseConstructSet
+		ConstructsRef          core.BaseConstructSet `yaml:"-"`
 		IpAddressType          string
 		LoadBalancerAttributes map[string]string
 		Scheme                 string
@@ -35,7 +35,7 @@ type (
 
 	TargetGroup struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Port          int
 		Protocol      string
 		Vpc           *Vpc
@@ -45,20 +45,20 @@ type (
 	}
 
 	Target struct {
-		Id   core.IaCValue
+		Id   core.IaCValue `yaml:"-"`
 		Port int
 	}
 
 	Listener struct {
 		Name           string
-		ConstructsRef  core.BaseConstructSet
+		ConstructsRef  core.BaseConstructSet `yaml:"-"`
 		Port           int
 		Protocol       string
 		LoadBalancer   *LoadBalancer
 		DefaultActions []*LBAction
 	}
 	LBAction struct {
-		TargetGroupArn core.IaCValue
+		TargetGroupArn core.IaCValue `yaml:"-"`
 		Type           string
 	}
 )
@@ -166,6 +166,12 @@ func (lb *LoadBalancer) Id() core.ResourceId {
 	}
 }
 
+func (lb *LoadBalancer) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstreamOrDownstream: true,
+	}
+}
+
 func (tg *TargetGroup) AddTarget(target *Target) {
 	addTarget := true
 	for _, t := range tg.Targets {
@@ -192,6 +198,12 @@ func (tg *TargetGroup) Id() core.ResourceId {
 	}
 }
 
+func (tg *TargetGroup) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (listener *Listener) BaseConstructsRef() core.BaseConstructSet {
 	return listener.ConstructsRef
@@ -203,5 +215,11 @@ func (listener *Listener) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     LISTENER_TYPE,
 		Name:     listener.Name,
+	}
+}
+
+func (listener *Listener) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }

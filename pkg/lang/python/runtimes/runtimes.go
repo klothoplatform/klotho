@@ -6,8 +6,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/lang/python"
 	"github.com/klothoplatform/klotho/pkg/lang/python/aws_runtime"
-	"github.com/klothoplatform/klotho/pkg/provider"
-	"github.com/klothoplatform/klotho/pkg/provider/aws"
 )
 
 func GetRuntime(cfg *config.Application) (python.Runtime, error) {
@@ -18,11 +16,6 @@ func GetRuntime(cfg *config.Application) (python.Runtime, error) {
 	case "aws":
 		return &aws_runtime.AwsRuntime{
 			Cfg: cfg,
-			TemplateConfig: aws.TemplateConfig{
-				TemplateConfig: provider.TemplateConfig{
-					AppName: cfg.AppName,
-				},
-			},
 		}, nil
 	}
 

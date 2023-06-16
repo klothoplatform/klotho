@@ -4,20 +4,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
-	"github.com/klothoplatform/klotho/pkg/provider"
 )
-
-type (
-	TemplateConfig struct {
-		provider.TemplateConfig
-	}
-)
-
-func (a *AWS) Name() string { return "aws" }
-
-func (a *AWS) Validate(config *config.Application, constructGraph *core.ConstructGraph) error {
-	return provider.HandleProviderValidation(a, config, constructGraph)
-}
 
 // Enums for the types we allow in the aws provider so that we can reuse the same string within the provider
 const (

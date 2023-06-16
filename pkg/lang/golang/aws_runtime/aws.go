@@ -16,12 +16,10 @@ import (
 
 type (
 	AwsRuntime struct {
-		TemplateConfig aws.TemplateConfig
-		Cfg            *config.Application
+		Cfg *config.Application
 	}
 
 	TemplateData struct {
-		aws.TemplateConfig
 		ExecUnitName string
 		Expose       ExposeTemplateData
 		MainModule   string
@@ -52,8 +50,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	}
 
 	templateData := TemplateData{
-		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		ExecUnitName: unit.Name,
 	}
 
 	if runtime.ShouldOverrideDockerfile(unit) {

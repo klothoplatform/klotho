@@ -15,7 +15,7 @@ const (
 type (
 	Ec2Instance struct {
 		Name            string
-		ConstructsRef   core.BaseConstructSet
+		ConstructsRef   core.BaseConstructSet `yaml:"-"`
 		InstanceProfile *InstanceProfile
 		SecurityGroups  []*SecurityGroup
 		Subnet          *Subnet
@@ -25,7 +25,7 @@ type (
 
 	AMI struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 	}
 )
 
@@ -112,6 +112,14 @@ func (instance *Ec2Instance) Id() core.ResourceId {
 	}
 }
 
+func (instance *Ec2Instance) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:     true,
+		RequiresNoDownstream:   true,
+		RequiresExplicitDelete: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (ami *AMI) BaseConstructsRef() core.BaseConstructSet {
 	return ami.ConstructsRef
@@ -123,5 +131,11 @@ func (ami *AMI) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     AMI_TYPE,
 		Name:     ami.Name,
+	}
+}
+
+func (ami *AMI) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }

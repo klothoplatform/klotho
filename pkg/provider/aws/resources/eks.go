@@ -94,7 +94,7 @@ var eksManifests embed.FS
 type (
 	EksCluster struct {
 		Name           string
-		ConstructsRef  core.BaseConstructSet
+		ConstructsRef  core.BaseConstructSet `yaml:"-"`
 		ClusterRole    *IamRole
 		Vpc            *Vpc
 		Subnets        []*Subnet
@@ -105,7 +105,7 @@ type (
 
 	EksFargateProfile struct {
 		Name             string
-		ConstructsRef    core.BaseConstructSet
+		ConstructsRef    core.BaseConstructSet `yaml:"-"`
 		Cluster          *EksCluster
 		PodExecutionRole *IamRole
 		Selectors        []*FargateProfileSelector
@@ -119,7 +119,7 @@ type (
 
 	EksNodeGroup struct {
 		Name           string
-		ConstructsRef  core.BaseConstructSet
+		ConstructsRef  core.BaseConstructSet `yaml:"-"`
 		Cluster        *EksCluster
 		NodeRole       *IamRole
 		AmiType        string
@@ -135,9 +135,9 @@ type (
 
 	EksAddon struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		AddonName     string
-		ClusterName   core.IaCValue
+		ClusterName   core.IaCValue `yaml:"-"`
 	}
 )
 
@@ -830,6 +830,12 @@ func (cluster *EksCluster) Id() core.ResourceId {
 	}
 }
 
+func (c *EksCluster) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (addon *EksAddon) BaseConstructsRef() core.BaseConstructSet {
 	return addon.ConstructsRef
@@ -841,6 +847,12 @@ func (addon *EksAddon) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     EKS_ADDON_TYPE,
 		Name:     addon.Name,
+	}
+}
+
+func (addon *EksAddon) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }
 
@@ -858,6 +870,12 @@ func (profile *EksFargateProfile) Id() core.ResourceId {
 	}
 }
 
+func (profile *EksFargateProfile) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (group *EksNodeGroup) BaseConstructsRef() core.BaseConstructSet {
 	return group.ConstructsRef
@@ -869,6 +887,12 @@ func (group *EksNodeGroup) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     EKS_NODE_GROUP_TYPE,
 		Name:     group.Name,
+	}
+}
+
+func (group *EksNodeGroup) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }
 

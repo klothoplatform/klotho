@@ -16,11 +16,7 @@ func GetProvider(cfg *config.Application) (provider.Provider, error) {
 		// TODO GCP and Azure is hacked to be the same as AWS so we can generate a topology diagram, but the compilation won't work.
 		fallthrough
 	case "aws":
-		kb, err := awsknowledgebase.GetAwsKnowledgeBase()
-		return &aws.AWS{
-			Config:        cfg,
-			KnowledgeBase: kb,
-		}, err
+		return &aws.AWS{AppName: cfg.AppName}, nil
 	}
 
 	return nil, fmt.Errorf("could not get provider: %v", cfg.Provider)

@@ -14,7 +14,7 @@ const (
 type (
 	PrivateDnsNamespace struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Vpc           *Vpc
 	}
 )
@@ -54,5 +54,12 @@ func (ns *PrivateDnsNamespace) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     PRIVATE_DNS_NAMESPACE_TYPE,
 		Name:     ns.Name,
+	}
+}
+
+func (ns *PrivateDnsNamespace) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   true,
+		RequiresNoDownstream: false,
 	}
 }

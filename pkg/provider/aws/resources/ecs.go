@@ -24,7 +24,7 @@ const (
 type (
 	EcsTaskDefinition struct {
 		Name                    string
-		ConstructsRef           core.BaseConstructSet
+		ConstructsRef           core.BaseConstructSet `yaml:"-"`
 		Image                   *EcrImage
 		EnvironmentVariables    EnvironmentVariables
 		Cpu                     string
@@ -46,13 +46,13 @@ type (
 
 	EcsCluster struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		//TODO: add support for cluster configuration
 	}
 
 	EcsService struct {
 		Name                     string
-		ConstructsRef            core.BaseConstructSet
+		ConstructsRef            core.BaseConstructSet `yaml:"-"`
 		AssignPublicIp           bool
 		Cluster                  *EcsCluster
 		DeploymentCircuitBreaker *EcsServiceDeploymentCircuitBreaker
@@ -71,14 +71,14 @@ type (
 	}
 
 	EcsServiceLoadBalancerConfig struct {
-		TargetGroupArn core.IaCValue
+		TargetGroupArn core.IaCValue `yaml:"-"`
 		ContainerName  string
 		ContainerPort  int
 	}
 
 	EcsServiceCreateParams struct {
 		AppName          string
-		Refs             core.BaseConstructSet
+		Refs             core.BaseConstructSet `yaml:"-"`
 		Name             string
 		LaunchType       string
 		NetworkPlacement string
@@ -184,6 +184,12 @@ func (td *EcsTaskDefinition) Id() core.ResourceId {
 	}
 }
 
+func (td *EcsTaskDefinition) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 func (s *EcsService) Create(dag *core.ResourceGraph, params EcsServiceCreateParams) error {
 	name := aws.EcsServiceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	s.Name = name
@@ -261,6 +267,14 @@ func (s *EcsService) Id() core.ResourceId {
 	}
 }
 
+func (td *EcsService) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:     true,
+		RequiresNoDownstream:   true,
+		RequiresExplicitDelete: true,
+	}
+}
+
 func (c *EcsCluster) Create(dag *core.ResourceGraph, params EcsClusterCreateParams) error {
 	name := aws.EcsClusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	c.Name = name
@@ -282,5 +296,11 @@ func (c *EcsCluster) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     ECS_CLUSTER_TYPE,
 		Name:     c.Name,
+	}
+}
+
+func (c *EcsCluster) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }

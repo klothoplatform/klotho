@@ -24,12 +24,10 @@ import (
 
 type (
 	AwsRuntime struct {
-		Config         *config.Application
-		TemplateConfig aws.TemplateConfig
+		Config *config.Application
 	}
 
 	TemplateData struct {
-		aws.TemplateConfig
 		ExecUnitName       string
 		Expose             ExposeTemplateData
 		MainModule         string
@@ -243,8 +241,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	}
 
 	templateData := TemplateData{
-		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		ExecUnitName: unit.Name,
 	}
 
 	exposeData, err := getExposeTemplateData(unit, constructGraph)
@@ -327,8 +324,7 @@ func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.Constr
 
 func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) error {
 	templateData := TemplateData{
-		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		ExecUnitName: unit.Name,
 	}
 	err := javascript.AddRuntimeFiles(unit, files, templateData)
 	return err
@@ -336,8 +332,7 @@ func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) e
 
 func (r *AwsRuntime) AddRuntimeFile(unit *core.ExecutionUnit, path string, content []byte) error {
 	templateData := TemplateData{
-		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		ExecUnitName: unit.Name,
 	}
 	err := javascript.AddRuntimeFile(unit, templateData, path, content)
 	return err
