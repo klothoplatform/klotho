@@ -61,6 +61,16 @@ func (d *Directed[V]) VertexIdsInTopologicalOrder() ([]string, error) {
 	return StableTopologicalSort(d.underlying, iter)
 }
 
+func (d *Directed[V]) ShortestPath(source, target string) ([]string, error) {
+	path, err := graph.ShortestPath(d.underlying, source, target)
+	if err != nil && errors.Is(err, graph.ErrTargetNotReachable) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return path, nil
+}
+
 func (d *Directed[V]) OutgoingEdges(from V) []Edge[V] {
 	return handleOutgoingEdges(d, from, func(destination V) Edge[V] {
 		return Edge[V]{
@@ -77,6 +87,17 @@ func (d *Directed[V]) IncomingEdges(to V) []Edge[V] {
 			Destination: to,
 		}
 	})
+}
+
+func (d *Directed[V]) RemoveVertex(v string) error {
+	err := d.underlying.RemoveVertex(v)
+	if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
+		zap.S().With(zap.Error(err)).Errorf(`Unexpected error while adding %s. %s`, v, ourFault)
+		return err
+	} else if errors.Is(err, graph.ErrVertexNotFound) {
+		zap.S().With(zap.Error(err)).Debugf(`Ignoring error while removing %s because it does not exist`, v)
+	}
+	return nil
 }
 
 func (d *Directed[V]) AddVertex(v V) {

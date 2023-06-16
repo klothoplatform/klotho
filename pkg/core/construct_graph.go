@@ -83,6 +83,18 @@ func (cg *ConstructGraph) GetUpstreamConstructs(source BaseConstruct) []BaseCons
 	return cg.underlying.IncomingVertices(source)
 }
 
+func (cg *ConstructGraph) ShortestPath(source ResourceId, dest ResourceId) ([]BaseConstruct, error) {
+	ids, err := cg.underlying.ShortestPath(source.String(), dest.String())
+	if err != nil {
+		return nil, err
+	}
+	resources := make([]BaseConstruct, len(ids))
+	for i, id := range ids {
+		resources[i] = cg.underlying.GetVertex(id)
+	}
+	return resources, nil
+}
+
 func (cg *ConstructGraph) GetResourcesOfCapability(capability string) (filtered []Construct) {
 	vertices := cg.underlying.GetAllVertices()
 	for _, v := range vertices {

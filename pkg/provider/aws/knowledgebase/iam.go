@@ -158,11 +158,11 @@ var IamKB = knowledgebase.Build(
 			if len(role.ConstructsRef) > 1 {
 				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
 			}
-			var ref core.BaseConstruct
+			var ref core.ResourceId
 			for cons := range role.ConstructsRef {
 				ref = cons
 			}
-			role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(ref.Id().Name, oidc)
+			role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(ref.Name, oidc)
 			return nil
 		},
 	},

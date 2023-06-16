@@ -24,6 +24,18 @@ func NewResourceGraph() *ResourceGraph {
 	}
 }
 
+func (rg *ResourceGraph) ShortestPath(source ResourceId, dest ResourceId) ([]Resource, error) {
+	ids, err := rg.underlying.ShortestPath(source.String(), dest.String())
+	if err != nil {
+		return nil, err
+	}
+	resources := make([]Resource, len(ids))
+	for i, id := range ids {
+		resources[i] = rg.underlying.GetVertex(id)
+	}
+	return resources, nil
+}
+
 func (rg *ResourceGraph) AddResource(resource Resource) {
 	if rg.GetResource(resource.Id()) == nil {
 		rg.underlying.AddVertex(resource)
@@ -82,6 +94,16 @@ func GetResource[T Resource](g *ResourceGraph, id ResourceId) (resource T, ok bo
 	rR := g.GetResource(id)
 	resource, ok = rR.(T)
 	return
+}
+
+func (rg *ResourceGraph) FindResourcesWithRef(id ResourceId) []Resource {
+	var result []Resource
+	for _, resource := range rg.ListResources() {
+		if resource.BaseConstructsRef().Has(id) {
+			result = append(result, resource)
+		}
+	}
+	return result
 }
 
 func (rg *ResourceGraph) GetDependency(source ResourceId, target ResourceId) *graph.Edge[Resource] {

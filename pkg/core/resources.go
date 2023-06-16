@@ -23,7 +23,7 @@ type (
 		AnnotationCapability() string
 	}
 
-	BaseConstructSet map[BaseConstruct]struct{}
+	BaseConstructSet map[ResourceId]BaseConstruct
 
 	// Resource describes a resource at the provider, infrastructure level
 	Resource interface {
@@ -67,6 +67,8 @@ type (
 	HasLocalOutput interface {
 		OutputTo(dest string) error
 	}
+
+	Capability string
 )
 
 const (
@@ -156,21 +158,21 @@ func (s *BaseConstructSet) Add(k BaseConstruct) {
 	if *s == nil {
 		*s = make(BaseConstructSet)
 	}
-	(*s)[k] = struct{}{}
+	(*s)[k.Id()] = k
 }
 
-func (s BaseConstructSet) Has(k BaseConstruct) bool {
+func (s BaseConstructSet) Has(k ResourceId) bool {
 	_, ok := s[k]
 	return ok
 }
 
 func (s BaseConstructSet) Delete(k BaseConstruct) {
-	delete(s, k)
+	delete(s, k.Id())
 }
 
 func (s *BaseConstructSet) AddAll(ks BaseConstructSet) {
-	for k := range ks {
-		s.Add(k)
+	for _, c := range ks {
+		s.Add(c)
 	}
 }
 

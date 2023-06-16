@@ -166,14 +166,14 @@ func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.Reso
 	if len(refs) > 1 || len(refs) == 0 {
 		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("lambda must only have one construct reference")
 	}
-	var ref core.BaseConstruct
+	var ref core.ResourceId
 	for r := range refs {
 		ref = r
 	}
 	lambdaConfig := resources.LambdaFunctionConfigureParams{}
-	construct := result.GetConstruct(ref.Id())
+	construct := result.GetConstruct(ref)
 	if construct == nil {
-		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref.Id())
+		return resources.LambdaFunctionConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref)
 	}
 	unit, ok := construct.(*core.ExecutionUnit)
 	if !ok {
@@ -184,7 +184,7 @@ func (a *AWS) getLambdaConfiguration(result *core.ConstructGraph, dag *core.Reso
 			lambdaConfig.EnvironmentVariables = append(lambdaConfig.EnvironmentVariables, env)
 		}
 	}
-	cfg := config.ConvertFromInfraParams[config.ServerlessTypeParams](a.Config.GetExecutionUnit(ref.Id().Name).InfraParams)
+	cfg := config.ConvertFromInfraParams[config.ServerlessTypeParams](a.Config.GetExecutionUnit(ref.Name).InfraParams)
 	lambdaConfig.MemorySize = cfg.Memory
 	lambdaConfig.Timeout = cfg.Timeout
 	return lambdaConfig, nil
@@ -195,16 +195,16 @@ func (a *AWS) getEcsServiceConfiguration(result *core.ConstructGraph, refs core.
 	if len(refs) > 1 || len(refs) == 0 {
 		return serviceConfig, fmt.Errorf("ecs service must only have one construct reference")
 	}
-	var ref core.BaseConstruct
+	var ref core.ResourceId
 	for r := range refs {
 		ref = r
 	}
-	construct := result.GetConstruct(ref.Id())
+	construct := result.GetConstruct(ref)
 	if construct == nil {
-		return serviceConfig, fmt.Errorf("construct with id %s does not exist", ref.Id())
+		return serviceConfig, fmt.Errorf("construct with id %s does not exist", ref)
 	}
 
-	cfg := config.ConvertFromInfraParams[config.ContainerTypeParams](a.Config.GetExecutionUnit(ref.Id().Name).InfraParams)
+	cfg := config.ConvertFromInfraParams[config.ContainerTypeParams](a.Config.GetExecutionUnit(ref.Name).InfraParams)
 	serviceConfig.DesiredCount = cfg.DesiredCount
 	serviceConfig.ForceNewDeployment = cfg.ForceNewDeployment
 	serviceConfig.DeploymentCircuitBreaker = &resources.EcsServiceDeploymentCircuitBreaker{
@@ -219,13 +219,13 @@ func (a *AWS) getEcsTaskDefinitionConfiguration(result *core.ConstructGraph, ref
 	if len(refs) > 1 || len(refs) == 0 {
 		return taskDefConfig, fmt.Errorf("ecs task definition must only have one construct reference")
 	}
-	var ref core.BaseConstruct
+	var ref core.ResourceId
 	for r := range refs {
 		ref = r
 	}
-	construct := result.GetConstruct(ref.Id())
+	construct := result.GetConstruct(ref)
 	if construct == nil {
-		return taskDefConfig, fmt.Errorf("construct with id %s does not exist", ref.Id())
+		return taskDefConfig, fmt.Errorf("construct with id %s does not exist", ref)
 	}
 	unit, ok := construct.(*core.ExecutionUnit)
 	if !ok {
@@ -236,7 +236,7 @@ func (a *AWS) getEcsTaskDefinitionConfiguration(result *core.ConstructGraph, ref
 			taskDefConfig.EnvironmentVariables = append(taskDefConfig.EnvironmentVariables, env)
 		}
 	}
-	cfg := config.ConvertFromInfraParams[config.ContainerTypeParams](a.Config.GetExecutionUnit(ref.Id().Name).InfraParams)
+	cfg := config.ConvertFromInfraParams[config.ContainerTypeParams](a.Config.GetExecutionUnit(ref.Name).InfraParams)
 	taskDefConfig.Memory = cfg.Memory
 	taskDefConfig.Cpu = cfg.Cpu
 	return taskDefConfig, nil
@@ -246,14 +246,14 @@ func (a *AWS) getImageConfiguration(result *core.ConstructGraph, dag *core.Resou
 	if len(refs) > 1 || len(refs) == 0 {
 		return resources.EcrImageConfigureParams{}, fmt.Errorf("image must only have one construct reference but got %d: %v", len(refs), refs)
 	}
-	var ref core.BaseConstruct
+	var ref core.ResourceId
 	for r := range refs {
 		ref = r
 	}
 	imageConfig := resources.EcrImageConfigureParams{}
-	construct := result.GetConstruct(ref.Id())
+	construct := result.GetConstruct(ref)
 	if construct == nil {
-		return resources.EcrImageConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref.Id())
+		return resources.EcrImageConfigureParams{}, fmt.Errorf("construct with id %s does not exist", ref)
 	}
 	unit, ok := construct.(*core.ExecutionUnit)
 	if !ok {
@@ -268,7 +268,7 @@ func (a *AWS) getNodeGroupConfiguration(result *core.ConstructGraph, dag *core.R
 	nodeGroupConfig := resources.EksNodeGroupConfigureParams{}
 	nodeGroupConfig.DiskSize = 20
 	for ref := range refs {
-		construct := result.GetConstruct(ref.Id())
+		construct := result.GetConstruct(ref)
 		unit, ok := construct.(*core.ExecutionUnit)
 		if !ok {
 			continue
