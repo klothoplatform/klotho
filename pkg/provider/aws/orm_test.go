@@ -6,6 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +21,7 @@ func Test_ExpandOrm(t *testing.T) {
 		{
 			name:   "single rds orm",
 			orm:    orm,
-			config: &config.Application{AppName: "my-app", Defaults: config.Defaults{PersistOrm: config.KindDefaults{Type: Rds_postgres}}},
+			config: &config.Application{AppName: "my-app", Defaults: config.Defaults{PersistOrm: config.KindDefaults{Type: resources.RDS_INSTANCE_TYPE}}},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
@@ -82,7 +83,7 @@ func Test_ExpandOrm(t *testing.T) {
 			aws := AWS{
 				Config: tt.config,
 			}
-			err := aws.expandOrm(dag, tt.orm)
+			err := aws.expandOrm(dag, tt.orm, aws.Config.GetPersistOrm(tt.orm.Name).Type)
 
 			if !assert.NoError(err) {
 				return

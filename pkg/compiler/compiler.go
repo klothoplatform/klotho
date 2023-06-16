@@ -7,6 +7,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/validation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -43,7 +44,7 @@ type (
 		AnalysisAndTransformationPlugins []AnalysisAndTransformationPlugin
 		ProviderPlugins                  []ProviderPlugin
 		IaCPlugins                       []IaCPlugin
-		Document                         CompilationDocument
+		Document                         *CompilationDocument
 	}
 
 	// ResourcesOrErr provided as commonly used in async operations for the result channel.
@@ -147,15 +148,42 @@ func (c *Compiler) LoadConstructGraphFromFile(path string) error {
 
 	err = core.LoadConstructsIntoGraph(input, c.Document.Constructs)
 	if err != nil {
-		return err
+		return errors.Errorf("Error Loading graph for constructs %s", err.Error())
 	}
 
 	c.AnalysisAndTransformationPlugins = nil
 	for _, provider := range c.ProviderPlugins {
 		err := provider.LoadGraph(input, c.Document.Constructs)
 		if err != nil {
-			return err
+			return errors.Errorf("Error Loading graph for provider %s. %s", provider.Name(), err.Error())
 		}
 	}
 	return nil
+}
+
+func (c *Compiler) LoadConstraintsFromFile(path string) (map[constraints.ConstraintScope][]constraints.Constraint, error) {
+
+	type Input struct {
+		Constraints []any             `yaml:"constraints"`
+		Resources   []core.ResourceId `yaml:"resources"`
+		Edges       []core.OutputEdge `yaml:"edges"`
+	}
+
+	input := Input{}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close() // nolint:errcheck
+
+	err = yaml.NewDecoder(f).Decode(&input)
+	if err != nil {
+		return nil, err
+	}
+
+	bytesArr, err := yaml.Marshal(input.Constraints)
+	if err != nil {
+		return nil, err
+	}
+	return constraints.ParseConstraintsFromFile(bytesArr)
 }

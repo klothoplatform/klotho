@@ -48,7 +48,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				return fmt.Errorf("source of lambda to api integration expansion must be a rest api resource")
 			}
 			if len(data.Routes) == 0 {
-				return fmt.Errorf("there are no routes to expand the edge for lambda to api integration")
+				data.Routes = append(data.Routes, core.Route{Path: "*", Verb: "ANY"})
 			}
 
 			err := createRoutesForIntegration(data.AppName, data.Routes, refs, dag, nil, restApi, core.IaCValue{Resource: function, Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
@@ -75,7 +75,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				return nil
 			}
 			if len(data.Routes) == 0 {
-				return fmt.Errorf("there are no routes to expand the edge for eks to api integration")
+				data.Routes = append(data.Routes, core.Route{Path: "*", Verb: "ANY"})
 			}
 
 			restApi, ok := data.Source.(*resources.RestApi)

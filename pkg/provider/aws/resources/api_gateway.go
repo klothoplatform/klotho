@@ -207,8 +207,7 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 
 	existingResource := dag.GetResource(integration.Id())
 	if existingResource != nil {
-		graphResource := existingResource.(*ApiIntegration)
-		graphResource.ConstructsRef.AddAll(params.Refs)
+		return fmt.Errorf("integration %s already exists", integration.Id())
 	} else {
 		subParams := map[string]any{
 			"RestApi": RestApiCreateParams{

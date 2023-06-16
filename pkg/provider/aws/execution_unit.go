@@ -11,9 +11,12 @@ import (
 )
 
 // expandExecutionUnit takes in a single execution unit and expands the generic construct into a set of resource's based on the units configuration.
-func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionUnit) error {
-	switch a.Config.GetExecutionUnit(unit.Name).Type {
-	case Lambda:
+func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionUnit, constructType string) error {
+	if constructType == "" {
+		constructType = resources.LAMBDA_FUNCTION_TYPE
+	}
+	switch constructType {
+	case resources.LAMBDA_FUNCTION_TYPE:
 		lambda, err := core.CreateResource[*resources.LambdaFunction](dag, resources.LambdaCreateParams{
 			AppName: a.Config.AppName,
 			Refs:    core.BaseConstructSetOf(unit),
@@ -23,7 +26,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 			return err
 		}
 		a.MapResourceDirectlyToConstruct(lambda, unit)
-	case Ec2Instance:
+	case resources.EC2_INSTANCE_TYPE:
 		instance, err := core.CreateResource[*resources.Ec2Instance](dag, resources.Ec2InstanceCreateParams{
 			AppName: a.Config.AppName,
 			Refs:    core.BaseConstructSetOf(unit),
@@ -33,7 +36,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 			return err
 		}
 		a.MapResourceDirectlyToConstruct(instance, unit)
-	case kubernetes.KubernetesType:
+	case kubernetes.HELM_CHART_TYPE:
 		params := config.ConvertFromInfraParams[config.KubernetesTypeParams](a.Config.GetExecutionUnit(unit.Name).InfraParams)
 		clusterName := params.ClusterId
 		if clusterName == "" {
@@ -80,7 +83,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 			dag.AddDependency(helmChart, fargateProfile)
 		}
 		a.MapResourceDirectlyToConstruct(helmChart, unit)
-	case Ecs:
+	case resources.ECS_SERVICE_TYPE:
 		networkPlacement := a.Config.GetExecutionUnit(unit.Name).NetworkPlacement
 		ecsService, err := core.CreateResource[*resources.EcsService](dag, resources.EcsServiceCreateParams{
 			AppName:          a.Config.AppName,
@@ -94,7 +97,7 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 		}
 		a.MapResourceDirectlyToConstruct(ecsService, unit)
 	default:
-		return fmt.Errorf("unsupported execution unit type %s", a.Config.GetExecutionUnit(unit.Name).Type)
+		return fmt.Errorf("unsupported execution unit type %s", constructType)
 	}
 	return nil
 }

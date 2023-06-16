@@ -10,9 +10,12 @@ import (
 const API_GATEWAY_EXECUTION_CHILD_RESOURCES_IAC_VALUE = "child_resources"
 
 // expandOrm takes in a single orm construct and expands the generic construct into a set of resource's based on the units configuration.
-func (a *AWS) expandExpose(dag *core.ResourceGraph, expose *core.Gateway) error {
-	switch a.Config.GetExpose(expose.Name).Type {
-	case ApiGateway:
+func (a *AWS) expandExpose(dag *core.ResourceGraph, expose *core.Gateway, constructType string) error {
+	if constructType == "" {
+		constructType = resources.API_GATEWAY_REST_TYPE
+	}
+	switch constructType {
+	case resources.API_GATEWAY_REST_TYPE:
 		stage, err := core.CreateResource[*resources.ApiStage](dag, resources.ApiStageCreateParams{
 			AppName: a.Config.AppName,
 			Refs:    core.BaseConstructSetOf(expose),
@@ -36,7 +39,7 @@ func (a *AWS) expandExpose(dag *core.ResourceGraph, expose *core.Gateway) error 
 			dag.AddDependency(distro, stage)
 		}
 	default:
-		return fmt.Errorf("unsupported expose type %s", a.Config.GetExpose(expose.Name).Type)
+		return fmt.Errorf("unsupported expose type %s", constructType)
 	}
 	return nil
 }

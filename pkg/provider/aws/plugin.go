@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -15,6 +16,35 @@ import (
 	"go.uber.org/zap"
 )
 
+func (a *AWS) ExpandConstruct(construct core.Construct, dag *core.ResourceGraph, constructType string) (directlyMappedResources []core.Resource, err error) {
+	switch construct := construct.(type) {
+	case *core.ExecutionUnit:
+		err = a.expandExecutionUnit(dag, construct, constructType)
+	case *core.Gateway:
+		err = a.expandExpose(dag, construct, constructType)
+	case *core.Orm:
+		err = a.expandOrm(dag, construct, constructType)
+	case *core.Fs:
+		err = a.expandFs(dag, construct)
+	case *core.InternalResource:
+		err = a.expandFs(dag, construct)
+	case *core.Kv:
+		err = a.expandKv(dag, construct)
+	case *core.RedisNode:
+		err = a.expandRedisNode(dag, construct)
+	case *core.StaticUnit:
+		err = a.expandStaticUnit(dag, construct)
+	case *core.Secrets:
+		err = a.expandSecrets(dag, construct)
+	case *core.Config:
+		err = a.expandConfig(dag, construct)
+	default:
+		err = fmt.Errorf("unknown construct type %T", construct)
+	}
+	directlyMappedResources, _ = a.GetResourcesDirectlyTiedToConstruct(construct)
+	return
+}
+
 // ExpandConstructs looks at all existing constructs in the construct graph and turns them into their respective AWS Resources
 func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGraph) (err error) {
 	log := zap.S()
@@ -23,11 +53,11 @@ func (a *AWS) ExpandConstructs(result *core.ConstructGraph, dag *core.ResourceGr
 		log.Debugf("Converting construct with id, %s, to aws resources", construct.Id())
 		switch construct := construct.(type) {
 		case *core.ExecutionUnit:
-			merr.Append(a.expandExecutionUnit(dag, construct))
+			merr.Append(a.expandExecutionUnit(dag, construct, a.Config.GetExecutionUnit(construct.Name).Type))
 		case *core.Gateway:
-			merr.Append(a.expandExpose(dag, construct))
+			merr.Append(a.expandExpose(dag, construct, a.Config.GetExpose(construct.Name).Type))
 		case *core.Orm:
-			merr.Append(a.expandOrm(dag, construct))
+			merr.Append(a.expandOrm(dag, construct, a.Config.GetPersistOrm(construct.Name).Type))
 		case *core.Fs:
 			merr.Append(a.expandFs(dag, construct))
 		case *core.InternalResource:

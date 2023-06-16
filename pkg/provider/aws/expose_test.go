@@ -6,6 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,7 +22,7 @@ func Test_ExpandExpose(t *testing.T) {
 		{
 			name:   "single expose",
 			gw:     gw,
-			config: &config.Application{AppName: "my-app", Defaults: config.Defaults{Expose: config.KindDefaults{Type: ApiGateway}}},
+			config: &config.Application{AppName: "my-app", Defaults: config.Defaults{Expose: config.KindDefaults{Type: resources.API_GATEWAY_REST_TYPE}}},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:api_deployment:my-app-test",
@@ -50,7 +51,7 @@ func Test_ExpandExpose(t *testing.T) {
 			aws := AWS{
 				Config: tt.config,
 			}
-			err := aws.expandExpose(dag, tt.gw)
+			err := aws.expandExpose(dag, tt.gw, aws.Config.GetExpose(tt.gw.Name).Type)
 
 			if tt.wantErr {
 				assert.Error(err)

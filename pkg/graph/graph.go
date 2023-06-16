@@ -32,6 +32,13 @@ func NewDirected[V any](hasher func(V) string) *Directed[V] {
 	}
 }
 
+func NewLike[V any](other *Directed[V]) *Directed[V] {
+	return &Directed[V]{
+		underlying: graph.NewLike(other.underlying),
+		hasher:     other.hasher,
+	}
+}
+
 func (d *Directed[V]) Roots() []V {
 	// Note: this is inefficient. The graph library we use doesn't let us get just the roots, so we pull in
 	// the full predecessor map, get all the ids with no outgoing edges, and then look up the vertex for each one
@@ -130,6 +137,16 @@ func (d *Directed[V]) AddEdge(source string, dest string, data any) {
 	if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
 		zap.S().With("error", zap.Error(err)).Errorf(
 			`Unexpected error while adding edge between "%v" and "%v"`, source, dest)
+	} else if err != nil && errors.Is(err, graph.ErrEdgeAlreadyExists) && data != nil {
+		zap.S().With("error", zap.Error(err)).Debugf(
+			`Unexpected error while adding edge between "%v" and "%v". Replacing edge since new data was passed in`, source, dest)
+		err = d.underlying.RemoveEdge(source, dest)
+		if err != nil {
+			zap.S().With("error", zap.Error(err)).Errorf(
+				`Unexpected error while removing edge between "%v" and "%v". failed to replace edge`, source, dest)
+		} else {
+			d.AddEdge(source, dest, data)
+		}
 	}
 }
 

@@ -8,9 +8,12 @@ import (
 )
 
 // expandOrm takes in a single orm construct and expands the generic construct into a set of resource's based on the units configuration.
-func (a *AWS) expandOrm(dag *core.ResourceGraph, orm *core.Orm) error {
-	switch a.Config.GetPersistOrm(orm.Name).Type {
-	case Rds_postgres:
+func (a *AWS) expandOrm(dag *core.ResourceGraph, orm *core.Orm, constructType string) error {
+	if constructType == "" {
+		constructType = resources.RDS_INSTANCE_TYPE
+	}
+	switch constructType {
+	case resources.RDS_INSTANCE_TYPE:
 		instance, err := core.CreateResource[*resources.RdsInstance](dag, resources.RdsInstanceCreateParams{
 			AppName: a.Config.AppName,
 			Refs:    core.BaseConstructSetOf(orm),

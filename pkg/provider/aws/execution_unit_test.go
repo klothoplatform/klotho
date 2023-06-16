@@ -15,16 +15,18 @@ import (
 func Test_ExpandExecutionUnit(t *testing.T) {
 	eu := &core.ExecutionUnit{Name: "test", DockerfilePath: "path"}
 	cases := []struct {
-		name   string
-		unit   *core.ExecutionUnit
-		chart  *kubernetes.HelmChart
-		config *config.Application
-		want   coretesting.ResourcesExpectation
+		name          string
+		unit          *core.ExecutionUnit
+		chart         *kubernetes.HelmChart
+		constructType string
+		config        *config.Application
+		want          coretesting.ResourcesExpectation
 	}{
 		{
-			name:   "single lambda exec unit",
-			unit:   eu,
-			config: &config.Application{AppName: "my-app", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: Lambda}}},
+			name:          "single lambda exec unit",
+			unit:          eu,
+			constructType: "lambda_function",
+			config:        &config.Application{AppName: "my-app", Defaults: config.Defaults{ExecutionUnit: config.KindDefaults{Type: Lambda}}},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ecr_image:my-app-test",
@@ -65,6 +67,7 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 				},
 				Values: make(map[string]any),
 			},
+			constructType: kubernetes.HELM_CHART_TYPE,
 			config: &config.Application{AppName: "my-app",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"test": {
@@ -157,6 +160,7 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 				ExecutionUnits: []*kubernetes.HelmExecUnit{{Name: eu.Name}},
 				Values:         make(map[string]any),
 			},
+			constructType: kubernetes.HELM_CHART_TYPE,
 			config: &config.Application{AppName: "my-app",
 				ExecutionUnits: map[string]*config.ExecutionUnit{
 					"test": {
@@ -249,7 +253,7 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 			aws := AWS{
 				Config: tt.config,
 			}
-			err := aws.expandExecutionUnit(dag, tt.unit)
+			err := aws.expandExecutionUnit(dag, tt.unit, tt.constructType)
 
 			if !assert.NoError(err) {
 				return

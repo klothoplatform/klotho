@@ -23,8 +23,11 @@ import (
 	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/input"
 	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/klothoplatform/klotho/pkg/provider/providers"
 	"github.com/klothoplatform/klotho/pkg/updater"
 )
 
@@ -400,12 +403,11 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	document := compiler.CompilationDocument{
+	document := &compiler.CompilationDocument{
 		InputFiles:       input,
 		FileDependencies: &core.FileDependencies{},
 		Constructs:       core.NewConstructGraph(),
 		Configuration:    &appCfg,
-		Resources:        core.NewResourceGraph(),
 		OutputOptions:    options.Output,
 	}
 
@@ -417,10 +419,44 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	if cfg.constructGraph != "" {
-		err = klothoCompiler.LoadConstructGraphFromFile(cfg.constructGraph)
+		klothoCompiler.AnalysisAndTransformationPlugins = nil
+		klothoCompiler.ProviderPlugins = nil
+		provider, err := providers.GetProvider(&appCfg)
 		if err != nil {
 			return err
 		}
+		kb, err := providers.GetKnowledgeBase(&appCfg)
+		if err != nil {
+			return err
+		}
+		engine := engine.NewEngine(provider, kb)
+		err = klothoCompiler.LoadConstructGraphFromFile(cfg.constructGraph)
+		if err != nil {
+			return errors.Errorf("failed to load construct graph: %s", err.Error())
+		}
+		c, err := klothoCompiler.LoadConstraintsFromFile(cfg.constructGraph)
+		if err != nil {
+			return errors.Errorf("failed to load constraints: %s", err.Error())
+		}
+		k8sPlugin := kubernetes.Kubernetes{Config: &appCfg}
+
+		engine.LoadContext(document.Constructs, c, cfg.appName)
+		err = k8sPlugin.Translate(document.Constructs, engine.Context.EndState)
+		if err != nil {
+			return errors.Errorf("failed to run kubernetes plugin: %s", err.Error())
+		}
+		dag, err := engine.Run()
+		if err != nil {
+			return errors.Errorf("failed to run engine: %s", err.Error())
+		}
+		document.Resources = dag
+		err = klothoCompiler.Document.OutputGraph(cfg.outDir)
+		if err != nil {
+			return err
+		}
+
+	} else {
+		document.Resources = core.NewResourceGraph()
 	}
 
 	analyticsClient.Info(klothoName + " compiling")

@@ -64,6 +64,9 @@ func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error 
 	typeToResource["subnet_public"] = &resources.Subnet{}
 	var joinedErr error
 	for _, node := range graph.Resources {
+		if node.Provider != "aws" {
+			continue
+		}
 		res, ok := typeToResource[node.Type]
 		if !ok {
 			joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to find resource of type %s", node.Type))
@@ -118,6 +121,9 @@ func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error 
 	}
 
 	for _, edge := range graph.Edges {
+		if edge.Source.Provider != "aws" || edge.Destination.Provider != "aws" {
+			continue
+		}
 		src, found := createdResources[edge.Source]
 		if !found {
 			joinedErr = errors.Join(joinedErr, fmt.Errorf("could not find created resource for %s", edge.Source))
@@ -131,4 +137,53 @@ func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error 
 		dag.AddDependency(src.Id(), dst.Id())
 	}
 	return joinedErr
+}
+
+// CreateResourceFromId creates a resource from an id, but does not mutate the graph in any manner
+// The graph is passed in to be able to understand what namespaces reference in resource ids
+func (a *AWS) CreateResourceFromId(id core.ResourceId, dag *core.ResourceGraph) (core.Resource, error) {
+	typeToResource := make(map[string]core.Resource)
+	for _, res := range resources.ListAll() {
+		typeToResource[res.Id().Type] = res
+	}
+	// Subnets are special because they have a type that is not the same as their resource type since it uses a characteristic of the subnet
+	typeToResource["subnet_private"] = &resources.Subnet{}
+	typeToResource["subnet_public"] = &resources.Subnet{}
+	res, ok := typeToResource[id.Type]
+	if !ok {
+		return nil, fmt.Errorf("unable to find resource of type %s", id.Type)
+	}
+	newResource := reflect.New(reflect.TypeOf(res).Elem()).Interface()
+	resource, ok := newResource.(core.Resource)
+	if !ok {
+		return nil, fmt.Errorf("item %s of type %T is not of type core.Resource", id, newResource)
+	}
+	reflect.ValueOf(resource).Elem().FieldByName("Name").SetString(id.Name)
+	if subnet, ok := resource.(*resources.Subnet); ok {
+		if id.Type == "subnet_public" {
+			subnet.Type = resources.PublicSubnet
+		} else if id.Type == "subnet_private" {
+			subnet.Type = resources.PrivateSubnet
+		}
+	}
+
+	if id.Namespace != "" {
+		method := reflect.ValueOf(resource).MethodByName("Load")
+		if method.IsValid() {
+			var callArgs []reflect.Value
+			callArgs = append(callArgs, reflect.ValueOf(id.Namespace))
+			callArgs = append(callArgs, reflect.ValueOf(dag))
+			eval := method.Call(callArgs)
+			if !eval[0].IsNil() {
+				err, ok := eval[0].Interface().(error)
+				if !ok {
+					return nil, fmt.Errorf("return type should be an error")
+				}
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	return resource, nil
 }
