@@ -116,7 +116,7 @@ func Test_FindPaths(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			result := TestKnowledgeBase.FindPaths(reflect.TypeOf(tt.source), reflect.TypeOf(tt.dest))
+			result := TestKnowledgeBase.FindPaths(tt.source, tt.dest, EdgeConstraint{})
 			assert.ElementsMatch(tt.want, result)
 		})
 	}
@@ -208,15 +208,37 @@ type (
 
 func (f *A) Id() core.ResourceId                      { return core.ResourceId{Type: "A", Name: "A" + f.Name} }
 func (f *A) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f *A) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
 
 func (b B) Id() core.ResourceId                      { return core.ResourceId{Type: "B", Name: "B" + b.Name} }
 func (f B) BaseConstructsRef() core.BaseConstructSet { return nil }
-
+func (f B) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
 func (p *C) Id() core.ResourceId                      { return core.ResourceId{Type: "C", Name: "C" + p.Name} }
 func (f *C) BaseConstructsRef() core.BaseConstructSet { return nil }
-
+func (f *C) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
 func (p *D) Id() core.ResourceId                      { return core.ResourceId{Type: "D", Name: "D" + p.Name} }
 func (f *D) BaseConstructsRef() core.BaseConstructSet { return nil }
-
+func (f *D) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
 func (p *E) Id() core.ResourceId                      { return core.ResourceId{Type: "E", Name: "E" + p.Name} }
 func (f *E) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f *E) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}

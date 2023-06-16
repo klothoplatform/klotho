@@ -105,7 +105,17 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		return nil, err
 	}
 
-	// Apply the remainder of the edge constraints after we have expanded our graph
+	// Apply the remainder of application constraints after weve expanded our graph (resource level application constrinats)
+	for _, constraint := range e.Context.Constraints[constraints.ApplicationConstraintScope] {
+		if applied := appliedConstraints[constraints.ApplicationConstraintScope][constraint]; !applied {
+			err := e.ApplyApplicationConstraint(constraint.(*constraints.ApplicationConstraint))
+			if err == nil {
+				appliedConstraints[constraints.ApplicationConstraintScope][constraint] = true
+			}
+		}
+	}
+
+	// Apply the remainder of the edge constraints after we have expanded our graph (resource level edge constraints)
 	for _, constraint := range e.Context.Constraints[constraints.EdgeConstraintScope] {
 		if applied := appliedConstraints[constraints.EdgeConstraintScope][constraint]; !applied {
 			err := e.ApplyEdgeConstraint(constraint.(*constraints.EdgeConstraint))
@@ -257,17 +267,31 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 			}
 			e.Context.WorkingState.AddConstruct(construct)
 			decision.Construct = construct
+		} else {
+			resource, err := e.Provider.CreateResourceFromId(constraint.Node, e.Context.InitialState)
+			if err != nil {
+				return err
+			}
+			e.Context.EndState.AddResource(resource)
 		}
 	case constraints.RemoveConstraintOperator:
 		if constraint.Node.Provider == core.AbstractConstructProvider {
 			construct := e.Context.WorkingState.GetConstruct(constraint.Node)
 			if construct == nil {
-				return fmt.Errorf("construct, %s, does not exist", construct.Id())
+				return fmt.Errorf("construct, %s, does not exist", constraint.Node)
 			}
 			decision.Construct = construct
 			return e.Context.WorkingState.RemoveConstructAndEdges(construct)
 		} else {
-			return fmt.Errorf("cannot remove resource %s, removing resources is not supported at this time", constraint.Node)
+			resource := e.Context.EndState.GetResource(constraint.Node)
+			if resource == nil {
+				return fmt.Errorf("resource, %s, does not exist", constraint.Node)
+			}
+			decision.Resources = append(decision.Resources, resource)
+			if !e.deleteResource(resource, true) {
+				return fmt.Errorf("cannot remove resource %s, failed", constraint.Node)
+			}
+			return nil
 		}
 	case constraints.ReplaceConstraintOperator:
 		if constraint.Node.Provider == core.AbstractConstructProvider {
@@ -361,7 +385,7 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 		}
 	}
 
-	resource, err := e.Provider.CreateResourceFromId(constraint.Node, e.Context.EndState)
+	resource, err := e.Provider.CreateResourceFromId(constraint.Node, e.Context.WorkingState)
 	if err != nil {
 		return err
 	}

@@ -56,6 +56,12 @@ func (manifest *Manifest) Id() core.ResourceId {
 	}
 }
 
+func (manifest *Manifest) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 func addDeploymentManifest(kch *HelmChart, unit *HelmExecUnit) error {
 	data := DeploymentManifestData{
 		Name:               sanitize.MetadataNameSanitizer.Apply(unit.Name),
