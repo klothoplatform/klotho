@@ -60,3 +60,9 @@ func (k Kubeconfig) Id() core.ResourceId {
 		Name:     k.Name,
 	}
 }
+
+func (k *Kubeconfig) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
