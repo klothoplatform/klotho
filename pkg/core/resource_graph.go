@@ -43,6 +43,24 @@ func (rg *ResourceGraph) AddResource(resource Resource) {
 	}
 }
 
+func (rg *ResourceGraph) AddResourceWithProperties(resource Resource, properties map[string]string) {
+	rg.underlying.AddVertexWithProperties(resource, graph.ToVertexAttributes(properties))
+	zap.S().Debugf("adding resource: %s, with properties: %s", resource.Id(), properties)
+}
+
+func (rg *ResourceGraph) GetResource(id ResourceId) Resource {
+	return rg.underlying.GetVertex(id.String())
+}
+
+func (rg *ResourceGraph) GetResourceFromString(id string) Resource {
+	return rg.underlying.GetVertex(id)
+}
+
+func (rg *ResourceGraph) GetResourceWithProperties(id ResourceId) (Resource, map[string]string) {
+	res, props := rg.underlying.GetVertexWithProperties(id.String())
+	return res, graph.AttributesFromVertexProperties(props)
+}
+
 // Adds a dependency such that `deployedSecond` has to be deployed after `deployedFirst`. This makes the left-to-right
 // association consistent with our visualizer, and with the Go struct graph.
 //
@@ -86,10 +104,6 @@ func (rg *ResourceGraph) AddDependencyById(deployedSecond ResourceId, deployedFi
 	}
 }
 
-func (rg *ResourceGraph) GetResource(id ResourceId) Resource {
-	return rg.underlying.GetVertex(id.String())
-}
-
 func GetResource[T Resource](g *ResourceGraph, id ResourceId) (resource T, ok bool) {
 	rR := g.GetResource(id)
 	resource, ok = rR.(T)
@@ -112,6 +126,27 @@ func (rg *ResourceGraph) GetDependency(source ResourceId, target ResourceId) *gr
 
 func (rg *ResourceGraph) RemoveDependency(source ResourceId, target ResourceId) error {
 	return rg.underlying.RemoveEdge(source.String(), target.String())
+}
+
+func (rg *ResourceGraph) RemoveResourceAndEdges(source Resource) error {
+	for _, edge := range rg.GetDownstreamDependencies(source) {
+		err := rg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		if err != nil {
+			return err
+		}
+	}
+	for _, edge := range rg.GetUpstreamDependencies(source) {
+		err := rg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		if err != nil {
+			return err
+		}
+	}
+	return rg.RemoveResource(source)
+}
+
+func (rg *ResourceGraph) RemoveResource(resource Resource) error {
+	zap.S().Infof("Removing resource %s", resource.Id())
+	return rg.underlying.RemoveVertex(resource.Id().String())
 }
 
 func (rg *ResourceGraph) ListResources() []Resource {
