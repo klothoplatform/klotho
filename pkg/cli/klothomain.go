@@ -260,7 +260,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 			cmd.SilenceUsage = true
 		},
 	}
-	// defer analyticsClient.PanicHandler(&err, errHandler)
+	defer analyticsClient.PanicHandler(&err, errHandler)
 
 	updateStream := options.Update.Stream.OrDefault(km.DefaultUpdateStream)
 	analyticsClient.AppendProperty("updateStream", updateStream)
