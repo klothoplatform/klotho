@@ -21,7 +21,7 @@ const (
 type (
 	CloudfrontDistribution struct {
 		Name                         string
-		ConstructsRef                core.BaseConstructSet
+		ConstructsRef                core.BaseConstructSet `yaml:"-"`
 		Origins                      []*CloudfrontOrigin
 		CloudfrontDefaultCertificate bool
 		Enabled                      bool
@@ -59,9 +59,9 @@ type (
 	}
 
 	CloudfrontOrigin struct {
-		DomainName         core.IaCValue
+		DomainName         core.IaCValue `yaml:"-"`
 		OriginId           string
-		OriginPath         core.IaCValue
+		OriginPath         core.IaCValue `yaml:"-"`
 		S3OriginConfig     S3OriginConfig
 		CustomOriginConfig CustomOriginConfig
 	}
@@ -79,7 +79,7 @@ type (
 
 	OriginAccessIdentity struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Comment       string
 	}
 )
@@ -154,6 +154,12 @@ func (distro *CloudfrontDistribution) Id() core.ResourceId {
 		Name:     distro.Name,
 	}
 }
+func (distro *CloudfrontDistribution) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   true,
+		RequiresNoDownstream: false,
+	}
+}
 
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (oai *OriginAccessIdentity) BaseConstructsRef() core.BaseConstructSet {
@@ -166,5 +172,12 @@ func (oai *OriginAccessIdentity) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     ORIGIN_ACCESS_IDENTITY_TYPE,
 		Name:     oai.Name,
+	}
+}
+
+func (oai *OriginAccessIdentity) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   false,
+		RequiresNoDownstream: false,
 	}
 }

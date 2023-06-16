@@ -14,7 +14,7 @@ type (
 		CloudwatchGroup *LogGroup
 		SubnetGroup     *ElasticacheSubnetgroup
 		SecurityGroups  []*SecurityGroup
-		ConstructsRef   core.BaseConstructSet
+		ConstructsRef   core.BaseConstructSet `yaml:"-"`
 		NodeType        string
 		NumCacheNodes   int
 	}
@@ -22,13 +22,13 @@ type (
 	ElasticacheSubnetgroup struct {
 		Name          string
 		Subnets       []*Subnet
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 	}
 )
 
 const (
-	EC_TYPE   = "elasticache"
-	ECSN_TYPE = "elasticache_subnetgroup"
+	ELASTICACHE_CLUSTER_TYPE     = "elasticache_cluster"
+	ELASTICACHE_SUBNETGROUP_TYPE = "elasticache_subnetgroup"
 )
 
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
@@ -40,8 +40,16 @@ func (ec *ElasticacheCluster) BaseConstructsRef() core.BaseConstructSet {
 func (ec *ElasticacheCluster) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
-		Type:     EC_TYPE,
+		Type:     ELASTICACHE_CLUSTER_TYPE,
 		Name:     ec.Name,
+	}
+}
+
+func (ec *ElasticacheCluster) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:     true,
+		RequiresNoDownstream:   true,
+		RequiresExplicitDelete: true,
 	}
 }
 
@@ -54,8 +62,14 @@ func (ecsn *ElasticacheSubnetgroup) BaseConstructsRef() core.BaseConstructSet {
 func (ecsn *ElasticacheSubnetgroup) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
-		Type:     ECSN_TYPE,
+		Type:     ELASTICACHE_SUBNETGROUP_TYPE,
 		Name:     ecsn.Name,
+	}
+}
+
+func (ecsn *ElasticacheSubnetgroup) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }
 

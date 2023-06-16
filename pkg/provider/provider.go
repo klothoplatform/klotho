@@ -17,62 +17,19 @@
 package provider
 
 import (
-	"reflect"
-
-	"github.com/klothoplatform/klotho/pkg/compiler"
-	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/multierr"
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
 )
 
 type (
 	Provider interface {
-		compiler.ProviderPlugin
-		GetKindTypeMappings(construct core.Construct) []string
-		GetDefaultConfig() config.Defaults
-		compiler.ValidatingPlugin
-		CreateResourceFromId(id core.ResourceId, dag *core.ResourceGraph) (core.Resource, error)
+		Name() string
+		LoadGraph(graph core.InputGraph, dag *core.ConstructGraph) error
+		CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error)
 		ExpandConstruct(construct core.Construct, dag *core.ResourceGraph, constructType string) (directlyMappedResources []core.Resource, err error)
-	}
-
-	TemplateConfig struct {
-		Datadog bool
-		Lumigo  bool
-		AppName string
 	}
 )
 
-// HandleProviderValidation ensures that the klotho configuration and construct graph are valid for the provider
-//
-// The current checks consist of:
-//   - types defined in klotho configuration for each construct is valid for the provider
-func HandleProviderValidation(p Provider, config *config.Application, constructGraph *core.ConstructGraph) error {
-
-	var errs multierr.Error
-	log := zap.L().Sugar()
-	for _, resource := range core.ListConstructs[core.Construct](constructGraph) {
-		if _, ok := resource.(*core.InternalResource); ok {
-			continue
-		}
-		resourceValid := false
-		mapping := p.GetKindTypeMappings(resource)
-		if len(mapping) == 0 {
-			errs.Append(errors.Errorf(`Provider "%s" does not support %s `, p.Name(), reflect.ValueOf(resource).Type()))
-			continue
-		}
-		resourceType := config.GetResourceType(resource)
-		log.Debugf("Checking if provider, %s, supports %s and type, %s, pair.", p.Name(), resource.AnnotationCapability(), resourceType)
-		for _, validType := range mapping {
-			if validType == resourceType {
-				resourceValid = true
-			}
-		}
-		if !resourceValid {
-			errs.Append(errors.Errorf(`Provider "%s" does not support %s of type %s.\nValid resource types are: %v`, p.Name(), reflect.ValueOf(resource).Type(), resourceType, mapping))
-		}
-	}
-
-	return errs.ErrOrNil()
-}
+const (
+	AWS        = "aws"
+	KUBERNETES = "kubernetes"
+)

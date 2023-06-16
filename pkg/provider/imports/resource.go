@@ -24,3 +24,9 @@ func (imp Imported) Id() core.ResourceId {
 		Name:     imp.ID,
 	}
 }
+
+func (imp Imported) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}

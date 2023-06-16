@@ -71,12 +71,10 @@ var proxyLambdaContents string
 
 type (
 	AwsRuntime struct {
-		TemplateConfig aws.TemplateConfig
-		Cfg            *config.Application
+		Cfg *config.Application
 	}
 
 	TemplateData struct {
-		aws.TemplateConfig
 		ExecUnitName    string
 		Expose          ExposeTemplateData
 		ProjectFilePath string
@@ -89,7 +87,7 @@ type (
 )
 
 func (r *AwsRuntime) GetAppName() string {
-	return r.TemplateConfig.AppName
+	return r.Cfg.AppName
 }
 
 func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
@@ -117,8 +115,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	}
 
 	templateData := TemplateData{
-		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		ExecUnitName: unit.Name,
 	}
 
 	var err error
@@ -274,8 +271,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 
 func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) error {
 	templateData := TemplateData{
-		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		ExecUnitName: unit.Name,
 	}
 	err := python.AddRuntimeFiles(unit, files, templateData)
 	return err
@@ -283,8 +279,7 @@ func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) e
 
 func (r *AwsRuntime) AddRuntimeFile(unit *core.ExecutionUnit, path string, content []byte) error {
 	templateData := TemplateData{
-		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
+		ExecUnitName: unit.Name,
 	}
 	err := python.AddRuntimeFile(unit, templateData, path, content)
 	return err

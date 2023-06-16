@@ -16,7 +16,7 @@ const (
 type (
 	KmsKey struct {
 		Name                string
-		ConstructsRef       core.BaseConstructSet
+		ConstructsRef       core.BaseConstructSet `yaml:"-"`
 		Description         string
 		Enabled             bool
 		EnableKeyRotation   bool
@@ -29,14 +29,14 @@ type (
 
 	KmsAlias struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		AliasName     string
 		TargetKey     *KmsKey
 	}
 
 	KmsReplicaKey struct {
 		Name                string
-		ConstructsRef       core.BaseConstructSet
+		ConstructsRef       core.BaseConstructSet `yaml:"-"`
 		Description         string
 		Enabled             bool
 		KeyPolicy           *PolicyDocument
@@ -143,6 +143,12 @@ func (key *KmsKey) Id() core.ResourceId {
 	}
 }
 
+func (key *KmsKey) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (alias *KmsAlias) BaseConstructsRef() core.BaseConstructSet {
 	return alias.ConstructsRef
@@ -157,6 +163,12 @@ func (alias *KmsAlias) Id() core.ResourceId {
 	}
 }
 
+func (alias *KmsAlias) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (replica *KmsReplicaKey) BaseConstructsRef() core.BaseConstructSet {
 	return replica.ConstructsRef
@@ -168,5 +180,11 @@ func (replica *KmsReplicaKey) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     KMS_REPLICA_KEY_TYPE,
 		Name:     replica.Name,
+	}
+}
+
+func (replica *KmsReplicaKey) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }

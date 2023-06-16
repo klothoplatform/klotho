@@ -11,19 +11,16 @@ import (
 	"github.com/klothoplatform/klotho/pkg/lang/csharp"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp/csproj"
 	"github.com/klothoplatform/klotho/pkg/multierr"
-	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/runtime"
 	"github.com/pkg/errors"
 )
 
 type (
 	AwsRuntime struct {
-		TemplateConfig aws.TemplateConfig
-		Cfg            *config.Application
+		Cfg *config.Application
 	}
 
 	TemplateData struct {
-		aws.TemplateConfig
 		ExecUnitName string
 		Expose       ExposeTemplateData
 		AssemblyName string
@@ -99,11 +96,10 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	errs.Append(err)
 
 	templateData := TemplateData{
-		TemplateConfig: r.TemplateConfig,
-		ExecUnitName:   unit.Name,
-		CSProjFile:     projectFile.Path(),
-		Expose:         exposeData,
-		AssemblyName:   assembly,
+		ExecUnitName: unit.Name,
+		CSProjFile:   projectFile.Path(),
+		Expose:       exposeData,
+		AssemblyName: assembly,
 	}
 
 	if runtime.ShouldOverrideDockerfile(unit) {

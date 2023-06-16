@@ -90,23 +90,23 @@ var EKS_ASSUME_ROLE_POLICY = &PolicyDocument{
 type (
 	IamRole struct {
 		Name                string
-		ConstructsRef       core.BaseConstructSet
+		ConstructsRef       core.BaseConstructSet `yaml:"-"`
 		AssumeRolePolicyDoc *PolicyDocument
-		ManagedPolicies     []core.IaCValue
+		ManagedPolicies     []core.IaCValue `yaml:"-"`
 		AwsManagedPolicies  []string
-		InlinePolicies      []*IamInlinePolicy
+		InlinePolicies      []*IamInlinePolicy `yaml:"-"`
 	}
 
 	IamPolicy struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
-		Policy        *PolicyDocument
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		Policy        *PolicyDocument       `yaml:"-"`
 	}
 
 	IamInlinePolicy struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
-		Policy        *PolicyDocument
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		Policy        *PolicyDocument       `yaml:"-"`
 	}
 
 	PolicyDocument struct {
@@ -117,25 +117,25 @@ type (
 	StatementEntry struct {
 		Effect    string
 		Action    []string
-		Resource  []core.IaCValue
+		Resource  []core.IaCValue `yaml:"-"`
 		Principal *Principal
 		Condition *Condition
 	}
 
 	Principal struct {
 		Service   string
-		Federated core.IaCValue
-		AWS       core.IaCValue
+		Federated core.IaCValue `yaml:"-"`
+		AWS       core.IaCValue `yaml:"-"`
 	}
 
 	Condition struct {
-		StringEquals map[core.IaCValue]string
-		Null         map[core.IaCValue]string
+		StringEquals map[core.IaCValue]string `yaml:"-"`
+		Null         map[core.IaCValue]string `yaml:"-"`
 	}
 
 	OpenIdConnectProvider struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		ClientIdLists []string
 		Cluster       *EksCluster
 		Region        *Region
@@ -143,14 +143,14 @@ type (
 
 	RolePolicyAttachment struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Policy        *IamPolicy
 		Role          *IamRole
 	}
 
 	InstanceProfile struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Role          *IamRole
 	}
 )
@@ -269,6 +269,12 @@ func (role *IamRole) Id() core.ResourceId {
 	}
 }
 
+func (role *IamRole) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 func (role *IamRole) AddAwsManagedPolicies(policies []string) {
 	currPolicies := map[string]bool{}
 	for _, pol := range role.AwsManagedPolicies {
@@ -334,6 +340,12 @@ func (policy *IamPolicy) Id() core.ResourceId {
 	}
 }
 
+func (policy *IamPolicy) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (oidc *OpenIdConnectProvider) BaseConstructsRef() core.BaseConstructSet {
 	return oidc.ConstructsRef
@@ -345,6 +357,12 @@ func (oidc *OpenIdConnectProvider) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     OIDC_PROVIDER_TYPE,
 		Name:     oidc.Name,
+	}
+}
+
+func (oidc *OpenIdConnectProvider) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }
 
@@ -362,6 +380,12 @@ func (role *RolePolicyAttachment) Id() core.ResourceId {
 	}
 }
 
+func (role *RolePolicyAttachment) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstreamOrDownstream: true,
+	}
+}
+
 func (profile *InstanceProfile) BaseConstructsRef() core.BaseConstructSet {
 	return profile.ConstructsRef
 }
@@ -372,6 +396,12 @@ func (profile *InstanceProfile) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     INSTANCE_PROFILE_TYPE,
 		Name:     profile.Name,
+	}
+}
+
+func (profile *InstanceProfile) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }
 

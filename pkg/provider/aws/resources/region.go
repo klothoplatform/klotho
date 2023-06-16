@@ -7,17 +7,17 @@ import (
 type (
 	Region struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 	}
 
 	AvailabilityZones struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 	}
 
 	AccountId struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 	}
 )
 
@@ -51,6 +51,11 @@ func (region *Region) Id() core.ResourceId {
 		Name:     REGION_NAME,
 	}
 }
+func (region *Region) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
 
 func NewAvailabilityZones() *AvailabilityZones {
 	return &AvailabilityZones{
@@ -73,6 +78,12 @@ func (azs *AvailabilityZones) Id() core.ResourceId {
 	}
 }
 
+func (azs *AvailabilityZones) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 func NewAccountId() *AccountId {
 	return &AccountId{
 		Name:          ACCOUNT_ID_NAME,
@@ -91,5 +102,11 @@ func (id *AccountId) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     ACCOUNT_ID_TYPE,
 		Name:     ACCOUNT_ID_NAME,
+	}
+}
+
+func (id *AccountId) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }

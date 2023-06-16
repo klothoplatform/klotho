@@ -15,7 +15,7 @@ const (
 type (
 	Route53HostedZone struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Vpc           *Vpc
 		ForceDestroy  bool
 	}
@@ -23,17 +23,17 @@ type (
 	Route53Record struct {
 		Name          string
 		DomainName    string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Zone          *Route53HostedZone
 		Type          string
-		Records       []core.IaCValue
+		Records       []core.IaCValue `yaml:"-"`
 		HealthCheck   *Route53HealthCheck
 		TTL           int
 	}
 
 	Route53HealthCheck struct {
 		Name             string
-		ConstructsRef    core.BaseConstructSet
+		ConstructsRef    core.BaseConstructSet `yaml:"-"`
 		Type             string
 		Disabled         bool
 		FailureThreshold int
@@ -192,6 +192,12 @@ func (zone *Route53HostedZone) Id() core.ResourceId {
 	}
 }
 
+func (zone *Route53HostedZone) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 func (record *Route53Record) BaseConstructsRef() core.BaseConstructSet {
 	return record.ConstructsRef
 }
@@ -205,6 +211,12 @@ func (record *Route53Record) Id() core.ResourceId {
 	}
 }
 
+func (record *Route53Record) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 func (hc *Route53HealthCheck) BaseConstructsRef() core.BaseConstructSet {
 	return hc.ConstructsRef
 }
@@ -215,5 +227,12 @@ func (hc *Route53HealthCheck) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     ROUTE_53_HEALTH_CHECK_TYPE,
 		Name:     hc.Name,
+	}
+}
+
+func (record *Route53HealthCheck) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   true,
+		RequiresNoDownstream: true,
 	}
 }

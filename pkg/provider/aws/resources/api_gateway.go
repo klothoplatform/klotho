@@ -29,13 +29,13 @@ var apiResourceSanitizer = aws.ApiResourceSanitizer
 type (
 	RestApi struct {
 		Name             string
-		ConstructsRef    core.BaseConstructSet
+		ConstructsRef    core.BaseConstructSet `yaml:"-"`
 		BinaryMediaTypes []string
 	}
 
 	ApiResource struct {
 		Name           string
-		ConstructsRef  core.BaseConstructSet
+		ConstructsRef  core.BaseConstructSet `yaml:"-"`
 		RestApi        *RestApi
 		PathPart       string
 		ParentResource *ApiResource
@@ -43,7 +43,7 @@ type (
 
 	ApiMethod struct {
 		Name              string
-		ConstructsRef     core.BaseConstructSet
+		ConstructsRef     core.BaseConstructSet `yaml:"-"`
 		RestApi           *RestApi
 		Resource          *ApiResource
 		HttpMethod        string
@@ -52,13 +52,13 @@ type (
 	}
 
 	VpcLink struct {
-		ConstructsRef core.BaseConstructSet
-		Target        core.Resource
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		Target        core.Resource         `yaml:"-"`
 	}
 
 	ApiIntegration struct {
 		Name                  string
-		ConstructsRef         core.BaseConstructSet
+		ConstructsRef         core.BaseConstructSet `yaml:"-"`
 		RestApi               *RestApi
 		Resource              *ApiResource
 		Method                *ApiMethod
@@ -67,20 +67,20 @@ type (
 		Type                  string
 		ConnectionType        string
 		VpcLink               *VpcLink
-		Uri                   core.IaCValue
+		Uri                   core.IaCValue `yaml:"-"`
 		Route                 string
 	}
 
 	ApiDeployment struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		RestApi       *RestApi
 		Triggers      map[string]string
 	}
 
 	ApiStage struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		StageName     string
 		RestApi       *RestApi
 		Deployment    *ApiDeployment
@@ -375,6 +375,14 @@ func (api *RestApi) Id() core.ResourceId {
 	}
 }
 
+func (api *RestApi) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:     true,
+		RequiresNoDownstream:   true,
+		RequiresExplicitDelete: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (res *ApiResource) BaseConstructsRef() core.BaseConstructSet {
 	return res.ConstructsRef
@@ -389,6 +397,13 @@ func (res *ApiResource) Id() core.ResourceId {
 	}
 }
 
+func (res *ApiResource) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   true,
+		RequiresNoDownstream: false,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (method *ApiMethod) BaseConstructsRef() core.BaseConstructSet {
 	return method.ConstructsRef
@@ -400,6 +415,13 @@ func (method *ApiMethod) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     API_GATEWAY_METHOD_TYPE,
 		Name:     method.Name,
+	}
+}
+
+func (method *ApiMethod) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   true,
+		RequiresNoDownstream: false,
 	}
 }
 
@@ -424,6 +446,12 @@ func (res *VpcLink) Id() core.ResourceId {
 func (res *VpcLink) Name() string {
 	return res.Id().Name
 }
+func (link *VpcLink) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   true,
+		RequiresNoDownstream: false,
+	}
+}
 
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (integration *ApiIntegration) BaseConstructsRef() core.BaseConstructSet {
@@ -436,6 +464,12 @@ func (integration *ApiIntegration) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     API_GATEWAY_INTEGRATION_TYPE,
 		Name:     integration.Name,
+	}
+}
+func (integration *ApiIntegration) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   false,
+		RequiresNoDownstream: false,
 	}
 }
 
@@ -453,6 +487,13 @@ func (deployment *ApiDeployment) Id() core.ResourceId {
 	}
 }
 
+func (deployment *ApiDeployment) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   false,
+		RequiresNoDownstream: false,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (stage *ApiStage) BaseConstructsRef() core.BaseConstructSet {
 	return stage.ConstructsRef
@@ -464,5 +505,12 @@ func (stage *ApiStage) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     API_GATEWAY_STAGE_TYPE,
 		Name:     stage.Name,
+	}
+}
+
+func (stage *ApiStage) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   true,
+		RequiresNoDownstream: false,
 	}
 }

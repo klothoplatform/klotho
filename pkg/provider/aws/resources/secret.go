@@ -10,14 +10,14 @@ import (
 type (
 	Secret struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 	}
 
 	SecretVersion struct {
 		Secret        *Secret
 		DetectedPath  string
 		Path          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Name          string
 		Type          string
 	}
@@ -95,6 +95,14 @@ func (s *Secret) Id() core.ResourceId {
 	}
 }
 
+func (s *Secret) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:     true,
+		RequiresNoDownstream:   true,
+		RequiresExplicitDelete: true,
+	}
+}
+
 func (sv *SecretVersion) BaseConstructsRef() core.BaseConstructSet {
 	return sv.ConstructsRef
 }
@@ -104,5 +112,10 @@ func (sv *SecretVersion) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     SECRET_VERSION_TYPE,
 		Name:     sv.Name,
+	}
+}
+func (sv *SecretVersion) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }

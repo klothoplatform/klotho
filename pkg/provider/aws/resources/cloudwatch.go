@@ -14,7 +14,7 @@ var logGroupSanitizer = aws.CloudwatchLogGroupSanitizer
 type (
 	LogGroup struct {
 		Name            string
-		ConstructsRef   core.BaseConstructSet
+		ConstructsRef   core.BaseConstructSet `yaml:"-"`
 		LogGroupName    string
 		RetentionInDays int
 	}
@@ -51,5 +51,12 @@ func (lg *LogGroup) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     LOG_GROUP_TYPE,
 		Name:     lg.Name,
+	}
+}
+
+func (lg *LogGroup) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   false,
+		RequiresNoDownstream: false,
 	}
 }

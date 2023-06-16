@@ -18,10 +18,10 @@ var LambdaPermissionSanitizer = aws.LambdaPermissionSanitizer
 type (
 	LambdaFunction struct {
 		Name                 string
-		ConstructsRef        core.BaseConstructSet
+		ConstructsRef        core.BaseConstructSet `yaml:"-"`
 		Role                 *IamRole
 		Image                *EcrImage
-		EnvironmentVariables EnvironmentVariables
+		EnvironmentVariables EnvironmentVariables `yaml:"-"`
 		SecurityGroups       []*SecurityGroup
 		Subnets              []*Subnet
 		Timeout              int
@@ -30,10 +30,10 @@ type (
 
 	LambdaPermission struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Function      *LambdaFunction
 		Principal     string
-		Source        core.IaCValue
+		Source        core.IaCValue `yaml:"-"`
 		Action        string
 	}
 )
@@ -144,6 +144,14 @@ func (lambda *LambdaFunction) Id() core.ResourceId {
 	}
 }
 
+func (lambda *LambdaFunction) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:     true,
+		RequiresNoDownstream:   true,
+		RequiresExplicitDelete: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (permission *LambdaPermission) BaseConstructsRef() core.BaseConstructSet {
 	return permission.ConstructsRef
@@ -155,5 +163,11 @@ func (permission *LambdaPermission) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     LAMBDA_PERMISSION_TYPE,
 		Name:     permission.Name,
+	}
+}
+
+func (permission *LambdaPermission) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }

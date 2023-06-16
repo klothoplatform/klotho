@@ -23,14 +23,14 @@ const (
 type (
 	S3Bucket struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		ForceDestroy  bool
 		IndexDocument string
 	}
 
 	S3Object struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Bucket        *S3Bucket
 		Key           string
 		FilePath      string
@@ -38,7 +38,7 @@ type (
 
 	S3BucketPolicy struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Bucket        *S3Bucket
 		Policy        *PolicyDocument
 	}
@@ -55,6 +55,14 @@ func (bucket *S3Bucket) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     S3_BUCKET_TYPE,
 		Name:     bucket.Name,
+	}
+}
+
+func (bucket *S3Bucket) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:     true,
+		RequiresNoDownstream:   true,
+		RequiresExplicitDelete: true,
 	}
 }
 
@@ -135,6 +143,12 @@ func (object *S3Object) Id() core.ResourceId {
 	}
 }
 
+func (bucket *S3Object) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 type S3BucketPolicyCreateParams struct {
 	Name       string
 	BucketName string
@@ -162,5 +176,11 @@ func (policy *S3BucketPolicy) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     S3_BUCKET_POLICY_TYPE,
 		Name:     policy.Name,
+	}
+}
+
+func (policy *S3BucketPolicy) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }
