@@ -41,7 +41,7 @@ type (
 	// RdsInstance represents an AWS RDS db instance
 	RdsInstance struct {
 		Name                             string
-		ConstructsRef                    core.BaseConstructSet
+		ConstructsRef                    core.BaseConstructSet `yaml:"-"`
 		SubnetGroup                      *RdsSubnetGroup
 		SecurityGroups                   []*SecurityGroup
 		DatabaseName                     string
@@ -53,14 +53,14 @@ type (
 		InstanceClass                    string
 		SkipFinalSnapshot                bool
 		AllocatedStorage                 int
-		CredentialsFile                  core.File
+		CredentialsFile                  core.File `yaml:"-"`
 		CredentialsPath                  string
 	}
 
 	// RdsSubnetGroup represents an AWS RDS subnet group
 	RdsSubnetGroup struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Subnets       []*Subnet
 		Tags          map[string]string
 	}
@@ -68,7 +68,7 @@ type (
 	// RdsProxy represents an AWS RDS proxy instance
 	RdsProxy struct {
 		Name              string
-		ConstructsRef     core.BaseConstructSet
+		ConstructsRef     core.BaseConstructSet `yaml:"-"`
 		DebugLogging      bool
 		EngineFamily      string
 		IdleClientTimeout int
@@ -83,13 +83,13 @@ type (
 	ProxyAuth struct {
 		AuthScheme string
 		IamAuth    string
-		SecretArn  core.IaCValue
+		SecretArn  core.IaCValue `yaml:"-"`
 	}
 
 	// RdsProxyTargetGroup represents an AWS RDS proxy target group
 	RdsProxyTargetGroup struct {
 		Name                            string
-		ConstructsRef                   core.BaseConstructSet
+		ConstructsRef                   core.BaseConstructSet `yaml:"-"`
 		RdsInstance                     *RdsInstance
 		RdsProxy                        *RdsProxy
 		TargetGroupName                 string
@@ -361,6 +361,14 @@ func (rds *RdsInstance) GetOutputFiles() []core.File {
 	return []core.File{rds.CredentialsFile}
 }
 
+func (rds *RdsInstance) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:     true,
+		RequiresNoDownstream:   true,
+		RequiresExplicitDelete: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (rds *RdsSubnetGroup) BaseConstructsRef() core.BaseConstructSet {
 	return rds.ConstructsRef
@@ -372,6 +380,12 @@ func (rds *RdsSubnetGroup) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     RDS_SUBNET_GROUP_TYPE,
 		Name:     rds.Name,
+	}
+}
+
+func (rds *RdsSubnetGroup) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }
 
@@ -389,6 +403,12 @@ func (rds *RdsProxy) Id() core.ResourceId {
 	}
 }
 
+func (rds *RdsProxy) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (rds *RdsProxyTargetGroup) BaseConstructsRef() core.BaseConstructSet {
 	return rds.ConstructsRef
@@ -400,5 +420,11 @@ func (rds *RdsProxyTargetGroup) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     RDS_PROXY_TARGET_GROUP,
 		Name:     rds.Name,
+	}
+}
+
+func (rds *RdsProxyTargetGroup) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstreamOrDownstream: true,
 	}
 }

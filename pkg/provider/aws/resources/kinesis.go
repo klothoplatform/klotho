@@ -15,7 +15,7 @@ const (
 type (
 	KinesisStream struct {
 		Name                 string
-		ConstructsRef        core.BaseConstructSet
+		ConstructsRef        core.BaseConstructSet `yaml:"-"`
 		RetentionPeriodHours int
 		ShardCount           int
 		StreamEncryption     *StreamEncryption
@@ -33,7 +33,7 @@ type (
 
 	KinesisStreamConsumer struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		ConsumerName  string
 		Stream        *KinesisStream
 	}
@@ -105,6 +105,12 @@ func (stream *KinesisStream) Id() core.ResourceId {
 	}
 }
 
+func (role *KinesisStream) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstreamOrDownstream: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (consumer *KinesisStreamConsumer) BaseConstructsRef() core.BaseConstructSet {
 	return consumer.ConstructsRef
@@ -116,5 +122,11 @@ func (consumer *KinesisStreamConsumer) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     KINESIS_STREAM_CONSUMER_TYPE,
 		Name:     consumer.Name,
+	}
+}
+
+func (consumer *KinesisStreamConsumer) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }

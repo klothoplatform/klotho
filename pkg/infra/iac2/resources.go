@@ -15,7 +15,7 @@ type (
 
 	RouteTableAssociation struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Subnet        *resources.Subnet
 		RouteTable    *resources.RouteTable
 	}
@@ -53,6 +53,10 @@ func (e *KubernetesProvider) Id() core.ResourceId {
 	}
 }
 
+func (f *KubernetesProvider) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{}
+}
+
 func (e *RouteTableAssociation) BaseConstructsRef() core.BaseConstructSet {
 	return e.ConstructsRef
 }
@@ -64,7 +68,9 @@ func (e *RouteTableAssociation) Id() core.ResourceId {
 		Name:     e.Name,
 	}
 }
-
+func (f *RouteTableAssociation) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{}
+}
 func (e *SecurityGroupRule) BaseConstructsRef() core.BaseConstructSet {
 	return e.ConstructsRef
 }
@@ -76,7 +82,9 @@ func (e *SecurityGroupRule) Id() core.ResourceId {
 		Name:     e.Name,
 	}
 }
-
+func (f *SecurityGroupRule) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{}
+}
 func (e *TargetGroupAttachment) BaseConstructsRef() core.BaseConstructSet {
 	return e.ConstructsRef
 }
@@ -87,4 +95,7 @@ func (e *TargetGroupAttachment) Id() core.ResourceId {
 		Type:     "target_group_attachment",
 		Name:     e.Name,
 	}
+}
+func (f *TargetGroupAttachment) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{}
 }

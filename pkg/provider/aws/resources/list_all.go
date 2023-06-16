@@ -71,7 +71,6 @@ func ListAll() []core.Resource {
 		&VpcLink{},
 		&Vpc{},
 		&kubernetes.HelmChart{},
-		&kubernetes.HelmChart{},
 		&kubernetes.Kubeconfig{},
 		&kubernetes.KustomizeDirectory{},
 		&kubernetes.Manifest{},

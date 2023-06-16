@@ -1,11 +1,10 @@
 package knowledgebase
 
 import (
-	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"go.uber.org/zap"
 )
 
 var NetworkingKB = knowledgebase.Build(
@@ -16,7 +15,8 @@ var NetworkingKB = knowledgebase.Build(
 		Configure: func(routeTable *resources.RouteTable, nat *resources.NatGateway, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, route := range routeTable.Routes {
 				if route.CidrBlock == "0.0.0.0/0" {
-					return fmt.Errorf("route table %s already has route for 0.0.0.0/0", routeTable.Name)
+					zap.S().Warnf("route table %s already has route for 0.0.0.0/0. Not overwriting rule", routeTable.Name)
+					continue
 				}
 			}
 			routeTable.Routes = append(routeTable.Routes, &resources.RouteTableRoute{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: nat, Property: resources.ID_IAC_VALUE}})
@@ -27,7 +27,8 @@ var NetworkingKB = knowledgebase.Build(
 		Configure: func(routeTable *resources.RouteTable, igw *resources.InternetGateway, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, route := range routeTable.Routes {
 				if route.CidrBlock == "0.0.0.0/0" {
-					return fmt.Errorf("route table %s already has route for 0.0.0.0/0", routeTable.Name)
+					zap.S().Warnf("route table %s already has route for 0.0.0.0/0. Not overwriting rule", routeTable.Name)
+					continue
 				}
 			}
 			routeTable.Routes = append(routeTable.Routes, &resources.RouteTableRoute{CidrBlock: "0.0.0.0/0", GatewayId: core.IaCValue{Resource: igw, Property: resources.ID_IAC_VALUE}})

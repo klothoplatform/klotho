@@ -17,13 +17,13 @@ const (
 type (
 	EcrRepository struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		ForceDelete   bool
 	}
 
 	EcrImage struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Repo          *EcrRepository
 		Context       string
 		Dockerfile    string
@@ -118,6 +118,12 @@ func (repo *EcrRepository) Id() core.ResourceId {
 	}
 }
 
+func (repo *EcrRepository) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (image *EcrImage) BaseConstructsRef() core.BaseConstructSet {
 	return image.ConstructsRef
@@ -129,5 +135,11 @@ func (image *EcrImage) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     ECR_IMAGE_TYPE,
 		Name:     image.Name,
+	}
+}
+
+func (image *EcrImage) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }

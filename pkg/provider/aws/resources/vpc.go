@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
-	"go.uber.org/zap"
 )
 
 var elasticIpSanitizer = aws.SubnetSanitizer
@@ -35,56 +33,56 @@ const (
 type (
 	Vpc struct {
 		Name               string
-		ConstructsRef      core.BaseConstructSet
+		ConstructsRef      core.BaseConstructSet `yaml:"-"`
 		CidrBlock          string
 		EnableDnsSupport   bool
 		EnableDnsHostnames bool
 	}
 	ElasticIp struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 	}
 	InternetGateway struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Vpc           *Vpc
 	}
 	NatGateway struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		ElasticIp     *ElasticIp
 		Subnet        *Subnet
 	}
 	Subnet struct {
 		Name                string
-		ConstructsRef       core.BaseConstructSet
+		ConstructsRef       core.BaseConstructSet `yaml:"-"`
 		CidrBlock           string
 		Vpc                 *Vpc
 		Type                string
-		AvailabilityZone    core.IaCValue
+		AvailabilityZone    core.IaCValue `yaml:"-"`
 		MapPublicIpOnLaunch bool
 	}
 	VpcEndpoint struct {
 		Name             string
-		ConstructsRef    core.BaseConstructSet
+		ConstructsRef    core.BaseConstructSet `yaml:"-"`
 		Vpc              *Vpc
 		Region           *Region
 		ServiceName      string
 		VpcEndpointType  string
 		Subnets          []*Subnet
 		RouteTables      []*RouteTable
-		SecurityGroupIds []core.IaCValue
+		SecurityGroupIds []core.IaCValue `yaml:"-"`
 	}
 	RouteTable struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Vpc           *Vpc
 		Routes        []*RouteTableRoute
 	}
 	RouteTableRoute struct {
 		CidrBlock    string
-		NatGatewayId core.IaCValue
-		GatewayId    core.IaCValue
+		NatGatewayId core.IaCValue `yaml:"-"`
+		GatewayId    core.IaCValue `yaml:"-"`
 	}
 )
 
@@ -322,139 +320,6 @@ func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreatePar
 	return nil
 }
 
-// CreateNetwork takes in a config and uses the appName to create an aws network and inject it into the dag.
-//
-// The network consists of:
-// - 1 Vpc
-// - 1 Internet Gateway
-// - 2 Public subnets, in different availability zones, which use the public route table.
-// - 1 Public Route Table that includes a route to an internet gateway.
-// - 2 Nat Gateways, each one sitting in its own public subnet.
-// - 2 private subnets, with their own route table.
-// - 2 Private Route Tables that include a route to one of the Nat Gateways.
-func CreateNetwork(config *config.Application, dag *core.ResourceGraph) *Vpc {
-	appName := config.AppName
-	vpc := NewVpc(appName)
-
-	if dag.GetResource(vpc.Id()) != nil {
-		return vpc
-	}
-	region := NewRegion()
-	dag.AddDependency(vpc, region)
-
-	publicRt := &RouteTable{
-		Name: fmt.Sprintf("%s-public", vpc.Name),
-		Vpc:  vpc,
-	}
-
-	importId := config.Imports[vpc.Id()]
-	if importId == "" {
-		igw := NewInternetGateway(appName, "igw1", vpc)
-		dag.AddDependenciesReflect(igw)
-
-		publicRt.Routes = append(publicRt.Routes, &RouteTableRoute{CidrBlock: "0.0.0.0/0", GatewayId: core.IaCValue{Resource: igw, Property: ID_IAC_VALUE}})
-	}
-	dag.AddDependenciesReflect(publicRt)
-
-	var importSubnetIds []core.ResourceId
-	for id := range config.Imports {
-		if id.Provider == AWS_PROVIDER && strings.HasPrefix(id.Type, VPC_SUBNET_TYPE_PREFIX) {
-			importSubnetIds = append(importSubnetIds, id)
-		}
-	}
-
-	if len(importSubnetIds) > 0 {
-		for _, id := range importSubnetIds {
-			sn := &Subnet{
-				Name: id.Name,
-				Vpc:  vpc,
-			}
-			err := sn.SetTypeFromId(id)
-			if err != nil {
-				//? Should we return an error here instead of warning?
-				zap.S().Warnf("Failed to import subnet, ignoring: %v", err)
-			} else {
-				dag.AddDependenciesReflect(sn)
-			}
-		}
-		// TODO either add or check the auxillary resources such as
-		// gateways, route tables, etc.
-	} else {
-		azs := NewAvailabilityZones()
-		dag.AddDependency(azs, region)
-		az1 := core.IaCValue{
-			Resource: azs,
-			Property: "0",
-		}
-		az2 := core.IaCValue{
-			Resource: azs,
-			Property: "1",
-		}
-
-		public1 := CreatePublicSubnet("public1", az1, vpc, "10.0.128.0/18", dag)
-
-		ip1 := NewElasticIp(appName, "public1")
-		dag.AddDependenciesReflect(ip1)
-		natGateway1 := NewNatGateway(appName, "public1", public1, ip1)
-		dag.AddDependenciesReflect(natGateway1)
-
-		public2 := CreatePublicSubnet("public2", az2, vpc, "10.0.192.0/18", dag)
-
-		ip2 := NewElasticIp(appName, "public2")
-		dag.AddDependenciesReflect(ip2)
-		natGateway2 := NewNatGateway(appName, "public2", public2, ip2)
-		dag.AddDependenciesReflect(natGateway2)
-
-		dag.AddDependency(publicRt, public1)
-		dag.AddDependency(publicRt, public2)
-
-		private1 := CreatePrivateSubnet(appName, "private1", az1, vpc, "10.0.0.0/18", dag)
-
-		rt1 := &RouteTable{
-			Name: private1.Name,
-			Vpc:  vpc,
-			Routes: []*RouteTableRoute{
-				{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: natGateway1, Property: ID_IAC_VALUE}},
-			},
-		}
-		dag.AddDependenciesReflect(rt1)
-		dag.AddDependency(rt1, private1)
-
-		private2 := CreatePrivateSubnet(appName, "private2", az2, vpc, "10.0.64.0/18", dag)
-		rt2 := &RouteTable{
-			Name: private2.Name,
-			Vpc:  vpc,
-			Routes: []*RouteTableRoute{
-				{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{Resource: natGateway2, Property: ID_IAC_VALUE}},
-			},
-		}
-		dag.AddDependenciesReflect(rt2)
-		dag.AddDependency(rt2, private2)
-
-		routeTables := []*RouteTable{publicRt, rt1, rt2}
-
-		// VPC Endpoints are dependent upon the subnets so we need to ensure the subnets are created first
-		CreateGatewayVpcEndpoint("s3", vpc, region, routeTables, dag)
-		CreateGatewayVpcEndpoint("dynamodb", vpc, region, routeTables, dag)
-
-		CreateInterfaceVpcEndpoint("lambda", vpc, region, dag, config)
-		CreateInterfaceVpcEndpoint("sqs", vpc, region, dag, config)
-		CreateInterfaceVpcEndpoint("sns", vpc, region, dag, config)
-		CreateInterfaceVpcEndpoint("secretsmanager", vpc, region, dag, config)
-	}
-
-	return vpc
-}
-
-func GetVpc(cfg *config.Application, dag *core.ResourceGraph) *Vpc {
-	for _, r := range dag.ListResources() {
-		if vpc, ok := r.(*Vpc); ok {
-			return vpc
-		}
-	}
-	return CreateNetwork(cfg, dag)
-}
-
 func VpcExists(dag *core.ResourceGraph) bool {
 	for _, r := range dag.ListResources() {
 		if _, ok := r.(*Vpc); ok {
@@ -462,11 +327,6 @@ func VpcExists(dag *core.ResourceGraph) bool {
 		}
 	}
 	return false
-}
-
-func GetSubnets(cfg *config.Application, dag *core.ResourceGraph) (sns []*Subnet) {
-	vpc := GetVpc(cfg, dag)
-	return vpc.GetVpcSubnets(dag)
 }
 
 func (vpc *Vpc) GetSecurityGroups(dag *core.ResourceGraph) []*SecurityGroup {
@@ -478,48 +338,6 @@ func (vpc *Vpc) GetSecurityGroups(dag *core.ResourceGraph) []*SecurityGroup {
 		}
 	}
 	return securityGroups
-}
-
-func CreatePrivateSubnet(appName string, subnetName string, az core.IaCValue, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
-	subnet := NewSubnet(subnetName, vpc, cidrBlock, PrivateSubnet, az)
-	dag.AddDependenciesReflect(subnet)
-	return subnet
-}
-
-func CreatePublicSubnet(subnetName string, az core.IaCValue, vpc *Vpc, cidrBlock string, dag *core.ResourceGraph) *Subnet {
-	subnet := NewSubnet(subnetName, vpc, cidrBlock, PublicSubnet, az)
-	dag.AddResource(subnet)
-	dag.AddDependency(subnet, vpc)
-	dag.AddDependency(subnet, az.Resource)
-	return subnet
-}
-
-func CreateGatewayVpcEndpoint(service string, vpc *Vpc, region *Region, routeTables []*RouteTable, dag *core.ResourceGraph) {
-	vpce := NewVpcEndpoint(service, vpc, "Gateway", region, nil)
-	vpce.RouteTables = routeTables
-	dag.AddDependenciesReflect(vpce)
-}
-
-func CreateInterfaceVpcEndpoint(service string, vpc *Vpc, region *Region, dag *core.ResourceGraph, config *config.Application) {
-	vpcSubnets := vpc.GetVpcSubnets(dag)
-	var subnets []*Subnet
-	for _, s := range vpcSubnets {
-		if s.Type == PrivateSubnet {
-			subnets = append(subnets, s)
-		}
-	}
-	vpce := NewVpcEndpoint(service, vpc, "Interface", region, subnets)
-	sgs := vpc.GetSecurityGroups(dag)
-	if len(sgs) == 0 {
-		sgs = append(sgs, GetSecurityGroup(config, dag))
-	}
-	for _, sg := range sgs {
-		vpce.SecurityGroupIds = append(vpce.SecurityGroupIds, core.IaCValue{
-			Resource: sg,
-			Property: ID_IAC_VALUE,
-		})
-	}
-	dag.AddDependenciesReflect(vpce)
 }
 
 func (vpc *Vpc) GetVpcSubnets(dag *core.ResourceGraph) []*Subnet {
@@ -546,30 +364,23 @@ func (vpc *Vpc) GetPrivateSubnets(dag *core.ResourceGraph) []*Subnet {
 	return subnets
 }
 
-func NewElasticIp(appName string, ipName string) *ElasticIp {
-	return &ElasticIp{
-		Name: elasticIpSanitizer.Apply(fmt.Sprintf("%s-%s", appName, ipName)),
-	}
-}
-
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (subnet *ElasticIp) BaseConstructsRef() core.BaseConstructSet {
-	return subnet.ConstructsRef
+func (eip *ElasticIp) BaseConstructsRef() core.BaseConstructSet {
+	return eip.ConstructsRef
 }
 
 // Id returns the id of the cloud resource
-func (subnet *ElasticIp) Id() core.ResourceId {
+func (eip *ElasticIp) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     ELASTIC_IP_TYPE,
-		Name:     subnet.Name,
+		Name:     eip.Name,
 	}
 }
 
-func NewInternetGateway(appName string, igwName string, vpc *Vpc) *InternetGateway {
-	return &InternetGateway{
-		Name: igwSanitizer.Apply(fmt.Sprintf("%s-%s", appName, igwName)),
-		Vpc:  vpc,
+func (eip *ElasticIp) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }
 
@@ -587,11 +398,9 @@ func (igw *InternetGateway) Id() core.ResourceId {
 	}
 }
 
-func NewNatGateway(appName string, natGatewayName string, subnet *Subnet, ip *ElasticIp) *NatGateway {
-	return &NatGateway{
-		Name:      natGatewaySanitizer.Apply(fmt.Sprintf("%s-%s", appName, natGatewayName)),
-		ElasticIp: ip,
-		Subnet:    subnet,
+func (igw *InternetGateway) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }
 
@@ -608,19 +417,9 @@ func (natGateway *NatGateway) Id() core.ResourceId {
 		Name:     natGateway.Name,
 	}
 }
-
-func NewSubnet(subnetName string, vpc *Vpc, cidrBlock string, subnetType string, availabilityZone core.IaCValue) *Subnet {
-	mapPublicIpOnLaunch := false
-	if subnetType == PublicSubnet {
-		mapPublicIpOnLaunch = true
-	}
-	return &Subnet{
-		Name:                subnetSanitizer.Apply(fmt.Sprintf("%s-%s", vpc.Name, subnetName)),
-		CidrBlock:           cidrBlock,
-		Vpc:                 vpc,
-		Type:                subnetType,
-		AvailabilityZone:    availabilityZone,
-		MapPublicIpOnLaunch: mapPublicIpOnLaunch,
+func (natGateway *NatGateway) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }
 
@@ -632,12 +431,20 @@ func (subnet *Subnet) BaseConstructsRef() core.BaseConstructSet {
 // Id returns the id of the cloud resource
 func (subnet *Subnet) Id() core.ResourceId {
 	id := core.ResourceId{
-		Provider:  AWS_PROVIDER,
-		Type:      VPC_SUBNET_TYPE_PREFIX + subnet.Type,
-		Namespace: subnet.Vpc.Name,
-		Name:      subnet.Name,
+		Provider: AWS_PROVIDER,
+		Type:     VPC_SUBNET_TYPE_PREFIX + subnet.Type,
+		Name:     subnet.Name,
+	}
+	if subnet.Vpc != nil {
+		id.Namespace = subnet.Vpc.Name
 	}
 	return id
+}
+
+func (subnet *Subnet) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
 }
 
 func (subnet *Subnet) Load(namespace string, dag *core.ConstructGraph) error {
@@ -665,17 +472,6 @@ func (subnet *Subnet) SetTypeFromId(id core.ResourceId) error {
 	return nil
 }
 
-func NewVpcEndpoint(service string, vpc *Vpc, endpointType string, region *Region, subnets []*Subnet) *VpcEndpoint {
-	return &VpcEndpoint{
-		Name:            vpcEndpointSanitizer.Apply(fmt.Sprintf("%s-%s", vpc.Name, service)),
-		Vpc:             vpc,
-		ServiceName:     service,
-		VpcEndpointType: endpointType,
-		Region:          region,
-		Subnets:         subnets,
-	}
-}
-
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (vpce *VpcEndpoint) BaseConstructsRef() core.BaseConstructSet {
 	return vpce.ConstructsRef
@@ -690,12 +486,9 @@ func (vpce *VpcEndpoint) Id() core.ResourceId {
 	}
 }
 
-func NewVpc(appName string) *Vpc {
-	return &Vpc{
-		Name:               aws.VpcSanitizer.Apply(appName),
-		CidrBlock:          "10.0.0.0/16",
-		EnableDnsSupport:   true,
-		EnableDnsHostnames: true,
+func (vpc *VpcEndpoint) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }
 
@@ -713,6 +506,12 @@ func (vpc *Vpc) Id() core.ResourceId {
 	}
 }
 
+func (vpc *Vpc) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (rt *RouteTable) BaseConstructsRef() core.BaseConstructSet {
 	return rt.ConstructsRef
@@ -724,5 +523,11 @@ func (rt *RouteTable) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     ROUTE_TABLE_TYPE,
 		Name:     rt.Name,
+	}
+}
+
+func (rt *RouteTable) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
 	}
 }

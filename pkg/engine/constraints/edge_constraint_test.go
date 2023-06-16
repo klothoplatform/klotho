@@ -14,15 +14,7 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 		constraint      EdgeConstraint
 		resources       []core.Resource
 		edges           []Edge
-<<<<<<< HEAD
-<<<<<<< HEAD
 		mappedResources map[core.ResourceId][]core.Resource
-=======
-		mappedResources map[core.ResourceId][]core.ResourceId
->>>>>>> 0d7c538 (address comments)
-=======
-		mappedResources map[core.ResourceId][]core.Resource
->>>>>>> 111ce1c (initial work)
 		want            bool
 	}{
 		{
@@ -89,21 +81,9 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
-<<<<<<< HEAD
-<<<<<<< HEAD
 			mappedResources: map[core.ResourceId][]core.Resource{
 				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
 					&resources.LambdaFunction{Name: "my_function"},
-=======
-			mappedResources: map[core.ResourceId][]core.ResourceId{
-				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
-					core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
->>>>>>> 0d7c538 (address comments)
-=======
-			mappedResources: map[core.ResourceId][]core.Resource{
-				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
-					&resources.LambdaFunction{Name: "my_function"},
->>>>>>> 111ce1c (initial work)
 				},
 			},
 			want: true,
@@ -141,29 +121,12 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
-<<<<<<< HEAD
-<<<<<<< HEAD
 			mappedResources: map[core.ResourceId][]core.Resource{
 				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
 					&resources.LambdaFunction{Name: "my_function"},
 				},
 				{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"}: {
 					&resources.RdsInstance{Name: "my_instance"},
-=======
-			mappedResources: map[core.ResourceId][]core.ResourceId{
-=======
-			mappedResources: map[core.ResourceId][]core.Resource{
->>>>>>> 111ce1c (initial work)
-				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
-					&resources.LambdaFunction{Name: "my_function"},
-				},
-				{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"}: {
-<<<<<<< HEAD
-					core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
->>>>>>> 0d7c538 (address comments)
-=======
-					&resources.RdsInstance{Name: "my_instance"},
->>>>>>> 111ce1c (initial work)
 				},
 			},
 			want: true,
@@ -213,8 +176,6 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance2"},
 				},
 			},
-<<<<<<< HEAD
-<<<<<<< HEAD
 			mappedResources: map[core.ResourceId][]core.Resource{
 				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
 					&resources.LambdaFunction{Name: "my_function"},
@@ -227,27 +188,6 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 				},
 				{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"}: {
 					&resources.RdsInstance{Name: "my_instance2"},
-=======
-			mappedResources: map[core.ResourceId][]core.ResourceId{
-=======
-			mappedResources: map[core.ResourceId][]core.Resource{
->>>>>>> 111ce1c (initial work)
-				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
-					&resources.LambdaFunction{Name: "my_function"},
-				},
-				{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"}: {
-					&resources.RdsInstance{Name: "my_instance"},
-				},
-				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
-					&resources.LambdaFunction{Name: "my_function2"},
-				},
-				{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"}: {
-<<<<<<< HEAD
-					core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance2"},
->>>>>>> 0d7c538 (address comments)
-=======
-					&resources.RdsInstance{Name: "my_instance2"},
->>>>>>> 111ce1c (initial work)
 				},
 			},
 			want: true,

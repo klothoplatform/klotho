@@ -100,7 +100,7 @@ func (p *MockProvider) GetKindTypeMappings(construct core.Construct) []string {
 func (p *MockProvider) GetDefaultConfig() config.Defaults {
 	return config.Defaults{}
 }
-func (p *MockProvider) CreateResourceFromId(id core.ResourceId, dag *core.ResourceGraph) (core.Resource, error) {
+func (p *MockProvider) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error) {
 	switch id.Type {
 	case "mock1":
 		return &mockResource1{Name: id.Name}, nil
@@ -131,7 +131,7 @@ func (p *MockProvider) ExpandConstruct(construct core.Construct, dag *core.Resou
 func (p *MockProvider) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) error {
 	return nil
 }
-func (p *MockProvider) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error {
+func (p *MockProvider) LoadGraph(graph core.InputGraph, dag *core.ConstructGraph) error {
 	return nil
 }
 func (p *MockProvider) Name() string {
@@ -144,15 +144,15 @@ func (p *MockProvider) Validate(config *config.Application, constructGraph *core
 type (
 	mockResource1 struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 	}
 	mockResource2 struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 	}
 	mockResource3 struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 	}
 )
 
@@ -160,16 +160,32 @@ func (f *mockResource1) Id() core.ResourceId {
 	return core.ResourceId{Provider: "mock", Type: "mock1", Name: f.Name}
 }
 func (f *mockResource1) BaseConstructsRef() core.BaseConstructSet { return f.ConstructsRef }
-
+func (f *mockResource1) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   true,
+		RequiresNoDownstream: true,
+	}
+}
 func (f *mockResource2) Id() core.ResourceId {
 	return core.ResourceId{Provider: "mock", Type: "mock2", Name: f.Name}
 }
 func (f *mockResource2) BaseConstructsRef() core.BaseConstructSet { return f.ConstructsRef }
-
+func (f *mockResource2) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   true,
+		RequiresNoDownstream: true,
+	}
+}
 func (f *mockResource3) Id() core.ResourceId {
 	return core.ResourceId{Provider: "mock", Type: "mock3", Name: f.Name}
 }
 func (f *mockResource3) BaseConstructsRef() core.BaseConstructSet { return f.ConstructsRef }
+func (f *mockResource3) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:   true,
+		RequiresNoDownstream: true,
+	}
+}
 
 var MockKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*mockResource1, *mockResource2]{

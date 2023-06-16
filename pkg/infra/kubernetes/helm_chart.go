@@ -46,6 +46,13 @@ func (chart *HelmChart) Id() core.ResourceId {
 		Name:     chart.Name,
 	}
 }
+
+func (k *HelmChart) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream: true,
+	}
+}
+
 func (t *HelmChart) GetOutputFiles() []core.File {
 	var outputFiles []core.File
 	for _, file := range t.Files {

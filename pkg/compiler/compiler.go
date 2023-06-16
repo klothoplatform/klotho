@@ -3,7 +3,6 @@ package compiler
 import (
 	"bytes"
 	"fmt"
-	"os"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine"
@@ -11,7 +10,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/validation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v2"
 )
 
 type (
@@ -32,7 +30,7 @@ type (
 
 	Compiler struct {
 		AnalysisAndTransformationPlugins []AnalysisAndTransformationPlugin
-		Engine                           engine.Engine
+		Engine                           *engine.Engine
 		IaCPlugins                       []IaCPlugin
 		Document                         *CompilationDocument
 	}
@@ -106,59 +104,4 @@ func (c *Compiler) createConfigOutputFile() error {
 		Content: buf.Bytes(),
 	})
 	return nil
-}
-
-func (c *Compiler) LoadConstructGraphFromFile(path string) error {
-
-	input := core.OutputGraph{}
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close() // nolint:errcheck
-
-	err = yaml.NewDecoder(f).Decode(&input)
-	if err != nil {
-		return err
-	}
-
-	err = core.LoadConstructsIntoGraph(input, c.Document.Constructs)
-	if err != nil {
-		return errors.Errorf("Error Loading graph for constructs %s", err.Error())
-	}
-
-	c.AnalysisAndTransformationPlugins = nil
-	err = c.Engine.Provider.LoadGraph(input, c.Document.Constructs)
-	if err != nil {
-		return errors.Errorf("Error Loading graph for provider %s. %s", c.Engine.Provider.Name(), err.Error())
-	}
-
-	return nil
-}
-
-func (c *Compiler) LoadConstraintsFromFile(path string) (map[constraints.ConstraintScope][]constraints.Constraint, error) {
-
-	type Input struct {
-		Constraints []any             `yaml:"constraints"`
-		Resources   []core.ResourceId `yaml:"resources"`
-		Edges       []core.OutputEdge `yaml:"edges"`
-	}
-
-	input := Input{}
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close() // nolint:errcheck
-
-	err = yaml.NewDecoder(f).Decode(&input)
-	if err != nil {
-		return nil, err
-	}
-
-	bytesArr, err := yaml.Marshal(input.Constraints)
-	if err != nil {
-		return nil, err
-	}
-	return constraints.ParseConstraintsFromFile(bytesArr)
 }

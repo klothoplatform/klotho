@@ -23,8 +23,8 @@ import (
 type (
 	Provider interface {
 		Name() string
-		LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error
-		CreateResourceFromId(id core.ResourceId, dag *core.ResourceGraph) (core.Resource, error)
+		LoadGraph(graph core.InputGraph, dag *core.ConstructGraph) error
+		CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error)
 		ExpandConstruct(construct core.Construct, dag *core.ResourceGraph, constructType string) (directlyMappedResources []core.Resource, err error)
 	}
 )

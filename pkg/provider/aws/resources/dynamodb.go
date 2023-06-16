@@ -14,7 +14,7 @@ const DYNAMODB_TABLE_TYPE = "dynamodb_table"
 type (
 	DynamodbTable struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet
+		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Attributes    []DynamodbTableAttribute
 		BillingMode   string
 		HashKey       string
@@ -120,5 +120,13 @@ func (table *DynamodbTable) Id() core.ResourceId {
 		Provider: AWS_PROVIDER,
 		Type:     DYNAMODB_TABLE_TYPE,
 		Name:     table.Name,
+	}
+}
+
+func (table *DynamodbTable) DeleteCriteria() core.DeleteCriteria {
+	return core.DeleteCriteria{
+		RequiresNoUpstream:     true,
+		RequiresNoDownstream:   true,
+		RequiresExplicitDelete: true,
 	}
 }

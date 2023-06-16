@@ -44,7 +44,7 @@ func (a *AWS) ExpandConstruct(construct core.Construct, dag *core.ResourceGraph,
 	return
 }
 
-func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error {
+func (a *AWS) LoadGraph(graph core.InputGraph, dag *core.ConstructGraph) error {
 	typeToResource := make(map[string]core.Resource)
 	namespacedResources := make(map[string][]core.Resource)
 	createdResources := make(map[core.ResourceId]core.Resource)
@@ -56,7 +56,7 @@ func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error 
 	typeToResource["subnet_public"] = &resources.Subnet{}
 	var joinedErr error
 	for _, node := range graph.Resources {
-		if node.Provider != "aws" {
+		if node.Provider != provider.AWS {
 			continue
 		}
 		res, ok := typeToResource[node.Type]
@@ -83,7 +83,6 @@ func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error 
 			createdResources[node] = resource
 			continue
 		}
-
 		dag.AddConstruct(resource)
 		createdResources[node] = resource
 	}
@@ -133,7 +132,7 @@ func (a *AWS) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error 
 
 // CreateResourceFromId creates a resource from an id, but does not mutate the graph in any manner
 // The graph is passed in to be able to understand what namespaces reference in resource ids
-func (a *AWS) CreateResourceFromId(id core.ResourceId, dag *core.ResourceGraph) (core.Resource, error) {
+func (a *AWS) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error) {
 	typeToResource := make(map[string]core.Resource)
 	for _, res := range resources.ListAll() {
 		typeToResource[res.Id().Type] = res

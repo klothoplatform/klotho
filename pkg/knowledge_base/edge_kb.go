@@ -117,11 +117,45 @@ func (kb EdgeKB) GetEdgesWithTarget(target reflect.Type) []Edge {
 // It also checks the ValidDestinations for each edge against the original destination node to ensure that the edge is allowed to be used in the instance of the path generation
 //
 // The method will return all paths found
-func (kb EdgeKB) FindPaths(source reflect.Type, dest reflect.Type) []Path {
+func (kb EdgeKB) FindPaths(source core.Resource, dest core.Resource, constraint EdgeConstraint) []Path {
 	zap.S().Debugf("Finding Paths from %s -> %s", source, dest)
 	visitedEdges := map[reflect.Type]bool{}
 	stack := []Edge{}
-	return kb.findPaths(source, dest, stack, visitedEdges)
+	paths := kb.findPaths(reflect.TypeOf(source), reflect.TypeOf(dest), stack, visitedEdges)
+	validPaths := []Path{}
+	for _, path := range paths {
+		// Ensure that the path satisfies the NodeMustExist edge constraint
+		if constraint.NodeMustExist != nil {
+			nodeFound := false
+			for _, res := range path {
+				for _, mustExistRes := range constraint.NodeMustExist {
+					if res.Source == reflect.TypeOf(mustExistRes) || res.Destination == reflect.TypeOf(mustExistRes) {
+						nodeFound = true
+					}
+				}
+			}
+			if !nodeFound {
+				continue
+			}
+		}
+
+		// Ensure that the path satisfies the NodeMustNotExist edge constraint
+		if constraint.NodeMustNotExist != nil {
+			nodeFound := false
+			for _, res := range path {
+				for _, mustNotExistRes := range constraint.NodeMustNotExist {
+					if res.Source == reflect.TypeOf(mustNotExistRes) || res.Destination == reflect.TypeOf(mustNotExistRes) {
+						nodeFound = true
+					}
+				}
+			}
+			if nodeFound {
+				continue
+			}
+		}
+		validPaths = append(validPaths, path)
+	}
+	return validPaths
 }
 
 // findPaths performs the recursive calls of the parent FindPath function
@@ -205,40 +239,7 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph, appName string) (err error
 		edgeData.Source = dep.Source
 		edgeData.Destination = dep.Destination
 		// Find all possible paths given the initial source and destination node
-		paths := kb.FindPaths(reflect.TypeOf(dep.Source), reflect.TypeOf(dep.Destination))
-		validPaths := [][]Edge{}
-		for _, path := range paths {
-			// Ensure that the path satisfies the NodeMustExist edge constraint
-			if edgeData.Constraint.NodeMustExist != nil {
-				nodeFound := false
-				for _, res := range path {
-					for _, mustExistRes := range edgeData.Constraint.NodeMustExist {
-						if res.Source == reflect.TypeOf(mustExistRes) || res.Destination == reflect.TypeOf(mustExistRes) {
-							nodeFound = true
-						}
-					}
-				}
-				if !nodeFound {
-					continue
-				}
-			}
-
-			// Ensure that the path satisfies the NodeMustNotExist edge constraint
-			if edgeData.Constraint.NodeMustNotExist != nil {
-				nodeFound := false
-				for _, res := range path {
-					for _, mustNotExistRes := range edgeData.Constraint.NodeMustNotExist {
-						if res.Source == reflect.TypeOf(mustNotExistRes) || res.Destination == reflect.TypeOf(mustNotExistRes) {
-							nodeFound = true
-						}
-					}
-				}
-				if nodeFound {
-					continue
-				}
-			}
-			validPaths = append(validPaths, path)
-		}
+		validPaths := kb.FindPaths(dep.Source, dep.Destination, edgeData.Constraint)
 
 		zap.S().Debugf("Found valid paths %s", validPaths)
 		var validPath []Edge
@@ -254,7 +255,7 @@ func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph, appName string) (err error
 			}
 		}
 		if len(validPath) == 0 {
-			merr.Append(fmt.Errorf("found no paths which satisfy constraints for edge %s -> %s. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), validPaths))
+			merr.Append(fmt.Errorf("found no paths which satisfy constraints %s for edge %s -> %s. \n Paths: %s", edgeData.Constraint, dep.Source.Id(), dep.Destination.Id(), validPaths))
 			continue
 		}
 
@@ -401,4 +402,42 @@ func (kb EdgeKB) findPathsInGraph(source, dest core.Resource, stack []graph.Edge
 	}
 	delete(visited, source)
 	return result
+}
+
+func (kb EdgeKB) GetTrueUpstream(source core.Resource, dag *core.ResourceGraph) []core.Resource {
+	upstreamResources := []core.Resource{}
+	upstreamFromDag := dag.GetUpstreamResources(source)
+	for _, res := range upstreamFromDag {
+		ed, found := kb.GetEdgeDetails(reflect.TypeOf(res), reflect.TypeOf(source))
+		if found && !ed.ReverseDirection {
+			upstreamResources = append(upstreamResources, res)
+		}
+	}
+	downstreamFromDag := dag.GetDownstreamResources(source)
+	for _, res := range downstreamFromDag {
+		ed, found := kb.GetEdgeDetails(reflect.TypeOf(source), reflect.TypeOf(res))
+		if found && ed.ReverseDirection {
+			upstreamResources = append(upstreamResources, res)
+		}
+	}
+	return upstreamResources
+}
+
+func (kb EdgeKB) GetTrueDownstream(source core.Resource, dag *core.ResourceGraph) []core.Resource {
+	downstreamResources := []core.Resource{}
+	upstreamFromDag := dag.GetUpstreamResources(source)
+	for _, res := range upstreamFromDag {
+		ed, found := kb.GetEdgeDetails(reflect.TypeOf(res), reflect.TypeOf(source))
+		if found && ed.ReverseDirection {
+			downstreamResources = append(downstreamResources, res)
+		}
+	}
+	downstreamFromDag := dag.GetDownstreamResources(source)
+	for _, res := range downstreamFromDag {
+		ed, found := kb.GetEdgeDetails(reflect.TypeOf(source), reflect.TypeOf(res))
+		if found && !ed.ReverseDirection {
+			downstreamResources = append(downstreamResources, res)
+		}
+	}
+	return downstreamResources
 }

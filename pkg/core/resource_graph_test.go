@@ -41,6 +41,10 @@ func (tr *testResource) BaseConstructsRef() BaseConstructSet {
 	return nil
 }
 
+func (tr *testResource) DeleteCriteria() DeleteCriteria {
+	return DeleteCriteria{}
+}
+
 type testResourceParams struct {
 	Name string
 }

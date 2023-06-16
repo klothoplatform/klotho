@@ -128,6 +128,27 @@ func (rg *ResourceGraph) RemoveDependency(source ResourceId, target ResourceId) 
 	return rg.underlying.RemoveEdge(source.String(), target.String())
 }
 
+func (rg *ResourceGraph) RemoveResourceAndEdges(source Resource) error {
+	for _, edge := range rg.GetDownstreamDependencies(source) {
+		err := rg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		if err != nil {
+			return err
+		}
+	}
+	for _, edge := range rg.GetUpstreamDependencies(source) {
+		err := rg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		if err != nil {
+			return err
+		}
+	}
+	return rg.RemoveResource(source)
+}
+
+func (rg *ResourceGraph) RemoveResource(resource Resource) error {
+	zap.S().Infof("Removing resource %s", resource.Id())
+	return rg.underlying.RemoveVertex(resource.Id().String())
+}
+
 func (rg *ResourceGraph) ListResources() []Resource {
 	return rg.underlying.GetAllVertices()
 }

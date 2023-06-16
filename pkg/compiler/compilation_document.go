@@ -16,6 +16,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
@@ -208,6 +209,15 @@ func (document *CompilationDocument) OutputGraph(outDir string) error {
 		outputGraph := core.OutputGraph{}
 		for _, res := range document.Resources.ListResources() {
 			outputGraph.Resources = append(outputGraph.Resources, res.Id())
+			md := &map[interface{}]interface{}{}
+			err := mapstructure.Decode(res, md)
+			if err != nil {
+				merr.Append(errors.Wrap(err, "error decoding resource metadata"))
+			}
+			outputGraph.ResourceMetadata = append(outputGraph.ResourceMetadata, core.ResourceMetadata{
+				Id:       res.Id(),
+				Metadata: res,
+			})
 		}
 
 		for _, dep := range document.Resources.ListDependencies() {
