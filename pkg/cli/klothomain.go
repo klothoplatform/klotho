@@ -397,8 +397,6 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	}
 	err = km.PluginSetup(plugins)
 
-	appCfg.MergeDefaults(plugins.provider.GetDefaultConfig())
-
 	if err != nil {
 		return err
 	}
@@ -410,31 +408,30 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		Configuration:    &appCfg,
 		OutputOptions:    options.Output,
 	}
-
+	provider, err := providers.GetProvider(&appCfg)
+	if err != nil {
+		return err
+	}
+	kb, err := providers.GetKnowledgeBase(&appCfg)
+	if err != nil {
+		return err
+	}
+	engine := engine.NewEngine(provider, kb)
+	engine.Context.InitialState = document.Constructs
 	klothoCompiler := compiler.Compiler{
 		AnalysisAndTransformationPlugins: plugins.AnalysisAndTransform,
-		ProviderPlugins:                  plugins.Provider,
 		IaCPlugins:                       plugins.IaC,
+		Engine:                           engine,
 		Document:                         document,
 	}
 
 	if cfg.constructGraph != "" {
 		klothoCompiler.AnalysisAndTransformationPlugins = nil
-		klothoCompiler.ProviderPlugins = nil
-		provider, err := providers.GetProvider(&appCfg)
-		if err != nil {
-			return err
-		}
-		kb, err := providers.GetKnowledgeBase(&appCfg)
-		if err != nil {
-			return err
-		}
-		engine := engine.NewEngine(provider, kb)
-		err = klothoCompiler.LoadConstructGraphFromFile(cfg.constructGraph)
+		err = klothoCompiler.Engine.LoadConstructGraphFromFile(cfg.constructGraph)
 		if err != nil {
 			return errors.Errorf("failed to load construct graph: %s", err.Error())
 		}
-		c, err := klothoCompiler.LoadConstraintsFromFile(cfg.constructGraph)
+		c, err := klothoCompiler.Engine.LoadConstraintsFromFile(cfg.constructGraph)
 		if err != nil {
 			return errors.Errorf("failed to load constraints: %s", err.Error())
 		}
@@ -449,6 +446,11 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		if err != nil {
 			return errors.Errorf("failed to run engine: %s", err.Error())
 		}
+		files, err := engine.VisualizeViews()
+		if err != nil {
+			return errors.Errorf("failed to run engine viz: %s", err.Error())
+		}
+		document.OutputFiles = append(document.OutputFiles, files...)
 		document.Resources = dag
 		err = klothoCompiler.Document.OutputGraph(cfg.outDir)
 		if err != nil {

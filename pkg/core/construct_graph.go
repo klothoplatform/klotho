@@ -18,9 +18,27 @@ type (
 		Source      ResourceId `yaml:"source"`
 		Destination ResourceId `yaml:"destination"`
 	}
+
+	ResourceMetadata struct {
+		Id       ResourceId    `yaml:"id"`
+		Metadata BaseConstruct `yaml:"metadata"`
+	}
+
+	InputMetadata struct {
+		Id       ResourceId                  `yaml:"id"`
+		Metadata map[interface{}]interface{} `yaml:"metadata"`
+	}
+
 	OutputGraph struct {
-		Resources []ResourceId `yaml:"resources"`
-		Edges     []OutputEdge `yaml:"edges"`
+		Resources        []ResourceId       `yaml:"resources"`
+		ResourceMetadata []ResourceMetadata `yaml:"resourceMetadata"`
+		Edges            []OutputEdge       `yaml:"edges"`
+	}
+
+	InputGraph struct {
+		Resources        []ResourceId    `yaml:"resources"`
+		ResourceMetadata []InputMetadata `yaml:"resourceMetadata"`
+		Edges            []OutputEdge    `yaml:"edges"`
 	}
 )
 
@@ -96,7 +114,7 @@ func (cg *ConstructGraph) ReplaceConstruct(construct BaseConstruct, new BaseCons
 }
 
 func (cg *ConstructGraph) RemoveConstruct(construct BaseConstruct) error {
-	zap.S().Infof("Removing resource %s", construct.Id())
+	zap.S().Infof("Removing construct %s", construct.Id())
 	return cg.underlying.RemoveVertex(construct.Id().String())
 }
 
@@ -212,10 +230,13 @@ func (cg *ConstructGraph) FindUpstreamGateways(unit *ExecutionUnit) []*Gateway {
 	return gateways
 }
 
-func LoadConstructsIntoGraph(input OutputGraph, graph *ConstructGraph) error {
+func LoadConstructsIntoGraph(input InputGraph, graph *ConstructGraph) error {
 
 	var joinedErr error
 	for _, res := range input.Resources {
+		if res.Provider != AbstractConstructProvider {
+			continue
+		}
 		construct, err := GetConstructFromInputId(res)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
@@ -225,6 +246,9 @@ func LoadConstructsIntoGraph(input OutputGraph, graph *ConstructGraph) error {
 	}
 
 	for _, edge := range input.Edges {
+		if edge.Source.Provider != AbstractConstructProvider || edge.Destination.Provider != AbstractConstructProvider {
+			continue
+		}
 		graph.AddDependency(edge.Source, edge.Destination)
 	}
 

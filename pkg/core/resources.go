@@ -25,10 +25,23 @@ type (
 
 	BaseConstructSet map[ResourceId]BaseConstruct
 
+	// Delete criteria is supposed to tell us when we are able to delete a resource based on its dependencies
+	DeleteCriteria struct {
+		// RequiresNoUpstream is a boolean that tells us if deletion relies on there being no upstream resources
+		RequiresNoUpstream bool
+		// RequiresNoDownstream is a boolean that tells us if deletion relies on there being no downstream resources
+		RequiresNoDownstream bool
+		// RequiresExplicitDelete is a boolean that tells us if deletion relies on the resource being explicitly deleted
+		RequiresExplicitDelete bool
+		// RequiresNoUpstreamOrDownstream is a boolean that tells us if deletion relies on there being no upstream or downstream resources
+		RequiresNoUpstreamOrDownstream bool
+	}
+
 	// Resource describes a resource at the provider, infrastructure level
 	Resource interface {
 		BaseConstruct
 		BaseConstructsRef() BaseConstructSet
+		DeleteCriteria() DeleteCriteria
 	}
 
 	// ExpandableResource is a resource that can generate its own dependencies. See [CreateResource].
@@ -70,6 +83,10 @@ type (
 
 	Capability string
 )
+
+func (BaseConstructSet) MarshalYAML() ([]byte, error) {
+	return []byte(`""`), nil
+}
 
 const (
 	ALL_RESOURCES_IAC_VALUE = "*"

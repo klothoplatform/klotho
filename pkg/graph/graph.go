@@ -23,9 +23,13 @@ type (
 		Destination V
 		Properties  graph.EdgeProperties
 	}
+
+	VertexProperties = graph.VertexProperties
+	EdgeProperties   = graph.EdgeProperties
 )
 
 func NewDirected[V any](hasher func(V) string) *Directed[V] {
+
 	return &Directed[V]{
 		underlying: graph.New(hasher, graph.Directed(), graph.Rooted()),
 		hasher:     hasher,
@@ -37,6 +41,14 @@ func NewLike[V any](other *Directed[V]) *Directed[V] {
 		underlying: graph.NewLike(other.underlying),
 		hasher:     other.hasher,
 	}
+}
+
+func ToVertexAttributes(attributes map[string]string) func(*graph.VertexProperties) {
+	return graph.VertexAttributes(attributes)
+}
+
+func AttributesFromVertexProperties(attributes graph.VertexProperties) map[string]string {
+	return attributes.Attributes
 }
 
 func (d *Directed[V]) Roots() []V {
@@ -114,6 +126,59 @@ func (d *Directed[V]) AddVertex(v V) {
 	}
 }
 
+func (d *Directed[V]) AddVertexWithProperties(v V, options ...func(*graph.VertexProperties)) {
+	err := d.underlying.AddVertex(v, options...) // ignore errors if this is a duplicate
+	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+		zap.S().With(zap.Error(err)).Errorf(`Unexpected error while adding %s. %s`, v, ourFault)
+	} else if err != nil && errors.Is(err, graph.ErrVertexAlreadyExists) {
+		zap.S().With(zap.Error(err)).Debugf(`have to replace vertex since it already exists %s. %s`, v, ourFault)
+		outgoingEdges := d.OutgoingEdges(v)
+		for _, edge := range outgoingEdges {
+			err := d.RemoveEdge(d.hasher(edge.Source), d.hasher(edge.Destination))
+			if err != nil {
+				zap.S().With(zap.Error(err)).Debugf(`error removing edge from %s. %s`, v, ourFault)
+			}
+		}
+		incomingEdges := d.IncomingEdges(v)
+		for _, edge := range incomingEdges {
+			err := d.RemoveEdge(d.hasher(edge.Source), d.hasher(edge.Destination))
+			if err != nil {
+				zap.S().With(zap.Error(err)).Debugf(`error removing edge to %s. %s`, v, ourFault)
+			}
+		}
+		err := d.RemoveVertex(d.hasher(v))
+		if err != nil {
+			zap.S().With(zap.Error(err)).Debugf(`error removing vertex %s. %s`, v, ourFault)
+		}
+		d.AddVertexWithProperties(v, options...)
+		for _, edge := range outgoingEdges {
+			d.AddEdge(d.hasher(edge.Source), d.hasher(edge.Destination), edge.Properties)
+		}
+		for _, edge := range incomingEdges {
+			d.AddEdge(d.hasher(edge.Source), d.hasher(edge.Destination), edge.Properties)
+		}
+	}
+
+}
+
+func (d *Directed[V]) GetVertex(source string) V {
+	v, err := d.underlying.Vertex(source)
+	if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
+		zap.S().With("error", zap.Error(err)).Errorf(
+			`Unexpected error while getting vertex for "%v"`, source)
+	}
+	return v
+}
+
+func (d *Directed[V]) GetVertexWithProperties(source string) (V, graph.VertexProperties) {
+	v, props, err := d.underlying.VertexWithProperties(source)
+	if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
+		zap.S().With("error", zap.Error(err)).Errorf(
+			`Unexpected error while getting vertex for "%v"`, source)
+	}
+	return v, props
+}
+
 func (d *Directed[V]) OutgoingVertices(from V) []V {
 	return handleOutgoingEdges(d, from, func(destination V) V { return destination })
 }
@@ -148,15 +213,6 @@ func (d *Directed[V]) AddEdge(source string, dest string, data any) {
 			d.AddEdge(source, dest, data)
 		}
 	}
-}
-
-func (d *Directed[V]) GetVertex(source string) V {
-	v, err := d.underlying.Vertex(source)
-	if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
-		zap.S().With("error", zap.Error(err)).Errorf(
-			`Unexpected error while getting vertex for "%v"`, source)
-	}
-	return v
 }
 
 func (d *Directed[V]) GetAllVertices() []V {

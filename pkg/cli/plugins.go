@@ -8,7 +8,6 @@ import (
 	envvar "github.com/klothoplatform/klotho/pkg/env_var"
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
 	"github.com/klothoplatform/klotho/pkg/infra/iac2"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp"
 	csRuntimes "github.com/klothoplatform/klotho/pkg/lang/csharp/runtimes"
 	"github.com/klothoplatform/klotho/pkg/lang/golang"
@@ -18,9 +17,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/lang/python"
 	pyRuntimes "github.com/klothoplatform/klotho/pkg/lang/python/runtimes"
 	"github.com/klothoplatform/klotho/pkg/multierr"
-	"github.com/klothoplatform/klotho/pkg/provider"
-	"github.com/klothoplatform/klotho/pkg/provider/imports"
-	"github.com/klothoplatform/klotho/pkg/provider/providers"
 	staticunit "github.com/klothoplatform/klotho/pkg/static_unit"
 	"github.com/klothoplatform/klotho/pkg/visualizer"
 )
@@ -29,12 +25,9 @@ import (
 // TODO improve the flexibility and expressivity to capture the real dependencies between plugins.
 type PluginSetBuilder struct {
 	AnalysisAndTransform []compiler.AnalysisAndTransformationPlugin
-	Provider             []compiler.ProviderPlugin
 	IaC                  []compiler.IaCPlugin
 
 	Cfg *config.Application
-
-	provider provider.Provider
 }
 
 func (b *PluginSetBuilder) AddAll() error {
@@ -54,7 +47,7 @@ func (b *PluginSetBuilder) AddAll() error {
 }
 
 func (b *PluginSetBuilder) AddVisualizerPlugin() error {
-	b.IaC = append(b.IaC, visualizer.Plugin{Config: b.Cfg, Client: http.DefaultClient})
+	b.IaC = append(b.IaC, visualizer.Plugin{AppName: b.Cfg.AppName, Provider: b.Cfg.Provider, Client: http.DefaultClient})
 	return nil
 }
 
@@ -113,24 +106,7 @@ func (b *PluginSetBuilder) AddCSharp() error {
 	return nil
 }
 
-func (b *PluginSetBuilder) setupProvider() (err error) {
-	if b.provider != nil {
-		return nil
-	}
-	b.Provider = append(b.Provider, kubernetes.Kubernetes{Config: b.Cfg})
-
-	b.provider, err = providers.GetProvider(b.Cfg)
-	if err == nil {
-		b.Provider = append(b.Provider, b.provider)
-	}
-	b.Provider = append(b.Provider, imports.Plugin{Config: b.Cfg})
-	return
-}
-
 func (b *PluginSetBuilder) AddPulumi() error {
-	if err := b.setupProvider(); err != nil {
-		return err
-	}
 	b.IaC = append(b.IaC, iac2.Plugin{Config: b.Cfg})
 	return nil
 }
