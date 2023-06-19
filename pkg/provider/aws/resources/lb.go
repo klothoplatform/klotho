@@ -45,7 +45,7 @@ type (
 	}
 
 	Target struct {
-		Id   core.IaCValue `yaml:"-"`
+		Id   *AwsResourceValue
 		Port int
 	}
 
@@ -58,7 +58,7 @@ type (
 		DefaultActions []*LBAction
 	}
 	LBAction struct {
-		TargetGroupArn core.IaCValue `yaml:"-"`
+		TargetGroupArn *AwsResourceValue
 		Type           string
 	}
 )
@@ -166,8 +166,8 @@ func (lb *LoadBalancer) Id() core.ResourceId {
 	}
 }
 
-func (lb *LoadBalancer) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (lb *LoadBalancer) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstreamOrDownstream: true,
 	}
 }
@@ -175,7 +175,7 @@ func (lb *LoadBalancer) DeleteCriteria() core.DeleteCriteria {
 func (tg *TargetGroup) AddTarget(target *Target) {
 	addTarget := true
 	for _, t := range tg.Targets {
-		if t.Id.Resource == target.Id.Resource {
+		if t.Id.ResourceVal == target.Id.ResourceVal {
 			addTarget = false
 		}
 	}
@@ -198,8 +198,8 @@ func (tg *TargetGroup) Id() core.ResourceId {
 	}
 }
 
-func (tg *TargetGroup) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (tg *TargetGroup) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -218,8 +218,8 @@ func (listener *Listener) Id() core.ResourceId {
 	}
 }
 
-func (listener *Listener) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (listener *Listener) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

@@ -44,7 +44,7 @@ var LambdaKB = knowledgebase.Build(
 					lambda.Id(), instance.Id(), lambda.Id())
 			}
 			for _, env := range data.EnvironmentVariables {
-				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: instance, Property: env.GetValue()}
+				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: instance, PropertyVal: env.GetValue()}
 			}
 			return nil
 		},
@@ -67,7 +67,7 @@ var LambdaKB = knowledgebase.Build(
 					lambda.Id().String(), proxy.Id().String(), lambda.Id().String())
 			}
 			for _, env := range data.EnvironmentVariables {
-				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: proxy, Property: env.GetValue()}
+				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: proxy, PropertyVal: env.GetValue()}
 			}
 			return nil
 		},
@@ -88,7 +88,7 @@ var LambdaKB = knowledgebase.Build(
 		},
 		Configure: func(lambda *resources.LambdaFunction, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: table, Property: env.GetValue()}
+				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: table, PropertyVal: env.GetValue()}
 			}
 			return nil
 		},
@@ -106,7 +106,7 @@ var LambdaKB = knowledgebase.Build(
 		},
 		Configure: func(lambda *resources.LambdaFunction, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: cluster, Property: env.GetValue()}
+				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: cluster, PropertyVal: env.GetValue()}
 			}
 			return nil
 		},
@@ -118,7 +118,7 @@ var LambdaKB = knowledgebase.Build(
 		},
 		Configure: func(lambda *resources.LambdaFunction, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: bucket, Property: env.GetValue()}
+				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: bucket, PropertyVal: env.GetValue()}
 			}
 			return nil
 		},
@@ -130,7 +130,7 @@ var LambdaKB = knowledgebase.Build(
 		},
 		Configure: func(lambda *resources.LambdaFunction, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: secret, Property: env.GetValue()}
+				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: secret, PropertyVal: env.GetValue()}
 			}
 			return nil
 		},
@@ -212,7 +212,7 @@ var LambdaKB = knowledgebase.Build(
 			if err != nil {
 				return err
 			}
-			clusterProvider := destination.ClustersProvider.Resource
+			clusterProvider := destination.ClustersProvider.Resource()
 			cluster, ok := clusterProvider.(*resources.EksCluster)
 			if !ok {
 				return fmt.Errorf("cluster provider resource for %s, must be an eks cluster, was %T", destination.Id(), clusterProvider)

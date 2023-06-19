@@ -525,8 +525,8 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 
 // handleIaCValue determines how to retrieve values from a resource given a specific value identifier.
 func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]AppliedOutput, resourceVal *reflect.Value) (string, error) {
-	resource := v.Resource
-	property := v.Property
+	resource := v.Resource()
+	property := v.Property()
 
 	if resource == nil {
 		output, err := tc.resolveStructInput(nil, reflect.ValueOf(property), false, appliedOutputs)
@@ -534,8 +534,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 			return output, err
 		}
 		return output, nil
-	} else if _, ok := v.Resource.(*resources.AvailabilityZones); ok {
-		return fmt.Sprintf("%s.names[%s]", tc.getVarName(v.Resource), v.Property), nil
+	} else if _, ok := resource.(*resources.AvailabilityZones); ok {
+		return fmt.Sprintf("%s.names[%s]", tc.getVarName(resource), property), nil
 	}
 	switch property {
 	case string(core.SECRET_NAME):
@@ -552,13 +552,13 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 	case resources.CLOUDFRONT_ACCESS_IDENTITY_PATH_IAC_VALUE:
 		return fmt.Sprintf("%s.cloudfrontAccessIdentityPath", tc.getVarName(resource)), nil
 	case resources.ARN_IAC_VALUE:
-		return fmt.Sprintf("%s.arn", tc.getVarName(v.Resource)), nil
+		return fmt.Sprintf("%s.arn", tc.getVarName(resource)), nil
 	case resources.NAME_IAC_VALUE:
-		return fmt.Sprintf("%s.name", tc.getVarName(v.Resource)), nil
+		return fmt.Sprintf("%s.name", tc.getVarName(resource)), nil
 	case resources.ID_IAC_VALUE:
-		return fmt.Sprintf("%s.id", tc.getVarName(v.Resource)), nil
+		return fmt.Sprintf("%s.id", tc.getVarName(resource)), nil
 	case resources.ALL_BUCKET_DIRECTORY_IAC_VALUE:
-		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/*`", tc.getVarName(v.Resource)), nil
+		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/*`", tc.getVarName(resource)), nil
 	case resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE,
 		resources.DYNAMODB_TABLE_INDEX_IAC_VALUE,
 		resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE,
@@ -570,7 +570,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 	case core.ALL_RESOURCES_IAC_VALUE:
 		return "*", nil
 	case resources.API_GATEWAY_EXECUTION_CHILD_RESOURCES_IAC_VALUE:
-		return fmt.Sprintf("pulumi.interpolate`${%s.executionArn}/*`", tc.getVarName(v.Resource)), nil
+		return fmt.Sprintf("pulumi.interpolate`${%s.executionArn}/*`", tc.getVarName(resource)), nil
 
 	case string(core.HOST):
 		switch resource.(type) {
@@ -587,7 +587,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
 	case string(core.CONNECTION_STRING):
-		switch res := v.Resource.(type) {
+		switch res := resource.(type) {
 		case *resources.RdsProxy:
 			downResources := tc.resourceGraph.GetUpstreamDependencies(res)
 			var instance *resources.RdsInstance
@@ -597,44 +597,44 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 				}
 			}
 			if instance == nil {
-				return "", errors.Errorf("Rds Proxy, %s, must have an associated instance", v.Resource.Id())
+				return "", errors.Errorf("Rds Proxy, %s, must have an associated instance", resource.Id())
 			}
 
 			fetchUsername := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[1].split('"')[3]`, instance.CredentialsPath)
 			fetchPassword := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[2].split('"')[3]`, instance.CredentialsPath)
 			return fmt.Sprintf("pulumi.interpolate`postgresql://${%s}:${%s}@${%s.endpoint}:5432/%s`", fetchUsername, fetchPassword,
-				tc.getVarName(v.Resource), instance.DatabaseName), nil
+				tc.getVarName(resource), instance.DatabaseName), nil
 		default:
-			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
+			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
 
 	case resources.OIDC_SUB_IAC_VALUE:
 		varName := "cluster_oidc_url"
 		*appliedOutputs = append(*appliedOutputs, AppliedOutput{
-			appliedName: fmt.Sprintf("%s.url", tc.getVarName(v.Resource)),
+			appliedName: fmt.Sprintf("%s.url", tc.getVarName(resource)),
 			varName:     varName,
 		})
 		return fmt.Sprintf("`${%s}:sub`", varName), nil
 	case resources.OIDC_AUD_IAC_VALUE:
 		varName := "cluster_oidc_url"
 		*appliedOutputs = append(*appliedOutputs, AppliedOutput{
-			appliedName: fmt.Sprintf("%s.url", tc.getVarName(v.Resource)),
+			appliedName: fmt.Sprintf("%s.url", tc.getVarName(resource)),
 			varName:     varName,
 		})
 		return fmt.Sprintf("`${%s}:aud`", varName), nil
 	case resources.CLUSTER_CA_DATA_IAC_VALUE:
-		return fmt.Sprintf("%s.certificateAuthorities[0].data", tc.getVarName(v.Resource)), nil
+		return fmt.Sprintf("%s.certificateAuthorities[0].data", tc.getVarName(resource)), nil
 	case resources.CLUSTER_ENDPOINT_IAC_VALUE:
-		return fmt.Sprintf("%s.endpoint", tc.getVarName(v.Resource)), nil
+		return fmt.Sprintf("%s.endpoint", tc.getVarName(resource)), nil
 	case resources.CLUSTER_PROVIDER_IAC_VALUE:
-		if kcfg, ok := v.Resource.(*resources.EksCluster); ok {
+		if kcfg, ok := resource.(*resources.EksCluster); ok {
 			p := &KubernetesProvider{Name: fmt.Sprintf("%s-provider", kcfg.Name)}
 			return tc.getVarNameByResourceId(p.Id()), nil
 		}
 	case resources.CLUSTER_SECURITY_GROUP_ID_IAC_VALUE:
-		return fmt.Sprintf("%s.vpcConfig.clusterSecurityGroupId", tc.getVarName(v.Resource)), nil
+		return fmt.Sprintf("%s.vpcConfig.clusterSecurityGroupId", tc.getVarName(resource)), nil
 	case resources.STAGE_INVOKE_URL_IAC_VALUE:
-		return fmt.Sprintf("%s.invokeUrl.apply((d) => d.split('//')[1].split('/')[0])", tc.getVarName(v.Resource)), nil
+		return fmt.Sprintf("%s.invokeUrl.apply((d) => d.split('//')[1].split('/')[0])", tc.getVarName(resource)), nil
 	case resources.ECR_IMAGE_NAME_IAC_VALUE:
 		return fmt.Sprintf(`%s.imageName`, tc.getVarName(resource)), nil
 	case resources.NLB_INTEGRATION_URI_IAC_VALUE:
@@ -644,21 +644,21 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		}
 		return fmt.Sprintf("pulumi.interpolate`http://${%s.dnsName}%s`", tc.getVarName(resource), strings.ReplaceAll(integration.Route, "+", "")), nil
 	case resources.RDS_CONNECTION_ARN_IAC_VALUE:
-		switch res := v.Resource.(type) {
+		switch res := resource.(type) {
 		case *resources.RdsInstance:
 			accountId := resources.NewAccountId()
 			region := resources.NewRegion()
 			fetchUsername := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[1].split('"')[3]`, res.CredentialsPath)
 			return fmt.Sprintf("pulumi.interpolate`arn:aws:rds-db:${%s.name}:${%s.accountId}:dbuser:${%s.resourceId}/${%s}`", tc.getVarName(region), tc.getVarName(accountId), tc.getVarName(res), fetchUsername), nil
 		default:
-			return "", errors.Errorf("unsupported resource type %T for '%s'", v.Resource, v.Property)
+			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
 	case resources.CIDR_BLOCK_IAC_VALUE:
 		return fmt.Sprintf(`%s.cidrBlock`, tc.getVarName(resource)), nil
 	case resources.AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE:
 		region := resources.NewRegion()
 		return fmt.Sprintf(`pulumi.all([obj.data["output.conf"], %s.name, %s.name]).apply(([obj, regionName, clusterName]) => obj.replace("region-code",regionName).replace("my-logs","/fargate/" +clusterName))`,
-			tc.getVarName(region), tc.getVarName(v.Resource)), nil
+			tc.getVarName(region), tc.getVarName(resource)), nil
 	case resources.NODE_GROUP_NAME_IAC_VALUE:
 		return fmt.Sprintf(`%s.nodeGroupName`, tc.getVarName(resource)), nil
 	case resources.API_STAGE_PATH_VALUE:
@@ -815,9 +815,9 @@ func (tc TemplatesCompiler) addIngressRuleToCluster(out io.Writer, cluster *reso
 
 	cidrBlocks := make([]core.IaCValue, len(cluster.Subnets))
 	for i, subnet := range cluster.Subnets {
-		cidrBlocks[i] = core.IaCValue{
-			Resource: subnet,
-			Property: resources.CIDR_BLOCK_IAC_VALUE,
+		cidrBlocks[i] = &resources.AwsResourceValue{
+			ResourceVal: subnet,
+			PropertyVal: resources.CIDR_BLOCK_IAC_VALUE,
 		}
 	}
 
@@ -829,9 +829,9 @@ func (tc TemplatesCompiler) addIngressRuleToCluster(out io.Writer, cluster *reso
 		ToPort:        0,
 		Protocol:      "-1",
 		CidrBlocks:    cidrBlocks,
-		SecurityGroupId: core.IaCValue{
-			Resource: cluster,
-			Property: resources.CLUSTER_SECURITY_GROUP_ID_IAC_VALUE,
+		SecurityGroupId: &resources.AwsResourceValue{
+			ResourceVal: cluster,
+			PropertyVal: resources.CLUSTER_SECURITY_GROUP_ID_IAC_VALUE,
 		},
 		Type: "ingress",
 	}
@@ -890,10 +890,10 @@ func (tc TemplatesCompiler) attachToTargetGroup(out io.Writer, tg *resources.Tar
 	for _, target := range tg.Targets {
 
 		attachment := &TargetGroupAttachment{
-			Name:           target.Id.Resource.Id().String(),
+			Name:           target.Id.Resource().Id().String(),
 			Port:           target.Port,
-			TargetGroupArn: core.IaCValue{Resource: tg, Property: resources.ARN_IAC_VALUE},
-			TargetId:       core.IaCValue{Resource: target.Id.Resource, Property: resources.ID_IAC_VALUE},
+			TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE},
+			TargetId:       &resources.AwsResourceValue{ResourceVal: target.Id.Resource(), PropertyVal: resources.ID_IAC_VALUE},
 		}
 		errs.Append(tc.renderResource(out, attachment))
 

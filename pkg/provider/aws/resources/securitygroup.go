@@ -16,7 +16,7 @@ type (
 	}
 	SecurityGroupRule struct {
 		Description string
-		CidrBlocks  []core.IaCValue `yaml:"-"`
+		CidrBlocks  []*AwsResourceValue
 		FromPort    int
 		Protocol    string
 		ToPort      int
@@ -83,8 +83,8 @@ func (sg *SecurityGroup) Load(namespace string, dag *core.ConstructGraph) error 
 	return nil
 }
 
-func (sg *SecurityGroup) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (sg *SecurityGroup) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

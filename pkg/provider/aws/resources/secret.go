@@ -95,8 +95,8 @@ func (s *Secret) Id() core.ResourceId {
 	}
 }
 
-func (s *Secret) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (s *Secret) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
@@ -114,8 +114,8 @@ func (sv *SecretVersion) Id() core.ResourceId {
 		Name:     sv.Name,
 	}
 }
-func (sv *SecretVersion) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (sv *SecretVersion) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

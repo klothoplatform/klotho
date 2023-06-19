@@ -56,8 +56,8 @@ func (manifest *Manifest) Id() core.ResourceId {
 	}
 }
 
-func (manifest *Manifest) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (manifest *Manifest) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

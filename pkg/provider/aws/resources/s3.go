@@ -58,8 +58,8 @@ func (bucket *S3Bucket) Id() core.ResourceId {
 	}
 }
 
-func (bucket *S3Bucket) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (bucket *S3Bucket) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
@@ -143,8 +143,8 @@ func (object *S3Object) Id() core.ResourceId {
 	}
 }
 
-func (bucket *S3Object) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (bucket *S3Object) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -179,8 +179,8 @@ func (policy *S3BucketPolicy) Id() core.ResourceId {
 	}
 }
 
-func (policy *S3BucketPolicy) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (policy *S3BucketPolicy) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

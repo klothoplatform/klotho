@@ -83,7 +83,7 @@ type (
 	ProxyAuth struct {
 		AuthScheme string
 		IamAuth    string
-		SecretArn  core.IaCValue `yaml:"-"`
+		SecretArn  *AwsResourceValue
 	}
 
 	// RdsProxyTargetGroup represents an AWS RDS proxy target group
@@ -308,7 +308,7 @@ func (targetGroup *RdsProxyTargetGroup) Configure(params RdsProxyTargetGroupConf
 func (rds *RdsInstance) GetConnectionPolicyDocument() *PolicyDocument {
 	return CreateAllowPolicyDocument(
 		[]string{"rds-db:connect"},
-		[]core.IaCValue{{Resource: rds, Property: RDS_CONNECTION_ARN_IAC_VALUE}})
+		[]*AwsResourceValue{{ResourceVal: rds, PropertyVal: RDS_CONNECTION_ARN_IAC_VALUE}})
 }
 
 // generateUsername generates a random username for the rds instance.
@@ -361,8 +361,8 @@ func (rds *RdsInstance) GetOutputFiles() []core.File {
 	return []core.File{rds.CredentialsFile}
 }
 
-func (rds *RdsInstance) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (rds *RdsInstance) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
@@ -383,8 +383,8 @@ func (rds *RdsSubnetGroup) Id() core.ResourceId {
 	}
 }
 
-func (rds *RdsSubnetGroup) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (rds *RdsSubnetGroup) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -403,8 +403,8 @@ func (rds *RdsProxy) Id() core.ResourceId {
 	}
 }
 
-func (rds *RdsProxy) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (rds *RdsProxy) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -423,8 +423,8 @@ func (rds *RdsProxyTargetGroup) Id() core.ResourceId {
 	}
 }
 
-func (rds *RdsProxyTargetGroup) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (rds *RdsProxyTargetGroup) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstreamOrDownstream: true,
 	}
 }

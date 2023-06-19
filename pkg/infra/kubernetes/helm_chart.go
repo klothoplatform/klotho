@@ -47,8 +47,8 @@ func (chart *HelmChart) Id() core.ResourceId {
 	}
 }
 
-func (k *HelmChart) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (k *HelmChart) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

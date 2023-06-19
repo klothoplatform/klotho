@@ -54,8 +54,8 @@ func (lg *LogGroup) Id() core.ResourceId {
 	}
 }
 
-func (lg *LogGroup) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (lg *LogGroup) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:   false,
 		RequiresNoDownstream: false,
 	}

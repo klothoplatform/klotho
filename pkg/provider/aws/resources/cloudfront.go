@@ -59,15 +59,15 @@ type (
 	}
 
 	CloudfrontOrigin struct {
-		DomainName         core.IaCValue `yaml:"-"`
+		DomainName         *AwsResourceValue
 		OriginId           string
-		OriginPath         core.IaCValue `yaml:"-"`
+		OriginPath         *AwsResourceValue
 		S3OriginConfig     S3OriginConfig
 		CustomOriginConfig CustomOriginConfig
 	}
 
 	S3OriginConfig struct {
-		OriginAccessIdentity core.IaCValue
+		OriginAccessIdentity *AwsResourceValue
 	}
 
 	CustomOriginConfig struct {
@@ -154,8 +154,8 @@ func (distro *CloudfrontDistribution) Id() core.ResourceId {
 		Name:     distro.Name,
 	}
 }
-func (distro *CloudfrontDistribution) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (distro *CloudfrontDistribution) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:   true,
 		RequiresNoDownstream: false,
 	}
@@ -175,8 +175,8 @@ func (oai *OriginAccessIdentity) Id() core.ResourceId {
 	}
 }
 
-func (oai *OriginAccessIdentity) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (oai *OriginAccessIdentity) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:   false,
 		RequiresNoDownstream: false,
 	}

@@ -118,8 +118,8 @@ func (repo *EcrRepository) Id() core.ResourceId {
 	}
 }
 
-func (repo *EcrRepository) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (repo *EcrRepository) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -138,8 +138,8 @@ func (image *EcrImage) Id() core.ResourceId {
 	}
 }
 
-func (image *EcrImage) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (image *EcrImage) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

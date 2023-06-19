@@ -53,7 +53,7 @@ type (
 
 	VpcLink struct {
 		ConstructsRef core.BaseConstructSet `yaml:"-"`
-		Target        core.Resource         `yaml:"-"`
+		Target        core.Resource
 	}
 
 	ApiIntegration struct {
@@ -67,7 +67,7 @@ type (
 		Type                  string
 		ConnectionType        string
 		VpcLink               *VpcLink
-		Uri                   core.IaCValue `yaml:"-"`
+		Uri                   *AwsResourceValue
 		Route                 string
 	}
 
@@ -375,8 +375,8 @@ func (api *RestApi) Id() core.ResourceId {
 	}
 }
 
-func (api *RestApi) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (api *RestApi) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
@@ -397,8 +397,8 @@ func (res *ApiResource) Id() core.ResourceId {
 	}
 }
 
-func (res *ApiResource) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (res *ApiResource) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:   true,
 		RequiresNoDownstream: false,
 	}
@@ -418,8 +418,8 @@ func (method *ApiMethod) Id() core.ResourceId {
 	}
 }
 
-func (method *ApiMethod) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (method *ApiMethod) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:   true,
 		RequiresNoDownstream: false,
 	}
@@ -446,8 +446,8 @@ func (res *VpcLink) Id() core.ResourceId {
 func (res *VpcLink) Name() string {
 	return res.Id().Name
 }
-func (link *VpcLink) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (link *VpcLink) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:   true,
 		RequiresNoDownstream: false,
 	}
@@ -466,8 +466,8 @@ func (integration *ApiIntegration) Id() core.ResourceId {
 		Name:     integration.Name,
 	}
 }
-func (integration *ApiIntegration) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (integration *ApiIntegration) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:   false,
 		RequiresNoDownstream: false,
 	}
@@ -487,8 +487,8 @@ func (deployment *ApiDeployment) Id() core.ResourceId {
 	}
 }
 
-func (deployment *ApiDeployment) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (deployment *ApiDeployment) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:   false,
 		RequiresNoDownstream: false,
 	}
@@ -508,8 +508,8 @@ func (stage *ApiStage) Id() core.ResourceId {
 	}
 }
 
-func (stage *ApiStage) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (stage *ApiStage) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:   true,
 		RequiresNoDownstream: false,
 	}

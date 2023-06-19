@@ -105,8 +105,8 @@ func (stream *KinesisStream) Id() core.ResourceId {
 	}
 }
 
-func (role *KinesisStream) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (role *KinesisStream) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstreamOrDownstream: true,
 	}
 }
@@ -125,8 +125,8 @@ func (consumer *KinesisStreamConsumer) Id() core.ResourceId {
 	}
 }
 
-func (consumer *KinesisStreamConsumer) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (consumer *KinesisStreamConsumer) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

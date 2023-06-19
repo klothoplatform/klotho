@@ -7,8 +7,6 @@ concurrency:
   cancel-in-progress: true
   group: unit-tests-${{ github.ref }}
 name: unit tests
-env:
-  KLOTHO_VIZ_URL_BASE: https://viz-dev.klo.dev
 jobs:
   test:
     runs-on: ubuntu-latest

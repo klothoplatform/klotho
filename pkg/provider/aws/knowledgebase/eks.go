@@ -26,8 +26,8 @@ var EksKB = knowledgebase.Build(
 				FromPort:    9443,
 				Protocol:    "TCP",
 				ToPort:      9443,
-				CidrBlocks: []core.IaCValue{
-					{Property: "0.0.0.0/0"},
+				CidrBlocks: []*resources.AwsResourceValue{
+					{PropertyVal: "0.0.0.0/0"},
 				},
 			})
 			return nil
@@ -69,7 +69,7 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *kubernetes.KustomizeDirectory]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.PrivateDnsNamespace]{
 		Expand: func(chart *kubernetes.HelmChart, namespace *resources.PrivateDnsNamespace, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			clusterProvider := chart.ClustersProvider.Resource
+			clusterProvider := chart.ClustersProvider.Resource()
 			cluster, ok := clusterProvider.(*resources.EksCluster)
 			if !ok {
 				return fmt.Errorf("cluster provider resource for %s, must be an eks cluster, was %T", chart.Id(), clusterProvider)
@@ -84,7 +84,7 @@ var EksKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.TargetGroup]{
 		Expand: func(chart *kubernetes.HelmChart, targetGroup *resources.TargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			clusterProviderResource := chart.ClustersProvider.Resource
+			clusterProviderResource := chart.ClustersProvider.Resource()
 			if cluster, ok := clusterProviderResource.(*resources.EksCluster); ok {
 				if len(cluster.GetClustersNodeGroups(dag)) == 0 {
 					err := cluster.SetUpDefaultNodeGroup(dag, data.AppName)
@@ -207,7 +207,7 @@ func GetIamRoleForUnit(chart *kubernetes.HelmChart, ref core.BaseConstruct) *res
 	for key, val := range chart.Values {
 		if rolePlaceholder == key {
 			if iacVal, ok := val.(core.IaCValue); ok {
-				if role, ok := iacVal.Resource.(*resources.IamRole); ok {
+				if role, ok := iacVal.Resource().(*resources.IamRole); ok {
 					return role
 				}
 			}
@@ -219,9 +219,9 @@ func GetIamRoleForUnit(chart *kubernetes.HelmChart, ref core.BaseConstruct) *res
 func addEnvVarToChart(chart *kubernetes.HelmChart, resource core.Resource, env core.EnvironmentVariable) {
 	for _, val := range chart.ProviderValues {
 		if val.EnvironmentVariable != nil && env.GetName() == val.EnvironmentVariable.GetName() {
-			chart.Values[val.Key] = core.IaCValue{
-				Resource: resource,
-				Property: env.GetValue(),
+			chart.Values[val.Key] = resources.AwsResourceValue{
+				ResourceVal: resource,
+				PropertyVal: env.GetValue(),
 			}
 		}
 	}

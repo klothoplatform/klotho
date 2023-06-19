@@ -53,8 +53,8 @@ func (e *KubernetesProvider) Id() core.ResourceId {
 	}
 }
 
-func (f *KubernetesProvider) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{}
+func (f *KubernetesProvider) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{}
 }
 
 func (e *RouteTableAssociation) BaseConstructsRef() core.BaseConstructSet {
@@ -68,8 +68,8 @@ func (e *RouteTableAssociation) Id() core.ResourceId {
 		Name:     e.Name,
 	}
 }
-func (f *RouteTableAssociation) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{}
+func (f *RouteTableAssociation) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{}
 }
 func (e *SecurityGroupRule) BaseConstructsRef() core.BaseConstructSet {
 	return e.ConstructsRef
@@ -82,8 +82,8 @@ func (e *SecurityGroupRule) Id() core.ResourceId {
 		Name:     e.Name,
 	}
 }
-func (f *SecurityGroupRule) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{}
+func (f *SecurityGroupRule) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{}
 }
 func (e *TargetGroupAttachment) BaseConstructsRef() core.BaseConstructSet {
 	return e.ConstructsRef
@@ -96,6 +96,6 @@ func (e *TargetGroupAttachment) Id() core.ResourceId {
 		Name:     e.Name,
 	}
 }
-func (f *TargetGroupAttachment) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{}
+func (f *TargetGroupAttachment) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{}
 }

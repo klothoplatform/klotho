@@ -10,7 +10,7 @@ func (e *Engine) deleteResource(resource core.Resource, explicit bool) bool {
 	log := zap.S().With(zap.String("id", resource.Id().String()))
 	log.Debug("Deleting resource")
 	graph := e.Context.EndState
-	deletionCriteria := resource.DeleteCriteria()
+	deletionCriteria := resource.DeleteContext()
 	upstreamNodes := e.KnowledgeBase.GetTrueUpstream(resource, graph)
 	downstreamNodes := e.KnowledgeBase.GetTrueDownstream(resource, graph)
 	if deletionCriteria.RequiresExplicitDelete && !explicit {
@@ -38,13 +38,13 @@ func (e *Engine) deleteResource(resource core.Resource, explicit bool) bool {
 		for _, downstreamNode := range downstreamNodes {
 
 			var explicitUpstreams []core.Resource
-			if upstreamNode.DeleteCriteria().RequiresExplicitDelete {
+			if upstreamNode.DeleteContext().RequiresExplicitDelete {
 				explicitUpstreams = append(explicitUpstreams, upstreamNode)
 			} else {
 				explicitUpstreams = append(explicitUpstreams, e.getExplicitUpstreams(upstreamNode)...)
 			}
 			var explicitDownStreams []core.Resource
-			if downstreamNode.DeleteCriteria().RequiresExplicitDelete {
+			if downstreamNode.DeleteContext().RequiresExplicitDelete {
 				explicitDownStreams = append(explicitDownStreams, downstreamNode)
 			} else {
 				explicitDownStreams = append(explicitDownStreams, e.getExplicitDownStreams(downstreamNode)...)
@@ -86,7 +86,7 @@ func (e *Engine) getExplicitUpstreams(res core.Resource) []core.Resource {
 		return firstExplicitUpstreams
 	}
 	for _, up := range upstreams {
-		if up.DeleteCriteria().RequiresExplicitDelete {
+		if up.DeleteContext().RequiresExplicitDelete {
 			firstExplicitUpstreams = append(firstExplicitUpstreams, up)
 		}
 	}
@@ -105,7 +105,7 @@ func (e *Engine) getExplicitDownStreams(res core.Resource) []core.Resource {
 		return resources
 	}
 	for _, d := range downstreams {
-		if d.DeleteCriteria().RequiresExplicitDelete {
+		if d.DeleteContext().RequiresExplicitDelete {
 			resources = append(resources, d)
 		}
 	}

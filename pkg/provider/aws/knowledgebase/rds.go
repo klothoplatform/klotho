@@ -39,7 +39,7 @@ var RdsKB = knowledgebase.Build(
 				return fmt.Errorf("target group, %s, has  Destination instance, %s, but internal property is set Destination a different instance %s", targetGroup.Name, instance.Name, targetGroup.RdsInstance.Name)
 			}
 			if targetGroup.RdsProxy != nil {
-				secret := targetGroup.RdsProxy.Auths[0].SecretArn.Resource.(*resources.Secret)
+				secret := targetGroup.RdsProxy.Auths[0].SecretArn.ResourceVal.(*resources.Secret)
 				for _, res := range dag.GetUpstreamResources(secret) {
 					if secretVersion, ok := res.(*resources.SecretVersion); ok {
 						secretVersion.Path = instance.CredentialsPath
@@ -130,7 +130,7 @@ var RdsKB = knowledgebase.Build(
 			proxy.Auths = append(proxy.Auths, &resources.ProxyAuth{
 				AuthScheme: "SECRETS",
 				IamAuth:    "DISABLED",
-				SecretArn:  core.IaCValue{Resource: secretVersion.Secret, Property: resources.ARN_IAC_VALUE},
+				SecretArn:  &resources.AwsResourceValue{ResourceVal: secretVersion.Secret, PropertyVal: resources.ARN_IAC_VALUE},
 			})
 			dag.AddDependency(proxy, secretVersion.Secret)
 
@@ -154,7 +154,7 @@ var RdsKB = knowledgebase.Build(
 				return fmt.Errorf("target group, %s, has destination proxy, %s, but internal property is set Destination a different proxy %s", targetGroup.Name, proxy.Name, targetGroup.RdsProxy.Name)
 			}
 			if targetGroup.RdsInstance != nil {
-				secret := proxy.Auths[0].SecretArn.Resource.(*resources.Secret)
+				secret := proxy.Auths[0].SecretArn.ResourceVal.(*resources.Secret)
 				for _, res := range dag.GetUpstreamResources(secret) {
 					if secretVersion, ok := res.(*resources.SecretVersion); ok {
 						secretVersion.Path = targetGroup.RdsInstance.CredentialsPath
