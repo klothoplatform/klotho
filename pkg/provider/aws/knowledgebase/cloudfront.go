@@ -66,12 +66,12 @@ var CloudfrontKB = knowledgebase.Build(
 					OriginProtocolPolicy: "https-only",
 					OriginSslProtocols:   []string{"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"},
 				},
-				DomainName: core.IaCValue{
-					Resource: stage,
-					Property: resources.STAGE_INVOKE_URL_IAC_VALUE,
+				DomainName: &resources.AwsResourceValue{
+					ResourceVal: stage,
+					PropertyVal: resources.STAGE_INVOKE_URL_IAC_VALUE,
 				},
 				OriginId:   gwId,
-				OriginPath: core.IaCValue{Resource: stage, Property: resources.API_STAGE_PATH_VALUE},
+				OriginPath: &resources.AwsResourceValue{ResourceVal: stage, PropertyVal: resources.API_STAGE_PATH_VALUE},
 			}
 			distro.Origins = append(distro.Origins, origin)
 			distro.DefaultCacheBehavior.TargetOriginId = origin.OriginId
@@ -101,16 +101,16 @@ func (conn s3ToCloudfrontConnection) createOai() (*resources.OriginAccessIdentit
 	// This should be in an edge Configure, but it requires all three of the AOI, bucket, and distro -- so it's easier
 	// to do it here, at create time when we already have all three.
 	s3OriginConfig := resources.S3OriginConfig{
-		OriginAccessIdentity: core.IaCValue{
-			Resource: oai,
-			Property: resources.CLOUDFRONT_ACCESS_IDENTITY_PATH_IAC_VALUE,
+		OriginAccessIdentity: &resources.AwsResourceValue{
+			ResourceVal: oai,
+			PropertyVal: resources.CLOUDFRONT_ACCESS_IDENTITY_PATH_IAC_VALUE,
 		},
 	}
 	origin := &resources.CloudfrontOrigin{
 		S3OriginConfig: s3OriginConfig,
-		DomainName: core.IaCValue{
-			Resource: conn.bucket,
-			Property: resources.BUCKET_REGIONAL_DOMAIN_NAME_IAC_VALUE,
+		DomainName: &resources.AwsResourceValue{
+			ResourceVal: conn.bucket,
+			PropertyVal: resources.BUCKET_REGIONAL_DOMAIN_NAME_IAC_VALUE,
 		},
 		OriginId: conn.construct.Id().Name,
 	}
@@ -136,16 +136,16 @@ func (conn s3ToCloudfrontConnection) attachPolicy(oai *resources.OriginAccessIde
 			{
 				Effect: "Allow",
 				Principal: &resources.Principal{
-					AWS: core.IaCValue{
-						Resource: oai,
-						Property: resources.IAM_ARN_IAC_VALUE,
+					AWS: &resources.AwsResourceValue{
+						ResourceVal: oai,
+						PropertyVal: resources.IAM_ARN_IAC_VALUE,
 					},
 				},
 				Action: []string{"s3:GetObject"},
-				Resource: []core.IaCValue{
+				Resource: []*resources.AwsResourceValue{
 					{
-						Resource: conn.bucket,
-						Property: resources.ALL_BUCKET_DIRECTORY_IAC_VALUE,
+						ResourceVal: conn.bucket,
+						PropertyVal: resources.ALL_BUCKET_DIRECTORY_IAC_VALUE,
 					},
 				},
 			},

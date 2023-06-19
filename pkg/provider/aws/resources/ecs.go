@@ -26,7 +26,7 @@ type (
 		Name                    string
 		ConstructsRef           core.BaseConstructSet `yaml:"-"`
 		Image                   *EcrImage
-		EnvironmentVariables    EnvironmentVariables
+		EnvironmentVariables    map[string]*AwsResourceValue
 		Cpu                     string
 		Memory                  string
 		LogGroup                *LogGroup
@@ -71,7 +71,7 @@ type (
 	}
 
 	EcsServiceLoadBalancerConfig struct {
-		TargetGroupArn core.IaCValue `yaml:"-"`
+		TargetGroupArn *AwsResourceValue
 		ContainerName  string
 		ContainerPort  int
 	}
@@ -163,10 +163,10 @@ func (td *EcsTaskDefinition) Configure(params EcsTaskDefinitionConfigureParams) 
 		Protocol:      "tcp",
 	}})
 	if td.EnvironmentVariables == nil {
-		td.EnvironmentVariables = make(EnvironmentVariables)
+		td.EnvironmentVariables = make(map[string]*AwsResourceValue)
 	}
 	for _, env := range params.EnvironmentVariables {
-		td.EnvironmentVariables[env.GetName()] = core.IaCValue{Property: env.GetValue()}
+		td.EnvironmentVariables[env.GetName()] = &AwsResourceValue{PropertyVal: env.GetValue()}
 	}
 
 	return nil
@@ -184,8 +184,8 @@ func (td *EcsTaskDefinition) Id() core.ResourceId {
 	}
 }
 
-func (td *EcsTaskDefinition) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (td *EcsTaskDefinition) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -267,8 +267,8 @@ func (s *EcsService) Id() core.ResourceId {
 	}
 }
 
-func (td *EcsService) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (td *EcsService) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
@@ -299,8 +299,8 @@ func (c *EcsCluster) Id() core.ResourceId {
 	}
 }
 
-func (c *EcsCluster) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (c *EcsCluster) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

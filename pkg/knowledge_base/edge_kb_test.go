@@ -208,37 +208,37 @@ type (
 
 func (f *A) Id() core.ResourceId                      { return core.ResourceId{Type: "A", Name: "A" + f.Name} }
 func (f *A) BaseConstructsRef() core.BaseConstructSet { return nil }
-func (f *A) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (f *A) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 
 func (b B) Id() core.ResourceId                      { return core.ResourceId{Type: "B", Name: "B" + b.Name} }
 func (f B) BaseConstructsRef() core.BaseConstructSet { return nil }
-func (f B) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (f B) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 func (p *C) Id() core.ResourceId                      { return core.ResourceId{Type: "C", Name: "C" + p.Name} }
 func (f *C) BaseConstructsRef() core.BaseConstructSet { return nil }
-func (f *C) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (f *C) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 func (p *D) Id() core.ResourceId                      { return core.ResourceId{Type: "D", Name: "D" + p.Name} }
 func (f *D) BaseConstructsRef() core.BaseConstructSet { return nil }
-func (f *D) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (f *D) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 func (p *E) Id() core.ResourceId                      { return core.ResourceId{Type: "E", Name: "E" + p.Name} }
 func (f *E) BaseConstructsRef() core.BaseConstructSet { return nil }
-func (f *E) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (f *E) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

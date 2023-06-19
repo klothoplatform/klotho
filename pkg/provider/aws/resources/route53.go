@@ -26,7 +26,7 @@ type (
 		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Zone          *Route53HostedZone
 		Type          string
-		Records       []core.IaCValue `yaml:"-"`
+		Records       []*AwsResourceValue
 		HealthCheck   *Route53HealthCheck
 		TTL           int
 	}
@@ -192,8 +192,8 @@ func (zone *Route53HostedZone) Id() core.ResourceId {
 	}
 }
 
-func (zone *Route53HostedZone) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (zone *Route53HostedZone) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -211,8 +211,8 @@ func (record *Route53Record) Id() core.ResourceId {
 	}
 }
 
-func (record *Route53Record) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (record *Route53Record) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -230,8 +230,8 @@ func (hc *Route53HealthCheck) Id() core.ResourceId {
 	}
 }
 
-func (record *Route53HealthCheck) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (record *Route53HealthCheck) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:   true,
 		RequiresNoDownstream: true,
 	}

@@ -57,8 +57,8 @@ func (ns *PrivateDnsNamespace) Id() core.ResourceId {
 	}
 }
 
-func (ns *PrivateDnsNamespace) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (ns *PrivateDnsNamespace) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:   true,
 		RequiresNoDownstream: false,
 	}

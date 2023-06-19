@@ -22,7 +22,7 @@ func Test_ConfigureEdge(t *testing.T) {
 			name: "single rds lambda",
 			edge: []graph.Edge[core.Resource]{
 				{
-					Source:      &resources.LambdaFunction{Name: "lambda", Subnets: []*resources.Subnet{{Name: "sub1"}}, Role: &resources.IamRole{}, EnvironmentVariables: make(resources.EnvironmentVariables)},
+					Source:      &resources.LambdaFunction{Name: "lambda", Subnets: []*resources.Subnet{{Name: "sub1"}}, Role: &resources.IamRole{}, EnvironmentVariables: make(map[string]*resources.AwsResourceValue)},
 					Destination: &resources.RdsInstance{Name: "rds"},
 					Properties: dgraph.EdgeProperties{
 						Data: knowledgebase.EdgeData{
@@ -38,7 +38,7 @@ func Test_ConfigureEdge(t *testing.T) {
 				Name:                 "lambda",
 				Subnets:              []*resources.Subnet{{Name: "sub1"}},
 				Role:                 &resources.IamRole{},
-				EnvironmentVariables: resources.EnvironmentVariables{"TEST_PERSIST_ORM_CONNECTION": core.IaCValue{Resource: &resources.RdsInstance{Name: "rds"}, Property: string(core.CONNECTION_STRING)}},
+				EnvironmentVariables: map[string]*resources.AwsResourceValue{"TEST_PERSIST_ORM_CONNECTION": &resources.AwsResourceValue{ResourceVal: &resources.RdsInstance{Name: "rds"}, PropertyVal: string(core.CONNECTION_STRING)}},
 			},
 				&resources.RdsInstance{Name: "rds"},
 			},
@@ -47,8 +47,8 @@ func Test_ConfigureEdge(t *testing.T) {
 			name: "single rds proxy and lambda",
 			edge: []graph.Edge[core.Resource]{
 				{
-					Source:      &resources.LambdaFunction{Name: "lambda", Subnets: []*resources.Subnet{{Name: "sub1"}}, Role: &resources.IamRole{}, EnvironmentVariables: make(resources.EnvironmentVariables)},
-					Destination: &resources.RdsProxy{Name: "rds", Role: &resources.IamRole{Name: "ProxyRole"}, Auths: []*resources.ProxyAuth{{SecretArn: core.IaCValue{Resource: &resources.Secret{Name: "Secret"}}}}},
+					Source:      &resources.LambdaFunction{Name: "lambda", Subnets: []*resources.Subnet{{Name: "sub1"}}, Role: &resources.IamRole{}, EnvironmentVariables: make(map[string]*resources.AwsResourceValue)},
+					Destination: &resources.RdsProxy{Name: "rds", Role: &resources.IamRole{Name: "ProxyRole"}, Auths: []*resources.ProxyAuth{{SecretArn: &resources.AwsResourceValue{ResourceVal: &resources.Secret{Name: "Secret"}}}}},
 					Properties: dgraph.EdgeProperties{
 						Data: knowledgebase.EdgeData{
 							AppName:              "my-app",
@@ -60,7 +60,7 @@ func Test_ConfigureEdge(t *testing.T) {
 				},
 				{
 					Source:      &resources.RdsProxyTargetGroup{Name: "rds", RdsInstance: &resources.RdsInstance{Name: "instance", CredentialsPath: "rds"}},
-					Destination: &resources.RdsProxy{Name: "rds", Role: &resources.IamRole{Name: "ProxyRole"}, Auths: []*resources.ProxyAuth{{SecretArn: core.IaCValue{Resource: &resources.Secret{Name: "Secret"}}}}},
+					Destination: &resources.RdsProxy{Name: "rds", Role: &resources.IamRole{Name: "ProxyRole"}, Auths: []*resources.ProxyAuth{{SecretArn: &resources.AwsResourceValue{ResourceVal: &resources.Secret{Name: "Secret"}}}}},
 					Properties: dgraph.EdgeProperties{
 						Data: knowledgebase.EdgeData{
 							AppName:              "my-app",
@@ -87,7 +87,7 @@ func Test_ConfigureEdge(t *testing.T) {
 						Name: "rds",
 						RdsProxy: &resources.RdsProxy{
 							Name:  "rds",
-							Auths: []*resources.ProxyAuth{{SecretArn: core.IaCValue{Resource: &resources.Secret{Name: "Secret"}}}},
+							Auths: []*resources.ProxyAuth{{SecretArn: &resources.AwsResourceValue{ResourceVal: &resources.Secret{Name: "Secret"}}}},
 						},
 					},
 					Destination: &resources.RdsInstance{Name: "instance", CredentialsFile: &core.FileRef{FPath: "rds"}, CredentialsPath: "rds"},
@@ -106,20 +106,20 @@ func Test_ConfigureEdge(t *testing.T) {
 					Name:    "lambda",
 					Subnets: []*resources.Subnet{{Name: "sub1"}},
 					Role:    &resources.IamRole{},
-					EnvironmentVariables: resources.EnvironmentVariables{"TEST_PERSIST_ORM_CONNECTION": core.IaCValue{
-						Resource: &resources.RdsProxy{
+					EnvironmentVariables: map[string]*resources.AwsResourceValue{"TEST_PERSIST_ORM_CONNECTION": &resources.AwsResourceValue{
+						ResourceVal: &resources.RdsProxy{
 							Name:  "rds",
 							Role:  &resources.IamRole{Name: "ProxyRole"},
-							Auths: []*resources.ProxyAuth{{SecretArn: core.IaCValue{Resource: &resources.Secret{Name: "Secret"}}}},
+							Auths: []*resources.ProxyAuth{{SecretArn: &resources.AwsResourceValue{ResourceVal: &resources.Secret{Name: "Secret"}}}},
 						},
-						Property: string(core.CONNECTION_STRING),
+						PropertyVal: string(core.CONNECTION_STRING),
 					},
 					},
 				},
 				&resources.RdsProxy{
 					Name:  "rds",
 					Role:  &resources.IamRole{Name: "ProxyRole"},
-					Auths: []*resources.ProxyAuth{{SecretArn: core.IaCValue{Resource: &resources.Secret{Name: "Secret"}}}},
+					Auths: []*resources.ProxyAuth{{SecretArn: &resources.AwsResourceValue{ResourceVal: &resources.Secret{Name: "Secret"}}}},
 				},
 				&resources.SecretVersion{Name: "sv", Path: "rds", Type: "string"},
 			},

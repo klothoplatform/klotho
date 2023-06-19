@@ -33,7 +33,6 @@ func (e *Engine) LoadConstructGraphFromFile(path string) error {
 	if err != nil {
 		return errors.Errorf("Error Loading graph for provider %s. %s", e.Provider.Name(), err.Error())
 	}
-
 	for _, metadata := range input.ResourceMetadata {
 		resource := e.Context.InitialState.GetConstruct(metadata.Id)
 		md, err := yaml.Marshal(metadata.Metadata)

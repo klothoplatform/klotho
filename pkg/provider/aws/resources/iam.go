@@ -92,21 +92,21 @@ type (
 		Name                string
 		ConstructsRef       core.BaseConstructSet `yaml:"-"`
 		AssumeRolePolicyDoc *PolicyDocument
-		ManagedPolicies     []core.IaCValue `yaml:"-"`
+		ManagedPolicies     []*AwsResourceValue
 		AwsManagedPolicies  []string
-		InlinePolicies      []*IamInlinePolicy `yaml:"-"`
+		InlinePolicies      []*IamInlinePolicy
 	}
 
 	IamPolicy struct {
 		Name          string
 		ConstructsRef core.BaseConstructSet `yaml:"-"`
-		Policy        *PolicyDocument       `yaml:"-"`
+		Policy        *PolicyDocument
 	}
 
 	IamInlinePolicy struct {
 		Name          string
 		ConstructsRef core.BaseConstructSet `yaml:"-"`
-		Policy        *PolicyDocument       `yaml:"-"`
+		Policy        *PolicyDocument
 	}
 
 	PolicyDocument struct {
@@ -117,20 +117,20 @@ type (
 	StatementEntry struct {
 		Effect    string
 		Action    []string
-		Resource  []core.IaCValue `yaml:"-"`
+		Resource  []*AwsResourceValue
 		Principal *Principal
 		Condition *Condition
 	}
 
 	Principal struct {
 		Service   string
-		Federated core.IaCValue `yaml:"-"`
-		AWS       core.IaCValue `yaml:"-"`
+		Federated *AwsResourceValue
+		AWS       *AwsResourceValue
 	}
 
 	Condition struct {
-		StringEquals map[core.IaCValue]string `yaml:"-"`
-		Null         map[core.IaCValue]string `yaml:"-"`
+		StringEquals map[*AwsResourceValue]string
+		Null         map[*AwsResourceValue]string
 	}
 
 	OpenIdConnectProvider struct {
@@ -242,7 +242,7 @@ func (profile *InstanceProfile) Create(dag *core.ResourceGraph, params InstanceP
 	})
 }
 
-func CreateAllowPolicyDocument(actions []string, resources []core.IaCValue) *PolicyDocument {
+func CreateAllowPolicyDocument(actions []string, resources []*AwsResourceValue) *PolicyDocument {
 	return &PolicyDocument{
 		Version: VERSION,
 		Statement: []StatementEntry{
@@ -269,8 +269,8 @@ func (role *IamRole) Id() core.ResourceId {
 	}
 }
 
-func (role *IamRole) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (role *IamRole) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -288,10 +288,10 @@ func (role *IamRole) AddAwsManagedPolicies(policies []string) {
 	}
 }
 
-func (role *IamRole) AddManagedPolicy(policy core.IaCValue) {
+func (role *IamRole) AddManagedPolicy(policy *AwsResourceValue) {
 	exists := false
 	for _, pol := range role.ManagedPolicies {
-		if pol == policy {
+		if pol.ResourceVal == policy.ResourceVal {
 			exists = true
 		}
 	}
@@ -340,8 +340,8 @@ func (policy *IamPolicy) Id() core.ResourceId {
 	}
 }
 
-func (policy *IamPolicy) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (policy *IamPolicy) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -360,8 +360,8 @@ func (oidc *OpenIdConnectProvider) Id() core.ResourceId {
 	}
 }
 
-func (oidc *OpenIdConnectProvider) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (oidc *OpenIdConnectProvider) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -380,8 +380,8 @@ func (role *RolePolicyAttachment) Id() core.ResourceId {
 	}
 }
 
-func (role *RolePolicyAttachment) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (role *RolePolicyAttachment) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstreamOrDownstream: true,
 	}
 }
@@ -399,8 +399,8 @@ func (profile *InstanceProfile) Id() core.ResourceId {
 	}
 }
 
-func (profile *InstanceProfile) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (profile *InstanceProfile) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -408,7 +408,7 @@ func (profile *InstanceProfile) DeleteCriteria() core.DeleteCriteria {
 func (s StatementEntry) Id() core.ResourceId {
 	resourcesHash := sha256.New()
 	for _, r := range s.Resource {
-		_, _ = fmt.Fprintf(resourcesHash, "%s.%s", r.Resource.Id(), r.Property)
+		_, _ = fmt.Fprintf(resourcesHash, "%s.%s", r.ResourceVal.Id(), r.PropertyVal)
 	}
 
 	return core.ResourceId{

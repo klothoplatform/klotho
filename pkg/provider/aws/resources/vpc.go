@@ -58,7 +58,7 @@ type (
 		CidrBlock           string
 		Vpc                 *Vpc
 		Type                string
-		AvailabilityZone    core.IaCValue `yaml:"-"`
+		AvailabilityZone    *AwsResourceValue
 		MapPublicIpOnLaunch bool
 	}
 	VpcEndpoint struct {
@@ -70,7 +70,7 @@ type (
 		VpcEndpointType  string
 		Subnets          []*Subnet
 		RouteTables      []*RouteTable
-		SecurityGroupIds []core.IaCValue `yaml:"-"`
+		SecurityGroupIds []*AwsResourceValue
 	}
 	RouteTable struct {
 		Name          string
@@ -80,8 +80,8 @@ type (
 	}
 	RouteTableRoute struct {
 		CidrBlock    string
-		NatGatewayId core.IaCValue `yaml:"-"`
-		GatewayId    core.IaCValue `yaml:"-"`
+		NatGatewayId *AwsResourceValue
+		GatewayId    *AwsResourceValue
 	}
 )
 
@@ -206,7 +206,7 @@ type SubnetCreateParams struct {
 func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams) error {
 	subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", params.AppName, params.Type, params.AZ))
 	subnet.ConstructsRef = params.Refs.Clone()
-	subnet.AvailabilityZone = core.IaCValue{Resource: NewAvailabilityZones(), Property: params.AZ}
+	subnet.AvailabilityZone = &AwsResourceValue{ResourceVal: NewAvailabilityZones(), PropertyVal: params.AZ}
 	subnet.Type = params.Type
 
 	routeTableParams := RouteTableCreateParams{
@@ -271,15 +271,15 @@ type SubnetConfigureParams struct {
 
 func (subnet *Subnet) Configure(params SubnetConfigureParams) error {
 	if subnet.Type == PrivateSubnet {
-		if subnet.AvailabilityZone.Property == "0" {
+		if subnet.AvailabilityZone.PropertyVal == "0" {
 			subnet.CidrBlock = "10.0.0.0/18"
-		} else if subnet.AvailabilityZone.Property == "1" {
+		} else if subnet.AvailabilityZone.PropertyVal == "1" {
 			subnet.CidrBlock = "10.0.64.0/18"
 		}
 	} else if subnet.Type == PublicSubnet {
-		if subnet.AvailabilityZone.Property == "0" {
+		if subnet.AvailabilityZone.PropertyVal == "0" {
 			subnet.CidrBlock = "10.0.128.0/18"
-		} else if subnet.AvailabilityZone.Property == "1" {
+		} else if subnet.AvailabilityZone.PropertyVal == "1" {
 			subnet.CidrBlock = "10.0.192.0/18"
 
 		}
@@ -377,8 +377,8 @@ func (eip *ElasticIp) Id() core.ResourceId {
 	}
 }
 
-func (eip *ElasticIp) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (eip *ElasticIp) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -397,8 +397,8 @@ func (igw *InternetGateway) Id() core.ResourceId {
 	}
 }
 
-func (igw *InternetGateway) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (igw *InternetGateway) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -416,8 +416,8 @@ func (natGateway *NatGateway) Id() core.ResourceId {
 		Name:     natGateway.Name,
 	}
 }
-func (natGateway *NatGateway) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (natGateway *NatGateway) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -440,8 +440,8 @@ func (subnet *Subnet) Id() core.ResourceId {
 	return id
 }
 
-func (subnet *Subnet) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (subnet *Subnet) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -485,8 +485,8 @@ func (vpce *VpcEndpoint) Id() core.ResourceId {
 	}
 }
 
-func (vpc *VpcEndpoint) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (vpc *VpcEndpoint) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -505,8 +505,8 @@ func (vpc *Vpc) Id() core.ResourceId {
 	}
 }
 
-func (vpc *Vpc) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (vpc *Vpc) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -525,8 +525,8 @@ func (rt *RouteTable) Id() core.ResourceId {
 	}
 }
 
-func (rt *RouteTable) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (rt *RouteTable) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

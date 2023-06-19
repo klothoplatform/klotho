@@ -257,13 +257,9 @@ func (rg *ResourceGraph) addDependenciesReflect(source Resource, targetValue ref
 	switch value := targetValue.Interface().(type) {
 	case Resource:
 		rg.AddDependency(source, value)
-	case *IaCValue:
-		if value.Resource != nil {
-			rg.AddDependency(source, value.Resource)
-		}
 	case IaCValue:
-		if value.Resource != nil {
-			rg.AddDependency(source, value.Resource)
+		if value.Resource() != nil {
+			rg.AddDependency(source, value.Resource())
 		}
 	default:
 		correspondingValue := targetValue
@@ -420,31 +416,14 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 		} else {
 			return err
 		}
-	case *IaCValue:
-		if value != nil && value.Resource != nil {
-			err := rg.callCreate(reflect.ValueOf(value.Resource), metadata)
-			currValue := rg.GetResource(value.Resource.Id())
-			if currValue != nil {
-				value.Resource = currValue
-			}
-			if err == nil && value.Resource != nil {
-				if parent != nil {
-					parent.SetMapIndex(index, reflect.ValueOf(value))
-				} else {
-					targetValue.Set(reflect.ValueOf(value))
-				}
-			} else {
-				return err
-			}
-		}
 	case IaCValue:
-		if value.Resource != nil {
-			err := rg.callCreate(reflect.ValueOf(value.Resource), metadata)
-			currValue := rg.GetResource(value.Resource.Id())
+		if value.Resource() != nil {
+			err := rg.callCreate(reflect.ValueOf(value.Resource()), metadata)
+			currValue := rg.GetResource(value.Resource().Id())
 			if currValue != nil {
-				value.Resource = currValue
+				value.SetResource(currValue)
 			}
-			if err == nil && value.Resource != nil {
+			if err == nil && value.Resource() != nil {
 				if parent != nil {
 					parent.SetMapIndex(index, reflect.ValueOf(value))
 				} else {

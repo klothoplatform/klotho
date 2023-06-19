@@ -288,7 +288,7 @@ func Test_SubnetCreate(t *testing.T) {
 	}{
 		{
 			name:     "private subnet az0",
-			subnet:   &Subnet{Type: PrivateSubnet, AvailabilityZone: core.IaCValue{Property: "0"}, CidrBlock: "10.0.0.0/18"},
+			subnet:   &Subnet{Type: PrivateSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "0"}, CidrBlock: "10.0.0.0/18"},
 			addToDag: false,
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
@@ -321,7 +321,7 @@ func Test_SubnetCreate(t *testing.T) {
 		},
 		{
 			name:     "private subnet az1",
-			subnet:   &Subnet{Type: PrivateSubnet, AvailabilityZone: core.IaCValue{Property: "1"}, CidrBlock: "10.0.64.0/18"},
+			subnet:   &Subnet{Type: PrivateSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}, CidrBlock: "10.0.64.0/18"},
 			addToDag: false,
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
@@ -354,7 +354,7 @@ func Test_SubnetCreate(t *testing.T) {
 		},
 		{
 			name:     "public subnet az0",
-			subnet:   &Subnet{Type: PublicSubnet, AvailabilityZone: core.IaCValue{Property: "0"}, CidrBlock: "10.0.128.0/18"},
+			subnet:   &Subnet{Type: PublicSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "0"}, CidrBlock: "10.0.128.0/18"},
 			addToDag: false,
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
@@ -376,7 +376,7 @@ func Test_SubnetCreate(t *testing.T) {
 		},
 		{
 			name:     "public subnet az1",
-			subnet:   &Subnet{Type: PublicSubnet, AvailabilityZone: core.IaCValue{Property: "1"}, CidrBlock: "10.0.192.0/18"},
+			subnet:   &Subnet{Type: PublicSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}, CidrBlock: "10.0.192.0/18"},
 			addToDag: false,
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
@@ -398,7 +398,7 @@ func Test_SubnetCreate(t *testing.T) {
 		},
 		{
 			name:     "existing subnet",
-			subnet:   &Subnet{Name: "my_app_public0", Type: PublicSubnet, AvailabilityZone: core.IaCValue{Property: "0"}, ConstructsRef: initialRefs, Vpc: &Vpc{Name: "my_app"}, CidrBlock: "10.0.128.0/18"},
+			subnet:   &Subnet{Name: "my_app_public0", Type: PublicSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "0"}, ConstructsRef: initialRefs, Vpc: &Vpc{Name: "my_app"}, CidrBlock: "10.0.128.0/18"},
 			addToDag: true,
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
@@ -429,7 +429,7 @@ func Test_SubnetCreate(t *testing.T) {
 			metadata := SubnetCreateParams{
 				AppName: "my-app",
 				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
-				AZ:      tt.subnet.AvailabilityZone.Property,
+				AZ:      tt.subnet.AvailabilityZone.PropertyVal,
 				Type:    tt.subnet.Type,
 			}
 			subnet := &Subnet{}
@@ -447,9 +447,9 @@ func Test_SubnetCreate(t *testing.T) {
 			graphSubnet := dag.GetResource(subnet.Id())
 			subnet = graphSubnet.(*Subnet)
 
-			assert.Equal(subnet.Name, fmt.Sprintf("my_app_%s%s", tt.subnet.Type, tt.subnet.AvailabilityZone.Property))
+			assert.Equal(subnet.Name, fmt.Sprintf("my_app_%s%s", tt.subnet.Type, tt.subnet.AvailabilityZone.Property()))
 			assert.Equal(subnet.Type, tt.subnet.Type)
-			assert.Equal(subnet.AvailabilityZone.Property, tt.subnet.AvailabilityZone.Property)
+			assert.Equal(subnet.AvailabilityZone.Property(), tt.subnet.AvailabilityZone.Property())
 			if tt.addToDag == false {
 				assert.Equal(subnet.ConstructsRef, metadata.Refs)
 			} else {

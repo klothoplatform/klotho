@@ -143,8 +143,8 @@ func (key *KmsKey) Id() core.ResourceId {
 	}
 }
 
-func (key *KmsKey) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (key *KmsKey) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -163,8 +163,8 @@ func (alias *KmsAlias) Id() core.ResourceId {
 	}
 }
 
-func (alias *KmsAlias) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (alias *KmsAlias) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -183,8 +183,8 @@ func (replica *KmsReplicaKey) Id() core.ResourceId {
 	}
 }
 
-func (replica *KmsReplicaKey) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (replica *KmsReplicaKey) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

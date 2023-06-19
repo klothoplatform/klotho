@@ -5,6 +5,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 )
 
 type (
@@ -26,7 +27,7 @@ type (
 	BaseConstructSet map[ResourceId]BaseConstruct
 
 	// Delete criteria is supposed to tell us when we are able to delete a resource based on its dependencies
-	DeleteCriteria struct {
+	DeleteContext struct {
 		// RequiresNoUpstream is a boolean that tells us if deletion relies on there being no upstream resources
 		RequiresNoUpstream bool
 		// RequiresNoDownstream is a boolean that tells us if deletion relies on there being no downstream resources
@@ -41,7 +42,7 @@ type (
 	Resource interface {
 		BaseConstruct
 		BaseConstructsRef() BaseConstructSet
-		DeleteCriteria() DeleteCriteria
+		DeleteContext() DeleteContext
 	}
 
 	// ExpandableResource is a resource that can generate its own dependencies. See [CreateResource].
@@ -66,11 +67,15 @@ type (
 	}
 
 	// IaCValue is a struct that defines a value we need to grab from a specific resource. It is up to the plugins to make the determination of how to retrieve the value
-	IaCValue struct {
+	IaCValue interface {
 		// Resource is the resource the IaCValue is correlated to
-		Resource Resource
+		Resource() Resource
 		// Property defines the intended characteristic of the resource we want to retrieve
-		Property string
+		Property() string
+		// SetResource sets the resource the IaCValue is correlated to
+		SetResource(Resource)
+		yaml.Marshaler
+		yaml.Unmarshaler
 	}
 
 	HasOutputFiles interface {
@@ -83,10 +88,6 @@ type (
 
 	Capability string
 )
-
-func (BaseConstructSet) MarshalYAML() ([]byte, error) {
-	return []byte(`""`), nil
-}
 
 const (
 	ALL_RESOURCES_IAC_VALUE = "*"

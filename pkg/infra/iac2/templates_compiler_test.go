@@ -253,9 +253,9 @@ func Test_handleIaCValue(t *testing.T) {
 	}{
 		{
 			name: "bucket name",
-			value: core.IaCValue{
-				Resource: &resources.S3Bucket{Name: "test-app"},
-				Property: string(core.BUCKET_NAME),
+			value: &resources.AwsResourceValue{
+				ResourceVal: &resources.S3Bucket{Name: "test-app"},
+				PropertyVal: string(core.BUCKET_NAME),
 			},
 			resourceVarNamesById: map[core.ResourceId]string{
 				{Provider: "aws", Type: "s3_bucket", Name: "test-app-"}: "testBucket",
@@ -264,16 +264,16 @@ func Test_handleIaCValue(t *testing.T) {
 		},
 		{
 			name: "string value, nil resource",
-			value: core.IaCValue{
-				Property: "TestValue",
+			value: &resources.AwsResourceValue{
+				PropertyVal: "TestValue",
 			},
 			want: "`TestValue`",
 		},
 		{
 			name: "value with applied outputs, cluster oidc arn",
-			value: core.IaCValue{
-				Resource: &resources.EksCluster{Name: "test-app-cluster1"},
-				Property: resources.OIDC_SUB_IAC_VALUE,
+			value: &resources.AwsResourceValue{
+				ResourceVal: &resources.EksCluster{Name: "test-app-cluster1"},
+				PropertyVal: resources.OIDC_SUB_IAC_VALUE,
 			},
 			resourceVarNamesById: map[core.ResourceId]string{
 				{Provider: "aws", Type: "eks_cluster", Name: "test-app-cluster1"}: "awsEksClusterTestAppCluster1",
@@ -288,9 +288,9 @@ func Test_handleIaCValue(t *testing.T) {
 		},
 		{
 			name: "Availability zone",
-			value: core.IaCValue{
-				Resource: &resources.AvailabilityZones{},
-				Property: "2",
+			value: &resources.AwsResourceValue{
+				ResourceVal: &resources.AvailabilityZones{},
+				PropertyVal: "2",
 			},
 			resourceVarNamesById: map[core.ResourceId]string{
 				{Provider: "aws", Type: "availability_zones", Name: "AvailabilityZones"}: "azs",
@@ -299,9 +299,9 @@ func Test_handleIaCValue(t *testing.T) {
 		},
 		{
 			name: "nlb uri",
-			value: core.IaCValue{
-				Resource: &resources.LoadBalancer{Name: "test"},
-				Property: resources.NLB_INTEGRATION_URI_IAC_VALUE,
+			value: &resources.AwsResourceValue{
+				ResourceVal: &resources.LoadBalancer{Name: "test"},
+				PropertyVal: resources.NLB_INTEGRATION_URI_IAC_VALUE,
 			},
 			resourceVarNamesById: map[core.ResourceId]string{
 				{Provider: "aws", Type: "load_balancer", Name: "test"}: "lb",
@@ -365,23 +365,23 @@ type (
 
 func (f *DummyFizz) Id() core.ResourceId                      { return core.ResourceId{Name: "fizz-" + f.Value} }
 func (f *DummyFizz) BaseConstructsRef() core.BaseConstructSet { return nil }
-func (f *DummyFizz) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{}
+func (f *DummyFizz) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{}
 }
 func (b DummyBuzz) Id() core.ResourceId                      { return core.ResourceId{Name: "buzz-shared"} }
 func (f DummyBuzz) BaseConstructsRef() core.BaseConstructSet { return nil }
-func (f DummyBuzz) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{}
+func (f DummyBuzz) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{}
 }
 func (p *DummyBig) Id() core.ResourceId                      { return core.ResourceId{Name: "big-" + p.id} }
 func (f *DummyBig) BaseConstructsRef() core.BaseConstructSet { return nil }
-func (f *DummyBig) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{}
+func (f *DummyBig) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{}
 }
 func (p DummyVoid) Id() core.ResourceId                      { return core.ResourceId{Name: "void"} }
 func (f DummyVoid) BaseConstructsRef() core.BaseConstructSet { return nil }
-func (f DummyVoid) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{}
+func (f DummyVoid) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{}
 }
 
 var dummyTemplateFiles = map[string]string{

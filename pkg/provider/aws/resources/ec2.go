@@ -112,8 +112,8 @@ func (instance *Ec2Instance) Id() core.ResourceId {
 	}
 }
 
-func (instance *Ec2Instance) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (instance *Ec2Instance) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
@@ -134,8 +134,8 @@ func (ami *AMI) Id() core.ResourceId {
 	}
 }
 
-func (ami *AMI) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (ami *AMI) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

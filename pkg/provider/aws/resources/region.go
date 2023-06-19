@@ -51,8 +51,8 @@ func (region *Region) Id() core.ResourceId {
 		Name:     REGION_NAME,
 	}
 }
-func (region *Region) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (region *Region) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -78,8 +78,8 @@ func (azs *AvailabilityZones) Id() core.ResourceId {
 	}
 }
 
-func (azs *AvailabilityZones) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (azs *AvailabilityZones) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -105,8 +105,8 @@ func (id *AccountId) Id() core.ResourceId {
 	}
 }
 
-func (id *AccountId) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (id *AccountId) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

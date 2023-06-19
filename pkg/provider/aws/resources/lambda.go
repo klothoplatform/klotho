@@ -21,7 +21,7 @@ type (
 		ConstructsRef        core.BaseConstructSet `yaml:"-"`
 		Role                 *IamRole
 		Image                *EcrImage
-		EnvironmentVariables EnvironmentVariables `yaml:"-"`
+		EnvironmentVariables map[string]*AwsResourceValue `yaml:"-"`
 		SecurityGroups       []*SecurityGroup
 		Subnets              []*Subnet
 		Timeout              int
@@ -33,7 +33,7 @@ type (
 		ConstructsRef core.BaseConstructSet `yaml:"-"`
 		Function      *LambdaFunction
 		Principal     string
-		Source        core.IaCValue `yaml:"-"`
+		Source        *AwsResourceValue
 		Action        string
 	}
 )
@@ -90,7 +90,7 @@ func (lambda *LambdaFunction) Configure(params LambdaFunctionConfigureParams) er
 	lambda.Timeout = 180
 	lambda.MemorySize = 512
 	if lambda.EnvironmentVariables == nil {
-		lambda.EnvironmentVariables = make(EnvironmentVariables)
+		lambda.EnvironmentVariables = make(map[string]*AwsResourceValue)
 	}
 
 	if params.Timeout != 0 {
@@ -100,7 +100,7 @@ func (lambda *LambdaFunction) Configure(params LambdaFunctionConfigureParams) er
 		lambda.MemorySize = params.MemorySize
 	}
 	for _, env := range params.EnvironmentVariables {
-		lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Property: env.GetValue()}
+		lambda.EnvironmentVariables[env.GetName()] = &AwsResourceValue{PropertyVal: env.GetValue()}
 	}
 
 	return nil
@@ -144,8 +144,8 @@ func (lambda *LambdaFunction) Id() core.ResourceId {
 	}
 }
 
-func (lambda *LambdaFunction) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (lambda *LambdaFunction) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
@@ -166,8 +166,8 @@ func (permission *LambdaPermission) Id() core.ResourceId {
 	}
 }
 
-func (permission *LambdaPermission) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (permission *LambdaPermission) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

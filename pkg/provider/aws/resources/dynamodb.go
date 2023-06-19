@@ -123,8 +123,8 @@ func (table *DynamodbTable) Id() core.ResourceId {
 	}
 }
 
-func (table *DynamodbTable) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (table *DynamodbTable) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,

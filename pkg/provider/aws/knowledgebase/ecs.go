@@ -2,6 +2,7 @@ package knowledgebase
 
 import (
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -49,7 +50,7 @@ var EcsKB = knowledgebase.Build(
 		},
 		Configure: func(service *resources.EcsService, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				service.TaskDefinition.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: table, Property: env.GetValue()}
+				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: table, PropertyVal: env.GetValue()}
 			}
 			return nil
 		},
@@ -57,7 +58,7 @@ var EcsKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.ElasticacheCluster]{
 		Configure: func(service *resources.EcsService, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				service.TaskDefinition.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: cluster, Property: env.GetValue()}
+				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: cluster, PropertyVal: env.GetValue()}
 			}
 			return nil
 		},
@@ -69,7 +70,7 @@ var EcsKB = knowledgebase.Build(
 		},
 		Configure: func(service *resources.EcsService, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				service.TaskDefinition.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: bucket, Property: env.GetValue()}
+				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: bucket, PropertyVal: env.GetValue()}
 			}
 			return nil
 		},
@@ -81,7 +82,7 @@ var EcsKB = knowledgebase.Build(
 		},
 		Configure: func(service *resources.EcsService, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				service.TaskDefinition.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: secret, Property: env.GetValue()}
+				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: secret, PropertyVal: env.GetValue()}
 			}
 			return nil
 		},
@@ -89,7 +90,7 @@ var EcsKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.RdsInstance]{
 		Configure: func(service *resources.EcsService, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				service.TaskDefinition.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: instance, Property: env.GetValue()}
+				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: instance, PropertyVal: env.GetValue()}
 			}
 			return nil
 		},
@@ -97,7 +98,7 @@ var EcsKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.RdsProxy]{
 		Configure: func(service *resources.EcsService, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				service.TaskDefinition.EnvironmentVariables[env.GetName()] = core.IaCValue{Resource: proxy, Property: env.GetValue()}
+				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: proxy, PropertyVal: env.GetValue()}
 			}
 			return nil
 		},
@@ -112,7 +113,7 @@ var EcsKB = knowledgebase.Build(
 
 			service.LoadBalancers = []resources.EcsServiceLoadBalancerConfig{
 				{
-					TargetGroupArn: core.IaCValue{Resource: tg, Property: resources.ARN_IAC_VALUE},
+					TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE},
 					ContainerName:  service.Name,
 					ContainerPort:  service.TaskDefinition.PortMappings[0].ContainerPort,
 				},

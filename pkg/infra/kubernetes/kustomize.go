@@ -27,8 +27,8 @@ func (dir *KustomizeDirectory) Id() core.ResourceId {
 		Name:     dir.Name,
 	}
 }
-func (k *KustomizeDirectory) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (k *KustomizeDirectory) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

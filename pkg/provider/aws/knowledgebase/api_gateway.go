@@ -51,7 +51,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				data.Routes = append(data.Routes, core.Route{Path: "*", Verb: "ANY"})
 			}
 
-			err := createRoutesForIntegration(data.AppName, data.Routes, refs, dag, nil, restApi, core.IaCValue{Resource: function, Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
+			err := createRoutesForIntegration(data.AppName, data.Routes, refs, dag, nil, restApi, &resources.AwsResourceValue{ResourceVal: function, PropertyVal: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
 			if err != nil {
 				return err
 			}
@@ -102,7 +102,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				ecsService.LoadBalancers = append(ecsService.LoadBalancers, resources.EcsServiceLoadBalancerConfig{
 					ContainerName:  ecsService.TaskDefinition.Name,
 					ContainerPort:  3000,
-					TargetGroupArn: core.IaCValue{Resource: tg, Property: resources.ARN_IAC_VALUE},
+					TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE},
 				})
 
 				dag.AddDependency(ecsService, tg)
@@ -146,7 +146,7 @@ var ApiGatewayKB = knowledgebase.Build(
 			}
 			listener.LoadBalancer.Type = "network"
 			listener.LoadBalancer.Scheme = "internal"
-			listener.DefaultActions = []*resources.LBAction{{TargetGroupArn: core.IaCValue{Resource: tg, Property: resources.ARN_IAC_VALUE}, Type: "forward"}}
+			listener.DefaultActions = []*resources.LBAction{{TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE}, Type: "forward"}}
 			listener.Port = 80
 			listener.Protocol = tg.Protocol
 			dag.AddDependenciesReflect(listener)
@@ -156,7 +156,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				ConstructsRef: listener.LoadBalancer.ConstructsRef,
 			}
 
-			err = createRoutesForIntegration(data.AppName, data.Routes, refs, dag, vpcLink, restApi, core.IaCValue{Resource: listener.LoadBalancer, Property: resources.NLB_INTEGRATION_URI_IAC_VALUE})
+			err = createRoutesForIntegration(data.AppName, data.Routes, refs, dag, vpcLink, restApi, &resources.AwsResourceValue{ResourceVal: listener.LoadBalancer, PropertyVal: resources.NLB_INTEGRATION_URI_IAC_VALUE})
 			if err != nil {
 				return err
 			}
@@ -169,7 +169,7 @@ var ApiGatewayKB = knowledgebase.Build(
 		Configure: func(permission *resources.LambdaPermission, api *resources.RestApi, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			permission.Principal = "apigateway.amazonaws.com"
 			permission.Action = "lambda:InvokeFunction"
-			permission.Source = core.IaCValue{Resource: api, Property: resources.API_GATEWAY_EXECUTION_CHILD_RESOURCES_IAC_VALUE}
+			permission.Source = &resources.AwsResourceValue{ResourceVal: api, PropertyVal: resources.API_GATEWAY_EXECUTION_CHILD_RESOURCES_IAC_VALUE}
 			return nil
 		},
 	},
@@ -177,7 +177,7 @@ var ApiGatewayKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.VpcLink, *resources.LoadBalancer]{},
 )
 
-func createRoutesForIntegration(appName string, routes []core.Route, refs core.BaseConstructSet, dag *core.ResourceGraph, vpcLink *resources.VpcLink, restApi *resources.RestApi, uri core.IaCValue) error {
+func createRoutesForIntegration(appName string, routes []core.Route, refs core.BaseConstructSet, dag *core.ResourceGraph, vpcLink *resources.VpcLink, restApi *resources.RestApi, uri *resources.AwsResourceValue) error {
 	var merr error
 	for _, route := range routes {
 		integration, err := core.CreateResource[*resources.ApiIntegration](dag, resources.ApiIntegrationCreateParams{

@@ -45,8 +45,8 @@ func (ec *ElasticacheCluster) Id() core.ResourceId {
 	}
 }
 
-func (ec *ElasticacheCluster) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (ec *ElasticacheCluster) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
@@ -67,8 +67,8 @@ func (ecsn *ElasticacheSubnetgroup) Id() core.ResourceId {
 	}
 }
 
-func (ecsn *ElasticacheSubnetgroup) DeleteCriteria() core.DeleteCriteria {
-	return core.DeleteCriteria{
+func (ecsn *ElasticacheSubnetgroup) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
