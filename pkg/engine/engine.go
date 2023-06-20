@@ -288,7 +288,7 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 				return fmt.Errorf("resource, %s, does not exist", constraint.Node)
 			}
 			decision.Resources = append(decision.Resources, resource)
-			if !e.deleteResource(resource, true) {
+			if !e.deleteResource(resource, true, true) {
 				return fmt.Errorf("cannot remove resource %s, failed", constraint.Node)
 			}
 			return nil

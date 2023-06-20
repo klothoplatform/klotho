@@ -230,7 +230,7 @@ func (cg *ConstructGraph) FindUpstreamGateways(unit *ExecutionUnit) []*Gateway {
 	return gateways
 }
 
-func LoadConstructsIntoGraph(input InputGraph, graph *ConstructGraph) error {
+func LoadConstructs(input InputGraph, resourceMap map[ResourceId]BaseConstruct) error {
 
 	var joinedErr error
 	for _, res := range input.Resources {
@@ -242,14 +242,7 @@ func LoadConstructsIntoGraph(input InputGraph, graph *ConstructGraph) error {
 			joinedErr = errors.Join(joinedErr, err)
 			continue
 		}
-		graph.AddConstruct(construct)
-	}
-
-	for _, edge := range input.Edges {
-		if edge.Source.Provider != AbstractConstructProvider || edge.Destination.Provider != AbstractConstructProvider {
-			continue
-		}
-		graph.AddDependency(edge.Source, edge.Destination)
+		resourceMap[construct.Id()] = construct
 	}
 
 	return joinedErr

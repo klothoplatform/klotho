@@ -124,10 +124,10 @@ func (p Plugin) Generate(dag *core.ResourceGraph, filenamePrefix string) ([]core
 	}
 
 	spec := &File{
-		PathPrefix: fmt.Sprintf("%s-", filenamePrefix),
-		AppName:    p.AppName,
-		Provider:   p.Provider,
-		DAG:        dag,
+		FilenamePrefix: fmt.Sprintf("%s-", filenamePrefix),
+		AppName:        p.AppName,
+		Provider:       p.Provider,
+		DAG:            dag,
 	}
 
 	resp, err := api.request(http.MethodPost, `generate-infra-diagram`, "application/yaml", "image/png", spec)

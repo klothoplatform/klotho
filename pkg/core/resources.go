@@ -1,6 +1,7 @@
 package core
 
 import (
+	"reflect"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -26,7 +27,7 @@ type (
 
 	BaseConstructSet map[ResourceId]BaseConstruct
 
-	// Delete criteria is supposed to tell us when we are able to delete a resource based on its dependencies
+	// DeleteContext is supposed to tell us when we are able to delete a resource based on its dependencies
 	DeleteContext struct {
 		// RequiresNoUpstream is a boolean that tells us if deletion relies on there being no upstream resources
 		RequiresNoUpstream bool
@@ -213,4 +214,77 @@ func BaseConstructSetOf(keys ...BaseConstruct) BaseConstructSet {
 		s.Add(k)
 	}
 	return s
+}
+
+func GetResourcesReflectively(source Resource) []Resource {
+	resources := []Resource{}
+	sourceValue := reflect.ValueOf(source)
+	sourceType := sourceValue.Type()
+	if sourceType.Kind() == reflect.Pointer {
+		sourceValue = sourceValue.Elem()
+		sourceType = sourceType.Elem()
+	}
+	for i := 0; i < sourceType.NumField(); i++ {
+		fieldValue := sourceValue.Field(i)
+		switch fieldValue.Kind() {
+		case reflect.Slice, reflect.Array:
+			for elemIdx := 0; elemIdx < fieldValue.Len(); elemIdx++ {
+				elemValue := fieldValue.Index(elemIdx)
+				resources = append(resources, loadNestedResourcesFromIds(source, elemValue)...)
+			}
+
+		case reflect.Map:
+			for iter := fieldValue.MapRange(); iter.Next(); {
+				elemValue := iter.Value()
+				resources = append(resources, loadNestedResourcesFromIds(source, elemValue)...)
+			}
+
+		default:
+			resources = append(resources, loadNestedResourcesFromIds(source, fieldValue)...)
+		}
+	}
+	return resources
+}
+
+func loadNestedResourcesFromIds(source BaseConstruct, targetValue reflect.Value) (resources []Resource) {
+	if targetValue.Kind() == reflect.Pointer && targetValue.IsNil() {
+		return
+	}
+	if !targetValue.CanInterface() {
+		return
+	}
+	switch value := targetValue.Interface().(type) {
+	case Resource:
+		return []Resource{value}
+	case IaCValue:
+		if value.Resource() != nil {
+			return []Resource{value.Resource()}
+		}
+	default:
+		correspondingValue := targetValue
+		for correspondingValue.Kind() == reflect.Pointer {
+			correspondingValue = targetValue.Elem()
+		}
+		switch correspondingValue.Kind() {
+
+		case reflect.Struct:
+			for i := 0; i < correspondingValue.NumField(); i++ {
+				childVal := correspondingValue.Field(i)
+				resources = append(resources, loadNestedResourcesFromIds(source, childVal)...)
+			}
+		case reflect.Slice, reflect.Array:
+			for elemIdx := 0; elemIdx < correspondingValue.Len(); elemIdx++ {
+				elemValue := correspondingValue.Index(elemIdx)
+				resources = append(resources, loadNestedResourcesFromIds(source, elemValue)...)
+			}
+
+		case reflect.Map:
+			for iter := correspondingValue.MapRange(); iter.Next(); {
+				elemValue := iter.Value()
+				resources = append(resources, loadNestedResourcesFromIds(source, elemValue)...)
+			}
+
+		}
+	}
+	return
 }

@@ -60,6 +60,10 @@ func (r *testIaCValue) SetResource(res Resource) {
 	r.ResourceVal = res
 }
 
+func (val *testIaCValue) LoadFromId() ResourceId {
+	return ResourceId{}
+}
+
 func (val *testIaCValue) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }

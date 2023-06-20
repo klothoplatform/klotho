@@ -31,6 +31,9 @@ type (
 		// ReverseDirection is specified when the data flow is in the opposite direction of the edge
 		// This is used in scenarios where we want to find paths, only allowing specific edges to be bidirectional
 		ReverseDirection bool
+		// DeletetionDependent is used to specify edges which should not influence the deletion criteria of a resource
+		// 0 specifies the are dependent while 1 specifies they are not dependent and will not influence the deletion criteria
+		DeletetionDependent int
 	}
 
 	// EdgeKB is a map (knowledge base) of edges and their respective details used to configure ResourceGraphs
@@ -404,6 +407,8 @@ func (kb EdgeKB) findPathsInGraph(source, dest core.Resource, stack []graph.Edge
 	return result
 }
 
+// GetTrueUpstream takes in a resource and returns all upstream resources which exist in the dag, if their edge does not specify the reverse direction flag.
+// If the edge specifies the reverse direction flag and the resource is downstream, it will be returned as an upstream resource.
 func (kb EdgeKB) GetTrueUpstream(source core.Resource, dag *core.ResourceGraph) []core.Resource {
 	upstreamResources := []core.Resource{}
 	upstreamFromDag := dag.GetUpstreamResources(source)
@@ -423,6 +428,8 @@ func (kb EdgeKB) GetTrueUpstream(source core.Resource, dag *core.ResourceGraph) 
 	return upstreamResources
 }
 
+// GetTrueDownstream takes in a resource and returns all downstream resources which exist in the dag, if their edge does not specify the reverse direction flag.
+// If the edge specifies the reverse direction flag and the resource is upstream, it will be returned as an downstream resource.
 func (kb EdgeKB) GetTrueDownstream(source core.Resource, dag *core.ResourceGraph) []core.Resource {
 	downstreamResources := []core.Resource{}
 	upstreamFromDag := dag.GetUpstreamResources(source)

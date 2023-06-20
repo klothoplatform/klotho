@@ -44,10 +44,8 @@ func (a *AWS) ExpandConstruct(construct core.Construct, dag *core.ResourceGraph,
 	return
 }
 
-func (a *AWS) LoadGraph(graph core.InputGraph, dag *core.ConstructGraph) error {
+func (a *AWS) LoadResources(graph core.InputGraph, resourcesMap map[core.ResourceId]core.BaseConstruct) error {
 	typeToResource := make(map[string]core.Resource)
-	namespacedResources := make(map[string][]core.Resource)
-	createdResources := make(map[core.ResourceId]core.Resource)
 	for _, res := range resources.ListAll() {
 		typeToResource[res.Id().Type] = res
 	}
@@ -78,54 +76,7 @@ func (a *AWS) LoadGraph(graph core.InputGraph, dag *core.ConstructGraph) error {
 				subnet.Type = resources.PrivateSubnet
 			}
 		}
-		if node.Namespace != "" {
-			namespacedResources[node.Namespace] = append(namespacedResources[node.Namespace], resource)
-			createdResources[node] = resource
-			continue
-		}
-		dag.AddConstruct(resource)
-		createdResources[node] = resource
-	}
-
-	// For anything namespaced, we will call the Load Method with the namespace and dag as the argument.
-	// This will allow the resource to be loaded into the graph since its id relies on the namespaced object
-	for namespace, namespaceResources := range namespacedResources {
-		for _, res := range namespaceResources {
-			method := reflect.ValueOf(res).MethodByName("Load")
-			if method.IsValid() {
-				var callArgs []reflect.Value
-				callArgs = append(callArgs, reflect.ValueOf(namespace))
-				callArgs = append(callArgs, reflect.ValueOf(dag))
-				eval := method.Call(callArgs)
-				if !eval[0].IsNil() {
-					err, ok := eval[0].Interface().(error)
-					if !ok {
-						joinedErr = errors.Join(joinedErr, fmt.Errorf("return type should be an error"))
-						continue
-					}
-					joinedErr = errors.Join(joinedErr, err)
-					continue
-				}
-			}
-			dag.AddConstruct(res)
-		}
-	}
-
-	for _, edge := range graph.Edges {
-		if edge.Source.Provider != "aws" || edge.Destination.Provider != "aws" {
-			continue
-		}
-		src, found := createdResources[edge.Source]
-		if !found {
-			joinedErr = errors.Join(joinedErr, fmt.Errorf("could not find created resource for %s", edge.Source))
-			continue
-		}
-		dst, found := createdResources[edge.Destination]
-		if !found {
-			joinedErr = errors.Join(joinedErr, fmt.Errorf("could not find created resource for %s", edge.Destination))
-			continue
-		}
-		dag.AddDependency(src.Id(), dst.Id())
+		resourcesMap[node] = resource
 	}
 	return joinedErr
 }

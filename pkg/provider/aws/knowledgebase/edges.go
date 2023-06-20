@@ -37,7 +37,9 @@ func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 }
 
 var AwsExtraEdgesKB = knowledgebase.Build(
-	knowledgebase.EdgeBuilder[*resources.SecretVersion, *resources.Secret]{},
+	knowledgebase.EdgeBuilder[*resources.SecretVersion, *resources.Secret]{
+		DeletetionDependent: 1,
+	},
 	knowledgebase.EdgeBuilder[*resources.EcrImage, *resources.EcrRepository]{},
 	knowledgebase.EdgeBuilder[*resources.OpenIdConnectProvider, *resources.Region]{},
 	knowledgebase.EdgeBuilder[*resources.PrivateDnsNamespace, *resources.Vpc]{},
