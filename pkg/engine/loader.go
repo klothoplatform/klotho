@@ -2,16 +2,17 @@ package engine
 
 import (
 	"os"
+	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func (e *Engine) LoadConstructGraphFromFile(path string) error {
-
+	resourcesMap := map[core.ResourceId]core.BaseConstruct{}
 	input := core.InputGraph{}
 	f, err := os.Open(path)
 	if err != nil {
@@ -24,17 +25,17 @@ func (e *Engine) LoadConstructGraphFromFile(path string) error {
 		return err
 	}
 
-	err = core.LoadConstructsIntoGraph(input, e.Context.InitialState)
+	err = core.LoadConstructs(input, resourcesMap)
 	if err != nil {
 		return errors.Errorf("Error Loading graph for constructs %s", err.Error())
 	}
 
-	err = e.Provider.LoadGraph(input, e.Context.InitialState)
+	err = e.Provider.LoadResources(input, resourcesMap)
 	if err != nil {
 		return errors.Errorf("Error Loading graph for provider %s. %s", e.Provider.Name(), err.Error())
 	}
 	for _, metadata := range input.ResourceMetadata {
-		resource := e.Context.InitialState.GetConstruct(metadata.Id)
+		resource := resourcesMap[metadata.Id]
 		md, err := yaml.Marshal(metadata.Metadata)
 		if err != nil {
 			return err
@@ -43,6 +44,17 @@ func (e *Engine) LoadConstructGraphFromFile(path string) error {
 		if err != nil {
 			return err
 		}
+		err = correctPointers(resource, resourcesMap)
+		if err != nil {
+			return err
+		}
+	}
+	for _, res := range resourcesMap {
+		e.Context.InitialState.AddConstruct(res)
+	}
+
+	for _, edge := range input.Edges {
+		e.Context.InitialState.AddDependency(resourcesMap[edge.Source].Id(), resourcesMap[edge.Destination].Id())
 	}
 
 	return nil
@@ -73,4 +85,76 @@ func (e *Engine) LoadConstraintsFromFile(path string) (map[constraints.Constrain
 		return nil, err
 	}
 	return constraints.ParseConstraintsFromFile(bytesArr)
+}
+
+func correctPointers(source core.BaseConstruct, resourceMap map[core.ResourceId]core.BaseConstruct) error {
+	sourceValue := reflect.ValueOf(source)
+	sourceType := sourceValue.Type()
+	if sourceType.Kind() == reflect.Pointer {
+		sourceValue = sourceValue.Elem()
+		sourceType = sourceType.Elem()
+	}
+	for i := 0; i < sourceType.NumField(); i++ {
+		fieldValue := sourceValue.Field(i)
+		switch fieldValue.Kind() {
+		case reflect.Slice, reflect.Array:
+			for elemIdx := 0; elemIdx < fieldValue.Len(); elemIdx++ {
+				elemValue := fieldValue.Index(elemIdx)
+
+				loadNestedResourcesFromIds(source, elemValue, resourceMap)
+			}
+
+		case reflect.Map:
+			for iter := fieldValue.MapRange(); iter.Next(); {
+				elemValue := iter.Value()
+				loadNestedResourcesFromIds(source, elemValue, resourceMap)
+			}
+
+		default:
+			loadNestedResourcesFromIds(source, fieldValue, resourceMap)
+		}
+	}
+	return nil
+}
+
+func loadNestedResourcesFromIds(source core.BaseConstruct, targetValue reflect.Value, resourceMap map[core.ResourceId]core.BaseConstruct) {
+	if targetValue.Kind() == reflect.Pointer && targetValue.IsNil() {
+		return
+	}
+	if !targetValue.CanInterface() {
+		return
+	}
+	switch value := targetValue.Interface().(type) {
+	case core.Resource:
+		targetValue.Set(reflect.ValueOf(resourceMap[value.Id()]))
+	case core.IaCValue:
+		if value.Resource() != nil {
+			value.SetResource(resourceMap[value.Resource().Id()].(core.Resource))
+		}
+	default:
+		correspondingValue := targetValue
+		for correspondingValue.Kind() == reflect.Pointer {
+			correspondingValue = targetValue.Elem()
+		}
+		switch correspondingValue.Kind() {
+
+		case reflect.Struct:
+			for i := 0; i < correspondingValue.NumField(); i++ {
+				childVal := correspondingValue.Field(i)
+				loadNestedResourcesFromIds(source, childVal, resourceMap)
+			}
+		case reflect.Slice, reflect.Array:
+			for elemIdx := 0; elemIdx < correspondingValue.Len(); elemIdx++ {
+				elemValue := correspondingValue.Index(elemIdx)
+				loadNestedResourcesFromIds(source, elemValue, resourceMap)
+			}
+
+		case reflect.Map:
+			for iter := correspondingValue.MapRange(); iter.Next(); {
+				elemValue := iter.Value()
+				loadNestedResourcesFromIds(source, elemValue, resourceMap)
+			}
+
+		}
+	}
 }

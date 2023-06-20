@@ -6,7 +6,38 @@ import (
 	"go.uber.org/zap"
 )
 
-func (e *Engine) deleteResource(resource core.Resource, explicit bool) bool {
+func (e *Engine) ignoreCriteria(resource core.Resource, dependentResources []core.Resource) bool {
+DEP:
+	for _, dep := range dependentResources {
+		found := false
+		for _, res := range e.Context.EndState.GetDownstreamResources(resource) {
+			if dep == res {
+				found = true
+				det, _ := e.KnowledgeBase.GetEdge(resource, dep)
+				if det.DeletetionDependent != 1 {
+					return false
+				}
+				continue DEP
+			}
+		}
+		for _, res := range e.Context.EndState.GetUpstreamResources(resource) {
+			if dep == res {
+				found = true
+				det, _ := e.KnowledgeBase.GetEdge(dep, resource)
+				if det.DeletetionDependent != 1 {
+					return false
+				}
+				continue DEP
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+func (e *Engine) deleteResource(resource core.Resource, explicit bool, overrideExplicit bool) bool {
 	log := zap.S().With(zap.String("id", resource.Id().String()))
 	log.Debug("Deleting resource")
 	graph := e.Context.EndState
@@ -17,17 +48,52 @@ func (e *Engine) deleteResource(resource core.Resource, explicit bool) bool {
 		log.Debug("Cannot delete resource as it was not explicitly requested")
 		return false
 	}
+	if !overrideExplicit {
+		explicit = false
+	}
+	reflectResources := core.GetResourcesReflectively(resource)
+
 	if deletionCriteria.RequiresNoUpstream && !explicit && len(upstreamNodes) > 0 {
 		log.Debugf("Cannot delete resource %s as it still has upstream dependencies", resource.Id())
-		return false
+		if !e.ignoreCriteria(resource, upstreamNodes) {
+			return false
+		}
+		for _, up := range upstreamNodes {
+			e.deleteResource(up, false, false)
+		}
+		if len(e.KnowledgeBase.GetTrueUpstream(resource, graph)) > 0 {
+			log.Debugf("Cannot delete resource %s as it still has upstream dependencies", resource.Id())
+			return false
+		}
 	}
 	if deletionCriteria.RequiresNoDownstream && !explicit && len(downstreamNodes) > 0 {
 		log.Debugf("Cannot delete resource %s as it still has downstream dependencies", resource.Id())
-		return false
+		if !e.ignoreCriteria(resource, downstreamNodes) {
+			return false
+		}
+		for _, down := range downstreamNodes {
+			e.deleteResource(down, false, false)
+		}
+		if len(e.KnowledgeBase.GetTrueDownstream(resource, graph)) > 0 {
+			log.Debugf("Cannot delete resource %s as it still has downstream dependencies", resource.Id())
+			return false
+		}
 	}
 	if deletionCriteria.RequiresNoUpstreamOrDownstream && !explicit && len(downstreamNodes) > 0 && len(upstreamNodes) > 0 {
-		log.Debugf("Cannot delete resource %s as it still has upstream and downstream dependencies", resource.Id())
-		return false
+		log.Debugf("Cannot delete resource %s as it still has downstream dependencies", resource.Id())
+		if !e.ignoreCriteria(resource, upstreamNodes) && !e.ignoreCriteria(resource, downstreamNodes) {
+			return false
+		}
+		for _, down := range downstreamNodes {
+			e.deleteResource(down, false, false)
+		}
+		for _, up := range upstreamNodes {
+			e.deleteResource(up, false, false)
+		}
+		if len(e.KnowledgeBase.GetTrueDownstream(resource, graph)) > 0 && len(e.KnowledgeBase.GetTrueUpstream(resource, graph)) > 0 {
+			log.Debugf("Cannot delete resource %s as it still has upstream and downstream dependencies", resource.Id())
+			return false
+		}
 	}
 	err := graph.RemoveResourceAndEdges(resource)
 	if err != nil {
@@ -49,8 +115,20 @@ func (e *Engine) deleteResource(resource core.Resource, explicit bool) bool {
 			} else {
 				explicitDownStreams = append(explicitDownStreams, e.getExplicitDownStreams(downstreamNode)...)
 			}
+
+		UP:
 			for _, u := range explicitUpstreams {
+			DOWN:
 				for _, d := range explicitDownStreams {
+
+					for _, reflectResource := range reflectResources {
+						if d == reflectResource {
+							continue DOWN
+						}
+						if u == reflectResource {
+							continue UP
+						}
+					}
 					if len(e.KnowledgeBase.FindPathsInGraph(u, d, e.Context.EndState)) == 0 {
 						log.Debugf("Adding dependency between %s and %s resources to reconnect path", u.Id(), d.Id())
 						graph.AddDependency(u, d)
@@ -71,10 +149,24 @@ func (e *Engine) deleteResource(resource core.Resource, explicit bool) bool {
 	}
 
 	for _, res := range upstreamNodes {
-		e.deleteResource(res, false)
+		explicit := false
+		for _, reflectResource := range reflectResources {
+			if res == reflectResource {
+				explicit = true
+				continue
+			}
+		}
+		e.deleteResource(res, explicit, false)
 	}
 	for _, res := range downstreamNodes {
-		e.deleteResource(res, false)
+		explicit := false
+		for _, reflectResource := range reflectResources {
+			if res == reflectResource {
+				explicit = true
+				continue
+			}
+		}
+		e.deleteResource(res, explicit, false)
 	}
 	return true
 }

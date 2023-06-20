@@ -416,12 +416,12 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	if err != nil {
 		return err
 	}
-	engine := engine.NewEngine(provider, kb)
-	engine.Context.InitialState = document.Constructs
+	klothoEngine := engine.NewEngine(provider, kb)
+	klothoEngine.Context.InitialState = document.Constructs
 	klothoCompiler := compiler.Compiler{
 		AnalysisAndTransformationPlugins: plugins.AnalysisAndTransform,
 		IaCPlugins:                       plugins.IaC,
-		Engine:                           engine,
+		Engine:                           klothoEngine,
 		Document:                         document,
 	}
 
@@ -437,16 +437,16 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		}
 		k8sPlugin := kubernetes.Kubernetes{Config: &appCfg}
 
-		engine.LoadContext(document.Constructs, c, cfg.appName)
-		err = k8sPlugin.Translate(document.Constructs, engine.Context.EndState)
+		klothoEngine.LoadContext(document.Constructs, c, cfg.appName)
+		err = k8sPlugin.Translate(document.Constructs, klothoEngine.Context.EndState)
 		if err != nil {
 			return errors.Errorf("failed to run kubernetes plugin: %s", err.Error())
 		}
-		dag, err := engine.Run()
+		dag, err := klothoEngine.Run()
 		if err != nil {
 			return errors.Errorf("failed to run engine: %s", err.Error())
 		}
-		files, err := engine.VisualizeViews()
+		files, err := klothoEngine.VisualizeViews()
 		if err != nil {
 			return errors.Errorf("failed to run engine viz: %s", err.Error())
 		}

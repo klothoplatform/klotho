@@ -3,7 +3,6 @@ package engine
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -94,12 +93,6 @@ func Test_Engine_Run(t *testing.T) {
 type MockProvider struct {
 }
 
-func (p *MockProvider) GetKindTypeMappings(construct core.Construct) []string {
-	return nil
-}
-func (p *MockProvider) GetDefaultConfig() config.Defaults {
-	return config.Defaults{}
-}
 func (p *MockProvider) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error) {
 	switch id.Type {
 	case "mock1":
@@ -128,17 +121,12 @@ func (p *MockProvider) ExpandConstruct(construct core.Construct, dag *core.Resou
 	}
 	return nil, nil
 }
-func (p *MockProvider) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) error {
-	return nil
-}
-func (p *MockProvider) LoadGraph(graph core.InputGraph, dag *core.ConstructGraph) error {
+
+func (p *MockProvider) LoadResources(graph core.InputGraph, resources map[core.ResourceId]core.BaseConstruct) error {
 	return nil
 }
 func (p *MockProvider) Name() string {
 	return "mock"
-}
-func (p *MockProvider) Validate(config *config.Application, constructGraph *core.ConstructGraph) error {
-	return nil
 }
 
 type (

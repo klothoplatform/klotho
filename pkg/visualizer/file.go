@@ -15,10 +15,10 @@ const indent = "    "
 
 type (
 	File struct {
-		PathPrefix string
-		AppName    string
-		Provider   string
-		DAG        *core.ResourceGraph
+		FilenamePrefix string
+		AppName        string
+		Provider       string
+		DAG            *core.ResourceGraph
 	}
 
 	// FetchPropertiesFunc is a function that takes a resource of some type, and returns some properties for it.
@@ -50,7 +50,7 @@ type (
 )
 
 func (f *File) Path() string {
-	return fmt.Sprintf("%stopology.yaml", f.PathPrefix)
+	return fmt.Sprintf("%stopology.yaml", f.FilenamePrefix)
 }
 
 func (f *File) Clone() core.File {
