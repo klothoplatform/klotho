@@ -249,8 +249,7 @@ func (nat *NatGateway) MakeOperational(dag *core.ResourceGraph, appName string) 
 				if az == "" {
 					az = availabilityZones[0]
 				}
-				s := &Subnet{}
-				err := s.Create(dag, SubnetCreateParams{
+				s, err := core.CreateResource[*Subnet](dag, SubnetCreateParams{
 					AppName: appName,
 					Refs:    core.BaseConstructSetOf(nat),
 					AZ:      az,
@@ -424,8 +423,7 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string) e
 			Name:    rtName,
 		}
 
-		rt := &RouteTable{}
-		err := rt.Create(dag, routeTableParams)
+		rt, err := core.CreateResource[*RouteTable](dag, routeTableParams)
 		if err != nil {
 			return err
 		}
@@ -527,13 +525,12 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 				}
 			}
 			if !natAdded {
-				nat := &NatGateway{}
 				natParams := NatCreateParams{
 					AppName: appName,
 					Refs:    core.BaseConstructSetOf(routeTable),
 					Name:    subnet.AvailabilityZone.PropertyVal,
 				}
-				err := nat.Create(dag, natParams)
+				nat, err := core.CreateResource[*NatGateway](dag, natParams)
 				if err != nil {
 					return err
 				}
@@ -557,12 +554,11 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 				dag.AddDependency(routeTable, igw)
 			}
 			if !igwAdded {
-				igw := &InternetGateway{}
 				igwParams := IgwCreateParams{
 					AppName: appName,
 					Refs:    core.BaseConstructSetOf(routeTable),
 				}
-				err := igw.Create(dag, igwParams)
+				igw, err := core.CreateResource[*InternetGateway](dag, igwParams)
 				if err != nil {
 					return err
 				}
@@ -623,8 +619,7 @@ func (vpc *Vpc) CreateVpcSubnets(dag *core.ResourceGraph, appName string, ref co
 		if i%2 == 1 {
 			typeMarker = PublicSubnet
 		}
-		subnet := &Subnet{}
-		err := subnet.Create(dag, SubnetCreateParams{
+		subnet, err := core.CreateResource[*Subnet](dag, SubnetCreateParams{
 			AppName: appName,
 			Refs:    core.BaseConstructSetOf(ref),
 			AZ:      availabilityZones[azMarker],

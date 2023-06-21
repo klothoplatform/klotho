@@ -278,8 +278,7 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 	}
 
 	if len(cluster.SecurityGroups) == 0 {
-		sg := &SecurityGroup{}
-		err := sg.Create(dag, SecurityGroupCreateParams{
+		sg, err := core.CreateResource[*SecurityGroup](dag, SecurityGroupCreateParams{
 			AppName: appName,
 			Refs:    core.BaseConstructSetOf(cluster),
 		})

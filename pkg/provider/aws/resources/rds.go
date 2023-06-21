@@ -122,19 +122,70 @@ func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceC
 	if existingInstance != nil {
 		return fmt.Errorf("RdsInstance with name %s already exists", name)
 	}
+	dag.AddResource(instance)
+	return nil
+}
 
-	instance.SecurityGroups = make([]*SecurityGroup, 1)
-	subParams := map[string]any{
-		"SecurityGroups": []SecurityGroupCreateParams{
-			{
-				AppName: params.AppName,
-				Refs:    params.Refs.Clone(),
-			},
-		},
-		"SubnetGroup": params,
+func (instance *RdsInstance) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	var vpc *Vpc
+	vpcs := core.GetAllDownstreamResourcesOfType[*Vpc](dag, instance)
+	if len(vpcs) > 1 {
+		return fmt.Errorf("rds instance %s has multiple vpc dependencies", instance.Name)
+	} else if len(vpcs) == 1 {
+		vpc = vpcs[0]
 	}
-	err := dag.CreateDependencies(instance, subParams)
-	return err
+
+	if instance.SubnetGroup == nil {
+		subnetGroups := core.GetDownstreamResourcesOfType[*RdsSubnetGroup](dag, instance)
+		if len(subnetGroups) > 1 {
+			return fmt.Errorf("rds instance %s has multiple subnet group dependencies", instance.Name)
+		} else if len(subnetGroups) == 0 {
+			subnetGroup, err := core.CreateResource[*RdsSubnetGroup](dag, RdsSubnetGroupCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-SubnetGroup", instance.Name),
+				Refs:    core.BaseConstructSetOf(instance),
+			})
+			if err != nil {
+				return err
+			}
+			if vpc != nil {
+				dag.AddDependency(subnetGroup, vpc)
+			}
+			err = subnetGroup.MakeOperational(dag, appName)
+			if err != nil {
+				return err
+			}
+		} else {
+			instance.SubnetGroup = subnetGroups[0]
+		}
+	}
+
+	if len(instance.SecurityGroups) == 0 {
+		securityGroups := core.GetDownstreamResourcesOfType[*SecurityGroup](dag, instance)
+		if len(securityGroups) > 0 {
+			for _, sg := range securityGroups {
+				if instance.SubnetGroup.Subnets[0].Vpc != sg.Vpc {
+					return fmt.Errorf("security group %s is not in the same vpc as the rds instance", sg.Name)
+				}
+				instance.SecurityGroups = append(instance.SecurityGroups, sg)
+			}
+		} else if len(securityGroups) == 0 {
+			securityGroup, err := core.CreateResource[*SecurityGroup](dag, SecurityGroupCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(instance),
+			})
+			if vpc != nil {
+				dag.AddDependency(securityGroup, vpc)
+			}
+			if err != nil {
+				return err
+			}
+		} else {
+			instance.SecurityGroups = securityGroups
+		}
+	}
+	dag.AddDependenciesReflect(instance)
+	return nil
 }
 
 type RdsInstanceConfigureParams struct {
@@ -178,18 +229,44 @@ func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSub
 		graphSubnetGroup.ConstructsRef.AddAll(params.Refs)
 		return nil
 	} else {
+		dag.AddResource(subnetGroup)
+	}
+	return nil
+}
+
+func (subnetGroup *RdsSubnetGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	var vpc *Vpc
+	vpcs := core.GetAllDownstreamResourcesOfType[*Vpc](dag, subnetGroup)
+	if len(vpcs) > 1 {
+		return fmt.Errorf("rds subnet group %s has multiple vpc dependencies", subnetGroup.Name)
+	} else if len(vpcs) == 1 {
+		vpc = vpcs[0]
+		subnets := vpc.GetPrivateSubnets(dag)
+		if len(subnets) == 0 {
+			var err error
+			subnets, err = vpc.CreateVpcSubnets(dag, appName, subnetGroup)
+			if err != nil {
+				return err
+			}
+		}
+		for _, subnet := range subnets {
+			if subnet.Type != PrivateSubnet {
+				subnetGroup.Subnets = append(subnetGroup.Subnets, subnet)
+			}
+		}
+	} else {
 		subnetGroup.Subnets = make([]*Subnet, 2)
 		err := dag.CreateDependencies(subnetGroup, map[string]any{
 			"Subnets": []SubnetCreateParams{
 				{
-					AppName: params.AppName,
-					Refs:    params.Refs,
+					AppName: appName,
+					Refs:    core.BaseConstructSetOf(subnetGroup),
 					AZ:      "0",
 					Type:    PrivateSubnet,
 				},
 				{
-					AppName: params.AppName,
-					Refs:    params.Refs,
+					AppName: appName,
+					Refs:    core.BaseConstructSetOf(subnetGroup),
 					AZ:      "1",
 					Type:    PrivateSubnet,
 				},
@@ -199,6 +276,7 @@ func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSub
 			return err
 		}
 	}
+	dag.AddDependenciesReflect(subnetGroup)
 	return nil
 }
 
@@ -218,39 +296,118 @@ func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreatePara
 		graphProxy.ConstructsRef.AddAll(params.Refs)
 		return nil
 	} else {
-		proxy.Subnets = make([]*Subnet, 2)
-		proxy.SecurityGroups = make([]*SecurityGroup, 1)
-		err := dag.CreateDependencies(proxy, map[string]any{
-			"Role": RoleCreateParams{
-				AppName: params.AppName,
-				Name:    fmt.Sprintf("%s-ProxyRole", params.Name),
-				Refs:    proxy.ConstructsRef,
-			},
-			"SecurityGroups": []SecurityGroupCreateParams{
-				{
-					AppName: params.AppName,
-					Refs:    params.Refs,
+		dag.AddResource(proxy)
+	}
+	return nil
+}
+func (proxy *RdsProxy) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if proxy.Role == nil {
+		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, proxy)
+		if len(roles) > 1 {
+			return fmt.Errorf("rds proxy %s has multiple role dependencies", proxy.Name)
+		} else if len(roles) == 0 {
+			err := dag.CreateDependencies(proxy, map[string]any{
+				"Role": RoleCreateParams{
+					AppName: appName,
+					Name:    fmt.Sprintf("%s-ProxyRole", proxy.Name),
+					Refs:    proxy.ConstructsRef,
 				},
-			},
-			"Subnets": []SubnetCreateParams{
-				{
-					AppName: params.AppName,
-					Refs:    params.Refs,
-					AZ:      "0",
-					Type:    PrivateSubnet,
-				},
-				{
-					AppName: params.AppName,
-					Refs:    params.Refs,
-					AZ:      "1",
-					Type:    PrivateSubnet,
-				},
-			},
-		})
-		if err != nil {
-			return err
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			proxy.Role = roles[0]
 		}
 	}
+
+	var vpc *Vpc
+	vpcs := core.GetAllDownstreamResourcesOfType[*Vpc](dag, proxy)
+	if len(vpcs) > 1 {
+		return fmt.Errorf("rds proxy %s has multiple vpc dependencies", proxy.Name)
+	} else if len(vpcs) == 1 {
+		vpc = vpcs[0]
+	}
+
+	if len(proxy.Subnets) == 0 {
+		subnets := core.GetDownstreamResourcesOfType[*Subnet](dag, proxy)
+		if len(subnets) > 0 {
+			for _, subnet := range subnets {
+				if vpc != nil && subnet.Vpc != vpc {
+					return fmt.Errorf("subnet %s is not in the same vpc as the rds proxy", subnet.Name)
+				}
+				proxy.Subnets = append(proxy.Subnets, subnet)
+			}
+		} else {
+			if vpc != nil {
+				subnets := vpc.GetPrivateSubnets(dag)
+				if len(subnets) == 0 {
+					var err error
+					subnets, err = vpc.CreateVpcSubnets(dag, appName, proxy)
+					if err != nil {
+						return err
+					}
+				}
+				for _, subnet := range subnets {
+					if subnet.Type != PrivateSubnet {
+						proxy.Subnets = append(proxy.Subnets, subnet)
+					}
+				}
+			} else {
+				proxy.Subnets = make([]*Subnet, 2)
+				err := dag.CreateDependencies(proxy, map[string]any{
+					"Subnets": []SubnetCreateParams{
+						{
+							AppName: appName,
+							Refs:    core.BaseConstructSetOf(proxy),
+							AZ:      "0",
+							Type:    PrivateSubnet,
+						},
+						{
+							AppName: appName,
+							Refs:    core.BaseConstructSetOf(proxy),
+							AZ:      "1",
+							Type:    PrivateSubnet,
+						},
+					},
+				})
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if vpc == nil {
+		vpc = proxy.Subnets[0].Vpc
+	}
+	if len(proxy.SecurityGroups) == 0 {
+		securityGroups := core.GetDownstreamResourcesOfType[*SecurityGroup](dag, proxy)
+		if len(securityGroups) > 0 {
+			for _, sg := range securityGroups {
+				if sg.Vpc != vpc {
+					return fmt.Errorf("security group %s is not in the same vpc as the rds proxy", sg.Name)
+				}
+				proxy.SecurityGroups = append(proxy.SecurityGroups, sg)
+			}
+		} else {
+			securityGroup, err := core.CreateResource[*SecurityGroup](dag, SecurityGroupCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(proxy),
+			})
+			if err != nil {
+				return err
+			}
+			if vpc != nil {
+				dag.AddDependency(securityGroup, vpc)
+			}
+			proxy.SecurityGroups = append(proxy.SecurityGroups, securityGroup)
+			err = securityGroup.MakeOperational(dag, appName)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	dag.AddDependenciesReflect(proxy)
 	return nil
 }
 
@@ -287,6 +444,24 @@ func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTa
 	} else {
 		dag.AddResource(tg)
 	}
+	return nil
+}
+func (tg *RdsProxyTargetGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if tg.RdsProxy == nil {
+		proxies := core.GetDownstreamResourcesOfType[*RdsProxy](dag, tg)
+		if len(proxies) != 1 {
+			return fmt.Errorf("rds proxy target group %s has %d proxy dependencies", tg.Name, len(proxies))
+		}
+		tg.RdsProxy = proxies[0]
+	}
+	if tg.RdsInstance == nil {
+		instances := core.GetDownstreamResourcesOfType[*RdsInstance](dag, tg)
+		if len(instances) != 1 {
+			return fmt.Errorf("rds proxy target group %s has %d instance dependencies", tg.Name, len(instances))
+		}
+		tg.RdsInstance = instances[0]
+	}
+	dag.AddDependenciesReflect(tg)
 	return nil
 }
 
