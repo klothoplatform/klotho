@@ -260,7 +260,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 			cmd.SilenceUsage = true
 		},
 	}
-	defer analyticsClient.PanicHandler(&err, errHandler)
+	// defer analyticsClient.PanicHandler(&err, errHandler)
 
 	updateStream := options.Update.Stream.OrDefault(km.DefaultUpdateStream)
 	analyticsClient.AppendProperty("updateStream", updateStream)
@@ -446,6 +446,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		if err != nil {
 			return errors.Errorf("failed to run engine: %s", err.Error())
 		}
+		zap.S().Debugf("Finished running engine")
 		files, err := klothoEngine.VisualizeViews()
 		if err != nil {
 			return errors.Errorf("failed to run engine viz: %s", err.Error())

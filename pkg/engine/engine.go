@@ -132,6 +132,12 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 
 	var merr multierr.Error
 	for _, resource := range e.Context.EndState.ListResources() {
+		err := e.Context.EndState.CallMakeOperational(resource, e.Context.AppName)
+		if err != nil {
+			merr.Append(err)
+			continue
+		}
+		e.Context.EndState.AddDependenciesReflect(resource)
 		var configuration any
 		merr.Append(e.Context.EndState.CallConfigure(resource, configuration))
 	}
@@ -144,6 +150,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		return e.Context.EndState, err
 	}
 
+	zap.S().Debug("Validating constraints")
 	unsatisfiedConstraints := e.ValidateConstraints()
 
 	if len(unsatisfiedConstraints) > 0 {
@@ -153,6 +160,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		}
 		return e.Context.EndState, fmt.Errorf("unsatisfied constraints: %s", constraintsString)
 	}
+	zap.S().Debug("Validated constraints")
 
 	return e.Context.EndState, nil
 }
@@ -272,7 +280,7 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 			if err != nil {
 				return err
 			}
-			e.Context.EndState.AddResource(resource)
+			e.Context.WorkingState.AddConstruct(resource)
 		}
 	case constraints.RemoveConstraintOperator:
 		if constraint.Node.Provider == core.AbstractConstructProvider {

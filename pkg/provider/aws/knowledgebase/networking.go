@@ -9,6 +9,7 @@ import (
 
 var NetworkingKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.NatGateway, *resources.Subnet]{},
+	knowledgebase.EdgeBuilder[*resources.Subnet, *resources.NatGateway]{},
 	knowledgebase.EdgeBuilder[*resources.NatGateway, *resources.ElasticIp]{},
 	knowledgebase.EdgeBuilder[*resources.RouteTable, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.RouteTable, *resources.NatGateway]{

@@ -23,6 +23,7 @@ func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 		RdsKB,
 		S3KB,
 		Ec2KB,
+		EksKB,
 	}
 	awsKB := make(knowledgebase.EdgeKB)
 	for _, kb := range kbsToUse {

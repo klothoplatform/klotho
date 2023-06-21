@@ -1,7 +1,6 @@
 package resources
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -10,139 +9,145 @@ import (
 )
 
 func Test_VpcCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu)
-	cases := []struct {
-		name string
-		vpc  *Vpc
-		want coretesting.ResourcesExpectation
-	}{
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
+	cases := []coretesting.CreateCase[VpcCreateParams, *Vpc]{
 		{
-			name: "nil vpc",
-			want: coretesting.ResourcesExpectation{
+			Name: "nil vpc",
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:vpc:my_app",
 				},
 				Deps: []coretesting.StringDep{},
 			},
+			Check: func(assert *assert.Assertions, vpc *Vpc) {
+				assert.Equal(vpc.Name, "my_app")
+				assert.Equal(vpc.ConstructsRef, core.BaseConstructSetOf(eu))
+			},
 		},
 		{
-			name: "existing vpc",
-			vpc:  &Vpc{Name: "my_app", ConstructsRef: initialRefs},
-			want: coretesting.ResourcesExpectation{
+			Name:     "existing load balancer",
+			Existing: &Vpc{Name: "my_app", ConstructsRef: initialRefs},
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:vpc:my_app",
 				},
 				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, vpc *Vpc) {
+				assert.Equal(vpc.Name, "my_app")
+				assert.Equal(vpc.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-			dag := core.NewResourceGraph()
-			if tt.vpc != nil {
-				dag.AddResource(tt.vpc)
-			}
-			metadata := VpcCreateParams{
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = VpcCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
+				Refs:    core.BaseConstructSetOf(eu),
 			}
-
-			vpc := &Vpc{}
-			err := vpc.Create(dag, metadata)
-
-			if !assert.NoError(err) {
-				return
-			}
-			tt.want.Assert(t, dag)
-
-			graphVpc := dag.GetResource(vpc.Id())
-			vpc = graphVpc.(*Vpc)
-			assert.Equal(vpc.Name, "my_app")
-			if tt.vpc == nil {
-				assert.Equal(vpc.ConstructsRef, metadata.Refs)
-			} else {
-				expect := initialRefs.CloneWith(metadata.Refs)
-				assert.Equal(vpc.BaseConstructsRef(), expect)
-			}
+			tt.Run(t)
 		})
 	}
 }
 
 func Test_ElasticIpCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu)
-	cases := []struct {
-		name string
-		eip  *ElasticIp
-		want coretesting.ResourcesExpectation
-	}{
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
+	cases := []coretesting.CreateCase[EipCreateParams, *ElasticIp]{
 		{
-			name: "nil eip",
-			want: coretesting.ResourcesExpectation{
+			Name: "nil vpc",
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:elastic_ip:my_app_ip0",
 				},
 				Deps: []coretesting.StringDep{},
 			},
+			Check: func(assert *assert.Assertions, eip *ElasticIp) {
+				assert.Equal(eip.Name, "my_app_ip0")
+				assert.Equal(eip.ConstructsRef, core.BaseConstructSetOf(eu))
+			},
 		},
 		{
-			name: "existing eip",
-			eip:  &ElasticIp{Name: "my_app_ip0", ConstructsRef: initialRefs},
-			want: coretesting.ResourcesExpectation{
+			Name:     "existing load balancer",
+			Existing: &ElasticIp{Name: "my_app_ip0", ConstructsRef: initialRefs},
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:elastic_ip:my_app_ip0",
 				},
 				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, eip *ElasticIp) {
+				assert.Equal(eip.Name, "my_app_ip0")
+				assert.Equal(eip.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-			dag := core.NewResourceGraph()
-			if tt.eip != nil {
-				dag.AddResource(tt.eip)
-			}
-			metadata := EipCreateParams{
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = EipCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
-				IpName:  "ip0",
+				Refs:    core.BaseConstructSetOf(eu),
+				Name:    "ip0",
 			}
-
-			eip := &ElasticIp{}
-			err := eip.Create(dag, metadata)
-
-			if !assert.NoError(err) {
-				return
-			}
-			tt.want.Assert(t, dag)
-
-			graphEip := dag.GetResource(eip.Id())
-			eip = graphEip.(*ElasticIp)
-			assert.Equal(eip.Name, "my_app_ip0")
-			if tt.eip == nil {
-				assert.Equal(eip.ConstructsRef, metadata.Refs)
-			} else {
-				expect := initialRefs.CloneWith(metadata.Refs)
-				assert.Equal(eip.BaseConstructsRef(), expect)
-			}
+			tt.Run(t)
 		})
 	}
 }
 
 func Test_InternetGatewayCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu)
-	cases := []struct {
-		name string
-		igw  *InternetGateway
-		want coretesting.ResourcesExpectation
-	}{
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
+	cases := []coretesting.CreateCase[IgwCreateParams, *InternetGateway]{
 		{
-			name: "nil eip",
-			want: coretesting.ResourcesExpectation{
+			Name: "nil igw",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:internet_gateway:my_app_igw",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, eip *InternetGateway) {
+				assert.Equal(eip.Name, "my_app_igw")
+				assert.Equal(eip.ConstructsRef, core.BaseConstructSetOf(eu))
+			},
+		},
+		{
+			Name:     "existing igw",
+			Existing: &InternetGateway{Name: "my_app_igw", ConstructsRef: initialRefs},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:internet_gateway:my_app_igw",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, eip *InternetGateway) {
+				assert.Equal(eip.Name, "my_app_igw")
+				assert.Equal(eip.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = IgwCreateParams{
+				AppName: "my-app",
+				Refs:    core.BaseConstructSetOf(eu),
+			}
+			tt.Run(t)
+		})
+	}
+}
+
+func Test_InternetGatewayMakeOperational(t *testing.T) {
+	cases := []coretesting.MakeOperationalCase[*InternetGateway]{
+		{
+			Name:     "only igw",
+			Resource: &InternetGateway{Name: "my_app_igw"},
+			AppName:  "my-app",
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:internet_gateway:my_app_igw",
 					"aws:vpc:my_app",
@@ -151,179 +156,406 @@ func Test_InternetGatewayCreate(t *testing.T) {
 					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
 				},
 			},
+			Check: func(assert *assert.Assertions, eip *InternetGateway) {
+				assert.NotNil(eip.Vpc)
+			},
 		},
 		{
-			name: "existing eip",
-			igw:  &InternetGateway{Name: "my_app_igw", ConstructsRef: initialRefs},
-			want: coretesting.ResourcesExpectation{
+			Name:     "igw with downstream vpc",
+			Resource: &InternetGateway{Name: "my_app_igw"},
+			AppName:  "my-app",
+			Existing: []core.Resource{&Vpc{Name: "test-down"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test-down"},
+			},
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:internet_gateway:my_app_igw",
+					"aws:vpc:test-down",
 				},
-				Deps: []coretesting.StringDep{},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test-down"},
+				},
 			},
+			Check: func(assert *assert.Assertions, eip *InternetGateway) {
+				assert.Equal(eip.Vpc.Name, "test-down")
+			},
+		},
+		{
+			Name:     "vpc is set ignore upstream",
+			Resource: &InternetGateway{Name: "my_app_igw", Vpc: &Vpc{Name: "test"}},
+			AppName:  "my-app",
+			Existing: []core.Resource{&Vpc{Name: "test-down"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test-down"},
+			},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:internet_gateway:my_app_igw",
+					"aws:vpc:test",
+					"aws:vpc:test-down",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test-down"},
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test"},
+				},
+			},
+			Check: func(assert *assert.Assertions, eip *InternetGateway) {
+				assert.Equal(eip.Vpc.Name, "test")
+			},
+		},
+		{
+			Name:     "multiple vpcs error",
+			Resource: &InternetGateway{Name: "my_app_igw"},
+			AppName:  "my-app",
+			Existing: []core.Resource{&Vpc{Name: "test-down"}, &Vpc{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test-down"},
+				{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test"},
+			},
+			WantErr: true,
 		},
 	}
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-			dag := core.NewResourceGraph()
-			if tt.igw != nil {
-				dag.AddResource(tt.igw)
-			}
-			metadata := IgwCreateParams{
-				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
-			}
-
-			igw := &InternetGateway{}
-			err := igw.Create(dag, metadata)
-
-			if !assert.NoError(err) {
-				return
-			}
-			tt.want.Assert(t, dag)
-
-			graphIgw := dag.GetResource(igw.Id())
-			igw = graphIgw.(*InternetGateway)
-			assert.Equal(igw.Name, "my_app_igw")
-			if tt.igw == nil {
-				assert.NotNil(igw.Vpc)
-				assert.Equal(igw.ConstructsRef, metadata.Refs)
-			} else {
-				expect := initialRefs.CloneWith(metadata.Refs)
-				assert.Equal(igw.BaseConstructsRef(), expect)
-			}
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Run(t)
 		})
 	}
 }
 
 func Test_NatGatewayCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu)
-	cases := []struct {
-		name string
-		nat  *NatGateway
-		want coretesting.ResourcesExpectation
-	}{
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
+	cases := []coretesting.CreateCase[NatCreateParams, *NatGateway]{
 		{
-			name: "nil nat",
-			want: coretesting.ResourcesExpectation{
+			Name: "nil nat",
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:availability_zones:AvailabilityZones",
-					"aws:elastic_ip:my_app_0",
-					"aws:internet_gateway:my_app_igw",
-					"aws:nat_gateway:my_app_0",
-					"aws:route_table:my_app_public",
-					"aws:vpc:my_app",
-					"aws:subnet_public:my_app:my_app_public0",
+					"aws:nat_gateway:my_app_nat",
 				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
-					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_0"},
-					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public0"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public0"},
-					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
-				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, nat *NatGateway) {
+				assert.Equal(nat.Name, "my_app_nat")
+				assert.Equal(nat.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
-			name: "existing nat",
-			nat:  &NatGateway{Name: "my_app_0", ConstructsRef: initialRefs},
-			want: coretesting.ResourcesExpectation{
+			Name:     "existing nat",
+			Existing: &NatGateway{Name: "my_app_nat", ConstructsRef: initialRefs},
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:nat_gateway:my_app_0",
+					"aws:nat_gateway:my_app_nat",
 				},
 				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, nat *NatGateway) {
+				assert.Equal(nat.Name, "my_app_nat")
+				assert.Equal(nat.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-			dag := core.NewResourceGraph()
-			if tt.nat != nil {
-				dag.AddResource(tt.nat)
-			}
-			metadata := NatCreateParams{
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = NatCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
-				AZ:      "0",
+				Refs:    core.BaseConstructSetOf(eu),
+				Name:    "nat",
 			}
+			tt.Run(t)
+		})
+	}
+}
 
-			nat := &NatGateway{}
-			err := nat.Create(dag, metadata)
-
-			if !assert.NoError(err) {
-				return
-			}
-			tt.want.Assert(t, dag)
-			graphNat := dag.GetResource(nat.Id())
-			nat = graphNat.(*NatGateway)
-
-			assert.Equal(nat.Name, "my_app_0")
-			if tt.nat == nil {
-				assert.NotNil(nat.Subnet)
-				assert.NotNil(nat.ElasticIp)
-				assert.Equal(nat.ConstructsRef, metadata.Refs)
-			} else {
-				expect := initialRefs.CloneWith(metadata.Refs)
-				assert.Equal(nat.BaseConstructsRef(), expect)
-			}
+func Test_NatGatewayMakeOperational(t *testing.T) {
+	cases := []coretesting.MakeOperationalCase[*NatGateway]{
+		{
+			Name:     "only nat",
+			Resource: &NatGateway{Name: "my_app_nat"},
+			AppName:  "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:elastic_ip:my_app_1",
+					"aws:internet_gateway:my_app_igw",
+					"aws:nat_gateway:my_app_nat",
+					"aws:route_table:my_app_public",
+					"aws:subnet_public:my_app:my_app_public1",
+					"aws:availability_zones:AvailabilityZones",
+					"aws:vpc:my_app",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
+					{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:elastic_ip:my_app_1"},
+					{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
+					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
+				},
+			},
+			Check: func(assert *assert.Assertions, nat *NatGateway) {
+				assert.Equal(nat.ElasticIp.Name, "my_app_1")
+				assert.Equal(nat.Subnet.Name, "my_app_public1")
+			},
+		},
+		{
+			Name:     "nat with downstream vpc",
+			Resource: &NatGateway{Name: "my_app_nat"},
+			AppName:  "my-app",
+			Existing: []core.Resource{&Vpc{Name: "test-down"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:vpc:test-down"},
+			},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:elastic_ip:my_app_1",
+					"aws:internet_gateway:my_app_igw",
+					"aws:nat_gateway:my_app_nat",
+					"aws:route_table:my_app_public",
+					"aws:subnet_public:test-down:my_app_public1",
+					"aws:availability_zones:AvailabilityZones",
+					"aws:vpc:test-down",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test-down"},
+					{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:elastic_ip:my_app_1"},
+					{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:subnet_public:test-down:my_app_public1"},
+					{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:vpc:test-down"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:test-down:my_app_public1"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:test-down"},
+					{Source: "aws:subnet_public:test-down:my_app_public1", Destination: "aws:vpc:test-down"},
+					{Source: "aws:subnet_public:test-down:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
+				},
+			},
+			Check: func(assert *assert.Assertions, nat *NatGateway) {
+				assert.Equal(nat.ElasticIp.Name, "my_app_1")
+				assert.Equal(nat.Subnet.Name, "my_app_public1")
+				assert.Equal(nat.Subnet.Vpc.Name, "test-down")
+			},
+		},
+		{
+			Name:     "nat with downstream subnet and eip",
+			Resource: &NatGateway{Name: "my_app_nat"},
+			AppName:  "my-app",
+			Existing: []core.Resource{&Subnet{Name: "test-down", Type: PublicSubnet}, &ElasticIp{Name: "test_1"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:subnet_public:test-down"},
+				{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:elastic_ip:test_1"},
+			},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:elastic_ip:test_1",
+					"aws:nat_gateway:my_app_nat",
+					"aws:subnet_public:test-down",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:elastic_ip:test_1"},
+					{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:subnet_public:test-down"},
+				},
+			},
+			Check: func(assert *assert.Assertions, nat *NatGateway) {
+				assert.Equal(nat.ElasticIp.Name, "test_1")
+				assert.Equal(nat.Subnet.Name, "test-down")
+			},
+		},
+		{
+			Name:     "nat with subnet and eip",
+			Resource: &NatGateway{Name: "my_app_nat", ElasticIp: &ElasticIp{Name: "test_1"}, Subnet: &Subnet{Name: "test-down", Type: PublicSubnet}},
+			AppName:  "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:elastic_ip:test_1",
+					"aws:nat_gateway:my_app_nat",
+					"aws:subnet_public:test-down",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:elastic_ip:test_1"},
+					{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:subnet_public:test-down"},
+				},
+			},
+			Check: func(assert *assert.Assertions, nat *NatGateway) {
+				assert.Equal(nat.ElasticIp.Name, "test_1")
+				assert.Equal(nat.Subnet.Name, "test-down")
+			},
+		},
+		{
+			Name:     "multiple vpcs error",
+			Resource: &NatGateway{Name: "my_app_nat"},
+			AppName:  "my-app",
+			Existing: []core.Resource{&Vpc{Name: "test-down"}, &Vpc{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:vpc:test-down"},
+				{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:vpc:test"},
+			},
+			WantErr: true,
+		},
+		{
+			Name:     "multiple subnets error",
+			Resource: &NatGateway{Name: "my_app_nat"},
+			AppName:  "my-app",
+			Existing: []core.Resource{&Subnet{Name: "test-down"}, &Subnet{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:subnet_:test-down"},
+				{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:subnet_:test"},
+			},
+			WantErr: true,
+		},
+		{
+			Name:     "multiple eips error",
+			Resource: &NatGateway{Name: "my_app_nat"},
+			AppName:  "my-app",
+			Existing: []core.Resource{&ElasticIp{Name: "test-down"}, &ElasticIp{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:elastic_ip:test-down"},
+				{Source: "aws:nat_gateway:my_app_nat", Destination: "aws:elastic_ip:test"},
+			},
+			WantErr: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Run(t)
 		})
 	}
 }
 
 func Test_SubnetCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu)
-	cases := []struct {
-		name     string
-		subnet   *Subnet
-		addToDag bool
-		want     coretesting.ResourcesExpectation
-		wantErr  bool
-	}{
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
+	cases := []coretesting.CreateCase[SubnetCreateParams, *Subnet]{
 		{
-			name:     "private subnet az0",
-			subnet:   &Subnet{Type: PrivateSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "0"}, CidrBlock: "10.0.0.0/18"},
-			addToDag: false,
-			want: coretesting.ResourcesExpectation{
+			Name: "nil subnet",
+			Params: SubnetCreateParams{
+				AZ:   "0",
+				Type: PublicSubnet,
+			},
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:availability_zones:AvailabilityZones",
-					"aws:elastic_ip:my_app_0",
-					"aws:internet_gateway:my_app_igw",
-					"aws:nat_gateway:my_app_0",
-					"aws:route_table:my_app_private0",
-					"aws:route_table:my_app_public",
-					"aws:vpc:my_app",
-					"aws:subnet_private:my_app:my_app_private0",
-					"aws:subnet_public:my_app:my_app_public0",
+					"aws:subnet_public:my_app_public0",
 				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
-					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_0"},
-					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public0"},
-					{Source: "aws:route_table:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
-					{Source: "aws:route_table:my_app_private0", Destination: "aws:vpc:my_app"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
-					{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:vpc:my_app"},
-					{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public0"},
-					{Source: "aws:route_table:my_app_private0", Destination: "aws:subnet_private:my_app:my_app_private0"},
-				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, subnet *Subnet) {
+				assert.Equal(subnet.Name, "my_app_public0")
+				assert.Equal(subnet.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
-			name:     "private subnet az1",
-			subnet:   &Subnet{Type: PrivateSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}, CidrBlock: "10.0.64.0/18"},
-			addToDag: false,
-			want: coretesting.ResourcesExpectation{
+			Name: "nil subnet no az",
+			Params: SubnetCreateParams{
+				Type: PublicSubnet,
+			},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:subnet_public:my_app_public",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, subnet *Subnet) {
+				assert.Equal(subnet.Name, "my_app_public")
+				assert.Equal(subnet.ConstructsRef, core.BaseConstructSetOf(eu))
+			},
+		},
+		{
+			Name: "nil subnet no Type",
+			Params: SubnetCreateParams{
+				AZ: "0",
+			},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:subnet_:my_app_0",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, subnet *Subnet) {
+				assert.Equal(subnet.Name, "my_app_0")
+				assert.Equal(subnet.ConstructsRef, core.BaseConstructSetOf(eu))
+			},
+		},
+		{
+			Name: "nil subnet no Type or az",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:subnet_:my_app_",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, subnet *Subnet) {
+				assert.Equal(subnet.Name, "my_app_")
+				assert.Equal(subnet.ConstructsRef, core.BaseConstructSetOf(eu))
+			},
+		},
+		{
+			Name:     "existing subnet",
+			Existing: &Subnet{Name: "my_app_", ConstructsRef: initialRefs},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:subnet_:my_app_",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, subnet *Subnet) {
+				assert.Equal(subnet.Name, "my_app_")
+				assert.Equal(subnet.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = SubnetCreateParams{
+				AppName: "my-app",
+				Refs:    core.BaseConstructSetOf(eu),
+				AZ:      tt.Params.AZ,
+				Type:    tt.Params.Type,
+			}
+			tt.Run(t)
+		})
+	}
+}
+
+func Test_SubnetMakeOperational(t *testing.T) {
+	cases := []coretesting.MakeOperationalCase[*Subnet]{
+		{
+			Name:     "only Subnet",
+			Resource: &Subnet{Name: "my_app_subnet"},
+			AppName:  "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:availability_zones:AvailabilityZones",
+					"aws:internet_gateway:my_app_igw",
+					"aws:route_table:my_app_public",
+					"aws:subnet_public:my_app:my_app_public1",
+					"aws:vpc:my_app",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
+					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:vpc:my_app"},
+				},
+			},
+			Check: func(assert *assert.Assertions, subnet *Subnet) {
+				assert.Equal(subnet.Vpc.Name, "my_app")
+				assert.Equal(subnet.AvailabilityZone.PropertyVal, "1")
+				assert.Equal(subnet.Type, PublicSubnet)
+			},
+		},
+		{
+			Name:     "subnet has vpc upstream and should assign itself private",
+			Resource: &Subnet{Name: "my_app_subnet", AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}},
+			Existing: []core.Resource{&Vpc{Name: "test"}, &Subnet{Name: "test-down", Type: PublicSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:subnet_public:test-down", Destination: "aws:vpc:test"},
+				{Source: "aws:subnet_:my_app_subnet", Destination: "aws:vpc:test"},
+			},
+			AppName: "my-app",
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
 					"aws:elastic_ip:my_app_1",
@@ -331,201 +563,343 @@ func Test_SubnetCreate(t *testing.T) {
 					"aws:nat_gateway:my_app_1",
 					"aws:route_table:my_app_private1",
 					"aws:route_table:my_app_public",
-					"aws:vpc:my_app",
-					"aws:subnet_private:my_app:my_app_private1",
-					"aws:subnet_public:my_app:my_app_public1",
+					"aws:subnet_private:test:my_app_private1",
+					"aws:subnet_public:test-down",
+					"aws:subnet_public:test:my_app_public1",
+					"aws:vpc:test",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test"},
 					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_1"},
-					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:test:my_app_public1"},
 					{Source: "aws:route_table:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
-					{Source: "aws:route_table:my_app_private1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:subnet_private:test:my_app_private1"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:vpc:test"},
 					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
-					{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:vpc:my_app"},
-					{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:vpc:my_app"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public1"},
-					{Source: "aws:route_table:my_app_private1", Destination: "aws:subnet_private:my_app:my_app_private1"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:test:my_app_public1"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
+					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_public:test-down", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_public:test:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_public:test:my_app_public1", Destination: "aws:vpc:test"},
 				},
+			},
+			Check: func(assert *assert.Assertions, subnet *Subnet) {
+				assert.Equal(subnet.Vpc.Name, "test")
+				assert.Equal(subnet.AvailabilityZone.PropertyVal, "1")
+				assert.Equal(subnet.Type, PrivateSubnet)
 			},
 		},
 		{
-			name:     "public subnet az0",
-			subnet:   &Subnet{Type: PublicSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "0"}, CidrBlock: "10.0.128.0/18"},
-			addToDag: false,
-			want: coretesting.ResourcesExpectation{
-				Nodes: []string{
-					"aws:internet_gateway:my_app_igw",
-					"aws:availability_zones:AvailabilityZones",
-					"aws:route_table:my_app_public",
-					"aws:vpc:my_app",
-					"aws:subnet_public:my_app:my_app_public0",
-				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
-					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
-					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public0"},
-				},
+			Name:     "subnet has vpc tied to it and should assign itself az of 0",
+			Resource: &Subnet{Name: "my_app_subnet", Type: PublicSubnet, Vpc: &Vpc{Name: "test"}},
+			Existing: []core.Resource{&Vpc{Name: "test"}, &Subnet{Name: "test-down", Type: PublicSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:subnet_public:test-down", Destination: "aws:vpc:test"},
 			},
-		},
-		{
-			name:     "public subnet az1",
-			subnet:   &Subnet{Type: PublicSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}, CidrBlock: "10.0.192.0/18"},
-			addToDag: false,
-			want: coretesting.ResourcesExpectation{
-				Nodes: []string{
-					"aws:internet_gateway:my_app_igw",
-					"aws:route_table:my_app_public",
-					"aws:availability_zones:AvailabilityZones",
-					"aws:vpc:my_app",
-					"aws:subnet_public:my_app:my_app_public1",
-				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
-					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:vpc:my_app"},
-					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public1"},
-				},
-			},
-		},
-		{
-			name:     "existing subnet",
-			subnet:   &Subnet{Name: "my_app_public0", Type: PublicSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "0"}, ConstructsRef: initialRefs, Vpc: &Vpc{Name: "my_app"}, CidrBlock: "10.0.128.0/18"},
-			addToDag: true,
-			want: coretesting.ResourcesExpectation{
+			AppName: "my-app",
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
 					"aws:internet_gateway:my_app_igw",
 					"aws:route_table:my_app_public",
-					"aws:subnet_public:my_app:my_app_public0",
-					"aws:vpc:my_app",
+					"aws:subnet_public:test-down",
+					"aws:subnet_public:test:my_app_public0",
+					"aws:vpc:test",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test"},
 					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
-					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public0"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:test:my_app_public0"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_public:test-down", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_public:test:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_public:test:my_app_public0", Destination: "aws:vpc:test"},
 				},
 			},
+			Check: func(assert *assert.Assertions, subnet *Subnet) {
+				assert.Equal(subnet.Vpc.Name, "test")
+				assert.Equal(subnet.AvailabilityZone.PropertyVal, "0")
+				assert.Equal(subnet.Type, PublicSubnet)
+			},
+		},
+		{
+			Name:     "multiple vpcs error",
+			Resource: &Subnet{Name: "subnet", Type: PublicSubnet},
+			AppName:  "my-app",
+			Existing: []core.Resource{&Vpc{Name: "test-down"}, &Vpc{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:subnet_public:subnet", Destination: "aws:vpc:test-down"},
+				{Source: "aws:subnet_public:subnet", Destination: "aws:vpc:test"},
+			},
+			WantErr: true,
 		},
 	}
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-			dag := core.NewResourceGraph()
-			if tt.addToDag {
-				dag.AddResource(tt.subnet)
-			}
-			metadata := SubnetCreateParams{
-				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
-				AZ:      tt.subnet.AvailabilityZone.PropertyVal,
-				Type:    tt.subnet.Type,
-			}
-			subnet := &Subnet{}
-			err := subnet.Create(dag, metadata)
-
-			if tt.wantErr {
-				assert.Error(err)
-				return
-			}
-			if !assert.NoError(err) {
-				return
-			}
-			tt.want.Assert(t, dag)
-
-			graphSubnet := dag.GetResource(subnet.Id())
-			subnet = graphSubnet.(*Subnet)
-
-			assert.Equal(subnet.Name, fmt.Sprintf("my_app_%s%s", tt.subnet.Type, tt.subnet.AvailabilityZone.Property()))
-			assert.Equal(subnet.Type, tt.subnet.Type)
-			assert.Equal(subnet.AvailabilityZone.Property(), tt.subnet.AvailabilityZone.Property())
-			if tt.addToDag == false {
-				assert.Equal(subnet.ConstructsRef, metadata.Refs)
-			} else {
-				expect := initialRefs.CloneWith(metadata.Refs)
-				assert.Equal(subnet.BaseConstructsRef(), expect)
-			}
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Run(t)
 		})
 	}
 }
 
 func Test_RouteTableCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu)
-	cases := []struct {
-		name string
-		rt   *RouteTable
-		want coretesting.ResourcesExpectation
-	}{
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
+	cases := []coretesting.CreateCase[RouteTableCreateParams, *RouteTable]{
 		{
-			name: "nil route table ",
-			want: coretesting.ResourcesExpectation{
+			Name: "nil route table",
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:route_table:my_app_private0",
-					"aws:vpc:my_app",
+					"aws:route_table:my_app_rt",
 				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:route_table:my_app_private0", Destination: "aws:vpc:my_app"},
-				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, rt *RouteTable) {
+				assert.Equal(rt.Name, "my_app_rt")
+				assert.Equal(rt.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
-			name: "existing rt",
-			rt:   &RouteTable{Name: "my_app_private0", ConstructsRef: initialRefs},
-			want: coretesting.ResourcesExpectation{
+			Name:     "existing route table",
+			Existing: &RouteTable{Name: "my_app_rt", ConstructsRef: initialRefs},
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:route_table:my_app_private0",
-					"aws:vpc:my_app",
+					"aws:route_table:my_app_rt",
 				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:route_table:my_app_private0", Destination: "aws:vpc:my_app"},
-				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, rt *RouteTable) {
+				assert.Equal(rt.Name, "my_app_rt")
+				assert.Equal(rt.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-			dag := core.NewResourceGraph()
-			if tt.rt != nil {
-				dag.AddResource(tt.rt)
-			}
-			metadata := RouteTableCreateParams{
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = RouteTableCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
-				Name:    "private0",
+				Refs:    core.BaseConstructSetOf(eu),
+				Name:    "rt",
 			}
+			tt.Run(t)
+		})
+	}
+}
 
-			rt := &RouteTable{}
-			err := rt.Create(dag, metadata)
-
-			if !assert.NoError(err) {
-				return
-			}
-			tt.want.Assert(t, dag)
-
-			graphRT := dag.GetResource(rt.Id())
-			rt = graphRT.(*RouteTable)
-
-			assert.Equal(rt.Name, "my_app_private0")
-			if tt.rt == nil {
-				assert.NotNil(rt.Vpc)
-				assert.Equal(rt.ConstructsRef, metadata.Refs)
-			} else {
-				expect := initialRefs.CloneWith(metadata.Refs)
-				assert.Equal(rt.BaseConstructsRef(), expect)
-			}
+func Test_RouteTableMakeOperational(t *testing.T) {
+	cases := []coretesting.MakeOperationalCase[*RouteTable]{
+		{
+			Name:     "only route table",
+			Resource: &RouteTable{Name: "my_rt"},
+			AppName:  "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:route_table:my_rt",
+					"aws:vpc:my_app",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:route_table:my_rt", Destination: "aws:vpc:my_app"},
+				},
+			},
+			Check: func(assert *assert.Assertions, rt *RouteTable) {
+				assert.Equal(rt.Vpc.Name, "my_app")
+			},
+		},
+		{
+			Name:     "route table with vpc upstream",
+			Resource: &RouteTable{Name: "my_rt"},
+			Existing: []core.Resource{&Vpc{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:route_table:my_rt", Destination: "aws:vpc:test"},
+			},
+			AppName: "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:route_table:my_rt",
+					"aws:vpc:test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:route_table:my_rt", Destination: "aws:vpc:test"},
+				},
+			},
+			Check: func(assert *assert.Assertions, rt *RouteTable) {
+				assert.Equal(rt.Vpc.Name, "test")
+			},
+		},
+		{
+			Name:     "route table with private subnets upstream",
+			Resource: &RouteTable{Name: "my_rt"},
+			Existing: []core.Resource{&Subnet{Name: "test", Type: PrivateSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:route_table:my_rt", Destination: "aws:subnet_private:test:test"},
+			},
+			AppName: "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:availability_zones:AvailabilityZones",
+					"aws:elastic_ip:my_app_1",
+					"aws:internet_gateway:my_app_igw",
+					"aws:nat_gateway:my_app_1",
+					"aws:route_table:my_app_public",
+					"aws:route_table:my_rt",
+					"aws:subnet_private:test:test",
+					"aws:subnet_public:test:my_app_public1",
+					"aws:vpc:test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_1"},
+					{Source: "aws:route_table:my_rt", Destination: "aws:nat_gateway:my_app_1"},
+					{Source: "aws:route_table:my_rt", Destination: "aws:subnet_private:test:test"},
+					{Source: "aws:route_table:my_rt", Destination: "aws:vpc:test"},
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:test:my_app_public1"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:test:my_app_public1"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_private:test:test", Destination: "aws:nat_gateway:my_app_1"},
+					{Source: "aws:subnet_public:test:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_public:test:my_app_public1", Destination: "aws:vpc:test"},
+				},
+			},
+			Check: func(assert *assert.Assertions, rt *RouteTable) {
+				assert.Equal(rt.Vpc.Name, "test")
+			},
+		},
+		{
+			Name:     "route table with private subnet and nat upstream",
+			Resource: &RouteTable{Name: "my_rt"},
+			Existing: []core.Resource{
+				&Vpc{Name: "test"},
+				&Subnet{Name: "test", Type: PrivateSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}},
+				&NatGateway{Name: "mynat", Subnet: &Subnet{Name: "test", Type: PrivateSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}}},
+			},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:route_table:my_rt", Destination: "aws:subnet_private:test:test"},
+				{Source: "aws:nat_gateway:mynat", Destination: "aws:vpc:test"},
+			},
+			AppName: "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:nat_gateway:mynat",
+					"aws:route_table:my_rt",
+					"aws:subnet_private:test:test",
+					"aws:vpc:test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:nat_gateway:mynat", Destination: "aws:vpc:test"},
+					{Source: "aws:route_table:my_rt", Destination: "aws:nat_gateway:mynat"},
+					{Source: "aws:route_table:my_rt", Destination: "aws:subnet_private:test:test"},
+					{Source: "aws:route_table:my_rt", Destination: "aws:vpc:test"},
+				},
+			},
+			Check: func(assert *assert.Assertions, rt *RouteTable) {
+				assert.Equal(rt.Vpc.Name, "test")
+			},
+		},
+		{
+			Name:     "route table with Public subnets upstream",
+			Resource: &RouteTable{Name: "my_rt"},
+			Existing: []core.Resource{&Subnet{Name: "test", Type: PublicSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:route_table:my_rt", Destination: "aws:subnet_public:test:test"},
+			},
+			AppName: "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:internet_gateway:my_app_igw",
+					"aws:route_table:my_rt",
+					"aws:subnet_public:test:test",
+					"aws:vpc:test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test"},
+					{Source: "aws:route_table:my_rt", Destination: "aws:internet_gateway:my_app_igw"},
+					{Source: "aws:route_table:my_rt", Destination: "aws:subnet_public:test:test"},
+					{Source: "aws:route_table:my_rt", Destination: "aws:vpc:test"},
+				},
+			},
+			Check: func(assert *assert.Assertions, rt *RouteTable) {
+				assert.Equal(rt.Vpc.Name, "test")
+			},
+		},
+		{
+			Name:     "route table with Public subnet and internet gateway upstream",
+			Resource: &RouteTable{Name: "my_rt"},
+			Existing: []core.Resource{
+				&Vpc{Name: "test"},
+				&Subnet{Name: "test", Type: PublicSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}},
+				&InternetGateway{Name: "myigw"},
+			},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:route_table:my_rt", Destination: "aws:subnet_public:test:test"},
+				{Source: "aws:internet_gateway:myigw", Destination: "aws:vpc:test"},
+			},
+			AppName: "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:internet_gateway:myigw",
+					"aws:route_table:my_rt",
+					"aws:subnet_public:test:test",
+					"aws:vpc:test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:internet_gateway:myigw", Destination: "aws:vpc:test"},
+					{Source: "aws:route_table:my_rt", Destination: "aws:internet_gateway:myigw"},
+					{Source: "aws:route_table:my_rt", Destination: "aws:subnet_public:test:test"},
+					{Source: "aws:route_table:my_rt", Destination: "aws:vpc:test"},
+				},
+			},
+			Check: func(assert *assert.Assertions, rt *RouteTable) {
+				assert.Equal(rt.Vpc.Name, "test")
+			},
+		},
+		{
+			Name:     "multiple vpcs error",
+			Resource: &RouteTable{Name: "my_rt"},
+			AppName:  "my-app",
+			Existing: []core.Resource{&Vpc{Name: "test-down"}, &Vpc{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:route_table:my_rt", Destination: "aws:vpc:test-down"},
+				{Source: "aws:route_table:my_rt", Destination: "aws:vpc:test"},
+			},
+			WantErr: true,
+		},
+		{
+			Name:     "multiple vpcs from subnets error",
+			Resource: &RouteTable{Name: "my_rt"},
+			AppName:  "my-app",
+			Existing: []core.Resource{
+				&Vpc{Name: "test-down"},
+				&Subnet{Name: "test", Vpc: &Vpc{Name: "test"}, Type: PublicSubnet},
+				&Subnet{Name: "test2", Vpc: &Vpc{Name: "test2"}, Type: PublicSubnet},
+			},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:route_table:my_rt", Destination: "aws:vpc:test-down"},
+				{Source: "aws:route_table:my_rt", Destination: "aws:subnet_public:test:test"},
+				{Source: "aws:route_table:my_rt", Destination: "aws:subnet_public:test2:test2"},
+			},
+			WantErr: true,
+		},
+		{
+			Name:     "multiple vpcs from conflicting vpc and subnets error",
+			Resource: &RouteTable{Name: "my_rt"},
+			AppName:  "my-app",
+			Existing: []core.Resource{
+				&Vpc{Name: "test-down"},
+				&Subnet{Name: "test", Vpc: &Vpc{Name: "test"}, Type: PublicSubnet},
+			},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:route_table:my_rt", Destination: "aws:vpc:test-down"},
+				{Source: "aws:route_table:my_rt", Destination: "aws:subnet_public:test:test"},
+			},
+			WantErr: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Run(t)
 		})
 	}
 }

@@ -14,15 +14,61 @@ func Test_EksClusterCreate(t *testing.T) {
 	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[EksClusterCreateParams, *EksCluster]{
 		{
-			Name: "nil lambda",
+			Name: "nil cluster",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:eks_addon:my-app-cluster-addon-vpc-cni",
+					"aws:eks_cluster:my-app-cluster",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:eks_addon:my-app-cluster-addon-vpc-cni", Destination: "aws:eks_cluster:my-app-cluster"},
+				},
+			},
+			Check: func(assert *assert.Assertions, cluster *EksCluster) {
+				assert.Equal(cluster.Name, "my-app-cluster")
+				assert.Equal(cluster.ConstructsRef, core.BaseConstructSetOf(eu))
+			},
+		},
+		{
+			Name:     "existing cluster",
+			Existing: &EksCluster{Name: "my-app-cluster", ConstructsRef: initialRefs},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:eks_cluster:my-app-cluster",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, cluster *EksCluster) {
+				assert.Equal(cluster.Name, "my-app-cluster")
+				assert.Equal(cluster.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = EksClusterCreateParams{
+				AppName: "my-app",
+				Refs:    core.BaseConstructSetOf(eu),
+				Name:    "cluster",
+			}
+			tt.Run(t)
+		})
+	}
+}
+
+func Test_EksClusterMakeOperational(t *testing.T) {
+	cases := []coretesting.MakeOperationalCase[*EksCluster]{
+		{
+			Name:     "only cluster",
+			Resource: &EksCluster{Name: "my_app"},
+			AppName:  "my-app",
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
-					"aws:eks_addon:my-app-cluster-addon-vpc-cni",
-					"aws:eks_cluster:my-app-cluster",
+					"aws:eks_cluster:my_app",
 					"aws:elastic_ip:my_app_0",
 					"aws:elastic_ip:my_app_1",
-					"aws:iam_role:my-app-cluster-ClusterAdmin",
+					"aws:iam_role:my-app-my_app-ClusterAdmin",
 					"aws:internet_gateway:my_app_igw",
 					"aws:nat_gateway:my_app_0",
 					"aws:nat_gateway:my_app_1",
@@ -37,19 +83,89 @@ func Test_EksClusterCreate(t *testing.T) {
 					"aws:vpc:my_app",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:eks_addon:my-app-cluster-addon-vpc-cni", Destination: "aws:eks_cluster:my-app-cluster"},
-					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:iam_role:my-app-cluster-ClusterAdmin"},
-					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:security_group:my_app:my-app"},
-					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:subnet_private:my_app:my_app_private0"},
-					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:subnet_private:my_app:my_app_private1"},
-					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:subnet_public:my_app:my_app_public0"},
-					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:subnet_public:my_app:my_app_public1"},
-					{Source: "aws:eks_cluster:my-app-cluster", Destination: "aws:vpc:my_app"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:iam_role:my-app-my_app-ClusterAdmin"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:security_group:my_app:my-app"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_private:my_app:my_app_private0"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_private:my_app:my_app_private1"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:my_app:my_app_public0"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:vpc:my_app"},
 					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
-					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_0"},
-					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public0"},
-					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_1"},
-					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_1"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_0"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public0"},
+					{Source: "aws:route_table:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
+					{Source: "aws:route_table:my_app_private0", Destination: "aws:subnet_private:my_app:my_app_private0"},
+					{Source: "aws:route_table:my_app_private0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:subnet_private:my_app:my_app_private1"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public0"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
+					{Source: "aws:security_group:my_app:my-app", Destination: "aws:vpc:my_app"},
+					{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
+					{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
+					{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
+					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:vpc:my_app"},
+				},
+			},
+			Check: func(assert *assert.Assertions, cluster *EksCluster) {
+				assert.NotNil(cluster.Vpc)
+				assert.Len(cluster.Subnets, 4)
+				assert.Len(cluster.SecurityGroups, 1)
+				assert.NotNil(cluster.ClusterRole)
+			},
+		},
+		{
+			Name:     "cluster has upstream role",
+			Resource: &EksCluster{Name: "my_app"},
+			Existing: []core.Resource{&IamRole{Name: "ClusterAdmin"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:eks_cluster:my_app", Destination: "aws:iam_role:ClusterAdmin"},
+			},
+			AppName: "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:availability_zones:AvailabilityZones",
+					"aws:eks_cluster:my_app",
+					"aws:elastic_ip:my_app_0",
+					"aws:elastic_ip:my_app_1",
+					"aws:iam_role:ClusterAdmin",
+					"aws:internet_gateway:my_app_igw",
+					"aws:nat_gateway:my_app_0",
+					"aws:nat_gateway:my_app_1",
+					"aws:route_table:my_app_private0",
+					"aws:route_table:my_app_private1",
+					"aws:route_table:my_app_public",
+					"aws:security_group:my_app:my-app",
+					"aws:subnet_private:my_app:my_app_private0",
+					"aws:subnet_private:my_app:my_app_private1",
+					"aws:subnet_public:my_app:my_app_public0",
+					"aws:subnet_public:my_app:my_app_public1",
+					"aws:vpc:my_app",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:iam_role:ClusterAdmin"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:security_group:my_app:my-app"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_private:my_app:my_app_private0"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_private:my_app:my_app_private1"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:my_app:my_app_public0"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:vpc:my_app"},
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_1"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_0"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public0"},
 					{Source: "aws:route_table:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
 					{Source: "aws:route_table:my_app_private0", Destination: "aws:subnet_private:my_app:my_app_private0"},
 					{Source: "aws:route_table:my_app_private0", Destination: "aws:vpc:my_app"},
@@ -69,38 +185,207 @@ func Test_EksClusterCreate(t *testing.T) {
 					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
 					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:vpc:my_app"},
+					{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
+					{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
 				},
 			},
 			Check: func(assert *assert.Assertions, cluster *EksCluster) {
-				assert.Equal(cluster.Name, "my-app-cluster")
 				assert.NotNil(cluster.Vpc)
+				assert.Len(cluster.Subnets, 4)
 				assert.Len(cluster.SecurityGroups, 1)
-				assert.Equal(cluster.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(cluster.ClusterRole.Name, "ClusterAdmin")
 			},
 		},
 		{
-			Name:     "existing lambda",
-			Existing: &EksCluster{Name: "my-app-cluster", ConstructsRef: initialRefs},
+			Name:     "cluster has upstream vpc",
+			Resource: &EksCluster{Name: "my_app"},
+			Existing: []core.Resource{&Vpc{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:eks_cluster:my_app", Destination: "aws:vpc:test"},
+			},
+			AppName: "my-app",
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:eks_cluster:my-app-cluster",
+					"aws:availability_zones:AvailabilityZones",
+					"aws:eks_cluster:my_app",
+					"aws:elastic_ip:my_app_0",
+					"aws:elastic_ip:my_app_1",
+					"aws:iam_role:my-app-my_app-ClusterAdmin",
+					"aws:internet_gateway:my_app_igw",
+					"aws:nat_gateway:my_app_0",
+					"aws:nat_gateway:my_app_1",
+					"aws:route_table:my_app_private0",
+					"aws:route_table:my_app_private1",
+					"aws:route_table:my_app_public",
+					"aws:security_group:test:my-app",
+					"aws:subnet_private:test:my_app_private0",
+					"aws:subnet_private:test:my_app_private1",
+					"aws:subnet_public:test:my_app_public0",
+					"aws:subnet_public:test:my_app_public1",
+					"aws:vpc:test",
 				},
-				Deps: []coretesting.StringDep{},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:iam_role:my-app-my_app-ClusterAdmin"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:security_group:test:my-app"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_private:test:my_app_private0"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_private:test:my_app_private1"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:test:my_app_public0"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:test:my_app_public1"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:vpc:test"},
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_1"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:test:my_app_public1"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_0"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:test:my_app_public0"},
+					{Source: "aws:route_table:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
+					{Source: "aws:route_table:my_app_private0", Destination: "aws:subnet_private:test:my_app_private0"},
+					{Source: "aws:route_table:my_app_private0", Destination: "aws:vpc:test"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:subnet_private:test:my_app_private1"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:vpc:test"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:test:my_app_public0"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:test:my_app_public1"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:test"},
+					{Source: "aws:security_group:test:my-app", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_private:test:my_app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_private:test:my_app_private0", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_public:test:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_public:test:my_app_public0", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_public:test:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_public:test:my_app_public1", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_private:test:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
+					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
+				},
 			},
 			Check: func(assert *assert.Assertions, cluster *EksCluster) {
-				assert.Equal(cluster.Name, "my-app-cluster")
-				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
-				assert.Equal(cluster.ConstructsRef, expect)
+				assert.Equal(cluster.Vpc.Name, "test")
+				assert.Len(cluster.Subnets, 4)
+				assert.Len(cluster.SecurityGroups, 1)
+				assert.Equal(cluster.ClusterRole.Name, "my-app-my_app-ClusterAdmin")
 			},
+		},
+		{
+			Name:     "cluster has upstream subnet",
+			Resource: &EksCluster{Name: "my_app"},
+			Existing: []core.Resource{&Subnet{Name: "test", Type: PrivateSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}, Vpc: &Vpc{Name: "test"}}, &Vpc{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:subnet_private:test:test", Destination: "aws:vpc:test"},
+				{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_private:test:test"},
+			},
+			AppName: "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:eks_cluster:my_app",
+					"aws:iam_role:my-app-my_app-ClusterAdmin",
+					"aws:security_group:test:my-app",
+					"aws:subnet_private:test:test",
+					"aws:vpc:test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:iam_role:my-app-my_app-ClusterAdmin"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:security_group:test:my-app"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_private:test:test"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:vpc:test"},
+					{Source: "aws:security_group:test:my-app", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_private:test:test", Destination: "aws:vpc:test"},
+				},
+			},
+			Check: func(assert *assert.Assertions, cluster *EksCluster) {
+				assert.Equal(cluster.Vpc.Name, "test")
+				assert.Len(cluster.Subnets, 1)
+				assert.Len(cluster.SecurityGroups, 1)
+				assert.Equal(cluster.ClusterRole.Name, "my-app-my_app-ClusterAdmin")
+			},
+		},
+		{
+			Name:     "cluster has upstream security group",
+			Resource: &EksCluster{Name: "my_app"},
+			Existing: []core.Resource{&SecurityGroup{Name: "test", Vpc: &Vpc{Name: "test"}}, &Vpc{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:security_group:test:test", Destination: "aws:vpc:test"},
+				{Source: "aws:eks_cluster:my_app", Destination: "aws:security_group:test:test"},
+			},
+			AppName: "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:availability_zones:AvailabilityZones",
+					"aws:eks_cluster:my_app",
+					"aws:elastic_ip:my_app_0",
+					"aws:elastic_ip:my_app_1",
+					"aws:iam_role:my-app-my_app-ClusterAdmin",
+					"aws:internet_gateway:my_app_igw",
+					"aws:nat_gateway:my_app_0",
+					"aws:nat_gateway:my_app_1",
+					"aws:route_table:my_app_private0",
+					"aws:route_table:my_app_private1",
+					"aws:route_table:my_app_public",
+					"aws:security_group:test:test",
+					"aws:subnet_private:test:my_app_private0",
+					"aws:subnet_private:test:my_app_private1",
+					"aws:subnet_public:test:my_app_public0",
+					"aws:subnet_public:test:my_app_public1",
+					"aws:vpc:test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:iam_role:my-app-my_app-ClusterAdmin"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:security_group:test:test"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_private:test:my_app_private0"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_private:test:my_app_private1"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:test:my_app_public0"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:test:my_app_public1"},
+					{Source: "aws:eks_cluster:my_app", Destination: "aws:vpc:test"},
+					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_1"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:test:my_app_public1"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_0"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:test:my_app_public0"},
+					{Source: "aws:route_table:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
+					{Source: "aws:route_table:my_app_private0", Destination: "aws:subnet_private:test:my_app_private0"},
+					{Source: "aws:route_table:my_app_private0", Destination: "aws:vpc:test"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:subnet_private:test:my_app_private1"},
+					{Source: "aws:route_table:my_app_private1", Destination: "aws:vpc:test"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:test:my_app_public0"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:test:my_app_public1"},
+					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:test"},
+					{Source: "aws:security_group:test:test", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_private:test:my_app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_private:test:my_app_private0", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_public:test:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_public:test:my_app_public0", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_public:test:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_public:test:my_app_public1", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_private:test:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
+					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
+				},
+			},
+			Check: func(assert *assert.Assertions, cluster *EksCluster) {
+				assert.Equal(cluster.Vpc.Name, "test")
+				assert.Len(cluster.Subnets, 4)
+				assert.Len(cluster.SecurityGroups, 1)
+				assert.Equal(cluster.ClusterRole.Name, "my-app-my_app-ClusterAdmin")
+			},
+		},
+		{
+			Name:     "multiple vpcs error",
+			Resource: &EksCluster{Name: "my_app"},
+			AppName:  "my-app",
+			Existing: []core.Resource{&Vpc{Name: "test-down"}, &Vpc{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:eks_cluster:my_app", Destination: "aws:vpc:test-down"},
+				{Source: "aws:eks_cluster:my_app", Destination: "aws:vpc:test"},
+			},
+			WantErr: true,
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
-			tt.Params = EksClusterCreateParams{
-				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
-				Name:    "cluster",
-			}
 			tt.Run(t)
 		})
 	}

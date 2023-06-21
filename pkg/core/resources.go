@@ -57,6 +57,11 @@ type (
 		Configure(params K) error
 	}
 
+	OperationalResource interface {
+		Resource
+		MakeOperational(dag *ResourceGraph, appName string) error
+	}
+
 	ResourceId struct {
 		Provider string `yaml:"provider" toml:"provider"`
 		Type     string `yaml:"type" toml:"type"`

@@ -13,6 +13,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	k8sSanitizer "github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 const (
@@ -100,7 +101,7 @@ type (
 		Subnets        []*Subnet
 		SecurityGroups []*SecurityGroup
 		Manifests      []core.File
-		Kubeconfig     *kubernetes.Kubeconfig
+		Kubeconfig     *kubernetes.Kubeconfig `yaml:"-"`
 	}
 
 	EksFargateProfile struct {
@@ -150,70 +151,150 @@ type EksClusterCreateParams struct {
 func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCreateParams) error {
 
 	cluster.Name = clusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-
+	cluster.ConstructsRef = params.Refs.Clone()
 	existingCluster := dag.GetResource(cluster.Id())
 	if existingCluster != nil {
 		graphCluster := existingCluster.(*EksCluster)
 		graphCluster.ConstructsRef.AddAll(params.Refs)
 	} else {
-		cluster.ConstructsRef = params.Refs.Clone()
-		cluster.Subnets = make([]*Subnet, 4)
-		cluster.SecurityGroups = make([]*SecurityGroup, 1)
-
-		subParams := map[string]any{
-			"ClusterRole": RoleCreateParams{
-				AppName: params.AppName,
-				Name:    fmt.Sprintf("%s-ClusterAdmin", params.Name),
-				Refs:    params.Refs,
-			},
-			"Vpc": VpcCreateParams{
-				AppName: params.AppName,
-				Refs:    params.Refs,
-			},
-			"Subnets": []SubnetCreateParams{
-				{
-					AppName: params.AppName,
-					Refs:    cluster.ConstructsRef,
-					AZ:      "0",
-					Type:    PrivateSubnet,
-				},
-				{
-					AppName: params.AppName,
-					Refs:    cluster.ConstructsRef,
-					AZ:      "1",
-					Type:    PrivateSubnet,
-				},
-				{
-					AppName: params.AppName,
-					Refs:    cluster.ConstructsRef,
-					AZ:      "0",
-					Type:    PublicSubnet,
-				},
-				{
-					AppName: params.AppName,
-					Refs:    cluster.ConstructsRef,
-					AZ:      "1",
-					Type:    PublicSubnet,
-				},
-			},
-			"SecurityGroups": []SecurityGroupCreateParams{
-				{
-					AppName: params.AppName,
-					Refs:    cluster.ConstructsRef,
-				},
-			},
-		}
-
-		err := dag.CreateDependencies(cluster, subParams)
-		if err != nil {
-			return err
-		}
-		dag.AddDependenciesReflect(cluster)
+		dag.AddResource(cluster)
 
 		// We create these add ons in cluster creation since there is edge which would create them
 		// These are always installed in every cluster, no matter the configuration
 		cluster.installVpcCniAddon(cluster.ConstructsRef, dag)
 	}
+	return nil
+}
+
+func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	zap.S().Debugf("Making cluster %s operational", cluster.Name)
+	if cluster.ClusterRole == nil {
+		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, cluster)
+		if len(roles) > 1 {
+			return errors.Errorf("cluster %s has multiple roles", cluster.Name)
+		} else if len(roles) == 0 {
+			err := dag.CreateDependencies(cluster, map[string]any{
+				"ClusterRole": RoleCreateParams{
+					AppName: appName,
+					Name:    fmt.Sprintf("%s-ClusterAdmin", cluster.Name),
+					Refs:    core.BaseConstructSetOf(cluster),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			cluster.ClusterRole = roles[0]
+		}
+	}
+
+	if cluster.Vpc == nil {
+		vpcs := core.GetDownstreamResourcesOfType[*Vpc](dag, cluster)
+		if len(vpcs) > 1 {
+			return errors.Errorf("cluster %s has multiple vpcs", cluster.Name)
+		} else if len(vpcs) == 1 {
+			cluster.Vpc = vpcs[0]
+		}
+	}
+	if len(cluster.Subnets) == 0 {
+		subnets := core.GetDownstreamResourcesOfType[*Subnet](dag, cluster)
+		for _, subnet := range subnets {
+			if cluster.Vpc != nil && cluster.Vpc != subnet.Vpc {
+				return errors.Errorf("subnet %s is not in the same vpc as cluster %s", subnet.Name, cluster.Name)
+			}
+			cluster.Subnets = append(cluster.Subnets, subnet)
+			cluster.Vpc = subnet.Vpc
+		}
+
+	}
+
+	if len(cluster.SecurityGroups) == 0 {
+		sgs := core.GetDownstreamResourcesOfType[*SecurityGroup](dag, cluster)
+		for _, sg := range sgs {
+			if cluster.Vpc != nil && sg.Vpc != cluster.Vpc {
+				return errors.Errorf("security group %s is not in the same vpc as cluster %s", sg.Name, cluster.Name)
+			}
+			cluster.SecurityGroups = append(cluster.SecurityGroups, sg)
+			cluster.Vpc = sg.Vpc
+		}
+	}
+
+	if len(cluster.Subnets) == 0 {
+		if cluster.Vpc != nil {
+			vpcSubnets := cluster.Vpc.GetVpcSubnets(dag)
+			if len(vpcSubnets) == 0 {
+				subnets, err := cluster.Vpc.CreateVpcSubnets(dag, appName, cluster)
+				if err != nil {
+					return err
+				}
+				cluster.Subnets = append(cluster.Subnets, subnets...)
+			} else {
+				cluster.Subnets = append(cluster.Subnets, vpcSubnets...)
+			}
+		} else {
+			cluster.Subnets = make([]*Subnet, 4)
+			err := dag.CreateDependencies(cluster, map[string]any{
+				"Subnets": []SubnetCreateParams{
+					{
+						AppName: appName,
+						Refs:    core.BaseConstructSetOf(cluster),
+						AZ:      availabilityZones[0],
+						Type:    PrivateSubnet,
+					},
+					{
+						AppName: appName,
+						Refs:    core.BaseConstructSetOf(cluster),
+						AZ:      availabilityZones[1],
+						Type:    PrivateSubnet,
+					},
+					{
+						AppName: appName,
+						Refs:    core.BaseConstructSetOf(cluster),
+						AZ:      availabilityZones[0],
+						Type:    PublicSubnet,
+					},
+					{
+						AppName: appName,
+						Refs:    core.BaseConstructSetOf(cluster),
+						AZ:      availabilityZones[1],
+						Type:    PublicSubnet,
+					},
+				},
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if cluster.Vpc == nil {
+		subnets := core.GetDownstreamResourcesOfType[*Subnet](dag, cluster)
+		for _, subnet := range subnets {
+			if cluster.Vpc != nil && cluster.Vpc != subnet.Vpc {
+				return errors.Errorf("subnet %s is not in the same vpc as cluster %s", subnet.Name, cluster.Name)
+			}
+			cluster.Vpc = subnet.Vpc
+		}
+	}
+
+	if len(cluster.SecurityGroups) == 0 {
+		sg := &SecurityGroup{}
+		err := sg.Create(dag, SecurityGroupCreateParams{
+			AppName: appName,
+			Refs:    core.BaseConstructSetOf(cluster),
+		})
+		if err != nil {
+			return err
+		}
+		dag.AddDependency(sg, cluster.Vpc)
+		err = sg.MakeOperational(dag, appName)
+		if err != nil {
+			return err
+		}
+		cluster.SecurityGroups = append(cluster.SecurityGroups, sg)
+	}
+
+	dag.AddDependenciesReflect(cluster)
 	return nil
 }
 

@@ -210,10 +210,10 @@ func Test_ExpandRedisNode(t *testing.T) {
 						{Source: "aws:elasticache_subnetgroup:my-app-test-subnetgroup", Destination: "aws:subnet_private:my_app:my_app_private0"},
 						{Source: "aws:elasticache_subnetgroup:my-app-test-subnetgroup", Destination: "aws:subnet_private:my_app:my_app_private1"},
 						{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
-						{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_0"},
-						{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public0"},
-						{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_1"},
-						{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public1"},
+						{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_1"},
+						{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public1"},
+						{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_0"},
+						{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public0"},
 						{Source: "aws:route_table:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
 						{Source: "aws:route_table:my_app_private0", Destination: "aws:subnet_private:my_app:my_app_private0"},
 						{Source: "aws:route_table:my_app_private0", Destination: "aws:vpc:my_app"},
@@ -226,8 +226,10 @@ func Test_ExpandRedisNode(t *testing.T) {
 						{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
 						{Source: "aws:security_group:my_app:my-app", Destination: "aws:vpc:my_app"},
 						{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
+						{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
 						{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:vpc:my_app"},
 						{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
+						{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
 						{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:vpc:my_app"},
 						{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
 						{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
@@ -252,6 +254,7 @@ func Test_ExpandRedisNode(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
+
 			tt.want.graph.Assert(t, dag)
 			assert.ElementsMatch(tt.want.mappedResources, convertResourcesToTypes(mappedRes))
 		})
@@ -293,10 +296,10 @@ func Test_ExpandOrm(t *testing.T) {
 					},
 					Deps: []coretesting.StringDep{
 						{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
-						{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_0"},
-						{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public0"},
-						{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_1"},
-						{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public1"},
+						{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_1"},
+						{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public1"},
+						{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_0"},
+						{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public0"},
 						{Source: "aws:rds_instance:my-app-test", Destination: "aws:rds_subnet_group:my-app-test"},
 						{Source: "aws:rds_instance:my-app-test", Destination: "aws:security_group:my_app:my-app"},
 						{Source: "aws:rds_subnet_group:my-app-test", Destination: "aws:subnet_private:my_app:my_app_private0"},
@@ -313,8 +316,10 @@ func Test_ExpandOrm(t *testing.T) {
 						{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
 						{Source: "aws:security_group:my_app:my-app", Destination: "aws:vpc:my_app"},
 						{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
+						{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
 						{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:vpc:my_app"},
 						{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
+						{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
 						{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:vpc:my_app"},
 						{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
 						{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
@@ -339,6 +344,7 @@ func Test_ExpandOrm(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
+
 			tt.want.graph.Assert(t, dag)
 			assert.ElementsMatch(tt.want.mappedResources, convertResourcesToTypes(mappedRes))
 		})

@@ -51,7 +51,7 @@ func (instance *Ec2Instance) Create(dag *core.ResourceGraph, params Ec2InstanceC
 			Name:    params.Name,
 			Refs:    params.Refs,
 		},
-		"SecurityGroups": []*SecurityGroupCreateParams{
+		"SecurityGroups": []SecurityGroupCreateParams{
 			{
 				AppName: params.AppName,
 				Refs:    params.Refs,
