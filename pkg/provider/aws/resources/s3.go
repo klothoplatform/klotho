@@ -104,29 +104,35 @@ func (bucket *S3Bucket) Configure(params S3BucketConfigureParams) error {
 }
 
 type S3ObjectCreateParams struct {
-	AppName    string
-	Refs       core.BaseConstructSet
-	BucketName string
-	Name       string
-	Key        string
-	FilePath   string
+	AppName  string
+	Refs     core.BaseConstructSet
+	Name     string
+	Key      string
+	FilePath string
 }
 
 func (object *S3Object) Create(dag *core.ResourceGraph, params S3ObjectCreateParams) error {
-	object.Name = objectSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.BucketName, params.Name))
+	object.Name = objectSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	if dag.GetResource(object.Id()) != nil {
 		return fmt.Errorf(`S3Object with name %s already exists`, object.Name)
 	}
 	object.ConstructsRef = params.Refs.Clone()
 	object.Key = params.Key
 	object.FilePath = params.FilePath
-	return dag.CreateDependencies(object, map[string]any{
-		"Bucket": S3BucketCreateParams{
-			AppName: params.AppName,
-			Refs:    params.Refs,
-			Name:    params.BucketName,
-		},
-	})
+	dag.AddResource(object)
+	return nil
+}
+
+func (object *S3Object) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if object.Bucket == nil {
+		buckets := core.GetDownstreamResourcesOfType[*S3Bucket](dag, object)
+		if len(buckets) != 1 {
+			return fmt.Errorf("S3Object %s has %d bucket dependencies", object.Name, len(buckets))
+		}
+		object.Bucket = buckets[0]
+	}
+	dag.AddDependenciesReflect(object)
+	return nil
 }
 
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
@@ -150,18 +156,30 @@ func (bucket *S3Object) DeleteContext() core.DeleteContext {
 }
 
 type S3BucketPolicyCreateParams struct {
-	Name       string
-	BucketName string
-	Refs       core.BaseConstructSet
+	Name    string
+	AppName string
+	Refs    core.BaseConstructSet
 }
 
 func (policy *S3BucketPolicy) Create(dag *core.ResourceGraph, params S3BucketPolicyCreateParams) error {
-	policy.Name = objectSanitizer.Apply(fmt.Sprintf("%s-%s", params.BucketName, params.Name))
+	policy.Name = objectSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	policy.ConstructsRef = params.Refs.Clone()
 	if dag.GetResource(policy.Id()) != nil {
 		return errors.Errorf(`a bucket policy named "%s" already exists (internal error)`, policy.Id().String())
 	}
 	dag.AddResource(policy)
+	return nil
+}
+
+func (policy *S3BucketPolicy) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if policy.Bucket == nil {
+		buckets := core.GetDownstreamResourcesOfType[*S3Bucket](dag, policy)
+		if len(buckets) != 1 {
+			return fmt.Errorf("S3Object %s has %d bucket dependencies", policy.Name, len(buckets))
+		}
+		policy.Bucket = buckets[0]
+	}
+	dag.AddDependenciesReflect(policy)
 	return nil
 }
 

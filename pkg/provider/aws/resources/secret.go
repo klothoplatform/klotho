@@ -62,13 +62,33 @@ func (sv *SecretVersion) Create(dag *core.ResourceGraph, params SecretVersionCre
 	if existingSecret != nil {
 		return fmt.Errorf("SecretVersion with name %s already exists", sv.Name)
 	}
-	err := dag.CreateDependencies(sv, map[string]any{
-		"Secret": params,
-	})
-	if err != nil {
-		return err
-	}
+	dag.AddResource(sv)
 	return nil
+}
+
+func (sv *SecretVersion) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if sv.Secret == nil {
+		versions := core.GetDownstreamResourcesOfType[*Secret](dag, sv)
+		if len(versions) > 1 {
+			return fmt.Errorf("SecretVersion %s has multiple Secret dependencies", sv.Name)
+		} else if len(versions) == 0 {
+			err := dag.CreateDependencies(sv, map[string]any{
+				"Secret": SecretCreateParams{
+					AppName: appName,
+					Refs:    core.BaseConstructSetOf(sv),
+					Name:    sv.Name,
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			sv.Secret = versions[0]
+		}
+	}
+	dag.AddDependenciesReflect(sv)
+	return nil
+
 }
 
 type SecretVersionConfigureParams struct {

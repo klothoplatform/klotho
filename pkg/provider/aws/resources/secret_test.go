@@ -9,118 +9,151 @@ import (
 )
 
 func Test_SecretCreate(t *testing.T) {
-	cases := []struct {
-		name    string
-		secret  *Secret
-		want    coretesting.ResourcesExpectation
-		wantErr bool
-	}{
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
+	cases := []coretesting.CreateCase[SecretCreateParams, *Secret]{
 		{
-			name: "nil secret",
-			want: coretesting.ResourcesExpectation{
+			Name: "nil igw",
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:secret:my-app-test",
+					"aws:secret:my-app-secret",
 				},
 				Deps: []coretesting.StringDep{},
 			},
+			Check: func(assert *assert.Assertions, s *Secret) {
+				assert.Equal(s.Name, "my-app-secret")
+				assert.Equal(s.ConstructsRef, core.BaseConstructSetOf(eu))
+			},
 		},
 		{
-			name:    "existing secret",
-			secret:  &Secret{Name: "my-app-test"},
-			wantErr: true,
+			Name:     "existing igw",
+			Existing: &Secret{Name: "my-app-secret", ConstructsRef: initialRefs},
+			WantErr:  true,
 		},
 	}
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-
-			assert := assert.New(t)
-			dag := core.NewResourceGraph()
-
-			if tt.secret != nil {
-				dag.AddResource(tt.secret)
-			}
-
-			metadata := SecretCreateParams{
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = SecretCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
-				Name:    "test",
+				Refs:    core.BaseConstructSetOf(eu),
+				Name:    "secret",
 			}
-			secret := &Secret{}
-			err := secret.Create(dag, metadata)
-			if tt.wantErr {
-				assert.Error(err)
-				return
-			}
-			if !assert.NoError(err) {
-				return
-			}
-			tt.want.Assert(t, dag)
-
-			graphInstance := dag.GetResource(secret.Id())
-			secret = graphInstance.(*Secret)
-
-			assert.Equal(secret.Name, "my-app-test")
-			assert.Equal(secret.ConstructsRef, metadata.Refs)
+			tt.Run(t)
 		})
 	}
 }
 
 func Test_SecretVersionCreate(t *testing.T) {
-	cases := []struct {
-		name    string
-		secret  *SecretVersion
-		want    coretesting.ResourcesExpectation
-		wantErr bool
-	}{
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
+	cases := []coretesting.CreateCase[SecretVersionCreateParams, *SecretVersion]{
 		{
-			name: "nil secret",
-			want: coretesting.ResourcesExpectation{
+			Name: "nil igw",
+			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:secret:my-app-test",
-					"aws:secret_version:my-app-test",
+					"aws:secret_version:my-app-secret",
 				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:secret_version:my-app-test", Destination: "aws:secret:my-app-test"},
-				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, sv *SecretVersion) {
+				assert.Equal(sv.Name, "my-app-secret")
+				assert.Equal(sv.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(sv.DetectedPath, "path")
 			},
 		},
 		{
-			name:    "existing secret",
-			secret:  &SecretVersion{Name: "my-app-test"},
-			wantErr: true,
+			Name:     "existing igw",
+			Existing: &SecretVersion{Name: "my-app-secret", ConstructsRef: initialRefs},
+			WantErr:  true,
 		},
 	}
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-
-			assert := assert.New(t)
-			dag := core.NewResourceGraph()
-
-			if tt.secret != nil {
-				dag.AddResource(tt.secret)
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = SecretVersionCreateParams{
+				AppName:      "my-app",
+				Refs:         core.BaseConstructSetOf(eu),
+				Name:         "secret",
+				DetectedPath: "path",
 			}
+			tt.Run(t)
+		})
+	}
+}
 
-			metadata := SecretVersionCreateParams{
-				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
-				Name:    "test",
-			}
-			secret := &SecretVersion{}
-			err := secret.Create(dag, metadata)
-			if tt.wantErr {
-				assert.Error(err)
-				return
-			}
-			if !assert.NoError(err) {
-				return
-			}
-			tt.want.Assert(t, dag)
-
-			graphInstance := dag.GetResource(secret.Id())
-			secret = graphInstance.(*SecretVersion)
-
-			assert.Equal(secret.Name, "my-app-test")
-			assert.Equal(secret.ConstructsRef, metadata.Refs)
+func Test_SecretVersionMakeOperational(t *testing.T) {
+	cases := []coretesting.MakeOperationalCase[*SecretVersion]{
+		{
+			Name:     "only sv",
+			Resource: &SecretVersion{Name: "secretv"},
+			AppName:  "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:secret_version:secretv",
+					"aws:secret:my-app-secretv",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:secret_version:secretv", Destination: "aws:secret:my-app-secretv"},
+				},
+			},
+			Check: func(assert *assert.Assertions, sv *SecretVersion) {
+				assert.NotNil(sv.Secret)
+			},
+		},
+		{
+			Name:     "sv with downstream secret",
+			Resource: &SecretVersion{Name: "secretv"},
+			AppName:  "my-app",
+			Existing: []core.Resource{&Secret{Name: "test-down"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:secret_version:secretv", Destination: "aws:secret:test-down"},
+			},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:secret_version:secretv",
+					"aws:secret:test-down",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:secret_version:secretv", Destination: "aws:secret:test-down"},
+				},
+			},
+			Check: func(assert *assert.Assertions, sv *SecretVersion) {
+				assert.Equal(sv.Secret.Name, "test-down")
+			},
+		},
+		{
+			Name:     "sv with secret set",
+			Resource: &SecretVersion{Name: "secretv", Secret: &Secret{Name: "s"}},
+			AppName:  "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:secret_version:secretv",
+					"aws:secret:s",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:secret_version:secretv", Destination: "aws:secret:s"},
+				},
+			},
+			Check: func(assert *assert.Assertions, sv *SecretVersion) {
+				assert.Equal(sv.Secret.Name, "s")
+			},
+		},
+		{
+			Name:     "multiple secrets error",
+			Resource: &SecretVersion{Name: "my_app"},
+			AppName:  "my-app",
+			Existing: []core.Resource{&Secret{Name: "test-down"}, &Secret{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:secret_version:my_app", Destination: "aws:secret:test-down"},
+				{Source: "aws:secret_version:my_app", Destination: "aws:secret:test"},
+			},
+			WantErr: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Run(t)
 		})
 	}
 }
