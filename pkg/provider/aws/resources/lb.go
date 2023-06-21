@@ -64,10 +64,9 @@ type (
 )
 
 type LoadBalancerCreateParams struct {
-	AppName     string
-	Refs        core.BaseConstructSet
-	Name        string
-	NetworkType string
+	AppName string
+	Refs    core.BaseConstructSet
+	Name    string
 }
 
 func (lb *LoadBalancer) Create(dag *core.ResourceGraph, params LoadBalancerCreateParams) error {
@@ -79,31 +78,32 @@ func (lb *LoadBalancer) Create(dag *core.ResourceGraph, params LoadBalancerCreat
 		existingLb.ConstructsRef.AddAll(params.Refs)
 		return nil
 	}
+	dag.AddResource(lb)
+	return nil
+}
 
-	lb.Subnets = make([]*Subnet, 2)
-	subnetType := PrivateSubnet
-	if params.NetworkType == "public" {
-		subnetType = PublicSubnet
-	}
-	subParams := map[string]any{
-		"Subnets": []SubnetCreateParams{
-			{
-				AppName: params.AppName,
-				Refs:    lb.ConstructsRef,
-				AZ:      "0",
-				Type:    subnetType,
-			},
-			{
-				AppName: params.AppName,
-				Refs:    lb.ConstructsRef,
-				AZ:      "1",
-				Type:    subnetType,
-			},
-		},
+func (lb *LoadBalancer) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if len(lb.Subnets) == 0 {
+		subnets, err := getSubnetsOperational(dag, lb, appName)
+		if err != nil {
+			return err
+		}
+		for _, subnet := range subnets {
+			if subnet.Type == PrivateSubnet {
+				lb.Subnets = append(lb.Subnets, subnet)
+			}
+		}
 	}
 
-	err := dag.CreateDependencies(lb, subParams)
-	return err
+	if len(lb.SecurityGroups) == 0 {
+		sgs, err := getSecurityGroupsOperational(dag, lb, appName)
+		if err != nil {
+			return err
+		}
+		lb.SecurityGroups = sgs
+	}
+	dag.AddDependenciesReflect(lb)
+	return nil
 }
 
 type ListenerCreateParams struct {
@@ -123,11 +123,22 @@ func (listener *Listener) Create(dag *core.ResourceGraph, params ListenerCreateP
 		existingListener.ConstructsRef.AddAll(params.Refs)
 		return nil
 	}
+	dag.AddResource(listener)
+	return nil
+}
 
-	err := dag.CreateDependencies(listener, map[string]any{
-		"LoadBalancer": params,
-	})
-	return err
+func (listener *Listener) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if listener.LoadBalancer == nil {
+		lbs := core.GetDownstreamResourcesOfType[*LoadBalancer](dag, listener)
+		if len(lbs) == 0 {
+			return fmt.Errorf("listener %s has no load balancer downstream", listener.Id())
+		} else if len(lbs) > 1 {
+			return fmt.Errorf("listener %s has more than one load balancer downstream", listener.Id())
+		}
+		listener.LoadBalancer = lbs[0]
+		dag.AddDependenciesReflect(listener)
+	}
+	return nil
 }
 
 type TargetGroupCreateParams struct {
@@ -150,6 +161,20 @@ func (tg *TargetGroup) Create(dag *core.ResourceGraph, params TargetGroupCreateP
 		"Vpc": params,
 	})
 	return err
+}
+
+func (tg *TargetGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if tg.Vpc == nil {
+		vpcs := core.GetAllDownstreamResourcesOfType[*Vpc](dag, tg)
+		if len(vpcs) == 0 {
+			return fmt.Errorf("listener %s has no load balancer downstream", tg.Id())
+		} else if len(vpcs) > 1 {
+			return fmt.Errorf("listener %s has more than one load balancer downstream", tg.Id())
+		}
+		tg.Vpc = vpcs[0]
+		dag.AddDependenciesReflect(tg)
+	}
+	return nil
 }
 
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to

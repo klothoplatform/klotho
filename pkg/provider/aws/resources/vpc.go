@@ -606,8 +606,7 @@ func (vpc *Vpc) GetVpcSubnets(dag *core.ResourceGraph) []*Subnet {
 	return subnets
 }
 
-func (vpc *Vpc) CreateVpcSubnets(dag *core.ResourceGraph, appName string, ref core.Resource) ([]*Subnet, error) {
-	zap.S().Debugf("Creating subnets for vpc %s", vpc.Name)
+func createSubnets(dag *core.ResourceGraph, appName string, ref core.Resource, vpc *Vpc) ([]*Subnet, error) {
 	subnets := []*Subnet{}
 	for i := 0; i < 4; i++ {
 
@@ -628,7 +627,9 @@ func (vpc *Vpc) CreateVpcSubnets(dag *core.ResourceGraph, appName string, ref co
 		if err != nil {
 			return subnets, err
 		}
-		dag.AddDependency(subnet, vpc)
+		if vpc != nil {
+			dag.AddDependency(subnet, vpc)
+		}
 		err = subnet.MakeOperational(dag, appName)
 		if err != nil {
 			return subnets, err

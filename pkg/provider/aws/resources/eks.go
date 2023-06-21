@@ -223,7 +223,7 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 		if cluster.Vpc != nil {
 			vpcSubnets := cluster.Vpc.GetVpcSubnets(dag)
 			if len(vpcSubnets) == 0 {
-				subnets, err := cluster.Vpc.CreateVpcSubnets(dag, appName, cluster)
+				subnets, err := createSubnets(dag, appName, cluster, cluster.Vpc)
 				if err != nil {
 					return err
 				}

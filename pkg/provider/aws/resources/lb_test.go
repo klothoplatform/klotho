@@ -87,10 +87,9 @@ func Test_LoadBalancerCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = LoadBalancerCreateParams{
-				AppName:     "my-app",
-				Refs:        core.BaseConstructSetOf(eu),
-				NetworkType: PrivateSubnet,
-				Name:        "lb",
+				AppName: "my-app",
+				Refs:    core.BaseConstructSetOf(eu),
+				Name:    "lb",
 			}
 			tt.Run(t)
 		})
