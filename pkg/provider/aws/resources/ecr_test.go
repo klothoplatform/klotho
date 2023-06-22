@@ -71,65 +71,6 @@ func Test_EcrRepositoryCreate(t *testing.T) {
 	}
 }
 
-func Test_EcrImageCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu)
-	cases := []struct {
-		name    string
-		image   *EcrImage
-		want    coretesting.ResourcesExpectation
-		wantErr bool
-	}{
-		{
-			name: "nil repo",
-			want: coretesting.ResourcesExpectation{
-				Nodes: []string{
-					"aws:ecr_image:my-app-test-unit",
-					"aws:ecr_repo:my-app",
-				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:ecr_image:my-app-test-unit", Destination: "aws:ecr_repo:my-app"},
-				},
-			},
-		},
-		{
-			name:    "existing image",
-			image:   &EcrImage{Name: "my-app-test-unit", ConstructsRef: initialRefs},
-			wantErr: true,
-		},
-	}
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-			dag := core.NewResourceGraph()
-			if tt.image != nil {
-				dag.AddResource(tt.image)
-			}
-			metadata := ImageCreateParams{
-				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
-				Name:    "test-unit",
-			}
-			image := &EcrImage{}
-			err := image.Create(dag, metadata)
-
-			if tt.wantErr {
-				assert.Error(err)
-				return
-			}
-			if !assert.NoError(err) {
-				return
-			}
-			tt.want.Assert(t, dag)
-			graphImage := dag.GetResource(image.Id())
-			image = graphImage.(*EcrImage)
-
-			assert.Equal(image.Name, "my-app-test-unit")
-			assert.Equal(image.ConstructsRef, metadata.Refs)
-		})
-	}
-}
-
 func Test_EcrImageConfigure(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -162,6 +103,69 @@ func Test_EcrImageConfigure(t *testing.T) {
 			}
 
 			assert.Equal(tt.want, image)
+		})
+	}
+}
+
+func Test_EcrImageCreate(t *testing.T) {
+	eu := &core.ExecutionUnit{Name: "test"}
+	eu2 := &core.ExecutionUnit{Name: "first"}
+	initialRefs := core.BaseConstructSetOf(eu2)
+	cases := []coretesting.CreateCase[ImageCreateParams, *EcrImage]{
+		{
+			Name: "nil image",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:ecr_image:my-app-image",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, image *EcrImage) {
+				assert.Equal(image.Name, "my-app-image")
+				assert.Equal(image.ConstructsRef, core.BaseConstructSetOf(eu))
+			},
+		},
+		{
+			Name:     "existing image",
+			Existing: &EcrImage{Name: "my-app-image", ConstructsRef: initialRefs},
+			WantErr:  true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = ImageCreateParams{
+				AppName: "my-app",
+				Refs:    core.BaseConstructSetOf(eu),
+				Name:    "image",
+			}
+			tt.Run(t)
+		})
+	}
+}
+
+func Test_EcrImageMakeOperational(t *testing.T) {
+	cases := []coretesting.MakeOperationalCase[*EcrImage]{
+		{
+			Name:     "only task definition",
+			Resource: &EcrImage{Name: "image"},
+			AppName:  "my-app",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:ecr_image:image",
+					"aws:ecr_repo:my-app",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:ecr_image:image", Destination: "aws:ecr_repo:my-app"},
+				},
+			},
+			Check: func(assert *assert.Assertions, image *EcrImage) {
+				assert.NotNil(image.Repo)
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Run(t)
 		})
 	}
 }
