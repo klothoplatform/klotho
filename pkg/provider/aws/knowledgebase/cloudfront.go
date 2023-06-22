@@ -121,9 +121,9 @@ func (conn s3ToCloudfrontConnection) createOai() (*resources.OriginAccessIdentit
 
 func (conn s3ToCloudfrontConnection) attachPolicy(oai *resources.OriginAccessIdentity) error {
 	policy, err := core.CreateResource[*resources.S3BucketPolicy](conn.dag, resources.S3BucketPolicyCreateParams{
-		Name:       conn.construct.Id().Name,
-		BucketName: conn.bucket.Name,
-		Refs:       core.BaseConstructSetOf(conn.construct),
+		Name:    conn.construct.Id().Name,
+		AppName: conn.bucket.Name,
+		Refs:    core.BaseConstructSetOf(conn.construct),
 	})
 	if err != nil {
 		return err

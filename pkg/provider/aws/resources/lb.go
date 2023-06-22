@@ -157,10 +157,8 @@ func (tg *TargetGroup) Create(dag *core.ResourceGraph, params TargetGroupCreateP
 		return nil
 	}
 
-	err := dag.CreateDependencies(tg, map[string]any{
-		"Vpc": params,
-	})
-	return err
+	dag.AddResource(tg)
+	return nil
 }
 
 func (tg *TargetGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
