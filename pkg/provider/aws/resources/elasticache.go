@@ -86,23 +86,74 @@ func (ec *ElasticacheCluster) Create(dag *core.ResourceGraph, params Elasticache
 
 	if existingCluster, ok := core.GetResource[*ElasticacheCluster](dag, ec.Id()); ok {
 		existingCluster.ConstructsRef.AddAll(params.Refs)
+		return nil
+	}
+	dag.AddResource(ec)
+	return nil
+}
+
+func (cluster *ElasticacheCluster) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if cluster.CloudwatchGroup == nil {
+		logGroups := core.GetDownstreamResourcesOfType[*LogGroup](dag, cluster)
+		if len(logGroups) == 0 {
+			logGroup, err := core.CreateResource[*LogGroup](dag, CloudwatchLogGroupCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-loggroup", cluster.Name),
+				Refs:    core.BaseConstructSetOf(cluster),
+			})
+			if err != nil {
+				return err
+			}
+			cluster.CloudwatchGroup = logGroup
+		} else if len(logGroups) > 1 {
+			return fmt.Errorf("elasticache cluster %s has more than one log group downstream", cluster.Id())
+		} else {
+			cluster.CloudwatchGroup = logGroups[0]
+		}
+		dag.AddDependenciesReflect(cluster)
 	}
 
-	subParams := map[string]any{
-		"CloudwatchGroup": params,
-		"SubnetGroup": ElasticacheSubnetgroupCreateParams{
-			AppName: params.AppName,
-			Name:    fmt.Sprintf("%s-subnetgroup", params.Name),
-			Refs:    params.Refs,
-		},
-		"SecurityGroups": []SecurityGroupCreateParams{{
-			AppName: params.AppName,
-			Refs:    params.Refs,
-		}},
+	if cluster.SubnetGroup == nil {
+		subnetGroups := core.GetDownstreamResourcesOfType[*ElasticacheSubnetgroup](dag, cluster)
+		if len(subnetGroups) == 0 {
+			vpc, err := getSingleUpstreamVpc(dag, cluster)
+			if err != nil {
+				return err
+			}
+			subnetGroup, err := core.CreateResource[*ElasticacheSubnetgroup](dag, ElasticacheSubnetgroupCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-subnetgroup", cluster.Name),
+				Refs:    core.BaseConstructSetOf(cluster),
+			})
+			if err != nil {
+				return err
+			}
+			if vpc != nil {
+				dag.AddDependency(subnetGroup, vpc)
+			}
+			err = subnetGroup.MakeOperational(dag, appName)
+			if err != nil {
+				return err
+			}
+			cluster.SubnetGroup = subnetGroup
+		} else if len(subnetGroups) > 1 {
+			return fmt.Errorf("elasticache cluster %s has more than one subnet group downstream", cluster.Id())
+		} else {
+			cluster.SubnetGroup = subnetGroups[0]
+		}
+		dag.AddDependenciesReflect(cluster)
 	}
 
-	err := dag.CreateDependencies(ec, subParams)
-	return err
+	if len(cluster.SecurityGroups) == 0 {
+		securityGroups, err := getSecurityGroupsOperational(dag, cluster, appName)
+		if err != nil {
+			return err
+		}
+		cluster.SecurityGroups = securityGroups
+		dag.AddDependenciesReflect(cluster)
+	}
+
+	return nil
 }
 
 type ElasticacheClusterConfigureParams struct {
@@ -127,28 +178,26 @@ type ElasticacheSubnetgroupCreateParams struct {
 func (ecsn *ElasticacheSubnetgroup) Create(dag *core.ResourceGraph, params ElasticacheSubnetgroupCreateParams) error {
 	ecsn.Name = aws.ElasticacheClusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	ecsn.ConstructsRef = params.Refs.Clone()
-	ecsn.Subnets = make([]*Subnet, 2)
 	if existingSubnetGroup, ok := core.GetResource[*ElasticacheSubnetgroup](dag, ecsn.Id()); ok {
 		existingSubnetGroup.ConstructsRef.AddAll(params.Refs)
+		return nil
 	}
+	dag.AddResource(ecsn)
+	return nil
+}
 
-	subParams := map[string]any{
-		"Subnets": []SubnetCreateParams{
-			{
-				AppName: params.AppName,
-				Refs:    params.Refs,
-				AZ:      "0",
-				Type:    PrivateSubnet,
-			},
-			{
-				AppName: params.AppName,
-				Refs:    params.Refs,
-				AZ:      "1",
-				Type:    PrivateSubnet,
-			},
-		},
+func (subnetGroup *ElasticacheSubnetgroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if len(subnetGroup.Subnets) == 0 {
+		subnets, err := getSubnetsOperational(dag, subnetGroup, appName)
+		if err != nil {
+			return err
+		}
+		for _, subnet := range subnets {
+			if subnet.Type == PrivateSubnet {
+				subnetGroup.Subnets = append(subnetGroup.Subnets, subnet)
+			}
+		}
+		dag.AddDependenciesReflect(subnetGroup)
 	}
-
-	err := dag.CreateDependencies(ecsn, subParams)
-	return err
+	return nil
 }

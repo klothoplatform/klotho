@@ -21,7 +21,7 @@ func getSecurityGroupsOperational(dag *core.ResourceGraph, resource core.Resourc
 	if err != nil {
 		return nil, err
 	}
-	sgs := core.GetDownstreamResourcesOfType[*SecurityGroup](dag, resource)
+	sgs := core.GetAllDownstreamResourcesOfType[*SecurityGroup](dag, resource)
 	if len(sgs) == 0 {
 		securityGroup, err := core.CreateResource[*SecurityGroup](dag, SecurityGroupCreateParams{
 			AppName: appName,
@@ -42,7 +42,7 @@ func getSecurityGroupsOperational(dag *core.ResourceGraph, resource core.Resourc
 		securityGroups := []*SecurityGroup{}
 		for _, sg := range sgs {
 			if sg.Vpc != vpc {
-				return nil, fmt.Errorf("load balancer %s has security groups from multiple vpcs downstream", resource.Id())
+				return nil, fmt.Errorf("resource %s has security groups from multiple vpcs downstream", resource.Id())
 			}
 			securityGroups = append(securityGroups, sg)
 		}
@@ -68,9 +68,9 @@ func getSubnetsOperational(dag *core.ResourceGraph, resource core.Resource, appN
 		}
 	}
 	subnets := []*Subnet{}
-	for _, subnet := range subnets {
+	for _, subnet := range downstreamSubnets {
 		if vpc != nil && subnet.Vpc != vpc {
-			return nil, fmt.Errorf("load balancer %s has subnets from multiple vpcs downstream", resource.Id())
+			return nil, fmt.Errorf("resource %s has subnets from multiple vpcs downstream", resource.Id())
 		}
 		subnets = append(subnets, subnet)
 	}

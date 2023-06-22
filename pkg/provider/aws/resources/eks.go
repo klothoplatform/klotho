@@ -187,110 +187,31 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 			cluster.ClusterRole = roles[0]
 		}
 	}
-
-	if cluster.Vpc == nil {
-		vpcs := core.GetDownstreamResourcesOfType[*Vpc](dag, cluster)
-		if len(vpcs) > 1 {
-			return errors.Errorf("cluster %s has multiple vpcs", cluster.Name)
-		} else if len(vpcs) == 1 {
-			cluster.Vpc = vpcs[0]
-		}
-	}
-	if len(cluster.Subnets) == 0 {
-		subnets := core.GetDownstreamResourcesOfType[*Subnet](dag, cluster)
-		for _, subnet := range subnets {
-			if cluster.Vpc != nil && cluster.Vpc != subnet.Vpc {
-				return errors.Errorf("subnet %s is not in the same vpc as cluster %s", subnet.Name, cluster.Name)
-			}
-			cluster.Subnets = append(cluster.Subnets, subnet)
-			cluster.Vpc = subnet.Vpc
-		}
-
-	}
-
-	if len(cluster.SecurityGroups) == 0 {
-		sgs := core.GetDownstreamResourcesOfType[*SecurityGroup](dag, cluster)
-		for _, sg := range sgs {
-			if cluster.Vpc != nil && sg.Vpc != cluster.Vpc {
-				return errors.Errorf("security group %s is not in the same vpc as cluster %s", sg.Name, cluster.Name)
-			}
-			cluster.SecurityGroups = append(cluster.SecurityGroups, sg)
-			cluster.Vpc = sg.Vpc
-		}
-	}
+	// We want to add this to ensure that if the vpc is set it has an edge in the graph so the sgs and subnets are checked against it
+	dag.AddDependenciesReflect(cluster)
 
 	if len(cluster.Subnets) == 0 {
-		if cluster.Vpc != nil {
-			vpcSubnets := cluster.Vpc.GetVpcSubnets(dag)
-			if len(vpcSubnets) == 0 {
-				subnets, err := createSubnets(dag, appName, cluster, cluster.Vpc)
-				if err != nil {
-					return err
-				}
-				cluster.Subnets = append(cluster.Subnets, subnets...)
-			} else {
-				cluster.Subnets = append(cluster.Subnets, vpcSubnets...)
-			}
-		} else {
-			cluster.Subnets = make([]*Subnet, 4)
-			err := dag.CreateDependencies(cluster, map[string]any{
-				"Subnets": []SubnetCreateParams{
-					{
-						AppName: appName,
-						Refs:    core.BaseConstructSetOf(cluster),
-						AZ:      availabilityZones[0],
-						Type:    PrivateSubnet,
-					},
-					{
-						AppName: appName,
-						Refs:    core.BaseConstructSetOf(cluster),
-						AZ:      availabilityZones[1],
-						Type:    PrivateSubnet,
-					},
-					{
-						AppName: appName,
-						Refs:    core.BaseConstructSetOf(cluster),
-						AZ:      availabilityZones[0],
-						Type:    PublicSubnet,
-					},
-					{
-						AppName: appName,
-						Refs:    core.BaseConstructSetOf(cluster),
-						AZ:      availabilityZones[1],
-						Type:    PublicSubnet,
-					},
-				},
-			})
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	if cluster.Vpc == nil {
-		subnets := core.GetDownstreamResourcesOfType[*Subnet](dag, cluster)
-		for _, subnet := range subnets {
-			if cluster.Vpc != nil && cluster.Vpc != subnet.Vpc {
-				return errors.Errorf("subnet %s is not in the same vpc as cluster %s", subnet.Name, cluster.Name)
-			}
-			cluster.Vpc = subnet.Vpc
-		}
-	}
-
-	if len(cluster.SecurityGroups) == 0 {
-		sg, err := core.CreateResource[*SecurityGroup](dag, SecurityGroupCreateParams{
-			AppName: appName,
-			Refs:    core.BaseConstructSetOf(cluster),
-		})
+		subnets, err := getSubnetsOperational(dag, cluster, appName)
 		if err != nil {
 			return err
 		}
-		dag.AddDependency(sg, cluster.Vpc)
-		err = sg.MakeOperational(dag, appName)
+		cluster.Subnets = subnets
+	}
+
+	if len(cluster.SecurityGroups) == 0 {
+		sgs, err := getSecurityGroupsOperational(dag, cluster, appName)
 		if err != nil {
 			return err
 		}
-		cluster.SecurityGroups = append(cluster.SecurityGroups, sg)
+		cluster.SecurityGroups = append(cluster.SecurityGroups, sgs...)
+	}
+
+	if cluster.Vpc == nil {
+		vpc, err := getSingleUpstreamVpc(dag, cluster)
+		if err != nil {
+			return err
+		}
+		cluster.Vpc = vpc
 	}
 
 	dag.AddDependenciesReflect(cluster)
@@ -307,60 +228,79 @@ func (cluster *EksCluster) Configure(params EksClusterConfigureParams) error {
 }
 
 type EksFargateProfileCreateParams struct {
-	ClusterName string
-	Refs        core.BaseConstructSet
-	AppName     string
-	Name        string
-	NetworkType string
+	Refs    core.BaseConstructSet
+	AppName string
+	Name    string
 }
 
 func (profile *EksFargateProfile) Create(dag *core.ResourceGraph, params EksFargateProfileCreateParams) error {
-	profile.Name = profileSanitizer.Apply(fmt.Sprintf("%s_%s_%s", params.AppName, params.Name, params.NetworkType))
+	profile.Name = profileSanitizer.Apply(fmt.Sprintf("%s_%s", params.AppName, params.Name))
 
 	existingProfile, found := core.GetResource[*EksFargateProfile](dag, profile.Id())
 	if found {
 		existingProfile.ConstructsRef.AddAll(params.Refs)
 	} else {
 		profile.ConstructsRef = params.Refs.Clone()
-		profile.Subnets = make([]*Subnet, 2)
-		subParams := map[string]any{
-			"Cluster": EksClusterCreateParams{
-				Refs:    params.Refs,
-				AppName: params.AppName,
-				Name:    params.ClusterName,
-			},
-			"PodExecutionRole": RoleCreateParams{
-				Name:    fmt.Sprintf("%s-PodExecutionRole", params.Name),
-				Refs:    params.Refs,
-				AppName: params.AppName,
-			},
-		}
+		dag.AddResource(profile)
+	}
+	return nil
+}
 
-		subnetType := PrivateSubnet
-		if params.NetworkType == "public" {
-			subnetType = PublicSubnet
-		}
-		profile.Subnets = make([]*Subnet, 2)
+func (profile *EksFargateProfile) MakeOperational(dag *core.ResourceGraph, appName string) error {
 
-		subParams["Subnets"] = []SubnetCreateParams{
-			{
-				AppName: params.AppName,
-				Refs:    profile.ConstructsRef,
-				AZ:      "0",
-				Type:    subnetType,
-			},
-			{
-				AppName: params.AppName,
-				Refs:    profile.ConstructsRef,
-				AZ:      "1",
-				Type:    subnetType,
-			},
+	if profile.Cluster == nil {
+		clusters := core.GetDownstreamResourcesOfType[*EksCluster](dag, profile)
+		if len(clusters) > 1 {
+			return fmt.Errorf("fargate profile %s has multiple clusters", profile.Id())
+		} else if len(clusters) == 0 {
+			err := dag.CreateDependencies(profile, map[string]any{
+				"Cluster": EksClusterCreateParams{
+					AppName: appName,
+					Name:    DEFAULT_CLUSTER_NAME,
+					Refs:    core.BaseConstructSetOf(profile),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			profile.Cluster = clusters[0]
 		}
-		err := dag.CreateDependencies(profile, subParams)
+	}
+
+	if len(profile.Subnets) == 0 {
+		subnets, err := getSubnetsOperational(dag, profile, appName)
 		if err != nil {
 			return err
 		}
+		for _, subnet := range subnets {
+			if subnet.Type == PrivateSubnet {
+				profile.Subnets = append(profile.Subnets, subnet)
+			}
+		}
 	}
+
+	if profile.PodExecutionRole == nil {
+		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, profile)
+		if len(roles) > 1 {
+			return fmt.Errorf("fargate profile %s has multiple roles", profile.Id())
+		} else if len(roles) == 0 {
+			err := dag.CreateDependencies(profile, map[string]any{
+				"PodExecutionRole": RoleCreateParams{
+					AppName: appName,
+					Name:    fmt.Sprintf("%s-PodExecutionRole", profile.Name),
+					Refs:    core.BaseConstructSetOf(profile),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			profile.PodExecutionRole = roles[0]
+		}
+	}
+
+	dag.AddDependenciesReflect(profile)
 	return nil
 }
 
@@ -390,12 +330,11 @@ type EksNodeGroupCreateParams struct {
 	NetworkType  string
 	Refs         core.BaseConstructSet
 	AppName      string
-	ClusterName  string
 }
 
 func (nodeGroup *EksNodeGroup) Create(dag *core.ResourceGraph, params EksNodeGroupCreateParams) error {
 
-	name := NodeGroupName(params.ClusterName, params.NetworkType, params.InstanceType)
+	name := NodeGroupName(params.NetworkType, params.InstanceType)
 	nodeGroup.Name = fmt.Sprintf("%s_%s", params.AppName, name)
 	existingNodeGroup, found := core.GetResource[*EksNodeGroup](dag, nodeGroup.Id())
 	if found {
@@ -406,46 +345,78 @@ func (nodeGroup *EksNodeGroup) Create(dag *core.ResourceGraph, params EksNodeGro
 		nodeGroup.Labels = map[string]string{
 			"network_placement": params.NetworkType,
 		}
+		dag.AddResource(nodeGroup)
+	}
 
-		subParams := map[string]any{
-			"NodeRole": RoleCreateParams{
-				Name:    fmt.Sprintf("%s-NodeRole", name),
-				Refs:    params.Refs,
-				AppName: params.AppName,
-			},
-			"Cluster": EksClusterCreateParams{
-				Refs:    params.Refs,
-				AppName: params.AppName,
-				Name:    params.ClusterName,
-			},
-		}
-		subnetType := PrivateSubnet
-		if params.NetworkType == "public" {
-			subnetType = PublicSubnet
-		}
-		nodeGroup.Subnets = make([]*Subnet, 2)
+	return nil
+}
 
-		subParams["Subnets"] = []SubnetCreateParams{
-			{
-				AppName: params.AppName,
-				Refs:    nodeGroup.ConstructsRef,
-				AZ:      "0",
-				Type:    subnetType,
-			},
-			{
-				AppName: params.AppName,
-				Refs:    nodeGroup.ConstructsRef,
-				AZ:      "1",
-				Type:    subnetType,
-			},
+func (nodeGroup *EksNodeGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if nodeGroup.Cluster == nil {
+		copyNodeGroup := *nodeGroup
+		clusters := core.GetDownstreamResourcesOfType[*EksCluster](dag, nodeGroup)
+		if len(clusters) > 1 {
+			return fmt.Errorf("node group %s has multiple clusters", nodeGroup.Id())
+		} else if len(clusters) == 0 {
+			err := dag.CreateDependencies(nodeGroup, map[string]any{
+				"Cluster": EksClusterCreateParams{
+					AppName: appName,
+					Name:    DEFAULT_CLUSTER_NAME,
+					Refs:    core.BaseConstructSetOf(nodeGroup),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			nodeGroup.Cluster = clusters[0]
 		}
-
-		err := dag.CreateDependencies(nodeGroup, subParams)
+		// We want to add the cluster name to the node group name to prevent conflicts and then do an in place replacement in the graph
+		nodeGroup.Name = fmt.Sprintf("%s-%s", nodeGroup.Cluster.Name, nodeGroup.Name)
+		err := dag.ReplaceConstruct(&copyNodeGroup, nodeGroup)
 		if err != nil {
 			return err
 		}
+		dag.AddDependenciesReflect(nodeGroup)
 	}
 
+	if nodeGroup.NodeRole == nil {
+		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, nodeGroup)
+		if len(roles) > 1 {
+			return fmt.Errorf("node group %s has multiple roles", nodeGroup.Id())
+		} else if len(roles) == 0 {
+			err := dag.CreateDependencies(nodeGroup, map[string]any{
+				"NodeRole": RoleCreateParams{
+					AppName: appName,
+					Name:    fmt.Sprintf("%s-NodeRole", nodeGroup.Name),
+					Refs:    core.BaseConstructSetOf(nodeGroup),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			nodeGroup.NodeRole = roles[0]
+		}
+	}
+
+	if len(nodeGroup.Subnets) == 0 {
+		subnets, err := getSubnetsOperational(dag, nodeGroup, appName)
+		if err != nil {
+			return err
+		}
+		networkPlacement := nodeGroup.Labels["network_placement"]
+		if networkPlacement == "" {
+			networkPlacement = PrivateSubnet
+		}
+		for _, subnet := range subnets {
+			if subnet.Type == networkPlacement {
+				nodeGroup.Subnets = append(nodeGroup.Subnets, subnet)
+			}
+		}
+	}
+
+	dag.AddDependenciesReflect(nodeGroup)
 	return nil
 }
 
@@ -469,7 +440,6 @@ func (cluster *EksCluster) SetUpDefaultNodeGroup(dag *core.ResourceGraph, appNam
 		NetworkType:  PrivateSubnet,
 		Refs:         cluster.ConstructsRef,
 		AppName:      appName,
-		ClusterName:  strings.TrimLeft(cluster.Name, fmt.Sprintf("%s-", appName)),
 	})
 	if err != nil {
 		return err
@@ -482,8 +452,8 @@ func (cluster *EksCluster) SetUpDefaultNodeGroup(dag *core.ResourceGraph, appNam
 	return nil
 }
 
-func NodeGroupName(clusterName string, networkPlacement string, instanceType string) string {
-	return nodeGroupSanitizer.Apply(fmt.Sprintf("%s_%s_%s", clusterName, networkPlacement, instanceType))
+func NodeGroupName(networkPlacement string, instanceType string) string {
+	return nodeGroupSanitizer.Apply(fmt.Sprintf("%s_%s", networkPlacement, instanceType))
 }
 
 func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
