@@ -10,7 +10,9 @@ interface Args {
 function create(args: Args): aws.route53.Zone {
     return new aws.route53.Zone(args.Name, {
         //TMPL {{- if .Vpc.Raw }}
-        vpcs: args.Vpcs.map(vpc => { return {vpcId: vpc.id}}),
+        vpcs: args.Vpcs.map((vpc) => {
+            return { vpcId: vpc.id }
+        }),
         //TMPL {{- end}}
         forceDestroy: args.ForceDestroy,
     })

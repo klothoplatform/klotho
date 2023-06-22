@@ -482,6 +482,9 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 			value = reflect.New(targetValue.Type().Elem()).Interface().(Resource)
 		}
 		err := rg.CallCreate(reflect.ValueOf(value), metadata)
+		if err != nil {
+			return err
+		}
 		currValue := rg.GetResource(value.Id())
 		if currValue == nil {
 			currValue = value
@@ -491,6 +494,9 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 			appName = reflect.ValueOf(metadata).FieldByName("AppName").String()
 		}
 		err = rg.CallMakeOperational(currValue, appName)
+		if err != nil {
+			return err
+		}
 		if currValue != nil {
 			value = currValue
 		}

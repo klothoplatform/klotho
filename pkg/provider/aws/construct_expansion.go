@@ -46,7 +46,9 @@ func (a *AWS) expandSecrets(dag *core.ResourceGraph, construct *core.Secrets) ([
 			Refs:    core.BaseConstructSetOf(construct),
 			Name:    secretName,
 		})
-
+		if err != nil {
+			return mappedResources, err
+		}
 		secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 			AppName:      a.AppName,
 			Refs:         core.BaseConstructSetOf(construct),

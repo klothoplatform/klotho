@@ -135,13 +135,16 @@ func (td *EcsTaskDefinition) MakeOperational(dag *core.ResourceGraph, appName st
 	if td.LogGroup == nil {
 		logGroups := core.GetDownstreamResourcesOfType[*LogGroup](dag, td)
 		if len(logGroups) == 0 {
-			dag.CreateDependencies(td, map[string]any{
+			err := dag.CreateDependencies(td, map[string]any{
 				"LogGroup": CloudwatchLogGroupCreateParams{
 					AppName: appName,
 					Name:    fmt.Sprintf("%s-LogGroup", td.Name),
 					Refs:    core.BaseConstructSetOf(td),
 				},
 			})
+			if err != nil {
+				return err
+			}
 		} else if len(logGroups) == 1 {
 			td.LogGroup = logGroups[0]
 			dag.AddDependenciesReflect(td)

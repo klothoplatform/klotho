@@ -358,7 +358,10 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string) e
 			subnet.Vpc = vpc
 		}
 		// Replace now that we are namespaced within the vpc
-		dag.ReplaceConstruct(&copyOfSubnet, subnet)
+		err := dag.ReplaceConstruct(&copyOfSubnet, subnet)
+		if err != nil {
+			return err
+		}
 		copyOfSubnet = *subnet
 
 	}
@@ -400,7 +403,10 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string) e
 		}
 		subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", appName, subnet.Type, subnet.AvailabilityZone.PropertyVal))
 		// Replace now that we are namespaced within the vpc and determined the type and az of subnet
-		dag.ReplaceConstruct(&copyOfSubnet, subnet)
+		err := dag.ReplaceConstruct(&copyOfSubnet, subnet)
+		if err != nil {
+			return err
+		}
 	}
 
 	routeTableFound := false

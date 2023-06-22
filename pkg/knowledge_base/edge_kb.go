@@ -6,7 +6,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -338,32 +337,29 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 	return nil
 }
 
-// ConfigureFromEdgeData calls each edges configure function.
-func (kb EdgeKB) ConfigureFromEdgeData(dag *core.ResourceGraph) (err error) {
-	zap.S().Debug("Configuring Edges")
-	var merr multierr.Error
-	for _, dep := range dag.ListDependencies() {
-		zap.S().Debugf("Configuring Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
-		source := reflect.TypeOf(dep.Source)
-		destination := reflect.TypeOf(dep.Destination)
-		edgeData := EdgeData{}
-		data, ok := dep.Properties.Data.(EdgeData)
-		if !ok && dep.Properties.Data != nil {
-			merr.Append(fmt.Errorf("edge properties for edge %s -> %s, do not satisfy edge data format during edge configuration", dep.Source.Id(), dep.Destination.Id()))
-		} else if dep.Properties.Data != nil {
-			edgeData = data
-		}
-		edgeDetail, found := kb.GetEdgeDetails(source, destination)
-		if !found {
-			merr.Append(fmt.Errorf("internal error invalid edge for edge %s -> %s (no such edge in Edge KB)", dep.Source.Id(), dep.Destination.Id()))
-			continue
-		}
-		if edgeDetail.Configure != nil {
-			err := edgeDetail.Configure(dep.Source, dep.Destination, dag, edgeData)
-			merr.Append(err)
+// ConfigureEdge calls each edge configure function.
+func (kb EdgeKB) ConfigureEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGraph) (err error) {
+	zap.S().Debugf("Configuring Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
+	source := reflect.TypeOf(dep.Source)
+	destination := reflect.TypeOf(dep.Destination)
+	edgeData := EdgeData{}
+	data, ok := dep.Properties.Data.(EdgeData)
+	if !ok && dep.Properties.Data != nil {
+		return fmt.Errorf("edge properties for edge %s -> %s, do not satisfy edge data format during edge configuration", dep.Source.Id(), dep.Destination.Id())
+	} else if dep.Properties.Data != nil {
+		edgeData = data
+	}
+	edgeDetail, found := kb.GetEdgeDetails(source, destination)
+	if !found {
+		return fmt.Errorf("internal error invalid edge for edge %s -> %s (no such edge in Edge KB)", dep.Source.Id(), dep.Destination.Id())
+	}
+	if edgeDetail.Configure != nil {
+		err := edgeDetail.Configure(dep.Source, dep.Destination, dag, edgeData)
+		if err != nil {
+			return err
 		}
 	}
-	return merr.ErrOrNil()
+	return nil
 }
 
 // FindPathsInGraph takes in a source and destination type and finds all valid paths to get from source to destination.

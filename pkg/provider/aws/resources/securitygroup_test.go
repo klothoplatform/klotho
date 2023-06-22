@@ -93,12 +93,12 @@ func Test_SecurityGroupMakeOperational(t *testing.T) {
 			},
 		},
 		{
-			Name:     "vpc is set ignore upstream",
+			Name:     "vpc is set ignore downstream",
 			Resource: &SecurityGroup{Name: "my_app", Vpc: &Vpc{Name: "test"}},
 			AppName:  "my-app",
-			Existing: []core.Resource{&Vpc{Name: "test-down"}},
+			Existing: []core.Resource{&Vpc{Name: "test-down"}, &Vpc{Name: "test"}},
 			ExistingDependencies: []coretesting.StringDep{
-				{Source: "aws:security_group:test:my_app", Destination: "aws:vpc:test-down"},
+				{Source: "aws:security_group:test:my_app", Destination: "aws:vpc:test"},
 			},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
