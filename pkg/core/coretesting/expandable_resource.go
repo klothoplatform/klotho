@@ -1,7 +1,6 @@
 package coretesting
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -107,7 +106,6 @@ func (tt MakeOperationalCase[R]) Run(t *testing.T) {
 		return
 	}
 	tt.Want.Assert(t, dag)
-	fmt.Println(ResoucesFromDAG(dag).GoString())
 	found := dag.GetResource(tt.Resource.Id())
 	if !assert.NotNil(found) {
 		return
