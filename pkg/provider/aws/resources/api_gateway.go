@@ -434,7 +434,7 @@ func (link *VpcLink) BaseConstructsRef() core.BaseConstructSet {
 func (res *VpcLink) Id() core.ResourceId {
 	name := "<no target>"
 	if res.Target != nil {
-		name = res.Target.Id().String()
+		name = strings.ReplaceAll(res.Target.Id().String(), ":", "-")
 	}
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,

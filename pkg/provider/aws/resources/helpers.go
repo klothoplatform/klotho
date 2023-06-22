@@ -41,7 +41,11 @@ func getSecurityGroupsOperational(dag *core.ResourceGraph, resource core.Resourc
 	} else {
 		securityGroups := []*SecurityGroup{}
 		for _, sg := range sgs {
-			if sg.Vpc != vpc {
+			if sg.Vpc == nil {
+				sg.Vpc = vpc
+				dag.AddDependency(sg, vpc)
+			}
+			if vpc != nil && sg.Vpc.Id() != vpc.Id() {
 				return nil, fmt.Errorf("resource %s has security groups from multiple vpcs downstream", resource.Id())
 			}
 			securityGroups = append(securityGroups, sg)
@@ -69,7 +73,11 @@ func getSubnetsOperational(dag *core.ResourceGraph, resource core.Resource, appN
 	}
 	subnets := []*Subnet{}
 	for _, subnet := range downstreamSubnets {
-		if vpc != nil && subnet.Vpc != vpc {
+		if subnet.Vpc == nil {
+			subnet.Vpc = vpc
+			dag.AddDependency(subnet, vpc)
+		}
+		if vpc != nil && subnet.Vpc.Id() != vpc.Id() {
 			return nil, fmt.Errorf("resource %s has subnets from multiple vpcs downstream", resource.Id())
 		}
 		subnets = append(subnets, subnet)

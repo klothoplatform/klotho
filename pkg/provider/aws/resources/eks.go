@@ -187,6 +187,18 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 			cluster.ClusterRole = roles[0]
 		}
 	}
+
+	if cluster.Vpc == nil {
+		vpc, err := getSingleUpstreamVpc(dag, cluster)
+		if err != nil {
+			return err
+		}
+		if vpc != nil {
+			cluster.Vpc = vpc
+			dag.AddDependency(cluster, vpc)
+		}
+	}
+
 	// We want to add this to ensure that if the vpc is set it has an edge in the graph so the sgs and subnets are checked against it
 	dag.AddDependenciesReflect(cluster)
 
@@ -196,6 +208,7 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 			return err
 		}
 		cluster.Subnets = subnets
+		dag.AddDependenciesReflect(cluster)
 	}
 
 	if len(cluster.SecurityGroups) == 0 {
@@ -204,12 +217,16 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 			return err
 		}
 		cluster.SecurityGroups = append(cluster.SecurityGroups, sgs...)
+		dag.AddDependenciesReflect(cluster)
 	}
 
 	if cluster.Vpc == nil {
 		vpc, err := getSingleUpstreamVpc(dag, cluster)
 		if err != nil {
 			return err
+		}
+		if vpc == nil {
+			return fmt.Errorf("cluster %s has no vpc", cluster.Name)
 		}
 		cluster.Vpc = vpc
 	}

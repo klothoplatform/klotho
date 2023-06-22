@@ -38,16 +38,10 @@ func Test_ExpandExecutionUnit(t *testing.T) {
 			want: testResult{
 				graph: coretesting.ResourcesExpectation{
 					Nodes: []string{
-						"aws:ecr_image:my-app-test",
-						"aws:ecr_repo:my-app",
-						"aws:iam_role:my-app-test-ExecutionRole",
 						"aws:lambda_function:my-app-test",
 						"aws:log_group:my-app-test",
 					},
 					Deps: []coretesting.StringDep{
-						{Source: "aws:ecr_image:my-app-test", Destination: "aws:ecr_repo:my-app"},
-						{Source: "aws:lambda_function:my-app-test", Destination: "aws:ecr_image:my-app-test"},
-						{Source: "aws:lambda_function:my-app-test", Destination: "aws:iam_role:my-app-test-ExecutionRole"},
 						{Source: "aws:lambda_function:my-app-test", Destination: "aws:log_group:my-app-test"},
 					},
 				},
@@ -179,63 +173,14 @@ func Test_ExpandRedisNode(t *testing.T) {
 		want testResult
 	}{
 		{
-			name: "single lambda exec unit",
+			name: "single redis elasticache",
 			unit: unit,
 			want: testResult{
 				graph: coretesting.ResourcesExpectation{
 					Nodes: []string{
-						"aws:availability_zones:AvailabilityZones",
-						"aws:elastic_ip:my_app_0",
-						"aws:elastic_ip:my_app_1",
 						"aws:elasticache_cluster:my-app-test",
-						"aws:elasticache_subnetgroup:my-app-test-subnetgroup",
-						"aws:internet_gateway:my_app_igw",
-						"aws:log_group:my-app-test",
-						"aws:nat_gateway:my_app_0",
-						"aws:nat_gateway:my_app_1",
-						"aws:route_table:my_app_private0",
-						"aws:route_table:my_app_private1",
-						"aws:route_table:my_app_public",
-						"aws:security_group:my_app:my-app",
-						"aws:subnet_private:my_app:my_app_private0",
-						"aws:subnet_private:my_app:my_app_private1",
-						"aws:subnet_public:my_app:my_app_public0",
-						"aws:subnet_public:my_app:my_app_public1",
-						"aws:vpc:my_app",
 					},
-					Deps: []coretesting.StringDep{
-						{Source: "aws:elasticache_cluster:my-app-test", Destination: "aws:elasticache_subnetgroup:my-app-test-subnetgroup"},
-						{Source: "aws:elasticache_cluster:my-app-test", Destination: "aws:log_group:my-app-test"},
-						{Source: "aws:elasticache_cluster:my-app-test", Destination: "aws:security_group:my_app:my-app"},
-						{Source: "aws:elasticache_subnetgroup:my-app-test-subnetgroup", Destination: "aws:subnet_private:my_app:my_app_private0"},
-						{Source: "aws:elasticache_subnetgroup:my-app-test-subnetgroup", Destination: "aws:subnet_private:my_app:my_app_private1"},
-						{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
-						{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_1"},
-						{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public1"},
-						{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_0"},
-						{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public0"},
-						{Source: "aws:route_table:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
-						{Source: "aws:route_table:my_app_private0", Destination: "aws:subnet_private:my_app:my_app_private0"},
-						{Source: "aws:route_table:my_app_private0", Destination: "aws:vpc:my_app"},
-						{Source: "aws:route_table:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
-						{Source: "aws:route_table:my_app_private1", Destination: "aws:subnet_private:my_app:my_app_private1"},
-						{Source: "aws:route_table:my_app_private1", Destination: "aws:vpc:my_app"},
-						{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
-						{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public0"},
-						{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public1"},
-						{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
-						{Source: "aws:security_group:my_app:my-app", Destination: "aws:vpc:my_app"},
-						{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
-						{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
-						{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:vpc:my_app"},
-						{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
-						{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
-						{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:vpc:my_app"},
-						{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
-						{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
-						{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
-						{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:vpc:my_app"},
-					},
+					Deps: []coretesting.StringDep{},
 				},
 				mappedResources: []reflect.Type{reflect.TypeOf(&resources.ElasticacheCluster{})},
 			},
@@ -270,7 +215,7 @@ func Test_ExpandOrm(t *testing.T) {
 		want          testResult
 	}{
 		{
-			name:          "single lambda exec unit",
+			name:          "single orm",
 			unit:          unit,
 			constructType: resources.RDS_INSTANCE_TYPE,
 			want: testResult{
@@ -449,12 +394,9 @@ func Test_ExpandConfig(t *testing.T) {
 			want: testResult{
 				graph: coretesting.ResourcesExpectation{
 					Nodes: []string{
-						"aws:secret:my-app-test",
 						"aws:secret_version:my-app-test",
 					},
-					Deps: []coretesting.StringDep{
-						{Source: "aws:secret_version:my-app-test", Destination: "aws:secret:my-app-test"},
-					},
+					Deps: []coretesting.StringDep{},
 				},
 				mappedResources: []reflect.Type{reflect.TypeOf(&resources.Secret{})},
 			},

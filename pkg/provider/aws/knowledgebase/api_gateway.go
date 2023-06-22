@@ -71,6 +71,19 @@ var ApiGatewayKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.LoadBalancer]{
 		Expand: func(integration *resources.ApiIntegration, lb *resources.LoadBalancer, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			// This isnt an instance of an expanded path, rather an existing edge so ignore
+
+			if lb.Name == "" || lb == nil {
+				var err error
+				lb, err = core.CreateResource[*resources.LoadBalancer](dag, resources.LoadBalancerCreateParams{
+					AppName: data.AppName,
+					Refs:    integration.ConstructsRef.Clone(),
+					Name:    integration.Name,
+				})
+				if err != nil {
+					return err
+				}
+			}
+
 			if integration.Name != "" {
 				return nil
 			}
@@ -141,9 +154,8 @@ var ApiGatewayKB = knowledgebase.Build(
 			if err != nil {
 				return err
 			}
-			if listener.LoadBalancer == nil {
-				return fmt.Errorf("no load balancer was generated for expansion from %s -> %s", data.Source.Id(), data.Destination.Id())
-			}
+			listener.LoadBalancer = lb
+			dag.AddDependency(listener, lb)
 			listener.LoadBalancer.Type = "network"
 			listener.LoadBalancer.Scheme = "internal"
 			listener.DefaultActions = []*resources.LBAction{{TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE}, Type: "forward"}}

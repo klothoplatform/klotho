@@ -51,12 +51,11 @@ var LambdaKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.RdsProxy]{
 		Expand: func(lambda *resources.LambdaFunction, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			instance := data.Destination.(*resources.RdsInstance)
 			if len(lambda.Subnets) == 0 {
-				lambda.Subnets = instance.SubnetGroup.Subnets
+				lambda.Subnets = proxy.Subnets
 			}
 			if len(lambda.SecurityGroups) == 0 {
-				lambda.SecurityGroups = instance.SecurityGroups
+				lambda.SecurityGroups = proxy.SecurityGroups
 			}
 			dag.AddDependenciesReflect(lambda)
 			return nil

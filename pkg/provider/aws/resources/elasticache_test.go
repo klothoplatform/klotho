@@ -117,9 +117,9 @@ func Test_ElasticacheClusterMakeOperational(t *testing.T) {
 				},
 			},
 			Check: func(assert *assert.Assertions, l *ElasticacheCluster) {
-				assert.Equal(l.CloudwatchGroup.Name, "function")
+				assert.Equal(l.CloudwatchGroup.Name, "my-app-cluster-loggroup")
 				assert.Len(l.SecurityGroups, 1)
-				assert.Equal(l.SubnetGroup.Name, "function")
+				assert.Equal(l.SubnetGroup.Name, "my-app-cluster-subnetgroup")
 			},
 		},
 	}
@@ -179,7 +179,7 @@ func Test_ElasticacheSubnetGroupMakeOperational(t *testing.T) {
 	cases := []coretesting.MakeOperationalCase[*ElasticacheSubnetgroup]{
 
 		{
-			Name:     "only cluster",
+			Name:     "only subnet group",
 			Resource: &ElasticacheSubnetgroup{Name: "sg"},
 			AppName:  "my-app",
 			Want: coretesting.ResourcesExpectation{
