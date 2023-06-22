@@ -512,11 +512,17 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 	case IaCValue:
 		if value.Resource() != nil {
 			err := rg.CallCreate(reflect.ValueOf(value.Resource()), metadata)
+			if err != nil {
+				return err
+			}
 			currValue := rg.GetResource(value.Resource().Id())
 			if currValue == nil {
 				currValue = value.Resource()
 			}
 			err = rg.CallMakeOperational(currValue, reflect.ValueOf(metadata).FieldByName("AppName").String())
+			if err != nil {
+				return err
+			}
 			if currValue != nil {
 				value.SetResource(currValue)
 			}
