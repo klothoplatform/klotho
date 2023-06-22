@@ -251,7 +251,7 @@ func Test_ExpandEdges(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			err = kb.ExpandEdges(dag, "my-app")
+			err = kb.ExpandEdge(&tt.edge, dag, "my-app")
 			if !assert.NoError(err) {
 				return
 			}

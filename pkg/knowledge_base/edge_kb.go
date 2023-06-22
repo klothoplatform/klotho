@@ -7,6 +7,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/multierr"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -222,112 +223,119 @@ func (kb EdgeKB) isValidForPath(edge Edge, dest reflect.Type) bool {
 //   - Check each of the valid paths against constraints passed in on the edge data
 //   - At this point we should only have 1 valid path (If we have more than 1 edge choose direct connection otherwise error)
 //   - Iterate through each edge in path calling expansion function on edge
-func (kb EdgeKB) ExpandEdges(dag *core.ResourceGraph, appName string) (err error) {
+func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGraph, appName string) (err error) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			_, ok := r.(error)
+			if !ok {
+				err = errors.Errorf("panic recovered: %v", r)
+			}
+			err = errors.Errorf("panic recovered: %v", r)
+		}
+	}()
+
 	zap.S().Debug("Expanding Edges")
-	var merr multierr.Error
 	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
-	for _, dep := range dag.ListDependencies() {
-		zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
+	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
 
-		// We want to retrieve the edge data from the edge in the resource graph to use during expansion
-		edgeData := EdgeData{}
-		data, ok := dep.Properties.Data.(EdgeData)
-		if !ok && dep.Properties.Data != nil {
-			merr.Append(fmt.Errorf("edge properties for edge %s -> %s, do not satisfy edge data format during expansion", dep.Source.Id(), dep.Destination.Id()))
-		} else if dep.Properties.Data != nil {
-			edgeData = data
-		}
-		edgeData.AppName = appName
-		// We attach the dependencies source and destination nodes for context during expansion
-		edgeData.Source = dep.Source
-		edgeData.Destination = dep.Destination
-		// Find all possible paths given the initial source and destination node
-		validPaths := kb.FindPaths(dep.Source, dep.Destination, edgeData.Constraint)
-
-		zap.S().Debugf("Found valid paths %s", validPaths)
-		var validPath []Edge
-		// Get the shortest route that satisfied constraints
-		for _, path := range validPaths {
-			if len(validPath) == 0 {
-				validPath = path
-			} else if len(path) < len(validPath) {
-				validPath = path
-			} else if len(path) == len(validPath) {
-				merr.Append(fmt.Errorf("found multiple paths which satisfy constraints for edge %s -> %s and are the same length. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), validPaths))
-				continue
-			}
-		}
-		if len(validPath) == 0 {
-			merr.Append(fmt.Errorf("found no paths which satisfy constraints %s for edge %s -> %s. \n Paths: %s", edgeData.Constraint, dep.Source.Id(), dep.Destination.Id(), validPaths))
-			continue
-		}
-
-		// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
-		if len(validPath) > 1 {
-			zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
-			err := dag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
-			if err != nil {
-				merr.Append(err)
-				continue
-			}
-		}
-
-		// resourceCache is used to always pass the graphs nodes into the Expand functions if they exist. We do this so that we operate on nodes which already exist
-		resourceCache := map[reflect.Type]core.Resource{}
-		for _, edge := range validPath {
-			source := edge.Source
-			dest := edge.Destination
-			edgeDetail, _ := kb.GetEdgeDetails(source, dest)
-			sourceNode := resourceCache[source]
-			if source == reflect.TypeOf(dep.Source) {
-				sourceNode = dep.Source
-			}
-			if sourceNode == nil {
-				sourceNode = reflect.New(source.Elem()).Interface().(core.Resource)
-				for _, mustExistRes := range edgeData.Constraint.NodeMustExist {
-					if mustExistRes.Id().Type == sourceNode.Id().Type && mustExistRes.Id().Provider == sourceNode.Id().Provider && mustExistRes.Id().Namespace == sourceNode.Id().Namespace {
-						sourceNode = mustExistRes
-					}
-				}
-			}
-
-			destNode := resourceCache[dest]
-			if dest == reflect.TypeOf(dep.Destination) {
-				destNode = dep.Destination
-			}
-			if destNode == nil {
-				destNode = reflect.New(dest.Elem()).Interface().(core.Resource)
-				for _, mustExistRes := range edgeData.Constraint.NodeMustExist {
-					if mustExistRes.Id().Type == destNode.Id().Type && mustExistRes.Id().Provider == destNode.Id().Provider && mustExistRes.Id().Namespace == destNode.Id().Namespace {
-						destNode = mustExistRes
-					}
-				}
-
-			}
-
-			if edgeDetail.ExpansionFunc != nil {
-				err := edgeDetail.ExpansionFunc(sourceNode, destNode, dag, edgeData)
-				merr.Append(err)
-			}
-
-			if sourceNode != nil {
-				resourceCache[source] = sourceNode
-			}
-			sourceNodeInGraph := dag.GetResource(sourceNode.Id())
-			if sourceNodeInGraph != nil {
-				resourceCache[source] = sourceNodeInGraph
-			}
-			if destNode != nil {
-				resourceCache[dest] = destNode
-			}
-			destNodeInGraph := dag.GetResource(destNode.Id())
-			if destNodeInGraph != nil {
-				resourceCache[dest] = destNodeInGraph
-			}
-		}
-
+	// We want to retrieve the edge data from the edge in the resource graph to use during expansion
+	edgeData := EdgeData{}
+	data, ok := dep.Properties.Data.(EdgeData)
+	if !ok && dep.Properties.Data != nil {
+		return fmt.Errorf("edge properties for edge %s -> %s, do not satisfy edge data format during expansion", dep.Source.Id(), dep.Destination.Id())
+	} else if dep.Properties.Data != nil {
+		edgeData = data
 	}
-	return merr.ErrOrNil()
+	edgeData.AppName = appName
+	// We attach the dependencies source and destination nodes for context during expansion
+	edgeData.Source = dep.Source
+	edgeData.Destination = dep.Destination
+	// Find all possible paths given the initial source and destination node
+	validPaths := kb.FindPaths(dep.Source, dep.Destination, edgeData.Constraint)
+
+	zap.S().Debugf("Found valid paths %s", validPaths)
+	var validPath []Edge
+	// Get the shortest route that satisfied constraints
+	for _, path := range validPaths {
+		if len(validPath) == 0 {
+			validPath = path
+		} else if len(path) < len(validPath) {
+			validPath = path
+		} else if len(path) == len(validPath) {
+			return fmt.Errorf("found multiple paths which satisfy constraints for edge %s -> %s and are the same length. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), validPaths)
+		}
+	}
+
+	if len(validPath) == 0 {
+		return fmt.Errorf("found no paths which satisfy constraints %s for edge %s -> %s. \n Paths: %s", edgeData.Constraint, dep.Source.Id(), dep.Destination.Id(), validPaths)
+	}
+
+	// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
+	if len(validPath) > 1 {
+		zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
+		err := dag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
+		if err != nil {
+			return err
+		}
+	}
+
+	// resourceCache is used to always pass the graphs nodes into the Expand functions if they exist. We do this so that we operate on nodes which already exist
+	resourceCache := map[reflect.Type]core.Resource{}
+	for _, edge := range validPath {
+		source := edge.Source
+		dest := edge.Destination
+		edgeDetail, _ := kb.GetEdgeDetails(source, dest)
+		sourceNode := resourceCache[source]
+		if source == reflect.TypeOf(dep.Source) {
+			sourceNode = dep.Source
+		}
+		if sourceNode == nil {
+			sourceNode = reflect.New(source.Elem()).Interface().(core.Resource)
+			for _, mustExistRes := range edgeData.Constraint.NodeMustExist {
+				if mustExistRes.Id().Type == sourceNode.Id().Type && mustExistRes.Id().Provider == sourceNode.Id().Provider && mustExistRes.Id().Namespace == sourceNode.Id().Namespace {
+					sourceNode = mustExistRes
+				}
+			}
+		}
+
+		destNode := resourceCache[dest]
+		if dest == reflect.TypeOf(dep.Destination) {
+			destNode = dep.Destination
+		}
+		if destNode == nil {
+			destNode = reflect.New(dest.Elem()).Interface().(core.Resource)
+			for _, mustExistRes := range edgeData.Constraint.NodeMustExist {
+				if mustExistRes.Id().Type == destNode.Id().Type && mustExistRes.Id().Provider == destNode.Id().Provider && mustExistRes.Id().Namespace == destNode.Id().Namespace {
+					destNode = mustExistRes
+				}
+			}
+
+		}
+
+		if edgeDetail.ExpansionFunc != nil {
+			err := edgeDetail.ExpansionFunc(sourceNode, destNode, dag, edgeData)
+			if err != nil {
+				return err
+			}
+		}
+
+		if sourceNode != nil {
+			resourceCache[source] = sourceNode
+		}
+		sourceNodeInGraph := dag.GetResource(sourceNode.Id())
+		if sourceNodeInGraph != nil {
+			resourceCache[source] = sourceNodeInGraph
+		}
+		if destNode != nil {
+			resourceCache[dest] = destNode
+		}
+		destNodeInGraph := dag.GetResource(destNode.Id())
+		if destNodeInGraph != nil {
+			resourceCache[dest] = destNodeInGraph
+		}
+	}
+	return nil
 }
 
 // ConfigureFromEdgeData calls each edges configure function.
