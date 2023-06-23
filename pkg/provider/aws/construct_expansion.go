@@ -138,7 +138,7 @@ func (a *AWS) expandExpose(dag *core.ResourceGraph, expose *core.Gateway, constr
 	}
 	switch constructType {
 	case resources.API_GATEWAY_REST_TYPE:
-		stage, err := core.CreateResource[*resources.ApiStage](dag, resources.ApiStageCreateParams{
+		stage, err := core.CreateResource[*resources.RestApi](dag, resources.RestApiCreateParams{
 			AppName: a.AppName,
 			Refs:    core.BaseConstructSetOf(expose),
 			Name:    expose.Name,

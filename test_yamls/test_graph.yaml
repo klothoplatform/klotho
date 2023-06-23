@@ -1,0 +1,22 @@
+constraints:
+  - operator: equals
+    scope: construct
+    target: klotho:expose:A
+    type: rest_api
+  - operator: equals
+    scope: construct
+    target: klotho:execution_unit:B
+    type: lambda_function
+  - operator: equals
+    scope: construct
+    target: klotho:execution_unit:C
+    type: lambda_function
+edges:
+  - destination: klotho:execution_unit:C
+    source: klotho:expose:A
+  - destination: klotho:execution_unit:B
+    source: klotho:expose:A
+resources:
+  - klotho:expose:A
+  - klotho:execution_unit:B
+  - klotho:execution_unit:C

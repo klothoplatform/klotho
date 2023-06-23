@@ -118,7 +118,7 @@ func (kb EdgeKB) GetEdgesWithTarget(target reflect.Type) []Edge {
 //
 // The method will return all paths found
 func (kb EdgeKB) FindPaths(source core.Resource, dest core.Resource, constraint EdgeConstraint) []Path {
-	zap.S().Debugf("Finding Paths from %s -> %s", source, dest)
+	zap.S().Debugf("Finding Paths from %s -> %s", source.Id(), dest.Id())
 	visitedEdges := map[reflect.Type]bool{}
 	stack := []Edge{}
 	paths := kb.findPaths(reflect.TypeOf(source), reflect.TypeOf(dest), stack, visitedEdges)
@@ -363,7 +363,7 @@ func (kb EdgeKB) ConfigureFromEdgeData(dag *core.ResourceGraph) (err error) {
 //
 // The method will return all paths found
 func (kb EdgeKB) FindPathsInGraph(source core.Resource, dest core.Resource, dag *core.ResourceGraph) [][]graph.Edge[core.Resource] {
-	zap.S().Debugf("Finding Paths from %s -> %s", source, dest)
+	zap.S().Debugf("Finding Paths from %s -> %s", source.Id(), dest.Id())
 	visitedEdges := map[core.Resource]bool{}
 	stack := []graph.Edge[core.Resource]{}
 	return kb.findPathsInGraph(source, dest, stack, visitedEdges, dag)
@@ -440,4 +440,8 @@ func (kb EdgeKB) GetTrueDownstream(source core.Resource, dag *core.ResourceGraph
 		}
 	}
 	return downstreamResources
+}
+
+func (e Edge) String() string {
+	return fmt.Sprintf("%s -> %s", e.Source, e.Destination)
 }

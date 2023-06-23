@@ -207,7 +207,12 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 
 	existingResource := dag.GetResource(integration.Id())
 	if existingResource != nil {
-		return fmt.Errorf("integration %s already exists", integration.Id())
+		// The following error is commented out due to the following situation:
+		// --construct-graph input which has >1 execution unit behind the api gateway
+		// because there's no route information, it uses the default route of "ANY *"
+		// but this conflicts between the two execution units and will try to create the same integration twice.
+		// return errors.Errorf("integration %s already exists", integration.Id())
+		return nil
 	} else {
 		subParams := map[string]any{
 			"RestApi": RestApiCreateParams{

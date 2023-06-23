@@ -429,26 +429,26 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		klothoCompiler.AnalysisAndTransformationPlugins = nil
 		err = klothoCompiler.Engine.LoadConstructGraphFromFile(cfg.constructGraph)
 		if err != nil {
-			return errors.Errorf("failed to load construct graph: %s", err.Error())
+			return errors.Wrap(err, "failed to load construct graph")
 		}
 		c, err := klothoCompiler.Engine.LoadConstraintsFromFile(cfg.constructGraph)
 		if err != nil {
-			return errors.Errorf("failed to load constraints: %s", err.Error())
+			return errors.Wrap(err, "failed to load constraints")
 		}
 		k8sPlugin := kubernetes.Kubernetes{Config: &appCfg}
 
 		engine.LoadContext(document.Constructs, c, cfg.appName)
 		err = k8sPlugin.Translate(document.Constructs, engine.Context.EndState)
 		if err != nil {
-			return errors.Errorf("failed to run kubernetes plugin: %s", err.Error())
+			return errors.Wrap(err, "failed to run kubernetes plugin")
 		}
 		dag, err := engine.Run()
 		if err != nil {
-			return errors.Errorf("failed to run engine: %s", err.Error())
+			return errors.Wrap(err, "failed to run engine")
 		}
 		files, err := engine.VisualizeViews()
 		if err != nil {
-			return errors.Errorf("failed to run engine viz: %s", err.Error())
+			return errors.Wrap(err, "failed to run engine viz")
 		}
 		document.OutputFiles = append(document.OutputFiles, files...)
 		document.Resources = dag
