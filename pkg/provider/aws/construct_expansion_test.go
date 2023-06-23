@@ -444,17 +444,11 @@ func Test_ExpandExpose(t *testing.T) {
 			want: testResult{
 				graph: coretesting.ResourcesExpectation{
 					Nodes: []string{
-						"aws:api_deployment:my-app-test",
-						"aws:api_stage:my-app-test",
 						"aws:rest_api:my-app-test",
 					},
-					Deps: []coretesting.StringDep{
-						{Source: "aws:api_deployment:my-app-test", Destination: "aws:rest_api:my-app-test"},
-						{Source: "aws:api_stage:my-app-test", Destination: "aws:api_deployment:my-app-test"},
-						{Source: "aws:api_stage:my-app-test", Destination: "aws:rest_api:my-app-test"},
-					},
+					Deps: []coretesting.StringDep{},
 				},
-				mappedResources: []reflect.Type{reflect.TypeOf(&resources.ApiStage{})},
+				mappedResources: []reflect.Type{reflect.TypeOf(&resources.RestApi{})},
 			},
 		},
 	}
