@@ -138,7 +138,7 @@ func (a *AWS) expandExpose(dag *core.ResourceGraph, expose *core.Gateway, constr
 	}
 	switch constructType {
 	case resources.API_GATEWAY_REST_TYPE:
-		stage, err := core.CreateResource[*resources.RestApi](dag, resources.RestApiCreateParams{
+		api, err := core.CreateResource[*resources.RestApi](dag, resources.RestApiCreateParams{
 			AppName: a.AppName,
 			Refs:    core.BaseConstructSetOf(expose),
 			Name:    expose.Name,
@@ -146,7 +146,7 @@ func (a *AWS) expandExpose(dag *core.ResourceGraph, expose *core.Gateway, constr
 		if err != nil {
 			return mappedResources, err
 		}
-		mappedResources = append(mappedResources, stage)
+		mappedResources = append(mappedResources, api)
 	default:
 		return mappedResources, fmt.Errorf("unsupported expose type %s", constructType)
 	}
