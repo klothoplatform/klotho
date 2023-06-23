@@ -29,12 +29,15 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 		resources.EKS_CLUSTER_TYPE,
 	}
 
+	// Add relevant resources to the dataflow DAG
 	for _, resource := range e.Context.EndState.ListResources() {
 		if collectionutil.Contains(typesWeCareAbout, resource.Id().Type) || collectionutil.Contains(parentResourceTypes, resource.Id().Type) {
 			dataFlowDag.AddResource(resource)
 		}
 	}
 
+	// Add summarized edges between types we care about to the dataflow DAG.
+	// Only irrelevant nodes in a path of edges between the source and destination will be summarized.
 	for _, src := range dataFlowDag.ListResources() {
 		for _, dst := range dataFlowDag.ListResources() {
 			if src == dst {
@@ -42,8 +45,8 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 			}
 			paths := e.KnowledgeBase.FindPathsInGraph(src, dst, e.Context.EndState)
 			if len(paths) > 0 {
+				addedDep := false
 				for _, path := range paths {
-					addedDep := false
 					for _, edge := range path {
 						if collectionutil.Contains(typesWeCareAbout, edge.Source.Id().Type) && edge.Source != src && edge.Source != dst {
 							dataFlowDag.AddDependency(src, edge.Source)
@@ -59,15 +62,18 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 					if addedDep {
 						break
 					}
-					if !addedDep {
-						dataFlowDag.AddDependency(src, dst)
-					}
 				}
 
+				// Add a summarized edge if there are no relevant intermediate resources
+				// or a child -> parent edge if the destination is a parent type.
+				if !addedDep || collectionutil.Contains(parentResourceTypes, dst.Id().Type) {
+					dataFlowDag.AddDependency(src, dst)
+				}
 			}
 		}
 	}
 
+	// Configure Parent/Child relationships and remove child -> parent edges.
 	for _, dep := range dataFlowDag.ListDependencies() {
 		if collectionutil.Contains(parentResourceTypes, dep.Destination.Id().Type) {
 			err := dataFlowDag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
