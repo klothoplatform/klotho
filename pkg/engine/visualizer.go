@@ -1,25 +1,22 @@
 package engine
 
 import (
-	"net/http"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/visualizer"
 )
 
 func (e *Engine) VisualizeViews() ([]core.File, error) {
-	var outputFiles []core.File
-	topology := visualizer.Plugin{Client: http.DefaultClient, AppName: e.Context.AppName, Provider: e.Provider.Name()}
-	files, err := topology.Generate(e.Context.EndState, "iac")
-	if err != nil {
-		return outputFiles, err
+	iac_topo := &visualizer.File{
+		PathPrefix: "iac-",
+		AppName:    e.Context.AppName,
+		Provider:   e.Provider.Name(),
+		DAG:        e.Context.EndState,
 	}
-	outputFiles = append(outputFiles, files...)
-	dag := e.GetDataFlowDag()
-	files, err = topology.Generate(dag, "dataflow")
-	if err != nil {
-		return outputFiles, err
+	dataflow_topo := &visualizer.File{
+		PathPrefix: "dataflow-",
+		AppName:    e.Context.AppName,
+		Provider:   e.Provider.Name(),
+		DAG:        e.GetDataFlowDag(),
 	}
-	outputFiles = append(outputFiles, files...)
-	return outputFiles, nil
+	return []core.File{iac_topo, dataflow_topo}, nil
 }

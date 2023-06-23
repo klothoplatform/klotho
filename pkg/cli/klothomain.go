@@ -456,7 +456,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		if err != nil {
 			return err
 		}
-
+		return document.OutputTo(appCfg.OutDir)
 	} else {
 		document.Resources = core.NewResourceGraph()
 	}
