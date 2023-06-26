@@ -32,12 +32,30 @@ func (namespace *PrivateDnsNamespace) Create(dag *core.ResourceGraph, params Pri
 	if found {
 		existingNamespace.ConstructsRef.AddAll(params.Refs)
 	} else {
-		err := dag.CreateDependencies(namespace, map[string]any{"Vpc": VpcCreateParams{
-			AppName: params.AppName,
-			Refs:    params.Refs.Clone(),
-		}})
+		dag.AddResource(namespace)
+	}
+	return nil
+}
+
+func (namespace *PrivateDnsNamespace) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if namespace.Vpc == nil {
+		vpc, err := getSingleUpstreamVpc(dag, namespace)
 		if err != nil {
 			return err
+		}
+		if vpc == nil {
+			err := dag.CreateDependencies(namespace, map[string]any{
+				"Vpc": VpcCreateParams{
+					AppName: appName,
+					Refs:    core.BaseConstructSetOf(namespace),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			namespace.Vpc = vpc
+			dag.AddDependency(namespace, vpc)
 		}
 	}
 	return nil

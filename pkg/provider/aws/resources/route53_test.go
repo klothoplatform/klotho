@@ -14,40 +14,21 @@ func Test_Route53HostedZoneCreate(t *testing.T) {
 	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[Route53HostedZoneCreateParams, *Route53HostedZone]{
 		{
-			Name: "nil private zone",
-			Want: coretesting.ResourcesExpectation{
-				Nodes: []string{
-					"aws:route53_hosted_zone:my-app-zone",
-					"aws:vpc:my_app",
-				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:route53_hosted_zone:my-app-zone", Destination: "aws:vpc:my_app"},
-				},
-			},
-			Params: Route53HostedZoneCreateParams{Type: "private"},
-			Check: func(assert *assert.Assertions, zone *Route53HostedZone) {
-				assert.Equal(zone.Name, "my-app-zone")
-				assert.NotNil(zone.Vpc)
-				assert.Equal(zone.ConstructsRef, core.BaseConstructSetOf(eu))
-			},
-		},
-		{
-			Name: "nil public zone",
+			Name: "nil zone",
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:route53_hosted_zone:my-app-zone",
 				},
 				Deps: []coretesting.StringDep{},
 			},
-			Params: Route53HostedZoneCreateParams{Type: "public"},
+			Params: Route53HostedZoneCreateParams{Type: "private"},
 			Check: func(assert *assert.Assertions, zone *Route53HostedZone) {
 				assert.Equal(zone.Name, "my-app-zone")
-				assert.Nil(zone.Vpc)
 				assert.Equal(zone.ConstructsRef, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
-			Name:     "existing load balancer",
+			Name:     "existing zone",
 			Existing: &Route53HostedZone{Name: "my-app-zone", ConstructsRef: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{

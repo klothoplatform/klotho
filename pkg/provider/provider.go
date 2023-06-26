@@ -25,7 +25,7 @@ type (
 		Name() string
 		LoadResources(graph core.InputGraph, resources map[core.ResourceId]core.BaseConstruct) error
 		CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error)
-		ExpandConstruct(construct core.Construct, dag *core.ResourceGraph, constructType string) (directlyMappedResources []core.Resource, err error)
+		ExpandConstruct(construct core.Construct, cg *core.ConstructGraph, dag *core.ResourceGraph, constructType string, attributes map[string]any) (directlyMappedResources []core.Resource, err error)
 	}
 )
 

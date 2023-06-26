@@ -73,14 +73,31 @@ func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams)
 	if existingImage != nil {
 		return fmt.Errorf("ecr image with name %s already exists", name)
 	}
+	dag.AddResource(image)
+	return nil
+}
 
-	err := dag.CreateDependencies(image, map[string]any{
-		"Repo": RepoCreateParams{
-			AppName: params.AppName,
-			Refs:    params.Refs.Clone(),
-		},
-	})
-	return err
+func (image *EcrImage) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if image.Repo == nil {
+		repos := core.GetDownstreamResourcesOfType[*EcrRepository](dag, image)
+		if len(repos) == 0 {
+			err := dag.CreateDependencies(image, map[string]any{
+				"Repo": RepoCreateParams{
+					AppName: appName,
+					Refs:    core.BaseConstructSetOf(image),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else if len(repos) == 1 {
+			image.Repo = repos[0]
+			dag.AddDependency(image, image.Repo)
+		} else {
+			return fmt.Errorf("ecr image %s has more than one repo downstream", image.Id())
+		}
+	}
+	return nil
 }
 
 type EcrImageConfigureParams struct {

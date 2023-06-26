@@ -3,6 +3,7 @@ package resources
 import (
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 )
 
@@ -16,7 +17,7 @@ type (
 	Route53HostedZone struct {
 		Name          string
 		ConstructsRef core.BaseConstructSet `yaml:"-"`
-		Vpc           *Vpc
+		Vpcs          []*Vpc
 		ForceDestroy  bool
 	}
 
@@ -61,15 +62,19 @@ func (zone *Route53HostedZone) Create(dag *core.ResourceGraph, params Route53Hos
 		existingZone.ConstructsRef.AddAll(params.Refs)
 		return nil
 	}
-	subParams := map[string]any{}
-	if params.Type == "private" {
-		subParams["Vpc"] = VpcCreateParams{
-			AppName: params.AppName,
-			Refs:    params.Refs.Clone(),
+	dag.AddResource(zone)
+	return nil
+}
+
+func (zone *Route53HostedZone) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	vpcs := core.GetDownstreamResourcesOfType[*Vpc](dag, zone)
+	for _, vpc := range vpcs {
+		if !collectionutil.Contains(zone.Vpcs, vpc) {
+			zone.Vpcs = append(zone.Vpcs, vpc)
 		}
 	}
-	err := dag.CreateDependencies(zone, subParams)
-	return err
+	dag.AddDependenciesReflect(zone)
+	return nil
 }
 
 type Route53HostedZoneConfigureParams struct {
@@ -97,6 +102,18 @@ func (record *Route53Record) Create(dag *core.ResourceGraph, params Route53Recor
 		return nil
 	}
 	record.Zone = params.Zone
+	dag.AddDependenciesReflect(record)
+	return nil
+}
+
+func (record *Route53Record) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if record.Zone == nil {
+		zones := core.GetDownstreamResourcesOfType[*Route53HostedZone](dag, record)
+		if len(zones) != 1 {
+			return fmt.Errorf("Route53Record %s has %d zone dependencies", record.Name, len(zones))
+		}
+		record.Zone = zones[0]
+	}
 	dag.AddDependenciesReflect(record)
 	return nil
 }

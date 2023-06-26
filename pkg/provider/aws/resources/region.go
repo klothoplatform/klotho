@@ -31,6 +31,8 @@ const (
 	ARN_IAC_VALUE           = "arn"
 )
 
+var availabilityZones = []string{"0", "1"}
+
 func NewRegion() *Region {
 	return &Region{
 		Name:          REGION_NAME,

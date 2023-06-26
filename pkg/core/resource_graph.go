@@ -104,9 +104,27 @@ func (rg *ResourceGraph) AddDependencyById(deployedSecond ResourceId, deployedFi
 	}
 }
 
+func (rg *ResourceGraph) AddDependencyByString(deployedSecond string, deployedFirst string, data any) {
+	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond, deployedFirst); cycle {
+		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond, deployedFirst)
+	} else {
+		rg.underlying.AddEdge(deployedSecond, deployedFirst, data)
+		zap.S().Debugf("adding %s -> %s", deployedSecond, deployedFirst)
+	}
+}
+
 func GetResource[T Resource](g *ResourceGraph, id ResourceId) (resource T, ok bool) {
 	rR := g.GetResource(id)
 	resource, ok = rR.(T)
+	return
+}
+
+func GetResources[T Resource](g *ResourceGraph) (resources []T) {
+	for _, res := range g.ListResources() {
+		if r, ok := res.(T); ok {
+			resources = append(resources, r)
+		}
+	}
 	return
 }
 
@@ -165,8 +183,26 @@ func (rg *ResourceGraph) GetDownstreamResources(source Resource) []Resource {
 	return rg.underlying.OutgoingVertices(source)
 }
 
+func GetDownstreamResourcesOfType[T Resource](rg *ResourceGraph, source Resource) (resources []T) {
+	for _, res := range rg.underlying.OutgoingVertices(source) {
+		if r, ok := res.(T); ok {
+			resources = append(resources, r)
+		}
+	}
+	return
+}
+
 func (rg *ResourceGraph) GetUpstreamDependencies(source Resource) []graph.Edge[Resource] {
 	return rg.underlying.IncomingEdges(source)
+}
+
+func GetUpstreamResourcesOfType[T Resource](rg *ResourceGraph, source Resource) (resources []T) {
+	for _, res := range rg.underlying.IncomingVertices(source) {
+		if r, ok := res.(T); ok {
+			resources = append(resources, r)
+		}
+	}
+	return
 }
 
 func (rg *ResourceGraph) GetUpstreamResources(source Resource) []Resource {
@@ -228,6 +264,9 @@ func (rg *ResourceGraph) AddDependenciesReflect(source Resource) {
 	for i := 0; i < sourceType.NumField(); i++ {
 		// TODO maybe add a tag for options for things like ignoring fields
 
+		if sourceValue.Field(i).Type().Name() == "BaseConstructSet" {
+			continue
+		}
 		fieldValue := sourceValue.Field(i)
 		switch fieldValue.Kind() {
 		case reflect.Slice, reflect.Array:
@@ -298,6 +337,16 @@ func (rg *ResourceGraph) GetAllUpstreamResources(source Resource) []Resource {
 	return upstreams
 }
 
+func GetAllUpstreamResourcesOfType[T Resource](rg *ResourceGraph, source Resource) (resources []T) {
+	upstreamsSet := map[Resource]struct{}{}
+	for r := range rg.getAllUpstreamResourcesSet(source, upstreamsSet) {
+		if rT, ok := r.(T); ok {
+			resources = append(resources, rT)
+		}
+	}
+	return
+}
+
 func (rg *ResourceGraph) getAllUpstreamResourcesSet(source Resource, upstreams map[Resource]struct{}) map[Resource]struct{} {
 	for _, r := range rg.underlying.IncomingVertices(source) {
 		upstreams[r] = struct{}{}
@@ -321,6 +370,36 @@ func (rg *ResourceGraph) getAllDownstreamResourcesSet(source Resource, upstreams
 		rg.getAllDownstreamResourcesSet(r, upstreams)
 	}
 	return upstreams
+}
+
+func GetAllDownstreamResourcesOfType[T Resource](rg *ResourceGraph, source Resource) (resources []T) {
+	upstreamsSet := map[Resource]struct{}{}
+	for r := range rg.getAllDownstreamResourcesSet(source, upstreamsSet) {
+		if rT, ok := r.(T); ok {
+			resources = append(resources, rT)
+		}
+	}
+	return
+}
+
+func (rg *ResourceGraph) ReplaceConstruct(resource Resource, new Resource) error {
+	rg.AddResource(new)
+	// Since its a construct we just assume every single edge can be removed
+	for _, edge := range rg.GetDownstreamDependencies(resource) {
+		rg.AddDependency(new, edge.Destination)
+		err := rg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		if err != nil {
+			return err
+		}
+	}
+	for _, edge := range rg.GetUpstreamDependencies(resource) {
+		rg.AddDependency(edge.Source, new)
+		err := rg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		if err != nil {
+			return err
+		}
+	}
+	return rg.RemoveResource(resource)
 }
 
 // CreateDependencies takes in a resource and set of metadata and looks at any fields which point to specific dependencies which match the Resource Interface
@@ -379,7 +458,7 @@ func (rg *ResourceGraph) CreateDependencies(res Resource, params map[string]any)
 // CreateResource provides safety in assuring that the up to date resource (which is inline with what exists in the ResourceGraph) is returned
 func CreateResource[T Resource](rg *ResourceGraph, params any) (resource T, err error) {
 	res := reflect.New(reflect.TypeOf(resource).Elem()).Interface()
-	err = rg.callCreate(reflect.ValueOf(res), params)
+	err = rg.CallCreate(reflect.ValueOf(res), params)
 	if err != nil {
 		return
 	}
@@ -402,8 +481,22 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 		if targetValue.IsNil() {
 			value = reflect.New(targetValue.Type().Elem()).Interface().(Resource)
 		}
-		err := rg.callCreate(reflect.ValueOf(value), metadata)
+		err := rg.CallCreate(reflect.ValueOf(value), metadata)
+		if err != nil {
+			return err
+		}
 		currValue := rg.GetResource(value.Id())
+		if currValue == nil {
+			currValue = value
+		}
+		appName := ""
+		if reflect.ValueOf(metadata).FieldByName("AppName").IsValid() {
+			appName = reflect.ValueOf(metadata).FieldByName("AppName").String()
+		}
+		err = rg.CallMakeOperational(currValue, appName)
+		if err != nil {
+			return err
+		}
 		if currValue != nil {
 			value = currValue
 		}
@@ -418,8 +511,18 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 		}
 	case IaCValue:
 		if value.Resource() != nil {
-			err := rg.callCreate(reflect.ValueOf(value.Resource()), metadata)
+			err := rg.CallCreate(reflect.ValueOf(value.Resource()), metadata)
+			if err != nil {
+				return err
+			}
 			currValue := rg.GetResource(value.Resource().Id())
+			if currValue == nil {
+				currValue = value.Resource()
+			}
+			err = rg.CallMakeOperational(currValue, reflect.ValueOf(metadata).FieldByName("AppName").String())
+			if err != nil {
+				return err
+			}
 			if currValue != nil {
 				value.SetResource(currValue)
 			}
@@ -447,7 +550,7 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 	return nil
 }
 
-func (rg *ResourceGraph) callCreate(targetValue reflect.Value, metadata any) error {
+func (rg *ResourceGraph) CallCreate(targetValue reflect.Value, metadata any) error {
 	method := targetValue.MethodByName("Create")
 	if method.IsValid() {
 		var callArgs []reflect.Value
@@ -459,6 +562,29 @@ func (rg *ResourceGraph) callCreate(targetValue reflect.Value, metadata any) err
 			return errors.Wrap(err, fmt.Sprintf("error decoding the following type %s", reflect.New(method.Type().In(1)).Type().String()))
 		}
 		callArgs = append(callArgs, reflect.ValueOf(params).Elem())
+		eval := method.Call(callArgs)
+		if eval[0].IsNil() {
+			return nil
+		} else {
+			err, ok := eval[0].Interface().(error)
+			if !ok {
+				return fmt.Errorf("return type should be an error")
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func (rg *ResourceGraph) CallMakeOperational(resource Resource, appName string) error {
+	method := reflect.ValueOf(resource).MethodByName("MakeOperational")
+	if method.IsValid() {
+		if rg.GetResource(resource.Id()) == nil {
+			return fmt.Errorf("resource with id %s cannot be made operational since it does not exist in the ResourceGraph", resource.Id())
+		}
+		var callArgs []reflect.Value
+		callArgs = append(callArgs, reflect.ValueOf(rg))
+		callArgs = append(callArgs, reflect.ValueOf(appName))
 		eval := method.Call(callArgs)
 		if eval[0].IsNil() {
 			return nil

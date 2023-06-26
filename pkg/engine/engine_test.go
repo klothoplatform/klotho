@@ -104,7 +104,7 @@ func (p *MockProvider) CreateResourceFromId(id core.ResourceId, dag *core.Constr
 	}
 	return nil, nil
 }
-func (p *MockProvider) ExpandConstruct(construct core.Construct, dag *core.ResourceGraph, constructType string) (directlyMappedResources []core.Resource, err error) {
+func (p *MockProvider) ExpandConstruct(construct core.Construct, cg *core.ConstructGraph, dag *core.ResourceGraph, constructType string, attributes map[string]any) (directlyMappedResources []core.Resource, err error) {
 	switch c := construct.(type) {
 	case *core.ExecutionUnit:
 		switch constructType {

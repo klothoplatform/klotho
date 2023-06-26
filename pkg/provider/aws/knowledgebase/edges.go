@@ -23,6 +23,7 @@ func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 		RdsKB,
 		S3KB,
 		Ec2KB,
+		EksKB,
 	}
 	awsKB := make(knowledgebase.EdgeKB)
 	for _, kb := range kbsToUse {
@@ -38,7 +39,7 @@ func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 
 var AwsExtraEdgesKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.SecretVersion, *resources.Secret]{
-		DeletetionDependent: 1,
+		DeletetionDependent: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.EcrImage, *resources.EcrRepository]{},
 	knowledgebase.EdgeBuilder[*resources.OpenIdConnectProvider, *resources.Region]{},

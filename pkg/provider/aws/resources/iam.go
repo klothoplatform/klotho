@@ -207,19 +207,26 @@ func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCr
 		graphOidc.ConstructsRef.AddAll(params.Refs)
 	} else {
 		oidc.ConstructsRef = params.Refs.Clone()
+		dag.AddResource(oidc)
+	}
+	return nil
+}
+
+func (oidc *OpenIdConnectProvider) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if oidc.Region == nil {
 		oidc.Region = NewRegion()
-		subParams := map[string]any{
-			"Cluster": EksClusterCreateParams{
-				AppName: params.AppName,
-				Name:    params.ClusterName,
-				Refs:    params.Refs,
-			},
-		}
-		err := dag.CreateDependencies(oidc, subParams)
-		if err != nil {
-			return err
+	}
+	if oidc.Cluster == nil {
+		clusters := core.GetDownstreamResourcesOfType[*EksCluster](dag, oidc)
+		if len(clusters) == 0 {
+			return fmt.Errorf("oidc provider %s has no eks cluster downstream", oidc.Id())
+		} else if len(clusters) == 1 {
+			oidc.Cluster = clusters[0]
+		} else {
+			return fmt.Errorf("oidc provider %s has more than one eks cluster downstream", oidc.Id())
 		}
 	}
+	dag.AddDependenciesReflect(oidc)
 	return nil
 }
 
@@ -237,9 +244,32 @@ func (profile *InstanceProfile) Create(dag *core.ResourceGraph, params InstanceP
 		existingProfile.ConstructsRef.AddAll(params.Refs)
 		return nil
 	}
-	return dag.CreateDependencies(profile, map[string]any{
-		"Role": params,
-	})
+	dag.AddResource(profile)
+	return nil
+}
+
+func (profile *InstanceProfile) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if profile.Role == nil {
+		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, profile)
+		if len(roles) == 0 {
+			err := dag.CreateDependencies(profile, map[string]any{
+				"Role": RoleCreateParams{
+					AppName: appName,
+					Name:    fmt.Sprintf("%s-InstanceProfileRole", profile.Name),
+					Refs:    core.BaseConstructSetOf(profile),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else if len(roles) == 1 {
+			profile.Role = roles[0]
+			dag.AddDependenciesReflect(profile)
+		} else {
+			return fmt.Errorf("instance profile %s has more than one role downstream", profile.Id())
+		}
+	}
+	return nil
 }
 
 func CreateAllowPolicyDocument(actions []string, resources []*AwsResourceValue) *PolicyDocument {

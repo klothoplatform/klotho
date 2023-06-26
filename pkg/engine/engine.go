@@ -7,7 +7,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
-	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
 )
@@ -26,13 +25,20 @@ type (
 	// EngineContext is a struct that represents the context of the engine
 	// The context is used to store the state of the engine
 	EngineContext struct {
-		Constraints                map[constraints.ConstraintScope][]constraints.Constraint
-		InitialState               *core.ConstructGraph
-		WorkingState               *core.ConstructGraph
-		EndState                   *core.ResourceGraph
-		Decisions                  []Decision
-		constructToResourceMapping map[core.ResourceId][]core.Resource
-		AppName                    string
+		Constraints                     map[constraints.ConstraintScope][]constraints.Constraint
+		InitialState                    *core.ConstructGraph
+		WorkingState                    *core.ConstructGraph
+		EndState                        *core.ResourceGraph
+		Decisions                       []Decision
+		constructToResourceMapping      map[core.ResourceId][]core.Resource
+		AppName                         string
+		ExpandendOrCopiedBaseConstructs map[core.ResourceId]bool
+		CopiedEdges                     map[core.ResourceId]map[core.ResourceId]bool
+		ExpandedEdges                   map[core.ResourceId]map[core.ResourceId]bool
+		ConfiguredEdges                 map[core.ResourceId]map[core.ResourceId]bool
+		OperationalResources            map[core.ResourceId]bool
+		ConfiguredResources             map[core.ResourceId]bool
+		Errors                          map[int][]error
 	}
 
 	// Decision is a struct that represents a decision made by the engine
@@ -57,12 +63,19 @@ func NewEngine(provider provider.Provider, kb knowledgebase.EdgeKB) *Engine {
 
 func (e *Engine) LoadContext(initialState *core.ConstructGraph, constraints map[constraints.ConstraintScope][]constraints.Constraint, appName string) {
 	e.Context = EngineContext{
-		InitialState:               initialState,
-		Constraints:                constraints,
-		WorkingState:               initialState.Clone(),
-		EndState:                   core.NewResourceGraph(),
-		constructToResourceMapping: make(map[core.ResourceId][]core.Resource),
-		AppName:                    appName,
+		InitialState:                    initialState,
+		Constraints:                     constraints,
+		WorkingState:                    initialState.Clone(),
+		EndState:                        core.NewResourceGraph(),
+		constructToResourceMapping:      make(map[core.ResourceId][]core.Resource),
+		AppName:                         appName,
+		ExpandendOrCopiedBaseConstructs: make(map[core.ResourceId]bool),
+		CopiedEdges:                     make(map[core.ResourceId]map[core.ResourceId]bool),
+		ExpandedEdges:                   make(map[core.ResourceId]map[core.ResourceId]bool),
+		ConfiguredEdges:                 make(map[core.ResourceId]map[core.ResourceId]bool),
+		OperationalResources:            make(map[core.ResourceId]bool),
+		ConfiguredResources:             make(map[core.ResourceId]bool),
+		Errors:                          make(map[int][]error),
 	}
 }
 
@@ -84,76 +97,101 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		constraints.EdgeConstraintScope:        make(map[constraints.Constraint]bool),
 	}
 
-	// First we look at all application constraints to see what is going to be added and removed from the construct graph
-	for _, constraint := range e.Context.Constraints[constraints.ApplicationConstraintScope] {
-		err := e.ApplyApplicationConstraint(constraint.(*constraints.ApplicationConstraint))
-		if err == nil {
-			appliedConstraints[constraints.ApplicationConstraintScope][constraint] = true
-		}
-	}
+	NUM_LOOPS := 5
 
-	// These edge constraints are at a construct level
-	for _, constraint := range e.Context.Constraints[constraints.EdgeConstraintScope] {
-		err := e.ApplyEdgeConstraint(constraint.(*constraints.EdgeConstraint))
-		if err == nil {
-			appliedConstraints[constraints.EdgeConstraintScope][constraint] = true
-		}
-	}
+	for i := 0; i < NUM_LOOPS; i++ {
+		zap.S().Debugf("Applying constraints iteration %d", i)
 
-	err := e.ExpandConstructsAndCopyEdges()
-	if err != nil {
-		return nil, err
-	}
-
-	// Apply the remainder of application constraints after weve expanded our graph (resource level application constrinats)
-	for _, constraint := range e.Context.Constraints[constraints.ApplicationConstraintScope] {
-		if applied := appliedConstraints[constraints.ApplicationConstraintScope][constraint]; !applied {
+		// First we look at all application constraints to see what is going to be added and removed from the construct graph
+		for _, constraint := range e.Context.Constraints[constraints.ApplicationConstraintScope] {
 			err := e.ApplyApplicationConstraint(constraint.(*constraints.ApplicationConstraint))
 			if err == nil {
 				appliedConstraints[constraints.ApplicationConstraintScope][constraint] = true
+			} else {
+				e.Context.Errors[i] = append(e.Context.Errors[i], err)
 			}
 		}
-	}
 
-	// Apply the remainder of the edge constraints after we have expanded our graph (resource level edge constraints)
-	for _, constraint := range e.Context.Constraints[constraints.EdgeConstraintScope] {
-		if applied := appliedConstraints[constraints.EdgeConstraintScope][constraint]; !applied {
+		// These edge constraints are at a construct level
+		for _, constraint := range e.Context.Constraints[constraints.EdgeConstraintScope] {
 			err := e.ApplyEdgeConstraint(constraint.(*constraints.EdgeConstraint))
 			if err == nil {
 				appliedConstraints[constraints.EdgeConstraintScope][constraint] = true
+			} else {
+				e.Context.Errors[i] = append(e.Context.Errors[i], err)
+			}
+		}
+
+		err := e.ExpandConstructsAndCopyEdges()
+		if err != nil {
+			e.Context.Errors[i] = append(e.Context.Errors[i], err)
+		}
+
+		for _, dep := range e.Context.EndState.ListDependencies() {
+			err = e.KnowledgeBase.ExpandEdge(&dep, e.Context.EndState, e.Context.AppName)
+			if err != nil {
+				e.Context.Errors[i] = append(e.Context.Errors[i], err)
+				continue
+			}
+			if e.Context.ExpandedEdges[dep.Source.Id()] == nil {
+				e.Context.ExpandedEdges[dep.Source.Id()] = make(map[core.ResourceId]bool)
+			}
+			e.Context.ExpandedEdges[dep.Source.Id()][dep.Destination.Id()] = true
+		}
+
+		for _, resource := range e.Context.EndState.ListResources() {
+			if !e.Context.OperationalResources[resource.Id()] {
+				err := e.Context.EndState.CallMakeOperational(resource, e.Context.AppName)
+				if err != nil {
+					e.Context.Errors[i] = append(e.Context.Errors[i], err)
+					continue
+				}
+				e.Context.OperationalResources[resource.Id()] = true
+			}
+			if !e.Context.ConfiguredResources[resource.Id()] {
+				err := e.Context.EndState.CallConfigure(resource, nil)
+				if err != nil {
+					e.Context.Errors[i] = append(e.Context.Errors[i], err)
+					continue
+				}
+				e.Context.ConfiguredResources[resource.Id()] = true
+			}
+		}
+
+		for _, dep := range e.Context.EndState.ListDependencies() {
+			if e.Context.ConfiguredEdges[dep.Source.Id()] != nil && e.Context.ConfiguredEdges[dep.Source.Id()][dep.Destination.Id()] {
+				continue
+			}
+			err = e.KnowledgeBase.ConfigureEdge(&dep, e.Context.EndState)
+			if err != nil {
+				e.Context.Errors[i] = append(e.Context.Errors[i], err)
+				continue
+			}
+			if e.Context.ConfiguredEdges[dep.Source.Id()] == nil {
+				e.Context.ConfiguredEdges[dep.Source.Id()] = make(map[core.ResourceId]bool)
+			}
+			e.Context.ConfiguredEdges[dep.Source.Id()][dep.Destination.Id()] = true
+		}
+
+		zap.S().Debug("Validating constraints")
+		unsatisfiedConstraints := e.ValidateConstraints()
+
+		if len(unsatisfiedConstraints) > 0 {
+			constraintsString := ""
+			for _, constraint := range unsatisfiedConstraints {
+				constraintsString += fmt.Sprintf("%s\n", constraint)
+			}
+			zap.S().Debugf("unsatisfied constraints: %s", constraintsString)
+			if i == NUM_LOOPS-1 {
+				return e.Context.EndState, fmt.Errorf("unsatisfied constraints: %s", constraintsString)
+			}
+		} else {
+			if len(e.Context.Errors[i]) > 0 {
+				break
 			}
 		}
 	}
-
-	err = e.KnowledgeBase.ExpandEdges(e.Context.EndState, e.Context.AppName)
-	if err != nil {
-		return nil, err
-	}
-
-	var merr multierr.Error
-	for _, resource := range e.Context.EndState.ListResources() {
-		var configuration any
-		merr.Append(e.Context.EndState.CallConfigure(resource, configuration))
-	}
-	if merr.ErrOrNil() != nil {
-		return e.Context.EndState, merr.ErrOrNil()
-	}
-
-	err = e.KnowledgeBase.ConfigureFromEdgeData(e.Context.EndState)
-	if err != nil {
-		return e.Context.EndState, err
-	}
-
-	unsatisfiedConstraints := e.ValidateConstraints()
-
-	if len(unsatisfiedConstraints) > 0 {
-		constraintsString := ""
-		for _, constraint := range unsatisfiedConstraints {
-			constraintsString += fmt.Sprintf("%s\n", constraint)
-		}
-		return e.Context.EndState, fmt.Errorf("unsatisfied constraints: %s", constraintsString)
-	}
-
+	zap.S().Debug("Validated constraints")
 	return e.Context.EndState, nil
 }
 
@@ -165,6 +203,9 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 func (e *Engine) ExpandConstructsAndCopyEdges() error {
 	var joinedErr error
 	for _, res := range e.Context.WorkingState.ListConstructs() {
+		if e.Context.ExpandendOrCopiedBaseConstructs[res.Id()] {
+			continue
+		}
 		// If the res is a resource, copy it over directly, otherwise we need to expand it
 		if res.Id().Provider == core.AbstractConstructProvider {
 			zap.S().Debugf("Expanding construct %s", res.Id())
@@ -178,6 +219,7 @@ func (e *Engine) ExpandConstructsAndCopyEdges() error {
 			// right now we will just look at the first constraint for the construct
 			// TODO: Combine all constraints when needed for expansion
 			constructType := ""
+			attributes := make(map[string]any)
 			for _, constraint := range e.Context.Constraints[constraints.ConstructConstraintScope] {
 				constructConstraint, ok := constraint.(*constraints.ConstructConstraint)
 				if !ok {
@@ -187,10 +229,11 @@ func (e *Engine) ExpandConstructsAndCopyEdges() error {
 
 				if constructConstraint.Target == construct.Id() {
 					constructType = constructConstraint.Type
+					attributes = constructConstraint.Attributes
 					break
 				}
 			}
-			mappedResources, err := e.Provider.ExpandConstruct(construct, e.Context.EndState, constructType)
+			mappedResources, err := e.Provider.ExpandConstruct(construct, e.Context.WorkingState, e.Context.EndState, constructType, attributes)
 			if err != nil {
 				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to expand construct %s, %s", res.Id(), err.Error()))
 			}
@@ -204,9 +247,11 @@ func (e *Engine) ExpandConstructsAndCopyEdges() error {
 			}
 			e.Context.EndState.AddResource(resource)
 		}
+		e.Context.ExpandendOrCopiedBaseConstructs[res.Id()] = true
 	}
 
 	for _, dep := range e.Context.WorkingState.ListDependencies() {
+
 		srcNodes := []core.Resource{}
 		dstNodes := []core.Resource{}
 		if dep.Source.Id().Provider == core.AbstractConstructProvider {
@@ -243,8 +288,16 @@ func (e *Engine) ExpandConstructsAndCopyEdges() error {
 
 		for _, srcNode := range srcNodes {
 			for _, dstNode := range dstNodes {
+				if e.Context.CopiedEdges[srcNode.Id()] == nil {
+					e.Context.CopiedEdges[srcNode.Id()] = make(map[core.ResourceId]bool)
+				}
+				if e.Context.CopiedEdges[srcNode.Id()][dstNode.Id()] {
+					continue
+				}
+
 				zap.S().Debugf("Copying dependency %s -> %s", srcNode.Id(), dstNode.Id())
 				e.Context.EndState.AddDependency(srcNode, dstNode)
+				e.Context.CopiedEdges[srcNode.Id()][dstNode.Id()] = true
 			}
 		}
 	}
@@ -272,7 +325,7 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 			if err != nil {
 				return err
 			}
-			e.Context.EndState.AddResource(resource)
+			e.Context.WorkingState.AddConstruct(resource)
 		}
 	case constraints.RemoveConstraintOperator:
 		if constraint.Node.Provider == core.AbstractConstructProvider {

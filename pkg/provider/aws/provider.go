@@ -16,10 +16,10 @@ type AWS struct {
 
 func (a *AWS) Name() string { return provider.AWS }
 
-func (a *AWS) ExpandConstruct(construct core.Construct, dag *core.ResourceGraph, constructType string) (directlyMappedResources []core.Resource, err error) {
+func (a *AWS) ExpandConstruct(construct core.Construct, cg *core.ConstructGraph, dag *core.ResourceGraph, constructType string, attributes map[string]any) (directlyMappedResources []core.Resource, err error) {
 	switch construct := construct.(type) {
 	case *core.ExecutionUnit:
-		return a.expandExecutionUnit(dag, construct, constructType, map[string]any{})
+		return a.expandExecutionUnit(dag, construct, constructType, attributes)
 	case *core.Gateway:
 		return a.expandExpose(dag, construct, constructType)
 	case *core.Orm:

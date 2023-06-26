@@ -6,6 +6,8 @@ import (
 	"go.uber.org/zap"
 )
 
+// ignoreCriteria determines if we can delete a resource because the knowledge base in use by the engine, shows that the initial resource is dependent on the sub resource for deletion.
+// If the sub resource is deletion dependent on any of the dependent resources passed in then we will determine weather we can delete the dependent resource first.
 func (e *Engine) ignoreCriteria(resource core.Resource, dependentResources []core.Resource) bool {
 DEP:
 	for _, dep := range dependentResources {
@@ -14,7 +16,7 @@ DEP:
 			if dep == res {
 				found = true
 				det, _ := e.KnowledgeBase.GetEdge(resource, dep)
-				if det.DeletetionDependent != 1 {
+				if !det.DeletetionDependent {
 					return false
 				}
 				continue DEP
@@ -24,7 +26,7 @@ DEP:
 			if dep == res {
 				found = true
 				det, _ := e.KnowledgeBase.GetEdge(dep, resource)
-				if det.DeletetionDependent != 1 {
+				if !det.DeletetionDependent {
 					return false
 				}
 				continue DEP
@@ -37,6 +39,10 @@ DEP:
 	return true
 }
 
+// delete resource is used by the engine to remove resources from the resource graph in its context.
+//
+// if explicit is set it is meant to show that a user has explicitly requested for the resource to be deleted or that the resource requested is being deleted by its parent resource
+// if overrideExplicit is set, it means that the explicit delete request still has to satisfy the resources delete criteria. If it is set to false, then the explicit deletion request is always performed
 func (e *Engine) deleteResource(resource core.Resource, explicit bool, overrideExplicit bool) bool {
 	log := zap.S().With(zap.String("id", resource.Id().String()))
 	log.Debug("Deleting resource")

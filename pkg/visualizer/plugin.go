@@ -42,7 +42,6 @@ func (a *visApi) request(method string, path string, contentType string, accept 
 	if err != nil {
 		return nil, err
 	}
-
 	req, err := http.NewRequest(method, visualizerBaseUrl+`/api/v1/`+path, &a.buf)
 	if err != nil {
 		return nil, err
@@ -129,7 +128,6 @@ func (p Plugin) Generate(dag *core.ResourceGraph, filenamePrefix string) ([]core
 		Provider:       p.Provider,
 		DAG:            dag,
 	}
-
 	resp, err := api.request(http.MethodPost, `generate-infra-diagram`, "application/yaml", "image/png", spec)
 	if err != nil {
 		return nil, err

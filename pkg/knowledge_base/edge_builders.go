@@ -12,7 +12,7 @@ type (
 		Configure           typedEdgeFunc[S, D]
 		ValidDestinations   []core.Resource
 		ReverseDirection    bool
-		DeletetionDependent int
+		DeletetionDependent bool
 	}
 
 	typedEdgeFunc[S core.Resource, D core.Resource] func(source S, destination D, dag *core.ResourceGraph, data EdgeData) error

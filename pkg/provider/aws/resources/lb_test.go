@@ -14,19 +14,64 @@ func Test_LoadBalancerCreate(t *testing.T) {
 	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[LoadBalancerCreateParams, *LoadBalancer]{
 		{
-			Name: "nil load balancer",
+			Name: "nil check ip",
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:load_balancer:my-app-instance",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, lb *LoadBalancer) {
+				assert.Equal(lb.Name, "my-app-instance")
+				assert.Equal(lb.ConstructsRef, core.BaseConstructSetOf(eu))
+			},
+		},
+		{
+			Name:     "nil check ip",
+			Existing: &LoadBalancer{Name: "my-app-instance", ConstructsRef: initialRefs},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:load_balancer:my-app-instance",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, lb *LoadBalancer) {
+				assert.Equal(lb.Name, "my-app-instance")
+				assert.Equal(lb.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.Params = LoadBalancerCreateParams{
+				Refs:    core.BaseConstructSetOf(eu),
+				AppName: "my-app",
+				Name:    "instance",
+			}
+			tt.Run(t)
+		})
+	}
+}
+
+func Test_LoadBalancerMakeOperational(t *testing.T) {
+	cases := []coretesting.MakeOperationalCase[*LoadBalancer]{
+		{
+			Name:     "only lb",
+			Resource: &LoadBalancer{Name: "instance"},
+			AppName:  "my-app",
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
 					"aws:elastic_ip:my_app_0",
 					"aws:elastic_ip:my_app_1",
 					"aws:internet_gateway:my_app_igw",
-					"aws:load_balancer:my-app-lb",
+					"aws:load_balancer:instance",
 					"aws:nat_gateway:my_app_0",
 					"aws:nat_gateway:my_app_1",
 					"aws:route_table:my_app_private0",
 					"aws:route_table:my_app_private1",
 					"aws:route_table:my_app_public",
+					"aws:security_group:my_app:my-app",
 					"aws:subnet_private:my_app:my_app_private0",
 					"aws:subnet_private:my_app:my_app_private1",
 					"aws:subnet_public:my_app:my_app_public0",
@@ -35,12 +80,13 @@ func Test_LoadBalancerCreate(t *testing.T) {
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
-					{Source: "aws:load_balancer:my-app-lb", Destination: "aws:subnet_private:my_app:my_app_private0"},
-					{Source: "aws:load_balancer:my-app-lb", Destination: "aws:subnet_private:my_app:my_app_private1"},
-					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_0"},
-					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public0"},
-					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_1"},
-					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:load_balancer:instance", Destination: "aws:security_group:my_app:my-app"},
+					{Source: "aws:load_balancer:instance", Destination: "aws:subnet_private:my_app:my_app_private0"},
+					{Source: "aws:load_balancer:instance", Destination: "aws:subnet_private:my_app:my_app_private1"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_1"},
+					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public1"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_0"},
+					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public0"},
 					{Source: "aws:route_table:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
 					{Source: "aws:route_table:my_app_private0", Destination: "aws:subnet_private:my_app:my_app_private0"},
 					{Source: "aws:route_table:my_app_private0", Destination: "aws:vpc:my_app"},
@@ -51,9 +97,12 @@ func Test_LoadBalancerCreate(t *testing.T) {
 					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public0"},
 					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public1"},
 					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
+					{Source: "aws:security_group:my_app:my-app", Destination: "aws:vpc:my_app"},
 					{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
 					{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:vpc:my_app"},
 					{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
+					{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
 					{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:vpc:my_app"},
 					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
@@ -62,36 +111,13 @@ func Test_LoadBalancerCreate(t *testing.T) {
 				},
 			},
 			Check: func(assert *assert.Assertions, lb *LoadBalancer) {
-				assert.Equal(lb.Name, "my-app-lb")
+				assert.Len(lb.SecurityGroups, 1)
 				assert.Len(lb.Subnets, 2)
-				assert.Len(lb.SecurityGroups, 0)
-				assert.Equal(lb.ConstructsRef, core.BaseConstructSetOf(eu))
-			},
-		},
-		{
-			Name:     "existing load balancer",
-			Existing: &LoadBalancer{Name: "my-app-lb", ConstructsRef: initialRefs},
-			Want: coretesting.ResourcesExpectation{
-				Nodes: []string{
-					"aws:load_balancer:my-app-lb",
-				},
-				Deps: []coretesting.StringDep{},
-			},
-			Check: func(assert *assert.Assertions, lb *LoadBalancer) {
-				assert.Equal(lb.Name, "my-app-lb")
-				initialRefs.Add(eu)
-				assert.Equal(lb.ConstructsRef, initialRefs)
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
-			tt.Params = LoadBalancerCreateParams{
-				AppName:     "my-app",
-				Refs:        core.BaseConstructSetOf(eu),
-				NetworkType: PrivateSubnet,
-				Name:        "lb",
-			}
 			tt.Run(t)
 		})
 	}
@@ -103,45 +129,77 @@ func Test_TargetGroupCreate(t *testing.T) {
 	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[TargetGroupCreateParams, *TargetGroup]{
 		{
-			Name: "nil target group",
+			Name: "nil check ip",
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:target_group:my-app-tg",
-					"aws:vpc:my_app",
-				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:target_group:my-app-tg", Destination: "aws:vpc:my_app"},
-				},
-			},
-			Check: func(assert *assert.Assertions, tg *TargetGroup) {
-				assert.Equal(tg.Name, "my-app-tg")
-				assert.NotNil(tg.Vpc)
-				assert.Equal(tg.ConstructsRef, core.BaseConstructSetOf(eu))
-			},
-		},
-		{
-			Name:     "existing target group",
-			Existing: &TargetGroup{Name: "my-app-tg", ConstructsRef: initialRefs},
-			Want: coretesting.ResourcesExpectation{
-				Nodes: []string{
-					"aws:target_group:my-app-tg",
+					"aws:target_group:my-app-instance",
 				},
 				Deps: []coretesting.StringDep{},
 			},
 			Check: func(assert *assert.Assertions, tg *TargetGroup) {
-				assert.Equal(tg.Name, "my-app-tg")
-				initialRefs.Add(eu)
-				assert.Equal(tg.ConstructsRef, initialRefs)
+				assert.Equal(tg.Name, "my-app-instance")
+				assert.Equal(tg.ConstructsRef, core.BaseConstructSetOf(eu))
+			},
+		},
+		{
+			Name:     "nil check ip",
+			Existing: &TargetGroup{Name: "my-app-instance", ConstructsRef: initialRefs},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:target_group:my-app-instance",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, tg *TargetGroup) {
+				assert.Equal(tg.Name, "my-app-instance")
+				assert.Equal(tg.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = TargetGroupCreateParams{
-				AppName: "my-app",
 				Refs:    core.BaseConstructSetOf(eu),
-				Name:    "tg",
+				AppName: "my-app",
+				Name:    "instance",
 			}
+			tt.Run(t)
+		})
+	}
+}
+
+func Test_TargetGroupMakeOperational(t *testing.T) {
+	cases := []coretesting.MakeOperationalCase[*TargetGroup]{
+		{
+			Name:     "only lb no vpc upstream",
+			Resource: &TargetGroup{Name: "instance"},
+			AppName:  "my-app",
+			WantErr:  true,
+		},
+		{
+			Name:     "lb with upstream vpc",
+			Resource: &TargetGroup{Name: "instance"},
+			AppName:  "my-app",
+			Existing: []core.Resource{&Vpc{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:target_group:instance", Destination: "aws:vpc:test"},
+			},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:target_group:instance",
+					"aws:vpc:test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:target_group:instance", Destination: "aws:vpc:test"},
+				},
+			},
+			Check: func(assert *assert.Assertions, tg *TargetGroup) {
+				assert.Equal(tg.Vpc.Name, "test")
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
 			tt.Run(t)
 		})
 	}
@@ -153,85 +211,77 @@ func Test_ListenerCreate(t *testing.T) {
 	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[ListenerCreateParams, *Listener]{
 		{
-			Name: "nil target group",
+			Name: "nil check ip",
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:availability_zones:AvailabilityZones",
-					"aws:elastic_ip:my_app_0",
-					"aws:elastic_ip:my_app_1",
-					"aws:internet_gateway:my_app_igw",
-					"aws:load_balancer:my-app-listener",
-					"aws:load_balancer_listener:my-app-listener",
-					"aws:nat_gateway:my_app_0",
-					"aws:nat_gateway:my_app_1",
-					"aws:route_table:my_app_private0",
-					"aws:route_table:my_app_private1",
-					"aws:route_table:my_app_public",
-					"aws:subnet_private:my_app:my_app_private0",
-					"aws:subnet_private:my_app:my_app_private1",
-					"aws:subnet_public:my_app:my_app_public0",
-					"aws:subnet_public:my_app:my_app_public1",
-					"aws:vpc:my_app",
-				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
-					{Source: "aws:load_balancer:my-app-listener", Destination: "aws:subnet_private:my_app:my_app_private0"},
-					{Source: "aws:load_balancer:my-app-listener", Destination: "aws:subnet_private:my_app:my_app_private1"},
-					{Source: "aws:load_balancer_listener:my-app-listener", Destination: "aws:load_balancer:my-app-listener"},
-					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_0"},
-					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public0"},
-					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:elastic_ip:my_app_1"},
-					{Source: "aws:nat_gateway:my_app_1", Destination: "aws:subnet_public:my_app:my_app_public1"},
-					{Source: "aws:route_table:my_app_private0", Destination: "aws:nat_gateway:my_app_0"},
-					{Source: "aws:route_table:my_app_private0", Destination: "aws:subnet_private:my_app:my_app_private0"},
-					{Source: "aws:route_table:my_app_private0", Destination: "aws:vpc:my_app"},
-					{Source: "aws:route_table:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
-					{Source: "aws:route_table:my_app_private1", Destination: "aws:subnet_private:my_app:my_app_private1"},
-					{Source: "aws:route_table:my_app_private1", Destination: "aws:vpc:my_app"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public0"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:my_app:my_app_public1"},
-					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:my_app"},
-					{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:subnet_private:my_app:my_app_private0", Destination: "aws:vpc:my_app"},
-					{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:subnet_private:my_app:my_app_private1", Destination: "aws:vpc:my_app"},
-					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
-					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:vpc:my_app"},
-				},
-			},
-			Check: func(assert *assert.Assertions, listener *Listener) {
-				assert.Equal(listener.Name, "my-app-listener")
-				assert.NotNil(listener.LoadBalancer)
-				assert.Equal(listener.ConstructsRef, core.BaseConstructSetOf(eu))
-			},
-		},
-		{
-			Name:     "existing target group",
-			Existing: &Listener{Name: "my-app-listener", ConstructsRef: initialRefs},
-			Want: coretesting.ResourcesExpectation{
-				Nodes: []string{
-					"aws:load_balancer_listener:my-app-listener",
+					"aws:load_balancer_listener:my-app-instance",
 				},
 				Deps: []coretesting.StringDep{},
 			},
-			Check: func(assert *assert.Assertions, listener *Listener) {
-				assert.Equal(listener.Name, "my-app-listener")
-				initialRefs.Add(eu)
-				assert.Equal(listener.ConstructsRef, initialRefs)
+			Check: func(assert *assert.Assertions, l *Listener) {
+				assert.Equal(l.Name, "my-app-instance")
+				assert.Equal(l.ConstructsRef, core.BaseConstructSetOf(eu))
+			},
+		},
+		{
+			Name:     "nil check ip",
+			Existing: &Listener{Name: "my-app-instance", ConstructsRef: initialRefs},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:load_balancer_listener:my-app-instance",
+				},
+				Deps: []coretesting.StringDep{},
+			},
+			Check: func(assert *assert.Assertions, l *Listener) {
+				assert.Equal(l.Name, "my-app-instance")
+				assert.Equal(l.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = ListenerCreateParams{
-				AppName:     "my-app",
-				Refs:        core.BaseConstructSetOf(eu),
-				Name:        "listener",
-				NetworkType: PrivateSubnet,
+				Refs:    core.BaseConstructSetOf(eu),
+				AppName: "my-app",
+				Name:    "instance",
 			}
+			tt.Run(t)
+		})
+	}
+}
+
+func Test_ListenerMakeOperational(t *testing.T) {
+	cases := []coretesting.MakeOperationalCase[*Listener]{
+		{
+			Name:     "only listener no lb upstream",
+			Resource: &Listener{Name: "instance"},
+			AppName:  "my-app",
+			WantErr:  true,
+		},
+		{
+			Name:     "listener with upstream lb",
+			Resource: &Listener{Name: "instance"},
+			AppName:  "my-app",
+			Existing: []core.Resource{&LoadBalancer{Name: "test"}},
+			ExistingDependencies: []coretesting.StringDep{
+				{Source: "aws:load_balancer_listener:instance", Destination: "aws:load_balancer:test"},
+			},
+			Want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:load_balancer_listener:instance",
+					"aws:load_balancer:test",
+				},
+				Deps: []coretesting.StringDep{
+					{Source: "aws:load_balancer_listener:instance", Destination: "aws:load_balancer:test"},
+				},
+			},
+			Check: func(assert *assert.Assertions, l *Listener) {
+				assert.Equal(l.LoadBalancer.Name, "test")
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
 			tt.Run(t)
 		})
 	}

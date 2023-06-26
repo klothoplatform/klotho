@@ -60,23 +60,50 @@ func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreat
 		return err
 	}
 	dag.AddDependency(lambda, logGroup)
-	subParams := map[string]any{
-		"Role": RoleCreateParams{
-			AppName: params.AppName,
-			Name:    fmt.Sprintf("%s-ExecutionRole", params.Name),
-			Refs:    lambda.ConstructsRef.Clone(),
-		},
-		"Image": ImageCreateParams{
-			AppName: params.AppName,
-			Name:    params.Name,
-			Refs:    lambda.ConstructsRef.Clone(),
-		},
+	return nil
+}
+
+func (lambda *LambdaFunction) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if lambda.Role == nil {
+		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, lambda)
+		if len(roles) == 0 {
+			err := dag.CreateDependencies(lambda, map[string]any{
+				"Role": RoleCreateParams{
+					AppName: appName,
+					Name:    fmt.Sprintf("%s-ExecutionRole", lambda.Name),
+					Refs:    core.BaseConstructSetOf(lambda),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else if len(roles) == 1 {
+			lambda.Role = roles[0]
+		} else {
+			return fmt.Errorf("lambda %s has more than one role downstream", lambda.Id())
+		}
 	}
 
-	err = dag.CreateDependencies(lambda, subParams)
-	if err != nil {
-		return err
+	if lambda.Image == nil {
+		images := core.GetDownstreamResourcesOfType[*EcrImage](dag, lambda)
+		if len(images) == 0 {
+			err := dag.CreateDependencies(lambda, map[string]any{
+				"Image": ImageCreateParams{
+					AppName: appName,
+					Name:    lambda.Name,
+					Refs:    core.BaseConstructSetOf(lambda),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else if len(images) == 1 {
+			lambda.Image = images[0]
+		} else {
+			return fmt.Errorf("lambda %s has more than one role downstream", lambda.Id())
+		}
 	}
+	dag.AddDependenciesReflect(lambda)
 	return nil
 }
 
@@ -129,6 +156,19 @@ func (permission *LambdaPermission) Create(dag *core.ResourceGraph, params Lambd
 	dag.AddResource(permission)
 	return nil
 }
+func (permission *LambdaPermission) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if permission.Function == nil {
+		functions := core.GetDownstreamResourcesOfType[*LambdaFunction](dag, permission)
+		if len(functions) == 0 {
+			return fmt.Errorf("lambda permission %s has no lambda function downstream", permission.Id())
+		} else if len(functions) > 1 {
+			return fmt.Errorf("lambda permission %s has more than one lambda function downstream", permission.Id())
+		}
+		permission.Function = functions[0]
+		dag.AddDependenciesReflect(permission)
+	}
+	return nil
+}
 
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (lambda *LambdaFunction) BaseConstructsRef() core.BaseConstructSet {
@@ -150,6 +190,10 @@ func (lambda *LambdaFunction) DeleteContext() core.DeleteContext {
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
 	}
+}
+
+func (lambda *LambdaFunction) GetFunctionality() core.Functionality {
+	return core.Compute
 }
 
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to

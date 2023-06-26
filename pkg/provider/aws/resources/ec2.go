@@ -44,27 +44,98 @@ func (instance *Ec2Instance) Create(dag *core.ResourceGraph, params Ec2InstanceC
 		existingInstance.ConstructsRef.AddAll(params.Refs)
 		return nil
 	}
-	instance.SecurityGroups = make([]*SecurityGroup, 1)
-	return dag.CreateDependencies(instance, map[string]any{
-		"InstanceProfile": InstanceProfileCreateParams{
-			AppName: params.AppName,
-			Name:    params.Name,
-			Refs:    params.Refs,
-		},
-		"SecurityGroups": []*SecurityGroupCreateParams{
-			{
-				AppName: params.AppName,
-				Refs:    params.Refs,
-			},
-		},
-		"Subnet": SubnetCreateParams{
-			AppName: params.AppName,
-			Refs:    params.Refs,
-			AZ:      "0",
-			Type:    PrivateSubnet,
-		},
-		"AMI": params,
-	})
+	dag.AddResource(instance)
+	return nil
+}
+
+func (instance *Ec2Instance) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if instance.InstanceProfile == nil {
+		profiles := core.GetAllDownstreamResourcesOfType[*InstanceProfile](dag, instance)
+		if len(profiles) == 0 {
+			err := dag.CreateDependencies(instance, map[string]any{
+				"InstanceProfile": InstanceProfileCreateParams{
+					AppName: appName,
+					Refs:    core.BaseConstructSetOf(instance),
+					Name:    instance.Name,
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else if len(profiles) == 1 {
+			instance.InstanceProfile = profiles[0]
+			dag.AddDependency(instance, instance.InstanceProfile)
+		} else {
+			return fmt.Errorf("instance %s has more than one instance profile downstream", instance.Id())
+		}
+	}
+
+	if instance.AMI == nil {
+		amis := core.GetAllDownstreamResourcesOfType[*AMI](dag, instance)
+		if len(amis) == 0 {
+			err := dag.CreateDependencies(instance, map[string]any{
+				"AMI": AMICreateParams{
+					AppName: appName,
+					Refs:    core.BaseConstructSetOf(instance),
+					Name:    instance.Name,
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else if len(amis) == 1 {
+			instance.AMI = amis[0]
+			dag.AddDependency(instance, instance.AMI)
+		} else {
+			return fmt.Errorf("instance %s has more than one ami downstream", instance.Id())
+		}
+	}
+
+	if instance.Subnet == nil {
+		vpc, err := getSingleUpstreamVpc(dag, instance)
+		if err != nil {
+			return err
+		}
+		subnets := core.GetAllDownstreamResourcesOfType[*Subnet](dag, instance)
+		if len(subnets) == 0 {
+			subnet, err := core.CreateResource[*Subnet](dag, SubnetCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(instance),
+				AZ:      "0",
+				Type:    PrivateSubnet,
+			})
+			if err != nil {
+				return err
+			}
+			if vpc != nil {
+				dag.AddDependency(subnet, vpc)
+			}
+			err = subnet.MakeOperational(dag, appName)
+			if err != nil {
+				return err
+			}
+			instance.Subnet = subnet
+			dag.AddDependenciesReflect(instance)
+		} else if len(subnets) == 1 {
+			if subnets[0].Vpc != vpc {
+				return fmt.Errorf("instance %s has subnet from vpc which does not correlate to it's vpc downstream", instance.Id())
+			}
+			instance.Subnet = subnets[0]
+			dag.AddDependency(instance, instance.Subnet)
+		} else {
+			return fmt.Errorf("instance %s has more than one subnet downstream", instance.Id())
+		}
+	}
+
+	if instance.SecurityGroups == nil {
+		sgs, err := getSecurityGroupsOperational(dag, instance, appName)
+		if err != nil {
+			return err
+		}
+		instance.SecurityGroups = sgs
+		dag.AddDependenciesReflect(instance)
+	}
+	return nil
 }
 
 type Ec2InstanceConfigureParams struct {
@@ -118,6 +189,10 @@ func (instance *Ec2Instance) DeleteContext() core.DeleteContext {
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
 	}
+}
+
+func (instance *Ec2Instance) GetFunctionality() core.Functionality {
+	return core.Compute
 }
 
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to

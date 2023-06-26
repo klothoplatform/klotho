@@ -122,7 +122,7 @@ func Test_FindPaths(t *testing.T) {
 	}
 }
 
-func Test_ConfigureFromEdgeData(t *testing.T) {
+func Test_ConfigureEdge(t *testing.T) {
 	cases := []struct {
 		name   string
 		source core.Resource
@@ -144,7 +144,8 @@ func Test_ConfigureFromEdgeData(t *testing.T) {
 			assert := assert.New(t)
 			dag := core.NewResourceGraph()
 			dag.AddDependencyWithData(tt.source, tt.dest, tt.data)
-			err := TestKnowledgeBase.ConfigureFromEdgeData(dag)
+			edge := dag.GetDependency(tt.source.Id(), tt.dest.Id())
+			err := TestKnowledgeBase.ConfigureEdge(edge, dag)
 			assert.NoError(err)
 			assert.ElementsMatch(tt.want, dag.ListDependencies())
 		})
@@ -181,7 +182,8 @@ func Test_ExpandEdges(t *testing.T) {
 			assert := assert.New(t)
 			dag := core.NewResourceGraph()
 			dag.AddDependencyWithData(tt.source, tt.dest, tt.data)
-			err := TestKnowledgeBase.ExpandEdges(dag, "my-app")
+			edge := dag.GetDependency(tt.source.Id(), tt.dest.Id())
+			err := TestKnowledgeBase.ExpandEdge(edge, dag, "my-app")
 			assert.NoError(err)
 			assert.ElementsMatch(tt.want, dag.ListDependencies())
 		})

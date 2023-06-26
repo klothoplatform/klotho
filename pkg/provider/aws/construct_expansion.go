@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -12,55 +11,56 @@ import (
 )
 
 func (a *AWS) expandStaticUnit(dag *core.ResourceGraph, unit *core.StaticUnit) ([]core.Resource, error) {
-	mappedResources := []core.Resource{}
 	errs := multierr.Error{}
-	createdBuckets := make(map[core.ResourceId]*resources.S3Bucket)
+	bucket, err := core.CreateResource[*resources.S3Bucket](dag, resources.S3BucketCreateParams{
+		AppName: a.AppName,
+		Refs:    core.BaseConstructSetOf(unit),
+		Name:    unit.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
 	for _, f := range unit.Files() {
 		object, err := core.CreateResource[*resources.S3Object](dag, resources.S3ObjectCreateParams{
-			AppName:    a.AppName,
-			Refs:       core.BaseConstructSetOf(unit),
-			BucketName: unit.Name,
-			Name:       filepath.Base(f.Path()),
-			Key:        f.Path(),
-			FilePath:   filepath.Join(unit.Name, f.Path()),
+			AppName:  a.AppName,
+			Refs:     core.BaseConstructSetOf(unit),
+			Name:     fmt.Sprintf("%s-%s", unit.Name, filepath.Base(f.Path())),
+			Key:      f.Path(),
+			FilePath: filepath.Join(unit.Name, f.Path()),
 		})
 		if err != nil {
 			errs.Append(err)
 			continue
 		}
-		createdBuckets[object.Bucket.Id()] = object.Bucket
+		object.Bucket = bucket
+		dag.AddDependenciesReflect(object)
 	}
-	if err := errs.ErrOrNil(); err != nil {
-		return mappedResources, err
-	}
-	switch len(createdBuckets) {
-	case 0:
-		return mappedResources, nil
-	case 1:
-		_, bucket := collectionutil.GetOneEntry(createdBuckets)
-		mappedResources = append(mappedResources, bucket)
-		return mappedResources, nil
-	default:
-		bucketIds := collectionutil.Keys(createdBuckets)
-		return mappedResources, errors.Errorf(`Found too many buckets %v for unit %s. This is an internal error.`, bucketIds, unit.Id())
-	}
+	return []core.Resource{bucket}, nil
 }
 
 func (a *AWS) expandSecrets(dag *core.ResourceGraph, construct *core.Secrets) ([]core.Resource, error) {
 	mappedResources := []core.Resource{}
 	for _, secretName := range construct.Secrets {
+		secret, err := core.CreateResource[*resources.Secret](dag, resources.SecretCreateParams{
+			AppName: a.AppName,
+			Refs:    core.BaseConstructSetOf(construct),
+			Name:    secretName,
+		})
+		if err != nil {
+			return mappedResources, err
+		}
 		secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 			AppName:      a.AppName,
 			Refs:         core.BaseConstructSetOf(construct),
 			Name:         secretName,
 			DetectedPath: secretName,
 		})
-
 		if err != nil {
 			return mappedResources, err
 		}
-
-		mappedResources = append(mappedResources, secretVersion.Secret)
+		secretVersion.Secret = secret
+		dag.AddDependenciesReflect(secretVersion)
+		mappedResources = append(mappedResources, secret)
 	}
 	return mappedResources, nil
 }

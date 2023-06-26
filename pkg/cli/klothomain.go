@@ -23,11 +23,9 @@ import (
 	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/input"
 	"github.com/klothoplatform/klotho/pkg/logging"
-	"github.com/klothoplatform/klotho/pkg/provider/providers"
 	"github.com/klothoplatform/klotho/pkg/updater"
 )
 
@@ -260,7 +258,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 			cmd.SilenceUsage = true
 		},
 	}
-	defer analyticsClient.PanicHandler(&err, errHandler)
+	// defer analyticsClient.PanicHandler(&err, errHandler)
 
 	updateStream := options.Update.Stream.OrDefault(km.DefaultUpdateStream)
 	analyticsClient.AppendProperty("updateStream", updateStream)
@@ -408,22 +406,13 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		Configuration:    &appCfg,
 		OutputOptions:    options.Output,
 	}
-	provider, err := providers.GetProvider(&appCfg)
-	if err != nil {
-		return err
-	}
-	kb, err := providers.GetKnowledgeBase(&appCfg)
-	if err != nil {
-		return err
-	}
-	klothoEngine := engine.NewEngine(provider, kb)
-	klothoEngine.Context.InitialState = document.Constructs
 	klothoCompiler := compiler.Compiler{
 		AnalysisAndTransformationPlugins: plugins.AnalysisAndTransform,
 		IaCPlugins:                       plugins.IaC,
-		Engine:                           klothoEngine,
+		Engine:                           plugins.Engine,
 		Document:                         document,
 	}
+	klothoCompiler.Engine.Context.InitialState = document.Constructs
 
 	if cfg.constructGraph != "" {
 		klothoCompiler.AnalysisAndTransformationPlugins = nil
@@ -437,16 +426,17 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		}
 		k8sPlugin := kubernetes.Kubernetes{Config: &appCfg}
 
-		klothoEngine.LoadContext(document.Constructs, c, cfg.appName)
-		err = k8sPlugin.Translate(document.Constructs, klothoEngine.Context.EndState)
+		klothoCompiler.Engine.LoadContext(document.Constructs, c, cfg.appName)
+		err = k8sPlugin.Translate(document.Constructs, klothoCompiler.Engine.Context.EndState)
 		if err != nil {
 			return errors.Errorf("failed to run kubernetes plugin: %s", err.Error())
 		}
-		dag, err := klothoEngine.Run()
+		dag, err := klothoCompiler.Engine.Run()
 		if err != nil {
 			return errors.Errorf("failed to run engine: %s", err.Error())
 		}
-		files, err := klothoEngine.VisualizeViews()
+		zap.S().Debugf("Finished running engine")
+		files, err := klothoCompiler.Engine.VisualizeViews()
 		if err != nil {
 			return errors.Errorf("failed to run engine viz: %s", err.Error())
 		}

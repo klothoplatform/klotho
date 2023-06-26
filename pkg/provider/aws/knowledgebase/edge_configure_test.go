@@ -138,9 +138,11 @@ func Test_ConfigureEdge(t *testing.T) {
 				return
 			}
 
-			err = kb.ConfigureFromEdgeData(dag)
-			if !assert.NoError(err) {
-				return
+			for _, edge := range tt.edge {
+				err = kb.ConfigureEdge(&edge, dag)
+				if !assert.NoError(err) {
+					return
+				}
 			}
 			for _, res := range tt.want {
 				assert.Equal(res, dag.GetResource(res.Id()))

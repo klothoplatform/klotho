@@ -5,6 +5,7 @@ import (
 
 	compiler "github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
+	"github.com/klothoplatform/klotho/pkg/engine"
 	envvar "github.com/klothoplatform/klotho/pkg/env_var"
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
 	"github.com/klothoplatform/klotho/pkg/infra/iac2"
@@ -17,6 +18,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/lang/python"
 	pyRuntimes "github.com/klothoplatform/klotho/pkg/lang/python/runtimes"
 	"github.com/klothoplatform/klotho/pkg/multierr"
+	"github.com/klothoplatform/klotho/pkg/provider/providers"
 	staticunit "github.com/klothoplatform/klotho/pkg/static_unit"
 	"github.com/klothoplatform/klotho/pkg/visualizer"
 )
@@ -26,8 +28,8 @@ import (
 type PluginSetBuilder struct {
 	AnalysisAndTransform []compiler.AnalysisAndTransformationPlugin
 	IaC                  []compiler.IaCPlugin
-
-	Cfg *config.Application
+	Engine               *engine.Engine
+	Cfg                  *config.Application
 }
 
 func (b *PluginSetBuilder) AddAll() error {
@@ -40,10 +42,24 @@ func (b *PluginSetBuilder) AddAll() error {
 		b.AddCSharp,
 		b.AddPulumi,
 		b.AddVisualizerPlugin,
+		b.AddEngine,
 	} {
 		merr.Append(f())
 	}
 	return merr.ErrOrNil()
+}
+
+func (b *PluginSetBuilder) AddEngine() error {
+	provider, err := providers.GetProvider(b.Cfg)
+	if err != nil {
+		return err
+	}
+	kb, err := providers.GetKnowledgeBase(b.Cfg)
+	if err != nil {
+		return err
+	}
+	b.Engine = engine.NewEngine(provider, kb)
+	return nil
 }
 
 func (b *PluginSetBuilder) AddVisualizerPlugin() error {

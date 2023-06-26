@@ -116,38 +116,82 @@ func (td *EcsTaskDefinition) Create(dag *core.ResourceGraph, params EcsTaskDefin
 	name := aws.EcsTaskDefinitionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	td.Name = name
 	td.ConstructsRef = params.Refs.Clone()
-	td.Region = NewRegion()
 
 	existingTaskDefinition := dag.GetResource(td.Id())
 	if existingTaskDefinition != nil {
 		return fmt.Errorf("task definition with name %s already exists", name)
 	}
 
-	logGroup, err := core.CreateResource[*LogGroup](dag, CloudwatchLogGroupCreateParams{
-		AppName: params.AppName,
-		Name:    fmt.Sprintf("%s-LogGroup", params.Name),
-		Refs:    td.ConstructsRef.Clone(),
-	})
-	if err != nil {
-		return err
-	}
-	td.LogGroup = logGroup
-	subParams := map[string]any{
-		"ExecutionRole": RoleCreateParams{
-			AppName: params.AppName,
-			Name:    fmt.Sprintf("%s-ExecutionRole", params.Name),
-			Refs:    td.ConstructsRef.Clone(),
-		},
-		"Image": ImageCreateParams{
-			AppName: params.AppName,
-			Name:    params.Name,
-			Refs:    td.ConstructsRef.Clone(),
-		},
+	dag.AddResource(td)
+	return nil
+}
+
+func (td *EcsTaskDefinition) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if td.Region == nil {
+		td.Region = NewRegion()
+		dag.AddDependenciesReflect(td)
 	}
 
-	err = dag.CreateDependencies(td, subParams)
-	if err != nil {
-		return err
+	if td.LogGroup == nil {
+		logGroups := core.GetDownstreamResourcesOfType[*LogGroup](dag, td)
+		if len(logGroups) == 0 {
+			err := dag.CreateDependencies(td, map[string]any{
+				"LogGroup": CloudwatchLogGroupCreateParams{
+					AppName: appName,
+					Name:    fmt.Sprintf("%s-LogGroup", td.Name),
+					Refs:    core.BaseConstructSetOf(td),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else if len(logGroups) == 1 {
+			td.LogGroup = logGroups[0]
+			dag.AddDependenciesReflect(td)
+		} else {
+			return fmt.Errorf("task definition %s has more than one log group downstream", td.Id())
+		}
+	}
+	if td.ExecutionRole == nil {
+		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, td)
+		if len(roles) == 0 {
+			err := dag.CreateDependencies(td, map[string]any{
+				"ExecutionRole": RoleCreateParams{
+					AppName: appName,
+					Name:    fmt.Sprintf("%s-ExecutionRole", td.Name),
+					Refs:    core.BaseConstructSetOf(td),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else if len(roles) == 1 {
+			td.ExecutionRole = roles[0]
+			dag.AddDependenciesReflect(td)
+		} else {
+			return fmt.Errorf("task definition %s has more than one execution role downstream", td.Id())
+		}
+	}
+
+	if td.Image == nil {
+		images := core.GetDownstreamResourcesOfType[*EcrImage](dag, td)
+		if len(images) == 0 {
+			err := dag.CreateDependencies(td, map[string]any{
+				"Image": ImageCreateParams{
+					AppName: appName,
+					Name:    td.Name,
+					Refs:    core.BaseConstructSetOf(td),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else if len(images) == 1 {
+			td.Image = images[0]
+			dag.AddDependenciesReflect(td)
+		} else {
+			return fmt.Errorf("task definition %s has more than one image downstream", td.Id())
+		}
 	}
 	return nil
 }
@@ -200,49 +244,74 @@ func (s *EcsService) Create(dag *core.ResourceGraph, params EcsServiceCreatePara
 	if existingService != nil {
 		return fmt.Errorf("service with name %s already exists", name)
 	}
+	dag.AddResource(s)
+	return nil
+}
 
-	subParams := map[string]any{
-		"Cluster": EcsClusterCreateParams{
-			AppName: params.AppName,
-			Name:    fmt.Sprintf("%s-ExecutionRole", params.Name),
-			Refs:    s.ConstructsRef.Clone(),
-		},
-		"TaskDefinition": EcsTaskDefinitionCreateParams{
-			AppName: params.AppName,
-			Name:    params.Name,
-			Refs:    s.ConstructsRef.Clone(),
-		},
-	}
-
-	if params.LaunchType == LAUNCH_TYPE_FARGATE {
-		s.Subnets = make([]*Subnet, 2)
-		subParams["Subnets"] = []SubnetCreateParams{
-			{
-				AppName: params.AppName,
-				Refs:    s.ConstructsRef,
-				AZ:      "0",
-				Type:    params.NetworkPlacement,
-			},
-			{
-				AppName: params.AppName,
-				Refs:    s.ConstructsRef,
-				AZ:      "1",
-				Type:    params.NetworkPlacement,
-			},
-		}
-		s.SecurityGroups = make([]*SecurityGroup, 1)
-		subParams["SecurityGroups"] = []SecurityGroupCreateParams{
-			{
-				AppName: params.AppName,
-				Refs:    s.ConstructsRef,
-			},
+func (service *EcsService) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if service.Cluster == nil {
+		clusters := core.GetDownstreamResourcesOfType[*EcsCluster](dag, service)
+		if len(clusters) == 0 {
+			err := dag.CreateDependencies(service, map[string]any{
+				"Cluster": EcsClusterCreateParams{
+					AppName: appName,
+					Name:    fmt.Sprintf("%s-cluster", service.Name),
+					Refs:    core.BaseConstructSetOf(service),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else if len(clusters) > 1 {
+			return fmt.Errorf("service %s has more than one cluster downstream", service.Id())
+		} else {
+			service.Cluster = clusters[0]
+			dag.AddDependenciesReflect(service)
 		}
 	}
 
-	err := dag.CreateDependencies(s, subParams)
+	if service.TaskDefinition == nil {
+		taskDefinitions := core.GetDownstreamResourcesOfType[*EcsTaskDefinition](dag, service)
+		if len(taskDefinitions) == 0 {
+			err := dag.CreateDependencies(service, map[string]any{
+				"TaskDefinition": EcsTaskDefinitionCreateParams{
+					AppName: appName,
+					Name:    service.Name,
+					Refs:    core.BaseConstructSetOf(service),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		} else if len(taskDefinitions) > 1 {
+			return fmt.Errorf("service %s has more than one task definition downstream", service.Id())
+		} else {
+			service.TaskDefinition = taskDefinitions[0]
+			dag.AddDependenciesReflect(service)
+		}
+	}
 
-	if err != nil {
-		return err
+	if service.LaunchType == LAUNCH_TYPE_FARGATE {
+		if service.Subnets == nil {
+			subnets, err := getSubnetsOperational(dag, service, appName)
+			if err != nil {
+				return err
+			}
+			for _, subnet := range subnets {
+				if subnet.Type == PrivateSubnet {
+					service.Subnets = append(service.Subnets, subnet)
+				}
+			}
+		}
+
+		if service.SecurityGroups == nil {
+			sgs, err := getSecurityGroupsOperational(dag, service, appName)
+			if err != nil {
+				return err
+			}
+			service.SecurityGroups = sgs
+		}
+		dag.AddDependenciesReflect(service)
 	}
 	return nil
 }
@@ -273,6 +342,10 @@ func (td *EcsService) DeleteContext() core.DeleteContext {
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
 	}
+}
+
+func (td *EcsService) GetFunctionality() core.Functionality {
+	return core.Compute
 }
 
 func (c *EcsCluster) Create(dag *core.ResourceGraph, params EcsClusterCreateParams) error {
