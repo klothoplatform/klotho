@@ -192,6 +192,10 @@ func (lambda *LambdaFunction) DeleteContext() core.DeleteContext {
 	}
 }
 
+func (lambda *LambdaFunction) GetFunctionality() core.Functionality {
+	return core.Compute
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (permission *LambdaPermission) BaseConstructsRef() core.BaseConstructSet {
 	return permission.ConstructsRef

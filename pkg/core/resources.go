@@ -92,7 +92,7 @@ type (
 		OutputTo(dest string) error
 	}
 
-	Capability string
+	Functionality string
 )
 
 const (
@@ -108,6 +108,11 @@ const (
 	// AbstractConstructProvider is the provider for abstract constructs — those that don't correspond to deployable
 	// resources directly, but instead expand into other constructs.
 	AbstractConstructProvider = "klotho"
+)
+
+const (
+	Compute Functionality = "compute"
+	Unknown Functionality = "Unknown"
 )
 
 func IsConstructOfAnnotationCapability(baseConstruct BaseConstruct, cap string) bool {
@@ -221,6 +226,7 @@ func BaseConstructSetOf(keys ...BaseConstruct) BaseConstructSet {
 	return s
 }
 
+// GetResourcesReflectively looks at a resource and determines all resources which appear as internal properties to the resource
 func GetResourcesReflectively(source Resource) []Resource {
 	resources := []Resource{}
 	sourceValue := reflect.ValueOf(source)
@@ -235,23 +241,24 @@ func GetResourcesReflectively(source Resource) []Resource {
 		case reflect.Slice, reflect.Array:
 			for elemIdx := 0; elemIdx < fieldValue.Len(); elemIdx++ {
 				elemValue := fieldValue.Index(elemIdx)
-				resources = append(resources, loadNestedResourcesFromIds(source, elemValue)...)
+				resources = append(resources, getNestedResources(source, elemValue)...)
 			}
 
 		case reflect.Map:
 			for iter := fieldValue.MapRange(); iter.Next(); {
 				elemValue := iter.Value()
-				resources = append(resources, loadNestedResourcesFromIds(source, elemValue)...)
+				resources = append(resources, getNestedResources(source, elemValue)...)
 			}
 
 		default:
-			resources = append(resources, loadNestedResourcesFromIds(source, fieldValue)...)
+			resources = append(resources, getNestedResources(source, fieldValue)...)
 		}
 	}
 	return resources
 }
 
-func loadNestedResourcesFromIds(source BaseConstruct, targetValue reflect.Value) (resources []Resource) {
+// getNestedResources gets all resources which exist as attributes on a BaseConstruct by using reflection
+func getNestedResources(source BaseConstruct, targetValue reflect.Value) (resources []Resource) {
 	if targetValue.Kind() == reflect.Pointer && targetValue.IsNil() {
 		return
 	}
@@ -275,21 +282,40 @@ func loadNestedResourcesFromIds(source BaseConstruct, targetValue reflect.Value)
 		case reflect.Struct:
 			for i := 0; i < correspondingValue.NumField(); i++ {
 				childVal := correspondingValue.Field(i)
-				resources = append(resources, loadNestedResourcesFromIds(source, childVal)...)
+				resources = append(resources, getNestedResources(source, childVal)...)
 			}
 		case reflect.Slice, reflect.Array:
 			for elemIdx := 0; elemIdx < correspondingValue.Len(); elemIdx++ {
 				elemValue := correspondingValue.Index(elemIdx)
-				resources = append(resources, loadNestedResourcesFromIds(source, elemValue)...)
+				resources = append(resources, getNestedResources(source, elemValue)...)
 			}
 
 		case reflect.Map:
 			for iter := correspondingValue.MapRange(); iter.Next(); {
 				elemValue := iter.Value()
-				resources = append(resources, loadNestedResourcesFromIds(source, elemValue)...)
+				resources = append(resources, getNestedResources(source, elemValue)...)
 			}
 
 		}
 	}
 	return
+}
+
+// GetFunctionality returns the base constructs functionality defined by itself.
+// If no functionality is defined, we will return the Unknown functionality type
+func GetFunctionality(construct BaseConstruct) Functionality {
+	method := reflect.ValueOf(construct).MethodByName("GetFunctionality")
+	if method.IsValid() {
+		eval := method.Call(nil)
+		if eval[0].IsZero() {
+			return Unknown
+		} else {
+			functionality, ok := eval[0].Interface().(Functionality)
+			if !ok {
+				return Unknown
+			}
+			return functionality
+		}
+	}
+	return Unknown
 }

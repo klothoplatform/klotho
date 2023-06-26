@@ -219,6 +219,7 @@ func (e *Engine) ExpandConstructsAndCopyEdges() error {
 			// right now we will just look at the first constraint for the construct
 			// TODO: Combine all constraints when needed for expansion
 			constructType := ""
+			attributes := make(map[string]any)
 			for _, constraint := range e.Context.Constraints[constraints.ConstructConstraintScope] {
 				constructConstraint, ok := constraint.(*constraints.ConstructConstraint)
 				if !ok {
@@ -228,10 +229,11 @@ func (e *Engine) ExpandConstructsAndCopyEdges() error {
 
 				if constructConstraint.Target == construct.Id() {
 					constructType = constructConstraint.Type
+					attributes = constructConstraint.Attributes
 					break
 				}
 			}
-			mappedResources, err := e.Provider.ExpandConstruct(construct, e.Context.EndState, constructType)
+			mappedResources, err := e.Provider.ExpandConstruct(construct, e.Context.WorkingState, e.Context.EndState, constructType, attributes)
 			if err != nil {
 				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to expand construct %s, %s", res.Id(), err.Error()))
 			}

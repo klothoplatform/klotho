@@ -48,7 +48,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				return fmt.Errorf("source of lambda to api integration expansion must be a rest api resource")
 			}
 			if len(data.Routes) == 0 {
-				data.Routes = append(data.Routes, core.Route{Path: "*", Verb: "ANY"})
+				data.Routes = append(data.Routes, core.Route{Path: fmt.Sprintf("/%s/*", function.Name), Verb: "ANY"})
 			}
 
 			err := createRoutesForIntegration(data.AppName, data.Routes, refs, dag, nil, restApi, &resources.AwsResourceValue{ResourceVal: function, PropertyVal: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
@@ -88,7 +88,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				return nil
 			}
 			if len(data.Routes) == 0 {
-				data.Routes = append(data.Routes, core.Route{Path: "*", Verb: "ANY"})
+				data.Routes = append(data.Routes, core.Route{Path: fmt.Sprintf("/%s/*", lb.Name), Verb: "ANY"})
 			}
 
 			restApi, ok := data.Source.(*resources.RestApi)

@@ -87,6 +87,7 @@ func (e *Engine) LoadConstraintsFromFile(path string) (map[constraints.Constrain
 	return constraints.ParseConstraintsFromFile(bytesArr)
 }
 
+// correctPointers is used to ensure that the attributes of each baseconstruct points to the baseconstruct which exists in the graph by passing those in via a resource map.
 func correctPointers(source core.BaseConstruct, resourceMap map[core.ResourceId]core.BaseConstruct) error {
 	sourceValue := reflect.ValueOf(source)
 	sourceType := sourceValue.Type()
@@ -100,24 +101,26 @@ func correctPointers(source core.BaseConstruct, resourceMap map[core.ResourceId]
 		case reflect.Slice, reflect.Array:
 			for elemIdx := 0; elemIdx < fieldValue.Len(); elemIdx++ {
 				elemValue := fieldValue.Index(elemIdx)
-
-				loadNestedResourcesFromIds(source, elemValue, resourceMap)
+				setNestedResourceFromId(source, elemValue, resourceMap)
 			}
 
 		case reflect.Map:
 			for iter := fieldValue.MapRange(); iter.Next(); {
 				elemValue := iter.Value()
-				loadNestedResourcesFromIds(source, elemValue, resourceMap)
+				setNestedResourceFromId(source, elemValue, resourceMap)
 			}
 
 		default:
-			loadNestedResourcesFromIds(source, fieldValue, resourceMap)
+			setNestedResourceFromId(source, fieldValue, resourceMap)
 		}
 	}
 	return nil
 }
 
-func loadNestedResourcesFromIds(source core.BaseConstruct, targetValue reflect.Value, resourceMap map[core.ResourceId]core.BaseConstruct) {
+// setNestedResourcesFromIds looks at attributes of a base construct which correspond to resources and sets the field to be the construct which exists in the resource map,
+//
+//	based on the id which exists in the field currently.
+func setNestedResourceFromId(source core.BaseConstruct, targetValue reflect.Value, resourceMap map[core.ResourceId]core.BaseConstruct) {
 	if targetValue.Kind() == reflect.Pointer && targetValue.IsNil() {
 		return
 	}
@@ -141,18 +144,18 @@ func loadNestedResourcesFromIds(source core.BaseConstruct, targetValue reflect.V
 		case reflect.Struct:
 			for i := 0; i < correspondingValue.NumField(); i++ {
 				childVal := correspondingValue.Field(i)
-				loadNestedResourcesFromIds(source, childVal, resourceMap)
+				setNestedResourceFromId(source, childVal, resourceMap)
 			}
 		case reflect.Slice, reflect.Array:
 			for elemIdx := 0; elemIdx < correspondingValue.Len(); elemIdx++ {
 				elemValue := correspondingValue.Index(elemIdx)
-				loadNestedResourcesFromIds(source, elemValue, resourceMap)
+				setNestedResourceFromId(source, elemValue, resourceMap)
 			}
 
 		case reflect.Map:
 			for iter := correspondingValue.MapRange(); iter.Next(); {
 				elemValue := iter.Value()
-				loadNestedResourcesFromIds(source, elemValue, resourceMap)
+				setNestedResourceFromId(source, elemValue, resourceMap)
 			}
 
 		}

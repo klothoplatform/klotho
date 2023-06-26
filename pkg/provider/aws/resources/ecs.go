@@ -344,6 +344,10 @@ func (td *EcsService) DeleteContext() core.DeleteContext {
 	}
 }
 
+func (td *EcsService) GetFunctionality() core.Functionality {
+	return core.Compute
+}
+
 func (c *EcsCluster) Create(dag *core.ResourceGraph, params EcsClusterCreateParams) error {
 	name := aws.EcsClusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	c.Name = name

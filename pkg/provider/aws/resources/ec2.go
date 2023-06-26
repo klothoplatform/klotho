@@ -191,6 +191,10 @@ func (instance *Ec2Instance) DeleteContext() core.DeleteContext {
 	}
 }
 
+func (instance *Ec2Instance) GetFunctionality() core.Functionality {
+	return core.Compute
+}
+
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (ami *AMI) BaseConstructsRef() core.BaseConstructSet {
 	return ami.ConstructsRef
