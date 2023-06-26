@@ -70,7 +70,7 @@ func Test_Engine_Run(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			engine := NewEngine(&MockProvider{}, MockKB)
+			engine := NewEngine(&MockProvider{}, MockKB, core.ListAllConstructs())
 
 			cg := core.NewConstructGraph()
 			for _, c := range tt.constructs {

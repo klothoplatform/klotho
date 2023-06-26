@@ -18,6 +18,8 @@ type (
 		Provider provider.Provider
 		// The knowledge base that the engine is running against
 		KnowledgeBase knowledgebase.EdgeKB
+		// The constructs which the engine understands
+		Constructs []core.Construct
 		// The context of the engine
 		Context EngineContext
 	}
@@ -54,10 +56,11 @@ type (
 	}
 )
 
-func NewEngine(provider provider.Provider, kb knowledgebase.EdgeKB) *Engine {
+func NewEngine(provider provider.Provider, kb knowledgebase.EdgeKB, constructs []core.Construct) *Engine {
 	return &Engine{
 		Provider:      provider,
 		KnowledgeBase: kb,
+		Constructs:    constructs,
 	}
 }
 
@@ -314,7 +317,7 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 	switch constraint.Operator {
 	case constraints.AddConstraintOperator:
 		if constraint.Node.Provider == core.AbstractConstructProvider {
-			construct, err := core.GetConstructFromInputId(constraint.Node)
+			construct, err := e.getConstructFromInputId(constraint.Node)
 			if err != nil {
 				return err
 			}
@@ -352,7 +355,7 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 			if construct == nil {
 				return fmt.Errorf("construct, %s, does not exist", construct.Id())
 			}
-			new, err := core.GetConstructFromInputId(constraint.ReplacementNode)
+			new, err := e.getConstructFromInputId(constraint.ReplacementNode)
 			if err != nil {
 				return err
 			}

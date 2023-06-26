@@ -1,10 +1,6 @@
 package core
 
 import (
-	"errors"
-	"fmt"
-	"reflect"
-
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"go.uber.org/zap"
 )
@@ -228,40 +224,4 @@ func (cg *ConstructGraph) FindUpstreamGateways(unit *ExecutionUnit) []*Gateway {
 		}
 	}
 	return gateways
-}
-
-func LoadConstructs(input InputGraph, resourceMap map[ResourceId]BaseConstruct) error {
-
-	var joinedErr error
-	for _, res := range input.Resources {
-		if res.Provider != AbstractConstructProvider {
-			continue
-		}
-		construct, err := GetConstructFromInputId(res)
-		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
-			continue
-		}
-		resourceMap[construct.Id()] = construct
-	}
-
-	return joinedErr
-}
-
-func GetConstructFromInputId(res ResourceId) (Construct, error) {
-	typeToResource := make(map[string]Construct)
-	for _, construct := range ListAllConstructs() {
-		typeToResource[construct.Id().Type] = construct
-	}
-	construct, ok := typeToResource[res.Type]
-	if !ok {
-		return nil, fmt.Errorf("unable to find resource of type %s", res.Type)
-	}
-	newConstruct := reflect.New(reflect.TypeOf(construct).Elem()).Interface()
-	construct, ok = newConstruct.(Construct)
-	if !ok {
-		return nil, fmt.Errorf("item %s of type %T is not of type core.Resource", res, newConstruct)
-	}
-	reflect.ValueOf(construct).Elem().FieldByName("Name").SetString(res.Name)
-	return construct, nil
 }
