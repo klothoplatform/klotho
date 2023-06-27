@@ -182,7 +182,7 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 		// This is checking all edges which have a direction of From -> To
 		for _, e := range kb.GetEdgesWithSource(source) {
 			det, _ := kb.GetEdgeDetails(e.Source, e.Destination)
-			if !det.ReverseDirection && e.Source == source && !visited[e.Destination] && kb.isValidForPath(e, dest) {
+			if !det.ReverseDirection && e.Source == source && !visited[e.Destination] {
 				result = append(result, kb.findPaths(e.Destination, dest, append(stack, e), visited)...)
 			}
 		}
@@ -193,27 +193,13 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 		// However we would expect the path to be RdsProxy -> RdsProxyTarget -> RdsInstance, so to satisfy understanding the path to connect other nodes, we must understand the direction of both the IaC dependency and data flow dependency
 		for _, e := range kb.GetEdgesWithTarget(source) {
 			det, _ := kb.GetEdgeDetails(e.Source, e.Destination)
-			if det.ReverseDirection && e.Destination == source && !visited[e.Source] && kb.isValidForPath(e, dest) {
+			if det.ReverseDirection && e.Destination == source && !visited[e.Source] {
 				result = append(result, kb.findPaths(e.Source, dest, append(stack, e), visited)...)
 			}
 		}
 	}
 	delete(visited, source)
 	return result
-}
-
-// isValidForPath determines if an edge is valid for an instance of path generation.
-//
-// The criteria is:
-//   - check to see if the path generations destination is valid for the edge
-func (kb EdgeKB) isValidForPath(edge Edge, dest reflect.Type) bool {
-	edgeDetail, _ := kb.GetEdgeDetails(edge.Source, edge.Destination)
-	for _, validDest := range edgeDetail.ValidDestinations {
-		if validDest == dest {
-			return true
-		}
-	}
-	return false
 }
 
 // ExpandEdges performs calculations to determine the proper path to be inserted into the ResourceGraph.
@@ -337,19 +323,14 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		}
 	}
 
-	fmt.Println(validPath)
-	fmt.Println(len(validPath))
 	// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
-	if len(validPath) > 1 {
-		fmt.Println("removing dep")
+	if len(validPath) > 1 && joinedErr == nil {
 
 		zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
 		err := dag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
 		if err != nil {
-			fmt.Println(err)
 			return err
 		}
-		fmt.Println("removed dep")
 
 	}
 	return joinedErr

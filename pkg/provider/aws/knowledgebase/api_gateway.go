@@ -139,40 +139,44 @@ var ApiGatewayKB = knowledgebase.Build(
 				tg.TargetType = "instance"
 				dag.AddDependency(tg, instance)
 			}
-			tg.Port = 3000
 
-			if !isEc2Dest && !isTgDest && !isEcsDest {
-				return fmt.Errorf("destination of api integration -> load balancer expansion must be a target group, ecs service, or ec2 instance, but got %T", data.Destination)
+			if tg != nil {
+				tg.Port = 3000
 			}
 
-			listener, err := core.CreateResource[*resources.Listener](dag, resources.ListenerCreateParams{
-				AppName:     data.AppName,
-				Refs:        core.BaseConstructSetOf(tg),
-				Name:        tg.Name,
-				NetworkType: resources.PrivateSubnet,
-			})
+			var vpcLink *resources.VpcLink
+			if isEc2Dest || isTgDest || isEcsDest {
+				listener, err := core.CreateResource[*resources.Listener](dag, resources.ListenerCreateParams{
+					AppName:     data.AppName,
+					Refs:        core.BaseConstructSetOf(tg),
+					Name:        tg.Name,
+					NetworkType: resources.PrivateSubnet,
+				})
+				if err != nil {
+					return err
+				}
+				listener.LoadBalancer = lb
+				dag.AddDependency(listener, lb)
+				listener.LoadBalancer.Type = "network"
+				listener.LoadBalancer.Scheme = "internal"
+				listener.DefaultActions = []*resources.LBAction{{TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE}, Type: "forward"}}
+				listener.Port = 80
+				listener.Protocol = tg.Protocol
+				dag.AddDependency(listener, tg)
+
+				vpcLink = &resources.VpcLink{
+					Target:        listener.LoadBalancer,
+					ConstructsRef: listener.LoadBalancer.ConstructsRef,
+				}
+			}
+
+			err = createRoutesForIntegration(data.AppName, data.Routes, refs, dag, vpcLink, restApi, &resources.AwsResourceValue{ResourceVal: lb, PropertyVal: resources.NLB_INTEGRATION_URI_IAC_VALUE})
 			if err != nil {
 				return err
 			}
-			listener.LoadBalancer = lb
-			dag.AddDependency(listener, lb)
-			listener.LoadBalancer.Type = "network"
-			listener.LoadBalancer.Scheme = "internal"
-			listener.DefaultActions = []*resources.LBAction{{TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE}, Type: "forward"}}
-			listener.Port = 80
-			listener.Protocol = tg.Protocol
-			dag.AddDependenciesReflect(listener)
-
-			vpcLink := &resources.VpcLink{
-				Target:        listener.LoadBalancer,
-				ConstructsRef: listener.LoadBalancer.ConstructsRef,
+			if vpcLink != nil {
+				dag.AddDependenciesReflect(vpcLink)
 			}
-
-			err = createRoutesForIntegration(data.AppName, data.Routes, refs, dag, vpcLink, restApi, &resources.AwsResourceValue{ResourceVal: listener.LoadBalancer, PropertyVal: resources.NLB_INTEGRATION_URI_IAC_VALUE})
-			if err != nil {
-				return err
-			}
-			dag.AddDependenciesReflect(vpcLink)
 			return nil
 		},
 		ValidDestinations: []core.Resource{&resources.TargetGroup{}, &resources.Ec2Instance{}, &resources.EcsService{}},

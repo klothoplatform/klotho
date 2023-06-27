@@ -148,22 +148,24 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		}
 
 		for _, dep := range e.Context.EndState.ListDependencies() {
-			if e.Context.ExpandedEdges[dep.Source.Id()] == nil {
-				e.Context.ExpandedEdges[dep.Source.Id()] = make(map[core.ResourceId]bool)
+			src := dep.Source.Id()
+			dst := dep.Destination.Id()
+			if e.Context.ExpandedEdges[src] == nil {
+				e.Context.ExpandedEdges[src] = make(map[core.ResourceId]bool)
 			}
 			// If we know that the edge has a direct connection but is flipped due to data flow, immediately use that edge
 			if det, _ := e.KnowledgeBase.GetEdge(dep.Source, dep.Destination); det.ReverseDirection {
 				dep = graph.Edge[core.Resource]{Source: dep.Destination, Destination: dep.Source}
 			}
-			if !e.Context.ExpandedEdges[dep.Source.Id()][dep.Destination.Id()] {
+			if !e.Context.ExpandedEdges[src][dst] {
 				err = e.KnowledgeBase.ExpandEdge(&dep, e.Context.EndState, e.Context.AppName)
 				if err != nil {
+					zap.S().Warnf("got error when expanding edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
 					e.Context.Errors[i] = append(e.Context.Errors[i], err)
 					continue
 				}
 			}
-
-			e.Context.ExpandedEdges[dep.Source.Id()][dep.Destination.Id()] = true
+			e.Context.ExpandedEdges[src][dst] = true
 		}
 
 		for _, resource := range e.Context.EndState.ListResources() {

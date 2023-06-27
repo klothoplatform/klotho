@@ -15,6 +15,7 @@ var LbKB = knowledgebase.Build(
 			if data.Source.Id().Type != resources.API_GATEWAY_INTEGRATION_TYPE {
 				src := data.Source.Id().Name
 				dst := data.Destination.Id().Name
+				fmt.Println(data.Destination.Id())
 				if source.Name == "" || source == nil {
 					var err error
 					source, err = core.CreateResource[*resources.Listener](dag, resources.ListenerCreateParams{
@@ -26,6 +27,7 @@ var LbKB = knowledgebase.Build(
 						return err
 					}
 				}
+				fmt.Println(destination.Name)
 				if destination.Name == "" || destination == nil {
 					var err error
 					destination, err = core.CreateResource[*resources.TargetGroup](dag, resources.TargetGroupCreateParams{
@@ -37,6 +39,7 @@ var LbKB = knowledgebase.Build(
 						return err
 					}
 				}
+				fmt.Println(destination.Name)
 				dag.AddDependency(source, destination)
 				if source.LoadBalancer != nil && len(source.LoadBalancer.Subnets) > 0 && source.LoadBalancer.Subnets[0].Vpc != nil {
 					destination.Vpc = source.LoadBalancer.Subnets[0].Vpc
@@ -113,5 +116,4 @@ var LbKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.TargetGroup, *resources.EcsService]{},
 )

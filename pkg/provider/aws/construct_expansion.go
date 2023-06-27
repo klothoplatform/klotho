@@ -181,7 +181,13 @@ func (a *AWS) expandExecutionUnit(dag *core.ResourceGraph, unit *core.ExecutionU
 		}
 		mappedResources = append(mappedResources, instance)
 	case resources.ECS_SERVICE_TYPE:
-		networkPlacement := attributes["networkPlacement"].(string)
+		var networkPlacement string
+		np, found := attributes["networkPlacement"]
+		if found {
+			networkPlacement = np.(string)
+		} else {
+			networkPlacement = "private"
+		}
 		ecsService, err := core.CreateResource[*resources.EcsService](dag, resources.EcsServiceCreateParams{
 			AppName:          a.AppName,
 			Refs:             core.BaseConstructSetOf(unit),
