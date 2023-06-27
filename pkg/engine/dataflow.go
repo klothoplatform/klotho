@@ -47,11 +47,8 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 				continue
 			}
 			paths := e.KnowledgeBase.FindPathsInGraph(src, dst, e.Context.EndState)
+			pathWithoutOthers := false
 			if len(paths) > 0 {
-				if collectionutil.Contains(parentResourceTypes, dst.Id().Type) {
-					srcParents = append(srcParents, dst)
-					continue
-				}
 				addedDep := false
 				for _, path := range paths {
 					for _, edge := range path {
@@ -69,11 +66,14 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 					if addedDep {
 						break
 					}
+					pathWithoutOthers = true
 				}
 
 				// Add a summarized edge if there are no relevant intermediate resources
 				// or a child -> parent edge if the destination is a parent type.
-				if !addedDep {
+				if collectionutil.Contains(parentResourceTypes, dst.Id().Type) && pathWithoutOthers {
+					srcParents = append(srcParents, dst)
+				} else if !addedDep {
 					dataFlowDag.AddDependency(src, dst)
 				}
 			}

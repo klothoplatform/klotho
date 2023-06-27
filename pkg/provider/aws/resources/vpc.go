@@ -503,7 +503,7 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 		}
 	}
 	for _, subnet := range routeTablesSubnets {
-		if routeTable.Vpc != nil && routeTable.Vpc != subnet.Vpc {
+		if routeTable.Vpc != nil && routeTable.Vpc.Id() != subnet.Vpc.Id() {
 			return fmt.Errorf("route table %s has multiple vpc dependencies through its subnets", routeTable.Name)
 		}
 		routeTable.Vpc = subnet.Vpc
