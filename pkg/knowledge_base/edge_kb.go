@@ -226,15 +226,15 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 //   - Iterate through each edge in path calling expansion function on edge
 func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGraph, appName string) (err error) {
 
-	// defer func() {
-	// 	if r := recover(); r != nil {
-	// 		_, ok := r.(error)
-	// 		if !ok {
-	// 			err = fmt.Errorf("panic recovered: %v", r)
-	// 		}
-	// 		err = fmt.Errorf("panic recovered: %v", r)
-	// 	}
-	// }()
+	defer func() {
+		if r := recover(); r != nil {
+			_, ok := r.(error)
+			if !ok {
+				err = fmt.Errorf("panic recovered: %v", r)
+			}
+			err = fmt.Errorf("panic recovered: %v", r)
+		}
+	}()
 
 	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
 	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
