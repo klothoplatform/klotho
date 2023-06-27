@@ -121,10 +121,13 @@ func (kb EdgeKB) GetEdgesWithTarget(target reflect.Type) []Edge {
 //
 // The method will return all paths found
 func (kb EdgeKB) FindPaths(source core.Resource, dest core.Resource, constraint EdgeConstraint) []Path {
+	fmt.Printf("Finding Paths from %s -> %s\n", source, dest)
 	zap.S().Debugf("Finding Paths from %s -> %s", source, dest)
 	visitedEdges := map[reflect.Type]bool{}
 	stack := []Edge{}
 	paths := kb.findPaths(reflect.TypeOf(source), reflect.TypeOf(dest), stack, visitedEdges)
+	fmt.Println("found paths")
+	fmt.Println(paths)
 	validPaths := []Path{}
 	for _, path := range paths {
 		// Ensure that the path satisfies the NodeMustExist edge constraint
@@ -164,9 +167,14 @@ func (kb EdgeKB) FindPaths(source core.Resource, dest core.Resource, constraint 
 // findPaths performs the recursive calls of the parent FindPath function
 //
 // It works under the assumption that an edge is bidirectional and uses the edges ValidDestinations field to determine when that assumption is incorrect
-func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge, visited map[reflect.Type]bool) (result []Path) {
+func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge, visited map[reflect.Type]bool) []Path {
 	visited[source] = true
+	var result []Path
+
 	if source == dest {
+		fmt.Println(source)
+		fmt.Println(dest)
+		fmt.Println(stack)
 		// For resources which can have dependencies between themselves we have to add that path to the stack if it is a valid edge
 		if len(stack) == 0 {
 			if _, found := kb.GetEdgeDetails(source, dest); found {
@@ -174,7 +182,12 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 			}
 		}
 		if len(stack) != 0 {
-			result = append(result, stack)
+			var clonedStack []Edge
+			for _, e := range stack {
+				clonedStack = append(clonedStack, e)
+			}
+			result = append(result, clonedStack)
+			fmt.Println(result)
 		}
 	} else {
 		// When we are not at the destination we want to recursively call findPaths on all edges which have the source as the current node
@@ -227,6 +240,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 			err = fmt.Errorf("panic recovered: %v", r)
 		}
 	}()
+	fmt.Printf("Expanding Edge for %s -> %s\n", dep.Source.Id(), dep.Destination.Id())
 
 	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
 	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
@@ -246,6 +260,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 	// Find all possible paths given the initial source and destination node
 	validPaths := kb.FindPaths(dep.Source, dep.Destination, edgeData.Constraint)
 	var validPath []Edge
+	fmt.Println(validPaths)
 
 	shouldErr := false
 	// Get the shortest route that satisfied constraints
@@ -266,6 +281,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 	if len(validPath) == 0 {
 		return fmt.Errorf("found no paths which satisfy constraints %s for edge %s -> %s. \n Paths: %s", edgeData.Constraint, dep.Source.Id(), dep.Destination.Id(), validPaths)
 	}
+	fmt.Println(validPath)
 
 	zap.S().Debugf("Found valid path %s", validPath)
 	// resourceCache is used to always pass the graphs nodes into the Expand functions if they exist. We do this so that we operate on nodes which already exist

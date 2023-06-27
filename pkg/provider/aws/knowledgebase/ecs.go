@@ -13,6 +13,11 @@ var EcsKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.SecurityGroup]{},
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.EcsCluster]{
+		Expand: func(source *resources.EcsService, destination *resources.EcsCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			source.Cluster = destination
+			dag.AddDependency(source, destination)
+			return nil
+		},
 		Configure: func(service *resources.EcsService, cluster *resources.EcsCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if service.Cluster != nil && service.Cluster != cluster {
 				return fmt.Errorf("cannot configure edge %s -> %s, service already tied to cluster %s", service.Id(), cluster.Id(), service.Cluster.Id())

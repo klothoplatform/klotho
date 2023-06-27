@@ -130,11 +130,14 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			}
 		}
 
+		zap.S().Debug("Engine Expanding constructs and copying edges")
 		err := e.ExpandConstructsAndCopyEdges()
 		if err != nil {
 			e.Context.Errors[i] = append(e.Context.Errors[i], err)
 		}
+		zap.S().Debug("Engine done Expanding constructs and copying edges")
 
+		zap.S().Debug("Engine Expanding constructs and copying edges")
 		// These edge constraints are at a resource level and must be applied before we expand edges otherwise we risk not satisfying constraints
 		for _, constraint := range e.Context.Constraints[constraints.EdgeConstraintScope] {
 			if !appliedConstraints[constraints.EdgeConstraintScope][constraint] {
@@ -147,6 +150,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			}
 		}
 
+		zap.S().Debug("Engine Expanding Edges")
 		for _, dep := range e.Context.EndState.ListDependencies() {
 			src := dep.Source.Id()
 			dst := dep.Destination.Id()
@@ -167,7 +171,8 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			}
 			e.Context.ExpandedEdges[src][dst] = true
 		}
-
+		zap.S().Debug("Engine Done Expanding Edges")
+		zap.S().Debug("Engine Making resources operational and configuring resources")
 		for _, resource := range e.Context.EndState.ListResources() {
 			if !e.Context.OperationalResources[resource.Id()] {
 				err := e.Context.EndState.CallMakeOperational(resource, e.Context.AppName)
@@ -186,7 +191,8 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 				e.Context.ConfiguredResources[resource.Id()] = true
 			}
 		}
-
+		zap.S().Debug("Engine done making resources operational and configuring resources")
+		zap.S().Debug("Engine configuring edges")
 		for _, dep := range e.Context.EndState.ListDependencies() {
 			if e.Context.ConfiguredEdges[dep.Source.Id()] != nil && e.Context.ConfiguredEdges[dep.Source.Id()][dep.Destination.Id()] {
 				continue
@@ -201,7 +207,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			}
 			e.Context.ConfiguredEdges[dep.Source.Id()][dep.Destination.Id()] = true
 		}
-
+		zap.S().Debug("Engine done configuring edges")
 		zap.S().Debug("Validating constraints")
 		unsatisfiedConstraints := e.ValidateConstraints()
 
