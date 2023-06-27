@@ -339,15 +339,12 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 	//If there is no newly created resource, we assume that we should not remove the dependency since the dependency could be used to make the resource operational
 	anyResourceCreated := false
 	for _, res := range resourceCache {
-		fmt.Println(dep.Source.Id(), dep.Destination.Id())
-		fmt.Println(res.Id())
 		if dep.Source.Id() != res.Id() && dep.Destination.Id() != res.Id() && dag.GetResource(res.Id()) != nil {
 			anyResourceCreated = true
 		}
 	}
 	// alternatively if we see that there are now other paths to the destination resource, which may not have previously existed, we can allow for deletion of the initial edge
 	pathsInGraph := kb.FindPathsInGraph(dep.Source, dep.Destination, dag)
-	fmt.Println(pathsInGraph)
 	for _, path := range pathsInGraph {
 		if len(path) > 1 {
 			anyResourceCreated = true

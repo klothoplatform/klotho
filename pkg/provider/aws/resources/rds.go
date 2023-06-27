@@ -147,13 +147,6 @@ func (instance *RdsInstance) MakeOperational(dag *core.ResourceGraph, appName st
 				return err
 			}
 			instance.SubnetGroup = subnetGroup
-			fmt.Println("vpc for rds", vpc)
-			fmt.Println(instance.Id())
-			fmt.Println(dag.GetAllDownstreamResources(instance))
-			fmt.Println(core.GetAllDownstreamResourcesOfType[*Vpc](dag, instance))
-			for _, dep := range dag.ListDependencies() {
-				fmt.Printf("%s -> %s\n", dep.Source.Id(), dep.Destination.Id())
-			}
 			if vpc != nil {
 				dag.AddDependency(subnetGroup, vpc)
 			}
@@ -226,11 +219,6 @@ func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSub
 
 func (subnetGroup *RdsSubnetGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
 	if len(subnetGroup.Subnets) == 0 {
-		vpc, err := getSingleUpstreamVpc(dag, subnetGroup)
-		if err != nil {
-			return err
-		}
-		fmt.Println(vpc)
 		subnets, err := getSubnetsOperational(dag, subnetGroup, appName)
 		if err != nil {
 			return err
