@@ -35,7 +35,12 @@ func (e EdgeBuilder[S, D]) Edge() Edge {
 func (e EdgeBuilder[S, D]) Details() EdgeDetails {
 	var destTypes []reflect.Type
 	var dest D
-	e.ValidDestinations = append(e.ValidDestinations, dest)
+	var src S
+	if !e.ReverseDirection {
+		e.ValidDestinations = append(e.ValidDestinations, dest)
+	} else {
+		e.ValidDestinations = append(e.ValidDestinations, src)
+	}
 	for _, dest := range e.ValidDestinations {
 		destTypes = append(destTypes, reflect.TypeOf(dest))
 	}

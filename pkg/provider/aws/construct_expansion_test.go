@@ -358,7 +358,7 @@ func Test_ExpandExpose(t *testing.T) {
 						{Source: "aws:api_stage:my-app-test", Destination: "aws:rest_api:my-app-test"},
 					},
 				},
-				mappedResources: []reflect.Type{reflect.TypeOf(&resources.ApiStage{})},
+				mappedResources: []reflect.Type{reflect.TypeOf(&resources.RestApi{})},
 			},
 		},
 	}

@@ -12,6 +12,7 @@ import (
 )
 
 var CloudfrontKB = knowledgebase.Build(
+	knowledgebase.EdgeBuilder[*resources.CloudfrontDistribution, *resources.LoadBalancer]{},
 	knowledgebase.EdgeBuilder[*resources.CloudfrontDistribution, *resources.S3Bucket]{
 		Expand: func(distro *resources.CloudfrontDistribution, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			var errs multierr.Error

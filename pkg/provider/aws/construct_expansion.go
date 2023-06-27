@@ -146,7 +146,7 @@ func (a *AWS) expandExpose(dag *core.ResourceGraph, expose *core.Gateway, constr
 		if err != nil {
 			return mappedResources, err
 		}
-		mappedResources = append(mappedResources, stage)
+		mappedResources = append(mappedResources, stage.RestApi)
 	default:
 		return mappedResources, fmt.Errorf("unsupported expose type %s", constructType)
 	}

@@ -37,13 +37,14 @@ func (constraint *ConstructConstraint) IsSatisfied(dag *core.ResourceGraph, kb k
 	case EqualsConstraintOperator:
 		// Well look at all resources to see if there is a resource matching the type, that references the base construct passed in
 		// Cuirrently attributes go unchecked
-		if constraint.Type != "" {
-			for _, res := range dag.ListResources() {
-				if res.Id().Type == constraint.Type && res.BaseConstructsRef().Has(constraint.Target) {
-					return true
-				}
+		for _, res := range dag.ListResources() {
+			if constraint.Type != "" && res.Id().Type == constraint.Type && res.BaseConstructsRef().Has(constraint.Target) {
+				return true
+			} else if constraint.Type == "" && res.BaseConstructsRef().Has(constraint.Target) {
+				return true
 			}
 		}
+
 	}
 	return false
 }

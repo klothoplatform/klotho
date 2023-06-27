@@ -129,7 +129,7 @@ func (listener *Listener) Create(dag *core.ResourceGraph, params ListenerCreateP
 
 func (listener *Listener) MakeOperational(dag *core.ResourceGraph, appName string) error {
 	if listener.LoadBalancer == nil {
-		lbs := core.GetDownstreamResourcesOfType[*LoadBalancer](dag, listener)
+		lbs := core.GetAllDownstreamResourcesOfType[*LoadBalancer](dag, listener)
 		if len(lbs) == 0 {
 			return fmt.Errorf("listener %s has no load balancer downstream", listener.Id())
 		} else if len(lbs) > 1 {
@@ -165,9 +165,9 @@ func (tg *TargetGroup) MakeOperational(dag *core.ResourceGraph, appName string) 
 	if tg.Vpc == nil {
 		vpcs := core.GetAllDownstreamResourcesOfType[*Vpc](dag, tg)
 		if len(vpcs) == 0 {
-			return fmt.Errorf("listener %s has no load balancer downstream", tg.Id())
+			return fmt.Errorf("target group %s has no vpc  downstream", tg.Id())
 		} else if len(vpcs) > 1 {
-			return fmt.Errorf("listener %s has more than one load balancer downstream", tg.Id())
+			return fmt.Errorf("target group %s has more than one vpc downstream", tg.Id())
 		}
 		tg.Vpc = vpcs[0]
 		dag.AddDependenciesReflect(tg)

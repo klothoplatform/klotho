@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"reflect"
 
+	"errors"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -228,13 +229,12 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		if r := recover(); r != nil {
 			_, ok := r.(error)
 			if !ok {
-				err = errors.Errorf("panic recovered: %v", r)
+				err = fmt.Errorf("panic recovered: %v", r)
 			}
-			err = errors.Errorf("panic recovered: %v", r)
+			err = fmt.Errorf("panic recovered: %v", r)
 		}
 	}()
 
-	zap.S().Debug("Expanding Edges")
 	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
 	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
 
@@ -252,35 +252,32 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 	edgeData.Destination = dep.Destination
 	// Find all possible paths given the initial source and destination node
 	validPaths := kb.FindPaths(dep.Source, dep.Destination, edgeData.Constraint)
-
-	zap.S().Debugf("Found valid paths %s", validPaths)
 	var validPath []Edge
+
+	shouldErr := false
 	// Get the shortest route that satisfied constraints
 	for _, path := range validPaths {
 		if len(validPath) == 0 {
 			validPath = path
 		} else if len(path) < len(validPath) {
+			shouldErr = false
 			validPath = path
 		} else if len(path) == len(validPath) {
-			return fmt.Errorf("found multiple paths which satisfy constraints for edge %s -> %s and are the same length. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), validPaths)
+			shouldErr = true
 		}
+	}
+	if shouldErr {
+		return fmt.Errorf("found multiple paths which satisfy constraints for edge %s -> %s and are the same length. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), validPaths)
 	}
 
 	if len(validPath) == 0 {
 		return fmt.Errorf("found no paths which satisfy constraints %s for edge %s -> %s. \n Paths: %s", edgeData.Constraint, dep.Source.Id(), dep.Destination.Id(), validPaths)
 	}
 
-	// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
-	if len(validPath) > 1 {
-		zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
-		err := dag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
-		if err != nil {
-			return err
-		}
-	}
-
+	zap.S().Debugf("Found valid path %s", validPath)
 	// resourceCache is used to always pass the graphs nodes into the Expand functions if they exist. We do this so that we operate on nodes which already exist
 	resourceCache := map[reflect.Type]core.Resource{}
+	var joinedErr error
 	for _, edge := range validPath {
 		source := edge.Source
 		dest := edge.Destination
@@ -288,6 +285,8 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		sourceNode := resourceCache[source]
 		if source == reflect.TypeOf(dep.Source) {
 			sourceNode = dep.Source
+		} else if source == reflect.TypeOf(dep.Destination) && edgeDetail.ReverseDirection {
+			sourceNode = dep.Destination
 		}
 		if sourceNode == nil {
 			sourceNode = reflect.New(source.Elem()).Interface().(core.Resource)
@@ -301,6 +300,8 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		destNode := resourceCache[dest]
 		if dest == reflect.TypeOf(dep.Destination) {
 			destNode = dep.Destination
+		} else if dest == reflect.TypeOf(dep.Source) && edgeDetail.ReverseDirection {
+			destNode = dep.Source
 		}
 		if destNode == nil {
 			destNode = reflect.New(dest.Elem()).Interface().(core.Resource)
@@ -315,7 +316,8 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		if edgeDetail.ExpansionFunc != nil {
 			err := edgeDetail.ExpansionFunc(sourceNode, destNode, dag, edgeData)
 			if err != nil {
-				return err
+				joinedErr = errors.Join(joinedErr, err)
+				continue
 			}
 		}
 
@@ -334,7 +336,23 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 			resourceCache[dest] = destNodeInGraph
 		}
 	}
-	return nil
+
+	fmt.Println(validPath)
+	fmt.Println(len(validPath))
+	// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
+	if len(validPath) > 1 {
+		fmt.Println("removing dep")
+
+		zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
+		err := dag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+		fmt.Println("removed dep")
+
+	}
+	return joinedErr
 }
 
 // ConfigureEdge calls each edge configure function.

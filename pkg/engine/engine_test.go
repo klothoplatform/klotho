@@ -82,6 +82,8 @@ func Test_Engine_Run(t *testing.T) {
 
 			engine.LoadContext(cg, tt.constraints, "test")
 			dag, err := engine.Run()
+			tt.want.Assert(t, dag)
+
 			if !assert.NoError(err) {
 				return
 			}

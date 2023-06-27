@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
@@ -104,24 +105,32 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 
 	for i := 0; i < NUM_LOOPS; i++ {
 		zap.S().Debugf("Applying constraints iteration %d", i)
-
+		for _, dep := range e.Context.EndState.ListDependencies() {
+			fmt.Printf("%s -> %s\n", dep.Source.Id(), dep.Destination.Id())
+		}
+		fmt.Println(appliedConstraints)
 		// First we look at all application constraints to see what is going to be added and removed from the construct graph
 		for _, constraint := range e.Context.Constraints[constraints.ApplicationConstraintScope] {
-			err := e.ApplyApplicationConstraint(constraint.(*constraints.ApplicationConstraint))
-			if err == nil {
-				appliedConstraints[constraints.ApplicationConstraintScope][constraint] = true
-			} else {
-				e.Context.Errors[i] = append(e.Context.Errors[i], err)
+			if !appliedConstraints[constraints.ApplicationConstraintScope][constraint] {
+				err := e.ApplyApplicationConstraint(constraint.(*constraints.ApplicationConstraint))
+				if err == nil {
+					appliedConstraints[constraints.ApplicationConstraintScope][constraint] = true
+				} else {
+					e.Context.Errors[i] = append(e.Context.Errors[i], err)
+				}
 			}
+
 		}
 
 		// These edge constraints are at a construct level
 		for _, constraint := range e.Context.Constraints[constraints.EdgeConstraintScope] {
-			err := e.ApplyEdgeConstraint(constraint.(*constraints.EdgeConstraint))
-			if err == nil {
-				appliedConstraints[constraints.EdgeConstraintScope][constraint] = true
-			} else {
-				e.Context.Errors[i] = append(e.Context.Errors[i], err)
+			if !appliedConstraints[constraints.EdgeConstraintScope][constraint] {
+				err := e.ApplyEdgeConstraint(constraint.(*constraints.EdgeConstraint))
+				if err == nil {
+					appliedConstraints[constraints.EdgeConstraintScope][constraint] = true
+				} else {
+					e.Context.Errors[i] = append(e.Context.Errors[i], err)
+				}
 			}
 		}
 
@@ -130,16 +139,44 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			e.Context.Errors[i] = append(e.Context.Errors[i], err)
 		}
 
-		for _, dep := range e.Context.EndState.ListDependencies() {
-			err = e.KnowledgeBase.ExpandEdge(&dep, e.Context.EndState, e.Context.AppName)
-			if err != nil {
-				e.Context.Errors[i] = append(e.Context.Errors[i], err)
-				continue
+		// These edge constraints are at a construct level
+		for _, constraint := range e.Context.Constraints[constraints.EdgeConstraintScope] {
+			if !appliedConstraints[constraints.EdgeConstraintScope][constraint] {
+				err := e.ApplyEdgeConstraint(constraint.(*constraints.EdgeConstraint))
+				if err == nil {
+					appliedConstraints[constraints.EdgeConstraintScope][constraint] = true
+				} else {
+					e.Context.Errors[i] = append(e.Context.Errors[i], err)
+				}
 			}
+		}
+
+		for _, dep := range e.Context.EndState.ListDependencies() {
+			fmt.Printf("%s -> %s\n", dep.Source.Id(), dep.Destination.Id())
+		}
+
+		for _, dep := range e.Context.EndState.ListDependencies() {
 			if e.Context.ExpandedEdges[dep.Source.Id()] == nil {
 				e.Context.ExpandedEdges[dep.Source.Id()] = make(map[core.ResourceId]bool)
 			}
+			// If we know that the edge has a direct connection but is flipped due to data flow, immediately use that edge
+			if det, _ := e.KnowledgeBase.GetEdge(dep.Source, dep.Destination); det.ReverseDirection {
+				fmt.Printf("Flipping dep order for %s -> %s\n", dep.Source.Id(), dep.Destination.Id())
+				dep = graph.Edge[core.Resource]{Source: dep.Destination, Destination: dep.Source}
+			}
+			if !e.Context.ExpandedEdges[dep.Source.Id()][dep.Destination.Id()] {
+				err = e.KnowledgeBase.ExpandEdge(&dep, e.Context.EndState, e.Context.AppName)
+				if err != nil {
+					e.Context.Errors[i] = append(e.Context.Errors[i], err)
+					continue
+				}
+			}
+
 			e.Context.ExpandedEdges[dep.Source.Id()][dep.Destination.Id()] = true
+		}
+
+		for _, dep := range e.Context.EndState.ListDependencies() {
+			fmt.Printf("%s -> %s\n", dep.Source.Id(), dep.Destination.Id())
 		}
 
 		for _, resource := range e.Context.EndState.ListResources() {
@@ -161,6 +198,11 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			}
 		}
 
+		fmt.Println("here")
+		for _, dep := range e.Context.EndState.ListDependencies() {
+			fmt.Printf("%s -> %s\n", dep.Source.Id(), dep.Destination.Id())
+		}
+
 		for _, dep := range e.Context.EndState.ListDependencies() {
 			if e.Context.ConfiguredEdges[dep.Source.Id()] != nil && e.Context.ConfiguredEdges[dep.Source.Id()][dep.Destination.Id()] {
 				continue
@@ -179,21 +221,33 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		zap.S().Debug("Validating constraints")
 		unsatisfiedConstraints := e.ValidateConstraints()
 
-		if len(unsatisfiedConstraints) > 0 {
+		if len(unsatisfiedConstraints) > 0 && i == NUM_LOOPS-1 {
 			constraintsString := ""
 			for _, constraint := range unsatisfiedConstraints {
 				constraintsString += fmt.Sprintf("%s\n", constraint)
 			}
 			zap.S().Debugf("unsatisfied constraints: %s", constraintsString)
-			if i == NUM_LOOPS-1 {
-				return e.Context.EndState, fmt.Errorf("unsatisfied constraints: %s", constraintsString)
-			}
+			return e.Context.EndState, fmt.Errorf("unsatisfied constraints: %s", constraintsString)
 		} else {
-			if len(e.Context.Errors[i]) > 0 {
+			if len(e.Context.Errors[i]) == 0 {
 				break
+			} else if i == NUM_LOOPS-1 {
+				var joinedErr error
+				for _, error := range e.Context.Errors[i] {
+					joinedErr = errors.Join(joinedErr, error)
+				}
+				return e.Context.EndState, fmt.Errorf("found the following errors during graph solving: %s", joinedErr.Error())
+			} else {
+				var joinedErr error
+				for _, error := range e.Context.Errors[i] {
+					joinedErr = errors.Join(joinedErr, error)
+				}
+				fmt.Printf("got errors: %s\n", joinedErr.Error())
+				zap.S().Debugf("got errors: %s", joinedErr.Error())
 			}
 		}
 	}
+
 	zap.S().Debug("Validated constraints")
 	return e.Context.EndState, nil
 }
@@ -298,6 +352,7 @@ func (e *Engine) ExpandConstructsAndCopyEdges() error {
 					continue
 				}
 
+				fmt.Printf("Copying dependency %s -> %s\n", srcNode.Id(), dstNode.Id())
 				zap.S().Debugf("Copying dependency %s -> %s", srcNode.Id(), dstNode.Id())
 				e.Context.EndState.AddDependency(srcNode, dstNode)
 				e.Context.CopiedEdges[srcNode.Id()][dstNode.Id()] = true
@@ -380,6 +435,7 @@ func (e *Engine) ApplyEdgeConstraint(constraint *constraints.EdgeConstraint) err
 	decision := Decision{
 		Constraint: constraint,
 	}
+	fmt.Printf("applying constraint %s\n", constraint)
 	switch constraint.Operator {
 	case constraints.MustExistConstraintOperator:
 		e.Context.WorkingState.AddDependency(constraint.Target.Source, constraint.Target.Target)
@@ -417,7 +473,7 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 	if constraint.Target.Source.Provider == core.AbstractConstructProvider {
 		srcResources, ok := e.Context.constructToResourceMapping[constraint.Target.Source]
 		if !ok {
-			return fmt.Errorf("unable to find resources for construct %s needed to add edge data", constraint.Target.Source)
+			return fmt.Errorf("unable to find resources for src construct %s needed to add edge data", constraint.Target.Source)
 		}
 		srcNodes = append(srcNodes, srcResources...)
 	} else {
@@ -431,7 +487,7 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 	if constraint.Target.Target.Provider == core.AbstractConstructProvider {
 		dstResources, ok := e.Context.constructToResourceMapping[constraint.Target.Target]
 		if !ok {
-			return fmt.Errorf("unable to find resources for construct %s needed to add edge data", constraint.Target.Target)
+			return fmt.Errorf("unable to find resources for dst construct %s needed to add edge data", constraint.Target.Target)
 		}
 		dstNodes = append(dstNodes, dstResources...)
 	} else {
@@ -476,6 +532,7 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 					data.Constraint.NodeMustNotExist = append(data.Constraint.NodeMustNotExist, resource)
 				}
 			}
+			fmt.Printf("Adding edge data %v for %s -> %s\n", data, src.Id(), dst.Id())
 			zap.S().Debugf("Adding edge data %v for %s -> %s", data, src.Id(), dst.Id())
 			e.Context.EndState.AddDependencyWithData(src, dst, data)
 		}

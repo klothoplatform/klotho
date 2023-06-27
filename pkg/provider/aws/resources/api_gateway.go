@@ -309,7 +309,11 @@ func (deployment *ApiDeployment) Create(dag *core.ResourceGraph, params ApiDeplo
 		graphDeployment.ConstructsRef.AddAll(params.Refs)
 	} else {
 		err := dag.CreateDependencies(deployment, map[string]any{
-			"RestApi": params,
+			"RestApi": RestApiCreateParams{
+				AppName: params.AppName,
+				Refs:    core.BaseConstructSetOf(deployment),
+				Name:    params.Name,
+			},
 		})
 		if err != nil {
 			return err
@@ -338,8 +342,16 @@ func (stage *ApiStage) Create(dag *core.ResourceGraph, params ApiStageCreatePara
 		return nil
 	} else {
 		err := dag.CreateDependencies(stage, map[string]any{
-			"RestApi":    params,
-			"Deployment": params,
+			"RestApi": RestApiCreateParams{
+				AppName: params.AppName,
+				Refs:    core.BaseConstructSetOf(stage),
+				Name:    params.Name,
+			},
+			"Deployment": ApiDeploymentCreateParams{
+				AppName: params.AppName,
+				Refs:    core.BaseConstructSetOf(stage),
+				Name:    params.Name,
+			},
 		})
 		if err != nil {
 			return err

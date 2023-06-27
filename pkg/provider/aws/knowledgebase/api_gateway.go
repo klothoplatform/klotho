@@ -43,7 +43,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				return nil
 			}
 			restApi, ok := data.Source.(*resources.RestApi)
-			refs := function.ConstructsRef.CloneWith(restApi.ConstructsRef)
+			refs := core.BaseConstructSetOf(function, restApi)
 			if !ok {
 				return fmt.Errorf("source of lambda to api integration expansion must be a rest api resource")
 			}
@@ -76,7 +76,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				var err error
 				lb, err = core.CreateResource[*resources.LoadBalancer](dag, resources.LoadBalancerCreateParams{
 					AppName: data.AppName,
-					Refs:    integration.ConstructsRef.Clone(),
+					Refs:    core.BaseConstructSetOf(integration),
 					Name:    integration.Name,
 				})
 				if err != nil {
@@ -92,7 +92,7 @@ var ApiGatewayKB = knowledgebase.Build(
 			}
 
 			restApi, ok := data.Source.(*resources.RestApi)
-			refs := restApi.ConstructsRef.Clone()
+			refs := core.BaseConstructSetOf(restApi)
 			if !ok {
 				return fmt.Errorf("source of eks to api integration expansion must be a rest api resource")
 			}
@@ -104,7 +104,7 @@ var ApiGatewayKB = knowledgebase.Build(
 			if isEcsDest {
 				tg, err = core.CreateResource[*resources.TargetGroup](dag, resources.TargetGroupCreateParams{
 					AppName: data.AppName,
-					Refs:    ecsService.ConstructsRef.CloneWith(restApi.ConstructsRef),
+					Refs:    core.BaseConstructSetOf(restApi, ecsService),
 					Name:    ecsService.Name,
 				})
 				tg.Protocol = "TCP"
@@ -129,7 +129,7 @@ var ApiGatewayKB = knowledgebase.Build(
 			if isEc2Dest {
 				tg, err = core.CreateResource[*resources.TargetGroup](dag, resources.TargetGroupCreateParams{
 					AppName: data.AppName,
-					Refs:    instance.ConstructsRef.Clone(),
+					Refs:    core.BaseConstructSetOf(instance),
 					Name:    instance.Name,
 				})
 				if err != nil {
@@ -147,7 +147,7 @@ var ApiGatewayKB = knowledgebase.Build(
 
 			listener, err := core.CreateResource[*resources.Listener](dag, resources.ListenerCreateParams{
 				AppName:     data.AppName,
-				Refs:        tg.ConstructsRef.Clone(),
+				Refs:        core.BaseConstructSetOf(tg),
 				Name:        tg.Name,
 				NetworkType: resources.PrivateSubnet,
 			})
