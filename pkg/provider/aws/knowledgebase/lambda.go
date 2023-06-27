@@ -28,6 +28,9 @@ var LambdaKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.SecurityGroup]{},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.RdsInstance]{
 		Expand: func(lambda *resources.LambdaFunction, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if instance.SubnetGroup == nil || len(instance.SecurityGroups) == 0 {
+				return fmt.Errorf("rds instance %s is not fully operational yet", instance.Id())
+			}
 			if len(lambda.Subnets) == 0 {
 				lambda.Subnets = instance.SubnetGroup.Subnets
 			}
@@ -50,6 +53,9 @@ var LambdaKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.RdsProxy]{
 		Expand: func(lambda *resources.LambdaFunction, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if len(proxy.Subnets) == 0 || len(proxy.SecurityGroups) == 0 {
+				return fmt.Errorf("proxy %s is not fully operational yet", proxy.Id())
+			}
 			if len(lambda.Subnets) == 0 {
 				lambda.Subnets = proxy.Subnets
 			}
@@ -61,7 +67,7 @@ var LambdaKB = knowledgebase.Build(
 		},
 		Configure: func(lambda *resources.LambdaFunction, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if len(lambda.Subnets) == 0 {
-				return fmt.Errorf("unable to expand edge [%s -> %s]: lambda function [%s] is not in a VPC",
+				return fmt.Errorf("unable to configure edge [%s -> %s]: lambda function [%s] is not in a VPC",
 					lambda.Id().String(), proxy.Id().String(), lambda.Id().String())
 			}
 			for _, env := range data.EnvironmentVariables {

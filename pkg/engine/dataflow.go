@@ -48,15 +48,19 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 			}
 			paths := e.KnowledgeBase.FindPathsInGraph(src, dst, e.Context.EndState)
 			if len(paths) > 0 {
+				if collectionutil.Contains(parentResourceTypes, dst.Id().Type) {
+					srcParents = append(srcParents, dst)
+					continue
+				}
 				addedDep := false
 				for _, path := range paths {
 					for _, edge := range path {
-						if collectionutil.Contains(typesWeCareAbout, edge.Source.Id().Type) && edge.Source != src && edge.Source != dst {
+						if collectionutil.Contains(typesWeCareAbout, edge.Source.Id().Type) && edge.Source.Id() != src.Id() && edge.Source.Id() != dst.Id() {
 							dataFlowDag.AddDependency(src, edge.Source)
 							addedDep = true
 							break
 						}
-						if collectionutil.Contains(typesWeCareAbout, edge.Destination.Id().Type) && edge.Destination != src && edge.Destination != dst {
+						if collectionutil.Contains(typesWeCareAbout, edge.Destination.Id().Type) && edge.Destination.Id() != src.Id() && edge.Destination.Id() != dst.Id() {
 							dataFlowDag.AddDependency(src, edge.Destination)
 							addedDep = true
 							break
@@ -69,9 +73,8 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 
 				// Add a summarized edge if there are no relevant intermediate resources
 				// or a child -> parent edge if the destination is a parent type.
-				if !addedDep || collectionutil.Contains(parentResourceTypes, dst.Id().Type) {
-
-					srcParents = append(srcParents, dst)
+				if !addedDep {
+					dataFlowDag.AddDependency(src, dst)
 				}
 			}
 		}
