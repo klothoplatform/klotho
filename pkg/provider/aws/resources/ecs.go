@@ -272,17 +272,29 @@ func (service *EcsService) MakeOperational(dag *core.ResourceGraph, appName stri
 
 	if service.TaskDefinition == nil {
 		taskDefinitions := core.GetDownstreamResourcesOfType[*EcsTaskDefinition](dag, service)
+		images := core.GetDownstreamResourcesOfType[*EcrImage](dag, service)
+		var image *EcrImage
+		if len(images) == 1 {
+			image = images[0]
+		}
 		if len(taskDefinitions) == 0 {
-			err := dag.CreateDependencies(service, map[string]any{
-				"TaskDefinition": EcsTaskDefinitionCreateParams{
-					AppName: appName,
-					Name:    service.Name,
-					Refs:    core.BaseConstructSetOf(service),
-				},
+			td, err := core.CreateResource[*EcsTaskDefinition](dag, EcsTaskDefinitionCreateParams{
+				AppName: appName,
+				Name:    service.Name,
+				Refs:    core.BaseConstructSetOf(service),
 			})
 			if err != nil {
 				return err
 			}
+			if image != nil {
+				dag.AddDependency(td, image)
+			}
+			err = td.MakeOperational(dag, appName)
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(service, td)
+			service.TaskDefinition = td
 		} else if len(taskDefinitions) > 1 {
 			return fmt.Errorf("service %s has more than one task definition downstream", service.Id())
 		} else {

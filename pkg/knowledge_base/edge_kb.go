@@ -346,9 +346,14 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		}
 	}
 	// alternatively if we see that there are now other paths to the destination resource, which may not have previously existed, we can allow for deletion of the initial edge
-	if len(kb.FindPathsInGraph(dep.Source, dep.Destination, dag)) > 1 {
-		anyResourceCreated = true
+	pathsInGraph := kb.FindPathsInGraph(dep.Source, dep.Destination, dag)
+	fmt.Println(pathsInGraph)
+	for _, path := range pathsInGraph {
+		if len(path) > 1 {
+			anyResourceCreated = true
+		}
 	}
+
 	// if we have no resources created between the dep and the length of what we expect isnt a direct edge, error since we havent properly expanded
 	if !anyResourceCreated && len(validPath) != 1 {
 		return fmt.Errorf("unsolved expansion for %s -> %s", dep.Source.Id(), dep.Destination.Id())
@@ -399,7 +404,7 @@ func (kb EdgeKB) ConfigureEdge(dep *graph.Edge[core.Resource], dag *core.Resourc
 //
 // The method will return all paths found
 func (kb EdgeKB) FindPathsInGraph(source core.Resource, dest core.Resource, dag *core.ResourceGraph) [][]graph.Edge[core.Resource] {
-	zap.S().Debugf("Finding Paths from %s -> %s", source, dest)
+	zap.S().Debugf("Finding Paths from %s -> %s", source.Id(), dest.Id())
 	visitedEdges := map[core.Resource]bool{}
 	stack := []graph.Edge[core.Resource]{}
 	return kb.findPathsInGraph(source, dest, stack, visitedEdges, dag)
