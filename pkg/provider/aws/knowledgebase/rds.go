@@ -137,7 +137,6 @@ var RdsKB = knowledgebase.Build(
 			}
 			return nil
 		},
-		ValidDestinations: []core.Resource{&resources.RdsInstance{}},
 	},
 	knowledgebase.EdgeBuilder[*resources.RdsSubnetGroup, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.RdsInstance, *resources.RdsSubnetGroup]{},

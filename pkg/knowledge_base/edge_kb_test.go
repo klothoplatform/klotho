@@ -23,7 +23,6 @@ var TestKnowledgeBase = Build(
 			a.Name = "name"
 			return nil
 		},
-		ValidDestinations: []core.Resource{&E{}},
 	},
 	EdgeBuilder[*A, *E]{
 		Expand: func(a *A, e *E, dag *core.ResourceGraph, data EdgeData) error {
@@ -36,14 +35,12 @@ var TestKnowledgeBase = Build(
 			dag.AddDependency(b, c)
 			return nil
 		},
-		ValidDestinations: []core.Resource{&E{}},
 	},
 	EdgeBuilder[*C, *D]{
 		Expand: func(c *C, d *D, dag *core.ResourceGraph, data EdgeData) error {
 			dag.AddDependency(c, d)
 			return nil
 		},
-		ValidDestinations: []core.Resource{&E{}},
 	},
 	EdgeBuilder[*C, *E]{
 		Expand: func(c *C, e *E, dag *core.ResourceGraph, data EdgeData) error {
@@ -56,7 +53,6 @@ var TestKnowledgeBase = Build(
 			dag.AddDependency(d, b)
 			return nil
 		},
-		ValidDestinations: []core.Resource{&C{}},
 	},
 	EdgeBuilder[*D, *E]{
 		Expand: func(d *D, e *E, dag *core.ResourceGraph, data EdgeData) error {

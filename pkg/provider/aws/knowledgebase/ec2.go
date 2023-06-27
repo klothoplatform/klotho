@@ -31,7 +31,5 @@ var Ec2KB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.Ec2Instance, *resources.RdsInstance]{},
-	knowledgebase.EdgeBuilder[*resources.Ec2Instance, *resources.RdsProxy]{
-		ValidDestinations: []core.Resource{&resources.RdsInstance{}},
-	},
+	knowledgebase.EdgeBuilder[*resources.Ec2Instance, *resources.RdsProxy]{},
 )

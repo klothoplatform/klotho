@@ -24,7 +24,6 @@ var LambdaKB = knowledgebase.Build(
 			lambda.Role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"})
 			return nil
 		},
-		ValidDestinations: []core.Resource{&resources.Vpc{}},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.SecurityGroup]{},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.RdsInstance]{
@@ -70,7 +69,6 @@ var LambdaKB = knowledgebase.Build(
 			}
 			return nil
 		},
-		ValidDestinations: []core.Resource{&resources.RdsInstance{}},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.EcrImage]{},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.LogGroup]{

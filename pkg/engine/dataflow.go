@@ -41,6 +41,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	// Add summarized edges between types we care about to the dataflow DAG.
 	// Only irrelevant nodes in a path of edges between the source and destination will be summarized.
 	for _, src := range dataFlowDag.ListResources() {
+		srcParents := []core.Resource{}
 		for _, dst := range dataFlowDag.ListResources() {
 			if src == dst {
 				continue
@@ -69,9 +70,33 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 				// Add a summarized edge if there are no relevant intermediate resources
 				// or a child -> parent edge if the destination is a parent type.
 				if !addedDep || collectionutil.Contains(parentResourceTypes, dst.Id().Type) {
-					dataFlowDag.AddDependency(src, dst)
+
+					srcParents = append(srcParents, dst)
 				}
 			}
+		}
+		var closestParent core.Resource
+		var shortestPath int
+		for _, p := range srcParents {
+			paths := e.KnowledgeBase.FindPathsInGraph(src, p, e.Context.EndState)
+			var pathlen int
+			for _, path := range paths {
+				if pathlen == 0 {
+					pathlen = len(path)
+				} else if len(path) < pathlen {
+					pathlen = len(path)
+				}
+			}
+			if closestParent == nil {
+				closestParent = p
+				shortestPath = pathlen
+			} else if pathlen < shortestPath {
+				closestParent = p
+				shortestPath = pathlen
+			}
+		}
+		if closestParent != nil {
+			dataFlowDag.AddDependency(src, closestParent)
 		}
 	}
 

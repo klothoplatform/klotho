@@ -28,8 +28,7 @@ var ApiGatewayKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.RestApi]{
-		ReverseDirection:  true,
-		ValidDestinations: []core.Resource{&resources.LambdaFunction{}, &resources.TargetGroup{}, &resources.Ec2Instance{}, &resources.EcsService{}},
+		ReverseDirection: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.ApiResource]{},
 	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.RestApi]{},
@@ -179,7 +178,6 @@ var ApiGatewayKB = knowledgebase.Build(
 			}
 			return nil
 		},
-		ValidDestinations: []core.Resource{&resources.TargetGroup{}, &resources.Ec2Instance{}, &resources.EcsService{}},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaPermission, *resources.RestApi]{
 		Configure: func(permission *resources.LambdaPermission, api *resources.RestApi, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {

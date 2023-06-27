@@ -183,7 +183,6 @@ var MockKB = knowledgebase.Build(
 			dag.AddDependency(source, target)
 			return nil
 		},
-		ValidDestinations: []core.Resource{&mockResource3{}},
 	},
 	knowledgebase.EdgeBuilder[*mockResource1, *mockResource3]{},
 	knowledgebase.EdgeBuilder[*mockResource2, *mockResource3]{

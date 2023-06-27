@@ -16,6 +16,7 @@ var IamKB = knowledgebase.Build(
 			role.AssumeRolePolicyDoc = resources.RDS_ASSUME_ROLE_POLICY
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.Secret]{
 		Configure: func(role *resources.IamRole, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -24,18 +25,21 @@ var IamKB = knowledgebase.Build(
 			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.Secret]{
 		Configure: func(policy *resources.IamPolicy, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"}, []*resources.AwsResourceValue{{ResourceVal: secret, PropertyVal: resources.ARN_IAC_VALUE}}))
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.IamPolicy]{
 		Configure: func(role *resources.IamRole, policy *resources.IamPolicy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			role.AddManagedPolicy(&resources.AwsResourceValue{ResourceVal: policy, PropertyVal: resources.ARN_IAC_VALUE})
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.IamRole]{
 		Configure: func(lambda *resources.LambdaFunction, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -47,6 +51,7 @@ var IamKB = knowledgebase.Build(
 			}
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.EcsTaskDefinition, *resources.IamRole]{
 		Configure: func(taskDef *resources.EcsTaskDefinition, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -54,6 +59,7 @@ var IamKB = knowledgebase.Build(
 			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"})
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.DynamodbTable]{
 		Configure: func(role *resources.IamRole, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -70,6 +76,7 @@ var IamKB = knowledgebase.Build(
 			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.EksCluster, *resources.IamRole]{
 		Configure: func(cluster *resources.EksCluster, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -77,6 +84,7 @@ var IamKB = knowledgebase.Build(
 			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"})
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.EksFargateProfile, *resources.IamRole]{
 		Configure: func(profile *resources.EksFargateProfile, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -101,6 +109,7 @@ var IamKB = knowledgebase.Build(
 				}))
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.EksNodeGroup, *resources.IamRole]{
 		Configure: func(cluster *resources.EksNodeGroup, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -115,6 +124,7 @@ var IamKB = knowledgebase.Build(
 			})
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.IamRole]{
 		Expand: func(chart *kubernetes.HelmChart, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -129,6 +139,7 @@ var IamKB = knowledgebase.Build(
 			dag.AddDependency(role, oidc)
 			return err
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.IamRole]{
 		Expand: func(manifest *kubernetes.Manifest, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -148,6 +159,7 @@ var IamKB = knowledgebase.Build(
 			dag.AddDependency(role, oidc)
 			return err
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.OpenIdConnectProvider]{
 		Configure: func(role *resources.IamRole, oidc *resources.OpenIdConnectProvider, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -165,6 +177,7 @@ var IamKB = knowledgebase.Build(
 			role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(ref.Name, oidc)
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.S3Bucket]{
 		Configure: func(role *resources.IamRole, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -179,12 +192,14 @@ var IamKB = knowledgebase.Build(
 					})))
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.LambdaFunction]{
 		Configure: func(policy *resources.IamPolicy, function *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"lambda:InvokeFunction"}, []*resources.AwsResourceValue{{ResourceVal: function, PropertyVal: resources.ARN_IAC_VALUE}}))
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.RdsInstance]{
 		Configure: func(role *resources.IamRole, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -193,6 +208,7 @@ var IamKB = knowledgebase.Build(
 			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.RdsProxy]{},
 	knowledgebase.EdgeBuilder[*resources.RolePolicyAttachment, *resources.IamRole]{},
@@ -202,6 +218,7 @@ var IamKB = knowledgebase.Build(
 			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"servicediscovery:DiscoverInstances"}, []*resources.AwsResourceValue{{PropertyVal: core.ALL_RESOURCES_IAC_VALUE}}))
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.InstanceProfile, *resources.IamRole]{
 		Configure: func(source *resources.InstanceProfile, destination *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -229,5 +246,6 @@ var IamKB = knowledgebase.Build(
 			destination.InlinePolicies = append(destination.InlinePolicies, inlinePolicy)
 			return nil
 		},
+		DirectEdgeOnly: true,
 	},
 )

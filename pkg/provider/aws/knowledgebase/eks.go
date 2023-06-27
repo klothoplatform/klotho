@@ -198,7 +198,6 @@ var EksKB = knowledgebase.Build(
 			}
 			return nil
 		},
-		ValidDestinations: []core.Resource{&resources.RdsInstance{}},
 	},
 )
 

@@ -102,15 +102,12 @@ var EcsKB = knowledgebase.Build(
 			}
 			return nil
 		},
-		ValidDestinations: []core.Resource{&resources.RdsInstance{}},
 	},
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.TargetGroup]{
 		ReverseDirection: true,
 		Expand: func(source *resources.EcsService, destination *resources.TargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if data.Source.Id().Type != resources.API_GATEWAY_INTEGRATION_TYPE {
 				dst := data.Destination.Id().Name
-				fmt.Println(dst)
-				fmt.Println(destination.Name)
 				if destination.Name == "" || destination == nil {
 					var err error
 					destination, err = core.CreateResource[*resources.TargetGroup](dag, resources.TargetGroupCreateParams{

@@ -26,9 +26,8 @@ type (
 		ExpansionFunc ExpandEdge
 		// Configure is a function used to configure the To and From resources and necessary dependent resources, to ensure the nodes will guarantee correct functionality.
 		Configure ConfigureEdge
-		// ValidDestinations is a list of end destinations the edge supports.
-		// This field is used within determining the path (edge expansion) between two resources.
-		ValidDestinations []reflect.Type
+		// DirectEdgeOnly signals that the edge cannot be used within constructing other paths and can only be used as a direct edge
+		DirectEdgeOnly bool
 		// ReverseDirection is specified when the data flow is in the opposite direction of the edge
 		// This is used in scenarios where we want to find paths, only allowing specific edges to be bidirectional
 		ReverseDirection bool
@@ -182,6 +181,10 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 		// This is checking all edges which have a direction of From -> To
 		for _, e := range kb.GetEdgesWithSource(source) {
 			det, _ := kb.GetEdgeDetails(e.Source, e.Destination)
+			// Ensure that direct edges cannot contribute to paths. We check if its a direct match for the dest and if not we continue
+			if det.DirectEdgeOnly && len(stack) != 0 && e.Destination != dest {
+				continue
+			}
 			if !det.ReverseDirection && e.Source == source && !visited[e.Destination] {
 				result = append(result, kb.findPaths(e.Destination, dest, append(stack, e), visited)...)
 			}
@@ -193,6 +196,10 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 		// However we would expect the path to be RdsProxy -> RdsProxyTarget -> RdsInstance, so to satisfy understanding the path to connect other nodes, we must understand the direction of both the IaC dependency and data flow dependency
 		for _, e := range kb.GetEdgesWithTarget(source) {
 			det, _ := kb.GetEdgeDetails(e.Source, e.Destination)
+			// Ensure that direct edges cannot contribute to paths. We check if its a direct match for the dest and if not we continue
+			if det.DirectEdgeOnly && len(stack) != 0 && e.Source != dest {
+				continue
+			}
 			if det.ReverseDirection && e.Destination == source && !visited[e.Source] {
 				result = append(result, kb.findPaths(e.Source, dest, append(stack, e), visited)...)
 			}
