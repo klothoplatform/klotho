@@ -135,7 +135,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			e.Context.Errors[i] = append(e.Context.Errors[i], err)
 		}
 
-		// These edge constraints are at a construct level
+		// These edge constraints are at a resource level and must be applied before we expand edges otherwise we risk not satisfying constraints
 		for _, constraint := range e.Context.Constraints[constraints.EdgeConstraintScope] {
 			if !appliedConstraints[constraints.EdgeConstraintScope][constraint] {
 				err := e.ApplyEdgeConstraint(constraint.(*constraints.EdgeConstraint))

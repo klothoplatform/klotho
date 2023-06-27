@@ -54,11 +54,11 @@ var RdsKB = knowledgebase.Build(
 		ReverseDirection: true,
 		Expand: func(targetGroup *resources.RdsProxyTargetGroup, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			var err error
-			destination := data.Destination.(*resources.RdsInstance)
+			destination := data.Destination.Id()
 			if proxy.Name == "" {
 				proxy, err = core.CreateResource[*resources.RdsProxy](dag, resources.RdsProxyCreateParams{
 					AppName: data.AppName,
-					Refs:    data.Source.BaseConstructsRef().CloneWith(destination.BaseConstructsRef()),
+					Refs:    core.BaseConstructSetOf(data.Destination, data.Source),
 					Name:    fmt.Sprintf("%s-proxy", strings.TrimPrefix(destination.Name, fmt.Sprintf("%s-", data.AppName))),
 				})
 				if err != nil {
@@ -66,8 +66,6 @@ var RdsKB = knowledgebase.Build(
 				}
 			}
 			dag.AddDependencyWithData(data.Source, proxy, data)
-			proxy.ConstructsRef.AddAll(data.Source.BaseConstructsRef())
-			proxy.ConstructsRef.AddAll(destination.ConstructsRef)
 			err = proxy.MakeOperational(dag, data.AppName)
 			if err != nil {
 				return err
@@ -87,36 +85,38 @@ var RdsKB = knowledgebase.Build(
 			targetGroup.RdsProxy = proxy
 			dag.AddDependency(targetGroup, proxy)
 
-			secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
-				AppName: data.AppName,
-				Refs:    proxy.BaseConstructsRef().Clone(),
-				Name:    fmt.Sprintf("%s-credentials", strings.TrimPrefix(proxy.Name, fmt.Sprintf("%s-", data.AppName))),
-			})
-			if err != nil {
-				return err
-			}
-			err = secretVersion.MakeOperational(dag, data.AppName)
-			if err != nil {
-				return err
-			}
+			if len(proxy.Auths) == 0 {
+				secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
+					AppName: data.AppName,
+					Refs:    proxy.BaseConstructsRef().Clone(),
+					Name:    fmt.Sprintf("%s-credentials", strings.TrimPrefix(proxy.Name, fmt.Sprintf("%s-", data.AppName))),
+				})
+				if err != nil {
+					return err
+				}
+				err = secretVersion.MakeOperational(dag, data.AppName)
+				if err != nil {
+					return err
+				}
 
-			proxy.Auths = append(proxy.Auths, &resources.ProxyAuth{
-				AuthScheme: "SECRETS",
-				IamAuth:    "DISABLED",
-				SecretArn:  &resources.AwsResourceValue{ResourceVal: secretVersion.Secret, PropertyVal: resources.ARN_IAC_VALUE},
-			})
-			dag.AddDependency(proxy, secretVersion.Secret)
+				proxy.Auths = append(proxy.Auths, &resources.ProxyAuth{
+					AuthScheme: "SECRETS",
+					IamAuth:    "DISABLED",
+					SecretArn:  &resources.AwsResourceValue{ResourceVal: secretVersion.Secret, PropertyVal: resources.ARN_IAC_VALUE},
+				})
+				dag.AddDependency(proxy, secretVersion.Secret)
 
-			secretPolicy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
-				AppName: data.AppName,
-				Name:    fmt.Sprintf("%s-ormsecretpolicy", proxy.Name),
-				Refs:    proxy.ConstructsRef.Clone(),
-			})
-			if err != nil {
-				return err
+				secretPolicy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
+					AppName: data.AppName,
+					Name:    fmt.Sprintf("%s-ormsecretpolicy", proxy.Name),
+					Refs:    proxy.ConstructsRef.Clone(),
+				})
+				if err != nil {
+					return err
+				}
+				dag.AddDependency(secretPolicy, secretVersion.Secret)
+				dag.AddDependency(proxy.Role, secretPolicy)
 			}
-			dag.AddDependency(secretPolicy, secretVersion.Secret)
-			dag.AddDependency(proxy.Role, secretPolicy)
 			dag.AddDependenciesReflect(proxy)
 			return nil
 		},
