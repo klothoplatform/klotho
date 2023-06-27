@@ -21,6 +21,8 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 		resources.SECRET_TYPE,
 		resources.RDS_PROXY_TYPE,
 		resources.LOAD_BALANCER_TYPE,
+		resources.CLOUDFRONT_DISTRIBUTION_TYPE,
+		resources.ROUTE_53_HOSTED_ZONE_TYPE,
 	}
 
 	parentResourceTypes := []string{
