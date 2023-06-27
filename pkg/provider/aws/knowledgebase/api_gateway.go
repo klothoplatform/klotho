@@ -111,6 +111,9 @@ var ApiGatewayKB = knowledgebase.Build(
 				if err != nil {
 					return err
 				}
+				if ecsService.TaskDefinition == nil {
+					return fmt.Errorf("task definition is not ready")
+				}
 				ecsService.LoadBalancers = append(ecsService.LoadBalancers, resources.EcsServiceLoadBalancerConfig{
 					ContainerName:  ecsService.TaskDefinition.Name,
 					ContainerPort:  3000,

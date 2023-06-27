@@ -47,31 +47,35 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 				continue
 			}
 			paths := e.KnowledgeBase.FindPathsInGraph(src, dst, e.Context.EndState)
-			pathWithoutOthers := false
+			haspathWithoutOthers := false
 			if len(paths) > 0 {
 				addedDep := false
 				for _, path := range paths {
+					pathHasDep := false
 					for _, edge := range path {
 						if collectionutil.Contains(typesWeCareAbout, edge.Source.Id().Type) && edge.Source.Id() != src.Id() && edge.Source.Id() != dst.Id() {
 							dataFlowDag.AddDependency(src, edge.Source)
 							addedDep = true
+							pathHasDep = true
 							break
 						}
 						if collectionutil.Contains(typesWeCareAbout, edge.Destination.Id().Type) && edge.Destination.Id() != src.Id() && edge.Destination.Id() != dst.Id() {
 							dataFlowDag.AddDependency(src, edge.Destination)
 							addedDep = true
+							pathHasDep = true
 							break
 						}
+					}
+					if !pathHasDep {
+						haspathWithoutOthers = true
 					}
 					if addedDep {
 						break
 					}
-					pathWithoutOthers = true
 				}
-
 				// Add a summarized edge if there are no relevant intermediate resources
 				// or a child -> parent edge if the destination is a parent type.
-				if collectionutil.Contains(parentResourceTypes, dst.Id().Type) && pathWithoutOthers {
+				if collectionutil.Contains(parentResourceTypes, dst.Id().Type) && haspathWithoutOthers {
 					srcParents = append(srcParents, dst)
 				} else if !addedDep {
 					dataFlowDag.AddDependency(src, dst)
