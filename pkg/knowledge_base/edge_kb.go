@@ -334,9 +334,28 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		}
 	}
 
+	// We check to see if theres any resource in the resource cache which is not a part of the original edge
+	//
+	//If there is no newly created resource, we assume that we should not remove the dependency since the dependency could be used to make the resource operational
+	anyResourceCreated := false
+	for _, res := range resourceCache {
+		fmt.Println(dep.Source.Id(), dep.Destination.Id())
+		fmt.Println(res.Id())
+		if dep.Source.Id() != res.Id() && dep.Destination.Id() != res.Id() && dag.GetResource(res.Id()) != nil {
+			anyResourceCreated = true
+		}
+	}
+	// alternatively if we see that there are now other paths to the destination resource, which may not have previously existed, we can allow for deletion of the initial edge
+	if len(kb.FindPathsInGraph(dep.Source, dep.Destination, dag)) > 1 {
+		anyResourceCreated = true
+	}
+	// if we have no resources created between the dep and the length of what we expect isnt a direct edge, error since we havent properly expanded
+	if !anyResourceCreated && len(validPath) != 1 {
+		return fmt.Errorf("unsolved expansion for %s -> %s", dep.Source.Id(), dep.Destination.Id())
+	}
+
 	// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
 	if len(validPath) > 1 && joinedErr == nil {
-
 		zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
 		err := dag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
 		if err != nil {

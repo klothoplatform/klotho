@@ -101,7 +101,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		constraints.EdgeConstraintScope:        make(map[constraints.Constraint]bool),
 	}
 
-	NUM_LOOPS := 5
+	NUM_LOOPS := 3
 
 	for i := 0; i < NUM_LOOPS; i++ {
 		zap.S().Debugf("Applying constraints iteration %d", i)
