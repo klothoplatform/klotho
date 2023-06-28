@@ -35,3 +35,11 @@ func (se *ServiceExport) OutputYAML() core.File {
 	var outputFile core.File
 	return outputFile
 }
+
+func (se *ServiceExport) Kind() string {
+	return "ServiceExport"
+}
+
+func (se *ServiceExport) Path() string {
+	return se.FilePath
+}

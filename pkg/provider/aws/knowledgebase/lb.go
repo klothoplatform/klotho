@@ -49,7 +49,6 @@ var LbKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.Listener, *resources.LoadBalancer]{
 		Expand: func(source *resources.Listener, destination *resources.LoadBalancer, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			fmt.Println(destination)
 			if data.Source.Id().Type != resources.API_GATEWAY_REST_TYPE {
 				src := data.Source.Id().Name
 				dst := data.Destination.Id().Name

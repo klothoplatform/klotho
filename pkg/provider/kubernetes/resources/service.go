@@ -8,7 +8,6 @@ import (
 
 type (
 	Service struct {
-		Name            string
 		ConstructRefs   core.BaseConstructSet
 		Object          corev1.Service
 		Transformations map[string]core.IaCValue
@@ -27,10 +26,18 @@ func (service *Service) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     SERVICE_TYPE,
-		Name:     service.Name,
+		Name:     service.Object.Name,
 	}
 }
 func (service *Service) OutputYAML() core.File {
 	var outputFile core.File
 	return outputFile
+}
+
+func (service *Service) Kind() string {
+	return service.Object.Kind
+}
+
+func (service *Service) Path() string {
+	return service.FilePath
 }

@@ -13,6 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// LoadConstructGraphFromFile takes in a path to a file and loads in all of the BaseConstructs and edges which exist in the file.
 func (e *Engine) LoadConstructGraphFromFile(path string) error {
 	resourcesMap := map[core.ResourceId]core.BaseConstruct{}
 	input := core.InputGraph{}

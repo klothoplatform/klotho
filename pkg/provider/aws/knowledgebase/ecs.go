@@ -112,7 +112,6 @@ var EcsKB = knowledgebase.Build(
 		ReverseDirection: true,
 		Expand: func(source *resources.EcsService, destination *resources.TargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if data.Source.Id().Type != resources.API_GATEWAY_REST_TYPE {
-				fmt.Println(destination.Name)
 				dst := data.Destination.Id().Name
 				if destination.Name == "" || destination == nil {
 					var err error

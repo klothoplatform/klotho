@@ -8,7 +8,6 @@ import (
 
 type (
 	Deployment struct {
-		Name            string
 		ConstructRefs   core.BaseConstructSet
 		Object          apps.Deployment
 		Transformations map[string]core.IaCValue
@@ -28,11 +27,23 @@ func (deployment *Deployment) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     DEPLOYMENT_TYPE,
-		Name:     deployment.Name,
+		Name:     deployment.Object.Name,
 	}
 }
 
 func (deployment *Deployment) OutputYAML() core.File {
 	var outputFile core.File
 	return outputFile
+}
+
+func (deployment *Deployment) GetFunctionality() core.Functionality {
+	return core.Compute
+}
+
+func (deployment *Deployment) Kind() string {
+	return deployment.Object.Kind
+}
+
+func (deployment *Deployment) Path() string {
+	return deployment.FilePath
 }

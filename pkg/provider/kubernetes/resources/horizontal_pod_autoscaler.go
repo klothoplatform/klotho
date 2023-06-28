@@ -8,7 +8,6 @@ import (
 
 type (
 	HorizontalPodAutoscaler struct {
-		Name            string
 		ConstructRefs   core.BaseConstructSet
 		Object          autoscaling.HorizontalPodAutoscaler
 		Transformations map[string]core.IaCValue
@@ -20,19 +19,26 @@ const (
 	HORIZONTAL_POD_AUTOSCALER_TYPE = "horizontal_pod_autoscaler"
 )
 
-func (deployment *HorizontalPodAutoscaler) BaseConstructsRef() core.BaseConstructSet {
-	return deployment.ConstructRefs
+func (hpa *HorizontalPodAutoscaler) BaseConstructsRef() core.BaseConstructSet {
+	return hpa.ConstructRefs
 }
 
-func (deployment *HorizontalPodAutoscaler) Id() core.ResourceId {
+func (hpa *HorizontalPodAutoscaler) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     HORIZONTAL_POD_AUTOSCALER_TYPE,
-		Name:     deployment.Name,
+		Name:     hpa.Object.Name,
 	}
 }
 
-func (deployment *HorizontalPodAutoscaler) OutputYAML() core.File {
+func (hpa *HorizontalPodAutoscaler) OutputYAML() core.File {
 	var outputFile core.File
 	return outputFile
+}
+func (hpa *HorizontalPodAutoscaler) Kind() string {
+	return hpa.Object.Kind
+}
+
+func (hpa *HorizontalPodAutoscaler) Path() string {
+	return hpa.FilePath
 }
