@@ -248,11 +248,6 @@ func Test_ApiIntegrationCreate(t *testing.T) {
 				},
 			},
 		},
-		{
-			name:        "existing repo",
-			integration: &ApiIntegration{Name: "my-app-/my/api/route-post", ConstructsRef: initialRefs},
-			wantErr:     true,
-		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {

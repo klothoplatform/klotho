@@ -98,6 +98,9 @@ var LambdaKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.ElasticacheCluster]{
 		Expand: func(lambda *resources.LambdaFunction, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if cluster.SubnetGroup == nil || len(cluster.SecurityGroups) == 0 {
+				return fmt.Errorf("rds instance %s is not fully operational yet", cluster.Id())
+			}
 			if len(lambda.Subnets) == 0 {
 				lambda.Subnets = cluster.SubnetGroup.Subnets
 			}

@@ -255,20 +255,20 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 	validPaths := kb.FindPaths(dep.Source, dep.Destination, edgeData.Constraint)
 	var validPath []Edge
 
-	shouldErr := false
+	var sameLengthPaths []Path
 	// Get the shortest route that satisfied constraints
 	for _, path := range validPaths {
 		if len(validPath) == 0 {
 			validPath = path
 		} else if len(path) < len(validPath) {
-			shouldErr = false
 			validPath = path
+			sameLengthPaths = []Path{}
 		} else if len(path) == len(validPath) {
-			shouldErr = true
+			sameLengthPaths = append(sameLengthPaths, path, validPath)
 		}
 	}
-	if shouldErr {
-		return fmt.Errorf("found multiple paths which satisfy constraints for edge %s -> %s and are the same length. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), validPaths)
+	if len(sameLengthPaths) > 0 {
+		return fmt.Errorf("found multiple paths which satisfy constraints for edge %s -> %s and are the same length. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), sameLengthPaths)
 	}
 
 	if len(validPath) == 0 {
