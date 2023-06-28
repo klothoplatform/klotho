@@ -103,6 +103,40 @@ func (lambda *LambdaFunction) MakeOperational(dag *core.ResourceGraph, appName s
 			return fmt.Errorf("lambda %s has more than one role downstream", lambda.Id())
 		}
 	}
+
+	downstreamVpcs := core.GetDownstreamResourcesOfType[*Vpc](dag, lambda)
+	if len(downstreamVpcs) > 1 {
+		return fmt.Errorf("lambda %s has more than one vpc downstream", lambda.Id())
+	}
+	if len(downstreamVpcs) == 1 {
+		// add the lambda to its downstream vpc and remove the direct dependency
+		subnets, err := getSubnetsOperational(dag, lambda, appName)
+		if err != nil {
+			return err
+		}
+		for _, subnet := range subnets {
+			if subnet.Type == PrivateSubnet {
+				lambda.Subnets = append(lambda.Subnets, subnet)
+			}
+		}
+
+		sgs, err := getSecurityGroupsOperational(dag, lambda, appName)
+		if err != nil {
+			return err
+		}
+		lambda.SecurityGroups = sgs
+
+		// remove the direct dependency since the engine will be confused
+		// by the presence of the following valid paths from lambda -> vpc:
+		//   - lambda -> subnet -> vpc
+		//   - lambda -> security group -> vpc
+		vpc := downstreamVpcs[0]
+		err = dag.RemoveDependency(lambda.Id(), vpc.Id())
+		if err != nil {
+			return err
+		}
+	}
+
 	dag.AddDependenciesReflect(lambda)
 	return nil
 }
