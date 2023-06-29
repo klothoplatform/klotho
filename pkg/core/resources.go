@@ -257,6 +257,71 @@ func GetResourcesReflectively(source Resource) []Resource {
 	return resources
 }
 
+func IsResourceChild(source Resource, target Resource) bool {
+	visited := map[Resource]bool{}
+	return isResourceChild(source, target, visited)
+}
+
+func isResourceChild(source Resource, target Resource, visited map[Resource]bool) bool {
+	visited[source] = true
+	if source == target {
+		return true
+	}
+	sourceValue := reflect.ValueOf(source)
+	sourceType := sourceValue.Type()
+	if sourceType.Kind() == reflect.Pointer {
+		sourceValue = sourceValue.Elem()
+		sourceType = sourceType.Elem()
+	}
+	for i := 0; i < sourceType.NumField(); i++ {
+		if sourceValue.Field(i).Type().Name() == "BaseConstructSet" {
+			continue
+		}
+		fieldValue := sourceValue.Field(i)
+		switch fieldValue.Kind() {
+		case reflect.Slice, reflect.Array:
+			for elemIdx := 0; elemIdx < fieldValue.Len(); elemIdx++ {
+				elemValue := fieldValue.Index(elemIdx)
+				nestedResources := getNestedResources(source, elemValue)
+				for _, nestedResource := range nestedResources {
+					if visited[nestedResource] {
+						continue
+					}
+					if isResourceChild(nestedResource, target, visited) {
+						return true
+					}
+				}
+			}
+
+		case reflect.Map:
+			for iter := fieldValue.MapRange(); iter.Next(); {
+				elemValue := iter.Value()
+				nestedResources := getNestedResources(source, elemValue)
+				for _, nestedResource := range nestedResources {
+					if visited[nestedResource] {
+						continue
+					}
+					if isResourceChild(nestedResource, target, visited) {
+						return true
+					}
+				}
+			}
+
+		default:
+			nestedResources := getNestedResources(source, fieldValue)
+			for _, nestedResource := range nestedResources {
+				if visited[nestedResource] {
+					continue
+				}
+				if isResourceChild(nestedResource, target, visited) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // getNestedResources gets all resources which exist as attributes on a BaseConstruct by using reflection
 func getNestedResources(source BaseConstruct, targetValue reflect.Value) (resources []Resource) {
 	if targetValue.Kind() == reflect.Pointer && targetValue.IsNil() {

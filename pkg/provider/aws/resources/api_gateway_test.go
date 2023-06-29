@@ -228,24 +228,8 @@ func Test_ApiIntegrationCreate(t *testing.T) {
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:api_integration:my-app-/my/api/route-post",
-					"aws:api_method:my-app-/my/api/route-post",
-					"aws:api_resource:my-app-/my",
-					"aws:api_resource:my-app-/my/api",
-					"aws:api_resource:my-app-/my/api/route",
-					"aws:rest_api:my-api",
 				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:api_integration:my-app-/my/api/route-post", Destination: "aws:api_method:my-app-/my/api/route-post"},
-					{Source: "aws:api_integration:my-app-/my/api/route-post", Destination: "aws:api_resource:my-app-/my/api/route"},
-					{Source: "aws:api_integration:my-app-/my/api/route-post", Destination: "aws:rest_api:my-api"},
-					{Source: "aws:api_method:my-app-/my/api/route-post", Destination: "aws:api_resource:my-app-/my/api/route"},
-					{Source: "aws:api_method:my-app-/my/api/route-post", Destination: "aws:rest_api:my-api"},
-					{Source: "aws:api_resource:my-app-/my", Destination: "aws:rest_api:my-api"},
-					{Source: "aws:api_resource:my-app-/my/api", Destination: "aws:api_resource:my-app-/my"},
-					{Source: "aws:api_resource:my-app-/my/api", Destination: "aws:rest_api:my-api"},
-					{Source: "aws:api_resource:my-app-/my/api/route", Destination: "aws:api_resource:my-app-/my/api"},
-					{Source: "aws:api_resource:my-app-/my/api/route", Destination: "aws:rest_api:my-api"},
-				},
+				Deps: []coretesting.StringDep{},
 			},
 		},
 	}
@@ -282,9 +266,6 @@ func Test_ApiIntegrationCreate(t *testing.T) {
 
 			assert.Equal(integration.Name, "my-app-/my/api/route-post")
 			if tt.integration == nil {
-				assert.NotNil(integration.RestApi)
-				assert.NotNil(integration.Method)
-				assert.NotNil(integration.Resource)
 				assert.Equal(integration.ConstructsRef, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))

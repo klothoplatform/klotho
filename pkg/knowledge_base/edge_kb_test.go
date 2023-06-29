@@ -14,52 +14,18 @@ import (
 
 var TestKnowledgeBase = Build(
 	EdgeBuilder[*A, *B]{
-		Expand: func(a *A, b *B, dag *core.ResourceGraph, data EdgeData) error {
-			b.Name = "B"
-			dag.AddDependency(a, b)
-			return nil
-		},
 		Configure: func(a *A, b *B, dag *core.ResourceGraph, data EdgeData) error {
+			b.Name = "B"
 			a.Name = "name"
 			return nil
 		},
 	},
-	EdgeBuilder[*A, *E]{
-		Expand: func(a *A, e *E, dag *core.ResourceGraph, data EdgeData) error {
-			dag.AddDependency(a, e)
-			return nil
-		},
-	},
-	EdgeBuilder[*B, *C]{
-		Expand: func(b *B, c *C, dag *core.ResourceGraph, data EdgeData) error {
-			dag.AddDependency(b, c)
-			return nil
-		},
-	},
-	EdgeBuilder[*C, *D]{
-		Expand: func(c *C, d *D, dag *core.ResourceGraph, data EdgeData) error {
-			dag.AddDependency(c, d)
-			return nil
-		},
-	},
-	EdgeBuilder[*C, *E]{
-		Expand: func(c *C, e *E, dag *core.ResourceGraph, data EdgeData) error {
-			dag.AddDependency(c, e)
-			return nil
-		},
-	},
-	EdgeBuilder[*D, *B]{
-		Expand: func(d *D, b *B, dag *core.ResourceGraph, data EdgeData) error {
-			dag.AddDependency(d, b)
-			return nil
-		},
-	},
-	EdgeBuilder[*D, *E]{
-		Expand: func(d *D, e *E, dag *core.ResourceGraph, data EdgeData) error {
-			dag.AddDependency(d, e)
-			return nil
-		},
-	},
+	EdgeBuilder[*A, *E]{},
+	EdgeBuilder[*B, *C]{},
+	EdgeBuilder[*C, *D]{},
+	EdgeBuilder[*C, *E]{},
+	EdgeBuilder[*D, *B]{},
+	EdgeBuilder[*D, *E]{},
 )
 
 var typeA = reflect.TypeOf(&A{})
@@ -131,7 +97,7 @@ func Test_ConfigureEdge(t *testing.T) {
 			source: &A{},
 			dest:   &B{},
 			want: []klothograph.Edge[core.Resource]{
-				{Source: &A{Name: "name"}, Destination: &B{}, Properties: graph.EdgeProperties{Attributes: map[string]string{}, Data: EdgeData{}}},
+				{Source: &A{Name: "name"}, Destination: &B{Name: "B"}, Properties: graph.EdgeProperties{Attributes: map[string]string{}, Data: EdgeData{}}},
 			},
 		},
 	}
@@ -158,8 +124,8 @@ func Test_ExpandEdges(t *testing.T) {
 	}{
 		{
 			name:   "node must and must not exist",
-			source: &A{Name: "A"},
-			dest:   &E{Name: "E"},
+			source: &A{},
+			dest:   &E{},
 			data: EdgeData{
 				Constraint: EdgeConstraint{
 					NodeMustExist:    []core.Resource{&C{}},
@@ -167,9 +133,9 @@ func Test_ExpandEdges(t *testing.T) {
 				},
 			},
 			want: []klothograph.Edge[core.Resource]{
-				{Source: &A{Name: "A"}, Destination: &B{Name: "B"}, Properties: graph.EdgeProperties{Attributes: map[string]string{}}},
-				{Source: &B{Name: "B"}, Destination: &C{}, Properties: graph.EdgeProperties{Attributes: map[string]string{}}},
-				{Source: &C{}, Destination: &E{Name: "E"}, Properties: graph.EdgeProperties{Attributes: map[string]string{}}},
+				{Source: &A{}, Destination: &B{Name: "B_A_E"}},
+				{Source: &B{Name: "B_A_E"}, Destination: &C{}},
+				{Source: &C{}, Destination: &E{}},
 			},
 		},
 	}
@@ -179,9 +145,15 @@ func Test_ExpandEdges(t *testing.T) {
 			dag := core.NewResourceGraph()
 			dag.AddDependencyWithData(tt.source, tt.dest, tt.data)
 			edge := dag.GetDependency(tt.source.Id(), tt.dest.Id())
-			err := TestKnowledgeBase.ExpandEdge(edge, dag, "my-app")
+			err := TestKnowledgeBase.ExpandEdge(edge, dag)
+
+			var result []klothograph.Edge[core.Resource]
+			for _, dep := range dag.ListDependencies() {
+				result = append(result, klothograph.Edge[core.Resource]{Source: dep.Source, Destination: dep.Destination})
+			}
 			assert.NoError(err)
-			assert.ElementsMatch(tt.want, dag.ListDependencies())
+			assert.ElementsMatch(tt.want, result)
+
 		})
 	}
 }

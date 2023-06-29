@@ -127,7 +127,7 @@ var IamKB = knowledgebase.Build(
 		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.IamRole]{
-		Expand: func(chart *kubernetes.HelmChart, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(chart *kubernetes.HelmChart, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if len(role.ConstructsRef) > 1 {
 				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
 			}
@@ -142,7 +142,7 @@ var IamKB = knowledgebase.Build(
 		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.IamRole]{
-		Expand: func(manifest *kubernetes.Manifest, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(manifest *kubernetes.Manifest, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			// For certain scenarios (like the alb controller) where we arent creating a service account for a unit derived in klotho, we have no understanding of what that service account is.
 			// Once we make specific kubernetes objects resources we could have that understanding
 			if role.AssumeRolePolicyDoc != nil {

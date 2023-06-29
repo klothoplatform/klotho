@@ -21,13 +21,16 @@ var LambdaKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.Subnet]{
 		Configure: func(lambda *resources.LambdaFunction, subnet *resources.Subnet, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if lambda.Role == nil {
+				return fmt.Errorf("cannot configure lambda %s -> subnet %s, missing role", lambda.Id(), subnet.Id())
+			}
 			lambda.Role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"})
 			return nil
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.SecurityGroup]{},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.RdsInstance]{
-		Expand: func(lambda *resources.LambdaFunction, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(lambda *resources.LambdaFunction, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if instance.SubnetGroup == nil || len(instance.SecurityGroups) == 0 {
 				return fmt.Errorf("rds instance %s is not fully operational yet", instance.Id())
 			}
@@ -37,14 +40,6 @@ var LambdaKB = knowledgebase.Build(
 			if len(lambda.SecurityGroups) == 0 {
 				lambda.SecurityGroups = instance.SecurityGroups
 			}
-			dag.AddDependenciesReflect(lambda)
-			return nil
-		},
-		Configure: func(lambda *resources.LambdaFunction, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if len(lambda.Subnets) == 0 {
-				return fmt.Errorf("unable to expand edge [%s -> %s]: lambda function [%s] is not in a VPC",
-					lambda.Id(), instance.Id(), lambda.Id())
-			}
 			for _, env := range data.EnvironmentVariables {
 				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: instance, PropertyVal: env.GetValue()}
 			}
@@ -52,7 +47,7 @@ var LambdaKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.RdsProxy]{
-		Expand: func(lambda *resources.LambdaFunction, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(lambda *resources.LambdaFunction, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if len(proxy.Subnets) == 0 || len(proxy.SecurityGroups) == 0 {
 				return fmt.Errorf("proxy %s is not fully operational yet", proxy.Id())
 			}
@@ -61,14 +56,6 @@ var LambdaKB = knowledgebase.Build(
 			}
 			if len(lambda.SecurityGroups) == 0 {
 				lambda.SecurityGroups = proxy.SecurityGroups
-			}
-			dag.AddDependenciesReflect(lambda)
-			return nil
-		},
-		Configure: func(lambda *resources.LambdaFunction, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if len(lambda.Subnets) == 0 {
-				return fmt.Errorf("unable to configure edge [%s -> %s]: lambda function [%s] is not in a VPC",
-					lambda.Id().String(), proxy.Id().String(), lambda.Id().String())
 			}
 			for _, env := range data.EnvironmentVariables {
 				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: proxy, PropertyVal: env.GetValue()}
@@ -85,11 +72,11 @@ var LambdaKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.DynamodbTable]{
-		Expand: func(lambda *resources.LambdaFunction, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			dag.AddDependency(lambda.Role, table)
-			return nil
-		},
 		Configure: func(lambda *resources.LambdaFunction, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if lambda.Role == nil {
+				return fmt.Errorf("cannot configure lambda %s -> dynamo table %s, missing role", lambda.Id(), table.Id())
+			}
+			dag.AddDependency(lambda.Role, table)
 			for _, env := range data.EnvironmentVariables {
 				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: table, PropertyVal: env.GetValue()}
 			}
@@ -97,7 +84,7 @@ var LambdaKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.ElasticacheCluster]{
-		Expand: func(lambda *resources.LambdaFunction, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(lambda *resources.LambdaFunction, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if cluster.SubnetGroup == nil || len(cluster.SecurityGroups) == 0 {
 				return fmt.Errorf("rds instance %s is not fully operational yet", cluster.Id())
 			}
@@ -107,10 +94,6 @@ var LambdaKB = knowledgebase.Build(
 			if len(lambda.SecurityGroups) == 0 {
 				lambda.SecurityGroups = cluster.SecurityGroups
 			}
-			dag.AddDependenciesReflect(lambda)
-			return nil
-		},
-		Configure: func(lambda *resources.LambdaFunction, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
 				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: cluster, PropertyVal: env.GetValue()}
 			}
@@ -118,11 +101,11 @@ var LambdaKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.S3Bucket]{
-		Expand: func(lambda *resources.LambdaFunction, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			dag.AddDependency(lambda.Role, bucket)
-			return nil
-		},
 		Configure: func(lambda *resources.LambdaFunction, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if lambda.Role == nil {
+				return fmt.Errorf("cannot configure lambda %s -> s3 bucket %s, missing role", lambda.Id(), bucket.Id())
+			}
+			dag.AddDependency(lambda.Role, bucket)
 			for _, env := range data.EnvironmentVariables {
 				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: bucket, PropertyVal: env.GetValue()}
 			}
@@ -130,11 +113,11 @@ var LambdaKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.Secret]{
-		Expand: func(lambda *resources.LambdaFunction, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			dag.AddDependency(lambda.Role, secret)
-			return nil
-		},
 		Configure: func(lambda *resources.LambdaFunction, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if lambda.Role == nil {
+				return fmt.Errorf("cannot configure lambda %s -> secret %s, missing role", lambda.Id(), secret.Id())
+			}
+			dag.AddDependency(lambda.Role, secret)
 			for _, env := range data.EnvironmentVariables {
 				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: secret, PropertyVal: env.GetValue()}
 			}
@@ -142,15 +125,18 @@ var LambdaKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.LambdaFunction]{
-		Expand: func(source, destination *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(source, destination *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			policy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
 				AppName: data.AppName,
-				Refs:    source.ConstructsRef.CloneWith(destination.ConstructsRef),
+				Refs:    core.BaseConstructSetOf(source, destination),
 				Name:    fmt.Sprintf("%s-InvocationPolicy", destination.Id().Name),
 			})
 			dag.AddDependency(policy, destination)
 			if err != nil {
 				return err
+			}
+			if source.Role == nil {
+				return fmt.Errorf("cannot configure lambda %s -> lambda %s, missing role", source.Id(), destination.Id())
 			}
 			attachment := &resources.RolePolicyAttachment{
 				Name:          fmt.Sprintf("%s-%s", source.Role.Name, policy.Name),
@@ -163,7 +149,7 @@ var LambdaKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *kubernetes.HelmChart]{
-		Expand: func(lambda *resources.LambdaFunction, destination *kubernetes.HelmChart, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(lambda *resources.LambdaFunction, destination *kubernetes.HelmChart, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if len(lambda.Subnets) == 0 {
 				lambda.Subnets = make([]*resources.Subnet, 2)
 				subparams := map[string]any{

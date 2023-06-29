@@ -162,7 +162,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 				dep = graph.Edge[core.Resource]{Source: dep.Destination, Destination: dep.Source}
 			}
 			if !e.Context.ExpandedEdges[src][dst] {
-				err = e.KnowledgeBase.ExpandEdge(&dep, e.Context.EndState, e.Context.AppName)
+				err = e.KnowledgeBase.ExpandEdge(&dep, e.Context.EndState)
 				if err != nil {
 					zap.S().Warnf("got error when expanding edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
 					e.Context.Errors[i] = append(e.Context.Errors[i], err)
@@ -172,26 +172,6 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			e.Context.ExpandedEdges[src][dst] = true
 		}
 		zap.S().Debug("Engine Done Expanding Edges")
-		zap.S().Debug("Engine Making resources operational and configuring resources")
-		for _, resource := range e.Context.EndState.ListResources() {
-			if !e.Context.OperationalResources[resource.Id()] {
-				err := e.Context.EndState.CallMakeOperational(resource, e.Context.AppName)
-				if err != nil {
-					e.Context.Errors[i] = append(e.Context.Errors[i], err)
-					continue
-				}
-				e.Context.OperationalResources[resource.Id()] = true
-			}
-			if !e.Context.ConfiguredResources[resource.Id()] {
-				err := e.Context.EndState.CallConfigure(resource, nil)
-				if err != nil {
-					e.Context.Errors[i] = append(e.Context.Errors[i], err)
-					continue
-				}
-				e.Context.ConfiguredResources[resource.Id()] = true
-			}
-		}
-		zap.S().Debug("Engine done making resources operational and configuring resources")
 		zap.S().Debug("Engine configuring edges")
 		for _, dep := range e.Context.EndState.ListDependencies() {
 			if e.Context.ConfiguredEdges[dep.Source.Id()] != nil && e.Context.ConfiguredEdges[dep.Source.Id()][dep.Destination.Id()] {
@@ -208,6 +188,26 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			e.Context.ConfiguredEdges[dep.Source.Id()][dep.Destination.Id()] = true
 		}
 		zap.S().Debug("Engine done configuring edges")
+		zap.S().Debug("Engine Making resources operational and configuring resources")
+		for _, resource := range e.Context.EndState.ListResources() {
+			err := e.Context.EndState.CallMakeOperational(resource, e.Context.AppName)
+			if err != nil {
+				e.Context.Errors[i] = append(e.Context.Errors[i], err)
+				e.Context.OperationalResources[resource.Id()] = false
+				continue
+			}
+			e.Context.OperationalResources[resource.Id()] = true
+
+			if !e.Context.ConfiguredResources[resource.Id()] {
+				err := e.Context.EndState.CallConfigure(resource, nil)
+				if err != nil {
+					e.Context.Errors[i] = append(e.Context.Errors[i], err)
+					continue
+				}
+				e.Context.ConfiguredResources[resource.Id()] = true
+			}
+		}
+		zap.S().Debug("Engine done making resources operational and configuring resources")
 		zap.S().Debug("Validating constraints")
 		unsatisfiedConstraints := e.ValidateConstraints()
 
@@ -482,6 +482,7 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 		if dst == nil {
 			return fmt.Errorf("unable to find resource %s", constraint.Target.Target)
 		}
+		dstNodes = append(dstNodes, dst)
 	}
 
 	resource, err := e.Provider.CreateResourceFromId(constraint.Node, e.Context.WorkingState)
@@ -510,7 +511,9 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 			} else {
 				var ok bool
 				data, ok = dep.Properties.Data.(knowledgebase.EdgeData)
-				if !ok {
+				if dep.Properties.Data == nil {
+					data = knowledgebase.EdgeData{}
+				} else if !ok {
 					return fmt.Errorf("unable to cast edge data for dep %s -> %s", constraint.Target.Source, constraint.Target.Target)
 				}
 				if constraint.Operator == constraints.MustContainConstraintOperator {

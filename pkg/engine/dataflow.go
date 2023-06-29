@@ -42,12 +42,12 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	// Only irrelevant nodes in a path of edges between the source and destination will be summarized.
 	for _, src := range dataFlowDag.ListResources() {
 		srcParents := []core.Resource{}
+		haspathWithoutOthers := false
 		for _, dst := range dataFlowDag.ListResources() {
 			if src == dst {
 				continue
 			}
 			paths := e.KnowledgeBase.FindPathsInGraph(src, dst, e.Context.EndState)
-			haspathWithoutOthers := false
 			if len(paths) > 0 {
 				addedDep := false
 				for _, path := range paths {
@@ -110,14 +110,17 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	// Configure Parent/Child relationships and remove child -> parent edges.
 	for _, dep := range dataFlowDag.ListDependencies() {
 		if collectionutil.Contains(parentResourceTypes, dep.Destination.Id().Type) {
-			err := dataFlowDag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
-			if err != nil {
-				zap.S().Debugf("Error removing dependency %s", err.Error())
-				continue
+			if core.IsResourceChild(dep.Source, dep.Destination) {
+
+				err := dataFlowDag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
+				if err != nil {
+					zap.S().Debugf("Error removing dependency %s", err.Error())
+					continue
+				}
+				dataFlowDag.AddResourceWithProperties(dep.Source, map[string]string{
+					"parent": dep.Destination.Id().String(),
+				})
 			}
-			dataFlowDag.AddResourceWithProperties(dep.Source, map[string]string{
-				"parent": dep.Destination.Id().String(),
-			})
 		}
 	}
 	return dataFlowDag

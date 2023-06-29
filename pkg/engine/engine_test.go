@@ -178,17 +178,7 @@ func (f *mockResource3) DeleteContext() core.DeleteContext {
 }
 
 var MockKB = knowledgebase.Build(
-	knowledgebase.EdgeBuilder[*mockResource1, *mockResource2]{
-		Expand: func(source *mockResource1, target *mockResource2, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			dag.AddDependency(source, target)
-			return nil
-		},
-	},
+	knowledgebase.EdgeBuilder[*mockResource1, *mockResource2]{},
 	knowledgebase.EdgeBuilder[*mockResource1, *mockResource3]{},
-	knowledgebase.EdgeBuilder[*mockResource2, *mockResource3]{
-		Expand: func(source *mockResource2, target *mockResource3, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			dag.AddDependency(source, target)
-			return nil
-		},
-	},
+	knowledgebase.EdgeBuilder[*mockResource2, *mockResource3]{},
 )

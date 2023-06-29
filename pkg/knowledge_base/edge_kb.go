@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"errors"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"go.uber.org/zap"
@@ -22,8 +20,6 @@ type (
 
 	// EdgeDetails defines the set of characteristics and edge in the knowledge base contains. The details are used to ensure graph correctness for ResourceGraphs
 	EdgeDetails struct {
-		// ExpansionFunc is a function used to create the To and From resource and necessary intermediate resources, if any do not exist, to ensure the nodes are in place for correct functionality.
-		ExpansionFunc ExpandEdge
 		// Configure is a function used to configure the To and From resources and necessary dependent resources, to ensure the nodes will guarantee correct functionality.
 		Configure ConfigureEdge
 		// DirectEdgeOnly signals that the edge cannot be used within constructing other paths and can only be used as a direct edge
@@ -34,13 +30,15 @@ type (
 		// DeletetionDependent is used to specify edges which should not influence the deletion criteria of a resource
 		// a true value specifies the target being deleted is dependent on the source and do not need to depend on satisfication of the deletion criteria to attempt to delete the true source of the edge.
 		DeletetionDependent bool
+		//Reuse tells us whether we can reuse an upstream or downstream resource during path selection and node creation
+		Reuse Reuse
 	}
+
+	Reuse string
 
 	// EdgeKB is a map (knowledge base) of edges and their respective details used to configure ResourceGraphs
 	EdgeKB map[Edge]EdgeDetails
 
-	// EdgeExpander is a function used to create the To and From resource and necessary intermediate resources, if any do not exist, to ensure the nodes are in place for correct functionality.
-	ExpandEdge func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error
 	// EdgeConfigurer is a function used to configure the To and From resources and necessary dependent resources, to ensure the nodes will guarantee correct functionality.
 	ConfigureEdge func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error
 
@@ -72,6 +70,11 @@ type (
 	}
 
 	Path []Edge
+)
+
+const (
+	Upstream   Reuse = "upstream"
+	Downstream Reuse = "downstream"
 )
 
 func NewEdge[Src core.Resource, Dest core.Resource]() Edge {
@@ -121,7 +124,7 @@ func (kb EdgeKB) GetEdgesWithTarget(target reflect.Type) []Edge {
 //
 // The method will return all paths found
 func (kb EdgeKB) FindPaths(source core.Resource, dest core.Resource, constraint EdgeConstraint) []Path {
-	zap.S().Debugf("Finding Paths from %s -> %s", source, dest)
+	zap.S().Debugf("Finding Paths from %s -> %s", source.Id(), dest.Id())
 	visitedEdges := map[reflect.Type]bool{}
 	stack := []Edge{}
 	paths := kb.findPaths(reflect.TypeOf(source), reflect.TypeOf(dest), stack, visitedEdges)
@@ -217,42 +220,9 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 	return result
 }
 
-// ExpandEdges performs calculations to determine the proper path to be inserted into the ResourceGraph.
-//
-// The workflow of the edge expansion is as follows:
-//   - Find all valid paths from the dependencies source node to the dependencies target node
-//   - Check each of the valid paths against constraints passed in on the edge data
-//   - At this point we should only have 1 valid path (If we have more than 1 edge choose direct connection otherwise error)
-//   - Iterate through each edge in path calling expansion function on edge
-func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGraph, appName string) (err error) {
-
-	defer func() {
-		if r := recover(); r != nil {
-			_, ok := r.(error)
-			if !ok {
-				err = fmt.Errorf("panic recovered: %v", r)
-			}
-			err = fmt.Errorf("panic recovered: %v", r)
-		}
-	}()
-
-	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
-	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
-
-	// We want to retrieve the edge data from the edge in the resource graph to use during expansion
-	edgeData := EdgeData{}
-	data, ok := dep.Properties.Data.(EdgeData)
-	if !ok && dep.Properties.Data != nil {
-		return fmt.Errorf("edge properties for edge %s -> %s, do not satisfy edge data format during expansion", dep.Source.Id(), dep.Destination.Id())
-	} else if dep.Properties.Data != nil {
-		edgeData = data
-	}
-	edgeData.AppName = appName
-	// We attach the dependencies source and destination nodes for context during expansion
-	edgeData.Source = dep.Source
-	edgeData.Destination = dep.Destination
-	// Find all possible paths given the initial source and destination node
-	validPaths := kb.FindPaths(dep.Source, dep.Destination, edgeData.Constraint)
+// FindShortestPath determines the shortest path to get from the dependency's source node to destination node, using the knowledgebase of edges
+func (kb EdgeKB) FindShortestPath(dep graph.Edge[core.Resource], constraint EdgeConstraint) (Path, error) {
+	validPaths := kb.FindPaths(dep.Source, dep.Destination, constraint)
 	var validPath []Edge
 
 	var sameLengthPaths []Path
@@ -268,29 +238,63 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		}
 	}
 	if len(sameLengthPaths) > 0 {
-		return fmt.Errorf("found multiple paths which satisfy constraints for edge %s -> %s and are the same length. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), sameLengthPaths)
+		return nil, fmt.Errorf("found multiple paths which satisfy constraints for edge %s -> %s and are the same length. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), sameLengthPaths)
 	}
 
 	if len(validPath) == 0 {
-		return fmt.Errorf("found no paths which satisfy constraints %s for edge %s -> %s. \n Paths: %s", edgeData.Constraint, dep.Source.Id(), dep.Destination.Id(), validPaths)
+		return nil, fmt.Errorf("found no paths which satisfy constraints %s for edge %s -> %s. \n Paths: %s", constraint, dep.Source.Id(), dep.Destination.Id(), validPaths)
 	}
+	return validPath, nil
+}
 
+// ExpandEdges performs calculations to determine the proper path to be inserted into the ResourceGraph.
+//
+// The workflow of the edge expansion is as follows:
+//   - Find shortest path given the constraints on the edge
+//   - Iterate through each edge in path creating the resource if necessary
+func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGraph) (err error) {
+
+	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
+	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
+
+	// We want to retrieve the edge data from the edge in the resource graph to use during expansion
+	edgeData := EdgeData{}
+	data, ok := dep.Properties.Data.(EdgeData)
+	if !ok && dep.Properties.Data != nil {
+		return fmt.Errorf("edge properties for edge %s -> %s, do not satisfy edge data format during expansion", dep.Source.Id(), dep.Destination.Id())
+	} else if dep.Properties.Data != nil {
+		edgeData = data
+	}
+	// We attach the dependencies source and destination nodes for context during expansion
+	edgeData.Source = dep.Source
+	edgeData.Destination = dep.Destination
+	// Find all possible paths given the initial source and destination node
+	validPath, err := kb.FindShortestPath(*dep, data.Constraint)
+	if err != nil {
+		return err
+	}
 	zap.S().Debugf("Found valid path %s", validPath)
 	// resourceCache is used to always pass the graphs nodes into the Expand functions if they exist. We do this so that we operate on nodes which already exist
 	resourceCache := map[reflect.Type]core.Resource{}
 	var joinedErr error
+
+	name := fmt.Sprintf("%s_%s", dep.Source.Id().Name, dep.Destination.Id().Name)
 	for _, edge := range validPath {
 		source := edge.Source
 		dest := edge.Destination
 		edgeDetail, _ := kb.GetEdgeDetails(source, dest)
 		sourceNode := resourceCache[source]
+		// Determine if the source node is the actual source of the dependency getting expanded
 		if source == reflect.TypeOf(dep.Source) {
 			sourceNode = dep.Source
 		} else if source == reflect.TypeOf(dep.Destination) && edgeDetail.ReverseDirection {
 			sourceNode = dep.Destination
 		}
 		if sourceNode == nil {
+			// Create a new interface of the source nodes type if it does not exist
 			sourceNode = reflect.New(source.Elem()).Interface().(core.Resource)
+			reflect.ValueOf(sourceNode).Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s_%s", sourceNode.Id().Type, name)))
+			// Determine if the source node is the same type as what is specified in the constraints as must exist
 			for _, mustExistRes := range edgeData.Constraint.NodeMustExist {
 				if mustExistRes.Id().Type == sourceNode.Id().Type && mustExistRes.Id().Provider == sourceNode.Id().Provider && mustExistRes.Id().Namespace == sourceNode.Id().Namespace {
 					sourceNode = mustExistRes
@@ -298,29 +302,50 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 			}
 		}
 
+		// Determine if the destination node is the actual destination of the dependency getting expanded
 		destNode := resourceCache[dest]
 		if dest == reflect.TypeOf(dep.Destination) {
 			destNode = dep.Destination
 		} else if dest == reflect.TypeOf(dep.Source) && edgeDetail.ReverseDirection {
 			destNode = dep.Source
 		}
+
 		if destNode == nil {
+			// Create a new interface of the destination nodes type if it does not exist
 			destNode = reflect.New(dest.Elem()).Interface().(core.Resource)
+			reflect.ValueOf(destNode).Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s_%s", destNode.Id().Type, name)))
+			// Determine if the destination node is the same type as what is specified in the constraints as must exist
 			for _, mustExistRes := range edgeData.Constraint.NodeMustExist {
 				if mustExistRes.Id().Type == destNode.Id().Type && mustExistRes.Id().Provider == destNode.Id().Provider && mustExistRes.Id().Namespace == destNode.Id().Namespace {
 					destNode = mustExistRes
 				}
 			}
-
 		}
 
-		if edgeDetail.ExpansionFunc != nil {
-			err := edgeDetail.ExpansionFunc(sourceNode, destNode, dag, edgeData)
-			if err != nil {
-				joinedErr = errors.Join(joinedErr, err)
-				continue
+		added := false
+
+		if edgeDetail.Reuse == Upstream {
+			upstreamResources := kb.GetAllTrueDownstream(dep.Source, dag)
+			for _, res := range upstreamResources {
+				if sourceNode.Id().Type == res.Id().Type {
+					dag.AddDependencyWithData(res, destNode, EdgeData{Source: dep.Source, Destination: dep.Destination})
+					added = true
+				}
+			}
+		} else if edgeDetail.Reuse == Downstream {
+			upstreamResources := kb.GetAllTrueUpstream(dep.Destination, dag)
+			for _, res := range upstreamResources {
+				if destNode.Id().Type == res.Id().Type {
+					dag.AddDependencyWithData(sourceNode, res, EdgeData{Source: dep.Source, Destination: dep.Destination})
+					added = true
+				}
 			}
 		}
+		if added {
+			break
+		}
+
+		dag.AddDependencyWithData(sourceNode, destNode, EdgeData{Source: dep.Source, Destination: dep.Destination})
 
 		if sourceNode != nil {
 			resourceCache[source] = sourceNode
@@ -336,28 +361,6 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		if destNodeInGraph != nil {
 			resourceCache[dest] = destNodeInGraph
 		}
-	}
-
-	// We check to see if theres any resource in the resource cache which is not a part of the original edge
-	//
-	//If there is no newly created resource, we assume that we should not remove the dependency since the dependency could be used to make the resource operational
-	anyResourceCreated := false
-	for _, res := range resourceCache {
-		if dep.Source.Id() != res.Id() && dep.Destination.Id() != res.Id() && dag.GetResource(res.Id()) != nil {
-			anyResourceCreated = true
-		}
-	}
-	// alternatively if we see that there are now other paths to the destination resource, which may not have previously existed, we can allow for deletion of the initial edge
-	pathsInGraph := kb.FindPathsInGraph(dep.Source, dep.Destination, dag)
-	for _, path := range pathsInGraph {
-		if len(path) > 1 {
-			anyResourceCreated = true
-		}
-	}
-
-	// if we have no resources created between the dep and the length of what we expect isnt a direct edge, error since we havent properly expanded
-	if !anyResourceCreated && len(validPath) != 1 {
-		return fmt.Errorf("unsolved expansion for %s -> %s", dep.Source.Id(), dep.Destination.Id())
 	}
 
 	// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
@@ -405,7 +408,7 @@ func (kb EdgeKB) ConfigureEdge(dep *graph.Edge[core.Resource], dag *core.Resourc
 //
 // The method will return all paths found
 func (kb EdgeKB) FindPathsInGraph(source core.Resource, dest core.Resource, dag *core.ResourceGraph) [][]graph.Edge[core.Resource] {
-	zap.S().Debugf("Finding Paths from %s -> %s", source.Id(), dest.Id())
+	zap.S().Debugf("Finding Paths in graph from %s -> %s", source.Id(), dest.Id())
 	visitedEdges := map[core.Resource]bool{}
 	stack := []graph.Edge[core.Resource]{}
 	return kb.findPathsInGraph(source, dest, stack, visitedEdges, dag)
@@ -467,6 +470,25 @@ func (kb EdgeKB) GetTrueUpstream(source core.Resource, dag *core.ResourceGraph) 
 	return upstreamResources
 }
 
+// GetTrueUpstream takes in a resource and returns all upstream resources which exist in the dag, if their edge does not specify the reverse direction flag in the knowledge base.
+// If the edge specifies the reverse direction flag and the resource is downstream, it will be returned as an upstream resource.
+func (kb EdgeKB) GetAllTrueUpstream(source core.Resource, dag *core.ResourceGraph) []core.Resource {
+	var upstreams []core.Resource
+	upstreamsSet := make(map[core.Resource]struct{})
+	for r := range kb.getAllTrueUpstreamResourcesSet(source, dag, upstreamsSet) {
+		upstreams = append(upstreams, r)
+	}
+	return upstreams
+}
+
+func (kb EdgeKB) getAllTrueUpstreamResourcesSet(source core.Resource, dag *core.ResourceGraph, upstreams map[core.Resource]struct{}) map[core.Resource]struct{} {
+	for _, r := range kb.GetTrueUpstream(source, dag) {
+		upstreams[r] = struct{}{}
+		kb.getAllTrueUpstreamResourcesSet(r, dag, upstreams)
+	}
+	return upstreams
+}
+
 // GetTrueDownstream takes in a resource and returns all downstream resources which exist in the dag, if their edge does not specify the reverse direction flag in the knowledge base.
 // If the edge specifies the reverse direction flag and the resource is upstream, it will be returned as an downstream resource.
 func (kb EdgeKB) GetTrueDownstream(source core.Resource, dag *core.ResourceGraph) []core.Resource {
@@ -486,4 +508,23 @@ func (kb EdgeKB) GetTrueDownstream(source core.Resource, dag *core.ResourceGraph
 		}
 	}
 	return downstreamResources
+}
+
+// GetAllTrueDownstream takes in a resource and returns all downstream resources which exist in the dag, if their edge does not specify the reverse direction flag in the knowledge base.
+// If the edge specifies the reverse direction flag and the resource is upstream, it will be returned as an downstream resource.
+func (kb EdgeKB) GetAllTrueDownstream(source core.Resource, dag *core.ResourceGraph) []core.Resource {
+	var downstreams []core.Resource
+	downstreamsSet := make(map[core.Resource]struct{})
+	for r := range kb.getAllTrueDownstreamResourcesSet(source, dag, downstreamsSet) {
+		downstreams = append(downstreams, r)
+	}
+	return downstreams
+}
+
+func (kb EdgeKB) getAllTrueDownstreamResourcesSet(source core.Resource, dag *core.ResourceGraph, downstreams map[core.Resource]struct{}) map[core.Resource]struct{} {
+	for _, r := range kb.GetTrueUpstream(source, dag) {
+		downstreams[r] = struct{}{}
+		kb.getAllTrueDownstreamResourcesSet(r, dag, downstreams)
+	}
+	return downstreams
 }

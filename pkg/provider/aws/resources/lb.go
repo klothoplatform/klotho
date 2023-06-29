@@ -165,6 +165,19 @@ func (tg *TargetGroup) MakeOperational(dag *core.ResourceGraph, appName string) 
 	if tg.Vpc == nil {
 		vpcs := core.GetAllDownstreamResourcesOfType[*Vpc](dag, tg)
 		if len(vpcs) == 0 {
+			targetsVpcs := map[*Vpc]interface{}{}
+			for _, target := range tg.Targets {
+				for _, vpc := range core.GetAllDownstreamResourcesOfType[*Vpc](dag, target.Id.ResourceVal) {
+					targetsVpcs[vpc] = nil
+				}
+			}
+			for vpc := range targetsVpcs {
+				vpcs = append(vpcs, vpc)
+			}
+		}
+
+		if len(vpcs) == 0 {
+
 			return fmt.Errorf("target group %s has no vpc  downstream", tg.Id())
 		} else if len(vpcs) > 1 {
 			return fmt.Errorf("target group %s has more than one vpc downstream", tg.Id())
