@@ -3,7 +3,6 @@ package compiler
 import (
 	"bytes"
 	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
