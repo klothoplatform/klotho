@@ -2,11 +2,12 @@ package cli
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/filter"
 	"os"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/klothoplatform/klotho/pkg/filter"
 
 	"github.com/fatih/color"
 	"github.com/gojek/heimdall/v7"
@@ -74,6 +75,7 @@ var cfg struct {
 	skipInfrastructure bool
 	skipVisualization  bool
 	skipUpdateCheck    bool
+	jsonLog            bool
 }
 
 const defaultDisableLogo = false
@@ -130,6 +132,7 @@ func (km KlothoMain) Main() {
 	flags.BoolVar(&cfg.skipInfrastructure, "skip-infrastructure", false, "Skip Klotho's IaC generation stage.")
 	flags.BoolVar(&cfg.skipVisualization, "skip-visualization", false, "Skip Klotho's visualization stage.")
 	flags.BoolVar(&cfg.skipUpdateCheck, "skip-update-check", false, "Skip Klotho's update check.")
+	flags.BoolVar(&cfg.jsonLog, "json-log", false, "Output logs in JSON format.")
 
 	if authFlags, hasFlags := km.Authorizer.(FlagsProvider); hasFlags {
 		authFlags.SetUpCliFlags(flags)
@@ -162,7 +165,11 @@ func setupLogger(analyticsClient *analytics.Client) (*zap.Logger, error) {
 	} else {
 		zapCfg = zap.NewProductionConfig()
 	}
-	zapCfg.Encoding = consoleEncoderName
+	if cfg.jsonLog {
+		zapCfg.Encoding = "json"
+	} else {
+		zapCfg.Encoding = consoleEncoderName
+	}
 	return zapCfg.Build(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
 		trackingCore := analyticsClient.NewFieldListener(zapcore.WarnLevel)
 		return zapcore.NewTee(core, trackingCore)
