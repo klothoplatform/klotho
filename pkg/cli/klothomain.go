@@ -2,8 +2,10 @@ package cli
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/filter"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -51,24 +53,27 @@ type FlagsProvider interface {
 }
 
 var cfg struct {
-	verbose        bool
-	config         string
-	constructGraph string
-	outDir         string
-	ast            bool
-	caps           bool
-	provider       string
-	appName        string
-	strict         bool
-	disableLogo    bool
-	internalDebug  bool
-	version        bool
-	uploadSource   bool
-	update         bool
-	cfgFormat      string
-	setOption      map[string]string
-	login          bool
-	logout         bool
+	verbose            bool
+	config             string
+	constructGraph     string
+	outDir             string
+	ast                bool
+	caps               bool
+	provider           string
+	appName            string
+	strict             bool
+	disableLogo        bool
+	internalDebug      bool
+	version            bool
+	uploadSource       bool
+	update             bool
+	cfgFormat          string
+	setOption          map[string]string
+	login              bool
+	logout             bool
+	skipInfrastructure bool
+	skipVisualization  bool
+	skipUpdateCheck    bool
 }
 
 const defaultDisableLogo = false
@@ -122,11 +127,16 @@ func (km KlothoMain) Main() {
 	flags.StringToStringVar(&cfg.setOption, "set-option", nil, "Sets a CLI option")
 	flags.BoolVar(&cfg.login, "login", false, "Login to Klotho with email.")
 	flags.BoolVar(&cfg.logout, "logout", false, "Logout of current klotho account.")
+	flags.BoolVar(&cfg.skipInfrastructure, "skip-infrastructure", false, "Skip Klotho's IaC generation stage.")
+	flags.BoolVar(&cfg.skipVisualization, "skip-visualization", false, "Skip Klotho's visualization stage.")
+	flags.BoolVar(&cfg.skipUpdateCheck, "skip-update-check", false, "Skip Klotho's update check.")
 
 	if authFlags, hasFlags := km.Authorizer.(FlagsProvider); hasFlags {
 		authFlags.SetUpCliFlags(flags)
 	}
 
+	_ = flags.MarkHidden("skip-infrastructure")
+	_ = flags.MarkHidden("skip-update-check")
 	_ = flags.MarkHidden("internalDebug")
 	_ = flags.MarkHidden("construct-graph")
 
@@ -296,7 +306,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		return nil
 	}
 
-	if ShouldCheckForUpdate(updateStream, km.DefaultUpdateStream, km.Version) {
+	if !cfg.skipUpdateCheck && ShouldCheckForUpdate(updateStream, km.DefaultUpdateStream, km.Version) {
 		// check daily for new updates and notify users if found
 		needsUpdate, err := klothoUpdater.CheckUpdate(km.Version)
 		if err != nil {
@@ -406,9 +416,23 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		Configuration:    &appCfg,
 		OutputOptions:    options.Output,
 	}
+
+	// disable unnecessary plugins
+	iacPlugins := plugins.IaC
+	if cfg.skipVisualization {
+		iacPlugins = filterVisualizerPlugin(iacPlugins)
+	}
+	if cfg.skipInfrastructure {
+		iacPlugins = filterInfrastructure(iacPlugins)
+	}
+	atPlugins := plugins.AnalysisAndTransform
+	if cfg.constructGraph != "" {
+		atPlugins = make([]compiler.AnalysisAndTransformationPlugin, 0)
+	}
+
 	klothoCompiler := compiler.Compiler{
-		AnalysisAndTransformationPlugins: plugins.AnalysisAndTransform,
-		IaCPlugins:                       plugins.IaC,
+		AnalysisAndTransformationPlugins: atPlugins,
+		IaCPlugins:                       iacPlugins,
 		Engine:                           plugins.Engine,
 		Document:                         document,
 	}
@@ -446,7 +470,10 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		if err != nil {
 			return err
 		}
-		return document.OutputTo(appCfg.OutDir)
+		err = document.OutputTo(appCfg.OutDir)
+		if err != nil {
+			return err
+		}
 	} else {
 		document.Resources = core.NewResourceGraph()
 	}
@@ -482,4 +509,16 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	analyticsClient.Info(klothoName + " compile complete")
 
 	return nil
+}
+
+func filterInfrastructure(plugins []compiler.IaCPlugin) []compiler.IaCPlugin {
+	return filter.NewSimpleFilter[compiler.IaCPlugin](func(p compiler.IaCPlugin) bool {
+		return !strings.HasPrefix(p.Name(), "pulumi")
+	}).Apply(plugins...)
+}
+
+func filterVisualizerPlugin(plugins []compiler.IaCPlugin) []compiler.IaCPlugin {
+	return filter.NewSimpleFilter[compiler.IaCPlugin](func(p compiler.IaCPlugin) bool {
+		return p.Name() != "visualizer"
+	}).Apply(plugins...)
 }
