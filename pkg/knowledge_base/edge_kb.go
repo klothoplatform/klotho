@@ -34,6 +34,7 @@ type (
 		Reuse Reuse
 	}
 
+	// Reuse is set to represent an enum of possible reuse cases for edges. The current available options are upstream and downstream
 	Reuse string
 
 	// EdgeKB is a map (knowledge base) of edges and their respective details used to configure ResourceGraphs
@@ -184,7 +185,10 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 			result = append(result, clonedStack)
 		}
 	} else {
-		if len(stack) != 0 && core.GetFunctionality(reflect.New(source.Elem()).Interface().(core.BaseConstruct)) != core.Unknown {
+		sourceFunctionality := core.GetFunctionality(reflect.New(source.Elem()).Interface().(core.BaseConstruct))
+		destFuntionality := core.GetFunctionality(reflect.New(dest.Elem()).Interface().(core.BaseConstruct))
+		if len(stack) != 0 && destFuntionality != core.Unknown && sourceFunctionality == destFuntionality {
+			fmt.Println(source, dest)
 			return result
 		}
 
@@ -324,6 +328,8 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 
 		added := false
 
+		// If the edge specifies that it can reuse upstream or downstream resources, we want to find the first resource which satisfies the reuse criteria and add that as the dependency.
+		// If there is no resource that satisfies the reuse criteria, we want to add the original direct dependency
 		if edgeDetail.Reuse == Upstream {
 			upstreamResources := kb.GetAllTrueDownstream(dep.Source, dag)
 			for _, res := range upstreamResources {
