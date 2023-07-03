@@ -33,7 +33,7 @@ func (pod *Pod) BaseConstructsRef() core.BaseConstructSet {
 func (pod *Pod) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: provider.KUBERNETES,
-		Type:     DEPLOYMENT_TYPE,
+		Type:     POD_TYPE,
 		Name:     pod.Name,
 	}
 }

@@ -1,7 +1,6 @@
 package knowledgebase
 
 import (
-	"fmt"
 	"testing"
 
 	dgraph "github.com/dominikbraun/graph"
@@ -58,7 +57,6 @@ func Test_ExpandEdges(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			fmt.Println(coretesting.ResoucesFromDAG(dag).GoString())
 			tt.want.Assert(t, dag)
 		})
 	}

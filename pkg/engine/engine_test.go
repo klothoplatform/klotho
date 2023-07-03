@@ -7,6 +7,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
+	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -70,7 +71,10 @@ func Test_Engine_Run(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			engine := NewEngine(&MockProvider{}, MockKB, core.ListAllConstructs())
+			mp := &MockProvider{}
+			engine := NewEngine(map[string]provider.Provider{
+				mp.Name(): mp,
+			}, MockKB, core.ListAllConstructs())
 
 			cg := core.NewConstructGraph()
 			for _, c := range tt.constructs {
@@ -124,7 +128,7 @@ func (p *MockProvider) ExpandConstruct(construct core.Construct, cg *core.Constr
 	return nil, nil
 }
 
-func (p *MockProvider) LoadResources(graph core.InputGraph, resources map[core.ResourceId]core.BaseConstruct) error {
+func (p *MockProvider) ListResources() []core.Resource {
 	return nil
 }
 func (p *MockProvider) Name() string {

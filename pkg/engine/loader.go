@@ -75,7 +75,6 @@ func (e *Engine) LoadResources(graph core.InputGraph, resourcesMap map[core.Reso
 		for _, res := range provider.ListResources() {
 			typeToResource[res.Id().Type] = res
 		}
-
 		res, ok := typeToResource[node.Type]
 		if !ok {
 			joinedErr = j_errors.Join(joinedErr, fmt.Errorf("unable to find resource of type %s", node.Type))

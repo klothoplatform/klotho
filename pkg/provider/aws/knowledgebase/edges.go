@@ -1,15 +1,11 @@
 package knowledgebase
 
 import (
-	"errors"
-	"fmt"
-
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
 func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
-	var err error
 	kbsToUse := []knowledgebase.EdgeKB{
 		ApiGatewayKB,
 		AwsExtraEdgesKB,
@@ -25,16 +21,7 @@ func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 		Ec2KB,
 		EksKB,
 	}
-	awsKB := make(knowledgebase.EdgeKB)
-	for _, kb := range kbsToUse {
-		for edge, detail := range kb {
-			if _, found := awsKB[edge]; found {
-				err = errors.Join(err, fmt.Errorf("edge for %s -> %s is already defined in the aws knowledge base", edge.Source, edge.Destination))
-			}
-			awsKB[edge] = detail
-		}
-	}
-	return awsKB, err
+	return knowledgebase.MergeKBs(kbsToUse)
 }
 
 var AwsExtraEdgesKB = knowledgebase.Build(

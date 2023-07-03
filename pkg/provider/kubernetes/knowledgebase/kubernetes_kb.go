@@ -5,10 +5,11 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 )
 
-var ApiGatewayKB = knowledgebase.Build(
+var KubernetesKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.Service, *resources.Deployment]{},
 	knowledgebase.EdgeBuilder[*resources.Deployment, *resources.Pod]{},
 	knowledgebase.EdgeBuilder[*resources.Service, *resources.Pod]{},
+	knowledgebase.EdgeBuilder[*resources.Service, *resources.Deployment]{},
 	knowledgebase.EdgeBuilder[*resources.Pod, *resources.Namespace]{},
 	knowledgebase.EdgeBuilder[*resources.Service, *resources.Namespace]{},
 	knowledgebase.EdgeBuilder[*resources.Deployment, *resources.Namespace]{},
