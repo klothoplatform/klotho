@@ -1,6 +1,8 @@
 package engine
 
 import (
+	j_errors "errors"
+	"fmt"
 	"os"
 	"reflect"
 
@@ -11,6 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// LoadConstructGraphFromFile takes in a path to a file and loads in all of the BaseConstructs and edges which exist in the file.
 func (e *Engine) LoadConstructGraphFromFile(path string) error {
 	resourcesMap := map[core.ResourceId]core.BaseConstruct{}
 	input := core.InputGraph{}
@@ -25,7 +28,7 @@ func (e *Engine) LoadConstructGraphFromFile(path string) error {
 		return err
 	}
 
-	err = core.LoadConstructs(input, resourcesMap)
+	err = e.loadConstructs(input, resourcesMap)
 	if err != nil {
 		return errors.Errorf("Error Loading graph for constructs %s", err.Error())
 	}
@@ -58,6 +61,42 @@ func (e *Engine) LoadConstructGraphFromFile(path string) error {
 	}
 
 	return nil
+}
+
+func (e *Engine) loadConstructs(input core.InputGraph, resourceMap map[core.ResourceId]core.BaseConstruct) error {
+
+	var joinedErr error
+	for _, res := range input.Resources {
+		if res.Provider != core.AbstractConstructProvider {
+			continue
+		}
+		construct, err := e.getConstructFromInputId(res)
+		if err != nil {
+			joinedErr = j_errors.Join(joinedErr, err)
+			continue
+		}
+		resourceMap[construct.Id()] = construct
+	}
+
+	return joinedErr
+}
+
+func (e *Engine) getConstructFromInputId(res core.ResourceId) (core.Construct, error) {
+	typeToResource := make(map[string]core.Construct)
+	for _, construct := range e.Constructs {
+		typeToResource[construct.Id().Type] = construct
+	}
+	construct, ok := typeToResource[res.Type]
+	if !ok {
+		return nil, fmt.Errorf("unable to find resource of type %s", res.Type)
+	}
+	newConstruct := reflect.New(reflect.TypeOf(construct).Elem()).Interface()
+	construct, ok = newConstruct.(core.Construct)
+	if !ok {
+		return nil, fmt.Errorf("item %s of type %T is not of type core.Resource", res, newConstruct)
+	}
+	reflect.ValueOf(construct).Elem().FieldByName("Name").SetString(res.Name)
+	return construct, nil
 }
 
 func (e *Engine) LoadConstraintsFromFile(path string) (map[constraints.ConstraintScope][]constraints.Constraint, error) {

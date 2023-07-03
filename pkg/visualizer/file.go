@@ -79,7 +79,7 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 		if key == "" {
 			continue
 		}
-		wh.Writef(indent+"%s: # %s\n", key, resource.Id())
+		wh.Writef(indent+"%s:\n", key)
 		properties := propFetcher.apply(resource, f.DAG)
 
 		// Add any edge properties as metadata

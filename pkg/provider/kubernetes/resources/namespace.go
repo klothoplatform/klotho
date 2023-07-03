@@ -8,7 +8,6 @@ import (
 
 type (
 	Namespace struct {
-		Name            string
 		ConstructRefs   core.BaseConstructSet
 		Object          corev1.Namespace
 		Transformations map[string]core.IaCValue
@@ -20,19 +19,27 @@ const (
 	NAMESPACE_TYPE = "namespace"
 )
 
-func (deployment *Namespace) BaseConstructsRef() core.BaseConstructSet {
-	return deployment.ConstructRefs
+func (namespace *Namespace) BaseConstructsRef() core.BaseConstructSet {
+	return namespace.ConstructRefs
 }
 
-func (deployment *Namespace) Id() core.ResourceId {
+func (namespace *Namespace) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: provider.KUBERNETES,
-		Type:     DEPLOYMENT_TYPE,
-		Name:     deployment.Name,
+		Type:     NAMESPACE_TYPE,
+		Name:     namespace.Object.Name,
 	}
 }
 
-func (deployment *Namespace) OutputYAML() core.File {
+func (namespace *Namespace) OutputYAML() core.File {
 	var outputFile core.File
 	return outputFile
+}
+
+func (namespace *Namespace) Kind() string {
+	return namespace.Object.Kind
+}
+
+func (namespace *Namespace) Path() string {
+	return namespace.FilePath
 }

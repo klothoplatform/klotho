@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	HOSTED_ZONE_TYPE           = "route53_hosted_zone"
+	ROUTE_53_HOSTED_ZONE_TYPE  = "route53_hosted_zone"
 	ROUTE_53_RECORD_TYPE       = "route53_record"
 	ROUTE_53_HEALTH_CHECK_TYPE = "route53_health_check"
 )
@@ -204,7 +204,7 @@ func (zone *Route53HostedZone) BaseConstructsRef() core.BaseConstructSet {
 func (zone *Route53HostedZone) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
-		Type:     HOSTED_ZONE_TYPE,
+		Type:     ROUTE_53_HOSTED_ZONE_TYPE,
 		Name:     zone.Name,
 	}
 }

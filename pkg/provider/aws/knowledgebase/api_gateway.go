@@ -1,7 +1,6 @@
 package knowledgebase
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -14,7 +13,9 @@ var ApiGatewayKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.RestApi]{},
 	knowledgebase.EdgeBuilder[*resources.ApiStage, *resources.RestApi]{},
 	knowledgebase.EdgeBuilder[*resources.ApiStage, *resources.ApiDeployment]{},
-	knowledgebase.EdgeBuilder[*resources.ApiMethod, *resources.RestApi]{},
+	knowledgebase.EdgeBuilder[*resources.ApiMethod, *resources.RestApi]{
+		ReverseDirection: true,
+	},
 	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.ApiMethod]{
 		Configure: func(deployment *resources.ApiDeployment, method *resources.ApiMethod, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			deployment.Triggers[method.Id().Name] = method.Id().Name
@@ -28,154 +29,53 @@ var ApiGatewayKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.RestApi]{
-		ReverseDirection:  true,
-		ValidDestinations: []core.Resource{&resources.LambdaFunction{}, &resources.TargetGroup{}, &resources.Ec2Instance{}, &resources.EcsService{}},
+		ReverseDirection: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.ApiResource]{},
-	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.RestApi]{},
+	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.RestApi]{
+		ReverseDirection: true,
+	},
 	knowledgebase.EdgeBuilder[*resources.ApiMethod, *resources.ApiResource]{},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.ApiResource]{},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.ApiMethod]{},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.LambdaFunction]{
-		Expand: func(integration *resources.ApiIntegration, function *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			// This isnt an instance of an expanded path, rather an existing edge so ignore
-			if integration.Name != "" {
-				return nil
+		Configure: func(integration *resources.ApiIntegration, function *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if integration.RestApi == nil {
+				return fmt.Errorf("cannot configure integration %s, missing rest api or method", integration.Id())
 			}
-			restApi, ok := data.Source.(*resources.RestApi)
-			refs := function.ConstructsRef.CloneWith(restApi.ConstructsRef)
-			if !ok {
-				return fmt.Errorf("source of lambda to api integration expansion must be a rest api resource")
-			}
-			if len(data.Routes) == 0 {
-				data.Routes = append(data.Routes, core.Route{Path: fmt.Sprintf("/%s/*", function.Name), Verb: "ANY"})
-			}
+			integration.IntegrationHttpMethod = "POST"
+			integration.Type = "AWS_PROXY"
 
-			err := createRoutesForIntegration(data.AppName, data.Routes, refs, dag, nil, restApi, &resources.AwsResourceValue{ResourceVal: function, PropertyVal: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
-			if err != nil {
-				return err
-			}
 			permission, err := core.CreateResource[*resources.LambdaPermission](dag, resources.LambdaPermissionCreateParams{
-				Name: fmt.Sprintf("%s-%s", function.Name, restApi.Id()),
-				Refs: refs,
+				Name: fmt.Sprintf("%s-%s", function.Name, integration.RestApi.Id()),
+				Refs: core.BaseConstructSetOf(integration, function),
 			})
 			if err != nil {
 				return err
 			}
 			permission.Function = function
-			dag.AddDependency(permission, restApi)
+			dag.AddDependency(permission, integration.RestApi)
 			dag.AddDependency(permission, function)
-			return nil
+			return configureIntegration(integration, dag, &resources.AwsResourceValue{ResourceVal: function, PropertyVal: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.LoadBalancer]{
-		Expand: func(integration *resources.ApiIntegration, lb *resources.LoadBalancer, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			// This isnt an instance of an expanded path, rather an existing edge so ignore
-
-			if lb.Name == "" || lb == nil {
-				var err error
-				lb, err = core.CreateResource[*resources.LoadBalancer](dag, resources.LoadBalancerCreateParams{
-					AppName: data.AppName,
-					Refs:    integration.ConstructsRef.Clone(),
-					Name:    integration.Name,
-				})
-				if err != nil {
-					return err
-				}
+		Reuse: knowledgebase.Downstream,
+		Configure: func(integration *resources.ApiIntegration, loadBalancer *resources.LoadBalancer, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if integration.Method == nil {
+				return fmt.Errorf("cannot configure integration %s, missing rest api or method", integration.Id())
 			}
-
-			if integration.Name != "" {
-				return nil
-			}
-			if len(data.Routes) == 0 {
-				data.Routes = append(data.Routes, core.Route{Path: fmt.Sprintf("/%s/*", lb.Name), Verb: "ANY"})
-			}
-
-			restApi, ok := data.Source.(*resources.RestApi)
-			refs := restApi.ConstructsRef.Clone()
-			if !ok {
-				return fmt.Errorf("source of eks to api integration expansion must be a rest api resource")
-			}
-
-			var tg *resources.TargetGroup
-			var err error
-			isTgDest := false
-			ecsService, isEcsDest := data.Destination.(*resources.EcsService)
-			if isEcsDest {
-				tg, err = core.CreateResource[*resources.TargetGroup](dag, resources.TargetGroupCreateParams{
-					AppName: data.AppName,
-					Refs:    ecsService.ConstructsRef.CloneWith(restApi.ConstructsRef),
-					Name:    ecsService.Name,
-				})
-				tg.Protocol = "TCP"
-				tg.TargetType = "ip"
-				if err != nil {
-					return err
-				}
-				ecsService.LoadBalancers = append(ecsService.LoadBalancers, resources.EcsServiceLoadBalancerConfig{
-					ContainerName:  ecsService.TaskDefinition.Name,
-					ContainerPort:  3000,
-					TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE},
-				})
-
-				dag.AddDependency(ecsService, tg)
-				dag.AddDependenciesReflect(ecsService)
-			} else if tg, isTgDest = data.Destination.(*resources.TargetGroup); isTgDest {
-				tg.Protocol = "TCP"
-				tg.TargetType = "ip"
-			}
-
-			instance, isEc2Dest := data.Destination.(*resources.Ec2Instance)
-			if isEc2Dest {
-				tg, err = core.CreateResource[*resources.TargetGroup](dag, resources.TargetGroupCreateParams{
-					AppName: data.AppName,
-					Refs:    instance.ConstructsRef.Clone(),
-					Name:    instance.Name,
-				})
-				if err != nil {
-					return err
-				}
-				tg.Protocol = "HTTPS"
-				tg.TargetType = "instance"
-				dag.AddDependency(tg, instance)
-			}
-			tg.Port = 3000
-
-			if !isEc2Dest && !isTgDest && !isEcsDest {
-				return fmt.Errorf("destination of api integration -> load balancer expansion must be a target group, ecs service, or ec2 instance, but got %T", data.Destination)
-			}
-
-			listener, err := core.CreateResource[*resources.Listener](dag, resources.ListenerCreateParams{
-				AppName:     data.AppName,
-				Refs:        tg.ConstructsRef.Clone(),
-				Name:        tg.Name,
-				NetworkType: resources.PrivateSubnet,
-			})
-			if err != nil {
-				return err
-			}
-			listener.LoadBalancer = lb
-			dag.AddDependency(listener, lb)
-			listener.LoadBalancer.Type = "network"
-			listener.LoadBalancer.Scheme = "internal"
-			listener.DefaultActions = []*resources.LBAction{{TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE}, Type: "forward"}}
-			listener.Port = 80
-			listener.Protocol = tg.Protocol
-			dag.AddDependenciesReflect(listener)
-
 			vpcLink := &resources.VpcLink{
-				Target:        listener.LoadBalancer,
-				ConstructsRef: listener.LoadBalancer.ConstructsRef,
+				Target:        loadBalancer,
+				ConstructsRef: core.BaseConstructSetOf(loadBalancer, integration),
 			}
-
-			err = createRoutesForIntegration(data.AppName, data.Routes, refs, dag, vpcLink, restApi, &resources.AwsResourceValue{ResourceVal: listener.LoadBalancer, PropertyVal: resources.NLB_INTEGRATION_URI_IAC_VALUE})
-			if err != nil {
-				return err
-			}
+			integration.IntegrationHttpMethod = strings.ToUpper(integration.Method.HttpMethod)
+			integration.Type = "HTTP_PROXY"
+			integration.ConnectionType = "VPC_LINK"
+			integration.VpcLink = vpcLink
 			dag.AddDependenciesReflect(vpcLink)
-			return nil
+			return configureIntegration(integration, dag, &resources.AwsResourceValue{ResourceVal: loadBalancer, PropertyVal: resources.NLB_INTEGRATION_URI_IAC_VALUE})
 		},
-		ValidDestinations: []core.Resource{&resources.TargetGroup{}, &resources.Ec2Instance{}, &resources.EcsService{}},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaPermission, *resources.RestApi]{
 		Configure: func(permission *resources.LambdaPermission, api *resources.RestApi, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -189,56 +89,35 @@ var ApiGatewayKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.VpcLink, *resources.LoadBalancer]{},
 )
 
-func createRoutesForIntegration(appName string, routes []core.Route, refs core.BaseConstructSet, dag *core.ResourceGraph, vpcLink *resources.VpcLink, restApi *resources.RestApi, uri *resources.AwsResourceValue) error {
-	var merr error
-	for _, route := range routes {
-		integration, err := core.CreateResource[*resources.ApiIntegration](dag, resources.ApiIntegrationCreateParams{
-			AppName:    appName,
-			Refs:       refs,
-			Path:       route.Path,
-			ApiName:    restApi.Name,
-			HttpMethod: strings.ToUpper(string(route.Verb)),
-		})
-		if err != nil {
-			merr = errors.Join(merr, err)
-			continue
-		}
+func configureIntegration(integration *resources.ApiIntegration, dag *core.ResourceGraph, uri *resources.AwsResourceValue) error {
 
-		if vpcLink != nil {
-			integration.IntegrationHttpMethod = strings.ToUpper(string(route.Verb))
-			integration.Type = "HTTP_PROXY"
-			integration.ConnectionType = "VPC_LINK"
-			integration.VpcLink = vpcLink
-		} else {
-			integration.IntegrationHttpMethod = "POST"
-			integration.Type = "AWS_PROXY"
-		}
-
-		integration.Uri = uri
-		segments := strings.Split(route.Path, "/")
-		methodRequestParams := map[string]bool{}
-		integrationRequestParams := map[string]string{}
-		for _, segment := range segments {
-			if strings.Contains(segment, ":") {
-				// We strip the pathParam of the : and * characters (which signal path parameters or wildcard routes) to be able to inject them into our method and integration request parameters
-				pathParam := fmt.Sprintf("request.path.%s", segment)
-				pathParam = strings.ReplaceAll(pathParam, ":", "")
-				pathParam = strings.ReplaceAll(pathParam, "*", "")
-				methodRequestParams[fmt.Sprintf("method.%s", pathParam)] = true
-				integrationRequestParams[fmt.Sprintf("integration.%s", pathParam)] = fmt.Sprintf("method.%s", pathParam)
-			}
-		}
-		integration.RequestParameters = integrationRequestParams
-		integration.Method.RequestParameters = methodRequestParams
-
-		for _, res := range dag.GetUpstreamResources(restApi) {
-			switch resource := res.(type) {
-			case *resources.ApiDeployment:
-				dag.AddDependency(resource, integration.Method)
-				dag.AddDependency(resource, integration)
-			}
-		}
-		dag.AddDependenciesReflect(integration)
+	if integration.RestApi == nil || integration.Method == nil {
+		return fmt.Errorf("cannot configure integration %s, missing rest api or method", integration.Id())
 	}
-	return merr
+
+	integration.Uri = uri
+	segments := strings.Split(integration.Route, "/")
+	methodRequestParams := map[string]bool{}
+	integrationRequestParams := map[string]string{}
+	for _, segment := range segments {
+		if strings.Contains(segment, ":") {
+			// We strip the pathParam of the : and * characters (which signal path parameters or wildcard routes) to be able to inject them into our method and integration request parameters
+			pathParam := fmt.Sprintf("request.path.%s", segment)
+			pathParam = strings.ReplaceAll(pathParam, ":", "")
+			pathParam = strings.ReplaceAll(pathParam, "*", "")
+			methodRequestParams[fmt.Sprintf("method.%s", pathParam)] = true
+			integrationRequestParams[fmt.Sprintf("integration.%s", pathParam)] = fmt.Sprintf("method.%s", pathParam)
+		}
+	}
+	integration.RequestParameters = integrationRequestParams
+	integration.Method.RequestParameters = methodRequestParams
+
+	for _, res := range dag.GetUpstreamResources(integration.RestApi) {
+		switch resource := res.(type) {
+		case *resources.ApiDeployment:
+			dag.AddDependency(resource, integration.Method)
+			dag.AddDependency(resource, integration)
+		}
+	}
+	return nil
 }

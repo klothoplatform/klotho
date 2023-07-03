@@ -205,29 +205,47 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 	integration.ConstructsRef = params.Refs.Clone()
 	integration.Route = convertPath(params.Path, false)
 
-	existingResource := dag.GetResource(integration.Id())
-	if existingResource != nil {
-		return fmt.Errorf("integration %s already exists", integration.Id())
+	existingResource, found := core.GetResource[*ApiIntegration](dag, integration.Id())
+	if found {
+		existingResource.ConstructsRef.AddAll(params.Refs)
+		return nil
 	} else {
-		subParams := map[string]any{
-			"RestApi": RestApiCreateParams{
-				Refs: params.Refs,
-				Name: params.ApiName,
-			},
-			"Method": params,
+		dag.AddResource(integration)
+	}
+	return nil
+}
+
+func (integration *ApiIntegration) MakeOperational(dag *core.ResourceGraph, appName string) error {
+
+	apis := core.GetDownstreamResourcesOfType[*RestApi](dag, integration)
+	if len(apis) > 1 {
+		return fmt.Errorf("integration %s has multiple apis: %v", integration.Name, apis)
+	} else if len(apis) == 1 {
+		integration.RestApi = apis[0]
+	} else {
+		return fmt.Errorf("integration %s has no apis", integration.Name)
+	}
+
+	subParams := map[string]any{
+		"Method": ApiMethodCreateParams{
+			AppName:    appName,
+			Refs:       core.BaseConstructSetOf(integration),
+			Path:       integration.Route,
+			ApiName:    integration.RestApi.Name,
+			HttpMethod: integration.IntegrationHttpMethod,
+		},
+	}
+	if integration.Route != "" && integration.Route != "/" {
+		subParams["Resource"] = ApiResourceCreateParams{
+			AppName: appName,
+			Refs:    core.BaseConstructSetOf(integration),
+			Path:    integration.Route,
+			ApiName: integration.RestApi.Name,
 		}
-		if params.Path != "" && params.Path != "/" {
-			subParams["Resource"] = ApiResourceCreateParams{
-				AppName: params.AppName,
-				Refs:    params.Refs,
-				Path:    params.Path,
-				ApiName: params.ApiName,
-			}
-		}
-		err := dag.CreateDependencies(integration, subParams)
-		if err != nil {
-			return err
-		}
+	}
+	err := dag.CreateDependencies(integration, subParams)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -309,7 +327,11 @@ func (deployment *ApiDeployment) Create(dag *core.ResourceGraph, params ApiDeplo
 		graphDeployment.ConstructsRef.AddAll(params.Refs)
 	} else {
 		err := dag.CreateDependencies(deployment, map[string]any{
-			"RestApi": params,
+			"RestApi": RestApiCreateParams{
+				AppName: params.AppName,
+				Refs:    core.BaseConstructSetOf(deployment),
+				Name:    params.Name,
+			},
 		})
 		if err != nil {
 			return err
@@ -338,8 +360,16 @@ func (stage *ApiStage) Create(dag *core.ResourceGraph, params ApiStageCreatePara
 		return nil
 	} else {
 		err := dag.CreateDependencies(stage, map[string]any{
-			"RestApi":    params,
-			"Deployment": params,
+			"RestApi": RestApiCreateParams{
+				AppName: params.AppName,
+				Refs:    core.BaseConstructSetOf(stage),
+				Name:    params.Name,
+			},
+			"Deployment": ApiDeploymentCreateParams{
+				AppName: params.AppName,
+				Refs:    core.BaseConstructSetOf(stage),
+				Name:    params.Name,
+			},
 		})
 		if err != nil {
 			return err

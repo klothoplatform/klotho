@@ -44,4 +44,5 @@ var AwsExtraEdgesKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.EcrImage, *resources.EcrRepository]{},
 	knowledgebase.EdgeBuilder[*resources.OpenIdConnectProvider, *resources.Region]{},
 	knowledgebase.EdgeBuilder[*resources.PrivateDnsNamespace, *resources.Vpc]{},
+	knowledgebase.EdgeBuilder[*resources.Route53HostedZone, *resources.Vpc]{},
 )

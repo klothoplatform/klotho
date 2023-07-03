@@ -35,7 +35,7 @@ var EksKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.EksFargateProfile, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.EksFargateProfile, *resources.EksCluster]{
-		Expand: func(profile *resources.EksFargateProfile, cluster *resources.EksCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(profile *resources.EksFargateProfile, cluster *resources.EksCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if len(cluster.GetClustersNodeGroups(dag)) == 0 {
 				err := cluster.SetUpDefaultNodeGroup(dag, data.AppName)
 				if err != nil {
@@ -47,7 +47,7 @@ var EksKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.EksNodeGroup, *resources.EksCluster]{
-		Expand: func(nodeGroup *resources.EksNodeGroup, cluster *resources.EksCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(nodeGroup *resources.EksNodeGroup, cluster *resources.EksCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			cluster.CreatePrerequisiteCharts(dag)
 			err := cluster.InstallFluentBit(nodeGroup.ConstructsRef, dag)
 			if err != nil {
@@ -67,40 +67,8 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EcrImage]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *kubernetes.HelmChart]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *kubernetes.KustomizeDirectory]{},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.PrivateDnsNamespace]{
-		Expand: func(chart *kubernetes.HelmChart, namespace *resources.PrivateDnsNamespace, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			clusterProvider := chart.ClustersProvider.Resource()
-			cluster, ok := clusterProvider.(*resources.EksCluster)
-			if !ok {
-				return fmt.Errorf("cluster provider resource for %s, must be an eks cluster, was %T", chart.Id(), clusterProvider)
-			}
-			cmController, err := cluster.InstallCloudMapController(chart.ConstructRefs, dag)
-			if err != nil {
-				return err
-			}
-			dag.AddDependency(chart, cmController)
-			return nil
-		},
-	},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.TargetGroup]{
-		Expand: func(chart *kubernetes.HelmChart, targetGroup *resources.TargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			clusterProviderResource := chart.ClustersProvider.Resource()
-			if cluster, ok := clusterProviderResource.(*resources.EksCluster); ok {
-				if len(cluster.GetClustersNodeGroups(dag)) == 0 {
-					err := cluster.SetUpDefaultNodeGroup(dag, data.AppName)
-					if err != nil {
-						return err
-					}
-				}
-				albChart, err := cluster.InstallAlbController(chart.ConstructRefs, dag, data.AppName)
-				if err != nil {
-					return err
-				}
-				dag.AddDependency(chart, albChart)
-			}
-			return nil
-		},
-	},
+	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.PrivateDnsNamespace]{},
+	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.TargetGroup]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Region]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Vpc]{},
 	knowledgebase.EdgeBuilder[*kubernetes.KustomizeDirectory, *resources.EksCluster]{},
@@ -112,14 +80,6 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *kubernetes.Manifest]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.Region]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.DynamodbTable]{
-		Expand: func(chart *kubernetes.HelmChart, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			role := GetIamRoleForUnit(chart, data.SourceRef)
-			if role == nil {
-				return fmt.Errorf("no role found for chart %s and source reference %s in HelmChart to ddb DynamodbTable expansion", chart.Id(), data.SourceRef.Id())
-			}
-			dag.AddDependency(role, table)
-			return nil
-		},
 		Configure: func(chart *kubernetes.HelmChart, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 
 			for _, env := range data.EnvironmentVariables {
@@ -137,14 +97,6 @@ var EksKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.S3Bucket]{
-		Expand: func(chart *kubernetes.HelmChart, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			role := GetIamRoleForUnit(chart, data.SourceRef)
-			if role == nil {
-				return fmt.Errorf("no role found for chart %s and source reference %s in HelmChart to S3Bucket expansion", chart.Id(), data.SourceRef.Id())
-			}
-			dag.AddDependency(role, bucket)
-			return nil
-		},
 		Configure: func(chart *kubernetes.HelmChart, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
 				addEnvVarToChart(chart, bucket, env)
@@ -198,7 +150,6 @@ var EksKB = knowledgebase.Build(
 			}
 			return nil
 		},
-		ValidDestinations: []core.Resource{&resources.RdsInstance{}},
 	},
 )
 

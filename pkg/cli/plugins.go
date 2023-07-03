@@ -5,6 +5,7 @@ import (
 
 	compiler "github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
+	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine"
 	envvar "github.com/klothoplatform/klotho/pkg/env_var"
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
@@ -58,7 +59,7 @@ func (b *PluginSetBuilder) AddEngine() error {
 	if err != nil {
 		return err
 	}
-	b.Engine = engine.NewEngine(provider, kb)
+	b.Engine = engine.NewEngine(provider, kb, core.ListAllConstructs())
 	return nil
 }
 

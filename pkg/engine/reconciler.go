@@ -59,6 +59,8 @@ func (e *Engine) deleteResource(resource core.Resource, explicit bool, overrideE
 	}
 	reflectResources := core.GetResourcesReflectively(resource)
 
+	// Check to see if there are upstream nodes for the resource trying to be deleted
+	// If upstream nodes exist, attempt to delete the resources upstream of the resource before deciding that the deletion process cannot continue
 	if deletionCriteria.RequiresNoUpstream && !explicit && len(upstreamNodes) > 0 {
 		log.Debugf("Cannot delete resource %s as it still has upstream dependencies", resource.Id())
 		if !e.ignoreCriteria(resource, upstreamNodes) {

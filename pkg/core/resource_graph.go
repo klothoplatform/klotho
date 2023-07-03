@@ -93,6 +93,7 @@ func (rg *ResourceGraph) AddDependencyWithData(deployedSecond Resource, deployed
 	rg.AddResource(deployedSecond)
 	rg.AddResource(deployedFirst)
 	rg.AddDependencyById(deployedSecond.Id(), deployedFirst.Id(), data)
+
 }
 
 func (rg *ResourceGraph) AddDependencyById(deployedSecond ResourceId, deployedFirst ResourceId, data any) {

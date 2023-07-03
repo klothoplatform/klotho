@@ -44,11 +44,12 @@ var EcsKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.DynamodbTable]{
-		Expand: func(service *resources.EcsService, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			dag.AddDependency(service.TaskDefinition.ExecutionRole, table)
-			return nil
-		},
 		Configure: func(service *resources.EcsService, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			err := checkServiceForRole(service, table)
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(service.TaskDefinition.ExecutionRole, table)
 			for _, env := range data.EnvironmentVariables {
 				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: table, PropertyVal: env.GetValue()}
 			}
@@ -64,11 +65,12 @@ var EcsKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.S3Bucket]{
-		Expand: func(service *resources.EcsService, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			dag.AddDependency(service.TaskDefinition.ExecutionRole, bucket)
-			return nil
-		},
 		Configure: func(service *resources.EcsService, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			err := checkServiceForRole(service, bucket)
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(service.TaskDefinition.ExecutionRole, bucket)
 			for _, env := range data.EnvironmentVariables {
 				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: bucket, PropertyVal: env.GetValue()}
 			}
@@ -76,11 +78,12 @@ var EcsKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.Secret]{
-		Expand: func(service *resources.EcsService, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			dag.AddDependency(service.TaskDefinition.ExecutionRole, secret)
-			return nil
-		},
 		Configure: func(service *resources.EcsService, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			err := checkServiceForRole(service, secret)
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(service.TaskDefinition.ExecutionRole, secret)
 			for _, env := range data.EnvironmentVariables {
 				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: secret, PropertyVal: env.GetValue()}
 			}
@@ -102,15 +105,13 @@ var EcsKB = knowledgebase.Build(
 			}
 			return nil
 		},
-		ValidDestinations: []core.Resource{&resources.RdsInstance{}},
 	},
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.TargetGroup]{
 		ReverseDirection: true,
 		Configure: func(service *resources.EcsService, tg *resources.TargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if len(service.TaskDefinition.PortMappings) != 1 {
+			if service.TaskDefinition == nil || len(service.TaskDefinition.PortMappings) != 1 {
 				return fmt.Errorf("cannot configure edge %s -> %s, the service's task definition does not have exactly one port mapping", service.Id(), tg.Id())
 			}
-
 			service.LoadBalancers = []resources.EcsServiceLoadBalancerConfig{
 				{
 					TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE},
@@ -125,3 +126,12 @@ var EcsKB = knowledgebase.Build(
 		},
 	},
 )
+
+func checkServiceForRole(service *resources.EcsService, dest core.Resource) error {
+	if service.TaskDefinition == nil {
+		return fmt.Errorf("cannot configure edge %s -> %s, missing task definition", service.Id(), dest.Id())
+	} else if service.TaskDefinition.ExecutionRole == nil {
+		return fmt.Errorf("cannot configure edge %s -> %s, missing task definition execution role", service.Id(), dest.Id())
+	}
+	return nil
+}

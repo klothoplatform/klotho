@@ -12,8 +12,9 @@ import (
 )
 
 var CloudfrontKB = knowledgebase.Build(
+	knowledgebase.EdgeBuilder[*resources.CloudfrontDistribution, *resources.LoadBalancer]{},
 	knowledgebase.EdgeBuilder[*resources.CloudfrontDistribution, *resources.S3Bucket]{
-		Expand: func(distro *resources.CloudfrontDistribution, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(distro *resources.CloudfrontDistribution, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			var errs multierr.Error
 			for _, consRef := range distro.ConstructsRef {
 				conn := s3ToCloudfrontConnection{
@@ -30,11 +31,8 @@ var CloudfrontKB = knowledgebase.Build(
 				err = conn.attachPolicy(oai)
 				errs.Append(err)
 			}
-			return errs.ErrOrNil()
-		},
-		Configure: func(distro *resources.CloudfrontDistribution, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			distro.DefaultRootObject = bucket.IndexDocument
-			return nil
+			return errs.ErrOrNil()
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.CloudfrontDistribution, *resources.ApiStage]{

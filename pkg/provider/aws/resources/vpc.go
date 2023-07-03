@@ -491,10 +491,8 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 	zap.S().Debugf("Making route table %s operational", routeTable.Name)
 
 	routeTablesSubnets := core.GetDownstreamResourcesOfType[*Subnet](dag, routeTable)
-
 	if routeTable.Vpc == nil {
 		vpcs := core.GetAllDownstreamResourcesOfType[*Vpc](dag, routeTable)
-
 		if len(vpcs) > 1 {
 			return fmt.Errorf("route table %s has multiple vpc dependencies", routeTable.Name)
 		}
@@ -503,7 +501,7 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 		}
 	}
 	for _, subnet := range routeTablesSubnets {
-		if routeTable.Vpc != nil && routeTable.Vpc != subnet.Vpc {
+		if routeTable.Vpc != nil && routeTable.Vpc.Id() != subnet.Vpc.Id() {
 			return fmt.Errorf("route table %s has multiple vpc dependencies through its subnets", routeTable.Name)
 		}
 		routeTable.Vpc = subnet.Vpc
