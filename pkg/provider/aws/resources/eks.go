@@ -165,6 +165,10 @@ func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCrea
 	return nil
 }
 
+func (cluster *EksCluster) GetFunctionality() core.Functionality {
+	return core.Cluster
+}
+
 func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName string) error {
 	zap.S().Debugf("Making cluster %s operational", cluster.Name)
 	if cluster.ClusterRole == nil {
@@ -478,20 +482,15 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 			Name:          cluster.Name + `-metrics-server`,
 			Chart:         "metrics-server",
 			ConstructRefs: cluster.ConstructsRef,
-			Cluster: &AwsResourceValue{
-				ResourceVal: cluster,
-				PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-			},
-			Repo: `https://kubernetes-sigs.github.io/metrics-server/`,
+			Cluster:       cluster,
+			Repo:          `https://kubernetes-sigs.github.io/metrics-server/`,
 		},
 		{
 			Name:          cluster.Name + `-cert-manager`,
 			Chart:         `cert-manager`,
 			ConstructRefs: cluster.ConstructsRef,
-			Cluster: &AwsResourceValue{
-				ResourceVal: cluster,
-				PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-			},
+			Cluster:       cluster,
+
 			Repo:    `https://charts.jetstack.io`,
 			Version: `v1.10.0`,
 			Values: map[string]any{
@@ -513,10 +512,7 @@ func (cluster *EksCluster) InstallNvidiaDevicePlugin(dag *core.ResourceGraph) {
 	manifest := &kubernetes.Manifest{
 		Name:     fmt.Sprintf("%s-%s", cluster.Name, "nvidia-device-plugin"),
 		FilePath: "https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.10/nvidia-device-plugin.yml",
-		Cluster: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Cluster:  cluster,
 	}
 	dag.AddDependenciesReflect(manifest)
 
@@ -539,10 +535,7 @@ func (cluster *EksCluster) CreateFargateLogging(references core.BaseConstructSet
 		ConstructRefs: references,
 		FilePath:      namespaceOutputPath,
 		Content:       content,
-		Cluster: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Cluster:       cluster,
 	}
 	dag.AddResource(namespace)
 	dag.AddDependency(namespace, cluster)
@@ -557,10 +550,8 @@ func (cluster *EksCluster) CreateFargateLogging(references core.BaseConstructSet
 		ConstructRefs: references,
 		FilePath:      configMapOutputPath,
 		Content:       content,
-		Cluster: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Cluster:       cluster,
+
 		Transformations: map[string]core.IaCValue{
 			`data["output.conf"]`: &AwsResourceValue{ResourceVal: cluster, PropertyVal: AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE},
 		},
@@ -582,10 +573,7 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 		ConstructRefs: references,
 		FilePath:      namespaceOutputPath,
 		Content:       content,
-		Cluster: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Cluster:       cluster,
 	}
 	dag.AddResource(namespace)
 	dag.AddDependency(namespace, cluster)
@@ -605,10 +593,7 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 			`data["cluster.name"]`: &AwsResourceValue{ResourceVal: cluster, PropertyVal: NAME_IAC_VALUE},
 			`data["logs.region"]`:  &AwsResourceValue{ResourceVal: region, PropertyVal: NAME_IAC_VALUE},
 		},
-		Cluster: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Cluster: cluster,
 	}
 	dag.AddResource(configMap)
 	dag.AddDependency(configMap, cluster)
@@ -617,10 +602,7 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "fluent-bit"),
 		ConstructRefs: references,
 		FilePath:      "https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/fluent-bit/fluent-bit.yaml",
-		Cluster: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Cluster:       cluster,
 	}
 	dag.AddResource(configMap)
 	dag.AddDependency(fluentBitOptimized, cluster)
@@ -661,10 +643,7 @@ func (cluster *EksCluster) InstallCloudMapController(refs core.BaseConstructSet,
 			Transformations: map[string]core.IaCValue{
 				`spec["value"]`: &AwsResourceValue{ResourceVal: cluster, PropertyVal: NAME_IAC_VALUE},
 			},
-			Cluster: &AwsResourceValue{
-				ResourceVal: cluster,
-				PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-			},
+			Cluster: cluster,
 		}
 		dag.AddResource(clusterSet)
 		dag.AddDependenciesReflect(cloudMapController)
@@ -710,10 +689,7 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 	}
 	serviceAccount.Transformations[`metadata["annotations"]["eks.amazonaws.com/role-arn"]`] = &AwsResourceValue{ResourceVal: role, PropertyVal: ARN_IAC_VALUE}
 	serviceAccount.FilePath = outputPath
-	serviceAccount.Cluster = &AwsResourceValue{
-		ResourceVal: cluster,
-		PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-	}
+	serviceAccount.Cluster = cluster
 
 	dag.AddDependenciesReflect(serviceAccount)
 
@@ -724,10 +700,8 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 		ConstructRefs: references,
 		Version:       "1.4.7",
 		Namespace:     "default",
-		Cluster: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Cluster:       cluster,
+
 		Values: map[string]any{
 			"clusterName": AwsResourceValue{ResourceVal: cluster, PropertyVal: NAME_IAC_VALUE},
 			"serviceAccount": map[string]any{

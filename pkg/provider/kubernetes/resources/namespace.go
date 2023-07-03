@@ -14,7 +14,7 @@ type (
 		Object          *corev1.Namespace
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.IaCValue
+		Cluster         core.Resource
 	}
 )
 

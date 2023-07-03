@@ -19,7 +19,7 @@ type (
 		Object          *apps.Deployment
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.IaCValue
+		Cluster         core.Resource
 	}
 )
 

@@ -19,7 +19,7 @@ type (
 		FilePath        string
 		Content         []byte
 		Transformations map[string]core.IaCValue
-		Cluster         core.IaCValue
+		Cluster         core.Resource
 	}
 )
 

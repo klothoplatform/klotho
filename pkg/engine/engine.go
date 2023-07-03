@@ -192,6 +192,12 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		for _, resource := range e.Context.EndState.ListResources() {
 			err := e.Context.EndState.CallMakeOperational(resource, e.Context.AppName)
 			if err != nil {
+				if ore, ok := err.(*core.OperationalResourceError); ok {
+					herr := e.handleOperationalResourceError(ore, e.Context.EndState)
+					if err != nil {
+						err = errors.Join(err, herr)
+					}
+				}
 				e.Context.Errors[i] = append(e.Context.Errors[i], err)
 				e.Context.OperationalResources[resource.Id()] = false
 				continue

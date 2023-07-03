@@ -1,6 +1,8 @@
 package resources
 
 import (
+	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	corev1 "k8s.io/api/core/v1"
@@ -14,7 +16,7 @@ type (
 		Object          *corev1.Service
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.IaCValue
+		Cluster         core.Resource
 	}
 )
 
@@ -48,4 +50,23 @@ func (service *Service) Kind() string {
 
 func (service *Service) Path() string {
 	return service.FilePath
+}
+
+func (service *Service) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if service.Cluster == nil {
+		var downstreamClustersFound []core.Resource
+		for _, res := range dag.GetAllDownstreamResources(service) {
+			if core.GetFunctionality(res) == core.Cluster {
+				downstreamClustersFound = append(downstreamClustersFound, res)
+			}
+		}
+		if len(downstreamClustersFound) == 1 {
+			service.Cluster = downstreamClustersFound[0]
+			return nil
+		}
+		if len(downstreamClustersFound) > 1 {
+			return fmt.Errorf("service %s has more than one cluster downstream", service.Id())
+		}
+	}
+	return core.NewOperationalResourceError(service, []string{string(core.Cluster)}, fmt.Errorf("service %s has no cluster's to use", service.Id()))
 }

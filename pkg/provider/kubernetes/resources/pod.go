@@ -18,7 +18,7 @@ type (
 		Object          *corev1.Pod
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.IaCValue
+		Cluster         core.Resource
 	}
 )
 
@@ -59,6 +59,25 @@ func (pod *Pod) Kind() string {
 
 func (pod *Pod) Path() string {
 	return pod.FilePath
+}
+
+func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if pod.Cluster == nil {
+		var downstreamClustersFound []core.Resource
+		for _, res := range dag.GetAllDownstreamResources(pod) {
+			if core.GetFunctionality(res) == core.Cluster {
+				downstreamClustersFound = append(downstreamClustersFound, res)
+			}
+		}
+		if len(downstreamClustersFound) == 1 {
+			pod.Cluster = downstreamClustersFound[0]
+			return nil
+		}
+		if len(downstreamClustersFound) > 1 {
+			return fmt.Errorf("pod %s has more than one cluster downstream", pod.Id())
+		}
+	}
+	return core.NewOperationalResourceError(pod, []string{string(core.Cluster)}, fmt.Errorf("pod %s has no cluster's to use", pod.Id()))
 }
 
 func (pod *Pod) GetServiceAccount(dag *core.ResourceGraph) *ServiceAccount {

@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 )
 
 var LambdaKB = knowledgebase.Build(
@@ -148,43 +148,10 @@ var LambdaKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *kubernetes.HelmChart]{
-		Configure: func(lambda *resources.LambdaFunction, destination *kubernetes.HelmChart, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if len(lambda.Subnets) == 0 {
-				lambda.Subnets = make([]*resources.Subnet, 2)
-				subparams := map[string]any{
-					"Subnets": []resources.SubnetCreateParams{
-						{
-							AppName: data.AppName,
-							Refs:    lambda.ConstructsRef,
-							AZ:      "0",
-							Type:    resources.PrivateSubnet,
-						},
-						{
-							AppName: data.AppName,
-							Refs:    lambda.ConstructsRef,
-							AZ:      "1",
-							Type:    resources.PrivateSubnet,
-						},
-					},
-				}
-				if len(lambda.SecurityGroups) == 0 {
-					lambda.SecurityGroups = make([]*resources.SecurityGroup, 1)
-					subparams["SecurityGroups"] = []resources.SecurityGroupCreateParams{
-						{
-							AppName: data.AppName,
-							Refs:    lambda.ConstructsRef,
-						},
-					}
-				}
-				err := dag.CreateDependencies(lambda, subparams)
-				if err != nil {
-					return err
-				}
-			}
-			refs := lambda.ConstructsRef.CloneWith(destination.ConstructRefs)
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *kubernetes.Pod]{
+		Configure: func(lambda *resources.LambdaFunction, destination *kubernetes.Pod, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			privateDnsNamespace, err := core.CreateResource[*resources.PrivateDnsNamespace](dag, resources.PrivateDnsNamespaceCreateParams{
-				Refs:    refs,
+				Refs:    core.BaseConstructSetOf(destination, lambda),
 				AppName: data.AppName,
 			})
 			if err != nil {
@@ -194,7 +161,7 @@ var LambdaKB = knowledgebase.Build(
 			policy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
 				AppName: data.AppName,
 				Name:    "servicediscovery",
-				Refs:    refs,
+				Refs:    core.BaseConstructSetOf(destination, lambda),
 			})
 			if err != nil {
 				return err
@@ -204,12 +171,57 @@ var LambdaKB = knowledgebase.Build(
 			if err != nil {
 				return err
 			}
-			clusterProvider := destination.ClustersProvider.Resource()
+			clusterProvider := destination.Cluster
 			cluster, ok := clusterProvider.(*resources.EksCluster)
 			if !ok {
 				return fmt.Errorf("cluster provider resource for %s, must be an eks cluster, was %T", destination.Id(), clusterProvider)
 			}
-			cmController, err := cluster.InstallCloudMapController(refs, dag)
+			if len(lambda.Subnets) == 0 || len(lambda.SecurityGroups) == 0 {
+				if cluster.Vpc == nil {
+					return fmt.Errorf("cluster %s is not fully operational yet", cluster.Id())
+				}
+				dag.AddDependency(lambda, cluster.Vpc)
+			}
+			cmController, err := cluster.InstallCloudMapController(core.BaseConstructSetOf(destination, lambda), dag)
+			dag.AddDependency(destination, cmController)
+			return err
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *kubernetes.Deployment]{
+		Configure: func(lambda *resources.LambdaFunction, destination *kubernetes.Deployment, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			privateDnsNamespace, err := core.CreateResource[*resources.PrivateDnsNamespace](dag, resources.PrivateDnsNamespaceCreateParams{
+				Refs:    core.BaseConstructSetOf(destination, lambda),
+				AppName: data.AppName,
+			})
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(destination, privateDnsNamespace)
+			policy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
+				AppName: data.AppName,
+				Name:    "servicediscovery",
+				Refs:    core.BaseConstructSetOf(destination, lambda),
+			})
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(policy, privateDnsNamespace)
+			dag.AddDependency(lambda.Role, policy)
+			if err != nil {
+				return err
+			}
+			clusterProvider := destination.Cluster
+			cluster, ok := clusterProvider.(*resources.EksCluster)
+			if !ok {
+				return fmt.Errorf("cluster provider resource for %s, must be an eks cluster, was %T", destination.Id(), clusterProvider)
+			}
+			if len(lambda.Subnets) == 0 || len(lambda.SecurityGroups) == 0 {
+				if cluster.Vpc == nil {
+					return fmt.Errorf("cluster %s is not fully operational yet", cluster.Id())
+				}
+				dag.AddDependency(lambda, cluster.Vpc)
+			}
+			cmController, err := cluster.InstallCloudMapController(core.BaseConstructSetOf(destination, lambda), dag)
 			dag.AddDependency(destination, cmController)
 			return err
 		},

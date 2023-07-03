@@ -1,6 +1,11 @@
 package engine
 
 import (
+	"fmt"
+	"reflect"
+	"sort"
+
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"go.uber.org/zap"
@@ -215,4 +220,48 @@ func (e *Engine) getExplicitDownStreams(res core.Resource) []core.Resource {
 		}
 	}
 	return resources
+}
+
+func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceError, dag *core.ResourceGraph) error {
+	resources := e.ListResources()
+
+	var neededResource core.Resource
+	for _, res := range resources {
+		if collectionutil.Contains(err.Needs, string(core.GetFunctionality(res))) {
+			_, found := e.KnowledgeBase.GetEdge(err.Resource, res)
+			if !found {
+				continue
+			}
+			if neededResource != nil {
+				return fmt.Errorf("multiple resources found that can satisfy the operational resource error, %s", err.Error())
+			}
+			neededResource = res
+		}
+	}
+	if neededResource == nil {
+		return fmt.Errorf("no resources found that can satisfy the operational resource error, %s", err.Error())
+	}
+	var availableResources []core.Resource
+	for _, res := range dag.ListResources() {
+		if res.Id().Type == neededResource.Id().Type {
+			availableResources = append(availableResources, res)
+		}
+	}
+	if len(availableResources) == 0 {
+		reflect.ValueOf(neededResource).Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s-%s", neededResource.Id().Type, err.Resource.Id().Name)))
+		dag.AddDependency(err.Resource, neededResource)
+	} else {
+		resourceIds := []string{}
+		for _, res := range availableResources {
+			resourceIds = append(resourceIds, res.Id().Name)
+		}
+		sort.Strings(resourceIds)
+		for _, res := range availableResources {
+			if res.Id().Name == resourceIds[0] {
+				dag.AddDependency(err.Resource, res)
+				break
+			}
+		}
+	}
+	return nil
 }

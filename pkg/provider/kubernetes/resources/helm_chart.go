@@ -16,7 +16,7 @@ type HelmChart struct {
 	Files     []ManifestFile
 
 	ConstructRefs core.BaseConstructSet
-	Cluster       core.IaCValue
+	Cluster       core.Resource
 	Repo          string
 	Version       string
 	Namespace     string
