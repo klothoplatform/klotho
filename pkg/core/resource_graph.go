@@ -348,6 +348,17 @@ func GetAllUpstreamResourcesOfType[T Resource](rg *ResourceGraph, source Resourc
 	return
 }
 
+func GetSingleUpstreamResourceOfType[T Resource](rg *ResourceGraph, source Resource) (resource T, err error) {
+	resources := GetAllUpstreamResourcesOfType[T](rg, source)
+	if len(resources) == 0 {
+		return resource, errors.Errorf("no upstream resource of type %T found for resource %s", source, source.Id())
+	} else if len(resources) > 1 {
+		return resource, errors.Errorf("multiple upstream resources of type %T found for resource %s", source, source.Id())
+	}
+	return resources[0], nil
+
+}
+
 func (rg *ResourceGraph) getAllUpstreamResourcesSet(source Resource, upstreams map[Resource]struct{}) map[Resource]struct{} {
 	for _, r := range rg.underlying.IncomingVertices(source) {
 		upstreams[r] = struct{}{}
@@ -381,6 +392,17 @@ func GetAllDownstreamResourcesOfType[T Resource](rg *ResourceGraph, source Resou
 		}
 	}
 	return
+}
+
+func GetSingleDownstreamResourceOfType[T Resource](rg *ResourceGraph, source Resource) (resource T, err error) {
+	resources := GetAllDownstreamResourcesOfType[T](rg, source)
+	if len(resources) == 0 {
+		return resource, errors.Errorf("no upstream resource of type %T found for resource %s", source, source.Id())
+	} else if len(resources) > 1 {
+		return resource, errors.Errorf("multiple upstream resources of type %T found for resource %s", source, source.Id())
+	}
+	return resources[0], nil
+
 }
 
 func (rg *ResourceGraph) ReplaceConstruct(resource Resource, new Resource) error {

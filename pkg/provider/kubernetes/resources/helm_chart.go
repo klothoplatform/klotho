@@ -13,14 +13,14 @@ type HelmChart struct {
 	Name      string
 	Chart     string
 	Directory string
-	Files     []Manifest
+	Files     []ManifestFile
 
-	ConstructRefs    core.BaseConstructSet
-	ClustersProvider core.IaCValue
-	Repo             string
-	Version          string
-	Namespace        string
-	Values           map[string]any
+	ConstructRefs core.BaseConstructSet
+	Cluster       core.IaCValue
+	Repo          string
+	Version       string
+	Namespace     string
+	Values        map[string]any
 }
 
 // BaseConstructsRef returns a slice containing the ids of any Klotho constructs is correlated to
@@ -33,11 +33,19 @@ func (chart *HelmChart) Id() core.ResourceId {
 		Name:     chart.Name,
 	}
 }
+
+func (chart *HelmChart) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
+		RequiresNoUpstream: true,
+	}
+}
+
 func (t *HelmChart) GetOutputFiles() []core.File {
 	var outputFiles []core.File
 	for _, file := range t.Files {
 		buf := &bytes.Buffer{}
-		_, err := file.OutputYAML().WriteTo(buf)
+		manifestFile, err := OutputObjectAsYaml(file)
+		manifestFile.WriteTo(buf)
 		if err != nil {
 			panic(err)
 		}

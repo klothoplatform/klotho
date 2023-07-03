@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 
@@ -44,41 +43,8 @@ func (a *AWS) ExpandConstruct(construct core.Construct, cg *core.ConstructGraph,
 	return
 }
 
-func (a *AWS) LoadResources(graph core.InputGraph, resourcesMap map[core.ResourceId]core.BaseConstruct) error {
-	typeToResource := make(map[string]core.Resource)
-	for _, res := range resources.ListAll() {
-		typeToResource[res.Id().Type] = res
-	}
-	// Subnets are special because they have a type that is not the same as their resource type since it uses a characteristic of the subnet
-	typeToResource["subnet_private"] = &resources.Subnet{}
-	typeToResource["subnet_public"] = &resources.Subnet{}
-	var joinedErr error
-	for _, node := range graph.Resources {
-		if node.Provider != provider.AWS {
-			continue
-		}
-		res, ok := typeToResource[node.Type]
-		if !ok {
-			joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to find resource of type %s", node.Type))
-			continue
-		}
-		newResource := reflect.New(reflect.TypeOf(res).Elem()).Interface()
-		resource, ok := newResource.(core.Resource)
-		if !ok {
-			joinedErr = errors.Join(joinedErr, fmt.Errorf("item %s of type %T is not of type core.Resource", node, newResource))
-			continue
-		}
-		reflect.ValueOf(resource).Elem().FieldByName("Name").SetString(node.Name)
-		if subnet, ok := resource.(*resources.Subnet); ok {
-			if node.Type == "subnet_public" {
-				subnet.Type = resources.PublicSubnet
-			} else if node.Type == "subnet_private" {
-				subnet.Type = resources.PrivateSubnet
-			}
-		}
-		resourcesMap[node] = resource
-	}
-	return joinedErr
+func (a *AWS) ListResources() []core.Resource {
+	return resources.ListAll()
 }
 
 // CreateResourceFromId creates a resource from an id, but does not mutate the graph in any manner

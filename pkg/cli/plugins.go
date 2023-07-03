@@ -59,6 +59,7 @@ func (b *PluginSetBuilder) AddEngine() error {
 	if err != nil {
 		return err
 	}
+	providers := make(map[string]provider.Provider)
 	b.Engine = engine.NewEngine(provider, kb, core.ListAllConstructs())
 	return nil
 }

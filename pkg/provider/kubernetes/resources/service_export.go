@@ -1,17 +1,19 @@
 package resources
 
 import (
+	cloudmap "github.com/aws/aws-cloud-map-mcs-controller-for-k8s/pkg/apis/multicluster/v1alpha1"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type (
 	ServiceExport struct {
 		Name          string
 		ConstructRefs core.BaseConstructSet
-		Service       *Service
-		Namespace     *Namespace
+		Object        *cloudmap.ServiceExport
 		FilePath      string
+		Cluster       core.IaCValue
 	}
 )
 
@@ -31,9 +33,14 @@ func (se *ServiceExport) Id() core.ResourceId {
 	}
 }
 
-func (se *ServiceExport) OutputYAML() core.File {
-	var outputFile core.File
-	return outputFile
+func (sa *ServiceExport) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
+		RequiresNoUpstream: true,
+	}
+}
+
+func (se *ServiceExport) GetObject() runtime.Object {
+	return se.Object
 }
 
 func (se *ServiceExport) Kind() string {

@@ -4,14 +4,17 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type (
 	ServiceAccount struct {
+		Name            string
 		ConstructRefs   core.BaseConstructSet
-		Object          corev1.Service
+		Object          *corev1.Service
 		Transformations map[string]core.IaCValue
 		FilePath        string
+		Cluster         core.IaCValue
 	}
 )
 
@@ -26,12 +29,18 @@ func (sa *ServiceAccount) Id() core.ResourceId {
 	return core.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     SERVICE_ACCOUNT_TYPE,
-		Name:     sa.Object.Name,
+		Name:     sa.Name,
 	}
 }
-func (sa *ServiceAccount) OutputYAML() core.File {
-	var outputFile core.File
-	return outputFile
+
+func (sa *ServiceAccount) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
+		RequiresNoUpstream: true,
+	}
+}
+
+func (sa *ServiceAccount) GetObject() runtime.Object {
+	return sa.Object
 }
 
 func (sa *ServiceAccount) Kind() string {
