@@ -758,11 +758,22 @@ func (cluster *EksCluster) GetClustersNodeGroups(dag *core.ResourceGraph) []*Eks
 }
 
 func GetServiceAccountRole(sa *kubernetes.ServiceAccount, dag *core.ResourceGraph) (*IamRole, error) {
+	if sa == nil {
+		return nil, fmt.Errorf("service account is nil")
+	}
 	roles := core.GetDownstreamResourcesOfType[*IamRole](dag, sa)
 	if len(roles) > 1 {
 		return nil, fmt.Errorf("service account %s has multiple roles", sa.Name)
 	} else if len(roles) == 0 {
-		return nil, fmt.Errorf("service account %s has no roles", sa.Name)
+		role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+			Name: fmt.Sprintf("%s-Role", sa.Name),
+			Refs: core.BaseConstructSetOf(sa),
+		})
+		if err != nil {
+			return nil, err
+		}
+		// sa.Object.Annotations["eks.amazonaws.com/role-arn"] = AwsResourceValue{ResourceVal: role, PropertyVal: ARN_IAC_VALUE}
+		return role, nil
 	}
 	return roles[0], nil
 }

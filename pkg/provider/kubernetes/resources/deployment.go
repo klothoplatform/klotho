@@ -63,6 +63,14 @@ func (deployment *Deployment) Path() string {
 }
 
 func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if deployment.Object == nil {
+		deployment.Object = &apps.Deployment{}
+		sa := &ServiceAccount{
+			Name: deployment.Name,
+		}
+		deployment.Object.Spec.Template.Spec.ServiceAccountName = sa.Name
+		dag.AddDependency(deployment, sa)
+	}
 	if deployment.Cluster == nil {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(deployment) {
@@ -85,6 +93,9 @@ func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName s
 }
 
 func (deployment *Deployment) GetServiceAccount(dag *core.ResourceGraph) *ServiceAccount {
+	if deployment.Object == nil {
+		return nil
+	}
 	sa := &ServiceAccount{
 		Name: deployment.Object.Spec.Template.Spec.ServiceAccountName,
 	}

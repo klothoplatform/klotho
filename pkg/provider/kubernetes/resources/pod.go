@@ -62,6 +62,14 @@ func (pod *Pod) Path() string {
 }
 
 func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if pod.Object == nil {
+		pod.Object = &corev1.Pod{}
+		sa := &ServiceAccount{
+			Name: pod.Name,
+		}
+		pod.Object.Spec.ServiceAccountName = sa.Name
+		dag.AddDependency(pod, sa)
+	}
 	if pod.Cluster == nil {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(pod) {
@@ -84,6 +92,9 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string) error {
 }
 
 func (pod *Pod) GetServiceAccount(dag *core.ResourceGraph) *ServiceAccount {
+	if pod.Object == nil {
+		return nil
+	}
 	sa := &ServiceAccount{
 		Name: pod.Object.Spec.ServiceAccountName,
 	}
