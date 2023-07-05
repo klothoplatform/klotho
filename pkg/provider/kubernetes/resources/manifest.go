@@ -1,6 +1,8 @@
 package resources
 
 import (
+	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -51,4 +53,23 @@ func (manifest *Manifest) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
+}
+
+func (manifest *Manifest) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if manifest.Cluster == nil {
+		var downstreamClustersFound []core.Resource
+		for _, res := range dag.GetAllDownstreamResources(manifest) {
+			if core.GetFunctionality(res) == core.Cluster {
+				downstreamClustersFound = append(downstreamClustersFound, res)
+			}
+		}
+		if len(downstreamClustersFound) == 1 {
+			manifest.Cluster = downstreamClustersFound[0]
+			return nil
+		}
+		if len(downstreamClustersFound) > 1 {
+			return fmt.Errorf("helm chart %s has more than one cluster downstream", manifest.Id())
+		}
+	}
+	return core.NewOperationalResourceError(manifest, []string{string(core.Cluster)}, fmt.Errorf("helm chart %s has no clusters to use", manifest.Id()))
 }

@@ -9,3 +9,11 @@ func (e *Engine) ListResources() []core.Resource {
 	}
 	return resources
 }
+
+func (e *Engine) ListResourcesByType() []string {
+	resources := []string{}
+	for _, res := range e.ListResources() {
+		resources = append(resources, res.Id().String())
+	}
+	return resources
+}

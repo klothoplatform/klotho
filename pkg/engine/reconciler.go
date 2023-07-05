@@ -222,6 +222,8 @@ func (e *Engine) getExplicitDownStreams(res core.Resource) []core.Resource {
 	return resources
 }
 
+// handleOperationalResourceError tries to determine how to fix OperatioanlResourceErrors by adding dependencies to the resource graph where needed.
+// If the error cannot be fixed, it will return an error.
 func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceError, dag *core.ResourceGraph) error {
 	resources := e.ListResources()
 

@@ -193,6 +193,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			err := e.Context.EndState.CallMakeOperational(resource, e.Context.AppName)
 			if err != nil {
 				if ore, ok := err.(*core.OperationalResourceError); ok {
+					// If we get a OperationalResourceError let the engine try to reconcile it, and if that fails then mark the resource as non operational so we attempt to rerun on the next loop
 					herr := e.handleOperationalResourceError(ore, e.Context.EndState)
 					if herr != nil {
 						err = errors.Join(err, herr)
