@@ -101,7 +101,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		constraints.EdgeConstraintScope:        make(map[constraints.Constraint]bool),
 	}
 
-	NUM_LOOPS := 3
+	NUM_LOOPS := 5
 
 	for i := 0; i < NUM_LOOPS; i++ {
 		zap.S().Debugf("Applying constraints iteration %d", i)
@@ -197,9 +197,9 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 					herr := e.handleOperationalResourceError(ore, e.Context.EndState)
 					if herr != nil {
 						err = errors.Join(err, herr)
-						e.Context.Errors[i] = append(e.Context.Errors[i], err)
-						e.Context.OperationalResources[resource.Id()] = false
 					}
+					e.Context.Errors[i] = append(e.Context.Errors[i], err)
+					e.Context.OperationalResources[resource.Id()] = false
 				}
 				continue
 			}

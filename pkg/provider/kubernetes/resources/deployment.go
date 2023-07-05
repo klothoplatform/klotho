@@ -77,8 +77,10 @@ func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName s
 		if len(downstreamClustersFound) > 1 {
 			return fmt.Errorf("deployment %s has more than one cluster downstream", deployment.Id())
 		}
+
+		return core.NewOperationalResourceError(deployment, []string{string(core.Cluster)}, fmt.Errorf("deployment %s has no clusters to use", deployment.Id()))
 	}
-	return core.NewOperationalResourceError(deployment, []string{string(core.Cluster)}, fmt.Errorf("deployment %s has no clusters to use", deployment.Id()))
+	return nil
 }
 
 func (deployment *Deployment) GetServiceAccount(dag *core.ResourceGraph) *ServiceAccount {

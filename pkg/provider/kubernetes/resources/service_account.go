@@ -80,8 +80,10 @@ func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName strin
 		if len(downstreamClustersFound) > 1 {
 			return fmt.Errorf("target group binding %s has more than one cluster downstream", sa.Id())
 		}
+
+		return core.NewOperationalResourceError(sa, []string{string(core.Cluster)}, fmt.Errorf("target group binding %s has no clusters to use", sa.Id()))
 	}
-	return core.NewOperationalResourceError(sa, []string{string(core.Cluster)}, fmt.Errorf("target group binding %s has no clusters to use", sa.Id()))
+	return nil
 }
 
 func (sa *ServiceAccount) GetResourcesUsingServiceAccount(dag *core.ResourceGraph) []core.Resource {

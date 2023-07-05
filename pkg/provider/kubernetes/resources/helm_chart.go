@@ -70,12 +70,15 @@ func (chart *HelmChart) MakeOperational(dag *core.ResourceGraph, appName string)
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
+			fmt.Println("setting downstream cluster")
 			chart.Cluster = downstreamClustersFound[0]
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {
 			return fmt.Errorf("helm chart %s has more than one cluster downstream", chart.Id())
 		}
+
+		return core.NewOperationalResourceError(chart, []string{string(core.Cluster)}, fmt.Errorf("helm chart %s has no clusters to use", chart.Id()))
 	}
-	return core.NewOperationalResourceError(chart, []string{string(core.Cluster)}, fmt.Errorf("helm chart %s has no clusters to use", chart.Id()))
+	return nil
 }

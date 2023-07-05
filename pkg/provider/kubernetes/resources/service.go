@@ -67,6 +67,7 @@ func (service *Service) MakeOperational(dag *core.ResourceGraph, appName string)
 		if len(downstreamClustersFound) > 1 {
 			return fmt.Errorf("service %s has more than one cluster downstream", service.Id())
 		}
+		return core.NewOperationalResourceError(service, []string{string(core.Cluster)}, fmt.Errorf("service %s has no clusters to use", service.Id()))
 	}
-	return core.NewOperationalResourceError(service, []string{string(core.Cluster)}, fmt.Errorf("service %s has no clusters to use", service.Id()))
+	return nil
 }

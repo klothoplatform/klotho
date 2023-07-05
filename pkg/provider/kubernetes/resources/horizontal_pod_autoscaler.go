@@ -80,8 +80,10 @@ func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *core.ResourceGraph, app
 		if len(downstreamClustersFound) > 1 {
 			return fmt.Errorf("horizontal pod autoscaler %s has more than one cluster downstream", hpa.Id())
 		}
+
+		return core.NewOperationalResourceError(hpa, []string{string(core.Cluster)}, fmt.Errorf("horizontal pod autoscaler %s has no clusters to use", hpa.Id()))
 	}
-	return core.NewOperationalResourceError(hpa, []string{string(core.Cluster)}, fmt.Errorf("horizontal pod autoscaler %s has no clusters to use", hpa.Id()))
+	return nil
 }
 
 func (hpa *HorizontalPodAutoscaler) GetResourcesUsingHPA(dag *core.ResourceGraph) []core.Resource {

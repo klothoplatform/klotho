@@ -82,8 +82,10 @@ func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName str
 		if len(downstreamClustersFound) > 1 {
 			return fmt.Errorf("target group binding %s has more than one cluster downstream", namespace.Id())
 		}
+
+		return core.NewOperationalResourceError(namespace, []string{string(core.Cluster)}, fmt.Errorf("target group binding %s has no clusters to use", namespace.Id()))
 	}
-	return core.NewOperationalResourceError(namespace, []string{string(core.Cluster)}, fmt.Errorf("target group binding %s has no clusters to use", namespace.Id()))
+	return nil
 }
 
 func (namespace *Namespace) GetResourcesInNamespace(dag *core.ResourceGraph) []core.Resource {

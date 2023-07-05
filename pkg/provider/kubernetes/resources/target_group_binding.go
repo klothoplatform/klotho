@@ -83,6 +83,7 @@ func (tgb *TargetGroupBinding) MakeOperational(dag *core.ResourceGraph, appName 
 		if len(downstreamClustersFound) > 1 {
 			return fmt.Errorf("target group binding %s has more than one cluster downstream", tgb.Id())
 		}
+		return core.NewOperationalResourceError(tgb, []string{string(core.Cluster)}, fmt.Errorf("target group binding %s has no clusters to use", tgb.Id()))
 	}
-	return core.NewOperationalResourceError(tgb, []string{string(core.Cluster)}, fmt.Errorf("target group binding %s has no clusters to use", tgb.Id()))
+	return nil
 }

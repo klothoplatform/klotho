@@ -202,9 +202,6 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 		}
 	}
 
-	// We want to add this to ensure that if the vpc is set it has an edge in the graph so the sgs and subnets are checked against it
-	dag.AddDependenciesReflect(cluster)
-
 	if len(cluster.Subnets) == 0 {
 		subnets, err := getSubnetsOperational(dag, cluster, appName)
 		if err != nil {
@@ -232,9 +229,8 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 			return fmt.Errorf("cluster %s has no vpc", cluster.Name)
 		}
 		cluster.Vpc = vpc
+		dag.AddDependency(cluster, vpc)
 	}
-
-	dag.AddDependenciesReflect(cluster)
 	return nil
 }
 

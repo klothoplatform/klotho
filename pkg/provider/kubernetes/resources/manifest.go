@@ -70,6 +70,8 @@ func (manifest *Manifest) MakeOperational(dag *core.ResourceGraph, appName strin
 		if len(downstreamClustersFound) > 1 {
 			return fmt.Errorf("helm chart %s has more than one cluster downstream", manifest.Id())
 		}
+
+		return core.NewOperationalResourceError(manifest, []string{string(core.Cluster)}, fmt.Errorf("helm chart %s has no clusters to use", manifest.Id()))
 	}
-	return core.NewOperationalResourceError(manifest, []string{string(core.Cluster)}, fmt.Errorf("helm chart %s has no clusters to use", manifest.Id()))
+	return nil
 }
