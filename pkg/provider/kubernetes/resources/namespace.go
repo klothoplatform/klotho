@@ -1,6 +1,10 @@
 package resources
 
 import (
+	"fmt"
+	"reflect"
+
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	corev1 "k8s.io/api/core/v1"
@@ -50,4 +54,46 @@ func (namespace *Namespace) Kind() string {
 
 func (namespace *Namespace) Path() string {
 	return namespace.FilePath
+}
+
+func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if namespace.Cluster == nil {
+		downstreamClustersFound := map[string]core.Resource{}
+		for _, res := range dag.GetAllDownstreamResources(namespace) {
+			if core.GetFunctionality(res) == core.Cluster {
+				downstreamClustersFound[res.Id().String()] = res
+			}
+		}
+		// See which cluster any pods or deployments using this service account use
+		for _, res := range namespace.GetResourcesInNamespace(dag) {
+			for _, dres := range dag.GetAllDownstreamResources(res) {
+				if core.GetFunctionality(dres) == core.Cluster {
+					downstreamClustersFound[dres.Id().String()] = dres
+				}
+			}
+		}
+
+		if len(downstreamClustersFound) == 1 {
+			_, cluster := collectionutil.GetOneEntry(downstreamClustersFound)
+			namespace.Cluster = cluster
+			dag.AddDependency(namespace, cluster)
+			return nil
+		}
+		if len(downstreamClustersFound) > 1 {
+			return fmt.Errorf("target group binding %s has more than one cluster downstream", namespace.Id())
+		}
+	}
+	return core.NewOperationalResourceError(namespace, []string{string(core.Cluster)}, fmt.Errorf("target group binding %s has no clusters to use", namespace.Id()))
+}
+
+func (namespace *Namespace) GetResourcesInNamespace(dag *core.ResourceGraph) []core.Resource {
+	var resources []core.Resource
+	for _, res := range dag.GetAllUpstreamResources(namespace) {
+		if manifest, ok := res.(ManifestFile); ok {
+			if reflect.ValueOf(manifest.GetObject()).Elem().FieldByName("Namespace").Interface() == namespace.Name {
+				resources = append(resources, manifest)
+			}
+		}
+	}
+	return resources
 }

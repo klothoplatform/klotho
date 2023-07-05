@@ -66,6 +66,8 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Service, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.ServiceAccount, *resources.EksCluster]{},
+	knowledgebase.EdgeBuilder[*kubernetes.TargetGroupBinding, *resources.EksCluster]{},
+	knowledgebase.EdgeBuilder[*kubernetes.ServiceExport, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksNodeGroup]{},

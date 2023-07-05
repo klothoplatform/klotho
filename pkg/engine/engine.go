@@ -194,12 +194,12 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			if err != nil {
 				if ore, ok := err.(*core.OperationalResourceError); ok {
 					herr := e.handleOperationalResourceError(ore, e.Context.EndState)
-					if err != nil {
+					if herr != nil {
 						err = errors.Join(err, herr)
+						e.Context.Errors[i] = append(e.Context.Errors[i], err)
+						e.Context.OperationalResources[resource.Id()] = false
 					}
 				}
-				e.Context.Errors[i] = append(e.Context.Errors[i], err)
-				e.Context.OperationalResources[resource.Id()] = false
 				continue
 			}
 			e.Context.OperationalResources[resource.Id()] = true

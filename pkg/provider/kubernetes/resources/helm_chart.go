@@ -45,7 +45,10 @@ func (t *HelmChart) GetOutputFiles() []core.File {
 	for _, file := range t.Files {
 		buf := &bytes.Buffer{}
 		manifestFile, err := OutputObjectAsYaml(file)
-		manifestFile.WriteTo(buf)
+		if err != nil {
+			panic(err)
+		}
+		_, err = manifestFile.WriteTo(buf)
 		if err != nil {
 			panic(err)
 		}

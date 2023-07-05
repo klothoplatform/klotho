@@ -62,6 +62,25 @@ func (deployment *Deployment) Path() string {
 	return deployment.FilePath
 }
 
+func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if deployment.Cluster == nil {
+		var downstreamClustersFound []core.Resource
+		for _, res := range dag.GetAllDownstreamResources(deployment) {
+			if core.GetFunctionality(res) == core.Cluster {
+				downstreamClustersFound = append(downstreamClustersFound, res)
+			}
+		}
+		if len(downstreamClustersFound) == 1 {
+			deployment.Cluster = downstreamClustersFound[0]
+			return nil
+		}
+		if len(downstreamClustersFound) > 1 {
+			return fmt.Errorf("deployment %s has more than one cluster downstream", deployment.Id())
+		}
+	}
+	return core.NewOperationalResourceError(deployment, []string{string(core.Cluster)}, fmt.Errorf("deployment %s has no clusters to use", deployment.Id()))
+}
+
 func (deployment *Deployment) GetServiceAccount(dag *core.ResourceGraph) *ServiceAccount {
 	sa := &ServiceAccount{
 		Name: deployment.Object.Spec.Template.Spec.ServiceAccountName,

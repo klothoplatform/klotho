@@ -1,6 +1,9 @@
 package resources
 
 import (
+	"fmt"
+
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	autoscaling "k8s.io/api/autoscaling/v2"
@@ -49,4 +52,44 @@ func (hpa *HorizontalPodAutoscaler) Kind() string {
 
 func (hpa *HorizontalPodAutoscaler) Path() string {
 	return hpa.FilePath
+}
+
+func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if hpa.Cluster == nil {
+		downstreamClustersFound := map[string]core.Resource{}
+		for _, res := range dag.GetAllDownstreamResources(hpa) {
+			if core.GetFunctionality(res) == core.Cluster {
+				downstreamClustersFound[res.Id().String()] = res
+			}
+		}
+		// See which cluster any pods or deployments using this service account use
+		for _, res := range hpa.GetResourcesUsingHPA(dag) {
+			for _, dres := range dag.GetAllDownstreamResources(res) {
+				if core.GetFunctionality(dres) == core.Cluster {
+					downstreamClustersFound[dres.Id().String()] = dres
+				}
+			}
+		}
+
+		if len(downstreamClustersFound) == 1 {
+			_, cluster := collectionutil.GetOneEntry(downstreamClustersFound)
+			hpa.Cluster = cluster
+			dag.AddDependency(hpa, cluster)
+			return nil
+		}
+		if len(downstreamClustersFound) > 1 {
+			return fmt.Errorf("horizontal pod autoscaler %s has more than one cluster downstream", hpa.Id())
+		}
+	}
+	return core.NewOperationalResourceError(hpa, []string{string(core.Cluster)}, fmt.Errorf("horizontal pod autoscaler %s has no clusters to use", hpa.Id()))
+}
+
+func (hpa *HorizontalPodAutoscaler) GetResourcesUsingHPA(dag *core.ResourceGraph) []core.Resource {
+	var resources []core.Resource
+	for _, res := range dag.GetAllUpstreamResources(hpa) {
+		if manifest, ok := res.(ManifestFile); ok {
+			resources = append(resources, manifest)
+		}
+	}
+	return resources
 }

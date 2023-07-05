@@ -77,7 +77,7 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string) error {
 			return fmt.Errorf("pod %s has more than one cluster downstream", pod.Id())
 		}
 	}
-	return core.NewOperationalResourceError(pod, []string{string(core.Cluster)}, fmt.Errorf("pod %s has no cluster's to use", pod.Id()))
+	return core.NewOperationalResourceError(pod, []string{string(core.Cluster)}, fmt.Errorf("pod %s has no clusters to use", pod.Id()))
 }
 
 func (pod *Pod) GetServiceAccount(dag *core.ResourceGraph) *ServiceAccount {
