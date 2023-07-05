@@ -231,6 +231,14 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 		cluster.Vpc = vpc
 		dag.AddDependency(cluster, vpc)
 	}
+
+	downstreamNodeGroups := core.GetDownstreamResourcesOfType[*EksNodeGroup](dag, cluster)
+	if len(downstreamNodeGroups) == 0 {
+		err := cluster.SetUpDefaultNodeGroup(dag, appName)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -451,7 +459,7 @@ func (nodeGroup *EksNodeGroup) Configure(params EksNodeGroupConfigureParams) err
 }
 
 func (cluster *EksCluster) SetUpDefaultNodeGroup(dag *core.ResourceGraph, appName string) error {
-	_, err := core.CreateResource[*EksNodeGroup](dag, EksNodeGroupCreateParams{
+	ng, err := core.CreateResource[*EksNodeGroup](dag, EksNodeGroupCreateParams{
 		InstanceType: "t3.medium",
 		NetworkType:  PrivateSubnet,
 		Refs:         cluster.ConstructsRef,
@@ -460,6 +468,7 @@ func (cluster *EksCluster) SetUpDefaultNodeGroup(dag *core.ResourceGraph, appNam
 	if err != nil {
 		return err
 	}
+	dag.AddDependency(ng, cluster)
 	cluster.CreatePrerequisiteCharts(dag)
 	err = cluster.InstallFluentBit(cluster.ConstructsRef, dag)
 	if err != nil {

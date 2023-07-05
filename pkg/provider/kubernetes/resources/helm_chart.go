@@ -70,8 +70,8 @@ func (chart *HelmChart) MakeOperational(dag *core.ResourceGraph, appName string)
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
-			fmt.Println("setting downstream cluster")
 			chart.Cluster = downstreamClustersFound[0]
+			dag.AddDependency(chart, chart.Cluster)
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

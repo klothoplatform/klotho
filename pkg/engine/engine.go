@@ -226,6 +226,12 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			zap.S().Debugf("unsatisfied constraints: %s", constraintsString)
 			return e.Context.EndState, fmt.Errorf("unsatisfied constraints: %s", constraintsString)
 		} else {
+			// check to make sure that every resource is operational
+			for _, res := range e.Context.EndState.ListResources() {
+				if !e.Context.OperationalResources[res.Id()] {
+					e.Context.Errors[i] = append(e.Context.Errors[i], fmt.Errorf("resource %s is not operational", res.Id()))
+				}
+			}
 			if len(e.Context.Errors[i]) == 0 {
 				break
 			} else if i == NUM_LOOPS-1 {

@@ -71,6 +71,7 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string) error {
 		}
 		if len(downstreamClustersFound) == 1 {
 			pod.Cluster = downstreamClustersFound[0]
+			dag.AddDependency(pod, pod.Cluster)
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

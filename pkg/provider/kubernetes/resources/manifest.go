@@ -65,6 +65,7 @@ func (manifest *Manifest) MakeOperational(dag *core.ResourceGraph, appName strin
 		}
 		if len(downstreamClustersFound) == 1 {
 			manifest.Cluster = downstreamClustersFound[0]
+			dag.AddDependency(manifest, manifest.Cluster)
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

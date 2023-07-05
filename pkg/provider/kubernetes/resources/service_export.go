@@ -63,6 +63,7 @@ func (se *ServiceExport) MakeOperational(dag *core.ResourceGraph, appName string
 		}
 		if len(downstreamClustersFound) == 1 {
 			se.Cluster = downstreamClustersFound[0]
+			dag.AddDependency(se, se.Cluster)
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

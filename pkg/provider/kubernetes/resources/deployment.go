@@ -72,6 +72,7 @@ func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName s
 		}
 		if len(downstreamClustersFound) == 1 {
 			deployment.Cluster = downstreamClustersFound[0]
+			dag.AddDependency(deployment, deployment.Cluster)
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {
