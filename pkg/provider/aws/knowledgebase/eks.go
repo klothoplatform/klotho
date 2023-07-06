@@ -59,6 +59,7 @@ var EksKB = knowledgebase.Build(
 			return nil
 		},
 	},
+	knowledgebase.EdgeBuilder[*kubernetes.ServiceAccount, *resources.IamRole]{},
 	knowledgebase.EdgeBuilder[*resources.EksNodeGroup, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.EksAddon, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksCluster]{},
