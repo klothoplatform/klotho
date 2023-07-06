@@ -3,9 +3,11 @@ package engine
 import (
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	awsResources "github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	k8sResources "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"go.uber.org/zap"
+	"sort"
 )
 
 type nodeSettings struct {
@@ -14,6 +16,10 @@ type nodeSettings struct {
 	// AllowOutgoing determines whether the node's outgoing edges should be added to the dataflow DAG
 	AllowOutgoing bool
 }
+
+// resourcePostFilter is a function that determines whether a resource should remain in the final dataflow DAG
+// based on its own properties and the state of the dataflow DAG.
+type resourcePostFilter func(resource core.Resource, dag *core.ResourceGraph) bool
 
 func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	dataFlowDag := core.NewResourceGraph()
@@ -32,22 +38,23 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 		awsResources.CLOUDFRONT_DISTRIBUTION_TYPE,
 		awsResources.ROUTE_53_HOSTED_ZONE_TYPE,
 		k8sResources.DEPLOYMENT_TYPE,
-		k8sResources.SERVICE_TYPE,
 		k8sResources.POD_TYPE,
 		k8sResources.HELM_CHART_TYPE,
 	}
 
 	parentResources := map[string]nodeSettings{
-		awsResources.VPC_TYPE:                 {},
-		awsResources.ECS_CLUSTER_TYPE:         {},
-		awsResources.EKS_CLUSTER_TYPE:         {},
-		awsResources.EKS_NODE_GROUP_TYPE:      {},
-		awsResources.EKS_FARGATE_PROFILE_TYPE: {},
+		awsResources.VPC_TYPE:         {},
+		awsResources.ECS_CLUSTER_TYPE: {},
+		awsResources.EKS_CLUSTER_TYPE: {},
 	}
 
 	var parentResourceTypes []string
 	for parentResourceType := range parentResources {
 		parentResourceTypes = append(parentResourceTypes, parentResourceType)
+	}
+
+	resourcePostFilters := []resourcePostFilter{
+		helmChartFilter,
 	}
 
 	// Add relevant resources to the dataflow DAG
@@ -61,13 +68,16 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	// Only irrelevant nodes in a path of edges between the source and destination will be summarized.
 	for _, src := range dataFlowDag.ListResources() {
 		srcParents := []core.Resource{}
-		haspathWithoutOthers := false
+		hasPathWithoutOthers := false
 		for _, dst := range dataFlowDag.ListResources() {
 			if src == dst {
 				continue
 			}
 			paths := e.KnowledgeBase.FindPathsInGraph(src, dst, e.Context.EndState)
 			if len(paths) > 0 {
+				sort.SliceStable(paths, func(i, j int) bool {
+					return len(paths[i]) < len(paths[j])
+				})
 				addedDep := false
 				for _, path := range paths {
 					pathHasDep := false
@@ -86,7 +96,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 						}
 					}
 					if !pathHasDep {
-						haspathWithoutOthers = true
+						hasPathWithoutOthers = true
 					}
 					if addedDep {
 						break
@@ -94,35 +104,37 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 				}
 				// Add a summarized edge if there are no relevant intermediate resources
 				// or a child -> parent edge if the destination is a parent type.
-				if collectionutil.Contains(parentResourceTypes, dst.Id().Type) && haspathWithoutOthers {
+				if collectionutil.Contains(parentResourceTypes, dst.Id().Type) && hasPathWithoutOthers {
 					srcParents = append(srcParents, dst)
-				} else if !addedDep {
+				} else if !addedDep &&
+					!collectionutil.Contains(typesWeCareAbout, dst.Id().Type) {
 					dataFlowDag.AddDependency(src, dst)
 				}
 			}
 		}
-		var closestParent core.Resource
-		var shortestPath int
+		var parentPaths [][]graph.Edge[core.Resource]
 		for _, p := range srcParents {
-			paths := e.KnowledgeBase.FindPathsInGraph(src, p, e.Context.EndState)
-			var pathlen int
-			for _, path := range paths {
-				if pathlen == 0 {
-					pathlen = len(path)
-				} else if len(path) < pathlen {
-					pathlen = len(path)
-				}
-			}
-			if closestParent == nil {
-				closestParent = p
-				shortestPath = pathlen
-			} else if pathlen < shortestPath {
-				closestParent = p
-				shortestPath = pathlen
-			}
+			parentPaths = append(parentPaths, e.KnowledgeBase.FindPathsInGraph(src, p, e.Context.EndState)...)
+			sort.SliceStable(parentPaths, func(i, j int) bool {
+				return len(parentPaths[i]) < len(parentPaths[j])
+			})
 		}
-		if closestParent != nil {
+		if len(parentPaths) > 0 {
+			closestParent := parentPaths[0][len(parentPaths[0])-1].Destination
 			dataFlowDag.AddDependency(src, closestParent)
+		}
+	}
+
+	for _, res := range dataFlowDag.ListResources() {
+		for _, filter := range resourcePostFilters {
+			if !filter(res, dataFlowDag) {
+				err := dataFlowDag.RemoveResourceAndEdges(res)
+				if err != nil {
+					zap.S().Debugf("Error removing resource %s", err.Error())
+					continue
+				}
+				break
+			}
 		}
 	}
 
@@ -130,7 +142,6 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	for _, dep := range dataFlowDag.ListDependencies() {
 		if collectionutil.Contains(parentResourceTypes, dep.Destination.Id().Type) {
 			if core.IsResourceChild(dep.Source, dep.Destination) {
-
 				err := dataFlowDag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
 				if err != nil {
 					zap.S().Debugf("Error removing dependency %s", err.Error())
@@ -144,6 +155,14 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	}
 	filterParentEdges(dataFlowDag, parentResources)
 	return dataFlowDag
+}
+
+func helmChartFilter(resource core.Resource, dag *core.ResourceGraph) bool {
+	chart, ok := resource.(*k8sResources.HelmChart)
+	if !ok {
+		return true
+	}
+	return !chart.IsInternal
 }
 
 // filterParentEdges removes edges between resources categorized as parent resources and other resources depending on their AllowIncoming and AllowOutgoing settings.

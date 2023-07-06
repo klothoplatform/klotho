@@ -518,6 +518,7 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 			ConstructRefs: cluster.ConstructsRef,
 			Cluster:       cluster,
 			Repo:          `https://kubernetes-sigs.github.io/metrics-server/`,
+			IsInternal:    true,
 		},
 		{
 			Name:          cluster.Name + `-cert-manager`,
@@ -533,6 +534,7 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 					`timeoutSeconds`: 30,
 				},
 			},
+			IsInternal: true,
 		},
 	}
 	for _, chart := range charts {
