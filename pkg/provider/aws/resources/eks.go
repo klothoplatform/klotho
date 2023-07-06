@@ -6,10 +6,11 @@ import (
 	"io/fs"
 	"path"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
+	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	k8sSanitizer "github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 	"github.com/pkg/errors"
@@ -100,7 +101,6 @@ type (
 		Vpc            *Vpc
 		Subnets        []*Subnet
 		SecurityGroups []*SecurityGroup
-		Manifests      []core.File
 		Kubeconfig     *kubernetes.Kubeconfig `yaml:"-"`
 	}
 
@@ -142,6 +142,34 @@ type (
 	}
 )
 
+var (
+	EKS_ANNOTATION_KEY = "eks.amazonaws.com/role-arn"
+)
+var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9 ]+`)
+
+func sanitizeString(str string) string {
+	return nonAlphanumericRegex.ReplaceAllString(str, "")
+}
+func GenerateRoleArnPlaceholder(unit string) string {
+	return fmt.Sprintf("%sRoleArn", sanitizeString(unit))
+}
+
+func GenerateImagePlaceholder(unit string) string {
+	return fmt.Sprintf("%sImage", sanitizeString(unit))
+}
+
+func GenerateTargetGroupBindingPlaceholder(unit string) string {
+	return fmt.Sprintf("%sTargetGroupArn", sanitizeString(unit))
+}
+
+func GenerateInstanceTypeKeyPlaceholder(unit string) string {
+	return fmt.Sprintf("%sInstanceTypeKey", sanitizeString(unit))
+}
+
+func GenerateInstanceTypeValuePlaceholder(unit string) string {
+	return fmt.Sprintf("%sInstanceTypeValue", sanitizeString(unit))
+}
+
 type EksClusterCreateParams struct {
 	Refs    core.BaseConstructSet
 	AppName string
@@ -164,6 +192,10 @@ func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCrea
 		cluster.installVpcCniAddon(cluster.ConstructsRef, dag)
 	}
 	return nil
+}
+
+func (cluster *EksCluster) GetFunctionality() core.Functionality {
+	return core.Cluster
 }
 
 func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName string) error {
@@ -199,9 +231,6 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 		}
 	}
 
-	// We want to add this to ensure that if the vpc is set it has an edge in the graph so the sgs and subnets are checked against it
-	dag.AddDependenciesReflect(cluster)
-
 	if len(cluster.Subnets) == 0 {
 		subnets, err := getSubnetsOperational(dag, cluster, appName)
 		if err != nil {
@@ -229,9 +258,16 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 			return fmt.Errorf("cluster %s has no vpc", cluster.Name)
 		}
 		cluster.Vpc = vpc
+		dag.AddDependency(cluster, vpc)
 	}
 
-	dag.AddDependenciesReflect(cluster)
+	downstreamNodeGroups := core.GetDownstreamResourcesOfType[*EksNodeGroup](dag, cluster)
+	if len(downstreamNodeGroups) == 0 {
+		err := cluster.SetUpDefaultNodeGroup(dag, appName)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -452,7 +488,7 @@ func (nodeGroup *EksNodeGroup) Configure(params EksNodeGroupConfigureParams) err
 }
 
 func (cluster *EksCluster) SetUpDefaultNodeGroup(dag *core.ResourceGraph, appName string) error {
-	_, err := core.CreateResource[*EksNodeGroup](dag, EksNodeGroupCreateParams{
+	ng, err := core.CreateResource[*EksNodeGroup](dag, EksNodeGroupCreateParams{
 		InstanceType: "t3.medium",
 		NetworkType:  PrivateSubnet,
 		Refs:         cluster.ConstructsRef,
@@ -461,6 +497,7 @@ func (cluster *EksCluster) SetUpDefaultNodeGroup(dag *core.ResourceGraph, appNam
 	if err != nil {
 		return err
 	}
+	dag.AddDependency(ng, cluster)
 	cluster.CreatePrerequisiteCharts(dag)
 	err = cluster.InstallFluentBit(cluster.ConstructsRef, dag)
 	if err != nil {
@@ -479,20 +516,15 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 			Name:          cluster.Name + `-metrics-server`,
 			Chart:         "metrics-server",
 			ConstructRefs: cluster.ConstructsRef,
-			ClustersProvider: &AwsResourceValue{
-				ResourceVal: cluster,
-				PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-			},
-			Repo: `https://kubernetes-sigs.github.io/metrics-server/`,
+			Cluster:       cluster,
+			Repo:          `https://kubernetes-sigs.github.io/metrics-server/`,
 		},
 		{
 			Name:          cluster.Name + `-cert-manager`,
 			Chart:         `cert-manager`,
 			ConstructRefs: cluster.ConstructsRef,
-			ClustersProvider: &AwsResourceValue{
-				ResourceVal: cluster,
-				PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-			},
+			Cluster:       cluster,
+
 			Repo:    `https://charts.jetstack.io`,
 			Version: `v1.10.0`,
 			Values: map[string]any{
@@ -510,18 +542,11 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 	}
 }
 
-func (cluster *EksCluster) GetOutputFiles() []core.File {
-	return cluster.Manifests
-}
-
 func (cluster *EksCluster) InstallNvidiaDevicePlugin(dag *core.ResourceGraph) {
 	manifest := &kubernetes.Manifest{
 		Name:     fmt.Sprintf("%s-%s", cluster.Name, "nvidia-device-plugin"),
 		FilePath: "https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.10/nvidia-device-plugin.yml",
-		ClustersProvider: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Cluster:  cluster,
 	}
 	dag.AddDependenciesReflect(manifest)
 
@@ -543,14 +568,11 @@ func (cluster *EksCluster) CreateFargateLogging(references core.BaseConstructSet
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "aws-observability-ns"),
 		ConstructRefs: references,
 		FilePath:      namespaceOutputPath,
-		ClustersProvider: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Content:       content,
+		Cluster:       cluster,
 	}
 	dag.AddResource(namespace)
 	dag.AddDependency(namespace, cluster)
-	cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: namespaceOutputPath, Content: content})
 
 	configMapOutputPath := path.Join(MANIFEST_PATH_PREFIX, AWS_OBSERVABILITY_CONFIG_MAP_PATH)
 	content, err = fs.ReadFile(eksManifests, configMapOutputPath)
@@ -561,10 +583,9 @@ func (cluster *EksCluster) CreateFargateLogging(references core.BaseConstructSet
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "aws-observability-config-map"),
 		ConstructRefs: references,
 		FilePath:      configMapOutputPath,
-		ClustersProvider: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Content:       content,
+		Cluster:       cluster,
+
 		Transformations: map[string]core.IaCValue{
 			`data["output.conf"]`: &AwsResourceValue{ResourceVal: cluster, PropertyVal: AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE},
 		},
@@ -572,7 +593,6 @@ func (cluster *EksCluster) CreateFargateLogging(references core.BaseConstructSet
 	dag.AddDependenciesReflect(configMap)
 	dag.AddDependency(configMap, NewRegion())
 	dag.AddDependency(configMap, namespace)
-	cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: configMapOutputPath, Content: content})
 	return nil
 }
 
@@ -586,14 +606,11 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "awmazon-cloudwatch-ns"),
 		ConstructRefs: references,
 		FilePath:      namespaceOutputPath,
-		ClustersProvider: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Content:       content,
+		Cluster:       cluster,
 	}
 	dag.AddResource(namespace)
 	dag.AddDependency(namespace, cluster)
-	cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: namespaceOutputPath, Content: content})
 
 	configMapOutputPath := path.Join(MANIFEST_PATH_PREFIX, FLUENT_BIT_CLUSTER_INFO)
 	content, err = fs.ReadFile(eksManifests, configMapOutputPath)
@@ -605,28 +622,21 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "fluent-bit-cluster-info-config-map"),
 		ConstructRefs: references,
 		FilePath:      configMapOutputPath,
+		Content:       content,
 		Transformations: map[string]core.IaCValue{
 			`data["cluster.name"]`: &AwsResourceValue{ResourceVal: cluster, PropertyVal: NAME_IAC_VALUE},
 			`data["logs.region"]`:  &AwsResourceValue{ResourceVal: region, PropertyVal: NAME_IAC_VALUE},
 		},
-		ClustersProvider: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Cluster: cluster,
 	}
 	dag.AddResource(configMap)
 	dag.AddDependency(configMap, cluster)
 	dag.AddDependency(configMap, namespace)
-	cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: configMapOutputPath, Content: content})
-
 	fluentBitOptimized := &kubernetes.Manifest{
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "fluent-bit"),
 		ConstructRefs: references,
 		FilePath:      "https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/fluent-bit/fluent-bit.yaml",
-		ClustersProvider: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Cluster:       cluster,
 	}
 	dag.AddResource(configMap)
 	dag.AddDependency(fluentBitOptimized, cluster)
@@ -639,7 +649,7 @@ func (cluster *EksCluster) InstallCloudMapController(refs core.BaseConstructSet,
 		Name:          fmt.Sprintf("%s-cloudmap-controller", cluster.Name),
 		ConstructRefs: refs,
 		Directory:     "https://github.com/aws/aws-cloud-map-mcs-controller-for-k8s/config/controller_install_release",
-		ClustersProvider: &AwsResourceValue{
+		Cluster: &AwsResourceValue{
 			ResourceVal: cluster,
 			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
 		},
@@ -663,15 +673,12 @@ func (cluster *EksCluster) InstallCloudMapController(refs core.BaseConstructSet,
 			Name:          fmt.Sprintf("%s-%s", cluster.Name, "cluster-set"),
 			ConstructRefs: refs,
 			FilePath:      clusterSetOutputPath,
+			Content:       content,
 			Transformations: map[string]core.IaCValue{
 				`spec["value"]`: &AwsResourceValue{ResourceVal: cluster, PropertyVal: NAME_IAC_VALUE},
 			},
-			ClustersProvider: &AwsResourceValue{
-				ResourceVal: cluster,
-				PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-			},
+			Cluster: cluster,
 		}
-		cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: clusterSetOutputPath, Content: content})
 		dag.AddResource(clusterSet)
 		dag.AddDependenciesReflect(cloudMapController)
 		dag.AddDependency(clusterSet, cloudMapController)
@@ -688,10 +695,7 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 	serviceAccountName := "aws-load-balancer-controller"
 	saPath := "aws-load-balancer-controller-service-account.yaml"
 	outputPath := path.Join(MANIFEST_PATH_PREFIX, saPath)
-	saName, serviceAccount, err := kubernetes.GenerateServiceAccountManifest(serviceAccountName, "default", true)
-	if err != nil {
-		return nil, err
-	}
+	serviceAccount := &kubernetes.ServiceAccount{Name: serviceAccountName}
 
 	role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
 		AppName: appName,
@@ -717,20 +721,11 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 	if err != nil {
 		return nil, err
 	}
-	saManifest := &kubernetes.Manifest{
-		Name:          fmt.Sprintf("%s-%s", cluster.Name, "alb-controller-service-account"),
-		ConstructRefs: references,
-		FilePath:      outputPath,
-		ClustersProvider: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
-		Transformations: map[string]core.IaCValue{
-			`metadata["annotations"]["eks.amazonaws.com/role-arn"]`: &AwsResourceValue{ResourceVal: role, PropertyVal: ARN_IAC_VALUE},
-		},
-	}
-	dag.AddDependenciesReflect(saManifest)
-	cluster.Manifests = append(cluster.Manifests, &core.RawFile{FPath: outputPath, Content: serviceAccount})
+	serviceAccount.Transformations[`metadata["annotations"]["eks.amazonaws.com/role-arn"]`] = &AwsResourceValue{ResourceVal: role, PropertyVal: ARN_IAC_VALUE}
+	serviceAccount.FilePath = outputPath
+	serviceAccount.Cluster = cluster
+
+	dag.AddDependenciesReflect(serviceAccount)
 
 	albChart := &kubernetes.HelmChart{
 		Name:          fmt.Sprintf("%s-alb-controller", cluster.Name),
@@ -739,15 +734,13 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 		ConstructRefs: references,
 		Version:       "1.4.7",
 		Namespace:     "default",
-		ClustersProvider: &AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Cluster:       cluster,
+
 		Values: map[string]any{
 			"clusterName": AwsResourceValue{ResourceVal: cluster, PropertyVal: NAME_IAC_VALUE},
 			"serviceAccount": map[string]any{
 				"create": false,
-				"name":   saName,
+				"name":   serviceAccount.Name,
 			},
 			"region": AwsResourceValue{ResourceVal: NewRegion(), PropertyVal: NAME_IAC_VALUE},
 			"vpcId":  AwsResourceValue{ResourceVal: cluster.Vpc, PropertyVal: ID_IAC_VALUE},
@@ -791,6 +784,27 @@ func (cluster *EksCluster) GetClustersNodeGroups(dag *core.ResourceGraph) []*Eks
 		}
 	}
 	return nodeGroups
+}
+
+func GetServiceAccountRole(sa *kubernetes.ServiceAccount, dag *core.ResourceGraph) (*IamRole, error) {
+	if sa == nil {
+		return nil, fmt.Errorf("service account is nil")
+	}
+	roles := core.GetDownstreamResourcesOfType[*IamRole](dag, sa)
+	if len(roles) > 1 {
+		return nil, fmt.Errorf("service account %s has multiple roles", sa.Name)
+	} else if len(roles) == 0 {
+		role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+			Name: fmt.Sprintf("%s-Role", sa.Name),
+			Refs: core.BaseConstructSetOf(sa),
+		})
+		if err != nil {
+			return nil, err
+		}
+		dag.AddDependency(sa, role)
+		return role, nil
+	}
+	return roles[0], nil
 }
 
 func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeconfig {

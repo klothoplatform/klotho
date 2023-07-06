@@ -15,8 +15,8 @@ import (
 type (
 	// Engine is a struct that represents the object which processes the resource graph and applies constraints
 	Engine struct {
-		// The provider that the engine is running against
-		Provider provider.Provider
+		// The providers that the engine is running against
+		Providers map[string]provider.Provider
 		// The knowledge base that the engine is running against
 		KnowledgeBase knowledgebase.EdgeKB
 		// The constructs which the engine understands
@@ -57,9 +57,9 @@ type (
 	}
 )
 
-func NewEngine(provider provider.Provider, kb knowledgebase.EdgeKB, constructs []core.Construct) *Engine {
+func NewEngine(providers map[string]provider.Provider, kb knowledgebase.EdgeKB, constructs []core.Construct) *Engine {
 	return &Engine{
-		Provider:      provider,
+		Providers:     providers,
 		KnowledgeBase: kb,
 		Constructs:    constructs,
 	}
@@ -101,7 +101,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		constraints.EdgeConstraintScope:        make(map[constraints.Constraint]bool),
 	}
 
-	NUM_LOOPS := 3
+	NUM_LOOPS := 5
 
 	for i := 0; i < NUM_LOOPS; i++ {
 		zap.S().Debugf("Applying constraints iteration %d", i)
@@ -192,8 +192,15 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		for _, resource := range e.Context.EndState.ListResources() {
 			err := e.Context.EndState.CallMakeOperational(resource, e.Context.AppName)
 			if err != nil {
-				e.Context.Errors[i] = append(e.Context.Errors[i], err)
-				e.Context.OperationalResources[resource.Id()] = false
+				if ore, ok := err.(*core.OperationalResourceError); ok {
+					// If we get a OperationalResourceError let the engine try to reconcile it, and if that fails then mark the resource as non operational so we attempt to rerun on the next loop
+					herr := e.handleOperationalResourceError(ore, e.Context.EndState)
+					if herr != nil {
+						err = errors.Join(err, herr)
+					}
+					e.Context.Errors[i] = append(e.Context.Errors[i], err)
+					e.Context.OperationalResources[resource.Id()] = false
+				}
 				continue
 			}
 			e.Context.OperationalResources[resource.Id()] = true
@@ -219,6 +226,12 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			zap.S().Debugf("unsatisfied constraints: %s", constraintsString)
 			return e.Context.EndState, fmt.Errorf("unsatisfied constraints: %s", constraintsString)
 		} else {
+			// check to make sure that every resource is operational
+			for _, res := range e.Context.EndState.ListResources() {
+				if !e.Context.OperationalResources[res.Id()] {
+					e.Context.Errors[i] = append(e.Context.Errors[i], fmt.Errorf("resource %s is not operational", res.Id()))
+				}
+			}
 			if len(e.Context.Errors[i]) == 0 {
 				break
 			} else if i == NUM_LOOPS-1 {
@@ -279,11 +292,21 @@ func (e *Engine) ExpandConstructsAndCopyEdges() error {
 					break
 				}
 			}
-			mappedResources, err := e.Provider.ExpandConstruct(construct, e.Context.WorkingState, e.Context.EndState, constructType, attributes)
-			if err != nil {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to expand construct %s, %s", res.Id(), err.Error()))
+			var expandError error
+			for _, provider := range e.Providers {
+				mappedResources, err := provider.ExpandConstruct(construct, e.Context.WorkingState, e.Context.EndState, constructType, attributes)
+				if err == nil {
+					e.Context.constructToResourceMapping[res.Id()] = append(e.Context.constructToResourceMapping[res.Id()], mappedResources...)
+					expandError = nil
+					break
+				} else {
+					expandError = errors.Join(joinedErr, fmt.Errorf("unable to expand construct %s, %s", res.Id(), err.Error()))
+				}
+
 			}
-			e.Context.constructToResourceMapping[res.Id()] = append(e.Context.constructToResourceMapping[res.Id()], mappedResources...)
+			if expandError != nil {
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to expand construct %s, %s", res.Id(), expandError.Error()))
+			}
 		} else {
 			zap.S().Debugf("Copying resource over %s", res.Id())
 			resource, ok := res.(core.Resource)
@@ -367,7 +390,8 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 			e.Context.WorkingState.AddConstruct(construct)
 			decision.Construct = construct
 		} else {
-			resource, err := e.Provider.CreateResourceFromId(constraint.Node, e.Context.InitialState)
+			provider := e.Providers[constraint.Node.Provider]
+			resource, err := provider.CreateResourceFromId(constraint.Node, e.Context.InitialState)
 			if err != nil {
 				return err
 			}
@@ -484,8 +508,8 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 		}
 		dstNodes = append(dstNodes, dst)
 	}
-
-	resource, err := e.Provider.CreateResourceFromId(constraint.Node, e.Context.WorkingState)
+	provider := e.Providers[constraint.Node.Provider]
+	resource, err := provider.CreateResourceFromId(constraint.Node, e.Context.WorkingState)
 	if err != nil {
 		return err
 	}

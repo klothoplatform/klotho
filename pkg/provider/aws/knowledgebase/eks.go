@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 )
 
 var EksKB = knowledgebase.Build(
@@ -59,16 +59,30 @@ var EksKB = knowledgebase.Build(
 			return nil
 		},
 	},
+	knowledgebase.EdgeBuilder[*kubernetes.ServiceAccount, *resources.IamRole]{},
 	knowledgebase.EdgeBuilder[*resources.EksNodeGroup, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.EksAddon, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksCluster]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksCluster]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksCluster]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Service, *resources.EksCluster]{},
+	knowledgebase.EdgeBuilder[*kubernetes.ServiceAccount, *resources.EksCluster]{},
+	knowledgebase.EdgeBuilder[*kubernetes.TargetGroupBinding, *resources.EksCluster]{},
+	knowledgebase.EdgeBuilder[*kubernetes.ServiceExport, *resources.EksCluster]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksFargateProfile]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksFargateProfile]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksNodeGroup]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksNodeGroup]{},
+
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksNodeGroup]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EcrImage]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *kubernetes.HelmChart]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *kubernetes.KustomizeDirectory]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.PrivateDnsNamespace]{},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.TargetGroup]{},
+	knowledgebase.EdgeBuilder[*kubernetes.TargetGroupBinding, *resources.TargetGroup]{
+		ReverseDirection: true,
+	},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Region]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Vpc]{},
 	knowledgebase.EdgeBuilder[*kubernetes.KustomizeDirectory, *resources.EksCluster]{},
@@ -79,101 +93,179 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EksNodeGroup]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *kubernetes.Manifest]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.Region]{},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.DynamodbTable]{
-		Configure: func(chart *kubernetes.HelmChart, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.DynamodbTable]{
+		Configure: func(pod *kubernetes.Pod, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role, err := GetPodServiceAccountRole(pod, dag)
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(role, table)
 			for _, env := range data.EnvironmentVariables {
-				addEnvVarToChart(chart, table, env)
-			}
-			return nil
-		},
-	},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.ElasticacheCluster]{
-		Configure: func(chart *kubernetes.HelmChart, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			for _, env := range data.EnvironmentVariables {
-				addEnvVarToChart(chart, cluster, env)
-			}
-			return nil
-		},
-	},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.S3Bucket]{
-		Configure: func(chart *kubernetes.HelmChart, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			for _, env := range data.EnvironmentVariables {
-				addEnvVarToChart(chart, bucket, env)
-			}
-			return nil
-		},
-	},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.RdsInstance]{
-		Configure: func(chart *kubernetes.HelmChart, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-
-			role := GetIamRoleForUnit(chart, data.SourceRef)
-			if role == nil {
-				return fmt.Errorf("no role found for chart %s and source reference %s in HelmChart to ddb RdsInstance expansion", chart.Id(), data.SourceRef.Id())
-			}
-			refs := role.ConstructsRef.CloneWith(instance.ConstructsRef)
-			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), refs, instance.GetConnectionPolicyDocument())
-			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
-
-			for _, env := range data.EnvironmentVariables {
-				addEnvVarToChart(chart, instance, env)
-			}
-			return nil
-		},
-	},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.RdsProxy]{
-		Configure: func(chart *kubernetes.HelmChart, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			role := GetIamRoleForUnit(chart, data.SourceRef)
-			if role == nil {
-				return fmt.Errorf("no role found for chart %s and source reference %s in HelmChart to ddb RdsProxy expansion", chart.Id(), data.SourceRef.Id())
-			}
-			upstreamResources := dag.GetUpstreamResources(proxy)
-			for _, res := range upstreamResources {
-				tg, ok := res.(*resources.RdsProxyTargetGroup)
-				if !ok {
-					continue
-				}
-				for _, tgUpstream := range dag.GetDownstreamResources(tg) {
-					instance, ok := tgUpstream.(*resources.RdsInstance)
-					if !ok {
-						continue
-					}
-					refs := role.ConstructsRef.Clone()
-					refs.AddAll(instance.ConstructsRef)
-					inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name), refs, instance.GetConnectionPolicyDocument())
-					role.InlinePolicies = append(role.InlinePolicies, inlinePol)
-					dag.AddDependency(role, instance)
+				err := pod.AddEnvVar(&resources.AwsResourceValue{ResourceVal: table, PropertyVal: env.GetValue()}, env.GetName())
+				if err != nil {
+					return err
 				}
 			}
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.DynamodbTable]{
+		Configure: func(deployment *kubernetes.Deployment, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role, err := GetDeploymentServiceAccountRole(deployment, dag)
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(role, table)
 			for _, env := range data.EnvironmentVariables {
-				addEnvVarToChart(chart, proxy, env)
+				err := deployment.AddEnvVar(&resources.AwsResourceValue{ResourceVal: table, PropertyVal: env.GetValue()}, env.GetName())
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.ElasticacheCluster]{
+		Configure: func(pod *kubernetes.Pod, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			for _, env := range data.EnvironmentVariables {
+				err := pod.AddEnvVar(&resources.AwsResourceValue{ResourceVal: cluster, PropertyVal: env.GetValue()}, env.GetName())
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.ElasticacheCluster]{
+		Configure: func(deployment *kubernetes.Deployment, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			for _, env := range data.EnvironmentVariables {
+				err := deployment.AddEnvVar(&resources.AwsResourceValue{ResourceVal: cluster, PropertyVal: env.GetValue()}, env.GetName())
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.S3Bucket]{
+		Configure: func(pod *kubernetes.Pod, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role, err := GetPodServiceAccountRole(pod, dag)
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(role, bucket)
+			for _, env := range data.EnvironmentVariables {
+				err := pod.AddEnvVar(&resources.AwsResourceValue{ResourceVal: bucket, PropertyVal: env.GetValue()}, env.GetName())
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.S3Bucket]{
+		Configure: func(deployment *kubernetes.Deployment, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role, err := GetDeploymentServiceAccountRole(deployment, dag)
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(role, bucket)
+			for _, env := range data.EnvironmentVariables {
+				err := deployment.AddEnvVar(&resources.AwsResourceValue{ResourceVal: bucket, PropertyVal: env.GetValue()}, env.GetName())
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.RdsInstance]{
+		Configure: func(pod *kubernetes.Pod, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role, err := GetPodServiceAccountRole(pod, dag)
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(role, instance)
+			for _, env := range data.EnvironmentVariables {
+				err := pod.AddEnvVar(&resources.AwsResourceValue{ResourceVal: instance, PropertyVal: env.GetValue()}, env.GetName())
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.RdsInstance]{
+		Configure: func(deployment *kubernetes.Deployment, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role, err := GetDeploymentServiceAccountRole(deployment, dag)
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(role, instance)
+			for _, env := range data.EnvironmentVariables {
+				err := deployment.AddEnvVar(&resources.AwsResourceValue{ResourceVal: instance, PropertyVal: env.GetValue()}, env.GetName())
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.RdsProxy]{
+		Configure: func(pod *kubernetes.Pod, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role, err := GetPodServiceAccountRole(pod, dag)
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(role, proxy)
+			for _, env := range data.EnvironmentVariables {
+				err := pod.AddEnvVar(&resources.AwsResourceValue{ResourceVal: proxy, PropertyVal: env.GetValue()}, env.GetName())
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.RdsProxy]{
+		Configure: func(deployment *kubernetes.Deployment, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role, err := GetDeploymentServiceAccountRole(deployment, dag)
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(role, proxy)
+			for _, env := range data.EnvironmentVariables {
+				err := deployment.AddEnvVar(&resources.AwsResourceValue{ResourceVal: proxy, PropertyVal: env.GetValue()}, env.GetName())
+				if err != nil {
+					return err
+				}
 			}
 			return nil
 		},
 	},
 )
 
-func GetIamRoleForUnit(chart *kubernetes.HelmChart, ref core.BaseConstruct) *resources.IamRole {
-	rolePlaceholder := kubernetes.GenerateRoleArnPlaceholder(ref.Id().Name)
-	for key, val := range chart.Values {
-		if rolePlaceholder == key {
-			if iacVal, ok := val.(core.IaCValue); ok {
-				if role, ok := iacVal.Resource().(*resources.IamRole); ok {
-					return role
-				}
-			}
-		}
+func GetPodServiceAccountRole(pod *kubernetes.Pod, dag *core.ResourceGraph) (*resources.IamRole, error) {
+	sa := pod.GetServiceAccount(dag)
+	if sa == nil {
+		return nil, fmt.Errorf("no service account found for pod %s in Pod during expansion", pod.Id())
 	}
-	return nil
+	role, err := resources.GetServiceAccountRole(sa, dag)
+	if err != nil {
+		return nil, err
+	}
+	return role, nil
 }
 
-func addEnvVarToChart(chart *kubernetes.HelmChart, resource core.Resource, env core.EnvironmentVariable) {
-	for _, val := range chart.ProviderValues {
-		if val.EnvironmentVariable != nil && env.GetName() == val.EnvironmentVariable.GetName() {
-			chart.Values[val.Key] = resources.AwsResourceValue{
-				ResourceVal: resource,
-				PropertyVal: env.GetValue(),
-			}
-		}
+func GetDeploymentServiceAccountRole(deployment *kubernetes.Deployment, dag *core.ResourceGraph) (*resources.IamRole, error) {
+	sa := deployment.GetServiceAccount(dag)
+	if sa == nil {
+		return nil, fmt.Errorf("no service account found for pod %s in Pod during expansion", deployment.Id())
 	}
+	role, err := resources.GetServiceAccountRole(sa, dag)
+	if err != nil {
+		return nil, err
+	}
+	return role, nil
 }

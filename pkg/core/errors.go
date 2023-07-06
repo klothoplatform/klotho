@@ -26,11 +26,41 @@ type (
 		Cause   error
 		Stack   errors.StackTrace
 	}
+
+	OperationalResourceError struct {
+		Needs    []string
+		Resource Resource
+		Cause    error
+	}
 )
 
 var (
 	errorColour = color.New(color.FgRed)
 )
+
+func NewOperationalResourceError(resource Resource, needs []string, cause error) *OperationalResourceError {
+	return &OperationalResourceError{
+		Resource: resource,
+		Needs:    needs,
+		Cause:    cause,
+	}
+}
+
+func (err *OperationalResourceError) Error() string {
+	return fmt.Sprintf("error in making resource %s operational: %v", err.Resource.Id(), err.Cause)
+}
+
+func (err *OperationalResourceError) Format(s fmt.State, verb rune) {
+	if formatter, ok := err.Cause.(fmt.Formatter); ok {
+		formatter.Format(s, verb)
+	} else {
+		fmt.Fprint(s, err.Error())
+	}
+}
+
+func (err *OperationalResourceError) Unwrap() error {
+	return err.Cause
+}
 
 func NewPluginError(name string, cause error) *PluginError {
 	if subPlugin, ok := cause.(*PluginError); ok {

@@ -1,17 +1,21 @@
 package resources
 
 import (
+	"fmt"
+
+	cloudmap "github.com/aws/aws-cloud-map-mcs-controller-for-k8s/pkg/apis/multicluster/v1alpha1"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type (
 	ServiceExport struct {
 		Name          string
 		ConstructRefs core.BaseConstructSet
-		Service       *Service
-		Namespace     *Namespace
+		Object        *cloudmap.ServiceExport
 		FilePath      string
+		Cluster       core.Resource
 	}
 )
 
@@ -31,9 +35,14 @@ func (se *ServiceExport) Id() core.ResourceId {
 	}
 }
 
-func (se *ServiceExport) OutputYAML() core.File {
-	var outputFile core.File
-	return outputFile
+func (sa *ServiceExport) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
+		RequiresNoUpstream: true,
+	}
+}
+
+func (se *ServiceExport) GetObject() runtime.Object {
+	return se.Object
 }
 
 func (se *ServiceExport) Kind() string {
@@ -42,4 +51,26 @@ func (se *ServiceExport) Kind() string {
 
 func (se *ServiceExport) Path() string {
 	return se.FilePath
+}
+
+func (se *ServiceExport) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if se.Cluster == nil {
+		var downstreamClustersFound []core.Resource
+		for _, res := range dag.GetAllDownstreamResources(se) {
+			if core.GetFunctionality(res) == core.Cluster {
+				downstreamClustersFound = append(downstreamClustersFound, res)
+			}
+		}
+		if len(downstreamClustersFound) == 1 {
+			se.Cluster = downstreamClustersFound[0]
+			dag.AddDependency(se, se.Cluster)
+			return nil
+		}
+		if len(downstreamClustersFound) > 1 {
+			return fmt.Errorf("service export %s has more than one cluster downstream", se.Id())
+		}
+
+		return core.NewOperationalResourceError(se, []string{string(core.Cluster)}, fmt.Errorf("service export %s has no clusters to use", se.Id()))
+	}
+	return nil
 }

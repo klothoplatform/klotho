@@ -33,9 +33,9 @@ func (e *Engine) LoadConstructGraphFromFile(path string) error {
 		return errors.Errorf("Error Loading graph for constructs %s", err.Error())
 	}
 
-	err = e.Provider.LoadResources(input, resourcesMap)
+	err = e.LoadResources(input, resourcesMap)
 	if err != nil {
-		return errors.Errorf("Error Loading graph for provider %s. %s", e.Provider.Name(), err.Error())
+		return errors.Errorf("Error Loading graph for providers. %s", err.Error())
 	}
 	for _, metadata := range input.ResourceMetadata {
 		resource := resourcesMap[metadata.Id]
@@ -61,6 +61,35 @@ func (e *Engine) LoadConstructGraphFromFile(path string) error {
 	}
 
 	return nil
+}
+
+func (e *Engine) LoadResources(graph core.InputGraph, resourcesMap map[core.ResourceId]core.BaseConstruct) error {
+
+	var joinedErr error
+	for _, node := range graph.Resources {
+		if node.Provider == core.AbstractConstructProvider {
+			continue
+		}
+		provider := e.Providers[node.Provider]
+		typeToResource := make(map[string]core.Resource)
+		for _, res := range provider.ListResources() {
+			typeToResource[res.Id().Type] = res
+		}
+		res, ok := typeToResource[node.Type]
+		if !ok {
+			joinedErr = j_errors.Join(joinedErr, fmt.Errorf("unable to find resource of type %s", node.Type))
+			continue
+		}
+		newResource := reflect.New(reflect.TypeOf(res).Elem()).Interface()
+		resource, ok := newResource.(core.Resource)
+		if !ok {
+			joinedErr = j_errors.Join(joinedErr, fmt.Errorf("item %s of type %T is not of type core.Resource", node, newResource))
+			continue
+		}
+		reflect.ValueOf(resource).Elem().FieldByName("Name").SetString(node.Name)
+		resourcesMap[node] = resource
+	}
+	return joinedErr
 }
 
 func (e *Engine) loadConstructs(input core.InputGraph, resourceMap map[core.ResourceId]core.BaseConstruct) error {

@@ -91,8 +91,6 @@ type (
 	HasLocalOutput interface {
 		OutputTo(dest string) error
 	}
-
-	Functionality string
 )
 
 const (
@@ -108,11 +106,6 @@ const (
 	// AbstractConstructProvider is the provider for abstract constructs — those that don't correspond to deployable
 	// resources directly, but instead expand into other constructs.
 	AbstractConstructProvider = "klotho"
-)
-
-const (
-	Compute Functionality = "compute"
-	Unknown Functionality = "Unknown"
 )
 
 func IsConstructOfAnnotationCapability(baseConstruct BaseConstruct, cap string) bool {

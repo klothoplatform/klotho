@@ -1,6 +1,7 @@
 package knowledgebase
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -77,6 +78,20 @@ const (
 	Upstream   Reuse = "upstream"
 	Downstream Reuse = "downstream"
 )
+
+func MergeKBs(kbsToUse []EdgeKB) (EdgeKB, error) {
+	kb := EdgeKB{}
+	var err error
+	for _, currKb := range kbsToUse {
+		for edge, detail := range currKb {
+			if _, found := kb[edge]; found {
+				err = errors.Join(err, fmt.Errorf("edge for %s -> %s is already defined in the knowledge base", edge.Source, edge.Destination))
+			}
+			kb[edge] = detail
+		}
+	}
+	return kb, err
+}
 
 func NewEdge[Src core.Resource, Dest core.Resource]() Edge {
 	var src Src
@@ -188,7 +203,6 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 		sourceFunctionality := core.GetFunctionality(reflect.New(source.Elem()).Interface().(core.BaseConstruct))
 		destFuntionality := core.GetFunctionality(reflect.New(dest.Elem()).Interface().(core.BaseConstruct))
 		if len(stack) != 0 && destFuntionality != core.Unknown && sourceFunctionality == destFuntionality {
-			fmt.Println(source, dest)
 			return result
 		}
 

@@ -10,6 +10,7 @@ import (
 	envvar "github.com/klothoplatform/klotho/pkg/env_var"
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
 	"github.com/klothoplatform/klotho/pkg/infra/iac2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp"
 	csRuntimes "github.com/klothoplatform/klotho/pkg/lang/csharp/runtimes"
 	"github.com/klothoplatform/klotho/pkg/lang/golang"
@@ -19,6 +20,9 @@ import (
 	"github.com/klothoplatform/klotho/pkg/lang/python"
 	pyRuntimes "github.com/klothoplatform/klotho/pkg/lang/python/runtimes"
 	"github.com/klothoplatform/klotho/pkg/multierr"
+	"github.com/klothoplatform/klotho/pkg/provider"
+	"github.com/klothoplatform/klotho/pkg/provider/kubernetes"
+	kubernetesKb "github.com/klothoplatform/klotho/pkg/provider/kubernetes/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/provider/providers"
 	staticunit "github.com/klothoplatform/klotho/pkg/static_unit"
 	"github.com/klothoplatform/klotho/pkg/visualizer"
@@ -51,15 +55,23 @@ func (b *PluginSetBuilder) AddAll() error {
 }
 
 func (b *PluginSetBuilder) AddEngine() error {
-	provider, err := providers.GetProvider(b.Cfg)
+	cloudProvider, err := providers.GetProvider(b.Cfg)
 	if err != nil {
 		return err
 	}
-	kb, err := providers.GetKnowledgeBase(b.Cfg)
+	cloudkb, err := providers.GetKnowledgeBase(b.Cfg)
 	if err != nil {
 		return err
 	}
-	b.Engine = engine.NewEngine(provider, kb, core.ListAllConstructs())
+	kb, err := knowledgebase.MergeKBs([]knowledgebase.EdgeKB{cloudkb, kubernetesKb.KubernetesKB})
+	if err != nil {
+		return err
+	}
+	kubernetesProvider := &kubernetes.KubernetesProvider{AppName: b.Cfg.AppName}
+	b.Engine = engine.NewEngine(map[string]provider.Provider{
+		cloudProvider.Name():      cloudProvider,
+		kubernetesProvider.Name(): kubernetesProvider,
+	}, kb, core.ListAllConstructs())
 	return nil
 }
 

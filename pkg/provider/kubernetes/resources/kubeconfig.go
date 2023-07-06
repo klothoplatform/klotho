@@ -61,3 +61,9 @@ func (k Kubeconfig) Id() core.ResourceId {
 		Name:     k.Name,
 	}
 }
+
+func (k Kubeconfig) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
+		RequiresNoUpstream: true,
+	}
+}

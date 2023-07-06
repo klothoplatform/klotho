@@ -3,32 +3,51 @@ package engine
 import (
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	awsResources "github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	k8sResources "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"go.uber.org/zap"
 )
+
+type nodeSettings struct {
+	// AllowIncoming determines whether the node's incoming edges should be added to the dataflow DAG
+	AllowIncoming bool
+	// AllowOutgoing determines whether the node's outgoing edges should be added to the dataflow DAG
+	AllowOutgoing bool
+}
 
 func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	dataFlowDag := core.NewResourceGraph()
 	typesWeCareAbout := []string{
-		resources.LAMBDA_FUNCTION_TYPE,
-		resources.EC2_INSTANCE_TYPE,
-		resources.ECS_SERVICE_TYPE,
-		resources.API_GATEWAY_REST_TYPE,
-		resources.S3_BUCKET_TYPE,
-		resources.DYNAMODB_TABLE_TYPE,
-		resources.RDS_INSTANCE_TYPE,
-		resources.ELASTICACHE_CLUSTER_TYPE,
-		resources.SECRET_TYPE,
-		resources.RDS_PROXY_TYPE,
-		resources.LOAD_BALANCER_TYPE,
-		resources.CLOUDFRONT_DISTRIBUTION_TYPE,
-		resources.ROUTE_53_HOSTED_ZONE_TYPE,
+		awsResources.LAMBDA_FUNCTION_TYPE,
+		awsResources.EC2_INSTANCE_TYPE,
+		awsResources.ECS_SERVICE_TYPE,
+		awsResources.API_GATEWAY_REST_TYPE,
+		awsResources.S3_BUCKET_TYPE,
+		awsResources.DYNAMODB_TABLE_TYPE,
+		awsResources.RDS_INSTANCE_TYPE,
+		awsResources.ELASTICACHE_CLUSTER_TYPE,
+		awsResources.SECRET_TYPE,
+		awsResources.RDS_PROXY_TYPE,
+		awsResources.LOAD_BALANCER_TYPE,
+		awsResources.CLOUDFRONT_DISTRIBUTION_TYPE,
+		awsResources.ROUTE_53_HOSTED_ZONE_TYPE,
+		k8sResources.DEPLOYMENT_TYPE,
+		k8sResources.SERVICE_TYPE,
+		k8sResources.POD_TYPE,
+		k8sResources.HELM_CHART_TYPE,
 	}
 
-	parentResourceTypes := []string{
-		resources.VPC_TYPE,
-		resources.ECS_CLUSTER_TYPE,
-		resources.EKS_CLUSTER_TYPE,
+	parentResources := map[string]nodeSettings{
+		awsResources.VPC_TYPE:                 {},
+		awsResources.ECS_CLUSTER_TYPE:         {},
+		awsResources.EKS_CLUSTER_TYPE:         {},
+		awsResources.EKS_NODE_GROUP_TYPE:      {},
+		awsResources.EKS_FARGATE_PROFILE_TYPE: {},
+	}
+
+	var parentResourceTypes []string
+	for parentResourceType := range parentResources {
+		parentResourceTypes = append(parentResourceTypes, parentResourceType)
 	}
 
 	// Add relevant resources to the dataflow DAG
@@ -123,5 +142,30 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 			}
 		}
 	}
+	filterParentEdges(dataFlowDag, parentResources)
 	return dataFlowDag
+}
+
+// filterParentEdges removes edges between resources categorized as parent resources and other resources depending on their AllowIncoming and AllowOutgoing settings.
+func filterParentEdges(dataFlowDag *core.ResourceGraph, parentResources map[string]nodeSettings) {
+	for _, dep := range dataFlowDag.ListDependencies() {
+		if settings, ok := parentResources[dep.Destination.Id().Type]; ok {
+			if !settings.AllowIncoming {
+				err := dataFlowDag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
+				if err != nil {
+					zap.S().Debugf("Error removing dependency %s", err.Error())
+					continue
+				}
+			}
+		}
+		if settings, ok := parentResources[dep.Source.Id().Type]; ok {
+			if !settings.AllowOutgoing {
+				err := dataFlowDag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
+				if err != nil {
+					zap.S().Debugf("Error removing dependency %s", err.Error())
+					continue
+				}
+			}
+		}
+	}
 }

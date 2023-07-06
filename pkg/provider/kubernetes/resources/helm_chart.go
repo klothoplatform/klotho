@@ -2,6 +2,7 @@ package resources
 
 import (
 	"bytes"
+	"fmt"
 	"path"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -13,14 +14,14 @@ type HelmChart struct {
 	Name      string
 	Chart     string
 	Directory string
-	Files     []Manifest
+	Files     []ManifestFile
 
-	ConstructRefs    core.BaseConstructSet
-	ClustersProvider core.IaCValue
-	Repo             string
-	Version          string
-	Namespace        string
-	Values           map[string]any
+	ConstructRefs core.BaseConstructSet
+	Cluster       core.Resource
+	Repo          string
+	Version       string
+	Namespace     string
+	Values        map[string]any
 }
 
 // BaseConstructsRef returns a slice containing the ids of any Klotho constructs is correlated to
@@ -33,11 +34,22 @@ func (chart *HelmChart) Id() core.ResourceId {
 		Name:     chart.Name,
 	}
 }
+
+func (chart *HelmChart) DeleteContext() core.DeleteContext {
+	return core.DeleteContext{
+		RequiresNoUpstream: true,
+	}
+}
+
 func (t *HelmChart) GetOutputFiles() []core.File {
 	var outputFiles []core.File
 	for _, file := range t.Files {
 		buf := &bytes.Buffer{}
-		_, err := file.OutputYAML().WriteTo(buf)
+		manifestFile, err := OutputObjectAsYaml(file)
+		if err != nil {
+			panic(err)
+		}
+		_, err = manifestFile.WriteTo(buf)
 		if err != nil {
 			panic(err)
 		}
@@ -47,4 +59,26 @@ func (t *HelmChart) GetOutputFiles() []core.File {
 		})
 	}
 	return outputFiles
+}
+
+func (chart *HelmChart) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if chart.Cluster == nil {
+		var downstreamClustersFound []core.Resource
+		for _, res := range dag.GetAllDownstreamResources(chart) {
+			if core.GetFunctionality(res) == core.Cluster {
+				downstreamClustersFound = append(downstreamClustersFound, res)
+			}
+		}
+		if len(downstreamClustersFound) == 1 {
+			chart.Cluster = downstreamClustersFound[0]
+			dag.AddDependency(chart, chart.Cluster)
+			return nil
+		}
+		if len(downstreamClustersFound) > 1 {
+			return fmt.Errorf("helm chart %s has more than one cluster downstream", chart.Id())
+		}
+
+		return core.NewOperationalResourceError(chart, []string{string(core.Cluster)}, fmt.Errorf("helm chart %s has no clusters to use", chart.Id()))
+	}
+	return nil
 }
