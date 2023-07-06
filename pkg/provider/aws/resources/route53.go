@@ -5,6 +5,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 )
 
 const (
@@ -66,7 +67,7 @@ func (zone *Route53HostedZone) Create(dag *core.ResourceGraph, params Route53Hos
 	return nil
 }
 
-func (zone *Route53HostedZone) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (zone *Route53HostedZone) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	vpcs := core.GetDownstreamResourcesOfType[*Vpc](dag, zone)
 	for _, vpc := range vpcs {
 		if !collectionutil.Contains(zone.Vpcs, vpc) {
@@ -106,7 +107,7 @@ func (record *Route53Record) Create(dag *core.ResourceGraph, params Route53Recor
 	return nil
 }
 
-func (record *Route53Record) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (record *Route53Record) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if record.Zone == nil {
 		zones := core.GetDownstreamResourcesOfType[*Route53HostedZone](dag, record)
 		if len(zones) != 1 {

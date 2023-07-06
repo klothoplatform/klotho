@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -92,7 +93,7 @@ func (ec *ElasticacheCluster) Create(dag *core.ResourceGraph, params Elasticache
 	return nil
 }
 
-func (cluster *ElasticacheCluster) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (cluster *ElasticacheCluster) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if cluster.CloudwatchGroup == nil {
 		logGroups := core.GetDownstreamResourcesOfType[*LogGroup](dag, cluster)
 		if len(logGroups) == 0 {
@@ -131,7 +132,7 @@ func (cluster *ElasticacheCluster) MakeOperational(dag *core.ResourceGraph, appN
 			if vpc != nil {
 				dag.AddDependency(subnetGroup, vpc)
 			}
-			err = subnetGroup.MakeOperational(dag, appName)
+			err = subnetGroup.MakeOperational(dag, appName, classifier)
 			if err != nil {
 				return err
 			}
@@ -186,7 +187,7 @@ func (ecsn *ElasticacheSubnetgroup) Create(dag *core.ResourceGraph, params Elast
 	return nil
 }
 
-func (subnetGroup *ElasticacheSubnetgroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (subnetGroup *ElasticacheSubnetgroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if len(subnetGroup.Subnets) == 0 {
 		subnets, err := getSubnetsOperational(dag, subnetGroup, appName)
 		if err != nil {

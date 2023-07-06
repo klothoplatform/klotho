@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 )
 
 type (
@@ -45,7 +46,7 @@ func (sg *SecurityGroup) Create(dag *core.ResourceGraph, params SecurityGroupCre
 	return nil
 }
 
-func (sg *SecurityGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (sg *SecurityGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	sgCopy := *sg
 	if sg.Vpc == nil {
 		vpc, err := getSingleUpstreamVpc(dag, sg)

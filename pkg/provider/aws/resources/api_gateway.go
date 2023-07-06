@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -215,7 +216,7 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 	return nil
 }
 
-func (integration *ApiIntegration) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (integration *ApiIntegration) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 
 	apis := core.GetDownstreamResourcesOfType[*RestApi](dag, integration)
 	if len(apis) > 1 {

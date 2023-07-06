@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -82,7 +83,7 @@ func (lb *LoadBalancer) Create(dag *core.ResourceGraph, params LoadBalancerCreat
 	return nil
 }
 
-func (lb *LoadBalancer) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (lb *LoadBalancer) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if len(lb.Subnets) == 0 {
 		subnets, err := getSubnetsOperational(dag, lb, appName)
 		if err != nil {
@@ -127,7 +128,7 @@ func (listener *Listener) Create(dag *core.ResourceGraph, params ListenerCreateP
 	return nil
 }
 
-func (listener *Listener) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (listener *Listener) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if listener.LoadBalancer == nil {
 		lbs := core.GetAllDownstreamResourcesOfType[*LoadBalancer](dag, listener)
 		if len(lbs) == 0 {
@@ -161,7 +162,7 @@ func (tg *TargetGroup) Create(dag *core.ResourceGraph, params TargetGroupCreateP
 	return nil
 }
 
-func (tg *TargetGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (tg *TargetGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if tg.Vpc == nil {
 		vpcs := core.GetAllDownstreamResourcesOfType[*Vpc](dag, tg)
 		if len(vpcs) == 0 {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -126,7 +127,7 @@ func (td *EcsTaskDefinition) Create(dag *core.ResourceGraph, params EcsTaskDefin
 	return nil
 }
 
-func (td *EcsTaskDefinition) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (td *EcsTaskDefinition) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if td.Region == nil {
 		td.Region = NewRegion()
 		dag.AddDependenciesReflect(td)
@@ -248,7 +249,7 @@ func (s *EcsService) Create(dag *core.ResourceGraph, params EcsServiceCreatePara
 	return nil
 }
 
-func (service *EcsService) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (service *EcsService) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if service.Cluster == nil {
 		clusters := core.GetDownstreamResourcesOfType[*EcsCluster](dag, service)
 		if len(clusters) == 0 {
@@ -289,7 +290,7 @@ func (service *EcsService) MakeOperational(dag *core.ResourceGraph, appName stri
 			if image != nil {
 				dag.AddDependency(td, image)
 			}
-			err = td.MakeOperational(dag, appName)
+			err = td.MakeOperational(dag, appName, classifier)
 			if err != nil {
 				return err
 			}
@@ -354,10 +355,6 @@ func (td *EcsService) DeleteContext() core.DeleteContext {
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
 	}
-}
-
-func (td *EcsService) GetFunctionality() core.Functionality {
-	return core.Compute
 }
 
 func (c *EcsCluster) Create(dag *core.ResourceGraph, params EcsClusterCreateParams) error {

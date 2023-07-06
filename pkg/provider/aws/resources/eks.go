@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	k8sSanitizer "github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
@@ -194,11 +195,7 @@ func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCrea
 	return nil
 }
 
-func (cluster *EksCluster) GetFunctionality() core.Functionality {
-	return core.Cluster
-}
-
-func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	zap.S().Debugf("Making cluster %s operational", cluster.Name)
 	if cluster.ClusterRole == nil {
 		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, cluster)
@@ -299,7 +296,7 @@ func (profile *EksFargateProfile) Create(dag *core.ResourceGraph, params EksFarg
 	return nil
 }
 
-func (profile *EksFargateProfile) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (profile *EksFargateProfile) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 
 	if profile.Cluster == nil {
 		clusters := core.GetDownstreamResourcesOfType[*EksCluster](dag, profile)
@@ -404,7 +401,7 @@ func (nodeGroup *EksNodeGroup) Create(dag *core.ResourceGraph, params EksNodeGro
 	return nil
 }
 
-func (nodeGroup *EksNodeGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (nodeGroup *EksNodeGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if nodeGroup.Cluster == nil {
 		copyNodeGroup := *nodeGroup
 		clusters := core.GetDownstreamResourcesOfType[*EksCluster](dag, nodeGroup)
@@ -524,8 +521,8 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 			Name:          cluster.Name + `-cert-manager`,
 			Chart:         `cert-manager`,
 			ConstructRefs: cluster.ConstructsRef,
-			Cluster:       cluster,
 
+			Cluster: cluster,
 			Repo:    `https://charts.jetstack.io`,
 			Version: `v1.10.0`,
 			Values: map[string]any{
@@ -587,7 +584,6 @@ func (cluster *EksCluster) CreateFargateLogging(references core.BaseConstructSet
 		FilePath:      configMapOutputPath,
 		Content:       content,
 		Cluster:       cluster,
-
 		Transformations: map[string]core.IaCValue{
 			`data["output.conf"]`: &AwsResourceValue{ResourceVal: cluster, PropertyVal: AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE},
 		},
@@ -737,7 +733,6 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 		Version:       "1.4.7",
 		Namespace:     "default",
 		Cluster:       cluster,
-
 		Values: map[string]any{
 			"clusterName": AwsResourceValue{ResourceVal: cluster, PropertyVal: NAME_IAC_VALUE},
 			"serviceAccount": map[string]any{

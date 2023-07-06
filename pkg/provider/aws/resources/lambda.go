@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -63,7 +64,7 @@ func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreat
 	return nil
 }
 
-func (lambda *LambdaFunction) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (lambda *LambdaFunction) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if lambda.Role == nil {
 		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, lambda)
 		if len(roles) == 0 {
@@ -190,7 +191,7 @@ func (permission *LambdaPermission) Create(dag *core.ResourceGraph, params Lambd
 	dag.AddResource(permission)
 	return nil
 }
-func (permission *LambdaPermission) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (permission *LambdaPermission) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if permission.Function == nil {
 		functions := core.GetDownstreamResourcesOfType[*LambdaFunction](dag, permission)
 		if len(functions) == 0 {
@@ -224,10 +225,6 @@ func (lambda *LambdaFunction) DeleteContext() core.DeleteContext {
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
 	}
-}
-
-func (lambda *LambdaFunction) GetFunctionality() core.Functionality {
-	return core.Compute
 }
 
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to

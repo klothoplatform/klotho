@@ -2,6 +2,7 @@ package resources
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -37,7 +38,7 @@ func (namespace *PrivateDnsNamespace) Create(dag *core.ResourceGraph, params Pri
 	return nil
 }
 
-func (namespace *PrivateDnsNamespace) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (namespace *PrivateDnsNamespace) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if namespace.Vpc == nil {
 		vpc, err := getSingleUpstreamVpc(dag, namespace)
 		if err != nil {

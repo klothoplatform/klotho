@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -66,7 +67,7 @@ func (sv *SecretVersion) Create(dag *core.ResourceGraph, params SecretVersionCre
 	return nil
 }
 
-func (sv *SecretVersion) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (sv *SecretVersion) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if sv.Secret == nil {
 		versions := core.GetDownstreamResourcesOfType[*Secret](dag, sv)
 		if len(versions) > 1 {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	"github.com/pkg/errors"
 )
@@ -123,7 +124,7 @@ func (object *S3Object) Create(dag *core.ResourceGraph, params S3ObjectCreatePar
 	return nil
 }
 
-func (object *S3Object) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (object *S3Object) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if object.Bucket == nil {
 		buckets := core.GetDownstreamResourcesOfType[*S3Bucket](dag, object)
 		if len(buckets) != 1 {
@@ -171,7 +172,7 @@ func (policy *S3BucketPolicy) Create(dag *core.ResourceGraph, params S3BucketPol
 	return nil
 }
 
-func (policy *S3BucketPolicy) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (policy *S3BucketPolicy) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if policy.Bucket == nil {
 		buckets := core.GetDownstreamResourcesOfType[*S3Bucket](dag, policy)
 		if len(buckets) != 1 {

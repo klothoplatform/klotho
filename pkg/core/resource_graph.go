@@ -512,14 +512,6 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 		if currValue == nil {
 			currValue = value
 		}
-		appName := ""
-		if reflect.ValueOf(metadata).FieldByName("AppName").IsValid() {
-			appName = reflect.ValueOf(metadata).FieldByName("AppName").String()
-		}
-		err = rg.CallMakeOperational(currValue, appName)
-		if err != nil {
-			return err
-		}
 		if currValue != nil {
 			value = currValue
 		}
@@ -541,10 +533,6 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 			currValue := rg.GetResource(value.Resource().Id())
 			if currValue == nil {
 				currValue = value.Resource()
-			}
-			err = rg.CallMakeOperational(currValue, reflect.ValueOf(metadata).FieldByName("AppName").String())
-			if err != nil {
-				return err
 			}
 			if currValue != nil {
 				value.SetResource(currValue)
@@ -585,29 +573,6 @@ func (rg *ResourceGraph) CallCreate(targetValue reflect.Value, metadata any) err
 			return errors.Wrap(err, fmt.Sprintf("error decoding the following type %s", reflect.New(method.Type().In(1)).Type().String()))
 		}
 		callArgs = append(callArgs, reflect.ValueOf(params).Elem())
-		eval := method.Call(callArgs)
-		if eval[0].IsNil() {
-			return nil
-		} else {
-			err, ok := eval[0].Interface().(error)
-			if !ok {
-				return fmt.Errorf("return type should be an error")
-			}
-			return err
-		}
-	}
-	return nil
-}
-
-func (rg *ResourceGraph) CallMakeOperational(resource Resource, appName string) error {
-	method := reflect.ValueOf(resource).MethodByName("MakeOperational")
-	if method.IsValid() {
-		if rg.GetResource(resource.Id()) == nil {
-			return fmt.Errorf("resource with id %s cannot be made operational since it does not exist in the ResourceGraph", resource.Id())
-		}
-		var callArgs []reflect.Value
-		callArgs = append(callArgs, reflect.ValueOf(rg))
-		callArgs = append(callArgs, reflect.ValueOf(appName))
 		eval := method.Call(callArgs)
 		if eval[0].IsNil() {
 			return nil

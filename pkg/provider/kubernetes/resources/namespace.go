@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -56,18 +57,18 @@ func (namespace *Namespace) Path() string {
 	return namespace.FilePath
 }
 
-func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if namespace.Cluster == nil {
 		downstreamClustersFound := map[string]core.Resource{}
 		for _, res := range dag.GetAllDownstreamResources(namespace) {
-			if core.GetFunctionality(res) == core.Cluster {
+			if classifier.GetFunctionality(res) == classification.Cluster {
 				downstreamClustersFound[res.Id().String()] = res
 			}
 		}
 		// See which cluster any pods or deployments using this service account use
 		for _, res := range namespace.GetResourcesInNamespace(dag) {
 			for _, dres := range dag.GetAllDownstreamResources(res) {
-				if core.GetFunctionality(dres) == core.Cluster {
+				if classifier.GetFunctionality(dres) == classification.Cluster {
 					downstreamClustersFound[dres.Id().String()] = dres
 				}
 			}
@@ -83,7 +84,7 @@ func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName str
 			return fmt.Errorf("target group binding %s has more than one cluster downstream", namespace.Id())
 		}
 
-		return core.NewOperationalResourceError(namespace, []string{string(core.Cluster)}, fmt.Errorf("target group binding %s has no clusters to use", namespace.Id()))
+		return core.NewOperationalResourceError(namespace, []string{string(classification.Cluster)}, fmt.Errorf("target group binding %s has no clusters to use", namespace.Id()))
 	}
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"k8s.io/apimachinery/pkg/runtime"
 	elbv2api "sigs.k8s.io/aws-load-balancer-controller/apis/elbv2/v1beta1"
@@ -54,7 +55,7 @@ func (tgb *TargetGroupBinding) Path() string {
 	return tgb.FilePath
 }
 
-func (tgb *TargetGroupBinding) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (tgb *TargetGroupBinding) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if tgb.Object == nil {
 		tgb.Object = &elbv2api.TargetGroupBinding{}
 	}
@@ -71,7 +72,7 @@ func (tgb *TargetGroupBinding) MakeOperational(dag *core.ResourceGraph, appName 
 		}
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(tgb) {
-			if core.GetFunctionality(res) == core.Cluster {
+			if classifier.GetFunctionality(res) == classification.Cluster {
 				downstreamClustersFound = append(downstreamClustersFound, res)
 			}
 		}
@@ -83,7 +84,7 @@ func (tgb *TargetGroupBinding) MakeOperational(dag *core.ResourceGraph, appName 
 		if len(downstreamClustersFound) > 1 {
 			return fmt.Errorf("target group binding %s has more than one cluster downstream", tgb.Id())
 		}
-		return core.NewOperationalResourceError(tgb, []string{string(core.Cluster)}, fmt.Errorf("target group binding %s has no clusters to use", tgb.Id()))
+		return core.NewOperationalResourceError(tgb, []string{string(classification.Cluster)}, fmt.Errorf("target group binding %s has no clusters to use", tgb.Id()))
 	}
 	return nil
 }

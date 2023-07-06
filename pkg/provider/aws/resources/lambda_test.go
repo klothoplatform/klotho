@@ -56,12 +56,10 @@ func Test_LambdaMakeOperational(t *testing.T) {
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ecr_image:my-app-function",
-					"aws:ecr_repo:my-app",
 					"aws:iam_role:my-app-function-ExecutionRole",
 					"aws:lambda_function:function",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:ecr_image:my-app-function", Destination: "aws:ecr_repo:my-app"},
 					{Source: "aws:lambda_function:function", Destination: "aws:ecr_image:my-app-function"},
 					{Source: "aws:lambda_function:function", Destination: "aws:iam_role:my-app-function-ExecutionRole"},
 				},

@@ -56,7 +56,6 @@ func Test_EcsServiceMakeOperational(t *testing.T) {
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
 					"aws:ecr_image:my-app-my-app-profile",
-					"aws:ecr_repo:my-app",
 					"aws:ecs_cluster:my-app-profile-cluster",
 					"aws:ecs_service:profile",
 					"aws:ecs_task_definition:my-app-profile",
@@ -79,7 +78,6 @@ func Test_EcsServiceMakeOperational(t *testing.T) {
 					"aws:vpc:my_app",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:ecr_image:my-app-my-app-profile", Destination: "aws:ecr_repo:my-app"},
 					{Source: "aws:ecs_service:profile", Destination: "aws:ecs_cluster:my-app-profile-cluster"},
 					{Source: "aws:ecs_service:profile", Destination: "aws:ecs_task_definition:my-app-profile"},
 					{Source: "aws:ecs_service:profile", Destination: "aws:security_group:my_app:my-app"},
@@ -177,14 +175,12 @@ func Test_EcsTaskDefinitionMakeOperational(t *testing.T) {
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ecr_image:my-app-td",
-					"aws:ecr_repo:my-app",
 					"aws:ecs_task_definition:td",
 					"aws:iam_role:my-app-td-ExecutionRole",
 					"aws:log_group:my-app-td-LogGroup",
 					"aws:region:region",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:ecr_image:my-app-td", Destination: "aws:ecr_repo:my-app"},
 					{Source: "aws:ecs_task_definition:td", Destination: "aws:ecr_image:my-app-td"},
 					{Source: "aws:ecs_task_definition:td", Destination: "aws:iam_role:my-app-td-ExecutionRole"},
 					{Source: "aws:ecs_task_definition:td", Destination: "aws:log_group:my-app-td-LogGroup"},

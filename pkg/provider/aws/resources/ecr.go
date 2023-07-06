@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"go.uber.org/zap"
 )
 
@@ -77,7 +78,7 @@ func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams)
 	return nil
 }
 
-func (image *EcrImage) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (image *EcrImage) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if image.Repo == nil {
 		repos := core.GetDownstreamResourcesOfType[*EcrRepository](dag, image)
 		if len(repos) == 0 {

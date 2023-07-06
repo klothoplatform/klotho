@@ -120,6 +120,7 @@ func Test_ExpandEdges(t *testing.T) {
 		source core.Resource
 		dest   core.Resource
 		data   EdgeData
+		path   Path
 		want   []klothograph.Edge[core.Resource]
 	}{
 		{
@@ -131,6 +132,9 @@ func Test_ExpandEdges(t *testing.T) {
 					NodeMustExist:    []core.Resource{&C{}},
 					NodeMustNotExist: []core.Resource{&D{}},
 				},
+			},
+			path: Path{
+				{typeA, typeB}, {typeB, typeC}, {typeC, typeE},
 			},
 			want: []klothograph.Edge[core.Resource]{
 				{Source: &A{}, Destination: &B{Name: "B_A_E"}},
@@ -145,7 +149,7 @@ func Test_ExpandEdges(t *testing.T) {
 			dag := core.NewResourceGraph()
 			dag.AddDependencyWithData(tt.source, tt.dest, tt.data)
 			edge := dag.GetDependency(tt.source.Id(), tt.dest.Id())
-			err := TestKnowledgeBase.ExpandEdge(edge, dag)
+			err := TestKnowledgeBase.ExpandEdge(edge, dag, tt.path, tt.data)
 
 			var result []klothograph.Edge[core.Resource]
 			for _, dep := range dag.ListDependencies() {

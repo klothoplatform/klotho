@@ -1,0 +1,16 @@
+provider: kubernetes
+type: deployment
+metadata:
+  Name            string
+  ConstructRefs   core.BaseConstructSet
+  Object          *apps.Deployment
+  Transformations map[string]core.IaCValue
+  FilePath        string
+  Cluster         core.Resource
+rules:
+  downstream:
+  - enforcement: OnlyOne
+    classifications:
+    - cluster
+    - kubernetes
+    

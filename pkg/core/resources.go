@@ -57,11 +57,6 @@ type (
 		Configure(params K) error
 	}
 
-	OperationalResource interface {
-		Resource
-		MakeOperational(dag *ResourceGraph, appName string) error
-	}
-
 	ResourceId struct {
 		Provider string `yaml:"provider" toml:"provider"`
 		Type     string `yaml:"type" toml:"type"`
@@ -357,23 +352,4 @@ func getNestedResources(source BaseConstruct, targetValue reflect.Value) (resour
 		}
 	}
 	return
-}
-
-// GetFunctionality returns the base constructs functionality defined by itself.
-// If no functionality is defined, we will return the Unknown functionality type
-func GetFunctionality(construct BaseConstruct) Functionality {
-	method := reflect.ValueOf(construct).MethodByName("GetFunctionality")
-	if method.IsValid() {
-		eval := method.Call(nil)
-		if eval[0].IsZero() {
-			return Unknown
-		} else {
-			functionality, ok := eval[0].Interface().(Functionality)
-			if !ok {
-				return Unknown
-			}
-			return functionality
-		}
-	}
-	return Unknown
 }

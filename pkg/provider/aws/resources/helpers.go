@@ -33,7 +33,7 @@ func getSecurityGroupsOperational(dag *core.ResourceGraph, resource core.Resourc
 		if err != nil {
 			return nil, err
 		}
-		err = securityGroup.MakeOperational(dag, appName)
+		err = securityGroup.MakeOperational(dag, appName, nil)
 		if err != nil {
 			return nil, err
 		}

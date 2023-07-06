@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -48,7 +49,7 @@ func (instance *Ec2Instance) Create(dag *core.ResourceGraph, params Ec2InstanceC
 	return nil
 }
 
-func (instance *Ec2Instance) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (instance *Ec2Instance) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if instance.InstanceProfile == nil {
 		profiles := core.GetAllDownstreamResourcesOfType[*InstanceProfile](dag, instance)
 		if len(profiles) == 0 {
@@ -110,7 +111,7 @@ func (instance *Ec2Instance) MakeOperational(dag *core.ResourceGraph, appName st
 			if vpc != nil {
 				dag.AddDependency(subnet, vpc)
 			}
-			err = subnet.MakeOperational(dag, appName)
+			err = subnet.MakeOperational(dag, appName, classifier)
 			if err != nil {
 				return err
 			}
@@ -189,10 +190,6 @@ func (instance *Ec2Instance) DeleteContext() core.DeleteContext {
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
 	}
-}
-
-func (instance *Ec2Instance) GetFunctionality() core.Functionality {
-	return core.Compute
 }
 
 // BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -212,7 +213,7 @@ func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCr
 	return nil
 }
 
-func (oidc *OpenIdConnectProvider) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (oidc *OpenIdConnectProvider) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if oidc.Region == nil {
 		oidc.Region = NewRegion()
 	}
@@ -248,7 +249,7 @@ func (profile *InstanceProfile) Create(dag *core.ResourceGraph, params InstanceP
 	return nil
 }
 
-func (profile *InstanceProfile) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (profile *InstanceProfile) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if profile.Role == nil {
 		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, profile)
 		if len(roles) == 0 {

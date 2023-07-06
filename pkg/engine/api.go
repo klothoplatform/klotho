@@ -17,3 +17,11 @@ func (e *Engine) ListResourcesByType() []string {
 	}
 	return resources
 }
+
+func (e *Engine) ListProviders() []string {
+	providers := []string{core.AbstractConstructProvider}
+	for _, provider := range e.Providers {
+		providers = append(providers, provider.Name())
+	}
+	return providers
+}

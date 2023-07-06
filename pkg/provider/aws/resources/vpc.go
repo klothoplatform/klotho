@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	"go.uber.org/zap"
 )
@@ -158,7 +159,7 @@ func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreatePara
 	return nil
 }
 
-func (igw *InternetGateway) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (igw *InternetGateway) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	zap.S().Debugf("Making internet gateway %s operational", igw.Name)
 	if igw.Vpc == nil {
 		vpcs := core.GetDownstreamResourcesOfType[*Vpc](dag, igw)
@@ -203,7 +204,7 @@ func (nat *NatGateway) Create(dag *core.ResourceGraph, params NatCreateParams) e
 	return nil
 }
 
-func (nat *NatGateway) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (nat *NatGateway) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	zap.S().Debugf("Making nat gateway %s operational", nat.Name)
 
 	if nat.Subnet == nil {
@@ -260,7 +261,7 @@ func (nat *NatGateway) MakeOperational(dag *core.ResourceGraph, appName string) 
 				}
 				dag.AddDependency(s, vpcs[0])
 				dag.AddDependency(nat, s)
-				err = s.MakeOperational(dag, appName)
+				err = s.MakeOperational(dag, appName, classifier)
 				if err != nil {
 					return err
 				}
@@ -282,7 +283,11 @@ func (nat *NatGateway) MakeOperational(dag *core.ResourceGraph, appName string) 
 			}
 		}
 		if eip == nil {
-			err := dag.CreateDependencies(nat, map[string]any{
+			err := nat.Subnet.MakeOperational(dag, appName, classifier)
+			if err != nil {
+				return err
+			}
+			err = dag.CreateDependencies(nat, map[string]any{
 				"ElasticIp": EipCreateParams{
 					AppName: appName,
 					Refs:    core.BaseConstructSetOf(nat),
@@ -326,7 +331,7 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams)
 	return nil
 }
 
-func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	copyOfSubnet := *subnet
 	zap.S().Debugf("Making subnet %s operational", subnet.Name)
 	var az string
@@ -434,7 +439,7 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string) e
 			return err
 		}
 		dag.AddDependency(rt, subnet)
-		err = rt.MakeOperational(dag, appName)
+		err = rt.MakeOperational(dag, appName, classifier)
 		if err != nil {
 			return err
 		}
@@ -487,7 +492,7 @@ func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreatePar
 	return nil
 }
 
-func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	zap.S().Debugf("Making route table %s operational", routeTable.Name)
 
 	routeTablesSubnets := core.GetDownstreamResourcesOfType[*Subnet](dag, routeTable)
@@ -542,7 +547,7 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 				for _, subnet := range routeTablesSubnets {
 					dag.AddDependency(subnet, nat)
 				}
-				err = nat.MakeOperational(dag, appName)
+				err = nat.MakeOperational(dag, appName, classifier)
 				if err != nil {
 					return err
 				}
@@ -568,7 +573,7 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 				}
 				dag.AddDependency(routeTable, igw)
 				dag.AddDependency(igw, routeTable.Vpc)
-				err = igw.MakeOperational(dag, appName)
+				err = igw.MakeOperational(dag, appName, classifier)
 				if err != nil {
 					return err
 				}
@@ -634,7 +639,7 @@ func createSubnets(dag *core.ResourceGraph, appName string, ref core.Resource, v
 		if vpc != nil {
 			dag.AddDependency(subnet, vpc)
 		}
-		err = subnet.MakeOperational(dag, appName)
+		err = subnet.MakeOperational(dag, appName, nil)
 		if err != nil {
 			return subnets, err
 		}

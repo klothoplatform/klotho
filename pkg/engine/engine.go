@@ -1,12 +1,13 @@
 package engine
 
 import (
+	"embed"
 	"errors"
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
@@ -19,6 +20,8 @@ type (
 		Providers map[string]provider.Provider
 		// The knowledge base that the engine is running against
 		KnowledgeBase knowledgebase.EdgeKB
+		// The classification document that the engine uses for understanding resources
+		ClassificationDocument *classification.ClassificationDocument
 		// The constructs which the engine understands
 		Constructs []core.Construct
 		// The context of the engine
@@ -59,10 +62,17 @@ type (
 
 func NewEngine(providers map[string]provider.Provider, kb knowledgebase.EdgeKB, constructs []core.Construct) *Engine {
 	return &Engine{
-		Providers:     providers,
-		KnowledgeBase: kb,
-		Constructs:    constructs,
+		Providers:              providers,
+		KnowledgeBase:          kb,
+		Constructs:             constructs,
+		ClassificationDocument: classification.BaseClassificationDocument,
 	}
+}
+
+func (e *Engine) LoadClassifications(classificationPath string, fs embed.FS) error {
+	var err error
+	e.ClassificationDocument, err = classification.ReadClassificationDoc(classificationPath, fs)
+	return err
 }
 
 func (e *Engine) LoadContext(initialState *core.ConstructGraph, constraints map[constraints.ConstraintScope][]constraints.Constraint, appName string) {
@@ -150,28 +160,8 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			}
 		}
 
-		zap.S().Debug("Engine Expanding Edges")
-		for _, dep := range e.Context.EndState.ListDependencies() {
-			src := dep.Source.Id()
-			dst := dep.Destination.Id()
-			if e.Context.ExpandedEdges[src] == nil {
-				e.Context.ExpandedEdges[src] = make(map[core.ResourceId]bool)
-			}
-			// If we know that the edge has a direct connection but is flipped due to data flow, immediately use that edge
-			if det, _ := e.KnowledgeBase.GetEdge(dep.Source, dep.Destination); det.ReverseDirection {
-				dep = graph.Edge[core.Resource]{Source: dep.Destination, Destination: dep.Source}
-			}
-			if !e.Context.ExpandedEdges[src][dst] {
-				err = e.KnowledgeBase.ExpandEdge(&dep, e.Context.EndState)
-				if err != nil {
-					zap.S().Warnf("got error when expanding edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
-					e.Context.Errors[i] = append(e.Context.Errors[i], err)
-					continue
-				}
-			}
-			e.Context.ExpandedEdges[src][dst] = true
-		}
-		zap.S().Debug("Engine Done Expanding Edges")
+		e.expandEdges(i)
+
 		zap.S().Debug("Engine configuring edges")
 		for _, dep := range e.Context.EndState.ListDependencies() {
 			if e.Context.ConfiguredEdges[dep.Source.Id()] != nil && e.Context.ConfiguredEdges[dep.Source.Id()][dep.Destination.Id()] {
@@ -188,33 +178,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			e.Context.ConfiguredEdges[dep.Source.Id()][dep.Destination.Id()] = true
 		}
 		zap.S().Debug("Engine done configuring edges")
-		zap.S().Debug("Engine Making resources operational and configuring resources")
-		for _, resource := range e.Context.EndState.ListResources() {
-			err := e.Context.EndState.CallMakeOperational(resource, e.Context.AppName)
-			if err != nil {
-				if ore, ok := err.(*core.OperationalResourceError); ok {
-					// If we get a OperationalResourceError let the engine try to reconcile it, and if that fails then mark the resource as non operational so we attempt to rerun on the next loop
-					herr := e.handleOperationalResourceError(ore, e.Context.EndState)
-					if herr != nil {
-						err = errors.Join(err, herr)
-					}
-					e.Context.Errors[i] = append(e.Context.Errors[i], err)
-					e.Context.OperationalResources[resource.Id()] = false
-				}
-				continue
-			}
-			e.Context.OperationalResources[resource.Id()] = true
-
-			if !e.Context.ConfiguredResources[resource.Id()] {
-				err := e.Context.EndState.CallConfigure(resource, nil)
-				if err != nil {
-					e.Context.Errors[i] = append(e.Context.Errors[i], err)
-					continue
-				}
-				e.Context.ConfiguredResources[resource.Id()] = true
-			}
-		}
-		zap.S().Debug("Engine done making resources operational and configuring resources")
+		e.MakeResourcesOperational(i)
 		zap.S().Debug("Validating constraints")
 		unsatisfiedConstraints := e.ValidateConstraints()
 
@@ -252,125 +216,6 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 
 	zap.S().Debug("Validated constraints")
 	return e.Context.EndState, nil
-}
-
-// ExpandConstructsAndCopyEdges expands all constructs in the working state using the engines provider
-//
-// The resources that result from the expanded constructs are written to the engines resource graph
-// All dependencies are copied over to the resource graph
-// If a dependency in the working state included a construct, the engine copies the dependency to all directly linked resources
-func (e *Engine) ExpandConstructsAndCopyEdges() error {
-	var joinedErr error
-	for _, res := range e.Context.WorkingState.ListConstructs() {
-		if e.Context.ExpandendOrCopiedBaseConstructs[res.Id()] {
-			continue
-		}
-		// If the res is a resource, copy it over directly, otherwise we need to expand it
-		if res.Id().Provider == core.AbstractConstructProvider {
-			zap.S().Debugf("Expanding construct %s", res.Id())
-			construct, ok := res.(core.Construct)
-			if !ok {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to cast base construct %s to construct while expanding construct", res.Id()))
-				continue
-			}
-
-			// We want to see if theres any constraint nodes before we expand so that the constraint is expanded corretly
-			// right now we will just look at the first constraint for the construct
-			// TODO: Combine all constraints when needed for expansion
-			constructType := ""
-			attributes := make(map[string]any)
-			for _, constraint := range e.Context.Constraints[constraints.ConstructConstraintScope] {
-				constructConstraint, ok := constraint.(*constraints.ConstructConstraint)
-				if !ok {
-					joinedErr = errors.Join(joinedErr, fmt.Errorf(" constraint %s is incorrect type. Expected to be a construct constraint while expanding construct", constraint))
-					continue
-				}
-
-				if constructConstraint.Target == construct.Id() {
-					constructType = constructConstraint.Type
-					attributes = constructConstraint.Attributes
-					break
-				}
-			}
-			var expandError error
-			for _, provider := range e.Providers {
-				mappedResources, err := provider.ExpandConstruct(construct, e.Context.WorkingState, e.Context.EndState, constructType, attributes)
-				if err == nil {
-					e.Context.constructToResourceMapping[res.Id()] = append(e.Context.constructToResourceMapping[res.Id()], mappedResources...)
-					expandError = nil
-					break
-				} else {
-					expandError = errors.Join(joinedErr, fmt.Errorf("unable to expand construct %s, %s", res.Id(), err.Error()))
-				}
-
-			}
-			if expandError != nil {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to expand construct %s, %s", res.Id(), expandError.Error()))
-			}
-		} else {
-			zap.S().Debugf("Copying resource over %s", res.Id())
-			resource, ok := res.(core.Resource)
-			if !ok {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to cast base construct %s to resource while copying over resource", res.Id()))
-				continue
-			}
-			e.Context.EndState.AddResource(resource)
-		}
-		e.Context.ExpandendOrCopiedBaseConstructs[res.Id()] = true
-	}
-
-	for _, dep := range e.Context.WorkingState.ListDependencies() {
-
-		srcNodes := []core.Resource{}
-		dstNodes := []core.Resource{}
-		if dep.Source.Id().Provider == core.AbstractConstructProvider {
-			srcResources, ok := e.Context.constructToResourceMapping[dep.Source.Id()]
-			if !ok {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to find resources for construct %s", dep.Source.Id()))
-				continue
-			}
-			srcNodes = append(srcNodes, srcResources...)
-		} else {
-			resource, ok := dep.Source.(core.Resource)
-			if !ok {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to cast base construct %s to resource", dep.Source.Id()))
-				continue
-			}
-			srcNodes = append(srcNodes, resource)
-		}
-
-		if dep.Destination.Id().Provider == core.AbstractConstructProvider {
-			dstResources, ok := e.Context.constructToResourceMapping[dep.Destination.Id()]
-			if !ok {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to find resources for construct %s", dep.Destination.Id()))
-				continue
-			}
-			dstNodes = append(dstNodes, dstResources...)
-		} else {
-			resource, ok := dep.Destination.(core.Resource)
-			if !ok {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to cast base construct %s to resource", dep.Destination.Id()))
-				continue
-			}
-			dstNodes = append(dstNodes, resource)
-		}
-
-		for _, srcNode := range srcNodes {
-			for _, dstNode := range dstNodes {
-				if e.Context.CopiedEdges[srcNode.Id()] == nil {
-					e.Context.CopiedEdges[srcNode.Id()] = make(map[core.ResourceId]bool)
-				}
-				if e.Context.CopiedEdges[srcNode.Id()][dstNode.Id()] {
-					continue
-				}
-
-				zap.S().Debugf("Copying dependency %s -> %s", srcNode.Id(), dstNode.Id())
-				e.Context.EndState.AddDependency(srcNode, dstNode)
-				e.Context.CopiedEdges[srcNode.Id()][dstNode.Id()] = true
-			}
-		}
-	}
-	return joinedErr
 }
 
 // ApplyApplicationConstraint applies an application constraint to the either the engines working state construct graph

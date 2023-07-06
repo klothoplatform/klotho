@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"go.uber.org/zap"
@@ -229,7 +228,7 @@ func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceErr
 
 	var neededResource core.Resource
 	for _, res := range resources {
-		if collectionutil.Contains(err.Needs, string(core.GetFunctionality(res))) {
+		if e.ClassificationDocument.ResourceContainsClassifications(res, err.Needs) {
 			_, found := e.KnowledgeBase.GetEdge(err.Resource, res)
 			if !found {
 				continue

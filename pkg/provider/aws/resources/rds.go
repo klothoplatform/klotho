@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -126,7 +127,7 @@ func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceC
 	return nil
 }
 
-func (instance *RdsInstance) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (instance *RdsInstance) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	var vpc *Vpc
 	vpc, err := getSingleUpstreamVpc(dag, instance)
 	if err != nil {
@@ -150,7 +151,7 @@ func (instance *RdsInstance) MakeOperational(dag *core.ResourceGraph, appName st
 			if vpc != nil {
 				dag.AddDependency(subnetGroup, vpc)
 			}
-			err = subnetGroup.MakeOperational(dag, appName)
+			err = subnetGroup.MakeOperational(dag, appName, classifier)
 			if err != nil {
 				return err
 			}
@@ -217,7 +218,7 @@ func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSub
 	return nil
 }
 
-func (subnetGroup *RdsSubnetGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (subnetGroup *RdsSubnetGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if len(subnetGroup.Subnets) == 0 {
 		subnets, err := getSubnetsOperational(dag, subnetGroup, appName)
 		if err != nil {
@@ -253,7 +254,7 @@ func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreatePara
 	}
 	return nil
 }
-func (proxy *RdsProxy) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (proxy *RdsProxy) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if proxy.Role == nil {
 		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, proxy)
 		if len(roles) > 1 {
@@ -333,7 +334,7 @@ func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTa
 	}
 	return nil
 }
-func (tg *RdsProxyTargetGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (tg *RdsProxyTargetGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if tg.RdsProxy == nil {
 		proxies := core.GetDownstreamResourcesOfType[*RdsProxy](dag, tg)
 		if len(proxies) != 1 {

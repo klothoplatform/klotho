@@ -57,7 +57,7 @@ var RdsKB = knowledgebase.Build(
 				if err != nil {
 					return err
 				}
-				err = secretVersion.MakeOperational(dag, data.AppName)
+				err = secretVersion.MakeOperational(dag, data.AppName, nil)
 				if err != nil {
 					return err
 				}

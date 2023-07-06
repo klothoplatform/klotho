@@ -200,11 +200,6 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 			result = append(result, clonedStack)
 		}
 	} else {
-		sourceFunctionality := core.GetFunctionality(reflect.New(source.Elem()).Interface().(core.BaseConstruct))
-		destFuntionality := core.GetFunctionality(reflect.New(dest.Elem()).Interface().(core.BaseConstruct))
-		if len(stack) != 0 && destFuntionality != core.Unknown && sourceFunctionality == destFuntionality {
-			return result
-		}
 
 		// When we are not at the destination we want to recursively call findPaths on all edges which have the source as the current node
 		// This is checking all edges which have a direction of From -> To
@@ -238,61 +233,16 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 	return result
 }
 
-// FindShortestPath determines the shortest path to get from the dependency's source node to destination node, using the knowledgebase of edges
-func (kb EdgeKB) FindShortestPath(dep graph.Edge[core.Resource], constraint EdgeConstraint) (Path, error) {
-	validPaths := kb.FindPaths(dep.Source, dep.Destination, constraint)
-	var validPath []Edge
-
-	var sameLengthPaths []Path
-	// Get the shortest route that satisfied constraints
-	for _, path := range validPaths {
-		if len(validPath) == 0 {
-			validPath = path
-		} else if len(path) < len(validPath) {
-			validPath = path
-			sameLengthPaths = []Path{}
-		} else if len(path) == len(validPath) {
-			sameLengthPaths = append(sameLengthPaths, path, validPath)
-		}
-	}
-	if len(sameLengthPaths) > 0 {
-		return nil, fmt.Errorf("found multiple paths which satisfy constraints for edge %s -> %s and are the same length. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), sameLengthPaths)
-	}
-
-	if len(validPath) == 0 {
-		return nil, fmt.Errorf("found no paths which satisfy constraints %s for edge %s -> %s. \n Paths: %s", constraint, dep.Source.Id(), dep.Destination.Id(), validPaths)
-	}
-	return validPath, nil
-}
-
 // ExpandEdges performs calculations to determine the proper path to be inserted into the ResourceGraph.
 //
 // The workflow of the edge expansion is as follows:
 //   - Find shortest path given the constraints on the edge
 //   - Iterate through each edge in path creating the resource if necessary
-func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGraph) (err error) {
+func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGraph, validPath Path, edgeData EdgeData) (err error) {
 
 	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
 	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
 
-	// We want to retrieve the edge data from the edge in the resource graph to use during expansion
-	edgeData := EdgeData{}
-	data, ok := dep.Properties.Data.(EdgeData)
-	if !ok && dep.Properties.Data != nil {
-		return fmt.Errorf("edge properties for edge %s -> %s, do not satisfy edge data format during expansion", dep.Source.Id(), dep.Destination.Id())
-	} else if dep.Properties.Data != nil {
-		edgeData = data
-	}
-	// We attach the dependencies source and destination nodes for context during expansion
-	edgeData.Source = dep.Source
-	edgeData.Destination = dep.Destination
-	// Find all possible paths given the initial source and destination node
-	validPath, err := kb.FindShortestPath(*dep, data.Constraint)
-	if err != nil {
-		return err
-	}
-	zap.S().Debugf("Found valid path %s", validPath)
-	// resourceCache is used to always pass the graphs nodes into the Expand functions if they exist. We do this so that we operate on nodes which already exist
 	resourceCache := map[reflect.Type]core.Resource{}
 	var joinedErr error
 
