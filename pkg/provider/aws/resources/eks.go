@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"path"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -140,6 +141,34 @@ type (
 		ClusterName   *AwsResourceValue
 	}
 )
+
+var (
+	EKS_ANNOTATION_KEY = "eks.amazonaws.com/role-arn"
+)
+var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9 ]+`)
+
+func sanitizeString(str string) string {
+	return nonAlphanumericRegex.ReplaceAllString(str, "")
+}
+func GenerateRoleArnPlaceholder(unit string) string {
+	return fmt.Sprintf("%sRoleArn", sanitizeString(unit))
+}
+
+func GenerateImagePlaceholder(unit string) string {
+	return fmt.Sprintf("%sImage", sanitizeString(unit))
+}
+
+func GenerateTargetGroupBindingPlaceholder(unit string) string {
+	return fmt.Sprintf("%sTargetGroupArn", sanitizeString(unit))
+}
+
+func GenerateInstanceTypeKeyPlaceholder(unit string) string {
+	return fmt.Sprintf("%sInstanceTypeKey", sanitizeString(unit))
+}
+
+func GenerateInstanceTypeValuePlaceholder(unit string) string {
+	return fmt.Sprintf("%sInstanceTypeValue", sanitizeString(unit))
+}
 
 type EksClusterCreateParams struct {
 	Refs    core.BaseConstructSet
@@ -772,7 +801,7 @@ func GetServiceAccountRole(sa *kubernetes.ServiceAccount, dag *core.ResourceGrap
 		if err != nil {
 			return nil, err
 		}
-		// sa.Object.Annotations["eks.amazonaws.com/role-arn"] = AwsResourceValue{ResourceVal: role, PropertyVal: ARN_IAC_VALUE}
+		dag.AddDependency(sa, role)
 		return role, nil
 	}
 	return roles[0], nil
