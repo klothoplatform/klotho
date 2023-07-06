@@ -22,6 +22,8 @@ type HelmChart struct {
 	Version       string
 	Namespace     string
 	Values        map[string]any
+	// IsInternal is a flag used to identify charts as being included in application by Klotho itself
+	IsInternal bool
 }
 
 // BaseConstructsRef returns a slice containing the ids of any Klotho constructs is correlated to
