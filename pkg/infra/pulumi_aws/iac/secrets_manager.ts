@@ -14,7 +14,10 @@ export interface Secret {
 }
 
 export class SecretsManager {
-    constructor(private lib: CloudCCLib, secrets: Secret[]) {
+    constructor(
+        private lib: CloudCCLib,
+        secrets: Secret[]
+    ) {
         for (const secret of secrets) {
             if (secret.FilePath == '') {
                 secret.FilePath = this.getSecretFilePath(secret.Name)

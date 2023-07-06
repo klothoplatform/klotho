@@ -22,7 +22,11 @@ export class Emitter extends events.EventEmitter {
     private client: SNSClient
     private s3: S3Client
 
-    constructor(private path: string, private name: string, private id: string) {
+    constructor(
+        private path: string,
+        private name: string,
+        private id: string
+    ) {
         super()
 
         this.client = new SNSClient({})
