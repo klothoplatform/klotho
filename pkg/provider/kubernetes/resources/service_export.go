@@ -58,7 +58,7 @@ func (se *ServiceExport) MakeOperational(dag *core.ResourceGraph, appName string
 	if se.Cluster == nil {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(se) {
-			if classifier.GetFunctionality(res) == classification.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound = append(downstreamClustersFound, res)
 			}
 		}
@@ -71,7 +71,7 @@ func (se *ServiceExport) MakeOperational(dag *core.ResourceGraph, appName string
 			return fmt.Errorf("service export %s has more than one cluster downstream", se.Id())
 		}
 
-		return core.NewOperationalResourceError(se, []string{string(classification.Cluster)}, fmt.Errorf("service export %s has no clusters to use", se.Id()))
+		return core.NewOperationalResourceError(se, []string{string(core.Cluster)}, fmt.Errorf("service export %s has no clusters to use", se.Id()))
 	}
 	return nil
 }

@@ -69,7 +69,7 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classif
 	if pod.Cluster == nil {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(pod) {
-			if classifier.GetFunctionality(res) == classification.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound = append(downstreamClustersFound, res)
 			}
 		}
@@ -82,7 +82,7 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classif
 			return fmt.Errorf("pod %s has more than one cluster downstream", pod.Id())
 		}
 
-		return core.NewOperationalResourceError(pod, []string{string(classification.Cluster)}, fmt.Errorf("pod %s has no clusters to use", pod.Id()))
+		return core.NewOperationalResourceError(pod, []string{string(core.Cluster)}, fmt.Errorf("pod %s has no clusters to use", pod.Id()))
 	}
 	return nil
 }

@@ -1,6 +1,8 @@
 package core
 
-import "github.com/klothoplatform/klotho/pkg/annotation"
+import (
+	"github.com/klothoplatform/klotho/pkg/annotation"
+)
 
 type (
 	PubSub struct {
@@ -33,6 +35,14 @@ func (p *PubSub) Id() ResourceId {
 
 func (p *PubSub) AnnotationCapability() string {
 	return annotation.PubSubCapability
+}
+
+func (p *PubSub) Functionality() Functionality {
+	return Unknown
+}
+
+func (p *PubSub) Attributes() map[string]any {
+	return map[string]any{}
 }
 
 func (p *PubSub) AddPublisher(event string, key ResourceId) {

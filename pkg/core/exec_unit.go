@@ -87,6 +87,14 @@ func (p *ExecutionUnit) AnnotationCapability() string {
 	return annotation.ExecutionUnitCapability
 }
 
+func (p *ExecutionUnit) Functionality() Functionality {
+	return Compute
+}
+
+func (p *ExecutionUnit) Attributes() map[string]any {
+	return map[string]any{}
+}
+
 func (unit *ExecutionUnit) OutputTo(dest string) error {
 	errs := make(chan error)
 	files := unit.Files()

@@ -23,6 +23,10 @@ type (
 
 		// AnnotationCapability returns the annotation capability of the construct. This helps us tie the annotation types to the constructs for the time being
 		AnnotationCapability() string
+		// Functionality returns the functionality of the construct. This helps us determine how to expand constructs
+		Functionality() Functionality
+		// Attributes returns the attributes of the construct. This helps us determine how to expand constructs
+		Attributes() map[string]any
 	}
 
 	BaseConstructSet map[ResourceId]BaseConstruct
@@ -86,9 +90,18 @@ type (
 	HasLocalOutput interface {
 		OutputTo(dest string) error
 	}
+
+	Functionality string
 )
 
 const (
+	Compute Functionality = "compute"
+	Cluster Functionality = "cluster"
+	Storage Functionality = "storage"
+	Network Functionality = "network"
+	Api     Functionality = "api"
+	Unknown Functionality = "Unknown"
+
 	ALL_RESOURCES_IAC_VALUE = "*"
 
 	// InternalProvider is used for resources that don't directly correspond to a deployed resource,

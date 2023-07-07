@@ -9,7 +9,6 @@ var KubernetesKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.Service, *resources.Deployment]{},
 	knowledgebase.EdgeBuilder[*resources.Deployment, *resources.Pod]{},
 	knowledgebase.EdgeBuilder[*resources.Service, *resources.Pod]{},
-	knowledgebase.EdgeBuilder[*resources.Service, *resources.Deployment]{},
 	knowledgebase.EdgeBuilder[*resources.Pod, *resources.Namespace]{},
 	knowledgebase.EdgeBuilder[*resources.Service, *resources.Namespace]{},
 	knowledgebase.EdgeBuilder[*resources.Deployment, *resources.Namespace]{},
@@ -18,4 +17,6 @@ var KubernetesKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.Deployment, *resources.ServiceAccount]{},
 	knowledgebase.EdgeBuilder[*resources.TargetGroupBinding, *resources.Service]{},
 	knowledgebase.EdgeBuilder[*resources.ServiceExport, *resources.Service]{},
+	knowledgebase.EdgeBuilder[*resources.Pod, *resources.HorizontalPodAutoscaler]{},
+	knowledgebase.EdgeBuilder[*resources.Deployment, *resources.HorizontalPodAutoscaler]{},
 )

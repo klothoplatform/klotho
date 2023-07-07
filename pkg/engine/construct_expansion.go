@@ -4,15 +4,17 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"go.uber.org/zap"
 )
 
 type (
 	ExpansionSet struct {
-		MustSatisfy   []string
-		ShouldSatisfy []string
+		Functionality core.Functionality
+		Attributes    []string
 	}
 )
 
@@ -21,7 +23,7 @@ type (
 // The resources that result from the expanded constructs are written to the engines resource graph
 // All dependencies are copied over to the resource graph
 // If a dependency in the working state included a construct, the engine copies the dependency to all directly linked resources
-func (e *Engine) ExpandConstructsAndCopyEdges() error {
+func (e *Engine) ExpandConstructs() error {
 	var joinedErr error
 	for _, res := range e.Context.WorkingState.ListConstructs() {
 		if e.Context.ExpandendOrCopiedBaseConstructs[res.Id()] {
@@ -138,4 +140,85 @@ func (e *Engine) CopyEdges() error {
 		}
 	}
 	return joinedErr
+}
+
+func (e *Engine) expandConstruct(constraint constraints.ConstructConstraint, functionality core.Functionality) ([]*core.ResourceGraph, error) {
+	var baseResource core.Resource
+	for _, res := range e.ListResources() {
+		if res.Id().Type == constraint.Type {
+			baseResource = res
+		}
+	}
+	expansionSet := ExpansionSet{Functionality: functionality}
+	for attribute := range constraint.Attributes {
+		expansionSet.Attributes = append(expansionSet.Attributes, attribute)
+	}
+	graphs, err := e.findPossibleExpansions(expansionSet, baseResource)
+	var result []*core.ResourceGraph
+	exists := map[string]*core.ResourceGraph{}
+	for _, graph := range graphs {
+		s := graph.String()
+		if exists[s] == nil {
+			result = append(result, graph)
+			exists[s] = graph
+		}
+	}
+	return result, err
+}
+
+func (e *Engine) findPossibleExpansions(expansionSet ExpansionSet, baseResource core.Resource) ([]*core.ResourceGraph, error) {
+	var possibleExpansions []*core.ResourceGraph
+	for _, res := range e.ListResources() {
+		if baseResource != nil && res.Id().Type != baseResource.Id().Type {
+			continue
+		}
+		classifications := e.ClassificationDocument.GetClassification(res)
+		if !collectionutil.Contains(classifications.Is, string(expansionSet.Functionality)) {
+			continue
+		}
+		unsatisfiedAttributes := []string{}
+		for _, ms := range expansionSet.Attributes {
+			if !collectionutil.Contains(classifications.Is, ms) {
+				unsatisfiedAttributes = append(unsatisfiedAttributes, ms)
+			}
+		}
+		graph := core.NewResourceGraph()
+		graph.AddResource(res)
+		expansions, err := e.findExpansions(unsatisfiedAttributes, graph, res, expansionSet.Functionality)
+		if err != nil {
+			return nil, err
+		}
+		possibleExpansions = append(possibleExpansions, expansions...)
+	}
+	return possibleExpansions, nil
+}
+
+func (e *Engine) findExpansions(attributes []string, graph *core.ResourceGraph, baseResource core.Resource, functionality core.Functionality) ([]*core.ResourceGraph, error) {
+	if len(attributes) == 0 {
+		return []*core.ResourceGraph{graph}, nil
+	}
+	var possibleExpansions []*core.ResourceGraph
+	for _, attribute := range attributes {
+		for _, res := range e.ListResources() {
+			if res.Id().Type == baseResource.Id().Type {
+				continue
+			}
+			if e.ClassificationDocument.GivesAttributeForFunctionality(res, attribute, functionality) && len(e.KnowledgeBase.FindPaths(baseResource, res, knowledgebase.EdgeConstraint{})) != 0 {
+				graph.AddDependency(baseResource, res)
+				unsatisfiedAttributes := []string{}
+				for _, ms := range attributes {
+					if ms != attribute {
+						unsatisfiedAttributes = append(unsatisfiedAttributes, ms)
+					}
+				}
+
+				expansions, err := e.findExpansions(unsatisfiedAttributes, graph.Clone(), baseResource, functionality)
+				if err != nil {
+					return nil, err
+				}
+				possibleExpansions = append(possibleExpansions, expansions...)
+			}
+		}
+	}
+	return possibleExpansions, nil
 }

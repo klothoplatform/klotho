@@ -141,7 +141,11 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		}
 
 		zap.S().Debug("Engine Expanding constructs and copying edges")
-		err := e.ExpandConstructsAndCopyEdges()
+		err := e.ExpandConstructs()
+		if err != nil {
+			e.Context.Errors[i] = append(e.Context.Errors[i], err)
+		}
+		err = e.CopyEdges()
 		if err != nil {
 			e.Context.Errors[i] = append(e.Context.Errors[i], err)
 		}
@@ -167,7 +171,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 			if e.Context.ConfiguredEdges[dep.Source.Id()] != nil && e.Context.ConfiguredEdges[dep.Source.Id()][dep.Destination.Id()] {
 				continue
 			}
-			err = e.KnowledgeBase.ConfigureEdge(&dep, e.Context.EndState)
+			err := e.KnowledgeBase.ConfigureEdge(&dep, e.Context.EndState)
 			if err != nil {
 				e.Context.Errors[i] = append(e.Context.Errors[i], err)
 				continue

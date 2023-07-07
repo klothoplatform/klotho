@@ -1,6 +1,8 @@
 package core
 
-import "github.com/klothoplatform/klotho/pkg/annotation"
+import (
+	"github.com/klothoplatform/klotho/pkg/annotation"
+)
 
 type (
 	Gateway struct {
@@ -75,6 +77,14 @@ func (p *Gateway) Id() ResourceId {
 func (p *Gateway) AnnotationCapability() string {
 	return annotation.ExposeCapability
 }
+func (p *Gateway) Functionality() Functionality {
+	return Api
+}
+
+func (p *Gateway) Attributes() map[string]any {
+	return map[string]any{}
+}
+
 func (gw *Gateway) AddRoute(route Route, unit *ExecutionUnit) string {
 	for _, r := range gw.Routes {
 		if r.Path == route.Path && r.Verb == route.Verb {

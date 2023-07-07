@@ -71,7 +71,7 @@ func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName s
 	if deployment.Cluster == nil {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(deployment) {
-			if classifier.GetFunctionality(res) == classification.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound = append(downstreamClustersFound, res)
 			}
 		}
@@ -83,7 +83,7 @@ func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName s
 		if len(downstreamClustersFound) > 1 {
 			return fmt.Errorf("deployment %s has more than one cluster downstream", deployment.Id())
 		}
-		return core.NewOperationalResourceError(deployment, []string{string(classification.Cluster)}, fmt.Errorf("deployment %s has no clusters to use", deployment.Id()))
+		return core.NewOperationalResourceError(deployment, []string{string(core.Cluster)}, fmt.Errorf("deployment %s has no clusters to use", deployment.Id()))
 	}
 	return nil
 }

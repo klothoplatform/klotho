@@ -5,7 +5,6 @@ import (
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"go.uber.org/zap"
@@ -90,7 +89,7 @@ func (e *Engine) determineCorrectPath(dep graph.Edge[core.Resource], edgeData kn
 func (e *Engine) containsUnneccessaryHopsInPath(dep graph.Edge[core.Resource], p knowledgebase.Path) bool {
 	for _, edge := range p {
 		destType := reflect.TypeOf(dep.Destination)
-		if e.ClassificationDocument.GetFunctionality(dep.Destination) != classification.Unknown {
+		if e.ClassificationDocument.GetFunctionality(dep.Destination) != core.Unknown {
 			if e.ClassificationDocument.GetFunctionality(dep.Destination) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Destination).Elem().Interface().(core.Resource)) && edge.Destination != destType {
 				zap.S().Debugf("Found unneccessary hop in path %s, destination %s has same functionality as edge's destination %s", p, dep.Destination.Id(), edge.Destination)
 				return true

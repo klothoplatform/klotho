@@ -59,14 +59,14 @@ func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName strin
 	if sa.Cluster == nil {
 		downstreamClustersFound := map[string]core.Resource{}
 		for _, res := range dag.GetAllDownstreamResources(sa) {
-			if classifier.GetFunctionality(res) == classification.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound[res.Id().String()] = res
 			}
 		}
 		// See which cluster any pods or deployments using this service account use
 		for _, res := range sa.GetResourcesUsingServiceAccount(dag) {
 			for _, dres := range dag.GetAllDownstreamResources(res) {
-				if classifier.GetFunctionality(dres) == classification.Cluster {
+				if classifier.GetFunctionality(dres) == core.Cluster {
 					downstreamClustersFound[dres.Id().String()] = dres
 				}
 			}
@@ -82,7 +82,7 @@ func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName strin
 			return fmt.Errorf("target group binding %s has more than one cluster downstream", sa.Id())
 		}
 
-		return core.NewOperationalResourceError(sa, []string{string(classification.Cluster)}, fmt.Errorf("target group binding %s has no clusters to use", sa.Id()))
+		return core.NewOperationalResourceError(sa, []string{string(core.Cluster)}, fmt.Errorf("target group binding %s has no clusters to use", sa.Id()))
 	}
 	return nil
 }

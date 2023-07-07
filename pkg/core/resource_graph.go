@@ -3,6 +3,8 @@ package core
 import (
 	"fmt"
 	"reflect"
+	"sort"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -22,6 +24,67 @@ func NewResourceGraph() *ResourceGraph {
 			return r.Id().String()
 		}),
 	}
+}
+
+func (rg *ResourceGraph) Clone() *ResourceGraph {
+	newGraph := &ResourceGraph{
+		underlying: graph.NewLike(rg.underlying),
+	}
+	for _, v := range rg.ListResources() {
+		newGraph.AddResource(v)
+	}
+	for _, dep := range rg.ListDependencies() {
+		newGraph.AddDependencyWithData(dep.Source, dep.Destination, dep.Properties.Data)
+	}
+	return newGraph
+}
+
+func (rg *ResourceGraph) String() string {
+	buf := new(strings.Builder)
+
+	nodes := rg.ListResources()
+	node_ids := make([]string, len(nodes))
+	for _, node := range nodes {
+		node_ids = append(node_ids, node.Id().String())
+	}
+	sort.Strings(node_ids)
+
+	deps := rg.ListDependencies()
+	dep_ids := make([]string, len(deps))
+	for _, dep := range deps {
+		dep_ids = append(dep_ids, fmt.Sprintf("%s -> %s", dep.Source.Id(), dep.Destination.Id()))
+	}
+	sort.Strings(dep_ids)
+
+	for _, v := range node_ids {
+		buf.WriteString(v)
+	}
+	for _, dep := range dep_ids {
+		buf.WriteString(dep)
+	}
+	return buf.String()
+}
+
+func (rg *ResourceGraph) Equals(other *ResourceGraph) bool {
+	rgDeps := rg.ListDependencies()
+	otherDeps := other.ListDependencies()
+	rgNodes := rg.ListResources()
+	otherNodes := other.ListResources()
+	if len(rgDeps) != len(otherDeps) || len(rgNodes) != len(otherNodes) {
+		return false
+	}
+	for _, dep := range rgDeps {
+		if other.GetDependency(dep.Source.Id(), dep.Destination.Id()) == nil {
+			return false
+		}
+	}
+	for _, node := range rgNodes {
+		if other.GetResource(node.Id()) == nil {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (rg *ResourceGraph) ShortestPath(source ResourceId, dest ResourceId) ([]Resource, error) {

@@ -59,14 +59,14 @@ func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *core.ResourceGraph, app
 	if hpa.Cluster == nil {
 		downstreamClustersFound := map[string]core.Resource{}
 		for _, res := range dag.GetAllDownstreamResources(hpa) {
-			if classifier.GetFunctionality(res) == classification.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound[res.Id().String()] = res
 			}
 		}
 		// See which cluster any pods or deployments using this service account use
 		for _, res := range hpa.GetResourcesUsingHPA(dag) {
 			for _, dres := range dag.GetAllDownstreamResources(res) {
-				if classifier.GetFunctionality(dres) == classification.Cluster {
+				if classifier.GetFunctionality(dres) == core.Cluster {
 					downstreamClustersFound[dres.Id().String()] = dres
 				}
 			}
@@ -82,7 +82,7 @@ func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *core.ResourceGraph, app
 			return fmt.Errorf("horizontal pod autoscaler %s has more than one cluster downstream", hpa.Id())
 		}
 
-		return core.NewOperationalResourceError(hpa, []string{string(classification.Cluster)}, fmt.Errorf("horizontal pod autoscaler %s has no clusters to use", hpa.Id()))
+		return core.NewOperationalResourceError(hpa, []string{string(core.Cluster)}, fmt.Errorf("horizontal pod autoscaler %s has no clusters to use", hpa.Id()))
 	}
 	return nil
 }

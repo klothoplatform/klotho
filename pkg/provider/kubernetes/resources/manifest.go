@@ -60,7 +60,7 @@ func (manifest *Manifest) MakeOperational(dag *core.ResourceGraph, appName strin
 	if manifest.Cluster == nil {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(manifest) {
-			if classifier.GetFunctionality(res) == classification.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound = append(downstreamClustersFound, res)
 			}
 		}
@@ -73,7 +73,7 @@ func (manifest *Manifest) MakeOperational(dag *core.ResourceGraph, appName strin
 			return fmt.Errorf("helm chart %s has more than one cluster downstream", manifest.Id())
 		}
 
-		return core.NewOperationalResourceError(manifest, []string{string(classification.Cluster)}, fmt.Errorf("helm chart %s has no clusters to use", manifest.Id()))
+		return core.NewOperationalResourceError(manifest, []string{string(core.Cluster)}, fmt.Errorf("helm chart %s has no clusters to use", manifest.Id()))
 	}
 	return nil
 }
