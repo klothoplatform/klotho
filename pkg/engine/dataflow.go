@@ -3,6 +3,7 @@ package engine
 import (
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	awsResources "github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	k8sResources "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
@@ -67,7 +68,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	// Add summarized edges between types we care about to the dataflow DAG.
 	// Only irrelevant nodes in a path of edges between the source and destination will be summarized.
 	for _, src := range dataFlowDag.ListResources() {
-		srcParents := []core.Resource{}
+		var srcParents []core.Resource
 		hasPathWithoutOthers := false
 		for _, dst := range dataFlowDag.ListResources() {
 			if src == dst {
@@ -106,8 +107,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 				// or a child -> parent edge if the destination is a parent type.
 				if collectionutil.Contains(parentResourceTypes, dst.Id().Type) && hasPathWithoutOthers {
 					srcParents = append(srcParents, dst)
-				} else if !addedDep &&
-					collectionutil.Contains(typesWeCareAbout, dst.Id().Type) {
+				} else if !addedDep {
 					dataFlowDag.AddDependency(src, dst)
 				}
 			}
@@ -115,10 +115,16 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 		var parentPaths [][]graph.Edge[core.Resource]
 		for _, p := range srcParents {
 			parentPaths = append(parentPaths, e.KnowledgeBase.FindPathsInGraph(src, p, e.Context.EndState)...)
-			sort.SliceStable(parentPaths, func(i, j int) bool {
-				return len(parentPaths[i]) < len(parentPaths[j])
-			})
 		}
+		sort.SliceStable(parentPaths, func(i, j int) bool {
+			return len(parentPaths[i]) < len(parentPaths[j])
+		})
+
+		// TODO: look into why FindPathsInGraph is returning unrelated paths. this filter is a workaround.
+		parentPaths = filter.NewSimpleFilter[[]graph.Edge[core.Resource]](func(path []graph.Edge[core.Resource]) bool {
+			return collectionutil.Contains(parentResourceTypes, path[len(path)-1].Destination.Id().Type)
+		}).Apply(parentPaths...)
+
 		if len(parentPaths) > 0 {
 			closestParent := parentPaths[0][len(parentPaths[0])-1].Destination
 			dataFlowDag.AddDependency(src, closestParent)
