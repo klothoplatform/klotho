@@ -107,7 +107,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 				if collectionutil.Contains(parentResourceTypes, dst.Id().Type) && hasPathWithoutOthers {
 					srcParents = append(srcParents, dst)
 				} else if !addedDep &&
-					!collectionutil.Contains(typesWeCareAbout, dst.Id().Type) {
+					collectionutil.Contains(typesWeCareAbout, dst.Id().Type) {
 					dataFlowDag.AddDependency(src, dst)
 				}
 			}
