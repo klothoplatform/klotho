@@ -16,7 +16,7 @@ const (
 type (
 	KmsKey struct {
 		Name                string
-		ConstructsRef       core.BaseConstructSet `yaml:"-"`
+		ConstructRefs       core.BaseConstructSet `yaml:"-"`
 		Description         string
 		Enabled             bool
 		EnableKeyRotation   bool
@@ -29,14 +29,14 @@ type (
 
 	KmsAlias struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		AliasName     string
 		TargetKey     *KmsKey
 	}
 
 	KmsReplicaKey struct {
 		Name                string
-		ConstructsRef       core.BaseConstructSet `yaml:"-"`
+		ConstructRefs       core.BaseConstructSet `yaml:"-"`
 		Description         string
 		Enabled             bool
 		KeyPolicy           *PolicyDocument
@@ -55,11 +55,11 @@ func (key *KmsKey) Create(dag *core.ResourceGraph, params KmsKeyCreateParams) er
 
 	name := aws.KmsKeySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	key.Name = name
-	key.ConstructsRef = params.Refs
+	key.ConstructRefs = params.Refs
 
 	existingKey, found := core.GetResource[*KmsKey](dag, key.Id())
 	if found {
-		existingKey.ConstructsRef.AddAll(params.Refs)
+		existingKey.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(key)
@@ -88,12 +88,12 @@ func (alias *KmsAlias) Create(dag *core.ResourceGraph, params KmsAliasCreatePara
 
 	name := aws.KmsKeySanitizer.Apply(fmt.Sprintf("%s-%s", params.Key.Name, params.Name))
 	alias.Name = name
-	alias.ConstructsRef = params.Key.ConstructsRef.Clone()
+	alias.ConstructRefs = params.Key.ConstructRefs.Clone()
 	alias.TargetKey = params.Key
 	alias.AliasName = aws.KmsKeySanitizer.Apply(fmt.Sprintf("alias/%s", params.Name))
 	existingKey, found := core.GetResource[*KmsAlias](dag, alias.Id())
 	if found {
-		existingKey.ConstructsRef.AddAll(params.Key.ConstructsRef)
+		existingKey.ConstructRefs.AddAll(params.Key.ConstructRefs)
 		return nil
 	}
 	dag.AddDependenciesReflect(alias)
@@ -109,11 +109,11 @@ func (key *KmsReplicaKey) Create(dag *core.ResourceGraph, params KmsReplicaKeyCr
 
 	name := aws.KmsKeySanitizer.Apply(fmt.Sprintf("%s-%s", params.Key.Name, params.Name))
 	key.Name = name
-	key.ConstructsRef = params.Key.ConstructsRef.Clone()
+	key.ConstructRefs = params.Key.ConstructRefs.Clone()
 	key.PrimaryKey = params.Key
 	existingKey, found := core.GetResource[*KmsReplicaKey](dag, key.Id())
 	if found {
-		existingKey.ConstructsRef.AddAll(params.Key.ConstructsRef)
+		existingKey.ConstructRefs.AddAll(params.Key.ConstructRefs)
 		return nil
 	}
 	dag.AddDependenciesReflect(key)
@@ -129,9 +129,9 @@ func (key *KmsReplicaKey) Configure(params KmsReplicaKeyConfigureParams) error {
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (key *KmsKey) BaseConstructsRef() core.BaseConstructSet {
-	return key.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (key *KmsKey) BaseConstructRefs() core.BaseConstructSet {
+	return key.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -149,9 +149,9 @@ func (key *KmsKey) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (alias *KmsAlias) BaseConstructsRef() core.BaseConstructSet {
-	return alias.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (alias *KmsAlias) BaseConstructRefs() core.BaseConstructSet {
+	return alias.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -169,9 +169,9 @@ func (alias *KmsAlias) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (replica *KmsReplicaKey) BaseConstructsRef() core.BaseConstructSet {
-	return replica.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (replica *KmsReplicaKey) BaseConstructRefs() core.BaseConstructSet {
+	return replica.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

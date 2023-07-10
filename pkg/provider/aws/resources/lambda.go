@@ -19,7 +19,7 @@ var LambdaPermissionSanitizer = aws.LambdaPermissionSanitizer
 type (
 	LambdaFunction struct {
 		Name                 string
-		ConstructsRef        core.BaseConstructSet `yaml:"-"`
+		ConstructRefs        core.BaseConstructSet `yaml:"-"`
 		Role                 *IamRole
 		Image                *EcrImage
 		EnvironmentVariables map[string]*AwsResourceValue `yaml:"-"`
@@ -31,7 +31,7 @@ type (
 
 	LambdaPermission struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Function      *LambdaFunction
 		Principal     string
 		Source        *AwsResourceValue
@@ -49,7 +49,7 @@ func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreat
 
 	name := lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	lambda.Name = name
-	lambda.ConstructsRef = params.Refs.Clone()
+	lambda.ConstructRefs = params.Refs.Clone()
 
 	existingLambda := dag.GetResource(lambda.Id())
 	if existingLambda != nil {
@@ -180,12 +180,12 @@ func (permission *LambdaPermission) Create(dag *core.ResourceGraph, params Lambd
 	if params.AppName == "" {
 		permission.Name = LambdaPermissionSanitizer.Apply(params.Name)
 	}
-	permission.ConstructsRef = params.Refs.Clone()
+	permission.ConstructRefs = params.Refs.Clone()
 
 	existingLambdaPermission := dag.GetResource(permission.Id())
 	if existingLambdaPermission != nil {
 		graphLambdaPermission := existingLambdaPermission.(*LambdaPermission)
-		graphLambdaPermission.ConstructsRef.AddAll(params.Refs)
+		graphLambdaPermission.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(permission)
@@ -205,9 +205,9 @@ func (permission *LambdaPermission) MakeOperational(dag *core.ResourceGraph, app
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (lambda *LambdaFunction) BaseConstructsRef() core.BaseConstructSet {
-	return lambda.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (lambda *LambdaFunction) BaseConstructRefs() core.BaseConstructSet {
+	return lambda.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -227,9 +227,9 @@ func (lambda *LambdaFunction) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (permission *LambdaPermission) BaseConstructsRef() core.BaseConstructSet {
-	return permission.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (permission *LambdaPermission) BaseConstructRefs() core.BaseConstructSet {
+	return permission.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

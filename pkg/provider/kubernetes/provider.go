@@ -20,6 +20,3 @@ func (k *KubernetesProvider) ListResources() []core.Resource {
 func (k *KubernetesProvider) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error) {
 	return nil, nil
 }
-func (k *KubernetesProvider) ExpandConstruct(construct core.Construct, cg *core.ConstructGraph, dag *core.ResourceGraph, constructType string, attributes map[string]any) (directlyMappedResources []core.Resource, err error) {
-	return nil, nil
-}

@@ -13,8 +13,8 @@ var ApiGatewayKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.RestApi]{},
 	knowledgebase.EdgeBuilder[*resources.ApiStage, *resources.RestApi]{},
 	knowledgebase.EdgeBuilder[*resources.ApiStage, *resources.ApiDeployment]{},
-	knowledgebase.EdgeBuilder[*resources.ApiMethod, *resources.RestApi]{
-		ReverseDirection: true,
+	knowledgebase.EdgeBuilder[*resources.RestApi, *resources.ApiMethod]{
+		DeploymentOrderReversed: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.ApiMethod]{
 		Configure: func(deployment *resources.ApiDeployment, method *resources.ApiMethod, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
@@ -28,12 +28,12 @@ var ApiGatewayKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.RestApi]{
-		ReverseDirection: true,
+	knowledgebase.EdgeBuilder[*resources.RestApi, *resources.ApiIntegration]{
+		DeploymentOrderReversed: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.ApiResource]{},
-	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.RestApi]{
-		ReverseDirection: true,
+	knowledgebase.EdgeBuilder[*resources.RestApi, *resources.ApiResource]{
+		DeploymentOrderReversed: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiMethod, *resources.ApiResource]{},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.ApiResource]{},
@@ -67,7 +67,7 @@ var ApiGatewayKB = knowledgebase.Build(
 			}
 			vpcLink := &resources.VpcLink{
 				Target:        loadBalancer,
-				ConstructsRef: core.BaseConstructSetOf(loadBalancer, integration),
+				ConstructRefs: core.BaseConstructSetOf(loadBalancer, integration),
 			}
 			integration.IntegrationHttpMethod = strings.ToUpper(integration.Method.HttpMethod)
 			integration.Type = "HTTP_PROXY"

@@ -90,6 +90,16 @@ func (d *Directed[V]) ShortestPath(source, target string) ([]string, error) {
 	return path, nil
 }
 
+func (d *Directed[V]) AllPaths(source, target string) ([][]string, error) {
+	path, err := graph.AllPathsBetween(d.underlying, source, target)
+	if err != nil && errors.Is(err, graph.ErrTargetNotReachable) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return path, nil
+}
+
 func (d *Directed[V]) OutgoingEdges(from V) []Edge[V] {
 	return handleOutgoingEdges(d, from, func(destination V) Edge[V] {
 		return Edge[V]{

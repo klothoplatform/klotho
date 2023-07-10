@@ -364,22 +364,22 @@ type (
 )
 
 func (f *DummyFizz) Id() core.ResourceId                      { return core.ResourceId{Name: "fizz-" + f.Value} }
-func (f *DummyFizz) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f *DummyFizz) BaseConstructRefs() core.BaseConstructSet { return nil }
 func (f *DummyFizz) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{}
 }
 func (b DummyBuzz) Id() core.ResourceId                      { return core.ResourceId{Name: "buzz-shared"} }
-func (f DummyBuzz) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f DummyBuzz) BaseConstructRefs() core.BaseConstructSet { return nil }
 func (f DummyBuzz) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{}
 }
 func (p *DummyBig) Id() core.ResourceId                      { return core.ResourceId{Name: "big-" + p.id} }
-func (f *DummyBig) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f *DummyBig) BaseConstructRefs() core.BaseConstructSet { return nil }
 func (f *DummyBig) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{}
 }
 func (p DummyVoid) Id() core.ResourceId                      { return core.ResourceId{Name: "void"} }
-func (f DummyVoid) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f DummyVoid) BaseConstructRefs() core.BaseConstructSet { return nil }
 func (f DummyVoid) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{}
 }

@@ -13,10 +13,10 @@ import (
 
 func Test_constructExpansion(t *testing.T) {
 	tests := []struct {
-		name          string
-		constraint    constraints.ConstructConstraint
-		functionality core.Functionality
-		want          []coretesting.ResourcesExpectation
+		name       string
+		constraint constraints.ConstructConstraint
+		construct  core.Construct
+		want       []coretesting.ResourcesExpectation
 	}{
 		{
 			name: "simple",
@@ -25,17 +25,17 @@ func Test_constructExpansion(t *testing.T) {
 				Target:     core.ResourceId{Name: "compute"},
 				Attributes: map[string]any{},
 			},
-			functionality: core.Compute,
+			construct: &core.ExecutionUnit{Name: "eu_1"},
 			want: []coretesting.ResourcesExpectation{
 				{
 					Nodes: []string{
-						"mock:mock1:",
+						"mock:mock1:mock1-eu_1",
 					},
 					Deps: []coretesting.StringDep{},
 				},
 				{
 					Nodes: []string{
-						"mock:mock2:",
+						"mock:mock2:mock2-eu_1",
 					},
 					Deps: []coretesting.StringDep{},
 				},
@@ -50,24 +50,24 @@ func Test_constructExpansion(t *testing.T) {
 					"serverless": nil,
 				},
 			},
-			functionality: core.Compute,
+			construct: &core.ExecutionUnit{Name: "eu_1"},
 			want: []coretesting.ResourcesExpectation{
 				{
 					Nodes: []string{
-						"mock:mock1:",
-						"mock:mock3:",
+						"mock:mock1:mock1-eu_1",
+						"mock:mock3:mock3-eu_1",
 					},
 					Deps: []coretesting.StringDep{
-						{Source: "mock:mock1:", Destination: "mock:mock3:"},
+						{Source: "mock:mock1:mock1-eu_1", Destination: "mock:mock3:mock3-eu_1"},
 					},
 				},
 				{
 					Nodes: []string{
-						"mock:mock2:",
-						"mock:mock3:",
+						"mock:mock2:mock2-eu_1",
+						"mock:mock3:mock3-eu_1",
 					},
 					Deps: []coretesting.StringDep{
-						{Source: "mock:mock2:", Destination: "mock:mock3:"},
+						{Source: "mock:mock2:mock2-eu_1", Destination: "mock:mock3:mock3-eu_1"},
 					},
 				},
 			},
@@ -82,17 +82,17 @@ func Test_constructExpansion(t *testing.T) {
 					"highly_available": nil,
 				},
 			},
-			functionality: core.Compute,
+			construct: &core.ExecutionUnit{Name: "eu_1"},
 			want: []coretesting.ResourcesExpectation{
 				{
 					Nodes: []string{
-						"mock:mock1:",
-						"mock:mock3:",
-						"mock:mock4:",
+						"mock:mock1:mock1-eu_1",
+						"mock:mock3:mock3-eu_1",
+						"mock:mock4:mock4-eu_1",
 					},
 					Deps: []coretesting.StringDep{
-						{Source: "mock:mock1:", Destination: "mock:mock3:"},
-						{Source: "mock:mock1:", Destination: "mock:mock4:"},
+						{Source: "mock:mock1:mock1-eu_1", Destination: "mock:mock3:mock3-eu_1"},
+						{Source: "mock:mock1:mock1-eu_1", Destination: "mock:mock4:mock4-eu_1"},
 					},
 				},
 			},
@@ -106,15 +106,15 @@ func Test_constructExpansion(t *testing.T) {
 				mp.Name(): mp,
 			}, enginetesting.MockKB, core.ListAllConstructs())
 			engine.ClassificationDocument = enginetesting.BaseClassificationDocument
-			graphs, err := engine.expandConstruct(tt.constraint, tt.functionality)
+			solutions, err := engine.expandConstruct(tt.constraint.Type, tt.constraint.Attributes, tt.construct)
 			if !assert.NoError(err) {
 				return
 			}
-			if !assert.Len(graphs, len(tt.want)) {
+			if !assert.Len(solutions, len(tt.want)) {
 				return
 			}
-			for i, g := range graphs {
-				tt.want[i].Assert(t, g)
+			for i, sol := range solutions {
+				tt.want[i].Assert(t, sol.Graph)
 			}
 		})
 	}

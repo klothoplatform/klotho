@@ -23,12 +23,12 @@ func Test_RdsInstanceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, instance *RdsInstance) {
 				assert.Equal(instance.Name, "my-app-instance")
-				assert.Equal(instance.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(instance.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "nil check ip",
-			Existing: &RdsInstance{Name: "my-app-instance", ConstructsRef: initialRefs},
+			Existing: &RdsInstance{Name: "my-app-instance", ConstructRefs: initialRefs},
 			WantErr:  true,
 		},
 	}
@@ -131,12 +131,12 @@ func Test_RdsSubnetGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, sg *RdsSubnetGroup) {
 				assert.Equal(sg.Name, "my-app-sg")
-				assert.Equal(sg.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(sg.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing subnet group",
-			Existing: &RdsSubnetGroup{Name: "my-app-sg", ConstructsRef: initialRefs},
+			Existing: &RdsSubnetGroup{Name: "my-app-sg", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:rds_subnet_group:my-app-sg",
@@ -145,7 +145,7 @@ func Test_RdsSubnetGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, sg *RdsSubnetGroup) {
 				assert.Equal(sg.Name, "my-app-sg")
-				assert.Equal(sg.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(sg.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -242,12 +242,12 @@ func Test_RdsProxyCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, proxy *RdsProxy) {
 				assert.Equal(proxy.Name, "my-app-proxy")
-				assert.Equal(proxy.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(proxy.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing proxy",
-			Existing: &RdsProxy{Name: "my-app-proxy", ConstructsRef: initialRefs},
+			Existing: &RdsProxy{Name: "my-app-proxy", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:rds_proxy:my-app-proxy",
@@ -256,7 +256,7 @@ func Test_RdsProxyCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, proxy *RdsProxy) {
 				assert.Equal(proxy.Name, "my-app-proxy")
-				assert.Equal(proxy.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(proxy.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -360,12 +360,12 @@ func Test_RdsProxyTargetGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, proxy *RdsProxyTargetGroup) {
 				assert.Equal(proxy.Name, "my-app-proxy")
-				assert.Equal(proxy.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(proxy.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing proxy",
-			Existing: &RdsProxyTargetGroup{Name: "my-app-proxy", ConstructsRef: initialRefs},
+			Existing: &RdsProxyTargetGroup{Name: "my-app-proxy", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:rds_proxy_target_group:my-app-proxy",
@@ -374,7 +374,7 @@ func Test_RdsProxyTargetGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, proxy *RdsProxyTargetGroup) {
 				assert.Equal(proxy.Name, "my-app-proxy")
-				assert.Equal(proxy.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(proxy.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}

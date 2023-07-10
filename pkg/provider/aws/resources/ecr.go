@@ -18,13 +18,13 @@ const (
 type (
 	EcrRepository struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		ForceDelete   bool
 	}
 
 	EcrImage struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Repo          *EcrRepository
 		Context       string
 		Dockerfile    string
@@ -39,12 +39,12 @@ type RepoCreateParams struct {
 
 func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreateParams) error {
 	repo.Name = params.AppName
-	repo.ConstructsRef = params.Refs.Clone()
+	repo.ConstructRefs = params.Refs.Clone()
 
 	existingRepo := dag.GetResource(repo.Id())
 	if existingRepo != nil {
 		graphRepo := existingRepo.(*EcrRepository)
-		graphRepo.ConstructsRef.AddAll(params.Refs)
+		graphRepo.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(repo)
 	}
@@ -68,7 +68,7 @@ type ImageCreateParams struct {
 func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams) error {
 	name := fmt.Sprintf("%s-%s", params.AppName, params.Name)
 	image.Name = name
-	image.ConstructsRef = params.Refs.Clone()
+	image.ConstructRefs = params.Refs.Clone()
 
 	existingImage := dag.GetResource(image.Id())
 	if existingImage != nil {
@@ -122,9 +122,9 @@ func (image *EcrImage) Configure(params EcrImageConfigureParams) error {
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (repo *EcrRepository) BaseConstructsRef() core.BaseConstructSet {
-	return repo.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (repo *EcrRepository) BaseConstructRefs() core.BaseConstructSet {
+	return repo.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -142,9 +142,9 @@ func (repo *EcrRepository) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (image *EcrImage) BaseConstructsRef() core.BaseConstructSet {
-	return image.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (image *EcrImage) BaseConstructRefs() core.BaseConstructSet {
+	return image.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

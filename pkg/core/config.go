@@ -33,7 +33,7 @@ func (p *Config) Functionality() Functionality {
 }
 
 func (p *Config) Attributes() map[string]any {
-	if p.Secret == true {
+	if p.Secret {
 		return map[string]any{
 			"secret": nil,
 		}

@@ -28,7 +28,7 @@ func Test_RoleCreate(t *testing.T) {
 		},
 		{
 			name:    "existing role",
-			role:    &IamRole{Name: "my-app-executionRole", ConstructsRef: initialRefs},
+			role:    &IamRole{Name: "my-app-executionRole", ConstructRefs: initialRefs},
 			wantErr: true,
 		},
 	}
@@ -57,7 +57,7 @@ func Test_RoleCreate(t *testing.T) {
 			tt.want.Assert(t, dag)
 
 			assert.Equal(role.Name, "my-app-executionRole")
-			assert.Equal(role.ConstructsRef, metadata.Refs)
+			assert.Equal(role.ConstructRefs, metadata.Refs)
 		})
 	}
 }
@@ -82,7 +82,7 @@ func Test_PolicyCreate(t *testing.T) {
 		},
 		{
 			name:   "existing policy",
-			policy: &IamPolicy{Name: "my-app-policy", ConstructsRef: initialRefs},
+			policy: &IamPolicy{Name: "my-app-policy", ConstructRefs: initialRefs},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:iam_policy:my-app-policy",
@@ -118,10 +118,10 @@ func Test_PolicyCreate(t *testing.T) {
 			policy, _ = core.GetResource[*IamPolicy](dag, policy.Id())
 			assert.Equal(policy.Name, "my-app-policy")
 			if tt.policy == nil {
-				assert.Equal(policy.ConstructsRef, metadata.Refs)
+				assert.Equal(policy.ConstructRefs, metadata.Refs)
 			} else {
 				initialRefs.Add(&core.ExecutionUnit{Name: "test"})
-				assert.Equal(policy.ConstructsRef, initialRefs)
+				assert.Equal(policy.ConstructRefs, initialRefs)
 
 			}
 		})
@@ -143,12 +143,12 @@ func Test_OidcCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, oidc *OpenIdConnectProvider) {
 				assert.Equal(oidc.Name, "my-app-cluster")
-				assert.Equal(oidc.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(oidc.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing oidc",
-			Existing: &OpenIdConnectProvider{Name: "my-app-cluster", ConstructsRef: initialRefs},
+			Existing: &OpenIdConnectProvider{Name: "my-app-cluster", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:iam_oidc_provider:my-app-cluster",
@@ -158,7 +158,7 @@ func Test_OidcCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, oidc *OpenIdConnectProvider) {
 				assert.Equal(oidc.Name, "my-app-cluster")
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
-				assert.Equal(oidc.ConstructsRef, expect)
+				assert.Equal(oidc.ConstructRefs, expect)
 			},
 		},
 	}
@@ -189,12 +189,12 @@ func Test_InstanceProfileCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, profile *InstanceProfile) {
 				assert.Equal(profile.Name, "my-app-profile")
-				assert.Equal(profile.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(profile.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing profile",
-			Existing: &InstanceProfile{Name: "my-app-profile", ConstructsRef: initialRefs},
+			Existing: &InstanceProfile{Name: "my-app-profile", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:iam_instance_profile:my-app-profile",
@@ -204,7 +204,7 @@ func Test_InstanceProfileCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, profile *InstanceProfile) {
 				assert.Equal(profile.Name, "my-app-profile")
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
-				assert.Equal(profile.ConstructsRef, expect)
+				assert.Equal(profile.ConstructRefs, expect)
 			},
 		},
 	}

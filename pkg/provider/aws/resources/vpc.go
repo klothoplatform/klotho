@@ -35,29 +35,29 @@ const (
 type (
 	Vpc struct {
 		Name               string
-		ConstructsRef      core.BaseConstructSet `yaml:"-"`
+		ConstructRefs      core.BaseConstructSet `yaml:"-"`
 		CidrBlock          string
 		EnableDnsSupport   bool
 		EnableDnsHostnames bool
 	}
 	ElasticIp struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 	}
 	InternetGateway struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Vpc           *Vpc
 	}
 	NatGateway struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		ElasticIp     *ElasticIp
 		Subnet        *Subnet
 	}
 	Subnet struct {
 		Name                string
-		ConstructsRef       core.BaseConstructSet `yaml:"-"`
+		ConstructRefs       core.BaseConstructSet `yaml:"-"`
 		CidrBlock           string
 		Vpc                 *Vpc
 		Type                string
@@ -66,7 +66,7 @@ type (
 	}
 	VpcEndpoint struct {
 		Name             string
-		ConstructsRef    core.BaseConstructSet `yaml:"-"`
+		ConstructRefs    core.BaseConstructSet `yaml:"-"`
 		Vpc              *Vpc
 		Region           *Region
 		ServiceName      string
@@ -77,7 +77,7 @@ type (
 	}
 	RouteTable struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Vpc           *Vpc
 		Routes        []*RouteTableRoute
 	}
@@ -96,12 +96,12 @@ type VpcCreateParams struct {
 func (vpc *Vpc) Create(dag *core.ResourceGraph, params VpcCreateParams) error {
 	zap.S().Debugf("Creating vpc %s", params.AppName)
 	vpc.Name = aws.VpcSanitizer.Apply(params.AppName)
-	vpc.ConstructsRef = params.Refs.Clone()
+	vpc.ConstructRefs = params.Refs.Clone()
 
 	existingVpc := dag.GetResource(vpc.Id())
 	if existingVpc != nil {
 		graphVpc := existingVpc.(*Vpc)
-		graphVpc.ConstructsRef.AddAll(params.Refs)
+		graphVpc.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(vpc)
 	}
@@ -129,11 +129,11 @@ type EipCreateParams struct {
 func (eip *ElasticIp) Create(dag *core.ResourceGraph, params EipCreateParams) error {
 	zap.S().Debugf("Creating elastic ip %s", params.Name)
 	eip.Name = elasticIpSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	eip.ConstructsRef = params.Refs.Clone()
+	eip.ConstructRefs = params.Refs.Clone()
 	existingEip := dag.GetResource(eip.Id())
 	if existingEip != nil {
 		graphEip := existingEip.(*ElasticIp)
-		graphEip.ConstructsRef.AddAll(params.Refs)
+		graphEip.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(eip)
 	}
@@ -148,11 +148,11 @@ type IgwCreateParams struct {
 func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreateParams) error {
 	zap.S().Debugf("Creating internet gateway %s", params.AppName)
 	igw.Name = igwSanitizer.Apply(fmt.Sprintf("%s-igw", params.AppName))
-	igw.ConstructsRef = params.Refs.Clone()
+	igw.ConstructRefs = params.Refs.Clone()
 	existingIgw := dag.GetResource(igw.Id())
 	if existingIgw != nil {
 		graphIgw := existingIgw.(*InternetGateway)
-		graphIgw.ConstructsRef.AddAll(params.Refs)
+		graphIgw.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(igw)
 	}
@@ -192,12 +192,12 @@ type NatCreateParams struct {
 func (nat *NatGateway) Create(dag *core.ResourceGraph, params NatCreateParams) error {
 	zap.S().Debugf("Creating nat gateway %s", params.Name)
 	nat.Name = natGatewaySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	nat.ConstructsRef = params.Refs.Clone()
+	nat.ConstructRefs = params.Refs.Clone()
 
 	existingNat := dag.GetResource(nat.Id())
 	if existingNat != nil {
 		graphNat := existingNat.(*NatGateway)
-		graphNat.ConstructsRef.AddAll(params.Refs)
+		graphNat.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(nat)
 	}
@@ -315,7 +315,7 @@ type SubnetCreateParams struct {
 func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams) error {
 	zap.S().Debugf("Creating subnet %s", params.AppName)
 	subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", params.AppName, params.Type, params.AZ))
-	subnet.ConstructsRef = params.Refs.Clone()
+	subnet.ConstructRefs = params.Refs.Clone()
 	subnet.Type = params.Type
 	if params.AZ != "" {
 		subnet.AvailabilityZone = &AwsResourceValue{ResourceVal: NewAvailabilityZones(), PropertyVal: params.AZ}
@@ -324,7 +324,7 @@ func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams)
 	existingSubnet := dag.GetResource(subnet.Id())
 	if existingSubnet != nil {
 		graphSubnet := existingSubnet.(*Subnet)
-		graphSubnet.ConstructsRef.AddAll(params.Refs)
+		graphSubnet.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(subnet)
 	}
@@ -480,12 +480,12 @@ type RouteTableCreateParams struct {
 func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreateParams) error {
 	zap.S().Debugf("Creating route table %s", params.Name)
 	rt.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	rt.ConstructsRef = params.Refs.Clone()
+	rt.ConstructRefs = params.Refs.Clone()
 	// We must check to see if there is an existent route table after calling create dependencies because the id of the subnet can contain a namespace based on the vpc
 	existingRt := dag.GetResource(rt.Id())
 	if existingRt != nil {
 		graphRt := existingRt.(*RouteTable)
-		graphRt.ConstructsRef.AddAll(params.Refs)
+		graphRt.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(rt)
 	}
@@ -662,9 +662,9 @@ func (vpc *Vpc) GetPrivateSubnets(dag *core.ResourceGraph) []*Subnet {
 	return subnets
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (eip *ElasticIp) BaseConstructsRef() core.BaseConstructSet {
-	return eip.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (eip *ElasticIp) BaseConstructRefs() core.BaseConstructSet {
+	return eip.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -682,9 +682,9 @@ func (eip *ElasticIp) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (igw *InternetGateway) BaseConstructsRef() core.BaseConstructSet {
-	return igw.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (igw *InternetGateway) BaseConstructRefs() core.BaseConstructSet {
+	return igw.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -702,9 +702,9 @@ func (igw *InternetGateway) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (natGateway *NatGateway) BaseConstructsRef() core.BaseConstructSet {
-	return natGateway.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (natGateway *NatGateway) BaseConstructRefs() core.BaseConstructSet {
+	return natGateway.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -721,9 +721,9 @@ func (natGateway *NatGateway) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (subnet *Subnet) BaseConstructsRef() core.BaseConstructSet {
-	return subnet.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (subnet *Subnet) BaseConstructRefs() core.BaseConstructSet {
+	return subnet.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -770,9 +770,9 @@ func (subnet *Subnet) SetTypeFromId(id core.ResourceId) error {
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (vpce *VpcEndpoint) BaseConstructsRef() core.BaseConstructSet {
-	return vpce.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (vpce *VpcEndpoint) BaseConstructRefs() core.BaseConstructSet {
+	return vpce.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -790,9 +790,9 @@ func (vpc *VpcEndpoint) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (vpc *Vpc) BaseConstructsRef() core.BaseConstructSet {
-	return vpc.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (vpc *Vpc) BaseConstructRefs() core.BaseConstructSet {
+	return vpc.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -810,9 +810,9 @@ func (vpc *Vpc) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rt *RouteTable) BaseConstructsRef() core.BaseConstructSet {
-	return rt.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rt *RouteTable) BaseConstructRefs() core.BaseConstructSet {
+	return rt.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

@@ -25,13 +25,13 @@ func (p *MockProvider) ExpandConstruct(construct core.Construct, cg *core.Constr
 	case *core.ExecutionUnit:
 		switch constructType {
 		case "mock1":
-			mock1 := &mockResource1{Name: c.Name, ConstructsRef: core.BaseConstructSetOf(c)}
+			mock1 := &mockResource1{Name: c.Name, ConstructRefs: core.BaseConstructSetOf(c)}
 			dag.AddResource(mock1)
 			return []core.Resource{mock1}, nil
 		}
 		return nil, nil
 	case *core.Orm:
-		res := &mockResource3{Name: c.Name, ConstructsRef: core.BaseConstructSetOf(c)}
+		res := &mockResource3{Name: c.Name, ConstructRefs: core.BaseConstructSetOf(c)}
 		dag.AddResource(res)
 		return []core.Resource{res}, nil
 	}

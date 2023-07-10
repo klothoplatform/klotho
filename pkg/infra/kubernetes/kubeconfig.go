@@ -10,7 +10,7 @@ const (
 
 type (
 	Kubeconfig struct {
-		ConstructsRef  core.BaseConstructSet
+		ConstructRefs  core.BaseConstructSet
 		Name           string
 		ApiVersion     string
 		Kind           string
@@ -51,7 +51,7 @@ type (
 	}
 )
 
-func (k Kubeconfig) BaseConstructsRef() core.BaseConstructSet { return k.ConstructsRef }
+func (k Kubeconfig) BaseConstructRefs() core.BaseConstructSet { return k.ConstructRefs }
 
 func (k Kubeconfig) Id() core.ResourceId {
 	return core.ResourceId{

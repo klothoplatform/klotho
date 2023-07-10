@@ -27,7 +27,7 @@ const (
 	NAMESPACE_TYPE = "namespace"
 )
 
-func (namespace *Namespace) BaseConstructsRef() core.BaseConstructSet {
+func (namespace *Namespace) BaseConstructRefs() core.BaseConstructSet {
 	return namespace.ConstructRefs
 }
 

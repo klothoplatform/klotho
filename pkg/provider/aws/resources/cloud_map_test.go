@@ -23,12 +23,12 @@ func Test_PrivateDnsNamespaceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, namespace *PrivateDnsNamespace) {
 				assert.Equal(namespace.Name, "my-app")
-				assert.Equal(namespace.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(namespace.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing namespace",
-			Existing: &PrivateDnsNamespace{Name: "my-app", ConstructsRef: initialRefs},
+			Existing: &PrivateDnsNamespace{Name: "my-app", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:private_dns_namespace:my-app",
@@ -38,7 +38,7 @@ func Test_PrivateDnsNamespaceCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, namespace *PrivateDnsNamespace) {
 				assert.Equal(namespace.Name, "my-app")
 				initialRefs.Add(eu2)
-				assert.Equal(namespace.ConstructsRef, initialRefs)
+				assert.Equal(namespace.ConstructRefs, initialRefs)
 			},
 		},
 	}

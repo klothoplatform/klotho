@@ -97,7 +97,7 @@ var eksManifests embed.FS
 type (
 	EksCluster struct {
 		Name           string
-		ConstructsRef  core.BaseConstructSet `yaml:"-"`
+		ConstructRefs  core.BaseConstructSet `yaml:"-"`
 		ClusterRole    *IamRole
 		Vpc            *Vpc
 		Subnets        []*Subnet
@@ -107,7 +107,7 @@ type (
 
 	EksFargateProfile struct {
 		Name             string
-		ConstructsRef    core.BaseConstructSet `yaml:"-"`
+		ConstructRefs    core.BaseConstructSet `yaml:"-"`
 		Cluster          *EksCluster
 		PodExecutionRole *IamRole
 		Selectors        []*FargateProfileSelector
@@ -121,7 +121,7 @@ type (
 
 	EksNodeGroup struct {
 		Name           string
-		ConstructsRef  core.BaseConstructSet `yaml:"-"`
+		ConstructRefs  core.BaseConstructSet `yaml:"-"`
 		Cluster        *EksCluster
 		NodeRole       *IamRole
 		AmiType        string
@@ -137,7 +137,7 @@ type (
 
 	EksAddon struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		AddonName     string
 		ClusterName   *AwsResourceValue
 	}
@@ -180,17 +180,17 @@ type EksClusterCreateParams struct {
 func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCreateParams) error {
 
 	cluster.Name = clusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	cluster.ConstructsRef = params.Refs.Clone()
+	cluster.ConstructRefs = params.Refs.Clone()
 	existingCluster := dag.GetResource(cluster.Id())
 	if existingCluster != nil {
 		graphCluster := existingCluster.(*EksCluster)
-		graphCluster.ConstructsRef.AddAll(params.Refs)
+		graphCluster.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(cluster)
 
 		// We create these add ons in cluster creation since there is edge which would create them
 		// These are always installed in every cluster, no matter the configuration
-		cluster.installVpcCniAddon(cluster.ConstructsRef, dag)
+		cluster.installVpcCniAddon(cluster.ConstructRefs, dag)
 	}
 	return nil
 }
@@ -288,9 +288,9 @@ func (profile *EksFargateProfile) Create(dag *core.ResourceGraph, params EksFarg
 
 	existingProfile, found := core.GetResource[*EksFargateProfile](dag, profile.Id())
 	if found {
-		existingProfile.ConstructsRef.AddAll(params.Refs)
+		existingProfile.ConstructRefs.AddAll(params.Refs)
 	} else {
-		profile.ConstructsRef = params.Refs.Clone()
+		profile.ConstructRefs = params.Refs.Clone()
 		dag.AddResource(profile)
 	}
 	return nil
@@ -388,9 +388,9 @@ func (nodeGroup *EksNodeGroup) Create(dag *core.ResourceGraph, params EksNodeGro
 	nodeGroup.Name = fmt.Sprintf("%s_%s", params.AppName, name)
 	existingNodeGroup, found := core.GetResource[*EksNodeGroup](dag, nodeGroup.Id())
 	if found {
-		existingNodeGroup.ConstructsRef.AddAll(params.Refs)
+		existingNodeGroup.ConstructRefs.AddAll(params.Refs)
 	} else {
-		nodeGroup.ConstructsRef = params.Refs.Clone()
+		nodeGroup.ConstructRefs = params.Refs.Clone()
 		nodeGroup.InstanceTypes = []string{params.InstanceType}
 		nodeGroup.Labels = map[string]string{
 			"network_placement": params.NetworkType,
@@ -475,7 +475,9 @@ type EksNodeGroupConfigureParams struct {
 }
 
 func (nodeGroup *EksNodeGroup) Configure(params EksNodeGroupConfigureParams) error {
-	nodeGroup.AmiType = amiFromInstanceType(nodeGroup.InstanceTypes[0])
+	if len(nodeGroup.InstanceTypes) != 0 {
+		nodeGroup.AmiType = amiFromInstanceType(nodeGroup.InstanceTypes[0])
+	}
 	nodeGroup.DesiredSize = 2
 	nodeGroup.MaxSize = 2
 	nodeGroup.MinSize = 1
@@ -488,15 +490,15 @@ func (cluster *EksCluster) SetUpDefaultNodeGroup(dag *core.ResourceGraph, appNam
 	ng, err := core.CreateResource[*EksNodeGroup](dag, EksNodeGroupCreateParams{
 		InstanceType: "t3.medium",
 		NetworkType:  PrivateSubnet,
-		Refs:         cluster.ConstructsRef,
-		AppName:      appName,
+		Refs:         cluster.ConstructRefs,
+		AppName:      cluster.Name,
 	})
 	if err != nil {
 		return err
 	}
 	dag.AddDependency(ng, cluster)
 	cluster.CreatePrerequisiteCharts(dag)
-	err = cluster.InstallFluentBit(cluster.ConstructsRef, dag)
+	err = cluster.InstallFluentBit(cluster.ConstructRefs, dag)
 	if err != nil {
 		return err
 	}
@@ -512,7 +514,7 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 		{
 			Name:          cluster.Name + `-metrics-server`,
 			Chart:         "metrics-server",
-			ConstructRefs: cluster.ConstructsRef,
+			ConstructRefs: cluster.ConstructRefs,
 			Cluster:       cluster,
 			Repo:          `https://kubernetes-sigs.github.io/metrics-server/`,
 			IsInternal:    true,
@@ -520,7 +522,7 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 		{
 			Name:          cluster.Name + `-cert-manager`,
 			Chart:         `cert-manager`,
-			ConstructRefs: cluster.ConstructsRef,
+			ConstructRefs: cluster.ConstructRefs,
 
 			Cluster: cluster,
 			Repo:    `https://charts.jetstack.io`,
@@ -552,7 +554,7 @@ func (cluster *EksCluster) InstallNvidiaDevicePlugin(dag *core.ResourceGraph) {
 	for _, ng := range cluster.GetClustersNodeGroups(dag) {
 		dag.AddDependency(manifest, ng)
 		if strings.HasSuffix(strings.ToLower(ng.AmiType), "_gpu") {
-			manifest.ConstructRefs.AddAll(ng.ConstructsRef)
+			manifest.ConstructRefs.AddAll(ng.ConstructRefs)
 		}
 	}
 }
@@ -706,7 +708,7 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 	oidc, err := core.CreateResource[*OpenIdConnectProvider](dag, OidcCreateParams{
 		AppName:     appName,
 		ClusterName: strings.TrimLeft(cluster.Name, fmt.Sprintf("%s-", appName)),
-		Refs:        role.ConstructsRef.Clone(),
+		Refs:        role.ConstructRefs.Clone(),
 	})
 	var aRef core.BaseConstruct
 	for _, ref := range references {
@@ -763,7 +765,7 @@ func (cluster *EksCluster) installVpcCniAddon(references core.BaseConstructSet, 
 	addonName := "vpc-cni"
 	addon := &EksAddon{
 		Name:          fmt.Sprintf("%s-addon-%s", cluster.Name, addonName),
-		ConstructsRef: references,
+		ConstructRefs: references,
 		AddonName:     addonName,
 		ClusterName: &AwsResourceValue{
 			ResourceVal: cluster,
@@ -810,7 +812,7 @@ func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeco
 		PropertyVal: NAME_IAC_VALUE,
 	}
 	return &kubernetes.Kubeconfig{
-		ConstructsRef:  cluster.ConstructsRef,
+		ConstructRefs:  cluster.ConstructRefs,
 		Name:           fmt.Sprintf("%s-eks-kubeconfig", cluster.Name),
 		ApiVersion:     "v1",
 		CurrentContext: clusterNameIaCValue,
@@ -894,9 +896,9 @@ func GetServiceAccountAssumeRolePolicy(serviceAccountName string, oidc *OpenIdCo
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (cluster *EksCluster) BaseConstructsRef() core.BaseConstructSet {
-	return cluster.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (cluster *EksCluster) BaseConstructRefs() core.BaseConstructSet {
+	return cluster.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -914,9 +916,9 @@ func (c *EksCluster) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (addon *EksAddon) BaseConstructsRef() core.BaseConstructSet {
-	return addon.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (addon *EksAddon) BaseConstructRefs() core.BaseConstructSet {
+	return addon.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -934,9 +936,9 @@ func (addon *EksAddon) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (profile *EksFargateProfile) BaseConstructsRef() core.BaseConstructSet {
-	return profile.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (profile *EksFargateProfile) BaseConstructRefs() core.BaseConstructSet {
+	return profile.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -954,9 +956,9 @@ func (profile *EksFargateProfile) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (group *EksNodeGroup) BaseConstructsRef() core.BaseConstructSet {
-	return group.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (group *EksNodeGroup) BaseConstructRefs() core.BaseConstructSet {
+	return group.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

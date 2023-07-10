@@ -15,7 +15,7 @@ const (
 type (
 	KinesisStream struct {
 		Name                 string
-		ConstructsRef        core.BaseConstructSet `yaml:"-"`
+		ConstructRefs        core.BaseConstructSet `yaml:"-"`
 		RetentionPeriodHours int
 		ShardCount           int
 		StreamEncryption     *StreamEncryption
@@ -33,7 +33,7 @@ type (
 
 	KinesisStreamConsumer struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		ConsumerName  string
 		Stream        *KinesisStream
 	}
@@ -49,11 +49,11 @@ func (stream *KinesisStream) Create(dag *core.ResourceGraph, params KinesisStrea
 
 	name := aws.KinesisStreamSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	stream.Name = name
-	stream.ConstructsRef = params.Refs
+	stream.ConstructRefs = params.Refs
 
 	existingStream, found := core.GetResource[*KinesisStream](dag, stream.Id())
 	if found {
-		existingStream.ConstructsRef.AddAll(params.Refs)
+		existingStream.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(stream)
@@ -80,20 +80,20 @@ func (consumer *KinesisStreamConsumer) Create(dag *core.ResourceGraph, params Ki
 	name := aws.KinesisStreamSanitizer.Apply(fmt.Sprintf("%s-%s", params.Stream.Name, params.Name))
 	consumer.Name = name
 	consumer.ConsumerName = aws.KinesisStreamSanitizer.Apply(params.Name)
-	consumer.ConstructsRef = params.Stream.ConstructsRef.Clone()
+	consumer.ConstructRefs = params.Stream.ConstructRefs.Clone()
 	consumer.Stream = params.Stream
 	existingConsumer, found := core.GetResource[*KinesisStreamConsumer](dag, consumer.Id())
 	if found {
-		existingConsumer.ConstructsRef.AddAll(params.Stream.ConstructsRef)
+		existingConsumer.ConstructRefs.AddAll(params.Stream.ConstructRefs)
 		return nil
 	}
 	dag.AddDependenciesReflect(consumer)
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (stream *KinesisStream) BaseConstructsRef() core.BaseConstructSet {
-	return stream.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (stream *KinesisStream) BaseConstructRefs() core.BaseConstructSet {
+	return stream.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -111,9 +111,9 @@ func (role *KinesisStream) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (consumer *KinesisStreamConsumer) BaseConstructsRef() core.BaseConstructSet {
-	return consumer.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (consumer *KinesisStreamConsumer) BaseConstructRefs() core.BaseConstructSet {
+	return consumer.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

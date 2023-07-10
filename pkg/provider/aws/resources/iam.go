@@ -91,7 +91,7 @@ var EKS_ASSUME_ROLE_POLICY = &PolicyDocument{
 type (
 	IamRole struct {
 		Name                string
-		ConstructsRef       core.BaseConstructSet `yaml:"-"`
+		ConstructRefs       core.BaseConstructSet `yaml:"-"`
 		AssumeRolePolicyDoc *PolicyDocument
 		ManagedPolicies     []*AwsResourceValue
 		AwsManagedPolicies  []string
@@ -100,13 +100,13 @@ type (
 
 	IamPolicy struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Policy        *PolicyDocument
 	}
 
 	IamInlinePolicy struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Policy        *PolicyDocument
 	}
 
@@ -136,7 +136,7 @@ type (
 
 	OpenIdConnectProvider struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		ClientIdLists []string
 		Cluster       *EksCluster
 		Region        *Region
@@ -144,14 +144,14 @@ type (
 
 	RolePolicyAttachment struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Policy        *IamPolicy
 		Role          *IamRole
 	}
 
 	InstanceProfile struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Role          *IamRole
 	}
 )
@@ -164,7 +164,7 @@ type RoleCreateParams struct {
 
 func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) error {
 	role.Name = roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	role.ConstructsRef = params.Refs.Clone()
+	role.ConstructRefs = params.Refs.Clone()
 
 	existingRole := dag.GetResource(role.Id())
 	if existingRole != nil {
@@ -183,10 +183,10 @@ type IamPolicyCreateParams struct {
 
 func (policy *IamPolicy) Create(dag *core.ResourceGraph, params IamPolicyCreateParams) error {
 	policy.Name = policySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	policy.ConstructsRef = params.Refs.Clone()
+	policy.ConstructRefs = params.Refs.Clone()
 	existingPolicy, found := core.GetResource[*IamPolicy](dag, policy.Id())
 	if found {
-		existingPolicy.ConstructsRef.AddAll(params.Refs)
+		existingPolicy.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(policy)
@@ -205,9 +205,9 @@ func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCr
 	existingOidc := dag.GetResource(oidc.Id())
 	if existingOidc != nil {
 		graphOidc := existingOidc.(*OpenIdConnectProvider)
-		graphOidc.ConstructsRef.AddAll(params.Refs)
+		graphOidc.ConstructRefs.AddAll(params.Refs)
 	} else {
-		oidc.ConstructsRef = params.Refs.Clone()
+		oidc.ConstructRefs = params.Refs.Clone()
 		dag.AddResource(oidc)
 	}
 	return nil
@@ -239,10 +239,10 @@ type InstanceProfileCreateParams struct {
 
 func (profile *InstanceProfile) Create(dag *core.ResourceGraph, params InstanceProfileCreateParams) error {
 	profile.Name = roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	profile.ConstructsRef = params.Refs.Clone()
+	profile.ConstructRefs = params.Refs.Clone()
 	existingProfile, found := core.GetResource[*InstanceProfile](dag, profile.Id())
 	if found {
-		existingProfile.ConstructsRef.AddAll(params.Refs)
+		existingProfile.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(profile)
@@ -286,9 +286,9 @@ func CreateAllowPolicyDocument(actions []string, resources []*AwsResourceValue) 
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (role *IamRole) BaseConstructsRef() core.BaseConstructSet {
-	return role.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (role *IamRole) BaseConstructRefs() core.BaseConstructSet {
+	return role.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -334,7 +334,7 @@ func (role *IamRole) AddManagedPolicy(policy *AwsResourceValue) {
 func NewIamPolicy(appName string, policyName string, ref core.BaseConstruct, policy *PolicyDocument) *IamPolicy {
 	return &IamPolicy{
 		Name:          policySanitizer.Apply(fmt.Sprintf("%s-%s", appName, policyName)),
-		ConstructsRef: core.BaseConstructSetOf(ref),
+		ConstructRefs: core.BaseConstructSetOf(ref),
 		Policy:        policy,
 	}
 }
@@ -342,7 +342,7 @@ func NewIamPolicy(appName string, policyName string, ref core.BaseConstruct, pol
 func NewIamInlinePolicy(policyName string, refs core.BaseConstructSet, policy *PolicyDocument) *IamInlinePolicy {
 	return &IamInlinePolicy{
 		Name:          policySanitizer.Apply(policyName),
-		ConstructsRef: refs,
+		ConstructRefs: refs,
 		Policy:        policy,
 	}
 }
@@ -357,9 +357,9 @@ func (policy *IamPolicy) AddPolicyDocument(doc *PolicyDocument) {
 	policy.Policy.Deduplicate()
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (policy *IamPolicy) BaseConstructsRef() core.BaseConstructSet {
-	return policy.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (policy *IamPolicy) BaseConstructRefs() core.BaseConstructSet {
+	return policy.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -377,9 +377,9 @@ func (policy *IamPolicy) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (oidc *OpenIdConnectProvider) BaseConstructsRef() core.BaseConstructSet {
-	return oidc.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (oidc *OpenIdConnectProvider) BaseConstructRefs() core.BaseConstructSet {
+	return oidc.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -397,8 +397,8 @@ func (oidc *OpenIdConnectProvider) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (role *RolePolicyAttachment) BaseConstructsRef() core.BaseConstructSet {
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (role *RolePolicyAttachment) BaseConstructRefs() core.BaseConstructSet {
 	return nil
 }
 
@@ -417,8 +417,8 @@ func (role *RolePolicyAttachment) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (profile *InstanceProfile) BaseConstructsRef() core.BaseConstructSet {
-	return profile.ConstructsRef
+func (profile *InstanceProfile) BaseConstructRefs() core.BaseConstructSet {
+	return profile.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

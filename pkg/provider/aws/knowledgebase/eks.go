@@ -42,14 +42,14 @@ var EksKB = knowledgebase.Build(
 					return err
 				}
 			}
-			err := cluster.CreateFargateLogging(profile.ConstructsRef, dag)
+			err := cluster.CreateFargateLogging(profile.ConstructRefs, dag)
 			return err
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.EksNodeGroup, *resources.EksCluster]{
 		Configure: func(nodeGroup *resources.EksNodeGroup, cluster *resources.EksCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			cluster.CreatePrerequisiteCharts(dag)
-			err := cluster.InstallFluentBit(nodeGroup.ConstructsRef, dag)
+			err := cluster.InstallFluentBit(nodeGroup.ConstructRefs, dag)
 			if err != nil {
 				return err
 			}
@@ -69,6 +69,7 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.ServiceAccount, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.TargetGroupBinding, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.ServiceExport, *resources.EksCluster]{},
+	knowledgebase.EdgeBuilder[*kubernetes.HorizontalPodAutoscaler, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksNodeGroup]{},
@@ -80,8 +81,8 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *kubernetes.HelmChart]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *kubernetes.KustomizeDirectory]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.PrivateDnsNamespace]{},
-	knowledgebase.EdgeBuilder[*kubernetes.TargetGroupBinding, *resources.TargetGroup]{
-		ReverseDirection: true,
+	knowledgebase.EdgeBuilder[*resources.TargetGroup, *kubernetes.TargetGroupBinding]{
+		DeploymentOrderReversed: true,
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Region]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Vpc]{},

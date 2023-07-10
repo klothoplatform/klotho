@@ -23,12 +23,12 @@ func Test_EcsServiceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, group *EcsService) {
 				assert.Equal(group.Name, "my-app-service")
-				assert.Equal(group.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(group.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing profile",
-			Existing: &EcsService{Name: "my-app-service", ConstructsRef: initialRefs},
+			Existing: &EcsService{Name: "my-app-service", ConstructRefs: initialRefs},
 			WantErr:  true,
 		},
 	}
@@ -145,12 +145,12 @@ func Test_EcsTaskDefinitionCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, td *EcsTaskDefinition) {
 				assert.Equal(td.Name, "my-app-td")
-				assert.Equal(td.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(td.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing profile",
-			Existing: &EcsTaskDefinition{Name: "my-app-td", ConstructsRef: initialRefs},
+			Existing: &EcsTaskDefinition{Name: "my-app-td", ConstructRefs: initialRefs},
 			WantErr:  true,
 		},
 	}
@@ -216,12 +216,12 @@ func Test_EcsCluster(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, cluster *EcsCluster) {
 				assert.Equal(cluster.Name, "my-app-cluster")
-				assert.Equal(cluster.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(cluster.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing ecs cluster",
-			Existing: &EcsCluster{Name: "my-app-cluster", ConstructsRef: initialRefs},
+			Existing: &EcsCluster{Name: "my-app-cluster", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ecs_cluster:my-app-cluster",
@@ -229,7 +229,7 @@ func Test_EcsCluster(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, cluster *EcsCluster) {
 				assert.Equal(cluster.Name, "my-app-cluster")
-				assert.Equal(cluster.ConstructsRef, initialRefs.CloneWith(core.BaseConstructSetOf(eu)))
+				assert.Equal(cluster.ConstructRefs, initialRefs.CloneWith(core.BaseConstructSetOf(eu)))
 			}},
 	}
 	for _, tt := range cases {

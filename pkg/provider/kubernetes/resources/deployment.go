@@ -28,7 +28,7 @@ const (
 	DEPLOYMENT_TYPE = "deployment"
 )
 
-func (deployment *Deployment) BaseConstructsRef() core.BaseConstructSet {
+func (deployment *Deployment) BaseConstructRefs() core.BaseConstructSet {
 	return deployment.ConstructRefs
 }
 

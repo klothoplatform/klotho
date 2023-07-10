@@ -57,13 +57,13 @@ func Test_Engine_Run(t *testing.T) {
 			},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"mock:mock1:compute",
+					"mock:mock1:mock1-compute",
 					"mock:mock2:Corm",
-					"mock:mock3:orm",
+					"mock:mock3:mock3-orm",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "mock:mock1:compute", Destination: "mock:mock2:Corm"},
-					{Source: "mock:mock2:Corm", Destination: "mock:mock3:orm"},
+					{Source: "mock:mock1:mock1-compute", Destination: "mock:mock2:Corm"},
+					{Source: "mock:mock2:Corm", Destination: "mock:mock3:mock3-orm"},
 				},
 			},
 		},
@@ -85,9 +85,8 @@ func Test_Engine_Run(t *testing.T) {
 			}
 
 			engine.LoadContext(cg, tt.constraints, "test")
+			engine.ClassificationDocument = enginetesting.BaseClassificationDocument
 			dag, err := engine.Run()
-			tt.want.Assert(t, dag)
-
 			if !assert.NoError(err) {
 				return
 			}

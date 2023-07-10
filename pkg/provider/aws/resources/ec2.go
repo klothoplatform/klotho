@@ -16,7 +16,7 @@ const (
 type (
 	Ec2Instance struct {
 		Name            string
-		ConstructsRef   core.BaseConstructSet `yaml:"-"`
+		ConstructRefs   core.BaseConstructSet `yaml:"-"`
 		InstanceProfile *InstanceProfile
 		SecurityGroups  []*SecurityGroup
 		Subnet          *Subnet
@@ -26,7 +26,7 @@ type (
 
 	AMI struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 	}
 )
 
@@ -38,11 +38,11 @@ type Ec2InstanceCreateParams struct {
 
 func (instance *Ec2Instance) Create(dag *core.ResourceGraph, params Ec2InstanceCreateParams) error {
 	instance.Name = aws.Ec2InstanceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	instance.ConstructsRef = params.Refs.Clone()
+	instance.ConstructRefs = params.Refs.Clone()
 
 	existingInstance, found := core.GetResource[*Ec2Instance](dag, instance.Id())
 	if found {
-		existingInstance.ConstructsRef.AddAll(params.Refs)
+		existingInstance.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(instance)
@@ -151,11 +151,11 @@ type AMICreateParams struct {
 
 func (ami *AMI) Create(dag *core.ResourceGraph, params AMICreateParams) error {
 	ami.Name = aws.Ec2InstanceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	ami.ConstructsRef = params.Refs.Clone()
+	ami.ConstructRefs = params.Refs.Clone()
 
 	existingAMI, found := core.GetResource[*AMI](dag, ami.Id())
 	if found {
-		existingAMI.ConstructsRef.AddAll(params.Refs)
+		existingAMI.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(ami)
@@ -170,9 +170,9 @@ func (instance *Ec2Instance) Configure(params Ec2InstanceConfigureParams) error 
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (instance *Ec2Instance) BaseConstructsRef() core.BaseConstructSet {
-	return instance.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (instance *Ec2Instance) BaseConstructRefs() core.BaseConstructSet {
+	return instance.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -192,9 +192,9 @@ func (instance *Ec2Instance) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ami *AMI) BaseConstructsRef() core.BaseConstructSet {
-	return ami.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (ami *AMI) BaseConstructRefs() core.BaseConstructSet {
+	return ami.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

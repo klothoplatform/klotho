@@ -23,12 +23,12 @@ func Test_SecurityGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, sg *SecurityGroup) {
 				assert.Equal(sg.Name, "my-app")
-				assert.Equal(sg.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(sg.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing igw",
-			Existing: &SecurityGroup{Name: "my-app", ConstructsRef: initialRefs},
+			Existing: &SecurityGroup{Name: "my-app", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:security_group:my-app",
@@ -37,7 +37,7 @@ func Test_SecurityGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, sg *SecurityGroup) {
 				assert.Equal(sg.Name, "my-app")
-				assert.Equal(sg.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(sg.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}

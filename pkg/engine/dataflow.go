@@ -1,14 +1,14 @@
 package engine
 
 import (
+	"sort"
+
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/filter"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	awsResources "github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	k8sResources "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"go.uber.org/zap"
-	"sort"
 )
 
 type nodeSettings struct {
@@ -59,7 +59,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	}
 
 	// Add relevant resources to the dataflow DAG
-	for _, resource := range e.Context.EndState.ListResources() {
+	for _, resource := range e.Context.Solution.ListResources() {
 		if collectionutil.Contains(typesWeCareAbout, resource.Id().Type) || collectionutil.Contains(parentResourceTypes, resource.Id().Type) {
 			dataFlowDag.AddResource(resource)
 		}
@@ -74,7 +74,11 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 			if src == dst {
 				continue
 			}
-			paths := e.KnowledgeBase.FindPathsInGraph(src, dst, e.Context.EndState)
+			paths, err := e.Context.Solution.AllPaths(src.Id(), dst.Id())
+			if err != nil {
+				zap.S().Debugf("Error getting paths between %s and %s: %s", src.Id(), dst.Id(), err.Error())
+				continue
+			}
 			if len(paths) > 0 {
 				sort.SliceStable(paths, func(i, j int) bool {
 					return len(paths[i]) < len(paths[j])
@@ -82,15 +86,9 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 				addedDep := false
 				for _, path := range paths {
 					pathHasDep := false
-					for _, edge := range path {
-						if collectionutil.Contains(typesWeCareAbout, edge.Source.Id().Type) && edge.Source.Id() != src.Id() && edge.Source.Id() != dst.Id() {
-							dataFlowDag.AddDependency(src, edge.Source)
-							addedDep = true
-							pathHasDep = true
-							break
-						}
-						if collectionutil.Contains(typesWeCareAbout, edge.Destination.Id().Type) && edge.Destination.Id() != src.Id() && edge.Destination.Id() != dst.Id() {
-							dataFlowDag.AddDependency(src, edge.Destination)
+					for _, res := range path {
+						if collectionutil.Contains(typesWeCareAbout, res.Id().Type) && res.Id() != src.Id() && res.Id() != dst.Id() {
+							dataFlowDag.AddDependency(src, res)
 							addedDep = true
 							pathHasDep = true
 							break
@@ -112,21 +110,26 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 				}
 			}
 		}
-		var parentPaths [][]graph.Edge[core.Resource]
+		var parentPaths [][]core.Resource
 		for _, p := range srcParents {
-			parentPaths = append(parentPaths, e.KnowledgeBase.FindPathsInGraph(src, p, e.Context.EndState)...)
+			paths, err := e.Context.Solution.AllPaths(src.Id(), p.Id())
+			if err != nil {
+				zap.S().Debugf("Error getting paths between %s and %s: %s", src.Id(), p.Id(), err.Error())
+				continue
+			}
+			parentPaths = append(parentPaths, paths...)
 		}
 		sort.SliceStable(parentPaths, func(i, j int) bool {
 			return len(parentPaths[i]) < len(parentPaths[j])
 		})
 
 		// TODO: look into why FindPathsInGraph is returning unrelated paths. this filter is a workaround.
-		parentPaths = filter.NewSimpleFilter[[]graph.Edge[core.Resource]](func(path []graph.Edge[core.Resource]) bool {
-			return collectionutil.Contains(parentResourceTypes, path[len(path)-1].Destination.Id().Type)
+		parentPaths = filter.NewSimpleFilter[[]core.Resource](func(path []core.Resource) bool {
+			return collectionutil.Contains(parentResourceTypes, path[len(path)-1].Id().Type)
 		}).Apply(parentPaths...)
 
 		if len(parentPaths) > 0 {
-			closestParent := parentPaths[0][len(parentPaths[0])-1].Destination
+			closestParent := parentPaths[0][len(parentPaths[0])-1]
 			dataFlowDag.AddDependency(src, closestParent)
 		}
 	}

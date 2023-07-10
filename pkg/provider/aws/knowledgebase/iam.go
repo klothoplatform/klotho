@@ -21,7 +21,7 @@ var IamKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.Secret]{
 		Configure: func(role *resources.IamRole, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			secretPolicyDoc := resources.CreateAllowPolicyDocument([]string{"secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"}, []*resources.AwsResourceValue{{ResourceVal: secret, PropertyVal: resources.ARN_IAC_VALUE}})
-			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-secretpolicy", secret.Name), role.ConstructsRef.CloneWith(secret.ConstructsRef), secretPolicyDoc)
+			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-secretpolicy", secret.Name), role.ConstructRefs.CloneWith(secret.ConstructRefs), secretPolicyDoc)
 			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
 			return nil
 		},
@@ -72,7 +72,7 @@ var IamKB = knowledgebase.Build(
 				{ResourceVal: table, PropertyVal: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
 			}
 			doc := resources.CreateAllowPolicyDocument(actions, policyResources)
-			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-dynamodb-policy", table.Name), role.ConstructsRef.CloneWith(table.ConstructsRef), doc)
+			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-dynamodb-policy", table.Name), role.ConstructRefs.CloneWith(table.ConstructRefs), doc)
 			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
 			return nil
 		},
@@ -93,7 +93,7 @@ var IamKB = knowledgebase.Build(
 				"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
 				"arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy",
 			})
-			role.InlinePolicies = append(role.InlinePolicies, resources.NewIamInlinePolicy("fargate-pod-execution-policy", profile.ConstructsRef,
+			role.InlinePolicies = append(role.InlinePolicies, resources.NewIamInlinePolicy("fargate-pod-execution-policy", profile.ConstructRefs,
 				&resources.PolicyDocument{Version: resources.VERSION, Statement: []resources.StatementEntry{
 					{
 						Effect: "Allow",
@@ -128,13 +128,13 @@ var IamKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.IamRole]{
 		Configure: func(chart *kubernetes.HelmChart, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if len(role.ConstructsRef) > 1 {
-				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
+			if len(role.ConstructRefs) > 1 {
+				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructRefs), role.ConstructRefs)
 			}
 			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
 				AppName:     data.AppName,
 				ClusterName: strings.TrimLeft(chart.ClustersProvider.Resource().Id().Name, fmt.Sprintf("%s-", data.AppName)),
-				Refs:        role.ConstructsRef.Clone(),
+				Refs:        role.ConstructRefs.Clone(),
 			})
 			dag.AddDependency(role, oidc)
 			return err
@@ -148,13 +148,13 @@ var IamKB = knowledgebase.Build(
 			if role.AssumeRolePolicyDoc != nil {
 				return nil
 			}
-			if len(role.ConstructsRef) > 1 {
-				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
+			if len(role.ConstructRefs) > 1 {
+				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructRefs), role.ConstructRefs)
 			}
 			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
 				AppName:     data.AppName,
 				ClusterName: strings.TrimLeft(manifest.ClustersProvider.Resource().Id().Name, fmt.Sprintf("%s-", data.AppName)),
-				Refs:        role.ConstructsRef.Clone(),
+				Refs:        role.ConstructRefs.Clone(),
 			})
 			dag.AddDependency(role, oidc)
 			return err
@@ -167,11 +167,11 @@ var IamKB = knowledgebase.Build(
 				role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy("aws-load-balancer-controller", oidc)
 				return nil
 			}
-			if len(role.ConstructsRef) > 1 {
-				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
+			if len(role.ConstructRefs) > 1 {
+				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructRefs), role.ConstructRefs)
 			}
 			var ref core.ResourceId
-			for cons := range role.ConstructsRef {
+			for cons := range role.ConstructRefs {
 				ref = cons
 			}
 			role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(ref.Name, oidc)
@@ -183,7 +183,7 @@ var IamKB = knowledgebase.Build(
 		Configure: func(role *resources.IamRole, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			role.InlinePolicies = append(role.InlinePolicies, resources.NewIamInlinePolicy(
 				fmt.Sprintf(`%s-access`, bucket.Name),
-				role.ConstructsRef.CloneWith(bucket.ConstructsRef),
+				role.ConstructRefs.CloneWith(bucket.ConstructRefs),
 				resources.CreateAllowPolicyDocument(
 					[]string{"s3:*"},
 					[]*resources.AwsResourceValue{
@@ -204,7 +204,7 @@ var IamKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.RdsInstance]{
 		Configure: func(role *resources.IamRole, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name),
-				role.ConstructsRef.CloneWith(instance.ConstructsRef), instance.GetConnectionPolicyDocument())
+				role.ConstructRefs.CloneWith(instance.ConstructRefs), instance.GetConnectionPolicyDocument())
 			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
 			return nil
 		},
@@ -222,7 +222,7 @@ var IamKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.InstanceProfile, *resources.IamRole]{
 		Configure: func(source *resources.InstanceProfile, destination *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			inlinePolicy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-instanceProfilePolicy", source.Name), source.ConstructsRef.CloneWith(destination.ConstructsRef),
+			inlinePolicy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-instanceProfilePolicy", source.Name), source.ConstructRefs.CloneWith(destination.ConstructRefs),
 				&resources.PolicyDocument{
 					Version: resources.VERSION,
 					Statement: resources.CreateAllowPolicyDocument([]string{

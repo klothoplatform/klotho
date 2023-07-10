@@ -26,7 +26,7 @@ func Test_ConstructConstraint_IsSatisfied(t *testing.T) {
 			resources: []core.Resource{
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructsRef: core.BaseConstructSetOf(eu),
+					ConstructRefs: core.BaseConstructSetOf(eu),
 				},
 			},
 			want: true,
@@ -41,7 +41,7 @@ func Test_ConstructConstraint_IsSatisfied(t *testing.T) {
 			resources: []core.Resource{
 				&resources.Ec2Instance{
 					Name:          "my_instance",
-					ConstructsRef: core.BaseConstructSetOf(eu),
+					ConstructRefs: core.BaseConstructSetOf(eu),
 				},
 			},
 			want: false,

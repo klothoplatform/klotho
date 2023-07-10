@@ -45,8 +45,8 @@ type (
 	}
 )
 
-// BaseConstructsRef returns a slice containing the ids of any Klotho constructs is correlated to
-func (manifest *Manifest) BaseConstructsRef() core.BaseConstructSet { return manifest.ConstructRefs }
+// BaseConstructRefs returns a slice containing the ids of any Klotho constructs is correlated to
+func (manifest *Manifest) BaseConstructRefs() core.BaseConstructSet { return manifest.ConstructRefs }
 
 func (manifest *Manifest) Id() core.ResourceId {
 	return core.ResourceId{

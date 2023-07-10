@@ -15,7 +15,7 @@ const (
 type (
 	PrivateDnsNamespace struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Vpc           *Vpc
 	}
 )
@@ -27,11 +27,11 @@ type PrivateDnsNamespaceCreateParams struct {
 
 func (namespace *PrivateDnsNamespace) Create(dag *core.ResourceGraph, params PrivateDnsNamespaceCreateParams) error {
 	namespace.Name = privateDnsNamespaceSanitizer.Apply(params.AppName)
-	namespace.ConstructsRef = params.Refs.Clone()
+	namespace.ConstructRefs = params.Refs.Clone()
 
 	existingNamespace, found := core.GetResource[*PrivateDnsNamespace](dag, namespace.Id())
 	if found {
-		existingNamespace.ConstructsRef.AddAll(params.Refs)
+		existingNamespace.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(namespace)
 	}
@@ -62,9 +62,9 @@ func (namespace *PrivateDnsNamespace) MakeOperational(dag *core.ResourceGraph, a
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ns *PrivateDnsNamespace) BaseConstructsRef() core.BaseConstructSet {
-	return ns.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (ns *PrivateDnsNamespace) BaseConstructRefs() core.BaseConstructSet {
+	return ns.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

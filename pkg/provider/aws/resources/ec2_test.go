@@ -23,12 +23,12 @@ func Test_Ec2InstanceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, instance *Ec2Instance) {
 				assert.Equal(instance.Name, "my-app-profile")
-				assert.Equal(instance.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(instance.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing instance",
-			Existing: &Ec2Instance{Name: "my-app-profile", ConstructsRef: initialRefs},
+			Existing: &Ec2Instance{Name: "my-app-profile", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ec2_instance:my-app-profile",
@@ -38,7 +38,7 @@ func Test_Ec2InstanceCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, instance *Ec2Instance) {
 				assert.Equal(instance.Name, "my-app-profile")
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
-				assert.Equal(instance.ConstructsRef, expect)
+				assert.Equal(instance.ConstructRefs, expect)
 			},
 		},
 	}
@@ -128,12 +128,12 @@ func Test_AMICreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ami *AMI) {
 				assert.Equal(ami.Name, "my-app-profile")
-				assert.Equal(ami.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(ami.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing instance",
-			Existing: &AMI{Name: "my-app-profile", ConstructsRef: initialRefs},
+			Existing: &AMI{Name: "my-app-profile", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ami:my-app-profile",
@@ -143,7 +143,7 @@ func Test_AMICreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, ami *AMI) {
 				assert.Equal(ami.Name, "my-app-profile")
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
-				assert.Equal(ami.ConstructsRef, expect)
+				assert.Equal(ami.ConstructRefs, expect)
 			},
 		},
 	}

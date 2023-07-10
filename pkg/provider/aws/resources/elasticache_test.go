@@ -24,12 +24,12 @@ func Test_ElasticacheClusterCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ec *ElasticacheCluster) {
 				assert.Equal(ec.Name, "my-app-ec")
-				assert.Equal(ec.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(ec.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing function",
-			Existing: &ElasticacheCluster{Name: "my-app-ec", ConstructsRef: initialRefs},
+			Existing: &ElasticacheCluster{Name: "my-app-ec", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:elasticache_cluster:my-app-ec",
@@ -38,7 +38,7 @@ func Test_ElasticacheClusterCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ec *ElasticacheCluster) {
 				assert.Equal(ec.Name, "my-app-ec")
-				assert.Equal(ec.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(ec.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -145,12 +145,12 @@ func Test_ElasticacheSubnetGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ec *ElasticacheSubnetgroup) {
 				assert.Equal(ec.Name, "my-app-ec")
-				assert.Equal(ec.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(ec.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing function",
-			Existing: &ElasticacheSubnetgroup{Name: "my-app-ec", ConstructsRef: initialRefs},
+			Existing: &ElasticacheSubnetgroup{Name: "my-app-ec", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:elasticache_subnetgroup:my-app-ec",
@@ -159,7 +159,7 @@ func Test_ElasticacheSubnetGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ec *ElasticacheSubnetgroup) {
 				assert.Equal(ec.Name, "my-app-ec")
-				assert.Equal(ec.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(ec.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}

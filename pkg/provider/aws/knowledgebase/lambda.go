@@ -140,7 +140,7 @@ var LambdaKB = knowledgebase.Build(
 			}
 			attachment := &resources.RolePolicyAttachment{
 				Name:          fmt.Sprintf("%s-%s", source.Role.Name, policy.Name),
-				ConstructsRef: source.ConstructsRef.CloneWith(destination.ConstructsRef),
+				ConstructRefs: source.ConstructRefs.CloneWith(destination.ConstructRefs),
 				Policy:        policy,
 				Role:          source.Role,
 			}

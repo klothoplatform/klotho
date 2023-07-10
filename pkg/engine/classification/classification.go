@@ -32,16 +32,23 @@ type (
 
 func (g *Gives) UnmarshalJSON(content []byte) error {
 	givesString := string(content)
+	if givesString == "" {
+		return nil
+	}
 	gives := strings.Split(givesString, ":")
-	g.Attribute = gives[0]
-	g.Functionality = strings.Split(gives[1], ",")
+	g.Attribute = strings.ReplaceAll(gives[0], "\"", "")
+	if len(gives) == 1 {
+		g.Functionality = []string{"*"}
+		return nil
+	}
+	g.Functionality = strings.Split(strings.ReplaceAll(gives[1], "\"", ""), ",")
 	return nil
 }
 
 func (c *ClassificationDocument) GivesAttributeForFunctionality(resource core.Resource, attribute string, functionality core.Functionality) bool {
 	bareRes := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(core.Resource)
 	for _, give := range c.Classifications[bareRes.Id().String()].Gives {
-		if give.Attribute == attribute && collectionutil.Contains(give.Functionality, string(functionality)) {
+		if give.Attribute == attribute && (collectionutil.Contains(give.Functionality, string(functionality)) || collectionutil.Contains(give.Functionality, "*")) {
 			return true
 		}
 	}

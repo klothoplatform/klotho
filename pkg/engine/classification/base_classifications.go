@@ -14,6 +14,6 @@ var BaseClassificationDocument = &ClassificationDocument{
 		"aws:s3_bucket:":           {Gives: []Gives{}, Is: []string{"storage", "blob"}},
 		"aws:secret:":              {Gives: []Gives{}, Is: []string{"storage", "secret"}},
 		"aws:vpc:":                 {Gives: []Gives{}, Is: []string{"network"}},
-		"kubernetes:deployment:":   {Gives: []Gives{}, Is: []string{"compute"}},
+		"kubernetes:deployment:":   {Gives: []Gives{}, Is: []string{"compute", "kubernetes"}},
 	},
 }

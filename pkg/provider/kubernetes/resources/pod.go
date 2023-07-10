@@ -27,7 +27,7 @@ const (
 	POD_TYPE = "pod"
 )
 
-func (pod *Pod) BaseConstructsRef() core.BaseConstructSet {
+func (pod *Pod) BaseConstructRefs() core.BaseConstructSet {
 	return pod.ConstructRefs
 }
 

@@ -25,3 +25,20 @@ func (e *Engine) ListProviders() []string {
 	}
 	return providers
 }
+
+func (e *Engine) ListAttributes() []string {
+	attributesMap := map[string]bool{}
+	for _, classification := range e.ClassificationDocument.Classifications {
+		for _, gives := range classification.Gives {
+			attributesMap[gives.Attribute] = true
+		}
+		for _, is := range classification.Is {
+			attributesMap[is] = true
+		}
+	}
+	attributes := []string{}
+	for attribute := range attributesMap {
+		attributes = append(attributes, attribute)
+	}
+	return attributes
+}

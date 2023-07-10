@@ -11,7 +11,7 @@ type (
 	SecurityGroup struct {
 		Name          string
 		Vpc           *Vpc
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		IngressRules  []SecurityGroupRule
 		EgressRules   []SecurityGroupRule
 	}
@@ -35,11 +35,11 @@ type SecurityGroupCreateParams struct {
 func (sg *SecurityGroup) Create(dag *core.ResourceGraph, params SecurityGroupCreateParams) error {
 
 	sg.Name = params.AppName
-	sg.ConstructsRef = params.Refs.Clone()
+	sg.ConstructRefs = params.Refs.Clone()
 	existingSG := dag.GetResource(sg.Id())
 	if existingSG != nil {
 		graphSG := existingSG.(*SecurityGroup)
-		graphSG.ConstructsRef.AddAll(params.Refs)
+		graphSG.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(sg)
 	}
@@ -75,9 +75,9 @@ func (sg *SecurityGroup) MakeOperational(dag *core.ResourceGraph, appName string
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (sg *SecurityGroup) BaseConstructsRef() core.BaseConstructSet {
-	return sg.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (sg *SecurityGroup) BaseConstructRefs() core.BaseConstructSet {
+	return sg.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

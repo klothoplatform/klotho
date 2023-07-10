@@ -15,7 +15,7 @@ type (
 		CloudwatchGroup *LogGroup
 		SubnetGroup     *ElasticacheSubnetgroup
 		SecurityGroups  []*SecurityGroup
-		ConstructsRef   core.BaseConstructSet `yaml:"-"`
+		ConstructRefs   core.BaseConstructSet `yaml:"-"`
 		NodeType        string
 		NumCacheNodes   int
 	}
@@ -23,7 +23,7 @@ type (
 	ElasticacheSubnetgroup struct {
 		Name          string
 		Subnets       []*Subnet
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 	}
 )
 
@@ -32,9 +32,9 @@ const (
 	ELASTICACHE_SUBNETGROUP_TYPE = "elasticache_subnetgroup"
 )
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ec *ElasticacheCluster) BaseConstructsRef() core.BaseConstructSet {
-	return ec.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (ec *ElasticacheCluster) BaseConstructRefs() core.BaseConstructSet {
+	return ec.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -54,9 +54,9 @@ func (ec *ElasticacheCluster) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ecsn *ElasticacheSubnetgroup) BaseConstructsRef() core.BaseConstructSet {
-	return ecsn.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (ecsn *ElasticacheSubnetgroup) BaseConstructRefs() core.BaseConstructSet {
+	return ecsn.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -82,11 +82,11 @@ type ElasticacheClusterCreateParams struct {
 
 func (ec *ElasticacheCluster) Create(dag *core.ResourceGraph, params ElasticacheClusterCreateParams) error {
 	ec.Name = aws.ElasticacheClusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	ec.ConstructsRef = params.Refs.Clone()
+	ec.ConstructRefs = params.Refs.Clone()
 	ec.SecurityGroups = make([]*SecurityGroup, 1)
 
 	if existingCluster, ok := core.GetResource[*ElasticacheCluster](dag, ec.Id()); ok {
-		existingCluster.ConstructsRef.AddAll(params.Refs)
+		existingCluster.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(ec)
@@ -178,9 +178,9 @@ type ElasticacheSubnetgroupCreateParams struct {
 
 func (ecsn *ElasticacheSubnetgroup) Create(dag *core.ResourceGraph, params ElasticacheSubnetgroupCreateParams) error {
 	ecsn.Name = aws.ElasticacheClusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	ecsn.ConstructsRef = params.Refs.Clone()
+	ecsn.ConstructRefs = params.Refs.Clone()
 	if existingSubnetGroup, ok := core.GetResource[*ElasticacheSubnetgroup](dag, ecsn.Id()); ok {
-		existingSubnetGroup.ConstructsRef.AddAll(params.Refs)
+		existingSubnetGroup.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(ecsn)

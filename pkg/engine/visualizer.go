@@ -10,7 +10,7 @@ func (e *Engine) VisualizeViews() ([]core.File, error) {
 		FilenamePrefix: "iac-",
 		AppName:        e.Context.AppName,
 		Provider:       "aws",
-		DAG:            e.Context.EndState,
+		DAG:            e.Context.Solution,
 	}
 	dataflow_topo := &visualizer.File{
 		FilenamePrefix: "dataflow-",

@@ -23,12 +23,12 @@ func Test_S3BucketCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, bucket *S3Bucket) {
 				assert.Equal(bucket.Name, "my-app-bucket")
-				assert.Equal(bucket.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(bucket.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing bucket",
-			Existing: &S3Bucket{Name: "my-app-bucket", ConstructsRef: initialRefs},
+			Existing: &S3Bucket{Name: "my-app-bucket", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:s3_bucket:my-app-bucket",
@@ -37,7 +37,7 @@ func Test_S3BucketCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, bucket *S3Bucket) {
 				assert.Equal(bucket.Name, "my-app-bucket")
-				assert.Equal(bucket.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(bucket.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -68,14 +68,14 @@ func Test_S3ObjectCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, bucket *S3Object) {
 				assert.Equal(bucket.Name, "my-app-object")
-				assert.Equal(bucket.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(bucket.ConstructRefs, core.BaseConstructSetOf(eu))
 				assert.Equal(bucket.Key, "key")
 				assert.Equal(bucket.FilePath, "filepath")
 			},
 		},
 		{
 			Name:     "existing object",
-			Existing: &S3Object{Name: "my-app-object", ConstructsRef: initialRefs},
+			Existing: &S3Object{Name: "my-app-object", ConstructRefs: initialRefs},
 			WantErr:  true,
 		},
 	}
@@ -173,12 +173,12 @@ func Test_S3BucketPolicyCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, bucket *S3BucketPolicy) {
 				assert.Equal(bucket.Name, "my-app-policy")
-				assert.Equal(bucket.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(bucket.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing policy",
-			Existing: &S3BucketPolicy{Name: "my-app-policy", ConstructsRef: initialRefs},
+			Existing: &S3BucketPolicy{Name: "my-app-policy", ConstructRefs: initialRefs},
 			WantErr:  true,
 		},
 	}

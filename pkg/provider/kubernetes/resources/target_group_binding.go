@@ -25,7 +25,7 @@ const (
 	TARGET_GROUP_BINDING_TYPE = "target_group_binding"
 )
 
-func (tgb *TargetGroupBinding) BaseConstructsRef() core.BaseConstructSet {
+func (tgb *TargetGroupBinding) BaseConstructRefs() core.BaseConstructSet {
 	return tgb.ConstructRefs
 }
 

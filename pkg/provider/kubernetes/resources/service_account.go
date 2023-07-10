@@ -26,8 +26,8 @@ const (
 	SERVICE_ACCOUNT_TYPE = "service_account"
 )
 
-// BaseConstructsRef returns a slice containing the ids of any Klotho constructs is correlated to
-func (sa *ServiceAccount) BaseConstructsRef() core.BaseConstructSet { return sa.ConstructRefs }
+// BaseConstructRefs returns a slice containing the ids of any Klotho constructs is correlated to
+func (sa *ServiceAccount) BaseConstructRefs() core.BaseConstructSet { return sa.ConstructRefs }
 
 func (sa *ServiceAccount) Id() core.ResourceId {
 	return core.ResourceId{

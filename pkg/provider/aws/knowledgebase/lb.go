@@ -21,8 +21,8 @@ var LbKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.Listener, *resources.LoadBalancer]{
-		Configure: func(listener *resources.Listener, loadBalancer *resources.LoadBalancer, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+	knowledgebase.EdgeBuilder[*resources.LoadBalancer, *resources.Listener]{
+		Configure: func(loadBalancer *resources.LoadBalancer, listener *resources.Listener, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if listener.LoadBalancer != loadBalancer {
 				return fmt.Errorf("listener %s does not belong to load balancer %s", listener.Id(), loadBalancer.Id())
 			}
@@ -31,7 +31,7 @@ var LbKB = knowledgebase.Build(
 			listener.Port = 80
 			return nil
 		},
-		ReverseDirection: true,
+		DeploymentOrderReversed: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.LoadBalancer, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.LoadBalancer, *resources.SecurityGroup]{},

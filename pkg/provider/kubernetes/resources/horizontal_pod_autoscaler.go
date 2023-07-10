@@ -26,7 +26,7 @@ const (
 	HORIZONTAL_POD_AUTOSCALER_TYPE = "horizontal_pod_autoscaler"
 )
 
-func (hpa *HorizontalPodAutoscaler) BaseConstructsRef() core.BaseConstructSet {
+func (hpa *HorizontalPodAutoscaler) BaseConstructRefs() core.BaseConstructSet {
 	return hpa.ConstructRefs
 }
 

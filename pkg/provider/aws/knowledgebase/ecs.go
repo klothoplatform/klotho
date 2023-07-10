@@ -106,9 +106,9 @@ var EcsKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.TargetGroup]{
-		ReverseDirection: true,
-		Configure: func(service *resources.EcsService, tg *resources.TargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+	knowledgebase.EdgeBuilder[*resources.TargetGroup, *resources.EcsService]{
+		DeploymentOrderReversed: true,
+		Configure: func(tg *resources.TargetGroup, service *resources.EcsService, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if service.TaskDefinition == nil || len(service.TaskDefinition.PortMappings) != 1 {
 				return fmt.Errorf("cannot configure edge %s -> %s, the service's task definition does not have exactly one port mapping", service.Id(), tg.Id())
 			}

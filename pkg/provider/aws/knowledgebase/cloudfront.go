@@ -16,7 +16,7 @@ var CloudfrontKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.CloudfrontDistribution, *resources.S3Bucket]{
 		Configure: func(distro *resources.CloudfrontDistribution, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			var errs multierr.Error
-			for _, consRef := range distro.ConstructsRef {
+			for _, consRef := range distro.ConstructRefs {
 				conn := s3ToCloudfrontConnection{
 					distro:    distro,
 					bucket:    bucket,
@@ -38,16 +38,16 @@ var CloudfrontKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.CloudfrontDistribution, *resources.ApiStage]{
 		Configure: func(distro *resources.CloudfrontDistribution, stage *resources.ApiStage, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			var gwId string
-			switch len(stage.ConstructsRef) {
+			switch len(stage.ConstructRefs) {
 			case 0:
 				return errors.Errorf(`couldn't determine the id of the construct that created API stage "%s"`, stage.Id())
 			case 1:
-				for cons := range stage.ConstructsRef {
+				for cons := range stage.ConstructRefs {
 					gwId = cons.Name
 				}
 			default:
 				var ids []string
-				for cons := range stage.ConstructsRef {
+				for cons := range stage.ConstructRefs {
 					ids = append(ids, cons.Name)
 				}
 				sort.Strings(ids)

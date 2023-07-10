@@ -822,7 +822,7 @@ func (tc TemplatesCompiler) addIngressRuleToCluster(out io.Writer, cluster *reso
 	}
 
 	sgRule := &SecurityGroupRule{
-		ConstructsRef: cluster.ConstructsRef,
+		ConstructRefs: cluster.ConstructRefs,
 		Name:          fmt.Sprintf("%s-ingress", cluster.Name),
 		Description:   "Allows access to cluster from the VPCs private and public subnets",
 		FromPort:      0,
@@ -848,7 +848,7 @@ func (tc TemplatesCompiler) renderKubernetesProvider(out io.Writer, cluster *res
 
 	provider := &KubernetesProvider{
 		Name:          fmt.Sprintf("%s-provider", cluster.Name),
-		ConstructsRef: cluster.ConstructsRef,
+		ConstructRefs: cluster.ConstructRefs,
 		KubeConfig:    cluster.Kubeconfig,
 	}
 	_, err = out.Write([]byte("\n\n"))

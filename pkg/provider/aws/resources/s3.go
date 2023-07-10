@@ -24,14 +24,14 @@ const (
 type (
 	S3Bucket struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		ForceDestroy  bool
 		IndexDocument string
 	}
 
 	S3Object struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Bucket        *S3Bucket
 		Key           string
 		FilePath      string
@@ -39,15 +39,15 @@ type (
 
 	S3BucketPolicy struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Bucket        *S3Bucket
 		Policy        *PolicyDocument
 	}
 )
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (bucket *S3Bucket) BaseConstructsRef() core.BaseConstructSet {
-	return bucket.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (bucket *S3Bucket) BaseConstructRefs() core.BaseConstructSet {
+	return bucket.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -84,11 +84,11 @@ func (bucket *S3Bucket) Create(dag *core.ResourceGraph, params S3BucketCreatePar
 		// Multiple resources may create the same bucket (for example, this happens with our payload bucket and with
 		// static unit S3Objects). If that happens, just append the refs and exit early; the rest would have been
 		// idempotent.
-		existingS3.ConstructsRef.AddAll(params.Refs)
+		existingS3.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 
-	bucket.ConstructsRef = params.Refs.Clone()
+	bucket.ConstructRefs = params.Refs.Clone()
 	dag.AddResource(bucket)
 	return nil
 }
@@ -117,7 +117,7 @@ func (object *S3Object) Create(dag *core.ResourceGraph, params S3ObjectCreatePar
 	if dag.GetResource(object.Id()) != nil {
 		return fmt.Errorf(`S3Object with name %s already exists`, object.Name)
 	}
-	object.ConstructsRef = params.Refs.Clone()
+	object.ConstructRefs = params.Refs.Clone()
 	object.Key = params.Key
 	object.FilePath = params.FilePath
 	dag.AddResource(object)
@@ -136,9 +136,9 @@ func (object *S3Object) MakeOperational(dag *core.ResourceGraph, appName string,
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (object *S3Object) BaseConstructsRef() core.BaseConstructSet {
-	return object.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (object *S3Object) BaseConstructRefs() core.BaseConstructSet {
+	return object.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -164,7 +164,7 @@ type S3BucketPolicyCreateParams struct {
 
 func (policy *S3BucketPolicy) Create(dag *core.ResourceGraph, params S3BucketPolicyCreateParams) error {
 	policy.Name = objectSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	policy.ConstructsRef = params.Refs.Clone()
+	policy.ConstructRefs = params.Refs.Clone()
 	if dag.GetResource(policy.Id()) != nil {
 		return errors.Errorf(`a bucket policy named "%s" already exists (internal error)`, policy.Id().String())
 	}
@@ -184,9 +184,9 @@ func (policy *S3BucketPolicy) MakeOperational(dag *core.ResourceGraph, appName s
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (policy *S3BucketPolicy) BaseConstructsRef() core.BaseConstructSet {
-	return policy.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (policy *S3BucketPolicy) BaseConstructRefs() core.BaseConstructSet {
+	return policy.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

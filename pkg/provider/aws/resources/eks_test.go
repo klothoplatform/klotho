@@ -26,12 +26,12 @@ func Test_EksClusterCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, cluster *EksCluster) {
 				assert.Equal(cluster.Name, "my-app-cluster")
-				assert.Equal(cluster.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(cluster.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing cluster",
-			Existing: &EksCluster{Name: "my-app-cluster", ConstructsRef: initialRefs},
+			Existing: &EksCluster{Name: "my-app-cluster", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:eks_cluster:my-app-cluster",
@@ -40,7 +40,7 @@ func Test_EksClusterCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, cluster *EksCluster) {
 				assert.Equal(cluster.Name, "my-app-cluster")
-				assert.Equal(cluster.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(cluster.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -66,7 +66,7 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
 					"aws:eks_cluster:my_app",
-					"aws:eks_node_group:my-app_private_t3_medium",
+					"aws:eks_node_group:my_app_private_t3_medium",
 					"aws:elastic_ip:my_app_0",
 					"aws:elastic_ip:my_app_1",
 					"aws:iam_role:my-app-my_app-ClusterAdmin",
@@ -96,7 +96,7 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:my_app:my_app_public0"},
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:my_app:my_app_public1"},
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:vpc:my_app"},
-					{Source: "aws:eks_node_group:my-app_private_t3_medium", Destination: "aws:eks_cluster:my_app"},
+					{Source: "aws:eks_node_group:my_app_private_t3_medium", Destination: "aws:eks_cluster:my_app"},
 					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
 					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_1"},
 					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public1"},
@@ -123,8 +123,8 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
 					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:vpc:my_app"},
-					{Source: "kubernetes:helm_chart:my_app-cert-manager", Destination: "aws:eks_node_group:my-app_private_t3_medium"},
-					{Source: "kubernetes:helm_chart:my_app-metrics-server", Destination: "aws:eks_node_group:my-app_private_t3_medium"},
+					{Source: "kubernetes:helm_chart:my_app-cert-manager", Destination: "aws:eks_node_group:my_app_private_t3_medium"},
+					{Source: "kubernetes:helm_chart:my_app-metrics-server", Destination: "aws:eks_node_group:my_app_private_t3_medium"},
 					{Source: "kubernetes:manifest:my_app-awmazon-cloudwatch-ns", Destination: "aws:eks_cluster:my_app"},
 					{Source: "kubernetes:manifest:my_app-fluent-bit", Destination: "aws:eks_cluster:my_app"},
 					{Source: "kubernetes:manifest:my_app-fluent-bit", Destination: "kubernetes:manifest:my_app-fluent-bit-cluster-info-config-map"},
@@ -151,7 +151,7 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
 					"aws:eks_cluster:my_app",
-					"aws:eks_node_group:my-app_private_t3_medium",
+					"aws:eks_node_group:my_app_private_t3_medium",
 					"aws:elastic_ip:my_app_0",
 					"aws:elastic_ip:my_app_1",
 					"aws:iam_role:ClusterAdmin",
@@ -181,7 +181,7 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:my_app:my_app_public0"},
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:my_app:my_app_public1"},
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:vpc:my_app"},
-					{Source: "aws:eks_node_group:my-app_private_t3_medium", Destination: "aws:eks_cluster:my_app"},
+					{Source: "aws:eks_node_group:my_app_private_t3_medium", Destination: "aws:eks_cluster:my_app"},
 					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
 					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_1"},
 					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public1"},
@@ -208,8 +208,8 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 					{Source: "aws:subnet_public:my_app:my_app_public0", Destination: "aws:vpc:my_app"},
 					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:subnet_public:my_app:my_app_public1", Destination: "aws:vpc:my_app"},
-					{Source: "kubernetes:helm_chart:my_app-cert-manager", Destination: "aws:eks_node_group:my-app_private_t3_medium"},
-					{Source: "kubernetes:helm_chart:my_app-metrics-server", Destination: "aws:eks_node_group:my-app_private_t3_medium"},
+					{Source: "kubernetes:helm_chart:my_app-cert-manager", Destination: "aws:eks_node_group:my_app_private_t3_medium"},
+					{Source: "kubernetes:helm_chart:my_app-metrics-server", Destination: "aws:eks_node_group:my_app_private_t3_medium"},
 					{Source: "kubernetes:manifest:my_app-awmazon-cloudwatch-ns", Destination: "aws:eks_cluster:my_app"},
 					{Source: "kubernetes:manifest:my_app-fluent-bit", Destination: "aws:eks_cluster:my_app"},
 					{Source: "kubernetes:manifest:my_app-fluent-bit", Destination: "kubernetes:manifest:my_app-fluent-bit-cluster-info-config-map"},
@@ -236,7 +236,7 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
 					"aws:eks_cluster:my_app",
-					"aws:eks_node_group:my-app_private_t3_medium",
+					"aws:eks_node_group:my_app_private_t3_medium",
 					"aws:elastic_ip:my_app_0",
 					"aws:elastic_ip:my_app_1",
 					"aws:iam_role:my-app-my_app-ClusterAdmin",
@@ -266,7 +266,7 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:test:my_app_public0"},
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:test:my_app_public1"},
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:vpc:test"},
-					{Source: "aws:eks_node_group:my-app_private_t3_medium", Destination: "aws:eks_cluster:my_app"},
+					{Source: "aws:eks_node_group:my_app_private_t3_medium", Destination: "aws:eks_cluster:my_app"},
 					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test"},
 					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_1"},
 					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:test:my_app_public1"},
@@ -293,8 +293,8 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 					{Source: "aws:subnet_public:test:my_app_public0", Destination: "aws:vpc:test"},
 					{Source: "aws:subnet_public:test:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:subnet_public:test:my_app_public1", Destination: "aws:vpc:test"},
-					{Source: "kubernetes:helm_chart:my_app-cert-manager", Destination: "aws:eks_node_group:my-app_private_t3_medium"},
-					{Source: "kubernetes:helm_chart:my_app-metrics-server", Destination: "aws:eks_node_group:my-app_private_t3_medium"},
+					{Source: "kubernetes:helm_chart:my_app-cert-manager", Destination: "aws:eks_node_group:my_app_private_t3_medium"},
+					{Source: "kubernetes:helm_chart:my_app-metrics-server", Destination: "aws:eks_node_group:my_app_private_t3_medium"},
 					{Source: "kubernetes:manifest:my_app-awmazon-cloudwatch-ns", Destination: "aws:eks_cluster:my_app"},
 					{Source: "kubernetes:manifest:my_app-fluent-bit", Destination: "aws:eks_cluster:my_app"},
 					{Source: "kubernetes:manifest:my_app-fluent-bit", Destination: "kubernetes:manifest:my_app-fluent-bit-cluster-info-config-map"},
@@ -321,7 +321,7 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:eks_cluster:my_app",
-					"aws:eks_node_group:my-app_private_t3_medium",
+					"aws:eks_node_group:my_app_private_t3_medium",
 					"aws:iam_role:my-app-my_app-ClusterAdmin",
 					"aws:security_group:test:my-app",
 					"aws:subnet_private:test:test",
@@ -337,11 +337,11 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:security_group:test:my-app"},
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_private:test:test"},
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:vpc:test"},
-					{Source: "aws:eks_node_group:my-app_private_t3_medium", Destination: "aws:eks_cluster:my_app"},
+					{Source: "aws:eks_node_group:my_app_private_t3_medium", Destination: "aws:eks_cluster:my_app"},
 					{Source: "aws:security_group:test:my-app", Destination: "aws:vpc:test"},
 					{Source: "aws:subnet_private:test:test", Destination: "aws:vpc:test"},
-					{Source: "kubernetes:helm_chart:my_app-cert-manager", Destination: "aws:eks_node_group:my-app_private_t3_medium"},
-					{Source: "kubernetes:helm_chart:my_app-metrics-server", Destination: "aws:eks_node_group:my-app_private_t3_medium"},
+					{Source: "kubernetes:helm_chart:my_app-cert-manager", Destination: "aws:eks_node_group:my_app_private_t3_medium"},
+					{Source: "kubernetes:helm_chart:my_app-metrics-server", Destination: "aws:eks_node_group:my_app_private_t3_medium"},
 					{Source: "kubernetes:manifest:my_app-awmazon-cloudwatch-ns", Destination: "aws:eks_cluster:my_app"},
 					{Source: "kubernetes:manifest:my_app-fluent-bit", Destination: "aws:eks_cluster:my_app"},
 					{Source: "kubernetes:manifest:my_app-fluent-bit", Destination: "kubernetes:manifest:my_app-fluent-bit-cluster-info-config-map"},
@@ -369,7 +369,7 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
 					"aws:eks_cluster:my_app",
-					"aws:eks_node_group:my-app_private_t3_medium",
+					"aws:eks_node_group:my_app_private_t3_medium",
 					"aws:elastic_ip:my_app_0",
 					"aws:elastic_ip:my_app_1",
 					"aws:iam_role:my-app-my_app-ClusterAdmin",
@@ -399,7 +399,7 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:test:my_app_public0"},
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_public:test:my_app_public1"},
 					{Source: "aws:eks_cluster:my_app", Destination: "aws:vpc:test"},
-					{Source: "aws:eks_node_group:my-app_private_t3_medium", Destination: "aws:eks_cluster:my_app"},
+					{Source: "aws:eks_node_group:my_app_private_t3_medium", Destination: "aws:eks_cluster:my_app"},
 					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:test"},
 					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_1"},
 					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:test:my_app_public1"},
@@ -426,8 +426,8 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 					{Source: "aws:subnet_public:test:my_app_public0", Destination: "aws:vpc:test"},
 					{Source: "aws:subnet_public:test:my_app_public1", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:subnet_public:test:my_app_public1", Destination: "aws:vpc:test"},
-					{Source: "kubernetes:helm_chart:my_app-cert-manager", Destination: "aws:eks_node_group:my-app_private_t3_medium"},
-					{Source: "kubernetes:helm_chart:my_app-metrics-server", Destination: "aws:eks_node_group:my-app_private_t3_medium"},
+					{Source: "kubernetes:helm_chart:my_app-cert-manager", Destination: "aws:eks_node_group:my_app_private_t3_medium"},
+					{Source: "kubernetes:helm_chart:my_app-metrics-server", Destination: "aws:eks_node_group:my_app_private_t3_medium"},
 					{Source: "kubernetes:manifest:my_app-awmazon-cloudwatch-ns", Destination: "aws:eks_cluster:my_app"},
 					{Source: "kubernetes:manifest:my_app-fluent-bit", Destination: "aws:eks_cluster:my_app"},
 					{Source: "kubernetes:manifest:my_app-fluent-bit", Destination: "kubernetes:manifest:my_app-fluent-bit-cluster-info-config-map"},
@@ -476,12 +476,12 @@ func Test_EksFargateProfileCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, profile *EksFargateProfile) {
 				assert.Equal(profile.Name, "my-app_profile")
-				assert.Equal(profile.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(profile.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing profile",
-			Existing: &EksFargateProfile{Name: "my-app_profile", ConstructsRef: initialRefs},
+			Existing: &EksFargateProfile{Name: "my-app_profile", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:eks_fargate_profile:my-app_profile",
@@ -490,7 +490,7 @@ func Test_EksFargateProfileCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, profile *EksFargateProfile) {
 				assert.Equal(profile.Name, "my-app_profile")
-				assert.Equal(profile.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(profile.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -617,12 +617,12 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, group *EksNodeGroup) {
 				assert.Equal(group.Name, "my-app_private_t3_medium")
-				assert.Equal(group.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(group.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing profile",
-			Existing: &EksNodeGroup{Name: "my-app_private_t3_medium", ConstructsRef: initialRefs},
+			Existing: &EksNodeGroup{Name: "my-app_private_t3_medium", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:eks_node_group:my-app_private_t3_medium",
@@ -631,7 +631,7 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, group *EksNodeGroup) {
 				assert.Equal(group.Name, "my-app_private_t3_medium")
-				assert.Equal(group.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(group.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}

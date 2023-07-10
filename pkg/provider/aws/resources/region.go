@@ -7,17 +7,17 @@ import (
 type (
 	Region struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 	}
 
 	AvailabilityZones struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 	}
 
 	AccountId struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 	}
 )
 
@@ -36,13 +36,13 @@ var availabilityZones = []string{"0", "1"}
 func NewRegion() *Region {
 	return &Region{
 		Name:          REGION_NAME,
-		ConstructsRef: core.BaseConstructSetOf(),
+		ConstructRefs: core.BaseConstructSetOf(),
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (region *Region) BaseConstructsRef() core.BaseConstructSet {
-	return region.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (region *Region) BaseConstructRefs() core.BaseConstructSet {
+	return region.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -62,13 +62,13 @@ func (region *Region) DeleteContext() core.DeleteContext {
 func NewAvailabilityZones() *AvailabilityZones {
 	return &AvailabilityZones{
 		Name:          AVAILABILITY_ZONES_NAME,
-		ConstructsRef: core.BaseConstructSetOf(),
+		ConstructRefs: core.BaseConstructSetOf(),
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (azs *AvailabilityZones) BaseConstructsRef() core.BaseConstructSet {
-	return azs.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (azs *AvailabilityZones) BaseConstructRefs() core.BaseConstructSet {
+	return azs.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -89,13 +89,13 @@ func (azs *AvailabilityZones) DeleteContext() core.DeleteContext {
 func NewAccountId() *AccountId {
 	return &AccountId{
 		Name:          ACCOUNT_ID_NAME,
-		ConstructsRef: core.BaseConstructSetOf(),
+		ConstructRefs: core.BaseConstructSetOf(),
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (id *AccountId) BaseConstructsRef() core.BaseConstructSet {
-	return id.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (id *AccountId) BaseConstructRefs() core.BaseConstructSet {
+	return id.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

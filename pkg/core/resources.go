@@ -46,7 +46,7 @@ type (
 	// Resource describes a resource at the provider, infrastructure level
 	Resource interface {
 		BaseConstruct
-		BaseConstructsRef() BaseConstructSet
+		BaseConstructRefs() BaseConstructSet
 		DeleteContext() DeleteContext
 	}
 

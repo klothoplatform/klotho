@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
 
@@ -82,17 +81,15 @@ func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowle
 				if dstRes == nil {
 					return false
 				}
-				paths := kb.FindPathsInGraph(srcRes, dstRes, dag)
+				paths, err := dag.AllPaths(srcRes.Id(), dstRes.Id())
+				if err != nil {
+					return false
+				}
 				if len(paths) == 0 {
-					paths = append(paths, []graph.Edge[core.Resource]{})
+					paths = append(paths, []core.Resource{})
 				}
 
-				for _, p := range paths {
-					path := []core.Resource{}
-					for _, res := range p {
-						path = append(path, res.Source)
-						path = append(path, res.Destination)
-					}
+				for _, path := range paths {
 					if constraint.checkSatisfication(path) {
 						return true
 					}

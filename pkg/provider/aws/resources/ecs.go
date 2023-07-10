@@ -25,7 +25,7 @@ const (
 type (
 	EcsTaskDefinition struct {
 		Name                    string
-		ConstructsRef           core.BaseConstructSet `yaml:"-"`
+		ConstructRefs           core.BaseConstructSet `yaml:"-"`
 		Image                   *EcrImage
 		EnvironmentVariables    map[string]*AwsResourceValue
 		Cpu                     string
@@ -47,13 +47,13 @@ type (
 
 	EcsCluster struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		//TODO: add support for cluster configuration
 	}
 
 	EcsService struct {
 		Name                     string
-		ConstructsRef            core.BaseConstructSet `yaml:"-"`
+		ConstructRefs            core.BaseConstructSet `yaml:"-"`
 		AssignPublicIp           bool
 		Cluster                  *EcsCluster
 		DeploymentCircuitBreaker *EcsServiceDeploymentCircuitBreaker
@@ -116,7 +116,7 @@ func (td *EcsTaskDefinition) Create(dag *core.ResourceGraph, params EcsTaskDefin
 
 	name := aws.EcsTaskDefinitionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	td.Name = name
-	td.ConstructsRef = params.Refs.Clone()
+	td.ConstructRefs = params.Refs.Clone()
 
 	existingTaskDefinition := dag.GetResource(td.Id())
 	if existingTaskDefinition != nil {
@@ -217,8 +217,8 @@ func (td *EcsTaskDefinition) Configure(params EcsTaskDefinitionConfigureParams) 
 	return nil
 }
 
-func (td *EcsTaskDefinition) BaseConstructsRef() core.BaseConstructSet {
-	return td.ConstructsRef
+func (td *EcsTaskDefinition) BaseConstructRefs() core.BaseConstructSet {
+	return td.ConstructRefs
 }
 
 func (td *EcsTaskDefinition) Id() core.ResourceId {
@@ -238,7 +238,7 @@ func (td *EcsTaskDefinition) DeleteContext() core.DeleteContext {
 func (s *EcsService) Create(dag *core.ResourceGraph, params EcsServiceCreateParams) error {
 	name := aws.EcsServiceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	s.Name = name
-	s.ConstructsRef = params.Refs.Clone()
+	s.ConstructRefs = params.Refs.Clone()
 	s.LaunchType = params.LaunchType
 
 	existingService := dag.GetResource(s.Id())
@@ -337,8 +337,8 @@ func (s *EcsService) Configure(params EcsServiceConfigureParams) error {
 	return nil
 }
 
-func (s *EcsService) BaseConstructsRef() core.BaseConstructSet {
-	return s.ConstructsRef
+func (s *EcsService) BaseConstructRefs() core.BaseConstructSet {
+	return s.ConstructRefs
 }
 
 func (s *EcsService) Id() core.ResourceId {
@@ -360,17 +360,17 @@ func (td *EcsService) DeleteContext() core.DeleteContext {
 func (c *EcsCluster) Create(dag *core.ResourceGraph, params EcsClusterCreateParams) error {
 	name := aws.EcsClusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	c.Name = name
-	c.ConstructsRef = params.Refs.Clone()
+	c.ConstructRefs = params.Refs.Clone()
 
 	if existingCluster, ok := core.GetResource[*EcsCluster](dag, c.Id()); ok {
-		existingCluster.ConstructsRef.AddAll(params.Refs)
+		existingCluster.ConstructRefs.AddAll(params.Refs)
 	}
 	dag.AddResource(c)
 	return nil
 }
 
-func (c *EcsCluster) BaseConstructsRef() core.BaseConstructSet {
-	return c.ConstructsRef
+func (c *EcsCluster) BaseConstructRefs() core.BaseConstructSet {
+	return c.ConstructRefs
 }
 
 func (c *EcsCluster) Id() core.ResourceId {

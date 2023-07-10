@@ -24,7 +24,7 @@ const (
 	SERVICE_EXPORT_TYPE = "service_export"
 )
 
-func (se *ServiceExport) BaseConstructsRef() core.BaseConstructSet {
+func (se *ServiceExport) BaseConstructRefs() core.BaseConstructSet {
 	return se.ConstructRefs
 }
 

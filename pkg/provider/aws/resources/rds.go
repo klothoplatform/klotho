@@ -42,7 +42,7 @@ type (
 	// RdsInstance represents an AWS RDS db instance
 	RdsInstance struct {
 		Name                             string
-		ConstructsRef                    core.BaseConstructSet `yaml:"-"`
+		ConstructRefs                    core.BaseConstructSet `yaml:"-"`
 		SubnetGroup                      *RdsSubnetGroup
 		SecurityGroups                   []*SecurityGroup
 		DatabaseName                     string
@@ -61,7 +61,7 @@ type (
 	// RdsSubnetGroup represents an AWS RDS subnet group
 	RdsSubnetGroup struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Subnets       []*Subnet
 		Tags          map[string]string
 	}
@@ -69,7 +69,7 @@ type (
 	// RdsProxy represents an AWS RDS proxy instance
 	RdsProxy struct {
 		Name              string
-		ConstructsRef     core.BaseConstructSet `yaml:"-"`
+		ConstructRefs     core.BaseConstructSet `yaml:"-"`
 		DebugLogging      bool
 		EngineFamily      string
 		IdleClientTimeout int
@@ -90,7 +90,7 @@ type (
 	// RdsProxyTargetGroup represents an AWS RDS proxy target group
 	RdsProxyTargetGroup struct {
 		Name                            string
-		ConstructsRef                   core.BaseConstructSet `yaml:"-"`
+		ConstructRefs                   core.BaseConstructSet `yaml:"-"`
 		RdsInstance                     *RdsInstance
 		RdsProxy                        *RdsProxy
 		TargetGroupName                 string
@@ -117,7 +117,7 @@ func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceC
 
 	name := rdsInstanceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	instance.Name = name
-	instance.ConstructsRef = params.Refs.Clone()
+	instance.ConstructRefs = params.Refs.Clone()
 
 	existingInstance := dag.GetResource(instance.Id())
 	if existingInstance != nil {
@@ -205,12 +205,12 @@ type RdsSubnetGroupCreateParams struct {
 
 func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSubnetGroupCreateParams) error {
 	subnetGroup.Name = rdsSubnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	subnetGroup.ConstructsRef = params.Refs.Clone()
+	subnetGroup.ConstructRefs = params.Refs.Clone()
 
 	existingSubnetGroup := dag.GetResource(subnetGroup.Id())
 	if existingSubnetGroup != nil {
 		graphSubnetGroup := existingSubnetGroup.(*RdsSubnetGroup)
-		graphSubnetGroup.ConstructsRef.AddAll(params.Refs)
+		graphSubnetGroup.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
 		dag.AddResource(subnetGroup)
@@ -242,12 +242,12 @@ type RdsProxyCreateParams struct {
 
 func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreateParams) error {
 	proxy.Name = rdsSubnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	proxy.ConstructsRef = params.Refs.Clone()
+	proxy.ConstructRefs = params.Refs.Clone()
 
 	existingProxy := dag.GetResource(proxy.Id())
 	if existingProxy != nil {
 		graphProxy := existingProxy.(*RdsProxy)
-		graphProxy.ConstructsRef.AddAll(params.Refs)
+		graphProxy.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
 		dag.AddResource(proxy)
@@ -264,7 +264,7 @@ func (proxy *RdsProxy) MakeOperational(dag *core.ResourceGraph, appName string, 
 				"Role": RoleCreateParams{
 					AppName: appName,
 					Name:    fmt.Sprintf("%s-ProxyRole", proxy.Name),
-					Refs:    proxy.ConstructsRef,
+					Refs:    proxy.ConstructRefs,
 				},
 			})
 			if err != nil {
@@ -323,11 +323,11 @@ type RdsProxyTargetGroupCreateParams struct {
 func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTargetGroupCreateParams) error {
 
 	tg.Name = rdsProxySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	tg.ConstructsRef = params.Refs.Clone()
+	tg.ConstructRefs = params.Refs.Clone()
 	existingTG := dag.GetResource(tg.Id())
 	if existingTG != nil {
 		graphTG := existingTG.(*RdsProxyTargetGroup)
-		graphTG.ConstructsRef.AddAll(params.Refs)
+		graphTG.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
 		dag.AddResource(tg)
@@ -407,9 +407,9 @@ func generatePassword() string {
 	return b.String()
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsInstance) BaseConstructsRef() core.BaseConstructSet {
-	return rds.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rds *RdsInstance) BaseConstructRefs() core.BaseConstructSet {
+	return rds.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -432,9 +432,9 @@ func (rds *RdsInstance) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsSubnetGroup) BaseConstructsRef() core.BaseConstructSet {
-	return rds.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rds *RdsSubnetGroup) BaseConstructRefs() core.BaseConstructSet {
+	return rds.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -452,9 +452,9 @@ func (rds *RdsSubnetGroup) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsProxy) BaseConstructsRef() core.BaseConstructSet {
-	return rds.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rds *RdsProxy) BaseConstructRefs() core.BaseConstructSet {
+	return rds.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -472,9 +472,9 @@ func (rds *RdsProxy) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsProxyTargetGroup) BaseConstructsRef() core.BaseConstructSet {
-	return rds.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rds *RdsProxyTargetGroup) BaseConstructRefs() core.BaseConstructSet {
+	return rds.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

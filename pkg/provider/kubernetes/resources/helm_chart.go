@@ -27,8 +27,8 @@ type HelmChart struct {
 	IsInternal bool
 }
 
-// BaseConstructsRef returns a slice containing the ids of any Klotho constructs is correlated to
-func (chart *HelmChart) BaseConstructsRef() core.BaseConstructSet { return chart.ConstructRefs }
+// BaseConstructRefs returns a slice containing the ids of any Klotho constructs is correlated to
+func (chart *HelmChart) BaseConstructRefs() core.BaseConstructSet { return chart.ConstructRefs }
 
 func (chart *HelmChart) Id() core.ResourceId {
 	return core.ResourceId{

@@ -8,11 +8,11 @@ import (
 
 type (
 	EdgeBuilder[S core.Resource, D core.Resource] struct {
-		Configure           typedEdgeFunc[S, D]
-		DirectEdgeOnly      bool
-		ReverseDirection    bool
-		DeletetionDependent bool
-		Reuse               Reuse
+		Configure               typedEdgeFunc[S, D]
+		DirectEdgeOnly          bool
+		DeploymentOrderReversed bool
+		DeletetionDependent     bool
+		Reuse                   Reuse
 	}
 
 	typedEdgeFunc[S core.Resource, D core.Resource] func(source S, destination D, dag *core.ResourceGraph, data EdgeData) error
@@ -42,10 +42,10 @@ func (e EdgeBuilder[S, D]) Details() EdgeDetails {
 			}
 			return nil
 		},
-		DirectEdgeOnly:      e.DirectEdgeOnly,
-		ReverseDirection:    e.ReverseDirection,
-		DeletetionDependent: e.DeletetionDependent,
-		Reuse:               e.Reuse,
+		DirectEdgeOnly:          e.DirectEdgeOnly,
+		DeploymentOrderReversed: e.DeploymentOrderReversed,
+		DeletetionDependent:     e.DeletetionDependent,
+		Reuse:                   e.Reuse,
 	}
 }
 

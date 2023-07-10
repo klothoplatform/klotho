@@ -30,13 +30,13 @@ var apiResourceSanitizer = aws.ApiResourceSanitizer
 type (
 	RestApi struct {
 		Name             string
-		ConstructsRef    core.BaseConstructSet `yaml:"-"`
+		ConstructRefs    core.BaseConstructSet `yaml:"-"`
 		BinaryMediaTypes []string
 	}
 
 	ApiResource struct {
 		Name           string
-		ConstructsRef  core.BaseConstructSet `yaml:"-"`
+		ConstructRefs  core.BaseConstructSet `yaml:"-"`
 		RestApi        *RestApi
 		PathPart       string
 		ParentResource *ApiResource
@@ -44,7 +44,7 @@ type (
 
 	ApiMethod struct {
 		Name              string
-		ConstructsRef     core.BaseConstructSet `yaml:"-"`
+		ConstructRefs     core.BaseConstructSet `yaml:"-"`
 		RestApi           *RestApi
 		Resource          *ApiResource
 		HttpMethod        string
@@ -53,13 +53,13 @@ type (
 	}
 
 	VpcLink struct {
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Target        core.Resource
 	}
 
 	ApiIntegration struct {
 		Name                  string
-		ConstructsRef         core.BaseConstructSet `yaml:"-"`
+		ConstructRefs         core.BaseConstructSet `yaml:"-"`
 		RestApi               *RestApi
 		Resource              *ApiResource
 		Method                *ApiMethod
@@ -74,14 +74,14 @@ type (
 
 	ApiDeployment struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		RestApi       *RestApi
 		Triggers      map[string]string
 	}
 
 	ApiStage struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		StageName     string
 		RestApi       *RestApi
 		Deployment    *ApiDeployment
@@ -101,12 +101,12 @@ func (api *RestApi) Create(dag *core.ResourceGraph, params RestApiCreateParams) 
 		name = restApiSanitizer.Apply(params.Name)
 	}
 	api.Name = name
-	api.ConstructsRef = params.Refs.Clone()
+	api.ConstructRefs = params.Refs.Clone()
 
 	existingApi := dag.GetResource(api.Id())
 	if existingApi != nil {
 		graphApi := existingApi.(*RestApi)
-		graphApi.ConstructsRef.AddAll(params.Refs)
+		graphApi.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(api)
 	}
@@ -157,12 +157,12 @@ func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceC
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Path))
 	resource.Name = name
-	resource.ConstructsRef = params.Refs.Clone()
+	resource.ConstructRefs = params.Refs.Clone()
 
 	existingResource := dag.GetResource(resource.Id())
 	if existingResource != nil {
 		graphResource := existingResource.(*ApiResource)
-		graphResource.ConstructsRef.AddAll(params.Refs)
+		graphResource.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
 		segments := strings.Split(params.Path, "/")
@@ -203,12 +203,12 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.Path, params.HttpMethod))
 	integration.Name = name
-	integration.ConstructsRef = params.Refs.Clone()
+	integration.ConstructRefs = params.Refs.Clone()
 	integration.Route = convertPath(params.Path, false)
 
 	existingResource, found := core.GetResource[*ApiIntegration](dag, integration.Id())
 	if found {
-		existingResource.ConstructsRef.AddAll(params.Refs)
+		existingResource.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
 		dag.AddResource(integration)
@@ -264,13 +264,13 @@ func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateP
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.Path, params.HttpMethod))
 	method.Name = name
-	method.ConstructsRef = params.Refs.Clone()
+	method.ConstructRefs = params.Refs.Clone()
 	method.HttpMethod = params.HttpMethod
 
 	existingResource := dag.GetResource(method.Id())
 	if existingResource != nil {
 		graphResource := existingResource.(*ApiMethod)
-		graphResource.ConstructsRef.AddAll(params.Refs)
+		graphResource.ConstructRefs.AddAll(params.Refs)
 	} else {
 		subParams := map[string]any{
 			"RestApi": RestApiCreateParams{
@@ -318,14 +318,14 @@ func (deployment *ApiDeployment) Create(dag *core.ResourceGraph, params ApiDeplo
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	deployment.Name = name
-	deployment.ConstructsRef = params.Refs.Clone()
+	deployment.ConstructRefs = params.Refs.Clone()
 	if deployment.Triggers == nil {
 		deployment.Triggers = make(map[string]string)
 	}
 	existingDeployment := dag.GetResource(deployment.Id())
 	if existingDeployment != nil {
 		graphDeployment := existingDeployment.(*ApiDeployment)
-		graphDeployment.ConstructsRef.AddAll(params.Refs)
+		graphDeployment.ConstructRefs.AddAll(params.Refs)
 	} else {
 		err := dag.CreateDependencies(deployment, map[string]any{
 			"RestApi": RestApiCreateParams{
@@ -352,12 +352,12 @@ func (stage *ApiStage) Create(dag *core.ResourceGraph, params ApiStageCreatePara
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	stage.Name = name
-	stage.ConstructsRef = params.Refs.Clone()
+	stage.ConstructRefs = params.Refs.Clone()
 
 	existingResource := dag.GetResource(stage.Id())
 	if existingResource != nil {
 		graphResource := existingResource.(*ApiStage)
-		graphResource.ConstructsRef.AddAll(params.Refs)
+		graphResource.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
 		err := dag.CreateDependencies(stage, map[string]any{
@@ -392,9 +392,9 @@ func (stage *ApiStage) Configure(params ApiStageConfigureParams) error {
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (api *RestApi) BaseConstructsRef() core.BaseConstructSet {
-	return api.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (api *RestApi) BaseConstructRefs() core.BaseConstructSet {
+	return api.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -414,9 +414,9 @@ func (api *RestApi) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (res *ApiResource) BaseConstructsRef() core.BaseConstructSet {
-	return res.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (res *ApiResource) BaseConstructRefs() core.BaseConstructSet {
+	return res.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -435,9 +435,9 @@ func (res *ApiResource) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (method *ApiMethod) BaseConstructsRef() core.BaseConstructSet {
-	return method.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (method *ApiMethod) BaseConstructRefs() core.BaseConstructSet {
+	return method.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -456,9 +456,9 @@ func (method *ApiMethod) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (link *VpcLink) BaseConstructsRef() core.BaseConstructSet {
-	return link.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (link *VpcLink) BaseConstructRefs() core.BaseConstructSet {
+	return link.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -484,9 +484,9 @@ func (link *VpcLink) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (integration *ApiIntegration) BaseConstructsRef() core.BaseConstructSet {
-	return integration.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (integration *ApiIntegration) BaseConstructRefs() core.BaseConstructSet {
+	return integration.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -504,9 +504,9 @@ func (integration *ApiIntegration) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (deployment *ApiDeployment) BaseConstructsRef() core.BaseConstructSet {
-	return deployment.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (deployment *ApiDeployment) BaseConstructRefs() core.BaseConstructSet {
+	return deployment.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -525,9 +525,9 @@ func (deployment *ApiDeployment) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (stage *ApiStage) BaseConstructsRef() core.BaseConstructSet {
-	return stage.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (stage *ApiStage) BaseConstructRefs() core.BaseConstructSet {
+	return stage.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

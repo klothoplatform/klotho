@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -10,41 +11,32 @@ import (
 	"go.uber.org/zap"
 )
 
-func (e *Engine) expandEdges(i int) {
+func (e *Engine) expandEdges(graph *core.ResourceGraph) error {
 	zap.S().Debug("Engine Expanding Edges")
-	for _, dep := range e.Context.EndState.ListDependencies() {
-		src := dep.Source.Id()
-		dst := dep.Destination.Id()
-		if e.Context.ExpandedEdges[src] == nil {
-			e.Context.ExpandedEdges[src] = make(map[core.ResourceId]bool)
+	var joinedErr error
+	for _, dep := range graph.ListDependencies() {
+
+		edgeData, err := getEdgeData(dep)
+		if err != nil {
+			zap.S().Warnf("got error when getting edge data for edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
+			joinedErr = errors.Join(joinedErr, err)
+			continue
 		}
-		// If we know that the edge has a direct connection but is flipped due to data flow, immediately use that edge
-		if det, _ := e.KnowledgeBase.GetEdge(dep.Source, dep.Destination); det.ReverseDirection {
-			dep = graph.Edge[core.Resource]{Source: dep.Destination, Destination: dep.Source}
+		path, err := e.determineCorrectPath(dep, edgeData)
+		if err != nil {
+			zap.S().Warnf("got error when determining correct path for edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
+			joinedErr = errors.Join(joinedErr, err)
+			continue
 		}
-		if !e.Context.ExpandedEdges[src][dst] {
-			edgeData, err := getEdgeData(dep)
-			if err != nil {
-				zap.S().Warnf("got error when getting edge data for edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
-				e.Context.Errors[i] = append(e.Context.Errors[i], err)
-				continue
-			}
-			path, err := e.determineCorrectPath(dep, edgeData)
-			if err != nil {
-				zap.S().Warnf("got error when determining correct path for edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
-				e.Context.Errors[i] = append(e.Context.Errors[i], err)
-				continue
-			}
-			err = e.KnowledgeBase.ExpandEdge(&dep, e.Context.EndState, path, edgeData)
-			if err != nil {
-				zap.S().Warnf("got error when expanding edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
-				e.Context.Errors[i] = append(e.Context.Errors[i], err)
-				continue
-			}
+		err = e.KnowledgeBase.ExpandEdge(&dep, graph, path, edgeData)
+		if err != nil {
+			zap.S().Warnf("got error when expanding edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
+			joinedErr = errors.Join(joinedErr, err)
+			continue
 		}
-		e.Context.ExpandedEdges[src][dst] = true
 	}
 	zap.S().Debug("Engine Done Expanding Edges")
+	return joinedErr
 }
 
 func getEdgeData(dep graph.Edge[core.Resource]) (knowledgebase.EdgeData, error) {
@@ -65,7 +57,6 @@ func getEdgeData(dep graph.Edge[core.Resource]) (knowledgebase.EdgeData, error) 
 
 func (e *Engine) determineCorrectPath(dep graph.Edge[core.Resource], edgeData knowledgebase.EdgeData) (knowledgebase.Path, error) {
 	paths := e.KnowledgeBase.FindPaths(dep.Source, dep.Destination, edgeData.Constraint)
-	fmt.Println(paths)
 	var validPaths []knowledgebase.Path
 	for _, p := range paths {
 		if len(p) == 0 {
@@ -82,7 +73,6 @@ func (e *Engine) determineCorrectPath(dep graph.Edge[core.Resource], edgeData kn
 		return nil, err
 	}
 	zap.S().Debugf("Found valid path %s", validPath)
-	fmt.Println(validPath)
 	return validPath, nil
 }
 
@@ -91,11 +81,18 @@ func (e *Engine) containsUnneccessaryHopsInPath(dep graph.Edge[core.Resource], p
 		destType := reflect.TypeOf(dep.Destination)
 		if e.ClassificationDocument.GetFunctionality(dep.Destination) != core.Unknown {
 			if e.ClassificationDocument.GetFunctionality(dep.Destination) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Destination).Elem().Interface().(core.Resource)) && edge.Destination != destType {
-				zap.S().Debugf("Found unneccessary hop in path %s, destination %s has same functionality as edge's destination %s", p, dep.Destination.Id(), edge.Destination)
 				return true
 			}
 			if e.ClassificationDocument.GetFunctionality(dep.Destination) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Source).Elem().Interface().(core.Resource)) && edge.Source != destType {
-				zap.S().Debugf("Found unneccessary hop in path %s, destination %s has same functionality as edge's destination %s", p, dep.Destination.Id(), edge.Source)
+				return true
+			}
+		}
+		srcType := reflect.TypeOf(dep.Source)
+		if e.ClassificationDocument.GetFunctionality(dep.Source) != core.Unknown {
+			if e.ClassificationDocument.GetFunctionality(dep.Source) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Destination).Elem().Interface().(core.Resource)) && edge.Destination != srcType {
+				return true
+			}
+			if e.ClassificationDocument.GetFunctionality(dep.Source) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Source).Elem().Interface().(core.Resource)) && edge.Source != srcType {
 				return true
 			}
 		}

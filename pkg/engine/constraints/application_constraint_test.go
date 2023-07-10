@@ -36,7 +36,7 @@ func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructsRef: core.BaseConstructSetOf(eu),
+					ConstructRefs: core.BaseConstructSetOf(eu),
 				},
 			},
 			want: true,
@@ -97,7 +97,7 @@ func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructsRef: core.BaseConstructSetOf(eu),
+					ConstructRefs: core.BaseConstructSetOf(eu),
 				},
 			},
 			want: false,
@@ -130,7 +130,7 @@ func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructsRef: core.BaseConstructSetOf(eu2),
+					ConstructRefs: core.BaseConstructSetOf(eu2),
 				},
 			},
 			want: true,
@@ -160,7 +160,7 @@ func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructsRef: core.BaseConstructSetOf(eu),
+					ConstructRefs: core.BaseConstructSetOf(eu),
 				},
 			},
 			want: false,

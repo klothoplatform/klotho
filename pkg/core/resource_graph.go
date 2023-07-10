@@ -65,28 +65,6 @@ func (rg *ResourceGraph) String() string {
 	return buf.String()
 }
 
-func (rg *ResourceGraph) Equals(other *ResourceGraph) bool {
-	rgDeps := rg.ListDependencies()
-	otherDeps := other.ListDependencies()
-	rgNodes := rg.ListResources()
-	otherNodes := other.ListResources()
-	if len(rgDeps) != len(otherDeps) || len(rgNodes) != len(otherNodes) {
-		return false
-	}
-	for _, dep := range rgDeps {
-		if other.GetDependency(dep.Source.Id(), dep.Destination.Id()) == nil {
-			return false
-		}
-	}
-	for _, node := range rgNodes {
-		if other.GetResource(node.Id()) == nil {
-			return false
-		}
-	}
-
-	return true
-}
-
 func (rg *ResourceGraph) ShortestPath(source ResourceId, dest ResourceId) ([]Resource, error) {
 	ids, err := rg.underlying.ShortestPath(source.String(), dest.String())
 	if err != nil {
@@ -95,6 +73,21 @@ func (rg *ResourceGraph) ShortestPath(source ResourceId, dest ResourceId) ([]Res
 	resources := make([]Resource, len(ids))
 	for i, id := range ids {
 		resources[i] = rg.underlying.GetVertex(id)
+	}
+	return resources, nil
+}
+
+func (rg *ResourceGraph) AllPaths(source ResourceId, dest ResourceId) ([][]Resource, error) {
+	paths, err := rg.underlying.AllPaths(source.String(), dest.String())
+	if err != nil {
+		return nil, err
+	}
+	resources := make([][]Resource, len(paths))
+	for i, path := range paths {
+		resources[i] = make([]Resource, len(path))
+		for j, id := range path {
+			resources[i][j] = rg.underlying.GetVertex(id)
+		}
 	}
 	return resources, nil
 }
@@ -195,7 +188,7 @@ func GetResources[T Resource](g *ResourceGraph) (resources []T) {
 func (rg *ResourceGraph) FindResourcesWithRef(id ResourceId) []Resource {
 	var result []Resource
 	for _, resource := range rg.ListResources() {
-		if resource.BaseConstructsRef().Has(id) {
+		if resource.BaseConstructRefs().Has(id) {
 			result = append(result, resource)
 		}
 	}

@@ -36,10 +36,10 @@ var RdsKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.RdsProxyTargetGroup, *resources.RdsProxy]{
-		ReverseDirection: true,
-		Reuse:            knowledgebase.Upstream,
-		Configure: func(targetGroup *resources.RdsProxyTargetGroup, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+	knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.RdsProxyTargetGroup]{
+		DeploymentOrderReversed: true,
+		Reuse:                   knowledgebase.Upstream,
+		Configure: func(proxy *resources.RdsProxy, targetGroup *resources.RdsProxyTargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if targetGroup.RdsProxy == nil {
 				targetGroup.RdsProxy = proxy
 			} else if targetGroup.RdsProxy.Name != proxy.Name {
@@ -51,7 +51,7 @@ var RdsKB = knowledgebase.Build(
 			if len(proxy.Auths) == 0 {
 				secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 					AppName: data.AppName,
-					Refs:    proxy.BaseConstructsRef().Clone(),
+					Refs:    proxy.BaseConstructRefs().Clone(),
 					Name:    fmt.Sprintf("%s-credentials", strings.TrimPrefix(proxy.Name, fmt.Sprintf("%s-", data.AppName))),
 				})
 				if err != nil {
@@ -72,7 +72,7 @@ var RdsKB = knowledgebase.Build(
 				secretPolicy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
 					AppName: data.AppName,
 					Name:    fmt.Sprintf("%s-ormsecretpolicy", proxy.Name),
-					Refs:    proxy.ConstructsRef.Clone(),
+					Refs:    proxy.ConstructRefs.Clone(),
 				})
 				if err != nil {
 					return err

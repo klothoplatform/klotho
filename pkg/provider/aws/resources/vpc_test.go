@@ -23,12 +23,12 @@ func Test_VpcCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, vpc *Vpc) {
 				assert.Equal(vpc.Name, "my_app")
-				assert.Equal(vpc.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(vpc.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing load balancer",
-			Existing: &Vpc{Name: "my_app", ConstructsRef: initialRefs},
+			Existing: &Vpc{Name: "my_app", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:vpc:my_app",
@@ -37,7 +37,7 @@ func Test_VpcCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, vpc *Vpc) {
 				assert.Equal(vpc.Name, "my_app")
-				assert.Equal(vpc.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(vpc.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -67,12 +67,12 @@ func Test_ElasticIpCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, eip *ElasticIp) {
 				assert.Equal(eip.Name, "my_app_ip0")
-				assert.Equal(eip.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(eip.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing load balancer",
-			Existing: &ElasticIp{Name: "my_app_ip0", ConstructsRef: initialRefs},
+			Existing: &ElasticIp{Name: "my_app_ip0", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:elastic_ip:my_app_ip0",
@@ -81,7 +81,7 @@ func Test_ElasticIpCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, eip *ElasticIp) {
 				assert.Equal(eip.Name, "my_app_ip0")
-				assert.Equal(eip.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(eip.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -112,12 +112,12 @@ func Test_InternetGatewayCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, eip *InternetGateway) {
 				assert.Equal(eip.Name, "my_app_igw")
-				assert.Equal(eip.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(eip.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing igw",
-			Existing: &InternetGateway{Name: "my_app_igw", ConstructsRef: initialRefs},
+			Existing: &InternetGateway{Name: "my_app_igw", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:internet_gateway:my_app_igw",
@@ -126,7 +126,7 @@ func Test_InternetGatewayCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, eip *InternetGateway) {
 				assert.Equal(eip.Name, "my_app_igw")
-				assert.Equal(eip.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(eip.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -238,12 +238,12 @@ func Test_NatGatewayCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, nat *NatGateway) {
 				assert.Equal(nat.Name, "my_app_nat")
-				assert.Equal(nat.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(nat.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing nat",
-			Existing: &NatGateway{Name: "my_app_nat", ConstructsRef: initialRefs},
+			Existing: &NatGateway{Name: "my_app_nat", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:nat_gateway:my_app_nat",
@@ -252,7 +252,7 @@ func Test_NatGatewayCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, nat *NatGateway) {
 				assert.Equal(nat.Name, "my_app_nat")
-				assert.Equal(nat.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(nat.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -441,7 +441,7 @@ func Test_SubnetCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {
 				assert.Equal(subnet.Name, "my_app_public0")
-				assert.Equal(subnet.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(subnet.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -457,7 +457,7 @@ func Test_SubnetCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {
 				assert.Equal(subnet.Name, "my_app_public")
-				assert.Equal(subnet.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(subnet.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -473,7 +473,7 @@ func Test_SubnetCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {
 				assert.Equal(subnet.Name, "my_app_0")
-				assert.Equal(subnet.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(subnet.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -486,12 +486,12 @@ func Test_SubnetCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {
 				assert.Equal(subnet.Name, "my_app_")
-				assert.Equal(subnet.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(subnet.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing subnet",
-			Existing: &Subnet{Name: "my_app_", ConstructsRef: initialRefs},
+			Existing: &Subnet{Name: "my_app_", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:subnet_:my_app_",
@@ -500,7 +500,7 @@ func Test_SubnetCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {
 				assert.Equal(subnet.Name, "my_app_")
-				assert.Equal(subnet.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(subnet.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -658,12 +658,12 @@ func Test_RouteTableCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, rt *RouteTable) {
 				assert.Equal(rt.Name, "my_app_rt")
-				assert.Equal(rt.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(rt.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing route table",
-			Existing: &RouteTable{Name: "my_app_rt", ConstructsRef: initialRefs},
+			Existing: &RouteTable{Name: "my_app_rt", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:route_table:my_app_rt",
@@ -672,7 +672,7 @@ func Test_RouteTableCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, rt *RouteTable) {
 				assert.Equal(rt.Name, "my_app_rt")
-				assert.Equal(rt.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(rt.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}

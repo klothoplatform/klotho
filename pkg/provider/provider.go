@@ -25,7 +25,6 @@ type (
 		Name() string
 		ListResources() []core.Resource
 		CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error)
-		ExpandConstruct(construct core.Construct, cg *core.ConstructGraph, dag *core.ResourceGraph, constructType string, attributes map[string]any) (directlyMappedResources []core.Resource, err error)
 	}
 )
 
