@@ -1,9 +1,12 @@
 package engine
 
-import "github.com/klothoplatform/klotho/pkg/core"
+import (
+	"fmt"
+	"github.com/klothoplatform/klotho/pkg/core"
+)
 
 func (e *Engine) ListResources() []core.Resource {
-	resources := []core.Resource{}
+	var resources []core.Resource
 	for _, provider := range e.Providers {
 		resources = append(resources, provider.ListResources()...)
 	}
@@ -11,9 +14,10 @@ func (e *Engine) ListResources() []core.Resource {
 }
 
 func (e *Engine) ListResourcesByType() []string {
-	resources := []string{}
+	var resources []string
 	for _, res := range e.ListResources() {
-		resources = append(resources, res.Id().String())
+		id := res.Id()
+		resources = append(resources, fmt.Sprintf("%s:%s", id.Provider, id.Type))
 	}
 	return resources
 }
@@ -36,7 +40,7 @@ func (e *Engine) ListAttributes() []string {
 			attributesMap[is] = true
 		}
 	}
-	attributes := []string{}
+	var attributes []string
 	for attribute := range attributesMap {
 		attributes = append(attributes, attribute)
 	}

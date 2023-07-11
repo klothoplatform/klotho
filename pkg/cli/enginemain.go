@@ -2,9 +2,9 @@ package cli
 
 import (
 	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 var engineCfg struct {
@@ -53,7 +53,9 @@ func (km *KlothoMain) ListResourceTypes(cmd *cobra.Command, args []string) error
 	if err != nil {
 		return err
 	}
-	fmt.Println(plugins.Engine.ListResourcesByType())
+
+	resourceTypes := plugins.Engine.ListResourcesByType()
+	fmt.Println(strings.Join(resourceTypes, "\n"))
 	return nil
 }
 
@@ -68,6 +70,8 @@ func (km *KlothoMain) ListAttributes(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(plugins.Engine.ListAttributes())
+
+	attributes := plugins.Engine.ListAttributes()
+	fmt.Println(strings.Join(attributes, "\n"))
 	return nil
 }
