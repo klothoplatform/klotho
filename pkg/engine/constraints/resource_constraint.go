@@ -2,9 +2,11 @@ package constraints
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
 
@@ -35,7 +37,7 @@ func (constraint *ResourceConstraint) Scope() ConstraintScope {
 	return EdgeConstraintScope
 }
 
-func (constraint *ResourceConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource) bool {
+func (constraint *ResourceConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource, classifier classification.Classifier) bool {
 	switch constraint.Operator {
 	case EqualsConstraintOperator:
 		res := dag.GetResource(constraint.Target)
@@ -56,4 +58,8 @@ func (constraint *ResourceConstraint) Validate() error {
 		return errors.New("node constraint must have a property defined")
 	}
 	return nil
+}
+
+func (constraint *ResourceConstraint) String() string {
+	return fmt.Sprintf("ResourceConstraint: %s %s %s %s", constraint.Target, constraint.Property, constraint.Operator, constraint.Value)
 }

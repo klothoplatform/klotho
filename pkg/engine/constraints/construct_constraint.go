@@ -2,8 +2,10 @@ package constraints
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
 
@@ -32,7 +34,7 @@ func (constraint *ConstructConstraint) Scope() ConstraintScope {
 	return ConstructConstraintScope
 }
 
-func (constraint *ConstructConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource) bool {
+func (constraint *ConstructConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource, classifier classification.Classifier) bool {
 	switch constraint.Operator {
 	case EqualsConstraintOperator:
 		// Well look at all resources to see if there is a resource matching the type, that references the base construct passed in
@@ -54,4 +56,8 @@ func (constraint *ConstructConstraint) Validate() error {
 		return errors.New("node constraint must be applied to an abstract construct")
 	}
 	return nil
+}
+
+func (constraint *ConstructConstraint) String() string {
+	return fmt.Sprintf("Constraint: %s %s %s", constraint.Scope(), constraint.Operator, constraint.Target)
 }

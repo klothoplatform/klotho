@@ -13,6 +13,7 @@ import (
 type (
 	Classifier interface {
 		GetFunctionality(resource core.Resource) core.Functionality
+		GetClassification(resource core.Resource) Classification
 	}
 
 	ClassificationDocument struct {
@@ -87,6 +88,9 @@ func (c *ClassificationDocument) GetFunctionality(resource core.Resource) core.F
 		if matched && alreadySet {
 			return core.Unknown
 		}
+	}
+	if functionality == "" {
+		return core.Unknown
 	}
 	return functionality
 }

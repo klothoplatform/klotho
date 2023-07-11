@@ -23,9 +23,10 @@ var LbKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.LoadBalancer, *resources.Listener]{
 		Configure: func(loadBalancer *resources.LoadBalancer, listener *resources.Listener, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if listener.LoadBalancer != loadBalancer {
+			if listener.LoadBalancer != nil && listener.LoadBalancer != loadBalancer {
 				return fmt.Errorf("listener %s does not belong to load balancer %s", listener.Id(), loadBalancer.Id())
 			}
+			listener.LoadBalancer = loadBalancer
 			loadBalancer.Type = "network"
 			loadBalancer.Scheme = "internal"
 			listener.Port = 80

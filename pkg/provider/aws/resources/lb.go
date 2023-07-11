@@ -130,7 +130,7 @@ func (listener *Listener) Create(dag *core.ResourceGraph, params ListenerCreateP
 
 func (listener *Listener) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if listener.LoadBalancer == nil {
-		lbs := core.GetAllDownstreamResourcesOfType[*LoadBalancer](dag, listener)
+		lbs := core.GetUpstreamResourcesOfType[*LoadBalancer](dag, listener)
 		if len(lbs) == 0 {
 			return fmt.Errorf("listener %s has no load balancer downstream", listener.Id())
 		} else if len(lbs) > 1 {

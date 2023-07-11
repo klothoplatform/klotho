@@ -264,7 +264,7 @@ func Test_ListenerMakeOperational(t *testing.T) {
 			AppName:  "my-app",
 			Existing: []core.Resource{&LoadBalancer{Name: "test"}},
 			ExistingDependencies: []coretesting.StringDep{
-				{Source: "aws:load_balancer_listener:instance", Destination: "aws:load_balancer:test"},
+				{Source: "aws:load_balancer:test", Destination: "aws:load_balancer_listener:instance"},
 			},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
@@ -272,7 +272,7 @@ func Test_ListenerMakeOperational(t *testing.T) {
 					"aws:load_balancer:test",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:load_balancer_listener:instance", Destination: "aws:load_balancer:test"},
+					{Source: "aws:load_balancer:test", Destination: "aws:load_balancer_listener:instance"},
 				},
 			},
 			Check: func(assert *assert.Assertions, l *Listener) {

@@ -11,7 +11,7 @@ import (
 
 var RdsKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.RdsProxyTargetGroup, *resources.RdsInstance]{
-		Reuse: knowledgebase.Upstream,
+		Reuse: knowledgebase.Downstream,
 		Configure: func(targetGroup *resources.RdsProxyTargetGroup, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if targetGroup.RdsInstance == nil {
 				targetGroup.RdsInstance = instance
@@ -38,7 +38,7 @@ var RdsKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.RdsProxyTargetGroup]{
 		DeploymentOrderReversed: true,
-		Reuse:                   knowledgebase.Upstream,
+		Reuse:                   knowledgebase.Downstream,
 		Configure: func(proxy *resources.RdsProxy, targetGroup *resources.RdsProxyTargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if targetGroup.RdsProxy == nil {
 				targetGroup.RdsProxy = proxy

@@ -117,14 +117,14 @@ func (rg *ResourceGraph) GetResourceWithProperties(id ResourceId) (Resource, map
 	return res, graph.AttributesFromVertexProperties(props)
 }
 
-// Adds a dependency such that `deployedSecond` has to be deployed after `deployedFirst`. This makes the left-to-right
+// Adds a dependency such that `source` has to be deployed after `destination`. This makes the left-to-right
 // association consistent with our visualizer, and with the Go struct graph.
 //
 // For example, if you have a Lambda and its execution role, then:
 //
 //	╭────────────────╮   ╭────────────────╮
 //	│ LambdaFunction ├──➤│    IamRole     │
-//	│ deployedSecond │   │ deployedFirst  │
+//	│ source │   │ destination  │
 //	╰────────────────╯   ╰────────────────╯
 //
 // And you would use it as:
@@ -135,38 +135,38 @@ func (rg *ResourceGraph) GetResourceWithProperties(id ResourceId) (Resource, map
 //	}
 //
 //	rg.AddDependency(lambda, lambda.Role)
-func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Resource) {
-	rg.AddDependencyWithData(deployedSecond, deployedFirst, nil)
+func (rg *ResourceGraph) AddDependency(source Resource, destination Resource) {
+	rg.AddDependencyWithData(source, destination, nil)
 }
 
-// AddDependencyWithData Adds a dependency such that `deployedSecond` has to be deployed after `deployedFirst`. This makes the left-to-right
+// AddDependencyWithData Adds a dependency such that `source` has to be deployed after `destination`. This makes the left-to-right
 // association consistent with our visualizer, and with the Go struct graph.
 // This method also allows any edge data to be attached to the dependency in the ResourceGraph
-func (rg *ResourceGraph) AddDependencyWithData(deployedSecond Resource, deployedFirst Resource, data any) {
-	if deployedSecond.Id() == deployedFirst.Id() {
+func (rg *ResourceGraph) AddDependencyWithData(source Resource, destination Resource, data any) {
+	if source.Id() == destination.Id() {
 		return
 	}
-	rg.AddResource(deployedSecond)
-	rg.AddResource(deployedFirst)
-	rg.AddDependencyById(deployedSecond.Id(), deployedFirst.Id(), data)
+	rg.AddResource(source)
+	rg.AddResource(destination)
+	rg.AddDependencyById(source.Id(), destination.Id(), data)
 
 }
 
-func (rg *ResourceGraph) AddDependencyById(deployedSecond ResourceId, deployedFirst ResourceId, data any) {
-	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.String(), deployedFirst.String()); cycle {
-		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond, deployedFirst)
+func (rg *ResourceGraph) AddDependencyById(source ResourceId, destination ResourceId, data any) {
+	if cycle, _ := rg.underlying.CreatesCycle(source.String(), destination.String()); cycle {
+		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", source, destination)
 	} else {
-		rg.underlying.AddEdge(deployedSecond.String(), deployedFirst.String(), data)
-		zap.S().Debugf("adding %s -> %s", deployedSecond, deployedFirst)
+		rg.underlying.AddEdge(source.String(), destination.String(), data)
+		zap.S().Debugf("adding %s -> %s", source, destination)
 	}
 }
 
-func (rg *ResourceGraph) AddDependencyByString(deployedSecond string, deployedFirst string, data any) {
-	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond, deployedFirst); cycle {
-		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond, deployedFirst)
+func (rg *ResourceGraph) AddDependencyByString(source string, destination string, data any) {
+	if cycle, _ := rg.underlying.CreatesCycle(source, destination); cycle {
+		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", source, destination)
 	} else {
-		rg.underlying.AddEdge(deployedSecond, deployedFirst, data)
-		zap.S().Debugf("adding %s -> %s", deployedSecond, deployedFirst)
+		rg.underlying.AddEdge(source, destination, data)
+		zap.S().Debugf("adding %s -> %s", source, destination)
 	}
 }
 

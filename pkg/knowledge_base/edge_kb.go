@@ -63,11 +63,8 @@ type (
 		Source core.Resource
 		// Destination refers to the initial target resource node when edge expansion is called
 		Destination core.Resource
-		// Routes refers to any api routes being satisfied by the edge
-		Routes []core.Route
-		// SourceRef denotes the source annotation being used during expansion or configuration
-		// This is a temporary field due to helm chart being the lowest level of kubernetes resource at the moment
-		SourceRef core.BaseConstruct
+		// Attributes is a map of attributes which can be used to store arbitrary data on the edge
+		Attributes map[string]any
 	}
 
 	Path []Edge
@@ -228,8 +225,6 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
 
 	resourceCache := map[reflect.Type]core.Resource{}
-	var joinedErr error
-
 	name := fmt.Sprintf("%s_%s", dep.Source.Id().Name, dep.Destination.Id().Name)
 	for _, edge := range validPath {
 		source := edge.Source
@@ -274,7 +269,8 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 
 		// If the edge specifies that it can reuse upstream or downstream resources, we want to find the first resource which satisfies the reuse criteria and add that as the dependency.
 		// If there is no resource that satisfies the reuse criteria, we want to add the original direct dependency
-		if edgeDetail.Reuse == Upstream {
+		switch edgeDetail.Reuse {
+		case Upstream:
 			upstreamResources := dag.GetAllDownstreamResources(dep.Source)
 			for _, res := range upstreamResources {
 				if sourceNode.Id().Type == res.Id().Type {
@@ -282,7 +278,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 					added = true
 				}
 			}
-		} else if edgeDetail.Reuse == Downstream {
+		case Downstream:
 			upstreamResources := dag.GetAllDownstreamResources(dep.Destination)
 			for _, res := range upstreamResources {
 				if destNode.Id().Type == res.Id().Type {
@@ -314,7 +310,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 	}
 
 	// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
-	if len(validPath) > 1 && joinedErr == nil {
+	if len(validPath) > 1 {
 		zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
 		err := dag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
 		if err != nil {
@@ -322,7 +318,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		}
 
 	}
-	return joinedErr
+	return nil
 }
 
 // ConfigureEdge calls each edge configure function.

@@ -341,6 +341,7 @@ func (tg *RdsProxyTargetGroup) MakeOperational(dag *core.ResourceGraph, appName 
 			return fmt.Errorf("rds proxy target group %s has %d proxy dependencies", tg.Name, len(proxies))
 		}
 		tg.RdsProxy = proxies[0]
+		dag.AddDependency(proxies[0], tg)
 	}
 	if tg.RdsInstance == nil {
 		instances := core.GetDownstreamResourcesOfType[*RdsInstance](dag, tg)
@@ -348,8 +349,8 @@ func (tg *RdsProxyTargetGroup) MakeOperational(dag *core.ResourceGraph, appName 
 			return fmt.Errorf("rds proxy target group %s has %d instance dependencies", tg.Name, len(instances))
 		}
 		tg.RdsInstance = instances[0]
+		dag.AddDependency(tg, instances[0])
 	}
-	dag.AddDependenciesReflect(tg)
 	return nil
 }
 

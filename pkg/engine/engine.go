@@ -41,8 +41,10 @@ type (
 	}
 
 	SolveContext struct {
-		ResourceGraph     *core.ResourceGraph
-		constructsMapping map[core.ResourceId]*ExpansionSolution
+		ResourceGraph       *core.ResourceGraph
+		constructsMapping   map[core.ResourceId]*ExpansionSolution
+		errors              error
+		unsolvedConstraints []constraints.Constraint
 	}
 
 	// Decision is a struct that represents a decision made by the engine
@@ -131,19 +133,40 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		solution, err := e.SolveGraph(context)
 		if err != nil {
 			zap.S().Debugf("got error when solving graph, with context %s, err: %s", context, err.Error())
+			continue
 		}
 		if e.Context.Solution == nil {
 			e.Context.Solution = solution
 		}
 		numValidGraphs++
 	}
+	if numValidGraphs == 0 {
+		var closestSolvedContext *SolveContext
+		for _, context := range contextsToSolve {
+			if closestSolvedContext == nil {
+				closestSolvedContext = context
+			}
+			if len(context.unsolvedConstraints) < len(closestSolvedContext.unsolvedConstraints) {
+				closestSolvedContext = context
+			}
+		}
+		errorString := "no valid graphs found"
+		if closestSolvedContext.unsolvedConstraints != nil {
+			errorString = fmt.Sprintf("%s, was unable to satisfy the following constraints: %s", errorString, closestSolvedContext.unsolvedConstraints)
+		}
+		if closestSolvedContext.errors != nil {
+			errorString = fmt.Sprintf("%s.\ngot the following errors when solving the graph %s", errorString, closestSolvedContext.errors.Error())
+		}
+
+		return nil, fmt.Errorf(errorString)
+	}
 	zap.S().Debugf("found %d valid graphs", numValidGraphs)
 	return e.Context.Solution, nil
 }
 
-func (e *Engine) GenerateCombinations() ([]SolveContext, error) {
+func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 	var joinedErr error
-	toSolve := []SolveContext{}
+	toSolve := []*SolveContext{}
 	baseGraph := core.NewResourceGraph()
 	for _, res := range e.Context.WorkingState.ListConstructs() {
 		if res.Id().Provider != core.AbstractConstructProvider {
@@ -155,8 +178,13 @@ func (e *Engine) GenerateCombinations() ([]SolveContext, error) {
 			baseGraph.AddResource(resource)
 		}
 	}
+	for _, dep := range e.Context.WorkingState.ListDependencies() {
+		if dep.Source.Id().Provider != core.AbstractConstructProvider && dep.Destination.Id().Provider != core.AbstractConstructProvider {
+			baseGraph.AddDependencyWithData(dep.Source.(core.Resource), dep.Destination.(core.Resource), dep.Properties.Data)
+		}
+	}
 	if len(e.Context.constructExpansionSolutions) == 0 {
-		return []SolveContext{{ResourceGraph: baseGraph}}, nil
+		return []*SolveContext{{ResourceGraph: baseGraph}}, nil
 	}
 	var combinations []map[core.ResourceId]*ExpansionSolution
 	for resId, sol := range e.Context.constructExpansionSolutions {
@@ -193,6 +221,10 @@ func (e *Engine) GenerateCombinations() ([]SolveContext, error) {
 		}
 
 		for _, dep := range e.Context.WorkingState.ListDependencies() {
+			if dep.Source.Id().Provider != core.AbstractConstructProvider && dep.Destination.Id().Provider != core.AbstractConstructProvider {
+				continue
+			}
+
 			srcNodes := []core.Resource{}
 			dstNodes := []core.Resource{}
 			if dep.Source.Id().Provider == core.AbstractConstructProvider {
@@ -223,7 +255,7 @@ func (e *Engine) GenerateCombinations() ([]SolveContext, error) {
 				}
 			}
 		}
-		toSolve = append(toSolve, SolveContext{
+		toSolve = append(toSolve, &SolveContext{
 			ResourceGraph:     rg,
 			constructsMapping: comb,
 		})
@@ -231,7 +263,7 @@ func (e *Engine) GenerateCombinations() ([]SolveContext, error) {
 	return toSolve, joinedErr
 }
 
-func (e *Engine) SolveGraph(context SolveContext) (*core.ResourceGraph, error) {
+func (e *Engine) SolveGraph(context *SolveContext) (*core.ResourceGraph, error) {
 	NUM_LOOPS := 5
 	graph := context.ResourceGraph
 	configuredEdges := map[core.ResourceId]map[core.ResourceId]bool{}
@@ -266,12 +298,19 @@ func (e *Engine) SolveGraph(context SolveContext) (*core.ResourceGraph, error) {
 		zap.S().Debug("Validating constraints")
 		unsatisfiedConstraints := e.ValidateConstraints(context)
 
+		var joinedErr error
+		for _, error := range errorMap[i] {
+			joinedErr = errors.Join(joinedErr, error)
+		}
+		context.errors = joinedErr
+
 		if len(unsatisfiedConstraints) > 0 && i == NUM_LOOPS-1 {
 			constraintsString := ""
 			for _, constraint := range unsatisfiedConstraints {
 				constraintsString += fmt.Sprintf("%s\n", constraint)
 			}
 			zap.S().Debugf("unsatisfied constraints: %s", constraintsString)
+			context.unsolvedConstraints = unsatisfiedConstraints
 			return graph, fmt.Errorf("unsatisfied constraints: %s", constraintsString)
 		} else {
 			// check to make sure that every resource is operational
@@ -283,11 +322,7 @@ func (e *Engine) SolveGraph(context SolveContext) (*core.ResourceGraph, error) {
 			if len(errorMap[i]) == 0 {
 				break
 			} else if i == NUM_LOOPS-1 {
-				var joinedErr error
-				for _, error := range errorMap[i] {
-					joinedErr = errors.Join(joinedErr, error)
-				}
-				return graph, fmt.Errorf("found the following errors during graph solving: %s", joinedErr.Error())
+				return nil, fmt.Errorf("found the following errors during graph solving: %s", context.errors.Error())
 			} else {
 				var joinedErr error
 				for _, error := range errorMap[i] {
@@ -326,7 +361,6 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 			e.Context.WorkingState.AddConstruct(resource)
 		}
 	case constraints.RemoveConstraintOperator:
-
 		resource := e.Context.WorkingState.GetConstruct(constraint.Node)
 		if resource == nil {
 			return fmt.Errorf("construct, %s, does not exist", constraint.Node)
@@ -377,7 +411,7 @@ func (e *Engine) ApplyEdgeConstraint(constraint *constraints.EdgeConstraint) err
 	}
 	switch constraint.Operator {
 	case constraints.MustExistConstraintOperator:
-		e.Context.WorkingState.AddDependency(constraint.Target.Source, constraint.Target.Target)
+		e.Context.WorkingState.AddDependencyWithData(constraint.Target.Source, constraint.Target.Target, knowledgebase.EdgeData{Attributes: constraint.Attributes})
 	case constraints.MustNotExistConstraintOperator:
 		if constraint.Target.Source.Provider == core.AbstractConstructProvider && constraint.Target.Target.Provider == core.AbstractConstructProvider {
 			decision.Edges = []constraints.Edge{constraint.Target}
@@ -411,13 +445,14 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 	var data knowledgebase.EdgeData
 	dep := e.Context.WorkingState.GetDependency(constraint.Target.Source, constraint.Target.Target)
 	if dep == nil {
-		if constraint.Operator == constraints.MustContainConstraintOperator {
+		switch constraint.Operator {
+		case constraints.MustContainConstraintOperator:
 			data = knowledgebase.EdgeData{
 				Constraint: knowledgebase.EdgeConstraint{
 					NodeMustExist: []core.Resource{resource},
 				},
 			}
-		} else if constraint.Operator == constraints.MustNotContainConstraintOperator {
+		case constraints.MustNotContainConstraintOperator:
 			data = knowledgebase.EdgeData{
 				Constraint: knowledgebase.EdgeConstraint{
 					NodeMustNotExist: []core.Resource{resource},
@@ -432,11 +467,20 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 		} else if !ok {
 			return fmt.Errorf("unable to cast edge data for dep %s -> %s", constraint.Target.Source, constraint.Target.Target)
 		}
-		if constraint.Operator == constraints.MustContainConstraintOperator {
+		switch constraint.Operator {
+		case constraints.MustContainConstraintOperator:
 			data.Constraint.NodeMustExist = append(data.Constraint.NodeMustExist, resource)
-		} else if constraint.Operator == constraints.MustNotContainConstraintOperator {
+		case constraints.MustNotContainConstraintOperator:
 			data.Constraint.NodeMustNotExist = append(data.Constraint.NodeMustNotExist, resource)
 		}
+	}
+	for key, attribute := range constraint.Attributes {
+		if v, ok := data.Attributes[key]; ok {
+			if v != attribute {
+				return fmt.Errorf("attribute %s has conflicting values. %s != %s", key, v, attribute)
+			}
+		}
+		data.Attributes[key] = attribute
 	}
 	e.Context.WorkingState.AddDependencyWithData(constraint.Target.Source, constraint.Target.Target, data)
 	return nil
@@ -444,7 +488,7 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 
 // ValidateConstraints validates all constraints against the end state resource graph
 // It returns any constraints which were not satisfied by resource graphs current state
-func (e *Engine) ValidateConstraints(context SolveContext) []constraints.Constraint {
+func (e *Engine) ValidateConstraints(context *SolveContext) []constraints.Constraint {
 	var unsatisfied []constraints.Constraint
 	for _, contextConstraints := range e.Context.Constraints {
 		for _, constraint := range contextConstraints {
@@ -452,7 +496,7 @@ func (e *Engine) ValidateConstraints(context SolveContext) []constraints.Constra
 			for resId, sol := range context.constructsMapping {
 				mappedRes[resId] = sol.DirectlyMappedResources
 			}
-			if !constraint.IsSatisfied(context.ResourceGraph, e.KnowledgeBase, mappedRes) {
+			if !constraint.IsSatisfied(context.ResourceGraph, e.KnowledgeBase, mappedRes, e.ClassificationDocument) {
 				unsatisfied = append(unsatisfied, constraint)
 			}
 		}

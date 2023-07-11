@@ -410,14 +410,9 @@ func Test_RdsProxyTargetGroupMakeOperational(t *testing.T) {
 			AppName:  "my-app",
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:rds_instance:instance",
-					"aws:rds_proxy:proxy",
 					"aws:rds_proxy_target_group:proxy",
 				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:rds_proxy_target_group:proxy", Destination: "aws:rds_instance:instance"},
-					{Source: "aws:rds_proxy_target_group:proxy", Destination: "aws:rds_proxy:proxy"},
-				},
+				Deps: []coretesting.StringDep{},
 			},
 			Check: func(assert *assert.Assertions, proxy *RdsProxyTargetGroup) {
 			},
