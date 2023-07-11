@@ -104,16 +104,22 @@ func (km KlothoMain) Main() {
 	}
 
 	var root = &cobra.Command{
-		Use:  "klotho [path to source]",
-		RunE: km.run,
+		Use: "klotho",
 	}
+
+	compilerCmd := &cobra.Command{
+		Use:   "compile [path to source]",
+		Short: "Compile a klotho application",
+		RunE:  km.run,
+	}
+	root.AddCommand(compilerCmd)
 
 	err := km.addEngineCli(root)
 	if err != nil {
 		panic(err)
 	}
 
-	flags := root.Flags()
+	flags := compilerCmd.Flags()
 
 	flags.BoolVarP(&cfg.verbose, "verbose", "v", false, "Verbose flag")
 	flags.StringVarP(&cfg.config, "config", "c", "", "Config file")
