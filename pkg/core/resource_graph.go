@@ -220,7 +220,7 @@ func (rg *ResourceGraph) RemoveResourceAndEdges(source Resource) error {
 }
 
 func (rg *ResourceGraph) RemoveResource(resource Resource) error {
-	zap.S().Infof("Removing resource %s", resource.Id())
+	zap.S().Debugf("Removing resource %s", resource.Id())
 	return rg.underlying.RemoveVertex(resource.Id().String())
 }
 

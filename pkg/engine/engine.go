@@ -144,9 +144,16 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 func (e *Engine) GenerateCombinations() ([]SolveContext, error) {
 	var joinedErr error
 	toSolve := []SolveContext{}
-	baseGraph, err := e.GenerateResourceGraph()
-	if err != nil {
-		return nil, err
+	baseGraph := core.NewResourceGraph()
+	for _, res := range e.Context.WorkingState.ListConstructs() {
+		if res.Id().Provider != core.AbstractConstructProvider {
+			resource, ok := res.(core.Resource)
+			if !ok {
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("construct %s is not a resource", res.Id()))
+				continue
+			}
+			baseGraph.AddResource(resource)
+		}
 	}
 	if len(e.Context.constructExpansionSolutions) == 0 {
 		return []SolveContext{{ResourceGraph: baseGraph}}, nil
@@ -195,6 +202,8 @@ func (e *Engine) GenerateCombinations() ([]SolveContext, error) {
 					continue
 				}
 				srcNodes = append(srcNodes, srcResources...)
+			} else {
+				srcNodes = append(srcNodes, dep.Source.(core.Resource))
 			}
 
 			if dep.Destination.Id().Provider == core.AbstractConstructProvider {
@@ -204,6 +213,8 @@ func (e *Engine) GenerateCombinations() ([]SolveContext, error) {
 					continue
 				}
 				dstNodes = append(dstNodes, dstResources...)
+			} else {
+				dstNodes = append(dstNodes, dep.Destination.(core.Resource))
 			}
 
 			for _, srcNode := range srcNodes {
@@ -218,37 +229,6 @@ func (e *Engine) GenerateCombinations() ([]SolveContext, error) {
 		})
 	}
 	return toSolve, joinedErr
-}
-
-func (e *Engine) GenerateResourceGraph() (*core.ResourceGraph, error) {
-	var joinedErr error
-	rg := core.NewResourceGraph()
-	for _, res := range e.Context.WorkingState.ListConstructs() {
-		if res.Id().Provider != core.AbstractConstructProvider {
-			resource, ok := res.(core.Resource)
-			if !ok {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("construct %s is not a resource", res.Id()))
-				continue
-			}
-			rg.AddResource(resource)
-		}
-	}
-	for _, dep := range e.Context.WorkingState.ListDependencies() {
-		if dep.Source.Id().Provider != core.AbstractConstructProvider && dep.Destination.Id().Provider != core.AbstractConstructProvider {
-			src, ok := dep.Source.(core.Resource)
-			if !ok {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("construct %s is not a resource", dep.Source.Id()))
-				continue
-			}
-			dst, ok := dep.Destination.(core.Resource)
-			if !ok {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("construct %s is not a resource", dep.Destination.Id()))
-				continue
-			}
-			rg.AddDependencyWithData(src, dst, dep.Properties.Data)
-		}
-	}
-	return rg, joinedErr
 }
 
 func (e *Engine) SolveGraph(context SolveContext) (*core.ResourceGraph, error) {
