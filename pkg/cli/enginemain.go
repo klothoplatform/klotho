@@ -4,22 +4,14 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/spf13/cobra"
 )
-
-type EngineCLI struct {
-	engine engine.Engine
-}
 
 var engineCfg struct {
 	provider string
 }
 
-func addEngineCli(root *cobra.Command) error {
-
-	engineCli := EngineCLI{}
-
+func (km KlothoMain) addEngineCli(root *cobra.Command) error {
 	engineGroup := &cobra.Group{
 		ID:    "engine",
 		Title: "engine",
@@ -28,7 +20,7 @@ func addEngineCli(root *cobra.Command) error {
 		Use:     "ListResourceTypes",
 		Short:   "List resource types available in the klotho engine",
 		GroupID: engineGroup.ID,
-		RunE:    engineCli.ListResourceTypes,
+		RunE:    km.ListResourceTypes,
 	}
 
 	flags := listResourceTypesCmd.Flags()
@@ -38,7 +30,7 @@ func addEngineCli(root *cobra.Command) error {
 		Use:     "ListAttributes",
 		Short:   "List attributes available in the klotho engine",
 		GroupID: engineGroup.ID,
-		RunE:    engineCli.ListAttributes,
+		RunE:    km.ListAttributes,
 	}
 
 	flags = listAttributesCmd.Flags()
@@ -50,26 +42,32 @@ func addEngineCli(root *cobra.Command) error {
 	return nil
 }
 
-func (e *EngineCLI) ListResourceTypes(cmd *cobra.Command, args []string) error {
+func (km *KlothoMain) ListResourceTypes(cmd *cobra.Command, args []string) error {
 	cfg := config.Application{Provider: engineCfg.provider}
-	pluginSetBuilder := PluginSetBuilder{Cfg: &cfg}
-	err := pluginSetBuilder.AddEngine()
+
+	plugins := &PluginSetBuilder{
+		Cfg: &cfg,
+	}
+	err := km.PluginSetup(plugins)
+
 	if err != nil {
 		return err
 	}
-	e.engine = *pluginSetBuilder.Engine
-	fmt.Println(e.engine.ListResourcesByType())
+	fmt.Println(plugins.Engine.ListResourcesByType())
 	return nil
 }
 
-func (e *EngineCLI) ListAttributes(cmd *cobra.Command, args []string) error {
+func (km *KlothoMain) ListAttributes(cmd *cobra.Command, args []string) error {
 	cfg := config.Application{Provider: engineCfg.provider}
-	pluginSetBuilder := PluginSetBuilder{Cfg: &cfg}
-	err := pluginSetBuilder.AddEngine()
+
+	plugins := &PluginSetBuilder{
+		Cfg: &cfg,
+	}
+	err := km.PluginSetup(plugins)
+
 	if err != nil {
 		return err
 	}
-	e.engine = *pluginSetBuilder.Engine
-	fmt.Println(e.engine.ListAttributes())
+	fmt.Println(plugins.Engine.ListAttributes())
 	return nil
 }

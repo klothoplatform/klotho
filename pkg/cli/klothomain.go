@@ -108,7 +108,7 @@ func (km KlothoMain) Main() {
 		RunE: km.run,
 	}
 
-	err := addEngineCli(root)
+	err := km.addEngineCli(root)
 	if err != nil {
 		panic(err)
 	}
