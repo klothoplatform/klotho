@@ -24,9 +24,10 @@ type (
 	// The end result of this should be a path of klotho:execution_unit:my_compute -> aws:rds_proxy:my_proxy -> klotho:orm:my_orm with N intermediate nodes to satisfy the path's expansion
 
 	EdgeConstraint struct {
-		Operator ConstraintOperator `yaml:"operator"`
-		Target   Edge               `yaml:"target"`
-		Node     core.ResourceId    `yaml:"node"`
+		Operator   ConstraintOperator `yaml:"operator"`
+		Target     Edge               `yaml:"target"`
+		Node       core.ResourceId    `yaml:"node"`
+		Attributes map[string]any     `yaml:"attributes"`
 	}
 )
 

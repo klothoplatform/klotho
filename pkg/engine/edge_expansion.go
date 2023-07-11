@@ -58,6 +58,10 @@ func getEdgeData(dep graph.Edge[core.Resource]) (knowledgebase.EdgeData, error) 
 func (e *Engine) determineCorrectPath(dep graph.Edge[core.Resource], edgeData knowledgebase.EdgeData) (knowledgebase.Path, error) {
 	paths := e.KnowledgeBase.FindPaths(dep.Source, dep.Destination, edgeData.Constraint)
 	var validPaths []knowledgebase.Path
+
+	// for _, p := range paths {
+	// 	if len(p) == 0 {
+
 	for _, p := range paths {
 		if len(p) == 0 {
 			continue

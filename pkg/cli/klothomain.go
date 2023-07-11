@@ -108,7 +108,7 @@ func (km KlothoMain) Main() {
 	}
 
 	compilerCmd := &cobra.Command{
-		Use:   "compile [path to source]",
+		Use:   "compile [path]",
 		Short: "Compile a klotho application",
 		RunE:  km.run,
 	}

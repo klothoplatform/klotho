@@ -357,20 +357,28 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 		return nil
 
 	case constraints.ReplaceConstraintOperator:
-		if constraint.Node.Provider == core.AbstractConstructProvider {
-			construct := e.Context.WorkingState.GetConstruct(constraint.Node)
-			if construct == nil {
-				return fmt.Errorf("construct, %s, does not exist", construct.Id())
-			}
-			new, err := e.getConstructFromInputId(constraint.ReplacementNode)
-			if err != nil {
-				return err
-			}
-			decision.Construct = construct
-			return e.Context.WorkingState.ReplaceConstruct(construct, new)
-		} else {
-			return fmt.Errorf("cannot replace resource %s, replacing resources is not supported at this time", constraint.Node)
+		construct := e.Context.WorkingState.GetConstruct(constraint.Node)
+		if construct == nil {
+			return fmt.Errorf("construct, %s, does not exist", construct.Id())
 		}
+		new, err := e.getConstructFromInputId(constraint.ReplacementNode)
+		if err != nil {
+			return err
+		}
+		decision.Construct = construct
+		err = e.Context.WorkingState.ReplaceConstruct(construct, new)
+		if err != nil {
+			return err
+		}
+		upstream := e.Context.WorkingState.GetUpstreamConstructs(construct)
+		for _, up := range upstream {
+			_ = e.deleteConstruct(up, false, false)
+		}
+		downstream := e.Context.WorkingState.GetDownstreamConstructs(construct)
+		for _, down := range downstream {
+			_ = e.deleteConstruct(down, false, false)
+		}
+		return nil
 	}
 	e.Context.Decisions = append(e.Context.Decisions, decision)
 	return nil
