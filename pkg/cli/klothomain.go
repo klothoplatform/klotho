@@ -108,6 +108,11 @@ func (km KlothoMain) Main() {
 		RunE: km.run,
 	}
 
+	err := addEngineCli(root)
+	if err != nil {
+		panic(err)
+	}
+
 	flags := root.Flags()
 
 	flags.BoolVarP(&cfg.verbose, "verbose", "v", false, "Verbose flag")
@@ -142,7 +147,7 @@ func (km KlothoMain) Main() {
 	_ = flags.MarkHidden("internalDebug")
 	_ = flags.MarkHidden("construct-graph")
 
-	err := root.Execute()
+	err = root.Execute()
 	if err != nil {
 		if cfg.internalDebug {
 			zap.S().With(logging.SendEntryMessage).Errorf("%+v", err)
