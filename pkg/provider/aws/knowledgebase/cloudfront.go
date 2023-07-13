@@ -2,13 +2,11 @@ package knowledgebase
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
-	"github.com/pkg/errors"
 )
 
 var CloudfrontKB = knowledgebase.Build(
@@ -38,25 +36,7 @@ var CloudfrontKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.CloudfrontDistribution, *resources.ApiStage]{
 		Configure: func(distro *resources.CloudfrontDistribution, stage *resources.ApiStage, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			var gwId string
-			switch len(stage.ConstructRefs) {
-			case 0:
-				return errors.Errorf(`couldn't determine the id of the construct that created API stage "%s"`, stage.Id())
-			case 1:
-				for cons := range stage.ConstructRefs {
-					gwId = cons.Name
-				}
-			default:
-				var ids []string
-				for cons := range stage.ConstructRefs {
-					ids = append(ids, cons.Name)
-				}
-				sort.Strings(ids)
-				return errors.Errorf(
-					`couldn't determine the id of the construct that created API stage "%s": expected just one construct, but found %v`,
-					stage.Id(),
-					ids)
 
-			}
 			origin := &resources.CloudfrontOrigin{
 				CustomOriginConfig: resources.CustomOriginConfig{
 					HttpPort:             80,
@@ -71,7 +51,12 @@ var CloudfrontKB = knowledgebase.Build(
 				OriginId:   gwId,
 				OriginPath: &resources.AwsResourceValue{ResourceVal: stage, PropertyVal: resources.API_STAGE_PATH_VALUE},
 			}
+			fmt.Println(distro)
+			fmt.Println(distro.Origins)
 			distro.Origins = append(distro.Origins, origin)
+			if distro.DefaultCacheBehavior == nil {
+				distro.DefaultCacheBehavior = &resources.DefaultCacheBehavior{}
+			}
 			distro.DefaultCacheBehavior.TargetOriginId = origin.OriginId
 			return nil
 		},

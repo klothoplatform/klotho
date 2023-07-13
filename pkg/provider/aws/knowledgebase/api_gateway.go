@@ -18,12 +18,18 @@ var ApiGatewayKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.ApiMethod]{
 		Configure: func(deployment *resources.ApiDeployment, method *resources.ApiMethod, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if method == nil || deployment == nil {
+				return fmt.Errorf("cannot configure integration %s, missing rest api or method", method.Id())
+			}
 			deployment.Triggers[method.Id().Name] = method.Id().Name
 			return nil
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.ApiIntegration]{
 		Configure: func(deployment *resources.ApiDeployment, integration *resources.ApiIntegration, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if integration == nil || deployment == nil {
+				return fmt.Errorf("cannot configure edge %s", integration.Id())
+			}
 			deployment.Triggers[integration.Id().Name] = integration.Id().Name
 			return nil
 		},
