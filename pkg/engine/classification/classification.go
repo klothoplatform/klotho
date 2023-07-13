@@ -98,7 +98,7 @@ func (c *ClassificationDocument) GetFunctionality(resource core.Resource) core.F
 func (c *ClassificationDocument) ResourceContainsClassifications(resource core.Resource, needs []string) bool {
 	classifications := c.GetClassification(resource)
 	for _, need := range needs {
-		if !collectionutil.Contains(classifications.Is, need) {
+		if !collectionutil.Contains(classifications.Is, need) || resource.Id().Type == need {
 			return false
 		}
 	}

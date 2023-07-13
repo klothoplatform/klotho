@@ -321,13 +321,15 @@ func (e *Engine) SolveGraph(context *SolveContext) (*core.ResourceGraph, error) 
 			}
 			if len(errorMap[i]) == 0 {
 				break
-			} else if i == NUM_LOOPS-1 {
+			}
+			var joinedErr error
+			for _, error := range errorMap[i] {
+				joinedErr = errors.Join(joinedErr, error)
+			}
+			context.errors = joinedErr
+			if i == NUM_LOOPS-1 {
 				return nil, fmt.Errorf("found the following errors during graph solving: %s", context.errors.Error())
 			} else {
-				var joinedErr error
-				for _, error := range errorMap[i] {
-					joinedErr = errors.Join(joinedErr, error)
-				}
 				zap.S().Debugf("got errors: %s", joinedErr.Error())
 			}
 		}
