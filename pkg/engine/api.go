@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 )
 
@@ -15,6 +16,10 @@ func (e *Engine) ListResources() []core.Resource {
 
 func (e *Engine) ListResourcesByType() []string {
 	var resources []string
+	for _, construct := range e.Constructs {
+		id := construct.Id()
+		resources = append(resources, fmt.Sprintf("%s:%s", id.Provider, id.Type))
+	}
 	for _, res := range e.ListResources() {
 		id := res.Id()
 		resources = append(resources, fmt.Sprintf("%s:%s", id.Provider, id.Type))
@@ -45,4 +50,16 @@ func (e *Engine) ListAttributes() []string {
 		attributes = append(attributes, attribute)
 	}
 	return attributes
+}
+
+func (e *Engine) getTypeMap() map[string]core.Resource {
+	typeMap := map[string]core.Resource{}
+	for _, res := range e.ListResources() {
+		id := res.Id()
+		if typeMap[id.Type] != nil {
+			panic(fmt.Sprintf("duplicate resource type %s", id.Type))
+		}
+		typeMap[id.Type] = res
+	}
+	return typeMap
 }
