@@ -449,6 +449,50 @@ func (s StatementEntry) Id() core.ResourceId {
 	}
 }
 
+func (c Condition) MarshalYAML() (interface{}, error) {
+	type mapEntry struct {
+		Key *AwsResourceValue
+		Val string
+	}
+	type condition struct {
+		StringEquals []mapEntry
+		Null         []mapEntry
+	}
+	intermediate := condition{}
+	for k, v := range c.StringEquals {
+		intermediate.StringEquals = append(intermediate.StringEquals, mapEntry{k, v})
+	}
+	for k, v := range c.Null {
+		intermediate.Null = append(intermediate.Null, mapEntry{k, v})
+	}
+	return intermediate, nil
+}
+
+func (c *Condition) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type mapEntry struct {
+		key *AwsResourceValue
+		val string
+	}
+	type condition struct {
+		StringEquals []mapEntry
+		Null         []mapEntry
+	}
+	intermediate := condition{}
+	err := unmarshal(&intermediate)
+	if err != nil {
+		return err
+	}
+	c.StringEquals = map[*AwsResourceValue]string{}
+	c.Null = map[*AwsResourceValue]string{}
+	for _, entry := range intermediate.StringEquals {
+		c.StringEquals[entry.key] = entry.val
+	}
+	for _, entry := range intermediate.Null {
+		c.Null[entry.key] = entry.val
+	}
+	return nil
+}
+
 func (d *PolicyDocument) Deduplicate() {
 	keys := make(map[core.ResourceId]struct{})
 	var unique []StatementEntry
