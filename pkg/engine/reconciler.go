@@ -62,7 +62,7 @@ func (e *Engine) deleteConstruct(construct core.BaseConstruct, explicit bool, ov
 
 	var reflectResources []core.Resource
 	if resource, ok := construct.(core.Resource); ok {
-		reflectResources = core.GetResourcesReflectively(resource)
+		reflectResources = core.GetResourcesReflectively(graph, resource)
 		if !e.canDeleteResource(resource, explicit, overrideExplicit, upstreamNodes, downstreamNodes) {
 			return false
 		}

@@ -199,9 +199,7 @@ func setNestedResourceFromId(source core.BaseConstruct, targetValue reflect.Valu
 	case core.Resource:
 		targetValue.Set(reflect.ValueOf(resourceMap[value.Id()]))
 	case core.IaCValue:
-		if value.Resource() != nil {
-			value.SetResource(resourceMap[value.Resource().Id()].(core.Resource))
-		}
+		// fields are already set and have no subfields to process
 	default:
 		correspondingValue := targetValue
 		for correspondingValue.Kind() == reflect.Pointer {

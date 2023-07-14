@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
 )
 
 type NestedResources struct {
@@ -41,35 +40,6 @@ func (tr *testResource) BaseConstructRefs() BaseConstructSet {
 
 func (tr *testResource) DeleteContext() DeleteContext {
 	return DeleteContext{}
-}
-
-type testIaCValue struct {
-	ResourceVal Resource
-	PropertyVal string
-}
-
-func (r *testIaCValue) Resource() Resource {
-	return r.ResourceVal
-}
-
-func (r *testIaCValue) Property() string {
-	return r.PropertyVal
-}
-
-func (r *testIaCValue) SetResource(res Resource) {
-	r.ResourceVal = res
-}
-
-func (val *testIaCValue) LoadFromId() ResourceId {
-	return ResourceId{}
-}
-
-func (val *testIaCValue) UnmarshalYAML(value *yaml.Node) error {
-	return nil
-}
-
-func (val *testIaCValue) MarshalYAML() (interface{}, error) {
-	return nil, nil
 }
 
 type testResourceParams struct {
@@ -119,14 +89,14 @@ func TestResourceGraph_AddDependenciesReflect(t *testing.T) {
 			"two": {Name: "spec_map2"},
 		},
 
-		IacValue: &testIaCValue{ResourceVal: &testResource{Name: "value1"}},
+		IacValue: IaCValue{ResourceId: (&testResource{Name: "value1"}).Id()},
 		IacValueArr: []IaCValue{
-			&testIaCValue{ResourceVal: &testResource{Name: "value_arr1"}},
-			&testIaCValue{ResourceVal: &testResource{Name: "value_arr2"}},
+			IaCValue{ResourceId: (&testResource{Name: "value_arr1"}).Id()},
+			IaCValue{ResourceId: (&testResource{Name: "value_arr2"}).Id()},
 		},
 		IacValueMap: map[string]IaCValue{
-			"one": &testIaCValue{ResourceVal: &testResource{Name: "value_map1"}},
-			"two": &testIaCValue{ResourceVal: &testResource{Name: "value_map2"}},
+			"one": IaCValue{ResourceId: (&testResource{Name: "value_map1"}).Id()},
+			"two": IaCValue{ResourceId: (&testResource{Name: "value_map2"}).Id()},
 		},
 	}
 
@@ -181,14 +151,14 @@ func TestResourceGraph_CreateDependencies(t *testing.T) {
 			"two": {Name: "spec_map2"},
 		},
 
-		IacValue: &testIaCValue{ResourceVal: &testResource{Name: "value1"}},
+		IacValue: IaCValue{ResourceId: (&testResource{Name: "value1"}).Id()},
 		IacValueArr: []IaCValue{
-			&testIaCValue{ResourceVal: &testResource{Name: "value_arr1"}},
-			&testIaCValue{ResourceVal: &testResource{Name: "value_arr2"}},
+			IaCValue{ResourceId: (&testResource{Name: "value_arr1"}).Id()},
+			IaCValue{ResourceId: (&testResource{Name: "value_arr2"}).Id()},
 		},
 		IacValueMap: map[string]IaCValue{
-			"one": &testIaCValue{ResourceVal: &testResource{Name: "value_map1"}},
-			"two": &testIaCValue{ResourceVal: &testResource{Name: "value_map2"}},
+			"one": IaCValue{ResourceId: (&testResource{Name: "value_map1"}).Id()},
+			"two": IaCValue{ResourceId: (&testResource{Name: "value_map2"}).Id()},
 		},
 	}
 

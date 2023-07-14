@@ -17,7 +17,7 @@ type (
 	}
 	SecurityGroupRule struct {
 		Description string
-		CidrBlocks  []*AwsResourceValue
+		CidrBlocks  []core.IaCValue
 		FromPort    int
 		Protocol    string
 		ToPort      int

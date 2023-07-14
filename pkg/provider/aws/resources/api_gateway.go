@@ -68,7 +68,7 @@ type (
 		Type                  string
 		ConnectionType        string
 		VpcLink               *VpcLink
-		Uri                   *AwsResourceValue
+		Uri                   core.IaCValue
 		Route                 string
 	}
 

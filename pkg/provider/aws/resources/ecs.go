@@ -27,7 +27,7 @@ type (
 		Name                    string
 		ConstructRefs           core.BaseConstructSet `yaml:"-"`
 		Image                   *EcrImage
-		EnvironmentVariables    map[string]*AwsResourceValue
+		EnvironmentVariables    map[string]core.IaCValue
 		Cpu                     string
 		Memory                  string
 		LogGroup                *LogGroup
@@ -72,7 +72,7 @@ type (
 	}
 
 	EcsServiceLoadBalancerConfig struct {
-		TargetGroupArn *AwsResourceValue
+		TargetGroupArn core.IaCValue
 		ContainerName  string
 		ContainerPort  int
 	}
@@ -208,10 +208,10 @@ func (td *EcsTaskDefinition) Configure(params EcsTaskDefinitionConfigureParams) 
 		Protocol:      "tcp",
 	}})
 	if td.EnvironmentVariables == nil {
-		td.EnvironmentVariables = make(map[string]*AwsResourceValue)
+		td.EnvironmentVariables = make(map[string]core.IaCValue)
 	}
 	for _, env := range params.EnvironmentVariables {
-		td.EnvironmentVariables[env.GetName()] = &AwsResourceValue{PropertyVal: env.GetValue()}
+		td.EnvironmentVariables[env.GetName()] = core.IaCValue{Property: env.GetValue()}
 	}
 
 	return nil

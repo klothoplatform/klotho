@@ -93,7 +93,7 @@ type (
 		Name                string
 		ConstructRefs       core.BaseConstructSet `yaml:"-"`
 		AssumeRolePolicyDoc *PolicyDocument
-		ManagedPolicies     []*AwsResourceValue
+		ManagedPolicies     []core.IaCValue
 		AwsManagedPolicies  []string
 		InlinePolicies      []*IamInlinePolicy
 	}
@@ -118,20 +118,20 @@ type (
 	StatementEntry struct {
 		Effect    string
 		Action    []string
-		Resource  []*AwsResourceValue
+		Resource  []core.IaCValue
 		Principal *Principal
 		Condition *Condition
 	}
 
 	Principal struct {
 		Service   string
-		Federated *AwsResourceValue
-		AWS       *AwsResourceValue
+		Federated core.IaCValue
+		AWS       core.IaCValue
 	}
 
 	Condition struct {
-		StringEquals map[*AwsResourceValue]string
-		Null         map[*AwsResourceValue]string
+		StringEquals map[core.IaCValue]string
+		Null         map[core.IaCValue]string
 	}
 
 	OpenIdConnectProvider struct {
@@ -273,7 +273,7 @@ func (profile *InstanceProfile) MakeOperational(dag *core.ResourceGraph, appName
 	return nil
 }
 
-func CreateAllowPolicyDocument(actions []string, resources []*AwsResourceValue) *PolicyDocument {
+func CreateAllowPolicyDocument(actions []string, resources []core.IaCValue) *PolicyDocument {
 	return &PolicyDocument{
 		Version: VERSION,
 		Statement: []StatementEntry{
@@ -319,10 +319,10 @@ func (role *IamRole) AddAwsManagedPolicies(policies []string) {
 	}
 }
 
-func (role *IamRole) AddManagedPolicy(policy *AwsResourceValue) {
+func (role *IamRole) AddManagedPolicy(policy core.IaCValue) {
 	exists := false
 	for _, pol := range role.ManagedPolicies {
-		if pol.ResourceVal == policy.ResourceVal {
+		if pol.ResourceId == policy.ResourceId {
 			exists = true
 		}
 	}
@@ -439,7 +439,7 @@ func (profile *InstanceProfile) DeleteContext() core.DeleteContext {
 func (s StatementEntry) Id() core.ResourceId {
 	resourcesHash := sha256.New()
 	for _, r := range s.Resource {
-		_, _ = fmt.Fprintf(resourcesHash, "%s.%s", r.ResourceVal.Id(), r.PropertyVal)
+		_, _ = fmt.Fprintf(resourcesHash, "%s.%s", r.ResourceId, r.Property)
 	}
 
 	return core.ResourceId{
@@ -451,7 +451,7 @@ func (s StatementEntry) Id() core.ResourceId {
 
 func (c Condition) MarshalYAML() (interface{}, error) {
 	type mapEntry struct {
-		Key *AwsResourceValue
+		Key core.IaCValue
 		Val string
 	}
 	type condition struct {
@@ -470,7 +470,7 @@ func (c Condition) MarshalYAML() (interface{}, error) {
 
 func (c *Condition) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type mapEntry struct {
-		key *AwsResourceValue
+		key core.IaCValue
 		val string
 	}
 	type condition struct {
@@ -482,8 +482,8 @@ func (c *Condition) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err != nil {
 		return err
 	}
-	c.StringEquals = map[*AwsResourceValue]string{}
-	c.Null = map[*AwsResourceValue]string{}
+	c.StringEquals = map[core.IaCValue]string{}
+	c.Null = map[core.IaCValue]string{}
 	for _, entry := range intermediate.StringEquals {
 		c.StringEquals[entry.key] = entry.val
 	}

@@ -46,7 +46,7 @@ type (
 	}
 
 	Target struct {
-		Id   *AwsResourceValue
+		Id   core.IaCValue
 		Port int
 	}
 
@@ -59,7 +59,7 @@ type (
 		DefaultActions []*LBAction
 	}
 	LBAction struct {
-		TargetGroupArn *AwsResourceValue
+		TargetGroupArn core.IaCValue
 		Type           string
 	}
 )
@@ -168,7 +168,8 @@ func (tg *TargetGroup) MakeOperational(dag *core.ResourceGraph, appName string, 
 		if len(vpcs) == 0 {
 			targetsVpcs := map[*Vpc]interface{}{}
 			for _, target := range tg.Targets {
-				for _, vpc := range core.GetAllDownstreamResourcesOfType[*Vpc](dag, target.Id.ResourceVal) {
+				targetResource := dag.GetResource(target.Id.ResourceId)
+				for _, vpc := range core.GetAllDownstreamResourcesOfType[*Vpc](dag, targetResource) {
 					targetsVpcs[vpc] = nil
 				}
 			}
@@ -212,7 +213,7 @@ func (lb *LoadBalancer) DeleteContext() core.DeleteContext {
 func (tg *TargetGroup) AddTarget(target *Target) {
 	addTarget := true
 	for _, t := range tg.Targets {
-		if t.Id.ResourceVal == target.Id.ResourceVal {
+		if t.Id.ResourceId == target.Id.ResourceId {
 			addTarget = false
 		}
 	}

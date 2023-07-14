@@ -354,8 +354,8 @@ func (rg *ResourceGraph) addDependenciesReflect(source Resource, targetValue ref
 	case Resource:
 		rg.AddDependency(source, value)
 	case IaCValue:
-		if value.Resource() != nil {
-			rg.AddDependency(source, value.Resource())
+		if !value.ResourceId.IsZero() {
+			rg.AddDependencyById(source.Id(), value.ResourceId, nil)
 		}
 	default:
 		correspondingValue := targetValue
@@ -525,7 +525,7 @@ func (rg *ResourceGraph) CreateDependencies(res Resource, params map[string]any)
 		targetValue := source.Field(i)
 		fieldsParams := params[source.Type().Field(i).Name]
 		if fieldsParams != nil {
-			merr.Append(rg.actOnValue(targetValue, res, fieldsParams, nil, reflect.Value{}))
+			merr.Append(rg.createSubDependencies(targetValue, res, fieldsParams, nil, reflect.Value{}))
 		}
 	}
 	rg.AddDependenciesReflect(res)
@@ -554,7 +554,7 @@ func CreateResource[T Resource](rg *ResourceGraph, params any) (resource T, err 
 	return castedRes.(T), nil
 }
 
-func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, metadata any, parent *reflect.Value, index reflect.Value) error {
+func (rg *ResourceGraph) createSubDependencies(targetValue reflect.Value, res Resource, metadata any, parent *reflect.Value, index reflect.Value) error {
 	switch value := targetValue.Interface().(type) {
 	case Resource:
 		if targetValue.IsNil() {
@@ -581,35 +581,13 @@ func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, met
 			return err
 		}
 	case IaCValue:
-		if value.Resource() != nil {
-			err := rg.CallCreate(reflect.ValueOf(value.Resource()), metadata)
-			if err != nil {
-				return err
-			}
-			currValue := rg.GetResource(value.Resource().Id())
-			if currValue == nil {
-				currValue = value.Resource()
-			}
-			if currValue != nil {
-				value.SetResource(currValue)
-			}
-			if err == nil && value.Resource() != nil {
-				if parent != nil {
-					parent.SetMapIndex(index, reflect.ValueOf(value))
-				} else {
-					targetValue.Set(reflect.ValueOf(value))
-				}
-			} else {
-				return err
-			}
-		}
 	default:
 		correspondingValue := targetValue
 		for correspondingValue.Kind() == reflect.Pointer {
 			correspondingValue = targetValue.Elem()
 		}
 
-		err := rg.checkChild(correspondingValue, res, metadata)
+		err := rg.createChildDependencies(correspondingValue, res, metadata)
 		if err != nil {
 			return err
 		}
@@ -673,7 +651,7 @@ func (rg *ResourceGraph) CallConfigure(resource Resource, metadata any) error {
 	return nil
 }
 
-func (rg *ResourceGraph) checkChild(child reflect.Value, res Resource, metadata any) error {
+func (rg *ResourceGraph) createChildDependencies(child reflect.Value, res Resource, metadata any) error {
 	var merr multierr.Error
 	switch child.Kind() {
 	case reflect.Struct:
@@ -688,7 +666,7 @@ func (rg *ResourceGraph) checkChild(child reflect.Value, res Resource, metadata 
 			// Loop over the keys of the params map and see if anything correlates to the field in the struct. If so then we will act on that field of the struct
 			for _, key := range params.MapKeys() {
 				if key.String() == fieldName {
-					merr.Append(rg.actOnValue(childVal, res, params.MapIndex(reflect.ValueOf(fieldName)).Interface(), nil, reflect.Value{}))
+					merr.Append(rg.createSubDependencies(childVal, res, params.MapIndex(reflect.ValueOf(fieldName)).Interface(), nil, reflect.Value{}))
 				}
 			}
 		}
@@ -701,7 +679,7 @@ func (rg *ResourceGraph) checkChild(child reflect.Value, res Resource, metadata 
 		}
 		for elemIdx := 0; elemIdx < child.Len(); elemIdx++ {
 			elemValue := child.Index(elemIdx)
-			merr.Append(rg.actOnValue(elemValue, res, params.Index(elemIdx).Interface(), nil, reflect.Value{}))
+			merr.Append(rg.createSubDependencies(elemValue, res, params.Index(elemIdx).Interface(), nil, reflect.Value{}))
 		}
 	case reflect.Map:
 		params := reflect.ValueOf(metadata)
@@ -712,7 +690,7 @@ func (rg *ResourceGraph) checkChild(child reflect.Value, res Resource, metadata 
 			elemValue := child.MapIndex(key)
 			for _, paramKey := range params.MapKeys() {
 				if key.String() == paramKey.String() {
-					merr.Append(rg.actOnValue(elemValue, res, params.MapIndex(key).Interface(), &child, key))
+					merr.Append(rg.createSubDependencies(elemValue, res, params.MapIndex(key).Interface(), &child, key))
 				}
 			}
 		}

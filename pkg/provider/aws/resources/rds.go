@@ -84,7 +84,7 @@ type (
 	ProxyAuth struct {
 		AuthScheme string
 		IamAuth    string
-		SecretArn  *AwsResourceValue
+		SecretArn  core.IaCValue
 	}
 
 	// RdsProxyTargetGroup represents an AWS RDS proxy target group
@@ -372,7 +372,7 @@ func (targetGroup *RdsProxyTargetGroup) Configure(params RdsProxyTargetGroupConf
 func (rds *RdsInstance) GetConnectionPolicyDocument() *PolicyDocument {
 	return CreateAllowPolicyDocument(
 		[]string{"rds-db:connect"},
-		[]*AwsResourceValue{{ResourceVal: rds, PropertyVal: RDS_CONNECTION_ARN_IAC_VALUE}})
+		[]core.IaCValue{{ResourceId: rds.Id(), Property: RDS_CONNECTION_ARN_IAC_VALUE}})
 }
 
 // generateUsername generates a random username for the rds instance.
