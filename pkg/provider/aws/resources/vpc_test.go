@@ -548,8 +548,8 @@ func Test_SubnetMakeOperational(t *testing.T) {
 		},
 		{
 			Name:     "subnet has vpc upstream and should assign itself private",
-			Resource: &Subnet{Name: "my_app_subnet", AvailabilityZone: core.IaCValue{Property: "1"}},
-			Existing: []core.Resource{&Vpc{Name: "test"}, &Subnet{Name: "test-down", Type: PublicSubnet, AvailabilityZone: core.IaCValue{Property: "1"}}},
+			Resource: &Subnet{Name: "my_app_subnet", AvailabilityZone: core.IaCValue{ResourceId: NewAvailabilityZones().Id(), Property: "1"}},
+			Existing: []core.Resource{&Vpc{Name: "test"}, &Subnet{Name: "test-down", Type: PublicSubnet, AvailabilityZone: core.IaCValue{ResourceId: NewAvailabilityZones().Id(), Property: "1"}}},
 			ExistingDependencies: []coretesting.StringDep{
 				{Source: "aws:subnet_public:test-down", Destination: "aws:vpc:test"},
 				{Source: "aws:subnet_:my_app_subnet", Destination: "aws:vpc:test"},
@@ -578,6 +578,7 @@ func Test_SubnetMakeOperational(t *testing.T) {
 					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
 					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:test:my_app_public1"},
 					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
 					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:vpc:test"},
 					{Source: "aws:subnet_public:test-down", Destination: "aws:vpc:test"},

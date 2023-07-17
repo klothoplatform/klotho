@@ -27,10 +27,6 @@ type testResource struct {
 
 	DependencyMap  map[string]Resource
 	SpecificDepMap map[string]*testResource
-
-	IacValue    IaCValue
-	IacValueArr []IaCValue
-	IacValueMap map[string]IaCValue
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
@@ -88,16 +84,6 @@ func TestResourceGraph_AddDependenciesReflect(t *testing.T) {
 			"one": {Name: "spec_map1"},
 			"two": {Name: "spec_map2"},
 		},
-
-		IacValue: IaCValue{ResourceId: (&testResource{Name: "value1"}).Id()},
-		IacValueArr: []IaCValue{
-			IaCValue{ResourceId: (&testResource{Name: "value_arr1"}).Id()},
-			IaCValue{ResourceId: (&testResource{Name: "value_arr2"}).Id()},
-		},
-		IacValueMap: map[string]IaCValue{
-			"one": IaCValue{ResourceId: (&testResource{Name: "value_map1"}).Id()},
-			"two": IaCValue{ResourceId: (&testResource{Name: "value_map2"}).Id()},
-		},
 	}
 
 	dag := NewResourceGraph()
@@ -112,9 +98,6 @@ func TestResourceGraph_AddDependenciesReflect(t *testing.T) {
 		"spec_arr1", "spec_arr2",
 		"map1", "map2",
 		"spec_map1", "spec_map2",
-		"value1",
-		"value_arr1", "value_arr2",
-		"value_map1", "value_map2",
 		"nested",
 		"nested_arr1", "nested_arr2",
 		"nested_map1", "nested_map2",
@@ -150,16 +133,6 @@ func TestResourceGraph_CreateDependencies(t *testing.T) {
 			"one": {Name: "spec_map1"},
 			"two": {Name: "spec_map2"},
 		},
-
-		IacValue: IaCValue{ResourceId: (&testResource{Name: "value1"}).Id()},
-		IacValueArr: []IaCValue{
-			IaCValue{ResourceId: (&testResource{Name: "value_arr1"}).Id()},
-			IaCValue{ResourceId: (&testResource{Name: "value_arr2"}).Id()},
-		},
-		IacValueMap: map[string]IaCValue{
-			"one": IaCValue{ResourceId: (&testResource{Name: "value_map1"}).Id()},
-			"two": IaCValue{ResourceId: (&testResource{Name: "value_map2"}).Id()},
-		},
 	}
 
 	subParams := map[string]any{
@@ -186,16 +159,6 @@ func TestResourceGraph_CreateDependencies(t *testing.T) {
 			"one": {Name: "spec_map1"},
 			"two": {Name: "spec_map2"},
 		},
-
-		"IacValue": testResourceParams{Name: "value1"},
-		"IacValueArr": []testResourceParams{
-			{Name: "value_arr1"},
-			{Name: "value_arr2"},
-		},
-		"IacValueMap": map[string]testResourceParams{
-			"one": {Name: "value_map1"},
-			"two": {Name: "value_map2"},
-		},
 	}
 
 	dag := NewResourceGraph()
@@ -207,8 +170,8 @@ func TestResourceGraph_CreateDependencies(t *testing.T) {
 	if !assert.NoError(err) {
 		return
 	}
-	assert.Len(dag.ListResources(), 22)
-	assert.Len(dag.ListDependencies(), 21)
+	assert.Len(dag.ListResources(), 17)
+	assert.Len(dag.ListDependencies(), 16)
 	assert.NotNil(tr.SpecificDependency)
 	assert.NotNil(tr.NestedResources.SpecificDependency)
 	for _, target := range []string{
@@ -217,9 +180,7 @@ func TestResourceGraph_CreateDependencies(t *testing.T) {
 		"spec_arr1", "spec_arr2",
 		"map1", "map2",
 		"spec_map1", "spec_map2",
-		"value1",
-		"value_arr1", "value_arr2",
-		"value_map1", "value_map2",
+
 		"nested",
 		"nested_arr1", "nested_arr2",
 		"nested_map1", "nested_map2",

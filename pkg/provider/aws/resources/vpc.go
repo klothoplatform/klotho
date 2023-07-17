@@ -380,12 +380,14 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, c
 					usedAzs = append(usedAzs, currSubnet.AvailabilityZone.Property)
 				}
 			}
+			fmt.Println(usedAzs)
 			for _, availabilityZone := range availabilityZones {
 				if !collectionutil.Contains(usedAzs, availabilityZone) {
 					az = availabilityZone
 				}
 			}
 			if az == "" {
+				fmt.Println("setting az to ", availabilityZones[0])
 				az = availabilityZones[0]
 			}
 			subnet.AvailabilityZone = core.IaCValue{ResourceId: NewAvailabilityZones().Id(), Property: az}
@@ -398,12 +400,15 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, c
 			}
 			for _, subnetType := range subnetTypes {
 				if !collectionutil.Contains(usedTypes, subnetType) {
+					fmt.Println("assigning type to use")
 					typeToUse = subnetType
 				}
 			}
 			if typeToUse == "" {
+				fmt.Println("assigning type to use to default")
 				typeToUse = PrivateSubnet
 			}
+			fmt.Println(typeToUse)
 			subnet.Type = typeToUse
 		}
 		subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", appName, subnet.Type, subnet.AvailabilityZone.Property))
@@ -445,6 +450,7 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, c
 		}
 	}
 	dag.AddDependenciesReflect(subnet)
+	dag.AddDependency(subnet, NewAvailabilityZones())
 	return nil
 }
 

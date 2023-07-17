@@ -51,15 +51,3 @@ func (e *Engine) ListAttributes() []string {
 	}
 	return attributes
 }
-
-func (e *Engine) getTypeMap() map[string]core.Resource {
-	typeMap := map[string]core.Resource{}
-	for _, res := range e.ListResources() {
-		id := res.Id()
-		if typeMap[id.Type] != nil {
-			panic(fmt.Sprintf("duplicate resource type %s", id.Type))
-		}
-		typeMap[id.Type] = res
-	}
-	return typeMap
-}
