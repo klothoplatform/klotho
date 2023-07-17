@@ -23,12 +23,12 @@ func Test_KinesisStreamCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, record *KinesisStream) {
 				assert.Equal(record.Name, "my-app-stream")
-				assert.Equal(record.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(record.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing kinesis stream",
-			Existing: &KinesisStream{Name: "my-app-stream", ConstructsRef: initialRefs},
+			Existing: &KinesisStream{Name: "my-app-stream", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:kinesis_stream:my-app-stream",
@@ -38,7 +38,7 @@ func Test_KinesisStreamCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, record *KinesisStream) {
 				assert.Equal(record.Name, "my-app-stream")
 				initialRefs.Add(eu)
-				assert.Equal(record.ConstructsRef, initialRefs)
+				assert.Equal(record.ConstructRefs, initialRefs)
 			},
 		},
 	}
@@ -73,12 +73,12 @@ func Test_KinesisStreamConsumerCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, record *KinesisStreamConsumer) {
 				assert.Equal(record.Name, "my-app-stream-consumer")
 				assert.Equal(record.ConsumerName, "consumer")
-				assert.Equal(record.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(record.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing kinesis stream consumer",
-			Existing: &KinesisStreamConsumer{Name: "my-app-stream-consumer", ConstructsRef: initialRefs},
+			Existing: &KinesisStreamConsumer{Name: "my-app-stream-consumer", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:kinesis_stream_consumer:my-app-stream-consumer",
@@ -88,14 +88,14 @@ func Test_KinesisStreamConsumerCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, record *KinesisStreamConsumer) {
 				assert.Equal(record.Name, "my-app-stream-consumer")
 				initialRefs.Add(eu)
-				assert.Equal(record.ConstructsRef, initialRefs)
+				assert.Equal(record.ConstructRefs, initialRefs)
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = KinesisStreamConsumerCreateParams{
-				Stream: &KinesisStream{Name: "my-app-stream", ConstructsRef: core.BaseConstructSetOf(eu)},
+				Stream: &KinesisStream{Name: "my-app-stream", ConstructRefs: core.BaseConstructSetOf(eu)},
 				Name:   "consumer",
 			}
 			tt.Run(t)

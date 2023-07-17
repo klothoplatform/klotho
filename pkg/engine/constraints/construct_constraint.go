@@ -2,8 +2,10 @@ package constraints
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
 
@@ -32,15 +34,15 @@ func (constraint *ConstructConstraint) Scope() ConstraintScope {
 	return ConstructConstraintScope
 }
 
-func (constraint *ConstructConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource) bool {
+func (constraint *ConstructConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource, classifier classification.Classifier) bool {
 	switch constraint.Operator {
 	case EqualsConstraintOperator:
 		// Well look at all resources to see if there is a resource matching the type, that references the base construct passed in
 		// Cuirrently attributes go unchecked
 		for _, res := range dag.ListResources() {
-			if constraint.Type != "" && res.Id().Type == constraint.Type && res.BaseConstructsRef().Has(constraint.Target) {
+			if constraint.Type != "" && res.Id().Type == constraint.Type && res.BaseConstructRefs().Has(constraint.Target) {
 				return true
-			} else if constraint.Type == "" && res.BaseConstructsRef().Has(constraint.Target) {
+			} else if constraint.Type == "" && res.BaseConstructRefs().Has(constraint.Target) {
 				return true
 			}
 		}
@@ -54,4 +56,8 @@ func (constraint *ConstructConstraint) Validate() error {
 		return errors.New("node constraint must be applied to an abstract construct")
 	}
 	return nil
+}
+
+func (constraint *ConstructConstraint) String() string {
+	return fmt.Sprintf("Constraint: %s %s %s", constraint.Scope(), constraint.Operator, constraint.Target)
 }

@@ -2,7 +2,6 @@ package iac2
 
 import (
 	"bytes"
-	"fmt"
 	"io/fs"
 	"reflect"
 	"strings"
@@ -242,96 +241,6 @@ func Test_renderGlueVars(t *testing.T) {
 	}
 }
 
-func Test_handleIaCValue(t *testing.T) {
-	cases := []struct {
-		name                 string
-		value                core.IaCValue
-		resourceVarNamesById map[core.ResourceId]string
-		resource             core.Resource
-		want                 string
-		wantOutputs          []AppliedOutput
-	}{
-		{
-			name: "bucket name",
-			value: &resources.AwsResourceValue{
-				ResourceVal: &resources.S3Bucket{Name: "test-app"},
-				PropertyVal: string(core.BUCKET_NAME),
-			},
-			resourceVarNamesById: map[core.ResourceId]string{
-				{Provider: "aws", Type: "s3_bucket", Name: "test-app-"}: "testBucket",
-			},
-			want: "s3BucketTestApp.bucket",
-		},
-		{
-			name: "string value, nil resource",
-			value: &resources.AwsResourceValue{
-				PropertyVal: "TestValue",
-			},
-			want: "`TestValue`",
-		},
-		{
-			name: "value with applied outputs, cluster oidc arn",
-			value: &resources.AwsResourceValue{
-				ResourceVal: &resources.EksCluster{Name: "test-app-cluster1"},
-				PropertyVal: resources.OIDC_SUB_IAC_VALUE,
-			},
-			resourceVarNamesById: map[core.ResourceId]string{
-				{Provider: "aws", Type: "eks_cluster", Name: "test-app-cluster1"}: "awsEksClusterTestAppCluster1",
-			},
-			want: "`${cluster_oidc_url}:sub`",
-			wantOutputs: []AppliedOutput{
-				{
-					appliedName: fmt.Sprintf("%s.url", "awsEksClusterTestAppCluster1"),
-					varName:     "cluster_oidc_url",
-				},
-			},
-		},
-		{
-			name: "Availability zone",
-			value: &resources.AwsResourceValue{
-				ResourceVal: &resources.AvailabilityZones{},
-				PropertyVal: "2",
-			},
-			resourceVarNamesById: map[core.ResourceId]string{
-				{Provider: "aws", Type: "availability_zones", Name: "AvailabilityZones"}: "azs",
-			},
-			want: "azs.names[2]",
-		},
-		{
-			name: "nlb uri",
-			value: &resources.AwsResourceValue{
-				ResourceVal: &resources.LoadBalancer{Name: "test"},
-				PropertyVal: resources.NLB_INTEGRATION_URI_IAC_VALUE,
-			},
-			resourceVarNamesById: map[core.ResourceId]string{
-				{Provider: "aws", Type: "load_balancer", Name: "test"}: "lb",
-			},
-			resource: &resources.ApiIntegration{Route: "/route"},
-			want:     "pulumi.interpolate`http://${lb.dnsName}/route`",
-		},
-	}
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-			tc := TemplatesCompiler{
-				resourceVarNames:     make(map[string]struct{}),
-				resourceVarNamesById: tt.resourceVarNamesById,
-			}
-			appliedOutputs := []AppliedOutput{}
-			reflectValue := reflect.ValueOf(tt.resource)
-			for reflectValue.Kind() == reflect.Pointer {
-				reflectValue = reflectValue.Elem()
-			}
-			actual, err := tc.handleIaCValue(tt.value, &appliedOutputs, &reflectValue)
-			assert.NoError(err)
-			assert.Equal(tt.want, actual)
-			if tt.wantOutputs != nil {
-				assert.ElementsMatch(tt.wantOutputs, appliedOutputs)
-			}
-		})
-	}
-}
-
 type (
 	DummyFizz struct {
 		Value string
@@ -364,22 +273,22 @@ type (
 )
 
 func (f *DummyFizz) Id() core.ResourceId                      { return core.ResourceId{Name: "fizz-" + f.Value} }
-func (f *DummyFizz) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f *DummyFizz) BaseConstructRefs() core.BaseConstructSet { return nil }
 func (f *DummyFizz) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{}
 }
 func (b DummyBuzz) Id() core.ResourceId                      { return core.ResourceId{Name: "buzz-shared"} }
-func (f DummyBuzz) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f DummyBuzz) BaseConstructRefs() core.BaseConstructSet { return nil }
 func (f DummyBuzz) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{}
 }
 func (p *DummyBig) Id() core.ResourceId                      { return core.ResourceId{Name: "big-" + p.id} }
-func (f *DummyBig) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f *DummyBig) BaseConstructRefs() core.BaseConstructSet { return nil }
 func (f *DummyBig) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{}
 }
 func (p DummyVoid) Id() core.ResourceId                      { return core.ResourceId{Name: "void"} }
-func (f DummyVoid) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f DummyVoid) BaseConstructRefs() core.BaseConstructSet { return nil }
 func (f DummyVoid) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{}
 }

@@ -51,7 +51,7 @@ var EcsKB = knowledgebase.Build(
 			}
 			dag.AddDependency(service.TaskDefinition.ExecutionRole, table)
 			for _, env := range data.EnvironmentVariables {
-				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: table, PropertyVal: env.GetValue()}
+				service.TaskDefinition.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: table.Id(), Property: env.GetValue()}
 			}
 			return nil
 		},
@@ -59,7 +59,7 @@ var EcsKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.ElasticacheCluster]{
 		Configure: func(service *resources.EcsService, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: cluster, PropertyVal: env.GetValue()}
+				service.TaskDefinition.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: cluster.Id(), Property: env.GetValue()}
 			}
 			return nil
 		},
@@ -72,7 +72,7 @@ var EcsKB = knowledgebase.Build(
 			}
 			dag.AddDependency(service.TaskDefinition.ExecutionRole, bucket)
 			for _, env := range data.EnvironmentVariables {
-				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: bucket, PropertyVal: env.GetValue()}
+				service.TaskDefinition.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: bucket.Id(), Property: env.GetValue()}
 			}
 			return nil
 		},
@@ -85,7 +85,7 @@ var EcsKB = knowledgebase.Build(
 			}
 			dag.AddDependency(service.TaskDefinition.ExecutionRole, secret)
 			for _, env := range data.EnvironmentVariables {
-				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: secret, PropertyVal: env.GetValue()}
+				service.TaskDefinition.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: secret.Id(), Property: env.GetValue()}
 			}
 			return nil
 		},
@@ -93,7 +93,7 @@ var EcsKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.RdsInstance]{
 		Configure: func(service *resources.EcsService, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: instance, PropertyVal: env.GetValue()}
+				service.TaskDefinition.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: instance.Id(), Property: env.GetValue()}
 			}
 			return nil
 		},
@@ -101,20 +101,20 @@ var EcsKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.RdsProxy]{
 		Configure: func(service *resources.EcsService, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				service.TaskDefinition.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: proxy, PropertyVal: env.GetValue()}
+				service.TaskDefinition.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: proxy.Id(), Property: env.GetValue()}
 			}
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.TargetGroup]{
-		ReverseDirection: true,
-		Configure: func(service *resources.EcsService, tg *resources.TargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+	knowledgebase.EdgeBuilder[*resources.TargetGroup, *resources.EcsService]{
+		DeploymentOrderReversed: true,
+		Configure: func(tg *resources.TargetGroup, service *resources.EcsService, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if service.TaskDefinition == nil || len(service.TaskDefinition.PortMappings) != 1 {
 				return fmt.Errorf("cannot configure edge %s -> %s, the service's task definition does not have exactly one port mapping", service.Id(), tg.Id())
 			}
 			service.LoadBalancers = []resources.EcsServiceLoadBalancerConfig{
 				{
-					TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE},
+					TargetGroupArn: core.IaCValue{ResourceId: tg.Id(), Property: resources.ARN_IAC_VALUE},
 					ContainerName:  service.Name,
 					ContainerPort:  service.TaskDefinition.PortMappings[0].ContainerPort,
 				},

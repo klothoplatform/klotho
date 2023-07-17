@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -75,7 +76,14 @@ func (tt ConfigureCase[P, R]) Run(t *testing.T) {
 	assert.Equal(tt.Want, res)
 }
 
-type MakeOperationalCase[R core.OperationalResource] struct {
+type (
+	OperationalResource interface {
+		core.Resource
+		MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error
+	}
+)
+
+type MakeOperationalCase[R OperationalResource] struct {
 	Name                 string
 	Resource             R
 	Existing             []core.Resource
@@ -98,7 +106,7 @@ func (tt MakeOperationalCase[R]) Run(t *testing.T) {
 		dag.AddDependencyByString(dep.Source, dep.Destination, nil)
 	}
 
-	err := tt.Resource.MakeOperational(dag, tt.AppName)
+	err := tt.Resource.MakeOperational(dag, tt.AppName, nil)
 	if tt.WantErr {
 		assert.Error(err)
 		return

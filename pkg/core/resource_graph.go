@@ -3,9 +3,10 @@ package core
 import (
 	"fmt"
 	"reflect"
+	"sort"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -24,6 +25,45 @@ func NewResourceGraph() *ResourceGraph {
 	}
 }
 
+func (rg *ResourceGraph) Clone() *ResourceGraph {
+	newGraph := &ResourceGraph{
+		underlying: graph.NewLike(rg.underlying),
+	}
+	for _, v := range rg.ListResources() {
+		newGraph.AddResource(v)
+	}
+	for _, dep := range rg.ListDependencies() {
+		newGraph.AddDependencyWithData(dep.Source, dep.Destination, dep.Properties.Data)
+	}
+	return newGraph
+}
+
+func (rg *ResourceGraph) String() string {
+	buf := new(strings.Builder)
+
+	nodes := rg.ListResources()
+	node_ids := make([]string, len(nodes))
+	for _, node := range nodes {
+		node_ids = append(node_ids, node.Id().String())
+	}
+	sort.Strings(node_ids)
+
+	deps := rg.ListDependencies()
+	dep_ids := make([]string, len(deps))
+	for _, dep := range deps {
+		dep_ids = append(dep_ids, fmt.Sprintf("%s -> %s", dep.Source.Id(), dep.Destination.Id()))
+	}
+	sort.Strings(dep_ids)
+
+	for _, v := range node_ids {
+		buf.WriteString(v)
+	}
+	for _, dep := range dep_ids {
+		buf.WriteString(dep)
+	}
+	return buf.String()
+}
+
 func (rg *ResourceGraph) ShortestPath(source ResourceId, dest ResourceId) ([]Resource, error) {
 	ids, err := rg.underlying.ShortestPath(source.String(), dest.String())
 	if err != nil {
@@ -32,6 +72,21 @@ func (rg *ResourceGraph) ShortestPath(source ResourceId, dest ResourceId) ([]Res
 	resources := make([]Resource, len(ids))
 	for i, id := range ids {
 		resources[i] = rg.underlying.GetVertex(id)
+	}
+	return resources, nil
+}
+
+func (rg *ResourceGraph) AllPaths(source ResourceId, dest ResourceId) ([][]Resource, error) {
+	paths, err := rg.underlying.AllPaths(source.String(), dest.String())
+	if err != nil {
+		return nil, err
+	}
+	resources := make([][]Resource, len(paths))
+	for i, path := range paths {
+		resources[i] = make([]Resource, len(path))
+		for j, id := range path {
+			resources[i][j] = rg.underlying.GetVertex(id)
+		}
 	}
 	return resources, nil
 }
@@ -61,14 +116,14 @@ func (rg *ResourceGraph) GetResourceWithProperties(id ResourceId) (Resource, map
 	return res, graph.AttributesFromVertexProperties(props)
 }
 
-// Adds a dependency such that `deployedSecond` has to be deployed after `deployedFirst`. This makes the left-to-right
+// Adds a dependency such that `source` has to be deployed after `destination`. This makes the left-to-right
 // association consistent with our visualizer, and with the Go struct graph.
 //
 // For example, if you have a Lambda and its execution role, then:
 //
 //	╭────────────────╮   ╭────────────────╮
 //	│ LambdaFunction ├──➤│    IamRole     │
-//	│ deployedSecond │   │ deployedFirst  │
+//	│ source │   │ destination  │
 //	╰────────────────╯   ╰────────────────╯
 //
 // And you would use it as:
@@ -79,38 +134,38 @@ func (rg *ResourceGraph) GetResourceWithProperties(id ResourceId) (Resource, map
 //	}
 //
 //	rg.AddDependency(lambda, lambda.Role)
-func (rg *ResourceGraph) AddDependency(deployedSecond Resource, deployedFirst Resource) {
-	rg.AddDependencyWithData(deployedSecond, deployedFirst, nil)
+func (rg *ResourceGraph) AddDependency(source Resource, destination Resource) {
+	rg.AddDependencyWithData(source, destination, nil)
 }
 
-// AddDependencyWithData Adds a dependency such that `deployedSecond` has to be deployed after `deployedFirst`. This makes the left-to-right
+// AddDependencyWithData Adds a dependency such that `source` has to be deployed after `destination`. This makes the left-to-right
 // association consistent with our visualizer, and with the Go struct graph.
 // This method also allows any edge data to be attached to the dependency in the ResourceGraph
-func (rg *ResourceGraph) AddDependencyWithData(deployedSecond Resource, deployedFirst Resource, data any) {
-	if deployedSecond.Id() == deployedFirst.Id() {
+func (rg *ResourceGraph) AddDependencyWithData(source Resource, destination Resource, data any) {
+	if source.Id() == destination.Id() {
 		return
 	}
-	rg.AddResource(deployedSecond)
-	rg.AddResource(deployedFirst)
-	rg.AddDependencyById(deployedSecond.Id(), deployedFirst.Id(), data)
+	rg.AddResource(source)
+	rg.AddResource(destination)
+	rg.AddDependencyById(source.Id(), destination.Id(), data)
 
 }
 
-func (rg *ResourceGraph) AddDependencyById(deployedSecond ResourceId, deployedFirst ResourceId, data any) {
-	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond.String(), deployedFirst.String()); cycle {
-		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond, deployedFirst)
+func (rg *ResourceGraph) AddDependencyById(source ResourceId, destination ResourceId, data any) {
+	if cycle, _ := rg.underlying.CreatesCycle(source.String(), destination.String()); cycle {
+		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", source, destination)
 	} else {
-		rg.underlying.AddEdge(deployedSecond.String(), deployedFirst.String(), data)
-		zap.S().Debugf("adding %s -> %s", deployedSecond, deployedFirst)
+		rg.underlying.AddEdge(source.String(), destination.String(), data)
+		zap.S().Debugf("adding %s -> %s", source, destination)
 	}
 }
 
-func (rg *ResourceGraph) AddDependencyByString(deployedSecond string, deployedFirst string, data any) {
-	if cycle, _ := rg.underlying.CreatesCycle(deployedSecond, deployedFirst); cycle {
-		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", deployedSecond, deployedFirst)
+func (rg *ResourceGraph) AddDependencyByString(source string, destination string, data any) {
+	if cycle, _ := rg.underlying.CreatesCycle(source, destination); cycle {
+		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", source, destination)
 	} else {
-		rg.underlying.AddEdge(deployedSecond, deployedFirst, data)
-		zap.S().Debugf("adding %s -> %s", deployedSecond, deployedFirst)
+		rg.underlying.AddEdge(source, destination, data)
+		zap.S().Debugf("adding %s -> %s", source, destination)
 	}
 }
 
@@ -132,7 +187,7 @@ func GetResources[T Resource](g *ResourceGraph) (resources []T) {
 func (rg *ResourceGraph) FindResourcesWithRef(id ResourceId) []Resource {
 	var result []Resource
 	for _, resource := range rg.ListResources() {
-		if resource.BaseConstructsRef().Has(id) {
+		if resource.BaseConstructRefs().Has(id) {
 			result = append(result, resource)
 		}
 	}
@@ -164,7 +219,7 @@ func (rg *ResourceGraph) RemoveResourceAndEdges(source Resource) error {
 }
 
 func (rg *ResourceGraph) RemoveResource(resource Resource) error {
-	zap.S().Infof("Removing resource %s", resource.Id())
+	zap.S().Debugf("Removing resource %s", resource.Id())
 	return rg.underlying.RemoveVertex(resource.Id().String())
 }
 
@@ -298,8 +353,8 @@ func (rg *ResourceGraph) addDependenciesReflect(source Resource, targetValue ref
 	case Resource:
 		rg.AddDependency(source, value)
 	case IaCValue:
-		if value.Resource() != nil {
-			rg.AddDependency(source, value.Resource())
+		if !value.ResourceId.IsZero() {
+			rg.AddDependencyById(source.Id(), value.ResourceId, nil)
 		}
 	default:
 		correspondingValue := targetValue
@@ -425,57 +480,6 @@ func (rg *ResourceGraph) ReplaceConstruct(resource Resource, new Resource) error
 	return rg.RemoveResource(resource)
 }
 
-// CreateDependencies takes in a resource and set of metadata and looks at any fields which point to specific dependencies which match the Resource Interface
-// If a specific dependency is found, the .Create method will be called to create the parent resource.
-// Each specific dependency value will be updated on the resources field itself
-// This method will recurse down each one of the resources fields and do a DFS until a Resource is found
-//
-// Before adding a dependency and setting the value on the resource's field, the method will ensure there is no existing node in the graph for the named node created
-// If there is an existing node, the method will ensure the resource's field is set to point to the already existent node
-//
-// IaCValues today are not labeled as a specific resource, so the value must already be present. This method will still add the dependency and ensure the resource is created based on the params passed in, but
-// does not have the knowledge of which resource to create
-//
-//	T params are a map of the reflection field names, to their respective fields
-//
-// Example:
-// for a struct:
-//
-//	 Test{
-//	   Field1 Resource
-//	   Field2 Resource
-//	}
-//
-// The corresponding params would be:
-//
-//	params := map[string]any{
-//	   "Field1": ResourceParams
-//	   "Field2": ResourceParams
-//	}
-//
-// Params for direct resources or IaCValues correlate to the field they are for
-// For params on fields which correlate to the following types, the formats are:
-//   - Map: map[string]ParamType    (the string key corresponds to the key in the map)
-//   - Struct: map[string]ParamType (the string key corresponds to the field in the struct)
-//   - Array or slice: []ParamType
-func (rg *ResourceGraph) CreateDependencies(res Resource, params map[string]any) error {
-	var merr multierr.Error
-	source := reflect.ValueOf(res)
-
-	for source.Kind() == reflect.Pointer {
-		source = source.Elem()
-	}
-	for i := 0; i < source.NumField(); i++ {
-		targetValue := source.Field(i)
-		fieldsParams := params[source.Type().Field(i).Name]
-		if fieldsParams != nil {
-			merr.Append(rg.actOnValue(targetValue, res, fieldsParams, nil, reflect.Value{}))
-		}
-	}
-	rg.AddDependenciesReflect(res)
-	return merr.ErrOrNil()
-}
-
 // CreateResource is a wrapper around a Resources .Create method
 //
 // CreateResource provides safety in assuring that the up to date resource (which is inline with what exists in the ResourceGraph) is returned
@@ -498,81 +502,6 @@ func CreateResource[T Resource](rg *ResourceGraph, params any) (resource T, err 
 	return castedRes.(T), nil
 }
 
-func (rg *ResourceGraph) actOnValue(targetValue reflect.Value, res Resource, metadata any, parent *reflect.Value, index reflect.Value) error {
-	switch value := targetValue.Interface().(type) {
-	case Resource:
-		if targetValue.IsNil() {
-			value = reflect.New(targetValue.Type().Elem()).Interface().(Resource)
-		}
-		err := rg.CallCreate(reflect.ValueOf(value), metadata)
-		if err != nil {
-			return err
-		}
-		currValue := rg.GetResource(value.Id())
-		if currValue == nil {
-			currValue = value
-		}
-		appName := ""
-		if reflect.ValueOf(metadata).FieldByName("AppName").IsValid() {
-			appName = reflect.ValueOf(metadata).FieldByName("AppName").String()
-		}
-		err = rg.CallMakeOperational(currValue, appName)
-		if err != nil {
-			return err
-		}
-		if currValue != nil {
-			value = currValue
-		}
-		if err == nil && value != nil {
-			if parent != nil {
-				parent.SetMapIndex(index, reflect.ValueOf(value))
-			} else {
-				targetValue.Set(reflect.ValueOf(value))
-			}
-		} else {
-			return err
-		}
-	case IaCValue:
-		if value.Resource() != nil {
-			err := rg.CallCreate(reflect.ValueOf(value.Resource()), metadata)
-			if err != nil {
-				return err
-			}
-			currValue := rg.GetResource(value.Resource().Id())
-			if currValue == nil {
-				currValue = value.Resource()
-			}
-			err = rg.CallMakeOperational(currValue, reflect.ValueOf(metadata).FieldByName("AppName").String())
-			if err != nil {
-				return err
-			}
-			if currValue != nil {
-				value.SetResource(currValue)
-			}
-			if err == nil && value.Resource() != nil {
-				if parent != nil {
-					parent.SetMapIndex(index, reflect.ValueOf(value))
-				} else {
-					targetValue.Set(reflect.ValueOf(value))
-				}
-			} else {
-				return err
-			}
-		}
-	default:
-		correspondingValue := targetValue
-		for correspondingValue.Kind() == reflect.Pointer {
-			correspondingValue = targetValue.Elem()
-		}
-
-		err := rg.checkChild(correspondingValue, res, metadata)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (rg *ResourceGraph) CallCreate(targetValue reflect.Value, metadata any) error {
 	method := targetValue.MethodByName("Create")
 	if method.IsValid() {
@@ -585,29 +514,6 @@ func (rg *ResourceGraph) CallCreate(targetValue reflect.Value, metadata any) err
 			return errors.Wrap(err, fmt.Sprintf("error decoding the following type %s", reflect.New(method.Type().In(1)).Type().String()))
 		}
 		callArgs = append(callArgs, reflect.ValueOf(params).Elem())
-		eval := method.Call(callArgs)
-		if eval[0].IsNil() {
-			return nil
-		} else {
-			err, ok := eval[0].Interface().(error)
-			if !ok {
-				return fmt.Errorf("return type should be an error")
-			}
-			return err
-		}
-	}
-	return nil
-}
-
-func (rg *ResourceGraph) CallMakeOperational(resource Resource, appName string) error {
-	method := reflect.ValueOf(resource).MethodByName("MakeOperational")
-	if method.IsValid() {
-		if rg.GetResource(resource.Id()) == nil {
-			return fmt.Errorf("resource with id %s cannot be made operational since it does not exist in the ResourceGraph", resource.Id())
-		}
-		var callArgs []reflect.Value
-		callArgs = append(callArgs, reflect.ValueOf(rg))
-		callArgs = append(callArgs, reflect.ValueOf(appName))
 		eval := method.Call(callArgs)
 		if eval[0].IsNil() {
 			return nil
@@ -650,51 +556,4 @@ func (rg *ResourceGraph) CallConfigure(resource Resource, metadata any) error {
 		}
 	}
 	return nil
-}
-
-func (rg *ResourceGraph) checkChild(child reflect.Value, res Resource, metadata any) error {
-	var merr multierr.Error
-	switch child.Kind() {
-	case reflect.Struct:
-		params := reflect.ValueOf(metadata)
-		if params.Kind() != reflect.Map {
-			return fmt.Errorf("field %s params does not conform to type for structs", child.Type().String())
-		}
-		for i := 0; i < child.NumField(); i++ {
-			childVal := child.Field(i)
-			fieldName := child.Type().Field(i).Name
-
-			// Loop over the keys of the params map and see if anything correlates to the field in the struct. If so then we will act on that field of the struct
-			for _, key := range params.MapKeys() {
-				if key.String() == fieldName {
-					merr.Append(rg.actOnValue(childVal, res, params.MapIndex(reflect.ValueOf(fieldName)).Interface(), nil, reflect.Value{}))
-				}
-			}
-		}
-	case reflect.Slice, reflect.Array:
-		params := reflect.ValueOf(metadata)
-		if params.Kind() != reflect.Slice && params.Kind() != reflect.Array {
-			return fmt.Errorf("field %s does not match parent type %s", params.Type().String(), child.Type().String())
-		} else if params.Len() != child.Len() {
-			return fmt.Errorf("field %s does not have the same number of elements as parent", child.Type().String())
-		}
-		for elemIdx := 0; elemIdx < child.Len(); elemIdx++ {
-			elemValue := child.Index(elemIdx)
-			merr.Append(rg.actOnValue(elemValue, res, params.Index(elemIdx).Interface(), nil, reflect.Value{}))
-		}
-	case reflect.Map:
-		params := reflect.ValueOf(metadata)
-		if params.Kind() != reflect.Map {
-			return fmt.Errorf("field %s params does not conform to type for maps", child.Type().String())
-		}
-		for _, key := range child.MapKeys() {
-			elemValue := child.MapIndex(key)
-			for _, paramKey := range params.MapKeys() {
-				if key.String() == paramKey.String() {
-					merr.Append(rg.actOnValue(elemValue, res, params.MapIndex(key).Interface(), &child, key))
-				}
-			}
-		}
-	}
-	return merr.ErrOrNil()
 }

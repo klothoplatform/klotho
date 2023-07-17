@@ -20,7 +20,7 @@ var NetworkingKB = knowledgebase.Build(
 					continue
 				}
 			}
-			routeTable.Routes = append(routeTable.Routes, &resources.RouteTableRoute{CidrBlock: "0.0.0.0/0", NatGatewayId: &resources.AwsResourceValue{ResourceVal: nat, PropertyVal: resources.ID_IAC_VALUE}})
+			routeTable.Routes = append(routeTable.Routes, &resources.RouteTableRoute{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{ResourceId: nat.Id(), Property: resources.ID_IAC_VALUE}})
 			return nil
 		},
 	},
@@ -32,7 +32,7 @@ var NetworkingKB = knowledgebase.Build(
 					continue
 				}
 			}
-			routeTable.Routes = append(routeTable.Routes, &resources.RouteTableRoute{CidrBlock: "0.0.0.0/0", GatewayId: &resources.AwsResourceValue{ResourceVal: igw, PropertyVal: resources.ID_IAC_VALUE}})
+			routeTable.Routes = append(routeTable.Routes, &resources.RouteTableRoute{CidrBlock: "0.0.0.0/0", GatewayId: core.IaCValue{ResourceId: igw.Id(), Property: resources.ID_IAC_VALUE}})
 			return nil
 		},
 	},
@@ -44,8 +44,8 @@ var NetworkingKB = knowledgebase.Build(
 		Configure: func(sg *resources.SecurityGroup, vpc *resources.Vpc, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			vpcIngressRule := resources.SecurityGroupRule{
 				Description: "Allow ingress traffic from ip addresses within the vpc",
-				CidrBlocks: []*resources.AwsResourceValue{
-					{ResourceVal: vpc, PropertyVal: resources.CIDR_BLOCK_IAC_VALUE},
+				CidrBlocks: []core.IaCValue{
+					{ResourceId: vpc.Id(), Property: resources.CIDR_BLOCK_IAC_VALUE},
 				},
 				FromPort: 0,
 				Protocol: "-1",
@@ -65,8 +65,8 @@ var NetworkingKB = knowledgebase.Build(
 				FromPort:    0,
 				Protocol:    "-1",
 				ToPort:      0,
-				CidrBlocks: []*resources.AwsResourceValue{
-					{PropertyVal: "0.0.0.0/0"},
+				CidrBlocks: []core.IaCValue{
+					{Property: "0.0.0.0/0"},
 				},
 			}
 			sg.EgressRules = append(sg.EgressRules, allOutboundRule)

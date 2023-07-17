@@ -28,6 +28,19 @@ func (p *Config) AnnotationCapability() string {
 	return annotation.ConfigCapability
 }
 
+func (p *Config) Functionality() Functionality {
+	return Storage
+}
+
+func (p *Config) Attributes() map[string]any {
+	if p.Secret {
+		return map[string]any{
+			"secret": nil,
+		}
+	}
+	return map[string]any{}
+}
+
 func GenerateSecretEnvVar(cfg *Config) environmentVariable {
 	return NewEnvironmentVariable(fmt.Sprintf("%s%s", strings.ToUpper(cfg.Name), SECRET_NAME_SUFFIX), cfg, string(SECRET_NAME))
 }

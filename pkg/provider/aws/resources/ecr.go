@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"go.uber.org/zap"
 )
 
@@ -17,13 +18,13 @@ const (
 type (
 	EcrRepository struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		ForceDelete   bool
 	}
 
 	EcrImage struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Repo          *EcrRepository
 		Context       string
 		Dockerfile    string
@@ -38,12 +39,12 @@ type RepoCreateParams struct {
 
 func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreateParams) error {
 	repo.Name = params.AppName
-	repo.ConstructsRef = params.Refs.Clone()
+	repo.ConstructRefs = params.Refs.Clone()
 
 	existingRepo := dag.GetResource(repo.Id())
 	if existingRepo != nil {
 		graphRepo := existingRepo.(*EcrRepository)
-		graphRepo.ConstructsRef.AddAll(params.Refs)
+		graphRepo.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(repo)
 	}
@@ -67,7 +68,7 @@ type ImageCreateParams struct {
 func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams) error {
 	name := fmt.Sprintf("%s-%s", params.AppName, params.Name)
 	image.Name = name
-	image.ConstructsRef = params.Refs.Clone()
+	image.ConstructRefs = params.Refs.Clone()
 
 	existingImage := dag.GetResource(image.Id())
 	if existingImage != nil {
@@ -77,19 +78,19 @@ func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams)
 	return nil
 }
 
-func (image *EcrImage) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (image *EcrImage) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if image.Repo == nil {
 		repos := core.GetDownstreamResourcesOfType[*EcrRepository](dag, image)
 		if len(repos) == 0 {
-			err := dag.CreateDependencies(image, map[string]any{
-				"Repo": RepoCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(image),
-				},
+			repo, err := core.CreateResource[*EcrRepository](dag, RepoCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(image),
 			})
 			if err != nil {
 				return err
 			}
+			image.Repo = repo
+			dag.AddDependency(image, image.Repo)
 		} else if len(repos) == 1 {
 			image.Repo = repos[0]
 			dag.AddDependency(image, image.Repo)
@@ -121,9 +122,9 @@ func (image *EcrImage) Configure(params EcrImageConfigureParams) error {
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (repo *EcrRepository) BaseConstructsRef() core.BaseConstructSet {
-	return repo.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (repo *EcrRepository) BaseConstructRefs() core.BaseConstructSet {
+	return repo.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -141,9 +142,9 @@ func (repo *EcrRepository) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (image *EcrImage) BaseConstructsRef() core.BaseConstructSet {
-	return image.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (image *EcrImage) BaseConstructRefs() core.BaseConstructSet {
+	return image.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

@@ -26,7 +26,7 @@ func Test_ConstructConstraint_IsSatisfied(t *testing.T) {
 			resources: []core.Resource{
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructsRef: core.BaseConstructSetOf(eu),
+					ConstructRefs: core.BaseConstructSetOf(eu),
 				},
 			},
 			want: true,
@@ -41,7 +41,7 @@ func Test_ConstructConstraint_IsSatisfied(t *testing.T) {
 			resources: []core.Resource{
 				&resources.Ec2Instance{
 					Name:          "my_instance",
-					ConstructsRef: core.BaseConstructSetOf(eu),
+					ConstructRefs: core.BaseConstructSetOf(eu),
 				},
 			},
 			want: false,
@@ -81,7 +81,7 @@ func Test_ConstructConstraint_IsSatisfied(t *testing.T) {
 			for _, res := range tt.resources {
 				dag.AddResource(res)
 			}
-			result := tt.constraint.IsSatisfied(dag, nil, make(map[core.ResourceId][]core.Resource))
+			result := tt.constraint.IsSatisfied(dag, nil, make(map[core.ResourceId][]core.Resource), nil)
 			assert.Equal(tt.want, result)
 		})
 	}

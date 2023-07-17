@@ -5,6 +5,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 )
 
 const (
@@ -16,7 +17,7 @@ const (
 type (
 	Route53HostedZone struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Vpcs          []*Vpc
 		ForceDestroy  bool
 	}
@@ -24,17 +25,17 @@ type (
 	Route53Record struct {
 		Name          string
 		DomainName    string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Zone          *Route53HostedZone
 		Type          string
-		Records       []*AwsResourceValue
+		Records       []core.IaCValue
 		HealthCheck   *Route53HealthCheck
 		TTL           int
 	}
 
 	Route53HealthCheck struct {
 		Name             string
-		ConstructsRef    core.BaseConstructSet `yaml:"-"`
+		ConstructRefs    core.BaseConstructSet `yaml:"-"`
 		Type             string
 		Disabled         bool
 		FailureThreshold int
@@ -55,18 +56,18 @@ type Route53HostedZoneCreateParams struct {
 
 func (zone *Route53HostedZone) Create(dag *core.ResourceGraph, params Route53HostedZoneCreateParams) error {
 	zone.Name = fmt.Sprintf("%s-%s", params.AppName, params.Name)
-	zone.ConstructsRef = params.Refs
+	zone.ConstructRefs = params.Refs
 
 	existingZone, found := core.GetResource[*Route53HostedZone](dag, zone.Id())
 	if found {
-		existingZone.ConstructsRef.AddAll(params.Refs)
+		existingZone.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(zone)
 	return nil
 }
 
-func (zone *Route53HostedZone) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (zone *Route53HostedZone) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	vpcs := core.GetDownstreamResourcesOfType[*Vpc](dag, zone)
 	for _, vpc := range vpcs {
 		if !collectionutil.Contains(zone.Vpcs, vpc) {
@@ -93,12 +94,12 @@ type Route53RecordCreateParams struct {
 
 func (record *Route53Record) Create(dag *core.ResourceGraph, params Route53RecordCreateParams) error {
 	record.Name = fmt.Sprintf("%s-%s", params.Zone.Name, params.DomainName)
-	record.ConstructsRef = params.Refs
+	record.ConstructRefs = params.Refs
 	record.DomainName = params.DomainName
 
 	existingRecord, found := core.GetResource[*Route53Record](dag, record.Id())
 	if found {
-		existingRecord.ConstructsRef.AddAll(params.Refs)
+		existingRecord.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	record.Zone = params.Zone
@@ -106,7 +107,7 @@ func (record *Route53Record) Create(dag *core.ResourceGraph, params Route53Recor
 	return nil
 }
 
-func (record *Route53Record) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (record *Route53Record) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if record.Zone == nil {
 		zones := core.GetDownstreamResourcesOfType[*Route53HostedZone](dag, record)
 		if len(zones) != 1 {
@@ -155,11 +156,11 @@ func (healthCheck *Route53HealthCheck) Create(dag *core.ResourceGraph, params Ro
 		healthCheck.Fqdn = params.Fqdn
 	}
 	healthCheck.Name = name
-	healthCheck.ConstructsRef = params.Refs
+	healthCheck.ConstructRefs = params.Refs
 
 	existingHealthCheck, found := core.GetResource[*Route53HealthCheck](dag, healthCheck.Id())
 	if found {
-		existingHealthCheck.ConstructsRef.AddAll(params.Refs)
+		existingHealthCheck.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddDependenciesReflect(healthCheck)
@@ -195,9 +196,9 @@ func (healthCheck *Route53HealthCheck) Configure(params Route53HealthCheckConfig
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (zone *Route53HostedZone) BaseConstructsRef() core.BaseConstructSet {
-	return zone.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (zone *Route53HostedZone) BaseConstructRefs() core.BaseConstructSet {
+	return zone.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -215,8 +216,8 @@ func (zone *Route53HostedZone) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (record *Route53Record) BaseConstructsRef() core.BaseConstructSet {
-	return record.ConstructsRef
+func (record *Route53Record) BaseConstructRefs() core.BaseConstructSet {
+	return record.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -234,8 +235,8 @@ func (record *Route53Record) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (hc *Route53HealthCheck) BaseConstructsRef() core.BaseConstructSet {
-	return hc.ConstructsRef
+func (hc *Route53HealthCheck) BaseConstructRefs() core.BaseConstructSet {
+	return hc.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

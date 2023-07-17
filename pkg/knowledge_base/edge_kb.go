@@ -25,9 +25,8 @@ type (
 		Configure ConfigureEdge
 		// DirectEdgeOnly signals that the edge cannot be used within constructing other paths and can only be used as a direct edge
 		DirectEdgeOnly bool
-		// ReverseDirection is specified when the data flow is in the opposite direction of the edge
-		// This is used in scenarios where we want to find paths, only allowing specific edges to be bidirectional
-		ReverseDirection bool
+		// DeploymentOrderReversed is specified when the edge is in the opposite direction of the deployment order
+		DeploymentOrderReversed bool
 		// DeletetionDependent is used to specify edges which should not influence the deletion criteria of a resource
 		// a true value specifies the target being deleted is dependent on the source and do not need to depend on satisfication of the deletion criteria to attempt to delete the true source of the edge.
 		DeletetionDependent bool
@@ -64,11 +63,8 @@ type (
 		Source core.Resource
 		// Destination refers to the initial target resource node when edge expansion is called
 		Destination core.Resource
-		// Routes refers to any api routes being satisfied by the edge
-		Routes []core.Route
-		// SourceRef denotes the source annotation being used during expansion or configuration
-		// This is a temporary field due to helm chart being the lowest level of kubernetes resource at the moment
-		SourceRef core.BaseConstruct
+		// Attributes is a map of attributes which can be used to store arbitrary data on the edge
+		Attributes map[string]any
 	}
 
 	Path []Edge
@@ -200,11 +196,6 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 			result = append(result, clonedStack)
 		}
 	} else {
-		sourceFunctionality := core.GetFunctionality(reflect.New(source.Elem()).Interface().(core.BaseConstruct))
-		destFuntionality := core.GetFunctionality(reflect.New(dest.Elem()).Interface().(core.BaseConstruct))
-		if len(stack) != 0 && destFuntionality != core.Unknown && sourceFunctionality == destFuntionality {
-			return result
-		}
 
 		// When we are not at the destination we want to recursively call findPaths on all edges which have the source as the current node
 		// This is checking all edges which have a direction of From -> To
@@ -214,23 +205,8 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 			if det.DirectEdgeOnly && (len(stack) != 0 || e.Destination != dest) {
 				continue
 			}
-			if !det.ReverseDirection && e.Source == source && !visited[e.Destination] {
+			if e.Source == source && !visited[e.Destination] {
 				result = append(result, kb.findPaths(e.Destination, dest, append(stack, e), visited)...)
-			}
-		}
-		// When we are not at the destination we want to recursively call findPaths on all edges which have the target as the current node
-		// This is checking all edges which have a path direction of To -> From, which is opposite of their dependencies on each other
-		//
-		// An example of this scenario is in the AWS knowledge base where RdsProxyTarget -> RdsProxy  and RdsProxyTarget -> RdsInstance are valid edges
-		// However we would expect the path to be RdsProxy -> RdsProxyTarget -> RdsInstance, so to satisfy understanding the path to connect other nodes, we must understand the direction of both the IaC dependency and data flow dependency
-		for _, e := range kb.GetEdgesWithTarget(source) {
-			det, _ := kb.GetEdgeDetails(e.Source, e.Destination)
-			// Ensure that direct edges cannot contribute to paths. We check if its a direct match for the dest and if not we continue
-			if det.DirectEdgeOnly && (len(stack) != 0 || e.Source != dest) {
-				continue
-			}
-			if det.ReverseDirection && e.Destination == source && !visited[e.Source] {
-				result = append(result, kb.findPaths(e.Source, dest, append(stack, e), visited)...)
 			}
 		}
 	}
@@ -238,64 +214,17 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 	return result
 }
 
-// FindShortestPath determines the shortest path to get from the dependency's source node to destination node, using the knowledgebase of edges
-func (kb EdgeKB) FindShortestPath(dep graph.Edge[core.Resource], constraint EdgeConstraint) (Path, error) {
-	validPaths := kb.FindPaths(dep.Source, dep.Destination, constraint)
-	var validPath []Edge
-
-	var sameLengthPaths []Path
-	// Get the shortest route that satisfied constraints
-	for _, path := range validPaths {
-		if len(validPath) == 0 {
-			validPath = path
-		} else if len(path) < len(validPath) {
-			validPath = path
-			sameLengthPaths = []Path{}
-		} else if len(path) == len(validPath) {
-			sameLengthPaths = append(sameLengthPaths, path, validPath)
-		}
-	}
-	if len(sameLengthPaths) > 0 {
-		return nil, fmt.Errorf("found multiple paths which satisfy constraints for edge %s -> %s and are the same length. \n Paths: %s", dep.Source.Id(), dep.Destination.Id(), sameLengthPaths)
-	}
-
-	if len(validPath) == 0 {
-		return nil, fmt.Errorf("found no paths which satisfy constraints %s for edge %s -> %s. \n Paths: %s", constraint, dep.Source.Id(), dep.Destination.Id(), validPaths)
-	}
-	return validPath, nil
-}
-
 // ExpandEdges performs calculations to determine the proper path to be inserted into the ResourceGraph.
 //
 // The workflow of the edge expansion is as follows:
 //   - Find shortest path given the constraints on the edge
 //   - Iterate through each edge in path creating the resource if necessary
-func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGraph) (err error) {
+func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGraph, validPath Path, edgeData EdgeData) (err error) {
 
 	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
 	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
 
-	// We want to retrieve the edge data from the edge in the resource graph to use during expansion
-	edgeData := EdgeData{}
-	data, ok := dep.Properties.Data.(EdgeData)
-	if !ok && dep.Properties.Data != nil {
-		return fmt.Errorf("edge properties for edge %s -> %s, do not satisfy edge data format during expansion", dep.Source.Id(), dep.Destination.Id())
-	} else if dep.Properties.Data != nil {
-		edgeData = data
-	}
-	// We attach the dependencies source and destination nodes for context during expansion
-	edgeData.Source = dep.Source
-	edgeData.Destination = dep.Destination
-	// Find all possible paths given the initial source and destination node
-	validPath, err := kb.FindShortestPath(*dep, data.Constraint)
-	if err != nil {
-		return err
-	}
-	zap.S().Debugf("Found valid path %s", validPath)
-	// resourceCache is used to always pass the graphs nodes into the Expand functions if they exist. We do this so that we operate on nodes which already exist
 	resourceCache := map[reflect.Type]core.Resource{}
-	var joinedErr error
-
 	name := fmt.Sprintf("%s_%s", dep.Source.Id().Name, dep.Destination.Id().Name)
 	for _, edge := range validPath {
 		source := edge.Source
@@ -305,8 +234,6 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		// Determine if the source node is the actual source of the dependency getting expanded
 		if source == reflect.TypeOf(dep.Source) {
 			sourceNode = dep.Source
-		} else if source == reflect.TypeOf(dep.Destination) && edgeDetail.ReverseDirection {
-			sourceNode = dep.Destination
 		}
 		if sourceNode == nil {
 			// Create a new interface of the source nodes type if it does not exist
@@ -324,8 +251,6 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		destNode := resourceCache[dest]
 		if dest == reflect.TypeOf(dep.Destination) {
 			destNode = dep.Destination
-		} else if dest == reflect.TypeOf(dep.Source) && edgeDetail.ReverseDirection {
-			destNode = dep.Source
 		}
 
 		if destNode == nil {
@@ -344,16 +269,17 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 
 		// If the edge specifies that it can reuse upstream or downstream resources, we want to find the first resource which satisfies the reuse criteria and add that as the dependency.
 		// If there is no resource that satisfies the reuse criteria, we want to add the original direct dependency
-		if edgeDetail.Reuse == Upstream {
-			upstreamResources := kb.GetAllTrueDownstream(dep.Source, dag)
+		switch edgeDetail.Reuse {
+		case Upstream:
+			upstreamResources := dag.GetAllDownstreamResources(dep.Source)
 			for _, res := range upstreamResources {
 				if sourceNode.Id().Type == res.Id().Type {
 					dag.AddDependencyWithData(res, destNode, EdgeData{Source: dep.Source, Destination: dep.Destination})
 					added = true
 				}
 			}
-		} else if edgeDetail.Reuse == Downstream {
-			upstreamResources := kb.GetAllTrueUpstream(dep.Destination, dag)
+		case Downstream:
+			upstreamResources := dag.GetAllDownstreamResources(dep.Destination)
 			for _, res := range upstreamResources {
 				if destNode.Id().Type == res.Id().Type {
 					dag.AddDependencyWithData(sourceNode, res, EdgeData{Source: dep.Source, Destination: dep.Destination})
@@ -384,7 +310,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 	}
 
 	// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
-	if len(validPath) > 1 && joinedErr == nil {
+	if len(validPath) > 1 {
 		zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
 		err := dag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
 		if err != nil {
@@ -392,7 +318,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		}
 
 	}
-	return joinedErr
+	return nil
 }
 
 // ConfigureEdge calls each edge configure function.
@@ -418,133 +344,4 @@ func (kb EdgeKB) ConfigureEdge(dep *graph.Edge[core.Resource], dag *core.Resourc
 		}
 	}
 	return nil
-}
-
-// FindPathsInGraph takes in a source and destination type and finds all valid paths to get from source to destination.
-//
-// Find paths does a Depth First Search to search through all edges in the knowledge base.
-// The function tracks visited edges to prevent cycles during execution
-// It also checks the ValidDestinations for each edge against the original destination node to ensure that the edge is allowed to be used in the instance of the path generation
-//
-// The method will return all paths found
-func (kb EdgeKB) FindPathsInGraph(source core.Resource, dest core.Resource, dag *core.ResourceGraph) [][]graph.Edge[core.Resource] {
-	zap.S().Debugf("Finding Paths in graph from %s -> %s", source.Id(), dest.Id())
-	visitedEdges := map[core.Resource]bool{}
-	stack := []graph.Edge[core.Resource]{}
-	return kb.findPathsInGraph(source, dest, stack, visitedEdges, dag)
-}
-
-// findPathsInGraph performs the recursive calls of the parent FindPath function
-//
-// It works under the assumption that an edge is bidirectional and uses the edges ValidDestinations field to determine when that assumption is incorrect
-func (kb EdgeKB) findPathsInGraph(source, dest core.Resource, stack []graph.Edge[core.Resource], visited map[core.Resource]bool, dag *core.ResourceGraph) (result [][]graph.Edge[core.Resource]) {
-	visited[source] = true
-	if source == dest {
-		if len(stack) != 0 {
-			result = append(result, stack)
-		}
-	} else {
-		// When we are not at the destination we want to recursively call findPaths on all edges which have the source as the current node
-		// This is checking all edges which have a direction of From -> To
-		for _, edge := range dag.GetDownstreamDependencies(source) {
-			det, _ := kb.GetEdgeDetails(reflect.TypeOf(edge.Source), reflect.TypeOf(edge.Destination))
-			if !det.ReverseDirection && edge.Source == source && !visited[edge.Destination] {
-				result = append(result, kb.findPathsInGraph(edge.Destination, dest, append(stack, edge), visited, dag)...)
-			}
-		}
-		// When we are not at the destination we want to recursively call findPaths on all edges which have the target as the current node
-		// This is checking all edges which have a path direction of To -> From, which is opposite of their dependencies on each other
-		//
-		// An example of this scenario is in the AWS knowledge base where RdsProxyTarget -> RdsProxy  and RdsProxyTarget -> RdsInstance are valid edges
-		// However we would expect the path to be RdsProxy -> RdsProxyTarget -> RdsInstance, so to satisfy understanding the path to connect other nodes, we must understand the direction of both the IaC dependency and data flow dependency
-
-		for _, edge := range dag.GetUpstreamDependencies(source) {
-			det, _ := kb.GetEdgeDetails(reflect.TypeOf(edge.Source), reflect.TypeOf(edge.Destination))
-			if det.ReverseDirection && edge.Destination == source && !visited[edge.Source] {
-				result = append(result, kb.findPathsInGraph(edge.Source, dest, append(stack, edge), visited, dag)...)
-			}
-		}
-	}
-	delete(visited, source)
-	return result
-}
-
-// GetTrueUpstream takes in a resource and returns all upstream resources which exist in the dag, if their edge does not specify the reverse direction flag in the knowledge base.
-// If the edge specifies the reverse direction flag and the resource is downstream, it will be returned as an upstream resource.
-func (kb EdgeKB) GetTrueUpstream(source core.Resource, dag *core.ResourceGraph) []core.Resource {
-	upstreamResources := []core.Resource{}
-	upstreamFromDag := dag.GetUpstreamResources(source)
-	for _, res := range upstreamFromDag {
-		ed, found := kb.GetEdgeDetails(reflect.TypeOf(res), reflect.TypeOf(source))
-		if found && !ed.ReverseDirection {
-			upstreamResources = append(upstreamResources, res)
-		}
-	}
-	downstreamFromDag := dag.GetDownstreamResources(source)
-	for _, res := range downstreamFromDag {
-		ed, found := kb.GetEdgeDetails(reflect.TypeOf(source), reflect.TypeOf(res))
-		if found && ed.ReverseDirection {
-			upstreamResources = append(upstreamResources, res)
-		}
-	}
-	return upstreamResources
-}
-
-// GetTrueUpstream takes in a resource and returns all upstream resources which exist in the dag, if their edge does not specify the reverse direction flag in the knowledge base.
-// If the edge specifies the reverse direction flag and the resource is downstream, it will be returned as an upstream resource.
-func (kb EdgeKB) GetAllTrueUpstream(source core.Resource, dag *core.ResourceGraph) []core.Resource {
-	var upstreams []core.Resource
-	upstreamsSet := make(map[core.Resource]struct{})
-	for r := range kb.getAllTrueUpstreamResourcesSet(source, dag, upstreamsSet) {
-		upstreams = append(upstreams, r)
-	}
-	return upstreams
-}
-
-func (kb EdgeKB) getAllTrueUpstreamResourcesSet(source core.Resource, dag *core.ResourceGraph, upstreams map[core.Resource]struct{}) map[core.Resource]struct{} {
-	for _, r := range kb.GetTrueUpstream(source, dag) {
-		upstreams[r] = struct{}{}
-		kb.getAllTrueUpstreamResourcesSet(r, dag, upstreams)
-	}
-	return upstreams
-}
-
-// GetTrueDownstream takes in a resource and returns all downstream resources which exist in the dag, if their edge does not specify the reverse direction flag in the knowledge base.
-// If the edge specifies the reverse direction flag and the resource is upstream, it will be returned as an downstream resource.
-func (kb EdgeKB) GetTrueDownstream(source core.Resource, dag *core.ResourceGraph) []core.Resource {
-	downstreamResources := []core.Resource{}
-	upstreamFromDag := dag.GetUpstreamResources(source)
-	for _, res := range upstreamFromDag {
-		ed, found := kb.GetEdgeDetails(reflect.TypeOf(res), reflect.TypeOf(source))
-		if found && ed.ReverseDirection {
-			downstreamResources = append(downstreamResources, res)
-		}
-	}
-	downstreamFromDag := dag.GetDownstreamResources(source)
-	for _, res := range downstreamFromDag {
-		ed, found := kb.GetEdgeDetails(reflect.TypeOf(source), reflect.TypeOf(res))
-		if found && !ed.ReverseDirection {
-			downstreamResources = append(downstreamResources, res)
-		}
-	}
-	return downstreamResources
-}
-
-// GetAllTrueDownstream takes in a resource and returns all downstream resources which exist in the dag, if their edge does not specify the reverse direction flag in the knowledge base.
-// If the edge specifies the reverse direction flag and the resource is upstream, it will be returned as an downstream resource.
-func (kb EdgeKB) GetAllTrueDownstream(source core.Resource, dag *core.ResourceGraph) []core.Resource {
-	var downstreams []core.Resource
-	downstreamsSet := make(map[core.Resource]struct{})
-	for r := range kb.getAllTrueDownstreamResourcesSet(source, dag, downstreamsSet) {
-		downstreams = append(downstreams, r)
-	}
-	return downstreams
-}
-
-func (kb EdgeKB) getAllTrueDownstreamResourcesSet(source core.Resource, dag *core.ResourceGraph, downstreams map[core.Resource]struct{}) map[core.Resource]struct{} {
-	for _, r := range kb.GetTrueUpstream(source, dag) {
-		downstreams[r] = struct{}{}
-		kb.getAllTrueDownstreamResourcesSet(r, dag, downstreams)
-	}
-	return downstreams
 }

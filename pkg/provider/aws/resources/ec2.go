@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -15,7 +16,7 @@ const (
 type (
 	Ec2Instance struct {
 		Name            string
-		ConstructsRef   core.BaseConstructSet `yaml:"-"`
+		ConstructRefs   core.BaseConstructSet `yaml:"-"`
 		InstanceProfile *InstanceProfile
 		SecurityGroups  []*SecurityGroup
 		Subnet          *Subnet
@@ -25,7 +26,7 @@ type (
 
 	AMI struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 	}
 )
 
@@ -37,31 +38,31 @@ type Ec2InstanceCreateParams struct {
 
 func (instance *Ec2Instance) Create(dag *core.ResourceGraph, params Ec2InstanceCreateParams) error {
 	instance.Name = aws.Ec2InstanceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	instance.ConstructsRef = params.Refs.Clone()
+	instance.ConstructRefs = params.Refs.Clone()
 
 	existingInstance, found := core.GetResource[*Ec2Instance](dag, instance.Id())
 	if found {
-		existingInstance.ConstructsRef.AddAll(params.Refs)
+		existingInstance.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(instance)
 	return nil
 }
 
-func (instance *Ec2Instance) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (instance *Ec2Instance) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if instance.InstanceProfile == nil {
 		profiles := core.GetAllDownstreamResourcesOfType[*InstanceProfile](dag, instance)
 		if len(profiles) == 0 {
-			err := dag.CreateDependencies(instance, map[string]any{
-				"InstanceProfile": InstanceProfileCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(instance),
-					Name:    instance.Name,
-				},
+			instanceProfile, err := core.CreateResource[*InstanceProfile](dag, InstanceProfileCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(instance),
+				Name:    instance.Name,
 			})
 			if err != nil {
 				return err
 			}
+			instance.InstanceProfile = instanceProfile
+			dag.AddDependency(instance, instance.InstanceProfile)
 		} else if len(profiles) == 1 {
 			instance.InstanceProfile = profiles[0]
 			dag.AddDependency(instance, instance.InstanceProfile)
@@ -73,16 +74,16 @@ func (instance *Ec2Instance) MakeOperational(dag *core.ResourceGraph, appName st
 	if instance.AMI == nil {
 		amis := core.GetAllDownstreamResourcesOfType[*AMI](dag, instance)
 		if len(amis) == 0 {
-			err := dag.CreateDependencies(instance, map[string]any{
-				"AMI": AMICreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(instance),
-					Name:    instance.Name,
-				},
+			ami, err := core.CreateResource[*AMI](dag, AMICreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(instance),
+				Name:    instance.Name,
 			})
 			if err != nil {
 				return err
 			}
+			instance.AMI = ami
+			dag.AddDependency(instance, instance.AMI)
 		} else if len(amis) == 1 {
 			instance.AMI = amis[0]
 			dag.AddDependency(instance, instance.AMI)
@@ -110,12 +111,12 @@ func (instance *Ec2Instance) MakeOperational(dag *core.ResourceGraph, appName st
 			if vpc != nil {
 				dag.AddDependency(subnet, vpc)
 			}
-			err = subnet.MakeOperational(dag, appName)
+			err = subnet.MakeOperational(dag, appName, classifier)
 			if err != nil {
 				return err
 			}
 			instance.Subnet = subnet
-			dag.AddDependenciesReflect(instance)
+			dag.AddDependency(instance, subnet)
 		} else if len(subnets) == 1 {
 			if subnets[0].Vpc != vpc {
 				return fmt.Errorf("instance %s has subnet from vpc which does not correlate to it's vpc downstream", instance.Id())
@@ -150,11 +151,11 @@ type AMICreateParams struct {
 
 func (ami *AMI) Create(dag *core.ResourceGraph, params AMICreateParams) error {
 	ami.Name = aws.Ec2InstanceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	ami.ConstructsRef = params.Refs.Clone()
+	ami.ConstructRefs = params.Refs.Clone()
 
 	existingAMI, found := core.GetResource[*AMI](dag, ami.Id())
 	if found {
-		existingAMI.ConstructsRef.AddAll(params.Refs)
+		existingAMI.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(ami)
@@ -169,9 +170,9 @@ func (instance *Ec2Instance) Configure(params Ec2InstanceConfigureParams) error 
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (instance *Ec2Instance) BaseConstructsRef() core.BaseConstructSet {
-	return instance.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (instance *Ec2Instance) BaseConstructRefs() core.BaseConstructSet {
+	return instance.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -191,13 +192,9 @@ func (instance *Ec2Instance) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (instance *Ec2Instance) GetFunctionality() core.Functionality {
-	return core.Compute
-}
-
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ami *AMI) BaseConstructsRef() core.BaseConstructSet {
-	return ami.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (ami *AMI) BaseConstructRefs() core.BaseConstructSet {
+	return ami.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

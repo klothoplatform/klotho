@@ -41,7 +41,7 @@ var LambdaKB = knowledgebase.Build(
 				lambda.SecurityGroups = instance.SecurityGroups
 			}
 			for _, env := range data.EnvironmentVariables {
-				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: instance, PropertyVal: env.GetValue()}
+				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: instance.Id(), Property: env.GetValue()}
 			}
 			return nil
 		},
@@ -58,7 +58,7 @@ var LambdaKB = knowledgebase.Build(
 				lambda.SecurityGroups = proxy.SecurityGroups
 			}
 			for _, env := range data.EnvironmentVariables {
-				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: proxy, PropertyVal: env.GetValue()}
+				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: proxy.Id(), Property: env.GetValue()}
 			}
 			return nil
 		},
@@ -78,7 +78,7 @@ var LambdaKB = knowledgebase.Build(
 			}
 			dag.AddDependency(lambda.Role, table)
 			for _, env := range data.EnvironmentVariables {
-				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: table, PropertyVal: env.GetValue()}
+				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: table.Id(), Property: env.GetValue()}
 			}
 			return nil
 		},
@@ -95,7 +95,7 @@ var LambdaKB = knowledgebase.Build(
 				lambda.SecurityGroups = cluster.SecurityGroups
 			}
 			for _, env := range data.EnvironmentVariables {
-				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: cluster, PropertyVal: env.GetValue()}
+				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: cluster.Id(), Property: env.GetValue()}
 			}
 			return nil
 		},
@@ -107,7 +107,7 @@ var LambdaKB = knowledgebase.Build(
 			}
 			dag.AddDependency(lambda.Role, bucket)
 			for _, env := range data.EnvironmentVariables {
-				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: bucket, PropertyVal: env.GetValue()}
+				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: bucket.Id(), Property: env.GetValue()}
 			}
 			return nil
 		},
@@ -119,7 +119,7 @@ var LambdaKB = knowledgebase.Build(
 			}
 			dag.AddDependency(lambda.Role, secret)
 			for _, env := range data.EnvironmentVariables {
-				lambda.EnvironmentVariables[env.GetName()] = &resources.AwsResourceValue{ResourceVal: secret, PropertyVal: env.GetValue()}
+				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: secret.Id(), Property: env.GetValue()}
 			}
 			return nil
 		},
@@ -140,7 +140,7 @@ var LambdaKB = knowledgebase.Build(
 			}
 			attachment := &resources.RolePolicyAttachment{
 				Name:          fmt.Sprintf("%s-%s", source.Role.Name, policy.Name),
-				ConstructsRef: source.ConstructsRef.CloneWith(destination.ConstructsRef),
+				ConstructRefs: source.ConstructRefs.CloneWith(destination.ConstructRefs),
 				Policy:        policy,
 				Role:          source.Role,
 			}
@@ -172,7 +172,7 @@ var LambdaKB = knowledgebase.Build(
 				return err
 			}
 			clusterProvider := destination.Cluster
-			cluster, ok := clusterProvider.(*resources.EksCluster)
+			cluster, ok := dag.GetResource(clusterProvider).(*resources.EksCluster)
 			if !ok {
 				return fmt.Errorf("cluster provider resource for %s, must be an eks cluster, was %T", destination.Id(), clusterProvider)
 			}
@@ -211,7 +211,7 @@ var LambdaKB = knowledgebase.Build(
 				return err
 			}
 			clusterProvider := destination.Cluster
-			cluster, ok := clusterProvider.(*resources.EksCluster)
+			cluster, ok := dag.GetResource(clusterProvider).(*resources.EksCluster)
 			if !ok {
 				return fmt.Errorf("cluster provider resource for %s, must be an eks cluster, was %T", destination.Id(), clusterProvider)
 			}

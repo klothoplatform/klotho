@@ -26,12 +26,12 @@ func Test_LambdaCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, l *LambdaFunction) {
 				assert.Equal(l.Name, "my-app-function")
-				assert.Equal(l.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(l.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing function",
-			Existing: &LambdaFunction{Name: "my-app-function", ConstructsRef: initialRefs},
+			Existing: &LambdaFunction{Name: "my-app-function", ConstructRefs: initialRefs},
 			WantErr:  true,
 		},
 	}
@@ -56,12 +56,10 @@ func Test_LambdaMakeOperational(t *testing.T) {
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ecr_image:my-app-function",
-					"aws:ecr_repo:my-app",
 					"aws:iam_role:my-app-function-ExecutionRole",
 					"aws:lambda_function:function",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:ecr_image:my-app-function", Destination: "aws:ecr_repo:my-app"},
 					{Source: "aws:lambda_function:function", Destination: "aws:ecr_image:my-app-function"},
 					{Source: "aws:lambda_function:function", Destination: "aws:iam_role:my-app-function-ExecutionRole"},
 				},
@@ -94,12 +92,12 @@ func Test_LambdaPermissionCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, l *LambdaPermission) {
 				assert.Equal(l.Name, "my_app_permission")
-				assert.Equal(l.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(l.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing function",
-			Existing: &LambdaPermission{Name: "my_app_permission", ConstructsRef: initialRefs},
+			Existing: &LambdaPermission{Name: "my_app_permission", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:lambda_permission:my_app_permission",
@@ -108,7 +106,7 @@ func Test_LambdaPermissionCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, l *LambdaPermission) {
 				assert.Equal(l.Name, "my_app_permission")
-				assert.Equal(l.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(l.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}

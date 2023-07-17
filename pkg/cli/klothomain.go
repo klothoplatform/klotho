@@ -26,7 +26,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/input"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/updater"
@@ -105,11 +104,22 @@ func (km KlothoMain) Main() {
 	}
 
 	var root = &cobra.Command{
-		Use:  "klotho [path to source]",
-		RunE: km.run,
+		Use: "klotho",
 	}
 
-	flags := root.Flags()
+	compilerCmd := &cobra.Command{
+		Use:   "compile [path]",
+		Short: "Compile a klotho application",
+		RunE:  km.run,
+	}
+	root.AddCommand(compilerCmd)
+
+	err := km.addEngineCli(root)
+	if err != nil {
+		panic(err)
+	}
+
+	flags := compilerCmd.Flags()
 
 	flags.BoolVarP(&cfg.verbose, "verbose", "v", false, "Verbose flag")
 	flags.StringVarP(&cfg.config, "config", "c", "", "Config file")
@@ -143,7 +153,7 @@ func (km KlothoMain) Main() {
 	_ = flags.MarkHidden("internalDebug")
 	_ = flags.MarkHidden("construct-graph")
 
-	err := root.Execute()
+	err = root.Execute()
 	if err != nil {
 		if cfg.internalDebug {
 			zap.S().With(logging.SendEntryMessage).Errorf("%+v", err)
@@ -455,13 +465,8 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		if err != nil {
 			return errors.Errorf("failed to load constraints: %s", err.Error())
 		}
-		k8sPlugin := kubernetes.Kubernetes{Config: &appCfg}
 
 		klothoCompiler.Engine.LoadContext(document.Constructs, c, cfg.appName)
-		err = k8sPlugin.Translate(document.Constructs, klothoCompiler.Engine.Context.EndState)
-		if err != nil {
-			return errors.Errorf("failed to run kubernetes plugin: %s", err.Error())
-		}
 		dag, err := klothoCompiler.Engine.Run()
 		if err != nil {
 			return errors.Errorf("failed to run engine: %s", err.Error())

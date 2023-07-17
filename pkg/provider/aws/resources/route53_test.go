@@ -24,12 +24,12 @@ func Test_Route53HostedZoneCreate(t *testing.T) {
 			Params: Route53HostedZoneCreateParams{Type: "private"},
 			Check: func(assert *assert.Assertions, zone *Route53HostedZone) {
 				assert.Equal(zone.Name, "my-app-zone")
-				assert.Equal(zone.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(zone.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing zone",
-			Existing: &Route53HostedZone{Name: "my-app-zone", ConstructsRef: initialRefs},
+			Existing: &Route53HostedZone{Name: "my-app-zone", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:route53_hosted_zone:my-app-zone",
@@ -39,7 +39,7 @@ func Test_Route53HostedZoneCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, zone *Route53HostedZone) {
 				assert.Equal(zone.Name, "my-app-zone")
 				initialRefs.Add(eu)
-				assert.Equal(zone.ConstructsRef, initialRefs)
+				assert.Equal(zone.ConstructRefs, initialRefs)
 			},
 		},
 	}
@@ -75,12 +75,12 @@ func Test_Route53RecordCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, record *Route53Record) {
 				assert.Equal(record.Name, "my-app-zone-record")
 				assert.NotNil(record.Zone)
-				assert.Equal(record.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(record.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing load balancer",
-			Existing: &Route53Record{Name: "my-app-zone-record", ConstructsRef: initialRefs},
+			Existing: &Route53Record{Name: "my-app-zone-record", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:route53_record:my-app-zone-record",
@@ -90,7 +90,7 @@ func Test_Route53RecordCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, record *Route53Record) {
 				assert.Equal(record.Name, "my-app-zone-record")
 				initialRefs.Add(eu)
-				assert.Equal(record.ConstructsRef, initialRefs)
+				assert.Equal(record.ConstructRefs, initialRefs)
 			},
 		},
 	}
@@ -98,7 +98,7 @@ func Test_Route53RecordCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = Route53RecordCreateParams{
 				Refs:       core.BaseConstructSetOf(eu),
-				Zone:       &Route53HostedZone{Name: "my-app-zone", ConstructsRef: initialRefs},
+				Zone:       &Route53HostedZone{Name: "my-app-zone", ConstructRefs: initialRefs},
 				DomainName: "record",
 			}
 			tt.Run(t)
@@ -122,7 +122,7 @@ func Test_Route53HealthCheckCreate(t *testing.T) {
 			Params: Route53HealthCheckCreateParams{IpAddress: "10.0.0.0"},
 			Check: func(assert *assert.Assertions, healthCheck *Route53HealthCheck) {
 				assert.Equal(healthCheck.Name, "my-app-10.0.0.0")
-				assert.Equal(healthCheck.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(healthCheck.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -136,12 +136,12 @@ func Test_Route53HealthCheckCreate(t *testing.T) {
 			Params: Route53HealthCheckCreateParams{Fqdn: "example.com"},
 			Check: func(assert *assert.Assertions, healthCheck *Route53HealthCheck) {
 				assert.Equal(healthCheck.Name, "my-app-example.com")
-				assert.Equal(healthCheck.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(healthCheck.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing health check",
-			Existing: &Route53HealthCheck{Name: "my-app-check", ConstructsRef: initialRefs},
+			Existing: &Route53HealthCheck{Name: "my-app-check", ConstructRefs: initialRefs},
 			Params:   Route53HealthCheckCreateParams{Fqdn: "check"},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
@@ -152,13 +152,13 @@ func Test_Route53HealthCheckCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, healthCheck *Route53HealthCheck) {
 				assert.Equal(healthCheck.Name, "my-app-check")
 				initialRefs.Add(eu)
-				assert.Equal(healthCheck.ConstructsRef, initialRefs)
+				assert.Equal(healthCheck.ConstructRefs, initialRefs)
 			},
 		},
 		{
 			Name:     "ip and fqdn error",
 			Params:   Route53HealthCheckCreateParams{IpAddress: "10.0.0.0", Fqdn: "example.com"},
-			Existing: &Route53HealthCheck{Name: "my-app-check", ConstructsRef: initialRefs},
+			Existing: &Route53HealthCheck{Name: "my-app-check", ConstructRefs: initialRefs},
 			WantErr:  true,
 		},
 	}

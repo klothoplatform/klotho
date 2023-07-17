@@ -5,6 +5,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	autoscaling "k8s.io/api/autoscaling/v2"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,7 +18,7 @@ type (
 		Object          *autoscaling.HorizontalPodAutoscaler
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.Resource
+		Cluster         core.ResourceId
 	}
 )
 
@@ -25,7 +26,7 @@ const (
 	HORIZONTAL_POD_AUTOSCALER_TYPE = "horizontal_pod_autoscaler"
 )
 
-func (hpa *HorizontalPodAutoscaler) BaseConstructsRef() core.BaseConstructSet {
+func (hpa *HorizontalPodAutoscaler) BaseConstructRefs() core.BaseConstructSet {
 	return hpa.ConstructRefs
 }
 
@@ -54,18 +55,18 @@ func (hpa *HorizontalPodAutoscaler) Path() string {
 	return hpa.FilePath
 }
 
-func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *core.ResourceGraph, appName string) error {
-	if hpa.Cluster == nil {
+func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+	if hpa.Cluster.IsZero() {
 		downstreamClustersFound := map[string]core.Resource{}
 		for _, res := range dag.GetAllDownstreamResources(hpa) {
-			if core.GetFunctionality(res) == core.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound[res.Id().String()] = res
 			}
 		}
 		// See which cluster any pods or deployments using this service account use
 		for _, res := range hpa.GetResourcesUsingHPA(dag) {
 			for _, dres := range dag.GetAllDownstreamResources(res) {
-				if core.GetFunctionality(dres) == core.Cluster {
+				if classifier.GetFunctionality(dres) == core.Cluster {
 					downstreamClustersFound[dres.Id().String()] = dres
 				}
 			}
@@ -73,7 +74,7 @@ func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *core.ResourceGraph, app
 
 		if len(downstreamClustersFound) == 1 {
 			_, cluster := collectionutil.GetOneEntry(downstreamClustersFound)
-			hpa.Cluster = cluster
+			hpa.Cluster = cluster.Id()
 			dag.AddDependency(hpa, cluster)
 			return nil
 		}

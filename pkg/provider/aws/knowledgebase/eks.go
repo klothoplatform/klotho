@@ -26,8 +26,8 @@ var EksKB = knowledgebase.Build(
 				FromPort:    9443,
 				Protocol:    "TCP",
 				ToPort:      9443,
-				CidrBlocks: []*resources.AwsResourceValue{
-					{PropertyVal: "0.0.0.0/0"},
+				CidrBlocks: []core.IaCValue{
+					{Property: "0.0.0.0/0"},
 				},
 			})
 			return nil
@@ -42,14 +42,14 @@ var EksKB = knowledgebase.Build(
 					return err
 				}
 			}
-			err := cluster.CreateFargateLogging(profile.ConstructsRef, dag)
+			err := cluster.CreateFargateLogging(profile.ConstructRefs, dag)
 			return err
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.EksNodeGroup, *resources.EksCluster]{
 		Configure: func(nodeGroup *resources.EksNodeGroup, cluster *resources.EksCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			cluster.CreatePrerequisiteCharts(dag)
-			err := cluster.InstallFluentBit(nodeGroup.ConstructsRef, dag)
+			err := cluster.InstallFluentBit(nodeGroup.ConstructRefs, dag)
 			if err != nil {
 				return err
 			}
@@ -69,6 +69,7 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.ServiceAccount, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.TargetGroupBinding, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.ServiceExport, *resources.EksCluster]{},
+	knowledgebase.EdgeBuilder[*kubernetes.HorizontalPodAutoscaler, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksNodeGroup]{},
@@ -80,8 +81,8 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *kubernetes.HelmChart]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *kubernetes.KustomizeDirectory]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.PrivateDnsNamespace]{},
-	knowledgebase.EdgeBuilder[*kubernetes.TargetGroupBinding, *resources.TargetGroup]{
-		ReverseDirection: true,
+	knowledgebase.EdgeBuilder[*resources.TargetGroup, *kubernetes.TargetGroupBinding]{
+		DeploymentOrderReversed: true,
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Region]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Vpc]{},
@@ -102,7 +103,7 @@ var EksKB = knowledgebase.Build(
 			}
 			dag.AddDependency(role, table)
 			for _, env := range data.EnvironmentVariables {
-				err := pod.AddEnvVar(&resources.AwsResourceValue{ResourceVal: table, PropertyVal: env.GetValue()}, env.GetName())
+				err := pod.AddEnvVar(core.IaCValue{ResourceId: table.Id(), Property: env.GetValue()}, env.GetName())
 				if err != nil {
 					return err
 				}
@@ -118,7 +119,7 @@ var EksKB = knowledgebase.Build(
 			}
 			dag.AddDependency(role, table)
 			for _, env := range data.EnvironmentVariables {
-				err := deployment.AddEnvVar(&resources.AwsResourceValue{ResourceVal: table, PropertyVal: env.GetValue()}, env.GetName())
+				err := deployment.AddEnvVar(core.IaCValue{ResourceId: table.Id(), Property: env.GetValue()}, env.GetName())
 				if err != nil {
 					return err
 				}
@@ -129,7 +130,7 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.ElasticacheCluster]{
 		Configure: func(pod *kubernetes.Pod, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				err := pod.AddEnvVar(&resources.AwsResourceValue{ResourceVal: cluster, PropertyVal: env.GetValue()}, env.GetName())
+				err := pod.AddEnvVar(core.IaCValue{ResourceId: cluster.Id(), Property: env.GetValue()}, env.GetName())
 				if err != nil {
 					return err
 				}
@@ -140,7 +141,7 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.ElasticacheCluster]{
 		Configure: func(deployment *kubernetes.Deployment, cluster *resources.ElasticacheCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			for _, env := range data.EnvironmentVariables {
-				err := deployment.AddEnvVar(&resources.AwsResourceValue{ResourceVal: cluster, PropertyVal: env.GetValue()}, env.GetName())
+				err := deployment.AddEnvVar(core.IaCValue{ResourceId: cluster.Id(), Property: env.GetValue()}, env.GetName())
 				if err != nil {
 					return err
 				}
@@ -156,7 +157,7 @@ var EksKB = knowledgebase.Build(
 			}
 			dag.AddDependency(role, bucket)
 			for _, env := range data.EnvironmentVariables {
-				err := pod.AddEnvVar(&resources.AwsResourceValue{ResourceVal: bucket, PropertyVal: env.GetValue()}, env.GetName())
+				err := pod.AddEnvVar(core.IaCValue{ResourceId: bucket.Id(), Property: env.GetValue()}, env.GetName())
 				if err != nil {
 					return err
 				}
@@ -172,7 +173,7 @@ var EksKB = knowledgebase.Build(
 			}
 			dag.AddDependency(role, bucket)
 			for _, env := range data.EnvironmentVariables {
-				err := deployment.AddEnvVar(&resources.AwsResourceValue{ResourceVal: bucket, PropertyVal: env.GetValue()}, env.GetName())
+				err := deployment.AddEnvVar(core.IaCValue{ResourceId: bucket.Id(), Property: env.GetValue()}, env.GetName())
 				if err != nil {
 					return err
 				}
@@ -188,7 +189,7 @@ var EksKB = knowledgebase.Build(
 			}
 			dag.AddDependency(role, instance)
 			for _, env := range data.EnvironmentVariables {
-				err := pod.AddEnvVar(&resources.AwsResourceValue{ResourceVal: instance, PropertyVal: env.GetValue()}, env.GetName())
+				err := pod.AddEnvVar(core.IaCValue{ResourceId: instance.Id(), Property: env.GetValue()}, env.GetName())
 				if err != nil {
 					return err
 				}
@@ -204,7 +205,7 @@ var EksKB = knowledgebase.Build(
 			}
 			dag.AddDependency(role, instance)
 			for _, env := range data.EnvironmentVariables {
-				err := deployment.AddEnvVar(&resources.AwsResourceValue{ResourceVal: instance, PropertyVal: env.GetValue()}, env.GetName())
+				err := deployment.AddEnvVar(core.IaCValue{ResourceId: instance.Id(), Property: env.GetValue()}, env.GetName())
 				if err != nil {
 					return err
 				}
@@ -220,7 +221,7 @@ var EksKB = knowledgebase.Build(
 			}
 			dag.AddDependency(role, proxy)
 			for _, env := range data.EnvironmentVariables {
-				err := pod.AddEnvVar(&resources.AwsResourceValue{ResourceVal: proxy, PropertyVal: env.GetValue()}, env.GetName())
+				err := pod.AddEnvVar(core.IaCValue{ResourceId: proxy.Id(), Property: env.GetValue()}, env.GetName())
 				if err != nil {
 					return err
 				}
@@ -236,7 +237,7 @@ var EksKB = knowledgebase.Build(
 			}
 			dag.AddDependency(role, proxy)
 			for _, env := range data.EnvironmentVariables {
-				err := deployment.AddEnvVar(&resources.AwsResourceValue{ResourceVal: proxy, PropertyVal: env.GetValue()}, env.GetName())
+				err := deployment.AddEnvVar(core.IaCValue{ResourceId: proxy.Id(), Property: env.GetValue()}, env.GetName())
 				if err != nil {
 					return err
 				}

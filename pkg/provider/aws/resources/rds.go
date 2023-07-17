@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -41,7 +42,7 @@ type (
 	// RdsInstance represents an AWS RDS db instance
 	RdsInstance struct {
 		Name                             string
-		ConstructsRef                    core.BaseConstructSet `yaml:"-"`
+		ConstructRefs                    core.BaseConstructSet `yaml:"-"`
 		SubnetGroup                      *RdsSubnetGroup
 		SecurityGroups                   []*SecurityGroup
 		DatabaseName                     string
@@ -60,7 +61,7 @@ type (
 	// RdsSubnetGroup represents an AWS RDS subnet group
 	RdsSubnetGroup struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Subnets       []*Subnet
 		Tags          map[string]string
 	}
@@ -68,7 +69,7 @@ type (
 	// RdsProxy represents an AWS RDS proxy instance
 	RdsProxy struct {
 		Name              string
-		ConstructsRef     core.BaseConstructSet `yaml:"-"`
+		ConstructRefs     core.BaseConstructSet `yaml:"-"`
 		DebugLogging      bool
 		EngineFamily      string
 		IdleClientTimeout int
@@ -83,13 +84,13 @@ type (
 	ProxyAuth struct {
 		AuthScheme string
 		IamAuth    string
-		SecretArn  *AwsResourceValue
+		SecretArn  core.IaCValue
 	}
 
 	// RdsProxyTargetGroup represents an AWS RDS proxy target group
 	RdsProxyTargetGroup struct {
 		Name                            string
-		ConstructsRef                   core.BaseConstructSet `yaml:"-"`
+		ConstructRefs                   core.BaseConstructSet `yaml:"-"`
 		RdsInstance                     *RdsInstance
 		RdsProxy                        *RdsProxy
 		TargetGroupName                 string
@@ -116,7 +117,7 @@ func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceC
 
 	name := rdsInstanceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	instance.Name = name
-	instance.ConstructsRef = params.Refs.Clone()
+	instance.ConstructRefs = params.Refs.Clone()
 
 	existingInstance := dag.GetResource(instance.Id())
 	if existingInstance != nil {
@@ -126,7 +127,7 @@ func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceC
 	return nil
 }
 
-func (instance *RdsInstance) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (instance *RdsInstance) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	var vpc *Vpc
 	vpc, err := getSingleUpstreamVpc(dag, instance)
 	if err != nil {
@@ -150,7 +151,7 @@ func (instance *RdsInstance) MakeOperational(dag *core.ResourceGraph, appName st
 			if vpc != nil {
 				dag.AddDependency(subnetGroup, vpc)
 			}
-			err = subnetGroup.MakeOperational(dag, appName)
+			err = subnetGroup.MakeOperational(dag, appName, classifier)
 			if err != nil {
 				return err
 			}
@@ -204,12 +205,12 @@ type RdsSubnetGroupCreateParams struct {
 
 func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSubnetGroupCreateParams) error {
 	subnetGroup.Name = rdsSubnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	subnetGroup.ConstructsRef = params.Refs.Clone()
+	subnetGroup.ConstructRefs = params.Refs.Clone()
 
 	existingSubnetGroup := dag.GetResource(subnetGroup.Id())
 	if existingSubnetGroup != nil {
 		graphSubnetGroup := existingSubnetGroup.(*RdsSubnetGroup)
-		graphSubnetGroup.ConstructsRef.AddAll(params.Refs)
+		graphSubnetGroup.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
 		dag.AddResource(subnetGroup)
@@ -217,7 +218,7 @@ func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSub
 	return nil
 }
 
-func (subnetGroup *RdsSubnetGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (subnetGroup *RdsSubnetGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if len(subnetGroup.Subnets) == 0 {
 		subnets, err := getSubnetsOperational(dag, subnetGroup, appName)
 		if err != nil {
@@ -241,34 +242,34 @@ type RdsProxyCreateParams struct {
 
 func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreateParams) error {
 	proxy.Name = rdsSubnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	proxy.ConstructsRef = params.Refs.Clone()
+	proxy.ConstructRefs = params.Refs.Clone()
 
 	existingProxy := dag.GetResource(proxy.Id())
 	if existingProxy != nil {
 		graphProxy := existingProxy.(*RdsProxy)
-		graphProxy.ConstructsRef.AddAll(params.Refs)
+		graphProxy.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
 		dag.AddResource(proxy)
 	}
 	return nil
 }
-func (proxy *RdsProxy) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (proxy *RdsProxy) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if proxy.Role == nil {
 		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, proxy)
 		if len(roles) > 1 {
 			return fmt.Errorf("rds proxy %s has multiple role dependencies", proxy.Name)
 		} else if len(roles) == 0 {
-			err := dag.CreateDependencies(proxy, map[string]any{
-				"Role": RoleCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-ProxyRole", proxy.Name),
-					Refs:    proxy.ConstructsRef,
-				},
+			role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-ProxyRole", proxy.Name),
+				Refs:    core.BaseConstructSetOf(proxy),
 			})
 			if err != nil {
 				return err
 			}
+			proxy.Role = role
+			dag.AddDependency(proxy, role)
 		} else {
 			proxy.Role = roles[0]
 		}
@@ -322,24 +323,25 @@ type RdsProxyTargetGroupCreateParams struct {
 func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTargetGroupCreateParams) error {
 
 	tg.Name = rdsProxySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	tg.ConstructsRef = params.Refs.Clone()
+	tg.ConstructRefs = params.Refs.Clone()
 	existingTG := dag.GetResource(tg.Id())
 	if existingTG != nil {
 		graphTG := existingTG.(*RdsProxyTargetGroup)
-		graphTG.ConstructsRef.AddAll(params.Refs)
+		graphTG.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
 		dag.AddResource(tg)
 	}
 	return nil
 }
-func (tg *RdsProxyTargetGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (tg *RdsProxyTargetGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if tg.RdsProxy == nil {
 		proxies := core.GetDownstreamResourcesOfType[*RdsProxy](dag, tg)
 		if len(proxies) != 1 {
 			return fmt.Errorf("rds proxy target group %s has %d proxy dependencies", tg.Name, len(proxies))
 		}
 		tg.RdsProxy = proxies[0]
+		dag.AddDependency(proxies[0], tg)
 	}
 	if tg.RdsInstance == nil {
 		instances := core.GetDownstreamResourcesOfType[*RdsInstance](dag, tg)
@@ -347,8 +349,8 @@ func (tg *RdsProxyTargetGroup) MakeOperational(dag *core.ResourceGraph, appName 
 			return fmt.Errorf("rds proxy target group %s has %d instance dependencies", tg.Name, len(instances))
 		}
 		tg.RdsInstance = instances[0]
+		dag.AddDependency(tg, instances[0])
 	}
-	dag.AddDependenciesReflect(tg)
 	return nil
 }
 
@@ -370,7 +372,7 @@ func (targetGroup *RdsProxyTargetGroup) Configure(params RdsProxyTargetGroupConf
 func (rds *RdsInstance) GetConnectionPolicyDocument() *PolicyDocument {
 	return CreateAllowPolicyDocument(
 		[]string{"rds-db:connect"},
-		[]*AwsResourceValue{{ResourceVal: rds, PropertyVal: RDS_CONNECTION_ARN_IAC_VALUE}})
+		[]core.IaCValue{{ResourceId: rds.Id(), Property: RDS_CONNECTION_ARN_IAC_VALUE}})
 }
 
 // generateUsername generates a random username for the rds instance.
@@ -406,9 +408,9 @@ func generatePassword() string {
 	return b.String()
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsInstance) BaseConstructsRef() core.BaseConstructSet {
-	return rds.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rds *RdsInstance) BaseConstructRefs() core.BaseConstructSet {
+	return rds.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -431,9 +433,9 @@ func (rds *RdsInstance) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsSubnetGroup) BaseConstructsRef() core.BaseConstructSet {
-	return rds.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rds *RdsSubnetGroup) BaseConstructRefs() core.BaseConstructSet {
+	return rds.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -451,9 +453,9 @@ func (rds *RdsSubnetGroup) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsProxy) BaseConstructsRef() core.BaseConstructSet {
-	return rds.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rds *RdsProxy) BaseConstructRefs() core.BaseConstructSet {
+	return rds.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -471,9 +473,9 @@ func (rds *RdsProxy) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsProxyTargetGroup) BaseConstructsRef() core.BaseConstructSet {
-	return rds.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rds *RdsProxyTargetGroup) BaseConstructRefs() core.BaseConstructSet {
+	return rds.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

@@ -22,12 +22,12 @@ func Test_DynamodbTableCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, table *DynamodbTable) {
 				assert.Equal(table.Name, "my-app-kv")
-				assert.Equal(table.ConstructsRef, core.BaseConstructSetOf(kv))
+				assert.Equal(table.ConstructRefs, core.BaseConstructSetOf(kv))
 			},
 		},
 		{
 			Name:     "existing dynamodb table",
-			Existing: &DynamodbTable{Name: "my-app-kv", ConstructsRef: core.BaseConstructSetOf(existingKey)},
+			Existing: &DynamodbTable{Name: "my-app-kv", ConstructRefs: core.BaseConstructSetOf(existingKey)},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:dynamodb_table:my-app-kv",
@@ -35,7 +35,7 @@ func Test_DynamodbTableCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, table *DynamodbTable) {
 				assert.Equal(table.Name, "my-app-kv")
-				assert.Equal(table.ConstructsRef, core.BaseConstructSetOf(kv, existingKey))
+				assert.Equal(table.ConstructRefs, core.BaseConstructSetOf(kv, existingKey))
 			},
 		},
 	}

@@ -3,8 +3,9 @@ package constraints
 import (
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
 
@@ -25,9 +26,10 @@ type (
 	// The end result of this should be a path of klotho:execution_unit:my_compute -> aws:rds_proxy:my_proxy -> klotho:orm:my_orm with N intermediate nodes to satisfy the path's expansion
 
 	EdgeConstraint struct {
-		Operator ConstraintOperator `yaml:"operator"`
-		Target   Edge               `yaml:"target"`
-		Node     core.ResourceId    `yaml:"node"`
+		Operator   ConstraintOperator `yaml:"operator"`
+		Target     Edge               `yaml:"target"`
+		Node       core.ResourceId    `yaml:"node"`
+		Attributes map[string]any     `yaml:"attributes"`
 	}
 )
 
@@ -35,7 +37,7 @@ func (constraint *EdgeConstraint) Scope() ConstraintScope {
 	return EdgeConstraintScope
 }
 
-func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource) bool {
+func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource, classifier classification.Classifier) bool {
 
 	var src []core.ResourceId
 	var dst []core.ResourceId
@@ -65,52 +67,42 @@ func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowle
 	} else {
 		dst = append(dst, constraint.Target.Target)
 	}
-
 	for _, s := range src {
 		for _, d := range dst {
-			path, err := dag.ShortestPath(s, d)
+			paths, err := dag.AllPaths(s, d)
 			if err != nil {
 				return false
 			}
-			// If theres no path in the dag we need to determine if there is a path due to inverted edges in the kb being used by the engine
-			if len(path) == 0 {
-				srcRes := dag.GetResource(s)
-				if srcRes == nil {
-					return false
-				}
-				dstRes := dag.GetResource(d)
-				if dstRes == nil {
-					return false
-				}
-				paths := kb.FindPathsInGraph(srcRes, dstRes, dag)
-				if len(paths) == 0 {
-					paths = append(paths, []graph.Edge[core.Resource]{})
-				}
-
-				for _, p := range paths {
-					path := []core.Resource{}
-					for _, res := range p {
-						path = append(path, res.Source)
-						path = append(path, res.Destination)
-					}
-					if constraint.checkSatisfication(path) {
-						return true
-					}
-				}
-				return false
-			} else {
-				if !constraint.checkSatisfication(path) {
-					return false
+			if len(paths) == 0 {
+				paths = append(paths, []core.Resource{})
+			}
+			for _, path := range paths {
+				if constraint.checkSatisfication(path, classifier) {
+					return true
 				}
 			}
 		}
 	}
-	return true
+	return false
 }
 
-func (constraint *EdgeConstraint) checkSatisfication(path []core.Resource) bool {
-	// Currently we only support searching for if the node exists in the shortest path
-	// We will likely want to search all paths to see if ANY contain the node. There's an open issue for this https://githuconstraint.com/dominikbraun/graph/issues/82
+func (constraint *EdgeConstraint) checkSatisfication(path []core.Resource, classifier classification.Classifier) bool {
+	if constraint.Attributes != nil {
+		for i, res := range path {
+			for k := range constraint.Attributes {
+				if len(path) == 2 {
+					if !collectionutil.Contains(classifier.GetClassification(path[0]).Is, k) || !collectionutil.Contains(classifier.GetClassification(path[1]).Is, k) {
+						return false
+					}
+				} else {
+					if !collectionutil.Contains(classifier.GetClassification(res).Is, k) && (i != 0 || i != len(path)-1) {
+						return false
+					}
+				}
+			}
+		}
+	}
+
 	switch constraint.Operator {
 	case MustContainConstraintOperator:
 		for _, res := range path {
@@ -144,4 +136,8 @@ func (constraint *EdgeConstraint) Validate() error {
 		return fmt.Errorf("edge constraint must have a node defined")
 	}
 	return nil
+}
+
+func (constraint *EdgeConstraint) String() string {
+	return fmt.Sprintf("EdgeConstraint{Operator: %s, Target: %s, Node: %s, Attributes: %v}", constraint.Operator, constraint.Target, constraint.Node, constraint.Attributes)
 }

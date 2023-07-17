@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -90,22 +91,22 @@ var EKS_ASSUME_ROLE_POLICY = &PolicyDocument{
 type (
 	IamRole struct {
 		Name                string
-		ConstructsRef       core.BaseConstructSet `yaml:"-"`
+		ConstructRefs       core.BaseConstructSet `yaml:"-"`
 		AssumeRolePolicyDoc *PolicyDocument
-		ManagedPolicies     []*AwsResourceValue
+		ManagedPolicies     []core.IaCValue
 		AwsManagedPolicies  []string
 		InlinePolicies      []*IamInlinePolicy
 	}
 
 	IamPolicy struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Policy        *PolicyDocument
 	}
 
 	IamInlinePolicy struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Policy        *PolicyDocument
 	}
 
@@ -117,25 +118,25 @@ type (
 	StatementEntry struct {
 		Effect    string
 		Action    []string
-		Resource  []*AwsResourceValue
+		Resource  []core.IaCValue
 		Principal *Principal
 		Condition *Condition
 	}
 
 	Principal struct {
 		Service   string
-		Federated *AwsResourceValue
-		AWS       *AwsResourceValue
+		Federated core.IaCValue
+		AWS       core.IaCValue
 	}
 
 	Condition struct {
-		StringEquals map[*AwsResourceValue]string
-		Null         map[*AwsResourceValue]string
+		StringEquals map[core.IaCValue]string
+		Null         map[core.IaCValue]string
 	}
 
 	OpenIdConnectProvider struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		ClientIdLists []string
 		Cluster       *EksCluster
 		Region        *Region
@@ -143,14 +144,14 @@ type (
 
 	RolePolicyAttachment struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Policy        *IamPolicy
 		Role          *IamRole
 	}
 
 	InstanceProfile struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Role          *IamRole
 	}
 )
@@ -163,7 +164,7 @@ type RoleCreateParams struct {
 
 func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) error {
 	role.Name = roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	role.ConstructsRef = params.Refs.Clone()
+	role.ConstructRefs = params.Refs.Clone()
 
 	existingRole := dag.GetResource(role.Id())
 	if existingRole != nil {
@@ -182,10 +183,10 @@ type IamPolicyCreateParams struct {
 
 func (policy *IamPolicy) Create(dag *core.ResourceGraph, params IamPolicyCreateParams) error {
 	policy.Name = policySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	policy.ConstructsRef = params.Refs.Clone()
+	policy.ConstructRefs = params.Refs.Clone()
 	existingPolicy, found := core.GetResource[*IamPolicy](dag, policy.Id())
 	if found {
-		existingPolicy.ConstructsRef.AddAll(params.Refs)
+		existingPolicy.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(policy)
@@ -204,15 +205,15 @@ func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCr
 	existingOidc := dag.GetResource(oidc.Id())
 	if existingOidc != nil {
 		graphOidc := existingOidc.(*OpenIdConnectProvider)
-		graphOidc.ConstructsRef.AddAll(params.Refs)
+		graphOidc.ConstructRefs.AddAll(params.Refs)
 	} else {
-		oidc.ConstructsRef = params.Refs.Clone()
+		oidc.ConstructRefs = params.Refs.Clone()
 		dag.AddResource(oidc)
 	}
 	return nil
 }
 
-func (oidc *OpenIdConnectProvider) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (oidc *OpenIdConnectProvider) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if oidc.Region == nil {
 		oidc.Region = NewRegion()
 	}
@@ -238,30 +239,30 @@ type InstanceProfileCreateParams struct {
 
 func (profile *InstanceProfile) Create(dag *core.ResourceGraph, params InstanceProfileCreateParams) error {
 	profile.Name = roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	profile.ConstructsRef = params.Refs.Clone()
+	profile.ConstructRefs = params.Refs.Clone()
 	existingProfile, found := core.GetResource[*InstanceProfile](dag, profile.Id())
 	if found {
-		existingProfile.ConstructsRef.AddAll(params.Refs)
+		existingProfile.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(profile)
 	return nil
 }
 
-func (profile *InstanceProfile) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (profile *InstanceProfile) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if profile.Role == nil {
 		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, profile)
 		if len(roles) == 0 {
-			err := dag.CreateDependencies(profile, map[string]any{
-				"Role": RoleCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-InstanceProfileRole", profile.Name),
-					Refs:    core.BaseConstructSetOf(profile),
-				},
+			role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-InstanceProfileRole", profile.Name),
+				Refs:    core.BaseConstructSetOf(profile),
 			})
 			if err != nil {
 				return err
 			}
+			profile.Role = role
+			dag.AddDependency(profile, role)
 		} else if len(roles) == 1 {
 			profile.Role = roles[0]
 			dag.AddDependenciesReflect(profile)
@@ -272,7 +273,7 @@ func (profile *InstanceProfile) MakeOperational(dag *core.ResourceGraph, appName
 	return nil
 }
 
-func CreateAllowPolicyDocument(actions []string, resources []*AwsResourceValue) *PolicyDocument {
+func CreateAllowPolicyDocument(actions []string, resources []core.IaCValue) *PolicyDocument {
 	return &PolicyDocument{
 		Version: VERSION,
 		Statement: []StatementEntry{
@@ -285,9 +286,9 @@ func CreateAllowPolicyDocument(actions []string, resources []*AwsResourceValue) 
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (role *IamRole) BaseConstructsRef() core.BaseConstructSet {
-	return role.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (role *IamRole) BaseConstructRefs() core.BaseConstructSet {
+	return role.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -318,10 +319,10 @@ func (role *IamRole) AddAwsManagedPolicies(policies []string) {
 	}
 }
 
-func (role *IamRole) AddManagedPolicy(policy *AwsResourceValue) {
+func (role *IamRole) AddManagedPolicy(policy core.IaCValue) {
 	exists := false
 	for _, pol := range role.ManagedPolicies {
-		if pol.ResourceVal == policy.ResourceVal {
+		if pol.ResourceId == policy.ResourceId {
 			exists = true
 		}
 	}
@@ -333,7 +334,7 @@ func (role *IamRole) AddManagedPolicy(policy *AwsResourceValue) {
 func NewIamPolicy(appName string, policyName string, ref core.BaseConstruct, policy *PolicyDocument) *IamPolicy {
 	return &IamPolicy{
 		Name:          policySanitizer.Apply(fmt.Sprintf("%s-%s", appName, policyName)),
-		ConstructsRef: core.BaseConstructSetOf(ref),
+		ConstructRefs: core.BaseConstructSetOf(ref),
 		Policy:        policy,
 	}
 }
@@ -341,7 +342,7 @@ func NewIamPolicy(appName string, policyName string, ref core.BaseConstruct, pol
 func NewIamInlinePolicy(policyName string, refs core.BaseConstructSet, policy *PolicyDocument) *IamInlinePolicy {
 	return &IamInlinePolicy{
 		Name:          policySanitizer.Apply(policyName),
-		ConstructsRef: refs,
+		ConstructRefs: refs,
 		Policy:        policy,
 	}
 }
@@ -356,9 +357,9 @@ func (policy *IamPolicy) AddPolicyDocument(doc *PolicyDocument) {
 	policy.Policy.Deduplicate()
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (policy *IamPolicy) BaseConstructsRef() core.BaseConstructSet {
-	return policy.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (policy *IamPolicy) BaseConstructRefs() core.BaseConstructSet {
+	return policy.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -376,9 +377,9 @@ func (policy *IamPolicy) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (oidc *OpenIdConnectProvider) BaseConstructsRef() core.BaseConstructSet {
-	return oidc.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (oidc *OpenIdConnectProvider) BaseConstructRefs() core.BaseConstructSet {
+	return oidc.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -396,8 +397,8 @@ func (oidc *OpenIdConnectProvider) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (role *RolePolicyAttachment) BaseConstructsRef() core.BaseConstructSet {
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (role *RolePolicyAttachment) BaseConstructRefs() core.BaseConstructSet {
 	return nil
 }
 
@@ -416,8 +417,8 @@ func (role *RolePolicyAttachment) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (profile *InstanceProfile) BaseConstructsRef() core.BaseConstructSet {
-	return profile.ConstructsRef
+func (profile *InstanceProfile) BaseConstructRefs() core.BaseConstructSet {
+	return profile.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -438,7 +439,7 @@ func (profile *InstanceProfile) DeleteContext() core.DeleteContext {
 func (s StatementEntry) Id() core.ResourceId {
 	resourcesHash := sha256.New()
 	for _, r := range s.Resource {
-		_, _ = fmt.Fprintf(resourcesHash, "%s.%s", r.ResourceVal.Id(), r.PropertyVal)
+		_, _ = fmt.Fprintf(resourcesHash, "%s.%s", r.ResourceId, r.Property)
 	}
 
 	return core.ResourceId{
@@ -446,6 +447,50 @@ func (s StatementEntry) Id() core.ResourceId {
 		Type:     IAM_STATEMENT_ENTRY,
 		Name:     fmt.Sprintf("%x/%s/%s", resourcesHash.Sum(nil), s.Effect, strings.Join(s.Action, ",")),
 	}
+}
+
+func (c Condition) MarshalYAML() (interface{}, error) {
+	type mapEntry struct {
+		Key core.IaCValue
+		Val string
+	}
+	type condition struct {
+		StringEquals []mapEntry
+		Null         []mapEntry
+	}
+	intermediate := condition{}
+	for k, v := range c.StringEquals {
+		intermediate.StringEquals = append(intermediate.StringEquals, mapEntry{k, v})
+	}
+	for k, v := range c.Null {
+		intermediate.Null = append(intermediate.Null, mapEntry{k, v})
+	}
+	return intermediate, nil
+}
+
+func (c *Condition) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type mapEntry struct {
+		key core.IaCValue
+		val string
+	}
+	type condition struct {
+		StringEquals []mapEntry
+		Null         []mapEntry
+	}
+	intermediate := condition{}
+	err := unmarshal(&intermediate)
+	if err != nil {
+		return err
+	}
+	c.StringEquals = map[core.IaCValue]string{}
+	c.Null = map[core.IaCValue]string{}
+	for _, entry := range intermediate.StringEquals {
+		c.StringEquals[entry.key] = entry.val
+	}
+	for _, entry := range intermediate.Null {
+		c.Null[entry.key] = entry.val
+	}
+	return nil
 }
 
 func (d *PolicyDocument) Deduplicate() {

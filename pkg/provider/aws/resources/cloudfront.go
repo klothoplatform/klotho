@@ -21,7 +21,7 @@ const (
 type (
 	CloudfrontDistribution struct {
 		Name                         string
-		ConstructsRef                core.BaseConstructSet `yaml:"-"`
+		ConstructRefs                core.BaseConstructSet `yaml:"-"`
 		Origins                      []*CloudfrontOrigin
 		CloudfrontDefaultCertificate bool
 		Enabled                      bool
@@ -59,15 +59,15 @@ type (
 	}
 
 	CloudfrontOrigin struct {
-		DomainName         *AwsResourceValue
+		DomainName         core.IaCValue
 		OriginId           string
-		OriginPath         *AwsResourceValue
+		OriginPath         core.IaCValue
 		S3OriginConfig     S3OriginConfig
 		CustomOriginConfig CustomOriginConfig
 	}
 
 	S3OriginConfig struct {
-		OriginAccessIdentity *AwsResourceValue
+		OriginAccessIdentity core.IaCValue
 	}
 
 	CustomOriginConfig struct {
@@ -79,7 +79,7 @@ type (
 
 	OriginAccessIdentity struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Comment       string
 	}
 )
@@ -91,7 +91,7 @@ type OriginAccessIdentityCreateParams struct {
 
 func (oai *OriginAccessIdentity) Create(dag *core.ResourceGraph, params OriginAccessIdentityCreateParams) error {
 	oai.Name = params.Name
-	oai.ConstructsRef = params.Refs.Clone()
+	oai.ConstructRefs = params.Refs.Clone()
 	if dag.GetResource(oai.Id()) != nil {
 		return fmt.Errorf(`an Origin Access Identity with name "%s" already exists`, oai.Name)
 	}
@@ -107,7 +107,7 @@ type CloudfrontDistributionCreateParams struct {
 
 func (distro *CloudfrontDistribution) Create(dag *core.ResourceGraph, params CloudfrontDistributionCreateParams) error {
 	distro.Name = cloudfrontDistributionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.CdnId))
-	distro.ConstructsRef = params.Refs.Clone()
+	distro.ConstructRefs = params.Refs.Clone()
 
 	if dag.GetResource(distro.Id()) != nil {
 		return errors.Errorf(`duplicate Cloudfront distribution "%s" (internal error)`, distro.Id())
@@ -141,9 +141,9 @@ func (distro *CloudfrontDistribution) Configure(params CloudfrontDistributionCon
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (distro *CloudfrontDistribution) BaseConstructsRef() core.BaseConstructSet {
-	return distro.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (distro *CloudfrontDistribution) BaseConstructRefs() core.BaseConstructSet {
+	return distro.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -161,9 +161,9 @@ func (distro *CloudfrontDistribution) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (oai *OriginAccessIdentity) BaseConstructsRef() core.BaseConstructSet {
-	return oai.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (oai *OriginAccessIdentity) BaseConstructRefs() core.BaseConstructSet {
+	return oai.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

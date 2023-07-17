@@ -118,12 +118,28 @@ func (cg *ConstructGraph) AddDependency(source ResourceId, dest ResourceId) {
 	cg.underlying.AddEdge(source.String(), dest.String(), nil)
 }
 
+func (cg *ConstructGraph) AddDependencyWithData(source ResourceId, dest ResourceId, data any) {
+	cg.underlying.AddEdge(source.String(), dest.String(), data)
+}
+
 func (cg *ConstructGraph) RemoveDependency(source ResourceId, dest ResourceId) error {
 	return cg.underlying.RemoveEdge(source.String(), dest.String())
 }
 
 func (cg *ConstructGraph) GetConstruct(key ResourceId) BaseConstruct {
 	return cg.underlying.GetVertex(key.String())
+}
+
+func (cg *ConstructGraph) GetResource(id ResourceId) Resource {
+	c := cg.GetConstruct(id)
+	if r, ok := c.(Resource); ok {
+		return r
+	}
+	return nil
+}
+
+func (cg *ConstructGraph) GetDependency(source ResourceId, target ResourceId) *graph.Edge[BaseConstruct] {
+	return cg.underlying.GetEdge(source.String(), target.String())
 }
 
 func ListConstructs[C BaseConstruct](cg *ConstructGraph) []C {
@@ -168,6 +184,20 @@ func (cg *ConstructGraph) ShortestPath(source ResourceId, dest ResourceId) ([]Ba
 	resources := make([]BaseConstruct, len(ids))
 	for i, id := range ids {
 		resources[i] = cg.underlying.GetVertex(id)
+	}
+	return resources, nil
+}
+
+func (cg *ConstructGraph) AllPaths(source ResourceId, dest ResourceId) ([][]BaseConstruct, error) {
+	paths, err := cg.underlying.AllPaths(source.String(), dest.String())
+	if err != nil {
+		return nil, err
+	}
+	resources := make([][]BaseConstruct, len(paths))
+	for i, path := range paths {
+		for j, id := range path {
+			resources[i][j] = cg.underlying.GetVertex(id)
+		}
 	}
 	return resources, nil
 }

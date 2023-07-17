@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -23,7 +24,7 @@ const (
 type (
 	LoadBalancer struct {
 		Name                   string
-		ConstructsRef          core.BaseConstructSet `yaml:"-"`
+		ConstructRefs          core.BaseConstructSet `yaml:"-"`
 		IpAddressType          string
 		LoadBalancerAttributes map[string]string
 		Scheme                 string
@@ -35,7 +36,7 @@ type (
 
 	TargetGroup struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Port          int
 		Protocol      string
 		Vpc           *Vpc
@@ -45,20 +46,20 @@ type (
 	}
 
 	Target struct {
-		Id   *AwsResourceValue
+		Id   core.IaCValue
 		Port int
 	}
 
 	Listener struct {
 		Name           string
-		ConstructsRef  core.BaseConstructSet `yaml:"-"`
+		ConstructRefs  core.BaseConstructSet `yaml:"-"`
 		Port           int
 		Protocol       string
 		LoadBalancer   *LoadBalancer
 		DefaultActions []*LBAction
 	}
 	LBAction struct {
-		TargetGroupArn *AwsResourceValue
+		TargetGroupArn core.IaCValue
 		Type           string
 	}
 )
@@ -71,18 +72,18 @@ type LoadBalancerCreateParams struct {
 
 func (lb *LoadBalancer) Create(dag *core.ResourceGraph, params LoadBalancerCreateParams) error {
 	lb.Name = loadBalancerSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	lb.ConstructsRef = params.Refs.Clone()
+	lb.ConstructRefs = params.Refs.Clone()
 
 	existingLb, found := core.GetResource[*LoadBalancer](dag, lb.Id())
 	if found {
-		existingLb.ConstructsRef.AddAll(params.Refs)
+		existingLb.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(lb)
 	return nil
 }
 
-func (lb *LoadBalancer) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (lb *LoadBalancer) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if len(lb.Subnets) == 0 {
 		subnets, err := getSubnetsOperational(dag, lb, appName)
 		if err != nil {
@@ -115,21 +116,21 @@ type ListenerCreateParams struct {
 
 func (listener *Listener) Create(dag *core.ResourceGraph, params ListenerCreateParams) error {
 	listener.Name = loadBalancerSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	listener.ConstructsRef = params.Refs.Clone()
+	listener.ConstructRefs = params.Refs.Clone()
 
 	existingListener, found := core.GetResource[*Listener](dag, listener.Id())
 
 	if found {
-		existingListener.ConstructsRef.AddAll(params.Refs)
+		existingListener.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(listener)
 	return nil
 }
 
-func (listener *Listener) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (listener *Listener) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if listener.LoadBalancer == nil {
-		lbs := core.GetAllDownstreamResourcesOfType[*LoadBalancer](dag, listener)
+		lbs := core.GetUpstreamResourcesOfType[*LoadBalancer](dag, listener)
 		if len(lbs) == 0 {
 			return fmt.Errorf("listener %s has no load balancer downstream", listener.Id())
 		} else if len(lbs) > 1 {
@@ -149,11 +150,11 @@ type TargetGroupCreateParams struct {
 
 func (tg *TargetGroup) Create(dag *core.ResourceGraph, params TargetGroupCreateParams) error {
 	tg.Name = targetGroupSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	tg.ConstructsRef = params.Refs.Clone()
+	tg.ConstructRefs = params.Refs.Clone()
 
 	existingTg, found := core.GetResource[*TargetGroup](dag, tg.Id())
 	if found {
-		existingTg.ConstructsRef.AddAll(params.Refs)
+		existingTg.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 
@@ -161,13 +162,14 @@ func (tg *TargetGroup) Create(dag *core.ResourceGraph, params TargetGroupCreateP
 	return nil
 }
 
-func (tg *TargetGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (tg *TargetGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if tg.Vpc == nil {
 		vpcs := core.GetAllDownstreamResourcesOfType[*Vpc](dag, tg)
 		if len(vpcs) == 0 {
 			targetsVpcs := map[*Vpc]interface{}{}
 			for _, target := range tg.Targets {
-				for _, vpc := range core.GetAllDownstreamResourcesOfType[*Vpc](dag, target.Id.ResourceVal) {
+				targetResource := dag.GetResource(target.Id.ResourceId)
+				for _, vpc := range core.GetAllDownstreamResourcesOfType[*Vpc](dag, targetResource) {
 					targetsVpcs[vpc] = nil
 				}
 			}
@@ -188,9 +190,9 @@ func (tg *TargetGroup) MakeOperational(dag *core.ResourceGraph, appName string) 
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (lb *LoadBalancer) BaseConstructsRef() core.BaseConstructSet {
-	return lb.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (lb *LoadBalancer) BaseConstructRefs() core.BaseConstructSet {
+	return lb.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -211,7 +213,7 @@ func (lb *LoadBalancer) DeleteContext() core.DeleteContext {
 func (tg *TargetGroup) AddTarget(target *Target) {
 	addTarget := true
 	for _, t := range tg.Targets {
-		if t.Id.ResourceVal == target.Id.ResourceVal {
+		if t.Id.ResourceId == target.Id.ResourceId {
 			addTarget = false
 		}
 	}
@@ -220,9 +222,9 @@ func (tg *TargetGroup) AddTarget(target *Target) {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (tg *TargetGroup) BaseConstructsRef() core.BaseConstructSet {
-	return tg.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (tg *TargetGroup) BaseConstructRefs() core.BaseConstructSet {
+	return tg.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -240,9 +242,9 @@ func (tg *TargetGroup) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (listener *Listener) BaseConstructsRef() core.BaseConstructSet {
-	return listener.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (listener *Listener) BaseConstructRefs() core.BaseConstructSet {
+	return listener.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

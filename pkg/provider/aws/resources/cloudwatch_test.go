@@ -28,7 +28,7 @@ func Test_CloudwatchLogGroupCreate(t *testing.T) {
 		},
 		{
 			name:     "existing repo",
-			logGroup: &LogGroup{Name: "my-app-log-group", ConstructsRef: initialRefs},
+			logGroup: &LogGroup{Name: "my-app-log-group", ConstructRefs: initialRefs},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:log_group:my-app-log-group",
@@ -64,11 +64,11 @@ func Test_CloudwatchLogGroupCreate(t *testing.T) {
 
 			assert.Equal(logGroup.Name, "my-app-log-group")
 			if tt.logGroup == nil {
-				assert.Equal(logGroup.ConstructsRef, metadata.Refs)
+				assert.Equal(logGroup.ConstructRefs, metadata.Refs)
 			} else {
 				assert.Equal(logGroup, tt.logGroup)
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
-				assert.Equal(logGroup.BaseConstructsRef(), expect)
+				assert.Equal(logGroup.BaseConstructRefs(), expect)
 			}
 		})
 	}

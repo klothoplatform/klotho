@@ -28,7 +28,7 @@ func Test_RestApiCreate(t *testing.T) {
 		},
 		{
 			name: "existing repo",
-			api:  &RestApi{Name: "my-app-rest-api", ConstructsRef: initialRefs},
+			api:  &RestApi{Name: "my-app-rest-api", ConstructRefs: initialRefs},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:rest_api:my-app-rest-api",
@@ -39,7 +39,7 @@ func Test_RestApiCreate(t *testing.T) {
 		{
 			name:    "existing repo just name params",
 			apiName: "my-app-rest-api",
-			api:     &RestApi{Name: "my-app-rest-api", ConstructsRef: initialRefs},
+			api:     &RestApi{Name: "my-app-rest-api", ConstructRefs: initialRefs},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:rest_api:my-app-rest-api",
@@ -79,10 +79,10 @@ func Test_RestApiCreate(t *testing.T) {
 
 			assert.Equal(api.Name, "my-app-rest-api")
 			if tt.api == nil {
-				assert.Equal(api.ConstructsRef, metadata.Refs)
+				assert.Equal(api.ConstructRefs, metadata.Refs)
 			} else {
 				initialRefs.Add(&core.ExecutionUnit{Name: "test"})
-				assert.Equal(api.BaseConstructsRef(), initialRefs)
+				assert.Equal(api.BaseConstructRefs(), initialRefs)
 			}
 		})
 	}
@@ -141,17 +141,17 @@ func Test_ApiResourceCreate(t *testing.T) {
 					"aws:rest_api:my-api",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:api_resource:my-app-/my", Destination: "aws:rest_api:my-api"},
-					{Source: "aws:api_resource:my-app-/my/api", Destination: "aws:api_resource:my-app-/my"},
-					{Source: "aws:api_resource:my-app-/my/api", Destination: "aws:rest_api:my-api"},
-					{Source: "aws:api_resource:my-app-/my/api/route", Destination: "aws:api_resource:my-app-/my/api"},
-					{Source: "aws:api_resource:my-app-/my/api/route", Destination: "aws:rest_api:my-api"},
+					{Source: "aws:api_resource:my-app-/my", Destination: "aws:api_resource:my-app-/my/api"},
+					{Source: "aws:api_resource:my-app-/my/api", Destination: "aws:api_resource:my-app-/my/api/route"},
+					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my"},
+					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/api"},
+					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/api/route"},
 				},
 			},
 			Check: func(assert *assert.Assertions, resource *ApiResource) {
 				assert.Equal("my-app-/my/api/route", resource.Name)
 				assert.Equal(resource.PathPart, "route")
-				assert.Equal(resource.ConstructsRef, core.BaseConstructSetOf(eu2))
+				assert.Equal(resource.ConstructRefs, core.BaseConstructSetOf(eu2))
 			},
 		},
 		{
@@ -159,7 +159,7 @@ func Test_ApiResourceCreate(t *testing.T) {
 			Params: ApiResourceCreateParams{
 				Path: "/my/api/route",
 			},
-			Existing: &ApiResource{Name: "my-app-/my/api/route", ConstructsRef: initialRefs},
+			Existing: &ApiResource{Name: "my-app-/my/api/route", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:api_resource:my-app-/my/api/route",
@@ -169,7 +169,7 @@ func Test_ApiResourceCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, resource *ApiResource) {
 				assert.Equal("my-app-/my/api/route", resource.Name)
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
-				assert.Equal(resource.BaseConstructsRef(), expect)
+				assert.Equal(resource.BaseConstructRefs(), expect)
 
 			},
 		},
@@ -187,19 +187,19 @@ func Test_ApiResourceCreate(t *testing.T) {
 					"aws:rest_api:my-api",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:api_resource:my-app-/my", Destination: "aws:rest_api:my-api"},
-					{Source: "aws:api_resource:my-app-/my/-api", Destination: "aws:api_resource:my-app-/my"},
-					{Source: "aws:api_resource:my-app-/my/-api", Destination: "aws:rest_api:my-api"},
-					{Source: "aws:api_resource:my-app-/my/-api/route", Destination: "aws:api_resource:my-app-/my/-api"},
-					{Source: "aws:api_resource:my-app-/my/-api/route", Destination: "aws:rest_api:my-api"},
-					{Source: "aws:api_resource:my-app-/my/-api/route/-method", Destination: "aws:api_resource:my-app-/my/-api/route"},
-					{Source: "aws:api_resource:my-app-/my/-api/route/-method", Destination: "aws:rest_api:my-api"},
+					{Source: "aws:api_resource:my-app-/my", Destination: "aws:api_resource:my-app-/my/-api"},
+					{Source: "aws:api_resource:my-app-/my/-api", Destination: "aws:api_resource:my-app-/my/-api/route"},
+					{Source: "aws:api_resource:my-app-/my/-api/route", Destination: "aws:api_resource:my-app-/my/-api/route/-method"},
+					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my"},
+					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/-api"},
+					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/-api/route"},
+					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/-api/route/-method"},
 				},
 			},
 			Check: func(assert *assert.Assertions, resource *ApiResource) {
 				assert.Equal("my-app-/my/-api/route/-method", resource.Name)
 				assert.Equal(resource.PathPart, "{method}")
-				assert.Equal(resource.ConstructsRef, core.BaseConstructSetOf(eu2))
+				assert.Equal(resource.ConstructRefs, core.BaseConstructSetOf(eu2))
 			},
 		},
 	}
@@ -266,10 +266,10 @@ func Test_ApiIntegrationCreate(t *testing.T) {
 
 			assert.Equal(integration.Name, "my-app-/my/api/route-post")
 			if tt.integration == nil {
-				assert.Equal(integration.ConstructsRef, metadata.Refs)
+				assert.Equal(integration.ConstructRefs, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
-				assert.Equal(integration.BaseConstructsRef(), expect)
+				assert.Equal(integration.BaseConstructRefs(), expect)
 			}
 		})
 	}
@@ -295,19 +295,19 @@ func Test_ApiMethodCreate(t *testing.T) {
 					"aws:rest_api:my-api",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:api_method:my-app-/my/api/route-post", Destination: "aws:api_resource:my-app-/my/api/route"},
-					{Source: "aws:api_method:my-app-/my/api/route-post", Destination: "aws:rest_api:my-api"},
-					{Source: "aws:api_resource:my-app-/my", Destination: "aws:rest_api:my-api"},
-					{Source: "aws:api_resource:my-app-/my/api", Destination: "aws:api_resource:my-app-/my"},
-					{Source: "aws:api_resource:my-app-/my/api", Destination: "aws:rest_api:my-api"},
-					{Source: "aws:api_resource:my-app-/my/api/route", Destination: "aws:api_resource:my-app-/my/api"},
-					{Source: "aws:api_resource:my-app-/my/api/route", Destination: "aws:rest_api:my-api"},
+					{Source: "aws:api_resource:my-app-/my", Destination: "aws:api_resource:my-app-/my/api"},
+					{Source: "aws:api_resource:my-app-/my/api", Destination: "aws:api_resource:my-app-/my/api/route"},
+					{Source: "aws:api_resource:my-app-/my/api/route", Destination: "aws:api_method:my-app-/my/api/route-post"},
+					{Source: "aws:rest_api:my-api", Destination: "aws:api_method:my-app-/my/api/route-post"},
+					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my"},
+					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/api"},
+					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/api/route"},
 				},
 			},
 		},
 		{
 			name:   "existing repo",
-			method: &ApiMethod{Name: "my-app-/my/api/route-post", ConstructsRef: initialRefs},
+			method: &ApiMethod{Name: "my-app-/my/api/route-post", ConstructRefs: initialRefs},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:api_method:my-app-/my/api/route-post",
@@ -346,10 +346,10 @@ func Test_ApiMethodCreate(t *testing.T) {
 			if tt.method == nil {
 				assert.NotNil(method.RestApi)
 				assert.NotNil(method.Resource)
-				assert.Equal(method.ConstructsRef, metadata.Refs)
+				assert.Equal(method.ConstructRefs, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
-				assert.Equal(method.BaseConstructsRef(), expect)
+				assert.Equal(method.BaseConstructRefs(), expect)
 			}
 		})
 	}
@@ -413,7 +413,7 @@ func Test_ApiDeploymentCreate(t *testing.T) {
 		},
 		{
 			name:       "existing repo",
-			deployment: &ApiDeployment{Name: "my-app-deployment", ConstructsRef: initialRefs},
+			deployment: &ApiDeployment{Name: "my-app-deployment", ConstructRefs: initialRefs},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:api_deployment:my-app-deployment",
@@ -449,10 +449,10 @@ func Test_ApiDeploymentCreate(t *testing.T) {
 			assert.Equal(deployment.Name, "my-app-deployment")
 			if tt.deployment == nil {
 				assert.NotNil(deployment.RestApi)
-				assert.Equal(deployment.ConstructsRef, metadata.Refs)
+				assert.Equal(deployment.ConstructRefs, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
-				assert.Equal(deployment.BaseConstructsRef(), expect)
+				assert.Equal(deployment.BaseConstructRefs(), expect)
 			}
 		})
 	}
@@ -484,7 +484,7 @@ func Test_ApiStageCreate(t *testing.T) {
 		},
 		{
 			name:  "existing repo",
-			stage: &ApiStage{Name: "my-app-stage", ConstructsRef: initialRefs},
+			stage: &ApiStage{Name: "my-app-stage", ConstructRefs: initialRefs},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:api_stage:my-app-stage",
@@ -520,10 +520,10 @@ func Test_ApiStageCreate(t *testing.T) {
 			assert.Equal(stage.Name, "my-app-stage")
 			if tt.stage == nil {
 				assert.NotNil(stage.RestApi)
-				assert.Equal(stage.ConstructsRef, metadata.Refs)
+				assert.Equal(stage.ConstructRefs, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
-				assert.Equal(stage.BaseConstructsRef(), expect)
+				assert.Equal(stage.BaseConstructRefs(), expect)
 			}
 		})
 	}

@@ -7,7 +7,7 @@ import (
 
 type (
 	KubernetesProvider struct {
-		ConstructsRef         core.BaseConstructSet
+		ConstructRefs         core.BaseConstructSet
 		KubeConfig            core.Resource
 		Name                  string
 		EnableServerSideApply bool
@@ -15,13 +15,13 @@ type (
 
 	RouteTableAssociation struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Subnet        *resources.Subnet
 		RouteTable    *resources.RouteTable
 	}
 
 	SecurityGroupRule struct {
-		ConstructsRef   core.BaseConstructSet
+		ConstructRefs   core.BaseConstructSet
 		Name            string
 		Description     string
 		FromPort        int
@@ -33,7 +33,7 @@ type (
 	}
 
 	TargetGroupAttachment struct {
-		ConstructsRef  core.BaseConstructSet
+		ConstructRefs  core.BaseConstructSet
 		Name           string
 		TargetGroupArn core.IaCValue
 		TargetId       core.IaCValue
@@ -41,8 +41,8 @@ type (
 	}
 )
 
-func (e *KubernetesProvider) BaseConstructsRef() core.BaseConstructSet {
-	return e.ConstructsRef
+func (e *KubernetesProvider) BaseConstructRefs() core.BaseConstructSet {
+	return e.ConstructRefs
 }
 
 func (e *KubernetesProvider) Id() core.ResourceId {
@@ -57,8 +57,8 @@ func (f *KubernetesProvider) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{}
 }
 
-func (e *RouteTableAssociation) BaseConstructsRef() core.BaseConstructSet {
-	return e.ConstructsRef
+func (e *RouteTableAssociation) BaseConstructRefs() core.BaseConstructSet {
+	return e.ConstructRefs
 }
 
 func (e *RouteTableAssociation) Id() core.ResourceId {
@@ -71,8 +71,8 @@ func (e *RouteTableAssociation) Id() core.ResourceId {
 func (f *RouteTableAssociation) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{}
 }
-func (e *SecurityGroupRule) BaseConstructsRef() core.BaseConstructSet {
-	return e.ConstructsRef
+func (e *SecurityGroupRule) BaseConstructRefs() core.BaseConstructSet {
+	return e.ConstructRefs
 }
 
 func (e *SecurityGroupRule) Id() core.ResourceId {
@@ -85,8 +85,8 @@ func (e *SecurityGroupRule) Id() core.ResourceId {
 func (f *SecurityGroupRule) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{}
 }
-func (e *TargetGroupAttachment) BaseConstructsRef() core.BaseConstructSet {
-	return e.ConstructsRef
+func (e *TargetGroupAttachment) BaseConstructRefs() core.BaseConstructSet {
+	return e.ConstructRefs
 }
 
 func (e *TargetGroupAttachment) Id() core.ResourceId {

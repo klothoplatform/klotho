@@ -28,7 +28,7 @@ func Test_EcrRepositoryCreate(t *testing.T) {
 		},
 		{
 			name: "existing repo",
-			repo: &EcrRepository{Name: "my-app", ConstructsRef: initialRefs, ForceDelete: true},
+			repo: &EcrRepository{Name: "my-app", ConstructRefs: initialRefs, ForceDelete: true},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ecr_repo:my-app",
@@ -61,11 +61,11 @@ func Test_EcrRepositoryCreate(t *testing.T) {
 			repo = graphRepo.(*EcrRepository)
 			assert.Equal(repo.Name, "my-app")
 			if tt.repo == nil {
-				assert.Equal(repo.ConstructsRef, metadata.Refs)
+				assert.Equal(repo.ConstructRefs, metadata.Refs)
 			} else {
 				assert.Equal(repo, tt.repo)
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
-				assert.Equal(repo.BaseConstructsRef(), expect)
+				assert.Equal(repo.BaseConstructRefs(), expect)
 			}
 		})
 	}
@@ -122,12 +122,12 @@ func Test_EcrImageCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, image *EcrImage) {
 				assert.Equal(image.Name, "my-app-image")
-				assert.Equal(image.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(image.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing image",
-			Existing: &EcrImage{Name: "my-app-image", ConstructsRef: initialRefs},
+			Existing: &EcrImage{Name: "my-app-image", ConstructRefs: initialRefs},
 			WantErr:  true,
 		},
 	}

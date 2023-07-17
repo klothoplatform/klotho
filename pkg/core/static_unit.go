@@ -30,6 +30,16 @@ func (p *StaticUnit) AnnotationCapability() string {
 	return annotation.StaticUnitCapability
 }
 
+func (p *StaticUnit) Functionality() Functionality {
+	return Storage
+}
+
+func (p *StaticUnit) Attributes() map[string]any {
+	return map[string]any{
+		"blob": nil,
+	}
+}
+
 func (unit *StaticUnit) OutputTo(dest string) error {
 	errs := make(chan error)
 	files := unit.Files()

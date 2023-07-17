@@ -5,6 +5,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,7 +18,7 @@ type (
 		Object          *corev1.Service
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.Resource
+		Cluster         core.ResourceId
 	}
 )
 
@@ -25,8 +26,8 @@ const (
 	SERVICE_ACCOUNT_TYPE = "service_account"
 )
 
-// BaseConstructsRef returns a slice containing the ids of any Klotho constructs is correlated to
-func (sa *ServiceAccount) BaseConstructsRef() core.BaseConstructSet { return sa.ConstructRefs }
+// BaseConstructRefs returns a slice containing the ids of any Klotho constructs is correlated to
+func (sa *ServiceAccount) BaseConstructRefs() core.BaseConstructSet { return sa.ConstructRefs }
 
 func (sa *ServiceAccount) Id() core.ResourceId {
 	return core.ResourceId{
@@ -54,18 +55,18 @@ func (sa *ServiceAccount) Path() string {
 	return sa.FilePath
 }
 
-func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName string) error {
-	if sa.Cluster == nil {
+func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+	if sa.Cluster.IsZero() {
 		downstreamClustersFound := map[string]core.Resource{}
 		for _, res := range dag.GetAllDownstreamResources(sa) {
-			if core.GetFunctionality(res) == core.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound[res.Id().String()] = res
 			}
 		}
 		// See which cluster any pods or deployments using this service account use
 		for _, res := range sa.GetResourcesUsingServiceAccount(dag) {
 			for _, dres := range dag.GetAllDownstreamResources(res) {
-				if core.GetFunctionality(dres) == core.Cluster {
+				if classifier.GetFunctionality(dres) == core.Cluster {
 					downstreamClustersFound[dres.Id().String()] = dres
 				}
 			}
@@ -73,7 +74,7 @@ func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName strin
 
 		if len(downstreamClustersFound) == 1 {
 			_, cluster := collectionutil.GetOneEntry(downstreamClustersFound)
-			sa.Cluster = cluster
+			sa.Cluster = cluster.Id()
 			dag.AddDependency(sa, cluster)
 			return nil
 		}

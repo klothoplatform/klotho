@@ -4,19 +4,20 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 )
 
 type (
 	SecurityGroup struct {
 		Name          string
 		Vpc           *Vpc
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		IngressRules  []SecurityGroupRule
 		EgressRules   []SecurityGroupRule
 	}
 	SecurityGroupRule struct {
 		Description string
-		CidrBlocks  []*AwsResourceValue
+		CidrBlocks  []core.IaCValue
 		FromPort    int
 		Protocol    string
 		ToPort      int
@@ -34,18 +35,18 @@ type SecurityGroupCreateParams struct {
 func (sg *SecurityGroup) Create(dag *core.ResourceGraph, params SecurityGroupCreateParams) error {
 
 	sg.Name = params.AppName
-	sg.ConstructsRef = params.Refs.Clone()
+	sg.ConstructRefs = params.Refs.Clone()
 	existingSG := dag.GetResource(sg.Id())
 	if existingSG != nil {
 		graphSG := existingSG.(*SecurityGroup)
-		graphSG.ConstructsRef.AddAll(params.Refs)
+		graphSG.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(sg)
 	}
 	return nil
 }
 
-func (sg *SecurityGroup) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (sg *SecurityGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	sgCopy := *sg
 	if sg.Vpc == nil {
 		vpc, err := getSingleUpstreamVpc(dag, sg)
@@ -53,15 +54,15 @@ func (sg *SecurityGroup) MakeOperational(dag *core.ResourceGraph, appName string
 			return err
 		}
 		if vpc == nil {
-			err := dag.CreateDependencies(sg, map[string]any{
-				"Vpc": VpcCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(sg),
-				},
+			vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(sg),
 			})
 			if err != nil {
 				return err
 			}
+			sg.Vpc = vpc
+			dag.AddDependency(sg, vpc)
 		} else {
 			sg.Vpc = vpc
 		}
@@ -74,9 +75,9 @@ func (sg *SecurityGroup) MakeOperational(dag *core.ResourceGraph, appName string
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (sg *SecurityGroup) BaseConstructsRef() core.BaseConstructSet {
-	return sg.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (sg *SecurityGroup) BaseConstructRefs() core.BaseConstructSet {
+	return sg.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

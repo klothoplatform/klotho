@@ -20,8 +20,8 @@ var IamKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.Secret]{
 		Configure: func(role *resources.IamRole, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			secretPolicyDoc := resources.CreateAllowPolicyDocument([]string{"secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"}, []*resources.AwsResourceValue{{ResourceVal: secret, PropertyVal: resources.ARN_IAC_VALUE}})
-			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-secretpolicy", secret.Name), role.ConstructsRef.CloneWith(secret.ConstructsRef), secretPolicyDoc)
+			secretPolicyDoc := resources.CreateAllowPolicyDocument([]string{"secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"}, []core.IaCValue{{ResourceId: secret.Id(), Property: resources.ARN_IAC_VALUE}})
+			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-secretpolicy", secret.Name), role.ConstructRefs.CloneWith(secret.ConstructRefs), secretPolicyDoc)
 			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
 			return nil
 		},
@@ -29,14 +29,14 @@ var IamKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.Secret]{
 		Configure: func(policy *resources.IamPolicy, secret *resources.Secret, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"}, []*resources.AwsResourceValue{{ResourceVal: secret, PropertyVal: resources.ARN_IAC_VALUE}}))
+			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"}, []core.IaCValue{{ResourceId: secret.Id(), Property: resources.ARN_IAC_VALUE}}))
 			return nil
 		},
 		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.IamPolicy]{
 		Configure: func(role *resources.IamRole, policy *resources.IamPolicy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			role.AddManagedPolicy(&resources.AwsResourceValue{ResourceVal: policy, PropertyVal: resources.ARN_IAC_VALUE})
+			role.AddManagedPolicy(core.IaCValue{ResourceId: policy.Id(), Property: resources.ARN_IAC_VALUE})
 			return nil
 		},
 		DirectEdgeOnly: true,
@@ -64,15 +64,15 @@ var IamKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.DynamodbTable]{
 		Configure: func(role *resources.IamRole, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			actions := []string{"dynamodb:*"}
-			policyResources := []*resources.AwsResourceValue{
-				{ResourceVal: table, PropertyVal: resources.ARN_IAC_VALUE},
-				{ResourceVal: table, PropertyVal: resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE},
-				{ResourceVal: table, PropertyVal: resources.DYNAMODB_TABLE_INDEX_IAC_VALUE},
-				{ResourceVal: table, PropertyVal: resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE},
-				{ResourceVal: table, PropertyVal: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
+			policyResources := []core.IaCValue{
+				{ResourceId: table.Id(), Property: resources.ARN_IAC_VALUE},
+				{ResourceId: table.Id(), Property: resources.DYNAMODB_TABLE_BACKUP_IAC_VALUE},
+				{ResourceId: table.Id(), Property: resources.DYNAMODB_TABLE_INDEX_IAC_VALUE},
+				{ResourceId: table.Id(), Property: resources.DYNAMODB_TABLE_EXPORT_IAC_VALUE},
+				{ResourceId: table.Id(), Property: resources.DYNAMODB_TABLE_STREAM_IAC_VALUE},
 			}
 			doc := resources.CreateAllowPolicyDocument(actions, policyResources)
-			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-dynamodb-policy", table.Name), role.ConstructsRef.CloneWith(table.ConstructsRef), doc)
+			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-dynamodb-policy", table.Name), role.ConstructRefs.CloneWith(table.ConstructRefs), doc)
 			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
 			return nil
 		},
@@ -93,7 +93,7 @@ var IamKB = knowledgebase.Build(
 				"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
 				"arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy",
 			})
-			role.InlinePolicies = append(role.InlinePolicies, resources.NewIamInlinePolicy("fargate-pod-execution-policy", profile.ConstructsRef,
+			role.InlinePolicies = append(role.InlinePolicies, resources.NewIamInlinePolicy("fargate-pod-execution-policy", profile.ConstructRefs,
 				&resources.PolicyDocument{Version: resources.VERSION, Statement: []resources.StatementEntry{
 					{
 						Effect: "Allow",
@@ -103,7 +103,7 @@ var IamKB = knowledgebase.Build(
 							"logs:DescribeLogStreams",
 							"logs:PutLogEvents",
 						},
-						Resource: []*resources.AwsResourceValue{{PropertyVal: "*"}},
+						Resource: []core.IaCValue{{Property: "*"}},
 					},
 				},
 				}))
@@ -128,13 +128,13 @@ var IamKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.IamRole]{
 		Configure: func(chart *kubernetes.HelmChart, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if len(role.ConstructsRef) > 1 {
-				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
+			if len(role.ConstructRefs) > 1 {
+				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructRefs), role.ConstructRefs)
 			}
 			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
 				AppName:     data.AppName,
-				ClusterName: strings.TrimLeft(chart.ClustersProvider.Resource().Id().Name, fmt.Sprintf("%s-", data.AppName)),
-				Refs:        role.ConstructsRef.Clone(),
+				ClusterName: strings.TrimLeft(chart.ClustersProvider.ResourceId.Name, fmt.Sprintf("%s-", data.AppName)),
+				Refs:        role.ConstructRefs.Clone(),
 			})
 			dag.AddDependency(role, oidc)
 			return err
@@ -148,13 +148,13 @@ var IamKB = knowledgebase.Build(
 			if role.AssumeRolePolicyDoc != nil {
 				return nil
 			}
-			if len(role.ConstructsRef) > 1 {
-				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
+			if len(role.ConstructRefs) > 1 {
+				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructRefs), role.ConstructRefs)
 			}
 			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
 				AppName:     data.AppName,
-				ClusterName: strings.TrimLeft(manifest.ClustersProvider.Resource().Id().Name, fmt.Sprintf("%s-", data.AppName)),
-				Refs:        role.ConstructsRef.Clone(),
+				ClusterName: strings.TrimLeft(manifest.ClustersProvider.ResourceId.Name, fmt.Sprintf("%s-", data.AppName)),
+				Refs:        role.ConstructRefs.Clone(),
 			})
 			dag.AddDependency(role, oidc)
 			return err
@@ -167,11 +167,11 @@ var IamKB = knowledgebase.Build(
 				role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy("aws-load-balancer-controller", oidc)
 				return nil
 			}
-			if len(role.ConstructsRef) > 1 {
-				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructsRef), role.ConstructsRef)
+			if len(role.ConstructRefs) > 1 {
+				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructRefs), role.ConstructRefs)
 			}
 			var ref core.ResourceId
-			for cons := range role.ConstructsRef {
+			for cons := range role.ConstructRefs {
 				ref = cons
 			}
 			role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(ref.Name, oidc)
@@ -183,12 +183,12 @@ var IamKB = knowledgebase.Build(
 		Configure: func(role *resources.IamRole, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			role.InlinePolicies = append(role.InlinePolicies, resources.NewIamInlinePolicy(
 				fmt.Sprintf(`%s-access`, bucket.Name),
-				role.ConstructsRef.CloneWith(bucket.ConstructsRef),
+				role.ConstructRefs.CloneWith(bucket.ConstructRefs),
 				resources.CreateAllowPolicyDocument(
 					[]string{"s3:*"},
-					[]*resources.AwsResourceValue{
-						{ResourceVal: bucket, PropertyVal: resources.ARN_IAC_VALUE},
-						{ResourceVal: bucket, PropertyVal: resources.ALL_BUCKET_DIRECTORY_IAC_VALUE},
+					[]core.IaCValue{
+						{ResourceId: bucket.Id(), Property: resources.ARN_IAC_VALUE},
+						{ResourceId: bucket.Id(), Property: resources.ALL_BUCKET_DIRECTORY_IAC_VALUE},
 					})))
 			return nil
 		},
@@ -196,7 +196,7 @@ var IamKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.LambdaFunction]{
 		Configure: func(policy *resources.IamPolicy, function *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"lambda:InvokeFunction"}, []*resources.AwsResourceValue{{ResourceVal: function, PropertyVal: resources.ARN_IAC_VALUE}}))
+			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"lambda:InvokeFunction"}, []core.IaCValue{{ResourceId: function.Id(), Property: resources.ARN_IAC_VALUE}}))
 			return nil
 		},
 		DirectEdgeOnly: true,
@@ -204,7 +204,7 @@ var IamKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.RdsInstance]{
 		Configure: func(role *resources.IamRole, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			inlinePol := resources.NewIamInlinePolicy(fmt.Sprintf("%s-connectionpolicy", instance.Name),
-				role.ConstructsRef.CloneWith(instance.ConstructsRef), instance.GetConnectionPolicyDocument())
+				role.ConstructRefs.CloneWith(instance.ConstructRefs), instance.GetConnectionPolicyDocument())
 			role.InlinePolicies = append(role.InlinePolicies, inlinePol)
 			return nil
 		},
@@ -215,14 +215,14 @@ var IamKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.RolePolicyAttachment, *resources.IamPolicy]{},
 	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.PrivateDnsNamespace]{
 		Configure: func(policy *resources.IamPolicy, namespace *resources.PrivateDnsNamespace, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"servicediscovery:DiscoverInstances"}, []*resources.AwsResourceValue{{PropertyVal: core.ALL_RESOURCES_IAC_VALUE}}))
+			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"servicediscovery:DiscoverInstances"}, []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}}))
 			return nil
 		},
 		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.InstanceProfile, *resources.IamRole]{
 		Configure: func(source *resources.InstanceProfile, destination *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			inlinePolicy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-instanceProfilePolicy", source.Name), source.ConstructsRef.CloneWith(destination.ConstructsRef),
+			inlinePolicy := resources.NewIamInlinePolicy(fmt.Sprintf("%s-instanceProfilePolicy", source.Name), source.ConstructRefs.CloneWith(destination.ConstructRefs),
 				&resources.PolicyDocument{
 					Version: resources.VERSION,
 					Statement: resources.CreateAllowPolicyDocument([]string{
@@ -230,16 +230,16 @@ var IamKB = knowledgebase.Build(
 						"ec2:Describe*",
 						"ec2:Search*",
 						"ec2:Get*",
-					}, []*resources.AwsResourceValue{{PropertyVal: "*"}}).Statement,
+					}, []core.IaCValue{{Property: "*"}}).Statement,
 				},
 			)
 			inlinePolicy.Policy.Statement = append(inlinePolicy.Policy.Statement, resources.StatementEntry{
 				Effect:   "Allow",
 				Action:   []string{"iam:PassRole"},
-				Resource: []*resources.AwsResourceValue{{PropertyVal: "*"}},
+				Resource: []core.IaCValue{{Property: "*"}},
 				Condition: &resources.Condition{
-					StringEquals: map[*resources.AwsResourceValue]string{
-						{PropertyVal: "iam:PassedToService"}: "ec2.amazonaws.com",
+					StringEquals: map[core.IaCValue]string{
+						{Property: "iam:PassedToService"}: "ec2.amazonaws.com",
 					},
 				},
 			})

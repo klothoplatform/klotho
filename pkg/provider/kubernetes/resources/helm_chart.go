@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 )
 
 const HELM_CHART_TYPE = "helm_chart"
@@ -17,7 +18,7 @@ type HelmChart struct {
 	Files     []ManifestFile
 
 	ConstructRefs core.BaseConstructSet
-	Cluster       core.Resource
+	Cluster       core.ResourceId
 	Repo          string
 	Version       string
 	Namespace     string
@@ -26,8 +27,8 @@ type HelmChart struct {
 	IsInternal bool
 }
 
-// BaseConstructsRef returns a slice containing the ids of any Klotho constructs is correlated to
-func (chart *HelmChart) BaseConstructsRef() core.BaseConstructSet { return chart.ConstructRefs }
+// BaseConstructRefs returns a slice containing the ids of any Klotho constructs is correlated to
+func (chart *HelmChart) BaseConstructRefs() core.BaseConstructSet { return chart.ConstructRefs }
 
 func (chart *HelmChart) Id() core.ResourceId {
 	return core.ResourceId{
@@ -63,17 +64,16 @@ func (t *HelmChart) GetOutputFiles() []core.File {
 	return outputFiles
 }
 
-func (chart *HelmChart) MakeOperational(dag *core.ResourceGraph, appName string) error {
-	if chart.Cluster == nil {
+func (chart *HelmChart) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+	if chart.Cluster.IsZero() {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(chart) {
-			if core.GetFunctionality(res) == core.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound = append(downstreamClustersFound, res)
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
-			chart.Cluster = downstreamClustersFound[0]
-			dag.AddDependency(chart, chart.Cluster)
+			chart.Cluster = downstreamClustersFound[0].Id()
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

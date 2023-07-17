@@ -23,12 +23,12 @@ func Test_EcsServiceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, group *EcsService) {
 				assert.Equal(group.Name, "my-app-service")
-				assert.Equal(group.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(group.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing profile",
-			Existing: &EcsService{Name: "my-app-service", ConstructsRef: initialRefs},
+			Existing: &EcsService{Name: "my-app-service", ConstructRefs: initialRefs},
 			WantErr:  true,
 		},
 	}
@@ -56,7 +56,6 @@ func Test_EcsServiceMakeOperational(t *testing.T) {
 				Nodes: []string{
 					"aws:availability_zones:AvailabilityZones",
 					"aws:ecr_image:my-app-my-app-profile",
-					"aws:ecr_repo:my-app",
 					"aws:ecs_cluster:my-app-profile-cluster",
 					"aws:ecs_service:profile",
 					"aws:ecs_task_definition:my-app-profile",
@@ -79,7 +78,6 @@ func Test_EcsServiceMakeOperational(t *testing.T) {
 					"aws:vpc:my_app",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:ecr_image:my-app-my-app-profile", Destination: "aws:ecr_repo:my-app"},
 					{Source: "aws:ecs_service:profile", Destination: "aws:ecs_cluster:my-app-profile-cluster"},
 					{Source: "aws:ecs_service:profile", Destination: "aws:ecs_task_definition:my-app-profile"},
 					{Source: "aws:ecs_service:profile", Destination: "aws:security_group:my_app:my-app"},
@@ -147,12 +145,12 @@ func Test_EcsTaskDefinitionCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, td *EcsTaskDefinition) {
 				assert.Equal(td.Name, "my-app-td")
-				assert.Equal(td.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(td.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing profile",
-			Existing: &EcsTaskDefinition{Name: "my-app-td", ConstructsRef: initialRefs},
+			Existing: &EcsTaskDefinition{Name: "my-app-td", ConstructRefs: initialRefs},
 			WantErr:  true,
 		},
 	}
@@ -177,14 +175,12 @@ func Test_EcsTaskDefinitionMakeOperational(t *testing.T) {
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ecr_image:my-app-td",
-					"aws:ecr_repo:my-app",
 					"aws:ecs_task_definition:td",
 					"aws:iam_role:my-app-td-ExecutionRole",
 					"aws:log_group:my-app-td-LogGroup",
 					"aws:region:region",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:ecr_image:my-app-td", Destination: "aws:ecr_repo:my-app"},
 					{Source: "aws:ecs_task_definition:td", Destination: "aws:ecr_image:my-app-td"},
 					{Source: "aws:ecs_task_definition:td", Destination: "aws:iam_role:my-app-td-ExecutionRole"},
 					{Source: "aws:ecs_task_definition:td", Destination: "aws:log_group:my-app-td-LogGroup"},
@@ -220,12 +216,12 @@ func Test_EcsCluster(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, cluster *EcsCluster) {
 				assert.Equal(cluster.Name, "my-app-cluster")
-				assert.Equal(cluster.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(cluster.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing ecs cluster",
-			Existing: &EcsCluster{Name: "my-app-cluster", ConstructsRef: initialRefs},
+			Existing: &EcsCluster{Name: "my-app-cluster", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ecs_cluster:my-app-cluster",
@@ -233,7 +229,7 @@ func Test_EcsCluster(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, cluster *EcsCluster) {
 				assert.Equal(cluster.Name, "my-app-cluster")
-				assert.Equal(cluster.ConstructsRef, initialRefs.CloneWith(core.BaseConstructSetOf(eu)))
+				assert.Equal(cluster.ConstructRefs, initialRefs.CloneWith(core.BaseConstructSetOf(eu)))
 			}},
 	}
 	for _, tt := range cases {

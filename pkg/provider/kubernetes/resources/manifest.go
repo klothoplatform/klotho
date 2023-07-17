@@ -4,7 +4,8 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"gopkg.in/yaml.v2"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
+	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -21,7 +22,7 @@ type (
 		FilePath        string
 		Content         []byte
 		Transformations map[string]core.IaCValue
-		Cluster         core.Resource
+		Cluster         core.ResourceId
 	}
 )
 
@@ -38,8 +39,8 @@ func OutputObjectAsYaml(manifest ManifestFile) (core.File, error) {
 	}, nil
 }
 
-// BaseConstructsRef returns a slice containing the ids of any Klotho constructs is correlated to
-func (manifest *Manifest) BaseConstructsRef() core.BaseConstructSet { return manifest.ConstructRefs }
+// BaseConstructRefs returns a slice containing the ids of any Klotho constructs is correlated to
+func (manifest *Manifest) BaseConstructRefs() core.BaseConstructSet { return manifest.ConstructRefs }
 
 func (manifest *Manifest) Id() core.ResourceId {
 	return core.ResourceId{
@@ -55,17 +56,17 @@ func (manifest *Manifest) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (manifest *Manifest) MakeOperational(dag *core.ResourceGraph, appName string) error {
-	if manifest.Cluster == nil {
+func (manifest *Manifest) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+	if manifest.Cluster.IsZero() {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(manifest) {
-			if core.GetFunctionality(res) == core.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound = append(downstreamClustersFound, res)
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
-			manifest.Cluster = downstreamClustersFound[0]
-			dag.AddDependency(manifest, manifest.Cluster)
+			manifest.Cluster = downstreamClustersFound[0].Id()
+			dag.AddDependency(manifest, downstreamClustersFound[0])
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

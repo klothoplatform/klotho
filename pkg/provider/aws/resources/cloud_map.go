@@ -2,6 +2,7 @@ package resources
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -14,7 +15,7 @@ const (
 type (
 	PrivateDnsNamespace struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Vpc           *Vpc
 	}
 )
@@ -26,33 +27,33 @@ type PrivateDnsNamespaceCreateParams struct {
 
 func (namespace *PrivateDnsNamespace) Create(dag *core.ResourceGraph, params PrivateDnsNamespaceCreateParams) error {
 	namespace.Name = privateDnsNamespaceSanitizer.Apply(params.AppName)
-	namespace.ConstructsRef = params.Refs.Clone()
+	namespace.ConstructRefs = params.Refs.Clone()
 
 	existingNamespace, found := core.GetResource[*PrivateDnsNamespace](dag, namespace.Id())
 	if found {
-		existingNamespace.ConstructsRef.AddAll(params.Refs)
+		existingNamespace.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(namespace)
 	}
 	return nil
 }
 
-func (namespace *PrivateDnsNamespace) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (namespace *PrivateDnsNamespace) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if namespace.Vpc == nil {
 		vpc, err := getSingleUpstreamVpc(dag, namespace)
 		if err != nil {
 			return err
 		}
 		if vpc == nil {
-			err := dag.CreateDependencies(namespace, map[string]any{
-				"Vpc": VpcCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(namespace),
-				},
+			vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(namespace),
 			})
 			if err != nil {
 				return err
 			}
+			namespace.Vpc = vpc
+			dag.AddDependency(namespace, vpc)
 		} else {
 			namespace.Vpc = vpc
 			dag.AddDependency(namespace, vpc)
@@ -61,9 +62,9 @@ func (namespace *PrivateDnsNamespace) MakeOperational(dag *core.ResourceGraph, a
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ns *PrivateDnsNamespace) BaseConstructsRef() core.BaseConstructSet {
-	return ns.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (ns *PrivateDnsNamespace) BaseConstructRefs() core.BaseConstructSet {
+	return ns.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

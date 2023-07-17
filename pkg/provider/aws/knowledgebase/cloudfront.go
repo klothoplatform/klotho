@@ -2,13 +2,11 @@ package knowledgebase
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
-	"github.com/pkg/errors"
 )
 
 var CloudfrontKB = knowledgebase.Build(
@@ -16,7 +14,7 @@ var CloudfrontKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.CloudfrontDistribution, *resources.S3Bucket]{
 		Configure: func(distro *resources.CloudfrontDistribution, bucket *resources.S3Bucket, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			var errs multierr.Error
-			for _, consRef := range distro.ConstructsRef {
+			for _, consRef := range distro.ConstructRefs {
 				conn := s3ToCloudfrontConnection{
 					distro:    distro,
 					bucket:    bucket,
@@ -38,25 +36,7 @@ var CloudfrontKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.CloudfrontDistribution, *resources.ApiStage]{
 		Configure: func(distro *resources.CloudfrontDistribution, stage *resources.ApiStage, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			var gwId string
-			switch len(stage.ConstructsRef) {
-			case 0:
-				return errors.Errorf(`couldn't determine the id of the construct that created API stage "%s"`, stage.Id())
-			case 1:
-				for cons := range stage.ConstructsRef {
-					gwId = cons.Name
-				}
-			default:
-				var ids []string
-				for cons := range stage.ConstructsRef {
-					ids = append(ids, cons.Name)
-				}
-				sort.Strings(ids)
-				return errors.Errorf(
-					`couldn't determine the id of the construct that created API stage "%s": expected just one construct, but found %v`,
-					stage.Id(),
-					ids)
 
-			}
 			origin := &resources.CloudfrontOrigin{
 				CustomOriginConfig: resources.CustomOriginConfig{
 					HttpPort:             80,
@@ -64,14 +44,17 @@ var CloudfrontKB = knowledgebase.Build(
 					OriginProtocolPolicy: "https-only",
 					OriginSslProtocols:   []string{"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"},
 				},
-				DomainName: &resources.AwsResourceValue{
-					ResourceVal: stage,
-					PropertyVal: resources.STAGE_INVOKE_URL_IAC_VALUE,
+				DomainName: core.IaCValue{
+					ResourceId: stage.Id(),
+					Property:   resources.STAGE_INVOKE_URL_IAC_VALUE,
 				},
 				OriginId:   gwId,
-				OriginPath: &resources.AwsResourceValue{ResourceVal: stage, PropertyVal: resources.API_STAGE_PATH_VALUE},
+				OriginPath: core.IaCValue{ResourceId: stage.Id(), Property: resources.API_STAGE_PATH_VALUE},
 			}
 			distro.Origins = append(distro.Origins, origin)
+			if distro.DefaultCacheBehavior == nil {
+				distro.DefaultCacheBehavior = &resources.DefaultCacheBehavior{}
+			}
 			distro.DefaultCacheBehavior.TargetOriginId = origin.OriginId
 			return nil
 		},
@@ -99,16 +82,16 @@ func (conn s3ToCloudfrontConnection) createOai() (*resources.OriginAccessIdentit
 	// This should be in an edge Configure, but it requires all three of the AOI, bucket, and distro -- so it's easier
 	// to do it here, at create time when we already have all three.
 	s3OriginConfig := resources.S3OriginConfig{
-		OriginAccessIdentity: &resources.AwsResourceValue{
-			ResourceVal: oai,
-			PropertyVal: resources.CLOUDFRONT_ACCESS_IDENTITY_PATH_IAC_VALUE,
+		OriginAccessIdentity: core.IaCValue{
+			ResourceId: oai.Id(),
+			Property:   resources.CLOUDFRONT_ACCESS_IDENTITY_PATH_IAC_VALUE,
 		},
 	}
 	origin := &resources.CloudfrontOrigin{
 		S3OriginConfig: s3OriginConfig,
-		DomainName: &resources.AwsResourceValue{
-			ResourceVal: conn.bucket,
-			PropertyVal: resources.BUCKET_REGIONAL_DOMAIN_NAME_IAC_VALUE,
+		DomainName: core.IaCValue{
+			ResourceId: conn.bucket.Id(),
+			Property:   resources.BUCKET_REGIONAL_DOMAIN_NAME_IAC_VALUE,
 		},
 		OriginId: conn.construct.Id().Name,
 	}
@@ -134,16 +117,16 @@ func (conn s3ToCloudfrontConnection) attachPolicy(oai *resources.OriginAccessIde
 			{
 				Effect: "Allow",
 				Principal: &resources.Principal{
-					AWS: &resources.AwsResourceValue{
-						ResourceVal: oai,
-						PropertyVal: resources.IAM_ARN_IAC_VALUE,
+					AWS: core.IaCValue{
+						ResourceId: oai.Id(),
+						Property:   resources.IAM_ARN_IAC_VALUE,
 					},
 				},
 				Action: []string{"s3:GetObject"},
-				Resource: []*resources.AwsResourceValue{
+				Resource: []core.IaCValue{
 					{
-						ResourceVal: conn.bucket,
-						PropertyVal: resources.ALL_BUCKET_DIRECTORY_IAC_VALUE,
+						ResourceId: conn.bucket.Id(),
+						Property:   resources.ALL_BUCKET_DIRECTORY_IAC_VALUE,
 					},
 				},
 			},

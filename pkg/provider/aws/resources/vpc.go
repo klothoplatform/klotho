@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	"go.uber.org/zap"
 )
@@ -34,56 +35,56 @@ const (
 type (
 	Vpc struct {
 		Name               string
-		ConstructsRef      core.BaseConstructSet `yaml:"-"`
+		ConstructRefs      core.BaseConstructSet `yaml:"-"`
 		CidrBlock          string
 		EnableDnsSupport   bool
 		EnableDnsHostnames bool
 	}
 	ElasticIp struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 	}
 	InternetGateway struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Vpc           *Vpc
 	}
 	NatGateway struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		ElasticIp     *ElasticIp
 		Subnet        *Subnet
 	}
 	Subnet struct {
 		Name                string
-		ConstructsRef       core.BaseConstructSet `yaml:"-"`
+		ConstructRefs       core.BaseConstructSet `yaml:"-"`
 		CidrBlock           string
 		Vpc                 *Vpc
 		Type                string
-		AvailabilityZone    *AwsResourceValue
+		AvailabilityZone    core.IaCValue
 		MapPublicIpOnLaunch bool
 	}
 	VpcEndpoint struct {
 		Name             string
-		ConstructsRef    core.BaseConstructSet `yaml:"-"`
+		ConstructRefs    core.BaseConstructSet `yaml:"-"`
 		Vpc              *Vpc
 		Region           *Region
 		ServiceName      string
 		VpcEndpointType  string
 		Subnets          []*Subnet
 		RouteTables      []*RouteTable
-		SecurityGroupIds []*AwsResourceValue
+		SecurityGroupIds []core.IaCValue
 	}
 	RouteTable struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Vpc           *Vpc
 		Routes        []*RouteTableRoute
 	}
 	RouteTableRoute struct {
 		CidrBlock    string
-		NatGatewayId *AwsResourceValue
-		GatewayId    *AwsResourceValue
+		NatGatewayId core.IaCValue
+		GatewayId    core.IaCValue
 	}
 )
 
@@ -95,12 +96,12 @@ type VpcCreateParams struct {
 func (vpc *Vpc) Create(dag *core.ResourceGraph, params VpcCreateParams) error {
 	zap.S().Debugf("Creating vpc %s", params.AppName)
 	vpc.Name = aws.VpcSanitizer.Apply(params.AppName)
-	vpc.ConstructsRef = params.Refs.Clone()
+	vpc.ConstructRefs = params.Refs.Clone()
 
 	existingVpc := dag.GetResource(vpc.Id())
 	if existingVpc != nil {
 		graphVpc := existingVpc.(*Vpc)
-		graphVpc.ConstructsRef.AddAll(params.Refs)
+		graphVpc.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(vpc)
 	}
@@ -128,11 +129,11 @@ type EipCreateParams struct {
 func (eip *ElasticIp) Create(dag *core.ResourceGraph, params EipCreateParams) error {
 	zap.S().Debugf("Creating elastic ip %s", params.Name)
 	eip.Name = elasticIpSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	eip.ConstructsRef = params.Refs.Clone()
+	eip.ConstructRefs = params.Refs.Clone()
 	existingEip := dag.GetResource(eip.Id())
 	if existingEip != nil {
 		graphEip := existingEip.(*ElasticIp)
-		graphEip.ConstructsRef.AddAll(params.Refs)
+		graphEip.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(eip)
 	}
@@ -147,33 +148,33 @@ type IgwCreateParams struct {
 func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreateParams) error {
 	zap.S().Debugf("Creating internet gateway %s", params.AppName)
 	igw.Name = igwSanitizer.Apply(fmt.Sprintf("%s-igw", params.AppName))
-	igw.ConstructsRef = params.Refs.Clone()
+	igw.ConstructRefs = params.Refs.Clone()
 	existingIgw := dag.GetResource(igw.Id())
 	if existingIgw != nil {
 		graphIgw := existingIgw.(*InternetGateway)
-		graphIgw.ConstructsRef.AddAll(params.Refs)
+		graphIgw.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(igw)
 	}
 	return nil
 }
 
-func (igw *InternetGateway) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (igw *InternetGateway) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	zap.S().Debugf("Making internet gateway %s operational", igw.Name)
 	if igw.Vpc == nil {
 		vpcs := core.GetDownstreamResourcesOfType[*Vpc](dag, igw)
 		if len(vpcs) > 1 {
 			return fmt.Errorf("internet gateway %s has multiple vpc dependencies", igw.Name)
 		} else if len(vpcs) == 0 {
-			err := dag.CreateDependencies(igw, map[string]any{
-				"Vpc": VpcCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(igw),
-				},
+			vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(igw),
 			})
 			if err != nil {
 				return err
 			}
+			igw.Vpc = vpc
+			dag.AddDependency(igw, vpc)
 		} else {
 			igw.Vpc = vpcs[0]
 		}
@@ -191,19 +192,19 @@ type NatCreateParams struct {
 func (nat *NatGateway) Create(dag *core.ResourceGraph, params NatCreateParams) error {
 	zap.S().Debugf("Creating nat gateway %s", params.Name)
 	nat.Name = natGatewaySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	nat.ConstructsRef = params.Refs.Clone()
+	nat.ConstructRefs = params.Refs.Clone()
 
 	existingNat := dag.GetResource(nat.Id())
 	if existingNat != nil {
 		graphNat := existingNat.(*NatGateway)
-		graphNat.ConstructsRef.AddAll(params.Refs)
+		graphNat.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(nat)
 	}
 	return nil
 }
 
-func (nat *NatGateway) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (nat *NatGateway) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	zap.S().Debugf("Making nat gateway %s operational", nat.Name)
 
 	if nat.Subnet == nil {
@@ -222,23 +223,23 @@ func (nat *NatGateway) MakeOperational(dag *core.ResourceGraph, appName string) 
 			if len(vpcs) > 1 {
 				return fmt.Errorf("nat gateway %s has multiple vpc dependencies", nat.Name)
 			} else if len(vpcs) == 0 {
-				err := dag.CreateDependencies(nat, map[string]any{
-					"Subnet": SubnetCreateParams{
-						AppName: appName,
-						Refs:    core.BaseConstructSetOf(nat),
-						Type:    PublicSubnet,
-					},
+				subnet, err := core.CreateResource[*Subnet](dag, SubnetCreateParams{
+					AppName: appName,
+					Refs:    core.BaseConstructSetOf(nat),
+					Type:    PublicSubnet,
 				})
 				if err != nil {
 					return err
 				}
+				dag.AddDependency(nat, subnet)
+				nat.Subnet = subnet
 			} else {
 				var az string
 				var usedAzs []string
 				currNats := core.GetResources[*NatGateway](dag)
 				for _, currNat := range currNats {
 					if currNat.Subnet != nil && currNat.Subnet.Vpc == vpcs[0] {
-						usedAzs = append(usedAzs, currNat.Subnet.AvailabilityZone.PropertyVal)
+						usedAzs = append(usedAzs, currNat.Subnet.AvailabilityZone.Property)
 					}
 				}
 				for _, availabilityZone := range availabilityZones {
@@ -260,7 +261,7 @@ func (nat *NatGateway) MakeOperational(dag *core.ResourceGraph, appName string) 
 				}
 				dag.AddDependency(s, vpcs[0])
 				dag.AddDependency(nat, s)
-				err = s.MakeOperational(dag, appName)
+				err = s.MakeOperational(dag, appName, classifier)
 				if err != nil {
 					return err
 				}
@@ -282,16 +283,20 @@ func (nat *NatGateway) MakeOperational(dag *core.ResourceGraph, appName string) 
 			}
 		}
 		if eip == nil {
-			err := dag.CreateDependencies(nat, map[string]any{
-				"ElasticIp": EipCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(nat),
-					Name:    nat.Subnet.AvailabilityZone.PropertyVal,
-				},
+			err := nat.Subnet.MakeOperational(dag, appName, classifier)
+			if err != nil {
+				return err
+			}
+			eip, err = core.CreateResource[*ElasticIp](dag, EipCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(nat),
+				Name:    nat.Subnet.AvailabilityZone.Property,
 			})
 			if err != nil {
 				return err
 			}
+			dag.AddDependency(nat, eip)
+			nat.ElasticIp = eip
 		} else {
 			nat.ElasticIp = eip
 		}
@@ -310,23 +315,23 @@ type SubnetCreateParams struct {
 func (subnet *Subnet) Create(dag *core.ResourceGraph, params SubnetCreateParams) error {
 	zap.S().Debugf("Creating subnet %s", params.AppName)
 	subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", params.AppName, params.Type, params.AZ))
-	subnet.ConstructsRef = params.Refs.Clone()
+	subnet.ConstructRefs = params.Refs.Clone()
 	subnet.Type = params.Type
 	if params.AZ != "" {
-		subnet.AvailabilityZone = &AwsResourceValue{ResourceVal: NewAvailabilityZones(), PropertyVal: params.AZ}
+		subnet.AvailabilityZone = core.IaCValue{ResourceId: NewAvailabilityZones().Id(), Property: params.AZ}
 	}
 	// We must check to see if there is an existent subnet after calling create dependencies because the id of the subnet has a namespace based on the vpc
 	existingSubnet := dag.GetResource(subnet.Id())
 	if existingSubnet != nil {
 		graphSubnet := existingSubnet.(*Subnet)
-		graphSubnet.ConstructsRef.AddAll(params.Refs)
+		graphSubnet.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(subnet)
 	}
 	return nil
 }
 
-func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	copyOfSubnet := *subnet
 	zap.S().Debugf("Making subnet %s operational", subnet.Name)
 	var az string
@@ -345,15 +350,15 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string) e
 			}
 		}
 		if vpc == nil {
-			err := dag.CreateDependencies(subnet, map[string]any{
-				"Vpc": VpcCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(subnet),
-				},
+			vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(subnet),
 			})
 			if err != nil {
 				return err
 			}
+			dag.AddDependency(subnet, vpc)
+			subnet.Vpc = vpc
 		} else {
 			subnet.Vpc = vpc
 		}
@@ -366,13 +371,13 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string) e
 
 	}
 	// Determine AZ and subnet type if they are not defined
-	if subnet.AvailabilityZone == nil || subnet.Type == "" {
+	if subnet.AvailabilityZone.ResourceId.IsZero() || subnet.Type == "" {
 		currSubnets := core.GetResources[*Subnet](dag)
 
-		if subnet.AvailabilityZone == nil {
+		if subnet.AvailabilityZone.ResourceId.IsZero() {
 			for _, currSubnet := range currSubnets {
-				if currSubnet.AvailabilityZone != nil {
-					usedAzs = append(usedAzs, currSubnet.AvailabilityZone.PropertyVal)
+				if currSubnet.AvailabilityZone.ResourceId.IsZero() {
+					usedAzs = append(usedAzs, currSubnet.AvailabilityZone.Property)
 				}
 			}
 			for _, availabilityZone := range availabilityZones {
@@ -383,11 +388,11 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string) e
 			if az == "" {
 				az = availabilityZones[0]
 			}
-			subnet.AvailabilityZone = &AwsResourceValue{ResourceVal: NewAvailabilityZones(), PropertyVal: az}
+			subnet.AvailabilityZone = core.IaCValue{ResourceId: NewAvailabilityZones().Id(), Property: az}
 		}
 		if subnet.Type == "" {
 			for _, currSubnet := range currSubnets {
-				if currSubnet.Type != "" && currSubnet.AvailabilityZone != nil && currSubnet.AvailabilityZone.PropertyVal == subnet.AvailabilityZone.PropertyVal {
+				if currSubnet.Type != "" && !currSubnet.AvailabilityZone.ResourceId.IsZero() && currSubnet.AvailabilityZone.Property == subnet.AvailabilityZone.Property {
 					usedTypes = append(usedTypes, currSubnet.Type)
 				}
 			}
@@ -401,7 +406,7 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string) e
 			}
 			subnet.Type = typeToUse
 		}
-		subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", appName, subnet.Type, subnet.AvailabilityZone.PropertyVal))
+		subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", appName, subnet.Type, subnet.AvailabilityZone.Property))
 		// Replace now that we are namespaced within the vpc and determined the type and az of subnet
 		err := dag.ReplaceConstruct(&copyOfSubnet, subnet)
 		if err != nil {
@@ -419,7 +424,7 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string) e
 	if !routeTableFound {
 		var rtName string
 		if subnet.Type == PrivateSubnet {
-			rtName = fmt.Sprintf("%s%s", subnet.Type, subnet.AvailabilityZone.PropertyVal)
+			rtName = fmt.Sprintf("%s%s", subnet.Type, subnet.AvailabilityZone.Property)
 		} else {
 			rtName = fmt.Sprintf(subnet.Type)
 		}
@@ -434,12 +439,12 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string) e
 			return err
 		}
 		dag.AddDependency(rt, subnet)
-		err = rt.MakeOperational(dag, appName)
+		err = rt.MakeOperational(dag, appName, classifier)
 		if err != nil {
 			return err
 		}
 	}
-	dag.AddDependenciesReflect(subnet)
+	dag.AddDependency(subnet, NewAvailabilityZones())
 	return nil
 }
 
@@ -448,16 +453,19 @@ type SubnetConfigureParams struct {
 
 func (subnet *Subnet) Configure(params SubnetConfigureParams) error {
 	zap.S().Debugf("Configuring subnet %s", subnet.Name)
-	if subnet.Type == PrivateSubnet {
-		if subnet.AvailabilityZone.PropertyVal == "0" {
+	switch subnet.Type {
+	case PrivateSubnet:
+		switch subnet.AvailabilityZone.Property {
+		case "0":
 			subnet.CidrBlock = "10.0.0.0/18"
-		} else if subnet.AvailabilityZone.PropertyVal == "1" {
+		case "1":
 			subnet.CidrBlock = "10.0.64.0/18"
 		}
-	} else if subnet.Type == PublicSubnet {
-		if subnet.AvailabilityZone.PropertyVal == "0" {
+	case PublicSubnet:
+		switch subnet.AvailabilityZone.Property {
+		case "0":
 			subnet.CidrBlock = "10.0.128.0/18"
-		} else if subnet.AvailabilityZone.PropertyVal == "1" {
+		case "1":
 			subnet.CidrBlock = "10.0.192.0/18"
 
 		}
@@ -475,19 +483,19 @@ type RouteTableCreateParams struct {
 func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreateParams) error {
 	zap.S().Debugf("Creating route table %s", params.Name)
 	rt.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
-	rt.ConstructsRef = params.Refs.Clone()
+	rt.ConstructRefs = params.Refs.Clone()
 	// We must check to see if there is an existent route table after calling create dependencies because the id of the subnet can contain a namespace based on the vpc
 	existingRt := dag.GetResource(rt.Id())
 	if existingRt != nil {
 		graphRt := existingRt.(*RouteTable)
-		graphRt.ConstructsRef.AddAll(params.Refs)
+		graphRt.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(rt)
 	}
 	return nil
 }
 
-func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	zap.S().Debugf("Making route table %s operational", routeTable.Name)
 
 	routeTablesSubnets := core.GetDownstreamResourcesOfType[*Subnet](dag, routeTable)
@@ -508,22 +516,22 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 	}
 
 	if routeTable.Vpc == nil {
-		err := dag.CreateDependencies(routeTable, map[string]any{
-			"Vpc": VpcCreateParams{
-				AppName: appName,
-				Refs:    core.BaseConstructSetOf(routeTable),
-			},
+		vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
+			AppName: appName,
+			Refs:    core.BaseConstructSetOf(routeTable),
 		})
 		if err != nil {
 			return err
 		}
+		routeTable.Vpc = vpc
+		dag.AddDependency(routeTable, vpc)
 	}
 	for _, subnet := range routeTablesSubnets {
 		if subnet.Type == PrivateSubnet {
 			natAdded := false
 			nats := core.GetUpstreamResourcesOfType[*NatGateway](dag, routeTable.Vpc)
 			for _, nat := range nats {
-				if nat.Subnet.AvailabilityZone.PropertyVal == subnet.AvailabilityZone.PropertyVal {
+				if nat.Subnet.AvailabilityZone.Property == subnet.AvailabilityZone.Property {
 					natAdded = true
 					dag.AddDependency(routeTable, nat)
 				}
@@ -532,7 +540,7 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 				natParams := NatCreateParams{
 					AppName: appName,
 					Refs:    core.BaseConstructSetOf(routeTable),
-					Name:    subnet.AvailabilityZone.PropertyVal,
+					Name:    subnet.AvailabilityZone.Property,
 				}
 				nat, err := core.CreateResource[*NatGateway](dag, natParams)
 				if err != nil {
@@ -542,7 +550,7 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 				for _, subnet := range routeTablesSubnets {
 					dag.AddDependency(subnet, nat)
 				}
-				err = nat.MakeOperational(dag, appName)
+				err = nat.MakeOperational(dag, appName, classifier)
 				if err != nil {
 					return err
 				}
@@ -568,7 +576,7 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 				}
 				dag.AddDependency(routeTable, igw)
 				dag.AddDependency(igw, routeTable.Vpc)
-				err = igw.MakeOperational(dag, appName)
+				err = igw.MakeOperational(dag, appName, classifier)
 				if err != nil {
 					return err
 				}
@@ -634,7 +642,7 @@ func createSubnets(dag *core.ResourceGraph, appName string, ref core.Resource, v
 		if vpc != nil {
 			dag.AddDependency(subnet, vpc)
 		}
-		err = subnet.MakeOperational(dag, appName)
+		err = subnet.MakeOperational(dag, appName, nil)
 		if err != nil {
 			return subnets, err
 		}
@@ -657,9 +665,9 @@ func (vpc *Vpc) GetPrivateSubnets(dag *core.ResourceGraph) []*Subnet {
 	return subnets
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (eip *ElasticIp) BaseConstructsRef() core.BaseConstructSet {
-	return eip.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (eip *ElasticIp) BaseConstructRefs() core.BaseConstructSet {
+	return eip.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -677,9 +685,9 @@ func (eip *ElasticIp) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (igw *InternetGateway) BaseConstructsRef() core.BaseConstructSet {
-	return igw.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (igw *InternetGateway) BaseConstructRefs() core.BaseConstructSet {
+	return igw.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -697,9 +705,9 @@ func (igw *InternetGateway) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (natGateway *NatGateway) BaseConstructsRef() core.BaseConstructSet {
-	return natGateway.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (natGateway *NatGateway) BaseConstructRefs() core.BaseConstructSet {
+	return natGateway.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -716,9 +724,9 @@ func (natGateway *NatGateway) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (subnet *Subnet) BaseConstructsRef() core.BaseConstructSet {
-	return subnet.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (subnet *Subnet) BaseConstructRefs() core.BaseConstructSet {
+	return subnet.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -765,9 +773,9 @@ func (subnet *Subnet) SetTypeFromId(id core.ResourceId) error {
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (vpce *VpcEndpoint) BaseConstructsRef() core.BaseConstructSet {
-	return vpce.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (vpce *VpcEndpoint) BaseConstructRefs() core.BaseConstructSet {
+	return vpce.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -785,9 +793,9 @@ func (vpc *VpcEndpoint) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (vpc *Vpc) BaseConstructsRef() core.BaseConstructSet {
-	return vpc.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (vpc *Vpc) BaseConstructRefs() core.BaseConstructSet {
+	return vpc.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -805,9 +813,9 @@ func (vpc *Vpc) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rt *RouteTable) BaseConstructsRef() core.BaseConstructSet {
-	return rt.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (rt *RouteTable) BaseConstructRefs() core.BaseConstructSet {
+	return rt.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

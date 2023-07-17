@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
 	apps "k8s.io/api/apps/v1"
@@ -19,7 +20,7 @@ type (
 		Object          *apps.Deployment
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.Resource
+		Cluster         core.ResourceId
 	}
 )
 
@@ -27,7 +28,7 @@ const (
 	DEPLOYMENT_TYPE = "deployment"
 )
 
-func (deployment *Deployment) BaseConstructsRef() core.BaseConstructSet {
+func (deployment *Deployment) BaseConstructRefs() core.BaseConstructSet {
 	return deployment.ConstructRefs
 }
 
@@ -46,10 +47,6 @@ func (deployment *Deployment) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (deployment *Deployment) GetFunctionality() core.Functionality {
-	return core.Compute
-}
-
 func (deployment *Deployment) GetObject() runtime.Object {
 	return deployment.Object
 }
@@ -62,7 +59,7 @@ func (deployment *Deployment) Path() string {
 	return deployment.FilePath
 }
 
-func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if deployment.Object == nil {
 		deployment.Object = &apps.Deployment{}
 		sa := &ServiceAccount{
@@ -71,22 +68,20 @@ func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName s
 		deployment.Object.Spec.Template.Spec.ServiceAccountName = sa.Name
 		dag.AddDependency(deployment, sa)
 	}
-	if deployment.Cluster == nil {
+	if deployment.Cluster.IsZero() {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(deployment) {
-			if core.GetFunctionality(res) == core.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound = append(downstreamClustersFound, res)
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
-			deployment.Cluster = downstreamClustersFound[0]
-			dag.AddDependency(deployment, deployment.Cluster)
+			deployment.Cluster = downstreamClustersFound[0].Id()
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {
 			return fmt.Errorf("deployment %s has more than one cluster downstream", deployment.Id())
 		}
-
 		return core.NewOperationalResourceError(deployment, []string{string(core.Cluster)}, fmt.Errorf("deployment %s has no clusters to use", deployment.Id()))
 	}
 	return nil

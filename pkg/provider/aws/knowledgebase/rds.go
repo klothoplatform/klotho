@@ -11,7 +11,7 @@ import (
 
 var RdsKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.RdsProxyTargetGroup, *resources.RdsInstance]{
-		Reuse: knowledgebase.Upstream,
+		Reuse: knowledgebase.Downstream,
 		Configure: func(targetGroup *resources.RdsProxyTargetGroup, instance *resources.RdsInstance, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if targetGroup.RdsInstance == nil {
 				targetGroup.RdsInstance = instance
@@ -26,7 +26,8 @@ var RdsKB = knowledgebase.Build(
 			if targetGroup.RdsProxy == nil || len(targetGroup.RdsProxy.Auths) == 0 {
 				return fmt.Errorf("proxy is not configured on target group or auths not created")
 			}
-			secret := targetGroup.RdsProxy.Auths[0].SecretArn.ResourceVal.(*resources.Secret)
+			secretResource := dag.GetResource(targetGroup.RdsProxy.Auths[0].SecretArn.ResourceId)
+			secret := secretResource.(*resources.Secret)
 			for _, res := range dag.GetUpstreamResources(secret) {
 				if secretVersion, ok := res.(*resources.SecretVersion); ok {
 					secretVersion.Path = instance.CredentialsPath
@@ -36,10 +37,10 @@ var RdsKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.RdsProxyTargetGroup, *resources.RdsProxy]{
-		ReverseDirection: true,
-		Reuse:            knowledgebase.Upstream,
-		Configure: func(targetGroup *resources.RdsProxyTargetGroup, proxy *resources.RdsProxy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+	knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.RdsProxyTargetGroup]{
+		DeploymentOrderReversed: true,
+		Reuse:                   knowledgebase.Downstream,
+		Configure: func(proxy *resources.RdsProxy, targetGroup *resources.RdsProxyTargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if targetGroup.RdsProxy == nil {
 				targetGroup.RdsProxy = proxy
 			} else if targetGroup.RdsProxy.Name != proxy.Name {
@@ -51,13 +52,13 @@ var RdsKB = knowledgebase.Build(
 			if len(proxy.Auths) == 0 {
 				secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
 					AppName: data.AppName,
-					Refs:    proxy.BaseConstructsRef().Clone(),
+					Refs:    proxy.BaseConstructRefs().Clone(),
 					Name:    fmt.Sprintf("%s-credentials", strings.TrimPrefix(proxy.Name, fmt.Sprintf("%s-", data.AppName))),
 				})
 				if err != nil {
 					return err
 				}
-				err = secretVersion.MakeOperational(dag, data.AppName)
+				err = secretVersion.MakeOperational(dag, data.AppName, nil)
 				if err != nil {
 					return err
 				}
@@ -65,14 +66,14 @@ var RdsKB = knowledgebase.Build(
 				proxy.Auths = append(proxy.Auths, &resources.ProxyAuth{
 					AuthScheme: "SECRETS",
 					IamAuth:    "DISABLED",
-					SecretArn:  &resources.AwsResourceValue{ResourceVal: secretVersion.Secret, PropertyVal: resources.ARN_IAC_VALUE},
+					SecretArn:  core.IaCValue{ResourceId: secretVersion.Secret.Id(), Property: resources.ARN_IAC_VALUE},
 				})
 				dag.AddDependency(proxy, secretVersion.Secret)
 
 				secretPolicy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
 					AppName: data.AppName,
 					Name:    fmt.Sprintf("%s-ormsecretpolicy", proxy.Name),
-					Refs:    proxy.ConstructsRef.Clone(),
+					Refs:    proxy.ConstructRefs.Clone(),
 				})
 				if err != nil {
 					return err
@@ -82,7 +83,8 @@ var RdsKB = knowledgebase.Build(
 			}
 			dag.AddDependenciesReflect(proxy)
 			if targetGroup.RdsInstance != nil {
-				secret := proxy.Auths[0].SecretArn.ResourceVal.(*resources.Secret)
+				secretResource := dag.GetResource(proxy.Auths[0].SecretArn.ResourceId)
+				secret := secretResource.(*resources.Secret)
 				for _, res := range dag.GetUpstreamResources(secret) {
 					if secretVersion, ok := res.(*resources.SecretVersion); ok {
 						secretVersion.Path = targetGroup.RdsInstance.CredentialsPath

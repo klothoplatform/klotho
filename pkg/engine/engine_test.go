@@ -6,7 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/core/coretesting"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
+	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/stretchr/testify/assert"
 )
@@ -57,13 +57,13 @@ func Test_Engine_Run(t *testing.T) {
 			},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"mock:mock1:compute",
+					"mock:mock1:mock1-compute",
 					"mock:mock2:Corm",
-					"mock:mock3:orm",
+					"mock:mock3:mock3-orm",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "mock:mock1:compute", Destination: "mock:mock2:Corm"},
-					{Source: "mock:mock2:Corm", Destination: "mock:mock3:orm"},
+					{Source: "mock:mock1:mock1-compute", Destination: "mock:mock2:Corm"},
+					{Source: "mock:mock2:Corm", Destination: "mock:mock3:mock3-orm"},
 				},
 			},
 		},
@@ -71,10 +71,10 @@ func Test_Engine_Run(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			mp := &MockProvider{}
+			mp := &enginetesting.MockProvider{}
 			engine := NewEngine(map[string]provider.Provider{
 				mp.Name(): mp,
-			}, MockKB, core.ListAllConstructs())
+			}, enginetesting.MockKB, core.ListAllConstructs())
 
 			cg := core.NewConstructGraph()
 			for _, c := range tt.constructs {
@@ -85,9 +85,8 @@ func Test_Engine_Run(t *testing.T) {
 			}
 
 			engine.LoadContext(cg, tt.constraints, "test")
+			engine.ClassificationDocument = enginetesting.BaseClassificationDocument
 			dag, err := engine.Run()
-			tt.want.Assert(t, dag)
-
 			if !assert.NoError(err) {
 				return
 			}
@@ -95,94 +94,3 @@ func Test_Engine_Run(t *testing.T) {
 		})
 	}
 }
-
-type MockProvider struct {
-}
-
-func (p *MockProvider) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error) {
-	switch id.Type {
-	case "mock1":
-		return &mockResource1{Name: id.Name}, nil
-	case "mock2":
-		return &mockResource2{Name: id.Name}, nil
-	case "mock3":
-		return &mockResource3{Name: id.Name}, nil
-	}
-	return nil, nil
-}
-func (p *MockProvider) ExpandConstruct(construct core.Construct, cg *core.ConstructGraph, dag *core.ResourceGraph, constructType string, attributes map[string]any) (directlyMappedResources []core.Resource, err error) {
-	switch c := construct.(type) {
-	case *core.ExecutionUnit:
-		switch constructType {
-		case "mock1":
-			mock1 := &mockResource1{Name: c.Name, ConstructsRef: core.BaseConstructSetOf(c)}
-			dag.AddResource(mock1)
-			return []core.Resource{mock1}, nil
-		}
-		return nil, nil
-	case *core.Orm:
-		res := &mockResource3{Name: c.Name, ConstructsRef: core.BaseConstructSetOf(c)}
-		dag.AddResource(res)
-		return []core.Resource{res}, nil
-	}
-	return nil, nil
-}
-
-func (p *MockProvider) ListResources() []core.Resource {
-	return nil
-}
-func (p *MockProvider) Name() string {
-	return "mock"
-}
-
-type (
-	mockResource1 struct {
-		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
-	}
-	mockResource2 struct {
-		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
-	}
-	mockResource3 struct {
-		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
-	}
-)
-
-func (f *mockResource1) Id() core.ResourceId {
-	return core.ResourceId{Provider: "mock", Type: "mock1", Name: f.Name}
-}
-func (f *mockResource1) BaseConstructsRef() core.BaseConstructSet { return f.ConstructsRef }
-func (f *mockResource1) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
-		RequiresNoUpstream:   true,
-		RequiresNoDownstream: true,
-	}
-}
-func (f *mockResource2) Id() core.ResourceId {
-	return core.ResourceId{Provider: "mock", Type: "mock2", Name: f.Name}
-}
-func (f *mockResource2) BaseConstructsRef() core.BaseConstructSet { return f.ConstructsRef }
-func (f *mockResource2) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
-		RequiresNoUpstream:   true,
-		RequiresNoDownstream: true,
-	}
-}
-func (f *mockResource3) Id() core.ResourceId {
-	return core.ResourceId{Provider: "mock", Type: "mock3", Name: f.Name}
-}
-func (f *mockResource3) BaseConstructsRef() core.BaseConstructSet { return f.ConstructsRef }
-func (f *mockResource3) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
-		RequiresNoUpstream:   true,
-		RequiresNoDownstream: true,
-	}
-}
-
-var MockKB = knowledgebase.Build(
-	knowledgebase.EdgeBuilder[*mockResource1, *mockResource2]{},
-	knowledgebase.EdgeBuilder[*mockResource1, *mockResource3]{},
-	knowledgebase.EdgeBuilder[*mockResource2, *mockResource3]{},
-)

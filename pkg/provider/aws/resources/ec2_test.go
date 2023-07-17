@@ -23,12 +23,12 @@ func Test_Ec2InstanceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, instance *Ec2Instance) {
 				assert.Equal(instance.Name, "my-app-profile")
-				assert.Equal(instance.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(instance.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing instance",
-			Existing: &Ec2Instance{Name: "my-app-profile", ConstructsRef: initialRefs},
+			Existing: &Ec2Instance{Name: "my-app-profile", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ec2_instance:my-app-profile",
@@ -38,7 +38,7 @@ func Test_Ec2InstanceCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, instance *Ec2Instance) {
 				assert.Equal(instance.Name, "my-app-profile")
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
-				assert.Equal(instance.ConstructsRef, expect)
+				assert.Equal(instance.ConstructRefs, expect)
 			},
 		},
 	}
@@ -67,7 +67,6 @@ func Test_Ec2InstanceMakeOperational(t *testing.T) {
 					"aws:ec2_instance:instance",
 					"aws:elastic_ip:my_app_1",
 					"aws:iam_instance_profile:my-app-instance",
-					"aws:iam_role:my-app-my-app-instance-InstanceProfileRole",
 					"aws:internet_gateway:my_app_igw",
 					"aws:nat_gateway:my_app_0",
 					"aws:route_table:my_app_private0",
@@ -82,7 +81,6 @@ func Test_Ec2InstanceMakeOperational(t *testing.T) {
 					{Source: "aws:ec2_instance:instance", Destination: "aws:iam_instance_profile:my-app-instance"},
 					{Source: "aws:ec2_instance:instance", Destination: "aws:security_group:my_app:my-app"},
 					{Source: "aws:ec2_instance:instance", Destination: "aws:subnet_private:my_app:my_app_private0"},
-					{Source: "aws:iam_instance_profile:my-app-instance", Destination: "aws:iam_role:my-app-my-app-instance-InstanceProfileRole"},
 					{Source: "aws:internet_gateway:my_app_igw", Destination: "aws:vpc:my_app"},
 					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:elastic_ip:my_app_1"},
 					{Source: "aws:nat_gateway:my_app_0", Destination: "aws:subnet_public:my_app:my_app_public1"},
@@ -130,12 +128,12 @@ func Test_AMICreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ami *AMI) {
 				assert.Equal(ami.Name, "my-app-profile")
-				assert.Equal(ami.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(ami.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing instance",
-			Existing: &AMI{Name: "my-app-profile", ConstructsRef: initialRefs},
+			Existing: &AMI{Name: "my-app-profile", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:ami:my-app-profile",
@@ -145,7 +143,7 @@ func Test_AMICreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, ami *AMI) {
 				assert.Equal(ami.Name, "my-app-profile")
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
-				assert.Equal(ami.ConstructsRef, expect)
+				assert.Equal(ami.ConstructRefs, expect)
 			},
 		},
 	}

@@ -57,6 +57,16 @@ func (p *Secrets) AnnotationCapability() string {
 	return annotation.PersistCapability
 }
 
+func (p *Secrets) Functionality() Functionality {
+	return Storage
+}
+
+func (p *Secrets) Attributes() map[string]any {
+	return map[string]any{
+		"secrets": nil,
+	}
+}
+
 func (p *Fs) Id() ResourceId {
 	return ResourceId{
 		Provider: AbstractConstructProvider,
@@ -67,6 +77,16 @@ func (p *Fs) Id() ResourceId {
 
 func (p *Fs) AnnotationCapability() string {
 	return annotation.PersistCapability
+}
+
+func (p *Fs) Functionality() Functionality {
+	return Storage
+}
+
+func (p *Fs) Attributes() map[string]any {
+	return map[string]any{
+		"blob": nil,
+	}
 }
 
 func (p *Kv) Id() ResourceId {
@@ -81,6 +101,16 @@ func (p *Kv) AnnotationCapability() string {
 	return annotation.PersistCapability
 }
 
+func (p *Kv) Functionality() Functionality {
+	return Storage
+}
+
+func (p *Kv) Attributes() map[string]any {
+	return map[string]any{
+		"kv": nil,
+	}
+}
+
 func (p *Orm) Id() ResourceId {
 	return ResourceId{
 		Provider: AbstractConstructProvider,
@@ -91,6 +121,16 @@ func (p *Orm) Id() ResourceId {
 
 func (p *Orm) AnnotationCapability() string {
 	return annotation.PersistCapability
+}
+
+func (p *Orm) Functionality() Functionality {
+	return Storage
+}
+
+func (p *Orm) Attributes() map[string]any {
+	return map[string]any{
+		"relational": nil,
+	}
 }
 
 func (p *RedisNode) Id() ResourceId {
@@ -105,6 +145,16 @@ func (p *RedisNode) AnnotationCapability() string {
 	return annotation.PersistCapability
 }
 
+func (p *RedisNode) Functionality() Functionality {
+	return Storage
+}
+
+func (p *RedisNode) Attributes() map[string]any {
+	return map[string]any{
+		"redis": nil,
+	}
+}
+
 func (p *RedisCluster) Id() ResourceId {
 	return ResourceId{
 		Provider: AbstractConstructProvider,
@@ -115,6 +165,17 @@ func (p *RedisCluster) Id() ResourceId {
 
 func (p *RedisCluster) AnnotationCapability() string {
 	return annotation.PersistCapability
+}
+
+func (p *RedisCluster) Functionality() Functionality {
+	return Storage
+}
+
+func (p *RedisCluster) Attributes() map[string]any {
+	return map[string]any{
+		"redis":   nil,
+		"cluster": nil,
+	}
 }
 
 func GenerateRedisHostEnvVar(cfg Construct) environmentVariable {

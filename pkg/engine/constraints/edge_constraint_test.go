@@ -101,11 +101,11 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			resources: []core.Resource{
 				&resources.RdsInstance{
 					Name:          "my_instance",
-					ConstructsRef: core.BaseConstructSetOf(&core.Orm{Name: "my_instance"}),
+					ConstructRefs: core.BaseConstructSetOf(&core.Orm{Name: "my_instance"}),
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructsRef: core.BaseConstructSetOf(&core.ExecutionUnit{Name: "my_function"}),
+					ConstructRefs: core.BaseConstructSetOf(&core.ExecutionUnit{Name: "my_function"}),
 				},
 				&resources.RdsProxy{
 					Name: "my_proxy",
@@ -234,19 +234,19 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			resources: []core.Resource{
 				&resources.RdsInstance{
 					Name:          "my_instance",
-					ConstructsRef: core.BaseConstructSetOf(&core.Orm{Name: "my_instance"}),
+					ConstructRefs: core.BaseConstructSetOf(&core.Orm{Name: "my_instance"}),
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructsRef: core.BaseConstructSetOf(&core.ExecutionUnit{Name: "my_function"}),
+					ConstructRefs: core.BaseConstructSetOf(&core.ExecutionUnit{Name: "my_function"}),
 				},
 				&resources.RdsInstance{
 					Name:          "my_instance2",
-					ConstructsRef: core.BaseConstructSetOf(&core.Orm{Name: "my_instance"}),
+					ConstructRefs: core.BaseConstructSetOf(&core.Orm{Name: "my_instance"}),
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function2",
-					ConstructsRef: core.BaseConstructSetOf(&core.ExecutionUnit{Name: "my_function"}),
+					ConstructRefs: core.BaseConstructSetOf(&core.ExecutionUnit{Name: "my_function"}),
 				},
 				&resources.RdsProxy{
 					Name: "my_proxy",
@@ -470,7 +470,7 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			for _, edge := range tt.edges {
 				dag.AddDependencyById(edge.Source, edge.Target, nil)
 			}
-			result := tt.constraint.IsSatisfied(dag, nil, tt.mappedResources)
+			result := tt.constraint.IsSatisfied(dag, nil, tt.mappedResources, nil)
 			assert.Equal(tt.want, result)
 		})
 	}

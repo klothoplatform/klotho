@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -24,9 +25,9 @@ const (
 type (
 	EcsTaskDefinition struct {
 		Name                    string
-		ConstructsRef           core.BaseConstructSet `yaml:"-"`
+		ConstructRefs           core.BaseConstructSet `yaml:"-"`
 		Image                   *EcrImage
-		EnvironmentVariables    map[string]*AwsResourceValue
+		EnvironmentVariables    map[string]core.IaCValue
 		Cpu                     string
 		Memory                  string
 		LogGroup                *LogGroup
@@ -46,13 +47,13 @@ type (
 
 	EcsCluster struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		//TODO: add support for cluster configuration
 	}
 
 	EcsService struct {
 		Name                     string
-		ConstructsRef            core.BaseConstructSet `yaml:"-"`
+		ConstructRefs            core.BaseConstructSet `yaml:"-"`
 		AssignPublicIp           bool
 		Cluster                  *EcsCluster
 		DeploymentCircuitBreaker *EcsServiceDeploymentCircuitBreaker
@@ -71,7 +72,7 @@ type (
 	}
 
 	EcsServiceLoadBalancerConfig struct {
-		TargetGroupArn *AwsResourceValue
+		TargetGroupArn core.IaCValue
 		ContainerName  string
 		ContainerPort  int
 	}
@@ -115,7 +116,7 @@ func (td *EcsTaskDefinition) Create(dag *core.ResourceGraph, params EcsTaskDefin
 
 	name := aws.EcsTaskDefinitionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	td.Name = name
-	td.ConstructsRef = params.Refs.Clone()
+	td.ConstructRefs = params.Refs.Clone()
 
 	existingTaskDefinition := dag.GetResource(td.Id())
 	if existingTaskDefinition != nil {
@@ -126,7 +127,7 @@ func (td *EcsTaskDefinition) Create(dag *core.ResourceGraph, params EcsTaskDefin
 	return nil
 }
 
-func (td *EcsTaskDefinition) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (td *EcsTaskDefinition) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if td.Region == nil {
 		td.Region = NewRegion()
 		dag.AddDependenciesReflect(td)
@@ -135,16 +136,16 @@ func (td *EcsTaskDefinition) MakeOperational(dag *core.ResourceGraph, appName st
 	if td.LogGroup == nil {
 		logGroups := core.GetDownstreamResourcesOfType[*LogGroup](dag, td)
 		if len(logGroups) == 0 {
-			err := dag.CreateDependencies(td, map[string]any{
-				"LogGroup": CloudwatchLogGroupCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-LogGroup", td.Name),
-					Refs:    core.BaseConstructSetOf(td),
-				},
+			logGroup, err := core.CreateResource[*LogGroup](dag, CloudwatchLogGroupCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-LogGroup", td.Name),
+				Refs:    core.BaseConstructSetOf(td),
 			})
 			if err != nil {
 				return err
 			}
+			td.LogGroup = logGroup
+			dag.AddDependency(td, logGroup)
 		} else if len(logGroups) == 1 {
 			td.LogGroup = logGroups[0]
 			dag.AddDependenciesReflect(td)
@@ -155,16 +156,16 @@ func (td *EcsTaskDefinition) MakeOperational(dag *core.ResourceGraph, appName st
 	if td.ExecutionRole == nil {
 		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, td)
 		if len(roles) == 0 {
-			err := dag.CreateDependencies(td, map[string]any{
-				"ExecutionRole": RoleCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-ExecutionRole", td.Name),
-					Refs:    core.BaseConstructSetOf(td),
-				},
+			executionRole, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-ExecutionRole", td.Name),
+				Refs:    core.BaseConstructSetOf(td),
 			})
 			if err != nil {
 				return err
 			}
+			td.ExecutionRole = executionRole
+			dag.AddDependency(td, executionRole)
 		} else if len(roles) == 1 {
 			td.ExecutionRole = roles[0]
 			dag.AddDependenciesReflect(td)
@@ -176,16 +177,16 @@ func (td *EcsTaskDefinition) MakeOperational(dag *core.ResourceGraph, appName st
 	if td.Image == nil {
 		images := core.GetDownstreamResourcesOfType[*EcrImage](dag, td)
 		if len(images) == 0 {
-			err := dag.CreateDependencies(td, map[string]any{
-				"Image": ImageCreateParams{
-					AppName: appName,
-					Name:    td.Name,
-					Refs:    core.BaseConstructSetOf(td),
-				},
+			image, err := core.CreateResource[*EcrImage](dag, ImageCreateParams{
+				AppName: appName,
+				Name:    td.Name,
+				Refs:    core.BaseConstructSetOf(td),
 			})
 			if err != nil {
 				return err
 			}
+			td.Image = image
+			dag.AddDependency(td, image)
 		} else if len(images) == 1 {
 			td.Image = images[0]
 			dag.AddDependenciesReflect(td)
@@ -207,17 +208,17 @@ func (td *EcsTaskDefinition) Configure(params EcsTaskDefinitionConfigureParams) 
 		Protocol:      "tcp",
 	}})
 	if td.EnvironmentVariables == nil {
-		td.EnvironmentVariables = make(map[string]*AwsResourceValue)
+		td.EnvironmentVariables = make(map[string]core.IaCValue)
 	}
 	for _, env := range params.EnvironmentVariables {
-		td.EnvironmentVariables[env.GetName()] = &AwsResourceValue{PropertyVal: env.GetValue()}
+		td.EnvironmentVariables[env.GetName()] = core.IaCValue{Property: env.GetValue()}
 	}
 
 	return nil
 }
 
-func (td *EcsTaskDefinition) BaseConstructsRef() core.BaseConstructSet {
-	return td.ConstructsRef
+func (td *EcsTaskDefinition) BaseConstructRefs() core.BaseConstructSet {
+	return td.ConstructRefs
 }
 
 func (td *EcsTaskDefinition) Id() core.ResourceId {
@@ -237,7 +238,7 @@ func (td *EcsTaskDefinition) DeleteContext() core.DeleteContext {
 func (s *EcsService) Create(dag *core.ResourceGraph, params EcsServiceCreateParams) error {
 	name := aws.EcsServiceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	s.Name = name
-	s.ConstructsRef = params.Refs.Clone()
+	s.ConstructRefs = params.Refs.Clone()
 	s.LaunchType = params.LaunchType
 
 	existingService := dag.GetResource(s.Id())
@@ -248,20 +249,20 @@ func (s *EcsService) Create(dag *core.ResourceGraph, params EcsServiceCreatePara
 	return nil
 }
 
-func (service *EcsService) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (service *EcsService) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if service.Cluster == nil {
 		clusters := core.GetDownstreamResourcesOfType[*EcsCluster](dag, service)
 		if len(clusters) == 0 {
-			err := dag.CreateDependencies(service, map[string]any{
-				"Cluster": EcsClusterCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-cluster", service.Name),
-					Refs:    core.BaseConstructSetOf(service),
-				},
+			cluster, err := core.CreateResource[*EcsCluster](dag, EcsClusterCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-cluster", service.Name),
+				Refs:    core.BaseConstructSetOf(service),
 			})
 			if err != nil {
 				return err
 			}
+			service.Cluster = cluster
+			dag.AddDependency(service, cluster)
 		} else if len(clusters) > 1 {
 			return fmt.Errorf("service %s has more than one cluster downstream", service.Id())
 		} else {
@@ -289,7 +290,7 @@ func (service *EcsService) MakeOperational(dag *core.ResourceGraph, appName stri
 			if image != nil {
 				dag.AddDependency(td, image)
 			}
-			err = td.MakeOperational(dag, appName)
+			err = td.MakeOperational(dag, appName, classifier)
 			if err != nil {
 				return err
 			}
@@ -336,8 +337,8 @@ func (s *EcsService) Configure(params EcsServiceConfigureParams) error {
 	return nil
 }
 
-func (s *EcsService) BaseConstructsRef() core.BaseConstructSet {
-	return s.ConstructsRef
+func (s *EcsService) BaseConstructRefs() core.BaseConstructSet {
+	return s.ConstructRefs
 }
 
 func (s *EcsService) Id() core.ResourceId {
@@ -356,24 +357,20 @@ func (td *EcsService) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (td *EcsService) GetFunctionality() core.Functionality {
-	return core.Compute
-}
-
 func (c *EcsCluster) Create(dag *core.ResourceGraph, params EcsClusterCreateParams) error {
 	name := aws.EcsClusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	c.Name = name
-	c.ConstructsRef = params.Refs.Clone()
+	c.ConstructRefs = params.Refs.Clone()
 
 	if existingCluster, ok := core.GetResource[*EcsCluster](dag, c.Id()); ok {
-		existingCluster.ConstructsRef.AddAll(params.Refs)
+		existingCluster.ConstructRefs.AddAll(params.Refs)
 	}
 	dag.AddResource(c)
 	return nil
 }
 
-func (c *EcsCluster) BaseConstructsRef() core.BaseConstructSet {
-	return c.ConstructsRef
+func (c *EcsCluster) BaseConstructRefs() core.BaseConstructSet {
+	return c.ConstructRefs
 }
 
 func (c *EcsCluster) Id() core.ResourceId {

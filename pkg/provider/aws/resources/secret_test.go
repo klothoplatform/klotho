@@ -23,12 +23,12 @@ func Test_SecretCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, s *Secret) {
 				assert.Equal(s.Name, "my-app-secret")
-				assert.Equal(s.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(s.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing igw",
-			Existing: &Secret{Name: "my-app-secret", ConstructsRef: initialRefs},
+			Existing: &Secret{Name: "my-app-secret", ConstructRefs: initialRefs},
 			WantErr:  true,
 		},
 	}
@@ -59,13 +59,13 @@ func Test_SecretVersionCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, sv *SecretVersion) {
 				assert.Equal(sv.Name, "my-app-secret")
-				assert.Equal(sv.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(sv.ConstructRefs, core.BaseConstructSetOf(eu))
 				assert.Equal(sv.DetectedPath, "path")
 			},
 		},
 		{
 			Name:     "existing igw",
-			Existing: &SecretVersion{Name: "my-app-secret", ConstructsRef: initialRefs},
+			Existing: &SecretVersion{Name: "my-app-secret", ConstructRefs: initialRefs},
 			WantErr:  true,
 		},
 	}

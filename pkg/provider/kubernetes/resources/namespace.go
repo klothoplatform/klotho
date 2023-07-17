@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -18,7 +19,7 @@ type (
 		Object          *corev1.Namespace
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.Resource
+		Cluster         core.ResourceId
 	}
 )
 
@@ -26,7 +27,7 @@ const (
 	NAMESPACE_TYPE = "namespace"
 )
 
-func (namespace *Namespace) BaseConstructsRef() core.BaseConstructSet {
+func (namespace *Namespace) BaseConstructRefs() core.BaseConstructSet {
 	return namespace.ConstructRefs
 }
 
@@ -56,18 +57,18 @@ func (namespace *Namespace) Path() string {
 	return namespace.FilePath
 }
 
-func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName string) error {
-	if namespace.Cluster == nil {
+func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+	if namespace.Cluster.IsZero() {
 		downstreamClustersFound := map[string]core.Resource{}
 		for _, res := range dag.GetAllDownstreamResources(namespace) {
-			if core.GetFunctionality(res) == core.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound[res.Id().String()] = res
 			}
 		}
 		// See which cluster any pods or deployments using this service account use
 		for _, res := range namespace.GetResourcesInNamespace(dag) {
 			for _, dres := range dag.GetAllDownstreamResources(res) {
-				if core.GetFunctionality(dres) == core.Cluster {
+				if classifier.GetFunctionality(dres) == core.Cluster {
 					downstreamClustersFound[dres.Id().String()] = dres
 				}
 			}
@@ -75,8 +76,7 @@ func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName str
 
 		if len(downstreamClustersFound) == 1 {
 			_, cluster := collectionutil.GetOneEntry(downstreamClustersFound)
-			namespace.Cluster = cluster
-			dag.AddDependency(namespace, cluster)
+			namespace.Cluster = cluster.Id()
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

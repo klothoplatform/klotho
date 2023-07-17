@@ -13,27 +13,33 @@ var ApiGatewayKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.RestApi]{},
 	knowledgebase.EdgeBuilder[*resources.ApiStage, *resources.RestApi]{},
 	knowledgebase.EdgeBuilder[*resources.ApiStage, *resources.ApiDeployment]{},
-	knowledgebase.EdgeBuilder[*resources.ApiMethod, *resources.RestApi]{
-		ReverseDirection: true,
+	knowledgebase.EdgeBuilder[*resources.RestApi, *resources.ApiMethod]{
+		DeploymentOrderReversed: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.ApiMethod]{
 		Configure: func(deployment *resources.ApiDeployment, method *resources.ApiMethod, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if method == nil || deployment == nil {
+				return fmt.Errorf("cannot configure integration %s, missing rest api or method", method.Id())
+			}
 			deployment.Triggers[method.Id().Name] = method.Id().Name
 			return nil
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiDeployment, *resources.ApiIntegration]{
 		Configure: func(deployment *resources.ApiDeployment, integration *resources.ApiIntegration, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if integration == nil || deployment == nil {
+				return fmt.Errorf("cannot configure edge %s", integration.Id())
+			}
 			deployment.Triggers[integration.Id().Name] = integration.Id().Name
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.RestApi]{
-		ReverseDirection: true,
+	knowledgebase.EdgeBuilder[*resources.RestApi, *resources.ApiIntegration]{
+		DeploymentOrderReversed: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.ApiResource]{},
-	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.RestApi]{
-		ReverseDirection: true,
+	knowledgebase.EdgeBuilder[*resources.RestApi, *resources.ApiResource]{
+		DeploymentOrderReversed: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiMethod, *resources.ApiResource]{},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.ApiResource]{},
@@ -56,7 +62,7 @@ var ApiGatewayKB = knowledgebase.Build(
 			permission.Function = function
 			dag.AddDependency(permission, integration.RestApi)
 			dag.AddDependency(permission, function)
-			return configureIntegration(integration, dag, &resources.AwsResourceValue{ResourceVal: function, PropertyVal: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
+			return configureIntegration(integration, dag, core.IaCValue{ResourceId: function.Id(), Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.LoadBalancer]{
@@ -67,21 +73,21 @@ var ApiGatewayKB = knowledgebase.Build(
 			}
 			vpcLink := &resources.VpcLink{
 				Target:        loadBalancer,
-				ConstructsRef: core.BaseConstructSetOf(loadBalancer, integration),
+				ConstructRefs: core.BaseConstructSetOf(loadBalancer, integration),
 			}
 			integration.IntegrationHttpMethod = strings.ToUpper(integration.Method.HttpMethod)
 			integration.Type = "HTTP_PROXY"
 			integration.ConnectionType = "VPC_LINK"
 			integration.VpcLink = vpcLink
 			dag.AddDependenciesReflect(vpcLink)
-			return configureIntegration(integration, dag, &resources.AwsResourceValue{ResourceVal: loadBalancer, PropertyVal: resources.NLB_INTEGRATION_URI_IAC_VALUE})
+			return configureIntegration(integration, dag, core.IaCValue{ResourceId: loadBalancer.Id(), Property: resources.NLB_INTEGRATION_URI_IAC_VALUE})
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaPermission, *resources.RestApi]{
 		Configure: func(permission *resources.LambdaPermission, api *resources.RestApi, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			permission.Principal = "apigateway.amazonaws.com"
 			permission.Action = "lambda:InvokeFunction"
-			permission.Source = &resources.AwsResourceValue{ResourceVal: api, PropertyVal: resources.API_GATEWAY_EXECUTION_CHILD_RESOURCES_IAC_VALUE}
+			permission.Source = core.IaCValue{ResourceId: api.Id(), Property: resources.API_GATEWAY_EXECUTION_CHILD_RESOURCES_IAC_VALUE}
 			return nil
 		},
 	},
@@ -89,7 +95,7 @@ var ApiGatewayKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.VpcLink, *resources.LoadBalancer]{},
 )
 
-func configureIntegration(integration *resources.ApiIntegration, dag *core.ResourceGraph, uri *resources.AwsResourceValue) error {
+func configureIntegration(integration *resources.ApiIntegration, dag *core.ResourceGraph, uri core.IaCValue) error {
 
 	if integration.RestApi == nil || integration.Method == nil {
 		return fmt.Errorf("cannot configure integration %s, missing rest api or method", integration.Id())

@@ -13,7 +13,7 @@ type Imported struct {
 	ID string
 }
 
-func (imp Imported) BaseConstructsRef() core.BaseConstructSet {
+func (imp Imported) BaseConstructRefs() core.BaseConstructSet {
 	return nil
 }
 

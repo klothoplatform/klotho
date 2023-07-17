@@ -5,6 +5,7 @@ import (
 
 	cloudmap "github.com/aws/aws-cloud-map-mcs-controller-for-k8s/pkg/apis/multicluster/v1alpha1"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -15,7 +16,7 @@ type (
 		ConstructRefs core.BaseConstructSet
 		Object        *cloudmap.ServiceExport
 		FilePath      string
-		Cluster       core.Resource
+		Cluster       core.ResourceId
 	}
 )
 
@@ -23,7 +24,7 @@ const (
 	SERVICE_EXPORT_TYPE = "service_export"
 )
 
-func (se *ServiceExport) BaseConstructsRef() core.BaseConstructSet {
+func (se *ServiceExport) BaseConstructRefs() core.BaseConstructSet {
 	return se.ConstructRefs
 }
 
@@ -53,17 +54,17 @@ func (se *ServiceExport) Path() string {
 	return se.FilePath
 }
 
-func (se *ServiceExport) MakeOperational(dag *core.ResourceGraph, appName string) error {
-	if se.Cluster == nil {
+func (se *ServiceExport) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+	if se.Cluster.IsZero() {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(se) {
-			if core.GetFunctionality(res) == core.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound = append(downstreamClustersFound, res)
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
-			se.Cluster = downstreamClustersFound[0]
-			dag.AddDependency(se, se.Cluster)
+			se.Cluster = downstreamClustersFound[0].Id()
+			dag.AddDependency(se, downstreamClustersFound[0])
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

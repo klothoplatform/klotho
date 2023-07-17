@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -18,10 +19,10 @@ var LambdaPermissionSanitizer = aws.LambdaPermissionSanitizer
 type (
 	LambdaFunction struct {
 		Name                 string
-		ConstructsRef        core.BaseConstructSet `yaml:"-"`
+		ConstructRefs        core.BaseConstructSet `yaml:"-"`
 		Role                 *IamRole
 		Image                *EcrImage
-		EnvironmentVariables map[string]*AwsResourceValue `yaml:"-"`
+		EnvironmentVariables map[string]core.IaCValue `yaml:"-"`
 		SecurityGroups       []*SecurityGroup
 		Subnets              []*Subnet
 		Timeout              int
@@ -30,10 +31,10 @@ type (
 
 	LambdaPermission struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Function      *LambdaFunction
 		Principal     string
-		Source        *AwsResourceValue
+		Source        core.IaCValue
 		Action        string
 	}
 )
@@ -48,7 +49,7 @@ func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreat
 
 	name := lambdaFunctionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	lambda.Name = name
-	lambda.ConstructsRef = params.Refs.Clone()
+	lambda.ConstructRefs = params.Refs.Clone()
 
 	existingLambda := dag.GetResource(lambda.Id())
 	if existingLambda != nil {
@@ -63,20 +64,20 @@ func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreat
 	return nil
 }
 
-func (lambda *LambdaFunction) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (lambda *LambdaFunction) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if lambda.Role == nil {
 		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, lambda)
 		if len(roles) == 0 {
-			err := dag.CreateDependencies(lambda, map[string]any{
-				"Role": RoleCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-ExecutionRole", lambda.Name),
-					Refs:    core.BaseConstructSetOf(lambda),
-				},
+			role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-ExecutionRole", lambda.Name),
+				Refs:    core.BaseConstructSetOf(lambda),
 			})
 			if err != nil {
 				return err
 			}
+			lambda.Role = role
+			dag.AddDependency(lambda, role)
 		} else if len(roles) == 1 {
 			lambda.Role = roles[0]
 		} else {
@@ -87,16 +88,16 @@ func (lambda *LambdaFunction) MakeOperational(dag *core.ResourceGraph, appName s
 	if lambda.Image == nil {
 		images := core.GetDownstreamResourcesOfType[*EcrImage](dag, lambda)
 		if len(images) == 0 {
-			err := dag.CreateDependencies(lambda, map[string]any{
-				"Image": ImageCreateParams{
-					AppName: appName,
-					Name:    lambda.Name,
-					Refs:    core.BaseConstructSetOf(lambda),
-				},
+			image, err := core.CreateResource[*EcrImage](dag, ImageCreateParams{
+				AppName: appName,
+				Name:    lambda.Name,
+				Refs:    core.BaseConstructSetOf(lambda),
 			})
 			if err != nil {
 				return err
 			}
+			lambda.Image = image
+			dag.AddDependency(lambda, image)
 		} else if len(images) == 1 {
 			lambda.Image = images[0]
 		} else {
@@ -151,7 +152,7 @@ func (lambda *LambdaFunction) Configure(params LambdaFunctionConfigureParams) er
 	lambda.Timeout = 180
 	lambda.MemorySize = 512
 	if lambda.EnvironmentVariables == nil {
-		lambda.EnvironmentVariables = make(map[string]*AwsResourceValue)
+		lambda.EnvironmentVariables = make(map[string]core.IaCValue)
 	}
 
 	if params.Timeout != 0 {
@@ -161,7 +162,7 @@ func (lambda *LambdaFunction) Configure(params LambdaFunctionConfigureParams) er
 		lambda.MemorySize = params.MemorySize
 	}
 	for _, env := range params.EnvironmentVariables {
-		lambda.EnvironmentVariables[env.GetName()] = &AwsResourceValue{PropertyVal: env.GetValue()}
+		lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Property: env.GetValue()}
 	}
 
 	return nil
@@ -179,18 +180,18 @@ func (permission *LambdaPermission) Create(dag *core.ResourceGraph, params Lambd
 	if params.AppName == "" {
 		permission.Name = LambdaPermissionSanitizer.Apply(params.Name)
 	}
-	permission.ConstructsRef = params.Refs.Clone()
+	permission.ConstructRefs = params.Refs.Clone()
 
 	existingLambdaPermission := dag.GetResource(permission.Id())
 	if existingLambdaPermission != nil {
 		graphLambdaPermission := existingLambdaPermission.(*LambdaPermission)
-		graphLambdaPermission.ConstructsRef.AddAll(params.Refs)
+		graphLambdaPermission.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
 	dag.AddResource(permission)
 	return nil
 }
-func (permission *LambdaPermission) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (permission *LambdaPermission) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if permission.Function == nil {
 		functions := core.GetDownstreamResourcesOfType[*LambdaFunction](dag, permission)
 		if len(functions) == 0 {
@@ -204,9 +205,9 @@ func (permission *LambdaPermission) MakeOperational(dag *core.ResourceGraph, app
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (lambda *LambdaFunction) BaseConstructsRef() core.BaseConstructSet {
-	return lambda.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (lambda *LambdaFunction) BaseConstructRefs() core.BaseConstructSet {
+	return lambda.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -226,13 +227,9 @@ func (lambda *LambdaFunction) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (lambda *LambdaFunction) GetFunctionality() core.Functionality {
-	return core.Compute
-}
-
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (permission *LambdaPermission) BaseConstructsRef() core.BaseConstructSet {
-	return permission.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (permission *LambdaPermission) BaseConstructRefs() core.BaseConstructSet {
+	return permission.ConstructRefs
 }
 
 // Id returns the id of the cloud resource

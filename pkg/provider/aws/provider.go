@@ -15,34 +15,6 @@ type AWS struct {
 
 func (a *AWS) Name() string { return provider.AWS }
 
-func (a *AWS) ExpandConstruct(construct core.Construct, cg *core.ConstructGraph, dag *core.ResourceGraph, constructType string, attributes map[string]any) (directlyMappedResources []core.Resource, err error) {
-	switch construct := construct.(type) {
-	case *core.ExecutionUnit:
-		return a.expandExecutionUnit(dag, construct, constructType, attributes)
-	case *core.Gateway:
-		return a.expandExpose(dag, construct, constructType)
-	case *core.Orm:
-		return a.expandOrm(dag, construct, constructType)
-	case *core.Fs:
-		return a.expandFs(dag, construct)
-	case *core.InternalResource:
-		return a.expandFs(dag, construct)
-	case *core.Kv:
-		return a.expandKv(dag, construct)
-	case *core.RedisNode:
-		return a.expandRedisNode(dag, construct)
-	case *core.StaticUnit:
-		return a.expandStaticUnit(dag, construct)
-	case *core.Secrets:
-		return a.expandSecrets(dag, construct)
-	case *core.Config:
-		return a.expandConfig(dag, construct)
-	default:
-		err = fmt.Errorf("unknown construct type %T", construct)
-	}
-	return
-}
-
 func (a *AWS) ListResources() []core.Resource {
 	return resources.ListAll()
 }

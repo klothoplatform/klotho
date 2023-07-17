@@ -6,7 +6,6 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 )
 
 type (
@@ -23,6 +22,10 @@ type (
 
 		// AnnotationCapability returns the annotation capability of the construct. This helps us tie the annotation types to the constructs for the time being
 		AnnotationCapability() string
+		// Functionality returns the functionality of the construct. This helps us determine how to expand constructs
+		Functionality() Functionality
+		// Attributes returns the attributes of the construct. This helps us determine how to expand constructs
+		Attributes() map[string]any
 	}
 
 	BaseConstructSet map[ResourceId]BaseConstruct
@@ -42,7 +45,7 @@ type (
 	// Resource describes a resource at the provider, infrastructure level
 	Resource interface {
 		BaseConstruct
-		BaseConstructsRef() BaseConstructSet
+		BaseConstructRefs() BaseConstructSet
 		DeleteContext() DeleteContext
 	}
 
@@ -57,11 +60,6 @@ type (
 		Configure(params K) error
 	}
 
-	OperationalResource interface {
-		Resource
-		MakeOperational(dag *ResourceGraph, appName string) error
-	}
-
 	ResourceId struct {
 		Provider string `yaml:"provider" toml:"provider"`
 		Type     string `yaml:"type" toml:"type"`
@@ -73,15 +71,11 @@ type (
 	}
 
 	// IaCValue is a struct that defines a value we need to grab from a specific resource. It is up to the plugins to make the determination of how to retrieve the value
-	IaCValue interface {
-		// Resource is the resource the IaCValue is correlated to
-		Resource() Resource
+	IaCValue struct {
+		// ResourceId is the resource the IaCValue is correlated to
+		ResourceId ResourceId
 		// Property defines the intended characteristic of the resource we want to retrieve
-		Property() string
-		// SetResource sets the resource the IaCValue is correlated to
-		SetResource(Resource)
-		yaml.Marshaler
-		yaml.Unmarshaler
+		Property string
 	}
 
 	HasOutputFiles interface {
@@ -91,9 +85,22 @@ type (
 	HasLocalOutput interface {
 		OutputTo(dest string) error
 	}
+
+	Functionality string
+
+	resourceResolver interface {
+		GetResource(id ResourceId) Resource
+	}
 )
 
 const (
+	Compute Functionality = "compute"
+	Cluster Functionality = "cluster"
+	Storage Functionality = "storage"
+	Network Functionality = "network"
+	Api     Functionality = "api"
+	Unknown Functionality = "Unknown"
+
 	ALL_RESOURCES_IAC_VALUE = "*"
 
 	// InternalProvider is used for resources that don't directly correspond to a deployed resource,
@@ -130,6 +137,10 @@ func ListAllConstructs() []Construct {
 		&RedisCluster{},
 		&RedisNode{},
 	}
+}
+
+func (id ResourceId) IsZero() bool {
+	return id == ResourceId{}
 }
 
 func (id ResourceId) String() string {
@@ -220,7 +231,7 @@ func BaseConstructSetOf(keys ...BaseConstruct) BaseConstructSet {
 }
 
 // GetResourcesReflectively looks at a resource and determines all resources which appear as internal properties to the resource
-func GetResourcesReflectively(source Resource) []Resource {
+func GetResourcesReflectively(resolver resourceResolver, source Resource) []Resource {
 	resources := []Resource{}
 	sourceValue := reflect.ValueOf(source)
 	sourceType := sourceValue.Type()
@@ -234,28 +245,28 @@ func GetResourcesReflectively(source Resource) []Resource {
 		case reflect.Slice, reflect.Array:
 			for elemIdx := 0; elemIdx < fieldValue.Len(); elemIdx++ {
 				elemValue := fieldValue.Index(elemIdx)
-				resources = append(resources, getNestedResources(source, elemValue)...)
+				resources = append(resources, getNestedResources(resolver, source, elemValue)...)
 			}
 
 		case reflect.Map:
 			for iter := fieldValue.MapRange(); iter.Next(); {
 				elemValue := iter.Value()
-				resources = append(resources, getNestedResources(source, elemValue)...)
+				resources = append(resources, getNestedResources(resolver, source, elemValue)...)
 			}
 
 		default:
-			resources = append(resources, getNestedResources(source, fieldValue)...)
+			resources = append(resources, getNestedResources(resolver, source, fieldValue)...)
 		}
 	}
 	return resources
 }
 
-func IsResourceChild(source Resource, target Resource) bool {
+func IsResourceChild(resolver resourceResolver, source Resource, target Resource) bool {
 	visited := map[Resource]bool{}
-	return isResourceChild(source, target, visited)
+	return isResourceChild(resolver, source, target, visited)
 }
 
-func isResourceChild(source Resource, target Resource, visited map[Resource]bool) bool {
+func isResourceChild(resolver resourceResolver, source Resource, target Resource, visited map[Resource]bool) bool {
 	visited[source] = true
 	if source == target {
 		return true
@@ -275,12 +286,12 @@ func isResourceChild(source Resource, target Resource, visited map[Resource]bool
 		case reflect.Slice, reflect.Array:
 			for elemIdx := 0; elemIdx < fieldValue.Len(); elemIdx++ {
 				elemValue := fieldValue.Index(elemIdx)
-				nestedResources := getNestedResources(source, elemValue)
+				nestedResources := getNestedResources(resolver, source, elemValue)
 				for _, nestedResource := range nestedResources {
 					if visited[nestedResource] {
 						continue
 					}
-					if isResourceChild(nestedResource, target, visited) {
+					if isResourceChild(resolver, nestedResource, target, visited) {
 						return true
 					}
 				}
@@ -289,24 +300,24 @@ func isResourceChild(source Resource, target Resource, visited map[Resource]bool
 		case reflect.Map:
 			for iter := fieldValue.MapRange(); iter.Next(); {
 				elemValue := iter.Value()
-				nestedResources := getNestedResources(source, elemValue)
+				nestedResources := getNestedResources(resolver, source, elemValue)
 				for _, nestedResource := range nestedResources {
 					if visited[nestedResource] {
 						continue
 					}
-					if isResourceChild(nestedResource, target, visited) {
+					if isResourceChild(resolver, nestedResource, target, visited) {
 						return true
 					}
 				}
 			}
 
 		default:
-			nestedResources := getNestedResources(source, fieldValue)
+			nestedResources := getNestedResources(resolver, source, fieldValue)
 			for _, nestedResource := range nestedResources {
 				if visited[nestedResource] {
 					continue
 				}
-				if isResourceChild(nestedResource, target, visited) {
+				if isResourceChild(resolver, nestedResource, target, visited) {
 					return true
 				}
 			}
@@ -316,7 +327,7 @@ func isResourceChild(source Resource, target Resource, visited map[Resource]bool
 }
 
 // getNestedResources gets all resources which exist as attributes on a BaseConstruct by using reflection
-func getNestedResources(source BaseConstruct, targetValue reflect.Value) (resources []Resource) {
+func getNestedResources(resolver resourceResolver, source BaseConstruct, targetValue reflect.Value) (resources []Resource) {
 	if targetValue.Kind() == reflect.Pointer && targetValue.IsNil() {
 		return
 	}
@@ -327,9 +338,14 @@ func getNestedResources(source BaseConstruct, targetValue reflect.Value) (resour
 	case Resource:
 		return []Resource{value}
 	case IaCValue:
-		if value.Resource() != nil {
-			return []Resource{value.Resource()}
+		if !value.ResourceId.IsZero() {
+			resource := resolver.GetResource(value.ResourceId)
+			if resource != nil {
+				return []Resource{resource}
+			}
 		}
+	case ResourceId:
+		return []Resource{resolver.GetResource(value)}
 	default:
 		correspondingValue := targetValue
 		for correspondingValue.Kind() == reflect.Pointer {
@@ -340,40 +356,21 @@ func getNestedResources(source BaseConstruct, targetValue reflect.Value) (resour
 		case reflect.Struct:
 			for i := 0; i < correspondingValue.NumField(); i++ {
 				childVal := correspondingValue.Field(i)
-				resources = append(resources, getNestedResources(source, childVal)...)
+				resources = append(resources, getNestedResources(resolver, source, childVal)...)
 			}
 		case reflect.Slice, reflect.Array:
 			for elemIdx := 0; elemIdx < correspondingValue.Len(); elemIdx++ {
 				elemValue := correspondingValue.Index(elemIdx)
-				resources = append(resources, getNestedResources(source, elemValue)...)
+				resources = append(resources, getNestedResources(resolver, source, elemValue)...)
 			}
 
 		case reflect.Map:
 			for iter := correspondingValue.MapRange(); iter.Next(); {
 				elemValue := iter.Value()
-				resources = append(resources, getNestedResources(source, elemValue)...)
+				resources = append(resources, getNestedResources(resolver, source, elemValue)...)
 			}
 
 		}
 	}
 	return
-}
-
-// GetFunctionality returns the base constructs functionality defined by itself.
-// If no functionality is defined, we will return the Unknown functionality type
-func GetFunctionality(construct BaseConstruct) Functionality {
-	method := reflect.ValueOf(construct).MethodByName("GetFunctionality")
-	if method.IsValid() {
-		eval := method.Call(nil)
-		if eval[0].IsZero() {
-			return Unknown
-		} else {
-			functionality, ok := eval[0].Interface().(Functionality)
-			if !ok {
-				return Unknown
-			}
-			return functionality
-		}
-	}
-	return Unknown
 }

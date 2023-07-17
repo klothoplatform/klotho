@@ -2,8 +2,10 @@ package constraints
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
 
@@ -30,7 +32,7 @@ func (constraint *ApplicationConstraint) Scope() ConstraintScope {
 	return ApplicationConstraintScope
 }
 
-func (constraint *ApplicationConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource) bool {
+func (constraint *ApplicationConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource, classifier classification.Classifier) bool {
 	switch constraint.Operator {
 	case AddConstraintOperator:
 		// If the add was for a construct, we need to check if any resource references the construct
@@ -77,4 +79,8 @@ func (constraint *ApplicationConstraint) Validate() error {
 		return errors.New("remove constraint must have a node defined")
 	}
 	return nil
+}
+
+func (constraint *ApplicationConstraint) String() string {
+	return fmt.Sprintf("ApplicationConstraint: %s %s %s", constraint.Operator, constraint.Node, constraint.ReplacementNode)
 }

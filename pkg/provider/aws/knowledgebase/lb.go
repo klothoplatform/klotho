@@ -13,7 +13,7 @@ var LbKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.Listener, *resources.TargetGroup]{
 		Configure: func(listener *resources.Listener, tg *resources.TargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			listener.Protocol = tg.Protocol
-			listener.DefaultActions = []*resources.LBAction{{TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE}, Type: "forward"}}
+			listener.DefaultActions = []*resources.LBAction{{TargetGroupArn: core.IaCValue{ResourceId: tg.Id(), Property: resources.ARN_IAC_VALUE}, Type: "forward"}}
 			if listener.LoadBalancer == nil || len(listener.LoadBalancer.Subnets) == 0 {
 				return fmt.Errorf("cannot configure targetGroup's Vpc %s, missing load balancer vpc for listener %s", tg.Id(), listener.Id())
 			}
@@ -21,17 +21,18 @@ var LbKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.Listener, *resources.LoadBalancer]{
-		Configure: func(listener *resources.Listener, loadBalancer *resources.LoadBalancer, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if listener.LoadBalancer != loadBalancer {
+	knowledgebase.EdgeBuilder[*resources.LoadBalancer, *resources.Listener]{
+		Configure: func(loadBalancer *resources.LoadBalancer, listener *resources.Listener, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if listener.LoadBalancer != nil && listener.LoadBalancer != loadBalancer {
 				return fmt.Errorf("listener %s does not belong to load balancer %s", listener.Id(), loadBalancer.Id())
 			}
+			listener.LoadBalancer = loadBalancer
 			loadBalancer.Type = "network"
 			loadBalancer.Scheme = "internal"
 			listener.Port = 80
 			return nil
 		},
-		ReverseDirection: true,
+		DeploymentOrderReversed: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.LoadBalancer, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.LoadBalancer, *resources.SecurityGroup]{},
@@ -41,7 +42,7 @@ var LbKB = knowledgebase.Build(
 			targetGroup.Protocol = "HTTPS"
 			targetGroup.TargetType = "instance"
 			target := &resources.Target{
-				Id:   &resources.AwsResourceValue{ResourceVal: instance, PropertyVal: resources.ID_IAC_VALUE},
+				Id:   core.IaCValue{ResourceId: instance.Id(), Property: resources.ID_IAC_VALUE},
 				Port: 3000,
 			}
 			targetGroup.AddTarget(target)

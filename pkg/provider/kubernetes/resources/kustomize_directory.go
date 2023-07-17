@@ -14,12 +14,12 @@ type (
 		ConstructRefs    core.BaseConstructSet
 		Directory        string
 		ClustersProvider core.IaCValue
-		Cluster          core.IaCValue
+		Cluster          core.ResourceId
 	}
 )
 
-// BaseConstructsRef returns a slice containing the ids of any Klotho constructs is correlated to
-func (dir *KustomizeDirectory) BaseConstructsRef() core.BaseConstructSet { return dir.ConstructRefs }
+// BaseConstructRefs returns a slice containing the ids of any Klotho constructs is correlated to
+func (dir *KustomizeDirectory) BaseConstructRefs() core.BaseConstructSet { return dir.ConstructRefs }
 
 func (dir *KustomizeDirectory) Id() core.ResourceId {
 	return core.ResourceId{

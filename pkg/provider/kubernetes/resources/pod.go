@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
@@ -18,7 +19,7 @@ type (
 		Object          *corev1.Pod
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.Resource
+		Cluster         core.ResourceId
 	}
 )
 
@@ -26,7 +27,7 @@ const (
 	POD_TYPE = "pod"
 )
 
-func (pod *Pod) BaseConstructsRef() core.BaseConstructSet {
+func (pod *Pod) BaseConstructRefs() core.BaseConstructSet {
 	return pod.ConstructRefs
 }
 
@@ -44,11 +45,6 @@ func (pod *Pod) DeleteContext() core.DeleteContext {
 		RequiresExplicitDelete: true,
 	}
 }
-
-func (pod *Pod) GetFunctionality() core.Functionality {
-	return core.Compute
-}
-
 func (pod *Pod) GetObject() runtime.Object {
 	return pod.Object
 }
@@ -61,7 +57,7 @@ func (pod *Pod) Path() string {
 	return pod.FilePath
 }
 
-func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string) error {
+func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if pod.Object == nil {
 		pod.Object = &corev1.Pod{}
 		sa := &ServiceAccount{
@@ -70,16 +66,16 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string) error {
 		pod.Object.Spec.ServiceAccountName = sa.Name
 		dag.AddDependency(pod, sa)
 	}
-	if pod.Cluster == nil {
+	if pod.Cluster.IsZero() {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(pod) {
-			if core.GetFunctionality(res) == core.Cluster {
+			if classifier.GetFunctionality(res) == core.Cluster {
 				downstreamClustersFound = append(downstreamClustersFound, res)
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
-			pod.Cluster = downstreamClustersFound[0]
-			dag.AddDependency(pod, pod.Cluster)
+			pod.Cluster = downstreamClustersFound[0].Id()
+			dag.AddDependency(pod, downstreamClustersFound[0])
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

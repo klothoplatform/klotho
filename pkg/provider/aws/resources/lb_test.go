@@ -23,12 +23,12 @@ func Test_LoadBalancerCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, lb *LoadBalancer) {
 				assert.Equal(lb.Name, "my-app-instance")
-				assert.Equal(lb.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(lb.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "nil check ip",
-			Existing: &LoadBalancer{Name: "my-app-instance", ConstructsRef: initialRefs},
+			Existing: &LoadBalancer{Name: "my-app-instance", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:load_balancer:my-app-instance",
@@ -37,7 +37,7 @@ func Test_LoadBalancerCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, lb *LoadBalancer) {
 				assert.Equal(lb.Name, "my-app-instance")
-				assert.Equal(lb.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(lb.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -138,12 +138,12 @@ func Test_TargetGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, tg *TargetGroup) {
 				assert.Equal(tg.Name, "my-app-instance")
-				assert.Equal(tg.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(tg.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "nil check ip",
-			Existing: &TargetGroup{Name: "my-app-instance", ConstructsRef: initialRefs},
+			Existing: &TargetGroup{Name: "my-app-instance", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:target_group:my-app-instance",
@@ -152,7 +152,7 @@ func Test_TargetGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, tg *TargetGroup) {
 				assert.Equal(tg.Name, "my-app-instance")
-				assert.Equal(tg.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(tg.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -220,12 +220,12 @@ func Test_ListenerCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, l *Listener) {
 				assert.Equal(l.Name, "my-app-instance")
-				assert.Equal(l.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(l.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "nil check ip",
-			Existing: &Listener{Name: "my-app-instance", ConstructsRef: initialRefs},
+			Existing: &Listener{Name: "my-app-instance", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:load_balancer_listener:my-app-instance",
@@ -234,7 +234,7 @@ func Test_ListenerCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, l *Listener) {
 				assert.Equal(l.Name, "my-app-instance")
-				assert.Equal(l.ConstructsRef, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(l.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -264,7 +264,7 @@ func Test_ListenerMakeOperational(t *testing.T) {
 			AppName:  "my-app",
 			Existing: []core.Resource{&LoadBalancer{Name: "test"}},
 			ExistingDependencies: []coretesting.StringDep{
-				{Source: "aws:load_balancer_listener:instance", Destination: "aws:load_balancer:test"},
+				{Source: "aws:load_balancer:test", Destination: "aws:load_balancer_listener:instance"},
 			},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
@@ -272,7 +272,7 @@ func Test_ListenerMakeOperational(t *testing.T) {
 					"aws:load_balancer:test",
 				},
 				Deps: []coretesting.StringDep{
-					{Source: "aws:load_balancer_listener:instance", Destination: "aws:load_balancer:test"},
+					{Source: "aws:load_balancer:test", Destination: "aws:load_balancer_listener:instance"},
 				},
 			},
 			Check: func(assert *assert.Assertions, l *Listener) {

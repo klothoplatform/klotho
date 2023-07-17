@@ -23,12 +23,12 @@ func Test_KmsKeyCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, record *KmsKey) {
 				assert.Equal(record.Name, "my-app-key")
-				assert.Equal(record.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(record.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing kms key",
-			Existing: &KmsKey{Name: "my-app-key", ConstructsRef: initialRefs},
+			Existing: &KmsKey{Name: "my-app-key", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:kms_key:my-app-key",
@@ -38,7 +38,7 @@ func Test_KmsKeyCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, record *KmsKey) {
 				assert.Equal(record.Name, "my-app-key")
 				initialRefs.Add(eu)
-				assert.Equal(record.ConstructsRef, initialRefs)
+				assert.Equal(record.ConstructRefs, initialRefs)
 			},
 		},
 	}
@@ -74,12 +74,12 @@ func Test_KmsAliasCreate(t *testing.T) {
 				assert.Equal(record.Name, "my-app-key-alias")
 				assert.NotNil(record.TargetKey)
 				assert.Equal(record.AliasName, "alias/alias")
-				assert.Equal(record.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(record.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing kms key",
-			Existing: &KmsAlias{Name: "my-app-key-alias", ConstructsRef: initialRefs},
+			Existing: &KmsAlias{Name: "my-app-key-alias", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:kms_alias:my-app-key-alias",
@@ -89,14 +89,14 @@ func Test_KmsAliasCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, record *KmsAlias) {
 				assert.Equal(record.Name, "my-app-key-alias")
 				initialRefs.Add(eu)
-				assert.Equal(record.ConstructsRef, initialRefs)
+				assert.Equal(record.ConstructRefs, initialRefs)
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = KmsAliasCreateParams{
-				Key:  &KmsKey{Name: "my-app-key", ConstructsRef: core.BaseConstructSetOf(eu)},
+				Key:  &KmsKey{Name: "my-app-key", ConstructRefs: core.BaseConstructSetOf(eu)},
 				Name: "alias",
 			}
 			tt.Run(t)
@@ -123,12 +123,12 @@ func Test_KmsReplicaKeyCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, record *KmsReplicaKey) {
 				assert.Equal(record.Name, "my-app-key-replica")
 				assert.NotNil(record.PrimaryKey)
-				assert.Equal(record.ConstructsRef, core.BaseConstructSetOf(eu))
+				assert.Equal(record.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing kms key replica",
-			Existing: &KmsReplicaKey{Name: "my-app-key-replica", ConstructsRef: initialRefs},
+			Existing: &KmsReplicaKey{Name: "my-app-key-replica", ConstructRefs: initialRefs},
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:kms_replica_key:my-app-key-replica",
@@ -138,14 +138,14 @@ func Test_KmsReplicaKeyCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, record *KmsReplicaKey) {
 				assert.Equal(record.Name, "my-app-key-replica")
 				initialRefs.Add(eu)
-				assert.Equal(record.ConstructsRef, initialRefs)
+				assert.Equal(record.ConstructRefs, initialRefs)
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = KmsReplicaKeyCreateParams{
-				Key:  &KmsKey{Name: "my-app-key", ConstructsRef: core.BaseConstructSetOf(eu)},
+				Key:  &KmsKey{Name: "my-app-key", ConstructRefs: core.BaseConstructSetOf(eu)},
 				Name: "replica",
 			}
 			tt.Run(t)

@@ -31,58 +31,7 @@ var TestKnowledgeBase = Build(
 var typeA = reflect.TypeOf(&A{})
 var typeB = reflect.TypeOf(&B{})
 var typeC = reflect.TypeOf(&C{})
-var typeD = reflect.TypeOf(&D{})
 var typeE = reflect.TypeOf(&E{})
-
-func Test_FindPaths(t *testing.T) {
-	cases := []struct {
-		name   string
-		source core.Resource
-		dest   core.Resource
-		want   []Path
-	}{
-		{
-			name:   "paths from a",
-			source: &A{},
-			dest:   &E{},
-			want: []Path{
-				{{typeA, typeB}, {typeB, typeC}, {typeC, typeD}, {typeD, typeE}},
-				{{typeA, typeB}, {typeB, typeC}, {typeC, typeE}},
-				{{typeA, typeE}},
-			},
-		},
-		{
-			name:   "paths from b",
-			source: &B{},
-			dest:   &E{},
-			want: []Path{
-				{{typeB, typeC}, {typeC, typeD}, {typeD, typeE}},
-				{{typeB, typeC}, {typeC, typeE}},
-			},
-		},
-		{
-			name:   "paths from d to c",
-			source: &D{},
-			dest:   &C{},
-			want: []Path{
-				{{typeD, typeB}, {typeB, typeC}},
-			},
-		},
-		{
-			name:   "no paths from e",
-			source: &E{},
-			dest:   &A{},
-			want:   []Path{},
-		},
-	}
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-			result := TestKnowledgeBase.FindPaths(tt.source, tt.dest, EdgeConstraint{})
-			assert.ElementsMatch(tt.want, result)
-		})
-	}
-}
 
 func Test_ConfigureEdge(t *testing.T) {
 	cases := []struct {
@@ -120,6 +69,7 @@ func Test_ExpandEdges(t *testing.T) {
 		source core.Resource
 		dest   core.Resource
 		data   EdgeData
+		path   Path
 		want   []klothograph.Edge[core.Resource]
 	}{
 		{
@@ -131,6 +81,9 @@ func Test_ExpandEdges(t *testing.T) {
 					NodeMustExist:    []core.Resource{&C{}},
 					NodeMustNotExist: []core.Resource{&D{}},
 				},
+			},
+			path: Path{
+				{typeA, typeB}, {typeB, typeC}, {typeC, typeE},
 			},
 			want: []klothograph.Edge[core.Resource]{
 				{Source: &A{}, Destination: &B{Name: "B_A_E"}},
@@ -145,7 +98,7 @@ func Test_ExpandEdges(t *testing.T) {
 			dag := core.NewResourceGraph()
 			dag.AddDependencyWithData(tt.source, tt.dest, tt.data)
 			edge := dag.GetDependency(tt.source.Id(), tt.dest.Id())
-			err := TestKnowledgeBase.ExpandEdge(edge, dag)
+			err := TestKnowledgeBase.ExpandEdge(edge, dag, tt.path, tt.data)
 
 			var result []klothograph.Edge[core.Resource]
 			for _, dep := range dag.ListDependencies() {
@@ -177,7 +130,7 @@ type (
 )
 
 func (f *A) Id() core.ResourceId                      { return core.ResourceId{Type: "A", Name: "A" + f.Name} }
-func (f *A) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f *A) BaseConstructRefs() core.BaseConstructSet { return nil }
 func (f *A) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{
 		RequiresNoUpstream: true,
@@ -185,28 +138,28 @@ func (f *A) DeleteContext() core.DeleteContext {
 }
 
 func (b B) Id() core.ResourceId                      { return core.ResourceId{Type: "B", Name: "B" + b.Name} }
-func (f B) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f B) BaseConstructRefs() core.BaseConstructSet { return nil }
 func (f B) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 func (p *C) Id() core.ResourceId                      { return core.ResourceId{Type: "C", Name: "C" + p.Name} }
-func (f *C) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f *C) BaseConstructRefs() core.BaseConstructSet { return nil }
 func (f *C) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 func (p *D) Id() core.ResourceId                      { return core.ResourceId{Type: "D", Name: "D" + p.Name} }
-func (f *D) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f *D) BaseConstructRefs() core.BaseConstructSet { return nil }
 func (f *D) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 func (p *E) Id() core.ResourceId                      { return core.ResourceId{Type: "E", Name: "E" + p.Name} }
-func (f *E) BaseConstructsRef() core.BaseConstructSet { return nil }
+func (f *E) BaseConstructRefs() core.BaseConstructSet { return nil }
 func (f *E) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{
 		RequiresNoUpstream: true,

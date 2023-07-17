@@ -405,6 +405,8 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 		}
 		if typedChild, ok := childVal.Interface().(core.Resource); ok {
 			return tc.getVarName(typedChild), nil
+		} else if typedChild, ok := childVal.Interface().(core.ResourceId); ok {
+			return tc.getVarNameByResourceId(typedChild), nil
 		} else if typedChild, ok := childVal.Interface().(core.IaCValue); ok {
 			output, err := tc.handleIaCValue(typedChild, appliedOutputs, resourceVal)
 			if err != nil {
@@ -525,8 +527,8 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 
 // handleIaCValue determines how to retrieve values from a resource given a specific value identifier.
 func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]AppliedOutput, resourceVal *reflect.Value) (string, error) {
-	resource := v.Resource()
-	property := v.Property()
+	resource := tc.resourceGraph.GetResource(v.ResourceId)
+	property := v.Property
 
 	if resource == nil {
 		output, err := tc.resolveStructInput(nil, reflect.ValueOf(property), false, appliedOutputs)
@@ -815,23 +817,23 @@ func (tc TemplatesCompiler) addIngressRuleToCluster(out io.Writer, cluster *reso
 
 	cidrBlocks := make([]core.IaCValue, len(cluster.Subnets))
 	for i, subnet := range cluster.Subnets {
-		cidrBlocks[i] = &resources.AwsResourceValue{
-			ResourceVal: subnet,
-			PropertyVal: resources.CIDR_BLOCK_IAC_VALUE,
+		cidrBlocks[i] = core.IaCValue{
+			ResourceId: subnet.Id(),
+			Property:   resources.CIDR_BLOCK_IAC_VALUE,
 		}
 	}
 
 	sgRule := &SecurityGroupRule{
-		ConstructsRef: cluster.ConstructsRef,
+		ConstructRefs: cluster.ConstructRefs,
 		Name:          fmt.Sprintf("%s-ingress", cluster.Name),
 		Description:   "Allows access to cluster from the VPCs private and public subnets",
 		FromPort:      0,
 		ToPort:        0,
 		Protocol:      "-1",
 		CidrBlocks:    cidrBlocks,
-		SecurityGroupId: &resources.AwsResourceValue{
-			ResourceVal: cluster,
-			PropertyVal: resources.CLUSTER_SECURITY_GROUP_ID_IAC_VALUE,
+		SecurityGroupId: core.IaCValue{
+			ResourceId: cluster.Id(),
+			Property:   resources.CLUSTER_SECURITY_GROUP_ID_IAC_VALUE,
 		},
 		Type: "ingress",
 	}
@@ -848,7 +850,7 @@ func (tc TemplatesCompiler) renderKubernetesProvider(out io.Writer, cluster *res
 
 	provider := &KubernetesProvider{
 		Name:          fmt.Sprintf("%s-provider", cluster.Name),
-		ConstructsRef: cluster.ConstructsRef,
+		ConstructRefs: cluster.ConstructRefs,
 		KubeConfig:    cluster.Kubeconfig,
 	}
 	_, err = out.Write([]byte("\n\n"))
@@ -890,10 +892,10 @@ func (tc TemplatesCompiler) attachToTargetGroup(out io.Writer, tg *resources.Tar
 	for _, target := range tg.Targets {
 
 		attachment := &TargetGroupAttachment{
-			Name:           target.Id.Resource().Id().String(),
+			Name:           target.Id.ResourceId.String(),
 			Port:           target.Port,
-			TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE},
-			TargetId:       &resources.AwsResourceValue{ResourceVal: target.Id.Resource(), PropertyVal: resources.ID_IAC_VALUE},
+			TargetGroupArn: core.IaCValue{ResourceId: tg.Id(), Property: resources.ARN_IAC_VALUE},
+			TargetId:       core.IaCValue{ResourceId: target.Id.ResourceId, Property: resources.ID_IAC_VALUE},
 		}
 		errs.Append(tc.renderResource(out, attachment))
 

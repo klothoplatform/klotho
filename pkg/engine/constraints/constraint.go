@@ -7,6 +7,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"gopkg.in/yaml.v3"
 	"k8s.io/utils/strings/slices"
@@ -20,7 +21,7 @@ type (
 		Scope() ConstraintScope
 		// IsSatisfied returns whether or not the constraint is satisfied based on the resource graph
 		// For a resource graph to be valid all constraints must be satisfied
-		IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource) bool
+		IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource, classifier classification.Classifier) bool
 		// Validate returns whether or not the constraint is valid
 		Validate() error
 	}

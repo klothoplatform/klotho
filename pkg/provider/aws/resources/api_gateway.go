@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -29,13 +30,13 @@ var apiResourceSanitizer = aws.ApiResourceSanitizer
 type (
 	RestApi struct {
 		Name             string
-		ConstructsRef    core.BaseConstructSet `yaml:"-"`
+		ConstructRefs    core.BaseConstructSet `yaml:"-"`
 		BinaryMediaTypes []string
 	}
 
 	ApiResource struct {
 		Name           string
-		ConstructsRef  core.BaseConstructSet `yaml:"-"`
+		ConstructRefs  core.BaseConstructSet `yaml:"-"`
 		RestApi        *RestApi
 		PathPart       string
 		ParentResource *ApiResource
@@ -43,7 +44,7 @@ type (
 
 	ApiMethod struct {
 		Name              string
-		ConstructsRef     core.BaseConstructSet `yaml:"-"`
+		ConstructRefs     core.BaseConstructSet `yaml:"-"`
 		RestApi           *RestApi
 		Resource          *ApiResource
 		HttpMethod        string
@@ -52,13 +53,13 @@ type (
 	}
 
 	VpcLink struct {
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Target        core.Resource
 	}
 
 	ApiIntegration struct {
 		Name                  string
-		ConstructsRef         core.BaseConstructSet `yaml:"-"`
+		ConstructRefs         core.BaseConstructSet `yaml:"-"`
 		RestApi               *RestApi
 		Resource              *ApiResource
 		Method                *ApiMethod
@@ -67,20 +68,20 @@ type (
 		Type                  string
 		ConnectionType        string
 		VpcLink               *VpcLink
-		Uri                   *AwsResourceValue
+		Uri                   core.IaCValue
 		Route                 string
 	}
 
 	ApiDeployment struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		RestApi       *RestApi
 		Triggers      map[string]string
 	}
 
 	ApiStage struct {
 		Name          string
-		ConstructsRef core.BaseConstructSet `yaml:"-"`
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		StageName     string
 		RestApi       *RestApi
 		Deployment    *ApiDeployment
@@ -100,12 +101,12 @@ func (api *RestApi) Create(dag *core.ResourceGraph, params RestApiCreateParams) 
 		name = restApiSanitizer.Apply(params.Name)
 	}
 	api.Name = name
-	api.ConstructsRef = params.Refs.Clone()
+	api.ConstructRefs = params.Refs.Clone()
 
 	existingApi := dag.GetResource(api.Id())
 	if existingApi != nil {
 		graphApi := existingApi.(*RestApi)
-		graphApi.ConstructsRef.AddAll(params.Refs)
+		graphApi.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(api)
 	}
@@ -156,34 +157,38 @@ func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceC
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Path))
 	resource.Name = name
-	resource.ConstructsRef = params.Refs.Clone()
+	resource.ConstructRefs = params.Refs.Clone()
 
 	existingResource := dag.GetResource(resource.Id())
 	if existingResource != nil {
 		graphResource := existingResource.(*ApiResource)
-		graphResource.ConstructsRef.AddAll(params.Refs)
+		graphResource.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
 		segments := strings.Split(params.Path, "/")
 		resource.PathPart = convertPath(segments[len(segments)-1], true)
-		subParams := map[string]any{
-			"RestApi": RestApiCreateParams{
-				Refs: params.Refs,
-				Name: params.ApiName,
-			},
+		api, err := core.CreateResource[*RestApi](dag, RestApiCreateParams{
+			Refs: params.Refs,
+			Name: params.ApiName,
+		})
+		if err != nil {
+			return err
 		}
+		resource.RestApi = api
+		dag.AddDependency(api, resource)
 		// The root path is already created in api gw so we dont want to attempt to create an empty resource
 		if len(segments) > 1 && segments[len(segments)-2] != "" {
-			subParams["ParentResource"] = ApiResourceCreateParams{
+			parentResource, err := core.CreateResource[*ApiResource](dag, ApiResourceCreateParams{
 				AppName: params.AppName,
 				Path:    strings.Join(segments[:len(segments)-1], "/"),
 				Refs:    params.Refs,
 				ApiName: params.ApiName,
+			})
+			if err != nil {
+				return err
 			}
-		}
-		err := dag.CreateDependencies(resource, subParams)
-		if err != nil {
-			return err
+			resource.ParentResource = parentResource
+			dag.AddDependency(parentResource, resource)
 		}
 	}
 	return nil
@@ -202,12 +207,12 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.Path, params.HttpMethod))
 	integration.Name = name
-	integration.ConstructsRef = params.Refs.Clone()
+	integration.ConstructRefs = params.Refs.Clone()
 	integration.Route = convertPath(params.Path, false)
 
 	existingResource, found := core.GetResource[*ApiIntegration](dag, integration.Id())
 	if found {
-		existingResource.ConstructsRef.AddAll(params.Refs)
+		existingResource.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
 		dag.AddResource(integration)
@@ -215,9 +220,8 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 	return nil
 }
 
-func (integration *ApiIntegration) MakeOperational(dag *core.ResourceGraph, appName string) error {
-
-	apis := core.GetDownstreamResourcesOfType[*RestApi](dag, integration)
+func (integration *ApiIntegration) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+	apis := core.GetUpstreamResourcesOfType[*RestApi](dag, integration)
 	if len(apis) > 1 {
 		return fmt.Errorf("integration %s has multiple apis: %v", integration.Name, apis)
 	} else if len(apis) == 1 {
@@ -226,26 +230,30 @@ func (integration *ApiIntegration) MakeOperational(dag *core.ResourceGraph, appN
 		return fmt.Errorf("integration %s has no apis", integration.Name)
 	}
 
-	subParams := map[string]any{
-		"Method": ApiMethodCreateParams{
-			AppName:    appName,
-			Refs:       core.BaseConstructSetOf(integration),
-			Path:       integration.Route,
-			ApiName:    integration.RestApi.Name,
-			HttpMethod: integration.IntegrationHttpMethod,
-		},
+	method, err := core.CreateResource[*ApiMethod](dag, ApiMethodCreateParams{
+		AppName:    appName,
+		Refs:       core.BaseConstructSetOf(integration),
+		Path:       integration.Route,
+		ApiName:    integration.RestApi.Name,
+		HttpMethod: integration.IntegrationHttpMethod,
+	})
+	if err != nil {
+		return err
 	}
+	integration.Method = method
+	dag.AddDependency(integration, method)
 	if integration.Route != "" && integration.Route != "/" {
-		subParams["Resource"] = ApiResourceCreateParams{
+		resource, err := core.CreateResource[*ApiResource](dag, ApiResourceCreateParams{
 			AppName: appName,
 			Refs:    core.BaseConstructSetOf(integration),
 			Path:    integration.Route,
 			ApiName: integration.RestApi.Name,
+		})
+		if err != nil {
+			return err
 		}
-	}
-	err := dag.CreateDependencies(integration, subParams)
-	if err != nil {
-		return err
+		integration.Resource = resource
+		dag.AddDependency(integration, resource)
 	}
 	return nil
 }
@@ -263,32 +271,36 @@ func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateP
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.Path, params.HttpMethod))
 	method.Name = name
-	method.ConstructsRef = params.Refs.Clone()
+	method.ConstructRefs = params.Refs.Clone()
 	method.HttpMethod = params.HttpMethod
 
 	existingResource := dag.GetResource(method.Id())
 	if existingResource != nil {
 		graphResource := existingResource.(*ApiMethod)
-		graphResource.ConstructsRef.AddAll(params.Refs)
+		graphResource.ConstructRefs.AddAll(params.Refs)
 	} else {
-		subParams := map[string]any{
-			"RestApi": RestApiCreateParams{
-				Refs: params.Refs,
-				Name: params.ApiName,
-			},
+		api, err := core.CreateResource[*RestApi](dag, RestApiCreateParams{
+			Refs: params.Refs,
+			Name: params.ApiName,
+		})
+		if err != nil {
+			return err
 		}
+		method.RestApi = api
+		dag.AddDependency(api, method)
+		// The root path is already created in api gw so we dont want to attempt to create an empty resource
 		if params.Path != "" && params.Path != "/" {
-			subParams["Resource"] = ApiResourceCreateParams{
+			parentResource, err := core.CreateResource[*ApiResource](dag, ApiResourceCreateParams{
 				AppName: params.AppName,
 				Refs:    params.Refs,
 				Path:    params.Path,
 				ApiName: params.ApiName,
+			})
+			if err != nil {
+				return err
 			}
-		}
-
-		err := dag.CreateDependencies(method, subParams)
-		if err != nil {
-			return err
+			method.Resource = parentResource
+			dag.AddDependency(parentResource, method)
 		}
 	}
 	return nil
@@ -317,25 +329,25 @@ func (deployment *ApiDeployment) Create(dag *core.ResourceGraph, params ApiDeplo
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	deployment.Name = name
-	deployment.ConstructsRef = params.Refs.Clone()
+	deployment.ConstructRefs = params.Refs.Clone()
 	if deployment.Triggers == nil {
 		deployment.Triggers = make(map[string]string)
 	}
 	existingDeployment := dag.GetResource(deployment.Id())
 	if existingDeployment != nil {
 		graphDeployment := existingDeployment.(*ApiDeployment)
-		graphDeployment.ConstructsRef.AddAll(params.Refs)
+		graphDeployment.ConstructRefs.AddAll(params.Refs)
 	} else {
-		err := dag.CreateDependencies(deployment, map[string]any{
-			"RestApi": RestApiCreateParams{
-				AppName: params.AppName,
-				Refs:    core.BaseConstructSetOf(deployment),
-				Name:    params.Name,
-			},
+		restApi, err := core.CreateResource[*RestApi](dag, RestApiCreateParams{
+			AppName: params.AppName,
+			Refs:    core.BaseConstructSetOf(deployment),
+			Name:    params.Name,
 		})
 		if err != nil {
 			return err
 		}
+		dag.AddDependency(deployment, restApi)
+		deployment.RestApi = restApi
 	}
 	return nil
 }
@@ -351,29 +363,34 @@ func (stage *ApiStage) Create(dag *core.ResourceGraph, params ApiStageCreatePara
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	stage.Name = name
-	stage.ConstructsRef = params.Refs.Clone()
+	stage.ConstructRefs = params.Refs.Clone()
 
 	existingResource := dag.GetResource(stage.Id())
 	if existingResource != nil {
 		graphResource := existingResource.(*ApiStage)
-		graphResource.ConstructsRef.AddAll(params.Refs)
+		graphResource.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
-		err := dag.CreateDependencies(stage, map[string]any{
-			"RestApi": RestApiCreateParams{
-				AppName: params.AppName,
-				Refs:    core.BaseConstructSetOf(stage),
-				Name:    params.Name,
-			},
-			"Deployment": ApiDeploymentCreateParams{
-				AppName: params.AppName,
-				Refs:    core.BaseConstructSetOf(stage),
-				Name:    params.Name,
-			},
+		restApi, err := core.CreateResource[*RestApi](dag, RestApiCreateParams{
+			AppName: params.AppName,
+			Refs:    core.BaseConstructSetOf(stage),
+			Name:    params.Name,
 		})
 		if err != nil {
 			return err
 		}
+		dag.AddDependency(stage, restApi)
+		stage.RestApi = restApi
+		deployment, err := core.CreateResource[*ApiDeployment](dag, ApiDeploymentCreateParams{
+			AppName: params.AppName,
+			Refs:    core.BaseConstructSetOf(stage),
+			Name:    params.Name,
+		})
+		if err != nil {
+			return err
+		}
+		dag.AddDependency(stage, deployment)
+		stage.Deployment = deployment
 	}
 	return nil
 }
@@ -391,9 +408,9 @@ func (stage *ApiStage) Configure(params ApiStageConfigureParams) error {
 	return nil
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (api *RestApi) BaseConstructsRef() core.BaseConstructSet {
-	return api.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (api *RestApi) BaseConstructRefs() core.BaseConstructSet {
+	return api.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -413,9 +430,9 @@ func (api *RestApi) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (res *ApiResource) BaseConstructsRef() core.BaseConstructSet {
-	return res.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (res *ApiResource) BaseConstructRefs() core.BaseConstructSet {
+	return res.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -434,9 +451,9 @@ func (res *ApiResource) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (method *ApiMethod) BaseConstructsRef() core.BaseConstructSet {
-	return method.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (method *ApiMethod) BaseConstructRefs() core.BaseConstructSet {
+	return method.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -455,9 +472,9 @@ func (method *ApiMethod) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (link *VpcLink) BaseConstructsRef() core.BaseConstructSet {
-	return link.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (link *VpcLink) BaseConstructRefs() core.BaseConstructSet {
+	return link.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -483,9 +500,9 @@ func (link *VpcLink) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (integration *ApiIntegration) BaseConstructsRef() core.BaseConstructSet {
-	return integration.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (integration *ApiIntegration) BaseConstructRefs() core.BaseConstructSet {
+	return integration.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -503,9 +520,9 @@ func (integration *ApiIntegration) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (deployment *ApiDeployment) BaseConstructsRef() core.BaseConstructSet {
-	return deployment.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (deployment *ApiDeployment) BaseConstructRefs() core.BaseConstructSet {
+	return deployment.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
@@ -524,9 +541,9 @@ func (deployment *ApiDeployment) DeleteContext() core.DeleteContext {
 	}
 }
 
-// BaseConstructsRef returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (stage *ApiStage) BaseConstructsRef() core.BaseConstructSet {
-	return stage.ConstructsRef
+// BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
+func (stage *ApiStage) BaseConstructRefs() core.BaseConstructSet {
+	return stage.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
