@@ -83,30 +83,6 @@ func (lb *LoadBalancer) Create(dag *core.ResourceGraph, params LoadBalancerCreat
 	return nil
 }
 
-func (lb *LoadBalancer) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if len(lb.Subnets) == 0 {
-		subnets, err := getSubnetsOperational(dag, lb, appName)
-		if err != nil {
-			return err
-		}
-		for _, subnet := range subnets {
-			if subnet.Type == PrivateSubnet {
-				lb.Subnets = append(lb.Subnets, subnet)
-			}
-		}
-	}
-
-	if len(lb.SecurityGroups) == 0 {
-		sgs, err := getSecurityGroupsOperational(dag, lb, appName)
-		if err != nil {
-			return err
-		}
-		lb.SecurityGroups = sgs
-	}
-	dag.AddDependenciesReflect(lb)
-	return nil
-}
-
 type ListenerCreateParams struct {
 	AppName     string
 	Refs        core.BaseConstructSet

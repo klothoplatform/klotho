@@ -29,6 +29,7 @@ require (
 	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.19.1
 	golang.org/x/tools v0.7.0
+	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.11.1
 	k8s.io/api v0.26.0
@@ -47,7 +48,6 @@ require (
 	github.com/rivo/uniseg v0.4.4 // indirect
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/oauth2 v0.4.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 replace github.com/smacker/go-tree-sitter => github.com/klothoplatform/go-tree-sitter v0.1.1

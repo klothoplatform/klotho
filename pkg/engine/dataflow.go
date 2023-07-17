@@ -38,6 +38,8 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 		awsResources.LOAD_BALANCER_TYPE,
 		awsResources.CLOUDFRONT_DISTRIBUTION_TYPE,
 		awsResources.ROUTE_53_HOSTED_ZONE_TYPE,
+		awsResources.SNS_TOPIC_TYPE,
+		awsResources.SQS_QUEUE_TYPE,
 		k8sResources.DEPLOYMENT_TYPE,
 		k8sResources.POD_TYPE,
 		k8sResources.HELM_CHART_TYPE,

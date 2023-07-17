@@ -1,0 +1,52 @@
+provider: aws
+type: lambda_function
+rules:
+  downstream:
+  - enforcement: exactly_one
+    resource_types: 
+    - iam_role
+    set_field: Role
+    unsatisfied_action: 
+      operation: create
+  - enforcement: exactly_one
+    resource_types: 
+    - ecr_image
+    set_field: Image
+    unsatisfied_action: 
+      operation: create
+  - enforcement: exactly_one
+    resource_types: 
+    - log_group
+    unsatisfied_action: 
+      operation: create
+  - enforcement: conditional
+    resource_types: 
+    - vpc
+    remove_direct_dependency: true
+    rules:
+    - enforcement: any_available
+      resource_types: 
+      - subnet_private
+      - subnet_public
+      set_field: Subnets
+      num_needed: 2
+      unsatisfied_action: 
+        operation: create
+        default_type: subnet_private
+    - enforcement: any_available
+      resource_types: 
+      - security_group
+      set_field: SecurityGroups
+      num_needed: 1
+      unsatisfied_action: 
+        operation: create
+configuration:
+- field: Timeout
+  value: 180
+  zero_value_allowed: false
+- field: MemorySize
+  value: 512
+  
+
+
+    

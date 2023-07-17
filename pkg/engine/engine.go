@@ -24,6 +24,8 @@ type (
 		ClassificationDocument *classification.ClassificationDocument
 		// The constructs which the engine understands
 		Constructs []core.Construct
+		// The templates that the engine uses to make resources operational
+		ResourceTemplates map[string]*core.ResourceTemplate
 		// The context of the engine
 		Context EngineContext
 	}
@@ -61,12 +63,19 @@ type (
 )
 
 func NewEngine(providers map[string]provider.Provider, kb knowledgebase.EdgeKB, constructs []core.Construct) *Engine {
-	return &Engine{
+	engine := &Engine{
 		Providers:              providers,
 		KnowledgeBase:          kb,
 		Constructs:             constructs,
 		ClassificationDocument: classification.BaseClassificationDocument,
 	}
+	engine.ResourceTemplates = make(map[string]*core.ResourceTemplate)
+	for _, p := range providers {
+		for resType, template := range p.GetOperationalTempaltes() {
+			engine.ResourceTemplates[fmt.Sprintf("%s:%s", p.Name(), resType)] = template
+		}
+	}
+	return engine
 }
 
 func (e *Engine) LoadClassifications(classificationPath string, fs embed.FS) error {

@@ -1,0 +1,9 @@
+provider: aws
+type: dynamodb_table
+configuration:
+  - field: BillingMode
+    value: PAY_PER_REQUEST
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+  requires_explicit_delete: true

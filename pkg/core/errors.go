@@ -28,9 +28,12 @@ type (
 	}
 
 	OperationalResourceError struct {
-		Needs    []string
-		Resource Resource
-		Cause    error
+		Needs      []string
+		Count      int
+		Resource   Resource
+		Parent     Resource
+		MustCreate bool
+		Cause      error
 	}
 )
 

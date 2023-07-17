@@ -109,8 +109,10 @@ var EcsKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.TargetGroup, *resources.EcsService]{
 		DeploymentOrderReversed: true,
 		Configure: func(tg *resources.TargetGroup, service *resources.EcsService, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if service.TaskDefinition == nil || len(service.TaskDefinition.PortMappings) != 1 {
-				return fmt.Errorf("cannot configure edge %s -> %s, the service's task definition does not have exactly one port mapping", service.Id(), tg.Id())
+			if service.TaskDefinition == nil {
+				return fmt.Errorf("cannot configure edge %s -> %s, missing task definition", service.Id(), tg.Id())
+			} else if len(service.TaskDefinition.PortMappings) != 1 {
+				return fmt.Errorf("cannot configure edge %s -> %s, the service's task definition does not have exactly one port mapping, it has %d", service.Id(), tg.Id(), len(service.TaskDefinition.PortMappings))
 			}
 			service.LoadBalancers = []resources.EcsServiceLoadBalancerConfig{
 				{

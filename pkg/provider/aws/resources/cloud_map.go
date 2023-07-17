@@ -2,7 +2,6 @@ package resources
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -34,30 +33,6 @@ func (namespace *PrivateDnsNamespace) Create(dag *core.ResourceGraph, params Pri
 		existingNamespace.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(namespace)
-	}
-	return nil
-}
-
-func (namespace *PrivateDnsNamespace) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if namespace.Vpc == nil {
-		vpc, err := getSingleUpstreamVpc(dag, namespace)
-		if err != nil {
-			return err
-		}
-		if vpc == nil {
-			vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
-				AppName: appName,
-				Refs:    core.BaseConstructSetOf(namespace),
-			})
-			if err != nil {
-				return err
-			}
-			namespace.Vpc = vpc
-			dag.AddDependency(namespace, vpc)
-		} else {
-			namespace.Vpc = vpc
-			dag.AddDependency(namespace, vpc)
-		}
 	}
 	return nil
 }

@@ -129,6 +129,9 @@ func (cg *ConstructGraph) RemoveDependency(source ResourceId, dest ResourceId) e
 func (cg *ConstructGraph) GetConstruct(key ResourceId) BaseConstruct {
 	return cg.underlying.GetVertex(key.String())
 }
+func (cg *ConstructGraph) GetDependency(source ResourceId, target ResourceId) *graph.Edge[BaseConstruct] {
+	return cg.underlying.GetEdge(source.String(), target.String())
+}
 
 func (cg *ConstructGraph) GetResource(id ResourceId) Resource {
 	c := cg.GetConstruct(id)
@@ -136,10 +139,6 @@ func (cg *ConstructGraph) GetResource(id ResourceId) Resource {
 		return r
 	}
 	return nil
-}
-
-func (cg *ConstructGraph) GetDependency(source ResourceId, target ResourceId) *graph.Edge[BaseConstruct] {
-	return cg.underlying.GetEdge(source.String(), target.String())
 }
 
 func ListConstructs[C BaseConstruct](cg *ConstructGraph) []C {

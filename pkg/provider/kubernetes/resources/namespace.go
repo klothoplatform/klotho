@@ -92,8 +92,10 @@ func (namespace *Namespace) GetResourcesInNamespace(dag *core.ResourceGraph) []c
 	var resources []core.Resource
 	for _, res := range dag.GetAllUpstreamResources(namespace) {
 		if manifest, ok := res.(ManifestFile); ok {
-			if reflect.ValueOf(manifest.GetObject()).Elem().FieldByName("Namespace").Interface() == namespace.Name {
-				resources = append(resources, manifest)
+			if manifest.GetObject() != nil {
+				if reflect.ValueOf(manifest.GetObject()).Elem().FieldByName("Namespace").Interface() == namespace.Name {
+					resources = append(resources, manifest)
+				}
 			}
 		}
 	}

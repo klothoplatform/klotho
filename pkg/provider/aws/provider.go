@@ -1,12 +1,14 @@
 package aws
 
 import (
+	"embed"
 	"fmt"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	"gopkg.in/yaml.v3"
 )
 
 type AWS struct {
@@ -40,9 +42,10 @@ func (a *AWS) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph)
 	}
 	reflect.ValueOf(resource).Elem().FieldByName("Name").SetString(id.Name)
 	if subnet, ok := resource.(*resources.Subnet); ok {
-		if id.Type == "subnet_public" {
+		switch id.Type {
+		case "subnet_public":
 			subnet.Type = resources.PublicSubnet
-		} else if id.Type == "subnet_private" {
+		case "subnet_private":
 			subnet.Type = resources.PrivateSubnet
 		}
 	}
@@ -66,4 +69,24 @@ func (a *AWS) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph)
 		}
 	}
 	return resource, nil
+}
+
+//go:embed resources/templates/*
+var awsTempaltes embed.FS
+
+func (a *AWS) GetOperationalTempaltes() map[string]*core.ResourceTemplate {
+	templates := map[string]*core.ResourceTemplate{}
+	for _, res := range resources.ListAll() {
+		content, err := awsTempaltes.ReadFile(fmt.Sprintf("resources/templates/%s.yaml", res.Id().Type))
+		if err != nil {
+			continue
+		}
+		resTemplate := &core.ResourceTemplate{}
+		err = yaml.Unmarshal(content, resTemplate)
+		if err != nil {
+			panic(err)
+		}
+		templates[res.Id().Type] = resTemplate
+	}
+	return templates
 }

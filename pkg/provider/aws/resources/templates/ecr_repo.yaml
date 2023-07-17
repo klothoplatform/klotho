@@ -1,0 +1,7 @@
+provider: aws
+type: ecr_repo
+configuration:
+  - field: ForceDelete
+    value: true
+delete_context:
+  requires_no_upstream: true
