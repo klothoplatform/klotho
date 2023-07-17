@@ -53,16 +53,16 @@ func (instance *Ec2Instance) MakeOperational(dag *core.ResourceGraph, appName st
 	if instance.InstanceProfile == nil {
 		profiles := core.GetAllDownstreamResourcesOfType[*InstanceProfile](dag, instance)
 		if len(profiles) == 0 {
-			err := dag.CreateDependencies(instance, map[string]any{
-				"InstanceProfile": InstanceProfileCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(instance),
-					Name:    instance.Name,
-				},
+			instanceProfile, err := core.CreateResource[*InstanceProfile](dag, InstanceProfileCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(instance),
+				Name:    instance.Name,
 			})
 			if err != nil {
 				return err
 			}
+			instance.InstanceProfile = instanceProfile
+			dag.AddDependency(instance, instance.InstanceProfile)
 		} else if len(profiles) == 1 {
 			instance.InstanceProfile = profiles[0]
 			dag.AddDependency(instance, instance.InstanceProfile)
@@ -74,16 +74,16 @@ func (instance *Ec2Instance) MakeOperational(dag *core.ResourceGraph, appName st
 	if instance.AMI == nil {
 		amis := core.GetAllDownstreamResourcesOfType[*AMI](dag, instance)
 		if len(amis) == 0 {
-			err := dag.CreateDependencies(instance, map[string]any{
-				"AMI": AMICreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(instance),
-					Name:    instance.Name,
-				},
+			ami, err := core.CreateResource[*AMI](dag, AMICreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(instance),
+				Name:    instance.Name,
 			})
 			if err != nil {
 				return err
 			}
+			instance.AMI = ami
+			dag.AddDependency(instance, instance.AMI)
 		} else if len(amis) == 1 {
 			instance.AMI = amis[0]
 			dag.AddDependency(instance, instance.AMI)
@@ -116,7 +116,7 @@ func (instance *Ec2Instance) MakeOperational(dag *core.ResourceGraph, appName st
 				return err
 			}
 			instance.Subnet = subnet
-			dag.AddDependenciesReflect(instance)
+			dag.AddDependency(instance, subnet)
 		} else if len(subnets) == 1 {
 			if subnets[0].Vpc != vpc {
 				return fmt.Errorf("instance %s has subnet from vpc which does not correlate to it's vpc downstream", instance.Id())

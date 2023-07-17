@@ -45,15 +45,15 @@ func (namespace *PrivateDnsNamespace) MakeOperational(dag *core.ResourceGraph, a
 			return err
 		}
 		if vpc == nil {
-			err := dag.CreateDependencies(namespace, map[string]any{
-				"Vpc": VpcCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(namespace),
-				},
+			vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(namespace),
 			})
 			if err != nil {
 				return err
 			}
+			namespace.Vpc = vpc
+			dag.AddDependency(namespace, vpc)
 		} else {
 			namespace.Vpc = vpc
 			dag.AddDependency(namespace, vpc)

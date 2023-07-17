@@ -202,16 +202,16 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 		if len(roles) > 1 {
 			return errors.Errorf("cluster %s has multiple roles", cluster.Name)
 		} else if len(roles) == 0 {
-			err := dag.CreateDependencies(cluster, map[string]any{
-				"ClusterRole": RoleCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-ClusterAdmin", cluster.Name),
-					Refs:    core.BaseConstructSetOf(cluster),
-				},
+			clusterRole, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-ClusterAdmin", cluster.Name),
+				Refs:    core.BaseConstructSetOf(cluster),
 			})
 			if err != nil {
 				return err
 			}
+			cluster.ClusterRole = clusterRole
+			dag.AddDependency(cluster, clusterRole)
 		} else {
 			cluster.ClusterRole = roles[0]
 		}
@@ -303,16 +303,16 @@ func (profile *EksFargateProfile) MakeOperational(dag *core.ResourceGraph, appNa
 		if len(clusters) > 1 {
 			return fmt.Errorf("fargate profile %s has multiple clusters", profile.Id())
 		} else if len(clusters) == 0 {
-			err := dag.CreateDependencies(profile, map[string]any{
-				"Cluster": EksClusterCreateParams{
-					AppName: appName,
-					Name:    DEFAULT_CLUSTER_NAME,
-					Refs:    core.BaseConstructSetOf(profile),
-				},
+			cluster, err := core.CreateResource[*EksCluster](dag, EksClusterCreateParams{
+				AppName: appName,
+				Name:    DEFAULT_CLUSTER_NAME,
+				Refs:    core.BaseConstructSetOf(profile),
 			})
 			if err != nil {
 				return err
 			}
+			profile.Cluster = cluster
+			dag.AddDependency(profile, cluster)
 		} else {
 			profile.Cluster = clusters[0]
 		}
@@ -335,16 +335,16 @@ func (profile *EksFargateProfile) MakeOperational(dag *core.ResourceGraph, appNa
 		if len(roles) > 1 {
 			return fmt.Errorf("fargate profile %s has multiple roles", profile.Id())
 		} else if len(roles) == 0 {
-			err := dag.CreateDependencies(profile, map[string]any{
-				"PodExecutionRole": RoleCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-PodExecutionRole", profile.Name),
-					Refs:    core.BaseConstructSetOf(profile),
-				},
+			PodExecutionRole, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-PodExecutionRole", profile.Name),
+				Refs:    core.BaseConstructSetOf(profile),
 			})
 			if err != nil {
 				return err
 			}
+			profile.PodExecutionRole = PodExecutionRole
+			dag.AddDependency(profile, PodExecutionRole)
 		} else {
 			profile.PodExecutionRole = roles[0]
 		}
@@ -408,16 +408,16 @@ func (nodeGroup *EksNodeGroup) MakeOperational(dag *core.ResourceGraph, appName 
 		if len(clusters) > 1 {
 			return fmt.Errorf("node group %s has multiple clusters", nodeGroup.Id())
 		} else if len(clusters) == 0 {
-			err := dag.CreateDependencies(nodeGroup, map[string]any{
-				"Cluster": EksClusterCreateParams{
-					AppName: appName,
-					Name:    DEFAULT_CLUSTER_NAME,
-					Refs:    core.BaseConstructSetOf(nodeGroup),
-				},
+			cluster, err := core.CreateResource[*EksCluster](dag, EksClusterCreateParams{
+				AppName: appName,
+				Name:    DEFAULT_CLUSTER_NAME,
+				Refs:    core.BaseConstructSetOf(nodeGroup),
 			})
 			if err != nil {
 				return err
 			}
+			nodeGroup.Cluster = cluster
+			dag.AddDependency(nodeGroup, cluster)
 		} else {
 			nodeGroup.Cluster = clusters[0]
 		}
@@ -435,16 +435,16 @@ func (nodeGroup *EksNodeGroup) MakeOperational(dag *core.ResourceGraph, appName 
 		if len(roles) > 1 {
 			return fmt.Errorf("node group %s has multiple roles", nodeGroup.Id())
 		} else if len(roles) == 0 {
-			err := dag.CreateDependencies(nodeGroup, map[string]any{
-				"NodeRole": RoleCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-NodeRole", nodeGroup.Name),
-					Refs:    core.BaseConstructSetOf(nodeGroup),
-				},
+			nodeRole, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-NodeRole", nodeGroup.Name),
+				Refs:    core.BaseConstructSetOf(nodeGroup),
 			})
 			if err != nil {
 				return err
 			}
+			nodeGroup.NodeRole = nodeRole
+			dag.AddDependency(nodeGroup, nodeRole)
 		} else {
 			nodeGroup.NodeRole = roles[0]
 		}
@@ -515,7 +515,7 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 			Name:          cluster.Name + `-metrics-server`,
 			Chart:         "metrics-server",
 			ConstructRefs: cluster.ConstructRefs,
-			Cluster:       cluster,
+			Cluster:       cluster.Id(),
 			Repo:          `https://kubernetes-sigs.github.io/metrics-server/`,
 			IsInternal:    true,
 		},
@@ -524,7 +524,7 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 			Chart:         `cert-manager`,
 			ConstructRefs: cluster.ConstructRefs,
 
-			Cluster: cluster,
+			Cluster: cluster.Id(),
 			Repo:    `https://charts.jetstack.io`,
 			Version: `v1.10.0`,
 			Values: map[string]any{
@@ -547,7 +547,7 @@ func (cluster *EksCluster) InstallNvidiaDevicePlugin(dag *core.ResourceGraph) {
 	manifest := &kubernetes.Manifest{
 		Name:     fmt.Sprintf("%s-%s", cluster.Name, "nvidia-device-plugin"),
 		FilePath: "https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.10/nvidia-device-plugin.yml",
-		Cluster:  cluster,
+		Cluster:  cluster.Id(),
 	}
 	dag.AddDependenciesReflect(manifest)
 
@@ -570,7 +570,7 @@ func (cluster *EksCluster) CreateFargateLogging(references core.BaseConstructSet
 		ConstructRefs: references,
 		FilePath:      namespaceOutputPath,
 		Content:       content,
-		Cluster:       cluster,
+		Cluster:       cluster.Id(),
 	}
 	dag.AddResource(namespace)
 	dag.AddDependency(namespace, cluster)
@@ -585,7 +585,7 @@ func (cluster *EksCluster) CreateFargateLogging(references core.BaseConstructSet
 		ConstructRefs: references,
 		FilePath:      configMapOutputPath,
 		Content:       content,
-		Cluster:       cluster,
+		Cluster:       cluster.Id(),
 		Transformations: map[string]core.IaCValue{
 			`data["output.conf"]`: core.IaCValue{ResourceId: cluster.Id(), Property: AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE},
 		},
@@ -607,7 +607,7 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 		ConstructRefs: references,
 		FilePath:      namespaceOutputPath,
 		Content:       content,
-		Cluster:       cluster,
+		Cluster:       cluster.Id(),
 	}
 	dag.AddResource(namespace)
 	dag.AddDependency(namespace, cluster)
@@ -627,7 +627,7 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 			`data["cluster.name"]`: core.IaCValue{ResourceId: cluster.Id(), Property: NAME_IAC_VALUE},
 			`data["logs.region"]`:  core.IaCValue{ResourceId: region.Id(), Property: NAME_IAC_VALUE},
 		},
-		Cluster: cluster,
+		Cluster: cluster.Id(),
 	}
 	dag.AddResource(configMap)
 	dag.AddDependency(configMap, cluster)
@@ -636,7 +636,7 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "fluent-bit"),
 		ConstructRefs: references,
 		FilePath:      "https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/fluent-bit/fluent-bit.yaml",
-		Cluster:       cluster,
+		Cluster:       cluster.Id(),
 	}
 	dag.AddResource(configMap)
 	dag.AddDependency(fluentBitOptimized, cluster)
@@ -649,10 +649,7 @@ func (cluster *EksCluster) InstallCloudMapController(refs core.BaseConstructSet,
 		Name:          fmt.Sprintf("%s-cloudmap-controller", cluster.Name),
 		ConstructRefs: refs,
 		Directory:     "https://github.com/aws/aws-cloud-map-mcs-controller-for-k8s/config/controller_install_release",
-		Cluster: core.IaCValue{
-			ResourceId: cluster.Id(),
-			Property:   CLUSTER_PROVIDER_IAC_VALUE,
-		},
+		Cluster:       cluster.Id(),
 	}
 
 	if controller := dag.GetResource(cloudMapController.Id()); controller != nil {
@@ -677,7 +674,7 @@ func (cluster *EksCluster) InstallCloudMapController(refs core.BaseConstructSet,
 			Transformations: map[string]core.IaCValue{
 				`spec["value"]`: core.IaCValue{ResourceId: cluster.Id(), Property: NAME_IAC_VALUE},
 			},
-			Cluster: cluster,
+			Cluster: cluster.Id(),
 		}
 		dag.AddResource(clusterSet)
 		dag.AddDependenciesReflect(cloudMapController)
@@ -723,7 +720,7 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 	}
 	serviceAccount.Transformations[`metadata["annotations"]["eks.amazonaws.com/role-arn"]`] = core.IaCValue{ResourceId: role.Id(), Property: ARN_IAC_VALUE}
 	serviceAccount.FilePath = outputPath
-	serviceAccount.Cluster = cluster
+	serviceAccount.Cluster = cluster.Id()
 
 	dag.AddDependenciesReflect(serviceAccount)
 
@@ -734,7 +731,7 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 		ConstructRefs: references,
 		Version:       "1.4.7",
 		Namespace:     "default",
-		Cluster:       cluster,
+		Cluster:       cluster.Id(),
 		Values: map[string]any{
 			"clusterName": core.IaCValue{ResourceId: cluster.Id(), Property: NAME_IAC_VALUE},
 			"serviceAccount": map[string]any{

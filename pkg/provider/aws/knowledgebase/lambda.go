@@ -172,7 +172,7 @@ var LambdaKB = knowledgebase.Build(
 				return err
 			}
 			clusterProvider := destination.Cluster
-			cluster, ok := clusterProvider.(*resources.EksCluster)
+			cluster, ok := dag.GetResource(clusterProvider).(*resources.EksCluster)
 			if !ok {
 				return fmt.Errorf("cluster provider resource for %s, must be an eks cluster, was %T", destination.Id(), clusterProvider)
 			}
@@ -211,7 +211,7 @@ var LambdaKB = knowledgebase.Build(
 				return err
 			}
 			clusterProvider := destination.Cluster
-			cluster, ok := clusterProvider.(*resources.EksCluster)
+			cluster, ok := dag.GetResource(clusterProvider).(*resources.EksCluster)
 			if !ok {
 				return fmt.Errorf("cluster provider resource for %s, must be an eks cluster, was %T", destination.Id(), clusterProvider)
 			}

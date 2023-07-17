@@ -68,16 +68,16 @@ func (lambda *LambdaFunction) MakeOperational(dag *core.ResourceGraph, appName s
 	if lambda.Role == nil {
 		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, lambda)
 		if len(roles) == 0 {
-			err := dag.CreateDependencies(lambda, map[string]any{
-				"Role": RoleCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-ExecutionRole", lambda.Name),
-					Refs:    core.BaseConstructSetOf(lambda),
-				},
+			role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-ExecutionRole", lambda.Name),
+				Refs:    core.BaseConstructSetOf(lambda),
 			})
 			if err != nil {
 				return err
 			}
+			lambda.Role = role
+			dag.AddDependency(lambda, role)
 		} else if len(roles) == 1 {
 			lambda.Role = roles[0]
 		} else {
@@ -88,16 +88,16 @@ func (lambda *LambdaFunction) MakeOperational(dag *core.ResourceGraph, appName s
 	if lambda.Image == nil {
 		images := core.GetDownstreamResourcesOfType[*EcrImage](dag, lambda)
 		if len(images) == 0 {
-			err := dag.CreateDependencies(lambda, map[string]any{
-				"Image": ImageCreateParams{
-					AppName: appName,
-					Name:    lambda.Name,
-					Refs:    core.BaseConstructSetOf(lambda),
-				},
+			image, err := core.CreateResource[*EcrImage](dag, ImageCreateParams{
+				AppName: appName,
+				Name:    lambda.Name,
+				Refs:    core.BaseConstructSetOf(lambda),
 			})
 			if err != nil {
 				return err
 			}
+			lambda.Image = image
+			dag.AddDependency(lambda, image)
 		} else if len(images) == 1 {
 			lambda.Image = images[0]
 		} else {

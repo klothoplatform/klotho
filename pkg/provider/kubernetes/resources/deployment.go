@@ -20,7 +20,7 @@ type (
 		Object          *apps.Deployment
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.Resource
+		Cluster         core.ResourceId
 	}
 )
 
@@ -68,7 +68,7 @@ func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName s
 		deployment.Object.Spec.Template.Spec.ServiceAccountName = sa.Name
 		dag.AddDependency(deployment, sa)
 	}
-	if deployment.Cluster == nil {
+	if deployment.Cluster.IsZero() {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(deployment) {
 			if classifier.GetFunctionality(res) == core.Cluster {
@@ -76,8 +76,7 @@ func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName s
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
-			deployment.Cluster = downstreamClustersFound[0]
-			dag.AddDependency(deployment, deployment.Cluster)
+			deployment.Cluster = downstreamClustersFound[0].Id()
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

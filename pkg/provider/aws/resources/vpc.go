@@ -166,15 +166,15 @@ func (igw *InternetGateway) MakeOperational(dag *core.ResourceGraph, appName str
 		if len(vpcs) > 1 {
 			return fmt.Errorf("internet gateway %s has multiple vpc dependencies", igw.Name)
 		} else if len(vpcs) == 0 {
-			err := dag.CreateDependencies(igw, map[string]any{
-				"Vpc": VpcCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(igw),
-				},
+			vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(igw),
 			})
 			if err != nil {
 				return err
 			}
+			igw.Vpc = vpc
+			dag.AddDependency(igw, vpc)
 		} else {
 			igw.Vpc = vpcs[0]
 		}
@@ -223,16 +223,16 @@ func (nat *NatGateway) MakeOperational(dag *core.ResourceGraph, appName string, 
 			if len(vpcs) > 1 {
 				return fmt.Errorf("nat gateway %s has multiple vpc dependencies", nat.Name)
 			} else if len(vpcs) == 0 {
-				err := dag.CreateDependencies(nat, map[string]any{
-					"Subnet": SubnetCreateParams{
-						AppName: appName,
-						Refs:    core.BaseConstructSetOf(nat),
-						Type:    PublicSubnet,
-					},
+				subnet, err := core.CreateResource[*Subnet](dag, SubnetCreateParams{
+					AppName: appName,
+					Refs:    core.BaseConstructSetOf(nat),
+					Type:    PublicSubnet,
 				})
 				if err != nil {
 					return err
 				}
+				dag.AddDependency(nat, subnet)
+				nat.Subnet = subnet
 			} else {
 				var az string
 				var usedAzs []string
@@ -287,16 +287,16 @@ func (nat *NatGateway) MakeOperational(dag *core.ResourceGraph, appName string, 
 			if err != nil {
 				return err
 			}
-			err = dag.CreateDependencies(nat, map[string]any{
-				"ElasticIp": EipCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(nat),
-					Name:    nat.Subnet.AvailabilityZone.Property,
-				},
+			eip, err = core.CreateResource[*ElasticIp](dag, EipCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(nat),
+				Name:    nat.Subnet.AvailabilityZone.Property,
 			})
 			if err != nil {
 				return err
 			}
+			dag.AddDependency(nat, eip)
+			nat.ElasticIp = eip
 		} else {
 			nat.ElasticIp = eip
 		}
@@ -350,15 +350,15 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, c
 			}
 		}
 		if vpc == nil {
-			err := dag.CreateDependencies(subnet, map[string]any{
-				"Vpc": VpcCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(subnet),
-				},
+			vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(subnet),
 			})
 			if err != nil {
 				return err
 			}
+			dag.AddDependency(subnet, vpc)
+			subnet.Vpc = vpc
 		} else {
 			subnet.Vpc = vpc
 		}
@@ -380,14 +380,12 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, c
 					usedAzs = append(usedAzs, currSubnet.AvailabilityZone.Property)
 				}
 			}
-			fmt.Println(usedAzs)
 			for _, availabilityZone := range availabilityZones {
 				if !collectionutil.Contains(usedAzs, availabilityZone) {
 					az = availabilityZone
 				}
 			}
 			if az == "" {
-				fmt.Println("setting az to ", availabilityZones[0])
 				az = availabilityZones[0]
 			}
 			subnet.AvailabilityZone = core.IaCValue{ResourceId: NewAvailabilityZones().Id(), Property: az}
@@ -400,15 +398,12 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, c
 			}
 			for _, subnetType := range subnetTypes {
 				if !collectionutil.Contains(usedTypes, subnetType) {
-					fmt.Println("assigning type to use")
 					typeToUse = subnetType
 				}
 			}
 			if typeToUse == "" {
-				fmt.Println("assigning type to use to default")
 				typeToUse = PrivateSubnet
 			}
-			fmt.Println(typeToUse)
 			subnet.Type = typeToUse
 		}
 		subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", appName, subnet.Type, subnet.AvailabilityZone.Property))
@@ -449,7 +444,6 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, c
 			return err
 		}
 	}
-	dag.AddDependenciesReflect(subnet)
 	dag.AddDependency(subnet, NewAvailabilityZones())
 	return nil
 }
@@ -459,16 +453,19 @@ type SubnetConfigureParams struct {
 
 func (subnet *Subnet) Configure(params SubnetConfigureParams) error {
 	zap.S().Debugf("Configuring subnet %s", subnet.Name)
-	if subnet.Type == PrivateSubnet {
-		if subnet.AvailabilityZone.Property == "0" {
+	switch subnet.Type {
+	case PrivateSubnet:
+		switch subnet.AvailabilityZone.Property {
+		case "0":
 			subnet.CidrBlock = "10.0.0.0/18"
-		} else if subnet.AvailabilityZone.Property == "1" {
+		case "1":
 			subnet.CidrBlock = "10.0.64.0/18"
 		}
-	} else if subnet.Type == PublicSubnet {
-		if subnet.AvailabilityZone.Property == "0" {
+	case PublicSubnet:
+		switch subnet.AvailabilityZone.Property {
+		case "0":
 			subnet.CidrBlock = "10.0.128.0/18"
-		} else if subnet.AvailabilityZone.Property == "1" {
+		case "1":
 			subnet.CidrBlock = "10.0.192.0/18"
 
 		}
@@ -519,15 +516,15 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 	}
 
 	if routeTable.Vpc == nil {
-		err := dag.CreateDependencies(routeTable, map[string]any{
-			"Vpc": VpcCreateParams{
-				AppName: appName,
-				Refs:    core.BaseConstructSetOf(routeTable),
-			},
+		vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
+			AppName: appName,
+			Refs:    core.BaseConstructSetOf(routeTable),
 		})
 		if err != nil {
 			return err
 		}
+		routeTable.Vpc = vpc
+		dag.AddDependency(routeTable, vpc)
 	}
 	for _, subnet := range routeTablesSubnets {
 		if subnet.Type == PrivateSubnet {

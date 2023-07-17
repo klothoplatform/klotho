@@ -253,16 +253,16 @@ func (profile *InstanceProfile) MakeOperational(dag *core.ResourceGraph, appName
 	if profile.Role == nil {
 		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, profile)
 		if len(roles) == 0 {
-			err := dag.CreateDependencies(profile, map[string]any{
-				"Role": RoleCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-InstanceProfileRole", profile.Name),
-					Refs:    core.BaseConstructSetOf(profile),
-				},
+			role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-InstanceProfileRole", profile.Name),
+				Refs:    core.BaseConstructSetOf(profile),
 			})
 			if err != nil {
 				return err
 			}
+			profile.Role = role
+			dag.AddDependency(profile, role)
 		} else if len(roles) == 1 {
 			profile.Role = roles[0]
 			dag.AddDependenciesReflect(profile)

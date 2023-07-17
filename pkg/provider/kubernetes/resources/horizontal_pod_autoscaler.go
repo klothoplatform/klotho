@@ -18,7 +18,7 @@ type (
 		Object          *autoscaling.HorizontalPodAutoscaler
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.Resource
+		Cluster         core.ResourceId
 	}
 )
 
@@ -56,7 +56,7 @@ func (hpa *HorizontalPodAutoscaler) Path() string {
 }
 
 func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if hpa.Cluster == nil {
+	if hpa.Cluster.IsZero() {
 		downstreamClustersFound := map[string]core.Resource{}
 		for _, res := range dag.GetAllDownstreamResources(hpa) {
 			if classifier.GetFunctionality(res) == core.Cluster {
@@ -74,7 +74,7 @@ func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *core.ResourceGraph, app
 
 		if len(downstreamClustersFound) == 1 {
 			_, cluster := collectionutil.GetOneEntry(downstreamClustersFound)
-			hpa.Cluster = cluster
+			hpa.Cluster = cluster.Id()
 			dag.AddDependency(hpa, cluster)
 			return nil
 		}

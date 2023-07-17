@@ -616,7 +616,6 @@ func Test_SubnetMakeOperational(t *testing.T) {
 					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:test"},
 					{Source: "aws:subnet_public:test-down", Destination: "aws:vpc:test"},
 					{Source: "aws:subnet_public:test:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:subnet_public:test:my_app_public0", Destination: "aws:vpc:test"},
 				},
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {

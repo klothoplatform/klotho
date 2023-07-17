@@ -54,15 +54,15 @@ func (sg *SecurityGroup) MakeOperational(dag *core.ResourceGraph, appName string
 			return err
 		}
 		if vpc == nil {
-			err := dag.CreateDependencies(sg, map[string]any{
-				"Vpc": VpcCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(sg),
-				},
+			vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(sg),
 			})
 			if err != nil {
 				return err
 			}
+			sg.Vpc = vpc
+			dag.AddDependency(sg, vpc)
 		} else {
 			sg.Vpc = vpc
 		}

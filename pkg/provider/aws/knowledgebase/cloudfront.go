@@ -51,8 +51,6 @@ var CloudfrontKB = knowledgebase.Build(
 				OriginId:   gwId,
 				OriginPath: core.IaCValue{ResourceId: stage.Id(), Property: resources.API_STAGE_PATH_VALUE},
 			}
-			fmt.Println(distro)
-			fmt.Println(distro.Origins)
 			distro.Origins = append(distro.Origins, origin)
 			if distro.DefaultCacheBehavior == nil {
 				distro.DefaultCacheBehavior = &resources.DefaultCacheBehavior{}

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -481,57 +480,6 @@ func (rg *ResourceGraph) ReplaceConstruct(resource Resource, new Resource) error
 	return rg.RemoveResource(resource)
 }
 
-// CreateDependencies takes in a resource and set of metadata and looks at any fields which point to specific dependencies which match the Resource Interface
-// If a specific dependency is found, the .Create method will be called to create the parent resource.
-// Each specific dependency value will be updated on the resources field itself
-// This method will recurse down each one of the resources fields and do a DFS until a Resource is found
-//
-// Before adding a dependency and setting the value on the resource's field, the method will ensure there is no existing node in the graph for the named node created
-// If there is an existing node, the method will ensure the resource's field is set to point to the already existent node
-//
-// IaCValues today are not labeled as a specific resource, so the value must already be present. This method will still add the dependency and ensure the resource is created based on the params passed in, but
-// does not have the knowledge of which resource to create
-//
-//	T params are a map of the reflection field names, to their respective fields
-//
-// Example:
-// for a struct:
-//
-//	 Test{
-//	   Field1 Resource
-//	   Field2 Resource
-//	}
-//
-// The corresponding params would be:
-//
-//	params := map[string]any{
-//	   "Field1": ResourceParams
-//	   "Field2": ResourceParams
-//	}
-//
-// Params for direct resources or IaCValues correlate to the field they are for
-// For params on fields which correlate to the following types, the formats are:
-//   - Map: map[string]ParamType    (the string key corresponds to the key in the map)
-//   - Struct: map[string]ParamType (the string key corresponds to the field in the struct)
-//   - Array or slice: []ParamType
-func (rg *ResourceGraph) CreateDependencies(res Resource, params map[string]any) error {
-	var merr multierr.Error
-	source := reflect.ValueOf(res)
-
-	for source.Kind() == reflect.Pointer {
-		source = source.Elem()
-	}
-	for i := 0; i < source.NumField(); i++ {
-		targetValue := source.Field(i)
-		fieldsParams := params[source.Type().Field(i).Name]
-		if fieldsParams != nil {
-			merr.Append(rg.createSubDependencies(targetValue, res, fieldsParams, nil, reflect.Value{}))
-		}
-	}
-	rg.AddDependenciesReflect(res)
-	return merr.ErrOrNil()
-}
-
 // CreateResource is a wrapper around a Resources .Create method
 //
 // CreateResource provides safety in assuring that the up to date resource (which is inline with what exists in the ResourceGraph) is returned
@@ -552,47 +500,6 @@ func CreateResource[T Resource](rg *ResourceGraph, params any) (resource T, err 
 		return currValue.(T), nil
 	}
 	return castedRes.(T), nil
-}
-
-func (rg *ResourceGraph) createSubDependencies(targetValue reflect.Value, res Resource, metadata any, parent *reflect.Value, index reflect.Value) error {
-	switch value := targetValue.Interface().(type) {
-	case Resource:
-		if targetValue.IsNil() {
-			value = reflect.New(targetValue.Type().Elem()).Interface().(Resource)
-		}
-		err := rg.CallCreate(reflect.ValueOf(value), metadata)
-		if err != nil {
-			return err
-		}
-		currValue := rg.GetResource(value.Id())
-		if currValue == nil {
-			currValue = value
-		}
-		if currValue != nil {
-			value = currValue
-		}
-		if err == nil && value != nil {
-			if parent != nil {
-				parent.SetMapIndex(index, reflect.ValueOf(value))
-			} else {
-				targetValue.Set(reflect.ValueOf(value))
-			}
-		} else {
-			return err
-		}
-	case IaCValue:
-	default:
-		correspondingValue := targetValue
-		for correspondingValue.Kind() == reflect.Pointer {
-			correspondingValue = targetValue.Elem()
-		}
-
-		err := rg.createChildDependencies(correspondingValue, res, metadata)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (rg *ResourceGraph) CallCreate(targetValue reflect.Value, metadata any) error {
@@ -649,51 +556,4 @@ func (rg *ResourceGraph) CallConfigure(resource Resource, metadata any) error {
 		}
 	}
 	return nil
-}
-
-func (rg *ResourceGraph) createChildDependencies(child reflect.Value, res Resource, metadata any) error {
-	var merr multierr.Error
-	switch child.Kind() {
-	case reflect.Struct:
-		params := reflect.ValueOf(metadata)
-		if params.Kind() != reflect.Map {
-			return fmt.Errorf("field %s params does not conform to type for structs", child.Type().String())
-		}
-		for i := 0; i < child.NumField(); i++ {
-			childVal := child.Field(i)
-			fieldName := child.Type().Field(i).Name
-
-			// Loop over the keys of the params map and see if anything correlates to the field in the struct. If so then we will act on that field of the struct
-			for _, key := range params.MapKeys() {
-				if key.String() == fieldName {
-					merr.Append(rg.createSubDependencies(childVal, res, params.MapIndex(reflect.ValueOf(fieldName)).Interface(), nil, reflect.Value{}))
-				}
-			}
-		}
-	case reflect.Slice, reflect.Array:
-		params := reflect.ValueOf(metadata)
-		if params.Kind() != reflect.Slice && params.Kind() != reflect.Array {
-			return fmt.Errorf("field %s does not match parent type %s", params.Type().String(), child.Type().String())
-		} else if params.Len() != child.Len() {
-			return fmt.Errorf("field %s does not have the same number of elements as parent", child.Type().String())
-		}
-		for elemIdx := 0; elemIdx < child.Len(); elemIdx++ {
-			elemValue := child.Index(elemIdx)
-			merr.Append(rg.createSubDependencies(elemValue, res, params.Index(elemIdx).Interface(), nil, reflect.Value{}))
-		}
-	case reflect.Map:
-		params := reflect.ValueOf(metadata)
-		if params.Kind() != reflect.Map {
-			return fmt.Errorf("field %s params does not conform to type for maps", child.Type().String())
-		}
-		for _, key := range child.MapKeys() {
-			elemValue := child.MapIndex(key)
-			for _, paramKey := range params.MapKeys() {
-				if key.String() == paramKey.String() {
-					merr.Append(rg.createSubDependencies(elemValue, res, params.MapIndex(key).Interface(), &child, key))
-				}
-			}
-		}
-	}
-	return merr.ErrOrNil()
 }
