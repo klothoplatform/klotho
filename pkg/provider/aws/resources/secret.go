@@ -73,16 +73,16 @@ func (sv *SecretVersion) MakeOperational(dag *core.ResourceGraph, appName string
 		if len(versions) > 1 {
 			return fmt.Errorf("SecretVersion %s has multiple Secret dependencies", sv.Name)
 		} else if len(versions) == 0 {
-			err := dag.CreateDependencies(sv, map[string]any{
-				"Secret": SecretCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(sv),
-					Name:    sv.Name,
-				},
+			secret, err := core.CreateResource[*Secret](dag, SecretCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(sv),
+				Name:    sv.Name,
 			})
 			if err != nil {
 				return err
 			}
+			sv.Secret = secret
+			dag.AddDependency(sv, secret)
 		} else {
 			sv.Secret = versions[0]
 		}

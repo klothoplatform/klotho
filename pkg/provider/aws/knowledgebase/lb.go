@@ -13,7 +13,7 @@ var LbKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.Listener, *resources.TargetGroup]{
 		Configure: func(listener *resources.Listener, tg *resources.TargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			listener.Protocol = tg.Protocol
-			listener.DefaultActions = []*resources.LBAction{{TargetGroupArn: &resources.AwsResourceValue{ResourceVal: tg, PropertyVal: resources.ARN_IAC_VALUE}, Type: "forward"}}
+			listener.DefaultActions = []*resources.LBAction{{TargetGroupArn: core.IaCValue{ResourceId: tg.Id(), Property: resources.ARN_IAC_VALUE}, Type: "forward"}}
 			if listener.LoadBalancer == nil || len(listener.LoadBalancer.Subnets) == 0 {
 				return fmt.Errorf("cannot configure targetGroup's Vpc %s, missing load balancer vpc for listener %s", tg.Id(), listener.Id())
 			}
@@ -42,7 +42,7 @@ var LbKB = knowledgebase.Build(
 			targetGroup.Protocol = "HTTPS"
 			targetGroup.TargetType = "instance"
 			target := &resources.Target{
-				Id:   &resources.AwsResourceValue{ResourceVal: instance, PropertyVal: resources.ID_IAC_VALUE},
+				Id:   core.IaCValue{ResourceId: instance.Id(), Property: resources.ID_IAC_VALUE},
 				Port: 3000,
 			}
 			targetGroup.AddTarget(target)

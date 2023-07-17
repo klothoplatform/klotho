@@ -1,0 +1,3180 @@
+constraints:
+  - node: aws:rds_instance:rds_01
+    operator: add
+    scope: application
+  - operator: must_exist
+    scope: edge
+    target:
+      source: kubernetes:pod:k8s_pod_01
+      target: aws:rds_instance:rds_01
+edges:
+  - destination: aws:subnet_private:infracopilot:infracopilot_private0
+    source: aws:eks_node_group:eks_cluster_01-eks_cluster_01_private_t3_medium
+  - destination: aws:eks_cluster:eks_cluster_01
+    source: aws:eks_node_group:eks_cluster_01-eks_cluster_01_private_t3_medium
+  - destination: aws:iam_role:infracopilot-eks_cluster_01-eks_cluster_01_priva155fb02a
+    source: aws:eks_node_group:eks_cluster_01-eks_cluster_01_private_t3_medium
+  - destination: aws:subnet_private:infracopilot:infracopilot_private1
+    source: aws:eks_node_group:eks_cluster_01-eks_cluster_01_private_t3_medium
+  - destination: kubernetes:target_group_binding:target_group_binding_api_gateway_01_k8s_pod_01
+    source: aws:target_group:target_group_api_gateway_01_k8s_pod_01
+  - destination: aws:vpc:infracopilot
+    source: aws:target_group:target_group_api_gateway_01_k8s_pod_01
+  - destination: aws:load_balancer:load_balancer_api_gateway_01_k8s_pod_01
+    source: aws:api_integration:api_integration_api_gateway_01_k8s_pod_01
+  - destination: aws:api_method:infracopilot--
+    source: aws:api_integration:api_integration_api_gateway_01_k8s_pod_01
+  - destination: aws:subnet_public:infracopilot:infracopilot_public1
+    source: aws:route_table:infracopilot_public
+  - destination: aws:internet_gateway:infracopilot_igw
+    source: aws:route_table:infracopilot_public
+  - destination: aws:vpc:infracopilot
+    source: aws:route_table:infracopilot_public
+  - destination: aws:subnet_public:infracopilot:infracopilot_public0
+    source: aws:route_table:infracopilot_public
+  - destination: aws:eks_cluster:eks_cluster_01
+    source: kubernetes:service:service_api_gateway_01_k8s_pod_01
+  - destination: kubernetes:pod:k8s_pod_01
+    source: kubernetes:service:service_api_gateway_01_k8s_pod_01
+  - destination: aws:subnet_public:infracopilot:infracopilot_public0
+    source: aws:nat_gateway:infracopilot_1
+  - destination: aws:elastic_ip:infracopilot_0
+    source: aws:nat_gateway:infracopilot_1
+  - destination: aws:elastic_ip:infracopilot_1
+    source: aws:nat_gateway:infracopilot_0
+  - destination: aws:subnet_public:infracopilot:infracopilot_public1
+    source: aws:nat_gateway:infracopilot_0
+  - destination: aws:subnet_private:infracopilot:infracopilot_private1
+    source: aws:route_table:infracopilot_private1
+  - destination: aws:nat_gateway:infracopilot_1
+    source: aws:route_table:infracopilot_private1
+  - destination: aws:vpc:infracopilot
+    source: aws:route_table:infracopilot_private1
+  - destination: aws:vpc:infracopilot
+    source: aws:subnet_private:infracopilot:infracopilot_private0
+  - destination: aws:availability_zones:AvailabilityZones
+    source: aws:subnet_private:infracopilot:infracopilot_private0
+  - destination: aws:nat_gateway:infracopilot_0
+    source: aws:subnet_private:infracopilot:infracopilot_private0
+  - destination: aws:vpc:infracopilot
+    source: aws:security_group:infracopilot:infracopilot
+  - destination: aws:eks_cluster:eks_cluster_01
+    source: kubernetes:pod:k8s_pod_01
+  - destination: kubernetes:service_account:k8s_pod_01
+    source: kubernetes:pod:k8s_pod_01
+  - destination: aws:security_group:infracopilot:infracopilot
+    source: aws:load_balancer:load_balancer_api_gateway_01_k8s_pod_01
+  - destination: aws:subnet_private:infracopilot:infracopilot_private0
+    source: aws:load_balancer:load_balancer_api_gateway_01_k8s_pod_01
+  - destination: aws:subnet_private:infracopilot:infracopilot_private1
+    source: aws:load_balancer:load_balancer_api_gateway_01_k8s_pod_01
+  - destination: aws:load_balancer_listener:load_balancer_listener_api_gateway_01_k8s_pod_01
+    source: aws:load_balancer:load_balancer_api_gateway_01_k8s_pod_01
+  - destination: aws:eks_node_group:eks_cluster_01-eks_cluster_01_private_t3_medium
+    source: kubernetes:helm_chart:eks_cluster_01-cert-manager
+  - destination: kubernetes:service:service_api_gateway_01_k8s_pod_01
+    source: kubernetes:target_group_binding:target_group_binding_api_gateway_01_k8s_pod_01
+  - destination: aws:eks_cluster:eks_cluster_01
+    source: kubernetes:target_group_binding:target_group_binding_api_gateway_01_k8s_pod_01
+  - destination: aws:eks_cluster:eks_cluster_01
+    source: kubernetes:manifest:eks_cluster_01-awmazon-cloudwatch-ns
+  - destination: aws:vpc:infracopilot
+    source: aws:internet_gateway:infracopilot_igw
+  - destination: aws:vpc:infracopilot
+    source: aws:subnet_private:infracopilot:infracopilot_private1
+  - destination: aws:availability_zones:AvailabilityZones
+    source: aws:subnet_private:infracopilot:infracopilot_private1
+  - destination: aws:nat_gateway:infracopilot_1
+    source: aws:subnet_private:infracopilot:infracopilot_private1
+  - destination: aws:eks_cluster:eks_cluster_01
+    source: kubernetes:service_account:k8s_pod_01
+  - destination: aws:eks_cluster:eks_cluster_01
+    source: kubernetes:manifest:eks_cluster_01-fluent-bit
+  - destination: kubernetes:manifest:eks_cluster_01-fluent-bit-cluster-info-config-map
+    source: kubernetes:manifest:eks_cluster_01-fluent-bit
+  - destination: aws:vpc:infracopilot
+    source: aws:subnet_public:infracopilot:infracopilot_public1
+  - destination: aws:availability_zones:AvailabilityZones
+    source: aws:subnet_public:infracopilot:infracopilot_public1
+  - destination: aws:load_balancer:load_balancer_api_gateway_01_k8s_pod_01
+    source: aws:vpc_link:aws-load_balancer-load_balancer_api_gateway_01_k8s_pod_01
+  - destination: aws:eks_cluster:eks_cluster_01
+    source: kubernetes:manifest:eks_cluster_01-fluent-bit-cluster-info-config-map
+  - destination: kubernetes:manifest:eks_cluster_01-awmazon-cloudwatch-ns
+    source: kubernetes:manifest:eks_cluster_01-fluent-bit-cluster-info-config-map
+  - destination: aws:subnet_private:infracopilot:infracopilot_private0
+    source: aws:route_table:infracopilot_private0
+  - destination: aws:nat_gateway:infracopilot_0
+    source: aws:route_table:infracopilot_private0
+  - destination: aws:vpc:infracopilot
+    source: aws:route_table:infracopilot_private0
+  - destination: aws:api_method:infracopilot--
+    source: aws:rest_api:api_gateway_01
+  - destination: aws:api_integration:api_integration_api_gateway_01_k8s_pod_01
+    source: aws:rest_api:api_gateway_01
+  - destination: aws:vpc:infracopilot
+    source: aws:subnet_public:infracopilot:infracopilot_public0
+  - destination: aws:availability_zones:AvailabilityZones
+    source: aws:subnet_public:infracopilot:infracopilot_public0
+  - destination: aws:eks_node_group:eks_cluster_01-eks_cluster_01_private_t3_medium
+    source: kubernetes:helm_chart:eks_cluster_01-metrics-server
+  - destination: aws:security_group:infracopilot:infracopilot
+    source: aws:eks_cluster:eks_cluster_01
+  - destination: aws:vpc:infracopilot
+    source: aws:eks_cluster:eks_cluster_01
+  - destination: aws:iam_role:infracopilot-eks_cluster_01-ClusterAdmin
+    source: aws:eks_cluster:eks_cluster_01
+  - destination: aws:subnet_private:infracopilot:infracopilot_private0
+    source: aws:eks_cluster:eks_cluster_01
+  - destination: aws:subnet_public:infracopilot:infracopilot_public0
+    source: aws:eks_cluster:eks_cluster_01
+  - destination: aws:subnet_private:infracopilot:infracopilot_private1
+    source: aws:eks_cluster:eks_cluster_01
+  - destination: aws:subnet_public:infracopilot:infracopilot_public1
+    source: aws:eks_cluster:eks_cluster_01
+  - destination: aws:target_group:target_group_api_gateway_01_k8s_pod_01
+    source: aws:load_balancer_listener:load_balancer_listener_api_gateway_01_k8s_pod_01
+resourceMetadata:
+  - id: aws:api_integration:api_integration_api_gateway_01_k8s_pod_01
+    metadata:
+      connectiontype: VPC_LINK
+      integrationhttpmethod: ''
+      method:
+        authorization: None
+        httpmethod: ''
+        name: infracopilot--
+        requestparameters: {}
+        resource: null
+        restapi:
+          binarymediatypes:
+            - application/octet-stream
+            - image/*
+          name: api_gateway_01
+      name: api_integration_api_gateway_01_k8s_pod_01
+      requestparameters: {}
+      resource: null
+      restapi:
+        binarymediatypes:
+          - application/octet-stream
+          - image/*
+        name: api_gateway_01
+      route: ''
+      type: HTTP_PROXY
+      uri:
+        property: nlb_uri
+        resource:
+          ipaddresstype: ''
+          loadbalancerattributes: {}
+          name: load_balancer_api_gateway_01_k8s_pod_01
+          scheme: internal
+          securitygroups:
+            - egressrules:
+                - cidrblocks:
+                    - property: 0.0.0.0/0
+                      resource: null
+                      type: ''
+                  description: Allows all outbound IPv4 traffic.
+                  fromport: 0
+                  protocol: '-1'
+                  self: false
+                  toport: 0
+              ingressrules:
+                - cidrblocks:
+                    - property: cidr_block
+                      resource:
+                        cidrblock: 10.0.0.0/16
+                        enablednshostnames: true
+                        enablednssupport: true
+                        name: infracopilot
+                      type: vpc
+                  description: Allow ingress traffic from ip addresses within the vpc
+                  fromport: 0
+                  protocol: '-1'
+                  self: false
+                  toport: 0
+                - cidrblocks: []
+                  description: Allow ingress traffic from within the same security group
+                  fromport: 0
+                  protocol: '-1'
+                  self: true
+                  toport: 0
+                - cidrblocks:
+                    - property: 0.0.0.0/0
+                      resource: null
+                      type: ''
+                  description: Allows ingress traffic from the EKS control plane
+                  fromport: 9443
+                  protocol: TCP
+                  self: false
+                  toport: 9443
+              name: infracopilot
+              vpc:
+                cidrblock: 10.0.0.0/16
+                enablednshostnames: true
+                enablednssupport: true
+                name: infracopilot
+          subnets:
+            - availabilityzone:
+                property: '0'
+                resource:
+                  name: AvailabilityZones
+                type: availability_zones
+              cidrblock: 10.0.0.0/18
+              mappubliciponlaunch: false
+              name: infracopilot_private0
+              type: private
+              vpc:
+                cidrblock: 10.0.0.0/16
+                enablednshostnames: true
+                enablednssupport: true
+                name: infracopilot
+            - availabilityzone:
+                property: '1'
+                resource:
+                  name: AvailabilityZones
+                type: availability_zones
+              cidrblock: 10.0.64.0/18
+              mappubliciponlaunch: false
+              name: infracopilot_private1
+              type: private
+              vpc:
+                cidrblock: 10.0.0.0/16
+                enablednshostnames: true
+                enablednssupport: true
+                name: infracopilot
+          tags: {}
+          type: network
+        type: load_balancer
+      vpclink:
+        target:
+          ipaddresstype: ''
+          loadbalancerattributes: {}
+          name: load_balancer_api_gateway_01_k8s_pod_01
+          scheme: internal
+          securitygroups:
+            - egressrules:
+                - cidrblocks:
+                    - property: 0.0.0.0/0
+                      resource: null
+                      type: ''
+                  description: Allows all outbound IPv4 traffic.
+                  fromport: 0
+                  protocol: '-1'
+                  self: false
+                  toport: 0
+              ingressrules:
+                - cidrblocks:
+                    - property: cidr_block
+                      resource:
+                        cidrblock: 10.0.0.0/16
+                        enablednshostnames: true
+                        enablednssupport: true
+                        name: infracopilot
+                      type: vpc
+                  description: Allow ingress traffic from ip addresses within the vpc
+                  fromport: 0
+                  protocol: '-1'
+                  self: false
+                  toport: 0
+                - cidrblocks: []
+                  description: Allow ingress traffic from within the same security group
+                  fromport: 0
+                  protocol: '-1'
+                  self: true
+                  toport: 0
+                - cidrblocks:
+                    - property: 0.0.0.0/0
+                      resource: null
+                      type: ''
+                  description: Allows ingress traffic from the EKS control plane
+                  fromport: 9443
+                  protocol: TCP
+                  self: false
+                  toport: 9443
+              name: infracopilot
+              vpc:
+                cidrblock: 10.0.0.0/16
+                enablednshostnames: true
+                enablednssupport: true
+                name: infracopilot
+          subnets:
+            - availabilityzone:
+                property: '0'
+                resource:
+                  name: AvailabilityZones
+                type: availability_zones
+              cidrblock: 10.0.0.0/18
+              mappubliciponlaunch: false
+              name: infracopilot_private0
+              type: private
+              vpc:
+                cidrblock: 10.0.0.0/16
+                enablednshostnames: true
+                enablednssupport: true
+                name: infracopilot
+            - availabilityzone:
+                property: '1'
+                resource:
+                  name: AvailabilityZones
+                type: availability_zones
+              cidrblock: 10.0.64.0/18
+              mappubliciponlaunch: false
+              name: infracopilot_private1
+              type: private
+              vpc:
+                cidrblock: 10.0.0.0/16
+                enablednshostnames: true
+                enablednssupport: true
+                name: infracopilot
+          tags: {}
+          type: network
+  - id: aws:api_method:infracopilot--
+    metadata:
+      authorization: None
+      httpmethod: ''
+      name: infracopilot--
+      requestparameters: {}
+      resource: null
+      restapi:
+        binarymediatypes:
+          - application/octet-stream
+          - image/*
+        name: api_gateway_01
+  - id: aws:availability_zones:AvailabilityZones
+    metadata:
+      name: AvailabilityZones
+  - id: aws:eks_cluster:eks_cluster_01
+    metadata:
+      clusterrole:
+        assumerolepolicydoc:
+          statement:
+            - action:
+                - sts:AssumeRole
+              condition: null
+              effect: Allow
+              principal:
+                aws: null
+                federated: null
+                service: eks.amazonaws.com
+              resource: []
+          version: '2012-10-17'
+        awsmanagedpolicies:
+          - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+        inlinepolicies: []
+        managedpolicies: []
+        name: infracopilot-eks_cluster_01-ClusterAdmin
+      name: eks_cluster_01
+      securitygroups:
+        - egressrules:
+            - cidrblocks:
+                - property: 0.0.0.0/0
+                  resource: null
+                  type: ''
+              description: Allows all outbound IPv4 traffic.
+              fromport: 0
+              protocol: '-1'
+              self: false
+              toport: 0
+          ingressrules:
+            - cidrblocks:
+                - property: cidr_block
+                  resource:
+                    cidrblock: 10.0.0.0/16
+                    enablednshostnames: true
+                    enablednssupport: true
+                    name: infracopilot
+                  type: vpc
+              description: Allow ingress traffic from ip addresses within the vpc
+              fromport: 0
+              protocol: '-1'
+              self: false
+              toport: 0
+            - cidrblocks: []
+              description: Allow ingress traffic from within the same security group
+              fromport: 0
+              protocol: '-1'
+              self: true
+              toport: 0
+            - cidrblocks:
+                - property: 0.0.0.0/0
+                  resource: null
+                  type: ''
+              description: Allows ingress traffic from the EKS control plane
+              fromport: 9443
+              protocol: TCP
+              self: false
+              toport: 9443
+          name: infracopilot
+          vpc:
+            cidrblock: 10.0.0.0/16
+            enablednshostnames: true
+            enablednssupport: true
+            name: infracopilot
+      subnets:
+        - availabilityzone:
+            property: '0'
+            resource:
+              name: AvailabilityZones
+            type: availability_zones
+          cidrblock: 10.0.0.0/18
+          mappubliciponlaunch: false
+          name: infracopilot_private0
+          type: private
+          vpc:
+            cidrblock: 10.0.0.0/16
+            enablednshostnames: true
+            enablednssupport: true
+            name: infracopilot
+        - availabilityzone:
+            property: '0'
+            resource:
+              name: AvailabilityZones
+            type: availability_zones
+          cidrblock: 10.0.128.0/18
+          mappubliciponlaunch: true
+          name: infracopilot_public0
+          type: public
+          vpc:
+            cidrblock: 10.0.0.0/16
+            enablednshostnames: true
+            enablednssupport: true
+            name: infracopilot
+        - availabilityzone:
+            property: '1'
+            resource:
+              name: AvailabilityZones
+            type: availability_zones
+          cidrblock: 10.0.64.0/18
+          mappubliciponlaunch: false
+          name: infracopilot_private1
+          type: private
+          vpc:
+            cidrblock: 10.0.0.0/16
+            enablednshostnames: true
+            enablednssupport: true
+            name: infracopilot
+        - availabilityzone:
+            property: '1'
+            resource:
+              name: AvailabilityZones
+            type: availability_zones
+          cidrblock: ''
+          mappubliciponlaunch: false
+          name: infracopilot_public1
+          type: public
+          vpc:
+            cidrblock: 10.0.0.0/16
+            enablednshostnames: true
+            enablednssupport: true
+            name: infracopilot
+      vpc:
+        cidrblock: 10.0.0.0/16
+        enablednshostnames: true
+        enablednssupport: true
+        name: infracopilot
+  - id: aws:eks_node_group:eks_cluster_01-eks_cluster_01_private_t3_medium
+    metadata:
+      amitype: AL2_x86_64
+      cluster:
+        clusterrole:
+          assumerolepolicydoc:
+            statement:
+              - action:
+                  - sts:AssumeRole
+                condition: null
+                effect: Allow
+                principal:
+                  aws: null
+                  federated: null
+                  service: eks.amazonaws.com
+                resource: []
+            version: '2012-10-17'
+          awsmanagedpolicies:
+            - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+          inlinepolicies: []
+          managedpolicies: []
+          name: infracopilot-eks_cluster_01-ClusterAdmin
+        name: eks_cluster_01
+        securitygroups:
+          - egressrules:
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows all outbound IPv4 traffic.
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+            ingressrules:
+              - cidrblocks:
+                  - property: cidr_block
+                    resource:
+                      cidrblock: 10.0.0.0/16
+                      enablednshostnames: true
+                      enablednssupport: true
+                      name: infracopilot
+                    type: vpc
+                description: Allow ingress traffic from ip addresses within the vpc
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+              - cidrblocks: []
+                description: Allow ingress traffic from within the same security group
+                fromport: 0
+                protocol: '-1'
+                self: true
+                toport: 0
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows ingress traffic from the EKS control plane
+                fromport: 9443
+                protocol: TCP
+                self: false
+                toport: 9443
+            name: infracopilot
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        subnets:
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.0.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private0
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.128.0/18
+            mappubliciponlaunch: true
+            name: infracopilot_public0
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.64.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private1
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: ''
+            mappubliciponlaunch: false
+            name: infracopilot_public1
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        vpc:
+          cidrblock: 10.0.0.0/16
+          enablednshostnames: true
+          enablednssupport: true
+          name: infracopilot
+      desiredsize: 2
+      disksize: 0
+      instancetypes:
+        - t3.medium
+      labels:
+        network_placement: private
+      maxsize: 2
+      maxunavailable: 1
+      minsize: 1
+      name: eks_cluster_01-eks_cluster_01_private_t3_medium
+      noderole:
+        assumerolepolicydoc:
+          statement:
+            - action:
+                - sts:AssumeRole
+              condition: null
+              effect: Allow
+              principal:
+                aws: null
+                federated: null
+                service: ec2.amazonaws.com
+              resource: []
+          version: '2012-10-17'
+        awsmanagedpolicies:
+          - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+          - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+          - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+          - arn:aws:iam::aws:policy/AWSCloudMapFullAccess
+          - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+          - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        inlinepolicies: []
+        managedpolicies: []
+        name: infracopilot-eks_cluster_01-eks_cluster_01_priva155fb02a
+      subnets:
+        - availabilityzone:
+            property: '1'
+            resource:
+              name: AvailabilityZones
+            type: availability_zones
+          cidrblock: 10.0.64.0/18
+          mappubliciponlaunch: false
+          name: infracopilot_private1
+          type: private
+          vpc:
+            cidrblock: 10.0.0.0/16
+            enablednshostnames: true
+            enablednssupport: true
+            name: infracopilot
+        - availabilityzone:
+            property: '0'
+            resource:
+              name: AvailabilityZones
+            type: availability_zones
+          cidrblock: 10.0.0.0/18
+          mappubliciponlaunch: false
+          name: infracopilot_private0
+          type: private
+          vpc:
+            cidrblock: 10.0.0.0/16
+            enablednshostnames: true
+            enablednssupport: true
+            name: infracopilot
+  - id: aws:elastic_ip:infracopilot_0
+    metadata:
+      name: infracopilot_0
+  - id: aws:elastic_ip:infracopilot_1
+    metadata:
+      name: infracopilot_1
+  - id: aws:iam_role:infracopilot-eks_cluster_01-ClusterAdmin
+    metadata:
+      assumerolepolicydoc:
+        statement:
+          - action:
+              - sts:AssumeRole
+            condition: null
+            effect: Allow
+            principal:
+              aws: null
+              federated: null
+              service: eks.amazonaws.com
+            resource: []
+        version: '2012-10-17'
+      awsmanagedpolicies:
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+      inlinepolicies: []
+      managedpolicies: []
+      name: infracopilot-eks_cluster_01-ClusterAdmin
+  - id: aws:iam_role:infracopilot-eks_cluster_01-eks_cluster_01_priva155fb02a
+    metadata:
+      assumerolepolicydoc:
+        statement:
+          - action:
+              - sts:AssumeRole
+            condition: null
+            effect: Allow
+            principal:
+              aws: null
+              federated: null
+              service: ec2.amazonaws.com
+            resource: []
+        version: '2012-10-17'
+      awsmanagedpolicies:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AWSCloudMapFullAccess
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      inlinepolicies: []
+      managedpolicies: []
+      name: infracopilot-eks_cluster_01-eks_cluster_01_priva155fb02a
+  - id: aws:internet_gateway:infracopilot_igw
+    metadata:
+      name: infracopilot_igw
+      vpc:
+        cidrblock: 10.0.0.0/16
+        enablednshostnames: true
+        enablednssupport: true
+        name: infracopilot
+  - id: aws:load_balancer:load_balancer_api_gateway_01_k8s_pod_01
+    metadata:
+      ipaddresstype: ''
+      loadbalancerattributes: {}
+      name: load_balancer_api_gateway_01_k8s_pod_01
+      scheme: internal
+      securitygroups:
+        - egressrules:
+            - cidrblocks:
+                - property: 0.0.0.0/0
+                  resource: null
+                  type: ''
+              description: Allows all outbound IPv4 traffic.
+              fromport: 0
+              protocol: '-1'
+              self: false
+              toport: 0
+          ingressrules:
+            - cidrblocks:
+                - property: cidr_block
+                  resource:
+                    cidrblock: 10.0.0.0/16
+                    enablednshostnames: true
+                    enablednssupport: true
+                    name: infracopilot
+                  type: vpc
+              description: Allow ingress traffic from ip addresses within the vpc
+              fromport: 0
+              protocol: '-1'
+              self: false
+              toport: 0
+            - cidrblocks: []
+              description: Allow ingress traffic from within the same security group
+              fromport: 0
+              protocol: '-1'
+              self: true
+              toport: 0
+            - cidrblocks:
+                - property: 0.0.0.0/0
+                  resource: null
+                  type: ''
+              description: Allows ingress traffic from the EKS control plane
+              fromport: 9443
+              protocol: TCP
+              self: false
+              toport: 9443
+          name: infracopilot
+          vpc:
+            cidrblock: 10.0.0.0/16
+            enablednshostnames: true
+            enablednssupport: true
+            name: infracopilot
+      subnets:
+        - availabilityzone:
+            property: '0'
+            resource:
+              name: AvailabilityZones
+            type: availability_zones
+          cidrblock: 10.0.0.0/18
+          mappubliciponlaunch: false
+          name: infracopilot_private0
+          type: private
+          vpc:
+            cidrblock: 10.0.0.0/16
+            enablednshostnames: true
+            enablednssupport: true
+            name: infracopilot
+        - availabilityzone:
+            property: '1'
+            resource:
+              name: AvailabilityZones
+            type: availability_zones
+          cidrblock: 10.0.64.0/18
+          mappubliciponlaunch: false
+          name: infracopilot_private1
+          type: private
+          vpc:
+            cidrblock: 10.0.0.0/16
+            enablednshostnames: true
+            enablednssupport: true
+            name: infracopilot
+      tags: {}
+      type: network
+  - id: aws:load_balancer_listener:load_balancer_listener_api_gateway_01_k8s_pod_01
+    metadata:
+      defaultactions:
+        - targetgrouparn:
+            property: arn
+            resource:
+              name: target_group_api_gateway_01_k8s_pod_01
+              port: 0
+              protocol: ''
+              tags: {}
+              targets: []
+              targettype: ''
+              vpc:
+                cidrblock: 10.0.0.0/16
+                enablednshostnames: true
+                enablednssupport: true
+                name: infracopilot
+            type: target_group
+          type: forward
+      loadbalancer:
+        ipaddresstype: ''
+        loadbalancerattributes: {}
+        name: load_balancer_api_gateway_01_k8s_pod_01
+        scheme: internal
+        securitygroups:
+          - egressrules:
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows all outbound IPv4 traffic.
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+            ingressrules:
+              - cidrblocks:
+                  - property: cidr_block
+                    resource:
+                      cidrblock: 10.0.0.0/16
+                      enablednshostnames: true
+                      enablednssupport: true
+                      name: infracopilot
+                    type: vpc
+                description: Allow ingress traffic from ip addresses within the vpc
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+              - cidrblocks: []
+                description: Allow ingress traffic from within the same security group
+                fromport: 0
+                protocol: '-1'
+                self: true
+                toport: 0
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows ingress traffic from the EKS control plane
+                fromport: 9443
+                protocol: TCP
+                self: false
+                toport: 9443
+            name: infracopilot
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        subnets:
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.0.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private0
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.64.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private1
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        tags: {}
+        type: network
+      name: load_balancer_listener_api_gateway_01_k8s_pod_01
+      port: 80
+      protocol: ''
+  - id: aws:nat_gateway:infracopilot_0
+    metadata:
+      elasticip:
+        name: infracopilot_1
+      name: infracopilot_0
+      subnet:
+        availabilityzone:
+          property: '1'
+          resource:
+            name: AvailabilityZones
+          type: availability_zones
+        cidrblock: 10.0.192.0/18
+        mappubliciponlaunch: true
+        name: infracopilot_public1
+        type: public
+        vpc:
+          cidrblock: 10.0.0.0/16
+          enablednshostnames: true
+          enablednssupport: true
+          name: infracopilot
+  - id: aws:nat_gateway:infracopilot_1
+    metadata:
+      elasticip:
+        name: infracopilot_0
+      name: infracopilot_1
+      subnet:
+        availabilityzone:
+          property: '0'
+          resource:
+            name: AvailabilityZones
+          type: availability_zones
+        cidrblock: ''
+        mappubliciponlaunch: false
+        name: infracopilot_public0
+        type: public
+        vpc:
+          cidrblock: 10.0.0.0/16
+          enablednshostnames: true
+          enablednssupport: true
+          name: infracopilot
+  - id: aws:rest_api:api_gateway_01
+    metadata:
+      binarymediatypes:
+        - application/octet-stream
+        - image/*
+      name: api_gateway_01
+  - id: aws:route_table:infracopilot_private0
+    metadata:
+      name: infracopilot_private0
+      routes:
+        - cidrblock: 0.0.0.0/0
+          gatewayid: null
+          natgatewayid:
+            property: id
+            resource:
+              elasticip:
+                name: infracopilot_1
+              name: infracopilot_0
+              subnet:
+                availabilityzone:
+                  property: '1'
+                  resource:
+                    name: AvailabilityZones
+                  type: availability_zones
+                cidrblock: 10.0.192.0/18
+                mappubliciponlaunch: true
+                name: infracopilot_public1
+                type: public
+                vpc:
+                  cidrblock: 10.0.0.0/16
+                  enablednshostnames: true
+                  enablednssupport: true
+                  name: infracopilot
+            type: nat_gateway
+      vpc:
+        cidrblock: 10.0.0.0/16
+        enablednshostnames: true
+        enablednssupport: true
+        name: infracopilot
+  - id: aws:route_table:infracopilot_private1
+    metadata:
+      name: infracopilot_private1
+      routes:
+        - cidrblock: 0.0.0.0/0
+          gatewayid: null
+          natgatewayid:
+            property: id
+            resource:
+              elasticip:
+                name: infracopilot_0
+              name: infracopilot_1
+              subnet:
+                availabilityzone:
+                  property: '0'
+                  resource:
+                    name: AvailabilityZones
+                  type: availability_zones
+                cidrblock: ''
+                mappubliciponlaunch: false
+                name: infracopilot_public0
+                type: public
+                vpc:
+                  cidrblock: 10.0.0.0/16
+                  enablednshostnames: true
+                  enablednssupport: true
+                  name: infracopilot
+            type: nat_gateway
+      vpc:
+        cidrblock: 10.0.0.0/16
+        enablednshostnames: true
+        enablednssupport: true
+        name: infracopilot
+  - id: aws:route_table:infracopilot_public
+    metadata:
+      name: infracopilot_public
+      routes:
+        - cidrblock: 0.0.0.0/0
+          gatewayid:
+            property: id
+            resource:
+              name: infracopilot_igw
+              vpc:
+                cidrblock: 10.0.0.0/16
+                enablednshostnames: true
+                enablednssupport: true
+                name: infracopilot
+            type: internet_gateway
+          natgatewayid: null
+      vpc:
+        cidrblock: 10.0.0.0/16
+        enablednshostnames: true
+        enablednssupport: true
+        name: infracopilot
+  - id: aws:security_group:infracopilot:infracopilot
+    metadata:
+      egressrules:
+        - cidrblocks:
+            - property: 0.0.0.0/0
+              resource: null
+              type: ''
+          description: Allows all outbound IPv4 traffic.
+          fromport: 0
+          protocol: '-1'
+          self: false
+          toport: 0
+      ingressrules:
+        - cidrblocks:
+            - property: cidr_block
+              resource:
+                cidrblock: 10.0.0.0/16
+                enablednshostnames: true
+                enablednssupport: true
+                name: infracopilot
+              type: vpc
+          description: Allow ingress traffic from ip addresses within the vpc
+          fromport: 0
+          protocol: '-1'
+          self: false
+          toport: 0
+        - cidrblocks: []
+          description: Allow ingress traffic from within the same security group
+          fromport: 0
+          protocol: '-1'
+          self: true
+          toport: 0
+        - cidrblocks:
+            - property: 0.0.0.0/0
+              resource: null
+              type: ''
+          description: Allows ingress traffic from the EKS control plane
+          fromport: 9443
+          protocol: TCP
+          self: false
+          toport: 9443
+      name: infracopilot
+      vpc:
+        cidrblock: 10.0.0.0/16
+        enablednshostnames: true
+        enablednssupport: true
+        name: infracopilot
+  - id: aws:subnet_private:infracopilot:infracopilot_private0
+    metadata:
+      availabilityzone:
+        property: '0'
+        resource:
+          name: AvailabilityZones
+        type: availability_zones
+      cidrblock: 10.0.0.0/18
+      mappubliciponlaunch: false
+      name: infracopilot_private0
+      type: private
+      vpc:
+        cidrblock: 10.0.0.0/16
+        enablednshostnames: true
+        enablednssupport: true
+        name: infracopilot
+  - id: aws:subnet_private:infracopilot:infracopilot_private1
+    metadata:
+      availabilityzone:
+        property: '1'
+        resource:
+          name: AvailabilityZones
+        type: availability_zones
+      cidrblock: 10.0.64.0/18
+      mappubliciponlaunch: false
+      name: infracopilot_private1
+      type: private
+      vpc:
+        cidrblock: 10.0.0.0/16
+        enablednshostnames: true
+        enablednssupport: true
+        name: infracopilot
+  - id: aws:subnet_public:infracopilot:infracopilot_public0
+    metadata:
+      availabilityzone:
+        property: '0'
+        resource:
+          name: AvailabilityZones
+        type: availability_zones
+      cidrblock: 10.0.128.0/18
+      mappubliciponlaunch: true
+      name: infracopilot_public0
+      type: public
+      vpc:
+        cidrblock: 10.0.0.0/16
+        enablednshostnames: true
+        enablednssupport: true
+        name: infracopilot
+  - id: aws:subnet_public:infracopilot:infracopilot_public1
+    metadata:
+      availabilityzone:
+        property: '1'
+        resource:
+          name: AvailabilityZones
+        type: availability_zones
+      cidrblock: 10.0.192.0/18
+      mappubliciponlaunch: true
+      name: infracopilot_public1
+      type: public
+      vpc:
+        cidrblock: 10.0.0.0/16
+        enablednshostnames: true
+        enablednssupport: true
+        name: infracopilot
+  - id: aws:target_group:target_group_api_gateway_01_k8s_pod_01
+    metadata:
+      name: target_group_api_gateway_01_k8s_pod_01
+      port: 0
+      protocol: ''
+      tags: {}
+      targets: []
+      targettype: ''
+      vpc:
+        cidrblock: 10.0.0.0/16
+        enablednshostnames: true
+        enablednssupport: true
+        name: infracopilot
+  - id: aws:vpc:infracopilot
+    metadata:
+      cidrblock: 10.0.0.0/16
+      enablednshostnames: true
+      enablednssupport: true
+      name: infracopilot
+  - id: aws:vpc_link:aws-load_balancer-load_balancer_api_gateway_01_k8s_pod_01
+    metadata:
+      target:
+        ipaddresstype: ''
+        loadbalancerattributes: {}
+        name: load_balancer_api_gateway_01_k8s_pod_01
+        scheme: internal
+        securitygroups:
+          - egressrules:
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows all outbound IPv4 traffic.
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+            ingressrules:
+              - cidrblocks:
+                  - property: cidr_block
+                    resource:
+                      cidrblock: 10.0.0.0/16
+                      enablednshostnames: true
+                      enablednssupport: true
+                      name: infracopilot
+                    type: vpc
+                description: Allow ingress traffic from ip addresses within the vpc
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+              - cidrblocks: []
+                description: Allow ingress traffic from within the same security group
+                fromport: 0
+                protocol: '-1'
+                self: true
+                toport: 0
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows ingress traffic from the EKS control plane
+                fromport: 9443
+                protocol: TCP
+                self: false
+                toport: 9443
+            name: infracopilot
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        subnets:
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.0.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private0
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.64.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private1
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        tags: {}
+        type: network
+  - id: kubernetes:helm_chart:eks_cluster_01-cert-manager
+    metadata:
+      chart: cert-manager
+      cluster:
+        clusterrole:
+          assumerolepolicydoc:
+            statement:
+              - action:
+                  - sts:AssumeRole
+                condition: null
+                effect: Allow
+                principal:
+                  aws: null
+                  federated: null
+                  service: eks.amazonaws.com
+                resource: []
+            version: '2012-10-17'
+          awsmanagedpolicies:
+            - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+          inlinepolicies: []
+          managedpolicies: []
+          name: infracopilot-eks_cluster_01-ClusterAdmin
+        name: eks_cluster_01
+        securitygroups:
+          - egressrules:
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows all outbound IPv4 traffic.
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+            ingressrules:
+              - cidrblocks:
+                  - property: cidr_block
+                    resource:
+                      cidrblock: 10.0.0.0/16
+                      enablednshostnames: true
+                      enablednssupport: true
+                      name: infracopilot
+                    type: vpc
+                description: Allow ingress traffic from ip addresses within the vpc
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+              - cidrblocks: []
+                description: Allow ingress traffic from within the same security group
+                fromport: 0
+                protocol: '-1'
+                self: true
+                toport: 0
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows ingress traffic from the EKS control plane
+                fromport: 9443
+                protocol: TCP
+                self: false
+                toport: 9443
+            name: infracopilot
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        subnets:
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.0.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private0
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.128.0/18
+            mappubliciponlaunch: true
+            name: infracopilot_public0
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.64.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private1
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: ''
+            mappubliciponlaunch: false
+            name: infracopilot_public1
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        vpc:
+          cidrblock: 10.0.0.0/16
+          enablednshostnames: true
+          enablednssupport: true
+          name: infracopilot
+      constructrefs: {}
+      directory: ''
+      files: []
+      isinternal: true
+      name: eks_cluster_01-cert-manager
+      namespace: ''
+      repo: https://charts.jetstack.io
+      values:
+        installCRDs: true
+        webhook:
+          timeoutSeconds: 30
+      version: v1.10.0
+  - id: kubernetes:helm_chart:eks_cluster_01-metrics-server
+    metadata:
+      chart: metrics-server
+      cluster:
+        clusterrole:
+          assumerolepolicydoc:
+            statement:
+              - action:
+                  - sts:AssumeRole
+                condition: null
+                effect: Allow
+                principal:
+                  aws: null
+                  federated: null
+                  service: eks.amazonaws.com
+                resource: []
+            version: '2012-10-17'
+          awsmanagedpolicies:
+            - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+          inlinepolicies: []
+          managedpolicies: []
+          name: infracopilot-eks_cluster_01-ClusterAdmin
+        name: eks_cluster_01
+        securitygroups:
+          - egressrules:
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows all outbound IPv4 traffic.
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+            ingressrules:
+              - cidrblocks:
+                  - property: cidr_block
+                    resource:
+                      cidrblock: 10.0.0.0/16
+                      enablednshostnames: true
+                      enablednssupport: true
+                      name: infracopilot
+                    type: vpc
+                description: Allow ingress traffic from ip addresses within the vpc
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+              - cidrblocks: []
+                description: Allow ingress traffic from within the same security group
+                fromport: 0
+                protocol: '-1'
+                self: true
+                toport: 0
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows ingress traffic from the EKS control plane
+                fromport: 9443
+                protocol: TCP
+                self: false
+                toport: 9443
+            name: infracopilot
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        subnets:
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.0.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private0
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.128.0/18
+            mappubliciponlaunch: true
+            name: infracopilot_public0
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.64.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private1
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: ''
+            mappubliciponlaunch: false
+            name: infracopilot_public1
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        vpc:
+          cidrblock: 10.0.0.0/16
+          enablednshostnames: true
+          enablednssupport: true
+          name: infracopilot
+      constructrefs: {}
+      directory: ''
+      files: []
+      isinternal: true
+      name: eks_cluster_01-metrics-server
+      namespace: ''
+      repo: https://kubernetes-sigs.github.io/metrics-server/
+      values: {}
+      version: ''
+  - id: kubernetes:manifest:eks_cluster_01-awmazon-cloudwatch-ns
+    metadata:
+      cluster:
+        clusterrole:
+          assumerolepolicydoc:
+            statement:
+              - action:
+                  - sts:AssumeRole
+                condition: null
+                effect: Allow
+                principal:
+                  aws: null
+                  federated: null
+                  service: eks.amazonaws.com
+                resource: []
+            version: '2012-10-17'
+          awsmanagedpolicies:
+            - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+          inlinepolicies: []
+          managedpolicies: []
+          name: infracopilot-eks_cluster_01-ClusterAdmin
+        name: eks_cluster_01
+        securitygroups:
+          - egressrules:
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows all outbound IPv4 traffic.
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+            ingressrules:
+              - cidrblocks:
+                  - property: cidr_block
+                    resource:
+                      cidrblock: 10.0.0.0/16
+                      enablednshostnames: true
+                      enablednssupport: true
+                      name: infracopilot
+                    type: vpc
+                description: Allow ingress traffic from ip addresses within the vpc
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+              - cidrblocks: []
+                description: Allow ingress traffic from within the same security group
+                fromport: 0
+                protocol: '-1'
+                self: true
+                toport: 0
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows ingress traffic from the EKS control plane
+                fromport: 9443
+                protocol: TCP
+                self: false
+                toport: 9443
+            name: infracopilot
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        subnets:
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.0.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private0
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.128.0/18
+            mappubliciponlaunch: true
+            name: infracopilot_public0
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.64.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private1
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: ''
+            mappubliciponlaunch: false
+            name: infracopilot_public1
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        vpc:
+          cidrblock: 10.0.0.0/16
+          enablednshostnames: true
+          enablednssupport: true
+          name: infracopilot
+      constructrefs: {}
+      content:
+        - 35
+        - 32
+        - 99
+        - 114
+        - 101
+        - 97
+        - 116
+        - 101
+        - 32
+        - 97
+        - 109
+        - 97
+        - 122
+        - 111
+        - 110
+        - 45
+        - 99
+        - 108
+        - 111
+        - 117
+        - 100
+        - 119
+        - 97
+        - 116
+        - 99
+        - 104
+        - 32
+        - 110
+        - 97
+        - 109
+        - 101
+        - 115
+        - 112
+        - 97
+        - 99
+        - 101
+        - 10
+        - 97
+        - 112
+        - 105
+        - 86
+        - 101
+        - 114
+        - 115
+        - 105
+        - 111
+        - 110
+        - 58
+        - 32
+        - 118
+        - 49
+        - 10
+        - 107
+        - 105
+        - 110
+        - 100
+        - 58
+        - 32
+        - 78
+        - 97
+        - 109
+        - 101
+        - 115
+        - 112
+        - 97
+        - 99
+        - 101
+        - 10
+        - 109
+        - 101
+        - 116
+        - 97
+        - 100
+        - 97
+        - 116
+        - 97
+        - 58
+        - 10
+        - 32
+        - 32
+        - 110
+        - 97
+        - 109
+        - 101
+        - 58
+        - 32
+        - 97
+        - 109
+        - 97
+        - 122
+        - 111
+        - 110
+        - 45
+        - 99
+        - 108
+        - 111
+        - 117
+        - 100
+        - 119
+        - 97
+        - 116
+        - 99
+        - 104
+        - 10
+        - 32
+        - 32
+        - 108
+        - 97
+        - 98
+        - 101
+        - 108
+        - 115
+        - 58
+        - 10
+        - 32
+        - 32
+        - 32
+        - 32
+        - 110
+        - 97
+        - 109
+        - 101
+        - 58
+        - 32
+        - 97
+        - 109
+        - 97
+        - 122
+        - 111
+        - 110
+        - 45
+        - 99
+        - 108
+        - 111
+        - 117
+        - 100
+        - 119
+        - 97
+        - 116
+        - 99
+        - 104
+        - 10
+      filepath: manifests/amazon_cloudwatch_namespace.yaml
+      name: eks_cluster_01-awmazon-cloudwatch-ns
+      transformations: {}
+  - id: kubernetes:manifest:eks_cluster_01-fluent-bit
+    metadata:
+      cluster:
+        clusterrole:
+          assumerolepolicydoc:
+            statement:
+              - action:
+                  - sts:AssumeRole
+                condition: null
+                effect: Allow
+                principal:
+                  aws: null
+                  federated: null
+                  service: eks.amazonaws.com
+                resource: []
+            version: '2012-10-17'
+          awsmanagedpolicies:
+            - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+          inlinepolicies: []
+          managedpolicies: []
+          name: infracopilot-eks_cluster_01-ClusterAdmin
+        name: eks_cluster_01
+        securitygroups:
+          - egressrules:
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows all outbound IPv4 traffic.
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+            ingressrules:
+              - cidrblocks:
+                  - property: cidr_block
+                    resource:
+                      cidrblock: 10.0.0.0/16
+                      enablednshostnames: true
+                      enablednssupport: true
+                      name: infracopilot
+                    type: vpc
+                description: Allow ingress traffic from ip addresses within the vpc
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+              - cidrblocks: []
+                description: Allow ingress traffic from within the same security group
+                fromport: 0
+                protocol: '-1'
+                self: true
+                toport: 0
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows ingress traffic from the EKS control plane
+                fromport: 9443
+                protocol: TCP
+                self: false
+                toport: 9443
+            name: infracopilot
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        subnets:
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.0.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private0
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.128.0/18
+            mappubliciponlaunch: true
+            name: infracopilot_public0
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.64.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private1
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: ''
+            mappubliciponlaunch: false
+            name: infracopilot_public1
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        vpc:
+          cidrblock: 10.0.0.0/16
+          enablednshostnames: true
+          enablednssupport: true
+          name: infracopilot
+      constructrefs: {}
+      content: []
+      filepath: https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/fluent-bit/fluent-bit.yaml
+      name: eks_cluster_01-fluent-bit
+      transformations: {}
+  - id: kubernetes:manifest:eks_cluster_01-fluent-bit-cluster-info-config-map
+    metadata:
+      cluster:
+        clusterrole:
+          assumerolepolicydoc:
+            statement:
+              - action:
+                  - sts:AssumeRole
+                condition: null
+                effect: Allow
+                principal:
+                  aws: null
+                  federated: null
+                  service: eks.amazonaws.com
+                resource: []
+            version: '2012-10-17'
+          awsmanagedpolicies:
+            - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+          inlinepolicies: []
+          managedpolicies: []
+          name: infracopilot-eks_cluster_01-ClusterAdmin
+        name: eks_cluster_01
+        securitygroups:
+          - egressrules:
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows all outbound IPv4 traffic.
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+            ingressrules:
+              - cidrblocks:
+                  - property: cidr_block
+                    resource:
+                      cidrblock: 10.0.0.0/16
+                      enablednshostnames: true
+                      enablednssupport: true
+                      name: infracopilot
+                    type: vpc
+                description: Allow ingress traffic from ip addresses within the vpc
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+              - cidrblocks: []
+                description: Allow ingress traffic from within the same security group
+                fromport: 0
+                protocol: '-1'
+                self: true
+                toport: 0
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows ingress traffic from the EKS control plane
+                fromport: 9443
+                protocol: TCP
+                self: false
+                toport: 9443
+            name: infracopilot
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        subnets:
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.0.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private0
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.128.0/18
+            mappubliciponlaunch: true
+            name: infracopilot_public0
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.64.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private1
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: ''
+            mappubliciponlaunch: false
+            name: infracopilot_public1
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        vpc:
+          cidrblock: 10.0.0.0/16
+          enablednshostnames: true
+          enablednssupport: true
+          name: infracopilot
+      constructrefs: {}
+      content:
+        - 97
+        - 112
+        - 105
+        - 86
+        - 101
+        - 114
+        - 115
+        - 105
+        - 111
+        - 110
+        - 58
+        - 32
+        - 118
+        - 49
+        - 10
+        - 107
+        - 105
+        - 110
+        - 100
+        - 58
+        - 32
+        - 67
+        - 111
+        - 110
+        - 102
+        - 105
+        - 103
+        - 77
+        - 97
+        - 112
+        - 10
+        - 109
+        - 101
+        - 116
+        - 97
+        - 100
+        - 97
+        - 116
+        - 97
+        - 58
+        - 10
+        - 32
+        - 32
+        - 110
+        - 97
+        - 109
+        - 101
+        - 58
+        - 32
+        - 102
+        - 108
+        - 117
+        - 101
+        - 110
+        - 116
+        - 45
+        - 98
+        - 105
+        - 116
+        - 45
+        - 99
+        - 108
+        - 117
+        - 115
+        - 116
+        - 101
+        - 114
+        - 45
+        - 105
+        - 110
+        - 102
+        - 111
+        - 10
+        - 32
+        - 32
+        - 110
+        - 97
+        - 109
+        - 101
+        - 115
+        - 112
+        - 97
+        - 99
+        - 101
+        - 58
+        - 32
+        - 97
+        - 109
+        - 97
+        - 122
+        - 111
+        - 110
+        - 45
+        - 99
+        - 108
+        - 111
+        - 117
+        - 100
+        - 119
+        - 97
+        - 116
+        - 99
+        - 104
+        - 10
+        - 32
+        - 32
+        - 108
+        - 97
+        - 98
+        - 101
+        - 108
+        - 115
+        - 58
+        - 10
+        - 32
+        - 32
+        - 32
+        - 32
+        - 107
+        - 56
+        - 115
+        - 45
+        - 97
+        - 112
+        - 112
+        - 58
+        - 32
+        - 102
+        - 108
+        - 117
+        - 101
+        - 110
+        - 116
+        - 45
+        - 98
+        - 105
+        - 116
+        - 10
+        - 100
+        - 97
+        - 116
+        - 97
+        - 58
+        - 10
+        - 32
+        - 32
+        - 99
+        - 108
+        - 117
+        - 115
+        - 116
+        - 101
+        - 114
+        - 46
+        - 110
+        - 97
+        - 109
+        - 101
+        - 58
+        - 32
+        - 82
+        - 69
+        - 80
+        - 76
+        - 65
+        - 67
+        - 69
+        - 95
+        - 77
+        - 69
+        - 10
+        - 32
+        - 32
+        - 108
+        - 111
+        - 103
+        - 115
+        - 46
+        - 114
+        - 101
+        - 103
+        - 105
+        - 111
+        - 110
+        - 58
+        - 32
+        - 82
+        - 69
+        - 80
+        - 76
+        - 65
+        - 67
+        - 69
+        - 95
+        - 77
+        - 69
+        - 10
+        - 32
+        - 32
+        - 104
+        - 116
+        - 116
+        - 112
+        - 46
+        - 115
+        - 101
+        - 114
+        - 118
+        - 101
+        - 114
+        - 58
+        - 32
+        - 39
+        - 79
+        - 110
+        - 39
+        - 10
+        - 32
+        - 32
+        - 104
+        - 116
+        - 116
+        - 112
+        - 46
+        - 112
+        - 111
+        - 114
+        - 116
+        - 58
+        - 32
+        - 39
+        - 50
+        - 48
+        - 50
+        - 48
+        - 39
+        - 10
+        - 32
+        - 32
+        - 114
+        - 101
+        - 97
+        - 100
+        - 46
+        - 104
+        - 101
+        - 97
+        - 100
+        - 58
+        - 32
+        - 39
+        - 79
+        - 102
+        - 102
+        - 39
+        - 10
+        - 32
+        - 32
+        - 114
+        - 101
+        - 97
+        - 100
+        - 46
+        - 116
+        - 97
+        - 105
+        - 108
+        - 58
+        - 32
+        - 39
+        - 79
+        - 110
+        - 39
+        - 10
+      filepath: manifests/fluent_bit_cluster_info.yaml
+      name: eks_cluster_01-fluent-bit-cluster-info-config-map
+      transformations:
+        data["cluster.name"]:
+          property: name
+          resource:
+            clusterrole:
+              assumerolepolicydoc:
+                statement:
+                  - action:
+                      - sts:AssumeRole
+                    condition: null
+                    effect: Allow
+                    principal:
+                      aws: null
+                      federated: null
+                      service: eks.amazonaws.com
+                    resource: []
+                version: '2012-10-17'
+              awsmanagedpolicies:
+                - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+              inlinepolicies: []
+              managedpolicies: []
+              name: infracopilot-eks_cluster_01-ClusterAdmin
+            name: eks_cluster_01
+            securitygroups:
+              - egressrules:
+                  - cidrblocks:
+                      - property: 0.0.0.0/0
+                        resource: null
+                        type: ''
+                    description: Allows all outbound IPv4 traffic.
+                    fromport: 0
+                    protocol: '-1'
+                    self: false
+                    toport: 0
+                ingressrules:
+                  - cidrblocks:
+                      - property: cidr_block
+                        resource:
+                          cidrblock: 10.0.0.0/16
+                          enablednshostnames: true
+                          enablednssupport: true
+                          name: infracopilot
+                        type: vpc
+                    description: Allow ingress traffic from ip addresses within the vpc
+                    fromport: 0
+                    protocol: '-1'
+                    self: false
+                    toport: 0
+                  - cidrblocks: []
+                    description: Allow ingress traffic from within the same security group
+                    fromport: 0
+                    protocol: '-1'
+                    self: true
+                    toport: 0
+                  - cidrblocks:
+                      - property: 0.0.0.0/0
+                        resource: null
+                        type: ''
+                    description: Allows ingress traffic from the EKS control plane
+                    fromport: 9443
+                    protocol: TCP
+                    self: false
+                    toport: 9443
+                name: infracopilot
+                vpc:
+                  cidrblock: 10.0.0.0/16
+                  enablednshostnames: true
+                  enablednssupport: true
+                  name: infracopilot
+            subnets:
+              - availabilityzone:
+                  property: '0'
+                  resource:
+                    name: AvailabilityZones
+                  type: availability_zones
+                cidrblock: 10.0.0.0/18
+                mappubliciponlaunch: false
+                name: infracopilot_private0
+                type: private
+                vpc:
+                  cidrblock: 10.0.0.0/16
+                  enablednshostnames: true
+                  enablednssupport: true
+                  name: infracopilot
+              - availabilityzone:
+                  property: '0'
+                  resource:
+                    name: AvailabilityZones
+                  type: availability_zones
+                cidrblock: 10.0.128.0/18
+                mappubliciponlaunch: true
+                name: infracopilot_public0
+                type: public
+                vpc:
+                  cidrblock: 10.0.0.0/16
+                  enablednshostnames: true
+                  enablednssupport: true
+                  name: infracopilot
+              - availabilityzone:
+                  property: '1'
+                  resource:
+                    name: AvailabilityZones
+                  type: availability_zones
+                cidrblock: 10.0.64.0/18
+                mappubliciponlaunch: false
+                name: infracopilot_private1
+                type: private
+                vpc:
+                  cidrblock: 10.0.0.0/16
+                  enablednshostnames: true
+                  enablednssupport: true
+                  name: infracopilot
+              - availabilityzone:
+                  property: '1'
+                  resource:
+                    name: AvailabilityZones
+                  type: availability_zones
+                cidrblock: ''
+                mappubliciponlaunch: false
+                name: infracopilot_public1
+                type: public
+                vpc:
+                  cidrblock: 10.0.0.0/16
+                  enablednshostnames: true
+                  enablednssupport: true
+                  name: infracopilot
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          type: eks_cluster
+        data["logs.region"]:
+          property: name
+          resource:
+            name: region
+          type: region
+  - id: kubernetes:pod:k8s_pod_01
+    metadata:
+      cluster:
+        clusterrole:
+          assumerolepolicydoc:
+            statement:
+              - action:
+                  - sts:AssumeRole
+                condition: null
+                effect: Allow
+                principal:
+                  aws: null
+                  federated: null
+                  service: eks.amazonaws.com
+                resource: []
+            version: '2012-10-17'
+          awsmanagedpolicies:
+            - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+          inlinepolicies: []
+          managedpolicies: []
+          name: infracopilot-eks_cluster_01-ClusterAdmin
+        name: eks_cluster_01
+        securitygroups:
+          - egressrules:
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows all outbound IPv4 traffic.
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+            ingressrules:
+              - cidrblocks:
+                  - property: cidr_block
+                    resource:
+                      cidrblock: 10.0.0.0/16
+                      enablednshostnames: true
+                      enablednssupport: true
+                      name: infracopilot
+                    type: vpc
+                description: Allow ingress traffic from ip addresses within the vpc
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+              - cidrblocks: []
+                description: Allow ingress traffic from within the same security group
+                fromport: 0
+                protocol: '-1'
+                self: true
+                toport: 0
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows ingress traffic from the EKS control plane
+                fromport: 9443
+                protocol: TCP
+                self: false
+                toport: 9443
+            name: infracopilot
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        subnets:
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.0.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private0
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.128.0/18
+            mappubliciponlaunch: true
+            name: infracopilot_public0
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.64.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private1
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: ''
+            mappubliciponlaunch: false
+            name: infracopilot_public1
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        vpc:
+          cidrblock: 10.0.0.0/16
+          enablednshostnames: true
+          enablednssupport: true
+          name: infracopilot
+      constructrefs: {}
+      filepath: ''
+      name: k8s_pod_01
+      object:
+        objectmeta:
+          annotations: {}
+          creationtimestamp: '0001-01-01T00:00:00Z'
+          deletiongraceperiodseconds: null
+          deletiontimestamp: null
+          finalizers: []
+          generatename: ''
+          generation: 0
+          labels: {}
+          managedfields: []
+          name: ''
+          namespace: ''
+          ownerreferences: []
+          resourceversion: ''
+          selflink: ''
+          uid: ''
+        spec:
+          activedeadlineseconds: null
+          affinity: null
+          automountserviceaccounttoken: null
+          containers: []
+          deprecatedserviceaccount: ''
+          dnsconfig: null
+          dnspolicy: ''
+          enableservicelinks: null
+          ephemeralcontainers: []
+          hostaliases: []
+          hostipc: false
+          hostname: ''
+          hostnetwork: false
+          hostpid: false
+          hostusers: null
+          imagepullsecrets: []
+          initcontainers: []
+          nodename: ''
+          nodeselector: {}
+          os: null
+          overhead: {}
+          preemptionpolicy: null
+          priority: null
+          priorityclassname: ''
+          readinessgates: []
+          resourceclaims: []
+          restartpolicy: ''
+          runtimeclassname: null
+          schedulername: ''
+          schedulinggates: []
+          securitycontext: null
+          serviceaccountname: k8s_pod_01
+          sethostnameasfqdn: null
+          shareprocessnamespace: null
+          subdomain: ''
+          terminationgraceperiodseconds: null
+          tolerations: []
+          topologyspreadconstraints: []
+          volumes: []
+        status:
+          conditions: []
+          containerstatuses: []
+          ephemeralcontainerstatuses: []
+          hostip: ''
+          initcontainerstatuses: []
+          message: ''
+          nominatednodename: ''
+          phase: ''
+          podip: ''
+          podips: []
+          qosclass: ''
+          reason: ''
+          starttime: null
+        typemeta:
+          apiversion: ''
+          kind: ''
+      transformations: {}
+  - id: kubernetes:service:service_api_gateway_01_k8s_pod_01
+    metadata:
+      cluster:
+        clusterrole:
+          assumerolepolicydoc:
+            statement:
+              - action:
+                  - sts:AssumeRole
+                condition: null
+                effect: Allow
+                principal:
+                  aws: null
+                  federated: null
+                  service: eks.amazonaws.com
+                resource: []
+            version: '2012-10-17'
+          awsmanagedpolicies:
+            - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+          inlinepolicies: []
+          managedpolicies: []
+          name: infracopilot-eks_cluster_01-ClusterAdmin
+        name: eks_cluster_01
+        securitygroups:
+          - egressrules:
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows all outbound IPv4 traffic.
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+            ingressrules:
+              - cidrblocks:
+                  - property: cidr_block
+                    resource:
+                      cidrblock: 10.0.0.0/16
+                      enablednshostnames: true
+                      enablednssupport: true
+                      name: infracopilot
+                    type: vpc
+                description: Allow ingress traffic from ip addresses within the vpc
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+              - cidrblocks: []
+                description: Allow ingress traffic from within the same security group
+                fromport: 0
+                protocol: '-1'
+                self: true
+                toport: 0
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows ingress traffic from the EKS control plane
+                fromport: 9443
+                protocol: TCP
+                self: false
+                toport: 9443
+            name: infracopilot
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        subnets:
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.0.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private0
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.128.0/18
+            mappubliciponlaunch: true
+            name: infracopilot_public0
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.64.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private1
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: ''
+            mappubliciponlaunch: false
+            name: infracopilot_public1
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        vpc:
+          cidrblock: 10.0.0.0/16
+          enablednshostnames: true
+          enablednssupport: true
+          name: infracopilot
+      constructrefs: {}
+      filepath: ''
+      name: service_api_gateway_01_k8s_pod_01
+      object: null
+      transformations: {}
+  - id: kubernetes:service_account:k8s_pod_01
+    metadata:
+      cluster:
+        clusterrole:
+          assumerolepolicydoc:
+            statement:
+              - action:
+                  - sts:AssumeRole
+                condition: null
+                effect: Allow
+                principal:
+                  aws: null
+                  federated: null
+                  service: eks.amazonaws.com
+                resource: []
+            version: '2012-10-17'
+          awsmanagedpolicies:
+            - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+          inlinepolicies: []
+          managedpolicies: []
+          name: infracopilot-eks_cluster_01-ClusterAdmin
+        name: eks_cluster_01
+        securitygroups:
+          - egressrules:
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows all outbound IPv4 traffic.
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+            ingressrules:
+              - cidrblocks:
+                  - property: cidr_block
+                    resource:
+                      cidrblock: 10.0.0.0/16
+                      enablednshostnames: true
+                      enablednssupport: true
+                      name: infracopilot
+                    type: vpc
+                description: Allow ingress traffic from ip addresses within the vpc
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+              - cidrblocks: []
+                description: Allow ingress traffic from within the same security group
+                fromport: 0
+                protocol: '-1'
+                self: true
+                toport: 0
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows ingress traffic from the EKS control plane
+                fromport: 9443
+                protocol: TCP
+                self: false
+                toport: 9443
+            name: infracopilot
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        subnets:
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.0.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private0
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.128.0/18
+            mappubliciponlaunch: true
+            name: infracopilot_public0
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.64.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private1
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: ''
+            mappubliciponlaunch: false
+            name: infracopilot_public1
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        vpc:
+          cidrblock: 10.0.0.0/16
+          enablednshostnames: true
+          enablednssupport: true
+          name: infracopilot
+      constructrefs: {}
+      filepath: ''
+      name: k8s_pod_01
+      object: null
+      transformations: {}
+  - id: kubernetes:target_group_binding:target_group_binding_api_gateway_01_k8s_pod_01
+    metadata:
+      cluster:
+        clusterrole:
+          assumerolepolicydoc:
+            statement:
+              - action:
+                  - sts:AssumeRole
+                condition: null
+                effect: Allow
+                principal:
+                  aws: null
+                  federated: null
+                  service: eks.amazonaws.com
+                resource: []
+            version: '2012-10-17'
+          awsmanagedpolicies:
+            - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+          inlinepolicies: []
+          managedpolicies: []
+          name: infracopilot-eks_cluster_01-ClusterAdmin
+        name: eks_cluster_01
+        securitygroups:
+          - egressrules:
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows all outbound IPv4 traffic.
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+            ingressrules:
+              - cidrblocks:
+                  - property: cidr_block
+                    resource:
+                      cidrblock: 10.0.0.0/16
+                      enablednshostnames: true
+                      enablednssupport: true
+                      name: infracopilot
+                    type: vpc
+                description: Allow ingress traffic from ip addresses within the vpc
+                fromport: 0
+                protocol: '-1'
+                self: false
+                toport: 0
+              - cidrblocks: []
+                description: Allow ingress traffic from within the same security group
+                fromport: 0
+                protocol: '-1'
+                self: true
+                toport: 0
+              - cidrblocks:
+                  - property: 0.0.0.0/0
+                    resource: null
+                    type: ''
+                description: Allows ingress traffic from the EKS control plane
+                fromport: 9443
+                protocol: TCP
+                self: false
+                toport: 9443
+            name: infracopilot
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        subnets:
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.0.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private0
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '0'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.128.0/18
+            mappubliciponlaunch: true
+            name: infracopilot_public0
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: 10.0.64.0/18
+            mappubliciponlaunch: false
+            name: infracopilot_private1
+            type: private
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+          - availabilityzone:
+              property: '1'
+              resource:
+                name: AvailabilityZones
+              type: availability_zones
+            cidrblock: ''
+            mappubliciponlaunch: false
+            name: infracopilot_public1
+            type: public
+            vpc:
+              cidrblock: 10.0.0.0/16
+              enablednshostnames: true
+              enablednssupport: true
+              name: infracopilot
+        vpc:
+          cidrblock: 10.0.0.0/16
+          enablednshostnames: true
+          enablednssupport: true
+          name: infracopilot
+      constructrefs: {}
+      filepath: ''
+      name: target_group_binding_api_gateway_01_k8s_pod_01
+      object:
+        objectmeta:
+          annotations: {}
+          creationtimestamp: '0001-01-01T00:00:00Z'
+          deletiongraceperiodseconds: null
+          deletiontimestamp: null
+          finalizers: []
+          generatename: ''
+          generation: 0
+          labels: {}
+          managedfields: []
+          name: ''
+          namespace: ''
+          ownerreferences: []
+          resourceversion: ''
+          selflink: ''
+          uid: ''
+        spec:
+          ipaddresstype: null
+          networking: null
+          nodeselector: null
+          serviceref:
+            name: ''
+            port:
+              intval: 0
+              strval: ''
+              type: 0
+          targetgrouparn: ''
+          targettype: null
+        status:
+          observedgeneration: null
+        typemeta:
+          apiversion: ''
+          kind: ''
+      transformations: {}
+resources:
+  - aws:api_integration:api_integration_api_gateway_01_k8s_pod_01
+  - aws:api_method:infracopilot--
+  - aws:availability_zones:AvailabilityZones
+  - aws:eks_cluster:eks_cluster_01
+  - aws:eks_node_group:eks_cluster_01-eks_cluster_01_private_t3_medium
+  - aws:elastic_ip:infracopilot_0
+  - aws:elastic_ip:infracopilot_1
+  - aws:iam_role:infracopilot-eks_cluster_01-ClusterAdmin
+  - aws:iam_role:infracopilot-eks_cluster_01-eks_cluster_01_priva155fb02a
+  - aws:internet_gateway:infracopilot_igw
+  - aws:load_balancer:load_balancer_api_gateway_01_k8s_pod_01
+  - aws:load_balancer_listener:load_balancer_listener_api_gateway_01_k8s_pod_01
+  - aws:nat_gateway:infracopilot_0
+  - aws:nat_gateway:infracopilot_1
+  - aws:rest_api:api_gateway_01
+  - aws:route_table:infracopilot_private0
+  - aws:route_table:infracopilot_private1
+  - aws:route_table:infracopilot_public
+  - aws:security_group:infracopilot:infracopilot
+  - aws:subnet_private:infracopilot:infracopilot_private0
+  - aws:subnet_private:infracopilot:infracopilot_private1
+  - aws:subnet_public:infracopilot:infracopilot_public0
+  - aws:subnet_public:infracopilot:infracopilot_public1
+  - aws:target_group:target_group_api_gateway_01_k8s_pod_01
+  - aws:vpc:infracopilot
+  - aws:vpc_link:aws-load_balancer-load_balancer_api_gateway_01_k8s_pod_01
+  - kubernetes:helm_chart:eks_cluster_01-cert-manager
+  - kubernetes:helm_chart:eks_cluster_01-metrics-server
+  - kubernetes:manifest:eks_cluster_01-awmazon-cloudwatch-ns
+  - kubernetes:manifest:eks_cluster_01-fluent-bit
+  - kubernetes:manifest:eks_cluster_01-fluent-bit-cluster-info-config-map
+  - kubernetes:pod:k8s_pod_01
+  - kubernetes:service:service_api_gateway_01_k8s_pod_01
+  - kubernetes:service_account:k8s_pod_01
+  - kubernetes:target_group_binding:target_group_binding_api_gateway_01_k8s_pod_01

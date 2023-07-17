@@ -16,7 +16,7 @@ type (
 		ConstructRefs core.BaseConstructSet
 		Object        *cloudmap.ServiceExport
 		FilePath      string
-		Cluster       core.Resource
+		Cluster       core.ResourceId
 	}
 )
 
@@ -55,7 +55,7 @@ func (se *ServiceExport) Path() string {
 }
 
 func (se *ServiceExport) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if se.Cluster == nil {
+	if se.Cluster.IsZero() {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(se) {
 			if classifier.GetFunctionality(res) == core.Cluster {
@@ -63,8 +63,8 @@ func (se *ServiceExport) MakeOperational(dag *core.ResourceGraph, appName string
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
-			se.Cluster = downstreamClustersFound[0]
-			dag.AddDependency(se, se.Cluster)
+			se.Cluster = downstreamClustersFound[0].Id()
+			dag.AddDependency(se, downstreamClustersFound[0])
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

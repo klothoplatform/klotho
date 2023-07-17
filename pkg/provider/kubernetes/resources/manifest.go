@@ -5,7 +5,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -22,7 +22,7 @@ type (
 		FilePath        string
 		Content         []byte
 		Transformations map[string]core.IaCValue
-		Cluster         core.Resource
+		Cluster         core.ResourceId
 	}
 )
 
@@ -57,7 +57,7 @@ func (manifest *Manifest) DeleteContext() core.DeleteContext {
 }
 
 func (manifest *Manifest) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if manifest.Cluster == nil {
+	if manifest.Cluster.IsZero() {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(manifest) {
 			if classifier.GetFunctionality(res) == core.Cluster {
@@ -65,8 +65,8 @@ func (manifest *Manifest) MakeOperational(dag *core.ResourceGraph, appName strin
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
-			manifest.Cluster = downstreamClustersFound[0]
-			dag.AddDependency(manifest, manifest.Cluster)
+			manifest.Cluster = downstreamClustersFound[0].Id()
+			dag.AddDependency(manifest, downstreamClustersFound[0])
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

@@ -312,7 +312,7 @@ func Test_EksClusterMakeOperational(t *testing.T) {
 		{
 			Name:     "cluster has upstream subnet",
 			Resource: &EksCluster{Name: "my_app"},
-			Existing: []core.Resource{&Subnet{Name: "test", Type: PrivateSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}, Vpc: &Vpc{Name: "test"}}, &Vpc{Name: "test"}},
+			Existing: []core.Resource{&Subnet{Name: "test", Type: PrivateSubnet, AvailabilityZone: core.IaCValue{Property: "1"}, Vpc: &Vpc{Name: "test"}}, &Vpc{Name: "test"}},
 			ExistingDependencies: []coretesting.StringDep{
 				{Source: "aws:subnet_private:test:test", Destination: "aws:vpc:test"},
 				{Source: "aws:eks_cluster:my_app", Destination: "aws:subnet_private:test:test"},

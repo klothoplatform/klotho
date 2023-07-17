@@ -68,7 +68,7 @@ type (
 		Type                  string
 		ConnectionType        string
 		VpcLink               *VpcLink
-		Uri                   *AwsResourceValue
+		Uri                   core.IaCValue
 		Route                 string
 	}
 
@@ -338,16 +338,16 @@ func (deployment *ApiDeployment) Create(dag *core.ResourceGraph, params ApiDeplo
 		graphDeployment := existingDeployment.(*ApiDeployment)
 		graphDeployment.ConstructRefs.AddAll(params.Refs)
 	} else {
-		err := dag.CreateDependencies(deployment, map[string]any{
-			"RestApi": RestApiCreateParams{
-				AppName: params.AppName,
-				Refs:    core.BaseConstructSetOf(deployment),
-				Name:    params.Name,
-			},
+		restApi, err := core.CreateResource[*RestApi](dag, RestApiCreateParams{
+			AppName: params.AppName,
+			Refs:    core.BaseConstructSetOf(deployment),
+			Name:    params.Name,
 		})
 		if err != nil {
 			return err
 		}
+		dag.AddDependency(deployment, restApi)
+		deployment.RestApi = restApi
 	}
 	return nil
 }
@@ -371,21 +371,26 @@ func (stage *ApiStage) Create(dag *core.ResourceGraph, params ApiStageCreatePara
 		graphResource.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
-		err := dag.CreateDependencies(stage, map[string]any{
-			"RestApi": RestApiCreateParams{
-				AppName: params.AppName,
-				Refs:    core.BaseConstructSetOf(stage),
-				Name:    params.Name,
-			},
-			"Deployment": ApiDeploymentCreateParams{
-				AppName: params.AppName,
-				Refs:    core.BaseConstructSetOf(stage),
-				Name:    params.Name,
-			},
+		restApi, err := core.CreateResource[*RestApi](dag, RestApiCreateParams{
+			AppName: params.AppName,
+			Refs:    core.BaseConstructSetOf(stage),
+			Name:    params.Name,
 		})
 		if err != nil {
 			return err
 		}
+		dag.AddDependency(stage, restApi)
+		stage.RestApi = restApi
+		deployment, err := core.CreateResource[*ApiDeployment](dag, ApiDeploymentCreateParams{
+			AppName: params.AppName,
+			Refs:    core.BaseConstructSetOf(stage),
+			Name:    params.Name,
+		})
+		if err != nil {
+			return err
+		}
+		dag.AddDependency(stage, deployment)
+		stage.Deployment = deployment
 	}
 	return nil
 }

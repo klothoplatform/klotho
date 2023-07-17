@@ -22,7 +22,7 @@ type (
 		ConstructRefs        core.BaseConstructSet `yaml:"-"`
 		Role                 *IamRole
 		Image                *EcrImage
-		EnvironmentVariables map[string]*AwsResourceValue `yaml:"-"`
+		EnvironmentVariables map[string]core.IaCValue `yaml:"-"`
 		SecurityGroups       []*SecurityGroup
 		Subnets              []*Subnet
 		Timeout              int
@@ -34,7 +34,7 @@ type (
 		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Function      *LambdaFunction
 		Principal     string
-		Source        *AwsResourceValue
+		Source        core.IaCValue
 		Action        string
 	}
 )
@@ -68,16 +68,16 @@ func (lambda *LambdaFunction) MakeOperational(dag *core.ResourceGraph, appName s
 	if lambda.Role == nil {
 		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, lambda)
 		if len(roles) == 0 {
-			err := dag.CreateDependencies(lambda, map[string]any{
-				"Role": RoleCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-ExecutionRole", lambda.Name),
-					Refs:    core.BaseConstructSetOf(lambda),
-				},
+			role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-ExecutionRole", lambda.Name),
+				Refs:    core.BaseConstructSetOf(lambda),
 			})
 			if err != nil {
 				return err
 			}
+			lambda.Role = role
+			dag.AddDependency(lambda, role)
 		} else if len(roles) == 1 {
 			lambda.Role = roles[0]
 		} else {
@@ -88,16 +88,16 @@ func (lambda *LambdaFunction) MakeOperational(dag *core.ResourceGraph, appName s
 	if lambda.Image == nil {
 		images := core.GetDownstreamResourcesOfType[*EcrImage](dag, lambda)
 		if len(images) == 0 {
-			err := dag.CreateDependencies(lambda, map[string]any{
-				"Image": ImageCreateParams{
-					AppName: appName,
-					Name:    lambda.Name,
-					Refs:    core.BaseConstructSetOf(lambda),
-				},
+			image, err := core.CreateResource[*EcrImage](dag, ImageCreateParams{
+				AppName: appName,
+				Name:    lambda.Name,
+				Refs:    core.BaseConstructSetOf(lambda),
 			})
 			if err != nil {
 				return err
 			}
+			lambda.Image = image
+			dag.AddDependency(lambda, image)
 		} else if len(images) == 1 {
 			lambda.Image = images[0]
 		} else {
@@ -152,7 +152,7 @@ func (lambda *LambdaFunction) Configure(params LambdaFunctionConfigureParams) er
 	lambda.Timeout = 180
 	lambda.MemorySize = 512
 	if lambda.EnvironmentVariables == nil {
-		lambda.EnvironmentVariables = make(map[string]*AwsResourceValue)
+		lambda.EnvironmentVariables = make(map[string]core.IaCValue)
 	}
 
 	if params.Timeout != 0 {
@@ -162,7 +162,7 @@ func (lambda *LambdaFunction) Configure(params LambdaFunctionConfigureParams) er
 		lambda.MemorySize = params.MemorySize
 	}
 	for _, env := range params.EnvironmentVariables {
-		lambda.EnvironmentVariables[env.GetName()] = &AwsResourceValue{PropertyVal: env.GetValue()}
+		lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Property: env.GetValue()}
 	}
 
 	return nil

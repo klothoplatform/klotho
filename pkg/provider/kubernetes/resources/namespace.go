@@ -19,7 +19,7 @@ type (
 		Object          *corev1.Namespace
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.Resource
+		Cluster         core.ResourceId
 	}
 )
 
@@ -58,7 +58,7 @@ func (namespace *Namespace) Path() string {
 }
 
 func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if namespace.Cluster == nil {
+	if namespace.Cluster.IsZero() {
 		downstreamClustersFound := map[string]core.Resource{}
 		for _, res := range dag.GetAllDownstreamResources(namespace) {
 			if classifier.GetFunctionality(res) == core.Cluster {
@@ -76,8 +76,7 @@ func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName str
 
 		if len(downstreamClustersFound) == 1 {
 			_, cluster := collectionutil.GetOneEntry(downstreamClustersFound)
-			namespace.Cluster = cluster
-			dag.AddDependency(namespace, cluster)
+			namespace.Cluster = cluster.Id()
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

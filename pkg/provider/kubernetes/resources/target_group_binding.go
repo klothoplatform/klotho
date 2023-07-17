@@ -17,7 +17,7 @@ type (
 		Object          *elbv2api.TargetGroupBinding
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.Resource
+		Cluster         core.ResourceId
 	}
 )
 
@@ -62,12 +62,12 @@ func (tgb *TargetGroupBinding) MakeOperational(dag *core.ResourceGraph, appName 
 	// if tgb.Object.Spec.TargetGroupARN == "" {
 	// 	// return fmt.Errorf("target group binding %s has no target group arn", tgb.Id())
 	// }
-	if tgb.Cluster == nil {
+	if tgb.Cluster.IsZero() {
 		upstreamService := &Service{Name: tgb.Object.Spec.ServiceRef.Name}
 		upstreamService, found := core.GetResource[*Service](dag, upstreamService.Id())
-		if found && upstreamService.Cluster != nil {
+		if found && !upstreamService.Cluster.IsZero() {
 			tgb.Cluster = upstreamService.Cluster
-			dag.AddDependency(tgb, upstreamService.Cluster)
+			dag.AddDependency(tgb, dag.GetResource(upstreamService.Cluster))
 			return nil
 		}
 		var downstreamClustersFound []core.Resource
@@ -77,7 +77,7 @@ func (tgb *TargetGroupBinding) MakeOperational(dag *core.ResourceGraph, appName 
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
-			tgb.Cluster = downstreamClustersFound[0]
+			tgb.Cluster = downstreamClustersFound[0].Id()
 			dag.AddDependency(tgb, downstreamClustersFound[0])
 			return nil
 		}

@@ -82,15 +82,15 @@ func (image *EcrImage) MakeOperational(dag *core.ResourceGraph, appName string, 
 	if image.Repo == nil {
 		repos := core.GetDownstreamResourcesOfType[*EcrRepository](dag, image)
 		if len(repos) == 0 {
-			err := dag.CreateDependencies(image, map[string]any{
-				"Repo": RepoCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(image),
-				},
+			repo, err := core.CreateResource[*EcrRepository](dag, RepoCreateParams{
+				AppName: appName,
+				Refs:    core.BaseConstructSetOf(image),
 			})
 			if err != nil {
 				return err
 			}
+			image.Repo = repo
+			dag.AddDependency(image, image.Repo)
 		} else if len(repos) == 1 {
 			image.Repo = repos[0]
 			dag.AddDependency(image, image.Repo)

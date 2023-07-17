@@ -15,6 +15,7 @@ import (
 
 // LoadConstructGraphFromFile takes in a path to a file and loads in all of the BaseConstructs and edges which exist in the file.
 func (e *Engine) LoadConstructGraphFromFile(path string) error {
+	fmt.Println("THIS SHOULD SHOW UP")
 	resourcesMap := map[core.ResourceId]core.BaseConstruct{}
 	input := core.InputGraph{}
 	f, err := os.Open(path)
@@ -22,17 +23,17 @@ func (e *Engine) LoadConstructGraphFromFile(path string) error {
 		return err
 	}
 	defer f.Close() // nolint:errcheck
-
+	fmt.Println("Decoding yaml")
 	err = yaml.NewDecoder(f).Decode(&input)
 	if err != nil {
 		return err
 	}
-
+	fmt.Println("Loading constructs")
 	err = e.loadConstructs(input, resourcesMap)
 	if err != nil {
 		return errors.Errorf("Error Loading graph for constructs %s", err.Error())
 	}
-
+	fmt.Println("Loading resources")
 	err = e.LoadResources(input, resourcesMap)
 	if err != nil {
 		return errors.Errorf("Error Loading graph for providers. %s", err.Error())
@@ -64,9 +65,10 @@ func (e *Engine) LoadConstructGraphFromFile(path string) error {
 }
 
 func (e *Engine) LoadResources(graph core.InputGraph, resourcesMap map[core.ResourceId]core.BaseConstruct) error {
-
+	fmt.Println("Loading resources")
 	var joinedErr error
 	for _, node := range graph.Resources {
+		fmt.Println(node)
 		if node.Provider == core.AbstractConstructProvider {
 			continue
 		}
@@ -199,9 +201,7 @@ func setNestedResourceFromId(source core.BaseConstruct, targetValue reflect.Valu
 	case core.Resource:
 		targetValue.Set(reflect.ValueOf(resourceMap[value.Id()]))
 	case core.IaCValue:
-		if value.Resource() != nil {
-			value.SetResource(resourceMap[value.Resource().Id()].(core.Resource))
-		}
+		// fields are already set and have no subfields to process
 	default:
 		correspondingValue := targetValue
 		for correspondingValue.Kind() == reflect.Pointer {

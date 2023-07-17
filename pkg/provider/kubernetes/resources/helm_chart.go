@@ -18,7 +18,7 @@ type HelmChart struct {
 	Files     []ManifestFile
 
 	ConstructRefs core.BaseConstructSet
-	Cluster       core.Resource
+	Cluster       core.ResourceId
 	Repo          string
 	Version       string
 	Namespace     string
@@ -65,7 +65,7 @@ func (t *HelmChart) GetOutputFiles() []core.File {
 }
 
 func (chart *HelmChart) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if chart.Cluster == nil {
+	if chart.Cluster.IsZero() {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(chart) {
 			if classifier.GetFunctionality(res) == core.Cluster {
@@ -73,8 +73,7 @@ func (chart *HelmChart) MakeOperational(dag *core.ResourceGraph, appName string,
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
-			chart.Cluster = downstreamClustersFound[0]
-			dag.AddDependency(chart, chart.Cluster)
+			chart.Cluster = downstreamClustersFound[0].Id()
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

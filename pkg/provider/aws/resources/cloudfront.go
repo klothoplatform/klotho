@@ -59,15 +59,15 @@ type (
 	}
 
 	CloudfrontOrigin struct {
-		DomainName         *AwsResourceValue
+		DomainName         core.IaCValue
 		OriginId           string
-		OriginPath         *AwsResourceValue
+		OriginPath         core.IaCValue
 		S3OriginConfig     S3OriginConfig
 		CustomOriginConfig CustomOriginConfig
 	}
 
 	S3OriginConfig struct {
-		OriginAccessIdentity *AwsResourceValue
+		OriginAccessIdentity core.IaCValue
 	}
 
 	CustomOriginConfig struct {

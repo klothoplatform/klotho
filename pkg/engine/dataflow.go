@@ -150,7 +150,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	// Configure Parent/Child relationships and remove child -> parent edges.
 	for _, dep := range dataFlowDag.ListDependencies() {
 		if collectionutil.Contains(parentResourceTypes, dep.Destination.Id().Type) {
-			if core.IsResourceChild(dep.Source, dep.Destination) {
+			if core.IsResourceChild(dataFlowDag, dep.Source, dep.Destination) {
 				err := dataFlowDag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
 				if err != nil {
 					zap.S().Debugf("Error removing dependency %s", err.Error())

@@ -14,7 +14,7 @@ type (
 		ConstructRefs    core.BaseConstructSet
 		Directory        string
 		ClustersProvider core.IaCValue
-		Cluster          core.IaCValue
+		Cluster          core.ResourceId
 	}
 )
 

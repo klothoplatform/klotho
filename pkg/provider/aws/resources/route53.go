@@ -28,7 +28,7 @@ type (
 		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Zone          *Route53HostedZone
 		Type          string
-		Records       []*AwsResourceValue
+		Records       []core.IaCValue
 		HealthCheck   *Route53HealthCheck
 		TTL           int
 	}

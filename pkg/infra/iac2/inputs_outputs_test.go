@@ -104,7 +104,7 @@ func TestKnownTemplates(t *testing.T) {
 							return
 						}
 						// avoids fields which use nested template or document functionality
-						if inputType.Kind() == reflect.Struct || inputType.Kind() == reflect.Pointer && inputType != reflect.TypeOf((*core.Resource)(nil)).Elem() || inputType != reflect.TypeOf((core.IaCValue)(nil)) {
+						if inputType.Kind() == reflect.Struct || inputType.Kind() == reflect.Pointer && inputType != reflect.TypeOf((*core.Resource)(nil)).Elem() || inputType != reflect.TypeOf(core.IaCValue{}) {
 							return
 						}
 

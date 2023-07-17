@@ -84,7 +84,7 @@ type (
 	ProxyAuth struct {
 		AuthScheme string
 		IamAuth    string
-		SecretArn  *AwsResourceValue
+		SecretArn  core.IaCValue
 	}
 
 	// RdsProxyTargetGroup represents an AWS RDS proxy target group
@@ -260,16 +260,16 @@ func (proxy *RdsProxy) MakeOperational(dag *core.ResourceGraph, appName string, 
 		if len(roles) > 1 {
 			return fmt.Errorf("rds proxy %s has multiple role dependencies", proxy.Name)
 		} else if len(roles) == 0 {
-			err := dag.CreateDependencies(proxy, map[string]any{
-				"Role": RoleCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-ProxyRole", proxy.Name),
-					Refs:    proxy.ConstructRefs,
-				},
+			role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-ProxyRole", proxy.Name),
+				Refs:    core.BaseConstructSetOf(proxy),
 			})
 			if err != nil {
 				return err
 			}
+			proxy.Role = role
+			dag.AddDependency(proxy, role)
 		} else {
 			proxy.Role = roles[0]
 		}
@@ -372,7 +372,7 @@ func (targetGroup *RdsProxyTargetGroup) Configure(params RdsProxyTargetGroupConf
 func (rds *RdsInstance) GetConnectionPolicyDocument() *PolicyDocument {
 	return CreateAllowPolicyDocument(
 		[]string{"rds-db:connect"},
-		[]*AwsResourceValue{{ResourceVal: rds, PropertyVal: RDS_CONNECTION_ARN_IAC_VALUE}})
+		[]core.IaCValue{{ResourceId: rds.Id(), Property: RDS_CONNECTION_ARN_IAC_VALUE}})
 }
 
 // generateUsername generates a random username for the rds instance.

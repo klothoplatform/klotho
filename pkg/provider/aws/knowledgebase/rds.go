@@ -26,7 +26,8 @@ var RdsKB = knowledgebase.Build(
 			if targetGroup.RdsProxy == nil || len(targetGroup.RdsProxy.Auths) == 0 {
 				return fmt.Errorf("proxy is not configured on target group or auths not created")
 			}
-			secret := targetGroup.RdsProxy.Auths[0].SecretArn.ResourceVal.(*resources.Secret)
+			secretResource := dag.GetResource(targetGroup.RdsProxy.Auths[0].SecretArn.ResourceId)
+			secret := secretResource.(*resources.Secret)
 			for _, res := range dag.GetUpstreamResources(secret) {
 				if secretVersion, ok := res.(*resources.SecretVersion); ok {
 					secretVersion.Path = instance.CredentialsPath
@@ -65,7 +66,7 @@ var RdsKB = knowledgebase.Build(
 				proxy.Auths = append(proxy.Auths, &resources.ProxyAuth{
 					AuthScheme: "SECRETS",
 					IamAuth:    "DISABLED",
-					SecretArn:  &resources.AwsResourceValue{ResourceVal: secretVersion.Secret, PropertyVal: resources.ARN_IAC_VALUE},
+					SecretArn:  core.IaCValue{ResourceId: secretVersion.Secret.Id(), Property: resources.ARN_IAC_VALUE},
 				})
 				dag.AddDependency(proxy, secretVersion.Secret)
 
@@ -82,7 +83,8 @@ var RdsKB = knowledgebase.Build(
 			}
 			dag.AddDependenciesReflect(proxy)
 			if targetGroup.RdsInstance != nil {
-				secret := proxy.Auths[0].SecretArn.ResourceVal.(*resources.Secret)
+				secretResource := dag.GetResource(proxy.Auths[0].SecretArn.ResourceId)
+				secret := secretResource.(*resources.Secret)
 				for _, res := range dag.GetUpstreamResources(secret) {
 					if secretVersion, ok := res.(*resources.SecretVersion); ok {
 						secretVersion.Path = targetGroup.RdsInstance.CredentialsPath

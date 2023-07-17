@@ -542,14 +542,14 @@ func Test_SubnetMakeOperational(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {
 				assert.Equal(subnet.Vpc.Name, "my_app")
-				assert.Equal(subnet.AvailabilityZone.PropertyVal, "1")
+				assert.Equal(subnet.AvailabilityZone.Property, "1")
 				assert.Equal(subnet.Type, PublicSubnet)
 			},
 		},
 		{
 			Name:     "subnet has vpc upstream and should assign itself private",
-			Resource: &Subnet{Name: "my_app_subnet", AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}},
-			Existing: []core.Resource{&Vpc{Name: "test"}, &Subnet{Name: "test-down", Type: PublicSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}}},
+			Resource: &Subnet{Name: "my_app_subnet", AvailabilityZone: core.IaCValue{ResourceId: NewAvailabilityZones().Id(), Property: "1"}},
+			Existing: []core.Resource{&Vpc{Name: "test"}, &Subnet{Name: "test-down", Type: PublicSubnet, AvailabilityZone: core.IaCValue{ResourceId: NewAvailabilityZones().Id(), Property: "1"}}},
 			ExistingDependencies: []coretesting.StringDep{
 				{Source: "aws:subnet_public:test-down", Destination: "aws:vpc:test"},
 				{Source: "aws:subnet_:my_app_subnet", Destination: "aws:vpc:test"},
@@ -578,6 +578,7 @@ func Test_SubnetMakeOperational(t *testing.T) {
 					{Source: "aws:route_table:my_app_public", Destination: "aws:internet_gateway:my_app_igw"},
 					{Source: "aws:route_table:my_app_public", Destination: "aws:subnet_public:test:my_app_public1"},
 					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:test"},
+					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:availability_zones:AvailabilityZones"},
 					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:nat_gateway:my_app_1"},
 					{Source: "aws:subnet_private:test:my_app_private1", Destination: "aws:vpc:test"},
 					{Source: "aws:subnet_public:test-down", Destination: "aws:vpc:test"},
@@ -587,14 +588,14 @@ func Test_SubnetMakeOperational(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {
 				assert.Equal(subnet.Vpc.Name, "test")
-				assert.Equal(subnet.AvailabilityZone.PropertyVal, "1")
+				assert.Equal(subnet.AvailabilityZone.Property, "1")
 				assert.Equal(subnet.Type, PrivateSubnet)
 			},
 		},
 		{
 			Name:     "subnet has vpc tied to it and should assign itself az of 0",
 			Resource: &Subnet{Name: "my_app_subnet", Type: PublicSubnet, Vpc: &Vpc{Name: "test"}},
-			Existing: []core.Resource{&Vpc{Name: "test"}, &Subnet{Name: "test-down", Type: PublicSubnet, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}}},
+			Existing: []core.Resource{&Vpc{Name: "test"}, &Subnet{Name: "test-down", Type: PublicSubnet, AvailabilityZone: core.IaCValue{Property: "1"}}},
 			ExistingDependencies: []coretesting.StringDep{
 				{Source: "aws:subnet_public:test-down", Destination: "aws:vpc:test"},
 			},
@@ -615,12 +616,11 @@ func Test_SubnetMakeOperational(t *testing.T) {
 					{Source: "aws:route_table:my_app_public", Destination: "aws:vpc:test"},
 					{Source: "aws:subnet_public:test-down", Destination: "aws:vpc:test"},
 					{Source: "aws:subnet_public:test:my_app_public0", Destination: "aws:availability_zones:AvailabilityZones"},
-					{Source: "aws:subnet_public:test:my_app_public0", Destination: "aws:vpc:test"},
 				},
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {
 				assert.Equal(subnet.Vpc.Name, "test")
-				assert.Equal(subnet.AvailabilityZone.PropertyVal, "0")
+				assert.Equal(subnet.AvailabilityZone.Property, "0")
 				assert.Equal(subnet.Type, PublicSubnet)
 			},
 		},
@@ -731,7 +731,7 @@ func Test_RouteTableMakeOperational(t *testing.T) {
 		{
 			Name:     "route table with private subnets upstream",
 			Resource: &RouteTable{Name: "my_rt"},
-			Existing: []core.Resource{&Subnet{Name: "test", Type: PrivateSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}}},
+			Existing: []core.Resource{&Subnet{Name: "test", Type: PrivateSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: core.IaCValue{Property: "1"}}},
 			ExistingDependencies: []coretesting.StringDep{
 				{Source: "aws:route_table:my_rt", Destination: "aws:subnet_private:test:test"},
 			},
@@ -772,8 +772,8 @@ func Test_RouteTableMakeOperational(t *testing.T) {
 			Resource: &RouteTable{Name: "my_rt"},
 			Existing: []core.Resource{
 				&Vpc{Name: "test"},
-				&Subnet{Name: "test", Type: PrivateSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}},
-				&NatGateway{Name: "mynat", Subnet: &Subnet{Name: "test", Type: PrivateSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}}},
+				&Subnet{Name: "test", Type: PrivateSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: core.IaCValue{Property: "1"}},
+				&NatGateway{Name: "mynat", Subnet: &Subnet{Name: "test", Type: PrivateSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: core.IaCValue{Property: "1"}}},
 			},
 			ExistingDependencies: []coretesting.StringDep{
 				{Source: "aws:route_table:my_rt", Destination: "aws:subnet_private:test:test"},
@@ -801,7 +801,7 @@ func Test_RouteTableMakeOperational(t *testing.T) {
 		{
 			Name:     "route table with Public subnets upstream",
 			Resource: &RouteTable{Name: "my_rt"},
-			Existing: []core.Resource{&Subnet{Name: "test", Type: PublicSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}}},
+			Existing: []core.Resource{&Subnet{Name: "test", Type: PublicSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: core.IaCValue{Property: "1"}}},
 			ExistingDependencies: []coretesting.StringDep{
 				{Source: "aws:route_table:my_rt", Destination: "aws:subnet_public:test:test"},
 			},
@@ -829,7 +829,7 @@ func Test_RouteTableMakeOperational(t *testing.T) {
 			Resource: &RouteTable{Name: "my_rt"},
 			Existing: []core.Resource{
 				&Vpc{Name: "test"},
-				&Subnet{Name: "test", Type: PublicSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: &AwsResourceValue{PropertyVal: "1"}},
+				&Subnet{Name: "test", Type: PublicSubnet, Vpc: &Vpc{Name: "test"}, AvailabilityZone: core.IaCValue{Property: "1"}},
 				&InternetGateway{Name: "myigw"},
 			},
 			ExistingDependencies: []coretesting.StringDep{

@@ -19,7 +19,7 @@ type (
 		Object          *corev1.Pod
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.Resource
+		Cluster         core.ResourceId
 	}
 )
 
@@ -66,7 +66,7 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classif
 		pod.Object.Spec.ServiceAccountName = sa.Name
 		dag.AddDependency(pod, sa)
 	}
-	if pod.Cluster == nil {
+	if pod.Cluster.IsZero() {
 		var downstreamClustersFound []core.Resource
 		for _, res := range dag.GetAllDownstreamResources(pod) {
 			if classifier.GetFunctionality(res) == core.Cluster {
@@ -74,8 +74,8 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classif
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
-			pod.Cluster = downstreamClustersFound[0]
-			dag.AddDependency(pod, pod.Cluster)
+			pod.Cluster = downstreamClustersFound[0].Id()
+			dag.AddDependency(pod, downstreamClustersFound[0])
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

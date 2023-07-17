@@ -18,7 +18,7 @@ type (
 		Object          *corev1.Service
 		Transformations map[string]core.IaCValue
 		FilePath        string
-		Cluster         core.Resource
+		Cluster         core.ResourceId
 	}
 )
 
@@ -56,7 +56,7 @@ func (sa *ServiceAccount) Path() string {
 }
 
 func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if sa.Cluster == nil {
+	if sa.Cluster.IsZero() {
 		downstreamClustersFound := map[string]core.Resource{}
 		for _, res := range dag.GetAllDownstreamResources(sa) {
 			if classifier.GetFunctionality(res) == core.Cluster {
@@ -74,7 +74,7 @@ func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName strin
 
 		if len(downstreamClustersFound) == 1 {
 			_, cluster := collectionutil.GetOneEntry(downstreamClustersFound)
-			sa.Cluster = cluster
+			sa.Cluster = cluster.Id()
 			dag.AddDependency(sa, cluster)
 			return nil
 		}

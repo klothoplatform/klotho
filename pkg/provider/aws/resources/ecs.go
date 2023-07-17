@@ -27,7 +27,7 @@ type (
 		Name                    string
 		ConstructRefs           core.BaseConstructSet `yaml:"-"`
 		Image                   *EcrImage
-		EnvironmentVariables    map[string]*AwsResourceValue
+		EnvironmentVariables    map[string]core.IaCValue
 		Cpu                     string
 		Memory                  string
 		LogGroup                *LogGroup
@@ -72,7 +72,7 @@ type (
 	}
 
 	EcsServiceLoadBalancerConfig struct {
-		TargetGroupArn *AwsResourceValue
+		TargetGroupArn core.IaCValue
 		ContainerName  string
 		ContainerPort  int
 	}
@@ -136,16 +136,16 @@ func (td *EcsTaskDefinition) MakeOperational(dag *core.ResourceGraph, appName st
 	if td.LogGroup == nil {
 		logGroups := core.GetDownstreamResourcesOfType[*LogGroup](dag, td)
 		if len(logGroups) == 0 {
-			err := dag.CreateDependencies(td, map[string]any{
-				"LogGroup": CloudwatchLogGroupCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-LogGroup", td.Name),
-					Refs:    core.BaseConstructSetOf(td),
-				},
+			logGroup, err := core.CreateResource[*LogGroup](dag, CloudwatchLogGroupCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-LogGroup", td.Name),
+				Refs:    core.BaseConstructSetOf(td),
 			})
 			if err != nil {
 				return err
 			}
+			td.LogGroup = logGroup
+			dag.AddDependency(td, logGroup)
 		} else if len(logGroups) == 1 {
 			td.LogGroup = logGroups[0]
 			dag.AddDependenciesReflect(td)
@@ -156,16 +156,16 @@ func (td *EcsTaskDefinition) MakeOperational(dag *core.ResourceGraph, appName st
 	if td.ExecutionRole == nil {
 		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, td)
 		if len(roles) == 0 {
-			err := dag.CreateDependencies(td, map[string]any{
-				"ExecutionRole": RoleCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-ExecutionRole", td.Name),
-					Refs:    core.BaseConstructSetOf(td),
-				},
+			executionRole, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-ExecutionRole", td.Name),
+				Refs:    core.BaseConstructSetOf(td),
 			})
 			if err != nil {
 				return err
 			}
+			td.ExecutionRole = executionRole
+			dag.AddDependency(td, executionRole)
 		} else if len(roles) == 1 {
 			td.ExecutionRole = roles[0]
 			dag.AddDependenciesReflect(td)
@@ -177,16 +177,16 @@ func (td *EcsTaskDefinition) MakeOperational(dag *core.ResourceGraph, appName st
 	if td.Image == nil {
 		images := core.GetDownstreamResourcesOfType[*EcrImage](dag, td)
 		if len(images) == 0 {
-			err := dag.CreateDependencies(td, map[string]any{
-				"Image": ImageCreateParams{
-					AppName: appName,
-					Name:    td.Name,
-					Refs:    core.BaseConstructSetOf(td),
-				},
+			image, err := core.CreateResource[*EcrImage](dag, ImageCreateParams{
+				AppName: appName,
+				Name:    td.Name,
+				Refs:    core.BaseConstructSetOf(td),
 			})
 			if err != nil {
 				return err
 			}
+			td.Image = image
+			dag.AddDependency(td, image)
 		} else if len(images) == 1 {
 			td.Image = images[0]
 			dag.AddDependenciesReflect(td)
@@ -208,10 +208,10 @@ func (td *EcsTaskDefinition) Configure(params EcsTaskDefinitionConfigureParams) 
 		Protocol:      "tcp",
 	}})
 	if td.EnvironmentVariables == nil {
-		td.EnvironmentVariables = make(map[string]*AwsResourceValue)
+		td.EnvironmentVariables = make(map[string]core.IaCValue)
 	}
 	for _, env := range params.EnvironmentVariables {
-		td.EnvironmentVariables[env.GetName()] = &AwsResourceValue{PropertyVal: env.GetValue()}
+		td.EnvironmentVariables[env.GetName()] = core.IaCValue{Property: env.GetValue()}
 	}
 
 	return nil
@@ -253,16 +253,16 @@ func (service *EcsService) MakeOperational(dag *core.ResourceGraph, appName stri
 	if service.Cluster == nil {
 		clusters := core.GetDownstreamResourcesOfType[*EcsCluster](dag, service)
 		if len(clusters) == 0 {
-			err := dag.CreateDependencies(service, map[string]any{
-				"Cluster": EcsClusterCreateParams{
-					AppName: appName,
-					Name:    fmt.Sprintf("%s-cluster", service.Name),
-					Refs:    core.BaseConstructSetOf(service),
-				},
+			cluster, err := core.CreateResource[*EcsCluster](dag, EcsClusterCreateParams{
+				AppName: appName,
+				Name:    fmt.Sprintf("%s-cluster", service.Name),
+				Refs:    core.BaseConstructSetOf(service),
 			})
 			if err != nil {
 				return err
 			}
+			service.Cluster = cluster
+			dag.AddDependency(service, cluster)
 		} else if len(clusters) > 1 {
 			return fmt.Errorf("service %s has more than one cluster downstream", service.Id())
 		} else {
