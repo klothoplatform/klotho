@@ -344,6 +344,8 @@ func getNestedResources(resolver resourceResolver, source BaseConstruct, targetV
 				return []Resource{resource}
 			}
 		}
+	case ResourceId:
+		return []Resource{resolver.GetResource(value)}
 	default:
 		correspondingValue := targetValue
 		for correspondingValue.Kind() == reflect.Pointer {
