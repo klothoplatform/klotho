@@ -7,6 +7,7 @@ import (
 // Filter is a generic interface for a filter that is applied to a slice of type 'T' and returns a subset of the original input as []T
 type Filter[T any] interface {
 	Apply(...T) []T
+	Find(...T) (T, bool)
 }
 
 // SimpleFilter is a filter that filters based on a supplied predicate (Predicate)
@@ -23,6 +24,16 @@ func (f SimpleFilter[T]) Apply(inputs ...T) []T {
 		}
 	}
 	return result
+}
+
+func (f SimpleFilter[T]) Find(inputs ...T) (T, bool) {
+	for _, input := range inputs {
+		if f.Predicate(input) {
+			return input, true
+		}
+	}
+	var zero T
+	return zero, false
 }
 
 // NewSimpleFilter returns a SimpleFilter matching each supplied predicate.Predicate sequentially on a per-input basis
