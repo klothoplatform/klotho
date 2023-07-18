@@ -184,22 +184,25 @@ func correctPointers(source core.BaseConstruct, resourceMap map[core.ResourceId]
 // setNestedResourcesFromIds looks at attributes of a base construct which correspond to resources and sets the field to be the construct which exists in the resource map,
 //
 //	based on the id which exists in the field currently.
-func setNestedResourceFromId(source core.BaseConstruct, targetValue reflect.Value, resourceMap map[core.ResourceId]core.BaseConstruct) {
-	if targetValue.Kind() == reflect.Pointer && targetValue.IsNil() {
+func setNestedResourceFromId(source core.BaseConstruct, targetField reflect.Value, resourceMap map[core.ResourceId]core.BaseConstruct) {
+	if targetField.Kind() == reflect.Pointer && targetField.IsNil() {
 		return
 	}
-	if !targetValue.CanInterface() {
+	if !targetField.CanInterface() {
 		return
 	}
-	switch value := targetValue.Interface().(type) {
+	switch value := targetField.Interface().(type) {
 	case core.Resource:
-		targetValue.Set(reflect.ValueOf(resourceMap[value.Id()]))
+		targetValue := reflect.ValueOf(resourceMap[value.Id()])
+		if targetField.IsValid() && targetField.CanSet() && targetValue.IsValid() {
+			targetField.Set(targetValue)
+		}
 	case core.IaCValue:
 		// fields are already set and have no subfields to process
 	default:
-		correspondingValue := targetValue
+		correspondingValue := targetField
 		for correspondingValue.Kind() == reflect.Pointer {
-			correspondingValue = targetValue.Elem()
+			correspondingValue = targetField.Elem()
 		}
 		switch correspondingValue.Kind() {
 
