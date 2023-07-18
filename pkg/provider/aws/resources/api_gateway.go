@@ -53,8 +53,9 @@ type (
 	}
 
 	VpcLink struct {
+		Name          string
 		ConstructRefs core.BaseConstructSet `yaml:"-"`
-		Target        core.Resource
+		Target        core.ResourceId
 	}
 
 	ApiIntegration struct {
@@ -479,20 +480,13 @@ func (link *VpcLink) BaseConstructRefs() core.BaseConstructSet {
 
 // Id returns the id of the cloud resource
 func (res *VpcLink) Id() core.ResourceId {
-	name := "<no target>"
-	if res.Target != nil {
-		name = strings.ReplaceAll(res.Target.Id().String(), ":", "-")
-	}
 	return core.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     VPC_LINK_TYPE,
-		Name:     name,
+		Name:     res.Name,
 	}
 }
 
-func (res *VpcLink) Name() string {
-	return res.Id().Name
-}
 func (link *VpcLink) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{
 		RequiresNoUpstream:   true,

@@ -72,7 +72,8 @@ var ApiGatewayKB = knowledgebase.Build(
 				return fmt.Errorf("cannot configure integration %s, missing rest api or method", integration.Id())
 			}
 			vpcLink := &resources.VpcLink{
-				Target:        loadBalancer,
+				Name:          string(loadBalancer.Id().Name),
+				Target:        loadBalancer.Id(),
 				ConstructRefs: core.BaseConstructSetOf(loadBalancer, integration),
 			}
 			integration.IntegrationHttpMethod = strings.ToUpper(integration.Method.HttpMethod)
