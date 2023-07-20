@@ -30,12 +30,13 @@ var engineCfg struct {
 }
 
 var getPathsConfig struct {
-	resourceRoots []string
-	maxPathLength int
-	maxPaths      int
-	providers     []string
-	outDir        string
-	verbose       bool
+	resourceRoots   []string
+	resourceTargets []string
+	maxPathLength   int
+	maxPaths        int
+	providers       []string
+	outDir          string
+	verbose         bool
 }
 
 func (km KlothoMain) addEngineCli(root *cobra.Command) error {
@@ -73,9 +74,10 @@ func (km KlothoMain) addEngineCli(root *cobra.Command) error {
 	flags = getPaths.Flags()
 	flags.IntVarP(&getPathsConfig.maxPathLength, "max-path-length", "l", 3, "maximum path length")
 	flags.IntVarP(&getPathsConfig.maxPaths, "max-paths", "m", 1, "maximum number of paths to output")
-	flags.StringSliceVarP(&getPathsConfig.providers, "providers", "p", []string{"klotho", "aws", "kubernetes"}, "generate all paths")
+	flags.StringSliceVarP(&getPathsConfig.providers, "providers", "p", []string{"klotho", "aws", "kubernetes"}, "the providers to use for target resources")
 	flags.StringVarP(&getPathsConfig.outDir, "out-dir", "o", ".", "output directory")
-	flags.StringSliceVarP(&getPathsConfig.resourceRoots, "resource-roots", "r", []string{""}, "generate all paths")
+	flags.StringSliceVarP(&getPathsConfig.resourceRoots, "resource-roots", "r", []string{}, "the resource roots to use for the paths")
+	flags.StringSliceVarP(&getPathsConfig.resourceTargets, "resource-targets", "t", []string{}, "the resource targets to use for the paths")
 	flags.BoolVarP(&getPathsConfig.verbose, "verbose", "v", false, "verbose output")
 
 	root.AddGroup(engineGroup)
@@ -129,10 +131,18 @@ func (km *KlothoMain) GetPaths(cmd *cobra.Command, args []string) error {
 		}).Apply(resourceTypes...)
 
 		var testCases []testCase
+
 		for len(testCases) < getPathsConfig.maxPaths && len(allowedTargets) > 0 {
 			i := rand.Intn(len(allowedTargets))
 			targetResource := allowedTargets[i]
 			allowedTargets = append(allowedTargets[:i], allowedTargets[i+1:]...)
+
+			// limits the target resources to the ones specified by the user
+			if len(getPathsConfig.resourceTargets) > 0 {
+				if !collectionutil.Contains(getPathsConfig.resourceTargets, fmt.Sprintf("%s:%s", targetResource.Id().Provider, targetResource.Id().Type)) {
+					continue
+				}
+			}
 
 			// use reflection to copy startingResource and targetResource
 			startingResource = reflect.New(reflect.TypeOf(startingResource).Elem()).Interface().(core.Resource)
