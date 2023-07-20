@@ -57,7 +57,7 @@ func (constraint *ApplicationConstraint) IsSatisfied(dag *core.ResourceGraph, kb
 		} else if constraint.Node.Provider == core.AbstractConstructProvider && constraint.ReplacementNode.Provider != core.AbstractConstructProvider {
 			return len(dag.FindResourcesWithRef(constraint.Node)) == 0 && dag.GetResource(constraint.ReplacementNode) != nil
 		} else if constraint.Node.Provider != core.AbstractConstructProvider && constraint.ReplacementNode.Provider == core.AbstractConstructProvider {
-			return dag.GetResource(constraint.Node) == nil && len(dag.FindResourcesWithRef(constraint.Node)) > 0
+			return dag.GetResource(constraint.Node) == nil && len(dag.FindResourcesWithRef(constraint.ReplacementNode)) > 0
 		}
 		return dag.GetResource(constraint.Node) == nil && dag.GetResource(constraint.ReplacementNode) != nil
 	}

@@ -302,7 +302,6 @@ func (e *Engine) SolveGraph(context *SolveContext) (*core.ResourceGraph, error) 
 		operationalResources, err := e.MakeResourcesOperational(graph)
 		if err != nil {
 			errorMap[i] = append(errorMap[i], err)
-			continue
 		}
 		zap.S().Debug("Validating constraints")
 		unsatisfiedConstraints := e.ValidateConstraints(context)
@@ -312,7 +311,6 @@ func (e *Engine) SolveGraph(context *SolveContext) (*core.ResourceGraph, error) 
 			joinedErr = errors.Join(joinedErr, error)
 		}
 		context.errors = joinedErr
-
 		if len(unsatisfiedConstraints) > 0 && i == NUM_LOOPS-1 {
 			constraintsString := ""
 			for _, constraint := range unsatisfiedConstraints {

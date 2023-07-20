@@ -497,7 +497,6 @@ func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreatePar
 
 func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
 	zap.S().Debugf("Making route table %s operational", routeTable.Name)
-
 	routeTablesSubnets := core.GetDownstreamResourcesOfType[*Subnet](dag, routeTable)
 	if routeTable.Vpc == nil {
 		vpcs := core.GetAllDownstreamResourcesOfType[*Vpc](dag, routeTable)
@@ -527,7 +526,8 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 		dag.AddDependency(routeTable, vpc)
 	}
 	for _, subnet := range routeTablesSubnets {
-		if subnet.Type == PrivateSubnet {
+		switch subnet.Type {
+		case PrivateSubnet:
 			natAdded := false
 			nats := core.GetUpstreamResourcesOfType[*NatGateway](dag, routeTable.Vpc)
 			for _, nat := range nats {
@@ -555,7 +555,7 @@ func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName s
 					return err
 				}
 			}
-		} else if subnet.Type == PublicSubnet {
+		case PublicSubnet:
 			igwAdded := false
 			igws := core.GetAllUpstreamResourcesOfType[*InternetGateway](dag, routeTable.Vpc)
 			for _, igw := range igws {

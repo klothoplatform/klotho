@@ -376,6 +376,9 @@ func isResourceChild(resolver resourceResolver, source Resource, target Resource
 	if source == target {
 		return true
 	}
+	if source == nil {
+		return false
+	}
 	sourceValue := reflect.ValueOf(source)
 	sourceType := sourceValue.Type()
 	if sourceType.Kind() == reflect.Pointer {

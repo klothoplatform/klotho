@@ -9,6 +9,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"go.uber.org/zap"
 )
 
@@ -33,25 +34,25 @@ func (e *Engine) MakeResourcesOperational(graph *core.ResourceGraph) (map[core.R
 				joinedErr = errors.Join(joinedErr, err)
 				continue
 			}
-		} else {
-			err := callMakeOperational(graph, resource, e.Context.AppName, e.ClassificationDocument)
-			if err != nil {
-				if ore, ok := err.(*core.OperationalResourceError); ok {
-					// If we get a OperationalResourceError let the engine try to reconcile it, and if that fails then mark the resource as non operational so we attempt to rerun on the next loop
-					herr := e.handleDownstreamOperationalResourceError(ore, graph)
-					if herr != nil {
-						err = errors.Join(err, herr)
-					}
-					joinedErr = errors.Join(joinedErr, err)
-				}
-				continue
-			}
+		}
 
-			err = graph.CallConfigure(resource, nil)
-			if err != nil {
+		err := callMakeOperational(graph, resource, e.Context.AppName, e.ClassificationDocument)
+		if err != nil {
+			if ore, ok := err.(*core.OperationalResourceError); ok {
+				// If we get a OperationalResourceError let the engine try to reconcile it, and if that fails then mark the resource as non operational so we attempt to rerun on the next loop
+				herr := e.handleDownstreamOperationalResourceError(ore, graph)
+				if herr != nil {
+					err = errors.Join(err, herr)
+				}
 				joinedErr = errors.Join(joinedErr, err)
-				continue
 			}
+			continue
+		}
+
+		err = graph.CallConfigure(resource, nil)
+		if err != nil {
+			joinedErr = errors.Join(joinedErr, err)
+			continue
 		}
 
 		operationalResources[resource.Id()] = true
@@ -106,16 +107,34 @@ func (e *Engine) TemplateMakeOperational(dag *core.ResourceGraph, resource core.
 
 func (e *Engine) handleDownstreamOperationalRule(resource core.Resource, rule core.OperationalRule, dag *core.ResourceGraph, downstreamParent core.Resource) []error {
 	downstreamResourcesOfType := []core.Resource{}
+
+	// if we are supposed to set a field and the field is already set and has the number of resources needed, we dont need to run this function
+	if rule.SetField != "" {
+		field := reflect.ValueOf(resource).Elem().FieldByName(rule.SetField)
+		if field.IsValid() {
+			if (field.Kind() == reflect.Slice || field.Kind() == reflect.Array) && field.Len() > rule.NumNeeded {
+				return nil
+			} else if field.Kind() == reflect.Ptr && !field.IsNil() {
+				return nil
+			}
+		}
+	}
+
+	downstreamResources := dag.GetDownstreamResources(resource)
+	if rule.Rules != nil {
+		downstreamResources = dag.GetAllDownstreamResources(resource)
+	}
+
 	if rule.ResourceTypes != nil && rule.Classifications != nil {
 		return []error{fmt.Errorf("downstream rule cannot have both a resource type and classifications defined %s", rule.String())}
 	} else if rule.ResourceTypes != nil {
-		for _, down := range dag.GetAllDownstreamResources(resource) {
+		for _, down := range downstreamResources {
 			if collectionutil.Contains(rule.ResourceTypes, down.Id().Type) && down.Id().Provider == resource.Id().Provider {
 				downstreamResourcesOfType = append(downstreamResourcesOfType, down)
 			}
 		}
 	} else if rule.Classifications != nil {
-		for _, down := range dag.GetAllDownstreamResources(resource) {
+		for _, down := range downstreamResources {
 			if e.ClassificationDocument.ResourceContainsClassifications(down, rule.Classifications) {
 				downstreamResourcesOfType = append(downstreamResourcesOfType, down)
 			}
@@ -129,7 +148,7 @@ func (e *Engine) handleDownstreamOperationalRule(resource core.Resource, rule co
 		var res core.Resource
 		var ore *core.OperationalResourceError
 		if len(downstreamResourcesOfType) > 1 {
-			return []error{fmt.Errorf("downstream rule with enforcement only_one has more than one resource of types %s", rule.ResourceTypes)}
+			return []error{fmt.Errorf("downstream rule with enforcement only_one has more than one resource of types %s for resource %s", rule.ResourceTypes, resource.Id())}
 		} else if len(downstreamResourcesOfType) == 0 {
 			switch rule.UnsatisfiedAction.Operation {
 			case core.CreateUnsatisfiedResource:
@@ -149,14 +168,16 @@ func (e *Engine) handleDownstreamOperationalRule(resource core.Resource, rule co
 					Count:      1,
 					Needs:      needs,
 					MustCreate: rule.UnsatisfiedAction.Unique,
-					Cause:      fmt.Errorf("downstream rule with enforcement any has less than the required number of resources of type %s, %d", rule.ResourceTypes, len(downstreamResourcesOfType)),
+					Cause:      fmt.Errorf("downstream rule with enforcement exactly one has less than the required number of resources of type %s, %d", rule.ResourceTypes, len(downstreamResourcesOfType)),
 				}
 			case core.ErrorUnsatisfiedResource:
-				return []error{fmt.Errorf("downstream rule with enforcement any has less than the required number of resources of type %s, %d", rule.ResourceTypes, len(downstreamResourcesOfType))}
+				return []error{fmt.Errorf("downstream rule with enforcement exactly one has less than the required number of resources of type %s, %d", rule.ResourceTypes, len(downstreamResourcesOfType))}
 			}
 		} else {
 			res = downstreamResourcesOfType[0]
-			dag.AddDependency(resource, res)
+			if !rule.RemoveDirectDependency {
+				dag.AddDependency(resource, res)
+			}
 			setField(resource, rule, res)
 			if downstreamParent != nil {
 				dag.AddDependency(res, downstreamParent)
@@ -172,6 +193,7 @@ func (e *Engine) handleDownstreamOperationalRule(resource core.Resource, rule co
 		if subRuleErrors != nil {
 			return subRuleErrors
 		}
+
 		if ore != nil {
 			return []error{ore}
 		}
@@ -179,9 +201,11 @@ func (e *Engine) handleDownstreamOperationalRule(resource core.Resource, rule co
 			return []error{fmt.Errorf("no resources found that can satisfy the operational resource rule %s, for %s", rule.String(), resource.Id())}
 		}
 		if rule.RemoveDirectDependency {
-			err := dag.RemoveDependency(resource.Id(), res.Id())
-			if err != nil {
-				return []error{err}
+			if dag.GetDependency(resource.Id(), res.Id()) != nil {
+				err := dag.RemoveDependency(resource.Id(), res.Id())
+				if err != nil {
+					return []error{err}
+				}
 			}
 		}
 	case core.Conditional:
@@ -191,9 +215,11 @@ func (e *Engine) handleDownstreamOperationalRule(resource core.Resource, rule co
 		if len(downstreamResourcesOfType) == 1 {
 			setField(resource, rule, downstreamResourcesOfType[0])
 			if rule.RemoveDirectDependency {
-				err := dag.RemoveDependency(resource.Id(), downstreamResourcesOfType[0].Id())
-				if err != nil {
-					return []error{err}
+				if dag.GetDependency(resource.Id(), downstreamResourcesOfType[0].Id()) != nil {
+					err := dag.RemoveDependency(resource.Id(), downstreamResourcesOfType[0].Id())
+					if err != nil {
+						return []error{err}
+					}
 				}
 			}
 			var subRuleErrors []error
@@ -258,7 +284,7 @@ func (e *Engine) handleDownstreamOperationalRule(resource core.Resource, rule co
 		if ore != nil {
 			return []error{ore}
 		}
-		if len(downstreamResourcesOfType) != rule.NumNeeded {
+		if len(downstreamResourcesOfType) < rule.NumNeeded {
 			return []error{fmt.Errorf("downstream rule with enforcement any available has less than the required number of resources of type %s, %d", rule.ResourceTypes, len(downstreamResourcesOfType))}
 		}
 	default:
@@ -286,15 +312,14 @@ func nameResource(res core.Resource, resource core.Resource, addToName string) {
 // handleOperationalResourceError tries to determine how to fix OperatioanlResourceErrors by adding dependencies to the resource graph where needed.
 // If the error cannot be fixed, it will return an error.
 func (e *Engine) handleDownstreamOperationalResourceError(err *core.OperationalResourceError, dag *core.ResourceGraph) error {
-
 	resources := e.ListResources()
 
 	// determine the type of resource necessary to satisfy the operational resource error
 	var neededResource core.Resource
 	for _, res := range resources {
 		if e.ClassificationDocument.ResourceContainsClassifications(res, err.Needs) {
-			_, found := e.KnowledgeBase.GetEdge(err.Resource, res)
-			if !found {
+			paths := e.KnowledgeBase.FindPaths(err.Resource, res, knowledgebase.EdgeConstraint{})
+			if len(paths) == 0 {
 				continue
 			}
 			if neededResource != nil {
@@ -335,7 +360,7 @@ func (e *Engine) handleDownstreamOperationalResourceError(err *core.OperationalR
 		}
 	}
 	// if theres no available resources from us to choose from, we must create new resources
-	if len(availableResources) == 0 {
+	if len(availableResources) < err.Count-numSatisfied {
 		for i := numSatisfied; i < err.Count; i++ {
 			newRes := reflect.New(reflect.TypeOf(neededResource).Elem()).Interface().(core.Resource)
 			if err.Count-numSatisfied == 1 {
@@ -347,25 +372,27 @@ func (e *Engine) handleDownstreamOperationalResourceError(err *core.OperationalR
 			if err.Parent != nil {
 				dag.AddDependency(newRes, err.Parent)
 			}
+			numSatisfied++
 		}
-	} else {
-		resourceIds := []string{}
+	}
+
+	resourceIds := []string{}
+	for _, res := range availableResources {
+		resourceIds = append(resourceIds, res.Id().Name)
+	}
+	sort.Strings(resourceIds)
+	if err.Count-numSatisfied > len(resourceIds) {
+		return fmt.Errorf("not enough resources found that can satisfy operational exception error, %s", err.Error())
+	}
+	for i := 0; i < err.Count-numSatisfied; i++ {
 		for _, res := range availableResources {
-			resourceIds = append(resourceIds, res.Id().Name)
-		}
-		sort.Strings(resourceIds)
-		if err.Count-numSatisfied > len(resourceIds) {
-			return fmt.Errorf("not enough resources found that can satisfy operational exception error, %s", err.Error())
-		}
-		for i := 0; i < err.Count-numSatisfied; i++ {
-			for _, res := range availableResources {
-				if res.Id().Name == resourceIds[i] {
-					dag.AddDependency(err.Resource, res)
-					break
-				}
+			if res.Id().Name == resourceIds[i] {
+				dag.AddDependency(err.Resource, res)
+				break
 			}
 		}
 	}
+
 	return nil
 }
 

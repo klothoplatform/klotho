@@ -1,5 +1,5 @@
 provider: aws
-type: ecr_image
+type: log_group
 configuration:
   - field: RetentionInDays
     value: 5

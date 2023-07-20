@@ -77,6 +77,7 @@ func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName str
 		if len(downstreamClustersFound) == 1 {
 			_, cluster := collectionutil.GetOneEntry(downstreamClustersFound)
 			namespace.Cluster = cluster.Id()
+			dag.AddDependency(namespace, cluster)
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {

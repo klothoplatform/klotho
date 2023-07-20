@@ -3,6 +3,7 @@ package aws
 import (
 	"embed"
 	"fmt"
+	"io/fs"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -76,17 +77,26 @@ var awsTempaltes embed.FS
 
 func (a *AWS) GetOperationalTempaltes() map[string]*core.ResourceTemplate {
 	templates := map[string]*core.ResourceTemplate{}
-	for _, res := range resources.ListAll() {
-		content, err := awsTempaltes.ReadFile(fmt.Sprintf("resources/templates/%s.yaml", res.Id().Type))
+	if err := fs.WalkDir(awsTempaltes, ".", func(path string, d fs.DirEntry, nerr error) error {
+		if d.IsDir() {
+			return nil
+		}
+		content, err := awsTempaltes.ReadFile(fmt.Sprintf("resources/templates/%s", d.Name()))
 		if err != nil {
-			continue
+			panic(err)
 		}
 		resTemplate := &core.ResourceTemplate{}
 		err = yaml.Unmarshal(content, resTemplate)
 		if err != nil {
 			panic(err)
 		}
-		templates[res.Id().Type] = resTemplate
+		if templates[resTemplate.Type] != nil {
+			panic(fmt.Errorf("duplicate template for type %s", resTemplate.Type))
+		}
+		templates[resTemplate.Type] = resTemplate
+		return nil
+	}); err != nil {
+		return templates
 	}
 	return templates
 }

@@ -73,6 +73,7 @@ func (chart *HelmChart) MakeOperational(dag *core.ResourceGraph, appName string,
 			}
 		}
 		if len(downstreamClustersFound) == 1 {
+			dag.AddDependency(chart, downstreamClustersFound[0])
 			chart.Cluster = downstreamClustersFound[0].Id()
 			return nil
 		}

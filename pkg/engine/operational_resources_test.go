@@ -38,7 +38,7 @@ func Test_handleDownstreamOperationalRule(t *testing.T) {
 				Resource: &enginetesting.MockResource5{Name: "this"},
 				Needs:    []string{"mock1"},
 				Count:    1,
-				Cause:    fmt.Errorf("downstream rule with enforcement any has less than the required number of resources of type [mock1], 0"),
+				Cause:    fmt.Errorf("downstream rule with enforcement exactly one has less than the required number of resources of type [mock1], 0"),
 			}},
 		},
 		{
@@ -74,7 +74,7 @@ func Test_handleDownstreamOperationalRule(t *testing.T) {
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that"}},
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that2"}},
 			},
-			wantErr: []error{fmt.Errorf("downstream rule with enforcement only_one has more than one resource of types [mock1]")},
+			wantErr: []error{fmt.Errorf("downstream rule with enforcement only_one has more than one resource of types [mock1] for resource mock:mock5:this")},
 		},
 		{
 			name: "if one none exists",
@@ -212,10 +212,10 @@ func Test_handleDownstreamOperationalResourceError(t *testing.T) {
 				Cause:    fmt.Errorf("0"),
 			},
 			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"mock:mock5:this", "mock:mock2:mock2-this0", "mock:mock2:mock2-this1"},
+				Nodes: []string{"mock:mock5:this", "mock:mock2:mock2-this", "mock:mock2:mock2-this0"},
 				Deps: []coretesting.StringDep{
+					{Source: "mock:mock5:this", Destination: "mock:mock2:mock2-this"},
 					{Source: "mock:mock5:this", Destination: "mock:mock2:mock2-this0"},
-					{Source: "mock:mock5:this", Destination: "mock:mock2:mock2-this1"},
 				},
 			},
 		},
@@ -299,10 +299,10 @@ func Test_handleDownstreamOperationalResourceError(t *testing.T) {
 				{Source: &enginetesting.MockResource1{Name: "child2"}, Destination: &enginetesting.MockResource3{Name: "parent2"}},
 			},
 			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"mock:mock5:this", "mock:mock1:mock1-this0", "mock:mock1:mock1-this1", "mock:mock1:child", "mock:mock1:child2", "mock:mock3:parent", "mock:mock3:parent2"},
+				Nodes: []string{"mock:mock5:this", "mock:mock1:mock1-this0", "mock:mock1:mock1-this", "mock:mock1:child", "mock:mock1:child2", "mock:mock3:parent", "mock:mock3:parent2"},
 				Deps: []coretesting.StringDep{
 					{Source: "mock:mock5:this", Destination: "mock:mock1:mock1-this0"},
-					{Source: "mock:mock5:this", Destination: "mock:mock1:mock1-this1"},
+					{Source: "mock:mock5:this", Destination: "mock:mock1:mock1-this"},
 					{Source: "mock:mock1:child", Destination: "mock:mock3:parent"},
 					{Source: "mock:mock1:child2", Destination: "mock:mock3:parent2"},
 				},

@@ -95,7 +95,7 @@ func (constraint *EdgeConstraint) checkSatisfication(path []core.Resource, class
 						return false
 					}
 				} else {
-					if !collectionutil.Contains(classifier.GetClassification(res).Is, k) && (i != 0 || i != len(path)-1) {
+					if !collectionutil.Contains(classifier.GetClassification(res).Is, k) && (i != 0 && i != len(path)-1) {
 						return false
 					}
 				}

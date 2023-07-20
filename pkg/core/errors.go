@@ -46,6 +46,7 @@ func NewOperationalResourceError(resource Resource, needs []string, cause error)
 		Resource: resource,
 		Needs:    needs,
 		Cause:    cause,
+		Count:    1,
 	}
 }
 
