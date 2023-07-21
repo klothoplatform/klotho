@@ -193,6 +193,15 @@ func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCrea
 	return nil
 }
 
+type EksClusterConfigureParams struct {
+}
+
+func (cluster *EksCluster) Configure(params EksClusterConfigureParams) error {
+	// Add the kubeconfig after the dependencies are added otherwise we will have a circular dependency
+	cluster.Kubeconfig = createEKSKubeconfig(cluster, NewRegion())
+	return nil
+}
+
 type EksFargateProfileCreateParams struct {
 	Refs    core.BaseConstructSet
 	AppName string
