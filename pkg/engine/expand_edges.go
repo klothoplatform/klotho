@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -23,9 +24,15 @@ func (e *Engine) expandEdges(graph *core.ResourceGraph) error {
 			joinedErr = errors.Join(joinedErr, err)
 			continue
 		}
-		path, err := e.determineCorrectPath(dep, edgeData)
+		paths, err := e.determineCorrectPaths(dep, edgeData)
 		if err != nil {
 			zap.S().Warnf("got error when determining correct path for edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
+			joinedErr = errors.Join(joinedErr, err)
+			continue
+		}
+		path, err := findShortestPath(paths)
+		if err != nil {
+			zap.S().Warnf("got error when finding shortest path for edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
 			joinedErr = errors.Join(joinedErr, err)
 			continue
 		}
@@ -68,7 +75,7 @@ func getEdgeData(dep graph.Edge[core.Resource]) (knowledgebase.EdgeData, error) 
 // determineCorrectPath determines the correct path to take to get from the dependency's source node to destination node, using the knowledgebase of edges
 // It first finds all possible paths given the initial source and destination node. It then filters out any paths that do not satisfy the constraints of the edge
 // It then filters out any paths that contain unnecessary hops to get to the destination
-func (e *Engine) determineCorrectPath(dep graph.Edge[core.Resource], edgeData knowledgebase.EdgeData) (knowledgebase.Path, error) {
+func (e *Engine) determineCorrectPaths(dep graph.Edge[core.Resource], edgeData knowledgebase.EdgeData) ([]knowledgebase.Path, error) {
 	paths := e.KnowledgeBase.FindPaths(dep.Source, dep.Destination, edgeData.Constraint)
 	var validPaths []knowledgebase.Path
 	var satisfyAttributeData []knowledgebase.Path
@@ -103,16 +110,11 @@ func (e *Engine) determineCorrectPath(dep graph.Edge[core.Resource], edgeData kn
 	}
 	for _, p := range satisfyAttributeData {
 		// Ensure we arent taking unnecessary hops to get to the destination
-		if !e.containsUnneccessaryHopsInPath(dep, p) {
+		if !e.containsUnneccessaryHopsInPath(dep, p, edgeData) {
 			validPaths = append(validPaths, p)
 		}
 	}
-	validPath, err := findShortestPath(validPaths)
-	if err != nil {
-		return nil, err
-	}
-	zap.S().Debugf("Found valid path %s", validPath)
-	return validPath, nil
+	return validPaths, nil
 }
 
 // containsUnneccessaryHopsInPath determines if the path contains any unnecessary hops to get to the destination
@@ -120,10 +122,12 @@ func (e *Engine) determineCorrectPath(dep graph.Edge[core.Resource], edgeData kn
 // We check if the source and destination of the dependency have a functionality. If they do, we check if the functionality of the source or destination
 // is the same as the functionality of the source or destination of the edge in the path. If it is then we ensure that the source or destination of the edge
 // in the path is not the same as the source or destination of the dependency. If it is then we know that the edge in the path is an unnecessary hop to get to the destination
-func (e *Engine) containsUnneccessaryHopsInPath(dep graph.Edge[core.Resource], p knowledgebase.Path) bool {
+func (e *Engine) containsUnneccessaryHopsInPath(dep graph.Edge[core.Resource], p knowledgebase.Path, edgeData knowledgebase.EdgeData) bool {
+	destType := reflect.TypeOf(dep.Destination)
+	srcType := reflect.TypeOf(dep.Source)
+
+	// Here we check if the edge or destination functionality exist within the path in another resource. If they do, we know that the path contains unnecessary hops.
 	for _, edge := range p {
-		destType := reflect.TypeOf(dep.Destination)
-		srcType := reflect.TypeOf(dep.Source)
 		if e.ClassificationDocument.GetFunctionality(dep.Destination) != core.Unknown {
 			if e.ClassificationDocument.GetFunctionality(dep.Destination) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Destination).Elem().Interface().(core.Resource)) && edge.Destination != destType && edge.Destination != srcType {
 				return true
@@ -141,6 +145,23 @@ func (e *Engine) containsUnneccessaryHopsInPath(dep graph.Edge[core.Resource], p
 			}
 		}
 	}
+
+	// Now we will look to see if there are duplicate functionality in resources within the edge, if there are we will say it contains unnecessary hops. We will verify first that those duplicates dont exist because of a constraint
+	foundFunc := map[core.Functionality]bool{}
+	mustExistTypes := []reflect.Type{}
+	for _, res := range edgeData.Constraint.NodeMustExist {
+		mustExistTypes = append(mustExistTypes, reflect.TypeOf(res))
+	}
+	for _, edge := range p {
+		if edge.Source != srcType && !collectionutil.Contains(mustExistTypes, edge.Source) {
+			functionality := e.ClassificationDocument.GetFunctionality(reflect.New(edge.Source).Elem().Interface().(core.Resource))
+			if foundFunc[functionality] && functionality != core.Unknown {
+				return true
+			}
+			foundFunc[functionality] = true
+		}
+	}
+
 	return false
 }
 
@@ -160,8 +181,22 @@ func findShortestPath(paths []knowledgebase.Path) (knowledgebase.Path, error) {
 			sameLengthPaths = append(sameLengthPaths, path, validPath)
 		}
 	}
+	// If there are multiple paths with the same length we are going to generate a string for each and sort them so we can be deterministic in which one we choose
 	if len(sameLengthPaths) > 0 {
-		return nil, fmt.Errorf("found multiple paths which are the same length. \n Paths: %s", sameLengthPaths)
+		pathStrings := map[string]knowledgebase.Path{}
+		for _, p := range paths {
+			pString := ""
+			for _, r := range p {
+				pString += fmt.Sprintf("%s -> %s", r.Source, r.Destination)
+			}
+			pathStrings[pString] = p
+		}
+		keys := make([]string, 0, len(pathStrings))
+		for k := range pathStrings {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		return pathStrings[keys[0]], nil
 	}
 	return validPath, nil
 }

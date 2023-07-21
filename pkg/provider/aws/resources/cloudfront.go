@@ -117,30 +117,6 @@ func (distro *CloudfrontDistribution) Create(dag *core.ResourceGraph, params Clo
 	return nil
 }
 
-type CloudfrontDistributionConfigureParams struct {
-	// Intentionally empty; we may want to expose parts of the configuration later, though.
-}
-
-func (distro *CloudfrontDistribution) Configure(params CloudfrontDistributionConfigureParams) error {
-	distro.DefaultCacheBehavior = &DefaultCacheBehavior{
-		AllowedMethods: []string{"DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"},
-		CachedMethods:  []string{"HEAD", "GET"},
-		ForwardedValues: ForwardedValues{
-			QueryString: true,
-			Cookies:     Cookies{Forward: "none"},
-		},
-		MinTtl:               0,
-		DefaultTtl:           3600,
-		MaxTtl:               86400,
-		ViewerProtocolPolicy: "allow-all",
-	}
-	distro.Restrictions = &Restrictions{
-		GeoRestriction: GeoRestriction{RestrictionType: "none"},
-	}
-	distro.CloudfrontDefaultCertificate = true
-	return nil
-}
-
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (distro *CloudfrontDistribution) BaseConstructRefs() core.BaseConstructSet {
 	return distro.ConstructRefs

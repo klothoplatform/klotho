@@ -1,0 +1,30 @@
+provider: aws
+type: cloudfront_distribution
+configuration:
+  - field: DefaultCacheBehavior
+    value:
+      AllowedMethods: 
+      - DELETE
+      - GET
+      - HEAD
+      - OPTIONS
+      - PATCH
+      - POST
+      - PUT
+      CachedMethods:  
+      - HEAD
+      - GET
+      ForwardedValues: 
+        QueryString: true
+        Cookies:     
+          Forward: "none"
+      MinTtl:               0
+      DefaultTtl:           3600
+      MaxTtl:               86400
+      ViewerProtocolPolicy: "allow-all"
+  - field: Restrictions
+    value:
+      GeoRestriction:
+        RestrictionType: none
+  - field: CloudfrontDefaultCertificate
+    value: true

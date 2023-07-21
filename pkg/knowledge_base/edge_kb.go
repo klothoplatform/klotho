@@ -136,7 +136,6 @@ func (kb EdgeKB) GetEdgesWithTarget(target reflect.Type) []Edge {
 //
 // The method will return all paths found
 func (kb EdgeKB) FindPaths(source core.Resource, dest core.Resource, constraint EdgeConstraint) []Path {
-	zap.S().Debugf("Finding Paths from %s -> %s", source.Id(), dest.Id())
 	visitedEdges := map[reflect.Type]bool{}
 	stack := []Edge{}
 	paths := kb.findPaths(reflect.TypeOf(source), reflect.TypeOf(dest), stack, visitedEdges)
@@ -220,6 +219,8 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 //   - Find shortest path given the constraints on the edge
 //   - Iterate through each edge in path creating the resource if necessary
 func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGraph, validPath Path, edgeData EdgeData) (err error) {
+
+	// most likely need to use downstream and upstream operational errors here
 
 	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
 	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())

@@ -167,6 +167,9 @@ var LambdaKB = knowledgebase.Build(
 				return err
 			}
 			dag.AddDependency(policy, privateDnsNamespace)
+			if lambda.Role == nil {
+				return fmt.Errorf("cannot configure lambda %s -> pod %s, missing role", lambda.Id(), destination.Id())
+			}
 			dag.AddDependency(lambda.Role, policy)
 			if err != nil {
 				return err
@@ -226,4 +229,6 @@ var LambdaKB = knowledgebase.Build(
 			return err
 		},
 	},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.LambdaFunction]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.LambdaFunction]{},
 )

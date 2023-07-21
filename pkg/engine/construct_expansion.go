@@ -183,7 +183,7 @@ func (e *Engine) findExpansions(attributes []string, rg *core.ResourceGraph, bas
 			}
 			var paths []knowledgebase.Path
 			for _, path := range e.KnowledgeBase.FindPaths(baseResource, res, knowledgebase.EdgeConstraint{}) {
-				if !e.containsUnneccessaryHopsInPath(graph.Edge[core.Resource]{Source: baseResource, Destination: res}, path) {
+				if !e.containsUnneccessaryHopsInPath(graph.Edge[core.Resource]{Source: baseResource, Destination: res}, path, knowledgebase.EdgeData{}) {
 					paths = append(paths, path)
 				}
 			}

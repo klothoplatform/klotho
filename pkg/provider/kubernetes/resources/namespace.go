@@ -77,6 +77,7 @@ func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName str
 		if len(downstreamClustersFound) == 1 {
 			_, cluster := collectionutil.GetOneEntry(downstreamClustersFound)
 			namespace.Cluster = cluster.Id()
+			dag.AddDependency(namespace, cluster)
 			return nil
 		}
 		if len(downstreamClustersFound) > 1 {
@@ -92,8 +93,10 @@ func (namespace *Namespace) GetResourcesInNamespace(dag *core.ResourceGraph) []c
 	var resources []core.Resource
 	for _, res := range dag.GetAllUpstreamResources(namespace) {
 		if manifest, ok := res.(ManifestFile); ok {
-			if reflect.ValueOf(manifest.GetObject()).Elem().FieldByName("Namespace").Interface() == namespace.Name {
-				resources = append(resources, manifest)
+			if manifest.GetObject() != nil {
+				if reflect.ValueOf(manifest.GetObject()).Elem().FieldByName("Namespace").Interface() == namespace.Name {
+					resources = append(resources, manifest)
+				}
 			}
 		}
 	}

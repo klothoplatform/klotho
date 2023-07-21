@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -49,100 +48,6 @@ func (instance *Ec2Instance) Create(dag *core.ResourceGraph, params Ec2InstanceC
 	return nil
 }
 
-func (instance *Ec2Instance) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if instance.InstanceProfile == nil {
-		profiles := core.GetAllDownstreamResourcesOfType[*InstanceProfile](dag, instance)
-		if len(profiles) == 0 {
-			instanceProfile, err := core.CreateResource[*InstanceProfile](dag, InstanceProfileCreateParams{
-				AppName: appName,
-				Refs:    core.BaseConstructSetOf(instance),
-				Name:    instance.Name,
-			})
-			if err != nil {
-				return err
-			}
-			instance.InstanceProfile = instanceProfile
-			dag.AddDependency(instance, instance.InstanceProfile)
-		} else if len(profiles) == 1 {
-			instance.InstanceProfile = profiles[0]
-			dag.AddDependency(instance, instance.InstanceProfile)
-		} else {
-			return fmt.Errorf("instance %s has more than one instance profile downstream", instance.Id())
-		}
-	}
-
-	if instance.AMI == nil {
-		amis := core.GetAllDownstreamResourcesOfType[*AMI](dag, instance)
-		if len(amis) == 0 {
-			ami, err := core.CreateResource[*AMI](dag, AMICreateParams{
-				AppName: appName,
-				Refs:    core.BaseConstructSetOf(instance),
-				Name:    instance.Name,
-			})
-			if err != nil {
-				return err
-			}
-			instance.AMI = ami
-			dag.AddDependency(instance, instance.AMI)
-		} else if len(amis) == 1 {
-			instance.AMI = amis[0]
-			dag.AddDependency(instance, instance.AMI)
-		} else {
-			return fmt.Errorf("instance %s has more than one ami downstream", instance.Id())
-		}
-	}
-
-	if instance.Subnet == nil {
-		vpc, err := getSingleUpstreamVpc(dag, instance)
-		if err != nil {
-			return err
-		}
-		subnets := core.GetAllDownstreamResourcesOfType[*Subnet](dag, instance)
-		if len(subnets) == 0 {
-			subnet, err := core.CreateResource[*Subnet](dag, SubnetCreateParams{
-				AppName: appName,
-				Refs:    core.BaseConstructSetOf(instance),
-				AZ:      "0",
-				Type:    PrivateSubnet,
-			})
-			if err != nil {
-				return err
-			}
-			if vpc != nil {
-				dag.AddDependency(subnet, vpc)
-			}
-			err = subnet.MakeOperational(dag, appName, classifier)
-			if err != nil {
-				return err
-			}
-			instance.Subnet = subnet
-			dag.AddDependency(instance, subnet)
-		} else if len(subnets) == 1 {
-			if subnets[0].Vpc != vpc {
-				return fmt.Errorf("instance %s has subnet from vpc which does not correlate to it's vpc downstream", instance.Id())
-			}
-			instance.Subnet = subnets[0]
-			dag.AddDependency(instance, instance.Subnet)
-		} else {
-			return fmt.Errorf("instance %s has more than one subnet downstream", instance.Id())
-		}
-	}
-
-	if instance.SecurityGroups == nil {
-		sgs, err := getSecurityGroupsOperational(dag, instance, appName)
-		if err != nil {
-			return err
-		}
-		instance.SecurityGroups = sgs
-		dag.AddDependenciesReflect(instance)
-	}
-	return nil
-}
-
-type Ec2InstanceConfigureParams struct {
-	InstanceType string
-}
-
 type AMICreateParams struct {
 	Name    string
 	AppName string
@@ -159,14 +64,6 @@ func (ami *AMI) Create(dag *core.ResourceGraph, params AMICreateParams) error {
 		return nil
 	}
 	dag.AddResource(ami)
-	return nil
-}
-
-func (instance *Ec2Instance) Configure(params Ec2InstanceConfigureParams) error {
-	instance.InstanceType = "t3.medium"
-	if params.InstanceType != "" {
-		instance.InstanceType = params.InstanceType
-	}
 	return nil
 }
 

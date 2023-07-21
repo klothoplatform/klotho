@@ -24,6 +24,7 @@ type (
 	Provider interface {
 		Name() string
 		ListResources() []core.Resource
+		GetOperationalTempaltes() map[string]*core.ResourceTemplate
 		CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error)
 	}
 )

@@ -71,42 +71,6 @@ func Test_EcrRepositoryCreate(t *testing.T) {
 	}
 }
 
-func Test_EcrImageConfigure(t *testing.T) {
-	cases := []struct {
-		name    string
-		params  EcrImageConfigureParams
-		want    *EcrImage
-		wantErr bool
-	}{
-		{
-			name: "filled params",
-			params: EcrImageConfigureParams{
-				Context:    "context",
-				Dockerfile: "dockerfile",
-			},
-			want: &EcrImage{Context: "context", Dockerfile: "dockerfile", ExtraOptions: []string{"--platform", "linux/amd64", "--quiet"}},
-		},
-	}
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			image := &EcrImage{}
-			err := image.Configure(tt.params)
-
-			if tt.wantErr {
-				assert.Error(err)
-				return
-			}
-			if !assert.NoError(err) {
-				return
-			}
-
-			assert.Equal(tt.want, image)
-		})
-	}
-}
-
 func Test_EcrImageCreate(t *testing.T) {
 	eu := &core.ExecutionUnit{Name: "test"}
 	eu2 := &core.ExecutionUnit{Name: "first"}
@@ -138,33 +102,6 @@ func Test_EcrImageCreate(t *testing.T) {
 				Refs:    core.BaseConstructSetOf(eu),
 				Name:    "image",
 			}
-			tt.Run(t)
-		})
-	}
-}
-
-func Test_EcrImageMakeOperational(t *testing.T) {
-	cases := []coretesting.MakeOperationalCase[*EcrImage]{
-		{
-			Name:     "only task definition",
-			Resource: &EcrImage{Name: "image"},
-			AppName:  "my-app",
-			Want: coretesting.ResourcesExpectation{
-				Nodes: []string{
-					"aws:ecr_image:image",
-					"aws:ecr_repo:my-app",
-				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:ecr_image:image", Destination: "aws:ecr_repo:my-app"},
-				},
-			},
-			Check: func(assert *assert.Assertions, image *EcrImage) {
-				assert.NotNil(image.Repo)
-			},
-		},
-	}
-	for _, tt := range cases {
-		t.Run(tt.Name, func(t *testing.T) {
 			tt.Run(t)
 		})
 	}

@@ -1,0 +1,10 @@
+provider: aws
+type: private_dns_namespace
+rules:
+  downstream:
+  - enforcement: exactly_one
+    resource_types: 
+    - vpc
+    set_field: Vpc
+    unsatisfied_action:
+      operation: create

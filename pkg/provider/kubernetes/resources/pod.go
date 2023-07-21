@@ -81,7 +81,6 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classif
 		if len(downstreamClustersFound) > 1 {
 			return fmt.Errorf("pod %s has more than one cluster downstream", pod.Id())
 		}
-
 		return core.NewOperationalResourceError(pod, []string{string(core.Cluster)}, fmt.Errorf("pod %s has no clusters to use", pod.Id()))
 	}
 	return nil

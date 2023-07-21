@@ -28,9 +28,12 @@ type (
 	}
 
 	OperationalResourceError struct {
-		Needs    []string
-		Resource Resource
-		Cause    error
+		Needs      []string
+		Count      int
+		Resource   Resource
+		Parent     Resource
+		MustCreate bool
+		Cause      error
 	}
 )
 
@@ -43,6 +46,7 @@ func NewOperationalResourceError(resource Resource, needs []string, cause error)
 		Resource: resource,
 		Needs:    needs,
 		Cause:    cause,
+		Count:    1,
 	}
 }
 

@@ -10,12 +10,10 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	k8sSanitizer "github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 )
 
 const (
@@ -195,79 +193,6 @@ func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCrea
 	return nil
 }
 
-func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	zap.S().Debugf("Making cluster %s operational", cluster.Name)
-	if cluster.ClusterRole == nil {
-		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, cluster)
-		if len(roles) > 1 {
-			return errors.Errorf("cluster %s has multiple roles", cluster.Name)
-		} else if len(roles) == 0 {
-			clusterRole, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
-				AppName: appName,
-				Name:    fmt.Sprintf("%s-ClusterAdmin", cluster.Name),
-				Refs:    core.BaseConstructSetOf(cluster),
-			})
-			if err != nil {
-				return err
-			}
-			cluster.ClusterRole = clusterRole
-			dag.AddDependency(cluster, clusterRole)
-		} else {
-			cluster.ClusterRole = roles[0]
-		}
-	}
-
-	if cluster.Vpc == nil {
-		vpc, err := getSingleUpstreamVpc(dag, cluster)
-		if err != nil {
-			return err
-		}
-		if vpc != nil {
-			cluster.Vpc = vpc
-			dag.AddDependency(cluster, vpc)
-		}
-	}
-
-	if len(cluster.Subnets) == 0 {
-		subnets, err := getSubnetsOperational(dag, cluster, appName)
-		if err != nil {
-			return err
-		}
-		cluster.Subnets = subnets
-		dag.AddDependenciesReflect(cluster)
-	}
-
-	if len(cluster.SecurityGroups) == 0 {
-		sgs, err := getSecurityGroupsOperational(dag, cluster, appName)
-		if err != nil {
-			return err
-		}
-		cluster.SecurityGroups = append(cluster.SecurityGroups, sgs...)
-		dag.AddDependenciesReflect(cluster)
-	}
-
-	if cluster.Vpc == nil {
-		vpc, err := getSingleUpstreamVpc(dag, cluster)
-		if err != nil {
-			return err
-		}
-		if vpc == nil {
-			return fmt.Errorf("cluster %s has no vpc", cluster.Name)
-		}
-		cluster.Vpc = vpc
-		dag.AddDependency(cluster, vpc)
-	}
-
-	downstreamNodeGroups := core.GetDownstreamResourcesOfType[*EksNodeGroup](dag, cluster)
-	if len(downstreamNodeGroups) == 0 {
-		err := cluster.SetUpDefaultNodeGroup(dag, appName)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 type EksClusterConfigureParams struct {
 }
 
@@ -292,85 +217,6 @@ func (profile *EksFargateProfile) Create(dag *core.ResourceGraph, params EksFarg
 	} else {
 		profile.ConstructRefs = params.Refs.Clone()
 		dag.AddResource(profile)
-	}
-	return nil
-}
-
-func (profile *EksFargateProfile) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-
-	if profile.Cluster == nil {
-		clusters := core.GetDownstreamResourcesOfType[*EksCluster](dag, profile)
-		if len(clusters) > 1 {
-			return fmt.Errorf("fargate profile %s has multiple clusters", profile.Id())
-		} else if len(clusters) == 0 {
-			cluster, err := core.CreateResource[*EksCluster](dag, EksClusterCreateParams{
-				AppName: appName,
-				Name:    DEFAULT_CLUSTER_NAME,
-				Refs:    core.BaseConstructSetOf(profile),
-			})
-			if err != nil {
-				return err
-			}
-			profile.Cluster = cluster
-			dag.AddDependency(profile, cluster)
-		} else {
-			profile.Cluster = clusters[0]
-		}
-	}
-
-	if len(profile.Subnets) == 0 {
-		subnets, err := getSubnetsOperational(dag, profile, appName)
-		if err != nil {
-			return err
-		}
-		for _, subnet := range subnets {
-			if subnet.Type == PrivateSubnet {
-				profile.Subnets = append(profile.Subnets, subnet)
-			}
-		}
-	}
-
-	if profile.PodExecutionRole == nil {
-		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, profile)
-		if len(roles) > 1 {
-			return fmt.Errorf("fargate profile %s has multiple roles", profile.Id())
-		} else if len(roles) == 0 {
-			PodExecutionRole, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
-				AppName: appName,
-				Name:    fmt.Sprintf("%s-PodExecutionRole", profile.Name),
-				Refs:    core.BaseConstructSetOf(profile),
-			})
-			if err != nil {
-				return err
-			}
-			profile.PodExecutionRole = PodExecutionRole
-			dag.AddDependency(profile, PodExecutionRole)
-		} else {
-			profile.PodExecutionRole = roles[0]
-		}
-	}
-
-	dag.AddDependenciesReflect(profile)
-	return nil
-}
-
-type EksFargateProfileConfigureParams struct {
-	Namespace string
-}
-
-func (profile *EksFargateProfile) Configure(params EksFargateProfileConfigureParams) error {
-	namespace := "default"
-	if params.Namespace != "" {
-		namespace = params.Namespace
-	}
-	addSelector := true
-	for _, selector := range profile.Selectors {
-		if selector.Namespace == namespace {
-			addSelector = false
-		}
-	}
-	if addSelector {
-		profile.Selectors = append(profile.Selectors, &FargateProfileSelector{Namespace: namespace, Labels: map[string]string{"klotho-fargate-enabled": "true"}})
 	}
 	return nil
 }
@@ -401,88 +247,13 @@ func (nodeGroup *EksNodeGroup) Create(dag *core.ResourceGraph, params EksNodeGro
 	return nil
 }
 
-func (nodeGroup *EksNodeGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if nodeGroup.Cluster == nil {
-		copyNodeGroup := *nodeGroup
-		clusters := core.GetDownstreamResourcesOfType[*EksCluster](dag, nodeGroup)
-		if len(clusters) > 1 {
-			return fmt.Errorf("node group %s has multiple clusters", nodeGroup.Id())
-		} else if len(clusters) == 0 {
-			cluster, err := core.CreateResource[*EksCluster](dag, EksClusterCreateParams{
-				AppName: appName,
-				Name:    DEFAULT_CLUSTER_NAME,
-				Refs:    core.BaseConstructSetOf(nodeGroup),
-			})
-			if err != nil {
-				return err
-			}
-			nodeGroup.Cluster = cluster
-			dag.AddDependency(nodeGroup, cluster)
-		} else {
-			nodeGroup.Cluster = clusters[0]
-		}
-		// We want to add the cluster name to the node group name to prevent conflicts and then do an in place replacement in the graph
-		nodeGroup.Name = fmt.Sprintf("%s-%s", nodeGroup.Cluster.Name, nodeGroup.Name)
-		err := dag.ReplaceConstruct(&copyNodeGroup, nodeGroup)
-		if err != nil {
-			return err
-		}
-		dag.AddDependenciesReflect(nodeGroup)
-	}
-
-	if nodeGroup.NodeRole == nil {
-		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, nodeGroup)
-		if len(roles) > 1 {
-			return fmt.Errorf("node group %s has multiple roles", nodeGroup.Id())
-		} else if len(roles) == 0 {
-			nodeRole, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
-				AppName: appName,
-				Name:    fmt.Sprintf("%s-NodeRole", nodeGroup.Name),
-				Refs:    core.BaseConstructSetOf(nodeGroup),
-			})
-			if err != nil {
-				return err
-			}
-			nodeGroup.NodeRole = nodeRole
-			dag.AddDependency(nodeGroup, nodeRole)
-		} else {
-			nodeGroup.NodeRole = roles[0]
-		}
-	}
-
-	if len(nodeGroup.Subnets) == 0 {
-		subnets, err := getSubnetsOperational(dag, nodeGroup, appName)
-		if err != nil {
-			return err
-		}
-		networkPlacement := nodeGroup.Labels["network_placement"]
-		if networkPlacement == "" {
-			networkPlacement = PrivateSubnet
-		}
-		for _, subnet := range subnets {
-			if subnet.Type == networkPlacement {
-				nodeGroup.Subnets = append(nodeGroup.Subnets, subnet)
-			}
-		}
-	}
-
-	dag.AddDependenciesReflect(nodeGroup)
-	return nil
-}
-
 type EksNodeGroupConfigureParams struct {
-	DiskSize int
 }
 
 func (nodeGroup *EksNodeGroup) Configure(params EksNodeGroupConfigureParams) error {
 	if len(nodeGroup.InstanceTypes) != 0 {
 		nodeGroup.AmiType = amiFromInstanceType(nodeGroup.InstanceTypes[0])
 	}
-	nodeGroup.DesiredSize = 2
-	nodeGroup.MaxSize = 2
-	nodeGroup.MinSize = 1
-	nodeGroup.MaxUnavailable = 1
-	nodeGroup.DiskSize = params.DiskSize
 	return nil
 }
 

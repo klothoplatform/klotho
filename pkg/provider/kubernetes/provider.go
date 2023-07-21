@@ -1,11 +1,13 @@
 package kubernetes
 
 import (
+	"embed"
 	"fmt"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
+	"gopkg.in/yaml.v3"
 )
 
 type (
@@ -55,4 +57,24 @@ func (k *KubernetesProvider) CreateResourceFromId(id core.ResourceId, dag *core.
 		}
 	}
 	return resource, nil
+}
+
+//go:embed resources/templates/*
+var kubernetesTemplates embed.FS
+
+func (k *KubernetesProvider) GetOperationalTempaltes() map[string]*core.ResourceTemplate {
+	templates := map[string]*core.ResourceTemplate{}
+	for _, res := range resources.ListAll() {
+		content, err := kubernetesTemplates.ReadFile(fmt.Sprintf("resources/templates/%s.yaml", res.Id().Type))
+		if err != nil {
+			continue
+		}
+		resTemplate := &core.ResourceTemplate{}
+		err = yaml.Unmarshal(content, resTemplate)
+		if err != nil {
+			continue
+		}
+		templates[res.Id().Type] = resTemplate
+	}
+	return templates
 }
