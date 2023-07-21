@@ -1,0 +1,17 @@
+provider: aws
+type: kms_replica_key
+rules:
+  downstream:
+  - enforcement: exactly_one
+    resource_types: 
+    - kms_key
+    set_field: PrimaryKey
+    unsatisfied_action:
+      operation: error
+configuration:
+  - field: Enabled
+    value: true
+  - field: PendingWindowInDays
+    value: 7
+delete_context:
+  requires_no_upstream: true

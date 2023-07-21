@@ -1,0 +1,38 @@
+provider: aws
+type: rds_instance
+rules:
+  downstream:
+  - enforcement: exactly_one
+    resource_types: 
+    - vpc
+    remove_direct_dependency: true
+    rules:
+    - enforcement: exactly_one
+      resource_types: 
+      - subnet_group
+      set_field: DBSubnetGroupName
+      unsatisfied_action:
+        operation: create
+    - enforcement: any_available
+      resource_types: 
+      - security_group
+      set_field: SecurityGroups
+      num_needed: 1
+      unsatisfied_action:
+        operation: create
+configuration:
+- field: Engine
+  value: postgres
+- field: EngineVersion
+  value: 13.7
+- field: InstanceClass
+  value: db.t4g.micro
+- field: AllocatedStorage
+  value: 20
+- field: IamDatabaseAuthenticationEnabled
+  value: true
+- field: SkipFinalSnapshot
+  value: true
+delete_context:
+  requires_no_upstream: true
+  requires_explicit_delete: true

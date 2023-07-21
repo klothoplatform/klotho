@@ -93,17 +93,6 @@ func (bucket *S3Bucket) Create(dag *core.ResourceGraph, params S3BucketCreatePar
 	return nil
 }
 
-type S3BucketConfigureParams struct {
-	ForceDestroy  bool
-	IndexDocument string
-}
-
-func (bucket *S3Bucket) Configure(params S3BucketConfigureParams) error {
-	bucket.ForceDestroy = params.ForceDestroy
-	bucket.IndexDocument = params.IndexDocument
-	return nil
-}
-
 type S3ObjectCreateParams struct {
 	AppName  string
 	Refs     core.BaseConstructSet
@@ -121,18 +110,6 @@ func (object *S3Object) Create(dag *core.ResourceGraph, params S3ObjectCreatePar
 	object.Key = params.Key
 	object.FilePath = params.FilePath
 	dag.AddResource(object)
-	return nil
-}
-
-func (object *S3Object) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if object.Bucket == nil {
-		buckets := core.GetDownstreamResourcesOfType[*S3Bucket](dag, object)
-		if len(buckets) != 1 {
-			return fmt.Errorf("S3Object %s has %d bucket dependencies", object.Name, len(buckets))
-		}
-		object.Bucket = buckets[0]
-	}
-	dag.AddDependenciesReflect(object)
 	return nil
 }
 

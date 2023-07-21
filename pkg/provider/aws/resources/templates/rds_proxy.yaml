@@ -1,0 +1,43 @@
+package: aws
+type: rds_proxy
+rules:
+  downstream:
+  - enforcement: exactly_one
+    resource_types: 
+    - iam_role
+    set_field: Role
+    unsatisfied_action:
+      operation: create
+      unique: true
+  - enforcement: exactly_one
+    resource_types:
+    - vpc
+    remove_direct_dependency: true
+    rules:
+    - enforcement: any_available
+      resource_types:
+      - subnet_private
+      - subnet_public
+      set_field: Subnets
+      unsatisfied_action:
+        operation: create
+        default_type: subnet_private
+      num_needed: 2
+    - enforcement: exactly_one
+      resource_types:
+      - security_group
+      set_field: SecurityGroups
+      unsatisfied_action:
+        operation: create
+        unique: true
+configuration:
+- field: DebugLogging
+  value: false
+- field: IdleClientTimeout
+  value: 1800
+- field: EngineFamily
+  value: POSTGRESQL
+- field: RequireTls
+  value: false
+delete_context:
+  requires_no_upstream_or_downstream: true

@@ -1,0 +1,12 @@
+package: aws
+type: target_group
+rules:
+  downstream:
+  - enforcement: exactly_one
+    resource_types: 
+    - vpc
+    set_field: Vpc
+    unsatisfied_action:
+      operation: error
+delete_context:
+  requires_no_upstream_or_downstream: true

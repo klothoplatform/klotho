@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -104,20 +103,6 @@ func (listener *Listener) Create(dag *core.ResourceGraph, params ListenerCreateP
 	return nil
 }
 
-func (listener *Listener) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if listener.LoadBalancer == nil {
-		lbs := core.GetUpstreamResourcesOfType[*LoadBalancer](dag, listener)
-		if len(lbs) == 0 {
-			return fmt.Errorf("listener %s has no load balancer downstream", listener.Id())
-		} else if len(lbs) > 1 {
-			return fmt.Errorf("listener %s has more than one load balancer downstream", listener.Id())
-		}
-		listener.LoadBalancer = lbs[0]
-		dag.AddDependenciesReflect(listener)
-	}
-	return nil
-}
-
 type TargetGroupCreateParams struct {
 	AppName string
 	Refs    core.BaseConstructSet
@@ -135,34 +120,6 @@ func (tg *TargetGroup) Create(dag *core.ResourceGraph, params TargetGroupCreateP
 	}
 
 	dag.AddResource(tg)
-	return nil
-}
-
-func (tg *TargetGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if tg.Vpc == nil {
-		vpcs := core.GetAllDownstreamResourcesOfType[*Vpc](dag, tg)
-		if len(vpcs) == 0 {
-			targetsVpcs := map[*Vpc]interface{}{}
-			for _, target := range tg.Targets {
-				targetResource := dag.GetResource(target.Id.ResourceId)
-				for _, vpc := range core.GetAllDownstreamResourcesOfType[*Vpc](dag, targetResource) {
-					targetsVpcs[vpc] = nil
-				}
-			}
-			for vpc := range targetsVpcs {
-				vpcs = append(vpcs, vpc)
-			}
-		}
-
-		if len(vpcs) == 0 {
-
-			return fmt.Errorf("target group %s has no vpc  downstream", tg.Id())
-		} else if len(vpcs) > 1 {
-			return fmt.Errorf("target group %s has more than one vpc downstream", tg.Id())
-		}
-		tg.Vpc = vpcs[0]
-		dag.AddDependenciesReflect(tg)
-	}
 	return nil
 }
 

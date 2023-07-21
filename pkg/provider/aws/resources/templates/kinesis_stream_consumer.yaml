@@ -1,0 +1,12 @@
+provider: aws
+type: kinesis_stream_consumer
+rules:
+  upstream:
+  - enforcement: exactly_one
+    resource_types: 
+    - kinesis_stream
+    set_field: Stream
+    unsatisfied_action:
+      operation: error
+delete_context:
+  requires_no_upstream_or_downstream: true

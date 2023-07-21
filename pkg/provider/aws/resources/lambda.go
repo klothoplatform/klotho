@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -64,32 +63,6 @@ func (lambda *LambdaFunction) Create(dag *core.ResourceGraph, params LambdaCreat
 	return nil
 }
 
-type LambdaFunctionConfigureParams struct {
-	Timeout              int
-	MemorySize           int
-	EnvironmentVariables core.EnvironmentVariables
-}
-
-func (lambda *LambdaFunction) Configure(params LambdaFunctionConfigureParams) error {
-	lambda.Timeout = 180
-	lambda.MemorySize = 512
-	if lambda.EnvironmentVariables == nil {
-		lambda.EnvironmentVariables = make(map[string]core.IaCValue)
-	}
-
-	if params.Timeout != 0 {
-		lambda.Timeout = params.Timeout
-	}
-	if params.MemorySize != 0 {
-		lambda.MemorySize = params.MemorySize
-	}
-	for _, env := range params.EnvironmentVariables {
-		lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{Property: env.GetValue()}
-	}
-
-	return nil
-}
-
 type LambdaPermissionCreateParams struct {
 	AppName string
 	Refs    core.BaseConstructSet
@@ -111,19 +84,6 @@ func (permission *LambdaPermission) Create(dag *core.ResourceGraph, params Lambd
 		return nil
 	}
 	dag.AddResource(permission)
-	return nil
-}
-func (permission *LambdaPermission) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if permission.Function == nil {
-		functions := core.GetDownstreamResourcesOfType[*LambdaFunction](dag, permission)
-		if len(functions) == 0 {
-			return fmt.Errorf("lambda permission %s has no lambda function downstream", permission.Id())
-		} else if len(functions) > 1 {
-			return fmt.Errorf("lambda permission %s has more than one lambda function downstream", permission.Id())
-		}
-		permission.Function = functions[0]
-		dag.AddDependenciesReflect(permission)
-	}
 	return nil
 }
 

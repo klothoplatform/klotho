@@ -1,0 +1,16 @@
+provider: aws
+type: route53_hosted_zone
+rules:
+  downstream:
+  - enforcement: any_available
+    resource_types: 
+    - vpc
+    set_field: Vpcs
+    unsatisfied_action:
+      operation: create
+configuration:
+- field: ForceDestroy
+  value: true
+delete_context:
+  requires_no_upstream: true
+  requires_explicit_delete: true

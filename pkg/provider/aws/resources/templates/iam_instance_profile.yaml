@@ -1,0 +1,13 @@
+provider: aws
+type: iam_instance_profile
+rules:
+  downstream:
+  - enforcement: exactly_one
+    resource_types: 
+    - iam_role
+    set_field: Role
+    unsatisfied_action:
+      operation: create
+      unique: true
+delete_context:
+  requires_no_upstream: true

@@ -1,0 +1,27 @@
+provider: aws
+type: rds_proxy_target_group
+rules:
+  upstream:
+  - enforcement: exactly_one
+    resource_types: 
+    - rds_proxy
+    set_field: RdsProxy
+    unsatisfied_action:
+      operation: error
+  downstream:
+  - enforcement: exactly_one
+    resource_types: 
+    - rds_instance
+    set_field: RdsInstance
+    unsatisfied_action:
+      operation: error
+configuration:
+- field: TargetGroupName
+  value: default
+- field: ConnectionPoolConfigurationInfo
+  value:
+    MaxConnectionsPercent: 100
+    MaxIdleConnectionsPercent: 50
+    ConnectionBorrowTimeout: 120
+delete_context:
+  requires_no_upstream_or_downstream: true

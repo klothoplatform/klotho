@@ -1,0 +1,13 @@
+provider: aws
+type: s3_object
+rules:
+  upstream:
+  - enforcement: exactly_one
+    resource_types:
+    - s3_bucket
+    set_field: Bucket
+    unsatisfied_action:
+      operation: error
+delete_context:
+  requires_no_upstream: true
+  requires_explicit_delete: true

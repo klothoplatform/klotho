@@ -1,0 +1,18 @@
+provider: aws
+type: lambda_permission
+rules:
+  downstream:
+  - enforcement: exactly_one
+    resource_types: 
+    - lambda_function
+    set_field: FunctionName
+    unsatisfied_action:
+      operation: error
+  upstream:
+  - enforcement: exactly_one
+    resource_types: 
+    - rest_api
+    unsatisfied_action:
+      operation: error
+delete_context:
+  requires_no_upstream_or_downstream: true

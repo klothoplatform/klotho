@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -213,24 +212,6 @@ func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCr
 	return nil
 }
 
-func (oidc *OpenIdConnectProvider) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if oidc.Region == nil {
-		oidc.Region = NewRegion()
-	}
-	if oidc.Cluster == nil {
-		clusters := core.GetDownstreamResourcesOfType[*EksCluster](dag, oidc)
-		if len(clusters) == 0 {
-			return fmt.Errorf("oidc provider %s has no eks cluster downstream", oidc.Id())
-		} else if len(clusters) == 1 {
-			oidc.Cluster = clusters[0]
-		} else {
-			return fmt.Errorf("oidc provider %s has more than one eks cluster downstream", oidc.Id())
-		}
-	}
-	dag.AddDependenciesReflect(oidc)
-	return nil
-}
-
 type InstanceProfileCreateParams struct {
 	AppName string
 	Name    string
@@ -246,30 +227,6 @@ func (profile *InstanceProfile) Create(dag *core.ResourceGraph, params InstanceP
 		return nil
 	}
 	dag.AddResource(profile)
-	return nil
-}
-
-func (profile *InstanceProfile) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if profile.Role == nil {
-		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, profile)
-		if len(roles) == 0 {
-			role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
-				AppName: appName,
-				Name:    fmt.Sprintf("%s-InstanceProfileRole", profile.Name),
-				Refs:    core.BaseConstructSetOf(profile),
-			})
-			if err != nil {
-				return err
-			}
-			profile.Role = role
-			dag.AddDependency(profile, role)
-		} else if len(roles) == 1 {
-			profile.Role = roles[0]
-			dag.AddDependenciesReflect(profile)
-		} else {
-			return fmt.Errorf("instance profile %s has more than one role downstream", profile.Id())
-		}
-	}
 	return nil
 }
 

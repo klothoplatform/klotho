@@ -1,0 +1,12 @@
+provider: aws
+type: route53_record
+rules:
+  downstream:
+  - enforcement: exactly_one
+    resource_types: 
+    - route53_hosted_zone
+    set_field: Zone
+    unsatisfied_action:
+      operation: error
+delete_context:
+  requires_no_downstream: true

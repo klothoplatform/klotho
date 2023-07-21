@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -93,83 +92,6 @@ func (ec *ElasticacheCluster) Create(dag *core.ResourceGraph, params Elasticache
 	return nil
 }
 
-func (cluster *ElasticacheCluster) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if cluster.CloudwatchGroup == nil {
-		logGroups := core.GetDownstreamResourcesOfType[*LogGroup](dag, cluster)
-		if len(logGroups) == 0 {
-			logGroup, err := core.CreateResource[*LogGroup](dag, CloudwatchLogGroupCreateParams{
-				AppName: appName,
-				Name:    fmt.Sprintf("%s-loggroup", cluster.Name),
-				Refs:    core.BaseConstructSetOf(cluster),
-			})
-			if err != nil {
-				return err
-			}
-			cluster.CloudwatchGroup = logGroup
-		} else if len(logGroups) > 1 {
-			return fmt.Errorf("elasticache cluster %s has more than one log group downstream", cluster.Id())
-		} else {
-			cluster.CloudwatchGroup = logGroups[0]
-		}
-		dag.AddDependenciesReflect(cluster)
-	}
-
-	if cluster.SubnetGroup == nil {
-		subnetGroups := core.GetDownstreamResourcesOfType[*ElasticacheSubnetgroup](dag, cluster)
-		if len(subnetGroups) == 0 {
-			vpc, err := getSingleUpstreamVpc(dag, cluster)
-			if err != nil {
-				return err
-			}
-			subnetGroup, err := core.CreateResource[*ElasticacheSubnetgroup](dag, ElasticacheSubnetgroupCreateParams{
-				AppName: appName,
-				Name:    fmt.Sprintf("%s-subnetgroup", cluster.Name),
-				Refs:    core.BaseConstructSetOf(cluster),
-			})
-			if err != nil {
-				return err
-			}
-			if vpc != nil {
-				dag.AddDependency(subnetGroup, vpc)
-			}
-			err = subnetGroup.MakeOperational(dag, appName, classifier)
-			if err != nil {
-				return err
-			}
-			cluster.SubnetGroup = subnetGroup
-		} else if len(subnetGroups) > 1 {
-			return fmt.Errorf("elasticache cluster %s has more than one subnet group downstream", cluster.Id())
-		} else {
-			cluster.SubnetGroup = subnetGroups[0]
-		}
-		dag.AddDependenciesReflect(cluster)
-	}
-
-	if len(cluster.SecurityGroups) == 0 {
-		securityGroups, err := getSecurityGroupsOperational(dag, cluster, appName)
-		if err != nil {
-			return err
-		}
-		cluster.SecurityGroups = securityGroups
-		dag.AddDependenciesReflect(cluster)
-	}
-
-	return nil
-}
-
-type ElasticacheClusterConfigureParams struct {
-	Engine        string
-	NodeType      string
-	NumCacheNodes int
-}
-
-func (ec *ElasticacheCluster) Configure(params ElasticacheClusterConfigureParams) error {
-	ec.Engine = params.Engine
-	ec.NodeType = params.NodeType
-	ec.NumCacheNodes = params.NumCacheNodes
-	return nil
-}
-
 type ElasticacheSubnetgroupCreateParams struct {
 	Refs    core.BaseConstructSet
 	AppName string
@@ -184,21 +106,5 @@ func (ecsn *ElasticacheSubnetgroup) Create(dag *core.ResourceGraph, params Elast
 		return nil
 	}
 	dag.AddResource(ecsn)
-	return nil
-}
-
-func (subnetGroup *ElasticacheSubnetgroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if len(subnetGroup.Subnets) == 0 {
-		subnets, err := getSubnetsOperational(dag, subnetGroup, appName)
-		if err != nil {
-			return err
-		}
-		for _, subnet := range subnets {
-			if subnet.Type == PrivateSubnet {
-				subnetGroup.Subnets = append(subnetGroup.Subnets, subnet)
-			}
-		}
-		dag.AddDependenciesReflect(subnetGroup)
-	}
 	return nil
 }
