@@ -229,4 +229,6 @@ var LambdaKB = knowledgebase.Build(
 			return err
 		},
 	},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.LambdaFunction]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.LambdaFunction]{},
 )
