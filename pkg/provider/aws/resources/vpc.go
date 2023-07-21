@@ -618,40 +618,6 @@ func (vpc *Vpc) GetVpcSubnets(dag *core.ResourceGraph) []*Subnet {
 	return subnets
 }
 
-func createSubnets(dag *core.ResourceGraph, appName string, ref core.Resource, vpc *Vpc) ([]*Subnet, error) {
-	subnets := []*Subnet{}
-	for i := 0; i < 4; i++ {
-
-		azMarker := 0
-		if i > 1 {
-			azMarker = 1
-		}
-		typeMarker := PrivateSubnet
-		if i%2 == 1 {
-			typeMarker = PublicSubnet
-		}
-		subnet, err := core.CreateResource[*Subnet](dag, SubnetCreateParams{
-			AppName: appName,
-			Refs:    core.BaseConstructSetOf(ref),
-			AZ:      availabilityZones[azMarker],
-			Type:    typeMarker,
-		})
-		if err != nil {
-			return subnets, err
-		}
-		if vpc != nil {
-			dag.AddDependency(subnet, vpc)
-		}
-		err = subnet.MakeOperational(dag, appName, nil)
-		if err != nil {
-			return subnets, err
-		}
-		subnets = append(subnets, subnet)
-	}
-
-	return subnets, nil
-}
-
 func (vpc *Vpc) GetPrivateSubnets(dag *core.ResourceGraph) []*Subnet {
 	subnets := []*Subnet{}
 	downstreamDeps := dag.GetUpstreamResources(vpc)
