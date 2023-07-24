@@ -1,8 +1,8 @@
 package: aws
 type: target_group
 rules:
-  downstream:
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - vpc
     set_field: Vpc

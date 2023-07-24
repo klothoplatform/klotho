@@ -1,8 +1,8 @@
 provider: aws
 type: kms_alias
 rules:
-  downstream:
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - kms_key
     set_field: TargetKey

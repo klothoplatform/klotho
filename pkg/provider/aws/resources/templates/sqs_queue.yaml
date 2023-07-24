@@ -1,0 +1,13 @@
+provider: aws
+type: sqs_queue
+configuration:
+- field: FifoQueue
+  value: false
+- field: DelaySeconds
+  value: 0
+- field: MaximumMessageSize
+  value: 262144
+- field: VisibilityTimeout
+  value: 30
+delete_context:
+ requires_no_upstream_or_downstream: true

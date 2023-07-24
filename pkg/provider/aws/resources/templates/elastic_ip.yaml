@@ -1,0 +1,4 @@
+provider: aws
+type: elastic_ip
+delete_context:
+  requires_no_upstream: true

@@ -1,8 +1,8 @@
 provider: aws
 type: eks_cluster
 rules:
-  downstream:
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - iam_role
     set_field: ClusterRole
@@ -10,6 +10,7 @@ rules:
       operation: create
       unique: true
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - vpc
     set_field: Vpc
@@ -17,6 +18,7 @@ rules:
       operation: create
     rules:
     - enforcement: any_available
+      direction: downstream
       resource_types: 
       - subnet_private
       set_field: Subnets
@@ -24,6 +26,7 @@ rules:
         operation: create
       num_needed: 2
     - enforcement: any_available
+      direction: downstream
       resource_types: 
       - subnet_public
       set_field: Subnets
@@ -31,6 +34,7 @@ rules:
         operation: create
       num_needed: 2
     - enforcement: any_available
+      direction: downstream
       resource_types: 
       - security_group
       num_needed: 1
@@ -38,8 +42,8 @@ rules:
       unsatisfied_action: 
         operation: create
         unique: true
-  upstream:
   - enforcement: any_available
+    direction: upstream
     resource_types: 
     - eks_node_group
     num_needed: 1
@@ -47,6 +51,7 @@ rules:
       operation: create
       unique: true
   - enforcement: exactly_one
+    direction: upstream
     resource_types: 
     - kubeconfig
     set_field: Kubeconfig

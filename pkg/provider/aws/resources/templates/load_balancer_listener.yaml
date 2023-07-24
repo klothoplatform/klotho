@@ -1,8 +1,8 @@
 provider: aws
 type: load_balancer_listener
-rules:
   upstream:
   - enforcement: exactly_one
+    direction: upstream
     resource_types: 
     - load_balancer
     set_field: LoadBalancer

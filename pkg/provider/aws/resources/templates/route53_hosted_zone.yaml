@@ -1,8 +1,8 @@
 provider: aws
 type: route53_hosted_zone
 rules:
-  downstream:
   - enforcement: any_available
+    direction: downstream
     resource_types: 
     - vpc
     set_field: Vpcs

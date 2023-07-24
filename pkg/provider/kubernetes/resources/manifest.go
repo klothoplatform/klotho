@@ -1,10 +1,7 @@
 package resources
 
 import (
-	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -54,26 +51,4 @@ func (manifest *Manifest) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
-}
-
-func (manifest *Manifest) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if manifest.Cluster.IsZero() {
-		var downstreamClustersFound []core.Resource
-		for _, res := range dag.GetAllDownstreamResources(manifest) {
-			if classifier.GetFunctionality(res) == core.Cluster {
-				downstreamClustersFound = append(downstreamClustersFound, res)
-			}
-		}
-		if len(downstreamClustersFound) == 1 {
-			manifest.Cluster = downstreamClustersFound[0].Id()
-			dag.AddDependency(manifest, downstreamClustersFound[0])
-			return nil
-		}
-		if len(downstreamClustersFound) > 1 {
-			return fmt.Errorf("helm chart %s has more than one cluster downstream", manifest.Id())
-		}
-
-		return core.NewOperationalResourceError(manifest, []string{string(core.Cluster)}, fmt.Errorf("helm chart %s has no clusters to use", manifest.Id()))
-	}
-	return nil
 }

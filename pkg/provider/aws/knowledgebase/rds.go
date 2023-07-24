@@ -58,11 +58,9 @@ var RdsKB = knowledgebase.Build(
 				if err != nil {
 					return err
 				}
-				err = secretVersion.MakeOperational(dag, data.AppName, nil)
-				if err != nil {
-					return err
+				if secretVersion.Secret == nil {
+					return fmt.Errorf("secret version %s is not fully operational yet", secretVersion.Name)
 				}
-
 				proxy.Auths = append(proxy.Auths, &resources.ProxyAuth{
 					AuthScheme: "SECRETS",
 					IamAuth:    "DISABLED",

@@ -1,8 +1,8 @@
 provider: aws
 type: kinesis_stream_consumer
 rules:
-  upstream:
   - enforcement: exactly_one
+    direction: upstream
     resource_types: 
     - kinesis_stream
     set_field: Stream

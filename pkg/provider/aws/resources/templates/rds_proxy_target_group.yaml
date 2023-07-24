@@ -1,15 +1,15 @@
 provider: aws
 type: rds_proxy_target_group
 rules:
-  upstream:
   - enforcement: exactly_one
+    direction: upstream
     resource_types: 
     - rds_proxy
     set_field: RdsProxy
     unsatisfied_action:
       operation: error
-  downstream:
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - rds_instance
     set_field: RdsInstance

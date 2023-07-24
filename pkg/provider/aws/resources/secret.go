@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -64,43 +63,6 @@ func (sv *SecretVersion) Create(dag *core.ResourceGraph, params SecretVersionCre
 		return fmt.Errorf("SecretVersion with name %s already exists", sv.Name)
 	}
 	dag.AddResource(sv)
-	return nil
-}
-
-func (sv *SecretVersion) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if sv.Secret == nil {
-		versions := core.GetDownstreamResourcesOfType[*Secret](dag, sv)
-		if len(versions) > 1 {
-			return fmt.Errorf("SecretVersion %s has multiple Secret dependencies", sv.Name)
-		} else if len(versions) == 0 {
-			secret, err := core.CreateResource[*Secret](dag, SecretCreateParams{
-				AppName: appName,
-				Refs:    core.BaseConstructSetOf(sv),
-				Name:    sv.Name,
-			})
-			if err != nil {
-				return err
-			}
-			sv.Secret = secret
-			dag.AddDependency(sv, secret)
-		} else {
-			sv.Secret = versions[0]
-		}
-	}
-	dag.AddDependenciesReflect(sv)
-	return nil
-
-}
-
-type SecretVersionConfigureParams struct {
-	Type string
-	Path string
-}
-
-// Configure sets the intristic characteristics of a vpc based on parameters passed in
-func (sv *SecretVersion) Configure(params SecretVersionConfigureParams) error {
-	sv.Type = params.Type
-	sv.Path = params.Path
 	return nil
 }
 

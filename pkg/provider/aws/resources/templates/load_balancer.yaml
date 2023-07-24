@@ -1,13 +1,14 @@
 provider: aws
 type: load_balancer
 rules:
-  downstream:
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - vpc
     remove_direct_dependency: true
     rules:
     - enforcement: any_available
+      direction: downstream
       resource_types: 
       - subnet_private
       - subnet_public
@@ -17,6 +18,7 @@ rules:
         operation: create
         default_type: subnet_private
     - enforcement: any_available
+      direction: downstream
       resource_types: 
       - security_group
       set_field: SecurityGroups

@@ -159,30 +159,6 @@ func (igw *InternetGateway) Create(dag *core.ResourceGraph, params IgwCreatePara
 	return nil
 }
 
-func (igw *InternetGateway) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	zap.S().Debugf("Making internet gateway %s operational", igw.Name)
-	if igw.Vpc == nil {
-		vpcs := core.GetDownstreamResourcesOfType[*Vpc](dag, igw)
-		if len(vpcs) > 1 {
-			return fmt.Errorf("internet gateway %s has multiple vpc dependencies", igw.Name)
-		} else if len(vpcs) == 0 {
-			vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
-				AppName: appName,
-				Refs:    core.BaseConstructSetOf(igw),
-			})
-			if err != nil {
-				return err
-			}
-			igw.Vpc = vpc
-			dag.AddDependency(igw, vpc)
-		} else {
-			igw.Vpc = vpcs[0]
-		}
-	}
-	dag.AddDependenciesReflect(igw)
-	return nil
-}
-
 type NatCreateParams struct {
 	AppName string
 	Refs    core.BaseConstructSet
@@ -201,107 +177,6 @@ func (nat *NatGateway) Create(dag *core.ResourceGraph, params NatCreateParams) e
 	} else {
 		dag.AddResource(nat)
 	}
-	return nil
-}
-
-func (nat *NatGateway) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	zap.S().Debugf("Making nat gateway %s operational", nat.Name)
-
-	if nat.Subnet == nil {
-		subnets := core.GetDownstreamResourcesOfType[*Subnet](dag, nat)
-		if len(subnets) > 1 {
-			return fmt.Errorf("nat gateway %s has multiple subnet dependencies", nat.Name)
-		} else if len(subnets) == 0 {
-			vpcs := core.GetDownstreamResourcesOfType[*Vpc](dag, nat)
-			// Because private subnets depend on the nat we can use their dependency to see which vpc to place us in
-			subnets := core.GetUpstreamResourcesOfType[*Subnet](dag, nat)
-			for _, subnet := range subnets {
-				if !collectionutil.Contains(vpcs, subnet.Vpc) {
-					vpcs = append(vpcs, subnet.Vpc)
-				}
-			}
-			if len(vpcs) > 1 {
-				return fmt.Errorf("nat gateway %s has multiple vpc dependencies", nat.Name)
-			} else if len(vpcs) == 0 {
-				subnet, err := core.CreateResource[*Subnet](dag, SubnetCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(nat),
-					Type:    PublicSubnet,
-				})
-				if err != nil {
-					return err
-				}
-				dag.AddDependency(nat, subnet)
-				nat.Subnet = subnet
-			} else {
-				var az string
-				var usedAzs []string
-				currNats := core.GetResources[*NatGateway](dag)
-				for _, currNat := range currNats {
-					if currNat.Subnet != nil && currNat.Subnet.Vpc == vpcs[0] {
-						usedAzs = append(usedAzs, currNat.Subnet.AvailabilityZone.Property)
-					}
-				}
-				for _, availabilityZone := range availabilityZones {
-					if !collectionutil.Contains(usedAzs, availabilityZone) {
-						az = availabilityZone
-					}
-				}
-				if az == "" {
-					az = availabilityZones[0]
-				}
-				s, err := core.CreateResource[*Subnet](dag, SubnetCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(nat),
-					AZ:      az,
-					Type:    PublicSubnet,
-				})
-				if err != nil {
-					return err
-				}
-				dag.AddDependency(s, vpcs[0])
-				dag.AddDependency(nat, s)
-				err = s.MakeOperational(dag, appName, classifier)
-				if err != nil {
-					return err
-				}
-				nat.Subnet = s
-			}
-		} else {
-			nat.Subnet = subnets[0]
-		}
-	}
-
-	if nat.ElasticIp == nil {
-		var eip *ElasticIp
-		for _, res := range dag.GetDownstreamResources(nat) {
-			if upstreamEip, ok := res.(*ElasticIp); ok {
-				if eip != nil {
-					return fmt.Errorf("nat gateway %s has multiple elastic ip dependencies", nat.Name)
-				}
-				eip = upstreamEip
-			}
-		}
-		if eip == nil {
-			err := nat.Subnet.MakeOperational(dag, appName, classifier)
-			if err != nil {
-				return err
-			}
-			eip, err = core.CreateResource[*ElasticIp](dag, EipCreateParams{
-				AppName: appName,
-				Refs:    core.BaseConstructSetOf(nat),
-				Name:    nat.Subnet.AvailabilityZone.Property,
-			})
-			if err != nil {
-				return err
-			}
-			dag.AddDependency(nat, eip)
-			nat.ElasticIp = eip
-		} else {
-			nat.ElasticIp = eip
-		}
-	}
-	dag.AddDependenciesReflect(nat)
 	return nil
 }
 
@@ -336,40 +211,6 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, c
 	zap.S().Debugf("Making subnet %s operational", subnet.Name)
 	var az string
 	var usedAzs []string
-	var typeToUse string
-	var usedTypes []string
-	subnetTypes := []string{PrivateSubnet, PublicSubnet}
-	if subnet.Vpc == nil {
-		var vpc *Vpc
-		for _, res := range dag.GetDownstreamResources(subnet) {
-			if upstreamVpc, ok := res.(*Vpc); ok {
-				if vpc != nil {
-					return fmt.Errorf("internet gateway %s has multiple vpc dependencies", subnet.Name)
-				}
-				vpc = upstreamVpc
-			}
-		}
-		if vpc == nil {
-			vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
-				AppName: appName,
-				Refs:    core.BaseConstructSetOf(subnet),
-			})
-			if err != nil {
-				return err
-			}
-			dag.AddDependency(subnet, vpc)
-			subnet.Vpc = vpc
-		} else {
-			subnet.Vpc = vpc
-		}
-		// Replace now that we are namespaced within the vpc
-		err := dag.ReplaceConstruct(&copyOfSubnet, subnet)
-		if err != nil {
-			return err
-		}
-		copyOfSubnet = *subnet
-
-	}
 	// Determine AZ and subnet type if they are not defined
 	if subnet.AvailabilityZone.ResourceId.IsZero() || subnet.Type == "" {
 		currSubnets := core.GetResources[*Subnet](dag)
@@ -389,22 +230,7 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, c
 				az = availabilityZones[0]
 			}
 			subnet.AvailabilityZone = core.IaCValue{ResourceId: NewAvailabilityZones().Id(), Property: az}
-		}
-		if subnet.Type == "" {
-			for _, currSubnet := range currSubnets {
-				if currSubnet.Type != "" && !currSubnet.AvailabilityZone.ResourceId.IsZero() && currSubnet.AvailabilityZone.Property == subnet.AvailabilityZone.Property {
-					usedTypes = append(usedTypes, currSubnet.Type)
-				}
-			}
-			for _, subnetType := range subnetTypes {
-				if !collectionutil.Contains(usedTypes, subnetType) {
-					typeToUse = subnetType
-				}
-			}
-			if typeToUse == "" {
-				typeToUse = PrivateSubnet
-			}
-			subnet.Type = typeToUse
+			dag.AddDependency(subnet, NewAvailabilityZones())
 		}
 		subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", appName, subnet.Type, subnet.AvailabilityZone.Property))
 		// Replace now that we are namespaced within the vpc and determined the type and az of subnet
@@ -413,38 +239,6 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, c
 			return err
 		}
 	}
-
-	routeTableFound := false
-	for _, res := range dag.GetUpstreamResources(subnet) {
-		if _, ok := res.(*RouteTable); ok {
-			routeTableFound = true
-			break
-		}
-	}
-	if !routeTableFound {
-		var rtName string
-		if subnet.Type == PrivateSubnet {
-			rtName = fmt.Sprintf("%s%s", subnet.Type, subnet.AvailabilityZone.Property)
-		} else {
-			rtName = fmt.Sprintf(subnet.Type)
-		}
-		routeTableParams := RouteTableCreateParams{
-			AppName: appName,
-			Refs:    core.BaseConstructSetOf(subnet),
-			Name:    rtName,
-		}
-
-		rt, err := core.CreateResource[*RouteTable](dag, routeTableParams)
-		if err != nil {
-			return err
-		}
-		dag.AddDependency(rt, subnet)
-		err = rt.MakeOperational(dag, appName, classifier)
-		if err != nil {
-			return err
-		}
-	}
-	dag.AddDependency(subnet, NewAvailabilityZones())
 	return nil
 }
 
@@ -469,7 +263,6 @@ func (subnet *Subnet) Configure(params SubnetConfigureParams) error {
 			subnet.CidrBlock = "10.0.192.0/18"
 
 		}
-		subnet.MapPublicIpOnLaunch = true
 	}
 	return nil
 }
@@ -492,98 +285,6 @@ func (rt *RouteTable) Create(dag *core.ResourceGraph, params RouteTableCreatePar
 	} else {
 		dag.AddResource(rt)
 	}
-	return nil
-}
-
-func (routeTable *RouteTable) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	zap.S().Debugf("Making route table %s operational", routeTable.Name)
-	routeTablesSubnets := core.GetDownstreamResourcesOfType[*Subnet](dag, routeTable)
-	if routeTable.Vpc == nil {
-		vpcs := core.GetAllDownstreamResourcesOfType[*Vpc](dag, routeTable)
-		if len(vpcs) > 1 {
-			return fmt.Errorf("route table %s has multiple vpc dependencies", routeTable.Name)
-		}
-		if len(vpcs) == 1 {
-			routeTable.Vpc = vpcs[0]
-		}
-	}
-	for _, subnet := range routeTablesSubnets {
-		if routeTable.Vpc != nil && routeTable.Vpc.Id() != subnet.Vpc.Id() {
-			return fmt.Errorf("route table %s has multiple vpc dependencies through its subnets", routeTable.Name)
-		}
-		routeTable.Vpc = subnet.Vpc
-	}
-
-	if routeTable.Vpc == nil {
-		vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
-			AppName: appName,
-			Refs:    core.BaseConstructSetOf(routeTable),
-		})
-		if err != nil {
-			return err
-		}
-		routeTable.Vpc = vpc
-		dag.AddDependency(routeTable, vpc)
-	}
-	for _, subnet := range routeTablesSubnets {
-		switch subnet.Type {
-		case PrivateSubnet:
-			natAdded := false
-			nats := core.GetUpstreamResourcesOfType[*NatGateway](dag, routeTable.Vpc)
-			for _, nat := range nats {
-				if nat.Subnet.AvailabilityZone.Property == subnet.AvailabilityZone.Property {
-					natAdded = true
-					dag.AddDependency(routeTable, nat)
-				}
-			}
-			if !natAdded {
-				natParams := NatCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(routeTable),
-					Name:    subnet.AvailabilityZone.Property,
-				}
-				nat, err := core.CreateResource[*NatGateway](dag, natParams)
-				if err != nil {
-					return err
-				}
-				dag.AddDependency(routeTable, nat)
-				for _, subnet := range routeTablesSubnets {
-					dag.AddDependency(subnet, nat)
-				}
-				err = nat.MakeOperational(dag, appName, classifier)
-				if err != nil {
-					return err
-				}
-			}
-		case PublicSubnet:
-			igwAdded := false
-			igws := core.GetAllUpstreamResourcesOfType[*InternetGateway](dag, routeTable.Vpc)
-			for _, igw := range igws {
-				if igwAdded {
-					return fmt.Errorf("route table %s has multiple internet gateway dependencies", routeTable.Name)
-				}
-				igwAdded = true
-				dag.AddDependency(routeTable, igw)
-			}
-			if !igwAdded {
-				igwParams := IgwCreateParams{
-					AppName: appName,
-					Refs:    core.BaseConstructSetOf(routeTable),
-				}
-				igw, err := core.CreateResource[*InternetGateway](dag, igwParams)
-				if err != nil {
-					return err
-				}
-				dag.AddDependency(routeTable, igw)
-				dag.AddDependency(igw, routeTable.Vpc)
-				err = igw.MakeOperational(dag, appName, classifier)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-	dag.AddDependenciesReflect(routeTable)
 	return nil
 }
 

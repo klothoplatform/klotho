@@ -1,0 +1,11 @@
+provider: aws
+type: vpc
+configuration:
+  - field: CidrBlock
+    value: 10.0.0.0/16
+  - field: EnableDnsHostnames
+    value: true
+  - field: EnableDnsSupport
+    value: true
+delete_context:
+  requires_no_upstream: true

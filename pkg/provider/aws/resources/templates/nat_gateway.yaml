@@ -1,0 +1,20 @@
+provider: aws
+type: nat_gateway
+rules:
+  - enforcement: exactly_one
+    direction: downstream
+    resource_types: 
+    - subnet_public
+    set_field: Subnet
+    unsatisfied_action:
+      operation: create
+  - enforcement: exactly_one
+    direction: downstream
+    resource_types: 
+    - elastic_ip
+    set_field: AllocationId
+    unsatisfied_action:
+      operation: ElasticIp
+      unique: true
+delete_context:
+  requires_no_upstream: true

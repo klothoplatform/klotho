@@ -1,0 +1,12 @@
+provider: aws
+type: api_deployment
+rules:
+- enforcement: exactly_one
+  direction: upstream
+  resource_types:
+  - rest_api
+  set_field: RestApi
+  unsatisfied_action:
+    operation: create
+delete_context:
+  requires_no_upstream: true

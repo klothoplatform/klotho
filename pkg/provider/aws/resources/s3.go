@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	"github.com/pkg/errors"
 )
@@ -146,18 +145,6 @@ func (policy *S3BucketPolicy) Create(dag *core.ResourceGraph, params S3BucketPol
 		return errors.Errorf(`a bucket policy named "%s" already exists (internal error)`, policy.Id().String())
 	}
 	dag.AddResource(policy)
-	return nil
-}
-
-func (policy *S3BucketPolicy) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if policy.Bucket == nil {
-		buckets := core.GetDownstreamResourcesOfType[*S3Bucket](dag, policy)
-		if len(buckets) != 1 {
-			return fmt.Errorf("S3Object %s has %d bucket dependencies", policy.Name, len(buckets))
-		}
-		policy.Bucket = buckets[0]
-	}
-	dag.AddDependenciesReflect(policy)
 	return nil
 }
 

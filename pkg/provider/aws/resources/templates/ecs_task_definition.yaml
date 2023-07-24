@@ -1,8 +1,8 @@
 provider: aws
 type: ecs_task_definition
 rules:
-  downstream:
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - ecr_image
     set_field: Image
@@ -10,6 +10,7 @@ rules:
       operation: create
       unique: true
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - iam_role
     set_field: ExecutionRole
@@ -17,6 +18,7 @@ rules:
       operation: create
       unique: true
   - enforcement: exactly_one
+    direction: downstream
     resource_types:
     - log_group
     set_field: LogGroup
@@ -24,6 +26,7 @@ rules:
       operation: create
       unique: true
   - enforcement: exactly_one
+    direction: downstream
     resource_types:
     - region
     set_field: Region

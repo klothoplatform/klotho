@@ -85,7 +85,6 @@ func (a *AWS) GetOperationalTempaltes() map[string]*core.ResourceTemplate {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(d.Name())
 		resTemplate := &core.ResourceTemplate{}
 		err = yaml.Unmarshal(content, resTemplate)
 		if err != nil {

@@ -1,0 +1,20 @@
+provider: aws
+type: api_integration
+rules:
+- enforcement: exactly_one
+  direction: downstream
+  resource_types:
+  - api_method
+  set_field: Method
+  unsatisfied_action:
+    operation: create
+    unique: true
+- enforcement: exactly_one
+  direction: upstream
+  resource_types:
+  - rest_api
+  set_field: RestApi
+  unsatisfied_action:
+    operation: create
+delete_context:
+  requires_no_upstream_or_downstream: true

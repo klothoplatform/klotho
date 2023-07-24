@@ -1,8 +1,8 @@
 provider: aws
 type: iam_oidc_provider
 rules:
-  downstream:
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - eks_cluster
     set_field: Cluster

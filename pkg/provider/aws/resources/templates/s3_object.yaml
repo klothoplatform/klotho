@@ -1,8 +1,8 @@
 provider: aws
 type: s3_object
 rules:
-  upstream:
   - enforcement: exactly_one
+    direction: downstream
     resource_types:
     - s3_bucket
     set_field: Bucket

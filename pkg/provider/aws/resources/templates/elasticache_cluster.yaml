@@ -1,31 +1,34 @@
 provider: aws
 type: elasticache_cluster
 rules:
-  downstream:
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - vpc
     remove_direct_dependency: true
     rules:
     - enforcement: any_available
+      direction: downstream
       resource_types: 
       - security_group
       set_field: SecurityGroup
       unsatisfied_action:
         operation: create
     - enforcement: exactly_one
+      direction: downstream
       resource_types: 
       - subnet_group
       set_field: SubnetGroup
       unsatisfied_action:
         operation: create
   - enforcement: exactly_one
-  resource_types:
-  - log_group
-  set_field: CloudwatchGroup
-  unsatisfied_action:
-    operation: create
-    unique: true
+    direction: downstream
+    resource_types:
+    - log_group
+    set_field: CloudwatchGroup
+    unsatisfied_action:
+      operation: create
+      unique: true
 configuration:
 - field: Engine
   value: redis
