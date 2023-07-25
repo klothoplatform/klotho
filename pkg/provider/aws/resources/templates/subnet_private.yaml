@@ -8,13 +8,14 @@ rules:
     set_field: Vpc
     unsatisfied_action:
       operation: create
-  - enforcement: exactly_one
-    direction: upstream
-    resource_types: 
-    - route_table
-    unsatisfied_action:
-      operation: create
-      unique: true
+    rules:
+    - enforcement: exactly_one
+      direction: upstream
+      resource_types: 
+      - route_table
+      unsatisfied_action:
+        operation: create
+        unique: true
 configuration:
 - field: MapPublicIpOnLaunch
   value: false

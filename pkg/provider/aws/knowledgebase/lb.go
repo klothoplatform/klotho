@@ -14,10 +14,11 @@ var LbKB = knowledgebase.Build(
 		Configure: func(listener *resources.Listener, tg *resources.TargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			listener.Protocol = tg.Protocol
 			listener.DefaultActions = []*resources.LBAction{{TargetGroupArn: core.IaCValue{ResourceId: tg.Id(), Property: resources.ARN_IAC_VALUE}, Type: "forward"}}
-			if listener.LoadBalancer == nil || len(listener.LoadBalancer.Subnets) == 0 {
+			if listener.LoadBalancer == nil || len(listener.LoadBalancer.Subnets) == 0 || listener.LoadBalancer.Subnets[0].Vpc == nil {
 				return fmt.Errorf("cannot configure targetGroup's Vpc %s, missing load balancer vpc for listener %s", tg.Id(), listener.Id())
 			}
 			tg.Vpc = listener.LoadBalancer.Subnets[0].Vpc
+			dag.AddDependency(tg, listener.LoadBalancer.Subnets[0].Vpc)
 			return nil
 		},
 	},

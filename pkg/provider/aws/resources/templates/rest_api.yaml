@@ -2,7 +2,7 @@ provider: aws
 type: rest_api
 rules:
   - enforcement: any_available
-    direction: downstream
+    direction: upstream
     resource_types: 
     - api_stage
     num_needed: 1

@@ -37,7 +37,8 @@ func (s *Secret) Create(dag *core.ResourceGraph, params SecretCreateParams) erro
 	s.Name = aws.SecretSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	s.ConstructRefs = params.Refs.Clone()
 	if existingSecret, ok := core.GetResource[*Secret](dag, s.Id()); ok {
-		return fmt.Errorf("secret with name %s already exists", existingSecret.Name)
+		existingSecret.ConstructRefs.AddAll(params.Refs)
+		return nil
 	}
 	dag.AddResource(s)
 	return nil
@@ -60,7 +61,8 @@ func (sv *SecretVersion) Create(dag *core.ResourceGraph, params SecretVersionCre
 	sv.DetectedPath = params.DetectedPath
 	existingSecret := dag.GetResource(sv.Id())
 	if existingSecret != nil {
-		return fmt.Errorf("SecretVersion with name %s already exists", sv.Name)
+		existingSecret.(*SecretVersion).ConstructRefs.AddAll(params.Refs)
+		return nil
 	}
 	dag.AddResource(sv)
 	return nil

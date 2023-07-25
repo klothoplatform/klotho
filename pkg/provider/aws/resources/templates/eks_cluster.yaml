@@ -52,10 +52,9 @@ rules:
       unique: true
   - enforcement: exactly_one
     direction: upstream
-    resource_types: 
+    classifications: 
     - kubeconfig
     set_field: Kubeconfig
-    num_needed: 1
     unsatisfied_action: 
       operation: create
       unique: true

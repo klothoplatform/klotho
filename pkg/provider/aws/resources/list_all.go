@@ -2,7 +2,6 @@ package resources
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 )
 
 func ListAll() []core.Resource {
@@ -75,9 +74,5 @@ func ListAll() []core.Resource {
 		&VpcEndpoint{},
 		&VpcLink{},
 		&Vpc{},
-		&kubernetes.HelmChart{},
-		&kubernetes.Kubeconfig{},
-		&kubernetes.KustomizeDirectory{},
-		&kubernetes.Manifest{},
 	}
 }

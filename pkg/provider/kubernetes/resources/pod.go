@@ -58,6 +58,10 @@ func (pod *Pod) Path() string {
 
 func (pod *Pod) GetServiceAccount(dag *core.ResourceGraph) *ServiceAccount {
 	if pod.Object == nil {
+		sas := core.GetDownstreamResourcesOfType[*ServiceAccount](dag, pod)
+		if len(sas) == 1 {
+			return sas[0]
+		}
 		return nil
 	}
 	sa := &ServiceAccount{

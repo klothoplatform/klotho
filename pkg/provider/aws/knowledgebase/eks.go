@@ -19,6 +19,8 @@ var EksKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.EksCluster, *resources.Vpc]{},
 	knowledgebase.EdgeBuilder[*resources.EksCluster, *resources.Subnet]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Kubeconfig, *resources.EksCluster]{},
+	knowledgebase.EdgeBuilder[*resources.EksCluster, *kubernetes.Kubeconfig]{},
 	knowledgebase.EdgeBuilder[*resources.EksCluster, *resources.SecurityGroup]{
 		Configure: func(cluster *resources.EksCluster, sg *resources.SecurityGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			sg.IngressRules = append(sg.IngressRules, resources.SecurityGroupRule{
@@ -262,7 +264,7 @@ func GetPodServiceAccountRole(pod *kubernetes.Pod, dag *core.ResourceGraph) (*re
 func GetDeploymentServiceAccountRole(deployment *kubernetes.Deployment, dag *core.ResourceGraph) (*resources.IamRole, error) {
 	sa := deployment.GetServiceAccount(dag)
 	if sa == nil {
-		return nil, fmt.Errorf("no service account found for pod %s in Pod during expansion", deployment.Id())
+		return nil, fmt.Errorf("no service account found for deployment %s during expansion", deployment.Id())
 	}
 	role, err := resources.GetServiceAccountRole(sa, dag)
 	if err != nil {

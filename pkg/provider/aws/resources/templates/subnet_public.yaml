@@ -1,7 +1,6 @@
 provider: aws
 type: subnet_public
 rules:
-  downstream:
   - enforcement: exactly_one
     direction: downstream
     resource_types: 

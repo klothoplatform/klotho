@@ -211,13 +211,29 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, c
 	zap.S().Debugf("Making subnet %s operational", subnet.Name)
 	var az string
 	var usedAzs []string
-	// Determine AZ and subnet type if they are not defined
+	// Determine AZ if it is not defined
 	if subnet.AvailabilityZone.ResourceId.IsZero() || subnet.Type == "" {
-		currSubnets := core.GetResources[*Subnet](dag)
+		if subnet.Type == "" {
+			subnet.Type = PrivateSubnet
 
+			subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", subnet.Name, subnet.Type, subnet.AvailabilityZone.Property))
+			if dag.GetResource(subnet.Id()) != nil {
+				return fmt.Errorf("subnet with name %s already exists", subnet.Name)
+			}
+			// Replace now that we are namespaced within the vpc and determined the type and az of subnet
+			err := dag.ReplaceConstruct(&copyOfSubnet, subnet)
+			if err != nil {
+				return err
+			}
+		}
+
+		currSubnets := core.GetResources[*Subnet](dag)
 		if subnet.AvailabilityZone.ResourceId.IsZero() {
 			for _, currSubnet := range currSubnets {
-				if currSubnet.AvailabilityZone.ResourceId.IsZero() {
+				if subnet.Vpc == nil || currSubnet.Vpc == nil {
+					return fmt.Errorf("cannot determine availability zone for subnet %s because vpc is not defined", subnet.Name)
+				}
+				if !currSubnet.AvailabilityZone.ResourceId.IsZero() && currSubnet.Type == subnet.Type && currSubnet.Vpc.Name == subnet.Vpc.Name {
 					usedAzs = append(usedAzs, currSubnet.AvailabilityZone.Property)
 				}
 			}
@@ -231,13 +247,18 @@ func (subnet *Subnet) MakeOperational(dag *core.ResourceGraph, appName string, c
 			}
 			subnet.AvailabilityZone = core.IaCValue{ResourceId: NewAvailabilityZones().Id(), Property: az}
 			dag.AddDependency(subnet, NewAvailabilityZones())
+
+			subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", subnet.Name, subnet.Type, subnet.AvailabilityZone.Property))
+			if dag.GetResource(subnet.Id()) != nil {
+				return fmt.Errorf("subnet with name %s already exists", subnet.Name)
+			}
+			// Replace now that we are namespaced within the vpc and determined the type and az of subnet
+			err := dag.ReplaceConstruct(&copyOfSubnet, subnet)
+			if err != nil {
+				return err
+			}
 		}
-		subnet.Name = subnetSanitizer.Apply(fmt.Sprintf("%s-%s%s", appName, subnet.Type, subnet.AvailabilityZone.Property))
-		// Replace now that we are namespaced within the vpc and determined the type and az of subnet
-		err := dag.ReplaceConstruct(&copyOfSubnet, subnet)
-		if err != nil {
-			return err
-		}
+
 	}
 	return nil
 }

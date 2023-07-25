@@ -10,6 +10,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/graph"
+
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"go.uber.org/zap"
 )
@@ -45,6 +46,8 @@ func (e *Engine) MakeResourcesOperational(graph *core.ResourceGraph) (map[core.R
 				if herr != nil {
 					err = errors.Join(err, herr)
 				}
+				joinedErr = errors.Join(joinedErr, err)
+			} else {
 				joinedErr = errors.Join(joinedErr, err)
 			}
 			continue
@@ -135,7 +138,7 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 	}
 
 	if rule.ResourceTypes != nil && rule.Classifications != nil {
-		return []error{fmt.Errorf("rule cannot have both a resource type and classifications defined %s", rule.String())}
+		return []error{fmt.Errorf("rule cannot have both a resource type and classifications defined %s for resource %s", rule.String(), resource.Id())}
 	} else if rule.ResourceTypes != nil {
 		for _, res := range dependentResources {
 			if collectionutil.Contains(rule.ResourceTypes, res.Id().Type) && res.Id().Provider == resource.Id().Provider {
@@ -149,7 +152,7 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 			}
 		}
 	} else {
-		return []error{fmt.Errorf("rule must have either a resource type or classifications defined %s", rule.String())}
+		return []error{fmt.Errorf("rule must have either a resource type or classifications defined %s for resource %s", rule.String(), resource.Id())}
 	}
 
 	switch rule.Enforcement {
@@ -157,7 +160,7 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 		var res core.Resource
 		var ore *core.OperationalResourceError
 		if len(resourcesOfType) > 1 {
-			return []error{fmt.Errorf("rule with enforcement only_one has more than one resource of types %s for resource %s", rule.ResourceTypes, resource.Id())}
+			return []error{fmt.Errorf("rule with enforcement only_one has more than one resource for rule %s for resource %s", rule.String(), resource.Id())}
 		} else if len(resourcesOfType) == 0 {
 			switch rule.UnsatisfiedAction.Operation {
 			case core.CreateUnsatisfiedResource:
@@ -178,17 +181,20 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 					Count:      1,
 					Needs:      needs,
 					MustCreate: rule.UnsatisfiedAction.Unique,
-					Cause:      fmt.Errorf("rule with enforcement exactly one has less than the required number of resources of type %s, %d", rule.ResourceTypes, len(resourcesOfType)),
+					Cause:      fmt.Errorf("rule with enforcement exactly one has less than the required number of resources of type %s  or classifications %s, %d for resource %s", rule.ResourceTypes, rule.Classifications, len(resourcesOfType), resource.Id()),
 				}
 			case core.ErrorUnsatisfiedResource:
-				return []error{fmt.Errorf("rule with enforcement exactly one has less than the required number of resources of type %s, %d", rule.ResourceTypes, len(resourcesOfType))}
+				return []error{fmt.Errorf("rule with enforcement exactly one has less than the required number of resources of type %s  or classifications %s, %d for resource %s", rule.ResourceTypes, rule.Classifications, len(resourcesOfType), resource.Id())}
 			}
 		} else {
 			res = resourcesOfType[0]
 			if !rule.RemoveDirectDependency {
 				addDependencyForDirection(dag, rule.Direction, resource, res)
 			}
-			setField(resource, rule, res)
+			err := setField(dag, resource, rule, res)
+			if err != nil {
+				return []error{err}
+			}
 			if downstreamParent != nil {
 				dag.AddDependency(res, downstreamParent)
 			}
@@ -208,7 +214,7 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 			return []error{ore}
 		}
 		if res == nil {
-			return []error{fmt.Errorf("no resources found that can satisfy the operational resource rule %s, for %s", rule.String(), resource.Id())}
+			return []error{fmt.Errorf("no resources found that can satisfy the operational resource rule %s, for %s for resource %s", rule.String(), resource.Id(), resource.Id())}
 		}
 		if rule.RemoveDirectDependency {
 			if getDependencyForDirection(dag, rule.Direction, resource, res) != nil {
@@ -219,11 +225,17 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 			}
 		}
 	case core.Conditional:
-		if len(resourcesOfType) > 1 {
-			return []error{fmt.Errorf("rule with direction %s and enforcement if_one has more than one resource of types %s", rule.Direction, rule.ResourceTypes)}
+		if len(resourcesOfType) == 0 {
+			if rule.NumNeeded > 0 {
+				return []error{fmt.Errorf("rule with enforcement conditional has less than the required number of resources of type %s  or classifications %s, %d for resource %s", rule.ResourceTypes, rule.Classifications, len(resourcesOfType), resource.Id())}
+			}
+			return nil
 		}
 		if len(resourcesOfType) == 1 {
-			setField(resource, rule, resourcesOfType[0])
+			err := setField(dag, resource, rule, resourcesOfType[0])
+			if err != nil {
+				return []error{err}
+			}
 			if rule.RemoveDirectDependency {
 				if getDependencyForDirection(dag, rule.Direction, resource, resourcesOfType[0]) != nil {
 					err := removeDependencyForDirection(dag, rule.Direction, resource, resourcesOfType[0])
@@ -232,21 +244,24 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 					}
 				}
 			}
-			var subRuleErrors []error
-			for _, subRule := range rule.Rules {
-				err := e.handleOperationalRule(resource, subRule, dag, resourcesOfType[0])
-				if err != nil {
-					subRuleErrors = append(subRuleErrors, err...)
-				}
+		}
+		var subRuleErrors []error
+		for _, subRule := range rule.Rules {
+			err := e.handleOperationalRule(resource, subRule, dag, resourcesOfType[0])
+			if err != nil {
+				subRuleErrors = append(subRuleErrors, err...)
 			}
-			if subRuleErrors != nil {
-				return subRuleErrors
-			}
+		}
+		if subRuleErrors != nil {
+			return subRuleErrors
 		}
 	case core.AnyAvailable:
 		var ore *core.OperationalResourceError
 		for _, res := range resourcesOfType {
-			setField(resource, rule, res)
+			err := setField(dag, resource, rule, res)
+			if err != nil {
+				return []error{err}
+			}
 		}
 		if rule.NumNeeded > len(resourcesOfType) {
 			switch rule.UnsatisfiedAction.Operation {
@@ -276,10 +291,10 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 					Count:      rule.NumNeeded - len(resourcesOfType),
 					MustCreate: rule.UnsatisfiedAction.Unique,
 					Needs:      needs,
-					Cause:      fmt.Errorf("rule with enforcement any has less than the required number of resources of type %s, %d", rule.ResourceTypes, len(resourcesOfType)),
+					Cause:      fmt.Errorf("rule with enforcement any has less than the required number of resources of type %s  or classifications %s, %d for resource %s", rule.ResourceTypes, rule.Classifications, len(resourcesOfType), resource.Id()),
 				}
 			case core.ErrorUnsatisfiedResource:
-				return []error{fmt.Errorf("rule with enforcement any has less than the required number of resources of type %s, %d", rule.ResourceTypes, len(resourcesOfType))}
+				return []error{fmt.Errorf("rule with enforcement any has less than the required number of resources of type %s  or classifications %s, %d, for resource %s", rule.ResourceTypes, rule.Classifications, len(resourcesOfType), resource.Id())}
 			}
 		}
 		var subRuleErrors []error
@@ -296,23 +311,42 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 			return []error{ore}
 		}
 		if len(resourcesOfType) < rule.NumNeeded {
-			return []error{fmt.Errorf("rule with enforcement any available has less than the required number of resources of type %s, %d", rule.ResourceTypes, len(resourcesOfType))}
+			return []error{fmt.Errorf("rule with enforcement any available has less than the required number of resources of type %s or classifications %s, %d for resource %s", rule.ResourceTypes, rule.Classifications, len(resourcesOfType), resource.Id())}
 		}
 	default:
-		return []error{fmt.Errorf("unknown enforcement type %s", rule.Enforcement)}
+		return []error{fmt.Errorf("unknown enforcement type %s, for resource %s", rule.Enforcement, resource.Id())}
 	}
 	return nil
 }
 
-func setField(resource core.Resource, rule core.OperationalRule, res core.Resource) {
+func setField(dag *core.ResourceGraph, resource core.Resource, rule core.OperationalRule, res core.Resource) error {
+	copyResource := cloneResource(resource)
 	if rule.SetField == "" {
-		return
+		return nil
 	}
 	if reflect.ValueOf(resource).Elem().FieldByName(rule.SetField).Kind() == reflect.Slice || reflect.ValueOf(resource).Elem().FieldByName(rule.SetField).Kind() == reflect.Array {
 		reflect.ValueOf(resource).Elem().FieldByName(rule.SetField).Set(reflect.Append(reflect.ValueOf(resource).Elem().FieldByName(rule.SetField), reflect.ValueOf(res)))
+	} else if reflect.TypeOf(core.ResourceId{}) == reflect.ValueOf(resource).Elem().FieldByName(rule.SetField).Type() {
+		reflect.ValueOf(resource).Elem().FieldByName(rule.SetField).Set(reflect.ValueOf(res.Id()))
 	} else {
 		reflect.ValueOf(resource).Elem().FieldByName(rule.SetField).Set(reflect.ValueOf(res))
 	}
+	if copyResource.Id() != resource.Id() {
+		if dag.GetResource(resource.Id()) != nil {
+			return fmt.Errorf("resource %s was replaced with %s, but the original resource still exists in the graph", copyResource.Id(), resource.Id())
+		}
+		dag.ReplaceConstruct(copyResource, resource)
+	}
+	return nil
+}
+
+func cloneResource(resource core.Resource) core.Resource {
+	newRes := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(core.Resource)
+	for i := 0; i < reflect.ValueOf(newRes).Elem().NumField(); i++ {
+		field := reflect.ValueOf(newRes).Elem().Field(i)
+		field.Set(reflect.ValueOf(resource).Elem().Field(i))
+	}
+	return newRes
 }
 
 func nameResource(res core.Resource, resource core.Resource, addToName string) {
@@ -348,12 +382,17 @@ func getDependencyForDirection(dag *core.ResourceGraph, direction core.Direction
 // If the error cannot be fixed, it will return an error.
 func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceError, dag *core.ResourceGraph) error {
 	resources := e.ListResources()
-
 	// determine the type of resource necessary to satisfy the operational resource error
 	var neededResource core.Resource
 	for _, res := range resources {
+
 		if e.ClassificationDocument.ResourceContainsClassifications(res, err.Needs) {
-			paths := e.KnowledgeBase.FindPaths(err.Resource, res, knowledgebase.EdgeConstraint{})
+			var paths []knowledgebase.Path
+			if err.Direction == core.Downstream {
+				paths = e.KnowledgeBase.FindPaths(err.Resource, res, knowledgebase.EdgeConstraint{})
+			} else {
+				paths = e.KnowledgeBase.FindPaths(res, err.Resource, knowledgebase.EdgeConstraint{})
+			}
 			if len(paths) == 0 {
 				continue
 			}
@@ -403,7 +442,7 @@ func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceErr
 	// if theres no available resources from us to choose from, we must create new resources
 	if len(availableResources) < err.Count-numSatisfied {
 		for i := numSatisfied; i < err.Count; i++ {
-			newRes := reflect.New(reflect.TypeOf(neededResource).Elem()).Interface().(core.Resource)
+			newRes := cloneResource(neededResource)
 			if err.Count-numSatisfied == 1 {
 				nameResource(newRes, err.Resource, "")
 			} else {

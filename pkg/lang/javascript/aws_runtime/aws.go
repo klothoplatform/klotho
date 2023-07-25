@@ -11,9 +11,9 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
+	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"github.com/klothoplatform/klotho/pkg/runtime"
 	"github.com/klothoplatform/klotho/pkg/sanitization"
 	"github.com/pkg/errors"
@@ -193,7 +193,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	var proxyFile []byte
 	unitType := r.Config.GetResourceType(unit)
 	switch proxyType {
-	case kubernetes.KubernetesType:
+	case kubernetes.DEPLOYMENT_TYPE:
 		proxyFile = proxyEks
 	case aws.Ecs:
 		proxyFile = proxyFargate
@@ -224,7 +224,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	var DockerFile, Dispatcher []byte
 	unitType := r.Config.GetResourceType(unit)
 	switch unitType {
-	case aws.Ecs, kubernetes.KubernetesType, aws.AppRunner:
+	case aws.Ecs, kubernetes.DEPLOYMENT_TYPE, aws.AppRunner:
 		DockerFile = dockerfileFargate
 		Dispatcher = dispatcherFargate
 	case aws.Lambda:

@@ -12,7 +12,7 @@ rules:
     direction: downstream
     resource_types: 
     - elastic_ip
-    set_field: AllocationId
+    set_field: ElasticIp
     unsatisfied_action:
       operation: ElasticIp
       unique: true

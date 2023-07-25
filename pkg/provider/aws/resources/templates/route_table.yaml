@@ -8,7 +8,7 @@ rules:
     set_field: Vpc
     unsatisfied_action:
       operation: create
-  - enforcement: exactly_one
+  - enforcement: conditional
     direction: upstream
     resource_types: 
     - subnet_private
@@ -20,7 +20,7 @@ rules:
       unsatisfied_action:
         operation: create
         unique: true
-  - enforcement: any_available
+  - enforcement: conditional
     direction: upstream
     resource_types: 
     - subnet_public

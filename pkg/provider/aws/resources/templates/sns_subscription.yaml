@@ -2,7 +2,7 @@ provider: aws
 type: sns_subscription
 rules:
   - enforcement: exactly_one
-    direction: downstream
+    direction: upstream
     resource_types: 
     - sns_topic
     set_field: Topic

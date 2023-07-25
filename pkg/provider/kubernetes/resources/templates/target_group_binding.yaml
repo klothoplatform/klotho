@@ -12,7 +12,7 @@ rules:
 - enforcement: exactly_one
   direction: upstream
   classifications:
-  - target_group_binding
+  - target_group
   unsatisfied_action:
     operation: error
 delete_context:

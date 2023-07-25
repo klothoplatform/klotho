@@ -40,7 +40,7 @@ func Test_handleOperationalRule(t *testing.T) {
 				Needs:     []string{"mock1"},
 				Direction: core.Downstream,
 				Count:     1,
-				Cause:     fmt.Errorf("rule with enforcement exactly one has less than the required number of resources of type [mock1], 0"),
+				Cause:     fmt.Errorf("rule with enforcement exactly one has less than the required number of resources of type [mock1]  or classifications [], 0 for resource mock:mock5:this"),
 			}},
 		},
 		{
@@ -66,7 +66,7 @@ func Test_handleOperationalRule(t *testing.T) {
 			},
 		},
 		{
-			name: "only one multple exist error",
+			name: "only one multiple exist error",
 			rule: core.OperationalRule{
 				Enforcement:   core.ExactlyOne,
 				Direction:     core.Downstream,
@@ -78,7 +78,7 @@ func Test_handleOperationalRule(t *testing.T) {
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that"}},
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that2"}},
 			},
-			wantErr: []error{fmt.Errorf("rule with enforcement only_one has more than one resource of types [mock1] for resource mock:mock5:this")},
+			wantErr: []error{fmt.Errorf("rule with enforcement only_one has more than one resource for rule exactly_one [mock1] for resource mock:mock5:this")},
 		},
 		{
 			name: "if one none exists",
@@ -142,7 +142,7 @@ func Test_handleOperationalRule(t *testing.T) {
 				Direction: core.Downstream,
 				Needs:     []string{"mock2"},
 				Parent:    &enginetesting.MockResource3{Name: "that"},
-				Cause:     fmt.Errorf("rule with enforcement any has less than the required number of resources of type [mock2], 0"),
+				Cause:     fmt.Errorf("rule with enforcement any has less than the required number of resources of type [mock2]  or classifications [], 0 for resource mock:mock5:this"),
 			}},
 		},
 		{
@@ -159,7 +159,13 @@ func Test_handleOperationalRule(t *testing.T) {
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that"}},
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that2"}},
 			},
-			wantErr: []error{fmt.Errorf("rule with direction downstream and enforcement if_one has more than one resource of types [mock1]")},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{"mock:mock1:that", "mock:mock1:that2", "mock:mock5:this"},
+				Deps: []coretesting.StringDep{
+					{Source: "mock:mock5:this", Destination: "mock:mock1:that"},
+					{Source: "mock:mock5:this", Destination: "mock:mock1:that2"},
+				},
+			},
 		},
 	}
 	for _, tt := range tests {

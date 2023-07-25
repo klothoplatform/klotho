@@ -5,11 +5,11 @@ rules:
     direction: downstream
     resource_types: 
     - lambda_function
-    set_field: FunctionName
+    set_field: Function
     unsatisfied_action:
       operation: error
   - enforcement: exactly_one
-    direction: upstream
+    direction: downstream
     resource_types: 
     - rest_api
     unsatisfied_action:

@@ -3,7 +3,7 @@ package aws
 import (
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
+	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 )
 
 // Enums for the types we allow in the aws provider so that we can reuse the same string within the provider
@@ -51,9 +51,9 @@ var defaultConfig = config.Defaults{
 	ExecutionUnit: config.KindDefaults{
 		Type: Lambda,
 		InfraParamsByType: map[string]config.InfraParams{
-			Lambda:                    config.ConvertToInfraParams(lambdaDefaults),
-			Ecs:                       config.ConvertToInfraParams(ecsDefaults),
-			kubernetes.KubernetesType: config.ConvertToInfraParams(eksDefaults),
+			Lambda:                     config.ConvertToInfraParams(lambdaDefaults),
+			Ecs:                        config.ConvertToInfraParams(ecsDefaults),
+			kubernetes.DEPLOYMENT_TYPE: config.ConvertToInfraParams(eksDefaults),
 		},
 	},
 	StaticUnit: config.KindDefaults{
@@ -120,7 +120,7 @@ func (a *AWS) GetDefaultConfig() config.Defaults {
 func (a *AWS) GetKindTypeMappings(construct core.Construct) []string {
 	switch construct.(type) {
 	case *core.ExecutionUnit:
-		return []string{kubernetes.KubernetesType, Ecs, Lambda, Ec2Instance}
+		return []string{kubernetes.DEPLOYMENT_TYPE, Ecs, Lambda, Ec2Instance}
 	case *core.Gateway:
 		return []string{string(ApiGateway), string(Alb)}
 	case *core.StaticUnit:

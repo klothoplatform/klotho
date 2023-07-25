@@ -2,7 +2,7 @@ provider: aws
 type: api_stage
 rules:
 - enforcement: exactly_one
-  direction: upstream
+  direction: downstream
   resource_types:
   - rest_api
   set_field: RestApi
@@ -15,3 +15,8 @@ rules:
   set_field: Deployment
   unsatisfied_action:
     operation: create
+configuration:
+- field: StageName
+  value: stage
+delete_context:
+ requires_no_upstream: true

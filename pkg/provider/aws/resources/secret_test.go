@@ -10,8 +10,6 @@ import (
 
 func Test_SecretCreate(t *testing.T) {
 	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[SecretCreateParams, *Secret]{
 		{
 			Name: "nil igw",
@@ -25,11 +23,6 @@ func Test_SecretCreate(t *testing.T) {
 				assert.Equal(s.Name, "my-app-secret")
 				assert.Equal(s.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
-		},
-		{
-			Name:     "existing igw",
-			Existing: &Secret{Name: "my-app-secret", ConstructRefs: initialRefs},
-			WantErr:  true,
 		},
 	}
 	for _, tt := range cases {
@@ -46,8 +39,6 @@ func Test_SecretCreate(t *testing.T) {
 
 func Test_SecretVersionCreate(t *testing.T) {
 	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[SecretVersionCreateParams, *SecretVersion]{
 		{
 			Name: "nil igw",
@@ -62,11 +53,6 @@ func Test_SecretVersionCreate(t *testing.T) {
 				assert.Equal(sv.ConstructRefs, core.BaseConstructSetOf(eu))
 				assert.Equal(sv.DetectedPath, "path")
 			},
-		},
-		{
-			Name:     "existing igw",
-			Existing: &SecretVersion{Name: "my-app-secret", ConstructRefs: initialRefs},
-			WantErr:  true,
 		},
 	}
 	for _, tt := range cases {

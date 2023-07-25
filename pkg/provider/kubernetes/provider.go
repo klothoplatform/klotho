@@ -69,7 +69,7 @@ func (k *KubernetesProvider) GetOperationalTempaltes() map[string]*core.Resource
 		if d.IsDir() {
 			return nil
 		}
-		content, err := kubernetesTemplates.ReadFile(fmt.Sprintf("resources/templates/%s.yaml", d.Name()))
+		content, err := kubernetesTemplates.ReadFile(fmt.Sprintf("resources/templates/%s", d.Name()))
 		if err != nil {
 			panic(err)
 		}

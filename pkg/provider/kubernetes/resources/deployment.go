@@ -60,6 +60,10 @@ func (deployment *Deployment) Path() string {
 
 func (deployment *Deployment) GetServiceAccount(dag *core.ResourceGraph) *ServiceAccount {
 	if deployment.Object == nil {
+		sas := core.GetDownstreamResourcesOfType[*ServiceAccount](dag, deployment)
+		if len(sas) == 1 {
+			return sas[0]
+		}
 		return nil
 	}
 	sa := &ServiceAccount{

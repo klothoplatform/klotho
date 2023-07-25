@@ -10,8 +10,8 @@ rules:
     - enforcement: exactly_one
       direction: downstream
       resource_types: 
-      - subnet_group
-      set_field: DBSubnetGroupName
+      - rds_subnet_group
+      set_field: SubnetGroup
       unsatisfied_action:
         operation: create
     - enforcement: any_available
@@ -26,7 +26,7 @@ configuration:
 - field: Engine
   value: postgres
 - field: EngineVersion
-  value: 13.7
+  value: "13.7"
 - field: InstanceClass
   value: db.t4g.micro
 - field: AllocatedStorage
