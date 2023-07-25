@@ -335,7 +335,10 @@ func setField(dag *core.ResourceGraph, resource core.Resource, rule core.Operati
 		if dag.GetResource(resource.Id()) != nil {
 			return fmt.Errorf("resource %s was replaced with %s, but the original resource still exists in the graph", copyResource.Id(), resource.Id())
 		}
-		dag.ReplaceConstruct(copyResource, resource)
+		err := dag.ReplaceConstruct(copyResource, resource)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
