@@ -45,10 +45,12 @@ var ApiGatewayKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.ApiResource]{},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.ApiMethod]{},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.LambdaFunction]{
+
 		Configure: func(integration *resources.ApiIntegration, function *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if integration.RestApi == nil {
 				return fmt.Errorf("cannot configure integration %s, missing rest api or method", integration.Id())
 			}
+			// Lambda + AWS_PROXY must alway be invoked with POST
 			integration.IntegrationHttpMethod = "POST"
 			integration.Type = "AWS_PROXY"
 
@@ -60,6 +62,7 @@ var ApiGatewayKB = knowledgebase.Build(
 				return err
 			}
 			permission.Function = function
+			dag.AddResource(permission)
 			dag.AddDependency(permission, integration.RestApi)
 			dag.AddDependency(permission, function)
 			return configureIntegration(integration, dag, core.IaCValue{ResourceId: function.Id(), Property: resources.LAMBDA_INTEGRATION_URI_IAC_VALUE})

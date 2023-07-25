@@ -326,6 +326,12 @@ func (e *Engine) SolveGraph(context *SolveContext) (*core.ResourceGraph, error) 
 					errorMap[i] = append(errorMap[i], fmt.Errorf("resource %s is not operational", res.Id()))
 				}
 			}
+			// check to make sure that each edge is configured
+			for _, dep := range graph.ListDependencies() {
+				if !configuredEdges[dep.Source.Id()][dep.Destination.Id()] {
+					errorMap[i] = append(errorMap[i], fmt.Errorf("edge %s -> %s is not configured", dep.Source.Id(), dep.Destination.Id()))
+				}
+			}
 			if len(errorMap[i]) == 0 {
 				break
 			}

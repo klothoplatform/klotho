@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/klothoplatform/klotho/pkg/provider/docker"
 	"net/http"
 
 	compiler "github.com/klothoplatform/klotho/pkg/compiler"
@@ -68,9 +69,11 @@ func (b *PluginSetBuilder) AddEngine() error {
 		return err
 	}
 	kubernetesProvider := &kubernetes.KubernetesProvider{AppName: b.Cfg.AppName}
+	dockerProvider := &docker.DockerProvider{}
 	b.Engine = engine.NewEngine(map[string]provider.Provider{
 		cloudProvider.Name():      cloudProvider,
 		kubernetesProvider.Name(): kubernetesProvider,
+		dockerProvider.Name():     dockerProvider,
 	}, kb, core.ListAllConstructs())
 	return nil
 }

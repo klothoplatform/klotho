@@ -260,8 +260,11 @@ func (id ResourceId) MarshalText() ([]byte, error) {
 
 func (id *ResourceId) UnmarshalText(data []byte) error {
 	parts := strings.Split(string(data), ":")
-	if len(parts) < 3 || len(parts) > 4 {
+	if len(parts) < 3 {
 		return errors.Errorf("invalid number of parts (%d) in resource id '%s'", len(parts), string(data))
+	}
+	if len(parts) > 4 {
+		parts = append(parts[:3], strings.Join(parts[3:], ":"))
 	}
 	id.Provider = parts[0]
 	id.Type = parts[1]

@@ -2,6 +2,9 @@ package resources
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
+	"github.com/klothoplatform/klotho/pkg/sanitization/docker"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 )
@@ -22,6 +25,7 @@ type (
 
 	EcrImage struct {
 		Name          string
+		ImageName     string
 		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Repo          *EcrRepository
 		Context       string
@@ -49,6 +53,10 @@ func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreatePara
 	return nil
 }
 
+func (repo *EcrRepository) SanitizedName() string {
+	return aws.EcrRepositorySanitizer.Apply(repo.Name)
+}
+
 type EcrRepositoryConfigureParams struct {
 }
 
@@ -64,7 +72,15 @@ type ImageCreateParams struct {
 }
 
 func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams) error {
-	name := fmt.Sprintf("%s-%s", params.AppName, params.Name)
+	name := params.Name
+	i := strings.Index(name, "/")
+	if i != -1 {
+		name = params.Name[i+1:]
+	}
+	if imageName, tag, ok := strings.Cut(name, ":"); ok {
+		image.ImageName = fmt.Sprintf("%s_%s", imageName, tag)
+	}
+
 	image.Name = name
 	image.ConstructRefs = params.Refs.Clone()
 
@@ -114,4 +130,8 @@ func (image *EcrImage) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
+}
+
+func (image *EcrImage) TagBase() string {
+	return docker.TagSanitizer.Apply(image.Name)
 }

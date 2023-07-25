@@ -2,6 +2,7 @@ package knowledgebase
 
 import (
 	"fmt"
+	docker "github.com/klothoplatform/klotho/pkg/provider/docker/resources"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
@@ -31,6 +32,7 @@ var EcsKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.EcsTaskDefinition, *resources.EcrImage]{},
+	knowledgebase.EdgeBuilder[*resources.EcsTaskDefinition, *docker.DockerImage]{},
 	knowledgebase.EdgeBuilder[*resources.EcsTaskDefinition, *resources.Region]{},
 	knowledgebase.EdgeBuilder[*resources.EcsTaskDefinition, *resources.LogGroup]{
 		Configure: func(taskDef *resources.EcsTaskDefinition, lg *resources.LogGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
