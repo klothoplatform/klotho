@@ -4,7 +4,7 @@ rules:
   - enforcement: exactly_one
     direction: downstream
     resource_types: 
-    - instance_profile
+    - iam_instance_profile
     set_field: InstanceProfile
     unsatisfied_action: 
       operation: create

@@ -78,8 +78,6 @@ func (c *ClassificationDocument) GetFunctionality(resource core.Resource) core.F
 			functionality = core.Cluster
 		case "storage":
 			functionality = core.Storage
-		case "network":
-			functionality = core.Network
 		case "api":
 			functionality = core.Api
 		default:

@@ -201,7 +201,6 @@ const (
 	Compute Functionality = "compute"
 	Cluster Functionality = "cluster"
 	Storage Functionality = "storage"
-	Network Functionality = "network"
 	Api     Functionality = "api"
 	Unknown Functionality = "Unknown"
 
