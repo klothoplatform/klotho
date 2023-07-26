@@ -130,14 +130,23 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 }
 
 func (tc TemplatesCompiler) RenderExports(out io.Writer) error {
-	out.Write([]byte("\nexport const exportedResources = {\n"))
+	_, err := out.Write([]byte("\nexport const exportedResources = {\n"))
+	if err != nil {
+		return err
+	}
 	for _, resource := range tc.resourceGraph.ListResources() {
 		switch res := resource.(type) {
 		case *resources.ApiStage:
-			out.Write([]byte("\"" + res.Name + "\": " + tc.getVarName(res) + ".invokeUrl,\n"))
+			_, err := out.Write([]byte("\"" + res.Name + "\": " + tc.getVarName(res) + ".invokeUrl,\n"))
+			if err != nil {
+				return err
+			}
 		}
 	}
-	out.Write([]byte("}"))
+	_, err = out.Write([]byte("}"))
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
