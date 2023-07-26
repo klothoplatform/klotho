@@ -1,14 +1,15 @@
 provider: aws
 type: eks_fargate_profile
 rules:
-  downstream:
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - eks_cluster
     set_field: Cluster
     unsatisfied_action: 
       operation: create
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - iam_role
     set_field: PodExecutionRole
@@ -16,11 +17,13 @@ rules:
       operation: create
       unique: true
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - vpc
     remove_direct_dependency: true
     rules:
     - enforcement: any_available
+      direction: downstream
       resource_types: 
       - subnet_private
       - subnet_public

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
 	apps "k8s.io/api/apps/v1"
@@ -59,37 +58,12 @@ func (deployment *Deployment) Path() string {
 	return deployment.FilePath
 }
 
-func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if deployment.Object == nil {
-		deployment.Object = &apps.Deployment{}
-		sa := &ServiceAccount{
-			Name: deployment.Name,
-		}
-		deployment.Object.Spec.Template.Spec.ServiceAccountName = sa.Name
-		dag.AddDependency(deployment, sa)
-	}
-	if deployment.Cluster.IsZero() {
-		var downstreamClustersFound []core.Resource
-		for _, res := range dag.GetAllDownstreamResources(deployment) {
-			if classifier.GetFunctionality(res) == core.Cluster {
-				downstreamClustersFound = append(downstreamClustersFound, res)
-			}
-		}
-		if len(downstreamClustersFound) == 1 {
-			dag.AddDependency(deployment, downstreamClustersFound[0])
-			deployment.Cluster = downstreamClustersFound[0].Id()
-			return nil
-		}
-		if len(downstreamClustersFound) > 1 {
-			return fmt.Errorf("deployment %s has more than one cluster downstream", deployment.Id())
-		}
-		return core.NewOperationalResourceError(deployment, []string{string(core.Cluster)}, fmt.Errorf("deployment %s has no clusters to use", deployment.Id()))
-	}
-	return nil
-}
-
 func (deployment *Deployment) GetServiceAccount(dag *core.ResourceGraph) *ServiceAccount {
 	if deployment.Object == nil {
+		sas := core.GetDownstreamResourcesOfType[*ServiceAccount](dag, deployment)
+		if len(sas) == 1 {
+			return sas[0]
+		}
 		return nil
 	}
 	sa := &ServiceAccount{

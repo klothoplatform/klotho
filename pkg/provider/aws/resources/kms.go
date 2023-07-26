@@ -66,19 +66,6 @@ func (key *KmsKey) Create(dag *core.ResourceGraph, params KmsKeyCreateParams) er
 	return nil
 }
 
-type KmsKeyConfigureParams struct {
-}
-
-func (key *KmsKey) Configure(params KmsKeyConfigureParams) error {
-	key.EnableKeyRotation = true
-	key.Enabled = true
-	key.MultiRegion = false
-	key.KeySpec = "SYMMETRIC_DEFAULT"
-	key.KeyUsage = "ENCRYPT_DECRYPT"
-	key.PendingWindowInDays = 7
-	return nil
-}
-
 type KmsAliasCreateParams struct {
 	Key  *KmsKey
 	Name string

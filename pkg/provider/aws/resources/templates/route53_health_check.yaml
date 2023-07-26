@@ -1,0 +1,2 @@
+package: aws
+type: route53_health_check

@@ -46,6 +46,7 @@ func ListAll() []core.Resource {
 		&HorizontalPodAutoscaler{},
 		&Manifest{},
 		&KustomizeDirectory{},
+		&Kubeconfig{},
 		&Namespace{},
 		&Pod{},
 		&Service{},

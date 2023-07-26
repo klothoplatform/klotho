@@ -114,18 +114,6 @@ func (api *RestApi) Create(dag *core.ResourceGraph, params RestApiCreateParams) 
 	return nil
 }
 
-type RestApiConfigureParams struct {
-	BinaryMediaTypes []string
-}
-
-func (api *RestApi) Configure(params RestApiConfigureParams) error {
-	api.BinaryMediaTypes = []string{"application/octet-stream", "image/*"}
-	if len(params.BinaryMediaTypes) > 0 {
-		api.BinaryMediaTypes = params.BinaryMediaTypes
-	}
-	return nil
-}
-
 // convertPath will convert the path stored in our gateway construct into a path that is functionally the same within
 // api gateway.
 //
@@ -168,15 +156,6 @@ func (resource *ApiResource) Create(dag *core.ResourceGraph, params ApiResourceC
 	} else {
 		segments := strings.Split(params.Path, "/")
 		resource.PathPart = convertPath(segments[len(segments)-1], true)
-		api, err := core.CreateResource[*RestApi](dag, RestApiCreateParams{
-			Refs: params.Refs,
-			Name: params.ApiName,
-		})
-		if err != nil {
-			return err
-		}
-		resource.RestApi = api
-		dag.AddDependency(api, resource)
 		// The root path is already created in api gw so we dont want to attempt to create an empty resource
 		if len(segments) > 1 && segments[len(segments)-2] != "" {
 			parentResource, err := core.CreateResource[*ApiResource](dag, ApiResourceCreateParams{
@@ -222,27 +201,9 @@ func (integration *ApiIntegration) Create(dag *core.ResourceGraph, params ApiInt
 }
 
 func (integration *ApiIntegration) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	apis := core.GetUpstreamResourcesOfType[*RestApi](dag, integration)
-	if len(apis) > 1 {
-		return fmt.Errorf("integration %s has multiple apis: %v", integration.Name, apis)
-	} else if len(apis) == 1 {
-		integration.RestApi = apis[0]
-	} else {
-		return fmt.Errorf("integration %s has no apis", integration.Name)
+	if integration.RestApi == nil {
+		return fmt.Errorf("rest api is not set on integration %s", integration.Name)
 	}
-
-	method, err := core.CreateResource[*ApiMethod](dag, ApiMethodCreateParams{
-		AppName:    appName,
-		Refs:       core.BaseConstructSetOf(integration),
-		Path:       integration.Route,
-		ApiName:    integration.RestApi.Name,
-		HttpMethod: integration.IntegrationHttpMethod,
-	})
-	if err != nil {
-		return err
-	}
-	integration.Method = method
-	dag.AddDependency(integration, method)
 	if integration.Route != "" && integration.Route != "/" {
 		resource, err := core.CreateResource[*ApiResource](dag, ApiResourceCreateParams{
 			AppName: appName,
@@ -280,15 +241,6 @@ func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateP
 		graphResource := existingResource.(*ApiMethod)
 		graphResource.ConstructRefs.AddAll(params.Refs)
 	} else {
-		api, err := core.CreateResource[*RestApi](dag, RestApiCreateParams{
-			Refs: params.Refs,
-			Name: params.ApiName,
-		})
-		if err != nil {
-			return err
-		}
-		method.RestApi = api
-		dag.AddDependency(api, method)
 		// The root path is already created in api gw so we dont want to attempt to create an empty resource
 		if params.Path != "" && params.Path != "/" {
 			parentResource, err := core.CreateResource[*ApiResource](dag, ApiResourceCreateParams{
@@ -339,16 +291,7 @@ func (deployment *ApiDeployment) Create(dag *core.ResourceGraph, params ApiDeplo
 		graphDeployment := existingDeployment.(*ApiDeployment)
 		graphDeployment.ConstructRefs.AddAll(params.Refs)
 	} else {
-		restApi, err := core.CreateResource[*RestApi](dag, RestApiCreateParams{
-			AppName: params.AppName,
-			Refs:    core.BaseConstructSetOf(deployment),
-			Name:    params.Name,
-		})
-		if err != nil {
-			return err
-		}
-		dag.AddDependency(deployment, restApi)
-		deployment.RestApi = restApi
+		dag.AddResource(deployment)
 	}
 	return nil
 }
@@ -372,39 +315,7 @@ func (stage *ApiStage) Create(dag *core.ResourceGraph, params ApiStageCreatePara
 		graphResource.ConstructRefs.AddAll(params.Refs)
 		return nil
 	} else {
-		restApi, err := core.CreateResource[*RestApi](dag, RestApiCreateParams{
-			AppName: params.AppName,
-			Refs:    core.BaseConstructSetOf(stage),
-			Name:    params.Name,
-		})
-		if err != nil {
-			return err
-		}
-		dag.AddDependency(stage, restApi)
-		stage.RestApi = restApi
-		deployment, err := core.CreateResource[*ApiDeployment](dag, ApiDeploymentCreateParams{
-			AppName: params.AppName,
-			Refs:    core.BaseConstructSetOf(stage),
-			Name:    params.Name,
-		})
-		if err != nil {
-			return err
-		}
-		dag.AddDependency(stage, deployment)
-		stage.Deployment = deployment
-	}
-	return nil
-}
-
-type ApiStageConfigureParams struct {
-	StageName string
-}
-
-// Configure sets the intristic characteristics of a vpc based on parameters passed in
-func (stage *ApiStage) Configure(params ApiStageConfigureParams) error {
-	stage.StageName = "stage"
-	if params.StageName != "" {
-		stage.StageName = params.StageName
+		dag.AddResource(stage)
 	}
 	return nil
 }

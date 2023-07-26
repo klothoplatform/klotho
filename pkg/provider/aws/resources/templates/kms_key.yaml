@@ -1,0 +1,17 @@
+provider: aws
+type: kms_key
+configuration:
+  - field: EnableKeyRotation
+    value: true
+  - field: Enabled
+    value: true
+  - field: MultiRegion
+    value: false
+  - field: KeySpec
+    value: SYMMETRIC_DEFAULT
+  - field: KeyUsage
+    value: ENCRYPT_DECRYPT
+  - field: PendingWindowInDays
+    value: 7
+delete_context:
+  requires_no_upstream: true

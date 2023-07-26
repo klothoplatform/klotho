@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
@@ -123,41 +122,6 @@ var IamKB = knowledgebase.Build(
 				"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
 			})
 			return nil
-		},
-		DirectEdgeOnly: true,
-	},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.IamRole]{
-		Configure: func(chart *kubernetes.HelmChart, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if len(role.ConstructRefs) > 1 {
-				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructRefs), role.ConstructRefs)
-			}
-			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
-				AppName:     data.AppName,
-				ClusterName: strings.TrimLeft(chart.ClustersProvider.ResourceId.Name, fmt.Sprintf("%s-", data.AppName)),
-				Refs:        role.ConstructRefs.Clone(),
-			})
-			dag.AddDependency(role, oidc)
-			return err
-		},
-		DirectEdgeOnly: true,
-	},
-	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.IamRole]{
-		Configure: func(manifest *kubernetes.Manifest, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			// For certain scenarios (like the alb controller) where we arent creating a service account for a unit derived in klotho, we have no understanding of what that service account is.
-			// Once we make specific kubernetes objects resources we could have that understanding
-			if role.AssumeRolePolicyDoc != nil {
-				return nil
-			}
-			if len(role.ConstructRefs) > 1 {
-				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructRefs), role.ConstructRefs)
-			}
-			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
-				AppName:     data.AppName,
-				ClusterName: strings.TrimLeft(manifest.ClustersProvider.ResourceId.Name, fmt.Sprintf("%s-", data.AppName)),
-				Refs:        role.ConstructRefs.Clone(),
-			})
-			dag.AddDependency(role, oidc)
-			return err
 		},
 		DirectEdgeOnly: true,
 	},

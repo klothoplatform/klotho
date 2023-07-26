@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -38,7 +37,8 @@ func (s *Secret) Create(dag *core.ResourceGraph, params SecretCreateParams) erro
 	s.Name = aws.SecretSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	s.ConstructRefs = params.Refs.Clone()
 	if existingSecret, ok := core.GetResource[*Secret](dag, s.Id()); ok {
-		return fmt.Errorf("secret with name %s already exists", existingSecret.Name)
+		existingSecret.ConstructRefs.AddAll(params.Refs)
+		return nil
 	}
 	dag.AddResource(s)
 	return nil
@@ -61,46 +61,10 @@ func (sv *SecretVersion) Create(dag *core.ResourceGraph, params SecretVersionCre
 	sv.DetectedPath = params.DetectedPath
 	existingSecret := dag.GetResource(sv.Id())
 	if existingSecret != nil {
-		return fmt.Errorf("SecretVersion with name %s already exists", sv.Name)
+		existingSecret.(*SecretVersion).ConstructRefs.AddAll(params.Refs)
+		return nil
 	}
 	dag.AddResource(sv)
-	return nil
-}
-
-func (sv *SecretVersion) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if sv.Secret == nil {
-		versions := core.GetDownstreamResourcesOfType[*Secret](dag, sv)
-		if len(versions) > 1 {
-			return fmt.Errorf("SecretVersion %s has multiple Secret dependencies", sv.Name)
-		} else if len(versions) == 0 {
-			secret, err := core.CreateResource[*Secret](dag, SecretCreateParams{
-				AppName: appName,
-				Refs:    core.BaseConstructSetOf(sv),
-				Name:    sv.Name,
-			})
-			if err != nil {
-				return err
-			}
-			sv.Secret = secret
-			dag.AddDependency(sv, secret)
-		} else {
-			sv.Secret = versions[0]
-		}
-	}
-	dag.AddDependenciesReflect(sv)
-	return nil
-
-}
-
-type SecretVersionConfigureParams struct {
-	Type string
-	Path string
-}
-
-// Configure sets the intristic characteristics of a vpc based on parameters passed in
-func (sv *SecretVersion) Configure(params SecretVersionConfigureParams) error {
-	sv.Type = params.Type
-	sv.Path = params.Path
 	return nil
 }
 

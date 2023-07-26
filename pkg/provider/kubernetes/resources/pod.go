@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
@@ -57,37 +56,12 @@ func (pod *Pod) Path() string {
 	return pod.FilePath
 }
 
-func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if pod.Object == nil {
-		pod.Object = &corev1.Pod{}
-		sa := &ServiceAccount{
-			Name: pod.Name,
-		}
-		pod.Object.Spec.ServiceAccountName = sa.Name
-		dag.AddDependency(pod, sa)
-	}
-	if pod.Cluster.IsZero() {
-		var downstreamClustersFound []core.Resource
-		for _, res := range dag.GetAllDownstreamResources(pod) {
-			if classifier.GetFunctionality(res) == core.Cluster {
-				downstreamClustersFound = append(downstreamClustersFound, res)
-			}
-		}
-		if len(downstreamClustersFound) == 1 {
-			pod.Cluster = downstreamClustersFound[0].Id()
-			dag.AddDependency(pod, downstreamClustersFound[0])
-			return nil
-		}
-		if len(downstreamClustersFound) > 1 {
-			return fmt.Errorf("pod %s has more than one cluster downstream", pod.Id())
-		}
-		return core.NewOperationalResourceError(pod, []string{string(core.Cluster)}, fmt.Errorf("pod %s has no clusters to use", pod.Id()))
-	}
-	return nil
-}
-
 func (pod *Pod) GetServiceAccount(dag *core.ResourceGraph) *ServiceAccount {
 	if pod.Object == nil {
+		sas := core.GetDownstreamResourcesOfType[*ServiceAccount](dag, pod)
+		if len(sas) == 1 {
+			return sas[0]
+		}
 		return nil
 	}
 	sa := &ServiceAccount{

@@ -1,0 +1,29 @@
+provider: aws
+type: vpc
+rules:
+- enforcement: any_available
+  direction: upstream
+  resource_types:
+  - subnet_public
+  unsatisfied_action:
+    operation: create
+    unique: true
+  num_needed: 2
+- enforcement: any_available
+  direction: upstream
+  resource_types:
+  - subnet_private
+  - subnet_
+  unsatisfied_action:
+    operation: create
+    unique: true
+  num_needed: 2
+configuration:
+  - field: CidrBlock
+    value: 10.0.0.0/16
+  - field: EnableDnsHostnames
+    value: true
+  - field: EnableDnsSupport
+    value: true
+delete_context:
+  requires_no_upstream: true

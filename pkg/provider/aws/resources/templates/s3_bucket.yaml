@@ -1,0 +1,9 @@
+provider: aws
+type: s3_bucket
+configuration:
+- field: ForceDestroy
+  value: true
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+  requires_explicit_delete: true

@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/lang/python"
 	"github.com/klothoplatform/klotho/pkg/runtime"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
+	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"github.com/pkg/errors"
 )
 
@@ -106,7 +106,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 		if err != nil {
 			return err
 		}
-	case aws.Ecs, kubernetes.KubernetesType, aws.AppRunner, aws.Ec2Instance:
+	case aws.Ecs, kubernetes.DEPLOYMENT_TYPE, aws.AppRunner, aws.Ec2Instance:
 		dockerFile = dockerfileFargate
 		dispatcher = dispatcherFargate
 		requirements = execRequirementsFargate
@@ -245,7 +245,7 @@ func (r *AwsRuntime) AddOrmRuntimeFiles(unit *core.ExecutionUnit) error {
 func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error {
 	var fileContents string
 	switch proxyType {
-	case kubernetes.KubernetesType:
+	case kubernetes.DEPLOYMENT_TYPE:
 		fileContents = proxyEksContents
 	case aws.Ecs:
 		fileContents = proxyFargateContents

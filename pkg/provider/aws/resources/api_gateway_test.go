@@ -88,41 +88,6 @@ func Test_RestApiCreate(t *testing.T) {
 	}
 }
 
-func Test_RestApiConfigure(t *testing.T) {
-	cases := []struct {
-		name   string
-		params RestApiConfigureParams
-		want   *RestApi
-	}{
-		{
-			name: "filled params",
-			params: RestApiConfigureParams{
-				BinaryMediaTypes: []string{"test"},
-			},
-			want: &RestApi{BinaryMediaTypes: []string{"test"}},
-		},
-		{
-			name:   "defaults",
-			params: RestApiConfigureParams{},
-			want:   &RestApi{BinaryMediaTypes: []string{"application/octet-stream", "image/*"}},
-		},
-	}
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			api := &RestApi{}
-			err := api.Configure(tt.params)
-
-			if !assert.NoError(err) {
-				return
-			}
-
-			assert.Equal(tt.want, api)
-		})
-	}
-}
-
 func Test_ApiResourceCreate(t *testing.T) {
 	eu := &core.ExecutionUnit{Name: "first"}
 	eu2 := &core.ExecutionUnit{Name: "test"}
@@ -138,14 +103,10 @@ func Test_ApiResourceCreate(t *testing.T) {
 					"aws:api_resource:my-app-/my",
 					"aws:api_resource:my-app-/my/api",
 					"aws:api_resource:my-app-/my/api/route",
-					"aws:rest_api:my-api",
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:api_resource:my-app-/my", Destination: "aws:api_resource:my-app-/my/api"},
 					{Source: "aws:api_resource:my-app-/my/api", Destination: "aws:api_resource:my-app-/my/api/route"},
-					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my"},
-					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/api"},
-					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/api/route"},
 				},
 			},
 			Check: func(assert *assert.Assertions, resource *ApiResource) {
@@ -184,16 +145,11 @@ func Test_ApiResourceCreate(t *testing.T) {
 					"aws:api_resource:my-app-/my/-api",
 					"aws:api_resource:my-app-/my/-api/route",
 					"aws:api_resource:my-app-/my/-api/route/-method",
-					"aws:rest_api:my-api",
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:api_resource:my-app-/my", Destination: "aws:api_resource:my-app-/my/-api"},
 					{Source: "aws:api_resource:my-app-/my/-api", Destination: "aws:api_resource:my-app-/my/-api/route"},
 					{Source: "aws:api_resource:my-app-/my/-api/route", Destination: "aws:api_resource:my-app-/my/-api/route/-method"},
-					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my"},
-					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/-api"},
-					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/-api/route"},
-					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/-api/route/-method"},
 				},
 			},
 			Check: func(assert *assert.Assertions, resource *ApiResource) {
@@ -292,16 +248,11 @@ func Test_ApiMethodCreate(t *testing.T) {
 					"aws:api_resource:my-app-/my",
 					"aws:api_resource:my-app-/my/api",
 					"aws:api_resource:my-app-/my/api/route",
-					"aws:rest_api:my-api",
 				},
 				Deps: []coretesting.StringDep{
 					{Source: "aws:api_resource:my-app-/my", Destination: "aws:api_resource:my-app-/my/api"},
 					{Source: "aws:api_resource:my-app-/my/api", Destination: "aws:api_resource:my-app-/my/api/route"},
 					{Source: "aws:api_resource:my-app-/my/api/route", Destination: "aws:api_method:my-app-/my/api/route-post"},
-					{Source: "aws:rest_api:my-api", Destination: "aws:api_method:my-app-/my/api/route-post"},
-					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my"},
-					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/api"},
-					{Source: "aws:rest_api:my-api", Destination: "aws:api_resource:my-app-/my/api/route"},
 				},
 			},
 		},
@@ -344,48 +295,12 @@ func Test_ApiMethodCreate(t *testing.T) {
 
 			assert.Equal(method.Name, "my-app-/my/api/route-post")
 			if tt.method == nil {
-				assert.NotNil(method.RestApi)
 				assert.NotNil(method.Resource)
 				assert.Equal(method.ConstructRefs, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
 				assert.Equal(method.BaseConstructRefs(), expect)
 			}
-		})
-	}
-}
-
-func Test_ApiMethodConfigure(t *testing.T) {
-	cases := []struct {
-		name   string
-		params ApiMethodConfigureParams
-		want   *ApiMethod
-	}{
-		{
-			name: "filled params",
-			params: ApiMethodConfigureParams{
-				Authorization: "IAM",
-			},
-			want: &ApiMethod{Authorization: "IAM"},
-		},
-		{
-			name:   "defaults",
-			params: ApiMethodConfigureParams{},
-			want:   &ApiMethod{Authorization: "None"},
-		},
-	}
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			method := &ApiMethod{}
-			err := method.Configure(tt.params)
-
-			if !assert.NoError(err) {
-				return
-			}
-
-			assert.Equal(tt.want, method)
 		})
 	}
 }
@@ -400,19 +315,16 @@ func Test_ApiDeploymentCreate(t *testing.T) {
 		want       coretesting.ResourcesExpectation
 	}{
 		{
-			name: "nil repo",
+			name: "nil deployment",
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
 					"aws:api_deployment:my-app-deployment",
-					"aws:rest_api:my-app-deployment",
 				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:api_deployment:my-app-deployment", Destination: "aws:rest_api:my-app-deployment"},
-				},
+				Deps: []coretesting.StringDep{},
 			},
 		},
 		{
-			name:       "existing repo",
+			name:       "existing deployment",
 			deployment: &ApiDeployment{Name: "my-app-deployment", ConstructRefs: initialRefs},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
@@ -448,7 +360,6 @@ func Test_ApiDeploymentCreate(t *testing.T) {
 
 			assert.Equal(deployment.Name, "my-app-deployment")
 			if tt.deployment == nil {
-				assert.NotNil(deployment.RestApi)
 				assert.Equal(deployment.ConstructRefs, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
@@ -471,15 +382,9 @@ func Test_ApiStageCreate(t *testing.T) {
 			name: "nil repo",
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:api_deployment:my-app-stage",
 					"aws:api_stage:my-app-stage",
-					"aws:rest_api:my-app-stage",
 				},
-				Deps: []coretesting.StringDep{
-					{Source: "aws:api_deployment:my-app-stage", Destination: "aws:rest_api:my-app-stage"},
-					{Source: "aws:api_stage:my-app-stage", Destination: "aws:api_deployment:my-app-stage"},
-					{Source: "aws:api_stage:my-app-stage", Destination: "aws:rest_api:my-app-stage"},
-				},
+				Deps: []coretesting.StringDep{},
 			},
 		},
 		{
@@ -519,46 +424,11 @@ func Test_ApiStageCreate(t *testing.T) {
 
 			assert.Equal(stage.Name, "my-app-stage")
 			if tt.stage == nil {
-				assert.NotNil(stage.RestApi)
 				assert.Equal(stage.ConstructRefs, metadata.Refs)
 			} else {
 				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
 				assert.Equal(stage.BaseConstructRefs(), expect)
 			}
-		})
-	}
-}
-func Test_ApiStageConfigure(t *testing.T) {
-	cases := []struct {
-		name   string
-		params ApiStageConfigureParams
-		want   *ApiStage
-	}{
-		{
-			name: "filled params",
-			params: ApiStageConfigureParams{
-				StageName: "production",
-			},
-			want: &ApiStage{StageName: "production"},
-		},
-		{
-			name:   "defaults",
-			params: ApiStageConfigureParams{},
-			want:   &ApiStage{StageName: "stage"},
-		},
-	}
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			stage := &ApiStage{}
-			err := stage.Configure(tt.params)
-
-			if !assert.NoError(err) {
-				return
-			}
-
-			assert.Equal(tt.want, stage)
 		})
 	}
 }

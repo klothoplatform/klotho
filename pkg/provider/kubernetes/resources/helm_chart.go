@@ -2,11 +2,9 @@ package resources
 
 import (
 	"bytes"
-	"fmt"
 	"path"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 )
 
 const HELM_CHART_TYPE = "helm_chart"
@@ -62,26 +60,4 @@ func (t *HelmChart) GetOutputFiles() []core.File {
 		})
 	}
 	return outputFiles
-}
-
-func (chart *HelmChart) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if chart.Cluster.IsZero() {
-		var downstreamClustersFound []core.Resource
-		for _, res := range dag.GetAllDownstreamResources(chart) {
-			if classifier.GetFunctionality(res) == core.Cluster {
-				downstreamClustersFound = append(downstreamClustersFound, res)
-			}
-		}
-		if len(downstreamClustersFound) == 1 {
-			dag.AddDependency(chart, downstreamClustersFound[0])
-			chart.Cluster = downstreamClustersFound[0].Id()
-			return nil
-		}
-		if len(downstreamClustersFound) > 1 {
-			return fmt.Errorf("helm chart %s has more than one cluster downstream", chart.Id())
-		}
-
-		return core.NewOperationalResourceError(chart, []string{string(core.Cluster)}, fmt.Errorf("helm chart %s has no clusters to use", chart.Id()))
-	}
-	return nil
 }

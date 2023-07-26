@@ -1,0 +1,12 @@
+provider: aws
+type: iam_oidc_provider
+rules:
+  - enforcement: exactly_one
+    direction: downstream
+    resource_types: 
+    - eks_cluster
+    set_field: Cluster
+    unsatisfied_action:
+      operation: create
+delete_context:
+  requires_no_upstream: true

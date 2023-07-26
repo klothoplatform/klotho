@@ -108,11 +108,15 @@ func (e *Engine) determineCorrectPaths(dep graph.Edge[core.Resource], edgeData k
 			satisfyAttributeData = append(satisfyAttributeData, p)
 		}
 	}
+
 	for _, p := range satisfyAttributeData {
 		// Ensure we arent taking unnecessary hops to get to the destination
 		if !e.containsUnneccessaryHopsInPath(dep, p, edgeData) {
 			validPaths = append(validPaths, p)
 		}
+	}
+	if len(validPaths) == 0 {
+		return satisfyAttributeData, nil
 	}
 	return validPaths, nil
 }

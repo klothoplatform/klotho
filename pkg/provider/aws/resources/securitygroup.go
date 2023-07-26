@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 )
 
 type (
@@ -42,35 +41,6 @@ func (sg *SecurityGroup) Create(dag *core.ResourceGraph, params SecurityGroupCre
 		graphSG.ConstructRefs.AddAll(params.Refs)
 	} else {
 		dag.AddResource(sg)
-	}
-	return nil
-}
-
-func (sg *SecurityGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	sgCopy := *sg
-	if sg.Vpc == nil {
-		vpc, err := getSingleUpstreamVpc(dag, sg)
-		if err != nil {
-			return err
-		}
-		if vpc == nil {
-			vpc, err := core.CreateResource[*Vpc](dag, VpcCreateParams{
-				AppName: appName,
-				Refs:    core.BaseConstructSetOf(sg),
-			})
-			if err != nil {
-				return err
-			}
-			sg.Vpc = vpc
-			dag.AddDependency(sg, vpc)
-		} else {
-			sg.Vpc = vpc
-		}
-		err = dag.ReplaceConstruct(&sgCopy, sg)
-		if err != nil {
-			return err
-		}
-		dag.AddDependenciesReflect(sg)
 	}
 	return nil
 }

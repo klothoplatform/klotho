@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_handleDownstreamOperationalRule(t *testing.T) {
+func Test_handleOperationalRule(t *testing.T) {
 	tests := []struct {
 		name                 string
 		rule                 core.OperationalRule
@@ -27,6 +27,7 @@ func Test_handleDownstreamOperationalRule(t *testing.T) {
 			name: "only one none exists",
 			rule: core.OperationalRule{
 				Enforcement:   core.ExactlyOne,
+				Direction:     core.Downstream,
 				ResourceTypes: []string{"mock1"},
 				SetField:      "Mock1",
 				UnsatisfiedAction: core.UnsatisfiedAction{
@@ -35,16 +36,18 @@ func Test_handleDownstreamOperationalRule(t *testing.T) {
 			},
 			resource: &enginetesting.MockResource5{Name: "this"},
 			wantErr: []error{&core.OperationalResourceError{
-				Resource: &enginetesting.MockResource5{Name: "this"},
-				Needs:    []string{"mock1"},
-				Count:    1,
-				Cause:    fmt.Errorf("downstream rule with enforcement exactly one has less than the required number of resources of type [mock1], 0"),
+				Resource:  &enginetesting.MockResource5{Name: "this"},
+				Needs:     []string{"mock1"},
+				Direction: core.Downstream,
+				Count:     1,
+				Cause:     fmt.Errorf("rule with enforcement exactly one has less than the required number of resources of type [mock1]  or classifications [], 0 for resource mock:mock5:this"),
 			}},
 		},
 		{
 			name: "only one one exists",
 			rule: core.OperationalRule{
 				Enforcement:   core.ExactlyOne,
+				Direction:     core.Downstream,
 				ResourceTypes: []string{"mock1"},
 				SetField:      "Mock1",
 			},
@@ -63,9 +66,10 @@ func Test_handleDownstreamOperationalRule(t *testing.T) {
 			},
 		},
 		{
-			name: "only one multple exist error",
+			name: "only one multiple exist error",
 			rule: core.OperationalRule{
 				Enforcement:   core.ExactlyOne,
+				Direction:     core.Downstream,
 				ResourceTypes: []string{"mock1"},
 				SetField:      "Mock1",
 			},
@@ -74,12 +78,13 @@ func Test_handleDownstreamOperationalRule(t *testing.T) {
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that"}},
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that2"}},
 			},
-			wantErr: []error{fmt.Errorf("downstream rule with enforcement only_one has more than one resource of types [mock1] for resource mock:mock5:this")},
+			wantErr: []error{fmt.Errorf("rule with enforcement only_one has more than one resource for rule exactly_one [mock1] for resource mock:mock5:this")},
 		},
 		{
 			name: "if one none exists",
 			rule: core.OperationalRule{
 				Enforcement:   core.Conditional,
+				Direction:     core.Downstream,
 				ResourceTypes: []string{"mock1"},
 				SetField:      "Mock1",
 			},
@@ -89,6 +94,7 @@ func Test_handleDownstreamOperationalRule(t *testing.T) {
 			name: "if one one exists",
 			rule: core.OperationalRule{
 				Enforcement:   core.Conditional,
+				Direction:     core.Downstream,
 				ResourceTypes: []string{"mock1"},
 				SetField:      "Mock1",
 			},
@@ -110,11 +116,13 @@ func Test_handleDownstreamOperationalRule(t *testing.T) {
 			name: "if one one exists with sub rules",
 			rule: core.OperationalRule{
 				Enforcement:            core.Conditional,
+				Direction:              core.Downstream,
 				ResourceTypes:          []string{"mock3"},
 				RemoveDirectDependency: true,
 				Rules: []core.OperationalRule{
 					{
 						Enforcement:   core.AnyAvailable,
+						Direction:     core.Downstream,
 						ResourceTypes: []string{"mock2"},
 						SetField:      "Mock2s",
 						NumNeeded:     2,
@@ -129,11 +137,12 @@ func Test_handleDownstreamOperationalRule(t *testing.T) {
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource3{Name: "that"}},
 			},
 			wantErr: []error{&core.OperationalResourceError{
-				Resource: &enginetesting.MockResource5{Name: "this"},
-				Count:    2,
-				Needs:    []string{"mock2"},
-				Parent:   &enginetesting.MockResource3{Name: "that"},
-				Cause:    fmt.Errorf("downstream rule with enforcement any has less than the required number of resources of type [mock2], 0"),
+				Resource:  &enginetesting.MockResource5{Name: "this"},
+				Count:     2,
+				Direction: core.Downstream,
+				Needs:     []string{"mock2"},
+				Parent:    &enginetesting.MockResource3{Name: "that"},
+				Cause:     fmt.Errorf("rule with enforcement any has less than the required number of resources of type [mock2]  or classifications [], 0 for resource mock:mock5:this"),
 			}},
 		},
 		{
@@ -141,6 +150,7 @@ func Test_handleDownstreamOperationalRule(t *testing.T) {
 			rule: core.OperationalRule{
 
 				Enforcement:   core.Conditional,
+				Direction:     core.Downstream,
 				ResourceTypes: []string{"mock1"},
 				SetField:      "Mock1",
 			},
@@ -149,7 +159,13 @@ func Test_handleDownstreamOperationalRule(t *testing.T) {
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that"}},
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that2"}},
 			},
-			wantErr: []error{fmt.Errorf("downstream rule with enforcement if_one has more than one resource of types [mock1]")},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{"mock:mock1:that", "mock:mock1:that2", "mock:mock5:this"},
+				Deps: []coretesting.StringDep{
+					{Source: "mock:mock5:this", Destination: "mock:mock1:that"},
+					{Source: "mock:mock5:this", Destination: "mock:mock1:that2"},
+				},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -166,7 +182,7 @@ func Test_handleDownstreamOperationalRule(t *testing.T) {
 				dag.AddDependency(dep.Source, dep.Destination)
 			}
 
-			err := engine.handleDownstreamOperationalRule(tt.resource, tt.rule, dag, tt.parent)
+			err := engine.handleOperationalRule(tt.resource, tt.rule, dag, tt.parent)
 			if tt.wantErr != nil {
 				assert.Greater(len(err), 0)
 				assert.Equal(err, tt.wantErr)
@@ -180,7 +196,7 @@ func Test_handleDownstreamOperationalRule(t *testing.T) {
 	}
 }
 
-func Test_handleDownstreamOperationalResourceError(t *testing.T) {
+func Test_handleOperationalResourceError(t *testing.T) {
 	tests := []struct {
 		name                 string
 		ore                  *core.OperationalResourceError
@@ -191,10 +207,11 @@ func Test_handleDownstreamOperationalResourceError(t *testing.T) {
 		{
 			name: "needs one downstream",
 			ore: &core.OperationalResourceError{
-				Resource: &enginetesting.MockResource5{Name: "this"},
-				Needs:    []string{"mock1"},
-				Count:    1,
-				Cause:    fmt.Errorf("0"),
+				Resource:  &enginetesting.MockResource5{Name: "this"},
+				Direction: core.Downstream,
+				Needs:     []string{"mock1"},
+				Count:     1,
+				Cause:     fmt.Errorf("0"),
 			},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{"mock:mock5:this", "mock:mock1:mock1-this"},
@@ -206,10 +223,11 @@ func Test_handleDownstreamOperationalResourceError(t *testing.T) {
 		{
 			name: "needs multiple downstream",
 			ore: &core.OperationalResourceError{
-				Resource: &enginetesting.MockResource5{Name: "this"},
-				Needs:    []string{"mock2"},
-				Count:    2,
-				Cause:    fmt.Errorf("0"),
+				Resource:  &enginetesting.MockResource5{Name: "this"},
+				Direction: core.Downstream,
+				Needs:     []string{"mock2"},
+				Count:     2,
+				Cause:     fmt.Errorf("0"),
 			},
 			want: coretesting.ResourcesExpectation{
 				Nodes: []string{"mock:mock5:this", "mock:mock2:mock2-this", "mock:mock2:mock2-this0"},
@@ -222,11 +240,12 @@ func Test_handleDownstreamOperationalResourceError(t *testing.T) {
 		{
 			name: "needs parents resource",
 			ore: &core.OperationalResourceError{
-				Resource: &enginetesting.MockResource5{Name: "this"},
-				Needs:    []string{"mock1"},
-				Count:    1,
-				Parent:   &enginetesting.MockResource3{Name: "parent"},
-				Cause:    fmt.Errorf("0"),
+				Resource:  &enginetesting.MockResource5{Name: "this"},
+				Direction: core.Downstream,
+				Needs:     []string{"mock1"},
+				Count:     1,
+				Parent:    &enginetesting.MockResource3{Name: "parent"},
+				Cause:     fmt.Errorf("0"),
 			},
 			existingDependencies: []graph.Edge[core.Resource]{
 				{Source: &enginetesting.MockResource1{Name: "child"}, Destination: &enginetesting.MockResource3{Name: "parent"}},
@@ -242,11 +261,12 @@ func Test_handleDownstreamOperationalResourceError(t *testing.T) {
 		{
 			name: "needs 2 but parent only has 1 resource",
 			ore: &core.OperationalResourceError{
-				Resource: &enginetesting.MockResource5{Name: "this"},
-				Needs:    []string{"mock1"},
-				Count:    2,
-				Parent:   &enginetesting.MockResource3{Name: "parent"},
-				Cause:    fmt.Errorf("0"),
+				Resource:  &enginetesting.MockResource5{Name: "this"},
+				Direction: core.Downstream,
+				Needs:     []string{"mock1"},
+				Count:     2,
+				Parent:    &enginetesting.MockResource3{Name: "parent"},
+				Cause:     fmt.Errorf("0"),
 			},
 			existingDependencies: []graph.Edge[core.Resource]{
 				{Source: &enginetesting.MockResource1{Name: "child"}, Destination: &enginetesting.MockResource3{Name: "parent"}},
@@ -266,10 +286,11 @@ func Test_handleDownstreamOperationalResourceError(t *testing.T) {
 		{
 			name: "chooses existing resource to satisfy needs",
 			ore: &core.OperationalResourceError{
-				Resource: &enginetesting.MockResource5{Name: "this"},
-				Needs:    []string{"mock1"},
-				Count:    2,
-				Cause:    fmt.Errorf("0"),
+				Resource:  &enginetesting.MockResource5{Name: "this"},
+				Direction: core.Downstream,
+				Needs:     []string{"mock1"},
+				Count:     2,
+				Cause:     fmt.Errorf("0"),
 			},
 			existingDependencies: []graph.Edge[core.Resource]{
 				{Source: &enginetesting.MockResource1{Name: "child"}, Destination: &enginetesting.MockResource3{Name: "parent"}},
@@ -289,6 +310,7 @@ func Test_handleDownstreamOperationalResourceError(t *testing.T) {
 			name: "must create new resource to satisfy needs",
 			ore: &core.OperationalResourceError{
 				Resource:   &enginetesting.MockResource5{Name: "this"},
+				Direction:  core.Downstream,
 				Needs:      []string{"mock1"},
 				Count:      2,
 				MustCreate: true,
@@ -323,7 +345,7 @@ func Test_handleDownstreamOperationalResourceError(t *testing.T) {
 				dag.AddDependency(dep.Source, dep.Destination)
 			}
 
-			err := engine.handleDownstreamOperationalResourceError(tt.ore, dag)
+			err := engine.handleOperationalResourceError(tt.ore, dag)
 			if tt.wantErr {
 				assert.Error(err)
 				return

@@ -7,9 +7,9 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/lang/golang"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
+	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"github.com/klothoplatform/klotho/pkg/runtime"
 	"github.com/pkg/errors"
 )
@@ -43,7 +43,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	switch unitType {
 	case aws.Lambda:
 		DockerFile = dockerfileLambda
-	case aws.Ecs, kubernetes.KubernetesType:
+	case aws.Ecs, kubernetes.DEPLOYMENT_TYPE:
 		DockerFile = dockerfileExec
 	default:
 		return errors.Errorf("unsupported execution unit type: '%s'", unitType)

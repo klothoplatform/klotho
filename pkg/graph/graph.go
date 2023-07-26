@@ -121,7 +121,7 @@ func (d *Directed[V]) IncomingEdges(to V) []Edge[V] {
 func (d *Directed[V]) RemoveVertex(v string) error {
 	err := d.underlying.RemoveVertex(v)
 	if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
-		zap.S().With(zap.Error(err)).Errorf(`Unexpected error while adding %s. %s`, v, ourFault)
+		zap.S().With(zap.Error(err)).Errorf(`Unexpected error while removing %s. %s`, v, ourFault)
 		return err
 	} else if errors.Is(err, graph.ErrVertexNotFound) {
 		zap.S().With(zap.Error(err)).Debugf(`Ignoring error while removing %s because it does not exist`, v)
@@ -139,7 +139,7 @@ func (d *Directed[V]) AddVertex(v V) {
 func (d *Directed[V]) AddVertexWithProperties(v V, options ...func(*graph.VertexProperties)) {
 	err := d.underlying.AddVertex(v, options...) // ignore errors if this is a duplicate
 	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
-		zap.S().With(zap.Error(err)).Errorf(`Unexpected error while adding %s. %s`, v, ourFault)
+		zap.S().With(zap.Error(err)).Errorf(`Unexpected error while adding %s with properties. %s`, v, ourFault)
 	} else if err != nil && errors.Is(err, graph.ErrVertexAlreadyExists) {
 		zap.S().With(zap.Error(err)).Debugf(`have to replace vertex since it already exists %s. %s`, v, ourFault)
 		outgoingEdges := d.OutgoingEdges(v)

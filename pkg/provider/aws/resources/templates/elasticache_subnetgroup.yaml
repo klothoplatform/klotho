@@ -1,0 +1,21 @@
+provider: aws
+type: elasticache_subnetgroup
+rules:
+  - enforcement: exactly_one
+    direction: downstream
+    resource_types: 
+    - vpc
+    remove_direct_dependency: true
+    rules:
+    - enforcement: any_available
+      direction: downstream
+      resource_types: 
+      - subnet_private
+      - subnet_public
+      set_field: Subnets
+      unsatisfied_action:
+        operation: create
+        default_type: subnet_private
+      num_needed: 2
+delete_context:
+  requires_no_upstream: true

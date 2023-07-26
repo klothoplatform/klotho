@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -127,66 +126,14 @@ func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceC
 	return nil
 }
 
-func (instance *RdsInstance) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	var vpc *Vpc
-	vpc, err := getSingleUpstreamVpc(dag, instance)
-	if err != nil {
-		return err
-	}
-
-	if instance.SubnetGroup == nil {
-		subnetGroups := core.GetDownstreamResourcesOfType[*RdsSubnetGroup](dag, instance)
-		if len(subnetGroups) > 1 {
-			return fmt.Errorf("rds instance %s has multiple subnet group dependencies", instance.Name)
-		} else if len(subnetGroups) == 0 {
-			subnetGroup, err := core.CreateResource[*RdsSubnetGroup](dag, RdsSubnetGroupCreateParams{
-				AppName: appName,
-				Name:    fmt.Sprintf("%s-SubnetGroup", instance.Name),
-				Refs:    core.BaseConstructSetOf(instance),
-			})
-			if err != nil {
-				return err
-			}
-			instance.SubnetGroup = subnetGroup
-			if vpc != nil {
-				dag.AddDependency(subnetGroup, vpc)
-			}
-			err = subnetGroup.MakeOperational(dag, appName, classifier)
-			if err != nil {
-				return err
-			}
-		} else {
-			instance.SubnetGroup = subnetGroups[0]
-		}
-	}
-
-	if len(instance.SecurityGroups) == 0 {
-		sgs, err := getSecurityGroupsOperational(dag, instance, appName)
-		if err != nil {
-			return err
-		}
-		instance.SecurityGroups = sgs
-	}
-
-	dag.AddDependenciesReflect(instance)
-	return nil
-}
-
 type RdsInstanceConfigureParams struct {
 	DatabaseName string
 }
 
 func (instance *RdsInstance) Configure(params RdsInstanceConfigureParams) error {
-	instance.IamDatabaseAuthenticationEnabled = true
-	instance.SkipFinalSnapshot = true
 	instance.DatabaseName = params.DatabaseName
 	instance.Username = generateUsername()
 	instance.Password = generatePassword()
-
-	instance.Engine = "postgres"
-	instance.EngineVersion = "13.7"
-	instance.InstanceClass = "db.t4g.micro"
-	instance.AllocatedStorage = 20
 	credsBytes := []byte(fmt.Sprintf("{\n\"username\": \"%s\",\n\"password\": \"%s\"\n}", instance.Username, instance.Password))
 	credsPath := fmt.Sprintf("secrets/%s", instance.Name)
 	instance.CredentialsFile = &core.RawFile{
@@ -218,22 +165,6 @@ func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSub
 	return nil
 }
 
-func (subnetGroup *RdsSubnetGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if len(subnetGroup.Subnets) == 0 {
-		subnets, err := getSubnetsOperational(dag, subnetGroup, appName)
-		if err != nil {
-			return err
-		}
-		for _, subnet := range subnets {
-			if subnet.Type == PrivateSubnet {
-				subnetGroup.Subnets = append(subnetGroup.Subnets, subnet)
-			}
-		}
-		dag.AddDependenciesReflect(subnetGroup)
-	}
-	return nil
-}
-
 type RdsProxyCreateParams struct {
 	AppName string
 	Name    string
@@ -254,65 +185,6 @@ func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreatePara
 	}
 	return nil
 }
-func (proxy *RdsProxy) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if proxy.Role == nil {
-		roles := core.GetDownstreamResourcesOfType[*IamRole](dag, proxy)
-		if len(roles) > 1 {
-			return fmt.Errorf("rds proxy %s has multiple role dependencies", proxy.Name)
-		} else if len(roles) == 0 {
-			role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
-				AppName: appName,
-				Name:    fmt.Sprintf("%s-ProxyRole", proxy.Name),
-				Refs:    core.BaseConstructSetOf(proxy),
-			})
-			if err != nil {
-				return err
-			}
-			proxy.Role = role
-			dag.AddDependency(proxy, role)
-		} else {
-			proxy.Role = roles[0]
-		}
-	}
-
-	if len(proxy.Subnets) == 0 {
-		subnets, err := getSubnetsOperational(dag, proxy, appName)
-		if err != nil {
-			return err
-		}
-		for _, subnet := range subnets {
-			if subnet.Type == PrivateSubnet {
-				proxy.Subnets = append(proxy.Subnets, subnet)
-			}
-		}
-	}
-
-	if len(proxy.SecurityGroups) == 0 {
-		sgs, err := getSecurityGroupsOperational(dag, proxy, appName)
-		if err != nil {
-			return err
-		}
-		proxy.SecurityGroups = sgs
-	}
-
-	dag.AddDependenciesReflect(proxy)
-	return nil
-}
-
-type RdsProxyConfigureParams struct {
-	EngineFamily      string
-	DebugLogging      bool
-	IdleClientTimeout int
-	RequireTls        bool
-}
-
-func (proxy *RdsProxy) Configure(params RdsProxyConfigureParams) error {
-	proxy.DebugLogging = false
-	proxy.EngineFamily = "POSTGRESQL"
-	proxy.IdleClientTimeout = 1800
-	proxy.RequireTls = false
-	return nil
-}
 
 type RdsProxyTargetGroupCreateParams struct {
 	AppName string
@@ -331,40 +203,6 @@ func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTa
 		return nil
 	} else {
 		dag.AddResource(tg)
-	}
-	return nil
-}
-func (tg *RdsProxyTargetGroup) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if tg.RdsProxy == nil {
-		proxies := core.GetDownstreamResourcesOfType[*RdsProxy](dag, tg)
-		if len(proxies) != 1 {
-			return fmt.Errorf("rds proxy target group %s has %d proxy dependencies", tg.Name, len(proxies))
-		}
-		tg.RdsProxy = proxies[0]
-		dag.AddDependency(proxies[0], tg)
-	}
-	if tg.RdsInstance == nil {
-		instances := core.GetDownstreamResourcesOfType[*RdsInstance](dag, tg)
-		if len(instances) != 1 {
-			return fmt.Errorf("rds proxy target group %s has %d instance dependencies", tg.Name, len(instances))
-		}
-		tg.RdsInstance = instances[0]
-		dag.AddDependency(tg, instances[0])
-	}
-	return nil
-}
-
-type RdsProxyTargetGroupConfigureParams struct {
-	ConnectionPoolConfigurationInfo ConnectionPoolConfigurationInfo
-}
-
-// Configure sets the intristic characteristics of a vpc based on parameters passed in
-func (targetGroup *RdsProxyTargetGroup) Configure(params RdsProxyTargetGroupConfigureParams) error {
-	targetGroup.TargetGroupName = "default"
-	targetGroup.ConnectionPoolConfigurationInfo = &ConnectionPoolConfigurationInfo{
-		ConnectionBorrowTimeout:   120,
-		MaxConnectionsPercent:     100,
-		MaxIdleConnectionsPercent: 50,
 	}
 	return nil
 }

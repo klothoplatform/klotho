@@ -273,7 +273,7 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 }
 
 func (e *Engine) SolveGraph(context *SolveContext) (*core.ResourceGraph, error) {
-	NUM_LOOPS := 5
+	NUM_LOOPS := 10
 	graph := context.ResourceGraph
 	configuredEdges := map[core.ResourceId]map[core.ResourceId]bool{}
 	errorMap := make(map[int][]error)

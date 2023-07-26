@@ -1,0 +1,24 @@
+provider: aws
+type: subnet_public
+rules:
+  - enforcement: exactly_one
+    direction: downstream
+    resource_types: 
+    - vpc
+    set_field: Vpc
+    unsatisfied_action:
+      operation: create
+    rules:
+    - enforcement: exactly_one
+      direction: upstream
+      resource_types: 
+      - route_table
+      unsatisfied_action:
+        operation: create
+configuration:
+- field: MapPublicIpOnLaunch
+  value: false
+- field: Type
+  value: public
+delete_context:
+  requires_no_upstream: true

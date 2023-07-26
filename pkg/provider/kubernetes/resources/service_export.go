@@ -1,11 +1,8 @@
 package resources
 
 import (
-	"fmt"
-
 	cloudmap "github.com/aws/aws-cloud-map-mcs-controller-for-k8s/pkg/apis/multicluster/v1alpha1"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -52,26 +49,4 @@ func (se *ServiceExport) Kind() string {
 
 func (se *ServiceExport) Path() string {
 	return se.FilePath
-}
-
-func (se *ServiceExport) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if se.Cluster.IsZero() {
-		var downstreamClustersFound []core.Resource
-		for _, res := range dag.GetAllDownstreamResources(se) {
-			if classifier.GetFunctionality(res) == core.Cluster {
-				downstreamClustersFound = append(downstreamClustersFound, res)
-			}
-		}
-		if len(downstreamClustersFound) == 1 {
-			se.Cluster = downstreamClustersFound[0].Id()
-			dag.AddDependency(se, downstreamClustersFound[0])
-			return nil
-		}
-		if len(downstreamClustersFound) > 1 {
-			return fmt.Errorf("service export %s has more than one cluster downstream", se.Id())
-		}
-
-		return core.NewOperationalResourceError(se, []string{string(core.Cluster)}, fmt.Errorf("service export %s has no clusters to use", se.Id()))
-	}
-	return nil
 }

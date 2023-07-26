@@ -30,6 +30,7 @@ type (
 	OperationalResourceError struct {
 		Needs      []string
 		Count      int
+		Direction  Direction
 		Resource   Resource
 		Parent     Resource
 		MustCreate bool

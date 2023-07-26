@@ -1,8 +1,8 @@
 provider: aws
 type: ecr_image
 rules:
-  downstream:
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - ecr_repo
     set_field: Repo

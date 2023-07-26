@@ -102,7 +102,7 @@ type (
 		// Type refers to the unique type identifier of the resource
 		Type string `json:"type" yaml:"type"`
 		// Rules defines a set of rules that must pass checks and actions which must be carried out to make a resource operational
-		Rules OperationalTempalte `json:"rules" yaml:"rules"`
+		Rules []OperationalRule `json:"rules" yaml:"rules"`
 		// Configuration specifies how to act on any intrinsic values of a resource to make it operational
 		Configuration []Configuration `json:"configuration" yaml:"configuration"`
 		// SanitizationRules defines a set of rules that are used to ensure the resource's name is valid
@@ -111,18 +111,12 @@ type (
 		DeleteContext DeleteContext `json:"delete_context" yaml:"delete_context"`
 	}
 
-	// OperationalTempalte defines a set of rules that must pass checks and actions which must be carried out to make a resource operational
-	OperationalTempalte struct {
-		// Downstream defines a set of rules that exist downstream of the resource that must pass checks and actions which must be carried out to make a resource operational
-		Downstream []OperationalRule `json:"downstream" yaml:"downstream"`
-		// Upstream defines a set of rules that exist upstream of the resource that must pass checks and actions which must be carried out to make a resource operational
-		Upstream []OperationalRule `json:"upstream" yaml:"upstream"`
-	}
-
 	// OperationalRule defines a rule that must pass checks and actions which must be carried out to make a resource operational
 	OperationalRule struct {
 		// Enforcement defines how the rule should be enforced
 		Enforcement OperationEnforcement `json:"enforcement" yaml:"enforcement"`
+		// Direction defines the direction of the rule. The direction options are upstream or downstream
+		Direction Direction `json:"direction" yaml:"direction"`
 		// ResourceTypes defines the resource types that the rule should be enforced on. Resource types must be specified if classifications is not specified
 		ResourceTypes []string `json:"resource_types" yaml:"resource_types"`
 		// Classifications defines the classifications that the rule should be enforced on. Classifications must be specified if resource types is not specified
@@ -173,6 +167,8 @@ type (
 	OperationEnforcement string
 	// UnsatisfiedActionOperation defines what action should be taken if the rule is not satisfied
 	UnsatisfiedActionOperation string
+	// Direction defines the direction of the rule. The direction options are upstream or downstream
+	Direction string
 )
 
 const (
@@ -187,6 +183,9 @@ const (
 	CreateUnsatisfiedResource UnsatisfiedActionOperation = "create"
 	// ErrorUnsatisfiedResource defines that an error should be returned if the rule is not satisfied
 	ErrorUnsatisfiedResource UnsatisfiedActionOperation = "error"
+
+	Upstream   Direction = "upstream"
+	Downstream Direction = "downstream"
 )
 
 func (or *OperationalRule) String() string {
@@ -202,7 +201,6 @@ const (
 	Compute Functionality = "compute"
 	Cluster Functionality = "cluster"
 	Storage Functionality = "storage"
-	Network Functionality = "network"
 	Api     Functionality = "api"
 	Unknown Functionality = "Unknown"
 

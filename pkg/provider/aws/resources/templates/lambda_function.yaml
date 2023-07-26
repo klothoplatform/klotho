@@ -1,30 +1,37 @@
 provider: aws
 type: lambda_function
 rules:
-  downstream:
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - iam_role
     set_field: Role
     unsatisfied_action: 
       operation: create
+      unique: true
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - ecr_image
     set_field: Image
     unsatisfied_action: 
       operation: create
+      unique: true
   - enforcement: exactly_one
+    direction: downstream
     resource_types: 
     - log_group
     unsatisfied_action: 
       operation: create
+      unique: true
   - enforcement: conditional
+    direction: downstream
     resource_types: 
     - vpc
     remove_direct_dependency: true
     rules:
     - enforcement: any_available
+      direction: downstream
       resource_types: 
       - subnet_private
       - subnet_public
@@ -34,6 +41,7 @@ rules:
         operation: create
         default_type: subnet_private
     - enforcement: any_available
+      direction: downstream
       resource_types: 
       - security_group
       set_field: SecurityGroups

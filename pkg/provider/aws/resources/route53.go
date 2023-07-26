@@ -3,9 +3,7 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 )
 
 const (
@@ -67,25 +65,6 @@ func (zone *Route53HostedZone) Create(dag *core.ResourceGraph, params Route53Hos
 	return nil
 }
 
-func (zone *Route53HostedZone) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	vpcs := core.GetDownstreamResourcesOfType[*Vpc](dag, zone)
-	for _, vpc := range vpcs {
-		if !collectionutil.Contains(zone.Vpcs, vpc) {
-			zone.Vpcs = append(zone.Vpcs, vpc)
-		}
-	}
-	dag.AddDependenciesReflect(zone)
-	return nil
-}
-
-type Route53HostedZoneConfigureParams struct {
-}
-
-func (zone *Route53HostedZone) Configure(params Route53HostedZoneConfigureParams) error {
-	zone.ForceDestroy = true
-	return nil
-}
-
 type Route53RecordCreateParams struct {
 	Refs       core.BaseConstructSet
 	DomainName string
@@ -104,37 +83,6 @@ func (record *Route53Record) Create(dag *core.ResourceGraph, params Route53Recor
 	}
 	record.Zone = params.Zone
 	dag.AddDependenciesReflect(record)
-	return nil
-}
-
-func (record *Route53Record) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if record.Zone == nil {
-		zones := core.GetDownstreamResourcesOfType[*Route53HostedZone](dag, record)
-		if len(zones) != 1 {
-			return fmt.Errorf("Route53Record %s has %d zone dependencies", record.Name, len(zones))
-		}
-		record.Zone = zones[0]
-	}
-	dag.AddDependenciesReflect(record)
-	return nil
-}
-
-type Route53RecordConfigureParams struct {
-	Type        string
-	HealthCheck *Route53HealthCheck
-	TTL         int
-}
-
-func (record *Route53Record) Configure(params Route53RecordConfigureParams) error {
-	if params.Type != "" {
-		record.Type = params.Type
-	}
-	if params.HealthCheck != nil {
-		record.HealthCheck = params.HealthCheck
-	}
-	if params.TTL != 0 {
-		record.TTL = params.TTL
-	}
 	return nil
 }
 
@@ -164,35 +112,6 @@ func (healthCheck *Route53HealthCheck) Create(dag *core.ResourceGraph, params Ro
 		return nil
 	}
 	dag.AddDependenciesReflect(healthCheck)
-	return nil
-}
-
-type Route53HealthCheckConfigureParams struct {
-	Type             string
-	Disabled         bool
-	FailureThreshold int
-	Port             int
-	RequestInterval  int
-	ResourcePath     string
-}
-
-func (healthCheck *Route53HealthCheck) Configure(params Route53HealthCheckConfigureParams) error {
-	if params.Type != "" {
-		healthCheck.Type = params.Type
-	}
-	healthCheck.Disabled = params.Disabled
-	if params.FailureThreshold != 0 {
-		healthCheck.FailureThreshold = params.FailureThreshold
-	}
-	if params.Port != 0 {
-		healthCheck.Port = params.Port
-	}
-	if params.RequestInterval != 0 {
-		healthCheck.RequestInterval = params.RequestInterval
-	}
-	if params.ResourcePath != "" {
-		healthCheck.ResourcePath = params.ResourcePath
-	}
 	return nil
 }
 
