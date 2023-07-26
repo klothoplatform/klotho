@@ -252,7 +252,7 @@ func Test_ApiMethodCreate(t *testing.T) {
 				Deps: []coretesting.StringDep{
 					{Source: "aws:api_resource:my-app-/my", Destination: "aws:api_resource:my-app-/my/api"},
 					{Source: "aws:api_resource:my-app-/my/api", Destination: "aws:api_resource:my-app-/my/api/route"},
-					{Source: "aws:api_resource:my-app-/my/api/route", Destination: "aws:api_method:my-app-/my/api/route-post"},
+					{Source: "aws:api_method:my-app-/my/api/route-post", Destination: "aws:api_resource:my-app-/my/api/route"},
 				},
 			},
 		},

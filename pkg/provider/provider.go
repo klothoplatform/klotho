@@ -31,5 +31,6 @@ type (
 
 const (
 	AWS        = "aws"
+	DOCKER     = "docker"
 	KUBERNETES = "kubernetes"
 )

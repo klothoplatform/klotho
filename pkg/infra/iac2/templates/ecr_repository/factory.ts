@@ -2,11 +2,12 @@ import * as aws from '@pulumi/aws'
 
 interface Args {
     Name: string
+    SanitizedName: string
 }
 
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.ecr.Repository {
-    return new aws.ecr.Repository(args.Name, {
+    return new aws.ecr.Repository(args.SanitizedName, {
         imageScanningConfiguration: {
             scanOnPush: true,
         },

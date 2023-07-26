@@ -1,6 +1,7 @@
 package engine
 
 import (
+	docker "github.com/klothoplatform/klotho/pkg/provider/docker/resources"
 	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
@@ -43,6 +44,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 		k8sResources.DEPLOYMENT_TYPE,
 		k8sResources.POD_TYPE,
 		k8sResources.HELM_CHART_TYPE,
+		docker.DOCKER_IMAGE_TYPE,
 	}
 
 	parentResources := map[string]nodeSettings{

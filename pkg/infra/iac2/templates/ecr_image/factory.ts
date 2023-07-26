@@ -5,6 +5,7 @@ import * as command from '@pulumi/command'
 
 interface Args {
     Name: string
+    TagBase: string
     Repo: aws.ecr.Repository
     Context: string
     Dockerfile: string
@@ -21,7 +22,7 @@ function create(args: Args): docker.Image {
                 platform: 'linux/amd64',
             },
             skipPush: true,
-            imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:${args.Name}-base`,
+            imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:${args.TagBase}-base`,
         })
 
         const sha256 = new command.local.Command(
@@ -50,7 +51,7 @@ function create(args: Args): docker.Image {
                             password: registryToken.password,
                         }
                     }),
-                imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:${args.Name}-${sha256}`,
+                imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:${args.TagBase}-${sha256}`,
             },
             { parent: base }
         )

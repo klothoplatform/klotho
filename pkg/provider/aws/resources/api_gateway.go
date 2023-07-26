@@ -204,6 +204,20 @@ func (integration *ApiIntegration) MakeOperational(dag *core.ResourceGraph, appN
 	if integration.RestApi == nil {
 		return fmt.Errorf("rest api is not set on integration %s", integration.Name)
 	}
+
+	isOnlyIntegration := false
+	integrations := core.GetDownstreamResourcesOfType[*ApiIntegration](dag, integration.RestApi)
+	if len(integrations) == 1 {
+		isOnlyIntegration = true
+	}
+
+	if integration.Route == "" && isOnlyIntegration {
+		integration.Route = "/:proxy*"
+	}
+	if isOnlyIntegration {
+		integration.IntegrationHttpMethod = "ANY"
+	}
+
 	if integration.Route != "" && integration.Route != "/" {
 		resource, err := core.CreateResource[*ApiResource](dag, ApiResourceCreateParams{
 			AppName: appName,
@@ -241,6 +255,7 @@ func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateP
 		graphResource := existingResource.(*ApiMethod)
 		graphResource.ConstructRefs.AddAll(params.Refs)
 	} else {
+		dag.AddResource(method)
 		// The root path is already created in api gw so we dont want to attempt to create an empty resource
 		if params.Path != "" && params.Path != "/" {
 			parentResource, err := core.CreateResource[*ApiResource](dag, ApiResourceCreateParams{
@@ -253,7 +268,7 @@ func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateP
 				return err
 			}
 			method.Resource = parentResource
-			dag.AddDependency(parentResource, method)
+			dag.AddDependency(method, parentResource)
 		}
 	}
 	return nil

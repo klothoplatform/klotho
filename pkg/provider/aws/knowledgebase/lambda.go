@@ -2,6 +2,8 @@ package knowledgebase
 
 import (
 	"fmt"
+	docker "github.com/klothoplatform/klotho/pkg/provider/docker/resources"
+	"path"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
@@ -64,6 +66,17 @@ var LambdaKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.EcrImage]{},
+	knowledgebase.EdgeBuilder[*resources.EcrImage, *docker.DockerImage]{
+		Configure: func(ecrImage *resources.EcrImage, dockerImage *docker.DockerImage, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			// configures the ecr image to build from the docker image
+			dockerImage.CreatesDockerfile = true
+			dockerfile := dockerImage.Dockerfile()
+			ecrImage.Dockerfile = dockerfile.Path()
+			ecrImage.Context = path.Dir(dockerfile.Path())
+			return nil
+		},
+		Reuse: knowledgebase.Upstream,
+	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.LogGroup]{
 		Configure: func(function *resources.LambdaFunction, logGroup *resources.LogGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			logGroup.LogGroupName = fmt.Sprintf("/aws/lambda/%s", function.Name)
