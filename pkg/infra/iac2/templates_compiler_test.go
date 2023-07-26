@@ -76,6 +76,8 @@ func TestOutputBody(t *testing.T) {
 			"		}",
 			"					rawNestedTemplate: true",
 			"				});",
+			"export const exportedResources = {",
+			"}",
 		)
 		assert.Equal(expect, buf.String())
 	})

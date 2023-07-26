@@ -2,7 +2,7 @@ provider: aws
 type: api_integration
 rules:
 - enforcement: exactly_one
-  direction: downstream
+  direction: upstream
   resource_types:
   - api_method
   set_field: Method
@@ -16,5 +16,8 @@ rules:
   set_field: RestApi
   unsatisfied_action:
     operation: create
+configuration:
+- field: IntegrationHttpMethod
+  value: ANY
 delete_context:
   requires_no_upstream_or_downstream: true

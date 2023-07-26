@@ -17,7 +17,9 @@ function create(args: Args): aws.dynamodb.Table {
         {
             attributes: args.Attributes,
             hashKey: args.HashKey,
+            //TMPL {{- if .RangeKey.Raw }}
             rangeKey: args.RangeKey,
+            //TMPL {{- end }}
             billingMode: args.BillingMode,
         },
         { protect: args.protect }

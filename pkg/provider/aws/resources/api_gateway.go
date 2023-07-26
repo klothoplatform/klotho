@@ -214,9 +214,6 @@ func (integration *ApiIntegration) MakeOperational(dag *core.ResourceGraph, appN
 	if integration.Route == "" && isOnlyIntegration {
 		integration.Route = "/:proxy*"
 	}
-	if isOnlyIntegration {
-		integration.IntegrationHttpMethod = "ANY"
-	}
 
 	if integration.Route != "" && integration.Route != "/" {
 		resource, err := core.CreateResource[*ApiResource](dag, ApiResourceCreateParams{
@@ -268,20 +265,8 @@ func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateP
 				return err
 			}
 			method.Resource = parentResource
-			dag.AddDependency(method, parentResource)
+			dag.AddDependency(parentResource, method)
 		}
-	}
-	return nil
-}
-
-type ApiMethodConfigureParams struct {
-	Authorization string
-}
-
-func (method *ApiMethod) Configure(params ApiMethodConfigureParams) error {
-	method.Authorization = "None"
-	if params.Authorization != "" {
-		method.Authorization = params.Authorization
 	}
 	return nil
 }

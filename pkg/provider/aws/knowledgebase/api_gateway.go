@@ -21,6 +21,9 @@ var ApiGatewayKB = knowledgebase.Build(
 			if method == nil || deployment == nil {
 				return fmt.Errorf("cannot configure integration %s, missing rest api or method", method.Id())
 			}
+			if deployment.Triggers == nil {
+				deployment.Triggers = map[string]string{}
+			}
 			deployment.Triggers[method.Id().Name] = method.Id().Name
 			return nil
 		},
@@ -29,6 +32,9 @@ var ApiGatewayKB = knowledgebase.Build(
 		Configure: func(deployment *resources.ApiDeployment, integration *resources.ApiIntegration, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if integration == nil || deployment == nil {
 				return fmt.Errorf("cannot configure edge %s", integration.Id())
+			}
+			if deployment.Triggers == nil {
+				deployment.Triggers = map[string]string{}
 			}
 			deployment.Triggers[integration.Id().Name] = integration.Id().Name
 			return nil
@@ -41,9 +47,17 @@ var ApiGatewayKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.RestApi, *resources.ApiResource]{
 		DeploymentOrderReversed: true,
 	},
-	knowledgebase.EdgeBuilder[*resources.ApiMethod, *resources.ApiResource]{},
+	knowledgebase.EdgeBuilder[*resources.ApiResource, *resources.ApiMethod]{
+		DeploymentOrderReversed: true,
+	},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.ApiResource]{},
-	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.ApiMethod]{},
+	knowledgebase.EdgeBuilder[*resources.ApiMethod, *resources.ApiIntegration]{
+		Configure: func(source *resources.ApiMethod, destination *resources.ApiIntegration, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			source.Resource = destination.Resource
+			return nil
+		},
+		DeploymentOrderReversed: true,
+	},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.LambdaFunction]{
 
 		Configure: func(integration *resources.ApiIntegration, function *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {

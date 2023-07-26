@@ -287,14 +287,12 @@ func (e *Engine) SolveGraph(context *SolveContext) (*core.ResourceGraph, error) 
 				if _, ok := configuredEdges[dep.Source.Id()]; !ok {
 					configuredEdges[dep.Source.Id()] = make(map[core.ResourceId]bool)
 				}
-				if _, ok := configuredEdges[dep.Source.Id()][dep.Destination.Id()]; !ok {
-					err := e.KnowledgeBase.ConfigureEdge(&dep, graph)
-					if err != nil {
-						errorMap[i] = append(errorMap[i], err)
-						continue
-					}
-					configuredEdges[dep.Source.Id()][dep.Destination.Id()] = true
+				err := e.KnowledgeBase.ConfigureEdge(&dep, graph)
+				if err != nil {
+					errorMap[i] = append(errorMap[i], err)
+					continue
 				}
+				configuredEdges[dep.Source.Id()][dep.Destination.Id()] = true
 			}
 		}
 

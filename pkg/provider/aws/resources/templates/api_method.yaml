@@ -8,5 +8,10 @@ rules:
   set_field: RestApi
   unsatisfied_action:
     operation: create
+configuration:
+- field: HttpMethod
+  value: ANY
+- field: Authorization
+  value: none
 delete_context:
   requires_no_upstream_or_downstream: true

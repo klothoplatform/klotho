@@ -352,9 +352,20 @@ func cloneResource(resource core.Resource) core.Resource {
 	return newRes
 }
 
-func nameResource(res core.Resource, resource core.Resource, addToName string) {
-	reflect.ValueOf(res).Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s-%s%s", res.Id().Type, resource.Id().Name, addToName)))
-	reflect.ValueOf(res).Elem().FieldByName("ConstructRefs").Set(reflect.ValueOf(core.BaseConstructSetOf(resource)))
+func nameResource(dag *core.ResourceGraph, resourceToSet core.Resource, resource core.Resource, unique bool) {
+	numResources := 0
+	for _, res := range dag.ListResources() {
+		if res.Id().Type == resource.Id().Type {
+			numResources++
+		}
+	}
+	if unique {
+		reflect.ValueOf(resourceToSet).Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s-%s-%d", resourceToSet.Id().Type, resource.Id().Name, numResources)))
+	} else {
+
+		reflect.ValueOf(resourceToSet).Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s-%d", resourceToSet.Id().Type, numResources)))
+	}
+	reflect.ValueOf(resourceToSet).Elem().FieldByName("ConstructRefs").Set(reflect.ValueOf(core.BaseConstructSetOf(resource)))
 }
 
 func addDependencyForDirection(dag *core.ResourceGraph, direction core.Direction, resource core.Resource, dependentResource core.Resource) {
@@ -446,11 +457,8 @@ func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceErr
 	if len(availableResources) < err.Count-numSatisfied {
 		for i := numSatisfied; i < err.Count; i++ {
 			newRes := cloneResource(neededResource)
-			if err.Count-numSatisfied == 1 {
-				nameResource(newRes, err.Resource, "")
-			} else {
-				nameResource(newRes, err.Resource, fmt.Sprintf("%d", i))
-			}
+			nameResource(dag, newRes, err.Resource, err.MustCreate)
+
 			addDependencyForDirection(dag, err.Direction, err.Resource, newRes)
 			if err.Parent != nil {
 				addDependencyForDirection(dag, err.Direction, newRes, err.Parent)
@@ -482,16 +490,16 @@ func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceErr
 func TemplateConfigure(resource core.Resource, template core.ResourceTemplate) error {
 	for _, config := range template.Configuration {
 		field := reflect.ValueOf(resource).Elem().FieldByName(config.Field)
+		if (field.IsValid() && !field.IsZero()) || config.ZeroValueAllowed {
+			continue
+		}
 		switch field.Kind() {
 		case reflect.Slice, reflect.Array:
-			if field.Len() == 0 && !config.ZeroValueAllowed {
-				if reflect.ValueOf(config.Value).Kind() != reflect.Slice {
-					return fmt.Errorf("config template is not the correct type for resource %s. expected it to be a list, but got %s", resource.Id(), reflect.TypeOf(config.Value))
-				}
-				configureField(config.Value, field)
-				reflect.ValueOf(resource).Elem().FieldByName(config.Field).Set(field)
+			if reflect.ValueOf(config.Value).Kind() != reflect.Slice {
+				return fmt.Errorf("config template is not the correct type for resource %s. expected it to be a list, but got %s", resource.Id(), reflect.TypeOf(config.Value))
 			}
-
+			configureField(config.Value, field)
+			reflect.ValueOf(resource).Elem().FieldByName(config.Field).Set(field)
 		case reflect.Pointer, reflect.Struct:
 			if reflect.ValueOf(config.Value).Kind() != reflect.Map {
 				return fmt.Errorf("config template is not the correct type for resource %s. expected it to be a map, but got %s", resource.Id(), reflect.TypeOf(config.Value))

@@ -125,7 +125,20 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 			}
 		}
 	}
+	errs.Append(tc.RenderExports(out))
 	return errs.ErrOrNil()
+}
+
+func (tc TemplatesCompiler) RenderExports(out io.Writer) error {
+	out.Write([]byte("\nexport const exportedResources = {\n"))
+	for _, resource := range tc.resourceGraph.ListResources() {
+		switch res := resource.(type) {
+		case *resources.ApiStage:
+			out.Write([]byte("\"" + res.Name + "\": " + tc.getVarName(res) + ".invokeUrl,\n"))
+		}
+	}
+	out.Write([]byte("}"))
+	return nil
 }
 
 func (tc TemplatesCompiler) RenderImports(out io.Writer) error {

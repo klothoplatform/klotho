@@ -1,6 +1,8 @@
 package engine
 
-import "github.com/klothoplatform/klotho/pkg/core"
+import (
+	"github.com/klothoplatform/klotho/pkg/core"
+)
 
 func (e *Engine) GetDeploymentOrderGraph(dataflow *core.ResourceGraph) *core.ResourceGraph {
 	deploymentOrderGraph := core.NewResourceGraph()

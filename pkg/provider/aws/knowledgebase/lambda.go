@@ -2,8 +2,9 @@ package knowledgebase
 
 import (
 	"fmt"
-	docker "github.com/klothoplatform/klotho/pkg/provider/docker/resources"
 	"path"
+
+	docker "github.com/klothoplatform/klotho/pkg/provider/docker/resources"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
@@ -90,6 +91,11 @@ var LambdaKB = knowledgebase.Build(
 				return fmt.Errorf("cannot configure lambda %s -> dynamo table %s, missing role", lambda.Id(), table.Id())
 			}
 			dag.AddDependency(lambda.Role, table)
+			// TODO: remove
+			if lambda.EnvironmentVariables == nil {
+				lambda.EnvironmentVariables = map[string]core.IaCValue{}
+			}
+			lambda.EnvironmentVariables["TableName"] = core.IaCValue{ResourceId: table.Id(), Property: string(core.KV_DYNAMODB_TABLE_NAME)}
 			for _, env := range data.EnvironmentVariables {
 				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: table.Id(), Property: env.GetValue()}
 			}

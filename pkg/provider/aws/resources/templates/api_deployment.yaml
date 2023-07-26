@@ -8,5 +8,11 @@ rules:
   set_field: RestApi
   unsatisfied_action:
     operation: create
+  rules:
+  - enforcement: any_available
+    direction: downstream
+    resource_types:
+    - api_method
+    - api_integration
 delete_context:
   requires_no_upstream: true
