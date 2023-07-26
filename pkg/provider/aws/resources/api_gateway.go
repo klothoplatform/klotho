@@ -255,6 +255,7 @@ func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateP
 		graphResource := existingResource.(*ApiMethod)
 		graphResource.ConstructRefs.AddAll(params.Refs)
 	} else {
+		dag.AddResource(method)
 		// The root path is already created in api gw so we dont want to attempt to create an empty resource
 		if params.Path != "" && params.Path != "/" {
 			parentResource, err := core.CreateResource[*ApiResource](dag, ApiResourceCreateParams{
@@ -267,6 +268,7 @@ func (method *ApiMethod) Create(dag *core.ResourceGraph, params ApiMethodCreateP
 				return err
 			}
 			method.Resource = parentResource
+			dag.AddDependency(method, parentResource)
 		}
 	}
 	return nil

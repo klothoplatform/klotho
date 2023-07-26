@@ -80,18 +80,18 @@ func Test_EcrImageCreate(t *testing.T) {
 			Name: "nil image",
 			Want: coretesting.ResourcesExpectation{
 				Nodes: []string{
-					"aws:ecr_image:my-app-image",
+					"aws:ecr_image:image",
 				},
 				Deps: []coretesting.StringDep{},
 			},
 			Check: func(assert *assert.Assertions, image *EcrImage) {
-				assert.Equal(image.Name, "my-app-image")
+				assert.Equal(image.Name, "image")
 				assert.Equal(image.ConstructRefs, core.BaseConstructSetOf(eu))
 			},
 		},
 		{
 			Name:     "existing image",
-			Existing: &EcrImage{Name: "my-app-image", ConstructRefs: initialRefs},
+			Existing: &EcrImage{Name: "image", ConstructRefs: initialRefs},
 			WantErr:  true,
 		},
 	}
