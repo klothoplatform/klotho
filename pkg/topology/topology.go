@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 )
 
 const baseIconUrl = "https://raw.githubusercontent.com/mingrammer/diagrams/master/resources/"
+
+const defaultVisURL = "http://viz-v0.klo.dev/render"
 
 type Plugin struct {
 	Config *config.Application
@@ -44,8 +47,15 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 		topology.EdgeData = append(topology.EdgeData, edges...)
 	}
 
+	vizURL := os.Getenv("VIZ_URL")
+	if vizURL == "" {
+		vizURL = defaultVisURL
+	}
+	if strings.ToLower(vizURL) == "disable" {
+		return nil
+	}
 	diagramPlan := p.generateImageString(topology)
-	image, err := createViz(diagramPlan)
+	image, err := createViz(vizURL, diagramPlan)
 	if err != nil {
 		return err
 	}
@@ -109,10 +119,7 @@ func (p Plugin) generateImageString(t core.TopologyData) string {
 
 var httpClient = httpclient.NewClient(httpclient.WithHTTPTimeout(20 * time.Second))
 
-func createViz(diagramPlan string) ([]byte, error) {
-	//TODO make this configurable
-	vizURL := "https://rgq7x9okk0.execute-api.us-east-1.amazonaws.com/stage/World32243"
-
+func createViz(vizURL string, diagramPlan string) ([]byte, error) {
 	req, err := http.NewRequest("POST", vizURL, bytes.NewBufferString(diagramPlan))
 	if err != nil {
 		return nil, err
@@ -123,6 +130,10 @@ func createViz(diagramPlan string) ([]byte, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
+
+	if res.StatusCode > 299 {
+		return nil, fmt.Errorf("unexpected status code: %s", res.Status)
+	}
 
 	decoder := base64.NewDecoder(base64.StdEncoding, res.Body)
 
