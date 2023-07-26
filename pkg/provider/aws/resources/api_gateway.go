@@ -217,6 +217,7 @@ func (integration *ApiIntegration) MakeOperational(dag *core.ResourceGraph, appN
 	if isOnlyIntegration {
 		integration.IntegrationHttpMethod = "ANY"
 	}
+
 	if integration.Route != "" && integration.Route != "/" {
 		resource, err := core.CreateResource[*ApiResource](dag, ApiResourceCreateParams{
 			AppName: appName,
