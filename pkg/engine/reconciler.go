@@ -21,7 +21,7 @@ DEP:
 				}
 				if dep == res {
 					found = true
-					det, _ := e.KnowledgeBase.GetEdge(resource, dep)
+					det, _ := e.KnowledgeBase.GetResourceEdge(resource, dep)
 					if !det.DeletetionDependent {
 						return false
 					}
@@ -34,7 +34,7 @@ DEP:
 				}
 				if dep == res {
 					found = true
-					det, _ := e.KnowledgeBase.GetEdge(dep, resource)
+					det, _ := e.KnowledgeBase.GetResourceEdge(dep, resource)
 					if !det.DeletetionDependent {
 						return false
 					}

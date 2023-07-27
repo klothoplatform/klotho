@@ -50,9 +50,9 @@ func (e EdgeBuilder[S, D]) Details() EdgeDetails {
 }
 
 func Build(edges ...edgeBuilder) EdgeKB {
-	result := make(EdgeKB)
+	result := make(EdgeMap)
 	for _, builder := range edges {
 		result[builder.Edge()] = builder.Details()
 	}
-	return result
+	return NewEdgeKB(result)
 }

@@ -1,6 +1,7 @@
 package constraints
 
 import (
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -85,7 +86,7 @@ func Test_NodeConstraint_IsSatisfied(t *testing.T) {
 			for _, res := range tt.resources {
 				dag.AddResource(res)
 			}
-			result := tt.constraint.IsSatisfied(dag, nil, make(map[core.ResourceId][]core.Resource), nil)
+			result := tt.constraint.IsSatisfied(dag, knowledgebase.EdgeKB{}, make(map[core.ResourceId][]core.Resource), nil)
 			assert.Equal(tt.want, result)
 		})
 	}

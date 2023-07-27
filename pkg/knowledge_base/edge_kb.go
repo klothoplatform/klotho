@@ -38,7 +38,17 @@ type (
 	Reuse string
 
 	// EdgeKB is a map (knowledge base) of edges and their respective details used to configure ResourceGraphs
-	EdgeKB map[Edge]EdgeDetails
+	EdgeMap map[Edge]EdgeDetails
+
+	ResourceEdges struct {
+		Incoming []Edge
+		Outgoing []Edge
+	}
+
+	EdgeKB struct {
+		edgeMap     EdgeMap
+		edgesByType map[reflect.Type]*ResourceEdges
+	}
 
 	// EdgeConfigurer is a function used to configure the To and From resources and necessary dependent resources, to ensure the nodes will guarantee correct functionality.
 	ConfigureEdge func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error
@@ -75,18 +85,35 @@ const (
 	Downstream Reuse = "downstream"
 )
 
+func NewEdgeKB(edges EdgeMap) EdgeKB {
+	edgeMap := make(EdgeMap)
+	edgesByType := map[reflect.Type]*ResourceEdges{}
+	for edge := range edges {
+		edgeMap[edge] = edges[edge]
+		if _, found := edgesByType[edge.Source]; !found {
+			edgesByType[edge.Source] = &ResourceEdges{}
+		}
+		if _, found := edgesByType[edge.Destination]; !found {
+			edgesByType[edge.Destination] = &ResourceEdges{}
+		}
+		edgesByType[edge.Source].Outgoing = append(edgesByType[edge.Source].Outgoing, edge)
+		edgesByType[edge.Destination].Incoming = append(edgesByType[edge.Destination].Incoming, edge)
+	}
+	return EdgeKB{edgeMap: edges, edgesByType: edgesByType}
+}
+
 func MergeKBs(kbsToUse []EdgeKB) (EdgeKB, error) {
-	kb := EdgeKB{}
+	edgeMap := EdgeMap{}
 	var err error
 	for _, currKb := range kbsToUse {
-		for edge, detail := range currKb {
-			if _, found := kb[edge]; found {
+		for edge, detail := range currKb.edgeMap {
+			if _, found := edgeMap[edge]; found {
 				err = errors.Join(err, fmt.Errorf("edge for %s -> %s is already defined in the knowledge base", edge.Source, edge.Destination))
 			}
-			kb[edge] = detail
+			edgeMap[edge] = detail
 		}
 	}
-	return kb, err
+	return NewEdgeKB(edgeMap), err
 }
 
 func NewEdge[Src core.Resource, Dest core.Resource]() Edge {
@@ -95,37 +122,31 @@ func NewEdge[Src core.Resource, Dest core.Resource]() Edge {
 	return Edge{Source: reflect.TypeOf(src), Destination: reflect.TypeOf(dest)}
 }
 
-// GetEdge takes in a source and target to retrieve the edge details for the given key. Will return nil if no edge exists for the given source and target
-func (kb EdgeKB) GetEdge(source core.Resource, target core.Resource) (EdgeDetails, bool) {
+// GetResourceEdge takes in a source and target to retrieve the edge details for the given key. Will return nil if no edge exists for the given source and target
+func (kb EdgeKB) GetResourceEdge(source core.Resource, target core.Resource) (EdgeDetails, bool) {
 	return kb.GetEdgeDetails(reflect.TypeOf(source), reflect.TypeOf(target))
 }
 
 // GetEdgeDetails takes in a source and target to retrieve the edge details for the given key. Will return nil if no edge exists for the given source and target
 func (kb EdgeKB) GetEdgeDetails(source reflect.Type, target reflect.Type) (EdgeDetails, bool) {
-	detail, found := kb[Edge{Source: source, Destination: target}]
+	detail, found := kb.edgeMap[Edge{Source: source, Destination: target}]
 	return detail, found
 }
 
 // GetEdgesWithSource will return all edges where the source type parameter is the From of the edge
 func (kb EdgeKB) GetEdgesWithSource(source reflect.Type) []Edge {
-	result := []Edge{}
-	for edge := range kb {
-		if edge.Source == source {
-			result = append(result, edge)
-		}
+	if edgeMappings, ok := kb.edgesByType[source]; ok {
+		return edgeMappings.Outgoing
 	}
-	return result
+	return []Edge{}
 }
 
 // GetEdgesWithTarget will return all edges where the target type parameter is the To of the edge
 func (kb EdgeKB) GetEdgesWithTarget(target reflect.Type) []Edge {
-	result := []Edge{}
-	for edge := range kb {
-		if edge.Destination == target {
-			result = append(result, edge)
-		}
+	if edgeMappings, ok := kb.edgesByType[target]; ok {
+		return edgeMappings.Incoming
 	}
-	return result
+	return []Edge{}
 }
 
 // FindPaths takes in a source and destination type and finds all valid paths to get from source to destination.
@@ -195,7 +216,6 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 			result = append(result, clonedStack)
 		}
 	} else {
-
 		// When we are not at the destination we want to recursively call findPaths on all edges which have the source as the current node
 		// This is checking all edges which have a direction of From -> To
 		for _, e := range kb.GetEdgesWithSource(source) {
