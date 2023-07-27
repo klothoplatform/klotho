@@ -51,13 +51,14 @@ func (p Plugin) Transform(result *core.CompilationResult, deps *core.Dependencie
 	if vizURL == "" {
 		vizURL = defaultVisURL
 	}
-	if strings.ToLower(vizURL) == "disable" {
-		return nil
-	}
-	diagramPlan := p.generateImageString(topology)
-	image, err := createViz(vizURL, diagramPlan)
-	if err != nil {
-		return err
+	var image []byte
+	if strings.ToLower(vizURL) != "disable" {
+		diagramPlan := p.generateImageString(topology)
+		var err error
+		image, err = createViz(vizURL, diagramPlan)
+		if err != nil {
+			return err
+		}
 	}
 
 	resource := core.NewTopology(p.Config.AppName, topology, image)

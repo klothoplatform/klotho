@@ -190,10 +190,11 @@ func (t *Topology) OutputTo(dest string) error {
 		return err
 	}
 
-	// write the image
-	err = os.WriteFile(imageP, t.image, 0644)
-	if err != nil {
-		return err
+	if t.image != nil {
+		err = os.WriteFile(imageP, t.image, 0644)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
