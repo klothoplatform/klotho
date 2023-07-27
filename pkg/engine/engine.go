@@ -170,6 +170,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 		return nil, fmt.Errorf(errorString)
 	}
 	zap.S().Debugf("found %d valid graphs", numValidGraphs)
+
 	return e.Context.Solution, nil
 }
 
@@ -388,23 +389,47 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 		if construct == nil {
 			return fmt.Errorf("construct, %s, does not exist", construct.Id())
 		}
-		new, err := e.getConstructFromInputId(constraint.ReplacementNode)
-		if err != nil {
-			return err
+		var new core.BaseConstruct
+		var err error
+		if constraint.ReplacementNode.Provider == core.AbstractConstructProvider {
+			new, err = e.getConstructFromInputId(constraint.ReplacementNode)
+			if err != nil {
+				return err
+			}
+		} else {
+			provider := e.Providers[constraint.ReplacementNode.Provider]
+			new, err = provider.CreateResourceFromId(constraint.ReplacementNode, e.Context.InitialState)
+			if err != nil {
+				return err
+			}
 		}
 		decision.Construct = construct
-		err = e.Context.WorkingState.ReplaceConstruct(construct, new)
+		upstream := e.Context.WorkingState.GetUpstreamConstructs(construct)
+		downstream := e.Context.WorkingState.GetDownstreamConstructs(construct)
+		err = e.Context.WorkingState.RemoveConstructAndEdges(construct)
 		if err != nil {
 			return err
 		}
-		upstream := e.Context.WorkingState.GetUpstreamConstructs(construct)
 		for _, up := range upstream {
 			_ = e.deleteConstruct(up, false, false)
 		}
-		downstream := e.Context.WorkingState.GetDownstreamConstructs(construct)
 		for _, down := range downstream {
 			_ = e.deleteConstruct(down, false, false)
 		}
+		e.Context.WorkingState.AddConstruct(new)
+		for _, up := range upstream {
+			if e.Context.WorkingState.GetConstruct(up.Id()) == nil {
+				continue
+			}
+			e.Context.WorkingState.AddDependency(up.Id(), new.Id())
+		}
+		for _, down := range downstream {
+			if e.Context.WorkingState.GetConstruct(down.Id()) == nil {
+				continue
+			}
+			e.Context.WorkingState.AddDependency(new.Id(), down.Id())
+		}
+
 		return nil
 	}
 	e.Context.Decisions = append(e.Context.Decisions, decision)
