@@ -115,9 +115,6 @@ func (e *Engine) determineCorrectPaths(dep graph.Edge[core.Resource], edgeData k
 			validPaths = append(validPaths, p)
 		}
 	}
-	if len(validPaths) == 0 {
-		return satisfyAttributeData, nil
-	}
 	return validPaths, nil
 }
 
