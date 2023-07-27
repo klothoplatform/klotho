@@ -74,7 +74,7 @@ func (km KlothoMain) addEngineCli(root *cobra.Command) error {
 	flags = getPaths.Flags()
 	flags.IntVarP(&getPathsConfig.maxPathLength, "max-path-length", "l", 3, "maximum path length")
 	flags.IntVarP(&getPathsConfig.maxPaths, "max-paths", "m", 1, "maximum number of paths to output")
-	flags.StringSliceVarP(&getPathsConfig.providers, "providers", "p", []string{"klotho", "aws", "kubernetes"}, "the providers to use for target resources")
+	flags.StringSliceVarP(&getPathsConfig.providers, "providers", "p", []string{"klotho", "aws", "kubernetes", "docker"}, "the providers to use for target resources")
 	flags.StringVarP(&getPathsConfig.outDir, "out-dir", "o", ".", "output directory")
 	flags.StringSliceVarP(&getPathsConfig.resourceRoots, "resource-roots", "r", []string{}, "the resource roots to use for the paths")
 	flags.StringSliceVarP(&getPathsConfig.resourceTargets, "resource-targets", "t", []string{}, "the resource targets to use for the paths")
