@@ -30,5 +30,5 @@ func GetKnowledgeBase(cfg *config.Application) (knowledgebase.EdgeKB, error) {
 	case "aws":
 		return awsknowledgebase.GetAwsKnowledgeBase()
 	}
-	return nil, fmt.Errorf("could not get provider: %v", cfg.Provider)
+	return knowledgebase.EdgeKB{}, fmt.Errorf("could not get provider: %v", cfg.Provider)
 }

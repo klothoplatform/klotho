@@ -10,7 +10,7 @@ func (e *Engine) GetDeploymentOrderGraph(dataflow *core.ResourceGraph) *core.Res
 		deploymentOrderGraph.AddResource(resource)
 	}
 	for _, dep := range dataflow.ListDependencies() {
-		edge, _ := e.KnowledgeBase.GetEdge(dep.Source, dep.Destination)
+		edge, _ := e.KnowledgeBase.GetResourceEdge(dep.Source, dep.Destination)
 		if edge.DeploymentOrderReversed {
 			deploymentOrderGraph.AddDependency(dep.Destination, dep.Source)
 		} else {
