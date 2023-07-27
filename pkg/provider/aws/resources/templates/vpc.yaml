@@ -17,6 +17,7 @@ rules:
   unsatisfied_action:
     operation: create
     unique: true
+    default_type: subnet_private
   num_needed: 2
 configuration:
   - field: CidrBlock
