@@ -273,12 +273,12 @@ func Test_handleOperationalResourceError(t *testing.T) {
 				{Source: &enginetesting.MockResource1{Name: "child2"}, Destination: &enginetesting.MockResource3{Name: "parent2"}},
 			},
 			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"mock:mock5:this", "mock:mock1:mock1-1", "mock:mock1:child", "mock:mock1:child2", "mock:mock3:parent", "mock:mock3:parent2"},
+				Nodes: []string{"mock:mock5:this", "mock:mock1:mock1-2", "mock:mock1:child", "mock:mock1:child2", "mock:mock3:parent", "mock:mock3:parent2"},
 				Deps: []coretesting.StringDep{
 					{Source: "mock:mock5:this", Destination: "mock:mock1:child"},
-					{Source: "mock:mock5:this", Destination: "mock:mock1:mock1-1"},
+					{Source: "mock:mock5:this", Destination: "mock:mock1:mock1-2"},
 					{Source: "mock:mock1:child", Destination: "mock:mock3:parent"},
-					{Source: "mock:mock1:mock1-1", Destination: "mock:mock3:parent"},
+					{Source: "mock:mock1:mock1-2", Destination: "mock:mock3:parent"},
 					{Source: "mock:mock1:child2", Destination: "mock:mock3:parent2"},
 				},
 			},
@@ -321,10 +321,10 @@ func Test_handleOperationalResourceError(t *testing.T) {
 				{Source: &enginetesting.MockResource1{Name: "child2"}, Destination: &enginetesting.MockResource3{Name: "parent2"}},
 			},
 			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"mock:mock5:this", "mock:mock1:mock1-this-0", "mock:mock1:mock1-this-1", "mock:mock1:child", "mock:mock1:child2", "mock:mock3:parent", "mock:mock3:parent2"},
+				Nodes: []string{"mock:mock5:this", "mock:mock1:mock1-this-2", "mock:mock1:mock1-this-3", "mock:mock1:child", "mock:mock1:child2", "mock:mock3:parent", "mock:mock3:parent2"},
 				Deps: []coretesting.StringDep{
-					{Source: "mock:mock5:this", Destination: "mock:mock1:mock1-this-0"},
-					{Source: "mock:mock5:this", Destination: "mock:mock1:mock1-this-1"},
+					{Source: "mock:mock5:this", Destination: "mock:mock1:mock1-this-2"},
+					{Source: "mock:mock5:this", Destination: "mock:mock1:mock1-this-3"},
 					{Source: "mock:mock1:child", Destination: "mock:mock3:parent"},
 					{Source: "mock:mock1:child2", Destination: "mock:mock3:parent2"},
 				},

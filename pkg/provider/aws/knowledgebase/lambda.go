@@ -228,6 +228,9 @@ var LambdaKB = knowledgebase.Build(
 				return err
 			}
 			dag.AddDependency(policy, privateDnsNamespace)
+			if lambda.Role == nil {
+				return fmt.Errorf("cannot configure lambda %s -> deployment %s, missing role", lambda.Id(), destination.Id())
+			}
 			dag.AddDependency(lambda.Role, policy)
 			if err != nil {
 				return err
