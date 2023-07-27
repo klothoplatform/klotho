@@ -355,7 +355,7 @@ func cloneResource(resource core.Resource) core.Resource {
 func nameResource(dag *core.ResourceGraph, resourceToSet core.Resource, resource core.Resource, unique bool) {
 	numResources := 0
 	for _, res := range dag.ListResources() {
-		if res.Id().Type == resource.Id().Type {
+		if res.Id().Type == resourceToSet.Id().Type {
 			numResources++
 		}
 	}
