@@ -29,14 +29,11 @@ require (
 	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.19.1
 	golang.org/x/tools v0.7.0
-	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.11.1
 	k8s.io/api v0.26.0
 	k8s.io/apimachinery v0.26.0
-	k8s.io/client-go v0.26.0
 	sigs.k8s.io/aws-load-balancer-controller v0.0.0-20221203001353-edeb4f1c1312
-	sigs.k8s.io/yaml v1.3.0
 )
 
 require (
@@ -48,9 +45,16 @@ require (
 	github.com/rivo/uniseg v0.4.4 // indirect
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/oauth2 v0.4.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
+	k8s.io/client-go v0.26.0 // indirect
+	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/smacker/go-tree-sitter => github.com/klothoplatform/go-tree-sitter v0.1.1
+replace (
+	github.com/smacker/go-tree-sitter => github.com/klothoplatform/go-tree-sitter v0.1.1
+
+	gopkg.in/yaml.v3 => github.com/klothoplatform/yaml/v3 v3.0.1
+)
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
