@@ -477,7 +477,8 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 			return errors.Errorf("failed to run engine viz: %s", err.Error())
 		}
 		document.OutputFiles = append(document.OutputFiles, files...)
-		document.Resources = klothoCompiler.Engine.GetDeploymentOrderGraph(dag)
+		document.Resources = dag
+		document.DeploymentOrder = klothoCompiler.Engine.GetDeploymentOrderGraph(dag)
 		err = klothoCompiler.Document.OutputGraph(cfg.outDir)
 		if err != nil {
 			return err

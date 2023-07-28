@@ -3,6 +3,7 @@ package compiler
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -74,7 +75,7 @@ func (c *Compiler) Compile() error {
 
 	for _, p := range c.IaCPlugins {
 		// TODO logging
-		files, err := p.Translate(c.Document.Resources)
+		files, err := p.Translate(c.Document.DeploymentOrder)
 		if err != nil {
 			return core.NewPluginError(p.Name(), err)
 		}

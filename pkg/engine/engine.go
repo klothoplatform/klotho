@@ -403,6 +403,7 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 				return err
 			}
 		}
+
 		decision.Construct = construct
 		upstream := e.Context.WorkingState.GetUpstreamConstructs(construct)
 		downstream := e.Context.WorkingState.GetDownstreamConstructs(construct)
@@ -410,20 +411,32 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 		if err != nil {
 			return err
 		}
+		var reconnectToUpstream []core.BaseConstruct
 		for _, up := range upstream {
-			_ = e.deleteConstruct(up, false, false)
+			deleted := e.deleteConstruct(up, false, false)
+			if deleted {
+				reconnectToUpstream = append(reconnectToUpstream, e.Context.WorkingState.GetUpstreamConstructs(up)...)
+			} else {
+				reconnectToUpstream = append(reconnectToUpstream, up)
+			}
 		}
+		var reconnectToDownstream []core.BaseConstruct
 		for _, down := range downstream {
-			_ = e.deleteConstruct(down, false, false)
+			deleted := e.deleteConstruct(down, false, false)
+			if deleted {
+				reconnectToDownstream = append(reconnectToDownstream, e.Context.WorkingState.GetDownstreamConstructs(down)...)
+			} else {
+				reconnectToDownstream = append(reconnectToDownstream, down)
+			}
 		}
 		e.Context.WorkingState.AddConstruct(new)
-		for _, up := range upstream {
+		for _, up := range reconnectToUpstream {
 			if e.Context.WorkingState.GetConstruct(up.Id()) == nil {
 				continue
 			}
 			e.Context.WorkingState.AddDependency(up.Id(), new.Id())
 		}
-		for _, down := range downstream {
+		for _, down := range reconnectToDownstream {
 			if e.Context.WorkingState.GetConstruct(down.Id()) == nil {
 				continue
 			}

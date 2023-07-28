@@ -29,6 +29,7 @@ type (
 		Constructs       *core.ConstructGraph
 		Configuration    *config.Application
 		Resources        *core.ResourceGraph
+		DeploymentOrder  *core.ResourceGraph
 		OutputFiles      []core.File
 		OutputOptions    OutputOptions
 	}
