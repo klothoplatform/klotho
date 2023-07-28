@@ -69,9 +69,10 @@ var LambdaKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.EcrImage]{},
 	knowledgebase.EdgeBuilder[*resources.EcrImage, *docker.DockerImage]{
 		Configure: func(ecrImage *resources.EcrImage, dockerImage *docker.DockerImage, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			// configures the ecr image to build from the docker image
+			// configures the ecr image to build from an auto-generated dockerfile that pulls in a base image from docker hub
 			dockerImage.CreatesDockerfile = true
 			dockerfile := dockerImage.Dockerfile()
+			ecrImage.BaseImage = dockerImage.Name
 			ecrImage.Dockerfile = dockerfile.Path()
 			ecrImage.Context = path.Dir(dockerfile.Path())
 			return nil

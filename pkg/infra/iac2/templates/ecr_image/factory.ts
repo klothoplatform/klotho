@@ -9,21 +9,34 @@ interface Args {
     Repo: aws.ecr.Repository
     Context: string
     Dockerfile: string
+    BaseImage: string
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
 
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): docker.Image {
     return (() => {
-        const base = new docker.Image(`${args.Name}-base`, {
-            build: {
-                context: args.Context,
-                dockerfile: args.Dockerfile,
-                platform: 'linux/amd64',
+        //TMPL {{- if .BaseImage.Raw }}
+        const pullBaseImage = new command.local.Command(
+            `${args.Name}-pull-base-image-${Date.now()}`,
+            { create: pulumi.interpolate`docker pull ${args.BaseImage}` }
+        )
+        //TMPL {{- end }}
+        const base = new docker.Image(
+            `${args.Name}-base`,
+            {
+                build: {
+                    context: args.Context,
+                    dockerfile: args.Dockerfile,
+                    platform: 'linux/amd64',
+                },
+                skipPush: true,
+                imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:${args.TagBase}-base`,
             },
-            skipPush: true,
-            imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:${args.TagBase}-base`,
-        })
+            {
+                dependsOn: pullBaseImage,
+            }
+        )
 
         const sha256 = new command.local.Command(
             `${args.Name}-base-get-sha256-${Date.now()}`,

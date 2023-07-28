@@ -31,6 +31,8 @@ type (
 		Context       string
 		Dockerfile    string
 		ExtraOptions  []string
+		// BaseImage is used to denote the base image for the dockerfile that will be pulled before building in the generated IaC
+		BaseImage string
 	}
 )
 
