@@ -11,7 +11,8 @@ rules:
       direction: downstream
       resource_types: 
       - security_group
-      set_field: SecurityGroup
+      set_field: SecurityGroups
+      num_needed: 1
       unsatisfied_action:
         operation: create
     - enforcement: exactly_one
