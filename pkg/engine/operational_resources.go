@@ -492,22 +492,34 @@ func TemplateConfigure(resource core.Resource, template core.ResourceTemplate) e
 		if (field.IsValid() && !field.IsZero()) || config.ZeroValueAllowed {
 			continue
 		}
-		switch field.Kind() {
-		case reflect.Slice, reflect.Array:
-			if reflect.ValueOf(config.Value).Kind() != reflect.Slice {
-				return fmt.Errorf("config template is not the correct type for resource %s. expected it to be a list, but got %s", resource.Id(), reflect.TypeOf(config.Value))
-			}
-			configureField(config.Value, field)
-			reflect.ValueOf(resource).Elem().FieldByName(config.Field).Set(field)
-		case reflect.Pointer, reflect.Struct:
-			if reflect.ValueOf(config.Value).Kind() != reflect.Map {
-				return fmt.Errorf("config template is not the correct type for resource %s. expected it to be a map, but got %s", resource.Id(), reflect.TypeOf(config.Value))
-			}
-			configureField(config.Value, field)
-			reflect.ValueOf(resource).Elem().FieldByName(config.Field).Set(field)
-		default:
-			configureField(config.Value, field)
+		err := ConfigureField(resource, config.Field, config.Value)
+		if err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func ConfigureField(resource core.Resource, fieldName string, value interface{}) error {
+	field := reflect.ValueOf(resource).Elem().FieldByName(fieldName)
+	switch field.Kind() {
+	case reflect.Slice, reflect.Array:
+		if reflect.ValueOf(value).Kind() != reflect.Slice {
+			return fmt.Errorf("config template is not the correct type for resource %s. expected it to be a list, but got %s", resource.Id(), reflect.TypeOf(value))
+		}
+		configureField(value, field)
+		reflect.ValueOf(resource).Elem().FieldByName(fieldName).Set(field)
+	case reflect.Pointer, reflect.Struct:
+		if reflect.ValueOf(value).Kind() != reflect.Map {
+			return fmt.Errorf("config template is not the correct type for resource %s. expected it to be a map, but got %s", resource.Id(), reflect.TypeOf(value))
+		}
+		configureField(value, field)
+		reflect.ValueOf(resource).Elem().FieldByName(fieldName).Set(field)
+	default:
+		if reflect.TypeOf(value) != field.Type() {
+			return fmt.Errorf("config template is not the correct type for resource %s. expected it to be %s, but got %s", resource.Id(), field.Type(), reflect.TypeOf(value))
+		}
+		configureField(value, field)
 	}
 	return nil
 }
