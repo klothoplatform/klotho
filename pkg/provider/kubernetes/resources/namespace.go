@@ -12,7 +12,7 @@ import (
 type (
 	Namespace struct {
 		Name            string
-		ConstructRefs   core.BaseConstructSet
+		ConstructRefs   core.BaseConstructSet `yaml:"-"`
 		Object          *corev1.Namespace
 		Transformations map[string]core.IaCValue
 		FilePath        string

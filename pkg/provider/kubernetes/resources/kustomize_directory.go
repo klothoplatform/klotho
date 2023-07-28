@@ -11,7 +11,7 @@ const (
 type (
 	KustomizeDirectory struct {
 		Name             string
-		ConstructRefs    core.BaseConstructSet
+		ConstructRefs    core.BaseConstructSet `yaml:"-"`
 		Directory        string
 		ClustersProvider core.IaCValue
 		Cluster          core.ResourceId

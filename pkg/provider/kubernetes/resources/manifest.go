@@ -15,7 +15,7 @@ type (
 	}
 	Manifest struct {
 		Name            string
-		ConstructRefs   core.BaseConstructSet
+		ConstructRefs   core.BaseConstructSet `yaml:"-"`
 		FilePath        string
 		Content         []byte
 		Transformations map[string]core.IaCValue

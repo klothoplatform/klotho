@@ -10,7 +10,7 @@ import (
 type (
 	HorizontalPodAutoscaler struct {
 		Name            string
-		ConstructRefs   core.BaseConstructSet
+		ConstructRefs   core.BaseConstructSet `yaml:"-"`
 		Object          *autoscaling.HorizontalPodAutoscaler
 		Transformations map[string]core.IaCValue
 		FilePath        string

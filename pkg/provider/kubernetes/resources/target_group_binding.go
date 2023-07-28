@@ -10,7 +10,7 @@ import (
 type (
 	TargetGroupBinding struct {
 		Name            string
-		ConstructRefs   core.BaseConstructSet
+		ConstructRefs   core.BaseConstructSet `yaml:"-"`
 		Object          *elbv2api.TargetGroupBinding
 		Transformations map[string]core.IaCValue
 		FilePath        string

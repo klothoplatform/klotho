@@ -15,7 +15,7 @@ type HelmChart struct {
 	Directory string
 	Files     []ManifestFile
 
-	ConstructRefs core.BaseConstructSet
+	ConstructRefs core.BaseConstructSet `yaml:"-"`
 	Cluster       core.ResourceId
 	Repo          string
 	Version       string

@@ -10,7 +10,7 @@ import (
 type (
 	ServiceExport struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		Object        *cloudmap.ServiceExport
 		FilePath      string
 		Cluster       core.ResourceId

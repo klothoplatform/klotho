@@ -10,7 +10,7 @@ import (
 type (
 	ServiceAccount struct {
 		Name            string
-		ConstructRefs   core.BaseConstructSet
+		ConstructRefs   core.BaseConstructSet `yaml:"-"`
 		Object          *corev1.Service
 		Transformations map[string]core.IaCValue
 		FilePath        string

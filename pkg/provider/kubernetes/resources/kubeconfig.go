@@ -11,7 +11,7 @@ const (
 
 type (
 	Kubeconfig struct {
-		ConstructRefs  core.BaseConstructSet
+		ConstructRefs  core.BaseConstructSet `yaml:"-"`
 		Name           string
 		ApiVersion     string
 		Kind           string

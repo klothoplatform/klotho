@@ -15,7 +15,7 @@ import (
 type (
 	Deployment struct {
 		Name            string
-		ConstructRefs   core.BaseConstructSet
+		ConstructRefs   core.BaseConstructSet `yaml:"-"`
 		Object          *apps.Deployment
 		Transformations map[string]core.IaCValue
 		FilePath        string
