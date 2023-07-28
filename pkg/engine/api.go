@@ -53,49 +53,82 @@ func (e *Engine) ListAttributes() []string {
 	return attributes
 }
 
-func (e *Engine) ListResourceFields(provider string, resourceType string) map[string]string {
+func (e *Engine) ListResourceFields(provider string, resourceType string) map[string]any {
 	if provider == core.AbstractConstructProvider {
 		for _, construct := range e.Constructs {
 			if construct.Id().Type == resourceType {
-				fields := map[string]string{}
+				fields := map[string]any{}
 				for i := 0; i < reflect.ValueOf(construct).Elem().NumField(); i++ {
-					if isFieldConfigurable(construct, i) {
-						fields[reflect.ValueOf(construct).Elem().Type().Field(i).Name] = reflect.ValueOf(construct).Elem().Type().Field(i).Type.String()
+					field := reflect.ValueOf(construct).Elem().Type().Field(i)
+					if isFieldConfigurable(field.Type) {
+						fields[field.Name] = getStructFieldFields(field.Type)
 					}
 				}
 				return fields
 			}
 		}
 	} else if e.Providers[provider] == nil {
-		return map[string]string{}
+		return map[string]any{}
 	}
 	for _, res := range e.Providers[provider].ListResources() {
 		if res.Id().Type == resourceType {
-			fields := map[string]string{}
+			fields := map[string]any{}
 			for i := 0; i < reflect.ValueOf(res).Elem().NumField(); i++ {
-				if isFieldConfigurable(res, i) {
-					fields[reflect.ValueOf(res).Elem().Type().Field(i).Name] = reflect.ValueOf(res).Elem().Type().Field(i).Type.String()
+				field := reflect.ValueOf(res).Elem().Type().Field(i)
+				if isFieldConfigurable(field.Type) {
+					fields[field.Name] = getStructFieldFields(field.Type)
 				}
 			}
 			return fields
 		}
 	}
-	return map[string]string{}
+	return map[string]any{}
 }
 
-func isFieldConfigurable(construct core.BaseConstruct, i int) bool {
-	field := reflect.ValueOf(construct).Elem().Type().Field(i)
-	if field.Type.Implements(reflect.TypeOf((*core.BaseConstruct)(nil)).Elem()) {
+func isFieldConfigurable(field reflect.Type) bool {
+	if field.Implements(reflect.TypeOf((*core.BaseConstruct)(nil)).Elem()) {
 		return false
-	} else if field.Type.Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) {
+	} else if field.Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) {
 		return false
-	} else if field.Type == reflect.TypeOf(core.BaseConstructSet{}) {
+	} else if field == reflect.TypeOf(core.BaseConstructSet{}) {
 		return false
 	}
-	if field.Type.Kind() == reflect.Array || field.Type.Kind() == reflect.Slice {
-		if field.Type.Elem().Implements(reflect.TypeOf((*core.BaseConstruct)(nil)).Elem()) {
+	if field.Kind() == reflect.Array || field.Kind() == reflect.Slice {
+		if field.Elem().Implements(reflect.TypeOf((*core.BaseConstruct)(nil)).Elem()) {
 			return false
 		}
 	}
 	return true
+}
+
+func getStructFieldFields(field reflect.Type) any {
+	fields := map[string]any{}
+	if field.Kind() == reflect.Struct {
+		element := reflect.New(field).Interface()
+		for i := 0; i < reflect.ValueOf(element).Elem().NumField(); i++ {
+			subField := reflect.ValueOf(element).Elem().Type().Field(i)
+			if isFieldConfigurable(subField.Type) {
+				fields[subField.Name] = getStructFieldFields(subField.Type)
+			}
+		}
+	} else if field.Kind() == reflect.Ptr {
+		element := reflect.New(field.Elem()).Interface()
+		for i := 0; i < reflect.ValueOf(element).Elem().NumField(); i++ {
+			subField := reflect.ValueOf(element).Elem().Type().Field(i)
+			if isFieldConfigurable(subField.Type) {
+				fields[subField.Name] = getStructFieldFields(subField.Type)
+			}
+		}
+	} else if field.Kind() == reflect.Array || field.Kind() == reflect.Slice {
+		arrFields := []any{}
+		arrFields = append(arrFields, getStructFieldFields(field.Elem()))
+		return arrFields
+	} else if field.Kind() == reflect.Map {
+		for _, key := range reflect.ValueOf(field).MapKeys() {
+			fields[key.String()] = field.String()
+		}
+	} else {
+		return field.String()
+	}
+	return fields
 }

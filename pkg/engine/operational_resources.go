@@ -525,6 +525,11 @@ func ConfigureField(resource core.Resource, fieldName string, value interface{})
 }
 
 func configureField(val interface{}, field reflect.Value) {
+	if !reflect.ValueOf(val).IsValid() {
+		return
+	} else if reflect.ValueOf(val).IsZero() {
+		return
+	}
 	switch field.Kind() {
 	case reflect.Slice, reflect.Array:
 		arr := field

@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/yaml.v3"
 )
 
 type testCase struct {
@@ -248,9 +249,11 @@ func (km *KlothoMain) ListResourceFields(cmd *cobra.Command, args []string) erro
 	}
 
 	fields := plugins.Engine.ListResourceFields(listResourceFieldsConfig.provider, listResourceFieldsConfig.resource)
-	for field, fieldType := range fields {
-		fmt.Printf("%s: %s\n", field, fieldType)
+	b, err := yaml.Marshal(fields)
+	if err != nil {
+		return err
 	}
+	fmt.Println(string(b))
 	return nil
 }
 
