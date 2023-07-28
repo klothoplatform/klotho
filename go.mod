@@ -53,6 +53,8 @@ require (
 replace (
 	github.com/smacker/go-tree-sitter => github.com/klothoplatform/go-tree-sitter v0.1.1
 
+	// yaml fork is the same (as of 2023/07/28) except with the PR merged:
+	// https://github.com/go-yaml/yaml/pull/961
 	gopkg.in/yaml.v3 => github.com/klothoplatform/yaml/v3 v3.0.1
 )
 
