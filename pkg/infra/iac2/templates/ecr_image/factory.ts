@@ -33,9 +33,11 @@ function create(args: Args): docker.Image {
                 skipPush: true,
                 imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:${args.TagBase}-base`,
             },
+            //TMPL {{- if .BaseImage.Raw }}
             {
                 dependsOn: pullBaseImage,
             }
+            //TMPL {{- end }}
         )
 
         const sha256 = new command.local.Command(
