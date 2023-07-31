@@ -21,4 +21,6 @@ var KubernetesKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.Deployment, *resources.HorizontalPodAutoscaler]{},
 	knowledgebase.EdgeBuilder[*resources.Pod, *resources.Pod]{},
 	knowledgebase.EdgeBuilder[*resources.Deployment, *resources.Deployment]{},
+	knowledgebase.EdgeBuilder[*resources.Pod, *resources.KustomizeDirectory]{},
+	knowledgebase.EdgeBuilder[*resources.Deployment, *resources.KustomizeDirectory]{},
 )
