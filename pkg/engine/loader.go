@@ -3,10 +3,12 @@ package engine
 import (
 	j_errors "errors"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/yaml_util"
 
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/pkg/errors"
@@ -15,32 +17,40 @@ import (
 
 // LoadConstructGraphFromFile takes in a path to a file and loads in all of the BaseConstructs and edges which exist in the file.
 func (e *Engine) LoadConstructGraphFromFile(path string) error {
+	type (
+		inputMetadata struct {
+			Id       core.ResourceId    `yaml:"id"`
+			Metadata *yaml_util.RawNode `yaml:"metadata"`
+		}
+		inputGraph struct {
+			Resources        []core.ResourceId `yaml:"resources"`
+			ResourceMetadata []inputMetadata   `yaml:"resourceMetadata"`
+			Edges            []core.OutputEdge `yaml:"edges"`
+		}
+	)
+
 	resourcesMap := map[core.ResourceId]core.BaseConstruct{}
-	input := core.InputGraph{}
+	var input inputGraph
 	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close() // nolint:errcheck
-	err = yaml.NewDecoder(f).Decode(&input)
+	err = yaml.NewDecoder(io.TeeReader(f, os.Stdout)).Decode(&input)
 	if err != nil {
 		return err
 	}
-	err = e.loadConstructs(input, resourcesMap)
+	err = e.loadConstructs(input.Resources, resourcesMap)
 	if err != nil {
 		return errors.Errorf("Error Loading graph for constructs %s", err.Error())
 	}
-	err = e.LoadResources(input, resourcesMap)
+	err = e.LoadResources(input.Resources, resourcesMap)
 	if err != nil {
 		return errors.Errorf("Error Loading graph for providers. %s", err.Error())
 	}
 	for _, metadata := range input.ResourceMetadata {
 		resource := resourcesMap[metadata.Id]
-		md, err := yaml.Marshal(metadata.Metadata)
-		if err != nil {
-			return err
-		}
-		err = yaml.Unmarshal(md, resource)
+		err = metadata.Metadata.Decode(resource)
 		if err != nil {
 			return err
 		}
@@ -60,9 +70,9 @@ func (e *Engine) LoadConstructGraphFromFile(path string) error {
 	return nil
 }
 
-func (e *Engine) LoadResources(graph core.InputGraph, resourcesMap map[core.ResourceId]core.BaseConstruct) error {
+func (e *Engine) LoadResources(resources []core.ResourceId, resourcesMap map[core.ResourceId]core.BaseConstruct) error {
 	var joinedErr error
-	for _, node := range graph.Resources {
+	for _, node := range resources {
 		if node.Provider == core.AbstractConstructProvider {
 			continue
 		}
@@ -88,10 +98,10 @@ func (e *Engine) LoadResources(graph core.InputGraph, resourcesMap map[core.Reso
 	return joinedErr
 }
 
-func (e *Engine) loadConstructs(input core.InputGraph, resourceMap map[core.ResourceId]core.BaseConstruct) error {
+func (e *Engine) loadConstructs(resources []core.ResourceId, resourceMap map[core.ResourceId]core.BaseConstruct) error {
 
 	var joinedErr error
-	for _, res := range input.Resources {
+	for _, res := range resources {
 		if res.Provider != core.AbstractConstructProvider {
 			continue
 		}
