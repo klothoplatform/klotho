@@ -3,7 +3,6 @@ package engine
 import (
 	j_errors "errors"
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 
@@ -36,7 +35,7 @@ func (e *Engine) LoadConstructGraphFromFile(path string) error {
 		return err
 	}
 	defer f.Close() // nolint:errcheck
-	err = yaml.NewDecoder(io.TeeReader(f, os.Stdout)).Decode(&input)
+	err = yaml.NewDecoder(f).Decode(&input)
 	if err != nil {
 		return err
 	}
