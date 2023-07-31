@@ -2,7 +2,6 @@ package knowledgebase
 
 import (
 	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -46,6 +45,36 @@ var Ec2KB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.Ec2Instance, *resources.RdsInstance]{},
 	knowledgebase.EdgeBuilder[*resources.Ec2Instance, *resources.RdsProxy]{},
+	knowledgebase.EdgeBuilder[*resources.Ec2Instance, *resources.EfsMountTarget]{
+		// Even with this edge configured, a user still needs to mount the EFS volume manually. See: https://docs.aws.amazon.com/efs/latest/ug/wt1-test.html, https://docs.aws.amazon.com/efs/latest/ug/mounting-fs-mount-helper-ec2-linux.html
+		Configure: func(instance *resources.Ec2Instance, mountTarget *resources.EfsMountTarget, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if instance.InstanceProfile == nil {
+				return fmt.Errorf("cannot configure instance %s -> efs access point %s, missing instance profile", instance.Id(), mountTarget.Id())
+			}
+			instanceProfile := instance.InstanceProfile
+			if instanceProfile.Role == nil {
+				return fmt.Errorf("cannot configure instance %s -> efs access point %s, missing instance profile role", instance.Id(), mountTarget.Id())
+			}
+
+			efsVpc, err := core.GetSingleDownstreamResourceOfType[*resources.Vpc](dag, mountTarget)
+			if err != nil {
+				return err
+			}
+			serviceVpc, _ := core.GetSingleDownstreamResourceOfType[*resources.Vpc](dag, instance)
+
+			if serviceVpc != nil && efsVpc != nil && serviceVpc != efsVpc {
+				return fmt.Errorf("instance %s and efs access point %s must be in the same vpc", instance.Id(), mountTarget.Id())
+			}
+
+			dag.AddDependency(instanceProfile.Role, mountTarget)
+
+			if serviceVpc == nil {
+				dag.AddDependencyWithData(instance, efsVpc, data)
+			}
+
+			return nil
+		},
+	},
 )
 
 func checkInstanceForRole(instance *resources.Ec2Instance, dest core.Resource) error {
