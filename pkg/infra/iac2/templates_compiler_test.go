@@ -90,7 +90,7 @@ func TestOutputBody(t *testing.T) {
 		}
 		expect := strings.TrimLeft(`
 import * as aws from '@pulumi/aws'
-import * as inputs from '@pulumi/aws/types/input'
+import * as awsInputs from '@pulumi/aws/types/input'
 import {Whatever} from "@pulumi/aws/cool/service"
 `, "\n")
 		assert.Equal(expect, buf.String())
@@ -336,7 +336,7 @@ var dummyTemplateFiles = map[string]string{
 		}`,
 	`dummy_big/factory.ts`: `
 		import * as aws from '@pulumi/aws'
-		import * as inputs from '@pulumi/aws/types/input'
+		import * as awsInputs from '@pulumi/aws/types/input'
 
 		interface Args {
 			Fizz: aws.fizz.DummyResource,

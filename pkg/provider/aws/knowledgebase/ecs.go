@@ -3,6 +3,8 @@ package knowledgebase
 import (
 	"fmt"
 	docker "github.com/klothoplatform/klotho/pkg/provider/docker/resources"
+	"github.com/klothoplatform/klotho/pkg/sanitization"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
@@ -126,6 +128,64 @@ var EcsKB = knowledgebase.Build(
 			tg.Port = 3000
 			tg.Protocol = "TCP"
 			tg.TargetType = "ip"
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.EfsAccessPoint]{
+		Configure: func(service *resources.EcsService, accessPoint *resources.EfsAccessPoint, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if service.TaskDefinition == nil {
+				return fmt.Errorf("cannot configure service %s -> efs access point %s, missing task definition", service.Id(), accessPoint.Id())
+			}
+			taskDef := service.TaskDefinition
+			if taskDef.ExecutionRole == nil {
+				return fmt.Errorf("cannot configure service %s -> efs access point %s, missing execution role", service.Id(), accessPoint.Id())
+			}
+
+			efs := accessPoint.FileSystem
+			mountTarget, _ := core.GetSingleUpstreamResourceOfType[*resources.EfsMountTarget](dag, efs)
+			if mountTarget == nil {
+				return fmt.Errorf("efs file system %s is not fully operational yet", efs.Id())
+			}
+			efsVpc, err := core.GetSingleDownstreamResourceOfType[*resources.Vpc](dag, mountTarget)
+			if err != nil {
+				return err
+			}
+			serviceVpc, _ := core.GetSingleDownstreamResourceOfType[*resources.Vpc](dag, service)
+
+			if serviceVpc != nil && efsVpc != nil && serviceVpc != efsVpc {
+				return fmt.Errorf("service %s and efs access point %s must be in the same vpc", service.Id(), accessPoint.Id())
+			}
+
+			dag.AddDependency(taskDef.ExecutionRole, accessPoint)
+			mountPathEnvVarName := sanitization.EnvVarKeySanitizer.Apply(strings.ToUpper(fmt.Sprintf("%s_MOUNT_PATH", accessPoint.FileSystem.Id().Name)))
+			if taskDef.EnvironmentVariables == nil {
+				taskDef.EnvironmentVariables = map[string]core.IaCValue{}
+			}
+			taskDef.EnvironmentVariables[mountPathEnvVarName] = core.IaCValue{ResourceId: accessPoint.Id(), Property: resources.EFS_MOUNT_PATH_IAC_VALUE}
+
+			isMissingVolume := true
+			for _, volume := range taskDef.EfsVolumes {
+				if volume.FileSystemId.ResourceId == accessPoint.FileSystem.Id() {
+					isMissingVolume = false
+					break
+				}
+			}
+			if isMissingVolume {
+				volume := &resources.EcsEfsVolume{
+					FileSystemId: core.IaCValue{ResourceId: accessPoint.FileSystem.Id(), Property: resources.ID_IAC_VALUE},
+					AuthorizationConfig: &resources.EcsEfsVolumeAuthorizationConfig{
+						AccessPointId: core.IaCValue{ResourceId: accessPoint.Id(), Property: resources.ID_IAC_VALUE},
+						Iam:           "ENABLED",
+					},
+					TransitEncryption: "ENABLED",
+				}
+				taskDef.EfsVolumes = append(taskDef.EfsVolumes, volume)
+			}
+
+			if serviceVpc == nil {
+				dag.AddDependencyWithData(service, efsVpc, data)
+			}
+
 			return nil
 		},
 	},

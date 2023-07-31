@@ -1,0 +1,22 @@
+provider: aws
+type: efs_file_system
+rules:
+  # TODO: figure out how to do 1 per az
+  - enforcement: exactly_one
+    direction: upstream
+    resource_types:
+    - efs_mount_target
+    unsatisfied_action:
+      operation: create
+configuration:
+  - field: Encrypted
+    value: true
+  - field: PerformanceMode
+    value: generalPurpose
+  - field: ThroughputMode
+    value: bursting
+
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+  requires_explicit_delete: true

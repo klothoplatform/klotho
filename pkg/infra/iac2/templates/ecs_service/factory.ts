@@ -1,14 +1,14 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 import { OutputInstance } from '@pulumi/pulumi'
-import * as input from '@pulumi/aws/types/input'
+import * as aws_input from '@pulumi/aws/types/input'
 
 interface Args {
     AssignPublicIp: Promise<boolean> | OutputInstance<boolean> | boolean
     DeploymentCircuitBreaker:
-        | Promise<input.ecs.ServiceDeploymentCircuitBreaker>
-        | OutputInstance<input.ecs.ServiceDeploymentCircuitBreaker>
-        | input.ecs.ServiceDeploymentCircuitBreaker
+        | Promise<aws_input.ecs.ServiceDeploymentCircuitBreaker>
+        | OutputInstance<aws_input.ecs.ServiceDeploymentCircuitBreaker>
+        | aws_input.ecs.ServiceDeploymentCircuitBreaker
     ForceNewDeployment: boolean
     Cluster: aws.ecs.Cluster
     DesiredCount?: number

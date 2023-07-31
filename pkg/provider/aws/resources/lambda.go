@@ -26,6 +26,7 @@ type (
 		Subnets              []*Subnet
 		Timeout              int
 		MemorySize           int
+		EfsAccessPoint       *EfsAccessPoint
 	}
 
 	LambdaPermission struct {

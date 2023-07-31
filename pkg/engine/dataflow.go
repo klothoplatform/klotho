@@ -44,6 +44,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 		awsResources.SNS_TOPIC_TYPE,
 		awsResources.SQS_QUEUE_TYPE,
 		awsResources.SES_EMAIL_IDENTITY,
+		awsResources.EFS_FILE_SYSTEM_TYPE,
 		k8sResources.DEPLOYMENT_TYPE,
 		k8sResources.POD_TYPE,
 		k8sResources.HELM_CHART_TYPE,

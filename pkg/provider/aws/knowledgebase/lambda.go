@@ -2,7 +2,9 @@ package knowledgebase
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/sanitization"
 	"path"
+	"strings"
 
 	docker "github.com/klothoplatform/klotho/pkg/provider/docker/resources"
 
@@ -266,4 +268,38 @@ var LambdaKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.LambdaFunction]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.LambdaFunction]{},
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.EfsAccessPoint]{
+		Configure: func(lambda *resources.LambdaFunction, accessPoint *resources.EfsAccessPoint, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if lambda.Role == nil {
+				return fmt.Errorf("cannot configure lambda %s -> efs access point %s, missing role", lambda.Id(), accessPoint.Id())
+			}
+			dag.AddDependency(lambda.Role, accessPoint)
+			mountPathEnvVarName := sanitization.EnvVarKeySanitizer.Apply(strings.ToUpper(fmt.Sprintf("%s_MOUNT_PATH", accessPoint.FileSystem.Id().Name)))
+			if lambda.EnvironmentVariables == nil {
+				lambda.EnvironmentVariables = map[string]core.IaCValue{}
+			}
+			lambda.EnvironmentVariables[mountPathEnvVarName] = core.IaCValue{ResourceId: accessPoint.Id(), Property: resources.EFS_MOUNT_PATH_IAC_VALUE}
+			lambda.EfsAccessPoint = accessPoint
+			efs := accessPoint.FileSystem
+			mountTarget, _ := core.GetSingleUpstreamResourceOfType[*resources.EfsMountTarget](dag, efs)
+			if mountTarget == nil {
+				return fmt.Errorf("efs file system %s is not fully operational yet", efs.Id())
+			}
+			efsVpc, err := core.GetSingleDownstreamResourceOfType[*resources.Vpc](dag, mountTarget)
+			if err != nil {
+				return err
+			}
+			lambdaVpc, _ := core.GetSingleDownstreamResourceOfType[*resources.Vpc](dag, lambda)
+
+			if lambdaVpc != nil && efsVpc != nil && lambdaVpc != efsVpc {
+				return fmt.Errorf("lambda %s and efs access point %s must be in the same vpc", lambda.Id(), accessPoint.Id())
+			}
+
+			if lambdaVpc == nil {
+				dag.AddDependencyWithData(lambda, efsVpc, data)
+			}
+
+			return nil
+		},
+	},
 )

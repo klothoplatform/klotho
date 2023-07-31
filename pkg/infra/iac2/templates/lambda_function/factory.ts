@@ -11,6 +11,7 @@ interface Args {
     SecurityGroups: aws.ec2.SecurityGroup[]
     MemorySize: pulumi.Input<number>
     Timeout: pulumi.Input<number>
+    EfsAccessPoint: aws.efs.AccessPoint
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
 
@@ -29,6 +30,12 @@ function create(args: Args): aws.lambda.Function {
             //TMPL {{- end }}
             role: args.Role.arn,
             name: args.Name,
+            //TMPL {{- if .EfsAccessPoint.Raw }}
+            fileSystemConfig: {
+                arn: args.EfsAccessPoint.arn,
+                localMountPath: `/mnt/${args.EfsAccessPoint.rootDirectory.path}`,
+            },
+            //TMPL {{- end }}
             //TMPL {{- if and .SecurityGroups.Raw .Subnets.Raw }}
             vpcConfig: {
                 securityGroupIds: args.SecurityGroups.map((sg) => sg.id),

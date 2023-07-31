@@ -1,5 +1,5 @@
 import * as aws from '@pulumi/aws'
-import * as input from '@pulumi/aws/types/input'
+import * as awsInput from '@pulumi/aws/types/input'
 import * as pulumi from '@pulumi/pulumi'
 
 interface Args {

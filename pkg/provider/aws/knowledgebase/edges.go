@@ -12,6 +12,7 @@ func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 		AwsExtraEdgesKB,
 		CloudfrontKB,
 		EcsKB,
+		EfsKB,
 		ElasticacheKB,
 		IamKB,
 		LambdaKB,

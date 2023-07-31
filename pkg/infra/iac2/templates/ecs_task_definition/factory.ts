@@ -1,6 +1,7 @@
 import * as aws from '@pulumi/aws'
 import * as docker from '@pulumi/docker'
 import * as pulumi from '@pulumi/pulumi'
+import * as aws_inputs from '@pulumi/aws/types/input'
 
 interface Args {
     LogGroup: aws.cloudwatch.LogGroup
@@ -14,6 +15,7 @@ interface Args {
     Image: docker.Image
     PortMappings?: Record<string, object>
     RequiresCompatibilities?: string[]
+    EfsVolumes: aws_inputs.ecs.TaskDefinitionVolumeEfsVolumeConfiguration[]
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -55,6 +57,9 @@ function create(args: Args): aws.ecs.TaskDefinition {
                         'awslogs-stream-prefix': args.Name,
                     },
                 },
+                //TMPL {{- if .EfsVolumes.Raw }}
+                volumes: args.EfsVolumes,
+                //TMPL {{- end }}
             },
         ]),
     })

@@ -34,6 +34,20 @@ type (
 		NetworkMode             string
 		PortMappings            []PortMapping
 		RequiresCompatibilities []string
+		EfsVolumes              []*EcsEfsVolume
+	}
+
+	EcsEfsVolume struct {
+		FileSystemId          core.IaCValue
+		AuthorizationConfig   *EcsEfsVolumeAuthorizationConfig
+		RootDirectory         core.IaCValue
+		TransitEncryption     string
+		TransitEncryptionPort int
+	}
+
+	EcsEfsVolumeAuthorizationConfig struct {
+		AccessPointId core.IaCValue
+		Iam           string
 	}
 
 	PortMapping struct {

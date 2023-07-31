@@ -253,4 +253,16 @@ var IamKB = knowledgebase.Build(
 		},
 		DirectEdgeOnly: true,
 	},
+	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.EfsMountTarget]{
+		Configure: func(role *resources.IamRole, mountTarget *resources.EfsMountTarget, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/AmazonElasticFileSystemClientReadWriteAccess"})
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.EfsAccessPoint]{
+		Configure: func(role *resources.IamRole, accessPoint *resources.EfsAccessPoint, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/AmazonElasticFileSystemClientReadWriteAccess"})
+			return nil
+		},
+	},
 )

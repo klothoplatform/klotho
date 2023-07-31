@@ -285,7 +285,7 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 					method = baseResourceVal.MethodByName(fieldName)
 				}
 				if err := validTemplateMethod(method); err != nil {
-					errs.Append(err)
+					errs.Append(errors.Wrapf(err, "invalid template field: %s.%s", resourceVal.Type().Name(), fieldName))
 					return
 				}
 				eval := method.Call(nil)
@@ -689,7 +689,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf("pulumi.interpolate`/${%s.stageName}`", tc.getVarName(resource)), nil
 	case resources.TARGET_GROUP_ARN_IAC_VALUE:
 		return fmt.Sprintf("%s.targetGroupArn", tc.getVarName(resource)), nil
-
+	case resources.EFS_MOUNT_PATH_IAC_VALUE:
+		return "`/mnt/" + fmt.Sprintf("${%s.rootDirectory.path}`", tc.getVarName(resource)), nil
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property %T.%s", resource, property)
