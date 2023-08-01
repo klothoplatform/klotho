@@ -64,6 +64,7 @@ func ListAll() []core.Resource {
 		&SecretVersion{},
 		&Secret{},
 		&SecurityGroup{},
+		&SesEmailIdentity{},
 		&SnsTopic{},
 		&SnsSubscription{},
 		&Subnet{Type: PrivateSubnet},
