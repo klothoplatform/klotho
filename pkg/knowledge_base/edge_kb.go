@@ -34,6 +34,40 @@ type (
 		Reuse Reuse
 	}
 
+	EdgeTemplate struct {
+		Source      core.ResourceId `yaml:"source"`
+		Destination core.ResourceId `yaml:"destination"`
+		// DirectEdgeOnly signals that the edge cannot be used within constructing other paths and can only be used as a direct edge
+		DirectEdgeOnly bool `yaml:"direct_edge_only"`
+		// DeploymentOrderReversed is specified when the edge is in the opposite direction of the deployment order
+		DeploymentOrderReversed bool `yaml:"deployment_order_reversed"`
+		// DeletetionDependent is used to specify edges which should not influence the deletion criteria of a resource
+		// a true value specifies the target being deleted is dependent on the source and do not need to depend on satisfication of the deletion criteria to attempt to delete the true source of the edge.
+		DeletetionDependent bool `yaml:"deletion_dependent"`
+		//Reuse tells us whether we can reuse an upstream or downstream resource during path selection and node creation
+		Reuse Reuse `yaml:"reuse"`
+		// Expansion is used to specify the expansion rules for the edge
+		Expansion ExpansionRules `yaml:"expansion"`
+		// Configuration is used to specify the configuration rules for the edge
+		Configuration []ConfigurationRule `yaml:"configuration"`
+		// OperationalRules is used to specify the operational rules for the edge
+		OperationalRules []OperationalRules `yaml:"operational_rules"`
+	}
+
+	ExpansionRules struct {
+		Resources    []core.ResourceId `yaml:"resources"`
+		Dependencies []core.OutputEdge `yaml:"dependencies"`
+	}
+
+	ConfigurationRule struct {
+		Resource core.ResourceId    `yaml:"resource"`
+		Config   core.Configuration `yaml:"config"`
+	}
+
+	OperationalRules struct {
+		Resource core.ResourceId      `yaml:"resource"`
+		Rule     core.OperationalRule `yaml:"rule"`
+	}
 	// Reuse is set to represent an enum of possible reuse cases for edges. The current available options are upstream and downstream
 	Reuse string
 
@@ -46,8 +80,8 @@ type (
 	}
 
 	EdgeKB struct {
-		edgeMap     EdgeMap
-		edgesByType map[reflect.Type]*ResourceEdges
+		EdgeMap     EdgeMap
+		EdgesByType map[reflect.Type]*ResourceEdges
 	}
 
 	// EdgeConfigurer is a function used to configure the To and From resources and necessary dependent resources, to ensure the nodes will guarantee correct functionality.
@@ -85,6 +119,10 @@ const (
 	Downstream Reuse = "downstream"
 )
 
+func (template *EdgeTemplate) Key() string {
+	return fmt.Sprintf("%s-%s", template.Source, template.Destination)
+}
+
 func NewEdgeKB(edges EdgeMap) EdgeKB {
 	edgeMap := make(EdgeMap)
 	edgesByType := map[reflect.Type]*ResourceEdges{}
@@ -99,14 +137,14 @@ func NewEdgeKB(edges EdgeMap) EdgeKB {
 		edgesByType[edge.Source].Outgoing = append(edgesByType[edge.Source].Outgoing, edge)
 		edgesByType[edge.Destination].Incoming = append(edgesByType[edge.Destination].Incoming, edge)
 	}
-	return EdgeKB{edgeMap: edges, edgesByType: edgesByType}
+	return EdgeKB{EdgeMap: edges, EdgesByType: edgesByType}
 }
 
 func MergeKBs(kbsToUse []EdgeKB) (EdgeKB, error) {
 	edgeMap := EdgeMap{}
 	var err error
 	for _, currKb := range kbsToUse {
-		for edge, detail := range currKb.edgeMap {
+		for edge, detail := range currKb.EdgeMap {
 			if _, found := edgeMap[edge]; found {
 				err = errors.Join(err, fmt.Errorf("edge for %s -> %s is already defined in the knowledge base", edge.Source, edge.Destination))
 			}
@@ -129,13 +167,13 @@ func (kb EdgeKB) GetResourceEdge(source core.Resource, target core.Resource) (Ed
 
 // GetEdgeDetails takes in a source and target to retrieve the edge details for the given key. Will return nil if no edge exists for the given source and target
 func (kb EdgeKB) GetEdgeDetails(source reflect.Type, target reflect.Type) (EdgeDetails, bool) {
-	detail, found := kb.edgeMap[Edge{Source: source, Destination: target}]
+	detail, found := kb.EdgeMap[Edge{Source: source, Destination: target}]
 	return detail, found
 }
 
 // GetEdgesWithSource will return all edges where the source type parameter is the From of the edge
 func (kb EdgeKB) GetEdgesWithSource(source reflect.Type) []Edge {
-	if edgeMappings, ok := kb.edgesByType[source]; ok {
+	if edgeMappings, ok := kb.EdgesByType[source]; ok {
 		return edgeMappings.Outgoing
 	}
 	return []Edge{}
@@ -143,7 +181,7 @@ func (kb EdgeKB) GetEdgesWithSource(source reflect.Type) []Edge {
 
 // GetEdgesWithTarget will return all edges where the target type parameter is the To of the edge
 func (kb EdgeKB) GetEdgesWithTarget(target reflect.Type) []Edge {
-	if edgeMappings, ok := kb.edgesByType[target]; ok {
+	if edgeMappings, ok := kb.EdgesByType[target]; ok {
 		return edgeMappings.Incoming
 	}
 	return []Edge{}

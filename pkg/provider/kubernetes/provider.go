@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"gopkg.in/yaml.v3"
 )
@@ -87,4 +88,8 @@ func (k *KubernetesProvider) GetOperationalTempaltes() map[string]*core.Resource
 		return templates
 	}
 	return templates
+}
+
+func (k *KubernetesProvider) GetEdgeTempaltes() map[string]*knowledgebase.EdgeTemplate {
+	return make(map[string]*knowledgebase.EdgeTemplate)
 }

@@ -2,6 +2,7 @@ package enginetesting
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
 
 type MockProvider struct {
@@ -49,6 +50,10 @@ func (p *MockProvider) ListResources() []core.Resource {
 
 func (p *MockProvider) GetOperationalTempaltes() map[string]*core.ResourceTemplate {
 	return map[string]*core.ResourceTemplate{}
+}
+
+func (p *MockProvider) GetEdgeTempaltes() map[string]*knowledgebase.EdgeTemplate {
+	return map[string]*knowledgebase.EdgeTemplate{}
 }
 
 func (p *MockProvider) Name() string {

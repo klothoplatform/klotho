@@ -32,7 +32,40 @@ func (e *Engine) MakeResourcesOperational(graph *core.ResourceGraph) (map[core.R
 		return nil, err
 	}
 	for _, resource := range resources {
+<<<<<<< HEAD
 		err := e.MakeResourceOperational(graph, resource)
+=======
+		template := e.ResourceTemplates[fmt.Sprintf("%s:%s", resource.Id().Provider, resource.Id().Type)]
+		if template != nil {
+			err := e.TemplateMakeOperational(graph, resource, *template)
+			if err != nil {
+				joinedErr = errors.Join(joinedErr, err)
+				continue
+			}
+			err = TemplateConfigure(resource, *template, graph)
+			if err != nil {
+				joinedErr = errors.Join(joinedErr, err)
+				continue
+			}
+		}
+
+		err := callMakeOperational(graph, resource, e.Context.AppName, e.ClassificationDocument)
+		if err != nil {
+			if ore, ok := err.(*core.OperationalResourceError); ok {
+				// If we get a OperationalResourceError let the engine try to reconcile it, and if that fails then mark the resource as non operational so we attempt to rerun on the next loop
+				herr := e.handleOperationalResourceError(ore, graph)
+				if herr != nil {
+					err = errors.Join(err, herr)
+				}
+				joinedErr = errors.Join(joinedErr, err)
+			} else {
+				joinedErr = errors.Join(joinedErr, err)
+			}
+			continue
+		}
+
+		err = graph.CallConfigure(resource, nil)
+>>>>>>> e7f62b3 (start of edge templating)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
 		} else {
@@ -500,13 +533,13 @@ func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceErr
 	return nil
 }
 
-func TemplateConfigure(resource core.Resource, template core.ResourceTemplate) error {
+func TemplateConfigure(resource core.Resource, template core.ResourceTemplate, dag *core.ResourceGraph) error {
 	for _, config := range template.Configuration {
 		field := reflect.ValueOf(resource).Elem().FieldByName(config.Field)
 		if (field.IsValid() && !field.IsZero()) || config.ZeroValueAllowed {
 			continue
 		}
-		err := ConfigureField(resource, config.Field, config.Value)
+		err := ConfigureField(resource, config.Field, config.Value, dag)
 		if err != nil {
 			return err
 		}
@@ -514,17 +547,12 @@ func TemplateConfigure(resource core.Resource, template core.ResourceTemplate) e
 	return nil
 }
 
-func ConfigureField(resource core.Resource, fieldName string, value interface{}) error {
+func ConfigureField(resource core.Resource, fieldName string, value interface{}, graph *core.ResourceGraph) error {
 	fields := strings.Split(fieldName, ".")
 	var field reflect.Value
 	for i := 0; i < len(fields); i++ {
-		fmt.Println(field)
-		fmt.Println(fields[i])
 		if i == 0 {
 			field = reflect.ValueOf(resource).Elem().FieldByName(fields[i])
-			fmt.Println(reflect.ValueOf(resource).Elem())
-			fmt.Println(reflect.ValueOf(resource).Elem().FieldByName(fields[i]))
-			fmt.Println(field)
 		} else {
 			if field.Kind() == reflect.Ptr {
 				field = field.Elem().FieldByName(fields[i])
@@ -535,9 +563,6 @@ func ConfigureField(resource core.Resource, fieldName string, value interface{})
 		if !field.IsValid() {
 			return fmt.Errorf("unable to find field %s on resource %s", fields[i], resource.Id())
 		} else if field.IsZero() && field.Kind() == reflect.Ptr {
-			fmt.Println("it is zero")
-			fmt.Println(field.Type())
-			fmt.Println(reflect.New(field.Type().Elem()))
 			newField := reflect.New(field.Type().Elem())
 			field.Set(newField)
 			field = newField
@@ -548,26 +573,35 @@ func ConfigureField(resource core.Resource, fieldName string, value interface{})
 		if reflect.ValueOf(value).Kind() != reflect.Slice {
 			return fmt.Errorf("config template is not the correct type for resource %s. expected it to be a list, but got %s", resource.Id(), reflect.TypeOf(value))
 		}
-		configureField(value, field)
+		err := configureField(value, field, graph)
+		if err != nil {
+			return err
+		}
 	case reflect.Pointer, reflect.Struct:
-		if reflect.ValueOf(value).Kind() != reflect.Map {
+		if reflect.ValueOf(value).Kind() != reflect.Map && !field.Type().Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) {
 			return fmt.Errorf("config template is not the correct type for resource %s. expected it to be a map, but got %s", resource.Id(), reflect.TypeOf(value))
 		}
-		configureField(value, field)
+		err := configureField(value, field, graph)
+		if err != nil {
+			return err
+		}
 	default:
-		if reflect.TypeOf(value) != field.Type() {
+		if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value).String() == "core.ResourceId" {
 			return fmt.Errorf("config template is not the correct type for resource %s. expected it to be %s, but got %s", resource.Id(), field.Type(), reflect.TypeOf(value))
 		}
-		configureField(value, field)
+		err := configureField(value, field, graph)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func configureField(val interface{}, field reflect.Value) {
+func configureField(val interface{}, field reflect.Value, dag *core.ResourceGraph) error {
 	if !reflect.ValueOf(val).IsValid() {
-		return
+		return nil
 	} else if reflect.ValueOf(val).IsZero() {
-		return
+		return nil
 	}
 
 	if field.Kind() == reflect.Ptr && field.IsNil() {
@@ -584,11 +618,17 @@ func configureField(val interface{}, field reflect.Value) {
 			val := reflect.ValueOf(val).Index(i).Interface()
 			if field.Type().Elem().Kind() == reflect.Struct {
 				subField := reflect.New(field.Type().Elem()).Interface()
-				configureField(val, reflect.ValueOf(subField))
+				err := configureField(val, reflect.ValueOf(subField), dag)
+				if err != nil {
+					return err
+				}
 				arr = reflect.Append(arr, reflect.ValueOf(subField).Elem())
 			} else if field.Type().Elem().Kind() == reflect.Ptr {
 				subField := reflect.New(field.Type().Elem().Elem()).Interface()
-				configureField(val, reflect.ValueOf(subField).Elem())
+				err := configureField(val, reflect.ValueOf(subField).Elem(), dag)
+				if err != nil {
+					return err
+				}
 				arr = reflect.Append(arr, reflect.ValueOf(subField))
 			} else {
 				arr = reflect.Append(arr, reflect.ValueOf(val))
@@ -601,11 +641,49 @@ func configureField(val interface{}, field reflect.Value) {
 			val = intstr.Parse(fmt.Sprintf("%v", val))
 			field.Set(reflect.ValueOf(val))
 			return
+	case reflect.Struct, reflect.Ptr:
+		if field.Type().Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) && reflect.ValueOf(val).Type().Kind() == reflect.String {
+			id := core.ResourceId{}
+			err := id.UnmarshalText([]byte(val.(string)))
+			if err != nil {
+				return err
+			}
+			res := dag.GetResource(id)
+			if res == nil {
+				return fmt.Errorf("resource %s does not exist in the graph", id)
+			}
+			field.Set(reflect.ValueOf(res))
+			return nil
+		} else if field.Type().Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) && reflect.ValueOf(val).Type().Elem().String() == "core.ResourceId" {
+			id := val.(*core.ResourceId)
+			res := dag.GetResource(*id)
+			if res == nil {
+				return fmt.Errorf("resource %s does not exist in the graph", id)
+			}
+			field.Set(reflect.ValueOf(res))
+			return nil
+		} else if field.Type() == reflect.TypeOf(core.ResourceId{}) && reflect.ValueOf(val).Type().Kind() == reflect.String {
+			id := core.ResourceId{}
+			err := id.UnmarshalText([]byte(val.(string)))
+			if err != nil {
+				return err
+			}
+			field.Set(reflect.ValueOf(id))
+			return nil
+		}
+		if field.Kind() == reflect.Ptr && field.IsNil() {
+			field.Set(reflect.New(reflect.TypeOf(field.Interface()).Elem()))
+		}
+		if field.Kind() == reflect.Ptr {
+			field = field.Elem()
 		}
 		for _, key := range reflect.ValueOf(val).MapKeys() {
 			for i := 0; i < field.NumField(); i++ {
 				if field.Type().Field(i).Name == key.String() {
-					configureField(reflect.ValueOf(val).MapIndex(key).Interface(), field.Field(i))
+					err := configureField(reflect.ValueOf(val).MapIndex(key).Interface(), field.Field(i), dag)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -640,7 +718,44 @@ func configureField(val interface{}, field reflect.Value) {
 			field.Set(reflect.ValueOf(val))
 		}
 	default:
+		if field.Kind() == reflect.String && reflect.TypeOf(val).Kind() != reflect.String && reflect.TypeOf(val).Elem().String() == "core.ResourceId" {
+			id := val.(*core.ResourceId)
+			strVal := getFieldFromIdString(id.String(), dag)
+			if strVal != nil {
+				field.Set(reflect.ValueOf(strVal))
+				return nil
+			}
+		}
 		field.Set(reflect.ValueOf(val))
 	}
+	return nil
+
+}
+
+func getFieldFromIdString(id string, dag *core.ResourceGraph) any {
+	arr := strings.Split(id, "#")
+	resId := &core.ResourceId{}
+	err := resId.UnmarshalText([]byte(arr[0]))
+	if err != nil {
+		return nil
+	}
+	if len(arr) == 1 {
+		return resId
+	}
+	res := dag.GetResource(*resId)
+	if res == nil {
+		return nil
+	}
+
+	subFields := strings.Split(arr[1], ".")
+	var field reflect.Value
+	for i := 0; i < len(subFields); i++ {
+		if i == 0 {
+			field = reflect.ValueOf(res).Elem().FieldByName(subFields[i])
+		} else {
+			field = reflect.ValueOf(field).Elem().FieldByName(subFields[i])
+		}
+	}
+	return field.Interface()
 
 }

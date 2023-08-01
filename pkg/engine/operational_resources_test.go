@@ -542,7 +542,7 @@ func Test_TemplateConfigure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			err := TemplateConfigure(tt.resource, tt.template)
+			err := TemplateConfigure(tt.resource, tt.template, nil)
 			if !assert.NoError(err) {
 				return
 			}
