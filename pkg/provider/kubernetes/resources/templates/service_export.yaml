@@ -11,3 +11,11 @@ rules:
       operation: create
 delete_context:
   requires_no_upstream: true
+configuration:
+  - field: Object
+    value:
+      APIVersion: multicluster.x-k8s.io/v1alpha1
+      Kind: ServiceExport
+      Metadata:
+        Name: "{{ .Name }}"
+        Namespace: "{{ .Namespace }}"

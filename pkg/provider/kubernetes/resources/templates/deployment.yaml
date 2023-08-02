@@ -19,3 +19,32 @@ rules:
 delete_context:
   requires_no_upstream: true
   requires_explicit_delete: true
+configuration:
+  - field: Object
+    value:
+      APIVersion: v1
+      Kind: Deployment
+      Metadata:
+        Labels:
+          execUnit: "{{ .ExecUnitName }}"
+        Name: "{{ .Name }}"
+        Namespace: "{{ .Namespace }}"
+      Spec:
+        Replicas: 2
+        Selector:
+          MatchLabels:
+            execUnit: "{{ .ExecUnitName }}"
+        Strategy:
+          RollingUpdate:
+            MaxSurge: 1
+            MaxUnavailable: 1
+          Type: RollingUpdate
+        Template:
+          Metadata:
+            Labels:
+              execUnit: "{{ .ExecUnitName }}"
+          Spec:
+            Containers:
+              - Image: REPLACE_ME
+                Name: "{{ .Name }}"
+            ServiceAccountName: "{{ .ServiceAccountName }}"

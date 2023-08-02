@@ -11,3 +11,22 @@ rules:
       operation: create
 delete_context:
   requires_no_upstream: true
+configuration:
+  - field: Object
+    value:
+      APIVersion: v1
+      Kind: Service
+      Metadata:
+        Name: "{{ .Name }}"
+        Namespace: "{{ .Namespace }}"
+        Labels:
+          execUnit: "{{ .ExecUnitName }}"
+      Spec:
+        Ports:
+          - Port: 80
+            TargetPort: 3000
+            Protocol: TCP
+        Selector:
+          execUnit: "{{ .ExecUnitName }}"
+        SessionAffinity: None
+        Type: ClusterIP

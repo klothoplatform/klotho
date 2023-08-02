@@ -19,3 +19,19 @@ rules:
 delete_context:
   requires_no_upstream: true
   requires_explicit_delete: true
+configuration:
+  - field: Object
+    value:
+      APIVersion: v1
+      Kind: Pod
+      Metadata:
+        Labels:
+          execUnit: "{{ .ExecUnitName }}"
+        Name: "{{ .Name }}"
+        Namespace: "{{ .Namespace }}"
+        Spec:
+          Containers:
+            - Image: REPLACE_ME
+              Name: "{{ .Name }}"
+          ServiceAccountName: "{{ .ServiceAccountName }}"
+

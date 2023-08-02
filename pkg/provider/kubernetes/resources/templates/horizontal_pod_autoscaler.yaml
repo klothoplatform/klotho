@@ -11,3 +11,33 @@ rules:
       operation: create
 delete_context:
   requires_no_upstream: true
+configuration:
+  - field: Object
+    value:
+      APIVersion: autoscaling/v2
+      Kind: HorizontalPodAutoscaler
+      Metadata:
+        Labels:
+          execUnit: "{{ .ExecUnitName }}"
+        Name: "{{ .Name }}"
+      Spec:
+        TargetScaleRef:
+          APIVersion: apps/v1
+          Kind: Deployment
+          Name: "{{ .Name }}"
+        MinReplicas: 2
+        MaxReplicas: 4
+        Metrics:
+          - Type: Resource
+            Resource:
+              Name: cpu
+              Target:
+                Type: Utilization
+                AverageUtilization: 70
+          - Type: Resource
+            Resource:
+              Name: memory
+              Target:
+                Type: Utilization
+                AverageUtilization: 70
+
