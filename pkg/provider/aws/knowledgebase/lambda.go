@@ -144,6 +144,18 @@ var LambdaKB = knowledgebase.Build(
 			return nil
 		},
 	},
+	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.SesEmailIdentity]{
+		Configure: func(lambda *resources.LambdaFunction, emailIdentity *resources.SesEmailIdentity, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if lambda.Role == nil {
+				return fmt.Errorf("cannot configure lambda %s -> s3 bucket %s, missing role", lambda.Id(), emailIdentity.Id())
+			}
+			dag.AddDependency(lambda.Role, emailIdentity)
+			for _, env := range data.EnvironmentVariables {
+				lambda.EnvironmentVariables[env.GetName()] = core.IaCValue{ResourceId: emailIdentity.Id(), Property: env.GetValue()}
+			}
+			return nil
+		},
+	},
 	knowledgebase.EdgeBuilder[*resources.LambdaFunction, *resources.LambdaFunction]{
 		Configure: func(source, destination *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			policy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{

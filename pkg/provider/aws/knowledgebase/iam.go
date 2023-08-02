@@ -158,6 +158,20 @@ var IamKB = knowledgebase.Build(
 		},
 		DirectEdgeOnly: true,
 	},
+	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.SesEmailIdentity]{
+		Configure: func(role *resources.IamRole, emailIdentity *resources.SesEmailIdentity, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			role.InlinePolicies = append(role.InlinePolicies, resources.NewIamInlinePolicy(
+				fmt.Sprintf(`%s-access`, emailIdentity.Name),
+				role.ConstructRefs.CloneWith(emailIdentity.ConstructRefs),
+				resources.CreateAllowPolicyDocument(
+					[]string{"ses:SendEmail", "ses:SendRawEmail"},
+					[]core.IaCValue{
+						{ResourceId: emailIdentity.Id(), Property: resources.ARN_IAC_VALUE},
+					})))
+			return nil
+		},
+		DirectEdgeOnly: true,
+	},
 	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.LambdaFunction]{
 		Configure: func(policy *resources.IamPolicy, function *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"lambda:InvokeFunction"}, []core.IaCValue{{ResourceId: function.Id(), Property: resources.ARN_IAC_VALUE}}))
