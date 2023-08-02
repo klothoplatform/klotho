@@ -395,21 +395,10 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 		if construct == nil {
 			return fmt.Errorf("construct, %s, does not exist", construct.Id())
 		}
-		var new core.BaseConstruct
-		var err error
-		if constraint.ReplacementNode.Provider == core.AbstractConstructProvider {
-			new, err = e.getConstructFromInputId(constraint.ReplacementNode)
-			if err != nil {
-				return err
-			}
-		} else {
-			provider := e.Providers[constraint.ReplacementNode.Provider]
-			new, err = provider.CreateResourceFromId(constraint.ReplacementNode, e.Context.InitialState)
-			if err != nil {
-				return err
-			}
+		replacement, err := e.getConstructFromInputId(constraint.ReplacementNode)
+		if err != nil {
+			return err
 		}
-
 		decision.Construct = construct
 		upstream := e.Context.WorkingState.GetUpstreamConstructs(construct)
 		downstream := e.Context.WorkingState.GetDownstreamConstructs(construct)
@@ -435,18 +424,18 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 				reconnectToDownstream = append(reconnectToDownstream, down)
 			}
 		}
-		e.Context.WorkingState.AddConstruct(new)
+		e.Context.WorkingState.AddConstruct(replacement)
 		for _, up := range reconnectToUpstream {
 			if e.Context.WorkingState.GetConstruct(up.Id()) == nil {
 				continue
 			}
-			e.Context.WorkingState.AddDependency(up.Id(), new.Id())
+			e.Context.WorkingState.AddDependency(up.Id(), replacement.Id())
 		}
 		for _, down := range reconnectToDownstream {
 			if e.Context.WorkingState.GetConstruct(down.Id()) == nil {
 				continue
 			}
-			e.Context.WorkingState.AddDependency(new.Id(), down.Id())
+			e.Context.WorkingState.AddDependency(replacement.Id(), down.Id())
 		}
 
 		return nil
@@ -465,6 +454,20 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 func (e *Engine) ApplyEdgeConstraint(constraint *constraints.EdgeConstraint) error {
 	decision := Decision{
 		Constraint: constraint,
+	}
+	if e.Context.WorkingState.GetConstruct(constraint.Target.Source) == nil {
+		node, err := e.getConstructFromId(constraint.Target.Source)
+		if err != nil {
+			return err
+		}
+		e.Context.WorkingState.AddConstruct(node)
+	}
+	if e.Context.WorkingState.GetConstruct(constraint.Target.Target) == nil {
+		node, err := e.getConstructFromId(constraint.Target.Target)
+		if err != nil {
+			return err
+		}
+		e.Context.WorkingState.AddConstruct(node)
 	}
 	switch constraint.Operator {
 	case constraints.MustExistConstraintOperator:
@@ -572,4 +575,23 @@ func (e *Engine) ValidateConstraints(context *SolveContext) []constraints.Constr
 
 	}
 	return unsatisfied
+}
+
+func (e *Engine) getConstructFromId(id core.ResourceId) (core.BaseConstruct, error) {
+	var construct core.BaseConstruct
+	var err error
+	if id.Provider == core.AbstractConstructProvider {
+		construct, err = e.getConstructFromInputId(id)
+		if err != nil {
+			return nil, err
+		}
+
+	} else {
+		provider := e.Providers[id.Provider]
+		construct, err = provider.CreateResourceFromId(id, e.Context.InitialState)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return construct, err
 }
