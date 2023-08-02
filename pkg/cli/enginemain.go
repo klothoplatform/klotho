@@ -2,6 +2,11 @@ package cli
 
 import (
 	"fmt"
+	"math/rand"
+	"path/filepath"
+	"reflect"
+	"strings"
+
 	"github.com/klothoplatform/klotho/pkg/closenicely"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/compiler"
@@ -11,10 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"math/rand"
-	"path/filepath"
-	"reflect"
-	"strings"
+	"gopkg.in/yaml.v3"
 )
 
 type testCase struct {
@@ -27,6 +29,11 @@ type testCase struct {
 
 var engineCfg struct {
 	provider string
+}
+
+var listResourceFieldsConfig struct {
+	provider string
+	resource string
 }
 
 var getPathsConfig struct {
@@ -64,6 +71,17 @@ func (km KlothoMain) addEngineCli(root *cobra.Command) error {
 	flags = listAttributesCmd.Flags()
 	flags.StringVarP(&engineCfg.provider, "provider", "p", "aws", "Provider to use")
 
+	listResourceFieldsCmd := &cobra.Command{
+		Use:     "ListResourceTypesFields",
+		Short:   "List a provider resource's fields",
+		GroupID: engineGroup.ID,
+		RunE:    km.ListResourceFields,
+	}
+
+	flags = listResourceFieldsCmd.Flags()
+	flags.StringVarP(&listResourceFieldsConfig.provider, "provider", "p", "aws", "Provider to use")
+	flags.StringVarP(&listResourceFieldsConfig.resource, "resource-type", "t", "", "resource type to use")
+
 	getPaths := &cobra.Command{
 		Use:     "GetPaths",
 		Short:   "Outputs all paths up to a certain length from a given resource type",
@@ -83,6 +101,7 @@ func (km KlothoMain) addEngineCli(root *cobra.Command) error {
 	root.AddGroup(engineGroup)
 	root.AddCommand(listResourceTypesCmd)
 	root.AddCommand(listAttributesCmd)
+	root.AddCommand(listResourceFieldsCmd)
 	root.AddCommand(getPaths)
 	return nil
 }
@@ -214,6 +233,27 @@ func (km *KlothoMain) ListAttributes(cmd *cobra.Command, args []string) error {
 
 	attributes := plugins.Engine.ListAttributes()
 	fmt.Println(strings.Join(attributes, "\n"))
+	return nil
+}
+
+func (km *KlothoMain) ListResourceFields(cmd *cobra.Command, args []string) error {
+	cfg := config.Application{Provider: listResourceFieldsConfig.provider}
+
+	plugins := &PluginSetBuilder{
+		Cfg: &cfg,
+	}
+	err := km.PluginSetup(plugins)
+
+	if err != nil {
+		return err
+	}
+
+	fields := plugins.Engine.ListResourceFields(listResourceFieldsConfig.provider, listResourceFieldsConfig.resource)
+	b, err := yaml.Marshal(fields)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(b))
 	return nil
 }
 

@@ -279,6 +279,12 @@ func (e *Engine) SolveGraph(context *SolveContext) (*core.ResourceGraph, error) 
 	configuredEdges := map[core.ResourceId]map[core.ResourceId]bool{}
 	errorMap := make(map[int][]error)
 	for i := 0; i < NUM_LOOPS; i++ {
+		for _, rc := range e.Context.Constraints[constraints.ResourceConstraintScope] {
+			err := e.ApplyResourceConstraint(graph, rc.(*constraints.ResourceConstraint))
+			if err != nil {
+				errorMap[i] = append(errorMap[i], err)
+			}
+		}
 		err := e.expandEdges(graph)
 		if err != nil {
 			errorMap[i] = append(errorMap[i], err)
@@ -534,6 +540,18 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 		data.Attributes[key] = attribute
 	}
 	e.Context.WorkingState.AddDependencyWithData(constraint.Target.Source, constraint.Target.Target, data)
+	return nil
+}
+
+func (e *Engine) ApplyResourceConstraint(graph *core.ResourceGraph, constraint *constraints.ResourceConstraint) error {
+	resource := graph.GetResource(constraint.Target)
+	if resource == nil {
+		return fmt.Errorf("resource %s does not exist", constraint.Target)
+	}
+	err := ConfigureField(resource, constraint.Property, constraint.Value)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

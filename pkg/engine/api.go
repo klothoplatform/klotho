@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 )
@@ -50,4 +51,84 @@ func (e *Engine) ListAttributes() []string {
 		attributes = append(attributes, attribute)
 	}
 	return attributes
+}
+
+func (e *Engine) ListResourceFields(provider string, resourceType string) map[string]any {
+	if provider == core.AbstractConstructProvider {
+		for _, construct := range e.Constructs {
+			if construct.Id().Type == resourceType {
+				fields := map[string]any{}
+				for i := 0; i < reflect.ValueOf(construct).Elem().NumField(); i++ {
+					field := reflect.ValueOf(construct).Elem().Type().Field(i)
+					if isFieldConfigurable(field.Type) {
+						fields[field.Name] = getStructFieldFields(field.Type)
+					}
+				}
+				return fields
+			}
+		}
+	} else if e.Providers[provider] == nil {
+		return map[string]any{}
+	}
+	for _, res := range e.Providers[provider].ListResources() {
+		if res.Id().Type == resourceType {
+			fields := map[string]any{}
+			for i := 0; i < reflect.ValueOf(res).Elem().NumField(); i++ {
+				field := reflect.ValueOf(res).Elem().Type().Field(i)
+				if isFieldConfigurable(field.Type) {
+					fields[field.Name] = getStructFieldFields(field.Type)
+				}
+			}
+			return fields
+		}
+	}
+	return map[string]any{}
+}
+
+func isFieldConfigurable(field reflect.Type) bool {
+	if field.Implements(reflect.TypeOf((*core.BaseConstruct)(nil)).Elem()) {
+		return false
+	} else if field.Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) {
+		return false
+	} else if field == reflect.TypeOf(core.BaseConstructSet{}) {
+		return false
+	}
+	if field.Kind() == reflect.Array || field.Kind() == reflect.Slice {
+		if field.Elem().Implements(reflect.TypeOf((*core.BaseConstruct)(nil)).Elem()) {
+			return false
+		}
+	}
+	return true
+}
+
+func getStructFieldFields(field reflect.Type) any {
+	fields := map[string]any{}
+	if field.Kind() == reflect.Struct {
+		element := reflect.New(field).Interface()
+		for i := 0; i < reflect.ValueOf(element).Elem().NumField(); i++ {
+			subField := reflect.ValueOf(element).Elem().Type().Field(i)
+			if isFieldConfigurable(subField.Type) {
+				fields[subField.Name] = getStructFieldFields(subField.Type)
+			}
+		}
+	} else if field.Kind() == reflect.Ptr {
+		element := reflect.New(field.Elem()).Interface()
+		for i := 0; i < reflect.ValueOf(element).Elem().NumField(); i++ {
+			subField := reflect.ValueOf(element).Elem().Type().Field(i)
+			if isFieldConfigurable(subField.Type) {
+				fields[subField.Name] = getStructFieldFields(subField.Type)
+			}
+		}
+	} else if field.Kind() == reflect.Array || field.Kind() == reflect.Slice {
+		arrFields := []any{}
+		arrFields = append(arrFields, getStructFieldFields(field.Elem()))
+		return arrFields
+	} else if field.Kind() == reflect.Map {
+		for _, key := range reflect.ValueOf(field).MapKeys() {
+			fields[key.String()] = field.String()
+		}
+	} else {
+		return field.String()
+	}
+	return fields
 }
