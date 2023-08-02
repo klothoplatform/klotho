@@ -8,6 +8,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
+	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"gopkg.in/yaml.v3"
 )
@@ -64,8 +65,8 @@ func (k *KubernetesProvider) CreateResourceFromId(id core.ResourceId, dag *core.
 //go:embed resources/templates/*
 var kubernetesTemplates embed.FS
 
-func (k *KubernetesProvider) GetOperationalTempaltes() map[string]*core.ResourceTemplate {
-	templates := map[string]*core.ResourceTemplate{}
+func (k *KubernetesProvider) GetOperationalTempaltes() map[core.ResourceId]*core.ResourceTemplate {
+	templates := map[core.ResourceId]*core.ResourceTemplate{}
 	if err := fs.WalkDir(kubernetesTemplates, ".", func(path string, d fs.DirEntry, nerr error) error {
 		if d.IsDir() {
 			return nil
@@ -79,10 +80,11 @@ func (k *KubernetesProvider) GetOperationalTempaltes() map[string]*core.Resource
 		if err != nil {
 			panic(err)
 		}
-		if templates[resTemplate.Type] != nil {
+		id := core.ResourceId{Provider: provider.KUBERNETES, Type: resTemplate.Type}
+		if templates[id] != nil {
 			panic(fmt.Errorf("duplicate template for type %s", resTemplate.Type))
 		}
-		templates[resTemplate.Type] = resTemplate
+		templates[id] = resTemplate
 		return nil
 	}); err != nil {
 		return templates

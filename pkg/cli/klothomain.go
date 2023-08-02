@@ -56,6 +56,7 @@ var cfg struct {
 	verbose            bool
 	config             string
 	constructGraph     string
+	guardrails         string
 	outDir             string
 	ast                bool
 	caps               bool
@@ -124,6 +125,7 @@ func (km KlothoMain) Main() {
 	flags.BoolVarP(&cfg.verbose, "verbose", "v", false, "Verbose flag")
 	flags.StringVarP(&cfg.config, "config", "c", "", "Config file")
 	flags.StringVar(&cfg.constructGraph, "construct-graph", "", "Construct Graph file")
+	flags.StringVar(&cfg.guardrails, "guardrails", "", "Guardrails file")
 	flags.StringVarP(&cfg.outDir, "outDir", "o", defaultOutDir, "Output directory")
 	flags.BoolVar(&cfg.ast, "ast", false, "Print the AST to a companion file")
 	flags.BoolVar(&cfg.caps, "caps", false, "Print the capabilities to a companion file")
@@ -416,9 +418,17 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 			return errors.Wrap(err, "could not output helpers")
 		}
 	}
-
+	var guardrails []byte
+	if cfg.guardrails != "" {
+		f, err := os.ReadFile(cfg.guardrails)
+		if err != nil {
+			return err
+		}
+		guardrails = f
+	}
 	plugins := &PluginSetBuilder{
-		Cfg: &appCfg,
+		Cfg:        &appCfg,
+		GuardRails: guardrails,
 	}
 	if cfg.constructGraph != "" {
 		err = plugins.AddEngine()

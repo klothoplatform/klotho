@@ -9,8 +9,9 @@ import (
 
 func (e *Engine) ListResources() []core.Resource {
 	var resources []core.Resource
-	for _, provider := range e.Providers {
-		resources = append(resources, provider.ListResources()...)
+	for _, res := range e.Guardrails.AllowedResources {
+		resource, _ := e.getConstructFromId(res)
+		resources = append(resources, resource.(core.Resource))
 	}
 	return resources
 }

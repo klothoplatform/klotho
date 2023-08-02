@@ -44,7 +44,7 @@ func (e *Engine) MakeResourcesOperational(graph *core.ResourceGraph) (map[core.R
 }
 
 func (e *Engine) MakeResourceOperational(graph *core.ResourceGraph, resource core.Resource) error {
-	template := e.ResourceTemplates[fmt.Sprintf("%s:%s", resource.Id().Provider, resource.Id().Type)]
+	template := e.ResourceTemplates[core.ResourceId{Provider: resource.Id().Provider, Type: resource.Id().Type}]
 	if template != nil {
 		err := e.TemplateMakeOperational(graph, resource, *template)
 		if err != nil {

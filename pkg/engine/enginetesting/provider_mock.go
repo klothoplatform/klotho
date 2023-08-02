@@ -48,8 +48,8 @@ func (p *MockProvider) ListResources() []core.Resource {
 	}
 }
 
-func (p *MockProvider) GetOperationalTempaltes() map[string]*core.ResourceTemplate {
-	return map[string]*core.ResourceTemplate{}
+func (p *MockProvider) GetOperationalTempaltes() map[core.ResourceId]*core.ResourceTemplate {
+	return map[core.ResourceId]*core.ResourceTemplate{}
 }
 
 func (p *MockProvider) GetEdgeTempaltes() map[string]*knowledgebase.EdgeTemplate {

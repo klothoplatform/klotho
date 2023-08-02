@@ -143,7 +143,6 @@ func (e *Engine) findPossibleExpansions(expansionSet ExpansionSet, baseResource 
 	var possibleExpansions []*ExpansionSolution
 	var joinedErr error
 	for _, res := range e.ListResources() {
-
 		if baseResource != nil && res.Id().Type != baseResource.Id().Type {
 			continue
 		}

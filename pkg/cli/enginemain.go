@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -28,15 +29,18 @@ type testCase struct {
 }
 
 var engineCfg struct {
-	provider string
+	provider   string
+	guardrails string
 }
 
 var listResourceFieldsConfig struct {
-	provider string
-	resource string
+	provider   string
+	resource   string
+	guardrails string
 }
 
 var getPathsConfig struct {
+	guardrails      string
 	resourceRoots   []string
 	resourceTargets []string
 	maxPathLength   int
@@ -60,6 +64,7 @@ func (km KlothoMain) addEngineCli(root *cobra.Command) error {
 
 	flags := listResourceTypesCmd.Flags()
 	flags.StringVarP(&engineCfg.provider, "provider", "p", "aws", "Provider to use")
+	flags.StringVar(&engineCfg.guardrails, "guardrails", "", "Guardrails file")
 
 	listAttributesCmd := &cobra.Command{
 		Use:     "ListAttributes",
@@ -70,6 +75,7 @@ func (km KlothoMain) addEngineCli(root *cobra.Command) error {
 
 	flags = listAttributesCmd.Flags()
 	flags.StringVarP(&engineCfg.provider, "provider", "p", "aws", "Provider to use")
+	flags.StringVar(&engineCfg.guardrails, "guardrails", "", "Guardrails file")
 
 	listResourceFieldsCmd := &cobra.Command{
 		Use:     "ListResourceTypesFields",
@@ -81,6 +87,7 @@ func (km KlothoMain) addEngineCli(root *cobra.Command) error {
 	flags = listResourceFieldsCmd.Flags()
 	flags.StringVarP(&listResourceFieldsConfig.provider, "provider", "p", "aws", "Provider to use")
 	flags.StringVarP(&listResourceFieldsConfig.resource, "resource-type", "t", "", "resource type to use")
+	flags.StringVar(&listResourceFieldsConfig.guardrails, "guardrails", "", "Guardrails file")
 
 	getPaths := &cobra.Command{
 		Use:     "GetPaths",
@@ -97,6 +104,7 @@ func (km KlothoMain) addEngineCli(root *cobra.Command) error {
 	flags.StringSliceVarP(&getPathsConfig.resourceRoots, "resource-roots", "r", []string{}, "the resource roots to use for the paths")
 	flags.StringSliceVarP(&getPathsConfig.resourceTargets, "resource-targets", "t", []string{}, "the resource targets to use for the paths")
 	flags.BoolVarP(&getPathsConfig.verbose, "verbose", "v", false, "verbose output")
+	flags.StringVar(&getPathsConfig.guardrails, "guardrails", "", "Guardrails file")
 
 	root.AddGroup(engineGroup)
 	root.AddCommand(listResourceTypesCmd)
@@ -127,8 +135,17 @@ func (km *KlothoMain) GetPaths(cmd *cobra.Command, args []string) error {
 	roots := getPathsConfig.resourceRoots
 	cfg := config.Application{Provider: engineCfg.provider}
 
+	var guardrails []byte
+	if getPathsConfig.guardrails != "" {
+		f, err := os.ReadFile(getPathsConfig.guardrails)
+		if err != nil {
+			return err
+		}
+		guardrails = f
+	}
 	plugins := &PluginSetBuilder{
-		Cfg: &cfg,
+		Cfg:        &cfg,
+		GuardRails: guardrails,
 	}
 	err = km.PluginSetup(plugins)
 
@@ -205,8 +222,17 @@ func (km *KlothoMain) GetPaths(cmd *cobra.Command, args []string) error {
 func (km *KlothoMain) ListResourceTypes(cmd *cobra.Command, args []string) error {
 	cfg := config.Application{Provider: engineCfg.provider}
 
+	var guardrails []byte
+	if engineCfg.guardrails != "" {
+		f, err := os.ReadFile(engineCfg.guardrails)
+		if err != nil {
+			return err
+		}
+		guardrails = f
+	}
 	plugins := &PluginSetBuilder{
-		Cfg: &cfg,
+		Cfg:        &cfg,
+		GuardRails: guardrails,
 	}
 	err := km.PluginSetup(plugins)
 
@@ -221,9 +247,17 @@ func (km *KlothoMain) ListResourceTypes(cmd *cobra.Command, args []string) error
 
 func (km *KlothoMain) ListAttributes(cmd *cobra.Command, args []string) error {
 	cfg := config.Application{Provider: engineCfg.provider}
-
+	var guardrails []byte
+	if engineCfg.guardrails != "" {
+		f, err := os.ReadFile(engineCfg.guardrails)
+		if err != nil {
+			return err
+		}
+		guardrails = f
+	}
 	plugins := &PluginSetBuilder{
-		Cfg: &cfg,
+		Cfg:        &cfg,
+		GuardRails: guardrails,
 	}
 	err := km.PluginSetup(plugins)
 
@@ -239,8 +273,17 @@ func (km *KlothoMain) ListAttributes(cmd *cobra.Command, args []string) error {
 func (km *KlothoMain) ListResourceFields(cmd *cobra.Command, args []string) error {
 	cfg := config.Application{Provider: listResourceFieldsConfig.provider}
 
+	var guardrails []byte
+	if listResourceFieldsConfig.guardrails != "" {
+		f, err := os.ReadFile(listResourceFieldsConfig.guardrails)
+		if err != nil {
+			return err
+		}
+		guardrails = f
+	}
 	plugins := &PluginSetBuilder{
-		Cfg: &cfg,
+		Cfg:        &cfg,
+		GuardRails: guardrails,
 	}
 	err := km.PluginSetup(plugins)
 
