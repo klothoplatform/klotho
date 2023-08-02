@@ -3,6 +3,7 @@ package resources
 import (
 	"embed"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"io/fs"
 	"path"
 	"reflect"
@@ -29,17 +30,20 @@ const (
 	CLUSTER_CA_DATA_IAC_VALUE                     = "cluster_certificate_authority_data"
 	CLUSTER_PROVIDER_IAC_VALUE                    = "cluster_provider"
 	CLUSTER_SECURITY_GROUP_ID_IAC_VALUE           = "cluster_security_group_id"
+	CLUSTER_EFS_RESOURCE_TAG_IAC_VALUE            = "efs_cluster_resource_tag"
 	NAME_IAC_VALUE                                = "name"
 	ID_IAC_VALUE                                  = "id"
 	AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE = "aws_observ_cm_region"
 	NODE_GROUP_NAME_IAC_VALUE                     = "node_group_name"
-
-	AWS_OBSERVABILITY_NS_PATH         = "aws_observability_namespace.yaml"
-	AWS_OBSERVABILITY_CONFIG_MAP_PATH = "aws_observability_configmap.yaml"
-	AMAZON_CLOUDWATCH_NS_PATH         = "amazon_cloudwatch_namespace.yaml"
-	FLUENT_BIT_CLUSTER_INFO           = "fluent_bit_cluster_info.yaml"
-	CM_CLUSTER_SET                    = "cloudmap_cluster_set.yaml"
-	MANIFEST_PATH_PREFIX              = "manifests"
+	AWS_EFS_PERSISTENT_VOLUME_FILENAME            = "persistent_volume.yaml"
+	AWS_EFS_STORAGECLASS_FILENAME                 = "storageclass.yaml"
+	AWS_EFS_CLAIM_FILENAME                        = "claim.yaml"
+	AWS_OBSERVABILITY_NS_PATH                     = "aws_observability_namespace.yaml"
+	AWS_OBSERVABILITY_CONFIG_MAP_PATH             = "aws_observability_configmap.yaml"
+	AMAZON_CLOUDWATCH_NS_PATH                     = "amazon_cloudwatch_namespace.yaml"
+	FLUENT_BIT_CLUSTER_INFO                       = "fluent_bit_cluster_info.yaml"
+	CM_CLUSTER_SET                                = "cloudmap_cluster_set.yaml"
+	MANIFEST_PATH_PREFIX                          = "manifests"
 )
 
 var nodeGroupSanitizer = aws.EksNodeGroupSanitizer
@@ -415,6 +419,116 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 	return nil
 }
 
+func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *core.ResourceGraph) (*kubernetes.Manifest, error) {
+	pod, ok := resource.(*kubernetes.Pod)
+	if !ok {
+		return nil, fmt.Errorf("resource %s is not a pod", resource.Id())
+	}
+
+	cluster, err := core.GetSingleDownstreamResourceOfType[*EksCluster](dag, pod)
+	if err != nil {
+		return nil, err
+	}
+	for _, upstream := range dag.GetAllDownstreamResources(pod) {
+		// install the EFS CSI driver if the pod is in an EKS node group
+		if _, ok := upstream.(*EksNodeGroup); ok {
+			// todo: look into handling appName here
+			if err != nil {
+				return nil, err
+			}
+			break
+		}
+	}
+
+	fileSystem := mountTarget.FileSystem
+	if fileSystem == nil {
+		return nil, fmt.Errorf("mount target %s does not have a file system", mountTarget.Id())
+	}
+	persistentVolumeInputPath := path.Join(MANIFEST_PATH_PREFIX, "efs", AWS_EFS_PERSISTENT_VOLUME_FILENAME)
+	persistentVolumeOutputPath := path.Join(MANIFEST_PATH_PREFIX, "efs", fmt.Sprintf("%s_%s", fileSystem.Name, AWS_EFS_PERSISTENT_VOLUME_FILENAME))
+	pvContent, err := fs.ReadFile(eksManifests, persistentVolumeInputPath)
+	if err != nil {
+		return nil, err
+	}
+	persistentVolume := &kubernetes.Manifest{
+		Name:          fmt.Sprintf("%s-%s-%s", cluster.Name, fileSystem.Name, "persistent-volume"),
+		ConstructRefs: pod.BaseConstructRefs(),
+		FilePath:      persistentVolumeOutputPath,
+		Content:       pvContent,
+		Transformations: map[string]core.IaCValue{
+			`spec["csi"]["volumeHandle"]`: {ResourceId: fileSystem.Id(), Property: ID_IAC_VALUE},
+		},
+		Cluster: cluster.Id(),
+	}
+
+	claimOutputPath := path.Join(MANIFEST_PATH_PREFIX, "efs", AWS_EFS_CLAIM_FILENAME)
+	claimContent, err := fs.ReadFile(eksManifests, claimOutputPath)
+	if err != nil {
+		return nil, err
+	}
+	claim := &kubernetes.Manifest{
+		Name:          fmt.Sprintf("%s-%s", cluster.Name, "claim"),
+		ConstructRefs: pod.BaseConstructRefs(),
+		FilePath:      claimOutputPath,
+		Content:       claimContent,
+	}
+
+	storageClassOutputPath := path.Join(MANIFEST_PATH_PREFIX, "efs", AWS_EFS_STORAGECLASS_FILENAME)
+	storageClassContent, err := fs.ReadFile(eksManifests, storageClassOutputPath)
+	if err != nil {
+		return nil, err
+	}
+	storageClass := &kubernetes.Manifest{
+		Name:          fmt.Sprintf("%s-%s", cluster.Name, "storage-class"),
+		ConstructRefs: pod.BaseConstructRefs(),
+		FilePath:      storageClassOutputPath,
+		Content:       storageClassContent,
+	}
+
+	dag.AddDependency(pod, persistentVolume)
+	dag.AddDependenciesReflect(persistentVolume)
+	dag.AddDependency(persistentVolume, claim)
+	dag.AddDependency(persistentVolume, storageClass)
+
+	return persistentVolume, nil
+}
+
+func (cluster *EksCluster) InstallEfsCsiDriver(references core.BaseConstructSet, dag *core.ResourceGraph) (*kubernetes.HelmChart, error) {
+	serviceAccountName := "aws-efs-csi-controller"
+	serviceAccount, err := cluster.CreateServiceAccount(ServiceAccountCreateParams{
+		AppName:    cluster.Name,
+		Dag:        dag,
+		Name:       serviceAccountName,
+		Policy:     createEfsPersistentVolumePolicy(cluster.Name, cluster),
+		References: references,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	efsCfsDriverChart := &kubernetes.HelmChart{
+		Name:          fmt.Sprintf("%s-alb-controller", cluster.Name),
+		Chart:         "aws-load-balancer-controller",
+		Repo:          "https://kubernetes-sigs.github.io/aws-efs-csi-driver",
+		ConstructRefs: references,
+		Version:       "1.5.9",
+		Namespace:     "kube-system",
+		Cluster:       cluster.Id(),
+		Values: map[string]any{
+			"serviceAccount": map[string]any{
+				"create": false,
+				"name":   serviceAccount.Name,
+			},
+		},
+	}
+	dag.AddDependenciesReflect(efsCfsDriverChart)
+	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
+		dag.AddDependency(efsCfsDriverChart, nodeGroup)
+	}
+
+	return efsCfsDriverChart, nil
+}
+
 func (cluster *EksCluster) InstallCloudMapController(refs core.BaseConstructSet, dag *core.ResourceGraph) (*kubernetes.KustomizeDirectory, error) {
 	cloudMapController := &kubernetes.KustomizeDirectory{
 		Name:          fmt.Sprintf("%s-cloudmap-controller", cluster.Name),
@@ -459,41 +573,70 @@ func (cluster *EksCluster) InstallCloudMapController(refs core.BaseConstructSet,
 	return cloudMapController, nil
 }
 
-func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet, dag *core.ResourceGraph, appName string) (*kubernetes.HelmChart, error) {
-	serviceAccountName := "aws-load-balancer-controller"
-	saPath := "aws-load-balancer-controller-service-account.yaml"
-	outputPath := path.Join(MANIFEST_PATH_PREFIX, saPath)
-	serviceAccount := &kubernetes.ServiceAccount{Name: serviceAccountName}
+type ServiceAccountCreateParams struct {
+	AppName    string
+	Dag        *core.ResourceGraph
+	Name       string
+	Policy     *IamPolicy
+	References core.BaseConstructSet
+}
+
+// CreateServiceAccount creates a service account for the cluster
+func (cluster *EksCluster) CreateServiceAccount(params ServiceAccountCreateParams) (*kubernetes.ServiceAccount, error) {
+	outputPath := path.Join(MANIFEST_PATH_PREFIX, fmt.Sprintf("%s-service-account.yaml", params.Name))
+	serviceAccount := &kubernetes.ServiceAccount{Name: params.Name}
+	dag := params.Dag
+	appName := params.AppName
 
 	role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
-		AppName: appName,
-		Name:    "alb-controller",
-		Refs:    references,
+		AppName: params.AppName,
+		Name:    params.Name,
+		Refs:    params.References.Clone(),
 	})
 	if err != nil {
 		return nil, err
 	}
-	oidc, err := core.CreateResource[*OpenIdConnectProvider](dag, OidcCreateParams{
-		AppName:     appName,
-		ClusterName: strings.TrimLeft(cluster.Name, fmt.Sprintf("%s-", appName)),
-		Refs:        role.ConstructRefs.Clone(),
-	})
-	var aRef core.BaseConstruct
-	for _, ref := range references {
-		aRef = ref
-		break
-	}
-	dag.AddDependency(role, oidc)
-	policy := createAlbControllerPolicy(cluster.Name, aRef)
-	dag.AddDependency(role, policy)
-	if err != nil {
-		return nil, err
+
+	if serviceAccount.Transformations == nil {
+		serviceAccount.Transformations = map[string]core.IaCValue{}
 	}
 	serviceAccount.Transformations[`metadata["annotations"]["eks.amazonaws.com/role-arn"]`] = core.IaCValue{ResourceId: role.Id(), Property: ARN_IAC_VALUE}
 	serviceAccount.FilePath = outputPath
 	serviceAccount.Cluster = cluster.Id()
 
+	oidc, err := core.CreateResource[*OpenIdConnectProvider](dag, OidcCreateParams{
+		AppName:     appName,
+		ClusterName: cluster.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
+	oidc.ConstructRefs.AddAll(params.References)
+
+	dag.AddDependency(role, oidc)
+	dag.AddDependency(role, params.Policy)
 	dag.AddDependenciesReflect(serviceAccount)
+
+	return serviceAccount, nil
+}
+
+func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet, dag *core.ResourceGraph, appName string) (*kubernetes.HelmChart, error) {
+	serviceAccountName := "aws-load-balancer-controller"
+	var aRef core.BaseConstruct
+	for _, r := range references {
+		aRef = r
+		break
+	}
+	serviceAccount, err := cluster.CreateServiceAccount(ServiceAccountCreateParams{
+		AppName:    appName,
+		Dag:        dag,
+		Name:       serviceAccountName,
+		Policy:     createAlbControllerPolicy(cluster.Name, aRef),
+		References: references,
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	albChart := &kubernetes.HelmChart{
 		Name:          fmt.Sprintf("%s-alb-controller", cluster.Name),
@@ -522,7 +665,6 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 		},
 	}
 	dag.AddDependenciesReflect(albChart)
-	dag.AddDependenciesReflect(role)
 	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
 		dag.AddDependency(albChart, nodeGroup)
 	}
@@ -756,6 +898,41 @@ func amiFromInstanceType(instanceType string) string {
 	return ""
 }
 
+func createEfsPersistentVolumePolicy(clusterName string, ref core.BaseConstruct) *IamPolicy {
+	policy := NewIamPolicy(clusterName, "efs-persistent-volume", ref, CreateAllowPolicyDocument([]string{
+		"elasticfilesystem:DescribeAccessPoints",
+		"elasticfilesystem:DescribeFileSystems",
+		"elasticfilesystem:DescribeMountTargets",
+		"ec2:DescribeAvailabilityZones",
+	},
+		[]core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}}))
+
+	conditionalPolicyDoc := &PolicyDocument{
+		Version: VERSION,
+		Statement: []StatementEntry{
+			{
+				Effect: "Allow",
+				Action: []string{
+					"elasticfilesystem:CreateAccessPoint",
+					"elasticfilesystem:DeleteAccessPoint",
+					"elasticfilesystem:TagResource",
+				},
+				Resource: []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}},
+				Condition: &Condition{
+					StringEquals: map[core.IaCValue]string{
+						{
+							ResourceId: ref.Id(),
+							Property:   CLUSTER_EFS_RESOURCE_TAG_IAC_VALUE,
+						}: "true",
+					},
+				},
+			},
+		},
+	}
+	policy.AddPolicyDocument(conditionalPolicyDoc)
+	return policy
+}
+
 func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamPolicy {
 	policy := NewIamPolicy(clusterName, "alb-controller", ref, CreateAllowPolicyDocument([]string{
 		"ec2:DescribeAccountAttributes",
@@ -971,4 +1148,56 @@ func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamP
 		},
 	})
 	return policy
+}
+
+func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+
+	var podsAndDeployments []core.Resource
+	var nodeGroups []*EksNodeGroup
+	var fargateProfiles []*EksFargateProfile
+
+	for _, downstream := range dag.GetAllUpstreamResources(cluster) {
+		switch downstream := downstream.(type) {
+		case *EksNodeGroup:
+			nodeGroups = append(nodeGroups, downstream)
+		case *EksFargateProfile:
+			fargateProfiles = append(fargateProfiles, downstream)
+		case *kubernetes.Pod:
+			podsAndDeployments = append(podsAndDeployments, downstream)
+		case *kubernetes.Deployment:
+			podsAndDeployments = append(podsAndDeployments, downstream)
+		}
+	}
+
+	var deployedTo core.Resource
+
+	for _, deployable := range podsAndDeployments {
+		if deployedTo != nil {
+			break
+		}
+		for _, resource := range dag.GetDownstreamResources(deployable) {
+			switch resource.(type) {
+			case *EksFargateProfile:
+				deployedTo = resource
+			case *EksNodeGroup:
+				deployedTo = resource
+			}
+		}
+
+		if deployedTo == nil {
+			if len(fargateProfiles) > 0 {
+				deployedTo = fargateProfiles[0]
+			} else if len(nodeGroups) > 0 {
+				deployedTo = nodeGroups[0]
+			}
+		}
+		if deployedTo != nil {
+			for _, pod := range podsAndDeployments {
+				dag.AddDependency(pod, deployedTo)
+			}
+		}
+		dag.AddDependency(deployable, deployedTo)
+	}
+
+	return nil
 }

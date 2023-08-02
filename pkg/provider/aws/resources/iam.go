@@ -166,11 +166,10 @@ func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) er
 	role.ConstructRefs = params.Refs.Clone()
 
 	existingRole := dag.GetResource(role.Id())
-	if existingRole != nil {
-		return fmt.Errorf("iam role with name %s already exists", role.Name)
+	if existingRole == nil {
+		dag.AddResource(role)
 	}
 
-	dag.AddResource(role)
 	return nil
 }
 

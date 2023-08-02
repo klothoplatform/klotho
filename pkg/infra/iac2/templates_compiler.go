@@ -691,6 +691,8 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf("%s.targetGroupArn", tc.getVarName(resource)), nil
 	case resources.EFS_MOUNT_PATH_IAC_VALUE:
 		return "`/mnt/" + fmt.Sprintf("${%s.rootDirectory.path}`", tc.getVarName(resource)), nil
+	case resources.CLUSTER_EFS_RESOURCE_TAG_IAC_VALUE:
+		return "\"aws:ResourceTag/efs.csi.aws.com/cluster\"", nil
 	}
 
 	return "", errors.Errorf("unsupported IaC Value Property %T.%s", resource, property)

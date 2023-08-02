@@ -76,6 +76,15 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksNodeGroup]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksNodeGroup]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EfsMountTarget]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *kubernetes.Manifest]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EfsFileSystem]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EfsMountTarget]{
+		Configure: func(pod *kubernetes.Pod, mountTarget *resources.EfsMountTarget, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			_, err := resources.MountEfsVolume(pod, mountTarget, dag)
+			return err
+		},
+	},
 
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksNodeGroup]{},

@@ -2,11 +2,10 @@ package knowledgebase
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
+	k8sResources "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 )
 
 var IamKB = knowledgebase.Build(
@@ -154,13 +153,22 @@ var IamKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.OpenIdConnectProvider]{
 		Configure: func(role *resources.IamRole, oidc *resources.OpenIdConnectProvider, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if strings.Contains(role.Name, "alb-controller") {
-				role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy("aws-load-balancer-controller", oidc)
-				return nil
-			}
 			if len(role.ConstructRefs) > 1 {
 				return fmt.Errorf("iam role %s must only have one construct ref, but has %d, %s", role.Name, len(role.ConstructRefs), role.ConstructRefs)
 			}
+
+			var upstreamServiceAccount *k8sResources.ServiceAccount
+			for _, res := range dag.GetUpstreamResources(role) {
+				if sa, ok := res.(*k8sResources.ServiceAccount); ok {
+					upstreamServiceAccount = sa
+					break
+				}
+			}
+			if upstreamServiceAccount != nil {
+				role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(upstreamServiceAccount.Name, oidc)
+				return nil
+			}
+
 			var ref core.ResourceId
 			for cons := range role.ConstructRefs {
 				ref = cons
