@@ -294,6 +294,9 @@ func GetMapDecoder(result interface{}) *mapstructure.Decoder {
 }
 
 func (s *BaseConstructSet) Add(k BaseConstruct) {
+	if k == nil {
+		return
+	}
 	if *s == nil {
 		*s = make(BaseConstructSet)
 	}
