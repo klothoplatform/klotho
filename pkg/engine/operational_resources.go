@@ -562,6 +562,21 @@ func configureField(val interface{}, field reflect.Value) {
 				}
 			}
 		}
+	case reflect.Map:
+		// if the field is a map[string]string, we need to unbox the map[string]interface{} into a map[string]string
+		requiresMapStringString := false
+		if _, ok := field.Interface().(map[string]string); ok {
+			requiresMapStringString = true
+		}
+		if unboxed, ok := val.(map[string]interface{}); requiresMapStringString && ok {
+			mapStringString := make(map[string]string)
+			for k, v := range unboxed {
+				mapStringString[k] = fmt.Sprintf("%s", v)
+			}
+			field.Set(reflect.ValueOf(mapStringString))
+		} else {
+			field.Set(reflect.ValueOf(val))
+		}
 	default:
 		field.Set(reflect.ValueOf(val))
 	}
