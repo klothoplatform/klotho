@@ -2,6 +2,7 @@ package knowledgebase
 
 import (
 	"fmt"
+	v1 "k8s.io/api/core/v1"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -76,6 +77,33 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksFargateProfile]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksNodeGroup]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksNodeGroup]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EcrImage]{
+		Configure: func(pod *kubernetes.Pod, image *resources.EcrImage, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if pod.Object == nil {
+				return fmt.Errorf("pod %s has no object", pod.Name)
+			}
+			value := resources.GenerateImagePlaceholder(image.Name)
+			imagePlaceholder := fmt.Sprintf("{{ .Values.%s }}", value)
+
+			for _, container := range pod.Object.Spec.Containers {
+				// Skip if the pod already has this container
+				if container.Name == value {
+					return nil
+				}
+			}
+
+			pod.Object.Spec.Containers = append(pod.Object.Spec.Containers, v1.Container{
+				Name:  value,
+				Image: imagePlaceholder,
+			})
+			if pod.Transformations == nil {
+				pod.Transformations = make(map[string]core.IaCValue)
+			}
+			pod.Transformations[value] = core.IaCValue{ResourceId: image.Id(), Property: resources.ID_IAC_VALUE}
+			dag.AddDependency(pod, image)
+			return nil
+		},
+	},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EfsMountTarget]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *kubernetes.Manifest]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EfsFileSystem]{},
