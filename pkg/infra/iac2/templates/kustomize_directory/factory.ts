@@ -4,7 +4,7 @@ import * as pulumi_k8s from '@pulumi/kubernetes'
 interface Args {
     Name: string
     Directory: string
-    ClustersProvider: pulumi_k8s.Provider
+    clusterProvider: pulumi_k8s.Provider
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
 
@@ -17,7 +17,7 @@ function create(args: Args): pulumi_k8s.kustomize.Directory {
         },
         {
             dependsOn: args.dependsOn,
-            provider: args.ClustersProvider,
+            provider: args.clusterProvider,
         }
     )
 }

@@ -238,6 +238,10 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 	if err != nil {
 		return err
 	}
+	if reflect.DeepEqual(ResourceCreationTemplate{}, tmpl) {
+		zap.S().Debugf("Skipped rendering empty template for resource %s", resource.Id())
+		return nil
+	}
 
 	deps := tc.resourceGraph.GetDownstreamResources(resource)
 	for _, dep := range deps {
@@ -275,6 +279,24 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 			case "awsProfile":
 				inputArgs[fieldName] = stringTemplateValue{value: "awsProfile", raw: "awsProfile"}
 				return
+			case "clusterProvider":
+				providerVar := ""
+				switch k8sResource := resource.(type) {
+				case *kubernetes.Manifest:
+					p := &KubernetesProvider{Name: fmt.Sprintf("%s-provider", k8sResource.Cluster.Name)}
+					providerVar = tc.getVarNameByResourceId(p.Id())
+				case *kubernetes.HelmChart:
+					p := &KubernetesProvider{Name: fmt.Sprintf("%s-provider", k8sResource.Cluster.Name)}
+					providerVar = tc.getVarNameByResourceId(p.Id())
+				case *kubernetes.KustomizeDirectory:
+					p := &KubernetesProvider{Name: fmt.Sprintf("%s-provider", k8sResource.Cluster.Name)}
+					providerVar = tc.getVarNameByResourceId(p.Id())
+				}
+
+				if providerVar != "" {
+					inputArgs[fieldName] = stringTemplateValue{value: providerVar, raw: providerVar}
+					return
+				}
 			}
 			childVal := resourceVal.FieldByName(fieldName)
 			if !childVal.IsValid() {
@@ -363,7 +385,7 @@ func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 	for i := 0; i < numDeps; i++ {
 		res := upstreamResources[i]
 		switch res.(type) {
-		case *resources.Region, *resources.AvailabilityZones, *resources.AccountId:
+		case *resources.Region, *resources.AvailabilityZones, *resources.AccountId, kubernetes.ManifestFile:
 			continue
 		case *kubernetes.HelmChart:
 			wrapping.actualVars = append(wrapping.actualVars, fmt.Sprintf("%s.ready", tc.getVarName(res)))
@@ -739,12 +761,18 @@ func (tc TemplatesCompiler) getVarNameByResourceId(id core.ResourceId) string {
 	return resolvedName
 }
 
-// parseVal parses the supplied value for nested tempaltes
+// parseVal parses the supplied value for nested templates
 func (tc TemplatesCompiler) parseVal(val reflect.Value) (string, error) {
 	return tc.resolveStructInput(tc.ctx.rootVal, val, tc.ctx.useDoubleQuotes, tc.ctx.appliedOutputs)
 }
 
 func (tp templatesProvider) getTemplate(v core.Resource) (ResourceCreationTemplate, error) {
+	if _, ok := v.(kubernetes.ManifestFile); ok {
+		if _, isManifest := v.(*kubernetes.Manifest); !isManifest {
+			// We only generate templates for manifest structs, not other kubernetes objects implementing ManifestFile
+			return ResourceCreationTemplate{}, nil
+		}
+	}
 	return tp.getTemplateForType(structName(v))
 }
 

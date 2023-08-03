@@ -3,12 +3,13 @@ import * as pulumi_k8s from '@pulumi/kubernetes'
 
 interface Args {
     Name: string
+    Directory?: string
     Chart?: string
     Repo?: string
     Values?: Record<string, pulumi.Output<any>>
     Version?: string
     Namespace?: string
-    ClustersProvider: pulumi_k8s.Provider
+    clusterProvider: pulumi_k8s.Provider
     dependsOn: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
 
@@ -25,8 +26,8 @@ function create(args: Args): pulumi_k8s.helm.v3.Chart {
                 repo: args.Repo,
             },
             //TMPL {{- end }}
-            //TMPL {{- if not .Chart.Raw }}
-            path: `./charts/${args.Name}`,
+            //TMPL {{- if and (not .Chart.Raw) .Directory.Raw }}
+            path: args.Directory,
             //TMPL {{- end }}
             //TMPL {{- if .Namespace.Raw }}
             namespace: args.Namespace,
@@ -39,7 +40,7 @@ function create(args: Args): pulumi_k8s.helm.v3.Chart {
             //TMPL {{- end }}
         },
         {
-            provider: args.ClustersProvider,
+            provider: args.clusterProvider,
             dependsOn: args.dependsOn,
         }
     )
