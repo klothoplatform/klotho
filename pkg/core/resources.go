@@ -248,7 +248,7 @@ func (id ResourceId) IsZero() bool {
 
 func (id ResourceId) String() string {
 	s := id.Provider + ":" + id.Type
-	if id.Namespace != "" {
+	if id.Namespace != "" || strings.Contains(id.Name, ":") {
 		s += ":" + id.Namespace
 	}
 	return s + ":" + id.Name
