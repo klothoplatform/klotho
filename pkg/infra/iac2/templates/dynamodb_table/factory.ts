@@ -4,7 +4,7 @@ import * as awsInputs from '@pulumi/aws/types/input'
 
 interface Args {
     Name: string
-    Attributes: pulumi.Input<pulumi.Input<inputs.dynamodb.TableAttribute>[]>
+    Attributes: pulumi.Input<pulumi.Input<awsInputs.dynamodb.TableAttribute>[]>
     HashKey: string
     RangeKey: string
     BillingMode: string

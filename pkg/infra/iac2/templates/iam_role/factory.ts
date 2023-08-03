@@ -1,11 +1,11 @@
 import * as aws from '@pulumi/aws'
-import * as awsInput from '@pulumi/aws/types/input'
+import * as awsInputs from '@pulumi/aws/types/input'
 import * as pulumi from '@pulumi/pulumi'
 
 interface Args {
     Name: string
     AssumeRolePolicyDoc: string
-    InlinePolicies: pulumi.Input<pulumi.Input<input.iam.RoleInlinePolicy>[]>
+    InlinePolicies: pulumi.Input<pulumi.Input<awsInputs.iam.RoleInlinePolicy>[]>
     ManagedPolicies: pulumi.Output<string>[]
     AwsManagedPolicies: string[]
 }

@@ -1,9 +1,9 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
-import * as awsInput from '@pulumi/aws/types/input'
+import * as awsInputs from '@pulumi/aws/types/input'
 
 interface Args {
-    LifecyclePolicies: aws_input.efs.FileSystemLifecyclePolicy[]
+    LifecyclePolicies: awsInputs.efs.FileSystemLifecyclePolicy[]
     ThroughputMode: string
     ProvisionedThroughputInMibps: number
     PerformanceMode: string
