@@ -1,8 +1,9 @@
 package engine
 
 import (
-	docker "github.com/klothoplatform/klotho/pkg/provider/docker/resources"
 	"sort"
+
+	docker "github.com/klothoplatform/klotho/pkg/provider/docker/resources"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -41,6 +42,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 		awsResources.ROUTE_53_HOSTED_ZONE_TYPE,
 		awsResources.SNS_TOPIC_TYPE,
 		awsResources.SQS_QUEUE_TYPE,
+		awsResources.SES_EMAIL_IDENTITY,
 		k8sResources.DEPLOYMENT_TYPE,
 		k8sResources.POD_TYPE,
 		k8sResources.HELM_CHART_TYPE,
