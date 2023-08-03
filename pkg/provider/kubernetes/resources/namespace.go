@@ -1,6 +1,8 @@
 package resources
 
 import (
+	"fmt"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -66,4 +68,18 @@ func (namespace *Namespace) GetResourcesInNamespace(dag *core.ResourceGraph) []c
 		}
 	}
 	return resources
+}
+
+func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+	if namespace.Cluster.Name == "" {
+		return fmt.Errorf("namespace %s has no cluster", namespace.Name)
+	}
+
+	SetDefaultObjectMeta(namespace, namespace.Object.GetObjectMeta())
+	namespace.FilePath = ManifestFilePath(namespace, namespace.Cluster)
+	return nil
+}
+
+func (namespace *Namespace) Values() map[string]core.IaCValue {
+	return namespace.Transformations
 }

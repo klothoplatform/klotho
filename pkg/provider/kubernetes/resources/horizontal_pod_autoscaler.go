@@ -1,7 +1,9 @@
 package resources
 
 import (
+	"fmt"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	autoscaling "k8s.io/api/autoscaling/v2"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -59,4 +61,18 @@ func (hpa *HorizontalPodAutoscaler) GetResourcesUsingHPA(dag *core.ResourceGraph
 		}
 	}
 	return resources
+}
+
+func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+	if hpa.Cluster.Name == "" {
+		return fmt.Errorf("horizontal hpa autoscaler %s has no cluster", hpa.Name)
+	}
+
+	SetDefaultObjectMeta(hpa, hpa.Object.GetObjectMeta())
+	hpa.FilePath = ManifestFilePath(hpa, hpa.Cluster)
+	return nil
+}
+
+func (hpa *HorizontalPodAutoscaler) Values() map[string]core.IaCValue {
+	return hpa.Transformations
 }

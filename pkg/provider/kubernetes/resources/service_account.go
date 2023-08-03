@@ -1,7 +1,9 @@
 package resources
 
 import (
+	"fmt"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -65,4 +67,18 @@ func (sa *ServiceAccount) GetResourcesUsingServiceAccount(dag *core.ResourceGrap
 		}
 	}
 	return pods
+}
+
+func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+	if sa.Cluster.Name == "" {
+		return fmt.Errorf("service account %s has no cluster", sa.Name)
+	}
+
+	SetDefaultObjectMeta(sa, sa.Object.GetObjectMeta())
+	sa.FilePath = ManifestFilePath(sa, sa.Cluster)
+	return nil
+}
+
+func (sa *ServiceAccount) Values() map[string]core.IaCValue {
+	return sa.Transformations
 }

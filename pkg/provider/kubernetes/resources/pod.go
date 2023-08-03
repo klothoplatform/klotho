@@ -3,6 +3,9 @@ package resources
 import (
 	"errors"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"path"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider"
@@ -97,4 +100,31 @@ func (pod *Pod) AddEnvVar(iacVal core.IaCValue, envVarName string) error {
 		pod.Transformations[v] = iacVal
 	}
 	return nil
+}
+
+func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+	if pod.Cluster.Name == "" {
+		return fmt.Errorf("pod %s has no cluster", pod.Name)
+	}
+	SetDefaultObjectMeta(pod, pod.Object.GetObjectMeta())
+	pod.FilePath = ManifestFilePath(pod, pod.Cluster)
+	return nil
+}
+
+func SetDefaultObjectMeta(resource core.Resource, meta v1.Object) {
+	meta.SetName(resource.Id().Name)
+	if meta.GetLabels() == nil {
+		meta.SetLabels(make(map[string]string))
+	}
+	labels := meta.GetLabels()
+	labels["klothoId"] = resource.Id().String()
+	meta.SetLabels(labels)
+}
+
+func ManifestFilePath(file ManifestFile, clusterId core.ResourceId) string {
+	return path.Join("charts", clusterId.Name, "templates", fmt.Sprintf("%s_%s.yaml", file.Id().Type, file.Id().Name))
+}
+
+func (pod *Pod) Values() map[string]core.IaCValue {
+	return pod.Transformations
 }

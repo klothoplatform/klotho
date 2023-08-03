@@ -2,9 +2,8 @@ package resources
 
 import (
 	"bytes"
-	"path"
-
 	"github.com/klothoplatform/klotho/pkg/core"
+	"path"
 )
 
 const HELM_CHART_TYPE = "helm_chart"

@@ -2,8 +2,8 @@ package resources
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
-	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 )
 
 type (
@@ -20,6 +20,11 @@ type (
 		Content         []byte
 		Transformations map[string]core.IaCValue
 		Cluster         core.ResourceId
+	}
+
+	ManifestWithValues interface {
+		ManifestFile
+		Values() map[string]core.IaCValue
 	}
 )
 

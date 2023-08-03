@@ -3,8 +3,8 @@ package resources
 import (
 	"errors"
 	"fmt"
-
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
 	apps "k8s.io/api/apps/v1"
@@ -98,4 +98,18 @@ func (deployment *Deployment) AddEnvVar(iacVal core.IaCValue, envVarName string)
 		deployment.Transformations[v] = iacVal
 	}
 	return nil
+}
+
+func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+	if deployment.Cluster.Name == "" {
+		return fmt.Errorf("deployment %s has no cluster", deployment.Name)
+	}
+
+	SetDefaultObjectMeta(deployment, deployment.Object.GetObjectMeta())
+	deployment.FilePath = ManifestFilePath(deployment, deployment.Cluster)
+	return nil
+}
+
+func (deployment *Deployment) Values() map[string]core.IaCValue {
+	return deployment.Transformations
 }

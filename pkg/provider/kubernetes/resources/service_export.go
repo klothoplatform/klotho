@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"fmt"
 	cloudmap "github.com/aws/aws-cloud-map-mcs-controller-for-k8s/pkg/apis/multicluster/v1alpha1"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/provider"
@@ -49,4 +50,13 @@ func (se *ServiceExport) Kind() string {
 
 func (se *ServiceExport) Path() string {
 	return se.FilePath
+}
+
+func (se *ServiceExport) MakeOperational(dag *core.ResourceGraph, appName string) error {
+	if se.Cluster.Name == "" {
+		return fmt.Errorf("service export %s has no cluster", se.Name)
+	}
+	SetDefaultObjectMeta(se, se.Object.GetObjectMeta())
+	se.FilePath = ManifestFilePath(se, se.Cluster)
+	return nil
 }
