@@ -139,6 +139,6 @@ func (b *PluginSetBuilder) AddCSharp() error {
 }
 
 func (b *PluginSetBuilder) AddPulumi() error {
-	b.IaC = append(b.IaC, iac2.Plugin{Config: b.Cfg})
+	b.IaC = append(b.IaC, iac2.ChartPlugin{Config: b.Cfg}, iac2.Plugin{Config: b.Cfg})
 	return nil
 }
