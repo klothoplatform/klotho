@@ -3,33 +3,33 @@ type: route_table
 rules:
   - enforcement: exactly_one
     direction: downstream
-    resource_types: 
-    - vpc
+    resource_types:
+      - vpc
     set_field: Vpc
     unsatisfied_action:
       operation: create
   - enforcement: conditional
     direction: upstream
-    resource_types: 
-    - subnet_private
+    resource_types:
+      - subnet_private
     rules:
-    - enforcement: exactly_one
-      direction: downstream
-      resource_types: 
-      - nat_gateway
-      unsatisfied_action:
-        operation: create
-        unique: true
+      - enforcement: exactly_one
+        direction: downstream
+        resource_types:
+          - nat_gateway
+        unsatisfied_action:
+          operation: create
+          unique: true
   - enforcement: conditional
     direction: upstream
-    resource_types: 
-    - subnet_public
+    resource_types:
+      - subnet_public
     rules:
-    - enforcement: exactly_one
-      direction: downstream
-      resource_types: 
-      - internet_gateway
-      unsatisfied_action:
-        operation: create
+      - enforcement: exactly_one
+        direction: downstream
+        resource_types:
+          - internet_gateway
+        unsatisfied_action:
+          operation: create
 delete_context:
   requires_no_upstream: true

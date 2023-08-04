@@ -1,19 +1,19 @@
 provider: kubernetes
 type: target_group_binding
 rules:
-- enforcement: exactly_one
-  direction: downstream
-  classifications:
-  - cluster
-  - kubernetes
-  set_field: Cluster
-  unsatisfied_action:
-    operation: create
-- enforcement: exactly_one
-  direction: upstream
-  classifications:
-  - target_group
-  unsatisfied_action:
-    operation: error
+  - enforcement: exactly_one
+    direction: downstream
+    classifications:
+      - cluster
+      - kubernetes
+    set_field: Cluster
+    unsatisfied_action:
+      operation: create
+  - enforcement: exactly_one
+    direction: upstream
+    classifications:
+      - target_group
+    unsatisfied_action:
+      operation: error
 delete_context:
   requires_no_upstream_or_downstream: true

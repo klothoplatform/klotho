@@ -3,16 +3,16 @@ type: ecr_image
 rules:
   - enforcement: exactly_one
     direction: downstream
-    resource_types: 
-    - ecr_repo
+    resource_types:
+      - ecr_repo
     set_field: Repo
     unsatisfied_action:
       operation: create
 configuration:
   - field: ExtraOptions
-    value: 
-    - --platform 
-    - linux/amd64
-    - --quiet
+    value:
+      - --platform
+      - linux/amd64
+      - --quiet
 delete_context:
   requires_no_upstream: true

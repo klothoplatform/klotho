@@ -3,19 +3,19 @@ type: sns_subscription
 rules:
   - enforcement: exactly_one
     direction: upstream
-    resource_types: 
-    - sns_topic
+    resource_types:
+      - sns_topic
     set_field: Topic
     unsatisfied_action:
       operation: create
       unique: true
   - enforcement: conditional
     direction: downstream
-    resource_types: 
-    - iam_role
+    resource_types:
+      - iam_role
     set_field: SubscriptionRoleArn
 configuration:
-- field: RawMessageDelivery
-  value: false
+  - field: RawMessageDelivery
+    value: false
 delete_context:
   requires_no_upstream_or_downstream: true

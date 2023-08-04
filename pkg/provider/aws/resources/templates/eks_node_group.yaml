@@ -3,50 +3,48 @@ type: eks_node_group
 rules:
   - enforcement: exactly_one
     direction: downstream
-    resource_types: 
-    - eks_cluster
+    resource_types:
+      - eks_cluster
     set_field: Cluster
-    unsatisfied_action: 
+    unsatisfied_action:
       operation: create
   - enforcement: exactly_one
     direction: downstream
-    resource_types: 
-    - iam_role
+    resource_types:
+      - iam_role
     set_field: NodeRole
-    unsatisfied_action: 
+    unsatisfied_action:
       operation: create
       unique: true
   - enforcement: exactly_one
     direction: downstream
-    resource_types: 
-    - vpc
+    resource_types:
+      - vpc
     remove_direct_dependency: true
     rules:
-    - enforcement: any_available
-      direction: downstream
-      resource_types: 
-      - subnet_private
-      - subnet_public
-      set_field: Subnets
-      unsatisfied_action: 
-        operation: create
-        default_type: subnet_private
-      num_needed: 2
+      - enforcement: any_available
+        direction: downstream
+        resource_types:
+          - subnet_private
+          - subnet_public
+        set_field: Subnets
+        unsatisfied_action:
+          operation: create
+          default_type: subnet_private
+        num_needed: 2
 configuration:
-- field: DesiredSize
-  value: 2
-- field: MaxSize
-  value: 2
-- field: MinSize
-  value: 1
-- field: InstanceTypes
-  value:
-  - t3.medium
-- field: AmiType
-  value: AL2_x86_64
-- field: DiskSize
-  value: 20
+  - field: DesiredSize
+    value: 2
+  - field: MaxSize
+    value: 2
+  - field: MinSize
+    value: 1
+  - field: InstanceTypes
+    value:
+      - t3.medium
+  - field: AmiType
+    value: AL2_x86_64
+  - field: DiskSize
+    value: 20
 delete_context:
   requires_no_upstream: true
-
-    

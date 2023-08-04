@@ -3,40 +3,40 @@ type: elasticache_cluster
 rules:
   - enforcement: exactly_one
     direction: downstream
-    resource_types: 
-    - vpc
+    resource_types:
+      - vpc
     remove_direct_dependency: true
     rules:
-    - enforcement: any_available
-      direction: downstream
-      resource_types: 
-      - security_group
-      set_field: SecurityGroups
-      num_needed: 1
-      unsatisfied_action:
-        operation: create
-    - enforcement: exactly_one
-      direction: downstream
-      resource_types: 
-      - elasticache_subnetgroup
-      set_field: SubnetGroup
-      unsatisfied_action:
-        operation: create
+      - enforcement: any_available
+        direction: downstream
+        resource_types:
+          - security_group
+        set_field: SecurityGroups
+        num_needed: 1
+        unsatisfied_action:
+          operation: create
+      - enforcement: exactly_one
+        direction: downstream
+        resource_types:
+          - elasticache_subnetgroup
+        set_field: SubnetGroup
+        unsatisfied_action:
+          operation: create
   - enforcement: exactly_one
     direction: downstream
     resource_types:
-    - log_group
+      - log_group
     set_field: CloudwatchGroup
     unsatisfied_action:
       operation: create
       unique: true
 configuration:
-- field: Engine
-  value: redis
-- field: NumCacheNodes
-  value: 1
-- field: NodeType
-  value: cache.t2.micro
+  - field: Engine
+    value: redis
+  - field: NumCacheNodes
+    value: 1
+  - field: NodeType
+    value: cache.t2.micro
 delete_context:
   requires_no_upstream: true
   requires_no_downstream: true

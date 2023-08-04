@@ -60,6 +60,33 @@ var IamKB = knowledgebase.Build(
 		},
 		DirectEdgeOnly: true,
 	},
+	knowledgebase.EdgeBuilder[*resources.AppRunnerService, *resources.IamRole]{
+		Configure: func(service *resources.AppRunnerService, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			var APP_RUNNER_ASSUMER_ROLE_POLICY = &resources.PolicyDocument{
+				Version: resources.VERSION,
+				Statement: []resources.StatementEntry{
+					{
+						Action: []string{"sts:AssumeRole"},
+						Principal: &resources.Principal{
+							Service: "build.apprunner.amazonaws.com",
+						},
+						Effect: "Allow",
+					},
+					{
+						Action: []string{"sts:AssumeRole"},
+						Principal: &resources.Principal{
+							Service: "tasks.apprunner.amazonaws.com",
+						},
+						Effect: "Allow",
+					},
+				},
+			}
+			role.AssumeRolePolicyDoc = APP_RUNNER_ASSUMER_ROLE_POLICY
+			role.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess"})
+			return nil
+		},
+		DirectEdgeOnly: true,
+	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.DynamodbTable]{
 		Configure: func(role *resources.IamRole, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			actions := []string{"dynamodb:*"}

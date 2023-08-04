@@ -1,21 +1,21 @@
 provider: kubernetes
 type: deployment
 rules:
-- enforcement: exactly_one
-  direction: downstream
-  classifications:
-  - cluster
-  - kubernetes
-  set_field: Cluster
-  unsatisfied_action:
-    operation: create
-- enforcement: exactly_one
-  direction: downstream
-  resource_types:
-  - service_account
-  unsatisfied_action:
-    operation: create
-    unique: true
+  - enforcement: exactly_one
+    direction: downstream
+    classifications:
+      - cluster
+      - kubernetes
+    set_field: Cluster
+    unsatisfied_action:
+      operation: create
+  - enforcement: exactly_one
+    direction: downstream
+    resource_types:
+      - service_account
+    unsatisfied_action:
+      operation: create
+      unique: true
 delete_context:
   requires_no_upstream: true
   requires_explicit_delete: true

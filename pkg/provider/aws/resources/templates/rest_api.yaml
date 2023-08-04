@@ -3,17 +3,17 @@ type: rest_api
 rules:
   - enforcement: any_available
     direction: upstream
-    resource_types: 
-    - api_stage
+    resource_types:
+      - api_stage
     num_needed: 1
     unsatisfied_action:
       operation: create
       unique: true
 configuration:
-- field: BinaryMediaTypes
-  value: 
-  - application/octet-stream
-  - image/*
+  - field: BinaryMediaTypes
+    value:
+      - application/octet-stream
+      - image/*
 delete_context:
   requires_no_upstream: true
   requires_no_downstream: true
