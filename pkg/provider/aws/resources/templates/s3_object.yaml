@@ -4,7 +4,7 @@ rules:
   - enforcement: exactly_one
     direction: downstream
     resource_types:
-    - s3_bucket
+      - s3_bucket
     set_field: Bucket
     unsatisfied_action:
       operation: error

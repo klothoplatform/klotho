@@ -3,14 +3,14 @@ type: route53_hosted_zone
 rules:
   - enforcement: any_available
     direction: downstream
-    resource_types: 
-    - vpc
+    resource_types:
+      - vpc
     set_field: Vpcs
     unsatisfied_action:
       operation: create
 configuration:
-- field: ForceDestroy
-  value: true
+  - field: ForceDestroy
+    value: true
 delete_context:
   requires_no_upstream: true
   requires_explicit_delete: true

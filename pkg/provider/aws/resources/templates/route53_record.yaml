@@ -3,8 +3,8 @@ type: route53_record
 rules:
   - enforcement: exactly_one
     direction: downstream
-    resource_types: 
-    - route53_hosted_zone
+    resource_types:
+      - route53_hosted_zone
     set_field: Zone
     unsatisfied_action:
       operation: error

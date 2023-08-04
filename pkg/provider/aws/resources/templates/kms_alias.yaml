@@ -3,8 +3,8 @@ type: kms_alias
 rules:
   - enforcement: exactly_one
     direction: downstream
-    resource_types: 
-    - kms_key
+    resource_types:
+      - kms_key
     set_field: TargetKey
     unsatisfied_action:
       operation: error

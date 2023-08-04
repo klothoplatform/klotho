@@ -3,15 +3,15 @@ type: ecs_service
 rules:
   - enforcement: exactly_one
     direction: downstream
-    resource_types: 
-    - ecs_cluster
+    resource_types:
+      - ecs_cluster
     set_field: Cluster
     unsatisfied_action:
       operation: create
   - enforcement: exactly_one
     direction: downstream
-    resource_types: 
-    - ecs_task_definition
+    resource_types:
+      - ecs_task_definition
     set_field: TaskDefinition
     unsatisfied_action:
       operation: create
@@ -19,33 +19,33 @@ rules:
   - enforcement: exactly_one
     direction: downstream
     resource_types:
-    - vpc
+      - vpc
     remove_direct_dependency: true
     rules:
-    - enforcement: any_available
-      direction: downstream
-      resource_types: 
-      - subnet_private
-      - subnet_public
-      set_field: Subnet
-      unsatisfied_action: 
-        operation: create
-        default_type: subnet_private
-    - enforcement: any_available
-      direction: downstream
-      resource_types: 
-      - security_group
-      set_field: SecurityGroups
-      num_needed: 1
-      unsatisfied_action: 
-        operation: create
+      - enforcement: any_available
+        direction: downstream
+        resource_types:
+          - subnet_private
+          - subnet_public
+        set_field: Subnet
+        unsatisfied_action:
+          operation: create
+          default_type: subnet_private
+      - enforcement: any_available
+        direction: downstream
+        resource_types:
+          - security_group
+        set_field: SecurityGroups
+        num_needed: 1
+        unsatisfied_action:
+          operation: create
 configuration:
-- field: LaunchType
-  value: FARGATE
-- field: DesiredCount
-  value: 1
-- field: ForceNewDeployment
-  value: true
+  - field: LaunchType
+    value: FARGATE
+  - field: DesiredCount
+    value: 1
+  - field: ForceNewDeployment
+    value: true
 delete_context:
   requires_no_upstream: true
   requires_no_downstream: true

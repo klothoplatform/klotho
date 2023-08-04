@@ -6,9 +6,9 @@ configuration:
   - field: HashKey
     value: id
   - field: Attributes
-    value: 
-    - Name: id
-      Type: S
+    value:
+      - Name: id
+        Type: S
 delete_context:
   requires_no_upstream: true
   requires_no_downstream: true

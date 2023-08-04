@@ -13,6 +13,7 @@ func ListAll() []core.Resource {
 		&ApiMethod{},
 		&ApiResource{},
 		&ApiStage{},
+		&AppRunnerService{},
 		&AvailabilityZones{},
 		&CloudfrontDistribution{},
 		&DynamodbTable{},

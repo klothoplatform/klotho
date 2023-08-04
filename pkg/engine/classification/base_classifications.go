@@ -2,6 +2,7 @@ package classification
 
 var BaseClassificationDocument = &ClassificationDocument{
 	Classifications: map[string]Classification{
+		"aws:app_runner_service:":  {Gives: []Gives{}, Is: []string{"compute", "serverless"}},
 		"aws:dynamodb_table:":      {Gives: []Gives{}, Is: []string{"storage", "kv", "nosql"}},
 		"aws:ec2_instance:":        {Gives: []Gives{}, Is: []string{"compute", "instance"}},
 		"aws:ecs_cluster:":         {Gives: []Gives{}, Is: []string{"cluster"}},

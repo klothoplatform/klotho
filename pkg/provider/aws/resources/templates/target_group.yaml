@@ -3,8 +3,8 @@ type: target_group
 rules:
   - enforcement: exactly_one
     direction: downstream
-    resource_types: 
-    - vpc
+    resource_types:
+      - vpc
     set_field: Vpc
     unsatisfied_action:
       operation: error

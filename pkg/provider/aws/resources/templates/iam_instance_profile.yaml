@@ -3,8 +3,8 @@ type: iam_instance_profile
 rules:
   - enforcement: exactly_one
     direction: downstream
-    resource_types: 
-    - iam_role
+    resource_types:
+      - iam_role
     set_field: Role
     unsatisfied_action:
       operation: create

@@ -1,17 +1,17 @@
 provider: aws
 type: api_method
 rules:
-- enforcement: exactly_one
-  direction: upstream
-  resource_types:
-  - rest_api
-  set_field: RestApi
-  unsatisfied_action:
-    operation: create
+  - enforcement: exactly_one
+    direction: upstream
+    resource_types:
+      - rest_api
+    set_field: RestApi
+    unsatisfied_action:
+      operation: create
 configuration:
-- field: HttpMethod
-  value: ANY
-- field: Authorization
-  value: none
+  - field: HttpMethod
+    value: ANY
+  - field: Authorization
+    value: none
 delete_context:
   requires_no_upstream_or_downstream: true

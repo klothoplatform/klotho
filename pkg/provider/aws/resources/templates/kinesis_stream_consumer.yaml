@@ -3,8 +3,8 @@ type: kinesis_stream_consumer
 rules:
   - enforcement: exactly_one
     direction: upstream
-    resource_types: 
-    - kinesis_stream
+    resource_types:
+      - kinesis_stream
     set_field: Stream
     unsatisfied_action:
       operation: error

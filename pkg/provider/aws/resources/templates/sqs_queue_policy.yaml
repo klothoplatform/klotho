@@ -3,8 +3,8 @@ type: sqs_queue_policy
 rules:
   - enforcement: any_available
     direction: downstream
-    resource_types: 
-    - sqs_queue
+    resource_types:
+      - sqs_queue
     set_field: Queues
 delete_context:
   requires_no_upstream: true
