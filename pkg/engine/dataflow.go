@@ -27,6 +27,7 @@ type resourcePostFilter func(resource core.Resource, dag *core.ResourceGraph) bo
 func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	dataFlowDag := core.NewResourceGraph()
 	typesWeCareAbout := []string{
+		awsResources.APP_RUNNER_SERVICE_TYPE,
 		awsResources.LAMBDA_FUNCTION_TYPE,
 		awsResources.EC2_INSTANCE_TYPE,
 		awsResources.ECS_SERVICE_TYPE,
