@@ -15,6 +15,11 @@ import (
 	"go.uber.org/zap"
 )
 
+type OperationalResource interface {
+	core.Resource
+	MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error
+}
+
 func (e *Engine) MakeResourcesOperational(graph *core.ResourceGraph) (map[core.ResourceId]bool, error) {
 	zap.S().Debug("Engine Making resources operational and configuring resources")
 	operationalResources := map[core.ResourceId]bool{}
@@ -66,27 +71,14 @@ func (e *Engine) MakeResourcesOperational(graph *core.ResourceGraph) (map[core.R
 }
 
 func callMakeOperational(rg *core.ResourceGraph, resource core.Resource, appName string, classifier classification.Classifier) error {
-	method := reflect.ValueOf(resource).MethodByName("MakeOperational")
-	if method.IsValid() {
-		if rg.GetResource(resource.Id()) == nil {
-			return fmt.Errorf("resource with id %s cannot be made operational since it does not exist in the ResourceGraph", resource.Id())
-		}
-		var callArgs []reflect.Value
-		callArgs = append(callArgs, reflect.ValueOf(rg))
-		callArgs = append(callArgs, reflect.ValueOf(appName))
-		callArgs = append(callArgs, reflect.ValueOf(classifier))
-		eval := method.Call(callArgs)
-		if eval[0].IsNil() {
-			return nil
-		} else {
-			err, ok := eval[0].Interface().(error)
-			if !ok {
-				return fmt.Errorf("return type should be an error")
-			}
-			return err
-		}
+	operationalResource, ok := resource.(OperationalResource)
+	if !ok {
+		return nil
 	}
-	return nil
+	if rg.GetResource(resource.Id()) == nil {
+		return fmt.Errorf("resource with id %s cannot be made operational since it does not exist in the ResourceGraph", resource.Id())
+	}
+	return operationalResource.MakeOperational(rg, appName, classifier)
 }
 
 func (e *Engine) TemplateMakeOperational(dag *core.ResourceGraph, resource core.Resource, template core.ResourceTemplate) error {
