@@ -39,6 +39,8 @@ configuration:
     value: 2
   - field: MinSize
     value: 1
+  - field: MaxUnavailable
+    value: 1
   - field: InstanceTypes
     value:
       - t3.medium
