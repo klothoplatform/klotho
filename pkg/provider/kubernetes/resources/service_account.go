@@ -6,6 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -13,10 +14,15 @@ type (
 	ServiceAccount struct {
 		Name            string
 		ConstructRefs   core.BaseConstructSet `yaml:"-"`
-		Object          *corev1.Service
+		Object          *corev1.ServiceAccount
 		Transformations map[string]core.IaCValue
 		FilePath        string
 		Cluster         core.ResourceId
+	}
+
+	ServiceAccountCreateParams struct {
+		Name          string
+		ConstructRefs core.BaseConstructSet
 	}
 )
 
@@ -81,4 +87,16 @@ func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName strin
 
 func (sa *ServiceAccount) Values() map[string]core.IaCValue {
 	return sa.Transformations
+}
+
+func (sa *ServiceAccount) Create(dag *core.ResourceGraph, params ServiceAccountCreateParams) error {
+	sa.Name = fmt.Sprintf("%s-%s", "service_account", params.Name)
+	sa.ConstructRefs = params.ConstructRefs.Clone()
+	sa.Object = &corev1.ServiceAccount{
+		TypeMeta: v1.TypeMeta{
+			Kind:       "ServiceAccount",
+			APIVersion: "v1",
+		},
+	}
+	return nil
 }

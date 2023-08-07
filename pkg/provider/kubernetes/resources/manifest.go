@@ -57,3 +57,13 @@ func (manifest *Manifest) DeleteContext() core.DeleteContext {
 		RequiresNoUpstream: true,
 	}
 }
+
+func (manifest *Manifest) GetOutputFiles() []core.File {
+	if len(manifest.Content) > 0 {
+		return []core.File{&core.RawFile{
+			Content: manifest.Content,
+			FPath:   manifest.FilePath,
+		}}
+	}
+	return []core.File{}
+}
