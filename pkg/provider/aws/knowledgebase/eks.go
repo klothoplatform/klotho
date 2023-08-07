@@ -3,6 +3,8 @@ package knowledgebase
 import (
 	"fmt"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/aws-load-balancer-controller/apis/elbv2/v1beta1"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -14,14 +16,22 @@ import (
 var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.OpenIdConnectProvider, *resources.EksCluster]{
 		Configure: func(oidc *resources.OpenIdConnectProvider, cluster *resources.EksCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			oidc.Cluster = cluster
 			oidc.ClientIdLists = []string{"sts.amazonaws.com"}
+
+			if oidc.Region == nil {
+				oidc.Region = resources.NewRegion()
+			}
+			dag.AddDependenciesReflect(oidc)
 			return nil
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.EksCluster, *resources.Vpc]{},
 	knowledgebase.EdgeBuilder[*resources.EksCluster, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Kubeconfig, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*resources.EksCluster, *kubernetes.Kubeconfig]{},
+	knowledgebase.EdgeBuilder[*resources.EksCluster, *kubernetes.Kubeconfig]{
+		DeploymentOrderReversed: true,
+	},
 	knowledgebase.EdgeBuilder[*resources.EksCluster, *resources.SecurityGroup]{
 		Configure: func(cluster *resources.EksCluster, sg *resources.SecurityGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			sg.IngressRules = append(sg.IngressRules, resources.SecurityGroupRule{
@@ -62,7 +72,42 @@ var EksKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*kubernetes.ServiceAccount, *resources.IamRole]{},
+	knowledgebase.EdgeBuilder[*kubernetes.ServiceAccount, *resources.IamRole]{
+		// Links the service account to the IAM role using IRSA: https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
+		Configure: func(sa *kubernetes.ServiceAccount, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if sa.Object == nil {
+				return fmt.Errorf("service account %s has no object", sa.Name)
+			}
+
+			value := resources.GenerateRoleArnPlaceholder(role.Name)
+			roleArnPlaceholder := fmt.Sprintf("{{ .Values.%s }}", value)
+
+			if sa.Object.Annotations == nil {
+				sa.Object.Annotations = make(map[string]string)
+			}
+			sa.Object.Annotations["eks.amazonaws.com/role-arn"] = roleArnPlaceholder
+
+			if sa.Transformations == nil {
+				sa.Transformations = make(map[string]core.IaCValue)
+			}
+			sa.Transformations[value] = core.IaCValue{ResourceId: role.Id(), Property: resources.ID_IAC_VALUE}
+
+			// Sets the role's AssumeRolePolicyDocument to allow the service account to assume the role
+			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
+				AppName:     data.AppName,
+				ClusterName: sa.Cluster.Name,
+				Refs:        core.BaseConstructSetOf(sa),
+			})
+			if err != nil {
+				return err
+			}
+			assumeRolePolicy := resources.GetServiceAccountAssumeRolePolicy(sa.Object.Name, oidc)
+			role.AssumeRolePolicyDoc = assumeRolePolicy
+			dag.AddDependenciesReflect(role)
+
+			return nil
+		},
+	},
 	knowledgebase.EdgeBuilder[*resources.EksNodeGroup, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.EksAddon, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksCluster]{},
@@ -100,16 +145,46 @@ var EksKB = knowledgebase.Build(
 				pod.Transformations = make(map[string]core.IaCValue)
 			}
 			pod.Transformations[value] = core.IaCValue{ResourceId: image.Id(), Property: resources.ID_IAC_VALUE}
-			dag.AddDependency(pod, image)
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EcrImage]{
+		Configure: func(deployment *kubernetes.Deployment, image *resources.EcrImage, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if deployment.Object == nil {
+				return fmt.Errorf("deployment %s has no object", deployment.Name)
+			}
+			value := resources.GenerateImagePlaceholder(image.Name)
+			imagePlaceholder := fmt.Sprintf("{{ .Values.%s }}", value)
+
+			for _, container := range deployment.Object.Spec.Template.Spec.Containers {
+				// Skip if the deployment already has this container
+				if container.Name == value {
+					return nil
+				}
+			}
+
+			deployment.Object.Spec.Template.Spec.Containers = append(deployment.Object.Spec.Template.Spec.Containers, v1.Container{
+				Name:  value,
+				Image: imagePlaceholder,
+			})
+			if deployment.Transformations == nil {
+				deployment.Transformations = make(map[string]core.IaCValue)
+			}
+			deployment.Transformations[value] = core.IaCValue{ResourceId: image.Id(), Property: resources.ID_IAC_VALUE}
 			return nil
 		},
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EfsMountTarget]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Pod, *kubernetes.Manifest]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EfsFileSystem]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EfsMountTarget]{
 		Configure: func(pod *kubernetes.Pod, mountTarget *resources.EfsMountTarget, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			_, err := resources.MountEfsVolume(pod, mountTarget, dag)
+			_, err := resources.MountEfsVolume(pod, mountTarget, dag, data.AppName)
+			return err
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EfsMountTarget]{
+		Configure: func(deployment *kubernetes.Deployment, mountTarget *resources.EfsMountTarget, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			_, err := resources.MountEfsVolume(deployment, mountTarget, dag, data.AppName)
 			return err
 		},
 	},
@@ -122,6 +197,53 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.PrivateDnsNamespace]{},
 	knowledgebase.EdgeBuilder[*resources.TargetGroup, *kubernetes.TargetGroupBinding]{
 		DeploymentOrderReversed: true,
+		Reuse:                   knowledgebase.Downstream,
+		Configure: func(targetGroup *resources.TargetGroup, tgBinding *kubernetes.TargetGroupBinding, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if tgBinding.Object == nil {
+				return fmt.Errorf("%s has no object", tgBinding.Id())
+			}
+			service, err := core.GetSingleDownstreamResourceOfType[*kubernetes.Service](dag, tgBinding)
+			if err != nil {
+				return err
+			}
+			if service.Object == nil {
+				return fmt.Errorf("%s has no object", service.Id())
+			}
+			if service.Object.Name == "" {
+				return fmt.Errorf("object in %s has no name", service.Id())
+			}
+			cluster, ok := core.GetResource[*resources.EksCluster](dag, tgBinding.Cluster)
+			if !ok {
+				return fmt.Errorf("could not find cluster %s associateed with target binding %s", tgBinding.Cluster, tgBinding.Id())
+			}
+
+			// Add the target group ARN to the target group binding
+			value := resources.GenerateTargetGroupBindingPlaceholder(targetGroup.Name)
+			bindingPlaceholder := fmt.Sprintf("{{ .Values.%s }}", value)
+			tgBinding.Object.Spec.TargetGroupARN = bindingPlaceholder
+
+			if tgBinding.Transformations == nil {
+				tgBinding.Transformations = make(map[string]core.IaCValue)
+			}
+			tgBinding.Transformations[value] = core.IaCValue{ResourceId: targetGroup.Id(), Property: resources.ARN_IAC_VALUE}
+
+			// Update the target group binding's service
+			tgBinding.Object.Spec.ServiceRef = v1beta1.ServiceReference{
+				Name: service.Object.Name,
+				Port: intstr.FromInt(int(service.Object.Spec.Ports[0].Port)),
+			}
+
+			// Configure the bound target group
+			targetGroup.TargetType = "ip"
+			targetGroup.Vpc = cluster.Vpc
+			// we only support one port per service right now
+			targetGroup.Port = int(service.Object.Spec.Ports[0].Port)
+			targetGroup.Protocol = string(service.Object.Spec.Ports[0].Protocol)
+
+			// Install the ALB Controller chart on the cluster
+			_, err = cluster.InstallAlbController(targetGroup.BaseConstructRefs(), dag, data.AppName)
+			return err
+		},
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Region]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Vpc]{},
@@ -133,7 +255,86 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EksNodeGroup]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *kubernetes.Manifest]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.Region]{},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.PrivateDnsNamespace]{
+		Configure: func(pod *kubernetes.Pod, namespace *resources.PrivateDnsNamespace, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			deploymentRole, err := GetPodServiceAccountRole(pod, dag)
+			if err != nil {
+				return err
+			}
+			policy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
+				AppName: data.AppName,
+				Name:    "servicediscovery",
+				Refs:    core.BaseConstructSetOf(pod, namespace),
+			})
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(policy, namespace)
+			dag.AddDependency(deploymentRole, policy)
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.PrivateDnsNamespace]{
+		Configure: func(deployment *kubernetes.Deployment, namespace *resources.PrivateDnsNamespace, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			deploymentRole, err := GetDeploymentServiceAccountRole(deployment, dag)
+			if err != nil {
+				return err
+			}
+			policy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
+				AppName: data.AppName,
+				Name:    "servicediscovery",
+				Refs:    core.BaseConstructSetOf(deployment, namespace),
+			})
+			if err != nil {
+				return err
+			}
+			dag.AddDependency(policy, namespace)
+			dag.AddDependency(deploymentRole, policy)
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *kubernetes.ServiceExport]{
+		Configure: func(deployment *kubernetes.Deployment, serviceExport *kubernetes.ServiceExport, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			exportCluster, ok := core.GetResource[*resources.EksCluster](dag, serviceExport.Cluster)
+			if !ok {
+				return fmt.Errorf("could not find cluster %s associated with service export %s", serviceExport.Cluster, serviceExport.Id())
+			}
 
+			_, err := core.CreateResource[*resources.PrivateDnsNamespace](dag, resources.PrivateDnsNamespaceCreateParams{
+				Refs:    core.BaseConstructSetOf(serviceExport, deployment),
+				AppName: data.AppName,
+			})
+			if err != nil {
+				return err
+			}
+
+			cmController, err := exportCluster.InstallCloudMapController(core.BaseConstructSetOf(serviceExport, deployment), dag)
+			dag.AddDependency(serviceExport, cmController)
+			return err
+		},
+	},
+	knowledgebase.EdgeBuilder[*kubernetes.Pod, *kubernetes.ServiceExport]{
+		Configure: func(pod *kubernetes.Pod, serviceExport *kubernetes.ServiceExport, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			exportCluster, ok := core.GetResource[*resources.EksCluster](dag, serviceExport.Cluster)
+			if !ok {
+				return fmt.Errorf("could not find cluster %s associated with service export %s", serviceExport.Cluster, serviceExport.Id())
+			}
+
+			_, err := core.CreateResource[*resources.PrivateDnsNamespace](dag, resources.PrivateDnsNamespaceCreateParams{
+				Refs:    core.BaseConstructSetOf(serviceExport, pod),
+				AppName: data.AppName,
+			})
+			if err != nil {
+				return err
+			}
+
+			cmController, err := exportCluster.InstallCloudMapController(core.BaseConstructSetOf(serviceExport, pod), dag)
+			dag.AddDependency(serviceExport, cmController)
+			return err
+		},
+	},
+
+	knowledgebase.EdgeBuilder[*resources.PrivateDnsNamespace, *kubernetes.ServiceExport]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.DynamodbTable]{
 		Configure: func(pod *kubernetes.Pod, table *resources.DynamodbTable, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			role, err := GetPodServiceAccountRole(pod, dag)
