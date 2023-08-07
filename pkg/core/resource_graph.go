@@ -356,6 +356,10 @@ func (rg *ResourceGraph) addDependenciesReflect(source Resource, targetValue ref
 		if !value.ResourceId.IsZero() {
 			rg.AddDependencyById(source.Id(), value.ResourceId, nil)
 		}
+	case ResourceId:
+		if !value.IsZero() {
+			rg.AddDependencyById(source.Id(), value, nil)
+		}
 	default:
 		correspondingValue := targetValue
 		for correspondingValue.Kind() == reflect.Pointer {
@@ -454,7 +458,7 @@ func GetSingleDownstreamResourceOfType[T Resource](rg *ResourceGraph, source Res
 	if len(resources) == 0 {
 		return resource, errors.Errorf("no downstream resource of type %T found for resource %s", source, source.Id())
 	} else if len(resources) > 1 {
-		return resource, errors.Errorf("multiple downstream resources of type %T found for resource %s", source, source.Id())
+		return resource, errors.Errorf("multiple downstream resources of type %T found for resource %s", resources[0], source.Id())
 	}
 	return resources[0], nil
 
