@@ -162,7 +162,7 @@ type RoleCreateParams struct {
 }
 
 func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) error {
-	role.Name = roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	role.Name = strings.TrimPrefix(roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name)), "-")
 	role.ConstructRefs = params.Refs.Clone()
 
 	existingRole := dag.GetResource(role.Id())
@@ -180,7 +180,7 @@ type IamPolicyCreateParams struct {
 }
 
 func (policy *IamPolicy) Create(dag *core.ResourceGraph, params IamPolicyCreateParams) error {
-	policy.Name = policySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
+	policy.Name = strings.TrimPrefix(policySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name)), "-")
 	policy.ConstructRefs = params.Refs.Clone()
 	existingPolicy, found := core.GetResource[*IamPolicy](dag, policy.Id())
 	if found {

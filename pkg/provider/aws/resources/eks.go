@@ -200,12 +200,6 @@ func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCrea
 type EksClusterConfigureParams struct {
 }
 
-func (cluster *EksCluster) Configure(params EksClusterConfigureParams) error {
-	// Add the kubeconfig after the dependencies are added otherwise we will have a circular dependency
-	cluster.Kubeconfig = createEKSKubeconfig(cluster, NewRegion())
-	return nil
-}
-
 type EksFargateProfileCreateParams struct {
 	Refs    core.BaseConstructSet
 	AppName string
@@ -419,21 +413,26 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 	return nil
 }
 
-func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *core.ResourceGraph) (*kubernetes.Manifest, error) {
-	pod, ok := resource.(*kubernetes.Pod)
-	if !ok {
-		return nil, fmt.Errorf("resource %s is not a pod", resource.Id())
+func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *core.ResourceGraph, appName string) (*kubernetes.Manifest, error) {
+	isValidType := false
+	switch resource.(type) {
+	case *kubernetes.Deployment:
+		isValidType = true
+	case *kubernetes.Pod:
+		isValidType = true
+	}
+	if !isValidType {
+		return nil, fmt.Errorf("resource %s is not a valid EFS volume mount location in an EKS cluster", resource.Id())
 	}
 
-	cluster, err := core.GetSingleDownstreamResourceOfType[*EksCluster](dag, pod)
+	cluster, err := core.GetSingleDownstreamResourceOfType[*EksCluster](dag, resource)
 	if err != nil {
 		return nil, err
 	}
-	for _, upstream := range dag.GetAllDownstreamResources(pod) {
-		// install the EFS CSI driver if the pod is in an EKS node group
+	for _, upstream := range dag.GetAllDownstreamResources(resource) {
+		// install the EFS CSI driver on the cluster if the pod is in an EKS node group
 		if _, ok := upstream.(*EksNodeGroup); ok {
-			// todo: look into handling appName here
-			if err != nil {
+			if _, err := cluster.InstallEfsCsiDriver(resource.BaseConstructRefs().CloneWith(mountTarget.BaseConstructRefs()), dag, appName); err != nil {
 				return nil, err
 			}
 			break
@@ -452,7 +451,7 @@ func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *co
 	}
 	persistentVolume := &kubernetes.Manifest{
 		Name:          fmt.Sprintf("%s-%s-%s", cluster.Name, fileSystem.Name, "persistent-volume"),
-		ConstructRefs: pod.BaseConstructRefs(),
+		ConstructRefs: resource.BaseConstructRefs(),
 		FilePath:      persistentVolumeOutputPath,
 		Content:       pvContent,
 		Transformations: map[string]core.IaCValue{
@@ -468,7 +467,7 @@ func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *co
 	}
 	claim := &kubernetes.Manifest{
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "claim"),
-		ConstructRefs: pod.BaseConstructRefs(),
+		ConstructRefs: resource.BaseConstructRefs(),
 		FilePath:      claimOutputPath,
 		Content:       claimContent,
 	}
@@ -480,12 +479,12 @@ func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *co
 	}
 	storageClass := &kubernetes.Manifest{
 		Name:          fmt.Sprintf("%s-%s", cluster.Name, "storage-class"),
-		ConstructRefs: pod.BaseConstructRefs(),
+		ConstructRefs: resource.BaseConstructRefs(),
 		FilePath:      storageClassOutputPath,
 		Content:       storageClassContent,
 	}
 
-	dag.AddDependency(pod, persistentVolume)
+	dag.AddDependency(resource, persistentVolume)
 	dag.AddDependenciesReflect(persistentVolume)
 	dag.AddDependency(persistentVolume, claim)
 	dag.AddDependency(persistentVolume, storageClass)
@@ -493,10 +492,10 @@ func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *co
 	return persistentVolume, nil
 }
 
-func (cluster *EksCluster) InstallEfsCsiDriver(references core.BaseConstructSet, dag *core.ResourceGraph) (*kubernetes.HelmChart, error) {
+func (cluster *EksCluster) InstallEfsCsiDriver(references core.BaseConstructSet, dag *core.ResourceGraph, appName string) (*kubernetes.HelmChart, error) {
 	serviceAccountName := "aws-efs-csi-controller"
 	serviceAccount, err := cluster.CreateServiceAccount(ServiceAccountCreateParams{
-		AppName:    cluster.Name,
+		AppName:    appName,
 		Dag:        dag,
 		Name:       serviceAccountName,
 		Policy:     createEfsPersistentVolumePolicy(cluster.Name, cluster),
@@ -506,7 +505,7 @@ func (cluster *EksCluster) InstallEfsCsiDriver(references core.BaseConstructSet,
 		return nil, err
 	}
 
-	efsCfsDriverChart := &kubernetes.HelmChart{
+	efsCfiDriverChart := &kubernetes.HelmChart{
 		Name:          fmt.Sprintf("%s-alb-controller", cluster.Name),
 		Chart:         "aws-load-balancer-controller",
 		Repo:          "https://kubernetes-sigs.github.io/aws-efs-csi-driver",
@@ -520,13 +519,14 @@ func (cluster *EksCluster) InstallEfsCsiDriver(references core.BaseConstructSet,
 				"name":   serviceAccount.Name,
 			},
 		},
+		IsInternal: true,
 	}
-	dag.AddDependenciesReflect(efsCfsDriverChart)
+	dag.AddDependenciesReflect(efsCfiDriverChart)
 	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
-		dag.AddDependency(efsCfsDriverChart, nodeGroup)
+		dag.AddDependency(efsCfiDriverChart, nodeGroup)
 	}
 
-	return efsCfsDriverChart, nil
+	return efsCfiDriverChart, nil
 }
 
 func (cluster *EksCluster) InstallCloudMapController(refs core.BaseConstructSet, dag *core.ResourceGraph) (*kubernetes.KustomizeDirectory, error) {
@@ -597,10 +597,6 @@ func (cluster *EksCluster) CreateServiceAccount(params ServiceAccountCreateParam
 		return nil, err
 	}
 
-	if serviceAccount.Transformations == nil {
-		serviceAccount.Transformations = map[string]core.IaCValue{}
-	}
-	serviceAccount.Transformations[`metadata["annotations"]["eks.amazonaws.com/role-arn"]`] = core.IaCValue{ResourceId: role.Id(), Property: ARN_IAC_VALUE}
 	serviceAccount.FilePath = outputPath
 	serviceAccount.Cluster = cluster.Id()
 
@@ -615,12 +611,17 @@ func (cluster *EksCluster) CreateServiceAccount(params ServiceAccountCreateParam
 
 	dag.AddDependency(role, oidc)
 	dag.AddDependency(role, params.Policy)
+	dag.AddDependency(serviceAccount, role)
 	dag.AddDependenciesReflect(serviceAccount)
 
 	return serviceAccount, nil
 }
 
 func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet, dag *core.ResourceGraph, appName string) (*kubernetes.HelmChart, error) {
+	if cluster.Vpc == nil {
+		return nil, errors.Errorf("cluster.Vpc is required to install the alb controller")
+	}
+
 	serviceAccountName := "aws-load-balancer-controller"
 	var aRef core.BaseConstruct
 	for _, r := range references {
@@ -638,6 +639,7 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 		return nil, err
 	}
 
+	region := NewRegion()
 	albChart := &kubernetes.HelmChart{
 		Name:          fmt.Sprintf("%s-alb-controller", cluster.Name),
 		Chart:         "aws-load-balancer-controller",
@@ -646,13 +648,14 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 		Version:       "1.4.7",
 		Namespace:     "default",
 		Cluster:       cluster.Id(),
+		IsInternal:    true,
 		Values: map[string]any{
 			"clusterName": core.IaCValue{ResourceId: cluster.Id(), Property: NAME_IAC_VALUE},
 			"serviceAccount": map[string]any{
 				"create": false,
 				"name":   serviceAccount.Name,
 			},
-			"region": core.IaCValue{ResourceId: NewRegion().Id(), Property: NAME_IAC_VALUE},
+			"region": core.IaCValue{ResourceId: region.Id(), Property: NAME_IAC_VALUE},
 			"vpcId":  core.IaCValue{ResourceId: cluster.Vpc.Id(), Property: ID_IAC_VALUE},
 			"podLabels": map[string]string{
 				"app": "aws-lb-controller",
@@ -664,6 +667,7 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 			"webhookNamespaceSelectors": map[string]any{"matchExpressions": []any{}},
 		},
 	}
+	dag.AddResource(region)
 	dag.AddDependenciesReflect(albChart)
 	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
 		dag.AddDependency(albChart, nodeGroup)
@@ -711,69 +715,99 @@ func GetServiceAccountRole(sa *kubernetes.ServiceAccount, dag *core.ResourceGrap
 			return nil, err
 		}
 		dag.AddDependency(sa, role)
+		if sa.Object == nil {
+			return nil, fmt.Errorf("service account %s has no object", sa.Name)
+		}
+
+		value := GenerateRoleArnPlaceholder(role.Name)
+		roleArnPlaceholder := fmt.Sprintf("{{ .Values.%s }}", value)
+
+		if sa.Object.Annotations == nil {
+			sa.Object.Annotations = make(map[string]string)
+		}
+		sa.Object.Annotations["eks.amazonaws.com/role-arn"] = roleArnPlaceholder
+
+		if sa.Transformations == nil {
+			sa.Transformations = make(map[string]core.IaCValue)
+		}
+		sa.Transformations[value] = core.IaCValue{ResourceId: role.Id(), Property: ID_IAC_VALUE}
+
+		// Sets the role's AssumeRolePolicyDocument to allow the service account to assume the role
+		oidc, err := core.CreateResource[*OpenIdConnectProvider](dag, OidcCreateParams{
+			ClusterName: sa.Cluster.Name,
+			Refs:        core.BaseConstructSetOf(sa),
+		})
+		if err != nil {
+			return nil, err
+		}
+		assumeRolePolicy := GetServiceAccountAssumeRolePolicy(sa.Object.Name, oidc)
+		role.AssumeRolePolicyDoc = assumeRolePolicy
+		dag.AddDependenciesReflect(role)
 		return role, nil
 	}
 	return roles[0], nil
 }
 
-func createEKSKubeconfig(cluster *EksCluster, region *Region) *kubernetes.Kubeconfig {
+func configureKubeconfig(cluster *EksCluster, region *Region) error {
+	kubeconfig := cluster.Kubeconfig
+	if kubeconfig == nil {
+		return fmt.Errorf("kubeconfig for cluster %s is nil", cluster.Id())
+	}
+
 	clusterNameIaCValue := core.IaCValue{
 		ResourceId: cluster.Id(),
 		Property:   NAME_IAC_VALUE,
 	}
-	return &kubernetes.Kubeconfig{
-		ConstructRefs:  cluster.ConstructRefs,
-		Name:           fmt.Sprintf("%s-eks-kubeconfig", cluster.Name),
-		ApiVersion:     "v1",
-		CurrentContext: clusterNameIaCValue,
-		Kind:           "Config",
-		Clusters: []kubernetes.KubeconfigCluster{
-			{
-				Name: clusterNameIaCValue,
-				Cluster: map[string]core.IaCValue{
-					"certificate-authority-data": core.IaCValue{
-						ResourceId: cluster.Id(),
-						Property:   CLUSTER_CA_DATA_IAC_VALUE,
-					},
-					"server": core.IaCValue{
-						ResourceId: cluster.Id(),
-						Property:   CLUSTER_ENDPOINT_IAC_VALUE,
-					},
+	kubeconfig.ApiVersion = "v1"
+	kubeconfig.CurrentContext = clusterNameIaCValue
+	kubeconfig.Kind = "Config"
+	kubeconfig.Clusters = []kubernetes.KubeconfigCluster{
+		{
+			Name: clusterNameIaCValue,
+			Cluster: map[string]core.IaCValue{
+				"certificate-authority-data": core.IaCValue{
+					ResourceId: cluster.Id(),
+					Property:   CLUSTER_CA_DATA_IAC_VALUE,
+				},
+				"server": core.IaCValue{
+					ResourceId: cluster.Id(),
+					Property:   CLUSTER_ENDPOINT_IAC_VALUE,
 				},
 			},
 		},
-		Contexts: []kubernetes.KubeconfigContexts{
-			{
-				Name: clusterNameIaCValue,
-				Context: kubernetes.KubeconfigContext{
-					Cluster: clusterNameIaCValue,
-					User:    clusterNameIaCValue,
-				},
+	}
+	kubeconfig.Contexts = []kubernetes.KubeconfigContexts{
+		{
+			Name: clusterNameIaCValue,
+			Context: kubernetes.KubeconfigContext{
+				Cluster: clusterNameIaCValue,
+				User:    clusterNameIaCValue,
 			},
 		},
-		Users: []kubernetes.KubeconfigUsers{
-			{
-				Name: clusterNameIaCValue,
-				User: kubernetes.KubeconfigUser{
-					Exec: kubernetes.KubeconfigExec{
-						ApiVersion: "client.authentication.k8s.io/v1beta1",
-						Command:    "aws",
-						Args: []any{
-							"eks",
-							"get-token",
-							"--cluster-name",
-							clusterNameIaCValue,
-							"--region",
-							core.IaCValue{
-								ResourceId: region.Id(),
-								Property:   NAME_IAC_VALUE,
-							},
+	}
+	kubeconfig.Users = []kubernetes.KubeconfigUsers{
+		{
+			Name: clusterNameIaCValue,
+			User: kubernetes.KubeconfigUser{
+				Exec: kubernetes.KubeconfigExec{
+					ApiVersion: "client.authentication.k8s.io/v1beta1",
+					Command:    "aws",
+					Args: []any{
+						"eks",
+						"get-token",
+						"--cluster-name",
+						clusterNameIaCValue,
+						"--region",
+						core.IaCValue{
+							ResourceId: region.Id(),
+							Property:   NAME_IAC_VALUE,
 						},
 					},
 				},
 			},
 		},
 	}
+	return nil
 }
 
 func GetServiceAccountAssumeRolePolicy(serviceAccountName string, oidc *OpenIdConnectProvider) *PolicyDocument {
@@ -820,7 +854,7 @@ func (cluster *EksCluster) Id() core.ResourceId {
 	}
 }
 
-func (c *EksCluster) DeleteContext() core.DeleteContext {
+func (cluster *EksCluster) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
@@ -1151,10 +1185,13 @@ func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamP
 }
 
 func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-
 	var podsAndDeployments []core.Resource
 	var nodeGroups []*EksNodeGroup
 	var fargateProfiles []*EksFargateProfile
+
+	// We create these add-ons in cluster creation since there is edge which would create them
+	// These are always installed in every cluster, no matter the configuration
+	cluster.installVpcCniAddon(cluster.ConstructRefs, dag)
 
 	for _, downstream := range dag.GetAllUpstreamResources(cluster) {
 		switch downstream := downstream.(type) {
@@ -1169,8 +1206,17 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 		}
 	}
 
-	var deployedTo core.Resource
+	cluster.associateDeployablesToDeploymentTargets(dag, podsAndDeployments, fargateProfiles, nodeGroups)
 
+	// Add the kubeconfig after the dependencies are added otherwise we will have a circular dependency
+	if err := configureKubeconfig(cluster, NewRegion()); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cluster *EksCluster) associateDeployablesToDeploymentTargets(dag *core.ResourceGraph, podsAndDeployments []core.Resource, fargateProfiles []*EksFargateProfile, nodeGroups []*EksNodeGroup) {
+	var deployedTo core.Resource
 	for _, deployable := range podsAndDeployments {
 		if deployedTo != nil {
 			break
@@ -1198,6 +1244,4 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 		}
 		dag.AddDependency(deployable, deployedTo)
 	}
-
-	return nil
 }

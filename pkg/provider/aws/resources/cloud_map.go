@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"fmt"
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
@@ -25,7 +26,7 @@ type PrivateDnsNamespaceCreateParams struct {
 }
 
 func (namespace *PrivateDnsNamespace) Create(dag *core.ResourceGraph, params PrivateDnsNamespaceCreateParams) error {
-	namespace.Name = privateDnsNamespaceSanitizer.Apply(params.AppName)
+	namespace.Name = privateDnsNamespaceSanitizer.Apply(fmt.Sprintf("%s_pdns", params.AppName))
 	namespace.ConstructRefs = params.Refs.Clone()
 
 	existingNamespace, found := core.GetResource[*PrivateDnsNamespace](dag, namespace.Id())
