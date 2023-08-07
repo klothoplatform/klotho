@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -514,20 +515,45 @@ func TemplateConfigure(resource core.Resource, template core.ResourceTemplate) e
 }
 
 func ConfigureField(resource core.Resource, fieldName string, value interface{}) error {
-	field := reflect.ValueOf(resource).Elem().FieldByName(fieldName)
+	fields := strings.Split(fieldName, ".")
+	var field reflect.Value
+	for i := 0; i < len(fields); i++ {
+		fmt.Println(field)
+		fmt.Println(fields[i])
+		if i == 0 {
+			field = reflect.ValueOf(resource).Elem().FieldByName(fields[i])
+			fmt.Println(reflect.ValueOf(resource).Elem())
+			fmt.Println(reflect.ValueOf(resource).Elem().FieldByName(fields[i]))
+			fmt.Println(field)
+		} else {
+			if field.Kind() == reflect.Ptr {
+				field = field.Elem().FieldByName(fields[i])
+			} else {
+				field = field.FieldByName(fields[i])
+			}
+		}
+		if !field.IsValid() {
+			return fmt.Errorf("unable to find field %s on resource %s", fields[i], resource.Id())
+		} else if field.IsZero() && field.Kind() == reflect.Ptr {
+			fmt.Println("it is zero")
+			fmt.Println(field.Type())
+			fmt.Println(reflect.New(field.Type().Elem()))
+			newField := reflect.New(field.Type().Elem())
+			field.Set(newField)
+			field = newField
+		}
+	}
 	switch field.Kind() {
 	case reflect.Slice, reflect.Array:
 		if reflect.ValueOf(value).Kind() != reflect.Slice {
 			return fmt.Errorf("config template is not the correct type for resource %s. expected it to be a list, but got %s", resource.Id(), reflect.TypeOf(value))
 		}
 		configureField(value, field)
-		reflect.ValueOf(resource).Elem().FieldByName(fieldName).Set(field)
 	case reflect.Pointer, reflect.Struct:
 		if reflect.ValueOf(value).Kind() != reflect.Map {
 			return fmt.Errorf("config template is not the correct type for resource %s. expected it to be a map, but got %s", resource.Id(), reflect.TypeOf(value))
 		}
 		configureField(value, field)
-		reflect.ValueOf(resource).Elem().FieldByName(fieldName).Set(field)
 	default:
 		if reflect.TypeOf(value) != field.Type() {
 			return fmt.Errorf("config template is not the correct type for resource %s. expected it to be %s, but got %s", resource.Id(), field.Type(), reflect.TypeOf(value))
