@@ -115,6 +115,10 @@ func (tc TemplatesCompiler) RenderBody(out io.Writer) error {
 			// Imported resources are handled by the rendering of their base resource
 			//? Should this ignore all .Provider == "internal" instead?
 			continue
+		case *kubernetes.Kubeconfig:
+			// Kubeconfig is handled in renderGlueVars where since it needs to be rendered immediately after a cluster
+			// and immediately before the provider glue resource (prior to any other cluster-related resources)
+			continue
 		}
 		err := tc.renderResource(out, resource)
 		errs.Append(err)
