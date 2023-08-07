@@ -3,9 +3,10 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"reflect"
 	"sort"
+
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -30,45 +31,52 @@ func (e *Engine) MakeResourcesOperational(graph *core.ResourceGraph) (map[core.R
 		return nil, err
 	}
 	for _, resource := range resources {
-		template := e.ResourceTemplates[fmt.Sprintf("%s:%s", resource.Id().Provider, resource.Id().Type)]
-		if template != nil {
-			err := e.TemplateMakeOperational(graph, resource, *template)
-			if err != nil {
-				joinedErr = errors.Join(joinedErr, err)
-				continue
-			}
-			err = TemplateConfigure(resource, *template)
-			if err != nil {
-				joinedErr = errors.Join(joinedErr, err)
-				continue
-			}
-		}
-
-		err := callMakeOperational(graph, resource, e.Context.AppName, e.ClassificationDocument)
-		if err != nil {
-			if ore, ok := err.(*core.OperationalResourceError); ok {
-				// If we get a OperationalResourceError let the engine try to reconcile it, and if that fails then mark the resource as non operational so we attempt to rerun on the next loop
-				herr := e.handleOperationalResourceError(ore, graph)
-				if herr != nil {
-					err = errors.Join(err, herr)
-				}
-				joinedErr = errors.Join(joinedErr, err)
-			} else {
-				joinedErr = errors.Join(joinedErr, err)
-			}
-			continue
-		}
-
-		err = graph.CallConfigure(resource, nil)
+		err := e.MakeResourceOperational(graph, resource)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
-			continue
+		} else {
+			operationalResources[resource.Id()] = true
 		}
-
-		operationalResources[resource.Id()] = true
 	}
 	zap.S().Debug("Engine done making resources operational and configuring resources")
 	return operationalResources, joinedErr
+}
+
+func (e *Engine) MakeResourceOperational(graph *core.ResourceGraph, resource core.Resource) error {
+	template := e.ResourceTemplates[fmt.Sprintf("%s:%s", resource.Id().Provider, resource.Id().Type)]
+	if template != nil {
+		err := e.TemplateMakeOperational(graph, resource, *template)
+		if err != nil {
+			return err
+		}
+		err = TemplateConfigure(resource, *template)
+		if err != nil {
+			return err
+
+		}
+	}
+
+	err := callMakeOperational(graph, resource, e.Context.AppName, e.ClassificationDocument)
+	if err != nil {
+		if ore, ok := err.(*core.OperationalResourceError); ok {
+			// If we get a OperationalResourceError let the engine try to reconcile it, and if that fails then mark the resource as non operational so we attempt to rerun on the next loop
+			herr := e.handleOperationalResourceError(ore, graph)
+			if herr != nil {
+				err = errors.Join(err, herr)
+			}
+			return err
+		} else {
+			return err
+		}
+	}
+
+	err = graph.CallConfigure(resource, nil)
+	if err != nil {
+		return err
+
+	}
+
+	return nil
 }
 
 func callMakeOperational(rg *core.ResourceGraph, resource core.Resource, appName string, classifier classification.Classifier) error {
@@ -445,6 +453,23 @@ func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceErr
 			}
 		}
 	}
+	resourceIds := []string{}
+	for _, res := range availableResources {
+		resourceIds = append(resourceIds, res.Id().Name)
+	}
+	sort.Strings(resourceIds)
+
+	currNumSatisfied := numSatisfied
+	for i := 0; i < err.Count-currNumSatisfied; i++ {
+		for _, res := range availableResources {
+			if len(resourceIds) > i && res.Id().Name == resourceIds[i] {
+				addDependencyForDirection(dag, err.Direction, err.Resource, res)
+				numSatisfied++
+				break
+			}
+		}
+	}
+
 	// if theres no available resources from us to choose from, we must create new resources
 	if len(availableResources) < err.Count-numSatisfied {
 		for i := numSatisfied; i < err.Count; i++ {
@@ -455,24 +480,11 @@ func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceErr
 			if err.Parent != nil {
 				addDependencyForDirection(dag, err.Direction, newRes, err.Parent)
 			}
-			numSatisfied++
-		}
-	}
-
-	resourceIds := []string{}
-	for _, res := range availableResources {
-		resourceIds = append(resourceIds, res.Id().Name)
-	}
-	sort.Strings(resourceIds)
-	if err.Count-numSatisfied > len(resourceIds) {
-		return fmt.Errorf("not enough resources found that can satisfy operational exception error, %s", err.Error())
-	}
-	for i := 0; i < err.Count-numSatisfied; i++ {
-		for _, res := range availableResources {
-			if res.Id().Name == resourceIds[i] {
-				addDependencyForDirection(dag, err.Direction, err.Resource, res)
-				break
+			err := e.MakeResourceOperational(dag, newRes)
+			if err != nil {
+				return err
 			}
+			numSatisfied++
 		}
 	}
 

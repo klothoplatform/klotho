@@ -2,9 +2,10 @@ package knowledgebase
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/sanitization"
 	"path"
 	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/sanitization"
 
 	docker "github.com/klothoplatform/klotho/pkg/provider/docker/resources"
 
