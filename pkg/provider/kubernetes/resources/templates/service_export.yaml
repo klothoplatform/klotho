@@ -14,8 +14,8 @@ delete_context:
 configuration:
   - field: Object
     value:
-      APIVersion: multicluster.x-k8s.io/v1alpha1
-      Kind: ServiceExport
-      Metadata:
+      TypeMeta:
+        APIVersion: multicluster.x-k8s.io/v1alpha1
+        Kind: ServiceExport
+      ObjectMeta:
         Name: "{{ .Name }}"
-        Namespace: "{{ .Namespace }}"

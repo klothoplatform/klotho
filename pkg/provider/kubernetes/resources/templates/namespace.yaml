@@ -14,9 +14,10 @@ delete_context:
 Configuration:
   - field: Object
     value:
-      APIVersion: v1
-      Kind: Namespace
-      Metadata:
+      TypeMeta:
+        APIVersion: v1
+        Kind: Namespace
+      ObjectMeta:
         Name: "{{ .Name }}"
         Labels:
           Name: "{{ .Name }}"

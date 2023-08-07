@@ -22,13 +22,13 @@ delete_context:
 configuration:
   - field: Object
     value:
-      APIVersion: v1
-      Kind: Deployment
-      Metadata:
+      TypeMeta:
+        APIVersion: v1
+        Kind: Deployment
+      ObjectMeta:
         Labels:
           execUnit: "{{ .ExecUnitName }}"
         Name: "{{ .Name }}"
-        Namespace: "{{ .Namespace }}"
       Spec:
         Replicas: 2
         Selector:

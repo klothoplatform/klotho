@@ -14,19 +14,15 @@ delete_context:
 configuration:
   - field: Object
     value:
-      APIVersion: v1
-      Kind: Service
-      Metadata:
-        Name: "{{ .Name }}"
-        Namespace: "{{ .Namespace }}"
-        Labels:
-          execUnit: "{{ .ExecUnitName }}"
+      TypeMeta:
+        APIVersion: v1
+        Kind: Service
+      ObjectMeta:
       Spec:
         Ports:
           - Port: 80
             TargetPort: 3000
             Protocol: TCP
         Selector:
-          execUnit: "{{ .ExecUnitName }}"
-        SessionAffinity: None
+        SessionAffinity: "None"
         Type: ClusterIP

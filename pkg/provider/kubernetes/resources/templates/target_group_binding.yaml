@@ -20,8 +20,9 @@ delete_context:
 configuration:
   - field: Object
     value:
-       APIVersion: elbv2.k8s.aws/v1beta1
-       Kind: TargetGroupBinding
+       TypeMeta:
+         APIVersion: elbv2.k8s.aws/v1beta1
+         Kind: TargetGroupBinding
        Spec:
           ServiceRef:
             Name: "{{ .ServiceName }}"

@@ -22,16 +22,9 @@ delete_context:
 configuration:
   - field: Object
     value:
-      APIVersion: v1
-      Kind: Pod
-      Metadata:
-        Labels:
-          execUnit: "{{ .ExecUnitName }}"
-        Name: "{{ .Name }}"
-        Namespace: "{{ .Namespace }}"
-        Spec:
-          Containers:
-            - Image: REPLACE_ME
-              Name: "{{ .Name }}"
-          ServiceAccountName: "{{ .ServiceAccountName }}"
+      TypeMeta:
+        APIVersion: v1
+        Kind: Pod
+      Spec:
+        ServiceAccountName: "{{ .ServiceAccountName }}"
 
