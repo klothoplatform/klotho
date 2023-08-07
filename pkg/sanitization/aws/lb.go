@@ -6,12 +6,12 @@ import (
 	"github.com/klothoplatform/klotho/pkg/sanitization"
 )
 
-// EksClusterSanitizer returns a sanitized EKS Cluster when applied.
+// LoadBalancerSanitizer returns a load balancer name when applied.
 var LoadBalancerSanitizer = sanitization.NewSanitizer(
 	[]sanitization.Rule{
 		{
 			Pattern:     regexp.MustCompile(`[^a-zA-Z\d-]`),
-			Replacement: "_",
+			Replacement: "-",
 		},
 		{
 			Pattern:     regexp.MustCompile(`^-`),
@@ -29,19 +29,19 @@ var LoadBalancerSanitizer = sanitization.NewSanitizer(
 	32,
 )
 
-// EksNodeGroupSanitizer returns a sanitized EKS Node Group when applied.
+// TargetGroupSanitizer returns a sanitized target group name when applied.
 var TargetGroupSanitizer = sanitization.NewSanitizer(
 	[]sanitization.Rule{
 		{
-			Pattern:     regexp.MustCompile(`/[^a-zA-Z\d-]/g`),
+			Pattern:     regexp.MustCompile(`[^a-zA-Z\d-]`),
 			Replacement: "-",
 		},
 		{
-			Pattern:     regexp.MustCompile(`/^-+/`),
+			Pattern:     regexp.MustCompile(`^-+`),
 			Replacement: "",
 		},
 		{
-			Pattern:     regexp.MustCompile(`/-+$/`),
+			Pattern:     regexp.MustCompile(`-+$`),
 			Replacement: "",
 		},
 	},

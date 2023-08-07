@@ -1,7 +1,7 @@
 import * as aws from '@pulumi/aws'
 
 interface Args {
-    Name: string
+    SanitizedName: string
     IpAddressType: string
     LoadBalancerAttributes: Record<string, string>
     Scheme: string
@@ -13,11 +13,13 @@ interface Args {
 
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.lb.LoadBalancer {
-    return new aws.lb.LoadBalancer(args.Name, {
+    return new aws.lb.LoadBalancer(args.SanitizedName, {
         internal: args.Scheme == 'internal',
         loadBalancerType: args.Type,
         subnets: args.Subnets.map((subnet) => subnet.id),
+        //TMPL {{- if .Tags.Raw }}
         tags: args.Tags,
+        //TMPL {{- end }}
         //TMPL {{- if .SecurityGroups.Raw }}
         securityGroups: args.SecurityGroups.map((sg) => sg.id),
         //TMPL {{- end }}
