@@ -123,6 +123,10 @@ func (tg *TargetGroup) Create(dag *core.ResourceGraph, params TargetGroupCreateP
 	return nil
 }
 
+func (tg *TargetGroup) SanitizedName() string {
+	return targetGroupSanitizer.Apply(tg.Name)
+}
+
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
 func (lb *LoadBalancer) BaseConstructRefs() core.BaseConstructSet {
 	return lb.ConstructRefs
@@ -141,6 +145,10 @@ func (lb *LoadBalancer) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{
 		RequiresNoUpstreamOrDownstream: true,
 	}
+}
+
+func (lb *LoadBalancer) SanitizedName() string {
+	return loadBalancerSanitizer.Apply(lb.Name)
 }
 
 func (tg *TargetGroup) AddTarget(target *Target) {
