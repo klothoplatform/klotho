@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"reflect"
 	"sort"
 
@@ -522,6 +523,14 @@ func configureField(val interface{}, field reflect.Value) {
 	} else if reflect.ValueOf(val).IsZero() {
 		return
 	}
+
+	if field.Kind() == reflect.Ptr && field.IsNil() {
+		field.Set(reflect.New(reflect.TypeOf(field.Interface()).Elem()))
+	}
+	if field.Kind() == reflect.Ptr {
+		field = field.Elem()
+	}
+
 	switch field.Kind() {
 	case reflect.Slice, reflect.Array:
 		arr := field
@@ -540,12 +549,12 @@ func configureField(val interface{}, field reflect.Value) {
 			}
 		}
 		field.Set(arr)
-	case reflect.Struct, reflect.Ptr:
-		if field.Kind() == reflect.Ptr && field.IsNil() {
-			field.Set(reflect.New(reflect.TypeOf(field.Interface()).Elem()))
-		}
-		if field.Kind() == reflect.Ptr {
-			field = field.Elem()
+	case reflect.Struct:
+		// if the field represents an IntOrString, we need to parse the value instead of setting each field on the struct individually
+		if _, ok := field.Interface().(intstr.IntOrString); ok {
+			val = intstr.Parse(fmt.Sprintf("%v", val))
+			field.Set(reflect.ValueOf(val))
+			return
 		}
 		for _, key := range reflect.ValueOf(val).MapKeys() {
 			for i := 0; i < field.NumField(); i++ {
@@ -563,10 +572,25 @@ func configureField(val interface{}, field reflect.Value) {
 		if unboxed, ok := val.(map[string]interface{}); requiresMapStringString && ok {
 			mapStringString := make(map[string]string)
 			for k, v := range unboxed {
-				mapStringString[k] = fmt.Sprintf("%s", v)
+				mapStringString[k] = fmt.Sprintf("%v", v)
 			}
 			field.Set(reflect.ValueOf(mapStringString))
 		} else {
+			field.Set(reflect.ValueOf(val))
+		}
+	case reflect.TypeOf(intstr.IntOrString{}).Kind():
+		val = intstr.Parse(fmt.Sprintf("%s", val))
+		field.Set(reflect.ValueOf(val))
+	case reflect.Int32:
+		field.Set(reflect.ValueOf(int32(val.(int))))
+	case reflect.String:
+		if !field.Type().AssignableTo(reflect.TypeOf(val)) {
+			// convert string to the correct enum type if the string value is not assignable to the field
+			v := reflect.New(field.Type()).Elem()
+			v.SetString(val.(string))
+			field.Set(v)
+		} else {
+			// just set the string
 			field.Set(reflect.ValueOf(val))
 		}
 	default:
