@@ -98,6 +98,7 @@ var ApiGatewayKB = knowledgebase.Build(
 			integration.ConnectionType = "VPC_LINK"
 			integration.VpcLink = vpcLink
 			dag.AddDependenciesReflect(vpcLink)
+			dag.AddDependency(integration, vpcLink)
 			return configureIntegration(integration, dag, core.IaCValue{ResourceId: loadBalancer.Id(), Property: resources.NLB_INTEGRATION_URI_IAC_VALUE})
 		},
 	},
