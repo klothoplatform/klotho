@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 
@@ -30,7 +31,7 @@ func (e *Engine) expandEdges(graph *core.ResourceGraph) error {
 			joinedErr = errors.Join(joinedErr, err)
 			continue
 		}
-		path, err := findShortestPath(paths)
+		path, err := e.findOptimalPath(paths)
 		if err != nil {
 			zap.S().Warnf("got error when finding shortest path for edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
 			joinedErr = errors.Join(joinedErr, err)
@@ -166,6 +167,14 @@ func (e *Engine) containsUnneccessaryHopsInPath(dep graph.Edge[core.Resource], p
 	return false
 }
 
+func (e *Engine) findOptimalPath(paths []knowledgebase.Path) (knowledgebase.Path, error) {
+	if len(paths) == 0 {
+		return nil, fmt.Errorf("no paths found")
+	}
+	lowestWeightPaths := e.findLowestWeightPaths(paths)
+	return findShortestPath(lowestWeightPaths)
+}
+
 // findShortestPath determines the shortest path to get from the dependency's source node to destination node, using the knowledgebase of edges
 func findShortestPath(paths []knowledgebase.Path) (knowledgebase.Path, error) {
 	var validPath []knowledgebase.Edge
@@ -200,4 +209,47 @@ func findShortestPath(paths []knowledgebase.Path) (knowledgebase.Path, error) {
 		return pathStrings[keys[0]], nil
 	}
 	return validPath, nil
+}
+
+// findLowestWeightPaths ranks the paths based on the weight of the path and returns the ranked paths (lowest weight first)
+func (e *Engine) findLowestWeightPaths(paths []knowledgebase.Path) []knowledgebase.Path {
+	lowestWeight := math.MaxInt
+	var lowestWeightPaths []knowledgebase.Path
+	for _, path := range paths {
+		weight := e.resolvePathWeight(path)
+		if weight < lowestWeight {
+			lowestWeight = weight
+			lowestWeightPaths = []knowledgebase.Path{path}
+		} else if weight == lowestWeight {
+			lowestWeightPaths = append(lowestWeightPaths, path)
+		}
+	}
+
+	return lowestWeightPaths
+}
+
+func (e *Engine) resolvePathWeight(path knowledgebase.Path) int {
+	weight := 0
+	for _, edge := range path {
+		rEdge := toResourceEdge(edge)
+		weight += e.resolveEdgeWeight(rEdge)
+	}
+	return weight
+}
+
+func (e *Engine) resolveEdgeWeight(edge graph.Edge[core.Resource]) int {
+	weight := 0
+	if len(e.ClassificationDocument.GetClassification(edge.Source).Is) > 0 {
+		weight += 1
+	}
+	if len(e.ClassificationDocument.GetClassification(edge.Destination).Is) > 0 {
+		weight += 1
+	}
+	return weight
+}
+
+func toResourceEdge(edge knowledgebase.Edge) graph.Edge[core.Resource] {
+	src := reflect.New(edge.Source.Elem()).Interface().(core.Resource)
+	dest := reflect.New(edge.Destination.Elem()).Interface().(core.Resource)
+	return graph.Edge[core.Resource]{Source: src, Destination: dest}
 }
