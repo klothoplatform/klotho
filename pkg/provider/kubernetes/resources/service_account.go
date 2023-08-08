@@ -76,8 +76,8 @@ func (sa *ServiceAccount) GetResourcesUsingServiceAccount(dag *core.ResourceGrap
 }
 
 func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if sa.Cluster.Name == "" {
-		return fmt.Errorf("service account %s has no cluster", sa.Name)
+	if sa.Cluster.IsZero() {
+		return fmt.Errorf("%s has no cluster", sa.Id())
 	}
 
 	SetDefaultObjectMeta(sa, sa.Object.GetObjectMeta())

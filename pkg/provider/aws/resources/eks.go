@@ -142,6 +142,7 @@ type (
 		ConstructRefs core.BaseConstructSet `yaml:"-"`
 		AddonName     string
 		ClusterName   core.IaCValue
+		Role          *IamRole
 	}
 )
 
@@ -158,7 +159,7 @@ func GenerateRoleArnPlaceholder(unit string) string {
 }
 
 func GenerateImagePlaceholder(unit string) string {
-	return fmt.Sprintf("%sImage", sanitizeString(unit))
+	return k8sSanitizer.RFC1123LabelSanitizer.Apply(fmt.Sprintf("%sImage", sanitizeString(unit)))
 }
 
 func GenerateTargetGroupBindingPlaceholder(unit string) string {
@@ -429,10 +430,14 @@ func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *co
 	if err != nil {
 		return nil, err
 	}
-	for _, upstream := range dag.GetAllDownstreamResources(resource) {
+	oidc, err := core.GetSingleUpstreamResourceOfType[*OpenIdConnectProvider](dag, cluster)
+	if err != nil {
+		return nil, err
+	}
+	for _, downstream := range dag.GetDownstreamResources(resource) {
 		// install the EFS CSI driver on the cluster if the pod is in an EKS node group
-		if _, ok := upstream.(*EksNodeGroup); ok {
-			if _, err := cluster.InstallEfsCsiDriver(resource.BaseConstructRefs().CloneWith(mountTarget.BaseConstructRefs()), dag, appName); err != nil {
+		if _, ok := downstream.(*EksNodeGroup); ok {
+			if _, err := cluster.InstallEfsCsiDriverAddon(resource.BaseConstructRefs().CloneWith(mountTarget.BaseConstructRefs()), dag, appName, oidc); err != nil {
 				return nil, err
 			}
 			break
@@ -492,42 +497,97 @@ func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *co
 	return persistentVolume, nil
 }
 
-func (cluster *EksCluster) InstallEfsCsiDriver(references core.BaseConstructSet, dag *core.ResourceGraph, appName string) (*kubernetes.HelmChart, error) {
-	serviceAccountName := "aws-efs-csi-controller"
-	serviceAccount, err := cluster.CreateServiceAccount(ServiceAccountCreateParams{
-		AppName:    appName,
-		Dag:        dag,
-		Name:       serviceAccountName,
-		Policy:     createEfsPersistentVolumePolicy(cluster.Name, cluster),
-		References: references,
+func (cluster *EksCluster) InstallEfsCsiDriverAddon(references core.BaseConstructSet, dag *core.ResourceGraph, appName string, oidc *OpenIdConnectProvider) (*EksAddon, error) {
+	addonName := "aws-efs-csi-driver"
+
+	addonRole, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+		AppName: appName,
+		Name:    addonName,
+		Refs:    references.Clone(),
 	})
 	if err != nil {
 		return nil, err
 	}
+	addonRole.AddAwsManagedPolicies([]string{"arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"})
 
-	efsCfiDriverChart := &kubernetes.HelmChart{
-		Name:          fmt.Sprintf("%s-alb-controller", cluster.Name),
-		Chart:         "aws-load-balancer-controller",
-		Repo:          "https://kubernetes-sigs.github.io/aws-efs-csi-driver",
-		ConstructRefs: references,
-		Version:       "1.5.9",
-		Namespace:     "kube-system",
-		Cluster:       cluster.Id(),
-		Values: map[string]any{
-			"serviceAccount": map[string]any{
-				"create": false,
-				"name":   serviceAccount.Name,
+	// Allow the accounts created by the addon to assume the role
+	addonRole.AssumeRolePolicyDoc = &PolicyDocument{
+		Version: VERSION,
+		Statement: []StatementEntry{
+			{
+				Effect: "Allow",
+				Principal: &Principal{
+					Federated: core.IaCValue{
+						ResourceId: oidc.Id(),
+						Property:   ARN_IAC_VALUE,
+					},
+				},
+				Action: []string{"sts:AssumeRoleWithWebIdentity"},
+				Condition: &Condition{
+					StringLike: map[core.IaCValue]string{
+						{
+							ResourceId: oidc.Id(),
+							Property:   OIDC_SUB_IAC_VALUE,
+						}: "system:serviceaccount:kube-system:efs-csi-*",
+						{
+							ResourceId: oidc.Id(),
+							Property:   OIDC_AUD_IAC_VALUE,
+						}: "sts.amazonaws.com",
+					},
+				},
 			},
 		},
-		IsInternal: true,
-	}
-	dag.AddDependenciesReflect(efsCfiDriverChart)
-	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
-		dag.AddDependency(efsCfiDriverChart, nodeGroup)
 	}
 
-	return efsCfiDriverChart, nil
+	addon := &EksAddon{
+		Name:          fmt.Sprintf("%s-addon-%s", cluster.Name, addonName),
+		ConstructRefs: references,
+		AddonName:     addonName,
+		ClusterName: core.IaCValue{
+			ResourceId: cluster.Id(),
+			Property:   NAME_IAC_VALUE,
+		},
+		Role: addonRole,
+	}
+	dag.AddDependenciesReflect(addon)
+	return addon, nil
 }
+
+//func (cluster *EksCluster) InstallEfsCsiDriver(references core.BaseConstructSet, dag *core.ResourceGraph, appName string) (*kubernetes.HelmChart, error) {
+//	serviceAccountName := "aws-efs-csi-controller"
+//	serviceAccount, err := cluster.CreateServiceAccount(ServiceAccountCreateParams{
+//		AppName:    appName,
+//		Dag:        dag,
+//		Name:       serviceAccountName,
+//		Policy:     createEfsPersistentVolumePolicy(cluster.Name, cluster),
+//		References: references,
+//	})
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	efsCfiDriverChart := &kubernetes.HelmChart{
+//		Name:          fmt.Sprintf("%s-alb-controller", cluster.Name),
+//		Chart:         "aws-efs-csi-driver",
+//		Repo:          "https://kubernetes-sigs.github.io/aws-efs-csi-driver/",
+//		ConstructRefs: references,
+//		Namespace:     "kube-system",
+//		Cluster:       cluster.Id(),
+//		Values: map[string]any{
+//			"serviceAccount": map[string]any{
+//				"create": false,
+//				"name":   serviceAccount.Name,
+//			},
+//		},
+//		IsInternal: true,
+//	}
+//	dag.AddDependenciesReflect(efsCfiDriverChart)
+//	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
+//		dag.AddDependency(efsCfiDriverChart, nodeGroup)
+//	}
+//
+//	return efsCfiDriverChart, nil
+//}
 
 func (cluster *EksCluster) InstallCloudMapController(refs core.BaseConstructSet, dag *core.ResourceGraph) (*kubernetes.KustomizeDirectory, error) {
 	cloudMapController := &kubernetes.KustomizeDirectory{
@@ -707,6 +767,10 @@ func GetServiceAccountRole(sa *kubernetes.ServiceAccount, dag *core.ResourceGrap
 	if len(roles) > 1 {
 		return nil, fmt.Errorf("service account %s has multiple roles", sa.Name)
 	} else if len(roles) == 0 {
+		if sa.Cluster.IsZero() {
+			return nil, fmt.Errorf("%s has no cluster", sa.Id())
+		}
+
 		role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
 			Name: fmt.Sprintf("%s-Role", sa.Name),
 			Refs: core.BaseConstructSetOf(sa),
@@ -930,41 +994,6 @@ func amiFromInstanceType(instanceType string) string {
 		}
 	}
 	return ""
-}
-
-func createEfsPersistentVolumePolicy(clusterName string, ref core.BaseConstruct) *IamPolicy {
-	policy := NewIamPolicy(clusterName, "efs-persistent-volume", ref, CreateAllowPolicyDocument([]string{
-		"elasticfilesystem:DescribeAccessPoints",
-		"elasticfilesystem:DescribeFileSystems",
-		"elasticfilesystem:DescribeMountTargets",
-		"ec2:DescribeAvailabilityZones",
-	},
-		[]core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}}))
-
-	conditionalPolicyDoc := &PolicyDocument{
-		Version: VERSION,
-		Statement: []StatementEntry{
-			{
-				Effect: "Allow",
-				Action: []string{
-					"elasticfilesystem:CreateAccessPoint",
-					"elasticfilesystem:DeleteAccessPoint",
-					"elasticfilesystem:TagResource",
-				},
-				Resource: []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}},
-				Condition: &Condition{
-					StringEquals: map[core.IaCValue]string{
-						{
-							ResourceId: ref.Id(),
-							Property:   CLUSTER_EFS_RESOURCE_TAG_IAC_VALUE,
-						}: "true",
-					},
-				},
-			},
-		},
-	}
-	policy.AddPolicyDocument(conditionalPolicyDoc)
-	return policy
 }
 
 func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamPolicy {

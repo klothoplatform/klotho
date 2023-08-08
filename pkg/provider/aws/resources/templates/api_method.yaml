@@ -12,6 +12,6 @@ configuration:
   - field: HttpMethod
     value: ANY
   - field: Authorization
-    value: none
+    value: NONE
 delete_context:
   requires_no_upstream_or_downstream: true

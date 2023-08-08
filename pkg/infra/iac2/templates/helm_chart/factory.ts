@@ -2,7 +2,7 @@ import * as pulumi from '@pulumi/pulumi'
 import * as pulumi_k8s from '@pulumi/kubernetes'
 
 interface Args {
-    Name: string
+    SanitizedName: string
     Directory?: string
     Chart?: string
     Repo?: string
@@ -16,7 +16,7 @@ interface Args {
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): pulumi_k8s.helm.v3.Chart {
     return new pulumi_k8s.helm.v3.Chart(
-        args.Name,
+        args.SanitizedName,
         {
             //TMPL {{- if .Chart.Raw }}
             chart: args.Chart,

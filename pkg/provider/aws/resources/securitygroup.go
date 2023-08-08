@@ -83,3 +83,30 @@ func (sg *SecurityGroup) DeleteContext() core.DeleteContext {
 		RequiresNoUpstream: true,
 	}
 }
+
+func (rule *SecurityGroupRule) Equals(other SecurityGroupRule) bool {
+	if rule.Description != other.Description {
+		return false
+	}
+	if rule.FromPort != other.FromPort {
+		return false
+	}
+	if rule.Protocol != other.Protocol {
+		return false
+	}
+	if rule.ToPort != other.ToPort {
+		return false
+	}
+	if rule.Self != other.Self {
+		return false
+	}
+	if len(rule.CidrBlocks) != len(other.CidrBlocks) {
+		return false
+	}
+	for i, cidrBlock := range rule.CidrBlocks {
+		if cidrBlock != other.CidrBlocks[i] {
+			return false
+		}
+	}
+	return true
+}

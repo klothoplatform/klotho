@@ -1,10 +1,17 @@
 package resources
 
 import (
+	"fmt"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"path"
 	"sigs.k8s.io/yaml"
 )
+
+const KLOTHO_ID_LABEL = "klothoId"
 
 type (
 	ManifestFile interface {
@@ -66,4 +73,26 @@ func (manifest *Manifest) GetOutputFiles() []core.File {
 		}}
 	}
 	return []core.File{}
+}
+
+func SetDefaultObjectMeta(resource core.Resource, meta v1.Object) {
+	meta.SetName(kubernetes.MetadataNameSanitizer.Apply(resource.Id().Name))
+	if meta.GetLabels() == nil {
+		meta.SetLabels(make(map[string]string))
+	}
+	labels := meta.GetLabels()
+	labels[KLOTHO_ID_LABEL] = kubernetes.LabelValueSanitizer.Apply(resource.Id().String())
+	meta.SetLabels(labels)
+}
+
+func ManifestFilePath(file ManifestFile, clusterId core.ResourceId) string {
+	return path.Join("charts", clusterId.Name, "templates", fmt.Sprintf("%s_%s.yaml", file.Id().Type, file.Id().Name))
+}
+
+func KlothoIdSelector(object v12.Object) map[string]string {
+	labels := object.GetLabels()
+	if labels == nil {
+		return map[string]string{KLOTHO_ID_LABEL: ""}
+	}
+	return map[string]string{KLOTHO_ID_LABEL: labels[KLOTHO_ID_LABEL]}
 }

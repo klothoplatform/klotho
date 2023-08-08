@@ -23,28 +23,12 @@ configuration:
   - field: Object
     value:
       TypeMeta:
-        APIVersion: v1
+        APIVersion: apps/v1
         Kind: Deployment
-      ObjectMeta:
-        Labels:
-          execUnit: "{{ .ExecUnitName }}"
-        Name: "{{ .Name }}"
       Spec:
         Replicas: 2
-        Selector:
-          MatchLabels:
-            execUnit: "{{ .ExecUnitName }}"
         Strategy:
           RollingUpdate:
             MaxSurge: 1
             MaxUnavailable: 1
           Type: RollingUpdate
-        Template:
-          Metadata:
-            Labels:
-              execUnit: "{{ .ExecUnitName }}"
-          Spec:
-            Containers:
-              - Image: REPLACE_ME
-                Name: "{{ .Name }}"
-            ServiceAccountName: "{{ .ServiceAccountName }}"

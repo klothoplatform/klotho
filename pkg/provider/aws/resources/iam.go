@@ -130,6 +130,7 @@ type (
 
 	Condition struct {
 		StringEquals map[core.IaCValue]string
+		StringLike   map[core.IaCValue]string
 		Null         map[core.IaCValue]string
 	}
 
@@ -412,11 +413,15 @@ func (c Condition) MarshalYAML() (interface{}, error) {
 	}
 	type condition struct {
 		StringEquals []mapEntry
+		StringLike   []mapEntry
 		Null         []mapEntry
 	}
 	intermediate := condition{}
 	for k, v := range c.StringEquals {
 		intermediate.StringEquals = append(intermediate.StringEquals, mapEntry{k, v})
+	}
+	for k, v := range c.StringLike {
+		intermediate.StringLike = append(intermediate.StringLike, mapEntry{k, v})
 	}
 	for k, v := range c.Null {
 		intermediate.Null = append(intermediate.Null, mapEntry{k, v})
@@ -431,6 +436,7 @@ func (c *Condition) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 	type condition struct {
 		StringEquals []mapEntry
+		StringLike   []mapEntry
 		Null         []mapEntry
 	}
 	intermediate := condition{}
@@ -439,9 +445,13 @@ func (c *Condition) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 	c.StringEquals = map[core.IaCValue]string{}
+	c.StringLike = map[core.IaCValue]string{}
 	c.Null = map[core.IaCValue]string{}
 	for _, entry := range intermediate.StringEquals {
 		c.StringEquals[entry.key] = entry.val
+	}
+	for _, entry := range intermediate.StringLike {
+		c.StringLike[entry.key] = entry.val
 	}
 	for _, entry := range intermediate.Null {
 		c.Null[entry.key] = entry.val

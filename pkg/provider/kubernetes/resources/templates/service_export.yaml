@@ -17,5 +17,4 @@ configuration:
       TypeMeta:
         APIVersion: multicluster.x-k8s.io/v1alpha1
         Kind: ServiceExport
-      ObjectMeta:
-        Name: "{{ .Name }}"
+

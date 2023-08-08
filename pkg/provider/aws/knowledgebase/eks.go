@@ -2,6 +2,7 @@ package knowledgebase
 
 import (
 	"fmt"
+	k8sSanitizer "github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/aws-load-balancer-controller/apis/elbv2/v1beta1"
@@ -34,7 +35,7 @@ var EksKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.EksCluster, *resources.SecurityGroup]{
 		Configure: func(cluster *resources.EksCluster, sg *resources.SecurityGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			sg.IngressRules = append(sg.IngressRules, resources.SecurityGroupRule{
+			eksIngressRule := resources.SecurityGroupRule{
 				Description: "Allows ingress traffic from the EKS control plane",
 				FromPort:    9443,
 				Protocol:    "TCP",
@@ -42,7 +43,18 @@ var EksKB = knowledgebase.Build(
 				CidrBlocks: []core.IaCValue{
 					{Property: "0.0.0.0/0"},
 				},
-			})
+			}
+
+			shouldAddIngressRule := true
+			for _, rule := range sg.IngressRules {
+				if rule.Equals(eksIngressRule) {
+					shouldAddIngressRule = false
+				}
+			}
+			if shouldAddIngressRule {
+				sg.IngressRules = append(sg.IngressRules, eksIngressRule)
+			}
+
 			return nil
 		},
 	},
@@ -76,9 +88,11 @@ var EksKB = knowledgebase.Build(
 		// Links the service account to the IAM role using IRSA: https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
 		Configure: func(sa *kubernetes.ServiceAccount, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if sa.Object == nil {
-				return fmt.Errorf("service account %s has no object", sa.Name)
+				return fmt.Errorf("%s has no object", sa.Id())
 			}
-
+			if sa.Cluster.IsZero() {
+				return fmt.Errorf("%s has no cluster", sa.Id())
+			}
 			value := resources.GenerateRoleArnPlaceholder(role.Name)
 			roleArnPlaceholder := fmt.Sprintf("{{ .Values.%s }}", value)
 
@@ -110,6 +124,7 @@ var EksKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.EksNodeGroup, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.EksAddon, *resources.EksCluster]{},
+	knowledgebase.EdgeBuilder[*resources.EksAddon, *resources.IamRole]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksCluster]{},
@@ -138,7 +153,7 @@ var EksKB = knowledgebase.Build(
 			}
 
 			pod.Object.Spec.Containers = append(pod.Object.Spec.Containers, v1.Container{
-				Name:  value,
+				Name:  k8sSanitizer.RFC1123LabelSanitizer.Apply(value),
 				Image: imagePlaceholder,
 			})
 			if pod.Transformations == nil {

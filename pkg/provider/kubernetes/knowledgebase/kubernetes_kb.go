@@ -22,7 +22,7 @@ var KubernetesKB = knowledgebase.Build(
 			if pod.Object == nil {
 				return fmt.Errorf("pod %s has no object", pod.Name)
 			}
-			service.Object.Spec.Selector = KlothoIdSelector(pod.Object)
+			service.Object.Spec.Selector = resources.KlothoIdSelector(pod.Object)
 			return nil
 		},
 	},
@@ -102,12 +102,4 @@ func SetNamespace(object v12.Object, namespace *resources.Namespace) error {
 	}
 	object.SetNamespace(namespace.Object.GetName())
 	return nil
-}
-
-func KlothoIdSelector(object v12.Object) map[string]string {
-	labels := object.GetLabels()
-	if labels == nil {
-		return map[string]string{"klothoId": ""}
-	}
-	return map[string]string{"klothoId": labels["klothoId"]}
 }

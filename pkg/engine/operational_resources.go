@@ -197,7 +197,7 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 				return []error{err}
 			}
 			if downstreamParent != nil {
-				dag.AddDependency(res, downstreamParent)
+				addDependencyForDirection(dag, rule.Direction, downstreamParent, res)
 			}
 		}
 		var subRuleErrors []error
@@ -478,7 +478,7 @@ func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceErr
 
 			addDependencyForDirection(dag, err.Direction, err.Resource, newRes)
 			if err.Parent != nil {
-				addDependencyForDirection(dag, err.Direction, newRes, err.Parent)
+				addDependencyForDirection(dag, err.Direction, err.Parent, newRes)
 			}
 			err := e.MakeResourceOperational(dag, newRes)
 			if err != nil {

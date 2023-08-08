@@ -6,9 +6,11 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
+	"github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 	"go.uber.org/zap"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -66,14 +68,12 @@ func (deployment *Deployment) GetServiceAccount(dag *core.ResourceGraph) *Servic
 		}
 		return nil
 	}
-	sa := &ServiceAccount{
-		Name: deployment.Object.Spec.Template.Spec.ServiceAccountName,
+	for _, sa := range core.GetDownstreamResourcesOfType[*ServiceAccount](dag, deployment) {
+		if sa.Object != nil && sa.Object.Name == deployment.Object.Spec.Template.Spec.ServiceAccountName {
+			return sa
+		}
 	}
-	graphSa := dag.GetResource(sa.Id())
-	if graphSa == nil {
-		return nil
-	}
-	return graphSa.(*ServiceAccount)
+	return nil
 }
 
 func (deployment *Deployment) AddEnvVar(iacVal core.IaCValue, envVarName string) error {
@@ -107,6 +107,13 @@ func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName s
 
 	SetDefaultObjectMeta(deployment, deployment.Object.GetObjectMeta())
 	deployment.FilePath = ManifestFilePath(deployment, deployment.Cluster)
+
+	// Add klothoId label to the deployment's pod template and as a selector properly associate the pods with their owning deployment
+	if deployment.Object.Spec.Template.ObjectMeta.Labels == nil {
+		deployment.Object.Spec.Template.ObjectMeta.Labels = make(map[string]string)
+	}
+	deployment.Object.Spec.Template.ObjectMeta.Labels[KLOTHO_ID_LABEL] = kubernetes.LabelValueSanitizer.Apply(deployment.Id().String())
+	deployment.Object.Spec.Selector = &v1.LabelSelector{MatchLabels: KlothoIdSelector(deployment.Object)}
 	return nil
 }
 

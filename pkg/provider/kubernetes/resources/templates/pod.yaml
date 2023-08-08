@@ -25,6 +25,4 @@ configuration:
       TypeMeta:
         APIVersion: v1
         Kind: Pod
-      Spec:
-        ServiceAccountName: "{{ .ServiceAccountName }}"
 

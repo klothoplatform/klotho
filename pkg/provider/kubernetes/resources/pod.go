@@ -3,11 +3,8 @@ package resources
 import (
 	"errors"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"path"
-
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
@@ -67,16 +64,13 @@ func (pod *Pod) GetServiceAccount(dag *core.ResourceGraph) *ServiceAccount {
 		}
 		return nil
 	}
-	sa := &ServiceAccount{
-		Name: pod.Object.Spec.ServiceAccountName,
+	for _, sa := range core.GetDownstreamResourcesOfType[*ServiceAccount](dag, pod) {
+		if sa.Object != nil && sa.Object.Name == pod.Object.Spec.ServiceAccountName {
+			return sa
+		}
 	}
-	graphSa := dag.GetResource(sa.Id())
-	if graphSa == nil {
-		return nil
-	}
-	return graphSa.(*ServiceAccount)
+	return nil
 }
-
 func (pod *Pod) AddEnvVar(iacVal core.IaCValue, envVarName string) error {
 
 	log := zap.L().Sugar()
@@ -103,26 +97,12 @@ func (pod *Pod) AddEnvVar(iacVal core.IaCValue, envVarName string) error {
 }
 
 func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if pod.Cluster.Name == "" {
-		return fmt.Errorf("pod %s has no cluster", pod.Name)
+	if pod.Cluster.IsZero() {
+		return fmt.Errorf("%s has no cluster", pod.Id())
 	}
 	SetDefaultObjectMeta(pod, pod.Object.GetObjectMeta())
 	pod.FilePath = ManifestFilePath(pod, pod.Cluster)
 	return nil
-}
-
-func SetDefaultObjectMeta(resource core.Resource, meta v1.Object) {
-	meta.SetName(resource.Id().Name)
-	if meta.GetLabels() == nil {
-		meta.SetLabels(make(map[string]string))
-	}
-	labels := meta.GetLabels()
-	labels["klothoId"] = resource.Id().String()
-	meta.SetLabels(labels)
-}
-
-func ManifestFilePath(file ManifestFile, clusterId core.ResourceId) string {
-	return path.Join("charts", clusterId.Name, "templates", fmt.Sprintf("%s_%s.yaml", file.Id().Type, file.Id().Name))
 }
 
 func (pod *Pod) Values() map[string]core.IaCValue {

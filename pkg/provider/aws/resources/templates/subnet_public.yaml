@@ -10,7 +10,7 @@ rules:
       operation: create
     rules:
       - enforcement: exactly_one
-        direction: upstream
+        direction: downstream
         resource_types:
           - route_table
         unsatisfied_action:

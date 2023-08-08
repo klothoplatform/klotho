@@ -4,7 +4,7 @@ rules:
   - enforcement: exactly_one
     direction: downstream
     resource_types:
-      - subnet_public
+      - subnet_public # this is the subnet the nat gateway will be created in
     set_field: Subnet
     unsatisfied_action:
       operation: create
@@ -14,7 +14,7 @@ rules:
       - elastic_ip
     set_field: ElasticIp
     unsatisfied_action:
-      operation: ElasticIp
+      operation: create
       unique: true
 delete_context:
   requires_no_upstream: true

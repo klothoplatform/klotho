@@ -3,6 +3,7 @@ package resources
 import (
 	"bytes"
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 	"path"
 )
 
@@ -39,6 +40,10 @@ func (chart *HelmChart) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{
 		RequiresNoUpstream: true,
 	}
+}
+
+func (chart *HelmChart) SanitizedName() string {
+	return kubernetes.HelmReleaseNameSanitizer.Apply(chart.Name)
 }
 
 func (t *HelmChart) GetOutputFiles() []core.File {

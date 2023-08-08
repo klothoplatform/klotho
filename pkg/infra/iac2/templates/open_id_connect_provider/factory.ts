@@ -12,7 +12,7 @@ interface Args {
 
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.iam.OpenIdConnectProvider {
-    return new aws.iam.OpenIdConnectProvider(`oidcProvider`, {
+    return new aws.iam.OpenIdConnectProvider(args.Name, {
         clientIdLists: ['sts.amazonaws.com'],
         url: args.Cluster.identities[0].oidcs[0].issuer,
         thumbprintLists: [

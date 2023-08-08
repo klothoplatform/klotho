@@ -9,30 +9,37 @@ import (
 
 var NetworkingKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.NatGateway, *resources.Subnet]{},
-	knowledgebase.EdgeBuilder[*resources.Subnet, *resources.NatGateway]{},
 	knowledgebase.EdgeBuilder[*resources.NatGateway, *resources.ElasticIp]{},
-	knowledgebase.EdgeBuilder[*resources.RouteTable, *resources.Subnet]{},
+	knowledgebase.EdgeBuilder[*resources.Subnet, *resources.RouteTable]{},
 	knowledgebase.EdgeBuilder[*resources.RouteTable, *resources.NatGateway]{
 		Configure: func(routeTable *resources.RouteTable, nat *resources.NatGateway, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			shouldAddRoute := true
 			for _, route := range routeTable.Routes {
 				if route.CidrBlock == "0.0.0.0/0" {
 					zap.S().Warnf("route table %s already has route for 0.0.0.0/0. Not overwriting rule", routeTable.Name)
-					continue
+					shouldAddRoute = false
+					break
 				}
 			}
-			routeTable.Routes = append(routeTable.Routes, &resources.RouteTableRoute{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{ResourceId: nat.Id(), Property: resources.ID_IAC_VALUE}})
+			if shouldAddRoute {
+				routeTable.Routes = append(routeTable.Routes, &resources.RouteTableRoute{CidrBlock: "0.0.0.0/0", NatGatewayId: core.IaCValue{ResourceId: nat.Id(), Property: resources.ID_IAC_VALUE}})
+			}
 			return nil
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.RouteTable, *resources.InternetGateway]{
 		Configure: func(routeTable *resources.RouteTable, igw *resources.InternetGateway, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			shouldAddRoute := true
 			for _, route := range routeTable.Routes {
 				if route.CidrBlock == "0.0.0.0/0" {
 					zap.S().Warnf("route table %s already has route for 0.0.0.0/0. Not overwriting rule", routeTable.Name)
-					continue
+					shouldAddRoute = false
+					break
 				}
 			}
-			routeTable.Routes = append(routeTable.Routes, &resources.RouteTableRoute{CidrBlock: "0.0.0.0/0", GatewayId: core.IaCValue{ResourceId: igw.Id(), Property: resources.ID_IAC_VALUE}})
+			if shouldAddRoute {
+				routeTable.Routes = append(routeTable.Routes, &resources.RouteTableRoute{CidrBlock: "0.0.0.0/0", GatewayId: core.IaCValue{ResourceId: igw.Id(), Property: resources.ID_IAC_VALUE}})
+			}
 			return nil
 		},
 	},
@@ -58,7 +65,26 @@ var NetworkingKB = knowledgebase.Build(
 				ToPort:      0,
 				Self:        true,
 			}
-			sg.IngressRules = append(sg.IngressRules, vpcIngressRule, selfIngressRule)
+
+			shouldAddVpcIngressRule := true
+			shouldAddSelfIngressRule := true
+			for _, rule := range sg.IngressRules {
+				if rule.Equals(vpcIngressRule) {
+					shouldAddVpcIngressRule = false
+					continue
+				}
+				if rule.Equals(selfIngressRule) {
+					shouldAddSelfIngressRule = false
+					continue
+				}
+			}
+
+			if shouldAddVpcIngressRule {
+				sg.IngressRules = append(sg.IngressRules, vpcIngressRule)
+			}
+			if shouldAddSelfIngressRule {
+				sg.IngressRules = append(sg.IngressRules, selfIngressRule)
+			}
 
 			allOutboundRule := resources.SecurityGroupRule{
 				Description: "Allows all outbound IPv4 traffic.",
@@ -69,7 +95,18 @@ var NetworkingKB = knowledgebase.Build(
 					{Property: "0.0.0.0/0"},
 				},
 			}
-			sg.EgressRules = append(sg.EgressRules, allOutboundRule)
+
+			shouldAddAllOutboundRule := true
+			for _, rule := range sg.EgressRules {
+				if rule.Equals(allOutboundRule) {
+					shouldAddAllOutboundRule = false
+					break
+				}
+			}
+			if shouldAddAllOutboundRule {
+				sg.EgressRules = append(sg.EgressRules, allOutboundRule)
+			}
+
 			return nil
 		},
 	},
