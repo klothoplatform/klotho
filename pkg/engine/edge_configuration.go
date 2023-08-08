@@ -33,17 +33,15 @@ func (e *Engine) configureEdges(graph *core.ResourceGraph) (map[core.ResourceId]
 				joinedErr = errors.Join(joinedErr, err)
 				continue
 			}
-			configuredEdges[dep.Source.Id()][dep.Destination.Id()] = true
-
-		} else {
-			err := e.KnowledgeBase.ConfigureEdge(&dep, graph)
-			if err != nil {
-				joinedErr = errors.Join(joinedErr, err)
-				continue
-			}
-			configuredEdges[dep.Source.Id()][dep.Destination.Id()] = true
-
 		}
+
+		err := e.KnowledgeBase.ConfigureEdge(&dep, graph)
+		if err != nil {
+			joinedErr = errors.Join(joinedErr, err)
+			continue
+		}
+		configuredEdges[dep.Source.Id()][dep.Destination.Id()] = true
+
 	}
 	return configuredEdges, joinedErr
 }
@@ -82,7 +80,7 @@ func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, graph *
 		}
 		graph.AddDependency(src, dst)
 	}
-	return nil
+	return joinedErr
 }
 
 func nameResourceFromEdge(edge *graph.Edge[core.Resource], res core.ResourceId) string {
@@ -116,7 +114,7 @@ func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *core.Reso
 		if err != nil {
 			return err
 		}
-		err = ConfigureField(res, config.Config.Field, newConfig.Value, graph)
+		err = ConfigureField(res, config.Config.Field, newConfig.Value, config.Config.ZeroValueAllowed, graph)
 		if err != nil {
 			return err
 		}

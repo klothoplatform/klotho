@@ -104,6 +104,7 @@ func NewEngine(providers map[string]provider.Provider, kb knowledgebase.EdgeKB, 
 				DeploymentOrderReversed: template.DeploymentOrderReversed,
 				DeletetionDependent:     template.DeletetionDependent,
 				Reuse:                   template.Reuse,
+				Configure:               engine.KnowledgeBase.EdgeMap[edge].Configure,
 			}
 
 			if engine.KnowledgeBase.EdgesByType[reflect.TypeOf(srcRes)] == nil {
@@ -584,7 +585,7 @@ func (e *Engine) ApplyResourceConstraint(graph *core.ResourceGraph, constraint *
 	if resource == nil {
 		return fmt.Errorf("resource %s does not exist", constraint.Target)
 	}
-	err := ConfigureField(resource, constraint.Property, constraint.Value, graph)
+	err := ConfigureField(resource, constraint.Property, constraint.Value, true, graph)
 	if err != nil {
 		return err
 	}

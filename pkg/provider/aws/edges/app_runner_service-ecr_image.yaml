@@ -1,0 +1,6 @@
+source: "aws:app_runner_service:"
+destination: "aws:ecr_image:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:

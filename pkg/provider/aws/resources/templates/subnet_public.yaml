@@ -15,6 +15,7 @@ rules:
           - route_table
         unsatisfied_action:
           operation: create
+          unique: true
 configuration:
   - field: MapPublicIpOnLaunch
     value: false

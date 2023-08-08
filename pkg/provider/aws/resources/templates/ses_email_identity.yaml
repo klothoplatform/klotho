@@ -1,4 +1,4 @@
 provider: aws
-type: sns_email_identity
+type: ses_email_identity
 delete_context:
   require_no_upstream: true

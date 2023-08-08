@@ -1,0 +1,6 @@
+source: "aws:ec2_instance:"
+destination: "aws:security_group:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:

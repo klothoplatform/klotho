@@ -1,0 +1,25 @@
+source: "aws:api_integration:"
+destination: "aws:vpc_link:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:
+configuration:
+- resource: "aws:api_integration:"
+  config:
+    field: VpcLink
+    value: "aws:vpc_link:"
+- resource: "aws:api_integration:"
+  config:
+    field: Uri
+    value: 
+      ResourceId: "aws:vpc_link:"
+      Property: nlb_uri
+- resource: "aws:api_integration:"
+  config:
+    field: ConnectionType
+    value: VPC_LINK
+- resource: "aws:api_integration:"
+  config:
+    field: Type
+    value: AWS_PROXY

@@ -23,14 +23,14 @@ func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 		EksKB,
 		SqsKB,
 		SnsKB,
-		AppRunnerKB,
 	}
 	return knowledgebase.MergeKBs(kbsToUse)
 }
 
 var AwsExtraEdgesKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.Secret, *resources.SecretVersion]{
-		DeletetionDependent: true,
+		DeletetionDependent:     true,
+		DeploymentOrderReversed: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.EcrImage, *resources.EcrRepository]{},
 	knowledgebase.EdgeBuilder[*resources.OpenIdConnectProvider, *resources.Region]{},

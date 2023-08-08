@@ -8,8 +8,6 @@ import (
 )
 
 var Ec2KB = knowledgebase.Build(
-	knowledgebase.EdgeBuilder[*resources.Ec2Instance, *resources.InstanceProfile]{},
-	knowledgebase.EdgeBuilder[*resources.Ec2Instance, *resources.SecurityGroup]{},
 	knowledgebase.EdgeBuilder[*resources.Ec2Instance, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.Ec2Instance, *resources.AMI]{},
 	knowledgebase.EdgeBuilder[*resources.Ec2Instance, *resources.DynamodbTable]{

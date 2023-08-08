@@ -226,7 +226,7 @@ func (integration *ApiIntegration) MakeOperational(dag *core.ResourceGraph, appN
 			return err
 		}
 		integration.Resource = resource
-		dag.AddDependency(integration, resource)
+		dag.AddDependency(resource, integration)
 	}
 	return nil
 }
