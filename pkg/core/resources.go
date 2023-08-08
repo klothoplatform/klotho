@@ -123,7 +123,8 @@ type (
 		Classifications []string `json:"classifications" yaml:"classifications"`
 		// SetField defines the field on the resource that should be set to the resource that satisfies the rule
 		SetField string `json:"set_field" yaml:"set_field"`
-		// RemoveDirectDependency defines if the direct dependency between the resource and the rule's resource(s) that satisfies the rule should be removed
+		// RemoveDirectDependency defines if the direct dependency between the resource and the rule's resource(s) that satisfies the rule should be removed.
+		// We also use this flag to determine if we are retrieving direct dependencies or all dependencies in the specified direction, when looking for rule satisfaction.
 		RemoveDirectDependency bool `json:"remove_direct_dependency" yaml:"remove_direct_dependency"`
 		// NumNeeded defines the number of resources that must satisfy the rule
 		NumNeeded int `json:"num_needed" yaml:"num_needed"`
@@ -131,6 +132,9 @@ type (
 		Rules []OperationalRule `json:"rules" yaml:"rules"`
 		// UnsatisfiedAction defines what action should be taken if the rule is not satisfied
 		UnsatisfiedAction UnsatisfiedAction `json:"unsatisfied_action" yaml:"unsatisfied_action"`
+
+		// NoParentDependency is a flag to signal if a sub rule is not supposed to add a dependency on the resource that satisfies the parent rule
+		NoParentDependency bool `json:"no_parent_dependency" yaml:"no_parent_dependency"`
 	}
 
 	// UnsatisfiedAction defines what action should be taken if the rule is not satisfied

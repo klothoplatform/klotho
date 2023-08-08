@@ -128,12 +128,12 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 	var dependentResources []core.Resource
 	if rule.Direction == core.Upstream {
 		dependentResources = dag.GetUpstreamResources(resource)
-		if rule.Rules != nil {
+		if rule.Rules != nil && rule.RemoveDirectDependency {
 			dependentResources = dag.GetAllUpstreamResources(resource)
 		}
 	} else {
 		dependentResources = dag.GetDownstreamResources(resource)
-		if rule.Rules != nil {
+		if rule.Rules != nil && rule.RemoveDirectDependency {
 			dependentResources = dag.GetAllDownstreamResources(resource)
 		}
 	}
@@ -175,9 +175,13 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 						needs = []string{rule.ResourceTypes[0]}
 					}
 				}
+				var oreParent core.Resource
+				if !rule.NoParentDependency {
+					oreParent = downstreamParent
+				}
 				ore = &core.OperationalResourceError{
 					Resource:   resource,
-					Parent:     downstreamParent,
+					Parent:     oreParent,
 					Direction:  rule.Direction,
 					Count:      1,
 					Needs:      needs,
@@ -196,8 +200,8 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 			if err != nil {
 				return []error{err}
 			}
-			if downstreamParent != nil {
-				addDependencyForDirection(dag, rule.Direction, downstreamParent, res)
+			if downstreamParent != nil && !rule.NoParentDependency {
+				addDependencyForDirection(dag, rule.Direction, res, downstreamParent)
 			}
 		}
 		var subRuleErrors []error
@@ -285,9 +289,13 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 						needs = rule.ResourceTypes
 					}
 				}
+				var oreParent core.Resource
+				if !rule.NoParentDependency {
+					oreParent = downstreamParent
+				}
 				ore = &core.OperationalResourceError{
 					Resource:   resource,
-					Parent:     downstreamParent,
+					Parent:     oreParent,
 					Direction:  rule.Direction,
 					Count:      rule.NumNeeded - len(resourcesOfType),
 					MustCreate: rule.UnsatisfiedAction.Unique,
@@ -478,7 +486,7 @@ func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceErr
 
 			addDependencyForDirection(dag, err.Direction, err.Resource, newRes)
 			if err.Parent != nil {
-				addDependencyForDirection(dag, err.Direction, err.Parent, newRes)
+				addDependencyForDirection(dag, err.Direction, newRes, err.Parent)
 			}
 			err := e.MakeResourceOperational(dag, newRes)
 			if err != nil {

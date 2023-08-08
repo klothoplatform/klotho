@@ -20,6 +20,7 @@ rules:
         unsatisfied_action:
           operation: create
           unique: true
+        no_parent_dependency: true
   - enforcement: conditional
     direction: upstream
     resource_types:
@@ -31,5 +32,6 @@ rules:
           - internet_gateway
         unsatisfied_action:
           operation: create
+        no_parent_dependency: true
 delete_context:
   requires_no_upstream: true
