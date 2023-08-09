@@ -204,11 +204,12 @@ func (or *OperationalRule) String() string {
 }
 
 const (
-	Compute Functionality = "compute"
-	Cluster Functionality = "cluster"
-	Storage Functionality = "storage"
-	Api     Functionality = "api"
-	Unknown Functionality = "Unknown"
+	Compute   Functionality = "compute"
+	Cluster   Functionality = "cluster"
+	Storage   Functionality = "storage"
+	Api       Functionality = "api"
+	Messaging Functionality = "messaging"
+	Unknown   Functionality = "Unknown"
 
 	ALL_RESOURCES_IAC_VALUE = "*"
 

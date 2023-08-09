@@ -201,7 +201,7 @@ func Test_renderGlueVars(t *testing.T) {
 	}{
 		{
 			name:        "routeTableAssociation",
-			subResource: &resources.RouteTable{Name: "rt1"},
+			subResource: &resources.Subnet{Name: "s1", Vpc: vpc},
 			nodes: []core.Resource{
 				vpc,
 				&resources.RouteTable{Name: "rt1"},
@@ -209,8 +209,8 @@ func Test_renderGlueVars(t *testing.T) {
 			},
 			edges: []graph.Edge[core.Resource]{
 				{
-					Source:      &resources.RouteTable{Name: "rt1"},
-					Destination: &resources.Subnet{Name: "s1", Vpc: vpc},
+					Source:      &resources.Subnet{Name: "s1", Vpc: vpc},
+					Destination: &resources.RouteTable{Name: "rt1"},
 				},
 			},
 			resourceVarNamesById: map[core.ResourceId]string{

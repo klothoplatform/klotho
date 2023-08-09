@@ -538,15 +538,15 @@ func ConfigureField(resource core.Resource, fieldName string, value interface{},
 	switch field.Kind() {
 	case reflect.Slice, reflect.Array:
 		if reflect.ValueOf(value).Kind() != reflect.Slice {
-			return fmt.Errorf("config template is not the correct type for resource %s. expected it to be a list, but got %s", resource.Id(), reflect.TypeOf(value))
+			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be a list, but got %s", fieldName, resource.Id(), reflect.TypeOf(value))
 		}
 		err := configureField(value, field, graph, zeroValueAllowed)
 		if err != nil {
 			return err
 		}
 	case reflect.Pointer, reflect.Struct:
-		if reflect.ValueOf(value).Kind() != reflect.Map && !field.Type().Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) {
-			return fmt.Errorf("config template is not the correct type for resource %s. expected it to be a map, but got %s", resource.Id(), reflect.TypeOf(value))
+		if reflect.ValueOf(value).Kind() != reflect.Map && !field.Type().Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) && field.Type() != reflect.TypeOf(core.ResourceId{}) {
+			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be a map, but got %s", fieldName, resource.Id(), reflect.TypeOf(value))
 		}
 		err := configureField(value, field, graph, zeroValueAllowed)
 		if err != nil {
@@ -554,7 +554,7 @@ func ConfigureField(resource core.Resource, fieldName string, value interface{},
 		}
 	default:
 		if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value).String() == "core.ResourceId" {
-			return fmt.Errorf("config template is not the correct type for resource %s. expected it to be %s, but got %s", resource.Id(), field.Type(), reflect.TypeOf(value))
+			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.Id(), field.Type(), reflect.TypeOf(value))
 		}
 		err := configureField(value, field, graph, zeroValueAllowed)
 		if err != nil {

@@ -10,8 +10,8 @@ expansion:
   dependencies:
   - source: aws:lambda_permission:-lambdapermission
     destination: "aws:lambda_function:"
-  - source: aws:lambda_permission:-lambdapermission
-    destination: aws:api_integration:#RestApi
+  - source: aws:api_integration:#RestApi 
+    destination: aws:lambda_permission:-lambdapermission
 configuration:
 - resource: "aws:api_integration:"
   config:

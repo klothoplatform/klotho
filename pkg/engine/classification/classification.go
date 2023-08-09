@@ -80,6 +80,8 @@ func (c *ClassificationDocument) GetFunctionality(resource core.Resource) core.F
 			functionality = core.Storage
 		case "api":
 			functionality = core.Api
+		case "messaging":
+			functionality = core.Messaging
 		default:
 			matched = false
 		}

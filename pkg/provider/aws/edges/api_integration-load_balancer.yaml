@@ -12,3 +12,10 @@ expansion:
     destination: "aws:load_balancer:"
   - source: "aws:api_integration:"
     destination: "aws:vpc_link:"
+configuration:
+- resource: "aws:api_integration:"
+  config:
+    field: Uri
+    value: 
+      ResourceId: "aws:load_balancer:"
+      Property: nlb_uri

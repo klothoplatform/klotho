@@ -153,7 +153,7 @@ func (rg *ResourceGraph) AddDependencyWithData(source Resource, destination Reso
 
 func (rg *ResourceGraph) AddDependencyById(source ResourceId, destination ResourceId, data any) {
 	if cycle, _ := rg.underlying.CreatesCycle(source.String(), destination.String()); cycle {
-		zap.S().Warnf("Not Adding Dependency, Cycle would be created from edge %s -> %s", source, destination)
+		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", source, destination)
 	} else {
 		rg.underlying.AddEdge(source.String(), destination.String(), data)
 		zap.S().Debugf("adding %s -> %s", source, destination)
@@ -162,7 +162,7 @@ func (rg *ResourceGraph) AddDependencyById(source ResourceId, destination Resour
 
 func (rg *ResourceGraph) AddDependencyByString(source string, destination string, data any) {
 	if cycle, _ := rg.underlying.CreatesCycle(source, destination); cycle {
-		zap.S().Warnf("Not Adding Dependency, Cycle would be created from edge %s -> %s", source, destination)
+		zap.S().Errorf("Not Adding Dependency, Cycle would be created from edge %s -> %s", source, destination)
 	} else {
 		rg.underlying.AddEdge(source, destination, data)
 		zap.S().Debugf("adding %s -> %s", source, destination)

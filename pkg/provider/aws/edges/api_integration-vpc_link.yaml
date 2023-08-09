@@ -11,12 +11,6 @@ configuration:
     value: "aws:vpc_link:"
 - resource: "aws:api_integration:"
   config:
-    field: Uri
-    value: 
-      ResourceId: "aws:vpc_link:"
-      Property: nlb_uri
-- resource: "aws:api_integration:"
-  config:
     field: ConnectionType
     value: VPC_LINK
 - resource: "aws:api_integration:"
