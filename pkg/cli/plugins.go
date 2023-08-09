@@ -1,8 +1,9 @@
 package cli
 
 import (
-	"github.com/klothoplatform/klotho/pkg/provider/docker"
 	"net/http"
+
+	"github.com/klothoplatform/klotho/pkg/provider/docker"
 
 	compiler "github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
@@ -41,11 +42,7 @@ type PluginSetBuilder struct {
 func (b *PluginSetBuilder) AddAll() error {
 	var merr multierr.Error
 	for _, f := range []func() error{
-		b.AddExecUnit,
-		b.AddJavascript,
-		b.AddPython,
-		b.AddGo,
-		b.AddCSharp,
+		// TODO: add language plugins back in when we re enable the compiler
 		b.AddPulumi,
 		b.AddVisualizerPlugin,
 		b.AddEngine,
