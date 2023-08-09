@@ -119,7 +119,7 @@ func getStructFieldFields(field reflect.Type) any {
 		arrFields = append(arrFields, getStructFieldFields(field.Elem()))
 		return arrFields
 	} else if field.Kind() == reflect.Map {
-		fields["key"] = field.Key().String()
+		fields["key"] = getStructFieldFields(field.Key())
 		fields["value"] = getStructFieldFields(field.Elem())
 
 		return fields

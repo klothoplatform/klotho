@@ -42,7 +42,11 @@ type PluginSetBuilder struct {
 func (b *PluginSetBuilder) AddAll() error {
 	var merr multierr.Error
 	for _, f := range []func() error{
-		// TODO: add language plugins back in when we re enable the compiler
+		b.AddExecUnit,
+		b.AddJavascript,
+		b.AddPython,
+		b.AddGo,
+		b.AddCSharp,
 		b.AddPulumi,
 		b.AddVisualizerPlugin,
 		b.AddEngine,
