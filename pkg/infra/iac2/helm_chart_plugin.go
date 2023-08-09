@@ -28,8 +28,25 @@ func (p ChartPlugin) Translate(dag *core.ResourceGraph) ([]core.File, error) {
 	var outputFiles []core.File
 
 	for _, cluster := range clusters {
-		manifests := core.GetAllUpstreamResourcesOfType[k8s_resources.ManifestFile](dag, cluster)
-		if len(manifests) == 0 {
+		var chartManifests []k8s_resources.ManifestFile
+		var preExistingCharts []*k8s_resources.HelmChart
+		var clusterAddons []*aws_resources.EksAddon
+		var clusterManifests []*k8s_resources.Manifest
+		clusterUpstreams := dag.GetAllUpstreamResources(cluster)
+		for _, upstream := range clusterUpstreams {
+			switch res := upstream.(type) {
+			case k8s_resources.ManifestFile:
+				chartManifests = append(chartManifests, res)
+			case *k8s_resources.HelmChart:
+				preExistingCharts = append(preExistingCharts, res)
+			case *aws_resources.EksAddon:
+				clusterAddons = append(clusterAddons, res)
+			case *k8s_resources.Manifest:
+				clusterManifests = append(clusterManifests, res)
+			}
+		}
+
+		if len(chartManifests) == 0 {
 			continue
 		}
 
@@ -46,7 +63,7 @@ func (p ChartPlugin) Translate(dag *core.ResourceGraph) ([]core.File, error) {
 
 		var manifestFiles []core.File
 		templateValues := make(map[string]any)
-		for _, manifest := range manifests {
+		for _, manifest := range chartManifests {
 			if manifest, ok := manifest.(k8s_resources.ManifestWithValues); ok {
 				for k, v := range manifest.Values() {
 					templateValues[k] = v
@@ -82,25 +99,12 @@ func (p ChartPlugin) Translate(dag *core.ResourceGraph) ([]core.File, error) {
 		}
 		dag.AddDependenciesReflect(clusterChart)
 
-		// Add cluster chart dependency to all prerequisite downstream charts (i.e. charts that don't depend on any manifests contained in this chart)
+		// Add cluster chart dependency to all prerequisite upstream charts (i.e. charts that don't depend on any manifests contained in this chart)
 		manifestIds := make(map[string]bool)
-		for _, manifest := range manifests {
+		for _, manifest := range chartManifests {
 			manifestIds[manifest.Id().String()] = true
 		}
-		var preExistingCharts []*k8s_resources.HelmChart
-		var clusterAddons []*aws_resources.EksAddon
-		var clusterManifests []*k8s_resources.Manifest
-		clusterDownstreams := dag.GetDownstreamResources(cluster)
-		for _, downstream := range clusterDownstreams {
-			switch res := downstream.(type) {
-			case *k8s_resources.HelmChart:
-				preExistingCharts = append(preExistingCharts, res)
-			case *aws_resources.EksAddon:
-				clusterAddons = append(clusterAddons, res)
-			case *k8s_resources.Manifest:
-				clusterManifests = append(clusterManifests, res)
-			}
-		}
+
 		var preRequisiteCharts []*k8s_resources.HelmChart
 		for _, preExistingChart := range preExistingCharts {
 			downstream := core.GetAllDownstreamResourcesOfType[k8s_resources.ManifestFile](dag, preExistingChart)
