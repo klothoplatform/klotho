@@ -415,7 +415,13 @@ func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
 			wrappedBuf.WriteString(", ")
 		}
 	}
-	wrappedBuf.WriteString("]).apply(([")
+	wrappedBuf.WriteString("]")
+	// If there are more than 8 wrapped dependencies, we need to cast the inputs to "any"
+	// since the typescript definition of pulumi.all only supports up to 8 inputs of different types.
+	if len(wrapping.actualVars) > 8 {
+		wrappedBuf.WriteString(" as pulumi.Input<any>[]")
+	}
+	wrappedBuf.WriteString(").apply(([")
 	for i := 0; i < len(wrapping.methodVars); i++ {
 		wrappedBuf.WriteString(wrapping.methodVars[i])
 		if i < len(wrapping.methodVars)-1 {
@@ -858,7 +864,7 @@ func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource core.Resource
 	case *resources.EksCluster:
 		errs.Append(tc.renderKubernetesProvider(out, resource))
 		errs.Append(tc.addIngressRuleToCluster(out, resource))
-	case *resources.RouteTable:
+	case *resources.Subnet:
 		errs.Append(tc.associateRouteTable(out, resource))
 	case *resources.TargetGroup:
 		errs.Append(tc.attachToTargetGroup(out, resource))
@@ -916,14 +922,14 @@ func (tc TemplatesCompiler) renderKubernetesProvider(out io.Writer, cluster *res
 	return errs.ErrOrNil()
 }
 
-func (tc TemplatesCompiler) associateRouteTable(out io.Writer, rt *resources.RouteTable) error {
+func (tc TemplatesCompiler) associateRouteTable(out io.Writer, subnet *resources.Subnet) error {
 	var errs multierr.Error
 
 	_, err := out.Write([]byte("\n\n"))
 	errs.Append(err)
 
-	for _, resource := range tc.resourceGraph.GetDownstreamResources(rt) {
-		if subnet, ok := resource.(*resources.Subnet); ok {
+	for _, resource := range tc.resourceGraph.GetDownstreamResources(subnet) {
+		if rt, ok := resource.(*resources.RouteTable); ok {
 
 			association := &RouteTableAssociation{
 				Name:       subnet.Name,
