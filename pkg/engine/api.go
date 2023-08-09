@@ -103,16 +103,11 @@ func isFieldConfigurable(field reflect.Type) bool {
 
 func getStructFieldFields(field reflect.Type) any {
 	fields := map[string]any{}
+	if field.Kind() == reflect.Ptr {
+		field = field.Elem()
+	}
 	if field.Kind() == reflect.Struct {
 		element := reflect.New(field).Interface()
-		for i := 0; i < reflect.ValueOf(element).Elem().NumField(); i++ {
-			subField := reflect.ValueOf(element).Elem().Type().Field(i)
-			if isFieldConfigurable(subField.Type) {
-				fields[subField.Name] = getStructFieldFields(subField.Type)
-			}
-		}
-	} else if field.Kind() == reflect.Ptr {
-		element := reflect.New(field.Elem()).Interface()
 		for i := 0; i < reflect.ValueOf(element).Elem().NumField(); i++ {
 			subField := reflect.ValueOf(element).Elem().Type().Field(i)
 			if isFieldConfigurable(subField.Type) {
