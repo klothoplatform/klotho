@@ -27,9 +27,14 @@ func Test_RoleCreate(t *testing.T) {
 			},
 		},
 		{
-			name:    "existing role",
-			role:    &IamRole{Name: "my-app-executionRole", ConstructRefs: initialRefs},
-			wantErr: true,
+			name: "existing role",
+			role: &IamRole{Name: "my-app-executionRole", ConstructRefs: initialRefs},
+			want: coretesting.ResourcesExpectation{
+				Nodes: []string{
+					"aws:iam_role:my-app-executionRole",
+				},
+				Deps: []coretesting.StringDep{},
+			},
 		},
 	}
 	for _, tt := range cases {
