@@ -9,7 +9,7 @@ rules:
     unsatisfied_action:
       operation: error
   - enforcement: exactly_one
-    direction: downstream
+    direction: upstream
     resource_types:
       - rest_api
     unsatisfied_action:

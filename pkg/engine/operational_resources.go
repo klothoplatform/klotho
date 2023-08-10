@@ -205,6 +205,10 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 				addDependencyForDirection(dag, rule.Direction, res, downstreamParent)
 			}
 		}
+		// This has to come before running sub rules since we are not running this rule if its only conditional. Running sub rules first may cause side effects
+		if ore != nil {
+			return []error{ore}
+		}
 		var subRuleErrors []error
 		for _, subRule := range rule.Rules {
 			err := e.handleOperationalRule(resource, subRule, dag, nil)
@@ -216,9 +220,6 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 			return subRuleErrors
 		}
 
-		if ore != nil {
-			return []error{ore}
-		}
 		if res == nil {
 			return []error{fmt.Errorf("no resources found that can satisfy the operational resource rule %s, for %s for resource %s", rule.String(), resource.Id(), resource.Id())}
 		}
