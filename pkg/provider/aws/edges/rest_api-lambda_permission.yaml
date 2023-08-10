@@ -1,0 +1,21 @@
+source: "aws:rest_api:" 
+destination: "aws:lambda_permission:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:
+configuration:
+- resource: "aws:lambda_permission:"
+  config:
+    field: Source
+    value: 
+      ResourceId: "aws:rest_api:"
+      Property: child_resources
+- resource: "aws:lambda_permission:"
+  config:
+    field: Principal
+    value: apigateway.amazonaws.com
+- resource: "aws:lambda_permission:"
+  config:
+    field: Action
+    value: lambda:InvokeFunction

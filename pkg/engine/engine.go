@@ -4,6 +4,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
@@ -26,6 +27,8 @@ type (
 		Constructs []core.Construct
 		// The templates that the engine uses to make resources operational
 		ResourceTemplates map[string]*core.ResourceTemplate
+		// The templates that the engine uses to make edges operational
+		EdgeTemplates map[string]*knowledgebase.EdgeTemplate
 		// The context of the engine
 		Context EngineContext
 	}
@@ -73,6 +76,45 @@ func NewEngine(providers map[string]provider.Provider, kb knowledgebase.EdgeKB, 
 	for _, p := range providers {
 		for resType, template := range p.GetOperationalTempaltes() {
 			engine.ResourceTemplates[fmt.Sprintf("%s:%s", p.Name(), resType)] = template
+		}
+	}
+	engine.EdgeTemplates = make(map[string]*knowledgebase.EdgeTemplate)
+	for _, p := range providers {
+		for tempKey, template := range p.GetEdgeTempaltes() {
+			if _, ok := engine.EdgeTemplates[tempKey]; ok {
+				zap.S().Errorf("got duplicate edge template for %s", tempKey)
+			}
+			engine.EdgeTemplates[tempKey] = template
+			srcRes, err := engine.Providers[template.Source.Provider].CreateResourceFromId(template.Source, engine.Context.InitialState)
+			if err != nil {
+				zap.S().Errorf("got error when creating resource from id %s, err: %s", template.Source, err.Error())
+				continue
+			}
+			dstRes, err := engine.Providers[template.Destination.Provider].CreateResourceFromId(template.Destination, engine.Context.InitialState)
+			if err != nil {
+				zap.S().Errorf("got error when creating resource from id %s, err: %s", template.Destination, err.Error())
+				continue
+			}
+			edge := knowledgebase.Edge{
+				Source:      reflect.TypeOf(srcRes),
+				Destination: reflect.TypeOf(dstRes),
+			}
+			engine.KnowledgeBase.EdgeMap[edge] = knowledgebase.EdgeDetails{
+				DirectEdgeOnly:          template.DirectEdgeOnly,
+				DeploymentOrderReversed: template.DeploymentOrderReversed,
+				DeletetionDependent:     template.DeletetionDependent,
+				Reuse:                   template.Reuse,
+				Configure:               engine.KnowledgeBase.EdgeMap[edge].Configure,
+			}
+
+			if engine.KnowledgeBase.EdgesByType[reflect.TypeOf(srcRes)] == nil {
+				engine.KnowledgeBase.EdgesByType[reflect.TypeOf(srcRes)] = &knowledgebase.ResourceEdges{}
+			}
+			engine.KnowledgeBase.EdgesByType[reflect.TypeOf(srcRes)].Outgoing = append(engine.KnowledgeBase.EdgesByType[reflect.TypeOf(srcRes)].Outgoing, edge)
+			if engine.KnowledgeBase.EdgesByType[reflect.TypeOf(dstRes)] == nil {
+				engine.KnowledgeBase.EdgesByType[reflect.TypeOf(dstRes)] = &knowledgebase.ResourceEdges{}
+			}
+			engine.KnowledgeBase.EdgesByType[reflect.TypeOf(dstRes)].Incoming = append(engine.KnowledgeBase.EdgesByType[reflect.TypeOf(dstRes)].Incoming, edge)
 		}
 	}
 	return engine
@@ -276,8 +318,8 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 func (e *Engine) SolveGraph(context *SolveContext) (*core.ResourceGraph, error) {
 	NUM_LOOPS := 10
 	graph := context.ResourceGraph
-	configuredEdges := map[core.ResourceId]map[core.ResourceId]bool{}
 	errorMap := make(map[int][]error)
+	var configuredEdges map[core.ResourceId]map[core.ResourceId]bool
 	for i := 0; i < NUM_LOOPS; i++ {
 		for _, rc := range e.Context.Constraints[constraints.ResourceConstraintScope] {
 			err := e.ApplyResourceConstraint(graph, rc.(*constraints.ResourceConstraint))
@@ -289,17 +331,9 @@ func (e *Engine) SolveGraph(context *SolveContext) (*core.ResourceGraph, error) 
 		if err != nil {
 			errorMap[i] = append(errorMap[i], err)
 		} else {
-			zap.S().Debug("Engine configuring edges")
-			for _, dep := range graph.ListDependencies() {
-				if _, ok := configuredEdges[dep.Source.Id()]; !ok {
-					configuredEdges[dep.Source.Id()] = make(map[core.ResourceId]bool)
-				}
-				err := e.KnowledgeBase.ConfigureEdge(&dep, graph)
-				if err != nil {
-					errorMap[i] = append(errorMap[i], err)
-					continue
-				}
-				configuredEdges[dep.Source.Id()][dep.Destination.Id()] = true
+			configuredEdges, err = e.configureEdges(graph)
+			if err != nil {
+				errorMap[i] = append(errorMap[i], err)
 			}
 		}
 
@@ -551,7 +585,7 @@ func (e *Engine) ApplyResourceConstraint(graph *core.ResourceGraph, constraint *
 	if resource == nil {
 		return fmt.Errorf("resource %s does not exist", constraint.Target)
 	}
-	err := ConfigureField(resource, constraint.Property, constraint.Value)
+	err := ConfigureField(resource, constraint.Property, constraint.Value, true, graph)
 	if err != nil {
 		return err
 	}

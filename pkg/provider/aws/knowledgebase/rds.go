@@ -2,7 +2,6 @@ package knowledgebase
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
@@ -37,66 +36,66 @@ var RdsKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.RdsProxyTargetGroup]{
-		DeploymentOrderReversed: true,
-		Reuse:                   knowledgebase.Downstream,
-		Configure: func(proxy *resources.RdsProxy, targetGroup *resources.RdsProxyTargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if targetGroup.RdsProxy == nil {
-				targetGroup.RdsProxy = proxy
-			} else if targetGroup.RdsProxy.Name != proxy.Name {
-				return fmt.Errorf("target group, %s, has destination proxy, %s, but internal property is set Destination a different proxy %s", targetGroup.Name, proxy.Name, targetGroup.RdsProxy.Name)
-			}
-			if proxy.Role == nil {
-				return fmt.Errorf("proxy %s is not fully operational yet", proxy.Name)
-			}
-			if len(proxy.Auths) == 0 {
-				secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
-					AppName: data.AppName,
-					Refs:    proxy.BaseConstructRefs().Clone(),
-					Name:    fmt.Sprintf("%s-credentials", strings.TrimPrefix(proxy.Name, fmt.Sprintf("%s-", data.AppName))),
-				})
-				if err != nil {
-					return err
-				}
-				if secretVersion.Secret == nil {
-					return fmt.Errorf("secret version %s is not fully operational yet", secretVersion.Name)
-				}
-				proxy.Auths = append(proxy.Auths, &resources.ProxyAuth{
-					AuthScheme: "SECRETS",
-					IamAuth:    "DISABLED",
-					SecretArn:  core.IaCValue{ResourceId: secretVersion.Secret.Id(), Property: resources.ARN_IAC_VALUE},
-				})
-				dag.AddDependency(proxy, secretVersion.Secret)
+	// knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.RdsProxyTargetGroup]{
+	// 	DeploymentOrderReversed: true,
+	// 	Reuse:                   knowledgebase.Downstream,
+	// 	Configure: func(proxy *resources.RdsProxy, targetGroup *resources.RdsProxyTargetGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+	// 		if targetGroup.RdsProxy == nil {
+	// 			targetGroup.RdsProxy = proxy
+	// 		} else if targetGroup.RdsProxy.Name != proxy.Name {
+	// 			return fmt.Errorf("target group, %s, has destination proxy, %s, but internal property is set Destination a different proxy %s", targetGroup.Name, proxy.Name, targetGroup.RdsProxy.Name)
+	// 		}
+	// 		if proxy.Role == nil {
+	// 			return fmt.Errorf("proxy %s is not fully operational yet", proxy.Name)
+	// 		}
+	// 		if len(proxy.Auths) == 0 {
+	// 			secretVersion, err := core.CreateResource[*resources.SecretVersion](dag, resources.SecretVersionCreateParams{
+	// 				AppName: data.AppName,
+	// 				Refs:    proxy.BaseConstructRefs().Clone(),
+	// 				Name:    fmt.Sprintf("%s-credentials", strings.TrimPrefix(proxy.Name, fmt.Sprintf("%s-", data.AppName))),
+	// 			})
+	// 			if err != nil {
+	// 				return err
+	// 			}
+	// 			if secretVersion.Secret == nil {
+	// 				return fmt.Errorf("secret version %s is not fully operational yet", secretVersion.Name)
+	// 			}
+	// 			proxy.Auths = append(proxy.Auths, &resources.ProxyAuth{
+	// 				AuthScheme: "SECRETS",
+	// 				IamAuth:    "DISABLED",
+	// 				SecretArn:  core.IaCValue{ResourceId: secretVersion.Secret.Id(), Property: resources.ARN_IAC_VALUE},
+	// 			})
+	// 			dag.AddDependency(proxy, secretVersion.Secret)
 
-				secretPolicy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
-					AppName: data.AppName,
-					Name:    fmt.Sprintf("%s-ormsecretpolicy", proxy.Name),
-					Refs:    proxy.ConstructRefs.Clone(),
-				})
-				if err != nil {
-					return err
-				}
-				dag.AddDependency(secretPolicy, secretVersion.Secret)
-				dag.AddDependency(proxy.Role, secretPolicy)
-			}
-			dag.AddDependenciesReflect(proxy)
-			if targetGroup.RdsInstance != nil {
-				secretResource := dag.GetResource(proxy.Auths[0].SecretArn.ResourceId)
-				secret := secretResource.(*resources.Secret)
-				for _, res := range dag.GetUpstreamResources(secret) {
-					if secretVersion, ok := res.(*resources.SecretVersion); ok {
-						secretVersion.Path = targetGroup.RdsInstance.CredentialsPath
-						secretVersion.Type = "string"
-					}
-				}
-			}
-			return nil
-		},
-	},
+	// 			secretPolicy, err := core.CreateResource[*resources.IamPolicy](dag, resources.IamPolicyCreateParams{
+	// 				AppName: data.AppName,
+	// 				Name:    fmt.Sprintf("%s-ormsecretpolicy", proxy.Name),
+	// 				Refs:    proxy.ConstructRefs.Clone(),
+	// 			})
+	// 			if err != nil {
+	// 				return err
+	// 			}
+	// 			dag.AddDependency(secretPolicy, secretVersion.Secret)
+	// 			dag.AddDependency(proxy.Role, secretPolicy)
+	// 		}
+	// 		dag.AddDependenciesReflect(proxy)
+	// 		if targetGroup.RdsInstance != nil {
+	// 			secretResource := dag.GetResource(proxy.Auths[0].SecretArn.ResourceId)
+	// 			secret := secretResource.(*resources.Secret)
+	// 			for _, res := range dag.GetUpstreamResources(secret) {
+	// 				if secretVersion, ok := res.(*resources.SecretVersion); ok {
+	// 					secretVersion.Path = targetGroup.RdsInstance.CredentialsPath
+	// 					secretVersion.Type = "string"
+	// 				}
+	// 			}
+	// 		}
+	// 		return nil
+	// 	},
+	// },
 	knowledgebase.EdgeBuilder[*resources.RdsSubnetGroup, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.RdsInstance, *resources.RdsSubnetGroup]{},
 	knowledgebase.EdgeBuilder[*resources.RdsInstance, *resources.SecurityGroup]{},
 	knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.SecurityGroup]{},
 	knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.Subnet]{},
-	knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.Secret]{},
+	// knowledgebase.EdgeBuilder[*resources.RdsProxy, *resources.Secret]{},
 )

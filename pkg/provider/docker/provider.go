@@ -2,10 +2,12 @@ package docker
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/klothoplatform/klotho/pkg/core"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/provider/docker/resources"
-	"reflect"
 )
 
 type DockerProvider struct {
@@ -14,6 +16,11 @@ type DockerProvider struct {
 func (a *DockerProvider) GetOperationalTempaltes() map[string]*core.ResourceTemplate {
 	// Not implemented
 	return map[string]*core.ResourceTemplate{}
+}
+
+func (a *DockerProvider) GetEdgeTempaltes() map[string]*knowledgebase.EdgeTemplate {
+	// Not implemented
+	return map[string]*knowledgebase.EdgeTemplate{}
 }
 
 func (a *DockerProvider) Name() string { return provider.DOCKER }

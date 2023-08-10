@@ -145,6 +145,11 @@ func (tc TemplatesCompiler) RenderExports(out io.Writer) error {
 			if err != nil {
 				return err
 			}
+		case *resources.AppRunnerService:
+			_, err := out.Write([]byte("\"" + res.Name + "\": " + tc.getVarName(res) + ".serviceUrl,\n"))
+			if err != nil {
+				return err
+			}
 		}
 	}
 	_, err = out.Write([]byte("}"))

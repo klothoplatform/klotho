@@ -420,10 +420,25 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	plugins := &PluginSetBuilder{
 		Cfg: &appCfg,
 	}
-	err = km.PluginSetup(plugins)
+	if cfg.constructGraph != "" {
+		err = plugins.AddEngine()
+		if err != nil {
+			return err
+		}
+		err = plugins.AddPulumi()
+		if err != nil {
+			return err
+		}
+		err = plugins.AddVisualizerPlugin()
+		if err != nil {
+			return err
+		}
+	} else {
+		err = km.PluginSetup(plugins)
 
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	document := &compiler.CompilationDocument{
@@ -442,13 +457,9 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 	if cfg.skipInfrastructure {
 		iacPlugins = filterInfrastructure(iacPlugins)
 	}
-	atPlugins := plugins.AnalysisAndTransform
-	if cfg.constructGraph != "" {
-		atPlugins = make([]compiler.AnalysisAndTransformationPlugin, 0)
-	}
 
 	klothoCompiler := compiler.Compiler{
-		AnalysisAndTransformationPlugins: atPlugins,
+		AnalysisAndTransformationPlugins: plugins.AnalysisAndTransform,
 		IaCPlugins:                       iacPlugins,
 		Engine:                           plugins.Engine,
 		Document:                         document,

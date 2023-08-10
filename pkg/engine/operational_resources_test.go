@@ -505,12 +505,44 @@ func Test_TemplateConfigure(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "pointer sub field",
+			resource: &enginetesting.MockResource6{},
+			template: core.ResourceTemplate{
+				Configuration: []core.Configuration{
+					{Field: "Struct2.Field1", Value: 1},
+					{Field: "Struct2.Arr1", Value: []string{"1", "2", "3"}},
+				},
+			},
+			want: &enginetesting.MockResource6{
+				Struct2: &enginetesting.TestRes1{
+					Field1: 1,
+					Arr1:   []string{"1", "2", "3"},
+				},
+			},
+		},
+		{
+			name:     "struct sub field",
+			resource: &enginetesting.MockResource6{},
+			template: core.ResourceTemplate{
+				Configuration: []core.Configuration{
+					{Field: "Struct1.Field1", Value: 1},
+					{Field: "Struct1.Arr1", Value: []string{"1", "2", "3"}},
+				},
+			},
+			want: &enginetesting.MockResource6{
+				Struct1: enginetesting.TestRes1{
+					Field1: 1,
+					Arr1:   []string{"1", "2", "3"},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			err := TemplateConfigure(tt.resource, tt.template)
+			err := TemplateConfigure(tt.resource, tt.template, nil)
 			if !assert.NoError(err) {
 				return
 			}

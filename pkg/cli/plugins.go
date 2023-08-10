@@ -1,8 +1,9 @@
 package cli
 
 import (
-	"github.com/klothoplatform/klotho/pkg/provider/docker"
 	"net/http"
+
+	"github.com/klothoplatform/klotho/pkg/provider/docker"
 
 	compiler "github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"

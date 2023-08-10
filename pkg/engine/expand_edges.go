@@ -239,10 +239,10 @@ func (e *Engine) resolvePathWeight(path knowledgebase.Path) int {
 
 func (e *Engine) resolveEdgeWeight(edge graph.Edge[core.Resource]) int {
 	weight := 0
-	if len(e.ClassificationDocument.GetClassification(edge.Source).Is) > 0 {
+	if e.ClassificationDocument.GetFunctionality(edge.Source) != core.Unknown {
 		weight += 1
 	}
-	if len(e.ClassificationDocument.GetClassification(edge.Destination).Is) > 0 {
+	if e.ClassificationDocument.GetFunctionality(edge.Destination) != core.Unknown {
 		weight += 1
 	}
 	return weight

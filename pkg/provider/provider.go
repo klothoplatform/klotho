@@ -18,6 +18,7 @@ package provider
 
 import (
 	"github.com/klothoplatform/klotho/pkg/core"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
 
 type (
@@ -25,6 +26,7 @@ type (
 		Name() string
 		ListResources() []core.Resource
 		GetOperationalTempaltes() map[string]*core.ResourceTemplate
+		GetEdgeTempaltes() map[string]*knowledgebase.EdgeTemplate
 		CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error)
 	}
 )

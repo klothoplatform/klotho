@@ -1,0 +1,6 @@
+source: "aws:api_resource:"
+destination: "aws:api_resource:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:

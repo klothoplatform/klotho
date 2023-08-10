@@ -155,6 +155,8 @@ type (
 		Value any `json:"value" yaml:"value"`
 		// ZeroValueAllowed defines if the value can be set to the zero value of the field
 		ZeroValueAllowed bool `json:"zero_value_allowed" yaml:"zero_value_allowed"`
+		// OnlySetIfZeroValue defines if the value should only be set if the field is the zero value
+		OnlySetIfZeroValue bool `json:"only_set_if_zero_value" yaml:"only_set_if_zero_value"`
 	}
 
 	Sanitization struct {
@@ -202,11 +204,12 @@ func (or *OperationalRule) String() string {
 }
 
 const (
-	Compute Functionality = "compute"
-	Cluster Functionality = "cluster"
-	Storage Functionality = "storage"
-	Api     Functionality = "api"
-	Unknown Functionality = "Unknown"
+	Compute   Functionality = "compute"
+	Cluster   Functionality = "cluster"
+	Storage   Functionality = "storage"
+	Api       Functionality = "api"
+	Messaging Functionality = "messaging"
+	Unknown   Functionality = "Unknown"
 
 	ALL_RESOURCES_IAC_VALUE = "*"
 

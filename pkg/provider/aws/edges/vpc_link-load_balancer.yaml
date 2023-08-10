@@ -1,0 +1,11 @@
+source: "aws:vpc_link:"
+destination: "aws:load_balancer:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:
+configuration:
+- resource: "aws:vpc_link:"
+  config:
+    field: Target
+    value: "aws:load_balancer:"

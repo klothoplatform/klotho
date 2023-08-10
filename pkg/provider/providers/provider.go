@@ -8,6 +8,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	awsknowledgebase "github.com/klothoplatform/klotho/pkg/provider/aws/knowledgebase"
+	"github.com/klothoplatform/klotho/pkg/provider/kubernetes"
 )
 
 func GetProvider(cfg *config.Application) (provider.Provider, error) {
@@ -17,6 +18,8 @@ func GetProvider(cfg *config.Application) (provider.Provider, error) {
 		fallthrough
 	case "aws":
 		return &aws.AWS{AppName: cfg.AppName}, nil
+	case "kubernetes":
+		return &kubernetes.KubernetesProvider{AppName: cfg.AppName}, nil
 	}
 
 	return nil, fmt.Errorf("could not get provider: %v", cfg.Provider)
@@ -29,6 +32,8 @@ func GetKnowledgeBase(cfg *config.Application) (knowledgebase.EdgeKB, error) {
 		fallthrough
 	case "aws":
 		return awsknowledgebase.GetAwsKnowledgeBase()
+	case "kubernetes":
+		return knowledgebase.EdgeKB{}, nil
 	}
 	return knowledgebase.EdgeKB{}, fmt.Errorf("could not get provider: %v", cfg.Provider)
 }
