@@ -5,6 +5,7 @@ import (
 	k8sSanitizer "github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"path"
 	"sigs.k8s.io/aws-load-balancer-controller/apis/elbv2/v1beta1"
 	"strings"
 
@@ -117,8 +118,7 @@ var EksKB = knowledgebase.Build(
 			}
 			assumeRolePolicy := resources.GetServiceAccountAssumeRolePolicy(sa.Object.Name, sa.Object.Namespace, oidc)
 			role.AssumeRolePolicyDoc = assumeRolePolicy
-			dag.AddDependenciesReflect(role)
-
+			dag.AddDependencyWithData(role, oidc, data)
 			return nil
 		},
 	},
@@ -193,13 +193,19 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EfsFileSystem]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EfsMountTarget]{
 		Configure: func(pod *kubernetes.Pod, mountTarget *resources.EfsMountTarget, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			_, err := resources.MountEfsVolume(pod, mountTarget, dag, data.AppName)
+			if mountTarget.FileSystem == nil {
+				return fmt.Errorf("%s has no file system", mountTarget.Id())
+			}
+			_, err := resources.MountEfsVolume(pod, mountTarget, dag, data.AppName, path.Join("/mnt/efs", mountTarget.FileSystem.Name))
 			return err
 		},
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EfsMountTarget]{
 		Configure: func(deployment *kubernetes.Deployment, mountTarget *resources.EfsMountTarget, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			_, err := resources.MountEfsVolume(deployment, mountTarget, dag, data.AppName)
+			if mountTarget.FileSystem == nil {
+				return fmt.Errorf("%s has no file system", mountTarget.Id())
+			}
+			_, err := resources.MountEfsVolume(deployment, mountTarget, dag, data.AppName, path.Join("/mnt/efs", mountTarget.FileSystem.Name))
 			return err
 		},
 	},

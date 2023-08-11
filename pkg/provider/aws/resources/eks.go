@@ -416,15 +416,94 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 	return nil
 }
 
-func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *core.ResourceGraph, appName string) (*kubernetes.Manifest, error) {
-	isValidType := false
-	switch resource.(type) {
-	case *kubernetes.Deployment:
-		isValidType = true
-	case *kubernetes.Pod:
-		isValidType = true
+func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *core.ResourceGraph, appName string, mountPath string) (*kubernetes.Manifest, error) {
+	if mountTarget.FileSystem == nil {
+		return nil, fmt.Errorf("%s has no file system", mountTarget.Id())
 	}
-	if !isValidType {
+
+	volumeName := k8sSanitizer.RFC1035LabelSanitizer.Apply(fmt.Sprintf("%s-volume", mountTarget.FileSystem.Name))
+	volumeMount := corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: mountPath,
+	}
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: "efs-claim",
+			},
+		},
+	}
+
+	switch resource := resource.(type) {
+	// TODO: look into how to mount to a specific container when there are multiple containers in a pod
+	case *kubernetes.Deployment:
+		if resource.Object == nil {
+			return nil, fmt.Errorf("%s has no Object", resource.Id())
+		}
+		if resource.Object.Spec.Template.Spec.Containers == nil {
+			return nil, fmt.Errorf("efs volume %s cannot be mounted: %s has no containers", mountTarget.FileSystem.Id(), resource.Id())
+		}
+		for i, container := range resource.Object.Spec.Template.Spec.Containers {
+			containerRef := &container
+			mountAdded := false
+			for i, existingMount := range containerRef.VolumeMounts {
+				if volumeMount.Name == existingMount.Name {
+					containerRef.VolumeMounts[i] = volumeMount
+					mountAdded = true
+					break
+				}
+			}
+			if !mountAdded {
+				containerRef.VolumeMounts = append(containerRef.VolumeMounts, volumeMount)
+			}
+			resource.Object.Spec.Template.Spec.Containers[i] = *containerRef
+		}
+		volumeAdded := false
+		for i, existingVolume := range resource.Object.Spec.Template.Spec.Volumes {
+			if volume.Name == existingVolume.Name {
+				resource.Object.Spec.Template.Spec.Volumes[i] = volume
+				volumeAdded = true
+				break
+			}
+		}
+		if !volumeAdded {
+			resource.Object.Spec.Template.Spec.Volumes = append(resource.Object.Spec.Template.Spec.Volumes, volume)
+		}
+	case *kubernetes.Pod:
+		if resource.Object == nil {
+			return nil, fmt.Errorf("%s has no Object", resource.Id())
+		}
+		if len(resource.Object.Spec.Containers) == 0 {
+			return nil, fmt.Errorf("efs volume %s cannot be mounted: %s has no containers", mountTarget.FileSystem.Id(), resource.Id())
+		}
+		for i, container := range resource.Object.Spec.Containers {
+			containerRef := &container
+			mountAdded := false
+			for i, existingMount := range containerRef.VolumeMounts {
+				if volumeMount.Name == existingMount.Name {
+					containerRef.VolumeMounts[i] = volumeMount
+					mountAdded = true
+					break
+				}
+			}
+			if !mountAdded {
+				containerRef.VolumeMounts = append(containerRef.VolumeMounts, volumeMount)
+			}
+			resource.Object.Spec.Containers[i] = *containerRef
+		}
+		volumeAdded := false
+		for i, existingVolume := range resource.Object.Spec.Volumes {
+			if volume.Name == existingVolume.Name {
+				resource.Object.Spec.Volumes[i] = volume
+				volumeAdded = true
+				break
+			}
+		}
+		if !volumeAdded {
+			resource.Object.Spec.Volumes = append(resource.Object.Spec.Volumes, volume)
+		}
+	default:
 		return nil, fmt.Errorf("resource %s is not a valid EFS volume mount location in an EKS cluster", resource.Id())
 	}
 

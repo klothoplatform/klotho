@@ -2,8 +2,6 @@ package resources
 
 import (
 	"fmt"
-	"path"
-
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
