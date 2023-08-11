@@ -146,6 +146,7 @@ func defaultPropertiesFetchers() byTypePropertiesFetcher {
 	var all []typedPropertiesFetcher
 	// BEGIN Add your property fetchers here
 	all = append(all, asApplier(subnetProperties))
+	all = append(all, asApplier(rdsInstanceProperties))
 	// END
 
 	result := make(map[reflect.Type]propertiesFetcher, len(all))

@@ -11,3 +11,9 @@ func subnetProperties(res *resources.Subnet, dag *core.ResourceGraph) map[string
 		"public":     res.Type == resources.PublicSubnet,
 	}
 }
+
+func rdsInstanceProperties(res *resources.RdsInstance, dag *core.ResourceGraph) map[string]any {
+	return map[string]any{
+		"engine": res.Engine,
+	}
+}
