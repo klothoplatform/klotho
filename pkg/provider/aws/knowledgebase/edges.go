@@ -2,7 +2,6 @@ package knowledgebase
 
 import (
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
-	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
 func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
@@ -11,7 +10,6 @@ func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 		AwsExtraEdgesKB,
 		CloudfrontKB,
 		EcsKB,
-		EfsKB,
 		ElasticacheKB,
 		IamKB,
 		LambdaKB,
@@ -27,14 +25,4 @@ func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 	return knowledgebase.MergeKBs(kbsToUse)
 }
 
-var AwsExtraEdgesKB = knowledgebase.Build(
-	knowledgebase.EdgeBuilder[*resources.Secret, *resources.SecretVersion]{
-		DeletetionDependent:     true,
-		DeploymentOrderReversed: true,
-	},
-	knowledgebase.EdgeBuilder[*resources.EcrImage, *resources.EcrRepository]{},
-	knowledgebase.EdgeBuilder[*resources.OpenIdConnectProvider, *resources.Region]{},
-	knowledgebase.EdgeBuilder[*resources.PrivateDnsNamespace, *resources.Vpc]{},
-	knowledgebase.EdgeBuilder[*resources.PrivateDnsNamespace, *resources.Vpc]{},
-	knowledgebase.EdgeBuilder[*resources.Route53HostedZone, *resources.Vpc]{},
-)
+var AwsExtraEdgesKB = knowledgebase.Build()

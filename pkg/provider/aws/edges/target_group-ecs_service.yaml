@@ -1,0 +1,19 @@
+source: "aws:target_group:"
+destination: "aws:ecs_service:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:
+configuration:
+- resource: "aws:target_group:"
+  config:
+    field: Port
+    value: 3000
+- resource: "aws:target_group:"
+  config:
+    field: Protocol
+    value: TCP
+- resource: "aws:target_group:"
+  config:
+    field: TargetType
+    value: ip

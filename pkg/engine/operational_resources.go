@@ -115,7 +115,8 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 	resourcesOfType := []core.Resource{}
 
 	// if we are supposed to set a field and the field is already set and has the number of resources needed, we dont need to run this function
-	if rule.SetField != "" {
+	// Also make sure theres no sub rules so we dont short circuit
+	if rule.SetField != "" && len(rule.Rules) == 0 {
 		field := reflect.ValueOf(resource).Elem().FieldByName(rule.SetField)
 		if field.IsValid() {
 			if (field.Kind() == reflect.Slice || field.Kind() == reflect.Array) && field.Len() > rule.NumNeeded {
@@ -305,7 +306,7 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 					Cause:      fmt.Errorf("rule with enforcement any has less than the required number of resources of type %s  or classifications %s, %d for resource %s", rule.ResourceTypes, rule.Classifications, len(resourcesOfType), resource.Id()),
 				}
 			case core.ErrorUnsatisfiedResource:
-				return []error{fmt.Errorf("rule with enforcement any has less than the required number of resources of type %s  or classifications %s, %d, for resource %s", rule.ResourceTypes, rule.Classifications, len(resourcesOfType), resource.Id())}
+				return []error{fmt.Errorf("unsatisfied resource error: rule with enforcement any has less than the required number of resources of type %s  or classifications %s, %d, for resource %s", rule.ResourceTypes, rule.Classifications, len(resourcesOfType), resource.Id())}
 			}
 		}
 		var subRuleErrors []error
@@ -322,7 +323,7 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 			return []error{ore}
 		}
 		if len(resourcesOfType) < rule.NumNeeded {
-			return []error{fmt.Errorf("rule with enforcement any available has less than the required number of resources of type %s or classifications %s, %d for resource %s", rule.ResourceTypes, rule.Classifications, len(resourcesOfType), resource.Id())}
+			return []error{fmt.Errorf("insufficient resource error: rule with enforcement any available has less than the required number of resources of type %s or classifications %s, %d for resource %s", rule.ResourceTypes, rule.Classifications, len(resourcesOfType), resource.Id())}
 		}
 	default:
 		return []error{fmt.Errorf("unknown enforcement type %s, for resource %s", rule.Enforcement, resource.Id())}

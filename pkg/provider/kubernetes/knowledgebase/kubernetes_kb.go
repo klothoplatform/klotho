@@ -2,10 +2,11 @@ package knowledgebase
 
 import (
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var KubernetesKB = knowledgebase.Build(
@@ -93,7 +94,7 @@ var KubernetesKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.Deployment, *resources.Manifest]{},
 )
 
-func SetNamespace(object v12.Object, namespace *resources.Namespace) error {
+func SetNamespace(object v1.Object, namespace *resources.Namespace) error {
 	if object == nil {
 		return fmt.Errorf("object has is nil")
 	}

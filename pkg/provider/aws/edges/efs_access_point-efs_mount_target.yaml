@@ -1,0 +1,6 @@
+source: "aws:efs_access_point:"
+destination: "aws:efs_mount_target:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:

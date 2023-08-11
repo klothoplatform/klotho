@@ -16,4 +16,4 @@ configuration:
 - resource: "aws:api_integration:"
   config:
     field: Type
-    value: AWS_PROXY
+    value: HTTP_PROXY

@@ -1,0 +1,6 @@
+source: "aws:ecs_service:"
+destination: "aws:ecs_task_definition:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:
