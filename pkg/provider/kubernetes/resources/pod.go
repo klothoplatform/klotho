@@ -101,7 +101,22 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classif
 		return fmt.Errorf("%s has no cluster", pod.Id())
 	}
 	SetDefaultObjectMeta(pod, pod.Object.GetObjectMeta())
-	pod.FilePath = ManifestFilePath(pod, pod.Cluster)
+	pod.FilePath = ManifestFilePath(pod)
+
+	// TODO: consider changing this once ports are properly configurable
+	// Map default port for containers if none are specified
+	for i, container := range pod.Object.Spec.Containers {
+		containerP := &container
+		if len(containerP.Ports) == 0 {
+			containerP.Ports = append(containerP.Ports, corev1.ContainerPort{
+				Name:          "default-tcp",
+				ContainerPort: 80,
+				HostPort:      80 + int32(i),
+				Protocol:      corev1.ProtocolTCP,
+			})
+		}
+		pod.Object.Spec.Containers[i] = *containerP
+	}
 	return nil
 }
 

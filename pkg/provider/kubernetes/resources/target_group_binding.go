@@ -60,7 +60,7 @@ func (tgb *TargetGroupBinding) MakeOperational(dag *core.ResourceGraph, appName 
 	}
 
 	SetDefaultObjectMeta(tgb, tgb.Object.GetObjectMeta())
-	tgb.FilePath = ManifestFilePath(tgb, tgb.Cluster)
+	tgb.FilePath = ManifestFilePath(tgb)
 	return nil
 }
 

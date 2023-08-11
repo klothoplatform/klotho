@@ -104,7 +104,7 @@ var EksKB = knowledgebase.Build(
 			if sa.Transformations == nil {
 				sa.Transformations = make(map[string]core.IaCValue)
 			}
-			sa.Transformations[value] = core.IaCValue{ResourceId: role.Id(), Property: resources.ID_IAC_VALUE}
+			sa.Transformations[value] = core.IaCValue{ResourceId: role.Id(), Property: resources.ARN_IAC_VALUE}
 
 			// Sets the role's AssumeRolePolicyDocument to allow the service account to assume the role
 			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
@@ -115,7 +115,7 @@ var EksKB = knowledgebase.Build(
 			if err != nil {
 				return err
 			}
-			assumeRolePolicy := resources.GetServiceAccountAssumeRolePolicy(sa.Object.Name, oidc)
+			assumeRolePolicy := resources.GetServiceAccountAssumeRolePolicy(sa.Object.Name, sa.Object.Namespace, oidc)
 			role.AssumeRolePolicyDoc = assumeRolePolicy
 			dag.AddDependenciesReflect(role)
 

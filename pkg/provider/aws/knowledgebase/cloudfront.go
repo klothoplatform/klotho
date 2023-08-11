@@ -37,6 +37,14 @@ var CloudfrontKB = knowledgebase.Build(
 		Configure: func(distro *resources.CloudfrontDistribution, stage *resources.ApiStage, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			var gwId string
 
+			originIndex := -1
+			for i, origin := range distro.Origins {
+				if origin.OriginId == gwId {
+					originIndex = i
+					break
+				}
+			}
+
 			origin := &resources.CloudfrontOrigin{
 				CustomOriginConfig: resources.CustomOriginConfig{
 					HttpPort:             80,
@@ -51,7 +59,11 @@ var CloudfrontKB = knowledgebase.Build(
 				OriginId:   gwId,
 				OriginPath: core.IaCValue{ResourceId: stage.Id(), Property: resources.API_STAGE_PATH_VALUE},
 			}
-			distro.Origins = append(distro.Origins, origin)
+			if originIndex >= 0 {
+				distro.Origins[originIndex] = origin
+			} else {
+				distro.Origins = append(distro.Origins, origin)
+			}
 			if distro.DefaultCacheBehavior == nil {
 				distro.DefaultCacheBehavior = &resources.DefaultCacheBehavior{}
 			}

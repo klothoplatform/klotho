@@ -69,7 +69,7 @@ func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *core.ResourceGraph, app
 	}
 
 	SetDefaultObjectMeta(hpa, hpa.Object.GetObjectMeta())
-	hpa.FilePath = ManifestFilePath(hpa, hpa.Cluster)
+	hpa.FilePath = ManifestFilePath(hpa)
 	return nil
 }
 

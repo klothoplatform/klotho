@@ -47,3 +47,17 @@ var RdsProxySanitizer = sanitization.NewSanitizer(
 			Replacement: "",
 		},
 	}, 64)
+
+var RdsDBNameSanitizer = sanitization.NewSanitizer(
+	[]sanitization.Rule{
+		// Identifier must contain only alphanumeric characters
+		{
+			Pattern:     regexp.MustCompile(`[^a-zA-Z0-9]+`),
+			Replacement: "",
+		},
+		// Identifier must start with a letter
+		{
+			Pattern:     regexp.MustCompile(`^[^a-zA-Z]+`),
+			Replacement: "",
+		},
+	}, 128)

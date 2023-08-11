@@ -83,7 +83,36 @@ var KubernetesKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.TargetGroupBinding, *resources.Service]{},
+	knowledgebase.EdgeBuilder[*resources.TargetGroupBinding, *resources.Service]{
+		Configure: func(targetGroupBinding *resources.TargetGroupBinding, service *resources.Service, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if service.Object == nil {
+				return fmt.Errorf("%s has no object", service.Id())
+			}
+
+			// enable pod readiness gate injection for all pods associated with the service's target group
+			for _, res := range dag.GetDownstreamResources(service) {
+				switch res := res.(type) {
+				case *resources.Pod:
+					if res.Object == nil {
+						return fmt.Errorf("pod %s has no object", res.Id())
+					}
+					if res.Object.Labels == nil {
+						res.Object.Labels = map[string]string{}
+					}
+					res.Object.Labels["elbv2.k8s.aws/pod-readiness-gate-inject"] = "enabled"
+				case *resources.Deployment:
+					if res.Object == nil {
+						return fmt.Errorf("deployment %s has no object", res.Id())
+					}
+					if res.Object.Spec.Template.Labels == nil {
+						res.Object.Spec.Template.Labels = map[string]string{}
+						res.Object.Spec.Template.Labels["elbv2.k8s.aws/pod-readiness-gate-inject"] = "enabled"
+					}
+				}
+			}
+			return nil
+		},
+	},
 	knowledgebase.EdgeBuilder[*resources.ServiceExport, *resources.Service]{},
 	knowledgebase.EdgeBuilder[*resources.Pod, *resources.HorizontalPodAutoscaler]{},
 	knowledgebase.EdgeBuilder[*resources.Deployment, *resources.HorizontalPodAutoscaler]{},
@@ -92,6 +121,7 @@ var KubernetesKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.ServiceExport, *resources.KustomizeDirectory]{},
 	knowledgebase.EdgeBuilder[*resources.Pod, *resources.Manifest]{},
 	knowledgebase.EdgeBuilder[*resources.Deployment, *resources.Manifest]{},
+	knowledgebase.EdgeBuilder[*resources.HelmChart, *resources.ServiceAccount]{},
 )
 
 func SetNamespace(object v1.Object, namespace *resources.Namespace) error {

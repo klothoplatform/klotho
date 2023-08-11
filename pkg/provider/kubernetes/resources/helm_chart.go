@@ -10,11 +10,10 @@ import (
 const HELM_CHART_TYPE = "helm_chart"
 
 type HelmChart struct {
-	Name      string
-	Chart     string
-	Directory string
-	Files     []ManifestFile
-
+	Name          string
+	Chart         string
+	Directory     string
+	Files         []ManifestFile
 	ConstructRefs core.BaseConstructSet `yaml:"-"`
 	Cluster       core.ResourceId
 	Repo          string

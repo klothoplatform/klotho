@@ -3,6 +3,7 @@ package resources
 import (
 	"crypto/rand"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"math/big"
 	"strings"
 
@@ -26,6 +27,8 @@ var (
 	rdsInstanceSanitizer = aws.RdsInstanceSanitizer
 	rdsSubnetSanitizer   = aws.RdsSubnetGroupSanitizer
 	rdsProxySanitizer    = aws.RdsProxySanitizer
+
+	rdsDBNameSanitizer = aws.RdsDBNameSanitizer
 )
 
 const (
@@ -131,7 +134,8 @@ type RdsInstanceConfigureParams struct {
 }
 
 func (instance *RdsInstance) Configure(params RdsInstanceConfigureParams) error {
-	instance.DatabaseName = params.DatabaseName
+	//TODO: enable this when we have a way to pass in the database name
+	//instance.DatabaseName = params.DatabaseName
 	instance.Username = generateUsername()
 	instance.Password = generatePassword()
 	credsBytes := []byte(fmt.Sprintf("{\n\"username\": \"%s\",\n\"password\": \"%s\"\n}", instance.Username, instance.Password))
@@ -329,4 +333,12 @@ func (rds *RdsProxyTargetGroup) DeleteContext() core.DeleteContext {
 	return core.DeleteContext{
 		RequiresNoUpstreamOrDownstream: true,
 	}
+}
+
+func (rds *RdsInstance) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+	// Set a default database name to ensure we actually create a database on the instance
+	if rds.DatabaseName == "" {
+		rds.DatabaseName = rdsDBNameSanitizer.Apply(rds.Name)
+	}
+	return nil
 }

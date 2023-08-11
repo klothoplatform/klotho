@@ -165,7 +165,7 @@ var IamKB = knowledgebase.Build(
 				}
 			}
 			if upstreamServiceAccount != nil {
-				role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(upstreamServiceAccount.Name, oidc)
+				role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(upstreamServiceAccount.Object.Name, upstreamServiceAccount.Object.Namespace, oidc)
 				return nil
 			}
 
@@ -173,7 +173,7 @@ var IamKB = knowledgebase.Build(
 			for cons := range role.ConstructRefs {
 				ref = cons
 			}
-			role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(ref.Name, oidc)
+			role.AssumeRolePolicyDoc = resources.GetServiceAccountAssumeRolePolicy(ref.Name, ref.Namespace, oidc)
 			return nil
 		},
 		DirectEdgeOnly: true,

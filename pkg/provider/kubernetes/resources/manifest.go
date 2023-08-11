@@ -37,7 +37,7 @@ type (
 
 const MANIFEST_TYPE = "manifest"
 
-func OutputObjectAsYaml(manifest ManifestFile) (core.File, error) {
+func OutputObjectAsYaml(manifest ManifestFile) (*core.RawFile, error) {
 	output, err := yaml.Marshal(manifest.GetObject())
 	if err != nil {
 		return nil, err
@@ -85,8 +85,8 @@ func SetDefaultObjectMeta(resource core.Resource, meta v1.Object) {
 	meta.SetLabels(labels)
 }
 
-func ManifestFilePath(file ManifestFile, clusterId core.ResourceId) string {
-	return path.Join("charts", clusterId.Name, "templates", fmt.Sprintf("%s_%s.yaml", file.Id().Type, file.Id().Name))
+func ManifestFilePath(file ManifestFile) string {
+	return fmt.Sprintf("%s_%s.yaml", file.Id().Type, file.Id().Name)
 }
 
 func KlothoIdSelector(object v1.Object) map[string]string {

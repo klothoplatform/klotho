@@ -81,7 +81,7 @@ func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName strin
 	}
 
 	SetDefaultObjectMeta(sa, sa.Object.GetObjectMeta())
-	sa.FilePath = ManifestFilePath(sa, sa.Cluster)
+	sa.FilePath = ManifestFilePath(sa)
 	return nil
 }
 

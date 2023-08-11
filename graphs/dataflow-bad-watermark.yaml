@@ -1,0 +1,37 @@
+infracopilot:
+  provider: aws
+  resources:
+    docker:image/wordpress:php8.2:
+
+    efs_file_system/efs_file_system_01:
+
+    kubernetes:pod/pod_01:
+        parent: eks_cluster/eks_cluster-0
+
+    kubernetes:pod/pod_01 -> efs_file_system/efs_file_system_01:
+    kubernetes:pod/pod_01 -> docker:image/wordpress:php8.2:
+
+    load_balancer/load_balancer_01:
+        parent: vpc/vpc-0
+
+    load_balancer/load_balancer_01 -> kubernetes:pod/pod_01:
+
+    kubernetes:deployment/deployment_01:
+        parent: eks_cluster/eks_cluster-0
+
+    kubernetes:deployment/deployment_01 -> kubernetes:pod/pod_01:
+
+    vpc/vpc-0:
+
+    rest_api/rest_api_01:
+    rest_api/rest_api_01 -> load_balancer/load_balancer_01:
+
+    lambda_function/lambda_function_01:
+        parent: vpc/vpc-0
+
+    lambda_function/lambda_function_01 -> kubernetes:pod/pod_01:
+
+    eks_cluster/eks_cluster-0:
+        parent: vpc/vpc-0
+
+

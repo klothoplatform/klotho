@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"io/fs"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"path"
 	"reflect"
 	"regexp"
@@ -644,7 +646,12 @@ type ServiceAccountCreateParams struct {
 // CreateServiceAccount creates a service account for the cluster
 func (cluster *EksCluster) CreateServiceAccount(params ServiceAccountCreateParams) (*kubernetes.ServiceAccount, error) {
 	outputPath := path.Join(MANIFEST_PATH_PREFIX, fmt.Sprintf("%s-service-account.yaml", params.Name))
-	serviceAccount := &kubernetes.ServiceAccount{Name: params.Name}
+	serviceAccount := &kubernetes.ServiceAccount{
+		Name: params.Name,
+		Object: &corev1.ServiceAccount{
+			TypeMeta: v1.TypeMeta{APIVersion: "v1", Kind: "ServiceAccount"},
+		},
+	}
 	dag := params.Dag
 	appName := params.AppName
 
@@ -698,15 +705,17 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 	if err != nil {
 		return nil, err
 	}
+	serviceAccount.Object.Namespace = "kube-system"
 
 	region := NewRegion()
+
 	albChart := &kubernetes.HelmChart{
 		Name:          fmt.Sprintf("%s-alb-controller", cluster.Name),
 		Chart:         "aws-load-balancer-controller",
 		Repo:          "https://aws.github.io/eks-charts",
 		ConstructRefs: references,
-		Version:       "1.4.7",
-		Namespace:     "default",
+		Version:       "1.5.5",
+		Namespace:     "kube-system",
 		Cluster:       cluster.Id(),
 		IsInternal:    true,
 		Values: map[string]any{
@@ -717,18 +726,22 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 			},
 			"region": core.IaCValue{ResourceId: region.Id(), Property: NAME_IAC_VALUE},
 			"vpcId":  core.IaCValue{ResourceId: cluster.Vpc.Id(), Property: ID_IAC_VALUE},
-			"podLabels": map[string]string{
-				"app": "aws-lb-controller",
-			},
 			// objectSelector is used to select pods to inject the pod readiness gate into
 			// (see https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.4/deploy/pod_readiness_gate/)
 			"objectSelector": map[string]any{"matchLabels": map[string]any{"elbv2.k8s.aws/pod-readiness-gate-inject": "enabled"}},
 			// webhookNamespaceSelector is set to an empty matchExpressions to allow the pod readiness gate to be installed in any namespace
 			"webhookNamespaceSelectors": map[string]any{"matchExpressions": []any{}},
+			"enableCertManager":         true,
 		},
 	}
+	albChart.Values["podLabels"] = map[string]string{
+		"app":                      "aws-lb-controller",
+		kubernetes.KLOTHO_ID_LABEL: k8sSanitizer.LabelValueSanitizer.Apply(albChart.Id().String()),
+	}
+
 	dag.AddResource(region)
 	dag.AddDependenciesReflect(albChart)
+	dag.AddDependency(albChart, serviceAccount)
 	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
 		dag.AddDependency(albChart, nodeGroup)
 	}
@@ -804,7 +817,7 @@ func GetServiceAccountRole(sa *kubernetes.ServiceAccount, dag *core.ResourceGrap
 		if err != nil {
 			return nil, err
 		}
-		assumeRolePolicy := GetServiceAccountAssumeRolePolicy(sa.Object.Name, oidc)
+		assumeRolePolicy := GetServiceAccountAssumeRolePolicy(sa.Object.Name, sa.Object.Namespace, oidc)
 		role.AssumeRolePolicyDoc = assumeRolePolicy
 		dag.AddDependenciesReflect(role)
 		return role, nil
@@ -874,7 +887,10 @@ func configureKubeconfig(cluster *EksCluster, region *Region) error {
 	return nil
 }
 
-func GetServiceAccountAssumeRolePolicy(serviceAccountName string, oidc *OpenIdConnectProvider) *PolicyDocument {
+func GetServiceAccountAssumeRolePolicy(serviceAccountName string, namespace string, oidc *OpenIdConnectProvider) *PolicyDocument {
+	if namespace == "" {
+		namespace = "default"
+	}
 	return &PolicyDocument{
 		Version: VERSION,
 		Statement: []StatementEntry{
@@ -892,7 +908,7 @@ func GetServiceAccountAssumeRolePolicy(serviceAccountName string, oidc *OpenIdCo
 						{
 							ResourceId: oidc.Id(),
 							Property:   OIDC_SUB_IAC_VALUE,
-						}: fmt.Sprintf("system:serviceaccount:default:%s", k8sSanitizer.MetadataNameSanitizer.Apply(serviceAccountName)), // TODO: Replace default with the namespace when we expose via configuration
+						}: fmt.Sprintf("system:serviceaccount:%s:%s", namespace, serviceAccountName),
 						{
 							ResourceId: oidc.Id(),
 							Property:   OIDC_AUD_IAC_VALUE,
@@ -997,6 +1013,10 @@ func amiFromInstanceType(instanceType string) string {
 }
 
 func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamPolicy {
+	/*
+
+	 */
+
 	policy := NewIamPolicy(clusterName, "alb-controller", ref, CreateAllowPolicyDocument([]string{
 		"ec2:DescribeAccountAttributes",
 		"ec2:DescribeAddresses",

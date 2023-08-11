@@ -76,7 +76,7 @@ func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName str
 	}
 
 	SetDefaultObjectMeta(namespace, namespace.Object.GetObjectMeta())
-	namespace.FilePath = ManifestFilePath(namespace, namespace.Cluster)
+	namespace.FilePath = ManifestFilePath(namespace)
 	return nil
 }
 

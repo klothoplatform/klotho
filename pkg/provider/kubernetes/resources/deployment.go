@@ -106,14 +106,30 @@ func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName s
 	}
 
 	SetDefaultObjectMeta(deployment, deployment.Object.GetObjectMeta())
-	deployment.FilePath = ManifestFilePath(deployment, deployment.Cluster)
+	deployment.FilePath = ManifestFilePath(deployment)
 
 	// Add klothoId label to the deployment's pod template and as a selector properly associate the pods with their owning deployment
-	if deployment.Object.Spec.Template.ObjectMeta.Labels == nil {
-		deployment.Object.Spec.Template.ObjectMeta.Labels = make(map[string]string)
+	if deployment.Object.Spec.Template.Labels == nil {
+		deployment.Object.Spec.Template.Labels = make(map[string]string)
 	}
-	deployment.Object.Spec.Template.ObjectMeta.Labels[KLOTHO_ID_LABEL] = kubernetes.LabelValueSanitizer.Apply(deployment.Id().String())
+	deployment.Object.Spec.Template.Labels[KLOTHO_ID_LABEL] = kubernetes.LabelValueSanitizer.Apply(deployment.Id().String())
 	deployment.Object.Spec.Selector = &v1.LabelSelector{MatchLabels: KlothoIdSelector(deployment.Object)}
+
+	// TODO: consider changing this once ports are properly configurable
+	// Map default port for containers if none are specified
+	for i, container := range deployment.Object.Spec.Template.Spec.Containers {
+		containerP := &container
+		if len(containerP.Ports) == 0 {
+			containerP.Ports = append(containerP.Ports, corev1.ContainerPort{
+				Name:          "default-tcp",
+				ContainerPort: 3000,
+				HostPort:      3000 + int32(i),
+				Protocol:      corev1.ProtocolTCP,
+			})
+			deployment.Object.Spec.Template.Spec.Containers[i] = *containerP
+		}
+	}
+
 	return nil
 }
 

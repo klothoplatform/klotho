@@ -72,7 +72,7 @@ func (se *ServiceExport) MakeOperational(dag *core.ResourceGraph, appName string
 		return fmt.Errorf("%s has no object", downstreamService.Id())
 	}
 	SetDefaultObjectMeta(se, se.Object.GetObjectMeta())
-	se.FilePath = ManifestFilePath(se, se.Cluster)
+	se.FilePath = ManifestFilePath(se)
 
 	// Binds the service export to the service it's exporting
 	se.Object.Name = downstreamService.Object.Name
