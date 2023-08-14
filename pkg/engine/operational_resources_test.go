@@ -537,6 +537,34 @@ func Test_TemplateConfigure(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "doesnt overwrite field",
+			resource: &enginetesting.MockResource6{
+				Field1: 1,
+			},
+			template: core.ResourceTemplate{
+				Configuration: []core.Configuration{
+					{Field: "Field1", Value: 5},
+				},
+			},
+			want: &enginetesting.MockResource6{
+				Field1: 1,
+			},
+		},
+		{
+			name: "doesnt append to array",
+			resource: &enginetesting.MockResource6{
+				Arr1: []string{"1", "2", "3"},
+			},
+			template: core.ResourceTemplate{
+				Configuration: []core.Configuration{
+					{Field: "Arr1", Value: []string{"4"}},
+				},
+			},
+			want: &enginetesting.MockResource6{
+				Arr1: []string{"1", "2", "3"},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

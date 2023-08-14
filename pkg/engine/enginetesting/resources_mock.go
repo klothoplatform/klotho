@@ -49,6 +49,7 @@ type (
 		Arr3          []*TestRes1
 		Struct1       TestRes1
 		Struct2       *TestRes1
+		Map1          map[string]core.IaCValue
 	}
 )
 
