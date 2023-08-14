@@ -17,6 +17,8 @@ expansion:
     destination: aws:iam_policy:-ormsecretpolicy
   - source: aws:secret_version:-credentials
     destination: aws:rds_proxy_target_group:#RdsInstance
+  - source: aws:rds_proxy:#Role
+    destination: aws:rds_proxy_target_group:#RdsInstance
 configuration:
 - resource: "aws:rds_proxy_target_group:"
   config:

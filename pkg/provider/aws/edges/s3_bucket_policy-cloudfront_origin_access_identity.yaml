@@ -1,0 +1,11 @@
+source: "aws:s3_bucket_policy:"
+destination: "aws:cloudfront_origin_access_identity:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:
+configuration:
+- resource: "aws:cloudfront_origin_access_identity:"
+  config:
+    field: Comment
+    value: this is needed to set up S3 polices so that the S3 bucket is not public

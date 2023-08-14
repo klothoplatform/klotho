@@ -15,12 +15,8 @@ func GetAwsKnowledgeBase() (knowledgebase.EdgeKB, error) {
 		LambdaKB,
 		LbKB,
 		NetworkingKB,
-		RdsKB,
-		S3KB,
 		Ec2KB,
 		EksKB,
-		SqsKB,
-		SnsKB,
 	}
 	return knowledgebase.MergeKBs(kbsToUse)
 }

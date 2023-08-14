@@ -1,0 +1,6 @@
+source: "kubernetes:pod:"
+destination: "aws:sqs_queue:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:

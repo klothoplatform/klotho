@@ -1,0 +1,6 @@
+source: "aws:s3_object:"
+destination: "aws:s3_bucket:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:
