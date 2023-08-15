@@ -19,6 +19,9 @@ type SetMapKey struct {
 	Value reflect.Value
 }
 
+// ConfigureField is a function that takes a resource, a field name, and a value and sets the field on the resource to the value
+// It also takes a graph so that it can resolve references
+// It returns an error if the field cannot be set
 func ConfigureField(resource core.Resource, fieldName string, value interface{}, zeroValueAllowed bool, graph *core.ResourceGraph) error {
 	field, setMapKey, err := parseFieldName(resource, fieldName, graph)
 	if err != nil {
@@ -66,15 +69,18 @@ func configureField(val interface{}, field reflect.Value, dag *core.ResourceGrap
 	} else if reflect.ValueOf(val).IsZero() {
 		return nil
 	}
+
 	if field.Kind() == reflect.Ptr && field.IsNil() {
 		field.Set(reflect.New(reflect.TypeOf(field.Interface()).Elem()))
 	}
+	// We want to check if the field is a core Resource and if so we want to ensure that strings which represent ids
+	// and resource ids are properly being cast to the correct type
 	if field.Kind() == reflect.Ptr {
 		if field.Type().Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) && reflect.ValueOf(val).Type().Kind() == reflect.String {
 			res := getFieldFromIdString(val.(string), dag)
 			// if the return type is a resource id we need to get the correlating resource object
-			if id, ok := res.(*core.ResourceId); ok {
-				res = dag.GetResource(*id)
+			if id, ok := res.(core.ResourceId); ok {
+				res = dag.GetResource(id)
 			}
 			if res == nil && !zeroValueAllowed {
 				return fmt.Errorf("resource %s does not exist in the graph", val)
@@ -83,12 +89,12 @@ func configureField(val interface{}, field reflect.Value, dag *core.ResourceGrap
 			}
 			field.Elem().Set(reflect.ValueOf(res).Elem())
 			return nil
-		} else if field.Type().Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) && reflect.ValueOf(val).Type().Elem().String() == "core.ResourceId" {
-			id := val.(*core.ResourceId)
+		} else if field.Type().Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) && reflect.ValueOf(val).Type().String() == "core.ResourceId" {
+			id := val.(core.ResourceId)
 			res := getFieldFromIdString(id.String(), dag)
 			// if the return type is a resource id we need to get the correlating resource object
-			if id, ok := res.(*core.ResourceId); ok {
-				res = dag.GetResource(*id)
+			if id, ok := res.(core.ResourceId); ok {
+				res = dag.GetResource(id)
 			}
 			if res == nil && !zeroValueAllowed {
 				return fmt.Errorf("resource %s does not exist in the graph", id)
@@ -99,6 +105,17 @@ func configureField(val interface{}, field reflect.Value, dag *core.ResourceGrap
 			return nil
 		}
 		field = field.Elem()
+	}
+	// see if we are getting a field from a resource ID # notation. If so we are going to assume the type is the same and set it and return
+	if reflect.TypeOf(val).Kind() == reflect.String {
+		fieldFromString := getFieldFromIdString(val.(string), dag)
+		if fieldFromString != nil {
+			field.Set(reflect.ValueOf(fieldFromString))
+			if reflect.TypeOf(fieldFromString) != field.Type() {
+				return fmt.Errorf("the type represented by %s not the correct type for field %s. expected it to be %s, but got %s", val, field, field.Type(), reflect.TypeOf(fieldFromString))
+			}
+			return nil
+		}
 	}
 
 	switch field.Kind() {
@@ -245,7 +262,7 @@ func getFieldFromIdString(id string, dag *core.ResourceGraph) any {
 		return nil
 	}
 	if len(arr) == 1 {
-		return resId
+		return *resId
 	}
 	res := dag.GetResource(*resId)
 	if res == nil {
