@@ -83,7 +83,7 @@ func (service *Service) MakeOperational(dag *core.ResourceGraph, appName string,
 func (service *Service) mapContainerPorts(parentObjectName string, containers []corev1.Container) error {
 	for _, container := range containers {
 		if len(container.Ports) == 0 {
-			return fmt.Errorf("pod container %s associated with service %s has no ports", container.Name, service.Name)
+			return fmt.Errorf("container %s associated with service %s has no ports", container.Name, service.Name)
 		}
 
 		currentServicePortIndexes := make(map[int32]int)
@@ -101,7 +101,7 @@ func (service *Service) mapContainerPorts(parentObjectName string, containers []
 			if i, ok := currentServicePortIndexes[port.HostPort]; ok {
 				service.Object.Spec.Ports[i] = servicePort
 			} else {
-				service.Object.Spec.Ports = append(service.Object.Spec.Ports, service.Object.Spec.Ports[i], servicePort)
+				service.Object.Spec.Ports = append(service.Object.Spec.Ports, servicePort)
 				currentServicePortIndexes[port.HostPort] = len(service.Object.Spec.Ports) - 1
 			}
 		}

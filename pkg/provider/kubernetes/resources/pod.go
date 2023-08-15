@@ -110,8 +110,8 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classif
 		if len(containerP.Ports) == 0 {
 			containerP.Ports = append(containerP.Ports, corev1.ContainerPort{
 				Name:          "default-tcp",
-				ContainerPort: 80,
-				HostPort:      80 + int32(i),
+				ContainerPort: 3000,
+				HostPort:      3000 + int32(i),
 				Protocol:      corev1.ProtocolTCP,
 			})
 		}
