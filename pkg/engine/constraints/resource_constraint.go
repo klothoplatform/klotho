@@ -45,7 +45,7 @@ func (constraint *ResourceConstraint) IsSatisfied(dag *core.ResourceGraph, kb kn
 			return false
 		}
 		val := reflect.ValueOf(res).Elem().FieldByName(constraint.Property)
-		return val.Interface() == constraint.Value
+		return val.IsValid() && val.Interface() == constraint.Value
 	}
 	return false
 }

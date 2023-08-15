@@ -116,7 +116,7 @@ func ParseConstraintsFromFile(bytes []byte) (map[ConstraintScope][]Constraint, e
 				}
 				validOperators := []ConstraintOperator{EqualsConstraintOperator}
 				if !collectionutil.Contains(validOperators, constraint.Operator) {
-					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", constraint.Operator))
+					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for construct constraint", constraint.Operator))
 					continue
 				}
 				constraints[ConstructConstraintScope] = append(constraints[ConstructConstraintScope], constraint)
@@ -128,7 +128,7 @@ func ParseConstraintsFromFile(bytes []byte) (map[ConstraintScope][]Constraint, e
 				}
 				validOperators := []ConstraintOperator{MustContainConstraintOperator, MustNotContainConstraintOperator, MustExistConstraintOperator, MustNotExistConstraintOperator}
 				if !collectionutil.Contains(validOperators, constraint.Operator) {
-					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", constraint.Operator))
+					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application edge", constraint.Operator))
 					continue
 				}
 				constraints[EdgeConstraintScope] = append(constraints[EdgeConstraintScope], constraint)
@@ -140,7 +140,7 @@ func ParseConstraintsFromFile(bytes []byte) (map[ConstraintScope][]Constraint, e
 				}
 				validOperators := []ConstraintOperator{AddConstraintOperator}
 				if !collectionutil.Contains(validOperators, constraint.Operator) {
-					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", constraint.Operator))
+					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for resource constraint", constraint.Operator))
 					continue
 				}
 				constraints[ResourceConstraintScope] = append(constraints[ResourceConstraintScope], constraint)
