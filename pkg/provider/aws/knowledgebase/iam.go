@@ -2,6 +2,7 @@ package knowledgebase
 
 import (
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -224,8 +225,18 @@ var IamKB = knowledgebase.Build(
 		DirectEdgeOnly: true,
 	},
 	knowledgebase.EdgeBuilder[*resources.IamRole, *resources.RdsProxy]{},
-	knowledgebase.EdgeBuilder[*resources.RolePolicyAttachment, *resources.IamRole]{},
-	knowledgebase.EdgeBuilder[*resources.RolePolicyAttachment, *resources.IamPolicy]{},
+	knowledgebase.EdgeBuilder[*resources.RolePolicyAttachment, *resources.IamRole]{
+		Configure: func(policy *resources.RolePolicyAttachment, role *resources.IamRole, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			policy.Role = role
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.RolePolicyAttachment, *resources.IamPolicy]{
+		Configure: func(policy *resources.RolePolicyAttachment, iamPolicy *resources.IamPolicy, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			policy.Policy = iamPolicy
+			return nil
+		},
+	},
 	knowledgebase.EdgeBuilder[*resources.IamPolicy, *resources.PrivateDnsNamespace]{
 		Configure: func(policy *resources.IamPolicy, namespace *resources.PrivateDnsNamespace, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			policy.AddPolicyDocument(resources.CreateAllowPolicyDocument([]string{"servicediscovery:DiscoverInstances"}, []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}}))

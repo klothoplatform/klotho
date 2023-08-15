@@ -199,6 +199,7 @@ func (rg *ResourceGraph) GetDependency(source ResourceId, target ResourceId) *gr
 }
 
 func (rg *ResourceGraph) RemoveDependency(source ResourceId, target ResourceId) error {
+	zap.S().Debugf("Removing dependency %s -> %s", source, target)
 	return rg.underlying.RemoveEdge(source.String(), target.String())
 }
 

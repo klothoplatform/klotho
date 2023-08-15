@@ -1,0 +1,23 @@
+source: "aws:load_balancer:"
+destination: "aws:load_balancer_listener:"
+direct_edge_only: false
+deployment_order_reversed: true
+deletion_dependent: false
+reuse:
+configuration:
+- resource: "aws:load_balancer_listener:"
+  config:
+    field: LoadBalancer
+    value: "aws:load_balancer:"
+- resource: "aws:load_balancer:"
+  config:
+    field: Type
+    value: network
+- resource: "aws:load_balancer:"
+  config:
+    field: Scheme
+    value: internal
+- resource: "aws:load_balancer_listener:"
+  config:
+    field: Port
+    value: 80

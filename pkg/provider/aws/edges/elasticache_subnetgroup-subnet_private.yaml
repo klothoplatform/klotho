@@ -1,0 +1,6 @@
+source: "aws:elasticache_subnetgroup:"
+destination: "aws:subnet_private:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:

@@ -136,7 +136,6 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 			dependentResources = dag.GetAllDownstreamResources(resource)
 		}
 	}
-
 	if rule.ResourceTypes != nil && rule.Classifications != nil {
 		return []error{fmt.Errorf("rule cannot have both a resource type and classifications defined %s for resource %s", rule.String(), resource.Id())}
 	} else if rule.ResourceTypes != nil {
@@ -154,7 +153,6 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 	} else {
 		return []error{fmt.Errorf("rule must have either a resource type or classifications defined %s for resource %s", rule.String(), resource.Id())}
 	}
-
 	switch rule.Enforcement {
 	case core.ExactlyOne:
 		var res core.Resource
