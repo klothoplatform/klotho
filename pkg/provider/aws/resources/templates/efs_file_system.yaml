@@ -1,13 +1,5 @@
 provider: aws
 type: efs_file_system
-rules:
-  # TODO: figure out how to do 1 per az
-  - enforcement: exactly_one
-    direction: upstream
-    resource_types:
-    - efs_mount_target
-    unsatisfied_action:
-      operation: create
 configuration:
   - field: Encrypted
     value: true

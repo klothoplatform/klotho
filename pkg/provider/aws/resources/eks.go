@@ -416,12 +416,8 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 	return nil
 }
 
-func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *core.ResourceGraph, appName string, mountPath string) (*kubernetes.Manifest, error) {
-	if mountTarget.FileSystem == nil {
-		return nil, fmt.Errorf("%s has no file system", mountTarget.Id())
-	}
-
-	volumeName := k8sSanitizer.RFC1035LabelSanitizer.Apply(fmt.Sprintf("%s-volume", mountTarget.FileSystem.Name))
+func MountEfsVolume(resource core.Resource, fileSystem *EfsFileSystem, dag *core.ResourceGraph, appName string, mountPath string) (*kubernetes.Manifest, error) {
+	volumeName := k8sSanitizer.RFC1035LabelSanitizer.Apply(fmt.Sprintf("%s-volume", fileSystem.Name))
 	volumeMount := corev1.VolumeMount{
 		Name:      volumeName,
 		MountPath: mountPath,
@@ -442,7 +438,7 @@ func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *co
 			return nil, fmt.Errorf("%s has no Object", resource.Id())
 		}
 		if resource.Object.Spec.Template.Spec.Containers == nil {
-			return nil, fmt.Errorf("efs volume %s cannot be mounted: %s has no containers", mountTarget.FileSystem.Id(), resource.Id())
+			return nil, fmt.Errorf("efs volume %s cannot be mounted: %s has no containers", fileSystem.Id(), resource.Id())
 		}
 		for i, container := range resource.Object.Spec.Template.Spec.Containers {
 			containerRef := &container
@@ -475,7 +471,7 @@ func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *co
 			return nil, fmt.Errorf("%s has no Object", resource.Id())
 		}
 		if len(resource.Object.Spec.Containers) == 0 {
-			return nil, fmt.Errorf("efs volume %s cannot be mounted: %s has no containers", mountTarget.FileSystem.Id(), resource.Id())
+			return nil, fmt.Errorf("efs volume %s cannot be mounted: %s has no containers", fileSystem.Id(), resource.Id())
 		}
 		for i, container := range resource.Object.Spec.Containers {
 			containerRef := &container
@@ -518,17 +514,13 @@ func MountEfsVolume(resource core.Resource, mountTarget *EfsMountTarget, dag *co
 	for _, downstream := range dag.GetDownstreamResources(resource) {
 		// install the EFS CSI driver on the cluster if the pod is in an EKS node group
 		if _, ok := downstream.(*EksNodeGroup); ok {
-			if _, err := cluster.InstallEfsCsiDriverAddon(resource.BaseConstructRefs().CloneWith(mountTarget.BaseConstructRefs()), dag, appName, oidc); err != nil {
+			if _, err := cluster.InstallEfsCsiDriverAddon(resource.BaseConstructRefs().CloneWith(fileSystem.BaseConstructRefs()), dag, appName, oidc); err != nil {
 				return nil, err
 			}
 			break
 		}
 	}
 
-	fileSystem := mountTarget.FileSystem
-	if fileSystem == nil {
-		return nil, fmt.Errorf("mount target %s does not have a file system", mountTarget.Id())
-	}
 	persistentVolumeInputPath := path.Join(MANIFEST_PATH_PREFIX, "efs", AWS_EFS_PERSISTENT_VOLUME_FILENAME)
 	persistentVolumeOutputPath := path.Join(MANIFEST_PATH_PREFIX, "efs", fmt.Sprintf("%s_%s", fileSystem.Name, AWS_EFS_PERSISTENT_VOLUME_FILENAME))
 	pvContent, err := fs.ReadFile(eksManifests, persistentVolumeInputPath)

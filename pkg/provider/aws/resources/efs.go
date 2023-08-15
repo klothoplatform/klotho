@@ -1,6 +1,8 @@
 package resources
 
-import "github.com/klothoplatform/klotho/pkg/core"
+import (
+	"github.com/klothoplatform/klotho/pkg/core"
+)
 
 const (
 	EFS_ACCESS_POINT_TYPE = "efs_access_point"
@@ -162,4 +164,15 @@ func (emt *EfsMountTarget) DeleteContext() core.DeleteContext {
 		RequiresNoDownstream:   false,
 		RequiresExplicitDelete: false,
 	}
+}
+
+type EfsMountTargetCreateParams struct {
+	Name          string
+	ConstructRefs core.BaseConstructSet
+}
+
+func (emt *EfsMountTarget) Create(dag *core.ResourceGraph, params EfsMountTargetCreateParams) error {
+	emt.Name = params.Name
+	emt.ConstructRefs = params.ConstructRefs.Clone()
+	return nil
 }
