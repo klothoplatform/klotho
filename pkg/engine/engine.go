@@ -26,11 +26,13 @@ type (
 		// The constructs which the engine understands
 		Constructs []core.Construct
 		// The templates that the engine uses to make resources operational
-		ResourceTemplates map[string]*core.ResourceTemplate
+		ResourceTemplates map[core.ResourceId]*core.ResourceTemplate
 		// The templates that the engine uses to make edges operational
 		EdgeTemplates map[string]*knowledgebase.EdgeTemplate
 		// The context of the engine
 		Context EngineContext
+
+		Guardrails *Guardrails
 	}
 
 	// EngineContext is a struct that represents the context of the engine
@@ -72,10 +74,11 @@ func NewEngine(providers map[string]provider.Provider, kb knowledgebase.EdgeKB, 
 		Constructs:             constructs,
 		ClassificationDocument: classification.BaseClassificationDocument,
 	}
-	engine.ResourceTemplates = make(map[string]*core.ResourceTemplate)
+	_ = engine.LoadGuardrails([]byte(""))
+	engine.ResourceTemplates = make(map[core.ResourceId]*core.ResourceTemplate)
 	for _, p := range providers {
-		for resType, template := range p.GetOperationalTempaltes() {
-			engine.ResourceTemplates[fmt.Sprintf("%s:%s", p.Name(), resType)] = template
+		for id, template := range p.GetOperationalTempaltes() {
+			engine.ResourceTemplates[id] = template
 		}
 	}
 	engine.EdgeTemplates = make(map[string]*knowledgebase.EdgeTemplate)
@@ -149,6 +152,12 @@ func (e *Engine) LoadContext(initialState *core.ConstructGraph, constraints map[
 // - Configure all resources in the end state using the engines knowledge base
 func (e *Engine) Run() (*core.ResourceGraph, error) {
 
+	//Validate all resources used in constraints are allowed
+	err := e.checkIfConstraintsAreAllowed()
+	if err != nil {
+		return nil, err
+	}
+
 	// First we look at all application constraints to see what is going to be added and removed from the construct graph
 	for _, constraint := range e.Context.Constraints[constraints.ApplicationConstraintScope] {
 		err := e.ApplyApplicationConstraint(constraint.(*constraints.ApplicationConstraint))
@@ -170,7 +179,7 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 	}
 
 	zap.S().Debug("Engine Expanding constructs")
-	err := e.ExpandConstructs()
+	err = e.ExpandConstructs()
 	if err != nil {
 		return nil, err
 	}
@@ -628,4 +637,35 @@ func (e *Engine) getConstructFromId(id core.ResourceId) (core.BaseConstruct, err
 		}
 	}
 	return construct, err
+}
+
+func (e *Engine) checkIfConstraintsAreAllowed() error {
+	joinedErr := error(nil)
+	for _, constraint := range e.Context.Constraints[constraints.ApplicationConstraintScope] {
+		switch c := constraint.(type) {
+		case *constraints.ApplicationConstraint:
+			if c.Node.Provider != core.AbstractConstructProvider && !e.Guardrails.IsResourceAllowed(c.Node) {
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s, is not allowed in application constraint %s", c.Node, c))
+			}
+			if c.ReplacementNode.Provider != core.AbstractConstructProvider && (c.ReplacementNode != core.ResourceId{}) && !e.Guardrails.IsResourceAllowed(c.ReplacementNode) {
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s, is not allowed in application constraint %s", c.ReplacementNode, c))
+			}
+
+		case *constraints.EdgeConstraint:
+			if c.Node.Provider != core.AbstractConstructProvider && (c.Node != core.ResourceId{}) && !e.Guardrails.IsResourceAllowed(c.Node) {
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s, is not allowed in edge constraint %s", c.Node, c))
+			}
+			if c.Target.Source.Provider != core.AbstractConstructProvider && !e.Guardrails.IsResourceAllowed(c.Target.Source) {
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s, is not allowed in edge constraint %s", c.Target.Source, c))
+			}
+			if c.Target.Target.Provider != core.AbstractConstructProvider && !e.Guardrails.IsResourceAllowed(c.Target.Target) {
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s, is not allowed in edge constraint %s", c.Target.Target, c))
+			}
+		case *constraints.ResourceConstraint:
+			if c.Target.Provider != core.AbstractConstructProvider && !e.Guardrails.IsResourceAllowed(c.Target) {
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s, is not allowed in resource constraint %s", c.Target, c))
+			}
+		}
+	}
+	return joinedErr
 }

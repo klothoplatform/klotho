@@ -37,6 +37,7 @@ type PluginSetBuilder struct {
 	IaC                  []compiler.IaCPlugin
 	Engine               *engine.Engine
 	Cfg                  *config.Application
+	GuardRails           []byte
 }
 
 func (b *PluginSetBuilder) AddAll() error {
@@ -76,6 +77,12 @@ func (b *PluginSetBuilder) AddEngine() error {
 		kubernetesProvider.Name(): kubernetesProvider,
 		dockerProvider.Name():     dockerProvider,
 	}, kb, core.ListAllConstructs())
+	if b.GuardRails != nil {
+		err = b.Engine.LoadGuardrails(b.GuardRails)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

@@ -76,8 +76,8 @@ func (a *AWS) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph)
 //go:embed resources/templates/*
 var awsTempaltes embed.FS
 
-func (a *AWS) GetOperationalTempaltes() map[string]*core.ResourceTemplate {
-	templates := map[string]*core.ResourceTemplate{}
+func (a *AWS) GetOperationalTempaltes() map[core.ResourceId]*core.ResourceTemplate {
+	templates := map[core.ResourceId]*core.ResourceTemplate{}
 	if err := fs.WalkDir(awsTempaltes, ".", func(path string, d fs.DirEntry, nerr error) error {
 		if d.IsDir() {
 			return nil
@@ -91,10 +91,11 @@ func (a *AWS) GetOperationalTempaltes() map[string]*core.ResourceTemplate {
 		if err != nil {
 			panic(err)
 		}
-		if templates[resTemplate.Type] != nil {
+		id := core.ResourceId{Provider: provider.AWS, Type: resTemplate.Type}
+		if templates[id] != nil {
 			panic(fmt.Errorf("duplicate template for type %s", resTemplate.Type))
 		}
-		templates[resTemplate.Type] = resTemplate
+		templates[id] = resTemplate
 		return nil
 	}); err != nil {
 		return templates
