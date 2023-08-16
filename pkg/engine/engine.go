@@ -546,7 +546,7 @@ func (e *Engine) ApplyEdgeConstraint(constraint *constraints.EdgeConstraint) err
 	return nil
 }
 
-// ApplyResourceConstraint applies a resource constraint to the end state resource graph
+// handleEdgeConstainConstraint applies an edge constraint to the either the engines working state construct graph or end state resource graph
 func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstraint) error {
 
 	provider := e.Providers[constraint.Node.Provider]

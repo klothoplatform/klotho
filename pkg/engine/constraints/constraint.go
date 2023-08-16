@@ -138,7 +138,7 @@ func ParseConstraintsFromFile(bytes []byte) (map[ConstraintScope][]Constraint, e
 					joinedErr = errors.Join(joinedErr, err)
 					continue
 				}
-				validOperators := []ConstraintOperator{EqualsConstraintOperator}
+				validOperators := []ConstraintOperator{AddConstraintOperator}
 				if !collectionutil.Contains(validOperators, constraint.Operator) {
 					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for application constraint", constraint.Operator))
 					continue
