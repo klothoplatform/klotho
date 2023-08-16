@@ -49,6 +49,7 @@ type (
 		Arr3          []*TestRes1
 		Struct1       TestRes1
 		Struct2       *TestRes1
+		Map1          map[string]core.IaCValue
 	}
 )
 
@@ -105,7 +106,7 @@ func (f *MockResource5) DeleteContext() core.DeleteContext {
 	}
 }
 func (f *MockResource6) Id() core.ResourceId {
-	return core.ResourceId{Provider: "mock", Type: "mock5", Name: f.Name}
+	return core.ResourceId{Provider: "mock", Type: "mock6", Name: f.Name}
 }
 func (f *MockResource6) BaseConstructRefs() core.BaseConstructSet { return f.ConstructRefs }
 func (f *MockResource6) DeleteContext() core.DeleteContext {

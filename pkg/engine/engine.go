@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
@@ -369,16 +370,24 @@ func (e *Engine) SolveGraph(context *SolveContext) (*core.ResourceGraph, error) 
 			return graph, fmt.Errorf("unsatisfied constraints: %s", constraintsString)
 		} else {
 			// check to make sure that every resource is operational
+			notOperationalList := make([]string, 0)
 			for _, res := range graph.ListResources() {
 				if !operationalResources[res.Id()] {
-					errorMap[i] = append(errorMap[i], fmt.Errorf("resource %s is not operational", res.Id()))
+					notOperationalList = append(notOperationalList, res.Id().String())
 				}
 			}
+			if len(notOperationalList) > 0 {
+				errorMap[i] = append(errorMap[i], fmt.Errorf("the following resources are not operational: %s", strings.Join(notOperationalList, ", ")))
+			}
 			// check to make sure that each edge is configured
+			notConfiguredList := make([]string, 0)
 			for _, dep := range graph.ListDependencies() {
 				if !configuredEdges[dep.Source.Id()][dep.Destination.Id()] {
-					errorMap[i] = append(errorMap[i], fmt.Errorf("edge %s -> %s is not configured", dep.Source.Id(), dep.Destination.Id()))
+					notConfiguredList = append(notConfiguredList, fmt.Sprintf("%s -> %s", dep.Source.Id(), dep.Destination.Id()))
 				}
+			}
+			if len(notConfiguredList) > 0 {
+				errorMap[i] = append(errorMap[i], fmt.Errorf("the following edges are not configured: %s", strings.Join(notConfiguredList, ", ")))
 			}
 			if len(errorMap[i]) == 0 {
 				break
@@ -537,7 +546,7 @@ func (e *Engine) ApplyEdgeConstraint(constraint *constraints.EdgeConstraint) err
 	return nil
 }
 
-// ApplyResourceConstraint applies a resource constraint to the end state resource graph
+// handleEdgeConstainConstraint applies an edge constraint to the either the engines working state construct graph or end state resource graph
 func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstraint) error {
 
 	provider := e.Providers[constraint.Node.Provider]

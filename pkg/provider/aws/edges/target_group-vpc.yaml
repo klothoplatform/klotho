@@ -1,0 +1,6 @@
+source: "aws:target_group:"
+destination: "aws:vpc:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:

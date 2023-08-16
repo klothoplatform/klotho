@@ -109,7 +109,6 @@ func (e *Engine) determineCorrectPaths(dep graph.Edge[core.Resource], edgeData k
 			satisfyAttributeData = append(satisfyAttributeData, p)
 		}
 	}
-
 	for _, p := range satisfyAttributeData {
 		// Ensure we arent taking unnecessary hops to get to the destination
 		if !e.containsUnneccessaryHopsInPath(dep, p, edgeData) {
@@ -194,7 +193,7 @@ func findShortestPath(paths []knowledgebase.Path) (knowledgebase.Path, error) {
 	// If there are multiple paths with the same length we are going to generate a string for each and sort them so we can be deterministic in which one we choose
 	if len(sameLengthPaths) > 0 {
 		pathStrings := map[string]knowledgebase.Path{}
-		for _, p := range paths {
+		for _, p := range sameLengthPaths {
 			pString := ""
 			for _, r := range p {
 				pString += fmt.Sprintf("%s -> %s", r.Source, r.Destination)

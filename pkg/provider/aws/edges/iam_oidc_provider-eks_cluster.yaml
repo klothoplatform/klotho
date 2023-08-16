@@ -1,0 +1,12 @@
+source: "aws:iam_oidc_provider:"
+destination: "aws:eks_cluster:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:
+configuration:
+- resource: "aws:iam_oidc_provider:"
+  config:
+    field: ClientIdLists
+    value: 
+    - "sts.amazonaws.com"

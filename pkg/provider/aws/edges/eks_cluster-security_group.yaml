@@ -1,0 +1,17 @@
+source: "aws:eks_cluster:"
+destination: "aws:security_group:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:
+configuration:
+- resource: "aws:security_group:"
+  config:
+    field: IngressRules
+    value:
+    - Description: Allows ingress traffic from the EKS control plane
+      CidrBlocks:
+        Property: 0.0.0.0/0
+      FromPort: 9443
+      Protocol: TCP
+      ToPort:   9443

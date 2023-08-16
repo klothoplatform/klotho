@@ -1,0 +1,13 @@
+source: "aws:lambda_function:"
+destination: "aws:rds_instance:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:
+operational_rules:
+- resource: "aws:lambda_function:"
+  rule: 
+    enforcement: exactly_one
+    direction: downstream
+    resource_types:
+      - vpc

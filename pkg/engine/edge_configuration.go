@@ -3,7 +3,6 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
@@ -22,13 +21,25 @@ func (e *Engine) configureEdges(graph *core.ResourceGraph) (map[core.ResourceId]
 			configuredEdges[dep.Source.Id()] = make(map[core.ResourceId]bool)
 		}
 		templateKey := fmt.Sprintf("%s:%s:-%s:%s:", dep.Source.Id().Provider, dep.Source.Id().Type, dep.Destination.Id().Provider, dep.Destination.Id().Type)
+		_, found := e.KnowledgeBase.GetResourceEdge(dep.Source, dep.Destination)
+		if e.EdgeTemplates[templateKey] == nil && !found {
+			zap.Error(fmt.Errorf("no edge template found for %s", templateKey))
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("no edge template found for %s", templateKey))
+			continue
+		}
+
 		if e.EdgeTemplates[templateKey] != nil {
-			err := e.EdgeTemplateExpand(*e.EdgeTemplates[templateKey], graph, &dep)
+			resourceMap, err := e.EdgeTemplateExpand(*e.EdgeTemplates[templateKey], graph, &dep)
 			if err != nil {
 				joinedErr = errors.Join(joinedErr, err)
 				continue
 			}
-			err = EdgeTemplateConfigure(*e.EdgeTemplates[templateKey], graph, &dep)
+			err = e.EdgeTemplateMakeOperational(*e.EdgeTemplates[templateKey], graph, &dep, resourceMap)
+			if err != nil {
+				joinedErr = errors.Join(joinedErr, err)
+				continue
+			}
+			err = EdgeTemplateConfigure(*e.EdgeTemplates[templateKey], graph, &dep, resourceMap)
 			if err != nil {
 				joinedErr = errors.Join(joinedErr, err)
 				continue
@@ -46,7 +57,7 @@ func (e *Engine) configureEdges(graph *core.ResourceGraph) (map[core.ResourceId]
 	return configuredEdges, joinedErr
 }
 
-func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, graph *core.ResourceGraph, edge *graph.Edge[core.Resource]) error {
+func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, graph *core.ResourceGraph, edge *graph.Edge[core.Resource]) (map[core.ResourceId]core.Resource, error) {
 	joinedErr := error(nil)
 	resourceMap := map[core.ResourceId]core.Resource{}
 	resourceMap[template.Source] = edge.Source
@@ -80,6 +91,65 @@ func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, graph *
 		}
 		graph.AddDependency(src, dst)
 	}
+	return resourceMap, joinedErr
+}
+
+func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *core.ResourceGraph, edge *graph.Edge[core.Resource], resourceMap map[core.ResourceId]core.Resource) error {
+	joinedErr := error(nil)
+	for _, config := range template.Configuration {
+		id, fields := getIdAndFields(config.Resource)
+		res := resourceMap[id]
+		res, err := getResourceFromIdString(res, fields, graph)
+		if err != nil {
+			joinedErr = errors.Join(joinedErr, err)
+			continue
+		}
+		if res == nil {
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s not found when attempting to configure", id.String()))
+			continue
+		}
+		newConfig := core.Configuration{}
+		valBytes, err := yaml.Marshal(config.Config)
+		if err != nil {
+			joinedErr = errors.Join(joinedErr, err)
+			continue
+		}
+		valStr := string(valBytes)
+		for id, resource := range resourceMap {
+			valStr = strings.ReplaceAll(valStr, id.String(), resource.Id().String())
+		}
+		err = yaml.Unmarshal([]byte(valStr), &newConfig)
+		if err != nil {
+			joinedErr = errors.Join(joinedErr, err)
+			continue
+		}
+		err = ConfigureField(res, newConfig.Field, newConfig.Value, config.Config.ZeroValueAllowed, graph)
+		if err != nil {
+			joinedErr = errors.Join(joinedErr, err)
+			continue
+		}
+	}
+	return joinedErr
+}
+
+func (e *Engine) EdgeTemplateMakeOperational(template knowledgebase.EdgeTemplate, graph *core.ResourceGraph, edge *graph.Edge[core.Resource], resourceMap map[core.ResourceId]core.Resource) error {
+	joinedErr := error(nil)
+	for _, rule := range template.OperationalRules {
+		id, fields := getIdAndFields(rule.Resource)
+		res := resourceMap[id]
+		resource, err := getResourceFromIdString(res, fields, graph)
+		if err != nil {
+			joinedErr = errors.Join(joinedErr, err)
+			continue
+		}
+		errs := e.handleOperationalRule(resource, rule.Rule, graph, nil)
+		if errs != nil {
+			for _, err := range errs {
+				joinedErr = errors.Join(joinedErr, err)
+			}
+			continue
+		}
+	}
 	return joinedErr
 }
 
@@ -87,76 +157,19 @@ func nameResourceFromEdge(edge *graph.Edge[core.Resource], res core.ResourceId) 
 	return fmt.Sprintf("%s-%s-%s", edge.Source.Id().Name, edge.Destination.Id().Name, res.Name)
 }
 
-func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *core.ResourceGraph, edge *graph.Edge[core.Resource]) error {
-	for _, config := range template.Configuration {
-		resId := config.Resource
-		switch resId {
-		case template.Source:
-			resId = edge.Source.Id()
-		case template.Destination:
-			resId = edge.Destination.Id()
-		default:
-			return fmt.Errorf("configuration may only be on resources in edge: source: %s, dest: %s, but was on %s", template.Source, template.Destination, resId)
-		}
-		res := graph.GetResource(resId)
-		if res == nil {
-			return fmt.Errorf("unable to find resource %s", resId)
-		}
-		newConfig := core.Configuration{}
-		valBytes, err := yaml.Marshal(config.Config)
-		if err != nil {
-			return err
-		}
-		valStr := string(valBytes)
-		valStr = strings.ReplaceAll(valStr, template.Source.String(), edge.Source.Id().String())
-		valStr = strings.ReplaceAll(valStr, template.Destination.String(), edge.Destination.Id().String())
-		err = yaml.Unmarshal([]byte(valStr), &newConfig)
-		if err != nil {
-			return err
-		}
-		err = ConfigureField(res, config.Config.Field, newConfig.Value, config.Config.ZeroValueAllowed, graph)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func getResourceFromIdString(res core.Resource, fields string, dag *core.ResourceGraph) (core.Resource, error) {
 	if fields == "" {
 		return res, nil
-	} else {
-		subFields := strings.Split(fields, ".")
-		var field reflect.Value
-		for i := 0; i < len(subFields); i++ {
-			if i == 0 {
-				field = reflect.ValueOf(res).Elem().FieldByName(subFields[i])
-			} else {
-				field = reflect.ValueOf(field).Elem().FieldByName(subFields[i])
-			}
-			if !field.IsValid() {
-				return nil, fmt.Errorf("unable to find field %s on resource %s", subFields[i], res.Id())
-			}
-		}
-		if !field.IsValid() {
-			return nil, fmt.Errorf("unable to find field %s on resource %s", subFields[len(subFields)-1], res.Id())
-		} else if field.IsNil() {
-			return nil, fmt.Errorf("field %s on resource %s is nil", subFields[len(subFields)-1], res.Id())
-		}
-		res = field.Interface().(core.Resource)
-		return res, nil
 	}
-}
-
-func getIdAndFields(id core.ResourceId) (core.ResourceId, string) {
-	arr := strings.Split(id.String(), "#")
-	resId := &core.ResourceId{}
-	err := resId.UnmarshalText([]byte(arr[0]))
+	field, _, err := parseFieldName(res, fields, dag)
 	if err != nil {
-		return core.ResourceId{}, ""
+		return nil, err
 	}
-	if len(arr) == 1 {
-		return *resId, ""
+	if !field.IsValid() {
+		return nil, fmt.Errorf("field %s on resource %s is invalid", fields, res.Id())
+	} else if field.IsNil() {
+		return nil, fmt.Errorf("field %s on resource %s is nil", fields, res.Id())
 	}
-	return *resId, arr[1]
+	res = field.Interface().(core.Resource)
+	return res, nil
 }
