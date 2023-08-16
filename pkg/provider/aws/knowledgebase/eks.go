@@ -94,6 +94,7 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksNodeGroup]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EcrImage]{
 		Configure: func(pod *kubernetes.Pod, image *resources.EcrImage, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+
 			if pod.Object == nil {
 				return fmt.Errorf("pod %s has no object", pod.Name)
 			}

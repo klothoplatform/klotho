@@ -651,7 +651,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
-	case string(core.CONNECTION_STRING):
+	case string(core.CONNECTION_STRING), "host_name":
 		switch res := resource.(type) {
 		case *resources.RdsProxy:
 			downResources := tc.resourceGraph.GetUpstreamDependencies(res)
@@ -669,10 +669,13 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 			fetchPassword := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[2].split('"')[3]`, instance.CredentialsPath)
 			return fmt.Sprintf("pulumi.interpolate`postgresql://${%s}:${%s}@${%s.endpoint}:5432/%s`", fetchUsername, fetchPassword,
 				tc.getVarName(resource), instance.DatabaseName), nil
+		case *resources.RdsInstance:
+			fetchUsername := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[1].split('"')[3]`, res.CredentialsPath)
+			fetchPassword := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[2].split('"')[3]`, res.CredentialsPath)
+			return fmt.Sprintf("pulumi.interpolate`postgresql://${%s}:${%s}@${%s}:5432/%s`", fetchUsername, fetchPassword, tc.getVarName(resource), res.DatabaseName), nil
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
-
 	case resources.OIDC_SUB_IAC_VALUE:
 		varName := "cluster_oidc_url"
 		*appliedOutputs = append(*appliedOutputs, AppliedOutput{
@@ -747,8 +750,23 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return "`/mnt/" + fmt.Sprintf("${%s.rootDirectory.path}`", tc.getVarName(resource)), nil
 	case resources.CLUSTER_EFS_RESOURCE_TAG_IAC_VALUE:
 		return "\"aws:ResourceTag/efs.csi.aws.com/cluster\"", nil
+	case "username":
+		switch res := resource.(type) {
+		case *resources.RdsInstance:
+			fetchUsername := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[1].split('"')[3]`, res.CredentialsPath)
+			return fmt.Sprintf("pulumi.interpolate`${%s}`", fetchUsername), nil
+		default:
+			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
+		}
+	case "password":
+		switch res := resource.(type) {
+		case *resources.RdsInstance:
+			fetchPassword := fmt.Sprintf(`fs.readFileSync('%s', 'utf-8').split("\n")[2].split('"')[3]`, res.CredentialsPath)
+			return fmt.Sprintf("pulumi.interpolate`${%s}`", fetchPassword), nil
+		default:
+			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
+		}
 	}
-
 	return "", errors.Errorf("unsupported IaC Value Property %T.%s", resource, property)
 }
 
