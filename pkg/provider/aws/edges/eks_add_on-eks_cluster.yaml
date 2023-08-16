@@ -1,4 +1,4 @@
-source: "aws:eks_add_on:"
+source: "aws:eks_addon:"
 destination: "aws:eks_cluster:"
 direct_edge_only: false
 deployment_order_reversed: false
