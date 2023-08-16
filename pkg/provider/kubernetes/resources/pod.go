@@ -13,12 +13,12 @@ import (
 
 type (
 	Pod struct {
-		Name            string
-		ConstructRefs   core.BaseConstructSet `yaml:"-"`
-		Object          *corev1.Pod
-		Transformations map[string]core.IaCValue
-		FilePath        string
-		Cluster         core.ResourceId
+		Name          string
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		Object        *corev1.Pod
+		Values        map[string]core.IaCValue
+		FilePath      string
+		Cluster       core.ResourceId
 	}
 )
 
@@ -88,10 +88,10 @@ func (pod *Pod) AddEnvVar(iacVal core.IaCValue, envVarName string) error {
 		}
 
 		pod.Object.Spec.Containers[0].Env = append(pod.Object.Spec.Containers[0].Env, newEv)
-		if pod.Transformations == nil {
-			pod.Transformations = make(map[string]core.IaCValue)
+		if pod.Values == nil {
+			pod.Values = make(map[string]core.IaCValue)
 		}
-		pod.Transformations[v] = iacVal
+		pod.Values[v] = iacVal
 	}
 	return nil
 }
@@ -121,5 +121,5 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classif
 }
 
 func (pod *Pod) GetValues() map[string]core.IaCValue {
-	return pod.Transformations
+	return pod.Values
 }

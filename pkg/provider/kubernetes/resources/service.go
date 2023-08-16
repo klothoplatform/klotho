@@ -13,12 +13,12 @@ import (
 
 type (
 	Service struct {
-		Name            string
-		ConstructRefs   core.BaseConstructSet `yaml:"-"`
-		Object          *corev1.Service
-		Transformations map[string]core.IaCValue
-		FilePath        string
-		Cluster         core.ResourceId
+		Name          string
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		Object        *corev1.Service
+		Values        map[string]core.IaCValue
+		FilePath      string
+		Cluster       core.ResourceId
 	}
 )
 
@@ -109,5 +109,5 @@ func (service *Service) mapContainerPorts(parentObjectName string, containers []
 	return nil
 }
 func (service *Service) GetValues() map[string]core.IaCValue {
-	return service.Transformations
+	return service.Values
 }

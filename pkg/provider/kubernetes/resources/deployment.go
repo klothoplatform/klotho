@@ -15,12 +15,12 @@ import (
 
 type (
 	Deployment struct {
-		Name            string
-		ConstructRefs   core.BaseConstructSet `yaml:"-"`
-		Object          *apps.Deployment
-		Transformations map[string]core.IaCValue
-		FilePath        string
-		Cluster         core.ResourceId
+		Name          string
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		Object        *apps.Deployment
+		Values        map[string]core.IaCValue
+		FilePath      string
+		Cluster       core.ResourceId
 	}
 )
 
@@ -91,10 +91,10 @@ func (deployment *Deployment) AddEnvVar(iacVal core.IaCValue, envVarName string)
 		}
 
 		deployment.Object.Spec.Template.Spec.Containers[0].Env = append(deployment.Object.Spec.Template.Spec.Containers[0].Env, newEv)
-		if deployment.Transformations == nil {
-			deployment.Transformations = make(map[string]core.IaCValue)
+		if deployment.Values == nil {
+			deployment.Values = make(map[string]core.IaCValue)
 		}
-		deployment.Transformations[v] = iacVal
+		deployment.Values[v] = iacVal
 	}
 	return nil
 }
@@ -133,5 +133,5 @@ func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName s
 }
 
 func (deployment *Deployment) GetValues() map[string]core.IaCValue {
-	return deployment.Transformations
+	return deployment.Values
 }

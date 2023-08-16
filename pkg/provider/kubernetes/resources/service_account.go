@@ -11,12 +11,12 @@ import (
 
 type (
 	ServiceAccount struct {
-		Name            string
-		ConstructRefs   core.BaseConstructSet `yaml:"-"`
-		Object          *corev1.ServiceAccount
-		Transformations map[string]core.IaCValue
-		FilePath        string
-		Cluster         core.ResourceId
+		Name          string
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		Object        *corev1.ServiceAccount
+		Values        map[string]core.IaCValue
+		FilePath      string
+		Cluster       core.ResourceId
 	}
 
 	ServiceAccountCreateParams struct {
@@ -85,7 +85,7 @@ func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName strin
 }
 
 func (sa *ServiceAccount) GetValues() map[string]core.IaCValue {
-	return sa.Transformations
+	return sa.Values
 }
 
 func (sa *ServiceAccount) Create(dag *core.ResourceGraph, params ServiceAccountCreateParams) error {

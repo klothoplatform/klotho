@@ -2,7 +2,6 @@ package knowledgebase
 
 import (
 	"fmt"
-	"path"
 	"strings"
 
 	k8sSanitizer "github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
@@ -59,10 +58,10 @@ var EksKB = knowledgebase.Build(
 			}
 			sa.Object.Annotations["eks.amazonaws.com/role-arn"] = roleArnPlaceholder
 
-			if sa.Transformations == nil {
-				sa.Transformations = make(map[string]core.IaCValue)
+			if sa.Values == nil {
+				sa.Values = make(map[string]core.IaCValue)
 			}
-			sa.Transformations[value] = core.IaCValue{ResourceId: role.Id(), Property: resources.ARN_IAC_VALUE}
+			sa.Values[value] = core.IaCValue{ResourceId: role.Id(), Property: resources.ARN_IAC_VALUE}
 
 			// Sets the role's AssumeRolePolicyDocument to allow the service account to assume the role
 			oidc, err := core.CreateResource[*resources.OpenIdConnectProvider](dag, resources.OidcCreateParams{
@@ -112,10 +111,10 @@ var EksKB = knowledgebase.Build(
 				Name:  k8sSanitizer.RFC1123LabelSanitizer.Apply(value),
 				Image: imagePlaceholder,
 			})
-			if pod.Transformations == nil {
-				pod.Transformations = make(map[string]core.IaCValue)
+			if pod.Values == nil {
+				pod.Values = make(map[string]core.IaCValue)
 			}
-			pod.Transformations[value] = core.IaCValue{ResourceId: image.Id(), Property: resources.ID_IAC_VALUE}
+			pod.Values[value] = core.IaCValue{ResourceId: image.Id(), Property: resources.ID_IAC_VALUE}
 			return nil
 		},
 	},
@@ -138,10 +137,10 @@ var EksKB = knowledgebase.Build(
 				Name:  value,
 				Image: imagePlaceholder,
 			})
-			if deployment.Transformations == nil {
-				deployment.Transformations = make(map[string]core.IaCValue)
+			if deployment.Values == nil {
+				deployment.Values = make(map[string]core.IaCValue)
 			}
-			deployment.Transformations[value] = core.IaCValue{ResourceId: image.Id(), Property: resources.ID_IAC_VALUE}
+			deployment.Values[value] = core.IaCValue{ResourceId: image.Id(), Property: resources.ID_IAC_VALUE}
 			return nil
 		},
 	},
@@ -235,10 +234,10 @@ var EksKB = knowledgebase.Build(
 			bindingPlaceholder := fmt.Sprintf("{{ .Values.%s }}", value)
 			tgBinding.Object.Spec.TargetGroupARN = bindingPlaceholder
 
-			if tgBinding.Transformations == nil {
-				tgBinding.Transformations = make(map[string]core.IaCValue)
+			if tgBinding.Values == nil {
+				tgBinding.Values = make(map[string]core.IaCValue)
 			}
-			tgBinding.Transformations[value] = core.IaCValue{ResourceId: targetGroup.Id(), Property: resources.ARN_IAC_VALUE}
+			tgBinding.Values[value] = core.IaCValue{ResourceId: targetGroup.Id(), Property: resources.ARN_IAC_VALUE}
 
 			// Update the target group binding's service
 			tgBinding.Object.Spec.ServiceRef = v1beta1.ServiceReference{

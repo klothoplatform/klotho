@@ -11,12 +11,12 @@ import (
 
 type (
 	TargetGroupBinding struct {
-		Name            string
-		ConstructRefs   core.BaseConstructSet `yaml:"-"`
-		Object          *elbv2api.TargetGroupBinding
-		Transformations map[string]core.IaCValue
-		FilePath        string
-		Cluster         core.ResourceId
+		Name          string
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		Object        *elbv2api.TargetGroupBinding
+		Values        map[string]core.IaCValue
+		FilePath      string
+		Cluster       core.ResourceId
 	}
 )
 
@@ -65,5 +65,5 @@ func (tgb *TargetGroupBinding) MakeOperational(dag *core.ResourceGraph, appName 
 }
 
 func (tgb *TargetGroupBinding) GetValues() map[string]core.IaCValue {
-	return tgb.Transformations
+	return tgb.Values
 }

@@ -813,10 +813,10 @@ func GetServiceAccountRole(sa *kubernetes.ServiceAccount, dag *core.ResourceGrap
 		}
 		sa.Object.Annotations["eks.amazonaws.com/role-arn"] = roleArnPlaceholder
 
-		if sa.Transformations == nil {
-			sa.Transformations = make(map[string]core.IaCValue)
+		if sa.Values == nil {
+			sa.Values = make(map[string]core.IaCValue)
 		}
-		sa.Transformations[value] = core.IaCValue{ResourceId: role.Id(), Property: ID_IAC_VALUE}
+		sa.Values[value] = core.IaCValue{ResourceId: role.Id(), Property: ID_IAC_VALUE}
 
 		// Sets the role's AssumeRolePolicyDocument to allow the service account to assume the role
 		oidc, err := core.CreateResource[*OpenIdConnectProvider](dag, OidcCreateParams{

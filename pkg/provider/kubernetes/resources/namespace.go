@@ -11,12 +11,12 @@ import (
 
 type (
 	Namespace struct {
-		Name            string
-		ConstructRefs   core.BaseConstructSet `yaml:"-"`
-		Object          *corev1.Namespace
-		Transformations map[string]core.IaCValue
-		FilePath        string
-		Cluster         core.ResourceId
+		Name          string
+		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		Object        *corev1.Namespace
+		Values        map[string]core.IaCValue
+		FilePath      string
+		Cluster       core.ResourceId
 	}
 )
 
@@ -77,5 +77,5 @@ func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName str
 }
 
 func (namespace *Namespace) GetValues() map[string]core.IaCValue {
-	return namespace.Transformations
+	return namespace.Values
 }
