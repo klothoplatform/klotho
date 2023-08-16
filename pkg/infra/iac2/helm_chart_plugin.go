@@ -157,7 +157,7 @@ func createChart(name string, cluster core.ResourceId, dag *core.ResourceGraph, 
 	templateValues := make(map[string]any)
 	for _, manifest := range templates {
 		if manifest, ok := manifest.(k8s_resources.ManifestWithValues); ok {
-			for k, v := range manifest.Values() {
+			for k, v := range manifest.GetValues() {
 				templateValues[k] = v
 			}
 		}

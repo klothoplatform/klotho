@@ -5,7 +5,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
-	"k8s.io/apimachinery/pkg/runtime"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	elbv2api "sigs.k8s.io/aws-load-balancer-controller/apis/elbv2/v1beta1"
 )
 
@@ -42,7 +42,7 @@ func (tgb *TargetGroupBinding) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (tgb *TargetGroupBinding) GetObject() runtime.Object {
+func (tgb *TargetGroupBinding) GetObject() v1.Object {
 	return tgb.Object
 }
 
@@ -64,6 +64,6 @@ func (tgb *TargetGroupBinding) MakeOperational(dag *core.ResourceGraph, appName 
 	return nil
 }
 
-func (tgb *TargetGroupBinding) Values() map[string]core.IaCValue {
+func (tgb *TargetGroupBinding) GetValues() map[string]core.IaCValue {
 	return tgb.Transformations
 }

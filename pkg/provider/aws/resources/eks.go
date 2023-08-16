@@ -6,6 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"io/fs"
 	corev1 "k8s.io/api/core/v1"
+	k8sResource "k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"path"
 	"reflect"
@@ -174,6 +175,10 @@ func GenerateInstanceTypeKeyPlaceholder(unit string) string {
 
 func GenerateInstanceTypeValuePlaceholder(unit string) string {
 	return fmt.Sprintf("%sInstanceTypeValue", sanitizeString(unit))
+}
+
+func GeneratePersistentVolumeHandlePlaceholder(unit string) string {
+	return fmt.Sprintf("%sVolumeHandle", sanitizeString(unit))
 }
 
 type EksClusterCreateParams struct {
@@ -416,97 +421,76 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 	return nil
 }
 
-func MountEfsVolume(resource core.Resource, fileSystem *EfsFileSystem, dag *core.ResourceGraph, appName string, mountPath string) (*kubernetes.Manifest, error) {
-	volumeName := k8sSanitizer.RFC1035LabelSanitizer.Apply(fmt.Sprintf("%s-volume", fileSystem.Name))
-	volumeMount := corev1.VolumeMount{
-		Name:      volumeName,
-		MountPath: mountPath,
-	}
-	volume := corev1.Volume{
-		Name: volumeName,
-		VolumeSource: corev1.VolumeSource{
-			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: "efs-claim",
-			},
-		},
-	}
-
-	switch resource := resource.(type) {
-	// TODO: look into how to mount to a specific container when there are multiple containers in a pod
-	case *kubernetes.Deployment:
-		if resource.Object == nil {
-			return nil, fmt.Errorf("%s has no Object", resource.Id())
-		}
-		if resource.Object.Spec.Template.Spec.Containers == nil {
-			return nil, fmt.Errorf("efs volume %s cannot be mounted: %s has no containers", fileSystem.Id(), resource.Id())
-		}
-		for i, container := range resource.Object.Spec.Template.Spec.Containers {
-			containerRef := &container
-			mountAdded := false
-			for i, existingMount := range containerRef.VolumeMounts {
-				if volumeMount.Name == existingMount.Name {
-					containerRef.VolumeMounts[i] = volumeMount
-					mountAdded = true
-					break
-				}
-			}
-			if !mountAdded {
-				containerRef.VolumeMounts = append(containerRef.VolumeMounts, volumeMount)
-			}
-			resource.Object.Spec.Template.Spec.Containers[i] = *containerRef
-		}
-		volumeAdded := false
-		for i, existingVolume := range resource.Object.Spec.Template.Spec.Volumes {
-			if volume.Name == existingVolume.Name {
-				resource.Object.Spec.Template.Spec.Volumes[i] = volume
-				volumeAdded = true
-				break
-			}
-		}
-		if !volumeAdded {
-			resource.Object.Spec.Template.Spec.Volumes = append(resource.Object.Spec.Template.Spec.Volumes, volume)
-		}
-	case *kubernetes.Pod:
-		if resource.Object == nil {
-			return nil, fmt.Errorf("%s has no Object", resource.Id())
-		}
-		if len(resource.Object.Spec.Containers) == 0 {
-			return nil, fmt.Errorf("efs volume %s cannot be mounted: %s has no containers", fileSystem.Id(), resource.Id())
-		}
-		for i, container := range resource.Object.Spec.Containers {
-			containerRef := &container
-			mountAdded := false
-			for i, existingMount := range containerRef.VolumeMounts {
-				if volumeMount.Name == existingMount.Name {
-					containerRef.VolumeMounts[i] = volumeMount
-					mountAdded = true
-					break
-				}
-			}
-			if !mountAdded {
-				containerRef.VolumeMounts = append(containerRef.VolumeMounts, volumeMount)
-			}
-			resource.Object.Spec.Containers[i] = *containerRef
-		}
-		volumeAdded := false
-		for i, existingVolume := range resource.Object.Spec.Volumes {
-			if volume.Name == existingVolume.Name {
-				resource.Object.Spec.Volumes[i] = volume
-				volumeAdded = true
-				break
-			}
-		}
-		if !volumeAdded {
-			resource.Object.Spec.Volumes = append(resource.Object.Spec.Volumes, volume)
-		}
-	default:
-		return nil, fmt.Errorf("resource %s is not a valid EFS volume mount location in an EKS cluster", resource.Id())
-	}
-
+func CreatePersistentVolume(resource core.Resource, fileSystem *EfsFileSystem, dag *core.ResourceGraph, appName string) (*kubernetes.PersistentVolume, error) {
 	cluster, err := core.GetSingleDownstreamResourceOfType[*EksCluster](dag, resource)
 	if err != nil {
 		return nil, err
 	}
+
+	// Create the PersistentVolume
+	pv, err := core.CreateResource[*kubernetes.PersistentVolume](dag, kubernetes.PersistentVolumeCreateParams{
+		Name:          fmt.Sprintf("%s-%s", resource.Id().Name, fileSystem.Id().Name),
+		ConstructRefs: core.BaseConstructSetOf(resource, fileSystem),
+	})
+	if err != nil {
+		return nil, err
+	}
+	pv.Cluster = cluster.Id()
+	pv.Object.Spec.Capacity = corev1.ResourceList{"storage": k8sResource.MustParse("5Gi")}
+	volumeMode := corev1.PersistentVolumeFilesystem
+	pv.Object.Spec.VolumeMode = &volumeMode
+	pv.Object.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
+	pv.Object.Spec.PersistentVolumeReclaimPolicy = corev1.PersistentVolumeReclaimRetain
+	if pv.Values == nil {
+		pv.Values = make(map[string]core.IaCValue)
+	}
+	value := GeneratePersistentVolumeHandlePlaceholder(fileSystem.Name)
+	volumeHandlePlaceholder := fmt.Sprintf("{{ .Values.%s }}", value)
+	pv.Values[value] = core.IaCValue{ResourceId: fileSystem.Id(), Property: ID_IAC_VALUE}
+	pv.Object.Spec.CSI = &corev1.CSIPersistentVolumeSource{
+		Driver:       "efs.csi.aws.com",
+		VolumeHandle: volumeHandlePlaceholder,
+		VolumeAttributes: map[string]string{
+			"encryptInTransit": "true",
+		},
+	}
+
+	// Create the volume's PersistentVolumeClaim
+	pvc, err := core.CreateResource[*kubernetes.PersistentVolumeClaim](dag, kubernetes.PersistentVolumeClaimCreateParams{
+		Name:          fmt.Sprintf("%s-%s", resource.Id().Name, fileSystem.Id().Name),
+		ConstructRefs: core.BaseConstructSetOf(resource, fileSystem),
+	})
+	if err != nil {
+		return nil, err
+	}
+	pvc.Cluster = cluster.Id()
+	pvc.Object.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
+	pvc.Object.Spec.Resources.Requests = corev1.ResourceList{"storage": k8sResource.MustParse("5Gi")}
+
+	// Create the volume's StorageClass
+	sc, err := core.CreateResource[*kubernetes.StorageClass](dag, kubernetes.StorageClassCreateParams{
+		Name:          fmt.Sprintf("%s-%s", resource.Id().Name, fileSystem.Id().Name),
+		ConstructRefs: core.BaseConstructSetOf(resource, fileSystem),
+	})
+	if err != nil {
+		return nil, err
+	}
+	sc.Cluster = cluster.Id()
+	sc.Object.Provisioner = "efs.csi.aws.com"
+	sc.Object.MountOptions = []string{"tls"}
+
+	// Create the path from the upstream resource to the filesystem
+	dag.AddDependency(resource, pv)
+	dag.AddDependency(pv, pvc)
+	dag.AddDependency(pvc, sc)
+	dag.AddDependency(pv, fileSystem)
+
+	// Associate the volume and it's dependencies with the resource's downstream cluster
+	dag.AddDependency(pv, cluster)
+	dag.AddDependency(pvc, cluster)
+	dag.AddDependency(sc, cluster)
+
+	// Install the EFS CSI driver on the cluster if the pod is in an EKS node group
 	oidc, err := core.GetSingleUpstreamResourceOfType[*OpenIdConnectProvider](dag, cluster)
 	if err != nil {
 		return nil, err
@@ -521,53 +505,7 @@ func MountEfsVolume(resource core.Resource, fileSystem *EfsFileSystem, dag *core
 		}
 	}
 
-	persistentVolumeInputPath := path.Join(MANIFEST_PATH_PREFIX, "efs", AWS_EFS_PERSISTENT_VOLUME_FILENAME)
-	persistentVolumeOutputPath := path.Join(MANIFEST_PATH_PREFIX, "efs", fmt.Sprintf("%s_%s", fileSystem.Name, AWS_EFS_PERSISTENT_VOLUME_FILENAME))
-	pvContent, err := fs.ReadFile(eksManifests, persistentVolumeInputPath)
-	if err != nil {
-		return nil, err
-	}
-	persistentVolume := &kubernetes.Manifest{
-		Name:          fmt.Sprintf("%s-%s-%s", cluster.Name, fileSystem.Name, "persistent-volume"),
-		ConstructRefs: resource.BaseConstructRefs(),
-		FilePath:      persistentVolumeOutputPath,
-		Content:       pvContent,
-		Transformations: map[string]core.IaCValue{
-			`spec["csi"]["volumeHandle"]`: {ResourceId: fileSystem.Id(), Property: ID_IAC_VALUE},
-		},
-		Cluster: cluster.Id(),
-	}
-
-	claimOutputPath := path.Join(MANIFEST_PATH_PREFIX, "efs", AWS_EFS_CLAIM_FILENAME)
-	claimContent, err := fs.ReadFile(eksManifests, claimOutputPath)
-	if err != nil {
-		return nil, err
-	}
-	claim := &kubernetes.Manifest{
-		Name:          fmt.Sprintf("%s-%s", cluster.Name, "claim"),
-		ConstructRefs: resource.BaseConstructRefs(),
-		FilePath:      claimOutputPath,
-		Content:       claimContent,
-	}
-
-	storageClassOutputPath := path.Join(MANIFEST_PATH_PREFIX, "efs", AWS_EFS_STORAGECLASS_FILENAME)
-	storageClassContent, err := fs.ReadFile(eksManifests, storageClassOutputPath)
-	if err != nil {
-		return nil, err
-	}
-	storageClass := &kubernetes.Manifest{
-		Name:          fmt.Sprintf("%s-%s", cluster.Name, "storage-class"),
-		ConstructRefs: resource.BaseConstructRefs(),
-		FilePath:      storageClassOutputPath,
-		Content:       storageClassContent,
-	}
-
-	dag.AddDependency(resource, persistentVolume)
-	dag.AddDependenciesReflect(persistentVolume)
-	dag.AddDependency(persistentVolume, claim)
-	dag.AddDependency(persistentVolume, storageClass)
-
-	return persistentVolume, nil
+	return pv, nil
 }
 
 func (cluster *EksCluster) InstallEfsCsiDriverAddon(references core.BaseConstructSet, dag *core.ResourceGraph, appName string, oidc *OpenIdConnectProvider) (*EksAddon, error) {

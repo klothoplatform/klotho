@@ -8,7 +8,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type (
@@ -44,7 +44,7 @@ func (pod *Pod) DeleteContext() core.DeleteContext {
 		RequiresExplicitDelete: true,
 	}
 }
-func (pod *Pod) GetObject() runtime.Object {
+func (pod *Pod) GetObject() v1.Object {
 	return pod.Object
 }
 
@@ -120,6 +120,6 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classif
 	return nil
 }
 
-func (pod *Pod) Values() map[string]core.IaCValue {
+func (pod *Pod) GetValues() map[string]core.IaCValue {
 	return pod.Transformations
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type (
@@ -47,7 +46,7 @@ func (sa *ServiceAccount) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (sa *ServiceAccount) GetObject() runtime.Object {
+func (sa *ServiceAccount) GetObject() v1.Object {
 	return sa.Object
 }
 
@@ -85,7 +84,7 @@ func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName strin
 	return nil
 }
 
-func (sa *ServiceAccount) Values() map[string]core.IaCValue {
+func (sa *ServiceAccount) GetValues() map[string]core.IaCValue {
 	return sa.Transformations
 }
 

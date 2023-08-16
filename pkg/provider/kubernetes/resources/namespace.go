@@ -2,13 +2,11 @@ package resources
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
-	"reflect"
-
 	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type (
@@ -44,7 +42,7 @@ func (namespace *Namespace) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (namespace *Namespace) GetObject() runtime.Object {
+func (namespace *Namespace) GetObject() v1.Object {
 	return namespace.Object
 }
 
@@ -60,10 +58,8 @@ func (namespace *Namespace) GetResourcesInNamespace(dag *core.ResourceGraph) []c
 	var resources []core.Resource
 	for _, res := range dag.GetAllUpstreamResources(namespace) {
 		if manifest, ok := res.(ManifestFile); ok {
-			if manifest.GetObject() != nil {
-				if reflect.ValueOf(manifest.GetObject()).Elem().FieldByName("Namespace").Interface() == namespace.Name {
-					resources = append(resources, manifest)
-				}
+			if manifest.GetObject() != nil && manifest.GetObject().GetNamespace() == namespace.Name {
+				resources = append(resources, manifest)
 			}
 		}
 	}
@@ -80,6 +76,6 @@ func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName str
 	return nil
 }
 
-func (namespace *Namespace) Values() map[string]core.IaCValue {
+func (namespace *Namespace) GetValues() map[string]core.IaCValue {
 	return namespace.Transformations
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
-	"k8s.io/apimachinery/pkg/runtime"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type (
@@ -41,7 +41,7 @@ func (se *ServiceExport) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (se *ServiceExport) GetObject() runtime.Object {
+func (se *ServiceExport) GetObject() v1.Object {
 	return se.Object
 }
 

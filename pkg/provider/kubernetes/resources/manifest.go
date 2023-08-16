@@ -5,7 +5,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 )
 
@@ -14,7 +13,7 @@ const KLOTHO_ID_LABEL = "klothoId"
 type (
 	ManifestFile interface {
 		core.Resource
-		GetObject() runtime.Object
+		GetObject() v1.Object
 		Kind() string
 		Path() string
 	}
@@ -29,7 +28,7 @@ type (
 
 	ManifestWithValues interface {
 		ManifestFile
-		Values() map[string]core.IaCValue
+		GetValues() map[string]core.IaCValue
 	}
 )
 

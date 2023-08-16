@@ -7,7 +7,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -43,7 +43,7 @@ func (service *Service) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (service *Service) GetObject() runtime.Object {
+func (service *Service) GetObject() v1.Object {
 	return service.Object
 }
 func (service *Service) Kind() string {
@@ -108,6 +108,6 @@ func (service *Service) mapContainerPorts(parentObjectName string, containers []
 	}
 	return nil
 }
-func (service *Service) Values() map[string]core.IaCValue {
+func (service *Service) GetValues() map[string]core.IaCValue {
 	return service.Transformations
 }

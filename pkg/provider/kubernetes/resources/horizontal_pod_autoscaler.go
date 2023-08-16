@@ -6,7 +6,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	autoscaling "k8s.io/api/autoscaling/v2"
-	"k8s.io/apimachinery/pkg/runtime"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type (
@@ -42,7 +42,7 @@ func (hpa *HorizontalPodAutoscaler) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (hpa *HorizontalPodAutoscaler) GetObject() runtime.Object {
+func (hpa *HorizontalPodAutoscaler) GetObject() v1.Object {
 	return hpa.Object
 }
 func (hpa *HorizontalPodAutoscaler) Kind() string {
@@ -73,6 +73,6 @@ func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *core.ResourceGraph, app
 	return nil
 }
 
-func (hpa *HorizontalPodAutoscaler) Values() map[string]core.IaCValue {
+func (hpa *HorizontalPodAutoscaler) GetValues() map[string]core.IaCValue {
 	return hpa.Transformations
 }

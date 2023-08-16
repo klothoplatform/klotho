@@ -11,7 +11,6 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type (
@@ -48,7 +47,7 @@ func (deployment *Deployment) DeleteContext() core.DeleteContext {
 	}
 }
 
-func (deployment *Deployment) GetObject() runtime.Object {
+func (deployment *Deployment) GetObject() v1.Object {
 	return deployment.Object
 }
 
@@ -133,6 +132,6 @@ func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName s
 	return nil
 }
 
-func (deployment *Deployment) Values() map[string]core.IaCValue {
+func (deployment *Deployment) GetValues() map[string]core.IaCValue {
 	return deployment.Transformations
 }
