@@ -1,0 +1,6 @@
+source: "aws:eks_add_on:"
+destination: "aws:eks_cluster:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:

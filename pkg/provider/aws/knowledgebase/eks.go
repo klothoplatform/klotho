@@ -2,12 +2,13 @@ package knowledgebase
 
 import (
 	"fmt"
+	"path"
+	"strings"
+
 	k8sSanitizer "github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"path"
 	"sigs.k8s.io/aws-load-balancer-controller/apis/elbv2/v1beta1"
-	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
@@ -16,50 +17,6 @@ import (
 )
 
 var EksKB = knowledgebase.Build(
-	knowledgebase.EdgeBuilder[*resources.OpenIdConnectProvider, *resources.EksCluster]{
-		Configure: func(oidc *resources.OpenIdConnectProvider, cluster *resources.EksCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			oidc.Cluster = cluster
-			oidc.ClientIdLists = []string{"sts.amazonaws.com"}
-
-			if oidc.Region == nil {
-				oidc.Region = resources.NewRegion()
-			}
-			dag.AddDependenciesReflect(oidc)
-			return nil
-		},
-	},
-	knowledgebase.EdgeBuilder[*resources.EksCluster, *resources.Vpc]{},
-	knowledgebase.EdgeBuilder[*resources.EksCluster, *resources.Subnet]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Kubeconfig, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*resources.EksCluster, *kubernetes.Kubeconfig]{
-		DeploymentOrderReversed: true,
-	},
-	knowledgebase.EdgeBuilder[*resources.EksCluster, *resources.SecurityGroup]{
-		Configure: func(cluster *resources.EksCluster, sg *resources.SecurityGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			eksIngressRule := resources.SecurityGroupRule{
-				Description: "Allows ingress traffic from the EKS control plane",
-				FromPort:    9443,
-				Protocol:    "TCP",
-				ToPort:      9443,
-				CidrBlocks: []core.IaCValue{
-					{Property: "0.0.0.0/0"},
-				},
-			}
-
-			shouldAddIngressRule := true
-			for _, rule := range sg.IngressRules {
-				if rule.Equals(eksIngressRule) {
-					shouldAddIngressRule = false
-				}
-			}
-			if shouldAddIngressRule {
-				sg.IngressRules = append(sg.IngressRules, eksIngressRule)
-			}
-
-			return nil
-		},
-	},
-	knowledgebase.EdgeBuilder[*resources.EksFargateProfile, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.EksFargateProfile, *resources.EksCluster]{
 		Configure: func(profile *resources.EksFargateProfile, cluster *resources.EksCluster, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if len(cluster.GetClustersNodeGroups(dag)) == 0 {
@@ -122,7 +79,6 @@ var EksKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.EksNodeGroup, *resources.Subnet]{},
 	knowledgebase.EdgeBuilder[*resources.EksAddon, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*resources.EksAddon, *resources.IamRole]{},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksCluster]{},
