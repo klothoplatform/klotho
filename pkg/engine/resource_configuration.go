@@ -41,7 +41,12 @@ func ConfigureField(resource core.Resource, fieldName string, value interface{},
 			return err
 		}
 	case reflect.Pointer, reflect.Struct:
-		if reflect.ValueOf(value).Kind() != reflect.Map && !field.Type().Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) && field.Type() != reflect.TypeOf(core.ResourceId{}) {
+		// Since there can be pointers to primitive types and others, we will ensure that those still work
+		if field.Kind() == reflect.Pointer && field.Elem().Kind() != reflect.Struct {
+			if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value).String() == "core.ResourceId" {
+				return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.Id(), field.Type(), reflect.TypeOf(value))
+			}
+		} else if reflect.ValueOf(value).Kind() != reflect.Map && !field.Type().Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) && field.Type() != reflect.TypeOf(core.ResourceId{}) {
 			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be a map, but got %s", fieldName, resource.Id(), reflect.TypeOf(value))
 		}
 		err := configureField(value, field, graph, zeroValueAllowed)

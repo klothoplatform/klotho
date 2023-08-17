@@ -3,15 +3,16 @@ package resources
 import (
 	"embed"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"io/fs"
-	corev1 "k8s.io/api/core/v1"
-	k8sResource "k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"path"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
+	corev1 "k8s.io/api/core/v1"
+	k8sResource "k8s.io/apimachinery/pkg/api/resource"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
@@ -303,7 +304,7 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 
 			Cluster: cluster.Id(),
 			Repo:    `https://charts.jetstack.io`,
-			Version: `v1.10.0`,
+			Version: `v1.12.0`,
 			Values: map[string]any{
 				`installCRDs`: true,
 				`webhook`: map[string]any{
@@ -661,6 +662,17 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 	if cluster.Vpc == nil {
 		return nil, errors.Errorf("cluster.Vpc is required to install the alb controller")
 	}
+	clusterCharts := core.GetUpstreamResourcesOfType[*kubernetes.HelmChart](dag, cluster)
+	var certManagerchart *kubernetes.HelmChart
+	for _, chart := range clusterCharts {
+		if chart.Chart == "cert-manager" && chart.Repo == "https://charts.jetstack.io" {
+			certManagerchart = chart
+			break
+		}
+	}
+	if certManagerchart == nil {
+		return nil, errors.Errorf("cert-manager chart is required to install the alb controller")
+	}
 
 	serviceAccountName := "aws-load-balancer-controller"
 	var aRef core.BaseConstruct
@@ -713,6 +725,7 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 	dag.AddResource(region)
 	dag.AddDependenciesReflect(albChart)
 	dag.AddDependency(albChart, serviceAccount)
+	dag.AddDependency(albChart, certManagerchart)
 	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
 		dag.AddDependency(albChart, nodeGroup)
 	}

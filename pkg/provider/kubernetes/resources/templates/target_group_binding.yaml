@@ -17,12 +17,3 @@ rules:
       operation: error
 delete_context:
   requires_no_upstream_or_downstream: true
-configuration:
-  - field: Object
-    value:
-       TypeMeta:
-         APIVersion: elbv2.k8s.aws/v1beta1
-         Kind: TargetGroupBinding
-       Spec:
-          ServiceRef:
-            Port: 80

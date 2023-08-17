@@ -11,19 +11,3 @@ rules:
       operation: create
 delete_context:
   requires_no_upstream: true
-configuration:
-  - field: Object
-    value:
-      TypeMeta:
-        APIVersion: v1
-        Kind: Service
-      ObjectMeta:
-      Spec:
-        Ports:
-          - Name: "default-tcp"
-            Port: 80
-            TargetPort: 3000
-            Protocol: TCP
-        Selector:
-        SessionAffinity: "None"
-        Type: ClusterIP

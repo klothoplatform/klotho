@@ -2,6 +2,7 @@ package resources
 
 import (
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
@@ -58,7 +59,9 @@ func (tgb *TargetGroupBinding) MakeOperational(dag *core.ResourceGraph, appName 
 	if tgb.Cluster.Name == "" {
 		return fmt.Errorf("target group binding %s has no cluster", tgb.Name)
 	}
-
+	if tgb.Object == nil {
+		tgb.Object = &elbv2api.TargetGroupBinding{}
+	}
 	SetDefaultObjectMeta(tgb, tgb.Object.GetObjectMeta())
 	tgb.FilePath = ManifestFilePath(tgb)
 	return nil

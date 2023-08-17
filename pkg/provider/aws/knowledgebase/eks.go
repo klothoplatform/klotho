@@ -196,6 +196,9 @@ var EksKB = knowledgebase.Build(
 			}
 			tgBinding.Values[value] = core.IaCValue{ResourceId: targetGroup.Id(), Property: resources.ARN_IAC_VALUE}
 
+			if len(service.Object.Spec.Ports) == 0 {
+				return fmt.Errorf("service %s has no ports", service.Id())
+			}
 			// Update the target group binding's service
 			tgBinding.Object.Spec.ServiceRef = v1beta1.ServiceReference{
 				Name: service.Object.Name,

@@ -2,6 +2,7 @@ package resources
 
 import (
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
@@ -59,28 +60,17 @@ func (service *Service) MakeOperational(dag *core.ResourceGraph, appName string,
 		return fmt.Errorf("service %s has no cluster", service.Name)
 	}
 
+	if service.Object == nil {
+		service.Object = &corev1.Service{}
+	}
+
 	SetDefaultObjectMeta(service, service.Object.GetObjectMeta())
 	service.FilePath = ManifestFilePath(service)
-
-	// TODO: figure out a better UX for port mapping
-	// Map ports from downstream pod and deployment containers in a pass-through fashion
-	for _, res := range dag.GetDownstreamResources(service) {
-		switch typedRes := res.(type) {
-		case *Pod:
-			if err := service.mapContainerPorts(typedRes.Object.Name, typedRes.Object.Spec.Containers); err != nil {
-				return err
-			}
-		case *Deployment:
-			if err := service.mapContainerPorts(typedRes.Object.Name, typedRes.Object.Spec.Template.Spec.Containers); err != nil {
-				return err
-			}
-		}
-	}
 
 	return nil
 }
 
-func (service *Service) mapContainerPorts(parentObjectName string, containers []corev1.Container) error {
+func (service *Service) MapContainerPorts(parentObjectName string, containers []corev1.Container) error {
 	for _, container := range containers {
 		if len(container.Ports) == 0 {
 			return fmt.Errorf("container %s associated with service %s has no ports", container.Name, service.Name)
@@ -96,7 +86,7 @@ func (service *Service) mapContainerPorts(parentObjectName string, containers []
 				Name:       kubernetes.RFC1123LabelSanitizer.Apply(fmt.Sprintf("%s-%s-%d", parentObjectName, container.Name, port.ContainerPort)),
 				Protocol:   port.Protocol,
 				Port:       port.HostPort,
-				TargetPort: intstr.FromInt(int(port.HostPort)),
+				TargetPort: intstr.FromString(container.Name),
 			}
 			if i, ok := currentServicePortIndexes[port.HostPort]; ok {
 				service.Object.Spec.Ports[i] = servicePort

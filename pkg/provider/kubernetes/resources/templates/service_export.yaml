@@ -11,10 +11,4 @@ rules:
       operation: create
 delete_context:
   requires_no_upstream: true
-configuration:
-  - field: Object
-    value:
-      TypeMeta:
-        APIVersion: multicluster.x-k8s.io/v1alpha1
-        Kind: ServiceExport
 

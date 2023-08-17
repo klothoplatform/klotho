@@ -14,10 +14,7 @@ delete_context:
 configuration:
   - field: Object
     value:
-      TypeMeta:
-        APIVersion: autoscaling/v2
-        Kind: HorizontalPodAutoscaler
-      ObjectMeta:
+      Metadata:
         Labels:
           execUnit: "{{ .ExecUnitName }}"
         Name: "{{ .Name }}"

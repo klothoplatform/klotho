@@ -20,15 +20,11 @@ delete_context:
   requires_no_upstream: true
   requires_explicit_delete: true
 configuration:
-  - field: Object
+  - field: Object.Spec.Replicas
+    value: 2
+  - field: Object.Spec.Strategy
     value:
-      TypeMeta:
-        APIVersion: apps/v1
-        Kind: Deployment
-      Spec:
-        Replicas: 2
-        Strategy:
-          RollingUpdate:
-            MaxSurge: 1
-            MaxUnavailable: 1
-          Type: RollingUpdate
+      RollingUpdate:
+        MaxSurge: 1
+        MaxUnavailable: 1
+      Type: RollingUpdate

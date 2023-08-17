@@ -499,11 +499,19 @@ func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceErr
 
 func TemplateConfigure(resource core.Resource, template core.ResourceTemplate, dag *core.ResourceGraph) error {
 	for _, config := range template.Configuration {
-		//field := reflect.ValueOf(resource).Elem().FieldByName(config.Field)
-		//if (!field.IsValid() || !field.IsZero()) || config.ZeroValueAllowed {
-		//	continue
-		//}
-		err := ConfigureField(resource, config.Field, config.Value, config.ZeroValueAllowed, dag)
+		field, _, err := parseFieldName(resource, config.Field, dag)
+		if err != nil {
+			return err
+		}
+		if (!field.IsValid() || !field.IsZero()) || config.ZeroValueAllowed {
+			//since pointers will be non zero but could still be nil we need to check that case before proceeding
+			if field.Kind() == reflect.Ptr && !field.IsNil() && !field.Elem().IsZero() {
+				continue
+			} else if field.Kind() != reflect.Ptr {
+				continue
+			}
+		}
+		err = ConfigureField(resource, config.Field, config.Value, config.ZeroValueAllowed, dag)
 		if err != nil {
 			return err
 		}

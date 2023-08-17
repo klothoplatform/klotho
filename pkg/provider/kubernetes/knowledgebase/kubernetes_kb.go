@@ -2,12 +2,13 @@ package knowledgebase
 
 import (
 	"fmt"
+	"path"
+
 	"github.com/klothoplatform/klotho/pkg/core"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	k8sSanitizer "github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
 	corev1 "k8s.io/api/core/v1"
-	"path"
 )
 
 var KubernetesKB = knowledgebase.Build(
@@ -20,6 +21,10 @@ var KubernetesKB = knowledgebase.Build(
 				return fmt.Errorf("%s has no object", deployment.Id())
 			}
 			service.Object.Spec.Selector = resources.KlothoIdSelector(deployment.Object)
+
+			if err := service.MapContainerPorts(deployment.Object.Name, deployment.Object.Spec.Template.Spec.Containers); err != nil {
+				return err
+			}
 			return nil
 		},
 	},
@@ -32,6 +37,9 @@ var KubernetesKB = knowledgebase.Build(
 				return fmt.Errorf("pod %s has no object", pod.Name)
 			}
 			service.Object.Spec.Selector = resources.KlothoIdSelector(pod.Object)
+			if err := service.MapContainerPorts(pod.Object.Name, pod.Object.Spec.Containers); err != nil {
+				return err
+			}
 			return nil
 		},
 	},
