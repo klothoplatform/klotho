@@ -148,58 +148,14 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EfsMountTarget]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EfsFileSystem]{
 		Configure: func(pod *kubernetes.Pod, fileSystem *resources.EfsFileSystem, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			return nil
+			return mountEfsFileSystemToPodOrDeployment(pod, fileSystem, dag, data)
 		},
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EfsMountTarget]{},
 	knowledgebase.EdgeBuilder[*kubernetes.PersistentVolume, *resources.EfsFileSystem]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EfsFileSystem]{
 		Configure: func(deployment *kubernetes.Deployment, fileSystem *resources.EfsFileSystem, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
-			if deployment.Object == nil {
-				return fmt.Errorf("%s has no object", deployment.Id())
-			}
-
-			// Ensure that the filesystem has a mount target in the same AZs as the deployment's pods
-			deploymentSubnets := getSubnetsForPodOrDeployment(dag, deployment)
-			if len(deploymentSubnets) == 0 {
-				return fmt.Errorf("%s is not associated with any subnets", deployment.Id())
-			}
-
-			existingMountTargets := core.GetUpstreamResourcesOfType[*resources.EfsMountTarget](dag, fileSystem)
-
-			var mountTargetAZs = make(map[string]bool)
-			for _, mountTarget := range existingMountTargets {
-				if mountTarget.Subnet == nil {
-					return fmt.Errorf("%s has no subnet", mountTarget.Id())
-				}
-				if mountTarget.Subnet.AvailabilityZone.ResourceId.IsZero() {
-					return fmt.Errorf("%s has no AZ", mountTarget.Subnet.Id())
-				}
-				mountTargetAZs[mountTarget.Subnet.AvailabilityZone.Property] = true
-			}
-
-			// Create mount targets for any AZs that don't already have one
-			for _, subnet := range deploymentSubnets {
-				if subnet.AvailabilityZone.ResourceId.IsZero() {
-					continue
-				}
-				if _, ok := mountTargetAZs[subnet.AvailabilityZone.Property]; !ok {
-					mountTarget, err := core.CreateResource[*resources.EfsMountTarget](dag, resources.EfsMountTargetCreateParams{
-						Name:          fmt.Sprintf("%s-%s", fileSystem.Name, subnet.Name),
-						ConstructRefs: core.BaseConstructSetOf(deployment, fileSystem),
-					})
-					if err != nil {
-						return err
-					}
-					mountTarget.Subnet = subnet
-					mountTargetAZs[subnet.AvailabilityZone.Property] = true
-					dag.AddDependencyWithData(deployment, mountTarget, data)
-					dag.AddDependency(mountTarget, subnet)
-				}
-			}
-
-			_, err := resources.CreatePersistentVolume(deployment, fileSystem, dag, data.AppName)
-			return err
+			return mountEfsFileSystemToPodOrDeployment(deployment, fileSystem, dag, data)
 		},
 	},
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksFargateProfile]{},
@@ -502,6 +458,60 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.PersistentVolumeClaim, *resources.EksCluster]{},
 	knowledgebase.EdgeBuilder[*kubernetes.StorageClass, *resources.EksCluster]{},
 )
+
+func mountEfsFileSystemToPodOrDeployment(computeResource core.Resource, fileSystem *resources.EfsFileSystem, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+	switch computeResource.(type) {
+	case *kubernetes.Pod, *kubernetes.Deployment:
+	default:
+		return fmt.Errorf("cannot mount EFS filesystem to %s", computeResource.Id())
+	}
+
+	if computeResource == nil {
+		return fmt.Errorf("%s has no object", computeResource.Id())
+	}
+
+	// Ensure that the filesystem has a mount target in the same AZs as the computeResource's pod(s)
+	deploymentSubnets := getSubnetsForPodOrDeployment(dag, computeResource)
+	if len(deploymentSubnets) == 0 {
+		return fmt.Errorf("%s is not associated with any subnets", computeResource.Id())
+	}
+
+	existingMountTargets := core.GetUpstreamResourcesOfType[*resources.EfsMountTarget](dag, fileSystem)
+
+	var mountTargetAZs = make(map[string]bool)
+	for _, mountTarget := range existingMountTargets {
+		if mountTarget.Subnet == nil {
+			return fmt.Errorf("%s has no subnet", mountTarget.Id())
+		}
+		if mountTarget.Subnet.AvailabilityZone.ResourceId.IsZero() {
+			return fmt.Errorf("%s has no AZ", mountTarget.Subnet.Id())
+		}
+		mountTargetAZs[mountTarget.Subnet.AvailabilityZone.Property] = true
+	}
+
+	// Create mount targets for any AZs that don't already have one
+	for _, subnet := range deploymentSubnets {
+		if subnet.AvailabilityZone.ResourceId.IsZero() {
+			continue
+		}
+		if _, ok := mountTargetAZs[subnet.AvailabilityZone.Property]; !ok {
+			mountTarget, err := core.CreateResource[*resources.EfsMountTarget](dag, resources.EfsMountTargetCreateParams{
+				Name:          fmt.Sprintf("%s-%s", fileSystem.Name, subnet.Name),
+				ConstructRefs: core.BaseConstructSetOf(computeResource, fileSystem),
+			})
+			if err != nil {
+				return err
+			}
+			mountTarget.Subnet = subnet
+			mountTargetAZs[subnet.AvailabilityZone.Property] = true
+			dag.AddDependencyWithData(computeResource, mountTarget, data)
+			dag.AddDependency(mountTarget, subnet)
+		}
+	}
+
+	_, err := resources.CreatePersistentVolume(computeResource, fileSystem, dag, data.AppName)
+	return err
+}
 
 func getSubnetsForPodOrDeployment(dag *core.ResourceGraph, resource core.Resource) []*resources.Subnet {
 	var subnets []*resources.Subnet

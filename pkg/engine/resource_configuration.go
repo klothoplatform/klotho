@@ -339,7 +339,6 @@ func parseFieldName(resource core.Resource, fieldName string, dag *core.Resource
 			} else if field.Kind() == reflect.Slice || field.Kind() == reflect.Array {
 				index, err := strconv.Atoi(key)
 				if err != nil {
-					fmt.Println(field, field.Kind(), key, fieldName)
 					return reflect.Value{}, nil, fmt.Errorf("unable to find field %s on resource %s, could not convert index to int", fields[i], resource.Id())
 
 				}

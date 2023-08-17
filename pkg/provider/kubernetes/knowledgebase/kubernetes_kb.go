@@ -12,14 +12,21 @@ import (
 
 var KubernetesKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.Service, *resources.Deployment]{
-		Configure: func(source *resources.Service, destination *resources.Deployment, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(service *resources.Service, deployment *resources.Deployment, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if service.Object == nil {
+				return fmt.Errorf("service %s has no object", service.Name)
+			}
+			if deployment.Object == nil {
+				return fmt.Errorf("%s has no object", deployment.Id())
+			}
+			service.Object.Spec.Selector = resources.KlothoIdSelector(deployment.Object)
 			return nil
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.Service, *resources.Pod]{
 		Configure: func(service *resources.Service, pod *resources.Pod, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if service.Object == nil {
-				return fmt.Errorf("service %s has no object", service.Name)
+				return fmt.Errorf("%s has no object", service.Id())
 			}
 			if pod.Object == nil {
 				return fmt.Errorf("pod %s has no object", pod.Name)
@@ -134,8 +141,10 @@ var KubernetesKB = knowledgebase.Build(
 			if persistentVolume.Object == nil {
 				return fmt.Errorf("%s has no object", persistentVolume.Id())
 			}
-			if persistentVolume.Object.Spec.ClaimRef == nil {
-				return fmt.Errorf("%s has no claim ref", persistentVolume.Id())
+
+			claim, err := core.GetSingleDownstreamResourceOfType[*resources.PersistentVolumeClaim](dag, persistentVolume)
+			if err != nil {
+				return err
 			}
 
 			volumeName := k8sSanitizer.RFC1035LabelSanitizer.Apply(fmt.Sprintf("%s-volume", persistentVolume.Name))
@@ -149,7 +158,7 @@ var KubernetesKB = knowledgebase.Build(
 				Name: volumeName,
 				VolumeSource: corev1.VolumeSource{
 					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: persistentVolume.Object.Spec.ClaimRef.Name,
+						ClaimName: claim.Object.Name,
 					},
 				},
 			}
@@ -195,12 +204,6 @@ var KubernetesKB = knowledgebase.Build(
 				return fmt.Errorf("%s has no object", persistentVolumeClaim.Id())
 			}
 			persistentVolumeClaim.Object.Spec.VolumeName = persistentVolume.Object.Name
-			persistentVolume.Object.Spec.ClaimRef = &corev1.ObjectReference{
-				Name:       persistentVolumeClaim.Object.Name,
-				Namespace:  persistentVolumeClaim.Object.Namespace,
-				Kind:       "PersistentVolumeClaim",
-				APIVersion: "v1",
-			}
 			return nil
 		},
 	},
@@ -213,6 +216,18 @@ var KubernetesKB = knowledgebase.Build(
 				return fmt.Errorf("%s has no object", storageClass.Id())
 			}
 			persistentVolumeClaim.Object.Spec.StorageClassName = &storageClass.Object.Name
+			return nil
+		},
+	},
+	knowledgebase.EdgeBuilder[*resources.PersistentVolume, *resources.StorageClass]{
+		Configure: func(persistentVolume *resources.PersistentVolume, storageClass *resources.StorageClass, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+			if persistentVolume.Object == nil {
+				return fmt.Errorf("%s has no object", persistentVolume.Id())
+			}
+			if storageClass.Object == nil {
+				return fmt.Errorf("%s has no object", storageClass.Id())
+			}
+			persistentVolume.Object.Spec.StorageClassName = storageClass.Object.Name
 			return nil
 		},
 	},

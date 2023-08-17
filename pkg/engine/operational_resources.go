@@ -499,10 +499,10 @@ func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceErr
 
 func TemplateConfigure(resource core.Resource, template core.ResourceTemplate, dag *core.ResourceGraph) error {
 	for _, config := range template.Configuration {
-		field := reflect.ValueOf(resource).Elem().FieldByName(config.Field)
-		if (field.IsValid() && !field.IsZero()) || config.ZeroValueAllowed {
-			continue
-		}
+		//field := reflect.ValueOf(resource).Elem().FieldByName(config.Field)
+		//if (!field.IsValid() || !field.IsZero()) || config.ZeroValueAllowed {
+		//	continue
+		//}
 		err := ConfigureField(resource, config.Field, config.Value, config.ZeroValueAllowed, dag)
 		if err != nil {
 			return err

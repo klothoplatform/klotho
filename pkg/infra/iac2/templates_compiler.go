@@ -766,6 +766,11 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
+	case "endpoint":
+		switch res := resource.(type) {
+		case *resources.RdsInstance:
+			return fmt.Sprintf("%s.endpoint", tc.getVarName(res)), nil
+		}
 	}
 	return "", errors.Errorf("unsupported IaC Value Property %T.%s", resource, property)
 }

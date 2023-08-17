@@ -17,14 +17,14 @@ rules:
         unsatisfied_action:
           operation: create
           default_type: subnet_private
-#      - enforcement: any_available
-#        direction: downstream
-#        resource_types:
-#          - security_group
-#        set_field: SecurityGroups
-#        num_needed: 1
-#        unsatisfied_action:
-#          operation: create
+      - enforcement: any_available
+        direction: downstream
+        resource_types:
+          - security_group
+        set_field: SecurityGroups
+        num_needed: 1
+        unsatisfied_action:
+          operation: create
 configuration:
   - field: Scheme
     value: internal

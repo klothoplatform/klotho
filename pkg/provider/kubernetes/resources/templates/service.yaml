@@ -20,7 +20,8 @@ configuration:
       ObjectMeta:
       Spec:
         Ports:
-          - Port: 80
+          - Name: "default-tcp"
+            Port: 80
             TargetPort: 3000
             Protocol: TCP
         Selector:
