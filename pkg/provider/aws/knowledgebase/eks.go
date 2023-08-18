@@ -78,20 +78,6 @@ var EksKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*resources.EksAddon, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*resources.EksAddon, *resources.IamRole]{},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Service, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*kubernetes.ServiceAccount, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*kubernetes.TargetGroupBinding, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*kubernetes.ServiceExport, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*kubernetes.HorizontalPodAutoscaler, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksFargateProfile]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksFargateProfile]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EksNodeGroup]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EksNodeGroup]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EcrImage]{
 		Configure: func(pod *kubernetes.Pod, image *resources.EcrImage, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 
@@ -145,25 +131,16 @@ var EksKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EfsMountTarget]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.EfsFileSystem]{
 		Configure: func(pod *kubernetes.Pod, fileSystem *resources.EfsFileSystem, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			return mountEfsFileSystemToPodOrDeployment(pod, fileSystem, dag, data)
 		},
 	},
-	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EfsMountTarget]{},
-	knowledgebase.EdgeBuilder[*kubernetes.PersistentVolume, *resources.EfsFileSystem]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Deployment, *resources.EfsFileSystem]{
 		Configure: func(deployment *kubernetes.Deployment, fileSystem *resources.EfsFileSystem, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			return mountEfsFileSystemToPodOrDeployment(deployment, fileSystem, dag, data)
 		},
 	},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksFargateProfile]{},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EksNodeGroup]{},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.EcrImage]{},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *kubernetes.HelmChart]{},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *kubernetes.KustomizeDirectory]{},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.PrivateDnsNamespace]{},
 	knowledgebase.EdgeBuilder[*resources.TargetGroup, *kubernetes.TargetGroupBinding]{
 		DeploymentOrderReversed: true,
 		Reuse:                   knowledgebase.Downstream,
@@ -217,16 +194,6 @@ var EksKB = knowledgebase.Build(
 			return err
 		},
 	},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Region]{},
-	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.Vpc]{},
-	knowledgebase.EdgeBuilder[*kubernetes.KustomizeDirectory, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*kubernetes.KustomizeDirectory, *resources.EksNodeGroup]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *kubernetes.KustomizeDirectory]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EksFargateProfile]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.EksNodeGroup]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *kubernetes.Manifest]{},
-	knowledgebase.EdgeBuilder[*kubernetes.Manifest, *resources.Region]{},
 	knowledgebase.EdgeBuilder[*kubernetes.Pod, *resources.PrivateDnsNamespace]{
 		Configure: func(pod *kubernetes.Pod, namespace *resources.PrivateDnsNamespace, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			deploymentRole, err := GetPodServiceAccountRole(pod, dag)
@@ -457,9 +424,6 @@ var EksKB = knowledgebase.Build(
 			return nil
 		},
 	},
-	knowledgebase.EdgeBuilder[*kubernetes.PersistentVolume, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*kubernetes.PersistentVolumeClaim, *resources.EksCluster]{},
-	knowledgebase.EdgeBuilder[*kubernetes.StorageClass, *resources.EksCluster]{},
 )
 
 func mountEfsFileSystemToPodOrDeployment(computeResource core.Resource, fileSystem *resources.EfsFileSystem, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {

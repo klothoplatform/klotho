@@ -1,0 +1,6 @@
+source: "kubernetes:manifest:"
+destination: "aws:eks_node_group:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:

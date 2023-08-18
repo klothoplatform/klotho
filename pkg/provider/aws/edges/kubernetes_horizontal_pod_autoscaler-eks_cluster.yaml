@@ -1,0 +1,6 @@
+source: "kubernetes:horizontal_pod_autoscaler:"
+destination: "aws:eks_cluster:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:

@@ -1,0 +1,6 @@
+source: "aws:eks_addon:"
+destination: "aws:iam_role:"
+direct_edge_only: false
+deployment_order_reversed: false
+deletion_dependent: false
+reuse:
