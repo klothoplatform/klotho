@@ -2,14 +2,15 @@ package iac2
 
 import (
 	"fmt"
+	"path"
+	"strings"
+
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/core"
 	aws_resources "github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	k8s_resources "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"helm.sh/helm/v3/pkg/chart"
-	"path"
 	"sigs.k8s.io/yaml"
-	"strings"
 )
 
 type (
@@ -43,14 +44,6 @@ func (p ChartPlugin) Translate(dag *core.ResourceGraph) ([]core.File, error) {
 				clusterAddons = append(clusterAddons, res)
 			case *k8s_resources.Manifest:
 				clusterManifests = append(clusterManifests, res)
-			}
-		}
-
-		var podsAndDeployments []k8s_resources.ManifestFile
-		for _, manifest := range helmTemplates {
-			switch manifest.(type) {
-			case *k8s_resources.Deployment, *k8s_resources.Pod:
-				podsAndDeployments = append(podsAndDeployments, manifest)
 			}
 		}
 

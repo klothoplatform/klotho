@@ -3,15 +3,16 @@ package resources
 import (
 	"embed"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"io/fs"
-	corev1 "k8s.io/api/core/v1"
-	k8sResource "k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"path"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
+	corev1 "k8s.io/api/core/v1"
+	k8sResource "k8s.io/apimachinery/pkg/api/resource"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/klothoplatform/klotho/pkg/core"
 	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
@@ -303,7 +304,7 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 
 			Cluster: cluster.Id(),
 			Repo:    `https://charts.jetstack.io`,
-			Version: `v1.10.0`,
+			Version: `v1.12.0`,
 			Values: map[string]any{
 				`installCRDs`: true,
 				`webhook`: map[string]any{
@@ -482,6 +483,7 @@ func CreatePersistentVolume(resource core.Resource, fileSystem *EfsFileSystem, d
 	// Create the path from the upstream resource to the filesystem
 	dag.AddDependency(resource, pv)
 	dag.AddDependency(pv, pvc)
+	dag.AddDependency(pv, sc)
 	dag.AddDependency(pvc, sc)
 	dag.AddDependency(pv, fileSystem)
 
@@ -563,43 +565,6 @@ func (cluster *EksCluster) InstallEfsCsiDriverAddon(references core.BaseConstruc
 	dag.AddDependenciesReflect(addon)
 	return addon, nil
 }
-
-//func (cluster *EksCluster) InstallEfsCsiDriver(references core.BaseConstructSet, dag *core.ResourceGraph, appName string) (*kubernetes.HelmChart, error) {
-//	serviceAccountName := "aws-efs-csi-controller"
-//	serviceAccount, err := cluster.CreateServiceAccount(ServiceAccountCreateParams{
-//		AppName:    appName,
-//		Dag:        dag,
-//		Name:       serviceAccountName,
-//		Policy:     createEfsPersistentVolumePolicy(cluster.Name, cluster),
-//		References: references,
-//	})
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	efsCfiDriverChart := &kubernetes.HelmChart{
-//		Name:          fmt.Sprintf("%s-alb-controller", cluster.Name),
-//		Chart:         "aws-efs-csi-driver",
-//		Repo:          "https://kubernetes-sigs.github.io/aws-efs-csi-driver/",
-//		ConstructRefs: references,
-//		Namespace:     "kube-system",
-//		Cluster:       cluster.Id(),
-//		Values: map[string]any{
-//			"serviceAccount": map[string]any{
-//				"create": false,
-//				"name":   serviceAccount.Name,
-//			},
-//		},
-//		IsInternal: true,
-//	}
-//	dag.AddDependenciesReflect(efsCfiDriverChart)
-//	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
-//		dag.AddDependency(efsCfiDriverChart, nodeGroup)
-//	}
-//
-//	return efsCfiDriverChart, nil
-//}
-
 func (cluster *EksCluster) InstallCloudMapController(refs core.BaseConstructSet, dag *core.ResourceGraph) (*kubernetes.KustomizeDirectory, error) {
 	cloudMapController := &kubernetes.KustomizeDirectory{
 		Name:          fmt.Sprintf("%s-cloudmap-controller", cluster.Name),
@@ -697,6 +662,17 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 	if cluster.Vpc == nil {
 		return nil, errors.Errorf("cluster.Vpc is required to install the alb controller")
 	}
+	clusterCharts := core.GetUpstreamResourcesOfType[*kubernetes.HelmChart](dag, cluster)
+	var certManagerchart *kubernetes.HelmChart
+	for _, chart := range clusterCharts {
+		if chart.Chart == "cert-manager" && chart.Repo == "https://charts.jetstack.io" {
+			certManagerchart = chart
+			break
+		}
+	}
+	if certManagerchart == nil {
+		return nil, errors.Errorf("cert-manager chart is required to install the alb controller")
+	}
 
 	serviceAccountName := "aws-load-balancer-controller"
 	var aRef core.BaseConstruct
@@ -714,7 +690,6 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 	if err != nil {
 		return nil, err
 	}
-	serviceAccount.Object.Namespace = "kube-system"
 
 	region := NewRegion()
 
@@ -724,7 +699,6 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 		Repo:          "https://aws.github.io/eks-charts",
 		ConstructRefs: references,
 		Version:       "1.5.5",
-		Namespace:     "kube-system",
 		Cluster:       cluster.Id(),
 		IsInternal:    true,
 		Values: map[string]any{
@@ -751,6 +725,7 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 	dag.AddResource(region)
 	dag.AddDependenciesReflect(albChart)
 	dag.AddDependency(albChart, serviceAccount)
+	dag.AddDependency(albChart, certManagerchart)
 	for _, nodeGroup := range cluster.GetClustersNodeGroups(dag) {
 		dag.AddDependency(albChart, nodeGroup)
 	}

@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -263,7 +264,12 @@ func (id ResourceId) MarshalText() ([]byte, error) {
 	return []byte(id.String()), nil
 }
 
+var resourceIdPattern = regexp.MustCompile(`^([a-zA-Z0-9_]*:){2}([a-zA-Z0-9_#./\-:\[\]]*:?)+$`)
+
 func (id *ResourceId) UnmarshalText(data []byte) error {
+	if !resourceIdPattern.Match(data) {
+		return errors.Errorf("invalid resource id: '%s'", string(data))
+	}
 	parts := strings.Split(string(data), ":")
 	if len(parts) < 3 {
 		return errors.Errorf("invalid number of parts (%d) in resource id '%s'", len(parts), string(data))

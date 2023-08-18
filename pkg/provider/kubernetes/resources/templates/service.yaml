@@ -12,17 +12,7 @@ rules:
 delete_context:
   requires_no_upstream: true
 configuration:
-  - field: Object
-    value:
-      TypeMeta:
-        APIVersion: v1
-        Kind: Service
-      ObjectMeta:
-      Spec:
-        Ports:
-          - Port: 80
-            TargetPort: 3000
-            Protocol: TCP
-        Selector:
-        SessionAffinity: "None"
-        Type: ClusterIP
+  - field: Object.APIVersion
+    value: v1
+  - field: Object.Kind
+    value: Service

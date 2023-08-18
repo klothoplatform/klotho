@@ -20,9 +20,8 @@ delete_context:
   requires_no_upstream: true
   requires_explicit_delete: true
 configuration:
-  - field: Object
-    value:
-      TypeMeta:
-        APIVersion: v1
-        Kind: Pod
+  - field: Object.Kind
+    value: Pod
+  - field: Object.APIVersion
+    value: v1
 

@@ -5,7 +5,7 @@ deployment_order_reversed: false
 deletion_dependent: false
 reuse:
 configuration:
-- resource: aws:lambda_function:#Role"
+- resource: aws:lambda_function:#Role
   config:
     field: AwsManagedPolicies
     value:
