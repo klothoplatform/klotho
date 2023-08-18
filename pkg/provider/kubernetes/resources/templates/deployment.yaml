@@ -20,6 +20,10 @@ delete_context:
   requires_no_upstream: true
   requires_explicit_delete: true
 configuration:
+  - field: Object.Kind
+    value: Deployment
+  - field: Object.APIVersion
+    value: apps/v1
   - field: Object.Spec.Replicas
     value: 2
   - field: Object.Spec.Strategy

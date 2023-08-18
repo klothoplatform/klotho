@@ -86,7 +86,7 @@ func (service *Service) MapContainerPorts(parentObjectName string, containers []
 				Name:       kubernetes.RFC1123LabelSanitizer.Apply(fmt.Sprintf("%s-%s-%d", parentObjectName, container.Name, port.ContainerPort)),
 				Protocol:   port.Protocol,
 				Port:       port.HostPort,
-				TargetPort: intstr.FromString(container.Name),
+				TargetPort: intstr.FromInt(int(port.ContainerPort)),
 			}
 			if i, ok := currentServicePortIndexes[port.HostPort]; ok {
 				service.Object.Spec.Ports[i] = servicePort

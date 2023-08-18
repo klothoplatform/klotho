@@ -17,3 +17,8 @@ rules:
       operation: error
 delete_context:
   requires_no_upstream_or_downstream: true
+configuration:
+  - field: Object.APIVersion
+    value: elbv2.k8s.aws/v1beta1
+  - field: Object.Kind
+    value: TargetGroupBinding
