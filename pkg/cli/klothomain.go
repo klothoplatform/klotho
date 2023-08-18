@@ -2,10 +2,8 @@ package cli
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"regexp"
-	"runtime/pprof"
 	"strings"
 	"time"
 
@@ -220,13 +218,6 @@ func readConfig(args []string) (appCfg config.Application, err error) {
 }
 
 func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
-	f, err := os.Create("cpu.prof")
-	if err != nil {
-		log.Fatal(err)
-	}
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
-
 	// Save any config options. This should go before anything else, so that it always takes effect before any code
 	// that uses it (for example, we should save an update.stream option before we use it below to perform the update).
 	err = SetOptions(cfg.setOption)
