@@ -14,4 +14,4 @@ spec:
     driver: efs.csi.aws.com
     volumeHandle: REPLACE_ME
     volumeAttributes:
-      encryptInTransit: "true"
+      encryptInTransit: 'true'

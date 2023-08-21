@@ -272,12 +272,18 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 	for _, comb := range combinations {
 		rg := baseGraph.Clone()
 		mappedRes := map[core.ResourceId][]core.Resource{}
+		// we will clone resources otherwise we will have side effects as we solve context by context due to pointing at the same resource
+		clonedRes := map[core.ResourceId]core.Resource{}
 		for resId, sol := range comb {
 			for _, res := range sol.Graph.ListResources() {
-				rg.AddResource(res)
+				copiedRes := cloneResource(res)
+				clonedRes[res.Id()] = copiedRes
+				rg.AddResource(copiedRes)
 			}
 			for _, edge := range sol.Graph.ListDependencies() {
-				rg.AddDependency(edge.Source, edge.Destination)
+				src := clonedRes[edge.Source.Id()]
+				dst := clonedRes[edge.Destination.Id()]
+				rg.AddDependencyWithData(src, dst, edge.Properties.Data)
 			}
 			mappedRes[resId] = sol.DirectlyMappedResources
 		}
@@ -295,9 +301,13 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 					joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to find resources for construct %s", dep.Source.Id()))
 					continue
 				}
-				srcNodes = append(srcNodes, srcResources...)
+				for _, res := range srcResources {
+					// we will clone resources otherwise we will have side effects as we solve context by context due to pointing at the same resource
+					srcNodes = append(srcNodes, cloneResource(res))
+				}
 			} else {
-				srcNodes = append(srcNodes, dep.Source.(core.Resource))
+				srcClone := cloneResource(dep.Source.(core.Resource))
+				srcNodes = append(srcNodes, srcClone)
 			}
 
 			if dep.Destination.Id().Provider == core.AbstractConstructProvider {
@@ -306,9 +316,13 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 					joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to find resources for construct %s", dep.Destination.Id()))
 					continue
 				}
-				dstNodes = append(dstNodes, dstResources...)
+				for _, res := range dstResources {
+					// we will clone resources otherwise we will have side effects as we solve context by context due to pointing at the same resource
+					dstNodes = append(dstNodes, cloneResource(res))
+				}
 			} else {
-				dstNodes = append(dstNodes, dep.Destination.(core.Resource))
+				dstClone := cloneResource(dep.Destination.(core.Resource))
+				dstNodes = append(dstNodes, dstClone)
 			}
 
 			for _, srcNode := range srcNodes {

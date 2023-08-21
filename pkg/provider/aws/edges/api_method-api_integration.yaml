@@ -1,10 +1,10 @@
-source: "aws:api_method:"
-destination: "aws:api_integration:"
+source: 'aws:api_method:'
+destination: 'aws:api_integration:'
 direct_edge_only: false
 deployment_order_reversed: true
 deletion_dependent: false
 reuse:
 expansion:
   dependencies:
-  - source: aws:api_integration:#Resource 
-    destination: "aws:api_method:"
+    - source: aws:api_integration:#Resource
+      destination: 'aws:api_method:'

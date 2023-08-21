@@ -1,5 +1,5 @@
-source: "aws:ec2_instance:"
-destination: "aws:rds_instance:"
+source: 'aws:ec2_instance:'
+destination: 'aws:rds_instance:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

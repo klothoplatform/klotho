@@ -1,10 +1,10 @@
-source: "aws:lambda_function:"
-destination: "aws:dynamodb_table:"
+source: 'aws:lambda_function:'
+destination: 'aws:dynamodb_table:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:
 expansion:
   dependencies:
-  - source: aws:lambda_function:#Role
-    destination: "aws:dynamodb_table:"
+    - source: aws:lambda_function:#Role
+      destination: 'aws:dynamodb_table:'

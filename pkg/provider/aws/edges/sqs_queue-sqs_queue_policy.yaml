@@ -1,5 +1,5 @@
-source: "aws:sqs_queue:"
-destination: "aws:sqs_queue_policy:"
+source: 'aws:sqs_queue:'
+destination: 'aws:sqs_queue_policy:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

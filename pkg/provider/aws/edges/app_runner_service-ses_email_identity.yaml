@@ -1,10 +1,10 @@
-source: "aws:app_runner_service:"
-destination: "aws:ses_email_identity:"
+source: 'aws:app_runner_service:'
+destination: 'aws:ses_email_identity:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:
 expansion:
   dependencies:
-  - source: aws:app_runner_service:#InstanceRole
-    destination: "aws:ses_email_identity:"
+    - source: aws:app_runner_service:#InstanceRole
+      destination: 'aws:ses_email_identity:'

@@ -24,4 +24,3 @@ configuration:
     value: Pod
   - field: Object.APIVersion
     value: v1
-

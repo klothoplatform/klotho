@@ -1,5 +1,5 @@
-source: "aws:sns_subscription:"
-destination: "aws:ecs_service:"
+source: 'aws:sns_subscription:'
+destination: 'aws:ecs_service:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

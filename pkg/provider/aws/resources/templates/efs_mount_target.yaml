@@ -4,7 +4,7 @@ rules:
   - enforcement: exactly_one
     direction: downstream
     resource_types:
-    - efs_file_system
+      - efs_file_system
     set_field: FileSystem
     unsatisfied_action:
       operation: create

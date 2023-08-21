@@ -7,7 +7,6 @@ interface Args {
     Subnet: aws.ec2.Subnet
     AMI: aws.ec2.Ami
     InstanceType: string
-    UserData: string
 }
 
 function create(args: Args): aws.ec2.Instance {
@@ -17,8 +16,5 @@ function create(args: Args): aws.ec2.Instance {
         vpcSecurityGroupIds: args.SecurityGroups.map((sg) => sg.id),
         subnetId: args.Subnet.id,
         instanceType: args.InstanceType,
-        //TMPL {{- if .UserData.Raw }}
-        userData: args.UserData,
-        //TMPL {{- end }}
     })
 }

@@ -1,10 +1,10 @@
-source: "aws:lambda_function:"
-destination: "aws:ses_email_identity:"
+source: 'aws:lambda_function:'
+destination: 'aws:ses_email_identity:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:
 expansion:
   dependencies:
-  - source: aws:lambda_function:#Role
-    destination: "aws:ses_email_identity:"
+    - source: aws:lambda_function:#Role
+      destination: 'aws:ses_email_identity:'

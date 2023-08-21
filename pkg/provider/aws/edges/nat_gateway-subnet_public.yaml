@@ -1,5 +1,5 @@
-source: "aws:nat_gateway:"
-destination: "aws:subnet_public:"
+source: 'aws:nat_gateway:'
+destination: 'aws:subnet_public:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

@@ -1,11 +1,11 @@
-source: "aws:api_deployment:"
-destination: "aws:api_integration:"
+source: 'aws:api_deployment:'
+destination: 'aws:api_integration:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:
 configuration:
-- resource: "aws:api_deployment:"
-  config:
-    field: Triggers[aws:api_integration:#Name]
-    value: aws:api_integration:#Name
+  - resource: 'aws:api_deployment:'
+    config:
+      field: Triggers[aws:api_integration:#Name]
+      value: aws:api_integration:#Name

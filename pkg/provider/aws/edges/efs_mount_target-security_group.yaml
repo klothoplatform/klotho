@@ -1,5 +1,5 @@
-source: "aws:efs_mount_target:"
-destination: "aws:security_group:"
+source: 'aws:efs_mount_target:'
+destination: 'aws:security_group:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

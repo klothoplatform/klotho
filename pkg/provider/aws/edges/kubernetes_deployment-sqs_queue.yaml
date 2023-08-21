@@ -1,5 +1,5 @@
-source: "kubernetes:deployment:"
-destination: "aws:sqs_queue:"
+source: 'kubernetes:deployment:'
+destination: 'aws:sqs_queue:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

@@ -1,5 +1,5 @@
-source: "aws:load_balancer:"
-destination: "aws:subnet_public:"
+source: 'aws:load_balancer:'
+destination: 'aws:subnet_public:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

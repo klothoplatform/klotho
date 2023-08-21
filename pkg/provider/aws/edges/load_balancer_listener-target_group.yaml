@@ -1,27 +1,27 @@
-source: "aws:load_balancer_listener:"
-destination: "aws:target_group:"
+source: 'aws:load_balancer_listener:'
+destination: 'aws:target_group:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:
 expansion:
   dependencies:
-  - source: "aws:target_group:"
-    destination: aws:load_balancer_listener:#LoadBalancer.Subnets[0].Vpc
+    - source: 'aws:target_group:'
+      destination: aws:load_balancer_listener:#LoadBalancer.Subnets[0].Vpc
 configuration:
-- resource: "aws:load_balancer_listener:"
-  config:
-    field: Protocol
-    value: aws:target_group:#Protocol
-- resource: "aws:load_balancer_listener:"
-  config:
-    field: DefaultActions
-    value: 
-    - TargetGroupArn:
-        ResourceId: "aws:target_group:"
-        Property: arn
-      Type: forward
-- resource: "aws:target_group:"
-  config:
-    field: Vpc
-    value: aws:load_balancer_listener:#LoadBalancer.Subnets[0].Vpc
+  - resource: 'aws:load_balancer_listener:'
+    config:
+      field: Protocol
+      value: aws:target_group:#Protocol
+  - resource: 'aws:load_balancer_listener:'
+    config:
+      field: DefaultActions
+      value:
+        - TargetGroupArn:
+            ResourceId: 'aws:target_group:'
+            Property: arn
+          Type: forward
+  - resource: 'aws:target_group:'
+    config:
+      field: Vpc
+      value: aws:load_balancer_listener:#LoadBalancer.Subnets[0].Vpc

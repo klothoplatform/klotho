@@ -22,24 +22,24 @@ rules:
       - vpc
     remove_direct_dependency: true
     rules:
-    - enforcement: any_available
-      direction: downstream
-      resource_types: 
-      - subnet_private
-      - subnet_public
-      set_field: Subnets
-      unsatisfied_action:
-        operation: create
-        default_type: subnet_private
-      num_needed: 2
-    - enforcement: any_available
-      direction: downstream
-      resource_types: 
-      - security_group
-      set_field: SecurityGroups
-      num_needed: 1
-      unsatisfied_action: 
-        operation: create
+      - enforcement: any_available
+        direction: downstream
+        resource_types:
+          - subnet_private
+          - subnet_public
+        set_field: Subnets
+        unsatisfied_action:
+          operation: create
+          default_type: subnet_private
+        num_needed: 2
+      - enforcement: any_available
+        direction: downstream
+        resource_types:
+          - security_group
+        set_field: SecurityGroups
+        num_needed: 1
+        unsatisfied_action:
+          operation: create
 configuration:
   - field: LaunchType
     value: FARGATE

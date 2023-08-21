@@ -1,5 +1,5 @@
-source: "aws:ecs_service:"
-destination: "aws:elasticache_cluster:"
+source: 'aws:ecs_service:'
+destination: 'aws:elasticache_cluster:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

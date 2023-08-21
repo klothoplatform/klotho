@@ -1,5 +1,5 @@
-source: "aws:ecs_service:"
-destination: "aws:rds_proxy:"
+source: 'aws:ecs_service:'
+destination: 'aws:rds_proxy:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

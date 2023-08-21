@@ -34,7 +34,7 @@ func (e *Engine) expandEdges(graph *core.ResourceGraph) error {
 		path, err := e.findOptimalPath(paths)
 		if err != nil {
 			zap.S().Warnf("got error when finding shortest path for edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
-			joinedErr = errors.Join(joinedErr, err)
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("error when finding optimal path for %s -> %s: %s", dep.Source.Id(), dep.Destination.Id(), err.Error()))
 			continue
 		}
 		if path == nil {

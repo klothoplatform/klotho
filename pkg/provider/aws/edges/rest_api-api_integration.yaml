@@ -1,5 +1,5 @@
-source: "aws:rest_api:"
-destination: "aws:api_integration:"
+source: 'aws:rest_api:'
+destination: 'aws:api_integration:'
 direct_edge_only: false
 deployment_order_reversed: true
 deletion_dependent: false

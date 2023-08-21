@@ -1,26 +1,26 @@
-source: "aws:rds_proxy:"
-destination: "aws:rds_proxy_target_group:"
+source: 'aws:rds_proxy:'
+destination: 'aws:rds_proxy_target_group:'
 direct_edge_only: false
 deployment_order_reversed: true
 deletion_dependent: false
 reuse: downstream
 expansion:
   resources:
-  - aws:secret_version:-credentials
-  - aws:iam_policy:-ormsecretpolicy
+    - aws:secret_version:-credentials
+    - aws:iam_policy:-ormsecretpolicy
   dependencies:
-  - source: aws:iam_policy:-ormsecretpolicy
-    destination: aws:secret_version:-credentials#Secret
-  - source: "aws:rds_proxy:"
-    destination: aws:secret_version:-credentials#Secret
-  - source: aws:rds_proxy:#Role
-    destination: aws:iam_policy:-ormsecretpolicy
-  - source: aws:secret_version:-credentials
-    destination: aws:rds_proxy_target_group:#RdsInstance
-  - source: aws:rds_proxy:#Role
-    destination: aws:rds_proxy_target_group:#RdsInstance
+    - source: aws:iam_policy:-ormsecretpolicy
+      destination: aws:secret_version:-credentials#Secret
+    - source: 'aws:rds_proxy:'
+      destination: aws:secret_version:-credentials#Secret
+    - source: aws:rds_proxy:#Role
+      destination: aws:iam_policy:-ormsecretpolicy
+    - source: aws:secret_version:-credentials
+      destination: aws:rds_proxy_target_group:#RdsInstance
+    - source: aws:rds_proxy:#Role
+      destination: aws:rds_proxy_target_group:#RdsInstance
 configuration:
-- resource: "aws:rds_proxy_target_group:"
-  config:
-    field: RdsProxy
-    value: "aws:rds_proxy:"
+  - resource: 'aws:rds_proxy_target_group:'
+    config:
+      field: RdsProxy
+      value: 'aws:rds_proxy:'

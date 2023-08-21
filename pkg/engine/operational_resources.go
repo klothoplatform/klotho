@@ -217,7 +217,7 @@ func (e *Engine) handleOperationalRule(resource core.Resource, rule core.Operati
 		}
 
 		if res == nil {
-			return []error{fmt.Errorf("no resources found that can satisfy the operational resource rule %s, for %s for resource %s", rule.String(), resource.Id(), resource.Id())}
+			return []error{fmt.Errorf("no resources found that can satisfy the operational resource rule %s, for %s", rule.String(), resource.Id())}
 		}
 		if rule.RemoveDirectDependency {
 			if getDependencyForDirection(dag, rule.Direction, resource, res) != nil {
@@ -413,6 +413,7 @@ func (e *Engine) handleOperationalResourceError(err *core.OperationalResourceErr
 			} else {
 				paths = e.KnowledgeBase.FindPaths(res, err.Resource, knowledgebase.EdgeConstraint{})
 			}
+			// if a type is explicilty stated as needed, we will consider it even if there isnt a direct p
 			if len(paths) == 0 {
 				continue
 			}

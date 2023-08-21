@@ -1,5 +1,5 @@
-source: "aws:ecs_service:"
-destination: "aws:subnet_public:"
+source: 'aws:ecs_service:'
+destination: 'aws:subnet_public:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

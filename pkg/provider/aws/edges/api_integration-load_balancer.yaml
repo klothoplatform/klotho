@@ -1,21 +1,21 @@
-source: "aws:api_integration:"
-destination: "aws:load_balancer:"
+source: 'aws:api_integration:'
+destination: 'aws:load_balancer:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:
 expansion:
   resources:
-  - "aws:vpc_link:"
+    - 'aws:vpc_link:'
   dependencies:
-  - source: "aws:vpc_link:"
-    destination: "aws:load_balancer:"
-  - source: "aws:api_integration:"
-    destination: "aws:vpc_link:"
+    - source: 'aws:vpc_link:'
+      destination: 'aws:load_balancer:'
+    - source: 'aws:api_integration:'
+      destination: 'aws:vpc_link:'
 configuration:
-- resource: "aws:api_integration:"
-  config:
-    field: Uri
-    value: 
-      ResourceId: "aws:load_balancer:"
-      Property: nlb_uri
+  - resource: 'aws:api_integration:'
+    config:
+      field: Uri
+      value:
+        ResourceId: 'aws:load_balancer:'
+        Property: nlb_uri

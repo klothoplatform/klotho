@@ -18,13 +18,13 @@ configuration:
       Kind: HorizontalPodAutoscaler
       Metadata:
         Labels:
-          execUnit: "{{ .ExecUnitName }}"
-        Name: "{{ .Name }}"
+          execUnit: '{{ .ExecUnitName }}'
+        Name: '{{ .Name }}'
       Spec:
         TargetScaleRef:
           APIVersion: apps/v1
           Kind: Deployment
-          Name: "{{ .Name }}"
+          Name: '{{ .Name }}'
         MinReplicas: 2
         MaxReplicas: 4
         Metrics:
@@ -40,4 +40,3 @@ configuration:
               Target:
                 Type: Utilization
                 AverageUtilization: 70
-

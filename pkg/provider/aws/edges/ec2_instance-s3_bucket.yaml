@@ -1,10 +1,10 @@
-source: "aws:ec2_instance:"
-destination: "aws:s3_bucket:"
+source: 'aws:ec2_instance:'
+destination: 'aws:s3_bucket:'
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:
 expansion:
   dependencies:
-    -  source: "aws:ec2_instance:#InstanceProfile.Role"
-       destination: "aws:s3_bucket:"
+    - source: 'aws:ec2_instance:#InstanceProfile.Role'
+      destination: 'aws:s3_bucket:'

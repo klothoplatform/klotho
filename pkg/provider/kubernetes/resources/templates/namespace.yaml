@@ -17,8 +17,8 @@ Configuration:
       APIVersion: v1
       Kind: Namespace
       Metadata:
-        Name: "{{ .Name }}"
+        Name: '{{ .Name }}'
         Labels:
-          Name: "{{ .Name }}"
+          Name: '{{ .Name }}'
         Annotations:
-          Name: "{{ .Name }}"
+          Name: '{{ .Name }}'

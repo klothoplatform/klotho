@@ -145,6 +145,13 @@ func (e *Engine) EdgeTemplateMakeOperational(template knowledgebase.EdgeTemplate
 		errs := e.handleOperationalRule(resource, rule.Rule, graph, nil)
 		if errs != nil {
 			for _, err := range errs {
+				if ore, ok := err.(*core.OperationalResourceError); ok {
+					err = e.handleOperationalResourceError(ore, graph)
+					if err != nil {
+						joinedErr = errors.Join(joinedErr, err)
+					}
+					continue
+				}
 				joinedErr = errors.Join(joinedErr, err)
 			}
 			continue

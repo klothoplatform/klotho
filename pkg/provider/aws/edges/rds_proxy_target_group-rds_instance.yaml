@@ -1,11 +1,11 @@
-source: "aws:rds_proxy_target_group:"
-destination: "aws:rds_instance:"
+source: 'aws:rds_proxy_target_group:'
+destination: 'aws:rds_instance:'
 direct_edge_only: false
 deployment_order_reversed: true
 deletion_dependent: false
 reuse: downstream
 configuration:
-- resource: "aws:rds_proxy_target_group:"
-  config:
-    field: RdsInstance
-    value: "aws:rds_instance:"
+  - resource: 'aws:rds_proxy_target_group:'
+    config:
+      field: RdsInstance
+      value: 'aws:rds_instance:'
