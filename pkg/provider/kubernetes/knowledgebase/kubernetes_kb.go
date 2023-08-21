@@ -12,6 +12,8 @@ import (
 )
 
 var KubernetesKB = knowledgebase.Build(
+	knowledgebase.EdgeBuilder[*resources.Manifest, *resources.Manifest]{},
+	knowledgebase.EdgeBuilder[*resources.HelmChart, *resources.HelmChart]{},
 	knowledgebase.EdgeBuilder[*resources.Service, *resources.Deployment]{
 		Configure: func(service *resources.Service, deployment *resources.Deployment, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
 			if service.Object == nil {

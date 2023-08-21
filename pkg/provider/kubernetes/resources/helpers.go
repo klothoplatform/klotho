@@ -48,10 +48,13 @@ func ListAll() []core.Resource {
 		&KustomizeDirectory{},
 		&Kubeconfig{},
 		&Namespace{},
+		&PersistentVolume{},
+		&PersistentVolumeClaim{},
 		&Pod{},
 		&Service{},
 		&ServiceAccount{},
 		&ServiceExport{},
+		&StorageClass{},
 		&TargetGroupBinding{},
 	}
 }
