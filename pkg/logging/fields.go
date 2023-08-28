@@ -3,7 +3,8 @@ package logging
 import (
 	"path/filepath"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.uber.org/zap"
 	"go.uber.org/zap/buffer"
@@ -13,12 +14,12 @@ import (
 const EntryMessageField = "entryMessage"
 
 type fileField struct {
-	f core.File
+	f klotho_io.File
 }
 
 func (field fileField) Sanitize(hasher func(any) string) SanitizedField {
 	extension := "unknown"
-	if _, isFileRef := field.f.(*core.FileRef); !isFileRef {
+	if _, isFileRef := field.f.(*klotho_io.FileRef); !isFileRef {
 		extension = filepath.Ext(field.f.Path())
 	}
 	return SanitizedField{
@@ -35,12 +36,12 @@ func (field fileField) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
-func FileField(f core.File) zap.Field {
+func FileField(f klotho_io.File) zap.Field {
 	return zap.Object("file", fileField{f: f.Clone()})
 }
 
 type annotationField struct {
-	a *core.Annotation
+	a *types.Annotation
 }
 
 func (field annotationField) MarshalLogObject(enc zapcore.ObjectEncoder) error {
@@ -63,7 +64,7 @@ func (field annotationField) Sanitize(hasher func(any) string) SanitizedField {
 	}
 }
 
-func AnnotationField(a *core.Annotation) zap.Field {
+func AnnotationField(a *types.Annotation) zap.Field {
 	return zap.Object("annotation", annotationField{a: a})
 }
 

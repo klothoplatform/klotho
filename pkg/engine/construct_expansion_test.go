@@ -3,8 +3,9 @@ package engine
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
 	"github.com/klothoplatform/klotho/pkg/provider"
@@ -15,17 +16,17 @@ func Test_constructExpansion(t *testing.T) {
 	tests := []struct {
 		name       string
 		constraint constraints.ConstructConstraint
-		construct  core.Construct
+		c          construct.Construct
 		want       []coretesting.ResourcesExpectation
 	}{
 		{
 			name: "simple",
 			constraint: constraints.ConstructConstraint{
 				Operator:   constraints.EqualsConstraintOperator,
-				Target:     core.ResourceId{Name: "compute"},
+				Target:     construct.ResourceId{Name: "compute"},
 				Attributes: map[string]any{},
 			},
-			construct: &core.ExecutionUnit{Name: "eu_1"},
+			c: &types.ExecutionUnit{Name: "eu_1"},
 			want: []coretesting.ResourcesExpectation{
 				{
 					Nodes: []string{
@@ -45,12 +46,12 @@ func Test_constructExpansion(t *testing.T) {
 			name: "serverless",
 			constraint: constraints.ConstructConstraint{
 				Operator: constraints.EqualsConstraintOperator,
-				Target:   core.ResourceId{Name: "compute"},
+				Target:   construct.ResourceId{Name: "compute"},
 				Attributes: map[string]any{
 					"serverless": nil,
 				},
 			},
-			construct: &core.ExecutionUnit{Name: "eu_1"},
+			c: &types.ExecutionUnit{Name: "eu_1"},
 			want: []coretesting.ResourcesExpectation{
 				{
 					Nodes: []string{
@@ -76,13 +77,13 @@ func Test_constructExpansion(t *testing.T) {
 			name: "highly available and serverless",
 			constraint: constraints.ConstructConstraint{
 				Operator: constraints.EqualsConstraintOperator,
-				Target:   core.ResourceId{Name: "compute"},
+				Target:   construct.ResourceId{Name: "compute"},
 				Attributes: map[string]any{
 					"serverless":       nil,
 					"highly_available": nil,
 				},
 			},
-			construct: &core.ExecutionUnit{Name: "eu_1"},
+			c: &types.ExecutionUnit{Name: "eu_1"},
 			want: []coretesting.ResourcesExpectation{
 				{
 					Nodes: []string{
@@ -104,9 +105,9 @@ func Test_constructExpansion(t *testing.T) {
 			mp := &enginetesting.MockProvider{}
 			engine := NewEngine(map[string]provider.Provider{
 				mp.Name(): mp,
-			}, enginetesting.MockKB, core.ListAllConstructs())
+			}, enginetesting.MockKB, types.ListAllConstructs())
 			engine.ClassificationDocument = enginetesting.BaseClassificationDocument
-			solutions, err := engine.expandConstruct(tt.constraint.Type, tt.constraint.Attributes, tt.construct)
+			solutions, err := engine.expandConstruct(tt.constraint.Type, tt.constraint.Attributes, tt.c)
 			if !assert.NoError(err) {
 				return
 			}

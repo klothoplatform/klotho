@@ -3,15 +3,16 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_VpcCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[VpcCreateParams, *Vpc]{
 		{
 			Name: "nil vpc",
@@ -23,7 +24,7 @@ func Test_VpcCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, vpc *Vpc) {
 				assert.Equal(vpc.Name, "my_app")
-				assert.Equal(vpc.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(vpc.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -37,7 +38,7 @@ func Test_VpcCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, vpc *Vpc) {
 				assert.Equal(vpc.Name, "my_app")
-				assert.Equal(vpc.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(vpc.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -45,7 +46,7 @@ func Test_VpcCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = VpcCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 			}
 			tt.Run(t)
 		})
@@ -53,9 +54,9 @@ func Test_VpcCreate(t *testing.T) {
 }
 
 func Test_ElasticIpCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[EipCreateParams, *ElasticIp]{
 		{
 			Name: "nil vpc",
@@ -67,7 +68,7 @@ func Test_ElasticIpCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, eip *ElasticIp) {
 				assert.Equal(eip.Name, "my_app_ip0")
-				assert.Equal(eip.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(eip.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -81,7 +82,7 @@ func Test_ElasticIpCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, eip *ElasticIp) {
 				assert.Equal(eip.Name, "my_app_ip0")
-				assert.Equal(eip.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(eip.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -89,7 +90,7 @@ func Test_ElasticIpCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = EipCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "ip0",
 			}
 			tt.Run(t)
@@ -98,9 +99,9 @@ func Test_ElasticIpCreate(t *testing.T) {
 }
 
 func Test_InternetGatewayCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[IgwCreateParams, *InternetGateway]{
 		{
 			Name: "nil igw",
@@ -112,7 +113,7 @@ func Test_InternetGatewayCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, eip *InternetGateway) {
 				assert.Equal(eip.Name, "my_app_igw")
-				assert.Equal(eip.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(eip.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -126,7 +127,7 @@ func Test_InternetGatewayCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, eip *InternetGateway) {
 				assert.Equal(eip.Name, "my_app_igw")
-				assert.Equal(eip.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(eip.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -134,7 +135,7 @@ func Test_InternetGatewayCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = IgwCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 			}
 			tt.Run(t)
 		})
@@ -142,9 +143,9 @@ func Test_InternetGatewayCreate(t *testing.T) {
 }
 
 func Test_NatGatewayCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[NatCreateParams, *NatGateway]{
 		{
 			Name: "nil nat",
@@ -156,7 +157,7 @@ func Test_NatGatewayCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, nat *NatGateway) {
 				assert.Equal(nat.Name, "my_app_nat")
-				assert.Equal(nat.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(nat.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -170,7 +171,7 @@ func Test_NatGatewayCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, nat *NatGateway) {
 				assert.Equal(nat.Name, "my_app_nat")
-				assert.Equal(nat.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(nat.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -178,7 +179,7 @@ func Test_NatGatewayCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = NatCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "nat",
 			}
 			tt.Run(t)
@@ -187,9 +188,9 @@ func Test_NatGatewayCreate(t *testing.T) {
 }
 
 func Test_SubnetCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[SubnetCreateParams, *Subnet]{
 		{
 			Name: "nil subnet",
@@ -205,7 +206,7 @@ func Test_SubnetCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {
 				assert.Equal(subnet.Name, "my_app_public0")
-				assert.Equal(subnet.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(subnet.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -221,7 +222,7 @@ func Test_SubnetCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {
 				assert.Equal(subnet.Name, "my_app_public")
-				assert.Equal(subnet.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(subnet.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -237,7 +238,7 @@ func Test_SubnetCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {
 				assert.Equal(subnet.Name, "my_app_0")
-				assert.Equal(subnet.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(subnet.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -250,7 +251,7 @@ func Test_SubnetCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {
 				assert.Equal(subnet.Name, "my_app_")
-				assert.Equal(subnet.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(subnet.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -264,7 +265,7 @@ func Test_SubnetCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, subnet *Subnet) {
 				assert.Equal(subnet.Name, "my_app_")
-				assert.Equal(subnet.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(subnet.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -272,7 +273,7 @@ func Test_SubnetCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = SubnetCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				AZ:      tt.Params.AZ,
 				Type:    tt.Params.Type,
 			}
@@ -282,9 +283,9 @@ func Test_SubnetCreate(t *testing.T) {
 }
 
 func Test_RouteTableCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[RouteTableCreateParams, *RouteTable]{
 		{
 			Name: "nil route table",
@@ -296,7 +297,7 @@ func Test_RouteTableCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, rt *RouteTable) {
 				assert.Equal(rt.Name, "my_app_rt")
-				assert.Equal(rt.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(rt.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -310,7 +311,7 @@ func Test_RouteTableCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, rt *RouteTable) {
 				assert.Equal(rt.Name, "my_app_rt")
-				assert.Equal(rt.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(rt.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -318,7 +319,7 @@ func Test_RouteTableCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = RouteTableCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "rt",
 			}
 			tt.Run(t)

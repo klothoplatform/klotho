@@ -3,15 +3,16 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_KinesisStreamCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[KinesisStreamCreateParams, *KinesisStream]{
 		{
 			Name: "nil kinesis stream",
@@ -23,7 +24,7 @@ func Test_KinesisStreamCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, record *KinesisStream) {
 				assert.Equal(record.Name, "my-app-stream")
-				assert.Equal(record.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(record.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -45,7 +46,7 @@ func Test_KinesisStreamCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = KinesisStreamCreateParams{
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				AppName: "my-app",
 				Name:    "stream",
 			}
@@ -55,9 +56,9 @@ func Test_KinesisStreamCreate(t *testing.T) {
 }
 
 func Test_KinesisStreamConsumerCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[KinesisStreamConsumerCreateParams, *KinesisStreamConsumer]{
 		{
 			Name: "nil kinesis stream consumer",
@@ -73,7 +74,7 @@ func Test_KinesisStreamConsumerCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, record *KinesisStreamConsumer) {
 				assert.Equal(record.Name, "my-app-stream-consumer")
 				assert.Equal(record.ConsumerName, "consumer")
-				assert.Equal(record.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(record.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -95,7 +96,7 @@ func Test_KinesisStreamConsumerCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = KinesisStreamConsumerCreateParams{
-				Stream: &KinesisStream{Name: "my-app-stream", ConstructRefs: core.BaseConstructSetOf(eu)},
+				Stream: &KinesisStream{Name: "my-app-stream", ConstructRefs: construct.BaseConstructSetOf(eu)},
 				Name:   "consumer",
 			}
 			tt.Run(t)

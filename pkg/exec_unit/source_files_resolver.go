@@ -3,11 +3,11 @@ package execunit
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 )
 
 type (
-	UnitFileDependencyResolver func(unit *core.ExecutionUnit) (core.FileDependencies, error)
+	UnitFileDependencyResolver func(unit *types.ExecutionUnit) (types.FileDependencies, error)
 
 	SourceFilesResolver struct {
 		UnitFileDependencyResolver UnitFileDependencyResolver
@@ -15,7 +15,7 @@ type (
 	}
 )
 
-func (resolver SourceFilesResolver) Resolve(unit *core.ExecutionUnit) (map[string]struct{}, error) {
+func (resolver SourceFilesResolver) Resolve(unit *types.ExecutionUnit) (map[string]struct{}, error) {
 
 	var entrypoints []string
 	for entrypoint := range unit.Executable.Entrypoints {
@@ -28,7 +28,7 @@ func (resolver SourceFilesResolver) Resolve(unit *core.ExecutionUnit) (map[strin
 	var upstreamFiles []string
 	for _, fileR := range unit.Files() {
 		for _, annotation := range resolver.UpstreamAnnotations {
-			if upstreamFile, ok := fileR.(*core.SourceFile); ok && upstreamFile.IsAnnotatedWith(annotation) {
+			if upstreamFile, ok := fileR.(*types.SourceFile); ok && upstreamFile.IsAnnotatedWith(annotation) {
 				upstreamDeps, err := resolver.resolveDependencies(unit, []string{upstreamFile.Path()})
 				if err != nil {
 					return nil, err
@@ -45,7 +45,7 @@ func (resolver SourceFilesResolver) Resolve(unit *core.ExecutionUnit) (map[strin
 	return resolver.resolveDependencies(unit, append(entrypoints, upstreamFiles...))
 }
 
-func (resolver SourceFilesResolver) resolveDependencies(unit *core.ExecutionUnit, entrypoints []string) (map[string]struct{}, error) {
+func (resolver SourceFilesResolver) resolveDependencies(unit *types.ExecutionUnit, entrypoints []string) (map[string]struct{}, error) {
 	fileDeps, err := resolver.UnitFileDependencyResolver(unit)
 	if err != nil {
 		return nil, err

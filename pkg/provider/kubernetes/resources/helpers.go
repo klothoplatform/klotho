@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
 var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9 ]+`)
@@ -39,8 +39,8 @@ func GenerateEnvVarKeyValue(key string) (k string, v string) {
 	return
 }
 
-func ListAll() []core.Resource {
-	return []core.Resource{
+func ListAll() []construct.Resource {
+	return []construct.Resource{
 		&Deployment{},
 		&HelmChart{},
 		&HorizontalPodAutoscaler{},

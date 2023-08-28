@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
@@ -65,7 +65,7 @@ func TestAllTypesHaveIcons(t *testing.T) {
 	t.Run("all types tested", func(t *testing.T) {
 		for _, ref := range coretesting.FindAllResources(assert.New(t), allResources) {
 			t.Run(ref.Name, func(t *testing.T) {
-				testedTypes.Check(t, ref, `struct implements core.Resource but isn't tested; add it to this test's '"allResources" var`)
+				testedTypes.Check(t, ref, `struct implements construct.Resource but isn't tested; add it to this test's '"allResources" var`)
 			})
 		}
 	})
@@ -74,7 +74,7 @@ func TestAllTypesHaveIcons(t *testing.T) {
 
 // typeNamesForResource returns all the possible type names for this resource, as well as the resource's provider (which
 // we assume is always the same for a given resource). Keep this func in sync with resource_types.go's TypeFor.
-func typeNamesForResource(res core.Resource) (string, []string) {
+func typeNamesForResource(res construct.Resource) (string, []string) {
 	resId := res.Id()
 
 	var typeNames []string

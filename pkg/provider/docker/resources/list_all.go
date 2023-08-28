@@ -1,11 +1,11 @@
 package resources
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
-func ListAll() []core.Resource {
-	return []core.Resource{
+func ListAll() []construct.Resource {
+	return []construct.Resource{
 		&DockerImage{},
 	}
 }

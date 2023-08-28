@@ -2,8 +2,9 @@ package resources
 
 import (
 	"fmt"
+
 	cloudmap "github.com/aws/aws-cloud-map-mcs-controller-for-k8s/pkg/apis/multicluster/v1alpha1"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,10 +13,10 @@ import (
 type (
 	ServiceExport struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Object        *cloudmap.ServiceExport
 		FilePath      string
-		Cluster       core.ResourceId
+		Cluster       construct.ResourceId
 	}
 )
 
@@ -23,20 +24,20 @@ const (
 	SERVICE_EXPORT_TYPE = "service_export"
 )
 
-func (se *ServiceExport) BaseConstructRefs() core.BaseConstructSet {
+func (se *ServiceExport) BaseConstructRefs() construct.BaseConstructSet {
 	return se.ConstructRefs
 }
 
-func (se *ServiceExport) Id() core.ResourceId {
-	return core.ResourceId{
+func (se *ServiceExport) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     SERVICE_EXPORT_TYPE,
 		Name:     se.Name,
 	}
 }
 
-func (se *ServiceExport) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (se *ServiceExport) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -53,12 +54,12 @@ func (se *ServiceExport) Path() string {
 	return se.FilePath
 }
 
-func (se *ServiceExport) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (se *ServiceExport) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if se.Cluster.Name == "" {
 		return fmt.Errorf("service export %s has no cluster", se.Name)
 	}
 	var downstreamService *Service
-	for _, service := range core.GetDownstreamResourcesOfType[*Service](dag, se) {
+	for _, service := range construct.GetDownstreamResourcesOfType[*Service](dag, se) {
 		if downstreamService != nil {
 			return fmt.Errorf("%s has multiple downstream services", se.Id())
 		}

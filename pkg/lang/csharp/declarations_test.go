@@ -1,10 +1,11 @@
 package csharp
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/stretchr/testify/assert"
 )
 
 type declarationTestCase[T Declarable] struct {
@@ -17,7 +18,7 @@ func runFindDeclarationsInFileTests[T Declarable](t *testing.T, tests []declarat
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			sourceFile, err := core.NewSourceFile("file.cs", strings.NewReader(tt.program), Language)
+			sourceFile, err := types.NewSourceFile("file.cs", strings.NewReader(tt.program), Language)
 			if !assert.NoError(err) {
 				return
 			}

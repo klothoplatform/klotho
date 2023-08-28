@@ -8,7 +8,10 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	klotho_errors "github.com/klothoplatform/klotho/pkg/errors"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 )
@@ -40,29 +43,29 @@ type TransformResult struct {
 
 type Runtime interface {
 	// TransformPersist applies any runtime-specific transformations to the given file for the annotation. Returns the modified source code, to be `Reparse`d by the caller.
-	TransformPersist(file *core.SourceFile, annot *core.Annotation, construct core.Construct) error
-	AddKvRuntimeFiles(unit *core.ExecutionUnit) error
-	AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName string, id string) error
-	AddSecretRuntimeFiles(unit *core.ExecutionUnit) error
-	AddOrmRuntimeFiles(unit *core.ExecutionUnit) error
-	AddRedisNodeRuntimeFiles(unit *core.ExecutionUnit) error
-	AddRedisClusterRuntimeFiles(unit *core.ExecutionUnit) error
-	AddPubsubRuntimeFiles(unit *core.ExecutionUnit) error
-	AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error
-	AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error
+	TransformPersist(file *types.SourceFile, annot *types.Annotation, construct construct.Construct) error
+	AddKvRuntimeFiles(unit *types.ExecutionUnit) error
+	AddFsRuntimeFiles(unit *types.ExecutionUnit, envVarName string, id string) error
+	AddSecretRuntimeFiles(unit *types.ExecutionUnit) error
+	AddOrmRuntimeFiles(unit *types.ExecutionUnit) error
+	AddRedisNodeRuntimeFiles(unit *types.ExecutionUnit) error
+	AddRedisClusterRuntimeFiles(unit *types.ExecutionUnit) error
+	AddPubsubRuntimeFiles(unit *types.ExecutionUnit) error
+	AddProxyRuntimeFiles(unit *types.ExecutionUnit, proxyType string) error
+	AddExecRuntimeFiles(unit *types.ExecutionUnit, constructGraph *construct.ConstructGraph) error
 }
 
-func AddRuntimeFile(unit *core.ExecutionUnit, templateData any, path string, content []byte) error {
+func AddRuntimeFile(unit *types.ExecutionUnit, templateData any, path string, content []byte) error {
 
 	if filepath.Ext(path) == ".tmpl" {
 		t, err := template.New(path).Parse(string(content))
 		if err != nil {
-			return core.WrapErrf(err, "error parsing template %s", path)
+			return klotho_errors.WrapErrf(err, "error parsing template %s", path)
 		}
 		tmplBuf := new(bytes.Buffer)
 		err = t.Execute(tmplBuf, templateData)
 		if err != nil {
-			return core.WrapErrf(err, "error executing template %s", path)
+			return klotho_errors.WrapErrf(err, "error executing template %s", path)
 		}
 
 		content = tmplBuf.Bytes()
@@ -86,18 +89,18 @@ func AddRuntimeFile(unit *core.ExecutionUnit, templateData any, path string, con
 		path = filepath.Join("klotho_runtime", path)
 		f, err := NewFile(path, bytes.NewReader(content))
 		if err != nil {
-			return core.WrapErrf(err, "error parsing template %s", path)
+			return klotho_errors.WrapErrf(err, "error parsing template %s", path)
 		}
 		unit.Add(f)
 
 	case path == "Dockerfile":
 		dockerF, err := dockerfile.NewFile(path, bytes.NewBuffer(content))
 		if err != nil {
-			return core.WrapErrf(err, "error adding file %s", path)
+			return klotho_errors.WrapErrf(err, "error adding file %s", path)
 		}
 		unit.Add(dockerF)
 	default:
-		unit.Add(&core.RawFile{
+		unit.Add(&io.RawFile{
 			FPath:   path,
 			Content: content,
 		})
@@ -105,7 +108,7 @@ func AddRuntimeFile(unit *core.ExecutionUnit, templateData any, path string, con
 	return nil
 }
 
-func AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS, templateData any) error {
+func AddRuntimeFiles(unit *types.ExecutionUnit, files embed.FS, templateData any) error {
 	err := fs.WalkDir(files, ".", func(path string, d fs.DirEntry, walkErr error) error {
 		// don't immediately exit if walkErr != nil, we want to try everything first to collect all the errors
 		if d.IsDir() {
@@ -113,11 +116,11 @@ func AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS, templateData any)
 		}
 		content, err := files.ReadFile(path)
 		if err != nil {
-			return multierr.Append(walkErr, core.WrapErrf(err, ""))
+			return multierr.Append(walkErr, klotho_errors.WrapErrf(err, ""))
 		}
 		err = AddRuntimeFile(unit, templateData, path, content)
 		if err != nil {
-			return multierr.Append(walkErr, core.WrapErrf(err, "failed to AddRuntimeFile"))
+			return multierr.Append(walkErr, klotho_errors.WrapErrf(err, "failed to AddRuntimeFile"))
 		}
 		return nil
 
@@ -129,7 +132,7 @@ func AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS, templateData any)
 // `runtimePath` is relative to klotho_runtime (ie, don't do "klotho_runtime/my_runtime_module") and is often the same
 // as varPrefix
 // ! Calls `file.Reparse` if the import is missing.
-func EnsureRuntimeImportFile(runtimePath string, varPrefix string, file *core.SourceFile) (err error) {
+func EnsureRuntimeImportFile(runtimePath string, varPrefix string, file *types.SourceFile) (err error) {
 	buf := new(bytes.Buffer)
 
 	rtimp := RuntimeImport{

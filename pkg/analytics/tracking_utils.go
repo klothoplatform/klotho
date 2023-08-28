@@ -8,9 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"go.uber.org/zap"
-
-	"github.com/klothoplatform/klotho/pkg/core"
 )
 
 const kloServerUrl = "http://srv.klo.dev"
@@ -35,7 +34,7 @@ func (t *Client) send(payload Payload) {
 	resp.Body.Close()
 }
 
-func CompressFiles(input *core.InputFiles) ([]byte, error) {
+func CompressFiles(input *types.InputFiles) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	zipWriter := zip.NewWriter(buf)

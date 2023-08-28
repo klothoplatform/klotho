@@ -6,7 +6,7 @@ import (
 	"io/fs"
 	"reflect"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -19,14 +19,14 @@ type AWS struct {
 
 func (a *AWS) Name() string { return provider.AWS }
 
-func (a *AWS) ListResources() []core.Resource {
+func (a *AWS) ListResources() []construct.Resource {
 	return resources.ListAll()
 }
 
 // CreateResourceFromId creates a resource from an id, but does not mutate the graph in any manner
 // The graph is passed in to be able to understand what namespaces reference in resource ids
-func (a *AWS) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error) {
-	typeToResource := make(map[string]core.Resource)
+func (a *AWS) CreateResourceFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.Resource, error) {
+	typeToResource := make(map[string]construct.Resource)
 	for _, res := range resources.ListAll() {
 		typeToResource[res.Id().Type] = res
 	}
@@ -38,9 +38,9 @@ func (a *AWS) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph)
 		return nil, fmt.Errorf("unable to find resource of type %s", id.Type)
 	}
 	newResource := reflect.New(reflect.TypeOf(res).Elem()).Interface()
-	resource, ok := newResource.(core.Resource)
+	resource, ok := newResource.(construct.Resource)
 	if !ok {
-		return nil, fmt.Errorf("item %s of type %T is not of type core.Resource", id, newResource)
+		return nil, fmt.Errorf("item %s of type %T is not of type construct.Resource", id, newResource)
 	}
 	reflect.ValueOf(resource).Elem().FieldByName("Name").SetString(id.Name)
 	if subnet, ok := resource.(*resources.Subnet); ok {
@@ -76,8 +76,8 @@ func (a *AWS) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph)
 //go:embed resources/templates/*
 var awsTempaltes embed.FS
 
-func (a *AWS) GetOperationalTempaltes() map[core.ResourceId]*core.ResourceTemplate {
-	templates := map[core.ResourceId]*core.ResourceTemplate{}
+func (a *AWS) GetOperationalTempaltes() map[construct.ResourceId]*construct.ResourceTemplate {
+	templates := map[construct.ResourceId]*construct.ResourceTemplate{}
 	if err := fs.WalkDir(awsTempaltes, ".", func(path string, d fs.DirEntry, nerr error) error {
 		if d.IsDir() {
 			return nil
@@ -86,12 +86,12 @@ func (a *AWS) GetOperationalTempaltes() map[core.ResourceId]*core.ResourceTempla
 		if err != nil {
 			panic(err)
 		}
-		resTemplate := &core.ResourceTemplate{}
+		resTemplate := &construct.ResourceTemplate{}
 		err = yaml.Unmarshal(content, resTemplate)
 		if err != nil {
 			panic(err)
 		}
-		id := core.ResourceId{Provider: provider.AWS, Type: resTemplate.Type}
+		id := construct.ResourceId{Provider: provider.AWS, Type: resTemplate.Type}
 		if templates[id] != nil {
 			panic(fmt.Errorf("duplicate template for type %s", resTemplate.Type))
 		}

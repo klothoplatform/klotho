@@ -7,7 +7,8 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"go.uber.org/zap"
@@ -17,20 +18,20 @@ type Assets struct{}
 
 func (p Assets) Name() string { return "Assets" }
 
-func (p Assets) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
-	units := make(map[string]*core.ExecutionUnit)
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
+func (p Assets) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
+	units := make(map[string]*types.ExecutionUnit)
+	for _, unit := range construct.GetConstructsOfType[*types.ExecutionUnit](constructGraph) {
 		units[unit.Name] = unit
 	}
 
 	var errs multierr.Error
 	for _, f := range input.Files() {
-		astF, ok := f.(*core.SourceFile)
+		astF, ok := f.(*types.SourceFile)
 		if !ok {
 			continue
 		}
 
-		destUnit := core.FileExecUnitName(astF)
+		destUnit := types.FileExecUnitName(astF)
 
 		for _, annot := range astF.Annotations() {
 			if annot.Capability.Name != annotation.AssetCapability {
@@ -42,7 +43,7 @@ func (p Assets) Transform(input *core.InputFiles, fileDeps *core.FileDependencie
 			excludes, _ := annot.Capability.Directives.StringArray("exclude")
 
 			if len(includes) == 0 {
-				errs.Append(core.NewCompilerError(astF, annot, errors.New("include directive must contain at least 1 path")))
+				errs.Append(types.NewCompilerError(astF, annot, errors.New("include directive must contain at least 1 path")))
 				break
 			}
 

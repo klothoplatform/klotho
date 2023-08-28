@@ -1,11 +1,12 @@
 package csharp
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
-	"strings"
 )
 
 // normalizedStringContent returns the string literal formatted content for string literal and verbatim string literal nodes
@@ -118,7 +119,7 @@ func splitQualifiedName(qualifiedName string) (scope string, name string) {
 	return scope, name
 }
 
-func FindSubtypes(unit *core.ExecutionUnit, baseNamespace, baseType string) []*TypeDeclaration {
+func FindSubtypes(unit *types.ExecutionUnit, baseNamespace, baseType string) []*TypeDeclaration {
 	var declarations []*TypeDeclaration
 	for _, csFile := range unit.FilesOfLang(CSharp) {
 		types := FindDeclarationsInFile[*TypeDeclaration](csFile).Declarations()

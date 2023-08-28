@@ -3,13 +3,14 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_CloudfrontDistributionCreate(t *testing.T) {
-	eu := &core.StaticUnit{Name: "test"}
+	eu := &types.StaticUnit{Name: "test"}
 	cases := []coretesting.CreateCase[CloudfrontDistributionCreateParams, *CloudfrontDistribution]{
 		{
 			Name: "new",
@@ -36,7 +37,7 @@ func Test_CloudfrontDistributionCreate(t *testing.T) {
 			tt.Params = CloudfrontDistributionCreateParams{
 				CdnId:   "some_cdn",
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 			}
 			tt.Run(t)
 		})

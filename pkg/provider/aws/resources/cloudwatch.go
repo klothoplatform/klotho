@@ -3,7 +3,7 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -14,7 +14,7 @@ var logGroupSanitizer = aws.CloudwatchLogGroupSanitizer
 type (
 	LogGroup struct {
 		Name            string
-		ConstructRefs   core.BaseConstructSet `yaml:"-"`
+		ConstructRefs   construct.BaseConstructSet `yaml:"-"`
 		LogGroupName    string
 		RetentionInDays int
 	}
@@ -22,11 +22,11 @@ type (
 
 type CloudwatchLogGroupCreateParams struct {
 	AppName string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 	Name    string
 }
 
-func (logGroup *LogGroup) Create(dag *core.ResourceGraph, params CloudwatchLogGroupCreateParams) error {
+func (logGroup *LogGroup) Create(dag *construct.ResourceGraph, params CloudwatchLogGroupCreateParams) error {
 	logGroup.Name = logGroupSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	logGroup.ConstructRefs = params.Refs.Clone()
 
@@ -41,21 +41,21 @@ func (logGroup *LogGroup) Create(dag *core.ResourceGraph, params CloudwatchLogGr
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (lg *LogGroup) BaseConstructRefs() core.BaseConstructSet {
+func (lg *LogGroup) BaseConstructRefs() construct.BaseConstructSet {
 	return lg.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (lg *LogGroup) Id() core.ResourceId {
-	return core.ResourceId{
+func (lg *LogGroup) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     LOG_GROUP_TYPE,
 		Name:     lg.Name,
 	}
 }
 
-func (lg *LogGroup) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (lg *LogGroup) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:   false,
 		RequiresNoDownstream: false,
 	}

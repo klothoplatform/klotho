@@ -3,13 +3,13 @@ package visualizer
 import (
 	"io"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/ioutil"
 )
 
 type (
 	TypesChecker struct {
-		DAG *core.ResourceGraph
+		DAG *construct.ResourceGraph
 	}
 )
 

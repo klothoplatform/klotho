@@ -7,10 +7,12 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	klotho_errors "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/filter"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/pkg/errors"
@@ -21,7 +23,7 @@ type (
 	Pubsub struct {
 		runtime Runtime
 
-		ConstructGraph *core.ConstructGraph
+		ConstructGraph *construct.ConstructGraph
 
 		emitters             map[VarSpec]*emitterValue
 		proxyGenerationCalls []proxyGenerationCall
@@ -30,7 +32,7 @@ type (
 	emitterValue struct {
 		Publishers  []emitterUsage
 		Subscribers []emitterUsage
-		Resource    *core.PubSub
+		Resource    *types.PubSub
 	}
 
 	emitterUsage struct {
@@ -50,20 +52,20 @@ const pubsubVarTypeModule = "events"
 
 func (p Pubsub) Name() string { return "Pubsub" }
 
-func (p Pubsub) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
+func (p Pubsub) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
 	p.ConstructGraph = constructGraph
 
 	p.emitters = make(map[VarSpec]*emitterValue)
 
 	var errs multierr.Error
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range construct.GetConstructsOfType[*types.ExecutionUnit](constructGraph) {
 		vars := DiscoverDeclarations(unit.Files(), pubsubVarType, pubsubVarTypeModule, true, FilterByCapability(annotation.PubSubCapability))
 		for spec, value := range vars {
 			if value.Annotation.Capability.ID == "" {
-				errs.Append(core.NewCompilerError(value.File, value.Annotation, errors.New("'id' is required")))
+				errs.Append(types.NewCompilerError(value.File, value.Annotation, errors.New("'id' is required")))
 			}
 			if _, ok := p.emitters[spec]; !ok {
-				resource := core.PubSub{
+				resource := types.PubSub{
 					Name: value.Annotation.Capability.ID,
 					Path: spec.DefinedIn,
 				}
@@ -108,7 +110,7 @@ func (p Pubsub) Transform(input *core.InputFiles, fileDeps *core.FileDependencie
 	return errs.ErrOrNil()
 }
 
-func (p *Pubsub) rewriteEmitters(unit *core.ExecutionUnit, fileVars map[string]VarDeclarations) error {
+func (p *Pubsub) rewriteEmitters(unit *types.ExecutionUnit, fileVars map[string]VarDeclarations) error {
 	var errs multierr.Error
 
 	for _, f := range unit.Files() {
@@ -118,7 +120,7 @@ func (p *Pubsub) rewriteEmitters(unit *core.ExecutionUnit, fileVars map[string]V
 		}
 		err := p.rewriteFileEmitters(js, fileVars[js.Path()])
 		if err != nil {
-			errs.Append(core.WrapErrf(err, "failed to handle pubsub in unit %s", unit.Name))
+			errs.Append(klotho_errors.WrapErrf(err, "failed to handle pubsub in unit %s", unit.Name))
 		}
 	}
 
@@ -129,7 +131,7 @@ var emitterRE = regexp.MustCompile(`(?:\w+\.)?EventEmitter\(.*\)`)
 
 const emitterRTName = "emitter"
 
-func (p *Pubsub) rewriteFileEmitters(f *core.SourceFile, vars VarDeclarations) error {
+func (p *Pubsub) rewriteFileEmitters(f *types.SourceFile, vars VarDeclarations) error {
 	if len(vars) == 0 {
 		return nil
 	}
@@ -139,7 +141,7 @@ func (p *Pubsub) rewriteFileEmitters(f *core.SourceFile, vars VarDeclarations) e
 	var err error
 	content, err = EnsureRuntimeImport(f.Path(), emitterRTName, emitterRTName, content)
 	if err != nil {
-		errs.Append(core.WrapErrf(err, "could not create runtime import"))
+		errs.Append(klotho_errors.WrapErrf(err, "could not create runtime import"))
 	}
 
 	for spec, varReference := range vars {
@@ -156,7 +158,7 @@ func (p *Pubsub) rewriteFileEmitters(f *core.SourceFile, vars VarDeclarations) e
 	return errs.ErrOrNil()
 }
 
-func (p *Pubsub) findProxiesNeeded(unit *core.ExecutionUnit) error {
+func (p *Pubsub) findProxiesNeeded(unit *types.ExecutionUnit) error {
 	var errs multierr.Error
 	for _, f := range unit.Files() {
 		var emitters []EmitterSubscriberProxyEntry
@@ -247,9 +249,9 @@ func (p *Pubsub) generateProxies(filepath string, emitters []EmitterSubscriberPr
 	log := zap.L().With(logging.FileField(f)).Sugar()
 	var merr multierr.Error
 	appendBuf := new(bytes.Buffer)
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](p.ConstructGraph) {
+	for _, unit := range construct.GetConstructsOfType[*types.ExecutionUnit](p.ConstructGraph) {
 		if existing := unit.Get(filepath); existing != nil {
-			existing := existing.(*core.SourceFile)
+			existing := existing.(*types.SourceFile)
 			if bytes.Contains(existing.Program(), []byte(emitters[0].VarName)) {
 				log.Debugf("File already contains var in unit %s", unit.Name)
 				continue
@@ -273,7 +275,7 @@ func (p *Pubsub) generateProxies(filepath string, emitters []EmitterSubscriberPr
 // generateEmitterDefinitions handles making sure the emitters are defined in all the execution units its used in at the path they are originally defined in,
 // even if the original definition is in a file marked only for a single execution unit. It also make sure that the subscribers are imported to register their handlers.
 func (p *Pubsub) generateEmitterDefinitions() (err error) {
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](p.ConstructGraph) {
+	for _, unit := range construct.GetConstructsOfType[*types.ExecutionUnit](p.ConstructGraph) {
 		emittersByFile := make(map[string]map[VarSpec]*emitterValue)
 		for spec, emitter := range p.emitters {
 			f, ok := emittersByFile[spec.DefinedIn]
@@ -285,13 +287,13 @@ func (p *Pubsub) generateEmitterDefinitions() (err error) {
 		}
 		for path, emitters := range emittersByFile {
 			f := unit.Get(path)
-			var js *core.SourceFile
+			var js *types.SourceFile
 			if f != nil {
 				// The file already exists, either because it was included in the execution unit
 				// or if was previously generated from `generateProxies`
 				// In this case, we can assume that it's a SourceFile, and specifically one whose
 				// `LanguageId` is `Language.ID`: we populate this map from js files that had emitters.
-				js = f.(*core.SourceFile)
+				js = f.(*types.SourceFile)
 				if err := EnsureRuntimeImportFile(emitterRTName, emitterRTName, js); err != nil {
 					return err
 				}
@@ -360,7 +362,7 @@ func (p *Pubsub) generateEmitterDefinitions() (err error) {
 	return nil
 }
 
-func findTopics(f *core.SourceFile, spec VarSpec, query string, methodName string) (topics []string) {
+func findTopics(f *types.SourceFile, spec VarSpec, query string, methodName string) (topics []string) {
 	varName := findVarName(f, spec)
 	if varName == "" {
 		return
@@ -383,10 +385,10 @@ func findTopics(f *core.SourceFile, spec VarSpec, query string, methodName strin
 	return
 }
 
-func (p *Pubsub) findPublisherTopics(f *core.SourceFile, spec VarSpec) (topics []string) {
+func (p *Pubsub) findPublisherTopics(f *types.SourceFile, spec VarSpec) (topics []string) {
 	return findTopics(f, spec, pubsubPublisher, "emit")
 }
 
-func (p *Pubsub) findSubscriberTopics(f *core.SourceFile, spec VarSpec) (topics []string) {
+func (p *Pubsub) findSubscriberTopics(f *types.SourceFile, spec VarSpec) (topics []string) {
 	return findTopics(f, spec, pubsubSubscriber, "on")
 }

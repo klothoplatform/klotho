@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +14,7 @@ func Test_GetResourceType(t *testing.T) {
 	tests := []struct {
 		name     string
 		cfg      Application
-		resource core.Construct
+		resource construct.Construct
 		want     string
 	}{
 		{
@@ -25,7 +26,7 @@ func Test_GetResourceType(t *testing.T) {
 					},
 				},
 			},
-			resource: &core.Gateway{Name: "test"},
+			resource: &types.Gateway{Name: "test"},
 			want:     "apigateway",
 		},
 		{
@@ -37,7 +38,7 @@ func Test_GetResourceType(t *testing.T) {
 					},
 				},
 			},
-			resource: &core.ExecutionUnit{Name: "test"},
+			resource: &types.ExecutionUnit{Name: "test"},
 			want:     "lambda",
 		},
 		{
@@ -49,7 +50,7 @@ func Test_GetResourceType(t *testing.T) {
 					},
 				},
 			},
-			resource: &core.Kv{Name: "test"},
+			resource: &types.Kv{Name: "test"},
 			want:     "dynamodb",
 		},
 	}
@@ -68,7 +69,7 @@ func Test_UpdateForResources(t *testing.T) {
 	tests := []struct {
 		name      string
 		cfg       Application
-		resources []core.Construct
+		resources []construct.Construct
 		want      Application
 	}{
 		{
@@ -86,8 +87,8 @@ func Test_UpdateForResources(t *testing.T) {
 					},
 				},
 			},
-			resources: []core.Construct{&core.Gateway{Name: "test"}, &core.ExecutionUnit{Name: "test"},
-				&core.Kv{Name: "test"}},
+			resources: []construct.Construct{&types.Gateway{Name: "test"}, &types.ExecutionUnit{Name: "test"},
+				&types.Kv{Name: "test"}},
 			want: Application{
 				Defaults: Defaults{
 					Expose: KindDefaults{
@@ -275,7 +276,7 @@ func TestReadConfigReader(t *testing.T) {
 		{
 			name: "config with imports",
 			cfg: Application{
-				Imports: map[core.ResourceId]string{
+				Imports: map[construct.ResourceId]string{
 					{Provider: "prov", Type: "type", Namespace: "ns", Name: "name"}: "1",
 					{Provider: "prov", Type: "type", Name: "name"}:                  "2",
 				},

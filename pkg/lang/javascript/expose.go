@@ -2,7 +2,8 @@ package javascript
 
 import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/query"
 	"github.com/pkg/errors"
 	sitter "github.com/smacker/go-tree-sitter"
@@ -16,12 +17,12 @@ type gatewaySpec struct {
 }
 
 type gatewayRouteDefinition struct {
-	core.Route
+	types.Route
 	DefinedInPath string
 }
 
 type execUnitExposeInfo struct {
-	Unit            *core.ExecutionUnit
+	Unit            *types.ExecutionUnit
 	RoutesByGateway map[gatewaySpec][]gatewayRouteDefinition
 }
 
@@ -31,7 +32,7 @@ type exposeListenResult struct {
 	Identifier *sitter.Node // Identifier of the listen result (app)
 }
 
-func findListener(cap *core.Annotation) exposeListenResult {
+func findListener(cap *types.Annotation) exposeListenResult {
 
 	nextMatch := DoQuery(cap.Node, exposeListener)
 	for {
@@ -53,11 +54,11 @@ func findListener(cap *core.Annotation) exposeListenResult {
 	return exposeListenResult{}
 }
 
-func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.ConstructGraph, log *zap.Logger) {
+func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *construct.ConstructGraph, log *zap.Logger) {
 	for spec, routes := range info.RoutesByGateway {
-		gw := core.NewGateway(spec.gatewayId)
+		gw := types.NewGateway(spec.gatewayId)
 		if existing := constructGraph.GetConstruct(gw.Id()); existing != nil {
-			gw = existing.(*core.Gateway)
+			gw = existing.(*types.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath
 			gw.ExportVarName = spec.AppVarName
@@ -67,19 +68,19 @@ func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.Construc
 			log.Sugar().Infof("Adding catchall route for gateway %+v with no detected routes", spec)
 			routes = []gatewayRouteDefinition{
 				{
-					Route: core.Route{
+					Route: types.Route{
 						Path:          "/",
 						ExecUnitName:  info.Unit.Name,
-						Verb:          core.Verb("ANY"),
+						Verb:          types.Verb("ANY"),
 						HandledInFile: spec.FilePath,
 					},
 					DefinedInPath: spec.FilePath,
 				},
 				{
-					Route: core.Route{
+					Route: types.Route{
 						Path:          "/:proxy*",
 						ExecUnitName:  info.Unit.Name,
-						Verb:          core.Verb("ANY"),
+						Verb:          types.Verb("ANY"),
 						HandledInFile: spec.FilePath,
 					},
 					DefinedInPath: spec.FilePath,
@@ -98,13 +99,13 @@ func handleGatewayRoutes(info *execUnitExposeInfo, constructGraph *core.Construc
 			if !ok {
 				continue
 			}
-			targetUnit := core.FileExecUnitName(targAST)
+			targetUnit := types.FileExecUnitName(targAST)
 			if targetUnit == "" {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
 				targetUnit = info.Unit.Name
 			}
-			depKey := core.ResourceId{
-				Provider: core.AbstractConstructProvider,
+			depKey := construct.ResourceId{
+				Provider: construct.AbstractConstructProvider,
 				Type:     annotation.ExecutionUnitCapability,
 				Name:     targetUnit,
 			}

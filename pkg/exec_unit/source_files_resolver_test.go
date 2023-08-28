@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/smacker/go-tree-sitter/javascript"
 	"github.com/stretchr/testify/assert"
 )
@@ -74,9 +74,9 @@ func TestSourceFilesResolver_Resolve(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			testUnit := core.ExecutionUnit{Name: "main", Executable: core.NewExecutable()}
+			testUnit := types.ExecutionUnit{Name: "main", Executable: types.NewExecutable()}
 			for path, unit := range tt.fileUnits {
-				f, err := core.NewSourceFile(path, strings.NewReader(unit), testAnnotationLang)
+				f, err := types.NewSourceFile(path, strings.NewReader(unit), testAnnotationLang)
 				if assert.Nil(err) {
 					testUnit.Add(f)
 				}
@@ -106,12 +106,12 @@ type testFileDep struct {
 }
 
 func testFileDepResolver(testFileDeps []testFileDep) UnitFileDependencyResolver {
-	return func(unit *core.ExecutionUnit) (core.FileDependencies, error) {
-		fileDeps := core.FileDependencies{}
+	return func(unit *types.ExecutionUnit) (types.FileDependencies, error) {
+		fileDeps := types.FileDependencies{}
 		for _, fileDep := range testFileDeps {
-			imported := core.Imported{}
+			imported := types.Imported{}
 			for importPath, importedRefs := range fileDep.imports {
-				refs := core.References{}
+				refs := types.References{}
 				for _, ref := range importedRefs {
 					refs[ref] = struct{}{}
 				}
@@ -125,16 +125,16 @@ func testFileDepResolver(testFileDeps []testFileDep) UnitFileDependencyResolver 
 
 type testMultipleCapabilityFinder struct{}
 
-var testAnnotationLang = core.SourceLanguage{
-	ID:               core.LanguageId("test_annotation_lang"),
+var testAnnotationLang = types.SourceLanguage{
+	ID:               types.LanguageId("test_annotation_lang"),
 	Sitter:           javascript.GetLanguage(), // we don't actually care about the language, but we do need a non-nil one
 	CapabilityFinder: &testMultipleCapabilityFinder{},
 }
 
-func (t *testMultipleCapabilityFinder) FindAllCapabilities(sf *core.SourceFile) (core.AnnotationMap, error) {
+func (t *testMultipleCapabilityFinder) FindAllCapabilities(sf *types.SourceFile) (types.AnnotationMap, error) {
 	body := string(sf.Program())
 	rawAnnots := strings.SplitN(body, "|", 2)
-	annots := make(core.AnnotationMap)
+	annots := make(types.AnnotationMap)
 	if body == "" {
 		return annots, nil
 	}
@@ -143,7 +143,7 @@ func (t *testMultipleCapabilityFinder) FindAllCapabilities(sf *core.SourceFile) 
 		if len(annotParts) != 2 {
 			continue
 		}
-		annots.Add(&core.Annotation{
+		annots.Add(&types.Annotation{
 			Capability: &annotation.Capability{
 				Name: strings.TrimSpace(annotParts[0]),
 				ID:   strings.TrimSpace(annotParts[1]),

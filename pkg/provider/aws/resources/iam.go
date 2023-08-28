@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -90,22 +90,22 @@ var EKS_ASSUME_ROLE_POLICY = &PolicyDocument{
 type (
 	IamRole struct {
 		Name                string
-		ConstructRefs       core.BaseConstructSet `yaml:"-"`
+		ConstructRefs       construct.BaseConstructSet `yaml:"-"`
 		AssumeRolePolicyDoc *PolicyDocument
-		ManagedPolicies     []core.IaCValue
+		ManagedPolicies     []construct.IaCValue
 		AwsManagedPolicies  []string
 		InlinePolicies      []*IamInlinePolicy
 	}
 
 	IamPolicy struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Policy        *PolicyDocument
 	}
 
 	IamInlinePolicy struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Policy        *PolicyDocument
 	}
 
@@ -117,26 +117,26 @@ type (
 	StatementEntry struct {
 		Effect    string
 		Action    []string
-		Resource  []core.IaCValue
+		Resource  []construct.IaCValue
 		Principal *Principal
 		Condition *Condition
 	}
 
 	Principal struct {
 		Service   string
-		Federated core.IaCValue
-		AWS       core.IaCValue
+		Federated construct.IaCValue
+		AWS       construct.IaCValue
 	}
 
 	Condition struct {
-		StringEquals map[core.IaCValue]string
-		StringLike   map[core.IaCValue]string
-		Null         map[core.IaCValue]string
+		StringEquals map[construct.IaCValue]string
+		StringLike   map[construct.IaCValue]string
+		Null         map[construct.IaCValue]string
 	}
 
 	OpenIdConnectProvider struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		ClientIdLists []string
 		Cluster       *EksCluster
 		Region        *Region
@@ -144,14 +144,14 @@ type (
 
 	RolePolicyAttachment struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Policy        *IamPolicy
 		Role          *IamRole
 	}
 
 	InstanceProfile struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Role          *IamRole
 	}
 )
@@ -159,10 +159,10 @@ type (
 type RoleCreateParams struct {
 	AppName string
 	Name    string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 }
 
-func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) error {
+func (role *IamRole) Create(dag *construct.ResourceGraph, params RoleCreateParams) error {
 	role.Name = strings.TrimPrefix(roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name)), "-")
 	role.ConstructRefs = params.Refs.Clone()
 
@@ -177,13 +177,13 @@ func (role *IamRole) Create(dag *core.ResourceGraph, params RoleCreateParams) er
 type IamPolicyCreateParams struct {
 	AppName string
 	Name    string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 }
 
-func (policy *IamPolicy) Create(dag *core.ResourceGraph, params IamPolicyCreateParams) error {
+func (policy *IamPolicy) Create(dag *construct.ResourceGraph, params IamPolicyCreateParams) error {
 	policy.Name = strings.TrimPrefix(policySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name)), "-")
 	policy.ConstructRefs = params.Refs.Clone()
-	existingPolicy, found := core.GetResource[*IamPolicy](dag, policy.Id())
+	existingPolicy, found := construct.GetResource[*IamPolicy](dag, policy.Id())
 	if found {
 		existingPolicy.ConstructRefs.AddAll(params.Refs)
 		return nil
@@ -195,10 +195,10 @@ func (policy *IamPolicy) Create(dag *core.ResourceGraph, params IamPolicyCreateP
 type OidcCreateParams struct {
 	AppName     string
 	ClusterName string
-	Refs        core.BaseConstructSet
+	Refs        construct.BaseConstructSet
 }
 
-func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCreateParams) error {
+func (oidc *OpenIdConnectProvider) Create(dag *construct.ResourceGraph, params OidcCreateParams) error {
 	oidc.Name = fmt.Sprintf("%s-%s", params.AppName, params.ClusterName)
 
 	existingOidc := dag.GetResource(oidc.Id())
@@ -215,13 +215,13 @@ func (oidc *OpenIdConnectProvider) Create(dag *core.ResourceGraph, params OidcCr
 type InstanceProfileCreateParams struct {
 	AppName string
 	Name    string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 }
 
-func (profile *InstanceProfile) Create(dag *core.ResourceGraph, params InstanceProfileCreateParams) error {
+func (profile *InstanceProfile) Create(dag *construct.ResourceGraph, params InstanceProfileCreateParams) error {
 	profile.Name = roleSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	profile.ConstructRefs = params.Refs.Clone()
-	existingProfile, found := core.GetResource[*InstanceProfile](dag, profile.Id())
+	existingProfile, found := construct.GetResource[*InstanceProfile](dag, profile.Id())
 	if found {
 		existingProfile.ConstructRefs.AddAll(params.Refs)
 		return nil
@@ -230,7 +230,7 @@ func (profile *InstanceProfile) Create(dag *core.ResourceGraph, params InstanceP
 	return nil
 }
 
-func CreateAllowPolicyDocument(actions []string, resources []core.IaCValue) *PolicyDocument {
+func CreateAllowPolicyDocument(actions []string, resources []construct.IaCValue) *PolicyDocument {
 	return &PolicyDocument{
 		Version: VERSION,
 		Statement: []StatementEntry{
@@ -244,21 +244,21 @@ func CreateAllowPolicyDocument(actions []string, resources []core.IaCValue) *Pol
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (role *IamRole) BaseConstructRefs() core.BaseConstructSet {
+func (role *IamRole) BaseConstructRefs() construct.BaseConstructSet {
 	return role.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (role *IamRole) Id() core.ResourceId {
-	return core.ResourceId{
+func (role *IamRole) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     IAM_ROLE_TYPE,
 		Name:     role.Name,
 	}
 }
 
-func (role *IamRole) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (role *IamRole) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -276,7 +276,7 @@ func (role *IamRole) AddAwsManagedPolicies(policies []string) {
 	}
 }
 
-func (role *IamRole) AddManagedPolicy(policy core.IaCValue) {
+func (role *IamRole) AddManagedPolicy(policy construct.IaCValue) {
 	exists := false
 	for _, pol := range role.ManagedPolicies {
 		if pol.ResourceId == policy.ResourceId {
@@ -288,15 +288,15 @@ func (role *IamRole) AddManagedPolicy(policy core.IaCValue) {
 	}
 }
 
-func NewIamPolicy(appName string, policyName string, ref core.BaseConstruct, policy *PolicyDocument) *IamPolicy {
+func NewIamPolicy(appName string, policyName string, ref construct.BaseConstruct, policy *PolicyDocument) *IamPolicy {
 	return &IamPolicy{
 		Name:          policySanitizer.Apply(fmt.Sprintf("%s-%s", appName, policyName)),
-		ConstructRefs: core.BaseConstructSetOf(ref),
+		ConstructRefs: construct.BaseConstructSetOf(ref),
 		Policy:        policy,
 	}
 }
 
-func NewIamInlinePolicy(policyName string, refs core.BaseConstructSet, policy *PolicyDocument) *IamInlinePolicy {
+func NewIamInlinePolicy(policyName string, refs construct.BaseConstructSet, policy *PolicyDocument) *IamInlinePolicy {
 	return &IamInlinePolicy{
 		Name:          policySanitizer.Apply(policyName),
 		ConstructRefs: refs,
@@ -315,91 +315,91 @@ func (policy *IamPolicy) AddPolicyDocument(doc *PolicyDocument) {
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (policy *IamPolicy) BaseConstructRefs() core.BaseConstructSet {
+func (policy *IamPolicy) BaseConstructRefs() construct.BaseConstructSet {
 	return policy.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (policy *IamPolicy) Id() core.ResourceId {
-	return core.ResourceId{
+func (policy *IamPolicy) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     IAM_POLICY_TYPE,
 		Name:     policy.Name,
 	}
 }
 
-func (policy *IamPolicy) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (policy *IamPolicy) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (oidc *OpenIdConnectProvider) BaseConstructRefs() core.BaseConstructSet {
+func (oidc *OpenIdConnectProvider) BaseConstructRefs() construct.BaseConstructSet {
 	return oidc.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (oidc *OpenIdConnectProvider) Id() core.ResourceId {
-	return core.ResourceId{
+func (oidc *OpenIdConnectProvider) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     OIDC_PROVIDER_TYPE,
 		Name:     oidc.Name,
 	}
 }
 
-func (oidc *OpenIdConnectProvider) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (oidc *OpenIdConnectProvider) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (role *RolePolicyAttachment) BaseConstructRefs() core.BaseConstructSet {
+func (role *RolePolicyAttachment) BaseConstructRefs() construct.BaseConstructSet {
 	return nil
 }
 
 // Id returns the id of the cloud resource
-func (role *RolePolicyAttachment) Id() core.ResourceId {
-	return core.ResourceId{
+func (role *RolePolicyAttachment) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     IAM_ROLE_POLICY_ATTACHMENT_TYPE,
 		Name:     role.Name,
 	}
 }
 
-func (role *RolePolicyAttachment) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (role *RolePolicyAttachment) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstreamOrDownstream: true,
 	}
 }
 
-func (profile *InstanceProfile) BaseConstructRefs() core.BaseConstructSet {
+func (profile *InstanceProfile) BaseConstructRefs() construct.BaseConstructSet {
 	return profile.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (profile *InstanceProfile) Id() core.ResourceId {
-	return core.ResourceId{
+func (profile *InstanceProfile) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     INSTANCE_PROFILE_TYPE,
 		Name:     profile.Name,
 	}
 }
 
-func (profile *InstanceProfile) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (profile *InstanceProfile) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 
-func (s StatementEntry) Id() core.ResourceId {
+func (s StatementEntry) Id() construct.ResourceId {
 	resourcesHash := sha256.New()
 	for _, r := range s.Resource {
 		_, _ = fmt.Fprintf(resourcesHash, "%s.%s", r.ResourceId, r.Property)
 	}
 
-	return core.ResourceId{
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     IAM_STATEMENT_ENTRY,
 		Name:     fmt.Sprintf("%x/%s/%s", resourcesHash.Sum(nil), s.Effect, strings.Join(s.Action, ",")),
@@ -408,7 +408,7 @@ func (s StatementEntry) Id() core.ResourceId {
 
 func (c Condition) MarshalYAML() (interface{}, error) {
 	type mapEntry struct {
-		Key core.IaCValue
+		Key construct.IaCValue
 		Val string
 	}
 	type condition struct {
@@ -431,7 +431,7 @@ func (c Condition) MarshalYAML() (interface{}, error) {
 
 func (c *Condition) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type mapEntry struct {
-		key core.IaCValue
+		key construct.IaCValue
 		val string
 	}
 	type condition struct {
@@ -444,9 +444,9 @@ func (c *Condition) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err != nil {
 		return err
 	}
-	c.StringEquals = map[core.IaCValue]string{}
-	c.StringLike = map[core.IaCValue]string{}
-	c.Null = map[core.IaCValue]string{}
+	c.StringEquals = map[construct.IaCValue]string{}
+	c.StringLike = map[construct.IaCValue]string{}
+	c.Null = map[construct.IaCValue]string{}
 	for _, entry := range intermediate.StringEquals {
 		c.StringEquals[entry.key] = entry.val
 	}
@@ -460,7 +460,7 @@ func (c *Condition) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (d *PolicyDocument) Deduplicate() {
-	keys := make(map[core.ResourceId]struct{})
+	keys := make(map[construct.ResourceId]struct{})
 	var unique []StatementEntry
 	for _, stmt := range d.Statement {
 		id := stmt.Id()

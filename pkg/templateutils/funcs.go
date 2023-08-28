@@ -7,7 +7,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
 var Funcs = template.FuncMap{
@@ -34,7 +34,7 @@ var Funcs = template.FuncMap{
 		}
 	},
 
-	"keyNames": func(keys []core.Construct) (ns []string) {
+	"keyNames": func(keys []construct.Construct) (ns []string) {
 		for _, k := range keys {
 			ns = append(ns, k.Id().Name)
 		}

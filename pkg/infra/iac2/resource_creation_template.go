@@ -10,7 +10,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	klotho_errors "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/query"
 	"github.com/pkg/errors"
 	sitter "github.com/smacker/go-tree-sitter"
@@ -44,8 +45,8 @@ type (
 )
 
 var (
-	tsLanguage = core.SourceLanguage{
-		ID:     core.LanguageId("ts"),
+	tsLanguage = types.SourceLanguage{
+		ID:     types.LanguageId("ts"),
 		Sitter: typescript.GetLanguage(),
 	}
 
@@ -181,7 +182,7 @@ func parseTS(val reflect.Value) (string, error) {
 	if templateVal, ok := val.Interface().(templateValue); ok {
 		out, err := templateVal.Parse()
 		if err != nil {
-			return "", core.WrapErrf(err, "template value parsing failed")
+			return "", klotho_errors.WrapErrf(err, "template value parsing failed")
 		}
 		return out, nil
 	}

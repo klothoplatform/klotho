@@ -3,20 +3,20 @@ package python
 import (
 	"io"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/lang"
 	"github.com/smacker/go-tree-sitter/python"
 )
 
-const py = core.LanguageId("python")
+const py = types.LanguageId("python")
 
-var Language = core.SourceLanguage{
+var Language = types.SourceLanguage{
 	ID:               py,
 	Sitter:           python.GetLanguage(),
 	CapabilityFinder: lang.NewCapabilityFinder("comment", lang.RegexpRemovePreprocessor(`^#\s*`), lang.IsHashCommentBlock),
 	ToLineComment:    lang.MakeLineCommenter("# "),
 }
 
-func NewFile(path string, content io.Reader) (f *core.SourceFile, err error) {
-	return core.NewSourceFile(path, content, Language)
+func NewFile(path string, content io.Reader) (f *types.SourceFile, err error) {
+	return types.NewSourceFile(path, content, Language)
 }

@@ -1,7 +1,7 @@
 package resources
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/provider"
 )
 
@@ -11,11 +11,11 @@ const (
 
 type (
 	Kubeconfig struct {
-		ConstructRefs  core.BaseConstructSet `yaml:"-"`
+		ConstructRefs  construct.BaseConstructSet `yaml:"-"`
 		Name           string
 		ApiVersion     string
 		Kind           string
-		CurrentContext core.IaCValue
+		CurrentContext construct.IaCValue
 
 		Clusters []KubeconfigCluster
 		Contexts []KubeconfigContexts
@@ -23,21 +23,21 @@ type (
 	}
 
 	KubeconfigCluster struct {
-		Name    core.IaCValue
-		Cluster map[string]core.IaCValue
+		Name    construct.IaCValue
+		Cluster map[string]construct.IaCValue
 	}
 
 	KubeconfigContexts struct {
 		Context KubeconfigContext
-		Name    core.IaCValue
+		Name    construct.IaCValue
 	}
 	KubeconfigContext struct {
-		Cluster core.IaCValue
-		User    core.IaCValue
+		Cluster construct.IaCValue
+		User    construct.IaCValue
 	}
 
 	KubeconfigUsers struct {
-		Name core.IaCValue
+		Name construct.IaCValue
 		User KubeconfigUser
 	}
 
@@ -52,18 +52,18 @@ type (
 	}
 )
 
-func (k Kubeconfig) BaseConstructRefs() core.BaseConstructSet { return k.ConstructRefs }
+func (k Kubeconfig) BaseConstructRefs() construct.BaseConstructSet { return k.ConstructRefs }
 
-func (k Kubeconfig) Id() core.ResourceId {
-	return core.ResourceId{
+func (k Kubeconfig) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     KUBE_CONFIG_TYPE,
 		Name:     k.Name,
 	}
 }
 
-func (k Kubeconfig) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (k Kubeconfig) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

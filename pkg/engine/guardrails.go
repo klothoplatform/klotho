@@ -5,15 +5,15 @@ import (
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"gopkg.in/yaml.v3"
 )
 
 type (
 	Guardrails struct {
-		AllowedResources    []core.ResourceId `yaml:"allowed_resources"`
-		DisallowedResources []core.ResourceId `yaml:"disallowed_resources"`
+		AllowedResources    []construct.ResourceId `yaml:"allowed_resources"`
+		DisallowedResources []construct.ResourceId `yaml:"disallowed_resources"`
 	}
 )
 
@@ -48,7 +48,7 @@ func (e *Engine) LoadGuardrails(bytes []byte) error {
 
 func (e *Engine) ApplyGuardrails() error {
 	for res := range e.ClassificationDocument.Classifications {
-		id := &core.ResourceId{}
+		id := &construct.ResourceId{}
 		err := id.UnmarshalText([]byte(res))
 		if err != nil {
 			return err
@@ -58,8 +58,8 @@ func (e *Engine) ApplyGuardrails() error {
 		}
 	}
 	for edge := range e.KnowledgeBase.EdgeMap {
-		src := reflect.New(edge.Source.Elem()).Interface().(core.Resource)
-		dst := reflect.New(edge.Destination.Elem()).Interface().(core.Resource)
+		src := reflect.New(edge.Source.Elem()).Interface().(construct.Resource)
+		dst := reflect.New(edge.Destination.Elem()).Interface().(construct.Resource)
 		if collectionutil.Contains(e.Guardrails.DisallowedResources, src.Id()) || collectionutil.Contains(e.Guardrails.DisallowedResources, dst.Id()) {
 			delete(e.KnowledgeBase.EdgeMap, edge)
 			srcByType := e.KnowledgeBase.EdgesByType[edge.Source]
@@ -93,10 +93,10 @@ func (e *Engine) ApplyGuardrails() error {
 	return nil
 }
 
-func (g *Guardrails) IsResourceAllowed(res core.ResourceId) bool {
+func (g *Guardrails) IsResourceAllowed(res construct.ResourceId) bool {
 	if g.AllowedResources == nil {
 		return true
 	}
-	baseId := core.ResourceId{Provider: res.Provider, Type: res.Type}
+	baseId := construct.ResourceId{Provider: res.Provider, Type: res.Type}
 	return collectionutil.Contains(g.AllowedResources, baseId)
 }

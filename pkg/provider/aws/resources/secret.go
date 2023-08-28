@@ -3,21 +3,21 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
 type (
 	Secret struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 	}
 
 	SecretVersion struct {
 		Secret        *Secret
 		DetectedPath  string
 		Path          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Name          string
 		Type          string
 	}
@@ -28,15 +28,15 @@ const SECRET_VERSION_TYPE = "secret_version"
 
 type SecretCreateParams struct {
 	AppName string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 	Name    string
 }
 
 // Create takes in an all necessary parameters to generate the Secret name and ensure that the Secret is correlated to the constructs which required its creation.
-func (s *Secret) Create(dag *core.ResourceGraph, params SecretCreateParams) error {
+func (s *Secret) Create(dag *construct.ResourceGraph, params SecretCreateParams) error {
 	s.Name = aws.SecretSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	s.ConstructRefs = params.Refs.Clone()
-	if existingSecret, ok := core.GetResource[*Secret](dag, s.Id()); ok {
+	if existingSecret, ok := construct.GetResource[*Secret](dag, s.Id()); ok {
 		existingSecret.ConstructRefs.AddAll(params.Refs)
 		return nil
 	}
@@ -46,7 +46,7 @@ func (s *Secret) Create(dag *core.ResourceGraph, params SecretCreateParams) erro
 
 type SecretVersionCreateParams struct {
 	AppName      string
-	Refs         core.BaseConstructSet
+	Refs         construct.BaseConstructSet
 	Name         string
 	DetectedPath string
 }
@@ -55,7 +55,7 @@ type SecretVersionCreateParams struct {
 //
 // This method will also create dependent resources which are necessary for functionality. Those resources are:
 //   - Secret
-func (sv *SecretVersion) Create(dag *core.ResourceGraph, params SecretVersionCreateParams) error {
+func (sv *SecretVersion) Create(dag *construct.ResourceGraph, params SecretVersionCreateParams) error {
 	sv.Name = aws.SecretSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	sv.ConstructRefs = params.Refs.Clone()
 	sv.DetectedPath = params.DetectedPath
@@ -68,39 +68,39 @@ func (sv *SecretVersion) Create(dag *core.ResourceGraph, params SecretVersionCre
 	return nil
 }
 
-func (s *Secret) BaseConstructRefs() core.BaseConstructSet {
+func (s *Secret) BaseConstructRefs() construct.BaseConstructSet {
 	return s.ConstructRefs
 }
 
-func (s *Secret) Id() core.ResourceId {
-	return core.ResourceId{
+func (s *Secret) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     SECRET_TYPE,
 		Name:     s.Name,
 	}
 }
 
-func (s *Secret) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (s *Secret) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
 	}
 }
 
-func (sv *SecretVersion) BaseConstructRefs() core.BaseConstructSet {
+func (sv *SecretVersion) BaseConstructRefs() construct.BaseConstructSet {
 	return sv.ConstructRefs
 }
 
-func (sv *SecretVersion) Id() core.ResourceId {
-	return core.ResourceId{
+func (sv *SecretVersion) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     SECRET_VERSION_TYPE,
 		Name:     sv.Name,
 	}
 }
-func (sv *SecretVersion) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (sv *SecretVersion) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

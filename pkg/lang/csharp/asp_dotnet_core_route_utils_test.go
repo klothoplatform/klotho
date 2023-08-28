@@ -118,7 +118,7 @@ func TestSanitizeConventionalRoute(t *testing.T) {
 		},
 		{
 			// This scenario verifies we don't get stuck in a loop processing bad input.
-			// The original path will cause an HTTP-500 response from ASP.NET Core.
+			// The original path will cause an HTTP-500 response from ASP.NET construct.
 			name:     "invalid regex constraint results in bad path without causing an error",
 			path:     "{p1:regex(pat}tern)}",
 			expected: ":p1",
@@ -147,7 +147,7 @@ func Test_sanitizeAttributeBasedPath(t *testing.T) {
 		},
 		{
 			// This scenario verifies we don't get stuck in a loop processing bad input.
-			// The original path will cause an HTTP-500 response from ASP.NET Core.
+			// The original path will cause an HTTP-500 response from ASP.NET construct.
 			name:     "invalid regex constraint output bad path without causing an error",
 			path:     "{p1:regex(pat}tern)}",
 			expected: ":p1",

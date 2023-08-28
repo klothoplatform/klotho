@@ -2,10 +2,10 @@ package lang
 
 import (
 	"errors"
-	"github.com/klothoplatform/klotho/pkg/query"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/query"
 )
 
 type (
@@ -25,12 +25,12 @@ type (
 	}
 )
 
-func FindAllCommentBlocksForTest(language core.SourceLanguage, source string) ([]FindAllCommentBlocksExpected, error) {
+func FindAllCommentBlocksForTest(language types.SourceLanguage, source string) ([]FindAllCommentBlocksExpected, error) {
 	capFinder, ok := language.CapabilityFinder.(*capabilityFinder)
 	if !ok {
 		return nil, errors.New("capability wasn't created with lang.NewCapabilityFinder")
 	}
-	f, err := core.NewSourceFile("test.js", strings.NewReader(source), language)
+	f, err := types.NewSourceFile("test.js", strings.NewReader(source), language)
 	if err != nil {
 		return nil, err
 	}

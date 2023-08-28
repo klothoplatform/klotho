@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"go.uber.org/zap"
@@ -30,14 +31,14 @@ var (
 
 func (p EnvVarInjection) Name() string { return "EnvVarInjection" }
 
-func (p EnvVarInjection) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
+func (p EnvVarInjection) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
 	var errs multierr.Error
 
-	units := core.GetConstructsOfType[*core.ExecutionUnit](constructGraph)
+	units := construct.GetConstructsOfType[*types.ExecutionUnit](constructGraph)
 	for _, unit := range units {
 		for _, f := range unit.Files() {
 			log := zap.L().With(logging.FileField(f)).Sugar()
-			ast, ok := f.(*core.SourceFile)
+			ast, ok := f.(*types.SourceFile)
 			if !ok {
 				log.Debug("Skipping non-source file")
 				continue
@@ -47,7 +48,7 @@ func (p EnvVarInjection) Transform(input *core.InputFiles, fileDeps *core.FileDe
 				cap := annot.Capability
 				if cap.Name == annotation.PersistCapability {
 					if cap.ID == "" {
-						errs.Append(core.NewCompilerError(ast, annot, errors.New("'id' is required")))
+						errs.Append(types.NewCompilerError(ast, annot, errors.New("'id' is required")))
 					}
 					directiveResult, err := ParseDirectiveToEnvVars(cap)
 					if err != nil {
@@ -81,13 +82,13 @@ func validateValue(kind string, value string) bool {
 
 type EnvironmentVariableDirectiveResult struct {
 	kind      string
-	variables core.EnvironmentVariables
+	variables types.EnvironmentVariables
 }
 
 func ParseDirectiveToEnvVars(cap *annotation.Capability) (EnvironmentVariableDirectiveResult, error) {
 	overallKind := ""
-	envVars := cap.Directives.Object(core.EnvironmentVariableDirective)
-	foundVars := core.EnvironmentVariables{}
+	envVars := cap.Directives.Object(types.EnvironmentVariableDirective)
+	foundVars := types.EnvironmentVariables{}
 	if envVars == nil {
 		return EnvironmentVariableDirectiveResult{}, nil
 	}
@@ -120,7 +121,7 @@ func ParseDirectiveToEnvVars(cap *annotation.Capability) (EnvironmentVariableDir
 			return EnvironmentVariableDirectiveResult{}, errors.New("cannot have multiple resource kinds in environment variables for single annotation")
 		}
 
-		foundVariable := core.NewEnvironmentVariable(name, nil, value)
+		foundVariable := types.NewEnvironmentVariable(name, nil, value)
 
 		foundVars.Add(foundVariable)
 	}
@@ -128,23 +129,23 @@ func ParseDirectiveToEnvVars(cap *annotation.Capability) (EnvironmentVariableDir
 	return EnvironmentVariableDirectiveResult{kind: overallKind, variables: foundVars}, nil
 }
 
-func handlePersist(directiveResult EnvironmentVariableDirectiveResult, cap *annotation.Capability, unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
+func handlePersist(directiveResult EnvironmentVariableDirectiveResult, cap *annotation.Capability, unit *types.ExecutionUnit, constructGraph *construct.ConstructGraph) error {
 
-	var resource core.Construct
+	var resource construct.Construct
 	switch directiveResult.kind {
 	case "orm":
-		resource = &core.Orm{Name: cap.ID}
+		resource = &types.Orm{Name: cap.ID}
 	case "redis_cluster":
-		resource = &core.RedisCluster{Name: cap.ID}
+		resource = &types.RedisCluster{Name: cap.ID}
 	case "redis_node":
-		resource = &core.RedisNode{Name: cap.ID}
+		resource = &types.RedisNode{Name: cap.ID}
 	default:
 		return fmt.Errorf("unsupported 'kind', %s", directiveResult.kind)
 	}
 
 	constructGraph.AddConstruct(resource)
 	constructGraph.AddDependency(unit.Id(), resource.Id())
-	variables := core.EnvironmentVariables{}
+	variables := types.EnvironmentVariables{}
 	for _, variable := range directiveResult.variables {
 		variable.Construct = resource
 		variables = append(variables, variable)

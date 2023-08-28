@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	klotho_errors "github.com/klothoplatform/klotho/pkg/errors"
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
 	"github.com/klothoplatform/klotho/pkg/filter"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap"
 )
@@ -23,19 +26,19 @@ func (l NodeJSExecutable) Name() string {
 	return "nodejs_executable"
 }
 
-func (l NodeJSExecutable) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
+func (l NodeJSExecutable) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
 	// TODO: Consider adding ES module config for a unit in this plugin
 	inputFiles := input.Files()
 
 	defaultPackageJson, _ := inputFiles["package.json"].(*PackageFile)
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range construct.GetConstructsOfType[*types.ExecutionUnit](constructGraph) {
 		if unit.Executable.Type != "" {
 			zap.L().Sugar().Debugf("Skipping exececution unit '%s': executable type is already set to '%s'", unit.Name, unit.Executable.Type)
 			continue
 		}
 
 		packageJson := defaultPackageJson
-		packageJsonPath := core.CheckForProjectFile(input, unit, "package.json")
+		packageJsonPath := types.CheckForProjectFile(input, unit, "package.json")
 		if packageJsonPath != "" {
 			packageJson, _ = inputFiles[packageJsonPath].(*PackageFile)
 		}
@@ -45,7 +48,7 @@ func (l NodeJSExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 		}
 
 		unit.AddResource(packageJson.Clone())
-		unit.Executable.Type = core.ExecutableTypeNodeJS
+		unit.Executable.Type = types.ExecutableTypeNodeJS
 
 		var err error
 		for _, file := range unit.FilesOfLang(js) {
@@ -60,7 +63,7 @@ func (l NodeJSExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 		if len(unit.Executable.Entrypoints) == 0 {
 			err = addEntrypointFromPackageJson(packageJson, unit)
 			if err != nil {
-				return core.WrapErrf(err, "entrypoint resolution from package.json failed for execution unit: %s", unit.Name)
+				return klotho_errors.WrapErrf(err, "entrypoint resolution from package.json failed for execution unit: %s", unit.Name)
 			}
 		}
 
@@ -77,19 +80,19 @@ func (l NodeJSExecutable) Transform(input *core.InputFiles, fileDeps *core.FileD
 	return nil
 }
 
-func refreshUpstreamEntrypoints(unit *core.ExecutionUnit) {
+func refreshUpstreamEntrypoints(unit *types.ExecutionUnit) {
 	for f := range unit.Executable.SourceFiles {
-		if file, ok := unit.Get(f).(*core.SourceFile); ok && file.IsAnnotatedWith(annotation.ExposeCapability) {
+		if file, ok := unit.Get(f).(*types.SourceFile); ok && file.IsAnnotatedWith(annotation.ExposeCapability) {
 			zap.L().Sugar().Debugf("Adding execution unit entrypoint: [@klotho::expose] -> [%s] -> %s", unit.Name, f)
 			unit.AddEntrypoint(file)
 		}
 	}
 }
 
-func refreshSourceFiles(unit *core.ExecutionUnit) error {
+func refreshSourceFiles(unit *types.ExecutionUnit) error {
 	sourceFiles, err := upstreamDependencyResolver.Resolve(unit)
 	if err != nil {
-		return core.WrapErrf(err, "file dependency resolution failed for execution unit: %s", unit.Name)
+		return klotho_errors.WrapErrf(err, "file dependency resolution failed for execution unit: %s", unit.Name)
 	}
 	for k, v := range sourceFiles {
 		unit.Executable.SourceFiles[k] = v
@@ -98,7 +101,7 @@ func refreshSourceFiles(unit *core.ExecutionUnit) error {
 	return err
 }
 
-func warnIfContainsES6Import(file core.File) {
+func warnIfContainsES6Import(file io.File) {
 	jsF, ok := Language.ID.CastFile(file)
 	if !ok {
 		return
@@ -112,23 +115,23 @@ func warnIfContainsES6Import(file core.File) {
 	}
 }
 
-func resolveDefaultEntrypoint(unit *core.ExecutionUnit) {
+func resolveDefaultEntrypoint(unit *types.ExecutionUnit) {
 	if indexJs := unit.Get("index.js"); indexJs != nil {
 		zap.L().Sugar().Debugf("Adding execution unit entrypoint: [default] -> [%s] -> %s", unit.Name, indexJs.Path())
 		unit.AddEntrypoint(indexJs)
 	}
 }
 
-func addEntrypointFromPackageJson(packageJson *PackageFile, unit *core.ExecutionUnit) error {
+func addEntrypointFromPackageJson(packageJson *PackageFile, unit *types.ExecutionUnit) error {
 	// if no other roots are detected, add the file indicated in the unit's package.json#main field
 	if mainRaw, ok := packageJson.Content.OtherFields["main"]; ok {
 		main := ""
 		err := json.Unmarshal(mainRaw, &main)
 		if err != nil {
-			return core.WrapErrf(err, "could not unmarshal 'main' from package.json")
+			return klotho_errors.WrapErrf(err, "could not unmarshal 'main' from package.json")
 		}
 		if mainFileR := unit.Get(main); mainFileR != nil {
-			if mainFile, ok := mainFileR.(*core.SourceFile); ok {
+			if mainFile, ok := mainFileR.(*types.SourceFile); ok {
 				unit.AddEntrypoint(mainFile)
 				zap.L().Sugar().Debugf("Adding execution unit entrypoint: [package.json#main] -> [%s] -> %s", unit.Name, mainFile.Path())
 			}

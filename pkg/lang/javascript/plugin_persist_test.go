@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -98,7 +99,7 @@ p.get('foo')`,
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			var execUnit core.ExecutionUnit
+			var execUnit types.ExecutionUnit
 			for filename, content := range tt.sources {
 				f, err := NewFile(filename, strings.NewReader(content))
 				if !assert.NoError(err) {
@@ -107,7 +108,7 @@ p.get('foo')`,
 				execUnit.Add(f)
 			}
 			p := persister{
-				ConstructGraph: core.NewConstructGraph(),
+				ConstructGraph: construct.NewConstructGraph(),
 			}
 			p.ConstructGraph.AddConstruct(&execUnit)
 
@@ -181,7 +182,7 @@ func Test_queryKV(t *testing.T) {
 				return
 			}
 
-			cap := &core.Annotation{
+			cap := &types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			}
@@ -239,7 +240,7 @@ const m = new keyvalueRuntime.dMap({"versioned":true})`,
 				return
 			}
 
-			var cap *core.Annotation
+			var cap *types.Annotation
 			for _, v := range f.Annotations() {
 				cap = v
 				break
@@ -251,12 +252,12 @@ const m = new keyvalueRuntime.dMap({"versioned":true})`,
 
 			ptype, pres := p.determinePersistType(f, cap)
 
-			_, ok := ptype.(*core.Kv)
+			_, ok := ptype.(*types.Kv)
 			if !assert.True(ok) {
 				return
 			}
 
-			_, err = p.transformKV(&core.ExecutionUnit{}, f, cap, pres)
+			_, err = p.transformKV(&types.ExecutionUnit{}, f, cap, pres)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -345,7 +346,7 @@ func Test_queryFS(t *testing.T) {
 
 			p := persister{}
 
-			fsResult := p.queryFS(f, &core.Annotation{
+			fsResult := p.queryFS(f, &types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			})
@@ -423,7 +424,7 @@ func Test_queryORM(t *testing.T) {
 
 			p := persister{}
 
-			fsResult := p.queryORM(f, &core.Annotation{
+			fsResult := p.queryORM(f, &types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			}, true)
@@ -529,7 +530,7 @@ func Test_queryRedis(t *testing.T) {
 
 			p := persister{}
 
-			_, fsResult := p.queryRedis(f, &core.Annotation{
+			_, fsResult := p.queryRedis(f, &types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			}, true)
@@ -614,7 +615,7 @@ const client = createCluster(redis_clusterRuntime.getParams("REDIS_PERSIST_REDIS
 				return
 			}
 
-			var cap *core.Annotation
+			var cap *types.Annotation
 			for _, v := range f.Annotations() {
 				cap = v
 				break
@@ -625,7 +626,7 @@ const client = createCluster(redis_clusterRuntime.getParams("REDIS_PERSIST_REDIS
 			}
 
 			pKind, pres := p.determinePersistType(f, cap)
-			unit := &core.ExecutionUnit{}
+			unit := &types.ExecutionUnit{}
 			_, err = p.transformRedis(unit, f, cap, pres, pKind)
 			if tt.wantErr {
 				assert.Error(err)
@@ -744,7 +745,7 @@ func Test_inferType(t *testing.T) {
 			}
 			p := persister{}
 
-			fsResult := p.queryFS(f, &core.Annotation{
+			fsResult := p.queryFS(f, &types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			})

@@ -7,10 +7,12 @@ import (
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"go.uber.org/zap"
@@ -24,12 +26,12 @@ type (
 
 func (p StaticUnitSplit) Name() string { return "StaticUnitSplit" }
 
-func (p StaticUnitSplit) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
+func (p StaticUnitSplit) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
 	var errs multierr.Error
 	for _, f := range input.Files() {
 
 		log := zap.L().With(logging.FileField(f)).Sugar()
-		ast, ok := f.(*core.SourceFile)
+		ast, ok := f.(*types.SourceFile)
 		if !ok {
 			// Non-source files can't have any annotations therefore we don't know what
 			// is intended to be included or not. Default to not including and let other plugins decide.
@@ -45,7 +47,7 @@ func (p StaticUnitSplit) Transform(input *core.InputFiles, fileDeps *core.FileDe
 					cause = errors.New("'id' is required")
 					errs.Append(cause)
 				}
-				newUnit := &core.StaticUnit{
+				newUnit := &types.StaticUnit{
 					Name: cap.ID,
 				}
 
@@ -64,7 +66,7 @@ func (p StaticUnitSplit) Transform(input *core.InputFiles, fileDeps *core.FileDe
 				}
 				matchCount := 0
 				for _, asset := range input.Files() {
-					ref := &core.FileRef{
+					ref := &klotho_io.FileRef{
 						FPath:          asset.Path(),
 						RootConfigPath: p.Config.Path,
 					}

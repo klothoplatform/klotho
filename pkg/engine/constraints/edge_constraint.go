@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
@@ -26,10 +26,10 @@ type (
 	// The end result of this should be a path of klotho:execution_unit:my_compute -> aws:rds_proxy:my_proxy -> klotho:orm:my_orm with N intermediate nodes to satisfy the path's expansion
 
 	EdgeConstraint struct {
-		Operator   ConstraintOperator `yaml:"operator"`
-		Target     Edge               `yaml:"target"`
-		Node       core.ResourceId    `yaml:"node"`
-		Attributes map[string]any     `yaml:"attributes"`
+		Operator   ConstraintOperator   `yaml:"operator"`
+		Target     Edge                 `yaml:"target"`
+		Node       construct.ResourceId `yaml:"node"`
+		Attributes map[string]any       `yaml:"attributes"`
 	}
 )
 
@@ -37,16 +37,16 @@ func (constraint *EdgeConstraint) Scope() ConstraintScope {
 	return EdgeConstraintScope
 }
 
-func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource, classifier classification.Classifier) bool {
+func (constraint *EdgeConstraint) IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier classification.Classifier) bool {
 
-	var src []core.ResourceId
-	var dst []core.ResourceId
+	var src []construct.ResourceId
+	var dst []construct.ResourceId
 	// If we receive an abstract construct, we need to find all resources that reference the abstract construct
 	//
 	// This relies on resources only referencing an abstract provider if they are the direct child of the abstract construct
 	// example
 	// when we expand execution unit, the lambda would reference the execution unit as a construct, but the role and other resources would reference the lambda
-	if constraint.Target.Source.Provider == core.AbstractConstructProvider {
+	if constraint.Target.Source.Provider == construct.AbstractConstructProvider {
 		if len(mappedConstructResources[constraint.Target.Source]) == 0 {
 			return false
 		}
@@ -57,7 +57,7 @@ func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowle
 		src = append(src, constraint.Target.Source)
 	}
 
-	if constraint.Target.Target.Provider == core.AbstractConstructProvider {
+	if constraint.Target.Target.Provider == construct.AbstractConstructProvider {
 		if len(mappedConstructResources[constraint.Target.Target]) == 0 {
 			return false
 		}
@@ -74,7 +74,7 @@ func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowle
 				return false
 			}
 			if len(paths) == 0 {
-				paths = append(paths, []core.Resource{})
+				paths = append(paths, []construct.Resource{})
 			}
 			for _, path := range paths {
 				if constraint.checkSatisfication(path, classifier) {
@@ -86,7 +86,7 @@ func (constraint *EdgeConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowle
 	return false
 }
 
-func (constraint *EdgeConstraint) checkSatisfication(path []core.Resource, classifier classification.Classifier) bool {
+func (constraint *EdgeConstraint) checkSatisfication(path []construct.Resource, classifier classification.Classifier) bool {
 	if constraint.Attributes != nil {
 		for i, res := range path {
 			for k := range constraint.Attributes {
@@ -129,10 +129,10 @@ func (constraint *EdgeConstraint) Validate() error {
 	if constraint.Target.Source == constraint.Target.Target {
 		return fmt.Errorf("edge constraint must not have a source and target be the same node")
 	}
-	if (constraint.Target.Source == core.ResourceId{} || constraint.Target.Target == core.ResourceId{}) {
+	if (constraint.Target.Source == construct.ResourceId{} || constraint.Target.Target == construct.ResourceId{}) {
 		return fmt.Errorf("edge constraint must have a source and target defined")
 	}
-	if (constraint.Node == core.ResourceId{}) {
+	if (constraint.Node == construct.ResourceId{}) {
 		return fmt.Errorf("edge constraint must have a node defined")
 	}
 	return nil

@@ -9,8 +9,10 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
@@ -94,20 +96,20 @@ var dockerfileFargate []byte
 
 var sequelizeReplaceRE = regexp.MustCompile(`new (\w+\.|\b)Sequelize\(`)
 
-func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotation, construct core.Construct) error {
+func (r *AwsRuntime) TransformPersist(file *types.SourceFile, annot *types.Annotation, construct construct.Construct) error {
 	importModule := ""
 	switch construct.(type) {
-	case *core.Fs:
+	case *types.Fs:
 		importModule = sanitization.IdentifierSanitizer.Apply("fs_" + annot.Capability.ID)
-	case *core.Kv:
+	case *types.Kv:
 		importModule = "keyvalue"
-	case *core.Secrets:
+	case *types.Secrets:
 		importModule = "secret"
-	case *core.Orm:
+	case *types.Orm:
 		importModule = "orm"
-	case *core.RedisCluster:
+	case *types.RedisCluster:
 		importModule = "redis_cluster"
-	case *core.RedisNode:
+	case *types.RedisNode:
 		importModule = "redis_node"
 	default:
 		return fmt.Errorf("could not get runtime import file name for persist type: %v", construct.Id().Name)
@@ -119,7 +121,7 @@ func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotat
 	}
 
 	switch construct.(type) {
-	case *core.Orm:
+	case *types.Orm:
 		cfg := r.Config.GetPersistOrm(annot.Capability.ID)
 		if cfg.Type == "cockroachdb_serverless" {
 			oldNodeContent := annot.Node.Content()
@@ -145,7 +147,7 @@ func (r *AwsRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotat
 	return nil
 }
 
-func (r *AwsRuntime) AddKvRuntimeFiles(unit *core.ExecutionUnit) error {
+func (r *AwsRuntime) AddKvRuntimeFiles(unit *types.ExecutionUnit) error {
 	return r.AddRuntimeFiles(unit, kvRuntimeFiles)
 }
 
@@ -153,7 +155,7 @@ type FsTemplateData struct {
 	BucketNameEnvVar string
 }
 
-func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, bucketNameEnvVar string, id string) error {
+func (r *AwsRuntime) AddFsRuntimeFiles(unit *types.ExecutionUnit, bucketNameEnvVar string, id string) error {
 	templateData := FsTemplateData{BucketNameEnvVar: bucketNameEnvVar}
 	content, err := fsRuntimeFiles.ReadFile("fs.js.tmpl")
 	if err != nil {
@@ -163,25 +165,25 @@ func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, bucketNameEnvVa
 	return err
 }
 
-func (r *AwsRuntime) AddSecretRuntimeFiles(unit *core.ExecutionUnit) error {
+func (r *AwsRuntime) AddSecretRuntimeFiles(unit *types.ExecutionUnit) error {
 	return r.AddRuntimeFiles(unit, secretRuntimeFiles)
 }
 
-func (r *AwsRuntime) AddOrmRuntimeFiles(unit *core.ExecutionUnit) error {
+func (r *AwsRuntime) AddOrmRuntimeFiles(unit *types.ExecutionUnit) error {
 	return r.AddRuntimeFiles(unit, ormRuntimeFiles)
 }
 
-func (r *AwsRuntime) AddRedisNodeRuntimeFiles(unit *core.ExecutionUnit) error {
+func (r *AwsRuntime) AddRedisNodeRuntimeFiles(unit *types.ExecutionUnit) error {
 	return r.AddRuntimeFiles(unit, redisNodeRuntimeFiles)
 }
 
-func (r *AwsRuntime) AddRedisClusterRuntimeFiles(unit *core.ExecutionUnit) error {
+func (r *AwsRuntime) AddRedisClusterRuntimeFiles(unit *types.ExecutionUnit) error {
 	return r.AddRuntimeFiles(unit, redisClusterRuntimeFiles)
 }
 
-func (r *AwsRuntime) AddPubsubRuntimeFiles(unit *core.ExecutionUnit) error {
-	unit.EnvironmentVariables.Add(core.InternalStorageVariable)
-	err := r.AddFsRuntimeFiles(unit, core.InternalStorageVariable.Name, "payload")
+func (r *AwsRuntime) AddPubsubRuntimeFiles(unit *types.ExecutionUnit) error {
+	unit.EnvironmentVariables.Add(types.InternalStorageVariable)
+	err := r.AddFsRuntimeFiles(unit, types.InternalStorageVariable.Name, "payload")
 	if err != nil {
 		return err
 	}
@@ -189,7 +191,7 @@ func (r *AwsRuntime) AddPubsubRuntimeFiles(unit *core.ExecutionUnit) error {
 	return r.AddRuntimeFiles(unit, pubsubRuntimeFiles)
 }
 
-func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error {
+func (r *AwsRuntime) AddProxyRuntimeFiles(unit *types.ExecutionUnit, proxyType string) error {
 	var proxyFile []byte
 	unitType := r.Config.GetResourceType(unit)
 	switch proxyType {
@@ -203,8 +205,8 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 		proxyFile = proxyLambda
 
 		// We also need to add the Fs files because exec to exec calls in aws use s3
-		unit.EnvironmentVariables.Add(core.InternalStorageVariable)
-		err := r.AddFsRuntimeFiles(unit, core.InternalStorageVariable.Name, "payload")
+		unit.EnvironmentVariables.Add(types.InternalStorageVariable)
+		err := r.AddFsRuntimeFiles(unit, types.InternalStorageVariable.Name, "payload")
 		if err != nil {
 			return err
 		}
@@ -220,7 +222,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	return nil
 }
 
-func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
+func (r *AwsRuntime) AddExecRuntimeFiles(unit *types.ExecutionUnit, constructGraph *construct.ConstructGraph) error {
 	var DockerFile, Dispatcher []byte
 	unitType := r.Config.GetResourceType(unit)
 	switch unitType {
@@ -231,8 +233,8 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 		DockerFile = dockerfileLambda
 		Dispatcher = dispatcherLambda
 
-		unit.EnvironmentVariables.Add(core.InternalStorageVariable)
-		err := r.AddFsRuntimeFiles(unit, core.InternalStorageVariable.Name, "payload")
+		unit.EnvironmentVariables.Add(types.InternalStorageVariable)
+		err := r.AddFsRuntimeFiles(unit, types.InternalStorageVariable.Name, "payload")
 		if err != nil {
 			return err
 		}
@@ -267,7 +269,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 			if err != nil {
 				return errors.Wrap(err, "could not unmarshal 'main' from package.json")
 			}
-			files := make(map[string]core.File)
+			files := make(map[string]io.File)
 			for _, f := range unit.Files() {
 				files[f.Path()] = f
 			}
@@ -300,10 +302,16 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	return err
 }
 
-func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) (ExposeTemplateData, error) {
-	upstreamGateways := constructGraph.FindUpstreamGateways(unit)
+func getExposeTemplateData(unit *types.ExecutionUnit, constructGraph *construct.ConstructGraph) (ExposeTemplateData, error) {
+	upstreamConstructs := constructGraph.GetUpstreamConstructs(unit)
+	var upstreamGateways []*types.Gateway
+	for _, c := range upstreamConstructs {
+		if gw, ok := c.(*types.Gateway); ok {
+			upstreamGateways = append(upstreamGateways, gw)
+		}
+	}
 
-	var sourceGateway *core.Gateway
+	var sourceGateway *types.Gateway
 	for _, gw := range upstreamGateways {
 		if sourceGateway != nil && (sourceGateway.DefinedIn != gw.DefinedIn || sourceGateway.ExportVarName != gw.ExportVarName) {
 			return ExposeTemplateData{},
@@ -322,7 +330,7 @@ func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.Constr
 	return exposeData, nil
 }
 
-func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) error {
+func (r *AwsRuntime) AddRuntimeFiles(unit *types.ExecutionUnit, files embed.FS) error {
 	templateData := TemplateData{
 		ExecUnitName: unit.Name,
 	}
@@ -330,7 +338,7 @@ func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) e
 	return err
 }
 
-func (r *AwsRuntime) AddRuntimeFile(unit *core.ExecutionUnit, path string, content []byte) error {
+func (r *AwsRuntime) AddRuntimeFile(unit *types.ExecutionUnit, path string, content []byte) error {
 	templateData := TemplateData{
 		ExecUnitName: unit.Name,
 	}

@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"gopkg.in/yaml.v3"
@@ -21,7 +21,7 @@ type (
 		Scope() ConstraintScope
 		// IsSatisfied returns whether or not the constraint is satisfied based on the resource graph
 		// For a resource graph to be valid all constraints must be satisfied
-		IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource, classifier classification.Classifier) bool
+		IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier classification.Classifier) bool
 		// Validate returns whether or not the constraint is valid
 		Validate() error
 	}
@@ -34,8 +34,8 @@ type (
 
 	// Edge is a struct that represents how we take in data about an edge in the resource graph
 	Edge struct {
-		Source core.ResourceId `yaml:"source"`
-		Target core.ResourceId `yaml:"target"`
+		Source construct.ResourceId `yaml:"source"`
+		Target construct.ResourceId `yaml:"target"`
 	}
 
 	// ConstraintScope is an enum that represents the different scopes that a constraint can be applied to

@@ -3,7 +3,7 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -12,7 +12,7 @@ const DYNAMODB_TABLE_TYPE = "dynamodb_table"
 type (
 	DynamodbTable struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Attributes    []DynamodbTableAttribute
 		BillingMode   string
 		HashKey       string
@@ -34,14 +34,14 @@ const (
 
 type DynamodbTableCreateParams struct {
 	AppName string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 	Name    string
 }
 
-func (table *DynamodbTable) Create(dag *core.ResourceGraph, params DynamodbTableCreateParams) error {
+func (table *DynamodbTable) Create(dag *construct.ResourceGraph, params DynamodbTableCreateParams) error {
 	table.Name = aws.DynamoDBTableSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	table.ConstructRefs = params.Refs.Clone()
-	if existingTable, ok := core.GetResource[*DynamodbTable](dag, table.Id()); ok {
+	if existingTable, ok := construct.GetResource[*DynamodbTable](dag, table.Id()); ok {
 		existingTable.ConstructRefs.AddAll(params.Refs)
 	}
 	dag.AddResource(table)
@@ -49,21 +49,21 @@ func (table *DynamodbTable) Create(dag *core.ResourceGraph, params DynamodbTable
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (table *DynamodbTable) BaseConstructRefs() core.BaseConstructSet {
+func (table *DynamodbTable) BaseConstructRefs() construct.BaseConstructSet {
 	return table.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (table *DynamodbTable) Id() core.ResourceId {
-	return core.ResourceId{
+func (table *DynamodbTable) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     DYNAMODB_TABLE_TYPE,
 		Name:     table.Name,
 	}
 }
 
-func (table *DynamodbTable) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (table *DynamodbTable) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,

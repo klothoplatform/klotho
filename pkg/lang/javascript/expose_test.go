@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -125,7 +125,7 @@ async function setup() {
 			if !assert.NoError(err) {
 				return
 			}
-			var annot *core.Annotation
+			var annot *types.Annotation
 			for _, v := range f.Annotations() {
 				annot = v
 				break

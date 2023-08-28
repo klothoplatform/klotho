@@ -2,7 +2,6 @@ package aws
 
 import (
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
 	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 )
 
@@ -114,33 +113,4 @@ var defaultConfig = config.Defaults{
 
 func (a *AWS) GetDefaultConfig() config.Defaults {
 	return defaultConfig
-}
-
-// GetKindTypeMappings returns a list of valid types for the aws provider based on the kind passed in
-func (a *AWS) GetKindTypeMappings(construct core.Construct) []string {
-	switch construct.(type) {
-	case *core.ExecutionUnit:
-		return []string{kubernetes.DEPLOYMENT_TYPE, Ecs, Lambda, Ec2Instance}
-	case *core.Gateway:
-		return []string{string(ApiGateway), string(Alb)}
-	case *core.StaticUnit:
-		return []string{S3}
-	case *core.Fs:
-		return []string{S3}
-	case *core.Kv:
-		return []string{Dynamodb}
-	case *core.Orm:
-		return []string{Rds_postgres}
-	case *core.RedisNode:
-		return []string{Elasticache}
-	case *core.RedisCluster:
-		return []string{Memorydb}
-	case *core.Secrets:
-		return []string{Secrets_manager}
-	case *core.PubSub:
-		return []string{Sns}
-	case *core.Config:
-		return []string{S3, Secrets_manager}
-	}
-	return nil
 }

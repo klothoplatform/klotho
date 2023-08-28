@@ -7,7 +7,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	sitter "github.com/smacker/go-tree-sitter"
 )
@@ -53,7 +54,7 @@ func (imp Import) FullyQualifiedModule() string {
 	return moduleRoot
 }
 
-func FindFileImports(file *core.SourceFile) Imports {
+func FindFileImports(file *types.SourceFile) Imports {
 	return FindImports(file.Tree().RootNode())
 }
 
@@ -189,18 +190,18 @@ func FindImports(node *sitter.Node) Imports {
 	return fileImports
 }
 
-func UnitFileDependencyResolver(unit *core.ExecutionUnit) (core.FileDependencies, error) {
+func UnitFileDependencyResolver(unit *types.ExecutionUnit) (types.FileDependencies, error) {
 	return ResolveFileDependencies(unit.Files())
 }
 
-func ResolveFileDependencies(files map[string]core.File) (core.FileDependencies, error) {
-	fileDeps := make(core.FileDependencies) // map of [importing file path] -> Imported
+func ResolveFileDependencies(files map[string]io.File) (types.FileDependencies, error) {
+	fileDeps := make(types.FileDependencies) // map of [importing file path] -> Imported
 	for filePath, file := range files {
 		pyFile, isPy := Language.ID.CastFile(file)
 		if !isPy {
 			continue
 		}
-		imported := make(core.Imported) // map of [imported file path] -> References
+		imported := make(types.Imported) // map of [imported file path] -> References
 		fileDeps[filePath] = imported
 		log := zap.S().With(logging.FileField(file))
 
@@ -208,7 +209,7 @@ func ResolveFileDependencies(files map[string]core.File) (core.FileDependencies,
 		// TODO: find __init__.py refs (typically used in the form <package>.<name>)
 		initPy := path.Dir(filePath) + "/__init__.py"
 		if _, ok := files[initPy]; ok {
-			imported[initPy] = core.References{}
+			imported[initPy] = types.References{}
 		}
 
 		imports := FindFileImports(pyFile)
@@ -228,10 +229,10 @@ func ResolveFileDependencies(files map[string]core.File) (core.FileDependencies,
 }
 
 // dependenciesForImport returns all imports specified by spec
-func dependenciesForImport(relativeToPath string, spec Import, files map[string]core.File) (core.Imported, error) {
-	deps := make(core.Imported)
+func dependenciesForImport(relativeToPath string, spec Import, files map[string]io.File) (types.Imported, error) {
+	deps := make(types.Imported)
 	moduleDir := spec.FullyQualifiedModule()
-	importerFile := files[relativeToPath].(*core.SourceFile)
+	importerFile := files[relativeToPath].(*types.SourceFile)
 
 	rootModule, err := findImportedFile(moduleDir, relativeToPath, files)
 	if err != nil {
@@ -261,8 +262,8 @@ func dependenciesForImport(relativeToPath string, spec Import, files map[string]
 
 // referencesForImport returns all references of importModule within the program. If the import is aliased, importModule should be the alias
 // and not the real module name.
-func referencesForImport(program *sitter.Node, importModules map[string]struct{}) core.References {
-	refs := make(core.References)
+func referencesForImport(program *sitter.Node, importModules map[string]struct{}) types.References {
+	refs := make(types.References)
 	nextAttrUsage := DoQuery(program, FindQualifiedAttrUsage)
 	for {
 		attrUsage, found := nextAttrUsage()

@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -95,7 +96,7 @@ exports.e1 = new something.EventEmitter()`,
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			files := make(map[string]core.File)
+			files := make(map[string]io.File)
 			for filename, content := range tt.sources {
 				f, err := NewFile(filename, strings.NewReader(content))
 				if !assert.NoError(err) {
@@ -174,7 +175,7 @@ exports.e1 = new something.EventEmitter()`,
 				return
 			}
 
-			var annots []*core.Annotation
+			var annots []*types.Annotation
 			for _, a := range f.Annotations() {
 				if a.Capability.Name == annotation.PubSubCapability {
 					annots = append(annots, a)

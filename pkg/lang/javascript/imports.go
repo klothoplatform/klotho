@@ -4,11 +4,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
 	"github.com/klothoplatform/klotho/pkg/query"
 
-	"github.com/klothoplatform/klotho/pkg/core"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -115,7 +115,7 @@ func FindImportForVar(n *sitter.Node, varName string) Import {
 }
 
 // FindImportsInFile returns a map containing a list of imports for each import source referenced within the file.
-func FindImportsInFile(file *core.SourceFile) FileImports {
+func FindImportsInFile(file *types.SourceFile) FileImports {
 	return FindImportsAtNode(file.Tree().RootNode())
 }
 

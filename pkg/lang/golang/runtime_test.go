@@ -1,12 +1,13 @@
 package golang
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
 type NoopRuntime struct{}
 
-func (n NoopRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
+func (n NoopRuntime) AddExecRuntimeFiles(unit *types.ExecutionUnit, constructGraph *construct.ConstructGraph) error {
 	return nil
 }
 func (n NoopRuntime) GetFsImports() []Import {
@@ -25,6 +26,6 @@ func (n NoopRuntime) GetSecretsImports() []Import {
 func (n NoopRuntime) SetConfigType(id string, isSecret bool) {
 }
 
-func (n NoopRuntime) ActOnExposeListener(unit *core.ExecutionUnit, f *core.SourceFile, listener *HttpListener, routerName string) error {
+func (n NoopRuntime) ActOnExposeListener(unit *types.ExecutionUnit, f *types.SourceFile, listener *HttpListener, routerName string) error {
 	return nil
 }

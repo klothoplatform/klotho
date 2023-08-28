@@ -3,11 +3,11 @@ package cli
 import (
 	"net/http"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/provider/docker"
 
 	compiler "github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/engine"
 	envvar "github.com/klothoplatform/klotho/pkg/env_var"
 	execunit "github.com/klothoplatform/klotho/pkg/exec_unit"
@@ -76,7 +76,7 @@ func (b *PluginSetBuilder) AddEngine() error {
 		cloudProvider.Name():      cloudProvider,
 		kubernetesProvider.Name(): kubernetesProvider,
 		dockerProvider.Name():     dockerProvider,
-	}, kb, core.ListAllConstructs())
+	}, kb, types.ListAllConstructs())
 	if b.GuardRails != nil {
 		err = b.Engine.LoadGuardrails(b.GuardRails)
 		if err != nil {

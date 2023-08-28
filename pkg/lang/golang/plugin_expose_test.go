@@ -4,14 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
 
 var testRestAPIHandler = &restAPIHandler{
 	log:  zap.L(),
-	Unit: &core.ExecutionUnit{Name: "testUnit"},
+	Unit: &types.ExecutionUnit{Name: "testUnit"},
 }
 
 func Test_findHttpListenServe(t *testing.T) {
@@ -49,11 +49,11 @@ func Test_findHttpListenServe(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
-			var annot *core.Annotation
+			var annot *types.Annotation
 			for _, v := range f.Annotations() {
 				annot = v
 				break
@@ -100,7 +100,7 @@ func Test_findChiRouterDefinition(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -188,7 +188,7 @@ random.ListenAndServe(":3000", r)
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -221,7 +221,7 @@ func Test_findImports(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -297,7 +297,7 @@ func Test_findChiRouterMounts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -388,7 +388,7 @@ func Test_findChiRouterMountPackage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -436,7 +436,7 @@ func Test_findMiddleware(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -493,7 +493,7 @@ func Test_isMiddlewareCors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -558,9 +558,9 @@ func Test_findFilesForFunctionName(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			var files = make([]*core.SourceFile, 0)
+			var files = make([]*types.SourceFile, 0)
 			for path, src := range tt.sources {
-				f, err := core.NewSourceFile(path, strings.NewReader(src), Language)
+				f, err := types.NewSourceFile(path, strings.NewReader(src), Language)
 				if !assert.NoError(err) {
 					return
 				}

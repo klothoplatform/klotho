@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -100,11 +100,11 @@ v, err := runtimevarrrrr.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?dec
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
-			annot, ok := f.Annotations()[core.AnnotationKey{Capability: "persist", ID: "test"}]
+			annot, ok := f.Annotations()[types.AnnotationKey{Capability: "persist", ID: "test"}]
 
 			if !assert.True(ok) {
 				return
@@ -121,7 +121,7 @@ v, err := runtimevarrrrr.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?dec
 
 func Test_TransformSecrets(t *testing.T) {
 	type testResult struct {
-		resource core.Config
+		resource types.Config
 		content  string
 	}
 	tests := []struct {
@@ -145,7 +145,7 @@ import (
 v, err := runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder=string", path))
 `,
 			want: testResult{
-				resource: core.Config{Name: "test"},
+				resource: types.Config{Name: "test"},
 				content: `package fs
 
 import (
@@ -184,7 +184,7 @@ import (
 var v, err = runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder=string", path))
 `,
 			want: testResult{
-				resource: core.Config{Name: "test"},
+				resource: types.Config{Name: "test"},
 				content: `package fs
 
 import (
@@ -225,7 +225,7 @@ var err error
 v, err = runtimevar.OpenVariable(context.TODO(), fmt.Sprintf("file://%s?decoder=string", path))
 `,
 			want: testResult{
-				resource: core.Config{Name: "test"},
+				resource: types.Config{Name: "test"},
 				content: `package fs
 
 import (
@@ -258,13 +258,13 @@ var queryParams string
 
 			cfg := config.Application{AppName: "app"}
 			p := PersistSecretsPlugin{runtime: NoopRuntime{}, config: &cfg}
-			unit := core.ExecutionUnit{}
+			unit := types.ExecutionUnit{}
 
-			f, err := core.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
-			annot, ok := f.Annotations()[core.AnnotationKey{Capability: "config", ID: "test"}]
+			annot, ok := f.Annotations()[types.AnnotationKey{Capability: "config", ID: "test"}]
 
 			if !assert.True(ok) {
 				return

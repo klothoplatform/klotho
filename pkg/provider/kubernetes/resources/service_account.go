@@ -3,7 +3,7 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	corev1 "k8s.io/api/core/v1"
@@ -13,16 +13,16 @@ import (
 type (
 	ServiceAccount struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Object        *corev1.ServiceAccount
-		Values        map[string]core.IaCValue
+		Values        map[string]construct.IaCValue
 		FilePath      string
-		Cluster       core.ResourceId
+		Cluster       construct.ResourceId
 	}
 
 	ServiceAccountCreateParams struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet
+		ConstructRefs construct.BaseConstructSet
 	}
 )
 
@@ -31,18 +31,18 @@ const (
 )
 
 // BaseConstructRefs returns a slice containing the ids of any Klotho constructs is correlated to
-func (sa *ServiceAccount) BaseConstructRefs() core.BaseConstructSet { return sa.ConstructRefs }
+func (sa *ServiceAccount) BaseConstructRefs() construct.BaseConstructSet { return sa.ConstructRefs }
 
-func (sa *ServiceAccount) Id() core.ResourceId {
-	return core.ResourceId{
+func (sa *ServiceAccount) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     SERVICE_ACCOUNT_TYPE,
 		Name:     sa.Name,
 	}
 }
 
-func (sa *ServiceAccount) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (sa *ServiceAccount) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -59,8 +59,8 @@ func (sa *ServiceAccount) Path() string {
 	return sa.FilePath
 }
 
-func (sa *ServiceAccount) GetResourcesUsingServiceAccount(dag *core.ResourceGraph) []core.Resource {
-	var pods []core.Resource
+func (sa *ServiceAccount) GetResourcesUsingServiceAccount(dag *construct.ResourceGraph) []construct.Resource {
+	var pods []construct.Resource
 	for _, res := range dag.GetAllUpstreamResources(sa) {
 		if pod, ok := res.(*Pod); ok {
 			if pod.Object.Spec.ServiceAccountName == sa.Name {
@@ -75,7 +75,7 @@ func (sa *ServiceAccount) GetResourcesUsingServiceAccount(dag *core.ResourceGrap
 	return pods
 }
 
-func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (sa *ServiceAccount) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if sa.Cluster.IsZero() {
 		return fmt.Errorf("%s has no cluster", sa.Id())
 	}
@@ -85,11 +85,11 @@ func (sa *ServiceAccount) MakeOperational(dag *core.ResourceGraph, appName strin
 	return nil
 }
 
-func (sa *ServiceAccount) GetValues() map[string]core.IaCValue {
+func (sa *ServiceAccount) GetValues() map[string]construct.IaCValue {
 	return sa.Values
 }
 
-func (sa *ServiceAccount) Create(dag *core.ResourceGraph, params ServiceAccountCreateParams) error {
+func (sa *ServiceAccount) Create(dag *construct.ResourceGraph, params ServiceAccountCreateParams) error {
 	sa.Name = fmt.Sprintf("%s-%s", "service_account", params.Name)
 	sa.ConstructRefs = params.ConstructRefs.Clone()
 	sa.Object = &corev1.ServiceAccount{

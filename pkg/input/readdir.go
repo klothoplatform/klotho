@@ -10,12 +10,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/filter/predicate"
-	"github.com/klothoplatform/klotho/pkg/lang/csharp/csproj"
-
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/filter/predicate"
+	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp"
+	"github.com/klothoplatform/klotho/pkg/lang/csharp/csproj"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 	"github.com/klothoplatform/klotho/pkg/lang/golang"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
@@ -26,10 +26,10 @@ import (
 	"go.uber.org/zap"
 )
 
-type fileOpener[F core.File] func(path string, content io.Reader) (f F, err error)
+type fileOpener[F klotho_io.File] func(path string, content io.Reader) (f F, err error)
 
-func Upcast[F core.File](o fileOpener[F]) fileOpener[core.File] {
-	return func(path string, content io.Reader) (f core.File, err error) {
+func Upcast[F klotho_io.File](o fileOpener[F]) fileOpener[klotho_io.File] {
+	return func(path string, content io.Reader) (f klotho_io.File, err error) {
 		return o(path, content)
 	}
 }
@@ -39,9 +39,9 @@ type languageFiles struct {
 	foundSources     bool
 	foundProjectFile bool
 	// projectFileOpener reads a package file (as opposed to a source file).
-	// It is specialized to `core.File` so that the `languageFiles` struct doesn't need to be generic.
-	// If you have a func that returns a more specific type, use Upcast to convert it to `fileOpener[core.File]`.
-	projectFileOpener      fileOpener[core.File]
+	// It is specialized to `construct.File` so that the `languageFiles` struct doesn't need to be generic.
+	// If you have a func that returns a more specific type, use Upcast to convert it to `fileOpener[construct.File]`.
+	projectFileOpener      fileOpener[klotho_io.File]
 	projectFilePredicate   predicate.Predicate[string]
 	projectFileDescription string
 }
@@ -73,7 +73,7 @@ const (
 	DockerFile languageName = "Dockerfile"
 )
 
-func ReadOSDir(cfg config.Application, cfgFilePath string) (*core.InputFiles, error) {
+func ReadOSDir(cfg config.Application, cfgFilePath string) (*types.InputFiles, error) {
 	var root string
 	root, cfg.Path = splitPathRoot(cfg.Path)
 	zap.S().Debugf("Resolved root='%s' and search-path='%s'", root, cfg.Path)
@@ -112,8 +112,8 @@ func splitPathRoot(cfgPath string) (root, path string) {
 	return
 }
 
-func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.InputFiles, error) {
-	input := new(core.InputFiles)
+func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*types.InputFiles, error) {
+	input := new(types.InputFiles)
 
 	// Need to check for tsconfig before WalkDir to make sure it's read first before any JS files.
 	tsConfigPath := filepath.Join(cfg.Path, "tsconfig.json")
@@ -170,7 +170,7 @@ func ReadDir(fsys fs.FS, cfg config.Application, cfgFilePath string) (*core.Inpu
 			// (so './dist/index.js' becomes 'index.js')
 			relPath = info.Name()
 		}
-		var f core.File = &core.FileRef{
+		var f klotho_io.File = &klotho_io.FileRef{
 			FPath:          relPath,
 			RootConfigPath: cfg.Path,
 		}
@@ -301,10 +301,10 @@ func getProjectFilesInDir(fsys fs.FS, dir string, langs ...*languageFiles) map[l
 }
 
 // openFindUpward tries to open the `basename` file in `rootPath`, or any of its parent dirs up to `fsys`'s root.
-func openFindUpward(lang *languageFiles, rootPath string, fsys fs.FS) (core.File, error) {
+func openFindUpward(lang *languageFiles, rootPath string, fsys fs.FS) (klotho_io.File, error) {
 	for prjDir := rootPath; ; prjDir = filepath.Dir(prjDir) {
 		entries, err := fs.ReadDir(fsys, prjDir)
-		var projectFile core.File
+		var projectFile klotho_io.File
 		for _, entry := range entries {
 			if entry.IsDir() {
 				continue
@@ -341,7 +341,7 @@ func openFindUpward(lang *languageFiles, rootPath string, fsys fs.FS) (core.File
 	return nil, errors.Errorf("No %s file found", lang.projectFileDescription)
 }
 
-func addFile[F core.File](fsys fs.FS, path string, relPath string, opener fileOpener[F]) (core.File, error) {
+func addFile[F klotho_io.File](fsys fs.FS, path string, relPath string, opener fileOpener[F]) (klotho_io.File, error) {
 	f, err := fsys.Open(path)
 	if err != nil {
 		return nil, err

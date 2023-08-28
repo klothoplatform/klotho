@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 
-	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -646,7 +646,7 @@ const alias = require('module2').prop.field1.field2;
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile(tt.sourceFile.Path, strings.NewReader(tt.sourceFile.Content), Language)
+			f, err := types.NewSourceFile(tt.sourceFile.Path, strings.NewReader(tt.sourceFile.Content), Language)
 			if !assert.NoError(err) {
 				return
 			}

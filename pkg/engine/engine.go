@@ -7,9 +7,10 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
+	"github.com/klothoplatform/klotho/pkg/graph"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
@@ -25,9 +26,9 @@ type (
 		// The classification document that the engine uses for understanding resources
 		ClassificationDocument *classification.ClassificationDocument
 		// The constructs which the engine understands
-		Constructs []core.Construct
+		Constructs []construct.Construct
 		// The templates that the engine uses to make resources operational
-		ResourceTemplates map[core.ResourceId]*core.ResourceTemplate
+		ResourceTemplates map[construct.ResourceId]*construct.ResourceTemplate
 		// The templates that the engine uses to make edges operational
 		EdgeTemplates map[string]*knowledgebase.EdgeTemplate
 		// The context of the engine
@@ -40,35 +41,48 @@ type (
 	// The context is used to store the state of the engine
 	EngineContext struct {
 		Constraints                 map[constraints.ConstraintScope][]constraints.Constraint
-		InitialState                *core.ConstructGraph
-		WorkingState                *core.ConstructGraph
-		Solution                    *core.ResourceGraph
+		InitialState                *construct.ConstructGraph
+		WorkingState                *construct.ConstructGraph
+		Solution                    *construct.ResourceGraph
 		Decisions                   []Decision
-		constructExpansionSolutions map[core.ResourceId][]*ExpansionSolution
+		constructExpansionSolutions map[construct.ResourceId][]*ExpansionSolution
 		AppName                     string
 	}
 
 	SolveContext struct {
-		ResourceGraph       *core.ResourceGraph
-		constructsMapping   map[core.ResourceId]*ExpansionSolution
+		ResourceGraph       *construct.ResourceGraph
+		constructsMapping   map[construct.ResourceId]*ExpansionSolution
 		errors              error
 		unsolvedConstraints []constraints.Constraint
 	}
 
+	SolveOutput struct {
+		ResourceGraph *construct.ResourceGraph
+		Decision      []Decision
+	}
+
 	// Decision is a struct that represents a decision made by the engine
 	Decision struct {
-		// The resources that was modified
-		Resources []core.Resource
-		// The edges that were modified
-		Edges []constraints.Edge
-		// The constructs that influenced this if applicable
-		Construct core.BaseConstruct
-		// The constraint that was applied
-		Constraint constraints.Constraint
+		Level  Level
+		Result DecisionResult
+		Action Action
+		Cause  Cause
 	}
+	Action string
+	Cause  struct {
+		Expansion           *graph.Edge[construct.Resource]
+		Configuration       *graph.Edge[construct.Resource]
+		OperationalResource construct.Resource
+		Constraint          *constraints.Constraint
+	}
+	DecisionResult struct {
+		Resource construct.Resource
+		Edge     graph.Edge[construct.Resource]
+	}
+	Level string
 )
 
-func NewEngine(providers map[string]provider.Provider, kb knowledgebase.EdgeKB, constructs []core.Construct) *Engine {
+func NewEngine(providers map[string]provider.Provider, kb knowledgebase.EdgeKB, constructs []construct.Construct) *Engine {
 	engine := &Engine{
 		Providers:              providers,
 		KnowledgeBase:          kb,
@@ -76,7 +90,7 @@ func NewEngine(providers map[string]provider.Provider, kb knowledgebase.EdgeKB, 
 		ClassificationDocument: classification.BaseClassificationDocument,
 	}
 	_ = engine.LoadGuardrails([]byte(""))
-	engine.ResourceTemplates = make(map[core.ResourceId]*core.ResourceTemplate)
+	engine.ResourceTemplates = make(map[construct.ResourceId]*construct.ResourceTemplate)
 	for _, p := range providers {
 		for id, template := range p.GetOperationalTempaltes() {
 			engine.ResourceTemplates[id] = template
@@ -130,13 +144,17 @@ func (e *Engine) LoadClassifications(classificationPath string, fs embed.FS) err
 	return err
 }
 
-func (e *Engine) LoadContext(initialState *core.ConstructGraph, constraints map[constraints.ConstraintScope][]constraints.Constraint, appName string) {
+func (e *Engine) LoadContext(initialState *construct.ConstructGraph, constraints map[constraints.ConstraintScope][]constraints.Constraint, appName string) {
 	e.Context = EngineContext{
-		InitialState:                initialState,
 		Constraints:                 constraints,
-		WorkingState:                initialState.Clone(),
-		constructExpansionSolutions: make(map[core.ResourceId][]*ExpansionSolution),
+		constructExpansionSolutions: make(map[construct.ResourceId][]*ExpansionSolution),
 		AppName:                     appName,
+	}
+	if initialState != nil {
+		e.Context.InitialState = initialState
+		e.Context.WorkingState = initialState.Clone()
+	} else if e.Context.WorkingState == nil {
+		e.Context.WorkingState = construct.NewConstructGraph()
 	}
 }
 
@@ -151,7 +169,7 @@ func (e *Engine) LoadContext(initialState *core.ConstructGraph, constraints map[
 // - Expand all edges in the end state using the engines knowledge base and the EdgeConstraints provided
 // - Configure all resources by applying ResourceConstraints
 // - Configure all resources in the end state using the engines knowledge base
-func (e *Engine) Run() (*core.ResourceGraph, error) {
+func (e *Engine) Run() (*construct.ResourceGraph, error) {
 
 	//Validate all resources used in constraints are allowed
 	err := e.checkIfConstraintsAreAllowed()
@@ -229,10 +247,10 @@ func (e *Engine) Run() (*core.ResourceGraph, error) {
 func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 	var joinedErr error
 	toSolve := []*SolveContext{}
-	baseGraph := core.NewResourceGraph()
+	baseGraph := construct.NewResourceGraph()
 	for _, res := range e.Context.WorkingState.ListConstructs() {
-		if res.Id().Provider != core.AbstractConstructProvider {
-			resource, ok := res.(core.Resource)
+		if res.Id().Provider != construct.AbstractConstructProvider {
+			resource, ok := res.(construct.Resource)
 			if !ok {
 				joinedErr = errors.Join(joinedErr, fmt.Errorf("construct %s is not a resource", res.Id()))
 				continue
@@ -241,24 +259,24 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 		}
 	}
 	for _, dep := range e.Context.WorkingState.ListDependencies() {
-		if dep.Source.Id().Provider != core.AbstractConstructProvider && dep.Destination.Id().Provider != core.AbstractConstructProvider {
-			baseGraph.AddDependencyWithData(dep.Source.(core.Resource), dep.Destination.(core.Resource), dep.Properties.Data)
+		if dep.Source.Id().Provider != construct.AbstractConstructProvider && dep.Destination.Id().Provider != construct.AbstractConstructProvider {
+			baseGraph.AddDependencyWithData(dep.Source.(construct.Resource), dep.Destination.(construct.Resource), dep.Properties.Data)
 		}
 	}
 	if len(e.Context.constructExpansionSolutions) == 0 {
 		return []*SolveContext{{ResourceGraph: baseGraph}}, nil
 	}
-	var combinations []map[core.ResourceId]*ExpansionSolution
+	var combinations []map[construct.ResourceId]*ExpansionSolution
 	for resId, sol := range e.Context.constructExpansionSolutions {
 		if len(combinations) == 0 {
 			for _, s := range sol {
-				combinations = append(combinations, map[core.ResourceId]*ExpansionSolution{resId: s})
+				combinations = append(combinations, map[construct.ResourceId]*ExpansionSolution{resId: s})
 			}
 		} else {
-			var newCombinations []map[core.ResourceId]*ExpansionSolution
+			var newCombinations []map[construct.ResourceId]*ExpansionSolution
 			for _, comb := range combinations {
 				for _, s := range sol {
-					newComb := make(map[core.ResourceId]*ExpansionSolution)
+					newComb := make(map[construct.ResourceId]*ExpansionSolution)
 					for k, v := range comb {
 						newComb[k] = v
 					}
@@ -271,9 +289,9 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 	}
 	for _, comb := range combinations {
 		rg := baseGraph.Clone()
-		mappedRes := map[core.ResourceId][]core.Resource{}
+		mappedRes := map[construct.ResourceId][]construct.Resource{}
 		// we will clone resources otherwise we will have side effects as we solve context by context due to pointing at the same resource
-		clonedRes := map[core.ResourceId]core.Resource{}
+		clonedRes := map[construct.ResourceId]construct.Resource{}
 		for resId, sol := range comb {
 			for _, res := range sol.Graph.ListResources() {
 				copiedRes := cloneResource(res)
@@ -289,13 +307,13 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 		}
 
 		for _, dep := range e.Context.WorkingState.ListDependencies() {
-			if dep.Source.Id().Provider != core.AbstractConstructProvider && dep.Destination.Id().Provider != core.AbstractConstructProvider {
+			if dep.Source.Id().Provider != construct.AbstractConstructProvider && dep.Destination.Id().Provider != construct.AbstractConstructProvider {
 				continue
 			}
 
-			srcNodes := []core.Resource{}
-			dstNodes := []core.Resource{}
-			if dep.Source.Id().Provider == core.AbstractConstructProvider {
+			srcNodes := []construct.Resource{}
+			dstNodes := []construct.Resource{}
+			if dep.Source.Id().Provider == construct.AbstractConstructProvider {
 				srcResources, ok := mappedRes[dep.Source.Id()]
 				if !ok {
 					joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to find resources for construct %s", dep.Source.Id()))
@@ -306,11 +324,11 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 					srcNodes = append(srcNodes, cloneResource(res))
 				}
 			} else {
-				srcClone := cloneResource(dep.Source.(core.Resource))
+				srcClone := cloneResource(dep.Source.(construct.Resource))
 				srcNodes = append(srcNodes, srcClone)
 			}
 
-			if dep.Destination.Id().Provider == core.AbstractConstructProvider {
+			if dep.Destination.Id().Provider == construct.AbstractConstructProvider {
 				dstResources, ok := mappedRes[dep.Destination.Id()]
 				if !ok {
 					joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to find resources for construct %s", dep.Destination.Id()))
@@ -321,7 +339,7 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 					dstNodes = append(dstNodes, cloneResource(res))
 				}
 			} else {
-				dstClone := cloneResource(dep.Destination.(core.Resource))
+				dstClone := cloneResource(dep.Destination.(construct.Resource))
 				dstNodes = append(dstNodes, dstClone)
 			}
 
@@ -339,11 +357,11 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 	return toSolve, joinedErr
 }
 
-func (e *Engine) SolveGraph(context *SolveContext) (*core.ResourceGraph, error) {
+func (e *Engine) SolveGraph(context *SolveContext) (*construct.ResourceGraph, error) {
 	NUM_LOOPS := 10
 	graph := context.ResourceGraph
 	errorMap := make(map[int][]error)
-	var configuredEdges map[core.ResourceId]map[core.ResourceId]bool
+	var configuredEdges map[construct.ResourceId]map[construct.ResourceId]bool
 	for i := 0; i < NUM_LOOPS; i++ {
 		for _, rc := range e.Context.Constraints[constraints.ResourceConstraintScope] {
 			err := e.ApplyResourceConstraint(graph, rc.(*constraints.ResourceConstraint))
@@ -426,18 +444,14 @@ func (e *Engine) SolveGraph(context *SolveContext) (*core.ResourceGraph, error) 
 //
 // Currently ApplicationConstraints can only be applied if the representing nodes are klotho constructs and not provider level resources
 func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationConstraint) error {
-	decision := Decision{
-		Constraint: constraint,
-	}
 	switch constraint.Operator {
 	case constraints.AddConstraintOperator:
-		if constraint.Node.Provider == core.AbstractConstructProvider {
+		if constraint.Node.Provider == construct.AbstractConstructProvider {
 			construct, err := e.getConstructFromInputId(constraint.Node)
 			if err != nil {
 				return err
 			}
 			e.Context.WorkingState.AddConstruct(construct)
-			decision.Construct = construct
 		} else {
 			provider := e.Providers[constraint.Node.Provider]
 			resource, err := provider.CreateResourceFromId(constraint.Node, e.Context.InitialState)
@@ -457,22 +471,21 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 		return nil
 
 	case constraints.ReplaceConstraintOperator:
-		construct := e.Context.WorkingState.GetConstruct(constraint.Node)
-		if construct == nil {
-			return fmt.Errorf("construct, %s, does not exist", construct.Id())
+		c := e.Context.WorkingState.GetConstruct(constraint.Node)
+		if c == nil {
+			return fmt.Errorf("construct, %s, does not exist", c.Id())
 		}
 		replacement, err := e.getConstructFromInputId(constraint.ReplacementNode)
 		if err != nil {
 			return err
 		}
-		decision.Construct = construct
-		upstream := e.Context.WorkingState.GetUpstreamConstructs(construct)
-		downstream := e.Context.WorkingState.GetDownstreamConstructs(construct)
-		err = e.Context.WorkingState.RemoveConstructAndEdges(construct)
+		upstream := e.Context.WorkingState.GetUpstreamConstructs(c)
+		downstream := e.Context.WorkingState.GetDownstreamConstructs(c)
+		err = e.Context.WorkingState.RemoveConstructAndEdges(c)
 		if err != nil {
 			return err
 		}
-		var reconnectToUpstream []core.BaseConstruct
+		var reconnectToUpstream []construct.BaseConstruct
 		for _, up := range upstream {
 			deleted := e.deleteConstruct(up, false, false)
 			if deleted {
@@ -481,7 +494,7 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 				reconnectToUpstream = append(reconnectToUpstream, up)
 			}
 		}
-		var reconnectToDownstream []core.BaseConstruct
+		var reconnectToDownstream []construct.BaseConstruct
 		for _, down := range downstream {
 			deleted := e.deleteConstruct(down, false, false)
 			if deleted {
@@ -506,7 +519,6 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 
 		return nil
 	}
-	e.Context.Decisions = append(e.Context.Decisions, decision)
 	return nil
 }
 
@@ -518,9 +530,6 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 // - MustContainConstraintOperator, the constraint is applied to the edge before edge expansion, so when we use the knowledgebase to expand it ensures the node in the constraint is present in the expanded path
 // - MustNotContainConstraintOperator, the constraint is applied to the edge before edge expansion, so when we use the knowledgebase to expand it ensures the node in the constraint is not present in the expanded path
 func (e *Engine) ApplyEdgeConstraint(constraint *constraints.EdgeConstraint) error {
-	decision := Decision{
-		Constraint: constraint,
-	}
 	if e.Context.WorkingState.GetConstruct(constraint.Target.Source) == nil {
 		node, err := e.getConstructFromId(constraint.Target.Source)
 		if err != nil {
@@ -539,8 +548,7 @@ func (e *Engine) ApplyEdgeConstraint(constraint *constraints.EdgeConstraint) err
 	case constraints.MustExistConstraintOperator:
 		e.Context.WorkingState.AddDependencyWithData(constraint.Target.Source, constraint.Target.Target, knowledgebase.EdgeData{Attributes: constraint.Attributes})
 	case constraints.MustNotExistConstraintOperator:
-		if constraint.Target.Source.Provider == core.AbstractConstructProvider && constraint.Target.Target.Provider == core.AbstractConstructProvider {
-			decision.Edges = []constraints.Edge{constraint.Target}
+		if constraint.Target.Source.Provider == construct.AbstractConstructProvider && constraint.Target.Target.Provider == construct.AbstractConstructProvider {
 			return e.Context.WorkingState.RemoveDependency(constraint.Target.Source, constraint.Target.Target)
 		} else {
 			return fmt.Errorf("edge constraints with the MustNotExistConstraintOperator are not available at this time for resources, %s", constraint.Target)
@@ -556,7 +564,6 @@ func (e *Engine) ApplyEdgeConstraint(constraint *constraints.EdgeConstraint) err
 			return err
 		}
 	}
-	e.Context.Decisions = append(e.Context.Decisions, decision)
 	return nil
 }
 
@@ -575,13 +582,13 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 		case constraints.MustContainConstraintOperator:
 			data = knowledgebase.EdgeData{
 				Constraint: knowledgebase.EdgeConstraint{
-					NodeMustExist: []core.Resource{resource},
+					NodeMustExist: []construct.Resource{resource},
 				},
 			}
 		case constraints.MustNotContainConstraintOperator:
 			data = knowledgebase.EdgeData{
 				Constraint: knowledgebase.EdgeConstraint{
-					NodeMustNotExist: []core.Resource{resource},
+					NodeMustNotExist: []construct.Resource{resource},
 				},
 			}
 		}
@@ -612,7 +619,7 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 	return nil
 }
 
-func (e *Engine) ApplyResourceConstraint(graph *core.ResourceGraph, constraint *constraints.ResourceConstraint) error {
+func (e *Engine) ApplyResourceConstraint(graph *construct.ResourceGraph, constraint *constraints.ResourceConstraint) error {
 	resource := graph.GetResource(constraint.Target)
 	if resource == nil {
 		return fmt.Errorf("resource %s does not exist", constraint.Target)
@@ -630,7 +637,7 @@ func (e *Engine) ValidateConstraints(context *SolveContext) []constraints.Constr
 	var unsatisfied []constraints.Constraint
 	for _, contextConstraints := range e.Context.Constraints {
 		for _, constraint := range contextConstraints {
-			mappedRes := map[core.ResourceId][]core.Resource{}
+			mappedRes := map[construct.ResourceId][]construct.Resource{}
 			for resId, sol := range context.constructsMapping {
 				mappedRes[resId] = sol.DirectlyMappedResources
 			}
@@ -643,23 +650,23 @@ func (e *Engine) ValidateConstraints(context *SolveContext) []constraints.Constr
 	return unsatisfied
 }
 
-func (e *Engine) getConstructFromId(id core.ResourceId) (core.BaseConstruct, error) {
-	var construct core.BaseConstruct
+func (e *Engine) getConstructFromId(id construct.ResourceId) (construct.BaseConstruct, error) {
+	var c construct.BaseConstruct
 	var err error
-	if id.Provider == core.AbstractConstructProvider {
-		construct, err = e.getConstructFromInputId(id)
+	if id.Provider == construct.AbstractConstructProvider {
+		c, err = e.getConstructFromInputId(id)
 		if err != nil {
 			return nil, err
 		}
 
 	} else {
 		provider := e.Providers[id.Provider]
-		construct, err = provider.CreateResourceFromId(id, e.Context.InitialState)
+		c, err = provider.CreateResourceFromId(id, e.Context.InitialState)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return construct, err
+	return c, err
 }
 
 func (e *Engine) checkIfConstraintsAreAllowed() error {
@@ -667,25 +674,25 @@ func (e *Engine) checkIfConstraintsAreAllowed() error {
 	for _, constraint := range e.Context.Constraints[constraints.ApplicationConstraintScope] {
 		switch c := constraint.(type) {
 		case *constraints.ApplicationConstraint:
-			if c.Node.Provider != core.AbstractConstructProvider && !e.Guardrails.IsResourceAllowed(c.Node) {
+			if c.Node.Provider != construct.AbstractConstructProvider && !e.Guardrails.IsResourceAllowed(c.Node) {
 				joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s, is not allowed in application constraint %s", c.Node, c))
 			}
-			if c.ReplacementNode.Provider != core.AbstractConstructProvider && (c.ReplacementNode != core.ResourceId{}) && !e.Guardrails.IsResourceAllowed(c.ReplacementNode) {
+			if c.ReplacementNode.Provider != construct.AbstractConstructProvider && (c.ReplacementNode != construct.ResourceId{}) && !e.Guardrails.IsResourceAllowed(c.ReplacementNode) {
 				joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s, is not allowed in application constraint %s", c.ReplacementNode, c))
 			}
 
 		case *constraints.EdgeConstraint:
-			if c.Node.Provider != core.AbstractConstructProvider && (c.Node != core.ResourceId{}) && !e.Guardrails.IsResourceAllowed(c.Node) {
+			if c.Node.Provider != construct.AbstractConstructProvider && (c.Node != construct.ResourceId{}) && !e.Guardrails.IsResourceAllowed(c.Node) {
 				joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s, is not allowed in edge constraint %s", c.Node, c))
 			}
-			if c.Target.Source.Provider != core.AbstractConstructProvider && !e.Guardrails.IsResourceAllowed(c.Target.Source) {
+			if c.Target.Source.Provider != construct.AbstractConstructProvider && !e.Guardrails.IsResourceAllowed(c.Target.Source) {
 				joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s, is not allowed in edge constraint %s", c.Target.Source, c))
 			}
-			if c.Target.Target.Provider != core.AbstractConstructProvider && !e.Guardrails.IsResourceAllowed(c.Target.Target) {
+			if c.Target.Target.Provider != construct.AbstractConstructProvider && !e.Guardrails.IsResourceAllowed(c.Target.Target) {
 				joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s, is not allowed in edge constraint %s", c.Target.Target, c))
 			}
 		case *constraints.ResourceConstraint:
-			if c.Target.Provider != core.AbstractConstructProvider && !e.Guardrails.IsResourceAllowed(c.Target) {
+			if c.Target.Provider != construct.AbstractConstructProvider && !e.Guardrails.IsResourceAllowed(c.Target) {
 				joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s, is not allowed in resource constraint %s", c.Target, c))
 			}
 		}

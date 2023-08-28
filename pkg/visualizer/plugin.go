@@ -8,7 +8,8 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/cli_config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	"go.uber.org/zap"
 )
 
@@ -67,7 +68,7 @@ func (a *visApi) request(method string, path string, contentType string, accept 
 }
 
 // Translate implements compiler.IaCPlugin - although it's not strictly an IaC plugin, it uses the same API
-func (p Plugin) Translate(dag *core.ResourceGraph) ([]core.File, error) {
+func (p Plugin) Translate(dag *construct.ResourceGraph) ([]klotho_io.File, error) {
 	api := visApi{client: p.Client}
 
 	if validateTypes {
@@ -94,19 +95,19 @@ func (p Plugin) Translate(dag *core.ResourceGraph) ([]core.File, error) {
 		return nil, err
 	}
 
-	diagram := &core.RawFile{
+	diagram := &klotho_io.RawFile{
 		FPath:   "diagram.png",
 		Content: resp,
 	}
 
-	return []core.File{
+	return []klotho_io.File{
 		spec,
 		diagram,
 	}, nil
 }
 
 // Translate implements compiler.IaCPlugin - although it's not strictly an IaC plugin, it uses the same API
-func (p Plugin) Generate(dag *core.ResourceGraph, filenamePrefix string) ([]core.File, error) {
+func (p Plugin) Generate(dag *construct.ResourceGraph, filenamePrefix string) ([]klotho_io.File, error) {
 	api := visApi{client: p.Client}
 
 	if validateTypes {
@@ -133,12 +134,12 @@ func (p Plugin) Generate(dag *core.ResourceGraph, filenamePrefix string) ([]core
 		return nil, err
 	}
 
-	diagram := &core.RawFile{
+	diagram := &klotho_io.RawFile{
 		FPath:   fmt.Sprintf("%s-diagram.png", filenamePrefix),
 		Content: resp,
 	}
 
-	return []core.File{
+	return []klotho_io.File{
 		spec,
 		diagram,
 	}, nil

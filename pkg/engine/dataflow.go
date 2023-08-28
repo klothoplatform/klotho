@@ -6,7 +6,7 @@ import (
 	docker "github.com/klothoplatform/klotho/pkg/provider/docker/resources"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/filter"
 	awsResources "github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	k8sResources "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
@@ -22,10 +22,10 @@ type nodeSettings struct {
 
 // resourcePostFilter is a function that determines whether a resource should remain in the final dataflow DAG
 // based on its own properties and the state of the dataflow DAG.
-type resourcePostFilter func(resource core.Resource, dag *core.ResourceGraph) bool
+type resourcePostFilter func(resource construct.Resource, dag *construct.ResourceGraph) bool
 
-func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
-	dataFlowDag := core.NewResourceGraph()
+func (e *Engine) GetDataFlowDag() *construct.ResourceGraph {
+	dataFlowDag := construct.NewResourceGraph()
 	typesWeCareAbout := []string{
 		awsResources.APP_RUNNER_SERVICE_TYPE,
 		awsResources.LAMBDA_FUNCTION_TYPE,
@@ -76,7 +76,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	// Add summarized edges between types we care about to the dataflow DAG.
 	// Only irrelevant nodes in a path of edges between the source and destination will be summarized.
 	for _, src := range dataFlowDag.ListResources() {
-		var srcParents []core.Resource
+		var srcParents []construct.Resource
 		hasPathWithoutOthers := false
 		for _, dst := range dataFlowDag.ListResources() {
 			if src == dst {
@@ -118,7 +118,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 				}
 			}
 		}
-		var parentPaths [][]core.Resource
+		var parentPaths [][]construct.Resource
 		for _, p := range srcParents {
 			paths, err := e.Context.Solution.AllPaths(src.Id(), p.Id())
 			if err != nil {
@@ -132,7 +132,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 		})
 
 		// TODO: look into why FindPathsInGraph is returning unrelated paths. this filter is a workaround.
-		parentPaths = filter.NewSimpleFilter[[]core.Resource](func(path []core.Resource) bool {
+		parentPaths = filter.NewSimpleFilter[[]construct.Resource](func(path []construct.Resource) bool {
 			return collectionutil.Contains(parentResourceTypes, path[len(path)-1].Id().Type)
 		}).Apply(parentPaths...)
 
@@ -158,7 +158,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	// Configure Parent/Child relationships and remove child -> parent edges.
 	for _, dep := range dataFlowDag.ListDependencies() {
 		if collectionutil.Contains(parentResourceTypes, dep.Destination.Id().Type) {
-			if core.IsResourceChild(dataFlowDag, dep.Source, dep.Destination) {
+			if construct.IsResourceChild(dataFlowDag, dep.Source, dep.Destination) {
 				err := dataFlowDag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
 				if err != nil {
 					zap.S().Debugf("Error removing dependency %s", err.Error())
@@ -174,7 +174,7 @@ func (e *Engine) GetDataFlowDag() *core.ResourceGraph {
 	return dataFlowDag
 }
 
-func helmChartFilter(resource core.Resource, dag *core.ResourceGraph) bool {
+func helmChartFilter(resource construct.Resource, dag *construct.ResourceGraph) bool {
 	chart, ok := resource.(*k8sResources.HelmChart)
 	if !ok {
 		return true
@@ -183,7 +183,7 @@ func helmChartFilter(resource core.Resource, dag *core.ResourceGraph) bool {
 }
 
 // filterParentEdges removes edges between resources categorized as parent resources and other resources depending on their AllowIncoming and AllowOutgoing settings.
-func filterParentEdges(dataFlowDag *core.ResourceGraph, parentResources map[string]nodeSettings) {
+func filterParentEdges(dataFlowDag *construct.ResourceGraph, parentResources map[string]nodeSettings) {
 	for _, dep := range dataFlowDag.ListDependencies() {
 		if settings, ok := parentResources[dep.Destination.Id().Type]; ok {
 			if !settings.AllowIncoming {

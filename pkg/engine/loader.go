@@ -6,7 +6,7 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/yaml_util"
 
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -18,17 +18,17 @@ import (
 func (e *Engine) LoadConstructGraphFromFile(path string) error {
 	type (
 		inputMetadata struct {
-			Id       core.ResourceId    `yaml:"id"`
-			Metadata *yaml_util.RawNode `yaml:"metadata"`
+			Id       construct.ResourceId `yaml:"id"`
+			Metadata *yaml_util.RawNode   `yaml:"metadata"`
 		}
 		inputGraph struct {
-			Resources        []core.ResourceId `yaml:"resources"`
-			ResourceMetadata []inputMetadata   `yaml:"resourceMetadata"`
-			Edges            []core.OutputEdge `yaml:"edges"`
+			Resources        []construct.ResourceId `yaml:"resources"`
+			ResourceMetadata []inputMetadata        `yaml:"resourceMetadata"`
+			Edges            []construct.OutputEdge `yaml:"edges"`
 		}
 	)
 
-	resourcesMap := map[core.ResourceId]core.BaseConstruct{}
+	resourcesMap := map[construct.ResourceId]construct.BaseConstruct{}
 	var input inputGraph
 	f, err := os.Open(path)
 	if err != nil {
@@ -65,18 +65,18 @@ func (e *Engine) LoadConstructGraphFromFile(path string) error {
 	for _, edge := range input.Edges {
 		e.Context.InitialState.AddDependency(resourcesMap[edge.Source].Id(), resourcesMap[edge.Destination].Id())
 	}
-
+	e.Context.WorkingState = e.Context.InitialState.Clone()
 	return nil
 }
 
-func (e *Engine) LoadResources(resources []core.ResourceId, resourcesMap map[core.ResourceId]core.BaseConstruct) error {
+func (e *Engine) LoadResources(resources []construct.ResourceId, resourcesMap map[construct.ResourceId]construct.BaseConstruct) error {
 	var joinedErr error
 	for _, node := range resources {
-		if node.Provider == core.AbstractConstructProvider {
+		if node.Provider == construct.AbstractConstructProvider {
 			continue
 		}
 		provider := e.Providers[node.Provider]
-		typeToResource := make(map[string]core.Resource)
+		typeToResource := make(map[string]construct.Resource)
 		for _, res := range provider.ListResources() {
 			typeToResource[res.Id().Type] = res
 		}
@@ -86,9 +86,9 @@ func (e *Engine) LoadResources(resources []core.ResourceId, resourcesMap map[cor
 			continue
 		}
 		newResource := reflect.New(reflect.TypeOf(res).Elem()).Interface()
-		resource, ok := newResource.(core.Resource)
+		resource, ok := newResource.(construct.Resource)
 		if !ok {
-			joinedErr = j_errors.Join(joinedErr, fmt.Errorf("item %s of type %T is not of type core.Resource", node, newResource))
+			joinedErr = j_errors.Join(joinedErr, fmt.Errorf("item %s of type %T is not of type construct.Resource", node, newResource))
 			continue
 		}
 		reflect.ValueOf(resource).Elem().FieldByName("Name").SetString(node.Name)
@@ -97,11 +97,11 @@ func (e *Engine) LoadResources(resources []core.ResourceId, resourcesMap map[cor
 	return joinedErr
 }
 
-func (e *Engine) loadConstructs(resources []core.ResourceId, resourceMap map[core.ResourceId]core.BaseConstruct) error {
+func (e *Engine) loadConstructs(resources []construct.ResourceId, resourceMap map[construct.ResourceId]construct.BaseConstruct) error {
 
 	var joinedErr error
 	for _, res := range resources {
-		if res.Provider != core.AbstractConstructProvider {
+		if res.Provider != construct.AbstractConstructProvider {
 			continue
 		}
 		construct, err := e.getConstructFromInputId(res)
@@ -115,30 +115,30 @@ func (e *Engine) loadConstructs(resources []core.ResourceId, resourceMap map[cor
 	return joinedErr
 }
 
-func (e *Engine) getConstructFromInputId(res core.ResourceId) (core.Construct, error) {
-	typeToResource := make(map[string]core.Construct)
+func (e *Engine) getConstructFromInputId(res construct.ResourceId) (construct.Construct, error) {
+	typeToResource := make(map[string]construct.Construct)
 	for _, construct := range e.Constructs {
 		typeToResource[construct.Id().Type] = construct
 	}
-	construct, ok := typeToResource[res.Type]
+	c, ok := typeToResource[res.Type]
 	if !ok {
 		return nil, fmt.Errorf("unable to find resource of type %s", res.Type)
 	}
-	newConstruct := reflect.New(reflect.TypeOf(construct).Elem()).Interface()
-	construct, ok = newConstruct.(core.Construct)
+	newConstruct := reflect.New(reflect.TypeOf(c).Elem()).Interface()
+	c, ok = newConstruct.(construct.Construct)
 	if !ok {
-		return nil, fmt.Errorf("item %s of type %T is not of type core.Resource", res, newConstruct)
+		return nil, fmt.Errorf("item %s of type %T is not of type construct.Resource", res, newConstruct)
 	}
-	reflect.ValueOf(construct).Elem().FieldByName("Name").SetString(res.Name)
-	return construct, nil
+	reflect.ValueOf(c).Elem().FieldByName("Name").SetString(res.Name)
+	return c, nil
 }
 
 func (e *Engine) LoadConstraintsFromFile(path string) (map[constraints.ConstraintScope][]constraints.Constraint, error) {
 
 	type Input struct {
-		Constraints []any             `yaml:"constraints"`
-		Resources   []core.ResourceId `yaml:"resources"`
-		Edges       []core.OutputEdge `yaml:"edges"`
+		Constraints []any                  `yaml:"constraints"`
+		Resources   []construct.ResourceId `yaml:"resources"`
+		Edges       []construct.OutputEdge `yaml:"edges"`
 	}
 
 	input := Input{}
@@ -161,7 +161,7 @@ func (e *Engine) LoadConstraintsFromFile(path string) (map[constraints.Constrain
 }
 
 // correctPointers is used to ensure that the attributes of each baseconstruct points to the baseconstruct which exists in the graph by passing those in via a resource map.
-func correctPointers(source core.BaseConstruct, resourceMap map[core.ResourceId]core.BaseConstruct) error {
+func correctPointers(source construct.BaseConstruct, resourceMap map[construct.ResourceId]construct.BaseConstruct) error {
 	sourceValue := reflect.ValueOf(source)
 	sourceType := sourceValue.Type()
 	if sourceType.Kind() == reflect.Pointer {
@@ -193,7 +193,7 @@ func correctPointers(source core.BaseConstruct, resourceMap map[core.ResourceId]
 // setNestedResourcesFromIds looks at attributes of a base construct which correspond to resources and sets the field to be the construct which exists in the resource map,
 //
 //	based on the id which exists in the field currently.
-func setNestedResourceFromId(source core.BaseConstruct, targetField reflect.Value, resourceMap map[core.ResourceId]core.BaseConstruct) {
+func setNestedResourceFromId(source construct.BaseConstruct, targetField reflect.Value, resourceMap map[construct.ResourceId]construct.BaseConstruct) {
 	if targetField.Kind() == reflect.Pointer && targetField.IsNil() {
 		return
 	}
@@ -201,12 +201,12 @@ func setNestedResourceFromId(source core.BaseConstruct, targetField reflect.Valu
 		return
 	}
 	switch value := targetField.Interface().(type) {
-	case core.Resource:
+	case construct.Resource:
 		targetValue := reflect.ValueOf(resourceMap[value.Id()])
 		if targetField.IsValid() && targetField.CanSet() && targetValue.IsValid() {
 			targetField.Set(targetValue)
 		}
-	case core.IaCValue:
+	case construct.IaCValue:
 		// fields are already set and have no subfields to process
 	default:
 		correspondingValue := targetField

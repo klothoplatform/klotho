@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/lang/golang"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
@@ -37,7 +38,7 @@ var dockerfileLambda []byte
 //go:embed Exec_Dockerfile
 var dockerfileExec []byte
 
-func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
+func (r *AwsRuntime) AddExecRuntimeFiles(unit *types.ExecutionUnit, constructGraph *construct.ConstructGraph) error {
 	var DockerFile []byte
 	unitType := r.Cfg.GetResourceType(unit)
 	switch unitType {
@@ -65,7 +66,7 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 
 var commentRegex = regexp.MustCompile(`(?m)^(\s*)`)
 
-func (r *AwsRuntime) ActOnExposeListener(unit *core.ExecutionUnit, f *core.SourceFile, listener *golang.HttpListener, routerName string) error {
+func (r *AwsRuntime) ActOnExposeListener(unit *types.ExecutionUnit, f *types.SourceFile, listener *golang.HttpListener, routerName string) error {
 	unitType := r.Cfg.GetResourceType(unit)
 	//TODO: Move comment listen code to library logic like JS does eventually
 	if unitType == aws.Lambda {

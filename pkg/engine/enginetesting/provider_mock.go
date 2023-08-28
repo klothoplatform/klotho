@@ -1,14 +1,15 @@
 package enginetesting
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
 
 type MockProvider struct {
 }
 
-func (p *MockProvider) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error) {
+func (p *MockProvider) CreateResourceFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.Resource, error) {
 	switch id.Type {
 	case "mock1":
 		return &MockResource1{Name: id.Name}, nil
@@ -21,26 +22,26 @@ func (p *MockProvider) CreateResourceFromId(id core.ResourceId, dag *core.Constr
 	}
 	return nil, nil
 }
-func (p *MockProvider) ExpandConstruct(construct core.Construct, cg *core.ConstructGraph, dag *core.ResourceGraph, constructType string, attributes map[string]any) (directlyMappedResources []core.Resource, err error) {
-	switch c := construct.(type) {
-	case *core.ExecutionUnit:
+func (p *MockProvider) ExpandConstruct(c construct.Construct, cg *construct.ConstructGraph, dag *construct.ResourceGraph, constructType string, attributes map[string]any) (directlyMappedResources []construct.Resource, err error) {
+	switch c := c.(type) {
+	case *types.ExecutionUnit:
 		switch constructType {
 		case "mock1":
-			mock1 := &MockResource1{Name: c.Name, ConstructRefs: core.BaseConstructSetOf(c)}
+			mock1 := &MockResource1{Name: c.Name, ConstructRefs: construct.BaseConstructSetOf(c)}
 			dag.AddResource(mock1)
-			return []core.Resource{mock1}, nil
+			return []construct.Resource{mock1}, nil
 		}
 		return nil, nil
-	case *core.Orm:
-		res := &MockResource3{Name: c.Name, ConstructRefs: core.BaseConstructSetOf(c)}
+	case *types.Orm:
+		res := &MockResource3{Name: c.Name, ConstructRefs: construct.BaseConstructSetOf(c)}
 		dag.AddResource(res)
-		return []core.Resource{res}, nil
+		return []construct.Resource{res}, nil
 	}
 	return nil, nil
 }
 
-func (p *MockProvider) ListResources() []core.Resource {
-	return []core.Resource{
+func (p *MockProvider) ListResources() []construct.Resource {
+	return []construct.Resource{
 		&MockResource1{},
 		&MockResource2{},
 		&MockResource3{},
@@ -48,8 +49,8 @@ func (p *MockProvider) ListResources() []core.Resource {
 	}
 }
 
-func (p *MockProvider) GetOperationalTempaltes() map[core.ResourceId]*core.ResourceTemplate {
-	return map[core.ResourceId]*core.ResourceTemplate{}
+func (p *MockProvider) GetOperationalTempaltes() map[construct.ResourceId]*construct.ResourceTemplate {
+	return map[construct.ResourceId]*construct.ResourceTemplate{}
 }
 
 func (p *MockProvider) GetEdgeTempaltes() map[string]*knowledgebase.EdgeTemplate {

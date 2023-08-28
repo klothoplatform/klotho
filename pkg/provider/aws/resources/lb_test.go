@@ -3,15 +3,16 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_LoadBalancerCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[LoadBalancerCreateParams, *LoadBalancer]{
 		{
 			Name: "nil check ip",
@@ -23,7 +24,7 @@ func Test_LoadBalancerCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, lb *LoadBalancer) {
 				assert.Equal(lb.Name, "my-app-instance")
-				assert.Equal(lb.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(lb.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -37,14 +38,14 @@ func Test_LoadBalancerCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, lb *LoadBalancer) {
 				assert.Equal(lb.Name, "my-app-instance")
-				assert.Equal(lb.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(lb.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = LoadBalancerCreateParams{
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				AppName: "my-app",
 				Name:    "instance",
 			}
@@ -54,9 +55,9 @@ func Test_LoadBalancerCreate(t *testing.T) {
 }
 
 func Test_TargetGroupCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[TargetGroupCreateParams, *TargetGroup]{
 		{
 			Name: "nil check ip",
@@ -68,7 +69,7 @@ func Test_TargetGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, tg *TargetGroup) {
 				assert.Equal(tg.Name, "my-app-instance")
-				assert.Equal(tg.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(tg.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -82,14 +83,14 @@ func Test_TargetGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, tg *TargetGroup) {
 				assert.Equal(tg.Name, "my-app-instance")
-				assert.Equal(tg.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(tg.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = TargetGroupCreateParams{
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				AppName: "my-app",
 				Name:    "instance",
 			}
@@ -99,9 +100,9 @@ func Test_TargetGroupCreate(t *testing.T) {
 }
 
 func Test_ListenerCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[ListenerCreateParams, *Listener]{
 		{
 			Name: "nil check ip",
@@ -113,7 +114,7 @@ func Test_ListenerCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, l *Listener) {
 				assert.Equal(l.Name, "my-app-instance")
-				assert.Equal(l.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(l.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -127,14 +128,14 @@ func Test_ListenerCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, l *Listener) {
 				assert.Equal(l.Name, "my-app-instance")
-				assert.Equal(l.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(l.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = ListenerCreateParams{
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				AppName: "my-app",
 				Name:    "instance",
 			}

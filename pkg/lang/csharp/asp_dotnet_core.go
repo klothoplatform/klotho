@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/filter"
 	sitter "github.com/smacker/go-tree-sitter"
 )
@@ -15,7 +15,7 @@ type ASPDotNetCoreStartupClass struct {
 	ConfigureServicesMethod MethodDeclaration
 }
 
-func FindASPDotnetCoreStartupClass(unit *core.ExecutionUnit) (*ASPDotNetCoreStartupClass, error) {
+func FindASPDotnetCoreStartupClass(unit *types.ExecutionUnit) (*ASPDotNetCoreStartupClass, error) {
 	var startupClass *ASPDotNetCoreStartupClass
 	declarers := unit.GetDeclaringFiles()
 	if declarers == nil {
@@ -33,7 +33,7 @@ func FindASPDotnetCoreStartupClass(unit *core.ExecutionUnit) (*ASPDotNetCoreStar
 		}
 	}
 	for _, declarer := range declarers {
-		execUnitAnnotations := filter.NewSimpleFilter[*core.Annotation](func(a *core.Annotation) bool {
+		execUnitAnnotations := filter.NewSimpleFilter[*types.Annotation](func(a *types.Annotation) bool {
 			return a.Capability.Name == annotation.ExecutionUnitCapability &&
 				a.Capability.ID == unit.Name
 		}).Apply(declarer.Annotations().InSourceOrder()...)
@@ -67,8 +67,8 @@ func getDotnetCoreStartupClass(classNode *sitter.Node) (ASPDotNetCoreStartupClas
 			md.ReturnType == "void" &&
 			!md.HasAnyModifier("static", "abstract") &&
 			len(md.Parameters) == 2 &&
-			IsValidTypeName(md.Parameters[0].TypeNode, "Microsoft.AspNetCore.Builder", "IApplicationBuilder") &&
-			IsValidTypeName(md.Parameters[1].TypeNode, "Microsoft.AspNetCore.Hosting", "IWebHostEnvironment")
+			IsValidTypeName(md.Parameters[0].TypeNode, "Microsoft.AspNetconstruct.Builder", "IApplicationBuilder") &&
+			IsValidTypeName(md.Parameters[1].TypeNode, "Microsoft.AspNetconstruct.Hosting", "IWebHostEnvironment")
 	}).Apply(methods...)
 	if len(configureMethods) != 1 {
 		return ASPDotNetCoreStartupClass{}, false

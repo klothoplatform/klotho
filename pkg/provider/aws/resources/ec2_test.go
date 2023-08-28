@@ -3,15 +3,16 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_Ec2InstanceCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[Ec2InstanceCreateParams, *Ec2Instance]{
 		{
 			Name: "nil instance",
@@ -23,7 +24,7 @@ func Test_Ec2InstanceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, instance *Ec2Instance) {
 				assert.Equal(instance.Name, "my-app-profile")
-				assert.Equal(instance.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(instance.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -37,7 +38,7 @@ func Test_Ec2InstanceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, instance *Ec2Instance) {
 				assert.Equal(instance.Name, "my-app-profile")
-				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
+				expect := initialRefs.CloneWith(construct.BaseConstructSetOf(eu))
 				assert.Equal(instance.ConstructRefs, expect)
 			},
 		},
@@ -46,7 +47,7 @@ func Test_Ec2InstanceCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = Ec2InstanceCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "profile",
 			}
 			tt.Run(t)
@@ -55,9 +56,9 @@ func Test_Ec2InstanceCreate(t *testing.T) {
 }
 
 func Test_AMICreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[AMICreateParams, *AMI]{
 		{
 			Name: "nil instance",
@@ -69,7 +70,7 @@ func Test_AMICreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ami *AMI) {
 				assert.Equal(ami.Name, "my-app-profile")
-				assert.Equal(ami.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(ami.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -83,7 +84,7 @@ func Test_AMICreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ami *AMI) {
 				assert.Equal(ami.Name, "my-app-profile")
-				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
+				expect := initialRefs.CloneWith(construct.BaseConstructSetOf(eu))
 				assert.Equal(ami.ConstructRefs, expect)
 			},
 		},
@@ -92,7 +93,7 @@ func Test_AMICreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = AMICreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "profile",
 			}
 			tt.Run(t)

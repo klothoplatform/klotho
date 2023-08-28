@@ -3,7 +3,7 @@ package constraints
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,17 +40,17 @@ func Test_ParseConstraintsFromFile(t *testing.T) {
 				ApplicationConstraintScope: {
 					&ApplicationConstraint{
 						Operator: AddConstraintOperator,
-						Node:     core.ResourceId{Provider: core.AbstractConstructProvider, Type: "execution_unit", Name: "my_compute"},
+						Node:     construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: "execution_unit", Name: "my_compute"},
 					},
 					&ApplicationConstraint{
 						Operator: AddConstraintOperator,
-						Node:     core.ResourceId{Provider: core.AbstractConstructProvider, Type: "orm", Name: "my_orm"},
+						Node:     construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: "orm", Name: "my_orm"},
 					},
 				},
 				ConstructConstraintScope: {
 					&ConstructConstraint{
 						Operator: EqualsConstraintOperator,
-						Target:   core.ResourceId{Provider: core.AbstractConstructProvider, Type: "orm", Name: "my_orm"},
+						Target:   construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: "orm", Name: "my_orm"},
 						Type:     "rds_instance",
 					},
 				},
@@ -58,16 +58,16 @@ func Test_ParseConstraintsFromFile(t *testing.T) {
 					&EdgeConstraint{
 						Operator: MustContainConstraintOperator,
 						Target: Edge{
-							Source: core.ResourceId{Provider: core.AbstractConstructProvider, Type: "execution_unit", Name: "my_compute"},
-							Target: core.ResourceId{Provider: core.AbstractConstructProvider, Type: "orm", Name: "my_orm"},
+							Source: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: "execution_unit", Name: "my_compute"},
+							Target: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: "orm", Name: "my_orm"},
 						},
-						Node: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+						Node: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 					},
 				},
 				ResourceConstraintScope: {
 					&ResourceConstraint{
 						Operator: AddConstraintOperator,
-						Target:   core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+						Target:   construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 						Property: "db_instance_class",
 						Value:    "db.t3.micro",
 					},

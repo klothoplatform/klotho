@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,207 +13,207 @@ func Test_ConfigureField(t *testing.T) {
 	tests := []struct {
 		name     string
 		resource *enginetesting.MockResource6
-		config   core.Configuration
+		config   construct.Configuration
 		want     *enginetesting.MockResource6
 	}{
-		// {
-		// 	name:     "simple int",
-		// 	resource: &enginetesting.MockResource6{},
-		// 	config: core.Configuration{
-		// 		Field: "Field1",
-		// 		Value: 1,
-		// 	},
-		// 	want: &enginetesting.MockResource6{
-		// 		Field1: 1,
-		// 	},
-		// },
-		// {
-		// 	name:     "simple string",
-		// 	resource: &enginetesting.MockResource6{},
-		// 	config: core.Configuration{
-		// 		Field: "Field2",
-		// 		Value: "two",
-		// 	},
-		// 	want: &enginetesting.MockResource6{
-		// 		Field2: "two",
-		// 	},
-		// },
-		// {
-		// 	name:     "simple bool",
-		// 	resource: &enginetesting.MockResource6{},
-		// 	config: core.Configuration{
-		// 		Field: "Field3",
-		// 		Value: true,
-		// 	},
-		// 	want: &enginetesting.MockResource6{
-		// 		Field3: true,
-		// 	},
-		// },
-		// {
-		// 	name:     "simple array",
-		// 	resource: &enginetesting.MockResource6{},
-		// 	config: core.Configuration{
-		// 		Field: "Arr1",
-		// 		Value: []string{"1", "2", "3"},
-		// 	},
-		// 	want: &enginetesting.MockResource6{
-		// 		Arr1: []string{"1", "2", "3"},
-		// 	},
-		// },
-		// {
-		// 	name:     "struct array",
-		// 	resource: &enginetesting.MockResource6{},
-		// 	config: core.Configuration{
-		// 		Field: "Arr2",
-		// 		Value: []map[string]interface{}{
-		// 			{
-		// 				"Field1": 1,
-		// 				"Field2": "two",
-		// 				"Field3": true,
-		// 			},
-		// 			{
-		// 				"Field1": 2,
-		// 				"Field2": "three",
-		// 				"Field3": false,
-		// 			},
-		// 		},
-		// 	},
-		// 	want: &enginetesting.MockResource6{
-		// 		Arr2: []enginetesting.TestRes1{
-		// 			{
-		// 				Field1: 1,
-		// 				Field2: "two",
-		// 				Field3: true,
-		// 			},
-		// 			{
-		// 				Field1: 2,
-		// 				Field2: "three",
-		// 				Field3: false,
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name:     "pointer array",
-		// 	resource: &enginetesting.MockResource6{},
-		// 	config: core.Configuration{
-		// 		Field: "Arr3",
-		// 		Value: []map[string]interface{}{
-		// 			{
-		// 				"Field1": 1,
-		// 				"Field2": "two",
-		// 				"Field3": true,
-		// 			},
-		// 			{
-		// 				"Field1": 2,
-		// 				"Field2": "three",
-		// 				"Field3": false,
-		// 			},
-		// 		},
-		// 	},
-		// 	want: &enginetesting.MockResource6{
-		// 		Arr3: []*enginetesting.TestRes1{
-		// 			{
-		// 				Field1: 1,
-		// 				Field2: "two",
-		// 				Field3: true,
-		// 			},
-		// 			{
-		// 				Field1: 2,
-		// 				Field2: "three",
-		// 				Field3: false,
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name:     "struct",
-		// 	resource: &enginetesting.MockResource6{},
-		// 	config: core.Configuration{
-		// 		Field: "Struct1", Value: map[string]interface{}{
-		// 			"Field1": 1,
-		// 			"Field2": "two",
-		// 			"Field3": true,
-		// 			"Arr1":   []string{"1", "2", "3"},
-		// 		},
-		// 	},
-		// 	want: &enginetesting.MockResource6{
-		// 		Struct1: enginetesting.TestRes1{
-		// 			Field1: 1,
-		// 			Field2: "two",
-		// 			Field3: true,
-		// 			Arr1:   []string{"1", "2", "3"},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name:     "pointer",
-		// 	resource: &enginetesting.MockResource6{},
-		// 	config: core.Configuration{
-		// 		Field: "Struct2", Value: map[string]interface{}{
-		// 			"Field1": 1,
-		// 			"Field2": "two",
-		// 			"Field3": true,
-		// 			"Arr1":   []string{"1", "2", "3"},
-		// 		},
-		// 	},
-		// 	want: &enginetesting.MockResource6{
-		// 		Struct2: &enginetesting.TestRes1{
-		// 			Field1: 1,
-		// 			Field2: "two",
-		// 			Field3: true,
-		// 			Arr1:   []string{"1", "2", "3"},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name:     "pointer sub field",
-		// 	resource: &enginetesting.MockResource6{},
-		// 	config: core.Configuration{
-		// 		Field: "Struct2.Field1", Value: 3,
-		// 	},
-		// 	want: &enginetesting.MockResource6{
-		// 		Struct2: &enginetesting.TestRes1{
-		// 			Field1: 3,
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name:     "struct sub field",
-		// 	resource: &enginetesting.MockResource6{},
-		// 	config: core.Configuration{
-		// 		Field: "Struct1.Field1", Value: 4,
-		// 	},
-		// 	want: &enginetesting.MockResource6{
-		// 		Struct1: enginetesting.TestRes1{
-		// 			Field1: 4,
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name: "appends to array",
-		// 	resource: &enginetesting.MockResource6{
-		// 		Arr2: []enginetesting.TestRes1{
-		// 			{
-		// 				Field1: 1,
-		// 				Field2: "two",
-		// 				Field3: true,
-		// 			},
-		// 		},
-		// 	},
-		// 	config: core.Configuration{
-		// 		Field: "Arr2", Value: []map[string]interface{}{
-		// 			{
-		// 				"Field1": 2,
-		// 				"Field2": "three",
-		// 				"Field3": false,
-		// 			},
-		// 		},
-		// 	},
-		// 	want: &enginetesting.MockResource6{
-		// 		Arr2: []enginetesting.TestRes1{{Field1: 1, Field2: "two", Field3: true}, {Field1: 2, Field2: "three", Field3: false}},
-		// 	},
-		// },
+		{
+			name:     "simple int",
+			resource: &enginetesting.MockResource6{},
+			config: construct.Configuration{
+				Field: "Field1",
+				Value: 1,
+			},
+			want: &enginetesting.MockResource6{
+				Field1: 1,
+			},
+		},
+		{
+			name:     "simple string",
+			resource: &enginetesting.MockResource6{},
+			config: construct.Configuration{
+				Field: "Field2",
+				Value: "two",
+			},
+			want: &enginetesting.MockResource6{
+				Field2: "two",
+			},
+		},
+		{
+			name:     "simple bool",
+			resource: &enginetesting.MockResource6{},
+			config: construct.Configuration{
+				Field: "Field3",
+				Value: true,
+			},
+			want: &enginetesting.MockResource6{
+				Field3: true,
+			},
+		},
+		{
+			name:     "simple array",
+			resource: &enginetesting.MockResource6{},
+			config: construct.Configuration{
+				Field: "Arr1",
+				Value: []string{"1", "2", "3"},
+			},
+			want: &enginetesting.MockResource6{
+				Arr1: []string{"1", "2", "3"},
+			},
+		},
+		{
+			name:     "struct array",
+			resource: &enginetesting.MockResource6{},
+			config: construct.Configuration{
+				Field: "Arr2",
+				Value: []map[string]interface{}{
+					{
+						"Field1": 1,
+						"Field2": "two",
+						"Field3": true,
+					},
+					{
+						"Field1": 2,
+						"Field2": "three",
+						"Field3": false,
+					},
+				},
+			},
+			want: &enginetesting.MockResource6{
+				Arr2: []enginetesting.TestRes1{
+					{
+						Field1: 1,
+						Field2: "two",
+						Field3: true,
+					},
+					{
+						Field1: 2,
+						Field2: "three",
+						Field3: false,
+					},
+				},
+			},
+		},
+		{
+			name:     "pointer array",
+			resource: &enginetesting.MockResource6{},
+			config: construct.Configuration{
+				Field: "Arr3",
+				Value: []map[string]interface{}{
+					{
+						"Field1": 1,
+						"Field2": "two",
+						"Field3": true,
+					},
+					{
+						"Field1": 2,
+						"Field2": "three",
+						"Field3": false,
+					},
+				},
+			},
+			want: &enginetesting.MockResource6{
+				Arr3: []*enginetesting.TestRes1{
+					{
+						Field1: 1,
+						Field2: "two",
+						Field3: true,
+					},
+					{
+						Field1: 2,
+						Field2: "three",
+						Field3: false,
+					},
+				},
+			},
+		},
+		{
+			name:     "struct",
+			resource: &enginetesting.MockResource6{},
+			config: construct.Configuration{
+				Field: "Struct1", Value: map[string]interface{}{
+					"Field1": 1,
+					"Field2": "two",
+					"Field3": true,
+					"Arr1":   []string{"1", "2", "3"},
+				},
+			},
+			want: &enginetesting.MockResource6{
+				Struct1: enginetesting.TestRes1{
+					Field1: 1,
+					Field2: "two",
+					Field3: true,
+					Arr1:   []string{"1", "2", "3"},
+				},
+			},
+		},
+		{
+			name:     "pointer",
+			resource: &enginetesting.MockResource6{},
+			config: construct.Configuration{
+				Field: "Struct2", Value: map[string]interface{}{
+					"Field1": 1,
+					"Field2": "two",
+					"Field3": true,
+					"Arr1":   []string{"1", "2", "3"},
+				},
+			},
+			want: &enginetesting.MockResource6{
+				Struct2: &enginetesting.TestRes1{
+					Field1: 1,
+					Field2: "two",
+					Field3: true,
+					Arr1:   []string{"1", "2", "3"},
+				},
+			},
+		},
+		{
+			name:     "pointer sub field",
+			resource: &enginetesting.MockResource6{},
+			config: construct.Configuration{
+				Field: "Struct2.Field1", Value: 3,
+			},
+			want: &enginetesting.MockResource6{
+				Struct2: &enginetesting.TestRes1{
+					Field1: 3,
+				},
+			},
+		},
+		{
+			name:     "struct sub field",
+			resource: &enginetesting.MockResource6{},
+			config: construct.Configuration{
+				Field: "Struct1.Field1", Value: 4,
+			},
+			want: &enginetesting.MockResource6{
+				Struct1: enginetesting.TestRes1{
+					Field1: 4,
+				},
+			},
+		},
+		{
+			name: "appends to array",
+			resource: &enginetesting.MockResource6{
+				Arr2: []enginetesting.TestRes1{
+					{
+						Field1: 1,
+						Field2: "two",
+						Field3: true,
+					},
+				},
+			},
+			config: construct.Configuration{
+				Field: "Arr2", Value: []map[string]interface{}{
+					{
+						"Field1": 2,
+						"Field2": "three",
+						"Field3": false,
+					},
+				},
+			},
+			want: &enginetesting.MockResource6{
+				Arr2: []enginetesting.TestRes1{{Field1: 1, Field2: "two", Field3: true}, {Field1: 2, Field2: "three", Field3: false}},
+			},
+		},
 		{
 			name: "does not append duplicates to array",
 			resource: &enginetesting.MockResource6{
@@ -225,7 +225,7 @@ func Test_ConfigureField(t *testing.T) {
 					},
 				},
 			},
-			config: core.Configuration{
+			config: construct.Configuration{
 				Field: "Arr2", Value: []map[string]interface{}{
 					{
 						"Field1": 1,
@@ -243,47 +243,47 @@ func Test_ConfigureField(t *testing.T) {
 			resource: &enginetesting.MockResource6{
 				Arr1: []string{"1", "2", "3"},
 			},
-			config: core.Configuration{
+			config: construct.Configuration{
 				Field: "Arr1", Value: []string{"1", "2", "3", "4"},
 			},
 			want: &enginetesting.MockResource6{
 				Arr1: []string{"1", "2", "3", "4"},
 			},
 		},
-		// {
-		// 	name: "overwrites map key",
-		// 	resource: &enginetesting.MockResource6{
-		// 		Map1: map[string]core.IaCValue{
-		// 			"key1": {ResourceId: core.ResourceId{Name: "a"}, Property: "value1"},
-		// 		},
-		// 	},
-		// 	config: core.Configuration{
-		// 		Field: "Map1[key1]", Value: map[string]interface{}{
-		// 			"Property": "value2",
-		// 		},
-		// 	},
-		// 	want: &enginetesting.MockResource6{
-		// 		Map1: map[string]core.IaCValue{
-		// 			"key1": {Property: "value2", ResourceId: core.ResourceId{}},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name: "set field on map value",
-		// 	resource: &enginetesting.MockResource6{
-		// 		Map1: map[string]core.IaCValue{
-		// 			"key1": {ResourceId: core.ResourceId{Name: "a"}, Property: "value1"},
-		// 		},
-		// 	},
-		// 	config: core.Configuration{
-		// 		Field: "Map1[key1].Property", Value: "value2",
-		// 	},
-		// 	want: &enginetesting.MockResource6{
-		// 		Map1: map[string]core.IaCValue{
-		// 			"key1": {ResourceId: core.ResourceId{Name: "a"}, Property: "value2"},
-		// 		},
-		// 	},
-		// },
+		{
+			name: "overwrites map key",
+			resource: &enginetesting.MockResource6{
+				Map1: map[string]construct.IaCValue{
+					"key1": {ResourceId: construct.ResourceId{Name: "a"}, Property: "value1"},
+				},
+			},
+			config: construct.Configuration{
+				Field: "Map1[key1]", Value: map[string]interface{}{
+					"Property": "value2",
+				},
+			},
+			want: &enginetesting.MockResource6{
+				Map1: map[string]construct.IaCValue{
+					"key1": {Property: "value2", ResourceId: construct.ResourceId{}},
+				},
+			},
+		},
+		{
+			name: "set field on map value",
+			resource: &enginetesting.MockResource6{
+				Map1: map[string]construct.IaCValue{
+					"key1": {ResourceId: construct.ResourceId{Name: "a"}, Property: "value1"},
+				},
+			},
+			config: construct.Configuration{
+				Field: "Map1[key1].Property", Value: "value2",
+			},
+			want: &enginetesting.MockResource6{
+				Map1: map[string]construct.IaCValue{
+					"key1": {ResourceId: construct.ResourceId{Name: "a"}, Property: "value2"},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -303,7 +303,7 @@ func Test_parseFieldName(t *testing.T) {
 		name      string
 		resource  *enginetesting.MockResource6
 		fieldName string
-		resources []core.Resource
+		resources []construct.Resource
 		want      interface{}
 		mapKey    *SetMapKey
 		wantErr   bool
@@ -348,7 +348,7 @@ func Test_parseFieldName(t *testing.T) {
 			name:      "map",
 			resource:  &enginetesting.MockResource6{},
 			fieldName: "Map1",
-			want:      map[string]core.IaCValue(nil),
+			want:      map[string]construct.IaCValue(nil),
 		},
 		{
 			name:      "struct sub field",
@@ -379,66 +379,66 @@ func Test_parseFieldName(t *testing.T) {
 		{
 			name: "map sub field",
 			resource: &enginetesting.MockResource6{
-				Map1: map[string]core.IaCValue{"key1": {Property: "value1"}},
+				Map1: map[string]construct.IaCValue{"key1": {Property: "value1"}},
 			},
 			fieldName: "Map1[key1]",
-			want:      core.IaCValue{Property: "value1"},
+			want:      construct.IaCValue{Property: "value1"},
 			mapKey: &SetMapKey{
-				Map:   reflect.ValueOf(map[string]core.IaCValue{"key1": {Property: "value1"}}),
+				Map:   reflect.ValueOf(map[string]construct.IaCValue{"key1": {Property: "value1"}}),
 				Key:   reflect.ValueOf("key1"),
-				Value: reflect.ValueOf(core.IaCValue{Property: "value1"}),
+				Value: reflect.ValueOf(construct.IaCValue{Property: "value1"}),
 			},
 		},
 		{
 			name: "map sub field index does not exist",
 			resource: &enginetesting.MockResource6{
-				Map1: map[string]core.IaCValue(nil),
+				Map1: map[string]construct.IaCValue(nil),
 			},
 			fieldName: "Map1[key1]",
-			want:      core.IaCValue{},
+			want:      construct.IaCValue{},
 			mapKey: &SetMapKey{
-				Map:   reflect.ValueOf(map[string]core.IaCValue{}),
+				Map:   reflect.ValueOf(map[string]construct.IaCValue{}),
 				Key:   reflect.ValueOf("key1"),
-				Value: reflect.ValueOf(core.IaCValue{}),
+				Value: reflect.ValueOf(construct.IaCValue{}),
 			},
 		},
 		{
 			name:      "map sub field, nil map",
 			resource:  &enginetesting.MockResource6{},
 			fieldName: "Map1[key1]",
-			want:      core.IaCValue{},
+			want:      construct.IaCValue{},
 			mapKey: &SetMapKey{
-				Map:   reflect.ValueOf(map[string]core.IaCValue{}),
+				Map:   reflect.ValueOf(map[string]construct.IaCValue{}),
 				Key:   reflect.ValueOf("key1"),
-				Value: reflect.ValueOf(core.IaCValue{}),
+				Value: reflect.ValueOf(construct.IaCValue{}),
 			},
 		},
 		{
 			name: "map value's property",
 			resource: &enginetesting.MockResource6{
-				Map1: map[string]core.IaCValue{"key1": {Property: "value1"}},
+				Map1: map[string]construct.IaCValue{"key1": {Property: "value1"}},
 			},
 			fieldName: "Map1[key1].Property",
 			want:      "value1",
 			mapKey: &SetMapKey{
-				Map:   reflect.ValueOf(map[string]core.IaCValue{"key1": {Property: "value1"}}),
+				Map:   reflect.ValueOf(map[string]construct.IaCValue{"key1": {Property: "value1"}}),
 				Key:   reflect.ValueOf("key1"),
-				Value: reflect.ValueOf(core.IaCValue{Property: "value1"}),
+				Value: reflect.ValueOf(construct.IaCValue{Property: "value1"}),
 			},
 		},
 		{
 			name: "map with resource id string key",
 			resource: &enginetesting.MockResource6{
-				Map1: map[string]core.IaCValue{"test": {Property: "value1"}},
+				Map1: map[string]construct.IaCValue{"test": {Property: "value1"}},
 			},
 			fieldName: "Map1[mock:mock6:test#Name]",
-			want:      core.IaCValue{Property: "value1"},
+			want:      construct.IaCValue{Property: "value1"},
 			mapKey: &SetMapKey{
-				Map:   reflect.ValueOf(map[string]core.IaCValue{"test": {Property: "value1"}}),
+				Map:   reflect.ValueOf(map[string]construct.IaCValue{"test": {Property: "value1"}}),
 				Key:   reflect.ValueOf("test"),
-				Value: reflect.ValueOf(core.IaCValue{Property: "value1"}),
+				Value: reflect.ValueOf(construct.IaCValue{Property: "value1"}),
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&enginetesting.MockResource6{Name: "test"},
 			},
 		},
@@ -446,7 +446,7 @@ func Test_parseFieldName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			for _, res := range tt.resources {
 				dag.AddResource(res)
 			}

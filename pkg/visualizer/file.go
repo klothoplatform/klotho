@@ -6,7 +6,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/ioutil"
 	"gopkg.in/yaml.v3"
 )
@@ -18,19 +19,19 @@ type (
 		FilenamePrefix string
 		AppName        string
 		Provider       string
-		DAG            *core.ResourceGraph
+		DAG            *construct.ResourceGraph
 	}
 
 	// FetchPropertiesFunc is a function that takes a resource of some type, and returns some properties for it.
 	// This function also takes in the DAG, since some resources need that context to figure out their properties (for
 	// example, a subnet is private or public depending on how it's used).
-	FetchPropertiesFunc[K core.Resource] func(res K, dag *core.ResourceGraph) map[string]any
+	FetchPropertiesFunc[K construct.Resource] func(res K, dag *construct.ResourceGraph) map[string]any
 
-	// propertiesFetcher takes a [core.Resource] and returns some properties for it. This is similar to
-	// FetchPropertiesFunc, except that the argument is always a core.Resource (as opposed to a specific subtype
-	// of core.Resource, as with FetchPropertiesFunc).
+	// propertiesFetcher takes a [construct.Resource] and returns some properties for it. This is similar to
+	// FetchPropertiesFunc, except that the argument is always a construct.Resource (as opposed to a specific subtype
+	// of construct.Resource, as with FetchPropertiesFunc).
 	propertiesFetcher interface {
-		apply(res core.Resource, dag *core.ResourceGraph) map[string]any
+		apply(res construct.Resource, dag *construct.ResourceGraph) map[string]any
 	}
 
 	// typedPropertiesFetcher is a propertiesFetcher that can also tell you which type it'll accept. The (unenforced)
@@ -53,7 +54,7 @@ func (f *File) Path() string {
 	return fmt.Sprintf("%stopology.yaml", f.FilenamePrefix)
 }
 
-func (f *File) Clone() core.File {
+func (f *File) Clone() klotho_io.File {
 	return f
 }
 
@@ -70,7 +71,7 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 	for _, resource := range resources {
-		if resource.Id().Provider == core.InternalProvider {
+		if resource.Id().Provider == construct.InternalProvider {
 			// Don't show internal resources such as imported in the topology
 			// TODO maybe make some way of indicating imported resources in the visualizer
 			continue
@@ -116,7 +117,7 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-func (f *File) KeyFor(res core.Resource) string {
+func (f *File) KeyFor(res construct.Resource) string {
 	resId := res.Id()
 	var providerInfo string
 	if resId.Provider != f.Provider {
@@ -157,18 +158,18 @@ func defaultPropertiesFetchers() byTypePropertiesFetcher {
 	return result
 }
 
-func asApplier[K core.Resource](f FetchPropertiesFunc[K]) typedPropertiesFetcher {
+func asApplier[K construct.Resource](f FetchPropertiesFunc[K]) typedPropertiesFetcher {
 	return f
 }
 
-func (f FetchPropertiesFunc[K]) apply(res core.Resource, dag *core.ResourceGraph) map[string]any {
+func (f FetchPropertiesFunc[K]) apply(res construct.Resource, dag *construct.ResourceGraph) map[string]any {
 	if res, ok := res.(K); ok {
 		return f(res, dag)
 	}
 	return nil
 }
 
-func (pf byTypePropertiesFetcher) apply(res core.Resource, dag *core.ResourceGraph) map[string]any {
+func (pf byTypePropertiesFetcher) apply(res construct.Resource, dag *construct.ResourceGraph) map[string]any {
 	resType := reflect.TypeOf(res)
 	if f := pf[resType]; f != nil {
 		return f.apply(res, dag)

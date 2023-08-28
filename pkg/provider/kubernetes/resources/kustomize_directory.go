@@ -1,7 +1,7 @@
 package resources
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
 const (
@@ -11,25 +11,27 @@ const (
 type (
 	KustomizeDirectory struct {
 		Name             string
-		ConstructRefs    core.BaseConstructSet `yaml:"-"`
+		ConstructRefs    construct.BaseConstructSet `yaml:"-"`
 		Directory        string
-		ClustersProvider core.IaCValue
-		Cluster          core.ResourceId
+		ClustersProvider construct.IaCValue
+		Cluster          construct.ResourceId
 	}
 )
 
 // BaseConstructRefs returns a slice containing the ids of any Klotho constructs is correlated to
-func (dir *KustomizeDirectory) BaseConstructRefs() core.BaseConstructSet { return dir.ConstructRefs }
+func (dir *KustomizeDirectory) BaseConstructRefs() construct.BaseConstructSet {
+	return dir.ConstructRefs
+}
 
-func (dir *KustomizeDirectory) Id() core.ResourceId {
-	return core.ResourceId{
+func (dir *KustomizeDirectory) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: "kubernetes",
 		Type:     KUSTOMIZE_DIRECTORY_TYPE,
 		Name:     dir.Name,
 	}
 }
-func (k *KustomizeDirectory) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (k *KustomizeDirectory) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

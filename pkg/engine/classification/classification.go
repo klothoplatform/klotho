@@ -7,13 +7,13 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
 type (
 	Classifier interface {
-		GetFunctionality(resource core.Resource) core.Functionality
-		GetClassification(resource core.Resource) Classification
+		GetFunctionality(resource construct.Resource) construct.Functionality
+		GetClassification(resource construct.Resource) Classification
 	}
 
 	ClassificationDocument struct {
@@ -46,8 +46,8 @@ func (g *Gives) UnmarshalJSON(content []byte) error {
 	return nil
 }
 
-func (c *ClassificationDocument) GivesAttributeForFunctionality(resource core.Resource, attribute string, functionality core.Functionality) bool {
-	bareRes := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(core.Resource)
+func (c *ClassificationDocument) GivesAttributeForFunctionality(resource construct.Resource, attribute string, functionality construct.Functionality) bool {
+	bareRes := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(construct.Resource)
 	for _, give := range c.Classifications[bareRes.Id().String()].Gives {
 		if give.Attribute == attribute && (collectionutil.Contains(give.Functionality, string(functionality)) || collectionutil.Contains(give.Functionality, "*")) {
 			return true
@@ -56,46 +56,46 @@ func (c *ClassificationDocument) GivesAttributeForFunctionality(resource core.Re
 	return false
 }
 
-func (c *ClassificationDocument) GetClassification(resource core.Resource) Classification {
-	bareRes := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(core.Resource)
+func (c *ClassificationDocument) GetClassification(resource construct.Resource) Classification {
+	bareRes := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(construct.Resource)
 	return c.Classifications[bareRes.Id().String()]
 }
 
-func (c *ClassificationDocument) GetFunctionality(resource core.Resource) core.Functionality {
-	bareRes := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(core.Resource)
+func (c *ClassificationDocument) GetFunctionality(resource construct.Resource) construct.Functionality {
+	bareRes := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(construct.Resource)
 	classification := c.GetClassification(bareRes)
 	if len(classification.Is) == 0 {
-		return core.Unknown
+		return construct.Unknown
 	}
-	var functionality core.Functionality
+	var functionality construct.Functionality
 	for _, c := range classification.Is {
 		matched := true
 		alreadySet := functionality != ""
 		switch c {
 		case "compute":
-			functionality = core.Compute
+			functionality = construct.Compute
 		case "cluster":
-			functionality = core.Cluster
+			functionality = construct.Cluster
 		case "storage":
-			functionality = core.Storage
+			functionality = construct.Storage
 		case "api":
-			functionality = core.Api
+			functionality = construct.Api
 		case "messaging":
-			functionality = core.Messaging
+			functionality = construct.Messaging
 		default:
 			matched = false
 		}
 		if matched && alreadySet {
-			return core.Unknown
+			return construct.Unknown
 		}
 	}
 	if functionality == "" {
-		return core.Unknown
+		return construct.Unknown
 	}
 	return functionality
 }
 
-func (c *ClassificationDocument) ResourceContainsClassifications(resource core.Resource, needs []string) bool {
+func (c *ClassificationDocument) ResourceContainsClassifications(resource construct.Resource, needs []string) bool {
 	classifications := c.GetClassification(resource)
 	for _, need := range needs {
 		if !collectionutil.Contains(classifications.Is, need) && resource.Id().Type != need {

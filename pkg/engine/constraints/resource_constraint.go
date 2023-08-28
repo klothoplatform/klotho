@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
@@ -26,10 +26,10 @@ type (
 	//
 	// The end result of this should be that the the rds instance's InstanceClass property should be set to db.t3.micro
 	ResourceConstraint struct {
-		Operator ConstraintOperator `yaml:"operator"`
-		Target   core.ResourceId    `yaml:"target"`
-		Property string             `yaml:"property"`
-		Value    any                `yaml:"value"`
+		Operator ConstraintOperator   `yaml:"operator"`
+		Target   construct.ResourceId `yaml:"target"`
+		Property string               `yaml:"property"`
+		Value    any                  `yaml:"value"`
 	}
 )
 
@@ -37,7 +37,7 @@ func (constraint *ResourceConstraint) Scope() ConstraintScope {
 	return EdgeConstraintScope
 }
 
-func (constraint *ResourceConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource, classifier classification.Classifier) bool {
+func (constraint *ResourceConstraint) IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier classification.Classifier) bool {
 	switch constraint.Operator {
 	case EqualsConstraintOperator:
 		res := dag.GetResource(constraint.Target)
@@ -51,7 +51,7 @@ func (constraint *ResourceConstraint) IsSatisfied(dag *core.ResourceGraph, kb kn
 }
 
 func (constraint *ResourceConstraint) Validate() error {
-	if constraint.Target.Provider == core.AbstractConstructProvider {
+	if constraint.Target.Provider == construct.AbstractConstructProvider {
 		return errors.New("node constraint cannot be applied to an abstract construct")
 	}
 	if constraint.Property == "" {

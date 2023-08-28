@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -67,7 +67,7 @@ func Test_getNextCallDetails(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}

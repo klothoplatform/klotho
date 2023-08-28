@@ -4,26 +4,28 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/io"
 	assert2 "github.com/stretchr/testify/assert"
 )
 
 func TestNodeJSExecutable_Transform(t *testing.T) {
 	type expectedUnit struct {
-		executableType core.ExecutableType
+		executableType types.ExecutableType
 		expectedFiles  map[string][]string
 	}
 
 	cases := []struct {
 		name          string
 		otherFiles    map[string]string
-		units         []*core.ExecutionUnit
+		units         []*types.ExecutionUnit
 		expectedUnits map[string]expectedUnit
 	}{
 		{
 			name:       "unit is NodeJS executable",
 			otherFiles: map[string]string{"package.json": `{ "main" : "" }`},
-			units: []*core.ExecutionUnit{
+			units: []*types.ExecutionUnit{
 				execUnit("main",
 					taggedFile{path: "index.js", content: "const mod = require('./module')"},
 					taggedFile{path: "module.js"},
@@ -31,7 +33,7 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 			},
 			expectedUnits: map[string]expectedUnit{
 				"main": {
-					executableType: core.ExecutableTypeNodeJS,
+					executableType: types.ExecutableTypeNodeJS,
 					expectedFiles: map[string][]string{
 						"allFiles":    {"package.json", "index.js", "module.js"},
 						"resources":   {"package.json"},
@@ -44,7 +46,7 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 		{
 			name:       "default entrypoint is resolved from package.json#main when no execution_unit annotation is present ",
 			otherFiles: map[string]string{"package.json": `{ "main" : "myunit.js" }`},
-			units: []*core.ExecutionUnit{
+			units: []*types.ExecutionUnit{
 				execUnit("main",
 					taggedFile{path: "myunit.js", content: "const mod = require('./module')"},
 					taggedFile{path: "module.js"},
@@ -52,7 +54,7 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 			},
 			expectedUnits: map[string]expectedUnit{
 				"main": {
-					executableType: core.ExecutableTypeNodeJS,
+					executableType: types.ExecutableTypeNodeJS,
 					expectedFiles: map[string][]string{
 						"allFiles":    {"package.json", "myunit.js", "module.js"},
 						"resources":   {"package.json"},
@@ -65,14 +67,14 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 		{
 			name:       "default entrypoint is index.js when package.json#main is not set",
 			otherFiles: map[string]string{"package.json": `{ "main" : "" }`},
-			units: []*core.ExecutionUnit{
+			units: []*types.ExecutionUnit{
 				execUnit("main",
 					taggedFile{path: "index.js", content: "const mod = require('./module')"},
 					taggedFile{path: "module.js"}),
 			},
 			expectedUnits: map[string]expectedUnit{
 				"main": {
-					executableType: core.ExecutableTypeNodeJS,
+					executableType: types.ExecutableTypeNodeJS,
 					expectedFiles: map[string][]string{
 						"allFiles":    {"package.json", "index.js", "module.js"},
 						"resources":   {"package.json"},
@@ -85,7 +87,7 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 		{
 			name:       "upstream entrypoint is added",
 			otherFiles: map[string]string{"package.json": `{ "main" : "" }`},
-			units: []*core.ExecutionUnit{
+			units: []*types.ExecutionUnit{
 				execUnit("unit1",
 					taggedFile{path: "expose.js", content: `
 						/* @klotho::expose {
@@ -109,7 +111,7 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 			},
 			expectedUnits: map[string]expectedUnit{
 				"unit1": {
-					executableType: core.ExecutableTypeNodeJS,
+					executableType: types.ExecutableTypeNodeJS,
 					expectedFiles: map[string][]string{
 						"allFiles":    {"package.json", "entrypoint.js", "module.js", "expose.js"},
 						"resources":   {"package.json"},
@@ -118,7 +120,7 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 					},
 				},
 				"unit2": {
-					executableType: core.ExecutableTypeNodeJS,
+					executableType: types.ExecutableTypeNodeJS,
 					expectedFiles: map[string][]string{
 						"allFiles":    {"package.json", "index.js", "module.js", "expose.js"},
 						"resources":   {"package.json"},
@@ -131,7 +133,7 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 		{
 			name:       "annotated file is added",
 			otherFiles: map[string]string{"package.json": `{ "main" : "" }`},
-			units: []*core.ExecutionUnit{
+			units: []*types.ExecutionUnit{
 				execUnit("unit1",
 					taggedFile{path: "expose.js", content: `
 						/* @klotho::expose {
@@ -161,7 +163,7 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 			},
 			expectedUnits: map[string]expectedUnit{
 				"unit1": {
-					executableType: core.ExecutableTypeNodeJS,
+					executableType: types.ExecutableTypeNodeJS,
 					expectedFiles: map[string][]string{
 						"allFiles":    {"package.json", "entrypoint.js", "module.js", "expose.js"},
 						"resources":   {"package.json"},
@@ -170,7 +172,7 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 					},
 				},
 				"unit2": {
-					executableType: core.ExecutableTypeNodeJS,
+					executableType: types.ExecutableTypeNodeJS,
 					expectedFiles: map[string][]string{
 						"allFiles":    {"package.json", "index.js", "module.js", "expose.js"},
 						"resources":   {"package.json"},
@@ -185,19 +187,19 @@ func TestNodeJSExecutable_Transform(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert2.New(t)
 
-			inputFiles := &core.InputFiles{}
+			inputFiles := &types.InputFiles{}
 			for p, c := range tt.otherFiles {
 				inputFiles.Add(file(p, c))
 			}
 
-			result := core.NewConstructGraph()
+			result := construct.NewConstructGraph()
 			for _, unit := range tt.units {
 				result.AddConstruct(unit)
 				for _, f := range unit.Files() {
 					inputFiles.Add(f)
 				}
 			}
-			if !assert.NoError(NodeJSExecutable{}.Transform(inputFiles, &core.FileDependencies{}, result)) {
+			if !assert.NoError(NodeJSExecutable{}.Transform(inputFiles, &types.FileDependencies{}, result)) {
 				return
 			}
 			assert.Equal(len(tt.expectedUnits), len(tt.units))
@@ -223,8 +225,8 @@ func keys[K comparable, V any](m map[K]V) []K {
 	return ks
 }
 
-func execUnit(name string, files ...taggedFile) *core.ExecutionUnit {
-	unit := core.ExecutionUnit{Name: name, Executable: core.NewExecutable()}
+func execUnit(name string, files ...taggedFile) *types.ExecutionUnit {
+	unit := types.ExecutionUnit{Name: name, Executable: types.NewExecutable()}
 	for _, tf := range files {
 		f := file(tf.path, tf.content)
 
@@ -244,8 +246,8 @@ func execUnit(name string, files ...taggedFile) *core.ExecutionUnit {
 	return &unit
 }
 
-func file(path string, content string) core.File {
-	var f core.File
+func file(path string, content string) io.File {
+	var f io.File
 	var err error
 	if strings.HasSuffix(path, ".json") {
 		f, err = NewPackageFile(path, strings.NewReader(content))
@@ -253,12 +255,12 @@ func file(path string, content string) core.File {
 			panic(err)
 		}
 	} else if strings.HasSuffix(path, ".js") {
-		f, err = core.NewSourceFile(path, strings.NewReader(content), Language)
+		f, err = types.NewSourceFile(path, strings.NewReader(content), Language)
 		if err != nil {
 			panic(err)
 		}
 	} else {
-		f = &core.FileRef{FPath: path}
+		f = &io.FileRef{FPath: path}
 	}
 	return f
 }

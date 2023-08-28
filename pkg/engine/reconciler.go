@@ -1,22 +1,22 @@
 package engine
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"go.uber.org/zap"
 )
 
 // ignoreCriteria determines if we can delete a resource because the knowledge base in use by the engine, shows that the initial resource is dependent on the sub resource for deletion.
 // If the sub resource is deletion dependent on any of the dependent resources passed in then we will determine weather we can delete the dependent resource first.
-func (e *Engine) ignoreCriteria(resource core.Resource, dependentResources []core.BaseConstruct) bool {
+func (e *Engine) ignoreCriteria(resource construct.Resource, dependentResources []construct.BaseConstruct) bool {
 DEP:
 	for _, dep := range dependentResources {
-		if _, ok := dep.(core.Construct); ok {
+		if _, ok := dep.(construct.Construct); ok {
 			continue
-		} else if dep, ok := dep.(core.Resource); ok {
+		} else if dep, ok := dep.(construct.Resource); ok {
 			found := false
 			for _, res := range e.Context.WorkingState.GetDownstreamConstructs(resource) {
-				if _, ok := res.(core.Construct); ok {
+				if _, ok := res.(construct.Construct); ok {
 					continue
 				}
 				if dep == res {
@@ -29,7 +29,7 @@ DEP:
 				}
 			}
 			for _, res := range e.Context.WorkingState.GetUpstreamConstructs(resource) {
-				if _, ok := res.(core.Construct); ok {
+				if _, ok := res.(construct.Construct); ok {
 					continue
 				}
 				if dep == res {
@@ -53,26 +53,26 @@ DEP:
 //
 // if explicit is set it is meant to show that a user has explicitly requested for the resource to be deleted or that the resource requested is being deleted by its parent resource
 // if overrideExplicit is set, it means that the explicit delete request still has to satisfy the resources delete criteria. If it is set to false, then the explicit deletion request is always performed
-func (e *Engine) deleteConstruct(construct core.BaseConstruct, explicit bool, overrideExplicit bool) bool {
-	log := zap.S().With(zap.String("id", construct.Id().String()))
+func (e *Engine) deleteConstruct(c construct.BaseConstruct, explicit bool, overrideExplicit bool) bool {
+	log := zap.S().With(zap.String("id", c.Id().String()))
 	log.Debug("Deleting resource")
 	graph := e.Context.WorkingState
-	upstreamNodes := e.Context.WorkingState.GetUpstreamConstructs(construct)
-	downstreamNodes := e.Context.WorkingState.GetDownstreamConstructs(construct)
+	upstreamNodes := e.Context.WorkingState.GetUpstreamConstructs(c)
+	downstreamNodes := e.Context.WorkingState.GetDownstreamConstructs(c)
 
-	var reflectResources []core.Resource
-	if resource, ok := construct.(core.Resource); ok {
-		reflectResources = core.GetResourcesReflectively(graph, resource)
+	var reflectResources []construct.Resource
+	if resource, ok := c.(construct.Resource); ok {
+		reflectResources = construct.GetResourcesReflectively(graph, resource)
 		if !e.canDeleteResource(resource, explicit, overrideExplicit, upstreamNodes, downstreamNodes) {
 			return false
 		}
-	} else if _, ok := construct.(core.Construct); ok {
+	} else if _, ok := c.(construct.Construct); ok {
 		if !explicit {
 			return false
 		}
 	}
 
-	err := graph.RemoveConstructAndEdges(construct)
+	err := graph.RemoveConstructAndEdges(c)
 	if err != nil {
 		return false
 	}
@@ -80,20 +80,20 @@ func (e *Engine) deleteConstruct(construct core.BaseConstruct, explicit bool, ov
 	for _, upstreamNode := range upstreamNodes {
 		for _, downstreamNode := range downstreamNodes {
 
-			var explicitUpstreams []core.BaseConstruct
-			if construct, ok := upstreamNode.(core.Construct); ok {
-				explicitUpstreams = append(explicitUpstreams, construct)
-			} else if resource, ok := upstreamNode.(core.Resource); ok {
+			var explicitUpstreams []construct.BaseConstruct
+			if c, ok := upstreamNode.(construct.Construct); ok {
+				explicitUpstreams = append(explicitUpstreams, c)
+			} else if resource, ok := upstreamNode.(construct.Resource); ok {
 				if resource.DeleteContext().RequiresExplicitDelete {
 					explicitUpstreams = append(explicitUpstreams, resource)
 				} else {
 					explicitUpstreams = append(explicitUpstreams, e.getExplicitUpstreams(resource)...)
 				}
 			}
-			var explicitDownStreams []core.BaseConstruct
-			if construct, ok := downstreamNode.(core.Construct); ok {
-				explicitUpstreams = append(explicitUpstreams, construct)
-			} else if resource, ok := downstreamNode.(core.Resource); ok {
+			var explicitDownStreams []construct.BaseConstruct
+			if c, ok := downstreamNode.(construct.Construct); ok {
+				explicitUpstreams = append(explicitUpstreams, c)
+			} else if resource, ok := downstreamNode.(construct.Resource); ok {
 				if resource.DeleteContext().RequiresExplicitDelete {
 					explicitDownStreams = append(explicitDownStreams, downstreamNode)
 				} else {
@@ -129,7 +129,7 @@ func (e *Engine) deleteConstruct(construct core.BaseConstruct, explicit bool, ov
 									Source: u.Id(),
 									Target: d.Id(),
 								},
-								Node: construct.Id(),
+								Node: c.Id(),
 							},
 						)
 					}
@@ -161,7 +161,7 @@ func (e *Engine) deleteConstruct(construct core.BaseConstruct, explicit bool, ov
 	return true
 }
 
-func (e *Engine) canDeleteResource(resource core.Resource, explicit bool, overrideExplicit bool, upstreamNodes []core.BaseConstruct, downstreamNodes []core.BaseConstruct) bool {
+func (e *Engine) canDeleteResource(resource construct.Resource, explicit bool, overrideExplicit bool, upstreamNodes []construct.BaseConstruct, downstreamNodes []construct.BaseConstruct) bool {
 	log := zap.S().With(zap.String("id", resource.Id().String()))
 	deletionCriteria := resource.DeleteContext()
 	if deletionCriteria.RequiresExplicitDelete && !explicit {
@@ -217,16 +217,16 @@ func (e *Engine) canDeleteResource(resource core.Resource, explicit bool, overri
 	return true
 }
 
-func (e *Engine) getExplicitUpstreams(res core.BaseConstruct) []core.BaseConstruct {
-	var resources []core.BaseConstruct
+func (e *Engine) getExplicitUpstreams(res construct.BaseConstruct) []construct.BaseConstruct {
+	var resources []construct.BaseConstruct
 	upstreams := e.Context.WorkingState.GetUpstreamConstructs(res)
 	if len(upstreams) == 0 {
 		return resources
 	}
 	for _, up := range upstreams {
-		if construct, ok := up.(core.Construct); ok {
-			resources = append(resources, construct)
-		} else if resource, ok := up.(core.Resource); ok {
+		if c, ok := up.(construct.Construct); ok {
+			resources = append(resources, c)
+		} else if resource, ok := up.(construct.Resource); ok {
 			if resource.DeleteContext().RequiresExplicitDelete {
 				resources = append(resources, up)
 			}
@@ -240,16 +240,16 @@ func (e *Engine) getExplicitUpstreams(res core.BaseConstruct) []core.BaseConstru
 	return resources
 }
 
-func (e *Engine) getExplicitDownStreams(res core.BaseConstruct) []core.BaseConstruct {
-	var resources []core.BaseConstruct
+func (e *Engine) getExplicitDownStreams(res construct.BaseConstruct) []construct.BaseConstruct {
+	var resources []construct.BaseConstruct
 	downstreams := e.Context.WorkingState.GetDownstreamConstructs(res)
 	if len(downstreams) == 0 {
 		return resources
 	}
 	for _, d := range downstreams {
-		if construct, ok := d.(core.Construct); ok {
-			resources = append(resources, construct)
-		} else if resource, ok := d.(core.Resource); ok {
+		if c, ok := d.(construct.Construct); ok {
+			resources = append(resources, c)
+		} else if resource, ok := d.(construct.Resource); ok {
 			if resource.DeleteContext().RequiresExplicitDelete {
 				resources = append(resources, resource)
 			}

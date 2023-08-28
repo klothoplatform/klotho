@@ -6,8 +6,8 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
+	"github.com/klothoplatform/klotho/pkg/io"
 
-	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -245,9 +245,9 @@ func TestFindFileForImport(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			files := make(map[string]core.File)
+			files := make(map[string]io.File)
 			for _, path := range tt.args.files {
-				files[path] = &core.RawFile{FPath: path}
+				files[path] = &io.RawFile{FPath: path}
 			}
 
 			got, err := FindFileForImport(files, tt.args.importedFrom, tt.args.module)

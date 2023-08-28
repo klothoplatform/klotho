@@ -3,7 +3,7 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	"github.com/pkg/errors"
 )
@@ -23,14 +23,14 @@ const (
 type (
 	S3Bucket struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		ForceDestroy  bool
 		IndexDocument string
 	}
 
 	S3Object struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Bucket        *S3Bucket
 		Key           string
 		FilePath      string
@@ -38,28 +38,28 @@ type (
 
 	S3BucketPolicy struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Bucket        *S3Bucket
 		Policy        *PolicyDocument
 	}
 )
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (bucket *S3Bucket) BaseConstructRefs() core.BaseConstructSet {
+func (bucket *S3Bucket) BaseConstructRefs() construct.BaseConstructSet {
 	return bucket.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (bucket *S3Bucket) Id() core.ResourceId {
-	return core.ResourceId{
+func (bucket *S3Bucket) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     S3_BUCKET_TYPE,
 		Name:     bucket.Name,
 	}
 }
 
-func (bucket *S3Bucket) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (bucket *S3Bucket) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
@@ -68,11 +68,11 @@ func (bucket *S3Bucket) DeleteContext() core.DeleteContext {
 
 type S3BucketCreateParams struct {
 	AppName string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 	Name    string
 }
 
-func (bucket *S3Bucket) Create(dag *core.ResourceGraph, params S3BucketCreateParams) error {
+func (bucket *S3Bucket) Create(dag *construct.ResourceGraph, params S3BucketCreateParams) error {
 	bucket.Name = bucketSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 
 	if existing := dag.GetResource(bucket.Id()); existing != nil {
@@ -94,13 +94,13 @@ func (bucket *S3Bucket) Create(dag *core.ResourceGraph, params S3BucketCreatePar
 
 type S3ObjectCreateParams struct {
 	AppName  string
-	Refs     core.BaseConstructSet
+	Refs     construct.BaseConstructSet
 	Name     string
 	Key      string
 	FilePath string
 }
 
-func (object *S3Object) Create(dag *core.ResourceGraph, params S3ObjectCreateParams) error {
+func (object *S3Object) Create(dag *construct.ResourceGraph, params S3ObjectCreateParams) error {
 	object.Name = objectSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	if dag.GetResource(object.Id()) != nil {
 		return fmt.Errorf(`S3Object with name %s already exists`, object.Name)
@@ -113,21 +113,21 @@ func (object *S3Object) Create(dag *core.ResourceGraph, params S3ObjectCreatePar
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (object *S3Object) BaseConstructRefs() core.BaseConstructSet {
+func (object *S3Object) BaseConstructRefs() construct.BaseConstructSet {
 	return object.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (object *S3Object) Id() core.ResourceId {
-	return core.ResourceId{
+func (object *S3Object) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     S3_OBJECT_TYPE,
 		Name:     object.Name,
 	}
 }
 
-func (bucket *S3Object) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (bucket *S3Object) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -135,10 +135,10 @@ func (bucket *S3Object) DeleteContext() core.DeleteContext {
 type S3BucketPolicyCreateParams struct {
 	Name    string
 	AppName string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 }
 
-func (policy *S3BucketPolicy) Create(dag *core.ResourceGraph, params S3BucketPolicyCreateParams) error {
+func (policy *S3BucketPolicy) Create(dag *construct.ResourceGraph, params S3BucketPolicyCreateParams) error {
 	policy.Name = objectSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	policy.ConstructRefs = params.Refs.Clone()
 	if dag.GetResource(policy.Id()) != nil {
@@ -149,21 +149,21 @@ func (policy *S3BucketPolicy) Create(dag *core.ResourceGraph, params S3BucketPol
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (policy *S3BucketPolicy) BaseConstructRefs() core.BaseConstructSet {
+func (policy *S3BucketPolicy) BaseConstructRefs() construct.BaseConstructSet {
 	return policy.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (policy *S3BucketPolicy) Id() core.ResourceId {
-	return core.ResourceId{
+func (policy *S3BucketPolicy) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     S3_BUCKET_POLICY_TYPE,
 		Name:     policy.Name,
 	}
 }
 
-func (policy *S3BucketPolicy) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (policy *S3BucketPolicy) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

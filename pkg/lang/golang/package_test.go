@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -59,10 +59,10 @@ func Test_findFilesForPackage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			unit := &core.ExecutionUnit{Name: "testUnit", Executable: core.NewExecutable()}
+			unit := &types.ExecutionUnit{Name: "testUnit", Executable: types.NewExecutable()}
 
 			for path, src := range tt.sources {
-				f, err := core.NewSourceFile(path, strings.NewReader(src), Language)
+				f, err := types.NewSourceFile(path, strings.NewReader(src), Language)
 				if !assert.NoError(err) {
 					return
 				}

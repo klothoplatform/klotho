@@ -2,7 +2,7 @@
 //
 //   - a templates directory, with templates for IaC fragments
 //   - a ResourceCreationTemplate, which represents one parsed template
-//   - a TemplatesCompiler, which takes a graph of `core.Resources` and renders it into Pulumi IaC using the templates
+//   - a TemplatesCompiler, which takes a graph of `construct.Resources` and renders it into Pulumi IaC using the templates
 //
 // # Templates
 //

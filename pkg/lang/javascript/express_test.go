@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -171,7 +171,7 @@ func Test_expressHandler_handleLocalRoutes(t *testing.T) {
 			routePrefix: "",
 			expect: []gatewayRouteDefinition{
 				{
-					Route:         core.Route{Path: "/test", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/test", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 			},
@@ -184,11 +184,11 @@ func Test_expressHandler_handleLocalRoutes(t *testing.T) {
 			routePrefix: "",
 			expect: []gatewayRouteDefinition{
 				{
-					Route:         core.Route{Path: "/test", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/test", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 				{
-					Route:         core.Route{Path: "/test", Verb: "post", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/test", Verb: "post", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 			},
@@ -201,11 +201,11 @@ func Test_expressHandler_handleLocalRoutes(t *testing.T) {
 			routePrefix: "",
 			expect: []gatewayRouteDefinition{
 				{
-					Route:         core.Route{Path: "/test", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/test", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 				{
-					Route:         core.Route{Path: "/other", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/other", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 			},
@@ -218,11 +218,11 @@ func Test_expressHandler_handleLocalRoutes(t *testing.T) {
 			routePrefix: "/v1",
 			expect: []gatewayRouteDefinition{
 				{
-					Route:         core.Route{Path: "/v1/test", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/v1/test", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 				{
-					Route:         core.Route{Path: "/v1/other", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/v1/other", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 			},
@@ -234,11 +234,11 @@ func Test_expressHandler_handleLocalRoutes(t *testing.T) {
 			routePrefix: "/v1",
 			expect: []gatewayRouteDefinition{
 				{
-					Route:         core.Route{Path: "/v1", Verb: "ANY", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/v1", Verb: "ANY", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 				{
-					Route:         core.Route{Path: "/v1/:rest*", Verb: "ANY", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/v1/:rest*", Verb: "ANY", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 			},
@@ -249,11 +249,11 @@ func Test_expressHandler_handleLocalRoutes(t *testing.T) {
 			varName: "app",
 			expect: []gatewayRouteDefinition{
 				{
-					Route:         core.Route{Path: "/", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 				{
-					Route:         core.Route{Path: "/:rest*", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/:rest*", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 			},
@@ -264,11 +264,11 @@ func Test_expressHandler_handleLocalRoutes(t *testing.T) {
 			varName: "app",
 			expect: []gatewayRouteDefinition{
 				{
-					Route:         core.Route{Path: "/", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 				{
-					Route:         core.Route{Path: "/:rest*", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/:rest*", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 			},
@@ -279,7 +279,7 @@ func Test_expressHandler_handleLocalRoutes(t *testing.T) {
 			varName: "app",
 			expect: []gatewayRouteDefinition{
 				{
-					Route:         core.Route{Path: "/prefix/:rest*", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/prefix/:rest*", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 			},
@@ -290,7 +290,7 @@ func Test_expressHandler_handleLocalRoutes(t *testing.T) {
 			varName: "app",
 			expect: []gatewayRouteDefinition{
 				{
-					Route:         core.Route{Path: "/prefix/br*oken", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/prefix/br*oken", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 			},
@@ -301,11 +301,11 @@ func Test_expressHandler_handleLocalRoutes(t *testing.T) {
 			varName: "app",
 			expect: []gatewayRouteDefinition{
 				{
-					Route:         core.Route{Path: "/", Verb: "any", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/", Verb: "any", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 				{
-					Route:         core.Route{Path: "/:rest*", Verb: "any", ExecUnitName: "testUnit", HandledInFile: "test.js"},
+					Route:         types.Route{Path: "/:rest*", Verb: "any", ExecUnitName: "testUnit", HandledInFile: "test.js"},
 					DefinedInPath: "test.js",
 				},
 			},

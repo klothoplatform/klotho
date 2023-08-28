@@ -14,7 +14,7 @@ import (
 	k8sResource "k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	k8sSanitizer "github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
@@ -103,7 +103,7 @@ var eksManifests embed.FS
 type (
 	EksCluster struct {
 		Name           string
-		ConstructRefs  core.BaseConstructSet `yaml:"-"`
+		ConstructRefs  construct.BaseConstructSet `yaml:"-"`
 		ClusterRole    *IamRole
 		Vpc            *Vpc
 		Subnets        []*Subnet
@@ -113,7 +113,7 @@ type (
 
 	EksFargateProfile struct {
 		Name             string
-		ConstructRefs    core.BaseConstructSet `yaml:"-"`
+		ConstructRefs    construct.BaseConstructSet `yaml:"-"`
 		Cluster          *EksCluster
 		PodExecutionRole *IamRole
 		Selectors        []*FargateProfileSelector
@@ -127,7 +127,7 @@ type (
 
 	EksNodeGroup struct {
 		Name           string
-		ConstructRefs  core.BaseConstructSet `yaml:"-"`
+		ConstructRefs  construct.BaseConstructSet `yaml:"-"`
 		Cluster        *EksCluster
 		NodeRole       *IamRole
 		AmiType        string
@@ -143,9 +143,9 @@ type (
 
 	EksAddon struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		AddonName     string
-		ClusterName   core.IaCValue
+		ClusterName   construct.IaCValue
 		Role          *IamRole
 	}
 )
@@ -183,12 +183,12 @@ func GeneratePersistentVolumeHandlePlaceholder(unit string) string {
 }
 
 type EksClusterCreateParams struct {
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 	AppName string
 	Name    string
 }
 
-func (cluster *EksCluster) Create(dag *core.ResourceGraph, params EksClusterCreateParams) error {
+func (cluster *EksCluster) Create(dag *construct.ResourceGraph, params EksClusterCreateParams) error {
 
 	cluster.Name = clusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	cluster.ConstructRefs = params.Refs.Clone()
@@ -210,15 +210,15 @@ type EksClusterConfigureParams struct {
 }
 
 type EksFargateProfileCreateParams struct {
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 	AppName string
 	Name    string
 }
 
-func (profile *EksFargateProfile) Create(dag *core.ResourceGraph, params EksFargateProfileCreateParams) error {
+func (profile *EksFargateProfile) Create(dag *construct.ResourceGraph, params EksFargateProfileCreateParams) error {
 	profile.Name = profileSanitizer.Apply(fmt.Sprintf("%s_%s", params.AppName, params.Name))
 
-	existingProfile, found := core.GetResource[*EksFargateProfile](dag, profile.Id())
+	existingProfile, found := construct.GetResource[*EksFargateProfile](dag, profile.Id())
 	if found {
 		existingProfile.ConstructRefs.AddAll(params.Refs)
 	} else {
@@ -231,15 +231,15 @@ func (profile *EksFargateProfile) Create(dag *core.ResourceGraph, params EksFarg
 type EksNodeGroupCreateParams struct {
 	InstanceType string
 	NetworkType  string
-	Refs         core.BaseConstructSet
+	Refs         construct.BaseConstructSet
 	AppName      string
 }
 
-func (nodeGroup *EksNodeGroup) Create(dag *core.ResourceGraph, params EksNodeGroupCreateParams) error {
+func (nodeGroup *EksNodeGroup) Create(dag *construct.ResourceGraph, params EksNodeGroupCreateParams) error {
 
 	name := NodeGroupName(params.NetworkType, params.InstanceType)
 	nodeGroup.Name = fmt.Sprintf("%s_%s", params.AppName, name)
-	existingNodeGroup, found := core.GetResource[*EksNodeGroup](dag, nodeGroup.Id())
+	existingNodeGroup, found := construct.GetResource[*EksNodeGroup](dag, nodeGroup.Id())
 	if found {
 		existingNodeGroup.ConstructRefs.AddAll(params.Refs)
 	} else {
@@ -264,8 +264,8 @@ func (nodeGroup *EksNodeGroup) Configure(params EksNodeGroupConfigureParams) err
 	return nil
 }
 
-func (cluster *EksCluster) SetUpDefaultNodeGroup(dag *core.ResourceGraph, appName string) error {
-	ng, err := core.CreateResource[*EksNodeGroup](dag, EksNodeGroupCreateParams{
+func (cluster *EksCluster) SetUpDefaultNodeGroup(dag *construct.ResourceGraph, appName string) error {
+	ng, err := construct.CreateResource[*EksNodeGroup](dag, EksNodeGroupCreateParams{
 		InstanceType: "t3.medium",
 		NetworkType:  PrivateSubnet,
 		Refs:         cluster.ConstructRefs,
@@ -287,7 +287,7 @@ func NodeGroupName(networkPlacement string, instanceType string) string {
 	return nodeGroupSanitizer.Apply(fmt.Sprintf("%s_%s", networkPlacement, instanceType))
 }
 
-func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
+func (cluster *EksCluster) CreatePrerequisiteCharts(dag *construct.ResourceGraph) {
 	charts := []*kubernetes.HelmChart{
 		{
 			Name:          cluster.Name + `-metrics-server`,
@@ -321,7 +321,7 @@ func (cluster *EksCluster) CreatePrerequisiteCharts(dag *core.ResourceGraph) {
 	}
 }
 
-func (cluster *EksCluster) InstallNvidiaDevicePlugin(dag *core.ResourceGraph) {
+func (cluster *EksCluster) InstallNvidiaDevicePlugin(dag *construct.ResourceGraph) {
 	manifest := &kubernetes.Manifest{
 		Name:     fmt.Sprintf("%s-%s", cluster.Name, "nvidia-device-plugin"),
 		FilePath: "https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.10/nvidia-device-plugin.yml",
@@ -337,7 +337,7 @@ func (cluster *EksCluster) InstallNvidiaDevicePlugin(dag *core.ResourceGraph) {
 	}
 }
 
-func (cluster *EksCluster) CreateFargateLogging(references core.BaseConstructSet, dag *core.ResourceGraph) error {
+func (cluster *EksCluster) CreateFargateLogging(references construct.BaseConstructSet, dag *construct.ResourceGraph) error {
 	namespaceOutputPath := path.Join(MANIFEST_PATH_PREFIX, AWS_OBSERVABILITY_NS_PATH)
 	content, err := fs.ReadFile(eksManifests, namespaceOutputPath)
 	if err != nil {
@@ -364,8 +364,8 @@ func (cluster *EksCluster) CreateFargateLogging(references core.BaseConstructSet
 		FilePath:      configMapOutputPath,
 		Content:       content,
 		Cluster:       cluster.Id(),
-		Transformations: map[string]core.IaCValue{
-			`data["output.conf"]`: core.IaCValue{ResourceId: cluster.Id(), Property: AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE},
+		Transformations: map[string]construct.IaCValue{
+			`data["output.conf"]`: construct.IaCValue{ResourceId: cluster.Id(), Property: AWS_OBSERVABILITY_CONFIG_MAP_REGION_IAC_VALUE},
 		},
 	}
 	dag.AddDependenciesReflect(configMap)
@@ -374,7 +374,7 @@ func (cluster *EksCluster) CreateFargateLogging(references core.BaseConstructSet
 	return nil
 }
 
-func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, dag *core.ResourceGraph) error {
+func (cluster *EksCluster) InstallFluentBit(references construct.BaseConstructSet, dag *construct.ResourceGraph) error {
 	namespaceOutputPath := path.Join(MANIFEST_PATH_PREFIX, AMAZON_CLOUDWATCH_NS_PATH)
 	content, err := fs.ReadFile(eksManifests, namespaceOutputPath)
 	if err != nil {
@@ -401,9 +401,9 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 		ConstructRefs: references,
 		FilePath:      configMapOutputPath,
 		Content:       content,
-		Transformations: map[string]core.IaCValue{
-			`data["cluster.name"]`: core.IaCValue{ResourceId: cluster.Id(), Property: NAME_IAC_VALUE},
-			`data["logs.region"]`:  core.IaCValue{ResourceId: region.Id(), Property: NAME_IAC_VALUE},
+		Transformations: map[string]construct.IaCValue{
+			`data["cluster.name"]`: construct.IaCValue{ResourceId: cluster.Id(), Property: NAME_IAC_VALUE},
+			`data["logs.region"]`:  construct.IaCValue{ResourceId: region.Id(), Property: NAME_IAC_VALUE},
 		},
 		Cluster: cluster.Id(),
 	}
@@ -422,16 +422,16 @@ func (cluster *EksCluster) InstallFluentBit(references core.BaseConstructSet, da
 	return nil
 }
 
-func CreatePersistentVolume(resource core.Resource, fileSystem *EfsFileSystem, dag *core.ResourceGraph, appName string) (*kubernetes.PersistentVolume, error) {
-	cluster, err := core.GetSingleDownstreamResourceOfType[*EksCluster](dag, resource)
+func CreatePersistentVolume(resource construct.Resource, fileSystem *EfsFileSystem, dag *construct.ResourceGraph, appName string) (*kubernetes.PersistentVolume, error) {
+	cluster, err := construct.GetSingleDownstreamResourceOfType[*EksCluster](dag, resource)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create the PersistentVolume
-	pv, err := core.CreateResource[*kubernetes.PersistentVolume](dag, kubernetes.PersistentVolumeCreateParams{
+	pv, err := construct.CreateResource[*kubernetes.PersistentVolume](dag, kubernetes.PersistentVolumeCreateParams{
 		Name:          fmt.Sprintf("%s-%s", resource.Id().Name, fileSystem.Id().Name),
-		ConstructRefs: core.BaseConstructSetOf(resource, fileSystem),
+		ConstructRefs: construct.BaseConstructSetOf(resource, fileSystem),
 	})
 	if err != nil {
 		return nil, err
@@ -443,11 +443,11 @@ func CreatePersistentVolume(resource core.Resource, fileSystem *EfsFileSystem, d
 	pv.Object.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
 	pv.Object.Spec.PersistentVolumeReclaimPolicy = corev1.PersistentVolumeReclaimRetain
 	if pv.Values == nil {
-		pv.Values = make(map[string]core.IaCValue)
+		pv.Values = make(map[string]construct.IaCValue)
 	}
 	value := GeneratePersistentVolumeHandlePlaceholder(fileSystem.Name)
 	volumeHandlePlaceholder := fmt.Sprintf("{{ .Values.%s }}", value)
-	pv.Values[value] = core.IaCValue{ResourceId: fileSystem.Id(), Property: ID_IAC_VALUE}
+	pv.Values[value] = construct.IaCValue{ResourceId: fileSystem.Id(), Property: ID_IAC_VALUE}
 	pv.Object.Spec.CSI = &corev1.CSIPersistentVolumeSource{
 		Driver:       "efs.csi.aws.com",
 		VolumeHandle: volumeHandlePlaceholder,
@@ -457,9 +457,9 @@ func CreatePersistentVolume(resource core.Resource, fileSystem *EfsFileSystem, d
 	}
 
 	// Create the volume's PersistentVolumeClaim
-	pvc, err := core.CreateResource[*kubernetes.PersistentVolumeClaim](dag, kubernetes.PersistentVolumeClaimCreateParams{
+	pvc, err := construct.CreateResource[*kubernetes.PersistentVolumeClaim](dag, kubernetes.PersistentVolumeClaimCreateParams{
 		Name:          fmt.Sprintf("%s-%s", resource.Id().Name, fileSystem.Id().Name),
-		ConstructRefs: core.BaseConstructSetOf(resource, fileSystem),
+		ConstructRefs: construct.BaseConstructSetOf(resource, fileSystem),
 	})
 	if err != nil {
 		return nil, err
@@ -469,9 +469,9 @@ func CreatePersistentVolume(resource core.Resource, fileSystem *EfsFileSystem, d
 	pvc.Object.Spec.Resources.Requests = corev1.ResourceList{"storage": k8sResource.MustParse("5Gi")}
 
 	// Create the volume's StorageClass
-	sc, err := core.CreateResource[*kubernetes.StorageClass](dag, kubernetes.StorageClassCreateParams{
+	sc, err := construct.CreateResource[*kubernetes.StorageClass](dag, kubernetes.StorageClassCreateParams{
 		Name:          fmt.Sprintf("%s-%s", resource.Id().Name, fileSystem.Id().Name),
-		ConstructRefs: core.BaseConstructSetOf(resource, fileSystem),
+		ConstructRefs: construct.BaseConstructSetOf(resource, fileSystem),
 	})
 	if err != nil {
 		return nil, err
@@ -493,7 +493,7 @@ func CreatePersistentVolume(resource core.Resource, fileSystem *EfsFileSystem, d
 	dag.AddDependency(sc, cluster)
 
 	// Install the EFS CSI driver on the cluster if the pod is in an EKS node group
-	oidc, err := core.GetSingleUpstreamResourceOfType[*OpenIdConnectProvider](dag, cluster)
+	oidc, err := construct.GetSingleUpstreamResourceOfType[*OpenIdConnectProvider](dag, cluster)
 	if err != nil {
 		return nil, err
 	}
@@ -510,10 +510,10 @@ func CreatePersistentVolume(resource core.Resource, fileSystem *EfsFileSystem, d
 	return pv, nil
 }
 
-func (cluster *EksCluster) InstallEfsCsiDriverAddon(references core.BaseConstructSet, dag *core.ResourceGraph, appName string, oidc *OpenIdConnectProvider) (*EksAddon, error) {
+func (cluster *EksCluster) InstallEfsCsiDriverAddon(references construct.BaseConstructSet, dag *construct.ResourceGraph, appName string, oidc *OpenIdConnectProvider) (*EksAddon, error) {
 	addonName := "aws-efs-csi-driver"
 
-	addonRole, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+	addonRole, err := construct.CreateResource[*IamRole](dag, RoleCreateParams{
 		AppName: appName,
 		Name:    addonName,
 		Refs:    references.Clone(),
@@ -530,14 +530,14 @@ func (cluster *EksCluster) InstallEfsCsiDriverAddon(references core.BaseConstruc
 			{
 				Effect: "Allow",
 				Principal: &Principal{
-					Federated: core.IaCValue{
+					Federated: construct.IaCValue{
 						ResourceId: oidc.Id(),
 						Property:   ARN_IAC_VALUE,
 					},
 				},
 				Action: []string{"sts:AssumeRoleWithWebIdentity"},
 				Condition: &Condition{
-					StringLike: map[core.IaCValue]string{
+					StringLike: map[construct.IaCValue]string{
 						{
 							ResourceId: oidc.Id(),
 							Property:   OIDC_SUB_IAC_VALUE,
@@ -556,7 +556,7 @@ func (cluster *EksCluster) InstallEfsCsiDriverAddon(references core.BaseConstruc
 		Name:          fmt.Sprintf("%s-addon-%s", cluster.Name, addonName),
 		ConstructRefs: references,
 		AddonName:     addonName,
-		ClusterName: core.IaCValue{
+		ClusterName: construct.IaCValue{
 			ResourceId: cluster.Id(),
 			Property:   NAME_IAC_VALUE,
 		},
@@ -565,7 +565,7 @@ func (cluster *EksCluster) InstallEfsCsiDriverAddon(references core.BaseConstruc
 	dag.AddDependenciesReflect(addon)
 	return addon, nil
 }
-func (cluster *EksCluster) InstallCloudMapController(refs core.BaseConstructSet, dag *core.ResourceGraph) (*kubernetes.KustomizeDirectory, error) {
+func (cluster *EksCluster) InstallCloudMapController(refs construct.BaseConstructSet, dag *construct.ResourceGraph) (*kubernetes.KustomizeDirectory, error) {
 	cloudMapController := &kubernetes.KustomizeDirectory{
 		Name:          fmt.Sprintf("%s-cloudmap-controller", cluster.Name),
 		ConstructRefs: refs,
@@ -592,8 +592,8 @@ func (cluster *EksCluster) InstallCloudMapController(refs core.BaseConstructSet,
 			ConstructRefs: refs,
 			FilePath:      clusterSetOutputPath,
 			Content:       content,
-			Transformations: map[string]core.IaCValue{
-				`spec["value"]`: core.IaCValue{ResourceId: cluster.Id(), Property: NAME_IAC_VALUE},
+			Transformations: map[string]construct.IaCValue{
+				`spec["value"]`: construct.IaCValue{ResourceId: cluster.Id(), Property: NAME_IAC_VALUE},
 			},
 			Cluster: cluster.Id(),
 		}
@@ -611,10 +611,10 @@ func (cluster *EksCluster) InstallCloudMapController(refs core.BaseConstructSet,
 
 type ServiceAccountCreateParams struct {
 	AppName    string
-	Dag        *core.ResourceGraph
+	Dag        *construct.ResourceGraph
 	Name       string
 	Policy     *IamPolicy
-	References core.BaseConstructSet
+	References construct.BaseConstructSet
 }
 
 // CreateServiceAccount creates a service account for the cluster
@@ -629,7 +629,7 @@ func (cluster *EksCluster) CreateServiceAccount(params ServiceAccountCreateParam
 	dag := params.Dag
 	appName := params.AppName
 
-	role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+	role, err := construct.CreateResource[*IamRole](dag, RoleCreateParams{
 		AppName: params.AppName,
 		Name:    params.Name,
 		Refs:    params.References.Clone(),
@@ -641,7 +641,7 @@ func (cluster *EksCluster) CreateServiceAccount(params ServiceAccountCreateParam
 	serviceAccount.FilePath = outputPath
 	serviceAccount.Cluster = cluster.Id()
 
-	oidc, err := core.CreateResource[*OpenIdConnectProvider](dag, OidcCreateParams{
+	oidc, err := construct.CreateResource[*OpenIdConnectProvider](dag, OidcCreateParams{
 		AppName:     appName,
 		ClusterName: cluster.Name,
 	})
@@ -658,11 +658,11 @@ func (cluster *EksCluster) CreateServiceAccount(params ServiceAccountCreateParam
 	return serviceAccount, nil
 }
 
-func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet, dag *core.ResourceGraph, appName string) (*kubernetes.HelmChart, error) {
+func (cluster *EksCluster) InstallAlbController(references construct.BaseConstructSet, dag *construct.ResourceGraph, appName string) (*kubernetes.HelmChart, error) {
 	if cluster.Vpc == nil {
 		return nil, errors.Errorf("cluster.Vpc is required to install the alb controller")
 	}
-	clusterCharts := core.GetUpstreamResourcesOfType[*kubernetes.HelmChart](dag, cluster)
+	clusterCharts := construct.GetUpstreamResourcesOfType[*kubernetes.HelmChart](dag, cluster)
 	var certManagerchart *kubernetes.HelmChart
 	for _, chart := range clusterCharts {
 		if chart.Chart == "cert-manager" && chart.Repo == "https://charts.jetstack.io" {
@@ -675,7 +675,7 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 	}
 
 	serviceAccountName := "aws-load-balancer-controller"
-	var aRef core.BaseConstruct
+	var aRef construct.BaseConstruct
 	for _, r := range references {
 		aRef = r
 		break
@@ -702,13 +702,13 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 		Cluster:       cluster.Id(),
 		IsInternal:    true,
 		Values: map[string]any{
-			"clusterName": core.IaCValue{ResourceId: cluster.Id(), Property: NAME_IAC_VALUE},
+			"clusterName": construct.IaCValue{ResourceId: cluster.Id(), Property: NAME_IAC_VALUE},
 			"serviceAccount": map[string]any{
 				"create": false,
 				"name":   serviceAccount.Name,
 			},
-			"region": core.IaCValue{ResourceId: region.Id(), Property: NAME_IAC_VALUE},
-			"vpcId":  core.IaCValue{ResourceId: cluster.Vpc.Id(), Property: ID_IAC_VALUE},
+			"region": construct.IaCValue{ResourceId: region.Id(), Property: NAME_IAC_VALUE},
+			"vpcId":  construct.IaCValue{ResourceId: cluster.Vpc.Id(), Property: ID_IAC_VALUE},
 			// objectSelector is used to select pods to inject the pod readiness gate into
 			// (see https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.4/deploy/pod_readiness_gate/)
 			"objectSelector": map[string]any{"matchLabels": map[string]any{"elbv2.k8s.aws/pod-readiness-gate-inject": "enabled"}},
@@ -732,13 +732,13 @@ func (cluster *EksCluster) InstallAlbController(references core.BaseConstructSet
 	return albChart, nil
 }
 
-func (cluster *EksCluster) installVpcCniAddon(references core.BaseConstructSet, dag *core.ResourceGraph) {
+func (cluster *EksCluster) installVpcCniAddon(references construct.BaseConstructSet, dag *construct.ResourceGraph) {
 	addonName := "vpc-cni"
 	addon := &EksAddon{
 		Name:          fmt.Sprintf("%s-addon-%s", cluster.Name, addonName),
 		ConstructRefs: references,
 		AddonName:     addonName,
-		ClusterName: core.IaCValue{
+		ClusterName: construct.IaCValue{
 			ResourceId: cluster.Id(),
 			Property:   NAME_IAC_VALUE,
 		},
@@ -746,7 +746,7 @@ func (cluster *EksCluster) installVpcCniAddon(references core.BaseConstructSet, 
 	dag.AddDependenciesReflect(addon)
 }
 
-func (cluster *EksCluster) GetClustersNodeGroups(dag *core.ResourceGraph) []*EksNodeGroup {
+func (cluster *EksCluster) GetClustersNodeGroups(dag *construct.ResourceGraph) []*EksNodeGroup {
 	nodeGroups := []*EksNodeGroup{}
 	for _, res := range dag.GetAllUpstreamResources(cluster) {
 		if nodeGroup, ok := res.(*EksNodeGroup); ok {
@@ -756,11 +756,11 @@ func (cluster *EksCluster) GetClustersNodeGroups(dag *core.ResourceGraph) []*Eks
 	return nodeGroups
 }
 
-func GetServiceAccountRole(sa *kubernetes.ServiceAccount, dag *core.ResourceGraph) (*IamRole, error) {
+func GetServiceAccountRole(sa *kubernetes.ServiceAccount, dag *construct.ResourceGraph) (*IamRole, error) {
 	if sa == nil {
 		return nil, fmt.Errorf("service account is nil")
 	}
-	roles := core.GetDownstreamResourcesOfType[*IamRole](dag, sa)
+	roles := construct.GetDownstreamResourcesOfType[*IamRole](dag, sa)
 	if len(roles) > 1 {
 		return nil, fmt.Errorf("service account %s has multiple roles", sa.Name)
 	} else if len(roles) == 0 {
@@ -768,9 +768,9 @@ func GetServiceAccountRole(sa *kubernetes.ServiceAccount, dag *core.ResourceGrap
 			return nil, fmt.Errorf("%s has no cluster", sa.Id())
 		}
 
-		role, err := core.CreateResource[*IamRole](dag, RoleCreateParams{
+		role, err := construct.CreateResource[*IamRole](dag, RoleCreateParams{
 			Name: fmt.Sprintf("%s-Role", sa.Name),
-			Refs: core.BaseConstructSetOf(sa),
+			Refs: construct.BaseConstructSetOf(sa),
 		})
 		if err != nil {
 			return nil, err
@@ -789,14 +789,14 @@ func GetServiceAccountRole(sa *kubernetes.ServiceAccount, dag *core.ResourceGrap
 		sa.Object.Annotations["eks.amazonaws.com/role-arn"] = roleArnPlaceholder
 
 		if sa.Values == nil {
-			sa.Values = make(map[string]core.IaCValue)
+			sa.Values = make(map[string]construct.IaCValue)
 		}
-		sa.Values[value] = core.IaCValue{ResourceId: role.Id(), Property: ID_IAC_VALUE}
+		sa.Values[value] = construct.IaCValue{ResourceId: role.Id(), Property: ID_IAC_VALUE}
 
 		// Sets the role's AssumeRolePolicyDocument to allow the service account to assume the role
-		oidc, err := core.CreateResource[*OpenIdConnectProvider](dag, OidcCreateParams{
+		oidc, err := construct.CreateResource[*OpenIdConnectProvider](dag, OidcCreateParams{
 			ClusterName: sa.Cluster.Name,
-			Refs:        core.BaseConstructSetOf(sa),
+			Refs:        construct.BaseConstructSetOf(sa),
 		})
 		if err != nil {
 			return nil, err
@@ -815,7 +815,7 @@ func configureKubeconfig(cluster *EksCluster, region *Region) error {
 		return fmt.Errorf("kubeconfig for cluster %s is nil", cluster.Id())
 	}
 
-	clusterNameIaCValue := core.IaCValue{
+	clusterNameIaCValue := construct.IaCValue{
 		ResourceId: cluster.Id(),
 		Property:   NAME_IAC_VALUE,
 	}
@@ -825,12 +825,12 @@ func configureKubeconfig(cluster *EksCluster, region *Region) error {
 	kubeconfig.Clusters = []kubernetes.KubeconfigCluster{
 		{
 			Name: clusterNameIaCValue,
-			Cluster: map[string]core.IaCValue{
-				"certificate-authority-data": core.IaCValue{
+			Cluster: map[string]construct.IaCValue{
+				"certificate-authority-data": construct.IaCValue{
 					ResourceId: cluster.Id(),
 					Property:   CLUSTER_CA_DATA_IAC_VALUE,
 				},
-				"server": core.IaCValue{
+				"server": construct.IaCValue{
 					ResourceId: cluster.Id(),
 					Property:   CLUSTER_ENDPOINT_IAC_VALUE,
 				},
@@ -859,7 +859,7 @@ func configureKubeconfig(cluster *EksCluster, region *Region) error {
 						"--cluster-name",
 						clusterNameIaCValue,
 						"--region",
-						core.IaCValue{
+						construct.IaCValue{
 							ResourceId: region.Id(),
 							Property:   NAME_IAC_VALUE,
 						},
@@ -881,14 +881,14 @@ func GetServiceAccountAssumeRolePolicy(serviceAccountName string, namespace stri
 			{
 				Effect: "Allow",
 				Principal: &Principal{
-					Federated: core.IaCValue{
+					Federated: construct.IaCValue{
 						ResourceId: oidc.Id(),
 						Property:   ARN_IAC_VALUE,
 					},
 				},
 				Action: []string{"sts:AssumeRoleWithWebIdentity"},
 				Condition: &Condition{
-					StringEquals: map[core.IaCValue]string{
+					StringEquals: map[construct.IaCValue]string{
 						{
 							ResourceId: oidc.Id(),
 							Property:   OIDC_SUB_IAC_VALUE,
@@ -905,81 +905,81 @@ func GetServiceAccountAssumeRolePolicy(serviceAccountName string, namespace stri
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (cluster *EksCluster) BaseConstructRefs() core.BaseConstructSet {
+func (cluster *EksCluster) BaseConstructRefs() construct.BaseConstructSet {
 	return cluster.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (cluster *EksCluster) Id() core.ResourceId {
-	return core.ResourceId{
+func (cluster *EksCluster) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     EKS_CLUSTER_TYPE,
 		Name:     cluster.Name,
 	}
 }
 
-func (cluster *EksCluster) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (cluster *EksCluster) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (addon *EksAddon) BaseConstructRefs() core.BaseConstructSet {
+func (addon *EksAddon) BaseConstructRefs() construct.BaseConstructSet {
 	return addon.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (addon *EksAddon) Id() core.ResourceId {
-	return core.ResourceId{
+func (addon *EksAddon) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     EKS_ADDON_TYPE,
 		Name:     addon.Name,
 	}
 }
 
-func (addon *EksAddon) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (addon *EksAddon) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (profile *EksFargateProfile) BaseConstructRefs() core.BaseConstructSet {
+func (profile *EksFargateProfile) BaseConstructRefs() construct.BaseConstructSet {
 	return profile.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (profile *EksFargateProfile) Id() core.ResourceId {
-	return core.ResourceId{
+func (profile *EksFargateProfile) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     EKS_FARGATE_PROFILE_TYPE,
 		Name:     profile.Name,
 	}
 }
 
-func (profile *EksFargateProfile) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (profile *EksFargateProfile) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (group *EksNodeGroup) BaseConstructRefs() core.BaseConstructSet {
+func (group *EksNodeGroup) BaseConstructRefs() construct.BaseConstructSet {
 	return group.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (group *EksNodeGroup) Id() core.ResourceId {
-	return core.ResourceId{
+func (group *EksNodeGroup) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     EKS_NODE_GROUP_TYPE,
 		Name:     group.Name,
 	}
 }
 
-func (group *EksNodeGroup) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (group *EksNodeGroup) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -996,7 +996,7 @@ func amiFromInstanceType(instanceType string) string {
 	return ""
 }
 
-func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamPolicy {
+func createAlbControllerPolicy(clusterName string, ref construct.BaseConstruct) *IamPolicy {
 	/*
 
 	 */
@@ -1030,7 +1030,7 @@ func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamP
 		"elasticloadbalancing:CreateRule",
 		"elasticloadbalancing:DeleteRule",
 	},
-		[]core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}},
+		[]construct.IaCValue{{Property: construct.ALL_RESOURCES_IAC_VALUE}},
 	))
 	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
 		Effect: "Allow",
@@ -1053,15 +1053,15 @@ func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamP
 			"shield:CreateProtection",
 			"shield:DeleteProtection",
 		},
-		Resource: []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}},
+		Resource: []construct.IaCValue{{Property: construct.ALL_RESOURCES_IAC_VALUE}},
 	})
 	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
 		Effect: "Allow",
 		Action: []string{
 			"iam:CreateServiceLinkedRole",
 		},
-		Resource: []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}},
-		Condition: &Condition{StringEquals: map[core.IaCValue]string{
+		Resource: []construct.IaCValue{{Property: construct.ALL_RESOURCES_IAC_VALUE}},
+		Condition: &Condition{StringEquals: map[construct.IaCValue]string{
 			{Property: "iam:AWSServiceName"}: "elasticloadbalancing.amazonaws.com",
 		}},
 	})
@@ -1071,26 +1071,26 @@ func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamP
 			"ec2:AuthorizeSecurityGroupIngress",
 			"ec2:RevokeSecurityGroupIngress",
 		},
-		Resource: []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}},
+		Resource: []construct.IaCValue{{Property: construct.ALL_RESOURCES_IAC_VALUE}},
 	})
 	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
 		Effect: "Allow",
 		Action: []string{
 			"ec2:CreateSecurityGroup",
 		},
-		Resource: []core.IaCValue{{Property: core.ALL_RESOURCES_IAC_VALUE}},
+		Resource: []construct.IaCValue{{Property: construct.ALL_RESOURCES_IAC_VALUE}},
 	})
 	policy.Policy.Statement = append(policy.Policy.Statement, StatementEntry{
 		Effect: "Allow",
 		Action: []string{
 			"ec2:CreateTags",
 		},
-		Resource: []core.IaCValue{{Property: "arn:aws:ec2:*:*:security-group/*"}},
+		Resource: []construct.IaCValue{{Property: "arn:aws:ec2:*:*:security-group/*"}},
 		Condition: &Condition{
-			StringEquals: map[core.IaCValue]string{
+			StringEquals: map[construct.IaCValue]string{
 				{Property: "ec2:CreateAction"}: "CreateSecurityGroup",
 			},
-			Null: map[core.IaCValue]string{
+			Null: map[construct.IaCValue]string{
 				{Property: "aws:RequestTag/elbv2.k8s.aws/cluster"}: "false",
 			},
 		},
@@ -1101,12 +1101,12 @@ func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamP
 			"ec2:CreateTags",
 			"ec2:DeleteTags",
 		},
-		Resource: []core.IaCValue{{Property: "arn:aws:ec2:*:*:security-group/*"}},
+		Resource: []construct.IaCValue{{Property: "arn:aws:ec2:*:*:security-group/*"}},
 		Condition: &Condition{
-			StringEquals: map[core.IaCValue]string{
+			StringEquals: map[construct.IaCValue]string{
 				{Property: "ec2:CreateAction"}: "CreateSecurityGroup",
 			},
-			Null: map[core.IaCValue]string{
+			Null: map[construct.IaCValue]string{
 				{Property: "aws:RequestTag/elbv2.k8s.aws/cluster"}:  "true",
 				{Property: "aws:ResourceTag/elbv2.k8s.aws/cluster"}: "false",
 			},
@@ -1119,9 +1119,9 @@ func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamP
 			"ec2:RevokeSecurityGroupIngress",
 			"ec2:DeleteSecurityGroup",
 		},
-		Resource: []core.IaCValue{{Property: "arn:aws:ec2:*:*:security-group/*"}},
+		Resource: []construct.IaCValue{{Property: "arn:aws:ec2:*:*:security-group/*"}},
 		Condition: &Condition{
-			Null: map[core.IaCValue]string{
+			Null: map[construct.IaCValue]string{
 				{Property: "aws:ResourceTag/elbv2.k8s.aws/cluster"}: "false",
 			},
 		},
@@ -1132,9 +1132,9 @@ func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamP
 			"elasticloadbalancing:CreateLoadBalancer",
 			"elasticloadbalancing:CreateTargetGroup",
 		},
-		Resource: []core.IaCValue{{Property: "arn:aws:ec2:*:*:security-group/*"}},
+		Resource: []construct.IaCValue{{Property: "arn:aws:ec2:*:*:security-group/*"}},
 		Condition: &Condition{
-			Null: map[core.IaCValue]string{
+			Null: map[construct.IaCValue]string{
 				{Property: "aws:RequestTag/elbv2.k8s.aws/cluster"}: "false",
 			},
 		},
@@ -1145,13 +1145,13 @@ func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamP
 			"elasticloadbalancing:AddTags",
 			"elasticloadbalancing:RemoveTags",
 		},
-		Resource: []core.IaCValue{
+		Resource: []construct.IaCValue{
 			{Property: "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*"},
 			{Property: "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*"},
 			{Property: "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"},
 		},
 		Condition: &Condition{
-			Null: map[core.IaCValue]string{
+			Null: map[construct.IaCValue]string{
 				{Property: "aws:RequestTag/elbv2.k8s.aws/cluster"}:  "true",
 				{Property: "aws:ResourceTag/elbv2.k8s.aws/cluster"}: "false",
 			},
@@ -1163,7 +1163,7 @@ func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamP
 			"elasticloadbalancing:AddTags",
 			"elasticloadbalancing:RemoveTags",
 		},
-		Resource: []core.IaCValue{
+		Resource: []construct.IaCValue{
 			{Property: "arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*"},
 			{Property: "arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*"},
 			{Property: "arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*"},
@@ -1182,11 +1182,11 @@ func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamP
 			"elasticloadbalancing:ModifyTargetGroupAttributes",
 			"elasticloadbalancing:DeleteTargetGroup",
 		},
-		Resource: []core.IaCValue{
-			{Property: core.ALL_RESOURCES_IAC_VALUE},
+		Resource: []construct.IaCValue{
+			{Property: construct.ALL_RESOURCES_IAC_VALUE},
 		},
 		Condition: &Condition{
-			Null: map[core.IaCValue]string{
+			Null: map[construct.IaCValue]string{
 				{Property: "aws:RequestTag/elbv2.k8s.aws/cluster"}: "false",
 			},
 		},
@@ -1197,7 +1197,7 @@ func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamP
 			"elasticloadbalancing:RegisterTargets",
 			"elasticloadbalancing:DeregisterTargets",
 		},
-		Resource: []core.IaCValue{
+		Resource: []construct.IaCValue{
 			{Property: "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*"},
 		},
 	})
@@ -1210,15 +1210,15 @@ func createAlbControllerPolicy(clusterName string, ref core.BaseConstruct) *IamP
 			"elasticloadbalancing:RemoveListenerCertificates",
 			"elasticloadbalancing:ModifyRule",
 		},
-		Resource: []core.IaCValue{
-			{Property: core.ALL_RESOURCES_IAC_VALUE},
+		Resource: []construct.IaCValue{
+			{Property: construct.ALL_RESOURCES_IAC_VALUE},
 		},
 	})
 	return policy
 }
 
-func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
-	var podsAndDeployments []core.Resource
+func (cluster *EksCluster) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+	var podsAndDeployments []construct.Resource
 	var nodeGroups []*EksNodeGroup
 	var fargateProfiles []*EksFargateProfile
 
@@ -1248,8 +1248,8 @@ func (cluster *EksCluster) MakeOperational(dag *core.ResourceGraph, appName stri
 	return nil
 }
 
-func (cluster *EksCluster) associateDeployablesToDeploymentTargets(dag *core.ResourceGraph, podsAndDeployments []core.Resource, fargateProfiles []*EksFargateProfile, nodeGroups []*EksNodeGroup) {
-	var deployedTo core.Resource
+func (cluster *EksCluster) associateDeployablesToDeploymentTargets(dag *construct.ResourceGraph, podsAndDeployments []construct.Resource, fargateProfiles []*EksFargateProfile, nodeGroups []*EksNodeGroup) {
+	var deployedTo construct.Resource
 	for _, deployable := range podsAndDeployments {
 		if deployedTo != nil {
 			break

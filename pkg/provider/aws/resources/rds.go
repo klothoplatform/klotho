@@ -3,11 +3,13 @@ package resources
 import (
 	"crypto/rand"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"math/big"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/engine/classification"
+	"github.com/klothoplatform/klotho/pkg/io"
+
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -44,7 +46,7 @@ type (
 	// RdsInstance represents an AWS RDS db instance
 	RdsInstance struct {
 		Name                             string
-		ConstructRefs                    core.BaseConstructSet `yaml:"-"`
+		ConstructRefs                    construct.BaseConstructSet `yaml:"-"`
 		SubnetGroup                      *RdsSubnetGroup
 		SecurityGroups                   []*SecurityGroup
 		DatabaseName                     string
@@ -56,14 +58,14 @@ type (
 		InstanceClass                    string
 		SkipFinalSnapshot                bool
 		AllocatedStorage                 int
-		CredentialsFile                  core.File `yaml:"-"`
+		CredentialsFile                  io.File `yaml:"-"`
 		CredentialsPath                  string
 	}
 
 	// RdsSubnetGroup represents an AWS RDS subnet group
 	RdsSubnetGroup struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Subnets       []*Subnet
 		Tags          map[string]string
 	}
@@ -71,7 +73,7 @@ type (
 	// RdsProxy represents an AWS RDS proxy instance
 	RdsProxy struct {
 		Name              string
-		ConstructRefs     core.BaseConstructSet `yaml:"-"`
+		ConstructRefs     construct.BaseConstructSet `yaml:"-"`
 		DebugLogging      bool
 		EngineFamily      string
 		IdleClientTimeout int
@@ -86,13 +88,13 @@ type (
 	ProxyAuth struct {
 		AuthScheme string
 		IamAuth    string
-		SecretArn  core.IaCValue
+		SecretArn  construct.IaCValue
 	}
 
 	// RdsProxyTargetGroup represents an AWS RDS proxy target group
 	RdsProxyTargetGroup struct {
 		Name                            string
-		ConstructRefs                   core.BaseConstructSet `yaml:"-"`
+		ConstructRefs                   construct.BaseConstructSet `yaml:"-"`
 		RdsInstance                     *RdsInstance
 		RdsProxy                        *RdsProxy
 		TargetGroupName                 string
@@ -111,11 +113,11 @@ type (
 
 type RdsInstanceCreateParams struct {
 	AppName string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 	Name    string
 }
 
-func (instance *RdsInstance) Create(dag *core.ResourceGraph, params RdsInstanceCreateParams) error {
+func (instance *RdsInstance) Create(dag *construct.ResourceGraph, params RdsInstanceCreateParams) error {
 
 	name := rdsInstanceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	instance.Name = name
@@ -140,7 +142,7 @@ func (instance *RdsInstance) Configure(params RdsInstanceConfigureParams) error 
 	instance.Password = generatePassword()
 	credsBytes := []byte(fmt.Sprintf("{\n\"username\": \"%s\",\n\"password\": \"%s\"\n}", instance.Username, instance.Password))
 	credsPath := fmt.Sprintf("secrets/%s", instance.Name)
-	instance.CredentialsFile = &core.RawFile{
+	instance.CredentialsFile = &io.RawFile{
 		FPath:   credsPath,
 		Content: credsBytes,
 	}
@@ -151,10 +153,10 @@ func (instance *RdsInstance) Configure(params RdsInstanceConfigureParams) error 
 type RdsSubnetGroupCreateParams struct {
 	AppName string
 	Name    string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 }
 
-func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSubnetGroupCreateParams) error {
+func (subnetGroup *RdsSubnetGroup) Create(dag *construct.ResourceGraph, params RdsSubnetGroupCreateParams) error {
 	subnetGroup.Name = rdsSubnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	subnetGroup.ConstructRefs = params.Refs.Clone()
 
@@ -172,10 +174,10 @@ func (subnetGroup *RdsSubnetGroup) Create(dag *core.ResourceGraph, params RdsSub
 type RdsProxyCreateParams struct {
 	AppName string
 	Name    string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 }
 
-func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreateParams) error {
+func (proxy *RdsProxy) Create(dag *construct.ResourceGraph, params RdsProxyCreateParams) error {
 	proxy.Name = rdsSubnetSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	proxy.ConstructRefs = params.Refs.Clone()
 
@@ -193,10 +195,10 @@ func (proxy *RdsProxy) Create(dag *core.ResourceGraph, params RdsProxyCreatePara
 type RdsProxyTargetGroupCreateParams struct {
 	AppName string
 	Name    string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 }
 
-func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTargetGroupCreateParams) error {
+func (tg *RdsProxyTargetGroup) Create(dag *construct.ResourceGraph, params RdsProxyTargetGroupCreateParams) error {
 
 	tg.Name = rdsProxySanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	tg.ConstructRefs = params.Refs.Clone()
@@ -214,7 +216,7 @@ func (tg *RdsProxyTargetGroup) Create(dag *core.ResourceGraph, params RdsProxyTa
 func (rds *RdsInstance) GetConnectionPolicyDocument() *PolicyDocument {
 	return CreateAllowPolicyDocument(
 		[]string{"rds-db:connect"},
-		[]core.IaCValue{{ResourceId: rds.Id(), Property: RDS_CONNECTION_ARN_IAC_VALUE}})
+		[]construct.IaCValue{{ResourceId: rds.Id(), Property: RDS_CONNECTION_ARN_IAC_VALUE}})
 }
 
 // generateUsername generates a random username for the rds instance.
@@ -251,24 +253,24 @@ func generatePassword() string {
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsInstance) BaseConstructRefs() core.BaseConstructSet {
+func (rds *RdsInstance) BaseConstructRefs() construct.BaseConstructSet {
 	return rds.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (rds *RdsInstance) Id() core.ResourceId {
-	return core.ResourceId{
+func (rds *RdsInstance) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     RDS_INSTANCE_TYPE,
 		Name:     rds.Name,
 	}
 }
-func (rds *RdsInstance) GetOutputFiles() []core.File {
-	return []core.File{rds.CredentialsFile}
+func (rds *RdsInstance) GetOutputFiles() []io.File {
+	return []io.File{rds.CredentialsFile}
 }
 
-func (rds *RdsInstance) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (rds *RdsInstance) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
@@ -276,66 +278,66 @@ func (rds *RdsInstance) DeleteContext() core.DeleteContext {
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsSubnetGroup) BaseConstructRefs() core.BaseConstructSet {
+func (rds *RdsSubnetGroup) BaseConstructRefs() construct.BaseConstructSet {
 	return rds.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (rds *RdsSubnetGroup) Id() core.ResourceId {
-	return core.ResourceId{
+func (rds *RdsSubnetGroup) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     RDS_SUBNET_GROUP_TYPE,
 		Name:     rds.Name,
 	}
 }
 
-func (rds *RdsSubnetGroup) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (rds *RdsSubnetGroup) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsProxy) BaseConstructRefs() core.BaseConstructSet {
+func (rds *RdsProxy) BaseConstructRefs() construct.BaseConstructSet {
 	return rds.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (rds *RdsProxy) Id() core.ResourceId {
-	return core.ResourceId{
+func (rds *RdsProxy) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     RDS_PROXY_TYPE,
 		Name:     rds.Name,
 	}
 }
 
-func (rds *RdsProxy) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (rds *RdsProxy) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (rds *RdsProxyTargetGroup) BaseConstructRefs() core.BaseConstructSet {
+func (rds *RdsProxyTargetGroup) BaseConstructRefs() construct.BaseConstructSet {
 	return rds.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (rds *RdsProxyTargetGroup) Id() core.ResourceId {
-	return core.ResourceId{
+func (rds *RdsProxyTargetGroup) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     RDS_PROXY_TARGET_GROUP,
 		Name:     rds.Name,
 	}
 }
 
-func (rds *RdsProxyTargetGroup) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (rds *RdsProxyTargetGroup) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstreamOrDownstream: true,
 	}
 }
 
-func (rds *RdsInstance) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (rds *RdsInstance) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
 	// Set a default database name to ensure we actually create a database on the instance
 	if rds.DatabaseName == "" {
 		rds.DatabaseName = rdsDBNameSanitizer.Apply(rds.Name)

@@ -5,20 +5,20 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
-func (e *Engine) configureEdges(graph *core.ResourceGraph) (map[core.ResourceId]map[core.ResourceId]bool, error) {
-	configuredEdges := map[core.ResourceId]map[core.ResourceId]bool{}
+func (e *Engine) configureEdges(graph *construct.ResourceGraph) (map[construct.ResourceId]map[construct.ResourceId]bool, error) {
+	configuredEdges := map[construct.ResourceId]map[construct.ResourceId]bool{}
 	joinedErr := error(nil)
 	zap.S().Debug("Engine configuring edges")
 	for _, dep := range graph.ListDependencies() {
 		if _, ok := configuredEdges[dep.Source.Id()]; !ok {
-			configuredEdges[dep.Source.Id()] = make(map[core.ResourceId]bool)
+			configuredEdges[dep.Source.Id()] = make(map[construct.ResourceId]bool)
 		}
 		templateKey := fmt.Sprintf("%s:%s:-%s:%s:", dep.Source.Id().Provider, dep.Source.Id().Type, dep.Destination.Id().Provider, dep.Destination.Id().Type)
 		_, found := e.KnowledgeBase.GetResourceEdge(dep.Source, dep.Destination)
@@ -57,9 +57,9 @@ func (e *Engine) configureEdges(graph *core.ResourceGraph) (map[core.ResourceId]
 	return configuredEdges, joinedErr
 }
 
-func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, graph *core.ResourceGraph, edge *graph.Edge[core.Resource]) (map[core.ResourceId]core.Resource, error) {
+func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, graph *construct.ResourceGraph, edge *graph.Edge[construct.Resource]) (map[construct.ResourceId]construct.Resource, error) {
 	joinedErr := error(nil)
-	resourceMap := map[core.ResourceId]core.Resource{}
+	resourceMap := map[construct.ResourceId]construct.Resource{}
 	resourceMap[template.Source] = edge.Source
 	resourceMap[template.Destination] = edge.Destination
 	for _, res := range template.Expansion.Resources {
@@ -94,7 +94,7 @@ func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, graph *
 	return resourceMap, joinedErr
 }
 
-func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *core.ResourceGraph, edge *graph.Edge[core.Resource], resourceMap map[core.ResourceId]core.Resource) error {
+func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *construct.ResourceGraph, edge *graph.Edge[construct.Resource], resourceMap map[construct.ResourceId]construct.Resource) error {
 	joinedErr := error(nil)
 	for _, config := range template.Configuration {
 		id, fields := getIdAndFields(config.Resource)
@@ -108,7 +108,7 @@ func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *core.Reso
 			joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s not found when attempting to configure", id.String()))
 			continue
 		}
-		newConfig := core.Configuration{}
+		newConfig := construct.Configuration{}
 		valBytes, err := yaml.Marshal(config.Config)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
@@ -132,7 +132,7 @@ func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *core.Reso
 	return joinedErr
 }
 
-func (e *Engine) EdgeTemplateMakeOperational(template knowledgebase.EdgeTemplate, graph *core.ResourceGraph, edge *graph.Edge[core.Resource], resourceMap map[core.ResourceId]core.Resource) error {
+func (e *Engine) EdgeTemplateMakeOperational(template knowledgebase.EdgeTemplate, graph *construct.ResourceGraph, edge *graph.Edge[construct.Resource], resourceMap map[construct.ResourceId]construct.Resource) error {
 	joinedErr := error(nil)
 	for _, rule := range template.OperationalRules {
 		id, fields := getIdAndFields(rule.Resource)
@@ -145,7 +145,7 @@ func (e *Engine) EdgeTemplateMakeOperational(template knowledgebase.EdgeTemplate
 		errs := e.handleOperationalRule(resource, rule.Rule, graph, nil)
 		if errs != nil {
 			for _, err := range errs {
-				if ore, ok := err.(*core.OperationalResourceError); ok {
+				if ore, ok := err.(*OperationalResourceError); ok {
 					err = e.handleOperationalResourceError(ore, graph)
 					if err != nil {
 						joinedErr = errors.Join(joinedErr, err)
@@ -160,11 +160,11 @@ func (e *Engine) EdgeTemplateMakeOperational(template knowledgebase.EdgeTemplate
 	return joinedErr
 }
 
-func nameResourceFromEdge(edge *graph.Edge[core.Resource], res core.ResourceId) string {
+func nameResourceFromEdge(edge *graph.Edge[construct.Resource], res construct.ResourceId) string {
 	return fmt.Sprintf("%s-%s-%s", edge.Source.Id().Name, edge.Destination.Id().Name, res.Name)
 }
 
-func getResourceFromIdString(res core.Resource, fields string, dag *core.ResourceGraph) (core.Resource, error) {
+func getResourceFromIdString(res construct.Resource, fields string, dag *construct.ResourceGraph) (construct.Resource, error) {
 	if fields == "" {
 		return res, nil
 	}
@@ -177,6 +177,6 @@ func getResourceFromIdString(res core.Resource, fields string, dag *core.Resourc
 	} else if field.IsNil() {
 		return nil, fmt.Errorf("field %s on resource %s is nil", fields, res.Id())
 	}
-	res = field.Interface().(core.Resource)
+	res = field.Interface().(construct.Resource)
 	return res, nil
 }

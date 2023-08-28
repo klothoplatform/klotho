@@ -6,12 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/query"
@@ -35,16 +36,16 @@ type nestJsOutput struct {
 
 func (p NestJsHandler) Name() string { return "NestJs" }
 
-func (p NestJsHandler) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
+func (p NestJsHandler) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
 	var errs multierr.Error
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range construct.GetConstructsOfType[*types.ExecutionUnit](constructGraph) {
 		err := p.transformSingle(constructGraph, unit)
 		errs.Append(err)
 	}
 	return errs.ErrOrNil()
 }
 
-func (p *NestJsHandler) transformSingle(constructGraph *core.ConstructGraph, unit *core.ExecutionUnit) error {
+func (p *NestJsHandler) transformSingle(constructGraph *construct.ConstructGraph, unit *types.ExecutionUnit) error {
 
 	execUnitInfo := execUnitExposeInfo{Unit: unit, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
 	p.log = zap.L().With(zap.String("unit", unit.Name))
@@ -79,7 +80,7 @@ func (p *NestJsHandler) transformSingle(constructGraph *core.ConstructGraph, uni
 	return errs.ErrOrNil()
 }
 
-func (p *NestJsHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) (*core.SourceFile, error) {
+func (p *NestJsHandler) handleFile(f *types.SourceFile, unit *types.ExecutionUnit) (*types.SourceFile, error) {
 	annots := f.Annotations()
 
 	fileContent := string(f.Program())
@@ -91,7 +92,7 @@ func (p *NestJsHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit)
 		}
 
 		if cap.ID == "" {
-			return nil, core.NewCompilerError(f, annot, errors.New("'id' is required"))
+			return nil, types.NewCompilerError(f, annot, errors.New("'id' is required"))
 		}
 
 		// target can be public or private for now
@@ -104,7 +105,7 @@ func (p *NestJsHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit)
 			target = "private"
 		}
 		if target != "public" {
-			return nil, core.NewCompilerError(f, annot, errors.New("expose capability must specify target = \"public\""))
+			return nil, types.NewCompilerError(f, annot, errors.New("expose capability must specify target = \"public\""))
 
 		}
 
@@ -117,7 +118,7 @@ func (p *NestJsHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit)
 
 		appName, err := findApp(listen)
 		if err != nil {
-			return nil, core.NewCompilerError(f, annot, errors.New("Couldn't find expose app creation"))
+			return nil, types.NewCompilerError(f, annot, errors.New("Couldn't find expose app creation"))
 		}
 
 		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, p.Config.GetResourceType(unit), annot)
@@ -166,7 +167,7 @@ func (h *NestJsHandler) assignRoutesToGateway(info *execUnitExposeInfo) error {
 	}
 	return errs.ErrOrNil()
 }
-func (h *NestJsHandler) actOnAnnotation(f *core.SourceFile, listen *exposeListenResult, fileContent string, appName string, unitType string, annot *core.Annotation) (actedOn bool, newfileContent string) {
+func (h *NestJsHandler) actOnAnnotation(f *types.SourceFile, listen *exposeListenResult, fileContent string, appName string, unitType string, annot *types.Annotation) (actedOn bool, newfileContent string) {
 	nestFactory := h.findNestFactory(f)
 	newfileContent = fileContent
 	actedOn = false
@@ -206,10 +207,10 @@ type nestFactoryResult struct {
 	moduleImportPath string
 	appName          string
 	id               string
-	f                *core.SourceFile
+	f                *types.SourceFile
 }
 
-func (h *NestJsHandler) findNestFactory(f *core.SourceFile) nestFactoryResult {
+func (h *NestJsHandler) findNestFactory(f *types.SourceFile) nestFactoryResult {
 	nextMatch := DoQuery(f.Tree().RootNode(), nestJsFactory)
 	for {
 		match, found := nextMatch()
@@ -234,7 +235,7 @@ func (h *NestJsHandler) findNestFactory(f *core.SourceFile) nestFactoryResult {
 	return nestFactoryResult{}
 }
 
-func (h *NestJsHandler) queryResources(f *core.SourceFile) {
+func (h *NestJsHandler) queryResources(f *types.SourceFile) {
 
 	h.output.controllers = append(h.output.controllers, query.FindReferencesInFile(
 		f,
@@ -256,7 +257,7 @@ func (h *NestJsHandler) queryResources(f *core.SourceFile) {
 }
 
 type nestController struct {
-	f      *core.SourceFile
+	f      *types.SourceFile
 	routes []gatewayRouteDefinition
 	name   string
 }
@@ -306,10 +307,10 @@ func (h *NestJsHandler) findRoutesForController(controllerName string, basePath 
 			verb = "Any"
 		}
 		routes = append(routes, gatewayRouteDefinition{
-			Route: core.Route{
+			Route: types.Route{
 				Path:          methodPath,
 				ExecUnitName:  unitName,
-				Verb:          core.Verb(verb),
+				Verb:          types.Verb(verb),
 				HandledInFile: f.Path(),
 			},
 			DefinedInPath: f.Path(),
@@ -321,7 +322,7 @@ func (h *NestJsHandler) findRoutesForController(controllerName string, basePath 
 
 type nestModuleResult struct {
 	controllers []nestController
-	f           *core.SourceFile
+	f           *types.SourceFile
 }
 
 func (h *NestJsHandler) findModules(controllers map[string]nestController) map[string]*nestModuleResult {
@@ -372,25 +373,25 @@ func (h *NestJsHandler) findModules(controllers map[string]nestController) map[s
 
 // Validation functions
 
-func validateController(match map[string]*sitter.Node, f *core.SourceFile) bool {
+func validateController(match map[string]*sitter.Node, f *types.SourceFile) bool {
 	importName, method := match["import"], match["method"]
 	imp := FindImportForVar(f.Tree().RootNode(), importName.Content())
 	return imp.Source == "@nestjs/common" && method.Content() == "Controller"
 }
 
-func ValidateModule(match map[string]*sitter.Node, f *core.SourceFile) bool {
+func ValidateModule(match map[string]*sitter.Node, f *types.SourceFile) bool {
 	importName, method := match["import"], match["method"]
 	imp := FindImportForVar(f.Tree().RootNode(), importName.Content())
 	return imp.Source == "@nestjs/common" && method.Content() == "Module"
 }
 
-func validateRoute(match map[string]*sitter.Node, f *core.SourceFile) bool {
+func validateRoute(match map[string]*sitter.Node, f *types.SourceFile) bool {
 	importName := match["import"]
 	imp := FindImportForVar(f.Tree().RootNode(), importName.Content())
 	return imp.Source == "@nestjs/common"
 }
 
-func validateNestFactory(match map[string]*sitter.Node, f *core.SourceFile) bool {
+func validateNestFactory(match map[string]*sitter.Node, f *types.SourceFile) bool {
 	importName, call := match["import"], match["call"]
 	importedName := importName.Content()
 	imp := FindImportForVar(f.Tree().RootNode(), importName.Content())

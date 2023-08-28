@@ -4,12 +4,13 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"go.uber.org/zap"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
 type ConstructValidation struct {
@@ -19,7 +20,7 @@ type ConstructValidation struct {
 
 func (p ConstructValidation) Name() string { return "Validation" }
 
-func (p ConstructValidation) Run(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p ConstructValidation) Run(input *types.InputFiles, constructGraph *construct.ConstructGraph) error {
 	var errs multierr.Error
 	err := p.handleAnnotations(input, constructGraph)
 	errs.Append(err)
@@ -30,12 +31,12 @@ func (p ConstructValidation) Run(input *core.InputFiles, constructGraph *core.Co
 }
 
 // handleAnnotations ensures that every annotation has one resource and only one resource tied to the kind in which it is supposed to produce.
-func (p *ConstructValidation) handleAnnotations(input *core.InputFiles, constructGraph *core.ConstructGraph) error {
+func (p *ConstructValidation) handleAnnotations(input *types.InputFiles, constructGraph *construct.ConstructGraph) error {
 	var errs multierr.Error
 	for _, f := range input.Files() {
 
 		log := zap.L().With(logging.FileField(f)).Sugar()
-		ast, ok := f.(*core.SourceFile)
+		ast, ok := f.(*types.SourceFile)
 		if !ok {
 			// Non-source files can't have any annotations therefore we don't care about checking
 			log.Debug("Skipping non-source file")
@@ -51,34 +52,34 @@ func (p *ConstructValidation) handleAnnotations(input *core.InputFiles, construc
 }
 
 // handleResources ensures that every resource has a unique id and capability pair.
-func (p *ConstructValidation) handleResources(constructGraph *core.ConstructGraph) error {
+func (p *ConstructValidation) handleResources(constructGraph *construct.ConstructGraph) error {
 	var errs multierr.Error
-	err := validateNoDuplicateIds[*core.Kv](constructGraph)
+	err := validateNoDuplicateIds[*types.Kv](constructGraph)
 	errs.Append(err)
-	err = validateNoDuplicateIds[*core.Fs](constructGraph)
+	err = validateNoDuplicateIds[*types.Fs](constructGraph)
 	errs.Append(err)
-	err = validateNoDuplicateIds[*core.Secrets](constructGraph)
+	err = validateNoDuplicateIds[*types.Secrets](constructGraph)
 	errs.Append(err)
-	err = validateNoDuplicateIds[*core.Orm](constructGraph)
+	err = validateNoDuplicateIds[*types.Orm](constructGraph)
 	errs.Append(err)
-	err = validateNoDuplicateIds[*core.RedisCluster](constructGraph)
+	err = validateNoDuplicateIds[*types.RedisCluster](constructGraph)
 	errs.Append(err)
-	err = validateNoDuplicateIds[*core.RedisNode](constructGraph)
+	err = validateNoDuplicateIds[*types.RedisNode](constructGraph)
 	errs.Append(err)
-	err = validateNoDuplicateIds[*core.Gateway](constructGraph)
+	err = validateNoDuplicateIds[*types.Gateway](constructGraph)
 	errs.Append(err)
-	err = validateNoDuplicateIds[*core.ExecutionUnit](constructGraph)
+	err = validateNoDuplicateIds[*types.ExecutionUnit](constructGraph)
 	errs.Append(err)
-	err = validateNoDuplicateIds[*core.PubSub](constructGraph)
+	err = validateNoDuplicateIds[*types.PubSub](constructGraph)
 	errs.Append(err)
-	err = validateNoDuplicateIds[*core.StaticUnit](constructGraph)
+	err = validateNoDuplicateIds[*types.StaticUnit](constructGraph)
 	errs.Append(err)
-	err = validateNoDuplicateIds[*core.Config](constructGraph)
+	err = validateNoDuplicateIds[*types.Config](constructGraph)
 	errs.Append(err)
 	return errs.ErrOrNil()
 }
 
-func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGraph *core.ConstructGraph, log *zap.SugaredLogger) {
+func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGraph *construct.ConstructGraph, log *zap.SugaredLogger) {
 	for unit := range p.UserConfigOverrides.ExecutionUnits {
 		resources := constructGraph.GetResourcesOfCapability(annotation.ExecutionUnitCapability)
 		resource := getResourceById(unit, resources)
@@ -88,10 +89,10 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 	}
 
 	for persistResource := range p.UserConfigOverrides.PersistKv {
-		resources := []core.Construct{}
+		resources := []construct.Construct{}
 		resources_persist := constructGraph.GetResourcesOfCapability(annotation.PersistCapability)
 		for _, res := range resources_persist {
-			if _, ok := res.(*core.Kv); ok {
+			if _, ok := res.(*types.Kv); ok {
 				resources = append(resources, res)
 			}
 		}
@@ -102,10 +103,10 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 	}
 
 	for persistResource := range p.UserConfigOverrides.PersistFs {
-		resources := []core.Construct{}
+		resources := []construct.Construct{}
 		resources_persist := constructGraph.GetResourcesOfCapability(annotation.PersistCapability)
 		for _, res := range resources_persist {
-			if _, ok := res.(*core.Fs); ok {
+			if _, ok := res.(*types.Fs); ok {
 				resources = append(resources, res)
 			}
 		}
@@ -116,10 +117,10 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 	}
 
 	for persistResource := range p.UserConfigOverrides.PersistOrm {
-		resources := []core.Construct{}
+		resources := []construct.Construct{}
 		resources_persist := constructGraph.GetResourcesOfCapability(annotation.PersistCapability)
 		for _, res := range resources_persist {
-			if _, ok := res.(*core.Orm); ok {
+			if _, ok := res.(*types.Orm); ok {
 				resources = append(resources, res)
 			}
 		}
@@ -130,10 +131,10 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 	}
 
 	for persistResource := range p.UserConfigOverrides.PersistSecrets {
-		resources := []core.Construct{}
+		resources := []construct.Construct{}
 		resources_persist := constructGraph.GetResourcesOfCapability(annotation.PersistCapability)
 		for _, res := range resources_persist {
-			if _, ok := res.(*core.Secrets); ok {
+			if _, ok := res.(*types.Secrets); ok {
 				resources = append(resources, res)
 			}
 		}
@@ -144,10 +145,10 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 	}
 
 	for persistResource := range p.UserConfigOverrides.PersistRedisCluster {
-		resources := []core.Construct{}
+		resources := []construct.Construct{}
 		resources_persist := constructGraph.GetResourcesOfCapability(annotation.PersistCapability)
 		for _, res := range resources_persist {
-			if _, ok := res.(*core.RedisCluster); ok {
+			if _, ok := res.(*types.RedisCluster); ok {
 				resources = append(resources, res)
 			}
 		}
@@ -158,10 +159,10 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 	}
 
 	for persistResource := range p.UserConfigOverrides.PersistRedisNode {
-		resources := []core.Construct{}
+		resources := []construct.Construct{}
 		resources_persist := constructGraph.GetResourcesOfCapability(annotation.PersistCapability)
 		for _, res := range resources_persist {
-			if _, ok := res.(*core.RedisNode); ok {
+			if _, ok := res.(*types.RedisNode); ok {
 				resources = append(resources, res)
 			}
 		}
@@ -196,8 +197,8 @@ func (p *ConstructValidation) validateConfigOverrideResourcesExist(constructGrap
 	}
 }
 
-func (p *ConstructValidation) checkAnnotationForResource(annot *core.Annotation, constructGraph *core.ConstructGraph, log *zap.SugaredLogger) core.Construct {
-	resources := []core.Construct{}
+func (p *ConstructValidation) checkAnnotationForResource(annot *types.Annotation, constructGraph *construct.ConstructGraph, log *zap.SugaredLogger) construct.Construct {
+	resources := []construct.Construct{}
 
 	switch annot.Capability.Name {
 	case annotation.PersistCapability:
@@ -225,8 +226,8 @@ func (p *ConstructValidation) checkAnnotationForResource(annot *core.Annotation,
 	return resource
 }
 
-func getResourceById(id string, resources []core.Construct) core.Construct {
-	var resource core.Construct
+func getResourceById(id string, resources []construct.Construct) construct.Construct {
+	var resource construct.Construct
 	for _, res := range resources {
 		if res.Id().Name == id {
 			if resource == nil {
@@ -237,9 +238,9 @@ func getResourceById(id string, resources []core.Construct) core.Construct {
 	return resource
 }
 
-func validateNoDuplicateIds[T core.Construct](constructGraph *core.ConstructGraph) error {
+func validateNoDuplicateIds[T construct.Construct](constructGraph *construct.ConstructGraph) error {
 	unitIds := make(map[string]struct{})
-	units := core.GetConstructsOfType[T](constructGraph)
+	units := construct.GetConstructsOfType[T](constructGraph)
 	for _, unit := range units {
 		if _, ok := unitIds[unit.Id().Name]; ok {
 			return fmt.Errorf(`multiple objects with the same name, "%s"`, unit.Id().Name)

@@ -7,7 +7,8 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 )
@@ -26,18 +27,18 @@ type (
 		Path   string `json:"path" yaml:"path" toml:"path"`
 		OutDir string `json:"out_dir" yaml:"out_dir" toml:"out_dir"`
 
-		Defaults            Defaults                   `json:"defaults" yaml:"defaults" toml:"defaults"`
-		ExecutionUnits      map[string]*ExecutionUnit  `json:"execution_units,omitempty" yaml:"execution_units,omitempty" toml:"execution_units,omitempty"`
-		StaticUnit          map[string]*StaticUnit     `json:"static_unit,omitempty" yaml:"static_unit,omitempty" toml:"static_unit,omitempty"`
-		Exposed             map[string]*Expose         `json:"exposed,omitempty" yaml:"exposed,omitempty" toml:"exposed,omitempty"`
-		PersistKv           map[string]*Persist        `json:"persist_kv,omitempty" yaml:"persist_kv,omitempty" toml:"persist_kv,omitempty"`
-		PersistOrm          map[string]*Persist        `json:"persist_orm,omitempty" yaml:"persist_orm,omitempty" toml:"persist_orm,omitempty"`
-		PersistFs           map[string]*Persist        `json:"persist_fs,omitempty" yaml:"persist_fs,omitempty" toml:"persist_fs,omitempty"`
-		PersistSecrets      map[string]*Persist        `json:"persist_secrets,omitempty" yaml:"persist_secrets,omitempty" toml:"persist_secrets,omitempty"`
-		PersistRedisNode    map[string]*Persist        `json:"persist_redis_node,omitempty" yaml:"persist_redis_node,omitempty" toml:"persist_redis_node,omitempty"`
-		PersistRedisCluster map[string]*Persist        `json:"persist_redis_cluster,omitempty" yaml:"persist_redis_cluster,omitempty" toml:"persist_redis_cluster,omitempty"`
-		Config              map[string]*Config         `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
-		Imports             map[core.ResourceId]string `json:"imports,omitempty" yaml:"imports,omitempty" toml:"imports,omitempty"`
+		Defaults            Defaults                        `json:"defaults" yaml:"defaults" toml:"defaults"`
+		ExecutionUnits      map[string]*ExecutionUnit       `json:"execution_units,omitempty" yaml:"execution_units,omitempty" toml:"execution_units,omitempty"`
+		StaticUnit          map[string]*StaticUnit          `json:"static_unit,omitempty" yaml:"static_unit,omitempty" toml:"static_unit,omitempty"`
+		Exposed             map[string]*Expose              `json:"exposed,omitempty" yaml:"exposed,omitempty" toml:"exposed,omitempty"`
+		PersistKv           map[string]*Persist             `json:"persist_kv,omitempty" yaml:"persist_kv,omitempty" toml:"persist_kv,omitempty"`
+		PersistOrm          map[string]*Persist             `json:"persist_orm,omitempty" yaml:"persist_orm,omitempty" toml:"persist_orm,omitempty"`
+		PersistFs           map[string]*Persist             `json:"persist_fs,omitempty" yaml:"persist_fs,omitempty" toml:"persist_fs,omitempty"`
+		PersistSecrets      map[string]*Persist             `json:"persist_secrets,omitempty" yaml:"persist_secrets,omitempty" toml:"persist_secrets,omitempty"`
+		PersistRedisNode    map[string]*Persist             `json:"persist_redis_node,omitempty" yaml:"persist_redis_node,omitempty" toml:"persist_redis_node,omitempty"`
+		PersistRedisCluster map[string]*Persist             `json:"persist_redis_cluster,omitempty" yaml:"persist_redis_cluster,omitempty" toml:"persist_redis_cluster,omitempty"`
+		Config              map[string]*Config              `json:"config,omitempty" yaml:"config,omitempty" toml:"config,omitempty"`
+		Imports             map[construct.ResourceId]string `json:"imports,omitempty" yaml:"imports,omitempty" toml:"imports,omitempty"`
 	}
 
 	ContentDeliveryNetwork struct {
@@ -151,45 +152,45 @@ func (a *Application) WriteTo(writer io.Writer) error {
 	return nil
 }
 
-func (a Application) GetResourceType(resource core.Construct) string {
+func (a Application) GetResourceType(resource construct.Construct) string {
 	switch resource.(type) {
-	case *core.ExecutionUnit:
+	case *types.ExecutionUnit:
 		cfg := a.GetExecutionUnit(resource.Id().Name)
 		return cfg.Type
 
-	case *core.StaticUnit:
+	case *types.StaticUnit:
 		cfg := a.GetStaticUnit(resource.Id().Name)
 		return cfg.Type
 
-	case *core.Gateway:
+	case *types.Gateway:
 		cfg := a.GetExpose(resource.Id().Name)
 		return cfg.Type
 
-	case *core.Fs:
+	case *types.Fs:
 		cfg := a.GetPersistFs(resource.Id().Name)
 		return cfg.Type
 
-	case *core.Kv:
+	case *types.Kv:
 		cfg := a.GetPersistKv(resource.Id().Name)
 		return cfg.Type
 
-	case *core.Orm:
+	case *types.Orm:
 		cfg := a.GetPersistOrm(resource.Id().Name)
 		return cfg.Type
 
-	case *core.Secrets:
+	case *types.Secrets:
 		cfg := a.GetPersistSecrets(resource.Id().Name)
 		return cfg.Type
 
-	case *core.RedisCluster:
+	case *types.RedisCluster:
 		cfg := a.GetPersistRedisCluster(resource.Id().Name)
 		return cfg.Type
 
-	case *core.RedisNode:
+	case *types.RedisNode:
 		cfg := a.GetPersistRedisNode(resource.Id().Name)
 		return cfg.Type
 
-	case *core.Config:
+	case *types.Config:
 		cfg := a.GetConfig(resource.Id().Name)
 		return cfg.Type
 	}
@@ -197,42 +198,42 @@ func (a Application) GetResourceType(resource core.Construct) string {
 }
 
 // UpdateForResources mutates the Application config for all the resources, applying the defaults.
-func (a *Application) UpdateForResources(res []core.Construct) {
+func (a *Application) UpdateForResources(res []construct.Construct) {
 	for _, r := range res {
 		switch r.(type) {
-		case *core.ExecutionUnit:
+		case *types.ExecutionUnit:
 			cfg := a.GetExecutionUnit(r.Id().Name)
 			a.ExecutionUnits[r.Id().Name] = &cfg
 
-		case *core.StaticUnit:
+		case *types.StaticUnit:
 			cfg := a.GetStaticUnit(r.Id().Name)
 			a.StaticUnit[r.Id().Name] = &cfg
 
-		case *core.Gateway:
+		case *types.Gateway:
 			cfg := a.GetExpose(r.Id().Name)
 			a.Exposed[r.Id().Name] = &cfg
 
-		case *core.Fs:
+		case *types.Fs:
 			cfg := a.GetPersistFs(r.Id().Name)
 			a.PersistFs[r.Id().Name] = &cfg
 
-		case *core.Kv:
+		case *types.Kv:
 			cfg := a.GetPersistKv(r.Id().Name)
 			a.PersistKv[r.Id().Name] = &cfg
 
-		case *core.Orm:
+		case *types.Orm:
 			cfg := a.GetPersistOrm(r.Id().Name)
 			a.PersistOrm[r.Id().Name] = &cfg
 
-		case *core.Secrets:
+		case *types.Secrets:
 			cfg := a.GetPersistSecrets(r.Id().Name)
 			a.PersistSecrets[r.Id().Name] = &cfg
 
-		case *core.RedisCluster:
+		case *types.RedisCluster:
 			cfg := a.GetPersistRedisCluster(r.Id().Name)
 			a.PersistRedisCluster[r.Id().Name] = &cfg
 
-		case *core.RedisNode:
+		case *types.RedisNode:
 			cfg := a.GetPersistRedisNode(r.Id().Name)
 			a.PersistRedisNode[r.Id().Name] = &cfg
 		}

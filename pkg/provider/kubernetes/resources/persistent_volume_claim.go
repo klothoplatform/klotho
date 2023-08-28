@@ -2,7 +2,8 @@ package resources
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/core"
+
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
@@ -17,28 +18,28 @@ const (
 type (
 	PersistentVolumeClaim struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Object        *corev1.PersistentVolumeClaim
-		Values        map[string]core.IaCValue
+		Values        map[string]construct.IaCValue
 		FilePath      string
-		Cluster       core.ResourceId
+		Cluster       construct.ResourceId
 	}
 )
 
-func (pvc *PersistentVolumeClaim) Id() core.ResourceId {
-	return core.ResourceId{
+func (pvc *PersistentVolumeClaim) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     PERSISTENT_VOLUME_CLAIM_TYPE,
 		Name:     pvc.Name,
 	}
 }
 
-func (pvc *PersistentVolumeClaim) BaseConstructRefs() core.BaseConstructSet {
+func (pvc *PersistentVolumeClaim) BaseConstructRefs() construct.BaseConstructSet {
 	return pvc.ConstructRefs
 }
 
-func (pvc *PersistentVolumeClaim) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (pvc *PersistentVolumeClaim) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -57,10 +58,10 @@ func (pvc *PersistentVolumeClaim) Path() string {
 
 type PersistentVolumeClaimCreateParams struct {
 	Name          string
-	ConstructRefs core.BaseConstructSet
+	ConstructRefs construct.BaseConstructSet
 }
 
-func (pvc *PersistentVolumeClaim) Create(dag *core.ResourceGraph, params PersistentVolumeCreateParams) error {
+func (pvc *PersistentVolumeClaim) Create(dag *construct.ResourceGraph, params PersistentVolumeCreateParams) error {
 	pvc.Name = fmt.Sprintf("%s-pvc", params.Name)
 	pvc.ConstructRefs = params.ConstructRefs
 	pvc.Object = &corev1.PersistentVolumeClaim{
@@ -76,7 +77,7 @@ func (pvc *PersistentVolumeClaim) Create(dag *core.ResourceGraph, params Persist
 	return nil
 }
 
-func (pvc *PersistentVolumeClaim) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (pvc *PersistentVolumeClaim) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if pvc.Cluster.IsZero() {
 		return fmt.Errorf("%s has no cluster", pvc.Id())
 	}
@@ -85,6 +86,6 @@ func (pvc *PersistentVolumeClaim) MakeOperational(dag *core.ResourceGraph, appNa
 	return nil
 }
 
-func (pvc *PersistentVolumeClaim) GetValues() map[string]core.IaCValue {
+func (pvc *PersistentVolumeClaim) GetValues() map[string]construct.IaCValue {
 	return pvc.Values
 }

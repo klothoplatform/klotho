@@ -1,7 +1,7 @@
 package resources
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
 const (
@@ -25,7 +25,7 @@ type (
 	EfsFileSystem struct {
 		// Name is the name of the EfsFileSystem
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		// PerformanceMode is the performance mode of the EfsFileSystem
 		PerformanceMode string
 		// ThroughputMode is the throughput mode of the EfsFileSystem
@@ -39,15 +39,15 @@ type (
 		// LifecyclePolicies is the list of lifecycle policies of the EfsFileSystem
 		LifecyclePolicies []*EfsLifecyclePolicy
 		// AvailabilityZoneName is the availability zone name of the EfsFileSystem when running in a single AZ
-		AvailabilityZoneName *core.IaCValue
+		AvailabilityZoneName *construct.IaCValue
 		// CreationToken is the creation token of the EfsFileSystem
 		CreationToken string
 	}
 
 	EfsMountTarget struct {
-		// Name is the name of the EFS core.Resource
+		// Name is the name of the EFS construct.Resource
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		// FileSystem is the file system associated with the EfsMountTarget
 		FileSystem *EfsFileSystem
 		// Subnets is the list of subnets associated with the EfsMountTarget
@@ -85,7 +85,7 @@ type (
 		// Name is the name of the EfsAccessPoint
 		Name string
 		// ConstructRefs is the list of references to the EfsAccessPoint
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		// FileSystem is the file system associated with the EfsAccessPoint
 		FileSystem *EfsFileSystem
 		// PosixUser is the posix user associated with the EfsAccessPoint
@@ -106,60 +106,60 @@ var (
 	EfsToPrimaryAfter1Access = EfsToPrimaryPolicy("AFTER_1_ACCESS")
 )
 
-func (efs *EfsFileSystem) Id() core.ResourceId {
-	return core.ResourceId{
+func (efs *EfsFileSystem) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     EFS_FILE_SYSTEM_TYPE,
 		Name:     efs.Name,
 	}
 }
 
-func (efs *EfsFileSystem) BaseConstructRefs() core.BaseConstructSet {
+func (efs *EfsFileSystem) BaseConstructRefs() construct.BaseConstructSet {
 	return efs.ConstructRefs
 }
 
-func (efs *EfsFileSystem) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (efs *EfsFileSystem) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
 	}
 }
 
-func (eap *EfsAccessPoint) Id() core.ResourceId {
-	return core.ResourceId{
+func (eap *EfsAccessPoint) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     EFS_ACCESS_POINT_TYPE,
 		Name:     eap.Name,
 	}
 }
 
-func (eap *EfsAccessPoint) BaseConstructRefs() core.BaseConstructSet {
+func (eap *EfsAccessPoint) BaseConstructRefs() construct.BaseConstructSet {
 	return eap.ConstructRefs
 }
 
-func (eap *EfsAccessPoint) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (eap *EfsAccessPoint) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   false,
 		RequiresExplicitDelete: false,
 	}
 }
 
-func (emt *EfsMountTarget) Id() core.ResourceId {
-	return core.ResourceId{
+func (emt *EfsMountTarget) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     EFS_MOUNT_TARGET_TYPE,
 		Name:     emt.Name,
 	}
 }
 
-func (emt *EfsMountTarget) BaseConstructRefs() core.BaseConstructSet {
+func (emt *EfsMountTarget) BaseConstructRefs() construct.BaseConstructSet {
 	return emt.ConstructRefs
 }
 
-func (emt *EfsMountTarget) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (emt *EfsMountTarget) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   false,
 		RequiresExplicitDelete: false,
@@ -168,10 +168,10 @@ func (emt *EfsMountTarget) DeleteContext() core.DeleteContext {
 
 type EfsMountTargetCreateParams struct {
 	Name          string
-	ConstructRefs core.BaseConstructSet
+	ConstructRefs construct.BaseConstructSet
 }
 
-func (emt *EfsMountTarget) Create(dag *core.ResourceGraph, params EfsMountTargetCreateParams) error {
+func (emt *EfsMountTarget) Create(dag *construct.ResourceGraph, params EfsMountTargetCreateParams) error {
 	emt.Name = params.Name
 	emt.ConstructRefs = params.ConstructRefs.Clone()
 	return nil

@@ -3,8 +3,9 @@ package resources
 import (
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -23,9 +24,9 @@ const (
 type (
 	EcsTaskDefinition struct {
 		Name                    string
-		ConstructRefs           core.BaseConstructSet `yaml:"-"`
+		ConstructRefs           construct.BaseConstructSet `yaml:"-"`
 		Image                   *EcrImage
-		EnvironmentVariables    map[string]core.IaCValue
+		EnvironmentVariables    map[string]construct.IaCValue
 		Cpu                     string
 		Memory                  string
 		LogGroup                *LogGroup
@@ -38,15 +39,15 @@ type (
 	}
 
 	EcsEfsVolume struct {
-		FileSystemId          core.IaCValue
+		FileSystemId          construct.IaCValue
 		AuthorizationConfig   *EcsEfsVolumeAuthorizationConfig
-		RootDirectory         core.IaCValue
+		RootDirectory         construct.IaCValue
 		TransitEncryption     string
 		TransitEncryptionPort int
 	}
 
 	EcsEfsVolumeAuthorizationConfig struct {
-		AccessPointId core.IaCValue
+		AccessPointId construct.IaCValue
 		Iam           string
 	}
 
@@ -58,13 +59,13 @@ type (
 
 	EcsCluster struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		//TODO: add support for cluster configuration
 	}
 
 	EcsService struct {
 		Name                     string
-		ConstructRefs            core.BaseConstructSet `yaml:"-"`
+		ConstructRefs            construct.BaseConstructSet `yaml:"-"`
 		AssignPublicIp           bool
 		Cluster                  *EcsCluster
 		DeploymentCircuitBreaker *EcsServiceDeploymentCircuitBreaker
@@ -83,14 +84,14 @@ type (
 	}
 
 	EcsServiceLoadBalancerConfig struct {
-		TargetGroupArn core.IaCValue
+		TargetGroupArn construct.IaCValue
 		ContainerName  string
 		ContainerPort  int
 	}
 
 	EcsServiceCreateParams struct {
 		AppName          string
-		Refs             core.BaseConstructSet `yaml:"-"`
+		Refs             construct.BaseConstructSet `yaml:"-"`
 		Name             string
 		LaunchType       string
 		NetworkPlacement string
@@ -105,25 +106,25 @@ type (
 
 	EcsTaskDefinitionCreateParams struct {
 		AppName string
-		Refs    core.BaseConstructSet
+		Refs    construct.BaseConstructSet
 		Name    string
 	}
 
 	EcsTaskDefinitionConfigureParams struct {
 		Cpu                  int
 		Memory               int
-		EnvironmentVariables core.EnvironmentVariables
+		EnvironmentVariables types.EnvironmentVariables
 		PortMappings         []PortMapping
 	}
 
 	EcsClusterCreateParams struct {
 		AppName string
-		Refs    core.BaseConstructSet
+		Refs    construct.BaseConstructSet
 		Name    string
 	}
 )
 
-func (td *EcsTaskDefinition) Create(dag *core.ResourceGraph, params EcsTaskDefinitionCreateParams) error {
+func (td *EcsTaskDefinition) Create(dag *construct.ResourceGraph, params EcsTaskDefinitionCreateParams) error {
 
 	name := aws.EcsTaskDefinitionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	td.Name = name
@@ -138,25 +139,25 @@ func (td *EcsTaskDefinition) Create(dag *core.ResourceGraph, params EcsTaskDefin
 	return nil
 }
 
-func (td *EcsTaskDefinition) BaseConstructRefs() core.BaseConstructSet {
+func (td *EcsTaskDefinition) BaseConstructRefs() construct.BaseConstructSet {
 	return td.ConstructRefs
 }
 
-func (td *EcsTaskDefinition) Id() core.ResourceId {
-	return core.ResourceId{
+func (td *EcsTaskDefinition) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     ECS_TASK_DEFINITION_TYPE,
 		Name:     td.Name,
 	}
 }
 
-func (td *EcsTaskDefinition) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (td *EcsTaskDefinition) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 
-func (s *EcsService) Create(dag *core.ResourceGraph, params EcsServiceCreateParams) error {
+func (s *EcsService) Create(dag *construct.ResourceGraph, params EcsServiceCreateParams) error {
 	name := aws.EcsServiceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	s.Name = name
 	s.ConstructRefs = params.Refs.Clone()
@@ -178,52 +179,52 @@ func (s *EcsService) Configure(params EcsServiceConfigureParams) error {
 	return nil
 }
 
-func (s *EcsService) BaseConstructRefs() core.BaseConstructSet {
+func (s *EcsService) BaseConstructRefs() construct.BaseConstructSet {
 	return s.ConstructRefs
 }
 
-func (s *EcsService) Id() core.ResourceId {
-	return core.ResourceId{
+func (s *EcsService) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     ECS_SERVICE_TYPE,
 		Name:     s.Name,
 	}
 }
 
-func (td *EcsService) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (td *EcsService) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresNoDownstream:   true,
 		RequiresExplicitDelete: true,
 	}
 }
 
-func (c *EcsCluster) Create(dag *core.ResourceGraph, params EcsClusterCreateParams) error {
+func (c *EcsCluster) Create(dag *construct.ResourceGraph, params EcsClusterCreateParams) error {
 	name := aws.EcsClusterSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	c.Name = name
 	c.ConstructRefs = params.Refs.Clone()
 
-	if existingCluster, ok := core.GetResource[*EcsCluster](dag, c.Id()); ok {
+	if existingCluster, ok := construct.GetResource[*EcsCluster](dag, c.Id()); ok {
 		existingCluster.ConstructRefs.AddAll(params.Refs)
 	}
 	dag.AddResource(c)
 	return nil
 }
 
-func (c *EcsCluster) BaseConstructRefs() core.BaseConstructSet {
+func (c *EcsCluster) BaseConstructRefs() construct.BaseConstructSet {
 	return c.ConstructRefs
 }
 
-func (c *EcsCluster) Id() core.ResourceId {
-	return core.ResourceId{
+func (c *EcsCluster) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     ECS_CLUSTER_TYPE,
 		Name:     c.Name,
 	}
 }
 
-func (c *EcsCluster) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (c *EcsCluster) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

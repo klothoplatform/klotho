@@ -1,10 +1,11 @@
 package logging
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"testing"
 )
 
 func TestSanitize(t *testing.T) {

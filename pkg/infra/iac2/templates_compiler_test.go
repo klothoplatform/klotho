@@ -9,7 +9,7 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/klothoplatform/klotho/pkg/provider/imports"
@@ -31,7 +31,7 @@ func TestOutputBody(t *testing.T) {
 		},
 	}
 	thingToImport := &DummyFizz{Value: "imported"}
-	graph := core.NewResourceGraph()
+	graph := construct.NewResourceGraph()
 	graph.AddResource(fizz)
 	graph.AddResource(buzz)
 	graph.AddResource(parent)
@@ -100,7 +100,7 @@ import {Whatever} from "@pulumi/aws/cool/service"
 func TestResolveStructInput(t *testing.T) {
 	cases := []struct {
 		name                   string
-		parentResource         *core.Resource
+		parentResource         *construct.Resource
 		value                  any
 		withVars               map[string]string
 		useDoubleQuotedStrings bool
@@ -145,7 +145,7 @@ func TestResolveStructInput(t *testing.T) {
 		},
 		{
 			name:     "slice of resources",
-			value:    []core.Resource{&DummyFizz{Value: `abc`}},
+			value:    []construct.Resource{&DummyFizz{Value: `abc`}},
 			withVars: map[string]string{`fizz-abc`: `myVar`},
 			want:     `[myVar]`,
 		},
@@ -175,10 +175,10 @@ func TestResolveStructInput(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			tc := TemplatesCompiler{
-				resourceVarNamesById: make(map[core.ResourceId]string),
+				resourceVarNamesById: make(map[construct.ResourceId]string),
 			}
 			for k, v := range tt.withVars {
-				tc.resourceVarNamesById[core.ResourceId{Name: k}] = v
+				tc.resourceVarNamesById[construct.ResourceId{Name: k}] = v
 			}
 			resourceVal := reflect.ValueOf(tt.parentResource)
 			val := reflect.ValueOf(tt.value)
@@ -193,27 +193,27 @@ func Test_renderGlueVars(t *testing.T) {
 	vpc := &resources.Vpc{Name: "vpc"}
 	cases := []struct {
 		name                 string
-		subResource          core.Resource
-		nodes                []core.Resource
-		edges                []graph.Edge[core.Resource]
-		resourceVarNamesById map[core.ResourceId]string
+		subResource          construct.Resource
+		nodes                []construct.Resource
+		edges                []graph.Edge[construct.Resource]
+		resourceVarNamesById map[construct.ResourceId]string
 		want                 string
 	}{
 		{
 			name:        "routeTableAssociation",
 			subResource: &resources.Subnet{Name: "s1", Vpc: vpc},
-			nodes: []core.Resource{
+			nodes: []construct.Resource{
 				vpc,
 				&resources.RouteTable{Name: "rt1"},
 				&resources.Subnet{Name: "s1", Vpc: vpc},
 			},
-			edges: []graph.Edge[core.Resource]{
+			edges: []graph.Edge[construct.Resource]{
 				{
 					Source:      &resources.Subnet{Name: "s1", Vpc: vpc},
 					Destination: &resources.RouteTable{Name: "rt1"},
 				},
 			},
-			resourceVarNamesById: map[core.ResourceId]string{
+			resourceVarNamesById: map[construct.ResourceId]string{
 				{Provider: "aws", Type: "route_table", Name: "rt1"}: "testRouteTable",
 				{Provider: "aws", Type: "vpc_subnet", Name: "s1"}:   "subnet1",
 			},
@@ -223,7 +223,7 @@ func Test_renderGlueVars(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			tc := CreateTemplatesCompiler(core.NewResourceGraph())
+			tc := CreateTemplatesCompiler(construct.NewResourceGraph())
 			tc.resourceVarNamesById = tt.resourceVarNamesById
 			tc.templates = filesMapToFsMap(subResourceTemplateFiles)
 			for _, res := range tt.nodes {
@@ -274,25 +274,25 @@ type (
 	}
 )
 
-func (f *DummyFizz) Id() core.ResourceId                      { return core.ResourceId{Name: "fizz-" + f.Value} }
-func (f *DummyFizz) BaseConstructRefs() core.BaseConstructSet { return nil }
-func (f *DummyFizz) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{}
+func (f *DummyFizz) Id() construct.ResourceId                      { return construct.ResourceId{Name: "fizz-" + f.Value} }
+func (f *DummyFizz) BaseConstructRefs() construct.BaseConstructSet { return nil }
+func (f *DummyFizz) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{}
 }
-func (b DummyBuzz) Id() core.ResourceId                      { return core.ResourceId{Name: "buzz-shared"} }
-func (f DummyBuzz) BaseConstructRefs() core.BaseConstructSet { return nil }
-func (f DummyBuzz) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{}
+func (b DummyBuzz) Id() construct.ResourceId                      { return construct.ResourceId{Name: "buzz-shared"} }
+func (f DummyBuzz) BaseConstructRefs() construct.BaseConstructSet { return nil }
+func (f DummyBuzz) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{}
 }
-func (p *DummyBig) Id() core.ResourceId                      { return core.ResourceId{Name: "big-" + p.id} }
-func (f *DummyBig) BaseConstructRefs() core.BaseConstructSet { return nil }
-func (f *DummyBig) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{}
+func (p *DummyBig) Id() construct.ResourceId                      { return construct.ResourceId{Name: "big-" + p.id} }
+func (f *DummyBig) BaseConstructRefs() construct.BaseConstructSet { return nil }
+func (f *DummyBig) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{}
 }
-func (p DummyVoid) Id() core.ResourceId                      { return core.ResourceId{Name: "void"} }
-func (f DummyVoid) BaseConstructRefs() core.BaseConstructSet { return nil }
-func (f DummyVoid) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{}
+func (p DummyVoid) Id() construct.ResourceId                      { return construct.ResourceId{Name: "void"} }
+func (f DummyVoid) BaseConstructRefs() construct.BaseConstructSet { return nil }
+func (f DummyVoid) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{}
 }
 
 var dummyTemplateFiles = map[string]string{

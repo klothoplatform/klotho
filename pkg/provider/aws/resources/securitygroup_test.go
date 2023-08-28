@@ -3,15 +3,16 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_SecurityGroupCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[SecurityGroupCreateParams, *SecurityGroup]{
 		{
 			Name: "nil igw",
@@ -23,7 +24,7 @@ func Test_SecurityGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, sg *SecurityGroup) {
 				assert.Equal(sg.Name, "my-app")
-				assert.Equal(sg.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(sg.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -37,7 +38,7 @@ func Test_SecurityGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, sg *SecurityGroup) {
 				assert.Equal(sg.Name, "my-app")
-				assert.Equal(sg.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(sg.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -45,7 +46,7 @@ func Test_SecurityGroupCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = SecurityGroupCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 			}
 			tt.Run(t)
 		})

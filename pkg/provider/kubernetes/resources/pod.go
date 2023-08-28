@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
@@ -15,11 +15,11 @@ import (
 type (
 	Pod struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Object        *corev1.Pod
-		Values        map[string]core.IaCValue
+		Values        map[string]construct.IaCValue
 		FilePath      string
-		Cluster       core.ResourceId
+		Cluster       construct.ResourceId
 	}
 )
 
@@ -27,20 +27,20 @@ const (
 	POD_TYPE = "pod"
 )
 
-func (pod *Pod) BaseConstructRefs() core.BaseConstructSet {
+func (pod *Pod) BaseConstructRefs() construct.BaseConstructSet {
 	return pod.ConstructRefs
 }
 
-func (pod *Pod) Id() core.ResourceId {
-	return core.ResourceId{
+func (pod *Pod) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     POD_TYPE,
 		Name:     pod.Name,
 	}
 }
 
-func (pod *Pod) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (pod *Pod) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresExplicitDelete: true,
 	}
@@ -57,22 +57,22 @@ func (pod *Pod) Path() string {
 	return pod.FilePath
 }
 
-func (pod *Pod) GetServiceAccount(dag *core.ResourceGraph) *ServiceAccount {
+func (pod *Pod) GetServiceAccount(dag *construct.ResourceGraph) *ServiceAccount {
 	if pod.Object == nil {
-		sas := core.GetDownstreamResourcesOfType[*ServiceAccount](dag, pod)
+		sas := construct.GetDownstreamResourcesOfType[*ServiceAccount](dag, pod)
 		if len(sas) == 1 {
 			return sas[0]
 		}
 		return nil
 	}
-	for _, sa := range core.GetDownstreamResourcesOfType[*ServiceAccount](dag, pod) {
+	for _, sa := range construct.GetDownstreamResourcesOfType[*ServiceAccount](dag, pod) {
 		if sa.Object != nil && sa.Object.Name == pod.Object.Spec.ServiceAccountName {
 			return sa
 		}
 	}
 	return nil
 }
-func (pod *Pod) AddEnvVar(iacVal core.IaCValue, envVarName string) error {
+func (pod *Pod) AddEnvVar(iacVal construct.IaCValue, envVarName string) error {
 
 	log := zap.L().Sugar()
 	log.Debugf("Adding environment variables to pod, %s", pod.Name)
@@ -90,14 +90,14 @@ func (pod *Pod) AddEnvVar(iacVal core.IaCValue, envVarName string) error {
 
 		pod.Object.Spec.Containers[0].Env = append(pod.Object.Spec.Containers[0].Env, newEv)
 		if pod.Values == nil {
-			pod.Values = make(map[string]core.IaCValue)
+			pod.Values = make(map[string]construct.IaCValue)
 		}
 		pod.Values[v] = iacVal
 	}
 	return nil
 }
 
-func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (pod *Pod) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if pod.Cluster.IsZero() {
 		return fmt.Errorf("%s has no cluster", pod.Id())
 	}
@@ -121,6 +121,6 @@ func (pod *Pod) MakeOperational(dag *core.ResourceGraph, appName string, classif
 	return nil
 }
 
-func (pod *Pod) GetValues() map[string]core.IaCValue {
+func (pod *Pod) GetValues() map[string]construct.IaCValue {
 	return pod.Values
 }

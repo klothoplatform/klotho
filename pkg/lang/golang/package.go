@@ -1,7 +1,7 @@
 package golang
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
 )
@@ -11,8 +11,8 @@ type Package struct {
 	Name string
 }
 
-func FindFilesForPackageName(unit *core.ExecutionUnit, pkgName string) []*core.SourceFile {
-	var packageFiles []*core.SourceFile
+func FindFilesForPackageName(unit *types.ExecutionUnit, pkgName string) []*types.SourceFile {
+	var packageFiles []*types.SourceFile
 	for _, f := range unit.Files() {
 		src, ok := goLang.CastFile(f)
 		if !ok {
@@ -35,7 +35,7 @@ func FindFilesForPackageName(unit *core.ExecutionUnit, pkgName string) []*core.S
 	return packageFiles
 }
 
-func FindPackageNode(f *core.SourceFile) Package {
+func FindPackageNode(f *types.SourceFile) Package {
 	nextMatch := doQuery(f.Tree().RootNode(), packageQuery)
 	match, found := nextMatch()
 	if !found {

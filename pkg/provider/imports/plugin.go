@@ -2,7 +2,7 @@ package imports
 
 import (
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"go.uber.org/zap"
 )
 
@@ -18,7 +18,7 @@ func (p Plugin) Name() string {
 	return "imports"
 }
 
-func (p Plugin) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) error {
+func (p Plugin) Translate(result *construct.ConstructGraph, dag *construct.ResourceGraph) error {
 	log := zap.S()
 	for resId, importId := range p.Config.Imports {
 		res := dag.GetResource(resId)
@@ -31,6 +31,6 @@ func (p Plugin) Translate(result *core.ConstructGraph, dag *core.ResourceGraph) 
 	return nil
 }
 
-func (p Plugin) LoadGraph(graph core.OutputGraph, dag *core.ConstructGraph) error {
+func (p Plugin) LoadGraph(graph construct.OutputGraph, dag *construct.ConstructGraph) error {
 	return nil
 }

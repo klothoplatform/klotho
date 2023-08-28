@@ -3,10 +3,10 @@ package lang
 import (
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 )
 
-func MakeLineCommenter(commentMarker string) core.Commenter {
+func MakeLineCommenter(commentMarker string) types.Commenter {
 	return func(input string) string {
 		lines := strings.Split(input, "\n")
 		for i, line := range lines {

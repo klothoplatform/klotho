@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
@@ -23,10 +23,10 @@ type (
 	//
 	// The end result of this should be that the orm construct is expanded into an rds instance + necessary resources
 	ConstructConstraint struct {
-		Operator   ConstraintOperator `yaml:"operator"`
-		Target     core.ResourceId    `yaml:"target"`
-		Type       string             `yaml:"type"`
-		Attributes map[string]any     `yaml:"attributes"`
+		Operator   ConstraintOperator   `yaml:"operator"`
+		Target     construct.ResourceId `yaml:"target"`
+		Type       string               `yaml:"type"`
+		Attributes map[string]any       `yaml:"attributes"`
 	}
 )
 
@@ -34,7 +34,7 @@ func (constraint *ConstructConstraint) Scope() ConstraintScope {
 	return ConstructConstraintScope
 }
 
-func (constraint *ConstructConstraint) IsSatisfied(dag *core.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[core.ResourceId][]core.Resource, classifier classification.Classifier) bool {
+func (constraint *ConstructConstraint) IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier classification.Classifier) bool {
 	switch constraint.Operator {
 	case EqualsConstraintOperator:
 		// Well look at all resources to see if there is a resource matching the type, that references the base construct passed in
@@ -52,7 +52,7 @@ func (constraint *ConstructConstraint) IsSatisfied(dag *core.ResourceGraph, kb k
 }
 
 func (constraint *ConstructConstraint) Validate() error {
-	if constraint.Target.Provider != core.AbstractConstructProvider {
+	if constraint.Target.Provider != construct.AbstractConstructProvider {
 		return errors.New("node constraint must be applied to an abstract construct")
 	}
 	return nil

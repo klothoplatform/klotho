@@ -6,7 +6,7 @@ import (
 	"unicode"
 
 	"github.com/fatih/color"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/pborman/ansi"
 	"go.uber.org/atomic"
 	"go.uber.org/zap/buffer"
@@ -159,7 +159,7 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 	}
 
 	if annotation == nil {
-		annotation = &core.Annotation{}
+		annotation = &types.Annotation{}
 	}
 
 	writeFields := func() {
@@ -218,7 +218,7 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 				}, "%+v", annotation)
 			}
 			line.AppendString("\n")
-			if ast, ok := file.(*core.SourceFile); ok {
+			if ast, ok := file.(*types.SourceFile); ok {
 				if node != annotation.Node {
 					fmt.Fprintf(indentWriter, "in (non-annotated) %s", ast.Path())
 				} else {
@@ -233,7 +233,7 @@ func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Fi
 					nodeContent = node.Content()
 				}
 				line.AppendString("\n")
-				fmt.Fprintf(indentWriter, "%+v", &core.NodeContent{
+				fmt.Fprintf(indentWriter, "%+v", &types.NodeContent{
 					Endpoints: node,
 					Content:   nodeContent,
 				})

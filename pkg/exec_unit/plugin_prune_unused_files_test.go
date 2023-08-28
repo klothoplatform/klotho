@@ -3,7 +3,9 @@ package execunit
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,23 +31,23 @@ func TestPruneUncategorizedFiles_Transform(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			testUnit := core.ExecutionUnit{Name: "main", Executable: core.NewExecutable()}
+			testUnit := types.ExecutionUnit{Name: "main", Executable: types.NewExecutable()}
 			for _, path := range tt.unitFiles {
-				testUnit.Add(&core.FileRef{FPath: path})
+				testUnit.Add(&io.FileRef{FPath: path})
 			}
 			for _, path := range tt.unitResources {
-				testUnit.AddResource(&core.FileRef{FPath: path})
+				testUnit.AddResource(&io.FileRef{FPath: path})
 			}
 			for _, path := range tt.unitSourceFiles {
-				testUnit.AddSourceFile(&core.FileRef{FPath: path})
+				testUnit.AddSourceFile(&io.FileRef{FPath: path})
 			}
 			for _, path := range tt.unitAssets {
-				testUnit.AddStaticAsset(&core.FileRef{FPath: path})
+				testUnit.AddStaticAsset(&io.FileRef{FPath: path})
 			}
 			p := PruneUncategorizedFiles{}
-			result := core.NewConstructGraph()
+			result := construct.NewConstructGraph()
 			result.AddConstruct(&testUnit)
-			err := p.Transform(&core.InputFiles{}, &core.FileDependencies{}, result)
+			err := p.Transform(&types.InputFiles{}, &types.FileDependencies{}, result)
 			if !assert.NoError(err) {
 				return
 			}

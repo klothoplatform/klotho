@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/query"
 	"github.com/pkg/errors"
@@ -79,7 +79,7 @@ func IsHashCommentBlock(previous, current *sitter.Node) bool {
 //
 // If a source file contains multiple comment nodes in a row (as identified by having equal `.Type()`s), those comments
 // will be preprocessed individually, but then merged into a single annotation.
-func NewCapabilityFinder(sitterQuery string, preprocessor CommentPreprocessor, mergePredicate MergeCommentsPredicate) core.CapabilityFinder {
+func NewCapabilityFinder(sitterQuery string, preprocessor CommentPreprocessor, mergePredicate MergeCommentsPredicate) types.CapabilityFinder {
 	return &capabilityFinder{
 		sitterQuery:            sitterQuery,
 		preprocessor:           preprocessor,
@@ -88,9 +88,9 @@ func NewCapabilityFinder(sitterQuery string, preprocessor CommentPreprocessor, m
 }
 
 // FindAllCapabilities finds all the annotations (ie, capabilities) in a SourceFile.
-func (c *capabilityFinder) FindAllCapabilities(f *core.SourceFile) (core.AnnotationMap, error) {
+func (c *capabilityFinder) FindAllCapabilities(f *types.SourceFile) (types.AnnotationMap, error) {
 	var merr multierr.Error
-	capabilities := make(core.AnnotationMap)
+	capabilities := make(types.AnnotationMap)
 	for _, block := range c.findAllCommentBlocks(f) {
 		results := annotation.ParseCapabilities(block.comment)
 		for i, result := range results {
@@ -103,9 +103,9 @@ func (c *capabilityFinder) FindAllCapabilities(f *core.SourceFile) (core.Annotat
 			if i == len(results)-1 {
 				node = block.annotatedNode
 			}
-			annot := &core.Annotation{Capability: cap, Node: node}
+			annot := &types.Annotation{Capability: cap, Node: node}
 			if err != nil {
-				merr.Append(core.NewCompilerError(f, annot, errors.Wrap(err, "error parsing annotation")))
+				merr.Append(types.NewCompilerError(f, annot, errors.Wrap(err, "error parsing annotation")))
 				continue
 			}
 			capabilities.Add(annot)
@@ -114,7 +114,7 @@ func (c *capabilityFinder) FindAllCapabilities(f *core.SourceFile) (core.Annotat
 	return capabilities, merr.ErrOrNil()
 }
 
-func (c *capabilityFinder) findAllCommentBlocks(f *core.SourceFile) []*commentBlock {
+func (c *capabilityFinder) findAllCommentBlocks(f *types.SourceFile) []*commentBlock {
 	const fullCaptureName = "fullQueryCaptureForFindAllCommentsBlocks" // please don't use this in your query ;)
 	queryString := fmt.Sprintf(`(%s) @%s`, c.sitterQuery, fullCaptureName)
 	nextMatch := query.Exec(f.Language, f.Tree().RootNode(), queryString)
@@ -148,7 +148,7 @@ func (c *capabilityFinder) findAllCommentBlocks(f *core.SourceFile) []*commentBl
 	return blocks
 }
 
-func PrintCapabilities(caps core.AnnotationMap, out io.Writer) error {
+func PrintCapabilities(caps types.AnnotationMap, out io.Writer) error {
 	for _, cap := range caps {
 		fmt.Fprintln(out, cap.Capability, cap.Node.Content())
 	}

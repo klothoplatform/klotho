@@ -8,23 +8,25 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	klotho_errors "github.com/klothoplatform/klotho/pkg/errors"
+	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/pkg/errors"
 	sitter "github.com/smacker/go-tree-sitter"
-
-	"github.com/klothoplatform/klotho/pkg/core"
 )
 
 type (
 	Runtime interface {
-		AddExecRuntimeFiles(*core.ExecutionUnit, *core.ConstructGraph) error
-		AddExposeRuntimeFiles(*core.ExecutionUnit) error
-		AddKvRuntimeFiles(unit *core.ExecutionUnit) error
-		AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName string, id string) error
-		AddOrmRuntimeFiles(unit *core.ExecutionUnit) error
-		AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error
-		AddSecretRuntimeFiles(unit *core.ExecutionUnit) error
+		AddExecRuntimeFiles(*types.ExecutionUnit, *construct.ConstructGraph) error
+		AddExposeRuntimeFiles(*types.ExecutionUnit) error
+		AddKvRuntimeFiles(unit *types.ExecutionUnit) error
+		AddFsRuntimeFiles(unit *types.ExecutionUnit, envVarName string, id string) error
+		AddOrmRuntimeFiles(unit *types.ExecutionUnit) error
+		AddProxyRuntimeFiles(unit *types.ExecutionUnit, proxyType string) error
+		AddSecretRuntimeFiles(unit *types.ExecutionUnit) error
 		GetKvRuntimeConfig() KVConfig
 		GetFsRuntimeImportClass(id string, varName string) string
 		GetSecretRuntimeImportClass(varName string) string
@@ -38,7 +40,7 @@ type KVConfig struct {
 	AdditionalCacheConstructorArgs []FunctionArg
 }
 
-func AddRequirements(unit *core.ExecutionUnit, requirements string) {
+func AddRequirements(unit *types.ExecutionUnit, requirements string) {
 	foundPip := false
 	for _, f := range unit.Files() {
 		pip, isPip := f.(*RequirementsTxt)
@@ -54,17 +56,17 @@ func AddRequirements(unit *core.ExecutionUnit, requirements string) {
 	}
 }
 
-func AddRuntimeFile(unit *core.ExecutionUnit, templateData any, path string, content []byte) error {
+func AddRuntimeFile(unit *types.ExecutionUnit, templateData any, path string, content []byte) error {
 	// TODO refactor to consolidate with this method in the javascript package
 	if filepath.Ext(path) == ".tmpl" {
 		t, err := template.New(path).Parse(string(content))
 		if err != nil {
-			return core.WrapErrf(err, "error parsing template %s", path)
+			return klotho_errors.WrapErrf(err, "error parsing template %s", path)
 		}
 		tmplBuf := new(bytes.Buffer)
 		err = t.Execute(tmplBuf, templateData)
 		if err != nil {
-			return core.WrapErrf(err, "error executing template %s", path)
+			return klotho_errors.WrapErrf(err, "error executing template %s", path)
 		}
 
 		content = tmplBuf.Bytes()
@@ -75,18 +77,18 @@ func AddRuntimeFile(unit *core.ExecutionUnit, templateData any, path string, con
 		path = filepath.Join("klotho_runtime", path)
 		f, err := NewFile(path, bytes.NewReader(content))
 		if err != nil {
-			return core.WrapErrf(err, "error parsing template %s", path)
+			return klotho_errors.WrapErrf(err, "error parsing template %s", path)
 		}
 		unit.Add(f)
 
 	case path == "Dockerfile":
 		dockerF, err := dockerfile.NewFile(path, bytes.NewBuffer(content))
 		if err != nil {
-			return core.WrapErrf(err, "error adding file %s", path)
+			return klotho_errors.WrapErrf(err, "error adding file %s", path)
 		}
 		unit.Add(dockerF)
 	default:
-		unit.Add(&core.RawFile{
+		unit.Add(&klotho_io.RawFile{
 			FPath:   path,
 			Content: content,
 		})
@@ -96,7 +98,7 @@ func AddRuntimeFile(unit *core.ExecutionUnit, templateData any, path string, con
 
 }
 
-func AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS, templateData any) error {
+func AddRuntimeFiles(unit *types.ExecutionUnit, files embed.FS, templateData any) error {
 	err := fs.WalkDir(files, ".", func(path string, d fs.DirEntry, walkErr error) error {
 		// don't immediately exit if walkErr != nil, we want to try everything first to collect all the errors
 		if d.IsDir() {
@@ -104,11 +106,11 @@ func AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS, templateData any)
 		}
 		content, err := files.ReadFile(path)
 		if err != nil {
-			return multierr.Append(walkErr, core.WrapErrf(err, ""))
+			return multierr.Append(walkErr, klotho_errors.WrapErrf(err, ""))
 		}
 		err = AddRuntimeFile(unit, templateData, path, content)
 		if err != nil {
-			return multierr.Append(walkErr, core.WrapErrf(err, "failed to AddRuntimeFile"))
+			return multierr.Append(walkErr, klotho_errors.WrapErrf(err, "failed to AddRuntimeFile"))
 		}
 		return nil
 
@@ -117,7 +119,7 @@ func AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS, templateData any)
 }
 
 // AddRuntimeImport injects the supplied import string above the first non-comment statement in the supplied file.
-func AddRuntimeImport(importString string, file *core.SourceFile) error {
+func AddRuntimeImport(importString string, file *types.SourceFile) error {
 	root := file.Tree().RootNode()
 
 	var lastImport *sitter.Node

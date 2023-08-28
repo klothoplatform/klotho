@@ -2,7 +2,8 @@ package resources
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/core"
+
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -15,21 +16,21 @@ const (
 type (
 	PrivateDnsNamespace struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Vpc           *Vpc
 	}
 )
 
 type PrivateDnsNamespaceCreateParams struct {
 	AppName string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 }
 
-func (namespace *PrivateDnsNamespace) Create(dag *core.ResourceGraph, params PrivateDnsNamespaceCreateParams) error {
+func (namespace *PrivateDnsNamespace) Create(dag *construct.ResourceGraph, params PrivateDnsNamespaceCreateParams) error {
 	namespace.Name = privateDnsNamespaceSanitizer.Apply(fmt.Sprintf("%s_pdns", params.AppName))
 	namespace.ConstructRefs = params.Refs.Clone()
 
-	existingNamespace, found := core.GetResource[*PrivateDnsNamespace](dag, namespace.Id())
+	existingNamespace, found := construct.GetResource[*PrivateDnsNamespace](dag, namespace.Id())
 	if found {
 		existingNamespace.ConstructRefs.AddAll(params.Refs)
 	} else {
@@ -39,21 +40,21 @@ func (namespace *PrivateDnsNamespace) Create(dag *core.ResourceGraph, params Pri
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (ns *PrivateDnsNamespace) BaseConstructRefs() core.BaseConstructSet {
+func (ns *PrivateDnsNamespace) BaseConstructRefs() construct.BaseConstructSet {
 	return ns.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (ns *PrivateDnsNamespace) Id() core.ResourceId {
-	return core.ResourceId{
+func (ns *PrivateDnsNamespace) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     PRIVATE_DNS_NAMESPACE_TYPE,
 		Name:     ns.Name,
 	}
 }
 
-func (ns *PrivateDnsNamespace) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (ns *PrivateDnsNamespace) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:   true,
 		RequiresNoDownstream: false,
 	}

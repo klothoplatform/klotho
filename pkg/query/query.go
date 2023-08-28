@@ -1,7 +1,9 @@
 package query
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/async"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	klotho_errors "github.com/klothoplatform/klotho/pkg/errors"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -17,7 +19,7 @@ type NextMatchFunc = NextFunc[MatchNodes]
 // Exec returns a function that acts as an iterator, each call will
 // loop over the next match lazily and populate the results map with a mapping
 // of field name as defined in the query to mapped node.
-func Exec(lang core.SourceLanguage, c *sitter.Node, q string) NextMatchFunc {
+func Exec(lang types.SourceLanguage, c *sitter.Node, q string) NextMatchFunc {
 	if c == nil {
 		return func() (map[string]*sitter.Node, bool) {
 			return nil, false
@@ -30,7 +32,7 @@ func Exec(lang core.SourceLanguage, c *sitter.Node, q string) NextMatchFunc {
 		query, err = sitter.NewQuery([]byte(q), lang.Sitter)
 		if err != nil {
 			// Panic because this is a programmer error with the query string.
-			panic(core.WrapErrf(err, "Error constructing query for %s", q))
+			panic(klotho_errors.WrapErrf(err, "Error constructing query for %s", q))
 		}
 		queryCache.AddQuery(lang.ID, q, query)
 	}
@@ -68,14 +70,14 @@ func Collect[T any](f NextFunc[T]) []T {
 
 // Cache stores queries by language ID in a threadsafe manner
 type Cache struct {
-	queriesByLang core.ConcurrentMap[core.LanguageId, *core.ConcurrentMap[string, *sitter.Query]]
+	queriesByLang async.ConcurrentMap[types.LanguageId, *async.ConcurrentMap[string, *sitter.Query]]
 }
 
 // AddQuery adds a new query to the cache
-func (m *Cache) AddQuery(lang core.LanguageId, name string, query *sitter.Query) {
-	m.queriesByLang.Compute(lang, func(k core.LanguageId, v *core.ConcurrentMap[string, *sitter.Query]) (*core.ConcurrentMap[string, *sitter.Query], bool) {
+func (m *Cache) AddQuery(lang types.LanguageId, name string, query *sitter.Query) {
+	m.queriesByLang.Compute(lang, func(k types.LanguageId, v *async.ConcurrentMap[string, *sitter.Query]) (*async.ConcurrentMap[string, *sitter.Query], bool) {
 		if v == nil {
-			v = &core.ConcurrentMap[string, *sitter.Query]{}
+			v = &async.ConcurrentMap[string, *sitter.Query]{}
 		}
 		v.Set(name, query)
 		return v, true
@@ -83,7 +85,7 @@ func (m *Cache) AddQuery(lang core.LanguageId, name string, query *sitter.Query)
 }
 
 // GetQuery gets the *sitter.Query instance associated with the provided language ID and name combination
-func (m *Cache) GetQuery(lang core.LanguageId, name string) (*sitter.Query, bool) {
+func (m *Cache) GetQuery(lang types.LanguageId, name string) (*sitter.Query, bool) {
 	if lCache, ok := m.queriesByLang.Get(lang); ok {
 		return lCache.Get(name)
 	}
