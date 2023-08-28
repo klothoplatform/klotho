@@ -9,7 +9,9 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/filter"
+	"github.com/klothoplatform/klotho/pkg/graph_loader"
 
 	"github.com/fatih/color"
 	"github.com/gojek/heimdall/v7"
@@ -474,11 +476,12 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 
 	if cfg.constructGraph != "" {
 		klothoCompiler.AnalysisAndTransformationPlugins = nil
-		err = klothoCompiler.Engine.LoadConstructGraphFromFile(cfg.constructGraph)
+		cg, err := graph_loader.LoadConstructGraphFromFile(cfg.constructGraph)
 		if err != nil {
 			return errors.Errorf("failed to load construct graph: %s", err.Error())
 		}
-		c, err := klothoCompiler.Engine.LoadConstraintsFromFile(cfg.constructGraph)
+		document.Constructs = cg
+		c, err := constraints.LoadConstraintsFromFile(cfg.constructGraph)
 		if err != nil {
 			return errors.Errorf("failed to load constraints: %s", err.Error())
 		}
