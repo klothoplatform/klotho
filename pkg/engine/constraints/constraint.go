@@ -3,6 +3,7 @@ package constraints
 import (
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
@@ -72,6 +73,31 @@ func DecodeYAMLNode[T interface {
 	}
 	err = node.Decode(constraint)
 	return constraint, err
+}
+
+func LoadConstraintsFromFile(path string) (map[ConstraintScope][]Constraint, error) {
+
+	type Input struct {
+		Constraints []any `yaml:"constraints"`
+	}
+
+	input := Input{}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close() // nolint:errcheck
+
+	err = yaml.NewDecoder(f).Decode(&input)
+	if err != nil {
+		return nil, err
+	}
+
+	bytesArr, err := yaml.Marshal(input.Constraints)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConstraintsFromFile(bytesArr)
 }
 
 // ParseConstraintsFromFile parses a yaml file into a map of constraints

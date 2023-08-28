@@ -7,6 +7,9 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/engine/constraints"
+	"github.com/klothoplatform/klotho/pkg/graph_loader"
 	"github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
@@ -185,18 +188,19 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	var cg *construct.ConstructGraph
 	if architectureEngineCfg.inputGraph != "" {
-		err = em.Engine.LoadConstructGraphFromFile(architectureEngineCfg.inputGraph)
+		cg, err = graph_loader.LoadConstructGraphFromFile(architectureEngineCfg.inputGraph)
 		if err != nil {
 			return errors.Errorf("failed to load construct graph: %s", err.Error())
 		}
 	}
 
-	constraints, err := em.Engine.LoadConstraintsFromFile(architectureEngineCfg.constraints)
+	constraints, err := constraints.LoadConstraintsFromFile(architectureEngineCfg.constraints)
 	if err != nil {
 		return errors.Errorf("failed to load constraints: %s", err.Error())
 	}
-	em.Engine.LoadContext(nil, constraints, "")
+	em.Engine.LoadContext(cg, constraints, "")
 	outputGraph, err := em.Engine.Run()
 	if err != nil {
 		return errors.Errorf("failed to run engine: %s", err.Error())

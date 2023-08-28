@@ -11,6 +11,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/graph_loader"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
@@ -447,7 +448,7 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 	switch constraint.Operator {
 	case constraints.AddConstraintOperator:
 		if constraint.Node.Provider == construct.AbstractConstructProvider {
-			construct, err := e.getConstructFromInputId(constraint.Node)
+			construct, err := e.getConstructFromId(constraint.Node)
 			if err != nil {
 				return err
 			}
@@ -475,7 +476,7 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 		if c == nil {
 			return fmt.Errorf("construct, %s, does not exist", c.Id())
 		}
-		replacement, err := e.getConstructFromInputId(constraint.ReplacementNode)
+		replacement, err := e.getConstructFromId(constraint.ReplacementNode)
 		if err != nil {
 			return err
 		}
@@ -654,7 +655,7 @@ func (e *Engine) getConstructFromId(id construct.ResourceId) (construct.BaseCons
 	var c construct.BaseConstruct
 	var err error
 	if id.Provider == construct.AbstractConstructProvider {
-		c, err = e.getConstructFromInputId(id)
+		c, err = graph_loader.GetConstructFromInputId(id)
 		if err != nil {
 			return nil, err
 		}

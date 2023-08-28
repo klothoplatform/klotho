@@ -1,4 +1,4 @@
-package engine
+package graph_loader
 
 import (
 	j_errors "errors"
@@ -6,16 +6,29 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/provider"
+	"github.com/klothoplatform/klotho/pkg/provider/aws"
+	"github.com/klothoplatform/klotho/pkg/provider/docker"
+	"github.com/klothoplatform/klotho/pkg/provider/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/yaml_util"
 
-	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
 
+func loadProviders() map[string]provider.Provider {
+	providerMap := map[string]provider.Provider{
+		"aws":        &aws.AWS{},
+		"kubernetes": &kubernetes.KubernetesProvider{},
+		"docker":     &docker.DockerProvider{},
+	}
+	return providerMap
+}
+
 // LoadConstructGraphFromFile takes in a path to a file and loads in all of the BaseConstructs and edges which exist in the file.
-func (e *Engine) LoadConstructGraphFromFile(path string) error {
+func LoadConstructGraphFromFile(path string) (*construct.ConstructGraph, error) {
 	type (
 		inputMetadata struct {
 			Id       construct.ResourceId `yaml:"id"`
@@ -28,54 +41,56 @@ func (e *Engine) LoadConstructGraphFromFile(path string) error {
 		}
 	)
 
+	graph := construct.NewConstructGraph()
+
 	resourcesMap := map[construct.ResourceId]construct.BaseConstruct{}
 	var input inputGraph
 	f, err := os.Open(path)
 	if err != nil {
-		return err
+		return graph, err
 	}
 	defer f.Close() // nolint:errcheck
 	err = yaml.NewDecoder(f).Decode(&input)
 	if err != nil {
-		return err
+		return graph, err
 	}
-	err = e.loadConstructs(input.Resources, resourcesMap)
+	err = loadConstructs(input.Resources, resourcesMap)
 	if err != nil {
-		return errors.Errorf("Error Loading graph for constructs %s", err.Error())
+		return graph, errors.Errorf("Error Loading graph for constructs %s", err.Error())
 	}
-	err = e.LoadResources(input.Resources, resourcesMap)
+	err = loadResources(input.Resources, resourcesMap, loadProviders())
 	if err != nil {
-		return errors.Errorf("Error Loading graph for providers. %s", err.Error())
+		return graph, errors.Errorf("Error Loading graph for providers. %s", err.Error())
 	}
 	for _, metadata := range input.ResourceMetadata {
 		resource := resourcesMap[metadata.Id]
 		err = metadata.Metadata.Decode(resource)
 		if err != nil {
-			return err
+			return graph, err
 		}
 		err = correctPointers(resource, resourcesMap)
 		if err != nil {
-			return err
+			return graph, err
 		}
 	}
 	for _, res := range resourcesMap {
-		e.Context.InitialState.AddConstruct(res)
+		graph.AddConstruct(res)
 	}
 
 	for _, edge := range input.Edges {
-		e.Context.InitialState.AddDependency(resourcesMap[edge.Source].Id(), resourcesMap[edge.Destination].Id())
+		graph.AddDependency(resourcesMap[edge.Source].Id(), resourcesMap[edge.Destination].Id())
 	}
-	e.Context.WorkingState = e.Context.InitialState.Clone()
-	return nil
+
+	return graph, nil
 }
 
-func (e *Engine) LoadResources(resources []construct.ResourceId, resourcesMap map[construct.ResourceId]construct.BaseConstruct) error {
+func loadResources(resources []construct.ResourceId, resourcesMap map[construct.ResourceId]construct.BaseConstruct, providers map[string]provider.Provider) error {
 	var joinedErr error
 	for _, node := range resources {
 		if node.Provider == construct.AbstractConstructProvider {
 			continue
 		}
-		provider := e.Providers[node.Provider]
+		provider := providers[node.Provider]
 		typeToResource := make(map[string]construct.Resource)
 		for _, res := range provider.ListResources() {
 			typeToResource[res.Id().Type] = res
@@ -97,14 +112,14 @@ func (e *Engine) LoadResources(resources []construct.ResourceId, resourcesMap ma
 	return joinedErr
 }
 
-func (e *Engine) loadConstructs(resources []construct.ResourceId, resourceMap map[construct.ResourceId]construct.BaseConstruct) error {
+func loadConstructs(resources []construct.ResourceId, resourceMap map[construct.ResourceId]construct.BaseConstruct) error {
 
 	var joinedErr error
 	for _, res := range resources {
 		if res.Provider != construct.AbstractConstructProvider {
 			continue
 		}
-		construct, err := e.getConstructFromInputId(res)
+		construct, err := GetConstructFromInputId(res)
 		if err != nil {
 			joinedErr = j_errors.Join(joinedErr, err)
 			continue
@@ -115,9 +130,9 @@ func (e *Engine) loadConstructs(resources []construct.ResourceId, resourceMap ma
 	return joinedErr
 }
 
-func (e *Engine) getConstructFromInputId(res construct.ResourceId) (construct.Construct, error) {
+func GetConstructFromInputId(res construct.ResourceId) (construct.Construct, error) {
 	typeToResource := make(map[string]construct.Construct)
-	for _, construct := range e.Constructs {
+	for _, construct := range types.ListAllConstructs() {
 		typeToResource[construct.Id().Type] = construct
 	}
 	c, ok := typeToResource[res.Type]
@@ -131,33 +146,6 @@ func (e *Engine) getConstructFromInputId(res construct.ResourceId) (construct.Co
 	}
 	reflect.ValueOf(c).Elem().FieldByName("Name").SetString(res.Name)
 	return c, nil
-}
-
-func (e *Engine) LoadConstraintsFromFile(path string) (map[constraints.ConstraintScope][]constraints.Constraint, error) {
-
-	type Input struct {
-		Constraints []any                  `yaml:"constraints"`
-		Resources   []construct.ResourceId `yaml:"resources"`
-		Edges       []construct.OutputEdge `yaml:"edges"`
-	}
-
-	input := Input{}
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close() // nolint:errcheck
-
-	err = yaml.NewDecoder(f).Decode(&input)
-	if err != nil {
-		return nil, err
-	}
-
-	bytesArr, err := yaml.Marshal(input.Constraints)
-	if err != nil {
-		return nil, err
-	}
-	return constraints.ParseConstraintsFromFile(bytesArr)
 }
 
 // correctPointers is used to ensure that the attributes of each baseconstruct points to the baseconstruct which exists in the graph by passing those in via a resource map.
