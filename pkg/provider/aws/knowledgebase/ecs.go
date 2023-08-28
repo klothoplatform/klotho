@@ -6,14 +6,14 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/sanitization"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
 var EcsKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.EcsTaskDefinition, *resources.LogGroup]{
-		Configure: func(taskDef *resources.EcsTaskDefinition, lg *resources.LogGroup, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(taskDef *resources.EcsTaskDefinition, lg *resources.LogGroup, dag *construct.ResourceGraph, data knowledgebase.EdgeData) error {
 			if taskDef.LogGroup != lg {
 				return nil // this log group doesn't belong to this task definition and is configured elsewhere
 			}
@@ -25,7 +25,7 @@ var EcsKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.TargetGroup, *resources.EcsService]{
 		DeploymentOrderReversed: true,
-		Configure: func(tg *resources.TargetGroup, service *resources.EcsService, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(tg *resources.TargetGroup, service *resources.EcsService, dag *construct.ResourceGraph, data knowledgebase.EdgeData) error {
 			if service.TaskDefinition == nil {
 				return fmt.Errorf("cannot configure edge %s -> %s, missing task definition", service.Id(), tg.Id())
 			} else if len(service.TaskDefinition.PortMappings) != 1 {
@@ -33,7 +33,7 @@ var EcsKB = knowledgebase.Build(
 			}
 			service.LoadBalancers = []resources.EcsServiceLoadBalancerConfig{
 				{
-					TargetGroupArn: core.IaCValue{ResourceId: tg.Id(), Property: resources.ARN_IAC_VALUE},
+					TargetGroupArn: construct.IaCValue{ResourceId: tg.Id(), Property: resources.ARN_IAC_VALUE},
 					ContainerName:  service.Name,
 					ContainerPort:  service.TaskDefinition.PortMappings[0].ContainerPort,
 				},
@@ -42,7 +42,7 @@ var EcsKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.EcsService, *resources.EfsAccessPoint]{
-		Configure: func(service *resources.EcsService, accessPoint *resources.EfsAccessPoint, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(service *resources.EcsService, accessPoint *resources.EfsAccessPoint, dag *construct.ResourceGraph, data knowledgebase.EdgeData) error {
 			if service.TaskDefinition == nil {
 				return fmt.Errorf("cannot configure service %s -> efs access point %s, missing task definition", service.Id(), accessPoint.Id())
 			}
@@ -52,15 +52,15 @@ var EcsKB = knowledgebase.Build(
 			}
 
 			efs := accessPoint.FileSystem
-			mountTarget, _ := core.GetSingleUpstreamResourceOfType[*resources.EfsMountTarget](dag, efs)
+			mountTarget, _ := construct.GetSingleUpstreamResourceOfType[*resources.EfsMountTarget](dag, efs)
 			if mountTarget == nil {
 				return fmt.Errorf("efs file system %s is not fully operational yet", efs.Id())
 			}
-			efsVpc, err := core.GetSingleDownstreamResourceOfType[*resources.Vpc](dag, mountTarget)
+			efsVpc, err := construct.GetSingleDownstreamResourceOfType[*resources.Vpc](dag, mountTarget)
 			if err != nil {
 				return err
 			}
-			serviceVpc, _ := core.GetSingleDownstreamResourceOfType[*resources.Vpc](dag, service)
+			serviceVpc, _ := construct.GetSingleDownstreamResourceOfType[*resources.Vpc](dag, service)
 
 			if serviceVpc != nil && efsVpc != nil && serviceVpc != efsVpc {
 				return fmt.Errorf("service %s and efs access point %s must be in the same vpc", service.Id(), accessPoint.Id())
@@ -69,9 +69,9 @@ var EcsKB = knowledgebase.Build(
 			dag.AddDependency(taskDef.ExecutionRole, accessPoint)
 			mountPathEnvVarName := sanitization.EnvVarKeySanitizer.Apply(strings.ToUpper(fmt.Sprintf("%s_MOUNT_PATH", accessPoint.FileSystem.Id().Name)))
 			if taskDef.EnvironmentVariables == nil {
-				taskDef.EnvironmentVariables = map[string]core.IaCValue{}
+				taskDef.EnvironmentVariables = map[string]construct.IaCValue{}
 			}
-			taskDef.EnvironmentVariables[mountPathEnvVarName] = core.IaCValue{ResourceId: accessPoint.Id(), Property: resources.EFS_MOUNT_PATH_IAC_VALUE}
+			taskDef.EnvironmentVariables[mountPathEnvVarName] = construct.IaCValue{ResourceId: accessPoint.Id(), Property: resources.EFS_MOUNT_PATH_IAC_VALUE}
 
 			isMissingVolume := true
 			for _, volume := range taskDef.EfsVolumes {
@@ -82,9 +82,9 @@ var EcsKB = knowledgebase.Build(
 			}
 			if isMissingVolume {
 				volume := &resources.EcsEfsVolume{
-					FileSystemId: core.IaCValue{ResourceId: accessPoint.FileSystem.Id(), Property: resources.ID_IAC_VALUE},
+					FileSystemId: construct.IaCValue{ResourceId: accessPoint.FileSystem.Id(), Property: resources.ID_IAC_VALUE},
 					AuthorizationConfig: &resources.EcsEfsVolumeAuthorizationConfig{
-						AccessPointId: core.IaCValue{ResourceId: accessPoint.Id(), Property: resources.ID_IAC_VALUE},
+						AccessPointId: construct.IaCValue{ResourceId: accessPoint.Id(), Property: resources.ID_IAC_VALUE},
 						Iam:           "ENABLED",
 					},
 					TransitEncryption: "ENABLED",

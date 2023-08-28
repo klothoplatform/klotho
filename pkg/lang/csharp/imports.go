@@ -1,7 +1,7 @@
 package csharp
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
 )
@@ -60,7 +60,7 @@ func (imports Imports) AsSlice() []Import {
 }
 
 // FindImportsInFile returns a map containing a list of imports for each import source referenced within the file.
-func FindImportsInFile(file *core.SourceFile) Imports {
+func FindImportsInFile(file *types.SourceFile) Imports {
 	return FindImportsAtNode(file.Tree().RootNode())
 }
 

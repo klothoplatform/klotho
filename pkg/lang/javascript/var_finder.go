@@ -5,10 +5,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
+	"github.com/klothoplatform/klotho/pkg/io"
 
-	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -34,7 +35,7 @@ type (
 		requireExport bool
 	}
 
-	AnnotationFilter func(declaringFile *core.SourceFile, annot *core.Annotation) bool
+	AnnotationFilter func(declaringFile *types.SourceFile, annot *types.Annotation) bool
 
 	VarDeclarations map[VarSpec]*VarParseStructs
 
@@ -54,8 +55,8 @@ type (
 	//
 	// VarSpecStructs often come paired with a `VarSpec`, which tells you the variable name within the file.
 	VarParseStructs struct {
-		File       *core.SourceFile
-		Annotation *core.Annotation
+		File       *types.SourceFile
+		Annotation *types.Annotation
 	}
 )
 
@@ -75,13 +76,13 @@ func (v VarDeclarations) SplitByFile() map[string]VarDeclarations {
 }
 
 func FilterByCapability(capability string) AnnotationFilter {
-	return func(_ *core.SourceFile, annot *core.Annotation) bool {
+	return func(_ *types.SourceFile, annot *types.Annotation) bool {
 		return annot.Capability.Name == capability
 	}
 }
 
 // DiscoverDeclarations finds the var declarations, using the `varFinder`'s `searchSpec`.
-func DiscoverDeclarations(files map[string]core.File, queryMatchType string, queryMatchTypeModule string, requireExport bool, annotationFilter AnnotationFilter) VarDeclarations {
+func DiscoverDeclarations(files map[string]io.File, queryMatchType string, queryMatchTypeModule string, requireExport bool, annotationFilter AnnotationFilter) VarDeclarations {
 	vf := varFinder{
 		queryMatchType:       queryMatchType,
 		queryMatchTypeModule: queryMatchTypeModule,
@@ -102,7 +103,7 @@ func DiscoverDeclarations(files map[string]core.File, queryMatchType string, que
 	return vars
 }
 
-func (vf *varFinder) discoverFileDeclarations(f *core.SourceFile) VarDeclarations {
+func (vf *varFinder) discoverFileDeclarations(f *types.SourceFile) VarDeclarations {
 	vars := make(VarDeclarations)
 
 	for _, annot := range f.Annotations() {
@@ -135,7 +136,7 @@ func (vf *varFinder) discoverFileDeclarations(f *core.SourceFile) VarDeclaration
 	return vars
 }
 
-func (vf *varFinder) parseNode(f *core.SourceFile, annot *core.Annotation) (internalName string, exportName string, err error) {
+func (vf *varFinder) parseNode(f *types.SourceFile, annot *types.Annotation) (internalName string, exportName string, err error) {
 	next := DoQuery(annot.Node, declareAndInstantiate)
 
 	for {
@@ -200,12 +201,12 @@ func (vf *varFinder) parseNode(f *core.SourceFile, annot *core.Annotation) (inte
 	}
 	errString.WriteString(", but could not find one")
 
-	return "", "", core.NewCompilerError(f, annot, errors.New(errString.String()))
+	return "", "", types.NewCompilerError(f, annot, errors.New(errString.String()))
 }
 
 // TODO: rework this functionality to re-parsing imports on each invocation once we've added imports at the source file level
 // findVarName finds the internal name for the given `varSpec` within the given file. Returns "" if the var isn't defined in the file.
-func findVarName(f *core.SourceFile, spec VarSpec) string {
+func findVarName(f *types.SourceFile, spec VarSpec) string {
 	log := zap.L().With(logging.FileField(f)).Sugar()
 	relPath, err := filepath.Rel(filepath.Dir(f.Path()), spec.DefinedIn)
 	if err != nil {

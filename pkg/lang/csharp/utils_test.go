@@ -1,10 +1,11 @@
 package csharp
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_IsValidTypeName(t *testing.T) {
@@ -115,7 +116,7 @@ func Test_IsValidTypeName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			file, err := core.NewSourceFile("program.cs", strings.NewReader(tt.program), Language)
+			file, err := types.NewSourceFile("program.cs", strings.NewReader(tt.program), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -169,7 +170,7 @@ func Test_normalizedStringContent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			f, _ := core.NewSourceFile("file.cs", strings.NewReader(tt.stringNode), Language)
+			f, _ := types.NewSourceFile("file.cs", strings.NewReader(tt.stringNode), Language)
 			assert.Equalf(tt.want, normalizedStringContent(f.Tree().RootNode().Child(0)), "normalizedStringContent(%v)", tt.stringNode)
 		})
 	}

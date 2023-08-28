@@ -3,7 +3,8 @@ package javascript
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -58,19 +59,21 @@ func TestRuntimePath(t *testing.T) {
 
 type NoopRuntime struct{}
 
-func (NoopRuntime) AddKvRuntimeFiles(unit *core.ExecutionUnit) error { return nil }
-func (NoopRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName string, id string) error {
+func (NoopRuntime) AddKvRuntimeFiles(unit *types.ExecutionUnit) error { return nil }
+func (NoopRuntime) AddFsRuntimeFiles(unit *types.ExecutionUnit, envVarName string, id string) error {
 	return nil
 }
-func (NoopRuntime) AddSecretRuntimeFiles(unit *core.ExecutionUnit) error                  { return nil }
-func (NoopRuntime) AddOrmRuntimeFiles(unit *core.ExecutionUnit) error                     { return nil }
-func (NoopRuntime) AddRedisNodeRuntimeFiles(unit *core.ExecutionUnit) error               { return nil }
-func (NoopRuntime) AddRedisClusterRuntimeFiles(unit *core.ExecutionUnit) error            { return nil }
-func (NoopRuntime) AddPubsubRuntimeFiles(unit *core.ExecutionUnit) error                  { return nil }
-func (NoopRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error { return nil }
-func (NoopRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
+func (NoopRuntime) AddSecretRuntimeFiles(unit *types.ExecutionUnit) error       { return nil }
+func (NoopRuntime) AddOrmRuntimeFiles(unit *types.ExecutionUnit) error          { return nil }
+func (NoopRuntime) AddRedisNodeRuntimeFiles(unit *types.ExecutionUnit) error    { return nil }
+func (NoopRuntime) AddRedisClusterRuntimeFiles(unit *types.ExecutionUnit) error { return nil }
+func (NoopRuntime) AddPubsubRuntimeFiles(unit *types.ExecutionUnit) error       { return nil }
+func (NoopRuntime) AddProxyRuntimeFiles(unit *types.ExecutionUnit, proxyType string) error {
 	return nil
 }
-func (NoopRuntime) TransformPersist(file *core.SourceFile, annot *core.Annotation, construct core.Construct) error {
+func (NoopRuntime) AddExecRuntimeFiles(unit *types.ExecutionUnit, constructGraph *construct.ConstructGraph) error {
+	return nil
+}
+func (NoopRuntime) TransformPersist(file *types.SourceFile, annot *types.Annotation, construct construct.Construct) error {
 	return nil
 }

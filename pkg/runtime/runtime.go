@@ -2,14 +2,14 @@ package runtime
 
 import (
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/lang/dockerfile"
 )
 
-func ShouldOverrideDockerfile(unit *core.ExecutionUnit) bool {
+func ShouldOverrideDockerfile(unit *types.ExecutionUnit) bool {
 
 	for _, f := range unit.Files() {
-		ast, ok := f.(*core.SourceFile)
+		ast, ok := f.(*types.SourceFile)
 		if !ok {
 			continue
 		}

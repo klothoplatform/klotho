@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -52,7 +53,7 @@ func Test_persister_queryKV(t *testing.T) {
 				return
 			}
 
-			cap := &core.Annotation{
+			cap := &types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       f.Tree().RootNode(),
 			}
@@ -139,7 +140,7 @@ myCache = Cache(cache_class=keyvalue.KVStore, my_arg="value", serializer=keyvalu
 			}
 			newF := f.CloneSourceFile()
 
-			var cap *core.Annotation
+			var cap *types.Annotation
 			for _, v := range f.Annotations() {
 				cap = v
 				break
@@ -151,12 +152,12 @@ myCache = Cache(cache_class=keyvalue.KVStore, my_arg="value", serializer=keyvalu
 
 			ptype, pres := p.determinePersistType(f, cap)
 
-			_, ok := ptype.(*core.Kv)
+			_, ok := ptype.(*types.Kv)
 			if !assert.True(ok) {
 				return
 			}
 
-			unit := &core.ExecutionUnit{}
+			unit := &types.ExecutionUnit{}
 			_, err = p.transformKV(f, newF, cap, pres, unit)
 			if tt.wantErr {
 				assert.Error(err)
@@ -274,7 +275,7 @@ func Test_persister_queryFs(t *testing.T) {
 				childNode := testutil.FindNodeByContent(f.Tree().RootNode(), imp)
 				want := tt.want[idx]
 
-				cap := &core.Annotation{
+				cap := &types.Annotation{
 					Capability: &annotation.Capability{Name: annotation.PersistCapability},
 					Node:       childNode,
 				}
@@ -340,7 +341,7 @@ import klotho_runtime.fs_mycache as fs`,
 			}
 			newF := f.CloneSourceFile()
 
-			var cap *core.Annotation
+			var cap *types.Annotation
 			for _, v := range f.Annotations() {
 				cap = v
 				break
@@ -352,11 +353,11 @@ import klotho_runtime.fs_mycache as fs`,
 
 			ptype, pres := p.determinePersistType(f, cap)
 
-			_, ok := ptype.(*core.Fs)
+			_, ok := ptype.(*types.Fs)
 			if !assert.True(ok) {
 				return
 			}
-			unit := &core.ExecutionUnit{}
+			unit := &types.ExecutionUnit{}
 
 			_, err = p.transformFS(f, newF, cap, pres, unit)
 			if tt.wantErr {
@@ -514,7 +515,7 @@ import klotho_runtime.secret as fs`,
 			}
 			newF := f.CloneSourceFile()
 
-			var cap *core.Annotation
+			var cap *types.Annotation
 			for _, v := range f.Annotations() {
 				cap = v
 				break
@@ -526,12 +527,12 @@ import klotho_runtime.secret as fs`,
 
 			ptype, pres := p.determinePersistType(f, cap)
 
-			_, ok := ptype.(*core.Fs)
+			_, ok := ptype.(*types.Fs)
 			if !assert.True(ok) {
 				return
 			}
 
-			unit := &core.ExecutionUnit{}
+			unit := &types.ExecutionUnit{}
 
 			_, err = p.transformSecret(f, newF, cap, pres, unit)
 			if tt.wantErr {
@@ -671,7 +672,7 @@ func Test_persister_queryOrm(t *testing.T) {
 				return
 			}
 
-			cap := &core.Annotation{
+			cap := &types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability},
 				Node:       annotatedNode,
 			}
@@ -796,7 +797,7 @@ engine = create_engine(os.environ.get("SQLALCHEMY_PERSIST_ORM_CONNECTION"))`,
 			}
 			newF := f.CloneSourceFile()
 
-			var cap *core.Annotation
+			var cap *types.Annotation
 			for _, v := range f.Annotations() {
 				cap = v
 				break
@@ -809,9 +810,9 @@ engine = create_engine(os.environ.get("SQLALCHEMY_PERSIST_ORM_CONNECTION"))`,
 			pres := &persistResult{
 				name:       "engine",
 				expression: tt.expression,
-				construct:  &core.Orm{},
+				construct:  &types.Orm{},
 			}
-			unit := &core.ExecutionUnit{}
+			unit := &types.ExecutionUnit{}
 			_, err = p.transformORM(f, newF, cap, pres, unit)
 			if tt.wantErr {
 				assert.Error(err)
@@ -819,10 +820,10 @@ engine = create_engine(os.environ.get("SQLALCHEMY_PERSIST_ORM_CONNECTION"))`,
 			}
 			assert.NoError(err)
 			assert.Equal(tt.want, string(newF.Program()))
-			assert.Equal(core.EnvironmentVariables{
+			assert.Equal(types.EnvironmentVariables{
 				{
 					Name:      "SQLALCHEMY_PERSIST_ORM_CONNECTION",
-					Construct: &core.Orm{Name: "sqlAlchemy"},
+					Construct: &types.Orm{Name: "sqlAlchemy"},
 					Value:     "connection_string",
 				},
 			}, unit.EnvironmentVariables)
@@ -986,7 +987,7 @@ func Test_persister_queryRedis(t *testing.T) {
 				return
 			}
 
-			cap := &core.Annotation{
+			cap := &types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "redis"},
 				Node:       f.Tree().RootNode(),
 			}
@@ -1014,7 +1015,7 @@ func Test_transformRedis(t *testing.T) {
 	tests := []struct {
 		name           string
 		source         string
-		redisConstruct core.Construct
+		redisConstruct construct.Construct
 		want           string
 		wantErr        bool
 	}{
@@ -1027,7 +1028,7 @@ import redis
 # }
 client = redis.Redis(host='localhost', port=6379)
 `,
-			redisConstruct: &core.RedisNode{Name: "redis"},
+			redisConstruct: &types.RedisNode{Name: "redis"},
 			want: `
 import redis
 import os
@@ -1045,7 +1046,7 @@ from redis import Redis
 #   id = "redis"
 # }
 client = Redis(host='localhost', port=6379)`,
-			redisConstruct: &core.RedisNode{Name: "redis"},
+			redisConstruct: &types.RedisNode{Name: "redis"},
 			want: `
 from redis import Redis
 import os
@@ -1063,7 +1064,7 @@ import redis
 # }
 client = redis.cluster.RedisCluster(host='localhost', port=6379)
 `,
-			redisConstruct: &core.RedisCluster{Name: "redis"},
+			redisConstruct: &types.RedisCluster{Name: "redis"},
 			want: `
 import redis
 import os
@@ -1081,7 +1082,7 @@ from redis import cluster
 #   id = "redis"
 # }
 client = cluster.RedisCluster(host='localhost', port=6379)`,
-			redisConstruct: &core.RedisCluster{Name: "redis"},
+			redisConstruct: &types.RedisCluster{Name: "redis"},
 			want: `
 from redis import cluster
 import os
@@ -1098,7 +1099,7 @@ from redis.cluster import RedisCluster
 #   id = "redis"
 # }
 client = RedisCluster(host='localhost', port=6379)`,
-			redisConstruct: &core.RedisCluster{Name: "redis"},
+			redisConstruct: &types.RedisCluster{Name: "redis"},
 			want: `
 from redis.cluster import RedisCluster
 import os
@@ -1118,7 +1119,7 @@ client = RedisCluster(host=os.environ.get("REDIS_PERSIST_REDIS_HOST"), port=os.e
 			}
 			newF := f.CloneSourceFile()
 
-			var cap *core.Annotation
+			var cap *types.Annotation
 			for _, v := range f.Annotations() {
 				cap = v
 				break
@@ -1135,7 +1136,7 @@ client = RedisCluster(host=os.environ.get("REDIS_PERSIST_REDIS_HOST"), port=os.e
 				construct:  tt.redisConstruct,
 			}
 
-			unit := &core.ExecutionUnit{}
+			unit := &types.ExecutionUnit{}
 			_, err = p.transformRedis(f, newF, cap, pres, unit)
 			if tt.wantErr {
 				assert.Error(err)
@@ -1144,7 +1145,7 @@ client = RedisCluster(host=os.environ.get("REDIS_PERSIST_REDIS_HOST"), port=os.e
 			assert.NoError(err)
 			assert.Equal(tt.want, string(newF.Program()))
 
-			assert.Equal(core.EnvironmentVariables{
+			assert.Equal(types.EnvironmentVariables{
 				{
 					Name:      "REDIS_PERSIST_REDIS_HOST",
 					Construct: tt.redisConstruct,

@@ -4,8 +4,9 @@ import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
@@ -14,157 +15,157 @@ import (
 func Test_validation_checkAnnotationForResource(t *testing.T) {
 	tests := []struct {
 		name    string
-		annot   core.Annotation
-		want    core.Construct
-		result  []core.Construct
+		annot   types.Annotation
+		want    construct.Construct
+		result  []construct.Construct
 		wantErr bool
 	}{
 		{
 			name: "exec unit match",
-			annot: core.Annotation{
+			annot: types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.ExecutionUnitCapability, ID: "test"},
 			},
-			result: []core.Construct{&core.ExecutionUnit{
+			result: []construct.Construct{&types.ExecutionUnit{
 				Name: "test",
 			}},
-			want: &core.ExecutionUnit{
+			want: &types.ExecutionUnit{
 				Name: "test",
 			},
 		},
 		{
 			name: "pubsub match",
-			annot: core.Annotation{
+			annot: types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PubSubCapability, ID: "test"},
 			},
-			result: []core.Construct{&core.PubSub{
+			result: []construct.Construct{&types.PubSub{
 				Name: "test",
 			}},
-			want: &core.PubSub{
+			want: &types.PubSub{
 				Name: "test",
 			},
 		},
 		{
 			name: "gateway match",
-			annot: core.Annotation{
+			annot: types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.ExposeCapability, ID: "test"},
 			},
-			result: []core.Construct{&core.Gateway{
+			result: []construct.Construct{&types.Gateway{
 				Name: "test",
 			}},
-			want: &core.Gateway{
+			want: &types.Gateway{
 				Name: "test",
 			},
 		},
 		{
 			name: "embed assets match",
-			annot: core.Annotation{
+			annot: types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.AssetCapability, ID: "test"},
 			},
-			result: []core.Construct{},
+			result: []construct.Construct{},
 		},
 		{
 			name: "persist fs match",
-			annot: core.Annotation{
+			annot: types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
-			result: []core.Construct{&core.Fs{
+			result: []construct.Construct{&types.Fs{
 				Name: "test",
 			}},
-			want: &core.Fs{
+			want: &types.Fs{
 				Name: "test",
 			},
 		},
 		{
 			name: "persist kv match",
-			annot: core.Annotation{
+			annot: types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
-			result: []core.Construct{&core.Kv{
+			result: []construct.Construct{&types.Kv{
 				Name: "test",
 			}},
-			want: &core.Kv{
+			want: &types.Kv{
 				Name: "test",
 			},
 		},
 		{
 			name: "persist orm match",
-			annot: core.Annotation{
+			annot: types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
-			result: []core.Construct{&core.Orm{
+			result: []construct.Construct{&types.Orm{
 				Name: "test",
 			}},
-			want: &core.Orm{
+			want: &types.Orm{
 				Name: "test",
 			},
 		},
 		{
 			name: "persist redis cluster match",
-			annot: core.Annotation{
+			annot: types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
-			result: []core.Construct{&core.RedisCluster{
+			result: []construct.Construct{&types.RedisCluster{
 				Name: "test",
 			}},
-			want: &core.RedisCluster{
+			want: &types.RedisCluster{
 				Name: "test",
 			},
 		},
 		{
 			name: "persist redis node match",
-			annot: core.Annotation{
+			annot: types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
-			result: []core.Construct{&core.RedisNode{
+			result: []construct.Construct{&types.RedisNode{
 				Name: "test",
 			}},
-			want: &core.RedisNode{
+			want: &types.RedisNode{
 				Name: "test",
 			},
 		},
 		{
 			name: "persist secret match",
-			annot: core.Annotation{
+			annot: types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
-			result: []core.Construct{&core.Secrets{
+			result: []construct.Construct{&types.Secrets{
 				Name: "test",
 			}},
-			want: &core.Secrets{
+			want: &types.Secrets{
 				Name: "test",
 			},
 		},
 		{
 			name: "no match on capability should return empty resource",
-			annot: core.Annotation{
+			annot: types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.ExecutionUnitCapability, ID: "test"},
 			},
-			result: []core.Construct{&core.Kv{
+			result: []construct.Construct{&types.Kv{
 				Name: "test",
 			}},
 		},
 		{
 			name: "no match on id should return empty resource",
-			annot: core.Annotation{
+			annot: types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
-			result: []core.Construct{&core.Kv{
+			result: []construct.Construct{&types.Kv{
 				Name: "nope",
 			}},
 		},
 		{
 			name: "only one match should succeed",
-			annot: core.Annotation{
+			annot: types.Annotation{
 				Capability: &annotation.Capability{Name: annotation.PersistCapability, ID: "test"},
 			},
-			result: []core.Construct{
-				&core.Kv{
+			result: []construct.Construct{
+				&types.Kv{
 					Name: "nope",
 				},
-				&core.Kv{
+				&types.Kv{
 					Name: "test",
 				}},
-			want: &core.Kv{
+			want: &types.Kv{
 				Name: "test",
 			},
 		},
@@ -174,7 +175,7 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 			assert := assert.New(t)
 
 			p := ConstructValidation{}
-			result := core.NewConstructGraph()
+			result := construct.NewConstructGraph()
 			for _, c := range tt.result {
 				result.AddConstruct(c)
 			}
@@ -190,16 +191,16 @@ func Test_validation_checkAnnotationForResource(t *testing.T) {
 func Test_validation_handleResources(t *testing.T) {
 	tests := []struct {
 		name    string
-		result  []core.Construct
+		result  []construct.Construct
 		wantErr bool
 	}{
 		{
 			name: "diff resources duplicate ids",
-			result: []core.Construct{
-				&core.ExecutionUnit{
+			result: []construct.Construct{
+				&types.ExecutionUnit{
 					Name: "test",
 				},
-				&core.Gateway{
+				&types.Gateway{
 					Name: "test",
 				},
 			},
@@ -207,11 +208,11 @@ func Test_validation_handleResources(t *testing.T) {
 		},
 		{
 			name: "persist different ids",
-			result: []core.Construct{
-				&core.Kv{
+			result: []construct.Construct{
+				&types.Kv{
 					Name: "test",
 				},
-				&core.Kv{
+				&types.Kv{
 					Name: "another",
 				},
 			},
@@ -219,11 +220,11 @@ func Test_validation_handleResources(t *testing.T) {
 		},
 		{
 			name: "persist duplicate ids",
-			result: []core.Construct{
-				&core.Kv{
+			result: []construct.Construct{
+				&types.Kv{
 					Name: "test",
 				},
-				&core.Kv{
+				&types.Kv{
 					Name: "test",
 				},
 			},
@@ -235,7 +236,7 @@ func Test_validation_handleResources(t *testing.T) {
 			assert := assert.New(t)
 
 			p := ConstructValidation{}
-			result := core.NewConstructGraph()
+			result := construct.NewConstructGraph()
 			for _, c := range tt.result {
 				result.AddConstruct(c)
 			}
@@ -255,13 +256,13 @@ func Test_validation_handleResources(t *testing.T) {
 func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 	tests := []struct {
 		name   string
-		result []core.Construct
+		result []construct.Construct
 		cfg    config.Application
 		want   string
 	}{
 		{
 			name: "exec unit match",
-			result: []core.Construct{&core.ExecutionUnit{
+			result: []construct.Construct{&types.ExecutionUnit{
 				Name: "test",
 			}},
 			cfg: config.Application{
@@ -273,7 +274,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		},
 		{
 			name: "exec unit mismatch",
-			result: []core.Construct{&core.ExecutionUnit{
+			result: []construct.Construct{&types.ExecutionUnit{
 				Name: "test",
 			}},
 			cfg: config.Application{
@@ -286,7 +287,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		},
 		{
 			name: "persist match",
-			result: []core.Construct{&core.Kv{
+			result: []construct.Construct{&types.Kv{
 				Name: "test",
 			}},
 			cfg: config.Application{
@@ -298,7 +299,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		},
 		{
 			name: "persist mismatch",
-			result: []core.Construct{&core.Kv{
+			result: []construct.Construct{&types.Kv{
 				Name: "test",
 			}},
 			cfg: config.Application{
@@ -311,7 +312,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		},
 		{
 			name: "expose match",
-			result: []core.Construct{&core.Gateway{
+			result: []construct.Construct{&types.Gateway{
 				Name: "test",
 			}},
 			cfg: config.Application{
@@ -323,7 +324,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		},
 		{
 			name: "expose mismatch",
-			result: []core.Construct{&core.Gateway{
+			result: []construct.Construct{&types.Gateway{
 				Name: "test",
 			}},
 			cfg: config.Application{
@@ -336,7 +337,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		},
 		{
 			name: "static unit match",
-			result: []core.Construct{&core.StaticUnit{
+			result: []construct.Construct{&types.StaticUnit{
 				Name: "test",
 			}},
 			cfg: config.Application{
@@ -348,7 +349,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		},
 		{
 			name: "static unit mismatch",
-			result: []core.Construct{&core.StaticUnit{
+			result: []construct.Construct{&types.StaticUnit{
 				Name: "test",
 			}},
 			cfg: config.Application{
@@ -361,7 +362,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		},
 		{
 			name: "config resource match",
-			result: []core.Construct{&core.Config{
+			result: []construct.Construct{&types.Config{
 				Name: "test",
 			}},
 			cfg: config.Application{
@@ -373,7 +374,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 		},
 		{
 			name: "config resource mismatch",
-			result: []core.Construct{&core.Config{
+			result: []construct.Construct{&types.Config{
 				Name: "test",
 			}},
 			cfg: config.Application{
@@ -392,7 +393,7 @@ func Test_validateConfigOverrideResourcesExist(t *testing.T) {
 			p := ConstructValidation{
 				UserConfigOverrides: tt.cfg,
 			}
-			result := core.NewConstructGraph()
+			result := construct.NewConstructGraph()
 			for _, c := range tt.result {
 				result.AddConstruct(c)
 			}

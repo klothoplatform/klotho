@@ -3,14 +3,15 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_RestApiCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu)
+	eu := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu)
 	cases := []struct {
 		name    string
 		api     *RestApi
@@ -51,13 +52,13 @@ func Test_RestApiCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			if tt.api != nil {
 				dag.AddResource(tt.api)
 			}
 			metadata := RestApiCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
+				Refs:    construct.BaseConstructSetOf(&types.ExecutionUnit{Name: "test"}),
 				Name:    "rest-api",
 			}
 			if tt.apiName != "" {
@@ -81,7 +82,7 @@ func Test_RestApiCreate(t *testing.T) {
 			if tt.api == nil {
 				assert.Equal(api.ConstructRefs, metadata.Refs)
 			} else {
-				initialRefs.Add(&core.ExecutionUnit{Name: "test"})
+				initialRefs.Add(&types.ExecutionUnit{Name: "test"})
 				assert.Equal(api.BaseConstructRefs(), initialRefs)
 			}
 		})
@@ -89,9 +90,9 @@ func Test_RestApiCreate(t *testing.T) {
 }
 
 func Test_ApiResourceCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	eu2 := &core.ExecutionUnit{Name: "test"}
-	initialRefs := core.BaseConstructSetOf(eu)
+	eu := &types.ExecutionUnit{Name: "first"}
+	eu2 := &types.ExecutionUnit{Name: "test"}
+	initialRefs := construct.BaseConstructSetOf(eu)
 	cases := []coretesting.CreateCase[ApiResourceCreateParams, *ApiResource]{
 		{
 			Name: "nil resource",
@@ -112,7 +113,7 @@ func Test_ApiResourceCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, resource *ApiResource) {
 				assert.Equal("my-app-/my/api/route", resource.Name)
 				assert.Equal(resource.PathPart, "route")
-				assert.Equal(resource.ConstructRefs, core.BaseConstructSetOf(eu2))
+				assert.Equal(resource.ConstructRefs, construct.BaseConstructSetOf(eu2))
 			},
 		},
 		{
@@ -129,7 +130,7 @@ func Test_ApiResourceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, resource *ApiResource) {
 				assert.Equal("my-app-/my/api/route", resource.Name)
-				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
+				expect := initialRefs.CloneWith(construct.BaseConstructSetOf(eu2))
 				assert.Equal(resource.BaseConstructRefs(), expect)
 
 			},
@@ -155,14 +156,14 @@ func Test_ApiResourceCreate(t *testing.T) {
 			Check: func(assert *assert.Assertions, resource *ApiResource) {
 				assert.Equal("my-app-/my/-api/route/-method", resource.Name)
 				assert.Equal(resource.PathPart, "{method}")
-				assert.Equal(resource.ConstructRefs, core.BaseConstructSetOf(eu2))
+				assert.Equal(resource.ConstructRefs, construct.BaseConstructSetOf(eu2))
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params.AppName = "my-app"
-			tt.Params.Refs = core.BaseConstructSetOf(eu2)
+			tt.Params.Refs = construct.BaseConstructSetOf(eu2)
 			tt.Params.ApiName = "my-api"
 			tt.Run(t)
 		})
@@ -170,9 +171,9 @@ func Test_ApiResourceCreate(t *testing.T) {
 }
 
 func Test_ApiIntegrationCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	eu2 := &core.ExecutionUnit{Name: "test"}
-	initialRefs := core.BaseConstructSetOf(eu)
+	eu := &types.ExecutionUnit{Name: "first"}
+	eu2 := &types.ExecutionUnit{Name: "test"}
+	initialRefs := construct.BaseConstructSetOf(eu)
 	cases := []struct {
 		name        string
 		integration *ApiIntegration
@@ -192,13 +193,13 @@ func Test_ApiIntegrationCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			if tt.integration != nil {
 				dag.AddResource(tt.integration)
 			}
 			metadata := ApiIntegrationCreateParams{
 				AppName:    "my-app",
-				Refs:       core.BaseConstructSetOf(eu2),
+				Refs:       construct.BaseConstructSetOf(eu2),
 				Path:       "/my/api/route",
 				ApiName:    "my-api",
 				HttpMethod: "post",
@@ -224,7 +225,7 @@ func Test_ApiIntegrationCreate(t *testing.T) {
 			if tt.integration == nil {
 				assert.Equal(integration.ConstructRefs, metadata.Refs)
 			} else {
-				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
+				expect := initialRefs.CloneWith(construct.BaseConstructSetOf(eu2))
 				assert.Equal(integration.BaseConstructRefs(), expect)
 			}
 		})
@@ -232,9 +233,9 @@ func Test_ApiIntegrationCreate(t *testing.T) {
 }
 
 func Test_ApiMethodCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	eu2 := &core.ExecutionUnit{Name: "test"}
-	initialRefs := core.BaseConstructSetOf(eu)
+	eu := &types.ExecutionUnit{Name: "first"}
+	eu2 := &types.ExecutionUnit{Name: "test"}
+	initialRefs := construct.BaseConstructSetOf(eu)
 	cases := []struct {
 		name   string
 		method *ApiMethod
@@ -270,13 +271,13 @@ func Test_ApiMethodCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			if tt.method != nil {
 				dag.AddResource(tt.method)
 			}
 			metadata := ApiMethodCreateParams{
 				AppName:    "my-app",
-				Refs:       core.BaseConstructSetOf(eu2),
+				Refs:       construct.BaseConstructSetOf(eu2),
 				Path:       "/my/api/route",
 				ApiName:    "my-api",
 				HttpMethod: "post",
@@ -298,7 +299,7 @@ func Test_ApiMethodCreate(t *testing.T) {
 				assert.NotNil(method.Resource)
 				assert.Equal(method.ConstructRefs, metadata.Refs)
 			} else {
-				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
+				expect := initialRefs.CloneWith(construct.BaseConstructSetOf(eu2))
 				assert.Equal(method.BaseConstructRefs(), expect)
 			}
 		})
@@ -306,9 +307,9 @@ func Test_ApiMethodCreate(t *testing.T) {
 }
 
 func Test_ApiDeploymentCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	eu2 := &core.ExecutionUnit{Name: "test"}
-	initialRefs := core.BaseConstructSetOf(eu)
+	eu := &types.ExecutionUnit{Name: "first"}
+	eu2 := &types.ExecutionUnit{Name: "test"}
+	initialRefs := construct.BaseConstructSetOf(eu)
 	cases := []struct {
 		name       string
 		deployment *ApiDeployment
@@ -337,13 +338,13 @@ func Test_ApiDeploymentCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			if tt.deployment != nil {
 				dag.AddResource(tt.deployment)
 			}
 			metadata := ApiDeploymentCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu2),
+				Refs:    construct.BaseConstructSetOf(eu2),
 				Name:    "deployment",
 			}
 
@@ -362,7 +363,7 @@ func Test_ApiDeploymentCreate(t *testing.T) {
 			if tt.deployment == nil {
 				assert.Equal(deployment.ConstructRefs, metadata.Refs)
 			} else {
-				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
+				expect := initialRefs.CloneWith(construct.BaseConstructSetOf(eu2))
 				assert.Equal(deployment.BaseConstructRefs(), expect)
 			}
 		})
@@ -370,9 +371,9 @@ func Test_ApiDeploymentCreate(t *testing.T) {
 }
 
 func Test_ApiStageCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	eu2 := &core.ExecutionUnit{Name: "test"}
-	initialRefs := core.BaseConstructSetOf(eu)
+	eu := &types.ExecutionUnit{Name: "first"}
+	eu2 := &types.ExecutionUnit{Name: "test"}
+	initialRefs := construct.BaseConstructSetOf(eu)
 	cases := []struct {
 		name  string
 		stage *ApiStage
@@ -401,13 +402,13 @@ func Test_ApiStageCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			if tt.stage != nil {
 				dag.AddResource(tt.stage)
 			}
 			metadata := ApiStageCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu2),
+				Refs:    construct.BaseConstructSetOf(eu2),
 				Name:    "stage",
 			}
 
@@ -426,7 +427,7 @@ func Test_ApiStageCreate(t *testing.T) {
 			if tt.stage == nil {
 				assert.Equal(stage.ConstructRefs, metadata.Refs)
 			} else {
-				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
+				expect := initialRefs.CloneWith(construct.BaseConstructSetOf(eu2))
 				assert.Equal(stage.BaseConstructRefs(), expect)
 			}
 		})

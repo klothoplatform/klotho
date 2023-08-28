@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/smacker/go-tree-sitter/javascript"
 	"github.com/stretchr/testify/assert"
 )
@@ -148,7 +148,7 @@ func TestFindAllCommentBlocks(t *testing.T) {
 	t.Run("sitter query has capture", func(t *testing.T) {
 		assert := assert.New(t)
 
-		lang := core.SourceLanguage{
+		lang := types.SourceLanguage{
 			ID:               "capabilities_test_js",
 			Sitter:           javascript.GetLanguage(),
 			CapabilityFinder: NewCapabilityFinder("(comment) @c", func(in string) string { return in }, IsCLineCommentBlock),
@@ -226,7 +226,7 @@ func TestCompositePreprocessor(t *testing.T) {
 	}
 }
 
-var dummyJsLang = core.SourceLanguage{
+var dummyJsLang = types.SourceLanguage{
 	ID:     "capabilities_test_js",
 	Sitter: javascript.GetLanguage(),
 	CapabilityFinder: NewCapabilityFinder("comment", CompositePreprocessor(

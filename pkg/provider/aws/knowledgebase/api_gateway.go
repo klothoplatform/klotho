@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
 var ApiGatewayKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.LambdaFunction]{
-		Configure: func(integration *resources.ApiIntegration, function *resources.LambdaFunction, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(integration *resources.ApiIntegration, function *resources.LambdaFunction, dag *construct.ResourceGraph, data knowledgebase.EdgeData) error {
 			if integration.RestApi == nil {
 				return fmt.Errorf("cannot configure integration %s, missing rest api or method", integration.Id())
 			}
@@ -20,7 +20,7 @@ var ApiGatewayKB = knowledgebase.Build(
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.LoadBalancer]{
 		Reuse: knowledgebase.Downstream,
-		Configure: func(integration *resources.ApiIntegration, loadBalancer *resources.LoadBalancer, dag *core.ResourceGraph, data knowledgebase.EdgeData) error {
+		Configure: func(integration *resources.ApiIntegration, loadBalancer *resources.LoadBalancer, dag *construct.ResourceGraph, data knowledgebase.EdgeData) error {
 			if integration.Method == nil {
 				return fmt.Errorf("cannot configure integration %s, missing rest api or method", integration.Id())
 			}
@@ -30,7 +30,7 @@ var ApiGatewayKB = knowledgebase.Build(
 	},
 )
 
-func configureIntegration(integration *resources.ApiIntegration, dag *core.ResourceGraph) error {
+func configureIntegration(integration *resources.ApiIntegration, dag *construct.ResourceGraph) error {
 
 	if integration.RestApi == nil || integration.Method == nil {
 		return fmt.Errorf("cannot configure integration %s, missing rest api or method", integration.Id())

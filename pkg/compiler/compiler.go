@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/validation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -20,12 +22,12 @@ type (
 	AnalysisAndTransformationPlugin interface {
 		Plugin
 		// Transform is expected to mutate the result and any dependencies
-		Transform(*core.InputFiles, *core.FileDependencies, *core.ConstructGraph) error
+		Transform(*types.InputFiles, *types.FileDependencies, *construct.ConstructGraph) error
 	}
 
 	IaCPlugin interface {
 		Plugin
-		Translate(cloudGraph *core.ResourceGraph) ([]core.File, error)
+		Translate(cloudGraph *construct.ResourceGraph) ([]io.File, error)
 	}
 
 	Compiler struct {
@@ -37,7 +39,7 @@ type (
 
 	// ResourcesOrErr provided as commonly used in async operations for the result channel.
 	ResourcesOrErr struct {
-		Resources []core.Resource
+		Resources []construct.Resource
 		Err       error
 	}
 )
@@ -49,7 +51,7 @@ func (c *Compiler) Compile() error {
 	// Add our internal resource to be used for provider specific implementations. ex) aws dispatcher requires the payloads bucket and so does proxy
 	// TODO: We could likely move this into runtime, but until we refactor that to be common we can keep this here so it lives in one place.
 	// We previously always created the payloads bucket so the behavior is no different
-	internalResource := &core.InternalResource{Name: core.KlothoPayloadName}
+	internalResource := &types.InternalResource{Name: types.KlothoPayloadName}
 	c.Document.Constructs.AddConstruct(internalResource)
 
 	for _, p := range c.AnalysisAndTransformationPlugins {
@@ -57,7 +59,7 @@ func (c *Compiler) Compile() error {
 		log.Debug("starting")
 		err := p.Transform(c.Document.InputFiles, c.Document.FileDependencies, c.Document.Constructs)
 		if err != nil {
-			return core.NewPluginError(p.Name(), err)
+			return types.NewPluginError(p.Name(), err)
 		}
 		log.Debug("completed")
 	}
@@ -77,11 +79,11 @@ func (c *Compiler) Compile() error {
 		// TODO logging
 		files, err := p.Translate(c.Document.DeploymentOrder)
 		if err != nil {
-			return core.NewPluginError(p.Name(), err)
+			return types.NewPluginError(p.Name(), err)
 		}
 		c.Document.OutputFiles = append(c.Document.OutputFiles, files...)
 	}
-	err = c.Document.OutputGraph(c.Document.Configuration.OutDir)
+	err = c.Document.Resources.OutputResourceGraph(c.Document.Configuration.OutDir)
 	if err != nil {
 		return errors.Wrap(err, "Unable to output graph")
 	}
@@ -93,13 +95,13 @@ func (c *Compiler) Compile() error {
 }
 
 func (c *Compiler) createConfigOutputFile() error {
-	c.Document.Configuration.UpdateForResources(core.ListConstructs[core.Construct](c.Document.Constructs))
+	c.Document.Configuration.UpdateForResources(construct.ListConstructs[construct.Construct](c.Document.Constructs))
 	buf := new(bytes.Buffer)
 	err := c.Document.Configuration.WriteTo(buf)
 	if err != nil {
 		return err
 	}
-	c.Document.OutputFiles = append(c.Document.OutputFiles, &core.RawFile{
+	c.Document.OutputFiles = append(c.Document.OutputFiles, &io.RawFile{
 		FPath:   fmt.Sprintf("klotho.%s", c.Document.Configuration.Format),
 		Content: buf.Bytes(),
 	})

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
 var lowerThenUpper = regexp.MustCompile("([a-z0-9])([A-Z])")
@@ -44,7 +44,7 @@ func toUpperCamel(s string) string {
 	return sb.String()
 }
 
-func structName(v core.Resource) string {
+func structName(v construct.Resource) string {
 	vType := reflect.TypeOf(v)
 	for vType.Kind() == reflect.Pointer {
 		vType = vType.Elem()

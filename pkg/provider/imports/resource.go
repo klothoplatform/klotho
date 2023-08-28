@@ -1,6 +1,6 @@
 package imports
 
-import "github.com/klothoplatform/klotho/pkg/core"
+import "github.com/klothoplatform/klotho/pkg/construct"
 
 // Imported is an internal resource to signal that the resource that depends on this
 // should be imported from `ID`.
@@ -13,20 +13,20 @@ type Imported struct {
 	ID string
 }
 
-func (imp Imported) BaseConstructRefs() core.BaseConstructSet {
+func (imp Imported) BaseConstructRefs() construct.BaseConstructSet {
 	return nil
 }
 
-func (imp Imported) Id() core.ResourceId {
-	return core.ResourceId{
-		Provider: core.InternalProvider,
+func (imp Imported) Id() construct.ResourceId {
+	return construct.ResourceId{
+		Provider: construct.InternalProvider,
 		Type:     "import",
 		Name:     imp.ID,
 	}
 }
 
-func (imp Imported) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (imp Imported) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

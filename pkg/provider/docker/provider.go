@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/provider/docker/resources"
@@ -13,9 +13,9 @@ import (
 type DockerProvider struct {
 }
 
-func (a *DockerProvider) GetOperationalTempaltes() map[core.ResourceId]*core.ResourceTemplate {
+func (a *DockerProvider) GetOperationalTempaltes() map[construct.ResourceId]*construct.ResourceTemplate {
 	// Not implemented
-	return map[core.ResourceId]*core.ResourceTemplate{}
+	return map[construct.ResourceId]*construct.ResourceTemplate{}
 }
 
 func (a *DockerProvider) GetEdgeTempaltes() map[string]*knowledgebase.EdgeTemplate {
@@ -25,14 +25,14 @@ func (a *DockerProvider) GetEdgeTempaltes() map[string]*knowledgebase.EdgeTempla
 
 func (a *DockerProvider) Name() string { return provider.DOCKER }
 
-func (a *DockerProvider) ListResources() []core.Resource {
+func (a *DockerProvider) ListResources() []construct.Resource {
 	return resources.ListAll()
 }
 
 // CreateResourceFromId creates a resource from an id, but does not mutate the graph in any manner
 // The graph is passed in to be able to understand what namespaces reference in resource ids
-func (a *DockerProvider) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error) {
-	typeToResource := make(map[string]core.Resource)
+func (a *DockerProvider) CreateResourceFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.Resource, error) {
+	typeToResource := make(map[string]construct.Resource)
 	for _, res := range resources.ListAll() {
 		typeToResource[res.Id().Type] = res
 	}
@@ -41,9 +41,9 @@ func (a *DockerProvider) CreateResourceFromId(id core.ResourceId, dag *core.Cons
 		return nil, fmt.Errorf("unable to find resource of type %s", id.Type)
 	}
 	newResource := reflect.New(reflect.TypeOf(res).Elem()).Interface()
-	resource, ok := newResource.(core.Resource)
+	resource, ok := newResource.(construct.Resource)
 	if !ok {
-		return nil, fmt.Errorf("item %s of type %T is not of type core.Resource", id, newResource)
+		return nil, fmt.Errorf("item %s of type %T is not of type construct.Resource", id, newResource)
 	}
 	reflect.ValueOf(resource).Elem().FieldByName("Name").SetString(id.Name)
 

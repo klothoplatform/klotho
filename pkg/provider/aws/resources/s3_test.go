@@ -3,15 +3,16 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_S3BucketCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[S3BucketCreateParams, *S3Bucket]{
 		{
 			Name: "nil bucket",
@@ -23,7 +24,7 @@ func Test_S3BucketCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, bucket *S3Bucket) {
 				assert.Equal(bucket.Name, "my-app-bucket")
-				assert.Equal(bucket.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(bucket.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -37,7 +38,7 @@ func Test_S3BucketCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, bucket *S3Bucket) {
 				assert.Equal(bucket.Name, "my-app-bucket")
-				assert.Equal(bucket.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(bucket.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -45,7 +46,7 @@ func Test_S3BucketCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = S3BucketCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "bucket",
 			}
 			tt.Run(t)
@@ -54,9 +55,9 @@ func Test_S3BucketCreate(t *testing.T) {
 }
 
 func Test_S3ObjectCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[S3ObjectCreateParams, *S3Object]{
 		{
 			Name: "nil object",
@@ -68,7 +69,7 @@ func Test_S3ObjectCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, bucket *S3Object) {
 				assert.Equal(bucket.Name, "my-app-object")
-				assert.Equal(bucket.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(bucket.ConstructRefs, construct.BaseConstructSetOf(eu))
 				assert.Equal(bucket.Key, "key")
 				assert.Equal(bucket.FilePath, "filepath")
 			},
@@ -83,7 +84,7 @@ func Test_S3ObjectCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = S3ObjectCreateParams{
 				AppName:  "my-app",
-				Refs:     core.BaseConstructSetOf(eu),
+				Refs:     construct.BaseConstructSetOf(eu),
 				Name:     "object",
 				Key:      "key",
 				FilePath: "filepath",
@@ -94,9 +95,9 @@ func Test_S3ObjectCreate(t *testing.T) {
 }
 
 func Test_S3BucketPolicyCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[S3BucketPolicyCreateParams, *S3BucketPolicy]{
 		{
 			Name: "nil policy",
@@ -108,7 +109,7 @@ func Test_S3BucketPolicyCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, bucket *S3BucketPolicy) {
 				assert.Equal(bucket.Name, "my-app-policy")
-				assert.Equal(bucket.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(bucket.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -121,7 +122,7 @@ func Test_S3BucketPolicyCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = S3BucketPolicyCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "policy",
 			}
 			tt.Run(t)

@@ -1,10 +1,11 @@
 package csharp
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFindImportsInFile(t *testing.T) {
@@ -143,7 +144,7 @@ func TestFindImportsInFile(t *testing.T) {
 	for _, tt := range tests {
 		assert := assert.New(t)
 		t.Run(tt.name, func(t *testing.T) {
-			sourceFile, err := core.NewSourceFile("file.cs", strings.NewReader(tt.program), Language)
+			sourceFile, err := types.NewSourceFile("file.cs", strings.NewReader(tt.program), Language)
 			if !assert.NoError(err) {
 				return
 			}

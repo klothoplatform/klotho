@@ -3,15 +3,16 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_CloudwatchLogGroupCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	eu2 := &core.ExecutionUnit{Name: "test"}
-	initialRefs := core.BaseConstructSetOf(eu)
+	eu := &types.ExecutionUnit{Name: "first"}
+	eu2 := &types.ExecutionUnit{Name: "test"}
+	initialRefs := construct.BaseConstructSetOf(eu)
 	cases := []struct {
 		name     string
 		logGroup *LogGroup
@@ -40,13 +41,13 @@ func Test_CloudwatchLogGroupCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			if tt.logGroup != nil {
 				dag.AddResource(tt.logGroup)
 			}
 			metadata := CloudwatchLogGroupCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu2),
+				Refs:    construct.BaseConstructSetOf(eu2),
 				Name:    "log-group",
 			}
 
@@ -67,7 +68,7 @@ func Test_CloudwatchLogGroupCreate(t *testing.T) {
 				assert.Equal(logGroup.ConstructRefs, metadata.Refs)
 			} else {
 				assert.Equal(logGroup, tt.logGroup)
-				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
+				expect := initialRefs.CloneWith(construct.BaseConstructSetOf(eu2))
 				assert.Equal(logGroup.BaseConstructRefs(), expect)
 			}
 		})

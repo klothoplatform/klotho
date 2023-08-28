@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 
 	klothograph "github.com/klothoplatform/klotho/pkg/graph"
 
@@ -14,7 +14,7 @@ import (
 
 var TestKnowledgeBase = Build(
 	EdgeBuilder[*A, *B]{
-		Configure: func(a *A, b *B, dag *core.ResourceGraph, data EdgeData) error {
+		Configure: func(a *A, b *B, dag *construct.ResourceGraph, data EdgeData) error {
 			b.Name = "B"
 			a.Name = "name"
 			return nil
@@ -36,16 +36,16 @@ var typeE = reflect.TypeOf(&E{})
 func Test_ConfigureEdge(t *testing.T) {
 	cases := []struct {
 		name   string
-		source core.Resource
-		dest   core.Resource
+		source construct.Resource
+		dest   construct.Resource
 		data   EdgeData
-		want   []klothograph.Edge[core.Resource]
+		want   []klothograph.Edge[construct.Resource]
 	}{
 		{
 			name:   "node must and must not exist",
 			source: &A{},
 			dest:   &B{},
-			want: []klothograph.Edge[core.Resource]{
+			want: []klothograph.Edge[construct.Resource]{
 				{Source: &A{Name: "name"}, Destination: &B{Name: "B"}, Properties: graph.EdgeProperties{Attributes: map[string]string{}, Data: EdgeData{}}},
 			},
 		},
@@ -53,7 +53,7 @@ func Test_ConfigureEdge(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			dag.AddDependencyWithData(tt.source, tt.dest, tt.data)
 			edge := dag.GetDependency(tt.source.Id(), tt.dest.Id())
 			err := TestKnowledgeBase.ConfigureEdge(edge, dag)
@@ -66,11 +66,11 @@ func Test_ConfigureEdge(t *testing.T) {
 func Test_ExpandEdges(t *testing.T) {
 	cases := []struct {
 		name   string
-		source core.Resource
-		dest   core.Resource
+		source construct.Resource
+		dest   construct.Resource
 		data   EdgeData
 		path   Path
-		want   []klothograph.Edge[core.Resource]
+		want   []klothograph.Edge[construct.Resource]
 	}{
 		{
 			name:   "node must and must not exist",
@@ -78,14 +78,14 @@ func Test_ExpandEdges(t *testing.T) {
 			dest:   &E{},
 			data: EdgeData{
 				Constraint: EdgeConstraint{
-					NodeMustExist:    []core.Resource{&C{}},
-					NodeMustNotExist: []core.Resource{&D{}},
+					NodeMustExist:    []construct.Resource{&C{}},
+					NodeMustNotExist: []construct.Resource{&D{}},
 				},
 			},
 			path: Path{
 				{typeA, typeB}, {typeB, typeC}, {typeC, typeE},
 			},
-			want: []klothograph.Edge[core.Resource]{
+			want: []klothograph.Edge[construct.Resource]{
 				{Source: &A{}, Destination: &B{Name: "B_A_E"}},
 				{Source: &B{Name: "B_A_E"}, Destination: &C{}},
 				{Source: &C{}, Destination: &E{}},
@@ -95,14 +95,14 @@ func Test_ExpandEdges(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			dag.AddDependencyWithData(tt.source, tt.dest, tt.data)
 			edge := dag.GetDependency(tt.source.Id(), tt.dest.Id())
 			err := TestKnowledgeBase.ExpandEdge(edge, dag, tt.path, tt.data)
 
-			var result []klothograph.Edge[core.Resource]
+			var result []klothograph.Edge[construct.Resource]
 			for _, dep := range dag.ListDependencies() {
-				result = append(result, klothograph.Edge[core.Resource]{Source: dep.Source, Destination: dep.Destination})
+				result = append(result, klothograph.Edge[construct.Resource]{Source: dep.Source, Destination: dep.Destination})
 			}
 			assert.NoError(err)
 			assert.ElementsMatch(tt.want, result)
@@ -129,39 +129,39 @@ type (
 	}
 )
 
-func (f *A) Id() core.ResourceId                      { return core.ResourceId{Type: "A", Name: "A" + f.Name} }
-func (f *A) BaseConstructRefs() core.BaseConstructSet { return nil }
-func (f *A) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (f *A) Id() construct.ResourceId                      { return construct.ResourceId{Type: "A", Name: "A" + f.Name} }
+func (f *A) BaseConstructRefs() construct.BaseConstructSet { return nil }
+func (f *A) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 
-func (b B) Id() core.ResourceId                      { return core.ResourceId{Type: "B", Name: "B" + b.Name} }
-func (f B) BaseConstructRefs() core.BaseConstructSet { return nil }
-func (f B) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (b B) Id() construct.ResourceId                      { return construct.ResourceId{Type: "B", Name: "B" + b.Name} }
+func (f B) BaseConstructRefs() construct.BaseConstructSet { return nil }
+func (f B) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
-func (p *C) Id() core.ResourceId                      { return core.ResourceId{Type: "C", Name: "C" + p.Name} }
-func (f *C) BaseConstructRefs() core.BaseConstructSet { return nil }
-func (f *C) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (p *C) Id() construct.ResourceId                      { return construct.ResourceId{Type: "C", Name: "C" + p.Name} }
+func (f *C) BaseConstructRefs() construct.BaseConstructSet { return nil }
+func (f *C) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
-func (p *D) Id() core.ResourceId                      { return core.ResourceId{Type: "D", Name: "D" + p.Name} }
-func (f *D) BaseConstructRefs() core.BaseConstructSet { return nil }
-func (f *D) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (p *D) Id() construct.ResourceId                      { return construct.ResourceId{Type: "D", Name: "D" + p.Name} }
+func (f *D) BaseConstructRefs() construct.BaseConstructSet { return nil }
+func (f *D) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
-func (p *E) Id() core.ResourceId                      { return core.ResourceId{Type: "E", Name: "E" + p.Name} }
-func (f *E) BaseConstructRefs() core.BaseConstructSet { return nil }
-func (f *E) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (p *E) Id() construct.ResourceId                      { return construct.ResourceId{Type: "E", Name: "E" + p.Name} }
+func (f *E) BaseConstructRefs() construct.BaseConstructSet { return nil }
+func (f *E) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

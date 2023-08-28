@@ -3,7 +3,7 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,11 +13,11 @@ import (
 type (
 	TargetGroupBinding struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Object        *elbv2api.TargetGroupBinding
-		Values        map[string]core.IaCValue
+		Values        map[string]construct.IaCValue
 		FilePath      string
-		Cluster       core.ResourceId
+		Cluster       construct.ResourceId
 	}
 )
 
@@ -25,20 +25,20 @@ const (
 	TARGET_GROUP_BINDING_TYPE = "target_group_binding"
 )
 
-func (tgb *TargetGroupBinding) BaseConstructRefs() core.BaseConstructSet {
+func (tgb *TargetGroupBinding) BaseConstructRefs() construct.BaseConstructSet {
 	return tgb.ConstructRefs
 }
 
-func (tgb *TargetGroupBinding) Id() core.ResourceId {
-	return core.ResourceId{
+func (tgb *TargetGroupBinding) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     TARGET_GROUP_BINDING_TYPE,
 		Name:     tgb.Name,
 	}
 }
 
-func (tgb *TargetGroupBinding) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (tgb *TargetGroupBinding) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstreamOrDownstream: true,
 	}
 }
@@ -55,7 +55,7 @@ func (tgb *TargetGroupBinding) Path() string {
 	return tgb.FilePath
 }
 
-func (tgb *TargetGroupBinding) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (tgb *TargetGroupBinding) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if tgb.Cluster.Name == "" {
 		return fmt.Errorf("target group binding %s has no cluster", tgb.Name)
 	}
@@ -67,6 +67,6 @@ func (tgb *TargetGroupBinding) MakeOperational(dag *core.ResourceGraph, appName 
 	return nil
 }
 
-func (tgb *TargetGroupBinding) GetValues() map[string]core.IaCValue {
+func (tgb *TargetGroupBinding) GetValues() map[string]construct.IaCValue {
 	return tgb.Values
 }

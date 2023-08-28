@@ -3,7 +3,7 @@ package helm
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/stretchr/testify/assert"
 	"helm.sh/helm/v3/pkg/chart"
 )
@@ -116,7 +116,7 @@ metadata:
 				assert.Contains([]string{"hello/templates/sa.yaml", "hello/crds/crd.yaml"}, f.Path())
 
 				if f.Path() == "hello/templates/sa.yaml" {
-					ast, ok := f.(*core.SourceFile)
+					ast, ok := f.(*types.SourceFile)
 					if !assert.True(ok) {
 						return
 					}

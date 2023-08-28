@@ -1,11 +1,11 @@
 package visualizer
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 )
 
-func TypeFor(res core.Resource, dag *core.ResourceGraph) string {
+func TypeFor(res construct.Resource, dag *construct.ResourceGraph) string {
 	resType := res.Id().Type
 	// Important: if you update this switch, also update all_types_test.go's typeNamesForResource
 	switch res := res.(type) {

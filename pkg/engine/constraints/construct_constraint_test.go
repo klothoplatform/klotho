@@ -1,33 +1,35 @@
 package constraints
 
 import (
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
+
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_ConstructConstraint_IsSatisfied(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "compute"}
+	eu := &types.ExecutionUnit{Name: "compute"}
 	tests := []struct {
 		name       string
 		constraint ConstructConstraint
-		resources  []core.Resource
+		resources  []construct.Resource
 		want       bool
 	}{
 		{
 			name: "type equals is satisfied",
 			constraint: ConstructConstraint{
 				Operator: EqualsConstraintOperator,
-				Target:   core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute"},
+				Target:   construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
 				Type:     "lambda_function",
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructRefs: core.BaseConstructSetOf(eu),
+					ConstructRefs: construct.BaseConstructSetOf(eu),
 				},
 			},
 			want: true,
@@ -36,13 +38,13 @@ func Test_ConstructConstraint_IsSatisfied(t *testing.T) {
 			name: "type equals is not satisfied - wrong type",
 			constraint: ConstructConstraint{
 				Operator: EqualsConstraintOperator,
-				Target:   core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute"},
+				Target:   construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
 				Type:     "lambda_function",
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.Ec2Instance{
 					Name:          "my_instance",
-					ConstructRefs: core.BaseConstructSetOf(eu),
+					ConstructRefs: construct.BaseConstructSetOf(eu),
 				},
 			},
 			want: false,
@@ -51,10 +53,10 @@ func Test_ConstructConstraint_IsSatisfied(t *testing.T) {
 			name: "type equals is not satisfied - no ref",
 			constraint: ConstructConstraint{
 				Operator: EqualsConstraintOperator,
-				Target:   core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute"},
+				Target:   construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
 				Type:     "lambda_function",
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.LambdaFunction{
 					Name: "my_function",
 				},
@@ -65,9 +67,9 @@ func Test_ConstructConstraint_IsSatisfied(t *testing.T) {
 			name: "no equals is not satisfied and fails",
 			constraint: ConstructConstraint{
 				Operator: EqualsConstraintOperator,
-				Target:   core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute"},
+				Target:   construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.LambdaFunction{
 					Name: "my_function",
 				},
@@ -78,11 +80,11 @@ func Test_ConstructConstraint_IsSatisfied(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			for _, res := range tt.resources {
 				dag.AddResource(res)
 			}
-			result := tt.constraint.IsSatisfied(dag, knowledgebase.EdgeKB{}, make(map[core.ResourceId][]core.Resource), nil)
+			result := tt.constraint.IsSatisfied(dag, knowledgebase.EdgeKB{}, make(map[construct.ResourceId][]construct.Resource), nil)
 			assert.Equal(tt.want, result)
 		})
 	}

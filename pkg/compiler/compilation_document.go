@@ -12,25 +12,25 @@ import (
 
 	"github.com/google/shlex"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
-	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
 )
 
 type (
 	CompilationDocument struct {
-		InputFiles       *core.InputFiles
-		FileDependencies *core.FileDependencies
-		Constructs       *core.ConstructGraph
+		InputFiles       *types.InputFiles
+		FileDependencies *types.FileDependencies
+		Constructs       *construct.ConstructGraph
 		Configuration    *config.Application
-		Resources        *core.ResourceGraph
-		DeploymentOrder  *core.ResourceGraph
-		OutputFiles      []core.File
+		Resources        *construct.ResourceGraph
+		DeploymentOrder  *construct.ResourceGraph
+		OutputFiles      []io.File
 		OutputOptions    OutputOptions
 	}
 
@@ -49,7 +49,7 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 	errs := make(chan error)
 	files := doc.OutputFiles
 	for idx := range files {
-		go func(f core.File) {
+		go func(f io.File) {
 			path := filepath.Join(dest, f.Path())
 			dir := filepath.Dir(path)
 			err := os.MkdirAll(dir, 0777)
@@ -61,7 +61,7 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 			if os.IsNotExist(err) {
 				file, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0777)
 			} else if err == nil {
-				ovr, ok := f.(core.NonOverwritable)
+				ovr, ok := f.(io.NonOverwritable)
 				if ok && !ovr.Overwrite(file) {
 					errs <- nil
 					return
@@ -99,7 +99,7 @@ func (doc *CompilationDocument) OutputTo(dest string) error {
 	return nil
 }
 
-func postCompileHook(dir string, file core.File, hook string) error {
+func postCompileHook(dir string, file io.File, hook string) error {
 	hookSegments, err := shlex.Split(hook)
 	if err != nil {
 		return err
@@ -141,11 +141,11 @@ func (document *CompilationDocument) OutputResources() (resourceCounts map[strin
 	resourceCounts = make(map[string]int)
 	var resourcesOutput []interface{}
 	var merr multierr.Error
-	for _, construct := range core.ListConstructs[core.Construct](result) {
-		resourceCounts[construct.AnnotationCapability()] = resourceCounts[construct.AnnotationCapability()] + 1
+	for _, c := range construct.ListConstructs[construct.Construct](result) {
+		resourceCounts[c.AnnotationCapability()] = resourceCounts[c.AnnotationCapability()] + 1
 
-		switch r := construct.(type) {
-		case *core.ExecutionUnit:
+		switch r := c.(type) {
+		case *types.ExecutionUnit:
 			resOut := map[string]interface{}{
 				"Type": r.AnnotationCapability(),
 				"Name": r.Id().Name,
@@ -160,14 +160,14 @@ func (document *CompilationDocument) OutputResources() (resourceCounts map[strin
 			resourcesOutput = append(resourcesOutput, r)
 		}
 
-		output, ok := construct.(core.HasLocalOutput)
+		output, ok := c.(construct.HasLocalOutput)
 		if !ok {
 			continue
 		}
-		zap.L().Debug("Output", zap.String("type", construct.AnnotationCapability()), zap.String("name", construct.Id().Name))
+		zap.L().Debug("Output", zap.String("type", c.AnnotationCapability()), zap.String("name", c.Id().Name))
 		err = output.OutputTo(outDir)
 		if err != nil {
-			merr.Append(errors.Wrapf(err, "error outputting resource %+v", construct))
+			merr.Append(errors.Wrapf(err, "error outputting resource %+v", c))
 		}
 	}
 
@@ -193,52 +193,10 @@ func (document *CompilationDocument) OutputResources() (resourceCounts map[strin
 	return
 }
 
-func (document *CompilationDocument) OutputGraph(outDir string) error {
-	err := os.MkdirAll(outDir, 0777)
-	if err != nil {
-		return err
-	}
-	var merr multierr.Error
-
-	f, err := os.Create(path.Join(outDir, "resources.yaml"))
-	if err != nil {
-		return errors.Wrap(err, "error creating resource dump")
-	} else {
-		defer f.Close()
-		enc := yaml.NewEncoder(f)
-
-		outputGraph := core.OutputGraph{}
-		for _, res := range document.Resources.ListResources() {
-			outputGraph.Resources = append(outputGraph.Resources, res.Id())
-			md := &map[interface{}]interface{}{}
-			err := mapstructure.Decode(res, md)
-			if err != nil {
-				merr.Append(errors.Wrap(err, "error decoding resource metadata"))
-			}
-			outputGraph.ResourceMetadata = append(outputGraph.ResourceMetadata, core.ResourceMetadata{
-				Id:       res.Id(),
-				Metadata: res,
-			})
-		}
-
-		for _, dep := range document.Resources.ListDependencies() {
-			outputGraph.Edges = append(outputGraph.Edges, core.OutputEdge{
-				Source:      dep.Source.Id(),
-				Destination: dep.Destination.Id(),
-			})
-		}
-		err = enc.Encode(outputGraph)
-		if err != nil {
-			merr.Append(errors.Wrap(err, "error writing resources"))
-		}
-	}
-	return merr.ErrOrNil()
-}
-
 func (document *CompilationDocument) OutputHelpers(outDir string) error {
 	var merr multierr.Error
 	for _, resource := range document.Resources.ListResources() {
-		if res, ok := resource.(core.HasOutputFiles); ok {
+		if res, ok := resource.(construct.HasOutputFiles); ok {
 			document.OutputFiles = append(document.OutputFiles, res.GetOutputFiles()...)
 		}
 	}

@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
@@ -15,13 +15,13 @@ import (
 
 type (
 	ExpansionSet struct {
-		Construct  core.Construct
+		Construct  construct.Construct
 		Attributes []string
 	}
 
 	ExpansionSolution struct {
-		Graph                   *core.ResourceGraph
-		DirectlyMappedResources []core.Resource
+		Graph                   *construct.ResourceGraph
+		DirectlyMappedResources []construct.Resource
 	}
 )
 
@@ -33,9 +33,9 @@ type (
 func (e *Engine) ExpandConstructs() error {
 	var joinedErr error
 	for _, res := range e.Context.WorkingState.ListConstructs() {
-		if res.Id().Provider == core.AbstractConstructProvider {
+		if res.Id().Provider == construct.AbstractConstructProvider {
 			zap.S().Debugf("Expanding construct %s", res.Id())
-			construct, ok := res.(core.Construct)
+			construct, ok := res.(construct.Construct)
 			if !ok {
 				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to cast base construct %s to construct while expanding construct", res.Id()))
 				continue
@@ -87,14 +87,14 @@ func (e *Engine) ExpandConstructs() error {
 	return joinedErr
 }
 
-func (e *Engine) expandConstruct(constructType string, attributes map[string]any, construct core.Construct) ([]*ExpansionSolution, error) {
-	var baseResource core.Resource
+func (e *Engine) expandConstruct(constructType string, attributes map[string]any, c construct.Construct) ([]*ExpansionSolution, error) {
+	var baseResource construct.Resource
 	for _, res := range e.ListResources() {
 		if res.Id().Type == constructType {
 			baseResource = res
 		}
 	}
-	expansionSet := ExpansionSet{Construct: construct}
+	expansionSet := ExpansionSet{Construct: c}
 	for attribute := range attributes {
 		expansionSet.Attributes = append(expansionSet.Attributes, attribute)
 	}
@@ -103,7 +103,7 @@ func (e *Engine) expandConstruct(constructType string, attributes map[string]any
 		return nil, err
 	}
 	var result []*ExpansionSolution
-	exists := map[string]*core.ResourceGraph{}
+	exists := map[string]*construct.ResourceGraph{}
 	for _, sol := range solutions {
 		s := sol.Graph.String()
 		if exists[s] == nil {
@@ -111,26 +111,26 @@ func (e *Engine) expandConstruct(constructType string, attributes map[string]any
 			exists[s] = sol.Graph
 		}
 	}
-	return addNamesAndReferencesToGraphs(construct, result), nil
+	return addNamesAndReferencesToGraphs(c, result), nil
 }
 
-func addNamesAndReferencesToGraphs(construct core.Construct, solutions []*ExpansionSolution) []*ExpansionSolution {
+func addNamesAndReferencesToGraphs(c construct.Construct, solutions []*ExpansionSolution) []*ExpansionSolution {
 	endSolutions := []*ExpansionSolution{}
 	for _, sol := range solutions {
-		graph := core.NewResourceGraph()
-		resourceMapping := map[core.ResourceId]core.Resource{}
+		graph := construct.NewResourceGraph()
+		resourceMapping := map[construct.ResourceId]construct.Resource{}
 		for _, res := range sol.Graph.ListResources() {
 			resval := reflect.New(reflect.TypeOf(res).Elem())
-			resval.Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s-%s", res.Id().Type, construct.Id().Name)))
-			resval.Elem().FieldByName("ConstructRefs").Set(reflect.ValueOf(core.BaseConstructSetOf(construct)))
-			newResource := resval.Interface().(core.Resource)
+			resval.Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s-%s", res.Id().Type, c.Id().Name)))
+			resval.Elem().FieldByName("ConstructRefs").Set(reflect.ValueOf(construct.BaseConstructSetOf(c)))
+			newResource := resval.Interface().(construct.Resource)
 			resourceMapping[res.Id()] = newResource
 			graph.AddResource(newResource)
 		}
 		for _, dep := range sol.Graph.ListDependencies() {
 			graph.AddDependency(resourceMapping[dep.Source.Id()], resourceMapping[dep.Destination.Id()])
 		}
-		mappedRes := []core.Resource{}
+		mappedRes := []construct.Resource{}
 		for _, res := range sol.DirectlyMappedResources {
 			mappedRes = append(mappedRes, resourceMapping[res.Id()])
 		}
@@ -139,7 +139,7 @@ func addNamesAndReferencesToGraphs(construct core.Construct, solutions []*Expans
 	return endSolutions
 }
 
-func (e *Engine) findPossibleExpansions(expansionSet ExpansionSet, baseResource core.Resource) ([]*ExpansionSolution, error) {
+func (e *Engine) findPossibleExpansions(expansionSet ExpansionSet, baseResource construct.Resource) ([]*ExpansionSolution, error) {
 	var possibleExpansions []*ExpansionSolution
 	var joinedErr error
 	for _, res := range e.ListResources() {
@@ -156,7 +156,7 @@ func (e *Engine) findPossibleExpansions(expansionSet ExpansionSet, baseResource 
 				unsatisfiedAttributes = append(unsatisfiedAttributes, ms)
 			}
 		}
-		graph := core.NewResourceGraph()
+		graph := construct.NewResourceGraph()
 		graph.AddResource(res)
 		expansions, err := e.findExpansions(unsatisfiedAttributes, graph, res, expansionSet.Construct.Functionality())
 		if err != nil {
@@ -164,17 +164,17 @@ func (e *Engine) findPossibleExpansions(expansionSet ExpansionSet, baseResource 
 			continue
 		}
 		for _, expansion := range expansions {
-			possibleExpansions = append(possibleExpansions, &ExpansionSolution{Graph: expansion, DirectlyMappedResources: []core.Resource{res}})
+			possibleExpansions = append(possibleExpansions, &ExpansionSolution{Graph: expansion, DirectlyMappedResources: []construct.Resource{res}})
 		}
 	}
 	return possibleExpansions, joinedErr
 }
 
-func (e *Engine) findExpansions(attributes []string, rg *core.ResourceGraph, baseResource core.Resource, functionality core.Functionality) ([]*core.ResourceGraph, error) {
+func (e *Engine) findExpansions(attributes []string, rg *construct.ResourceGraph, baseResource construct.Resource, functionality construct.Functionality) ([]*construct.ResourceGraph, error) {
 	if len(attributes) == 0 {
-		return []*core.ResourceGraph{rg}, nil
+		return []*construct.ResourceGraph{rg}, nil
 	}
-	var possibleExpansions []*core.ResourceGraph
+	var possibleExpansions []*construct.ResourceGraph
 	for _, attribute := range attributes {
 		for _, res := range e.ListResources() {
 			if res.Id().Type == baseResource.Id().Type {
@@ -182,7 +182,7 @@ func (e *Engine) findExpansions(attributes []string, rg *core.ResourceGraph, bas
 			}
 			var paths []knowledgebase.Path
 			for _, path := range e.KnowledgeBase.FindPaths(baseResource, res, knowledgebase.EdgeConstraint{}) {
-				if !e.containsUnneccessaryHopsInPath(graph.Edge[core.Resource]{Source: baseResource, Destination: res}, path, knowledgebase.EdgeData{}) {
+				if !e.containsUnneccessaryHopsInPath(graph.Edge[construct.Resource]{Source: baseResource, Destination: res}, path, knowledgebase.EdgeData{}) {
 					paths = append(paths, path)
 				}
 			}

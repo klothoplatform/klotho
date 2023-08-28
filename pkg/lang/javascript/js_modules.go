@@ -5,20 +5,22 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
-func GetFileForModule(constructGraph *core.ConstructGraph, moduleName string) *core.SourceFile {
+func GetFileForModule(constructGraph *construct.ConstructGraph, moduleName string) *types.SourceFile {
 	moduleName = strings.TrimPrefix(moduleName, "./") // Convert relative import to file name
 
-	original, f := constructGraph.GetExecUnitForPath(moduleName)
+	original, f := types.GetExecUnitForPath(moduleName, constructGraph)
 	if original == nil && !strings.HasSuffix(moduleName, ".js") {
-		original, f = constructGraph.GetExecUnitForPath(moduleName + ".js")
+		original, f = types.GetExecUnitForPath(moduleName+".js", constructGraph)
 	}
 	if original == nil {
-		original, f = constructGraph.GetExecUnitForPath(path.Join(moduleName, "index.js"))
+		original, f = types.GetExecUnitForPath(path.Join(moduleName, "index.js"), constructGraph)
 	}
 	if original == nil {
 		return nil
@@ -31,7 +33,7 @@ func GetFileForModule(constructGraph *core.ConstructGraph, moduleName string) *c
 }
 
 // FindFileForImport is the reverse of `FindImportOfFile`.
-func FindFileForImport(files map[string]core.File, importingFilePath string, module string) (f core.File, err error) {
+func FindFileForImport(files map[string]io.File, importingFilePath string, module string) (f io.File, err error) {
 	path, err := filepath.Rel(".", filepath.Join(filepath.Dir(importingFilePath), module))
 	if err != nil {
 		return nil, err

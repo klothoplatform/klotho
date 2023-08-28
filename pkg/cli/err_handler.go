@@ -4,7 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	klotho_errors "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"go.uber.org/zap"
@@ -60,13 +61,13 @@ func (h ErrorHandler) printErr(err error, num int) (nextNum int) {
 		}
 
 		switch suberr := suberr.(type) {
-		case *core.WrappedError:
+		case *klotho_errors.WrappedError:
 			if msg == "" {
 				msg = suberr.Message
 			} else {
 				msg += ": " + suberr.Message
 			}
-		case *core.CompileError:
+		case *types.CompileError:
 			if msg == "" {
 				log.
 					With(logging.FileField(suberr.File), logging.AnnotationField(suberr.Annotation)).

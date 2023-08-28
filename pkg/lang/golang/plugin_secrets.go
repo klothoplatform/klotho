@@ -5,8 +5,10 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	klotho_errors "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/query"
@@ -21,14 +23,14 @@ type PersistSecretsPlugin struct {
 
 func (p PersistSecretsPlugin) Name() string { return "Persist" }
 
-func (p PersistSecretsPlugin) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
+func (p PersistSecretsPlugin) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
 
 	var errs multierr.Error
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range construct.GetConstructsOfType[*types.ExecutionUnit](constructGraph) {
 		for _, goSource := range unit.FilesOfLang(goLang) {
 			resources, err := p.handleFile(goSource, unit)
 			if err != nil {
-				errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.Name))
+				errs.Append(klotho_errors.WrapErrf(err, "failed to handle persist in unit %s", unit.Name))
 				continue
 			}
 
@@ -42,8 +44,8 @@ func (p PersistSecretsPlugin) Transform(input *core.InputFiles, fileDeps *core.F
 	return errs.ErrOrNil()
 }
 
-func (p *PersistSecretsPlugin) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]core.Construct, error) {
-	resources := []core.Construct{}
+func (p *PersistSecretsPlugin) handleFile(f *types.SourceFile, unit *types.ExecutionUnit) ([]construct.Construct, error) {
+	resources := []construct.Construct{}
 	var errs multierr.Error
 	annots := f.Annotations()
 	for _, annot := range annots {
@@ -69,8 +71,8 @@ func (p *PersistSecretsPlugin) handleFile(f *core.SourceFile, unit *core.Executi
 	return resources, errs.ErrOrNil()
 }
 
-func (p *PersistSecretsPlugin) transformSecret(f *core.SourceFile, cap *core.Annotation, result *persistSecretResult, unit *core.ExecutionUnit) (core.Construct, error) {
-	secret := &core.Config{
+func (p *PersistSecretsPlugin) transformSecret(f *types.SourceFile, cap *types.Annotation, result *persistSecretResult, unit *types.ExecutionUnit) (construct.Construct, error) {
+	secret := &types.Config{
 		Name:   cap.Capability.ID,
 		Secret: true,
 	}
@@ -89,7 +91,7 @@ func (p *PersistSecretsPlugin) transformSecret(f *core.SourceFile, cap *core.Ann
 		queryParams = "&" + klothoRuntimePathSubChunks[1]
 	}
 	`
-	secretEnvVar := core.GenerateSecretEnvVar(secret)
+	secretEnvVar := types.GenerateSecretEnvVar(secret)
 
 	unit.EnvironmentVariables.Add(secretEnvVar)
 
@@ -119,7 +121,7 @@ type persistSecretResult struct {
 	expression *sitter.Node
 }
 
-func querySecret(file *core.SourceFile, annotation *core.Annotation) *persistSecretResult {
+func querySecret(file *types.SourceFile, annotation *types.Annotation) *persistSecretResult {
 	log := zap.L().With(logging.FileField(file), logging.AnnotationField(annotation))
 
 	runtimeVarImport := GetNamedImportInFile(file, "gocloud.dev/runtimevar")

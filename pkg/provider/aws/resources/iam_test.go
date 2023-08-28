@@ -3,14 +3,15 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_RoleCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu)
+	eu := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu)
 	cases := []struct {
 		name    string
 		role    *IamRole
@@ -40,14 +41,14 @@ func Test_RoleCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			if tt.role != nil {
 				dag.AddResource(tt.role)
 			}
 			metadata := RoleCreateParams{
 				AppName: "my-app",
 				Name:    "executionRole",
-				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
+				Refs:    construct.BaseConstructSetOf(&types.ExecutionUnit{Name: "test"}),
 			}
 			role := &IamRole{}
 			err := role.Create(dag, metadata)
@@ -68,8 +69,8 @@ func Test_RoleCreate(t *testing.T) {
 }
 
 func Test_PolicyCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu)
+	eu := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu)
 	cases := []struct {
 		name    string
 		policy  *IamPolicy
@@ -99,14 +100,14 @@ func Test_PolicyCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			if tt.policy != nil {
 				dag.AddResource(tt.policy)
 			}
 			metadata := IamPolicyCreateParams{
 				AppName: "my-app",
 				Name:    "policy",
-				Refs:    core.BaseConstructSetOf(&core.ExecutionUnit{Name: "test"}),
+				Refs:    construct.BaseConstructSetOf(&types.ExecutionUnit{Name: "test"}),
 			}
 			policy := &IamPolicy{}
 			err := policy.Create(dag, metadata)
@@ -120,12 +121,12 @@ func Test_PolicyCreate(t *testing.T) {
 			}
 			tt.want.Assert(t, dag)
 
-			policy, _ = core.GetResource[*IamPolicy](dag, policy.Id())
+			policy, _ = construct.GetResource[*IamPolicy](dag, policy.Id())
 			assert.Equal(policy.Name, "my-app-policy")
 			if tt.policy == nil {
 				assert.Equal(policy.ConstructRefs, metadata.Refs)
 			} else {
-				initialRefs.Add(&core.ExecutionUnit{Name: "test"})
+				initialRefs.Add(&types.ExecutionUnit{Name: "test"})
 				assert.Equal(policy.ConstructRefs, initialRefs)
 
 			}
@@ -134,9 +135,9 @@ func Test_PolicyCreate(t *testing.T) {
 }
 
 func Test_OidcCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[OidcCreateParams, *OpenIdConnectProvider]{
 		{
 			Name: "nil oidc",
@@ -148,7 +149,7 @@ func Test_OidcCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, oidc *OpenIdConnectProvider) {
 				assert.Equal(oidc.Name, "my-app-cluster")
-				assert.Equal(oidc.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(oidc.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -162,7 +163,7 @@ func Test_OidcCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, oidc *OpenIdConnectProvider) {
 				assert.Equal(oidc.Name, "my-app-cluster")
-				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
+				expect := initialRefs.CloneWith(construct.BaseConstructSetOf(eu))
 				assert.Equal(oidc.ConstructRefs, expect)
 			},
 		},
@@ -171,7 +172,7 @@ func Test_OidcCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = OidcCreateParams{
 				AppName:     "my-app",
-				Refs:        core.BaseConstructSetOf(eu),
+				Refs:        construct.BaseConstructSetOf(eu),
 				ClusterName: "cluster",
 			}
 			tt.Run(t)
@@ -180,9 +181,9 @@ func Test_OidcCreate(t *testing.T) {
 }
 
 func Test_InstanceProfileCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[InstanceProfileCreateParams, *InstanceProfile]{
 		{
 			Name: "nil profile",
@@ -194,7 +195,7 @@ func Test_InstanceProfileCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, profile *InstanceProfile) {
 				assert.Equal(profile.Name, "my-app-profile")
-				assert.Equal(profile.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(profile.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -208,7 +209,7 @@ func Test_InstanceProfileCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, profile *InstanceProfile) {
 				assert.Equal(profile.Name, "my-app-profile")
-				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu))
+				expect := initialRefs.CloneWith(construct.BaseConstructSetOf(eu))
 				assert.Equal(profile.ConstructRefs, expect)
 			},
 		},
@@ -217,7 +218,7 @@ func Test_InstanceProfileCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = InstanceProfileCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "profile",
 			}
 			tt.Run(t)

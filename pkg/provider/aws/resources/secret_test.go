@@ -3,13 +3,14 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_SecretCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
+	eu := &types.ExecutionUnit{Name: "test"}
 	cases := []coretesting.CreateCase[SecretCreateParams, *Secret]{
 		{
 			Name: "nil igw",
@@ -21,7 +22,7 @@ func Test_SecretCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, s *Secret) {
 				assert.Equal(s.Name, "my-app-secret")
-				assert.Equal(s.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(s.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 	}
@@ -29,7 +30,7 @@ func Test_SecretCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = SecretCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "secret",
 			}
 			tt.Run(t)
@@ -38,7 +39,7 @@ func Test_SecretCreate(t *testing.T) {
 }
 
 func Test_SecretVersionCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
+	eu := &types.ExecutionUnit{Name: "test"}
 	cases := []coretesting.CreateCase[SecretVersionCreateParams, *SecretVersion]{
 		{
 			Name: "nil igw",
@@ -50,7 +51,7 @@ func Test_SecretVersionCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, sv *SecretVersion) {
 				assert.Equal(sv.Name, "my-app-secret")
-				assert.Equal(sv.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(sv.ConstructRefs, construct.BaseConstructSetOf(eu))
 				assert.Equal(sv.DetectedPath, "path")
 			},
 		},
@@ -59,7 +60,7 @@ func Test_SecretVersionCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = SecretVersionCreateParams{
 				AppName:      "my-app",
-				Refs:         core.BaseConstructSetOf(eu),
+				Refs:         construct.BaseConstructSetOf(eu),
 				Name:         "secret",
 				DetectedPath: "path",
 			}

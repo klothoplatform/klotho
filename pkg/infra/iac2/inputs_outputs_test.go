@@ -18,7 +18,7 @@ package iac2
 //
 // With all that done, we also check that we've validated all the structs in pkg/provider/aws/. To do this,
 // we use the reflective [packages.Load] to find all the types within that package, and then filter down to those types
-// that conform to core.Resource. Then we simply check that each one of those is in the list of types we checked.
+// that conform to construct.Resource. Then we simply check that each one of those is in the list of types we checked.
 // func TestKnownTemplates(t *testing.T) {
 // 	allResources := resources.ListAll()
 // 	allResources = append(allResources,
@@ -88,11 +88,11 @@ package iac2
 // 							return
 // 						}
 
-// 						if inputType.Kind() == reflect.Interface && inputType == reflect.TypeOf((*core.Resource)(nil)).Elem() {
+// 						if inputType.Kind() == reflect.Interface && inputType == reflect.TypeOf((*construct.Resource)(nil)).Elem() {
 // 							return
 // 						}
 // 						// avoids fields which use nested template or document functionality
-// 						if inputType.Kind() == reflect.Struct || inputType.Kind() == reflect.Pointer && inputType != reflect.TypeOf((*core.Resource)(nil)).Elem() || inputType != reflect.TypeOf(core.IaCValue{}) {
+// 						if inputType.Kind() == reflect.Struct || inputType.Kind() == reflect.Pointer && inputType != reflect.TypeOf((*construct.Resource)(nil)).Elem() || inputType != reflect.TypeOf(construct.IaCValue{}) {
 // 							return
 // 						}
 
@@ -111,7 +111,7 @@ package iac2
 // 	t.Run("all types tested", func(t *testing.T) {
 // 		for _, ref := range coretesting.FindAllResources(assert.New(t), allResources) {
 // 			t.Run(ref.Name, func(t *testing.T) {
-// 				testedTypes.Check(t, ref, `struct implements core.Resource but isn't tested; add it to this test's '"allResources" var`)
+// 				testedTypes.Check(t, ref, `struct implements construct.Resource but isn't tested; add it to this test's '"allResources" var`)
 // 			})
 // 		}
 // 	})
@@ -126,7 +126,7 @@ package iac2
 // 			}
 // 			t.Run(path, func(t *testing.T) {
 // 				assert := assert.New(t)
-// 				assert.Contains(usedTemplates, path, `template isn't used; add a core.Resource implementation for it`)
+// 				assert.Contains(usedTemplates, path, `template isn't used; add a construct.Resource implementation for it`)
 // 			})
 // 			return fs.SkipDir
 // 		})
@@ -151,7 +151,7 @@ package iac2
 // 	case reflect.String:
 // 		out.WriteString(`string`)
 // 	case reflect.Struct:
-// 		if t == reflect.TypeOf((*core.IaCValue)(nil)).Elem() {
+// 		if t == reflect.TypeOf((*construct.IaCValue)(nil)).Elem() {
 // 			out.WriteString("pulumi.Output<string>")
 // 		} else {
 // 			res, err := tp.getTemplateForType(t.Name())

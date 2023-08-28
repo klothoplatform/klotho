@@ -5,15 +5,17 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/lang"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
-func OutputAST(input *core.InputFiles, outDir string) error {
+func OutputAST(input *types.InputFiles, outDir string) error {
 	for _, efile := range input.Files() {
 		path := filepath.Join(outDir, "input", efile.Path())
 		err := os.MkdirAll(filepath.Dir(path), 0777)
@@ -21,7 +23,7 @@ func OutputAST(input *core.InputFiles, outDir string) error {
 			return errors.Wrapf(err, "could not create dirs for %s", efile.Path())
 		}
 
-		if astFile, ok := efile.(*core.SourceFile); ok {
+		if astFile, ok := efile.(*types.SourceFile); ok {
 			astPath := strings.TrimSuffix(path, filepath.Ext(path)) + ".ast.json"
 			f, err := os.OpenFile(astPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
 			if err != nil {
@@ -32,13 +34,13 @@ func OutputAST(input *core.InputFiles, outDir string) error {
 			if err != nil {
 				return errors.Wrapf(err, "could not write ast file content for %s", efile.Path())
 			}
-			zap.L().Debug("Wrote file", logging.FileField(&core.RawFile{FPath: astPath}))
+			zap.L().Debug("Wrote file", logging.FileField(&io.RawFile{FPath: astPath}))
 		}
 	}
 	return nil
 }
 
-func OutputCapabilities(input *core.InputFiles, outDir string) error {
+func OutputCapabilities(input *types.InputFiles, outDir string) error {
 	for _, efile := range input.Files() {
 		path := filepath.Join(outDir, "input", efile.Path())
 		err := os.MkdirAll(filepath.Dir(path), 0777)
@@ -50,21 +52,21 @@ func OutputCapabilities(input *core.InputFiles, outDir string) error {
 		if err != nil {
 			return errors.Wrapf(err, "could not create caps file %s", efile.Path())
 		}
-		if astFile, ok := efile.(*core.SourceFile); ok {
+		if astFile, ok := efile.(*types.SourceFile); ok {
 			err = lang.PrintCapabilities(astFile.Annotations(), f)
 		}
 		f.Close()
 		if err != nil {
 			return errors.Wrapf(err, "could not write caps file content for %s", efile.Path())
 		}
-		zap.L().Debug("Wrote file", logging.FileField(&core.RawFile{FPath: capPath}))
+		zap.L().Debug("Wrote file", logging.FileField(&io.RawFile{FPath: capPath}))
 	}
 	return nil
 }
 
-func GetLanguagesUsed(result *core.ConstructGraph) []core.ExecutableType {
-	executableLangs := []core.ExecutableType{}
-	for _, u := range core.GetConstructsOfType[*core.ExecutionUnit](result) {
+func GetLanguagesUsed(result *construct.ConstructGraph) []types.ExecutableType {
+	executableLangs := []types.ExecutableType{}
+	for _, u := range construct.GetConstructsOfType[*types.ExecutionUnit](result) {
 		executableLangs = append(executableLangs, u.Executable.Type)
 	}
 	return executableLangs
@@ -79,8 +81,8 @@ func GetResourceCount(counts map[string]int) (resourceCounts []string) {
 	return
 }
 
-func GetResourceTypeCount(result *core.ConstructGraph, cfg *config.Application) (resourceCounts []string) {
-	for _, res := range core.ListConstructs[core.Construct](result) {
+func GetResourceTypeCount(result *construct.ConstructGraph, cfg *config.Application) (resourceCounts []string) {
+	for _, res := range construct.ListConstructs[construct.Construct](result) {
 		resType := cfg.GetResourceType(res)
 		if resType != "" {
 			resourceCounts = append(resourceCounts, resType)
@@ -89,10 +91,10 @@ func GetResourceTypeCount(result *core.ConstructGraph, cfg *config.Application) 
 	return
 }
 
-func CloseTreeSitter(result *core.ConstructGraph) {
-	for _, eu := range core.GetConstructsOfType[*core.ExecutionUnit](result) {
+func CloseTreeSitter(result *construct.ConstructGraph) {
+	for _, eu := range construct.GetConstructsOfType[*types.ExecutionUnit](result) {
 		for _, f := range eu.Files() {
-			if astFile, ok := f.(*core.SourceFile); ok {
+			if astFile, ok := f.(*types.SourceFile); ok {
 				astFile.Tree().Close()
 			}
 		}

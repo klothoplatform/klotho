@@ -6,7 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -238,7 +239,7 @@ func TestFindImports(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -292,7 +293,7 @@ func TestResolveFileDependencies(t *testing.T) {
 	cases := []struct {
 		name   string
 		input  map[string]string
-		expect core.FileDependencies
+		expect types.FileDependencies
 		// expectFailureDueTo is a string that's non-empty if we expect this test to fail
 		expectFailureDueTo string
 	}{
@@ -302,11 +303,11 @@ func TestResolveFileDependencies(t *testing.T) {
 				"main.py":  `from other import my_method`,
 				"other.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other.py": testutil.NewSet("my_method"),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -315,11 +316,11 @@ func TestResolveFileDependencies(t *testing.T) {
 				"main.py":         `from shared import other`,
 				"shared/other.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"shared/other.py": testutil.NewSet[string](),
 				},
-				"shared/other.py": map[string]core.References{},
+				"shared/other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -328,11 +329,11 @@ func TestResolveFileDependencies(t *testing.T) {
 				"main.py":  `from other import method_a, method_2`,
 				"other.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other.py": testutil.NewSet("method_a", "method_2"),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -341,11 +342,11 @@ func TestResolveFileDependencies(t *testing.T) {
 				"main.py":  `from other import method_a as aaa`,
 				"other.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other.py": testutil.NewSet("method_a"),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -353,11 +354,11 @@ func TestResolveFileDependencies(t *testing.T) {
 				"main.py":  `from other import method_a as aaa`,
 				"other.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other.py": testutil.NewSet("method_a"),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -369,11 +370,11 @@ other.hello_world()
 		`,
 				"other.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other.py": testutil.NewSet("hello_world"),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -385,11 +386,11 @@ print(other.hello_world)
 		`,
 				"other.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other.py": testutil.NewSet("hello_world"),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -398,11 +399,11 @@ print(other.hello_world)
 				"main.py":  `import other`,
 				"other.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other.py": testutil.NewSet[string](),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -414,11 +415,11 @@ some_other.hello_world()
 		`,
 				"other.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other.py": testutil.NewSet("hello_world"),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -427,11 +428,11 @@ some_other.hello_world()
 				"main.py":        `import other.hello`,
 				"other/hello.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other/hello.py": testutil.NewSet[string](),
 				},
-				"other/hello.py": map[string]core.References{},
+				"other/hello.py": map[string]types.References{},
 			},
 		},
 		{
@@ -440,11 +441,11 @@ some_other.hello_world()
 				"main.py":        `from other.hello import a`,
 				"other/hello.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other/hello.py": testutil.NewSet("a"),
 				},
-				"other/hello.py": map[string]core.References{},
+				"other/hello.py": map[string]types.References{},
 			},
 		},
 		{ // TODO https://github.com/klothoplatform/klotho-history/issues/492
@@ -457,11 +458,11 @@ other.hello.say_hi()
 		`,
 				"other/hello.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other/hello.py": testutil.NewSet("say_hi"),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{ // TODO https://github.com/klothoplatform/klotho-history/issues/492
@@ -474,11 +475,11 @@ other.hello.world.say_hi()
 `,
 				"other/hello/world.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other/hello/world.py": testutil.NewSet("say_hi"),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -488,13 +489,13 @@ other.hello.world.say_hi()
 				"foo.py":  `pass`,
 				"fizz.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"foo.py":  testutil.NewSet("bar"),
 					"fizz.py": testutil.NewSet("buzz"),
 				},
-				"foo.py":  map[string]core.References{},
-				"fizz.py": map[string]core.References{},
+				"foo.py":  map[string]types.References{},
+				"fizz.py": map[string]types.References{},
 			},
 		},
 		{
@@ -503,9 +504,9 @@ other.hello.world.say_hi()
 				"main.py":  `import something_not_found`,
 				"other.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py":  map[string]core.References{},
-				"other.py": map[string]core.References{},
+			expect: map[string]types.Imported{
+				"main.py":  map[string]types.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -514,11 +515,11 @@ other.hello.world.say_hi()
 				"main.py":  `from . import other`,
 				"other.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other.py": testutil.NewSet[string](),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -527,11 +528,11 @@ other.hello.world.say_hi()
 				"mod/main.py": `from .. import other`,
 				"other.py":    `pass`,
 			},
-			expect: map[string]core.Imported{
-				"mod/main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"mod/main.py": map[string]types.References{
 					"other.py": testutil.NewSet[string](),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -540,11 +541,11 @@ other.hello.world.say_hi()
 				"main.py":  `import .other`,
 				"other.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"other.py": testutil.NewSet[string](),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -553,11 +554,11 @@ other.hello.world.say_hi()
 				"mod/main.py": `import ..other`,
 				"other.py":    `pass`,
 			},
-			expect: map[string]core.Imported{
-				"mod/main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"mod/main.py": map[string]types.References{
 					"other.py": testutil.NewSet[string](),
 				},
-				"other.py": map[string]core.References{},
+				"other.py": map[string]types.References{},
 			},
 		},
 		{
@@ -567,20 +568,20 @@ other.hello.world.say_hi()
 				"foo.py":     `pass`,
 				"foo/bar.py": `pass`,
 			},
-			expect: map[string]core.Imported{
-				"main.py": map[string]core.References{
+			expect: map[string]types.Imported{
+				"main.py": map[string]types.References{
 					"foo.py":     testutil.NewSet("baz"),
 					"foo/bar.py": testutil.NewSet[string](),
 				},
-				"foo.py":     map[string]core.References{},
-				"foo/bar.py": map[string]core.References{},
+				"foo.py":     map[string]types.References{},
+				"foo/bar.py": map[string]types.References{},
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			inputFiles := make(map[string]core.File)
+			inputFiles := make(map[string]io.File)
 			for path, contents := range tt.input {
 				file, err := NewFile(path, strings.NewReader(contents))
 				if !assert.NoError(err) {
@@ -716,28 +717,28 @@ func Test_referencesForImport(t *testing.T) {
 		name          string
 		program       string
 		importModules map[string]struct{}
-		want          core.References
+		want          types.References
 	}{
 		{
 			name: "imported function call",
 			program: `import blah
 blah.foo()`,
 			importModules: testutil.NewSet("blah"),
-			want:          core.References{"foo": {}},
+			want:          types.References{"foo": {}},
 		},
 		{
 			name: "imported constant",
 			program: `import blah
 b = blah.a + 1`,
 			importModules: testutil.NewSet("blah"),
-			want:          core.References{"a": {}},
+			want:          types.References{"a": {}},
 		},
 		{
 			name: "imported subproperty",
 			program: `import blah
 blah.a.b()`,
 			importModules: testutil.NewSet("blah"),
-			want:          core.References{"a": {}},
+			want:          types.References{"a": {}},
 		},
 	}
 	for _, tt := range tests {
@@ -863,7 +864,7 @@ func Test_dependenciesForImport(t *testing.T) {
 	// │  └─ blah.py
 	// ├─ foo.py
 	// └─ bar.py
-	baseFiles := map[string]core.File{
+	baseFiles := map[string]io.File{
 		"app/main.py":        nil,
 		"app/models/data.py": nil,
 		"shared/util.py":     nil,
@@ -875,7 +876,7 @@ func Test_dependenciesForImport(t *testing.T) {
 		name           string
 		relativeToPath string
 		spec           Import
-		want           core.Imported
+		want           types.Imported
 		wantErr        bool
 	}{
 		{
@@ -883,35 +884,35 @@ func Test_dependenciesForImport(t *testing.T) {
 			// import foo
 			spec:           Import{Name: "foo"},
 			relativeToPath: "bar.py",
-			want:           core.Imported{"foo.py": {}},
+			want:           types.Imported{"foo.py": {}},
 		},
 		{
 			name: "reference imports",
 			// import foo
 			spec:           Import{Name: "foo"},
 			relativeToPath: "bar.py",
-			want:           core.Imported{"foo.py": {"x": {}}},
+			want:           types.Imported{"foo.py": {"x": {}}},
 		},
 		{
 			name: "import non-module attributes",
 			// from foo import x
 			spec:           Import{Name: "foo", ImportedAttributes: map[string]Attribute{"x": {}}},
 			relativeToPath: "bar.py",
-			want:           core.Imported{"foo.py": {"x": {}}},
+			want:           types.Imported{"foo.py": {"x": {}}},
 		},
 		{
 			name: "import sibling module",
 			// from . import foo
 			spec:           Import{ParentModule: ".", ImportedAttributes: map[string]Attribute{"foo": {}}},
 			relativeToPath: "bar.py",
-			want:           core.Imported{"foo.py": {}},
+			want:           types.Imported{"foo.py": {}},
 		},
 		{
 			name: "import module attributes",
 			// from .models import data
 			spec:           Import{ParentModule: ".", Name: "models", ImportedAttributes: map[string]Attribute{"data": {}}},
 			relativeToPath: "app/main.py",
-			want:           core.Imported{"app/models/data.py": {}},
+			want:           types.Imported{"app/models/data.py": {}},
 		},
 	}
 	for _, tt := range tests {
@@ -920,7 +921,7 @@ func Test_dependenciesForImport(t *testing.T) {
 
 			// Make a copy of the base files so the test can add the 'relativeToPath' file
 			// with content based on the expected references.
-			files := make(map[string]core.File)
+			files := make(map[string]io.File)
 			for p, f := range baseFiles {
 				files[p] = f
 			}
@@ -969,7 +970,7 @@ func Test_dependenciesForImport(t *testing.T) {
 	}
 }
 
-func assertImportedEqual(t *testing.T, want, got core.Imported) {
+func assertImportedEqual(t *testing.T, want, got types.Imported) {
 	t.Helper()
 
 	assert := assert.New(t)

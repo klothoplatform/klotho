@@ -1,12 +1,13 @@
 package execunit
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"go.uber.org/zap"
 )
 
 type (
-	// PruneUncategorizedFiles is a plugin that performs tree-shaking on each core.ExecutionUnit in the current compilation context.
+	// PruneUncategorizedFiles is a plugin that performs tree-shaking on each types.ExecutionUnit in the current compilation context.
 	PruneUncategorizedFiles struct {
 	}
 )
@@ -15,10 +16,10 @@ func (PruneUncategorizedFiles) Name() string {
 	return "prune_uncategorized_files"
 }
 
-func (p PruneUncategorizedFiles) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
+func (p PruneUncategorizedFiles) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
 	log := zap.L().Sugar()
 
-	units := core.GetConstructsOfType[*core.ExecutionUnit](constructGraph)
+	units := construct.GetConstructsOfType[*types.ExecutionUnit](constructGraph)
 	for _, unit := range units {
 		count := 0
 		for path := range unit.Files() {

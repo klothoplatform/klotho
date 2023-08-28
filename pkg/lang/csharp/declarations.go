@@ -1,13 +1,14 @@
 package csharp
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.uber.org/zap"
-	"strings"
 )
 
 type (
@@ -235,7 +236,7 @@ func (nsd NamespaceDeclarations[T]) Declarations() []T {
 }
 
 // FindDeclarationsInFile returns a map containing a list of declarations for each namespace in the supplied file.
-func FindDeclarationsInFile[T Declarable](file *core.SourceFile) NamespaceDeclarations[T] {
+func FindDeclarationsInFile[T Declarable](file *types.SourceFile) NamespaceDeclarations[T] {
 	nsDeclarations := FindDeclarationsAtNode[T](file.Tree().RootNode())
 	for _, declarations := range nsDeclarations {
 		for i, d := range declarations {

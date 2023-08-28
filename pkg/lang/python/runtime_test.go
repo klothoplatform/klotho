@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,7 +16,7 @@ func TestAddRequirements(t *testing.T) {
 		// Duplicate requirements are fine, as long as they don't contradict.
 		assert := assert.New(t)
 
-		unit := &core.ExecutionUnit{}
+		unit := &types.ExecutionUnit{}
 		pip1, pip2 := &RequirementsTxt{path: "requirements.txt"}, &RequirementsTxt{path: "extra-requirements.txt"}
 		unit.Add(pip1)
 		unit.Add(pip2)
@@ -28,7 +29,7 @@ func TestAddRequirements(t *testing.T) {
 	t.Run("requirements.txt missing", func(t *testing.T) {
 		assert := assert.New(t)
 
-		unit := &core.ExecutionUnit{}
+		unit := &types.ExecutionUnit{}
 
 		assert.Len(unit.Files(), 0) // to compare with the check in two lines
 		AddRequirements(unit, "my reqs")
@@ -44,26 +45,26 @@ func TestAddRequirements(t *testing.T) {
 
 type NoopRuntime struct{}
 
-func (n NoopRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
+func (n NoopRuntime) AddExecRuntimeFiles(unit *types.ExecutionUnit, constructGraph *construct.ConstructGraph) error {
 	return nil
 }
-func (n NoopRuntime) AddExposeRuntimeFiles(unit *core.ExecutionUnit) error { return nil }
+func (n NoopRuntime) AddExposeRuntimeFiles(unit *types.ExecutionUnit) error { return nil }
 
-func (n NoopRuntime) AddKvRuntimeFiles(unit *core.ExecutionUnit) error { return nil }
+func (n NoopRuntime) AddKvRuntimeFiles(unit *types.ExecutionUnit) error { return nil }
 
-func (n NoopRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName string, id string) error {
+func (n NoopRuntime) AddFsRuntimeFiles(unit *types.ExecutionUnit, envVarName string, id string) error {
 	return nil
 }
 
-func (n NoopRuntime) AddSecretRuntimeFiles(unit *core.ExecutionUnit) error { return nil }
+func (n NoopRuntime) AddSecretRuntimeFiles(unit *types.ExecutionUnit) error { return nil }
 
-func (n NoopRuntime) AddOrmRuntimeFiles(unit *core.ExecutionUnit) error { return nil }
+func (n NoopRuntime) AddOrmRuntimeFiles(unit *types.ExecutionUnit) error { return nil }
 
 func (n NoopRuntime) GetFsRuntimeImportClass(id string, varName string) string {
 	return fmt.Sprintf("import klotho_runtime.fs_%s as %s", id, varName)
 }
 
-func (n NoopRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error {
+func (n NoopRuntime) AddProxyRuntimeFiles(unit *types.ExecutionUnit, proxyType string) error {
 	return nil
 }
 

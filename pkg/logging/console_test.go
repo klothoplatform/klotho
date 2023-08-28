@@ -3,13 +3,14 @@ package logging
 import (
 	"bytes"
 	"fmt"
+	"strings"
+	"testing"
+
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"strings"
-	"testing"
 )
 
 func TestEncodings(t *testing.T) {

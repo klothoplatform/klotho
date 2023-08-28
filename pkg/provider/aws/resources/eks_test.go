@@ -3,15 +3,16 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_EksClusterCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[EksClusterCreateParams, *EksCluster]{
 		{
 			Name: "nil cluster",
@@ -26,7 +27,7 @@ func Test_EksClusterCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, cluster *EksCluster) {
 				assert.Equal(cluster.Name, "my-app-cluster")
-				assert.Equal(cluster.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(cluster.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -40,7 +41,7 @@ func Test_EksClusterCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, cluster *EksCluster) {
 				assert.Equal(cluster.Name, "my-app-cluster")
-				assert.Equal(cluster.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(cluster.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -48,7 +49,7 @@ func Test_EksClusterCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = EksClusterCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "cluster",
 			}
 			tt.Run(t)
@@ -57,9 +58,9 @@ func Test_EksClusterCreate(t *testing.T) {
 }
 
 func Test_EksFargateProfileCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[EksFargateProfileCreateParams, *EksFargateProfile]{
 		{
 			Name: "nil profile",
@@ -71,7 +72,7 @@ func Test_EksFargateProfileCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, profile *EksFargateProfile) {
 				assert.Equal(profile.Name, "my-app_profile")
-				assert.Equal(profile.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(profile.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -85,7 +86,7 @@ func Test_EksFargateProfileCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, profile *EksFargateProfile) {
 				assert.Equal(profile.Name, "my-app_profile")
-				assert.Equal(profile.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(profile.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -93,7 +94,7 @@ func Test_EksFargateProfileCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = EksFargateProfileCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "profile",
 			}
 			tt.Run(t)
@@ -102,9 +103,9 @@ func Test_EksFargateProfileCreate(t *testing.T) {
 }
 
 func Test_EksNodeGroupCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[EksNodeGroupCreateParams, *EksNodeGroup]{
 		{
 			Name: "nil profile",
@@ -116,7 +117,7 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, group *EksNodeGroup) {
 				assert.Equal(group.Name, "my-app_private_t3_medium")
-				assert.Equal(group.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(group.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -130,7 +131,7 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, group *EksNodeGroup) {
 				assert.Equal(group.Name, "my-app_private_t3_medium")
-				assert.Equal(group.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(group.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
@@ -138,7 +139,7 @@ func Test_EksNodeGroupCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = EksNodeGroupCreateParams{
 				AppName:      "my-app",
-				Refs:         core.BaseConstructSetOf(eu),
+				Refs:         construct.BaseConstructSetOf(eu),
 				InstanceType: "t3.medium",
 				NetworkType:  "private",
 			}

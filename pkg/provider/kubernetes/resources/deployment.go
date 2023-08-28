@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
@@ -17,11 +17,11 @@ import (
 type (
 	Deployment struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Object        *apps.Deployment
-		Values        map[string]core.IaCValue
+		Values        map[string]construct.IaCValue
 		FilePath      string
-		Cluster       core.ResourceId
+		Cluster       construct.ResourceId
 	}
 )
 
@@ -29,20 +29,20 @@ const (
 	DEPLOYMENT_TYPE = "deployment"
 )
 
-func (deployment *Deployment) BaseConstructRefs() core.BaseConstructSet {
+func (deployment *Deployment) BaseConstructRefs() construct.BaseConstructSet {
 	return deployment.ConstructRefs
 }
 
-func (deployment *Deployment) Id() core.ResourceId {
-	return core.ResourceId{
+func (deployment *Deployment) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     DEPLOYMENT_TYPE,
 		Name:     deployment.Name,
 	}
 }
 
-func (deployment *Deployment) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (deployment *Deployment) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:     true,
 		RequiresExplicitDelete: true,
 	}
@@ -60,15 +60,15 @@ func (deployment *Deployment) Path() string {
 	return deployment.FilePath
 }
 
-func (deployment *Deployment) GetServiceAccount(dag *core.ResourceGraph) *ServiceAccount {
+func (deployment *Deployment) GetServiceAccount(dag *construct.ResourceGraph) *ServiceAccount {
 	if deployment.Object == nil {
-		sas := core.GetDownstreamResourcesOfType[*ServiceAccount](dag, deployment)
+		sas := construct.GetDownstreamResourcesOfType[*ServiceAccount](dag, deployment)
 		if len(sas) == 1 {
 			return sas[0]
 		}
 		return nil
 	}
-	for _, sa := range core.GetDownstreamResourcesOfType[*ServiceAccount](dag, deployment) {
+	for _, sa := range construct.GetDownstreamResourcesOfType[*ServiceAccount](dag, deployment) {
 		if sa.Object != nil && sa.Object.Name == deployment.Object.Spec.Template.Spec.ServiceAccountName {
 			return sa
 		}
@@ -76,7 +76,7 @@ func (deployment *Deployment) GetServiceAccount(dag *core.ResourceGraph) *Servic
 	return nil
 }
 
-func (deployment *Deployment) AddEnvVar(iacVal core.IaCValue, envVarName string) error {
+func (deployment *Deployment) AddEnvVar(iacVal construct.IaCValue, envVarName string) error {
 
 	log := zap.L().Sugar()
 	log.Debugf("Adding environment variables to pod, %s", deployment.Name)
@@ -93,14 +93,14 @@ func (deployment *Deployment) AddEnvVar(iacVal core.IaCValue, envVarName string)
 
 		deployment.Object.Spec.Template.Spec.Containers[0].Env = append(deployment.Object.Spec.Template.Spec.Containers[0].Env, newEv)
 		if deployment.Values == nil {
-			deployment.Values = make(map[string]core.IaCValue)
+			deployment.Values = make(map[string]construct.IaCValue)
 		}
 		deployment.Values[v] = iacVal
 	}
 	return nil
 }
 
-func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (deployment *Deployment) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if deployment.Cluster.Name == "" {
 		return fmt.Errorf("deployment %s has no cluster", deployment.Name)
 	}
@@ -133,6 +133,6 @@ func (deployment *Deployment) MakeOperational(dag *core.ResourceGraph, appName s
 	return nil
 }
 
-func (deployment *Deployment) GetValues() map[string]core.IaCValue {
+func (deployment *Deployment) GetValues() map[string]construct.IaCValue {
 	return deployment.Values
 }

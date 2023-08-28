@@ -1,22 +1,24 @@
 package constraints
 
 import (
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
+
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "compute"}
-	eu2 := &core.ExecutionUnit{Name: "compute2"}
+	eu := &types.ExecutionUnit{Name: "compute"}
+	eu2 := &types.ExecutionUnit{Name: "compute2"}
 
 	tests := []struct {
 		name       string
 		constraint []ApplicationConstraint
-		resources  []core.Resource
+		resources  []construct.Resource
 		want       bool
 	}{
 		{
@@ -24,20 +26,20 @@ func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
 			constraint: []ApplicationConstraint{
 				{
 					Operator: AddConstraintOperator,
-					Node:     core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute"},
+					Node:     construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
 				},
 				{
 					Operator: AddConstraintOperator,
-					Node:     core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also"},
+					Node:     construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also"},
 				},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.LambdaFunction{
 					Name: "my_function_also",
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructRefs: core.BaseConstructSetOf(eu),
+					ConstructRefs: construct.BaseConstructSetOf(eu),
 				},
 			},
 			want: true,
@@ -47,14 +49,14 @@ func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
 			constraint: []ApplicationConstraint{
 				{
 					Operator: AddConstraintOperator,
-					Node:     core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute"},
+					Node:     construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
 				},
 				{
 					Operator: AddConstraintOperator,
-					Node:     core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also"},
+					Node:     construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also"},
 				},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.LambdaFunction{
 					Name: "my_function",
 				},
@@ -66,14 +68,14 @@ func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
 			constraint: []ApplicationConstraint{
 				{
 					Operator: RemoveConstraintOperator,
-					Node:     core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute"},
+					Node:     construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
 				},
 				{
 					Operator: RemoveConstraintOperator,
-					Node:     core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also"},
+					Node:     construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also"},
 				},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.LambdaFunction{
 					Name: "my_function",
 				},
@@ -85,20 +87,20 @@ func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
 			constraint: []ApplicationConstraint{
 				{
 					Operator: RemoveConstraintOperator,
-					Node:     core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute"},
+					Node:     construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
 				},
 				{
 					Operator: RemoveConstraintOperator,
-					Node:     core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also"},
+					Node:     construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also"},
 				},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.LambdaFunction{
 					Name: "my_function_also",
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructRefs: core.BaseConstructSetOf(eu),
+					ConstructRefs: construct.BaseConstructSetOf(eu),
 				},
 			},
 			want: false,
@@ -108,21 +110,21 @@ func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
 			constraint: []ApplicationConstraint{
 				{
 					Operator:        ReplaceConstraintOperator,
-					Node:            core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute"},
-					ReplacementNode: core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute2"},
+					Node:            construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
+					ReplacementNode: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute2"},
 				},
 				{
 					Operator:        ReplaceConstraintOperator,
-					Node:            core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute"},
-					ReplacementNode: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "lambda_compute"},
+					Node:            construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
+					ReplacementNode: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "lambda_compute"},
 				},
 				{
 					Operator:        ReplaceConstraintOperator,
-					Node:            core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also"},
-					ReplacementNode: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also2"},
+					Node:            construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also"},
+					ReplacementNode: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also2"},
 				},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.LambdaFunction{
 					Name: "lambda_compute",
 				},
@@ -131,7 +133,7 @@ func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructRefs: core.BaseConstructSetOf(eu2),
+					ConstructRefs: construct.BaseConstructSetOf(eu2),
 				},
 			},
 			want: true,
@@ -141,27 +143,27 @@ func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
 			constraint: []ApplicationConstraint{
 				{
 					Operator:        ReplaceConstraintOperator,
-					Node:            core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute"},
-					ReplacementNode: core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute2"},
+					Node:            construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
+					ReplacementNode: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute2"},
 				},
 				{
 					Operator:        ReplaceConstraintOperator,
-					Node:            core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "compute"},
-					ReplacementNode: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "lambda_compute"},
+					Node:            construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
+					ReplacementNode: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "lambda_compute"},
 				},
 				{
 					Operator:        ReplaceConstraintOperator,
-					Node:            core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also"},
-					ReplacementNode: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also2"},
+					Node:            construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also"},
+					ReplacementNode: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function_also2"},
 				},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.LambdaFunction{
 					Name: "my_function_also",
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructRefs: core.BaseConstructSetOf(eu),
+					ConstructRefs: construct.BaseConstructSetOf(eu),
 				},
 			},
 			want: false,
@@ -170,12 +172,12 @@ func Test_ApplicationConstraint_IsSatisfied(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			for _, res := range tt.resources {
 				dag.AddResource(res)
 			}
 			for _, constraint := range tt.constraint {
-				result := constraint.IsSatisfied(dag, knowledgebase.EdgeKB{}, make(map[core.ResourceId][]core.Resource), nil)
+				result := constraint.IsSatisfied(dag, knowledgebase.EdgeKB{}, make(map[construct.ResourceId][]construct.Resource), nil)
 				assert.Equalf(tt.want, result, "constraint %s is not satisfied", constraint)
 			}
 		})

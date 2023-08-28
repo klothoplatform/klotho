@@ -3,15 +3,16 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_LambdaCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[LambdaCreateParams, *LambdaFunction]{
 		{
 			Name: "nil function",
@@ -26,7 +27,7 @@ func Test_LambdaCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, l *LambdaFunction) {
 				assert.Equal(l.Name, "my-app-function")
-				assert.Equal(l.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(l.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -38,7 +39,7 @@ func Test_LambdaCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = LambdaCreateParams{
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				AppName: "my-app",
 				Name:    "function",
 			}

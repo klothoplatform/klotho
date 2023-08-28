@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/auth"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 
 	"github.com/google/uuid"
-	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -98,7 +98,7 @@ func (t *Client) AppendProperty(key string, value any) {
 	t.universalProperties[key] = value
 }
 
-func (t *Client) UploadSource(source *core.InputFiles) {
+func (t *Client) UploadSource(source *types.InputFiles) {
 	data, err := CompressFiles(source)
 	if err != nil {
 		zap.S().Warnf("Failed to upload debug bundle. %v", err)

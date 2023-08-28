@@ -2,11 +2,12 @@ package resources
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
-	"github.com/klothoplatform/klotho/pkg/sanitization/docker"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
+	"github.com/klothoplatform/klotho/pkg/sanitization/docker"
+
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
 const (
@@ -19,14 +20,14 @@ const (
 type (
 	EcrRepository struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		ForceDelete   bool
 	}
 
 	EcrImage struct {
 		Name          string
 		ImageName     string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Repo          *EcrRepository
 		Context       string
 		Dockerfile    string
@@ -38,10 +39,10 @@ type (
 
 type RepoCreateParams struct {
 	AppName string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 }
 
-func (repo *EcrRepository) Create(dag *core.ResourceGraph, params RepoCreateParams) error {
+func (repo *EcrRepository) Create(dag *construct.ResourceGraph, params RepoCreateParams) error {
 	repo.Name = params.AppName
 	repo.ConstructRefs = params.Refs.Clone()
 
@@ -69,11 +70,11 @@ func (repo *EcrRepository) Configure(params EcrRepositoryConfigureParams) error 
 
 type ImageCreateParams struct {
 	AppName string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 	Name    string
 }
 
-func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams) error {
+func (image *EcrImage) Create(dag *construct.ResourceGraph, params ImageCreateParams) error {
 	name := params.Name
 	i := strings.Index(name, "/")
 	if i != -1 {
@@ -95,41 +96,41 @@ func (image *EcrImage) Create(dag *core.ResourceGraph, params ImageCreateParams)
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (repo *EcrRepository) BaseConstructRefs() core.BaseConstructSet {
+func (repo *EcrRepository) BaseConstructRefs() construct.BaseConstructSet {
 	return repo.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (repo *EcrRepository) Id() core.ResourceId {
-	return core.ResourceId{
+func (repo *EcrRepository) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     ECR_REPO_TYPE,
 		Name:     repo.Name,
 	}
 }
 
-func (repo *EcrRepository) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (repo *EcrRepository) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (image *EcrImage) BaseConstructRefs() core.BaseConstructSet {
+func (image *EcrImage) BaseConstructRefs() construct.BaseConstructSet {
 	return image.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (image *EcrImage) Id() core.ResourceId {
-	return core.ResourceId{
+func (image *EcrImage) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     ECR_IMAGE_TYPE,
 		Name:     image.Name,
 	}
 }
 
-func (image *EcrImage) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (image *EcrImage) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

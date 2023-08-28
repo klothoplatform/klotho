@@ -1,11 +1,11 @@
 package engine
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
-func (e *Engine) GetDeploymentOrderGraph(dataflow *core.ResourceGraph) *core.ResourceGraph {
-	deploymentOrderGraph := core.NewResourceGraph()
+func (e *Engine) GetDeploymentOrderGraph(dataflow *construct.ResourceGraph) *construct.ResourceGraph {
+	deploymentOrderGraph := construct.NewResourceGraph()
 	for _, resource := range dataflow.ListResources() {
 		deploymentOrderGraph.AddResource(resource)
 	}

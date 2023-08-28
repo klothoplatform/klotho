@@ -3,15 +3,16 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_PrivateDnsNamespaceCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu)
 	cases := []coretesting.CreateCase[PrivateDnsNamespaceCreateParams, *PrivateDnsNamespace]{
 		{
 			Name: "nil namespace",
@@ -23,7 +24,7 @@ func Test_PrivateDnsNamespaceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, namespace *PrivateDnsNamespace) {
 				assert.Equal(namespace.Name, "my-app_pdns")
-				assert.Equal(namespace.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(namespace.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -46,7 +47,7 @@ func Test_PrivateDnsNamespaceCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = PrivateDnsNamespaceCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 			}
 			tt.Run(t)
 		})

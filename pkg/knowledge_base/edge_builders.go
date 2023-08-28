@@ -3,11 +3,11 @@ package knowledgebase
 import (
 	"reflect"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
 type (
-	EdgeBuilder[S core.Resource, D core.Resource] struct {
+	EdgeBuilder[S construct.Resource, D construct.Resource] struct {
 		Configure               typedEdgeFunc[S, D]
 		DirectEdgeOnly          bool
 		DeploymentOrderReversed bool
@@ -15,7 +15,7 @@ type (
 		Reuse                   Reuse
 	}
 
-	typedEdgeFunc[S core.Resource, D core.Resource] func(source S, destination D, dag *core.ResourceGraph, data EdgeData) error
+	typedEdgeFunc[S construct.Resource, D construct.Resource] func(source S, destination D, dag *construct.ResourceGraph, data EdgeData) error
 
 	edgeBuilder interface {
 		Edge() Edge
@@ -34,7 +34,7 @@ func (e EdgeBuilder[S, D]) Edge() Edge {
 
 func (e EdgeBuilder[S, D]) Details() EdgeDetails {
 	return EdgeDetails{
-		Configure: func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error {
+		Configure: func(source, dest construct.Resource, dag *construct.ResourceGraph, data EdgeData) error {
 			if e.Configure != nil {
 				typedSource := source.(S)
 				typedDest := dest.(D)

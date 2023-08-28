@@ -3,15 +3,16 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_EcrRepositoryCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "first"}
-	eu2 := &core.ExecutionUnit{Name: "test"}
-	initialRefs := core.BaseConstructSetOf(eu)
+	eu := &types.ExecutionUnit{Name: "first"}
+	eu2 := &types.ExecutionUnit{Name: "test"}
+	initialRefs := construct.BaseConstructSetOf(eu)
 	cases := []struct {
 		name string
 		repo *EcrRepository
@@ -40,13 +41,13 @@ func Test_EcrRepositoryCreate(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			if tt.repo != nil {
 				dag.AddResource(tt.repo)
 			}
 			metadata := RepoCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu2),
+				Refs:    construct.BaseConstructSetOf(eu2),
 			}
 
 			repo := &EcrRepository{}
@@ -64,7 +65,7 @@ func Test_EcrRepositoryCreate(t *testing.T) {
 				assert.Equal(repo.ConstructRefs, metadata.Refs)
 			} else {
 				assert.Equal(repo, tt.repo)
-				expect := initialRefs.CloneWith(core.BaseConstructSetOf(eu2))
+				expect := initialRefs.CloneWith(construct.BaseConstructSetOf(eu2))
 				assert.Equal(repo.BaseConstructRefs(), expect)
 			}
 		})
@@ -72,9 +73,9 @@ func Test_EcrRepositoryCreate(t *testing.T) {
 }
 
 func Test_EcrImageCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[ImageCreateParams, *EcrImage]{
 		{
 			Name: "nil image",
@@ -86,7 +87,7 @@ func Test_EcrImageCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, image *EcrImage) {
 				assert.Equal(image.Name, "image")
-				assert.Equal(image.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(image.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -99,7 +100,7 @@ func Test_EcrImageCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = ImageCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "image",
 			}
 			tt.Run(t)

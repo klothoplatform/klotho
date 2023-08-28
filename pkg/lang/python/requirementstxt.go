@@ -3,7 +3,7 @@ package python
 import (
 	"io"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 )
 
 type RequirementsTxt struct {
@@ -31,7 +31,7 @@ func (pf *RequirementsTxt) AddLine(text string) {
 	pf.extras = append(pf.extras, text)
 }
 
-func (pf *RequirementsTxt) Clone() core.File {
+func (pf *RequirementsTxt) Clone() klotho_io.File {
 	clone := &RequirementsTxt{
 		contents: make([]byte, len(pf.contents)),
 		extras:   make([]string, len(pf.extras)),

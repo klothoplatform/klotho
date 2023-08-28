@@ -1,8 +1,9 @@
 package csharp
 
 import (
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 )
 
@@ -15,9 +16,9 @@ type (
 
 func (p *AddExecRuntimeFiles) Name() string { return "AddExecRuntimeFiles:CSharp" }
 
-func (p *AddExecRuntimeFiles) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
+func (p *AddExecRuntimeFiles) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
 	var errs multierr.Error
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range construct.GetConstructsOfType[*types.ExecutionUnit](constructGraph) {
 		if !unit.HasSourceFilesFor(CSharp) {
 			continue
 		}

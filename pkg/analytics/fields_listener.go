@@ -5,6 +5,7 @@ package analytics
 
 import (
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap/zapcore"
 )

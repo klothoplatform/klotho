@@ -3,7 +3,7 @@ package golang
 import (
 	"io"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 )
 
 type GoMod struct {
@@ -31,7 +31,7 @@ func (pf *GoMod) AddLine(text string) {
 	pf.extras = append(pf.extras, text)
 }
 
-func (pf *GoMod) Clone() core.File {
+func (pf *GoMod) Clone() klotho_io.File {
 	clone := &GoMod{
 		contents: make([]byte, len(pf.contents)),
 		extras:   make([]string, len(pf.extras)),

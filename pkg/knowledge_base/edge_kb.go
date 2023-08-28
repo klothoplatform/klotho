@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"go.uber.org/zap"
 )
@@ -35,8 +35,8 @@ type (
 	}
 
 	EdgeTemplate struct {
-		Source      core.ResourceId `yaml:"source"`
-		Destination core.ResourceId `yaml:"destination"`
+		Source      construct.ResourceId `yaml:"source"`
+		Destination construct.ResourceId `yaml:"destination"`
 		// DirectEdgeOnly signals that the edge cannot be used within constructing other paths and can only be used as a direct edge
 		DirectEdgeOnly bool `yaml:"direct_edge_only"`
 		// DeploymentOrderReversed is specified when the edge is in the opposite direction of the deployment order
@@ -55,18 +55,18 @@ type (
 	}
 
 	ExpansionRules struct {
-		Resources    []core.ResourceId `yaml:"resources"`
-		Dependencies []core.OutputEdge `yaml:"dependencies"`
+		Resources    []construct.ResourceId `yaml:"resources"`
+		Dependencies []construct.OutputEdge `yaml:"dependencies"`
 	}
 
 	ConfigurationRule struct {
-		Resource core.ResourceId    `yaml:"resource"`
-		Config   core.Configuration `yaml:"config"`
+		Resource construct.ResourceId    `yaml:"resource"`
+		Config   construct.Configuration `yaml:"config"`
 	}
 
 	OperationalRules struct {
-		Resource core.ResourceId      `yaml:"resource"`
-		Rule     core.OperationalRule `yaml:"rule"`
+		Resource construct.ResourceId      `yaml:"resource"`
+		Rule     construct.OperationalRule `yaml:"rule"`
 	}
 	// Reuse is set to represent an enum of possible reuse cases for edges. The current available options are upstream and downstream
 	Reuse string
@@ -85,28 +85,26 @@ type (
 	}
 
 	// EdgeConfigurer is a function used to configure the To and From resources and necessary dependent resources, to ensure the nodes will guarantee correct functionality.
-	ConfigureEdge func(source, dest core.Resource, dag *core.ResourceGraph, data EdgeData) error
+	ConfigureEdge func(source, dest construct.Resource, dag *construct.ResourceGraph, data EdgeData) error
 
 	// EdgeConstraint is an object defined on EdgeData which can influence the path picked when expansion occurs.
 	EdgeConstraint struct {
 		// NodeMustExist specifies a list of resources which must exist in the path when edge expansion occurs. The resources type will be correlated to the types in the generated paths
-		NodeMustExist []core.Resource
+		NodeMustExist []construct.Resource
 		// NodeMustNotExist specifies a list of resources which must not exist when edge expansion occurs. The resources type will be correlated to the types in the generated paths
-		NodeMustNotExist []core.Resource
+		NodeMustNotExist []construct.Resource
 	}
 
 	// EdgeData is an object attached to edges in the ResourceGraph to help the knowledge base understand context when performing expansion and configuration tasks
 	EdgeData struct {
 		// AppName refers to the application name of the global ResourceGraph
 		AppName string
-		// EnvironmentVaribles specify and environment variables which will need to be configured during the edge expansion process
-		EnvironmentVariables []core.EnvironmentVariable
 		// Constraint refers to the EdgeConstraints defined during the edge expansion
 		Constraint EdgeConstraint
 		// Source refers to the initial source resource node when edge expansion is called
-		Source core.Resource
+		Source construct.Resource
 		// Destination refers to the initial target resource node when edge expansion is called
-		Destination core.Resource
+		Destination construct.Resource
 		// Attributes is a map of attributes which can be used to store arbitrary data on the edge
 		Attributes map[string]any
 	}
@@ -154,14 +152,14 @@ func MergeKBs(kbsToUse []EdgeKB) (EdgeKB, error) {
 	return NewEdgeKB(edgeMap), err
 }
 
-func NewEdge[Src core.Resource, Dest core.Resource]() Edge {
+func NewEdge[Src construct.Resource, Dest construct.Resource]() Edge {
 	var src Src
 	var dest Dest
 	return Edge{Source: reflect.TypeOf(src), Destination: reflect.TypeOf(dest)}
 }
 
 // GetResourceEdge takes in a source and target to retrieve the edge details for the given key. Will return nil if no edge exists for the given source and target
-func (kb EdgeKB) GetResourceEdge(source core.Resource, target core.Resource) (EdgeDetails, bool) {
+func (kb EdgeKB) GetResourceEdge(source construct.Resource, target construct.Resource) (EdgeDetails, bool) {
 	return kb.GetEdgeDetails(reflect.TypeOf(source), reflect.TypeOf(target))
 }
 
@@ -194,7 +192,7 @@ func (kb EdgeKB) GetEdgesWithTarget(target reflect.Type) []Edge {
 // It also checks the ValidDestinations for each edge against the original destination node to ensure that the edge is allowed to be used in the instance of the path generation
 //
 // The method will return all paths found
-func (kb EdgeKB) FindPaths(source core.Resource, dest core.Resource, constraint EdgeConstraint) []Path {
+func (kb EdgeKB) FindPaths(source construct.Resource, dest construct.Resource, constraint EdgeConstraint) []Path {
 	visitedEdges := map[reflect.Type]bool{}
 	stack := []Edge{}
 	paths := kb.findPaths(reflect.TypeOf(source), reflect.TypeOf(dest), stack, visitedEdges)
@@ -276,14 +274,14 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 // The workflow of the edge expansion is as follows:
 //   - Find shortest path given the constraints on the edge
 //   - Iterate through each edge in path creating the resource if necessary
-func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGraph, validPath Path, edgeData EdgeData) (err error) {
+func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.ResourceGraph, validPath Path, edgeData EdgeData) (err error) {
 
 	// most likely need to use downstream and upstream operational errors here
 
 	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
 	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
 
-	resourceCache := map[reflect.Type]core.Resource{}
+	resourceCache := map[reflect.Type]construct.Resource{}
 	name := fmt.Sprintf("%s_%s", dep.Source.Id().Name, dep.Destination.Id().Name)
 	for _, edge := range validPath {
 		source := edge.Source
@@ -296,7 +294,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 		}
 		if sourceNode == nil {
 			// Create a new interface of the source nodes type if it does not exist
-			sourceNode = reflect.New(source.Elem()).Interface().(core.Resource)
+			sourceNode = reflect.New(source.Elem()).Interface().(construct.Resource)
 			reflect.ValueOf(sourceNode).Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s_%s", sourceNode.Id().Type, name)))
 			// Determine if the source node is the same type as what is specified in the constraints as must exist
 			for _, mustExistRes := range edgeData.Constraint.NodeMustExist {
@@ -314,7 +312,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 
 		if destNode == nil {
 			// Create a new interface of the destination nodes type if it does not exist
-			destNode = reflect.New(dest.Elem()).Interface().(core.Resource)
+			destNode = reflect.New(dest.Elem()).Interface().(construct.Resource)
 			reflect.ValueOf(destNode).Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s_%s", destNode.Id().Type, name)))
 			// Determine if the destination node is the same type as what is specified in the constraints as must exist
 			for _, mustExistRes := range edgeData.Constraint.NodeMustExist {
@@ -381,7 +379,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGr
 }
 
 // ConfigureEdge calls each edge configure function.
-func (kb EdgeKB) ConfigureEdge(dep *graph.Edge[core.Resource], dag *core.ResourceGraph) (err error) {
+func (kb EdgeKB) ConfigureEdge(dep *graph.Edge[construct.Resource], dag *construct.ResourceGraph) (err error) {
 	zap.S().Debugf("Configuring Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
 	source := reflect.TypeOf(dep.Source)
 	destination := reflect.TypeOf(dep.Destination)

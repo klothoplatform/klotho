@@ -9,8 +9,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	klotho_errors "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/query"
@@ -31,13 +33,13 @@ type (
 	}
 
 	gatewayRouteDefinition struct {
-		core.Route
+		types.Route
 		DefinedInPath string
 	}
 
 	restAPIHandler struct {
-		ConstructGraph  *core.ConstructGraph
-		Unit            *core.ExecutionUnit
+		ConstructGraph  *construct.ConstructGraph
+		Unit            *types.ExecutionUnit
 		RoutesByGateway map[gatewaySpec][]gatewayRouteDefinition
 		RootPath        string
 		log             *zap.Logger
@@ -72,25 +74,25 @@ type (
 
 func (p *Expose) Name() string { return "Expose" }
 
-func (p Expose) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
+func (p Expose) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
 	var errs multierr.Error
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range construct.GetConstructsOfType[*types.ExecutionUnit](constructGraph) {
 		err := p.transformSingle(constructGraph, unit)
 		errs.Append(err)
 	}
 	return errs.ErrOrNil()
 }
 
-func (p *Expose) transformSingle(constructGraph *core.ConstructGraph, unit *core.ExecutionUnit) error {
+func (p *Expose) transformSingle(constructGraph *construct.ConstructGraph, unit *types.ExecutionUnit) error {
 	h := &restAPIHandler{ConstructGraph: constructGraph, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition), runtime: p.runtime}
 	err := h.handle(unit)
 	if err != nil {
-		err = core.WrapErrf(err, "Chi handler failure for %s", unit.Name)
+		err = klotho_errors.WrapErrf(err, "Chi handler failure for %s", unit.Name)
 	}
 	return err
 }
 
-func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
+func (h *restAPIHandler) handle(unit *types.ExecutionUnit) error {
 	h.Unit = unit
 	h.log = zap.L().With(zap.String("unit", unit.Name))
 
@@ -113,9 +115,9 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 
 	for spec, routes := range h.RoutesByGateway {
 		gwName := spec.Id
-		gw := core.NewGateway(gwName)
+		gw := types.NewGateway(gwName)
 		if existing := h.ConstructGraph.GetConstruct(gw.Id()); existing != nil {
-			gw = existing.(*core.Gateway)
+			gw = existing.(*types.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath
 			gw.ExportVarName = spec.AppVarName
@@ -135,13 +137,13 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 				continue
 			}
 
-			targetUnit := core.FileExecUnitName(targetFile)
+			targetUnit := types.FileExecUnitName(targetFile)
 			if targetUnit == "" {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
 				targetUnit = unit.Name
 			}
-			h.ConstructGraph.AddDependency(gw.Id(), core.ResourceId{
-				Provider: core.AbstractConstructProvider,
+			h.ConstructGraph.AddDependency(gw.Id(), construct.ResourceId{
+				Provider: construct.AbstractConstructProvider,
 				Type:     annotation.ExecutionUnitCapability,
 				Name:     targetUnit,
 			})
@@ -151,7 +153,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 	return errs.ErrOrNil()
 }
 
-func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error) {
+func (h *restAPIHandler) handleFile(f *types.SourceFile) (*types.SourceFile, error) {
 
 	caps := f.Annotations()
 	for _, capNode := range caps {
@@ -169,14 +171,14 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 			target = "private"
 		}
 		if target != "public" {
-			return nil, core.NewCompilerError(f, capNode,
+			return nil, types.NewCompilerError(f, capNode,
 				errors.New("expose capability must specify target = \"public\""))
 
 		}
 
 		listener, err := h.findHttpListenAndServe(capNode, f)
 		if err != nil {
-			return nil, core.NewCompilerError(f, capNode, err)
+			return nil, types.NewCompilerError(f, capNode, err)
 		}
 		if listener.Expression == nil {
 			log.Warn("No http listen found")
@@ -186,17 +188,17 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 
 		err = h.runtime.ActOnExposeListener(h.Unit, f, &listener, routerName)
 		if err != nil {
-			return nil, core.NewCompilerError(f, capNode, err)
+			return nil, types.NewCompilerError(f, capNode, err)
 		}
 
 		err = h.removeNetHttpImport(f)
 		if err != nil {
-			return nil, core.NewCompilerError(f, capNode, err)
+			return nil, types.NewCompilerError(f, capNode, err)
 		}
 
 		router, err := h.findChiRouterDefinition(f, routerName)
 		if err != nil {
-			return nil, core.NewCompilerError(f, capNode, err)
+			return nil, types.NewCompilerError(f, capNode, err)
 		}
 		if router.Declaration == nil {
 			log.Warn("No Router found")
@@ -215,7 +217,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 
 		localRoutes, addCors, err := h.findChiRoutesForVar(f, router, "")
 		if err != nil {
-			return nil, core.NewCompilerError(f, capNode, err)
+			return nil, types.NewCompilerError(f, capNode, err)
 		}
 
 		if len(localRoutes) > 0 {
@@ -230,15 +232,15 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 		for _, m := range routerMounts {
 			err := h.findChiRouterMountPackage(f, &m)
 			if err != nil {
-				return nil, core.NewCompilerError(f, capNode, err)
+				return nil, types.NewCompilerError(f, capNode, err)
 			}
 			filesForPackage := FindFilesForPackageName(h.Unit, m.PkgName)
 			if len(filesForPackage) == 0 {
-				return nil, core.NewCompilerError(f, capNode, errors.Errorf("No files found for package [%s]", m.PkgName))
+				return nil, types.NewCompilerError(f, capNode, errors.Errorf("No files found for package [%s]", m.PkgName))
 			}
 			file, funcNode := h.findFileForFunctionName(filesForPackage, m.FuncName)
 			if file == nil {
-				return nil, core.NewCompilerError(f, capNode, errors.Errorf("No file found with function named [%s]", m.FuncName))
+				return nil, types.NewCompilerError(f, capNode, errors.Errorf("No file found with function named [%s]", m.FuncName))
 			}
 			mountedRoutes := h.findChiRoutesInFunction(file, funcNode, m)
 			if len(mountedRoutes) > 0 {
@@ -248,10 +250,10 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 			if addCors {
 				for _, mountedRoute := range mountedRoutes {
 					def := mountedRoute
-					if def.Verb == core.VerbOptions {
+					if def.Verb == types.VerbOptions {
 						continue
 					}
-					def.Verb = core.VerbOptions
+					def.Verb = types.VerbOptions
 					h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], def)
 				}
 			}
@@ -260,7 +262,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 	return f, nil
 }
 
-func (h *restAPIHandler) removeNetHttpImport(f *core.SourceFile) error {
+func (h *restAPIHandler) removeNetHttpImport(f *types.SourceFile) error {
 	h.log.Info(fmt.Sprintf("searching for http imports in %s", f.Path()))
 	netHttpImportName := "http"
 	netHttpImport := GetNamedImportInFile(f, netHttpImportName)
@@ -291,7 +293,7 @@ func (h *restAPIHandler) removeNetHttpImport(f *core.SourceFile) error {
 	return nil
 }
 
-func (h *restAPIHandler) findChiRouterDefinition(f *core.SourceFile, appName string) (chiRouterDefResult, error) {
+func (h *restAPIHandler) findChiRouterDefinition(f *types.SourceFile, appName string) (chiRouterDefResult, error) {
 	nextMatch := doQuery(f.Tree().RootNode(), findRouterAssignment)
 	for {
 		match, found := nextMatch()
@@ -320,7 +322,7 @@ func (h *restAPIHandler) findChiRouterDefinition(f *core.SourceFile, appName str
 	return chiRouterDefResult{}, nil
 }
 
-func (h *restAPIHandler) findHttpListenAndServe(cap *core.Annotation, f *core.SourceFile) (HttpListener, error) {
+func (h *restAPIHandler) findHttpListenAndServe(cap *types.Annotation, f *types.SourceFile) (HttpListener, error) {
 	nextMatch := doQuery(cap.Node, findHttpListen)
 	for {
 		match, found := nextMatch()
@@ -344,7 +346,7 @@ func (h *restAPIHandler) findHttpListenAndServe(cap *core.Annotation, f *core.So
 	return HttpListener{}, nil
 }
 
-func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, router chiRouterDefResult, prefix string) (routes []gatewayRouteDefinition, addCors bool, err error) {
+func (h *restAPIHandler) findChiRoutesForVar(f *types.SourceFile, router chiRouterDefResult, prefix string) (routes []gatewayRouteDefinition, addCors bool, err error) {
 	log := h.log.With(logging.FileField(f))
 
 	verbFuncs, err := h.findVerbFuncs(router.Declaration.Parent(), router.Name)
@@ -364,8 +366,8 @@ func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, router chiRoute
 	}
 
 	for _, vfunc := range verbFuncs {
-		route := core.Route{
-			Verb:          core.Verb(vfunc.Verb),
+		route := types.Route{
+			Verb:          types.Verb(vfunc.Verb),
 			Path:          sanitizeChiPath(path.Join(h.RootPath, prefix, vfunc.Path)),
 			ExecUnitName:  h.Unit.Name,
 			HandledInFile: f.Path(),
@@ -377,8 +379,8 @@ func (h *restAPIHandler) findChiRoutesForVar(f *core.SourceFile, router chiRoute
 		})
 		if addCors {
 			routes = append(routes, gatewayRouteDefinition{
-				Route: core.Route{
-					Verb:          core.VerbOptions,
+				Route: types.Route{
+					Verb:          types.VerbOptions,
 					Path:          route.Path,
 					ExecUnitName:  route.ExecUnitName,
 					HandledInFile: route.HandledInFile,
@@ -410,7 +412,7 @@ func (h *restAPIHandler) findVerbFuncs(root *sitter.Node, varName string) ([]rou
 
 		funcName := verb.Content()
 
-		if _, supported := core.Verbs[core.Verb(strings.ToUpper(funcName))]; !supported {
+		if _, supported := types.Verbs[types.Verb(strings.ToUpper(funcName))]; !supported {
 			continue // unsupported verb
 		}
 
@@ -424,7 +426,7 @@ func (h *restAPIHandler) findVerbFuncs(root *sitter.Node, varName string) ([]rou
 	return route, err
 }
 
-func (h *restAPIHandler) FindImports(f *core.SourceFile) (*sitter.Node, error) {
+func (h *restAPIHandler) FindImports(f *types.SourceFile) (*sitter.Node, error) {
 	nextMatch := doQuery(f.Tree().RootNode(), findImports)
 	var err error
 	var imports *sitter.Node
@@ -443,7 +445,7 @@ func (h *restAPIHandler) FindImports(f *core.SourceFile) (*sitter.Node, error) {
 	return imports, err
 }
 
-func (h *restAPIHandler) findChiRouterMounts(f *core.SourceFile, routerName string) []routerMount {
+func (h *restAPIHandler) findChiRouterMounts(f *types.SourceFile, routerName string) []routerMount {
 	nextMatch := doQuery(f.Tree().RootNode(), findRouterMounts)
 	var mounts = make([]routerMount, 0)
 
@@ -470,7 +472,7 @@ func (h *restAPIHandler) findChiRouterMounts(f *core.SourceFile, routerName stri
 	return mounts
 }
 
-func (h *restAPIHandler) findChiRouterMountPackage(f *core.SourceFile, mount *routerMount) error {
+func (h *restAPIHandler) findChiRouterMountPackage(f *types.SourceFile, mount *routerMount) error {
 	nextMatch := doQuery(f.Tree().RootNode(), findImports)
 	for {
 		match, found := nextMatch()
@@ -523,7 +525,7 @@ func (h *restAPIHandler) findMiddleware(n *sitter.Node) []*sitter.Node {
 	return mw
 }
 
-func (h *restAPIHandler) findFileForFunctionName(files []*core.SourceFile, funcName string) (f *core.SourceFile, functionNode *sitter.Node) {
+func (h *restAPIHandler) findFileForFunctionName(files []*types.SourceFile, funcName string) (f *types.SourceFile, functionNode *sitter.Node) {
 	for _, f := range files {
 		nextMatch := doQuery(f.Tree().RootNode(), findFunction)
 		for {
@@ -553,7 +555,7 @@ func (h *restAPIHandler) isMiddlewareCors(mw *sitter.Node) bool {
 	return false
 }
 
-func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *sitter.Node, m routerMount) []gatewayRouteDefinition {
+func (h *restAPIHandler) findChiRoutesInFunction(f *types.SourceFile, funcNode *sitter.Node, m routerMount) []gatewayRouteDefinition {
 	var gatewayRoutes = make([]gatewayRouteDefinition, 0)
 	log := h.log.With(logging.FileField(f))
 
@@ -582,7 +584,7 @@ func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *s
 
 		funcName := verb.Content()
 
-		if _, supported := core.Verbs[core.Verb(strings.ToUpper(funcName))]; !supported {
+		if _, supported := types.Verbs[types.Verb(strings.ToUpper(funcName))]; !supported {
 			continue // unsupported verb
 		}
 
@@ -594,7 +596,7 @@ func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *s
 		})
 		if addCors {
 			routes = append(routes, routeMethodPath{
-				Verb: string(core.VerbOptions),
+				Verb: string(types.VerbOptions),
 				Path: pathContent,
 			})
 		}
@@ -602,8 +604,8 @@ func (h *restAPIHandler) findChiRoutesInFunction(f *core.SourceFile, funcNode *s
 	log.Sugar().Debugf("Found %d verb functions from '%s.%s'", len(routes), m.PkgAlias, m.FuncName)
 
 	for _, vfunc := range routes {
-		route := core.Route{
-			Verb:          core.Verb(vfunc.Verb),
+		route := types.Route{
+			Verb:          types.Verb(vfunc.Verb),
 			Path:          sanitizeChiPath(path.Join(h.RootPath, m.Path, vfunc.Path)),
 			ExecUnitName:  h.Unit.Name,
 			HandledInFile: f.Path(),

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -99,11 +99,11 @@ bucket, err = blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", pat
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
-			annot, ok := f.Annotations()[core.AnnotationKey{Capability: "persist", ID: "test"}]
+			annot, ok := f.Annotations()[types.AnnotationKey{Capability: "persist", ID: "test"}]
 
 			if !assert.True(ok) {
 				return
@@ -120,7 +120,7 @@ bucket, err = blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", pat
 
 func Test_Transform(t *testing.T) {
 	type testResult struct {
-		resource core.Fs
+		resource types.Fs
 		content  string
 	}
 	tests := []struct {
@@ -143,7 +143,7 @@ import (
 bucket, err := blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))
 `,
 			want: testResult{
-				resource: core.Fs{Name: "test"},
+				resource: types.Fs{Name: "test"},
 				content: `package fs
 
 import (
@@ -175,7 +175,7 @@ import (
 var bucket, err = blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))
 `,
 			want: testResult{
-				resource: core.Fs{Name: "test"},
+				resource: types.Fs{Name: "test"},
 				content: `package fs
 
 import (
@@ -209,7 +209,7 @@ var err error
 bucket, err = blob.OpenBucket(context.Background(), fmt.Sprintf("file://%s", path))
 `,
 			want: testResult{
-				resource: core.Fs{Name: "test"},
+				resource: types.Fs{Name: "test"},
 				content: `package fs
 
 import (
@@ -235,13 +235,13 @@ bucket, err = blob.OpenBucket(context.Background(), "s3://" + os.Getenv("TEST_BU
 			assert := assert.New(t)
 
 			p := PersistFsPlugin{runtime: NoopRuntime{}}
-			unit := core.ExecutionUnit{}
+			unit := types.ExecutionUnit{}
 
-			f, err := core.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
-			annot, ok := f.Annotations()[core.AnnotationKey{Capability: "persist", ID: "test"}]
+			annot, ok := f.Annotations()[types.AnnotationKey{Capability: "persist", ID: "test"}]
 
 			if !assert.True(ok) {
 				return

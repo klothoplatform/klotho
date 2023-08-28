@@ -3,7 +3,7 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
@@ -15,11 +15,11 @@ import (
 type (
 	Service struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Object        *corev1.Service
-		Values        map[string]core.IaCValue
+		Values        map[string]construct.IaCValue
 		FilePath      string
-		Cluster       core.ResourceId
+		Cluster       construct.ResourceId
 	}
 )
 
@@ -28,18 +28,18 @@ const (
 )
 
 // BaseConstructRefs returns a slice containing the ids of any Klotho constructs is correlated to
-func (service *Service) BaseConstructRefs() core.BaseConstructSet { return service.ConstructRefs }
+func (service *Service) BaseConstructRefs() construct.BaseConstructSet { return service.ConstructRefs }
 
-func (service *Service) Id() core.ResourceId {
-	return core.ResourceId{
+func (service *Service) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     SERVICE_TYPE,
 		Name:     service.Name,
 	}
 }
 
-func (service *Service) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (service *Service) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstreamOrDownstream: true,
 	}
 }
@@ -55,7 +55,7 @@ func (service *Service) Path() string {
 	return service.FilePath
 }
 
-func (service *Service) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (service *Service) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if service.Cluster.Name == "" {
 		return fmt.Errorf("service %s has no cluster", service.Name)
 	}
@@ -98,6 +98,6 @@ func (service *Service) MapContainerPorts(parentObjectName string, containers []
 	}
 	return nil
 }
-func (service *Service) GetValues() map[string]core.IaCValue {
+func (service *Service) GetValues() map[string]construct.IaCValue {
 	return service.Values
 }

@@ -3,7 +3,7 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -15,7 +15,7 @@ const (
 type (
 	KinesisStream struct {
 		Name                 string
-		ConstructRefs        core.BaseConstructSet `yaml:"-"`
+		ConstructRefs        construct.BaseConstructSet `yaml:"-"`
 		RetentionPeriodHours int
 		ShardCount           int
 		StreamEncryption     *StreamEncryption
@@ -33,7 +33,7 @@ type (
 
 	KinesisStreamConsumer struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		ConsumerName  string
 		Stream        *KinesisStream
 	}
@@ -41,17 +41,17 @@ type (
 
 type KinesisStreamCreateParams struct {
 	AppName string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 	Name    string
 }
 
-func (stream *KinesisStream) Create(dag *core.ResourceGraph, params KinesisStreamCreateParams) error {
+func (stream *KinesisStream) Create(dag *construct.ResourceGraph, params KinesisStreamCreateParams) error {
 
 	name := aws.KinesisStreamSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
 	stream.Name = name
 	stream.ConstructRefs = params.Refs
 
-	existingStream, found := core.GetResource[*KinesisStream](dag, stream.Id())
+	existingStream, found := construct.GetResource[*KinesisStream](dag, stream.Id())
 	if found {
 		existingStream.ConstructRefs.AddAll(params.Refs)
 		return nil
@@ -75,14 +75,14 @@ type KinesisStreamConsumerCreateParams struct {
 	Name   string
 }
 
-func (consumer *KinesisStreamConsumer) Create(dag *core.ResourceGraph, params KinesisStreamConsumerCreateParams) error {
+func (consumer *KinesisStreamConsumer) Create(dag *construct.ResourceGraph, params KinesisStreamConsumerCreateParams) error {
 
 	name := aws.KinesisStreamSanitizer.Apply(fmt.Sprintf("%s-%s", params.Stream.Name, params.Name))
 	consumer.Name = name
 	consumer.ConsumerName = aws.KinesisStreamSanitizer.Apply(params.Name)
 	consumer.ConstructRefs = params.Stream.ConstructRefs.Clone()
 	consumer.Stream = params.Stream
-	existingConsumer, found := core.GetResource[*KinesisStreamConsumer](dag, consumer.Id())
+	existingConsumer, found := construct.GetResource[*KinesisStreamConsumer](dag, consumer.Id())
 	if found {
 		existingConsumer.ConstructRefs.AddAll(params.Stream.ConstructRefs)
 		return nil
@@ -92,41 +92,41 @@ func (consumer *KinesisStreamConsumer) Create(dag *core.ResourceGraph, params Ki
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (stream *KinesisStream) BaseConstructRefs() core.BaseConstructSet {
+func (stream *KinesisStream) BaseConstructRefs() construct.BaseConstructSet {
 	return stream.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (stream *KinesisStream) Id() core.ResourceId {
-	return core.ResourceId{
+func (stream *KinesisStream) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     KINESIS_STREAM_TYPE,
 		Name:     stream.Name,
 	}
 }
 
-func (role *KinesisStream) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (role *KinesisStream) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstreamOrDownstream: true,
 	}
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (consumer *KinesisStreamConsumer) BaseConstructRefs() core.BaseConstructSet {
+func (consumer *KinesisStreamConsumer) BaseConstructRefs() construct.BaseConstructSet {
 	return consumer.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (consumer *KinesisStreamConsumer) Id() core.ResourceId {
-	return core.ResourceId{
+func (consumer *KinesisStreamConsumer) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     KINESIS_STREAM_CONSUMER_TYPE,
 		Name:     consumer.Name,
 	}
 }
 
-func (consumer *KinesisStreamConsumer) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (consumer *KinesisStreamConsumer) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

@@ -2,7 +2,8 @@ package resources
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/core"
+
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/sanitization/kubernetes"
@@ -17,28 +18,28 @@ const (
 type (
 	StorageClass struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Object        *v1.StorageClass
-		Values        map[string]core.IaCValue
+		Values        map[string]construct.IaCValue
 		FilePath      string
-		Cluster       core.ResourceId
+		Cluster       construct.ResourceId
 	}
 )
 
-func (sc *StorageClass) Id() core.ResourceId {
-	return core.ResourceId{
+func (sc *StorageClass) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     STORAGE_CLASS_TYPE,
 		Name:     sc.Name,
 	}
 }
 
-func (sc *StorageClass) BaseConstructRefs() core.BaseConstructSet {
+func (sc *StorageClass) BaseConstructRefs() construct.BaseConstructSet {
 	return sc.ConstructRefs
 }
 
-func (sc *StorageClass) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (sc *StorageClass) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -57,10 +58,10 @@ func (sc *StorageClass) Path() string {
 
 type StorageClassCreateParams struct {
 	Name          string
-	ConstructRefs core.BaseConstructSet
+	ConstructRefs construct.BaseConstructSet
 }
 
-func (sc *StorageClass) Create(dag *core.ResourceGraph, params StorageClassCreateParams) error {
+func (sc *StorageClass) Create(dag *construct.ResourceGraph, params StorageClassCreateParams) error {
 	sc.Name = fmt.Sprintf("%s-sc", params.Name)
 	sc.ConstructRefs = params.ConstructRefs
 	sc.Object = &v1.StorageClass{
@@ -75,7 +76,7 @@ func (sc *StorageClass) Create(dag *core.ResourceGraph, params StorageClassCreat
 	return nil
 }
 
-func (sc *StorageClass) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (sc *StorageClass) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if sc.Cluster.IsZero() {
 		return fmt.Errorf("%s has no cluster", sc.Id())
 	}
@@ -84,6 +85,6 @@ func (sc *StorageClass) MakeOperational(dag *core.ResourceGraph, appName string,
 	return nil
 }
 
-func (sc *StorageClass) GetValues() map[string]core.IaCValue {
+func (sc *StorageClass) GetValues() map[string]construct.IaCValue {
 	return sc.Values
 }

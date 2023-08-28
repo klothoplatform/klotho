@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -22,7 +22,7 @@ type SetMapKey struct {
 // ConfigureField is a function that takes a resource, a field name, and a value and sets the field on the resource to the value
 // It also takes a graph so that it can resolve references
 // It returns an error if the field cannot be set
-func ConfigureField(resource core.Resource, fieldName string, value interface{}, zeroValueAllowed bool, graph *core.ResourceGraph) error {
+func ConfigureField(resource construct.Resource, fieldName string, value interface{}, zeroValueAllowed bool, graph *construct.ResourceGraph) error {
 	field, setMapKey, err := parseFieldName(resource, fieldName, graph)
 	if err != nil {
 		return err
@@ -43,10 +43,10 @@ func ConfigureField(resource core.Resource, fieldName string, value interface{},
 	case reflect.Pointer, reflect.Struct:
 		// Since there can be pointers to primitive types and others, we will ensure that those still work
 		if field.Kind() == reflect.Pointer && field.Elem().Kind() != reflect.Struct {
-			if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value).String() == "core.ResourceId" {
+			if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value).String() == "construct.ResourceId" {
 				return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.Id(), field.Type(), reflect.TypeOf(value))
 			}
-		} else if reflect.ValueOf(value).Kind() != reflect.Map && !field.Type().Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) && field.Type() != reflect.TypeOf(core.ResourceId{}) {
+		} else if reflect.ValueOf(value).Kind() != reflect.Map && !field.Type().Implements(reflect.TypeOf((*construct.Resource)(nil)).Elem()) && field.Type() != reflect.TypeOf(construct.ResourceId{}) {
 			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be a map, but got %s", fieldName, resource.Id(), reflect.TypeOf(value))
 		}
 		err := configureField(value, field, graph, zeroValueAllowed)
@@ -54,7 +54,7 @@ func ConfigureField(resource core.Resource, fieldName string, value interface{},
 			return err
 		}
 	default:
-		if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value).String() == "core.ResourceId" {
+		if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value).String() == "construct.ResourceId" {
 			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.Id(), field.Type(), reflect.TypeOf(value))
 		}
 		err := configureField(value, field, graph, zeroValueAllowed)
@@ -68,7 +68,7 @@ func ConfigureField(resource core.Resource, fieldName string, value interface{},
 	return nil
 }
 
-func configureField(val interface{}, field reflect.Value, dag *core.ResourceGraph, zeroValueAllowed bool) error {
+func configureField(val interface{}, field reflect.Value, dag *construct.ResourceGraph, zeroValueAllowed bool) error {
 	if !reflect.ValueOf(val).IsValid() {
 		return nil
 	} else if reflect.ValueOf(val).IsZero() {
@@ -81,10 +81,10 @@ func configureField(val interface{}, field reflect.Value, dag *core.ResourceGrap
 	// We want to check if the field is a core Resource and if so we want to ensure that strings which represent ids
 	// and resource ids are properly being cast to the correct type
 	if field.Kind() == reflect.Ptr {
-		if field.Type().Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) && reflect.ValueOf(val).Type().Kind() == reflect.String {
+		if field.Type().Implements(reflect.TypeOf((*construct.Resource)(nil)).Elem()) && reflect.ValueOf(val).Type().Kind() == reflect.String {
 			res := getFieldFromIdString(val.(string), dag)
 			// if the return type is a resource id we need to get the correlating resource object
-			if id, ok := res.(core.ResourceId); ok {
+			if id, ok := res.(construct.ResourceId); ok {
 				res = dag.GetResource(id)
 			}
 			if res == nil && !zeroValueAllowed {
@@ -94,11 +94,11 @@ func configureField(val interface{}, field reflect.Value, dag *core.ResourceGrap
 			}
 			field.Elem().Set(reflect.ValueOf(res).Elem())
 			return nil
-		} else if field.Type().Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) && reflect.ValueOf(val).Type().String() == "core.ResourceId" {
-			id := val.(core.ResourceId)
+		} else if field.Type().Implements(reflect.TypeOf((*construct.Resource)(nil)).Elem()) && reflect.ValueOf(val).Type().String() == "construct.ResourceId" {
+			id := val.(construct.ResourceId)
 			res := getFieldFromIdString(id.String(), dag)
 			// if the return type is a resource id we need to get the correlating resource object
-			if id, ok := res.(core.ResourceId); ok {
+			if id, ok := res.(construct.ResourceId); ok {
 				res = dag.GetResource(id)
 			}
 			if res == nil && !zeroValueAllowed {
@@ -172,8 +172,8 @@ func configureField(val interface{}, field reflect.Value, dag *core.ResourceGrap
 			field.Set(reflect.ValueOf(val))
 			return nil
 		}
-		if field.Type() == reflect.TypeOf(core.ResourceId{}) && reflect.ValueOf(val).Type().Kind() == reflect.String {
-			id := core.ResourceId{}
+		if field.Type() == reflect.TypeOf(construct.ResourceId{}) && reflect.ValueOf(val).Type().Kind() == reflect.String {
+			id := construct.ResourceId{}
 			err := id.UnmarshalText([]byte(val.(string)))
 			if err != nil {
 				return err
@@ -232,8 +232,8 @@ func configureField(val interface{}, field reflect.Value, dag *core.ResourceGrap
 			field.Set(reflect.ValueOf(val))
 		}
 	default:
-		if field.Kind() == reflect.String && reflect.TypeOf(val).Kind() != reflect.String && reflect.TypeOf(val).Elem().String() == "core.ResourceId" {
-			id := val.(*core.ResourceId)
+		if field.Kind() == reflect.String && reflect.TypeOf(val).Kind() != reflect.String && reflect.TypeOf(val).Elem().String() == "construct.ResourceId" {
+			id := val.(*construct.ResourceId)
 			strVal := getFieldFromIdString(id.String(), dag)
 			if strVal != nil {
 				field.Set(reflect.ValueOf(strVal))
@@ -246,12 +246,12 @@ func configureField(val interface{}, field reflect.Value, dag *core.ResourceGrap
 
 }
 
-func getIdAndFields(id core.ResourceId) (core.ResourceId, string) {
+func getIdAndFields(id construct.ResourceId) (construct.ResourceId, string) {
 	arr := strings.Split(id.String(), "#")
-	resId := &core.ResourceId{}
+	resId := &construct.ResourceId{}
 	err := resId.UnmarshalText([]byte(arr[0]))
 	if err != nil {
-		return core.ResourceId{}, ""
+		return construct.ResourceId{}, ""
 	}
 	if len(arr) == 1 {
 		return *resId, ""
@@ -259,9 +259,9 @@ func getIdAndFields(id core.ResourceId) (core.ResourceId, string) {
 	return *resId, arr[1]
 }
 
-func getFieldFromIdString(id string, dag *core.ResourceGraph) any {
+func getFieldFromIdString(id string, dag *construct.ResourceGraph) any {
 	arr := strings.Split(id, "#")
-	resId := &core.ResourceId{}
+	resId := &construct.ResourceId{}
 	err := resId.UnmarshalText([]byte(arr[0]))
 	if err != nil {
 		return nil
@@ -283,7 +283,7 @@ func getFieldFromIdString(id string, dag *core.ResourceGraph) any {
 
 // ParseFieldName parses a field name and returns the value of the field
 // Example: "spec.template.spec.containers[0].image" will return the value of the image field of the first container in the template
-func parseFieldName(resource core.Resource, fieldName string, dag *core.ResourceGraph) (reflect.Value, *SetMapKey, error) {
+func parseFieldName(resource construct.Resource, fieldName string, dag *construct.ResourceGraph) (reflect.Value, *SetMapKey, error) {
 	fields := strings.Split(fieldName, ".")
 	var field reflect.Value
 	var setMapKey *SetMapKey
@@ -323,7 +323,7 @@ func parseFieldName(resource core.Resource, fieldName string, dag *core.Resource
 					field.Set(reflect.MakeMap(field.Type()))
 				}
 
-				resId := &core.ResourceId{}
+				resId := &construct.ResourceId{}
 				err := resId.UnmarshalText([]byte(key))
 				if err == nil {
 					// if the key is a resource id, then we need to get the field from the resource

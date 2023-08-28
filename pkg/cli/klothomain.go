@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/filter"
 
 	"github.com/fatih/color"
@@ -25,7 +27,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/closenicely"
 	"github.com/klothoplatform/klotho/pkg/compiler"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
 	"github.com/klothoplatform/klotho/pkg/input"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/updater"
@@ -115,11 +116,6 @@ func (km KlothoMain) Main() {
 	}
 	root.AddCommand(compilerCmd)
 
-	err := km.addEngineCli(root)
-	if err != nil {
-		panic(err)
-	}
-
 	flags := compilerCmd.Flags()
 
 	flags.BoolVarP(&cfg.verbose, "verbose", "v", false, "Verbose flag")
@@ -155,7 +151,7 @@ func (km KlothoMain) Main() {
 	_ = flags.MarkHidden("internalDebug")
 	_ = flags.MarkHidden("construct-graph")
 
-	err = root.Execute()
+	err := root.Execute()
 	if err != nil {
 		if cfg.internalDebug {
 			zap.S().With(logging.SendEntryMessage).Errorf("%+v", err)
@@ -453,8 +449,8 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 
 	document := &compiler.CompilationDocument{
 		InputFiles:       input,
-		FileDependencies: &core.FileDependencies{},
-		Constructs:       core.NewConstructGraph(),
+		FileDependencies: &types.FileDependencies{},
+		Constructs:       construct.NewConstructGraph(),
 		Configuration:    &appCfg,
 		OutputOptions:    options.Output,
 	}
@@ -500,7 +496,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 		document.OutputFiles = append(document.OutputFiles, files...)
 		document.Resources = dag
 		document.DeploymentOrder = klothoCompiler.Engine.GetDeploymentOrderGraph(dag)
-		err = klothoCompiler.Document.OutputGraph(cfg.outDir)
+		err = klothoCompiler.Document.Resources.OutputResourceGraph(cfg.outDir)
 		if err != nil {
 			return err
 		}
@@ -509,7 +505,7 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 			return err
 		}
 	} else {
-		document.Resources = core.NewResourceGraph()
+		document.Resources = construct.NewResourceGraph()
 	}
 
 	analyticsClient.Info(klothoName + " compiling")

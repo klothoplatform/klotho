@@ -1,13 +1,12 @@
 package csproj
 
 import (
-	"github.com/beevik/etree"
-	"github.com/klothoplatform/klotho/pkg/core"
-	"sync"
-)
-
-import (
 	"io"
+	"sync"
+
+	"github.com/beevik/etree"
+	"github.com/klothoplatform/klotho/pkg/errors"
+	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 )
 
 type CSProjFile struct {
@@ -20,7 +19,7 @@ func NewCSProjFile(path string, content io.Reader) (*CSProjFile, error) {
 	doc := etree.NewDocument()
 	_, err := doc.ReadFrom(content)
 	if err != nil {
-		err = core.WrapErrf(err, "could not decode XML for %s", path)
+		err = errors.WrapErrf(err, "could not decode XML for %s", path)
 	}
 
 	f := &CSProjFile{
@@ -35,7 +34,7 @@ func NewCSProjFile(path string, content io.Reader) (*CSProjFile, error) {
 	return f, err
 }
 
-func (f *CSProjFile) Clone() core.File {
+func (f *CSProjFile) Clone() klotho_io.File {
 	return &CSProjFile{
 		path:             f.path,
 		content:          f.content.Copy(),

@@ -3,20 +3,20 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
 type (
 	SecurityGroup struct {
 		Name          string
 		Vpc           *Vpc
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		IngressRules  []SecurityGroupRule
 		EgressRules   []SecurityGroupRule
 	}
 	SecurityGroupRule struct {
 		Description string
-		CidrBlocks  []core.IaCValue
+		CidrBlocks  []construct.IaCValue
 		FromPort    int
 		Protocol    string
 		ToPort      int
@@ -28,10 +28,10 @@ const SG_TYPE = "security_group"
 
 type SecurityGroupCreateParams struct {
 	AppName string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 }
 
-func (sg *SecurityGroup) Create(dag *core.ResourceGraph, params SecurityGroupCreateParams) error {
+func (sg *SecurityGroup) Create(dag *construct.ResourceGraph, params SecurityGroupCreateParams) error {
 
 	sg.Name = params.AppName
 	sg.ConstructRefs = params.Refs.Clone()
@@ -46,13 +46,13 @@ func (sg *SecurityGroup) Create(dag *core.ResourceGraph, params SecurityGroupCre
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (sg *SecurityGroup) BaseConstructRefs() core.BaseConstructSet {
+func (sg *SecurityGroup) BaseConstructRefs() construct.BaseConstructSet {
 	return sg.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (sg *SecurityGroup) Id() core.ResourceId {
-	id := core.ResourceId{
+func (sg *SecurityGroup) Id() construct.ResourceId {
+	id := construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     SG_TYPE,
 		Name:     sg.Name,
@@ -64,7 +64,7 @@ func (sg *SecurityGroup) Id() core.ResourceId {
 	return id
 }
 
-func (sg *SecurityGroup) Load(namespace string, dag *core.ConstructGraph) error {
+func (sg *SecurityGroup) Load(namespace string, dag *construct.ConstructGraph) error {
 	namespacedVpc := &Vpc{Name: namespace}
 	vpc := dag.GetConstruct(namespacedVpc.Id())
 	if vpc == nil {
@@ -78,8 +78,8 @@ func (sg *SecurityGroup) Load(namespace string, dag *core.ConstructGraph) error 
 	return nil
 }
 
-func (sg *SecurityGroup) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (sg *SecurityGroup) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

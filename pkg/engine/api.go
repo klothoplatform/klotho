@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
-func (e *Engine) ListResources() []core.Resource {
-	var resources []core.Resource
+func (e *Engine) ListResources() []construct.Resource {
+	var resources []construct.Resource
 	for _, res := range e.Guardrails.AllowedResources {
 		resource, _ := e.getConstructFromId(res)
-		resources = append(resources, resource.(core.Resource))
+		resources = append(resources, resource.(construct.Resource))
 	}
 	return resources
 }
@@ -30,7 +30,7 @@ func (e *Engine) ListResourcesByType() []string {
 }
 
 func (e *Engine) ListProviders() []string {
-	providers := []string{core.AbstractConstructProvider}
+	providers := []string{construct.AbstractConstructProvider}
 	for _, provider := range e.Providers {
 		providers = append(providers, provider.Name())
 	}
@@ -55,7 +55,7 @@ func (e *Engine) ListAttributes() []string {
 }
 
 func (e *Engine) ListResourceFields(provider string, resourceType string) map[string]any {
-	if provider == core.AbstractConstructProvider {
+	if provider == construct.AbstractConstructProvider {
 		for _, construct := range e.Constructs {
 			if construct.Id().Type == resourceType {
 				fields := map[string]any{}
@@ -87,15 +87,15 @@ func (e *Engine) ListResourceFields(provider string, resourceType string) map[st
 }
 
 func isFieldConfigurable(field reflect.Type) bool {
-	if field.Implements(reflect.TypeOf((*core.BaseConstruct)(nil)).Elem()) {
+	if field.Implements(reflect.TypeOf((*construct.BaseConstruct)(nil)).Elem()) {
 		return false
-	} else if field.Implements(reflect.TypeOf((*core.Resource)(nil)).Elem()) {
+	} else if field.Implements(reflect.TypeOf((*construct.Resource)(nil)).Elem()) {
 		return false
-	} else if field == reflect.TypeOf(core.BaseConstructSet{}) {
+	} else if field == reflect.TypeOf(construct.BaseConstructSet{}) {
 		return false
 	}
 	if field.Kind() == reflect.Array || field.Kind() == reflect.Slice {
-		if field.Elem().Implements(reflect.TypeOf((*core.BaseConstruct)(nil)).Elem()) {
+		if field.Elem().Implements(reflect.TypeOf((*construct.BaseConstruct)(nil)).Elem()) {
 			return false
 		}
 	}

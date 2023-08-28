@@ -2,7 +2,8 @@ package resources
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/core"
+
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	corev1 "k8s.io/api/core/v1"
@@ -12,11 +13,11 @@ import (
 type (
 	Namespace struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Object        *corev1.Namespace
-		Values        map[string]core.IaCValue
+		Values        map[string]construct.IaCValue
 		FilePath      string
-		Cluster       core.ResourceId
+		Cluster       construct.ResourceId
 	}
 )
 
@@ -24,20 +25,20 @@ const (
 	NAMESPACE_TYPE = "namespace"
 )
 
-func (namespace *Namespace) BaseConstructRefs() core.BaseConstructSet {
+func (namespace *Namespace) BaseConstructRefs() construct.BaseConstructSet {
 	return namespace.ConstructRefs
 }
 
-func (namespace *Namespace) Id() core.ResourceId {
-	return core.ResourceId{
+func (namespace *Namespace) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: provider.KUBERNETES,
 		Type:     NAMESPACE_TYPE,
 		Name:     namespace.Name,
 	}
 }
 
-func (namespace *Namespace) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (namespace *Namespace) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }
@@ -54,8 +55,8 @@ func (namespace *Namespace) Path() string {
 	return namespace.FilePath
 }
 
-func (namespace *Namespace) GetResourcesInNamespace(dag *core.ResourceGraph) []core.Resource {
-	var resources []core.Resource
+func (namespace *Namespace) GetResourcesInNamespace(dag *construct.ResourceGraph) []construct.Resource {
+	var resources []construct.Resource
 	for _, res := range dag.GetAllUpstreamResources(namespace) {
 		if manifest, ok := res.(ManifestFile); ok {
 			if manifest.GetObject() != nil && manifest.GetObject().GetNamespace() == namespace.Name {
@@ -66,7 +67,7 @@ func (namespace *Namespace) GetResourcesInNamespace(dag *core.ResourceGraph) []c
 	return resources
 }
 
-func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (namespace *Namespace) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
 	if namespace.Cluster.Name == "" {
 		return fmt.Errorf("namespace %s has no cluster", namespace.Name)
 	}
@@ -76,6 +77,6 @@ func (namespace *Namespace) MakeOperational(dag *core.ResourceGraph, appName str
 	return nil
 }
 
-func (namespace *Namespace) GetValues() map[string]core.IaCValue {
+func (namespace *Namespace) GetValues() map[string]construct.IaCValue {
 	return namespace.Values
 }

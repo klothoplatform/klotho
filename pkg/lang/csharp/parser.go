@@ -5,15 +5,15 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/lang"
 	"github.com/smacker/go-tree-sitter/csharp"
 )
 
 var multilineCommentMarginRegexp = regexp.MustCompile(`(?m)^\s*[*]*[ \t]*`) // we need to use [ \t] instead of \s, because \s includes newlines in (?m) mode.
-const CSharp = core.LanguageId("csharp")
+const CSharp = types.LanguageId("csharp")
 
-var Language = core.SourceLanguage{
+var Language = types.SourceLanguage{
 	ID:     CSharp,
 	Sitter: csharp.GetLanguage(),
 	CapabilityFinder: lang.NewCapabilityFinder("comment", lang.CompositePreprocessor(
@@ -47,6 +47,6 @@ var Language = core.SourceLanguage{
 	ToLineComment: lang.MakeLineCommenter("// "),
 }
 
-func NewFile(path string, content io.Reader) (f *core.SourceFile, err error) {
-	return core.NewSourceFile(path, content, Language)
+func NewFile(path string, content io.Reader) (f *types.SourceFile, err error) {
+	return types.NewSourceFile(path, content, Language)
 }

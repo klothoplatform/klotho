@@ -5,10 +5,12 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	klotho_errors "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/query"
 	"github.com/pkg/errors"
@@ -26,13 +28,13 @@ type (
 	}
 
 	gatewayRouteDefinition struct {
-		core.Route
+		types.Route
 		DefinedInPath string
 	}
 
 	restAPIHandler struct {
-		ConstructGraph  *core.ConstructGraph
-		Unit            *core.ExecutionUnit
+		ConstructGraph  *construct.ConstructGraph
+		Unit            *types.ExecutionUnit
 		RoutesByGateway map[gatewaySpec][]gatewayRouteDefinition
 		RootPath        string
 		log             *zap.Logger
@@ -47,26 +49,26 @@ type (
 
 func (p *Expose) Name() string { return "Expose" }
 
-func (p Expose) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
+func (p Expose) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
 	var errs multierr.Error
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range construct.GetConstructsOfType[*types.ExecutionUnit](constructGraph) {
 		err := p.transformSingle(constructGraph, unit)
 		errs.Append(err)
 	}
 	return errs.ErrOrNil()
 }
 
-func (p *Expose) transformSingle(constructGraph *core.ConstructGraph, unit *core.ExecutionUnit) error {
+func (p *Expose) transformSingle(constructGraph *construct.ConstructGraph, unit *types.ExecutionUnit) error {
 	h := &restAPIHandler{ConstructGraph: constructGraph, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
 	err := h.handle(unit)
 	if err != nil {
-		err = core.WrapErrf(err, "express handler failure for %s", unit.Name)
+		err = klotho_errors.WrapErrf(err, "express handler failure for %s", unit.Name)
 	}
 
 	return err
 }
 
-func (h *restAPIHandler) findFastAPIAppDefinition(cap *core.Annotation, f *core.SourceFile) (fastapiDefResult, error) {
+func (h *restAPIHandler) findFastAPIAppDefinition(cap *types.Annotation, f *types.SourceFile) (fastapiDefResult, error) {
 
 	nextMatch := DoQuery(cap.Node, exposeFastAPIAssignment)
 	for {
@@ -101,7 +103,7 @@ func (h *restAPIHandler) findFastAPIAppDefinition(cap *core.Annotation, f *core.
 	return fastapiDefResult{}, nil
 }
 
-func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
+func (h *restAPIHandler) handle(unit *types.ExecutionUnit) error {
 	h.Unit = unit
 	h.log = zap.L().With(zap.String("unit", unit.Name))
 
@@ -123,9 +125,9 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 	}
 
 	for spec, routes := range h.RoutesByGateway {
-		gw := core.NewGateway(spec.gatewayId)
+		gw := types.NewGateway(spec.gatewayId)
 		if existing := h.ConstructGraph.GetConstruct(gw.Id()); existing != nil {
-			gw = existing.(*core.Gateway)
+			gw = existing.(*types.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath
 			gw.ExportVarName = spec.AppVarName
@@ -145,13 +147,13 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 				continue
 			}
 
-			targetUnit := core.FileExecUnitName(targetFile)
+			targetUnit := types.FileExecUnitName(targetFile)
 			if targetUnit == "" {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
 				targetUnit = unit.Name
 			}
-			h.ConstructGraph.AddDependency(gw.Id(), core.ResourceId{
-				Provider: core.AbstractConstructProvider,
+			h.ConstructGraph.AddDependency(gw.Id(), construct.ResourceId{
+				Provider: construct.AbstractConstructProvider,
 				Type:     annotation.ExecutionUnitCapability,
 				Name:     targetUnit,
 			})
@@ -161,7 +163,7 @@ func (h *restAPIHandler) handle(unit *core.ExecutionUnit) error {
 	return errs.ErrOrNil()
 }
 
-func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error) {
+func (h *restAPIHandler) handleFile(f *types.SourceFile) (*types.SourceFile, error) {
 	caps := f.Annotations()
 
 	for _, capNode := range caps {
@@ -179,7 +181,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 			target = "private"
 		}
 		if target != "public" {
-			return nil, core.NewCompilerError(f, capNode,
+			return nil, types.NewCompilerError(f, capNode,
 				errors.New("expose capability must specify target = \"public\""))
 
 		}
@@ -187,7 +189,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 		var appVarName string
 		app, err := h.findFastAPIAppDefinition(capNode, f)
 		if err != nil {
-			return nil, core.NewCompilerError(f, capNode, err)
+			return nil, types.NewCompilerError(f, capNode, err)
 		}
 		if app.Expression == nil {
 			log.Warn("No listener found")
@@ -207,7 +209,7 @@ func (h *restAPIHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error
 
 		localRoutes, err := h.findFastAPIRoutesForVar(f, appVarName, "")
 		if err != nil {
-			return nil, core.NewCompilerError(f, capNode, err)
+			return nil, types.NewCompilerError(f, capNode, err)
 		}
 
 		if len(localRoutes) > 0 {
@@ -248,7 +250,7 @@ func (h *restAPIHandler) findVerbFuncs(root *sitter.Node, varName string) ([]rou
 		}
 
 		funcName := verb.Content()
-		if _, supported := core.Verbs[core.Verb(strings.ToUpper(funcName))]; !supported {
+		if _, supported := types.Verbs[types.Verb(strings.ToUpper(funcName))]; !supported {
 			continue // unsupported verb
 		}
 
@@ -266,8 +268,8 @@ func (h *restAPIHandler) findVerbFuncs(root *sitter.Node, varName string) ([]rou
 	return route, err
 }
 
-// findFastAPIRoutesForVar finds any routes defined on varName declared in core.SourceFile f
-func (h *restAPIHandler) findFastAPIRoutesForVar(f *core.SourceFile, varName string, prefix string) ([]gatewayRouteDefinition, error) {
+// findFastAPIRoutesForVar finds any routes defined on varName declared in types.SourceFile f
+func (h *restAPIHandler) findFastAPIRoutesForVar(f *types.SourceFile, varName string, prefix string) ([]gatewayRouteDefinition, error) {
 	// TODO add support for finding additional routes that may have been added in files where this varName has been imported
 	var routes = make([]gatewayRouteDefinition, 0)
 	log := h.log.With(logging.FileField(f))
@@ -277,8 +279,8 @@ func (h *restAPIHandler) findFastAPIRoutesForVar(f *core.SourceFile, varName str
 	log.Sugar().Debugf("Got %d verb functions for '%s'", len(verbFuncs), varName)
 
 	for _, vfunc := range verbFuncs {
-		route := core.Route{
-			Verb:          core.Verb(vfunc.Verb),
+		route := types.Route{
+			Verb:          types.Verb(vfunc.Verb),
 			Path:          sanitizeFastapiPath(path.Join(h.RootPath, prefix, vfunc.Path)),
 			ExecUnitName:  h.Unit.Name,
 			HandledInFile: f.Path(),

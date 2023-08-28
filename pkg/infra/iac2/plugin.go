@@ -7,7 +7,9 @@ import (
 	"text/template"
 
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	klotho_errors "github.com/klothoplatform/klotho/pkg/errors"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/klothoplatform/klotho/pkg/templateutils"
 )
@@ -28,7 +30,7 @@ var files embed.FS
 var pulumiBase = templateutils.MustTemplate(files, "Pulumi.yaml.tmpl")
 var pulumiStack = templateutils.MustTemplate(files, "Pulumi.dev.yaml.tmpl")
 
-func (p Plugin) Translate(cloudGraph *core.ResourceGraph) ([]core.File, error) {
+func (p Plugin) Translate(cloudGraph *construct.ResourceGraph) ([]io.File, error) {
 
 	// TODO We'll eventually want to split the output into different files, but we don't know exactly what that looks
 	// like yet. For now, just write to a single file, "new_index.ts"
@@ -61,7 +63,7 @@ const awsProfile = awsConfig.get('profile')` + "\n")
 		return nil, err
 	}
 
-	indexTs := &core.RawFile{
+	indexTs := &io.RawFile{
 		FPath:   `index.ts`,
 		Content: buf.Bytes(),
 	}
@@ -74,7 +76,7 @@ const awsProfile = awsConfig.get('profile')` + "\n")
 	if err != nil {
 		return nil, err
 	}
-	packageJson := &core.RawFile{
+	packageJson := &io.RawFile{
 		FPath:   `package.json`,
 		Content: pJsonContent,
 	}
@@ -92,22 +94,22 @@ const awsProfile = awsConfig.get('profile')` + "\n")
 	if err == nil {
 		return nil, err
 	}
-	tsConfig := &core.RawFile{
+	tsConfig := &io.RawFile{
 		FPath:   "tsConfig.json",
 		Content: content,
 	}
 
-	return []core.File{indexTs, packageJson, pulumiYaml, pulumiStack, tsConfig}, nil
+	return []io.File{indexTs, packageJson, pulumiYaml, pulumiStack, tsConfig}, nil
 }
 
-func addTemplate(name string, t *template.Template, data any) (*core.RawFile, error) {
+func addTemplate(name string, t *template.Template, data any) (*io.RawFile, error) {
 	buf := new(bytes.Buffer)
 	err := t.Execute(buf, data)
 	if err != nil {
-		err = core.WrapErrf(err, "error executing template %s", name)
+		err = klotho_errors.WrapErrf(err, "error executing template %s", name)
 		return nil, err
 	}
-	return &core.RawFile{
+	return &io.RawFile{
 		FPath:   name,
 		Content: buf.Bytes(),
 	}, nil

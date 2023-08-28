@@ -9,7 +9,8 @@ import (
 	yamlLang "github.com/klothoplatform/klotho/pkg/lang/yaml"
 	"go.uber.org/zap"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	klotho_io "github.com/klothoplatform/klotho/pkg/io"
+
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -94,9 +95,9 @@ func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
 	return out
 }
 
-func (h *HelmHelper) GetRenderedTemplates(ch *chart.Chart, vals map[string]interface{}, namespace string) ([]core.File, error) {
+func (h *HelmHelper) GetRenderedTemplates(ch *chart.Chart, vals map[string]interface{}, namespace string) ([]klotho_io.File, error) {
 
-	renderedFiles := []core.File{}
+	renderedFiles := []klotho_io.File{}
 
 	client := action.NewInstall(h.cfg)
 	client.DryRun = true

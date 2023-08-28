@@ -5,7 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/stretchr/testify/assert"
 )
@@ -24,8 +25,8 @@ func Test_findIApplicationBuilder(t *testing.T) {
 		{
 			name: "Finds Annotated Startup Classes",
 			program: `
-			using Microsoft.AspNetCore.Builder;
-			using Microsoft.AspNetCore.Hosting;
+			using Microsoft.AspNetconstruct.Builder;
+			using Microsoft.AspNetconstruct.Hosting;
 			
 			public class MyStartupClass {
 				public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -45,8 +46,8 @@ func Test_findIApplicationBuilder(t *testing.T) {
 			
 			public class MyQualifiedStartupClass {
 				public void Configure(
-					Microsoft.AspNetCore.Builder.IApplicationBuilder qualifiedApp,
-					Microsoft.AspNetCore.Hosting.IWebHostEnvironment env)
+					Microsoft.AspNetconstruct.Builder.IApplicationBuilder qualifiedApp,
+					Microsoft.AspNetconstruct.Hosting.IWebHostEnvironment env)
 				{
 					/**
 					* @klotho::expose {
@@ -121,7 +122,7 @@ func Test_findIApplicationBuilder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			file, err := core.NewSourceFile("program.cs", strings.NewReader(tt.program), Language)
+			file, err := types.NewSourceFile("program.cs", strings.NewReader(tt.program), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -154,9 +155,9 @@ func Test_findIApplicationBuilder(t *testing.T) {
 
 func TestExpose_Transform(t *testing.T) {
 	controllerMappingStartupClass := `
-	using Microsoft.AspNetCore.Builder;
-	using Microsoft.AspNetCore.Hosting;
-	using Microsoft.AspNetCore.Http;
+	using Microsoft.AspNetconstruct.Builder;
+	using Microsoft.AspNetconstruct.Hosting;
+	using Microsoft.AspNetconstruct.Http;
 	using Microsoft.Extensions.Configuration;
 	using Microsoft.Extensions.DependencyInjection;
 
@@ -191,11 +192,11 @@ func TestExpose_Transform(t *testing.T) {
 		Content string
 	}
 
-	parseDep := func(dep string) graph.Edge[core.Construct] {
+	parseDep := func(dep string) graph.Edge[construct.Construct] {
 		parts := strings.Split(dep, ":")
-		return graph.Edge[core.Construct]{
-			Source:      &core.Gateway{Name: parts[0]},
-			Destination: &core.ExecutionUnit{Name: parts[1]},
+		return graph.Edge[construct.Construct]{
+			Source:      &types.Gateway{Name: parts[0]},
+			Destination: &types.ExecutionUnit{Name: parts[1]},
 		}
 	}
 
@@ -212,10 +213,10 @@ func TestExpose_Transform(t *testing.T) {
 					{
 						Path: "Startup.cs",
 						Content: `
-						using Microsoft.AspNetCore.Builder;
-						using Microsoft.AspNetCore.Hosting;
-						using Microsoft.AspNetCore.Http;
-						using Microsoft.AspNetCore.Routing;
+						using Microsoft.AspNetconstruct.Builder;
+						using Microsoft.AspNetconstruct.Hosting;
+						using Microsoft.AspNetconstruct.Http;
+						using Microsoft.AspNetconstruct.Routing;
 
 						namespace WebAPILambda
 						{
@@ -248,11 +249,11 @@ func TestExpose_Transform(t *testing.T) {
 				{
 					Name: "my-gateway",
 					Routes: []routeMethodPath{
-						{Verb: core.VerbAny, Path: "/any-path"},
-						{Verb: core.VerbGet, Path: "/path"},
-						{Verb: core.VerbPost, Path: "/path"},
-						{Verb: core.VerbPut, Path: "/path"},
-						{Verb: core.VerbDelete, Path: "/other-path"},
+						{Verb: types.VerbAny, Path: "/any-path"},
+						{Verb: types.VerbGet, Path: "/path"},
+						{Verb: types.VerbPost, Path: "/path"},
+						{Verb: types.VerbPut, Path: "/path"},
+						{Verb: types.VerbDelete, Path: "/other-path"},
 					},
 				},
 			},
@@ -267,9 +268,9 @@ func TestExpose_Transform(t *testing.T) {
 					{
 						Path: "Startup.cs",
 						Content: `
-						using Microsoft.AspNetCore.Builder;
-						using Microsoft.AspNetCore.Hosting;
-						using Microsoft.AspNetCore.Http;
+						using Microsoft.AspNetconstruct.Builder;
+						using Microsoft.AspNetconstruct.Hosting;
+						using Microsoft.AspNetconstruct.Http;
 						using Microsoft.Extensions.Configuration;
 						using Microsoft.Extensions.DependencyInjection;
 						using Microsoft.Extensions.Hosting;
@@ -305,7 +306,7 @@ func TestExpose_Transform(t *testing.T) {
 						Path: "controller1.cs",
 						Content: `
 						using System;
-						using Microsoft.AspNetCore.Mvc;
+						using Microsoft.AspNetconstruct.Mvc;
 						
 						namespace WebAPILambda.Controllers
 						{
@@ -327,9 +328,9 @@ func TestExpose_Transform(t *testing.T) {
 					{
 						Path: "Startup.cs",
 						Content: `
-						using Microsoft.AspNetCore.Builder;
-						using Microsoft.AspNetCore.Hosting;
-						using Microsoft.AspNetCore.Http;
+						using Microsoft.AspNetconstruct.Builder;
+						using Microsoft.AspNetconstruct.Hosting;
+						using Microsoft.AspNetconstruct.Http;
 						using Microsoft.Extensions.Configuration;
 						using Microsoft.Extensions.DependencyInjection;
 						using Microsoft.Extensions.Hosting;
@@ -364,7 +365,7 @@ func TestExpose_Transform(t *testing.T) {
 						Path: "controller1.cs",
 						Content: `
 						using System;
-						using Microsoft.AspNetCore.Mvc;
+						using Microsoft.AspNetconstruct.Mvc;
 						
 						namespace WebAPILambda.Controllers
 						{
@@ -386,9 +387,9 @@ func TestExpose_Transform(t *testing.T) {
 					{
 						Path: "Startup.cs",
 						Content: `
-						using Microsoft.AspNetCore.Builder;
-						using Microsoft.AspNetCore.Hosting;
-						using Microsoft.AspNetCore.Http;
+						using Microsoft.AspNetconstruct.Builder;
+						using Microsoft.AspNetconstruct.Hosting;
+						using Microsoft.AspNetconstruct.Http;
 						using Microsoft.Extensions.Configuration;
 						using Microsoft.Extensions.DependencyInjection;
 						using Microsoft.Extensions.Hosting;
@@ -418,7 +419,7 @@ func TestExpose_Transform(t *testing.T) {
 						Path: "controller1.cs",
 						Content: `
 						using System;
-						using Microsoft.AspNetCore.Mvc;
+						using Microsoft.AspNetconstruct.Mvc;
 						
 						namespace WebAPILambda.Controllers
 						{
@@ -441,9 +442,9 @@ func TestExpose_Transform(t *testing.T) {
 					{
 						Path: "Startup.cs",
 						Content: `
-						using Microsoft.AspNetCore.Builder;
-						using Microsoft.AspNetCore.Hosting;
-						using Microsoft.AspNetCore.Http;
+						using Microsoft.AspNetconstruct.Builder;
+						using Microsoft.AspNetconstruct.Hosting;
+						using Microsoft.AspNetconstruct.Http;
 						using Microsoft.Extensions.Configuration;
 						using Microsoft.Extensions.DependencyInjection;
 						using Microsoft.Extensions.Hosting;
@@ -479,7 +480,7 @@ func TestExpose_Transform(t *testing.T) {
 						Path: "controller1.cs",
 						Content: `
 						using System;
-						using Microsoft.AspNetCore.Mvc;
+						using Microsoft.AspNetconstruct.Mvc;
 						
 						namespace WebAPILambda.Controllers
 						{
@@ -502,21 +503,21 @@ func TestExpose_Transform(t *testing.T) {
 				{
 					Name: "gateway1",
 					Routes: []routeMethodPath{
-						{Verb: core.VerbGet, Path: "/local-route"},
-						{Verb: core.VerbGet, Path: "/api/controller1"},
+						{Verb: types.VerbGet, Path: "/local-route"},
+						{Verb: types.VerbGet, Path: "/api/controller1"},
 					},
 				},
 				{
 					Name: "gateway2",
 					Routes: []routeMethodPath{
-						{Verb: core.VerbGet, Path: "/local-route"},
+						{Verb: types.VerbGet, Path: "/local-route"},
 					},
 				},
 				{
 					Name: "gateway3",
 					Routes: []routeMethodPath{
-						{Verb: core.VerbAny, Path: "/"},
-						{Verb: core.VerbAny, Path: "/:proxy*"},
+						{Verb: types.VerbAny, Path: "/"},
+						{Verb: types.VerbAny, Path: "/:proxy*"},
 					},
 				},
 			},
@@ -537,7 +538,7 @@ func TestExpose_Transform(t *testing.T) {
 					{
 						Path: "MyController.cs",
 						Content: `
-						using Microsoft.AspNetCore.Mvc;
+						using Microsoft.AspNetconstruct.Mvc;
 						[Route("/api/[controller]")]
 						public class MyController {
 							[Route("child")]
@@ -556,12 +557,12 @@ func TestExpose_Transform(t *testing.T) {
 				{
 					Name: "my-gateway",
 					Routes: []routeMethodPath{
-						{Verb: core.VerbGet, Path: "/api/my"},
-						{Verb: core.VerbDelete, Path: "/api/my"},
-						{Verb: core.VerbPut, Path: "/api/my"},
-						{Verb: core.VerbGet, Path: "/api/my/child"},
-						{Verb: core.VerbGet, Path: "/root/child"},
-						{Verb: core.VerbDelete, Path: "/del"},
+						{Verb: types.VerbGet, Path: "/api/my"},
+						{Verb: types.VerbDelete, Path: "/api/my"},
+						{Verb: types.VerbPut, Path: "/api/my"},
+						{Verb: types.VerbGet, Path: "/api/my/child"},
+						{Verb: types.VerbGet, Path: "/root/child"},
+						{Verb: types.VerbDelete, Path: "/del"},
 					},
 				},
 			},
@@ -580,7 +581,7 @@ func TestExpose_Transform(t *testing.T) {
 					{
 						Path: "MyController.cs",
 						Content: `
-						using Microsoft.AspNetCore.Mvc;
+						using Microsoft.AspNetconstruct.Mvc;
 						public class MyController {
 							[Route("/required/{optional?}")]
 							[Route("/api/required/{default=value}")]
@@ -596,11 +597,11 @@ func TestExpose_Transform(t *testing.T) {
 				{
 					Name: "my-gateway",
 					Routes: []routeMethodPath{
-						{Verb: core.VerbGet, Path: "/required"},
-						{Verb: core.VerbGet, Path: "/required/:optional"},
-						{Verb: core.VerbGet, Path: "/api/required"},
-						{Verb: core.VerbGet, Path: "/api/required/:default"},
-						{Verb: core.VerbGet, Path: "/api/:rest*"},
+						{Verb: types.VerbGet, Path: "/required"},
+						{Verb: types.VerbGet, Path: "/required/:optional"},
+						{Verb: types.VerbGet, Path: "/api/required"},
+						{Verb: types.VerbGet, Path: "/api/required/:default"},
+						{Verb: types.VerbGet, Path: "/api/:rest*"},
 					},
 				},
 			},
@@ -612,14 +613,14 @@ func TestExpose_Transform(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			result := core.NewConstructGraph()
+			result := construct.NewConstructGraph()
 			for uName, files := range tt.units {
-				unit := &core.ExecutionUnit{
-					Executable: core.NewExecutable(),
+				unit := &types.ExecutionUnit{
+					Executable: types.NewExecutable(),
 					Name:       uName,
 				}
 				for _, f := range files {
-					sf, err := core.NewSourceFile(f.Path, strings.NewReader(f.Content), Language)
+					sf, err := types.NewSourceFile(f.Path, strings.NewReader(f.Content), Language)
 					if !assert.NoError(err) {
 						return
 					}
@@ -628,12 +629,12 @@ func TestExpose_Transform(t *testing.T) {
 				result.AddConstruct(unit)
 			}
 			expose := Expose{}
-			err := expose.Transform(&core.InputFiles{}, &core.FileDependencies{}, result)
+			err := expose.Transform(&types.InputFiles{}, &types.FileDependencies{}, result)
 			if !assert.NoError(err) {
 				return
 			}
 
-			gateways := core.GetConstructsOfType[*core.Gateway](result)
+			gateways := construct.GetConstructsOfType[*types.Gateway](result)
 			assert.Equal(len(tt.expectedGateways), len(gateways))
 
 			sort.Slice(gateways, func(i, j int) bool {
@@ -681,7 +682,7 @@ func TestExpose_Transform(t *testing.T) {
 			depsArr := result.ListDependencies()
 
 			assert.Equal(len(tt.expectedDeps), len(depsArr))
-			var eDeps []graph.Edge[core.Construct]
+			var eDeps []graph.Edge[construct.Construct]
 			for _, dep := range tt.expectedDeps {
 				eDeps = append(eDeps, parseDep(dep))
 			}

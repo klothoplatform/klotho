@@ -3,16 +3,17 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_ElasticacheClusterCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[ElasticacheClusterCreateParams, *ElasticacheCluster]{
 		{
 			Name: "nil function",
@@ -24,7 +25,7 @@ func Test_ElasticacheClusterCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ec *ElasticacheCluster) {
 				assert.Equal(ec.Name, "my-app-ec")
-				assert.Equal(ec.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(ec.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -38,14 +39,14 @@ func Test_ElasticacheClusterCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ec *ElasticacheCluster) {
 				assert.Equal(ec.Name, "my-app-ec")
-				assert.Equal(ec.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(ec.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = ElasticacheClusterCreateParams{
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				AppName: "my-app",
 				Name:    "ec",
 			}
@@ -55,9 +56,9 @@ func Test_ElasticacheClusterCreate(t *testing.T) {
 }
 
 func Test_ElasticacheSubnetGroupCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[ElasticacheSubnetgroupCreateParams, *ElasticacheSubnetgroup]{
 		{
 			Name: "nil function",
@@ -69,7 +70,7 @@ func Test_ElasticacheSubnetGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ec *ElasticacheSubnetgroup) {
 				assert.Equal(ec.Name, "my-app-ec")
-				assert.Equal(ec.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(ec.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -83,14 +84,14 @@ func Test_ElasticacheSubnetGroupCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, ec *ElasticacheSubnetgroup) {
 				assert.Equal(ec.Name, "my-app-ec")
-				assert.Equal(ec.ConstructRefs, core.BaseConstructSetOf(eu, eu2))
+				assert.Equal(ec.ConstructRefs, construct.BaseConstructSetOf(eu, eu2))
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = ElasticacheSubnetgroupCreateParams{
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				AppName: "my-app",
 				Name:    "ec",
 			}

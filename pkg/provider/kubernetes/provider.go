@@ -6,7 +6,7 @@ import (
 	"io/fs"
 	"reflect"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
@@ -22,11 +22,11 @@ type (
 func (k *KubernetesProvider) Name() string {
 	return "kubernetes"
 }
-func (k *KubernetesProvider) ListResources() []core.Resource {
+func (k *KubernetesProvider) ListResources() []construct.Resource {
 	return resources.ListAll()
 }
-func (k *KubernetesProvider) CreateResourceFromId(id core.ResourceId, dag *core.ConstructGraph) (core.Resource, error) {
-	typeToResource := make(map[string]core.Resource)
+func (k *KubernetesProvider) CreateResourceFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.Resource, error) {
+	typeToResource := make(map[string]construct.Resource)
 	for _, res := range resources.ListAll() {
 		typeToResource[res.Id().Type] = res
 	}
@@ -35,9 +35,9 @@ func (k *KubernetesProvider) CreateResourceFromId(id core.ResourceId, dag *core.
 		return nil, fmt.Errorf("unable to find resource of type %s", id.Type)
 	}
 	newResource := reflect.New(reflect.TypeOf(res).Elem()).Interface()
-	resource, ok := newResource.(core.Resource)
+	resource, ok := newResource.(construct.Resource)
 	if !ok {
-		return nil, fmt.Errorf("item %s of type %T is not of type core.Resource", id, newResource)
+		return nil, fmt.Errorf("item %s of type %T is not of type construct.Resource", id, newResource)
 	}
 	reflect.ValueOf(resource).Elem().FieldByName("Name").SetString(id.Name)
 
@@ -65,8 +65,8 @@ func (k *KubernetesProvider) CreateResourceFromId(id core.ResourceId, dag *core.
 //go:embed resources/templates/*
 var kubernetesTemplates embed.FS
 
-func (k *KubernetesProvider) GetOperationalTempaltes() map[core.ResourceId]*core.ResourceTemplate {
-	templates := map[core.ResourceId]*core.ResourceTemplate{}
+func (k *KubernetesProvider) GetOperationalTempaltes() map[construct.ResourceId]*construct.ResourceTemplate {
+	templates := map[construct.ResourceId]*construct.ResourceTemplate{}
 	if err := fs.WalkDir(kubernetesTemplates, ".", func(path string, d fs.DirEntry, nerr error) error {
 		if d.IsDir() {
 			return nil
@@ -75,12 +75,12 @@ func (k *KubernetesProvider) GetOperationalTempaltes() map[core.ResourceId]*core
 		if err != nil {
 			panic(err)
 		}
-		resTemplate := &core.ResourceTemplate{}
+		resTemplate := &construct.ResourceTemplate{}
 		err = yaml.Unmarshal(content, resTemplate)
 		if err != nil {
 			panic(err)
 		}
-		id := core.ResourceId{Provider: provider.KUBERNETES, Type: resTemplate.Type}
+		id := construct.ResourceId{Provider: provider.KUBERNETES, Type: resTemplate.Type}
 		if templates[id] != nil {
 			panic(fmt.Errorf("duplicate template for type %s", resTemplate.Type))
 		}

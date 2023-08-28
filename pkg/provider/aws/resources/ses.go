@@ -1,11 +1,11 @@
 package resources
 
-import "github.com/klothoplatform/klotho/pkg/core"
+import "github.com/klothoplatform/klotho/pkg/construct"
 
 type (
 	SesEmailIdentity struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		EmailIdentity string
 	}
 )
@@ -14,21 +14,21 @@ const (
 	SES_EMAIL_IDENTITY = "ses_email_identity"
 )
 
-func (q *SesEmailIdentity) BaseConstructRefs() core.BaseConstructSet {
+func (q *SesEmailIdentity) BaseConstructRefs() construct.BaseConstructSet {
 	return q.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (q *SesEmailIdentity) Id() core.ResourceId {
-	return core.ResourceId{
+func (q *SesEmailIdentity) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     SES_EMAIL_IDENTITY,
 		Name:     q.Name,
 	}
 }
 
-func (q *SesEmailIdentity) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (q *SesEmailIdentity) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
 }

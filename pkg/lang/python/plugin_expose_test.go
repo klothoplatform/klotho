@@ -4,14 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
 
 var testRestAPIHandler = &restAPIHandler{
 	log:  zap.L(),
-	Unit: &core.ExecutionUnit{Name: "testUnit"},
+	Unit: &types.ExecutionUnit{Name: "testUnit"},
 }
 
 func Test_findFastApiApp(t *testing.T) {
@@ -47,11 +47,11 @@ func Test_findFastApiApp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			f, err := core.NewSourceFile("", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
-			var annot *core.Annotation
+			var annot *types.Annotation
 			for _, v := range f.Annotations() {
 				annot = v
 				break
@@ -82,7 +82,7 @@ func Test_fastapiHandler_handleLocalRoutes(t *testing.T) {
 			routePrefix: "",
 			expect: []gatewayRouteDefinition{
 				{
-					Route:         core.Route{Path: "/", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.py"},
+					Route:         types.Route{Path: "/", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.py"},
 					DefinedInPath: "test.py",
 				},
 			},
@@ -93,7 +93,7 @@ func Test_fastapiHandler_handleLocalRoutes(t *testing.T) {
 			varName: "app",
 			expect: []gatewayRouteDefinition{
 				{
-					Route:         core.Route{Path: "/path", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.py"},
+					Route:         types.Route{Path: "/path", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.py"},
 					DefinedInPath: "test.py",
 				},
 			},
@@ -105,7 +105,7 @@ func Test_fastapiHandler_handleLocalRoutes(t *testing.T) {
 			routePrefix: "root-path",
 			expect: []gatewayRouteDefinition{
 				{
-					Route:         core.Route{Path: "root-path/path", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.py"},
+					Route:         types.Route{Path: "root-path/path", Verb: "get", ExecUnitName: "testUnit", HandledInFile: "test.py"},
 					DefinedInPath: "test.py",
 				},
 			},
@@ -114,7 +114,7 @@ func Test_fastapiHandler_handleLocalRoutes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			f, err := core.NewSourceFile("test.py", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("test.py", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}

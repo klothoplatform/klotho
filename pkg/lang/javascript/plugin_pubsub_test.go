@@ -4,7 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -34,7 +35,7 @@ func TestPubSub_rewriteFileEmitters(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			result := core.NewConstructGraph()
+			result := construct.NewConstructGraph()
 			p := &Pubsub{
 				ConstructGraph: result,
 			}
@@ -43,7 +44,7 @@ func TestPubSub_rewriteFileEmitters(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			var annot *core.Annotation
+			var annot *types.Annotation
 			for _, v := range f.Annotations() {
 				annot = v
 				break
@@ -107,7 +108,7 @@ e.emitter.emit('a')`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			result := core.NewConstructGraph()
+			result := construct.NewConstructGraph()
 			p := &Pubsub{
 				ConstructGraph: result,
 			}
@@ -174,7 +175,7 @@ e.emitter.on('a', () => {})`,
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			result := core.NewConstructGraph()
+			result := construct.NewConstructGraph()
 			p := &Pubsub{
 				ConstructGraph: result,
 			}

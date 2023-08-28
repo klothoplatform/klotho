@@ -3,7 +3,7 @@ package resources
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 	"github.com/pkg/errors"
 )
@@ -21,7 +21,7 @@ const (
 type (
 	CloudfrontDistribution struct {
 		Name                         string
-		ConstructRefs                core.BaseConstructSet `yaml:"-"`
+		ConstructRefs                construct.BaseConstructSet `yaml:"-"`
 		Origins                      []*CloudfrontOrigin
 		CloudfrontDefaultCertificate bool
 		Enabled                      bool
@@ -59,15 +59,15 @@ type (
 	}
 
 	CloudfrontOrigin struct {
-		DomainName         core.IaCValue
+		DomainName         construct.IaCValue
 		OriginId           string
-		OriginPath         core.IaCValue
+		OriginPath         construct.IaCValue
 		S3OriginConfig     S3OriginConfig
 		CustomOriginConfig CustomOriginConfig
 	}
 
 	S3OriginConfig struct {
-		OriginAccessIdentity core.IaCValue
+		OriginAccessIdentity construct.IaCValue
 	}
 
 	CustomOriginConfig struct {
@@ -79,17 +79,17 @@ type (
 
 	OriginAccessIdentity struct {
 		Name          string
-		ConstructRefs core.BaseConstructSet `yaml:"-"`
+		ConstructRefs construct.BaseConstructSet `yaml:"-"`
 		Comment       string
 	}
 )
 
 type OriginAccessIdentityCreateParams struct {
 	Name string
-	Refs core.BaseConstructSet
+	Refs construct.BaseConstructSet
 }
 
-func (oai *OriginAccessIdentity) Create(dag *core.ResourceGraph, params OriginAccessIdentityCreateParams) error {
+func (oai *OriginAccessIdentity) Create(dag *construct.ResourceGraph, params OriginAccessIdentityCreateParams) error {
 	oai.Name = params.Name
 	oai.ConstructRefs = params.Refs.Clone()
 	if dag.GetResource(oai.Id()) != nil {
@@ -102,10 +102,10 @@ func (oai *OriginAccessIdentity) Create(dag *core.ResourceGraph, params OriginAc
 type CloudfrontDistributionCreateParams struct {
 	CdnId   string
 	AppName string
-	Refs    core.BaseConstructSet
+	Refs    construct.BaseConstructSet
 }
 
-func (distro *CloudfrontDistribution) Create(dag *core.ResourceGraph, params CloudfrontDistributionCreateParams) error {
+func (distro *CloudfrontDistribution) Create(dag *construct.ResourceGraph, params CloudfrontDistributionCreateParams) error {
 	distro.Name = cloudfrontDistributionSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.CdnId))
 	distro.ConstructRefs = params.Refs.Clone()
 
@@ -118,41 +118,41 @@ func (distro *CloudfrontDistribution) Create(dag *core.ResourceGraph, params Clo
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (distro *CloudfrontDistribution) BaseConstructRefs() core.BaseConstructSet {
+func (distro *CloudfrontDistribution) BaseConstructRefs() construct.BaseConstructSet {
 	return distro.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (distro *CloudfrontDistribution) Id() core.ResourceId {
-	return core.ResourceId{
+func (distro *CloudfrontDistribution) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     CLOUDFRONT_DISTRIBUTION_TYPE,
 		Name:     distro.Name,
 	}
 }
-func (distro *CloudfrontDistribution) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (distro *CloudfrontDistribution) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:   true,
 		RequiresNoDownstream: false,
 	}
 }
 
 // BaseConstructRefs returns AnnotationKey of the klotho resource the cloud resource is correlated to
-func (oai *OriginAccessIdentity) BaseConstructRefs() core.BaseConstructSet {
+func (oai *OriginAccessIdentity) BaseConstructRefs() construct.BaseConstructSet {
 	return oai.ConstructRefs
 }
 
 // Id returns the id of the cloud resource
-func (oai *OriginAccessIdentity) Id() core.ResourceId {
-	return core.ResourceId{
+func (oai *OriginAccessIdentity) Id() construct.ResourceId {
+	return construct.ResourceId{
 		Provider: AWS_PROVIDER,
 		Type:     ORIGIN_ACCESS_IDENTITY_TYPE,
 		Name:     oai.Name,
 	}
 }
 
-func (oai *OriginAccessIdentity) DeleteContext() core.DeleteContext {
-	return core.DeleteContext{
+func (oai *OriginAccessIdentity) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{
 		RequiresNoUpstream:   false,
 		RequiresNoDownstream: false,
 	}

@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp"
 	"github.com/klothoplatform/klotho/pkg/lang/csharp/csproj"
 	"github.com/klothoplatform/klotho/pkg/multierr"
@@ -56,7 +57,7 @@ var dockerfileLambda []byte
 //go:embed Lambda_Dispatcher.cs.tmpl
 var dispatcherLambda []byte
 
-func updateCsproj(unit *core.ExecutionUnit) {
+func updateCsproj(unit *types.ExecutionUnit) {
 	var projectFile *csproj.CSProjFile
 	for _, file := range unit.Files() {
 		if pfile, ok := file.(*csproj.CSProjFile); ok {
@@ -68,7 +69,7 @@ func updateCsproj(unit *core.ExecutionUnit) {
 	projectFile.AddProperty("OutDir", "klotho_bin")
 }
 
-func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
+func (r *AwsRuntime) AddExecRuntimeFiles(unit *types.ExecutionUnit, constructGraph *construct.ConstructGraph) error {
 	var errs multierr.Error
 	var err error
 	var dockerFile []byte
@@ -120,10 +121,16 @@ func resolveAssemblyName(projectFile *csproj.CSProjFile) string {
 	return assembly
 }
 
-func (r *AwsRuntime) getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) (ExposeTemplateData, error) {
-	upstreamGateways := constructGraph.FindUpstreamGateways(unit)
+func (r *AwsRuntime) getExposeTemplateData(unit *types.ExecutionUnit, constructGraph *construct.ConstructGraph) (ExposeTemplateData, error) {
+	var upstreamGateways []*types.Gateway
+	upstreamConstructs := constructGraph.GetUpstreamConstructs(unit)
 
-	var sgw *core.Gateway
+	for _, c := range upstreamConstructs {
+		if gw, ok := c.(*types.Gateway); ok {
+			upstreamGateways = append(upstreamGateways, gw)
+		}
+	}
+	var sgw *types.Gateway
 	var sgwApiType string
 	for _, gw := range upstreamGateways {
 		gwCfg := r.Cfg.GetExpose(gw.Name)

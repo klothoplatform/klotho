@@ -6,7 +6,8 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/io"
 	aws_resources "github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	k8s_resources "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"helm.sh/helm/v3/pkg/chart"
@@ -23,10 +24,10 @@ func (p ChartPlugin) Name() string {
 	return "helm-chart"
 }
 
-func (p ChartPlugin) Translate(dag *core.ResourceGraph) ([]core.File, error) {
+func (p ChartPlugin) Translate(dag *construct.ResourceGraph) ([]io.File, error) {
 
-	clusters := core.GetResources[*aws_resources.EksCluster](dag)
-	var outputFiles []core.File
+	clusters := construct.GetResources[*aws_resources.EksCluster](dag)
+	var outputFiles []io.File
 
 	for _, cluster := range clusters {
 		var helmTemplates []k8s_resources.ManifestFile
@@ -47,7 +48,7 @@ func (p ChartPlugin) Translate(dag *core.ResourceGraph) ([]core.File, error) {
 			}
 		}
 
-		var knownPrereqs []core.Resource
+		var knownPrereqs []construct.Resource
 		for _, chart := range preExistingCharts {
 			knownPrereqs = append(knownPrereqs, chart)
 		}
@@ -58,9 +59,9 @@ func (p ChartPlugin) Translate(dag *core.ResourceGraph) ([]core.File, error) {
 			knownPrereqs = append(knownPrereqs, manifest)
 		}
 
-		prereqDownstreams := make(map[core.Resource]bool)
+		prereqDownstreams := make(map[construct.Resource]bool)
 		for _, prereq := range knownPrereqs {
-			for _, downstream := range core.GetDownstreamResourcesOfType[k8s_resources.ManifestFile](dag, prereq) {
+			for _, downstream := range construct.GetDownstreamResourcesOfType[k8s_resources.ManifestFile](dag, prereq) {
 				prereqDownstreams[downstream] = true
 			}
 		}
@@ -108,7 +109,7 @@ func (p ChartPlugin) Translate(dag *core.ResourceGraph) ([]core.File, error) {
 
 		var preRequisiteCharts []*k8s_resources.HelmChart
 		for _, preExistingChart := range preExistingCharts {
-			downstream := core.GetDownstreamResourcesOfType[k8s_resources.ManifestFile](dag, preExistingChart)
+			downstream := construct.GetDownstreamResourcesOfType[k8s_resources.ManifestFile](dag, preExistingChart)
 			if len(downstream) == 0 {
 				preRequisiteCharts = append(preRequisiteCharts, preExistingChart)
 				continue
@@ -134,7 +135,7 @@ func (p ChartPlugin) Translate(dag *core.ResourceGraph) ([]core.File, error) {
 	return outputFiles, nil
 }
 
-func createChart(name string, cluster core.ResourceId, dag *core.ResourceGraph, templates []k8s_resources.ManifestFile) (*k8s_resources.HelmChart, []core.File, error) {
+func createChart(name string, cluster construct.ResourceId, dag *construct.ResourceGraph, templates []k8s_resources.ManifestFile) (*k8s_resources.HelmChart, []io.File, error) {
 	chartMeta := &chart.Chart{
 		Metadata: &chart.Metadata{
 			Name:        name,
@@ -146,7 +147,7 @@ func createChart(name string, cluster core.ResourceId, dag *core.ResourceGraph, 
 		},
 	}
 
-	var manifestFiles []core.File
+	var manifestFiles []io.File
 	templateValues := make(map[string]any)
 	for _, manifest := range templates {
 		if manifest, ok := manifest.(k8s_resources.ManifestWithValues); ok {
@@ -167,9 +168,9 @@ func createChart(name string, cluster core.ResourceId, dag *core.ResourceGraph, 
 		return nil, nil, err
 	}
 
-	var outputFiles []core.File
+	var outputFiles []io.File
 	outputFiles = append(outputFiles,
-		&core.RawFile{
+		&io.RawFile{
 			FPath:   path.Join("charts", chartMeta.ChartFullPath(), "Chart.yaml"),
 			Content: chartYaml,
 		})
@@ -179,7 +180,7 @@ func createChart(name string, cluster core.ResourceId, dag *core.ResourceGraph, 
 	helmChart := &k8s_resources.HelmChart{
 		Name:          fmt.Sprintf("%s-%s-chart", strings.ToLower(cluster.Name), name),
 		Directory:     path.Join("charts", chartMeta.ChartFullPath()),
-		ConstructRefs: core.BaseConstructSetOf(),
+		ConstructRefs: construct.BaseConstructSetOf(),
 		Cluster:       cluster,
 		IsInternal:    true,
 		Values:        templateValues,

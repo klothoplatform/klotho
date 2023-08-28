@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/pkg/errors"
 	sitter "github.com/smacker/go-tree-sitter"
 )
@@ -19,7 +19,7 @@ func (i *Import) ToString() string {
 	return i.SpecNode.Content()
 }
 
-func GetImportsInFile(f *core.SourceFile) []Import {
+func GetImportsInFile(f *types.SourceFile) []Import {
 	nextMatch := doQuery(f.Tree().RootNode(), findImports)
 	imports := []Import{}
 	for {
@@ -47,7 +47,7 @@ func GetImportsInFile(f *core.SourceFile) []Import {
 	return imports
 }
 
-func GetNamedImportInFile(f *core.SourceFile, namedImport string) Import {
+func GetNamedImportInFile(f *types.SourceFile, namedImport string) Import {
 	imports := GetImportsInFile(f)
 	for _, i := range imports {
 		if i.Package == namedImport {
@@ -57,7 +57,7 @@ func GetNamedImportInFile(f *core.SourceFile, namedImport string) Import {
 	return Import{}
 }
 
-func UpdateImportsInFile(f *core.SourceFile, importsToAdd []Import, importsToRemove []Import) error {
+func UpdateImportsInFile(f *types.SourceFile, importsToAdd []Import, importsToRemove []Import) error {
 
 	imports := GetImportsInFile(f)
 	newImports := []Import{}
@@ -120,7 +120,7 @@ func UpdateImportsInFile(f *core.SourceFile, importsToAdd []Import, importsToRem
 	return nil
 }
 
-func DeleteImportNodes(f *core.SourceFile) error {
+func DeleteImportNodes(f *types.SourceFile) error {
 	for {
 		nextMatch := doQuery(f.Tree().RootNode(), findImports)
 		match, found := nextMatch()

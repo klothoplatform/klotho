@@ -4,8 +4,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +15,7 @@ func Test_environmentVarsAddedToUnit(t *testing.T) {
 	tests := []struct {
 		name         string
 		envVars      map[string]string
-		want         core.EnvironmentVariables
+		want         types.EnvironmentVariables
 		wantExecUnit bool
 	}{
 		{
@@ -30,7 +32,7 @@ func Test_environmentVarsAddedToUnit(t *testing.T) {
 				"key1": "value1",
 				"key2": "value2",
 			},
-			want: core.EnvironmentVariables{
+			want: types.EnvironmentVariables{
 				{
 					Name:  "key1",
 					Value: "value1",
@@ -62,25 +64,25 @@ func Test_environmentVarsAddedToUnit(t *testing.T) {
 				},
 			}
 			p := ExecUnitPlugin{Config: &cfg}
-			result := core.NewConstructGraph()
+			result := construct.NewConstructGraph()
 
-			inputFiles := &core.InputFiles{}
+			inputFiles := &types.InputFiles{}
 			if tt.wantExecUnit {
-				f, err := core.NewSourceFile("test", strings.NewReader("test"), testAnnotationLang)
+				f, err := types.NewSourceFile("test", strings.NewReader("test"), testAnnotationLang)
 				if assert.Nil(err) {
 					inputFiles.Add(f)
 				}
 			} else {
-				inputFiles.Add(&core.FileRef{
+				inputFiles.Add(&io.FileRef{
 					FPath: "test",
 				})
 			}
 
-			err := p.Transform(inputFiles, &core.FileDependencies{}, result)
+			err := p.Transform(inputFiles, &types.FileDependencies{}, result)
 			if !assert.NoError(err) {
 				return
 			}
-			units := core.GetConstructsOfType[*core.ExecutionUnit](result)
+			units := construct.GetConstructsOfType[*types.ExecutionUnit](result)
 			if tt.wantExecUnit {
 				assert.Len(units, 1)
 				assert.ElementsMatch(tt.want, units[0].EnvironmentVariables)

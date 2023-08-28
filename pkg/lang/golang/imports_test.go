@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -65,7 +65,7 @@ func Test_GetImportsInFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			f, err := core.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -120,7 +120,7 @@ func Test_GetNamedImportInFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			f, err := core.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}
@@ -234,7 +234,7 @@ import (
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			f, err := core.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
+			f, err := types.NewSourceFile("test.go", strings.NewReader(tt.source), Language)
 			if !assert.NoError(err) {
 				return
 			}

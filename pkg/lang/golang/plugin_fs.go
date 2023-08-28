@@ -5,7 +5,9 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	klotho_errors "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/query"
@@ -19,14 +21,14 @@ type PersistFsPlugin struct {
 
 func (p PersistFsPlugin) Name() string { return "Persist" }
 
-func (p PersistFsPlugin) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
+func (p PersistFsPlugin) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
 
 	var errs multierr.Error
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range construct.GetConstructsOfType[*types.ExecutionUnit](constructGraph) {
 		for _, goSource := range unit.FilesOfLang(goLang) {
 			resources, err := p.handleFile(goSource, unit)
 			if err != nil {
-				errs.Append(core.WrapErrf(err, "failed to handle persist in unit %s", unit.Name))
+				errs.Append(klotho_errors.WrapErrf(err, "failed to handle persist in unit %s", unit.Name))
 				continue
 			}
 
@@ -40,8 +42,8 @@ func (p PersistFsPlugin) Transform(input *core.InputFiles, fileDeps *core.FileDe
 	return errs.ErrOrNil()
 }
 
-func (p *PersistFsPlugin) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) ([]core.Construct, error) {
-	resources := []core.Construct{}
+func (p *PersistFsPlugin) handleFile(f *types.SourceFile, unit *types.ExecutionUnit) ([]construct.Construct, error) {
+	resources := []construct.Construct{}
 	var errs multierr.Error
 	annots := f.Annotations()
 	for _, annot := range annots {
@@ -62,10 +64,10 @@ func (p *PersistFsPlugin) handleFile(f *core.SourceFile, unit *core.ExecutionUni
 	return resources, errs.ErrOrNil()
 }
 
-func (p *PersistFsPlugin) transformFS(f *core.SourceFile, cap *core.Annotation, result *persistResult, unit *core.ExecutionUnit) (core.Construct, error) {
-	fs := &core.Fs{Name: cap.Capability.ID}
+func (p *PersistFsPlugin) transformFS(f *types.SourceFile, cap *types.Annotation, result *persistResult, unit *types.ExecutionUnit) (construct.Construct, error) {
+	fs := &types.Fs{Name: cap.Capability.ID}
 
-	fsEnvVar := core.GenerateBucketEnvVar(fs)
+	fsEnvVar := types.GenerateBucketEnvVar(fs)
 
 	unit.EnvironmentVariables.Add(fsEnvVar)
 
@@ -99,7 +101,7 @@ type persistResult struct {
 	args       *sitter.Node
 }
 
-func queryFS(file *core.SourceFile, annotation *core.Annotation) *persistResult {
+func queryFS(file *types.SourceFile, annotation *types.Annotation) *persistResult {
 	log := zap.L().With(logging.FileField(file), logging.AnnotationField(annotation))
 
 	fileBlobImport := GetNamedImportInFile(file, "gocloud.dev/blob")

@@ -13,9 +13,10 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/provider/imports"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
@@ -43,16 +44,16 @@ type (
 		childTemplatesByPath          map[string]*template.Template
 	}
 
-	// TemplatesCompiler renders a graph of [core.Resource] nodes by combining each one with its corresponding
+	// TemplatesCompiler renders a graph of [construct.Resource] nodes by combining each one with its corresponding
 	// ResourceCreationTemplate
 	TemplatesCompiler struct {
 		*templatesProvider
 		// resourceGraph is the graph of resources to render
-		resourceGraph *core.ResourceGraph // TODO make this be a core.ResourceGraph, and un-expose that struct's Underlying
+		resourceGraph *construct.ResourceGraph // TODO make this be a construct.ResourceGraph, and un-expose that struct's Underlying
 		// resourceVarNames is a set of all variable names
 		resourceVarNames map[string]struct{}
 		// resourceVarNamesById is a map from resource id to the variable name for that resource
-		resourceVarNamesById map[core.ResourceId]string
+		resourceVarNamesById map[construct.ResourceId]string
 		// ctx is a pointer to the current context being used within the templates compiler. This context is used when parsing values within nested templates.
 		ctx *NestedCtx
 	}
@@ -80,12 +81,12 @@ func (s stringTemplateValue) Raw() interface{} {
 	return s.raw
 }
 
-func CreateTemplatesCompiler(resources *core.ResourceGraph) *TemplatesCompiler {
+func CreateTemplatesCompiler(resources *construct.ResourceGraph) *TemplatesCompiler {
 	return &TemplatesCompiler{
 		templatesProvider:    standardTemplatesProvider(),
 		resourceGraph:        resources,
 		resourceVarNames:     make(map[string]struct{}),
-		resourceVarNamesById: make(map[core.ResourceId]string),
+		resourceVarNamesById: make(map[construct.ResourceId]string),
 	}
 }
 
@@ -238,7 +239,7 @@ func validTemplateMethod(method reflect.Value) error {
 	return nil
 }
 
-func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource) error {
+func (tc TemplatesCompiler) renderResource(out io.Writer, resource construct.Resource) error {
 	defer func() {
 		r := recover()
 		if r == nil {
@@ -385,7 +386,7 @@ func (tc TemplatesCompiler) renderResource(out io.Writer, resource core.Resource
 }
 
 // resolveDependencies creates a string which models an array containing all the variable names, which the resource depends on.
-func (tc TemplatesCompiler) resolveDependencies(resource core.Resource) string {
+func (tc TemplatesCompiler) resolveDependencies(resource construct.Resource) string {
 	type pulumiAllWrap struct {
 		actualVars []string
 		methodVars []string
@@ -466,11 +467,11 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 		if childVal.Kind() == reflect.Pointer && childVal.IsNil() {
 			return "null", nil
 		}
-		if typedChild, ok := childVal.Interface().(core.Resource); ok {
+		if typedChild, ok := childVal.Interface().(construct.Resource); ok {
 			return tc.getVarName(typedChild), nil
-		} else if typedChild, ok := childVal.Interface().(core.ResourceId); ok {
+		} else if typedChild, ok := childVal.Interface().(construct.ResourceId); ok {
 			return tc.getVarNameByResourceId(typedChild), nil
-		} else if typedChild, ok := childVal.Interface().(core.IaCValue); ok {
+		} else if typedChild, ok := childVal.Interface().(construct.IaCValue); ok {
 			output, err := tc.handleIaCValue(typedChild, appliedOutputs, resourceVal)
 			if err != nil {
 				return output, err
@@ -559,7 +560,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 				return output, nil
 			}
 			// Pulumi requires the conditional fields of policy document to have its keys wrapped in [] so we need special handling here
-			if resourceVal.Type() == reflect.TypeOf((*resources.PolicyDocument)(nil)).Elem() && childVal.Type() == reflect.TypeOf((map[core.IaCValue]string)(nil)) {
+			if resourceVal.Type() == reflect.TypeOf((*resources.PolicyDocument)(nil)).Elem() && childVal.Type() == reflect.TypeOf((map[construct.IaCValue]string)(nil)) {
 				buf.WriteString("[")
 				buf.WriteString(output)
 				buf.WriteString("]")
@@ -589,7 +590,7 @@ func (tc TemplatesCompiler) resolveStructInput(resourceVal *reflect.Value, child
 }
 
 // handleIaCValue determines how to retrieve values from a resource given a specific value identifier.
-func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]AppliedOutput, resourceVal *reflect.Value) (string, error) {
+func (tc TemplatesCompiler) handleIaCValue(v construct.IaCValue, appliedOutputs *[]AppliedOutput, resourceVal *reflect.Value) (string, error) {
 	resource := tc.resourceGraph.GetResource(v.ResourceId)
 	property := v.Property
 
@@ -603,12 +604,12 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf("%s.names[%s]", tc.getVarName(resource), property), nil
 	}
 	switch property {
-	case string(core.SECRET_NAME):
+	case string(types.SECRET_NAME):
 		secret := resource.(*resources.Secret)
 		return quoteTsString(secret.Name, true), nil
-	case string(core.BUCKET_NAME):
+	case string(types.BUCKET_NAME):
 		return fmt.Sprintf("%s.bucket", tc.getVarName(resource)), nil
-	case string(core.KV_DYNAMODB_TABLE_NAME):
+	case string(types.KV_DYNAMODB_TABLE_NAME):
 		return fmt.Sprintf("%s.name", tc.getVarName(resource)), nil
 	case resources.BUCKET_REGIONAL_DOMAIN_NAME_IAC_VALUE:
 		return fmt.Sprintf("%s.bucketRegionalDomainName", tc.getVarName(resource)), nil
@@ -632,26 +633,26 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 		return fmt.Sprintf("pulumi.interpolate`${%s.arn}/%s/*`", tc.getVarName(resource), prop), nil
 	case resources.LAMBDA_INTEGRATION_URI_IAC_VALUE:
 		return fmt.Sprintf("%s.invokeArn", tc.getVarName(resource)), nil
-	case core.ALL_RESOURCES_IAC_VALUE:
+	case construct.ALL_RESOURCES_IAC_VALUE:
 		return "*", nil
 	case resources.API_GATEWAY_EXECUTION_CHILD_RESOURCES_IAC_VALUE:
 		return fmt.Sprintf("pulumi.interpolate`${%s.executionArn}/*`", tc.getVarName(resource)), nil
 
-	case string(core.HOST):
+	case string(types.HOST):
 		switch resource.(type) {
 		case *resources.ElasticacheCluster:
 			return fmt.Sprintf("%s.cacheNodes[0].address", tc.getVarName(resource)), nil
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
-	case string(core.PORT):
+	case string(types.PORT):
 		switch resource.(type) {
 		case *resources.ElasticacheCluster:
 			return fmt.Sprintf("%s.cacheNodes[0].port.apply(port => port.toString())", tc.getVarName(resource)), nil
 		default:
 			return "", errors.Errorf("unsupported resource type %T for '%s'", resource, property)
 		}
-	case string(core.CONNECTION_STRING), "host_name":
+	case string(types.CONNECTION_STRING), "host_name":
 		switch res := resource.(type) {
 		case *resources.RdsProxy:
 			downResources := tc.resourceGraph.GetUpstreamDependencies(res)
@@ -775,7 +776,7 @@ func (tc TemplatesCompiler) handleIaCValue(v core.IaCValue, appliedOutputs *[]Ap
 	return "", errors.Errorf("unsupported IaC Value Property %T.%s", resource, property)
 }
 
-func (tc TemplatesCompiler) handleSingleIaCValue(v core.IaCValue) (string, error) {
+func (tc TemplatesCompiler) handleSingleIaCValue(v construct.IaCValue) (string, error) {
 	return tc.handleIaCValue(v, nil, nil)
 }
 
@@ -787,11 +788,11 @@ func (tc TemplatesCompiler) handleSingleIaCValue(v core.IaCValue) (string, error
 // If that ideal variable name hasn't been used yet, this function returns it. If it has been used, we append `_${i}` to
 // it, where ${i} is the lowest positive integer that would give us a new, unique variable name. This isn't expected
 // to happen often, if at all, since ids are globally unique.
-func (tc TemplatesCompiler) getVarName(v core.Resource) string {
+func (tc TemplatesCompiler) getVarName(v construct.Resource) string {
 	return tc.getVarNameByResourceId(v.Id())
 }
 
-func (tc TemplatesCompiler) getVarNameByResourceId(id core.ResourceId) string {
+func (tc TemplatesCompiler) getVarNameByResourceId(id construct.ResourceId) string {
 	if name, alreadyResolved := tc.resourceVarNamesById[id]; alreadyResolved {
 		return name
 	}
@@ -821,7 +822,7 @@ func (tc TemplatesCompiler) parseVal(val reflect.Value) (string, error) {
 	return tc.resolveStructInput(tc.ctx.rootVal, val, tc.ctx.useDoubleQuotes, tc.ctx.appliedOutputs)
 }
 
-func (tp templatesProvider) getTemplate(v core.Resource) (ResourceCreationTemplate, error) {
+func (tp templatesProvider) getTemplate(v construct.Resource) (ResourceCreationTemplate, error) {
 	if _, ok := v.(kubernetes.ManifestFile); ok {
 		if _, isManifest := v.(*kubernetes.Manifest); !isManifest {
 			// We only generate templates for manifest structs, not other kubernetes objects implementing ManifestFile
@@ -883,7 +884,7 @@ func (tp templatesProvider) getNestedTemplate(templatePath string, tc TemplatesC
 	return tmpl, nil
 }
 
-func (tc TemplatesCompiler) GetPackageJSON(v core.Resource) (*javascript.NodePackageJson, error) {
+func (tc TemplatesCompiler) GetPackageJSON(v construct.Resource) (*javascript.NodePackageJson, error) {
 	typeName := structName(v)
 	templateName := camelToSnake(typeName)
 	templateFilePath := templateName + `/package.json`
@@ -903,7 +904,7 @@ func (tc TemplatesCompiler) GetPackageJSON(v core.Resource) (*javascript.NodePac
 }
 
 // renderGlueVars renders additional variables associated with a given resource that do not represent specific cloud resources
-func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource core.Resource) error {
+func (tc TemplatesCompiler) renderGlueVars(out io.Writer, resource construct.Resource) error {
 	var errs multierr.Error
 	switch resource := resource.(type) {
 	case *resources.EksCluster:
@@ -923,9 +924,9 @@ func (tc TemplatesCompiler) addIngressRuleToCluster(out io.Writer, cluster *reso
 	_, err := out.Write([]byte("\n\n"))
 	errs.Append(err)
 
-	cidrBlocks := make([]core.IaCValue, len(cluster.Subnets))
+	cidrBlocks := make([]construct.IaCValue, len(cluster.Subnets))
 	for i, subnet := range cluster.Subnets {
-		cidrBlocks[i] = core.IaCValue{
+		cidrBlocks[i] = construct.IaCValue{
 			ResourceId: subnet.Id(),
 			Property:   resources.CIDR_BLOCK_IAC_VALUE,
 		}
@@ -939,7 +940,7 @@ func (tc TemplatesCompiler) addIngressRuleToCluster(out io.Writer, cluster *reso
 		ToPort:        0,
 		Protocol:      "-1",
 		CidrBlocks:    cidrBlocks,
-		SecurityGroupId: core.IaCValue{
+		SecurityGroupId: construct.IaCValue{
 			ResourceId: cluster.Id(),
 			Property:   resources.CLUSTER_SECURITY_GROUP_ID_IAC_VALUE,
 		},
@@ -1002,8 +1003,8 @@ func (tc TemplatesCompiler) attachToTargetGroup(out io.Writer, tg *resources.Tar
 		attachment := &TargetGroupAttachment{
 			Name:           target.Id.ResourceId.String(),
 			Port:           target.Port,
-			TargetGroupArn: core.IaCValue{ResourceId: tg.Id(), Property: resources.ARN_IAC_VALUE},
-			TargetId:       core.IaCValue{ResourceId: target.Id.ResourceId, Property: resources.ID_IAC_VALUE},
+			TargetGroupArn: construct.IaCValue{ResourceId: tg.Id(), Property: resources.ARN_IAC_VALUE},
+			TargetId:       construct.IaCValue{ResourceId: target.Id.ResourceId, Property: resources.ID_IAC_VALUE},
 		}
 		errs.Append(tc.renderResource(out, attachment))
 
@@ -1015,7 +1016,7 @@ func (tc TemplatesCompiler) attachToTargetGroup(out io.Writer, tg *resources.Tar
 	return errs.ErrOrNil()
 }
 
-func (tc TemplatesCompiler) renderResourceImport(out io.Writer, source core.Resource, imp *imports.Imported, tmpl ResourceCreationTemplate) error {
+func (tc TemplatesCompiler) renderResourceImport(out io.Writer, source construct.Resource, imp *imports.Imported, tmpl ResourceCreationTemplate) error {
 	// TODO delegate to a factory 'import' function on the template or something to allow for customisation
 	varName := tc.getVarName(source)
 	_, err := fmt.Fprintf(out, `const %s = %s.get("%s", "%s")`, varName, tmpl.OutputType, source.Id().Name, imp.ID)

@@ -6,11 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/lang/python"
 	"github.com/klothoplatform/klotho/pkg/runtime"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	kubernetes "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
 	"github.com/pkg/errors"
@@ -90,7 +91,7 @@ func (r *AwsRuntime) GetAppName() string {
 	return r.Cfg.AppName
 }
 
-func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) error {
+func (r *AwsRuntime) AddExecRuntimeFiles(unit *types.ExecutionUnit, constructGraph *construct.ConstructGraph) error {
 	var dockerFile, dispatcher []byte
 	var requirements string
 	unitType := r.Cfg.GetResourceType(unit)
@@ -101,8 +102,8 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 		requirements = execRequirementsLambda
 
 		python.AddRequirements(unit, fsRequirements)
-		unit.EnvironmentVariables.Add(core.InternalStorageVariable)
-		err := r.AddFsRuntimeFiles(unit, core.InternalStorageVariable.Name, "payload")
+		unit.EnvironmentVariables.Add(types.InternalStorageVariable)
+		err := r.AddFsRuntimeFiles(unit, types.InternalStorageVariable.Name, "payload")
 		if err != nil {
 			return err
 		}
@@ -158,10 +159,10 @@ func (r *AwsRuntime) AddExecRuntimeFiles(unit *core.ExecutionUnit, constructGrap
 	return nil
 }
 
-func shouldAddExposeRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) bool {
+func shouldAddExposeRuntimeFiles(unit *types.ExecutionUnit, constructGraph *construct.ConstructGraph) bool {
 
 	for _, res := range constructGraph.GetUpstreamConstructs(unit) {
-		if _, ok := res.(*core.Gateway); ok {
+		if _, ok := res.(*types.Gateway); ok {
 			return true
 		}
 	}
@@ -169,10 +170,15 @@ func shouldAddExposeRuntimeFiles(unit *core.ExecutionUnit, constructGraph *core.
 }
 
 // TODO: look into de-duplicating this function for reuse across languages
-func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.ConstructGraph) (ExposeTemplateData, error) {
-	upstreamGateways := constructGraph.FindUpstreamGateways(unit)
-
-	var sourceGateway *core.Gateway
+func getExposeTemplateData(unit *types.ExecutionUnit, constructGraph *construct.ConstructGraph) (ExposeTemplateData, error) {
+	upstreamConstructs := constructGraph.GetUpstreamConstructs(unit)
+	var upstreamGateways []*types.Gateway
+	for _, res := range upstreamConstructs {
+		if gw, ok := res.(*types.Gateway); ok {
+			upstreamGateways = append(upstreamGateways, gw)
+		}
+	}
+	var sourceGateway *types.Gateway
 	for _, gw := range upstreamGateways {
 		if sourceGateway != nil && (sourceGateway.DefinedIn != gw.DefinedIn || sourceGateway.ExportVarName != gw.ExportVarName) {
 			return ExposeTemplateData{},
@@ -191,7 +197,7 @@ func getExposeTemplateData(unit *core.ExecutionUnit, constructGraph *core.Constr
 	return exposeData, nil
 }
 
-func (r *AwsRuntime) AddExposeRuntimeFiles(unit *core.ExecutionUnit) error {
+func (r *AwsRuntime) AddExposeRuntimeFiles(unit *types.ExecutionUnit) error {
 	python.AddRequirements(unit, exposeRequirements)
 	return nil
 }
@@ -212,7 +218,7 @@ func (r *AwsRuntime) GetSecretRuntimeImportClass(varName string) string {
 	return fmt.Sprintf("import klotho_runtime.secret as %s", varName)
 }
 
-func (r *AwsRuntime) AddKvRuntimeFiles(unit *core.ExecutionUnit) error {
+func (r *AwsRuntime) AddKvRuntimeFiles(unit *types.ExecutionUnit) error {
 	python.AddRequirements(unit, kvRequirements)
 	return r.AddRuntimeFiles(unit, kvRuntimeFiles)
 }
@@ -221,7 +227,7 @@ type FsTemplateData struct {
 	BucketNameEnvVar string
 }
 
-func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName string, id string) error {
+func (r *AwsRuntime) AddFsRuntimeFiles(unit *types.ExecutionUnit, envVarName string, id string) error {
 	python.AddRequirements(unit, fsRequirements)
 	templateData := FsTemplateData{BucketNameEnvVar: envVarName}
 	content, err := fsRuntimeFiles.ReadFile("fs.py.tmpl")
@@ -232,17 +238,17 @@ func (r *AwsRuntime) AddFsRuntimeFiles(unit *core.ExecutionUnit, envVarName stri
 	return err
 }
 
-func (r *AwsRuntime) AddSecretRuntimeFiles(unit *core.ExecutionUnit) error {
+func (r *AwsRuntime) AddSecretRuntimeFiles(unit *types.ExecutionUnit) error {
 	python.AddRequirements(unit, secretRequirements)
 	return r.AddRuntimeFiles(unit, secretRuntimeFiles)
 }
 
-func (r *AwsRuntime) AddOrmRuntimeFiles(unit *core.ExecutionUnit) error {
+func (r *AwsRuntime) AddOrmRuntimeFiles(unit *types.ExecutionUnit) error {
 	python.AddRequirements(unit, ormRequirements)
 	return nil
 }
 
-func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType string) error {
+func (r *AwsRuntime) AddProxyRuntimeFiles(unit *types.ExecutionUnit, proxyType string) error {
 	var fileContents string
 	switch proxyType {
 	case kubernetes.DEPLOYMENT_TYPE:
@@ -254,8 +260,8 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 
 		// We also need to add the Fs files because exec to exec calls in aws use s3
 		python.AddRequirements(unit, fsRequirements)
-		unit.EnvironmentVariables.Add(core.InternalStorageVariable)
-		err := r.AddFsRuntimeFiles(unit, core.InternalStorageVariable.Name, "payload")
+		unit.EnvironmentVariables.Add(types.InternalStorageVariable)
+		err := r.AddFsRuntimeFiles(unit, types.InternalStorageVariable.Name, "payload")
 		if err != nil {
 			return err
 		}
@@ -269,7 +275,7 @@ func (r *AwsRuntime) AddProxyRuntimeFiles(unit *core.ExecutionUnit, proxyType st
 	return nil
 }
 
-func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) error {
+func (r *AwsRuntime) AddRuntimeFiles(unit *types.ExecutionUnit, files embed.FS) error {
 	templateData := TemplateData{
 		ExecUnitName: unit.Name,
 	}
@@ -277,7 +283,7 @@ func (r *AwsRuntime) AddRuntimeFiles(unit *core.ExecutionUnit, files embed.FS) e
 	return err
 }
 
-func (r *AwsRuntime) AddRuntimeFile(unit *core.ExecutionUnit, path string, content []byte) error {
+func (r *AwsRuntime) AddRuntimeFile(unit *types.ExecutionUnit, path string, content []byte) error {
 	templateData := TemplateData{
 		ExecUnitName: unit.Name,
 	}

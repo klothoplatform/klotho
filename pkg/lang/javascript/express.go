@@ -8,8 +8,9 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/query"
@@ -29,7 +30,7 @@ type expressMiddleware struct {
 	ObjectName   string
 	PropertyName string
 	Path         string
-	f            *core.SourceFile
+	f            *types.SourceFile
 }
 
 type expressOutput struct {
@@ -40,7 +41,7 @@ type expressOutput struct {
 
 type expressListner struct {
 	varName      string
-	f            *core.SourceFile
+	f            *types.SourceFile
 	appName      string
 	annotationId string
 }
@@ -48,21 +49,21 @@ type expressListner struct {
 type routeMethodPath struct {
 	Verb string
 	Path string
-	f    *core.SourceFile
+	f    *types.SourceFile
 }
 
 func (p ExpressHandler) Name() string { return "Express" }
 
-func (p ExpressHandler) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
+func (p ExpressHandler) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
 	var errs multierr.Error
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range construct.GetConstructsOfType[*types.ExecutionUnit](constructGraph) {
 		err := p.transformSingle(constructGraph, unit)
 		errs.Append(err)
 	}
 	return errs.ErrOrNil()
 }
 
-func (p *ExpressHandler) transformSingle(constructGraph *core.ConstructGraph, unit *core.ExecutionUnit) error {
+func (p *ExpressHandler) transformSingle(constructGraph *construct.ConstructGraph, unit *types.ExecutionUnit) error {
 
 	execUnitInfo := execUnitExposeInfo{Unit: unit, RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition)}
 	p.output = expressOutput{}
@@ -98,7 +99,7 @@ func (p *ExpressHandler) transformSingle(constructGraph *core.ConstructGraph, un
 	return errs.ErrOrNil()
 }
 
-func (p *ExpressHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit) (*core.SourceFile, error) {
+func (p *ExpressHandler) handleFile(f *types.SourceFile, unit *types.ExecutionUnit) (*types.SourceFile, error) {
 	annots := f.Annotations()
 
 	fileContent := string(f.Program())
@@ -110,7 +111,7 @@ func (p *ExpressHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit
 		}
 
 		if cap.ID == "" {
-			return nil, core.NewCompilerError(f, annot, errors.New("'id' is required"))
+			return nil, types.NewCompilerError(f, annot, errors.New("'id' is required"))
 		}
 
 		// target can be public or private for now
@@ -123,7 +124,7 @@ func (p *ExpressHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit
 			target = "private"
 		}
 		if target != "public" {
-			return nil, core.NewCompilerError(f, annot, errors.New("expose capability must specify target = \"public\""))
+			return nil, types.NewCompilerError(f, annot, errors.New("expose capability must specify target = \"public\""))
 		}
 
 		listen := findListener(annot)
@@ -135,7 +136,7 @@ func (p *ExpressHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit
 
 		appName, err := findApp(listen)
 		if err != nil {
-			return nil, core.NewCompilerError(f, annot, errors.New("Couldn't find expose app creation"))
+			return nil, types.NewCompilerError(f, annot, errors.New("Couldn't find expose app creation"))
 		}
 
 		actedOn, newfileContent := p.actOnAnnotation(f, &listen, fileContent, appName, p.Config.GetResourceType(unit), annot)
@@ -151,7 +152,7 @@ func (p *ExpressHandler) handleFile(f *core.SourceFile, unit *core.ExecutionUnit
 	return f, nil
 }
 
-func (h *ExpressHandler) actOnAnnotation(f *core.SourceFile, listen *exposeListenResult, fileContent string, appName string, unitType string, annot *core.Annotation) (actedOn bool, newfileContent string) {
+func (h *ExpressHandler) actOnAnnotation(f *types.SourceFile, listen *exposeListenResult, fileContent string, appName string, unitType string, annot *types.Annotation) (actedOn bool, newfileContent string) {
 
 	varName := h.findExpress(f)
 	listenVarName := listen.Identifier.Content()
@@ -177,7 +178,7 @@ func (h *ExpressHandler) actOnAnnotation(f *core.SourceFile, listen *exposeListe
 	return
 }
 
-func (h *ExpressHandler) findExpress(f *core.SourceFile) string {
+func (h *ExpressHandler) findExpress(f *types.SourceFile) string {
 	nextMatch := DoQuery(f.Tree().RootNode(), expressApp)
 	for {
 		match, found := nextMatch()
@@ -201,9 +202,9 @@ func (h *ExpressHandler) findExpress(f *core.SourceFile) string {
 	return ""
 }
 
-func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, constructGraph *core.ConstructGraph) error {
+func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, constructGraph *construct.ConstructGraph) error {
 	var errs multierr.Error
-	fileContentUpdate := make(map[*core.SourceFile]string)
+	fileContentUpdate := make(map[*types.SourceFile]string)
 	for _, listener := range h.output.listeners {
 		f := listener.f
 		listenVarName := listener.varName
@@ -268,7 +269,7 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, constru
 					exportName = exportNode.Content()
 				}
 
-				if mwUnit := core.FileExecUnitName(mwFile); mwUnit != "" && info.Unit.Name != mwUnit {
+				if mwUnit := types.FileExecUnitName(mwFile); mwUnit != "" && info.Unit.Name != mwUnit {
 					importAssign := imp.ImportNode
 					mwUse := mw.UseExpr. // call_expression
 								Parent() // expression_statement
@@ -302,7 +303,7 @@ func (h *ExpressHandler) assignRoutesToGateway(info *execUnitExposeInfo, constru
 	return errs.ErrOrNil()
 }
 
-func (h *ExpressHandler) handleLocalRoutes(f *core.SourceFile, varName string, routePrefix string, unitName string) (routes []gatewayRouteDefinition) {
+func (h *ExpressHandler) handleLocalRoutes(f *types.SourceFile, varName string, routePrefix string, unitName string) (routes []gatewayRouteDefinition) {
 	log := h.log.With(logging.FileField(f))
 
 	verbFuncs := h.findVerbFuncs(varName)
@@ -320,22 +321,22 @@ func (h *ExpressHandler) handleLocalRoutes(f *core.SourceFile, varName string, r
 		log.Sugar().Infof("Adding in catchall route for prefix '%s' for middleware '%s'", routePrefix, varName)
 		routes = []gatewayRouteDefinition{
 			{
-				Route: core.Route{
+				Route: types.Route{
 					Path:          routePrefix,
 					ExecUnitName:  unitName,
-					Verb:          core.Verb("ANY"),
+					Verb:          types.Verb("ANY"),
 					HandledInFile: f.Path(),
 				},
 				DefinedInPath: f.Path(),
 			},
 			{
-				Route: core.Route{
+				Route: types.Route{
 					// use a greedy parameter so all requests are routed
 					// NOTE: do not use "proxy" as the parameter name which will truncate
 					// the routePrefix by serverless-express
 					Path:          path.Join(routePrefix, "/:rest*"),
 					ExecUnitName:  unitName,
-					Verb:          core.Verb("ANY"),
+					Verb:          types.Verb("ANY"),
 					HandledInFile: f.Path(),
 				},
 				DefinedInPath: f.Path(),
@@ -346,8 +347,8 @@ func (h *ExpressHandler) handleLocalRoutes(f *core.SourceFile, varName string, r
 	for _, vfunc := range localVerbFuncs {
 		routePath := sanitizeExpressPath(path.Join(routePrefix, vfunc.Path))
 		if routePath == "/:rest*" || routePath == ":rest*" {
-			rootRoute := core.Route{
-				Verb:          core.Verb(vfunc.Verb),
+			rootRoute := types.Route{
+				Verb:          types.Verb(vfunc.Verb),
 				Path:          "/",
 				ExecUnitName:  unitName,
 				HandledInFile: vfunc.f.Path(),
@@ -358,8 +359,8 @@ func (h *ExpressHandler) handleLocalRoutes(f *core.SourceFile, varName string, r
 				DefinedInPath: vfunc.f.Path(),
 			})
 		}
-		route := core.Route{
-			Verb:          core.Verb(vfunc.Verb),
+		route := types.Route{
+			Verb:          types.Verb(vfunc.Verb),
 			Path:          routePath,
 			ExecUnitName:  unitName,
 			HandledInFile: vfunc.f.Path(),
@@ -373,7 +374,7 @@ func (h *ExpressHandler) handleLocalRoutes(f *core.SourceFile, varName string, r
 	return
 }
 
-func (h *ExpressHandler) queryResources(f *core.SourceFile) {
+func (h *ExpressHandler) queryResources(f *types.SourceFile) {
 	h.output.middleware = append(h.output.middleware, query.FindReferencesInFile(
 		f,
 		exposeRouters,
@@ -463,17 +464,17 @@ func (h *ExpressHandler) findVerbFuncs(varName string) []routeMethodPath {
 
 // Validation methods
 
-func validateVerbs(match map[string]*sitter.Node, f *core.SourceFile) bool {
+func validateVerbs(match map[string]*sitter.Node, f *types.SourceFile) bool {
 	prop := match["prop"]
 	funcName := prop.Content()
 	if funcName == "all" {
 		funcName = "any"
 	}
-	_, supported := core.Verbs[core.Verb(strings.ToUpper(funcName))]
+	_, supported := types.Verbs[types.Verb(strings.ToUpper(funcName))]
 	return supported
 }
 
-func validateMw(match map[string]*sitter.Node, f *core.SourceFile) bool {
+func validateMw(match map[string]*sitter.Node, f *types.SourceFile) bool {
 	prop := match["prop"]
 
 	switch {

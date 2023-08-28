@@ -2,6 +2,7 @@ package logging
 
 import (
 	"fmt"
+
 	"go.uber.org/zap/zapcore"
 )
 

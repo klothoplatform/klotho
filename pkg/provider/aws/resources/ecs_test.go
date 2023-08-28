@@ -3,15 +3,16 @@ package resources
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
-	"github.com/klothoplatform/klotho/pkg/core/coretesting"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_EcsServiceCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[EcsServiceCreateParams, *EcsService]{
 		{
 			Name: "nil profile",
@@ -23,7 +24,7 @@ func Test_EcsServiceCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, group *EcsService) {
 				assert.Equal(group.Name, "my-app-service")
-				assert.Equal(group.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(group.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -36,7 +37,7 @@ func Test_EcsServiceCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = EcsServiceCreateParams{
 				AppName:          "my-app",
-				Refs:             core.BaseConstructSetOf(eu),
+				Refs:             construct.BaseConstructSetOf(eu),
 				Name:             "service",
 				LaunchType:       "t3.medium",
 				NetworkPlacement: "private",
@@ -47,9 +48,9 @@ func Test_EcsServiceCreate(t *testing.T) {
 }
 
 func Test_EcsTaskDefinitionCreate(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[EcsTaskDefinitionCreateParams, *EcsTaskDefinition]{
 		{
 			Name: "nil task definition",
@@ -61,7 +62,7 @@ func Test_EcsTaskDefinitionCreate(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, td *EcsTaskDefinition) {
 				assert.Equal(td.Name, "my-app-td")
-				assert.Equal(td.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(td.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -74,7 +75,7 @@ func Test_EcsTaskDefinitionCreate(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = EcsTaskDefinitionCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "td",
 			}
 			tt.Run(t)
@@ -83,9 +84,9 @@ func Test_EcsTaskDefinitionCreate(t *testing.T) {
 }
 
 func Test_EcsCluster(t *testing.T) {
-	eu := &core.ExecutionUnit{Name: "test"}
-	eu2 := &core.ExecutionUnit{Name: "first"}
-	initialRefs := core.BaseConstructSetOf(eu2)
+	eu := &types.ExecutionUnit{Name: "test"}
+	eu2 := &types.ExecutionUnit{Name: "first"}
+	initialRefs := construct.BaseConstructSetOf(eu2)
 	cases := []coretesting.CreateCase[EcsClusterCreateParams, *EcsCluster]{
 		{
 			Name: "nil ecs cluster",
@@ -96,7 +97,7 @@ func Test_EcsCluster(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, cluster *EcsCluster) {
 				assert.Equal(cluster.Name, "my-app-cluster")
-				assert.Equal(cluster.ConstructRefs, core.BaseConstructSetOf(eu))
+				assert.Equal(cluster.ConstructRefs, construct.BaseConstructSetOf(eu))
 			},
 		},
 		{
@@ -109,14 +110,14 @@ func Test_EcsCluster(t *testing.T) {
 			},
 			Check: func(assert *assert.Assertions, cluster *EcsCluster) {
 				assert.Equal(cluster.Name, "my-app-cluster")
-				assert.Equal(cluster.ConstructRefs, initialRefs.CloneWith(core.BaseConstructSetOf(eu)))
+				assert.Equal(cluster.ConstructRefs, initialRefs.CloneWith(construct.BaseConstructSetOf(eu)))
 			}},
 	}
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Params = EcsClusterCreateParams{
 				AppName: "my-app",
-				Refs:    core.BaseConstructSetOf(eu),
+				Refs:    construct.BaseConstructSetOf(eu),
 				Name:    "cluster",
 			}
 			tt.Run(t)

@@ -5,7 +5,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/errors"
+	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	"go.uber.org/zap"
 )
 
@@ -21,12 +22,12 @@ func NewPackageFile(path string, content io.Reader) (*PackageFile, error) {
 
 	err := json.NewDecoder(content).Decode(&f.Content)
 	if err != nil {
-		err = core.WrapErrf(err, "could not decode json for %s", path)
+		err = errors.WrapErrf(err, "could not decode json for %s", path)
 	}
 	return f, err
 }
 
-func (f *PackageFile) Clone() core.File {
+func (f *PackageFile) Clone() klotho_io.File {
 	nf := &PackageFile{
 		path:    f.path,
 		Content: f.Content.Clone(),
@@ -55,7 +56,7 @@ Using version %s`, dep, currentVersion, f.path, dep, version, other.path, curren
 }
 
 func (f *PackageFile) WriteTo(out io.Writer) (int64, error) {
-	counter := &core.CountingWriter{Delegate: out}
+	counter := &klotho_io.CountingWriter{Delegate: out}
 	enc := json.NewEncoder(counter)
 	enc.SetIndent("", "  ")
 	err := enc.Encode(f.Content)

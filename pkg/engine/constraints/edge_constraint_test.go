@@ -1,10 +1,12 @@
 package constraints
 
 import (
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
+
 	"github.com/klothoplatform/klotho/pkg/provider/aws/resources"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,9 +15,9 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 	tests := []struct {
 		name            string
 		constraint      EdgeConstraint
-		resources       []core.Resource
+		resources       []construct.Resource
 		edges           []Edge
-		mappedResources map[core.ResourceId][]core.Resource
+		mappedResources map[construct.ResourceId][]construct.Resource
 		want            bool
 	}{
 		{
@@ -23,12 +25,12 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			constraint: EdgeConstraint{
 				Operator: MustContainConstraintOperator,
 				Target: Edge{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
-				Node: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+				Node: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.RdsInstance{
 					Name: "my_instance",
 				},
@@ -41,12 +43,12 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			},
 			edges: []Edge{
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 				},
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
 			want: true,
@@ -56,12 +58,12 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			constraint: EdgeConstraint{
 				Operator: MustContainConstraintOperator,
 				Target: Edge{
-					Source: core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
-				Node: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+				Node: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.RdsInstance{
 					Name: "my_instance",
 				},
@@ -74,16 +76,16 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			},
 			edges: []Edge{
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 				},
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
-			mappedResources: map[core.ResourceId][]core.Resource{
-				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
+			mappedResources: map[construct.ResourceId][]construct.Resource{
+				{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
 					&resources.LambdaFunction{Name: "my_function"},
 				},
 			},
@@ -94,19 +96,19 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			constraint: EdgeConstraint{
 				Operator: MustContainConstraintOperator,
 				Target: Edge{
-					Source: core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"},
-					Target: core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"},
+					Source: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "my_function"},
+					Target: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.ORM_TYPE, Name: "my_instance"},
 				},
-				Node: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+				Node: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.RdsInstance{
 					Name:          "my_instance",
-					ConstructRefs: core.BaseConstructSetOf(&core.Orm{Name: "my_instance"}),
+					ConstructRefs: construct.BaseConstructSetOf(&types.Orm{Name: "my_instance"}),
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructRefs: core.BaseConstructSetOf(&core.ExecutionUnit{Name: "my_function"}),
+					ConstructRefs: construct.BaseConstructSetOf(&types.ExecutionUnit{Name: "my_function"}),
 				},
 				&resources.RdsProxy{
 					Name: "my_proxy",
@@ -114,19 +116,19 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			},
 			edges: []Edge{
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 				},
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
-			mappedResources: map[core.ResourceId][]core.Resource{
-				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
+			mappedResources: map[construct.ResourceId][]construct.Resource{
+				{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
 					&resources.LambdaFunction{Name: "my_function"},
 				},
-				{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"}: {
+				{Provider: construct.AbstractConstructProvider, Type: types.ORM_TYPE, Name: "my_instance"}: {
 					&resources.RdsInstance{Name: "my_instance"},
 				},
 			},
@@ -137,12 +139,12 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			constraint: EdgeConstraint{
 				Operator: MustContainConstraintOperator,
 				Target: Edge{
-					Source: core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"},
-					Target: core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"},
+					Source: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "my_function"},
+					Target: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.ORM_TYPE, Name: "my_instance"},
 				},
-				Node: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+				Node: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.RdsInstance{
 					Name: "my_instance",
 				},
@@ -161,33 +163,33 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			},
 			edges: []Edge{
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 				},
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function2"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function2"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 				},
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance2"},
+					Source: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance2"},
 				},
 			},
-			mappedResources: map[core.ResourceId][]core.Resource{
-				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
+			mappedResources: map[construct.ResourceId][]construct.Resource{
+				{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
 					&resources.LambdaFunction{Name: "my_function"},
 				},
-				{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"}: {
+				{Provider: construct.AbstractConstructProvider, Type: types.ORM_TYPE, Name: "my_instance"}: {
 					&resources.RdsInstance{Name: "my_instance"},
 				},
-				{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
+				{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "my_function"}: {
 					&resources.LambdaFunction{Name: "my_function2"},
 				},
-				{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"}: {
+				{Provider: construct.AbstractConstructProvider, Type: types.ORM_TYPE, Name: "my_instance"}: {
 					&resources.RdsInstance{Name: "my_instance2"},
 				},
 			},
@@ -198,12 +200,12 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			constraint: EdgeConstraint{
 				Operator: MustContainConstraintOperator,
 				Target: Edge{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
-				Node: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+				Node: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.RdsInstance{
 					Name: "my_instance",
 				},
@@ -216,8 +218,8 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			},
 			edges: []Edge{
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
 			want: false,
@@ -227,27 +229,27 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			constraint: EdgeConstraint{
 				Operator: MustContainConstraintOperator,
 				Target: Edge{
-					Source: core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.EXECUTION_UNIT_TYPE, Name: "my_function"},
-					Target: core.ResourceId{Provider: core.AbstractConstructProvider, Type: core.ORM_TYPE, Name: "my_instance"},
+					Source: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "my_function"},
+					Target: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.ORM_TYPE, Name: "my_instance"},
 				},
-				Node: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+				Node: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.RdsInstance{
 					Name:          "my_instance",
-					ConstructRefs: core.BaseConstructSetOf(&core.Orm{Name: "my_instance"}),
+					ConstructRefs: construct.BaseConstructSetOf(&types.Orm{Name: "my_instance"}),
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function",
-					ConstructRefs: core.BaseConstructSetOf(&core.ExecutionUnit{Name: "my_function"}),
+					ConstructRefs: construct.BaseConstructSetOf(&types.ExecutionUnit{Name: "my_function"}),
 				},
 				&resources.RdsInstance{
 					Name:          "my_instance2",
-					ConstructRefs: core.BaseConstructSetOf(&core.Orm{Name: "my_instance"}),
+					ConstructRefs: construct.BaseConstructSetOf(&types.Orm{Name: "my_instance"}),
 				},
 				&resources.LambdaFunction{
 					Name:          "my_function2",
-					ConstructRefs: core.BaseConstructSetOf(&core.ExecutionUnit{Name: "my_function"}),
+					ConstructRefs: construct.BaseConstructSetOf(&types.ExecutionUnit{Name: "my_function"}),
 				},
 				&resources.RdsProxy{
 					Name: "my_proxy",
@@ -255,12 +257,12 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			},
 			edges: []Edge{
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 				},
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
 
@@ -271,12 +273,12 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			constraint: EdgeConstraint{
 				Operator: MustNotContainConstraintOperator,
 				Target: Edge{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
-				Node: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+				Node: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.RdsInstance{
 					Name: "my_instance",
 				},
@@ -289,8 +291,8 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			},
 			edges: []Edge{
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
 			want: true,
@@ -300,12 +302,12 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			constraint: EdgeConstraint{
 				Operator: MustNotContainConstraintOperator,
 				Target: Edge{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
-				Node: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+				Node: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.RdsInstance{
 					Name: "my_instance",
 				},
@@ -318,12 +320,12 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			},
 			edges: []Edge{
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 				},
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
 			want: false,
@@ -333,12 +335,12 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			constraint: EdgeConstraint{
 				Operator: MustContainConstraintOperator,
 				Target: Edge{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
-				Node: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+				Node: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.RdsInstance{
 					Name: "my_instance",
 				},
@@ -357,11 +359,11 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			constraint: EdgeConstraint{
 				Operator: MustNotExistConstraintOperator,
 				Target: Edge{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.RdsInstance{
 					Name: "my_instance",
 				},
@@ -379,11 +381,11 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			constraint: EdgeConstraint{
 				Operator: MustNotExistConstraintOperator,
 				Target: Edge{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.RdsInstance{
 					Name: "my_instance",
 				},
@@ -396,12 +398,12 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			},
 			edges: []Edge{
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 				},
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
 			want: false,
@@ -411,11 +413,11 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			constraint: EdgeConstraint{
 				Operator: MustExistConstraintOperator,
 				Target: Edge{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.RdsInstance{
 					Name: "my_instance",
 				},
@@ -433,11 +435,11 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			constraint: EdgeConstraint{
 				Operator: MustExistConstraintOperator,
 				Target: Edge{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
-			resources: []core.Resource{
+			resources: []construct.Resource{
 				&resources.RdsInstance{
 					Name: "my_instance",
 				},
@@ -450,12 +452,12 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 			},
 			edges: []Edge{
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Source: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_function"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
 				},
 				{
-					Source: core.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
-					Target: core.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
+					Source: construct.ResourceId{Provider: "aws", Type: "rds_proxy", Name: "my_proxy"},
+					Target: construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 				},
 			},
 			want: true,
@@ -464,7 +466,7 @@ func Test_EdgeConstraint_IsSatisfied(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			dag := core.NewResourceGraph()
+			dag := construct.NewResourceGraph()
 			for _, res := range tt.resources {
 				dag.AddResource(res)
 			}

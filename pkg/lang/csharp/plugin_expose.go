@@ -5,13 +5,14 @@ import (
 	"path"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	klotho_errors "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/filter"
 	"github.com/klothoplatform/klotho/pkg/filter/predicate"
-
 	"github.com/klothoplatform/klotho/pkg/multierr"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/query"
 	"github.com/pkg/errors"
@@ -28,12 +29,12 @@ type (
 		gatewayId       string
 	}
 	gatewayRouteDefinition struct {
-		core.Route
+		types.Route
 		DefinedInPath string
 	}
 	aspDotNetCoreHandler struct {
-		ConstructGraph   *core.ConstructGraph
-		Unit             *core.ExecutionUnit
+		ConstructGraph   *construct.ConstructGraph
+		Unit             *types.ExecutionUnit
 		RoutesByGateway  map[gatewaySpec][]gatewayRouteDefinition
 		RootPath         string
 		log              *zap.Logger
@@ -43,7 +44,7 @@ type (
 	// actionSpec represents a fully parsed ASP.NET Core action method
 	actionSpec struct {
 		method           MethodDeclaration
-		verb             core.Verb
+		verb             types.Verb
 		routeTemplate    string
 		name             string
 		hasRouteTemplate bool // an empty string is a valid routeTemplate value
@@ -75,37 +76,37 @@ type (
 
 	// routeMethodPath is a simple mapping between an HTTP Verb and a path
 	routeMethodPath struct {
-		Verb core.Verb
+		Verb types.Verb
 		Path string
 	}
 )
 
 func (p *Expose) Name() string { return "Expose" }
 
-func (p *Expose) Transform(input *core.InputFiles, fileDeps *core.FileDependencies, constructGraph *core.ConstructGraph) error {
+func (p *Expose) Transform(input *types.InputFiles, fileDeps *types.FileDependencies, constructGraph *construct.ConstructGraph) error {
 	var errs multierr.Error
 
-	for _, unit := range core.GetConstructsOfType[*core.ExecutionUnit](constructGraph) {
+	for _, unit := range construct.GetConstructsOfType[*types.ExecutionUnit](constructGraph) {
 		err := p.transformSingle(constructGraph, unit)
 		errs.Append(err)
 	}
 	return errs.ErrOrNil()
 }
 
-func (p *Expose) transformSingle(constructGraph *core.ConstructGraph, unit *core.ExecutionUnit) error {
+func (p *Expose) transformSingle(constructGraph *construct.ConstructGraph, unit *types.ExecutionUnit) error {
 	h := &aspDotNetCoreHandler{
 		ConstructGraph:  constructGraph,
 		RoutesByGateway: make(map[gatewaySpec][]gatewayRouteDefinition),
 	}
 	err := h.handle(unit)
 	if err != nil {
-		err = core.WrapErrf(err, "ASP.NET Core handler failed for %s", unit.Name)
+		err = klotho_errors.WrapErrf(err, "ASP.NET Core handler failed for %s", unit.Name)
 	}
 
 	return err
 }
 
-func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
+func (h *aspDotNetCoreHandler) handle(unit *types.ExecutionUnit) error {
 	h.Unit = unit
 	h.log = zap.L().With(zap.String("unit", unit.Name))
 
@@ -122,9 +123,9 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 	}
 
 	for spec, routes := range h.RoutesByGateway {
-		gw := core.NewGateway(spec.gatewayId)
+		gw := types.NewGateway(spec.gatewayId)
 		if existing := h.ConstructGraph.GetConstruct(gw.Id()); existing != nil {
-			gw = existing.(*core.Gateway)
+			gw = existing.(*types.Gateway)
 		} else {
 			gw.DefinedIn = spec.FilePath
 			gw.ExportVarName = spec.AppBuilderName
@@ -144,19 +145,19 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 			h.log.Sugar().Infof("Adding catchall route for gateway %+v with no detected routes", spec)
 			routes = []gatewayRouteDefinition{
 				{
-					Route: core.Route{
+					Route: types.Route{
 						Path:          "/",
 						ExecUnitName:  unit.Name,
-						Verb:          core.VerbAny,
+						Verb:          types.VerbAny,
 						HandledInFile: spec.FilePath,
 					},
 					DefinedInPath: spec.FilePath,
 				},
 				{
-					Route: core.Route{
+					Route: types.Route{
 						Path:          "/:proxy*",
 						ExecUnitName:  unit.Name,
-						Verb:          core.VerbAny,
+						Verb:          types.VerbAny,
 						HandledInFile: spec.FilePath,
 					},
 					DefinedInPath: spec.FilePath,
@@ -177,13 +178,13 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 				continue
 			}
 
-			targetUnit := core.FileExecUnitName(targetFile)
+			targetUnit := types.FileExecUnitName(targetFile)
 			if targetUnit == "" {
 				// if the target file is in all units, direct the API gateway to use the unit that defines the listener
 				targetUnit = unit.Name
 			}
-			h.ConstructGraph.AddDependency(gw.Id(), core.ResourceId{
-				Provider: core.AbstractConstructProvider,
+			h.ConstructGraph.AddDependency(gw.Id(), construct.ResourceId{
+				Provider: construct.AbstractConstructProvider,
 				Type:     annotation.ExecutionUnitCapability,
 				Name:     targetUnit,
 			})
@@ -193,7 +194,7 @@ func (h *aspDotNetCoreHandler) handle(unit *core.ExecutionUnit) error {
 	return errs.ErrOrNil()
 }
 
-func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile, error) {
+func (h *aspDotNetCoreHandler) handleFile(f *types.SourceFile) (*types.SourceFile, error) {
 	caps := f.Annotations()
 
 	for _, capAnnotation := range caps {
@@ -210,7 +211,7 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 			target = "private"
 		}
 		if target != "public" {
-			return nil, core.NewCompilerError(f, capAnnotation,
+			return nil, types.NewCompilerError(f, capAnnotation,
 				errors.New("expose capability must specify target = \"public\""))
 
 		}
@@ -236,7 +237,7 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 
 			localRoutes, err := h.findLocallyMappedRoutes(f, endpointRouteBuilderName, "")
 			if err != nil {
-				return nil, core.NewCompilerError(f, capAnnotation, err)
+				return nil, types.NewCompilerError(f, capAnnotation, err)
 			}
 
 			h.RoutesByGateway[gwSpec] = append(h.RoutesByGateway[gwSpec], localRoutes...)
@@ -254,7 +255,7 @@ func (h *aspDotNetCoreHandler) handleFile(f *core.SourceFile) (*core.SourceFile,
 	return f, nil
 }
 
-func findIApplicationBuilder(cap *core.Annotation) []useEndpointsResult {
+func findIApplicationBuilder(cap *types.Annotation) []useEndpointsResult {
 	var results []useEndpointsResult
 	classNode := query.FirstAncestorOfType(cap.Node, "class_declaration")
 	classDeclaration, ok := getDotnetCoreStartupClass(classNode)
@@ -269,8 +270,8 @@ func findIApplicationBuilder(cap *core.Annotation) []useEndpointsResult {
 			break
 		}
 
-		if !IsValidTypeName(match["param1_type"], "Microsoft.AspNetCore.Builder", "IApplicationBuilder") ||
-			!IsValidTypeName(match["param2_type"], "Microsoft.AspNetCore.Hosting", "IWebHostEnvironment") {
+		if !IsValidTypeName(match["param1_type"], "Microsoft.AspNetconstruct.Builder", "IApplicationBuilder") ||
+			!IsValidTypeName(match["param2_type"], "Microsoft.AspNetconstruct.Hosting", "IWebHostEnvironment") {
 			continue
 		}
 
@@ -324,12 +325,12 @@ func (h *aspDotNetCoreHandler) findVerbMappings(root *sitter.Node, varName strin
 			continue // wrong var (not the IApplicationBuilder we're looking for)
 		}
 
-		verb := core.Verb(strings.ToUpper(strings.TrimPrefix(methodName.Content(), "Map")))
+		verb := types.Verb(strings.ToUpper(strings.TrimPrefix(methodName.Content(), "Map")))
 		if verb == "" {
-			verb = core.VerbAny
+			verb = types.VerbAny
 		}
 
-		if _, supported := core.Verbs[core.Verb(verb)]; !supported {
+		if _, supported := types.Verbs[types.Verb(verb)]; !supported {
 			continue // unsupported verb
 		}
 
@@ -361,8 +362,8 @@ func areControllersInjected(startupClass *sitter.Node) bool {
 
 }
 
-// findLocallyMappedRoutes finds any routes defined on varName declared in core.SourceFile f
-func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *core.SourceFile, varName string, prefix string) ([]gatewayRouteDefinition, error) {
+// findLocallyMappedRoutes finds any routes defined on varName declared in types.SourceFile f
+func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *types.SourceFile, varName string, prefix string) ([]gatewayRouteDefinition, error) {
 	var routes = make([]gatewayRouteDefinition, 0)
 
 	verbFuncs, err := h.findVerbMappings(f.Tree().RootNode(), varName)
@@ -376,7 +377,7 @@ func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *core.SourceFile, varNa
 		nonOptionalRoute := stripOptionalLastSegment(vfunc.Path)
 		if nonOptionalRoute != vfunc.Path {
 			routes = append(routes, gatewayRouteDefinition{
-				Route: core.Route{
+				Route: types.Route{
 					Verb:          vfunc.Verb,
 					Path:          strings.ToLower(sanitizeConventionalPath(path.Join("/", h.RootPath, prefix, nonOptionalRoute))),
 					ExecUnitName:  h.Unit.Name,
@@ -386,7 +387,7 @@ func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *core.SourceFile, varNa
 			})
 		}
 
-		route := core.Route{
+		route := types.Route{
 			Verb: vfunc.Verb,
 			// using lowercase routes enforces consistency
 			// since ASP.NET core is case-insensitive and API Gateway is case-sensitive
@@ -405,16 +406,16 @@ func (h *aspDotNetCoreHandler) findLocallyMappedRoutes(f *core.SourceFile, varNa
 
 // findControllersInFile returns the specs for each controller found in the supplied file
 // controller docs: https://learn.microsoft.com/en-us/aspnet/core/mvc/controllers/actions?view=aspnetcore-7.0
-func (h *aspDotNetCoreHandler) findControllersInFile(file *core.SourceFile) []controllerSpec {
+func (h *aspDotNetCoreHandler) findControllersInFile(file *types.SourceFile) []controllerSpec {
 	types := FindDeclarationsInFile[*TypeDeclaration](file).Declarations()
 	controllers := filter.NewSimpleFilter(
 		predicate.AnyOf(
 			HasBaseWithSuffix("Controller"),
 			NameHasSuffix[*TypeDeclaration]("Controller"),
-			HasAttribute[*TypeDeclaration]("Microsoft.AspNetCore.Mvc.Controller"),
-			HasAttribute[*TypeDeclaration]("Microsoft.AspNetCore.Mvc.ApiController"),
+			HasAttribute[*TypeDeclaration]("Microsoft.AspNetconstruct.Mvc.Controller"),
+			HasAttribute[*TypeDeclaration]("Microsoft.AspNetconstruct.Mvc.ApiController"),
 		),
-		predicate.Not(HasAttribute[*TypeDeclaration]("Microsoft.AspNetCore.Mvc.NonController")),
+		predicate.Not(HasAttribute[*TypeDeclaration]("Microsoft.AspNetconstruct.Mvc.NonController")),
 	).Apply(types...)
 	var controllerSpecs []controllerSpec
 	for _, c := range controllers {
@@ -460,7 +461,7 @@ func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 
 			verb := action.verb
 			if verb == "" {
-				verb = core.VerbAny
+				verb = types.VerbAny
 			}
 
 			// add fixed route for second to last segment if last routeTemplate segment is an optional param
@@ -468,7 +469,7 @@ func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 			nonOptionalRoute := stripOptionalLastSegment(routeTemplate)
 			if nonOptionalRoute != routeTemplate {
 				routes = append(routes, gatewayRouteDefinition{
-					Route: core.Route{
+					Route: types.Route{
 						Verb: verb,
 						Path: strings.ToLower(
 							sanitizeAttributeBasedPath(nonOptionalRoute, c.area, c.name, action.name)),
@@ -480,7 +481,7 @@ func (c controllerSpec) resolveRoutes() []gatewayRouteDefinition {
 			}
 
 			routes = append(routes, gatewayRouteDefinition{
-				Route: core.Route{
+				Route: types.Route{
 					Verb: verb,
 					// using lowercase routes enforces consistency
 					// since ASP.NET Core is case-insensitive and API Gateway is case-sensitive
@@ -512,7 +513,7 @@ func findActionsInController(controller TypeDeclaration) []actionSpec {
 // parseControllerAttributes returns a list of controllerAttributeSpecs containing routing information
 // for the supplied controller based on its applied attributes
 func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSpec {
-	attrs := controller.Attributes().OfType("Microsoft.AspNetCore.Mvc.Route", "Microsoft.AspNetCore.Mvc.Area")
+	attrs := controller.Attributes().OfType("Microsoft.AspNetconstruct.Mvc.Route", "Microsoft.AspNetconstruct.Mvc.Area")
 	attrSpec := controllerAttributeSpec{}
 	for _, attr := range attrs {
 		args := attr.Args()
@@ -535,24 +536,24 @@ func parseControllerAttributes(controller TypeDeclaration) controllerAttributeSp
 func parseActionAttributes(method MethodDeclaration) []actionSpec {
 	allAttrs := method.Attributes()
 
-	if _, nonAction := allAttrs["Microsoft.AspNetCore.Mvc.NonAction"]; nonAction {
+	if _, nonAction := allAttrs["Microsoft.AspNetconstruct.Mvc.NonAction"]; nonAction {
 		return []actionSpec{}
 	}
 
 	verbAttrs := allAttrs.OfType(
-		"Microsoft.AspNetCore.Mvc.HttpGet",
-		"Microsoft.AspNetCore.Mvc.HttpPost",
-		"Microsoft.AspNetCore.Mvc.HttpPut",
-		"Microsoft.AspNetCore.Mvc.HttpPatch",
-		"Microsoft.AspNetCore.Mvc.HttpDelete",
-		"Microsoft.AspNetCore.Mvc.HttpHead",
-		"Microsoft.AspNetCore.Mvc.HttpOptions",
+		"Microsoft.AspNetconstruct.Mvc.HttpGet",
+		"Microsoft.AspNetconstruct.Mvc.HttpPost",
+		"Microsoft.AspNetconstruct.Mvc.HttpPut",
+		"Microsoft.AspNetconstruct.Mvc.HttpPatch",
+		"Microsoft.AspNetconstruct.Mvc.HttpDelete",
+		"Microsoft.AspNetconstruct.Mvc.HttpHead",
+		"Microsoft.AspNetconstruct.Mvc.HttpOptions",
 	)
 	routeAttrs := allAttrs.OfType(
-		"Microsoft.AspNetCore.Mvc.Route",
+		"Microsoft.AspNetconstruct.Mvc.Route",
 	)
 
-	acceptVerbsAttrs := allAttrs.OfType("Microsoft.AspNetCore.Mvc.AcceptVerbs")
+	acceptVerbsAttrs := allAttrs.OfType("Microsoft.AspNetconstruct.Mvc.AcceptVerbs")
 
 	// actions without any attributes are only matched if the controller has a route and there are no other matching routes
 	if len(verbAttrs) == 0 && len(routeAttrs) == 0 && len(acceptVerbsAttrs) == 0 {
@@ -560,7 +561,7 @@ func parseActionAttributes(method MethodDeclaration) []actionSpec {
 			name:             method.Name,
 			method:           method,
 			hasRouteTemplate: false,
-			verb:             core.VerbAny,
+			verb:             types.VerbAny,
 		}}
 	}
 	var specs []actionSpec
@@ -568,8 +569,8 @@ func parseActionAttributes(method MethodDeclaration) []actionSpec {
 	// handle verb attributes
 	for _, verbAttr := range verbAttrs {
 		_, attrName := splitQualifiedName(verbAttr.Name)
-		verb := core.Verb(strings.ToUpper(strings.TrimPrefix(attrName, "Http")))
-		if _, supported := core.Verbs[verb]; !supported {
+		verb := types.Verb(strings.ToUpper(strings.TrimPrefix(attrName, "Http")))
+		if _, supported := types.Verbs[verb]; !supported {
 			continue // unsupported verb
 		}
 		args := verbAttr.Args()
@@ -588,18 +589,18 @@ func parseActionAttributes(method MethodDeclaration) []actionSpec {
 		specs = append(specs, spec)
 	}
 
-	allRoutesVerbs := make(map[core.Verb]struct{})
+	allRoutesVerbs := make(map[types.Verb]struct{})
 
 	// handle [AcceptVerbs] attributes
 	for _, acceptAttr := range acceptVerbsAttrs {
-		var verbs []core.Verb
+		var verbs []types.Verb
 		args := acceptAttr.Args()
 		routeTemplate := ""
 		hasRouteTemplate := false
 		for _, arg := range args {
 			if arg.Name == "" {
-				verb := core.Verb(strings.ToUpper(arg.Value))
-				_, supported := core.Verbs[verb]
+				verb := types.Verb(strings.ToUpper(arg.Value))
+				_, supported := types.Verbs[verb]
 
 				if supported {
 					verbs = append(verbs, verb)
@@ -630,7 +631,7 @@ func parseActionAttributes(method MethodDeclaration) []actionSpec {
 
 	if len(allRoutesVerbs) == 0 {
 		// default to "ANY" if no verb restrictions exist
-		allRoutesVerbs[core.VerbAny] = struct{}{}
+		allRoutesVerbs[types.VerbAny] = struct{}{}
 	}
 
 	// handle [Route] attributes

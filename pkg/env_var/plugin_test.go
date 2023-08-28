@@ -5,15 +5,16 @@ import (
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/annotation"
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_envVarPlugin(t *testing.T) {
 	type testResult struct {
-		resource core.Construct
-		envVars  core.EnvironmentVariables
+		resource construct.Construct
+		envVars  types.EnvironmentVariables
 	}
 	tests := []struct {
 		name    string
@@ -34,16 +35,16 @@ func Test_envVarPlugin(t *testing.T) {
 */
 const a = 1`,
 			want: testResult{
-				resource: &core.RedisNode{Name: "myRedisNode"},
-				envVars: core.EnvironmentVariables{
+				resource: &types.RedisNode{Name: "myRedisNode"},
+				envVars: types.EnvironmentVariables{
 					{
 						Name:      "REDIS_NODE_HOST",
-						Construct: &core.RedisNode{Name: "myRedisNode"},
+						Construct: &types.RedisNode{Name: "myRedisNode"},
 						Value:     "host",
 					},
 					{
 						Name:      "REDIS_NODE_PORT",
-						Construct: &core.RedisNode{Name: "myRedisNode"},
+						Construct: &types.RedisNode{Name: "myRedisNode"},
 						Value:     "port",
 					},
 				},
@@ -62,16 +63,16 @@ const a = 1`,
 */
 const a = 1`,
 			want: testResult{
-				resource: &core.RedisCluster{Name: "myRedisCluster"},
-				envVars: core.EnvironmentVariables{
+				resource: &types.RedisCluster{Name: "myRedisCluster"},
+				envVars: types.EnvironmentVariables{
 					{
 						Name:      "REDIS_HOST",
-						Construct: &core.RedisCluster{Name: "myRedisCluster"},
+						Construct: &types.RedisCluster{Name: "myRedisCluster"},
 						Value:     "host",
 					},
 					{
 						Name:      "REDIS_PORT",
-						Construct: &core.RedisCluster{Name: "myRedisCluster"},
+						Construct: &types.RedisCluster{Name: "myRedisCluster"},
 						Value:     "port",
 					},
 				},
@@ -89,11 +90,11 @@ const a = 1`,
 */
 const a = 1`,
 			want: testResult{
-				resource: &core.Orm{Name: "myOrm"},
-				envVars: core.EnvironmentVariables{
+				resource: &types.Orm{Name: "myOrm"},
+				envVars: types.EnvironmentVariables{
 					{
 						Name:      "ORM_CONNECTION_STRING",
-						Construct: &core.Orm{Name: "myOrm"},
+						Construct: &types.Orm{Name: "myOrm"},
 						Value:     "connection_string",
 					},
 				},
@@ -158,11 +159,11 @@ const a = 1`,
 			}
 			p := EnvVarInjection{}
 
-			unit := &core.ExecutionUnit{Name: "unit"}
+			unit := &types.ExecutionUnit{Name: "unit"}
 			unit.Add(f)
-			result := core.NewConstructGraph()
+			result := construct.NewConstructGraph()
 			result.AddConstruct(unit)
-			err = p.Transform(&core.InputFiles{}, &core.FileDependencies{}, result)
+			err = p.Transform(&types.InputFiles{}, &types.FileDependencies{}, result)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -216,7 +217,7 @@ func Test_parseDirectiveToEnvVars(t *testing.T) {
 const a = 1`,
 			want: EnvironmentVariableDirectiveResult{
 				kind: "redis_node",
-				variables: core.EnvironmentVariables{
+				variables: types.EnvironmentVariables{
 					{
 						Name:  "REDIS_NODE_HOST",
 						Value: "host",
@@ -300,7 +301,7 @@ const a = 1`,
 			if !assert.NoError(err) {
 				return
 			}
-			var annot *core.Annotation
+			var annot *types.Annotation
 			for _, v := range f.Annotations() {
 				annot = v
 				break

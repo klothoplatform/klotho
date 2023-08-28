@@ -1,20 +1,20 @@
 package query
 
 import (
-	"github.com/klothoplatform/klotho/pkg/core"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
 type Reference struct {
-	File        *core.SourceFile
+	File        *types.SourceFile
 	QueryResult map[string]*sitter.Node
 }
 
 func FindReferencesInUnit(
-	lang *core.SourceLanguage,
-	unit *core.ExecutionUnit,
+	lang *types.SourceLanguage,
+	unit *types.ExecutionUnit,
 	matchRefQuery string,
-	validate func(map[string]*sitter.Node, *core.SourceFile) bool,
+	validate func(map[string]*sitter.Node, *types.SourceFile) bool,
 ) []Reference {
 	var matches []Reference
 	for _, f := range unit.Files() {
@@ -28,9 +28,9 @@ func FindReferencesInUnit(
 }
 
 func FindReferencesInFile(
-	file *core.SourceFile,
+	file *types.SourceFile,
 	matchRefQuery string,
-	validate func(map[string]*sitter.Node, *core.SourceFile) bool,
+	validate func(map[string]*sitter.Node, *types.SourceFile) bool,
 ) []Reference {
 
 	var matches []Reference
