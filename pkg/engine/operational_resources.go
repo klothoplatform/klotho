@@ -500,7 +500,7 @@ func (e *Engine) handleOperationalResourceError(err *OperationalResourceError, d
 
 func TemplateConfigure(resource construct.Resource, template construct.ResourceTemplate, dag *construct.ResourceGraph) error {
 	for _, config := range template.Configuration {
-		field, _, err := parseFieldName(resource, config.Field, dag)
+		field, _, err := parseFieldName(resource, config.Field, dag, true)
 		if err != nil {
 			return err
 		}

@@ -23,7 +23,7 @@ type SetMapKey struct {
 // It also takes a graph so that it can resolve references
 // It returns an error if the field cannot be set
 func ConfigureField(resource construct.Resource, fieldName string, value interface{}, zeroValueAllowed bool, graph *construct.ResourceGraph) error {
-	field, setMapKey, err := parseFieldName(resource, fieldName, graph)
+	field, setMapKey, err := parseFieldName(resource, fieldName, graph, true)
 	if err != nil {
 		return err
 	}
@@ -274,7 +274,7 @@ func getFieldFromIdString(id string, dag *construct.ResourceGraph) any {
 		return nil
 	}
 
-	field, _, err := parseFieldName(res, arr[1], dag)
+	field, _, err := parseFieldName(res, arr[1], dag, true)
 	if err != nil {
 		return nil
 	}
@@ -283,7 +283,9 @@ func getFieldFromIdString(id string, dag *construct.ResourceGraph) any {
 
 // ParseFieldName parses a field name and returns the value of the field
 // Example: "spec.template.spec.containers[0].image" will return the value of the image field of the first container in the template
-func parseFieldName(resource construct.Resource, fieldName string, dag *construct.ResourceGraph) (reflect.Value, *SetMapKey, error) {
+//
+// if you pass in configure as false, then the function will not create any new fields if they are nil and rather will return an empty reflect value
+func parseFieldName(resource construct.Resource, fieldName string, dag *construct.ResourceGraph, configure bool) (reflect.Value, *SetMapKey, error) {
 	fields := strings.Split(fieldName, ".")
 	var field reflect.Value
 	var setMapKey *SetMapKey
@@ -308,6 +310,9 @@ func parseFieldName(resource construct.Resource, fieldName string, dag *construc
 		if !field.IsValid() {
 			return reflect.Value{}, nil, fmt.Errorf("unable to find field %s on resource %s, field is not valid", fields[i], resource.Id())
 		} else if field.IsZero() && field.Kind() == reflect.Ptr {
+			if !configure {
+				return reflect.Value{}, nil, nil
+			}
 			newField := reflect.New(field.Type().Elem())
 			field.Set(newField)
 			field = newField
