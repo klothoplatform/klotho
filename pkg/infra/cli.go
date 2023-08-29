@@ -3,6 +3,7 @@ package infra
 import (
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/config"
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/graph_loader"
 	"github.com/klothoplatform/klotho/pkg/infra/iac2"
@@ -19,6 +20,7 @@ var generateIacCfg struct {
 	provider   string
 	inputGraph string
 	outputDir  string
+	appName    string
 }
 
 func (i *IacCli) AddIacCli(root *cobra.Command) error {
@@ -28,16 +30,16 @@ func (i *IacCli) AddIacCli(root *cobra.Command) error {
 		RunE:  i.GenerateIac,
 	}
 	flags := generateCmd.Flags()
-	flags.StringVarP(&generateIacCfg.provider, "provider", "p", "aws", "Provider to use")
-	flags.StringVarP(&generateIacCfg.inputGraph, "inputGraph", "i", "", "Input graph to use")
-	flags.StringVarP(&generateIacCfg.outputDir, "outputDir", "o", "", "Output directory to use")
+	flags.StringVarP(&generateIacCfg.provider, "provider", "p", "pulumi", "Provider to use")
+	flags.StringVarP(&generateIacCfg.inputGraph, "input-graph", "i", "", "Input graph to use")
+	flags.StringVarP(&generateIacCfg.outputDir, "output-dir", "o", "", "Output directory to use")
+	flags.StringVarP(&generateIacCfg.appName, "app-name", "a", "", "App name to use")
 	root.AddCommand(generateCmd)
 	return nil
 }
 
 func (i *IacCli) GenerateIac(cmd *cobra.Command, args []string) error {
 	var files []io.File
-
 	if generateIacCfg.inputGraph != "" {
 		rg, err := graph_loader.LoadResourceGraphFromFile(generateIacCfg.inputGraph)
 		if err != nil {
@@ -52,7 +54,7 @@ func (i *IacCli) GenerateIac(cmd *cobra.Command, args []string) error {
 
 	switch generateIacCfg.provider {
 	case "pulumi":
-		pulumiPlugin := iac2.Plugin{}
+		pulumiPlugin := iac2.Plugin{Config: &config.Application{AppName: generateIacCfg.appName}}
 		iacFiles, err := pulumiPlugin.Translate(i.Graph)
 		if err != nil {
 			return err
