@@ -185,22 +185,12 @@ func (document *CompilationDocument) OutputResources() (resourceCounts map[strin
 		}
 	}
 
-	merr.Append(document.OutputHelpers(outDir))
+	document.OutputFiles = append(document.OutputFiles, document.Resources.OutputResourceFiles()...)
 
 	merr.Append(document.OutputTo(document.Configuration.OutDir))
 	err = merr.ErrOrNil()
 
 	return
-}
-
-func (document *CompilationDocument) OutputHelpers(outDir string) error {
-	var merr multierr.Error
-	for _, resource := range document.Resources.ListResources() {
-		if res, ok := resource.(construct.HasOutputFiles); ok {
-			document.OutputFiles = append(document.OutputFiles, res.GetOutputFiles()...)
-		}
-	}
-	return merr.ErrOrNil()
 }
 
 func newDefaultPostWriteHooksMap() map[string]string {

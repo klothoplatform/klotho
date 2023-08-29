@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
@@ -569,10 +570,13 @@ func (rg *ResourceGraph) CallConfigure(resource Resource, metadata any) error {
 }
 
 func (graph *ResourceGraph) OutputResourceGraph(outDir string) error {
-	err := os.MkdirAll(outDir, 0777)
-	if err != nil {
-		return err
+	if outDir != "" {
+		err := os.MkdirAll(outDir, 0777)
+		if err != nil {
+			return err
+		}
 	}
+
 	var merr multierr.Error
 
 	f, err := os.Create(path.Join(outDir, "resources.yaml"))
@@ -608,4 +612,14 @@ func (graph *ResourceGraph) OutputResourceGraph(outDir string) error {
 		}
 	}
 	return merr.ErrOrNil()
+}
+
+func (graph *ResourceGraph) OutputResourceFiles() []io.File {
+	var files []io.File
+	for _, resource := range graph.ListResources() {
+		if res, ok := resource.(HasOutputFiles); ok {
+			files = append(files, res.GetOutputFiles()...)
+		}
+	}
+	return files
 }

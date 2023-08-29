@@ -29,25 +29,21 @@ func (e *Engine) configureEdges(graph *construct.ResourceGraph) (map[construct.R
 		}
 
 		if e.EdgeTemplates[templateKey] != nil {
-			fmt.Println("edge template found for", templateKey)
 			resourceMap, err := e.EdgeTemplateExpand(*e.EdgeTemplates[templateKey], graph, &dep)
 			if err != nil {
 				joinedErr = errors.Join(joinedErr, err)
 				continue
 			}
-			fmt.Println("edge template expanded for", templateKey)
 			err = e.EdgeTemplateMakeOperational(*e.EdgeTemplates[templateKey], graph, &dep, resourceMap)
 			if err != nil {
 				joinedErr = errors.Join(joinedErr, err)
 				continue
 			}
-			fmt.Println("edge template made operational for", templateKey)
 			err = EdgeTemplateConfigure(*e.EdgeTemplates[templateKey], graph, &dep, resourceMap)
 			if err != nil {
 				joinedErr = errors.Join(joinedErr, err)
 				continue
 			}
-			fmt.Println("edge template configured for", templateKey)
 		}
 
 		err := e.KnowledgeBase.ConfigureEdge(&dep, graph)
@@ -81,14 +77,11 @@ func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, graph *
 	for _, dep := range template.Expansion.Dependencies {
 		id, fields := getIdAndFields(dep.Source)
 		srcRes := graph.GetResource(resourceMap[id].Id())
-		fmt.Println(srcRes.Id(), fields, srcRes)
-		fmt.Printf("%+v\n", srcRes)
 		src, err := getResourceFromIdString(srcRes, fields, graph)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
 			continue
 		}
-		fmt.Println(src.Id())
 		id, fields = getIdAndFields(dep.Destination)
 		dstRes := graph.GetResource(resourceMap[id].Id())
 		dst, err := getResourceFromIdString(dstRes, fields, graph)
@@ -96,7 +89,6 @@ func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, graph *
 			joinedErr = errors.Join(joinedErr, err)
 			continue
 		}
-		fmt.Println(dst.Id())
 		graph.AddDependency(src, dst)
 	}
 	return resourceMap, joinedErr
@@ -178,7 +170,6 @@ func getResourceFromIdString(res construct.Resource, fields string, dag *constru
 	}
 	// we pass in false for the parseFieldName's configure param so that we dont create a resource's interface if it is currently nil, leading to us adding extra resources
 	field, _, err := parseFieldName(res, fields, dag, false)
-	fmt.Println(field)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +178,6 @@ func getResourceFromIdString(res construct.Resource, fields string, dag *constru
 	} else if field.IsNil() {
 		return nil, fmt.Errorf("field %s on resource %s is nil", fields, res.Id())
 	}
-	fmt.Println(field.Interface())
 	res = field.Interface().(construct.Resource)
 	return res, nil
 }
