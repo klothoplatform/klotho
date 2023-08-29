@@ -549,11 +549,37 @@ func (e *Engine) ApplyEdgeConstraint(constraint *constraints.EdgeConstraint) err
 	case constraints.MustExistConstraintOperator:
 		e.Context.WorkingState.AddDependencyWithData(constraint.Target.Source, constraint.Target.Target, knowledgebase.EdgeData{Attributes: constraint.Attributes})
 	case constraints.MustNotExistConstraintOperator:
-		if constraint.Target.Source.Provider == construct.AbstractConstructProvider && constraint.Target.Target.Provider == construct.AbstractConstructProvider {
-			return e.Context.WorkingState.RemoveDependency(constraint.Target.Source, constraint.Target.Target)
-		} else {
-			return fmt.Errorf("edge constraints with the MustNotExistConstraintOperator are not available at this time for resources, %s", constraint.Target)
+
+		paths, err := e.Context.WorkingState.AllPaths(constraint.Target.Source, constraint.Target.Target)
+		if err != nil {
+			return err
 		}
+
+		// first we will remove all dependencies that make up the paths from the constraints source to target
+		for _, path := range paths {
+			var prevRes construct.BaseConstruct
+			for _, res := range path {
+				if prevRes != nil {
+					err := e.Context.WorkingState.RemoveDependency(prevRes.Id(), res.Id())
+					if err != nil {
+						return err
+					}
+				}
+				prevRes = res
+			}
+		}
+
+		// Next we will try to delete any node in those paths in case they no longer are required for the architecture
+		// We will pass the explicit field as false so that explicitly added resources do not get deleted
+		for _, path := range paths {
+			for _, res := range path {
+				resource := e.Context.WorkingState.GetConstruct(res.Id())
+				if resource != nil {
+					e.deleteConstruct(resource, false, false)
+				}
+			}
+		}
+
 	case constraints.MustContainConstraintOperator:
 		err := e.handleEdgeConstainConstraint(constraint)
 		if err != nil {

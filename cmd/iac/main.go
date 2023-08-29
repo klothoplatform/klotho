@@ -1,14 +1,14 @@
 package main
 
 import (
-	"github.com/klothoplatform/klotho/pkg/engine"
+	"github.com/klothoplatform/klotho/pkg/infra"
 	"github.com/spf13/cobra"
 )
 
 func main() {
-	em := &engine.EngineMain{}
+	iac := &infra.IacCli{}
 	var root = &cobra.Command{}
-	err := em.AddEngineCli(root)
+	err := iac.AddIacCli(root)
 	if err != nil {
 		panic(err)
 	}

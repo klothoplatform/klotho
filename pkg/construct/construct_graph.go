@@ -192,11 +192,13 @@ func (cg *ConstructGraph) AllPaths(source ResourceId, dest ResourceId) ([][]Base
 	if err != nil {
 		return nil, err
 	}
-	resources := make([][]BaseConstruct, len(paths))
-	for i, path := range paths {
-		for j, id := range path {
-			resources[i][j] = cg.underlying.GetVertex(id)
+	var resources [][]BaseConstruct
+	for _, path := range paths {
+		var p []BaseConstruct
+		for _, id := range path {
+			p = append(p, cg.underlying.GetVertex(id))
 		}
+		resources = append(resources, p)
 	}
 	return resources, nil
 }

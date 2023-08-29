@@ -18,6 +18,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type (
+	inputMetadata struct {
+		Id       construct.ResourceId `yaml:"id"`
+		Metadata *yaml_util.RawNode   `yaml:"metadata"`
+	}
+	inputGraph struct {
+		Resources        []construct.ResourceId `yaml:"resources"`
+		ResourceMetadata []inputMetadata        `yaml:"resourceMetadata"`
+		Edges            []construct.OutputEdge `yaml:"edges"`
+	}
+)
+
 func loadProviders() map[string]provider.Provider {
 	providerMap := map[string]provider.Provider{
 		"aws":        &aws.AWS{},
@@ -29,18 +41,6 @@ func loadProviders() map[string]provider.Provider {
 
 // LoadConstructGraphFromFile takes in a path to a file and loads in all of the BaseConstructs and edges which exist in the file.
 func LoadConstructGraphFromFile(path string) (*construct.ConstructGraph, error) {
-	type (
-		inputMetadata struct {
-			Id       construct.ResourceId `yaml:"id"`
-			Metadata *yaml_util.RawNode   `yaml:"metadata"`
-		}
-		inputGraph struct {
-			Resources        []construct.ResourceId `yaml:"resources"`
-			ResourceMetadata []inputMetadata        `yaml:"resourceMetadata"`
-			Edges            []construct.OutputEdge `yaml:"edges"`
-		}
-	)
-
 	graph := construct.NewConstructGraph()
 
 	resourcesMap := map[construct.ResourceId]construct.BaseConstruct{}
@@ -82,6 +82,67 @@ func LoadConstructGraphFromFile(path string) (*construct.ConstructGraph, error) 
 	}
 
 	return graph, nil
+}
+
+// LoadResourceGraphFromFile takes in a path to a file and loads in all of the Resources and edges which exist in the file.
+func LoadResourceGraphFromFile(path string) (*construct.ResourceGraph, error) {
+	joinedErr := error(nil)
+	graph := construct.NewResourceGraph()
+
+	resourcesMap := map[construct.ResourceId]construct.BaseConstruct{}
+	var input inputGraph
+	f, err := os.Open(path)
+	if err != nil {
+		return graph, err
+	}
+	defer f.Close() // nolint:errcheck
+	err = yaml.NewDecoder(f).Decode(&input)
+	if err != nil {
+		return graph, err
+	}
+	err = loadConstructs(input.Resources, resourcesMap)
+	if err != nil {
+		return graph, errors.Errorf("Error Loading graph for constructs %s", err.Error())
+	}
+	err = loadResources(input.Resources, resourcesMap, loadProviders())
+	if err != nil {
+		return graph, errors.Errorf("Error Loading graph for providers. %s", err.Error())
+	}
+	for _, metadata := range input.ResourceMetadata {
+		resource := resourcesMap[metadata.Id]
+		err = metadata.Metadata.Decode(resource)
+		if err != nil {
+			return graph, err
+		}
+		err = correctPointers(resource, resourcesMap)
+		if err != nil {
+			return graph, err
+		}
+	}
+	for _, res := range resourcesMap {
+		resource, ok := res.(construct.Resource)
+		if !ok {
+			joinedErr = j_errors.Join(joinedErr, fmt.Errorf("%s is not a resource", res.Id()))
+			continue
+		}
+		graph.AddResource(resource)
+	}
+
+	for _, edge := range input.Edges {
+		src, ok := resourcesMap[edge.Source].(construct.Resource)
+		if !ok {
+			joinedErr = j_errors.Join(joinedErr, fmt.Errorf("%s is not a resource", src.Id()))
+			continue
+		}
+		dst, ok := resourcesMap[edge.Destination].(construct.Resource)
+		if !ok {
+			joinedErr = j_errors.Join(joinedErr, fmt.Errorf("%s is not a resource", dst.Id()))
+			continue
+		}
+		graph.AddDependency(src, dst)
+	}
+
+	return graph, joinedErr
 }
 
 func loadResources(resources []construct.ResourceId, resourcesMap map[construct.ResourceId]construct.BaseConstruct, providers map[string]provider.Provider) error {
