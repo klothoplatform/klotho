@@ -450,7 +450,7 @@ func Test_parseFieldName(t *testing.T) {
 			for _, res := range tt.resources {
 				dag.AddResource(res)
 			}
-			value, setMapKey, err := parseFieldName(tt.resource, tt.fieldName, dag)
+			value, setMapKey, err := parseFieldName(tt.resource, tt.fieldName, dag, true)
 			if tt.wantErr {
 				assert.Error(err)
 				return

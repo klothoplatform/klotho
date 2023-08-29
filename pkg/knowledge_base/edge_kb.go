@@ -380,7 +380,6 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.
 
 // ConfigureEdge calls each edge configure function.
 func (kb EdgeKB) ConfigureEdge(dep *graph.Edge[construct.Resource], dag *construct.ResourceGraph) (err error) {
-	zap.S().Debugf("Configuring Edge for %s -> %s", dep.Source.Id(), dep.Destination.Id())
 	source := reflect.TypeOf(dep.Source)
 	destination := reflect.TypeOf(dep.Destination)
 	edgeData := EdgeData{}
