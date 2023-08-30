@@ -7,12 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/klothoplatform/klotho/pkg/compiler/types"
-	"github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	"github.com/klothoplatform/klotho/pkg/filter"
-	"github.com/klothoplatform/klotho/pkg/graph_loader"
-
 	"github.com/fatih/color"
 	"github.com/gojek/heimdall/v7"
 	"github.com/gojek/heimdall/v7/httpclient"
@@ -28,7 +22,14 @@ import (
 	"github.com/klothoplatform/klotho/pkg/cli_config"
 	"github.com/klothoplatform/klotho/pkg/closenicely"
 	"github.com/klothoplatform/klotho/pkg/compiler"
+	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/engine"
+	"github.com/klothoplatform/klotho/pkg/engine/constraints"
+	engineinput "github.com/klothoplatform/klotho/pkg/engine/input"
+	"github.com/klothoplatform/klotho/pkg/filter"
+	"github.com/klothoplatform/klotho/pkg/graph_loader"
 	"github.com/klothoplatform/klotho/pkg/input"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/updater"
@@ -486,7 +487,12 @@ func (km KlothoMain) run(cmd *cobra.Command, args []string) (err error) {
 			return errors.Errorf("failed to load constraints: %s", err.Error())
 		}
 
-		klothoCompiler.Engine.LoadContext(document.Constructs, c, cfg.appName)
+		klothoCompiler.Engine.Context = engine.EngineContext{
+			Input:        engineinput.Input{AppName: cfg.appName},
+			InitialState: document.Constructs,
+			WorkingState: document.Constructs.Clone(),
+			Constraints:  c,
+		}
 		dag, err := klothoCompiler.Engine.Run()
 		if err != nil {
 			return errors.Errorf("failed to run engine: %s", err.Error())
