@@ -7,9 +7,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/config"
-	"github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	"github.com/klothoplatform/klotho/pkg/graph_loader"
+	"github.com/klothoplatform/klotho/pkg/engine/input"
 	"github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
@@ -40,7 +38,7 @@ var listResourceFieldsConfig struct {
 var architectureEngineCfg struct {
 	provider    string
 	guardrails  string
-	inputGraph  string
+	inputFile   string
 	constraints string
 	outputDir   string
 }
@@ -94,8 +92,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) error {
 	flags = runCmd.Flags()
 	flags.StringVarP(&architectureEngineCfg.provider, "provider", "p", "aws", "Provider to use")
 	flags.StringVar(&architectureEngineCfg.guardrails, "guardrails", "", "Guardrails file")
-	flags.StringVarP(&architectureEngineCfg.inputGraph, "input-graph", "i", "", "Input graph file")
-	flags.StringVarP(&architectureEngineCfg.constraints, "constraints", "c", "", "Constraints file")
+	flags.StringVarP(&architectureEngineCfg.inputFile, "input", "i", "", "Input file")
 	flags.StringVarP(&architectureEngineCfg.outputDir, "output-dir", "o", "", "Output directory")
 
 	root.AddGroup(engineGroup)
@@ -183,39 +180,52 @@ func (em *EngineMain) ListResourceFields(cmd *cobra.Command, args []string) erro
 	return nil
 }
 
-func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
+func (em *EngineMain) createEngine() error {
 	err := em.AddEngine(engineCfg.provider, engineCfg.guardrails)
 	if err != nil {
 		return err
 	}
-	var cg *construct.ConstructGraph
-	if architectureEngineCfg.inputGraph != "" {
-		cg, err = graph_loader.LoadConstructGraphFromFile(architectureEngineCfg.inputGraph)
-		if err != nil {
-			return errors.Errorf("failed to load construct graph: %s", err.Error())
-		}
+
+	f, err := os.Open(architectureEngineCfg.inputFile)
+	if err != nil {
+		return errors.Errorf("failed to open input file: %v", err)
+	}
+	defer f.Close() // nolint:errcheck
+
+	var input input.Input
+	err = yaml.NewDecoder(f).Decode(&input)
+	if err != nil {
+		return errors.Errorf("failed to decode input file: %v", err)
 	}
 
-	constraints, err := constraints.LoadConstraintsFromFile(architectureEngineCfg.constraints)
+	err = em.Engine.ContextFromInput(input)
 	if err != nil {
-		return errors.Errorf("failed to load constraints: %s", err.Error())
+		return errors.Errorf("failed to create engine context from input: %v", err)
 	}
-	em.Engine.LoadContext(cg, constraints, "")
+	return nil
+}
+
+func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
+	err := em.createEngine()
+	if err != nil {
+		return err
+	}
+
 	outputGraph, err := em.Engine.Run()
 	if err != nil {
-		return errors.Errorf("failed to run engine: %s", err.Error())
+		return errors.Errorf("failed to run engine: %v", err)
 	}
 	err = outputGraph.OutputResourceGraph(architectureEngineCfg.outputDir)
 	if err != nil {
-		return errors.Errorf("failed to write output graph: %s", err.Error())
+		return errors.Errorf("failed to write output graph: %v", err)
 	}
 	files, err := em.Engine.VisualizeViews()
 	if err != nil {
-		return errors.Errorf("failed to visualize views: %s", err.Error())
+		return errors.Errorf("failed to visualize views: %v", err)
 	}
 	err = io.OutputTo(files, architectureEngineCfg.outputDir)
 	if err != nil {
-		return errors.Errorf("failed to write output files: %s", err.Error())
+		return errors.Errorf("failed to write output files: %v", err)
 	}
 	return nil
 }

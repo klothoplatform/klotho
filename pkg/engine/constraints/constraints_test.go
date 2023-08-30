@@ -5,17 +5,18 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 func Test_ParseConstraintsFromFile(t *testing.T) {
 	tests := []struct {
-		name string
-		file []byte
-		want map[ConstraintScope][]Constraint
+		name     string
+		contents string
+		want     map[ConstraintScope][]Constraint
 	}{
 		{
 			name: "test",
-			file: []byte(`- scope: application
+			contents: `- scope: application
   operator: add
   node: klotho:execution_unit:my_compute
 - scope: application
@@ -35,7 +36,7 @@ func Test_ParseConstraintsFromFile(t *testing.T) {
   operator: add
   target: aws:rds_instance:my_instance
   property: db_instance_class
-  value: db.t3.micro`),
+  value: db.t3.micro`,
 			want: map[ConstraintScope][]Constraint{
 				ApplicationConstraintScope: {
 					&ApplicationConstraint{
@@ -78,13 +79,17 @@ func Test_ParseConstraintsFromFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			result, err := ParseConstraintsFromFile(tt.file)
+			var cl ConstraintList
+			err := yaml.Unmarshal([]byte(tt.contents), &cl)
 			if !assert.NoError(err) {
 				return
 			}
-			assert.ElementsMatch(tt.want[ApplicationConstraintScope], result[ApplicationConstraintScope])
-			assert.ElementsMatch(tt.want[ConstructConstraintScope], result[ConstructConstraintScope])
-			assert.ElementsMatch(tt.want[EdgeConstraintScope], result[EdgeConstraintScope])
+			result := cl.ByScope()
+
+			assert.ElementsMatch(tt.want[ApplicationConstraintScope], result[ApplicationConstraintScope], "application constraints do not match")
+			assert.ElementsMatch(tt.want[ConstructConstraintScope], result[ConstructConstraintScope], "construct constraints do not match")
+			assert.ElementsMatch(tt.want[EdgeConstraintScope], result[EdgeConstraintScope], "edge constraints do not match")
+			assert.ElementsMatch(tt.want[ResourceConstraintScope], result[ResourceConstraintScope], "resource constraints do not match")
 		})
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
+	"github.com/klothoplatform/klotho/pkg/engine/input"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
@@ -156,6 +157,20 @@ func (e *Engine) LoadContext(initialState *construct.ConstructGraph, constraints
 	} else if e.Context.WorkingState == nil {
 		e.Context.WorkingState = construct.NewConstructGraph()
 	}
+}
+
+func (e *Engine) ContextFromInput(input input.Input) (err error) {
+	e.Context = EngineContext{
+		AppName:                     input.AppName,
+		constructExpansionSolutions: make(map[construct.ResourceId][]*ExpansionSolution),
+		Constraints:                 input.Constraints.ByScope(),
+	}
+	e.Context.InitialState, err = input.Load(e.Providers)
+	if err != nil {
+		return
+	}
+	e.Context.WorkingState = e.Context.InitialState.Clone()
+	return nil
 }
 
 // Run invokes the engine workflow to translate the initial state construct graph into the end state resource graph
