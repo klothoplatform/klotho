@@ -76,8 +76,8 @@ func (a *AWS) CreateConstructFromId(id construct.ResourceId, dag *construct.Cons
 //go:embed resources/templates/*
 var awsTempaltes embed.FS
 
-func (a *AWS) GetOperationalTemplates() map[construct.ResourceId]*construct.ResourceTemplate {
-	templates := map[construct.ResourceId]*construct.ResourceTemplate{}
+func (a *AWS) GetOperationalTemplates() map[construct.ResourceId]*knowledgebase.ResourceTemplate {
+	templates := map[construct.ResourceId]*knowledgebase.ResourceTemplate{}
 	if err := fs.WalkDir(awsTempaltes, ".", func(path string, d fs.DirEntry, nerr error) error {
 		if d.IsDir() {
 			return nil
@@ -86,7 +86,7 @@ func (a *AWS) GetOperationalTemplates() map[construct.ResourceId]*construct.Reso
 		if err != nil {
 			panic(err)
 		}
-		resTemplate := &construct.ResourceTemplate{}
+		resTemplate := &knowledgebase.ResourceTemplate{}
 		err = yaml.Unmarshal(content, resTemplate)
 		if err != nil {
 			panic(err)

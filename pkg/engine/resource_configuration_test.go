@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,13 +14,13 @@ func Test_ConfigureField(t *testing.T) {
 	tests := []struct {
 		name     string
 		resource *enginetesting.MockResource6
-		config   construct.Configuration
+		config   knowledgebase.Configuration
 		want     *enginetesting.MockResource6
 	}{
 		{
 			name:     "simple int",
 			resource: &enginetesting.MockResource6{},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Field1",
 				Value: 1,
 			},
@@ -30,7 +31,7 @@ func Test_ConfigureField(t *testing.T) {
 		{
 			name:     "simple string",
 			resource: &enginetesting.MockResource6{},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Field2",
 				Value: "two",
 			},
@@ -41,7 +42,7 @@ func Test_ConfigureField(t *testing.T) {
 		{
 			name:     "simple bool",
 			resource: &enginetesting.MockResource6{},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Field3",
 				Value: true,
 			},
@@ -52,7 +53,7 @@ func Test_ConfigureField(t *testing.T) {
 		{
 			name:     "simple array",
 			resource: &enginetesting.MockResource6{},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Arr1",
 				Value: []string{"1", "2", "3"},
 			},
@@ -63,7 +64,7 @@ func Test_ConfigureField(t *testing.T) {
 		{
 			name:     "struct array",
 			resource: &enginetesting.MockResource6{},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Arr2",
 				Value: []map[string]interface{}{
 					{
@@ -96,7 +97,7 @@ func Test_ConfigureField(t *testing.T) {
 		{
 			name:     "pointer array",
 			resource: &enginetesting.MockResource6{},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Arr3",
 				Value: []map[string]interface{}{
 					{
@@ -129,7 +130,7 @@ func Test_ConfigureField(t *testing.T) {
 		{
 			name:     "struct",
 			resource: &enginetesting.MockResource6{},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Struct1", Value: map[string]interface{}{
 					"Field1": 1,
 					"Field2": "two",
@@ -149,7 +150,7 @@ func Test_ConfigureField(t *testing.T) {
 		{
 			name:     "pointer",
 			resource: &enginetesting.MockResource6{},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Struct2", Value: map[string]interface{}{
 					"Field1": 1,
 					"Field2": "two",
@@ -169,7 +170,7 @@ func Test_ConfigureField(t *testing.T) {
 		{
 			name:     "pointer sub field",
 			resource: &enginetesting.MockResource6{},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Struct2.Field1", Value: 3,
 			},
 			want: &enginetesting.MockResource6{
@@ -181,7 +182,7 @@ func Test_ConfigureField(t *testing.T) {
 		{
 			name:     "struct sub field",
 			resource: &enginetesting.MockResource6{},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Struct1.Field1", Value: 4,
 			},
 			want: &enginetesting.MockResource6{
@@ -201,7 +202,7 @@ func Test_ConfigureField(t *testing.T) {
 					},
 				},
 			},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Arr2", Value: []map[string]interface{}{
 					{
 						"Field1": 2,
@@ -225,7 +226,7 @@ func Test_ConfigureField(t *testing.T) {
 					},
 				},
 			},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Arr2", Value: []map[string]interface{}{
 					{
 						"Field1": 1,
@@ -243,7 +244,7 @@ func Test_ConfigureField(t *testing.T) {
 			resource: &enginetesting.MockResource6{
 				Arr1: []string{"1", "2", "3"},
 			},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Arr1", Value: []string{"1", "2", "3", "4"},
 			},
 			want: &enginetesting.MockResource6{
@@ -257,7 +258,7 @@ func Test_ConfigureField(t *testing.T) {
 					"key1": {ResourceId: construct.ResourceId{Name: "a"}, Property: "value1"},
 				},
 			},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Map1[key1]", Value: map[string]interface{}{
 					"Property": "value2",
 				},
@@ -275,7 +276,7 @@ func Test_ConfigureField(t *testing.T) {
 					"key1": {ResourceId: construct.ResourceId{Name: "a"}, Property: "value1"},
 				},
 			},
-			config: construct.Configuration{
+			config: knowledgebase.Configuration{
 				Field: "Map1[key1].Property", Value: "value2",
 			},
 			want: &enginetesting.MockResource6{

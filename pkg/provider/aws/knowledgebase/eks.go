@@ -166,7 +166,7 @@ var EksKB = knowledgebase.Build(
 	knowledgebase.EdgeBuilder[*kubernetes.HelmChart, *resources.PrivateDnsNamespace]{},
 	knowledgebase.EdgeBuilder[*resources.TargetGroup, *kubernetes.TargetGroupBinding]{
 		DeploymentOrderReversed: true,
-		Reuse:                   knowledgebase.Downstream,
+		Reuse:                   knowledgebase.ReuseDownstream,
 		Configure: func(targetGroup *resources.TargetGroup, tgBinding *kubernetes.TargetGroupBinding, dag *construct.ResourceGraph, data knowledgebase.EdgeData) error {
 			if tgBinding.Object == nil {
 				return fmt.Errorf("%s has no object", tgBinding.Id())

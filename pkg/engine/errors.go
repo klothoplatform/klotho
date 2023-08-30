@@ -4,13 +4,14 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
 
 type (
 	OperationalResourceError struct {
 		Needs      []string
 		Count      int
-		Direction  construct.Direction
+		Direction  knowledgebase.Direction
 		Resource   construct.Resource
 		Parent     construct.Resource
 		MustCreate bool

@@ -28,7 +28,7 @@ type (
 		// The constructs which the engine understands
 		Constructs []construct.Construct
 		// The templates that the engine uses to make resources operational
-		ResourceTemplates map[construct.ResourceId]*construct.ResourceTemplate
+		ResourceTemplates map[construct.ResourceId]*knowledgebase.ResourceTemplate
 		// The templates that the engine uses to make edges operational
 		EdgeTemplates map[string]*knowledgebase.EdgeTemplate
 		// The context of the engine
@@ -90,7 +90,7 @@ func NewEngine(providers map[string]provider.Provider, kb knowledgebase.EdgeKB, 
 		ClassificationDocument: classification.BaseClassificationDocument,
 	}
 	_ = engine.LoadGuardrails([]byte(""))
-	engine.ResourceTemplates = make(map[construct.ResourceId]*construct.ResourceTemplate)
+	engine.ResourceTemplates = make(map[construct.ResourceId]*knowledgebase.ResourceTemplate)
 	for _, p := range providers {
 		for id, template := range p.GetOperationalTemplates() {
 			engine.ResourceTemplates[id] = template

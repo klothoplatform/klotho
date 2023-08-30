@@ -13,9 +13,9 @@ import (
 type DockerProvider struct {
 }
 
-func (a *DockerProvider) GetOperationalTemplates() map[construct.ResourceId]*construct.ResourceTemplate {
+func (a *DockerProvider) GetOperationalTemplates() map[construct.ResourceId]*knowledgebase.ResourceTemplate {
 	// Not implemented
-	return map[construct.ResourceId]*construct.ResourceTemplate{}
+	return map[construct.ResourceId]*knowledgebase.ResourceTemplate{}
 }
 
 func (a *DockerProvider) GetEdgeTemplates() map[string]*knowledgebase.EdgeTemplate {
