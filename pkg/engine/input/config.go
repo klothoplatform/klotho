@@ -9,7 +9,6 @@ type Config struct {
 	Node   construct.ResourceId `yaml:"node"`
 	Source construct.ResourceId `yaml:"source"`
 	Target construct.ResourceId `yaml:"target"`
-	Config string               `yaml:"config"`
 	params *yaml.Node           `yaml:"-"`
 }
 

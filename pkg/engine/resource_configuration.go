@@ -19,6 +19,8 @@ type SetMapKey struct {
 	Value reflect.Value
 }
 
+var resourceIdType = reflect.TypeOf(construct.ResourceId{})
+
 // ConfigureField is a function that takes a resource, a field name, and a value and sets the field on the resource to the value
 // It also takes a graph so that it can resolve references
 // It returns an error if the field cannot be set
@@ -43,7 +45,7 @@ func ConfigureField(resource construct.Resource, fieldName string, value interfa
 	case reflect.Pointer, reflect.Struct:
 		// Since there can be pointers to primitive types and others, we will ensure that those still work
 		if field.Kind() == reflect.Pointer && field.Elem().Kind() != reflect.Struct {
-			if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value).String() == "construct.ResourceId" {
+			if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value) == resourceIdType {
 				return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.Id(), field.Type(), reflect.TypeOf(value))
 			}
 		} else if reflect.ValueOf(value).Kind() != reflect.Map && !field.Type().Implements(reflect.TypeOf((*construct.Resource)(nil)).Elem()) && field.Type() != reflect.TypeOf(construct.ResourceId{}) {
@@ -54,7 +56,7 @@ func ConfigureField(resource construct.Resource, fieldName string, value interfa
 			return err
 		}
 	default:
-		if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value).String() == "construct.ResourceId" {
+		if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value) == resourceIdType {
 			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.Id(), field.Type(), reflect.TypeOf(value))
 		}
 		err := configureField(value, field, graph, zeroValueAllowed)
@@ -94,7 +96,7 @@ func configureField(val interface{}, field reflect.Value, dag *construct.Resourc
 			}
 			field.Elem().Set(reflect.ValueOf(res).Elem())
 			return nil
-		} else if field.Type().Implements(reflect.TypeOf((*construct.Resource)(nil)).Elem()) && reflect.ValueOf(val).Type().String() == "construct.ResourceId" {
+		} else if field.Type().Implements(reflect.TypeOf((*construct.Resource)(nil)).Elem()) && reflect.ValueOf(val).Type() == resourceIdType {
 			id := val.(construct.ResourceId)
 			res := getFieldFromIdString(id.String(), dag)
 			// if the return type is a resource id we need to get the correlating resource object
@@ -232,7 +234,7 @@ func configureField(val interface{}, field reflect.Value, dag *construct.Resourc
 			field.Set(reflect.ValueOf(val))
 		}
 	default:
-		if field.Kind() == reflect.String && reflect.TypeOf(val).Kind() != reflect.String && reflect.TypeOf(val).Elem().String() == "construct.ResourceId" {
+		if field.Kind() == reflect.String && reflect.TypeOf(val).Kind() != reflect.String && reflect.TypeOf(val).Elem() == resourceIdType {
 			id := val.(*construct.ResourceId)
 			strVal := getFieldFromIdString(id.String(), dag)
 			if strVal != nil {
