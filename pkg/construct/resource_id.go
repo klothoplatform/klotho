@@ -60,6 +60,9 @@ func (id *ResourceId) UnmarshalText(data []byte) error {
 	} else {
 		id.Name = parts[2]
 	}
+	if id.IsZero() {
+		return nil
+	}
 	var err error
 	if !resourceProviderPattern.MatchString(id.Provider) {
 		err = errors.Join(err, fmt.Errorf("invalid provider '%s' (must match %s)", id.Provider, resourceProviderPattern))
