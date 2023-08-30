@@ -586,26 +586,29 @@ func (graph *ResourceGraph) OutputResourceGraph(outDir string) error {
 		defer f.Close()
 		enc := yaml.NewEncoder(f)
 
-		outputGraph := OutputGraph{}
-		for _, res := range graph.ListResources() {
-			outputGraph.Resources = append(outputGraph.Resources, res.Id())
+		outputGraph := OutputGraph{
+			Resources: make(map[ResourceId]BaseConstruct),
+		}
+		resources, err := graph.TopologicalSort()
+		if err != nil {
+			return err
+		}
+		for _, res := range resources {
 			md := &map[interface{}]interface{}{}
 			err := mapstructure.Decode(res, md)
 			if err != nil {
 				merr.Append(errors.Wrap(err, "error decoding resource metadata"))
 			}
-			outputGraph.ResourceMetadata = append(outputGraph.ResourceMetadata, ResourceMetadata{
-				Id:       res.Id(),
-				Metadata: res,
-			})
+			outputGraph.Resources[res.Id()] = res
+
+			for _, dep := range graph.GetDownstreamResources(res) {
+				outputGraph.Edges = append(outputGraph.Edges, OutputEdge{
+					Source:      res.Id(),
+					Destination: dep.Id(),
+				})
+			}
 		}
 
-		for _, dep := range graph.ListDependencies() {
-			outputGraph.Edges = append(outputGraph.Edges, OutputEdge{
-				Source:      dep.Source.Id(),
-				Destination: dep.Destination.Id(),
-			})
-		}
 		err = enc.Encode(outputGraph)
 		if err != nil {
 			merr.Append(errors.Wrap(err, "error writing resources"))

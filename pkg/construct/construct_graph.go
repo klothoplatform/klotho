@@ -15,26 +15,9 @@ type (
 		Destination ResourceId `yaml:"destination"`
 	}
 
-	ResourceMetadata struct {
-		Id       ResourceId    `yaml:"id"`
-		Metadata BaseConstruct `yaml:"metadata"`
-	}
-
-	InputMetadata struct {
-		Id       ResourceId                  `yaml:"id"`
-		Metadata map[interface{}]interface{} `yaml:"metadata"`
-	}
-
 	OutputGraph struct {
-		Resources        []ResourceId       `yaml:"resources"`
-		ResourceMetadata []ResourceMetadata `yaml:"resourceMetadata"`
-		Edges            []OutputEdge       `yaml:"edges"`
-	}
-
-	InputGraph struct {
-		Resources        []ResourceId    `yaml:"resources"`
-		ResourceMetadata []InputMetadata `yaml:"resourceMetadata"`
-		Edges            []OutputEdge    `yaml:"edges"`
+		Resources map[ResourceId]BaseConstruct `yaml:"resources"`
+		Edges     []OutputEdge                 `yaml:"edges"`
 	}
 )
 

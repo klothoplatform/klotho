@@ -13,9 +13,9 @@ import (
 
 type (
 	Input struct {
-		AppName   string                                    `yaml:"app"`
-		Resources map[construct.ResourceId]ResourceMetadata `yaml:"resources"`
-		Edges     []construct.OutputEdge                    `yaml:"edges"`
+		AppName   string                                      `yaml:"app"`
+		Resources map[construct.ResourceId]*yaml_util.RawNode `yaml:"resources"`
+		Edges     []construct.OutputEdge                      `yaml:"edges"`
 
 		// Operations are an imperitive sequence of commands to make changes to the input graph.
 		Operations []Operation `yaml:"operations"`
@@ -28,11 +28,6 @@ type (
 
 		// Configs are used to configure the resources after graph expansion is complete.
 		Configs []Config `yaml:"config"`
-	}
-
-	ResourceMetadata struct {
-		Id       construct.ResourceId `yaml:"id"`
-		Metadata *yaml_util.RawNode   `yaml:"metadata"`
 	}
 )
 
@@ -48,11 +43,11 @@ func (i *Input) Load(providers map[string]provider.Provider) (*construct.Constru
 		}
 		dag.AddConstruct(construct)
 	}
-	for _, metadata := range i.Resources {
-		resource := dag.GetConstruct(metadata.Id)
-		err := metadata.Metadata.Decode(resource)
+	for id, metadata := range i.Resources {
+		resource := dag.GetConstruct(id)
+		err := metadata.Decode(resource)
 		if err != nil {
-			return nil, fmt.Errorf("could not decode metadata for resource %s: %w", metadata.Id, err)
+			return nil, fmt.Errorf("could not decode metadata for resource %s: %w", id, err)
 		}
 		err = correctPointers(resource, dag)
 		if err != nil {
