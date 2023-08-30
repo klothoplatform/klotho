@@ -41,13 +41,13 @@ type (
 	// EngineContext is a struct that represents the context of the engine
 	// The context is used to store the state of the engine
 	EngineContext struct {
+		Input                       input.Input
 		Constraints                 map[constraints.ConstraintScope][]constraints.Constraint
 		InitialState                *construct.ConstructGraph
 		WorkingState                *construct.ConstructGraph
 		Solution                    *construct.ResourceGraph
 		Decisions                   []Decision
 		constructExpansionSolutions map[construct.ResourceId][]*ExpansionSolution
-		AppName                     string
 	}
 
 	SolveContext struct {
@@ -145,25 +145,10 @@ func (e *Engine) LoadClassifications(classificationPath string, fs embed.FS) err
 	return err
 }
 
-func (e *Engine) LoadContext(initialState *construct.ConstructGraph, constraints map[constraints.ConstraintScope][]constraints.Constraint, appName string) {
-	e.Context = EngineContext{
-		Constraints:                 constraints,
-		constructExpansionSolutions: make(map[construct.ResourceId][]*ExpansionSolution),
-		AppName:                     appName,
-	}
-	if initialState != nil {
-		e.Context.InitialState = initialState
-		e.Context.WorkingState = initialState.Clone()
-	} else if e.Context.WorkingState == nil {
-		e.Context.WorkingState = construct.NewConstructGraph()
-	}
-}
-
 func (e *Engine) ContextFromInput(input input.Input) (err error) {
 	e.Context = EngineContext{
-		AppName:                     input.AppName,
-		constructExpansionSolutions: make(map[construct.ResourceId][]*ExpansionSolution),
-		Constraints:                 input.Constraints.ByScope(),
+		Input:       input,
+		Constraints: input.Constraints.ByScope(),
 	}
 	e.Context.InitialState, err = input.Load(e.Providers)
 	if err != nil {
@@ -222,7 +207,6 @@ func (e *Engine) Run() (*construct.ResourceGraph, error) {
 	if err != nil {
 		return nil, err
 	}
-	numValidGraphs := 0
 	for _, context := range contextsToSolve {
 		solution, err := e.SolveGraph(context)
 		if err != nil {
@@ -232,9 +216,9 @@ func (e *Engine) Run() (*construct.ResourceGraph, error) {
 		if e.Context.Solution == nil {
 			e.Context.Solution = solution
 		}
-		numValidGraphs++
+		break
 	}
-	if numValidGraphs == 0 {
+	if e.Context.Solution == nil {
 		var closestSolvedContext *SolveContext
 		for _, context := range contextsToSolve {
 			if closestSolvedContext == nil {
@@ -254,7 +238,6 @@ func (e *Engine) Run() (*construct.ResourceGraph, error) {
 
 		return nil, fmt.Errorf(errorString)
 	}
-	zap.S().Debugf("found %d valid graphs", numValidGraphs)
 
 	return e.Context.Solution, nil
 }

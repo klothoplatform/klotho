@@ -35,7 +35,7 @@ func (e *Engine) ExpandConstructs() error {
 	for _, res := range e.Context.WorkingState.ListConstructs() {
 		if res.Id().Provider == construct.AbstractConstructProvider {
 			zap.S().Debugf("Expanding construct %s", res.Id())
-			construct, ok := res.(construct.Construct)
+			cons, ok := res.(construct.Construct)
 			if !ok {
 				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to cast base construct %s to construct while expanding construct", res.Id()))
 				continue
@@ -50,7 +50,7 @@ func (e *Engine) ExpandConstructs() error {
 					continue
 				}
 
-				if constructConstraint.Target == construct.Id() {
+				if constructConstraint.Target == cons.Id() {
 					if constructType != "" && constructType != constructConstraint.Type {
 						joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to expand construct %s, conflicting types in constraints", res.Id()))
 						break
@@ -67,7 +67,7 @@ func (e *Engine) ExpandConstructs() error {
 				}
 			}
 
-			for k, v := range construct.Attributes() {
+			for k, v := range cons.Attributes() {
 				if val, ok := attributes[k]; ok {
 					if v != val {
 						joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to expand construct %s, attribute %s has conflicting values", res.Id(), k))
@@ -76,10 +76,13 @@ func (e *Engine) ExpandConstructs() error {
 				}
 				attributes[k] = v
 			}
-			solutions, err := e.expandConstruct(constructType, attributes, construct)
+			solutions, err := e.expandConstruct(constructType, attributes, cons)
 			if err != nil {
 				joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to expand construct %s, err: %s", res.Id(), err.Error()))
 				continue
+			}
+			if e.Context.constructExpansionSolutions == nil {
+				e.Context.constructExpansionSolutions = make(map[construct.ResourceId][]*ExpansionSolution)
 			}
 			e.Context.constructExpansionSolutions[res.Id()] = solutions
 		}

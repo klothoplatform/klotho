@@ -8,6 +8,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
+	"github.com/klothoplatform/klotho/pkg/engine/input"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +18,7 @@ func Test_Engine_Run(t *testing.T) {
 		name        string
 		constructs  []construct.Construct
 		edges       []constraints.Edge
-		constraints map[constraints.ConstraintScope][]constraints.Constraint
+		constraints []constraints.Constraint
 		want        coretesting.ResourcesExpectation
 	}{
 		{
@@ -32,28 +33,24 @@ func Test_Engine_Run(t *testing.T) {
 					Target: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.ORM_TYPE, Name: "orm"},
 				},
 			},
-			constraints: map[constraints.ConstraintScope][]constraints.Constraint{
-				constraints.ConstructConstraintScope: {
-					&constraints.ConstructConstraint{
-						Operator: constraints.EqualsConstraintOperator,
-						Target:   construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.ORM_TYPE, Name: "orm"},
-						Type:     "mock3",
-					},
-					&constraints.ConstructConstraint{
-						Operator: constraints.EqualsConstraintOperator,
-						Target:   construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
-						Type:     "mock1",
-					},
+			constraints: []constraints.Constraint{
+				&constraints.ConstructConstraint{
+					Operator: constraints.EqualsConstraintOperator,
+					Target:   construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.ORM_TYPE, Name: "orm"},
+					Type:     "mock3",
 				},
-				constraints.EdgeConstraintScope: {
-					&constraints.EdgeConstraint{
-						Operator: constraints.MustContainConstraintOperator,
-						Target: constraints.Edge{
-							Source: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
-							Target: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.ORM_TYPE, Name: "orm"},
-						},
-						Node: construct.ResourceId{Provider: "mock", Type: "mock2", Name: "Corm"},
+				&constraints.ConstructConstraint{
+					Operator: constraints.EqualsConstraintOperator,
+					Target:   construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
+					Type:     "mock1",
+				},
+				&constraints.EdgeConstraint{
+					Operator: constraints.MustContainConstraintOperator,
+					Target: constraints.Edge{
+						Source: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.EXECUTION_UNIT_TYPE, Name: "compute"},
+						Target: construct.ResourceId{Provider: construct.AbstractConstructProvider, Type: types.ORM_TYPE, Name: "orm"},
 					},
+					Node: construct.ResourceId{Provider: "mock", Type: "mock2", Name: "Corm"},
 				},
 			},
 			want: coretesting.ResourcesExpectation{
@@ -85,7 +82,13 @@ func Test_Engine_Run(t *testing.T) {
 				cg.AddDependency(e.Source, e.Target)
 			}
 
-			engine.LoadContext(cg, tt.constraints, "test")
+			engine.Context = EngineContext{
+				Input:        input.Input{AppName: "test"},
+				InitialState: cg,
+				WorkingState: cg.Clone(),
+				Constraints:  constraints.ConstraintList(tt.constraints).ByScope(),
+			}
+
 			engine.ClassificationDocument = enginetesting.BaseClassificationDocument
 			dag, err := engine.Run()
 			if !assert.NoError(err) {

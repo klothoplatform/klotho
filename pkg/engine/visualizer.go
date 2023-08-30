@@ -8,13 +8,13 @@ import (
 func (e *Engine) VisualizeViews() ([]klotho_io.File, error) {
 	iac_topo := &visualizer.File{
 		FilenamePrefix: "iac-",
-		AppName:        e.Context.AppName,
+		AppName:        e.Context.Input.AppName,
 		Provider:       "aws",
 		DAG:            e.Context.Solution,
 	}
 	dataflow_topo := &visualizer.File{
 		FilenamePrefix: "dataflow-",
-		AppName:        e.Context.AppName,
+		AppName:        e.Context.Input.AppName,
 		Provider:       "aws",
 		DAG:            e.GetDataFlowDag(),
 	}

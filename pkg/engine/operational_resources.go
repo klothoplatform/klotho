@@ -54,7 +54,7 @@ func (e *Engine) MakeResourceOperational(graph *construct.ResourceGraph, resourc
 		}
 	}
 
-	err := callMakeOperational(graph, resource, e.Context.AppName, e.ClassificationDocument)
+	err := callMakeOperational(graph, resource, e.Context.Input.AppName, e.ClassificationDocument)
 	if err != nil {
 		if ore, ok := err.(*OperationalResourceError); ok {
 			// If we get a OperationalResourceError let the engine try to reconcile it, and if that fails then mark the resource as non operational so we attempt to rerun on the next loop
@@ -331,12 +331,13 @@ func setField(dag *construct.ResourceGraph, resource construct.Resource, rule kn
 	if rule.SetField == "" {
 		return nil
 	}
-	if reflect.ValueOf(resource).Elem().FieldByName(rule.SetField).Kind() == reflect.Slice || reflect.ValueOf(resource).Elem().FieldByName(rule.SetField).Kind() == reflect.Array {
-		reflect.ValueOf(resource).Elem().FieldByName(rule.SetField).Set(reflect.Append(reflect.ValueOf(resource).Elem().FieldByName(rule.SetField), reflect.ValueOf(res)))
-	} else if reflect.TypeOf(construct.ResourceId{}) == reflect.ValueOf(resource).Elem().FieldByName(rule.SetField).Type() {
-		reflect.ValueOf(resource).Elem().FieldByName(rule.SetField).Set(reflect.ValueOf(res.Id()))
+	field := reflect.ValueOf(resource).Elem().FieldByName(rule.SetField)
+	if field.Kind() == reflect.Slice || field.Kind() == reflect.Array {
+		field.Set(reflect.Append(field, reflect.ValueOf(res)))
+	} else if reflect.TypeOf(construct.ResourceId{}) == field.Type() {
+		field.Set(reflect.ValueOf(res.Id()))
 	} else {
-		reflect.ValueOf(resource).Elem().FieldByName(rule.SetField).Set(reflect.ValueOf(res))
+		field.Set(reflect.ValueOf(res))
 	}
 	if copyResource.Id() != resource.Id() {
 		if dag.GetResource(resource.Id()) != nil {

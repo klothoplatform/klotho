@@ -8,6 +8,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
+	"github.com/klothoplatform/klotho/pkg/engine/input"
 	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/validation"
 	"github.com/pkg/errors"
@@ -73,7 +74,12 @@ func (c *Compiler) Compile() error {
 		return err
 	}
 
-	c.Engine.LoadContext(c.Document.Constructs, make(map[constraints.ConstraintScope][]constraints.Constraint), c.Document.Configuration.AppName)
+	c.Engine.Context = engine.EngineContext{
+		Input:        input.Input{AppName: "test"},
+		InitialState: c.Document.Constructs,
+		WorkingState: c.Document.Constructs.Clone(),
+		Constraints:  make(map[constraints.ConstraintScope][]constraints.Constraint),
+	}
 
 	for _, p := range c.IaCPlugins {
 		// TODO logging
