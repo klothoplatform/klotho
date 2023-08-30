@@ -29,3 +29,4 @@ keyvalue.js.tmpl
 *.DS_Store*
 
 node_modules/
+/*.yaml

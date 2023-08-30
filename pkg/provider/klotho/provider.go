@@ -19,7 +19,7 @@ func (KlothoProvider) ListResources() []construct.Resource {
 	return nil
 }
 
-func (KlothoProvider) GetOperationalTemplates() map[construct.ResourceId]*construct.ResourceTemplate {
+func (KlothoProvider) GetOperationalTemplates() map[construct.ResourceId]*knowledgebase.ResourceTemplate {
 	return nil
 }
 

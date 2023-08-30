@@ -113,7 +113,7 @@ func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *construct
 			joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s not found when attempting to configure", id.String()))
 			continue
 		}
-		newConfig := construct.Configuration{}
+		newConfig := knowledgebase.Configuration{}
 		valBytes, err := yaml.Marshal(config.Config)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)

@@ -9,6 +9,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"github.com/stretchr/testify/assert"
 )
@@ -16,7 +17,7 @@ import (
 func Test_handleOperationalRule(t *testing.T) {
 	tests := []struct {
 		name                 string
-		rule                 construct.OperationalRule
+		rule                 knowledgebase.OperationalRule
 		resource             *enginetesting.MockResource5
 		parent               construct.Resource
 		existingDependencies []graph.Edge[construct.Resource]
@@ -26,29 +27,29 @@ func Test_handleOperationalRule(t *testing.T) {
 	}{
 		{
 			name: "only one none exists",
-			rule: construct.OperationalRule{
-				Enforcement:   construct.ExactlyOne,
-				Direction:     construct.Downstream,
+			rule: knowledgebase.OperationalRule{
+				Enforcement:   knowledgebase.ExactlyOne,
+				Direction:     knowledgebase.Downstream,
 				ResourceTypes: []string{"mock1"},
 				SetField:      "Mock1",
-				UnsatisfiedAction: construct.UnsatisfiedAction{
-					Operation: construct.CreateUnsatisfiedResource,
+				UnsatisfiedAction: knowledgebase.UnsatisfiedAction{
+					Operation: knowledgebase.CreateUnsatisfiedResource,
 				},
 			},
 			resource: &enginetesting.MockResource5{Name: "this"},
 			wantErr: []error{&OperationalResourceError{
 				Resource:  &enginetesting.MockResource5{Name: "this"},
 				Needs:     []string{"mock1"},
-				Direction: construct.Downstream,
+				Direction: knowledgebase.Downstream,
 				Count:     1,
 				Cause:     fmt.Errorf("rule with enforcement exactly one has less than the required number of resources of type [mock1]  or classifications [], 0 for resource mock:mock5:this"),
 			}},
 		},
 		{
 			name: "only one one exists",
-			rule: construct.OperationalRule{
-				Enforcement:   construct.ExactlyOne,
-				Direction:     construct.Downstream,
+			rule: knowledgebase.OperationalRule{
+				Enforcement:   knowledgebase.ExactlyOne,
+				Direction:     knowledgebase.Downstream,
 				ResourceTypes: []string{"mock1"},
 				SetField:      "Mock1",
 			},
@@ -68,9 +69,9 @@ func Test_handleOperationalRule(t *testing.T) {
 		},
 		{
 			name: "only one multiple exist error",
-			rule: construct.OperationalRule{
-				Enforcement:   construct.ExactlyOne,
-				Direction:     construct.Downstream,
+			rule: knowledgebase.OperationalRule{
+				Enforcement:   knowledgebase.ExactlyOne,
+				Direction:     knowledgebase.Downstream,
 				ResourceTypes: []string{"mock1"},
 				SetField:      "Mock1",
 			},
@@ -83,9 +84,9 @@ func Test_handleOperationalRule(t *testing.T) {
 		},
 		{
 			name: "if one none exists",
-			rule: construct.OperationalRule{
-				Enforcement:   construct.Conditional,
-				Direction:     construct.Downstream,
+			rule: knowledgebase.OperationalRule{
+				Enforcement:   knowledgebase.Conditional,
+				Direction:     knowledgebase.Downstream,
 				ResourceTypes: []string{"mock1"},
 				SetField:      "Mock1",
 			},
@@ -93,9 +94,9 @@ func Test_handleOperationalRule(t *testing.T) {
 		},
 		{
 			name: "if one one exists",
-			rule: construct.OperationalRule{
-				Enforcement:   construct.Conditional,
-				Direction:     construct.Downstream,
+			rule: knowledgebase.OperationalRule{
+				Enforcement:   knowledgebase.Conditional,
+				Direction:     knowledgebase.Downstream,
 				ResourceTypes: []string{"mock1"},
 				SetField:      "Mock1",
 			},
@@ -115,20 +116,20 @@ func Test_handleOperationalRule(t *testing.T) {
 		},
 		{
 			name: "if one one exists with sub rules",
-			rule: construct.OperationalRule{
-				Enforcement:            construct.Conditional,
-				Direction:              construct.Downstream,
+			rule: knowledgebase.OperationalRule{
+				Enforcement:            knowledgebase.Conditional,
+				Direction:              knowledgebase.Downstream,
 				ResourceTypes:          []string{"mock3"},
 				RemoveDirectDependency: true,
-				Rules: []construct.OperationalRule{
+				Rules: []knowledgebase.OperationalRule{
 					{
-						Enforcement:   construct.AnyAvailable,
-						Direction:     construct.Downstream,
+						Enforcement:   knowledgebase.AnyAvailable,
+						Direction:     knowledgebase.Downstream,
 						ResourceTypes: []string{"mock2"},
 						SetField:      "Mock2s",
 						NumNeeded:     2,
-						UnsatisfiedAction: construct.UnsatisfiedAction{
-							Operation: construct.CreateUnsatisfiedResource,
+						UnsatisfiedAction: knowledgebase.UnsatisfiedAction{
+							Operation: knowledgebase.CreateUnsatisfiedResource,
 						},
 					},
 				},
@@ -140,7 +141,7 @@ func Test_handleOperationalRule(t *testing.T) {
 			wantErr: []error{&OperationalResourceError{
 				Resource:  &enginetesting.MockResource5{Name: "this"},
 				Count:     2,
-				Direction: construct.Downstream,
+				Direction: knowledgebase.Downstream,
 				Needs:     []string{"mock2"},
 				Parent:    &enginetesting.MockResource3{Name: "that"},
 				Cause:     fmt.Errorf("rule with enforcement any has less than the required number of resources of type [mock2]  or classifications [], 0 for resource mock:mock5:this"),
@@ -148,10 +149,10 @@ func Test_handleOperationalRule(t *testing.T) {
 		},
 		{
 			name: "if one multiple exist error",
-			rule: construct.OperationalRule{
+			rule: knowledgebase.OperationalRule{
 
-				Enforcement:   construct.Conditional,
-				Direction:     construct.Downstream,
+				Enforcement:   knowledgebase.Conditional,
+				Direction:     knowledgebase.Downstream,
 				ResourceTypes: []string{"mock1"},
 				SetField:      "Mock1",
 			},
@@ -209,7 +210,7 @@ func Test_handleOperationalResourceError(t *testing.T) {
 			name: "needs one downstream",
 			ore: &OperationalResourceError{
 				Resource:  &enginetesting.MockResource5{Name: "this"},
-				Direction: construct.Downstream,
+				Direction: knowledgebase.Downstream,
 				Needs:     []string{"mock1"},
 				Count:     1,
 				Cause:     fmt.Errorf("0"),
@@ -225,7 +226,7 @@ func Test_handleOperationalResourceError(t *testing.T) {
 			name: "needs multiple downstream",
 			ore: &OperationalResourceError{
 				Resource:  &enginetesting.MockResource5{Name: "this"},
-				Direction: construct.Downstream,
+				Direction: knowledgebase.Downstream,
 				Needs:     []string{"mock2"},
 				Count:     2,
 				Cause:     fmt.Errorf("0"),
@@ -242,7 +243,7 @@ func Test_handleOperationalResourceError(t *testing.T) {
 			name: "needs parents resource",
 			ore: &OperationalResourceError{
 				Resource:  &enginetesting.MockResource5{Name: "this"},
-				Direction: construct.Downstream,
+				Direction: knowledgebase.Downstream,
 				Needs:     []string{"mock1"},
 				Count:     1,
 				Parent:    &enginetesting.MockResource3{Name: "parent"},
@@ -263,7 +264,7 @@ func Test_handleOperationalResourceError(t *testing.T) {
 			name: "needs 2 but parent only has 1 resource",
 			ore: &OperationalResourceError{
 				Resource:  &enginetesting.MockResource5{Name: "this"},
-				Direction: construct.Downstream,
+				Direction: knowledgebase.Downstream,
 				Needs:     []string{"mock1"},
 				Count:     2,
 				Parent:    &enginetesting.MockResource3{Name: "parent"},
@@ -288,7 +289,7 @@ func Test_handleOperationalResourceError(t *testing.T) {
 			name: "chooses existing resource to satisfy needs",
 			ore: &OperationalResourceError{
 				Resource:  &enginetesting.MockResource5{Name: "this"},
-				Direction: construct.Downstream,
+				Direction: knowledgebase.Downstream,
 				Needs:     []string{"mock1"},
 				Count:     2,
 				Cause:     fmt.Errorf("0"),
@@ -311,7 +312,7 @@ func Test_handleOperationalResourceError(t *testing.T) {
 			name: "must create new resource to satisfy needs",
 			ore: &OperationalResourceError{
 				Resource:   &enginetesting.MockResource5{Name: "this"},
-				Direction:  construct.Downstream,
+				Direction:  knowledgebase.Downstream,
 				Needs:      []string{"mock1"},
 				Count:      2,
 				MustCreate: true,
@@ -363,14 +364,14 @@ func Test_TemplateConfigure(t *testing.T) {
 	tests := []struct {
 		name     string
 		resource *enginetesting.MockResource6
-		template construct.ResourceTemplate
+		template knowledgebase.ResourceTemplate
 		want     *enginetesting.MockResource6
 	}{
 		{
 			name:     "simple values",
 			resource: &enginetesting.MockResource6{},
-			template: construct.ResourceTemplate{
-				Configuration: []construct.Configuration{
+			template: knowledgebase.ResourceTemplate{
+				Configuration: []knowledgebase.Configuration{
 					{Field: "Field1", Value: 1},
 					{Field: "Field2", Value: "two"},
 					{Field: "Field3", Value: true},
@@ -385,8 +386,8 @@ func Test_TemplateConfigure(t *testing.T) {
 		{
 			name:     "simple array",
 			resource: &enginetesting.MockResource6{},
-			template: construct.ResourceTemplate{
-				Configuration: []construct.Configuration{
+			template: knowledgebase.ResourceTemplate{
+				Configuration: []knowledgebase.Configuration{
 					{Field: "Arr1", Value: []string{"1", "2", "3"}},
 				},
 			},
@@ -397,8 +398,8 @@ func Test_TemplateConfigure(t *testing.T) {
 		{
 			name:     "struct array",
 			resource: &enginetesting.MockResource6{},
-			template: construct.ResourceTemplate{
-				Configuration: []construct.Configuration{
+			template: knowledgebase.ResourceTemplate{
+				Configuration: []knowledgebase.Configuration{
 					{Field: "Arr2", Value: []map[string]interface{}{
 						{
 							"Field1": 1,
@@ -431,8 +432,8 @@ func Test_TemplateConfigure(t *testing.T) {
 		{
 			name:     "pointer array",
 			resource: &enginetesting.MockResource6{},
-			template: construct.ResourceTemplate{
-				Configuration: []construct.Configuration{
+			template: knowledgebase.ResourceTemplate{
+				Configuration: []knowledgebase.Configuration{
 					{Field: "Arr3", Value: []map[string]interface{}{
 						{
 							"Field1": 1,
@@ -465,8 +466,8 @@ func Test_TemplateConfigure(t *testing.T) {
 		{
 			name:     "struct",
 			resource: &enginetesting.MockResource6{},
-			template: construct.ResourceTemplate{
-				Configuration: []construct.Configuration{
+			template: knowledgebase.ResourceTemplate{
+				Configuration: []knowledgebase.Configuration{
 					{Field: "Struct1", Value: map[string]interface{}{
 						"Field1": 1,
 						"Field2": "two",
@@ -487,8 +488,8 @@ func Test_TemplateConfigure(t *testing.T) {
 		{
 			name:     "pointer",
 			resource: &enginetesting.MockResource6{},
-			template: construct.ResourceTemplate{
-				Configuration: []construct.Configuration{
+			template: knowledgebase.ResourceTemplate{
+				Configuration: []knowledgebase.Configuration{
 					{Field: "Struct2", Value: map[string]interface{}{
 						"Field1": 1,
 						"Field2": "two",
@@ -509,8 +510,8 @@ func Test_TemplateConfigure(t *testing.T) {
 		{
 			name:     "pointer sub field",
 			resource: &enginetesting.MockResource6{},
-			template: construct.ResourceTemplate{
-				Configuration: []construct.Configuration{
+			template: knowledgebase.ResourceTemplate{
+				Configuration: []knowledgebase.Configuration{
 					{Field: "Struct2.Field1", Value: 1},
 					{Field: "Struct2.Arr1", Value: []string{"1", "2", "3"}},
 				},
@@ -525,8 +526,8 @@ func Test_TemplateConfigure(t *testing.T) {
 		{
 			name:     "struct sub field",
 			resource: &enginetesting.MockResource6{},
-			template: construct.ResourceTemplate{
-				Configuration: []construct.Configuration{
+			template: knowledgebase.ResourceTemplate{
+				Configuration: []knowledgebase.Configuration{
 					{Field: "Struct1.Field1", Value: 1},
 					{Field: "Struct1.Arr1", Value: []string{"1", "2", "3"}},
 				},
@@ -543,8 +544,8 @@ func Test_TemplateConfigure(t *testing.T) {
 			resource: &enginetesting.MockResource6{
 				Field1: 1,
 			},
-			template: construct.ResourceTemplate{
-				Configuration: []construct.Configuration{
+			template: knowledgebase.ResourceTemplate{
+				Configuration: []knowledgebase.Configuration{
 					{Field: "Field1", Value: 5},
 				},
 			},
@@ -557,8 +558,8 @@ func Test_TemplateConfigure(t *testing.T) {
 			resource: &enginetesting.MockResource6{
 				Arr1: []string{"1", "2", "3"},
 			},
-			template: construct.ResourceTemplate{
-				Configuration: []construct.Configuration{
+			template: knowledgebase.ResourceTemplate{
+				Configuration: []knowledgebase.Configuration{
 					{Field: "Arr1", Value: []string{"4"}},
 				},
 			},

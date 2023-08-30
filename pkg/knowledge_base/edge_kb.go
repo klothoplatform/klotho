@@ -60,13 +60,13 @@ type (
 	}
 
 	ConfigurationRule struct {
-		Resource construct.ResourceId    `yaml:"resource"`
-		Config   construct.Configuration `yaml:"config"`
+		Resource construct.ResourceId `yaml:"resource"`
+		Config   Configuration        `yaml:"config"`
 	}
 
 	OperationalRules struct {
-		Resource construct.ResourceId      `yaml:"resource"`
-		Rule     construct.OperationalRule `yaml:"rule"`
+		Resource construct.ResourceId `yaml:"resource"`
+		Rule     OperationalRule      `yaml:"rule"`
 	}
 	// Reuse is set to represent an enum of possible reuse cases for edges. The current available options are upstream and downstream
 	Reuse string
@@ -113,8 +113,8 @@ type (
 )
 
 const (
-	Upstream   Reuse = "upstream"
-	Downstream Reuse = "downstream"
+	ReuseUpstream   Reuse = "upstream"
+	ReuseDownstream Reuse = "downstream"
 )
 
 func (template *EdgeTemplate) Key() string {
@@ -327,7 +327,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.
 		// If the edge specifies that it can reuse upstream or downstream resources, we want to find the first resource which satisfies the reuse criteria and add that as the dependency.
 		// If there is no resource that satisfies the reuse criteria, we want to add the original direct dependency
 		switch edgeDetail.Reuse {
-		case Upstream:
+		case ReuseUpstream:
 			upstreamResources := dag.GetAllDownstreamResources(dep.Source)
 			for _, res := range upstreamResources {
 				if sourceNode.Id().Type == res.Id().Type {
@@ -335,7 +335,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.
 					added = true
 				}
 			}
-		case Downstream:
+		case ReuseDownstream:
 			upstreamResources := dag.GetAllDownstreamResources(dep.Destination)
 			for _, res := range upstreamResources {
 				if destNode.Id().Type == res.Id().Type {

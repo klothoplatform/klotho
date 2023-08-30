@@ -65,8 +65,8 @@ func (k *KubernetesProvider) CreateConstructFromId(id construct.ResourceId, dag 
 //go:embed resources/templates/*
 var kubernetesTemplates embed.FS
 
-func (k *KubernetesProvider) GetOperationalTemplates() map[construct.ResourceId]*construct.ResourceTemplate {
-	templates := map[construct.ResourceId]*construct.ResourceTemplate{}
+func (k *KubernetesProvider) GetOperationalTemplates() map[construct.ResourceId]*knowledgebase.ResourceTemplate {
+	templates := map[construct.ResourceId]*knowledgebase.ResourceTemplate{}
 	if err := fs.WalkDir(kubernetesTemplates, ".", func(path string, d fs.DirEntry, nerr error) error {
 		if d.IsDir() {
 			return nil
@@ -75,7 +75,7 @@ func (k *KubernetesProvider) GetOperationalTemplates() map[construct.ResourceId]
 		if err != nil {
 			panic(err)
 		}
-		resTemplate := &construct.ResourceTemplate{}
+		resTemplate := &knowledgebase.ResourceTemplate{}
 		err = yaml.Unmarshal(content, resTemplate)
 		if err != nil {
 			panic(err)

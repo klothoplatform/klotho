@@ -11,3 +11,5 @@ operational_rules:
       direction: downstream
       resource_types:
         - vpc
+      unsatisfied_action:
+        operation: create

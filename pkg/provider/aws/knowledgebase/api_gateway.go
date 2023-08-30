@@ -19,7 +19,7 @@ var ApiGatewayKB = knowledgebase.Build(
 		},
 	},
 	knowledgebase.EdgeBuilder[*resources.ApiIntegration, *resources.LoadBalancer]{
-		Reuse: knowledgebase.Downstream,
+		Reuse: knowledgebase.ReuseDownstream,
 		Configure: func(integration *resources.ApiIntegration, loadBalancer *resources.LoadBalancer, dag *construct.ResourceGraph, data knowledgebase.EdgeData) error {
 			if integration.Method == nil {
 				return fmt.Errorf("cannot configure integration %s, missing rest api or method", integration.Id())
