@@ -1,17 +1,20 @@
 package engine
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
+	"go.uber.org/zap"
 )
 
 func (e *Engine) ListResources() []construct.Resource {
 	var resources []construct.Resource
 	for _, res := range e.Guardrails.AllowedResources {
-		resource, _ := e.getConstructFromId(res)
-		resources = append(resources, resource.(construct.Resource))
+		resource, err := e.CreateResourceFromId(res)
+		if err != nil {
+			zap.S().Warnf("Error creating resource from id (%s) during ListResources: %s", res, err)
+		}
+		resources = append(resources, resource)
 	}
 	return resources
 }
@@ -20,11 +23,11 @@ func (e *Engine) ListResourcesByType() []string {
 	var resources []string
 	for _, construct := range e.Constructs {
 		id := construct.Id()
-		resources = append(resources, fmt.Sprintf("%s:%s", id.Provider, id.Type))
+		resources = append(resources, id.QualifiedTypeName())
 	}
 	for _, res := range e.ListResources() {
 		id := res.Id()
-		resources = append(resources, fmt.Sprintf("%s:%s", id.Provider, id.Type))
+		resources = append(resources, id.QualifiedTypeName())
 	}
 	return resources
 }

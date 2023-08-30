@@ -13,12 +13,12 @@ import (
 type DockerProvider struct {
 }
 
-func (a *DockerProvider) GetOperationalTempaltes() map[construct.ResourceId]*construct.ResourceTemplate {
+func (a *DockerProvider) GetOperationalTemplates() map[construct.ResourceId]*construct.ResourceTemplate {
 	// Not implemented
 	return map[construct.ResourceId]*construct.ResourceTemplate{}
 }
 
-func (a *DockerProvider) GetEdgeTempaltes() map[string]*knowledgebase.EdgeTemplate {
+func (a *DockerProvider) GetEdgeTemplates() map[string]*knowledgebase.EdgeTemplate {
 	// Not implemented
 	return map[string]*knowledgebase.EdgeTemplate{}
 }
@@ -31,7 +31,7 @@ func (a *DockerProvider) ListResources() []construct.Resource {
 
 // CreateResourceFromId creates a resource from an id, but does not mutate the graph in any manner
 // The graph is passed in to be able to understand what namespaces reference in resource ids
-func (a *DockerProvider) CreateResourceFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.Resource, error) {
+func (a *DockerProvider) CreateConstructFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.BaseConstruct, error) {
 	typeToResource := make(map[string]construct.Resource)
 	for _, res := range resources.ListAll() {
 		typeToResource[res.Id().Type] = res

@@ -11,7 +11,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/graph"
-	"github.com/klothoplatform/klotho/pkg/graph_loader"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"github.com/klothoplatform/klotho/pkg/provider"
 	"go.uber.org/zap"
@@ -93,23 +92,23 @@ func NewEngine(providers map[string]provider.Provider, kb knowledgebase.EdgeKB, 
 	_ = engine.LoadGuardrails([]byte(""))
 	engine.ResourceTemplates = make(map[construct.ResourceId]*construct.ResourceTemplate)
 	for _, p := range providers {
-		for id, template := range p.GetOperationalTempaltes() {
+		for id, template := range p.GetOperationalTemplates() {
 			engine.ResourceTemplates[id] = template
 		}
 	}
 	engine.EdgeTemplates = make(map[string]*knowledgebase.EdgeTemplate)
 	for _, p := range providers {
-		for tempKey, template := range p.GetEdgeTempaltes() {
+		for tempKey, template := range p.GetEdgeTemplates() {
 			if _, ok := engine.EdgeTemplates[tempKey]; ok {
 				zap.S().Errorf("got duplicate edge template for %s", tempKey)
 			}
 			engine.EdgeTemplates[tempKey] = template
-			srcRes, err := engine.Providers[template.Source.Provider].CreateResourceFromId(template.Source, engine.Context.InitialState)
+			srcRes, err := engine.Providers[template.Source.Provider].CreateConstructFromId(template.Source, engine.Context.InitialState)
 			if err != nil {
 				zap.S().Errorf("got error when creating resource from id %s, err: %s", template.Source, err.Error())
 				continue
 			}
-			dstRes, err := engine.Providers[template.Destination.Provider].CreateResourceFromId(template.Destination, engine.Context.InitialState)
+			dstRes, err := engine.Providers[template.Destination.Provider].CreateConstructFromId(template.Destination, engine.Context.InitialState)
 			if err != nil {
 				zap.S().Errorf("got error when creating resource from id %s, err: %s", template.Destination, err.Error())
 				continue
@@ -447,20 +446,12 @@ func (e *Engine) SolveGraph(context *SolveContext) (*construct.ResourceGraph, er
 func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationConstraint) error {
 	switch constraint.Operator {
 	case constraints.AddConstraintOperator:
-		if constraint.Node.Provider == construct.AbstractConstructProvider {
-			construct, err := e.getConstructFromId(constraint.Node)
-			if err != nil {
-				return err
-			}
-			e.Context.WorkingState.AddConstruct(construct)
-		} else {
-			provider := e.Providers[constraint.Node.Provider]
-			resource, err := provider.CreateResourceFromId(constraint.Node, e.Context.InitialState)
-			if err != nil {
-				return err
-			}
-			e.Context.WorkingState.AddConstruct(resource)
+		construct, err := e.CreateConstructFromId(constraint.Node)
+		if err != nil {
+			return err
 		}
+		e.Context.WorkingState.AddConstruct(construct)
+
 	case constraints.RemoveConstraintOperator:
 		resource := e.Context.WorkingState.GetConstruct(constraint.Node)
 		if resource == nil {
@@ -476,7 +467,7 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 		if c == nil {
 			return fmt.Errorf("construct, %s, does not exist", c.Id())
 		}
-		replacement, err := e.getConstructFromId(constraint.ReplacementNode)
+		replacement, err := e.CreateConstructFromId(constraint.ReplacementNode)
 		if err != nil {
 			return err
 		}
@@ -532,14 +523,14 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 // - MustNotContainConstraintOperator, the constraint is applied to the edge before edge expansion, so when we use the knowledgebase to expand it ensures the node in the constraint is not present in the expanded path
 func (e *Engine) ApplyEdgeConstraint(constraint *constraints.EdgeConstraint) error {
 	if e.Context.WorkingState.GetConstruct(constraint.Target.Source) == nil {
-		node, err := e.getConstructFromId(constraint.Target.Source)
+		node, err := e.CreateConstructFromId(constraint.Target.Source)
 		if err != nil {
 			return err
 		}
 		e.Context.WorkingState.AddConstruct(node)
 	}
 	if e.Context.WorkingState.GetConstruct(constraint.Target.Target) == nil {
-		node, err := e.getConstructFromId(constraint.Target.Target)
+		node, err := e.CreateConstructFromId(constraint.Target.Target)
 		if err != nil {
 			return err
 		}
@@ -596,9 +587,7 @@ func (e *Engine) ApplyEdgeConstraint(constraint *constraints.EdgeConstraint) err
 
 // handleEdgeConstainConstraint applies an edge constraint to the either the engines working state construct graph or end state resource graph
 func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstraint) error {
-
-	provider := e.Providers[constraint.Node.Provider]
-	resource, err := provider.CreateResourceFromId(constraint.Node, e.Context.WorkingState)
+	resource, err := e.CreateResourceFromId(constraint.Node)
 	if err != nil {
 		return err
 	}
@@ -677,23 +666,23 @@ func (e *Engine) ValidateConstraints(context *SolveContext) []constraints.Constr
 	return unsatisfied
 }
 
-func (e *Engine) getConstructFromId(id construct.ResourceId) (construct.BaseConstruct, error) {
-	var c construct.BaseConstruct
-	var err error
-	if id.Provider == construct.AbstractConstructProvider {
-		c, err = graph_loader.GetConstructFromInputId(id)
-		if err != nil {
-			return nil, err
-		}
-
-	} else {
-		provider := e.Providers[id.Provider]
-		c, err = provider.CreateResourceFromId(id, e.Context.InitialState)
-		if err != nil {
-			return nil, err
-		}
+func (e *Engine) CreateConstructFromId(id construct.ResourceId) (construct.BaseConstruct, error) {
+	provider, ok := e.Providers[id.Provider]
+	if !ok {
+		return nil, fmt.Errorf("unknown provider %s", id.Provider)
 	}
-	return c, err
+	return provider.CreateConstructFromId(id, e.Context.WorkingState)
+}
+
+func (e *Engine) CreateResourceFromId(id construct.ResourceId) (construct.Resource, error) {
+	c, err := e.CreateConstructFromId(id)
+	if err != nil {
+		return nil, err
+	}
+	if r, ok := c.(construct.Resource); ok {
+		return r, nil
+	}
+	return nil, fmt.Errorf("construct %s is not a resource (was %T)", id, c)
 }
 
 func (e *Engine) checkIfConstraintsAreAllowed() error {

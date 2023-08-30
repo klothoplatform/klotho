@@ -25,9 +25,9 @@ type (
 	Provider interface {
 		Name() string
 		ListResources() []construct.Resource
-		GetOperationalTempaltes() map[construct.ResourceId]*construct.ResourceTemplate
-		GetEdgeTempaltes() map[string]*knowledgebase.EdgeTemplate
-		CreateResourceFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.Resource, error)
+		GetOperationalTemplates() map[construct.ResourceId]*construct.ResourceTemplate
+		GetEdgeTemplates() map[string]*knowledgebase.EdgeTemplate
+		CreateConstructFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.BaseConstruct, error)
 	}
 )
 

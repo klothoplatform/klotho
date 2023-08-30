@@ -25,7 +25,7 @@ func (k *KubernetesProvider) Name() string {
 func (k *KubernetesProvider) ListResources() []construct.Resource {
 	return resources.ListAll()
 }
-func (k *KubernetesProvider) CreateResourceFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.Resource, error) {
+func (k *KubernetesProvider) CreateConstructFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.BaseConstruct, error) {
 	typeToResource := make(map[string]construct.Resource)
 	for _, res := range resources.ListAll() {
 		typeToResource[res.Id().Type] = res
@@ -65,7 +65,7 @@ func (k *KubernetesProvider) CreateResourceFromId(id construct.ResourceId, dag *
 //go:embed resources/templates/*
 var kubernetesTemplates embed.FS
 
-func (k *KubernetesProvider) GetOperationalTempaltes() map[construct.ResourceId]*construct.ResourceTemplate {
+func (k *KubernetesProvider) GetOperationalTemplates() map[construct.ResourceId]*construct.ResourceTemplate {
 	templates := map[construct.ResourceId]*construct.ResourceTemplate{}
 	if err := fs.WalkDir(kubernetesTemplates, ".", func(path string, d fs.DirEntry, nerr error) error {
 		if d.IsDir() {
@@ -92,6 +92,6 @@ func (k *KubernetesProvider) GetOperationalTempaltes() map[construct.ResourceId]
 	return templates
 }
 
-func (k *KubernetesProvider) GetEdgeTempaltes() map[string]*knowledgebase.EdgeTemplate {
+func (k *KubernetesProvider) GetEdgeTemplates() map[string]*knowledgebase.EdgeTemplate {
 	return make(map[string]*knowledgebase.EdgeTemplate)
 }

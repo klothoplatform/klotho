@@ -66,13 +66,18 @@ func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, graph *
 		provider := e.Providers[res.Provider]
 		resWithName := res
 		resWithName.Name = nameResourceFromEdge(edge, res)
-		node, err := provider.CreateResourceFromId(resWithName, e.Context.InitialState)
+		node, err := provider.CreateConstructFromId(resWithName, e.Context.InitialState)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
 			continue
 		}
-		graph.AddResource(node)
-		resourceMap[res] = node
+		if r, ok := node.(construct.Resource); ok {
+			graph.AddResource(r)
+			resourceMap[res] = r
+		} else {
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("node %s is not a resource (was %T)", node.Id(), node))
+			continue
+		}
 	}
 	for _, dep := range template.Expansion.Dependencies {
 		id, fields := getIdAndFields(dep.Source)
