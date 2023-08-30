@@ -9,7 +9,7 @@ import (
 type MockProvider struct {
 }
 
-func (p *MockProvider) CreateResourceFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.Resource, error) {
+func (p *MockProvider) CreateConstructFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.BaseConstruct, error) {
 	switch id.Type {
 	case "mock1":
 		return &MockResource1{Name: id.Name}, nil
@@ -49,11 +49,11 @@ func (p *MockProvider) ListResources() []construct.Resource {
 	}
 }
 
-func (p *MockProvider) GetOperationalTempaltes() map[construct.ResourceId]*construct.ResourceTemplate {
+func (p *MockProvider) GetOperationalTemplates() map[construct.ResourceId]*construct.ResourceTemplate {
 	return map[construct.ResourceId]*construct.ResourceTemplate{}
 }
 
-func (p *MockProvider) GetEdgeTempaltes() map[string]*knowledgebase.EdgeTemplate {
+func (p *MockProvider) GetEdgeTemplates() map[string]*knowledgebase.EdgeTemplate {
 	return map[string]*knowledgebase.EdgeTemplate{}
 }
 

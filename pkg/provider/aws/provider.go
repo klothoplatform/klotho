@@ -25,7 +25,7 @@ func (a *AWS) ListResources() []construct.Resource {
 
 // CreateResourceFromId creates a resource from an id, but does not mutate the graph in any manner
 // The graph is passed in to be able to understand what namespaces reference in resource ids
-func (a *AWS) CreateResourceFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.Resource, error) {
+func (a *AWS) CreateConstructFromId(id construct.ResourceId, dag *construct.ConstructGraph) (construct.BaseConstruct, error) {
 	typeToResource := make(map[string]construct.Resource)
 	for _, res := range resources.ListAll() {
 		typeToResource[res.Id().Type] = res
@@ -76,7 +76,7 @@ func (a *AWS) CreateResourceFromId(id construct.ResourceId, dag *construct.Const
 //go:embed resources/templates/*
 var awsTempaltes embed.FS
 
-func (a *AWS) GetOperationalTempaltes() map[construct.ResourceId]*construct.ResourceTemplate {
+func (a *AWS) GetOperationalTemplates() map[construct.ResourceId]*construct.ResourceTemplate {
 	templates := map[construct.ResourceId]*construct.ResourceTemplate{}
 	if err := fs.WalkDir(awsTempaltes, ".", func(path string, d fs.DirEntry, nerr error) error {
 		if d.IsDir() {
@@ -106,7 +106,7 @@ func (a *AWS) GetOperationalTempaltes() map[construct.ResourceId]*construct.Reso
 //go:embed edges/*
 var awsEdgeTempaltes embed.FS
 
-func (a *AWS) GetEdgeTempaltes() map[string]*knowledgebase.EdgeTemplate {
+func (a *AWS) GetEdgeTemplates() map[string]*knowledgebase.EdgeTemplate {
 	templates := map[string]*knowledgebase.EdgeTemplate{}
 	if err := fs.WalkDir(awsEdgeTempaltes, ".", func(path string, d fs.DirEntry, nerr error) error {
 		if d.IsDir() {

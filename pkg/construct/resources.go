@@ -3,12 +3,9 @@ package construct
 import (
 	"fmt"
 	"reflect"
-	"regexp"
-	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 )
 
 type (
@@ -61,16 +58,6 @@ type (
 	ConfigurableResource[K any] interface {
 		Resource
 		Configure(params K) error
-	}
-
-	ResourceId struct {
-		Provider string `yaml:"provider" toml:"provider"`
-		Type     string `yaml:"type" toml:"type"`
-		// Namespace is optional and is used to disambiguate resources that might have
-		// the same name. It can also be used to associate an imported resource with
-		// a specific namespace such as a subnet to a VPC.
-		Namespace string `yaml:"namespace" toml:"namespace"`
-		Name      string `yaml:"name" toml:"name"`
 	}
 
 	// IaCValue is a struct that defines a value we need to grab from a specific resource. It is up to the plugins to make the determination of how to retrieve the value
@@ -231,54 +218,6 @@ func IsConstructOfAnnotationCapability(baseConstruct BaseConstruct, cap string) 
 		return false
 	}
 	return cons.AnnotationCapability() == cap
-}
-
-func (id ResourceId) IsZero() bool {
-	return id == ResourceId{}
-}
-
-func (id ResourceId) String() string {
-	s := id.Provider + ":" + id.Type
-	if id.Namespace != "" || strings.Contains(id.Name, ":") {
-		s += ":" + id.Namespace
-	}
-	return s + ":" + id.Name
-}
-
-func (id ResourceId) MarshalText() ([]byte, error) {
-	return []byte(id.String()), nil
-}
-
-var resourceIdPattern = regexp.MustCompile(`^([a-zA-Z0-9_]*:){2}([a-zA-Z0-9_#./\-:\[\]]*:?)+$`)
-
-func (id *ResourceId) UnmarshalText(data []byte) error {
-	if !resourceIdPattern.Match(data) {
-		return errors.Errorf("invalid resource id: '%s'", string(data))
-	}
-	parts := strings.Split(string(data), ":")
-	if len(parts) < 3 {
-		return errors.Errorf("invalid number of parts (%d) in resource id '%s'", len(parts), string(data))
-	}
-	if len(parts) > 4 {
-		parts = append(parts[:3], strings.Join(parts[3:], ":"))
-	}
-	id.Provider = parts[0]
-	id.Type = parts[1]
-	if len(parts) == 4 {
-		id.Namespace = parts[2]
-		id.Name = parts[3]
-	} else {
-		id.Name = parts[2]
-	}
-	return nil
-}
-
-func (id ResourceId) MarshalTOML() ([]byte, error) {
-	return id.MarshalText()
-}
-
-func (id *ResourceId) UnmarshalTOML(data []byte) error {
-	return id.UnmarshalText(data)
 }
 
 func GetMapDecoder(result interface{}) *mapstructure.Decoder {
