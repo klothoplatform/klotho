@@ -385,6 +385,11 @@ func (e *Engine) SolveGraph(context *SolveContext) (*construct.ResourceGraph, er
 		zap.S().Debug("Validating constraints")
 		unsatisfiedConstraints := e.ValidateConstraints(context)
 
+		err = e.ApplyConfigurations(graph)
+		if err != nil {
+			errorMap[i] = append(errorMap[i], err)
+		}
+
 		var joinedErr error
 		for _, error := range errorMap[i] {
 			joinedErr = errors.Join(joinedErr, error)
@@ -643,6 +648,31 @@ func (e *Engine) ApplyResourceConstraint(graph *construct.ResourceGraph, constra
 		return err
 	}
 	return nil
+}
+
+func (e *Engine) ApplyConfigurations(graph *construct.ResourceGraph) error {
+	var errs error
+	for _, cfg := range e.Context.Input.Configs {
+		if cfg.Node.IsZero() {
+			continue
+		}
+		resource := graph.GetResource(cfg.Node)
+		if resource == nil {
+			//? Should this fail?
+			zap.S().Warnf("configuration %+v on resource that does not exist", cfg)
+			continue
+		}
+		llCfg, err := input.DecodeParams[input.LowLevelConfig](cfg)
+		if err != nil {
+			// not a low level config
+			continue
+		}
+		err = ConfigureField(resource, llCfg.Params.Property, llCfg.Params.Value, true, graph)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("failed to apply configuration %+v: %w", cfg, err))
+		}
+	}
+	return errs
 }
 
 // ValidateConstraints validates all constraints against the end state resource graph
