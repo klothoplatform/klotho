@@ -98,14 +98,8 @@ func Test_ExpandEdges(t *testing.T) {
 			dag := construct.NewResourceGraph()
 			dag.AddDependencyWithData(tt.source, tt.dest, tt.data)
 			edge := dag.GetDependency(tt.source.Id(), tt.dest.Id())
-			err := TestKnowledgeBase.ExpandEdge(edge, dag, tt.path, tt.data)
-
-			var result []klothograph.Edge[construct.Resource]
-			for _, dep := range dag.ListDependencies() {
-				result = append(result, klothograph.Edge[construct.Resource]{Source: dep.Source, Destination: dep.Destination})
-			}
-			assert.NoError(err)
-			assert.ElementsMatch(tt.want, result)
+			edges := TestKnowledgeBase.ExpandEdge(edge, dag, tt.path, tt.data)
+			assert.ElementsMatch(tt.want, edges)
 
 		})
 	}

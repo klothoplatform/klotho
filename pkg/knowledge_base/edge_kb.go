@@ -274,8 +274,9 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 // The workflow of the edge expansion is as follows:
 //   - Find shortest path given the constraints on the edge
 //   - Iterate through each edge in path creating the resource if necessary
-func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.ResourceGraph, validPath Path, edgeData EdgeData) (err error) {
+func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.ResourceGraph, validPath Path, edgeData EdgeData) []graph.Edge[construct.Resource] {
 
+	var result []graph.Edge[construct.Resource]
 	// most likely need to use downstream and upstream operational errors here
 
 	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
@@ -331,7 +332,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.
 			upstreamResources := dag.GetAllDownstreamResources(dep.Source)
 			for _, res := range upstreamResources {
 				if sourceNode.Id().Type == res.Id().Type {
-					dag.AddDependencyWithData(res, destNode, EdgeData{Source: dep.Source, Destination: dep.Destination})
+					result = append(result, graph.Edge[construct.Resource]{Source: res, Destination: destNode})
 					added = true
 				}
 			}
@@ -339,7 +340,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.
 			upstreamResources := dag.GetAllDownstreamResources(dep.Destination)
 			for _, res := range upstreamResources {
 				if destNode.Id().Type == res.Id().Type {
-					dag.AddDependencyWithData(sourceNode, res, EdgeData{Source: dep.Source, Destination: dep.Destination})
+					result = append(result, graph.Edge[construct.Resource]{Source: sourceNode, Destination: res})
 					added = true
 				}
 			}
@@ -348,34 +349,14 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.
 			break
 		}
 
-		dag.AddDependencyWithData(sourceNode, destNode, EdgeData{Source: dep.Source, Destination: dep.Destination})
+		result = append(result, graph.Edge[construct.Resource]{Source: sourceNode, Destination: destNode})
 
-		if sourceNode != nil {
-			resourceCache[source] = sourceNode
-		}
-		sourceNodeInGraph := dag.GetResource(sourceNode.Id())
-		if sourceNodeInGraph != nil {
-			resourceCache[source] = sourceNodeInGraph
-		}
-		if destNode != nil {
-			resourceCache[dest] = destNode
-		}
-		destNodeInGraph := dag.GetResource(destNode.Id())
-		if destNodeInGraph != nil {
-			resourceCache[dest] = destNodeInGraph
-		}
-	}
-
-	// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
-	if len(validPath) > 1 {
-		zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
-		err := dag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
-		if err != nil {
-			return err
-		}
+		resourceCache[source] = sourceNode
+		resourceCache[dest] = destNode
 
 	}
-	return nil
+
+	return result
 }
 
 // ConfigureEdge calls each edge configure function.

@@ -67,7 +67,7 @@ func (e *Engine) GetDataFlowDag() *construct.ResourceGraph {
 	}
 
 	// Add relevant resources to the dataflow DAG
-	for _, resource := range e.Context.Solution.ListResources() {
+	for _, resource := range e.Context.Solution.ResourceGraph.ListResources() {
 		if collectionutil.Contains(typesWeCareAbout, resource.Id().Type) || collectionutil.Contains(parentResourceTypes, resource.Id().Type) {
 			dataFlowDag.AddResource(resource)
 		}
@@ -82,7 +82,7 @@ func (e *Engine) GetDataFlowDag() *construct.ResourceGraph {
 			if src == dst {
 				continue
 			}
-			paths, err := e.Context.Solution.AllPaths(src.Id(), dst.Id())
+			paths, err := e.Context.Solution.ResourceGraph.AllPaths(src.Id(), dst.Id())
 			if err != nil {
 				zap.S().Debugf("Error getting paths between %s and %s: %s", src.Id(), dst.Id(), err.Error())
 				continue
@@ -120,7 +120,7 @@ func (e *Engine) GetDataFlowDag() *construct.ResourceGraph {
 		}
 		var parentPaths [][]construct.Resource
 		for _, p := range srcParents {
-			paths, err := e.Context.Solution.AllPaths(src.Id(), p.Id())
+			paths, err := e.Context.Solution.ResourceGraph.AllPaths(src.Id(), p.Id())
 			if err != nil {
 				zap.S().Debugf("Error getting paths between %s and %s: %s", src.Id(), p.Id(), err.Error())
 				continue

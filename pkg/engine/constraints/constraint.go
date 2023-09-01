@@ -25,6 +25,8 @@ type (
 		IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier classification.Classifier) bool
 		// Validate returns whether or not the constraint is valid
 		Validate() error
+
+		String() string
 	}
 
 	// BaseConstraint is the base struct for all constraints

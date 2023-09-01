@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"reflect"
@@ -14,46 +13,56 @@ import (
 	"go.uber.org/zap"
 )
 
-func (e *Engine) expandEdges(graph *construct.ResourceGraph) error {
-	zap.S().Debug("Engine Expanding Edges")
-	var joinedErr error
-	for _, dep := range graph.ListDependencies() {
-
-		edgeData, err := getEdgeData(dep)
-		if err != nil {
-			zap.S().Warnf("got error when getting edge data for edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
-			joinedErr = errors.Join(joinedErr, err)
-			continue
-		}
-		paths, err := e.determineCorrectPaths(dep, edgeData)
-		if err != nil {
-			zap.S().Warnf("got error when determining correct path for edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
-			joinedErr = errors.Join(joinedErr, err)
-			continue
-		}
-		path, err := e.findOptimalPath(paths)
-		if err != nil {
-			zap.S().Warnf("got error when finding shortest path for edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
-			joinedErr = errors.Join(joinedErr, fmt.Errorf("error when finding optimal path for %s -> %s: %s", dep.Source.Id(), dep.Destination.Id(), err.Error()))
-			continue
-		}
-		if path == nil {
-			if edgeData.Attributes != nil {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("no valid path found for edge %s -> %s with edge attributes %s", dep.Source.Id(), dep.Destination.Id(), edgeData.Attributes))
-			} else {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("no valid path found for edge %s -> %s", dep.Source.Id(), dep.Destination.Id()))
-			}
-			continue
-		}
-		err = e.KnowledgeBase.ExpandEdge(&dep, graph, path, edgeData)
-		if err != nil {
-			zap.S().Warnf("got error when expanding edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
-			joinedErr = errors.Join(joinedErr, err)
-			continue
+func (e *Engine) expandEdge(dep graph.Edge[construct.Resource], context *SolveContext) EngineError {
+	graph := context.ResourceGraph
+	edgeData, err := getEdgeData(dep)
+	if err != nil {
+		return &EdgeExpansionError{
+			Edge:  dep,
+			Cause: err,
 		}
 	}
-	zap.S().Debug("Engine Done Expanding Edges")
-	return joinedErr
+	paths, err := e.determineCorrectPaths(dep, edgeData)
+	if err != nil {
+		zap.S().Warnf("got error when determining correct path for edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
+		return &EdgeExpansionError{
+			Edge:  dep,
+			Cause: err,
+		}
+	}
+	if len(paths) == 0 {
+		return &EdgeExpansionError{
+			Edge:  dep,
+			Cause: fmt.Errorf("no paths found that satisfy the attributes, %s, and do not contain unnecessary hops for edge %s -> %s", edgeData.Attributes, dep.Source.Id(), dep.Destination.Id()),
+		}
+	}
+	path := e.findOptimalPath(paths)
+	if len(path) == 0 {
+		return &InternalError{
+			Child: &EdgeExpansionError{Edge: dep},
+			Cause: fmt.Errorf("empty path found that satisfy the attributes, %s, and do not contain unnecessary hops for edge %s -> %s", edgeData.Attributes, dep.Source.Id(), dep.Destination.Id()),
+		}
+	}
+	edges := e.KnowledgeBase.ExpandEdge(&dep, graph, path, edgeData)
+	if len(edges) > 1 {
+		zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
+		err := graph.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
+		if err != nil {
+			return &EdgeExpansionError{
+				Cause: fmt.Errorf("error removing dependency %s -> %s", dep.Source.Id(), dep.Destination.Id()),
+				Edge:  dep,
+			}
+		}
+	}
+	for _, edge := range edges {
+		zap.S().Debugf("Adding dependency from %s -> %s", edge.Source.Id(), edge.Destination.Id())
+		e.handleDecision(context, Decision{
+			Action: ActionConnect,
+			Result: &DecisionResult{Edge: &edge},
+			Cause:  &Cause{EdgeExpansion: &dep},
+		})
+	}
+	return nil
 }
 
 // getEdgeData retrieves the edge data from the edge in the resource graph to use during expansion
@@ -109,6 +118,9 @@ func (e *Engine) determineCorrectPaths(dep graph.Edge[construct.Resource], edgeD
 			satisfyAttributeData = append(satisfyAttributeData, p)
 		}
 	}
+	if len(satisfyAttributeData) == 0 {
+		return nil, fmt.Errorf("no paths found that satisfy the attributes, %s, for edge %s -> %s", edgeData.Attributes, dep.Source.Id(), dep.Destination.Id())
+	}
 	for _, p := range satisfyAttributeData {
 		// Ensure we arent taking unnecessary hops to get to the destination
 		if !e.containsUnneccessaryHopsInPath(dep, p, edgeData) {
@@ -127,21 +139,30 @@ func (e *Engine) containsUnneccessaryHopsInPath(dep graph.Edge[construct.Resourc
 	destType := reflect.TypeOf(dep.Destination)
 	srcType := reflect.TypeOf(dep.Source)
 
+	var mustExistTypes []reflect.Type
+	for _, res := range edgeData.Constraint.NodeMustExist {
+		mustExistTypes = append(mustExistTypes, reflect.TypeOf(res))
+	}
+
 	// Here we check if the edge or destination functionality exist within the path in another resource. If they do, we know that the path contains unnecessary hops.
 	for _, edge := range p {
 		if e.ClassificationDocument.GetFunctionality(dep.Destination) != construct.Unknown {
-			if e.ClassificationDocument.GetFunctionality(dep.Destination) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Destination).Elem().Interface().(construct.Resource)) && edge.Destination != destType && edge.Destination != srcType {
+			if e.ClassificationDocument.GetFunctionality(dep.Destination) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Destination).Elem().Interface().(construct.Resource)) && edge.Destination != destType && edge.Destination != srcType &&
+				!collectionutil.Contains(mustExistTypes, edge.Destination) {
 				return true
 			}
-			if e.ClassificationDocument.GetFunctionality(dep.Destination) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Source).Elem().Interface().(construct.Resource)) && edge.Source != destType && edge.Source != srcType {
+			if e.ClassificationDocument.GetFunctionality(dep.Destination) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Source).Elem().Interface().(construct.Resource)) && edge.Source != destType && edge.Source != srcType &&
+				!collectionutil.Contains(mustExistTypes, edge.Source) {
 				return true
 			}
 		}
 		if e.ClassificationDocument.GetFunctionality(dep.Source) != construct.Unknown {
-			if e.ClassificationDocument.GetFunctionality(dep.Source) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Destination).Elem().Interface().(construct.Resource)) && edge.Destination != srcType && edge.Destination != destType {
+			if e.ClassificationDocument.GetFunctionality(dep.Source) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Destination).Elem().Interface().(construct.Resource)) && edge.Destination != srcType && edge.Destination != destType &&
+				!collectionutil.Contains(mustExistTypes, edge.Destination) {
 				return true
 			}
-			if e.ClassificationDocument.GetFunctionality(dep.Source) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Source).Elem().Interface().(construct.Resource)) && edge.Source != srcType && edge.Source != destType {
+			if e.ClassificationDocument.GetFunctionality(dep.Source) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Source).Elem().Interface().(construct.Resource)) && edge.Source != srcType && edge.Source != destType &&
+				!collectionutil.Contains(mustExistTypes, edge.Source) {
 				return true
 			}
 		}
@@ -149,7 +170,6 @@ func (e *Engine) containsUnneccessaryHopsInPath(dep graph.Edge[construct.Resourc
 
 	// Now we will look to see if there are duplicate functionality in resources within the edge, if there are we will say it contains unnecessary hops. We will verify first that those duplicates dont exist because of a constraint
 	foundFunc := map[construct.Functionality]bool{}
-	mustExistTypes := []reflect.Type{}
 	for _, res := range edgeData.Constraint.NodeMustExist {
 		mustExistTypes = append(mustExistTypes, reflect.TypeOf(res))
 	}
@@ -166,16 +186,13 @@ func (e *Engine) containsUnneccessaryHopsInPath(dep graph.Edge[construct.Resourc
 	return false
 }
 
-func (e *Engine) findOptimalPath(paths []knowledgebase.Path) (knowledgebase.Path, error) {
-	if len(paths) == 0 {
-		return nil, fmt.Errorf("no paths found")
-	}
+func (e *Engine) findOptimalPath(paths []knowledgebase.Path) knowledgebase.Path {
 	lowestWeightPaths := e.findLowestWeightPaths(paths)
 	return findShortestPath(lowestWeightPaths)
 }
 
 // findShortestPath determines the shortest path to get from the dependency's source node to destination node, using the knowledgebase of edges
-func findShortestPath(paths []knowledgebase.Path) (knowledgebase.Path, error) {
+func findShortestPath(paths []knowledgebase.Path) knowledgebase.Path {
 	var validPath []knowledgebase.Edge
 
 	var sameLengthPaths []knowledgebase.Path
@@ -205,9 +222,9 @@ func findShortestPath(paths []knowledgebase.Path) (knowledgebase.Path, error) {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
-		return pathStrings[keys[0]], nil
+		return pathStrings[keys[0]]
 	}
-	return validPath, nil
+	return validPath
 }
 
 // findLowestWeightPaths ranks the paths based on the weight of the path and returns the ranked paths (lowest weight first)

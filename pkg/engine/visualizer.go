@@ -10,7 +10,7 @@ func (e *Engine) VisualizeViews() ([]klotho_io.File, error) {
 		FilenamePrefix: "iac-",
 		AppName:        e.Context.AppName,
 		Provider:       "aws",
-		DAG:            e.Context.Solution,
+		DAG:            e.Context.Solution.ResourceGraph,
 	}
 	dataflow_topo := &visualizer.File{
 		FilenamePrefix: "dataflow-",

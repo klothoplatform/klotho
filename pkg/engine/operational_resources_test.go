@@ -6,7 +6,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	"github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/construct/coretesting"
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
@@ -21,8 +20,7 @@ func Test_handleOperationalRule(t *testing.T) {
 		resource             *enginetesting.MockResource5
 		parent               construct.Resource
 		existingDependencies []graph.Edge[construct.Resource]
-		want                 coretesting.ResourcesExpectation
-		check                func(assert *assert.Assertions, resource enginetesting.MockResource5)
+		want                 []Decision
 		wantErr              []error
 	}{
 		{
@@ -57,14 +55,13 @@ func Test_handleOperationalRule(t *testing.T) {
 			existingDependencies: []graph.Edge[construct.Resource]{
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that"}},
 			},
-			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"mock:mock1:that", "mock:mock5:this"},
-				Deps: []coretesting.StringDep{
-					{Source: "mock:mock5:this", Destination: "mock:mock1:that"},
+			want: []Decision{
+				{
+					Action: ActionConnect,
+					Result: &DecisionResult{
+						Edge: &graph.Edge[construct.Resource]{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that"}},
+					},
 				},
-			},
-			check: func(assert *assert.Assertions, resource enginetesting.MockResource5) {
-				assert.Equal(&enginetesting.MockResource1{Name: "that"}, resource.Mock1)
 			},
 		},
 		{
@@ -80,7 +77,11 @@ func Test_handleOperationalRule(t *testing.T) {
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that"}},
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that2"}},
 			},
-			wantErr: []error{fmt.Errorf("rule with enforcement only_one has more than one resource for rule exactly_one [mock1] for resource mock:mock5:this")},
+			wantErr: []error{&ResourceNotOperationalError{
+				Resource: &enginetesting.MockResource5{Name: "this"},
+				Cause:    fmt.Errorf("rule with enforcement only_one has more than one resource for rule exactly_one [mock1] for resource mock:mock5:this"),
+			},
+			},
 		},
 		{
 			name: "if one none exists",
@@ -103,15 +104,6 @@ func Test_handleOperationalRule(t *testing.T) {
 			resource: &enginetesting.MockResource5{Name: "this"},
 			existingDependencies: []graph.Edge[construct.Resource]{
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that"}},
-			},
-			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"mock:mock1:that", "mock:mock5:this"},
-				Deps: []coretesting.StringDep{
-					{Source: "mock:mock5:this", Destination: "mock:mock1:that"},
-				},
-			},
-			check: func(assert *assert.Assertions, resource enginetesting.MockResource5) {
-				assert.Equal(&enginetesting.MockResource1{Name: "that"}, resource.Mock1)
 			},
 		},
 		{
@@ -161,13 +153,6 @@ func Test_handleOperationalRule(t *testing.T) {
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that"}},
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "that2"}},
 			},
-			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"mock:mock1:that", "mock:mock1:that2", "mock:mock5:this"},
-				Deps: []coretesting.StringDep{
-					{Source: "mock:mock5:this", Destination: "mock:mock1:that"},
-					{Source: "mock:mock5:this", Destination: "mock:mock1:that2"},
-				},
-			},
 		},
 	}
 	for _, tt := range tests {
@@ -184,16 +169,16 @@ func Test_handleOperationalRule(t *testing.T) {
 				dag.AddDependency(dep.Source, dep.Destination)
 			}
 
-			err := engine.handleOperationalRule(tt.resource, tt.rule, dag, tt.parent)
+			decisions, errs := engine.handleOperationalRule(tt.resource, tt.rule, dag, tt.parent)
 			if tt.wantErr != nil {
-				assert.Greater(len(err), 0)
-				assert.Equal(err, tt.wantErr)
+				assert.Greater(len(errs), 0)
+				assert.ElementsMatch(errs, tt.wantErr)
 				return
 			}
-			if !assert.Len(err, 0) {
+			if !assert.Len(errs, 0) {
 				return
 			}
-			tt.want.Assert(t, dag)
+			CompareDecisions(t, tt.want, decisions)
 		})
 	}
 }
@@ -203,7 +188,7 @@ func Test_handleOperationalResourceError(t *testing.T) {
 		name                 string
 		ore                  *OperationalResourceError
 		existingDependencies []graph.Edge[construct.Resource]
-		want                 coretesting.ResourcesExpectation
+		want                 []Decision
 		wantErr              bool
 	}{
 		{
@@ -215,10 +200,12 @@ func Test_handleOperationalResourceError(t *testing.T) {
 				Count:     1,
 				Cause:     fmt.Errorf("0"),
 			},
-			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"mock:mock5:this", "mock:mock1:mock1-0"},
-				Deps: []coretesting.StringDep{
-					{Source: "mock:mock5:this", Destination: "mock:mock1:mock1-0"},
+			want: []Decision{
+				{
+					Action: ActionConnect,
+					Result: &DecisionResult{
+						Edge: &graph.Edge[construct.Resource]{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "mock1-0"}},
+					},
 				},
 			},
 		},
@@ -231,11 +218,18 @@ func Test_handleOperationalResourceError(t *testing.T) {
 				Count:     2,
 				Cause:     fmt.Errorf("0"),
 			},
-			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"mock:mock5:this", "mock:mock2:mock2-0", "mock:mock2:mock2-1"},
-				Deps: []coretesting.StringDep{
-					{Source: "mock:mock5:this", Destination: "mock:mock2:mock2-0"},
-					{Source: "mock:mock5:this", Destination: "mock:mock2:mock2-1"},
+			want: []Decision{
+				{
+					Action: ActionConnect,
+					Result: &DecisionResult{
+						Edge: &graph.Edge[construct.Resource]{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource2{Name: "mock2-0"}},
+					},
+				},
+				{
+					Action: ActionConnect,
+					Result: &DecisionResult{
+						Edge: &graph.Edge[construct.Resource]{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource2{Name: "mock2-1"}},
+					},
 				},
 			},
 		},
@@ -252,11 +246,12 @@ func Test_handleOperationalResourceError(t *testing.T) {
 			existingDependencies: []graph.Edge[construct.Resource]{
 				{Source: &enginetesting.MockResource1{Name: "child"}, Destination: &enginetesting.MockResource3{Name: "parent"}},
 			},
-			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"mock:mock5:this", "mock:mock1:child", "mock:mock3:parent"},
-				Deps: []coretesting.StringDep{
-					{Source: "mock:mock5:this", Destination: "mock:mock1:child"},
-					{Source: "mock:mock1:child", Destination: "mock:mock3:parent"},
+			want: []Decision{
+				{
+					Action: ActionConnect,
+					Result: &DecisionResult{
+						Edge: &graph.Edge[construct.Resource]{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "child"}},
+					},
 				},
 			},
 		},
@@ -274,14 +269,24 @@ func Test_handleOperationalResourceError(t *testing.T) {
 				{Source: &enginetesting.MockResource1{Name: "child"}, Destination: &enginetesting.MockResource3{Name: "parent"}},
 				{Source: &enginetesting.MockResource1{Name: "child2"}, Destination: &enginetesting.MockResource3{Name: "parent2"}},
 			},
-			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"mock:mock5:this", "mock:mock1:mock1-2", "mock:mock1:child", "mock:mock1:child2", "mock:mock3:parent", "mock:mock3:parent2"},
-				Deps: []coretesting.StringDep{
-					{Source: "mock:mock5:this", Destination: "mock:mock1:child"},
-					{Source: "mock:mock5:this", Destination: "mock:mock1:mock1-2"},
-					{Source: "mock:mock1:child", Destination: "mock:mock3:parent"},
-					{Source: "mock:mock1:mock1-2", Destination: "mock:mock3:parent"},
-					{Source: "mock:mock1:child2", Destination: "mock:mock3:parent2"},
+			want: []Decision{
+				{
+					Action: ActionConnect,
+					Result: &DecisionResult{
+						Edge: &graph.Edge[construct.Resource]{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "child"}},
+					},
+				},
+				{
+					Action: ActionConnect,
+					Result: &DecisionResult{
+						Edge: &graph.Edge[construct.Resource]{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "mock1-2"}},
+					},
+				},
+				{
+					Action: ActionConnect,
+					Result: &DecisionResult{
+						Edge: &graph.Edge[construct.Resource]{Source: &enginetesting.MockResource1{Name: "mock1-2"}, Destination: &enginetesting.MockResource3{Name: "parent"}},
+					},
 				},
 			},
 		},
@@ -298,13 +303,18 @@ func Test_handleOperationalResourceError(t *testing.T) {
 				{Source: &enginetesting.MockResource1{Name: "child"}, Destination: &enginetesting.MockResource3{Name: "parent"}},
 				{Source: &enginetesting.MockResource1{Name: "child2"}, Destination: &enginetesting.MockResource3{Name: "parent2"}},
 			},
-			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"mock:mock5:this", "mock:mock1:child", "mock:mock1:child2", "mock:mock3:parent", "mock:mock3:parent2"},
-				Deps: []coretesting.StringDep{
-					{Source: "mock:mock5:this", Destination: "mock:mock1:child"},
-					{Source: "mock:mock5:this", Destination: "mock:mock1:child2"},
-					{Source: "mock:mock1:child", Destination: "mock:mock3:parent"},
-					{Source: "mock:mock1:child2", Destination: "mock:mock3:parent2"},
+			want: []Decision{
+				{
+					Action: ActionConnect,
+					Result: &DecisionResult{
+						Edge: &graph.Edge[construct.Resource]{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "child"}},
+					},
+				},
+				{
+					Action: ActionConnect,
+					Result: &DecisionResult{
+						Edge: &graph.Edge[construct.Resource]{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "child2"}},
+					},
 				},
 			},
 		},
@@ -322,13 +332,18 @@ func Test_handleOperationalResourceError(t *testing.T) {
 				{Source: &enginetesting.MockResource1{Name: "child"}, Destination: &enginetesting.MockResource3{Name: "parent"}},
 				{Source: &enginetesting.MockResource1{Name: "child2"}, Destination: &enginetesting.MockResource3{Name: "parent2"}},
 			},
-			want: coretesting.ResourcesExpectation{
-				Nodes: []string{"mock:mock5:this", "mock:mock1:mock1-this-2", "mock:mock1:mock1-this-3", "mock:mock1:child", "mock:mock1:child2", "mock:mock3:parent", "mock:mock3:parent2"},
-				Deps: []coretesting.StringDep{
-					{Source: "mock:mock5:this", Destination: "mock:mock1:mock1-this-2"},
-					{Source: "mock:mock5:this", Destination: "mock:mock1:mock1-this-3"},
-					{Source: "mock:mock1:child", Destination: "mock:mock3:parent"},
-					{Source: "mock:mock1:child2", Destination: "mock:mock3:parent2"},
+			want: []Decision{
+				{
+					Action: ActionConnect,
+					Result: &DecisionResult{
+						Edge: &graph.Edge[construct.Resource]{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "mock1-this-2"}},
+					},
+				},
+				{
+					Action: ActionConnect,
+					Result: &DecisionResult{
+						Edge: &graph.Edge[construct.Resource]{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource1{Name: "mock1-this-3"}},
+					},
 				},
 			},
 		},
@@ -347,7 +362,7 @@ func Test_handleOperationalResourceError(t *testing.T) {
 				dag.AddDependency(dep.Source, dep.Destination)
 			}
 
-			err := engine.handleOperationalResourceError(tt.ore, dag)
+			decisions, err := engine.handleOperationalResourceError(tt.ore, dag)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -355,7 +370,7 @@ func Test_handleOperationalResourceError(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			tt.want.Assert(t, dag)
+			CompareDecisions(t, tt.want, decisions)
 		})
 	}
 }
@@ -578,5 +593,23 @@ func Test_TemplateConfigure(t *testing.T) {
 			}
 			assert.Equal(tt.want, tt.resource)
 		})
+	}
+}
+
+func CompareDecisions(t *testing.T, expected, actual []Decision) {
+	if !assert.Equal(t, len(expected), len(actual), "expected %d decisions, got %d: %v", len(expected), len(actual), actual) {
+		return
+	}
+	for i, expected := range expected {
+		switch expected.Action {
+		case ActionCreate:
+			assert.Equal(t, expected.Action, actual[i].Action, "expected decision %d to be equal", i)
+			assert.Equal(t, expected.Result.Resource.Id(), actual[i].Result.Resource.Id(), "expected decision %d to be equal for result resource id", i)
+		case ActionConnect:
+			assert.Equal(t, expected.Action, actual[i].Action, "expected decision %d to be equal", i)
+			assert.Equal(t, expected.Result.Edge.Source.Id(), actual[i].Result.Edge.Source.Id(), "expected decision %d to be equal for result edge source id", i)
+			assert.Equal(t, expected.Result.Edge.Destination.Id(), actual[i].Result.Edge.Destination.Id(), "expected decision %d to be equal for result edge destination id", i)
+			assert.Equal(t, expected.Result.Edge.Properties, actual[i].Result.Edge.Properties, "expected decision %d to be equal for result edge label", i)
+		}
 	}
 }

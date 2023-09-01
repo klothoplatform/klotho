@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
@@ -43,43 +42,21 @@ type (
 		Constraints                 map[constraints.ConstraintScope][]constraints.Constraint
 		InitialState                *construct.ConstructGraph
 		WorkingState                *construct.ConstructGraph
-		Solution                    *construct.ResourceGraph
+		Solution                    *SolveContext
 		Decisions                   []Decision
+		Errors                      []EngineError
 		constructExpansionSolutions map[construct.ResourceId][]*ExpansionSolution
 		AppName                     string
 	}
 
+	// SolveContext is a struct that represents the context of one possible graph solution
 	SolveContext struct {
 		ResourceGraph       *construct.ResourceGraph
 		constructsMapping   map[construct.ResourceId]*ExpansionSolution
-		errors              error
-		unsolvedConstraints []constraints.Constraint
+		Decisions           []Decision
+		Errors              []EngineError
+		UnsolvedConstraints []constraints.Constraint
 	}
-
-	SolveOutput struct {
-		ResourceGraph *construct.ResourceGraph
-		Decision      []Decision
-	}
-
-	// Decision is a struct that represents a decision made by the engine
-	Decision struct {
-		Level  Level
-		Result DecisionResult
-		Action Action
-		Cause  Cause
-	}
-	Action string
-	Cause  struct {
-		Expansion           *graph.Edge[construct.Resource]
-		Configuration       *graph.Edge[construct.Resource]
-		OperationalResource construct.Resource
-		Constraint          *constraints.Constraint
-	}
-	DecisionResult struct {
-		Resource construct.Resource
-		Edge     graph.Edge[construct.Resource]
-	}
-	Level string
 )
 
 func NewEngine(providers map[string]provider.Provider, kb knowledgebase.EdgeKB, constructs []construct.Construct) *Engine {
@@ -198,61 +175,68 @@ func (e *Engine) Run() (*construct.ResourceGraph, error) {
 	}
 
 	zap.S().Debug("Engine Expanding constructs")
-	err = e.ExpandConstructs()
-	if err != nil {
-		return nil, err
+	e.ExpandConstructs()
+	if len(e.Context.Errors) > 0 {
+		return nil, fmt.Errorf("got errors when expanding constructs: %s", e.Context.Errors)
 	}
 	zap.S().Debug("Engine done Expanding constructs")
-	contextsToSolve, err := e.GenerateCombinations()
-	if err != nil {
-		return nil, err
+	contextsToSolve := e.GenerateCombinations()
+	if len(e.Context.Errors) > 0 {
+		return nil, fmt.Errorf("got errors when generating combinations: %s", e.Context.Errors)
 	}
 	numValidGraphs := 0
 	for _, context := range contextsToSolve {
-		solution, err := e.SolveGraph(context)
-		if err != nil {
-			zap.S().Debugf("got error when solving graph, with context %s, err: %s", context, err.Error())
-			continue
+		e.SolveGraph(context)
+		if len(context.UnsolvedConstraints) == 0 && len(context.Errors) == 0 {
+			numValidGraphs++
+			if e.Context.Solution == nil {
+				e.Context.Solution = context
+			}
 		}
-		if e.Context.Solution == nil {
-			e.Context.Solution = solution
-		}
-		numValidGraphs++
 	}
+
 	if numValidGraphs == 0 {
 		var closestSolvedContext *SolveContext
 		for _, context := range contextsToSolve {
 			if closestSolvedContext == nil {
 				closestSolvedContext = context
 			}
-			if len(context.unsolvedConstraints) < len(closestSolvedContext.unsolvedConstraints) {
+			if len(context.UnsolvedConstraints) < len(closestSolvedContext.UnsolvedConstraints) {
 				closestSolvedContext = context
 			}
 		}
+		e.Context.Solution = closestSolvedContext
+
 		errorString := "no valid graphs found"
-		if closestSolvedContext.unsolvedConstraints != nil {
-			errorString = fmt.Sprintf("%s, was unable to satisfy the following constraints: %s", errorString, closestSolvedContext.unsolvedConstraints)
+		if closestSolvedContext.UnsolvedConstraints != nil {
+			errorString = fmt.Sprintf("%s, was unable to satisfy the following constraints: %s", errorString, closestSolvedContext.UnsolvedConstraints)
 		}
-		if closestSolvedContext.errors != nil {
-			errorString = fmt.Sprintf("%s.\ngot the following errors when solving the graph %s", errorString, closestSolvedContext.errors.Error())
+		if closestSolvedContext.Errors != nil {
+			solutionErrorString := ""
+			for _, err := range closestSolvedContext.Errors {
+				solutionErrorString = fmt.Sprintf("%s\n%s", solutionErrorString, err.Error())
+			}
+			errorString = fmt.Sprintf("%s.\ngot the following errors when solving the graph %s", errorString, solutionErrorString)
 		}
 
 		return nil, fmt.Errorf(errorString)
 	}
 	zap.S().Debugf("found %d valid graphs", numValidGraphs)
 
-	return e.Context.Solution, nil
+	return e.Context.Solution.ResourceGraph, nil
 }
 
-func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
-	var joinedErr error
+func (e *Engine) GenerateCombinations() []*SolveContext {
 	toSolve := []*SolveContext{}
 	baseGraph := construct.NewResourceGraph()
 	for _, res := range e.Context.WorkingState.ListConstructs() {
 		if res.Id().Provider != construct.AbstractConstructProvider {
 			resource, ok := res.(construct.Resource)
 			if !ok {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("construct %s is not a resource", res.Id()))
+				e.Context.Errors = append(e.Context.Errors, &ConstructExpansionError{
+					Construct: res,
+					Cause:     fmt.Errorf("construct %s is not a resource", res.Id()),
+				})
 				continue
 			}
 			baseGraph.AddResource(resource)
@@ -264,7 +248,7 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 		}
 	}
 	if len(e.Context.constructExpansionSolutions) == 0 {
-		return []*SolveContext{{ResourceGraph: baseGraph}}, nil
+		return []*SolveContext{{ResourceGraph: baseGraph}}
 	}
 	var combinations []map[construct.ResourceId]*ExpansionSolution
 	for resId, sol := range e.Context.constructExpansionSolutions {
@@ -287,26 +271,34 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 			combinations = newCombinations
 		}
 	}
+
 	for _, comb := range combinations {
-		rg := baseGraph.Clone()
+		newContext := &SolveContext{
+			ResourceGraph:     baseGraph.Clone(),
+			constructsMapping: comb,
+		}
 		mappedRes := map[construct.ResourceId][]construct.Resource{}
 		// we will clone resources otherwise we will have side effects as we solve context by context due to pointing at the same resource
 		clonedRes := map[construct.ResourceId]construct.Resource{}
 		for resId, sol := range comb {
+			expandedConstruct := e.Context.WorkingState.GetConstruct(resId)
 			for _, res := range sol.Graph.ListResources() {
 				copiedRes := cloneResource(res)
 				clonedRes[res.Id()] = copiedRes
-				rg.AddResource(copiedRes)
+				e.handleDecision(newContext, Decision{Level: LevelInfo, Result: &DecisionResult{Resource: copiedRes}, Action: ActionCreate, Cause: &Cause{ConstructExpansion: expandedConstruct}})
 			}
 			for _, edge := range sol.Graph.ListDependencies() {
-				src := clonedRes[edge.Source.Id()]
-				dst := clonedRes[edge.Destination.Id()]
-				rg.AddDependencyWithData(src, dst, edge.Properties.Data)
+				edge.Source = clonedRes[edge.Source.Id()]
+				edge.Destination = clonedRes[edge.Destination.Id()]
+				e.handleDecision(newContext, Decision{Level: LevelInfo, Result: &DecisionResult{Edge: &edge}, Action: ActionConnect, Cause: &Cause{ConstructExpansion: expandedConstruct}})
 			}
 			mappedRes[resId] = sol.DirectlyMappedResources
 		}
 
 		for _, dep := range e.Context.WorkingState.ListDependencies() {
+
+			var constructBeingExpanded construct.BaseConstruct
+
 			if dep.Source.Id().Provider != construct.AbstractConstructProvider && dep.Destination.Id().Provider != construct.AbstractConstructProvider {
 				continue
 			}
@@ -316,13 +308,17 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 			if dep.Source.Id().Provider == construct.AbstractConstructProvider {
 				srcResources, ok := mappedRes[dep.Source.Id()]
 				if !ok {
-					joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to find resources for construct %s", dep.Source.Id()))
+					e.Context.Errors = append(e.Context.Errors, &ConstructExpansionError{
+						Construct: dep.Source,
+						Cause:     fmt.Errorf("unable to find resources for construct %s", dep.Source.Id()),
+					})
 					continue
 				}
 				for _, res := range srcResources {
 					// we will clone resources otherwise we will have side effects as we solve context by context due to pointing at the same resource
 					srcNodes = append(srcNodes, cloneResource(res))
 				}
+				constructBeingExpanded = dep.Source
 			} else {
 				srcClone := cloneResource(dep.Source.(construct.Resource))
 				srcNodes = append(srcNodes, srcClone)
@@ -331,113 +327,107 @@ func (e *Engine) GenerateCombinations() ([]*SolveContext, error) {
 			if dep.Destination.Id().Provider == construct.AbstractConstructProvider {
 				dstResources, ok := mappedRes[dep.Destination.Id()]
 				if !ok {
-					joinedErr = errors.Join(joinedErr, fmt.Errorf("unable to find resources for construct %s", dep.Destination.Id()))
+					e.Context.Errors = append(e.Context.Errors, &ConstructExpansionError{
+						Construct: dep.Destination,
+						Cause:     fmt.Errorf("unable to find resources for construct %s", dep.Destination.Id()),
+					})
 					continue
 				}
 				for _, res := range dstResources {
 					// we will clone resources otherwise we will have side effects as we solve context by context due to pointing at the same resource
 					dstNodes = append(dstNodes, cloneResource(res))
 				}
+				constructBeingExpanded = dep.Destination
 			} else {
 				dstClone := cloneResource(dep.Destination.(construct.Resource))
 				dstNodes = append(dstNodes, dstClone)
 			}
-
 			for _, srcNode := range srcNodes {
 				for _, dstNode := range dstNodes {
-					rg.AddDependencyWithData(srcNode, dstNode, dep.Properties.Data)
+					e.handleDecision(newContext, Decision{Level: LevelInfo, Result: &DecisionResult{Edge: &graph.Edge[construct.Resource]{Source: srcNode, Destination: dstNode, Properties: dep.Properties}}, Action: ActionConnect, Cause: &Cause{ConstructExpansion: constructBeingExpanded}})
 				}
 			}
 		}
-		toSolve = append(toSolve, &SolveContext{
-			ResourceGraph:     rg,
-			constructsMapping: comb,
-		})
+		toSolve = append(toSolve, newContext)
 	}
-	return toSolve, joinedErr
+	return toSolve
 }
 
-func (e *Engine) SolveGraph(context *SolveContext) (*construct.ResourceGraph, error) {
+func (e *Engine) SolveGraph(context *SolveContext) {
 	NUM_LOOPS := 10
 	graph := context.ResourceGraph
-	errorMap := make(map[int][]error)
-	var configuredEdges map[construct.ResourceId]map[construct.ResourceId]bool
+	configuredEdges := make(map[construct.ResourceId]map[construct.ResourceId]bool)
+	operationalResources := make(map[construct.ResourceId]bool)
 	for i := 0; i < NUM_LOOPS; i++ {
+		context.Errors = []EngineError{}
+
 		for _, rc := range e.Context.Constraints[constraints.ResourceConstraintScope] {
-			err := e.ApplyResourceConstraint(graph, rc.(*constraints.ResourceConstraint))
-			if err != nil {
-				errorMap[i] = append(errorMap[i], err)
-			}
+			rc := rc.(*constraints.ResourceConstraint)
+			config := knowledgebase.Configuration{Field: rc.Property, Value: rc.Value}
+			e.handleDecision(context, Decision{Level: LevelInfo, Result: &DecisionResult{Config: &config, Resource: context.ResourceGraph.GetResource(rc.Target)}, Action: ActionConfigure, Cause: &Cause{Constraint: rc}})
 		}
-		err := e.expandEdges(graph)
-		if err != nil {
-			errorMap[i] = append(errorMap[i], err)
-		} else {
-			configuredEdges, err = e.configureEdges(graph)
+
+		for _, dep := range graph.ListDependencies() {
+
+			if configuredEdges[dep.Source.Id()] == nil {
+				configuredEdges[dep.Source.Id()] = make(map[construct.ResourceId]bool)
+			}
+
+			err := e.expandEdge(dep, context)
 			if err != nil {
-				errorMap[i] = append(errorMap[i], err)
+				context.Errors = append(context.Errors, err)
+				continue
+			}
+
+			errs := e.configureEdge(dep, context)
+			if err != nil {
+				context.Errors = append(context.Errors, errs...)
+				continue
+			}
+			configuredEdges[dep.Source.Id()][dep.Destination.Id()] = true
+		}
+		resources, err := context.ResourceGraph.ReverseTopologicalSort()
+		if err != nil {
+			context.Errors = append(context.Errors, &InternalError{
+				Cause: fmt.Errorf("error sorting resources for operationalization: %w", err),
+				Child: &ResourceNotOperationalError{Cause: err},
+			})
+		} else {
+			for _, resource := range resources {
+				success := e.MakeResourceOperational(context, resource)
+				if success {
+					operationalResources[resource.Id()] = true
+				}
 			}
 		}
 
-		zap.S().Debug("Engine done configuring edges")
-		operationalResources, err := e.MakeResourcesOperational(graph)
-		if err != nil {
-			errorMap[i] = append(errorMap[i], err)
-		}
 		zap.S().Debug("Validating constraints")
 		unsatisfiedConstraints := e.ValidateConstraints(context)
+		context.UnsolvedConstraints = unsatisfiedConstraints
 
-		var joinedErr error
-		for _, error := range errorMap[i] {
-			joinedErr = errors.Join(joinedErr, error)
+		// check to make sure that every resource is operational
+		for _, res := range graph.ListResources() {
+			if !operationalResources[res.Id()] {
+				context.Errors = append(context.Errors, &ResourceNotOperationalError{
+					Resource: res,
+					Cause:    fmt.Errorf("resource %s is not operational", res.Id()),
+				})
+			}
 		}
-		context.errors = joinedErr
-		if len(unsatisfiedConstraints) > 0 && i == NUM_LOOPS-1 {
-			constraintsString := ""
-			for _, constraint := range unsatisfiedConstraints {
-				constraintsString += fmt.Sprintf("%s\n", constraint)
+		// check to make sure that each edge is configured
+		for _, dep := range graph.ListDependencies() {
+			if !configuredEdges[dep.Source.Id()][dep.Destination.Id()] {
+				context.Errors = append(context.Errors, &EdgeConfigurationError{
+					Edge:  dep,
+					Cause: fmt.Errorf("edge %s -> %s is not configured", dep.Source.Id(), dep.Destination.Id()),
+				})
 			}
-			zap.S().Debugf("unsatisfied constraints: %s", constraintsString)
-			context.unsolvedConstraints = unsatisfiedConstraints
-			return graph, fmt.Errorf("unsatisfied constraints: %s", constraintsString)
-		} else {
-			// check to make sure that every resource is operational
-			notOperationalList := make([]string, 0)
-			for _, res := range graph.ListResources() {
-				if !operationalResources[res.Id()] {
-					notOperationalList = append(notOperationalList, res.Id().String())
-				}
-			}
-			if len(notOperationalList) > 0 {
-				errorMap[i] = append(errorMap[i], fmt.Errorf("the following resources are not operational: %s", strings.Join(notOperationalList, ", ")))
-			}
-			// check to make sure that each edge is configured
-			notConfiguredList := make([]string, 0)
-			for _, dep := range graph.ListDependencies() {
-				if !configuredEdges[dep.Source.Id()][dep.Destination.Id()] {
-					notConfiguredList = append(notConfiguredList, fmt.Sprintf("%s -> %s", dep.Source.Id(), dep.Destination.Id()))
-				}
-			}
-			if len(notConfiguredList) > 0 {
-				errorMap[i] = append(errorMap[i], fmt.Errorf("the following edges are not configured: %s", strings.Join(notConfiguredList, ", ")))
-			}
-			if len(errorMap[i]) == 0 {
-				break
-			}
-			var joinedErr error
-			for _, error := range errorMap[i] {
-				joinedErr = errors.Join(joinedErr, error)
-			}
-			context.errors = joinedErr
-			if i == NUM_LOOPS-1 {
-				return nil, fmt.Errorf("found the following errors during graph solving: %s", context.errors.Error())
-			} else {
-				zap.S().Debugf("got errors: %s", joinedErr.Error())
-			}
+		}
+
+		if len(context.Errors) == 0 && len(context.UnsolvedConstraints) == 0 {
+			break
 		}
 	}
-	zap.S().Debug("Validated constraints")
-	return graph, nil
 }
 
 // ApplyApplicationConstraint applies an application constraint to the either the engines working state construct graph
@@ -635,14 +625,25 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 	return nil
 }
 
-func (e *Engine) ApplyResourceConstraint(graph *construct.ResourceGraph, constraint *constraints.ResourceConstraint) error {
+func (e *Engine) ApplyResourceConstraint(graph *construct.ResourceGraph, constraint *constraints.ResourceConstraint) EngineError {
 	resource := graph.GetResource(constraint.Target)
 	if resource == nil {
-		return fmt.Errorf("resource %s does not exist", constraint.Target)
+		return &ResourceConfigurationError{
+			Constraint: constraint,
+			Cause:      fmt.Errorf("resource %s does not exist", constraint.Target),
+		}
 	}
 	err := ConfigureField(resource, constraint.Property, constraint.Value, true, graph)
 	if err != nil {
-		return err
+		return &ResourceConfigurationError{
+			Resource: resource,
+			Cause:    err,
+			Config: knowledgebase.Configuration{
+				Field: constraint.Property,
+				Value: constraint.Value,
+			},
+			Constraint: constraint,
+		}
 	}
 	return nil
 }
