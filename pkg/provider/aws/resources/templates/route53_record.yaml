@@ -10,3 +10,5 @@ rules:
       operation: error
 delete_context:
   requires_no_downstream: true
+views:
+  dataflow: small

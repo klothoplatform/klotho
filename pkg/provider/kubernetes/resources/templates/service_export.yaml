@@ -16,3 +16,5 @@ configuration:
     value: multicluster.x-k8s.io/v1alpha1
   - field: Object.Kind
     value: ServiceExport
+views:
+  dataflow: small

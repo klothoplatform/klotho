@@ -17,3 +17,5 @@ rules:
     unsatisfied_action:
       operation: create
       unique: true
+views:
+  dataflow: big

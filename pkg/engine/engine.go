@@ -59,6 +59,10 @@ type (
 	}
 )
 
+func (e *Engine) GetTemplateForResource(resource construct.Resource) *knowledgebase.ResourceTemplate {
+	return e.ResourceTemplates[construct.ResourceId{Provider: resource.Id().Provider, Type: resource.Id().Type}]
+}
+
 func NewEngine(providers map[string]provider.Provider, kb knowledgebase.EdgeKB, constructs []construct.Construct) *Engine {
 	engine := &Engine{
 		Providers:              providers,
@@ -364,7 +368,8 @@ func (e *Engine) SolveGraph(context *SolveContext) {
 		for _, rc := range e.Context.Constraints[constraints.ResourceConstraintScope] {
 			rc := rc.(*constraints.ResourceConstraint)
 			config := knowledgebase.Configuration{Field: rc.Property, Value: rc.Value}
-			e.handleDecision(context, Decision{Level: LevelInfo, Result: &DecisionResult{Config: &config, Resource: context.ResourceGraph.GetResource(rc.Target)}, Action: ActionConfigure, Cause: &Cause{Constraint: rc}})
+			configRule := knowledgebase.ConfigurationRule{Config: config, Resource: rc.Target}
+			e.handleDecision(context, Decision{Level: LevelInfo, Result: &DecisionResult{Config: &configRule, Resource: context.ResourceGraph.GetResource(rc.Target)}, Action: ActionConfigure, Cause: &Cause{Constraint: rc}})
 		}
 
 		for _, dep := range graph.ListDependencies() {

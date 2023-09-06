@@ -40,3 +40,5 @@ configuration:
               Target:
                 Type: Utilization
                 AverageUtilization: 70
+views:
+  dataflow: small

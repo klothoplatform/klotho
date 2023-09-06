@@ -2,3 +2,5 @@ provider: aws
 type: ses_email_identity
 delete_context:
   require_no_upstream: true
+views:
+  dataflow: big

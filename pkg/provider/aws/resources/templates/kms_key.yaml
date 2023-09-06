@@ -15,3 +15,5 @@ configuration:
     value: 7
 delete_context:
   requires_no_upstream: true
+views:
+  dataflow: big

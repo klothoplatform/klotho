@@ -22,3 +22,5 @@ Configuration:
           Name: '{{ .Name }}'
         Annotations:
           Name: '{{ .Name }}'
+views:
+  dataflow: parent

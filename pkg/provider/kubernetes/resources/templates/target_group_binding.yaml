@@ -22,3 +22,5 @@ configuration:
     value: elbv2.k8s.aws/v1beta1
   - field: Object.Kind
     value: TargetGroupBinding
+views:
+  dataflow: small

@@ -24,7 +24,7 @@ type OperationalResource interface {
 // all errors and decisions are recorded in the context.
 func (e *Engine) MakeResourceOperational(context *SolveContext, resource construct.Resource) bool {
 	var engineErrors []EngineError
-	template := e.ResourceTemplates[construct.ResourceId{Provider: resource.Id().Provider, Type: resource.Id().Type}]
+	template := e.GetTemplateForResource(resource)
 	if template != nil {
 		for _, rule := range template.Rules {
 			decisions, errs := e.handleOperationalRule(resource, rule, context.ResourceGraph, nil)
@@ -232,25 +232,25 @@ func (e *Engine) handleExactlyOneEnforcement(resource construct.Resource, rule k
 		if downstreamParent != nil && !rule.NoParentDependency {
 			decisions = append(decisions, addDependencyDecisionForDirection(rule.Direction, res, downstreamParent))
 		}
-
-		var subRuleErrors []EngineError
-		for _, subRule := range rule.Rules {
-			subRuleDecisions, err := e.handleOperationalRule(resource, subRule, dag, nil)
-			if err != nil {
-				subRuleErrors = append(subRuleErrors, err...)
-			}
-			decisions = append(decisions, subRuleDecisions...)
-		}
-		if subRuleErrors != nil {
-			return decisions, subRuleErrors
-		}
-
 		if rule.RemoveDirectDependency {
 			if getDependencyForDirection(dag, rule.Direction, resource, res) != nil {
 				decisions = append(decisions, removeDependencyDecisionForDirection(rule.Direction, resource, res))
 			}
 		}
 	}
+
+	var subRuleErrors []EngineError
+	for _, subRule := range rule.Rules {
+		subRuleDecisions, err := e.handleOperationalRule(resource, subRule, dag, nil)
+		if err != nil {
+			subRuleErrors = append(subRuleErrors, err...)
+		}
+		decisions = append(decisions, subRuleDecisions...)
+	}
+	if subRuleErrors != nil {
+		return decisions, subRuleErrors
+	}
+
 	return decisions, nil
 }
 
@@ -563,4 +563,50 @@ func getDependencyForDirection(dag *construct.ResourceGraph, direction knowledge
 	} else {
 		return dag.GetDependency(resource.Id(), dependentResource.Id())
 	}
+}
+
+func (e *Engine) isSideEffect(dag *construct.ResourceGraph, resource construct.Resource, sideEffect construct.Resource) bool {
+	template := e.GetTemplateForResource(resource)
+	if template == nil {
+		return false
+	}
+	for _, rule := range template.Rules {
+		if rule.ResourceTypes != nil && collectionutil.Contains(rule.ResourceTypes, sideEffect.Id().Type) || rule.Classifications != nil && e.ClassificationDocument.ResourceContainsClassifications(sideEffect, rule.Classifications) {
+			if rule.Direction == knowledgebase.Upstream {
+				resources, err := dag.ShortestPath(sideEffect.Id(), resource.Id())
+				if len(resources) == 0 || err != nil {
+					return false
+				}
+			} else {
+				resources, err := dag.ShortestPath(resource.Id(), sideEffect.Id())
+				if len(resources) == 0 || err != nil {
+					return false
+				}
+			}
+			fmt.Println("checking field", rule.SetField)
+			if rule.SetField != "" {
+				val, _, err := parseFieldName(resource, rule.SetField, dag, false)
+				if err != nil {
+					return false
+				}
+				if val.Kind() == reflect.Array || val.Kind() == reflect.Slice {
+					for i := 0; i < val.Len(); i++ {
+						fmt.Println(val.Index(i).Interface().(construct.Resource).Id(), sideEffect.Id())
+						if val.Index(i).Interface().(construct.Resource).Id() == sideEffect.Id() {
+							return true
+						}
+					}
+				} else {
+					fmt.Println(val.Interface().(construct.Resource).Id(), sideEffect.Id())
+					if val.Interface().(construct.Resource).Id() == sideEffect.Id() {
+						return true
+					}
+				}
+			} else {
+				return true
+			}
+
+		}
+	}
+	return false
 }

@@ -11,3 +11,5 @@ rules:
 delete_context:
   requires_no_upstream: true
   requires_explicit_delete: true
+views:
+  dataflow: small

@@ -31,3 +31,5 @@ rules:
         num_needed: 1
         unsatisfied_action:
           operation: create
+views:
+  dataflow: small

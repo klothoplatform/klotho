@@ -24,3 +24,5 @@ delete_context:
   requires_no_upstream: true
   requires_no_downstream: false
   requires_explicit_delete: false
+views:
+  dataflow: small

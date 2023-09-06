@@ -169,7 +169,7 @@ func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *construct
 		}
 		decisions = append(decisions, Decision{
 			Level:  LevelInfo,
-			Result: &DecisionResult{Resource: res, Config: &newConfig},
+			Result: &DecisionResult{Resource: res, Config: &config},
 			Action: ActionConfigure,
 			Cause: &Cause{
 				EdgeExpansion: edge,

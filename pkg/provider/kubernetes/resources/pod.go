@@ -101,6 +101,9 @@ func (pod *Pod) MakeOperational(dag *construct.ResourceGraph, appName string, cl
 	if pod.Cluster.IsZero() {
 		return fmt.Errorf("%s has no cluster", pod.Id())
 	}
+	if pod.Object == nil {
+		pod.Object = &corev1.Pod{}
+	}
 	SetDefaultObjectMeta(pod, pod.Object.GetObjectMeta())
 	pod.FilePath = ManifestFilePath(pod)
 

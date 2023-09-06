@@ -117,6 +117,10 @@ const (
 	ReuseDownstream Reuse = "downstream"
 )
 
+func (rule ConfigurationRule) String() string {
+	return fmt.Sprintf("%s, field: %s, value: %s", rule.Resource, rule.Config.Field, rule.Config.Value)
+}
+
 func (template *EdgeTemplate) Key() string {
 	return fmt.Sprintf("%s-%s", template.Source, template.Destination)
 }

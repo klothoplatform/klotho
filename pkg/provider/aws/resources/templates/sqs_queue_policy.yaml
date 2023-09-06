@@ -8,3 +8,5 @@ rules:
     set_field: Queues
 delete_context:
   requires_no_upstream: true
+views:
+  dataflow: small

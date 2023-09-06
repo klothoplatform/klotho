@@ -252,7 +252,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	}
 	em.Engine.LoadContext(cg, constraints, "")
 	outputGraph, runErr := em.Engine.Run()
-	decisionsBytes, err := json.MarshalIndent(em.Engine.Context.Solution.Decisions, "", "    ")
+	decisionsBytes, err := json.MarshalIndent(em.Engine.PostProcess(em.Engine.Context.Solution.Decisions), "", "    ")
 	if err != nil {
 		return errors.Errorf("failed to marshal decisions: %s", err.Error())
 	}
@@ -268,14 +268,11 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 			return errors.Errorf("failed to marshal failures: %s", err.Error())
 		}
 	} else {
-		fmt.Println(em.Engine.Context.Solution.Errors)
 		failureBytes, err = json.MarshalIndent(em.Engine.Context.Solution.Errors, "", "    ")
 		if err != nil {
 			return errors.Errorf("failed to marshal failures: %s", err.Error())
 		}
-		fmt.Println(string(failureBytes))
 	}
-	fmt.Println(string(failureBytes))
 	files = append(files, &io.RawFile{
 		FPath:   "failures.json",
 		Content: failureBytes,

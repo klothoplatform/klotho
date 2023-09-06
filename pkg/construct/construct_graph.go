@@ -38,6 +38,10 @@ type (
 	}
 )
 
+func (edge OutputEdge) String() string {
+	return edge.Source.String() + " -> " + edge.Destination.String()
+}
+
 func NewConstructGraph() *ConstructGraph {
 	return &ConstructGraph{
 		underlying: graph.NewDirected(func(v BaseConstruct) string {

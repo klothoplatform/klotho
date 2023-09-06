@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -29,9 +30,18 @@ type (
 	DecisionResult struct {
 		Resource construct.Resource
 		Edge     *graph.Edge[construct.Resource]
-		Config   *knowledgebase.Configuration
+		Config   *knowledgebase.ConfigurationRule
 	}
 	Level string
+
+	OutputDecision struct {
+		Cause          Cause
+		Resources      []construct.ResourceId
+		Edges          []construct.OutputEdge
+		Config         []knowledgebase.ConfigurationRule
+		CauseMessage   string
+		DisplayMessage string
+	}
 )
 
 const (
@@ -50,6 +60,37 @@ const (
 	ActionConnect    Action = "connect"
 	ActionDisconnect Action = "disconnect"
 )
+
+func (e *Engine) PostProcess(decisions []Decision) []OutputDecision {
+	outputs := map[Cause]*OutputDecision{}
+	for _, decision := range decisions {
+		var output *OutputDecision
+		var found bool
+		output, found = outputs[*decision.Cause]
+		if !found {
+			output = &OutputDecision{Cause: *decision.Cause}
+			outputs[*decision.Cause] = output
+		}
+		if decision.Result.Config != nil {
+			output.Config = append(output.Config, *decision.Result.Config)
+		} else if decision.Result.Resource != nil {
+			output.Resources = append(output.Resources, decision.Result.Resource.Id())
+		} else if decision.Result.Edge != nil {
+			output.Edges = append(output.Edges, construct.OutputEdge{
+				Source:      decision.Result.Edge.Source.Id(),
+				Destination: decision.Result.Edge.Destination.Id(),
+			})
+		} else {
+			panic("unknown decision result")
+		}
+	}
+	outputDecisions := []OutputDecision{}
+	for _, output := range outputs {
+		output.DisplayMessage = output.String()
+		outputDecisions = append(outputDecisions, *output)
+	}
+	return outputDecisions
+}
 
 func (context *SolveContext) recordDecision(decision Decision) {
 	// Right now this is a wrapper around append, but we may want to do more in the future
@@ -106,19 +147,19 @@ func (e *Engine) handleDecision(context *SolveContext, decision Decision) {
 			if context.ResourceGraph.GetResource(decision.Result.Resource.Id()) == nil {
 				context.Errors = append(context.Errors, &ResourceConfigurationError{
 					Resource:   decision.Result.Resource,
-					Config:     *decision.Result.Config,
+					Config:     decision.Result.Config.Config,
 					Constraint: decision.Cause.Constraint,
 					Cause:      fmt.Errorf("resource %s not found in resource graph", decision.Result.Resource.Id()),
 				})
 				return
 			}
-			err := ConfigureField(decision.Result.Resource, decision.Result.Config.Field, decision.Result.Config.Value, decision.Result.Config.ZeroValueAllowed, context.ResourceGraph)
+			err := ConfigureField(decision.Result.Resource, decision.Result.Config.Config.Field, decision.Result.Config.Config.Value, decision.Result.Config.Config.ZeroValueAllowed, context.ResourceGraph)
 			if err != nil {
 				context.Errors = append(context.Errors, &InternalError{
 					Cause: err,
 					Child: &ResourceConfigurationError{
 						Resource: decision.Result.Resource,
-						Config:   *decision.Result.Config,
+						Config:   decision.Result.Config.Config,
 					},
 				})
 				return
@@ -176,22 +217,14 @@ func (e *Engine) handleDecision(context *SolveContext, decision Decision) {
 	}
 }
 
-// func (d Decision) MarshalJSON() ([]byte, error) {
-// 	fmt.Println(`{"level":"` + string(d.Level) + `","result":"` + d.Result.String() + `","action":"` + string(d.Action) + `","cause":"` + d.Cause.String() + `"}`)
-// 	return []byte(`{"level":"` + string(d.Level) + `","result":"` + d.Result.String() + `","action":"` + string(d.Action) + `","cause":"` + d.Cause.String() + `"}`), nil
-// }
-
 func (r DecisionResult) MarshalJSON() ([]byte, error) {
 	if r.Config != nil {
-		fmt.Println(`{"resource":"` + r.Resource.Id().String() + `","field":"` + r.Config.Field + `","value":` + fmt.Sprintf("%#v", r.Config.Value) + `"}`)
-		return []byte(`{"resource":"` + r.Resource.Id().String() + `","field":"` + r.Config.Field + `","value":"` + fmt.Sprintf("%#v", r.Config.Value) + `"}`), nil
+		return []byte(`{"resource":"` + r.Resource.Id().String() + `","field":"` + r.Config.Config.Field + `","value":"` + fmt.Sprintf("%#v", r.Config.Config.Value) + `"}`), nil
 	}
 	if r.Resource != nil {
-		fmt.Println(`{"resource":"` + r.Resource.Id().String() + `"}`)
 		return []byte(`{"resource":"` + r.Resource.Id().String() + `"}`), nil
 	}
 	if r.Edge != nil {
-		fmt.Println(`{"edge":"` + r.Edge.Source.Id().String() + "," + r.Edge.Destination.Id().String() + `"}`)
 		return []byte(`{"edge":"` + r.Edge.Source.Id().String() + "," + r.Edge.Destination.Id().String() + `"}`), nil
 	}
 	return []byte("{}"), nil
@@ -199,28 +232,85 @@ func (r DecisionResult) MarshalJSON() ([]byte, error) {
 
 func (c Cause) MarshalJSON() ([]byte, error) {
 	if c.EdgeExpansion != nil {
-		fmt.Println(`{"edge_expansion":"` + c.EdgeExpansion.Source.Id().String() + "," + c.EdgeExpansion.Destination.Id().String() + `"}`)
 		return []byte(`{"edge_expansion":"` + c.EdgeExpansion.Source.Id().String() + "," + c.EdgeExpansion.Destination.Id().String() + `"}`), nil
 	}
 	if c.EdgeConfiguration != nil {
-		fmt.Println(`{"edge_configuration":"` + c.EdgeExpansion.Source.Id().String() + "," + c.EdgeExpansion.Destination.Id().String() + `"}`)
 		return []byte(`{"edge_configuration":"` + c.EdgeExpansion.Source.Id().String() + "," + c.EdgeExpansion.Destination.Id().String() + `"}`), nil
 	}
 	if c.OperationalResource != nil {
-		fmt.Println(`{"operational_resource":"` + c.OperationalResource.Id().String() + `"}`)
 		return []byte(`{"operational_resource":"` + c.OperationalResource.Id().String() + `"}`), nil
 	}
 	if c.ResourceConfiguration != nil {
-		fmt.Println(`{"resource_configuration":"` + c.ResourceConfiguration.Id().String() + `"}`)
 		return []byte(`{"resource_configuration":"` + c.ResourceConfiguration.Id().String() + `"}`), nil
 	}
 	if c.ConstructExpansion != nil {
-		fmt.Println(`{"construct_expansion":"` + c.ConstructExpansion.Id().String() + `"}`)
 		return []byte(`{"construct_expansion":"` + c.ConstructExpansion.Id().String() + `"}`), nil
 	}
 	if c.Constraint != nil {
-		fmt.Println(`constraint`)
-		return []byte("constraint"), nil
+		return []byte(`{"constraint":"` + c.Constraint.String() + `"}`), nil
 	}
 	return []byte("{}"), nil
+}
+
+func (d OutputDecision) String() string {
+	if d.Cause.EdgeExpansion != nil {
+		// generate a list of resources by the decisions edges
+		pathResources := map[string]bool{}
+		for _, resource := range d.Edges {
+			pathResources[resource.Source.String()] = true
+			pathResources[resource.Destination.String()] = true
+		}
+		pathString := ""
+		for resource := range pathResources {
+			pathString += fmt.Sprintf("	%s,", resource)
+		}
+		pathString = strings.TrimSuffix(pathString, ",")
+		return fmt.Sprintf("Connected %s to %s, through the following resources: \n%s", d.Cause.EdgeExpansion.Source.Id().Name, d.Cause.EdgeExpansion.Destination.Id().Name, pathString)
+	}
+	if d.Cause.EdgeConfiguration != nil {
+		var resourcesString string
+		if len(d.Resources) > 0 {
+			for i, resource := range d.Resources {
+				if i < len(d.Resources)-2 {
+					resourcesString += fmt.Sprintf(" %s,", resource.Name)
+				} else {
+					resourcesString += fmt.Sprintf(" %s", resource.Name)
+				}
+			}
+			return fmt.Sprintf("connecting %s to %s caused the creation of: %s", d.Cause.EdgeConfiguration.Source.Id().Name, d.Cause.EdgeConfiguration.Destination.Id().Name, resourcesString)
+		} else if len(d.Edges) > 0 {
+			for _, edge := range d.Edges {
+				resourcesString += fmt.Sprintf("	• %s -> %s\n", edge.Source.Name, edge.Destination.Name)
+			}
+			return fmt.Sprintf("connecting %s to %s caused the connections: %s", d.Cause.EdgeConfiguration.Source.Id().Name, d.Cause.EdgeConfiguration.Destination.Id().Name, resourcesString)
+		}
+	}
+	if d.Cause.OperationalResource != nil {
+		var resourcesString string
+		if len(d.Resources) > 0 {
+			for i, resource := range d.Resources {
+				if i < len(d.Resources)-2 {
+					resourcesString += fmt.Sprintf(" %s,", resource.Name)
+				} else {
+					resourcesString += fmt.Sprintf(" %s", resource.Name)
+				}
+			}
+			fmt.Println(resourcesString, d.Cause.OperationalResource.Id())
+			return fmt.Sprintf("%s caused the creation of: %s", d.Cause.OperationalResource.Id().Name, resourcesString)
+		}
+	}
+	if d.Cause.ConstructExpansion != nil {
+		var resourcesString string
+		if len(d.Resources) > 0 {
+			for i, resource := range d.Resources {
+				if i < len(d.Resources)-2 {
+					resourcesString += fmt.Sprintf(" %s,", resource.Name)
+				} else {
+					resourcesString += fmt.Sprintf(" %s", resource.Name)
+				}
+			}
+			return fmt.Sprintf("Expanding construct %s, created ", d.Cause.ConstructExpansion.Id().Name)
+		}
+	}
+	return ""
 }

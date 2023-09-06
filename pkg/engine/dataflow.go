@@ -1,16 +1,10 @@
 package engine
 
 import (
-	"sort"
+	"fmt"
+	"strings"
 
-	docker "github.com/klothoplatform/klotho/pkg/provider/docker/resources"
-
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	"github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/filter"
-	awsResources "github.com/klothoplatform/klotho/pkg/provider/aws/resources"
-	k8sResources "github.com/klothoplatform/klotho/pkg/provider/kubernetes/resources"
-	"go.uber.org/zap"
 )
 
 type nodeSettings struct {
@@ -24,184 +18,127 @@ type nodeSettings struct {
 // based on its own properties and the state of the dataflow DAG.
 type resourcePostFilter func(resource construct.Resource, dag *construct.ResourceGraph) bool
 
-func (e *Engine) GetDataFlowDag() *construct.ResourceGraph {
-	dataFlowDag := construct.NewResourceGraph()
-	typesWeCareAbout := []string{
-		awsResources.APP_RUNNER_SERVICE_TYPE,
-		awsResources.LAMBDA_FUNCTION_TYPE,
-		awsResources.EC2_INSTANCE_TYPE,
-		awsResources.ECS_SERVICE_TYPE,
-		awsResources.API_GATEWAY_REST_TYPE,
-		awsResources.S3_BUCKET_TYPE,
-		awsResources.DYNAMODB_TABLE_TYPE,
-		awsResources.RDS_INSTANCE_TYPE,
-		awsResources.ELASTICACHE_CLUSTER_TYPE,
-		awsResources.SECRET_TYPE,
-		awsResources.RDS_PROXY_TYPE,
-		awsResources.LOAD_BALANCER_TYPE,
-		awsResources.CLOUDFRONT_DISTRIBUTION_TYPE,
-		awsResources.ROUTE_53_HOSTED_ZONE_TYPE,
-		awsResources.SNS_TOPIC_TYPE,
-		awsResources.SQS_QUEUE_TYPE,
-		awsResources.SES_EMAIL_IDENTITY,
-		awsResources.EFS_FILE_SYSTEM_TYPE,
-		k8sResources.DEPLOYMENT_TYPE,
-		k8sResources.POD_TYPE,
-		k8sResources.HELM_CHART_TYPE,
-		docker.DOCKER_IMAGE_TYPE,
+func (e *Engine) RenderConnection(path []construct.Resource) bool {
+	fmt.Println(path)
+	for _, res := range path {
+		fmt.Println(res.Id())
 	}
-
-	parentResources := map[string]nodeSettings{
-		awsResources.VPC_TYPE:         {},
-		awsResources.ECS_CLUSTER_TYPE: {},
-		awsResources.EKS_CLUSTER_TYPE: {},
-	}
-
-	var parentResourceTypes []string
-	for parentResourceType := range parentResources {
-		parentResourceTypes = append(parentResourceTypes, parentResourceType)
-	}
-
-	resourcePostFilters := []resourcePostFilter{
-		helmChartFilter,
-	}
-
-	// Add relevant resources to the dataflow DAG
-	for _, resource := range e.Context.Solution.ResourceGraph.ListResources() {
-		if collectionutil.Contains(typesWeCareAbout, resource.Id().Type) || collectionutil.Contains(parentResourceTypes, resource.Id().Type) {
-			dataFlowDag.AddResource(resource)
+	for _, res := range path[1 : len(path)-1] {
+		tag := e.GetResourceVizTag(string(DataflowView), res)
+		if tag == BigIconTag || tag == ParentIconTag {
+			return false
 		}
 	}
+	return true
+}
 
-	// Add summarized edges between types we care about to the dataflow DAG.
-	// Only irrelevant nodes in a path of edges between the source and destination will be summarized.
-	for _, src := range dataFlowDag.ListResources() {
-		var srcParents []construct.Resource
-		hasPathWithoutOthers := false
-		for _, dst := range dataFlowDag.ListResources() {
+type (
+	TopologyNode struct {
+		Resource construct.Resource   `yaml:"id"`
+		Parent   construct.Resource   `yaml:"parent,omitempty"`
+		Children []construct.Resource `yaml:"children,omitempty"`
+	}
+
+	TopologyEdge struct {
+		Source construct.Resource   `yaml:"source"`
+		Target construct.Resource   `yaml:"target"`
+		Path   []construct.Resource `yaml:"path"`
+	}
+)
+type Topology struct {
+	Nodes map[string]*TopologyNode `yaml:"nodes"`
+	Edges []TopologyEdge           `yaml:"edges"`
+}
+
+func (e *Engine) GetDataFlowDag() *construct.ResourceGraph {
+	dag := e.Context.Solution.ResourceGraph
+	topo := Topology{Nodes: map[string]*TopologyNode{}}
+	dfDag := construct.NewResourceGraph()
+
+	for _, src := range dag.ListResources() {
+		tag := e.GetResourceVizTag(string(DataflowView), src)
+		switch tag {
+		case ParentIconTag:
+			topo.Nodes[src.Id().String()] = &TopologyNode{
+				Resource: src,
+			}
+		case BigIconTag:
+			topo.Nodes[src.Id().String()] = &TopologyNode{
+				Resource: src,
+			}
+		case SmallIconTag:
+			continue
+		case NoRenderTag:
+			continue
+		default:
+			panic(fmt.Sprintf("Unknown tag %s, for resource %s", tag, src.Id()))
+		}
+		for _, dst := range dag.ListResources() {
 			if src == dst {
 				continue
 			}
-			paths, err := e.Context.Solution.ResourceGraph.AllPaths(src.Id(), dst.Id())
+			dstTag := e.GetResourceVizTag(string(DataflowView), dst)
+			path, err := e.Context.Solution.ResourceGraph.ShortestPath(src.Id(), dst.Id())
 			if err != nil {
-				zap.S().Debugf("Error getting paths between %s and %s: %s", src.Id(), dst.Id(), err.Error())
+				panic("Error getting shortest path")
+			}
+			if len(path) == 0 {
 				continue
 			}
-			if len(paths) > 0 {
-				sort.SliceStable(paths, func(i, j int) bool {
-					return len(paths[i]) < len(paths[j])
-				})
-				addedDep := false
-				for _, path := range paths {
-					pathHasDep := false
-					for _, res := range path {
-						if collectionutil.Contains(typesWeCareAbout, res.Id().Type) && res.Id() != src.Id() && res.Id() != dst.Id() {
-							dataFlowDag.AddDependency(src, res)
-							addedDep = true
-							pathHasDep = true
-							break
-						}
+			switch dstTag {
+			case ParentIconTag:
+				if e.RenderConnection(path) {
+					topoNode := topo.Nodes[src.Id().String()]
+					if topoNode.Parent != nil {
+						panic(fmt.Sprintf("Multiple parents for %s", src.Id()))
 					}
-					if !pathHasDep {
-						hasPathWithoutOthers = true
-					}
-					if addedDep {
-						break
-					}
+					topoNode.Parent = dst
 				}
-				// Add a summarized edge if there are no relevant intermediate resources
-				// or a child -> parent edge if the destination is a parent type.
-				if collectionutil.Contains(parentResourceTypes, dst.Id().Type) && hasPathWithoutOthers {
-					srcParents = append(srcParents, dst)
-				} else if !addedDep {
-					dataFlowDag.AddDependency(src, dst)
+			case BigIconTag:
+				if e.RenderConnection(path) {
+					topo.Edges = append(topo.Edges, TopologyEdge{
+						Source: src,
+						Target: dst,
+						Path:   path[1 : len(path)-1],
+					})
 				}
-			}
-		}
-		var parentPaths [][]construct.Resource
-		for _, p := range srcParents {
-			paths, err := e.Context.Solution.ResourceGraph.AllPaths(src.Id(), p.Id())
-			if err != nil {
-				zap.S().Debugf("Error getting paths between %s and %s: %s", src.Id(), p.Id(), err.Error())
+			case SmallIconTag:
+				if e.isSideEffect(dag, src, dst) {
+					topoNode := topo.Nodes[src.Id().String()]
+					topoNode.Children = append(topoNode.Children, dst)
+				}
+			case NoRenderTag:
 				continue
+			default:
+				panic(fmt.Sprintf("Unknown tag %s, for resource %s", tag, dst.Id()))
 			}
-			parentPaths = append(parentPaths, paths...)
 		}
-		sort.SliceStable(parentPaths, func(i, j int) bool {
-			return len(parentPaths[i]) < len(parentPaths[j])
+	}
+
+	for _, node := range topo.Nodes {
+		childrenIds := make([]string, len(node.Children))
+		for i, child := range node.Children {
+			childrenIds[i] = child.Id().String()
+		}
+		properties := map[string]string{}
+		if len(node.Children) > 0 {
+			properties["children"] = strings.Join(childrenIds, ",")
+		}
+		if node.Parent != nil {
+			properties["parent"] = node.Parent.Id().String()
+		}
+		dfDag.AddResourceWithProperties(node.Resource, properties)
+	}
+
+	for _, edge := range topo.Edges {
+		pathStrings := make([]string, len(edge.Path))
+		for i, res := range edge.Path {
+			pathStrings[i] = res.Id().String()
+		}
+		dfDag.AddDependencyWithData(edge.Source, edge.Target, map[string]interface{}{
+			"path": strings.Join(pathStrings, ","),
 		})
-
-		// TODO: look into why FindPathsInGraph is returning unrelated paths. this filter is a workaround.
-		parentPaths = filter.NewSimpleFilter[[]construct.Resource](func(path []construct.Resource) bool {
-			return collectionutil.Contains(parentResourceTypes, path[len(path)-1].Id().Type)
-		}).Apply(parentPaths...)
-
-		if len(parentPaths) > 0 {
-			closestParent := parentPaths[0][len(parentPaths[0])-1]
-			dataFlowDag.AddDependency(src, closestParent)
-		}
 	}
 
-	for _, res := range dataFlowDag.ListResources() {
-		for _, filter := range resourcePostFilters {
-			if !filter(res, dataFlowDag) {
-				err := dataFlowDag.RemoveResourceAndEdges(res)
-				if err != nil {
-					zap.S().Debugf("Error removing resource %s", err.Error())
-					continue
-				}
-				break
-			}
-		}
-	}
-
-	// Configure Parent/Child relationships and remove child -> parent edges.
-	for _, dep := range dataFlowDag.ListDependencies() {
-		if collectionutil.Contains(parentResourceTypes, dep.Destination.Id().Type) {
-			if construct.IsResourceChild(dataFlowDag, dep.Source, dep.Destination) {
-				err := dataFlowDag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
-				if err != nil {
-					zap.S().Debugf("Error removing dependency %s", err.Error())
-					continue
-				}
-				dataFlowDag.AddResourceWithProperties(dep.Source, map[string]string{
-					"parent": dep.Destination.Id().String(),
-				})
-			}
-		}
-	}
-	filterParentEdges(dataFlowDag, parentResources)
-	return dataFlowDag
-}
-
-func helmChartFilter(resource construct.Resource, dag *construct.ResourceGraph) bool {
-	chart, ok := resource.(*k8sResources.HelmChart)
-	if !ok {
-		return true
-	}
-	return !chart.IsInternal
-}
-
-// filterParentEdges removes edges between resources categorized as parent resources and other resources depending on their AllowIncoming and AllowOutgoing settings.
-func filterParentEdges(dataFlowDag *construct.ResourceGraph, parentResources map[string]nodeSettings) {
-	for _, dep := range dataFlowDag.ListDependencies() {
-		if settings, ok := parentResources[dep.Destination.Id().Type]; ok {
-			if !settings.AllowIncoming {
-				err := dataFlowDag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
-				if err != nil {
-					zap.S().Debugf("Error removing dependency %s", err.Error())
-					continue
-				}
-			}
-		}
-		if settings, ok := parentResources[dep.Source.Id().Type]; ok {
-			if !settings.AllowOutgoing {
-				err := dataFlowDag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
-				if err != nil {
-					zap.S().Debugf("Error removing dependency %s", err.Error())
-					continue
-				}
-			}
-		}
-	}
+	return dfDag
 }

@@ -1,2 +1,4 @@
 package: aws
 type: route53_health_check
+views:
+  dataflow: small
