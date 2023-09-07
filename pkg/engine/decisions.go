@@ -295,7 +295,6 @@ func (d OutputDecision) String() string {
 					resourcesString += fmt.Sprintf(" %s", resource.Name)
 				}
 			}
-			fmt.Println(resourcesString, d.Cause.OperationalResource.Id())
 			return fmt.Sprintf("%s caused the creation of: %s", d.Cause.OperationalResource.Id().Name, resourcesString)
 		}
 	}

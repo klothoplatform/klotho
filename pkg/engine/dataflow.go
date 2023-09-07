@@ -19,10 +19,6 @@ type nodeSettings struct {
 type resourcePostFilter func(resource construct.Resource, dag *construct.ResourceGraph) bool
 
 func (e *Engine) RenderConnection(path []construct.Resource) bool {
-	fmt.Println(path)
-	for _, res := range path {
-		fmt.Println(res.Id())
-	}
 	for _, res := range path[1 : len(path)-1] {
 		tag := e.GetResourceVizTag(string(DataflowView), res)
 		if tag == BigIconTag || tag == ParentIconTag {
@@ -135,9 +131,11 @@ func (e *Engine) GetDataFlowDag() *construct.ResourceGraph {
 		for i, res := range edge.Path {
 			pathStrings[i] = res.Id().String()
 		}
-		dfDag.AddDependencyWithData(edge.Source, edge.Target, map[string]interface{}{
-			"path": strings.Join(pathStrings, ","),
-		})
+		data := map[string]interface{}{}
+		if len(edge.Path) > 0 {
+			data["path"] = strings.Join(pathStrings, ",")
+		}
+		dfDag.AddDependencyWithData(edge.Source, edge.Target, data)
 	}
 
 	return dfDag

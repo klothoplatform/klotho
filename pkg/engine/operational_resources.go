@@ -583,7 +583,6 @@ func (e *Engine) isSideEffect(dag *construct.ResourceGraph, resource construct.R
 					return false
 				}
 			}
-			fmt.Println("checking field", rule.SetField)
 			if rule.SetField != "" {
 				val, _, err := parseFieldName(resource, rule.SetField, dag, false)
 				if err != nil {
@@ -591,13 +590,11 @@ func (e *Engine) isSideEffect(dag *construct.ResourceGraph, resource construct.R
 				}
 				if val.Kind() == reflect.Array || val.Kind() == reflect.Slice {
 					for i := 0; i < val.Len(); i++ {
-						fmt.Println(val.Index(i).Interface().(construct.Resource).Id(), sideEffect.Id())
 						if val.Index(i).Interface().(construct.Resource).Id() == sideEffect.Id() {
 							return true
 						}
 					}
 				} else {
-					fmt.Println(val.Interface().(construct.Resource).Id(), sideEffect.Id())
 					if val.Interface().(construct.Resource).Id() == sideEffect.Id() {
 						return true
 					}
