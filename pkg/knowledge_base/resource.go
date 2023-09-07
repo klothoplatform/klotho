@@ -61,16 +61,6 @@ type (
 		Unique bool `json:"unique" yaml:"unique"`
 	}
 
-	// Configuration defines how to act on any intrinsic values of a resource to make it operational
-	Configuration struct {
-		// Fields defines a field that should be set on the resource
-		Field string `json:"field" yaml:"field"`
-		// Value defines the value that should be set on the resource
-		Value any `json:"value" yaml:"value"`
-		// ZeroValueAllowed defines if the value can be set to the zero value of the field
-		ZeroValueAllowed bool `json:"zero_value_allowed" yaml:"zero_value_allowed"`
-	}
-
 	Sanitization struct {
 		Rules     []SanitizationRule `json:"rules" yaml:"rules"`
 		MaxLength int                `json:"max_length" yaml:"max_length"`

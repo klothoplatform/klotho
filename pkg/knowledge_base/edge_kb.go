@@ -48,8 +48,6 @@ type (
 		Reuse Reuse `yaml:"reuse"`
 		// Expansion is used to specify the expansion rules for the edge
 		Expansion ExpansionRules `yaml:"expansion"`
-		// Configuration is used to specify the configuration rules for the edge
-		Configuration []ConfigurationRule `yaml:"configuration"`
 		// OperationalRules is used to specify the operational rules for the edge
 		OperationalRules []OperationalRules `yaml:"operational_rules"`
 	}
@@ -116,10 +114,6 @@ const (
 	ReuseUpstream   Reuse = "upstream"
 	ReuseDownstream Reuse = "downstream"
 )
-
-func (rule ConfigurationRule) String() string {
-	return fmt.Sprintf("%s, field: %s, value: %s", rule.Resource, rule.Config.Field, rule.Config.Value)
-}
 
 func (template *EdgeTemplate) Key() string {
 	return fmt.Sprintf("%s-%s", template.Source, template.Destination)

@@ -18,7 +18,27 @@ rules:
       operation: create
 configuration:
   - field: IntegrationHttpMethod
-    value: ANY
+    default_value: ANY
+  - field: Route
+    default_value: /
+    steps:
+      - object: '{{ upstream "aws:api_resource" }}'
+        property: PathPart
+        value: '{{ .Value }}'
+      - object: '{{ upstream "aws:api_method" }}'
+        property: RequestParameters
+        value: '{{ split .Value "/" | filterMatch "^:\\w+$" | mapString ".*" "method.request.path.$0" | keysToMapWithDefault "true" }}'
+      - property: Route
+        value: '{{ .Value }}'
+      - object: '{{ upstream "aws:api_integration" }}'
+        property: RequestParameters
+        value: |
+          {{ $params := split "/" .Value | filterMatch ":(\\w+)" }}
+          {{ zipToMap
+            ($params | mapString ".*" "integration.request.path.$0")
+            ($params | mapString ".*" "method.request.path.$0")
+          }}
+
 delete_context:
   requires_no_upstream_or_downstream: true
 views:
