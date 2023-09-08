@@ -416,14 +416,14 @@ func (e *Engine) handleOperationalResourceError(err *OperationalResourceError, d
 	for _, res := range resources {
 
 		if e.ClassificationDocument.ResourceContainsClassifications(res, err.Needs) {
-			var paths []knowledgebase.Path
+			var hasPath bool
 			if err.Direction == knowledgebase.Downstream {
-				paths = e.KnowledgeBase.FindPaths(err.Resource, res, knowledgebase.EdgeConstraint{})
+				hasPath = e.KnowledgeBase.HasPath(err.Resource, res)
 			} else {
-				paths = e.KnowledgeBase.FindPaths(res, err.Resource, knowledgebase.EdgeConstraint{})
+				hasPath = e.KnowledgeBase.HasPath(res, err.Resource)
 			}
 			// if a type is explicilty stated as needed, we will consider it even if there isnt a direct p
-			if len(paths) == 0 {
+			if !hasPath {
 				continue
 			}
 			if neededResource != nil {

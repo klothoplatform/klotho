@@ -273,6 +273,54 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 	return result
 }
 
+// HasPath takes in a source and destination resource and checks the kb to see if there is a path from source to dest
+//
+// Has path is a more optimal approach to finding paths as it will stop searching once it finds a valid path
+func (kb EdgeKB) HasPath(source construct.Resource, dest construct.Resource) bool {
+	visitedEdges := map[reflect.Type]bool{}
+	stack := []Edge{}
+	if _, found := kb.GetResourceEdge(source, dest); found {
+		return true
+	}
+	return kb.hasPath(reflect.TypeOf(source), reflect.TypeOf(dest), stack, visitedEdges)
+}
+
+// hasPath performs the recursive calls of the parent HasPath function
+//
+// It works under the assumption that an edge is bidirectional and uses the edges ValidDestinations field to determine when that assumption is incorrect
+func (kb EdgeKB) hasPath(source reflect.Type, dest reflect.Type, stack []Edge, visited map[reflect.Type]bool) bool {
+	visited[source] = true
+
+	if source == dest {
+		// For resources which can have dependencies between themselves we have to add that path to the stack if it is a valid edge
+		if len(stack) == 0 {
+			if _, found := kb.GetEdgeDetails(source, dest); found {
+				stack = append(stack, Edge{Source: source, Destination: dest})
+			}
+		}
+		if len(stack) != 0 {
+			return true
+		}
+	} else {
+		// When we are not at the destination we want to recursively call findPaths on all edges which have the source as the current node
+		// This is checking all edges which have a direction of From -> To
+		for _, e := range kb.GetEdgesWithSource(source) {
+			det, _ := kb.GetEdgeDetails(e.Source, e.Destination)
+			// Ensure that direct edges cannot contribute to paths. We check if its a direct match for the dest and if not we continue
+			if det.DirectEdgeOnly && (len(stack) != 0 || e.Destination != dest) {
+				continue
+			}
+			if e.Source == source && !visited[e.Destination] {
+				if kb.hasPath(e.Destination, dest, append(stack, e), visited) {
+					return true
+				}
+			}
+		}
+	}
+	delete(visited, source)
+	return false
+}
+
 // ExpandEdges performs calculations to determine the proper path to be inserted into the ResourceGraph.
 //
 // The workflow of the edge expansion is as follows:

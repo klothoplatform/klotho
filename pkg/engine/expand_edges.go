@@ -22,6 +22,10 @@ func (e *Engine) expandEdge(dep graph.Edge[construct.Resource], context *SolveCo
 			Cause: err,
 		}
 	}
+	// if its a direct edge and theres no constraint on what needs to exist then we should be able to just return
+	if _, found := e.KnowledgeBase.GetResourceEdge(dep.Source, dep.Destination); len(edgeData.Constraint.NodeMustExist) == 0 && found {
+		return nil
+	}
 	paths, err := e.determineCorrectPaths(dep, edgeData)
 	if err != nil {
 		zap.S().Warnf("got error when determining correct path for edge %s -> %s, err: %s", dep.Source.Id(), dep.Destination.Id(), err.Error())
