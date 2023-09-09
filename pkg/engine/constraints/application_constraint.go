@@ -32,7 +32,7 @@ func (constraint *ApplicationConstraint) Scope() ConstraintScope {
 	return ApplicationConstraintScope
 }
 
-func (constraint *ApplicationConstraint) IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier classification.Classifier) bool {
+func (constraint *ApplicationConstraint) IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier *classification.ClassificationDocument) bool {
 	switch constraint.Operator {
 	case AddConstraintOperator:
 		// If the add was for a construct, we need to check if any resource references the construct

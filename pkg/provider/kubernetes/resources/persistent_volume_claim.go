@@ -77,7 +77,7 @@ func (pvc *PersistentVolumeClaim) Create(dag *construct.ResourceGraph, params Pe
 	return nil
 }
 
-func (pvc *PersistentVolumeClaim) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (pvc *PersistentVolumeClaim) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	if pvc.Cluster.IsZero() {
 		return fmt.Errorf("%s has no cluster", pvc.Id())
 	}

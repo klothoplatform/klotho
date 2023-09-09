@@ -37,7 +37,7 @@ func (constraint *EdgeConstraint) Scope() ConstraintScope {
 	return EdgeConstraintScope
 }
 
-func (constraint *EdgeConstraint) IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier classification.Classifier) bool {
+func (constraint *EdgeConstraint) IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier *classification.ClassificationDocument) bool {
 
 	var src []construct.ResourceId
 	var dst []construct.ResourceId
@@ -86,16 +86,16 @@ func (constraint *EdgeConstraint) IsSatisfied(dag *construct.ResourceGraph, kb k
 	return false
 }
 
-func (constraint *EdgeConstraint) checkSatisfication(path []construct.Resource, classifier classification.Classifier) bool {
+func (constraint *EdgeConstraint) checkSatisfication(path []construct.Resource, classifier *classification.ClassificationDocument) bool {
 	if constraint.Attributes != nil {
 		for i, res := range path {
 			for k := range constraint.Attributes {
 				if len(path) == 2 {
-					if !collectionutil.Contains(classifier.GetClassification(path[0]).Is, k) || !collectionutil.Contains(classifier.GetClassification(path[1]).Is, k) {
+					if !collectionutil.Contains(classifier.GetClassification(path[0].Id()).Is, k) || !collectionutil.Contains(classifier.GetClassification(path[1].Id()).Is, k) {
 						return false
 					}
 				} else {
-					if !collectionutil.Contains(classifier.GetClassification(res).Is, k) && (i != 0 && i != len(path)-1) {
+					if !collectionutil.Contains(classifier.GetClassification(res.Id()).Is, k) && (i != 0 && i != len(path)-1) {
 						return false
 					}
 				}

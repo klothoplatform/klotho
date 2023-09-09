@@ -22,7 +22,7 @@ type (
 		Scope() ConstraintScope
 		// IsSatisfied returns whether or not the constraint is satisfied based on the resource graph
 		// For a resource graph to be valid all constraints must be satisfied
-		IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier classification.Classifier) bool
+		IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier *classification.ClassificationDocument) bool
 		// Validate returns whether or not the constraint is valid
 		Validate() error
 

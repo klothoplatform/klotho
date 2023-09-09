@@ -76,7 +76,7 @@ func (sc *StorageClass) Create(dag *construct.ResourceGraph, params StorageClass
 	return nil
 }
 
-func (sc *StorageClass) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (sc *StorageClass) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	if sc.Cluster.IsZero() {
 		return fmt.Errorf("%s has no cluster", sc.Id())
 	}

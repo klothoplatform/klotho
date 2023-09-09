@@ -100,7 +100,7 @@ func (deployment *Deployment) AddEnvVar(iacVal construct.IaCValue, envVarName st
 	return nil
 }
 
-func (deployment *Deployment) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (deployment *Deployment) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	if deployment.Cluster.Name == "" {
 		return fmt.Errorf("deployment %s has no cluster", deployment.Name)
 	}

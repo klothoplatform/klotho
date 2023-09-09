@@ -64,7 +64,7 @@ func (hpa *HorizontalPodAutoscaler) GetResourcesUsingHPA(dag *construct.Resource
 	return resources
 }
 
-func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (hpa *HorizontalPodAutoscaler) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	if hpa.Cluster.Name == "" {
 		return fmt.Errorf("horizontal hpa autoscaler %s has no cluster", hpa.Name)
 	}

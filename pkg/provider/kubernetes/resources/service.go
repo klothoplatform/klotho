@@ -55,7 +55,7 @@ func (service *Service) Path() string {
 	return service.FilePath
 }
 
-func (service *Service) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (service *Service) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	if service.Cluster.Name == "" {
 		return fmt.Errorf("service %s has no cluster", service.Name)
 	}

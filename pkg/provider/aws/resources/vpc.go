@@ -206,7 +206,7 @@ func (subnet *Subnet) Create(dag *construct.ResourceGraph, params SubnetCreatePa
 	return nil
 }
 
-func (subnet *Subnet) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (subnet *Subnet) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	copyOfSubnet := *subnet
 	zap.S().Debugf("Making subnet %s operational", subnet.Name)
 	var az string

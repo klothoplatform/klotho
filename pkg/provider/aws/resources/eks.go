@@ -1217,7 +1217,7 @@ func createAlbControllerPolicy(clusterName string, ref construct.BaseConstruct) 
 	return policy
 }
 
-func (cluster *EksCluster) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (cluster *EksCluster) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	var podsAndDeployments []construct.Resource
 	var nodeGroups []*EksNodeGroup
 	var fargateProfiles []*EksFargateProfile

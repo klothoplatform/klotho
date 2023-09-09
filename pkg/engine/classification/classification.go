@@ -11,11 +11,6 @@ import (
 )
 
 type (
-	Classifier interface {
-		GetFunctionality(resource construct.Resource) construct.Functionality
-		GetClassification(resource construct.Resource) Classification
-	}
-
 	ClassificationDocument struct {
 		Classifications map[string]Classification
 	}
@@ -56,14 +51,12 @@ func (c *ClassificationDocument) GivesAttributeForFunctionality(resource constru
 	return false
 }
 
-func (c *ClassificationDocument) GetClassification(resource construct.Resource) Classification {
-	bareRes := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(construct.Resource)
-	return c.Classifications[bareRes.Id().String()]
+func (c *ClassificationDocument) GetClassification(id construct.ResourceId) Classification {
+	return c.Classifications[id.QualifiedTypeName()]
 }
 
-func (c *ClassificationDocument) GetFunctionality(resource construct.Resource) construct.Functionality {
-	bareRes := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(construct.Resource)
-	classification := c.GetClassification(bareRes)
+func (c *ClassificationDocument) GetFunctionality(id construct.ResourceId) construct.Functionality {
+	classification := c.GetClassification(id)
 	if len(classification.Is) == 0 {
 		return construct.Unknown
 	}
@@ -95,10 +88,10 @@ func (c *ClassificationDocument) GetFunctionality(resource construct.Resource) c
 	return functionality
 }
 
-func (c *ClassificationDocument) ResourceContainsClassifications(resource construct.Resource, needs []string) bool {
-	classifications := c.GetClassification(resource)
+func (c *ClassificationDocument) ResourceContainsClassifications(id construct.ResourceId, needs []string) bool {
+	classifications := c.GetClassification(id)
 	for _, need := range needs {
-		if !collectionutil.Contains(classifications.Is, need) && resource.Id().Type != need {
+		if !collectionutil.Contains(classifications.Is, need) && id.Type != need {
 			return false
 		}
 	}

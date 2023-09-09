@@ -99,7 +99,7 @@ func (e *Engine) determineCorrectPaths(dep graph.Edge[construct.Resource], edgeD
 			for k := range edgeData.Attributes {
 				// If its a direct edge we need to make sure the source contains the attributes, otherwise ignore the source of the dependency
 				if edge.Source != reflect.TypeOf(dep.Source) || len(p) == 1 {
-					classification := e.ClassificationDocument.GetClassification(reflect.New(edge.Source.Elem()).Interface().(construct.Resource))
+					classification := e.ClassificationDocument.GetClassification(edge.SourceId())
 					if !collectionutil.Contains(classification.Is, k) {
 						satisfies = false
 						break
@@ -107,7 +107,7 @@ func (e *Engine) determineCorrectPaths(dep graph.Edge[construct.Resource], edgeD
 				}
 				// If its a direct edge we need to make sure the destination contains the attributes, otherwise ignore the destination of the dependency
 				if edge.Destination != reflect.TypeOf(dep.Destination) || len(p) == 1 {
-					classification := e.ClassificationDocument.GetClassification(reflect.New(edge.Destination.Elem()).Interface().(construct.Resource))
+					classification := e.ClassificationDocument.GetClassification(edge.DestinationId())
 					if !collectionutil.Contains(classification.Is, k) {
 						satisfies = false
 						break
@@ -150,22 +150,22 @@ func (e *Engine) containsUnneccessaryHopsInPath(dep graph.Edge[construct.Resourc
 
 	// Here we check if the edge or destination functionality exist within the path in another resource. If they do, we know that the path contains unnecessary hops.
 	for _, edge := range p {
-		if e.ClassificationDocument.GetFunctionality(dep.Destination) != construct.Unknown {
-			if e.ClassificationDocument.GetFunctionality(dep.Destination) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Destination).Elem().Interface().(construct.Resource)) && edge.Destination != destType && edge.Destination != srcType &&
+		if e.ClassificationDocument.GetFunctionality(dep.Destination.Id()) != construct.Unknown {
+			if e.ClassificationDocument.GetFunctionality(dep.Destination.Id()) == e.ClassificationDocument.GetFunctionality(edge.DestinationId()) && edge.Destination != destType && edge.Destination != srcType &&
 				!collectionutil.Contains(mustExistTypes, edge.Destination) {
 				return true
 			}
-			if e.ClassificationDocument.GetFunctionality(dep.Destination) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Source).Elem().Interface().(construct.Resource)) && edge.Source != destType && edge.Source != srcType &&
+			if e.ClassificationDocument.GetFunctionality(dep.Destination.Id()) == e.ClassificationDocument.GetFunctionality(edge.SourceId()) && edge.Source != destType && edge.Source != srcType &&
 				!collectionutil.Contains(mustExistTypes, edge.Source) {
 				return true
 			}
 		}
-		if e.ClassificationDocument.GetFunctionality(dep.Source) != construct.Unknown {
-			if e.ClassificationDocument.GetFunctionality(dep.Source) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Destination).Elem().Interface().(construct.Resource)) && edge.Destination != srcType && edge.Destination != destType &&
+		if e.ClassificationDocument.GetFunctionality(dep.Source.Id()) != construct.Unknown {
+			if e.ClassificationDocument.GetFunctionality(dep.Source.Id()) == e.ClassificationDocument.GetFunctionality(edge.DestinationId()) && edge.Destination != srcType && edge.Destination != destType &&
 				!collectionutil.Contains(mustExistTypes, edge.Destination) {
 				return true
 			}
-			if e.ClassificationDocument.GetFunctionality(dep.Source) == e.ClassificationDocument.GetFunctionality(reflect.New(edge.Source).Elem().Interface().(construct.Resource)) && edge.Source != srcType && edge.Source != destType &&
+			if e.ClassificationDocument.GetFunctionality(dep.Source.Id()) == e.ClassificationDocument.GetFunctionality(edge.SourceId()) && edge.Source != srcType && edge.Source != destType &&
 				!collectionutil.Contains(mustExistTypes, edge.Source) {
 				return true
 			}
@@ -179,7 +179,7 @@ func (e *Engine) containsUnneccessaryHopsInPath(dep graph.Edge[construct.Resourc
 	}
 	for _, edge := range p {
 		if edge.Source != srcType && !collectionutil.Contains(mustExistTypes, edge.Source) {
-			functionality := e.ClassificationDocument.GetFunctionality(reflect.New(edge.Source).Elem().Interface().(construct.Resource))
+			functionality := e.ClassificationDocument.GetFunctionality(edge.SourceId())
 			if foundFunc[functionality] && functionality != construct.Unknown {
 				return true
 			}
@@ -259,10 +259,10 @@ func (e *Engine) resolvePathWeight(path knowledgebase.Path) int {
 
 func (e *Engine) resolveEdgeWeight(edge graph.Edge[construct.Resource]) int {
 	weight := 0
-	if e.ClassificationDocument.GetFunctionality(edge.Source) != construct.Unknown {
+	if e.ClassificationDocument.GetFunctionality(edge.Source.Id()) != construct.Unknown {
 		weight += 1
 	}
-	if e.ClassificationDocument.GetFunctionality(edge.Destination) != construct.Unknown {
+	if e.ClassificationDocument.GetFunctionality(edge.Destination.Id()) != construct.Unknown {
 		weight += 1
 	}
 	return weight

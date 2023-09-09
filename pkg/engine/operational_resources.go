@@ -15,7 +15,7 @@ import (
 
 type OperationalResource interface {
 	construct.Resource
-	MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error
+	MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error
 }
 
 // MakeResourcesOperational runs a set of rules to make a single resource, the parameter, operational.
@@ -89,7 +89,7 @@ func (e *Engine) MakeResourceOperational(context *SolveContext, resource constru
 	return true
 }
 
-func callMakeOperational(rg *construct.ResourceGraph, resource construct.Resource, appName string, classifier classification.Classifier) error {
+func callMakeOperational(rg *construct.ResourceGraph, resource construct.Resource, appName string, classifier *classification.ClassificationDocument) error {
 	operationalResource, ok := resource.(OperationalResource)
 	if !ok {
 		return nil
@@ -143,7 +143,7 @@ func (e *Engine) handleOperationalRule(resource construct.Resource, rule knowled
 		}
 	} else if rule.Classifications != nil {
 		for _, res := range dependentResources {
-			if e.ClassificationDocument.ResourceContainsClassifications(res, rule.Classifications) {
+			if e.ClassificationDocument.ResourceContainsClassifications(res.Id(), rule.Classifications) {
 				resourcesOfType = append(resourcesOfType, res)
 			}
 		}
@@ -415,7 +415,7 @@ func (e *Engine) handleOperationalResourceError(err *OperationalResourceError, d
 	var neededResource construct.Resource
 	for _, res := range resources {
 
-		if e.ClassificationDocument.ResourceContainsClassifications(res, err.Needs) {
+		if e.ClassificationDocument.ResourceContainsClassifications(res.Id(), err.Needs) {
 			var hasPath bool
 			if err.Direction == knowledgebase.Downstream {
 				hasPath = e.KnowledgeBase.HasPath(err.Resource, res)
@@ -571,7 +571,7 @@ func (e *Engine) isSideEffect(dag *construct.ResourceGraph, resource construct.R
 		return false
 	}
 	for _, rule := range template.Rules {
-		if rule.ResourceTypes != nil && collectionutil.Contains(rule.ResourceTypes, sideEffect.Id().Type) || rule.Classifications != nil && e.ClassificationDocument.ResourceContainsClassifications(sideEffect, rule.Classifications) {
+		if rule.ResourceTypes != nil && collectionutil.Contains(rule.ResourceTypes, sideEffect.Id().Type) || rule.Classifications != nil && e.ClassificationDocument.ResourceContainsClassifications(sideEffect.Id(), rule.Classifications) {
 			if rule.Direction == knowledgebase.Upstream {
 				resources, err := dag.ShortestPath(sideEffect.Id(), resource.Id())
 				if len(resources) == 0 || err != nil {

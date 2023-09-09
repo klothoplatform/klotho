@@ -79,7 +79,7 @@ func (tt ConfigureCase[P, R]) Run(t *testing.T) {
 type (
 	OperationalResource interface {
 		construct.Resource
-		MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error
+		MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error
 	}
 )
 

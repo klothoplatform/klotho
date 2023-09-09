@@ -37,7 +37,7 @@ func (constraint *ResourceConstraint) Scope() ConstraintScope {
 	return EdgeConstraintScope
 }
 
-func (constraint *ResourceConstraint) IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier classification.Classifier) bool {
+func (constraint *ResourceConstraint) IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier *classification.ClassificationDocument) bool {
 	switch constraint.Operator {
 	case EqualsConstraintOperator:
 		res := dag.GetResource(constraint.Target)

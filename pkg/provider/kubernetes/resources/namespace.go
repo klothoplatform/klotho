@@ -67,7 +67,7 @@ func (namespace *Namespace) GetResourcesInNamespace(dag *construct.ResourceGraph
 	return resources
 }
 
-func (namespace *Namespace) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (namespace *Namespace) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	if namespace.Cluster.Name == "" {
 		return fmt.Errorf("namespace %s has no cluster", namespace.Name)
 	}

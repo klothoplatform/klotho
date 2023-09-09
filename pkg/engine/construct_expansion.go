@@ -109,6 +109,7 @@ func (e *Engine) expandConstruct(constructType string, attributes map[string]any
 	for _, res := range e.ListResources() {
 		if res.Id().Type == constructType {
 			baseResource = res
+			break
 		}
 	}
 	expansionSet := ExpansionSet{Construct: c}
@@ -163,7 +164,7 @@ func (e *Engine) findPossibleExpansions(expansionSet ExpansionSet, baseResource 
 		if baseResource != nil && res.Id().Type != baseResource.Id().Type {
 			continue
 		}
-		classifications := e.ClassificationDocument.GetClassification(res)
+		classifications := e.ClassificationDocument.GetClassification(res.Id())
 		if !collectionutil.Contains(classifications.Is, string(expansionSet.Construct.Functionality())) {
 			continue
 		}

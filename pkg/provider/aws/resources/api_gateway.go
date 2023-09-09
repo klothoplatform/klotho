@@ -200,7 +200,7 @@ func (integration *ApiIntegration) Create(dag *construct.ResourceGraph, params A
 	return nil
 }
 
-func (integration *ApiIntegration) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (integration *ApiIntegration) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	if integration.RestApi == nil {
 		return fmt.Errorf("rest api is not set on integration %s", integration.Name)
 	}

@@ -97,7 +97,7 @@ func (pod *Pod) AddEnvVar(iacVal construct.IaCValue, envVarName string) error {
 	return nil
 }
 
-func (pod *Pod) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (pod *Pod) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	if pod.Cluster.IsZero() {
 		return fmt.Errorf("%s has no cluster", pod.Id())
 	}

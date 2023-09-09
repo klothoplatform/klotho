@@ -54,7 +54,7 @@ func (se *ServiceExport) Path() string {
 	return se.FilePath
 }
 
-func (se *ServiceExport) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (se *ServiceExport) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	if se.Cluster.Name == "" {
 		return fmt.Errorf("service export %s has no cluster", se.Name)
 	}

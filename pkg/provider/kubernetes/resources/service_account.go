@@ -75,7 +75,7 @@ func (sa *ServiceAccount) GetResourcesUsingServiceAccount(dag *construct.Resourc
 	return pods
 }
 
-func (sa *ServiceAccount) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (sa *ServiceAccount) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	if sa.Cluster.IsZero() {
 		return fmt.Errorf("%s has no cluster", sa.Id())
 	}

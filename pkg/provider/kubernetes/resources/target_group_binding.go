@@ -55,7 +55,7 @@ func (tgb *TargetGroupBinding) Path() string {
 	return tgb.FilePath
 }
 
-func (tgb *TargetGroupBinding) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (tgb *TargetGroupBinding) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	if tgb.Cluster.Name == "" {
 		return fmt.Errorf("target group binding %s has no cluster", tgb.Name)
 	}

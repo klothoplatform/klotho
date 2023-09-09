@@ -34,7 +34,7 @@ func (constraint *ConstructConstraint) Scope() ConstraintScope {
 	return ConstructConstraintScope
 }
 
-func (constraint *ConstructConstraint) IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier classification.Classifier) bool {
+func (constraint *ConstructConstraint) IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier *classification.ClassificationDocument) bool {
 	switch constraint.Operator {
 	case EqualsConstraintOperator:
 		// Well look at all resources to see if there is a resource matching the type, that references the base construct passed in

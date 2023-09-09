@@ -337,7 +337,7 @@ func (rds *RdsProxyTargetGroup) DeleteContext() construct.DeleteContext {
 	}
 }
 
-func (rds *RdsInstance) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
+func (rds *RdsInstance) MakeOperational(dag *construct.ResourceGraph, appName string, classifier *classification.ClassificationDocument) error {
 	// Set a default database name to ensure we actually create a database on the instance
 	if rds.DatabaseName == "" {
 		rds.DatabaseName = rdsDBNameSanitizer.Apply(rds.Name)

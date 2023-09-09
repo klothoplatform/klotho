@@ -4,11 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/construct"
-
-	klothograph "github.com/klothoplatform/klotho/pkg/graph"
-
 	"github.com/dominikbraun/graph"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	klothograph "github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -158,4 +156,12 @@ func (f *E) DeleteContext() construct.DeleteContext {
 	return construct.DeleteContext{
 		RequiresNoUpstream: true,
 	}
+}
+
+func TestEdge_SourceTypeName(t *testing.T) {
+	edge := NewEdge[*A, *B]()
+	a := &A{}
+	assert.Equal(t, a.Id(), edge.SourceId())
+	b := &B{}
+	assert.Equal(t, b.Id(), edge.DestinationId())
 }

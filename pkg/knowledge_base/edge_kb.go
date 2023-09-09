@@ -423,3 +423,13 @@ func (kb EdgeKB) ConfigureEdge(dep *graph.Edge[construct.Resource], dag *constru
 	}
 	return nil
 }
+
+func (e Edge) SourceId() construct.ResourceId {
+	v := reflect.New(e.Source.Elem()).Interface().(construct.BaseConstruct)
+	return v.Id()
+}
+
+func (e Edge) DestinationId() construct.ResourceId {
+	v := reflect.New(e.Destination.Elem()).Interface().(construct.BaseConstruct)
+	return v.Id()
+}
