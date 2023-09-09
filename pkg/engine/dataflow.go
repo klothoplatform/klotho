@@ -7,17 +7,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
-type nodeSettings struct {
-	// AllowIncoming determines whether the node's incoming edges should be added to the dataflow DAG
-	AllowIncoming bool
-	// AllowOutgoing determines whether the node's outgoing edges should be added to the dataflow DAG
-	AllowOutgoing bool
-}
-
-// resourcePostFilter is a function that determines whether a resource should remain in the final dataflow DAG
-// based on its own properties and the state of the dataflow DAG.
-type resourcePostFilter func(resource construct.Resource, dag *construct.ResourceGraph) bool
-
 func (e *Engine) RenderConnection(path []construct.Resource) bool {
 	for _, res := range path[1 : len(path)-1] {
 		tag := e.GetResourceVizTag(string(DataflowView), res)
