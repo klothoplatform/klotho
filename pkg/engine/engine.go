@@ -188,18 +188,15 @@ func (e *Engine) Run() (*construct.ResourceGraph, error) {
 	if len(e.Context.Errors) > 0 {
 		return nil, fmt.Errorf("got errors when generating combinations: %s", e.Context.Errors)
 	}
-	numValidGraphs := 0
 	for _, context := range contextsToSolve {
 		e.SolveGraph(context)
 		if len(context.UnsolvedConstraints) == 0 && len(context.Errors) == 0 {
-			numValidGraphs++
-			if e.Context.Solution == nil {
-				e.Context.Solution = context
-			}
+			e.Context.Solution = context
+			break
 		}
 	}
 
-	if numValidGraphs == 0 {
+	if e.Context.Solution == nil {
 		var closestSolvedContext *SolveContext
 		for _, context := range contextsToSolve {
 			if closestSolvedContext == nil {
@@ -211,22 +208,25 @@ func (e *Engine) Run() (*construct.ResourceGraph, error) {
 		}
 		e.Context.Solution = closestSolvedContext
 
-		errorString := "no valid graphs found"
+		err := fmt.Errorf("no valid graphs found")
+		if closestSolvedContext == nil {
+			return nil, err
+		}
+
 		if closestSolvedContext.UnsolvedConstraints != nil {
-			errorString = fmt.Sprintf("%s, was unable to satisfy the following constraints: %s", errorString, closestSolvedContext.UnsolvedConstraints)
+			return nil, fmt.Errorf("%w: unable to satisfy constraints: %s", err, closestSolvedContext.UnsolvedConstraints)
 		}
+
 		if closestSolvedContext.Errors != nil {
-			solutionErrorString := ""
-			for _, err := range closestSolvedContext.Errors {
-				solutionErrorString = fmt.Sprintf("%s\n%s", solutionErrorString, err.Error())
+			var solErrs error
+			for _, solErr := range closestSolvedContext.Errors {
+				solErrs = errors.Join(solErrs, solErr)
 			}
-			errorString = fmt.Sprintf("%s.\ngot the following errors when solving the graph %s", errorString, solutionErrorString)
+			return nil, fmt.Errorf("%w: got errors when solving the graph %w", err, solErrs)
 		}
 
-		return nil, fmt.Errorf(errorString)
+		return nil, err
 	}
-	zap.S().Debugf("found %d valid graphs", numValidGraphs)
-
 	return e.Context.Solution.ResourceGraph, nil
 }
 
@@ -365,15 +365,7 @@ func (e *Engine) SolveGraph(context *SolveContext) {
 	for i := 0; i < NUM_LOOPS; i++ {
 		context.Errors = []EngineError{}
 
-		for _, rc := range e.Context.Constraints[constraints.ResourceConstraintScope] {
-			rc := rc.(*constraints.ResourceConstraint)
-			config := knowledgebase.Configuration{Field: rc.Property, Value: rc.Value}
-			configRule := knowledgebase.ConfigurationRule{Config: config, Resource: rc.Target}
-			e.handleDecision(context, Decision{Level: LevelInfo, Result: &DecisionResult{Config: &configRule, Resource: context.ResourceGraph.GetResource(rc.Target)}, Action: ActionConfigure, Cause: &Cause{Constraint: rc}})
-		}
-
 		for _, dep := range graph.ListDependencies() {
-
 			if configuredEdges[dep.Source.Id()] == nil {
 				configuredEdges[dep.Source.Id()] = make(map[construct.ResourceId]bool)
 			}
@@ -391,18 +383,26 @@ func (e *Engine) SolveGraph(context *SolveContext) {
 			}
 			configuredEdges[dep.Source.Id()][dep.Destination.Id()] = true
 		}
+
 		resources, err := context.ResourceGraph.ReverseTopologicalSort()
 		if err != nil {
 			context.Errors = append(context.Errors, &InternalError{
 				Cause: fmt.Errorf("error sorting resources for operationalization: %w", err),
 				Child: &ResourceNotOperationalError{Cause: err},
 			})
-		} else {
-			for _, resource := range resources {
-				success := e.MakeResourceOperational(context, resource)
-				if success {
-					operationalResources[resource.Id()] = true
-				}
+			continue
+		}
+		for _, resource := range resources {
+			success := e.MakeResourceOperational(context, resource)
+			if !success {
+				continue
+			}
+			operationalResources[resource.Id()] = true
+			err := e.ConfigureResource(context, resource)
+			if err != nil {
+				context.Errors = append(context.Errors, &InternalError{
+					Cause: err,
+				})
 			}
 		}
 
@@ -627,29 +627,6 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 		data.Attributes[key] = attribute
 	}
 	e.Context.WorkingState.AddDependencyWithData(constraint.Target.Source, constraint.Target.Target, data)
-	return nil
-}
-
-func (e *Engine) ApplyResourceConstraint(graph *construct.ResourceGraph, constraint *constraints.ResourceConstraint) EngineError {
-	resource := graph.GetResource(constraint.Target)
-	if resource == nil {
-		return &ResourceConfigurationError{
-			Constraint: constraint,
-			Cause:      fmt.Errorf("resource %s does not exist", constraint.Target),
-		}
-	}
-	err := ConfigureField(resource, constraint.Property, constraint.Value, true, graph)
-	if err != nil {
-		return &ResourceConfigurationError{
-			Resource: resource,
-			Cause:    err,
-			Config: knowledgebase.Configuration{
-				Field: constraint.Property,
-				Value: constraint.Value,
-			},
-			Constraint: constraint,
-		}
-	}
 	return nil
 }
 

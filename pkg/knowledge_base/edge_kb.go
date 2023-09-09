@@ -57,11 +57,6 @@ type (
 		Dependencies []construct.OutputEdge `yaml:"dependencies"`
 	}
 
-	ConfigurationRule struct {
-		Resource construct.ResourceId `yaml:"resource"`
-		Config   Configuration        `yaml:"config"`
-	}
-
 	OperationalRules struct {
 		Resource construct.ResourceId `yaml:"resource"`
 		Rule     OperationalRule      `yaml:"rule"`

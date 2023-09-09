@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -30,7 +31,7 @@ type (
 	DecisionResult struct {
 		Resource construct.Resource
 		Edge     *graph.Edge[construct.Resource]
-		Config   *knowledgebase.ConfigurationRule
+		Config   knowledgebase.Configuration
 	}
 	Level string
 
@@ -38,7 +39,7 @@ type (
 		Cause          Cause
 		Resources      []construct.ResourceId
 		Edges          []construct.OutputEdge
-		Config         []knowledgebase.ConfigurationRule
+		Config         []knowledgebase.Configuration
 		CauseMessage   string
 		DisplayMessage string
 	}
@@ -71,8 +72,8 @@ func (e *Engine) PostProcess(decisions []Decision) []OutputDecision {
 			output = &OutputDecision{Cause: *decision.Cause}
 			outputs[*decision.Cause] = output
 		}
-		if decision.Result.Config != nil {
-			output.Config = append(output.Config, *decision.Result.Config)
+		if decision.Result.Config.Field != "" {
+			output.Config = append(output.Config, decision.Result.Config)
 		} else if decision.Result.Resource != nil {
 			output.Resources = append(output.Resources, decision.Result.Resource.Id())
 		} else if decision.Result.Edge != nil {
@@ -107,7 +108,7 @@ func (d Decision) Validate() error {
 	if d.Result == nil {
 		return fmt.Errorf("invalid decision result")
 	}
-	if d.Action == ActionConfigure && d.Result.Resource != nil && d.Result.Config != nil {
+	if d.Action == ActionConfigure && d.Result.Resource != nil && d.Result.Config.Field != "" {
 		return nil
 	}
 	if d.Action == ActionDelete && d.Result.Resource != nil {
@@ -142,24 +143,28 @@ func (e *Engine) handleDecisions(context *SolveContext, decisions []Decision) {
 func (e *Engine) handleDecision(context *SolveContext, decision Decision) {
 	switch decision.Action {
 	case ActionConfigure:
-		if decision.Result.Resource != nil && decision.Result.Config != nil {
+		if decision.Result.Resource != nil && decision.Result.Config.Field != "" {
 			// Check to make sure the resource exists and if not log an error since we cannot configure
 			if context.ResourceGraph.GetResource(decision.Result.Resource.Id()) == nil {
 				context.Errors = append(context.Errors, &ResourceConfigurationError{
 					Resource:   decision.Result.Resource,
-					Config:     decision.Result.Config.Config,
+					Config:     decision.Result.Config,
 					Constraint: decision.Cause.Constraint,
 					Cause:      fmt.Errorf("resource %s not found in resource graph", decision.Result.Resource.Id()),
 				})
 				return
 			}
-			err := ConfigureField(decision.Result.Resource, decision.Result.Config.Config.Field, decision.Result.Config.Config.Value, decision.Result.Config.Config.ZeroValueAllowed, context.ResourceGraph)
+			var value any
+			if decision.Cause.Constraint != nil {
+				value = decision.Cause.Constraint.(*constraints.ResourceConstraint).Value
+			}
+			err := decision.Result.Config.Apply(context.ResourceGraph, decision.Result.Resource, value)
 			if err != nil {
 				context.Errors = append(context.Errors, &InternalError{
 					Cause: err,
 					Child: &ResourceConfigurationError{
 						Resource: decision.Result.Resource,
-						Config:   decision.Result.Config.Config,
+						Config:   decision.Result.Config,
 					},
 				})
 				return
@@ -218,38 +223,49 @@ func (e *Engine) handleDecision(context *SolveContext, decision Decision) {
 }
 
 func (r DecisionResult) MarshalJSON() ([]byte, error) {
-	if r.Config != nil {
-		return []byte(`{"resource":"` + r.Resource.Id().String() + `","field":"` + r.Config.Config.Field + `","value":"` + fmt.Sprintf("%#v", r.Config.Config.Value) + `"}`), nil
-	}
-	if r.Resource != nil {
-		return []byte(`{"resource":"` + r.Resource.Id().String() + `"}`), nil
+	var h = struct {
+		Resource construct.ResourceId `json:"resource,omitempty"`
+		Field    string               `json:"field,omitempty"`
+		Value    any                  `json:"value,omitempty"`
+		Edge     string               `json:"edge,omitempty"`
+	}{
+		Resource: r.Resource.Id(),
+		Field:    r.Config.Field,
 	}
 	if r.Edge != nil {
-		return []byte(`{"edge":"` + r.Edge.Source.Id().String() + "," + r.Edge.Destination.Id().String() + `"}`), nil
+		h.Edge = r.Edge.Source.Id().String() + "," + r.Edge.Destination.Id().String()
 	}
-	return []byte("{}"), nil
+	return json.Marshal(h)
 }
 
 func (c Cause) MarshalJSON() ([]byte, error) {
+	var h = struct {
+		EdgeExpansion         string               `json:"edge_expansion,omitempty"`
+		EdgeConfiguration     string               `json:"edge_configuration,omitempty"`
+		OperationalResource   construct.ResourceId `json:"operational_resource,omitempty"`
+		ResourceConfiguration construct.ResourceId `json:"resource_configuration,omitempty"`
+		ConstructExpansion    construct.ResourceId `json:"construct_expansion,omitempty"`
+		Constraint            string               `json:"constraint,omitempty"`
+	}{}
 	if c.EdgeExpansion != nil {
-		return []byte(`{"edge_expansion":"` + c.EdgeExpansion.Source.Id().String() + "," + c.EdgeExpansion.Destination.Id().String() + `"}`), nil
+		h.EdgeExpansion = c.EdgeExpansion.Source.Id().String() + "," + c.EdgeExpansion.Destination.Id().String()
 	}
 	if c.EdgeConfiguration != nil {
-		return []byte(`{"edge_configuration":"` + c.EdgeExpansion.Source.Id().String() + "," + c.EdgeExpansion.Destination.Id().String() + `"}`), nil
+		h.EdgeConfiguration = c.EdgeConfiguration.Source.Id().String() + "," + c.EdgeConfiguration.Destination.Id().String()
 	}
 	if c.OperationalResource != nil {
-		return []byte(`{"operational_resource":"` + c.OperationalResource.Id().String() + `"}`), nil
+		h.OperationalResource = c.OperationalResource.Id()
 	}
 	if c.ResourceConfiguration != nil {
-		return []byte(`{"resource_configuration":"` + c.ResourceConfiguration.Id().String() + `"}`), nil
+		h.ResourceConfiguration = c.ResourceConfiguration.Id()
 	}
 	if c.ConstructExpansion != nil {
-		return []byte(`{"construct_expansion":"` + c.ConstructExpansion.Id().String() + `"}`), nil
+		h.ConstructExpansion = c.ConstructExpansion.Id()
 	}
 	if c.Constraint != nil {
-		return []byte(`{"constraint":"` + c.Constraint.String() + `"}`), nil
+		h.Constraint = c.Constraint.String()
 	}
-	return []byte("{}"), nil
+	return json.Marshal(h)
 }
 
 func (d OutputDecision) String() string {

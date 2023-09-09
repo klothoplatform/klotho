@@ -32,74 +32,75 @@ type (
 // If a dependency in the working state included a construct, the engine copies the dependency to all directly linked resources
 func (e *Engine) ExpandConstructs() {
 	for _, res := range e.Context.WorkingState.ListConstructs() {
-		if res.Id().Provider == construct.AbstractConstructProvider {
-			zap.S().Debugf("Expanding construct %s", res.Id())
-			construct, ok := res.(construct.Construct)
+		if res.Id().Provider != construct.AbstractConstructProvider {
+			continue
+		}
+		zap.S().Debugf("Expanding construct %s", res.Id())
+		construct, ok := res.(construct.Construct)
+		if !ok {
+			e.Context.Errors = append(e.Context.Errors, &ConstructExpansionError{
+				Construct: res,
+				Cause:     fmt.Errorf("unable to cast base construct %s to construct while expanding construct", res.Id()),
+			})
+			continue
+		}
+
+		constructType := ""
+		attributes := make(map[string]any)
+		for _, constraint := range e.Context.Constraints[constraints.ConstructConstraintScope] {
+			constructConstraint, ok := constraint.(*constraints.ConstructConstraint)
 			if !ok {
 				e.Context.Errors = append(e.Context.Errors, &ConstructExpansionError{
 					Construct: res,
-					Cause:     fmt.Errorf("unable to cast base construct %s to construct while expanding construct", res.Id()),
+					Cause:     fmt.Errorf("constraint %s is incorrect type. Expected to be a construct constraint while expanding construct", constraint),
 				})
 				continue
 			}
 
-			constructType := ""
-			attributes := make(map[string]any)
-			for _, constraint := range e.Context.Constraints[constraints.ConstructConstraintScope] {
-				constructConstraint, ok := constraint.(*constraints.ConstructConstraint)
-				if !ok {
+			if constructConstraint.Target == construct.Id() {
+				if constructType != "" && constructType != constructConstraint.Type {
 					e.Context.Errors = append(e.Context.Errors, &ConstructExpansionError{
 						Construct: res,
-						Cause:     fmt.Errorf("constraint %s is incorrect type. Expected to be a construct constraint while expanding construct", constraint),
+						Cause:     fmt.Errorf("unable to expand construct %s, conflicting types in constraints", res.Id()),
 					})
-					continue
+					break
 				}
-
-				if constructConstraint.Target == construct.Id() {
-					if constructType != "" && constructType != constructConstraint.Type {
-						e.Context.Errors = append(e.Context.Errors, &ConstructExpansionError{
-							Construct: res,
-							Cause:     fmt.Errorf("unable to expand construct %s, conflicting types in constraints", res.Id()),
-						})
-						break
-					}
-					for k, v := range constructConstraint.Attributes {
-						if val, ok := attributes[k]; ok {
-							if v != val {
-								e.Context.Errors = append(e.Context.Errors, &ConstructExpansionError{
-									Construct: res,
-									Cause:     fmt.Errorf("unable to expand construct %s, attribute %s has conflicting values", res.Id(), k),
-								})
-								break
-							}
+				for k, v := range constructConstraint.Attributes {
+					if val, ok := attributes[k]; ok {
+						if v != val {
+							e.Context.Errors = append(e.Context.Errors, &ConstructExpansionError{
+								Construct: res,
+								Cause:     fmt.Errorf("unable to expand construct %s, attribute %s has conflicting values", res.Id(), k),
+							})
+							break
 						}
-						attributes[k] = v
 					}
+					attributes[k] = v
 				}
 			}
-
-			for k, v := range construct.Attributes() {
-				if val, ok := attributes[k]; ok {
-					if v != val {
-						e.Context.Errors = append(e.Context.Errors, &ConstructExpansionError{
-							Construct: res,
-							Cause:     fmt.Errorf("unable to expand construct %s, attribute %s has conflicting values", res.Id(), k),
-						})
-						break
-					}
-				}
-				attributes[k] = v
-			}
-			solutions, err := e.expandConstruct(constructType, attributes, construct)
-			if err != nil {
-				e.Context.Errors = append(e.Context.Errors, &ConstructExpansionError{
-					Construct: res,
-					Cause:     err,
-				})
-				continue
-			}
-			e.Context.constructExpansionSolutions[res.Id()] = solutions
 		}
+
+		for k, v := range construct.Attributes() {
+			if val, ok := attributes[k]; ok {
+				if v != val {
+					e.Context.Errors = append(e.Context.Errors, &ConstructExpansionError{
+						Construct: res,
+						Cause:     fmt.Errorf("unable to expand construct %s, attribute %s has conflicting values", res.Id(), k),
+					})
+					break
+				}
+			}
+			attributes[k] = v
+		}
+		solutions, err := e.expandConstruct(constructType, attributes, construct)
+		if err != nil {
+			e.Context.Errors = append(e.Context.Errors, &ConstructExpansionError{
+				Construct: res,
+				Cause:     err,
+			})
+			continue
+		}
+		e.Context.constructExpansionSolutions[res.Id()] = solutions
 	}
 }
 

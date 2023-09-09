@@ -81,6 +81,7 @@ func (c *ConfigurationStep) Apply(ctx *ConfigurationContext) (err error) {
 	var field reflect.Value
 	if c.Property != "" {
 		propPath := strings.Split(c.Property, ".")
+		// TODO handle map keys like `Resource.Field[key]`
 		field = objValue
 		for i, prop := range propPath {
 			field = field.FieldByName(prop)
@@ -117,6 +118,7 @@ func (c *ConfigurationStep) Apply(ctx *ConfigurationContext) (err error) {
 		return fmt.Errorf("value type %s is not assignable to field type %s", value.Type(), field.Type())
 	}
 
+	// TODO handle map setting or array appending
 	field.Set(value)
 	return nil
 }

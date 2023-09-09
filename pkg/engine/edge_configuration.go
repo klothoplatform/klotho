@@ -2,12 +2,10 @@ package engine
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
-	"gopkg.in/yaml.v3"
 )
 
 func (e *Engine) configureEdge(dep graph.Edge[construct.Resource], context *SolveContext) []EngineError {
@@ -26,12 +24,6 @@ func (e *Engine) configureEdge(dep graph.Edge[construct.Resource], context *Solv
 		}
 
 		decisions, engineErrors = e.EdgeTemplateMakeOperational(*e.EdgeTemplates[templateKey], context.ResourceGraph, &dep, *resourceMap)
-		e.handleDecisions(context, decisions)
-		if engineErrors != nil {
-			return engineErrors
-		}
-
-		decisions, engineErrors = EdgeTemplateConfigure(*e.EdgeTemplates[templateKey], context.ResourceGraph, &dep, *resourceMap)
 		e.handleDecisions(context, decisions)
 		if engineErrors != nil {
 			return engineErrors
@@ -119,58 +111,6 @@ func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, resourc
 			Level:  LevelInfo,
 			Result: &DecisionResult{Edge: &graph.Edge[construct.Resource]{Source: src, Destination: dst}},
 			Action: ActionConnect,
-			Cause: &Cause{
-				EdgeExpansion: edge,
-			},
-		})
-	}
-	return
-}
-
-func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *construct.ResourceGraph, edge *graph.Edge[construct.Resource], resourceMap map[construct.ResourceId]construct.Resource) (decisions []Decision, engineErrors []EngineError) {
-	for _, config := range template.Configuration {
-		id, fields := getIdAndFields(config.Resource)
-		res := resourceMap[id]
-		res, err := getResourceFromIdString(res, fields, graph)
-		if err != nil {
-			engineErrors = append(engineErrors, &InternalError{
-				Child: &EdgeConfigurationError{Edge: *edge},
-				Cause: err,
-			})
-			continue
-		}
-		if res == nil {
-			engineErrors = append(engineErrors, &EdgeConfigurationError{
-				Edge:  *edge,
-				Cause: fmt.Errorf("resource %s not found when attempting to configure", id.String()),
-			})
-			continue
-		}
-		newConfig := knowledgebase.Configuration{}
-		valBytes, err := yaml.Marshal(config.Config)
-		if err != nil {
-			engineErrors = append(engineErrors, &InternalError{
-				Child: &EdgeConfigurationError{Edge: *edge},
-				Cause: err,
-			})
-			continue
-		}
-		valStr := string(valBytes)
-		for id, resource := range resourceMap {
-			valStr = strings.ReplaceAll(valStr, id.String(), resource.Id().String())
-		}
-		err = yaml.Unmarshal([]byte(valStr), &newConfig)
-		if err != nil {
-			engineErrors = append(engineErrors, &InternalError{
-				Child: &EdgeConfigurationError{Edge: *edge},
-				Cause: err,
-			})
-			continue
-		}
-		decisions = append(decisions, Decision{
-			Level:  LevelInfo,
-			Result: &DecisionResult{Resource: res, Config: &config},
-			Action: ActionConfigure,
 			Cause: &Cause{
 				EdgeExpansion: edge,
 			},
