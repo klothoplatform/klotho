@@ -32,7 +32,7 @@ func Test_ParseConstraintsFromFile(t *testing.T) {
     target: klotho:orm:my_orm
   node: aws:rds_proxy:my_proxy
 - scope: resource
-  operator: add
+  operator: equals
   target: aws:rds_instance:my_instance
   property: db_instance_class
   value: db.t3.micro`),
@@ -66,7 +66,7 @@ func Test_ParseConstraintsFromFile(t *testing.T) {
 				},
 				ResourceConstraintScope: {
 					&ResourceConstraint{
-						Operator: AddConstraintOperator,
+						Operator: EqualsConstraintOperator,
 						Target:   construct.ResourceId{Provider: "aws", Type: "rds_instance", Name: "my_instance"},
 						Property: "db_instance_class",
 						Value:    "db.t3.micro",
@@ -85,6 +85,7 @@ func Test_ParseConstraintsFromFile(t *testing.T) {
 			assert.ElementsMatch(tt.want[ApplicationConstraintScope], result[ApplicationConstraintScope])
 			assert.ElementsMatch(tt.want[ConstructConstraintScope], result[ConstructConstraintScope])
 			assert.ElementsMatch(tt.want[EdgeConstraintScope], result[EdgeConstraintScope])
+			assert.ElementsMatch(tt.want[ResourceConstraintScope], result[ResourceConstraintScope])
 		})
 	}
 }
