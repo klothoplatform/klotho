@@ -36,8 +36,6 @@ type (
 	}
 )
 
-var setDefaultStep = ConfigurationStep{}
-
 func (c *Configuration) Apply(dag *construct.ResourceGraph, resource construct.Resource, value any) error {
 	ctx := &ConfigurationContext{
 		dag:      dag,
@@ -45,14 +43,13 @@ func (c *Configuration) Apply(dag *construct.ResourceGraph, resource construct.R
 		field:    c.Field,
 		Value:    c.DefaultValue,
 	}
-	if err := setDefaultStep.Apply(ctx); err != nil {
-		return fmt.Errorf("error setting default value: %w", err)
+	if value != nil {
+		ctx.Value = value
 	}
-	ctx.Value = value
 
-	for _, step := range c.Steps {
+	for i, step := range c.Steps {
 		if err := step.Apply(ctx); err != nil {
-			return err
+			return fmt.Errorf("error applying configuration %s step %d: %w", c.Field, i, err)
 		}
 	}
 	return nil
@@ -110,9 +107,17 @@ func (c *ConfigurationStep) Apply(ctx *ConfigurationContext) (err error) {
 		value = reflect.New(field.Type())
 		err = json.Unmarshal(valueBuf.Bytes(), value.Interface())
 		if err != nil {
-			return fmt.Errorf("unable to unmarshal value: %w", err)
+			if field.Kind() == reflect.String {
+				// guess that the value is to be taken as a literal string
+				value = reflect.ValueOf(valueBuf.String())
+			} else {
+				return fmt.Errorf("unable to unmarshal value from '%s': %w", valueBuf, err)
+			}
+		} else {
+			value = value.Elem()
 		}
-		value = value.Elem()
+	} else if ctx.Value == nil {
+		value = reflect.New(field.Type()).Elem()
 	}
 	if !value.Type().AssignableTo(field.Type()) {
 		return fmt.Errorf("value type %s is not assignable to field type %s", value.Type(), field.Type())

@@ -61,5 +61,5 @@ func (constraint *ResourceConstraint) Validate() error {
 }
 
 func (constraint *ResourceConstraint) String() string {
-	return fmt.Sprintf("ResourceConstraint: %s %s %s %s", constraint.Target, constraint.Property, constraint.Operator, constraint.Value)
+	return fmt.Sprintf("ResourceConstraint: %v %v %v %v", constraint.Target, constraint.Property, constraint.Operator, constraint.Value)
 }

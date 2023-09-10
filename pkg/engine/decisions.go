@@ -155,8 +155,8 @@ func (e *Engine) handleDecision(context *SolveContext, decision Decision) {
 				return
 			}
 			var value any
-			if decision.Cause.Constraint != nil {
-				value = decision.Cause.Constraint.(*constraints.ResourceConstraint).Value
+			if rc, ok := decision.Cause.Constraint.(*constraints.ResourceConstraint); ok && rc != nil {
+				value = rc.Value
 			}
 			err := decision.Result.Config.Apply(context.ResourceGraph, decision.Result.Resource, value)
 			if err != nil {
@@ -263,7 +263,7 @@ func (c Cause) MarshalJSON() ([]byte, error) {
 		h.ConstructExpansion = c.ConstructExpansion.Id()
 	}
 	if c.Constraint != nil {
-		h.Constraint = c.Constraint.String()
+		h.Constraint = fmt.Sprintf("%+v", c.Constraint)
 	}
 	return json.Marshal(h)
 }

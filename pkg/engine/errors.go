@@ -13,7 +13,6 @@ import (
 type (
 	EngineError interface {
 		error
-		Type() string
 		json.Marshaler
 	}
 
@@ -115,40 +114,19 @@ func (err *InternalError) Error() string {
 	return fmt.Sprintf("internal error: %v", err.Cause)
 }
 
-func (err *OperationalResourceError) Type() string {
-	return "OperationalResourceError"
-}
-
-func (err *EdgeExpansionError) Type() string {
-	return "EdgeExpansionError"
-}
-
-func (err *EdgeConfigurationError) Type() string {
-	return "EdgeConfigurationError"
-}
-
-func (err *ResourceNotOperationalError) Type() string {
-	return "ResourceNotOperationalError"
-}
-
-func (err *ResourceConfigurationError) Type() string {
-	return "ResourceConfigurationError"
-}
-
-func (err *ConstructExpansionError) Type() string {
-	return "ConstructExpansionError"
-}
-
-func (err *InternalError) Type() string {
-	return "InternalError"
+func causeError(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 func (err *OperationalResourceError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"type":    err.Type(),
+		"type":    fmt.Sprintf("%T", err),
 		"needs":   err.Needs,
 		"count":   err.Count,
-		"cause":   err.Cause.Error(),
+		"cause":   causeError(err.Cause),
 		"parent":  err.Parent.Id().String(),
 		"created": err.MustCreate,
 	})
@@ -156,53 +134,53 @@ func (err *OperationalResourceError) MarshalJSON() ([]byte, error) {
 
 func (err *EdgeExpansionError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"type":       err.Type(),
+		"type":       fmt.Sprintf("%T", err),
 		"constraint": err.Constraint,
-		"cause":      err.Cause.Error(),
+		"cause":      causeError(err.Cause),
 		"edge":       fmt.Sprintf("%s,%s", err.Edge.Source.Id(), err.Edge.Destination.Id()),
 	})
 }
 
 func (err *EdgeConfigurationError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"type":       err.Type(),
+		"type":       fmt.Sprintf("%T", err),
 		"constraint": err.Constraint,
-		"cause":      err.Cause.Error(),
+		"cause":      causeError(err.Cause),
 		"edge":       fmt.Sprintf("%s,%s", err.Edge.Source.Id(), err.Edge.Destination.Id()),
 	})
 }
 
 func (err *ResourceNotOperationalError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"type":       err.Type(),
+		"type":       fmt.Sprintf("%T", err),
 		"constraint": err.Constraint,
-		"cause":      err.Cause.Error(),
+		"cause":      causeError(err.Cause),
 		"resource":   err.Resource.Id().String(),
 	})
 }
 
 func (err *ResourceConfigurationError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"type":       err.Type(),
+		"type":       fmt.Sprintf("%T", err),
 		"constraint": err.Constraint,
-		"cause":      err.Cause.Error(),
+		"cause":      causeError(err.Cause),
 		"resource":   err.Resource.Id().String(),
 	})
 }
 
 func (err *ConstructExpansionError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"type":       err.Type(),
+		"type":       fmt.Sprintf("%T", err),
 		"constraint": err.Constraint,
-		"cause":      err.Cause.Error(),
+		"cause":      causeError(err.Cause),
 		"construct":  err.Construct.Id().String(),
 	})
 }
 
 func (err *InternalError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"type":  err.Type(),
-		"cause": err.Cause.Error(),
+		"type":  fmt.Sprintf("%T", err),
+		"cause": causeError(err.Cause),
 		"child": err.Child,
 	})
 }

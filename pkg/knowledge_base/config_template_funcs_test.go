@@ -39,6 +39,11 @@ func TestConfigurationContext_Upstream(t *testing.T) {
 			text:    "test:resource:c",
 			wantErr: true,
 		},
+		{
+			name: "self is an upstream",
+			text: "test:resource",
+			want: "test:resource:test",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -85,6 +90,11 @@ func TestConfigurationContext_Downstream(t *testing.T) {
 			name:    "miss not existing",
 			text:    "test:resource:c",
 			wantErr: true,
+		},
+		{
+			name: "self is a downstream",
+			text: "test:resource",
+			want: "test:resource:test",
 		},
 	}
 	for _, tt := range tests {

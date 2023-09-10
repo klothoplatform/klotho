@@ -13,6 +13,7 @@ import (
 func (ctx *ConfigurationContext) Funcs() template.FuncMap {
 	return template.FuncMap{
 		// DAG operations
+		"self":       ctx.Self,
 		"upstream":   ctx.Upstream,
 		"downstream": ctx.Downstream,
 
@@ -25,12 +26,20 @@ func (ctx *ConfigurationContext) Funcs() template.FuncMap {
 	}
 }
 
+func (ctx *ConfigurationContext) Self() string {
+	return ctx.resource.Id().String()
+}
+
 // Upstream returns the first resource that matches `selector` which is upstream of the resource that is being configured.
 func (ctx *ConfigurationContext) Upstream(selector string) (string, error) {
 	var selId construct.ResourceId
 	if err := selId.UnmarshalText([]byte(selector)); err != nil {
 		return "", err
 	}
+	if selId.Matches(ctx.resource.Id()) {
+		return ctx.resource.Id().String(), nil
+	}
+
 	upstream := ctx.dag.GetAllUpstreamResources(ctx.resource)
 	for _, up := range upstream {
 		if selId.Matches(up.Id()) {
@@ -46,6 +55,10 @@ func (ctx *ConfigurationContext) Downstream(selector string) (string, error) {
 	if err := selId.UnmarshalText([]byte(selector)); err != nil {
 		return "", err
 	}
+	if selId.Matches(ctx.resource.Id()) {
+		return ctx.resource.Id().String(), nil
+	}
+
 	downstream := ctx.dag.GetAllDownstreamResources(ctx.resource)
 	for _, down := range downstream {
 		if selId.Matches(down.Id()) {

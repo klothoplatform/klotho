@@ -24,19 +24,18 @@ configuration:
     steps:
       - object: '{{ upstream "aws:api_resource" }}'
         property: PathPart
-        value: '{{ .Value }}'
       - object: '{{ upstream "aws:api_method" }}'
         property: RequestParameters
-        value: '{{ split .Value "/" | filterMatch "^:\\w+$" | mapString ".*" "method.request.path.$0" | keysToMapWithDefault "true" }}'
+        value: '{{ split "/" .Value | filterMatch "^:\\w+$" | mapString ":(.*)" "method.request.path.$1" | keysToMapWithDefault "true" }}'
       - property: Route
         value: '{{ .Value }}'
-      - object: '{{ upstream "aws:api_integration" }}'
+      - object: '{{ self }}'
         property: RequestParameters
         value: |
-          {{ $params := split "/" .Value | filterMatch ":(\\w+)" }}
+          {{ $params := split "/" .Value | filterMatch "^:\\w+$" }}
           {{ zipToMap
-            ($params | mapString ".*" "integration.request.path.$0")
-            ($params | mapString ".*" "method.request.path.$0")
+            ($params | mapString ":(.*)" "integration.request.path.$1")
+            ($params | mapString ":(.*)" "method.request.path.$1")
           }}
 
 delete_context:

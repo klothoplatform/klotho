@@ -166,7 +166,7 @@ func ParseConstraintsFromFile(bytes []byte) (map[ConstraintScope][]Constraint, e
 					joinedErr = errors.Join(joinedErr, err)
 					continue
 				}
-				validOperators := []ConstraintOperator{AddConstraintOperator}
+				validOperators := []ConstraintOperator{EqualsConstraintOperator}
 				if !collectionutil.Contains(validOperators, constraint.Operator) {
 					joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid operator %s for resource constraint", constraint.Operator))
 					continue
