@@ -9,7 +9,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/graph"
-	"go.uber.org/zap"
 
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 )
@@ -124,8 +123,6 @@ func (e *Engine) handleOperationalRule(resource construct.Resource, rule knowled
 			dependentResources = dag.GetAllUpstreamResources(resource)
 		}
 	} else {
-		zap.S().Debugf("resource %s", resource.Id())
-		fmt.Println(resource, rule)
 		dependentResources = dag.GetDownstreamResources(resource)
 		if rule.Rules != nil && rule.RemoveDirectDependency {
 			dependentResources = dag.GetAllDownstreamResources(resource)
