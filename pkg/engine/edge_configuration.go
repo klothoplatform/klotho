@@ -7,6 +7,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -18,20 +19,23 @@ func (e *Engine) configureEdge(dep graph.Edge[construct.Resource], context *Solv
 	}
 
 	if e.EdgeTemplates[templateKey] != nil {
-		resourceMap := &map[construct.ResourceId]construct.Resource{}
+		resourceMap := map[construct.ResourceId]construct.Resource{}
 		decisions, engineErrors := e.EdgeTemplateExpand(*e.EdgeTemplates[templateKey], context.ResourceGraph, &dep, resourceMap)
 		e.handleDecisions(context, decisions)
 		if engineErrors != nil {
 			return engineErrors
 		}
+		for id, resource := range resourceMap {
+			zap.S().Infof("id %s resource %s", id, resource.Id())
+		}
 
-		decisions, engineErrors = e.EdgeTemplateMakeOperational(*e.EdgeTemplates[templateKey], context.ResourceGraph, &dep, *resourceMap)
+		decisions, engineErrors = e.EdgeTemplateMakeOperational(*e.EdgeTemplates[templateKey], context.ResourceGraph, &dep, resourceMap)
 		e.handleDecisions(context, decisions)
 		if engineErrors != nil {
 			return engineErrors
 		}
 
-		decisions, engineErrors = EdgeTemplateConfigure(*e.EdgeTemplates[templateKey], context.ResourceGraph, &dep, *resourceMap)
+		decisions, engineErrors = EdgeTemplateConfigure(*e.EdgeTemplates[templateKey], context.ResourceGraph, &dep, resourceMap)
 		e.handleDecisions(context, decisions)
 		if engineErrors != nil {
 			return engineErrors
@@ -48,10 +52,13 @@ func (e *Engine) configureEdge(dep graph.Edge[construct.Resource], context *Solv
 	return nil
 }
 
-func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, resourceGraph *construct.ResourceGraph, edge *graph.Edge[construct.Resource], resourcemap *map[construct.ResourceId]construct.Resource) (decisions []Decision, engineErrors []EngineError) {
-	resourceMap := map[construct.ResourceId]construct.Resource{}
+func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, resourceGraph *construct.ResourceGraph, edge *graph.Edge[construct.Resource], resourceMap map[construct.ResourceId]construct.Resource) (decisions []Decision, engineErrors []EngineError) {
 	resourceMap[template.Source] = edge.Source
 	resourceMap[template.Destination] = edge.Destination
+	for id, resource := range resourceMap {
+		zap.S().Infof("id %s resource %s", id, resource.Id())
+	}
+
 	for _, res := range template.Expansion.Resources {
 		provider := e.Providers[res.Provider]
 		resWithName := res
@@ -183,6 +190,13 @@ func (e *Engine) EdgeTemplateMakeOperational(template knowledgebase.EdgeTemplate
 	for _, rule := range template.OperationalRules {
 		id, fields := getIdAndFields(rule.Resource)
 		res := resourceMap[id]
+		zap.S().Infof("resource %s", rule.Resource)
+		for id, resource := range resourceMap {
+			zap.S().Infof("id %s resource %s", id, resource.Id())
+		}
+
+		zap.S().Infof("resource %s", res.Id())
+		zap.S().Infof("fields %s", fields)
 		resource, err := getResourceFromIdString(res, fields, graph)
 		if err != nil {
 			engineErrors = append(engineErrors, &InternalError{
@@ -191,6 +205,7 @@ func (e *Engine) EdgeTemplateMakeOperational(template knowledgebase.EdgeTemplate
 			})
 			continue
 		}
+		zap.S().Infof("resource %s", resource.Id())
 		ruleDecisions, errs := e.handleOperationalRule(resource, rule.Rule, graph, nil)
 		if errs != nil {
 			for _, err := range errs {
