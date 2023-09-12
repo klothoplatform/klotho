@@ -101,7 +101,7 @@ func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, resourc
 			src = resourceMap[id]
 		}
 		id, fields = getIdAndFields(dep.Destination)
-		dstRes := resourceGraph.GetResource(resourceMap[id].Id())
+		dstRes := resourceMap[id]
 		dst, err := getResourceFromIdString(dstRes, fields, resourceGraph)
 		if err != nil {
 			engineErrors = append(engineErrors, &InternalError{
@@ -168,7 +168,7 @@ func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *construct
 		}
 		decisions = append(decisions, Decision{
 			Level:  LevelInfo,
-			Result: &DecisionResult{Resource: res, Config: &config},
+			Result: &DecisionResult{Resource: res, Config: &knowledgebase.ConfigurationRule{Config: newConfig, Resource: res.Id()}},
 			Action: ActionConfigure,
 			Cause: &Cause{
 				EdgeExpansion: edge,
@@ -224,6 +224,9 @@ func nameResourceFromEdge(edge *graph.Edge[construct.Resource], res construct.Re
 func getResourceFromIdString(res construct.Resource, fields string, dag *construct.ResourceGraph) (construct.Resource, error) {
 	if fields == "" {
 		return res, nil
+	}
+	if res == nil {
+		return nil, fmt.Errorf("resource is nil")
 	}
 	// we pass in false for the parseFieldName's configure param so that we dont create a resource's interface if it is currently nil, leading to us adding extra resources
 	field, _, err := parseFieldName(res, fields, dag, false)

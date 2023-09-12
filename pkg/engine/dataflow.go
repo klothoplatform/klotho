@@ -86,7 +86,13 @@ func (e *Engine) GetDataFlowDag() *construct.ResourceGraph {
 				if e.RenderConnection(path) {
 					topoNode := topo.Nodes[src.Id().String()]
 					if topoNode.Parent != nil {
-						panic(fmt.Sprintf("Multiple parents for %s", src.Id()))
+						currpath, err := e.Context.Solution.ResourceGraph.ShortestPath(src.Id(), topoNode.Parent.Id())
+						if err != nil {
+							panic("Error getting shortest path")
+						}
+						if len(path) > len(currpath) {
+							continue
+						}
 					}
 					topoNode.Parent = dst
 				}

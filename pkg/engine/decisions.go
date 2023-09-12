@@ -160,6 +160,7 @@ func (e *Engine) handleDecision(context *SolveContext, decision Decision) {
 					Child: &ResourceConfigurationError{
 						Resource: decision.Result.Resource,
 						Config:   decision.Result.Config.Config,
+						Cause:    err,
 					},
 				})
 				return
