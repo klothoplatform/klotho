@@ -28,3 +28,5 @@ configuration:
         RestrictionType: none
   - field: CloudfrontDefaultCertificate
     value: true
+views:
+  dataflow: big

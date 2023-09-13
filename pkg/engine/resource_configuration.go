@@ -7,8 +7,50 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
+
+func (e *Engine) ConfigureResource(graph *construct.ResourceGraph, resource construct.Resource) error {
+	template := e.ResourceTemplates[construct.ResourceId{Provider: resource.Id().Provider, Type: resource.Id().Type}]
+	if template != nil {
+		err := TemplateConfigure(resource, *template, graph)
+		if err != nil {
+			return err
+
+		}
+	}
+
+	err := graph.CallConfigure(resource, nil)
+	if err != nil {
+		return err
+
+	}
+
+	return nil
+}
+
+func TemplateConfigure(resource construct.Resource, template knowledgebase.ResourceTemplate, dag *construct.ResourceGraph) error {
+	for _, config := range template.Configuration {
+		field, _, err := parseFieldName(resource, config.Field, dag, true)
+		if err != nil {
+			return err
+		}
+		if (!field.IsValid() || !field.IsZero()) || config.ZeroValueAllowed {
+			//since pointers will be non zero but could still be nil we need to check that case before proceeding
+			if field.Kind() == reflect.Ptr && !field.IsNil() && !field.Elem().IsZero() {
+				continue
+			} else if field.Kind() != reflect.Ptr {
+				continue
+			}
+		}
+		err = ConfigureField(resource, config.Field, config.Value, config.ZeroValueAllowed, dag)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // SetMapKey is a struct that represents a key in a map
 // Because values of maps are not addressable, we need to store the map and the key separately

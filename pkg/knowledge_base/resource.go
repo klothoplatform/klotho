@@ -21,6 +21,8 @@ type (
 		NameSanitization Sanitization `json:"sanitization" yaml:"sanitization"`
 		// DeleteContext defines the context in which a resource can be deleted
 		DeleteContext construct.DeleteContext `json:"delete_context" yaml:"delete_context"`
+		// Views defines the views that the resource should be added to as a distinct node
+		Views map[string]string `json:"views" yaml:"views"`
 	}
 
 	// OperationalRule defines a rule that must pass checks and actions which must be carried out to make a resource operational

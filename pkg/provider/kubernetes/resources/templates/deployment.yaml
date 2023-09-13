@@ -32,3 +32,5 @@ configuration:
         MaxSurge: 1
         MaxUnavailable: 1
       Type: RollingUpdate
+views:
+  dataflow: big

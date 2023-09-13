@@ -16,3 +16,5 @@ configuration:
     value: v1
   - field: Object.Kind
     value: Service
+views:
+  dataflow: small

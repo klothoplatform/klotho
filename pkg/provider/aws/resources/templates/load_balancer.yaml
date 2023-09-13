@@ -30,3 +30,5 @@ configuration:
     value: internal
   - field: Type
     value: network
+views:
+  dataflow: big

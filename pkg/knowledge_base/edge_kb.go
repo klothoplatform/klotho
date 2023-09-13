@@ -117,6 +117,10 @@ const (
 	ReuseDownstream Reuse = "downstream"
 )
 
+func (rule ConfigurationRule) String() string {
+	return fmt.Sprintf("%s, field: %s, value: %s", rule.Resource, rule.Config.Field, rule.Config.Value)
+}
+
 func (template *EdgeTemplate) Key() string {
 	return fmt.Sprintf("%s-%s", template.Source, template.Destination)
 }
@@ -269,13 +273,62 @@ func (kb EdgeKB) findPaths(source reflect.Type, dest reflect.Type, stack []Edge,
 	return result
 }
 
+// HasPath takes in a source and destination resource and checks the kb to see if there is a path from source to dest
+//
+// Has path is a more optimal approach to finding paths as it will stop searching once it finds a valid path
+func (kb EdgeKB) HasPath(source construct.Resource, dest construct.Resource) bool {
+	visitedEdges := map[reflect.Type]bool{}
+	stack := []Edge{}
+	if _, found := kb.GetResourceEdge(source, dest); found {
+		return true
+	}
+	return kb.hasPath(reflect.TypeOf(source), reflect.TypeOf(dest), stack, visitedEdges)
+}
+
+// hasPath performs the recursive calls of the parent HasPath function
+//
+// It works under the assumption that an edge is bidirectional and uses the edges ValidDestinations field to determine when that assumption is incorrect
+func (kb EdgeKB) hasPath(source reflect.Type, dest reflect.Type, stack []Edge, visited map[reflect.Type]bool) bool {
+	visited[source] = true
+
+	if source == dest {
+		// For resources which can have dependencies between themselves we have to add that path to the stack if it is a valid edge
+		if len(stack) == 0 {
+			if _, found := kb.GetEdgeDetails(source, dest); found {
+				stack = append(stack, Edge{Source: source, Destination: dest})
+			}
+		}
+		if len(stack) != 0 {
+			return true
+		}
+	} else {
+		// When we are not at the destination we want to recursively call findPaths on all edges which have the source as the current node
+		// This is checking all edges which have a direction of From -> To
+		for _, e := range kb.GetEdgesWithSource(source) {
+			det, _ := kb.GetEdgeDetails(e.Source, e.Destination)
+			// Ensure that direct edges cannot contribute to paths. We check if its a direct match for the dest and if not we continue
+			if det.DirectEdgeOnly && (len(stack) != 0 || e.Destination != dest) {
+				continue
+			}
+			if e.Source == source && !visited[e.Destination] {
+				if kb.hasPath(e.Destination, dest, append(stack, e), visited) {
+					return true
+				}
+			}
+		}
+	}
+	delete(visited, source)
+	return false
+}
+
 // ExpandEdges performs calculations to determine the proper path to be inserted into the ResourceGraph.
 //
 // The workflow of the edge expansion is as follows:
 //   - Find shortest path given the constraints on the edge
 //   - Iterate through each edge in path creating the resource if necessary
-func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.ResourceGraph, validPath Path, edgeData EdgeData) (err error) {
+func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.ResourceGraph, validPath Path, edgeData EdgeData) []graph.Edge[construct.Resource] {
 
+	var result []graph.Edge[construct.Resource]
 	// most likely need to use downstream and upstream operational errors here
 
 	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
@@ -331,7 +384,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.
 			upstreamResources := dag.GetAllDownstreamResources(dep.Source)
 			for _, res := range upstreamResources {
 				if sourceNode.Id().Type == res.Id().Type {
-					dag.AddDependencyWithData(res, destNode, EdgeData{Source: dep.Source, Destination: dep.Destination})
+					result = append(result, graph.Edge[construct.Resource]{Source: res, Destination: destNode})
 					added = true
 				}
 			}
@@ -339,7 +392,7 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.
 			upstreamResources := dag.GetAllDownstreamResources(dep.Destination)
 			for _, res := range upstreamResources {
 				if destNode.Id().Type == res.Id().Type {
-					dag.AddDependencyWithData(sourceNode, res, EdgeData{Source: dep.Source, Destination: dep.Destination})
+					result = append(result, graph.Edge[construct.Resource]{Source: sourceNode, Destination: res})
 					added = true
 				}
 			}
@@ -348,34 +401,14 @@ func (kb EdgeKB) ExpandEdge(dep *graph.Edge[construct.Resource], dag *construct.
 			break
 		}
 
-		dag.AddDependencyWithData(sourceNode, destNode, EdgeData{Source: dep.Source, Destination: dep.Destination})
+		result = append(result, graph.Edge[construct.Resource]{Source: sourceNode, Destination: destNode})
 
-		if sourceNode != nil {
-			resourceCache[source] = sourceNode
-		}
-		sourceNodeInGraph := dag.GetResource(sourceNode.Id())
-		if sourceNodeInGraph != nil {
-			resourceCache[source] = sourceNodeInGraph
-		}
-		if destNode != nil {
-			resourceCache[dest] = destNode
-		}
-		destNodeInGraph := dag.GetResource(destNode.Id())
-		if destNodeInGraph != nil {
-			resourceCache[dest] = destNodeInGraph
-		}
-	}
-
-	// If the valid path is not the original direct path, we want to remove the initial direct dependency so we can fill in the new edges with intermediate nodes
-	if len(validPath) > 1 {
-		zap.S().Debugf("Removing dependency from %s -> %s", dep.Source.Id(), dep.Destination.Id())
-		err := dag.RemoveDependency(dep.Source.Id(), dep.Destination.Id())
-		if err != nil {
-			return err
-		}
+		resourceCache[source] = sourceNode
+		resourceCache[dest] = destNode
 
 	}
-	return nil
+
+	return result
 }
 
 // ConfigureEdge calls each edge configure function.

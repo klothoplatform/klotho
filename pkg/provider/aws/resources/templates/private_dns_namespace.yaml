@@ -8,3 +8,5 @@ rules:
     set_field: Vpc
     unsatisfied_action:
       operation: create
+views:
+  dataflow: small

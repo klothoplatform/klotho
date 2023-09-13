@@ -23,3 +23,5 @@ configuration:
     value: private
 delete_context:
   requires_no_upstream: true
+views:
+  dataflow: small

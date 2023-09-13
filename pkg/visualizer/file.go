@@ -102,13 +102,17 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 		if len(properties) > 0 {
 			writeYaml(properties, 2, wh)
 		}
-
+		// Need to write edge properties here tomorrow
 		edges := f.DAG.GetDownstreamDependencies(resource)
 		for _, edge := range edges {
 			src := f.KeyFor(edge.Source)
 			dst := f.KeyFor(edge.Destination)
 			if src != "" && dst != "" {
 				wh.Writef(indent+"%s -> %s:\n", src, dst)
+			}
+			dep := f.DAG.GetDependency(edge.Source.Id(), edge.Destination.Id())
+			if dep.Properties.Data != nil {
+				writeYaml(dep.Properties.Data, 2, wh)
 			}
 		}
 		wh.Write("\n")

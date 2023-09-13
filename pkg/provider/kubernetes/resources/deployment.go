@@ -104,6 +104,9 @@ func (deployment *Deployment) MakeOperational(dag *construct.ResourceGraph, appN
 	if deployment.Cluster.Name == "" {
 		return fmt.Errorf("deployment %s has no cluster", deployment.Name)
 	}
+	if deployment.Object == nil {
+		deployment.Object = &apps.Deployment{}
+	}
 
 	SetDefaultObjectMeta(deployment, deployment.Object.GetObjectMeta())
 	deployment.FilePath = ManifestFilePath(deployment)

@@ -79,6 +79,9 @@ func (sa *ServiceAccount) MakeOperational(dag *construct.ResourceGraph, appName 
 	if sa.Cluster.IsZero() {
 		return fmt.Errorf("%s has no cluster", sa.Id())
 	}
+	if sa.Object == nil {
+		sa.Object = &corev1.ServiceAccount{}
+	}
 
 	SetDefaultObjectMeta(sa, sa.Object.GetObjectMeta())
 	sa.FilePath = ManifestFilePath(sa)

@@ -1,0 +1,4 @@
+provider: aws
+type: ecs_cluster
+views:
+  dataflow: parent

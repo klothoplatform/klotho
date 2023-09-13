@@ -54,3 +54,5 @@ configuration:
     zero_value_allowed: false
   - field: MemorySize
     value: 512
+views:
+  dataflow: big

@@ -47,3 +47,5 @@ configuration:
       - ContainerPort: 3000
         Protocol: tcp
         HostPort: 3000
+views:
+  dataflow: small

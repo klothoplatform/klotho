@@ -47,7 +47,7 @@ func (constraint *ResourceConstraint) IsSatisfied(dag *construct.ResourceGraph, 
 		val := reflect.ValueOf(res).Elem().FieldByName(constraint.Property)
 		return val.IsValid() && val.Interface() == constraint.Value
 	}
-	return false
+	return true
 }
 
 func (constraint *ResourceConstraint) Validate() error {

@@ -35,3 +35,5 @@ rules:
         no_parent_dependency: true
 delete_context:
   requires_no_upstream: true
+views:
+  dataflow: small

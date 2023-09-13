@@ -1,65 +1,54 @@
 package engine
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base"
-	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
-func (e *Engine) configureEdges(graph *construct.ResourceGraph) (map[construct.ResourceId]map[construct.ResourceId]bool, error) {
-	configuredEdges := map[construct.ResourceId]map[construct.ResourceId]bool{}
-	joinedErr := error(nil)
-	zap.S().Debug("Engine configuring edges")
-	for _, dep := range graph.ListDependencies() {
-		if _, ok := configuredEdges[dep.Source.Id()]; !ok {
-			configuredEdges[dep.Source.Id()] = make(map[construct.ResourceId]bool)
-		}
-		templateKey := fmt.Sprintf("%s:%s:-%s:%s:", dep.Source.Id().Provider, dep.Source.Id().Type, dep.Destination.Id().Provider, dep.Destination.Id().Type)
-		_, found := e.KnowledgeBase.GetResourceEdge(dep.Source, dep.Destination)
-		if e.EdgeTemplates[templateKey] == nil && !found {
-			zap.Error(fmt.Errorf("no edge template found for %s", templateKey))
-			joinedErr = errors.Join(joinedErr, fmt.Errorf("no edge template found for %s", templateKey))
-			continue
-		}
-
-		if e.EdgeTemplates[templateKey] != nil {
-			resourceMap, err := e.EdgeTemplateExpand(*e.EdgeTemplates[templateKey], graph, &dep)
-			if err != nil {
-				joinedErr = errors.Join(joinedErr, err)
-				continue
-			}
-			err = e.EdgeTemplateMakeOperational(*e.EdgeTemplates[templateKey], graph, &dep, resourceMap)
-			if err != nil {
-				joinedErr = errors.Join(joinedErr, err)
-				continue
-			}
-			err = EdgeTemplateConfigure(*e.EdgeTemplates[templateKey], graph, &dep, resourceMap)
-			if err != nil {
-				joinedErr = errors.Join(joinedErr, err)
-				continue
-			}
-		}
-
-		err := e.KnowledgeBase.ConfigureEdge(&dep, graph)
-		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
-			continue
-		}
-		configuredEdges[dep.Source.Id()][dep.Destination.Id()] = true
-
+func (e *Engine) configureEdge(dep graph.Edge[construct.Resource], context *SolveContext) []EngineError {
+	templateKey := fmt.Sprintf("%s:%s:-%s:%s:", dep.Source.Id().Provider, dep.Source.Id().Type, dep.Destination.Id().Provider, dep.Destination.Id().Type)
+	_, found := e.KnowledgeBase.GetResourceEdge(dep.Source, dep.Destination)
+	if e.EdgeTemplates[templateKey] == nil && !found {
+		return []EngineError{&InternalError{Child: &EdgeConfigurationError{Edge: dep}, Cause: fmt.Errorf("no edge template found for %s", templateKey)}}
 	}
-	return configuredEdges, joinedErr
+
+	if e.EdgeTemplates[templateKey] != nil {
+		resourceMap := map[construct.ResourceId]construct.Resource{}
+		decisions, engineErrors := e.EdgeTemplateExpand(*e.EdgeTemplates[templateKey], context.ResourceGraph, &dep, resourceMap)
+		e.handleDecisions(context, decisions)
+		if engineErrors != nil {
+			return engineErrors
+		}
+
+		decisions, engineErrors = e.EdgeTemplateMakeOperational(*e.EdgeTemplates[templateKey], context.ResourceGraph, &dep, resourceMap)
+		e.handleDecisions(context, decisions)
+		if engineErrors != nil {
+			return engineErrors
+		}
+
+		decisions, engineErrors = EdgeTemplateConfigure(*e.EdgeTemplates[templateKey], context.ResourceGraph, &dep, resourceMap)
+		e.handleDecisions(context, decisions)
+		if engineErrors != nil {
+			return engineErrors
+		}
+	}
+
+	err := e.KnowledgeBase.ConfigureEdge(&dep, context.ResourceGraph)
+	if err != nil {
+		return []EngineError{&EdgeConfigurationError{
+			Edge:  dep,
+			Cause: err,
+		}}
+	}
+	return nil
 }
 
-func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, graph *construct.ResourceGraph, edge *graph.Edge[construct.Resource]) (map[construct.ResourceId]construct.Resource, error) {
-	joinedErr := error(nil)
-	resourceMap := map[construct.ResourceId]construct.Resource{}
+func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, resourceGraph *construct.ResourceGraph, edge *graph.Edge[construct.Resource], resourceMap map[construct.ResourceId]construct.Resource) (decisions []Decision, engineErrors []EngineError) {
 	resourceMap[template.Source] = edge.Source
 	resourceMap[template.Destination] = edge.Destination
 	for _, res := range template.Expansion.Resources {
@@ -68,55 +57,101 @@ func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, graph *
 		resWithName.Name = nameResourceFromEdge(edge, res)
 		node, err := provider.CreateConstructFromId(resWithName, e.Context.InitialState)
 		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
+			engineErrors = append(engineErrors, &EdgeConfigurationError{
+				Edge:  *edge,
+				Cause: err,
+			})
 			continue
 		}
 		if r, ok := node.(construct.Resource); ok {
-			graph.AddResource(r)
+			decisions = append(decisions, Decision{
+				Level:  LevelInfo,
+				Result: &DecisionResult{Resource: r},
+				Action: ActionCreate,
+				Cause: &Cause{
+					EdgeExpansion: edge,
+				},
+			})
 			resourceMap[res] = r
 		} else {
-			joinedErr = errors.Join(joinedErr, fmt.Errorf("node %s is not a resource (was %T)", node.Id(), node))
+			engineErrors = append(engineErrors, &InternalError{
+				Child: &EdgeConfigurationError{Edge: *edge},
+				Cause: fmt.Errorf("node %s is not a resource (was %T)", node.Id(), node),
+			})
 			continue
 		}
 	}
+	if engineErrors != nil {
+		return
+	}
+
 	for _, dep := range template.Expansion.Dependencies {
 		id, fields := getIdAndFields(dep.Source)
-		srcRes := graph.GetResource(resourceMap[id].Id())
-		src, err := getResourceFromIdString(srcRes, fields, graph)
+		srcRes := resourceGraph.GetResource(resourceMap[id].Id())
+		src, err := getResourceFromIdString(srcRes, fields, resourceGraph)
 		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
+			engineErrors = append(engineErrors, &InternalError{
+				Child: &EdgeConfigurationError{Edge: *edge},
+				Cause: err,
+			})
 			continue
+		}
+		// if the src is nil its because we havent created it yet and it does not yet exist in the graph
+		if src == nil {
+			src = resourceMap[id]
 		}
 		id, fields = getIdAndFields(dep.Destination)
-		dstRes := graph.GetResource(resourceMap[id].Id())
-		dst, err := getResourceFromIdString(dstRes, fields, graph)
+		dstRes := resourceMap[id]
+		dst, err := getResourceFromIdString(dstRes, fields, resourceGraph)
 		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
+			engineErrors = append(engineErrors, &InternalError{
+				Child: &EdgeConfigurationError{Edge: *edge},
+				Cause: err,
+			})
 			continue
 		}
-		graph.AddDependency(src, dst)
+		// if the src is nil its because we havent created it yet and it does not yet exist in the graph
+		if dst == nil {
+			dst = resourceMap[id]
+		}
+		decisions = append(decisions, Decision{
+			Level:  LevelInfo,
+			Result: &DecisionResult{Edge: &graph.Edge[construct.Resource]{Source: src, Destination: dst}},
+			Action: ActionConnect,
+			Cause: &Cause{
+				EdgeExpansion: edge,
+			},
+		})
 	}
-	return resourceMap, joinedErr
+	return
 }
 
-func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *construct.ResourceGraph, edge *graph.Edge[construct.Resource], resourceMap map[construct.ResourceId]construct.Resource) error {
-	joinedErr := error(nil)
+func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *construct.ResourceGraph, edge *graph.Edge[construct.Resource], resourceMap map[construct.ResourceId]construct.Resource) (decisions []Decision, engineErrors []EngineError) {
 	for _, config := range template.Configuration {
 		id, fields := getIdAndFields(config.Resource)
 		res := resourceMap[id]
 		res, err := getResourceFromIdString(res, fields, graph)
 		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
+			engineErrors = append(engineErrors, &InternalError{
+				Child: &EdgeConfigurationError{Edge: *edge},
+				Cause: err,
+			})
 			continue
 		}
 		if res == nil {
-			joinedErr = errors.Join(joinedErr, fmt.Errorf("resource %s not found when attempting to configure", id.String()))
+			engineErrors = append(engineErrors, &EdgeConfigurationError{
+				Edge:  *edge,
+				Cause: fmt.Errorf("resource %s not found when attempting to configure", id.String()),
+			})
 			continue
 		}
 		newConfig := knowledgebase.Configuration{}
 		valBytes, err := yaml.Marshal(config.Config)
 		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
+			engineErrors = append(engineErrors, &InternalError{
+				Child: &EdgeConfigurationError{Edge: *edge},
+				Cause: err,
+			})
 			continue
 		}
 		valStr := string(valBytes)
@@ -125,44 +160,61 @@ func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *construct
 		}
 		err = yaml.Unmarshal([]byte(valStr), &newConfig)
 		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
+			engineErrors = append(engineErrors, &InternalError{
+				Child: &EdgeConfigurationError{Edge: *edge},
+				Cause: err,
+			})
 			continue
 		}
-		err = ConfigureField(res, newConfig.Field, newConfig.Value, config.Config.ZeroValueAllowed, graph)
-		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
-			continue
-		}
+		decisions = append(decisions, Decision{
+			Level:  LevelInfo,
+			Result: &DecisionResult{Resource: res, Config: &knowledgebase.ConfigurationRule{Config: newConfig, Resource: res.Id()}},
+			Action: ActionConfigure,
+			Cause: &Cause{
+				EdgeExpansion: edge,
+			},
+		})
 	}
-	return joinedErr
+	return
 }
 
-func (e *Engine) EdgeTemplateMakeOperational(template knowledgebase.EdgeTemplate, graph *construct.ResourceGraph, edge *graph.Edge[construct.Resource], resourceMap map[construct.ResourceId]construct.Resource) error {
-	joinedErr := error(nil)
+func (e *Engine) EdgeTemplateMakeOperational(template knowledgebase.EdgeTemplate, graph *construct.ResourceGraph, edge *graph.Edge[construct.Resource], resourceMap map[construct.ResourceId]construct.Resource) (decisions []Decision, engineErrors []EngineError) {
 	for _, rule := range template.OperationalRules {
 		id, fields := getIdAndFields(rule.Resource)
 		res := resourceMap[id]
 		resource, err := getResourceFromIdString(res, fields, graph)
 		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
+			engineErrors = append(engineErrors, &InternalError{
+				Child: &EdgeConfigurationError{Edge: *edge},
+				Cause: err,
+			})
 			continue
 		}
-		errs := e.handleOperationalRule(resource, rule.Rule, graph, nil)
+		ruleDecisions, errs := e.handleOperationalRule(resource, rule.Rule, graph, nil)
 		if errs != nil {
 			for _, err := range errs {
 				if ore, ok := err.(*OperationalResourceError); ok {
-					err = e.handleOperationalResourceError(ore, graph)
+					oreDecisions, err := e.handleOperationalResourceError(ore, graph)
+					ruleDecisions = append(ruleDecisions, oreDecisions...)
 					if err != nil {
-						joinedErr = errors.Join(joinedErr, err)
+						engineErrors = append(engineErrors, &EdgeConfigurationError{
+							Edge:  *edge,
+							Cause: err,
+						})
 					}
-					continue
+				} else {
+					engineErrors = append(engineErrors, err)
 				}
-				joinedErr = errors.Join(joinedErr, err)
 			}
 			continue
 		}
+		for _, d := range ruleDecisions {
+			d.Cause = &Cause{EdgeConfiguration: edge}
+			decisions = append(decisions, d)
+		}
 	}
-	return joinedErr
+
+	return
 }
 
 func nameResourceFromEdge(edge *graph.Edge[construct.Resource], res construct.ResourceId) string {
@@ -172,6 +224,9 @@ func nameResourceFromEdge(edge *graph.Edge[construct.Resource], res construct.Re
 func getResourceFromIdString(res construct.Resource, fields string, dag *construct.ResourceGraph) (construct.Resource, error) {
 	if fields == "" {
 		return res, nil
+	}
+	if res == nil {
+		return nil, fmt.Errorf("resource is nil")
 	}
 	// we pass in false for the parseFieldName's configure param so that we dont create a resource's interface if it is currently nil, leading to us adding extra resources
 	field, _, err := parseFieldName(res, fields, dag, false)
