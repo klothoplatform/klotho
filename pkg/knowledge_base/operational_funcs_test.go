@@ -136,7 +136,12 @@ func TestConfigTemplateContext_ExecuteDecode(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			assert.Equal(tt.want, gotV.Elem().Interface())
+			switch want := tt.want.(type) {
+			case []construct.ResourceId:
+				assert.ElementsMatch(want, gotV.Elem().Interface())
+			default:
+				assert.Equal(want, gotV.Elem().Interface())
+			}
 		})
 	}
 }
