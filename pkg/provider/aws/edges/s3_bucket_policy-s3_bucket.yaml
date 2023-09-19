@@ -1,11 +1,11 @@
-source: 'aws:s3_bucket_policy:'
-destination: 'aws:s3_bucket:'
+source: aws:s3_bucket_policy
+destination: aws:s3_bucket
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:
 configuration:
-  - resource: 'aws:s3_bucket_policy:'
+  - resource: aws:s3_bucket_policy
     config:
       field: Bucket
-      value: 'aws:s3_bucket:'
+      value: aws:s3_bucket

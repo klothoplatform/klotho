@@ -1,6 +1,8 @@
 package construct
 
 import (
+	"bytes"
+	"fmt"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/io"
@@ -312,4 +314,25 @@ func getNestedResources(resolver resourceResolver, source BaseConstruct, targetV
 		}
 	}
 	return
+}
+
+func (v IaCValue) String() string {
+	return v.ResourceId.String() + "#" + v.Property
+}
+
+func (v IaCValue) MarshalText() ([]byte, error) {
+	return []byte(v.String()), nil
+}
+
+func (v *IaCValue) UnmarshalText(b []byte) error {
+	parts := bytes.SplitN(b, []byte("#"), 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid IaCValue format: %s", string(b))
+	}
+	err := v.ResourceId.UnmarshalText(parts[0])
+	if err != nil {
+		return err
+	}
+	v.Property = string(parts[1])
+	return nil
 }

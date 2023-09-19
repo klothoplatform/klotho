@@ -1,5 +1,5 @@
-source: 'aws:ec2_instance:'
-destination: 'aws:efs_mount_target:'
+source: aws:ec2_instance
+destination: aws:efs_mount_target
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
@@ -7,4 +7,4 @@ reuse:
 expansion:
   dependencies:
     - source: 'aws:ec2_instance:#InstanceProfile.Role'
-      destination: 'aws:efs_mount_target:'
+      destination: aws:efs_mount_target

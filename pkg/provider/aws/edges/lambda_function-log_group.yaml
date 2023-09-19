@@ -1,11 +1,11 @@
-source: 'aws:lambda_function:'
-destination: 'aws:log_group:'
+source: aws:lambda_function
+destination: aws:log_group
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:
 configuration:
-  - resource: 'aws:log_group:'
+  - resource: aws:log_group
     config:
       field: RetentionInDays
       value: 5

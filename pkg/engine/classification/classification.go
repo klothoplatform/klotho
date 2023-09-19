@@ -57,8 +57,7 @@ func (c *ClassificationDocument) GivesAttributeForFunctionality(resource constru
 }
 
 func (c *ClassificationDocument) GetClassification(resource construct.Resource) Classification {
-	bareRes := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(construct.Resource)
-	return c.Classifications[bareRes.Id().String()]
+	return c.Classifications[resource.Id().QualifiedTypeName()]
 }
 
 func (c *ClassificationDocument) GetFunctionality(resource construct.Resource) construct.Functionality {
@@ -118,6 +117,14 @@ func ReadClassificationDoc(path string, fs embed.FS) (*ClassificationDocument, e
 	err = json.Unmarshal(f, &classificationDoc.Classifications)
 	if err != nil {
 		return nil, err
+	}
+	// fixup any ids that still have the trailing ':'
+	// TODO remove once all classification documents are fixed
+	for k, v := range classificationDoc.Classifications {
+		if strings.HasSuffix(k, ":") {
+			delete(classificationDoc.Classifications, k)
+			classificationDoc.Classifications[strings.TrimSuffix(k, ":")] = v
+		}
 	}
 	return classificationDoc, nil
 }

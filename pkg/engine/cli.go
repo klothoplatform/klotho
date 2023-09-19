@@ -36,6 +36,7 @@ type EngineMain struct {
 var engineCfg struct {
 	provider   string
 	guardrails string
+	jsonLog    bool
 }
 
 var listResourceFieldsConfig struct {
@@ -74,6 +75,11 @@ func setupLogger(analyticsClient *analytics.Client) (*zap.Logger, error) {
 		zapCfg = zap.NewDevelopmentConfig()
 	} else {
 		zapCfg = zap.NewProductionConfig()
+	}
+	if engineCfg.jsonLog {
+		zapCfg.Encoding = "json"
+	} else {
+		zapCfg.Encoding = consoleEncoderName
 	}
 
 	return zapCfg.Build(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
@@ -135,6 +141,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) error {
 	flags.StringVarP(&architectureEngineCfg.constraints, "constraints", "c", "", "Constraints file")
 	flags.StringVarP(&architectureEngineCfg.outputDir, "output-dir", "o", "", "Output directory")
 	flags.BoolVarP(&architectureEngineCfg.verbose, "verbose", "v", false, "Verbose flag")
+	flags.BoolVar(&engineCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
 
 	root.AddGroup(engineGroup)
 	root.AddCommand(listResourceTypesCmd)

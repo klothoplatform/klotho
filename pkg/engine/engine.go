@@ -362,18 +362,15 @@ func (e *Engine) SolveGraph(context *SolveContext) {
 	graph := context.ResourceGraph
 	configuredEdges := make(map[construct.ResourceId]map[construct.ResourceId]bool)
 	operationalResources := make(map[construct.ResourceId]bool)
+
 	for i := 0; i < NUM_LOOPS; i++ {
 		context.Errors = []EngineError{}
 
-		for _, rc := range e.Context.Constraints[constraints.ResourceConstraintScope] {
-			rc := rc.(*constraints.ResourceConstraint)
-			config := knowledgebase.Configuration{Field: rc.Property, Value: rc.Value}
-			configRule := knowledgebase.ConfigurationRule{Config: config, Resource: rc.Target}
-			e.handleDecision(context, Decision{Level: LevelInfo, Result: &DecisionResult{Config: &configRule, Resource: context.ResourceGraph.GetResource(rc.Target)}, Action: ActionConfigure, Cause: &Cause{Constraint: rc}})
+		for _, r := range graph.ListResources() {
+			e.configureResource(context, r)
 		}
 
 		for _, dep := range graph.ListDependencies() {
-
 			if configuredEdges[dep.Source.Id()] == nil {
 				configuredEdges[dep.Source.Id()] = make(map[construct.ResourceId]bool)
 			}
@@ -452,7 +449,7 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 		if resource == nil {
 			return fmt.Errorf("construct, %s, does not exist", constraint.Node)
 		}
-		if !e.deleteConstruct(resource, true, true) {
+		if !e.deleteConstruct(e.Context.WorkingState, resource, true, true) {
 			return fmt.Errorf("cannot remove construct %s, failed", constraint.Node)
 		}
 		return nil
@@ -474,7 +471,7 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 		}
 		var reconnectToUpstream []construct.BaseConstruct
 		for _, up := range upstream {
-			deleted := e.deleteConstruct(up, false, false)
+			deleted := e.deleteConstruct(e.Context.WorkingState, up, false, false)
 			if deleted {
 				reconnectToUpstream = append(reconnectToUpstream, e.Context.WorkingState.GetUpstreamConstructs(up)...)
 			} else {
@@ -483,7 +480,7 @@ func (e *Engine) ApplyApplicationConstraint(constraint *constraints.ApplicationC
 		}
 		var reconnectToDownstream []construct.BaseConstruct
 		for _, down := range downstream {
-			deleted := e.deleteConstruct(down, false, false)
+			deleted := e.deleteConstruct(e.Context.WorkingState, down, false, false)
 			if deleted {
 				reconnectToDownstream = append(reconnectToDownstream, e.Context.WorkingState.GetDownstreamConstructs(down)...)
 			} else {
@@ -561,7 +558,7 @@ func (e *Engine) ApplyEdgeConstraint(constraint *constraints.EdgeConstraint) err
 			for _, res := range path {
 				resource := e.Context.WorkingState.GetConstruct(res.Id())
 				if resource != nil {
-					e.deleteConstruct(resource, false, false)
+					e.deleteConstruct(e.Context.WorkingState, resource, false, false)
 				}
 			}
 		}
@@ -627,29 +624,6 @@ func (e *Engine) handleEdgeConstainConstraint(constraint *constraints.EdgeConstr
 		data.Attributes[key] = attribute
 	}
 	e.Context.WorkingState.AddDependencyWithData(constraint.Target.Source, constraint.Target.Target, data)
-	return nil
-}
-
-func (e *Engine) ApplyResourceConstraint(graph *construct.ResourceGraph, constraint *constraints.ResourceConstraint) EngineError {
-	resource := graph.GetResource(constraint.Target)
-	if resource == nil {
-		return &ResourceConfigurationError{
-			Constraint: constraint,
-			Cause:      fmt.Errorf("resource %s does not exist", constraint.Target),
-		}
-	}
-	err := ConfigureField(resource, constraint.Property, constraint.Value, true, graph)
-	if err != nil {
-		return &ResourceConfigurationError{
-			Resource: resource,
-			Cause:    err,
-			Config: knowledgebase.Configuration{
-				Field: constraint.Property,
-				Value: constraint.Value,
-			},
-			Constraint: constraint,
-		}
-	}
 	return nil
 }
 

@@ -16,9 +16,26 @@ rules:
     set_field: RestApi
     unsatisfied_action:
       operation: create
+  - direction: upstream
+    resources:
+      # TODO move the name sanitization into api resource name sanitization
+      - aws:api_resource:{{ fieldValue "Route" .Self | replace "\\{([^}+]+)\\+?\\}" "$1" | replace "^/" "" | replace "/" "-" }}
+    set_field: Resource
+    unsatisfied_action:
+      operation: create
 configuration:
   - field: IntegrationHttpMethod
     value: ANY
+  - field: Route
+    value: /{proxy+}
+  - field: RequestParameters
+    value_template: |
+      {{ $params := split (fieldValue "Route" .Self) "/" | filterMatch "^:\\w+$" }}
+      {{ zipToMap
+          ($params | mapString ":(.*)" "integration.request.path.$1")
+          ($params | mapString ":(.*)" "method.request.path.$1")
+        | toJson
+      }}
 delete_context:
   requires_no_upstream_or_downstream: true
 views:

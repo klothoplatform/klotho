@@ -1,5 +1,5 @@
-source: 'aws:rds_subnet_group:'
-destination: 'aws:subnet_private:'
+source: aws:rds_subnet_group
+destination: aws:subnet_private
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

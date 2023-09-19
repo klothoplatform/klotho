@@ -2,6 +2,7 @@ package aws
 
 import (
 	"embed"
+	"errors"
 	"fmt"
 	"io/fs"
 	"reflect"
@@ -108,27 +109,28 @@ var awsEdgeTempaltes embed.FS
 
 func (a *AWS) GetEdgeTemplates() map[string]*knowledgebase.EdgeTemplate {
 	templates := map[string]*knowledgebase.EdgeTemplate{}
-	if err := fs.WalkDir(awsEdgeTempaltes, ".", func(path string, d fs.DirEntry, nerr error) error {
+	err := fs.WalkDir(awsEdgeTempaltes, ".", func(path string, d fs.DirEntry, nerr error) error {
 		if d.IsDir() {
 			return nil
 		}
 		content, err := awsEdgeTempaltes.ReadFile(fmt.Sprintf("edges/%s", d.Name()))
 		if err != nil {
-			panic(err)
+			return errors.Join(nerr, err)
 		}
 		resTemplate := &knowledgebase.EdgeTemplate{}
 		err = yaml.Unmarshal(content, resTemplate)
 		if err != nil {
-			panic(err)
+			return errors.Join(nerr, fmt.Errorf("unable to unmarshal edge template %s: %w", d.Name(), err))
 		}
 		templateKey := resTemplate.Key()
 		if templates[templateKey] != nil {
-			panic(fmt.Errorf("duplicate template for type %s", templateKey))
+			return errors.Join(nerr, fmt.Errorf("duplicate template for type %s", templateKey))
 		}
 		templates[templateKey] = resTemplate
 		return nil
-	}); err != nil {
-		return templates
+	})
+	if err != nil {
+		panic(err)
 	}
 	return templates
 }

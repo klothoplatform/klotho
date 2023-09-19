@@ -1,5 +1,5 @@
-source: 'aws:api_method:'
-destination: 'aws:api_integration:'
+source: aws:api_method
+destination: aws:api_integration
 direct_edge_only: false
 deployment_order_reversed: true
 deletion_dependent: false
@@ -7,4 +7,16 @@ reuse:
 expansion:
   dependencies:
     - source: aws:api_integration:#Resource
-      destination: 'aws:api_method:'
+      destination: aws:api_method
+configuration:
+  - resource: aws:api_method
+    config:
+      field: RequestParameters
+      value_template: |
+        {{
+            split (fieldValue "Route" .Destination) "/" |
+            filterMatch "^:\\w+$" |
+            mapString ":(.*)" "method.request.path.$1" |
+            keysToMapWithDefault true |
+            toJson
+        }}

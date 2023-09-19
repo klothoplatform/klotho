@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/classification"
 	"github.com/klothoplatform/klotho/pkg/sanitization/aws"
 )
 
@@ -182,7 +181,8 @@ type ApiIntegrationCreateParams struct {
 	HttpMethod string
 }
 
-// Create takes in an all necessary parameters to generate the RestApi name and ensure that the RestApi is correlated to the constructs which required its creation.
+// Create takes in an all necessary parameters to generate the RestApi name and ensure that the RestApi
+// is correlated to the constructs which required its creation.
 func (integration *ApiIntegration) Create(dag *construct.ResourceGraph, params ApiIntegrationCreateParams) error {
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.Path, params.HttpMethod))
@@ -200,37 +200,6 @@ func (integration *ApiIntegration) Create(dag *construct.ResourceGraph, params A
 	return nil
 }
 
-func (integration *ApiIntegration) MakeOperational(dag *construct.ResourceGraph, appName string, classifier classification.Classifier) error {
-	if integration.RestApi == nil {
-		return fmt.Errorf("rest api is not set on integration %s", integration.Name)
-	}
-
-	isOnlyIntegration := false
-	integrations := construct.GetDownstreamResourcesOfType[*ApiIntegration](dag, integration.RestApi)
-	if len(integrations) == 1 {
-		isOnlyIntegration = true
-	}
-
-	if integration.Route == "" && isOnlyIntegration {
-		integration.Route = "/:proxy*"
-	}
-
-	if integration.Route != "" && integration.Route != "/" {
-		resource, err := construct.CreateResource[*ApiResource](dag, ApiResourceCreateParams{
-			AppName: appName,
-			Refs:    construct.BaseConstructSetOf(integration),
-			Path:    integration.Route,
-			ApiName: integration.RestApi.Name,
-		})
-		if err != nil {
-			return err
-		}
-		integration.Resource = resource
-		dag.AddDependency(resource, integration)
-	}
-	return nil
-}
-
 type ApiMethodCreateParams struct {
 	AppName    string
 	Refs       construct.BaseConstructSet
@@ -239,7 +208,8 @@ type ApiMethodCreateParams struct {
 	HttpMethod string
 }
 
-// Create takes in an all necessary parameters to generate the RestApi name and ensure that the RestApi is correlated to the constructs which required its creation.
+// Create takes in an all necessary parameters to generate the RestApi name and ensure that the RestApi
+// is correlated to the constructs which required its creation.
 func (method *ApiMethod) Create(dag *construct.ResourceGraph, params ApiMethodCreateParams) error {
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s-%s", params.AppName, params.Path, params.HttpMethod))
@@ -277,7 +247,8 @@ type ApiDeploymentCreateParams struct {
 	Name    string
 }
 
-// Create takes in an all necessary parameters to generate the RestApi name and ensure that the RestApi is correlated to the constructs which required its creation.
+// Create takes in an all necessary parameters to generate the RestApi name and ensure that the RestApi
+// is correlated to the constructs which required its creation.
 func (deployment *ApiDeployment) Create(dag *construct.ResourceGraph, params ApiDeploymentCreateParams) error {
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))
@@ -302,7 +273,8 @@ type ApiStageCreateParams struct {
 	Name    string
 }
 
-// Create takes in an all necessary parameters to generate the RestApi name and ensure that the RestApi is correlated to the constructs which required its creation.
+// Create takes in an all necessary parameters to generate the RestApi name and ensure that the RestApi
+// is correlated to the constructs which required its creation.
 func (stage *ApiStage) Create(dag *construct.ResourceGraph, params ApiStageCreateParams) error {
 
 	name := apiResourceSanitizer.Apply(fmt.Sprintf("%s-%s", params.AppName, params.Name))

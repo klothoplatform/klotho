@@ -159,3 +159,35 @@ func (f *E) DeleteContext() construct.DeleteContext {
 		RequiresNoUpstream: true,
 	}
 }
+
+type (
+	TestResource[T any] struct {
+		Provider string
+		Type     string
+		Name     string
+		Field    T
+	}
+	SimpleResource = TestResource[struct{}]
+)
+
+func (t *TestResource[T]) Id() construct.ResourceId {
+	id := construct.ResourceId{
+		Provider: t.Provider,
+		Type:     t.Type,
+		Name:     t.Name,
+	}
+	if id.Provider == "" {
+		id.Provider = "test"
+	}
+	if id.Type == "" {
+		id.Type = "resource"
+	}
+	return id
+}
+
+func (t *TestResource[T]) BaseConstructRefs() construct.BaseConstructSet {
+	return nil
+}
+func (t *TestResource[T]) DeleteContext() construct.DeleteContext {
+	return construct.DeleteContext{}
+}

@@ -1,11 +1,11 @@
-source: 'aws:api_resource:'
-destination: 'aws:api_method:'
+source: aws:api_resource
+destination: aws:api_method
 direct_edge_only: false
 deployment_order_reversed: true
 deletion_dependent: false
 reuse:
 configuration:
-  - resource: 'aws:api_method:'
+  - resource: aws:api_method
     config:
       field: Resource
-      value: 'aws:api_resource:'
+      value: aws:api_resource

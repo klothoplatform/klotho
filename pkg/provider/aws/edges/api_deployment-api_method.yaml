@@ -1,11 +1,11 @@
-source: 'aws:api_deployment:'
-destination: 'aws:api_method:'
+source: aws:api_deployment
+destination: aws:api_method
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:
 configuration:
-  - resource: 'aws:api_deployment:'
+  - resource: aws:api_deployment
     config:
       field: Triggers[aws:api_method:#Name]
       value: aws:api_method:#Name

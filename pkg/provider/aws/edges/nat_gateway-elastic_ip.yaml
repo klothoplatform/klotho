@@ -1,5 +1,5 @@
-source: 'aws:nat_gateway:'
-destination: 'aws:elastic_ip:'
+source: aws:nat_gateway
+destination: aws:elastic_ip
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

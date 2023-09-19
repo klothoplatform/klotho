@@ -1,5 +1,5 @@
-source: 'aws:lambda_function:'
-destination: 'aws:ecr_image:'
+source: aws:lambda_function
+destination: aws:ecr_image
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

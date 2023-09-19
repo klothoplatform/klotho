@@ -8,43 +8,42 @@ import (
 
 // ignoreCriteria determines if we can delete a resource because the knowledge base in use by the engine, shows that the initial resource is dependent on the sub resource for deletion.
 // If the sub resource is deletion dependent on any of the dependent resources passed in then we will determine weather we can delete the dependent resource first.
-func (e *Engine) ignoreCriteria(resource construct.Resource, dependentResources []construct.BaseConstruct) bool {
+func (e *Engine) ignoreCriteria(graph *construct.ConstructGraph, resource construct.Resource, dependentResources []construct.BaseConstruct) bool {
 DEP:
 	for _, dep := range dependentResources {
 		if _, ok := dep.(construct.Construct); ok {
 			continue
-		} else if dep, ok := dep.(construct.Resource); ok {
-			found := false
-			for _, res := range e.Context.WorkingState.GetDownstreamConstructs(resource) {
-				if _, ok := res.(construct.Construct); ok {
-					continue
-				}
-				if dep == res {
-					found = true
-					det, _ := e.KnowledgeBase.GetResourceEdge(resource, dep)
-					if !det.DeletetionDependent {
-						return false
-					}
-					continue DEP
-				}
+		}
+		dep, ok := dep.(construct.Resource)
+		if !ok {
+			continue
+		}
+
+		for _, res := range graph.GetDownstreamConstructs(resource) {
+			if _, ok := res.(construct.Construct); ok {
+				continue
 			}
-			for _, res := range e.Context.WorkingState.GetUpstreamConstructs(resource) {
-				if _, ok := res.(construct.Construct); ok {
-					continue
+			if dep == res {
+				det, _ := e.KnowledgeBase.GetResourceEdge(resource, dep)
+				if !det.DeletetionDependent {
+					return false
 				}
-				if dep == res {
-					found = true
-					det, _ := e.KnowledgeBase.GetResourceEdge(dep, resource)
-					if !det.DeletetionDependent {
-						return false
-					}
-					continue DEP
-				}
-			}
-			if !found {
-				return false
+				continue DEP
 			}
 		}
+		for _, res := range graph.GetUpstreamConstructs(resource) {
+			if _, ok := res.(construct.Construct); ok {
+				continue
+			}
+			if dep == res {
+				det, _ := e.KnowledgeBase.GetResourceEdge(dep, resource)
+				if !det.DeletetionDependent {
+					return false
+				}
+				continue DEP
+			}
+		}
+		return false
 	}
 	return true
 }
@@ -53,17 +52,16 @@ DEP:
 //
 // if explicit is set it is meant to show that a user has explicitly requested for the resource to be deleted or that the resource requested is being deleted by its parent resource
 // if overrideExplicit is set, it means that the explicit delete request still has to satisfy the resources delete criteria. If it is set to false, then the explicit deletion request is always performed
-func (e *Engine) deleteConstruct(c construct.BaseConstruct, explicit bool, overrideExplicit bool) bool {
+func (e *Engine) deleteConstruct(graph *construct.ConstructGraph, c construct.BaseConstruct, explicit bool, overrideExplicit bool) bool {
 	log := zap.S().With(zap.String("id", c.Id().String()))
 	log.Debug("Deleting resource")
-	graph := e.Context.WorkingState
-	upstreamNodes := e.Context.WorkingState.GetUpstreamConstructs(c)
-	downstreamNodes := e.Context.WorkingState.GetDownstreamConstructs(c)
+	upstreamNodes := graph.GetUpstreamConstructs(c)
+	downstreamNodes := graph.GetDownstreamConstructs(c)
 
 	var reflectResources []construct.Resource
 	if resource, ok := c.(construct.Resource); ok {
 		reflectResources = construct.GetResourcesReflectively(graph, resource)
-		if !e.canDeleteResource(resource, explicit, overrideExplicit, upstreamNodes, downstreamNodes) {
+		if !e.canDeleteResource(graph, resource, explicit, overrideExplicit, upstreamNodes, downstreamNodes) {
 			return false
 		}
 	} else if _, ok := c.(construct.Construct); ok {
@@ -87,17 +85,17 @@ func (e *Engine) deleteConstruct(c construct.BaseConstruct, explicit bool, overr
 				if resource.DeleteContext().RequiresExplicitDelete {
 					explicitUpstreams = append(explicitUpstreams, resource)
 				} else {
-					explicitUpstreams = append(explicitUpstreams, e.getExplicitUpstreams(resource)...)
+					explicitUpstreams = append(explicitUpstreams, getExplicitDeleteUpstreams(graph, resource)...)
 				}
 			}
 			var explicitDownStreams []construct.BaseConstruct
 			if c, ok := downstreamNode.(construct.Construct); ok {
-				explicitUpstreams = append(explicitUpstreams, c)
+				explicitDownStreams = append(explicitUpstreams, c)
 			} else if resource, ok := downstreamNode.(construct.Resource); ok {
 				if resource.DeleteContext().RequiresExplicitDelete {
 					explicitDownStreams = append(explicitDownStreams, downstreamNode)
 				} else {
-					explicitDownStreams = append(explicitDownStreams, e.getExplicitDownStreams(downstreamNode)...)
+					explicitDownStreams = append(explicitDownStreams, getExplicitDeleteDownstreams(graph, downstreamNode)...)
 				}
 			}
 
@@ -114,7 +112,7 @@ func (e *Engine) deleteConstruct(c construct.BaseConstruct, explicit bool, overr
 							continue UP
 						}
 					}
-					paths, err := e.Context.WorkingState.AllPaths(u.Id(), d.Id())
+					paths, err := graph.AllPaths(u.Id(), d.Id())
 					if err != nil {
 						zap.S().Debugf("Error getting paths between %s and %s", u.Id(), d.Id())
 						continue
@@ -146,7 +144,7 @@ func (e *Engine) deleteConstruct(c construct.BaseConstruct, explicit bool, overr
 				continue
 			}
 		}
-		e.deleteConstruct(res, explicit, false)
+		e.deleteConstruct(graph, res, explicit, false)
 	}
 	for _, res := range downstreamNodes {
 		explicit := false
@@ -156,12 +154,12 @@ func (e *Engine) deleteConstruct(c construct.BaseConstruct, explicit bool, overr
 				continue
 			}
 		}
-		e.deleteConstruct(res, explicit, false)
+		e.deleteConstruct(graph, res, explicit, false)
 	}
 	return true
 }
 
-func (e *Engine) canDeleteResource(resource construct.Resource, explicit bool, overrideExplicit bool, upstreamNodes []construct.BaseConstruct, downstreamNodes []construct.BaseConstruct) bool {
+func (e *Engine) canDeleteResource(graph *construct.ConstructGraph, resource construct.Resource, explicit bool, overrideExplicit bool, upstreamNodes []construct.BaseConstruct, downstreamNodes []construct.BaseConstruct) bool {
 	log := zap.S().With(zap.String("id", resource.Id().String()))
 	deletionCriteria := resource.DeleteContext()
 	if deletionCriteria.RequiresExplicitDelete && !explicit {
@@ -174,42 +172,42 @@ func (e *Engine) canDeleteResource(resource construct.Resource, explicit bool, o
 	// If upstream nodes exist, attempt to delete the resources upstream of the resource before deciding that the deletion process cannot continue
 	if deletionCriteria.RequiresNoUpstream && !explicit && len(upstreamNodes) > 0 {
 		log.Debugf("Cannot delete resource %s as it still has upstream dependencies", resource.Id())
-		if !e.ignoreCriteria(resource, upstreamNodes) {
+		if !e.ignoreCriteria(graph, resource, upstreamNodes) {
 			return false
 		}
 		for _, up := range upstreamNodes {
-			e.deleteConstruct(up, false, false)
+			e.deleteConstruct(graph, up, false, false)
 		}
-		if len(e.Context.WorkingState.GetUpstreamConstructs(resource)) > 0 {
+		if len(graph.GetUpstreamConstructs(resource)) > 0 {
 			log.Debugf("Cannot delete resource %s as it still has upstream dependencies", resource.Id())
 			return false
 		}
 	}
 	if deletionCriteria.RequiresNoDownstream && !explicit && len(downstreamNodes) > 0 {
 		log.Debugf("Cannot delete resource %s as it still has downstream dependencies", resource.Id())
-		if !e.ignoreCriteria(resource, downstreamNodes) {
+		if !e.ignoreCriteria(graph, resource, downstreamNodes) {
 			return false
 		}
 		for _, down := range downstreamNodes {
-			e.deleteConstruct(down, false, false)
+			e.deleteConstruct(graph, down, false, false)
 		}
-		if len(e.Context.WorkingState.GetDownstreamConstructs(resource)) > 0 {
+		if len(graph.GetDownstreamConstructs(resource)) > 0 {
 			log.Debugf("Cannot delete resource %s as it still has downstream dependencies", resource.Id())
 			return false
 		}
 	}
 	if deletionCriteria.RequiresNoUpstreamOrDownstream && !explicit && len(downstreamNodes) > 0 && len(upstreamNodes) > 0 {
 		log.Debugf("Cannot delete resource %s as it still has downstream dependencies", resource.Id())
-		if !e.ignoreCriteria(resource, upstreamNodes) && !e.ignoreCriteria(resource, downstreamNodes) {
+		if !e.ignoreCriteria(graph, resource, upstreamNodes) && !e.ignoreCriteria(graph, resource, downstreamNodes) {
 			return false
 		}
 		for _, down := range downstreamNodes {
-			e.deleteConstruct(down, false, false)
+			e.deleteConstruct(graph, down, false, false)
 		}
 		for _, up := range upstreamNodes {
-			e.deleteConstruct(up, false, false)
+			e.deleteConstruct(graph, up, false, false)
 		}
-		if len(e.Context.WorkingState.GetDownstreamConstructs(resource)) > 0 && len(e.Context.WorkingState.GetUpstreamConstructs(resource)) > 0 {
+		if len(graph.GetDownstreamConstructs(resource)) > 0 && len(graph.GetUpstreamConstructs(resource)) > 0 {
 			log.Debugf("Cannot delete resource %s as it still has upstream and downstream dependencies", resource.Id())
 			return false
 		}
@@ -217,9 +215,9 @@ func (e *Engine) canDeleteResource(resource construct.Resource, explicit bool, o
 	return true
 }
 
-func (e *Engine) getExplicitUpstreams(res construct.BaseConstruct) []construct.BaseConstruct {
+func getExplicitDeleteUpstreams(graph *construct.ConstructGraph, res construct.BaseConstruct) []construct.BaseConstruct {
 	var resources []construct.BaseConstruct
-	upstreams := e.Context.WorkingState.GetUpstreamConstructs(res)
+	upstreams := graph.GetUpstreamConstructs(res)
 	if len(upstreams) == 0 {
 		return resources
 	}
@@ -234,15 +232,15 @@ func (e *Engine) getExplicitUpstreams(res construct.BaseConstruct) []construct.B
 	}
 	if len(resources) == 0 {
 		for _, up := range upstreams {
-			resources = append(resources, e.getExplicitUpstreams(up)...)
+			resources = append(resources, getExplicitDeleteUpstreams(graph, up)...)
 		}
 	}
 	return resources
 }
 
-func (e *Engine) getExplicitDownStreams(res construct.BaseConstruct) []construct.BaseConstruct {
+func getExplicitDeleteDownstreams(graph *construct.ConstructGraph, res construct.BaseConstruct) []construct.BaseConstruct {
 	var resources []construct.BaseConstruct
-	downstreams := e.Context.WorkingState.GetDownstreamConstructs(res)
+	downstreams := graph.GetDownstreamConstructs(res)
 	if len(downstreams) == 0 {
 		return resources
 	}
@@ -257,7 +255,7 @@ func (e *Engine) getExplicitDownStreams(res construct.BaseConstruct) []construct
 	}
 	if len(resources) == 0 {
 		for _, down := range downstreams {
-			resources = append(resources, e.getExplicitDownStreams(down)...)
+			resources = append(resources, getExplicitDeleteDownstreams(graph, down)...)
 		}
 	}
 	return resources

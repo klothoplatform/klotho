@@ -13,18 +13,16 @@ import (
 type (
 	EngineError interface {
 		error
-		Type() string
 		json.Marshaler
 	}
 
 	OperationalResourceError struct {
-		Needs      []string
-		Count      int
-		Direction  knowledgebase.Direction
-		Resource   construct.Resource
-		Parent     construct.Resource
-		MustCreate bool
-		Cause      error
+		Rule     knowledgebase.OperationalRule
+		ToCreate construct.ResourceId
+		Count    int
+		Resource construct.Resource
+		Parent   construct.Resource
+		Cause    error
 	}
 
 	EdgeExpansionError struct {
@@ -66,15 +64,6 @@ type (
 	}
 )
 
-func NewOperationalResourceError(resource construct.Resource, needs []string, cause error) *OperationalResourceError {
-	return &OperationalResourceError{
-		Resource: resource,
-		Needs:    needs,
-		Cause:    cause,
-		Count:    1,
-	}
-}
-
 func (err *OperationalResourceError) Error() string {
 	return fmt.Sprintf("error in making resource %s operational: %v", err.Resource.Id(), err.Cause)
 }
@@ -115,94 +104,76 @@ func (err *InternalError) Error() string {
 	return fmt.Sprintf("internal error: %v", err.Cause)
 }
 
-func (err *OperationalResourceError) Type() string {
-	return "OperationalResourceError"
-}
-
-func (err *EdgeExpansionError) Type() string {
-	return "EdgeExpansionError"
-}
-
-func (err *EdgeConfigurationError) Type() string {
-	return "EdgeConfigurationError"
-}
-
-func (err *ResourceNotOperationalError) Type() string {
-	return "ResourceNotOperationalError"
-}
-
-func (err *ResourceConfigurationError) Type() string {
-	return "ResourceConfigurationError"
-}
-
-func (err *ConstructExpansionError) Type() string {
-	return "ConstructExpansionError"
-}
-
-func (err *InternalError) Type() string {
-	return "InternalError"
+func causeString(cause error) string {
+	if cause == nil {
+		return ""
+	}
+	return cause.Error()
 }
 
 func (err *OperationalResourceError) MarshalJSON() ([]byte, error) {
+	var parentId construct.ResourceId
+	if err.Parent != nil {
+		parentId = err.Parent.Id()
+	}
 	return json.Marshal(map[string]interface{}{
-		"type":    err.Type(),
-		"needs":   err.Needs,
-		"count":   err.Count,
-		"cause":   err.Cause.Error(),
-		"parent":  err.Parent.Id().String(),
-		"created": err.MustCreate,
+		"type":     fmt.Sprintf("%T", err),
+		"rule":     err.Rule,
+		"toCreate": err.ToCreate,
+		"cause":    causeString(err.Cause),
+		"parent":   parentId.String(),
 	})
 }
 
 func (err *EdgeExpansionError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"type":       err.Type(),
+		"type":       fmt.Sprintf("%T", err),
 		"constraint": err.Constraint,
-		"cause":      err.Cause.Error(),
+		"cause":      causeString(err.Cause),
 		"edge":       fmt.Sprintf("%s,%s", err.Edge.Source.Id(), err.Edge.Destination.Id()),
 	})
 }
 
 func (err *EdgeConfigurationError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"type":       err.Type(),
+		"type":       fmt.Sprintf("%T", err),
 		"constraint": err.Constraint,
-		"cause":      err.Cause.Error(),
+		"cause":      causeString(err.Cause),
 		"edge":       fmt.Sprintf("%s,%s", err.Edge.Source.Id(), err.Edge.Destination.Id()),
 	})
 }
 
 func (err *ResourceNotOperationalError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"type":       err.Type(),
+		"type":       fmt.Sprintf("%T", err),
 		"constraint": err.Constraint,
-		"cause":      err.Cause.Error(),
+		"cause":      causeString(err.Cause),
 		"resource":   err.Resource.Id().String(),
 	})
 }
 
 func (err *ResourceConfigurationError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"type":       err.Type(),
+		"type":       fmt.Sprintf("%T", err),
 		"constraint": err.Constraint,
-		"cause":      err.Cause.Error(),
+		"cause":      causeString(err.Cause),
 		"resource":   err.Resource.Id().String(),
 	})
 }
 
 func (err *ConstructExpansionError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"type":       err.Type(),
+		"type":       fmt.Sprintf("%T", err),
 		"constraint": err.Constraint,
-		"cause":      err.Cause.Error(),
+		"cause":      causeString(err.Cause),
 		"construct":  err.Construct.Id().String(),
 	})
 }
 
 func (err *InternalError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"type":  err.Type(),
-		"cause": err.Cause.Error(),
+		"type":  fmt.Sprintf("%T", err),
+		"cause": causeString(err.Cause),
 		"child": err.Child,
 	})
 }

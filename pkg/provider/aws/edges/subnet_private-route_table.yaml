@@ -1,5 +1,5 @@
-source: 'aws:subnet_private:'
-destination: 'aws:route_table:'
+source: aws:subnet_private
+destination: aws:route_table
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

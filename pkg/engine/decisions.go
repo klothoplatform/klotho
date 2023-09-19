@@ -140,6 +140,16 @@ func (e *Engine) handleDecisions(context *SolveContext, decisions []Decision) {
 }
 
 func (e *Engine) handleDecision(context *SolveContext, decision Decision) {
+	addResource := func(r construct.Resource, configure bool) bool {
+		if context.ResourceGraph.GetResource(r.Id()) != nil {
+			return false
+		}
+		context.ResourceGraph.AddResource(r)
+		if configure {
+			e.configureResource(context, r)
+		}
+		return true
+	}
 	switch decision.Action {
 	case ActionConfigure:
 		if decision.Result.Resource != nil && decision.Result.Config != nil {
@@ -182,22 +192,27 @@ func (e *Engine) handleDecision(context *SolveContext, decision Decision) {
 		}
 	case ActionCreate:
 		if decision.Result.Resource != nil {
-			if context.ResourceGraph.GetResource(decision.Result.Resource.Id()) == nil {
-				context.ResourceGraph.AddResource(decision.Result.Resource)
+			if addResource(decision.Result.Resource, true) {
 				context.recordDecision(decision)
 			}
 		}
 	case ActionConnect:
 		if decision.Result.Edge != nil {
-			if context.ResourceGraph.GetResource(decision.Result.Edge.Source.Id()) == nil {
-				e.handleDecision(context, Decision{Level: LevelInfo, Action: ActionCreate, Result: &DecisionResult{Resource: decision.Result.Edge.Source}, Cause: decision.Cause})
-			}
-			if context.ResourceGraph.GetResource(decision.Result.Edge.Destination.Id()) == nil {
-				e.handleDecision(context, Decision{Level: LevelInfo, Action: ActionCreate, Result: &DecisionResult{Resource: decision.Result.Edge.Destination}, Cause: decision.Cause})
-			}
+			addedSource := addResource(decision.Result.Edge.Source, false)
+			addedDestination := addResource(decision.Result.Edge.Destination, false)
+
 			if context.ResourceGraph.GetDependency(decision.Result.Edge.Source.Id(), decision.Result.Edge.Destination.Id()) == nil {
 				context.ResourceGraph.AddDependencyWithData(decision.Result.Edge.Source, decision.Result.Edge.Destination, decision.Result.Edge.Properties.Data)
 				context.recordDecision(decision)
+			}
+			// Configure the resources after the dependency was added
+			if addedSource {
+				e.configureResource(context, decision.Result.Edge.Source)
+				context.recordDecision(Decision{Level: LevelInfo, Action: ActionCreate, Result: &DecisionResult{Resource: decision.Result.Edge.Source}, Cause: decision.Cause})
+			}
+			if addedDestination {
+				e.configureResource(context, decision.Result.Edge.Destination)
+				context.recordDecision(Decision{Level: LevelInfo, Action: ActionCreate, Result: &DecisionResult{Resource: decision.Result.Edge.Destination}, Cause: decision.Cause})
 			}
 		}
 	case ActionDisconnect:

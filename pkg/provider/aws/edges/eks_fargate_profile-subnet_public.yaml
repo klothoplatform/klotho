@@ -1,5 +1,5 @@
-source: 'aws:eks_fargate_profile:'
-destination: 'aws:subnet_public:'
+source: aws:eks_fargate_profile
+destination: aws:subnet_public
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
