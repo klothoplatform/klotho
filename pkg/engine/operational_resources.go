@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -459,8 +460,8 @@ func (e *Engine) setField(dag *construct.ResourceGraph, resource construct.Resou
 		} else {
 			field.Set(fieldValue)
 		}
-		zap.S().Infof("configured %s#%s to %s", resource.Id(), rule.SetField, fieldResource.Id())
 	}
+	zap.S().Infof("set field %s#%s to %s", resource.Id(), rule.SetField, fieldResource.Id())
 	// If this sets the field driving the namespace, for example,
 	// then the Id could change, so replace the resource in the graph
 	// to update all the edges to the new Id.
@@ -475,26 +476,30 @@ func (e *Engine) setField(dag *construct.ResourceGraph, resource construct.Resou
 
 // handleOperationalResourceError tries to determine how to fix OperatioanlResourceErrors by adding dependencies to the resource graph where needed.
 // If the error cannot be fixed, it will return an error.
-func (e *Engine) handleOperationalResourceError(err *OperationalResourceError, dag *construct.ResourceGraph) ([]Decision, error) {
+func (e *Engine) handleOperationalResourceError(operation *OperationalResourceError, dag *construct.ResourceGraph) ([]Decision, error) {
 	var decisions []Decision
-	if !err.ToCreate.IsZero() && err.ToCreate.Name != "" {
-		if err.Count > 1 {
-			return nil, fmt.Errorf("cannot create multiple resources for a specific resource id %s", err.ToCreate)
+	if !operation.ToCreate.IsZero() && operation.ToCreate.Name != "" {
+		if operation.Count > 1 {
+			return nil, fmt.Errorf("cannot create multiple resources for a specific resource id %s", operation.ToCreate)
 		}
-		r, createErr := e.CreateResourceFromId(err.ToCreate)
-		if createErr != nil {
-			return nil, createErr
+		r, err := e.CreateResourceFromId(operation.ToCreate)
+		if err != nil {
+			return nil, err
+		}
+		err = e.setField(dag, operation.Resource, operation.Rule, r)
+		if err != nil {
+			return nil, err
 		}
 		var edge *graph.Edge[construct.Resource]
-		if err.Rule.Direction == knowledgebase.Downstream {
+		if operation.Rule.Direction == knowledgebase.Downstream {
 			edge = &graph.Edge[construct.Resource]{
-				Source:      err.Resource,
+				Source:      operation.Resource,
 				Destination: r,
 			}
 		} else {
 			edge = &graph.Edge[construct.Resource]{
 				Source:      r,
-				Destination: err.Resource,
+				Destination: operation.Resource,
 			}
 		}
 		return []Decision{{
@@ -510,18 +515,18 @@ func (e *Engine) handleOperationalResourceError(err *OperationalResourceError, d
 	resources := e.ListResources()
 	var needs []string
 	switch {
-	case len(err.Rule.Classifications) > 0:
-		needs = err.Rule.Classifications
+	case len(operation.Rule.Classifications) > 0:
+		needs = operation.Rule.Classifications
 
-	case len(err.Rule.ResourceTypes) > 0:
+	case len(operation.Rule.ResourceTypes) > 0:
 		// Pick the first one, assume the template writer prioritized which one should be created
-		needs = []string{err.Rule.ResourceTypes[0]}
+		needs = []string{operation.Rule.ResourceTypes[0]}
 
-	case err.ToCreate.Type != "":
-		needs = []string{err.ToCreate.Type}
+	case operation.ToCreate.Type != "":
+		needs = []string{operation.ToCreate.Type}
 
-	case err.Rule.UnsatisfiedAction.DefaultType != "":
-		needs = []string{err.Rule.UnsatisfiedAction.DefaultType}
+	case operation.Rule.UnsatisfiedAction.DefaultType != "":
+		needs = []string{operation.Rule.UnsatisfiedAction.DefaultType}
 	}
 	// determine the type of resource necessary to satisfy the operational resource error
 	var neededResource construct.Resource
@@ -530,10 +535,10 @@ func (e *Engine) handleOperationalResourceError(err *OperationalResourceError, d
 			continue
 		}
 		var hasPath bool
-		if err.Rule.Direction == knowledgebase.Downstream {
-			hasPath = e.KnowledgeBase.HasPath(err.Resource, res)
+		if operation.Rule.Direction == knowledgebase.Downstream {
+			hasPath = e.KnowledgeBase.HasPath(operation.Resource, res)
 		} else {
-			hasPath = e.KnowledgeBase.HasPath(res, err.Resource)
+			hasPath = e.KnowledgeBase.HasPath(res, operation.Resource)
 		}
 		// if a type is explicilty stated as needed, we will consider it even if there isnt a direct p
 		if !hasPath {
@@ -548,22 +553,27 @@ func (e *Engine) handleOperationalResourceError(err *OperationalResourceError, d
 
 	// first check if the parent resource passed into the error has any upstream resources we can reuse
 	numSatisfied := 0
-	if err.Parent != nil {
+	if operation.Parent != nil {
 		var resources []construct.Resource
 		// The direction here is flipped since we are looking at the resources relative to the parent, not relative to the resource used in the error
-		if err.Rule.Direction == knowledgebase.Upstream {
-			resources = dag.GetAllDownstreamResources(err.Parent)
+		if operation.Rule.Direction == knowledgebase.Upstream {
+			resources = dag.GetAllDownstreamResources(operation.Parent)
 		} else {
-			resources = dag.GetAllUpstreamResources(err.Parent)
+			resources = dag.GetAllUpstreamResources(operation.Parent)
 		}
+		var errs error
 		for _, res := range resources {
-			if res.Id().Type == neededResource.Id().Type && res.Id().Provider == neededResource.Id().Provider && dag.GetDependency(err.Resource.Id(), res.Id()) == nil {
-				decisions = append(decisions, addDependencyDecisionForDirection(err.Rule.Direction, err.Resource, res))
+			if res.Id().Type == neededResource.Id().Type && res.Id().Provider == neededResource.Id().Provider && dag.GetDependency(operation.Resource.Id(), res.Id()) == nil {
+				decisions = append(decisions, addDependencyDecisionForDirection(operation.Rule.Direction, operation.Resource, res))
+				errs = errors.Join(errs, e.setField(dag, operation.Resource, operation.Rule, res))
 				numSatisfied++
 			}
 		}
+		if errs != nil {
+			return decisions, errs
+		}
 	}
-	if numSatisfied == err.Count {
+	if numSatisfied == operation.Count {
 		return decisions, nil
 	}
 
@@ -571,7 +581,7 @@ func (e *Engine) handleOperationalResourceError(err *OperationalResourceError, d
 	var availableResources []construct.Resource
 	// we only want to look at available resources if we dont have a parent they need to be scoped to.
 	// This prevents us from saying that resource_a is available if it is a child of resource_b when the error has a parent of resource_c
-	if err.Parent == nil && !err.Rule.UnsatisfiedAction.Unique {
+	if operation.Parent == nil && !operation.Rule.UnsatisfiedAction.Unique {
 		//Todo: Get nearest resource. we should look one resource upstream until we find available resources so that we have a higher chance of choosing the right one
 		for _, res := range dag.ListResources() {
 			if res.Id().Type == neededResource.Id().Type {
@@ -586,18 +596,23 @@ func (e *Engine) handleOperationalResourceError(err *OperationalResourceError, d
 	sort.Strings(resourceIds)
 
 	currNumSatisfied := numSatisfied
-	for i := 0; i < err.Count-currNumSatisfied; i++ {
+	var errs error
+	for i := 0; i < operation.Count-currNumSatisfied; i++ {
 		for _, res := range availableResources {
 			if len(resourceIds) > i && res.Id().Name == resourceIds[i] {
-				decisions = append(decisions, addDependencyDecisionForDirection(err.Rule.Direction, err.Resource, res))
+				decisions = append(decisions, addDependencyDecisionForDirection(operation.Rule.Direction, operation.Resource, res))
+				errs = errors.Join(errs, e.setField(dag, operation.Resource, operation.Rule, res))
 				numSatisfied++
 				break
 			}
 		}
 	}
+	if errs != nil {
+		return decisions, errs
+	}
 
 	// if theres no available resources from us to choose from, we must create new resources
-	if len(availableResources) < err.Count-numSatisfied {
+	if len(availableResources) < operation.Count-numSatisfied {
 		// We track the number of resources of the same type here for naming purposes, since we dont actually create new resources in this method we need to increment when we detect our decision will create a new resource
 		numResources := 0
 		for _, res := range dag.ListResources() {
@@ -605,15 +620,20 @@ func (e *Engine) handleOperationalResourceError(err *OperationalResourceError, d
 				numResources++
 			}
 		}
-		for i := numSatisfied; i < err.Count; i++ {
+		var errs error
+		for i := numSatisfied; i < operation.Count; i++ {
 			newRes := cloneResource(neededResource)
-			nameResource(numResources, newRes, err.Resource, err.Rule.UnsatisfiedAction.Unique)
+			nameResource(numResources, newRes, operation.Resource, operation.Rule.UnsatisfiedAction.Unique)
 
-			decisions = append(decisions, addDependencyDecisionForDirection(err.Rule.Direction, err.Resource, newRes))
-			if err.Parent != nil {
-				decisions = append(decisions, addDependencyDecisionForDirection(err.Rule.Direction, newRes, err.Parent))
+			decisions = append(decisions, addDependencyDecisionForDirection(operation.Rule.Direction, operation.Resource, newRes))
+			if operation.Parent != nil {
+				decisions = append(decisions, addDependencyDecisionForDirection(operation.Rule.Direction, newRes, operation.Parent))
 			}
+			errs = errors.Join(errs, e.setField(dag, operation.Resource, operation.Rule, newRes))
 			numResources++
+		}
+		if errs != nil {
+			return decisions, errs
 		}
 	}
 
