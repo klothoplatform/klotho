@@ -1,6 +1,6 @@
 module github.com/klothoplatform/klotho
 
-go 1.20
+go 1.21
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
@@ -34,6 +34,7 @@ require (
 	k8s.io/api v0.26.0
 	k8s.io/apimachinery v0.26.0
 	sigs.k8s.io/aws-load-balancer-controller v0.0.0-20221203001353-edeb4f1c1312
+	sigs.k8s.io/yaml v1.3.0
 )
 
 require (
@@ -47,7 +48,6 @@ require (
 	golang.org/x/oauth2 v0.4.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/client-go v0.26.0 // indirect
-	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
 replace (
@@ -70,7 +70,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/containerd/containerd v1.6.15 // indirect
-	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
+	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/docker/cli v20.10.22+incompatible // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/docker v20.10.22+incompatible // indirect

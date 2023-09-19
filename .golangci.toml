@@ -3,4 +3,7 @@ line-length = 120
 tab-width = 2
 
 [linters]
-enable = ["lll"]
+# enable after fixing long lines
+# there's currently no way to only log violations in golangci-lint
+# https://github.com/golangci/golangci-lint/issues/1981
+# enable = ["lll"]
