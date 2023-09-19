@@ -14,7 +14,6 @@ rules:
       {{ $integration := downstream "aws:api_integration" .Self }}
       {{ $parts := slice (split (fieldValue "Route" $integration) "/") 1 }}
       {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
-      {{ .Log "info" "api_resource:if integration=%v ; parts=%v ; paths=%v" $integration $parts $paths }}
       {{ lt (len $paths) (len $parts) }}
     resources:
       - |
@@ -23,7 +22,6 @@ rules:
         {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
         {{ $parents := slice $parts 0 (sub (len $parts) (len $paths)) }}
         {{ $name := join $parents "-" | replace "\\{([^}+]+)\\+?\\}" "$1" | replace "^/" "" | replace "/" "-" }}
-        {{ .Log "info" "api_resource:parent integration=%v ; parts=%v ; paths=%v ; parents=%v ; name=%v" $integration $parts $paths $parents $name }}
         aws:api_resource:{{ $name }}
     set_field: ParentResource
     unsatisfied_action:
@@ -35,7 +33,6 @@ configuration:
       {{ $integration := downstream "aws:api_integration" .Self }}
       {{ $parts := slice (split (fieldValue "Route" $integration) "/") 1 }}
       {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
-      {{ .Log "info" "api_resource:PathPart integration=%v ; parts=%v ; paths=%v" $integration $parts $paths }}
       {{ index $parts (sub (len $parts) (len $paths)) }}
 delete_context:
   requires_no_upstream_or_downstream: true
