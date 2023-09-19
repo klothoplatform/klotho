@@ -290,7 +290,7 @@ func Test_ConfigureField(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			err := ConfigureField(tt.resource, tt.config.Field, tt.config.Value, tt.config.ZeroValueAllowed, nil)
+			err := ConfigureField(tt.resource, tt.config.Field, tt.config.Value, tt.config.ZeroValueAllowed, construct.NewResourceGraph())
 			if !assert.NoError(err) {
 				return
 			}
@@ -464,9 +464,9 @@ func Test_parseFieldName(t *testing.T) {
 				if !assert.NotNil(setMapKey) {
 					return
 				}
-				assert.Equal(tt.mapKey.Map.Interface(), setMapKey.Map.Interface())
-				assert.Equal(tt.mapKey.Key.Interface(), setMapKey.Key.Interface())
-				assert.Equal(tt.mapKey.Value.Interface(), setMapKey.Value.Interface())
+				assert.Equal(tt.mapKey.Map.Interface(), setMapKey.Map.Interface(), "map")
+				assert.Equal(tt.mapKey.Key.Interface(), setMapKey.Key.Interface(), "key")
+				assert.Equal(tt.mapKey.Value.Interface(), setMapKey.Value.Interface(), "value")
 			}
 		})
 	}

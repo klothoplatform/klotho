@@ -7,11 +7,11 @@ reuse:
 expansion:
   resources:
     - aws:iam_policy:-InvocationPolicy
-    - 'aws:role_policy_attachment:'
+    - aws:role_policy_attachment
   dependencies:
     - source: aws:iam_policy:-InvocationPolicy
       destination: aws:lambda_function:dst
-    - source: 'aws:role_policy_attachment:'
+    - source: aws:role_policy_attachment
       destination: aws:iam_policy:-InvocationPolicy
-    - source: 'aws:role_policy_attachment:'
+    - source: aws:role_policy_attachment
       destination: aws:lambda_function:src#Role

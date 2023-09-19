@@ -1,5 +1,5 @@
-source: 'aws:api_integration:'
-destination: 'aws:lambda_function:'
+source: aws:api_integration
+destination: aws:lambda_function
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
@@ -9,21 +9,21 @@ expansion:
     - aws:lambda_permission:-lambdapermission
   dependencies:
     - source: aws:lambda_permission:-lambdapermission
-      destination: 'aws:lambda_function:'
+      destination: aws:lambda_function
     - source: aws:api_integration:#RestApi
       destination: aws:lambda_permission:-lambdapermission
 configuration:
-  - resource: 'aws:api_integration:'
+  - resource: aws:api_integration
     config:
       field: Uri
       value:
-        ResourceId: 'aws:lambda_function:'
+        ResourceId: aws:lambda_function
         Property: lambda_integration_uri
-  - resource: 'aws:api_integration:'
+  - resource: aws:api_integration
     config:
       field: IntegrationHttpMethod
       value: POST #lambda integration only invokes with POST
-  - resource: 'aws:api_integration:'
+  - resource: aws:api_integration
     config:
       field: Type
       value: AWS_PROXY

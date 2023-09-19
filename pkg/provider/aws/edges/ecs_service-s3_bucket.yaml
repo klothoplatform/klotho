@@ -1,5 +1,5 @@
-source: 'aws:ecs_service:'
-destination: 'aws:s3_bucket:'
+source: aws:ecs_service
+destination: aws:s3_bucket
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
@@ -7,4 +7,4 @@ reuse:
 expansion:
   dependencies:
     - source: aws:ecs_service:#TaskDefinition.ExecutionRole
-      destination: 'aws:s3_bucket:'
+      destination: aws:s3_bucket

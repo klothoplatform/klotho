@@ -1,5 +1,5 @@
-source: 'aws:subnet_public:'
-destination: 'aws:availability_zones:'
+source: aws:subnet_public
+destination: aws:availability_zones
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

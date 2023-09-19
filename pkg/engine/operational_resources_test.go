@@ -36,11 +36,9 @@ func Test_handleOperationalRule(t *testing.T) {
 			},
 			resource: &enginetesting.MockResource5{Name: "this"},
 			wantErr: []error{&OperationalResourceError{
-				Resource:  &enginetesting.MockResource5{Name: "this"},
-				Needs:     []string{"mock1"},
-				Direction: knowledgebase.Downstream,
-				Count:     1,
-				Cause:     fmt.Errorf("rule with enforcement exactly one has less than the required number of resources of type [mock1]  or classifications [], 0 for resource mock:mock5:this"),
+				Count:    1,
+				Resource: &enginetesting.MockResource5{Name: "this"},
+				Cause:    fmt.Errorf("rule with enforcement exactly one has less than the required number of resources of type [mock1]  or classifications [], 0 for resource mock:mock5:this"),
 			}},
 		},
 		{
@@ -79,7 +77,7 @@ func Test_handleOperationalRule(t *testing.T) {
 			},
 			wantErr: []error{&ResourceNotOperationalError{
 				Resource: &enginetesting.MockResource5{Name: "this"},
-				Cause:    fmt.Errorf("rule with enforcement only_one has more than one resource for rule exactly_one [mock1] for resource mock:mock5:this"),
+				Cause:    fmt.Errorf("rule with enforcement exactly one has more than one resource for rule exactly_one [mock1] for resource mock:mock5:this ([mock:mock1:that mock:mock1:that2])"),
 			},
 			},
 		},
@@ -131,18 +129,25 @@ func Test_handleOperationalRule(t *testing.T) {
 				{Source: &enginetesting.MockResource5{Name: "this"}, Destination: &enginetesting.MockResource3{Name: "that"}},
 			},
 			wantErr: []error{&OperationalResourceError{
-				Resource:  &enginetesting.MockResource5{Name: "this"},
-				Count:     2,
-				Direction: knowledgebase.Downstream,
-				Needs:     []string{"mock2"},
-				Parent:    &enginetesting.MockResource3{Name: "that"},
-				Cause:     fmt.Errorf("rule with enforcement any has less than the required number of resources of type [mock2]  or classifications [], 0 for resource mock:mock5:this"),
+				Rule: knowledgebase.OperationalRule{ // the subrule
+					Enforcement:   knowledgebase.AnyAvailable,
+					Direction:     knowledgebase.Downstream,
+					ResourceTypes: []string{"mock2"},
+					SetField:      "Mock2s",
+					NumNeeded:     2,
+					UnsatisfiedAction: knowledgebase.UnsatisfiedAction{
+						Operation: knowledgebase.CreateUnsatisfiedResource,
+					},
+				},
+				Resource: &enginetesting.MockResource5{Name: "this"},
+				Count:    2,
+				Parent:   &enginetesting.MockResource3{Name: "that"},
+				Cause:    fmt.Errorf("rule with enforcement any has less than the required number of resources of type [mock2]  or classifications [], 0 for resource mock:mock5:this"),
 			}},
 		},
 		{
 			name: "if one multiple exist error",
 			rule: knowledgebase.OperationalRule{
-
 				Enforcement:   knowledgebase.Conditional,
 				Direction:     knowledgebase.Downstream,
 				ResourceTypes: []string{"mock1"},
@@ -171,7 +176,16 @@ func Test_handleOperationalRule(t *testing.T) {
 
 			decisions, errs := engine.handleOperationalRule(tt.resource, tt.rule, dag, tt.parent)
 			if tt.wantErr != nil {
-				assert.Greater(len(errs), 0)
+				for _, e := range tt.wantErr {
+					if opErr, ok := e.(*OperationalResourceError); ok {
+						if opErr.Rule.Direction == "" {
+							opErr.Rule = tt.rule
+						}
+						if opErr.Resource == nil {
+							opErr.Resource = tt.resource
+						}
+					}
+				}
 				assert.ElementsMatch(errs, tt.wantErr)
 				return
 			}
@@ -194,11 +208,10 @@ func Test_handleOperationalResourceError(t *testing.T) {
 		{
 			name: "needs one downstream",
 			ore: &OperationalResourceError{
-				Resource:  &enginetesting.MockResource5{Name: "this"},
-				Direction: knowledgebase.Downstream,
-				Needs:     []string{"mock1"},
-				Count:     1,
-				Cause:     fmt.Errorf("0"),
+				Resource: &enginetesting.MockResource5{Name: "this"},
+				Rule:     knowledgebase.OperationalRule{ResourceTypes: []string{"mock1"}, Direction: knowledgebase.Downstream},
+				Count:    1,
+				Cause:    fmt.Errorf("0"),
 			},
 			want: []Decision{
 				{
@@ -212,11 +225,10 @@ func Test_handleOperationalResourceError(t *testing.T) {
 		{
 			name: "needs multiple downstream",
 			ore: &OperationalResourceError{
-				Resource:  &enginetesting.MockResource5{Name: "this"},
-				Direction: knowledgebase.Downstream,
-				Needs:     []string{"mock2"},
-				Count:     2,
-				Cause:     fmt.Errorf("0"),
+				Resource: &enginetesting.MockResource5{Name: "this"},
+				Rule:     knowledgebase.OperationalRule{ResourceTypes: []string{"mock2"}, Direction: knowledgebase.Downstream},
+				Count:    2,
+				Cause:    fmt.Errorf("0"),
 			},
 			want: []Decision{
 				{
@@ -236,12 +248,11 @@ func Test_handleOperationalResourceError(t *testing.T) {
 		{
 			name: "needs parents resource",
 			ore: &OperationalResourceError{
-				Resource:  &enginetesting.MockResource5{Name: "this"},
-				Direction: knowledgebase.Downstream,
-				Needs:     []string{"mock1"},
-				Count:     1,
-				Parent:    &enginetesting.MockResource3{Name: "parent"},
-				Cause:     fmt.Errorf("0"),
+				Resource: &enginetesting.MockResource5{Name: "this"},
+				Rule:     knowledgebase.OperationalRule{ResourceTypes: []string{"mock1"}, Direction: knowledgebase.Downstream},
+				Count:    1,
+				Parent:   &enginetesting.MockResource3{Name: "parent"},
+				Cause:    fmt.Errorf("0"),
 			},
 			existingDependencies: []graph.Edge[construct.Resource]{
 				{Source: &enginetesting.MockResource1{Name: "child"}, Destination: &enginetesting.MockResource3{Name: "parent"}},
@@ -258,12 +269,11 @@ func Test_handleOperationalResourceError(t *testing.T) {
 		{
 			name: "needs 2 but parent only has 1 resource",
 			ore: &OperationalResourceError{
-				Resource:  &enginetesting.MockResource5{Name: "this"},
-				Direction: knowledgebase.Downstream,
-				Needs:     []string{"mock1"},
-				Count:     2,
-				Parent:    &enginetesting.MockResource3{Name: "parent"},
-				Cause:     fmt.Errorf("0"),
+				Resource: &enginetesting.MockResource5{Name: "this"},
+				Rule:     knowledgebase.OperationalRule{ResourceTypes: []string{"mock1"}, Direction: knowledgebase.Downstream},
+				Count:    2,
+				Parent:   &enginetesting.MockResource3{Name: "parent"},
+				Cause:    fmt.Errorf("0"),
 			},
 			existingDependencies: []graph.Edge[construct.Resource]{
 				{Source: &enginetesting.MockResource1{Name: "child"}, Destination: &enginetesting.MockResource3{Name: "parent"}},
@@ -293,11 +303,10 @@ func Test_handleOperationalResourceError(t *testing.T) {
 		{
 			name: "chooses existing resource to satisfy needs",
 			ore: &OperationalResourceError{
-				Resource:  &enginetesting.MockResource5{Name: "this"},
-				Direction: knowledgebase.Downstream,
-				Needs:     []string{"mock1"},
-				Count:     2,
-				Cause:     fmt.Errorf("0"),
+				Resource: &enginetesting.MockResource5{Name: "this"},
+				Rule:     knowledgebase.OperationalRule{ResourceTypes: []string{"mock1"}, Direction: knowledgebase.Downstream},
+				Count:    2,
+				Cause:    fmt.Errorf("0"),
 			},
 			existingDependencies: []graph.Edge[construct.Resource]{
 				{Source: &enginetesting.MockResource1{Name: "child"}, Destination: &enginetesting.MockResource3{Name: "parent"}},
@@ -321,12 +330,14 @@ func Test_handleOperationalResourceError(t *testing.T) {
 		{
 			name: "must create new resource to satisfy needs",
 			ore: &OperationalResourceError{
-				Resource:   &enginetesting.MockResource5{Name: "this"},
-				Direction:  knowledgebase.Downstream,
-				Needs:      []string{"mock1"},
-				Count:      2,
-				MustCreate: true,
-				Cause:      fmt.Errorf("0"),
+				Resource: &enginetesting.MockResource5{Name: "this"},
+				Rule: knowledgebase.OperationalRule{
+					ResourceTypes:     []string{"mock1"},
+					UnsatisfiedAction: knowledgebase.UnsatisfiedAction{Unique: true},
+					Direction:         knowledgebase.Downstream,
+				},
+				Count: 2,
+				Cause: fmt.Errorf("0"),
 			},
 			existingDependencies: []graph.Edge[construct.Resource]{
 				{Source: &enginetesting.MockResource1{Name: "child"}, Destination: &enginetesting.MockResource3{Name: "parent"}},
@@ -371,227 +382,6 @@ func Test_handleOperationalResourceError(t *testing.T) {
 				return
 			}
 			CompareDecisions(t, tt.want, decisions)
-		})
-	}
-}
-
-func Test_TemplateConfigure(t *testing.T) {
-	tests := []struct {
-		name     string
-		resource *enginetesting.MockResource6
-		template knowledgebase.ResourceTemplate
-		want     *enginetesting.MockResource6
-	}{
-		{
-			name:     "simple values",
-			resource: &enginetesting.MockResource6{},
-			template: knowledgebase.ResourceTemplate{
-				Configuration: []knowledgebase.Configuration{
-					{Field: "Field1", Value: 1},
-					{Field: "Field2", Value: "two"},
-					{Field: "Field3", Value: true},
-				},
-			},
-			want: &enginetesting.MockResource6{
-				Field1: 1,
-				Field2: "two",
-				Field3: true,
-			},
-		},
-		{
-			name:     "simple array",
-			resource: &enginetesting.MockResource6{},
-			template: knowledgebase.ResourceTemplate{
-				Configuration: []knowledgebase.Configuration{
-					{Field: "Arr1", Value: []string{"1", "2", "3"}},
-				},
-			},
-			want: &enginetesting.MockResource6{
-				Arr1: []string{"1", "2", "3"},
-			},
-		},
-		{
-			name:     "struct array",
-			resource: &enginetesting.MockResource6{},
-			template: knowledgebase.ResourceTemplate{
-				Configuration: []knowledgebase.Configuration{
-					{Field: "Arr2", Value: []map[string]interface{}{
-						{
-							"Field1": 1,
-							"Field2": "two",
-							"Field3": true,
-						},
-						{
-							"Field1": 2,
-							"Field2": "three",
-							"Field3": false,
-						},
-					}},
-				},
-			},
-			want: &enginetesting.MockResource6{
-				Arr2: []enginetesting.TestRes1{
-					{
-						Field1: 1,
-						Field2: "two",
-						Field3: true,
-					},
-					{
-						Field1: 2,
-						Field2: "three",
-						Field3: false,
-					},
-				},
-			},
-		},
-		{
-			name:     "pointer array",
-			resource: &enginetesting.MockResource6{},
-			template: knowledgebase.ResourceTemplate{
-				Configuration: []knowledgebase.Configuration{
-					{Field: "Arr3", Value: []map[string]interface{}{
-						{
-							"Field1": 1,
-							"Field2": "two",
-							"Field3": true,
-						},
-						{
-							"Field1": 2,
-							"Field2": "three",
-							"Field3": false,
-						},
-					}},
-				},
-			},
-			want: &enginetesting.MockResource6{
-				Arr3: []*enginetesting.TestRes1{
-					{
-						Field1: 1,
-						Field2: "two",
-						Field3: true,
-					},
-					{
-						Field1: 2,
-						Field2: "three",
-						Field3: false,
-					},
-				},
-			},
-		},
-		{
-			name:     "struct",
-			resource: &enginetesting.MockResource6{},
-			template: knowledgebase.ResourceTemplate{
-				Configuration: []knowledgebase.Configuration{
-					{Field: "Struct1", Value: map[string]interface{}{
-						"Field1": 1,
-						"Field2": "two",
-						"Field3": true,
-						"Arr1":   []string{"1", "2", "3"},
-					}},
-				},
-			},
-			want: &enginetesting.MockResource6{
-				Struct1: enginetesting.TestRes1{
-					Field1: 1,
-					Field2: "two",
-					Field3: true,
-					Arr1:   []string{"1", "2", "3"},
-				},
-			},
-		},
-		{
-			name:     "pointer",
-			resource: &enginetesting.MockResource6{},
-			template: knowledgebase.ResourceTemplate{
-				Configuration: []knowledgebase.Configuration{
-					{Field: "Struct2", Value: map[string]interface{}{
-						"Field1": 1,
-						"Field2": "two",
-						"Field3": true,
-						"Arr1":   []string{"1", "2", "3"},
-					}},
-				},
-			},
-			want: &enginetesting.MockResource6{
-				Struct2: &enginetesting.TestRes1{
-					Field1: 1,
-					Field2: "two",
-					Field3: true,
-					Arr1:   []string{"1", "2", "3"},
-				},
-			},
-		},
-		{
-			name:     "pointer sub field",
-			resource: &enginetesting.MockResource6{},
-			template: knowledgebase.ResourceTemplate{
-				Configuration: []knowledgebase.Configuration{
-					{Field: "Struct2.Field1", Value: 1},
-					{Field: "Struct2.Arr1", Value: []string{"1", "2", "3"}},
-				},
-			},
-			want: &enginetesting.MockResource6{
-				Struct2: &enginetesting.TestRes1{
-					Field1: 1,
-					Arr1:   []string{"1", "2", "3"},
-				},
-			},
-		},
-		{
-			name:     "struct sub field",
-			resource: &enginetesting.MockResource6{},
-			template: knowledgebase.ResourceTemplate{
-				Configuration: []knowledgebase.Configuration{
-					{Field: "Struct1.Field1", Value: 1},
-					{Field: "Struct1.Arr1", Value: []string{"1", "2", "3"}},
-				},
-			},
-			want: &enginetesting.MockResource6{
-				Struct1: enginetesting.TestRes1{
-					Field1: 1,
-					Arr1:   []string{"1", "2", "3"},
-				},
-			},
-		},
-		{
-			name: "doesnt overwrite field",
-			resource: &enginetesting.MockResource6{
-				Field1: 1,
-			},
-			template: knowledgebase.ResourceTemplate{
-				Configuration: []knowledgebase.Configuration{
-					{Field: "Field1", Value: 5},
-				},
-			},
-			want: &enginetesting.MockResource6{
-				Field1: 1,
-			},
-		},
-		{
-			name: "doesnt append to array",
-			resource: &enginetesting.MockResource6{
-				Arr1: []string{"1", "2", "3"},
-			},
-			template: knowledgebase.ResourceTemplate{
-				Configuration: []knowledgebase.Configuration{
-					{Field: "Arr1", Value: []string{"4"}},
-				},
-			},
-			want: &enginetesting.MockResource6{
-				Arr1: []string{"1", "2", "3"},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			err := TemplateConfigure(tt.resource, tt.template, nil)
-			if !assert.NoError(err) {
-				return
-			}
-			assert.Equal(tt.want, tt.resource)
 		})
 	}
 }

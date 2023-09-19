@@ -3,8 +3,8 @@ type: api_method
 rules:
   - enforcement: exactly_one
     direction: upstream
-    resource_types:
-      - rest_api
+    resources:
+      - '{{ upstream "aws:rest_api" (downstream "aws:api_integration" .Self) }}'
     set_field: RestApi
     unsatisfied_action:
       operation: create

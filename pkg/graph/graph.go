@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/dominikbraun/graph"
@@ -101,32 +102,43 @@ func (d *Directed[V]) AllPaths(source, target string) ([][]string, error) {
 }
 
 func (d *Directed[V]) OutgoingEdges(from V) []Edge[V] {
+	return d.OutgoingEdgesById(d.hasher(from))
+}
+
+func (d *Directed[V]) OutgoingEdgesById(from string) []Edge[V] {
+	source := d.GetVertex(from)
 	return handleOutgoingEdges(d, from, func(destination V) Edge[V] {
 		return Edge[V]{
-			Source:      from,
+			Source:      source,
 			Destination: destination,
 		}
 	})
 }
 
 func (d *Directed[V]) IncomingEdges(to V) []Edge[V] {
+	return d.IncomingEdgesById(d.hasher(to))
+}
+
+func (d *Directed[V]) IncomingEdgesById(to string) []Edge[V] {
+	dest := d.GetVertex(to)
 	return handleIncomingEdges(d, to, func(destination V) Edge[V] {
 		return Edge[V]{
 			Source:      destination,
-			Destination: to,
+			Destination: dest,
 		}
 	})
 }
 
 func (d *Directed[V]) RemoveVertex(v string) error {
 	err := d.underlying.RemoveVertex(v)
-	if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
-		zap.S().With(zap.Error(err)).Errorf(`Unexpected error while removing %s. %s`, v, ourFault)
-		return err
-	} else if errors.Is(err, graph.ErrVertexNotFound) {
-		zap.S().With(zap.Error(err)).Debugf(`Ignoring error while removing %s because it does not exist`, v)
+	if err == nil {
+		return nil
 	}
-	return nil
+	if errors.Is(err, graph.ErrVertexNotFound) {
+		zap.S().With(zap.Error(err)).Debugf(`Ignoring error while removing %s because it does not exist`, v)
+		return nil
+	}
+	return fmt.Errorf("could not remove %s: %w", v, err)
 }
 
 func (d *Directed[V]) AddVertex(v V) {
@@ -190,10 +202,18 @@ func (d *Directed[V]) GetVertexWithProperties(source string) (V, graph.VertexPro
 }
 
 func (d *Directed[V]) OutgoingVertices(from V) []V {
+	return d.OutgoingVerticesById(d.hasher(from))
+}
+
+func (d *Directed[V]) OutgoingVerticesById(from string) []V {
 	return handleOutgoingEdges(d, from, func(destination V) V { return destination })
 }
 
 func (d *Directed[V]) IncomingVertices(to V) []V {
+	return d.IncomingVerticesById(d.hasher(to))
+}
+
+func (d *Directed[V]) IncomingVerticesById(to string) []V {
 	return handleIncomingEdges(d, to, func(destination V) V { return destination })
 }
 
@@ -304,7 +324,7 @@ func (d *Directed[V]) CreatesCycle(source string, dest string) (bool, error) {
 	return graph.CreatesCycle(d.underlying, source, dest)
 }
 
-func handleOutgoingEdges[V any, O any](d *Directed[V], from V, generate func(destination V) O) []O {
+func handleOutgoingEdges[V any, O any](d *Directed[V], from string, generate func(destination V) O) []O {
 	// Note: this is very inefficient. The graph library we use doesn't let us get just the roots, so we pull in
 	// the full predecessor map, get all the ids with no outgoing edges, and then look up the vertex for each one
 	// of those.
@@ -318,12 +338,12 @@ func handleOutgoingEdges[V any, O any](d *Directed[V], from V, generate func(des
 		panic(err)
 	}
 	var results []O
-	vertexAdjacency, ok := fullAdjacency[d.hasher(from)]
+	vertexAdjacency, ok := fullAdjacency[from]
 	if !ok {
 		return results
 	}
 	for _, edge := range vertexAdjacency {
-		if edge.Source != d.hasher(from) {
+		if edge.Source != from {
 			continue
 		}
 		if toV, err := d.underlying.Vertex(edge.Target); err == nil {
@@ -337,7 +357,7 @@ func handleOutgoingEdges[V any, O any](d *Directed[V], from V, generate func(des
 	return results
 }
 
-func handleIncomingEdges[V any, O any](d *Directed[V], to V, generate func(destination V) O) []O {
+func handleIncomingEdges[V any, O any](d *Directed[V], to string, generate func(destination V) O) []O {
 	// Note: this is very inefficient. The graph library we use doesn't let us get just the roots, so we pull in
 	// the full predecessor map, get all the ids with no outgoing edges, and then look up the vertex for each one
 	// of those.
@@ -353,7 +373,7 @@ func handleIncomingEdges[V any, O any](d *Directed[V], to V, generate func(desti
 	var results []O
 	for _, v := range fullAdjacency {
 		for _, edge := range v {
-			if edge.Target != d.hasher(to) {
+			if edge.Target != to {
 				continue
 			}
 			if toV, err := d.underlying.Vertex(edge.Source); err == nil {

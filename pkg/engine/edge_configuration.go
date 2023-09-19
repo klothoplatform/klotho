@@ -2,7 +2,7 @@ package engine
 
 import (
 	"fmt"
-	"strings"
+	"regexp"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/graph"
@@ -11,7 +11,7 @@ import (
 )
 
 func (e *Engine) configureEdge(dep graph.Edge[construct.Resource], context *SolveContext) []EngineError {
-	templateKey := fmt.Sprintf("%s:%s:-%s:%s:", dep.Source.Id().Provider, dep.Source.Id().Type, dep.Destination.Id().Provider, dep.Destination.Id().Type)
+	templateKey := fmt.Sprintf("%s-%s", dep.Source.Id().QualifiedTypeName(), dep.Destination.Id().QualifiedTypeName())
 	_, found := e.KnowledgeBase.GetResourceEdge(dep.Source, dep.Destination)
 	if e.EdgeTemplates[templateKey] == nil && !found {
 		return []EngineError{&InternalError{Child: &EdgeConfigurationError{Edge: dep}, Cause: fmt.Errorf("no edge template found for %s", templateKey)}}
@@ -36,6 +36,10 @@ func (e *Engine) configureEdge(dep graph.Edge[construct.Resource], context *Solv
 		if engineErrors != nil {
 			return engineErrors
 		}
+
+		// Re-run make operational in case the configuration changed the requirements
+		e.MakeResourceOperational(context, dep.Source)
+		e.MakeResourceOperational(context, dep.Destination)
 	}
 
 	err := e.KnowledgeBase.ConfigureEdge(&dep, context.ResourceGraph)
@@ -126,11 +130,12 @@ func (e *Engine) EdgeTemplateExpand(template knowledgebase.EdgeTemplate, resourc
 	return
 }
 
-func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *construct.ResourceGraph, edge *graph.Edge[construct.Resource], resourceMap map[construct.ResourceId]construct.Resource) (decisions []Decision, engineErrors []EngineError) {
+// EdgeTemplateConfigure isn't based on user configuration, but is the configuration of resources based on the templates' rules.
+func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, dag *construct.ResourceGraph, edge *graph.Edge[construct.Resource], resourceMap map[construct.ResourceId]construct.Resource) (decisions []Decision, engineErrors []EngineError) {
 	for _, config := range template.Configuration {
 		id, fields := getIdAndFields(config.Resource)
 		res := resourceMap[id]
-		res, err := getResourceFromIdString(res, fields, graph)
+		res, err := getResourceFromIdString(res, fields, dag)
 		if err != nil {
 			engineErrors = append(engineErrors, &InternalError{
 				Child: &EdgeConfigurationError{Edge: *edge},
@@ -145,6 +150,45 @@ func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *construct
 			})
 			continue
 		}
+
+		if config.Config.ValueTemplate != "" {
+			ctx := knowledgebase.ConfigTemplateContext{DAG: dag}
+			data := knowledgebase.ConfigTemplateData{
+				Resource: res.Id(),
+				Edge: graph.Edge[construct.ResourceId]{
+					Source:      edge.Source.Id(),
+					Destination: edge.Destination.Id(),
+				},
+			}
+			newConfig, err := ctx.ResolveConfig(config.Config, data)
+			if err != nil {
+				engineErrors = append(engineErrors, &ResourceConfigurationError{
+					Resource: res,
+					Cause:    err,
+					Config:   config.Config,
+				})
+			} else {
+				decisions = append(decisions, Decision{
+					Action: ActionConfigure,
+					Level:  LevelInfo,
+					Result: &DecisionResult{
+						Resource: res,
+						Config: &knowledgebase.ConfigurationRule{
+							Resource: res.Id(),
+							Config:   newConfig,
+						},
+					},
+					Cause: &Cause{
+						EdgeExpansion: edge,
+					},
+				})
+			}
+			continue
+		}
+
+		// TODO convert all the resource references in `value` to use `value_template` then the replacement
+		// won't be needed anymore. The primary use-case is for IaCValues, which can be accomplished with the
+		// `fieldRef` template function.
 		newConfig := knowledgebase.Configuration{}
 		valBytes, err := yaml.Marshal(config.Config)
 		if err != nil {
@@ -156,7 +200,8 @@ func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *construct
 		}
 		valStr := string(valBytes)
 		for id, resource := range resourceMap {
-			valStr = strings.ReplaceAll(valStr, id.String(), resource.Id().String())
+			re := regexp.MustCompile(fmt.Sprintf(`\b%s:?\b`, id.String()))
+			valStr = re.ReplaceAllString(valStr, resource.Id().String())
 		}
 		err = yaml.Unmarshal([]byte(valStr), &newConfig)
 		if err != nil {
@@ -167,8 +212,13 @@ func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *construct
 			continue
 		}
 		decisions = append(decisions, Decision{
-			Level:  LevelInfo,
-			Result: &DecisionResult{Resource: res, Config: &knowledgebase.ConfigurationRule{Config: newConfig, Resource: res.Id()}},
+			Level: Level(valStr),
+			Result: &DecisionResult{
+				Resource: res,
+				Config: &knowledgebase.ConfigurationRule{
+					Resource: res.Id(),
+					Config:   newConfig,
+				}},
 			Action: ActionConfigure,
 			Cause: &Cause{
 				EdgeExpansion: edge,
@@ -178,6 +228,7 @@ func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, graph *construct
 	return
 }
 
+// EdgeTemplateMakeOperational is responsible for executing the templates' OperationalRules for managing the edge's dependencies.
 func (e *Engine) EdgeTemplateMakeOperational(template knowledgebase.EdgeTemplate, graph *construct.ResourceGraph, edge *graph.Edge[construct.Resource], resourceMap map[construct.ResourceId]construct.Resource) (decisions []Decision, engineErrors []EngineError) {
 	for _, rule := range template.OperationalRules {
 		id, fields := getIdAndFields(rule.Resource)

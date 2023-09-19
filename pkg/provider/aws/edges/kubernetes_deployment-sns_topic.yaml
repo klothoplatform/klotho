@@ -1,5 +1,5 @@
-source: 'kubernetes:deployment:'
-destination: 'aws:sns_topic:'
+source: kubernetes:deployment
+destination: aws:sns_topic
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

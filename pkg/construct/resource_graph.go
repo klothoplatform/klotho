@@ -14,7 +14,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type (
@@ -489,6 +489,26 @@ func (rg *ResourceGraph) ReplaceConstruct(resource Resource, new Resource) error
 		}
 	}
 	return rg.RemoveResource(resource)
+}
+
+func (rg *ResourceGraph) ReplaceConstructId(oldId ResourceId, new Resource) error {
+	rg.AddResource(new)
+	// Since its a construct we just assume every single edge can be removed
+	for _, edge := range rg.underlying.OutgoingEdgesById(oldId.String()) {
+		rg.AddDependency(new, edge.Destination)
+		err := rg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		if err != nil {
+			return err
+		}
+	}
+	for _, edge := range rg.underlying.IncomingEdgesById(oldId.String()) {
+		rg.AddDependency(edge.Source, new)
+		err := rg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		if err != nil {
+			return err
+		}
+	}
+	return rg.underlying.RemoveVertex(oldId.String())
 }
 
 // CreateResource is a wrapper around a Resources .Create method

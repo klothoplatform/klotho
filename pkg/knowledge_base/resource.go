@@ -33,6 +33,7 @@ type (
 		Direction Direction `json:"direction" yaml:"direction"`
 		// ResourceTypes defines the resource types that the rule should be enforced on. Resource types must be specified if classifications is not specified
 		ResourceTypes []string `json:"resource_types" yaml:"resource_types"`
+		Resources     []string `json:"resources" yaml:"resources"`
 		// Classifications defines the classifications that the rule should be enforced on. Classifications must be specified if resource types is not specified
 		Classifications []string `json:"classifications" yaml:"classifications"`
 		// SetField defines the field on the resource that should be set to the resource that satisfies the rule
@@ -46,6 +47,8 @@ type (
 		Rules []OperationalRule `json:"rules" yaml:"rules"`
 		// UnsatisfiedAction defines what action should be taken if the rule is not satisfied
 		UnsatisfiedAction UnsatisfiedAction `json:"unsatisfied_action" yaml:"unsatisfied_action"`
+		// If is a template condition used if Enforcement is conditional
+		If string `json:"if" yaml:"if"`
 
 		// NoParentDependency is a flag to signal if a sub rule is not supposed to add a dependency on the resource that satisfies the parent rule
 		NoParentDependency bool `json:"no_parent_dependency" yaml:"no_parent_dependency"`
@@ -66,7 +69,8 @@ type (
 		// Fields defines a field that should be set on the resource
 		Field string `json:"field" yaml:"field"`
 		// Value defines the value that should be set on the resource
-		Value any `json:"value" yaml:"value"`
+		Value         any    `json:"value" yaml:"value"`
+		ValueTemplate string `json:"value_template" yaml:"value_template"`
 		// ZeroValueAllowed defines if the value can be set to the zero value of the field
 		ZeroValueAllowed bool `json:"zero_value_allowed" yaml:"zero_value_allowed"`
 	}

@@ -3,8 +3,8 @@ type: api_deployment
 rules:
   - enforcement: exactly_one
     direction: downstream
-    resource_types:
-      - rest_api
+    resources:
+      - '{{ downstream "aws:rest_api" (upstream "aws:api_stage" .Self) }}'
     set_field: RestApi
     unsatisfied_action:
       operation: create

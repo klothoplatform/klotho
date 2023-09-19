@@ -1,5 +1,5 @@
-source: 'aws:ec2_instance:'
-destination: 'aws:iam_instance_profile:'
+source: aws:ec2_instance
+destination: aws:iam_instance_profile
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

@@ -1,5 +1,5 @@
-source: 'aws:app_runner_service:'
-destination: 'aws:dynamodb_table:'
+source: aws:app_runner_service
+destination: aws:dynamodb_table
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
@@ -7,4 +7,4 @@ reuse:
 expansion:
   dependencies:
     - source: aws:app_runner_service:#InstanceRole
-      destination: 'aws:dynamodb_table:'
+      destination: aws:dynamodb_table

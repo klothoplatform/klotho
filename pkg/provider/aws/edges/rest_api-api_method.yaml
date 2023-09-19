@@ -1,5 +1,5 @@
-source: 'aws:rest_api:'
-destination: 'aws:api_method:'
+source: aws:rest_api
+destination: aws:api_method
 direct_edge_only: false
 deployment_order_reversed: true
 deletion_dependent: false

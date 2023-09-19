@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/classification"
@@ -44,8 +45,58 @@ func (constraint *ResourceConstraint) IsSatisfied(dag *construct.ResourceGraph, 
 		if res == nil {
 			return false
 		}
-		val := reflect.ValueOf(res).Elem().FieldByName(constraint.Property)
-		return val.IsValid() && val.Interface() == constraint.Value
+		strct := reflect.ValueOf(res)
+		for strct.Kind() == reflect.Ptr {
+			strct = strct.Elem()
+		}
+		val := strct.FieldByName(constraint.Property)
+		if !val.IsValid() {
+			// Try to find the field by its json or yaml tag (especially to handle case [upper/lower] [Pascal/snake])
+			// Replicated from resource_configuration.go#parseFieldName so there's no dependency
+			for i := 0; i < strct.NumField(); i++ {
+				field := strct.Type().Field(i)
+				if constraint.Property == strings.ToLower(field.Name) {
+					// When YAML marshalling fields that don't have a tag, they're just lower cased
+					// so this condition should catch those.
+					val = strct.Field(i)
+					break
+				}
+				tag := strings.Split(field.Tag.Get("json"), ",")[0]
+				if constraint.Property == tag {
+					val = strct.Field(i)
+					break
+				}
+				tag = strings.Split(field.Tag.Get("yaml"), ",")[0]
+				if constraint.Property == tag {
+					val = strct.Field(i)
+					break
+				}
+			}
+			if !val.IsValid() {
+				return false
+			}
+		}
+		return val.Interface() == constraint.Value
+
+	case AddConstraintOperator:
+		res := dag.GetResource(constraint.Target)
+		if res == nil {
+			return false
+		}
+		parent := reflect.ValueOf(res).Elem()
+		val := parent.FieldByName(constraint.Property)
+		if !val.IsValid() {
+			return false
+		}
+		switch val.Kind() {
+		case reflect.Slice, reflect.Array:
+			for i := 0; i < val.Len(); i++ {
+				if val.Index(i).Interface() == constraint.Value {
+					return true
+				}
+			}
+			return false
+		}
 	}
 	return true
 }
@@ -61,5 +112,5 @@ func (constraint *ResourceConstraint) Validate() error {
 }
 
 func (constraint *ResourceConstraint) String() string {
-	return fmt.Sprintf("ResourceConstraint: %s %s %s %s", constraint.Target, constraint.Property, constraint.Operator, constraint.Value)
+	return fmt.Sprintf("ResourceConstraint: %s %s %s %v", constraint.Target, constraint.Property, constraint.Operator, constraint.Value)
 }

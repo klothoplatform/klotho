@@ -1,5 +1,5 @@
-source: 'aws:sns_subscription:'
-destination: 'kubernetes:pod:'
+source: aws:sns_subscription
+destination: kubernetes:pod
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false

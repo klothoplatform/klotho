@@ -1,5 +1,5 @@
-source: 'aws:rds_proxy:'
-destination: 'aws:security_group:'
+source: aws:rds_proxy
+destination: aws:security_group
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
