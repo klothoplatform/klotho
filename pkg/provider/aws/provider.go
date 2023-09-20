@@ -74,32 +74,13 @@ func (a *AWS) CreateConstructFromId(id construct.ResourceId, dag *construct.Cons
 	return resource, nil
 }
 
-//go:embed resources/templates/*
-var awsTempaltes embed.FS
+//go:embed resources/templates/*.yaml
+var awsTemplates embed.FS
 
 func (a *AWS) GetOperationalTemplates() map[construct.ResourceId]*knowledgebase.ResourceTemplate {
-	templates := map[construct.ResourceId]*knowledgebase.ResourceTemplate{}
-	if err := fs.WalkDir(awsTempaltes, ".", func(path string, d fs.DirEntry, nerr error) error {
-		if d.IsDir() {
-			return nil
-		}
-		content, err := awsTempaltes.ReadFile(fmt.Sprintf("resources/templates/%s", d.Name()))
-		if err != nil {
-			panic(err)
-		}
-		resTemplate := &knowledgebase.ResourceTemplate{}
-		err = yaml.Unmarshal(content, resTemplate)
-		if err != nil {
-			panic(err)
-		}
-		id := construct.ResourceId{Provider: provider.AWS, Type: resTemplate.Type}
-		if templates[id] != nil {
-			panic(fmt.Errorf("duplicate template for type %s", resTemplate.Type))
-		}
-		templates[id] = resTemplate
-		return nil
-	}); err != nil {
-		return templates
+	templates, err := knowledgebase.TemplatesFromFs(awsTemplates)
+	if err != nil {
+		panic(err)
 	}
 	return templates
 }

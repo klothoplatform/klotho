@@ -122,14 +122,11 @@ func GetMapDecoder(result interface{}) *mapstructure.Decoder {
 	return decoder
 }
 
-func (s *BaseConstructSet) Add(k BaseConstruct) {
+func (s BaseConstructSet) Add(k BaseConstruct) {
 	if k == nil {
 		return
 	}
-	if *s == nil {
-		*s = make(BaseConstructSet)
-	}
-	(*s)[k.Id()] = k
+	s[k.Id()] = k
 }
 
 func (s BaseConstructSet) Has(k ResourceId) bool {

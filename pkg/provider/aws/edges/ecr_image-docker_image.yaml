@@ -7,9 +7,9 @@ reuse:
 configuration:
   - resource: docker:image
     config:
-      field: CreatesDockerfile
-      value: true
+      field: BaseImage
+      value: aws:ecr_image:#BaseImage
   - resource: aws:ecr_image
     config:
-      field: BaseImage
-      value: docker:image:#Name
+      field: Dockerfile
+      value: docker:image:#DockerfilePath

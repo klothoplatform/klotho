@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"embed"
 	"fmt"
 	"reflect"
 
@@ -10,12 +11,18 @@ import (
 	"github.com/klothoplatform/klotho/pkg/provider/docker/resources"
 )
 
+//go:embed resources/*.yaml
+var templates embed.FS
+
 type DockerProvider struct {
 }
 
 func (a *DockerProvider) GetOperationalTemplates() map[construct.ResourceId]*knowledgebase.ResourceTemplate {
-	// Not implemented
-	return map[construct.ResourceId]*knowledgebase.ResourceTemplate{}
+	templates, err := knowledgebase.TemplatesFromFs(templates)
+	if err != nil {
+		panic(err)
+	}
+	return templates
 }
 
 func (a *DockerProvider) GetEdgeTemplates() map[string]*knowledgebase.EdgeTemplate {

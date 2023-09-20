@@ -1,0 +1,6 @@
+provider: docker
+type: image
+configuration:
+  - field: DockerfilePath
+    value_template: |
+      dockerfiles/{{ basename .Self.Name }}.Dockerfile

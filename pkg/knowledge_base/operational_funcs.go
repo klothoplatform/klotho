@@ -5,6 +5,7 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -45,8 +46,10 @@ func (ctx *ConfigTemplateContext) Parse(tmpl string) (*template.Template, error)
 
 		"toJson": ctx.toJson,
 
-		"split":                strings.Split,
-		"join":                 strings.Join,
+		"split":    strings.Split,
+		"join":     strings.Join,
+		"basename": filepath.Base,
+
 		"filterIds":            filterIds,
 		"filterMatch":          filterMatch,
 		"mapString":            mapString,

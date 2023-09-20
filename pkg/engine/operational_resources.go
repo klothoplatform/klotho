@@ -203,6 +203,14 @@ func (e *Engine) handleExactResourceEnforcement(resource construct.Resource, rul
 			Result: &result,
 			Cause:  &Cause{OperationalResource: resource},
 		})
+
+		err := e.setField(dag, resource, rule, dep)
+		if err != nil {
+			errs = append(errs, &ResourceNotOperationalError{
+				Resource: resource,
+				Cause:    err,
+			})
+		}
 	}
 
 requiredLoop:
@@ -622,8 +630,14 @@ func (e *Engine) handleOperationalResourceError(operation *OperationalResourceEr
 		}
 		var errs error
 		for i := numSatisfied; i < operation.Count; i++ {
-			newRes := cloneResource(neededResource)
-			nameResource(numResources, newRes, operation.Resource, operation.Rule.UnsatisfiedAction.Unique)
+			id := neededResource.Id()
+			id.Name = generateResourceName(numResources, neededResource, operation.Resource, operation.Rule.UnsatisfiedAction.Unique)
+			newRes, err := e.CreateResourceFromId(id)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+			newRes.BaseConstructRefs().Add(operation.Resource)
 
 			decisions = append(decisions, addDependencyDecisionForDirection(operation.Rule.Direction, operation.Resource, newRes))
 			if operation.Parent != nil {
@@ -649,13 +663,11 @@ func cloneResource(resource construct.Resource) construct.Resource {
 	return newRes
 }
 
-func nameResource(numResources int, resourceToSet construct.Resource, resource construct.Resource, unique bool) {
+func generateResourceName(numResources int, resourceToSet construct.Resource, resource construct.Resource, unique bool) string {
 	if unique {
-		reflect.ValueOf(resourceToSet).Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s-%s-%d", resourceToSet.Id().Type, resource.Id().Name, numResources)))
-	} else {
-		reflect.ValueOf(resourceToSet).Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s-%d", resourceToSet.Id().Type, numResources)))
+		return fmt.Sprintf("%s-%s-%d", resourceToSet.Id().Type, resource.Id().Name, numResources)
 	}
-	reflect.ValueOf(resourceToSet).Elem().FieldByName("ConstructRefs").Set(reflect.ValueOf(construct.BaseConstructSetOf(resource)))
+	return fmt.Sprintf("%s-%d", resourceToSet.Id().Type, numResources)
 }
 
 func addDependencyDecisionForDirection(direction knowledgebase.Direction, resource construct.Resource, dependentResource construct.Resource) Decision {

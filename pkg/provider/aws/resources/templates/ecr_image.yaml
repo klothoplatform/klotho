@@ -8,12 +8,22 @@ rules:
     set_field: Repo
     unsatisfied_action:
       operation: create
+  - enforcement: exactly_one
+    direction: downstream
+    if: |
+      {{ eq (fieldValue "Dockerfile" .Self) "" }}
+    resources:
+      - docker:image:{{ .Self.Name }}
+    unsatisfied_action:
+      operation: create
 configuration:
   - field: ExtraOptions
     value:
       - --platform
       - linux/amd64
       - --quiet
+  - field: BaseImage
+  - field: Dockerfile
 delete_context:
   requires_no_upstream: true
 views:
