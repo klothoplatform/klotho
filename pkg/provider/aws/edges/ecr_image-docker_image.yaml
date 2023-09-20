@@ -5,10 +5,10 @@ deployment_order_reversed: false
 deletion_dependent: false
 reuse:
 configuration:
-  - resource: docker:image
+  - resource: aws:ecr_image
     config:
       field: BaseImage
-      value: aws:ecr_image:#BaseImage
+      value: docker:image:#BaseImage
   - resource: aws:ecr_image
     config:
       field: Dockerfile
