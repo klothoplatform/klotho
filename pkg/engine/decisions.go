@@ -175,7 +175,9 @@ func (e *Engine) handleDecision(context *SolveContext, decision Decision) {
 				})
 				return
 			}
-			context.recordDecision(decision)
+			// Disabling recording config due to some config not easily in JSON format, and for now we just
+			// render the config values to JSON as-is.
+			// context.recordDecision(decision)
 		}
 	case ActionDelete:
 		if decision.Result.Resource != nil {
