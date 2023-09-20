@@ -27,7 +27,15 @@ func NewResourceGraph() *ResourceGraph {
 	return &ResourceGraph{
 		underlying: graph.NewDirected(func(r Resource) string {
 			return r.Id().String()
-		}),
+		}, false),
+	}
+}
+
+func NewAcyclicResourceGraph() *ResourceGraph {
+	return &ResourceGraph{
+		underlying: graph.NewDirected(func(r Resource) string {
+			return r.Id().String()
+		}, true),
 	}
 }
 
@@ -226,7 +234,7 @@ func (rg *ResourceGraph) RemoveResourceAndEdges(source Resource) error {
 }
 
 func (rg *ResourceGraph) RemoveResource(resource Resource) error {
-	zap.S().Debugf("Removing resource %s", resource.Id())
+	zap.S().Debugf("Removing resource %s", resource)
 	return rg.underlying.RemoveVertex(resource.Id().String())
 }
 
