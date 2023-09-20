@@ -660,9 +660,26 @@ func (e *Engine) CreateResourceFromId(id construct.ResourceId) (construct.Resour
 		return nil, err
 	}
 	if r, ok := c.(construct.Resource); ok {
+		crefs := r.BaseConstructRefs()
+		if crefs == nil {
+			err = createConstructRefs(r)
+			if err != nil {
+				return nil, err
+			}
+		}
 		return r, nil
 	}
 	return nil, fmt.Errorf("construct %s is not a resource (was %T)", id, c)
+}
+
+func createConstructRefs(r construct.Resource) error {
+	v := reflect.ValueOf(r).Elem()
+	f := v.FieldByName("ConstructRefs")
+	if !f.IsValid() {
+		return fmt.Errorf("resource %s does not have a ConstructRefs field", r.Id())
+	}
+	f.Set(reflect.ValueOf(make(construct.BaseConstructSet)))
+	return nil
 }
 
 func (e *Engine) checkIfConstraintsAreAllowed() error {

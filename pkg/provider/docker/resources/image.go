@@ -2,7 +2,6 @@ package resources
 
 import (
 	"fmt"
-	"regexp"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/io"
@@ -12,10 +11,13 @@ import (
 const DOCKER_IMAGE_TYPE = "image"
 
 type (
+	// DockerImage is a little tailored to the current IaC structure and the fact that Pulumi doesn't have
+	// a native docker push resource for copying an image to a registry.
 	DockerImage struct {
-		Name              string
-		ConstructRefs     construct.BaseConstructSet `yaml:"-"`
-		CreatesDockerfile bool
+		Name           string
+		BaseImage      string
+		ConstructRefs  construct.BaseConstructSet `yaml:"-"`
+		DockerfilePath string
 	}
 
 	DockerImageCreateParams struct {
@@ -42,29 +44,13 @@ func (image *DockerImage) Id() construct.ResourceId {
 	}
 }
 
-func (image *DockerImage) Create(dag *construct.ResourceGraph, params DockerImageCreateParams) error {
-	image.Name = params.Name
-	image.ConstructRefs = params.Refs.Clone()
-
-	existingImage := dag.GetResource(image.Id())
-	if existingImage != nil {
-		return fmt.Errorf("docker image with name %s already exists", image.Name)
-	}
-	dag.AddResource(image)
-	return nil
-}
-
 func (image *DockerImage) GetOutputFiles() []io.File {
-	var files []io.File
-	if image.CreatesDockerfile {
-		files = append(files, image.Dockerfile())
-	}
-	return files
+	return []io.File{image.Dockerfile()}
 }
 
 func (image *DockerImage) Dockerfile() io.File {
 	return &io.RawFile{
-		FPath:   fmt.Sprintf("dockerfiles/%s.dockerfile", regexp.MustCompile(`[\\/]+`).ReplaceAllString(image.Name, "_")),
-		Content: []byte(fmt.Sprintf("FROM %s", image.Name)),
+		FPath:   image.DockerfilePath,
+		Content: []byte(fmt.Sprintf("FROM %s", image.BaseImage)),
 	}
 }

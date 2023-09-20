@@ -535,28 +535,27 @@ func CreateResource[T Resource](rg *ResourceGraph, params any) (resource T, err 
 
 func (rg *ResourceGraph) CallCreate(targetValue reflect.Value, metadata any) error {
 	method := targetValue.MethodByName("Create")
-	if method.IsValid() {
-		var callArgs []reflect.Value
-		callArgs = append(callArgs, reflect.ValueOf(rg))
-		params := reflect.New(method.Type().In(1)).Interface()
-		decoder := GetMapDecoder(params)
-		err := decoder.Decode(metadata)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("error decoding the following type %s", reflect.New(method.Type().In(1)).Type().String()))
-		}
-		callArgs = append(callArgs, reflect.ValueOf(params).Elem())
-		eval := method.Call(callArgs)
-		if eval[0].IsNil() {
-			return nil
-		} else {
-			err, ok := eval[0].Interface().(error)
-			if !ok {
-				return fmt.Errorf("return type should be an error")
-			}
-			return err
-		}
+	if !method.IsValid() {
+		return nil
 	}
-	return nil
+	callArgs := []reflect.Value{reflect.ValueOf(rg)}
+	params := reflect.New(method.Type().In(1)).Interface()
+	decoder := GetMapDecoder(params)
+	err := decoder.Decode(metadata)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("error decoding the following type %s", reflect.New(method.Type().In(1)).Type().String()))
+	}
+	callArgs = append(callArgs, reflect.ValueOf(params).Elem())
+	eval := method.Call(callArgs)
+	if eval[0].IsNil() {
+		return nil
+	} else {
+		err, ok := eval[0].Interface().(error)
+		if !ok {
+			return fmt.Errorf("return type should be an error")
+		}
+		return err
+	}
 }
 
 // CallConfigure uses the resource graph to ensure the node passed in exists, then uses reflection to call the resources Configure method
