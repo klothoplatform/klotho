@@ -469,7 +469,7 @@ func (e *Engine) setField(dag *construct.ResourceGraph, resource construct.Resou
 			field.Set(fieldValue)
 		}
 	}
-	zap.S().Infof("set field %s#%s to %s", resource.Id(), rule.SetField, fieldResource.Id())
+	zap.S().Debugf("set field %s#%s to %s", resource.Id(), rule.SetField, fieldResource.Id())
 	// If this sets the field driving the namespace, for example,
 	// then the Id could change, so replace the resource in the graph
 	// to update all the edges to the new Id.
