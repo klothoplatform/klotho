@@ -3,6 +3,7 @@ package graph
 import (
 	"testing"
 
+	"github.com/dominikbraun/graph"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,6 +13,8 @@ func TestEmptyGraph(t *testing.T) {
 	assert.Empty(d.Roots())
 }
 
+var emptyProps = graph.EdgeProperties{Attributes: make(map[string]string)}
+
 func TestSimpleGraph(t *testing.T) {
 	// A ┬─➤ B
 	//   └─➤ C
@@ -20,8 +23,8 @@ func TestSimpleGraph(t *testing.T) {
 	d.AddVertex(a)
 	d.AddVertex(b)
 	d.AddVertex(c)
-	d.AddEdge(a.Id(), b.Id(), nil)
-	d.AddEdge(a.Id(), c.Id(), nil)
+	d.AddEdge(a.Id(), b.Id(), "a")
+	d.AddEdge(a.Id(), c.Id(), "b")
 
 	test(t, "roots", func(assert *assert.Assertions) {
 		assert.Equal([]DummyVertex{a}, d.Roots())
@@ -35,10 +38,18 @@ func TestSimpleGraph(t *testing.T) {
 				{
 					Source:      a,
 					Destination: b,
+					Properties: graph.EdgeProperties{
+						Attributes: make(map[string]string),
+						Data:       "a",
+					},
 				},
 				{
 					Source:      a,
 					Destination: c,
+					Properties: graph.EdgeProperties{
+						Attributes: make(map[string]string),
+						Data:       "b",
+					},
 				},
 			},
 			d.OutgoingEdges(a))
@@ -56,6 +67,7 @@ func TestCycleToSelf(t *testing.T) {
 			{
 				Source:      v,
 				Destination: v,
+				Properties:  emptyProps,
 			},
 		},
 		d.OutgoingEdges(v))
@@ -75,6 +87,7 @@ func TestCycle(t *testing.T) {
 			{
 				Source:      v1,
 				Destination: v2,
+				Properties:  emptyProps,
 			},
 		},
 		d.OutgoingEdges(v1))
@@ -83,6 +96,7 @@ func TestCycle(t *testing.T) {
 			{
 				Source:      v2,
 				Destination: v1,
+				Properties:  emptyProps,
 			},
 		},
 		d.OutgoingEdges(v2))
@@ -109,6 +123,7 @@ func TestNegativeCases(t *testing.T) {
 				{
 					Source:      v1,
 					Destination: v2,
+					Properties:  emptyProps,
 				},
 			},
 			d.OutgoingEdges(v1))
