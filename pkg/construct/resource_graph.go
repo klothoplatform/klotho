@@ -493,17 +493,18 @@ func (rg *ResourceGraph) ReplaceConstruct(resource Resource, new Resource) error
 
 func (rg *ResourceGraph) ReplaceConstructId(oldId ResourceId, new Resource) error {
 	rg.AddResource(new)
+	newId := new.Id().String()
 	// Since its a construct we just assume every single edge can be removed
 	for _, edge := range rg.underlying.OutgoingEdgesById(oldId.String()) {
-		rg.AddDependency(new, edge.Destination)
-		err := rg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		rg.underlying.AddEdge(newId, edge.Destination, edge.Properties.Data)
+		err := rg.underlying.RemoveEdge(edge.Source, edge.Destination)
 		if err != nil {
 			return err
 		}
 	}
 	for _, edge := range rg.underlying.IncomingEdgesById(oldId.String()) {
-		rg.AddDependency(edge.Source, new)
-		err := rg.RemoveDependency(edge.Source.Id(), edge.Destination.Id())
+		rg.underlying.AddEdge(edge.Source, newId, edge.Properties.Data)
+		err := rg.underlying.RemoveEdge(edge.Source, edge.Destination)
 		if err != nil {
 			return err
 		}

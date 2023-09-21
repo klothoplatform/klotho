@@ -64,6 +64,8 @@ type SetMapKey struct {
 }
 
 func (e *Engine) configureResource(context *SolveContext, r construct.Resource) {
+	oldId := r.Id()
+
 	configureComplete := make(map[string]struct{})
 	for _, rc := range e.Context.Constraints[constraints.ResourceConstraintScope] {
 		rc := rc.(*constraints.ResourceConstraint)
@@ -138,6 +140,17 @@ func (e *Engine) configureResource(context *SolveContext, r construct.Resource) 
 	}
 	// Re-run make operational in case the configuration changed the requirements
 	e.MakeResourceOperational(context, r)
+
+	// If the ID changes, primarily caused by a namespace being added, update all the references.
+	if oldId != r.Id() {
+		err := context.ResourceGraph.ReplaceConstructId(oldId, r)
+		if err != nil {
+			context.Errors = append(context.Errors, &ResourceConfigurationError{
+				Resource: r,
+				Cause:    err,
+			})
+		}
+	}
 }
 
 var resourceIdType = reflect.TypeOf(construct.ResourceId{})
@@ -188,7 +201,7 @@ func ConfigureField(resource construct.Resource, fieldName string, value interfa
 	if setMapKey != nil {
 		setMapKey.Map.SetMapIndex(setMapKey.Key, setMapKey.Value)
 	}
-	zap.S().Infof("configured %s#%s to value '%v'", resource.Id(), fieldName, value)
+	zap.S().Debugf("configured %s#%s to value '%v'", resource.Id(), fieldName, value)
 	return nil
 }
 

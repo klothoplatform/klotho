@@ -102,29 +102,57 @@ func (d *Directed[V]) AllPaths(source, target string) ([][]string, error) {
 }
 
 func (d *Directed[V]) OutgoingEdges(from V) []Edge[V] {
-	return d.OutgoingEdgesById(d.hasher(from))
+	return handleOutgoingEdges(d, d.hasher(from), func(destination string) Edge[V] {
+		e, err := d.underlying.Edge(d.hasher(from), destination)
+		if err != nil {
+			panic(err)
+		}
+		return Edge[V]{
+			Source:      from,
+			Destination: d.GetVertex(destination),
+			Properties:  e.Properties,
+		}
+	})
 }
 
-func (d *Directed[V]) OutgoingEdgesById(from string) []Edge[V] {
-	source := d.GetVertex(from)
-	return handleOutgoingEdges(d, from, func(destination V) Edge[V] {
-		return Edge[V]{
-			Source:      source,
+func (d *Directed[V]) OutgoingEdgesById(from string) []Edge[string] {
+	return handleOutgoingEdges(d, from, func(destination string) Edge[string] {
+		e, err := d.underlying.Edge(from, destination)
+		if err != nil {
+			panic(err)
+		}
+		return Edge[string]{
+			Source:      from,
 			Destination: destination,
+			Properties:  e.Properties,
 		}
 	})
 }
 
 func (d *Directed[V]) IncomingEdges(to V) []Edge[V] {
-	return d.IncomingEdgesById(d.hasher(to))
+	return handleIncomingEdges(d, d.hasher(to), func(source string) Edge[V] {
+		e, err := d.underlying.Edge(source, d.hasher(to))
+		if err != nil {
+			panic(err)
+		}
+		return Edge[V]{
+			Source:      d.GetVertex(source),
+			Destination: to,
+			Properties:  e.Properties,
+		}
+	})
 }
 
-func (d *Directed[V]) IncomingEdgesById(to string) []Edge[V] {
-	dest := d.GetVertex(to)
-	return handleIncomingEdges(d, to, func(destination V) Edge[V] {
-		return Edge[V]{
-			Source:      destination,
-			Destination: dest,
+func (d *Directed[V]) IncomingEdgesById(to string) []Edge[string] {
+	return handleIncomingEdges(d, to, func(source string) Edge[string] {
+		e, err := d.underlying.Edge(source, to)
+		if err != nil {
+			panic(err)
+		}
+		return Edge[string]{
+			Source:      source,
+			Destination: to,
+			Properties:  e.Properties,
 		}
 	})
 }
@@ -206,7 +234,7 @@ func (d *Directed[V]) OutgoingVertices(from V) []V {
 }
 
 func (d *Directed[V]) OutgoingVerticesById(from string) []V {
-	return handleOutgoingEdges(d, from, func(destination V) V { return destination })
+	return handleOutgoingEdges(d, from, func(destination string) V { return d.GetVertex(destination) })
 }
 
 func (d *Directed[V]) IncomingVertices(to V) []V {
@@ -214,7 +242,7 @@ func (d *Directed[V]) IncomingVertices(to V) []V {
 }
 
 func (d *Directed[V]) IncomingVerticesById(to string) []V {
-	return handleIncomingEdges(d, to, func(destination V) V { return destination })
+	return handleIncomingEdges(d, to, func(source string) V { return d.GetVertex(source) })
 }
 
 func (d *Directed[V]) AddVerticesAndEdge(source V, dest V) {
@@ -324,7 +352,7 @@ func (d *Directed[V]) CreatesCycle(source string, dest string) (bool, error) {
 	return graph.CreatesCycle(d.underlying, source, dest)
 }
 
-func handleOutgoingEdges[V any, O any](d *Directed[V], from string, generate func(destination V) O) []O {
+func handleOutgoingEdges[V any, O any](d *Directed[V], from string, generate func(destination string) O) []O {
 	// Note: this is very inefficient. The graph library we use doesn't let us get just the roots, so we pull in
 	// the full predecessor map, get all the ids with no outgoing edges, and then look up the vertex for each one
 	// of those.
@@ -346,18 +374,12 @@ func handleOutgoingEdges[V any, O any](d *Directed[V], from string, generate fun
 		if edge.Source != from {
 			continue
 		}
-		if toV, err := d.underlying.Vertex(edge.Target); err == nil {
-			toAdd := generate(toV)
-			results = append(results, toAdd)
-		} else {
-			zap.S().With(zap.Error(err)).Errorf(
-				`Ignoring edge %v because I couldn't resolve the destination vertex. %s`, edge, ourFault)
-		}
+		results = append(results, generate(edge.Target))
 	}
 	return results
 }
 
-func handleIncomingEdges[V any, O any](d *Directed[V], to string, generate func(destination V) O) []O {
+func handleIncomingEdges[V any, O any](d *Directed[V], to string, generate func(source string) O) []O {
 	// Note: this is very inefficient. The graph library we use doesn't let us get just the roots, so we pull in
 	// the full predecessor map, get all the ids with no outgoing edges, and then look up the vertex for each one
 	// of those.
@@ -376,13 +398,7 @@ func handleIncomingEdges[V any, O any](d *Directed[V], to string, generate func(
 			if edge.Target != to {
 				continue
 			}
-			if toV, err := d.underlying.Vertex(edge.Source); err == nil {
-				toAdd := generate(toV)
-				results = append(results, toAdd)
-			} else {
-				zap.S().With(zap.Error(err)).Errorf(
-					`Ignoring edge %v because I couldn't resolve the destination vertex. %s`, edge, ourFault)
-			}
+			results = append(results, generate(edge.Source))
 		}
 	}
 	return results
