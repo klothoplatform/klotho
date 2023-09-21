@@ -3,6 +3,7 @@ package construct
 import (
 	"testing"
 
+	orig_graph "github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/annotation"
 	"github.com/klothoplatform/klotho/pkg/graph"
 	"github.com/stretchr/testify/assert"
@@ -19,6 +20,8 @@ func (tc *TestConstruct) Id() ResourceId {
 		Name:     tc.Name,
 	}
 }
+
+var emptyProperties = orig_graph.EdgeProperties{Attributes: make(map[string]string)}
 
 func Test_AddConstruct(t *testing.T) {
 	assert := assert.New(t)
@@ -124,6 +127,7 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 				{
 					Source:      &TestConstruct{Name: "testkv"},
 					Destination: &TestConstruct{Name: "testeu"},
+					Properties:  emptyProperties,
 				},
 			},
 		},
@@ -138,10 +142,12 @@ func Test_GetDownstreamDependencies(t *testing.T) {
 				{
 					Source:      &TestConstruct{Name: "test"},
 					Destination: &TestConstruct{Name: "test1"},
+					Properties:  emptyProperties,
 				},
 				{
 					Source:      &TestConstruct{Name: "test"},
 					Destination: &TestConstruct{Name: "test2"},
+					Properties:  emptyProperties,
 				},
 			},
 		},
@@ -194,6 +200,7 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 				{
 					Source:      &TestConstruct{Name: "test1"},
 					Destination: &TestConstruct{Name: "test"},
+					Properties:  emptyProperties,
 				},
 			},
 		},
@@ -208,10 +215,12 @@ func Test_GetUpstreamDependencies(t *testing.T) {
 				{
 					Source:      &TestConstruct{Name: "test1"},
 					Destination: &TestConstruct{Name: "test"},
+					Properties:  emptyProperties,
 				},
 				{
 					Source:      &TestConstruct{Name: "test2"},
 					Destination: &TestConstruct{Name: "test"},
+					Properties:  emptyProperties,
 				},
 			},
 		},
