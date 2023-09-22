@@ -2,7 +2,6 @@ package construct2
 
 import (
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -41,8 +40,21 @@ func isIdLess(a, b ResourceId) bool {
 // ToplogicalSort provides a stable topological ordering of resource IDs.
 func ToplogicalSort(g Graph) ([]ResourceId, error) {
 	rids, err := graph.StableTopologicalSort(g, isIdLess)
-	if errors.Is(err, graph.ErrCycles) {
+	if err == nil {
+		return rids, nil
 	}
+	if !strings.Contains(err.Error(), "cycles") {
+		// kinda hacky, but we don't get a typed error for this case from the library
+		return nil, err
+	}
+	// Remove cycles by converting to a spanning tree, then do the sort again.
+	// This is a bit inefficient, so only do this if we couldn't get a topological sort
+	// off of the original graph.
+	mst, err := graph.MinimumSpanningTree(g)
+	if err != nil {
+		return nil, err
+	}
+	return graph.StableTopologicalSort(mst, isIdLess)
 }
 
 func reverseInplace[E any](a []E) {
