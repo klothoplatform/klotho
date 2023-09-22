@@ -24,7 +24,7 @@ type (
 	ApplicationConstraint struct {
 		Operator        ConstraintOperator   `yaml:"operator"`
 		Node            construct.ResourceId `yaml:"node"`
-		ReplacementNode construct.ResourceId `yaml:"replacement_node"`
+		ReplacementNode construct.ResourceId `yaml:"replacement_node,omitempty"`
 	}
 )
 

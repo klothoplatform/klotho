@@ -1,25 +1,26 @@
-package construct2
+package graphtest
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 func TestGraphToYAML(t *testing.T) {
-	makeGraph := func(elements ...any) Graph {
-		return MakeGraph(t, NewGraph(), elements...)
+	makeGraph := func(elements ...any) construct2.Graph {
+		return MakeGraph(t, construct2.NewGraph(), elements...)
 	}
 	tests := []struct {
 		name string
-		g    Graph
+		g    construct2.Graph
 		yml  string
 	}{
 		{
 			name: "empty graph",
-			g:    NewGraph(),
+			g:    construct2.NewGraph(),
 			yml: `resources:
 edges:`,
 		},
@@ -29,10 +30,10 @@ edges:`,
 				"p:t:a -> p:t:b",
 			),
 			yml: `resources:
-  p:t:a:
-  p:t:b:
+    p:t:a:
+    p:t:b:
 edges:
-  p:t:a -> p:t:b:`,
+    p:t:a -> p:t:b:`,
 		},
 		{
 			name: "graph with cycle (no roots)",
@@ -42,13 +43,13 @@ edges:
 				"p:t:c -> p:t:a",
 			),
 			yml: `resources:
-  p:t:a:
-  p:t:b:
-  p:t:c:
+    p:t:a:
+    p:t:b:
+    p:t:c:
 edges:
-  p:t:a -> p:t:b:
-  p:t:b -> p:t:c:
-  p:t:c -> p:t:a:`,
+    p:t:a -> p:t:b:
+    p:t:b -> p:t:c:
+    p:t:c -> p:t:a:`,
 		},
 		{
 			name: "graph with cycle (with root)",
@@ -58,13 +59,13 @@ edges:
 				"p:t:c -> p:t:b",
 			),
 			yml: `resources:
-  p:t:a:
-  p:t:b:
-  p:t:c:
+    p:t:a:
+    p:t:b:
+    p:t:c:
 edges:
-  p:t:a -> p:t:b:
-  p:t:b -> p:t:c:
-  p:t:c -> p:t:b:`,
+    p:t:a -> p:t:b:
+    p:t:b -> p:t:c:
+    p:t:c -> p:t:b:`,
 		},
 		{
 			name: "graph with cycle (predecessor count precedence)",
@@ -76,41 +77,40 @@ edges:
 				"p:t:d -> p:t:c", // c has 2 predecessors upon cycle (d and b)
 			),
 			yml: `resources:
-  p:t:a:
-  p:t:b:
-  p:t:c:
-  p:t:d:
+    p:t:a:
+    p:t:b:
+    p:t:c:
+    p:t:d:
 edges:
-  p:t:a -> p:t:b:
-  p:t:b -> p:t:c:
-  p:t:c -> p:t:b:
-  p:t:c -> p:t:d:
-  p:t:d -> p:t:c:`,
+    p:t:a -> p:t:b:
+    p:t:b -> p:t:c:
+    p:t:c -> p:t:b:
+    p:t:c -> p:t:d:
+    p:t:d -> p:t:c:`,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			w := &bytes.Buffer{}
-			err := GraphToYAML(tt.g, w)
+			b, err := yaml.Marshal(construct2.YamlGraph{Graph: tt.g})
 			if !assert.NoError(err) {
 				return
 			}
 
 			assert.Equal(
 				strings.TrimSpace(tt.yml),
-				strings.TrimSpace(w.String()),
+				strings.TrimSpace(string(b)),
 				"YAML diff",
 			)
 
-			g := NewGraph()
-			err = AddFromYAML(g, bytes.NewReader(w.Bytes()))
+			got := construct2.YamlGraph{Graph: construct2.NewGraph()}
+			err = yaml.Unmarshal(b, &got)
 			if !assert.NoError(err) {
 				return
 			}
 
-			AssertGraphEqual(t, tt.g, g)
+			AssertGraphEqual(t, tt.g, got.Graph)
 		})
 	}
 }
