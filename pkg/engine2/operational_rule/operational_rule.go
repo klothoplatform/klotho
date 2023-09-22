@@ -1,25 +1,23 @@
 package operational_rule
 
 import (
-	"github.com/klothoplatform/klotho/pkg/construct"
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"go.uber.org/zap"
 )
 
 type (
 	Graph interface {
-		ListResources() []construct.Resource
-		AddResource(resource construct.Resource)
-		RemoveResource(resource construct.Resource, explicit bool) error
-		AddDependency(from construct.Resource, to construct.Resource) error
-		RemoveDependency(from construct.ResourceId, to construct.ResourceId) error
-		GetResource(id construct.ResourceId) construct.Resource
-		GetFunctionalDownstreamResourcesOfType(resource construct.Resource, qualifiedType construct.ResourceId) []construct.Resource
-		GetFunctionalDownstreamResources(resource construct.Resource) []construct.Resource
-		GetFunctionalUpstreamResourcesOfType(resource construct.Resource, qualifiedType construct.ResourceId) []construct.Resource
-		GetFunctionalUpstreamResources(resource construct.Resource) []construct.Resource
-		ReplaceResourceId(oldId construct.ResourceId, resource construct.Resource) error
-		ConfigureResource(resource construct.Resource, configuration knowledgebase.Configuration, data knowledgebase.ConfigTemplateData) error
+		ListResources() ([]*construct.Resource, error)
+		RemoveResource(resource *construct.Resource, explicit bool) error
+		AddDependency(from, to *construct.Resource) error
+		RemoveDependency(from, to construct.ResourceId) error
+		GetResource(id construct.ResourceId) (*construct.Resource, error)
+		DownstreamOfType(resource *construct.Resource, layer int, qualifiedType string) ([]*construct.Resource, error)
+		Downstream(resource *construct.Resource, layer int) ([]*construct.Resource, error)
+		Upstream(resource *construct.Resource, layer int) ([]*construct.Resource, error)
+		ReplaceResourceId(oldId construct.ResourceId, resource *construct.Resource) error
+		ConfigureResource(resource *construct.Resource, configuration knowledgebase.Configuration, data knowledgebase.ConfigTemplateData) error
 	}
 
 	OperationalRuleContext struct {
@@ -27,8 +25,8 @@ type (
 		ConfigCtx            knowledgebase.ConfigTemplateContext
 		Data                 knowledgebase.ConfigTemplateData
 		Graph                Graph
-		KB                   *knowledgebase.KnowledgeBase
-		CreateResourcefromId func(id construct.ResourceId) construct.Resource
+		KB                   knowledgebase.TemplateKB
+		CreateResourcefromId func(id construct.ResourceId) *construct.Resource
 	}
 )
 

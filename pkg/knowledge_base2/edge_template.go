@@ -1,6 +1,6 @@
 package knowledgebase2
 
-import "github.com/klothoplatform/klotho/pkg/construct"
+import construct "github.com/klothoplatform/klotho/pkg/construct2"
 
 type (
 	EdgeTemplate struct {

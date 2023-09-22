@@ -54,6 +54,11 @@ func (id ResourceId) MarshalText() ([]byte, error) {
 	return []byte(id.String()), nil
 }
 
+// IsAbstractResource returns true if the resource is an abstract resource
+func (id ResourceId) IsAbstractResource() bool {
+	return id.Provider == "klotho"
+}
+
 // Matches uses `id` (the receiver) as a filter for `other` (the argument) and returns true if all the non-empty fields from
 // `id` match the corresponding fields in `other`.
 func (id ResourceId) Matches(other ResourceId) bool {

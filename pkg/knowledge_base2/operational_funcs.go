@@ -12,15 +12,15 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/graph"
+	"github.com/dominikbraun/graph"
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"go.uber.org/zap"
 )
 
 type (
 	// ConfigTemplateContext is used to scope the DAG into the template functions
 	ConfigTemplateContext struct {
-		DAG *construct.ResourceGraph
+		DAG construct.Graph
 
 		resultJson bool
 	}
@@ -131,7 +131,10 @@ func (ctx ConfigTemplateContext) ExecuteDecode(tmpl string, data ConfigTemplateD
 
 func (ctx *ConfigTemplateContext) ResolveConfig(config Configuration, data ConfigTemplateData) (Configuration, error) {
 	if cfgVal, ok := config.Value.(string); ok {
-		res := ctx.DAG.GetResource(data.Resource)
+		res, err := ctx.DAG.Vertex(data.Resource)
+		if err != nil {
+			return config, err
+		}
 
 		field := reflect.ValueOf(res).Elem().FieldByName(config.Field)
 		if !field.IsValid() {
@@ -140,7 +143,7 @@ func (ctx *ConfigTemplateContext) ResolveConfig(config Configuration, data Confi
 
 		valueRefl := reflect.New(field.Type())
 		value := valueRefl.Interface()
-		err := ctx.ExecuteDecode(cfgVal, data, value)
+		err = ctx.ExecuteDecode(cfgVal, data, value)
 		if err != nil {
 			return config, err
 		}
@@ -165,10 +168,10 @@ func (data ConfigTemplateData) Source() (construct.ResourceId, error) {
 }
 
 func (data ConfigTemplateData) Destination() (construct.ResourceId, error) {
-	if data.Edge.Destination.IsZero() {
+	if data.Edge.Target.IsZero() {
 		return construct.ResourceId{}, fmt.Errorf("no .Destination is set")
 	}
-	return data.Edge.Destination, nil
+	return data.Edge.Target, nil
 }
 
 // Log is primarily used for debugging templates and shouldn't actually appear in any.
@@ -179,7 +182,7 @@ func (data ConfigTemplateData) Log(level string, message string, args ...interfa
 		l = l.With(zap.String("resource", data.Resource.String()))
 	}
 	if !data.Edge.Source.IsZero() {
-		l = l.With(zap.String("edge", data.Edge.Source.String()+" -> "+data.Edge.Destination.String()))
+		l = l.With(zap.String("edge", data.Edge.Source.String()+" -> "+data.Edge.Target.String()))
 	}
 	switch strings.ToLower(level) {
 	case "debug":
@@ -202,7 +205,7 @@ func argToRID(arg any) (construct.ResourceId, error) {
 		return arg, nil
 
 	case construct.Resource:
-		return arg.Id(), nil
+		return arg.ID, nil
 
 	case string:
 		var resId construct.ResourceId
@@ -219,11 +222,17 @@ func (ctx *ConfigTemplateContext) Upstream(selector any, resource construct.Reso
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
-
-	upstream := ctx.DAG.GetAllUpstreamResources(ctx.DAG.GetResource(resource))
+	res, err := ctx.DAG.Vertex(resource)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
+	upstream, err := construct.AllUpstreamDependencies(ctx.DAG, res.ID)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
 	for _, up := range upstream {
-		if selId.Matches(up.Id()) {
-			return up.Id(), nil
+		if selId.Matches(up) {
+			return up, nil
 		}
 	}
 	return construct.ResourceId{},
@@ -237,12 +246,18 @@ func (ctx *ConfigTemplateContext) AllUpstream(selector any, resource construct.R
 	if err != nil {
 		return nil, err
 	}
-
+	res, err := ctx.DAG.Vertex(resource)
+	if err != nil {
+		return []construct.ResourceId{}, err
+	}
 	var matches []construct.ResourceId
-	upstream := ctx.DAG.GetAllUpstreamResources(ctx.DAG.GetResource(resource))
+	upstream, err := construct.AllUpstreamDependencies(ctx.DAG, res.ID)
+	if err != nil {
+		return []construct.ResourceId{}, err
+	}
 	for _, up := range upstream {
-		if selId.Matches(up.Id()) {
-			matches = append(matches, up.Id())
+		if selId.Matches(up) {
+			matches = append(matches, up)
 		}
 	}
 	return matches, nil
@@ -255,11 +270,17 @@ func (ctx *ConfigTemplateContext) Downstream(selector any, resource construct.Re
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
-
-	downstream := ctx.DAG.GetAllDownstreamResources(ctx.DAG.GetResource(resource))
-	for _, down := range downstream {
-		if selId.Matches(down.Id()) {
-			return down.Id(), nil
+	res, err := ctx.DAG.Vertex(resource)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
+	downstreamIds, err := construct.AllDownstreamDependencies(ctx.DAG, res.ID)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
+	for _, down := range downstreamIds {
+		if selId.Matches(down) {
+			return down, nil
 		}
 	}
 	return construct.ResourceId{},
@@ -273,12 +294,18 @@ func (ctx *ConfigTemplateContext) AllDownstream(selector any, resource construct
 	if err != nil {
 		return nil, err
 	}
-
+	res, err := ctx.DAG.Vertex(resource)
+	if err != nil {
+		return []construct.ResourceId{}, err
+	}
 	var matches []construct.ResourceId
-	downstream := ctx.DAG.GetAllDownstreamResources(ctx.DAG.GetResource(resource))
-	for _, down := range downstream {
-		if selId.Matches(down.Id()) {
-			matches = append(matches, down.Id())
+	downstreamIds, err := construct.AllDownstreamDependencies(ctx.DAG, res.ID)
+	if err != nil {
+		return []construct.ResourceId{}, err
+	}
+	for _, down := range downstreamIds {
+		if selId.Matches(down) {
+			matches = append(matches, down)
 		}
 	}
 	return matches, nil
@@ -294,13 +321,13 @@ func (ctx *ConfigTemplateContext) ShortestPath(source, destination any) ([]const
 	if err != nil {
 		return nil, err
 	}
-	path, err := ctx.DAG.ShortestPath(srcId, dstId)
+	path, err := graph.ShortestPath(ctx.DAG, srcId, dstId)
 	if err != nil {
 		return nil, err
 	}
 	pathIds := make([]construct.ResourceId, len(path))
 	for i, p := range path {
-		pathIds[i] = p.Id()
+		pathIds[i] = p
 	}
 	return pathIds, nil
 }
@@ -312,8 +339,8 @@ func (ctx *ConfigTemplateContext) FieldValue(field string, resource any) (any, e
 		return "", err
 	}
 
-	r := ctx.DAG.GetResource(resId)
-	if r == nil {
+	r, err := ctx.DAG.Vertex(resId)
+	if r == nil || err != nil {
 		return nil, fmt.Errorf("resource '%s' not found", resId)
 	}
 
@@ -325,15 +352,15 @@ func (ctx *ConfigTemplateContext) FieldValue(field string, resource any) (any, e
 }
 
 // FieldRef returns a reference to `field` on `resource` (as an IaCValue)
-func (ctx *ConfigTemplateContext) FieldRef(field string, resource any) (construct.IaCValue, error) {
+func (ctx *ConfigTemplateContext) FieldRef(field string, resource any) (construct.PropertyRef, error) {
 	resId, err := argToRID(resource)
 	if err != nil {
-		return construct.IaCValue{}, err
+		return construct.PropertyRef{}, err
 	}
 
-	return construct.IaCValue{
-		ResourceId: resId,
-		Property:   field,
+	return construct.PropertyRef{
+		Resource: resId,
+		Property: field,
 	}, nil
 }
 

@@ -5,11 +5,27 @@ import (
 	"sort"
 
 	"github.com/dominikbraun/graph"
-	"github.com/klothoplatform/klotho/pkg/construct"
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"go.uber.org/zap"
 )
 
 type (
+	TemplateKB interface {
+		ListResources() []*ResourceTemplate
+		AddResourceTemplate(template *ResourceTemplate) error
+		AddEdgeTemplate(template *EdgeTemplate) error
+		GetResourceTemplate(id construct.ResourceId) (*ResourceTemplate, error)
+		GetEdgeTemplate(from, to construct.ResourceId) *EdgeTemplate
+		HasDirectPath(from, to construct.ResourceId) bool
+		HasFunctionalPath(from, to construct.ResourceId) bool
+		AllPaths(from, to construct.ResourceId) ([][]*ResourceTemplate, error)
+		GetAllowedNamespacedResourceIds(ctx ConfigTemplateContext, resourceId construct.ResourceId) ([]construct.ResourceId, error)
+		GetFunctionality(id construct.ResourceId) Functionality
+		GetClassification(id construct.ResourceId) Classification
+		GetResourcesNamespaceResource(resource *construct.Resource) *construct.Resource
+		GetResourcePropertyType(resource *construct.Resource, propertyName string) string
+	}
+
 	// KnowledgeBase is a struct that represents the object which contains the knowledge of how to make resources operational
 	KnowledgeBase struct {
 		underlying graph.Graph[string, *ResourceTemplate]
@@ -100,7 +116,7 @@ PATHS:
 			if err != nil {
 				panic(err)
 			}
-			if template.getFunctionality() != construct.Unknown {
+			if template.getFunctionality() != Unknown {
 				continue PATHS
 			}
 		}
@@ -156,10 +172,10 @@ func (kb *KnowledgeBase) GetAllowedNamespacedResourceIds(ctx ConfigTemplateConte
 	return result, nil
 }
 
-func (kb *KnowledgeBase) GetFunctionality(id construct.ResourceId) construct.Functionality {
+func (kb *KnowledgeBase) GetFunctionality(id construct.ResourceId) Functionality {
 	template, _ := kb.GetResourceTemplate(id)
 	if template == nil {
-		return construct.Unknown
+		return Unknown
 	}
 	return template.getFunctionality()
 }
@@ -172,20 +188,20 @@ func (kb *KnowledgeBase) GetClassification(id construct.ResourceId) Classificati
 	return template.Classification
 }
 
-func (kb *KnowledgeBase) GetResourcesNamespaceResource(resource construct.Resource) construct.Resource {
-	template, err := kb.GetResourceTemplate(resource.Id())
+func (kb *KnowledgeBase) GetResourcesNamespaceResource(resource construct.Resource) *construct.Resource {
+	template, err := kb.GetResourceTemplate(resource.ID)
 	if err != nil {
 		return nil
 	}
 	namespaceProperty := template.GetNamespacedProperty()
 	if namespaceProperty != nil {
-		return reflect.ValueOf(resource).Elem().FieldByName(namespaceProperty.Name).Interface().(construct.Resource)
+		return reflect.ValueOf(resource).Elem().FieldByName(namespaceProperty.Name).Interface().(*construct.Resource)
 	}
 	return nil
 }
 
-func (kb *KnowledgeBase) GetResourcePropertyType(resource construct.Resource, propertyName string) string {
-	template, err := kb.GetResourceTemplate(resource.Id())
+func (kb *KnowledgeBase) GetResourcePropertyType(resource *construct.Resource, propertyName string) string {
+	template, err := kb.GetResourceTemplate(resource.ID)
 	if err != nil {
 		return ""
 	}

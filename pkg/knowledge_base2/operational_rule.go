@@ -3,7 +3,7 @@ package knowledgebase2
 import (
 	"errors"
 
-	"github.com/klothoplatform/klotho/pkg/construct"
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
 )
 
 type (

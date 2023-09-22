@@ -11,7 +11,7 @@ func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.C
 	if err != nil {
 		return err
 	}
-	resource := ctx.Graph.GetResource(res)
+	resource, _ := ctx.Graph.GetResource(res)
 	if resource == nil {
 		return fmt.Errorf("resource %s not found", res)
 	}

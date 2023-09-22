@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/construct"
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -25,7 +25,7 @@ var resourceIdType = reflect.TypeOf(construct.ResourceId{})
 // ConfigureField is a function that takes a resource, a field name, and a value and sets the field on the resource to the value
 // It also takes a graph so that it can resolve references
 // It returns an error if the field cannot be set
-func ConfigureField(resource construct.Resource, fieldName string, value interface{}, zeroValueAllowed bool, graph *construct.ResourceGraph) error {
+func ConfigureField(resource *construct.Resource, fieldName string, value interface{}, zeroValueAllowed bool, graph construct.Graph) error {
 	field, setMapKey, err := parseFieldName(resource, fieldName, graph, true)
 	if err != nil {
 		return err
@@ -72,7 +72,7 @@ func ConfigureField(resource construct.Resource, fieldName string, value interfa
 	return nil
 }
 
-func configureField(val interface{}, field reflect.Value, dag *construct.ResourceGraph, zeroValueAllowed bool) error {
+func configureField(val interface{}, field reflect.Value, dag construct.Graph, zeroValueAllowed bool) error {
 	if !reflect.ValueOf(val).IsValid() {
 		return nil
 	} else if reflect.ValueOf(val).IsZero() {
@@ -89,7 +89,11 @@ func configureField(val interface{}, field reflect.Value, dag *construct.Resourc
 			res := getFieldFromIdString(val.(string), dag)
 			// if the return type is a resource id we need to get the correlating resource object
 			if id, ok := res.(construct.ResourceId); ok {
-				res = dag.GetResource(id)
+				var err error
+				res, err = dag.Vertex(id)
+				if err != nil {
+					return err
+				}
 			}
 			if res == nil && !zeroValueAllowed {
 				return fmt.Errorf("resource %s does not exist in the graph", val)
@@ -103,7 +107,11 @@ func configureField(val interface{}, field reflect.Value, dag *construct.Resourc
 			res := getFieldFromIdString(id.String(), dag)
 			// if the return type is a resource id we need to get the correlating resource object
 			if id, ok := res.(construct.ResourceId); ok {
-				res = dag.GetResource(id)
+				var err error
+				res, err = dag.Vertex(id)
+				if err != nil {
+					return err
+				}
 			}
 			if res == nil && !zeroValueAllowed {
 				return fmt.Errorf("resource %s does not exist in the graph", id)
@@ -263,14 +271,17 @@ func getIdAndFields(id construct.ResourceId) (construct.ResourceId, string) {
 	return *resId, arr[1]
 }
 
-func getFieldFromIdString(id string, dag *construct.ResourceGraph) any {
+func getFieldFromIdString(id string, dag construct.Graph) any {
 	arr := strings.Split(id, "#")
 	var resId construct.ResourceId
 	err := resId.UnmarshalText([]byte(arr[0]))
 	if err != nil {
 		return nil
 	}
-	res := dag.GetResource(resId)
+	res, err := dag.Vertex(resId)
+	if err != nil {
+		return err
+	}
 	if res == nil {
 		return nil
 	}
@@ -320,7 +331,7 @@ func GetFieldByName(s reflect.Value, fieldName string) (reflect.StructField, err
 // Example: "spec.template.spec.containers[0].image" will return the value of the image field of the first container in the template
 //
 // if you pass in configure as false, then the function will not create any new fields if they are nil and rather will return an empty reflect value
-func parseFieldName(resource construct.Resource, fieldName string, dag *construct.ResourceGraph, configure bool) (reflect.Value, *SetMapKey, error) {
+func parseFieldName(resource *construct.Resource, fieldName string, dag construct.Graph, configure bool) (reflect.Value, *SetMapKey, error) {
 	fields := strings.Split(fieldName, ".")
 	var field reflect.Value
 	var setMapKey *SetMapKey

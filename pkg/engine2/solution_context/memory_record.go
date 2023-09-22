@@ -1,7 +1,7 @@
 package solution_context
 
 type (
-	memoryRecord struct {
+	MemoryRecord struct {
 		records []record
 	}
 
@@ -11,6 +11,6 @@ type (
 	}
 )
 
-func (m *memoryRecord) AddRecord(context []KV, decision SolveDecision) {
+func (m *MemoryRecord) AddRecord(context []KV, decision SolveDecision) {
 	m.records = append(m.records, record{context: context, decision: decision})
 }

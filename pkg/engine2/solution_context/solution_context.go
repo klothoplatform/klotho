@@ -2,46 +2,31 @@ package solution_context
 
 import (
 	"fmt"
+	"reflect"
 
-	"github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/constraints"
+	"github.com/dominikbraun/graph"
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	constructexpansion "github.com/klothoplatform/klotho/pkg/engine2/construct_expansion"
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
-	"github.com/klothoplatform/klotho/pkg/graph"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
 type (
 	SolutionContext struct {
-		dataflowGraph        *construct.ResourceGraph
-		deploymentGraph      *construct.ResourceGraph
+		dataflowGraph        construct.Graph
+		deploymentGraph      construct.Graph
 		decisions            DecisionRecords
 		stack                []KV
-		kb                   *knowledgebase.KnowledgeBase
-		CreateResourcefromId func(id construct.ResourceId) construct.Resource
+		kb                   knowledgebase.TemplateKB
+		mappedResources      map[construct.ResourceId]construct.ResourceId
+		CreateResourcefromId func(id construct.ResourceId) *construct.Resource
 		EdgeConstraints      []constraints.EdgeConstraint
 		ResourceConstraints  []constraints.ResourceConstraint
+		ConstructConstraints []constraints.ConstructConstraint
 	}
-
-	KV struct {
-		key   string
-		value any
-	}
-
-	DecisionRecords interface {
-		// AddRecord stores each decision (the what) with the context (the why) in some datastore
-		AddRecord(context []KV, decision SolveDecision)
-		// FindDecision(decision SolveDecision) []KV
-		// FindContext(context KV) []SolveDecision
-	}
-
-	SolveDecision interface {
-		// having a private method here prevents other packages from implementing this interface
-		// not necessary, but could prevent some accidental bad practices from emerging
-		internal()
-	}
-
 	AddResourceDecision struct {
 		Resource construct.ResourceId
 	}
@@ -69,16 +54,53 @@ type (
 
 func NewSolutionContext() SolutionContext {
 	return SolutionContext{
-		dataflowGraph:   construct.NewResourceGraph(),
-		deploymentGraph: construct.NewAcyclicResourceGraph(),
-		decisions:       &memoryRecord{},
+		dataflowGraph:   construct.NewGraph(),
+		deploymentGraph: construct.NewAcyclicGraph(),
+		decisions:       &MemoryRecord{},
 	}
 }
 
+func (ctx SolutionContext) LoadGraph(graph construct.Graph) error {
+	err := construct.WalkGraph(graph, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+		if nerr != nil {
+			return nerr
+		}
+		ctx.addResource(resource, false)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	edges, err := graph.Edges()
+	if err != nil {
+		return err
+	}
+	for _, edge := range edges {
+		src, err := graph.Vertex(edge.Source)
+		if err != nil {
+			return err
+		}
+		target, err := graph.Vertex(edge.Target)
+		if err != nil {
+			return err
+		}
+		ctx.addDependency(src, target, false)
+	}
+	return nil
+}
+
 func (c SolutionContext) Clone() SolutionContext {
+	dfClone, err := c.dataflowGraph.Clone()
+	if err != nil {
+		panic(err)
+	}
+	deployClone, err := c.deploymentGraph.Clone()
+	if err != nil {
+		panic(err)
+	}
 	return SolutionContext{
-		dataflowGraph:   c.dataflowGraph.Clone(),
-		deploymentGraph: c.deploymentGraph.Clone(),
+		dataflowGraph:   dfClone,
+		deploymentGraph: deployClone,
 		decisions:       c.decisions,
 	}
 }
@@ -102,13 +124,47 @@ func (c SolutionContext) RecordDecision(d SolveDecision) {
 	c.decisions.AddRecord(c.stack, d)
 }
 
-func (ctx SolutionContext) nodeMakeOperational(r construct.Resource) {
+func (ctx SolutionContext) Solve() error {
+	err := construct.WalkGraph(ctx.dataflowGraph, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+		if nerr != nil {
+			return nerr
+		}
+		err := ctx.nodeMakeOperational(resource)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	edges, err := ctx.dataflowGraph.Edges()
+	if err != nil {
+		return err
+	}
+	for _, dep := range edges {
+		err := ctx.edgeMakeOperational(dep)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ctx SolutionContext) GetConstructsResource(constructId construct.ResourceId) *construct.Resource {
+	res, _ := ctx.GetResource(ctx.mappedResources[constructId])
+	return res
+}
+
+func (ctx SolutionContext) nodeMakeOperational(r *construct.Resource) error {
 
 	ctx = ctx.With("resource", r) // add the resource to the context stack
 
 	// handle resource constraints before to prevent unnecessary actions
 
-	template, err := ctx.kb.GetResourceTemplate(r.Id())
+	template, err := ctx.kb.GetResourceTemplate(r.ID)
 	if err != nil {
 		panic(err)
 	}
@@ -119,23 +175,27 @@ func (ctx SolutionContext) nodeMakeOperational(r construct.Resource) {
 		ruleCtx := operational_rule.OperationalRuleContext{
 			Property:             &property,
 			ConfigCtx:            knowledgebase.ConfigTemplateContext{DAG: ctx.dataflowGraph},
-			Data:                 knowledgebase.ConfigTemplateData{Resource: r.Id()},
+			Data:                 knowledgebase.ConfigTemplateData{Resource: r.ID},
 			Graph:                ctx,
 			KB:                   ctx.kb,
 			CreateResourcefromId: ctx.CreateResourcefromId,
 		}
-		ruleCtx.HandleOperationalStep(*property.OperationalStep)
+		err := ruleCtx.HandleOperationalStep(*property.OperationalStep)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (ctx SolutionContext) edgeMakeOperational(e graph.Edge[construct.Resource]) error {
+func (ctx SolutionContext) edgeMakeOperational(e graph.Edge[construct.ResourceId]) error {
 	ctx = ctx.With("edge", e) // add the edge info to the decision context stack
 
-	template := ctx.kb.GetEdgeTemplate(e.Source.Id(), e.Destination.Id())
+	template := ctx.kb.GetEdgeTemplate(e.Source, e.Target)
 	for _, rule := range template.OperationalRules {
 		ruleCtx := operational_rule.OperationalRuleContext{
 			ConfigCtx:            knowledgebase.ConfigTemplateContext{DAG: ctx.dataflowGraph},
-			Data:                 knowledgebase.ConfigTemplateData{Edge: graph.Edge[construct.ResourceId]{Source: e.Source.Id(), Destination: e.Destination.Id()}},
+			Data:                 knowledgebase.ConfigTemplateData{Edge: e},
 			Graph:                ctx,
 			KB:                   ctx.kb,
 			CreateResourcefromId: ctx.CreateResourcefromId,
@@ -148,35 +208,52 @@ func (ctx SolutionContext) edgeMakeOperational(e graph.Edge[construct.Resource])
 	return nil
 }
 
-func (ctx SolutionContext) addPath(from, to construct.Resource) error {
-	dep := ctx.dataflowGraph.GetDependency(from.Id(), to.Id())
+func (ctx SolutionContext) addPath(from, to *construct.Resource) error {
+	dep, err := ctx.dataflowGraph.Edge(from.ID, to.ID)
+	if err != nil {
+		return err
+	}
 	ctx.With("edge", dep)
 	pathCtx := path_selection.PathSelectionContext{
-		Graph:                ctx.dataflowGraph,
+		Graph:                ctx,
 		KB:                   ctx.kb,
 		CreateResourcefromId: ctx.CreateResourcefromId,
 	}
 
 	// Find any edge constraints around path selection
+	edgeData := path_selection.EdgeData{}
+	for _, constraint := range ctx.EdgeConstraints {
+		if constraint.Target.Source == from.ID && constraint.Target.Target == to.ID {
+			if constraint.Operator == constraints.MustContainConstraintOperator {
+				edgeData.Constraint.NodeMustExist = append(edgeData.Constraint.NodeMustExist, *ctx.CreateResourcefromId(constraint.Node))
+			} else if constraint.Operator == constraints.MustNotContainConstraintOperator {
+				edgeData.Constraint.NodeMustNotExist = append(edgeData.Constraint.NodeMustNotExist, *ctx.CreateResourcefromId(constraint.Node))
+			} else if constraint.Operator == constraints.EqualsConstraintOperator {
+				for key, val := range constraint.Attributes {
+					edgeData.Attributes[key] = val
+				}
+			}
+		}
+	}
 
-	edges, err := pathCtx.SelectPath(*dep)
+	edges, err := pathCtx.SelectPath(dep, edgeData)
 	if err != nil {
 		return err
 	}
 	if len(edges) == 1 {
-		err := ctx.edgeMakeOperational(edges[0])
+		err := ctx.edgeMakeOperational(graph.Edge[construct.ResourceId]{Source: from.ID, Target: to.ID})
 		if err != nil {
 			return err
 		}
 		return nil
 	} else {
-		err := ctx.RemoveDependency(from.Id(), to.Id())
+		err := ctx.RemoveDependency(from.ID, to.ID)
 		if err != nil {
 			return err
 		}
 	}
 	for _, edge := range edges {
-		err := ctx.edgeMakeOperational(edge)
+		err := ctx.edgeMakeOperational(graph.Edge[construct.ResourceId]{Source: edge.Source.ID, Target: edge.Target.ID})
 		if err != nil {
 			return err
 		}
@@ -184,7 +261,7 @@ func (ctx SolutionContext) addPath(from, to construct.Resource) error {
 	return nil
 }
 
-func (ctx SolutionContext) ConfigureResource(resource construct.Resource, configuration knowledgebase.Configuration, data knowledgebase.ConfigTemplateData) error {
+func (ctx SolutionContext) ConfigureResource(resource *construct.Resource, configuration knowledgebase.Configuration, data knowledgebase.ConfigTemplateData) error {
 	if resource == nil {
 		return fmt.Errorf("resource does not exist")
 	}
@@ -205,13 +282,7 @@ func (ctx SolutionContext) ConfigureResource(resource construct.Resource, config
 	return nil
 }
 
-func (d AddResourceDecision) internal()      {}
-func (d AddDependencyDecision) internal()    {}
-func (d RemoveResourceDecision) internal()   {}
-func (d RemoveDependencyDecision) internal() {}
-func (d SetPropertyDecision) internal()      {}
-
-func (ctx SolutionContext) ExpandConstruct(resource construct.Resource, constraints []constraints.ConstructConstraint) ([]SolutionContext, error) {
+func (ctx SolutionContext) ExpandConstruct(resource *construct.Resource, constraints []constraints.ConstructConstraint) ([]SolutionContext, error) {
 	expCtx := constructexpansion.ConstructExpansionContext{
 		Construct:            resource,
 		Kb:                   ctx.kb,
@@ -226,32 +297,26 @@ func (ctx SolutionContext) ExpandConstruct(resource construct.Resource, constrai
 		newCtx := ctx.Clone()
 		newCtx.With("construct", resource)
 		for _, edge := range solution.Edges {
-			newCtx.AddDependency(edge.Source, edge.Destination)
+			newCtx.AddDependency(&edge.Source, &edge.Target)
 		}
-		newCtx.ReplaceResourceId(resource.Id(), solution.DirectlyMappedResource)
+		res, err := newCtx.GetResource(solution.DirectlyMappedResource)
+		if err != nil {
+			return nil, err
+		}
+		newCtx.ReplaceResourceId(resource.ID, res)
 		result = append(result, newCtx)
 	}
 	return result, nil
 }
 
-func GenerateContexts(
-	kb *knowledgebase.KnowledgeBase,
-	graph *construct.ResourceGraph,
-	CreateResourceFromId func(id construct.ResourceId) construct.Resource) ([]SolutionContext, error) {
-
-	ctx := NewSolutionContext()
-	ctx.kb = kb
-
-	for _, res := range graph.ListResources() {
-		ctx.AddResource(res)
-	}
-	for _, res := range graph.ListDependencies() {
-		ctx.AddDependency(res.Source, res.Destination)
-	}
-
+func (ctx SolutionContext) GenerateCombinations() ([]SolutionContext, error) {
 	solutions := []SolutionContext{ctx}
-	for _, res := range graph.ListResources() {
-		if res.Id().Provider == construct.AbstractConstructProvider {
+	resources, err := ctx.ListResources()
+	if err != nil {
+		return nil, err
+	}
+	for _, res := range resources {
+		if res.ID.IsAbstractResource() {
 			newSolutions := []SolutionContext{}
 			for _, sol := range solutions {
 				ctxs, err := sol.ExpandConstruct(res, []constraints.ConstructConstraint{})
@@ -264,4 +329,84 @@ func GenerateContexts(
 		}
 	}
 	return solutions, nil
+}
+
+func (ctx SolutionContext) GetClassification(resource construct.ResourceId) knowledgebase.Classification {
+	return ctx.kb.GetClassification(resource)
+}
+
+func (ctx SolutionContext) GetFunctionality(resource construct.ResourceId) knowledgebase.Functionality {
+	return ctx.kb.GetFunctionality(resource)
+}
+
+func (d AddResourceDecision) internal()      {}
+func (d AddDependencyDecision) internal()    {}
+func (d RemoveResourceDecision) internal()   {}
+func (d RemoveDependencyDecision) internal() {}
+func (d SetPropertyDecision) internal()      {}
+
+func (ctx SolutionContext) isOperationalResourceSideEffect(resource, sideEffect *construct.Resource) bool {
+	template, err := ctx.kb.GetResourceTemplate(resource.ID)
+	if template == nil || err != nil {
+		return false
+	}
+	for _, property := range template.Properties {
+		ruleSatisfied := false
+		if property.OperationalStep == nil {
+			continue
+		}
+		rule := property.OperationalStep
+		if rule.Resources != nil {
+			resources, types, err := property.OperationalStep.ExtractResourcesAndTypes(knowledgebase.ConfigTemplateContext{DAG: ctx.dataflowGraph}, knowledgebase.ConfigTemplateData{Resource: resource.ID})
+			if err != nil {
+				continue
+			}
+			if collectionutil.Contains(types, construct.ResourceId{Provider: sideEffect.ID.Provider, Type: sideEffect.ID.Type}) {
+				ruleSatisfied = true
+			}
+			if collectionutil.Contains(resources, sideEffect.ID) {
+				ruleSatisfied = true
+			}
+		}
+		if rule.Classifications != nil {
+			if template.ResourceContainsClassifications(rule.Classifications) {
+				ruleSatisfied = true
+			}
+		}
+
+		// If the side effect resource fits the rule we then perform 2 more checks
+		// 1. is there a path in the direction of the rule
+		// 2. Is the property set with the resource that we are checking for
+		if ruleSatisfied {
+			if rule.Direction == knowledgebase.Upstream {
+				resources, err := graph.ShortestPath(ctx.dataflowGraph, sideEffect.ID, resource.ID)
+				if len(resources) == 0 || err != nil {
+					continue
+				}
+			} else {
+				resources, err := graph.ShortestPath(ctx.dataflowGraph, resource.ID, sideEffect.ID)
+				if len(resources) == 0 || err != nil {
+					continue
+				}
+			}
+
+			val, _, err := parseFieldName(resource, property.Name, ctx.dataflowGraph, false)
+			if err != nil {
+				return false
+			}
+			if val.Kind() == reflect.Array || val.Kind() == reflect.Slice {
+				for i := 0; i < val.Len(); i++ {
+					if val.Index(i).Interface().(construct.Resource).ID == sideEffect.ID {
+						return true
+					}
+				}
+			} else {
+				if val.Interface().(*construct.Resource).ID == sideEffect.ID {
+					return true
+				}
+			}
+
+		}
+	}
+	return false
 }

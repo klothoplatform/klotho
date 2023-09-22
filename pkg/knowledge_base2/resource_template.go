@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
-	"github.com/klothoplatform/klotho/pkg/construct"
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
 )
 
 type (
@@ -17,7 +17,7 @@ type (
 		Classification Classification `json:"classification" yaml:"classification"`
 
 		// DeleteContext defines the context in which a resource can be deleted
-		DeleteContext construct.DeleteContext `json:"delete_context" yaml:"delete_context"`
+		DeleteContext DeleteContext `json:"delete_context" yaml:"delete_context"`
 		// Views defines the views that the resource should be added to as a distinct node
 		Views map[string]string `json:"views" yaml:"views"`
 	}
@@ -45,6 +45,29 @@ type (
 		Attribute     string
 		Functionality []string
 	}
+
+	// DeleteContext is supposed to tell us when we are able to delete a resource based on its dependencies
+	DeleteContext struct {
+		// RequiresNoUpstream is a boolean that tells us if deletion relies on there being no upstream resources
+		RequiresNoUpstream bool `yaml:"requires_no_upstream" toml:"requires_no_upstream"`
+		// RequiresNoDownstream is a boolean that tells us if deletion relies on there being no downstream resources
+		RequiresNoDownstream bool `yaml:"requires_no_downstream" toml:"requires_no_downstream"`
+		// RequiresExplicitDelete is a boolean that tells us if deletion relies on the resource being explicitly deleted
+		RequiresExplicitDelete bool `yaml:"requires_explicit_delete" toml:"requires_explicit_delete"`
+		// RequiresNoUpstreamOrDownstream is a boolean that tells us if deletion relies on there being no upstream or downstream resources
+		RequiresNoUpstreamOrDownstream bool `yaml:"requires_no_upstream_or_downstream" toml:"requires_no_upstream_or_downstream"`
+	}
+
+	Functionality string
+)
+
+const (
+	Compute   Functionality = "compute"
+	Cluster   Functionality = "cluster"
+	Storage   Functionality = "storage"
+	Api       Functionality = "api"
+	Messaging Functionality = "messaging"
+	Unknown   Functionality = "Unknown"
 )
 
 func (g *Gives) UnmarshalJSON(content []byte) error {
@@ -70,7 +93,7 @@ func (template ResourceTemplate) Id() construct.ResourceId {
 	}
 }
 
-func (template ResourceTemplate) GivesAttributeForFunctionality(attribute string, functionality construct.Functionality) bool {
+func (template ResourceTemplate) GivesAttributeForFunctionality(attribute string, functionality Functionality) bool {
 	for _, give := range template.Classification.Gives {
 		if give.Attribute == attribute && (collectionutil.Contains(give.Functionality, string(functionality)) || collectionutil.Contains(give.Functionality, "*")) {
 			return true
@@ -79,34 +102,34 @@ func (template ResourceTemplate) GivesAttributeForFunctionality(attribute string
 	return false
 }
 
-func (template ResourceTemplate) getFunctionality() construct.Functionality {
+func (template ResourceTemplate) getFunctionality() Functionality {
 	if len(template.Classification.Is) == 0 {
-		return construct.Unknown
+		return Unknown
 	}
-	var functionality construct.Functionality
+	var functionality Functionality
 	for _, c := range template.Classification.Is {
 		matched := true
 		alreadySet := functionality != ""
 		switch c {
 		case "compute":
-			functionality = construct.Compute
+			functionality = Compute
 		case "cluster":
-			functionality = construct.Cluster
+			functionality = Cluster
 		case "storage":
-			functionality = construct.Storage
+			functionality = Storage
 		case "api":
-			functionality = construct.Api
+			functionality = Api
 		case "messaging":
-			functionality = construct.Messaging
+			functionality = Messaging
 		default:
 			matched = false
 		}
 		if matched && alreadySet {
-			return construct.Unknown
+			return Unknown
 		}
 	}
 	if functionality == "" {
-		return construct.Unknown
+		return Unknown
 	}
 	return functionality
 }
