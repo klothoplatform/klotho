@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dominikbraun/graph"
 	"gopkg.in/yaml.v3"
 )
 
@@ -16,19 +15,20 @@ type ioEdge struct {
 	Target ResourceId
 }
 
-func (e ioEdge) MarshalYAML() (interface{}, error) {
-	return fmt.Sprintf("%s -> %s", e.Source, e.Target), nil
+func (e ioEdge) String() string {
+	return fmt.Sprintf("%s -> %s", e.Source, e.Target)
 }
 
-func (e *ioEdge) UnmarshalYAML(n *yaml.Node) error {
-	var s string
-	if err := n.Decode(&s); err != nil {
-		return err
-	}
+func (e ioEdge) MarshalText() (string, error) {
+	return e.String(), nil
+}
 
-	source, target, found := strings.Cut(s, "->")
+func (e *ioEdge) UnmarshalText(data []byte) error {
+	s := string(data)
+
+	source, target, found := strings.Cut(s, " -> ")
 	if !found {
-		target, source, found = strings.Cut(s, "<-")
+		target, source, found = strings.Cut(s, " <- ")
 		if !found {
 			return errors.New("invalid edge format, expected either `source -> target` or `target <- source`")
 		}
@@ -41,12 +41,7 @@ func (e *ioEdge) UnmarshalYAML(n *yaml.Node) error {
 
 // GraphToYAML renders the graph `g` as YAML to `w`.
 func GraphToYAML(g Graph, w io.Writer) (errs error) {
-	// Use a spanning tree to remove cycles
-	tree, err := graph.MinimumSpanningTree(g)
-	if err != nil {
-		return err
-	}
-	topo, err := ToplogicalSort(tree)
+	topo, err := ToplogicalSort(g)
 	if err != nil {
 		return err
 	}
@@ -91,44 +86,41 @@ func GraphToYAML(g Graph, w io.Writer) (errs error) {
 	}
 
 	writeln("edges:")
-	for _, rid := range topo {
-		targets := make([]ResourceId, 0, len(adj[rid]))
-		for t := range adj[rid] {
+	for _, source := range topo {
+		targets := make([]ResourceId, 0, len(adj[source]))
+		for t := range adj[source] {
 			targets = append(targets, t)
 		}
-		sort.Slice(targets, func(i, j int) bool {
-			return isIdLess(targets[i], targets[j])
-		})
-		for _, e := range adj[rid] {
-			writeln("  %s -> %s", e.Source, e.Target)
+		sort.Sort(sortedIds(targets))
+		for _, target := range targets {
+			writeln("  %s -> %s:", source, target)
 		}
 	}
 
 	return
 }
 
-func GraphFromYAML(r io.Reader) (Graph, error) {
+func AddFromYAML(g Graph, r io.Reader) error {
 	type graph struct {
-		resouces map[ResourceId]Properties
-		edges    map[ioEdge]struct{}
+		Resouces map[ResourceId]Properties `yaml:"resources"`
+		Edges    map[ioEdge]struct{}       `yaml:"edges"`
 	}
 	var y graph
 	if err := yaml.NewDecoder(r).Decode(&y); err != nil {
-		return nil, err
+		return err
 	}
 
-	g := NewGraph()
 	var errs error
-	for rid, props := range y.resouces {
+	for rid, props := range y.Resouces {
 		err := g.AddVertex(&Resource{
 			ID:         rid,
 			Properties: props,
 		})
 		errs = errors.Join(errs, err)
 	}
-	for e := range y.edges {
+	for e := range y.Edges {
 		err := g.AddEdge(e.Source, e.Target)
 		errs = errors.Join(errs, err)
 	}
-	return g, errs
+	return errs
 }
