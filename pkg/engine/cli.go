@@ -200,7 +200,16 @@ func (em *EngineMain) ListResourceTypes(cmd *cobra.Command, args []string) error
 		return err
 	}
 	resourceTypes := em.Engine.ListResourcesByType()
-	fmt.Println(strings.Join(resourceTypes, "\n"))
+	typeAndClassifications := map[string][]string{}
+	for _, resourceType := range resourceTypes {
+		classifications := em.Engine.ClassificationDocument.Classifications[resourceType]
+		typeAndClassifications[resourceType] = classifications.Is
+	}
+	b, err := json.Marshal(typeAndClassifications)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(b))
 	return nil
 }
 
