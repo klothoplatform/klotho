@@ -14,9 +14,12 @@ func (s sortedIds) Len() int {
 	return len(s)
 }
 
-func (s sortedIds) Less(i, j int) bool {
-	a, b := s[i], s[j]
+func ResourceIdLess(a, b ResourceId) bool {
 	return a.Provider < b.Provider || a.Type < b.Type || a.Namespace < b.Namespace || a.Name < b.Name
+}
+
+func (s sortedIds) Less(i, j int) bool {
+	return ResourceIdLess(s[i], s[j])
 }
 
 func (s sortedIds) Swap(i, j int) {

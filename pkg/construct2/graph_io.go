@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/yaml_util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -40,49 +41,25 @@ func (g YamlGraph) MarshalYAML() (interface{}, error) {
 		Kind: yaml.MappingNode,
 	}
 	for _, rid := range topo {
-		resources.Content = append(resources.Content, &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: rid.String(),
-		})
-
 		r, err := g.Graph.Vertex(rid)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
 		}
 
-		if len(r.Properties) == 0 {
-			resources.Content = append(resources.Content, nullNode)
+		props, err := yaml_util.MarshalMap(r.Properties, func(a, b string) bool { return a < b })
+		if err != nil {
+			errs = errors.Join(errs, err)
 			continue
 		}
 
-		// Sort the keys so the output is in a stable, consistent order
-		propKeys := make([]string, 0, len(r.Properties))
-		for k := range r.Properties {
-			propKeys = append(propKeys, k)
-		}
-		sort.Strings(propKeys)
-
-		props := &yaml.Node{
-			Kind: yaml.MappingNode,
-		}
-		for _, k := range propKeys {
-			v := r.Properties[k]
-			var valueNode yaml.Node
-			if err := valueNode.Encode(v); err != nil {
-				errs = errors.Join(errs, err)
-				continue
-			}
-			props.Content = append(
-				props.Content,
-				&yaml.Node{
-					Kind:  yaml.ScalarNode,
-					Value: k,
-				},
-				&valueNode,
-			)
-		}
-		resources.Content = append(resources.Content, props)
+		resources.Content = append(resources.Content,
+			&yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Value: rid.String(),
+			},
+			props,
+		)
 	}
 	if len(resources.Content) == 0 {
 		resources = nullNode
