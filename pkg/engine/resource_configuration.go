@@ -154,6 +154,8 @@ func (e *Engine) configureResource(context *SolveContext, r construct.Resource) 
 }
 
 var resourceIdType = reflect.TypeOf(construct.ResourceId{})
+var iacValueType = reflect.TypeOf(construct.IaCValue{})
+var resourceType = reflect.TypeOf((*construct.Resource)(nil)).Elem()
 
 // ConfigureField is a function that takes a resource, a field name, and a value and sets the field on the resource to the value
 // It also takes a graph so that it can resolve references
@@ -167,10 +169,12 @@ func ConfigureField(resource construct.Resource, fieldName string, value interfa
 		field = reflect.New(field.Type()).Elem()
 		setMapKey.Value = field
 	}
+	valueRefl := reflect.ValueOf(value)
+	valueType := valueRefl.Type()
 	switch field.Kind() {
 	case reflect.Slice, reflect.Array:
-		if reflect.ValueOf(value).Kind() != reflect.Slice {
-			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be a list, but got %s", fieldName, resource.Id(), reflect.TypeOf(value))
+		if valueRefl.Kind() != reflect.Slice {
+			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be a list, but got %s", fieldName, resource.Id(), valueType)
 		}
 		err := configureField(value, field, graph, zeroValueAllowed)
 		if err != nil {
@@ -179,19 +183,24 @@ func ConfigureField(resource construct.Resource, fieldName string, value interfa
 	case reflect.Pointer, reflect.Struct:
 		// Since there can be pointers to primitive types and others, we will ensure that those still work
 		if field.Kind() == reflect.Pointer && field.Elem().Kind() != reflect.Struct {
-			if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value) == resourceIdType {
-				return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.Id(), field.Type(), reflect.TypeOf(value))
+			if valueType != field.Type() && valueType == resourceIdType {
+				return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.Id(), field.Type(), valueType)
 			}
-		} else if reflect.ValueOf(value).Kind() != reflect.Map && !field.Type().Implements(reflect.TypeOf((*construct.Resource)(nil)).Elem()) && field.Type() != reflect.TypeOf(construct.ResourceId{}) {
-			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be a map, but got %s", fieldName, resource.Id(), reflect.TypeOf(value))
+		} else if valueRefl.Kind() != reflect.Map {
+			switch {
+			case field.Type().Implements(resourceType):
+			case field.Type() == resourceIdType || field.Type() == iacValueType:
+			default:
+				return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be a map, but got %s", fieldName, resource.Id(), valueType)
+			}
 		}
 		err := configureField(value, field, graph, zeroValueAllowed)
 		if err != nil {
 			return err
 		}
 	default:
-		if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value) == resourceIdType {
-			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.Id(), field.Type(), reflect.TypeOf(value))
+		if valueType != field.Type() && valueType == resourceIdType {
+			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.Id(), field.Type(), valueType)
 		}
 		err := configureField(value, field, graph, zeroValueAllowed)
 		if err != nil {
@@ -215,10 +224,17 @@ func configureField(val interface{}, field reflect.Value, dag *construct.Resourc
 	if field.Kind() == reflect.Ptr && field.IsNil() {
 		field.Set(reflect.New(reflect.TypeOf(field.Interface()).Elem()))
 	}
+
+	valueRefl := reflect.ValueOf(val)
+	if valueRefl.Type().AssignableTo(field.Type()) {
+		field.Set(valueRefl)
+		return nil
+	}
+
 	// We want to check if the field is a core Resource and if so we want to ensure that strings which represent ids
 	// and resource ids are properly being cast to the correct type
 	if field.Kind() == reflect.Ptr {
-		if field.Type().Implements(reflect.TypeOf((*construct.Resource)(nil)).Elem()) && reflect.ValueOf(val).Type().Kind() == reflect.String {
+		if field.Type().Implements(resourceType) && reflect.ValueOf(val).Type().Kind() == reflect.String {
 			res := getFieldFromIdString(val.(string), dag)
 			// if the return type is a resource id we need to get the correlating resource object
 			if id, ok := res.(construct.ResourceId); ok {
@@ -231,7 +247,7 @@ func configureField(val interface{}, field reflect.Value, dag *construct.Resourc
 			}
 			field.Elem().Set(reflect.ValueOf(res).Elem())
 			return nil
-		} else if field.Type().Implements(reflect.TypeOf((*construct.Resource)(nil)).Elem()) && reflect.ValueOf(val).Type() == resourceIdType {
+		} else if field.Type().Implements(resourceType) && reflect.ValueOf(val).Type() == resourceIdType {
 			id := val.(construct.ResourceId)
 			res := getFieldFromIdString(id.String(), dag)
 			// if the return type is a resource id we need to get the correlating resource object
