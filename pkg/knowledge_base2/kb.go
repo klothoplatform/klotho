@@ -1,6 +1,7 @@
 package knowledgebase2
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 
@@ -206,4 +207,26 @@ func (kb *KnowledgeBase) GetResourcePropertyType(resource *construct.Resource, p
 		}
 	}
 	return ""
+}
+
+// TransformToPropertyValue transforms a value to the correct type for a given property
+// This is used for transforming values from the config template (and any interface value we want to set on a resource) to the correct type for the resource
+func (kb *KnowledgeBase) TransformToPropertyValue(resource *construct.Resource, propertyName string, value interface{}, ctx ConfigTemplateContext, data ConfigTemplateData) (interface{}, error) {
+	template, err := kb.GetResourceTemplate(resource.ID)
+	if err != nil {
+		return nil, err
+	}
+	property := template.GetProperty(propertyName)
+	if property == nil {
+		return nil, fmt.Errorf("could not find property %s on resource %s", propertyName, resource.ID)
+	}
+	propertyType, err := property.getPropertyType()
+	if err != nil {
+		return nil, err
+	}
+	val, err := propertyType.Parse(value, ctx, data)
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
 }

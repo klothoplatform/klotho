@@ -34,6 +34,8 @@ type (
 		UserConfigurable bool `json:"user_configurable" yaml:"user_configurable"`
 
 		OperationalStep *OperationalStep `json:"operational_step" yaml:"operational_step"`
+
+		Properties map[string]Property `json:"properties" yaml:"properties"`
 	}
 
 	Classification struct {
@@ -153,9 +155,24 @@ func (template ResourceTemplate) GetNamespacedProperty() *Property {
 }
 
 func (template ResourceTemplate) GetProperty(name string) *Property {
-	for _, property := range template.Properties {
-		if property.Name == name {
-			return &property
+	fields := strings.Split(name, ".")
+	properties := template.Properties
+	for i, field := range fields {
+		currFieldName := strings.Split(field, "[")[0]
+		found := false
+		for _, property := range properties {
+			if property.Name != currFieldName {
+				continue
+			}
+			found = true
+			if len(fields) == i+1 {
+				return &property
+			} else {
+				properties = property.Properties
+			}
+		}
+		if !found {
+			return nil
 		}
 	}
 	return nil

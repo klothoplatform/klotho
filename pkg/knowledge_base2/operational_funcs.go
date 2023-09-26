@@ -112,6 +112,27 @@ func (ctx ConfigTemplateContext) ExecuteDecode(tmpl string, data ConfigTemplateD
 		}
 		*value = b
 		return nil
+	case *int:
+		i, err := strconv.Atoi(bstr)
+		if err != nil {
+			return err
+		}
+		*value = i
+		return nil
+	case *float64:
+		f, err := strconv.ParseFloat(bstr, 64)
+		if err != nil {
+			return err
+		}
+		*value = f
+		return nil
+	case *float32:
+		f, err := strconv.ParseFloat(bstr, 32)
+		if err != nil {
+			return err
+		}
+		*value = float32(f)
+		return nil
 
 	case encoding.TextUnmarshaler:
 		// notably, this handles `construct.ResourceId` and `construct.IaCValue`
