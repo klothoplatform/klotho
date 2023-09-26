@@ -60,6 +60,14 @@ func NewSolutionContext() SolutionContext {
 	}
 }
 
+func (ctx SolutionContext) GetDeploymentGraph() construct.Graph {
+	return ctx.deploymentGraph
+}
+
+func (ctx SolutionContext) GetDataflowGraph() construct.Graph {
+	return ctx.dataflowGraph
+}
+
 func (ctx SolutionContext) LoadGraph(graph construct.Graph) error {
 	err := construct.WalkGraph(graph, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		if nerr != nil {
@@ -345,7 +353,7 @@ func (d RemoveResourceDecision) internal()   {}
 func (d RemoveDependencyDecision) internal() {}
 func (d SetPropertyDecision) internal()      {}
 
-func (ctx SolutionContext) isOperationalResourceSideEffect(resource, sideEffect *construct.Resource) bool {
+func (ctx SolutionContext) IsOperationalResourceSideEffect(resource, sideEffect *construct.Resource) bool {
 	template, err := ctx.kb.GetResourceTemplate(resource.ID)
 	if template == nil || err != nil {
 		return false

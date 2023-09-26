@@ -195,7 +195,7 @@ func (ctx SolutionContext) Downstream(resource *construct.Resource, layer int) (
 			if err != nil {
 				continue
 			}
-			if ctx.isOperationalResourceSideEffect(resource, res) {
+			if ctx.IsOperationalResourceSideEffect(resource, res) {
 				result = append(result, res)
 			}
 			return result, nil
@@ -284,7 +284,7 @@ func (ctx SolutionContext) Upstream(resource *construct.Resource, layer int) ([]
 			if err != nil {
 				continue
 			}
-			if ctx.isOperationalResourceSideEffect(resource, res) {
+			if ctx.IsOperationalResourceSideEffect(resource, res) {
 				result = append(result, res)
 			}
 			return result, nil
@@ -433,6 +433,22 @@ func (c SolutionContext) AllPaths(source construct.ResourceId, destination const
 			pathResult = append(pathResult, resource)
 		}
 		result = append(result, pathResult)
+	}
+	return result, nil
+}
+
+func (c SolutionContext) ShortestPath(source construct.ResourceId, destination construct.ResourceId) ([]*construct.Resource, error) {
+	path, err := graph.ShortestPath(c.dataflowGraph, source, destination)
+	if err != nil {
+		return nil, err
+	}
+	var result []*construct.Resource
+	for _, res := range path {
+		resource, err := c.GetResource(res)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, resource)
 	}
 	return result, nil
 }
