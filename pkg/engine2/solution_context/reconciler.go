@@ -36,7 +36,10 @@ func (ctx SolutionContext) reconnectFunctionalResources(resource *construct.Reso
 					},
 					Node: resource.ID,
 				})
-				ctx.AddDependency(u, d)
+				err := ctx.AddDependency(u, d)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -58,12 +61,16 @@ func (ctx SolutionContext) canDeleteResource(resource *construct.Resource, expli
 	// Check to see if there are upstream nodes for the resource trying to be deleted
 	// If upstream nodes exist, attempt to delete the resources upstream of the resource before deciding that the deletion process cannot continue
 	if deletionCriteria.RequiresNoUpstream && !explicit && len(upstreamNodes) > 0 {
-		log.Debugf("Cannot delete resource %s as it still has upstream dependencies", resource.Id())
+		log.Debugf("Cannot delete resource %s as it still has upstream dependencies", resource.ID)
 		if !ctx.ignoreCriteria(resource, upstreamNodes) {
 			return false
 		}
 		for _, up := range upstreamNodes {
-			ctx.RemoveResource(up, false)
+			err := ctx.RemoveResource(up, false)
+			if err != nil {
+				log.Errorf("Unable to delete upstream resource %s for resource %s", up.ID, resource.ID)
+				return false
+			}
 		}
 		// Now that we have attempted to delete the upstream resources, check to see if there are any upstream resources left for the deletion criteria
 		upstream, err := ctx.DirectUpstreamResources(resource.ID)
@@ -82,7 +89,11 @@ func (ctx SolutionContext) canDeleteResource(resource *construct.Resource, expli
 			return false
 		}
 		for _, down := range downstreamNodes {
-			ctx.RemoveResource(down, false)
+			err = ctx.RemoveResource(down, false)
+			if err != nil {
+				log.Errorf("Unable to delete downstream resource %s for resource %s", down.ID, resource.ID)
+				return false
+			}
 		}
 		// Now that we have attempted to delete the downstream resources, check to see if there are any downstream resources left for the deletion criteria
 		downstream, err := ctx.DirectDownstreamResources(resource.ID)
@@ -101,10 +112,18 @@ func (ctx SolutionContext) canDeleteResource(resource *construct.Resource, expli
 			return false
 		}
 		for _, down := range downstreamNodes {
-			ctx.RemoveResource(down, false)
+			err = ctx.RemoveResource(down, false)
+			if err != nil {
+				log.Errorf("Unable to delete downstream resource %s for resource %s", down.ID, resource.ID)
+				return false
+			}
 		}
 		for _, up := range upstreamNodes {
-			ctx.RemoveResource(up, false)
+			err = ctx.RemoveResource(up, false)
+			if err != nil {
+				log.Errorf("Unable to delete upstream resource %s for resource %s", up.ID, resource.ID)
+				return false
+			}
 		}
 		// Now that we have attempted to delete the downstream resources, check to see if there are any downstream resources left for the deletion criteria
 		downstream, err := ctx.DirectDownstreamResources(resource.ID)
@@ -138,7 +157,7 @@ DEP:
 		}
 		for _, res := range downstreams {
 			if dep == res {
-				det := ctx.kb.GetEdgeTemplate(resource.Id(), dep.Id())
+				det := ctx.kb.GetEdgeTemplate(resource.ID, dep.ID)
 				if !det.DeletetionDependent {
 					return false
 				}
@@ -152,7 +171,7 @@ DEP:
 		}
 		for _, res := range upstreams {
 			if dep == res {
-				det := ctx.kb.GetEdgeTemplate(dep.Id(), resource.Id())
+				det := ctx.kb.GetEdgeTemplate(dep.ID, resource.ID)
 				if !det.DeletetionDependent {
 					return false
 				}

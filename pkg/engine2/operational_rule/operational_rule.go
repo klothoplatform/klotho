@@ -52,7 +52,10 @@ func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.Opera
 	}
 
 	for _, operationalConfig := range rule.ConfigurationRules {
-		ctx.HandleConfigurationRule(operationalConfig)
+		err := ctx.HandleConfigurationRule(operationalConfig)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

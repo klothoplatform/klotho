@@ -33,7 +33,6 @@ func (p Plugin) Name() string {
 
 var visualizerBaseUrlEnv = cli_config.EnvVar("KLOTHO_VIZ_URL_BASE")
 var visualizerBaseUrl = visualizerBaseUrlEnv.GetOr("https://viz.klo.dev")
-var validateTypes = cli_config.EnvVar("KLOTHO_VIZ_VALIDATE_TYPES").GetBool()
 
 func (a *visApi) request(method string, path string, contentType string, accept string, f io.WriterTo) ([]byte, error) {
 	a.buf.Reset()

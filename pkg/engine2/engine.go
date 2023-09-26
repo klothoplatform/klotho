@@ -34,8 +34,14 @@ func NewEngine(kb knowledgebase.TemplateKB) *Engine {
 
 func (e *Engine) Run(context EngineContext) error {
 	solutionCtx := solution_context.NewSolutionContext()
-	solutionCtx.LoadGraph(context.InitialState)
-	solutionCtx.LoadConstraints(context.Constraints)
+	err := solutionCtx.LoadGraph(context.InitialState)
+	if err != nil {
+		return err
+	}
+	err = solutionCtx.LoadConstraints(context.Constraints)
+	if err != nil {
+		return err
+	}
 	solutionContexts, err := solutionCtx.GenerateCombinations()
 	if err != nil {
 		return err

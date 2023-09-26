@@ -73,8 +73,7 @@ func (ctx SolutionContext) LoadGraph(graph construct.Graph) error {
 		if nerr != nil {
 			return nerr
 		}
-		ctx.addResource(resource, false)
-		return nil
+		return ctx.addResource(resource, false)
 	})
 	if err != nil {
 		return err
@@ -92,7 +91,10 @@ func (ctx SolutionContext) LoadGraph(graph construct.Graph) error {
 		if err != nil {
 			return err
 		}
-		ctx.addDependency(src, target, false)
+		err = ctx.addDependency(src, target, false)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -232,11 +234,12 @@ func (ctx SolutionContext) addPath(from, to *construct.Resource) error {
 	edgeData := path_selection.EdgeData{}
 	for _, constraint := range ctx.EdgeConstraints {
 		if constraint.Target.Source == from.ID && constraint.Target.Target == to.ID {
-			if constraint.Operator == constraints.MustContainConstraintOperator {
+			switch constraint.Operator {
+			case constraints.MustContainConstraintOperator:
 				edgeData.Constraint.NodeMustExist = append(edgeData.Constraint.NodeMustExist, *ctx.CreateResourcefromId(constraint.Node))
-			} else if constraint.Operator == constraints.MustNotContainConstraintOperator {
+			case constraints.MustNotContainConstraintOperator:
 				edgeData.Constraint.NodeMustNotExist = append(edgeData.Constraint.NodeMustNotExist, *ctx.CreateResourcefromId(constraint.Node))
-			} else if constraint.Operator == constraints.EqualsConstraintOperator {
+			case constraints.EqualsConstraintOperator:
 				for key, val := range constraint.Attributes {
 					edgeData.Attributes[key] = val
 				}
@@ -283,7 +286,7 @@ func (ctx SolutionContext) ConfigureResource(resource *construct.Resource, confi
 		return err
 	}
 	ctx.RecordDecision(SetPropertyDecision{
-		Resource: resource.Id(),
+		Resource: resource.ID,
 		Property: configuration.Field,
 		Value:    configuration.Value,
 	})
@@ -305,13 +308,19 @@ func (ctx SolutionContext) ExpandConstruct(resource *construct.Resource, constra
 		newCtx := ctx.Clone()
 		newCtx.With("construct", resource)
 		for _, edge := range solution.Edges {
-			newCtx.AddDependency(&edge.Source, &edge.Target)
+			err = newCtx.AddDependency(&edge.Source, &edge.Target)
+			if err != nil {
+				return nil, err
+			}
 		}
 		res, err := newCtx.GetResource(solution.DirectlyMappedResource)
 		if err != nil {
 			return nil, err
 		}
-		newCtx.ReplaceResourceId(resource.ID, res)
+		err = newCtx.ReplaceResourceId(resource.ID, res)
+		if err != nil {
+			return nil, err
+		}
 		result = append(result, newCtx)
 	}
 	return result, nil

@@ -326,9 +326,7 @@ func (ctx *ConfigTemplateContext) ShortestPath(source, destination any) ([]const
 		return nil, err
 	}
 	pathIds := make([]construct.ResourceId, len(path))
-	for i, p := range path {
-		pathIds[i] = p
-	}
+	copy(pathIds, path)
 	return pathIds, nil
 }
 

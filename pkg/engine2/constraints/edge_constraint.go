@@ -92,13 +92,13 @@ func (constraint *EdgeConstraint) checkSatisfication(path []*construct.Resource,
 	switch constraint.Operator {
 	case MustContainConstraintOperator:
 		for _, res := range path {
-			if res.Id() == constraint.Node {
+			if res.ID == constraint.Node {
 				return true
 			}
 		}
 	case MustNotContainConstraintOperator:
 		for _, res := range path {
-			if res.Id() == constraint.Node {
+			if res.ID == constraint.Node {
 				return false
 			}
 		}

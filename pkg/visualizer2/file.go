@@ -3,7 +3,6 @@ package visualizer
 import (
 	"fmt"
 	"io"
-	"reflect"
 	"strings"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -21,33 +20,6 @@ type (
 		Provider       string
 		DAG            construct.Graph
 	}
-
-	// FetchPropertiesFunc is a function that takes a resource of some type, and returns some properties for it.
-	// This function also takes in the DAG, since some resources need that context to figure out their properties (for
-	// example, a subnet is private or public depending on how it's used).
-	FetchPropertiesFunc[K construct.Resource] func(res K, dag construct.Graph) map[string]any
-
-	// propertiesFetcher takes a [construct.Resource] and returns some properties for it. This is similar to
-	// FetchPropertiesFunc, except that the argument is always a construct.Resource (as opposed to a specific subtype
-	// of construct.Resource, as with FetchPropertiesFunc).
-	propertiesFetcher interface {
-		apply(res *construct.Resource, dag construct.Graph) map[string]any
-	}
-
-	// typedPropertiesFetcher is a propertiesFetcher that can also tell you which type it'll accept. The (unenforced)
-	// expectation is that if you pass in an element "e" to apply(...) such that reflect.TypeOf(e) != tpf.reflectType(),
-	// then the resulting map will always be nil.
-	//
-	// We use this as a convenience bridge: in the absence of wildcard generics in Go (e.g., "FetchPropertiesFunc[*]"),
-	// we can treat a "FetchPropertiesFunc[K]" as a typedPropertiesFetcher, and build a list of heterogeneous fetchers.
-	// Then, we can iterate through that list to build a [byTypePropertiesFetcher] that maps each FetchPropertiesFunc
-	// by its type.
-	typedPropertiesFetcher interface {
-		propertiesFetcher
-		reflectType() reflect.Type
-	}
-
-	byTypePropertiesFetcher map[reflect.Type]propertiesFetcher
 )
 
 func (f *File) Path() string {

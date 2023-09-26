@@ -37,7 +37,7 @@ func ConfigureField(resource *construct.Resource, fieldName string, value interf
 	switch field.Kind() {
 	case reflect.Slice, reflect.Array:
 		if reflect.ValueOf(value).Kind() != reflect.Slice {
-			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be a list, but got %s", fieldName, resource.Id(), reflect.TypeOf(value))
+			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be a list, but got %s", fieldName, resource.ID, reflect.TypeOf(value))
 		}
 		err := configureField(value, field, graph, zeroValueAllowed)
 		if err != nil {
@@ -47,10 +47,10 @@ func ConfigureField(resource *construct.Resource, fieldName string, value interf
 		// Since there can be pointers to primitive types and others, we will ensure that those still work
 		if field.Kind() == reflect.Pointer && field.Elem().Kind() != reflect.Struct {
 			if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value) == resourceIdType {
-				return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.Id(), field.Type(), reflect.TypeOf(value))
+				return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.ID, field.Type(), reflect.TypeOf(value))
 			}
 		} else if reflect.ValueOf(value).Kind() != reflect.Map && !field.Type().Implements(reflect.TypeOf((*construct.Resource)(nil)).Elem()) && field.Type() != reflect.TypeOf(construct.ResourceId{}) {
-			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be a map, but got %s", fieldName, resource.Id(), reflect.TypeOf(value))
+			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be a map, but got %s", fieldName, resource.ID, reflect.TypeOf(value))
 		}
 		err := configureField(value, field, graph, zeroValueAllowed)
 		if err != nil {
@@ -58,7 +58,7 @@ func ConfigureField(resource *construct.Resource, fieldName string, value interf
 		}
 	default:
 		if reflect.TypeOf(value) != field.Type() && reflect.TypeOf(value) == resourceIdType {
-			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.Id(), field.Type(), reflect.TypeOf(value))
+			return fmt.Errorf("config template is not the correct type for field %s and resource %s. expected it to be %s, but got %s", fieldName, resource.ID, field.Type(), reflect.TypeOf(value))
 		}
 		err := configureField(value, field, graph, zeroValueAllowed)
 		if err != nil {
@@ -68,7 +68,7 @@ func ConfigureField(resource *construct.Resource, fieldName string, value interf
 	if setMapKey != nil {
 		setMapKey.Map.SetMapIndex(setMapKey.Key, setMapKey.Value)
 	}
-	zap.S().Infof("configured %s#%s to value '%v'", resource.Id(), fieldName, value)
+	zap.S().Infof("configured %s#%s to value '%v'", resource.ID, fieldName, value)
 	return nil
 }
 
@@ -258,19 +258,6 @@ func configureField(val interface{}, field reflect.Value, dag construct.Graph, z
 
 }
 
-func getIdAndFields(id construct.ResourceId) (construct.ResourceId, string) {
-	arr := strings.Split(id.String(), "#")
-	resId := &construct.ResourceId{}
-	err := resId.UnmarshalText([]byte(arr[0]))
-	if err != nil {
-		return construct.ResourceId{}, ""
-	}
-	if len(arr) == 1 {
-		return *resId, ""
-	}
-	return *resId, arr[1]
-}
-
 func getFieldFromIdString(id string, dag construct.Graph) any {
 	arr := strings.Split(id, "#")
 	var resId construct.ResourceId
@@ -371,7 +358,7 @@ func parseFieldName(resource *construct.Resource, fieldName string, dag construc
 			if field.Kind() == reflect.Map {
 				// Right now we only support string keys on maps, so error if we see a mismatch
 				if field.Type().Key().Kind() != reflect.String {
-					return reflect.Value{}, nil, fmt.Errorf("unable to find field %s on resource %s, field is not a map[string]", strings.Join(fields[:i+1], "."), resource.Id())
+					return reflect.Value{}, nil, fmt.Errorf("unable to find field %s on resource %s, field is not a map[string]", strings.Join(fields[:i+1], "."), resource.ID)
 				}
 				// create the map if it is currently nil
 				if field.IsNil() {
@@ -398,15 +385,15 @@ func parseFieldName(resource *construct.Resource, fieldName string, dag construc
 			} else if field.Kind() == reflect.Slice || field.Kind() == reflect.Array {
 				index, err := strconv.Atoi(key)
 				if err != nil {
-					return reflect.Value{}, nil, fmt.Errorf("unable to find field %s on resource %s, could not convert index to int", strings.Join(fields[:i+1], "."), resource.Id())
+					return reflect.Value{}, nil, fmt.Errorf("unable to find field %s on resource %s, could not convert index to int", strings.Join(fields[:i+1], "."), resource.ID)
 
 				}
 				if index >= field.Len() {
-					return reflect.Value{}, nil, fmt.Errorf("unable to find field %s on resource %s, length of array is less than index", strings.Join(fields[:i+1], "."), resource.Id())
+					return reflect.Value{}, nil, fmt.Errorf("unable to find field %s on resource %s, length of array is less than index", strings.Join(fields[:i+1], "."), resource.ID)
 				}
 				field = field.Index(index)
 			} else {
-				return reflect.Value{}, nil, fmt.Errorf("unable to find field %s on resource %s, field type does not support key or index", strings.Join(fields[:i+1], "."), resource.Id())
+				return reflect.Value{}, nil, fmt.Errorf("unable to find field %s on resource %s, field type does not support key or index", strings.Join(fields[:i+1], "."), resource.ID)
 			}
 		}
 	}

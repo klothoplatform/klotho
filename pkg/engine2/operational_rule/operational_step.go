@@ -43,9 +43,16 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 	var ids []construct.ResourceId
 	if ctx.Property != nil {
 		if replace {
-			ctx.clearProperty(step, resource, ctx.Property.Name)
+			err := ctx.clearProperty(step, resource, ctx.Property.Name)
+			if err != nil {
+				return err
+			}
 		}
-		ids = ctx.addDependenciesFromProperty(step, resource, ctx.Property.Name)
+		var err error
+		ids, err = ctx.addDependenciesFromProperty(step, resource, ctx.Property.Name)
+		if err != nil {
+			return err
+		}
 	} else {
 		ids, err = ctx.getResourcesForStep(step, resource)
 		if err != nil {
@@ -53,7 +60,10 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 		}
 		if replace {
 			for _, id := range ids {
-				ctx.Graph.RemoveDependency(id, resource.ID)
+				err := ctx.Graph.RemoveDependency(id, resource.ID)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		ids = []construct.ResourceId{}
@@ -71,8 +81,7 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 		Step:       step,
 		CurrentIds: ids,
 	}
-	ctx.handleOperationalResourceAction(resource, action)
-	return nil
+	return ctx.handleOperationalResourceAction(resource, action)
 }
 
 func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *construct.Resource, action OperationalResourceAction) error {
@@ -95,7 +104,10 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *cons
 		if res == nil {
 			res = ctx.CreateResourcefromId(explicitResource)
 		}
-		ctx.addDependencyForDirection(action.Step.Direction, resource, res)
+		err := ctx.addDependencyForDirection(action.Step, resource, res)
+		if err != nil {
+			return err
+		}
 		numNeeded--
 	}
 	if numNeeded <= 0 {
@@ -118,7 +130,10 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *cons
 			typeToCreate := resourceTypes[0]
 			newRes := ctx.CreateResourcefromId(typeToCreate)
 			ctx.generateResourceName(newRes, resource, action.Step.Unique)
-			ctx.addDependencyForDirection(action.Step.Direction, resource, newRes)
+			err := ctx.addDependencyForDirection(action.Step, resource, newRes)
+			if err != nil {
+				return err
+			}
 			numNeeded--
 		}
 	}
@@ -163,7 +178,10 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *cons
 			if numNeeded <= 0 {
 				return nil
 			}
-			ctx.addDependencyForDirection(action.Step.Direction, resource, res)
+			err := ctx.addDependencyForDirection(action.Step, resource, res)
+			if err != nil {
+				return err
+			}
 			numNeeded--
 		}
 	}
@@ -172,7 +190,10 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *cons
 		typeToCreate := resourceTypes[0]
 		newRes := ctx.CreateResourcefromId(typeToCreate)
 		ctx.generateResourceName(newRes, resource, action.Step.Unique)
-		ctx.addDependencyForDirection(action.Step.Direction, resource, newRes)
+		err := ctx.addDependencyForDirection(action.Step, resource, newRes)
+		if err != nil {
+			return err
+		}
 		numNeeded--
 	}
 
@@ -253,48 +274,69 @@ func (ctx OperationalRuleContext) getResourcesForStep(step knowledgebase.Operati
 	return resourcesOfType, nil
 }
 
-func (ctx OperationalRuleContext) addDependenciesFromProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) []construct.ResourceId {
+func (ctx OperationalRuleContext) addDependenciesFromProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) ([]construct.ResourceId, error) {
 	field := reflect.ValueOf(resource).Elem().FieldByName(propertyName)
 	if field.IsValid() {
 		if field.Kind() == reflect.Slice || field.Kind() == reflect.Array {
 			var ids []construct.ResourceId
 			for i := 0; i < field.Len(); i++ {
 				val := field.Index(i)
-				ctx.addDependencyForDirection(step.Direction, resource, val.Interface().(*construct.Resource))
+				err := ctx.addDependencyForDirection(step, resource, val.Interface().(*construct.Resource))
+				if err != nil {
+					return []construct.ResourceId{}, err
+				}
 				ids = append(ids, val.Interface().(construct.Resource).ID)
 			}
-			return ids
+			return ids, nil
 		} else if field.Kind() == reflect.Ptr && !field.IsNil() {
 			val := field
-			ctx.addDependencyForDirection(step.Direction, resource, val.Interface().(*construct.Resource))
-			return []construct.ResourceId{val.Interface().(construct.Resource).ID}
+			err := ctx.addDependencyForDirection(step, resource, val.Interface().(*construct.Resource))
+			if err != nil {
+				return []construct.ResourceId{}, err
+			}
+			return []construct.ResourceId{val.Interface().(construct.Resource).ID}, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
-func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) {
+func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) error {
 	field := reflect.ValueOf(resource).Elem().FieldByName(propertyName)
 	if field.IsValid() {
 		if field.Kind() == reflect.Slice || field.Kind() == reflect.Array {
 			for i := 0; i < field.Len(); i++ {
 				val := field.Index(i)
-				ctx.removeDependencyForDirection(step.Direction, resource, val.Interface().(*construct.Resource))
+				err := ctx.removeDependencyForDirection(step.Direction, resource, val.Interface().(*construct.Resource))
+				if err != nil {
+					return err
+				}
 			}
 			field.Set(reflect.MakeSlice(field.Type(), 0, 0))
 		} else if field.Kind() == reflect.Ptr && !field.IsNil() {
 			val := field
-			ctx.removeDependencyForDirection(step.Direction, resource, val.Interface().(*construct.Resource))
+			err := ctx.removeDependencyForDirection(step.Direction, resource, val.Interface().(*construct.Resource))
+			if err != nil {
+				return err
+			}
 			field.Set(reflect.Zero(field.Type()))
 		}
 	}
+	return nil
 }
 
-func (ctx OperationalRuleContext) addDependencyForDirection(direction knowledgebase.Direction, resource, dependentResource *construct.Resource) {
-	if direction == knowledgebase.Upstream {
-		ctx.Graph.AddDependency(dependentResource, resource)
+func (ctx OperationalRuleContext) addDependencyForDirection(step knowledgebase.OperationalStep, resource, dependentResource *construct.Resource) error {
+	if step.Direction == knowledgebase.Upstream {
+		err := ctx.Graph.AddDependency(dependentResource, resource)
+		if err != nil {
+			return err
+		}
+		return ctx.setField(resource, dependentResource, step)
 	} else {
-		ctx.Graph.AddDependency(resource, dependentResource)
+		err := ctx.Graph.AddDependency(resource, dependentResource)
+		if err != nil {
+			return err
+		}
+		return ctx.setField(resource, dependentResource, step)
 	}
 }
 

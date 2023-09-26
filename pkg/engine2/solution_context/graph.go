@@ -48,14 +48,19 @@ func (c SolutionContext) addResource(resource *construct.Resource, makeOperation
 		return err
 	}
 	if res == nil {
-		c.dataflowGraph.AddVertex(resource)
-		c.deploymentGraph.AddVertex(resource)
-
+		err := c.dataflowGraph.AddVertex(resource)
+		if err != nil {
+			return err
+		}
+		err = c.deploymentGraph.AddVertex(resource)
+		if err != nil {
+			return err
+		}
 		c.RecordDecision(AddResourceDecision{
 			Resource: resource.ID,
 		})
 		if makeOperational {
-			c.nodeMakeOperational(resource)
+			return c.nodeMakeOperational(resource)
 		}
 	}
 	return nil
@@ -66,15 +71,29 @@ func (c SolutionContext) AddDependency(from, to *construct.Resource) error {
 }
 
 func (c SolutionContext) addDependency(from, to *construct.Resource, makeOperational bool) error {
-	c.addResource(from, makeOperational)
-	c.addResource(to, makeOperational)
-
-	c.dataflowGraph.AddEdge(from.ID, to.ID)
+	err := c.addResource(from, makeOperational)
+	if err != nil {
+		return err
+	}
+	err = c.addResource(to, makeOperational)
+	if err != nil {
+		return err
+	}
+	err = c.dataflowGraph.AddEdge(from.ID, to.ID)
+	if err != nil {
+		return err
+	}
 	et := c.kb.GetEdgeTemplate(from.ID, to.ID)
 	if et.DeploymentOrderReversed {
-		c.deploymentGraph.AddEdge(to.ID, from.ID)
+		err = c.deploymentGraph.AddEdge(to.ID, from.ID)
+		if err != nil {
+			return err
+		}
 	} else {
-		c.deploymentGraph.AddEdge(to.ID, from.ID)
+		err = c.deploymentGraph.AddEdge(to.ID, from.ID)
+		if err != nil {
+			return err
+		}
 	}
 	c.RecordDecision(AddDependencyDecision{
 		From: from.ID,
@@ -115,7 +134,10 @@ func (c SolutionContext) RemoveResource(resource *construct.Resource, explicit b
 		}
 
 		if c.kb.GetFunctionality(resource.ID) == knowledgebase.Unknown {
-			c.reconnectFunctionalResources(resource)
+			err := c.reconnectFunctionalResources(resource)
+			if err != nil {
+				return err
+			}
 		}
 
 		err = c.dataflowGraph.RemoveVertex(resource.ID)
@@ -132,10 +154,16 @@ func (c SolutionContext) RemoveResource(resource *construct.Resource, explicit b
 		})
 
 		for _, res := range upstreamNodes {
-			c.RemoveResource(res, false)
+			err = c.RemoveResource(res, false)
+			if err != nil {
+				return err
+			}
 		}
 		for _, res := range downstreamNodes {
-			c.RemoveResource(res, false)
+			err = c.RemoveResource(res, false)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

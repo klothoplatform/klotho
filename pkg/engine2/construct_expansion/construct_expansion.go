@@ -36,8 +36,8 @@ type (
 // All dependencies are copied over to the resource graph
 // If a dependency in the working state included a construct, the engine copies the dependency to all directly linked resources
 func (ctx *ConstructExpansionContext) ExpandConstruct(res *construct.Resource, constraints []constraints.ConstructConstraint) ([]ExpansionSolution, error) {
-	if res.Id().IsAbstractResource() {
-		return nil, fmt.Errorf("unable to expand construct %s, resource is not an abstract construct", res.Id())
+	if res.ID.IsAbstractResource() {
+		return nil, fmt.Errorf("unable to expand construct %s, resource is not an abstract construct", res.ID)
 	}
 	zap.S().Debugf("Expanding construct %s", res.ID)
 	constructType := ""
@@ -45,12 +45,12 @@ func (ctx *ConstructExpansionContext) ExpandConstruct(res *construct.Resource, c
 	for _, constructConstraint := range constraints {
 		if constructConstraint.Target == res.ID {
 			if constructType != "" && constructType != constructConstraint.Type {
-				return nil, fmt.Errorf("unable to expand construct %s, conflicting types in constraints", res.Id())
+				return nil, fmt.Errorf("unable to expand construct %s, conflicting types in constraints", res.ID)
 			}
 			for k, v := range constructConstraint.Attributes {
 				if val, ok := attributes[k]; ok {
 					if v != val {
-						return nil, fmt.Errorf("unable to expand construct %s, attribute %s has conflicting values", res.Id(), k)
+						return nil, fmt.Errorf("unable to expand construct %s, attribute %s has conflicting values", res.ID, k)
 					}
 				}
 				attributes[k] = v
@@ -113,12 +113,12 @@ func (ctx *ConstructExpansionContext) findExpansions(attributes []string, edges 
 	var result [][]graph.Edge[construct.Resource]
 	for _, attribute := range attributes {
 		for _, res := range ctx.Kb.ListResources() {
-			if res.Id().QualifiedTypeName() == baseResource.Id().QualifiedTypeName() {
+			if res.Id().QualifiedTypeName() == baseResource.ID.QualifiedTypeName() {
 				continue
 			}
-			if ctx.Kb.HasFunctionalPath(baseResource.Id(), res.Id()) {
+			if ctx.Kb.HasFunctionalPath(baseResource.ID, res.Id()) {
 				if res.GivesAttributeForFunctionality(attribute, functionality) {
-					resource := *ctx.CreateResourceFromId(construct.ResourceId{Type: res.Id().Type, Name: baseResource.Id().Name, Provider: res.Id().Provider})
+					resource := *ctx.CreateResourceFromId(construct.ResourceId{Type: res.Id().Type, Name: baseResource.ID.Name, Provider: res.Id().Provider})
 					edges = append(edges, graph.Edge[construct.Resource]{Source: baseResource, Target: resource})
 					unsatisfiedAttributes := []string{}
 					for _, ms := range attributes {

@@ -167,7 +167,10 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) co
 		if node.Parent != nil {
 			properties["parent"] = node.Parent.ID.String()
 		}
-		dfDag.AddVertex(node.Resource, graph.VertexAttributes(properties))
+		err = dfDag.AddVertex(node.Resource, graph.VertexAttributes(properties))
+		if err != nil {
+			return nil
+		}
 	}
 
 	for _, edge := range topo.Edges {
@@ -179,7 +182,10 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) co
 		if len(edge.Path) > 0 {
 			data["path"] = strings.Join(pathStrings, ",")
 		}
-		dfDag.AddEdge(edge.Source.ID, edge.Target.ID, graph.EdgeData(data))
+		err := dfDag.AddEdge(edge.Source.ID, edge.Target.ID, graph.EdgeData(data))
+		if err != nil {
+			return nil
+		}
 	}
 
 	return dfDag

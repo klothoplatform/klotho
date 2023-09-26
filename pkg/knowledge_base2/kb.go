@@ -30,11 +30,6 @@ type (
 	KnowledgeBase struct {
 		underlying graph.Graph[string, *ResourceTemplate]
 	}
-
-	ResourceDoesNotExistError struct {
-		Id    construct.ResourceId
-		cause error
-	}
 )
 
 func NewKB() *KnowledgeBase {

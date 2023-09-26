@@ -143,7 +143,7 @@ func (ctx PathSelectionContext) determineCorrectPaths(dep graph.Edge[*construct.
 func (ctx PathSelectionContext) containsUnneccessaryHopsInPath(dep graph.Edge[*construct.Resource], p []construct.ResourceId, edgeData EdgeData) bool {
 	var mustExistTypes []string
 	for _, res := range edgeData.Constraint.NodeMustExist {
-		mustExistTypes = append(mustExistTypes, res.Id().QualifiedTypeName())
+		mustExistTypes = append(mustExistTypes, res.ID.QualifiedTypeName())
 	}
 
 	// Track the functionality we find in the path to make sure we dont duplicate resource functions

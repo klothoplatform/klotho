@@ -55,7 +55,7 @@ func (ctx SolutionContext) ApplyApplicationConstraint(constraint *constraints.Ap
 	switch constraint.Operator {
 	case constraints.AddConstraintOperator:
 		res := ctx.CreateResourcefromId(constraint.Node)
-		ctx.addResource(res, false)
+		return ctx.addResource(res, false)
 	case constraints.RemoveConstraintOperator:
 		node, _ := ctx.GetResource(constraint.Node)
 		if node == nil {
@@ -87,10 +87,16 @@ func (ctx SolutionContext) ApplyApplicationConstraint(constraint *constraints.Ap
 				return err
 			}
 			for _, res := range functionalUpstream {
-				ctx.AddDependency(res, replacementNode)
+				err = ctx.AddDependency(res, replacementNode)
+				if err != nil {
+					return err
+				}
 			}
 			for _, res := range functionalDownstream {
-				ctx.AddDependency(replacementNode, res)
+				err = ctx.AddDependency(replacementNode, res)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -117,7 +123,10 @@ func (ctx SolutionContext) ApplyEdgeConstraint(constraint *constraints.EdgeConst
 
 	switch constraint.Operator {
 	case constraints.MustExistConstraintOperator:
-		ctx.AddDependency(src, dst)
+		err := ctx.AddDependency(src, dst)
+		if err != nil {
+			return err
+		}
 	case constraints.MustNotExistConstraintOperator:
 
 		paths, err := ctx.AllPaths(constraint.Target.Source, constraint.Target.Target)
@@ -145,7 +154,10 @@ func (ctx SolutionContext) ApplyEdgeConstraint(constraint *constraints.EdgeConst
 			for _, res := range path {
 				resource, _ := ctx.GetResource(res.ID)
 				if resource != nil {
-					ctx.RemoveResource(resource, false)
+					err := ctx.RemoveResource(resource, false)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
