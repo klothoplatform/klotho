@@ -170,7 +170,7 @@ func ConfigureField(resource construct.Resource, fieldName string, value interfa
 		setMapKey.Value = field
 	}
 	valueRefl := reflect.ValueOf(value)
-	valueType := valueRefl.Type()
+	valueType := reflect.TypeOf(value)
 	switch field.Kind() {
 	case reflect.Slice, reflect.Array:
 		if valueRefl.Kind() != reflect.Slice {

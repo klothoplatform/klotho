@@ -30,3 +30,8 @@ keyvalue.js.tmpl
 
 node_modules/
 /*.yaml
+
+# binaries
+/engine
+/iac
+/klotho
