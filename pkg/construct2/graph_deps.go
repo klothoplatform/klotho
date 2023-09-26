@@ -2,6 +2,8 @@ package construct2
 
 import "sort"
 
+// AllDownstreamDependencies returns all downstream dependencies of the given resource.
+// Downstream means that for A -> B -> C -> D the downstream dependencies of B are [C, D].
 func AllDownstreamDependencies(g Graph, r ResourceId) ([]ResourceId, error) {
 	adj, err := g.AdjacencyMap()
 	if err != nil {
@@ -11,6 +13,8 @@ func AllDownstreamDependencies(g Graph, r ResourceId) ([]ResourceId, error) {
 	return allDependencies(adj, r), nil
 }
 
+// DirectDownstreamDependencies returns the direct downstream dependencies of the given resource.
+// Direct means that for A -> B -> C -> D the direct downstream dependencies of B are [C].
 func DirectDownstreamDependencies(g Graph, r ResourceId) ([]ResourceId, error) {
 	adj, err := g.AdjacencyMap()
 	if err != nil {
@@ -26,6 +30,8 @@ func DirectDownstreamDependencies(g Graph, r ResourceId) ([]ResourceId, error) {
 	return ids, nil
 }
 
+// AllUpstreamDependencies returns all upstream dependencies of the given resource.
+// Upstream means that for A -> B -> C -> D the upstream dependencies of C are [B, A] (in that order).
 func AllUpstreamDependencies(g Graph, r ResourceId) ([]ResourceId, error) {
 	adj, err := g.PredecessorMap()
 	if err != nil {
@@ -35,6 +41,8 @@ func AllUpstreamDependencies(g Graph, r ResourceId) ([]ResourceId, error) {
 	return allDependencies(adj, r), nil
 }
 
+// DirectUpstreamDependencies returns the direct upstream dependencies of the given resource.
+// Direct means that for A -> B -> C -> D the direct upstream dependencies of C are [B].
 func DirectUpstreamDependencies(g Graph, r ResourceId) ([]ResourceId, error) {
 	adj, err := g.PredecessorMap()
 	if err != nil {

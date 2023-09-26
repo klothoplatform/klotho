@@ -1,13 +1,9 @@
 package construct2
 
-type (
-	Resource struct {
-		ID         ResourceId
-		Properties Properties
-	}
-
-	Properties = map[string]interface{}
-)
+type Resource struct {
+	ID         ResourceId
+	Properties Properties
+}
 
 // Id is a temporary bridge to the old Resource interface.
 //
