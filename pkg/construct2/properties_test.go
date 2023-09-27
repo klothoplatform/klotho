@@ -189,4 +189,66 @@ func TestResource_PropertyPath_ops(t *testing.T) {
 		assert.Equal([]any{"dog", "cat"}, arr.Get())
 		assert.Equal("dog", fox.Get()) // [0] now points to "dog"
 	}
+
+	two := path("B[0][1]")
+	assert.Equal(2, two.Get())
+	if assert.NoError(two.Remove(nil)) {
+		assert.Equal([]any{1, 3}, path("B[0]").Get())
+	}
+}
+
+func TestResource_Properties_ops(t *testing.T) {
+	assert := assert.New(t)
+
+	r := &Resource{
+		Properties: Properties{
+			"A": map[string]any{
+				"foo":   "bar",
+				"array": []string{"fox", "bat", "dog"},
+			},
+			"B": []any{[]int{1, 2, 3}},
+		},
+	}
+
+	get := func(s string) any {
+		v, err := r.GetProperty(s)
+		if !assert.NoError(err, "path %q", s) {
+			t.Fail()
+		}
+		return v
+	}
+
+	assert.Equal("bar", get("A.foo"))
+	if assert.NoError(r.SetProperty("A.foo", "baz")) {
+		assert.Equal("baz", get("A.foo"))
+	}
+	assert.Error(r.AppendProperty("A.foo", "value"))
+
+	if assert.NoError(r.RemoveProperty("A.foo", nil)) {
+		assert.Nil(get("A.foo"))
+		m := get("A").(map[string]any)
+		assert.NotContains(m, "foo")
+	}
+
+	if assert.NoError(r.AppendProperty("A.array", "cat")) {
+		assert.Equal([]string{"fox", "bat", "dog", "cat"}, get("A.array"))
+	}
+	if assert.NoError(r.RemoveProperty("A.array", "bat")) {
+		assert.Equal([]string{"fox", "dog", "cat"}, get("A.array"))
+	}
+
+	assert.Equal("fox", get("A.array[0]"))
+	if assert.NoError(r.SetProperty("A.array[0]", "wolf")) {
+		assert.Equal("wolf", get("A.array[0]"))
+		assert.Equal([]string{"wolf", "dog", "cat"}, get("A.array"))
+	}
+	if assert.NoError(r.RemoveProperty("A.array[0]", nil)) {
+		assert.Equal([]string{"dog", "cat"}, get("A.array"))
+		assert.Equal("dog", get("A.array[0]"))
+	}
+
+	assert.Equal(2, get("B[0][1]"))
+	if assert.NoError(r.RemoveProperty("B[0][1]", nil)) {
+		assert.Equal([]int{1, 3}, get("B[0]"))
+	}
 }
