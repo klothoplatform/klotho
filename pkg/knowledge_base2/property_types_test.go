@@ -15,13 +15,46 @@ func Test_getPropertyType(t *testing.T) {
 		expected PropertyType
 	}{
 		{
-			name: "Get scalar property type",
+			name: "Get string property type",
 			property: Property{
 				Type: "string",
 			},
-			expected: ScalarPropertyType{
-				Type: "string",
+			expected: StringPropertyType{},
+		},
+		{
+			name: "Get int property type",
+			property: Property{
+				Type: "int",
 			},
+			expected: IntPropertyType{},
+		},
+		{
+			name: "Get float property type",
+			property: Property{
+				Type: "float",
+			},
+			expected: FloatPropertyType{},
+		},
+		{
+			name: "Get bool property type",
+			property: Property{
+				Type: "bool",
+			},
+			expected: BoolPropertyType{},
+		},
+		{
+			name: "Get resource property type",
+			property: Property{
+				Type: "resource",
+			},
+			expected: ResourcePropertyType{},
+		},
+		{
+			name: "Get property ref property type",
+			property: Property{
+				Type: "propertyref",
+			},
+			expected: PropertyRefPropertyType{},
 		},
 		{
 			name: "Get object property type",
@@ -85,62 +118,62 @@ func Test_getPropertyType(t *testing.T) {
 func Test_parsePropertyValue(t *testing.T) {
 	tests := []struct {
 		name        string
-		property    PropertyTypes
+		property    PropertyType
 		value       any
 		expected    any
 		expectedErr bool
 	}{
 		{
 			name:     "Parse string property value",
-			property: StringPropertyType,
+			property: StringPropertyType{},
 			value:    "test",
 			expected: "test",
 		},
 		{
 			name:     "Parse int property value",
-			property: IntPropertyType,
+			property: IntPropertyType{},
 			value:    1,
 			expected: 1,
 		},
 		{
 			name:     "Parse int property value as string",
-			property: IntPropertyType,
+			property: IntPropertyType{},
 			value:    "{{ 1 }}",
 			expected: 1,
 		},
 		{
 			name:     "Parse float property value",
-			property: FloatPropertyType,
+			property: FloatPropertyType{},
 			value:    1.0,
 			expected: 1.0,
 		},
 		{
 			name:     "Parse float property value as string",
-			property: FloatPropertyType,
+			property: FloatPropertyType{},
 			value:    "{{ 1.0 }}",
 			expected: float32(1.0),
 		},
 		{
 			name:     "Parse bool property value",
-			property: BoolPropertyType,
+			property: BoolPropertyType{},
 			value:    true,
 			expected: true,
 		},
 		{
 			name:     "Parse bool property value as string template",
-			property: BoolPropertyType,
+			property: BoolPropertyType{},
 			value:    "{{ true }}",
 			expected: true,
 		},
 		{
 			name:     "Parse resource id property value",
-			property: ResourcePropertyType,
+			property: ResourcePropertyType{},
 			value:    "test:resource:a",
 			expected: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
 		},
 		{
 			name:     "Parse resource id property value as map",
-			property: ResourcePropertyType,
+			property: ResourcePropertyType{},
 			value: map[string]interface{}{
 				"provider": "test",
 				"type":     "resource",
@@ -150,19 +183,19 @@ func Test_parsePropertyValue(t *testing.T) {
 		},
 		{
 			name:     "Parse resource id property value as resourceId",
-			property: ResourcePropertyType,
+			property: ResourcePropertyType{},
 			value:    construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
 			expected: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
 		},
 		{
 			name:     "Parse property ref property value",
-			property: PropertyReferencePropertyType,
+			property: PropertyRefPropertyType{},
 			value:    "test:resource:a#HOSTNAME",
 			expected: construct.PropertyRef{Resource: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"}, Property: "HOSTNAME"},
 		},
 		{
 			name:     "Parse property ref property value as map",
-			property: PropertyReferencePropertyType,
+			property: PropertyRefPropertyType{},
 			value: map[string]interface{}{
 				"resource": "test:resource:a",
 				"property": "HOSTNAME",
@@ -171,13 +204,13 @@ func Test_parsePropertyValue(t *testing.T) {
 		},
 		{
 			name:     "Parse property ref property value as property ref",
-			property: PropertyReferencePropertyType,
+			property: PropertyRefPropertyType{},
 			value:    construct.PropertyRef{Resource: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"}, Property: "HOSTNAME"},
 			expected: construct.PropertyRef{Resource: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"}, Property: "HOSTNAME"},
 		},
 		{
 			name:        "Parse invalid property value",
-			property:    FloatPropertyType,
+			property:    FloatPropertyType{},
 			value:       "test",
 			expectedErr: true,
 		},
@@ -186,43 +219,12 @@ func Test_parsePropertyValue(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			assert := assert.New(t)
 			ctx := ConfigTemplateContext{}
-			actual, err := ctx.parsePropertyValue(test.property, test.value, ConfigTemplateData{})
+			actual, err := test.property.Parse(test.value, ctx, ConfigTemplateData{})
 			if test.expectedErr {
 				assert.Error(err)
 				return
 			}
 			assert.NoError(err, "Expected no error, but got: %v", err)
-			assert.Equal(actual, test.expected, "expected %v, got %v", test.expected, actual)
-		})
-	}
-}
-
-func Test_ScalarParse(t *testing.T) {
-	tests := []struct {
-		name     string
-		property ScalarPropertyType
-		value    any
-		data     ConfigTemplateData
-		expected any
-	}{
-		{
-			name: "Parse string property value",
-			property: ScalarPropertyType{
-				Type: StringPropertyType,
-			},
-			value:    "test",
-			data:     ConfigTemplateData{},
-			expected: "test",
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assert := assert.New(t)
-			ctx := ConfigTemplateContext{}
-			actual, err := test.property.Parse(test.value, ctx, test.data)
-			if assert.NoError(err, "Expected no error, but got: %v", err) {
-				return
-			}
 			assert.Equal(actual, test.expected, "expected %v, got %v", test.expected, actual)
 		})
 	}
@@ -239,13 +241,13 @@ func Test_MapParse(t *testing.T) {
 		{
 			name: "Parse map property value",
 			property: MapPropertyType{
-				Key:   StringPropertyType,
-				Value: StringPropertyType,
+				Key:   "string",
+				Value: "string",
 				Property: Property{
 					Type: "map(string,string)",
 				},
 			},
-			value: map[string]interface{}{
+			value: map[any]interface{}{
 				"key":   "test",
 				"value": "test",
 			},
@@ -257,13 +259,13 @@ func Test_MapParse(t *testing.T) {
 		{
 			name: "Parse map property value with template",
 			property: MapPropertyType{
-				Key:   StringPropertyType,
-				Value: StringPropertyType,
+				Key:   "string",
+				Value: "string",
 				Property: Property{
 					Type: "map(string,string)",
 				},
 			},
-			value: map[string]interface{}{
+			value: map[any]interface{}{
 				"key":   "{{ \"test\" }}",
 				"value": "{{ \"test\" }}",
 			},
@@ -289,7 +291,7 @@ func Test_MapParse(t *testing.T) {
 					},
 				},
 			},
-			value: map[string]interface{}{
+			value: map[any]interface{}{
 				"nested": "test",
 				"second": true,
 			},
@@ -311,7 +313,7 @@ func Test_MapParse(t *testing.T) {
 					},
 				},
 			},
-			value: map[string]interface{}{
+			value: map[any]interface{}{
 				"nested": "test",
 				"second": true,
 			},
@@ -345,7 +347,7 @@ func Test_ListParse(t *testing.T) {
 		{
 			name: "Parse list property value",
 			property: ListPropertyType{
-				Value: StringPropertyType,
+				Value: "string",
 				Property: Property{
 					Type: "list(string)",
 				},
@@ -362,7 +364,7 @@ func Test_ListParse(t *testing.T) {
 		{
 			name: "Parse list property value with template",
 			property: ListPropertyType{
-				Value: StringPropertyType,
+				Value: "string",
 				Property: Property{
 					Type: "list(string)",
 				},

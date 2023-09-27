@@ -25,6 +25,7 @@ type (
 		GetClassification(id construct.ResourceId) Classification
 		GetResourcesNamespaceResource(resource *construct.Resource) *construct.Resource
 		GetResourcePropertyType(resource *construct.Resource, propertyName string) string
+		TransformToPropertyValue(resource *construct.Resource, propertyName string, value interface{}, ctx ConfigTemplateContext, data ConfigTemplateData) (interface{}, error)
 	}
 
 	// KnowledgeBase is a struct that represents the object which contains the knowledge of how to make resources operational
@@ -184,7 +185,7 @@ func (kb *KnowledgeBase) GetClassification(id construct.ResourceId) Classificati
 	return template.Classification
 }
 
-func (kb *KnowledgeBase) GetResourcesNamespaceResource(resource construct.Resource) *construct.Resource {
+func (kb *KnowledgeBase) GetResourcesNamespaceResource(resource *construct.Resource) *construct.Resource {
 	template, err := kb.GetResourceTemplate(resource.ID)
 	if err != nil {
 		return nil

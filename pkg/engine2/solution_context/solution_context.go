@@ -178,6 +178,8 @@ func (ctx SolutionContext) nodeMakeOperational(r *construct.Resource) error {
 	if err != nil {
 		panic(err)
 	}
+
+	// Right now we only enforce the top level properties if they have rules
 	for _, property := range template.Properties {
 		if property.OperationalStep == nil {
 			continue

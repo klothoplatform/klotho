@@ -275,7 +275,12 @@ func (ctx OperationalRuleContext) getResourcesForStep(step knowledgebase.Operati
 }
 
 func (ctx OperationalRuleContext) addDependenciesFromProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) ([]construct.ResourceId, error) {
-	field := reflect.ValueOf(resource).Elem().FieldByName(propertyName)
+
+	val, err := resource.GetProperty(propertyName)
+	if err != nil {
+		return nil, err
+	}
+	field := reflect.ValueOf(val)
 	if field.IsValid() {
 		if field.Kind() == reflect.Slice || field.Kind() == reflect.Array {
 			var ids []construct.ResourceId
@@ -294,14 +299,18 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(step knowledgebase
 			if err != nil {
 				return []construct.ResourceId{}, err
 			}
-			return []construct.ResourceId{val.Interface().(construct.Resource).ID}, nil
+			return []construct.ResourceId{val.Interface().(*construct.Resource).ID}, nil
 		}
 	}
 	return nil, nil
 }
 
 func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) error {
-	field := reflect.ValueOf(resource).Elem().FieldByName(propertyName)
+	val, err := resource.GetProperty(propertyName)
+	if err != nil {
+		return err
+	}
+	field := reflect.ValueOf(val)
 	if field.IsValid() {
 		if field.Kind() == reflect.Slice || field.Kind() == reflect.Array {
 			for i := 0; i < field.Len(); i++ {
@@ -311,14 +320,14 @@ func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalSt
 					return err
 				}
 			}
-			field.Set(reflect.MakeSlice(field.Type(), 0, 0))
+			resource.SetProperty(propertyName, reflect.MakeSlice(field.Type(), 0, 0).Interface())
 		} else if field.Kind() == reflect.Ptr && !field.IsNil() {
 			val := field
 			err := ctx.removeDependencyForDirection(step.Direction, resource, val.Interface().(*construct.Resource))
 			if err != nil {
 				return err
 			}
-			field.Set(reflect.Zero(field.Type()))
+			resource.SetProperty(propertyName, reflect.Zero(field.Type()).Interface())
 		}
 	}
 	return nil
@@ -360,9 +369,9 @@ func (ctx OperationalRuleContext) generateResourceName(resourceToSet, resource *
 		}
 	}
 	if unique {
-		reflect.ValueOf(resourceToSet).Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s-%s-%d", resourceToSet.ID.Type, resource.ID.Name, numResources)))
+		resourceToSet.ID.Name = fmt.Sprintf("%s-%s-%d", resourceToSet.ID.Type, resource.ID.Name, numResources)
 	} else {
-		reflect.ValueOf(resourceToSet).Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s-%d", resourceToSet.ID.Type, numResources)))
+		resourceToSet.ID.Name = fmt.Sprintf("%s-%d", resourceToSet.ID.Type, numResources)
 	}
 }
 
@@ -373,36 +382,43 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 	// snapshot the ID from before any field changes
 	oldId := resource.ID
 
-	resVal := reflect.ValueOf(resource)
-	fieldValue := reflect.ValueOf(fieldResource)
-
-	field := resVal.Elem().FieldByName(ctx.Property.Name)
-
-	if field.Kind() == reflect.Slice || field.Kind() == reflect.Array {
-		field.Set(reflect.Append(field, fieldValue))
-	} else {
-		if field.Kind() == reflect.Ptr && !field.IsNil() {
-			oldFieldValue := field.Interface()
-			if oldRes, ok := oldFieldValue.(*construct.Resource); ok && fieldResource.ID != oldRes.ID {
-				err := ctx.removeDependencyForDirection(step.Direction, resource, oldRes)
+	if ctx.Property.IsPropertyTypeScalar() {
+		res, err := resource.GetProperty(ctx.Property.Name)
+		if err != nil {
+			zap.S().Debugf("property %s not found on resource %s", ctx.Property.Name, resource.ID)
+		}
+		// If the current field is a resource id we will compare it against the one passed in to see if we need to remove the current resource
+		currResId, ok := res.(construct.ResourceId)
+		if ok {
+			if res != nil && res != fieldResource.ID {
+				oldPropertyResource, err := ctx.Graph.GetResource(currResId)
 				if err != nil {
 					return err
 				}
-				zap.S().Infof("Removing old field value for '%s' (%s) for %s", ctx.Property.Name, oldRes.ID, fieldResource.ID)
+				err = ctx.removeDependencyForDirection(step.Direction, resource, oldPropertyResource)
+				if err != nil {
+					return err
+				}
+				zap.S().Infof("Removing old field value for '%s' (%s) for %s", ctx.Property.Name, res, fieldResource.ID)
 				// Remove the old field value if it's unused
-				err = ctx.Graph.RemoveResource(oldRes, false)
+				err = ctx.Graph.RemoveResource(oldPropertyResource, false)
 				if err != nil {
 					return err
 				}
 			}
 		}
 
-		if reflect.TypeOf(construct.ResourceId{}).AssignableTo(field.Type()) {
-			field.Set(reflect.ValueOf(fieldResource.ID))
-		} else {
-			field.Set(fieldValue)
+		// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
+		resource.SetProperty(ctx.Property.Name, fieldResource.ID)
+		// See if we need to namespace the resource due to setting the property
+		if ctx.Property.Namespace {
+			resource.ID.Namespace = fieldResource.ID.Name
 		}
+	} else {
+		// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
+		resource.AppendProperty(ctx.Property.Name, fieldResource.ID)
 	}
+
 	zap.S().Infof("set field %s#%s to %s", resource.ID, ctx.Property.Name, fieldResource.ID)
 	// If this sets the field driving the namespace, for example,
 	// then the Id could change, so replace the resource in the graph
