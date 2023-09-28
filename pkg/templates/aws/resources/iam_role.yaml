@@ -1,0 +1,18 @@
+qualified_type_name: aws:iam_role
+properties:
+  AssumeRolePolicyDoc:
+    type: resource
+  ManagedPolicies:
+    type: list(string)
+  InlinePolicies:
+    type: resource
+classification:
+  is:
+  - role
+  gives:
+  - permissions
+  - security
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

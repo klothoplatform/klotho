@@ -1,7 +1,6 @@
 package solution_context
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/dominikbraun/graph"
@@ -22,7 +21,6 @@ type (
 		stack                []KV
 		kb                   knowledgebase.TemplateKB
 		mappedResources      map[construct.ResourceId]construct.ResourceId
-		CreateResourcefromId func(id construct.ResourceId) *construct.Resource
 		EdgeConstraints      []constraints.EdgeConstraint
 		ResourceConstraints  []constraints.ResourceConstraint
 		ConstructConstraints []constraints.ConstructConstraint
@@ -174,6 +172,15 @@ func (ctx SolutionContext) nodeMakeOperational(r *construct.Resource) error {
 
 	// handle resource constraints before to prevent unnecessary actions
 
+	for _, rc := range ctx.ResourceConstraints {
+		if rc.Target == r.ID {
+			err := ctx.ApplyResourceConstraint(r, rc)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	template, err := ctx.kb.GetResourceTemplate(r.ID)
 	if err != nil {
 		panic(err)
@@ -181,18 +188,32 @@ func (ctx SolutionContext) nodeMakeOperational(r *construct.Resource) error {
 
 	// Right now we only enforce the top level properties if they have rules
 	for _, property := range template.Properties {
-		if property.OperationalStep == nil {
-			continue
-		}
-		ruleCtx := operational_rule.OperationalRuleContext{
-			Property:             &property,
-			ConfigCtx:            knowledgebase.ConfigTemplateContext{DAG: ctx.dataflowGraph},
-			Data:                 knowledgebase.ConfigTemplateData{Resource: r.ID},
-			Graph:                ctx,
-			KB:                   ctx.kb,
-			CreateResourcefromId: ctx.CreateResourcefromId,
-		}
-		err := ruleCtx.HandleOperationalStep(*property.OperationalStep)
+		ctx.handleNodeProperty(r, property)
+	}
+	return nil
+}
+
+func (ctx SolutionContext) handleNodeProperty(r *construct.Resource, property knowledgebase.Property) error {
+	if property.OperationalRule == nil {
+		return nil
+	}
+	ruleCtx := operational_rule.OperationalRuleContext{
+		Property:  &property,
+		ConfigCtx: knowledgebase.ConfigTemplateContext{DAG: ctx.dataflowGraph},
+		Data:      knowledgebase.ConfigTemplateData{Resource: r.ID},
+		Graph:     ctx,
+		KB:        ctx.kb,
+	}
+	err := ruleCtx.HandleOperationalRule(*property.OperationalRule)
+	if err != nil {
+		return err
+	}
+	_, err = r.GetProperty(property.Path)
+	if err != nil {
+		r.SetProperty(property.Path, property.DefaultValue)
+	}
+	for _, property := range property.Properties {
+		err := ctx.handleNodeProperty(r, property)
 		if err != nil {
 			return err
 		}
@@ -206,11 +227,10 @@ func (ctx SolutionContext) edgeMakeOperational(e graph.Edge[construct.ResourceId
 	template := ctx.kb.GetEdgeTemplate(e.Source, e.Target)
 	for _, rule := range template.OperationalRules {
 		ruleCtx := operational_rule.OperationalRuleContext{
-			ConfigCtx:            knowledgebase.ConfigTemplateContext{DAG: ctx.dataflowGraph},
-			Data:                 knowledgebase.ConfigTemplateData{Edge: e},
-			Graph:                ctx,
-			KB:                   ctx.kb,
-			CreateResourcefromId: ctx.CreateResourcefromId,
+			ConfigCtx: knowledgebase.ConfigTemplateContext{DAG: ctx.dataflowGraph},
+			Data:      knowledgebase.ConfigTemplateData{Edge: e},
+			Graph:     ctx,
+			KB:        ctx.kb,
 		}
 		err := ruleCtx.HandleOperationalRule(rule)
 		if err != nil {
@@ -227,9 +247,8 @@ func (ctx SolutionContext) addPath(from, to *construct.Resource) error {
 	}
 	ctx.With("edge", dep)
 	pathCtx := path_selection.PathSelectionContext{
-		Graph:                ctx,
-		KB:                   ctx.kb,
-		CreateResourcefromId: ctx.CreateResourcefromId,
+		Graph: ctx,
+		KB:    ctx.kb,
 	}
 
 	// Find any edge constraints around path selection
@@ -238,9 +257,9 @@ func (ctx SolutionContext) addPath(from, to *construct.Resource) error {
 		if constraint.Target.Source == from.ID && constraint.Target.Target == to.ID {
 			switch constraint.Operator {
 			case constraints.MustContainConstraintOperator:
-				edgeData.Constraint.NodeMustExist = append(edgeData.Constraint.NodeMustExist, *ctx.CreateResourcefromId(constraint.Node))
+				edgeData.Constraint.NodeMustExist = append(edgeData.Constraint.NodeMustExist, construct.Resource{ID: constraint.Node})
 			case constraints.MustNotContainConstraintOperator:
-				edgeData.Constraint.NodeMustNotExist = append(edgeData.Constraint.NodeMustNotExist, *ctx.CreateResourcefromId(constraint.Node))
+				edgeData.Constraint.NodeMustNotExist = append(edgeData.Constraint.NodeMustNotExist, construct.Resource{ID: constraint.Node})
 			case constraints.EqualsConstraintOperator:
 				for key, val := range constraint.Attributes {
 					edgeData.Attributes[key] = val
@@ -274,32 +293,10 @@ func (ctx SolutionContext) addPath(from, to *construct.Resource) error {
 	return nil
 }
 
-func (ctx SolutionContext) ConfigureResource(resource *construct.Resource, configuration knowledgebase.Configuration, data knowledgebase.ConfigTemplateData) error {
-	if resource == nil {
-		return fmt.Errorf("resource does not exist")
-	}
-	configCtx := knowledgebase.ConfigTemplateContext{DAG: ctx.dataflowGraph}
-	newConfig, err := configCtx.ResolveConfig(configuration, data)
-	if err != nil {
-		return err
-	}
-	err = ConfigureField(resource, newConfig.Field, newConfig.Value, false, ctx.dataflowGraph)
-	if err != nil {
-		return err
-	}
-	ctx.RecordDecision(SetPropertyDecision{
-		Resource: resource.ID,
-		Property: configuration.Field,
-		Value:    configuration.Value,
-	})
-	return nil
-}
-
 func (ctx SolutionContext) ExpandConstruct(resource *construct.Resource, constraints []constraints.ConstructConstraint) ([]SolutionContext, error) {
 	expCtx := constructexpansion.ConstructExpansionContext{
-		Construct:            resource,
-		Kb:                   ctx.kb,
-		CreateResourceFromId: ctx.CreateResourcefromId,
+		Construct: resource,
+		Kb:        ctx.kb,
 	}
 	solutions, err := expCtx.ExpandConstruct(resource, constraints)
 	if err != nil {
@@ -338,7 +335,13 @@ func (ctx SolutionContext) GenerateCombinations() ([]SolutionContext, error) {
 		if res.ID.IsAbstractResource() {
 			newSolutions := []SolutionContext{}
 			for _, sol := range solutions {
-				ctxs, err := sol.ExpandConstruct(res, []constraints.ConstructConstraint{})
+				constructConstraints := []constraints.ConstructConstraint{}
+				for _, constraint := range ctx.ConstructConstraints {
+					if constraint.Target == res.ID {
+						constructConstraints = append(constructConstraints, constraint)
+					}
+				}
+				ctxs, err := sol.ExpandConstruct(res, constructConstraints)
 				if err != nil {
 					return nil, err
 				}
@@ -371,60 +374,63 @@ func (ctx SolutionContext) IsOperationalResourceSideEffect(resource, sideEffect 
 	}
 	for _, property := range template.Properties {
 		ruleSatisfied := false
-		if property.OperationalStep == nil {
+		if property.OperationalRule == nil {
 			continue
 		}
-		rule := property.OperationalStep
-		if rule.Resources != nil {
-			resources, types, err := property.OperationalStep.ExtractResourcesAndTypes(knowledgebase.ConfigTemplateContext{DAG: ctx.dataflowGraph}, knowledgebase.ConfigTemplateData{Resource: resource.ID})
-			if err != nil {
-				continue
-			}
-			if collectionutil.Contains(types, construct.ResourceId{Provider: sideEffect.ID.Provider, Type: sideEffect.ID.Type}) {
-				ruleSatisfied = true
-			}
-			if collectionutil.Contains(resources, sideEffect.ID) {
-				ruleSatisfied = true
-			}
-		}
-		if rule.Classifications != nil {
-			if template.ResourceContainsClassifications(rule.Classifications) {
-				ruleSatisfied = true
-			}
-		}
-
-		// If the side effect resource fits the rule we then perform 2 more checks
-		// 1. is there a path in the direction of the rule
-		// 2. Is the property set with the resource that we are checking for
-		if ruleSatisfied {
-			if rule.Direction == knowledgebase.Upstream {
-				resources, err := graph.ShortestPath(ctx.dataflowGraph, sideEffect.ID, resource.ID)
-				if len(resources) == 0 || err != nil {
+		rule := property.OperationalRule
+		for _, step := range rule.Steps {
+			if step.Resources != nil {
+				resources, types, err := step.ExtractResourcesAndTypes(knowledgebase.ConfigTemplateContext{DAG: ctx.dataflowGraph}, knowledgebase.ConfigTemplateData{Resource: resource.ID})
+				if err != nil {
 					continue
 				}
-			} else {
-				resources, err := graph.ShortestPath(ctx.dataflowGraph, resource.ID, sideEffect.ID)
-				if len(resources) == 0 || err != nil {
-					continue
+				if collectionutil.Contains(types, construct.ResourceId{Provider: sideEffect.ID.Provider, Type: sideEffect.ID.Type}) {
+					ruleSatisfied = true
+				}
+				if collectionutil.Contains(resources, sideEffect.ID) {
+					ruleSatisfied = true
+				}
+			}
+			if step.Classifications != nil {
+				if template.ResourceContainsClassifications(step.Classifications) {
+					ruleSatisfied = true
 				}
 			}
 
-			val, _, err := parseFieldName(resource, property.Name, ctx.dataflowGraph, false)
-			if err != nil {
-				return false
-			}
-			if val.Kind() == reflect.Array || val.Kind() == reflect.Slice {
-				for i := 0; i < val.Len(); i++ {
-					if val.Index(i).Interface().(construct.Resource).ID == sideEffect.ID {
+			// If the side effect resource fits the rule we then perform 2 more checks
+			// 1. is there a path in the direction of the rule
+			// 2. Is the property set with the resource that we are checking for
+			if ruleSatisfied {
+				if step.Direction == knowledgebase.Upstream {
+					resources, err := graph.ShortestPath(ctx.dataflowGraph, sideEffect.ID, resource.ID)
+					if len(resources) == 0 || err != nil {
+						continue
+					}
+				} else {
+					resources, err := graph.ShortestPath(ctx.dataflowGraph, resource.ID, sideEffect.ID)
+					if len(resources) == 0 || err != nil {
+						continue
+					}
+				}
+
+				propertyVal, err := resource.GetProperty(property.Path)
+				if err != nil {
+					continue
+				}
+				val := reflect.ValueOf(propertyVal)
+				if val.Kind() == reflect.Array || val.Kind() == reflect.Slice {
+					for i := 0; i < val.Len(); i++ {
+						if val.Index(i).Interface().(construct.Resource).ID == sideEffect.ID {
+							return true
+						}
+					}
+				} else {
+					if val.Interface().(*construct.Resource).ID == sideEffect.ID {
 						return true
 					}
 				}
-			} else {
-				if val.Interface().(*construct.Resource).ID == sideEffect.ID {
-					return true
-				}
-			}
 
+			}
 		}
 	}
 	return false

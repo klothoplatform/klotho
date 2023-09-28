@@ -6,6 +6,7 @@ import (
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
 func (ctx SolutionContext) LoadConstraints(input map[constraints.ConstraintScope][]constraints.Constraint) error {
@@ -54,7 +55,7 @@ func (ctx SolutionContext) ApplyApplicationConstraint(constraint *constraints.Ap
 	ctx.With("constraint", constraint)
 	switch constraint.Operator {
 	case constraints.AddConstraintOperator:
-		res := ctx.CreateResourcefromId(constraint.Node)
+		res := &construct.Resource{ID: constraint.Node}
 		return ctx.addResource(res, false)
 	case constraints.RemoveConstraintOperator:
 		node, _ := ctx.GetResource(constraint.Node)
@@ -73,7 +74,7 @@ func (ctx SolutionContext) ApplyApplicationConstraint(constraint *constraints.Ap
 			reflect.ValueOf(replacementNode).Elem().FieldByName("Name").Set(reflect.ValueOf(constraint.ReplacementNode.Name))
 			return ctx.ReplaceResourceId(constraint.Node, replacementNode)
 		} else {
-			replacementNode = ctx.CreateResourcefromId(constraint.ReplacementNode)
+			replacementNode = &construct.Resource{ID: constraint.ReplacementNode}
 			functionalUpstream, err := ctx.UpstreamFunctional(node)
 			if err != nil {
 				return err
@@ -114,11 +115,11 @@ func (ctx SolutionContext) ApplyEdgeConstraint(constraint *constraints.EdgeConst
 	ctx.With("constraint", constraint)
 	src, _ := ctx.GetResource(constraint.Target.Source)
 	if src == nil {
-		src = ctx.CreateResourcefromId(constraint.Target.Source)
+		src = &construct.Resource{ID: constraint.Target.Source}
 	}
 	dst, _ := ctx.GetResource(constraint.Target.Target)
 	if dst == nil {
-		dst = ctx.CreateResourcefromId(constraint.Target.Target)
+		dst = &construct.Resource{ID: constraint.Target.Target}
 	}
 
 	switch constraint.Operator {
@@ -163,6 +164,24 @@ func (ctx SolutionContext) ApplyEdgeConstraint(constraint *constraints.EdgeConst
 		}
 	}
 	return nil
+}
+
+func (ctx SolutionContext) ApplyResourceConstraint(resource *construct.Resource, rc constraints.ResourceConstraint) error {
+	ctx.With("constraint", rc)
+	configuration := knowledgebase.Configuration{
+		Field: rc.Property,
+		Value: rc.Value,
+	}
+	switch rc.Operator {
+	case constraints.AddConstraintOperator:
+		return ctx.ConfigureResource(resource, configuration, knowledgebase.ConfigTemplateData{Resource: resource.ID}, "add")
+	case constraints.RemoveConstraintOperator:
+		return ctx.ConfigureResource(resource, configuration, knowledgebase.ConfigTemplateData{Resource: resource.ID}, "remove")
+	case constraints.EqualsConstraintOperator:
+		return ctx.ConfigureResource(resource, configuration, knowledgebase.ConfigTemplateData{Resource: resource.ID}, "set")
+	default:
+		return fmt.Errorf("invalid operator %s", rc.Operator)
+	}
 }
 
 func cloneResource(resource *construct.Resource) *construct.Resource {

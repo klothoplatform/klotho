@@ -2,7 +2,6 @@ package path_selection
 
 import (
 	"fmt"
-	"reflect"
 	"sort"
 
 	"github.com/dominikbraun/graph"
@@ -40,9 +39,8 @@ type (
 	}
 
 	PathSelectionContext struct {
-		KB                   knowledgebase.TemplateKB
-		Graph                Graph
-		CreateResourcefromId func(id construct.ResourceId) *construct.Resource
+		KB    knowledgebase.TemplateKB
+		Graph Graph
 	}
 )
 
@@ -78,8 +76,9 @@ func (ctx PathSelectionContext) determineCorrectPaths(dep graph.Edge[*construct.
 	}
 	var validPaths []Path
 	var satisfyAttributeData []Path
+	templates := map[string]*knowledgebase.ResourceTemplate{}
+PATHS:
 	for _, p := range paths {
-
 		// Check if the path satisfies all constraints on the edge
 		types := []string{}
 		for _, res := range p {
@@ -87,22 +86,23 @@ func (ctx PathSelectionContext) determineCorrectPaths(dep graph.Edge[*construct.
 		}
 		for _, c := range edgeData.Constraint.NodeMustExist {
 			if !collectionutil.Contains(types, c.ID.QualifiedTypeName()) {
-				continue
+				continue PATHS
 			}
 		}
 		for _, c := range edgeData.Constraint.NodeMustNotExist {
 			if collectionutil.Contains(types, c.ID.QualifiedTypeName()) {
-				continue
+				continue PATHS
 			}
 		}
 
 		satisfies := true
 		path := Path{}
 		for _, resTemplate := range p {
+			templates[resTemplate.QualifiedTypeName] = resTemplate
 			path.Nodes = append(path.Nodes, resTemplate.Id())
 			isSource := resTemplate.QualifiedTypeName == dep.Source.ID.QualifiedTypeName()
 			isDest := resTemplate.QualifiedTypeName == dep.Target.ID.QualifiedTypeName()
-			if ctx.KB.GetFunctionality(resTemplate.Id()) != knowledgebase.Unknown {
+			if resTemplate.GetFunctionality() != knowledgebase.Unknown {
 				path.Weight += 1
 			}
 			for k := range edgeData.Attributes {
@@ -128,7 +128,7 @@ func (ctx PathSelectionContext) determineCorrectPaths(dep graph.Edge[*construct.
 	}
 	for _, p := range satisfyAttributeData {
 		// Ensure we arent taking unnecessary hops to get to the destination
-		if !ctx.containsUnneccessaryHopsInPath(dep, p.Nodes, edgeData) {
+		if !ctx.containsUnneccessaryHopsInPath(dep, p.Nodes, edgeData, templates) {
 			validPaths = append(validPaths, p)
 		}
 	}
@@ -140,7 +140,10 @@ func (ctx PathSelectionContext) determineCorrectPaths(dep graph.Edge[*construct.
 // We check if the source and destination of the dependency have a functionality. If they do, we check if the functionality of the source or destination
 // is the same as the functionality of the source or destination of the edge in the path. If it is then we ensure that the source or destination of the edge
 // in the path is not the same as the source or destination of the dependency. If it is then we know that the edge in the path is an unnecessary hop to get to the destination
-func (ctx PathSelectionContext) containsUnneccessaryHopsInPath(dep graph.Edge[*construct.Resource], p []construct.ResourceId, edgeData EdgeData) bool {
+func (ctx PathSelectionContext) containsUnneccessaryHopsInPath(dep graph.Edge[*construct.Resource], p []construct.ResourceId, edgeData EdgeData, templates map[string]*knowledgebase.ResourceTemplate) bool {
+	if len(p) == 2 {
+		return false
+	}
 	var mustExistTypes []string
 	for _, res := range edgeData.Constraint.NodeMustExist {
 		mustExistTypes = append(mustExistTypes, res.ID.QualifiedTypeName())
@@ -157,11 +160,11 @@ func (ctx PathSelectionContext) containsUnneccessaryHopsInPath(dep graph.Edge[*c
 			continue
 		}
 
-		resFunctionality := ctx.KB.GetFunctionality(res)
+		resFunctionality := templates[res.QualifiedTypeName()].GetFunctionality()
 
-		srcFunctionality := ctx.KB.GetFunctionality(dep.Source.ID)
+		srcFunctionality := templates[dep.Source.ID.QualifiedTypeName()].GetFunctionality()
 
-		dstFunctionality := ctx.KB.GetFunctionality(dep.Target.ID)
+		dstFunctionality := templates[dep.Target.ID.QualifiedTypeName()].GetFunctionality()
 
 		// If one of the resources in the path has duplicate functionality as the source or destination of the dependency, we know that the path contains unnecessary hops, so check to see if it exists due to a constraint
 		if res.QualifiedTypeName() == dep.Target.ID.QualifiedTypeName() || res.QualifiedTypeName() == dep.Source.ID.QualifiedTypeName() {
@@ -230,87 +233,4 @@ func (ctx PathSelectionContext) findOptimalPath(paths []Path) Path {
 		return pathStrings[keys[0]]
 	}
 	return validPath
-}
-
-// ExpandEdges performs calculations to determine the proper path to be inserted into the ResourceGraph.
-//
-// The workflow of the edge expansion is as follows:
-//   - Find shortest path given the constraints on the edge
-//   - Iterate through each edge in path creating the resource if necessary
-func (ctx PathSelectionContext) ExpandEdge(dep graph.Edge[*construct.Resource], validPath Path, edgeData EdgeData) ([]graph.Edge[*construct.Resource], error) {
-
-	var result []graph.Edge[*construct.Resource]
-	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
-	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.ID, dep.Target.ID)
-
-	name := fmt.Sprintf("%s_%s", dep.Source.ID.Name, dep.Target.ID.Name)
-
-	var previousNode *construct.Resource
-	var edgeTemplate *knowledgebase.EdgeTemplate
-
-PATH:
-	for i, node := range validPath.Nodes {
-		if i == 0 {
-			previousNode = dep.Source
-			continue
-		} else if i == len(validPath.Nodes)-1 {
-			result = append(result, graph.Edge[*construct.Resource]{
-				Source: previousNode,
-				Target: dep.Target,
-			})
-			break PATH
-		}
-
-		edgeTemplate = ctx.KB.GetEdgeTemplate(previousNode.ID, node)
-
-		// Create a new interface of the destination nodes type if it does not exist
-		destNode := ctx.CreateResourcefromId(node)
-		reflect.ValueOf(destNode).Elem().FieldByName("Name").Set(reflect.ValueOf(fmt.Sprintf("%s_%s", destNode.ID.Type, name)))
-		// Determine if the destination node is the same type as what is specified in the constraints as must exist
-		for _, mustExistRes := range edgeData.Constraint.NodeMustExist {
-			if mustExistRes.ID.Type == destNode.ID.Type && mustExistRes.ID.Provider == destNode.ID.Provider && mustExistRes.ID.Namespace == destNode.ID.Namespace {
-				destNode = &mustExistRes
-			}
-		}
-
-		// If the edge specifies that it can reuse upstream or downstream resources, we want to find the first resource which satisfies the reuse criteria and add that as the dependency.
-		// If there is no resource that satisfies the reuse criteria, we want to add the original direct dependency
-		switch edgeTemplate.Reuse {
-		case knowledgebase.ReuseUpstream:
-			DownstreamResources, err := ctx.Graph.Downstream(dep.Source, 3)
-			if err != nil {
-				return nil, err
-			}
-			for _, res := range DownstreamResources {
-				if previousNode.ID.Type == res.ID.Type {
-					result = append(result, graph.Edge[*construct.Resource]{
-						Source: res,
-						Target: destNode,
-					})
-					break PATH
-				}
-			}
-		case knowledgebase.ReuseDownstream:
-			upstreamResources, err := ctx.Graph.Upstream(dep.Target, 3)
-			if err != nil {
-				return nil, err
-			}
-			for _, res := range upstreamResources {
-				if destNode.ID.Type == res.ID.Type {
-					result = append(result, graph.Edge[*construct.Resource]{
-						Source: previousNode,
-						Target: res,
-					})
-					break PATH
-				}
-			}
-		}
-		result = append(result, graph.Edge[*construct.Resource]{
-			Source: previousNode,
-			Target: destNode,
-		})
-		previousNode = destNode
-	}
-
-	return result, nil
 }

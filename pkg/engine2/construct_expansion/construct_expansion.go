@@ -24,9 +24,8 @@ type (
 	}
 
 	ConstructExpansionContext struct {
-		Construct            *construct.Resource
-		Kb                   knowledgebase.TemplateKB
-		CreateResourceFromId func(id construct.ResourceId) *construct.Resource
+		Construct *construct.Resource
+		Kb        knowledgebase.TemplateKB
 	}
 )
 
@@ -65,7 +64,7 @@ func (ctx *ConstructExpansionContext) expandConstruct(constructType string, attr
 	var baseResource construct.Resource
 	for _, res := range ctx.Kb.ListResources() {
 		if res.Id().Type == constructType {
-			baseResource = *ctx.CreateResourceFromId(res.Id())
+			baseResource = construct.Resource{ID: res.Id()}
 		}
 	}
 	expansionSet := ExpansionSet{Construct: c}
@@ -93,7 +92,7 @@ func (ctx *ConstructExpansionContext) findPossibleExpansions(expansionSet Expans
 				unsatisfiedAttributes = append(unsatisfiedAttributes, ms)
 			}
 		}
-		baseRes := *ctx.CreateResourceFromId(construct.ResourceId{Type: res.Id().Type, Name: expansionSet.Construct.ID.Name, Provider: res.Id().Provider})
+		baseRes := construct.Resource{ID: construct.ResourceId{Type: res.Id().Type, Name: expansionSet.Construct.ID.Name, Provider: res.Id().Provider}}
 		expansions, err := ctx.findExpansions(unsatisfiedAttributes, []graph.Edge[construct.Resource]{}, baseRes, functionality)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
@@ -118,7 +117,7 @@ func (ctx *ConstructExpansionContext) findExpansions(attributes []string, edges 
 			}
 			if ctx.Kb.HasFunctionalPath(baseResource.ID, res.Id()) {
 				if res.GivesAttributeForFunctionality(attribute, functionality) {
-					resource := *ctx.CreateResourceFromId(construct.ResourceId{Type: res.Id().Type, Name: baseResource.ID.Name, Provider: res.Id().Provider})
+					resource := construct.Resource{ID: construct.ResourceId{Type: res.Id().Type, Name: baseResource.ID.Name, Provider: res.Id().Provider}}
 					edges = append(edges, graph.Edge[construct.Resource]{Source: baseResource, Target: resource})
 					unsatisfiedAttributes := []string{}
 					for _, ms := range attributes {

@@ -1,0 +1,36 @@
+qualified_type_name: aws:ecr_image
+properties:
+  ImageName:
+    type: string
+  Repo:
+    type: resource
+    operational_rule:
+      steps:
+      - direction: downstream
+        resources:
+          - ecr_repo
+  Context:
+    type: string
+  Dockerfile:
+    type: string
+    operational_rule:
+      if: |
+        {{ eq (fieldValue "Dockerfile" .Self) "" }}
+      steps:
+      - direction: downstream
+        resources:
+          - docker:image:{{ .Self.Name }}
+  ExtraOptions:
+    type: list(string)
+    default_value:
+    - --platform
+    - linux/amd64
+    - --quiet
+classification:
+  is: 
+    - image
+    - container
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

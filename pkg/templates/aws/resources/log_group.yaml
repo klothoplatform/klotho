@@ -1,0 +1,20 @@
+qualified_type_name: aws:log_group
+
+properties:
+  LogGroupName:
+    type: string
+  RetentionInDays:
+    type: int
+    default: 5
+
+classification:
+  is: 
+  - serverless
+  - compute
+  
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+
+views:
+  dataflow: small

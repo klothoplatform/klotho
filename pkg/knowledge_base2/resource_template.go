@@ -1,10 +1,12 @@
 package knowledgebase2
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"gopkg.in/yaml.v3"
 )
 
 type (
@@ -12,7 +14,7 @@ type (
 	ResourceTemplate struct {
 		QualifiedTypeName string `json:"qualified_type_name" yaml:"qualified_type_name"`
 
-		Properties map[string]Property `json:"properties" yaml:"properties"`
+		Properties Properties `json:"properties" yaml:"properties"`
 
 		Classification Classification `json:"classification" yaml:"classification"`
 
@@ -21,6 +23,8 @@ type (
 		// Views defines the views that the resource should be added to as a distinct node
 		Views map[string]string `json:"views" yaml:"views"`
 	}
+
+	Properties map[string]Property
 
 	Property struct {
 		Name string `json:"name" yaml:"name"`
@@ -31,11 +35,13 @@ type (
 
 		DefaultValue any `json:"default_value" yaml:"default_value"`
 
-		UserConfigurable bool `json:"user_configurable" yaml:"user_configurable"`
+		ConfigurationDisabled bool `json:"configuration_disabled" yaml:"configuration_disabled"`
 
-		OperationalStep *OperationalStep `json:"operational_step" yaml:"operational_step"`
+		OperationalRule *OperationalRule `json:"operational_rule" yaml:"operational_rule"`
 
 		Properties map[string]Property `json:"properties" yaml:"properties"`
+
+		Path string `json:"-" yaml:"-"`
 	}
 
 	Classification struct {
@@ -54,8 +60,6 @@ type (
 		RequiresNoUpstream bool `yaml:"requires_no_upstream" toml:"requires_no_upstream"`
 		// RequiresNoDownstream is a boolean that tells us if deletion relies on there being no downstream resources
 		RequiresNoDownstream bool `yaml:"requires_no_downstream" toml:"requires_no_downstream"`
-		// RequiresExplicitDelete is a boolean that tells us if deletion relies on the resource being explicitly deleted
-		RequiresExplicitDelete bool `yaml:"requires_explicit_delete" toml:"requires_explicit_delete"`
 		// RequiresNoUpstreamOrDownstream is a boolean that tells us if deletion relies on there being no upstream or downstream resources
 		RequiresNoUpstreamOrDownstream bool `yaml:"requires_no_upstream_or_downstream" toml:"requires_no_upstream_or_downstream"`
 	}
@@ -72,6 +76,33 @@ const (
 	Unknown   Functionality = "Unknown"
 )
 
+func (p *Properties) UnmarshalYAML(n *yaml.Node) error {
+	type h Properties
+	var p2 h
+	err := n.Decode(&p2)
+	if err != nil {
+		return err
+	}
+	for name, property := range p2 {
+		property.Name = name
+		property.Path = name
+		setChildPaths(&property, name)
+		p2[name] = property
+	}
+	*p = Properties(p2)
+	return nil
+}
+
+func setChildPaths(property *Property, currPath string) {
+	for name, child := range property.Properties {
+		child.Name = name
+		path := currPath + "." + name
+		child.Path = path
+		setChildPaths(&child, path)
+		property.Properties[name] = child
+	}
+}
+
 func (g *Gives) UnmarshalJSON(content []byte) error {
 	givesString := string(content)
 	if givesString == "" {
@@ -87,8 +118,24 @@ func (g *Gives) UnmarshalJSON(content []byte) error {
 	return nil
 }
 
+func (g *Gives) UnmarshalYAML(n *yaml.Node) error {
+	givesString := n.Value
+	if givesString == "" {
+		return nil
+	}
+	gives := strings.Split(givesString, ":")
+	g.Attribute = strings.ReplaceAll(gives[0], "\"", "")
+	if len(gives) == 1 {
+		g.Functionality = []string{"*"}
+		return nil
+	}
+	g.Functionality = strings.Split(strings.ReplaceAll(gives[1], "\"", ""), ",")
+	return nil
+}
+
 func (template ResourceTemplate) Id() construct.ResourceId {
 	args := strings.Split(template.QualifiedTypeName, ":")
+	fmt.Println(args, template.QualifiedTypeName)
 	return construct.ResourceId{
 		Provider: args[0],
 		Type:     args[1],
@@ -104,7 +151,7 @@ func (template ResourceTemplate) GivesAttributeForFunctionality(attribute string
 	return false
 }
 
-func (template ResourceTemplate) getFunctionality() Functionality {
+func (template ResourceTemplate) GetFunctionality() Functionality {
 	if len(template.Classification.Is) == 0 {
 		return Unknown
 	}

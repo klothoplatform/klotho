@@ -54,16 +54,14 @@ var resource1 = &knowledgebase.ResourceTemplate{
 	QualifiedTypeName: "mock:resource1",
 	Properties: map[string]knowledgebase.Property{
 		"Name": {
-			Name:             "Name",
-			Type:             "string",
-			Namespace:        false,
-			UserConfigurable: false,
+			Name:      "Name",
+			Type:      "string",
+			Namespace: false,
 		},
 		"Res4": {
-			Name:             "Res4",
-			Type:             "resource",
-			Namespace:        true,
-			UserConfigurable: false,
+			Name:      "Res4",
+			Type:      "resource",
+			Namespace: true,
 		},
 		"Res2s": {
 			Name: "Res2s",
@@ -80,10 +78,9 @@ var resource2 = &knowledgebase.ResourceTemplate{
 	QualifiedTypeName: "mock:resource2",
 	Properties: map[string]knowledgebase.Property{
 		"Name": {
-			Name:             "Name",
-			Type:             "string",
-			Namespace:        false,
-			UserConfigurable: false,
+			Name:      "Name",
+			Type:      "string",
+			Namespace: false,
 		},
 	},
 	Classification: knowledgebase.Classification{
@@ -96,10 +93,9 @@ var resource3 = &knowledgebase.ResourceTemplate{
 	QualifiedTypeName: "mock:resource3",
 	Properties: map[string]knowledgebase.Property{
 		"Name": {
-			Name:             "Name",
-			Type:             "string",
-			Namespace:        false,
-			UserConfigurable: false,
+			Name:      "Name",
+			Type:      "string",
+			Namespace: false,
 		},
 	},
 	Classification: knowledgebase.Classification{
@@ -112,10 +108,9 @@ var resource4 = &knowledgebase.ResourceTemplate{
 	QualifiedTypeName: "mock:resource4",
 	Properties: map[string]knowledgebase.Property{
 		"Name": {
-			Name:             "Name",
-			Type:             "string",
-			Namespace:        false,
-			UserConfigurable: false,
+			Name:      "Name",
+			Type:      "string",
+			Namespace: false,
 		},
 	},
 	Classification: knowledgebase.Classification{

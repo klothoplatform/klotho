@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	kbtesting "github.com/klothoplatform/klotho/pkg/engine2/operational_rule/test_kb"
+	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
+	kbtesting "github.com/klothoplatform/klotho/pkg/engine2/enginetesting/test_kb"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -174,14 +175,11 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := &MockGraph{}
+			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				ConfigCtx: knowledgebase.ConfigTemplateContext{},
 				Graph:     g,
 				KB:        kbtesting.TestKB,
-				CreateResourcefromId: func(id construct.ResourceId) *construct.Resource {
-					return kbtesting.MockResource4(id.Name)
-				},
 			}
 			for _, mock := range tt.mocks {
 				g.On(mock.Method, mock.Arguments...).Return(mock.ReturnArguments...).Once()
@@ -231,7 +229,7 @@ func Test_findResourcesWhichSatisfyStepClassifications(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := &MockGraph{}
+			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				Graph: g,
 				KB:    kbtesting.TestKB,
@@ -302,7 +300,7 @@ func Test_getResourcesForStep(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := &MockGraph{}
+			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				Graph: g,
 				KB:    kbtesting.TestKB,
@@ -371,7 +369,7 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g := &MockGraph{}
+			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				Graph: g,
 			}
@@ -448,7 +446,7 @@ func Test_clearProperty(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g := &MockGraph{}
+			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				Graph: g,
 			}
@@ -520,7 +518,7 @@ func Test_addDependencyForDirection(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g := &MockGraph{}
+			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				Graph: g,
 			}
@@ -560,7 +558,7 @@ func Test_removeDependencyForDirection(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g := &MockGraph{}
+			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				Graph: g,
 			}
@@ -605,7 +603,7 @@ func Test_generateResourceName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			g := &MockGraph{}
+			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				Graph: g,
 			}
@@ -717,7 +715,7 @@ func Test_setField(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fmt.Println(tt.name)
 			assert := assert.New(t)
-			g := &MockGraph{}
+			g := &enginetesting.MockGraph{}
 			testKb := kbtesting.TestKB
 			ctx := OperationalRuleContext{
 				Property: tt.property,
@@ -787,53 +785,4 @@ func Test_setField(t *testing.T) {
 			}
 		})
 	}
-}
-
-type MockGraph struct {
-	mock.Mock
-}
-
-func (g *MockGraph) ListResources() ([]*construct.Resource, error) {
-	args := g.Called()
-	return args.Get(0).([]*construct.Resource), args.Error(1)
-}
-func (g *MockGraph) AddResource(resource *construct.Resource) {
-}
-func (g *MockGraph) RemoveResource(resource *construct.Resource, explicit bool) error {
-	args := g.Called(resource, explicit)
-	return args.Error(0)
-}
-func (g *MockGraph) AddDependency(from *construct.Resource, to *construct.Resource) error {
-	args := g.Called(from, to)
-	return args.Error(0)
-}
-func (g *MockGraph) RemoveDependency(from construct.ResourceId, to construct.ResourceId) error {
-	args := g.Called(from, to)
-	return args.Error(0)
-}
-func (g *MockGraph) GetResource(id construct.ResourceId) (*construct.Resource, error) {
-	args := g.Called(id)
-	return args.Get(0).(*construct.Resource), args.Error(1)
-}
-
-func (g *MockGraph) DownstreamOfType(resource *construct.Resource, layer int, qualifiedType string) ([]*construct.Resource, error) {
-	args := g.Called(resource, layer, qualifiedType)
-	return args.Get(0).([]*construct.Resource), args.Error(1)
-}
-func (g *MockGraph) Downstream(resource *construct.Resource, layer int) ([]*construct.Resource, error) {
-	args := g.Called(resource, layer)
-	return args.Get(0).([]*construct.Resource), args.Error(1)
-}
-func (g *MockGraph) Upstream(resource *construct.Resource, layer int) ([]*construct.Resource, error) {
-	args := g.Called(resource, layer)
-	return args.Get(0).([]*construct.Resource), args.Error(1)
-}
-
-func (g *MockGraph) ReplaceResourceId(oldId construct.ResourceId, resource *construct.Resource) error {
-	args := g.Called(oldId, resource)
-	return args.Error(0)
-}
-func (g *MockGraph) ConfigureResource(resource *construct.Resource, configuration knowledgebase.Configuration, data knowledgebase.ConfigTemplateData) error {
-	args := g.Called(resource, configuration, data)
-	return args.Error(0)
 }

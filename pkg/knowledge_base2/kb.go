@@ -113,7 +113,7 @@ PATHS:
 			if err != nil {
 				panic(err)
 			}
-			if template.getFunctionality() != Unknown {
+			if template.GetFunctionality() != Unknown {
 				continue PATHS
 			}
 		}
@@ -145,26 +145,28 @@ func (kb *KnowledgeBase) GetAllowedNamespacedResourceIds(ctx ConfigTemplateConte
 	if property == nil {
 		return result, nil
 	}
-	step := property.OperationalStep
-	if step == nil {
+	rule := property.OperationalRule
+	if rule == nil {
 		return result, nil
 	}
-	if step.Resources != nil {
-		for _, resource := range step.Resources {
-			id, err := ctx.ExecuteDecodeAsResourceId(resource, ConfigTemplateData{Resource: resourceId})
-			if err != nil {
-				return nil, err
-			}
-			result = append(result, id)
-		}
-	}
-	if step.Classifications != nil {
-		for _, resTempalte := range kb.ListResources() {
-			if resTempalte.ResourceContainsClassifications(step.Classifications) {
-				result = append(result, resTempalte.Id())
+	for _, step := range rule.Steps {
+		if step.Resources != nil {
+			for _, resource := range step.Resources {
+				id, err := ctx.ExecuteDecodeAsResourceId(resource, ConfigTemplateData{Resource: resourceId})
+				if err != nil {
+					return nil, err
+				}
+				result = append(result, id)
 			}
 		}
+		if step.Classifications != nil {
+			for _, resTempalte := range kb.ListResources() {
+				if resTempalte.ResourceContainsClassifications(step.Classifications) {
+					result = append(result, resTempalte.Id())
+				}
+			}
 
+		}
 	}
 	return result, nil
 }
@@ -174,7 +176,7 @@ func (kb *KnowledgeBase) GetFunctionality(id construct.ResourceId) Functionality
 	if template == nil {
 		return Unknown
 	}
-	return template.getFunctionality()
+	return template.GetFunctionality()
 }
 
 func (kb *KnowledgeBase) GetClassification(id construct.ResourceId) Classification {

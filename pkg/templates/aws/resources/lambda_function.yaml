@@ -1,0 +1,77 @@
+qualified_type_name: aws:lambda_function 
+
+properties:
+  ExecutionRole:
+    type: resource
+    user_configurable: true
+    operational_rule:
+      steps:
+      - direction: downstream
+        resources:
+          - aws:iam_role:{{ .Self.ID.Name }}-ExecutionRole
+        unique: true
+  Image:
+    type: resource
+    user_configurable: true
+    operational_rule:
+      steps:
+      - direction: downstream
+        resources:
+          - aws:ecr_image:{{ .Self.ID.Name }}-image
+        unique: true
+  EnvironmentVariables:
+    type: map(string,string)
+    user_configurable: true
+  SecurityGroups:
+    type: list(resource)
+    user_configurable: true
+    operational_rule:
+      if: |
+        {{ downstream "aws:vpc" .Self }}
+      steps:
+      - direction: downstream
+        resources:
+          - aws:security_group
+  Subnets:
+    type: list(resource)
+    operational_rule:
+      if: |
+        {{ downstream "aws:vpc" .Self }}
+      steps:
+      - direction: downstream
+        resources:
+          - aws:subnet_private
+          - aws:subnet_public
+  Timeout:
+    type: int
+    default_value: 180
+  MemorySize:
+    type: int
+    default_value: 512
+  EfsAccessPoint:
+    type: resource
+  LogGroup:
+    type: resource
+    operational_rule:
+      steps:
+      - direction: downstream
+        resources:
+          - aws:log_group:{{ .Self.ID.Name }}-log-group
+        unique: true
+      configuration_rules:
+      - resource: aws:log_group:{{ .Self.ID.Name }}-log-group
+        configuration:
+          field: LogGroupName
+          value: /aws/lambda/{{ .Self.ID.Name }}
+
+classification:
+  is: 
+    - serverless
+    - compute
+
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+
+views:
+  dataflow: big

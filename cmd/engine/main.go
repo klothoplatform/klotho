@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/klothoplatform/klotho/pkg/engine"
+	engine "github.com/klothoplatform/klotho/pkg/engine2"
 	"github.com/spf13/cobra"
 )
 

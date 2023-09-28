@@ -32,12 +32,11 @@ type (
 )
 
 var ScalarPropertyMap = map[string]PropertyType{
-	"string":      StringPropertyType{},
-	"int":         IntPropertyType{},
-	"float":       FloatPropertyType{},
-	"bool":        BoolPropertyType{},
-	"resource":    ResourcePropertyType{},
-	"propertyref": PropertyRefPropertyType{},
+	"string":   StringPropertyType{},
+	"int":      IntPropertyType{},
+	"float":    FloatPropertyType{},
+	"bool":     BoolPropertyType{},
+	"resource": ResourcePropertyType{},
 }
 
 func (p Property) IsPropertyTypeScalar() bool {
@@ -191,7 +190,6 @@ func (list ListPropertyType) Parse(value any, ctx ConfigTemplateContext, data Co
 			}
 			result = append(result, val)
 		}
-
 	}
 	return result, nil
 }

@@ -22,10 +22,6 @@ type (
 	}
 )
 
-func (e *Engine) CreateResourceFromId(id construct.ResourceId) construct.Resource {
-	panic("implement me")
-}
-
 func NewEngine(kb knowledgebase.TemplateKB) *Engine {
 	return &Engine{
 		Kb: kb,

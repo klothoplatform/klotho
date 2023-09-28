@@ -3,6 +3,7 @@ package solution_context
 import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"go.uber.org/zap"
 )
 
@@ -54,7 +55,7 @@ func (ctx SolutionContext) canDeleteResource(resource *construct.Resource, expli
 		return false
 	}
 	deletionCriteria := template.DeleteContext
-	if deletionCriteria.RequiresExplicitDelete && !explicit {
+	if template.GetFunctionality() != knowledgebase.Unknown && !explicit {
 		return false
 	}
 

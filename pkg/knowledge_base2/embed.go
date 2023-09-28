@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io/fs"
 
-	"github.com/klothoplatform/klotho/pkg/construct"
-	"gopkg.in/yaml.v2"
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"gopkg.in/yaml.v3"
 )
 
 func TemplatesFromFs(dir fs.FS) (map[construct.ResourceId]*ResourceTemplate, error) {

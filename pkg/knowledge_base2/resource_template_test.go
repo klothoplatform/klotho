@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 var testTemplate = ResourceTemplate{
@@ -17,6 +18,50 @@ var testTemplate = ResourceTemplate{
 			},
 		},
 	},
+}
+
+func Test_UnmarshalYaml(t *testing.T) {
+	tests := []struct {
+		name     string
+		yaml     string
+		expected Properties
+	}{
+		{
+			name: "propagate path and name",
+			yaml: `
+name:
+  type: string
+  properties:
+    nested:
+      type: string`,
+			expected: map[string]Property{
+				"name": {
+					Name: "name",
+					Path: "name",
+					Type: "string",
+					Properties: map[string]Property{
+						"nested": {
+							Name: "nested",
+							Path: "name.nested",
+							Type: "string",
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert := assert.New(t)
+			p := Properties{}
+			node := &yaml.Node{}
+			err := yaml.Unmarshal([]byte(test.yaml), node)
+			assert.NoError(err, "Expected no error")
+			err = p.UnmarshalYAML(node)
+			assert.NoError(err, "Expected no error")
+			assert.Equal(p, test.expected, "Expected unmarshalled yaml to equal expected")
+		})
+	}
 }
 
 func Test_GetProperty(t *testing.T) {

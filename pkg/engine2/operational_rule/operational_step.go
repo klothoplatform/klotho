@@ -43,13 +43,13 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 	var ids []construct.ResourceId
 	if ctx.Property != nil {
 		if replace {
-			err := ctx.clearProperty(step, resource, ctx.Property.Name)
+			err := ctx.clearProperty(step, resource, ctx.Property.Path)
 			if err != nil {
 				return err
 			}
 		}
 		var err error
-		ids, err = ctx.addDependenciesFromProperty(step, resource, ctx.Property.Name)
+		ids, err = ctx.addDependenciesFromProperty(step, resource, ctx.Property.Path)
 		if err != nil {
 			return err
 		}
@@ -102,7 +102,7 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *cons
 		}
 		res, _ := ctx.Graph.GetResource(explicitResource)
 		if res == nil {
-			res = ctx.CreateResourcefromId(explicitResource)
+			res = &construct.Resource{ID: explicitResource}
 		}
 		err := ctx.addDependencyForDirection(action.Step, resource, res)
 		if err != nil {
@@ -128,7 +128,7 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *cons
 		// loop over the number of resources still needed and create them if the unique flag is true
 		for numNeeded > 0 {
 			typeToCreate := resourceTypes[0]
-			newRes := ctx.CreateResourcefromId(typeToCreate)
+			newRes := &construct.Resource{ID: typeToCreate}
 			ctx.generateResourceName(newRes, resource, action.Step.Unique)
 			err := ctx.addDependencyForDirection(action.Step, resource, newRes)
 			if err != nil {
@@ -188,7 +188,7 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *cons
 
 	for numNeeded > 0 {
 		typeToCreate := resourceTypes[0]
-		newRes := ctx.CreateResourcefromId(typeToCreate)
+		newRes := &construct.Resource{ID: typeToCreate}
 		ctx.generateResourceName(newRes, resource, action.Step.Unique)
 		err := ctx.addDependencyForDirection(action.Step, resource, newRes)
 		if err != nil {
@@ -383,9 +383,9 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 	oldId := resource.ID
 
 	if ctx.Property.IsPropertyTypeScalar() {
-		res, err := resource.GetProperty(ctx.Property.Name)
+		res, err := resource.GetProperty(ctx.Property.Path)
 		if err != nil {
-			zap.S().Debugf("property %s not found on resource %s", ctx.Property.Name, resource.ID)
+			zap.S().Debugf("property %s not found on resource %s", ctx.Property.Path, resource.ID)
 		}
 		// If the current field is a resource id we will compare it against the one passed in to see if we need to remove the current resource
 		currResId, ok := res.(construct.ResourceId)
@@ -399,7 +399,7 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 				if err != nil {
 					return err
 				}
-				zap.S().Infof("Removing old field value for '%s' (%s) for %s", ctx.Property.Name, res, fieldResource.ID)
+				zap.S().Infof("Removing old field value for '%s' (%s) for %s", ctx.Property.Path, res, fieldResource.ID)
 				// Remove the old field value if it's unused
 				err = ctx.Graph.RemoveResource(oldPropertyResource, false)
 				if err != nil {
@@ -409,17 +409,20 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 		}
 
 		// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
-		resource.SetProperty(ctx.Property.Name, fieldResource.ID)
+		resource.SetProperty(ctx.Property.Path, fieldResource.ID)
 		// See if we need to namespace the resource due to setting the property
 		if ctx.Property.Namespace {
 			resource.ID.Namespace = fieldResource.ID.Name
 		}
 	} else {
 		// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
-		resource.AppendProperty(ctx.Property.Name, fieldResource.ID)
+		err := resource.AppendProperty(ctx.Property.Path, fieldResource.ID)
+		if err != nil {
+			return err
+		}
 	}
 
-	zap.S().Infof("set field %s#%s to %s", resource.ID, ctx.Property.Name, fieldResource.ID)
+	zap.S().Infof("set field %s#%s to %s", resource.ID, ctx.Property.Path, fieldResource.ID)
 	// If this sets the field driving the namespace, for example,
 	// then the Id could change, so replace the resource in the graph
 	// to update all the edges to the new Id.
