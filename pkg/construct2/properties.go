@@ -220,52 +220,44 @@ func (i mapKeyPathItem) Set(value any) (err error) {
 	return nil
 }
 
-func (i mapKeyPathItem) Append(value any) (err error) {
-	defer pathPanicRecover(i, &err)
-
-	a := i.m.MapIndex(i.key)
+func appendValue(a reflect.Value, value reflect.Value) (reflect.Value, error) {
 	for a.Kind() == reflect.Interface || a.Kind() == reflect.Ptr {
 		a = a.Elem()
 	}
 
 	switch a.Kind() {
 	case reflect.Slice, reflect.Array:
-		i.m.SetMapIndex(i.key, reflect.Append(a, reflect.ValueOf(value)))
+		return reflect.Append(a, value), nil
 
 	case reflect.Map:
 		aType := a.Type()
-		valType := reflect.TypeOf(value)
+		valType := value.Type()
 		if valType.Kind() != reflect.Map {
-			return &PropertyPathError{
-				Path:  itemToPath(i),
-				Cause: fmt.Errorf("expected map value for append, got %s", valType),
-			}
+			return a, fmt.Errorf("expected map value for append, got %s", valType)
 		}
-		if aType.Key() != valType.Key() {
-			return &PropertyPathError{
-				Path: itemToPath(i),
-				Cause: fmt.Errorf("expected map key type %s, got %s",
-					aType.Key(), valType.Key()),
-			}
+		if !valType.Key().AssignableTo(aType.Key()) {
+			return a, fmt.Errorf("expected map key type %s, got %s", aType.Key(), valType.Key())
 		}
 		if !valType.Elem().AssignableTo(aType.Elem()) {
-			return &PropertyPathError{
-				Path: itemToPath(i),
-				Cause: fmt.Errorf("expected map value type %s, got %s",
-					aType.Elem(), valType.Elem()),
-			}
+			return a, fmt.Errorf("expected map value type %s, got %s", aType.Elem(), valType.Elem())
 		}
-		valValue := reflect.ValueOf(value)
-		for _, key := range valValue.MapKeys() {
-			a.SetMapIndex(key, valValue.MapIndex(key))
+		for _, key := range value.MapKeys() {
+			a.SetMapIndex(key, value.MapIndex(key))
 		}
-
-	default:
-		return &PropertyPathError{
-			Path:  itemToPath(i),
-			Cause: fmt.Errorf("expected array or map destination for append, got %s", a.Kind()),
-		}
+		return a, nil
 	}
+	return a, fmt.Errorf("expected array or map destination for append, got %s", a.Kind())
+}
+
+func (i mapKeyPathItem) Append(value any) (err error) {
+	defer pathPanicRecover(i, &err)
+
+	kv := i.m.MapIndex(i.key)
+	appended, err := appendValue(kv, reflect.ValueOf(value))
+	if err != nil {
+		return &PropertyPathError{Path: itemToPath(i), Cause: err}
+	}
+	i.m.SetMapIndex(i.key, appended)
 	return nil
 }
 
@@ -327,48 +319,12 @@ func (i arrayIndexPathItem) Set(value any) (err error) {
 
 func (i arrayIndexPathItem) Append(value any) (err error) {
 	defer pathPanicRecover(i, &err)
-	a := i.a.Index(i.index)
-	for a.Kind() == reflect.Interface || a.Kind() == reflect.Ptr {
-		a = a.Elem()
+	ival := i.a.Index(i.index)
+	appended, err := appendValue(ival, reflect.ValueOf(value))
+	if err != nil {
+		return &PropertyPathError{Path: itemToPath(i), Cause: err}
 	}
-	switch a.Kind() {
-	case reflect.Slice, reflect.Array:
-		i.a.Index(i.index).Set(reflect.Append(a, reflect.ValueOf(value)))
-
-	case reflect.Map:
-		aType := a.Type()
-		valType := reflect.TypeOf(value)
-		if valType.Kind() != reflect.Map {
-			return &PropertyPathError{
-				Path:  itemToPath(i),
-				Cause: fmt.Errorf("expected map value for append, got %s", valType),
-			}
-		}
-		if aType.Key() != valType.Key() {
-			return &PropertyPathError{
-				Path: itemToPath(i),
-				Cause: fmt.Errorf("expected map key type %s, got %s",
-					aType.Key(), valType.Key()),
-			}
-		}
-		if !valType.Elem().AssignableTo(aType.Elem()) {
-			return &PropertyPathError{
-				Path: itemToPath(i),
-				Cause: fmt.Errorf("expected map value type %s, got %s",
-					aType.Elem(), valType.Elem()),
-			}
-		}
-		valValue := reflect.ValueOf(value)
-		for _, key := range valValue.MapKeys() {
-			a.SetMapIndex(key, valValue.MapIndex(key))
-		}
-
-	default:
-		return &PropertyPathError{
-			Path:  itemToPath(i),
-			Cause: fmt.Errorf("expected array or map destination for append, got %s", a.Kind()),
-		}
-	}
+	ival.Set(appended)
 	return nil
 }
 
@@ -468,6 +424,10 @@ func mapKeys(m reflect.Value) ([]reflect.Value, error) {
 
 var SkipProperty = fmt.Errorf("skip property")
 
+// WalkProperties walks the properties of the resource, calling fn for each property. If fn returns
+// SkipProperty, the property and its decendants (if a map or array type) is skipped. If fn returns
+// StopWalk, the walk is stopped.
+// NOTE: does not walk over the _keys_ of any maps, only values.
 func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 	queue := make([]PropertyPath, len(r.Properties))
 	props := reflect.ValueOf(r.Properties)

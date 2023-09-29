@@ -206,6 +206,12 @@ func TestResource_PropertyPath_ops(t *testing.T) {
 			"hello": "world",
 		}, c.Get())
 	}
+
+	d := path("D")
+	if assert.NoError(d.Set(map[string]string{"hello": "world"})) {
+		assert.Error(d.Append(map[string]int{"foo": 1}))
+		assert.Error(d.Append(map[int]string{1: "foo"}))
+	}
 }
 
 func TestResource_Properties_ops(t *testing.T) {
