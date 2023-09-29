@@ -147,6 +147,9 @@ func TestResource_PropertyPath_ops(t *testing.T) {
 				"array": []any{"fox", "bat", "dog"},
 			},
 			"B": []any{[]any{1, 2, 3}},
+			"C": map[string]any{
+				"x": "y",
+			},
 		},
 	}
 
@@ -195,6 +198,14 @@ func TestResource_PropertyPath_ops(t *testing.T) {
 	if assert.NoError(two.Remove(nil)) {
 		assert.Equal([]any{1, 3}, path("B[0]").Get())
 	}
+
+	c := path("C")
+	if assert.NoError(c.Append(map[string]string{"hello": "world"})) {
+		assert.Equal(map[string]any{
+			"x":     "y",
+			"hello": "world",
+		}, c.Get())
+	}
 }
 
 func TestResource_Properties_ops(t *testing.T) {
@@ -207,6 +218,9 @@ func TestResource_Properties_ops(t *testing.T) {
 				"array": []string{"fox", "bat", "dog"},
 			},
 			"B": []any{[]int{1, 2, 3}},
+			"C": map[string]any{
+				"x": "y",
+			},
 		},
 	}
 
@@ -250,5 +264,12 @@ func TestResource_Properties_ops(t *testing.T) {
 	assert.Equal(2, get("B[0][1]"))
 	if assert.NoError(r.RemoveProperty("B[0][1]", nil)) {
 		assert.Equal([]int{1, 3}, get("B[0]"))
+	}
+
+	if assert.NoError(r.AppendProperty("C", map[string]string{"hello": "world"})) {
+		assert.Equal(map[string]any{
+			"x":     "y",
+			"hello": "world",
+		}, get("C"))
 	}
 }

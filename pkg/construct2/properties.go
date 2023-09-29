@@ -6,10 +6,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/yaml_util"
 )
 
 type (
-	Properties = map[string]interface{}
+	Properties map[string]any
 )
 
 // SetProperty is a wrapper around [PropertyPath.Set] for convenience.
@@ -225,13 +227,45 @@ func (i mapKeyPathItem) Append(value any) (err error) {
 	for a.Kind() == reflect.Interface || a.Kind() == reflect.Ptr {
 		a = a.Elem()
 	}
-	if a.Kind() != reflect.Slice && a.Kind() != reflect.Array {
+
+	switch a.Kind() {
+	case reflect.Slice, reflect.Array:
+		i.m.SetMapIndex(i.key, reflect.Append(a, reflect.ValueOf(value)))
+
+	case reflect.Map:
+		aType := a.Type()
+		valType := reflect.TypeOf(value)
+		if valType.Kind() != reflect.Map {
+			return &PropertyPathError{
+				Path:  itemToPath(i),
+				Cause: fmt.Errorf("expected map value for append, got %s", valType),
+			}
+		}
+		if aType.Key() != valType.Key() {
+			return &PropertyPathError{
+				Path: itemToPath(i),
+				Cause: fmt.Errorf("expected map key type %s, got %s",
+					aType.Key(), valType.Key()),
+			}
+		}
+		if !valType.Elem().AssignableTo(aType.Elem()) {
+			return &PropertyPathError{
+				Path: itemToPath(i),
+				Cause: fmt.Errorf("expected map value type %s, got %s",
+					aType.Elem(), valType.Elem()),
+			}
+		}
+		valValue := reflect.ValueOf(value)
+		for _, key := range valValue.MapKeys() {
+			a.SetMapIndex(key, valValue.MapIndex(key))
+		}
+
+	default:
 		return &PropertyPathError{
 			Path:  itemToPath(i),
-			Cause: fmt.Errorf("expected array for append, got %s", a.Type()),
+			Cause: fmt.Errorf("expected array or map destination for append, got %s", a.Kind()),
 		}
 	}
-	i.m.SetMapIndex(i.key, reflect.Append(a, reflect.ValueOf(value)))
 	return nil
 }
 
@@ -297,13 +331,44 @@ func (i arrayIndexPathItem) Append(value any) (err error) {
 	for a.Kind() == reflect.Interface || a.Kind() == reflect.Ptr {
 		a = a.Elem()
 	}
-	if a.Kind() != reflect.Slice && a.Kind() != reflect.Array {
+	switch a.Kind() {
+	case reflect.Slice, reflect.Array:
+		i.a.Index(i.index).Set(reflect.Append(a, reflect.ValueOf(value)))
+
+	case reflect.Map:
+		aType := a.Type()
+		valType := reflect.TypeOf(value)
+		if valType.Kind() != reflect.Map {
+			return &PropertyPathError{
+				Path:  itemToPath(i),
+				Cause: fmt.Errorf("expected map value for append, got %s", valType),
+			}
+		}
+		if aType.Key() != valType.Key() {
+			return &PropertyPathError{
+				Path: itemToPath(i),
+				Cause: fmt.Errorf("expected map key type %s, got %s",
+					aType.Key(), valType.Key()),
+			}
+		}
+		if !valType.Elem().AssignableTo(aType.Elem()) {
+			return &PropertyPathError{
+				Path: itemToPath(i),
+				Cause: fmt.Errorf("expected map value type %s, got %s",
+					aType.Elem(), valType.Elem()),
+			}
+		}
+		valValue := reflect.ValueOf(value)
+		for _, key := range valValue.MapKeys() {
+			a.SetMapIndex(key, valValue.MapIndex(key))
+		}
+
+	default:
 		return &PropertyPathError{
 			Path:  itemToPath(i),
-			Cause: fmt.Errorf("expected array for append, got %s", a),
+			Cause: fmt.Errorf("expected array or map destination for append, got %s", a.Kind()),
 		}
 	}
-	i.a.Index(i.index).Set(reflect.Append(a, reflect.ValueOf(value)))
 	return nil
 }
 
@@ -421,6 +486,7 @@ func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 			return nil
 		}
 		if err == SkipProperty {
+			err = nil
 			continue
 		}
 
@@ -442,4 +508,9 @@ func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 		}
 	}
 	return err
+}
+
+func (p Properties) MarshalYAML() (interface{}, error) {
+	// Is there a way to get the sorting for nested maps to work? This only does top-level.
+	return yaml_util.MarshalMap(p, func(a, b string) bool { return a < b })
 }

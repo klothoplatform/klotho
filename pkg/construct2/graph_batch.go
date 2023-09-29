@@ -26,7 +26,7 @@ func (b *GraphBatch) AddVertices(rs ...*Resource) {
 	for _, r := range rs {
 		err := b.Graph.AddVertex(r)
 		if err == nil {
-			return
+			continue
 		}
 		b.Err = errors.Join(b.Err, err)
 		b.errorAdding[r.ID] = struct{}{}
@@ -36,10 +36,10 @@ func (b *GraphBatch) AddVertices(rs ...*Resource) {
 func (b *GraphBatch) AddEdges(es ...Edge) {
 	for _, e := range es {
 		if _, ok := b.errorAdding[e.Source]; ok {
-			return
+			continue
 		}
 		if _, ok := b.errorAdding[e.Target]; ok {
-			return
+			continue
 		}
 
 		err := b.Graph.AddEdge(e.Source, e.Target, copyEdgeProps(e.Properties))

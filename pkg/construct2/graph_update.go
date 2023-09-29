@@ -65,5 +65,40 @@ func UpdateResourceId(g Graph, old ResourceId) error {
 		return err
 	}
 
-	return g.RemoveVertex(old)
+	if err := g.RemoveVertex(old); err != nil {
+		return err
+	}
+
+	downstream, err := DirectDownstreamDependencies(g, r.ID)
+	if err != nil {
+		return err
+	}
+	upstream, err := DirectUpstreamDependencies(g, r.ID)
+	if err != nil {
+		return err
+	}
+	neighbors := append(downstream, upstream...)
+
+	for _, id := range neighbors {
+		res, err := g.Vertex(id)
+		if err != nil {
+			return err
+		}
+		err = res.WalkProperties(func(path PropertyPath, err error) error {
+			propId, ok := path.Get().(ResourceId)
+			if ok && propId == old {
+				return errors.Join(err, path.Set(r.ID))
+			}
+			propRef, ok := path.Get().(PropertyRef)
+			if ok && propRef.Resource == old {
+				propRef.Resource = r.ID
+				return errors.Join(err, path.Set(propRef))
+			}
+			return err
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
