@@ -165,12 +165,7 @@ func (ctx PathSelectionContext) containsUnneccessaryHopsInPath(dep graph.Edge[*c
 
 		dstFunctionality := templates[dep.Target.ID.QualifiedTypeName()].GetFunctionality()
 
-		// If one of the resources in the path has duplicate functionality as the source or destination of the dependency, we know that the path contains unnecessary hops, so check to see if it exists due to a constraint
-		if res.QualifiedTypeName() == dep.Target.ID.QualifiedTypeName() || res.QualifiedTypeName() == dep.Source.ID.QualifiedTypeName() {
-			if !collectionutil.Contains(mustExistTypes, res.QualifiedTypeName()) {
-				return true
-			}
-			// Continue here because we know the functionalities will conflict and since it must be an included node, we dont want to consider it unnecessary
+		if collectionutil.Contains(mustExistTypes, res.QualifiedTypeName()) {
 			continue
 		}
 

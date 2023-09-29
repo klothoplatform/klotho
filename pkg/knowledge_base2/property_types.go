@@ -225,7 +225,7 @@ func (m *MapPropertyType) Parse(value any, ctx ConfigTemplateContext, data Confi
 
 			propertyType, err := m.Property.Properties[key].getPropertyType()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("unable to get property type for sub property %s: %w", key, err)
 			} else if propertyType == nil {
 				return nil, fmt.Errorf("%s is not a valid sub property", key)
 			}

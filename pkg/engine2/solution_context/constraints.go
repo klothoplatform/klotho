@@ -55,7 +55,7 @@ func (ctx SolutionContext) ApplyApplicationConstraint(constraint *constraints.Ap
 	ctx.With("constraint", constraint)
 	switch constraint.Operator {
 	case constraints.AddConstraintOperator:
-		res := &construct.Resource{ID: constraint.Node}
+		res := construct.CreateResource(constraint.Node)
 		return ctx.addResource(res, false)
 	case constraints.RemoveConstraintOperator:
 		node, _ := ctx.GetResource(constraint.Node)
@@ -74,7 +74,7 @@ func (ctx SolutionContext) ApplyApplicationConstraint(constraint *constraints.Ap
 			reflect.ValueOf(replacementNode).Elem().FieldByName("Name").Set(reflect.ValueOf(constraint.ReplacementNode.Name))
 			return ctx.ReplaceResourceId(constraint.Node, replacementNode)
 		} else {
-			replacementNode = &construct.Resource{ID: constraint.ReplacementNode}
+			replacementNode = construct.CreateResource(constraint.ReplacementNode)
 			functionalUpstream, err := ctx.UpstreamFunctional(node)
 			if err != nil {
 				return err
@@ -115,11 +115,11 @@ func (ctx SolutionContext) ApplyEdgeConstraint(constraint *constraints.EdgeConst
 	ctx.With("constraint", constraint)
 	src, _ := ctx.GetResource(constraint.Target.Source)
 	if src == nil {
-		src = &construct.Resource{ID: constraint.Target.Source}
+		src = construct.CreateResource(constraint.Target.Source)
 	}
 	dst, _ := ctx.GetResource(constraint.Target.Target)
 	if dst == nil {
-		dst = &construct.Resource{ID: constraint.Target.Target}
+		dst = construct.CreateResource(constraint.Target.Target)
 	}
 
 	switch constraint.Operator {

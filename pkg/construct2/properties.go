@@ -16,6 +16,9 @@ type (
 
 // SetProperty is a wrapper around [PropertyPath.Set] for convenience.
 func (r *Resource) SetProperty(pathStr string, value any) error {
+	if r.Properties == nil {
+		r.Properties = Properties{}
+	}
 	path, err := r.PropertyPath(pathStr)
 	if err != nil {
 		return err

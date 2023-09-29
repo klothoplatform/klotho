@@ -368,6 +368,7 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
 			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				Graph: g,
@@ -390,8 +391,10 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 				}
 			}
 
-			ctx.addDependenciesFromProperty(&tt.step, tt.resource, tt.propertyName)
-
+			_, err = ctx.addDependenciesFromProperty(&tt.step, tt.resource, tt.propertyName)
+			if !assert.NoError(err) {
+				return
+			}
 			if currPropertyVal != nil {
 				if tt.step.Direction == knowledgebase.Upstream {
 					g.AssertCalled(t, "AddDependency", currPropertyVal, tt.resource)
@@ -445,6 +448,7 @@ func Test_clearProperty(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
 			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				Graph: g,
@@ -467,10 +471,12 @@ func Test_clearProperty(t *testing.T) {
 					currPropertyVal = fieldVal.Interface().(*construct.Resource)
 				}
 			}
-			ctx.clearProperty(&tt.step, tt.resource, tt.propertyName)
-
+			err = ctx.clearProperty(&tt.step, tt.resource, tt.propertyName)
+			if !assert.NoError(err) {
+				return
+			}
 			if currPropertyArr == nil && currPropertyVal == nil {
-				assert.Fail(t, "property is nil")
+				assert.Fail("property is nil")
 			}
 			if currPropertyVal != nil {
 				if tt.step.Direction == knowledgebase.Upstream {
@@ -517,6 +523,7 @@ func Test_addDependencyForDirection(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
 			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				Graph: g,
@@ -524,8 +531,10 @@ func Test_addDependencyForDirection(t *testing.T) {
 
 			g.On("AddDependency", mock.Anything, mock.Anything).Return(nil)
 
-			ctx.addDependencyForDirection(&tt.step, tt.to, tt.from)
-
+			err := ctx.addDependencyForDirection(&tt.step, tt.to, tt.from)
+			if !assert.NoError(err) {
+				return
+			}
 			if tt.step.Direction == knowledgebase.Upstream {
 				g.AssertCalled(t, "AddDependency", tt.from, tt.to)
 			} else {
@@ -557,6 +566,7 @@ func Test_removeDependencyForDirection(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
 			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				Graph: g,
@@ -564,8 +574,10 @@ func Test_removeDependencyForDirection(t *testing.T) {
 
 			g.On("RemoveDependency", mock.Anything, mock.Anything).Return(nil)
 
-			ctx.removeDependencyForDirection(tt.direction, tt.to, tt.from)
-
+			err := ctx.removeDependencyForDirection(tt.direction, tt.to, tt.from)
+			if !assert.NoError(err) {
+				return
+			}
 			if tt.direction == knowledgebase.Upstream {
 				g.AssertCalled(t, "RemoveDependency", tt.from.ID, tt.to.ID)
 			} else {

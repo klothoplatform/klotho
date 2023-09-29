@@ -43,6 +43,7 @@ func (ctx *ConstructExpansionContext) ExpandConstruct(res *construct.Resource, c
 	attributes := make(map[string]any)
 	for _, constructConstraint := range constraints {
 		if constructConstraint.Target == res.ID {
+			constructType = constructConstraint.Type
 			if constructType != "" && constructType != constructConstraint.Type {
 				return nil, fmt.Errorf("unable to expand construct %s, conflicting types in constraints", res.ID)
 			}
@@ -56,33 +57,22 @@ func (ctx *ConstructExpansionContext) ExpandConstruct(res *construct.Resource, c
 			}
 		}
 	}
-
-	return ctx.expandConstruct(constructType, attributes, res)
-}
-
-func (ctx *ConstructExpansionContext) expandConstruct(constructType string, attributes map[string]any, c *construct.Resource) ([]ExpansionSolution, error) {
-	var baseResource construct.Resource
-	for _, res := range ctx.Kb.ListResources() {
-		if res.Id().Type == constructType {
-			baseResource = construct.Resource{ID: res.Id()}
-		}
-	}
-	expansionSet := ExpansionSet{Construct: c}
+	expansionSet := ExpansionSet{Construct: res}
 	for attribute := range attributes {
 		expansionSet.Attributes = append(expansionSet.Attributes, attribute)
 	}
-	return ctx.findPossibleExpansions(expansionSet, &baseResource)
+	return ctx.findPossibleExpansions(expansionSet, constructType)
 }
 
-func (ctx *ConstructExpansionContext) findPossibleExpansions(expansionSet ExpansionSet, baseResource *construct.Resource) ([]ExpansionSolution, error) {
+func (ctx *ConstructExpansionContext) findPossibleExpansions(expansionSet ExpansionSet, constructQualifiedType string) ([]ExpansionSolution, error) {
 	var possibleExpansions []ExpansionSolution
 	var joinedErr error
+	functionality := ctx.Kb.GetFunctionality(expansionSet.Construct.ID)
 	for _, res := range ctx.Kb.ListResources() {
-		if baseResource != nil && res.Id().Type != baseResource.ID.Type {
+		if constructQualifiedType != "" && res.Id().QualifiedTypeName() != constructQualifiedType {
 			continue
 		}
 		classifications := res.Classification
-		functionality := ctx.Kb.GetFunctionality(expansionSet.Construct.ID)
 		if !collectionutil.Contains(classifications.Is, string(functionality)) {
 			continue
 		}
@@ -92,8 +82,8 @@ func (ctx *ConstructExpansionContext) findPossibleExpansions(expansionSet Expans
 				unsatisfiedAttributes = append(unsatisfiedAttributes, ms)
 			}
 		}
-		baseRes := construct.Resource{ID: construct.ResourceId{Type: res.Id().Type, Name: expansionSet.Construct.ID.Name, Provider: res.Id().Provider}}
-		expansions, err := ctx.findExpansions(unsatisfiedAttributes, []graph.Edge[construct.Resource]{}, baseRes, functionality)
+		baseRes := *construct.CreateResource(construct.ResourceId{Type: res.Id().Type, Name: expansionSet.Construct.ID.Name, Provider: res.Id().Provider})
+		expansions, err := ctx.findExpansions(unsatisfiedAttributes, []graph.Edge[construct.Resource](nil), baseRes, functionality)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
 			continue
@@ -102,12 +92,17 @@ func (ctx *ConstructExpansionContext) findPossibleExpansions(expansionSet Expans
 			possibleExpansions = append(possibleExpansions, ExpansionSolution{Edges: expansion, DirectlyMappedResource: baseRes.ID})
 		}
 	}
-	return possibleExpansions, joinedErr
+	if len(possibleExpansions) == 0 {
+		return nil, fmt.Errorf("no expansions found for attributes %v", expansionSet.Attributes)
+	}
+	return possibleExpansions, nil
 }
 
+// findExpansions finds all possible expansions for a given construct and a set of attributes
+// It returns a list of all possible expansions by recursing down and calling itself until
 func (ctx *ConstructExpansionContext) findExpansions(attributes []string, edges []graph.Edge[construct.Resource], baseResource construct.Resource, functionality knowledgebase.Functionality) ([][]graph.Edge[construct.Resource], error) {
 	if len(attributes) == 0 {
-		return [][]graph.Edge[construct.Resource]{}, nil
+		return [][]graph.Edge[construct.Resource]{edges}, nil
 	}
 	var result [][]graph.Edge[construct.Resource]
 	for _, attribute := range attributes {
@@ -117,7 +112,10 @@ func (ctx *ConstructExpansionContext) findExpansions(attributes []string, edges 
 			}
 			if ctx.Kb.HasFunctionalPath(baseResource.ID, res.Id()) {
 				if res.GivesAttributeForFunctionality(attribute, functionality) {
-					resource := construct.Resource{ID: construct.ResourceId{Type: res.Id().Type, Name: baseResource.ID.Name, Provider: res.Id().Provider}}
+					resource := construct.Resource{
+						ID:         construct.ResourceId{Type: res.Id().Type, Name: baseResource.ID.Name, Provider: res.Id().Provider},
+						Properties: make(construct.Properties),
+					}
 					edges = append(edges, graph.Edge[construct.Resource]{Source: baseResource, Target: resource})
 					unsatisfiedAttributes := []string{}
 					for _, ms := range attributes {

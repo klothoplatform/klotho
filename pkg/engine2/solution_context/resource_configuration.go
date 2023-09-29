@@ -19,12 +19,20 @@ func (ctx SolutionContext) ConfigureResource(resource *construct.Resource, confi
 
 	switch action {
 	case "set":
-
-		resource.SetProperty(configuration.Field, val)
+		err = resource.SetProperty(configuration.Field, val)
+		if err != nil {
+			return fmt.Errorf("failed to set property %s on resource %s: %w", configuration.Field, resource.ID, err)
+		}
 	case "add":
-		resource.AppendProperty(configuration.Field, val)
+		err = resource.AppendProperty(configuration.Field, val)
+		if err != nil {
+			return fmt.Errorf("failed to add property %s on resource %s: %w", configuration.Field, resource.ID, err)
+		}
 	case "remove":
-		resource.RemoveProperty(configuration.Field, val)
+		err = resource.RemoveProperty(configuration.Field, val)
+		if err != nil {
+			return fmt.Errorf("failed to remove property %s on resource %s: %w", configuration.Field, resource.ID, err)
+		}
 	default:
 		return fmt.Errorf("invalid action %s", action)
 	}

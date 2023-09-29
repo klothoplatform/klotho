@@ -223,9 +223,14 @@ func (ctx SolutionContext) handleNodeProperty(r *construct.Resource, property kn
 	if err != nil {
 		return err
 	}
-	_, err = r.GetProperty(property.Path)
-	if err != nil {
-		r.SetProperty(property.Path, property.DefaultValue)
+	if property.DefaultValue != nil {
+		_, err = r.GetProperty(property.Path)
+		if err != nil {
+			err = r.SetProperty(property.Path, property.DefaultValue)
+			if err != nil {
+				return fmt.Errorf("failed to set default value for property %s on resource %s: %w", property.Path, r.ID, err)
+			}
+		}
 	}
 	for _, property := range property.Properties {
 		err := ctx.handleNodeProperty(r, property)
@@ -323,12 +328,6 @@ func (ctx SolutionContext) ExpandConstruct(resource *construct.Resource, constra
 	for _, solution := range solutions {
 		newCtx := ctx.Clone()
 		newCtx.With("construct", resource)
-		for _, edge := range solution.Edges {
-			err = newCtx.AddDependency(&edge.Source, &edge.Target)
-			if err != nil {
-				return nil, err
-			}
-		}
 		res, err := newCtx.GetResource(solution.DirectlyMappedResource)
 		if err != nil {
 			return nil, err
@@ -336,6 +335,12 @@ func (ctx SolutionContext) ExpandConstruct(resource *construct.Resource, constra
 		err = newCtx.ReplaceResourceId(resource.ID, res)
 		if err != nil {
 			return nil, err
+		}
+		for _, edge := range solution.Edges {
+			err = newCtx.AddDependency(&edge.Source, &edge.Target)
+			if err != nil {
+				return nil, err
+			}
 		}
 		result = append(result, newCtx)
 	}

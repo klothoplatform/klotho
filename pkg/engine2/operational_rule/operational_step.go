@@ -102,7 +102,7 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *cons
 		}
 		res, _ := ctx.Graph.GetResource(explicitResource)
 		if res == nil {
-			res = &construct.Resource{ID: explicitResource}
+			res = construct.CreateResource(explicitResource)
 		}
 		err := ctx.addDependencyForDirection(action.Step, resource, res)
 		if err != nil {
@@ -128,7 +128,7 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *cons
 		// loop over the number of resources still needed and create them if the unique flag is true
 		for numNeeded > 0 {
 			typeToCreate := resourceTypes[0]
-			newRes := &construct.Resource{ID: typeToCreate}
+			newRes := construct.CreateResource(typeToCreate)
 			ctx.generateResourceName(newRes, resource, action.Step.Unique)
 			err := ctx.addDependencyForDirection(action.Step, resource, newRes)
 			if err != nil {
@@ -188,7 +188,7 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *cons
 
 	for numNeeded > 0 {
 		typeToCreate := resourceTypes[0]
-		newRes := &construct.Resource{ID: typeToCreate}
+		newRes := construct.CreateResource(typeToCreate)
 		ctx.generateResourceName(newRes, resource, action.Step.Unique)
 		err := ctx.addDependencyForDirection(action.Step, resource, newRes)
 		if err != nil {
@@ -412,9 +412,12 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 				}
 			}
 		}
-
 		// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
-		resource.SetProperty(ctx.Property.Path, fieldResource.ID)
+		err = resource.SetProperty(ctx.Property.Path, fieldResource.ID)
+		if err != nil {
+			return fmt.Errorf("error setting field %s#%s with %s: %w", resource.ID, ctx.Property.Path, fieldResource.ID, err)
+		}
+		zap.S().Infof("set field %s#%s to %s", resource.ID, ctx.Property.Path, fieldResource.ID)
 		// See if we need to namespace the resource due to setting the property
 		if ctx.Property.Namespace {
 			resource.ID.Namespace = fieldResource.ID.Name
@@ -423,11 +426,11 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 		// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
 		err := resource.AppendProperty(ctx.Property.Path, fieldResource.ID)
 		if err != nil {
-			return err
+			return fmt.Errorf("error appending field %s#%s with %s: %w", resource.ID, ctx.Property.Path, fieldResource.ID, err)
 		}
+		zap.S().Infof("appended field %s#%s with %s", resource.ID, ctx.Property.Path, fieldResource.ID)
 	}
 
-	zap.S().Infof("set field %s#%s to %s", resource.ID, ctx.Property.Path, fieldResource.ID)
 	// If this sets the field driving the namespace, for example,
 	// then the Id could change, so replace the resource in the graph
 	// to update all the edges to the new Id.

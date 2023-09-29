@@ -27,7 +27,7 @@ func (ctx PathSelectionContext) ExpandEdge(dep graph.Edge[*construct.Resource], 
 
 PATH:
 	for i, node := range validPath.Nodes {
-		destNode := &construct.Resource{ID: node}
+		destNode := construct.CreateResource(node)
 		if i == 0 {
 			previousNode = dep.Source
 			continue
