@@ -70,7 +70,7 @@ func (kb *KnowledgeBase) AddResourceTemplate(template *ResourceTemplate) error {
 }
 
 func (kb *KnowledgeBase) AddEdgeTemplate(template *EdgeTemplate) error {
-	return kb.underlying.AddEdge(template.Source.QualifiedTypeName(), template.Destination.QualifiedTypeName(), graph.EdgeData(template))
+	return kb.underlying.AddEdge(template.Source.QualifiedTypeName(), template.Target.QualifiedTypeName(), graph.EdgeData(template))
 }
 
 func (kb *KnowledgeBase) GetResourceTemplate(id construct.ResourceId) (*ResourceTemplate, error) {

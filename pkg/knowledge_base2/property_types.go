@@ -10,6 +10,7 @@ import (
 type (
 	PropertyType interface {
 		Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error)
+		SetProperty(property Property)
 	}
 
 	MapPropertyType struct {
@@ -31,12 +32,14 @@ type (
 	PropertyRefPropertyType struct{}
 )
 
-var ScalarPropertyMap = map[string]PropertyType{
-	"string":   StringPropertyType{},
-	"int":      IntPropertyType{},
-	"float":    FloatPropertyType{},
-	"bool":     BoolPropertyType{},
-	"resource": ResourcePropertyType{},
+var PropertyTypeMap = map[string]PropertyType{
+	"string":   &StringPropertyType{},
+	"int":      &IntPropertyType{},
+	"float":    &FloatPropertyType{},
+	"bool":     &BoolPropertyType{},
+	"resource": &ResourcePropertyType{},
+	"map":      &MapPropertyType{},
+	"list":     &ListPropertyType{},
 }
 
 func (p Property) IsPropertyTypeScalar() bool {
@@ -44,34 +47,42 @@ func (p Property) IsPropertyTypeScalar() bool {
 }
 
 func (p Property) getPropertyType() (PropertyType, error) {
+	if p.Type == "" {
+		return nil, fmt.Errorf("property %s does not have a type", p.Name)
+	}
 	parts := strings.Split(p.Type, "(")
 	if len(parts) == 1 {
-		return ScalarPropertyMap[p.Type], nil
+		ptype, found := PropertyTypeMap[p.Type]
+		if !found {
+			return nil, fmt.Errorf("unknown property type '%s' for property %s", p.Type, p.Name)
+		}
+		ptype.SetProperty(p)
+		return ptype, nil
 	}
 	args := strings.Split(strings.TrimSuffix(parts[1], ")"), ",")
 	switch parts[0] {
 	case "map":
 		if p.Properties != nil {
-			return MapPropertyType{Property: p}, nil
+			return &MapPropertyType{Property: p}, nil
 		}
 		if len(args) != 2 {
 			return nil, fmt.Errorf("invalid number of arguments for map property type")
 		}
-		return MapPropertyType{Key: args[0], Value: args[1], Property: p}, nil
+		return &MapPropertyType{Key: args[0], Value: args[1], Property: p}, nil
 	case "list":
 		if p.Properties != nil {
-			return ListPropertyType{Property: p}, nil
+			return &ListPropertyType{Property: p}, nil
 		}
 		if len(args) != 1 {
 			return nil, fmt.Errorf("invalid number of arguments for list property type")
 		}
-		return ListPropertyType{Value: args[0], Property: p}, nil
+		return &ListPropertyType{Value: args[0], Property: p}, nil
 	default:
 		return nil, fmt.Errorf("unknown property type %s", parts[0])
 	}
 }
 
-func (str StringPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (str *StringPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
 	if val, ok := value.(string); ok {
 		var result string
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -80,7 +91,7 @@ func (str StringPropertyType) Parse(value any, ctx ConfigTemplateContext, data C
 	return nil, fmt.Errorf("invalid string value %v", value)
 }
 
-func (i IntPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (i *IntPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
 	if val, ok := value.(string); ok {
 		var result int
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -92,7 +103,7 @@ func (i IntPropertyType) Parse(value any, ctx ConfigTemplateContext, data Config
 	return nil, fmt.Errorf("invalid int value %v", value)
 }
 
-func (f FloatPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (f *FloatPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
 	if val, ok := value.(string); ok {
 		var result float32
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -110,7 +121,7 @@ func (f FloatPropertyType) Parse(value any, ctx ConfigTemplateContext, data Conf
 	return nil, fmt.Errorf("invalid float value %v", value)
 }
 
-func (b BoolPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (b *BoolPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
 	if val, ok := value.(string); ok {
 		var result bool
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -122,7 +133,7 @@ func (b BoolPropertyType) Parse(value any, ctx ConfigTemplateContext, data Confi
 	return nil, fmt.Errorf("invalid bool value %v", value)
 }
 
-func (r ResourcePropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (r *ResourcePropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
 	if val, ok := value.(string); ok {
 		return ctx.ExecuteDecodeAsResourceId(val, data)
 	}
@@ -143,7 +154,7 @@ func (r ResourcePropertyType) Parse(value any, ctx ConfigTemplateContext, data C
 	return nil, fmt.Errorf("invalid resource value %v", value)
 }
 
-func (p PropertyRefPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (p *PropertyRefPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
 	if val, ok := value.(string); ok {
 		result := construct.PropertyRef{}
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -166,7 +177,7 @@ func (p PropertyRefPropertyType) Parse(value any, ctx ConfigTemplateContext, dat
 	return nil, fmt.Errorf("invalid property reference value %v", value)
 }
 
-func (list ListPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (list *ListPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
 
 	var result []any
 	val, ok := value.([]any)
@@ -183,7 +194,7 @@ func (list ListPropertyType) Parse(value any, ctx ConfigTemplateContext, data Co
 			}
 			result = append(result, val)
 		} else {
-			parser := ScalarPropertyMap[list.Value]
+			parser := PropertyTypeMap[list.Value]
 			val, err := parser.Parse(v, ctx, data)
 			if err != nil {
 				return nil, err
@@ -194,11 +205,11 @@ func (list ListPropertyType) Parse(value any, ctx ConfigTemplateContext, data Co
 	return result, nil
 }
 
-func (m MapPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (m *MapPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
 
-	result := map[any]any{}
+	result := map[string]any{}
 
-	mapVal, ok := value.(map[any]any)
+	mapVal, ok := value.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("invalid map value %v", value)
 	}
@@ -212,11 +223,11 @@ func (m MapPropertyType) Parse(value any, ctx ConfigTemplateContext, data Config
 				return nil, fmt.Errorf("invalid map property type %s", m.Property.Name)
 			}
 
-			propertyType, err := m.Property.Properties[key.(string)].getPropertyType()
+			propertyType, err := m.Property.Properties[key].getPropertyType()
 			if err != nil {
 				return nil, err
 			} else if propertyType == nil {
-				return nil, fmt.Errorf("%s is not a valid sub property", key.(string))
+				return nil, fmt.Errorf("%s is not a valid sub property", key)
 			}
 			val, err := propertyType.Parse(v, ctx, data)
 			if err != nil {
@@ -225,19 +236,45 @@ func (m MapPropertyType) Parse(value any, ctx ConfigTemplateContext, data Config
 			result[key] = val
 
 		} else {
-			parser := ScalarPropertyMap[keyType]
+			parser := PropertyTypeMap[keyType]
 			keyVal, err := parser.Parse(key, ctx, data)
 			if err != nil {
 				return nil, err
 			}
-			parser = ScalarPropertyMap[valType]
+			parser = PropertyTypeMap[valType]
 			val, err := parser.Parse(v, ctx, data)
 			if err != nil {
 				return nil, err
 			}
-			result[keyVal] = val
+			result[keyVal.(string)] = val
 		}
 
 	}
 	return result, nil
+}
+
+func (m *MapPropertyType) SetProperty(property Property) {
+	m.Property = property
+}
+
+func (l *ListPropertyType) SetProperty(property Property) {
+	l.Property = property
+}
+
+func (s *StringPropertyType) SetProperty(property Property) {
+}
+
+func (i *IntPropertyType) SetProperty(property Property) {
+}
+
+func (f *FloatPropertyType) SetProperty(property Property) {
+}
+
+func (b *BoolPropertyType) SetProperty(property Property) {
+}
+
+func (r *ResourcePropertyType) SetProperty(property Property) {
+}
+
+func (p *PropertyRefPropertyType) SetProperty(property Property) {
 }

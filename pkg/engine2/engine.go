@@ -1,6 +1,8 @@
 package engine2
 
 import (
+	"fmt"
+
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
@@ -28,8 +30,8 @@ func NewEngine(kb knowledgebase.TemplateKB) *Engine {
 	}
 }
 
-func (e *Engine) Run(context EngineContext) error {
-	solutionCtx := solution_context.NewSolutionContext()
+func (e *Engine) Run(context *EngineContext) error {
+	solutionCtx := solution_context.NewSolutionContext(e.Kb)
 	err := solutionCtx.LoadGraph(context.InitialState)
 	if err != nil {
 		return err
@@ -42,11 +44,18 @@ func (e *Engine) Run(context EngineContext) error {
 	if err != nil {
 		return err
 	}
+	var printableErrorString string
 	for _, solutionContext := range solutionContexts {
 		err := solutionContext.Solve()
 		if err == nil {
 			context.Solutions = append(context.Solutions, solutionContext)
+		} else {
+			printableErrorString += fmt.Sprintf("%s\n", err.Error())
 		}
+
+	}
+	if len(context.Solutions) == 0 {
+		return fmt.Errorf(printableErrorString)
 	}
 	return nil
 }

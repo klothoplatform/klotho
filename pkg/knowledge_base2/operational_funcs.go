@@ -20,8 +20,8 @@ import (
 type (
 	// ConfigTemplateContext is used to scope the DAG into the template functions
 	ConfigTemplateContext struct {
-		DAG construct.Graph
-
+		DAG        Graph
+		KB         TemplateKB
 		resultJson bool
 	}
 
@@ -32,12 +32,21 @@ type (
 		Resource construct.ResourceId
 		Edge     graph.Edge[construct.ResourceId]
 	}
+
+	Graph interface {
+		Downstream(resource *construct.Resource, layer int) ([]*construct.Resource, error)
+		Upstream(resource *construct.Resource, layer int) ([]*construct.Resource, error)
+		GetResource(resource construct.ResourceId) (*construct.Resource, error)
+		ShortestPath(source construct.ResourceId, destination construct.ResourceId) ([]*construct.Resource, error)
+	}
 )
 
 func (ctx *ConfigTemplateContext) Parse(tmpl string) (*template.Template, error) {
 	t, err := template.New("config").Funcs(template.FuncMap{
+		"hasUpstream":   ctx.HasUpstream,
 		"upstream":      ctx.Upstream,
 		"allUpstream":   ctx.AllUpstream,
+		"hasDownstream": ctx.HasDownstream,
 		"downstream":    ctx.Downstream,
 		"allDownstream": ctx.AllDownstream,
 		"shortestPath":  ctx.ShortestPath,
@@ -152,7 +161,7 @@ func (ctx ConfigTemplateContext) ExecuteDecode(tmpl string, data ConfigTemplateD
 
 func (ctx *ConfigTemplateContext) ResolveConfig(config Configuration, data ConfigTemplateData) (Configuration, error) {
 	if cfgVal, ok := config.Value.(string); ok {
-		res, err := ctx.DAG.Vertex(data.Resource)
+		res, err := ctx.DAG.GetResource(data.Resource)
 		if err != nil {
 			return config, err
 		}
@@ -238,22 +247,46 @@ func argToRID(arg any) (construct.ResourceId, error) {
 }
 
 // Upstream returns the first resource that matches `selector` which is upstream of `resource`
+func (ctx *ConfigTemplateContext) HasUpstream(selector any, resource construct.ResourceId) (bool, error) {
+	selId, err := argToRID(selector)
+	if err != nil {
+		return false, err
+	}
+	res, err := ctx.DAG.GetResource(resource)
+	if err != nil {
+		return false, err
+	}
+
+	upstream, err := ctx.DAG.Upstream(res, 3)
+	if err != nil {
+		return false, err
+	}
+	for _, up := range upstream {
+		if selId.Matches(up.ID) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// Upstream returns the first resource that matches `selector` which is upstream of `resource`
 func (ctx *ConfigTemplateContext) Upstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
 	selId, err := argToRID(selector)
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
-	res, err := ctx.DAG.Vertex(resource)
+	res, err := ctx.DAG.GetResource(resource)
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
-	upstream, err := construct.AllUpstreamDependencies(ctx.DAG, res.ID)
+
+	upstream, err := ctx.DAG.Upstream(res, 3)
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
 	for _, up := range upstream {
-		if selId.Matches(up) {
-			return up, nil
+		if selId.Matches(up.ID) {
+			return up.ID, nil
 		}
 	}
 	return construct.ResourceId{},
@@ -267,21 +300,44 @@ func (ctx *ConfigTemplateContext) AllUpstream(selector any, resource construct.R
 	if err != nil {
 		return nil, err
 	}
-	res, err := ctx.DAG.Vertex(resource)
+	res, err := ctx.DAG.GetResource(resource)
 	if err != nil {
 		return []construct.ResourceId{}, err
 	}
 	var matches []construct.ResourceId
-	upstream, err := construct.AllUpstreamDependencies(ctx.DAG, res.ID)
+	upstream, err := ctx.DAG.Upstream(res, 4)
 	if err != nil {
 		return []construct.ResourceId{}, err
 	}
 	for _, up := range upstream {
-		if selId.Matches(up) {
-			matches = append(matches, up)
+		if selId.Matches(up.ID) {
+			matches = append(matches, up.ID)
 		}
 	}
 	return matches, nil
+}
+
+// Downstream returns the first resource that matches `selector` which is downstream of `resource`
+// nolint: lll
+func (ctx *ConfigTemplateContext) HasDownstream(selector any, resource construct.ResourceId) (bool, error) {
+	selId, err := argToRID(selector)
+	if err != nil {
+		return false, err
+	}
+	res, err := ctx.DAG.GetResource(resource)
+	if err != nil {
+		return false, err
+	}
+	downstreams, err := ctx.DAG.Downstream(res, 3)
+	if err != nil {
+		return false, err
+	}
+	for _, down := range downstreams {
+		if selId.Matches(down.ID) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // Downstream returns the first resource that matches `selector` which is downstream of `resource`
@@ -291,17 +347,17 @@ func (ctx *ConfigTemplateContext) Downstream(selector any, resource construct.Re
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
-	res, err := ctx.DAG.Vertex(resource)
+	res, err := ctx.DAG.GetResource(resource)
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
-	downstreamIds, err := construct.AllDownstreamDependencies(ctx.DAG, res.ID)
+	downstreams, err := ctx.DAG.Downstream(res, 3)
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
-	for _, down := range downstreamIds {
-		if selId.Matches(down) {
-			return down, nil
+	for _, down := range downstreams {
+		if selId.Matches(down.ID) {
+			return down.ID, nil
 		}
 	}
 	return construct.ResourceId{},
@@ -315,18 +371,18 @@ func (ctx *ConfigTemplateContext) AllDownstream(selector any, resource construct
 	if err != nil {
 		return nil, err
 	}
-	res, err := ctx.DAG.Vertex(resource)
+	res, err := ctx.DAG.GetResource(resource)
 	if err != nil {
 		return []construct.ResourceId{}, err
 	}
 	var matches []construct.ResourceId
-	downstreamIds, err := construct.AllDownstreamDependencies(ctx.DAG, res.ID)
+	downstreams, err := ctx.DAG.Downstream(res, 4)
 	if err != nil {
 		return []construct.ResourceId{}, err
 	}
-	for _, down := range downstreamIds {
-		if selId.Matches(down) {
-			matches = append(matches, down)
+	for _, down := range downstreams {
+		if selId.Matches(down.ID) {
+			matches = append(matches, down.ID)
 		}
 	}
 	return matches, nil
@@ -342,12 +398,14 @@ func (ctx *ConfigTemplateContext) ShortestPath(source, destination any) ([]const
 	if err != nil {
 		return nil, err
 	}
-	path, err := graph.ShortestPath(ctx.DAG, srcId, dstId)
+	path, err := ctx.DAG.ShortestPath(srcId, dstId)
 	if err != nil {
 		return nil, err
 	}
-	pathIds := make([]construct.ResourceId, len(path))
-	copy(pathIds, path)
+	var pathIds []construct.ResourceId
+	for _, r := range path {
+		pathIds = append(pathIds, r.ID)
+	}
 	return pathIds, nil
 }
 
@@ -358,16 +416,15 @@ func (ctx *ConfigTemplateContext) FieldValue(field string, resource any) (any, e
 		return "", err
 	}
 
-	r, err := ctx.DAG.Vertex(resId)
+	r, err := ctx.DAG.GetResource(resId)
 	if r == nil || err != nil {
 		return nil, fmt.Errorf("resource '%s' not found", resId)
 	}
-
-	fieldValue := reflect.ValueOf(r).Elem().FieldByName(field)
-	if !fieldValue.IsValid() {
+	val, err := r.GetProperty(field)
+	if err != nil {
 		return nil, fmt.Errorf("field '%s' not found on resource '%s'", field, resId)
 	}
-	return fieldValue.Interface(), nil
+	return val, nil
 }
 
 // FieldRef returns a reference to `field` on `resource` (as an IaCValue)

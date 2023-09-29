@@ -1,6 +1,8 @@
 package solution_context
 
 import (
+	"fmt"
+
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
@@ -44,17 +46,17 @@ func (c SolutionContext) AddResource(resource *construct.Resource) error {
 
 func (c SolutionContext) addResource(resource *construct.Resource, makeOperational bool) error {
 	res, err := c.GetResource(resource.ID)
-	if err != nil {
-		return err
+	if err != graph.ErrVertexNotFound && err != nil {
+		return fmt.Errorf("error getting resource %s, when trying to add resource", resource.ID)
 	}
 	if res == nil {
 		err := c.dataflowGraph.AddVertex(resource)
 		if err != nil {
-			return err
+			return fmt.Errorf("error adding resource %s", resource.ID)
 		}
 		err = c.deploymentGraph.AddVertex(resource)
 		if err != nil {
-			return err
+			return fmt.Errorf("error adding resource %s", resource.ID)
 		}
 		c.RecordDecision(AddResourceDecision{
 			Resource: resource.ID,
@@ -73,24 +75,27 @@ func (c SolutionContext) AddDependency(from, to *construct.Resource) error {
 func (c SolutionContext) addDependency(from, to *construct.Resource, makeOperational bool) error {
 	err := c.addResource(from, makeOperational)
 	if err != nil {
-		return err
+		return fmt.Errorf("error while adding dependency from %s to %s: %v", from.ID, to.ID, err)
 	}
 	err = c.addResource(to, makeOperational)
 	if err != nil {
-		return err
+		return fmt.Errorf("error while adding dependency from %s to %s: %v", from.ID, to.ID, err)
 	}
 	err = c.dataflowGraph.AddEdge(from.ID, to.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("error while adding dependency from %s to %s: %v", from.ID, to.ID, err)
 	}
 	et := c.kb.GetEdgeTemplate(from.ID, to.ID)
+	if et == nil {
+		return fmt.Errorf("edge template not found for %s to %s", from.ID, to.ID)
+	}
 	if et.DeploymentOrderReversed {
 		err = c.deploymentGraph.AddEdge(to.ID, from.ID)
 		if err != nil {
 			return err
 		}
 	} else {
-		err = c.deploymentGraph.AddEdge(to.ID, from.ID)
+		err = c.deploymentGraph.AddEdge(from.ID, to.ID)
 		if err != nil {
 			return err
 		}

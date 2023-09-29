@@ -8,9 +8,9 @@ import (
 
 type (
 	OperationalRule struct {
-		If                 string              `json:"if" yaml:"if"`
-		Steps              []OperationalStep   `json:"steps" yaml:"steps"`
-		ConfigurationRules []ConfigurationRule `json:"configuration_rules" yaml:"configuration_rules"`
+		If                 string               `json:"if" yaml:"if"`
+		Steps              []*OperationalStep   `json:"steps" yaml:"steps"`
+		ConfigurationRules []*ConfigurationRule `json:"configuration_rules" yaml:"configuration_rules"`
 	}
 
 	// OperationalRule defines a rule that must pass checks and actions which must be carried out to make a resource operational

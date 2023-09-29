@@ -3,31 +3,27 @@ qualified_type_name: aws:lambda_function
 properties:
   ExecutionRole:
     type: resource
-    user_configurable: true
     operational_rule:
       steps:
       - direction: downstream
         resources:
-          - aws:iam_role:{{ .Self.ID.Name }}-ExecutionRole
+          - aws:iam_role:{{ .Self.Name }}-ExecutionRole
         unique: true
   Image:
     type: resource
-    user_configurable: true
     operational_rule:
       steps:
       - direction: downstream
         resources:
-          - aws:ecr_image:{{ .Self.ID.Name }}-image
+          - aws:ecr_image:{{ .Self.Name }}-image
         unique: true
   EnvironmentVariables:
     type: map(string,string)
-    user_configurable: true
   SecurityGroups:
     type: list(resource)
-    user_configurable: true
     operational_rule:
       if: |
-        {{ downstream "aws:vpc" .Self }}
+        {{ hasDownstream "aws:vpc" .Self }}
       steps:
       - direction: downstream
         resources:
@@ -36,7 +32,7 @@ properties:
     type: list(resource)
     operational_rule:
       if: |
-        {{ downstream "aws:vpc" .Self }}
+        {{ hasDownstream "aws:vpc" .Self }}
       steps:
       - direction: downstream
         resources:
@@ -56,13 +52,13 @@ properties:
       steps:
       - direction: downstream
         resources:
-          - aws:log_group:{{ .Self.ID.Name }}-log-group
+          - aws:log_group:{{ .Self.Name }}-log-group
         unique: true
       configuration_rules:
-      - resource: aws:log_group:{{ .Self.ID.Name }}-log-group
+      - resource: aws:log_group:{{ .Self.Name }}-log-group
         configuration:
           field: LogGroupName
-          value: /aws/lambda/{{ .Self.ID.Name }}
+          value: /aws/lambda/{{ .Self.Name }}
 
 classification:
   is: 

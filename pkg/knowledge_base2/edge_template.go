@@ -4,8 +4,8 @@ import construct "github.com/klothoplatform/klotho/pkg/construct2"
 
 type (
 	EdgeTemplate struct {
-		Source      construct.ResourceId `yaml:"source"`
-		Destination construct.ResourceId `yaml:"destination"`
+		Source construct.ResourceId `yaml:"source"`
+		Target construct.ResourceId `yaml:"target"`
 
 		// DirectEdgeOnly signals that the edge cannot be used within constructing other paths and can only be used as a direct edge
 		DirectEdgeOnly bool `yaml:"direct_edge_only"`
@@ -20,7 +20,7 @@ type (
 		//Reuse tells us whether we can reuse an upstream or downstream resource during path selection and node creation
 		Reuse Reuse `yaml:"reuse"`
 
-		OperationalRules []OperationalRule
+		OperationalRules []OperationalRule `yaml:"operational_rules"`
 	}
 
 	// Reuse is set to represent an enum of possible reuse cases for edges. The current available options are upstream and downstream

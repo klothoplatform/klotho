@@ -1,7 +1,6 @@
 package operational_rule
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -24,7 +23,7 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 			name:     "upstream exact resource that exists in the graph",
 			resource: kbtesting.MockResource1("test1"),
 			action: OperationalResourceAction{
-				Step: knowledgebase.OperationalStep{
+				Step: &knowledgebase.OperationalStep{
 					Direction: knowledgebase.Downstream,
 					Resources: []string{"mock:resource4:test"},
 					NumNeeded: 1,
@@ -47,7 +46,7 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 			name:     "upstream unique resources from types",
 			resource: kbtesting.MockResource1("test1"),
 			action: OperationalResourceAction{
-				Step: knowledgebase.OperationalStep{
+				Step: &knowledgebase.OperationalStep{
 					Direction: knowledgebase.Downstream,
 					Resources: []string{"mock:resource4"},
 					NumNeeded: 2,
@@ -100,7 +99,7 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 			name:     "upstream resources from types, choose from available",
 			resource: kbtesting.MockResource1("test1"),
 			action: OperationalResourceAction{
-				Step: knowledgebase.OperationalStep{
+				Step: &knowledgebase.OperationalStep{
 					Direction: knowledgebase.Downstream,
 					Resources: []string{"mock:resource4"},
 					NumNeeded: 2,
@@ -132,7 +131,7 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 			name:     "upstream resources from types, none available, will create",
 			resource: kbtesting.MockResource1("test1"),
 			action: OperationalResourceAction{
-				Step: knowledgebase.OperationalStep{
+				Step: &knowledgebase.OperationalStep{
 					Direction: knowledgebase.Downstream,
 					Resources: []string{"mock:resource4"},
 					NumNeeded: 2,
@@ -152,13 +151,13 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 				{
 					Method: "ListResources",
 					ReturnArguments: mock.Arguments{
-						[]construct.Resource{}, nil,
+						[]*construct.Resource{}, nil,
 					},
 				},
 				{
 					Method: "ListResources",
 					ReturnArguments: mock.Arguments{
-						[]construct.Resource{}, nil,
+						[]*construct.Resource{}, nil,
 					},
 				},
 				{
@@ -235,7 +234,7 @@ func Test_findResourcesWhichSatisfyStepClassifications(t *testing.T) {
 				KB:    kbtesting.TestKB,
 			}
 
-			result := ctx.findResourcesWhichSatisfyStepClassifications(tt.step, tt.resource)
+			result := ctx.findResourcesWhichSatisfyStepClassifications(&tt.step, tt.resource)
 			assert.ElementsMatch(tt.want, result)
 		})
 	}
@@ -321,7 +320,7 @@ func Test_getResourcesForStep(t *testing.T) {
 				}, nil,
 			)
 
-			result, err := ctx.getResourcesForStep(tt.step, tt.resource)
+			result, err := ctx.getResourcesForStep(&tt.step, tt.resource)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -391,7 +390,7 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 				}
 			}
 
-			ctx.addDependenciesFromProperty(tt.step, tt.resource, tt.propertyName)
+			ctx.addDependenciesFromProperty(&tt.step, tt.resource, tt.propertyName)
 
 			if currPropertyVal != nil {
 				if tt.step.Direction == knowledgebase.Upstream {
@@ -468,7 +467,7 @@ func Test_clearProperty(t *testing.T) {
 					currPropertyVal = fieldVal.Interface().(*construct.Resource)
 				}
 			}
-			ctx.clearProperty(tt.step, tt.resource, tt.propertyName)
+			ctx.clearProperty(&tt.step, tt.resource, tt.propertyName)
 
 			if currPropertyArr == nil && currPropertyVal == nil {
 				assert.Fail(t, "property is nil")
@@ -525,7 +524,7 @@ func Test_addDependencyForDirection(t *testing.T) {
 
 			g.On("AddDependency", mock.Anything, mock.Anything).Return(nil)
 
-			ctx.addDependencyForDirection(tt.step, tt.to, tt.from)
+			ctx.addDependencyForDirection(&tt.step, tt.to, tt.from)
 
 			if tt.step.Direction == knowledgebase.Upstream {
 				g.AssertCalled(t, "AddDependency", tt.from, tt.to)
@@ -640,7 +639,7 @@ func Test_setField(t *testing.T) {
 				},
 			},
 			resourceToSet: res4,
-			property:      &knowledgebase.Property{Name: "Res4", Namespace: true},
+			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4"},
 			step:          knowledgebase.OperationalStep{Direction: knowledgebase.Downstream},
 			shouldReplace: true,
 			want: &construct.Resource{
@@ -659,7 +658,7 @@ func Test_setField(t *testing.T) {
 				},
 			},
 			resourceToSet: res4,
-			property:      &knowledgebase.Property{Name: "Res4", Namespace: true},
+			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4"},
 			step:          knowledgebase.OperationalStep{Direction: knowledgebase.Upstream},
 			shouldReplace: true,
 			want: &construct.Resource{
@@ -676,7 +675,7 @@ func Test_setField(t *testing.T) {
 				Properties: make(map[string]interface{}),
 			},
 			resourceToSet: kbtesting.MockResource4("test4"),
-			property:      &knowledgebase.Property{Name: "Res4", Namespace: true},
+			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4"},
 			step:          knowledgebase.OperationalStep{Direction: knowledgebase.Upstream},
 			shouldReplace: true,
 			want: &construct.Resource{
@@ -695,7 +694,7 @@ func Test_setField(t *testing.T) {
 				},
 			},
 			resourceToSet: res4,
-			property:      &knowledgebase.Property{Name: "Res4"},
+			property:      &knowledgebase.Property{Name: "Res4", Path: "Res4"},
 			step:          knowledgebase.OperationalStep{Direction: knowledgebase.Upstream},
 		},
 		{
@@ -707,13 +706,12 @@ func Test_setField(t *testing.T) {
 				},
 			},
 			resourceToSet: kbtesting.MockResource2("test2"),
-			property:      &knowledgebase.Property{Name: "Res2s", Type: "list(resource)"},
+			property:      &knowledgebase.Property{Name: "Res2s", Type: "list(resource)", Path: "Res2s"},
 			step:          knowledgebase.OperationalStep{Direction: knowledgebase.Upstream},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fmt.Println(tt.name)
 			assert := assert.New(t)
 			g := &enginetesting.MockGraph{}
 			testKb := kbtesting.TestKB
@@ -747,7 +745,7 @@ func Test_setField(t *testing.T) {
 				g.On("ReplaceResourceId", mock.Anything, mock.Anything).Return(nil)
 			}
 
-			err := ctx.setField(tt.resource, tt.resourceToSet, tt.step)
+			err := ctx.setField(tt.resource, tt.resourceToSet, &tt.step)
 			if !assert.NoError(err) {
 				return
 			}

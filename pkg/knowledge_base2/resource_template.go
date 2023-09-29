@@ -1,7 +1,6 @@
 package knowledgebase2
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
@@ -135,7 +134,6 @@ func (g *Gives) UnmarshalYAML(n *yaml.Node) error {
 
 func (template ResourceTemplate) Id() construct.ResourceId {
 	args := strings.Split(template.QualifiedTypeName, ":")
-	fmt.Println(args, template.QualifiedTypeName)
 	return construct.ResourceId{
 		Provider: args[0],
 		Type:     args[1],

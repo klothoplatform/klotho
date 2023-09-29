@@ -41,7 +41,7 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 	if err != nil {
 		return
 	}
-	resources := make([]*construct.Resource, len(resourceIds))
+	var resources []*construct.Resource
 	for _, id := range resourceIds {
 		res, err := f.DAG.Vertex(id)
 		if err != nil {

@@ -13,18 +13,18 @@ import (
 
 type (
 	OperationalResourceAction struct {
-		Step       knowledgebase.OperationalStep
+		Step       *knowledgebase.OperationalStep
 		CurrentIds []construct.ResourceId
 	}
 )
 
-func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.OperationalStep) error {
+func (ctx OperationalRuleContext) HandleOperationalStep(step *knowledgebase.OperationalStep) error {
 	// Default to 1 resource needed
 	if step.NumNeeded == 0 {
 		step.NumNeeded = 1
 	}
 
-	resourceId, err := ctx.ConfigCtx.ExecuteDecodeAsResourceId(step.Resource, knowledgebase.ConfigTemplateData{})
+	resourceId, err := ctx.ConfigCtx.ExecuteDecodeAsResourceId(step.Resource, ctx.Data)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *cons
 	return nil
 }
 
-func (ctx OperationalRuleContext) findResourcesWhichSatisfyStepClassifications(step knowledgebase.OperationalStep, resource *construct.Resource) []construct.ResourceId {
+func (ctx OperationalRuleContext) findResourcesWhichSatisfyStepClassifications(step *knowledgebase.OperationalStep, resource *construct.Resource) []construct.ResourceId {
 	// determine the type of resource necessary to satisfy the operational resource error
 	var result []construct.ResourceId
 	for _, res := range ctx.KB.ListResources() {
@@ -226,11 +226,10 @@ func (ctx OperationalRuleContext) findResourcesWhichSatisfyStepClassifications(s
 	return result
 }
 
-func (ctx OperationalRuleContext) shouldReplace(step knowledgebase.OperationalStep) (bool, error) {
+func (ctx OperationalRuleContext) shouldReplace(step *knowledgebase.OperationalStep) (bool, error) {
 	if step.ReplacementCondition != "" {
 		result := false
-		data := knowledgebase.ConfigTemplateData{}
-		err := ctx.ConfigCtx.ExecuteDecode(step.ReplacementCondition, data, &result)
+		err := ctx.ConfigCtx.ExecuteDecode(step.ReplacementCondition, ctx.Data, &result)
 		if err != nil {
 			return result, err
 		}
@@ -239,7 +238,7 @@ func (ctx OperationalRuleContext) shouldReplace(step knowledgebase.OperationalSt
 	return false, nil
 }
 
-func (ctx OperationalRuleContext) getResourcesForStep(step knowledgebase.OperationalStep, resource *construct.Resource) ([]construct.ResourceId, error) {
+func (ctx OperationalRuleContext) getResourcesForStep(step *knowledgebase.OperationalStep, resource *construct.Resource) ([]construct.ResourceId, error) {
 	var dependentResources []*construct.Resource
 	var resourcesOfType []construct.ResourceId
 	var err error
@@ -274,7 +273,7 @@ func (ctx OperationalRuleContext) getResourcesForStep(step knowledgebase.Operati
 	return resourcesOfType, nil
 }
 
-func (ctx OperationalRuleContext) addDependenciesFromProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) ([]construct.ResourceId, error) {
+func (ctx OperationalRuleContext) addDependenciesFromProperty(step *knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) ([]construct.ResourceId, error) {
 
 	val, err := resource.GetProperty(propertyName)
 	if err != nil {
@@ -290,7 +289,7 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(step knowledgebase
 				if err != nil {
 					return []construct.ResourceId{}, err
 				}
-				ids = append(ids, val.Interface().(construct.Resource).ID)
+				ids = append(ids, val.Interface().(*construct.Resource).ID)
 			}
 			return ids, nil
 		} else if field.Kind() == reflect.Ptr && !field.IsNil() {
@@ -305,7 +304,7 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(step knowledgebase
 	return nil, nil
 }
 
-func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) error {
+func (ctx OperationalRuleContext) clearProperty(step *knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) error {
 	val, err := resource.GetProperty(propertyName)
 	if err != nil {
 		return err
@@ -320,20 +319,26 @@ func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalSt
 					return err
 				}
 			}
-			resource.SetProperty(propertyName, reflect.MakeSlice(field.Type(), 0, 0).Interface())
+			err := resource.SetProperty(propertyName, reflect.MakeSlice(field.Type(), 0, 0).Interface())
+			if err != nil {
+				return fmt.Errorf("error clearing property %s on resource %s: %w", propertyName, resource.ID, err)
+			}
 		} else if field.Kind() == reflect.Ptr && !field.IsNil() {
 			val := field
 			err := ctx.removeDependencyForDirection(step.Direction, resource, val.Interface().(*construct.Resource))
 			if err != nil {
 				return err
 			}
-			resource.SetProperty(propertyName, reflect.Zero(field.Type()).Interface())
+			err = resource.SetProperty(propertyName, reflect.Zero(field.Type()).Interface())
+			if err != nil {
+				return fmt.Errorf("error clearing property %s on resource %s: %w", propertyName, resource.ID, err)
+			}
 		}
 	}
 	return nil
 }
 
-func (ctx OperationalRuleContext) addDependencyForDirection(step knowledgebase.OperationalStep, resource, dependentResource *construct.Resource) error {
+func (ctx OperationalRuleContext) addDependencyForDirection(step *knowledgebase.OperationalStep, resource, dependentResource *construct.Resource) error {
 	if step.Direction == knowledgebase.Upstream {
 		err := ctx.Graph.AddDependency(dependentResource, resource)
 		if err != nil {
@@ -375,7 +380,7 @@ func (ctx OperationalRuleContext) generateResourceName(resourceToSet, resource *
 	}
 }
 
-func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Resource, step knowledgebase.OperationalStep) error {
+func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Resource, step *knowledgebase.OperationalStep) error {
 	if ctx.Property == nil {
 		return nil
 	}

@@ -8,7 +8,7 @@ properties:
       steps:
       - direction: downstream
         resources:
-          - ecr_repo
+          - aws:ecr_repo
   Context:
     type: string
   Dockerfile:

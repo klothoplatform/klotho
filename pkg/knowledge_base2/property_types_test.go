@@ -1,7 +1,6 @@
 package knowledgebase2
 
 import (
-	"fmt"
 	"testing"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -19,59 +18,54 @@ func Test_getPropertyType(t *testing.T) {
 			property: Property{
 				Type: "string",
 			},
-			expected: StringPropertyType{},
+			expected: &StringPropertyType{},
 		},
 		{
 			name: "Get int property type",
 			property: Property{
 				Type: "int",
 			},
-			expected: IntPropertyType{},
+			expected: &IntPropertyType{},
 		},
 		{
 			name: "Get float property type",
 			property: Property{
 				Type: "float",
 			},
-			expected: FloatPropertyType{},
+			expected: &FloatPropertyType{},
 		},
 		{
 			name: "Get bool property type",
 			property: Property{
 				Type: "bool",
 			},
-			expected: BoolPropertyType{},
+			expected: &BoolPropertyType{},
 		},
 		{
 			name: "Get resource property type",
 			property: Property{
 				Type: "resource",
 			},
-			expected: ResourcePropertyType{},
+			expected: &ResourcePropertyType{},
 		},
 		{
-			name: "Get property ref property type",
+			name: "Get map with sub fields property type",
 			property: Property{
-				Type: "propertyref",
-			},
-			expected: PropertyRefPropertyType{},
-		},
-		{
-			name: "Get object property type",
-			property: Property{
-				Type: "object",
+				Type: "map",
 				Properties: map[string]Property{
 					"nested": {
 						Name: "nested",
+						Type: "string",
 					},
 				},
 			},
-			expected: MapPropertyType{
+			expected: &MapPropertyType{
 				Property: Property{
-					Type: "object",
+					Type: "map",
 					Properties: map[string]Property{
 						"nested": {
 							Name: "nested",
+							Type: "string",
 						},
 					},
 				},
@@ -82,7 +76,7 @@ func Test_getPropertyType(t *testing.T) {
 			property: Property{
 				Type: "map(string,string)",
 			},
-			expected: MapPropertyType{
+			expected: &MapPropertyType{
 				Key:   "string",
 				Value: "string",
 				Property: Property{
@@ -91,11 +85,34 @@ func Test_getPropertyType(t *testing.T) {
 			},
 		},
 		{
+			name: "Get list with sub fields property type",
+			property: Property{
+				Type: "list",
+				Properties: map[string]Property{
+					"nested": {
+						Name: "nested",
+						Type: "string",
+					},
+				},
+			},
+			expected: &ListPropertyType{
+				Property: Property{
+					Type: "list",
+					Properties: map[string]Property{
+						"nested": {
+							Name: "nested",
+							Type: "string",
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "Get list property type",
 			property: Property{
 				Type: "list(string)",
 			},
-			expected: ListPropertyType{
+			expected: &ListPropertyType{
 				Value: "string",
 				Property: Property{
 					Type: "list(string)",
@@ -125,55 +142,55 @@ func Test_parsePropertyValue(t *testing.T) {
 	}{
 		{
 			name:     "Parse string property value",
-			property: StringPropertyType{},
+			property: &StringPropertyType{},
 			value:    "test",
 			expected: "test",
 		},
 		{
 			name:     "Parse int property value",
-			property: IntPropertyType{},
+			property: &IntPropertyType{},
 			value:    1,
 			expected: 1,
 		},
 		{
 			name:     "Parse int property value as string",
-			property: IntPropertyType{},
+			property: &IntPropertyType{},
 			value:    "{{ 1 }}",
 			expected: 1,
 		},
 		{
 			name:     "Parse float property value",
-			property: FloatPropertyType{},
+			property: &FloatPropertyType{},
 			value:    1.0,
 			expected: 1.0,
 		},
 		{
 			name:     "Parse float property value as string",
-			property: FloatPropertyType{},
+			property: &FloatPropertyType{},
 			value:    "{{ 1.0 }}",
 			expected: float32(1.0),
 		},
 		{
 			name:     "Parse bool property value",
-			property: BoolPropertyType{},
+			property: &BoolPropertyType{},
 			value:    true,
 			expected: true,
 		},
 		{
 			name:     "Parse bool property value as string template",
-			property: BoolPropertyType{},
+			property: &BoolPropertyType{},
 			value:    "{{ true }}",
 			expected: true,
 		},
 		{
 			name:     "Parse resource id property value",
-			property: ResourcePropertyType{},
+			property: &ResourcePropertyType{},
 			value:    "test:resource:a",
 			expected: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
 		},
 		{
 			name:     "Parse resource id property value as map",
-			property: ResourcePropertyType{},
+			property: &ResourcePropertyType{},
 			value: map[string]interface{}{
 				"provider": "test",
 				"type":     "resource",
@@ -183,19 +200,19 @@ func Test_parsePropertyValue(t *testing.T) {
 		},
 		{
 			name:     "Parse resource id property value as resourceId",
-			property: ResourcePropertyType{},
+			property: &ResourcePropertyType{},
 			value:    construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
 			expected: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
 		},
 		{
 			name:     "Parse property ref property value",
-			property: PropertyRefPropertyType{},
+			property: &PropertyRefPropertyType{},
 			value:    "test:resource:a#HOSTNAME",
 			expected: construct.PropertyRef{Resource: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"}, Property: "HOSTNAME"},
 		},
 		{
 			name:     "Parse property ref property value as map",
-			property: PropertyRefPropertyType{},
+			property: &PropertyRefPropertyType{},
 			value: map[string]interface{}{
 				"resource": "test:resource:a",
 				"property": "HOSTNAME",
@@ -204,13 +221,13 @@ func Test_parsePropertyValue(t *testing.T) {
 		},
 		{
 			name:     "Parse property ref property value as property ref",
-			property: PropertyRefPropertyType{},
+			property: &PropertyRefPropertyType{},
 			value:    construct.PropertyRef{Resource: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"}, Property: "HOSTNAME"},
 			expected: construct.PropertyRef{Resource: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"}, Property: "HOSTNAME"},
 		},
 		{
 			name:        "Parse invalid property value",
-			property:    FloatPropertyType{},
+			property:    &FloatPropertyType{},
 			value:       "test",
 			expectedErr: true,
 		},
@@ -247,11 +264,11 @@ func Test_MapParse(t *testing.T) {
 					Type: "map(string,string)",
 				},
 			},
-			value: map[any]interface{}{
+			value: map[string]interface{}{
 				"key":   "test",
 				"value": "test",
 			},
-			expected: map[string]string{
+			expected: map[string]interface{}{
 				"key":   "test",
 				"value": "test",
 			},
@@ -265,11 +282,11 @@ func Test_MapParse(t *testing.T) {
 					Type: "map(string,string)",
 				},
 			},
-			value: map[any]interface{}{
+			value: map[string]interface{}{
 				"key":   "{{ \"test\" }}",
 				"value": "{{ \"test\" }}",
 			},
-			expected: map[string]string{
+			expected: map[string]interface{}{
 				"key":   "test",
 				"value": "test",
 			},
@@ -291,7 +308,7 @@ func Test_MapParse(t *testing.T) {
 					},
 				},
 			},
-			value: map[any]interface{}{
+			value: map[string]interface{}{
 				"nested": "test",
 				"second": true,
 			},
@@ -313,7 +330,7 @@ func Test_MapParse(t *testing.T) {
 					},
 				},
 			},
-			value: map[any]interface{}{
+			value: map[string]interface{}{
 				"nested": "test",
 				"second": true,
 			},
@@ -331,7 +348,8 @@ func Test_MapParse(t *testing.T) {
 			}
 			assert.NoError(err, "Expected no error, but got: %v", err)
 			// Because it can be int64, int, etc just equals on the map can fail
-			assert.Equal(fmt.Sprintf("%v", actual), fmt.Sprintf("%v", test.expected), "expected %v, got %v", test.expected, actual)
+			assert.Equal(actual, test.expected, "expected %v, got %v", test.expected, actual)
+
 		})
 	}
 }
@@ -356,7 +374,7 @@ func Test_ListParse(t *testing.T) {
 				"test",
 				"test",
 			},
-			expected: []string{
+			expected: []any{
 				"test",
 				"test",
 			},
@@ -373,7 +391,7 @@ func Test_ListParse(t *testing.T) {
 				"{{ \"test\" }}",
 				"{{ \"test\" }}",
 			},
-			expected: []string{
+			expected: []any{
 				"test",
 				"test",
 			},
@@ -428,7 +446,7 @@ func Test_ListParse(t *testing.T) {
 			}
 			assert.NoError(err, "Expected no error, but got: %v", err)
 			// Because it can be int64, int, etc just equals on the map can fail
-			assert.Equal(fmt.Sprintf("%v", actual), fmt.Sprintf("%v", test.expected), "expected %v, got %v", test.expected, actual)
+			assert.Equal(actual, test.expected, "expected %v, got %v", test.expected, actual)
 		})
 	}
 }

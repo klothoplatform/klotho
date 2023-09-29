@@ -31,9 +31,8 @@ type (
 
 func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) error {
 	if rule.If != "" {
-		data := knowledgebase.ConfigTemplateData{}
 		result := false
-		err := ctx.ConfigCtx.ExecuteDecode(rule.If, data, &result)
+		err := ctx.ConfigCtx.ExecuteDecode(rule.If, ctx.Data, &result)
 		if err != nil {
 			return err
 		}

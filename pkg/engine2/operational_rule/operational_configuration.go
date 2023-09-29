@@ -7,7 +7,7 @@ import (
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
-func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.ConfigurationRule) error {
+func (ctx OperationalRuleContext) HandleConfigurationRule(config *knowledgebase.ConfigurationRule) error {
 	res, err := ctx.ConfigCtx.ExecuteDecodeAsResourceId(config.Resource, ctx.Data)
 	if err != nil {
 		return err

@@ -45,23 +45,22 @@ type (
 )
 
 func (ctx PathSelectionContext) SelectPath(dep graph.Edge[*construct.Resource], edgeData EdgeData) ([]graph.Edge[*construct.Resource], error) {
-	var result []graph.Edge[*construct.Resource]
 	// if its a direct edge and theres no constraint on what needs to exist then we should be able to just return
 	if ctx.KB.HasDirectPath(dep.Source.ID, dep.Target.ID) && len(edgeData.Constraint.NodeMustExist) == 0 {
-		return result, nil
+		return []graph.Edge[*construct.Resource]{dep}, nil
 	}
 
 	paths, err := ctx.determineCorrectPaths(dep, edgeData)
 	if err != nil {
 		zap.S().Warnf("got error when determining correct path for edge %s -> %s, err: %s", dep.Source.ID, dep.Target.ID, err.Error())
-		return result, err
+		return nil, err
 	}
 	if len(paths) == 0 {
-		return result, fmt.Errorf("no paths found that satisfy the attributes, %s, and do not contain unnecessary hops for edge %s -> %s", edgeData.Attributes, dep.Source.ID, dep.Target.ID)
+		return nil, fmt.Errorf("no paths found that satisfy the attributes, %s, and do not contain unnecessary hops for edge %s -> %s", edgeData.Attributes, dep.Source.ID, dep.Target.ID)
 	}
 	path := ctx.findOptimalPath(paths)
 	if len(path.Nodes) == 0 {
-		return result, fmt.Errorf("empty path found that satisfy the attributes, %s, and do not contain unnecessary hops for edge %s -> %s", edgeData.Attributes, dep.Source.ID, dep.Target.ID)
+		return nil, fmt.Errorf("empty path found that satisfy the attributes, %s, and do not contain unnecessary hops for edge %s -> %s", edgeData.Attributes, dep.Source.ID, dep.Target.ID)
 	}
 	return ctx.ExpandEdge(dep, path, edgeData)
 }

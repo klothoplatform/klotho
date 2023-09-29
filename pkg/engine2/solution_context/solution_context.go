@@ -1,6 +1,7 @@
 package solution_context
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/dominikbraun/graph"
@@ -50,11 +51,42 @@ type (
 	}
 )
 
-func NewSolutionContext() SolutionContext {
+func NewSolutionContext(kb knowledgebase.TemplateKB) SolutionContext {
 	return SolutionContext{
 		dataflowGraph:   construct.NewGraph(),
 		deploymentGraph: construct.NewAcyclicGraph(),
 		decisions:       &MemoryRecord{},
+		kb:              kb,
+	}
+}
+func (c SolutionContext) Clone() SolutionContext {
+	dfClone, err := c.dataflowGraph.Clone()
+	if err != nil {
+		panic(err)
+	}
+	deployClone, err := c.deploymentGraph.Clone()
+	if err != nil {
+		panic(err)
+	}
+	return SolutionContext{
+		dataflowGraph:   dfClone,
+		deploymentGraph: deployClone,
+		decisions:       c.decisions,
+	}
+}
+
+func (s SolutionContext) With(key string, value any) SolutionContext {
+	return SolutionContext{
+		dataflowGraph:        s.dataflowGraph,
+		deploymentGraph:      s.deploymentGraph,
+		decisions:            s.decisions,
+		kb:                   s.kb,
+		mappedResources:      s.mappedResources,
+		EdgeConstraints:      s.EdgeConstraints,
+		ResourceConstraints:  s.ResourceConstraints,
+		ConstructConstraints: s.ConstructConstraints,
+
+		stack: append(s.stack, KV{key: key, value: value}),
 	}
 }
 
@@ -95,32 +127,6 @@ func (ctx SolutionContext) LoadGraph(graph construct.Graph) error {
 		}
 	}
 	return nil
-}
-
-func (c SolutionContext) Clone() SolutionContext {
-	dfClone, err := c.dataflowGraph.Clone()
-	if err != nil {
-		panic(err)
-	}
-	deployClone, err := c.deploymentGraph.Clone()
-	if err != nil {
-		panic(err)
-	}
-	return SolutionContext{
-		dataflowGraph:   dfClone,
-		deploymentGraph: deployClone,
-		decisions:       c.decisions,
-	}
-}
-
-func (s SolutionContext) With(key string, value any) SolutionContext {
-	return SolutionContext{
-		dataflowGraph:   s.dataflowGraph,
-		deploymentGraph: s.deploymentGraph,
-		decisions:       s.decisions,
-
-		stack: append(s.stack, KV{key: key, value: value}),
-	}
 }
 
 func (c SolutionContext) GetDecisions() DecisionRecords {
@@ -188,7 +194,10 @@ func (ctx SolutionContext) nodeMakeOperational(r *construct.Resource) error {
 
 	// Right now we only enforce the top level properties if they have rules
 	for _, property := range template.Properties {
-		ctx.handleNodeProperty(r, property)
+		err := ctx.handleNodeProperty(r, property)
+		if err != nil {
+			return fmt.Errorf("error handling property %s on resource %s: %w", property.Path, r.ID, err)
+		}
 	}
 	return nil
 }
@@ -199,10 +208,16 @@ func (ctx SolutionContext) handleNodeProperty(r *construct.Resource, property kn
 	}
 	ruleCtx := operational_rule.OperationalRuleContext{
 		Property:  &property,
-		ConfigCtx: knowledgebase.ConfigTemplateContext{DAG: ctx.dataflowGraph},
+		ConfigCtx: knowledgebase.ConfigTemplateContext{DAG: ctx},
 		Data:      knowledgebase.ConfigTemplateData{Resource: r.ID},
 		Graph:     ctx,
 		KB:        ctx.kb,
+	}
+	// If there is no resource specified on the step, we are going to assume that it is applied to the resource being handled
+	for _, step := range property.OperationalRule.Steps {
+		if step.Resource == "" {
+			step.Resource = r.ID.String()
+		}
 	}
 	err := ruleCtx.HandleOperationalRule(*property.OperationalRule)
 	if err != nil {
@@ -227,7 +242,7 @@ func (ctx SolutionContext) edgeMakeOperational(e graph.Edge[construct.ResourceId
 	template := ctx.kb.GetEdgeTemplate(e.Source, e.Target)
 	for _, rule := range template.OperationalRules {
 		ruleCtx := operational_rule.OperationalRuleContext{
-			ConfigCtx: knowledgebase.ConfigTemplateContext{DAG: ctx.dataflowGraph},
+			ConfigCtx: knowledgebase.ConfigTemplateContext{DAG: ctx},
 			Data:      knowledgebase.ConfigTemplateData{Edge: e},
 			Graph:     ctx,
 			KB:        ctx.kb,
@@ -242,8 +257,10 @@ func (ctx SolutionContext) edgeMakeOperational(e graph.Edge[construct.ResourceId
 
 func (ctx SolutionContext) addPath(from, to *construct.Resource) error {
 	dep, err := ctx.dataflowGraph.Edge(from.ID, to.ID)
-	if err != nil {
+	if err != nil && err != graph.ErrEdgeNotFound {
 		return err
+	} else if err == graph.ErrEdgeNotFound {
+		dep = graph.Edge[*construct.Resource]{Source: from, Target: to}
 	}
 	ctx.With("edge", dep)
 	pathCtx := path_selection.PathSelectionContext{
@@ -380,7 +397,7 @@ func (ctx SolutionContext) IsOperationalResourceSideEffect(resource, sideEffect 
 		rule := property.OperationalRule
 		for _, step := range rule.Steps {
 			if step.Resources != nil {
-				resources, types, err := step.ExtractResourcesAndTypes(knowledgebase.ConfigTemplateContext{DAG: ctx.dataflowGraph}, knowledgebase.ConfigTemplateData{Resource: resource.ID})
+				resources, types, err := step.ExtractResourcesAndTypes(knowledgebase.ConfigTemplateContext{DAG: ctx}, knowledgebase.ConfigTemplateData{Resource: resource.ID})
 				if err != nil {
 					continue
 				}

@@ -39,3 +39,33 @@ func TemplatesFromFs(dir fs.FS) (map[construct.ResourceId]*ResourceTemplate, err
 	})
 	return templates, err
 }
+
+func EdgeTemplatesFromFs(dir fs.FS) (map[string]*EdgeTemplate, error) {
+	templates := map[string]*EdgeTemplate{}
+	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
+		if d.IsDir() {
+			return nil
+		}
+		f, err := dir.Open(path)
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+
+		edgeTemplate := &EdgeTemplate{}
+		err = yaml.NewDecoder(f).Decode(edgeTemplate)
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+
+		id := edgeTemplate.Source.QualifiedTypeName() + "->" + edgeTemplate.Target.QualifiedTypeName()
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+		if templates[id] != nil {
+			return errors.Join(nerr, fmt.Errorf("duplicate template for %s", id))
+		}
+		templates[id] = edgeTemplate
+		return nil
+	})
+	return templates, err
+}

@@ -68,7 +68,6 @@ PATH:
 				return nil, err
 			}
 			for _, res := range upstreamResources {
-				fmt.Println(previousNode.ID, res.ID.QualifiedTypeName())
 				if previousNode.ID.QualifiedTypeName() == res.ID.QualifiedTypeName() {
 					result = []graph.Edge[*construct.Resource]{
 						{

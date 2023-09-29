@@ -18,6 +18,7 @@ import (
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/yaml.v3"
 )
 
 type EngineMain struct {
@@ -125,16 +126,30 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) error {
 
 func (em *EngineMain) AddEngine() error {
 	kb := knowledgebase.NewKB()
-	templates, err := knowledgebase.TemplatesFromFs(templates.ResourceTemplates)
+	resourceTemplates, err := knowledgebase.TemplatesFromFs(templates.ResourceTemplates)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load resource templates: %s", err.Error())
 	}
-	for _, template := range templates {
+	for _, template := range resourceTemplates {
 		err := kb.AddResourceTemplate(template)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to add resource template %s: %s", template.QualifiedTypeName, err.Error())
 		}
 	}
+
+	edgeTemplates, err := knowledgebase.EdgeTemplatesFromFs(templates.EdgeTemplates)
+	if err != nil {
+		return fmt.Errorf("failed to load edge templates: %s", err.Error())
+	}
+	for _, template := range edgeTemplates {
+		fmt.Println(template.Source.QualifiedTypeName(), template.Target.QualifiedTypeName())
+		err := kb.AddEdgeTemplate(template)
+		if err != nil {
+			return fmt.Errorf("failed to add edge template %s -> %s: %s",
+				template.Source.QualifiedTypeName(), template.Target.QualifiedTypeName(), err.Error())
+		}
+	}
+
 	em.Engine = NewEngine(kb)
 	return nil
 }
@@ -196,7 +211,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Errorf("failed to load constraints: %s", err.Error())
 	}
-	context := EngineContext{
+	context := &EngineContext{
 		InitialState: construct.NewGraph(),
 		Constraints:  runConstraints,
 	}
@@ -206,10 +221,21 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 		fmt.Println(err)
 		return errors.Errorf("failed to run engine: %s", err.Error())
 	}
-	files, err := em.Engine.VisualizeViews(context.Solutions[0])
+	var files []io.File
+	// files, err := em.Engine.VisualizeViews(context.Solutions[0])
+	// if err != nil {
+	// 	return errors.Errorf("failed to generate views %s", err.Error())
+	// }
+	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].GetDataflowGraph()})
 	if err != nil {
-		return errors.Errorf("failed to generate views %s", err.Error())
+		return errors.Errorf("failed to marshal graph: %s", err.Error())
 	}
+	files = append(files, &io.RawFile{
+		FPath:   "state.yaml",
+		Content: b,
+	},
+	)
+
 	err = io.OutputTo(files, architectureEngineCfg.outputDir)
 	if err != nil {
 		return errors.Errorf("failed to write output files: %s", err.Error())
