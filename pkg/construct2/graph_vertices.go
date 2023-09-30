@@ -15,7 +15,16 @@ func (s sortedIds) Len() int {
 }
 
 func ResourceIdLess(a, b ResourceId) bool {
-	return a.Provider < b.Provider || a.Type < b.Type || a.Namespace < b.Namespace || a.Name < b.Name
+	if a.Provider != b.Provider {
+		return a.Provider < b.Provider
+	}
+	if a.Type != b.Type {
+		return a.Type < b.Type
+	}
+	if a.Namespace != b.Namespace {
+		return a.Namespace < b.Namespace
+	}
+	return a.Name < b.Name
 }
 
 func (s sortedIds) Less(i, j int) bool {
