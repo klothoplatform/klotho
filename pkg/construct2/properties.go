@@ -51,27 +51,33 @@ func (r *Resource) RemoveProperty(pathStr string, value any) error {
 }
 
 type (
-	propertyPathItem interface {
+	PropertyPathItem interface {
 		Get() any
 		Set(value any) error
 		Remove(value any) error
 		Append(value any) error
 
-		parent() propertyPathItem
+		parent() PropertyPathItem
+	}
+
+	PropertyKVItem interface {
+		Key() PropertyPathItem
 	}
 
 	// PropertyPath represents a path into a resource's properties. See [Resource.PropertyPath] for
 	// more information.
-	PropertyPath []propertyPathItem
+	PropertyPath []PropertyPathItem
 
-	mapKeyPathItem struct {
-		_parent propertyPathItem
+	mapValuePathItem struct {
+		_parent PropertyPathItem
 		m       reflect.Value
 		key     reflect.Value
 	}
 
+	mapKeyPathItem mapValuePathItem
+
 	arrayIndexPathItem struct {
-		_parent propertyPathItem
+		_parent PropertyPathItem
 		a       reflect.Value
 		index   int
 	}
@@ -120,7 +126,7 @@ func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
 					Cause: fmt.Errorf("expected map, got %s", value.Type()),
 				}
 			}
-			item := mapKeyPathItem{
+			item := mapValuePathItem{
 				m:   value,
 				key: reflect.ValueOf(part),
 			}
@@ -180,12 +186,12 @@ func (e *PropertyPathError) Error() string {
 	)
 }
 
-func itemToPath(i propertyPathItem) []string {
+func itemToPath(i PropertyPathItem) []string {
 	path, ok := i.(PropertyPath)
 	if ok {
 		return path.Parts()
 	}
-	var items []propertyPathItem
+	var items []PropertyPathItem
 	for i != nil {
 		items = append(items, i)
 		i = i.parent()
@@ -201,7 +207,7 @@ func (e *PropertyPathError) Unwrap() error {
 	return e.Cause
 }
 
-func pathPanicRecover(i propertyPathItem, err *error) {
+func pathPanicRecover(i PropertyPathItem, operation string, err *error) {
 	if r := recover(); r != nil {
 		rerr, ok := r.(error)
 		if !ok {
@@ -209,13 +215,13 @@ func pathPanicRecover(i propertyPathItem, err *error) {
 		}
 		*err = &PropertyPathError{
 			Path:  itemToPath(i),
-			Cause: rerr,
+			Cause: fmt.Errorf("recovered panic during '%s': %w", operation, rerr),
 		}
 	}
 }
 
-func (i mapKeyPathItem) Set(value any) (err error) {
-	defer pathPanicRecover(i, &err)
+func (i mapValuePathItem) Set(value any) (err error) {
+	defer pathPanicRecover(i, "Set on map", &err)
 	i.m.SetMapIndex(i.key, reflect.ValueOf(value))
 	return nil
 }
@@ -249,8 +255,8 @@ func appendValue(a reflect.Value, value reflect.Value) (reflect.Value, error) {
 	return a, fmt.Errorf("expected array or map destination for append, got %s", a.Kind())
 }
 
-func (i mapKeyPathItem) Append(value any) (err error) {
-	defer pathPanicRecover(i, &err)
+func (i mapValuePathItem) Append(value any) (err error) {
+	defer pathPanicRecover(i, "Append on map", &err)
 
 	kv := i.m.MapIndex(i.key)
 	appended, err := appendValue(kv, reflect.ValueOf(value))
@@ -275,8 +281,8 @@ func arrRemoveByValue(arr reflect.Value, value reflect.Value) (reflect.Value, er
 	return newArr, nil
 }
 
-func (i mapKeyPathItem) Remove(value any) (err error) {
-	defer pathPanicRecover(i, &err)
+func (i mapValuePathItem) Remove(value any) (err error) {
+	defer pathPanicRecover(i, "Remove on map", &err)
 	if value == nil {
 		i.m.SetMapIndex(i.key, reflect.Value{})
 		return nil
@@ -299,7 +305,7 @@ func (i mapKeyPathItem) Remove(value any) (err error) {
 	return nil
 }
 
-func (i mapKeyPathItem) Get() any {
+func (i mapValuePathItem) Get() any {
 	v := i.m.MapIndex(i.key)
 	if !v.IsValid() {
 		return nil
@@ -307,18 +313,51 @@ func (i mapKeyPathItem) Get() any {
 	return v.Interface()
 }
 
-func (i mapKeyPathItem) parent() propertyPathItem {
+func (i mapValuePathItem) parent() PropertyPathItem {
+	return i._parent
+}
+
+func (i mapValuePathItem) Key() PropertyPathItem {
+	return mapKeyPathItem(i)
+}
+
+func (i mapKeyPathItem) Get() any {
+	return i.key.Interface()
+}
+
+func (i mapKeyPathItem) Set(value any) (err error) {
+	defer pathPanicRecover(i, "Set on map key", &err)
+	mapValue := i.m.MapIndex(i.key)
+	i.m.SetMapIndex(i.key, reflect.Value{})
+	i.m.SetMapIndex(reflect.ValueOf(value), mapValue)
+	return nil
+}
+
+func (i mapKeyPathItem) Append(value any) (err error) {
+	return &PropertyPathError{
+		Path:  itemToPath(i),
+		Cause: fmt.Errorf("cannot append to map key"),
+	}
+}
+
+func (i mapKeyPathItem) Remove(value any) (err error) {
+	defer pathPanicRecover(i, "Remove on map key", &err)
+	i.m.SetMapIndex(i.key, reflect.Value{})
+	return nil
+}
+
+func (i mapKeyPathItem) parent() PropertyPathItem {
 	return i._parent
 }
 
 func (i arrayIndexPathItem) Set(value any) (err error) {
-	defer pathPanicRecover(i, &err)
+	defer pathPanicRecover(i, "Set on array", &err)
 	i.a.Index(i.index).Set(reflect.ValueOf(value))
 	return nil
 }
 
 func (i arrayIndexPathItem) Append(value any) (err error) {
-	defer pathPanicRecover(i, &err)
+	defer pathPanicRecover(i, "Append on array", &err)
 	ival := i.a.Index(i.index)
 	appended, err := appendValue(ival, reflect.ValueOf(value))
 	if err != nil {
@@ -329,7 +368,7 @@ func (i arrayIndexPathItem) Append(value any) (err error) {
 }
 
 func (i arrayIndexPathItem) Remove(value any) (err error) {
-	defer pathPanicRecover(i, &err)
+	defer pathPanicRecover(i, "Remove on array", &err)
 	if value == nil {
 		i.a = reflect.AppendSlice(i.a.Slice(0, i.index), i.a.Slice(i.index+1, i.a.Len()))
 		return i._parent.Set(i.a.Interface())
@@ -357,7 +396,7 @@ func (i arrayIndexPathItem) Get() any {
 	return i.a.Index(i.index).Interface()
 }
 
-func (i arrayIndexPathItem) parent() propertyPathItem {
+func (i arrayIndexPathItem) parent() PropertyPathItem {
 	return i._parent
 }
 
@@ -383,7 +422,7 @@ func (i PropertyPath) Get() any {
 	return i[len(i)-1].Get()
 }
 
-func (i PropertyPath) parent() propertyPathItem {
+func (i PropertyPath) parent() PropertyPathItem {
 	return i[len(i)-1].parent()
 }
 
@@ -391,7 +430,7 @@ func (i PropertyPath) Parts() []string {
 	parts := make([]string, len(i))
 	for idx, item := range i {
 		switch item := item.(type) {
-		case mapKeyPathItem:
+		case mapValuePathItem:
 			key := item.key.String()
 			if idx > 0 {
 				key = "." + key
@@ -408,16 +447,33 @@ func (i PropertyPath) String() string {
 	return strings.Join(i.Parts(), "")
 }
 
+func (i PropertyPath) Last() PropertyPathItem {
+	return i[len(i)-1]
+}
+
 type WalkPropertiesFunc func(path PropertyPath, err error) error
 
+var stringerType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
+
 func mapKeys(m reflect.Value) ([]reflect.Value, error) {
-	if m.Type().Key().Kind() != reflect.String {
-		return nil, fmt.Errorf("expected map[string]..., got %s", m.Type())
+	var toString func(elem reflect.Value) string
+	keyType := m.Type().Key()
+	switch {
+	case keyType.Kind() == reflect.String:
+		toString = func(elem reflect.Value) string { return elem.String() }
+
+	case keyType.Implements(stringerType):
+		toString = func(elem reflect.Value) string { return elem.Interface().(fmt.Stringer).String() }
+
+	default:
+		return nil, fmt.Errorf("expected map[string|fmt.Stringer]..., got %s", m.Type())
 	}
 
 	keys := m.MapKeys()
 	sort.Slice(keys, func(i, j int) bool {
-		return keys[i].String() < keys[j].String()
+		a := toString(keys[i])
+		b := toString(keys[j])
+		return a < b
 	})
 	return keys, nil
 }
@@ -433,7 +489,7 @@ func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 	props := reflect.ValueOf(r.Properties)
 	keys, _ := mapKeys(props)
 	for i, k := range keys {
-		queue[i] = PropertyPath{mapKeyPathItem{m: props, key: k}}
+		queue[i] = PropertyPath{mapValuePathItem{m: props, key: k}}
 	}
 
 	var err error
@@ -458,12 +514,20 @@ func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 				return err
 			}
 			for _, k := range keys {
-				queue = append(queue, append(item, mapKeyPathItem{m: v, key: k}))
+				queue = append(queue, append(item, mapValuePathItem{
+					_parent: item.Last(),
+					m:       v,
+					key:     k,
+				}))
 			}
 
 		case reflect.Array, reflect.Slice:
 			for i := 0; i < v.Len(); i++ {
-				queue = append(queue, append(item, arrayIndexPathItem{a: v, index: i}))
+				queue = append(queue, append(item, arrayIndexPathItem{
+					_parent: item.Last(),
+					a:       v,
+					index:   i,
+				}))
 			}
 		}
 	}

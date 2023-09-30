@@ -74,22 +74,32 @@ func UpdateResourceId(g Graph, old ResourceId) error {
 		return err
 	}
 
+	updateId := func(path PropertyPathItem) error {
+		itemVal := path.Get()
+		itemId, ok := itemVal.(ResourceId)
+		if ok && itemId == old {
+			return path.Set(r.ID)
+		}
+		itemRef, ok := itemVal.(PropertyRef)
+		if ok && itemRef.Resource == old {
+			itemRef.Resource = r.ID
+			return path.Set(itemRef)
+		}
+		return nil
+	}
+
 	for neighborId := range neighbors {
 		neighbor, err := g.Vertex(neighborId)
 		if err != nil {
 			return err
 		}
 		err = neighbor.WalkProperties(func(path PropertyPath, err error) error {
-			propVal := path.Get()
-			propId, ok := propVal.(ResourceId)
-			if ok && propId == old {
-				return errors.Join(err, path.Set(r.ID))
+			err = errors.Join(err, updateId(path))
+			kv, ok := path.Last().(PropertyKVItem)
+			if !ok {
+				return err
 			}
-			propRef, ok := propVal.(PropertyRef)
-			if ok && propRef.Resource == old {
-				propRef.Resource = r.ID
-				return errors.Join(err, path.Set(propRef))
-			}
+			err = errors.Join(err, updateId(kv.Key()))
 			return err
 		})
 		if err != nil {
@@ -102,16 +112,6 @@ func UpdateResourceId(g Graph, old ResourceId) error {
 // RemoveResource removes all edges from the resource. any property references (as [ResourceId] or [PropertyRef])
 // to the resource, and finally the resource itself.
 func RemoveResource(g Graph, id ResourceId) error {
-	r, props, err := g.VertexWithProperties(id)
-	if err != nil {
-		return err
-	}
-
-	err = g.AddVertex(r, copyVertexProps(props))
-	if err != nil {
-		return err
-	}
-
 	neighbors := make(map[ResourceId]struct{})
 	adj, err := g.AdjacencyMap()
 	if err != nil {
@@ -143,21 +143,31 @@ func RemoveResource(g Graph, id ResourceId) error {
 		return err
 	}
 
+	removeId := func(path PropertyPathItem) error {
+		itemVal := path.Get()
+		itemId, ok := itemVal.(ResourceId)
+		if ok && itemId == id {
+			return path.Remove(nil)
+		}
+		itemRef, ok := itemVal.(PropertyRef)
+		if ok && itemRef.Resource == id {
+			return path.Remove(nil)
+		}
+		return nil
+	}
+
 	for neighborId := range neighbors {
 		neighbor, err := g.Vertex(neighborId)
 		if err != nil {
 			return err
 		}
 		err = neighbor.WalkProperties(func(path PropertyPath, err error) error {
-			propVal := path.Get()
-			propId, ok := propVal.(ResourceId)
-			if ok && propId == id {
-				return errors.Join(err, path.Remove(nil))
+			err = errors.Join(err, removeId(path))
+			kv, ok := path.Last().(PropertyKVItem)
+			if !ok {
+				return err
 			}
-			propRef, ok := propVal.(PropertyRef)
-			if ok && propRef.Resource == id {
-				return errors.Join(err, path.Remove(nil))
-			}
+			err = errors.Join(err, removeId(kv.Key()))
 			return err
 		})
 		if err != nil {
