@@ -203,6 +203,21 @@ func (ctx SolutionContext) nodeMakeOperational(r *construct.Resource) error {
 }
 
 func (ctx SolutionContext) handleNodeProperty(r *construct.Resource, property knowledgebase.Property) error {
+	// First check if we need to set the default value
+	if property.DefaultValue != nil {
+		currProperty, err := r.GetProperty(property.Path)
+		if err != nil {
+			return fmt.Errorf("failed to get property %s on resource %s: %w", property.Path, r.ID, err)
+		}
+		if currProperty == nil {
+			err = r.SetProperty(property.Path, property.DefaultValue)
+			if err != nil {
+				return fmt.Errorf("failed to set default value for property %s on resource %s: %w", property.Path, r.ID, err)
+			}
+		}
+	}
+
+	// Next handle the operational rule within the property
 	if property.OperationalRule == nil {
 		return nil
 	}
@@ -223,15 +238,7 @@ func (ctx SolutionContext) handleNodeProperty(r *construct.Resource, property kn
 	if err != nil {
 		return err
 	}
-	if property.DefaultValue != nil {
-		_, err = r.GetProperty(property.Path)
-		if err != nil {
-			err = r.SetProperty(property.Path, property.DefaultValue)
-			if err != nil {
-				return fmt.Errorf("failed to set default value for property %s on resource %s: %w", property.Path, r.ID, err)
-			}
-		}
-	}
+
 	for _, property := range property.Properties {
 		err := ctx.handleNodeProperty(r, property)
 		if err != nil {
@@ -332,7 +339,7 @@ func (ctx SolutionContext) ExpandConstruct(resource *construct.Resource, constra
 		if err != nil {
 			return nil, err
 		}
-		err = newCtx.ReplaceResourceId(resource.ID, res)
+		err = newCtx.ReplaceResourceId(resource.ID, res.ID)
 		if err != nil {
 			return nil, err
 		}

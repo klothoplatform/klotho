@@ -12,7 +12,7 @@ func MockResource1(name string) *construct.Resource {
 			Type:     "resource1",
 			Name:     name,
 		},
-		Properties: map[string]interface{}(nil),
+		Properties: map[string]interface{}{},
 	}
 }
 
@@ -23,7 +23,7 @@ func MockResource2(name string) *construct.Resource {
 			Type:     "resource2",
 			Name:     name,
 		},
-		Properties: map[string]interface{}(nil),
+		Properties: map[string]interface{}{},
 	}
 }
 
@@ -34,7 +34,7 @@ func MockResource3(name string) *construct.Resource {
 			Type:     "resource3",
 			Name:     name,
 		},
-		Properties: map[string]interface{}(nil),
+		Properties: map[string]interface{}{},
 	}
 }
 
@@ -45,7 +45,7 @@ func MockResource4(name string) *construct.Resource {
 			Type:     "resource4",
 			Name:     name,
 		},
-		Properties: map[string]interface{}(nil),
+		Properties: map[string]interface{}{},
 	}
 }
 

@@ -787,7 +787,7 @@ func Test_setField(t *testing.T) {
 					g.AssertNotCalled(t, "RemoveDependency", mock.Anything, mock.Anything)
 					g.AssertNotCalled(t, "RemoveResource", mock.Anything, mock.Anything)
 				}
-				g.AssertCalled(t, "ReplaceResourceId", resId, tt.want)
+				g.AssertCalled(t, "ReplaceResourceId", resId, tt.want.ID)
 			} else {
 				g.AssertNotCalled(t, "RemoveDependency", mock.Anything, mock.Anything)
 				g.AssertNotCalled(t, "RemoveResource", mock.Anything, mock.Anything)

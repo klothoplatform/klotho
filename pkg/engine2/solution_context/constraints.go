@@ -70,9 +70,7 @@ func (ctx SolutionContext) ApplyApplicationConstraint(constraint *constraints.Ap
 		}
 		var replacementNode *construct.Resource
 		if node.ID.QualifiedTypeName() == constraint.ReplacementNode.QualifiedTypeName() {
-			replacementNode = cloneResource(node)
-			reflect.ValueOf(replacementNode).Elem().FieldByName("Name").Set(reflect.ValueOf(constraint.ReplacementNode.Name))
-			return ctx.ReplaceResourceId(constraint.Node, replacementNode)
+			return ctx.ReplaceResourceId(constraint.Node, constraint.ReplacementNode)
 		} else {
 			replacementNode = construct.CreateResource(constraint.ReplacementNode)
 			functionalUpstream, err := ctx.UpstreamFunctional(node)

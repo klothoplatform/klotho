@@ -48,7 +48,7 @@ func TestUpdateResourceId(t *testing.T) {
 	assert.Equal("test::updateMe", oldId.String())
 	assert.Equal("test::updated", toUpdate.ID.String())
 
-	err := construct.UpdateResourceId(g, oldId)
+	err := construct.PropagateUpdatedId(g, oldId)
 	require.NoError(err)
 
 	newRes, err := g.Vertex(toUpdate.ID)

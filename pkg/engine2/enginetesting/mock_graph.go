@@ -46,7 +46,7 @@ func (g *MockGraph) Upstream(resource *construct.Resource, layer int) ([]*constr
 	return args.Get(0).([]*construct.Resource), args.Error(1)
 }
 
-func (g *MockGraph) ReplaceResourceId(oldId construct.ResourceId, resource *construct.Resource) error {
+func (g *MockGraph) ReplaceResourceId(oldId construct.ResourceId, resource construct.ResourceId) error {
 	args := g.Called(oldId, resource)
 	return args.Error(0)
 }

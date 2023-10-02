@@ -16,7 +16,7 @@ type (
 		DownstreamOfType(resource *construct.Resource, layer int, qualifiedType string) ([]*construct.Resource, error)
 		Downstream(resource *construct.Resource, layer int) ([]*construct.Resource, error)
 		Upstream(resource *construct.Resource, layer int) ([]*construct.Resource, error)
-		ReplaceResourceId(oldId construct.ResourceId, resource *construct.Resource) error
+		ReplaceResourceId(oldId construct.ResourceId, resource construct.ResourceId) error
 		ConfigureResource(resource *construct.Resource, configuration knowledgebase.Configuration, data knowledgebase.ConfigTemplateData, action string) error
 	}
 

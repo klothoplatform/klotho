@@ -27,7 +27,17 @@ func (ctx SolutionContext) reconnectFunctionalResources(resource *construct.Reso
 				zap.S().Debugf("Error getting paths between %s and %s", u.ID, d.ID)
 				continue
 			}
-			if len(paths) == 0 {
+			var pathsWithoutRes [][]*construct.Resource
+		PATHS:
+			for _, path := range paths {
+				for _, res := range path {
+					if res.ID == resource.ID {
+						continue PATHS
+					}
+				}
+				pathsWithoutRes = append(pathsWithoutRes, path)
+			}
+			if len(pathsWithoutRes) == 0 {
 				log.Debugf("Adding dependency between %s and %s resources to reconnect path", u.ID, d.ID)
 				ctx.EdgeConstraints = append(ctx.EdgeConstraints, constraints.EdgeConstraint{
 					Operator: constraints.MustNotContainConstraintOperator,
@@ -47,13 +57,9 @@ func (ctx SolutionContext) reconnectFunctionalResources(resource *construct.Reso
 	return nil
 }
 
-func (ctx SolutionContext) canDeleteResource(resource *construct.Resource, explicit bool, upstreamNodes []*construct.Resource, downstreamNodes []*construct.Resource) bool {
+func (ctx SolutionContext) canDeleteResource(resource *construct.Resource, explicit bool, template *knowledgebase.ResourceTemplate,
+	upstreamNodes []*construct.Resource, downstreamNodes []*construct.Resource) bool {
 	log := zap.S().With(zap.String("id", resource.ID.String()))
-	template, err := ctx.kb.GetResourceTemplate(resource.ID)
-	if err != nil {
-		log.Errorf("Unable to get resource template for resource %s", resource.ID)
-		return false
-	}
 	deletionCriteria := template.DeleteContext
 	if template.GetFunctionality() != knowledgebase.Unknown && !explicit {
 		return false
@@ -90,7 +96,7 @@ func (ctx SolutionContext) canDeleteResource(resource *construct.Resource, expli
 			return false
 		}
 		for _, down := range downstreamNodes {
-			err = ctx.RemoveResource(down, false)
+			err := ctx.RemoveResource(down, false)
 			if err != nil {
 				log.Errorf("Unable to delete downstream resource %s for resource %s", down.ID, resource.ID)
 				return false
@@ -113,14 +119,14 @@ func (ctx SolutionContext) canDeleteResource(resource *construct.Resource, expli
 			return false
 		}
 		for _, down := range downstreamNodes {
-			err = ctx.RemoveResource(down, false)
+			err := ctx.RemoveResource(down, false)
 			if err != nil {
 				log.Errorf("Unable to delete downstream resource %s for resource %s", down.ID, resource.ID)
 				return false
 			}
 		}
 		for _, up := range upstreamNodes {
-			err = ctx.RemoveResource(up, false)
+			err := ctx.RemoveResource(up, false)
 			if err != nil {
 				log.Errorf("Unable to delete upstream resource %s for resource %s", up.ID, resource.ID)
 				return false

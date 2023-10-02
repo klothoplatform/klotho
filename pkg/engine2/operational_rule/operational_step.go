@@ -434,8 +434,9 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 	// If this sets the field driving the namespace, for example,
 	// then the Id could change, so replace the resource in the graph
 	// to update all the edges to the new Id.
+	fmt.Println(oldId, resource.ID)
 	if oldId != resource.ID {
-		err := ctx.Graph.ReplaceResourceId(oldId, resource)
+		err := ctx.Graph.ReplaceResourceId(oldId, resource.ID)
 		if err != nil {
 			return err
 		}

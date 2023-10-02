@@ -119,12 +119,14 @@ func Test_ExpandEdge(t *testing.T) {
 						Properties: construct.Properties{"testKey": "testValue"},
 					},
 					Target: &construct.Resource{
-						ID: construct.ResourceId{Type: "middle", Name: "middle_source_destination"},
+						ID:         construct.ResourceId{Type: "middle", Name: "middle_source_destination"},
+						Properties: construct.Properties{},
 					},
 				},
 				{
 					Source: &construct.Resource{
-						ID: construct.ResourceId{Type: "middle", Name: "middle_source_destination"},
+						ID:         construct.ResourceId{Type: "middle", Name: "middle_source_destination"},
+						Properties: construct.Properties{},
 					},
 					Target: &construct.Resource{
 						ID:         construct.ResourceId{Name: "destination"},

@@ -2,6 +2,7 @@ package knowledgebase2
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -53,11 +54,12 @@ func (p Property) getPropertyType() (PropertyType, error) {
 	parts := strings.Split(p.Type, "(")
 	if len(parts) == 1 {
 		ptype, found := PropertyTypeMap[p.Type]
+		newPtype := reflect.New(reflect.TypeOf(ptype).Elem()).Interface().(PropertyType)
 		if !found {
 			return nil, fmt.Errorf("unknown property type '%s' for property %s", p.Type, p.Name)
 		}
-		ptype.SetProperty(p)
-		return ptype, nil
+		newPtype.SetProperty(p)
+		return newPtype, nil
 	}
 	args := strings.Split(strings.TrimSuffix(parts[1], ")"), ",")
 	switch parts[0] {
@@ -83,6 +85,12 @@ func (p Property) getPropertyType() (PropertyType, error) {
 }
 
 func (str *StringPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+	// Here we have to try to parse to a property ref first, since a string representation of a property ref would match string parsing
+	refPType := &PropertyRefPropertyType{}
+	val, err := refPType.Parse(value, ctx, data)
+	if err == nil {
+		return val, nil
+	}
 	if val, ok := value.(string); ok {
 		var result string
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -98,6 +106,11 @@ func (i *IntPropertyType) Parse(value any, ctx ConfigTemplateContext, data Confi
 		return result, err
 	}
 	if val, ok := value.(int); ok {
+		return val, nil
+	}
+	refPType := &PropertyRefPropertyType{}
+	val, err := refPType.Parse(value, ctx, data)
+	if err == nil {
 		return val, nil
 	}
 	return nil, fmt.Errorf("invalid int value %v", value)
@@ -118,6 +131,11 @@ func (f *FloatPropertyType) Parse(value any, ctx ConfigTemplateContext, data Con
 	if val, ok := value.(int); ok {
 		return float64(val), nil
 	}
+	refPType := &PropertyRefPropertyType{}
+	val, err := refPType.Parse(value, ctx, data)
+	if err == nil {
+		return val, nil
+	}
 	return nil, fmt.Errorf("invalid float value %v", value)
 }
 
@@ -128,6 +146,11 @@ func (b *BoolPropertyType) Parse(value any, ctx ConfigTemplateContext, data Conf
 		return result, err
 	}
 	if val, ok := value.(bool); ok {
+		return val, nil
+	}
+	refPType := &PropertyRefPropertyType{}
+	val, err := refPType.Parse(value, ctx, data)
+	if err == nil {
 		return val, nil
 	}
 	return nil, fmt.Errorf("invalid bool value %v", value)
@@ -149,6 +172,11 @@ func (r *ResourcePropertyType) Parse(value any, ctx ConfigTemplateContext, data 
 		return id, nil
 	}
 	if val, ok := value.(construct.ResourceId); ok {
+		return val, nil
+	}
+	refPType := &PropertyRefPropertyType{}
+	val, err := refPType.Parse(value, ctx, data)
+	if err == nil {
 		return val, nil
 	}
 	return nil, fmt.Errorf("invalid resource value %v", value)
@@ -229,6 +257,7 @@ func (m *MapPropertyType) Parse(value any, ctx ConfigTemplateContext, data Confi
 			} else if propertyType == nil {
 				return nil, fmt.Errorf("%s is not a valid sub property", key)
 			}
+			propertyType.SetProperty(m.Property.Properties[key])
 			val, err := propertyType.Parse(v, ctx, data)
 			if err != nil {
 				return nil, err

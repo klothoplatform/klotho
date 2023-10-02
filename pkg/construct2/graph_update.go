@@ -22,7 +22,7 @@ func copyEdgeProps(p graph.EdgeProperties) func(*graph.EdgeProperties) {
 // currently referenced by `old`. No-op if the resource ID hasn't changed.
 // Also updates any property references (as [ResourceId] or [PropertyRef]) of the old ID to the new ID in any
 // resource that depends on or is depended on by the resource.
-func UpdateResourceId(g Graph, old ResourceId) error {
+func PropagateUpdatedId(g Graph, old ResourceId) error {
 	r, props, err := g.VertexWithProperties(old)
 	if err != nil {
 		return err

@@ -40,6 +40,14 @@ func (c SolutionContext) ListResources() ([]*construct.Resource, error) {
 	return resources, nil
 }
 
+func (c SolutionContext) GetResource(resource construct.ResourceId) (*construct.Resource, error) {
+	return c.dataflowGraph.Vertex(resource)
+}
+
+func (c SolutionContext) GetDependency(from, to construct.ResourceId) (graph.Edge[*construct.Resource], error) {
+	return c.dataflowGraph.Edge(from, to)
+}
+
 func (c SolutionContext) AddResource(resource *construct.Resource) error {
 	return c.addResource(resource, true)
 }
@@ -110,14 +118,6 @@ func (c SolutionContext) addDependency(from, to *construct.Resource, makeOperati
 	return c.addPath(from, to)
 }
 
-func (c SolutionContext) GetResource(resource construct.ResourceId) (*construct.Resource, error) {
-	return c.dataflowGraph.Vertex(resource)
-}
-
-func (c SolutionContext) GetDependency(from, to construct.ResourceId) (graph.Edge[*construct.Resource], error) {
-	return c.dataflowGraph.Edge(from, to)
-}
-
 func (c SolutionContext) RemoveResource(resource *construct.Resource, explicit bool) error {
 	// TODO: Find all references of the id in other resources and remove it
 
@@ -125,7 +125,7 @@ func (c SolutionContext) RemoveResource(resource *construct.Resource, explicit b
 	if err != nil {
 		return err
 	}
-	if res == nil {
+	if res != nil {
 		upstreamNodes, err := c.DirectUpstreamResources(resource.ID)
 		if err != nil {
 			return err
@@ -134,12 +134,30 @@ func (c SolutionContext) RemoveResource(resource *construct.Resource, explicit b
 		if err != nil {
 			return err
 		}
-		if !c.canDeleteResource(resource, explicit, upstreamNodes, downstreamNodes) {
+		template, err := c.kb.GetResourceTemplate(resource.ID)
+		if err != nil {
+			return fmt.Errorf("unable to remove resource: error getting resource template for %s: %v", resource.ID, err)
+		}
+		if !c.canDeleteResource(resource, explicit, template, upstreamNodes, downstreamNodes) {
 			return nil
 		}
 
-		if c.kb.GetFunctionality(resource.ID) == knowledgebase.Unknown {
+		if template.GetFunctionality() == knowledgebase.Unknown {
 			err := c.reconnectFunctionalResources(resource)
+			if err != nil {
+				return err
+			}
+		}
+
+		// We must remove all edges before removing the vertex
+		for _, res := range upstreamNodes {
+			err = c.RemoveDependency(res.ID, resource.ID)
+			if err != nil {
+				return err
+			}
+		}
+		for _, res := range downstreamNodes {
+			err = c.RemoveDependency(resource.ID, res.ID)
 			if err != nil {
 				return err
 			}
@@ -287,7 +305,10 @@ func (ctx SolutionContext) isDownstreamWithinFunctionalBoundary(resource *constr
 		return false
 	}
 	for _, path := range paths {
-		for _, res := range path {
+		for i, res := range path {
+			if i == 0 || i == len(path)-1 {
+				continue
+			}
 			if ctx.kb.GetFunctionality(res.ID) != knowledgebase.Unknown {
 				return false
 			}
@@ -363,7 +384,8 @@ func (ctx SolutionContext) UpstreamFunctional(resource *construct.Resource) ([]*
 	}
 	var result []*construct.Resource
 	for _, res := range resources {
-		if ctx.kb.GetFunctionality(res.ID) != knowledgebase.Unknown {
+		functionality := ctx.kb.GetFunctionality(res.ID)
+		if functionality != knowledgebase.Unknown {
 			result = append(result, res)
 		}
 	}
@@ -376,7 +398,10 @@ func (ctx SolutionContext) isUpstreamWithinFunctionalBoundary(resource *construc
 		return false
 	}
 	for _, path := range paths {
-		for _, res := range path {
+		for i, res := range path {
+			if i == len(path)-1 || i == 0 {
+				continue
+			}
 			if ctx.kb.GetFunctionality(res.ID) != knowledgebase.Unknown {
 				return false
 			}
@@ -419,35 +444,25 @@ func (ctx SolutionContext) DirectDownstreamResources(id construct.ResourceId) ([
 	return result, nil
 }
 
-func (c SolutionContext) ReplaceResourceId(oldId construct.ResourceId, resource *construct.Resource) error {
-	err := c.AddResource(resource)
-	if err != nil {
-		return err
+func (c SolutionContext) ReplaceResourceId(oldId construct.ResourceId, resource construct.ResourceId) error {
+	res, err := c.GetResource(oldId)
+	if err != nil && err != graph.ErrVertexNotFound {
+		return fmt.Errorf("error getting resource %s, when trying to replace resource", oldId)
 	}
-
-	directUpstream, err := c.DirectUpstreamResources(oldId)
-	if err != nil {
-		return err
-	}
-	for _, res := range directUpstream {
-		err = c.AddDependency(res, resource)
-		if err != nil {
-			return err
-		}
-	}
-
-	directDownstream, err := c.DirectDownstreamResources(oldId)
-	if err != nil {
-		return err
-	}
-	for _, res := range directDownstream {
-		err = c.AddDependency(resource, res)
-		if err != nil {
-			return err
-		}
+	if res == nil {
+		return fmt.Errorf("resource %s does not exist, when trying to replace resource", oldId)
 	}
 	// TODO: Find all references of the old id in other resources and replace it
-	return c.RemoveResource(&construct.Resource{ID: oldId}, true)
+	res.ID.Name = resource.Name
+	err = construct.PropagateUpdatedId(c.dataflowGraph, oldId)
+	if err != nil {
+		return fmt.Errorf("error propagating updated id for resource %s", oldId)
+	}
+	err = construct.PropagateUpdatedId(c.deploymentGraph, oldId)
+	if err != nil {
+		return fmt.Errorf("error propagating updated id for resource %s", oldId)
+	}
+	return nil
 }
 
 func (c SolutionContext) AllPaths(source construct.ResourceId, destination construct.ResourceId) ([][]*construct.Resource, error) {
