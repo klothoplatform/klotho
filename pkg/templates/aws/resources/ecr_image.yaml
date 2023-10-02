@@ -2,6 +2,10 @@ qualified_type_name: aws:ecr_image
 properties:
   ImageName:
     type: string
+  BaseImage:
+    type: string
+  Tag:
+    type: string
   Repo:
     type: resource
     operational_rule:
@@ -20,12 +24,6 @@ properties:
       - direction: downstream
         resources:
           - docker:image:{{ .Self.Name }}
-  ExtraOptions:
-    type: list(string)
-    default_value:
-    - --platform
-    - linux/amd64
-    - --quiet
 classification:
   is: 
     - image
