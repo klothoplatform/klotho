@@ -236,7 +236,14 @@ func appendValue(a reflect.Value, value reflect.Value) (reflect.Value, error) {
 
 	switch a.Kind() {
 	case reflect.Slice, reflect.Array:
-		return reflect.Append(a, value), nil
+		if value.Kind() != reflect.Slice && value.Kind() != reflect.Array {
+			return a, fmt.Errorf("expected slice value for append, got %s", value.Kind())
+		}
+		values := make([]reflect.Value, value.Len())
+		for i := 0; i < value.Len(); i++ {
+			values[i] = value.Index(i)
+		}
+		return reflect.Append(a, values...), nil
 
 	case reflect.Map:
 		aType := a.Type()

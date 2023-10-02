@@ -30,3 +30,4 @@ keyvalue.js.tmpl
 
 node_modules/
 /*.yaml
+/_samples/

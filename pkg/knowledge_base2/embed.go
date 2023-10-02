@@ -9,6 +9,38 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func NewKBFromFs(resources, edges fs.FS) (*KnowledgeBase, error) {
+	kb := NewKB()
+	templates, err := TemplatesFromFs(resources)
+	if err != nil {
+		return nil, err
+	}
+	edgeTemplates, err := EdgeTemplatesFromFs(edges)
+	if err != nil {
+		return nil, err
+	}
+
+	var errs error
+	for _, template := range templates {
+		err = kb.AddResourceTemplate(template)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("error adding resource template %s: %w", template.QualifiedTypeName, err))
+		}
+	}
+	for _, template := range edgeTemplates {
+		err = kb.AddEdgeTemplate(template)
+		if err != nil {
+			errs = errors.Join(errs,
+				fmt.Errorf("error adding edge template %s -> %s: %w",
+					template.Source.QualifiedTypeName(),
+					template.Target.QualifiedTypeName(),
+					err),
+			)
+		}
+	}
+	return kb, errs
+}
+
 func TemplatesFromFs(dir fs.FS) (map[construct.ResourceId]*ResourceTemplate, error) {
 	templates := map[construct.ResourceId]*ResourceTemplate{}
 	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {

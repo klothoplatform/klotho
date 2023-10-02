@@ -125,31 +125,10 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) error {
 }
 
 func (em *EngineMain) AddEngine() error {
-	kb := knowledgebase.NewKB()
-	resourceTemplates, err := knowledgebase.TemplatesFromFs(templates.ResourceTemplates)
+	kb, err := knowledgebase.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates)
 	if err != nil {
-		return fmt.Errorf("failed to load resource templates: %s", err.Error())
+		return err
 	}
-	for _, template := range resourceTemplates {
-		err := kb.AddResourceTemplate(template)
-		if err != nil {
-			return fmt.Errorf("failed to add resource template %s: %s", template.QualifiedTypeName, err.Error())
-		}
-	}
-
-	edgeTemplates, err := knowledgebase.EdgeTemplatesFromFs(templates.EdgeTemplates)
-	if err != nil {
-		return fmt.Errorf("failed to load edge templates: %s", err.Error())
-	}
-	for _, template := range edgeTemplates {
-		fmt.Println(template.Source.QualifiedTypeName(), template.Target.QualifiedTypeName())
-		err := kb.AddEdgeTemplate(template)
-		if err != nil {
-			return fmt.Errorf("failed to add edge template %s -> %s: %s",
-				template.Source.QualifiedTypeName(), template.Target.QualifiedTypeName(), err.Error())
-		}
-	}
-
 	em.Engine = NewEngine(kb)
 	return nil
 }

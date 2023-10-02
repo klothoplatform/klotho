@@ -38,12 +38,15 @@ func MarshalMap[K comparable, V any](m map[K]V, less func(K, K) bool) (*yaml.Nod
 			continue
 		}
 		var valueNode yaml.Node
-		if vn, ok := v.(*yaml.Node); ok {
-			valueNode = *vn
-		}
-		if err := valueNode.Encode(m[k]); err != nil {
-			errs = errors.Join(errs, fmt.Errorf("failed to encode value for %v: %w", k, err))
-			continue
+		switch v := v.(type) {
+		case *yaml.Node:
+			valueNode = *v
+
+		default:
+			if err := valueNode.Encode(m[k]); err != nil {
+				errs = errors.Join(errs, fmt.Errorf("failed to encode value for %v: %w", k, err))
+				continue
+			}
 		}
 		node.Content = append(
 			node.Content,

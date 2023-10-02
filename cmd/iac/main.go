@@ -6,9 +6,10 @@ import (
 )
 
 func main() {
-	iac := &infra.IacCli{}
 	var root = &cobra.Command{}
-	err := iac.AddIacCli(root)
+	// iac := &infra.IacCli{}
+	// err := iac.AddIacCli(root)
+	err := infra.AddIacCli(root)
 	if err != nil {
 		panic(err)
 	}
