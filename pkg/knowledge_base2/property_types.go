@@ -2,7 +2,6 @@ package knowledgebase2
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -33,14 +32,14 @@ type (
 	PropertyRefPropertyType struct{}
 )
 
-var PropertyTypeMap = map[string]PropertyType{
-	"string":   &StringPropertyType{},
-	"int":      &IntPropertyType{},
-	"float":    &FloatPropertyType{},
-	"bool":     &BoolPropertyType{},
-	"resource": &ResourcePropertyType{},
-	"map":      &MapPropertyType{},
-	"list":     &ListPropertyType{},
+var PropertyTypeMap = map[string]func() PropertyType{
+	"string":   func() PropertyType { return &StringPropertyType{} },
+	"int":      func() PropertyType { return &IntPropertyType{} },
+	"float":    func() PropertyType { return &FloatPropertyType{} },
+	"bool":     func() PropertyType { return &BoolPropertyType{} },
+	"resource": func() PropertyType { return &ResourcePropertyType{} },
+	"map":      func() PropertyType { return &MapPropertyType{} },
+	"list":     func() PropertyType { return &ListPropertyType{} },
 }
 
 func (p Property) IsPropertyTypeScalar() bool {
@@ -53,11 +52,11 @@ func (p Property) getPropertyType() (PropertyType, error) {
 	}
 	parts := strings.Split(p.Type, "(")
 	if len(parts) == 1 {
-		ptype, found := PropertyTypeMap[p.Type]
-		newPtype := reflect.New(reflect.TypeOf(ptype).Elem()).Interface().(PropertyType)
+		ptypeGen, found := PropertyTypeMap[p.Type]
 		if !found {
 			return nil, fmt.Errorf("unknown property type '%s' for property %s", p.Type, p.Name)
 		}
+		newPtype := ptypeGen()
 		newPtype.SetProperty(p)
 		return newPtype, nil
 	}
@@ -222,7 +221,11 @@ func (list *ListPropertyType) Parse(value any, ctx ConfigTemplateContext, data C
 			}
 			result = append(result, val)
 		} else {
-			parser := PropertyTypeMap[list.Value]
+			parserGen, found := PropertyTypeMap[list.Value]
+			if !found {
+				return nil, fmt.Errorf("invalid list property type %s", list.Property.Name)
+			}
+			parser := parserGen()
 			val, err := parser.Parse(v, ctx, data)
 			if err != nil {
 				return nil, err
@@ -265,12 +268,20 @@ func (m *MapPropertyType) Parse(value any, ctx ConfigTemplateContext, data Confi
 			result[key] = val
 
 		} else {
-			parser := PropertyTypeMap[keyType]
+			parserGen, found := PropertyTypeMap[keyType]
+			if !found {
+				return nil, fmt.Errorf("invalid map property type %s", m.Property.Name)
+			}
+			parser := parserGen()
 			keyVal, err := parser.Parse(key, ctx, data)
 			if err != nil {
 				return nil, err
 			}
-			parser = PropertyTypeMap[valType]
+			parserGen = PropertyTypeMap[valType]
+			if !found {
+				return nil, fmt.Errorf("invalid map property type %s", m.Property.Name)
+			}
+			parser = parserGen()
 			val, err := parser.Parse(v, ctx, data)
 			if err != nil {
 				return nil, err
