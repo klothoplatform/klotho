@@ -229,19 +229,44 @@ func (i mapValuePathItem) Set(value any) (err error) {
 	return nil
 }
 
-func appendValue(a reflect.Value, value reflect.Value) (reflect.Value, error) {
+func appendValue(appendTo reflect.Value, value reflect.Value) (reflect.Value, error) {
+	a := appendTo
 	for a.Kind() == reflect.Interface || a.Kind() == reflect.Ptr {
 		a = a.Elem()
+	}
+	if !a.IsValid() {
+		// Appending to empty, create a new slice or map based on what value's type.
+		switch value.Kind() {
+		case reflect.Slice, reflect.Array:
+			// append(nil, []T{...}} => []T{...}
+			a = reflect.MakeSlice(value.Type(), 0, value.Len())
+
+		case reflect.Map:
+			// append(nil, map[K]V{...}) => map[K]V{...}
+			a = reflect.MakeMap(reflect.MapOf(value.Type().Key(), value.Type().Elem()))
+
+		default:
+			// append(nil, T) => []T{...}
+			a = reflect.MakeSlice(reflect.SliceOf(value.Type()), 0, 1)
+		}
 	}
 
 	switch a.Kind() {
 	case reflect.Slice, reflect.Array:
-		if value.Kind() != reflect.Slice && value.Kind() != reflect.Array {
-			return a, fmt.Errorf("expected slice value for append, got %s", value.Kind())
-		}
-		values := make([]reflect.Value, value.Len())
-		for i := 0; i < value.Len(); i++ {
-			values[i] = value.Index(i)
+		var values []reflect.Value
+		if (value.Kind() == reflect.Slice || value.Kind() == reflect.Array) &&
+			value.Type().Elem().AssignableTo(a.Type().Elem()) {
+			// append(a []T, b []T) => []T{a..., b...}
+
+			values = make([]reflect.Value, value.Len())
+			for i := 0; i < value.Len(); i++ {
+				values[i] = value.Index(i)
+			}
+		} else if value.Type().AssignableTo(a.Type().Elem()) {
+			// append(a []T, b T) => []T{a..., b}
+			values = []reflect.Value{value}
+		} else {
+			return a, fmt.Errorf("expected %s or []%[1]s value for append, got %s", a.Type().Elem(), value.Type())
 		}
 		return reflect.Append(a, values...), nil
 

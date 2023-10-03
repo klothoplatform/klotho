@@ -215,8 +215,19 @@ func TestResource_PropertyPath_ops(t *testing.T) {
 
 	e := path("E")
 	if assert.NoError(e.Set([]string{"one", "two"})) {
-		assert.Error(e.Append([]string{"three", "four"}))
+		assert.NoError(e.Append([]string{"three", "four"}))
 		assert.Equal([]string{"one", "two", "three", "four"}, e.Get())
+	}
+
+	tmp := path("temp")
+	if assert.NoError(tmp.Append("test")) {
+		assert.Equal([]string{"test"}, tmp.Get())
+		assert.NoError(tmp.Remove(nil))
+	}
+
+	if assert.NoError(tmp.Append(map[string]string{"hello": "world"})) {
+		assert.Equal(map[string]string{"hello": "world"}, tmp.Get())
+		assert.NoError(tmp.Remove(nil))
 	}
 }
 
