@@ -20,7 +20,7 @@ type (
 		deploymentGraph      construct.Graph
 		decisions            DecisionRecords
 		stack                []KV
-		kb                   knowledgebase.TemplateKB
+		KB                   knowledgebase.TemplateKB
 		mappedResources      map[construct.ResourceId]construct.ResourceId
 		EdgeConstraints      []constraints.EdgeConstraint
 		ResourceConstraints  []constraints.ResourceConstraint
@@ -56,7 +56,7 @@ func NewSolutionContext(kb knowledgebase.TemplateKB) SolutionContext {
 		dataflowGraph:   construct.NewGraph(),
 		deploymentGraph: construct.NewAcyclicGraph(),
 		decisions:       &MemoryRecord{},
-		kb:              kb,
+		KB:              kb,
 	}
 }
 func (c SolutionContext) Clone() SolutionContext {
@@ -80,7 +80,7 @@ func (s SolutionContext) With(key string, value any) SolutionContext {
 		dataflowGraph:        s.dataflowGraph,
 		deploymentGraph:      s.deploymentGraph,
 		decisions:            s.decisions,
-		kb:                   s.kb,
+		KB:                   s.KB,
 		mappedResources:      s.mappedResources,
 		EdgeConstraints:      s.EdgeConstraints,
 		ResourceConstraints:  s.ResourceConstraints,
@@ -187,7 +187,7 @@ func (ctx SolutionContext) nodeMakeOperational(r *construct.Resource) error {
 		}
 	}
 
-	template, err := ctx.kb.GetResourceTemplate(r.ID)
+	template, err := ctx.KB.GetResourceTemplate(r.ID)
 	if err != nil {
 		panic(err)
 	}
@@ -226,7 +226,7 @@ func (ctx SolutionContext) handleNodeProperty(r *construct.Resource, property kn
 		ConfigCtx: knowledgebase.ConfigTemplateContext{DAG: ctx},
 		Data:      knowledgebase.ConfigTemplateData{Resource: r.ID},
 		Graph:     ctx,
-		KB:        ctx.kb,
+		KB:        ctx.KB,
 	}
 	// If there is no resource specified on the step, we are going to assume that it is applied to the resource being handled
 	for _, step := range property.OperationalRule.Steps {
@@ -251,13 +251,13 @@ func (ctx SolutionContext) handleNodeProperty(r *construct.Resource, property kn
 func (ctx SolutionContext) edgeMakeOperational(e graph.Edge[construct.ResourceId]) error {
 	ctx = ctx.With("edge", e) // add the edge info to the decision context stack
 
-	template := ctx.kb.GetEdgeTemplate(e.Source, e.Target)
+	template := ctx.KB.GetEdgeTemplate(e.Source, e.Target)
 	for _, rule := range template.OperationalRules {
 		ruleCtx := operational_rule.OperationalRuleContext{
 			ConfigCtx: knowledgebase.ConfigTemplateContext{DAG: ctx},
 			Data:      knowledgebase.ConfigTemplateData{Edge: e},
 			Graph:     ctx,
-			KB:        ctx.kb,
+			KB:        ctx.KB,
 		}
 		err := ruleCtx.HandleOperationalRule(rule)
 		if err != nil {
@@ -277,7 +277,7 @@ func (ctx SolutionContext) addPath(from, to *construct.Resource) error {
 	ctx.With("edge", dep)
 	pathCtx := path_selection.PathSelectionContext{
 		Graph: ctx,
-		KB:    ctx.kb,
+		KB:    ctx.KB,
 	}
 
 	// Find any edge constraints around path selection
@@ -325,7 +325,7 @@ func (ctx SolutionContext) addPath(from, to *construct.Resource) error {
 func (ctx SolutionContext) ExpandConstruct(resource *construct.Resource, constraints []constraints.ConstructConstraint) ([]SolutionContext, error) {
 	expCtx := constructexpansion.ConstructExpansionContext{
 		Construct: resource,
-		Kb:        ctx.kb,
+		Kb:        ctx.KB,
 	}
 	solutions, err := expCtx.ExpandConstruct(resource, constraints)
 	if err != nil {
@@ -383,11 +383,11 @@ func (ctx SolutionContext) GenerateCombinations() ([]SolutionContext, error) {
 }
 
 func (ctx SolutionContext) GetClassification(resource construct.ResourceId) knowledgebase.Classification {
-	return ctx.kb.GetClassification(resource)
+	return ctx.KB.GetClassification(resource)
 }
 
 func (ctx SolutionContext) GetFunctionality(resource construct.ResourceId) knowledgebase.Functionality {
-	return ctx.kb.GetFunctionality(resource)
+	return ctx.KB.GetFunctionality(resource)
 }
 
 func (d AddResourceDecision) internal()      {}
@@ -397,7 +397,7 @@ func (d RemoveDependencyDecision) internal() {}
 func (d SetPropertyDecision) internal()      {}
 
 func (ctx SolutionContext) IsOperationalResourceSideEffect(resource, sideEffect *construct.Resource) bool {
-	template, err := ctx.kb.GetResourceTemplate(resource.ID)
+	template, err := ctx.KB.GetResourceTemplate(resource.ID)
 	if template == nil || err != nil {
 		return false
 	}

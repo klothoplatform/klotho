@@ -123,7 +123,7 @@ func Test_getPropertyType(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert := assert.New(t)
-			actual, err := test.property.getPropertyType()
+			actual, err := test.property.PropertyType()
 			if assert.NoError(err, "Expected no error, but got: %v", err) {
 				return
 			}

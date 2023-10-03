@@ -223,7 +223,7 @@ func (kb *KnowledgeBase) TransformToPropertyValue(resource *construct.Resource, 
 	if property == nil {
 		return nil, fmt.Errorf("could not find property %s on resource %s", propertyName, resource.ID)
 	}
-	propertyType, err := property.getPropertyType()
+	propertyType, err := property.PropertyType()
 	if err != nil {
 		return nil, fmt.Errorf("could not find property type %s on resource %s for property %s", property.Type, resource.ID, property.Name)
 	}

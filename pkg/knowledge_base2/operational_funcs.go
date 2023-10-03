@@ -41,8 +41,8 @@ type (
 	}
 )
 
-func (ctx *ConfigTemplateContext) Parse(tmpl string) (*template.Template, error) {
-	t, err := template.New("config").Funcs(template.FuncMap{
+func (ctx *ConfigTemplateContext) TemplateFunctions() template.FuncMap {
+	return template.FuncMap{
 		"hasUpstream":   ctx.HasUpstream,
 		"upstream":      ctx.Upstream,
 		"allUpstream":   ctx.AllUpstream,
@@ -68,7 +68,11 @@ func (ctx *ConfigTemplateContext) Parse(tmpl string) (*template.Template, error)
 
 		"add": add,
 		"sub": sub,
-	}).Parse(tmpl)
+	}
+}
+
+func (ctx *ConfigTemplateContext) Parse(tmpl string) (*template.Template, error) {
+	t, err := template.New("config").Funcs(ctx.TemplateFunctions()).Parse(tmpl)
 	return t, err
 }
 
@@ -229,7 +233,7 @@ func (data ConfigTemplateData) Log(level string, message string, args ...interfa
 	return ""
 }
 
-func argToRID(arg any) (construct.ResourceId, error) {
+func TemplateArgToRID(arg any) (construct.ResourceId, error) {
 	switch arg := arg.(type) {
 	case construct.ResourceId:
 		return arg, nil
@@ -248,7 +252,7 @@ func argToRID(arg any) (construct.ResourceId, error) {
 
 // Upstream returns the first resource that matches `selector` which is upstream of `resource`
 func (ctx *ConfigTemplateContext) HasUpstream(selector any, resource construct.ResourceId) (bool, error) {
-	selId, err := argToRID(selector)
+	selId, err := TemplateArgToRID(selector)
 	if err != nil {
 		return false, err
 	}
@@ -271,7 +275,7 @@ func (ctx *ConfigTemplateContext) HasUpstream(selector any, resource construct.R
 
 // Upstream returns the first resource that matches `selector` which is upstream of `resource`
 func (ctx *ConfigTemplateContext) Upstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
-	selId, err := argToRID(selector)
+	selId, err := TemplateArgToRID(selector)
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
@@ -296,7 +300,7 @@ func (ctx *ConfigTemplateContext) Upstream(selector any, resource construct.Reso
 // AllUpstream is like Upstream but returns all transitive upstream resources.
 // nolint: lll
 func (ctx *ConfigTemplateContext) AllUpstream(selector any, resource construct.ResourceId) ([]construct.ResourceId, error) {
-	selId, err := argToRID(selector)
+	selId, err := TemplateArgToRID(selector)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +324,7 @@ func (ctx *ConfigTemplateContext) AllUpstream(selector any, resource construct.R
 // Downstream returns the first resource that matches `selector` which is downstream of `resource`
 // nolint: lll
 func (ctx *ConfigTemplateContext) HasDownstream(selector any, resource construct.ResourceId) (bool, error) {
-	selId, err := argToRID(selector)
+	selId, err := TemplateArgToRID(selector)
 	if err != nil {
 		return false, err
 	}
@@ -343,7 +347,7 @@ func (ctx *ConfigTemplateContext) HasDownstream(selector any, resource construct
 // Downstream returns the first resource that matches `selector` which is downstream of `resource`
 // nolint: lll
 func (ctx *ConfigTemplateContext) Downstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
-	selId, err := argToRID(selector)
+	selId, err := TemplateArgToRID(selector)
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
@@ -367,7 +371,7 @@ func (ctx *ConfigTemplateContext) Downstream(selector any, resource construct.Re
 // AllDownstream is like Downstream but returns all transitive downstream resources.
 // nolint: lll
 func (ctx *ConfigTemplateContext) AllDownstream(selector any, resource construct.ResourceId) ([]construct.ResourceId, error) {
-	selId, err := argToRID(selector)
+	selId, err := TemplateArgToRID(selector)
 	if err != nil {
 		return nil, err
 	}
@@ -390,11 +394,11 @@ func (ctx *ConfigTemplateContext) AllDownstream(selector any, resource construct
 
 // ShortestPath returns all the resource IDs on the shortest path from source to destination
 func (ctx *ConfigTemplateContext) ShortestPath(source, destination any) ([]construct.ResourceId, error) {
-	srcId, err := argToRID(source)
+	srcId, err := TemplateArgToRID(source)
 	if err != nil {
 		return nil, err
 	}
-	dstId, err := argToRID(destination)
+	dstId, err := TemplateArgToRID(destination)
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +415,7 @@ func (ctx *ConfigTemplateContext) ShortestPath(source, destination any) ([]const
 
 // FieldValue returns the value of `field` on `resource` in json
 func (ctx *ConfigTemplateContext) FieldValue(field string, resource any) (any, error) {
-	resId, err := argToRID(resource)
+	resId, err := TemplateArgToRID(resource)
 	if err != nil {
 		return "", err
 	}
@@ -429,7 +433,7 @@ func (ctx *ConfigTemplateContext) FieldValue(field string, resource any) (any, e
 
 // FieldRef returns a reference to `field` on `resource` (as an IaCValue)
 func (ctx *ConfigTemplateContext) FieldRef(field string, resource any) (construct.PropertyRef, error) {
-	resId, err := argToRID(resource)
+	resId, err := TemplateArgToRID(resource)
 	if err != nil {
 		return construct.PropertyRef{}, err
 	}
@@ -467,7 +471,7 @@ func filterMatch(pattern string, values []string) ([]string, error) {
 }
 
 func filterIds(selector any, ids []construct.ResourceId) ([]construct.ResourceId, error) {
-	selId, err := argToRID(selector)
+	selId, err := TemplateArgToRID(selector)
 	if err != nil {
 		return nil, err
 	}

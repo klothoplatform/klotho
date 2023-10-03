@@ -2,6 +2,7 @@ package knowledgebase2
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -11,6 +12,7 @@ type (
 	PropertyType interface {
 		Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error)
 		SetProperty(property Property)
+		ZeroValue() any
 	}
 
 	MapPropertyType struct {
@@ -46,7 +48,7 @@ func (p Property) IsPropertyTypeScalar() bool {
 	return len(strings.Split(p.Type, "(")) == 1
 }
 
-func (p Property) getPropertyType() (PropertyType, error) {
+func (p Property) PropertyType() (PropertyType, error) {
 	if p.Type == "" {
 		return nil, fmt.Errorf("property %s does not have a type", p.Name)
 	}
@@ -254,7 +256,7 @@ func (m *MapPropertyType) Parse(value any, ctx ConfigTemplateContext, data Confi
 				return nil, fmt.Errorf("invalid map property type %s", m.Property.Name)
 			}
 
-			propertyType, err := m.Property.Properties[key].getPropertyType()
+			propertyType, err := m.Property.Properties[key].PropertyType()
 			if err != nil {
 				return nil, fmt.Errorf("unable to get property type for sub property %s: %w", key, err)
 			} else if propertyType == nil {
@@ -317,4 +319,41 @@ func (r *ResourcePropertyType) SetProperty(property Property) {
 }
 
 func (p *PropertyRefPropertyType) SetProperty(property Property) {
+}
+
+func (m *MapPropertyType) ZeroValue() any {
+	keyZero := PropertyTypeMap[m.Key]().ZeroValue()
+	valZero := PropertyTypeMap[m.Value]().ZeroValue()
+	return reflect.MakeMap(
+		reflect.MapOf(reflect.TypeOf(keyZero), reflect.TypeOf(valZero))).
+		Interface()
+}
+
+func (l *ListPropertyType) ZeroValue() any {
+	elemZero := PropertyTypeMap[l.Value]().ZeroValue()
+	return reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf(elemZero)), 0, 0).Interface()
+}
+
+func (s *StringPropertyType) ZeroValue() any {
+	return ""
+}
+
+func (i *IntPropertyType) ZeroValue() any {
+	return 0
+}
+
+func (f *FloatPropertyType) ZeroValue() any {
+	return 0.0
+}
+
+func (b *BoolPropertyType) ZeroValue() any {
+	return false
+}
+
+func (r *ResourcePropertyType) ZeroValue() any {
+	return construct.ResourceId{}
+}
+
+func (p *PropertyRefPropertyType) ZeroValue() any {
+	return construct.PropertyRef{}
 }

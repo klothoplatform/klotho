@@ -12,7 +12,7 @@ func (ctx SolutionContext) ConfigureResource(resource *construct.Resource, confi
 		return fmt.Errorf("resource does not exist")
 	}
 	configCtx := knowledgebase.ConfigTemplateContext{DAG: ctx}
-	val, err := ctx.kb.TransformToPropertyValue(resource, configuration.Field, configuration.Value, configCtx, data)
+	val, err := ctx.KB.TransformToPropertyValue(resource, configuration.Field, configuration.Value, configCtx, data)
 	if err != nil {
 		return err
 	}

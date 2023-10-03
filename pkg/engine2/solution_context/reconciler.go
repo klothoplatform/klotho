@@ -164,7 +164,7 @@ DEP:
 		}
 		for _, res := range downstreams {
 			if dep == res {
-				det := ctx.kb.GetEdgeTemplate(resource.ID, dep.ID)
+				det := ctx.KB.GetEdgeTemplate(resource.ID, dep.ID)
 				if !det.DeletetionDependent {
 					return false
 				}
@@ -178,7 +178,7 @@ DEP:
 		}
 		for _, res := range upstreams {
 			if dep == res {
-				det := ctx.kb.GetEdgeTemplate(dep.ID, resource.ID)
+				det := ctx.KB.GetEdgeTemplate(dep.ID, resource.ID)
 				if !det.DeletetionDependent {
 					return false
 				}

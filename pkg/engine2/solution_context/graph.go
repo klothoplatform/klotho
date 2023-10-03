@@ -93,7 +93,7 @@ func (c SolutionContext) addDependency(from, to *construct.Resource, makeOperati
 	if err != nil {
 		return fmt.Errorf("error while adding dependency from %s to %s: %v", from.ID, to.ID, err)
 	}
-	et := c.kb.GetEdgeTemplate(from.ID, to.ID)
+	et := c.KB.GetEdgeTemplate(from.ID, to.ID)
 	if et == nil {
 		return fmt.Errorf("edge template not found for %s to %s", from.ID, to.ID)
 	}
@@ -134,7 +134,7 @@ func (c SolutionContext) RemoveResource(resource *construct.Resource, explicit b
 		if err != nil {
 			return err
 		}
-		template, err := c.kb.GetResourceTemplate(resource.ID)
+		template, err := c.KB.GetResourceTemplate(resource.ID)
 		if err != nil {
 			return fmt.Errorf("unable to remove resource: error getting resource template for %s: %v", resource.ID, err)
 		}
@@ -205,7 +205,7 @@ func (c SolutionContext) RemoveDependency(source construct.ResourceId, destinati
 		return err
 	}
 
-	et := c.kb.GetEdgeTemplate(source, destination)
+	et := c.KB.GetEdgeTemplate(source, destination)
 	if et.DeploymentOrderReversed {
 		err = c.deploymentGraph.RemoveEdge(destination, source)
 		if err != nil {
@@ -253,7 +253,7 @@ func (ctx SolutionContext) Downstream(resource *construct.Resource, layer int) (
 		}
 	case int(Layer2):
 		for _, res := range resources {
-			if ctx.kb.GetFunctionality(res.ID) == knowledgebase.Unknown && ctx.isDownstreamWithinFunctionalBoundary(resource, res) {
+			if ctx.KB.GetFunctionality(res.ID) == knowledgebase.Unknown && ctx.isDownstreamWithinFunctionalBoundary(resource, res) {
 				result = append(result, res)
 			}
 		}
@@ -292,7 +292,7 @@ func (ctx SolutionContext) DownstreamFunctional(resource *construct.Resource) ([
 	}
 	var result []*construct.Resource
 	for _, res := range resources {
-		if ctx.kb.GetFunctionality(res.ID) != knowledgebase.Unknown {
+		if ctx.KB.GetFunctionality(res.ID) != knowledgebase.Unknown {
 			result = append(result, res)
 		}
 	}
@@ -309,7 +309,7 @@ func (ctx SolutionContext) isDownstreamWithinFunctionalBoundary(resource *constr
 			if i == 0 || i == len(path)-1 {
 				continue
 			}
-			if ctx.kb.GetFunctionality(res.ID) != knowledgebase.Unknown {
+			if ctx.KB.GetFunctionality(res.ID) != knowledgebase.Unknown {
 				return false
 			}
 		}
@@ -345,7 +345,7 @@ func (ctx SolutionContext) Upstream(resource *construct.Resource, layer int) ([]
 		}
 	case int(Layer2):
 		for _, res := range resources {
-			if ctx.kb.GetFunctionality(res.ID) == knowledgebase.Unknown && ctx.isUpstreamWithinFunctionalBoundary(resource, res) {
+			if ctx.KB.GetFunctionality(res.ID) == knowledgebase.Unknown && ctx.isUpstreamWithinFunctionalBoundary(resource, res) {
 				result = append(result, res)
 			}
 		}
@@ -384,7 +384,7 @@ func (ctx SolutionContext) UpstreamFunctional(resource *construct.Resource) ([]*
 	}
 	var result []*construct.Resource
 	for _, res := range resources {
-		functionality := ctx.kb.GetFunctionality(res.ID)
+		functionality := ctx.KB.GetFunctionality(res.ID)
 		if functionality != knowledgebase.Unknown {
 			result = append(result, res)
 		}
@@ -402,7 +402,7 @@ func (ctx SolutionContext) isUpstreamWithinFunctionalBoundary(resource *construc
 			if i == len(path)-1 || i == 0 {
 				continue
 			}
-			if ctx.kb.GetFunctionality(res.ID) != knowledgebase.Unknown {
+			if ctx.KB.GetFunctionality(res.ID) != knowledgebase.Unknown {
 				return false
 			}
 		}
