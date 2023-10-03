@@ -1,0 +1,32 @@
+qualified_type_name: aws:api_method
+
+properties:
+  RestApi:
+    type: resource
+    operational_rule:
+      steps:
+      - direction: upstream
+        resources:
+        - aws:rest_api
+  Resource:
+    type: resource
+    operational_rule:
+      steps:
+      - direction: upstream
+        resources:
+        - aws:api_resource
+  HttpMethod:
+    type: string
+    default_value: ANY
+  RequestParameters:
+    type: map(string,string)
+  Authorization:
+    type: string
+    default_value: NONE
+
+classification:
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

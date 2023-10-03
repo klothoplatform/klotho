@@ -38,6 +38,7 @@ type (
 		Upstream(resource *construct.Resource, layer int) ([]*construct.Resource, error)
 		GetResource(resource construct.ResourceId) (*construct.Resource, error)
 		ShortestPath(source construct.ResourceId, destination construct.ResourceId) ([]*construct.Resource, error)
+		AllPaths(source construct.ResourceId, destination construct.ResourceId) ([][]*construct.Resource, error)
 	}
 )
 
@@ -50,6 +51,7 @@ func (ctx *ConfigTemplateContext) TemplateFunctions() template.FuncMap {
 		"downstream":    ctx.Downstream,
 		"allDownstream": ctx.AllDownstream,
 		"shortestPath":  ctx.ShortestPath,
+		"longestPath":   ctx.LongestPath,
 		"fieldValue":    ctx.FieldValue,
 		"fieldRef":      ctx.FieldRef,
 
@@ -59,6 +61,7 @@ func (ctx *ConfigTemplateContext) TemplateFunctions() template.FuncMap {
 		"join":     strings.Join,
 		"basename": filepath.Base,
 
+		"firstId":              firstId,
 		"filterIds":            filterIds,
 		"filterMatch":          filterMatch,
 		"mapString":            mapString,
@@ -413,6 +416,33 @@ func (ctx *ConfigTemplateContext) ShortestPath(source, destination any) ([]const
 	return pathIds, nil
 }
 
+// LongestPath returns all the resource IDs on the longest path from source to destination
+func (ctx *ConfigTemplateContext) LongestPath(source, destination any) ([]construct.ResourceId, error) {
+	srcId, err := argToRID(source)
+	if err != nil {
+		return nil, err
+	}
+	dstId, err := argToRID(destination)
+	if err != nil {
+		return nil, err
+	}
+	paths, err := ctx.DAG.AllPaths(srcId, dstId)
+	if err != nil {
+		return nil, err
+	}
+	var longest []*construct.Resource
+	for _, path := range paths {
+		if len(path) > len(longest) {
+			longest = path
+		}
+	}
+	var pathIds []construct.ResourceId
+	for _, r := range longest {
+		pathIds = append(pathIds, r.ID)
+	}
+	return pathIds, nil
+}
+
 // FieldValue returns the value of `field` on `resource` in json
 func (ctx *ConfigTemplateContext) FieldValue(field string, resource any) (any, error) {
 	resId, err := TemplateArgToRID(resource)
@@ -431,7 +461,7 @@ func (ctx *ConfigTemplateContext) FieldValue(field string, resource any) (any, e
 	return val, nil
 }
 
-// FieldRef returns a reference to `field` on `resource` (as an IaCValue)
+// FieldRef returns a reference to `field` on `resource` (as a PropertyRef)
 func (ctx *ConfigTemplateContext) FieldRef(field string, resource any) (construct.PropertyRef, error) {
 	resId, err := TemplateArgToRID(resource)
 	if err != nil {
@@ -482,6 +512,22 @@ func filterIds(selector any, ids []construct.ResourceId) ([]construct.ResourceId
 		}
 	}
 	return matches, nil
+}
+
+func firstId(selector any, ids []construct.ResourceId) (construct.ResourceId, error) {
+	selId, err := argToRID(selector)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
+	if len(ids) == 0 {
+		return construct.ResourceId{}, fmt.Errorf("no ids")
+	}
+	for _, r := range ids {
+		if selId.Matches(r) {
+			return r, nil
+		}
+	}
+	return construct.ResourceId{}, fmt.Errorf("no ids match selector")
 }
 
 // mapstring takes in a regex pattern and replacement as well as a json array of strings

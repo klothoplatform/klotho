@@ -1,0 +1,29 @@
+qualified_type_name: aws:rest_api
+
+properties:
+  BinaryMediaTypes:
+    type: list(string)
+    default_value: 
+    - application/octet-stream
+    - image/*
+  ChildResources:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+    
+
+classification:
+  is:
+    - serverless
+    - api
+    - highly_available
+    - scalable
+    - reliable
+
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+  requires_explicit_delete: true
+
+views:
+  dataflow: big

@@ -1,6 +1,7 @@
 package solution_context
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -159,7 +160,15 @@ func (ctx SolutionContext) Solve() error {
 		return err
 	}
 	for _, dep := range edges {
-		err := ctx.edgeMakeOperational(dep)
+		src, err := ctx.GetResource(dep.Source)
+		if err != nil {
+			return err
+		}
+		target, err := ctx.GetResource(dep.Target)
+		if err != nil {
+			return err
+		}
+		err = ctx.addPath(src, target)
 		if err != nil {
 			return err
 		}
@@ -177,7 +186,6 @@ func (ctx SolutionContext) nodeMakeOperational(r *construct.Resource) error {
 	ctx = ctx.With("resource", r) // add the resource to the context stack
 
 	// handle resource constraints before to prevent unnecessary actions
-
 	for _, rc := range ctx.ResourceConstraints {
 		if rc.Target == r.ID {
 			err := ctx.ApplyResourceConstraint(r, rc)
@@ -192,30 +200,45 @@ func (ctx SolutionContext) nodeMakeOperational(r *construct.Resource) error {
 		panic(err)
 	}
 
-	// Right now we only enforce the top level properties if they have rules
+	// Next check if we need to set the default values so that our processing doesnt have nil values where something is expected
+	for _, property := range template.Properties {
+		if property.DefaultValue != nil {
+			currProperty, err := r.GetProperty(property.Path)
+			if err != nil {
+				return fmt.Errorf("failed to get property %s on resource %s: %w", property.Path, r.ID, err)
+			}
+			if currProperty == nil {
+				err = r.SetProperty(property.Path, property.DefaultValue)
+				if err != nil {
+					return fmt.Errorf("failed to set default value for property %s on resource %s: %w", property.Path, r.ID, err)
+				}
+			}
+		}
+	}
+
+	var nodeError *NodeOperationalError
 	for _, property := range template.Properties {
 		err := ctx.handleNodeProperty(r, property)
 		if err != nil {
+			if ne, ok := err.(*NodeOperationalError); ok {
+				if nodeError == nil {
+					nodeError = ne
+				} else {
+					nodeError.Cause = errors.Join(nodeError.Cause, ne.Cause)
+					nodeError.Properties = append(nodeError.Properties, ne.Properties...)
+				}
+				continue
+			}
 			return fmt.Errorf("error handling property %s on resource %s: %w", property.Path, r.ID, err)
 		}
+	}
+	if nodeError != nil {
+		return nodeError
 	}
 	return nil
 }
 
 func (ctx SolutionContext) handleNodeProperty(r *construct.Resource, property knowledgebase.Property) error {
-	// First check if we need to set the default value
-	if property.DefaultValue != nil {
-		currProperty, err := r.GetProperty(property.Path)
-		if err != nil {
-			return fmt.Errorf("failed to get property %s on resource %s: %w", property.Path, r.ID, err)
-		}
-		if currProperty == nil {
-			err = r.SetProperty(property.Path, property.DefaultValue)
-			if err != nil {
-				return fmt.Errorf("failed to set default value for property %s on resource %s: %w", property.Path, r.ID, err)
-			}
-		}
-	}
 
 	// Next handle the operational rule within the property
 	if property.OperationalRule == nil {
@@ -234,16 +257,31 @@ func (ctx SolutionContext) handleNodeProperty(r *construct.Resource, property kn
 			step.Resource = r.ID.String()
 		}
 	}
+	var nodeError *NodeOperationalError
+
 	err := ruleCtx.HandleOperationalRule(*property.OperationalRule)
 	if err != nil {
-		return err
+		if nodeError == nil {
+			nodeError = &NodeOperationalError{}
+		}
+		nodeError.Cause = errors.Join(nodeError.Cause, err)
+		nodeError.Node = r.ID
+		nodeError.Properties = append(nodeError.Properties, property)
 	}
 
 	for _, property := range property.Properties {
 		err := ctx.handleNodeProperty(r, property)
 		if err != nil {
-			return err
+			if nodeError == nil {
+				nodeError = &NodeOperationalError{}
+			}
+			nodeError.Cause = errors.Join(nodeError.Cause, err)
+			nodeError.Node = r.ID
+			nodeError.Properties = append(nodeError.Properties, property)
 		}
+	}
+	if nodeError != nil {
+		return nodeError
 	}
 	return nil
 }
@@ -313,6 +351,48 @@ func (ctx SolutionContext) addPath(from, to *construct.Resource) error {
 			return err
 		}
 	}
+
+	for _, edge := range edges {
+		// Set makeOperationalToFalse, otherwise we will likely have failures in the resource templates
+		// We want all resources and dependencies from the path selection to exist before examining nodes for operationality
+		err := ctx.addDependency(edge.Source, edge.Target, false)
+		if err != nil {
+			return err
+		}
+	}
+
+	nodeMap := map[construct.ResourceId]*construct.Resource{}
+	nodeErrs := []NodeOperationalError{}
+	for _, edge := range edges {
+		if _, found := nodeMap[edge.Source.ID]; !found {
+			err := ctx.nodeMakeOperational(edge.Source)
+			if ne, ok := err.(*NodeOperationalError); ok {
+				nodeErrs = append(nodeErrs, *ne)
+			} else if err != nil {
+				return fmt.Errorf("error making node %s operational during path addition: %w", edge.Source.ID, err)
+			}
+			nodeMap[edge.Source.ID] = edge.Source
+		}
+		if _, found := nodeMap[edge.Target.ID]; !found {
+			err := ctx.nodeMakeOperational(edge.Target)
+			if ne, ok := err.(*NodeOperationalError); ok {
+				nodeErrs = append(nodeErrs, *ne)
+			} else if err != nil {
+				return fmt.Errorf("error making node %s operational during path addition: %w", edge.Target.ID, err)
+			}
+			nodeMap[edge.Target.ID] = edge.Target
+		}
+	}
+
+	for _, ne := range nodeErrs {
+		for _, property := range ne.Properties {
+			err := ctx.handleNodeProperty(nodeMap[ne.Node], property)
+			if err != nil {
+				return fmt.Errorf("error handling property %s on resource %s: %w", property.Path, ne.Node, err)
+			}
+		}
+	}
+
 	for _, edge := range edges {
 		err := ctx.edgeMakeOperational(graph.Edge[construct.ResourceId]{Source: edge.Source.ID, Target: edge.Target.ID})
 		if err != nil {

@@ -15,19 +15,19 @@ function create(args: Args): aws.apigateway.Method {
         args.Name,
         {
             restApi: args.RestApi.id,
-            //TMPL {{- if .Resource.Raw }}
+            //TMPL {{- if .Resource }}
             resourceId: args.Resource.id,
             //TMPL {{- else}}
             //TMPL resourceId: args.RestApi.rootResourceId,
             //TMPL {{- end }}
             httpMethod: args.HttpMethod,
             authorization: args.Authorization,
-            //TMPL {{- if .RequestParameters.Raw }}
+            //TMPL {{- if .RequestParameters }}
             requestParameters: args.RequestParameters,
             //TMPL {{- end }}
         },
         {
-            //TMPL {{- if .Resource.Raw }}
+            //TMPL {{- if .Resource }}
             parent: args.Resource,
             //TMPL {{- else }}
             //TMPL parent: args.RestApi

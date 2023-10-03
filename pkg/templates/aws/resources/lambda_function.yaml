@@ -59,7 +59,11 @@ properties:
         configuration:
           field: LogGroupName
           value: /aws/lambda/{{ .Self.Name }}
-
+  LambdaIntegrationUri:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+      
 classification:
   is: 
     - serverless

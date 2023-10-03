@@ -78,6 +78,27 @@ func (ctx PathSelectionContext) determineCorrectPaths(dep graph.Edge[*construct.
 	templates := map[string]*knowledgebase.ResourceTemplate{}
 PATHS:
 	for _, p := range paths {
+
+		// We want to make sure the edges used within the path are supposed to be used during path selection
+		// to ensure that we make sure for any non direct paths, the direct edge only flag is set to false for all edges
+		if len(p) > 2 {
+			var prev *knowledgebase.ResourceTemplate
+			for _, res := range p {
+				if prev == nil {
+					prev = res
+					continue
+				}
+				edgeTemplate := ctx.KB.GetEdgeTemplate(prev.Id(), res.Id())
+				if edgeTemplate == nil {
+					continue PATHS
+				}
+				if edgeTemplate.DirectEdgeOnly {
+					continue PATHS
+				}
+				prev = res
+			}
+		}
+
 		// Check if the path satisfies all constraints on the edge
 		types := []string{}
 		for _, res := range p {

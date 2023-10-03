@@ -13,7 +13,7 @@ function create(args: Args): aws.apigateway.Resource {
         args.Name,
         {
             restApi: args.RestApi.id,
-            //TMPL {{- if .ParentResource.Raw }}
+            //TMPL {{- if .ParentResource }}
             parentId: args.ParentResource.id,
             //TMPL {{- else}}
             //TMPL parentId: args.RestApi.rootResourceId,

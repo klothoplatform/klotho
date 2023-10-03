@@ -118,7 +118,9 @@ func (constraint *EdgeConstraint) Validate() error {
 	if (constraint.Target.Source == construct.ResourceId{} || constraint.Target.Target == construct.ResourceId{}) {
 		return fmt.Errorf("edge constraint must have a source and target defined")
 	}
-	if (constraint.Node == construct.ResourceId{}) {
+	if (constraint.Operator == MustContainConstraintOperator ||
+		constraint.Operator == MustNotContainConstraintOperator &&
+			constraint.Node == construct.ResourceId{}) {
 		return fmt.Errorf("edge constraint must have a node defined")
 	}
 	return nil

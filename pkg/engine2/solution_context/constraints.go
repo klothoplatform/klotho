@@ -2,7 +2,6 @@ package solution_context
 
 import (
 	"fmt"
-	"reflect"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
@@ -180,13 +179,4 @@ func (ctx SolutionContext) ApplyResourceConstraint(resource *construct.Resource,
 	default:
 		return fmt.Errorf("invalid operator %s", rc.Operator)
 	}
-}
-
-func cloneResource(resource *construct.Resource) *construct.Resource {
-	newRes := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(construct.Resource)
-	for i := 0; i < reflect.ValueOf(newRes).Elem().NumField(); i++ {
-		field := reflect.ValueOf(newRes).Elem().Field(i)
-		field.Set(reflect.ValueOf(resource).Elem().Field(i))
-	}
-	return &newRes
 }

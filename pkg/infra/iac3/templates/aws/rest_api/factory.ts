@@ -11,3 +11,9 @@ function create(args: Args): aws.apigateway.RestApi {
         binaryMediaTypes: args.BinaryMediaTypes,
     })
 }
+
+function properties(object: aws.apigateway.RestApi, args: Args) {
+    return {
+        ChildResources: pulumi.interpolate`${object.executionArn}/*`
+    }
+}

@@ -34,7 +34,11 @@ type (
 
 		DefaultValue any `json:"default_value" yaml:"default_value"`
 
+		Required bool `json:"required" yaml:"required"`
+
 		ConfigurationDisabled bool `json:"configuration_disabled" yaml:"configuration_disabled"`
+
+		DeployTime bool `json:"deploy_time" yaml:"deploy_time"`
 
 		OperationalRule *OperationalRule `json:"operational_rule" yaml:"operational_rule"`
 

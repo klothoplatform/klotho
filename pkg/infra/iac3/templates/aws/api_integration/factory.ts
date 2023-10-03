@@ -20,7 +20,7 @@ function create(args: Args): aws.apigateway.Integration {
         args.Name,
         {
             restApi: args.RestApi.id,
-            //TMPL {{- if .Resource.Raw }}
+            //TMPL {{- if .Resource }}
             resourceId: args.Resource.id,
             //TMPL {{- else }}
             //TMPL resourceId: args.RestApi.rootResourceId,
@@ -28,14 +28,14 @@ function create(args: Args): aws.apigateway.Integration {
             httpMethod: args.Method.httpMethod,
             integrationHttpMethod: args.IntegrationHttpMethod,
             type: args.Type,
-            //TMPL {{- if .ConnectionType.Raw }}
+            //TMPL {{- if .ConnectionType }}
             connectionType: args.ConnectionType,
             //TMPL {{- end }}
-            //TMPL {{- if .VpcLink.Raw }}
+            //TMPL {{- if .VpcLink }}
             connectionId: args.VpcLink.id,
             //TMPL {{- end }}
             uri: args.Uri,
-            //TMPL {{- if .RequestParameters.Raw }}
+            //TMPL {{- if .RequestParameters }}
             requestParameters: args.RequestParameters,
             //TMPL {{- end }}
         },

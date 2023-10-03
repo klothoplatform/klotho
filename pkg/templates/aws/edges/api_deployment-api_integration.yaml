@@ -1,0 +1,8 @@
+source: aws:api_deployment
+target: aws:api_integration
+operational_rules:
+  - configuration_rules:
+    - resource: '{{ .Source }}'
+      configuration:
+        field: Triggers[{{ .Destination.Name }}]
+        value: "{{ .Destination.Name }}"

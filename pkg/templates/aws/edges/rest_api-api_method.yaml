@@ -1,0 +1,4 @@
+source: aws:rest_api
+target: aws:api_method
+direct_edge_only: true
+deployment_order_reversed: true

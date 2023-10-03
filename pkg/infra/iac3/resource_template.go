@@ -80,7 +80,7 @@ func createNodeToTemplate(node *sitter.Node, name string) (*template.Template, s
 	createFunc := doQuery(node, findCreateFuncQuery)
 	create, found := createFunc()
 	if !found {
-		return nil, "", fmt.Errorf("No create function found in %s", name)
+		return nil, "", fmt.Errorf("no create function found in %s", name)
 	}
 	outputType := create["return_type"].Content()
 	var expressionBody string
@@ -89,7 +89,7 @@ func createNodeToTemplate(node *sitter.Node, name string) (*template.Template, s
 	} else {
 		body, found := doQuery(create["body"], findReturn)()
 		if !found {
-			return nil, "", fmt.Errorf("No 'return' found in %s body:```\n%s\n```", name, create["body"].Content())
+			return nil, "", fmt.Errorf("no 'return' found in %s body:```\n%s\n```", name, create["body"].Content())
 		}
 		expressionBody = body["return_body"].Content()
 	}

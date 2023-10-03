@@ -1,0 +1,47 @@
+qualified_type_name: aws:api_resource
+
+properties:
+  RestApi:
+    type: resource
+    operational_rule:
+      steps:
+      - direction: upstream
+        resources:
+        - aws:rest_api
+  ParentResource:
+    type: resource
+    operational_rule:
+      if: | # Only need a parent resource if this one isn't the root
+        {{ $integration := downstream "aws:api_integration" .Self }}
+        {{ $parts := slice (split (fieldValue "Route" $integration) "/") 1 }}
+        {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
+        {{ lt (len $paths) (len $parts) }}
+      steps:
+      - direction: upstream
+        resources:
+        - |
+          {{ $integration := downstream "aws:api_integration" .Self }}
+          {{ $parts := slice (split (fieldValue "Route" $integration) "/") 1 }}
+          {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
+          {{ $parents := slice $parts 0 (sub (len $parts) (len $paths)) }}
+          {{ $name := join $parents "-" | replace "\\{([^}+]+)\\+?\\}" "$1" | replace "^/" "" | replace "/" "-" }}
+          aws:api_resource:{{ $name }}
+  PathPart:
+    type: string
+    operational_rule:
+      configuration_rules:
+      - resource: '{{ .Self }}'
+        configuration:
+          field: PathPart
+          value: |
+            {{ $integration := downstream "aws:api_integration" .Self }}
+            {{ $parts := slice (split (fieldValue "Route" $integration) "/") 1 }}
+            {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
+            {{ index $parts (sub (len $parts) (len $paths)) }}
+
+classification:
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

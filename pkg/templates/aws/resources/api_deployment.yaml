@@ -1,0 +1,18 @@
+qualified_type_name: aws:api_deployment
+properties:
+  RestApi:
+    type: resource
+    operational_rule:
+      steps:
+      - direction: downstream
+        resources:
+        - aws:rest_api
+  Triggers:
+    type: map(string,string)
+
+classification:
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

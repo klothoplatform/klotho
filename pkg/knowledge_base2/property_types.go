@@ -211,6 +211,12 @@ func (list *ListPropertyType) Parse(value any, ctx ConfigTemplateContext, data C
 	var result []any
 	val, ok := value.([]any)
 	if !ok {
+		// before we fail, check to see if the entire value is a template
+		if strVal, ok := value.(string); ok {
+			var result []any
+			err := ctx.ExecuteDecode(strVal, data, &result)
+			return result, err
+		}
 		return nil, fmt.Errorf("invalid list value %v", value)
 	}
 
@@ -244,7 +250,15 @@ func (m *MapPropertyType) Parse(value any, ctx ConfigTemplateContext, data Confi
 
 	mapVal, ok := value.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("invalid map value %v", value)
+		// before we fail, check to see if the entire value is a template
+		if strVal, ok := value.(string); ok {
+			err := ctx.ExecuteDecode(strVal, data, &result)
+			return result, err
+		}
+		mapVal, ok = value.(construct.Properties)
+		if !ok {
+			return nil, fmt.Errorf("invalid map value %v", value)
+		}
 	}
 
 	for key, v := range mapVal {

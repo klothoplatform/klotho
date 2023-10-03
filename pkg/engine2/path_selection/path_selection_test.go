@@ -54,6 +54,24 @@ func Test_SelectPath(t *testing.T) {
 			},
 			kbMocks: []mock.Call{
 				{
+					Method: "GetEdgeTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Type: "source"},
+						construct.ResourceId{Type: "middle"}},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.EdgeTemplate{},
+					},
+				},
+				{
+					Method: "GetEdgeTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Type: "middle"},
+						construct.ResourceId{Type: "target"}},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.EdgeTemplate{},
+					},
+				},
+				{
 					Method: "HasDirectPath",
 					Arguments: []interface{}{
 						construct.ResourceId{Type: "source"},

@@ -424,7 +424,7 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 		}
 	} else {
 		// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
-		err := resource.AppendProperty(ctx.Property.Path, fieldResource.ID)
+		err := resource.AppendProperty(ctx.Property.Path, []construct.ResourceId{fieldResource.ID})
 		if err != nil {
 			return fmt.Errorf("error appending field %s#%s with %s: %w", resource.ID, ctx.Property.Path, fieldResource.ID, err)
 		}
@@ -434,7 +434,6 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 	// If this sets the field driving the namespace, for example,
 	// then the Id could change, so replace the resource in the graph
 	// to update all the edges to the new Id.
-	fmt.Println(oldId, resource.ID)
 	if oldId != resource.ID {
 		err := ctx.Graph.ReplaceResourceId(oldId, resource.ID)
 		if err != nil {

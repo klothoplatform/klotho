@@ -90,12 +90,16 @@ func (c SolutionContext) addDependency(from, to *construct.Resource, makeOperati
 		return fmt.Errorf("error while adding dependency from %s to %s: %v", from.ID, to.ID, err)
 	}
 	err = c.dataflowGraph.AddEdge(from.ID, to.ID)
-	if err != nil {
+	if err == graph.ErrEdgeAlreadyExists {
+		return nil
+	} else if err != nil {
 		return fmt.Errorf("error while adding dependency from %s to %s: %v", from.ID, to.ID, err)
 	}
 	et := c.KB.GetEdgeTemplate(from.ID, to.ID)
 	if et == nil {
-		return fmt.Errorf("edge template not found for %s to %s", from.ID, to.ID)
+		// We cant error here because the user has the ability to add edges between resources that wont have a template
+		// We will return nil and then the operational/add path functions should handle getting these into the deployment graph
+		return nil
 	}
 	if et.DeploymentOrderReversed {
 		err = c.deploymentGraph.AddEdge(to.ID, from.ID)
@@ -206,6 +210,11 @@ func (c SolutionContext) RemoveDependency(source construct.ResourceId, destinati
 	}
 
 	et := c.KB.GetEdgeTemplate(source, destination)
+	if et == nil {
+		// We cant error here because the user has the ability to add edges between resources that wont have a template
+		// We will return nil and then the operational/add path functions should handle getting these into the deployment graph
+		return nil
+	}
 	if et.DeploymentOrderReversed {
 		err = c.deploymentGraph.RemoveEdge(destination, source)
 		if err != nil {
