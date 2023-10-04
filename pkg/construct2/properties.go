@@ -283,6 +283,13 @@ func appendValue(appendTo reflect.Value, value reflect.Value) (reflect.Value, er
 	case reflect.Map:
 		aType := a.Type()
 		valType := value.Type()
+
+		// if valType.Kind() == reflect.Array || valType.Kind() == reflect.Slice {
+		// 	for i := 0; i < value.Len(); i++ {
+		// 		appendValue(a, value.Index(i))
+		// 	}
+		// }
+
 		if valType.Kind() != reflect.Map {
 			return a, fmt.Errorf("expected map value for append, got %s", valType)
 		}

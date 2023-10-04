@@ -36,38 +36,42 @@ properties:
   ManagedPolicies:
     type: list(string)
   InlinePolicies:
-    type: map
+    type: list
     properties:  
-      Version:
+      Name:
         type: string
-        default_value: '2012-10-17'
-      Statement:
-        type: list
+      Policy:
+        type: map
         properties:
-          Effect:
+          Version:
             type: string
-          Action:
-            type: list(string)
-          Resource:
-            type: list(string)
-          Principal:
-            type: map
+          Statement:
+            type: list
             properties:
-              Service:
+              Effect:
+                type: string
+              Action:
                 type: list(string)
-              Federated:
+              Resource:
                 type: list(string)
-              AWS:
-                type: list(string)
-          Condition:
-            type: map
-            properties:
-              StringEquals:
-                type: map(string,string)
-              StringLike:
-                type: map(string,string)
-              Null:
-                type: map(string,string)
+              Principal:
+                type: map
+                properties:
+                  Service:
+                    type: list(string)
+                  Federated:
+                    type: list(string)
+                  AWS:
+                    type: list(string)
+              Condition:
+                type: map
+                properties:
+                  StringEquals:
+                    type: map(string,string)
+                  StringLike:
+                    type: map(string,string)
+                  Null:
+                    type: map(string,string)
 classification:
   is:
   - role

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -62,7 +63,40 @@ func (tc *TemplatesCompiler) convertArg(arg any) (any, error) {
 		return nil, nil
 
 	default:
-		return jsonValue{Raw: arg}, nil
+		switch val := reflect.ValueOf(arg); val.Kind() {
+		case reflect.Slice, reflect.Array:
+			// convert each element
+			vars := make([]any, val.Len())
+			for i := 0; i < val.Len(); i++ {
+				v, err := tc.convertArg(val.Index(i).Interface())
+				if err != nil {
+					return nil, err
+				}
+				if jsonV, ok := v.(jsonValue); ok {
+					vars[i] = jsonV.Raw
+				} else {
+					vars[i] = v
+				}
+			}
+			return jsonValue{Raw: vars}, nil
+		case reflect.Map:
+			// convert each element
+			vars := make(map[string]any, val.Len())
+			for _, k := range val.MapKeys() {
+				v, err := tc.convertArg(val.MapIndex(k).Interface())
+				if err != nil {
+					return nil, err
+				}
+				if jsonV, ok := v.(jsonValue); ok {
+					vars[k.String()] = jsonV.Raw
+				} else {
+					vars[k.String()] = v
+				}
+			}
+			return jsonValue{Raw: vars}, nil
+		default:
+			return jsonValue{Raw: arg}, nil
+		}
 	}
 
 }

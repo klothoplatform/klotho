@@ -21,6 +21,22 @@ properties:
     required: true
   RangeKey:
     type: string
+  DynamoTableStreamArn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  DynamoTableBackupArn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  DynamoTableExportArn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  DynamoTableIndexArn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 
 classification:
   is:
