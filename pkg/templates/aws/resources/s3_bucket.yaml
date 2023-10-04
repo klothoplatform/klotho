@@ -1,0 +1,37 @@
+qualified_type_name: aws:s3_bucket
+
+properties:
+  ForceDestroy:
+    type: bool
+    default_value: true
+  IndexDocument:
+    type: string
+  AllBucketDirectory:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  BucketRegionalDomainName:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  BucketName:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+classification:
+  is:
+  - storage
+  - blob
+
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+  requires_explicit_delete: true
+
+views:
+  dataflow: big

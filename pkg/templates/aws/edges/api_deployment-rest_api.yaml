@@ -1,2 +1,15 @@
 source: aws:api_deployment
 target: aws:rest_api
+operational_rules:
+  - if: '{{ hasDownstream "aws:api_integration" .Destination }}'
+    steps: 
+      - resource: '{{ .Source }}'
+        direction: downstream
+        resources: 
+          - '{{ allDownstream "aws:api_integration" .Destination}}'
+  - if: '{{ hasDownstream "aws:api_method" .Destination }}'
+    steps: 
+      - resource: '{{ .Source }}'
+        direction: downstream
+        resources: 
+          - '{{ allDownstream "aws:api_method" .Destination}}'

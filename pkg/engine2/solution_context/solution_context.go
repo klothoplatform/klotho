@@ -13,6 +13,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"go.uber.org/zap"
 )
 
 type (
@@ -182,38 +183,12 @@ func (ctx SolutionContext) GetConstructsResource(constructId construct.ResourceI
 }
 
 func (ctx SolutionContext) nodeMakeOperational(r *construct.Resource) error {
-
+	zap.S().Debugf("Making node %s operational", r.ID)
 	ctx = ctx.With("resource", r) // add the resource to the context stack
-
-	// handle resource constraints before to prevent unnecessary actions
-	for _, rc := range ctx.ResourceConstraints {
-		if rc.Target == r.ID {
-			err := ctx.ApplyResourceConstraint(r, rc)
-			if err != nil {
-				return err
-			}
-		}
-	}
 
 	template, err := ctx.KB.GetResourceTemplate(r.ID)
 	if err != nil {
 		panic(err)
-	}
-
-	// Next check if we need to set the default values so that our processing doesnt have nil values where something is expected
-	for _, property := range template.Properties {
-		if property.DefaultValue != nil {
-			currProperty, err := r.GetProperty(property.Path)
-			if err != nil {
-				return fmt.Errorf("failed to get property %s on resource %s: %w", property.Path, r.ID, err)
-			}
-			if currProperty == nil {
-				err = r.SetProperty(property.Path, property.DefaultValue)
-				if err != nil {
-					return fmt.Errorf("failed to set default value for property %s on resource %s: %w", property.Path, r.ID, err)
-				}
-			}
-		}
 	}
 
 	var nodeError *NodeOperationalError
@@ -240,33 +215,66 @@ func (ctx SolutionContext) nodeMakeOperational(r *construct.Resource) error {
 
 func (ctx SolutionContext) handleNodeProperty(r *construct.Resource, property knowledgebase.Property) error {
 
-	// Next handle the operational rule within the property
-	if property.OperationalRule == nil {
-		return nil
-	}
-	ruleCtx := operational_rule.OperationalRuleContext{
-		Property:  &property,
-		ConfigCtx: knowledgebase.ConfigTemplateContext{DAG: ctx},
-		Data:      knowledgebase.ConfigTemplateData{Resource: r.ID},
-		Graph:     ctx,
-		KB:        ctx.KB,
-	}
-	// If there is no resource specified on the step, we are going to assume that it is applied to the resource being handled
-	for _, step := range property.OperationalRule.Steps {
-		if step.Resource == "" {
-			step.Resource = r.ID.String()
+	zap.S().Debugf("Handling property %s on resource %s", property.Path, r.ID)
+	ctx = ctx.With("property", property) // add the property to the context stack
+	// First set any resource constraints for the property to avoid unnecessary processing
+	for _, rc := range ctx.ResourceConstraints {
+		if rc.Target == r.ID && rc.Property == property.Path {
+			err := ctx.ApplyResourceConstraint(r, rc)
+			if err != nil {
+				return err
+			}
 		}
 	}
+
+	// check if there is a default value and the property is empty, then we set the default value
+	if property.DefaultValue != nil {
+		currProperty, err := r.GetProperty(property.Path)
+		if err != nil {
+			return fmt.Errorf("failed to get property %s on resource %s: %w", property.Path, r.ID, err)
+		}
+		if currProperty == nil {
+			defaultVal, err := ctx.KB.TransformToPropertyValue(r, property.Path,
+				property.DefaultValue,
+				knowledgebase.ConfigTemplateContext{DAG: ctx},
+				knowledgebase.ConfigTemplateData{Resource: r.ID})
+			if err != nil {
+				return fmt.Errorf("failed to set default value for property %s on resource %s: %w", property.Path, r.ID, err)
+			}
+			err = r.SetProperty(property.Path, defaultVal)
+			if err != nil {
+				return fmt.Errorf("failed to set default value for property %s on resource %s: %w", property.Path, r.ID, err)
+			}
+		}
+	}
+
 	var nodeError *NodeOperationalError
 
-	err := ruleCtx.HandleOperationalRule(*property.OperationalRule)
-	if err != nil {
-		if nodeError == nil {
-			nodeError = &NodeOperationalError{}
+	// Next handle the operational rule within the property
+	if property.OperationalRule != nil {
+		ruleCtx := operational_rule.OperationalRuleContext{
+			Property:  &property,
+			ConfigCtx: knowledgebase.ConfigTemplateContext{DAG: ctx},
+			Data:      knowledgebase.ConfigTemplateData{Resource: r.ID},
+			Graph:     ctx,
+			KB:        ctx.KB,
 		}
-		nodeError.Cause = errors.Join(nodeError.Cause, err)
-		nodeError.Node = r.ID
-		nodeError.Properties = append(nodeError.Properties, property)
+		// If there is no resource specified on the step, we are going to assume that it is applied to the resource being handled
+		for _, step := range property.OperationalRule.Steps {
+			if step.Resource == "" {
+				step.Resource = r.ID.String()
+			}
+		}
+
+		err := ruleCtx.HandleOperationalRule(*property.OperationalRule)
+		if err != nil {
+			if nodeError == nil {
+				nodeError = &NodeOperationalError{}
+			}
+			nodeError.Cause = errors.Join(nodeError.Cause, err)
+			nodeError.Node = r.ID
+			nodeError.Properties = append(nodeError.Properties, property)
+		}
 	}
 
 	for _, property := range property.Properties {
@@ -287,6 +295,7 @@ func (ctx SolutionContext) handleNodeProperty(r *construct.Resource, property kn
 }
 
 func (ctx SolutionContext) edgeMakeOperational(e graph.Edge[construct.ResourceId]) error {
+	zap.S().Debugf("Making edge %s -> %s operational", e.Source, e.Target)
 	ctx = ctx.With("edge", e) // add the edge info to the decision context stack
 
 	template := ctx.KB.GetEdgeTemplate(e.Source, e.Target)
@@ -306,6 +315,7 @@ func (ctx SolutionContext) edgeMakeOperational(e graph.Edge[construct.ResourceId
 }
 
 func (ctx SolutionContext) addPath(from, to *construct.Resource) error {
+	zap.S().Debugf("Adding path from %s, to %s", from.ID, to.ID)
 	dep, err := ctx.dataflowGraph.Edge(from.ID, to.ID)
 	if err != nil && err != graph.ErrEdgeNotFound {
 		return err
@@ -338,18 +348,6 @@ func (ctx SolutionContext) addPath(from, to *construct.Resource) error {
 	edges, err := pathCtx.SelectPath(dep, edgeData)
 	if err != nil {
 		return err
-	}
-	if len(edges) == 1 {
-		err := ctx.edgeMakeOperational(graph.Edge[construct.ResourceId]{Source: from.ID, Target: to.ID})
-		if err != nil {
-			return err
-		}
-		return nil
-	} else {
-		err := ctx.RemoveDependency(from.ID, to.ID)
-		if err != nil {
-			return err
-		}
 	}
 
 	for _, edge := range edges {
@@ -393,12 +391,25 @@ func (ctx SolutionContext) addPath(from, to *construct.Resource) error {
 		}
 	}
 
-	for _, edge := range edges {
-		err := ctx.edgeMakeOperational(graph.Edge[construct.ResourceId]{Source: edge.Source.ID, Target: edge.Target.ID})
+	if len(edges) == 1 {
+		err := ctx.edgeMakeOperational(graph.Edge[construct.ResourceId]{Source: from.ID, Target: to.ID})
 		if err != nil {
 			return err
 		}
+		return nil
+	} else {
+		err := ctx.RemoveDependency(from.ID, to.ID)
+		if err != nil {
+			return err
+		}
+		for _, edge := range edges {
+			err := ctx.edgeMakeOperational(graph.Edge[construct.ResourceId]{Source: edge.Source.ID, Target: edge.Target.ID})
+			if err != nil {
+				return err
+			}
+		}
 	}
+
 	return nil
 }
 

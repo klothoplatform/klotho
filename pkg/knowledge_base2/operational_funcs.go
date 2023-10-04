@@ -53,6 +53,7 @@ func (ctx *ConfigTemplateContext) TemplateFunctions() template.FuncMap {
 		"shortestPath":  ctx.ShortestPath,
 		"longestPath":   ctx.LongestPath,
 		"fieldValue":    ctx.FieldValue,
+		"hasField":      ctx.HasField,
 		"fieldRef":      ctx.FieldRef,
 
 		"toJson": ctx.toJson,
@@ -160,6 +161,11 @@ func (ctx ConfigTemplateContext) ExecuteDecode(tmpl string, data ConfigTemplateD
 	if resultStr.Type().AssignableTo(valueRefl.Type()) {
 		// this covers alias types like `type MyString string`
 		valueRefl.Set(resultStr)
+		return nil
+	}
+
+	err = json.Unmarshal([]byte(bstr), value)
+	if err == nil {
 		return nil
 	}
 
@@ -302,7 +308,7 @@ func (ctx *ConfigTemplateContext) Upstream(selector any, resource construct.Reso
 
 // AllUpstream is like Upstream but returns all transitive upstream resources.
 // nolint: lll
-func (ctx *ConfigTemplateContext) AllUpstream(selector any, resource construct.ResourceId) ([]construct.ResourceId, error) {
+func (ctx *ConfigTemplateContext) AllUpstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {
 	selId, err := TemplateArgToRID(selector)
 	if err != nil {
 		return nil, err
@@ -373,7 +379,7 @@ func (ctx *ConfigTemplateContext) Downstream(selector any, resource construct.Re
 
 // AllDownstream is like Downstream but returns all transitive downstream resources.
 // nolint: lll
-func (ctx *ConfigTemplateContext) AllDownstream(selector any, resource construct.ResourceId) ([]construct.ResourceId, error) {
+func (ctx *ConfigTemplateContext) AllDownstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {
 	selId, err := TemplateArgToRID(selector)
 	if err != nil {
 		return nil, err
@@ -396,7 +402,7 @@ func (ctx *ConfigTemplateContext) AllDownstream(selector any, resource construct
 }
 
 // ShortestPath returns all the resource IDs on the shortest path from source to destination
-func (ctx *ConfigTemplateContext) ShortestPath(source, destination any) ([]construct.ResourceId, error) {
+func (ctx *ConfigTemplateContext) ShortestPath(source, destination any) (construct.ResourceList, error) {
 	srcId, err := TemplateArgToRID(source)
 	if err != nil {
 		return nil, err
@@ -418,11 +424,11 @@ func (ctx *ConfigTemplateContext) ShortestPath(source, destination any) ([]const
 
 // LongestPath returns all the resource IDs on the longest path from source to destination
 func (ctx *ConfigTemplateContext) LongestPath(source, destination any) ([]construct.ResourceId, error) {
-	srcId, err := argToRID(source)
+	srcId, err := TemplateArgToRID(source)
 	if err != nil {
 		return nil, err
 	}
-	dstId, err := argToRID(destination)
+	dstId, err := TemplateArgToRID(destination)
 	if err != nil {
 		return nil, err
 	}
@@ -455,10 +461,27 @@ func (ctx *ConfigTemplateContext) FieldValue(field string, resource any) (any, e
 		return nil, fmt.Errorf("resource '%s' not found", resId)
 	}
 	val, err := r.GetProperty(field)
-	if err != nil {
+	if err != nil || val == nil {
 		return nil, fmt.Errorf("field '%s' not found on resource '%s'", field, resId)
 	}
 	return val, nil
+}
+
+func (ctx *ConfigTemplateContext) HasField(field string, resource any) (bool, error) {
+	resId, err := TemplateArgToRID(resource)
+	if err != nil {
+		return false, err
+	}
+
+	r, err := ctx.DAG.GetResource(resId)
+	if r == nil || err != nil {
+		return false, fmt.Errorf("resource '%s' not found", resId)
+	}
+	property, err := r.GetProperty(field)
+	if err != nil || property == nil {
+		return false, nil
+	}
+	return true, nil
 }
 
 // FieldRef returns a reference to `field` on `resource` (as a PropertyRef)
@@ -515,7 +538,7 @@ func filterIds(selector any, ids []construct.ResourceId) ([]construct.ResourceId
 }
 
 func firstId(selector any, ids []construct.ResourceId) (construct.ResourceId, error) {
-	selId, err := argToRID(selector)
+	selId, err := TemplateArgToRID(selector)
 	if err != nil {
 		return construct.ResourceId{}, err
 	}

@@ -14,6 +14,6 @@ function create(args: Args): aws.apigateway.RestApi {
 
 function properties(object: aws.apigateway.RestApi, args: Args) {
     return {
-        ChildResources: pulumi.interpolate`${object.executionArn}/*`
+        ChildResources: pulumi.interpolate`${object.executionArn}/*`,
     }
 }

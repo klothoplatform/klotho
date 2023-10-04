@@ -1,0 +1,21 @@
+qualified_type_name: aws:s3_object
+
+properties:
+  Bucket:
+    type: resource
+    default_value: '{{ downstream "aws:s3_bucket" .Self }}'
+  Key:
+    type: string
+  FilePath:
+    type: string
+
+classification:
+  is:
+  - blob
+
+delete_context:
+  requires_no_upstream: true
+  requires_explicit_delete: true
+
+views:
+  dataflow: small

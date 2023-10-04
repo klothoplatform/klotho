@@ -217,6 +217,28 @@ func (template ResourceTemplate) GetProperty(name string) *Property {
 			if len(fields) == i+1 {
 				return &property
 			} else {
+				pType, err := property.PropertyType()
+				if err != nil {
+					return nil
+				}
+				// If the property types are a list or map, without sub fields
+				//  we want to just return the property since we are setting an index or key of the end value
+				switch p := pType.(type) {
+				case *MapPropertyType:
+					if p.Value != "" {
+						return &Property{
+							Type: p.Value,
+							Path: name,
+						}
+					}
+				case *ListPropertyType:
+					if p.Value != "" {
+						return &Property{
+							Type: p.Value,
+							Path: name,
+						}
+					}
+				}
 				properties = property.Properties
 			}
 		}

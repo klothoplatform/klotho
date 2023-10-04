@@ -85,13 +85,13 @@ func (ctx SolutionContext) ApplyApplicationConstraint(constraint *constraints.Ap
 				return err
 			}
 			for _, res := range functionalUpstream {
-				err = ctx.AddDependency(res, replacementNode)
+				err = ctx.addDependency(res, replacementNode, false)
 				if err != nil {
 					return err
 				}
 			}
 			for _, res := range functionalDownstream {
-				err = ctx.AddDependency(replacementNode, res)
+				err = ctx.addDependency(replacementNode, res, false)
 				if err != nil {
 					return err
 				}
@@ -121,7 +121,7 @@ func (ctx SolutionContext) ApplyEdgeConstraint(constraint *constraints.EdgeConst
 
 	switch constraint.Operator {
 	case constraints.MustExistConstraintOperator:
-		err := ctx.AddDependency(src, dst)
+		err := ctx.addDependency(src, dst, false)
 		if err != nil {
 			return err
 		}

@@ -1,0 +1,2 @@
+source: aws:cloudfront_distribution
+target: aws:cloudfront_origin_access_identity

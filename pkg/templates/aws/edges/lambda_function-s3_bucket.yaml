@@ -1,0 +1,8 @@
+source: aws:lambda_function
+target: aws:s3_bucket
+operational_rules:
+  - steps:
+    - resource: '{{ .Destination }}'
+      direction: upstream
+      resources:
+        - '{{ fieldValue "ExecutionRole" .Source}}'

@@ -1,0 +1,2 @@
+source: aws:s3_bucket_policy
+target: aws:s3_bucket

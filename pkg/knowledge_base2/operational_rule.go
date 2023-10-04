@@ -62,18 +62,30 @@ const (
 	ClosestSelectionOperator SelectionOperator = "closest"
 )
 
-func (step OperationalStep) ExtractResourcesAndTypes(ctx ConfigTemplateContext, data ConfigTemplateData) (resources []construct.ResourceId, resource_types []construct.ResourceId, errs error) {
+func (step OperationalStep) ExtractResourcesAndTypes(ctx ConfigTemplateContext, data ConfigTemplateData) (
+	resources []construct.ResourceId,
+	resource_types []construct.ResourceId,
+	errs error) {
 	for _, resStr := range step.Resources {
+		var selectors construct.ResourceList
 		selector, err := ctx.ExecuteDecodeAsResourceId(resStr, data)
 		if err != nil {
-			errs = errors.Join(errs, err)
-			continue
+			// The output of the decode may be a list of resources, so attempt to parse to that
+			err = ctx.ExecuteDecode(resStr, data, &selectors)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+		} else {
+			selectors = append(selectors, selector)
 		}
 
-		if selector.Name != "" {
-			resources = append(resources, selector)
-		} else {
-			resource_types = append(resource_types, selector)
+		for _, id := range selectors {
+			if id.Name != "" {
+				resources = append(resources, id)
+			} else {
+				resource_types = append(resource_types, id)
+			}
 		}
 	}
 	return

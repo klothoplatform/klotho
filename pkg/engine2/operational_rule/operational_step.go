@@ -69,7 +69,19 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step *knowledgebase.Oper
 		ids = []construct.ResourceId{}
 	}
 
-	if len(ids) > step.NumNeeded {
+	explicitResources, _, err := step.ExtractResourcesAndTypes(ctx.ConfigCtx, ctx.Data)
+	if err != nil {
+		return err
+	}
+	allExplicitResourcesSatisfied := true
+	for _, id := range explicitResources {
+		if !collectionutil.Contains(ids, id) {
+			allExplicitResourcesSatisfied = false
+			break
+		}
+	}
+
+	if len(ids) > step.NumNeeded && allExplicitResourcesSatisfied {
 		return nil
 	}
 

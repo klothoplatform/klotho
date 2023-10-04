@@ -18,6 +18,6 @@ function create(args: Args): aws.apigateway.Stage {
 
 function properties(object: aws.apigateway.Stage, args: Args) {
     return {
-        stage_invoke_url: object.invokeUrl.apply((d) => d.split('//')[1].split('/')[0]),
+        StageInvokeUrl: object.invokeUrl.apply((d) => d.split('//')[1].split('/')[0]),
     }
 }

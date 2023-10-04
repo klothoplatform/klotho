@@ -155,6 +155,11 @@ func Test_addDependency(t *testing.T) {
 					Arguments:       mock.Arguments{mock.Anything, mock.Anything},
 					ReturnArguments: mock.Arguments{true},
 				},
+				{
+					Method:          "GetResourceTemplate",
+					Arguments:       mock.Arguments{mock.Anything},
+					ReturnArguments: mock.Arguments{&knowledgebase.ResourceTemplate{}, nil},
+				},
 			},
 			want: result{
 				dataflow:   []any{"mock:resource1:test", "mock:resource2:test", "mock:resource1:test -> mock:resource2:test"},

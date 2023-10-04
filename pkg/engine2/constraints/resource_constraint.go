@@ -43,7 +43,6 @@ func (constraint *ResourceConstraint) IsSatisfied(ctx ConstraintGraph) bool {
 		if res == nil {
 			return false
 		}
-		res.GetProperty(constraint.Property)
 		strct := reflect.ValueOf(res)
 		for strct.Kind() == reflect.Ptr {
 			strct = strct.Elem()

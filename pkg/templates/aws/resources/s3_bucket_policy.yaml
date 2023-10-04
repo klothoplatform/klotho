@@ -1,0 +1,50 @@
+qualified_type_name: aws:s3_bucket_policy
+
+properties:
+  Bucket:
+    type: resource
+    default_value: '{{ downstream "aws:s3_bucket" .Self }}'
+  Policy:
+    type: map
+    properties:  
+      Version:
+        type: string
+        default_value: '2012-10-17'
+      Statement:
+        type: list
+        properties:
+          Effect:
+            type: string
+            default_value: Allow
+          Action:
+            type: list(string)
+          Resource:
+            type: list(string)
+          Principal:
+            type: map
+            properties:
+              Service:
+                type: list(string)
+              Federated:
+                type: list(string)
+              AWS:
+                type: list(string)
+          Condition:
+            type: map
+            properties:
+              StringEquals:
+                type: map(string,string)
+              StringLike:
+                type: map(string,string)
+              Null:
+                type: map(string,string)
+
+classification:
+  is:
+  - blob
+
+delete_context:
+  requires_no_upstream: true
+
+views:
+  dataflow: small

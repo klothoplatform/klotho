@@ -17,13 +17,6 @@ properties:
     type: string
   Dockerfile:
     type: string
-    operational_rule:
-      if: |
-        {{ eq (fieldValue "Dockerfile" .Self) "" }}
-      steps:
-      - direction: downstream
-        resources:
-          - docker:image:{{ .Self.Name }}
 classification:
   is: 
     - image

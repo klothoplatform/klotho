@@ -327,8 +327,9 @@ func Test_DetermineCorrectPaths(t *testing.T) {
 			assert := assert.New(t)
 			kb := &enginetesting.MockKB{}
 
-			for _, mock := range test.kbMocks {
-				kb.On(mock.Method, mock.Arguments...).Return(mock.ReturnArguments...).Once()
+			for _, m := range test.kbMocks {
+				kb.On(m.Method, m.Arguments...).Return(m.ReturnArguments...).Once()
+				kb.On("GetEdgeTemplate", mock.Anything, mock.Anything).Return(&knowledgebase.EdgeTemplate{})
 			}
 
 			ctx := PathSelectionContext{

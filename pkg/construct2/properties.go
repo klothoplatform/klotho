@@ -123,7 +123,7 @@ func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
 			for value.Kind() == reflect.Interface || value.Kind() == reflect.Ptr {
 				value = value.Elem()
 			}
-			if value.Kind() != reflect.Map {
+			if value.IsValid() && value.Kind() != reflect.Map {
 				return nil, &PropertyPathError{
 					Path:  pathParts[:i-1],
 					Cause: fmt.Errorf("expected map, got %s", value.Type()),
@@ -137,13 +137,14 @@ func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
 				item._parent = path[i-1]
 			}
 			path[i] = item
-			value = value.MapIndex(item.key)
-
+			if value.IsValid() {
+				value = value.MapIndex(item.key)
+			}
 		case '[':
 			for value.Kind() == reflect.Interface || value.Kind() == reflect.Ptr {
 				value = value.Elem()
 			}
-			if value.Kind() != reflect.Slice && value.Kind() != reflect.Array {
+			if value.IsValid() && value.Kind() != reflect.Slice && value.Kind() != reflect.Array {
 				return nil, &PropertyPathError{
 					Path:  pathParts[:i-1],
 					Cause: fmt.Errorf("expected array, got %s", value.Type()),
@@ -171,7 +172,9 @@ func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
 				a:       value,
 				index:   idx,
 			}
-			value = value.Index(idx)
+			if value.IsValid() {
+				value = value.Index(idx)
+			}
 		}
 	}
 	return path, nil
@@ -225,6 +228,13 @@ func pathPanicRecover(i PropertyPathItem, operation string, err *error) {
 
 func (i mapValuePathItem) Set(value any) (err error) {
 	defer pathPanicRecover(i, "Set on map", &err)
+	if !i.m.IsValid() {
+		i.m = reflect.MakeMap(reflect.MapOf(i.key.Type(), reflect.TypeOf((*any)(nil)).Elem()))
+		err = i._parent.Set(i.m.Interface())
+		if err != nil {
+			return
+		}
+	}
 	i.m.SetMapIndex(i.key, reflect.ValueOf(value))
 	return nil
 }
@@ -341,6 +351,9 @@ func (i mapValuePathItem) Remove(value any) (err error) {
 }
 
 func (i mapValuePathItem) Get() any {
+	if !i.m.IsValid() {
+		return nil
+	}
 	v := i.m.MapIndex(i.key)
 	if !v.IsValid() {
 		return nil

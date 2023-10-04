@@ -1,0 +1,16 @@
+source: aws:iam_role
+target: aws:s3_bucket
+operational_rules:
+  - configuration_rules:
+    - resource: '{{ .Source }}'
+      configuration:
+        field: InlinePolicies
+        value: 
+          Version: "2012-10-17"
+          Statement:
+            - Action:
+              - s3:*
+              Effect: Allow
+              Resource:
+                - '{{ .Destination  }}#Arn'
+                - '{{ .Destination }}#AllBucketDirectory'

@@ -6,6 +6,7 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"go.uber.org/zap"
 )
 
 type (
@@ -58,6 +59,7 @@ func (c SolutionContext) addResource(resource *construct.Resource, makeOperation
 		return fmt.Errorf("error getting resource %s, when trying to add resource", resource.ID)
 	}
 	if res == nil {
+		zap.S().Infof("Adding resource %s", resource.ID)
 		err := c.dataflowGraph.AddVertex(resource)
 		if err != nil {
 			return fmt.Errorf("error adding resource %s", resource.ID)
@@ -81,11 +83,11 @@ func (c SolutionContext) AddDependency(from, to *construct.Resource) error {
 }
 
 func (c SolutionContext) addDependency(from, to *construct.Resource, makeOperational bool) error {
-	err := c.addResource(from, makeOperational)
+	err := c.addResource(from, false)
 	if err != nil {
 		return fmt.Errorf("error while adding dependency from %s to %s: %v", from.ID, to.ID, err)
 	}
-	err = c.addResource(to, makeOperational)
+	err = c.addResource(to, false)
 	if err != nil {
 		return fmt.Errorf("error while adding dependency from %s to %s: %v", from.ID, to.ID, err)
 	}
@@ -95,6 +97,7 @@ func (c SolutionContext) addDependency(from, to *construct.Resource, makeOperati
 	} else if err != nil {
 		return fmt.Errorf("error while adding dependency from %s to %s: %v", from.ID, to.ID, err)
 	}
+	zap.S().Infof("Adding edge %s -> %s", from.ID, to.ID)
 	et := c.KB.GetEdgeTemplate(from.ID, to.ID)
 	if et == nil {
 		// We cant error here because the user has the ability to add edges between resources that wont have a template

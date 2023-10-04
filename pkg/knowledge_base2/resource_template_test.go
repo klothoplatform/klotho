@@ -11,9 +11,11 @@ var testTemplate = ResourceTemplate{
 	Properties: map[string]Property{
 		"name": {
 			Name: "name",
+			Type: "list",
 			Properties: map[string]Property{
 				"nested": {
 					Name: "nested",
+					Type: "string",
 				},
 			},
 		},
@@ -77,6 +79,7 @@ func Test_GetProperty(t *testing.T) {
 			property: "name",
 			expected: &Property{
 				Name: "name",
+				Type: "list",
 			},
 		},
 		{
@@ -85,6 +88,7 @@ func Test_GetProperty(t *testing.T) {
 			property: "name.nested",
 			expected: &Property{
 				Name: "nested",
+				Type: "string",
 			},
 		},
 		{
@@ -93,6 +97,7 @@ func Test_GetProperty(t *testing.T) {
 			property: "name[0].nested",
 			expected: &Property{
 				Name: "nested",
+				Type: "string",
 			},
 		},
 		{
@@ -101,6 +106,7 @@ func Test_GetProperty(t *testing.T) {
 			property: "name[0].nested[0]",
 			expected: &Property{
 				Name: "nested",
+				Type: "string",
 			},
 		},
 	}
@@ -110,6 +116,7 @@ func Test_GetProperty(t *testing.T) {
 			actual := test.template.GetProperty(test.property)
 			assert.NotNil(actual, "Expected property %s to exist", test.property)
 			assert.Equal(actual.Name, test.expected.Name, "Expected property name %s to equal %s", actual.Name, test.expected.Name)
+			assert.Equal(actual.Type, test.expected.Type, "Expected property Type %s to equal %s", actual.Type, test.expected.Type)
 		})
 	}
 }

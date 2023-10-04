@@ -235,7 +235,7 @@ func TestResource_PropertyPath_ops(t *testing.T) {
 	assert.Nil(nested.Get())
 	assert.Nil(path("deeply").Get())
 	if assert.NoError(nested.Set("test")) {
-		assert.Equal(map[string]map[string]string{"nested": {"value": "test"}}, path("deeply").Get())
+		assert.Equal(map[string]interface{}(map[string]interface{}{"nested": map[string]interface{}{"value": "test"}}), path("deeply").Get())
 	}
 }
 

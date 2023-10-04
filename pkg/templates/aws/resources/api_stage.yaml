@@ -18,6 +18,10 @@ properties:
       - direction: downstream
         resources:
           - aws:api_deployment
+  StageInvokeUrl:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 
 classification:
 

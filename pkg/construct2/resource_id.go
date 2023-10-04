@@ -1,6 +1,7 @@
 package construct2
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -15,6 +16,16 @@ type ResourceId struct {
 	// a specific namespace such as a subnet to a VPC.
 	Namespace string `yaml:"namespace" toml:"namespace"`
 	Name      string `yaml:"name" toml:"name"`
+}
+
+type ResourceList []ResourceId
+
+func (l ResourceList) String() string {
+	b, err := json.Marshal(l)
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
 }
 
 var zeroId = ResourceId{}

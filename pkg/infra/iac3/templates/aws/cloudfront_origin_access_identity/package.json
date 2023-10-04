@@ -1,0 +1,6 @@
+{
+    "name": "origin_access_identity",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

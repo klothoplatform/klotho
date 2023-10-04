@@ -12,26 +12,32 @@ func (ctx SolutionContext) ConfigureResource(resource *construct.Resource, confi
 		return fmt.Errorf("resource does not exist")
 	}
 	configCtx := knowledgebase.ConfigTemplateContext{DAG: ctx}
-	val, err := ctx.KB.TransformToPropertyValue(resource, configuration.Field, configuration.Value, configCtx, data)
+	var field string
+	err := configCtx.ExecuteDecode(configuration.Field, data, &field)
+	if err != nil {
+		return err
+	}
+
+	val, err := ctx.KB.TransformToPropertyValue(resource, field, configuration.Value, configCtx, data)
 	if err != nil {
 		return err
 	}
 
 	switch action {
 	case "set":
-		err = resource.SetProperty(configuration.Field, val)
+		err = resource.SetProperty(field, val)
 		if err != nil {
-			return fmt.Errorf("failed to set property %s on resource %s: %w", configuration.Field, resource.ID, err)
+			return fmt.Errorf("failed to set property %s on resource %s: %w", field, resource.ID, err)
 		}
 	case "add":
-		err = resource.AppendProperty(configuration.Field, val)
+		err = resource.AppendProperty(field, val)
 		if err != nil {
-			return fmt.Errorf("failed to add property %s on resource %s: %w", configuration.Field, resource.ID, err)
+			return fmt.Errorf("failed to add property %s on resource %s: %w", field, resource.ID, err)
 		}
 	case "remove":
-		err = resource.RemoveProperty(configuration.Field, val)
+		err = resource.RemoveProperty(field, val)
 		if err != nil {
-			return fmt.Errorf("failed to remove property %s on resource %s: %w", configuration.Field, resource.ID, err)
+			return fmt.Errorf("failed to remove property %s on resource %s: %w", field, resource.ID, err)
 		}
 	default:
 		return fmt.Errorf("invalid action %s", action)

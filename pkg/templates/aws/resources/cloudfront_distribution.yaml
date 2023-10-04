@@ -1,0 +1,102 @@
+qualified_type_name: aws:cloudfront_distribution
+
+properties:
+  Origins:
+    type: list
+    properties:
+      DomainName:
+        type: string
+      OriginId:
+        type: string
+      OriginPath:
+        type: string
+      S3OriginConfig:
+        type: map
+        properties:
+          OriginAccessIdentity:
+            type: string
+      CustomOriginConfig:
+        type: map
+        properties:
+          HttpPort:
+            type: int
+          HttpsPort:
+            type: int
+          OriginProtocolPolicy:
+            type: string
+          OriginSslProtocols:
+            type: list(string)
+  CloudfrontDefaultCertificate:
+    type: bool
+    default_value: true
+  Enabled:
+    type: bool
+    default_value: true
+  DefaultCacheBehavior:
+    type: map
+    properties:
+      AllowedMethods:
+        type: list(string)
+        default_value:
+        - DELETE
+        - GET
+        - HEAD
+        - OPTIONS
+        - PATCH
+        - POST
+        - PUT
+      CachedMethods:
+        type: list(string)
+        default_value:
+        - HEAD
+        - GET
+      TargetOriginId:
+        type: string
+      ForwardedValues:
+        type: map
+        properties:
+          QueryString:
+            type: bool
+            default_value: true
+          Cookies:
+            type: map
+            properties:
+              Forward:
+                type: string
+                default_value: none
+      MinTtl:
+        type: int
+        default_value: 0
+      MaxTtl:
+        type: int
+        default_value: 86400
+      DefaultTtl:
+        type: int
+        default_value: 3600
+      ViewerProtocolPolicy:
+        type: string
+  Restrictions:
+    type: map
+    properties:
+      GeoRestriction:
+        type: map
+        properties:
+          RestrictionType:
+            type: string
+            default_value: none
+  DefaultRootObject:
+    type: string
+
+classification:
+  is:
+  - cdn
+  - network
+  gives:
+  - low_latency
+
+delete_context:
+  requires_no_downstream: true
+  requires_no_upstream: true
+
+views:
+  dataflow: big

@@ -64,5 +64,5 @@ func (m *MockKB) GetResourcePropertyType(resource *construct.Resource, propertyN
 }
 func (m *MockKB) TransformToPropertyValue(resource *construct.Resource, propertyName string, value interface{}, ctx knowledgebase.ConfigTemplateContext, data knowledgebase.ConfigTemplateData) (interface{}, error) {
 	args := m.Called(resource, propertyName, value, ctx, data)
-	return args.Get(0).(interface{}), args.Error(1)
+	return args.Get(0), args.Error(1)
 }

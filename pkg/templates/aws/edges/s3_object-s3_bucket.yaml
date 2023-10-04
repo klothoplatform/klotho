@@ -1,0 +1,2 @@
+source: aws:s3_object
+target: aws:s3_bucket
