@@ -1,0 +1,2 @@
+source: aws:iam_role
+target: aws:dynamodb_table
