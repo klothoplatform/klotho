@@ -5,9 +5,9 @@ properties:
     type: resource
     operational_rule:
       steps:
-      - direction: upstream
-        resources:
-        - aws:rest_api
+        - direction: upstream
+          resources:
+            - aws:rest_api
   ParentResource:
     type: resource
     operational_rule:
@@ -17,28 +17,28 @@ properties:
         {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
         {{ lt (len $paths) (len $parts) }}
       steps:
-      - direction: upstream
-        resources:
-        - |
-          {{ $integration := downstream "aws:api_integration" .Self }}
-          {{ $parts := slice (split (fieldValue "Route" $integration) "/") 1 }}
-          {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
-          {{ $parents := slice $parts 0 (sub (len $parts) (len $paths)) }}
-          {{ $name := join $parents "-" | replace "\\{([^}+]+)\\+?\\}" "$1" | replace "^/" "" | replace "/" "-" }}
-          aws:api_resource:{{ $name }}
-        unique: true
+        - direction: upstream
+          resources:
+            - |
+              {{ $integration := downstream "aws:api_integration" .Self }}
+              {{ $parts := slice (split (fieldValue "Route" $integration) "/") 1 }}
+              {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
+              {{ $parents := slice $parts 0 (sub (len $parts) (len $paths)) }}
+              {{ $name := join $parents "-" | replace "\\{([^}+]+)\\+?\\}" "$1" | replace "^/" "" | replace "/" "-" }}
+              aws:api_resource:{{ $name }}
+          unique: true
   PathPart:
     type: string
     operational_rule:
       configuration_rules:
-      - resource: '{{ .Self }}'
-        configuration:
-          field: PathPart
-          value: |
-            {{ $integration := downstream "aws:api_integration" .Self }}
-            {{ $parts := slice (split (fieldValue "Route" $integration) "/") 1 }}
-            {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
-            {{ index $parts (sub (len $parts) (len $paths)) }}
+        - resource: '{{ .Self }}'
+          configuration:
+            field: PathPart
+            value: |
+              {{ $integration := downstream "aws:api_integration" .Self }}
+              {{ $parts := slice (split (fieldValue "Route" $integration) "/") 1 }}
+              {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
+              {{ index $parts (sub (len $parts) (len $paths)) }}
 
 classification:
 

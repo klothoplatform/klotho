@@ -5,9 +5,9 @@ properties:
     type: resource
     operational_rule:
       steps:
-      - direction: upstream
-        resources:
-          - aws:rest_api
+        - direction: upstream
+          resources:
+            - aws:rest_api
   Resource:
     type: resource
     operational_rule:
@@ -23,31 +23,31 @@ properties:
         {{ end }}
         {{ eq $resourceRoute $route }}
       steps:
-      - direction: upstream
-        replacement_condition: true
-        resources:
-        - aws:api_resource:{{ fieldValue "Route" .Self | replace "\\{([^}+]+)\\+?\\}" "$1" | replace "^/" "" | replace "/" "-" }}
+        - direction: upstream
+          replacement_condition: true
+          resources:
+            - aws:api_resource:{{ fieldValue "Route" .Self | replace "\\{([^}+]+)\\+?\\}" "$1" | replace "^/" "" | replace "/" "-" }}
   Method:
     type: resource
     operational_rule:
       steps:
-      - direction: upstream
-        resources:
-          - '{{ longestPath (upstream "aws:rest_api" .Self) .Self | firstId "aws:api_method" }}'
+        - direction: upstream
+          resources:
+            - '{{ longestPath (upstream "aws:rest_api" .Self) .Self | firstId "aws:api_method" }}'
   RequestParameters:
     type: map(string,string)
     operational_rule:
       configuration_rules:
-      - resource: '{{ .Self }}'
-        configuration:
-          field: RequestParameters
-          value: |
-            {{ $params := split (fieldValue "Route" .Self) "/" | filterMatch "^:\\w+$" }}
-            {{ zipToMap
-                ($params | mapString ":(.*)" "integration.request.path.$1")
-                ($params | mapString ":(.*)" "method.request.path.$1")
-              | toJson
-            }}
+        - resource: '{{ .Self }}'
+          configuration:
+            field: RequestParameters
+            value: |
+              {{ $params := split (fieldValue "Route" .Self) "/" | filterMatch "^:\\w+$" }}
+              {{ zipToMap
+                  ($params | mapString ":(.*)" "integration.request.path.$1")
+                  ($params | mapString ":(.*)" "method.request.path.$1")
+                | toJson
+              }}
   IntegrationHttpMethod:
     type: string
     default_value: ANY

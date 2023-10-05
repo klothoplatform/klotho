@@ -8,16 +8,16 @@ properties:
     type: resource
     operational_rule:
       steps:
-      - direction: downstream
-        resources:
-          - aws:rest_api
+        - direction: downstream
+          resources:
+            - aws:rest_api
   Deployment:
     type: resource
     operational_rule:
       steps:
-      - direction: downstream
-        resources:
-          - aws:api_deployment
+        - direction: downstream
+          resources:
+            - aws:api_deployment
   StageInvokeUrl:
     type: string
     configuration_disabled: true

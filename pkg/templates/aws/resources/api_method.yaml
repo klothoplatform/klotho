@@ -5,16 +5,16 @@ properties:
     type: resource
     operational_rule:
       steps:
-      - direction: upstream
-        resources:
-        - aws:rest_api
+        - direction: upstream
+          resources:
+            - aws:rest_api
   Resource:
     type: resource
     operational_rule:
       steps:
-      - direction: upstream
-        resources:
-        - aws:api_resource
+        - direction: upstream
+          resources:
+            - aws:api_resource
   HttpMethod:
     type: string
     default_value: ANY

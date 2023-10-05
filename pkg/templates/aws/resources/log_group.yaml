@@ -8,10 +8,10 @@ properties:
     default_value: 5
 
 classification:
-  is: 
-  - serverless
-  - compute
-  
+  is:
+    - serverless
+    - compute
+
 delete_context:
   requires_no_upstream: true
   requires_no_downstream: true

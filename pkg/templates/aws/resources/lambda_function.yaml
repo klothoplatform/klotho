@@ -1,22 +1,22 @@
-qualified_type_name: aws:lambda_function 
+qualified_type_name: aws:lambda_function
 
 properties:
   ExecutionRole:
     type: resource
     operational_rule:
       steps:
-      - direction: downstream
-        resources:
-          - aws:iam_role:{{ .Self.Name }}-ExecutionRole
-        unique: true
+        - direction: downstream
+          resources:
+            - aws:iam_role:{{ .Self.Name }}-ExecutionRole
+          unique: true
   Image:
     type: resource
     operational_rule:
       steps:
-      - direction: downstream
-        resources:
-          - aws:ecr_image:{{ .Self.Name }}-image
-        unique: true
+        - direction: downstream
+          resources:
+            - aws:ecr_image:{{ .Self.Name }}-image
+          unique: true
   EnvironmentVariables:
     type: map(string,string)
   SecurityGroups:
@@ -25,19 +25,19 @@ properties:
       if: |
         {{ hasDownstream "aws:vpc" .Self }}
       steps:
-      - direction: downstream
-        resources:
-          - aws:security_group
+        - direction: downstream
+          resources:
+            - aws:security_group
   Subnets:
     type: list(resource)
     operational_rule:
       if: |
         {{ hasDownstream "aws:vpc" .Self }}
       steps:
-      - direction: downstream
-        resources:
-          - aws:subnet_private
-          - aws:subnet_public
+        - direction: downstream
+          resources:
+            - aws:subnet_private
+            - aws:subnet_public
   Timeout:
     type: int
     default_value: 180
@@ -50,15 +50,15 @@ properties:
     type: resource
     operational_rule:
       steps:
-      - direction: downstream
-        resources:
-          - aws:log_group:{{ .Self.Name }}-log-group
-        unique: true
+        - direction: downstream
+          resources:
+            - aws:log_group:{{ .Self.Name }}-log-group
+          unique: true
       configuration_rules:
-      - resource: aws:log_group:{{ .Self.Name }}-log-group
-        configuration:
-          field: LogGroupName
-          value: /aws/lambda/{{ .Self.Name }}
+        - resource: aws:log_group:{{ .Self.Name }}-log-group
+          configuration:
+            field: LogGroupName
+            value: /aws/lambda/{{ .Self.Name }}
   LambdaIntegrationUri:
     type: string
     configuration_disabled: true
@@ -67,9 +67,9 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
-      
+
 classification:
-  is: 
+  is:
     - serverless
     - compute
 

@@ -2,7 +2,7 @@ qualified_type_name: aws:iam_role
 properties:
   AssumeRolePolicyDoc:
     type: map
-    properties:  
+    properties:
       Version:
         type: string
         default_value: '2012-10-17'
@@ -37,7 +37,7 @@ properties:
     type: list(string)
   InlinePolicies:
     type: list
-    properties:  
+    properties:
       Name:
         type: string
       Policy:
@@ -74,10 +74,10 @@ properties:
                     type: map(string,string)
 classification:
   is:
-  - role
+    - role
   gives:
-  - permissions
-  - security
+    - permissions
+    - security
 delete_context:
   requires_no_upstream: true
 views:

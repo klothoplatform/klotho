@@ -3,14 +3,13 @@ qualified_type_name: aws:rest_api
 properties:
   BinaryMediaTypes:
     type: list(string)
-    default_value: 
-    - application/octet-stream
-    - image/*
+    default_value:
+      - application/octet-stream
+      - image/*
   ChildResources:
     type: string
     configuration_disabled: true
     deploy_time: true
-    
 
 classification:
   is:

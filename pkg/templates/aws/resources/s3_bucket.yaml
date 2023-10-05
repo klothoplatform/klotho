@@ -25,8 +25,8 @@ properties:
 
 classification:
   is:
-  - storage
-  - blob
+    - storage
+    - blob
 
 delete_context:
   requires_no_upstream: true

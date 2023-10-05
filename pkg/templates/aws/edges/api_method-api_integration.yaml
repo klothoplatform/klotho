@@ -3,14 +3,14 @@ target: aws:api_integration
 deployment_order_reversed: true
 operational_rules:
   - configuration_rules:
-    - resource: '{{ .Source }}'
-      configuration:
-        field: RequestParameters
-        value: |
-          {{
-              split (fieldValue "Route" .Destination) "/" |
-              filterMatch "^:\\w+$" |
-              mapString ":(.*)" "method.request.path.$1" |
-              keysToMapWithDefault true |
-              toJson
-          }}
+      - resource: '{{ .Source }}'
+        configuration:
+          field: RequestParameters
+          value: |
+            {{
+                split (fieldValue "Route" .Destination) "/" |
+                filterMatch "^:\\w+$" |
+                mapString ":(.*)" "method.request.path.$1" |
+                keysToMapWithDefault true |
+                toJson
+            }}

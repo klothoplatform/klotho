@@ -1,0 +1,16 @@
+qualified_type_name: aws:private_dns_namespace
+
+properties:
+  Vpc:
+    type: resource
+    default_value: '{{ downstream "aws:vpc" .Self }}'
+
+classification:
+  is:
+    - service_discovery
+
+delete_context:
+  require_no_upstream: true
+
+views:
+  dataflow: small

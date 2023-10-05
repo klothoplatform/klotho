@@ -4,9 +4,9 @@ properties:
     type: resource
     operational_rule:
       steps:
-      - direction: downstream
-        resources:
-        - aws:rest_api
+        - direction: downstream
+          resources:
+            - aws:rest_api
   Triggers:
     type: map(string,string)
 

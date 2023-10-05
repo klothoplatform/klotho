@@ -11,15 +11,15 @@ properties:
     type: resource
     operational_rule:
       steps:
-      - direction: downstream
-        resources:
-          - aws:ecr_repo
+        - direction: downstream
+          resources:
+            - aws:ecr_repo
   Context:
     type: string
   Dockerfile:
     type: string
 classification:
-  is: 
+  is:
     - image
     - container
 delete_context:

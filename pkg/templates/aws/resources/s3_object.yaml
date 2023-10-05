@@ -11,7 +11,7 @@ properties:
 
 classification:
   is:
-  - blob
+    - blob
 
 delete_context:
   requires_no_upstream: true

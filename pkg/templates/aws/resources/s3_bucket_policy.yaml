@@ -6,7 +6,7 @@ properties:
     default_value: '{{ downstream "aws:s3_bucket" .Self }}'
   Policy:
     type: map
-    properties:  
+    properties:
       Version:
         type: string
         default_value: '2012-10-17'
@@ -41,7 +41,7 @@ properties:
 
 classification:
   is:
-  - blob
+    - blob
 
 delete_context:
   requires_no_upstream: true

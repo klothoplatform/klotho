@@ -10,7 +10,7 @@ properties:
     properties:
       Name:
         type: string
-      Type: 
+      Type:
         type: string
   BillingMode:
     type: string

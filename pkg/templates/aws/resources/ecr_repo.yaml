@@ -5,7 +5,7 @@ properties:
     default_value: true
 classification:
   is:
-  - repository
+    - repository
 delete_context:
   requires_no_upstream: true
 views:

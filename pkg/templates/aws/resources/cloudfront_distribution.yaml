@@ -38,18 +38,18 @@ properties:
       AllowedMethods:
         type: list(string)
         default_value:
-        - DELETE
-        - GET
-        - HEAD
-        - OPTIONS
-        - PATCH
-        - POST
-        - PUT
+          - DELETE
+          - GET
+          - HEAD
+          - OPTIONS
+          - PATCH
+          - POST
+          - PUT
       CachedMethods:
         type: list(string)
         default_value:
-        - HEAD
-        - GET
+          - HEAD
+          - GET
       TargetOriginId:
         type: string
       ForwardedValues:
@@ -90,10 +90,10 @@ properties:
 
 classification:
   is:
-  - cdn
-  - network
+    - cdn
+    - network
   gives:
-  - low_latency
+    - low_latency
 
 delete_context:
   requires_no_downstream: true

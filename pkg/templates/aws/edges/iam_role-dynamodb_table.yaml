@@ -2,19 +2,19 @@ source: aws:iam_role
 target: aws:dynamodb_table
 operational_rules:
   - configuration_rules:
-    - resource: '{{ .Source }}'
-      configuration:
-        field: InlinePolicies
-        value:
-          - Name: '{{ .Destination.Name }}-policy'
-            Policy:
-              Version: "2012-10-17"
-              Statement:
-                - Action:
-                    - dynamodb:*
-                  Effect: Allow
-                  Resource:
-                    - '{{ .Destination }}#DynamoTableStreamArn'
-                    - '{{ .Destination }}#DynamoTableBackupArn'
-                    - '{{ .Destination }}#DynamoTableExportArn'
-                    - '{{ .Destination }}#DynamoTableIndexArn'
+      - resource: '{{ .Source }}'
+        configuration:
+          field: InlinePolicies
+          value:
+            - Name: '{{ .Destination.Name }}-policy'
+              Policy:
+                Version: '2012-10-17'
+                Statement:
+                  - Action:
+                      - dynamodb:*
+                    Effect: Allow
+                    Resource:
+                      - '{{ .Destination }}#DynamoTableStreamArn'
+                      - '{{ .Destination }}#DynamoTableBackupArn'
+                      - '{{ .Destination }}#DynamoTableExportArn'
+                      - '{{ .Destination }}#DynamoTableIndexArn'

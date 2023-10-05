@@ -1,0 +1,2 @@
+source: aws:private_dns_namespace
+target: aws:vpc

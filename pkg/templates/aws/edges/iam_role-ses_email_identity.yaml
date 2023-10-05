@@ -1,0 +1,18 @@
+source: aws:iam_role
+target: aws:ses_email_identity
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: InlinePolicies
+          value:
+            - Name: '{{ .Destination.Name }}-policy'
+              Policy:
+                Version: '2012-10-17'
+                Statement:
+                  - Action:
+                      - ses:SendEmail
+                      - ses:SendRawEmail
+                    Effect: Allow
+                    Resource:
+                      - '{{ .Destination  }}#Arn'

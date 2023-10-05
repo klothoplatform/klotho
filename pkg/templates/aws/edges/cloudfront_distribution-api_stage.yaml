@@ -2,13 +2,13 @@ source: aws:cloudfront_distribution
 target: aws:api_stage
 operational_rules:
   - steps:
-    - resource: '{{ .Source }}'
-      direction: downstream
-      resources:
-        - aws:cloudfront_origin_access_identity
+      - resource: '{{ .Source }}'
+        direction: downstream
+        resources:
+          - aws:cloudfront_origin_access_identity
     configuration_rules:
       - resource: '{{ .Source }}'
-        configuration: 
+        configuration:
           field: Origins
           value:
             - CustomOriginConfig:
