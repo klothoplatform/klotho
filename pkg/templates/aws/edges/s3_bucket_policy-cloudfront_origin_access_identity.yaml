@@ -19,4 +19,4 @@ operational_rules:
               Action: 
                 - s3:GetObject
               Resource: 
-                - '{{ .Source }}#AllBucketDirectory'
+                - '{{ downstream "aws:s3_bucket" .Source }}#AllBucketDirectory'

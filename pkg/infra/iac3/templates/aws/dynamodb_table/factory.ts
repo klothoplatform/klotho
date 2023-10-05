@@ -1,10 +1,11 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 import * as awsInputs from '@pulumi/aws/types/input'
+import { TemplateWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
-    Attributes: Record<string, string>
+    Attributes: TemplateWrapper<pulumi.Input<pulumi.Input<awsInputs.dynamodb.TableAttribute>[]>>
     HashKey: string
     RangeKey: string
     BillingMode: string
@@ -15,12 +16,7 @@ function create(args: Args): aws.dynamodb.Table {
     return new aws.dynamodb.Table(
         args.Name,
         {
-            attributes: Object.entries(args.Attributes).map((attribute) => {
-                return {
-                    name: attribute['Name'],
-                    type: attribute['Type'],
-                }
-            }),
+            attributes: args.Attributes,
             hashKey: args.HashKey,
             //TMPL {{- if .RangeKey }}
             rangeKey: args.RangeKey,

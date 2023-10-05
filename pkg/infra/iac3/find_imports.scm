@@ -1,3 +1,6 @@
 (program
-  (import_statement) @import
+  (import_statement
+    source: (string)@source
+  ) @import
+  (#not-eq? @source "'../../wrappers'")
 )

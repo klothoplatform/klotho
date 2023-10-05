@@ -21,8 +21,8 @@ func (ts *templateStore) ResourceTemplate(id construct.ResourceId) (*ResourceTem
 	if ok {
 		return tmpl, nil
 	}
-
-	f, err := ts.fs.Open(id.Provider + "/" + id.Type + `/factory.ts`)
+	path := id.Provider + "/" + id.Type
+	f, err := ts.fs.Open(path + `/factory.ts`)
 	if err != nil {
 		return nil, fmt.Errorf("could not find template for %s: %w", typeName, err)
 	}
@@ -30,6 +30,7 @@ func (ts *templateStore) ResourceTemplate(id construct.ResourceId) (*ResourceTem
 	if err != nil {
 		return nil, fmt.Errorf("could not parse template for %s: %w", typeName, err)
 	}
+	template.Path = path
 	ts.resourceTemplates[typeName] = template
 	return template, nil
 }

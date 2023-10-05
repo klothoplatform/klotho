@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"reflect"
 	"sort"
 	"strings"
+	"text/template"
 
+	"github.com/iancoleman/strcase"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 )
 
@@ -23,7 +26,7 @@ func (tc *TemplatesCompiler) RenderResource(out io.Writer, rid construct.Resourc
 	if err != nil {
 		return err
 	}
-	inputs, err := tc.getInputArgs(r)
+	inputs, err := tc.getInputArgs(r, resTmpl)
 	if err != nil {
 		return err
 	}
@@ -42,7 +45,8 @@ func (tc *TemplatesCompiler) RenderResource(out io.Writer, rid construct.Resourc
 	return nil
 }
 
-func (tc *TemplatesCompiler) convertArg(arg any) (any, error) {
+func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) {
+
 	switch arg := arg.(type) {
 	case construct.ResourceId:
 		return tc.vars[arg], nil
@@ -65,52 +69,49 @@ func (tc *TemplatesCompiler) convertArg(arg any) (any, error) {
 	default:
 		switch val := reflect.ValueOf(arg); val.Kind() {
 		case reflect.Slice, reflect.Array:
-			// convert each element
-			vars := make([]any, val.Len())
-			for i := 0; i < val.Len(); i++ {
-				v, err := tc.convertArg(val.Index(i).Interface())
-				if err != nil {
-					return nil, err
-				}
-				if jsonV, ok := v.(jsonValue); ok {
-					vars[i] = jsonV.Raw
-				} else {
-					vars[i] = v
-				}
+			if val.IsNil() {
+				return nil, nil
 			}
-			return vars, nil
+			// convert each element
+			return tc.listMarshaller(arg, templateArg)
 		case reflect.Map:
-			// convert each element
-			vars := make(map[string]any, val.Len())
-			for _, k := range val.MapKeys() {
-				v, err := tc.convertArg(val.MapIndex(k).Interface())
-				if err != nil {
-					return nil, err
-				}
-				if jsonV, ok := v.(jsonValue); ok {
-					vars[k.String()] = jsonV.Raw
-				} else {
-					vars[k.String()] = v
-				}
+			if val.IsNil() {
+				return nil, nil
 			}
-			return jsonValue{Raw: vars}, nil
+			// convert each element
+			return tc.mapMarshaller(arg, templateArg)
+			// return jsonValue{Raw: vars}, nil
 		default:
 			return jsonValue{Raw: arg}, nil
 		}
 	}
 
 }
-
-func (tc *TemplatesCompiler) getInputArgs(r *construct.Resource) (templateInputArgs, error) {
+func (tc *TemplatesCompiler) getInputArgs(r *construct.Resource, template *ResourceTemplate) (templateInputArgs, error) {
 	var errs error
 	inputs := make(map[string]any, len(r.Properties)+len(globalVariables)+2) // +2 for Name and dependsOn
 
 	for name, value := range r.Properties {
-		argValue, err := tc.convertArg(value)
-		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf("could not convert arg %q: %w", name, err))
-			continue
+		templateArg := template.Args[name]
+		var argValue any
+		var err error
+		if templateArg.Wrapper == string(TemplateWrapper) {
+			argValue, err = tc.useNestedTemplate(template, value, templateArg)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("could not use nested template for arg %q: %w", name, err))
+				continue
+			}
+		} else {
+			if templateArg.Name == "Policy" {
+				fmt.Println("a")
+			}
+			argValue, err = tc.convertArg(value, &templateArg)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("could not convert arg %q: %w", name, err))
+				continue
+			}
 		}
+
 		if argValue != nil {
 			inputs[name] = argValue
 		}
@@ -176,4 +177,56 @@ func (tc *TemplatesCompiler) getInputArgs(r *construct.Resource) (templateInputA
 	}
 
 	return inputs, nil
+}
+
+func (tc *TemplatesCompiler) useNestedTemplate(resTmpl *ResourceTemplate, val any, arg Arg) (string, error) {
+
+	var contents []byte
+	var err error
+
+	nestedTemplatePath := path.Join(resTmpl.Path, strcase.ToSnake(arg.Name)+".ts.tmpl")
+
+	f, err := tc.templates.fs.Open(nestedTemplatePath)
+	if err != nil {
+		return "", fmt.Errorf("could not find template for %s: %w", nestedTemplatePath, err)
+	}
+	contents, err = io.ReadAll(f)
+	if err != nil {
+		return "", fmt.Errorf("could not read template for %s: %w", nestedTemplatePath, err)
+	}
+	if len(contents) == 0 {
+		return "", fmt.Errorf("no contents in template for %s: %w", nestedTemplatePath, err)
+	}
+
+	tmpl, err := template.New(nestedTemplatePath).Funcs(template.FuncMap{
+		"parseVal":       tc.parseVal,
+		"modelCase":      tc.modelCase,
+		"lowerCamelCase": tc.lowerCamelCase,
+		"camelCase":      tc.camelCase,
+	}).Parse(string(contents))
+	if err != nil {
+		return "", fmt.Errorf("could not parse template for %s: %w", nestedTemplatePath, err)
+	}
+	result := getBuffer()
+	err = tmpl.Execute(result, val)
+	if err != nil {
+		return "", fmt.Errorf("could not execute template for %s: %w", nestedTemplatePath, err)
+	}
+	return result.String(), nil
+}
+
+func (tc *TemplatesCompiler) parseVal(val any) (any, error) {
+	return tc.convertArg(val, nil)
+}
+
+func (tc *TemplatesCompiler) modelCase(val any) (any, error) {
+	return tc.convertArg(val, &Arg{Wrapper: string(ModelCaseWrapper)})
+}
+
+func (tc *TemplatesCompiler) lowerCamelCase(val any) (any, error) {
+	return tc.convertArg(val, &Arg{Wrapper: string(LowerCamelCaseWrapper)})
+}
+
+func (tc *TemplatesCompiler) camelCase(val any) (any, error) {
+	return tc.convertArg(val, &Arg{Wrapper: string(CamelCaseWrapper)})
 }

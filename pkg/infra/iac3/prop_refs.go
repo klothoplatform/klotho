@@ -40,13 +40,19 @@ func (tc *TemplatesCompiler) PropertyRefValue(ref construct.PropertyRef) (any, e
 	if err != nil {
 		return nil, err
 	}
+	if tmpl.PropertyTemplates == nil {
+		return nil, fmt.Errorf("resource %s does not have any properties", ref.Resource)
+	} else if _, ok := tmpl.PropertyTemplates[ref.Property]; !ok {
+		return nil, fmt.Errorf("resource %s does not have property %s", ref.Resource, ref.Property)
+	}
+
 	refRes, err := tc.graph.Vertex(ref.Resource)
 	if err != nil {
 		return nil, err
 	}
 
 	if mapping, ok := tmpl.PropertyTemplates[ref.Property]; ok {
-		inputArgs, err := tc.getInputArgs(refRes)
+		inputArgs, err := tc.getInputArgs(refRes, tmpl)
 		if err != nil {
 			return nil, err
 		}
@@ -61,7 +67,7 @@ func (tc *TemplatesCompiler) PropertyRefValue(ref construct.PropertyRef) (any, e
 		return nil, err
 	}
 	if path != nil {
-		return tc.convertArg(path.Get())
+		return tc.convertArg(path.Get(), nil)
 	}
 	return nil, fmt.Errorf("unsupported property ref %s", ref)
 }

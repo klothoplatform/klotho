@@ -1,9 +1,10 @@
 import * as aws from '@pulumi/aws'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
     Bucket: aws.s3.Bucket
-    Policy: aws.iam.PolicyDocument
+    Policy: ModelCaseWrapper<aws.iam.PolicyDocument>
 }
 
 // noinspection JSUnusedLocalSymbols

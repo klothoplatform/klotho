@@ -1,0 +1,9 @@
+[
+{{- range $index, $attr := . }}
+    {
+        name: "{{ $attr.Name}}",
+        type: "{{ $attr.Type}}"
+    },
+{{- end}}
+]
+

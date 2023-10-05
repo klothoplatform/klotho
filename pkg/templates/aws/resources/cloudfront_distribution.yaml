@@ -75,6 +75,7 @@ properties:
         default_value: 3600
       ViewerProtocolPolicy:
         type: string
+        default_value: allow-all
   Restrictions:
     type: map
     properties:

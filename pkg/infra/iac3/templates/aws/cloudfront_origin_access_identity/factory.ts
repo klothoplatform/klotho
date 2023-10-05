@@ -11,3 +11,10 @@ function create(args: Args): aws.cloudfront.OriginAccessIdentity {
         comment: args.Comment,
     })
 }
+
+function properties(object: aws.cloudfront.OriginAccessIdentity, args: Args): Args {
+    return {
+        IamArn: object.iamArn,
+        CloudfrontAccessIdentityPath: object.cloudfrontAccessIdentityPath,
+    }
+}

@@ -24,12 +24,29 @@ type (
 		OutputType        string
 		Template          *template.Template
 		PropertyTemplates map[string]*template.Template
+		Args              map[string]Arg
+		Path              string
 	}
 
 	PropertyTemplateData struct {
 		Object string
 		Input  map[string]any
 	}
+
+	Arg struct {
+		Name    string
+		Type    string
+		Wrapper string
+	}
+
+	WrapperType string
+)
+
+const (
+	TemplateWrapper       WrapperType = "TemplateWrapper"
+	CamelCaseWrapper      WrapperType = "CamelCaseWrapper"
+	LowerCamelCaseWrapper WrapperType = "LowerCamelCaseWrapper"
+	ModelCaseWrapper      WrapperType = "ModelCaseWrapper"
 )
 
 var (
@@ -47,6 +64,9 @@ var (
 
 	//go:embed find_property.scm
 	findPropertyQuery string
+
+	//go:embed find_args.scm
+	findArgs string
 
 	curlyEscapes     = regexp.MustCompile(`~~{{`)
 	templateComments = regexp.MustCompile(`//*TMPL\s+`)
@@ -72,8 +92,37 @@ func ParseTemplate(name string, r io.Reader) (*ResourceTemplate, error) {
 	if err != nil {
 		return nil, err
 	}
+	rt.Args, err = parseArgs(node, name)
+	if err != nil {
+		return nil, err
+	}
 
 	return rt, nil
+}
+
+func parseArgs(node *sitter.Node, name string) (map[string]Arg, error) {
+	argsFunc := doQuery(node, findArgs)
+	args := map[string]Arg{}
+	for {
+		argMatches, found := argsFunc()
+		if !found {
+			break
+		}
+		interfaceName := argMatches["name"].Content()
+		if interfaceName != "Args" {
+			continue
+		}
+		argName := argMatches["property_name"].Content()
+		argType := argMatches["property_type"].Content()
+		argWrapper := argMatches["nested"]
+		if argWrapper == nil {
+			args[argName] = Arg{Name: argName, Type: argType}
+			continue
+		}
+		args[argName] = Arg{Name: argName, Type: argType, Wrapper: argWrapper.Content()}
+	}
+
+	return args, nil
 }
 
 func createNodeToTemplate(node *sitter.Node, name string) (*template.Template, string, error) {

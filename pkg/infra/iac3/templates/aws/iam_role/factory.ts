@@ -1,11 +1,12 @@
 import * as aws from '@pulumi/aws'
 import * as awsInputs from '@pulumi/aws/types/input'
 import * as pulumi from '@pulumi/pulumi'
+import { TemplateWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
     AssumeRolePolicyDoc: string
-    InlinePolicies: pulumi.Input<pulumi.Input<awsInputs.iam.RoleInlinePolicy>[]>
+    InlinePolicies: TemplateWrapper<pulumi.Input<pulumi.Input<awsInputs.iam.RoleInlinePolicy>[]>>
     ManagedPolicies: pulumi.Output<string>[]
     AwsManagedPolicies: string[]
 }

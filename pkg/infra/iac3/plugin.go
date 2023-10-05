@@ -32,7 +32,7 @@ var (
 	//go:embed Pulumi.yaml.tmpl Pulumi.dev.yaml.tmpl templates/globals.ts
 	files embed.FS
 
-	//go:embed templates/*/*/factory.ts templates/*/*/package.json
+	//go:embed templates/*/*/factory.ts templates/*/*/package.json templates/*/*/*.ts.tmpl
 	standardTemplates embed.FS
 
 	pulumiBase  = templateutils.MustTemplate(files, "Pulumi.yaml.tmpl")
@@ -113,7 +113,7 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 		Content: content,
 	}
 
-	return []kio.File{indexTs, packageJson, pulumiYaml, pulumiStack, tsConfig}, nil
+	return []kio.File{indexTs, packageJson, pulumiYaml, pulumiStack, tsConfig}, errs
 }
 
 func renderGlobals(w io.Writer) error {
