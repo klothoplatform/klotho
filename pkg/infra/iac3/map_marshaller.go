@@ -4,31 +4,40 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-
-	"github.com/iancoleman/strcase"
 )
 
-func (tc *TemplatesCompiler) listMarshaller(arg any, templateArg *Arg) (string, error) {
-	val := reflect.ValueOf(arg)
-
-	buf := strings.Builder{}
-	buf.WriteRune('[')
-	for i := 0; i < val.Len(); i++ {
-		output, err := tc.convertArg(val.Index(i).Interface(), templateArg)
-		if err != nil {
-			return "", err
-		}
-		buf.WriteString(fmt.Sprintf("%v", output))
-		if i < (val.Len() - 1) {
-			buf.WriteRune(',')
-		}
+type (
+	MapMarshaller interface {
+		Map() map[string]any
+		String() string
+		SetKey(val any)
 	}
-	buf.WriteRune(']')
-	return buf.String(), nil
+
+	ListMarshaller interface {
+		List() []any
+		String() string
+		Append(val any)
+	}
+
+	TsMap struct {
+		m map[string]any
+	}
+
+	TsList struct {
+		l []any
+	}
+)
+
+func (m *TsMap) Map() map[string]any {
+	return m.m
 }
 
-func (tc *TemplatesCompiler) mapMarshaller(arg any, templateArg *Arg) (string, error) {
-	val := reflect.ValueOf(arg)
+func (m *TsMap) SetKey(key string, val any) {
+	m.m[key] = val
+}
+
+func (m *TsMap) String() string {
+	val := reflect.ValueOf(m.m)
 	buf := strings.Builder{}
 	buf.WriteRune('{')
 	for i, key := range val.MapKeys() {
@@ -37,26 +46,40 @@ func (tc *TemplatesCompiler) mapMarshaller(arg any, templateArg *Arg) (string, e
 		}
 		keyStr, found := key.Interface().(string)
 		if !found {
-			return "", fmt.Errorf("map key is not a string")
+			panic("map key is not a string")
 		}
-		keyResult := strcase.ToLowerCamel(keyStr)
-		if templateArg != nil && templateArg.Wrapper == string(CamelCaseWrapper) {
-			keyResult = strcase.ToCamel(keyStr)
-		} else if templateArg != nil && templateArg.Wrapper == string(ModelCaseWrapper) {
-			keyResult = keyStr
-		}
-		buf.WriteString(keyResult)
+		buf.WriteString(keyStr)
 
 		buf.WriteRune(':')
-		output, err := tc.convertArg(val.MapIndex(key).Interface(), templateArg)
-		if err != nil {
-			return "", err
-		}
-		buf.WriteString(fmt.Sprintf("%v", output))
+		buf.WriteString(fmt.Sprintf("%v", val.MapIndex(key).Interface()))
 		if i < (len(val.MapKeys()) - 1) {
 			buf.WriteRune(',')
 		}
 	}
 	buf.WriteRune('}')
-	return buf.String(), nil
+	return buf.String()
+}
+
+func (l *TsList) List() []any {
+	return l.l
+}
+
+func (l *TsList) Append(val any) {
+	l.l = append(l.l, val)
+}
+
+func (l *TsList) String() string {
+
+	val := reflect.ValueOf(l.l)
+
+	buf := strings.Builder{}
+	buf.WriteRune('[')
+	for i := 0; i < val.Len(); i++ {
+		buf.WriteString(fmt.Sprintf("%v", val.Index(i).Interface()))
+		if i < (val.Len() - 1) {
+			buf.WriteRune(',')
+		}
+	}
+	buf.WriteRune(']')
+	return buf.String()
 }

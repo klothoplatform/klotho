@@ -69,18 +69,42 @@ func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) 
 	default:
 		switch val := reflect.ValueOf(arg); val.Kind() {
 		case reflect.Slice, reflect.Array:
-			if val.IsNil() {
-				return nil, nil
+			list := &TsList{l: make([]any, 0, val.Len())}
+			for i := 0; i < val.Len(); i++ {
+				if !val.Index(i).IsValid() || val.Index(i).IsNil() {
+					continue
+				}
+				output, err := tc.convertArg(val.Index(i).Interface(), templateArg)
+				if err != nil {
+					return "", err
+				}
+				list.Append(output)
 			}
-			// convert each element
-			return tc.listMarshaller(arg, templateArg)
+			return list, nil
 		case reflect.Map:
-			if val.IsNil() {
-				return nil, nil
+			TsMap := &TsMap{m: make(map[string]any)}
+			for _, key := range val.MapKeys() {
+				if !val.MapIndex(key).IsValid() || val.MapIndex(key).IsNil() {
+					continue
+				}
+				keyStr, found := key.Interface().(string)
+				if !found {
+					return "", fmt.Errorf("map key is not a string")
+				}
+				keyResult := strcase.ToLowerCamel(keyStr)
+				if templateArg != nil && templateArg.Wrapper == string(CamelCaseWrapper) {
+					keyResult = strcase.ToCamel(keyStr)
+				} else if templateArg != nil && templateArg.Wrapper == string(ModelCaseWrapper) {
+					keyResult = keyStr
+				}
+
+				output, err := tc.convertArg(val.MapIndex(key).Interface(), templateArg)
+				if err != nil {
+					return "", err
+				}
+				TsMap.SetKey(keyResult, output)
 			}
-			// convert each element
-			return tc.mapMarshaller(arg, templateArg)
-			// return jsonValue{Raw: vars}, nil
+			return TsMap, nil
 		default:
 			return jsonValue{Raw: arg}, nil
 		}
@@ -102,9 +126,6 @@ func (tc *TemplatesCompiler) getInputArgs(r *construct.Resource, template *Resou
 				continue
 			}
 		} else {
-			if templateArg.Name == "Policy" {
-				fmt.Println("a")
-			}
 			argValue, err = tc.convertArg(value, &templateArg)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("could not convert arg %q: %w", name, err))
@@ -199,7 +220,7 @@ func (tc *TemplatesCompiler) useNestedTemplate(resTmpl *ResourceTemplate, val an
 	}
 
 	tmpl, err := template.New(nestedTemplatePath).Funcs(template.FuncMap{
-		"parseVal":       tc.parseVal,
+		// "parseVal":       tc.parseVal,
 		"modelCase":      tc.modelCase,
 		"lowerCamelCase": tc.lowerCamelCase,
 		"camelCase":      tc.camelCase,
@@ -215,9 +236,9 @@ func (tc *TemplatesCompiler) useNestedTemplate(resTmpl *ResourceTemplate, val an
 	return result.String(), nil
 }
 
-func (tc *TemplatesCompiler) parseVal(val any) (any, error) {
-	return tc.convertArg(val, nil)
-}
+// func (tc *TemplatesCompiler) parseVal(val any) (any, error) {
+// 	return tc.convertArg(val, nil)
+// }
 
 func (tc *TemplatesCompiler) modelCase(val any) (any, error) {
 	return tc.convertArg(val, &Arg{Wrapper: string(ModelCaseWrapper)})

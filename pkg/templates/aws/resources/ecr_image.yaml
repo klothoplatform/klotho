@@ -2,7 +2,7 @@ qualified_type_name: aws:ecr_image
 properties:
   ImageName:
     type: string
-    default_value: '{{ .Self.Name}}'
+    default_value: '{{ .Self.Name }}'
   BaseImage:
     type: string
   Tag:

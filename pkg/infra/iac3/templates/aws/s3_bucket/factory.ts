@@ -35,6 +35,6 @@ function properties(object: aws.s3.Bucket, args: Args) {
         AllBucketDirectory: pulumi.interpolate`${object.arn}/*`,
         Arn: object.arn,
         BucketRegionalDomainName: object.bucketRegionalDomainName,
-        BucketName: object.name,
+        BucketName: object.bucket,
     }
 }
