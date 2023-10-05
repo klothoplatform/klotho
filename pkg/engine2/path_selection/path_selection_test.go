@@ -345,7 +345,7 @@ func Test_DetermineCorrectPaths(t *testing.T) {
 	}
 }
 
-func Test_containsUnneccessaryHopsInPath(t *testing.T) {
+func Test_ctxcontainsUnneccessaryHopsInPath(t *testing.T) {
 	tests := []struct {
 		name      string
 		dep       graph.Edge[*construct.Resource]
@@ -512,14 +512,5 @@ func Test_findOptimalPath(t *testing.T) {
 			ctx := PathSelectionContext{}
 			assert.Equal(test.expected, ctx.findOptimalPath(test.paths))
 		})
-	}
-}
-
-func createResourceTemplate(id construct.ResourceId, classifications []string) *knowledgebase.ResourceTemplate {
-	return &knowledgebase.ResourceTemplate{
-		QualifiedTypeName: id.QualifiedTypeName(),
-		Classification: knowledgebase.Classification{
-			Is: classifications,
-		},
 	}
 }

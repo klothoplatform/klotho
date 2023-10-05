@@ -1,0 +1,16 @@
+source: aws:subnet
+target: aws:route_table
+operational_rules:
+  - if: '{{ eq (fieldValue "Type" .Source) "private" }}'
+    steps:
+      - resource: '{{ .Destination }}'
+        direction: downstream
+        resources:
+          - aws:nat_gateway
+        unique: true
+  - if: '{{ eq (fieldValue "Type" .Source) "public" }}'
+    steps:
+      - resource: '{{ .Destination }}'
+        direction: downstream
+        resources:
+          - aws:internet_gateway

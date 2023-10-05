@@ -1,0 +1,4 @@
+qualified_type_name: aws:region
+
+delete_context:
+  require_no_upstream: true

@@ -1,0 +1,53 @@
+qualified_type_name: aws:subnet
+
+properties:
+  Vpc:
+    type: resource
+    required: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:vpc
+  AvailabilityZone:
+    type: resource
+    required: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:availability_zone
+          SelectionOperator: spread
+  RouteTable:
+    type: resource
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:route_table
+          unique: true
+  CidrBlock:
+    type: string
+    default_value: |
+      {{- if eq (fieldValue "Type" .Self) "public" }}
+        {{- if eq (fieldValue "AvailabilityZone" .Self).Name "0" }}
+          10.0.0.0/18
+        {{- else if eq (fieldValue "AvailabilityZone" .Self).Name "1" }}
+          10.0.64.0/18
+        {{- end}}
+      {{- else if eq (fieldValue "Type" .Self) "private" }}
+        {{- if eq (fieldValue "AvailabilityZone" .Self).Name "0" }}
+          10.0.0.0/18
+        {{- else if eq (fieldValue "AvailabilityZone" .Self).Name "1" }}
+          10.0.64.0/18
+        {{- end}}
+      {{- end}}
+  Type:
+    type: string
+    required: true
+    default_value: private
+  MapPublicIpOnLaunch:
+    type: bool
+
+delete_context:
+  require_no_upstream: true

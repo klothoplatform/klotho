@@ -1,0 +1,2 @@
+source: aws:nat_gateway
+target: aws:elastic_ip

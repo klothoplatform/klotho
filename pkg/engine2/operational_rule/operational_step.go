@@ -3,6 +3,7 @@ package operational_rule
 import (
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/dominikbraun/graph"
 	"github.com/iancoleman/strcase"
@@ -77,6 +78,10 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 			}
 		}
 		ids = []construct.ResourceId{}
+	}
+
+	if len(ids) >= step.NumNeeded {
+		return nil
 	}
 
 	explicitResources, _, err := step.ExtractResourcesAndTypes(ctx.ConfigCtx, ctx.Data)
@@ -497,8 +502,26 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 			resource.ID.Namespace = fieldResource.ID.Name
 		}
 	} else {
+		// First lets check if the array already contains the id. if it does we dont want to append it
+		res, err := resource.GetProperty(ctx.Property.Path)
+		if err != nil {
+			zap.S().Debugf("property %s not found on resource %s", ctx.Property.Path, resource.ID)
+		}
+		resVal := reflect.ValueOf(res)
+		if resVal.IsValid() && (resVal.Kind() == reflect.Slice || resVal.Kind() == reflect.Array) {
+			// If the current field is a resource id we will compare it against the one passed in to see if we need to remove the current resource
+			for i := 0; i < resVal.Len(); i++ {
+				currResId, ok := resVal.Index(i).Interface().(construct.ResourceId)
+				if !ok {
+					continue
+				}
+				if !currResId.IsZero() && currResId == fieldResource.ID {
+					return nil
+				}
+			}
+		}
 		// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
-		err := resource.AppendProperty(ctx.Property.Path, []construct.ResourceId{fieldResource.ID})
+		err = resource.AppendProperty(ctx.Property.Path, []construct.ResourceId{fieldResource.ID})
 		if err != nil {
 			return fmt.Errorf("error appending field %s#%s with %s: %w", resource.ID, ctx.Property.Path, fieldResource.ID, err)
 		}

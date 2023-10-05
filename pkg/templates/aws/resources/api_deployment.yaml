@@ -2,6 +2,7 @@ qualified_type_name: aws:api_deployment
 properties:
   RestApi:
     type: resource
+    namespace: true
     operational_rule:
       steps:
         - direction: downstream

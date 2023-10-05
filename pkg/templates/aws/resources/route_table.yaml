@@ -1,0 +1,21 @@
+qualified_type_name: aws:route_table
+
+properties:
+  Vpc:
+    type: resource
+    default_value: '{{ downstream "aws:vpc" .Self }}'
+    required: true
+  Routes:
+    type: list
+    properties:
+      CidrBlock:
+        type: string
+      NatGateway:
+        type: resource
+      Gateway: 
+        type: resource
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

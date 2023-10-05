@@ -1,0 +1,10 @@
+source: aws:route_table
+target: aws:internet_gateway
+operational_rules:
+  - configuratoin_rules:
+      - resource: aws:route_table
+        config:
+          field: Routes
+          value:
+            - CidrBlock: 0.0.0.0/0
+              Gateway: {{ .Destination }}

@@ -1,0 +1,14 @@
+qualified_type_name: aws:availability_zone
+
+properties:
+  Region:
+    type: resource
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources: 
+            - aws:region
+
+delete_context:
+  requires_no_upstream: true

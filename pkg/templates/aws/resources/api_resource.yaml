@@ -3,6 +3,7 @@ qualified_type_name: aws:api_resource
 properties:
   RestApi:
     type: resource
+    namespace: true
     operational_rule:
       steps:
         - direction: upstream

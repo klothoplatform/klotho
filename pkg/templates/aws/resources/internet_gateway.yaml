@@ -1,0 +1,20 @@
+qualified_type_name: aws:internet_gateway
+
+properties:
+  Vpc:
+    type: resource
+    namespace: true
+    required: true
+    downstream:
+      - direction: downstream
+        resources:
+          - aws:vpc
+
+classification:
+  gives:
+    - internet_access
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

@@ -2,8 +2,10 @@ package knowledgebase2
 
 import (
 	"errors"
+	"fmt"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"gopkg.in/yaml.v3"
 )
 
 type (
@@ -19,9 +21,7 @@ type (
 		// Direction defines the direction of the rule. The direction options are upstream or downstream
 		Direction Direction `json:"direction" yaml:"direction"`
 		// Resources defines the resource types that the rule should be enforced on. Resource types must be specified if classifications is not specified
-		Resources []string `json:"resources" yaml:"resources"`
-		// Classifications defines the classifications that the rule should be enforced on. Classifications must be specified if resource types is not specified
-		Classifications []string `json:"classifications" yaml:"classifications"`
+		Resources []ResourceSelector `json:"resources" yaml:"resources"`
 		// NumNeeded defines the number of resources that must satisfy the rule
 		NumNeeded int `json:"num_needed" yaml:"num_needed"`
 
@@ -47,6 +47,13 @@ type (
 		Value any `json:"value" yaml:"value"`
 	}
 
+	ResourceSelector struct {
+		Selector   string         `json:"selector" yaml:"selector"`
+		Properties map[string]any `json:"properties" yaml:"properties"`
+		// Classifications defines the classifications that the rule should be enforced on. Classifications must be specified if resource types is not specified
+		Classifications []string `json:"classifications" yaml:"classifications"`
+	}
+
 	// Direction defines the direction of the rule. The direction options are upstream or downstream
 	Direction string
 
@@ -59,19 +66,60 @@ const (
 
 	SpreadSelectionOperator  SelectionOperator = "spread"
 	ClusterSelectionOperator SelectionOperator = "cluster"
-	ClosestSelectionOperator SelectionOperator = "closest"
+	ClosestSelectionOperator SelectionOperator = ""
 )
+
+func (p ResourceSelector) IsMatch(decodedSelector construct.ResourceId, res *construct.Resource, kb TemplateKB) bool {
+	if decodedSelector != (construct.ResourceId{}) {
+		if !decodedSelector.Matches(res.ID) {
+			return false
+		}
+	}
+	for k, v := range p.Properties {
+		property, err := res.GetProperty(k)
+		if err != nil {
+			return false
+		}
+		if property != v {
+			return false
+		}
+		template, err := kb.GetResourceTemplate(res.ID)
+		if err != nil || template == nil {
+			return false
+		}
+		if !template.ResourceContainsClassifications(p.Classifications) {
+			return false
+		}
+	}
+	return true
+}
+
+func (p *ResourceSelector) UnmarshalYAML(n *yaml.Node) error {
+	type h ResourceSelector
+	var r h
+	err := n.Decode(&r)
+	if err != nil {
+		var selectorString string
+		err = n.Decode(&selectorString)
+		if err == nil {
+			r.Selector = selectorString
+		} else {
+			return fmt.Errorf("error decoding resource selector: %w", err)
+		}
+	}
+	*p = ResourceSelector(r)
+	return nil
+}
 
 func (step OperationalStep) ExtractResourcesAndTypes(
 	ctx DynamicValueContext,
-	data DynamicValueData,
-) (resources []construct.ResourceId, resource_types []construct.ResourceId, errs error) {
+	data DynamicValueData) (resources []construct.ResourceId, resource_types []construct.ResourceId, errs error) {
 	for _, resStr := range step.Resources {
 		var selectors construct.ResourceList
-		selector, err := ctx.ExecuteDecodeAsResourceId(resStr, data)
+		selector, err := ctx.ExecuteDecodeAsResourceId(resStr.Selector, data)
 		if err != nil {
 			// The output of the decode may be a list of resources, so attempt to parse to that
-			err = ctx.ExecuteDecode(resStr, data, &selectors)
+			err = ctx.ExecuteDecode(resStr.Selector, data, &selectors)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue

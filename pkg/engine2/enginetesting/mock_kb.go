@@ -1,6 +1,7 @@
 package enginetesting
 
 import (
+	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/stretchr/testify/mock"
@@ -14,6 +15,12 @@ func (m *MockKB) ListResources() []*knowledgebase.ResourceTemplate {
 	args := m.Called()
 	return args.Get(0).([]*knowledgebase.ResourceTemplate)
 }
+
+func (m *MockKB) Edges() ([]graph.Edge[*knowledgebase.ResourceTemplate], error) {
+	args := m.Called()
+	return args.Get(0).([]graph.Edge[*knowledgebase.ResourceTemplate]), args.Error(1)
+}
+
 func (m *MockKB) AddResourceTemplate(template *knowledgebase.ResourceTemplate) error {
 	args := m.Called(template)
 	return args.Error(0)
@@ -54,9 +61,9 @@ func (m *MockKB) GetClassification(id construct.ResourceId) knowledgebase.Classi
 	args := m.Called(id)
 	return args.Get(0).(knowledgebase.Classification)
 }
-func (m *MockKB) GetResourcesNamespaceResource(resource *construct.Resource) *construct.Resource {
+func (m *MockKB) GetResourcesNamespaceResource(resource *construct.Resource) *construct.ResourceId {
 	args := m.Called(resource)
-	return args.Get(0).(*construct.Resource)
+	return args.Get(0).(*construct.ResourceId)
 }
 func (m *MockKB) GetResourcePropertyType(resource *construct.Resource, propertyName string) string {
 	args := m.Called(resource, propertyName)
