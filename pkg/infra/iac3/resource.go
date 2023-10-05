@@ -78,7 +78,7 @@ func (tc *TemplatesCompiler) convertArg(arg any) (any, error) {
 					vars[i] = v
 				}
 			}
-			return jsonValue{Raw: vars}, nil
+			return vars, nil
 		case reflect.Map:
 			// convert each element
 			vars := make(map[string]any, val.Len())

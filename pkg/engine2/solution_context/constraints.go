@@ -8,7 +8,7 @@ import (
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
-func (ctx SolutionContext) LoadConstraints(input map[constraints.ConstraintScope][]constraints.Constraint) error {
+func (ctx *SolutionContext) LoadConstraints(input map[constraints.ConstraintScope][]constraints.Constraint) error {
 	for _, constraint := range input[constraints.ApplicationConstraintScope] {
 		err := ctx.ApplyApplicationConstraint(constraint.(*constraints.ApplicationConstraint))
 		if err != nil {

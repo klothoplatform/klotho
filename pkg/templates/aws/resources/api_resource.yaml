@@ -26,6 +26,7 @@ properties:
           {{ $parents := slice $parts 0 (sub (len $parts) (len $paths)) }}
           {{ $name := join $parents "-" | replace "\\{([^}+]+)\\+?\\}" "$1" | replace "^/" "" | replace "/" "-" }}
           aws:api_resource:{{ $name }}
+        unique: true
   PathPart:
     type: string
     operational_rule:

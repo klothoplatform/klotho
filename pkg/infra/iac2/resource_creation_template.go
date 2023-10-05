@@ -66,6 +66,9 @@ var (
 
 	//go:embed find_return.scm
 	findReturn string
+
+	//go:embed find_args.scm
+	findInputArgs string
 )
 
 // ParseResourceCreationTemplate parses TypeScript file into a ResourceCreationTemplate, which TemplatesCompiler

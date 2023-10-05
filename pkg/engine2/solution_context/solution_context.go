@@ -261,9 +261,7 @@ func (ctx SolutionContext) handleNodeProperty(r *construct.Resource, property kn
 		}
 		// If there is no resource specified on the step, we are going to assume that it is applied to the resource being handled
 		for _, step := range property.OperationalRule.Steps {
-			if step.Resource == "" {
-				step.Resource = r.ID.String()
-			}
+			step.Resource = r.ID.String()
 		}
 
 		err := ruleCtx.HandleOperationalRule(*property.OperationalRule)
