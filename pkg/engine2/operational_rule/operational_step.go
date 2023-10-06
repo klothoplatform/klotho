@@ -297,11 +297,15 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(step *knowledgebas
 			var ids []construct.ResourceId
 			for i := 0; i < field.Len(); i++ {
 				val := field.Index(i)
-				err := ctx.addDependencyForDirection(step, resource, val.Interface().(*construct.Resource))
+				res, err := ctx.Graph.GetResource(val.Interface().(construct.ResourceId))
 				if err != nil {
 					return []construct.ResourceId{}, err
 				}
-				ids = append(ids, val.Interface().(*construct.Resource).ID)
+				err = ctx.addDependencyForDirection(step, resource, res)
+				if err != nil {
+					return []construct.ResourceId{}, err
+				}
+				ids = append(ids, val.Interface().(construct.ResourceId))
 			}
 			return ids, nil
 		} else if field.Kind() == reflect.Struct {
@@ -439,8 +443,25 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 			resource.ID.Namespace = fieldResource.ID.Name
 		}
 	} else {
+		res, err := resource.GetProperty(ctx.Property.Path)
+		if err != nil {
+			zap.S().Debugf("property %s not found on resource %s", ctx.Property.Path, resource.ID)
+		}
+		resVal := reflect.ValueOf(res)
+		if resVal.IsValid() && (resVal.Kind() == reflect.Slice || resVal.Kind() == reflect.Array) {
+			// If the current field is a resource id we will compare it against the one passed in to see if we need to remove the current resource
+			for i := 0; i < resVal.Len(); i++ {
+				currResId, ok := resVal.Index(i).Interface().(construct.ResourceId)
+				if !ok {
+					continue
+				}
+				if !currResId.IsZero() && currResId == fieldResource.ID {
+					return nil
+				}
+			}
+		}
 		// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
-		err := resource.AppendProperty(ctx.Property.Path, []construct.ResourceId{fieldResource.ID})
+		err = resource.AppendProperty(ctx.Property.Path, []construct.ResourceId{fieldResource.ID})
 		if err != nil {
 			return fmt.Errorf("error appending field %s#%s with %s: %w", resource.ID, ctx.Property.Path, fieldResource.ID, err)
 		}
