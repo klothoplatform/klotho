@@ -18,10 +18,10 @@ properties:
         {{ range $index, $element := $path }}
           {{ if eq $element.QualifiedTypeName "aws:api_resource" }}
             {{ $resourcePath := fieldValue "PathPart" $element }}
-            {{ $resourceRoute := (print $resourceRoute "/" $resourcePath) }}
+            {{ $resourceRoute = (print $resourceRoute "/" $resourcePath) }}
           {{ end }}
         {{ end }}
-        {{ eq $resourceRoute $route }}
+        {{ ne $resourceRoute $route }}
       steps:
         - direction: upstream
           replacement_condition: true
