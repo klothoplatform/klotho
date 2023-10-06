@@ -304,13 +304,17 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(step *knowledgebas
 				ids = append(ids, val.Interface().(*construct.Resource).ID)
 			}
 			return ids, nil
-		} else if field.Kind() == reflect.Ptr && !field.IsNil() {
+		} else if field.Kind() == reflect.Struct {
 			val := field
-			err := ctx.addDependencyForDirection(step, resource, val.Interface().(*construct.Resource))
+			res, err := ctx.Graph.GetResource(val.Interface().(construct.ResourceId))
 			if err != nil {
 				return []construct.ResourceId{}, err
 			}
-			return []construct.ResourceId{val.Interface().(*construct.Resource).ID}, nil
+			err = ctx.addDependencyForDirection(step, resource, res)
+			if err != nil {
+				return []construct.ResourceId{}, err
+			}
+			return []construct.ResourceId{val.Interface().(construct.ResourceId)}, nil
 		}
 	}
 	return nil, nil
