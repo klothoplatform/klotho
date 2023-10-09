@@ -152,8 +152,8 @@ func EdgeTemplateConfigure(template knowledgebase.EdgeTemplate, dag *construct.R
 		}
 
 		if config.Config.ValueTemplate != "" {
-			ctx := knowledgebase.ConfigTemplateContext{DAG: dag}
-			data := knowledgebase.ConfigTemplateData{
+			ctx := knowledgebase.DynamicValueContext{DAG: dag}
+			data := knowledgebase.DynamicValueData{
 				Resource: res.Id(),
 				Edge: graph.Edge[construct.ResourceId]{
 					Source:      edge.Source.Id(),

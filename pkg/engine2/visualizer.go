@@ -1,6 +1,7 @@
 package engine2
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	klotho_io "github.com/klothoplatform/klotho/pkg/io"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	visualizer "github.com/klothoplatform/klotho/pkg/visualizer2"
 )
 
@@ -28,15 +30,15 @@ const (
 
 type (
 	TopologyNode struct {
-		Resource *construct.Resource   `yaml:"id"`
-		Parent   *construct.Resource   `yaml:"parent,omitempty"`
-		Children []*construct.Resource `yaml:"children,omitempty"`
+		Resource construct.ResourceId   `yaml:"id"`
+		Parent   construct.ResourceId   `yaml:"parent,omitempty"`
+		Children []construct.ResourceId `yaml:"children,omitempty"`
 	}
 
 	TopologyEdge struct {
-		Source *construct.Resource   `yaml:"source"`
-		Target *construct.Resource   `yaml:"target"`
-		Path   []*construct.Resource `yaml:"path"`
+		Source construct.ResourceId   `yaml:"source"`
+		Target construct.ResourceId   `yaml:"target"`
+		Path   []construct.ResourceId `yaml:"path"`
 	}
 )
 type Topology struct {
@@ -48,18 +50,19 @@ func (e *Engine) VisualizeViews(ctx solution_context.SolutionContext) ([]klotho_
 	iac_topo := &visualizer.File{
 		FilenamePrefix: "iac-",
 		Provider:       "aws",
-		DAG:            ctx.GetDeploymentGraph(),
+		DAG:            ctx.DeploymentGraph(),
 	}
 	dataflow_topo := &visualizer.File{
 		FilenamePrefix: "dataflow-",
 		Provider:       "aws",
-		DAG:            e.GetViewsDag(DataflowView, ctx),
 	}
-	return []klotho_io.File{iac_topo, dataflow_topo}, nil
+	var err error
+	dataflow_topo.DAG, err = e.GetViewsDag(DataflowView, ctx)
+	return []klotho_io.File{iac_topo, dataflow_topo}, err
 }
 
-func (e *Engine) GetResourceVizTag(view string, resource *construct.Resource) Tag {
-	template, err := e.Kb.GetResourceTemplate(resource.ID)
+func (e *Engine) GetResourceVizTag(view string, resource construct.ResourceId) Tag {
+	template, err := e.Kb.GetResourceTemplate(resource)
 
 	if template == nil || err != nil {
 		return NoRenderTag
@@ -71,7 +74,7 @@ func (e *Engine) GetResourceVizTag(view string, resource *construct.Resource) Ta
 	return Tag(tag)
 }
 
-func (e *Engine) RenderConnection(path []*construct.Resource) bool {
+func (e *Engine) RenderConnection(path []construct.ResourceId) bool {
 	for _, res := range path[1 : len(path)-1] {
 		tag := e.GetResourceVizTag(string(DataflowView), res)
 		if tag == BigIconTag || tag == ParentIconTag {
@@ -81,23 +84,25 @@ func (e *Engine) RenderConnection(path []*construct.Resource) bool {
 	return true
 }
 
-func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) construct.Graph {
+func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (construct.Graph, error) {
 	topo := Topology{Nodes: map[string]*TopologyNode{}}
-	dfDag := construct.NewGraph()
+	viewDag := construct.NewGraph()
+	df := ctx.DataflowGraph()
 
-	resources, err := ctx.ListResources()
+	resources, err := construct.ReverseTopologicalSort(df)
 	if err != nil {
-		panic("Error getting resources")
+		return nil, err
 	}
+	var errs error
 	for _, src := range resources {
 		tag := e.GetResourceVizTag(string(DataflowView), src)
 		switch tag {
 		case ParentIconTag:
-			topo.Nodes[src.ID.String()] = &TopologyNode{
+			topo.Nodes[src.String()] = &TopologyNode{
 				Resource: src,
 			}
 		case BigIconTag:
-			topo.Nodes[src.ID.String()] = &TopologyNode{
+			topo.Nodes[src.String()] = &TopologyNode{
 				Resource: src,
 			}
 		case SmallIconTag:
@@ -105,26 +110,30 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) co
 		case NoRenderTag:
 			continue
 		default:
-			panic(fmt.Sprintf("Unknown tag %s, for resource %s", tag, src.ID))
+			errs = errors.Join(errs, fmt.Errorf("Unknown tag %s, for resource %s", tag, src))
+			continue
 		}
 		for _, dst := range resources {
 			if src == dst {
 				continue
 			}
-			dstTag := e.GetResourceVizTag(string(DataflowView), dst)
-			path, err := ctx.ShortestPath(src.ID, dst.ID)
-			if err != nil {
-				panic("Error getting shortest path")
-			}
-			if len(path) == 0 {
+			path, err := graph.ShortestPath(df, src, dst)
+			switch {
+			case errors.Is(err, graph.ErrTargetNotReachable):
+				continue
+
+			case err != nil:
+				errs = errors.Join(errs, err)
 				continue
 			}
+
+			dstTag := e.GetResourceVizTag(string(DataflowView), dst)
 			switch dstTag {
 			case ParentIconTag:
 				if e.RenderConnection(path) {
-					topoNode := topo.Nodes[src.ID.String()]
-					if topoNode.Parent != nil {
-						currpath, err := ctx.ShortestPath(src.ID, topoNode.Parent.ID)
+					topoNode := topo.Nodes[src.String()]
+					if !topoNode.Parent.IsZero() {
+						currpath, err := graph.ShortestPath(df, src, topoNode.Parent)
 						if err != nil {
 							panic("Error getting shortest path")
 						}
@@ -143,50 +152,58 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) co
 					})
 				}
 			case SmallIconTag:
-				if ctx.IsOperationalResourceSideEffect(src, dst) {
-					topoNode := topo.Nodes[src.ID.String()]
+				if knowledgebase.IsOperationalResourceSideEffect(df, ctx.KnowledgeBase(), src, dst) {
+					topoNode := topo.Nodes[src.String()]
 					topoNode.Children = append(topoNode.Children, dst)
 				}
 			case NoRenderTag:
 				continue
 			default:
-				panic(fmt.Sprintf("Unknown tag %s, for resource %s", tag, dst.ID))
+				errs = errors.Join(errs, fmt.Errorf("Unknown tag %s, for resource %s", dstTag, dst))
 			}
 		}
+	}
+	if errs != nil {
+		return nil, errs
 	}
 
 	for _, node := range topo.Nodes {
 		childrenIds := make([]string, len(node.Children))
 		for i, child := range node.Children {
-			childrenIds[i] = child.ID.String()
+			childrenIds[i] = child.String()
 		}
 		properties := map[string]string{}
 		if len(node.Children) > 0 {
 			properties["children"] = strings.Join(childrenIds, ",")
 		}
-		if node.Parent != nil {
-			properties["parent"] = node.Parent.ID.String()
+		if !node.Parent.IsZero() {
+			properties["parent"] = node.Parent.String()
 		}
-		err = dfDag.AddVertex(node.Resource, graph.VertexAttributes(properties))
+		res, err := df.Vertex(node.Resource)
 		if err != nil {
-			return nil
+			errs = errors.Join(errs, err)
+			continue
 		}
+		errs = errors.Join(errs, viewDag.AddVertex(res, graph.VertexAttributes(properties)))
+	}
+	if errs != nil {
+		return nil, errs
 	}
 
 	for _, edge := range topo.Edges {
 		pathStrings := make([]string, len(edge.Path))
 		for i, res := range edge.Path {
-			pathStrings[i] = res.ID.String()
+			pathStrings[i] = res.String()
 		}
 		data := map[string]interface{}{}
 		if len(edge.Path) > 0 {
 			data["path"] = strings.Join(pathStrings, ",")
 		}
-		err := dfDag.AddEdge(edge.Source.ID, edge.Target.ID, graph.EdgeData(data))
-		if err != nil {
-			return nil
-		}
+		errs = errors.Join(errs, viewDag.AddEdge(edge.Source, edge.Target, graph.EdgeData(data)))
+	}
+	if errs != nil {
+		return nil, errs
 	}
 
-	return dfDag
+	return viewDag, nil
 }

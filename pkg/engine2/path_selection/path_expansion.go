@@ -1,90 +1,194 @@
 package path_selection
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
-// ExpandEdges performs calculations to determine the proper path to be inserted into the ResourceGraph.
-//
-// The workflow of the edge expansion is as follows:
-//   - Find shortest path given the constraints on the edge
-//   - Iterate through each edge in path creating the resource if necessary
-func (ctx PathSelectionContext) ExpandEdge(dep graph.Edge[*construct.Resource], validPath Path, edgeData EdgeData) ([]graph.Edge[*construct.Resource], error) {
+// ExpandEdges
+func ExpandEdge(
+	ctx solution_context.SolutionContext,
+	dep construct.ResourceEdge,
+	validPath Path,
+	edgeData EdgeData,
+) ([]construct.ResourceId, error) {
+	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source, dep.Target)
 
-	var result []graph.Edge[*construct.Resource]
-	// It does not matter what order we go in as each edge should be expanded independently. They can still reuse resources since the create methods should be idempotent if resources are the same.
-	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source.ID, dep.Target.ID)
+	g := construct.NewAcyclicGraph(graph.Weighted())
+	var errs error
 
+	// Create the known starting and ending nodes
+	errs = errors.Join(errs, g.AddVertex(dep.Source))
+	errs = errors.Join(errs, g.AddVertex(dep.Target))
+
+	nonBoundaryResources := validPath.Nodes[1 : len(validPath.Nodes)-1]
+
+	// candidates maps the nonboundary index to the set of resources that could satisfy it
+	// this is a helper to make adding all the edges to the graph easier.
+	candidates := make([]set.Set[construct.ResourceId], len(nonBoundaryResources))
+
+	// Create new nodes for the path
+	newResources := make(set.Set[construct.ResourceId])
 	name := fmt.Sprintf("%s_%s", dep.Source.ID.Name, dep.Target.ID.Name)
-
-	var previousNode *construct.Resource
-	var edgeTemplate *knowledgebase.EdgeTemplate
-
-PATH:
-	for i, node := range validPath.Nodes {
-		destNode := construct.CreateResource(node)
-		if i == 0 {
-			previousNode = dep.Source
-			continue
-		} else if i == len(validPath.Nodes)-1 {
-			destNode = dep.Target
-		} else {
-			// Create a new interface of the destination nodes type if it does not exist
-			destNode.ID.Name = fmt.Sprintf("%s_%s", destNode.ID.Type, name)
-			// Determine if the destination node is the same type as what is specified in the constraints as must exist
-			for _, mustExistRes := range edgeData.Constraint.NodeMustExist {
-				if mustExistRes.ID.Type == destNode.ID.Type && mustExistRes.ID.Provider == destNode.ID.Provider {
-					destNode = &mustExistRes
-				}
-			}
+	for i, node := range nonBoundaryResources {
+		if node.Name == "" {
+			node.Name = name
 		}
-		edgeTemplate = ctx.KB.GetEdgeTemplate(previousNode.ID, node)
-
-		// If the edge specifies that it can reuse upstream or downstream resources, we want to find the first resource which satisfies the reuse criteria and add that as the dependency.
-		// If there is no resource that satisfies the reuse criteria, we want to add the original direct dependency
-		switch edgeTemplate.Reuse {
-		case knowledgebase.ReuseUpstream:
-			DownstreamResources, err := ctx.Graph.Downstream(dep.Source, 3)
-			if err != nil {
-				return nil, err
-			}
-			for _, res := range DownstreamResources {
-				if destNode.ID.QualifiedTypeName() == res.ID.QualifiedTypeName() {
-					result = append(result, graph.Edge[*construct.Resource]{
-						Source: res,
-						Target: dep.Target,
-					})
-					break PATH
-				}
-			}
-		case knowledgebase.ReuseDownstream:
-			upstreamResources, err := ctx.Graph.Upstream(dep.Target, 3)
-			if err != nil {
-				return nil, err
-			}
-			for _, res := range upstreamResources {
-				if previousNode.ID.QualifiedTypeName() == res.ID.QualifiedTypeName() {
-					result = []graph.Edge[*construct.Resource]{
-						{
-							Source: dep.Source,
-							Target: res,
-						},
-					}
-					break PATH
-				}
-			}
-		}
-		result = append(result, graph.Edge[*construct.Resource]{
-			Source: previousNode,
-			Target: destNode,
-		})
-		previousNode = destNode
+		errs = errors.Join(errs, g.AddVertex(construct.CreateResource(node)))
+		newResources.Add(node)
+		candidates[i] = make(set.Set[construct.ResourceId])
+		candidates[i].Add(node)
+	}
+	if errs != nil {
+		return nil, errs
 	}
 
-	return result, nil
+	// NOTE: if for some reason the path could contain a duplicated selector
+	// this would just add the resource to the first match. I (gordon) don't
+	// think this should happen for a call into [ExpandEdge], but noting it just in case.
+	matchesNonBoundary := func(id construct.ResourceId) int {
+		for i, node := range nonBoundaryResources {
+			if node.Matches(id) {
+				return i
+			}
+		}
+		return -1
+	}
+
+	// Add all the candidates from the graph based on what's downstream of the source or upstream of the target
+	downstreams, err := solution_context.Downstream(ctx, dep.Source.ID, knowledgebase.AllDepsLayer)
+	if err != nil {
+		return nil, err
+	}
+	for _, downId := range downstreams {
+		matchIdx := matchesNonBoundary(downId)
+		if matchIdx < 0 {
+			continue
+		}
+		down, err := ctx.RawView().Vertex(downId)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		err = g.AddVertex(down)
+		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+			errs = errors.Join(errs, err)
+		}
+		candidates[matchIdx].Add(downId)
+	}
+	upstreams, err := solution_context.Upstream(ctx, dep.Target.ID, knowledgebase.AllDepsLayer)
+	if err != nil {
+		return nil, err
+	}
+	for _, upId := range upstreams {
+		matchIdx := matchesNonBoundary(upId)
+		if matchIdx < 0 {
+			continue
+		}
+		up, err := ctx.RawView().Vertex(upId)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		err = g.AddVertex(up)
+		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+			errs = errors.Join(errs, err)
+		}
+		candidates[matchIdx].Add(upId)
+	}
+	if errs != nil {
+		return nil, errs
+	}
+
+	predecessors, err := ctx.DataflowGraph().PredecessorMap()
+	if err != nil {
+		return nil, err
+	}
+
+	adjacent, err := ctx.DataflowGraph().AdjacencyMap()
+	if err != nil {
+		return nil, err
+	}
+
+	// addEdge checks whether the edge should be added according to the following rules:
+	// 1. If it connects two new resources, always add it
+	// 2. If the edge exists, and its template specifies it is unique, only add it if it's an existing edge
+	// 3. Otherwise, add it
+	addEdge := func(source, target construct.ResourceId) {
+		newSource := newResources.Contains(source)
+		newTarget := newResources.Contains(target)
+		if newSource && newTarget {
+			// new edges get double weight to encourage using existing resources
+			errs = errors.Join(errs, g.AddEdge(source, target, graph.EdgeWeight(2)))
+			return
+		}
+
+		if !newSource && !newTarget {
+			// edge already exists in the graph, just add it
+			errs = errors.Join(errs, g.AddEdge(source, target, graph.EdgeWeight(1)))
+			return
+		}
+
+		tmpl := ctx.KnowledgeBase().GetEdgeTemplate(source, target)
+		if tmpl == nil {
+			errs = errors.Join(errs, fmt.Errorf("could not find edge template for %s -> %s", source, target))
+			return
+		}
+		if newSource && tmpl.Unique.Source {
+			pred := predecessors[target]
+			for origSource := range pred {
+				if tmpl.Source.Matches(origSource) {
+					return
+				}
+			}
+		}
+		if newTarget && tmpl.Unique.Target {
+			adj := adjacent[source]
+			for origTarget := range adj {
+				if tmpl.Target.Matches(origTarget) {
+					return
+				}
+			}
+		}
+		errs = errors.Join(errs, g.AddEdge(source, target, graph.EdgeWeight(1)))
+	}
+
+	for i, resCandidates := range candidates {
+		for candidate := range resCandidates {
+			if i == 0 {
+				addEdge(dep.Source.ID, candidate)
+				continue
+			}
+
+			isNew := newResources.Contains(candidate)
+			sources := candidates[i-1]
+
+			if isNew {
+				for source := range sources {
+					addEdge(source, candidate)
+				}
+			} else {
+				for pred := range predecessors[candidate] {
+					if sources.Contains(pred) {
+						addEdge(pred, candidate)
+					}
+				}
+			}
+		}
+	}
+	for candidate := range candidates[len(candidates)-1] {
+		addEdge(candidate, dep.Target.ID)
+	}
+	if errs != nil {
+		return nil, errs
+	}
+
+	return graph.ShortestPath(g, dep.Source.ID, dep.Target.ID)
 }

@@ -1,9 +1,11 @@
 package solution_context
 
+import construct "github.com/klothoplatform/klotho/pkg/construct2"
+
 type (
 	KV struct {
-		key   string
-		value any
+		Key   string
+		Value any
 	}
 
 	DecisionRecords interface {
@@ -16,8 +18,38 @@ type (
 	}
 
 	SolveDecision interface {
-		// having a private method here prevents other packages from implementing this interface
-		// not necessary, but could prevent some accidental bad practices from emerging
+		// internal is a private method to prevent other packages from implementing this interface.
+		// It's not necessary, but it could prevent some accidental bad practices from emerging.
 		internal()
 	}
+
+	AddResourceDecision struct {
+		Resource construct.ResourceId
+	}
+
+	RemoveResourceDecision struct {
+		Resource construct.ResourceId
+	}
+
+	AddDependencyDecision struct {
+		From construct.ResourceId
+		To   construct.ResourceId
+	}
+
+	RemoveDependencyDecision struct {
+		From construct.ResourceId
+		To   construct.ResourceId
+	}
+
+	SetPropertyDecision struct {
+		Resource construct.ResourceId
+		Property string
+		Value    any
+	}
 )
+
+func (d AddResourceDecision) internal()      {}
+func (d AddDependencyDecision) internal()    {}
+func (d RemoveResourceDecision) internal()   {}
+func (d RemoveDependencyDecision) internal() {}
+func (d SetPropertyDecision) internal()      {}

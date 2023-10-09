@@ -50,7 +50,7 @@ func (g *MockGraph) ReplaceResourceId(oldId construct.ResourceId, resource const
 	args := g.Called(oldId, resource)
 	return args.Error(0)
 }
-func (g *MockGraph) ConfigureResource(resource *construct.Resource, configuration knowledgebase.Configuration, data knowledgebase.ConfigTemplateData, action string) error {
+func (g *MockGraph) ConfigureResource(resource *construct.Resource, configuration knowledgebase.Configuration, data knowledgebase.DynamicValueData, action string) error {
 	args := g.Called(resource, configuration, data, action)
 	return args.Error(0)
 }
@@ -58,4 +58,14 @@ func (g *MockGraph) ConfigureResource(resource *construct.Resource, configuratio
 func (g *MockGraph) ShortestPath(from, to construct.ResourceId) ([]*construct.Resource, error) {
 	args := g.Called(from, to)
 	return args.Get(0).([]*construct.Resource), args.Error(1)
+}
+
+func (g *MockGraph) KnowledgeBase() knowledgebase.TemplateKB {
+	args := g.Called()
+	return args.Get(0).(knowledgebase.TemplateKB)
+}
+
+func (g *MockGraph) GetDataflowGraph() construct.Graph {
+	args := g.Called()
+	return args.Get(0).(construct.Graph)
 }

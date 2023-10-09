@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
@@ -20,9 +21,9 @@ type (
 	// EdgeConstraint is an object defined on EdgeData which can influence the path picked when expansion occurs.
 	EdgeConstraint struct {
 		// NodeMustExist specifies a list of resources which must exist in the path when edge expansion occurs. The resources type will be correlated to the types in the generated paths
-		NodeMustExist []construct.Resource
+		NodeMustExist []construct.ResourceId
 		// NodeMustNotExist specifies a list of resources which must not exist when edge expansion occurs. The resources type will be correlated to the types in the generated paths
-		NodeMustNotExist []construct.Resource
+		NodeMustNotExist []construct.ResourceId
 	}
 
 	// EdgeData is an object attached to edges in the ResourceGraph to help the knowledge base understand context when performing expansion and configuration tasks
@@ -32,25 +33,15 @@ type (
 		// Attributes is a map of attributes which can be used to store arbitrary data on the edge
 		Attributes map[string]any
 	}
-
-	Graph interface {
-		Downstream(res *construct.Resource, layer int) ([]*construct.Resource, error)
-		Upstream(res *construct.Resource, layer int) ([]*construct.Resource, error)
-	}
-
-	PathSelectionContext struct {
-		KB    knowledgebase.TemplateKB
-		Graph Graph
-	}
 )
 
-func (ctx PathSelectionContext) SelectPath(dep graph.Edge[*construct.Resource], edgeData EdgeData) ([]graph.Edge[*construct.Resource], error) {
+func SelectPath(ctx solution_context.SolutionContext, dep construct.ResourceEdge, edgeData EdgeData) ([]construct.ResourceId, error) {
 	// if its a direct edge and theres no constraint on what needs to exist then we should be able to just return
-	if ctx.KB.HasDirectPath(dep.Source.ID, dep.Target.ID) && len(edgeData.Constraint.NodeMustExist) == 0 {
-		return []graph.Edge[*construct.Resource]{dep}, nil
+	if ctx.KnowledgeBase().HasDirectPath(dep.Source.ID, dep.Target.ID) && len(edgeData.Constraint.NodeMustExist) == 0 {
+		return []construct.ResourceId{dep.Source.ID, dep.Target.ID}, nil
 	}
 
-	paths, err := ctx.determineCorrectPaths(dep, edgeData)
+	paths, err := determineCorrectPaths(ctx, dep, edgeData)
 	if err != nil {
 		zap.S().Warnf("got error when determining correct path for edge %s -> %s, err: %s", dep.Source.ID, dep.Target.ID, err.Error())
 		return nil, err
@@ -58,18 +49,18 @@ func (ctx PathSelectionContext) SelectPath(dep graph.Edge[*construct.Resource], 
 	if len(paths) == 0 {
 		return nil, fmt.Errorf("no paths found that satisfy the attributes, %s, and do not contain unnecessary hops for edge %s -> %s", edgeData.Attributes, dep.Source.ID, dep.Target.ID)
 	}
-	path := ctx.findOptimalPath(paths)
+	path := findOptimalPath(paths)
 	if len(path.Nodes) == 0 {
 		return nil, fmt.Errorf("empty path found that satisfy the attributes, %s, and do not contain unnecessary hops for edge %s -> %s", edgeData.Attributes, dep.Source.ID, dep.Target.ID)
 	}
-	return ctx.ExpandEdge(dep, path, edgeData)
+	return ExpandEdge(ctx, dep, path, edgeData)
 }
 
 // determineCorrectPath determines the correct path to take to get from the dependency's source node to destination node, using the knowledgebase of edges
 // It first finds all possible paths given the initial source and destination node. It then filters out any paths that do not satisfy the constraints of the edge
 // It then filters out any paths that contain unnecessary hops to get to the destination
-func (ctx PathSelectionContext) determineCorrectPaths(dep graph.Edge[*construct.Resource], edgeData EdgeData) ([]Path, error) {
-	paths, err := ctx.KB.AllPaths(dep.Source.ID, dep.Target.ID)
+func determineCorrectPaths(ctx solution_context.SolutionContext, dep construct.ResourceEdge, edgeData EdgeData) ([]Path, error) {
+	paths, err := ctx.KnowledgeBase().AllPaths(dep.Source.ID, dep.Target.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +79,7 @@ PATHS:
 					prev = res
 					continue
 				}
-				edgeTemplate := ctx.KB.GetEdgeTemplate(prev.Id(), res.Id())
+				edgeTemplate := ctx.KnowledgeBase().GetEdgeTemplate(prev.Id(), res.Id())
 				if edgeTemplate == nil {
 					continue PATHS
 				}
@@ -100,17 +91,17 @@ PATHS:
 		}
 
 		// Check if the path satisfies all constraints on the edge
-		types := []string{}
+		types := make(set.Set[string])
 		for _, res := range p {
-			types = append(types, res.QualifiedTypeName)
+			types.Add(res.QualifiedTypeName)
 		}
 		for _, c := range edgeData.Constraint.NodeMustExist {
-			if !collectionutil.Contains(types, c.ID.QualifiedTypeName()) {
+			if !types.Contains(c.QualifiedTypeName()) {
 				continue PATHS
 			}
 		}
 		for _, c := range edgeData.Constraint.NodeMustNotExist {
-			if collectionutil.Contains(types, c.ID.QualifiedTypeName()) {
+			if types.Contains(c.QualifiedTypeName()) {
 				continue PATHS
 			}
 		}
@@ -148,7 +139,7 @@ PATHS:
 	}
 	for _, p := range satisfyAttributeData {
 		// Ensure we arent taking unnecessary hops to get to the destination
-		if !ctx.containsUnneccessaryHopsInPath(dep, p.Nodes, edgeData, templates) {
+		if !containsUnneccessaryHopsInPath(ctx, dep, p.Nodes, edgeData, templates) {
 			validPaths = append(validPaths, p)
 		}
 	}
@@ -160,13 +151,13 @@ PATHS:
 // We check if the source and destination of the dependency have a functionality. If they do, we check if the functionality of the source or destination
 // is the same as the functionality of the source or destination of the edge in the path. If it is then we ensure that the source or destination of the edge
 // in the path is not the same as the source or destination of the dependency. If it is then we know that the edge in the path is an unnecessary hop to get to the destination
-func (ctx PathSelectionContext) containsUnneccessaryHopsInPath(dep graph.Edge[*construct.Resource], p []construct.ResourceId, edgeData EdgeData, templates map[string]*knowledgebase.ResourceTemplate) bool {
+func containsUnneccessaryHopsInPath(ctx solution_context.SolutionContext, dep construct.ResourceEdge, p []construct.ResourceId, edgeData EdgeData, templates map[string]*knowledgebase.ResourceTemplate) bool {
 	if len(p) == 2 {
 		return false
 	}
-	var mustExistTypes []string
+	mustExistTypes := make(set.Set[string])
 	for _, res := range edgeData.Constraint.NodeMustExist {
-		mustExistTypes = append(mustExistTypes, res.ID.QualifiedTypeName())
+		mustExistTypes.Add(res.QualifiedTypeName())
 	}
 
 	// Track the functionality we find in the path to make sure we dont duplicate resource functions
@@ -186,7 +177,7 @@ func (ctx PathSelectionContext) containsUnneccessaryHopsInPath(dep graph.Edge[*c
 
 		dstFunctionality := templates[dep.Target.ID.QualifiedTypeName()].GetFunctionality()
 
-		if collectionutil.Contains(mustExistTypes, res.QualifiedTypeName()) {
+		if mustExistTypes.Contains(res.QualifiedTypeName()) {
 			continue
 		}
 
@@ -210,7 +201,7 @@ func (ctx PathSelectionContext) containsUnneccessaryHopsInPath(dep graph.Edge[*c
 
 // findOptimal path looks for the lowest weight and then shortest path of that weight.
 // If there are multiple paths, the keys are sorted to be deterministic in which path is chosen
-func (ctx PathSelectionContext) findOptimalPath(paths []Path) Path {
+func findOptimalPath(paths []Path) Path {
 	var validPath Path
 
 	var sameLengthPaths []Path

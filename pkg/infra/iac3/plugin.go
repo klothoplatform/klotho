@@ -52,7 +52,7 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 	}
 
 	tc := &TemplatesCompiler{
-		graph:     ctx.GetDeploymentGraph(),
+		graph:     ctx.DeploymentGraph(),
 		templates: &templateStore{fs: templatesFS},
 	}
 	tc.vars, err = VariablesFromGraph(tc.graph)
@@ -76,7 +76,6 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 
 	var errs error
 	for _, r := range resources {
-		fmt.Printf("rendering %s\n", r)
 		errs = errors.Join(errs, tc.RenderResource(buf, r))
 		buf.WriteString("\n")
 	}

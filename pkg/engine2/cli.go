@@ -45,16 +45,6 @@ var hadErrors = atomic.NewBool(false)
 
 const consoleEncoderName = "engine-cli"
 
-func init() {
-	err := zap.RegisterEncoder(consoleEncoderName, func(zcfg zapcore.EncoderConfig) (zapcore.Encoder, error) {
-		return logging.NewConsoleEncoder(architectureEngineCfg.verbose, hadWarnings, hadErrors), nil
-	})
-
-	if err != nil {
-		panic(err)
-	}
-}
-
 func setupLogger(analyticsClient *analytics.Client) (*zap.Logger, error) {
 	var zapCfg zap.Config
 	if architectureEngineCfg.verbose {
@@ -65,6 +55,12 @@ func setupLogger(analyticsClient *analytics.Client) (*zap.Logger, error) {
 	if engineCfg.jsonLog {
 		zapCfg.Encoding = "json"
 	} else {
+		err := zap.RegisterEncoder(consoleEncoderName, func(zcfg zapcore.EncoderConfig) (zapcore.Encoder, error) {
+			return logging.NewConsoleEncoder(architectureEngineCfg.verbose, hadWarnings, hadErrors), nil
+		})
+		if err != nil {
+			return nil, err
+		}
 		zapCfg.Encoding = consoleEncoderName
 	}
 
@@ -74,7 +70,7 @@ func setupLogger(analyticsClient *analytics.Client) (*zap.Logger, error) {
 	}))
 }
 
-func (em *EngineMain) AddEngineCli(root *cobra.Command) error {
+func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 	engineGroup := &cobra.Group{
 		ID:    "engine",
 		Title: "engine",
@@ -121,7 +117,6 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) error {
 	root.AddCommand(listResourceTypesCmd)
 	root.AddCommand(listAttributesCmd)
 	root.AddCommand(runCmd)
-	return nil
 }
 
 func (em *EngineMain) AddEngine() error {
@@ -205,12 +200,12 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	// if err != nil {
 	// 	return errors.Errorf("failed to generate views %s", err.Error())
 	// }
-	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].GetDataflowGraph()})
+	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].DataflowGraph()})
 	if err != nil {
 		return errors.Errorf("failed to marshal graph: %s", err.Error())
 	}
 	files = append(files, &io.RawFile{
-		FPath:   "state.yaml",
+		FPath:   "resources.yaml",
 		Content: b,
 	},
 	)

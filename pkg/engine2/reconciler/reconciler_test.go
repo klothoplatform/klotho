@@ -1,4 +1,4 @@
-package solution_context
+package reconciler
 
 import (
 	"testing"
@@ -74,14 +74,14 @@ func Test_reconnectFunctionalResources(t *testing.T) {
 			mockKB.On(m.Method, m.Arguments...).Return(m.ReturnArguments...)
 		}
 		ctx := NewSolutionContext(mockKB)
-		ctx.dataflowGraph = graphtest.MakeGraph(t, construct.NewGraph(), tt.initialstate...)
-		ctx.deploymentGraph = graphtest.MakeGraph(t, construct.NewGraph(), tt.initialstate...)
+		ctx.DataflowGraph = graphtest.MakeGraph(t, construct.NewGraph(), tt.initialstate...)
+		ctx.DeploymentGraph = graphtest.MakeGraph(t, construct.NewGraph(), tt.initialstate...)
 		err := ctx.reconnectFunctionalResources(tt.resource)
 		if !assert.NoError(err) {
 			return
 		}
-		graphtest.AssertGraphEqual(t, graphtest.MakeGraph(t, construct.NewGraph(), tt.want.dataflow...), ctx.dataflowGraph)
-		graphtest.AssertGraphEqual(t, graphtest.MakeGraph(t, construct.NewGraph(), tt.want.deployment...), ctx.deploymentGraph)
+		graphtest.AssertGraphEqual(t, graphtest.MakeGraph(t, construct.NewGraph(), tt.want.dataflow...), ctx.DataflowGraph)
+		graphtest.AssertGraphEqual(t, graphtest.MakeGraph(t, construct.NewGraph(), tt.want.deployment...), ctx.DeploymentGraph)
 		mockKB.AssertExpectations(t)
 	}
 

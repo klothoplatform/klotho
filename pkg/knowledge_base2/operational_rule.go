@@ -8,9 +8,9 @@ import (
 
 type (
 	OperationalRule struct {
-		If                 string               `json:"if" yaml:"if"`
-		Steps              []*OperationalStep   `json:"steps" yaml:"steps"`
-		ConfigurationRules []*ConfigurationRule `json:"configuration_rules" yaml:"configuration_rules"`
+		If                 string              `json:"if" yaml:"if"`
+		Steps              []OperationalStep   `json:"steps" yaml:"steps"`
+		ConfigurationRules []ConfigurationRule `json:"configuration_rules" yaml:"configuration_rules"`
 	}
 
 	// OperationalRule defines a rule that must pass checks and actions which must be carried out to make a resource operational
@@ -54,18 +54,18 @@ type (
 )
 
 const (
-	Upstream   Direction = "upstream"
-	Downstream Direction = "downstream"
+	DirectionUpstream   Direction = "upstream"
+	DirectionDownstream Direction = "downstream"
 
 	SpreadSelectionOperator  SelectionOperator = "spread"
 	ClusterSelectionOperator SelectionOperator = "cluster"
 	ClosestSelectionOperator SelectionOperator = "closest"
 )
 
-func (step OperationalStep) ExtractResourcesAndTypes(ctx ConfigTemplateContext, data ConfigTemplateData) (
-	resources []construct.ResourceId,
-	resource_types []construct.ResourceId,
-	errs error) {
+func (step OperationalStep) ExtractResourcesAndTypes(
+	ctx DynamicValueContext,
+	data DynamicValueData,
+) (resources []construct.ResourceId, resource_types []construct.ResourceId, errs error) {
 	for _, resStr := range step.Resources {
 		var selectors construct.ResourceList
 		selector, err := ctx.ExecuteDecodeAsResourceId(resStr, data)

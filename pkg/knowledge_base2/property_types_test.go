@@ -235,8 +235,8 @@ func Test_parsePropertyValue(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert := assert.New(t)
-			ctx := ConfigTemplateContext{}
-			actual, err := test.property.Parse(test.value, ctx, ConfigTemplateData{})
+			ctx := DynamicValueContext{}
+			actual, err := test.property.Parse(test.value, ctx, DynamicValueData{})
 			if test.expectedErr {
 				assert.Error(err)
 				return
@@ -340,8 +340,8 @@ func Test_MapParse(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert := assert.New(t)
-			ctx := ConfigTemplateContext{}
-			actual, err := test.property.Parse(test.value, ctx, ConfigTemplateData{})
+			ctx := DynamicValueContext{}
+			actual, err := test.property.Parse(test.value, ctx, DynamicValueData{})
 			if test.wantErr {
 				assert.Error(err)
 				return
@@ -438,8 +438,8 @@ func Test_ListParse(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert := assert.New(t)
-			ctx := ConfigTemplateContext{}
-			actual, err := test.property.Parse(test.value, ctx, ConfigTemplateData{})
+			ctx := DynamicValueContext{}
+			actual, err := test.property.Parse(test.value, ctx, DynamicValueData{})
 			if test.wantErr {
 				assert.Error(err)
 				return

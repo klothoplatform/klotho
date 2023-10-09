@@ -82,8 +82,12 @@ func (ctx *ConstructExpansionContext) findPossibleExpansions(expansionSet Expans
 				unsatisfiedAttributes = append(unsatisfiedAttributes, ms)
 			}
 		}
-		baseRes := *construct.CreateResource(construct.ResourceId{Type: res.Id().Type, Name: expansionSet.Construct.ID.Name, Provider: res.Id().Provider})
-		expansions, err := ctx.findExpansions(unsatisfiedAttributes, []graph.Edge[construct.Resource](nil), baseRes, functionality)
+		baseRes := construct.CreateResource(construct.ResourceId{
+			Provider: res.Id().Provider,
+			Type:     res.Id().Type,
+			Name:     expansionSet.Construct.ID.Name,
+		})
+		expansions, err := ctx.findExpansions(unsatisfiedAttributes, []graph.Edge[construct.Resource](nil), *baseRes, functionality)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
 			continue

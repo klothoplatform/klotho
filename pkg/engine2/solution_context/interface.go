@@ -1,0 +1,34 @@
+package solution_context
+
+import (
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+)
+
+type (
+	SolutionContext interface {
+		// With returns a new context with a new key/value pair pushed onto the context stack.
+		// Implementations must not mutate the original context.
+		With(key string, value interface{}) SolutionContext
+		KnowledgeBase() knowledgebase.TemplateKB
+		Constraints() *constraints.Constraints
+		RecordDecision(d SolveDecision)
+
+		DataflowGraph() construct.Graph
+		DeploymentGraph() construct.Graph
+
+		// OperationalView returns a graph that makes any resources or edges added operational as part of the operation.
+		// Read operations come from the Dataflow graph.
+		// Write operations will update both the Dataflow and Deployment graphs.
+		OperationalView() construct.Graph
+		// RawView returns a graph that makes no changes beyond explicitly requested operations.
+		// Read operations come from the Dataflow graph.
+		// Write operations will update both the Dataflow and Deployment graphs.
+		RawView() construct.Graph
+	}
+)
+
+func DynamicCtx(sol SolutionContext) knowledgebase.DynamicValueContext {
+	return knowledgebase.DynamicValueContext{DAG: sol.DataflowGraph(), KB: sol.KnowledgeBase()}
+}

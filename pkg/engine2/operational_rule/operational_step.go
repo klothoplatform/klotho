@@ -1,41 +1,49 @@
 package operational_rule
 
 import (
+	"errors"
 	"fmt"
-	"reflect"
 
+	"github.com/dominikbraun/graph"
+	"github.com/iancoleman/strcase"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/engine2/reconciler"
+	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
-	"github.com/pkg/errors"
+	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
 type (
 	OperationalResourceAction struct {
-		Step       *knowledgebase.OperationalStep
+		Step       knowledgebase.OperationalStep
 		CurrentIds []construct.ResourceId
 	}
 )
 
-func (ctx OperationalRuleContext) HandleOperationalStep(step *knowledgebase.OperationalStep) error {
+func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.OperationalStep) ([]*construct.Resource, error) {
 	// Default to 1 resource needed
 	if step.NumNeeded == 0 {
 		step.NumNeeded = 1
 	}
 
-	resourceId, err := ctx.ConfigCtx.ExecuteDecodeAsResourceId(step.Resource, ctx.Data)
-	if err != nil {
-		return err
+	resourceId := ctx.Data.Resource
+	if resourceId.IsZero() {
+		var err error
+		resourceId, err = ctx.ConfigCtx.ExecuteDecodeAsResourceId(step.Resource, ctx.Data)
+		if err != nil {
+			return nil, err
+		}
 	}
-	resource, _ := ctx.Graph.GetResource(resourceId)
-	if resource == nil {
-		return errors.Errorf("resource %s not found", resourceId)
+	resource, err := ctx.Solution.RawView().Vertex(resourceId)
+	if err != nil {
+		return nil, fmt.Errorf("resource %s not found: %w", resourceId, err)
 	}
 
 	replace, err := ctx.shouldReplace(step)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// If we are replacing we want to remove all dependencies and clear the property
@@ -45,24 +53,24 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step *knowledgebase.Oper
 		if replace {
 			err := ctx.clearProperty(step, resource, ctx.Property.Path)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		var err error
 		ids, err = ctx.addDependenciesFromProperty(step, resource, ctx.Property.Path)
 		if err != nil {
-			return err
+			return nil, err
 		}
-	} else {
-		ids, err = ctx.getResourcesForStep(step, resource)
+	} else { // an edge rule won't have a Property
+		ids, err = ctx.getResourcesForStep(step, resource.ID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if replace {
 			for _, id := range ids {
-				err := ctx.Graph.RemoveDependency(id, resource.ID)
+				err := ctx.Solution.RawView().RemoveEdge(id, resource.ID)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 		}
@@ -71,7 +79,7 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step *knowledgebase.Oper
 
 	explicitResources, _, err := step.ExtractResourcesAndTypes(ctx.ConfigCtx, ctx.Data)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	allExplicitResourcesSatisfied := true
 	for _, id := range explicitResources {
@@ -82,11 +90,11 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step *knowledgebase.Oper
 	}
 
 	if len(ids) > step.NumNeeded && allExplicitResourcesSatisfied {
-		return nil
+		return nil, nil
 	}
 
 	if step.FailIfMissing {
-		return errors.Errorf("operational resource error for %s", resource.ID)
+		return nil, fmt.Errorf("operational resource error for %s", resource.ID)
 	}
 
 	action := OperationalResourceAction{
@@ -96,90 +104,124 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step *knowledgebase.Oper
 	return ctx.handleOperationalResourceAction(resource, action)
 }
 
-func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *construct.Resource, action OperationalResourceAction) error {
+func (ctx OperationalRuleContext) handleOperationalResourceAction(
+	resource *construct.Resource,
+	action OperationalResourceAction,
+) ([]*construct.Resource, error) {
 	numNeeded := action.Step.NumNeeded - len(action.CurrentIds)
 	if numNeeded <= 0 {
-		return nil
+		// should already be checked in [HandleOperationalStep] but double check to be defensive
+		return nil, nil
 	}
 
 	explicitResources, resourceTypes, err := action.Step.ExtractResourcesAndTypes(ctx.ConfigCtx, ctx.Data)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	var createdResources []*construct.Resource
+	var errs error
+
+	createResource := func(id construct.ResourceId) *construct.Resource {
+		numNeeded--
+		newRes := construct.CreateResource(id)
+		err := ctx.Solution.RawView().AddVertex(newRes)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			return newRes
+		}
+		err = ctx.addDependencyForDirection(action.Step, resource, newRes)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			return newRes
+		}
+		createdResources = append(createdResources, newRes)
+		return newRes
 	}
 
 	// Add explicitly named resources first
 	for _, explicitResource := range explicitResources {
 		if numNeeded <= 0 {
-			return nil
+			return nil, nil
 		}
-		res, _ := ctx.Graph.GetResource(explicitResource)
-		if res == nil {
-			res = construct.CreateResource(explicitResource)
+		_, err := ctx.Solution.RawView().Vertex(explicitResource)
+		switch {
+		case errors.Is(err, graph.ErrVertexNotFound):
+			createResource(explicitResource)
+		case err != nil:
+			errs = errors.Join(errs, err)
+			continue
 		}
-		err := ctx.addDependencyForDirection(action.Step, resource, res)
-		if err != nil {
-			return err
-		}
-		numNeeded--
+	}
+	if errs != nil {
+		return nil, errs
 	}
 	if numNeeded <= 0 {
-		return nil
+		return createdResources, nil
 	}
 
 	// If the rule contains classifications, we are going to get the resource types which satisfy those and put it onto the list of applicable resource types
 	if len(action.Step.Classifications) > 0 {
-		resourceTypes = append(resourceTypes, ctx.findResourcesWhichSatisfyStepClassifications(action.Step, resource)...)
+		resourceTypes = append(resourceTypes, ctx.findResourcesWhichSatisfyStepClassifications(action.Step, resource.ID)...)
 	}
 
 	// If there are no resource types, we can't do anything since we dont understand what resources will satisfy the rule
 	if len(resourceTypes) == 0 {
-		return errors.Errorf("no resources found that can satisfy the operational resource error")
+		return nil, fmt.Errorf("no resources found that can satisfy the operational resource error")
 	}
 
 	if action.Step.Unique {
 		// loop over the number of resources still needed and create them if the unique flag is true
 		for numNeeded > 0 {
 			typeToCreate := resourceTypes[0]
-			newRes := construct.CreateResource(typeToCreate)
-			ctx.generateResourceName(newRes, resource, action.Step.Unique)
-			err := ctx.addDependencyForDirection(action.Step, resource, newRes)
-			if err != nil {
-				return err
-			}
-			numNeeded--
+			createResource(ctx.addResourceName(typeToCreate))
 		}
 	}
 
-	for _, typeToCreate := range resourceTypes {
+	dynCtx := solution_context.DynamicCtx(ctx.Solution)
 
-		namespacedIds, err := ctx.KB.GetAllowedNamespacedResourceIds(ctx.ConfigCtx, typeToCreate)
+typeLoop:
+	for _, typeToCreate := range resourceTypes {
+		namespacedIds, err := ctx.Solution.KnowledgeBase().GetAllowedNamespacedResourceIds(dynCtx, typeToCreate)
 		if err != nil {
-			return err
+			errs = errors.Join(errs, err)
+			continue
 		}
-		var namespaceResourcesForResource []*construct.Resource
+		namespaceResourcesForResource := make(set.Set[construct.ResourceId])
 		for _, namespacedId := range namespacedIds {
-			if ctx.KB.HasFunctionalPath(resource.ID, namespacedId) {
-				downstreams, err := ctx.Graph.DownstreamOfType(resource, 3, namespacedId.QualifiedTypeName())
+			if ctx.Solution.KnowledgeBase().HasFunctionalPath(resource.ID, namespacedId) {
+				downstreams, err := solution_context.Downstream(ctx.Solution, resource.ID, knowledgebase.FirstFunctionalLayer)
 				if err != nil {
-					return err
+					errs = errors.Join(errs, err)
+					continue typeLoop
 				}
-				namespaceResourcesForResource = append(namespaceResourcesForResource, downstreams...)
+				namespaceResourcesForResource.Add(downstreams...)
 			}
 		}
 
 		var availableResources []*construct.Resource
-		resources, err := ctx.Graph.ListResources()
+		ids, err := construct.ReverseTopologicalSort(ctx.Solution.DataflowGraph())
 		if err != nil {
-			return err
+			errs = errors.Join(errs, err)
+			continue
+		}
+		resources, err := construct.ResolveIds(ctx.Solution.DataflowGraph(), ids)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
 		}
 		for _, res := range resources {
 			if collectionutil.Contains(action.CurrentIds, res.ID) {
 				continue
 			}
 			if res.ID.QualifiedTypeName() == typeToCreate.QualifiedTypeName() {
-				namespaceResource := ctx.KB.GetResourcesNamespaceResource(res)
-				// needed resource is not namespaced or resource doesnt have any namespace types downstream or the namespaced resource is using the right namespace
-				if len(namespacedIds) == 0 || len(namespaceResourcesForResource) == 0 || collectionutil.Contains(namespaceResourcesForResource, namespaceResource) {
+				namespaceResource := ctx.Solution.KnowledgeBase().GetResourcesNamespaceResource(res)
+				// needed resource is not namespaced or resource doesnt have any namespace types
+				// downstream or the namespaced resource is using the right namespace
+				if len(namespacedIds) == 0 ||
+					len(namespaceResourcesForResource) == 0 ||
+					namespaceResourcesForResource.Contains(namespaceResource) {
+
 					availableResources = append(availableResources, res)
 				}
 			}
@@ -188,35 +230,40 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(resource *cons
 		// TODO: Here we should evaluate resources based on the operator, so spread, etc so that we can order the selection of resources
 		for _, res := range availableResources {
 			if numNeeded <= 0 {
-				return nil
+				break
 			}
 			err := ctx.addDependencyForDirection(action.Step, resource, res)
 			if err != nil {
-				return err
+				errs = errors.Join(errs, err)
+				continue typeLoop
 			}
 			numNeeded--
 		}
 	}
+	if errs != nil {
+		return nil, errs
+	}
 
 	for numNeeded > 0 {
 		typeToCreate := resourceTypes[0]
-		newRes := construct.CreateResource(typeToCreate)
-		ctx.generateResourceName(newRes, resource, action.Step.Unique)
-		err := ctx.addDependencyForDirection(action.Step, resource, newRes)
-		if err != nil {
-			return err
-		}
-		numNeeded--
+		createResource(ctx.addResourceName(typeToCreate))
+	}
+	if errs != nil {
+		return nil, errs
 	}
 
-	return nil
+	return createdResources, nil
 }
 
-func (ctx OperationalRuleContext) findResourcesWhichSatisfyStepClassifications(step *knowledgebase.OperationalStep, resource *construct.Resource) []construct.ResourceId {
+func (ctx OperationalRuleContext) findResourcesWhichSatisfyStepClassifications(
+	step knowledgebase.OperationalStep,
+	resource construct.ResourceId,
+) []construct.ResourceId {
+	kb := ctx.Solution.KnowledgeBase()
 	// determine the type of resource necessary to satisfy the operational resource error
 	var result []construct.ResourceId
-	for _, res := range ctx.KB.ListResources() {
-		resTempalte, err := ctx.KB.GetResourceTemplate(res.Id())
+	for _, res := range kb.ListResources() {
+		resTempalte, err := kb.GetResourceTemplate(res.Id())
 		if err != nil {
 			continue
 		}
@@ -224,10 +271,10 @@ func (ctx OperationalRuleContext) findResourcesWhichSatisfyStepClassifications(s
 			continue
 		}
 		var hasPath bool
-		if step.Direction == knowledgebase.Downstream {
-			hasPath = ctx.KB.HasFunctionalPath(resource.ID, res.Id())
+		if step.Direction == knowledgebase.DirectionDownstream {
+			hasPath = kb.HasFunctionalPath(resource, res.Id())
 		} else {
-			hasPath = ctx.KB.HasFunctionalPath(res.Id(), resource.ID)
+			hasPath = kb.HasFunctionalPath(res.Id(), resource)
 		}
 		// if a type is explicilty stated as needed, we will consider it even if there isnt a direct p
 		if !hasPath {
@@ -238,7 +285,7 @@ func (ctx OperationalRuleContext) findResourcesWhichSatisfyStepClassifications(s
 	return result
 }
 
-func (ctx OperationalRuleContext) shouldReplace(step *knowledgebase.OperationalStep) (bool, error) {
+func (ctx OperationalRuleContext) shouldReplace(step knowledgebase.OperationalStep) (bool, error) {
 	if step.ReplacementCondition != "" {
 		result := false
 		err := ctx.ConfigCtx.ExecuteDecode(step.ReplacementCondition, ctx.Data, &result)
@@ -250,149 +297,150 @@ func (ctx OperationalRuleContext) shouldReplace(step *knowledgebase.OperationalS
 	return false, nil
 }
 
-func (ctx OperationalRuleContext) getResourcesForStep(step *knowledgebase.OperationalStep, resource *construct.Resource) ([]construct.ResourceId, error) {
-	var dependentResources []*construct.Resource
+func (ctx OperationalRuleContext) getResourcesForStep(step knowledgebase.OperationalStep, resource construct.ResourceId) ([]construct.ResourceId, error) {
+	var dependentResources []construct.ResourceId
 	var resourcesOfType []construct.ResourceId
 	var err error
-	if step.Direction == knowledgebase.Upstream {
-		dependentResources, err = ctx.Graph.Upstream(resource, 3)
+	if step.Direction == knowledgebase.DirectionUpstream {
+		dependentResources, err = solution_context.Upstream(ctx.Solution, resource, knowledgebase.FirstFunctionalLayer)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		dependentResources, err = ctx.Graph.Downstream(resource, 3)
+		dependentResources, err = solution_context.Downstream(ctx.Solution, resource, knowledgebase.FirstFunctionalLayer)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if step.Resources != nil {
-		for _, res := range dependentResources {
-			if collectionutil.Contains(step.Resources, res.ID.QualifiedTypeName()) {
-				resourcesOfType = append(resourcesOfType, res.ID)
+		for _, dep := range dependentResources {
+			if collectionutil.Contains(step.Resources, dep.QualifiedTypeName()) {
+				resourcesOfType = append(resourcesOfType, dep)
 			}
 		}
 	} else if step.Classifications != nil {
-		for _, res := range dependentResources {
-			resTemplate, err := ctx.KB.GetResourceTemplate(res.ID)
+		for _, dep := range dependentResources {
+			resTemplate, err := ctx.Solution.KnowledgeBase().GetResourceTemplate(dep)
 			if err != nil {
 				return nil, err
 			}
 			if resTemplate.ResourceContainsClassifications(step.Classifications) {
-				resourcesOfType = append(resourcesOfType, res.ID)
+				resourcesOfType = append(resourcesOfType, dep)
 			}
 		}
 	}
 	return resourcesOfType, nil
 }
 
-func (ctx OperationalRuleContext) addDependenciesFromProperty(step *knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) ([]construct.ResourceId, error) {
-
+func (ctx OperationalRuleContext) addDependenciesFromProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) ([]construct.ResourceId, error) {
 	val, err := resource.GetProperty(propertyName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting property %s on resource %s: %w", propertyName, resource.ID, err)
 	}
-	field := reflect.ValueOf(val)
-	if field.IsValid() {
-		if field.Kind() == reflect.Slice || field.Kind() == reflect.Array {
-			var ids []construct.ResourceId
-			for i := 0; i < field.Len(); i++ {
-				val := field.Index(i)
-				err := ctx.addDependencyForDirection(step, resource, val.Interface().(*construct.Resource))
-				if err != nil {
-					return []construct.ResourceId{}, err
-				}
-				ids = append(ids, val.Interface().(*construct.Resource).ID)
-			}
-			return ids, nil
-		} else if field.Kind() == reflect.Ptr && !field.IsNil() {
-			val := field
-			err := ctx.addDependencyForDirection(step, resource, val.Interface().(*construct.Resource))
-			if err != nil {
-				return []construct.ResourceId{}, err
-			}
-			return []construct.ResourceId{val.Interface().(*construct.Resource).ID}, nil
+
+	addDep := func(id construct.ResourceId) error {
+		dep, err := ctx.Solution.RawView().Vertex(id)
+		if err != nil {
+			return err
 		}
+		return ctx.addDependencyForDirection(step, resource, dep)
+	}
+
+	switch val := val.(type) {
+	case construct.ResourceId:
+		return []construct.ResourceId{val}, addDep(val)
+
+	case []construct.ResourceId:
+		var errs error
+		for _, id := range val {
+			errs = errors.Join(errs, addDep(id))
+		}
+		return val, errs
+
+	case []any:
+		var errs error
+		var ids []construct.ResourceId
+		for _, elem := range val {
+			if id, ok := elem.(construct.ResourceId); ok {
+				ids = append(ids, id)
+				errs = errors.Join(errs, addDep(id))
+			}
+		}
+		return ids, errs
 	}
 	return nil, nil
 }
 
-func (ctx OperationalRuleContext) clearProperty(step *knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) error {
+func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) error {
 	val, err := resource.GetProperty(propertyName)
 	if err != nil {
 		return err
 	}
-	field := reflect.ValueOf(val)
-	if field.IsValid() {
-		if field.Kind() == reflect.Slice || field.Kind() == reflect.Array {
-			for i := 0; i < field.Len(); i++ {
-				val := field.Index(i)
-				err := ctx.removeDependencyForDirection(step.Direction, resource, val.Interface().(*construct.Resource))
-				if err != nil {
-					return err
-				}
-			}
-			err := resource.SetProperty(propertyName, reflect.MakeSlice(field.Type(), 0, 0).Interface())
-			if err != nil {
-				return fmt.Errorf("error clearing property %s on resource %s: %w", propertyName, resource.ID, err)
-			}
-		} else if field.Kind() == reflect.Ptr && !field.IsNil() {
-			val := field
-			err := ctx.removeDependencyForDirection(step.Direction, resource, val.Interface().(*construct.Resource))
-			if err != nil {
-				return err
-			}
-			err = resource.SetProperty(propertyName, reflect.Zero(field.Type()).Interface())
-			if err != nil {
-				return fmt.Errorf("error clearing property %s on resource %s: %w", propertyName, resource.ID, err)
+
+	switch val := val.(type) {
+	case construct.ResourceId:
+		err := ctx.removeDependencyForDirection(step.Direction, resource.ID, val)
+		if err != nil {
+			return err
+		}
+		return resource.RemoveProperty(propertyName, nil)
+
+	case []construct.ResourceId:
+		var errs error
+		for _, id := range val {
+			errs = errors.Join(errs, ctx.removeDependencyForDirection(step.Direction, resource.ID, id))
+		}
+		if errs != nil {
+			return errs
+		}
+		return resource.RemoveProperty(propertyName, nil)
+
+	case []any:
+		var errs error
+		for _, elem := range val {
+			if id, ok := elem.(construct.ResourceId); ok {
+				errs = errors.Join(errs, ctx.removeDependencyForDirection(step.Direction, resource.ID, id))
 			}
 		}
+		if errs != nil {
+			return errs
+		}
+		return resource.RemoveProperty(propertyName, nil)
 	}
 	return nil
 }
 
-func (ctx OperationalRuleContext) addDependencyForDirection(step *knowledgebase.OperationalStep, resource, dependentResource *construct.Resource) error {
-	if step.Direction == knowledgebase.Upstream {
-		err := ctx.Graph.AddDependency(dependentResource, resource)
+func (ctx OperationalRuleContext) addDependencyForDirection(step knowledgebase.OperationalStep, resource, dependentResource *construct.Resource) error {
+	if step.Direction == knowledgebase.DirectionUpstream {
+		err := ctx.Solution.RawView().AddEdge(dependentResource.ID, resource.ID)
 		if err != nil {
 			return err
 		}
-		return ctx.setField(resource, dependentResource, step)
 	} else {
-		err := ctx.Graph.AddDependency(resource, dependentResource)
+		err := ctx.Solution.RawView().AddEdge(resource.ID, dependentResource.ID)
 		if err != nil {
 			return err
 		}
-		return ctx.setField(resource, dependentResource, step)
 	}
+	return ctx.setField(resource, dependentResource, step)
 }
 
-func (ctx OperationalRuleContext) removeDependencyForDirection(direction knowledgebase.Direction, resource, dependentResource *construct.Resource) error {
-	if direction == knowledgebase.Upstream {
-		return ctx.Graph.RemoveDependency(dependentResource.ID, resource.ID)
+func (ctx OperationalRuleContext) removeDependencyForDirection(direction knowledgebase.Direction, resource, dependentResource construct.ResourceId) error {
+	if direction == knowledgebase.DirectionUpstream {
+		return ctx.Solution.RawView().RemoveEdge(dependentResource, resource)
 	} else {
-		return ctx.Graph.RemoveDependency(resource.ID, dependentResource.ID)
+		return ctx.Solution.RawView().RemoveEdge(resource, dependentResource)
 	}
 }
 
-func (ctx OperationalRuleContext) generateResourceName(resourceToSet, resource *construct.Resource, unique bool) {
-	numResources := 0
-	resources, err := ctx.Graph.ListResources()
-	if err != nil {
-		return
-	}
-	for _, res := range resources {
-		if res.ID.Type == resourceToSet.ID.Type {
-			numResources++
-		}
-	}
-	if unique {
-		resourceToSet.ID.Name = fmt.Sprintf("%s-%s-%d", resourceToSet.ID.Type, resource.ID.Name, numResources)
-	} else {
-		resourceToSet.ID.Name = fmt.Sprintf("%s-%d", resourceToSet.ID.Type, numResources)
-	}
+func (ctx OperationalRuleContext) addResourceName(partialId construct.ResourceId) construct.ResourceId {
+	// TODO handle cases when multiple resources want to use the same ID, such as `aws:subnet:myvpc:public` by adding an
+	// incrementing number to them.
+	partialId.Name = strcase.ToSnake(ctx.Property.Name)
+	return partialId
 }
 
-func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Resource, step *knowledgebase.OperationalStep) error {
+func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Resource, step knowledgebase.OperationalStep) error {
 	if ctx.Property == nil {
 		return nil
 	}
@@ -405,20 +453,15 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 			zap.S().Debugf("property %s not found on resource %s", ctx.Property.Path, resource.ID)
 		}
 		// If the current field is a resource id we will compare it against the one passed in to see if we need to remove the current resource
-		currResId, ok := res.(construct.ResourceId)
-		if ok {
+		if currResId, ok := res.(construct.ResourceId); ok {
 			if res != nil && res != fieldResource.ID {
-				oldPropertyResource, err := ctx.Graph.GetResource(currResId)
-				if err != nil {
-					return err
-				}
-				err = ctx.removeDependencyForDirection(step.Direction, resource, oldPropertyResource)
+				err = ctx.removeDependencyForDirection(step.Direction, resource.ID, currResId)
 				if err != nil {
 					return err
 				}
 				zap.S().Infof("Removing old field value for '%s' (%s) for %s", ctx.Property.Path, res, fieldResource.ID)
 				// Remove the old field value if it's unused
-				err = ctx.Graph.RemoveResource(oldPropertyResource, false)
+				err = reconciler.RemoveResource(ctx.Solution, currResId, false)
 				if err != nil {
 					return err
 				}
@@ -446,11 +489,9 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 	// If this sets the field driving the namespace, for example,
 	// then the Id could change, so replace the resource in the graph
 	// to update all the edges to the new Id.
-	if oldId != resource.ID {
-		err := ctx.Graph.ReplaceResourceId(oldId, resource.ID)
-		if err != nil {
-			return err
-		}
+	err := construct.PropagateUpdatedId(ctx.Solution.RawView(), oldId)
+	if err != nil {
+		return err
 	}
 	return nil
 }

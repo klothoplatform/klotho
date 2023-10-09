@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/dominikbraun/graph"
+	"github.com/klothoplatform/klotho/pkg/set"
 )
 
 func copyVertexProps(p graph.VertexProperties) func(*graph.VertexProperties) {
@@ -18,18 +19,13 @@ func copyEdgeProps(p graph.EdgeProperties) func(*graph.EdgeProperties) {
 	}
 }
 
-// UpdateResourceId is used when a resource's ID changes. It updates the graph in-place, using the resource
-// currently referenced by `old`. No-op if the resource ID hasn't changed.
-// Also updates any property references (as [ResourceId] or [PropertyRef]) of the old ID to the new ID in any
-// resource that depends on or is depended on by the resource.
-func PropagateUpdatedId(g Graph, old ResourceId) error {
-	r, props, err := g.VertexWithProperties(old)
+// ReplaceResource replaces the resources identified by `oldId` with `newRes` in the graph and in any property
+// references (as [ResourceId] or [PropertyRef]) of the old ID to the new ID in any resource that depends on or is
+// depended on by the resource.
+func ReplaceResource(g Graph, oldId ResourceId, newRes *Resource) error {
+	r, props, err := g.VertexWithProperties(oldId)
 	if err != nil {
 		return err
-	}
-	// Short circuit if the resource ID hasn't changed.
-	if old == r.ID {
-		return nil
 	}
 
 	err = g.AddVertex(r, copyVertexProps(props))
@@ -37,18 +33,18 @@ func PropagateUpdatedId(g Graph, old ResourceId) error {
 		return err
 	}
 
-	neighbors := make(map[ResourceId]struct{})
+	neighbors := make(set.Set[ResourceId])
 	adj, err := g.AdjacencyMap()
 	if err != nil {
 		return err
 	}
-	for _, edge := range adj[old] {
+	for _, edge := range adj[oldId] {
 		err = errors.Join(
 			err,
 			g.AddEdge(r.ID, edge.Target, copyEdgeProps(edge.Properties)),
 			g.RemoveEdge(edge.Source, edge.Target),
 		)
-		neighbors[edge.Target] = struct{}{}
+		neighbors.Add(edge.Target)
 	}
 	if err != nil {
 		return err
@@ -58,30 +54,30 @@ func PropagateUpdatedId(g Graph, old ResourceId) error {
 	if err != nil {
 		return err
 	}
-	for _, edge := range pred[old] {
+	for _, edge := range pred[oldId] {
 		err = errors.Join(
 			err,
 			g.AddEdge(edge.Source, r.ID, copyEdgeProps(edge.Properties)),
 			g.RemoveEdge(edge.Source, edge.Target),
 		)
-		neighbors[edge.Source] = struct{}{}
+		neighbors.Add(edge.Source)
 	}
 	if err != nil {
 		return err
 	}
 
-	if err := g.RemoveVertex(old); err != nil {
+	if err := g.RemoveVertex(oldId); err != nil {
 		return err
 	}
 
 	updateId := func(path PropertyPathItem) error {
 		itemVal := path.Get()
 		itemId, ok := itemVal.(ResourceId)
-		if ok && itemId == old {
+		if ok && itemId == oldId {
 			return path.Set(r.ID)
 		}
 		itemRef, ok := itemVal.(PropertyRef)
-		if ok && itemRef.Resource == old {
+		if ok && itemRef.Resource == oldId {
 			itemRef.Resource = r.ID
 			return path.Set(itemRef)
 		}
@@ -109,6 +105,22 @@ func PropagateUpdatedId(g Graph, old ResourceId) error {
 	return nil
 }
 
+// UpdateResourceId is used when a resource's ID changes. It updates the graph in-place, using the resource
+// currently referenced by `old`. No-op if the resource ID hasn't changed.
+// Also updates any property references (as [ResourceId] or [PropertyRef]) of the old ID to the new ID in any
+// resource that depends on or is depended on by the resource.
+func PropagateUpdatedId(g Graph, old ResourceId) error {
+	newRes, err := g.Vertex(old)
+	if err != nil {
+		return err
+	}
+	// Short circuit if the resource ID hasn't changed.
+	if old == newRes.ID {
+		return nil
+	}
+	return ReplaceResource(g, old, newRes)
+}
+
 // RemoveResource removes all edges from the resource. any property references (as [ResourceId] or [PropertyRef])
 // to the resource, and finally the resource itself.
 func RemoveResource(g Graph, id ResourceId) error {
@@ -117,6 +129,10 @@ func RemoveResource(g Graph, id ResourceId) error {
 	if err != nil {
 		return err
 	}
+	if _, ok := adj[id]; !ok {
+		return nil
+	}
+
 	for _, edge := range adj[id] {
 		err = errors.Join(
 			err,

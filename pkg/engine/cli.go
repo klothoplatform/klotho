@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/analytics"
@@ -61,12 +62,15 @@ const consoleEncoderName = "engine-cli"
 
 func init() {
 	err := zap.RegisterEncoder(consoleEncoderName, func(zcfg zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		fmt.Println("Registering console encoder")
+		debug.PrintStack()
 		return logging.NewConsoleEncoder(architectureEngineCfg.verbose, hadWarnings, hadErrors), nil
 	})
+	_ = err
 
-	if err != nil {
-		panic(err)
-	}
+	// if err != nil {
+	// 	panic(err)
+	// }
 }
 
 func setupLogger(analyticsClient *analytics.Client) (*zap.Logger, error) {

@@ -4,17 +4,18 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
-func (ctx OperationalRuleContext) HandleConfigurationRule(config *knowledgebase.ConfigurationRule) error {
+func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.ConfigurationRule) error {
 	res, err := ctx.ConfigCtx.ExecuteDecodeAsResourceId(config.Resource, ctx.Data)
 	if err != nil {
 		return err
 	}
-	resource, _ := ctx.Graph.GetResource(res)
-	if resource == nil {
-		return fmt.Errorf("resource %s not found", res)
+	resource, err := ctx.Solution.DataflowGraph().Vertex(res)
+	if err != nil {
+		return fmt.Errorf("resource %s not found: %w", res, err)
 	}
 	val, err := resource.GetProperty(config.Config.Field)
 	action := "set"
@@ -24,7 +25,7 @@ func (ctx OperationalRuleContext) HandleConfigurationRule(config *knowledgebase.
 		}
 	}
 
-	err = ctx.Graph.ConfigureResource(resource, config.Config, ctx.Data, action)
+	err = solution_context.ConfigureResource(ctx.Solution, resource, config.Config, ctx.Data, action)
 	if err != nil {
 		return err
 	}

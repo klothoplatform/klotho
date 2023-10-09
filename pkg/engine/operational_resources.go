@@ -106,8 +106,8 @@ func (e *Engine) handleOperationalRule(resource construct.Resource, rule knowled
 	resourcesOfType := []construct.Resource{}
 
 	if rule.If != "" {
-		ctx := knowledgebase.ConfigTemplateContext{DAG: dag}
-		data := knowledgebase.ConfigTemplateData{Resource: resource.Id()}
+		ctx := knowledgebase.DynamicValueContext{DAG: dag}
+		data := knowledgebase.DynamicValueData{Resource: resource.Id()}
 		result := false
 		err := ctx.ExecuteDecode(rule.If, data, &result)
 		if err != nil {
@@ -182,8 +182,8 @@ func (e *Engine) handleOperationalRule(resource construct.Resource, rule knowled
 }
 
 func (e *Engine) handleExactResourceEnforcement(resource construct.Resource, rule knowledgebase.OperationalRule, dag *construct.ResourceGraph) (decisions []Decision, errs []EngineError) {
-	ctx := knowledgebase.ConfigTemplateContext{DAG: dag}
-	data := knowledgebase.ConfigTemplateData{Resource: resource.Id()}
+	ctx := knowledgebase.DynamicValueContext{DAG: dag}
+	data := knowledgebase.DynamicValueData{Resource: resource.Id()}
 
 	addDep := func(dep construct.Resource) {
 		var result DecisionResult

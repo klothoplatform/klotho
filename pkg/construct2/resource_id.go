@@ -88,6 +88,16 @@ func (id ResourceId) Matches(other ResourceId) bool {
 	return true
 }
 
+func SelectIds(ids []ResourceId, selector ResourceId) []ResourceId {
+	result := make([]ResourceId, 0, len(ids))
+	for _, id := range ids {
+		if selector.Matches(id) {
+			result = append(result, id)
+		}
+	}
+	return result
+}
+
 var (
 	resourceProviderPattern  = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 	resourceTypePattern      = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)

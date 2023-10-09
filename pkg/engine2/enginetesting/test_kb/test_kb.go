@@ -1,38 +1,24 @@
 package kbtesting
 
-import knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+import (
+	"testing"
 
-func CreateTestKB() *knowledgebase.KnowledgeBase {
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+)
+
+func CreateTestKB(t *testing.T) *knowledgebase.KnowledgeBase {
 	testKB := knowledgebase.NewKB()
-	err := testKB.AddResourceTemplate(resource1)
-	if err != nil {
-		panic(err)
+	must := func(err error) {
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
-	err = testKB.AddResourceTemplate(resource2)
-	if err != nil {
-		panic(err)
-	}
-	err = testKB.AddResourceTemplate(resource3)
-	if err != nil {
-		panic(err)
-	}
-	err = testKB.AddResourceTemplate(resource4)
-	if err != nil {
-		panic(err)
-	}
-	err = testKB.AddEdgeTemplate(edge1)
-	if err != nil {
-		panic(err)
-	}
-	err = testKB.AddEdgeTemplate(edge2)
-	if err != nil {
-		panic(err)
-	}
-	err = testKB.AddEdgeTemplate(edge3)
-	if err != nil {
-		panic(err)
-	}
+	must(testKB.AddResourceTemplate(resource1))
+	must(testKB.AddResourceTemplate(resource2))
+	must(testKB.AddResourceTemplate(resource3))
+	must(testKB.AddResourceTemplate(resource4))
+	must(testKB.AddEdgeTemplate(edge1))
+	must(testKB.AddEdgeTemplate(edge2))
+	must(testKB.AddEdgeTemplate(edge3))
 	return testKB
 }
-
-var TestKB = CreateTestKB()

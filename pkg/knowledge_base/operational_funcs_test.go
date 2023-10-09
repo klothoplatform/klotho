@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestConfigTemplateContext_ExecuteDecode(t *testing.T) {
-	ctx := &ConfigTemplateContext{DAG: construct.NewResourceGraph()}
+func TestDynamicValueContext_ExecuteDecode(t *testing.T) {
+	ctx := &DynamicValueContext{DAG: construct.NewResourceGraph()}
 
 	// Set up graph (using test:resource qualified type unless otherwise specified):
 	// a -> b -> test:x:y -> c -> d
@@ -30,7 +30,7 @@ func TestConfigTemplateContext_ExecuteDecode(t *testing.T) {
 
 	// Simple data is a convenience for specify the data similar to an edge configuration data
 	// of xy -> c setting a property on xy.
-	simpleData := ConfigTemplateData{
+	simpleData := DynamicValueData{
 		Resource: xy.Id(),
 		Edge:     graph.Edge[construct.ResourceId]{Source: xy.Id(), Destination: c.Id()},
 	}
@@ -38,7 +38,7 @@ func TestConfigTemplateContext_ExecuteDecode(t *testing.T) {
 	tests := []struct {
 		name    string
 		tmpl    string
-		data    ConfigTemplateData
+		data    DynamicValueData
 		want    any
 		wantErr bool
 	}{

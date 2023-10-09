@@ -1,60 +1,54 @@
 package operational_rule
 
 import (
+	"errors"
+	"fmt"
+
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"go.uber.org/zap"
 )
 
 type (
-	Graph interface {
-		ListResources() ([]*construct.Resource, error)
-		RemoveResource(resource *construct.Resource, explicit bool) error
-		AddDependency(from, to *construct.Resource) error
-		RemoveDependency(from, to construct.ResourceId) error
-		GetResource(id construct.ResourceId) (*construct.Resource, error)
-		DownstreamOfType(resource *construct.Resource, layer int, qualifiedType string) ([]*construct.Resource, error)
-		Downstream(resource *construct.Resource, layer int) ([]*construct.Resource, error)
-		Upstream(resource *construct.Resource, layer int) ([]*construct.Resource, error)
-		ReplaceResourceId(oldId construct.ResourceId, resource construct.ResourceId) error
-		ConfigureResource(resource *construct.Resource, configuration knowledgebase.Configuration, data knowledgebase.ConfigTemplateData, action string) error
-	}
-
 	OperationalRuleContext struct {
+		Solution  solution_context.SolutionContext
 		Property  *knowledgebase.Property
-		ConfigCtx knowledgebase.ConfigTemplateContext
-		Data      knowledgebase.ConfigTemplateData
-		Graph     Graph
-		KB        knowledgebase.TemplateKB
+		ConfigCtx knowledgebase.DynamicValueContext
+		Data      knowledgebase.DynamicValueData
 	}
 )
 
-func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) error {
+func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) ([]*construct.Resource, error) {
 	if rule.If != "" {
 		result := false
 		err := ctx.ConfigCtx.ExecuteDecode(rule.If, ctx.Data, &result)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !result {
 			zap.S().Debugf("rule did not match if condition, skipping")
-			return nil
+			return nil, nil
 		}
 	}
 
-	for _, operationalStep := range rule.Steps {
-		err := ctx.HandleOperationalStep(operationalStep)
+	var createdResources []*construct.Resource
+	var errs error
+	for i, operationalStep := range rule.Steps {
+		resources, err := ctx.HandleOperationalStep(operationalStep)
 		if err != nil {
-			return err
+			errs = errors.Join(errs, fmt.Errorf("could not apply step %d: %w", i, err))
+			continue
 		}
+		createdResources = append(createdResources, resources...)
 	}
 
-	for _, operationalConfig := range rule.ConfigurationRules {
+	for i, operationalConfig := range rule.ConfigurationRules {
 		err := ctx.HandleConfigurationRule(operationalConfig)
 		if err != nil {
-			return err
+			errs = errors.Join(errs, fmt.Errorf("could not apply configuration rule %d: %w", i, err))
 		}
 	}
 
-	return nil
+	return createdResources, errs
 }

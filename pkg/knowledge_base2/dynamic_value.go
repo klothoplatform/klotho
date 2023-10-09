@@ -18,31 +18,23 @@ import (
 )
 
 type (
-	// ConfigTemplateContext is used to scope the DAG into the template functions
-	ConfigTemplateContext struct {
-		DAG        Graph
+	// DynamicValueContext is used to scope the DAG into the template functions
+	DynamicValueContext struct {
+		DAG        construct.Graph
 		KB         TemplateKB
 		resultJson bool
 	}
 
-	// ConfigTemplateData provides the resource or edge to the templates as
+	// DynamicValueData provides the resource or edge to the templates as
 	// `{{ .Self }}` for resources
 	// `{{ .Source }}` and `{{ .Destination }}` for edges
-	ConfigTemplateData struct {
+	DynamicValueData struct {
 		Resource construct.ResourceId
-		Edge     graph.Edge[construct.ResourceId]
-	}
-
-	Graph interface {
-		Downstream(resource *construct.Resource, layer int) ([]*construct.Resource, error)
-		Upstream(resource *construct.Resource, layer int) ([]*construct.Resource, error)
-		GetResource(resource construct.ResourceId) (*construct.Resource, error)
-		ShortestPath(source construct.ResourceId, destination construct.ResourceId) ([]*construct.Resource, error)
-		AllPaths(source construct.ResourceId, destination construct.ResourceId) ([][]*construct.Resource, error)
+		Edge     *construct.Edge
 	}
 )
 
-func (ctx *ConfigTemplateContext) TemplateFunctions() template.FuncMap {
+func (ctx DynamicValueContext) TemplateFunctions() template.FuncMap {
 	return template.FuncMap{
 		"hasUpstream":   ctx.HasUpstream,
 		"upstream":      ctx.Upstream,
@@ -75,12 +67,12 @@ func (ctx *ConfigTemplateContext) TemplateFunctions() template.FuncMap {
 	}
 }
 
-func (ctx *ConfigTemplateContext) Parse(tmpl string) (*template.Template, error) {
+func (ctx DynamicValueContext) Parse(tmpl string) (*template.Template, error) {
 	t, err := template.New("config").Funcs(ctx.TemplateFunctions()).Parse(tmpl)
 	return t, err
 }
 
-func (ctx *ConfigTemplateContext) ExecuteDecodeAsResourceId(tmpl string, data ConfigTemplateData) (construct.ResourceId, error) {
+func (ctx DynamicValueContext) ExecuteDecodeAsResourceId(tmpl string, data DynamicValueData) (construct.ResourceId, error) {
 	var selector construct.ResourceId
 	err := ctx.ExecuteDecode(tmpl, data, &selector)
 	if err != nil {
@@ -95,7 +87,7 @@ func (ctx *ConfigTemplateContext) ExecuteDecodeAsResourceId(tmpl string, data Co
 }
 
 // ExecuteDecode executes the template `tmpl` using `data` and decodes the value into `value`
-func (ctx ConfigTemplateContext) ExecuteDecode(tmpl string, data ConfigTemplateData, value interface{}) error {
+func (ctx DynamicValueContext) ExecuteDecode(tmpl string, data DynamicValueData, value interface{}) error {
 	t, err := ctx.Parse(tmpl)
 	if err != nil {
 		return err
@@ -172,9 +164,9 @@ func (ctx ConfigTemplateContext) ExecuteDecode(tmpl string, data ConfigTemplateD
 	return fmt.Errorf("cannot decode template result '%s' into %T", buf, value)
 }
 
-func (ctx *ConfigTemplateContext) ResolveConfig(config Configuration, data ConfigTemplateData) (Configuration, error) {
+func (ctx DynamicValueContext) ResolveConfig(config Configuration, data DynamicValueData) (Configuration, error) {
 	if cfgVal, ok := config.Value.(string); ok {
-		res, err := ctx.DAG.GetResource(data.Resource)
+		res, err := ctx.DAG.Vertex(data.Resource)
 		if err != nil {
 			return config, err
 		}
@@ -196,21 +188,21 @@ func (ctx *ConfigTemplateContext) ResolveConfig(config Configuration, data Confi
 	return config, nil
 }
 
-func (data ConfigTemplateData) Self() (construct.ResourceId, error) {
+func (data DynamicValueData) Self() (construct.ResourceId, error) {
 	if data.Resource.IsZero() {
 		return construct.ResourceId{}, fmt.Errorf("no .Self is set")
 	}
 	return data.Resource, nil
 }
 
-func (data ConfigTemplateData) Source() (construct.ResourceId, error) {
+func (data DynamicValueData) Source() (construct.ResourceId, error) {
 	if data.Edge.Source.IsZero() {
 		return construct.ResourceId{}, fmt.Errorf("no .Source is set")
 	}
 	return data.Edge.Source, nil
 }
 
-func (data ConfigTemplateData) Destination() (construct.ResourceId, error) {
+func (data DynamicValueData) Destination() (construct.ResourceId, error) {
 	if data.Edge.Target.IsZero() {
 		return construct.ResourceId{}, fmt.Errorf("no .Destination is set")
 	}
@@ -219,7 +211,7 @@ func (data ConfigTemplateData) Destination() (construct.ResourceId, error) {
 
 // Log is primarily used for debugging templates and shouldn't actually appear in any.
 // Allows for outputting any intermediate values (such as `$integration := downstream "aws:api_integration" .Self`)
-func (data ConfigTemplateData) Log(level string, message string, args ...interface{}) string {
+func (data DynamicValueData) Log(level string, message string, args ...interface{}) string {
 	l := zap.L()
 	if !data.Resource.IsZero() {
 		l = l.With(zap.String("resource", data.Resource.String()))
@@ -259,150 +251,128 @@ func TemplateArgToRID(arg any) (construct.ResourceId, error) {
 	return construct.ResourceId{}, fmt.Errorf("invalid argument type %T", arg)
 }
 
-// Upstream returns the first resource that matches `selector` which is upstream of `resource`
-func (ctx *ConfigTemplateContext) HasUpstream(selector any, resource construct.ResourceId) (bool, error) {
+func (ctx DynamicValueContext) upstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
 	selId, err := TemplateArgToRID(selector)
 	if err != nil {
-		return false, err
-	}
-	res, err := ctx.DAG.GetResource(resource)
-	if err != nil {
-		return false, err
+		return construct.ResourceId{}, err
 	}
 
-	upstream, err := ctx.DAG.Upstream(res, 3)
+	upstream, err := Upstream(ctx.DAG, ctx.KB, resource, FirstFunctionalLayer)
 	if err != nil {
-		return false, err
+		return construct.ResourceId{}, err
 	}
 	for _, up := range upstream {
-		if selId.Matches(up.ID) {
-			return true, nil
+		if selId.Matches(up) {
+			return up, nil
 		}
 	}
-	return false, nil
+	return construct.ResourceId{}, nil
 }
 
 // Upstream returns the first resource that matches `selector` which is upstream of `resource`
-func (ctx *ConfigTemplateContext) Upstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
-	selId, err := TemplateArgToRID(selector)
+func (ctx DynamicValueContext) HasUpstream(selector any, resource construct.ResourceId) (bool, error) {
+	up, err := ctx.upstream(selector, resource)
 	if err != nil {
-		return construct.ResourceId{}, err
+		return false, err
 	}
-	res, err := ctx.DAG.GetResource(resource)
-	if err != nil {
-		return construct.ResourceId{}, err
-	}
+	return !up.IsZero(), nil
+}
 
-	upstream, err := ctx.DAG.Upstream(res, 3)
+// Upstream returns the first resource that matches `selector` which is upstream of `resource`
+func (ctx DynamicValueContext) Upstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
+	up, err := ctx.upstream(selector, resource)
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
-	for _, up := range upstream {
-		if selId.Matches(up.ID) {
-			return up.ID, nil
-		}
+	if up.IsZero() {
+		return up, fmt.Errorf("no upstream resource of '%s' found matching selector '%s'", resource, selector)
 	}
-	return construct.ResourceId{},
-		fmt.Errorf("no upstream resource of '%s' found matching selector '%s'", resource, selId)
+	return up, nil
 }
 
 // AllUpstream is like Upstream but returns all transitive upstream resources.
 // nolint: lll
-func (ctx *ConfigTemplateContext) AllUpstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {
+func (ctx DynamicValueContext) AllUpstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {
 	selId, err := TemplateArgToRID(selector)
 	if err != nil {
 		return nil, err
 	}
-	res, err := ctx.DAG.GetResource(resource)
+	upstreams, err := Upstream(ctx.DAG, ctx.KB, resource, AllDepsLayer)
 	if err != nil {
 		return []construct.ResourceId{}, err
 	}
-	var matches []construct.ResourceId
-	upstream, err := ctx.DAG.Upstream(res, 4)
-	if err != nil {
-		return []construct.ResourceId{}, err
-	}
-	for _, up := range upstream {
-		if selId.Matches(up.ID) {
-			matches = append(matches, up.ID)
+	matches := make([]construct.ResourceId, 0, len(upstreams))
+	for _, up := range upstreams {
+		if selId.Matches(up) {
+			matches = append(matches, up)
 		}
 	}
 	return matches, nil
 }
 
-// Downstream returns the first resource that matches `selector` which is downstream of `resource`
-// nolint: lll
-func (ctx *ConfigTemplateContext) HasDownstream(selector any, resource construct.ResourceId) (bool, error) {
+func (ctx DynamicValueContext) downstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
 	selId, err := TemplateArgToRID(selector)
 	if err != nil {
-		return false, err
+		return construct.ResourceId{}, err
 	}
-	res, err := ctx.DAG.GetResource(resource)
+
+	downstream, err := Downstream(ctx.DAG, ctx.KB, resource, FirstFunctionalLayer)
 	if err != nil {
-		return false, err
+		return construct.ResourceId{}, err
 	}
-	downstreams, err := ctx.DAG.Downstream(res, 3)
-	if err != nil {
-		return false, err
-	}
-	for _, down := range downstreams {
-		if selId.Matches(down.ID) {
-			return true, nil
+	for _, down := range downstream {
+		if selId.Matches(down) {
+			return down, nil
 		}
 	}
-	return false, nil
+	return construct.ResourceId{}, nil
 }
 
 // Downstream returns the first resource that matches `selector` which is downstream of `resource`
 // nolint: lll
-func (ctx *ConfigTemplateContext) Downstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
-	selId, err := TemplateArgToRID(selector)
+func (ctx DynamicValueContext) HasDownstream(selector any, resource construct.ResourceId) (bool, error) {
+	down, err := ctx.downstream(selector, resource)
+	if err != nil {
+		return false, err
+	}
+	return !down.IsZero(), nil
+}
+
+// Downstream returns the first resource that matches `selector` which is downstream of `resource`
+// nolint: lll
+func (ctx DynamicValueContext) Downstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
+	down, err := ctx.downstream(selector, resource)
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
-	res, err := ctx.DAG.GetResource(resource)
-	if err != nil {
-		return construct.ResourceId{}, err
+	if down.IsZero() {
+		return down, fmt.Errorf("no downstream resource of '%s' found matching selector '%s'", resource, selector)
 	}
-	downstreams, err := ctx.DAG.Downstream(res, 3)
-	if err != nil {
-		return construct.ResourceId{}, err
-	}
-	for _, down := range downstreams {
-		if selId.Matches(down.ID) {
-			return down.ID, nil
-		}
-	}
-	return construct.ResourceId{},
-		fmt.Errorf("no downstream resource of '%s' found matching selector '%s'", resource, selId)
+	return down, nil
 }
 
 // AllDownstream is like Downstream but returns all transitive downstream resources.
 // nolint: lll
-func (ctx *ConfigTemplateContext) AllDownstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {
+func (ctx DynamicValueContext) AllDownstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {
 	selId, err := TemplateArgToRID(selector)
 	if err != nil {
 		return nil, err
 	}
-	res, err := ctx.DAG.GetResource(resource)
+	downstreams, err := Downstream(ctx.DAG, ctx.KB, resource, AllDepsLayer)
 	if err != nil {
 		return []construct.ResourceId{}, err
 	}
-	var matches []construct.ResourceId
-	downstreams, err := ctx.DAG.Downstream(res, 4)
-	if err != nil {
-		return []construct.ResourceId{}, err
-	}
+	matches := make([]construct.ResourceId, 0, len(downstreams))
 	for _, down := range downstreams {
-		if selId.Matches(down.ID) {
-			matches = append(matches, down.ID)
+		if selId.Matches(down) {
+			matches = append(matches, down)
 		}
 	}
 	return matches, nil
 }
 
 // ShortestPath returns all the resource IDs on the shortest path from source to destination
-func (ctx *ConfigTemplateContext) ShortestPath(source, destination any) (construct.ResourceList, error) {
+func (ctx DynamicValueContext) ShortestPath(source, destination any) (construct.ResourceList, error) {
 	srcId, err := TemplateArgToRID(source)
 	if err != nil {
 		return nil, err
@@ -411,19 +381,11 @@ func (ctx *ConfigTemplateContext) ShortestPath(source, destination any) (constru
 	if err != nil {
 		return nil, err
 	}
-	path, err := ctx.DAG.ShortestPath(srcId, dstId)
-	if err != nil {
-		return nil, err
-	}
-	var pathIds []construct.ResourceId
-	for _, r := range path {
-		pathIds = append(pathIds, r.ID)
-	}
-	return pathIds, nil
+	return graph.ShortestPath(ctx.DAG, srcId, dstId)
 }
 
 // LongestPath returns all the resource IDs on the longest path from source to destination
-func (ctx *ConfigTemplateContext) LongestPath(source, destination any) ([]construct.ResourceId, error) {
+func (ctx DynamicValueContext) LongestPath(source, destination any) ([]construct.ResourceId, error) {
 	srcId, err := TemplateArgToRID(source)
 	if err != nil {
 		return nil, err
@@ -432,31 +394,27 @@ func (ctx *ConfigTemplateContext) LongestPath(source, destination any) ([]constr
 	if err != nil {
 		return nil, err
 	}
-	paths, err := ctx.DAG.AllPaths(srcId, dstId)
+	paths, err := graph.AllPathsBetween(ctx.DAG, srcId, dstId)
 	if err != nil {
 		return nil, err
 	}
-	var longest []*construct.Resource
+	var longest []construct.ResourceId
 	for _, path := range paths {
 		if len(path) > len(longest) {
 			longest = path
 		}
 	}
-	var pathIds []construct.ResourceId
-	for _, r := range longest {
-		pathIds = append(pathIds, r.ID)
-	}
-	return pathIds, nil
+	return longest, nil
 }
 
 // FieldValue returns the value of `field` on `resource` in json
-func (ctx *ConfigTemplateContext) FieldValue(field string, resource any) (any, error) {
+func (ctx DynamicValueContext) FieldValue(field string, resource any) (any, error) {
 	resId, err := TemplateArgToRID(resource)
 	if err != nil {
 		return "", err
 	}
 
-	r, err := ctx.DAG.GetResource(resId)
+	r, err := ctx.DAG.Vertex(resId)
 	if r == nil || err != nil {
 		return nil, fmt.Errorf("resource '%s' not found", resId)
 	}
@@ -467,13 +425,13 @@ func (ctx *ConfigTemplateContext) FieldValue(field string, resource any) (any, e
 	return val, nil
 }
 
-func (ctx *ConfigTemplateContext) HasField(field string, resource any) (bool, error) {
+func (ctx DynamicValueContext) HasField(field string, resource any) (bool, error) {
 	resId, err := TemplateArgToRID(resource)
 	if err != nil {
 		return false, err
 	}
 
-	r, err := ctx.DAG.GetResource(resId)
+	r, err := ctx.DAG.Vertex(resId)
 	if r == nil || err != nil {
 		return false, fmt.Errorf("resource '%s' not found", resId)
 	}
@@ -485,7 +443,7 @@ func (ctx *ConfigTemplateContext) HasField(field string, resource any) (bool, er
 }
 
 // FieldRef returns a reference to `field` on `resource` (as a PropertyRef)
-func (ctx *ConfigTemplateContext) FieldRef(field string, resource any) (construct.PropertyRef, error) {
+func (ctx DynamicValueContext) FieldRef(field string, resource any) (construct.PropertyRef, error) {
 	resId, err := TemplateArgToRID(resource)
 	if err != nil {
 		return construct.PropertyRef{}, err
@@ -498,7 +456,7 @@ func (ctx *ConfigTemplateContext) FieldRef(field string, resource any) (construc
 }
 
 // toJson is used to return complex values that do not have TextUnmarshaler implemented
-func (ctx *ConfigTemplateContext) toJson(value any) (string, error) {
+func (ctx DynamicValueContext) toJson(value any) (string, error) {
 	j, err := json.Marshal(value)
 	if err != nil {
 		return "", err

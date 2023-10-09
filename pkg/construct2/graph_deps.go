@@ -1,6 +1,10 @@
 package construct2
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/klothoplatform/klotho/pkg/set"
+)
 
 // AllDownstreamDependencies returns all downstream dependencies of the given resource.
 // Downstream means that for A -> B -> C -> D the downstream dependencies of B are [C, D].
@@ -87,4 +91,28 @@ func allDependencies(deps map[ResourceId]map[ResourceId]Edge, r ResourceId) []Re
 	}
 
 	return ids
+}
+
+func Neighbors(g Graph, r ResourceId) (upstream, downstream set.Set[ResourceId], err error) {
+	adj, err := g.AdjacencyMap()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pred, err := g.PredecessorMap()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	downstream = make(set.Set[ResourceId])
+	for d := range adj[r] {
+		downstream.Add(d)
+	}
+
+	upstream = make(set.Set[ResourceId])
+	for u := range pred[r] {
+		upstream.Add(u)
+	}
+
+	return upstream, downstream, nil
 }

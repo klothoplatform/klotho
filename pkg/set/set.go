@@ -64,7 +64,7 @@ func (s Set[T]) Intersection(other Set[T]) Set[T] {
 	intersection := make(Set[T])
 	for k := range s {
 		if _, ok := other[k]; ok {
-			intersection[k] = struct{}{}
+			intersection.Add(k)
 		}
 	}
 	return intersection

@@ -14,17 +14,18 @@ import (
 
 func Test_handleOperationalResourceAction(t *testing.T) {
 	tests := []struct {
-		name     string
-		mocks    []mock.Call
-		resource *construct.Resource
-		action   OperationalResourceAction
+		name        string
+		mocks       []mock.Call
+		resource    *construct.Resource
+		action      OperationalResourceAction
+		wantCreated []string
 	}{
 		{
 			name:     "upstream exact resource that exists in the graph",
 			resource: kbtesting.MockResource1("test1"),
 			action: OperationalResourceAction{
 				Step: &knowledgebase.OperationalStep{
-					Direction: knowledgebase.Downstream,
+					Direction: knowledgebase.DirectionDownstream,
 					Resources: []string{"mock:resource4:test"},
 					NumNeeded: 1,
 				},
@@ -41,13 +42,14 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 					ReturnArguments: mock.Arguments{nil},
 				},
 			},
+			wantCreated: []string{},
 		},
 		{
 			name:     "upstream unique resources from types",
 			resource: kbtesting.MockResource1("test1"),
 			action: OperationalResourceAction{
 				Step: &knowledgebase.OperationalStep{
-					Direction: knowledgebase.Downstream,
+					Direction: knowledgebase.DirectionDownstream,
 					Resources: []string{"mock:resource4"},
 					NumNeeded: 2,
 					Unique:    true,
@@ -94,13 +96,14 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 					},
 				},
 			},
+			wantCreated: []string{},
 		},
 		{
 			name:     "upstream resources from types, choose from available",
 			resource: kbtesting.MockResource1("test1"),
 			action: OperationalResourceAction{
 				Step: &knowledgebase.OperationalStep{
-					Direction: knowledgebase.Downstream,
+					Direction: knowledgebase.DirectionDownstream,
 					Resources: []string{"mock:resource4"},
 					NumNeeded: 2,
 				},
@@ -126,13 +129,14 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 					},
 				},
 			},
+			wantCreated: []string{},
 		},
 		{
 			name:     "upstream resources from types, none available, will create",
 			resource: kbtesting.MockResource1("test1"),
 			action: OperationalResourceAction{
 				Step: &knowledgebase.OperationalStep{
-					Direction: knowledgebase.Downstream,
+					Direction: knowledgebase.DirectionDownstream,
 					Resources: []string{"mock:resource4"},
 					NumNeeded: 2,
 				},
@@ -169,6 +173,7 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 					},
 				},
 			},
+			wantCreated: []string{},
 		},
 	}
 	for _, tt := range tests {
@@ -176,16 +181,16 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 			assert := assert.New(t)
 			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
-				ConfigCtx: knowledgebase.ConfigTemplateContext{},
+				ConfigCtx: knowledgebase.DynamicValueContext{},
 				Graph:     g,
-				KB:        kbtesting.TestKB,
+				KB:        kbtesting.CreateTestKB(t),
 			}
 			for _, mock := range tt.mocks {
 				g.On(mock.Method, mock.Arguments...).Return(mock.ReturnArguments...).Once()
 
 			}
 
-			err := ctx.handleOperationalResourceAction(tt.resource, tt.action)
+			created, err := ctx.handleOperationalResourceAction(tt.resource, tt.action)
 			if !assert.NoError(err) {
 				return
 			}
@@ -193,6 +198,12 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 				g.AssertCalled(t, mock.Method, mock.Arguments...)
 			}
 			g.AssertExpectations(t)
+
+			got := make([]string, len(created))
+			for i, res := range created {
+				got[i] = res.ID.String()
+			}
+			assert.ElementsMatch(tt.wantCreated, got)
 		})
 	}
 }
@@ -208,7 +219,7 @@ func Test_findResourcesWhichSatisfyStepClassifications(t *testing.T) {
 			name:     "upstream",
 			resource: kbtesting.MockResource1("test1"),
 			step: knowledgebase.OperationalStep{
-				Direction:       knowledgebase.Upstream,
+				Direction:       knowledgebase.DirectionUpstream,
 				Classifications: []string{"role"},
 			},
 			want: []construct.ResourceId{},
@@ -217,7 +228,7 @@ func Test_findResourcesWhichSatisfyStepClassifications(t *testing.T) {
 			name:     "downstream",
 			resource: kbtesting.MockResource1("test1"),
 			step: knowledgebase.OperationalStep{
-				Direction:       knowledgebase.Downstream,
+				Direction:       knowledgebase.DirectionDownstream,
 				Classifications: []string{"role"},
 			},
 			want: []construct.ResourceId{
@@ -231,7 +242,7 @@ func Test_findResourcesWhichSatisfyStepClassifications(t *testing.T) {
 			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				Graph: g,
-				KB:    kbtesting.TestKB,
+				KB:    kbtesting.CreateTestKB(t),
 			}
 
 			result := ctx.findResourcesWhichSatisfyStepClassifications(&tt.step, tt.resource)
@@ -251,7 +262,7 @@ func Test_getResourcesForStep(t *testing.T) {
 			name:     "upstream resource types",
 			resource: kbtesting.MockResource1("test1"),
 			step: knowledgebase.OperationalStep{
-				Direction: knowledgebase.Upstream,
+				Direction: knowledgebase.DirectionUpstream,
 				Resources: []string{"mock:resource4"},
 			},
 			want: []construct.ResourceId{
@@ -263,7 +274,7 @@ func Test_getResourcesForStep(t *testing.T) {
 			name:     "downstream resource types",
 			resource: kbtesting.MockResource1("test1"),
 			step: knowledgebase.OperationalStep{
-				Direction: knowledgebase.Downstream,
+				Direction: knowledgebase.DirectionDownstream,
 				Resources: []string{"mock:resource4"},
 			},
 			want: []construct.ResourceId{
@@ -275,7 +286,7 @@ func Test_getResourcesForStep(t *testing.T) {
 			name:     "downstream classifications",
 			resource: kbtesting.MockResource1("test1"),
 			step: knowledgebase.OperationalStep{
-				Direction:       knowledgebase.Downstream,
+				Direction:       knowledgebase.DirectionDownstream,
 				Classifications: []string{"role"},
 			},
 			want: []construct.ResourceId{
@@ -287,7 +298,7 @@ func Test_getResourcesForStep(t *testing.T) {
 			name:     "upstream classifications",
 			resource: kbtesting.MockResource1("test1"),
 			step: knowledgebase.OperationalStep{
-				Direction:       knowledgebase.Upstream,
+				Direction:       knowledgebase.DirectionUpstream,
 				Classifications: []string{"role"},
 			},
 			want: []construct.ResourceId{
@@ -302,7 +313,7 @@ func Test_getResourcesForStep(t *testing.T) {
 			g := &enginetesting.MockGraph{}
 			ctx := OperationalRuleContext{
 				Graph: g,
-				KB:    kbtesting.TestKB,
+				KB:    kbtesting.CreateTestKB(t),
 			}
 
 			g.On("Upstream", mock.Anything, mock.Anything).Return(
@@ -325,7 +336,7 @@ func Test_getResourcesForStep(t *testing.T) {
 				t.Fatal(err)
 			}
 			assert.ElementsMatch(tt.want, result)
-			if tt.step.Direction == knowledgebase.Downstream {
+			if tt.step.Direction == knowledgebase.DirectionDownstream {
 				g.AssertCalled(t, "Downstream", tt.resource, 3)
 			} else {
 				g.AssertCalled(t, "Upstream", tt.resource, 3)
@@ -346,7 +357,7 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 			resource: &construct.Resource{Properties: map[string]interface{}{
 				"Res4": kbtesting.MockResource4("test"),
 			}},
-			step:         knowledgebase.OperationalStep{Direction: knowledgebase.Downstream},
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
 			propertyName: "Res4",
 		},
 		{
@@ -354,7 +365,7 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 			resource: &construct.Resource{Properties: map[string]interface{}{
 				"Res4": kbtesting.MockResource4("test"),
 			}},
-			step:         knowledgebase.OperationalStep{Direction: knowledgebase.Upstream},
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 			propertyName: "Res4",
 		},
 		{
@@ -362,7 +373,7 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 			resource: &construct.Resource{Properties: map[string]interface{}{
 				"Res2s": []*construct.Resource{kbtesting.MockResource2("test"), kbtesting.MockResource2("test2")},
 			}},
-			step:         knowledgebase.OperationalStep{Direction: knowledgebase.Upstream},
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 			propertyName: "Res2s",
 		},
 	}
@@ -396,14 +407,14 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 				return
 			}
 			if currPropertyVal != nil {
-				if tt.step.Direction == knowledgebase.Upstream {
+				if tt.step.Direction == knowledgebase.DirectionUpstream {
 					g.AssertCalled(t, "AddDependency", currPropertyVal, tt.resource)
 				} else {
 					g.AssertCalled(t, "AddDependency", tt.resource, currPropertyVal)
 				}
 			} else {
 				for _, res := range currPropertyArr {
-					if tt.step.Direction == knowledgebase.Upstream {
+					if tt.step.Direction == knowledgebase.DirectionUpstream {
 						g.AssertCalled(t, "AddDependency", res, tt.resource)
 					} else {
 						g.AssertCalled(t, "AddDependency", tt.resource, res)
@@ -426,7 +437,7 @@ func Test_clearProperty(t *testing.T) {
 			resource: &construct.Resource{Properties: map[string]interface{}{
 				"Res4": kbtesting.MockResource4("test"),
 			}},
-			step:         knowledgebase.OperationalStep{Direction: knowledgebase.Downstream},
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
 			propertyName: "Res4",
 		},
 		{
@@ -434,7 +445,7 @@ func Test_clearProperty(t *testing.T) {
 			resource: &construct.Resource{Properties: map[string]interface{}{
 				"Res4": kbtesting.MockResource4("test"),
 			}},
-			step:         knowledgebase.OperationalStep{Direction: knowledgebase.Upstream},
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 			propertyName: "Res4",
 		},
 		{
@@ -442,7 +453,7 @@ func Test_clearProperty(t *testing.T) {
 			resource: &construct.Resource{Properties: map[string]interface{}{
 				"Res2s": []*construct.Resource{kbtesting.MockResource2("test"), kbtesting.MockResource2("test2")},
 			}},
-			step:         knowledgebase.OperationalStep{Direction: knowledgebase.Upstream},
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 			propertyName: "Res2s",
 		},
 	}
@@ -479,14 +490,14 @@ func Test_clearProperty(t *testing.T) {
 				assert.Fail("property is nil")
 			}
 			if currPropertyVal != nil {
-				if tt.step.Direction == knowledgebase.Upstream {
+				if tt.step.Direction == knowledgebase.DirectionUpstream {
 					g.AssertCalled(t, "RemoveDependency", currPropertyVal.ID, originalId)
 				} else {
 					g.AssertCalled(t, "RemoveDependency", originalId, currPropertyVal.ID)
 				}
 			} else {
 				for _, res := range currPropertyArr {
-					if tt.step.Direction == knowledgebase.Upstream {
+					if tt.step.Direction == knowledgebase.DirectionUpstream {
 						g.AssertCalled(t, "RemoveDependency", res.ID, originalId)
 					} else {
 						g.AssertCalled(t, "RemoveDependency", originalId, res.ID)
@@ -509,7 +520,7 @@ func Test_addDependencyForDirection(t *testing.T) {
 			to:   kbtesting.MockResource1("test1"),
 			from: kbtesting.MockResource4(""),
 			step: knowledgebase.OperationalStep{
-				Direction: knowledgebase.Downstream,
+				Direction: knowledgebase.DirectionDownstream,
 			},
 		},
 		{
@@ -517,7 +528,7 @@ func Test_addDependencyForDirection(t *testing.T) {
 			to:   kbtesting.MockResource1("test1"),
 			from: kbtesting.MockResource4(""),
 			step: knowledgebase.OperationalStep{
-				Direction: knowledgebase.Upstream,
+				Direction: knowledgebase.DirectionUpstream,
 			},
 		},
 	}
@@ -535,7 +546,7 @@ func Test_addDependencyForDirection(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			if tt.step.Direction == knowledgebase.Upstream {
+			if tt.step.Direction == knowledgebase.DirectionUpstream {
 				g.AssertCalled(t, "AddDependency", tt.from, tt.to)
 			} else {
 				g.AssertCalled(t, "AddDependency", tt.to, tt.from)
@@ -555,13 +566,13 @@ func Test_removeDependencyForDirection(t *testing.T) {
 			name:      "downstream",
 			to:        kbtesting.MockResource1("test1"),
 			from:      kbtesting.MockResource4(""),
-			direction: knowledgebase.Downstream,
+			direction: knowledgebase.DirectionDownstream,
 		},
 		{
 			name:      "upstream",
 			to:        kbtesting.MockResource1("test1"),
 			from:      kbtesting.MockResource4(""),
-			direction: knowledgebase.Upstream,
+			direction: knowledgebase.DirectionUpstream,
 		},
 	}
 	for _, tt := range tests {
@@ -578,7 +589,7 @@ func Test_removeDependencyForDirection(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			if tt.direction == knowledgebase.Upstream {
+			if tt.direction == knowledgebase.DirectionUpstream {
 				g.AssertCalled(t, "RemoveDependency", tt.from.ID, tt.to.ID)
 			} else {
 				g.AssertCalled(t, "RemoveDependency", tt.to.ID, tt.from.ID)
@@ -652,7 +663,7 @@ func Test_setField(t *testing.T) {
 			},
 			resourceToSet: res4,
 			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4"},
-			step:          knowledgebase.OperationalStep{Direction: knowledgebase.Downstream},
+			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
 			shouldReplace: true,
 			want: &construct.Resource{
 				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Namespace: res4.ID.Name, Name: "test1"},
@@ -671,7 +682,7 @@ func Test_setField(t *testing.T) {
 			},
 			resourceToSet: res4,
 			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4"},
-			step:          knowledgebase.OperationalStep{Direction: knowledgebase.Upstream},
+			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 			shouldReplace: true,
 			want: &construct.Resource{
 				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Namespace: res4.ID.Name, Name: "test1"},
@@ -688,7 +699,7 @@ func Test_setField(t *testing.T) {
 			},
 			resourceToSet: kbtesting.MockResource4("test4"),
 			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4"},
-			step:          knowledgebase.OperationalStep{Direction: knowledgebase.Upstream},
+			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 			shouldReplace: true,
 			want: &construct.Resource{
 				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Namespace: res4.ID.Name, Name: "test1"},
@@ -707,7 +718,7 @@ func Test_setField(t *testing.T) {
 			},
 			resourceToSet: res4,
 			property:      &knowledgebase.Property{Name: "Res4", Path: "Res4"},
-			step:          knowledgebase.OperationalStep{Direction: knowledgebase.Upstream},
+			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 		},
 		{
 			name: "field is array",
@@ -719,14 +730,14 @@ func Test_setField(t *testing.T) {
 			},
 			resourceToSet: kbtesting.MockResource2("test2"),
 			property:      &knowledgebase.Property{Name: "Res2s", Type: "list(resource)", Path: "Res2s"},
-			step:          knowledgebase.OperationalStep{Direction: knowledgebase.Upstream},
+			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			g := &enginetesting.MockGraph{}
-			testKb := kbtesting.TestKB
+			testKb := kbtesting.CreateTestKB(t)
 			ctx := OperationalRuleContext{
 				Property: tt.property,
 				KB:       testKb,
@@ -776,7 +787,7 @@ func Test_setField(t *testing.T) {
 
 			if tt.shouldReplace {
 				if !currPropertyVal.IsZero() {
-					if tt.step.Direction == knowledgebase.Upstream {
+					if tt.step.Direction == knowledgebase.DirectionUpstream {
 						g.AssertCalled(t, "RemoveDependency", currPropertyVal, resId)
 					} else {
 						g.AssertCalled(t, "RemoveDependency", resId, currPropertyVal)

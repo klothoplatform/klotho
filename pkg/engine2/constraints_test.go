@@ -1,4 +1,4 @@
-package solution_context
+package engine2
 
 import (
 	"testing"
@@ -90,14 +90,14 @@ func Test_ApplyApplicationConstraint(t *testing.T) {
 				mockKb.On(m.Method, m.Arguments...).Return(m.ReturnArguments...)
 			}
 			ctx := NewSolutionContext(mockKb)
-			ctx.dataflowGraph = graphtest.MakeGraph(t, construct.NewGraph(), tt.initialState...)
-			ctx.deploymentGraph = graphtest.MakeGraph(t, construct.NewGraph(), tt.initialState...)
+			ctx.DataflowGraph = graphtest.MakeGraph(t, construct.NewGraph(), tt.initialState...)
+			ctx.DeploymentGraph = graphtest.MakeGraph(t, construct.NewGraph(), tt.initialState...)
 			err := ctx.ApplyApplicationConstraint(tt.constraint)
 			if !assert.NoError(err) {
 				return
 			}
 			want := graphtest.MakeGraph(t, construct.NewGraph(), tt.want...)
-			graphtest.AssertGraphEqual(t, want, ctx.dataflowGraph)
+			graphtest.AssertGraphEqual(t, want, ctx.DataflowGraph)
 		})
 	}
 }

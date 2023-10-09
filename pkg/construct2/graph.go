@@ -11,27 +11,30 @@ import (
 )
 
 type (
-	Graph = graph.Graph[ResourceId, *Resource]
-	Edge  = graph.Edge[ResourceId]
+	Graph        = graph.Graph[ResourceId, *Resource]
+	Edge         = graph.Edge[ResourceId]
+	ResourceEdge = graph.Edge[*Resource]
 )
 
-func NewGraph() Graph {
+func NewGraph(options ...func(*graph.Traits)) Graph {
 	return Graph(graph.New(
 		func(r *Resource) ResourceId {
 			return r.ID
 		},
-		graph.Directed(),
+		append(options, graph.Directed())...,
 	))
 }
 
-func NewAcyclicGraph() Graph {
+func NewAcyclicGraph(options ...func(*graph.Traits)) Graph {
 	return Graph(graph.New(
 		func(r *Resource) ResourceId {
 			return r.ID
 		},
-		graph.Directed(),
-		graph.Acyclic(),
-		graph.PreventCycles(),
+		append(options,
+			graph.Directed(),
+			graph.Acyclic(),
+			graph.PreventCycles(),
+		)...,
 	))
 }
 
@@ -78,4 +81,37 @@ func stringTo(g Graph, w io.Writer) error {
 		}
 	}
 	return nil
+}
+
+type IdResolutionError map[ResourceId]error
+
+func (e IdResolutionError) Error() string {
+	if len(e) == 1 {
+		for id, err := range e {
+			return fmt.Sprintf("failed to resolve ID %s: %v", id, err)
+		}
+	}
+	var b strings.Builder
+	b.WriteString("failed to resolve IDs:\n")
+	for id, err := range e {
+		fmt.Fprintf(&b, "  %s: %v\n", id, err)
+	}
+	return b.String()
+}
+
+func ResolveIds(g Graph, ids []ResourceId) ([]*Resource, error) {
+	errs := make(IdResolutionError)
+	var resources []*Resource
+	for _, id := range ids {
+		res, err := g.Vertex(id)
+		if err != nil {
+			errs[id] = err
+			continue
+		}
+		resources = append(resources, res)
+	}
+	if len(errs) > 0 {
+		return resources, errs
+	}
+	return resources, nil
 }

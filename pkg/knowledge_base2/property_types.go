@@ -10,7 +10,7 @@ import (
 
 type (
 	PropertyType interface {
-		Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error)
+		Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error)
 		SetProperty(property Property)
 		ZeroValue() any
 	}
@@ -85,7 +85,7 @@ func (p Property) PropertyType() (PropertyType, error) {
 	}
 }
 
-func (str *StringPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (str *StringPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
 	// Here we have to try to parse to a property ref first, since a string representation of a property ref would match string parsing
 	refPType := &PropertyRefPropertyType{}
 	val, err := refPType.Parse(value, ctx, data)
@@ -100,7 +100,7 @@ func (str *StringPropertyType) Parse(value any, ctx ConfigTemplateContext, data 
 	return nil, fmt.Errorf("invalid string value %v", value)
 }
 
-func (i *IntPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (i *IntPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
 	if val, ok := value.(string); ok {
 		var result int
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -117,7 +117,7 @@ func (i *IntPropertyType) Parse(value any, ctx ConfigTemplateContext, data Confi
 	return nil, fmt.Errorf("invalid int value %v", value)
 }
 
-func (f *FloatPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (f *FloatPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
 	if val, ok := value.(string); ok {
 		var result float32
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -140,7 +140,7 @@ func (f *FloatPropertyType) Parse(value any, ctx ConfigTemplateContext, data Con
 	return nil, fmt.Errorf("invalid float value %v", value)
 }
 
-func (b *BoolPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (b *BoolPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
 	if val, ok := value.(string); ok {
 		var result bool
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -157,7 +157,7 @@ func (b *BoolPropertyType) Parse(value any, ctx ConfigTemplateContext, data Conf
 	return nil, fmt.Errorf("invalid bool value %v", value)
 }
 
-func (r *ResourcePropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (r *ResourcePropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
 	if val, ok := value.(string); ok {
 		return ctx.ExecuteDecodeAsResourceId(val, data)
 	}
@@ -183,7 +183,7 @@ func (r *ResourcePropertyType) Parse(value any, ctx ConfigTemplateContext, data 
 	return nil, fmt.Errorf("invalid resource value %v", value)
 }
 
-func (p *PropertyRefPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (p *PropertyRefPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
 	if val, ok := value.(string); ok {
 		result := construct.PropertyRef{}
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -206,7 +206,7 @@ func (p *PropertyRefPropertyType) Parse(value any, ctx ConfigTemplateContext, da
 	return nil, fmt.Errorf("invalid property reference value %v", value)
 }
 
-func (list *ListPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (list *ListPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
 
 	var result []any
 	val, ok := value.([]any)
@@ -244,7 +244,7 @@ func (list *ListPropertyType) Parse(value any, ctx ConfigTemplateContext, data C
 	return result, nil
 }
 
-func (m *MapPropertyType) Parse(value any, ctx ConfigTemplateContext, data ConfigTemplateData) (any, error) {
+func (m *MapPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
 
 	result := map[string]any{}
 

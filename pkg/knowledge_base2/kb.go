@@ -1,8 +1,8 @@
 package knowledgebase2
 
 import (
+	"errors"
 	"fmt"
-	"reflect"
 	"sort"
 
 	"github.com/dominikbraun/graph"
@@ -20,12 +20,11 @@ type (
 		HasDirectPath(from, to construct.ResourceId) bool
 		HasFunctionalPath(from, to construct.ResourceId) bool
 		AllPaths(from, to construct.ResourceId) ([][]*ResourceTemplate, error)
-		GetAllowedNamespacedResourceIds(ctx ConfigTemplateContext, resourceId construct.ResourceId) ([]construct.ResourceId, error)
+		GetAllowedNamespacedResourceIds(ctx DynamicValueContext, resourceId construct.ResourceId) ([]construct.ResourceId, error)
 		GetFunctionality(id construct.ResourceId) Functionality
 		GetClassification(id construct.ResourceId) Classification
-		GetResourcesNamespaceResource(resource *construct.Resource) *construct.Resource
-		GetResourcePropertyType(resource *construct.Resource, propertyName string) string
-		TransformToPropertyValue(resource *construct.Resource, propertyName string, value interface{}, ctx ConfigTemplateContext, data ConfigTemplateData) (interface{}, error)
+		GetResourcesNamespaceResource(resource *construct.Resource) construct.ResourceId
+		GetResourcePropertyType(resource construct.ResourceId, propertyName string) string
 	}
 
 	// KnowledgeBase is a struct that represents the object which contains the knowledge of how to make resources operational
@@ -137,7 +136,7 @@ func (kb *KnowledgeBase) AllPaths(from, to construct.ResourceId) ([][]*ResourceT
 	return resources, nil
 }
 
-func (kb *KnowledgeBase) GetAllowedNamespacedResourceIds(ctx ConfigTemplateContext, resourceId construct.ResourceId) ([]construct.ResourceId, error) {
+func (kb *KnowledgeBase) GetAllowedNamespacedResourceIds(ctx DynamicValueContext, resourceId construct.ResourceId) ([]construct.ResourceId, error) {
 
 	template, _ := kb.GetResourceTemplate(resourceId)
 	var result []construct.ResourceId
@@ -152,7 +151,7 @@ func (kb *KnowledgeBase) GetAllowedNamespacedResourceIds(ctx ConfigTemplateConte
 	for _, step := range rule.Steps {
 		if step.Resources != nil {
 			for _, resource := range step.Resources {
-				id, err := ctx.ExecuteDecodeAsResourceId(resource, ConfigTemplateData{Resource: resourceId})
+				id, err := ctx.ExecuteDecodeAsResourceId(resource, DynamicValueData{Resource: resourceId})
 				if err != nil {
 					return nil, err
 				}
@@ -187,20 +186,24 @@ func (kb *KnowledgeBase) GetClassification(id construct.ResourceId) Classificati
 	return template.Classification
 }
 
-func (kb *KnowledgeBase) GetResourcesNamespaceResource(resource *construct.Resource) *construct.Resource {
+func (kb *KnowledgeBase) GetResourcesNamespaceResource(resource *construct.Resource) construct.ResourceId {
 	template, err := kb.GetResourceTemplate(resource.ID)
 	if err != nil {
-		return nil
+		return construct.ResourceId{}
 	}
 	namespaceProperty := template.GetNamespacedProperty()
 	if namespaceProperty != nil {
-		return reflect.ValueOf(resource).Elem().FieldByName(namespaceProperty.Name).Interface().(*construct.Resource)
+		ns, err := resource.GetProperty(namespaceProperty.Name)
+		if err != nil {
+			return construct.ResourceId{}
+		}
+		return ns.(construct.ResourceId)
 	}
-	return nil
+	return construct.ResourceId{}
 }
 
-func (kb *KnowledgeBase) GetResourcePropertyType(resource *construct.Resource, propertyName string) string {
-	template, err := kb.GetResourceTemplate(resource.ID)
+func (kb *KnowledgeBase) GetResourcePropertyType(resource construct.ResourceId, propertyName string) string {
+	template, err := kb.GetResourceTemplate(resource)
 	if err != nil {
 		return ""
 	}
@@ -214,8 +217,14 @@ func (kb *KnowledgeBase) GetResourcePropertyType(resource *construct.Resource, p
 
 // TransformToPropertyValue transforms a value to the correct type for a given property
 // This is used for transforming values from the config template (and any interface value we want to set on a resource) to the correct type for the resource
-func (kb *KnowledgeBase) TransformToPropertyValue(resource *construct.Resource, propertyName string, value interface{}, ctx ConfigTemplateContext, data ConfigTemplateData) (interface{}, error) {
-	template, err := kb.GetResourceTemplate(resource.ID)
+func TransformToPropertyValue(
+	resource *construct.Resource,
+	propertyName string,
+	value interface{},
+	ctx DynamicValueContext,
+	data DynamicValueData,
+) (interface{}, error) {
+	template, err := ctx.KB.GetResourceTemplate(resource.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -227,9 +236,58 @@ func (kb *KnowledgeBase) TransformToPropertyValue(resource *construct.Resource, 
 	if err != nil {
 		return nil, fmt.Errorf("could not find property type %s on resource %s for property %s", property.Type, resource.ID, property.Name)
 	}
+	if value == nil {
+		return propertyType.ZeroValue(), nil
+	}
 	val, err := propertyType.Parse(value, ctx, data)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse value %v for property %s on resource %s: %w", value, property.Name, resource.ID, err)
 	}
 	return val, nil
+}
+
+func TransformAllPropertyValues(ctx DynamicValueContext) error {
+	ids, err := construct.ToplogicalSort(ctx.DAG)
+	if err != nil {
+		return err
+	}
+	resources, err := construct.ResolveIds(ctx.DAG, ids)
+	if err != nil {
+		return err
+	}
+
+	var errs error
+
+resourceLoop:
+	for _, resource := range resources {
+		tmpl, err := ctx.KB.GetResourceTemplate(resource.ID)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		data := DynamicValueData{Resource: resource.ID}
+
+		for _, prop := range tmpl.Properties {
+			path, err := resource.PropertyPath(prop.Name)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+			preXform := path.Get()
+			if preXform == nil {
+				continue
+			}
+			val, err := TransformToPropertyValue(resource, prop.Name, preXform, ctx, data)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("error transforming %s#%s: %w", resource.ID, prop.Name, err))
+				continue resourceLoop
+			}
+			err = path.Set(val)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("errors setting %s#%s: %w", resource.ID, prop.Name, err))
+				continue resourceLoop
+			}
+		}
+	}
+	return errs
 }

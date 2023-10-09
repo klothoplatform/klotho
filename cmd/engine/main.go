@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	engine "github.com/klothoplatform/klotho/pkg/engine2"
 	"github.com/spf13/cobra"
 )
@@ -8,12 +11,10 @@ import (
 func main() {
 	em := &engine.EngineMain{}
 	var root = &cobra.Command{}
-	err := em.AddEngineCli(root)
+	em.AddEngineCli(root)
+	err := root.Execute()
 	if err != nil {
-		panic(err)
-	}
-	err = root.Execute()
-	if err != nil {
-		panic(err)
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
 	}
 }

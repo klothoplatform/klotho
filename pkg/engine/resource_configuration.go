@@ -109,8 +109,8 @@ func (e *Engine) configureResource(context *SolveContext, r construct.Resource) 
 			continue
 		}
 		if cfg.ValueTemplate != "" {
-			ctx := knowledgebase.ConfigTemplateContext{DAG: context.ResourceGraph}
-			data := knowledgebase.ConfigTemplateData{
+			ctx := knowledgebase.DynamicValueContext{DAG: context.ResourceGraph}
+			data := knowledgebase.DynamicValueData{
 				Resource: r.Id(),
 			}
 			var err error

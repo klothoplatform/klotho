@@ -44,6 +44,17 @@ func Test_ExpandEdge(t *testing.T) {
 						&knowledgebase.EdgeTemplate{},
 					},
 				},
+				{
+					Method: "Downstream",
+					Arguments: mock.Arguments{
+						mock.MatchedBy(func(resource *construct.Resource) bool { return resource.ID.String() == "source" }),
+						4,
+					},
+					ReturnArguments: mock.Arguments{
+						[]*construct.Resource{},
+						nil,
+					},
+				},
 			},
 			validPath: Path{
 				Nodes: []construct.ResourceId{
@@ -229,9 +240,7 @@ func Test_ExpandEdge(t *testing.T) {
 						construct.ResourceId{Provider: "p", Type: "t"},
 					},
 					ReturnArguments: mock.Arguments{
-						&knowledgebase.EdgeTemplate{
-							Reuse: knowledgebase.ReuseUpstream,
-						},
+						&knowledgebase.EdgeTemplate{},
 					},
 				},
 			},
@@ -302,9 +311,7 @@ func Test_ExpandEdge(t *testing.T) {
 						construct.ResourceId{Name: "destination"},
 					},
 					ReturnArguments: mock.Arguments{
-						&knowledgebase.EdgeTemplate{
-							Reuse: knowledgebase.ReuseDownstream,
-						},
+						&knowledgebase.EdgeTemplate{},
 					},
 				},
 			},

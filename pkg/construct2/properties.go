@@ -16,9 +16,6 @@ type (
 
 // SetProperty is a wrapper around [PropertyPath.Set] for convenience.
 func (r *Resource) SetProperty(pathStr string, value any) error {
-	if r.Properties == nil {
-		r.Properties = Properties{}
-	}
 	path, err := r.PropertyPath(pathStr)
 	if err != nil {
 		return err
@@ -108,6 +105,9 @@ func splitPath(path string) []string {
 // PropertyPath interprets a string path to index (potentially deeply) into [Resource.Properties]
 // which can be used to get, set, append, or remove values.
 func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
+	if r.Properties == nil {
+		r.Properties = Properties{}
+	}
 	pathParts := splitPath(pathStr)
 	if len(pathParts) == 0 {
 		return nil, fmt.Errorf("empty path")
@@ -129,7 +129,7 @@ func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
 					Cause: fmt.Errorf("expected map, got %s", value.Type()),
 				}
 			}
-			item := mapValuePathItem{
+			item := &mapValuePathItem{
 				m:   value,
 				key: reflect.ValueOf(part),
 			}
@@ -167,7 +167,7 @@ func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
 					Cause: fmt.Errorf("array index out of bounds: %d (length %d)", idx, value.Len()),
 				}
 			}
-			path[i] = arrayIndexPathItem{
+			path[i] = &arrayIndexPathItem{
 				_parent: path[i-1],
 				a:       value,
 				index:   idx,
@@ -185,7 +185,7 @@ type PropertyPathError struct {
 	Cause error
 }
 
-func (e *PropertyPathError) Error() string {
+func (e PropertyPathError) Error() string {
 	return fmt.Sprintf("error in path %s: %v",
 		strings.Join(e.Path, ""),
 		e.Cause,
@@ -209,7 +209,7 @@ func itemToPath(i PropertyPathItem) []string {
 	return PropertyPath(items).Parts()
 }
 
-func (e *PropertyPathError) Unwrap() error {
+func (e PropertyPathError) Unwrap() error {
 	return e.Cause
 }
 
@@ -226,14 +226,18 @@ func pathPanicRecover(i PropertyPathItem, operation string, err *error) {
 	}
 }
 
-func (i mapValuePathItem) Set(value any) (err error) {
-	defer pathPanicRecover(i, "Set on map", &err)
+func (i *mapValuePathItem) ensureMap() error {
 	if !i.m.IsValid() {
 		i.m = reflect.MakeMap(reflect.MapOf(i.key.Type(), reflect.TypeOf((*any)(nil)).Elem()))
-		err = i._parent.Set(i.m.Interface())
-		if err != nil {
-			return
-		}
+		return i._parent.Set(i.m.Interface())
+	}
+	return nil
+}
+
+func (i *mapValuePathItem) Set(value any) (err error) {
+	defer pathPanicRecover(i, "Set on map", &err)
+	if err := i.ensureMap(); err != nil {
+		return err
 	}
 	i.m.SetMapIndex(i.key, reflect.ValueOf(value))
 	return nil
@@ -307,8 +311,11 @@ func appendValue(appendTo reflect.Value, value reflect.Value) (reflect.Value, er
 	return a, fmt.Errorf("expected array or map destination for append, got %s", a.Kind())
 }
 
-func (i mapValuePathItem) Append(value any) (err error) {
+func (i *mapValuePathItem) Append(value any) (err error) {
 	defer pathPanicRecover(i, "Append on map", &err)
+	if err := i.ensureMap(); err != nil {
+		return err
+	}
 
 	kv := i.m.MapIndex(i.key)
 	appended, err := appendValue(kv, reflect.ValueOf(value))
@@ -333,8 +340,11 @@ func arrRemoveByValue(arr reflect.Value, value reflect.Value) (reflect.Value, er
 	return newArr, nil
 }
 
-func (i mapValuePathItem) Remove(value any) (err error) {
+func (i *mapValuePathItem) Remove(value any) (err error) {
 	defer pathPanicRecover(i, "Remove on map", &err)
+	if !i.m.IsValid() {
+		return
+	}
 	if value == nil {
 		i.m.SetMapIndex(i.key, reflect.Value{})
 		return nil
@@ -357,7 +367,7 @@ func (i mapValuePathItem) Remove(value any) (err error) {
 	return nil
 }
 
-func (i mapValuePathItem) Get() any {
+func (i *mapValuePathItem) Get() any {
 	if !i.m.IsValid() {
 		return nil
 	}
@@ -368,19 +378,19 @@ func (i mapValuePathItem) Get() any {
 	return v.Interface()
 }
 
-func (i mapValuePathItem) parent() PropertyPathItem {
+func (i *mapValuePathItem) parent() PropertyPathItem {
 	return i._parent
 }
 
-func (i mapValuePathItem) Key() PropertyPathItem {
-	return mapKeyPathItem(i)
+func (i *mapValuePathItem) Key() PropertyPathItem {
+	return (*mapKeyPathItem)(i)
 }
 
-func (i mapKeyPathItem) Get() any {
+func (i *mapKeyPathItem) Get() any {
 	return i.key.Interface()
 }
 
-func (i mapKeyPathItem) Set(value any) (err error) {
+func (i *mapKeyPathItem) Set(value any) (err error) {
 	defer pathPanicRecover(i, "Set on map key", &err)
 	mapValue := i.m.MapIndex(i.key)
 	i.m.SetMapIndex(i.key, reflect.Value{})
@@ -388,30 +398,30 @@ func (i mapKeyPathItem) Set(value any) (err error) {
 	return nil
 }
 
-func (i mapKeyPathItem) Append(value any) (err error) {
+func (i *mapKeyPathItem) Append(value any) (err error) {
 	return &PropertyPathError{
 		Path:  itemToPath(i),
 		Cause: fmt.Errorf("cannot append to map key"),
 	}
 }
 
-func (i mapKeyPathItem) Remove(value any) (err error) {
+func (i *mapKeyPathItem) Remove(value any) (err error) {
 	defer pathPanicRecover(i, "Remove on map key", &err)
 	i.m.SetMapIndex(i.key, reflect.Value{})
 	return nil
 }
 
-func (i mapKeyPathItem) parent() PropertyPathItem {
+func (i *mapKeyPathItem) parent() PropertyPathItem {
 	return i._parent
 }
 
-func (i arrayIndexPathItem) Set(value any) (err error) {
+func (i *arrayIndexPathItem) Set(value any) (err error) {
 	defer pathPanicRecover(i, "Set on array", &err)
 	i.a.Index(i.index).Set(reflect.ValueOf(value))
 	return nil
 }
 
-func (i arrayIndexPathItem) Append(value any) (err error) {
+func (i *arrayIndexPathItem) Append(value any) (err error) {
 	defer pathPanicRecover(i, "Append on array", &err)
 	ival := i.a.Index(i.index)
 	appended, err := appendValue(ival, reflect.ValueOf(value))
@@ -422,8 +432,11 @@ func (i arrayIndexPathItem) Append(value any) (err error) {
 	return nil
 }
 
-func (i arrayIndexPathItem) Remove(value any) (err error) {
+func (i *arrayIndexPathItem) Remove(value any) (err error) {
 	defer pathPanicRecover(i, "Remove on array", &err)
+	if !i.a.IsValid() {
+		return
+	}
 	if value == nil {
 		i.a = reflect.AppendSlice(i.a.Slice(0, i.index), i.a.Slice(i.index+1, i.a.Len()))
 		return i._parent.Set(i.a.Interface())
@@ -447,11 +460,11 @@ func (i arrayIndexPathItem) Remove(value any) (err error) {
 	return nil
 }
 
-func (i arrayIndexPathItem) Get() any {
+func (i *arrayIndexPathItem) Get() any {
 	return i.a.Index(i.index).Interface()
 }
 
-func (i arrayIndexPathItem) parent() PropertyPathItem {
+func (i *arrayIndexPathItem) parent() PropertyPathItem {
 	return i._parent
 }
 
@@ -485,13 +498,13 @@ func (i PropertyPath) Parts() []string {
 	parts := make([]string, len(i))
 	for idx, item := range i {
 		switch item := item.(type) {
-		case mapValuePathItem:
+		case *mapValuePathItem:
 			key := item.key.String()
 			if idx > 0 {
 				key = "." + key
 			}
 			parts[idx] = key
-		case arrayIndexPathItem:
+		case *arrayIndexPathItem:
 			parts[idx] = fmt.Sprintf("[%d]", item.index)
 		}
 	}
@@ -544,7 +557,7 @@ func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 	props := reflect.ValueOf(r.Properties)
 	keys, _ := mapKeys(props)
 	for i, k := range keys {
-		queue[i] = PropertyPath{mapValuePathItem{m: props, key: k}}
+		queue[i] = PropertyPath{&mapValuePathItem{m: props, key: k}}
 	}
 
 	var err error
@@ -569,7 +582,7 @@ func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 				return err
 			}
 			for _, k := range keys {
-				queue = append(queue, append(item, mapValuePathItem{
+				queue = append(queue, append(item, &mapValuePathItem{
 					_parent: item.Last(),
 					m:       v,
 					key:     k,
@@ -578,7 +591,7 @@ func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 
 		case reflect.Array, reflect.Slice:
 			for i := 0; i < v.Len(); i++ {
-				queue = append(queue, append(item, arrayIndexPathItem{
+				queue = append(queue, append(item, &arrayIndexPathItem{
 					_parent: item.Last(),
 					a:       v,
 					index:   i,

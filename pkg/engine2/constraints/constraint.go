@@ -50,7 +50,14 @@ type (
 	// ConstraintOperator is an enum that represents the different operators that can be applied to a constraint
 	ConstraintOperator string
 
-	Constraints []Constraint
+	ConstraintList []Constraint
+
+	Constraints struct {
+		Application []ApplicationConstraint
+		Construct   []ConstructConstraint
+		Resources   []ResourceConstraint
+		Edges       []EdgeConstraint
+	}
 )
 
 const (
@@ -69,7 +76,7 @@ const (
 	EqualsConstraintOperator         ConstraintOperator = "equals"
 )
 
-func (cs Constraints) MarshalYAML() (interface{}, error) {
+func (cs ConstraintList) MarshalYAML() (interface{}, error) {
 	var list []yaml.Node
 	for _, c := range cs {
 		var n yaml.Node
@@ -93,14 +100,14 @@ func (cs Constraints) MarshalYAML() (interface{}, error) {
 	return list, nil
 }
 
-func (cs *Constraints) UnmarshalYAML(node *yaml.Node) error {
+func (cs *ConstraintList) UnmarshalYAML(node *yaml.Node) error {
 	var list []yaml_util.RawNode
 	err := node.Decode(&list)
 	if err != nil {
 		return err
 	}
 
-	*cs = make(Constraints, len(list))
+	*cs = make(ConstraintList, len(list))
 	var errs error
 	for i, raw := range list {
 		var base BaseConstraint
@@ -148,42 +155,53 @@ func (cs *Constraints) UnmarshalYAML(node *yaml.Node) error {
 	return errs
 }
 
-func LoadConstraintsFromFile(path string) (map[ConstraintScope][]Constraint, error) {
+func (list ConstraintList) ToConstraints() (Constraints, error) {
+	var constraints Constraints
+	for _, constraint := range list {
+		switch c := constraint.(type) {
+		case *ApplicationConstraint:
+			constraints.Application = append(constraints.Application, *c)
+		case *ConstructConstraint:
+			constraints.Construct = append(constraints.Construct, *c)
+		case *ResourceConstraint:
+			constraints.Resources = append(constraints.Resources, *c)
+		case *EdgeConstraint:
+			constraints.Edges = append(constraints.Edges, *c)
+		default:
+			return Constraints{}, fmt.Errorf("invalid constraint type %T", constraint)
+		}
+	}
+	return constraints, nil
+}
+
+func LoadConstraintsFromFile(path string) (Constraints, error) {
 	var input struct {
-		Constraints Constraints `yaml:"constraints"`
+		Constraints ConstraintList `yaml:"constraints"`
 	}
 
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return Constraints{}, err
 	}
 	defer f.Close() // nolint:errcheck
 
 	err = yaml.NewDecoder(f).Decode(&input)
 	if err != nil {
-		return nil, err
+		return Constraints{}, err
 	}
 
-	constraintsByScope := make(map[ConstraintScope][]Constraint)
-	for _, constraint := range input.Constraints {
-		constraintsByScope[constraint.Scope()] = append(constraintsByScope[constraint.Scope()], constraint)
-	}
-	return constraintsByScope, nil
+	return input.Constraints.ToConstraints()
 }
 
 // ParseConstraintsFromFile parses a yaml file into a map of constraints
 //
 // Future spec may include ordering of the application of constraints, but for now we assume that the order of the constraints is based on the yaml file and they cannot be grouped outside of scope
-func ParseConstraintsFromFile(bytes []byte) (map[ConstraintScope][]Constraint, error) {
-	var constraints Constraints
-	err := yaml.Unmarshal(bytes, &constraints)
+func ParseConstraintsFromFile(bytes []byte) (Constraints, error) {
+	var list ConstraintList
+	err := yaml.Unmarshal(bytes, &list)
 	if err != nil {
-		return nil, err
+		return Constraints{}, err
 	}
-	constraintsByScope := make(map[ConstraintScope][]Constraint)
-	for _, constraint := range constraints {
-		scope := constraint.Scope()
-		constraintsByScope[scope] = append(constraintsByScope[scope], constraint)
-	}
-	return constraintsByScope, nil
+
+	return list.ToConstraints()
 }
