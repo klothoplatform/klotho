@@ -7,13 +7,13 @@ import (
 	"github.com/klothoplatform/klotho/pkg/set"
 )
 
-func copyVertexProps(p graph.VertexProperties) func(*graph.VertexProperties) {
+func CopyVertexProps(p graph.VertexProperties) func(*graph.VertexProperties) {
 	return func(dst *graph.VertexProperties) {
 		*dst = p
 	}
 }
 
-func copyEdgeProps(p graph.EdgeProperties) func(*graph.EdgeProperties) {
+func CopyEdgeProps(p graph.EdgeProperties) func(*graph.EdgeProperties) {
 	return func(dst *graph.EdgeProperties) {
 		*dst = p
 	}
@@ -28,7 +28,7 @@ func ReplaceResource(g Graph, oldId ResourceId, newRes *Resource) error {
 		return err
 	}
 
-	err = g.AddVertex(r, copyVertexProps(props))
+	err = g.AddVertex(r, CopyVertexProps(props))
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func ReplaceResource(g Graph, oldId ResourceId, newRes *Resource) error {
 	for _, edge := range adj[oldId] {
 		err = errors.Join(
 			err,
-			g.AddEdge(r.ID, edge.Target, copyEdgeProps(edge.Properties)),
+			g.AddEdge(r.ID, edge.Target, CopyEdgeProps(edge.Properties)),
 			g.RemoveEdge(edge.Source, edge.Target),
 		)
 		neighbors.Add(edge.Target)
@@ -57,7 +57,7 @@ func ReplaceResource(g Graph, oldId ResourceId, newRes *Resource) error {
 	for _, edge := range pred[oldId] {
 		err = errors.Join(
 			err,
-			g.AddEdge(edge.Source, r.ID, copyEdgeProps(edge.Properties)),
+			g.AddEdge(edge.Source, r.ID, CopyEdgeProps(edge.Properties)),
 			g.RemoveEdge(edge.Source, edge.Target),
 		)
 		neighbors.Add(edge.Source)

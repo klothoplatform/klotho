@@ -27,7 +27,8 @@ func (view MakeOperationalView) AddVertex(value *construct.Resource, options ...
 	if err != nil {
 		return err
 	}
-	return view.MakeResourcesOperational([]*construct.Resource{value})
+	_, err = view.MakeResourcesOperational([]*construct.Resource{value})
+	return err
 }
 
 func (view MakeOperationalView) AddVerticesFrom(g construct.Graph) error {
@@ -56,15 +57,18 @@ func (view MakeOperationalView) AddVerticesFrom(g construct.Graph) error {
 	if errs != nil {
 		return errs
 	}
-
-	return view.MakeResourcesOperational(resources)
+	_, err = view.MakeResourcesOperational(resources)
+	return err
 }
 
 func (view MakeOperationalView) raw() solution_context.RawAccessView {
 	return solution_context.NewRawView(solutionContext(view))
 }
 
-func (view MakeOperationalView) MakeResourcesOperational(resources []*construct.Resource) error {
+func (view MakeOperationalView) MakeResourcesOperational(resources []*construct.Resource) (
+	construct.ResourceIdChangeResults,
+	error,
+) {
 	return property_eval.SetupResources(solutionContext(view), resources)
 }
 
@@ -110,11 +114,14 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 		}
 	}
 
-	path, err := path_selection.SelectPath(solutionContext(view), dep, data)
+	validPath, err := path_selection.SelectPath(solutionContext(view), dep, data)
 	if err != nil {
 		return err
 	}
-
+	path, err := path_selection.ExpandEdge(solutionContext(view), dep, validPath, data)
+	if err != nil {
+		return err
+	}
 	// Once the path is selected & expanded, first add all the resources to the graph
 	resources := make([]*construct.Resource, len(path))
 	for i, pathId := range path {
@@ -151,20 +158,24 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 	if errs != nil {
 		return errs
 	}
-
 	// After the graph is set up, first make all the resources operational
-	err = property_eval.SetupResources(solutionContext(view), resources)
+	idChangeResult, err := property_eval.SetupResources(solutionContext(view), resources)
 	if err != nil {
 		return err
 	}
 
 	// Finally, after the graph and resources are operational, make all the edges operational
 	var result operational_rule.Result
-	for i, pathId := range path {
+	for i, _ := range path {
+		// because the id may have changed during setup, due to namespacing, we need to get the current id returned to us
+		// check to see if there are any id changes in the path at the spot of the index
+		if res, found := idChangeResult[path[i]]; found {
+			path[i] = res
+		}
 		if i == 0 {
 			continue
 		}
-		addRes, addDep, err := view.MakeEdgeOperational(path[i-1], pathId)
+		addRes, addDep, err := view.MakeEdgeOperational(path[i-1], path[i])
 		errs = errors.Join(errs, err)
 		result.CreatedResources = append(result.CreatedResources, addRes...)
 		result.AddedDependencies = append(result.AddedDependencies, addDep...)
@@ -174,12 +185,19 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 	}
 
 	for len(result.CreatedResources) > 0 || len(result.AddedDependencies) > 0 {
-		err = property_eval.SetupResources(solutionContext(view), result.CreatedResources)
+		idChangeResult, err = property_eval.SetupResources(solutionContext(view), result.CreatedResources)
 		if err != nil {
 			return err
 		}
 		var nextResult operational_rule.Result
 		for _, edge := range result.AddedDependencies {
+			// check to see if there are any id changes in the edge
+			if srcRes, found := idChangeResult[edge.Source]; found {
+				edge.Source = srcRes
+			}
+			if dstRes, found := idChangeResult[edge.Target]; found {
+				edge.Target = dstRes
+			}
 			addRes, addDep, err := view.MakeEdgeOperational(edge.Source, edge.Target)
 			errs = errors.Join(errs, err)
 			nextResult.CreatedResources = append(nextResult.CreatedResources, addRes...)
@@ -199,7 +217,12 @@ func (view MakeOperationalView) MakeEdgeOperational(
 ) ([]*construct.Resource, []construct.Edge, error) {
 	tmpl := view.KB.GetEdgeTemplate(source, target)
 	if tmpl == nil {
-		return nil, nil, nil
+		err := view.RemoveEdge(source, target)
+		if err != nil {
+			return nil, nil, err
+		}
+		err = view.AddEdge(source, target)
+		return nil, nil, err
 	}
 
 	edge := construct.Edge{Source: source, Target: target}

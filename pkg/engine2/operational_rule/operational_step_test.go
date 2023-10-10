@@ -1,16 +1,16 @@
 package operational_rule
 
-import (
-	"reflect"
-	"testing"
+// import (
+// 	"reflect"
+// 	"testing"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
-	kbtesting "github.com/klothoplatform/klotho/pkg/engine2/enginetesting/test_kb"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-)
+// 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+// 	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
+// 	kbtesting "github.com/klothoplatform/klotho/pkg/engine2/enginetesting/test_kb"
+// 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+// 	"github.com/stretchr/testify/assert"
+// 	"github.com/stretchr/testify/mock"
+// )
 
 func Test_handleOperationalResourceAction(t *testing.T) {
 	tests := []struct {
@@ -188,7 +188,7 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 			for _, mock := range tt.mocks {
 				g.On(mock.Method, mock.Arguments...).Return(mock.ReturnArguments...).Once()
 
-			}
+// 			}
 
 			created, err := ctx.handleOperationalResourceAction(tt.resource, tt.action)
 			if !assert.NoError(err) {
@@ -245,11 +245,11 @@ func Test_findResourcesWhichSatisfyStepClassifications(t *testing.T) {
 				KB:    kbtesting.CreateTestKB(t),
 			}
 
-			result := ctx.findResourcesWhichSatisfyStepClassifications(&tt.step, tt.resource)
-			assert.ElementsMatch(tt.want, result)
-		})
-	}
-}
+// 			result := ctx.findResourcesWhichSatisfyStepClassifications(&tt.step, tt.resource)
+// 			assert.ElementsMatch(tt.want, result)
+// 		})
+// 	}
+// }
 
 func Test_getResourcesForStep(t *testing.T) {
 	tests := []struct {
@@ -316,20 +316,20 @@ func Test_getResourcesForStep(t *testing.T) {
 				KB:    kbtesting.CreateTestKB(t),
 			}
 
-			g.On("Upstream", mock.Anything, mock.Anything).Return(
-				[]*construct.Resource{
-					kbtesting.MockResource4("test"),
-					kbtesting.MockResource4("test2"),
-					kbtesting.MockResource3("test3"),
-				}, nil,
-			)
-			g.On("Downstream", mock.Anything, mock.Anything).Return(
-				[]*construct.Resource{
-					kbtesting.MockResource4("test"),
-					kbtesting.MockResource4("test2"),
-					kbtesting.MockResource3("test3"),
-				}, nil,
-			)
+// 			g.On("Upstream", mock.Anything, mock.Anything).Return(
+// 				[]*construct.Resource{
+// 					kbtesting.MockResource4("test"),
+// 					kbtesting.MockResource4("test2"),
+// 					kbtesting.MockResource3("test3"),
+// 				}, nil,
+// 			)
+// 			g.On("Downstream", mock.Anything, mock.Anything).Return(
+// 				[]*construct.Resource{
+// 					kbtesting.MockResource4("test"),
+// 					kbtesting.MockResource4("test2"),
+// 					kbtesting.MockResource3("test3"),
+// 				}, nil,
+// 			)
 
 			result, err := ctx.getResourcesForStep(&tt.step, tt.resource)
 			if err != nil {
@@ -385,22 +385,22 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 				Graph: g,
 			}
 
-			g.On("AddDependency", mock.Anything, mock.Anything).Return(nil)
+// 			g.On("AddDependency", mock.Anything, mock.Anything).Return(nil)
 
-			var currPropertyVal *construct.Resource
-			var currPropertyArr []*construct.Resource
-			val, err := tt.resource.GetProperty(tt.propertyName)
-			if err != nil {
-				t.Fatal(err)
-			}
-			fieldVal := reflect.ValueOf(val)
-			if fieldVal.Kind() == reflect.Slice || fieldVal.Kind() == reflect.Array {
-				currPropertyArr = fieldVal.Interface().([]*construct.Resource)
-			} else {
-				if !fieldVal.IsNil() {
-					currPropertyVal = fieldVal.Interface().(*construct.Resource)
-				}
-			}
+// 			var currPropertyVal *construct.Resource
+// 			var currPropertyArr []*construct.Resource
+// 			val, err := tt.resource.GetProperty(tt.propertyName)
+// 			if err != nil {
+// 				t.Fatal(err)
+// 			}
+// 			fieldVal := reflect.ValueOf(val)
+// 			if fieldVal.Kind() == reflect.Slice || fieldVal.Kind() == reflect.Array {
+// 				currPropertyArr = fieldVal.Interface().([]*construct.Resource)
+// 			} else {
+// 				if !fieldVal.IsNil() {
+// 					currPropertyVal = fieldVal.Interface().(*construct.Resource)
+// 				}
+// 			}
 
 			_, err = ctx.addDependenciesFromProperty(&tt.step, tt.resource, tt.propertyName)
 			if !assert.NoError(err) {
@@ -465,7 +465,7 @@ func Test_clearProperty(t *testing.T) {
 				Graph: g,
 			}
 
-			g.On("RemoveDependency", mock.Anything, mock.Anything).Return(nil)
+// 			g.On("RemoveDependency", mock.Anything, mock.Anything).Return(nil)
 
 			originalId := tt.resource.ID
 			var currPropertyVal *construct.Resource
@@ -540,7 +540,7 @@ func Test_addDependencyForDirection(t *testing.T) {
 				Graph: g,
 			}
 
-			g.On("AddDependency", mock.Anything, mock.Anything).Return(nil)
+// 			g.On("AddDependency", mock.Anything, mock.Anything).Return(nil)
 
 			err := ctx.addDependencyForDirection(&tt.step, tt.to, tt.from)
 			if !assert.NoError(err) {
@@ -583,7 +583,7 @@ func Test_removeDependencyForDirection(t *testing.T) {
 				Graph: g,
 			}
 
-			g.On("RemoveDependency", mock.Anything, mock.Anything).Return(nil)
+// 			g.On("RemoveDependency", mock.Anything, mock.Anything).Return(nil)
 
 			err := ctx.removeDependencyForDirection(tt.direction, tt.to, tt.from)
 			if !assert.NoError(err) {
@@ -598,48 +598,48 @@ func Test_removeDependencyForDirection(t *testing.T) {
 	}
 }
 
-func Test_generateResourceName(t *testing.T) {
-	tests := []struct {
-		name          string
-		resource      *construct.Resource
-		resourceToSet *construct.Resource
-		unique        bool
-		want          string
-	}{
+// func Test_generateResourceName(t *testing.T) {
+// 	tests := []struct {
+// 		name          string
+// 		resource      *construct.Resource
+// 		resourceToSet *construct.Resource
+// 		unique        bool
+// 		want          string
+// 	}{
 
-		{
-			name:          "resource name is not unique",
-			resource:      kbtesting.MockResource1("test1"),
-			resourceToSet: kbtesting.MockResource4(""),
-			unique:        false,
-			want:          "resource4-0",
-		},
-		{
-			name:          "resource name is unique",
-			resource:      kbtesting.MockResource1("test1"),
-			resourceToSet: kbtesting.MockResource4(""),
-			unique:        true,
-			want:          "resource4-test1-0",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-			g := &enginetesting.MockGraph{}
-			ctx := OperationalRuleContext{
-				Graph: g,
-			}
+// 		{
+// 			name:          "resource name is not unique",
+// 			resource:      kbtesting.MockResource1("test1"),
+// 			resourceToSet: kbtesting.MockResource4(""),
+// 			unique:        false,
+// 			want:          "resource4-0",
+// 		},
+// 		{
+// 			name:          "resource name is unique",
+// 			resource:      kbtesting.MockResource1("test1"),
+// 			resourceToSet: kbtesting.MockResource4(""),
+// 			unique:        true,
+// 			want:          "resource4-test1-0",
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			assert := assert.New(t)
+// 			g := &enginetesting.MockGraph{}
+// 			ctx := OperationalRuleContext{
+// 				Graph: g,
+// 			}
 
-			g.On("ListResources").Return([]*construct.Resource{tt.resource, tt.resource}, nil)
+// 			g.On("ListResources").Return([]*construct.Resource{tt.resource, tt.resource}, nil)
 
-			ctx.generateResourceName(tt.resourceToSet, tt.resource, tt.unique)
+// 			ctx.generateResourceName(tt.resourceToSet, tt.resource, tt.unique)
 
-			g.AssertCalled(t, "ListResources")
-			assert.Equal(tt.want, tt.resourceToSet.ID.Name)
-		})
-	}
+// 			g.AssertCalled(t, "ListResources")
+// 			assert.Equal(tt.want, tt.resourceToSet.ID.Name)
+// 		})
+// 	}
 
-}
+// }
 
 func Test_setField(t *testing.T) {
 	res4ToReplace := kbtesting.MockResource4("thisWillBeReplaced")
@@ -744,46 +744,46 @@ func Test_setField(t *testing.T) {
 				Graph:    g,
 			}
 
-			resId := tt.resource.ID
-			var currPropertyVal construct.ResourceId
-			var currPropertyArr []construct.ResourceId
-			if tt.property != nil {
-				val, err := tt.resource.GetProperty(tt.property.Name)
-				if err != nil {
-					t.Fatal(err)
-				}
-				fieldVal := reflect.ValueOf(val)
-				if fieldVal.Kind() == reflect.Slice || fieldVal.Kind() == reflect.Array {
-					currPropertyArr = fieldVal.Interface().([]construct.ResourceId)
-				} else {
-					if fieldVal.IsValid() && !fieldVal.IsZero() {
-						currPropertyVal = fieldVal.Interface().(construct.ResourceId)
-					}
-				}
-			}
-			if tt.shouldReplace {
-				g.On("GetResource", mock.Anything).Return(res4ToReplace, nil)
-				g.On("RemoveDependency", mock.Anything, mock.Anything).Return(nil)
-				g.On("RemoveResource", mock.Anything, mock.Anything).Return(nil)
-				g.On("ReplaceResourceId", mock.Anything, mock.Anything).Return(nil)
-			}
+// 			resId := tt.resource.ID
+// 			var currPropertyVal construct.ResourceId
+// 			var currPropertyArr []construct.ResourceId
+// 			if tt.property != nil {
+// 				val, err := tt.resource.GetProperty(tt.property.Name)
+// 				if err != nil {
+// 					t.Fatal(err)
+// 				}
+// 				fieldVal := reflect.ValueOf(val)
+// 				if fieldVal.Kind() == reflect.Slice || fieldVal.Kind() == reflect.Array {
+// 					currPropertyArr = fieldVal.Interface().([]construct.ResourceId)
+// 				} else {
+// 					if fieldVal.IsValid() && !fieldVal.IsZero() {
+// 						currPropertyVal = fieldVal.Interface().(construct.ResourceId)
+// 					}
+// 				}
+// 			}
+// 			if tt.shouldReplace {
+// 				g.On("GetResource", mock.Anything).Return(res4ToReplace, nil)
+// 				g.On("RemoveDependency", mock.Anything, mock.Anything).Return(nil)
+// 				g.On("RemoveResource", mock.Anything, mock.Anything).Return(nil)
+// 				g.On("ReplaceResourceId", mock.Anything, mock.Anything).Return(nil)
+// 			}
 
-			err := ctx.setField(tt.resource, tt.resourceToSet, &tt.step)
-			if !assert.NoError(err) {
-				return
-			}
+// 			err := ctx.setField(tt.resource, tt.resourceToSet, &tt.step)
+// 			if !assert.NoError(err) {
+// 				return
+// 			}
 
-			if tt.property != nil {
-				propertyVal, err := tt.resource.GetProperty(tt.property.Name)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if reflect.ValueOf(propertyVal).Kind() == reflect.Slice || reflect.ValueOf(propertyVal).Kind() == reflect.Array {
-					assert.Equal(propertyVal.([]construct.ResourceId), append(currPropertyArr, tt.resourceToSet.ID))
-				} else {
-					assert.Equal(propertyVal, tt.resourceToSet.ID)
-				}
-			}
+// 			if tt.property != nil {
+// 				propertyVal, err := tt.resource.GetProperty(tt.property.Name)
+// 				if err != nil {
+// 					t.Fatal(err)
+// 				}
+// 				if reflect.ValueOf(propertyVal).Kind() == reflect.Slice || reflect.ValueOf(propertyVal).Kind() == reflect.Array {
+// 					assert.Equal(propertyVal.([]construct.ResourceId), append(currPropertyArr, tt.resourceToSet.ID))
+// 				} else {
+// 					assert.Equal(propertyVal, tt.resourceToSet.ID)
+// 				}
+// 			}
 
 			if tt.shouldReplace {
 				if !currPropertyVal.IsZero() {

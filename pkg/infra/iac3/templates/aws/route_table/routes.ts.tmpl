@@ -1,0 +1,20 @@
+[
+{{- range $index, $route := . }}
+  {{- if $route.Gateway}}
+    {
+        cidrBlock: "{{ $route.CidrBlock}}",
+        gatewayId: {{ getVar $route.Gateway }}.id
+    },
+  {{- else if $route.NatGateway }}
+  {
+    cidrBlock: "{{ $route.CidrBlock}}",
+    natGatewayId: {{ getVar $route.NatGateway }}.id
+  },
+  {{- else }}
+  {
+    cidrBlock: "{{ $route.CidrBlock}}",
+  },
+  {{- end }}
+{{- end}}
+]
+

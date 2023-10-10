@@ -13,6 +13,7 @@ import (
 type (
 	TemplateKB interface {
 		ListResources() []*ResourceTemplate
+		Edges() ([]graph.Edge[*ResourceTemplate], error)
 		AddResourceTemplate(template *ResourceTemplate) error
 		AddEdgeTemplate(template *EdgeTemplate) error
 		GetResourceTemplate(id construct.ResourceId) (*ResourceTemplate, error)
@@ -62,6 +63,30 @@ func (kb *KnowledgeBase) ListResources() []*ResourceTemplate {
 		}
 	}
 	return result
+}
+
+func (kb *KnowledgeBase) Edges() ([]graph.Edge[*ResourceTemplate], error) {
+	edges, err := kb.underlying.Edges()
+	if err != nil {
+		return nil, err
+	}
+	var result []graph.Edge[*ResourceTemplate]
+	for _, edge := range edges {
+		src, err := kb.underlying.Vertex(edge.Source)
+		if err != nil {
+			return nil, err
+		}
+		dst, err := kb.underlying.Vertex(edge.Target)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, graph.Edge[*ResourceTemplate]{
+			Source: src,
+			Target: dst,
+		})
+	}
+	return result, nil
+
 }
 
 func (kb *KnowledgeBase) AddResourceTemplate(template *ResourceTemplate) error {
@@ -138,7 +163,10 @@ func (kb *KnowledgeBase) AllPaths(from, to construct.ResourceId) ([][]*ResourceT
 
 func (kb *KnowledgeBase) GetAllowedNamespacedResourceIds(ctx DynamicValueContext, resourceId construct.ResourceId) ([]construct.ResourceId, error) {
 
-	template, _ := kb.GetResourceTemplate(resourceId)
+	template, err := kb.GetResourceTemplate(resourceId)
+	if err != nil {
+		return nil, fmt.Errorf("could not find resource template for %s: %w", resourceId, err)
+	}
 	var result []construct.ResourceId
 	property := template.GetNamespacedProperty()
 	if property == nil {
@@ -151,21 +179,30 @@ func (kb *KnowledgeBase) GetAllowedNamespacedResourceIds(ctx DynamicValueContext
 	for _, step := range rule.Steps {
 		if step.Resources != nil {
 			for _, resource := range step.Resources {
-				id, err := ctx.ExecuteDecodeAsResourceId(resource, DynamicValueData{Resource: resourceId})
-				if err != nil {
-					return nil, err
+				if resource.Selector != "" {
+					id, err := ctx.ExecuteDecodeAsResourceId(resource.Selector, DynamicValueData{Resource: resourceId})
+					if err != nil {
+						return nil, err
+					}
+					template, err := kb.GetResourceTemplate(id)
+					if err != nil {
+						return nil, err
+					}
+					if template.ResourceContainsClassifications(resource.Classifications) {
+						result = append(result, id)
+					}
 				}
-				result = append(result, id)
-			}
-		}
-		if step.Classifications != nil {
-			for _, resTempalte := range kb.ListResources() {
-				if resTempalte.ResourceContainsClassifications(step.Classifications) {
-					result = append(result, resTempalte.Id())
-				}
-			}
+				if resource.Classifications != nil && resource.Selector == "" {
+					for _, resTempalte := range kb.ListResources() {
+						if resTempalte.ResourceContainsClassifications(resource.Classifications) {
+							result = append(result, resTempalte.Id())
+						}
+					}
 
+				}
+			}
 		}
+
 	}
 	return result, nil
 }
@@ -194,7 +231,7 @@ func (kb *KnowledgeBase) GetResourcesNamespaceResource(resource *construct.Resou
 	namespaceProperty := template.GetNamespacedProperty()
 	if namespaceProperty != nil {
 		ns, err := resource.GetProperty(namespaceProperty.Name)
-		if err != nil {
+		if err != nil || ns == nil {
 			return construct.ResourceId{}
 		}
 		return ns.(construct.ResourceId)

@@ -12,6 +12,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"go.uber.org/zap"
 )
 
 type (
@@ -20,6 +21,7 @@ type (
 		Path       construct.PropertyPath
 		Template   knowledgebase.Property
 		Constraint *constraints.ResourceConstraint
+		Resource   *construct.Resource
 	}
 
 	Graph = graph.Graph[construct.PropertyRef, *PropertyVertex]
@@ -61,6 +63,7 @@ func AddResources(
 
 	for source, targets := range deps {
 		for _, target := range targets {
+			zap.S().Debugf("  -> %s", target)
 			errs = errors.Join(errs, construct.IgnoreExists(g.AddEdge(source, target)))
 		}
 	}
@@ -96,6 +99,7 @@ func addResource(
 			vertex := &PropertyVertex{
 				Ref:      construct.PropertyRef{Resource: res.ID, Property: prop.Path},
 				Template: prop,
+				Resource: res,
 			}
 			if _, err := g.Vertex(vertex.Ref); err == nil {
 				continue

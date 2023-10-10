@@ -1,0 +1,19 @@
+qualified_type_name: aws:availability_zone
+
+properties:
+  Index:
+    type: int
+    default_value: |
+      {{ $region := (fieldValue "Region" .Self) }} 
+      {{ sub (len (allUpstream "aws:availability_zone" $region)) 1 }}   
+  Region:
+    type: resource
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources: 
+            - aws:region
+
+delete_context:
+  requires_no_upstream: true

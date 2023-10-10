@@ -16,9 +16,12 @@ import (
 func ExpandEdge(
 	ctx solution_context.SolutionContext,
 	dep construct.ResourceEdge,
-	validPath Path,
+	validPath []construct.ResourceId,
 	edgeData EdgeData,
 ) ([]construct.ResourceId, error) {
+	if len(validPath) == 2 {
+		return validPath, nil
+	}
 	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source, dep.Target)
 
 	g := construct.NewAcyclicGraph(graph.Weighted())
@@ -28,7 +31,7 @@ func ExpandEdge(
 	errs = errors.Join(errs, g.AddVertex(dep.Source))
 	errs = errors.Join(errs, g.AddVertex(dep.Target))
 
-	nonBoundaryResources := validPath.Nodes[1 : len(validPath.Nodes)-1]
+	nonBoundaryResources := validPath[1 : len(validPath)-1]
 
 	// candidates maps the nonboundary index to the set of resources that could satisfy it
 	// this is a helper to make adding all the edges to the graph easier.
@@ -177,8 +180,10 @@ func ExpandEdge(
 			}
 		}
 	}
-	for candidate := range candidates[len(candidates)-1] {
-		addEdge(candidate, dep.Target.ID)
+	if len(candidates) > 0 {
+		for candidate := range candidates[len(candidates)-1] {
+			addEdge(candidate, dep.Target.ID)
+		}
 	}
 	if errs != nil {
 		return nil, errs

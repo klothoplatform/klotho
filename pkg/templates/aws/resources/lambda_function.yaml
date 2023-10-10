@@ -19,15 +19,15 @@ properties:
           unique: true
   EnvironmentVariables:
     type: map(string,string)
-  SecurityGroups:
-    type: list(resource)
-    operational_rule:
-      if: |
-        {{ hasDownstream "aws:vpc" .Self }}
-      steps:
-        - direction: downstream
-          resources:
-            - aws:security_group
+#  SecurityGroups:
+#    type: list(resource)
+#    operational_rule:
+#      if: |
+#        {{ hasDownstream "aws:vpc" .Self }}
+#      steps:
+#        - direction: downstream
+#          resources:
+#            - aws:security_group
   Subnets:
     type: list(resource)
     operational_rule:
@@ -35,9 +35,12 @@ properties:
         {{ hasDownstream "aws:vpc" .Self }}
       steps:
         - direction: downstream
+          num_needed: 2
           resources:
-            - aws:subnet_private
-            - aws:subnet_public
+            - selector: aws:subnet
+              properties:
+                Type: private
+            - aws:subnet
   Timeout:
     type: int
     default_value: 180

@@ -6,6 +6,7 @@ properties:
     default_value: stage
   RestApi:
     type: resource
+    namespace: true
     operational_rule:
       steps:
         - direction: downstream

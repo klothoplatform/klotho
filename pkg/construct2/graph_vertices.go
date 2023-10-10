@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+
+	"github.com/dominikbraun/graph"
+	"github.com/klothoplatform/klotho/pkg/set"
 )
 
 // sortedIds is a helper type for sorting ResourceIds by purely their content, for use when deterministic ordering
@@ -162,6 +165,10 @@ type WalkGraphFunc func(id ResourceId, resource *Resource, nerr error) error
 // The resulting error from WalkGraph will be whatever was previously passed into the walk function.
 var StopWalk = errors.New("stop walking")
 
+// SkipPath is a special error that can be returned from WalkGraphFunc to skip the current path.
+// The resulting error from WalkGraph will be whatever was previously passed into the walk function.
+var SkipPath = errors.New("skip path")
+
 func walkGraph(g Graph, ids []ResourceId, fn WalkGraphFunc) (err error) {
 	for _, id := range ids {
 		v, verr := g.Vertex(id)
@@ -185,4 +192,48 @@ func WalkGraphReverse(g Graph, fn WalkGraphFunc) error {
 		return err
 	}
 	return walkGraph(g, topo, fn)
+}
+
+func WalkUp(g Graph, start ResourceId, fn WalkGraphFunc) error {
+	predecessorMap, err := g.PredecessorMap()
+	if err != nil {
+		return err
+	}
+	return walkBFS(g, predecessorMap, start, fn)
+}
+
+func WalkDown(g Graph, start ResourceId, fn WalkGraphFunc) error {
+	adjacencyMap, err := g.AdjacencyMap()
+	if err != nil {
+		return err
+	}
+	return walkBFS(g, adjacencyMap, start, fn)
+}
+
+func walkBFS(g Graph, edgesMap map[ResourceId]map[ResourceId]graph.Edge[ResourceId], start ResourceId, fn WalkGraphFunc) (err error) {
+	visited := set.Set[ResourceId]{}
+	queue := []ResourceId{start}
+	for len(queue) > 0 {
+		currentVertex := queue[0]
+		queue = queue[1:]
+
+		if _, ok := visited[currentVertex]; ok {
+			continue
+		}
+
+		v, verr := g.Vertex(currentVertex)
+		err = errors.Join(err, verr)
+		err = fn(currentVertex, v, err)
+		if err == StopWalk {
+			return nil
+		}
+		if err == SkipPath {
+			continue
+		}
+		visited[currentVertex] = struct{}{}
+		for id := range edgesMap[currentVertex] {
+			queue = append(queue, id)
+		}
+	}
+	return err
 }

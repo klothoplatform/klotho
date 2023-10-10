@@ -6,10 +6,10 @@ properties:
     required: true
     default_value: '10.0.0.0/16'
   EnableDnsSupport:
-    type: boolean
+    type: bool
     default_value: true
   EnableDnsHostnames:
-    type: boolean
+    type: bool
     default_value: true
 
 classification:

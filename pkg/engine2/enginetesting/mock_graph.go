@@ -41,6 +41,12 @@ func (g *MockGraph) Downstream(resource *construct.Resource, layer int) ([]*cons
 	args := g.Called(resource, layer)
 	return args.Get(0).([]*construct.Resource), args.Error(1)
 }
+
+func (g *MockGraph) UpstreamOfType(resource *construct.Resource, layer int, qualifiedType string) ([]*construct.Resource, error) {
+	args := g.Called(resource, layer, qualifiedType)
+	return args.Get(0).([]*construct.Resource), args.Error(1)
+}
+
 func (g *MockGraph) Upstream(resource *construct.Resource, layer int) ([]*construct.Resource, error) {
 	args := g.Called(resource, layer)
 	return args.Get(0).([]*construct.Resource), args.Error(1)

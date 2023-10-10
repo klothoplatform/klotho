@@ -5,7 +5,6 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/set"
 )
 
 type (
@@ -177,8 +176,10 @@ func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, si
 	if template == nil || err != nil {
 		return false
 	}
-	sideEffectPartial := construct.ResourceId{Provider: sideEffect.Provider, Type: sideEffect.Type}
-
+	sideEffectResource, err := dag.Vertex(sideEffect)
+	if err != nil {
+		return false
+	}
 	resource, err := dag.Vertex(rid)
 	if err != nil {
 		return false
@@ -192,27 +193,12 @@ func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, si
 		}
 		rule := property.OperationalRule
 		for _, step := range rule.Steps {
-			if step.Resources != nil {
-				resList, typesList, err := step.ExtractResourcesAndTypes(
-					dynCtx,
-					DynamicValueData{Resource: rid},
-				)
-				if err != nil {
-					continue
-				}
-				resources := make(set.Set[construct.ResourceId], len(resList))
-				resources.Add(resList...)
-
-				types := make(set.Set[construct.ResourceId], len(typesList))
-				types.Add(typesList...)
-
-				if resources.Contains(sideEffectPartial) || resources.Contains(sideEffect) {
-					ruleSatisfied = true
-					break
-				}
-			}
-			if step.Classifications != nil {
-				if template.ResourceContainsClassifications(step.Classifications) {
+			// We only check if the resource selector is a match in terms of properties and classifications (not the actual id)
+			// We do this because if we have explicit ids in the selector and someone changes the id of a side effect resource
+			// we would no longer think it is a side effect since the id would no longer match.
+			// To combat this we just check against type
+			for _, resourceSelector := range step.Resources {
+				if resourceSelector.IsMatch(dynCtx, DynamicValueData{Resource: rid}, sideEffectResource) {
 					ruleSatisfied = true
 					break
 				}

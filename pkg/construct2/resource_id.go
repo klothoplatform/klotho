@@ -18,7 +18,18 @@ type ResourceId struct {
 	Name      string `yaml:"name" toml:"name"`
 }
 
+type ResourceIdChangeResults map[ResourceId]ResourceId
+
 type ResourceList []ResourceId
+
+func (m *ResourceIdChangeResults) Merge(other ResourceIdChangeResults) {
+	if *m == nil {
+		*m = make(ResourceIdChangeResults)
+	}
+	for k, v := range other {
+		(*m)[k] = v
+	}
+}
 
 func (l ResourceList) String() string {
 	b, err := json.Marshal(l)

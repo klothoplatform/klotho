@@ -1,0 +1,2 @@
+source: aws:internet_gateway
+target: aws:vpc

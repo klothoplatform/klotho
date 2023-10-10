@@ -1,0 +1,29 @@
+qualified_type_name: aws:nat_gateway
+
+properties:
+  ElasticIp:
+    type: resource
+    required: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:elastic_ip
+          unique: true
+  Subnet:
+    type: resource
+    required: true
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - selector: aws:subnet
+              properties:
+                Type: public
+          selection_operator: spread
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

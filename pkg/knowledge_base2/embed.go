@@ -6,6 +6,7 @@ import (
 	"io/fs"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -80,17 +81,20 @@ func EdgeTemplatesFromFs(dir fs.FS) (map[string]*EdgeTemplate, error) {
 		}
 		f, err := dir.Open(path)
 		if err != nil {
+			zap.S().Errorf("Error opening edge template: %s", err)
 			return errors.Join(nerr, err)
 		}
 
 		edgeTemplate := &EdgeTemplate{}
 		err = yaml.NewDecoder(f).Decode(edgeTemplate)
 		if err != nil {
+			zap.S().Errorf("Error decoding edge template: %s", err)
 			return errors.Join(nerr, err)
 		}
 
 		id := edgeTemplate.Source.QualifiedTypeName() + "->" + edgeTemplate.Target.QualifiedTypeName()
 		if err != nil {
+			zap.S().Errorf("Error unmarshalling edge template id: %s", err)
 			return errors.Join(nerr, err)
 		}
 		if templates[id] != nil {

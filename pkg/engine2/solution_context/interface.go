@@ -31,7 +31,7 @@ type (
 	OperationalView interface {
 		construct.Graph
 
-		MakeResourcesOperational(resources []*construct.Resource) error
+		MakeResourcesOperational(resources []*construct.Resource) (construct.ResourceIdChangeResults, error)
 		MakeEdgeOperational(source, target construct.ResourceId) ([]*construct.Resource, []construct.Edge, error)
 	}
 )

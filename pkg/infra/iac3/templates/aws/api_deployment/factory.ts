@@ -14,7 +14,9 @@ function create(args: Args): aws.apigateway.Deployment {
         args.Name,
         {
             restApi: args.RestApi.id,
+            //TMPL {{- if .Triggers }}
             triggers: args.Triggers,
+            //TMPL {{- end}}
         },
         {
             dependsOn: args.dependsOn,

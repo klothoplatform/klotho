@@ -11,336 +11,726 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func Test_SelectPath(t *testing.T) {
+func Test_PathSelection(t *testing.T) {
 	tests := []struct {
 		name     string
-		dep      graph.Edge[*construct.Resource]
+		dep      construct.ResourceEdge
 		edgeData EdgeData
-		kbMocks  []mock.Call
-		expected []graph.Edge[*construct.Resource]
+		kb       []mock.Call
+		want     []construct.ResourceId
+		wantErr  bool
 	}{
 		{
-			name: "Select path",
-			dep: graph.Edge[*construct.Resource]{
-				Source: &construct.Resource{ID: construct.ResourceId{Type: "source"}},
-				Target: &construct.Resource{ID: construct.ResourceId{Type: "target"}},
+			name: "can select a direct path",
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Name: "test"}),
+				Target: construct.CreateResource(construct.ResourceId{Name: "test2"}),
 			},
-			kbMocks: []mock.Call{
+			edgeData: EdgeData{},
+			kb: []mock.Call{
 				{
 					Method: "HasDirectPath",
-					Arguments: []interface{}{
-						construct.ResourceId{Type: "source"},
-						construct.ResourceId{Type: "target"}},
-					ReturnArguments: mock.Arguments{true},
+					Arguments: mock.Arguments{
+						construct.ResourceId{
+							Name: "test",
+						},
+						construct.ResourceId{
+							Name: "test2",
+						},
+					},
+					ReturnArguments: mock.Arguments{
+						true,
+					},
 				},
 			},
-			expected: []graph.Edge[*construct.Resource]{
-				{
-					Source: &construct.Resource{ID: construct.ResourceId{Type: "source"}},
-					Target: &construct.Resource{ID: construct.ResourceId{Type: "target"}},
-				},
+			want: []construct.ResourceId{
+				{Name: "test"},
+				{Name: "test2"},
 			},
 		},
 		{
-			name: "Select path with constraints",
-			dep: graph.Edge[*construct.Resource]{
-				Source: &construct.Resource{ID: construct.ResourceId{Type: "source"}},
-				Target: &construct.Resource{ID: construct.ResourceId{Type: "target"}},
+			name: "can select a path with constraints",
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test", Name: "test"}),
+				Target: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test", Name: "test2"}),
 			},
 			edgeData: EdgeData{
 				Constraint: EdgeConstraint{
-					NodeMustExist: []construct.Resource{{ID: construct.ResourceId{Type: "middle"}}},
+					NodeMustExist: []construct.ResourceId{
+						{Provider: "mock", Type: "test", Name: "test3"},
+					},
 				},
 			},
-			kbMocks: []mock.Call{
-				{
-					Method: "GetEdgeTemplate",
-					Arguments: mock.Arguments{
-						construct.ResourceId{Type: "source"},
-						construct.ResourceId{Type: "middle"}},
-					ReturnArguments: mock.Arguments{
-						&knowledgebase.EdgeTemplate{},
-					},
-				},
-				{
-					Method: "GetEdgeTemplate",
-					Arguments: mock.Arguments{
-						construct.ResourceId{Type: "middle"},
-						construct.ResourceId{Type: "target"}},
-					ReturnArguments: mock.Arguments{
-						&knowledgebase.EdgeTemplate{},
-					},
-				},
+			kb: []mock.Call{
 				{
 					Method: "HasDirectPath",
-					Arguments: []interface{}{
-						construct.ResourceId{Type: "source"},
-						construct.ResourceId{Type: "target"}},
+					Arguments: mock.Arguments{
+						mock.Anything,
+						mock.Anything,
+					},
 					ReturnArguments: mock.Arguments{true},
 				},
 				{
-					Method: "AllPaths",
-					Arguments: []interface{}{
-						construct.ResourceId{Type: "source"},
-						construct.ResourceId{Type: "target"}},
+					Method: "ListResources",
 					ReturnArguments: mock.Arguments{
-						[][]*knowledgebase.ResourceTemplate{
-							{
-								createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-								createResourceTemplate(construct.ResourceId{Type: "middle"}, []string{"middle"}),
-								createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
-							},
-							{
-								createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-								createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
-							},
+						[]*knowledgebase.ResourceTemplate{
+							createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, nil),
 						},
-						nil,
+					},
+				},
+				{
+					Method: "Edges",
+					ReturnArguments: mock.Arguments{
+						[]graph.Edge[*knowledgebase.ResourceTemplate]{
+							{
+								Source: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, nil),
+								Target: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, nil),
+							},
+						}, nil,
 					},
 				},
 				{
 					Method: "GetEdgeTemplate",
-					Arguments: []interface{}{
-						construct.ResourceId{Type: "source"},
-						construct.ResourceId{Type: "middle"}},
+					Arguments: mock.Arguments{
+						construct.ResourceId{Provider: "mock", Type: "test"},
+						construct.ResourceId{Provider: "mock", Type: "test"},
+					},
 					ReturnArguments: mock.Arguments{
 						&knowledgebase.EdgeTemplate{},
 					},
 				},
 				{
-					Method: "GetEdgeTemplate",
-					Arguments: []interface{}{
-						construct.ResourceId{Type: "middle"},
-						construct.ResourceId{Type: "target"}},
+					Method: "GetResourceTemplate",
+					Arguments: mock.Arguments{
+						mock.Anything,
+					},
 					ReturnArguments: mock.Arguments{
-						&knowledgebase.EdgeTemplate{},
+						createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, nil), nil,
 					},
 				},
 			},
-			expected: []graph.Edge[*construct.Resource]{
-				{
-					Source: &construct.Resource{ID: construct.ResourceId{Type: "source"}},
-					Target: &construct.Resource{ID: construct.ResourceId{Type: "middle"}},
-				},
-				{
-					Source: &construct.Resource{ID: construct.ResourceId{Type: "middle"}},
-					Target: &construct.Resource{ID: construct.ResourceId{Type: "target"}},
-				},
+			want: []construct.ResourceId{
+				{Provider: "mock", Type: "test", Name: "test"},
+				{Provider: "mock", Type: "test", Name: "test3"},
+				{Provider: "mock", Type: "test", Name: "test2"},
 			},
 		},
+		{
+			name: "prefers glue over functional resources",
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test", Name: "test"}),
+				Target: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test", Name: "test2"}),
+			},
+			edgeData: EdgeData{},
+			kb: []mock.Call{
+				{
+					Method: "HasDirectPath",
+					Arguments: mock.Arguments{
+						mock.Anything,
+						mock.Anything,
+					},
+					ReturnArguments: mock.Arguments{false},
+				},
+				{
+					Method: "ListResources",
+					ReturnArguments: mock.Arguments{
+						[]*knowledgebase.ResourceTemplate{
+							createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, nil),
+							createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test2"}, []string{"compute"}),
+							createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test3"}, nil),
+							createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test4"}, nil),
+						},
+					},
+				},
+				{
+					Method: "Edges",
+					ReturnArguments: mock.Arguments{
+						[]graph.Edge[*knowledgebase.ResourceTemplate]{
+							{
+								Source: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, nil),
+								Target: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test2"}, []string{"compute"}),
+							},
+							{
+								Source: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test2"}, []string{"compute"}),
+								Target: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, nil),
+							},
+							{
+								Source: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, nil),
+								Target: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test3"}, nil),
+							},
+							{
+								Source: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test3"}, nil),
+								Target: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test4"}, nil),
+							},
+							{
+								Source: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test4"}, nil),
+								Target: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, nil),
+							},
+						}, nil,
+					},
+				},
+				{
+					Method: "GetEdgeTemplate",
+					Arguments: mock.Arguments{
+						mock.Anything,
+						mock.Anything,
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.EdgeTemplate{},
+					},
+				},
+				{
+					Method: "GetResourceTemplate",
+					Arguments: mock.Arguments{
+						mock.Anything,
+					},
+					ReturnArguments: mock.Arguments{
+						createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, nil), nil,
+					},
+				},
+			},
+			want: []construct.ResourceId{
+				{Provider: "mock", Type: "test", Name: "test"},
+				{Provider: "mock", Type: "test3"},
+				{Provider: "mock", Type: "test4"},
+				{Provider: "mock", Type: "test", Name: "test2"},
+			},
+		},
+		{
+			name: "unnecessary hop shortest path gets rejected",
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test", Name: "test"}),
+				Target: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test", Name: "test2"}),
+			},
+			edgeData: EdgeData{},
+			kb: []mock.Call{
+				{
+					Method: "HasDirectPath",
+					Arguments: mock.Arguments{
+						mock.Anything,
+						mock.Anything,
+					},
+					ReturnArguments: mock.Arguments{false},
+				},
+				{
+					Method: "ListResources",
+					ReturnArguments: mock.Arguments{
+						[]*knowledgebase.ResourceTemplate{
+							createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, nil),
+							createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test2"}, []string{"compute"}),
+							createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test3"}, []string{"compute"}),
+						},
+					},
+				},
+				{
+					Method: "Edges",
+					ReturnArguments: mock.Arguments{
+						[]graph.Edge[*knowledgebase.ResourceTemplate]{
+							{
+								Source: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, nil),
+								Target: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test2"}, []string{"compute"}),
+							},
+							{
+								Source: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test2"}, []string{"compute"}),
+								Target: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test3"}, []string{"compute"}),
+							},
+							{
+								Source: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test3"}, []string{"compute"}),
+								Target: createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, nil),
+							},
+						}, nil,
+					},
+				},
+				{
+					Method: "GetEdgeTemplate",
+					Arguments: mock.Arguments{
+						mock.Anything,
+						mock.Anything,
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.EdgeTemplate{},
+					},
+				},
+				{
+					Method: "GetResourceTemplate",
+					Arguments: mock.Arguments{
+						mock.Anything,
+					},
+					ReturnArguments: mock.Arguments{
+						createResourceTemplate(construct.ResourceId{Provider: "mock", Type: "test"}, []string{"compute"}), nil,
+					},
+				},
+			},
+			wantErr: true,
+		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			kb := &enginetesting.MockKB{}
 
-			for _, mock := range test.kbMocks {
-				kb.On(mock.Method, mock.Arguments...).Return(mock.ReturnArguments...).Once()
+			mockKB := enginetesting.MockKB{}
+			for _, call := range tt.kb {
+				mockKB.On(call.Method, call.Arguments...).Return(call.ReturnArguments...)
 			}
-
-			ctx := PathSelectionContext{
-				KB:    kb,
-				Graph: &enginetesting.MockGraph{},
-			}
-			paths, err := ctx.SelectPath(test.dep, test.edgeData)
-			if !assert.NoError(err, "Expected no error") {
+			got, err := SelectPath(tt.dep, tt.edgeData, &mockKB)
+			if tt.wantErr {
+				assert.Error(err)
 				return
 			}
-			assert.Equal(test.expected, paths)
-			kb.AssertExpectations(t)
+			assert.NoError(err)
+			assert.Equal(tt.want, got)
 		})
 	}
 }
 
-func Test_DetermineCorrectPaths(t *testing.T) {
+func Test_addResourcesToTempGraph(t *testing.T) {
 	tests := []struct {
 		name     string
-		dep      graph.Edge[*construct.Resource]
-		edgedata EdgeData
-		kbMocks  []mock.Call
-		expected []Path
+		dep      construct.Edge
+		edgeData EdgeData
+		kb       []mock.Call
+		want     []construct.ResourceId
 	}{
 		{
-			name: "Determine correct paths",
-			dep: graph.Edge[*construct.Resource]{
-				Source: &construct.Resource{ID: construct.ResourceId{Type: "source"}},
-				Target: &construct.Resource{ID: construct.ResourceId{Type: "target"}},
+			name: "can add source and destination to graph",
+			dep: construct.Edge{
+				Source: construct.ResourceId{Name: "test"},
+				Target: construct.ResourceId{Name: "test2"},
 			},
-			kbMocks: []mock.Call{
+			edgeData: EdgeData{},
+			kb: []mock.Call{
 				{
-					Method: "AllPaths",
-					Arguments: []interface{}{
-						construct.ResourceId{Type: "source"},
-						construct.ResourceId{Type: "target"}},
-					ReturnArguments: mock.Arguments{[][]*knowledgebase.ResourceTemplate{
-						{
-							createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-							createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
-						},
-						{
-							createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-							createResourceTemplate(construct.ResourceId{Type: "middle"}, []string{"middle"}),
-							createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
-						},
-					},
-						nil,
+					Method: "ListResources",
+					ReturnArguments: mock.Arguments{
+						[]*knowledgebase.ResourceTemplate{},
 					},
 				},
 			},
-			expected: []Path{
-				{
-					Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "target"}},
-					Weight: 2,
-				},
-				{
-					Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "middle"}, {Type: "target"}},
-					Weight: 2,
-				},
+			want: []construct.ResourceId{
+				{Name: "test"},
+				{Name: "test2"},
 			},
 		},
 		{
-			name: "Determine correct paths with constraints",
-			dep: graph.Edge[*construct.Resource]{
-				Source: &construct.Resource{ID: construct.ResourceId{Type: "source"}},
-				Target: &construct.Resource{ID: construct.ResourceId{Type: "target"}},
+			name: "can add nodes that must exist to graph",
+			dep: construct.Edge{
+				Source: construct.ResourceId{Name: "test"},
+				Target: construct.ResourceId{Name: "test2"},
 			},
-			edgedata: EdgeData{
+			edgeData: EdgeData{
 				Constraint: EdgeConstraint{
-					NodeMustExist:    []construct.Resource{{ID: construct.ResourceId{Type: "middle"}}},
-					NodeMustNotExist: []construct.Resource{{ID: construct.ResourceId{Type: "middle2"}}},
-				},
-			},
-			kbMocks: []mock.Call{
-				{
-					Method: "AllPaths",
-					Arguments: []interface{}{
-						construct.ResourceId{Type: "source"},
-						construct.ResourceId{Type: "target"}},
-					ReturnArguments: mock.Arguments{[][]*knowledgebase.ResourceTemplate{
+					NodeMustExist: []construct.Resource{
 						{
-							createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-							createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
+							ID: construct.ResourceId{
+								Name: "test3",
+							},
 						},
-						{
-							createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-							createResourceTemplate(construct.ResourceId{Type: "middle"}, []string{"middle"}),
-							createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
-						},
-						{
-							createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-							createResourceTemplate(construct.ResourceId{Type: "middle2"}, []string{"middle2"}),
-							createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
-						},
-					},
-						nil,
 					},
 				},
 			},
-			expected: []Path{
+			kb: []mock.Call{
 				{
-					Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "middle"}, {Type: "target"}},
-					Weight: 2,
+					Method: "ListResources",
+					ReturnArguments: mock.Arguments{
+						[]*knowledgebase.ResourceTemplate{},
+					},
 				},
+			},
+			want: []construct.ResourceId{
+				{Name: "test"},
+				{Name: "test2"},
+				{Name: "test3"},
 			},
 		},
 		{
-			name: "Determine correct paths with attributes",
-			dep: graph.Edge[*construct.Resource]{
-				Source: &construct.Resource{ID: construct.ResourceId{Type: "source"}},
-				Target: &construct.Resource{ID: construct.ResourceId{Type: "target"}},
+			name: "can add allowable kb nodes to graph",
+			dep: construct.Edge{
+				Source: construct.ResourceId{Name: "test"},
+				Target: construct.ResourceId{Name: "test2"},
 			},
-			edgedata: EdgeData{
+			edgeData: EdgeData{},
+			kb: []mock.Call{
+				{
+					Method: "ListResources",
+					ReturnArguments: mock.Arguments{
+						[]*knowledgebase.ResourceTemplate{
+							{
+								QualifiedTypeName: "mock:templateResource",
+							},
+						},
+					},
+				},
+			},
+			want: []construct.ResourceId{
+				{Name: "test"},
+				{Name: "test2"},
+				{Provider: "mock", Type: "templateResource"},
+			},
+		},
+		{
+			name: "rejects must not exist resources",
+			dep: construct.Edge{
+				Source: construct.ResourceId{Name: "test"},
+				Target: construct.ResourceId{Name: "test2"},
+			},
+			edgeData: EdgeData{
+				Constraint: EdgeConstraint{
+					NodeMustNotExist: []construct.Resource{
+						{
+							ID: construct.ResourceId{
+								Provider: "mock",
+								Type:     "test3",
+							},
+						},
+					},
+				},
+			},
+			kb: []mock.Call{
+				{
+					Method: "ListResources",
+					ReturnArguments: mock.Arguments{
+						[]*knowledgebase.ResourceTemplate{
+							{
+								QualifiedTypeName: "mock:test3",
+							},
+						},
+					},
+				},
+			},
+			want: []construct.ResourceId{
+				{Name: "test"},
+				{Name: "test2"},
+			},
+		},
+		{
+			name: "rejects resources which do not satisfy attributes",
+			dep: construct.Edge{
+				Source: construct.ResourceId{Name: "test"},
+				Target: construct.ResourceId{Name: "test2"},
+			},
+			edgeData: EdgeData{
 				Attributes: map[string]any{
-					"serverless": true,
+					"test":  "test",
+					"test2": "test2",
 				},
 			},
-			kbMocks: []mock.Call{
+			kb: []mock.Call{
 				{
-					Method: "AllPaths",
-					Arguments: []interface{}{
-						construct.ResourceId{Type: "source"},
-						construct.ResourceId{Type: "target"}},
-					ReturnArguments: mock.Arguments{[][]*knowledgebase.ResourceTemplate{
-						{
-							createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-							createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
+					Method: "ListResources",
+					ReturnArguments: mock.Arguments{
+						[]*knowledgebase.ResourceTemplate{
+							{
+								QualifiedTypeName: "mock:test3",
+								Classification: knowledgebase.Classification{
+									Is: []string{
+										"test",
+									},
+								},
+							},
+							{
+								QualifiedTypeName: "mock:test4",
+								Classification: knowledgebase.Classification{
+									Is: []string{
+										"test",
+										"test2",
+									},
+								},
+							},
+							{
+								QualifiedTypeName: "mock:test5",
+							},
 						},
-						{
-							createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-							createResourceTemplate(construct.ResourceId{Type: "middle"}, []string{"middle"}),
-							createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
-						},
-						{
-							createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-							createResourceTemplate(construct.ResourceId{Type: "middle2"}, []string{"serverless"}),
-							createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
-						},
-					},
-						nil,
 					},
 				},
 			},
-			expected: []Path{
+			want: []construct.ResourceId{
+				{Name: "test"},
+				{Name: "test2"},
+				{Provider: "mock", Type: "test4"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			mockKB := enginetesting.MockKB{}
+			for _, call := range tt.kb {
+				mockKB.On(call.Method, call.Arguments...).Return(call.ReturnArguments...)
+			}
+			g := graph.New(
+				func(r construct.ResourceId) construct.ResourceId {
+					return r
+				},
+				graph.Directed(),
+				graph.Weighted(),
+			)
+
+			err := addResourcesToTempGraph(g, tt.dep, tt.edgeData, &mockKB)
+			if err != nil {
+				t.Errorf("addResourcesToTempGraph() error = %v", err)
+				return
+			}
+			for _, want := range tt.want {
+				res, err := g.Vertex(want)
+				assert.NoError(err)
+				assert.Equal(want, res)
+			}
+			mockKB.AssertExpectations(t)
+		})
+	}
+}
+
+func Test_addEdgesToTempGraph(t *testing.T) {
+	tests := []struct {
+		name         string
+		dep          construct.Edge
+		initialState []construct.ResourceId
+		edgeData     EdgeData
+		kb           []mock.Call
+		want         []graph.Edge[construct.ResourceId]
+	}{
+		{
+			name: "can add edges to graph",
+			dep: construct.Edge{
+				Source: construct.ResourceId{Provider: "mock", Type: "test", Name: "test"},
+				Target: construct.ResourceId{Provider: "mock", Type: "test2", Name: "test2"},
+			},
+			initialState: []construct.ResourceId{
+				{Provider: "mock", Type: "test", Name: "test"},
+				{Provider: "mock", Type: "test2", Name: "test2"},
+			},
+			edgeData: EdgeData{},
+			kb: []mock.Call{
 				{
-					Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "middle2"}, {Type: "target"}},
-					Weight: 2,
+					Method: "Edges",
+					ReturnArguments: mock.Arguments{
+						[]graph.Edge[*knowledgebase.ResourceTemplate]{
+							{
+								Source: &knowledgebase.ResourceTemplate{
+									QualifiedTypeName: "mock:test",
+								},
+								Target: &knowledgebase.ResourceTemplate{
+									QualifiedTypeName: "mock:test2",
+								},
+							},
+						}, nil,
+					},
+				},
+				{
+					Method: "GetEdgeTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Provider: "mock", Type: "test"},
+						construct.ResourceId{Provider: "mock", Type: "test2"},
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.EdgeTemplate{},
+					},
+				},
+			},
+			want: []graph.Edge[construct.ResourceId]{
+				{
+					Source:     construct.ResourceId{Provider: "mock", Type: "test", Name: "test"},
+					Target:     construct.ResourceId{Provider: "mock", Type: "test2", Name: "test2"},
+					Properties: graph.EdgeProperties{Weight: 0, Attributes: map[string]string{}},
 				},
 			},
 		},
 		{
-			name: "Determine correct paths filters unnecessary hops",
-			dep: graph.Edge[*construct.Resource]{
-				Source: &construct.Resource{ID: construct.ResourceId{Type: "source"}},
-				Target: &construct.Resource{ID: construct.ResourceId{Type: "target"}},
+			name: "adds weight for functionality",
+			dep: construct.Edge{
+				Source: construct.ResourceId{Provider: "mock", Type: "test", Name: "test"},
+				Target: construct.ResourceId{Provider: "mock", Type: "test2", Name: "test2"},
 			},
-			kbMocks: []mock.Call{
+			initialState: []construct.ResourceId{
+				{Provider: "mock", Type: "test", Name: "test"},
+				{Provider: "mock", Type: "test2", Name: "test2"},
+			},
+			edgeData: EdgeData{},
+			kb: []mock.Call{
 				{
-					Method: "AllPaths",
-					Arguments: []interface{}{
-						construct.ResourceId{Type: "source"},
-						construct.ResourceId{Type: "target"}},
-					ReturnArguments: mock.Arguments{[][]*knowledgebase.ResourceTemplate{
-						{
-							createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-							createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
-						},
-						{
-							createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-							createResourceTemplate(construct.ResourceId{Type: "middle"}, []string{"middle", "compute"}),
-							createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
-						},
+					Method: "Edges",
+					ReturnArguments: mock.Arguments{
+						[]graph.Edge[*knowledgebase.ResourceTemplate]{
+							{
+								Source: &knowledgebase.ResourceTemplate{
+									QualifiedTypeName: "mock:test",
+									Classification:    knowledgebase.Classification{Is: []string{"compute"}},
+								},
+								Target: &knowledgebase.ResourceTemplate{
+									QualifiedTypeName: "mock:test2",
+								},
+							},
+						}, nil,
 					},
-						nil,
+				},
+				{
+					Method: "GetEdgeTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Provider: "mock", Type: "test"},
+						construct.ResourceId{Provider: "mock", Type: "test2"},
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.EdgeTemplate{},
 					},
 				},
 			},
-			expected: []Path{
+			want: []graph.Edge[construct.ResourceId]{
 				{
-					Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "target"}},
-					Weight: 2,
+					Source:     construct.ResourceId{Provider: "mock", Type: "test", Name: "test"},
+					Target:     construct.ResourceId{Provider: "mock", Type: "test2", Name: "test2"},
+					Properties: graph.EdgeProperties{Weight: 1, Attributes: map[string]string{}},
+				},
+			},
+		},
+		{
+			name: "adds weight for direct edge only",
+			dep: construct.Edge{
+				Source: construct.ResourceId{Provider: "mock", Type: "test", Name: "test"},
+				Target: construct.ResourceId{Provider: "mock", Type: "test2", Name: "test2"},
+			},
+			initialState: []construct.ResourceId{
+				{Provider: "mock", Type: "test", Name: "test"},
+				{Provider: "mock", Type: "test2", Name: "test2"},
+			},
+			edgeData: EdgeData{},
+			kb: []mock.Call{
+				{
+					Method: "Edges",
+					ReturnArguments: mock.Arguments{
+						[]graph.Edge[*knowledgebase.ResourceTemplate]{
+							{
+								Source: &knowledgebase.ResourceTemplate{
+									QualifiedTypeName: "mock:test",
+								},
+								Target: &knowledgebase.ResourceTemplate{
+									QualifiedTypeName: "mock:test2",
+								},
+							},
+						}, nil,
+					},
+				},
+				{
+					Method: "GetEdgeTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Provider: "mock", Type: "test"},
+						construct.ResourceId{Provider: "mock", Type: "test2"},
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.EdgeTemplate{
+							DirectEdgeOnly: true,
+						},
+					},
+				},
+			},
+			want: []graph.Edge[construct.ResourceId]{
+				{
+					Source:     construct.ResourceId{Provider: "mock", Type: "test", Name: "test"},
+					Target:     construct.ResourceId{Provider: "mock", Type: "test2", Name: "test2"},
+					Properties: graph.EdgeProperties{Weight: 100, Attributes: map[string]string{}},
+				},
+			},
+		},
+		{
+			name: "adds negative weight for constraints",
+			dep: construct.Edge{
+				Source: construct.ResourceId{Provider: "mock", Type: "test", Name: "test"},
+				Target: construct.ResourceId{Provider: "mock", Type: "test", Name: "test2"},
+			},
+			initialState: []construct.ResourceId{
+				{Provider: "mock", Type: "test", Name: "test"},
+				{Provider: "mock", Type: "test", Name: "test2"},
+				{Provider: "mock", Type: "test", Name: "test3"},
+			},
+			edgeData: EdgeData{
+				Constraint: EdgeConstraint{
+					NodeMustExist: []construct.Resource{
+						{
+							ID: construct.ResourceId{Provider: "mock", Type: "test", Name: "test3"},
+						},
+					},
+				},
+			},
+			kb: []mock.Call{
+				{
+					Method: "Edges",
+					ReturnArguments: mock.Arguments{
+						[]graph.Edge[*knowledgebase.ResourceTemplate]{
+							{
+								Source: &knowledgebase.ResourceTemplate{
+									QualifiedTypeName: "mock:test",
+								},
+								Target: &knowledgebase.ResourceTemplate{
+									QualifiedTypeName: "mock:test",
+								},
+							},
+						}, nil,
+					},
+				},
+				{
+					Method: "GetEdgeTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Provider: "mock", Type: "test"},
+						construct.ResourceId{Provider: "mock", Type: "test"},
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.EdgeTemplate{},
+					},
+				},
+			},
+			want: []graph.Edge[construct.ResourceId]{
+				{
+					Source:     construct.ResourceId{Provider: "mock", Type: "test", Name: "test"},
+					Target:     construct.ResourceId{Provider: "mock", Type: "test", Name: "test2"},
+					Properties: graph.EdgeProperties{Weight: 0, Attributes: map[string]string{}},
+				},
+				{
+					Source:     construct.ResourceId{Provider: "mock", Type: "test", Name: "test3"},
+					Target:     construct.ResourceId{Provider: "mock", Type: "test", Name: "test2"},
+					Properties: graph.EdgeProperties{Weight: -1000, Attributes: map[string]string{}},
+				},
+				{
+					Source:     construct.ResourceId{Provider: "mock", Type: "test", Name: "test"},
+					Target:     construct.ResourceId{Provider: "mock", Type: "test", Name: "test3"},
+					Properties: graph.EdgeProperties{Weight: -1000, Attributes: map[string]string{}},
 				},
 			},
 		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			kb := &enginetesting.MockKB{}
 
-			for _, m := range test.kbMocks {
-				kb.On(m.Method, m.Arguments...).Return(m.ReturnArguments...).Once()
-				kb.On("GetEdgeTemplate", mock.Anything, mock.Anything).Return(&knowledgebase.EdgeTemplate{})
+			mockKB := enginetesting.MockKB{}
+			for _, call := range tt.kb {
+				mockKB.On(call.Method, call.Arguments...).Return(call.ReturnArguments...)
+			}
+			g := graph.New(
+				func(r construct.ResourceId) construct.ResourceId {
+					return r
+				},
+				graph.Directed(),
+				graph.Weighted(),
+			)
+			for _, res := range tt.initialState {
+				err := g.AddVertex(res)
+				if err != nil {
+					t.Errorf("addEdgesToTempGraph() error = %v", err)
+					return
+				}
 			}
 
-			ctx := PathSelectionContext{
-				KB:    kb,
-				Graph: &enginetesting.MockGraph{},
-			}
-			paths, err := ctx.determineCorrectPaths(test.dep, test.edgedata)
-			if !assert.NoError(err, "Expected no error") {
+			err := addEdgesToTempGraph(g, tt.dep, tt.edgeData, &mockKB)
+			if err != nil {
+				t.Errorf("addEdgesToTempGraph() error = %v", err)
 				return
 			}
-			assert.Equal(test.expected, paths)
+			for _, want := range tt.want {
+				res, err := g.Edge(want.Source, want.Target)
+				assert.NoError(err)
+				assert.Equal(want, res)
+			}
+			mockKB.AssertExpectations(t)
 		})
 	}
 }
@@ -348,7 +738,7 @@ func Test_DetermineCorrectPaths(t *testing.T) {
 func Test_containsUnneccessaryHopsInPath(t *testing.T) {
 	tests := []struct {
 		name      string
-		dep       graph.Edge[*construct.Resource]
+		dep       construct.Edge
 		path      []construct.ResourceId
 		templates map[string]*knowledgebase.ResourceTemplate
 		edgeData  EdgeData
@@ -356,10 +746,9 @@ func Test_containsUnneccessaryHopsInPath(t *testing.T) {
 	}{
 		{
 			name: "Path does not contain unnecessary hops",
-			dep: graph.Edge[*construct.Resource]{
-
-				Source: &construct.Resource{ID: construct.ResourceId{Type: "source"}},
-				Target: &construct.Resource{ID: construct.ResourceId{Type: "target"}},
+			dep: construct.Edge{
+				Source: construct.ResourceId{Type: "source"},
+				Target: construct.ResourceId{Type: "target"},
 			},
 			path: []construct.ResourceId{
 				{Type: "source"},
@@ -367,18 +756,18 @@ func Test_containsUnneccessaryHopsInPath(t *testing.T) {
 				{Type: "target"},
 			},
 			templates: map[string]*knowledgebase.ResourceTemplate{
-				":source": createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-				":middle": createResourceTemplate(construct.ResourceId{Type: "middle"}, []string{"middle"}),
-				":target": createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
+				"source": createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
+				"middle": createResourceTemplate(construct.ResourceId{Type: "middle"}, []string{"middle"}),
+				"target": createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
 			},
 			expected: false,
 		},
 		{
 			name: "Path contains unnecessary hops",
-			dep: graph.Edge[*construct.Resource]{
+			dep: construct.Edge{
 
-				Source: &construct.Resource{ID: construct.ResourceId{Type: "source"}},
-				Target: &construct.Resource{ID: construct.ResourceId{Type: "target"}},
+				Source: construct.ResourceId{Type: "source"},
+				Target: construct.ResourceId{Type: "target"},
 			},
 			path: []construct.ResourceId{
 				{Type: "source"},
@@ -386,18 +775,17 @@ func Test_containsUnneccessaryHopsInPath(t *testing.T) {
 				{Type: "target"},
 			},
 			templates: map[string]*knowledgebase.ResourceTemplate{
-				":source": createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-				":middle": createResourceTemplate(construct.ResourceId{Type: "middle"}, []string{"middle", "compute"}),
-				":target": createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
+				"source": createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
+				"middle": createResourceTemplate(construct.ResourceId{Type: "middle"}, []string{"middle", "compute"}),
+				"target": createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
 			},
 			expected: true,
 		},
 		{
 			name: "Path contains unnecessary hops due to constraint",
-			dep: graph.Edge[*construct.Resource]{
-
-				Source: &construct.Resource{ID: construct.ResourceId{Type: "source"}},
-				Target: &construct.Resource{ID: construct.ResourceId{Type: "target"}},
+			dep: construct.Edge{
+				Source: construct.ResourceId{Type: "source"},
+				Target: construct.ResourceId{Type: "target"},
 			},
 			path: []construct.ResourceId{
 				{Type: "source"},
@@ -410,29 +798,28 @@ func Test_containsUnneccessaryHopsInPath(t *testing.T) {
 				},
 			},
 			templates: map[string]*knowledgebase.ResourceTemplate{
-				":source": createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-				":middle": createResourceTemplate(construct.ResourceId{Type: "middle"}, []string{"middle", "compute"}),
-				":target": createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
+				"source": createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
+				"middle": createResourceTemplate(construct.ResourceId{Type: "middle"}, []string{"middle", "compute"}),
+				"target": createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
 			},
 			expected: false,
 		},
 		{
 			name: "Path contains unnecessary hops due duplicate compute in middle",
-			dep: graph.Edge[*construct.Resource]{
-
-				Source: &construct.Resource{ID: construct.ResourceId{Type: "source"}},
-				Target: &construct.Resource{ID: construct.ResourceId{Type: "target"}},
+			dep: construct.Edge{
+				Source: construct.ResourceId{Type: "source"},
+				Target: construct.ResourceId{Type: "target"},
 			},
 			path: []construct.ResourceId{
 				{Type: "source"},
-				{Type: "middle", Namespace: "one"},
-				{Type: "middle", Namespace: "two"},
+				{Type: "middle"},
+				{Type: "middle"},
 				{Type: "target"},
 			},
 			templates: map[string]*knowledgebase.ResourceTemplate{
-				":source": createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
-				":middle": createResourceTemplate(construct.ResourceId{Type: "middle"}, []string{"middle", "compute"}),
-				":target": createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
+				"source": createResourceTemplate(construct.ResourceId{Type: "source"}, []string{"source", "compute"}),
+				"middle": createResourceTemplate(construct.ResourceId{Type: "middle"}, []string{"middle", "compute"}),
+				"target": createResourceTemplate(construct.ResourceId{Type: "target"}, []string{"target", "compute"}),
 			},
 			expected: true,
 		},
@@ -440,77 +827,12 @@ func Test_containsUnneccessaryHopsInPath(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert := assert.New(t)
-			ctx := PathSelectionContext{}
-			assert.Equal(test.expected, ctx.containsUnneccessaryHopsInPath(test.dep, test.path, test.edgeData, test.templates))
-		})
-	}
-}
-
-func Test_findOptimalPath(t *testing.T) {
-	tests := []struct {
-		name     string
-		paths    []Path
-		expected Path
-	}{
-		{
-			name: "Find optimal path",
-			paths: []Path{
-				{
-					Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "target"}},
-					Weight: 2,
-				},
-				{
-					Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "middle"}, {Type: "target"}},
-					Weight: 2,
-				},
-			},
-			expected: Path{
-				Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "target"}},
-				Weight: 2,
-			},
-		},
-		{
-			name: "Find optimal path with different weights",
-			paths: []Path{
-				{
-					Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "target"}},
-					Weight: 2,
-				},
-				{
-					Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "middle"}, {Type: "target"}},
-					Weight: 1,
-				},
-			},
-
-			expected: Path{
-				Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "middle"}, {Type: "target"}},
-				Weight: 1,
-			},
-		},
-		{
-
-			name: "Find optimal path with same weights and lengths",
-			paths: []Path{
-				{
-					Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "middle"}, {Type: "target"}},
-					Weight: 1,
-				},
-				{
-					Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "middle2"}, {Type: "target"}},
-					Weight: 1,
-				},
-			},
-			expected: Path{
-				Nodes:  []construct.ResourceId{{Type: "source"}, {Type: "middle"}, {Type: "target"}},
-				Weight: 1,
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assert := assert.New(t)
-			ctx := PathSelectionContext{}
-			assert.Equal(test.expected, ctx.findOptimalPath(test.paths))
+			mockKB := enginetesting.MockKB{}
+			for key, template := range test.templates {
+				mockKB.On("GetResourceTemplate", construct.ResourceId{Type: key}).Return(template, nil)
+			}
+			assert.Equal(test.expected, containsUnneccessaryHopsInPath(test.dep, test.path, test.edgeData, &mockKB))
+			mockKB.AssertExpectations(t)
 		})
 	}
 }

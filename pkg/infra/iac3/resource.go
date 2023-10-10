@@ -224,6 +224,9 @@ func (tc *TemplatesCompiler) useNestedTemplate(resTmpl *ResourceTemplate, val an
 		"modelCase":      tc.modelCase,
 		"lowerCamelCase": tc.lowerCamelCase,
 		"camelCase":      tc.camelCase,
+		"getVar": func(id construct.ResourceId) string {
+			return tc.vars[id]
+		},
 	}).Parse(string(contents))
 	if err != nil {
 		return "", fmt.Errorf("could not parse template for %s: %w", nestedTemplatePath, err)

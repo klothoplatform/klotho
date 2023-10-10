@@ -1,0 +1,2 @@
+source: aws:availability_zone
+target: aws:region

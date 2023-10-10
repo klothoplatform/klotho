@@ -26,11 +26,18 @@ func ApplyConstraints(ctx solution_context.SolutionContext) error {
 	if errs != nil {
 		return errs
 	}
-	if err := op.MakeResourcesOperational(resources); err != nil {
+	idChangeResult, err := op.MakeResourcesOperational(resources)
+	if err != nil {
 		return err
 	}
 
 	for _, constraint := range ctx.Constraints().Edges {
+		if src, found := idChangeResult[constraint.Target.Source]; found {
+			constraint.Target.Source = src
+		}
+		if tgt, found := idChangeResult[constraint.Target.Target]; found {
+			constraint.Target.Target = tgt
+		}
 		errs = errors.Join(errs, applyEdgeConstraint(ctx, constraint))
 	}
 	if errs != nil {
@@ -47,7 +54,8 @@ func ApplyConstraints(ctx solution_context.SolutionContext) error {
 		resources = append(resources, res)
 	}
 
-	return op.MakeResourcesOperational(resources)
+	_, err = op.MakeResourcesOperational(resources)
+	return err
 }
 
 // applyApplicationConstraint returns a resource to be made operational, if needed. Otherwise, it returns nil.
@@ -110,10 +118,16 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 		case err != nil:
 			return fmt.Errorf("could not get target resource %s: %w", constraint.Target.Target, err)
 		}
-		if err := ctx.OperationalView().MakeResourcesOperational(resources); err != nil {
+		idChangeResult, err := ctx.OperationalView().MakeResourcesOperational(resources)
+		if err != nil {
 			return err
 		}
-
+		if src, found := idChangeResult[constraint.Target.Source]; found {
+			constraint.Target.Source = src
+		}
+		if tgt, found := idChangeResult[constraint.Target.Target]; found {
+			constraint.Target.Target = tgt
+		}
 		return ctx.OperationalView().AddEdge(constraint.Target.Source, constraint.Target.Target)
 	}
 

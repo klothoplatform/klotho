@@ -42,7 +42,7 @@ func (b *GraphBatch) AddEdges(es ...Edge) {
 			continue
 		}
 
-		err := b.Graph.AddEdge(e.Source, e.Target, copyEdgeProps(e.Properties))
+		err := b.Graph.AddEdge(e.Source, e.Target, CopyEdgeProps(e.Properties))
 		b.Err = errors.Join(b.Err, err)
 	}
 }

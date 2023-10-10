@@ -5,13 +5,19 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/set"
+	"go.uber.org/zap"
 )
 
-func SetupResources(solCtx solution_context.SolutionContext, resources []*construct.Resource) error {
+func SetupResources(
+	solCtx solution_context.SolutionContext,
+	resources []*construct.Resource,
+) (construct.ResourceIdChangeResults, error) {
 	return setupInner(solCtx, newGraph(), resources, nil)
 }
 
@@ -21,31 +27,42 @@ func setupInner(
 	g Graph,
 	resources []*construct.Resource,
 	edges []construct.Edge,
-) error {
+) (construct.ResourceIdChangeResults, error) {
+	idChanges := make(construct.ResourceIdChangeResults)
+	return setupInnerRecurse(solCtx, g, resources, edges, idChanges)
+}
+
+func setupInnerRecurse(
+	solCtx solution_context.SolutionContext,
+	g Graph,
+	resources []*construct.Resource,
+	edges []construct.Edge,
+	idChanges construct.ResourceIdChangeResults,
+) (construct.ResourceIdChangeResults, error) {
 	err := AddResources(g, solCtx, resources)
 	if err != nil {
-		return err
+		return idChanges, err
 	}
 
 	for {
 		prop, err := popProperty(g)
 		if err != nil {
-			return err
+			return idChanges, err
 		}
 		if prop == nil {
 			break
 		}
+		zap.S().Debugf("configuring %s", prop.Ref)
 		ctx := solCtx.With("resource", prop.Ref.Resource).With("property", prop.Ref)
 		cfgData := knowledgebase.DynamicValueData{Resource: prop.Ref.Resource}
-
 		res, err := ctx.RawView().Vertex(prop.Ref.Resource)
 		if err != nil {
-			return err
+			return idChanges, fmt.Errorf("could not get resource %s, while setting up inner properties: %w", prop.Ref.Resource, err)
 		}
 
 		if prop.Constraint != nil {
 			err = solution_context.ApplyConfigureConstraint(ctx, res, *prop.Constraint)
-		} else if prop.Template.DefaultValue != nil {
+		} else if property, _ := prop.Resource.GetProperty(prop.Template.Path); property == nil && prop.Template.DefaultValue != nil {
 			err = solution_context.ConfigureResource(
 				ctx,
 				res,
@@ -54,8 +71,10 @@ func setupInner(
 				"set",
 			)
 		}
+		// set this here in case defaults set a value which changes the namespace
+		idChanges[prop.Ref.Resource] = res.ID
 		if err != nil {
-			return fmt.Errorf("could not configure %s: %w", prop.Ref, err)
+			return idChanges, fmt.Errorf("could not configure %s: %w", prop.Ref, err)
 		}
 
 		if prop.Template.OperationalRule == nil {
@@ -69,33 +88,44 @@ func setupInner(
 		}
 		result, err := opCtx.HandleOperationalRule(*prop.Template.OperationalRule)
 		if err != nil {
-			return fmt.Errorf("could not handle operational rule for %s: %w", prop.Ref, err)
+			return idChanges, fmt.Errorf("could not handle operational rule for %s: %w", prop.Ref, err)
 		}
-
+		// Add our id changes if the property ref resource is in the initial resources list
+		idChanges[prop.Ref.Resource] = res.ID
+		err = replaceResourceId(g, prop.Ref.Resource, prop.Resource.ID)
+		if err != nil {
+			return idChanges, fmt.Errorf("could not replace resource id %s with %s when namespace changed: %w", prop.Ref.Resource, prop.Resource.ID, err)
+		}
 		err = AddResources(g, ctx, result.CreatedResources)
 		if err != nil {
-			return fmt.Errorf("could not add operational resources for %s: %w", prop.Ref, err)
+			return idChanges, fmt.Errorf("could not add operational resources for %s: %w", prop.Ref, err)
 		}
 		edges = append(edges, result.AddedDependencies...)
 	}
 	if len(edges) == 0 {
-		return nil
+		return idChanges, nil
 	}
 
 	var nextResources []*construct.Resource
 	var nextEdges []construct.Edge
 	var errs error
 	for _, edge := range edges {
+		if src, found := idChanges[edge.Source]; found {
+			edge.Source = src
+		}
+		if tgt, found := idChanges[edge.Target]; found {
+			edge.Target = tgt
+		}
 		addRes, addDep, err := solCtx.OperationalView().MakeEdgeOperational(edge.Source, edge.Target)
 		errs = errors.Join(errs, err)
 		nextResources = append(nextResources, addRes...)
 		nextEdges = append(nextEdges, addDep...)
 	}
 	if errs != nil {
-		return errs
+		return idChanges, errs
 	}
 
-	return setupInner(solCtx, g, nextResources, nextEdges)
+	return setupInnerRecurse(solCtx, g, nextResources, nextEdges, idChanges)
 }
 
 func popProperty(g Graph) (*PropertyVertex, error) {
@@ -150,4 +180,74 @@ func popProperty(g Graph) (*PropertyVertex, error) {
 		return nil, err
 	}
 	return prop, nil
+}
+
+// ReplaceResource replaces the resources identified by `oldId` with `newRes` in the graph and in any property
+// references (as [ResourceId] or [PropertyRef]) of the old ID to the new ID in any resource that depends on or is
+// depended on by the resource.
+func replaceResourceId(g Graph, oldId, newRes construct.ResourceId) error {
+	// Short circuit if the resource ID hasn't changed.
+	if newRes.Matches(oldId) {
+		return nil
+	}
+	refs, err := graph.TopologicalSort(g)
+	if err != nil {
+		return err
+	}
+	for _, ref := range refs {
+		r, props, err := g.VertexWithProperties(ref)
+		if err != nil {
+			return err
+		}
+		// Make sure that the constraint is substituted no matter what if it is for the old id
+		if r.Constraint != nil && r.Constraint.Target.Matches(oldId) {
+			r.Constraint.Target = newRes
+		}
+		if ref.Resource.Matches(oldId) {
+			r.Ref.Resource = newRes
+			err = g.AddVertex(r, construct.CopyVertexProps(props))
+			if err != nil {
+				return err
+			}
+
+			neighbors := make(set.Set[construct.PropertyRef])
+			adj, err := g.AdjacencyMap()
+			if err != nil {
+				return err
+			}
+			for _, edge := range adj[ref] {
+				err = errors.Join(
+					err,
+					g.AddEdge(r.Ref, edge.Target, construct.CopyEdgeProps(edge.Properties)),
+					g.RemoveEdge(edge.Source, edge.Target),
+				)
+				neighbors.Add(edge.Target)
+			}
+			if err != nil {
+				return err
+			}
+
+			pred, err := g.PredecessorMap()
+			if err != nil {
+				return err
+			}
+			for _, edge := range pred[ref] {
+				err = errors.Join(
+					err,
+					g.AddEdge(edge.Source, r.Ref, construct.CopyEdgeProps(edge.Properties)),
+					g.RemoveEdge(edge.Source, edge.Target),
+				)
+				neighbors.Add(edge.Source)
+			}
+			if err != nil {
+				return err
+			}
+
+			if err := g.RemoveVertex(ref); err != nil {
+				return err
+			}
+
+		}
+	}
+	return nil
 }
