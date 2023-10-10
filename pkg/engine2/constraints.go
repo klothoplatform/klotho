@@ -57,17 +57,8 @@ func applyApplicationConstraint(ctx solution_context.SolutionContext, constraint
 	switch constraint.Operator {
 	case constraints.AddConstraintOperator:
 		res := construct.CreateResource(constraint.Node)
-		err := ctx.RawView().AddVertex(res)
-		switch {
-		case err == nil:
-			return res, nil
-
-		case errors.Is(err, graph.ErrVertexAlreadyExists):
-			return nil, nil
-
-		default:
-			return nil, err
-		}
+		err := construct.IgnoreExists(ctx.RawView().AddVertex(res))
+		return res, err
 
 	case constraints.RemoveConstraintOperator:
 		return nil, construct.RemoveResource(ctx.RawView(), constraint.Node)

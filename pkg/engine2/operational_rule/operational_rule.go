@@ -12,10 +12,9 @@ import (
 
 type (
 	OperationalRuleContext struct {
-		Solution  solution_context.SolutionContext
-		Property  *knowledgebase.Property
-		ConfigCtx knowledgebase.DynamicValueContext
-		Data      knowledgebase.DynamicValueData
+		Solution solution_context.SolutionContext
+		Property *knowledgebase.Property
+		Data     knowledgebase.DynamicValueData
 	}
 
 	Result struct {
@@ -27,7 +26,8 @@ type (
 func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) (Result, error) {
 	if rule.If != "" {
 		result := false
-		err := ctx.ConfigCtx.ExecuteDecode(rule.If, ctx.Data, &result)
+		dyn := solution_context.DynamicCtx(ctx.Solution)
+		err := dyn.ExecuteDecode(rule.If, ctx.Data, &result)
 		if err != nil {
 			return Result{}, err
 		}

@@ -3,6 +3,7 @@ package engine2
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -12,6 +13,7 @@ import (
 	property_eval "github.com/klothoplatform/klotho/pkg/engine2/property_eval"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"go.uber.org/zap"
 )
 
 type MakeOperationalView solutionContext
@@ -116,7 +118,7 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 		switch {
 		case errors.Is(err, graph.ErrVertexNotFound):
 			res = construct.CreateResource(pathId)
-			errs = errors.Join(errs, view.AddVertex(res))
+			errs = errors.Join(errs, RawAccessView(view).AddVertex(res))
 
 		case err != nil:
 			errs = errors.Join(errs, err)
@@ -128,11 +130,19 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 	}
 
 	// After all the resources, then add all the dependencies
-	for i, pathId := range path {
-		if i == 0 {
-			continue
+	if len(path) == 2 {
+		zap.S().Infof("Adding edge %s -> %s (for %s -> %s)", path[0], path[1], source, target)
+		errs = RawAccessView(view).AddEdge(path[0], path[1], options...)
+	} else {
+		pstr := make([]string, len(path))
+		for i, pathId := range path {
+			pstr[i] = pathId.String()
+			if i == 0 {
+				continue
+			}
+			errs = errors.Join(errs, RawAccessView(view).AddEdge(path[i-1], pathId))
 		}
-		errs = errors.Join(errs, view.AddEdge(path[i-1], pathId))
+		zap.S().Infof("Expanded %s -> %s to %s", source, target, strings.Join(pstr, " -> "))
 	}
 	if errs != nil {
 		return errs
@@ -192,9 +202,8 @@ func (view MakeOperationalView) MakeEdgeOperational(
 	view.stack = append(view.stack, solution_context.KV{Key: "edge", Value: edge})
 
 	opCtx := operational_rule.OperationalRuleContext{
-		ConfigCtx: knowledgebase.DynamicValueContext{DAG: view},
-		Data:      knowledgebase.DynamicValueData{Edge: &edge},
-		Solution:  solutionContext(view),
+		Data:     knowledgebase.DynamicValueData{Edge: &edge},
+		Solution: solutionContext(view),
 	}
 
 	var result operational_rule.Result

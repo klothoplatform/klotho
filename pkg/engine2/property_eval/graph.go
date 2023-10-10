@@ -60,8 +60,10 @@ func AddResources(
 	}
 
 	for source, targets := range deps {
+		fmt.Println(source)
 		for _, target := range targets {
-			errs = errors.Join(errs, g.AddEdge(source, target))
+			fmt.Printf("  -> %s\n", target)
+			errs = errors.Join(errs, construct.IgnoreExists(g.AddEdge(source, target)))
 		}
 	}
 	if errs != nil {
@@ -79,11 +81,8 @@ func addResource(
 	res *construct.Resource,
 	tmpl *knowledgebase.ResourceTemplate,
 ) (map[construct.PropertyRef][]construct.PropertyRef, error) {
-	err := ctx.RawView().AddVertex(res)
-	switch {
-	case errors.Is(err, graph.ErrVertexAlreadyExists):
-		// ignore
-	case err != nil:
+	err := construct.IgnoreExists(ctx.RawView().AddVertex(res))
+	if err != nil {
 		return nil, fmt.Errorf("could not add resource %s to graph: %w", res.ID, err)
 	}
 
@@ -100,6 +99,9 @@ func addResource(
 				Ref:      construct.PropertyRef{Resource: res.ID, Property: prop.Path},
 				Template: prop,
 			}
+			if _, err := g.Vertex(vertex.Ref); err == nil {
+				continue
+			}
 			path, err := res.PropertyPath(prop.Path)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("could not get property path %s: %w", prop.Path, err))
@@ -113,7 +115,8 @@ func addResource(
 				}
 			}
 			errs = errors.Join(errs, g.AddVertex(vertex))
-			if prop.Properties != nil {
+			if prop.Properties != nil && !strings.HasPrefix(prop.Type, "list") {
+				// Because lists will start as empty, do not recurse into their sub-properties
 				queue = append(queue, prop.Properties)
 			}
 			vdeps, err := depsForProp(cfgCtx, vertex)
@@ -132,26 +135,28 @@ func depsForProp(cfgCtx knowledgebase.DynamicValueContext, prop *PropertyVertex)
 		// for now, constraints can't be templated so won't have dependencies
 		return nil, nil
 	}
-	if ref, ok := prop.Template.DefaultValue.(construct.PropertyRef); ok {
-		return []construct.PropertyRef{ref}, nil
+	propCtx := &fauxConfigContext{inner: cfgCtx}
+
+	if err := propCtx.Execute(prop.Template.DefaultValue, prop.Ref); err != nil {
+		return nil, fmt.Errorf("could not execute template for %s: %w", prop.Ref, err)
 	}
-	vStr, ok := prop.Template.DefaultValue.(string)
-	if !ok || !strings.Contains(vStr, "fieldValue") {
-		// if it's not a PropertyRef or a template string that could resolve to a PropertyRef, it has no dependencies
-		return nil, nil
+
+	if prop.Template.OperationalRule != nil {
+		var errs error
+		errs = errors.Join(errs, propCtx.Execute(prop.Template.OperationalRule.If, prop.Ref))
+		for _, rule := range prop.Template.OperationalRule.ConfigurationRules {
+			errs = errors.Join(errs, propCtx.Execute(rule.Config.Value, prop.Ref))
+		}
+		for _, step := range prop.Template.OperationalRule.Steps {
+			for _, stepRes := range step.Resources {
+				errs = errors.Join(errs, propCtx.Execute(stepRes, prop.Ref))
+			}
+		}
+		if errs != nil {
+			return nil, fmt.Errorf("could not execute templates for %s: %w", prop.Ref, errs)
+		}
 	}
-	propCtx := &fauxConfigContext{inner: cfgCtx, kb: cfgCtx.KB}
-	tmpl, err := template.New(prop.Ref.String()).Funcs(propCtx.TemplateFunctions()).Parse(vStr)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse template for property %s: %w", prop.Template.Path, err)
-	}
-	err = tmpl.Execute(
-		io.Discard, // we don't care about the results, just the side effect of appending to propCtx.refs
-		knowledgebase.DynamicValueData{Resource: prop.Ref.Resource},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("could not execute template for property %s: %w", prop.Template.Path, err)
-	}
+
 	return propCtx.refs, nil
 }
 
@@ -159,8 +164,30 @@ func depsForProp(cfgCtx knowledgebase.DynamicValueContext, prop *PropertyVertex)
 // with one that just returns the zero value of the property type and records the property reference.
 type fauxConfigContext struct {
 	inner knowledgebase.DynamicValueContext
-	kb    knowledgebase.TemplateKB
 	refs  []construct.PropertyRef
+}
+
+func (ctx *fauxConfigContext) Execute(v any, ref construct.PropertyRef) error {
+	if ref, ok := v.(construct.PropertyRef); ok {
+		ctx.refs = append(ctx.refs, ref)
+	}
+	vStr, ok := v.(string)
+	if !ok || !strings.Contains(vStr, "fieldValue") {
+		return nil
+	}
+	tmpl, err := template.New(ref.String()).Funcs(ctx.TemplateFunctions()).Parse(vStr)
+	if err != nil {
+		return fmt.Errorf("could not parse template %w", err)
+	}
+
+	// Ignore execution errors for when the zero value is invalid due to other assumptions
+	// if there is an error with the template, this will be caught later when actually processing it.
+	_ = tmpl.Execute(
+		io.Discard, // we don't care about the results, just the side effect of appending to propCtx.refs
+		knowledgebase.DynamicValueData{Resource: ref.Resource},
+	)
+
+	return nil
 }
 
 func (ctx *fauxConfigContext) TemplateFunctions() template.FuncMap {
@@ -176,7 +203,7 @@ func (ctx *fauxConfigContext) FieldValue(field string, resource any) (any, error
 	}
 	ctx.refs = append(ctx.refs, construct.PropertyRef{Resource: resId, Property: field})
 
-	tmpl, err := ctx.kb.GetResourceTemplate(resId)
+	tmpl, err := ctx.inner.KB.GetResourceTemplate(resId)
 	if err != nil {
 		return "", err
 	}

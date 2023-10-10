@@ -36,7 +36,6 @@ func setupInner(
 			break
 		}
 		ctx := solCtx.With("resource", prop.Ref.Resource).With("property", prop.Ref)
-		dyn := solution_context.DynamicCtx(ctx)
 		cfgData := knowledgebase.DynamicValueData{Resource: prop.Ref.Resource}
 
 		res, err := ctx.RawView().Vertex(prop.Ref.Resource)
@@ -46,7 +45,7 @@ func setupInner(
 
 		if prop.Constraint != nil {
 			err = solution_context.ApplyConfigureConstraint(ctx, res, *prop.Constraint)
-		} else {
+		} else if prop.Template.DefaultValue != nil {
 			err = solution_context.ConfigureResource(
 				ctx,
 				res,
@@ -64,10 +63,9 @@ func setupInner(
 		}
 
 		opCtx := operational_rule.OperationalRuleContext{
-			Solution:  ctx,
-			Property:  &prop.Template,
-			ConfigCtx: dyn,
-			Data:      cfgData,
+			Solution: ctx,
+			Property: &prop.Template,
+			Data:     cfgData,
 		}
 		result, err := opCtx.HandleOperationalRule(*prop.Template.OperationalRule)
 		if err != nil {

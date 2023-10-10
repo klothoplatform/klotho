@@ -25,14 +25,6 @@ func ConfigureResource(
 		return err
 	}
 
-	if configuration.Value == nil {
-		err = resource.RemoveProperty(field, nil)
-		if err != nil {
-			return fmt.Errorf("failed to remove property (due to empty value) %s on resource %s: %w", field, resource.ID, err)
-		}
-		return nil
-	}
-
 	val, err := knowledgebase.TransformToPropertyValue(resource, field, configuration.Value, configCtx, data)
 	if err != nil {
 		return err

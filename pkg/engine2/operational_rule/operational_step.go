@@ -29,10 +29,12 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 		step.NumNeeded = 1
 	}
 
+	dyn := solution_context.DynamicCtx(ctx.Solution)
+
 	resourceId := ctx.Data.Resource
 	if resourceId.IsZero() {
 		var err error
-		resourceId, err = ctx.ConfigCtx.ExecuteDecodeAsResourceId(step.Resource, ctx.Data)
+		resourceId, err = dyn.ExecuteDecodeAsResourceId(step.Resource, ctx.Data)
 		if err != nil {
 			return Result{}, err
 		}
@@ -79,7 +81,7 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 		ids = []construct.ResourceId{}
 	}
 
-	explicitResources, _, err := step.ExtractResourcesAndTypes(ctx.ConfigCtx, ctx.Data)
+	explicitResources, _, err := step.ExtractResourcesAndTypes(dyn, ctx.Data)
 	if err != nil {
 		return Result{}, err
 	}
@@ -117,7 +119,9 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(
 		return Result{}, nil
 	}
 
-	explicitResources, resourceTypes, err := action.Step.ExtractResourcesAndTypes(ctx.ConfigCtx, ctx.Data)
+	dyn := solution_context.DynamicCtx(ctx.Solution)
+
+	explicitResources, resourceTypes, err := action.Step.ExtractResourcesAndTypes(dyn, ctx.Data)
 	if err != nil {
 		return Result{}, err
 	}
@@ -127,38 +131,42 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(
 	}
 	var errs error
 
-	createResource := func(id construct.ResourceId) *construct.Resource {
+	addResource := func(res *construct.Resource) {
 		numNeeded--
+		edge, err := ctx.addDependencyForDirection(action.Step, resource, res)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			return
+		}
+		result.AddedDependencies = append(result.AddedDependencies, edge)
+	}
+
+	createResource := func(id construct.ResourceId) {
 		newRes := construct.CreateResource(id)
 		err := ctx.Solution.RawView().AddVertex(newRes)
 		if err != nil {
 			errs = errors.Join(errs, err)
-			return newRes
-		}
-		var edge construct.Edge
-		edge, err = ctx.addDependencyForDirection(action.Step, resource, newRes)
-		if err != nil {
-			errs = errors.Join(errs, err)
-			return newRes
+			return
 		}
 		result.CreatedResources = append(result.CreatedResources, newRes)
-		result.AddedDependencies = append(result.AddedDependencies, edge)
 
-		return newRes
+		addResource(newRes)
 	}
 
 	// Add explicitly named resources first
 	for _, explicitResource := range explicitResources {
 		if numNeeded <= 0 {
-			return Result{}, nil
+			return result, nil
 		}
-		_, err := ctx.Solution.RawView().Vertex(explicitResource)
+		res, err := ctx.Solution.RawView().Vertex(explicitResource)
 		switch {
 		case errors.Is(err, graph.ErrVertexNotFound):
 			createResource(explicitResource)
 		case err != nil:
 			errs = errors.Join(errs, err)
 			continue
+		default:
+			addResource(res)
 		}
 	}
 	if errs != nil {
@@ -175,7 +183,7 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(
 
 	// If there are no resource types, we can't do anything since we dont understand what resources will satisfy the rule
 	if len(resourceTypes) == 0 {
-		return result, fmt.Errorf("no resources found that can satisfy the operational resource error")
+		return result, fmt.Errorf("no resources to choose from for %+v", action.Step)
 	}
 
 	if action.Step.Unique {
@@ -297,7 +305,8 @@ func (ctx OperationalRuleContext) findResourcesWhichSatisfyStepClassifications(
 func (ctx OperationalRuleContext) shouldReplace(step knowledgebase.OperationalStep) (bool, error) {
 	if step.ReplacementCondition != "" {
 		result := false
-		err := ctx.ConfigCtx.ExecuteDecode(step.ReplacementCondition, ctx.Data, &result)
+		dyn := solution_context.DynamicCtx(ctx.Solution)
+		err := dyn.ExecuteDecode(step.ReplacementCondition, ctx.Data, &result)
 		if err != nil {
 			return result, err
 		}
@@ -438,7 +447,7 @@ func (ctx OperationalRuleContext) addDependencyForDirection(
 		edge = construct.Edge{Source: resource.ID, Target: dependentResource.ID}
 	}
 	err := ctx.Solution.RawView().AddEdge(edge.Source, edge.Target)
-	if err != nil {
+	if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
 		return edge, err
 	}
 	return edge, ctx.setField(resource, dependentResource, step)
@@ -455,7 +464,11 @@ func (ctx OperationalRuleContext) removeDependencyForDirection(direction knowled
 func (ctx OperationalRuleContext) addResourceName(partialId construct.ResourceId) construct.ResourceId {
 	// TODO handle cases when multiple resources want to use the same ID, such as `aws:subnet:myvpc:public` by adding an
 	// incrementing number to them.
-	partialId.Name = strcase.ToSnake(ctx.Property.Name)
+	if ctx.Property != nil {
+		partialId.Name = strcase.ToSnake(ctx.Property.Name)
+		return partialId
+	}
+	partialId.Name = fmt.Sprintf("%s_%s", ctx.Data.Edge.Source.Name, ctx.Data.Edge.Target.Name)
 	return partialId
 }
 

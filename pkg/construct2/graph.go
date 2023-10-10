@@ -2,6 +2,7 @@ package construct2
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -114,4 +115,11 @@ func ResolveIds(g Graph, ids []ResourceId) ([]*Resource, error) {
 		return resources, errs
 	}
 	return resources, nil
+}
+
+func IgnoreExists(err error) error {
+	if errors.Is(err, graph.ErrVertexAlreadyExists) || errors.Is(err, graph.ErrEdgeAlreadyExists) {
+		return nil
+	}
+	return err
 }
