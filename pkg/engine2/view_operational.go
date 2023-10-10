@@ -23,7 +23,7 @@ func (view MakeOperationalView) Traits() *graph.Traits {
 }
 
 func (view MakeOperationalView) AddVertex(value *construct.Resource, options ...func(*graph.VertexProperties)) error {
-	err := RawAccessView(view).AddVertex(value, options...)
+	err := view.raw().AddVertex(value, options...)
 	if err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func (view MakeOperationalView) AddVerticesFrom(g construct.Graph) error {
 		return err
 	}
 
-	raw := RawAccessView(view)
+	raw := view.raw()
 	var errs error
 	var resources []*construct.Resource
 
@@ -60,20 +60,24 @@ func (view MakeOperationalView) AddVerticesFrom(g construct.Graph) error {
 	return view.MakeResourcesOperational(resources)
 }
 
+func (view MakeOperationalView) raw() solution_context.RawAccessView {
+	return solution_context.NewRawView(solutionContext(view))
+}
+
 func (view MakeOperationalView) MakeResourcesOperational(resources []*construct.Resource) error {
 	return property_eval.SetupResources(solutionContext(view), resources)
 }
 
 func (view MakeOperationalView) Vertex(hash construct.ResourceId) (*construct.Resource, error) {
-	return RawAccessView(view).Vertex(hash)
+	return view.raw().Vertex(hash)
 }
 
 func (view MakeOperationalView) VertexWithProperties(hash construct.ResourceId) (*construct.Resource, graph.VertexProperties, error) {
-	return RawAccessView(view).VertexWithProperties(hash)
+	return view.raw().VertexWithProperties(hash)
 }
 
 func (view MakeOperationalView) RemoveVertex(hash construct.ResourceId) error {
-	return RawAccessView(view).RemoveVertex(hash)
+	return view.raw().RemoveVertex(hash)
 }
 
 func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, options ...func(*graph.EdgeProperties)) (err error) {
@@ -118,7 +122,7 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 		switch {
 		case errors.Is(err, graph.ErrVertexNotFound):
 			res = construct.CreateResource(pathId)
-			errs = errors.Join(errs, RawAccessView(view).AddVertex(res))
+			errs = errors.Join(errs, view.raw().AddVertex(res))
 
 		case err != nil:
 			errs = errors.Join(errs, err)
@@ -132,7 +136,7 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 	// After all the resources, then add all the dependencies
 	if len(path) == 2 {
 		zap.S().Infof("Adding edge %s -> %s (for %s -> %s)", path[0], path[1], source, target)
-		errs = RawAccessView(view).AddEdge(path[0], path[1], options...)
+		errs = view.raw().AddEdge(path[0], path[1], options...)
 	} else {
 		pstr := make([]string, len(path))
 		for i, pathId := range path {
@@ -140,7 +144,7 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 			if i == 0 {
 				continue
 			}
-			errs = errors.Join(errs, RawAccessView(view).AddEdge(path[i-1], pathId))
+			errs = errors.Join(errs, view.raw().AddEdge(path[i-1], pathId))
 		}
 		zap.S().Infof("Expanded %s -> %s to %s", source, target, strings.Join(pstr, " -> "))
 	}
@@ -237,11 +241,11 @@ func (view MakeOperationalView) Edges() ([]construct.Edge, error) {
 }
 
 func (view MakeOperationalView) UpdateEdge(source, target construct.ResourceId, options ...func(properties *graph.EdgeProperties)) error {
-	return RawAccessView(view).UpdateEdge(source, target, options...)
+	return view.raw().UpdateEdge(source, target, options...)
 }
 
 func (view MakeOperationalView) RemoveEdge(source, target construct.ResourceId) error {
-	return RawAccessView(view).RemoveEdge(source, target)
+	return view.raw().RemoveEdge(source, target)
 }
 
 func (view MakeOperationalView) AdjacencyMap() (map[construct.ResourceId]map[construct.ResourceId]construct.Edge, error) {

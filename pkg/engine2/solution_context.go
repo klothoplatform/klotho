@@ -68,7 +68,7 @@ func (s solutionContext) With(key string, value any) solution_context.SolutionCo
 }
 
 func (ctx solutionContext) RawView() construct.Graph {
-	return RawAccessView(ctx)
+	return solution_context.NewRawView(ctx)
 }
 
 func (ctx solutionContext) OperationalView() solution_context.OperationalView {
@@ -98,7 +98,7 @@ func (ctx solutionContext) LoadGraph(graph construct.Graph) error {
 	if err != nil {
 		return err
 	}
-	raw := RawAccessView(ctx)
+	raw := ctx.RawView()
 	if err := raw.AddVerticesFrom(graph); err != nil {
 		return err
 	}
