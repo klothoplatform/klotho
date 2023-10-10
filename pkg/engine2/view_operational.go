@@ -141,29 +141,47 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 	}
 
 	// Finally, after the graph and resources are operational, make all the edges operational
-	var edgeResources []*construct.Resource
+	var result operational_rule.Result
 	for i, pathId := range path {
 		if i == 0 {
 			continue
 		}
-		toAdd, err := view.makeEdgeOperational(path[i-1], pathId)
+		addRes, addDep, err := view.MakeEdgeOperational(path[i-1], pathId)
 		errs = errors.Join(errs, err)
-		edgeResources = append(edgeResources, toAdd...)
+		result.CreatedResources = append(result.CreatedResources, addRes...)
+		result.AddedDependencies = append(result.AddedDependencies, addDep...)
 	}
 	if errs != nil {
 		return errs
 	}
-	if len(edgeResources) > 0 {
-		return property_eval.SetupResources(solutionContext(view), edgeResources)
+
+	for len(result.CreatedResources) > 0 || len(result.AddedDependencies) > 0 {
+		err = property_eval.SetupResources(solutionContext(view), result.CreatedResources)
+		if err != nil {
+			return err
+		}
+		var nextResult operational_rule.Result
+		for _, edge := range result.AddedDependencies {
+			addRes, addDep, err := view.MakeEdgeOperational(edge.Source, edge.Target)
+			errs = errors.Join(errs, err)
+			nextResult.CreatedResources = append(nextResult.CreatedResources, addRes...)
+			nextResult.AddedDependencies = append(nextResult.AddedDependencies, addDep...)
+		}
+		if errs != nil {
+			return errs
+		}
+		result = nextResult
 	}
 
 	return nil
 }
 
-func (view MakeOperationalView) makeEdgeOperational(source, target construct.ResourceId) ([]*construct.Resource, error) {
+func (view MakeOperationalView) MakeEdgeOperational(
+	source, target construct.ResourceId,
+) ([]*construct.Resource, []construct.Edge, error) {
 	tmpl := view.KB.GetEdgeTemplate(source, target)
 	if tmpl == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	edge := construct.Edge{Source: source, Target: target}
@@ -175,14 +193,14 @@ func (view MakeOperationalView) makeEdgeOperational(source, target construct.Res
 		Solution:  solutionContext(view),
 	}
 
-	var resources []*construct.Resource
+	var result operational_rule.Result
 	var errs error
 	for _, rule := range tmpl.OperationalRules {
-		toAdd, err := opCtx.HandleOperationalRule(rule)
+		ruleResult, err := opCtx.HandleOperationalRule(rule)
 		errs = errors.Join(errs, err)
-		resources = append(resources, toAdd...)
+		result.Append(ruleResult)
 	}
-	return resources, errs
+	return result.CreatedResources, result.AddedDependencies, errs
 }
 
 func (view MakeOperationalView) AddEdgesFrom(g construct.Graph) error {

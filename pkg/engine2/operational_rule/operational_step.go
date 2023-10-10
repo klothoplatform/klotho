@@ -16,13 +16,14 @@ import (
 )
 
 type (
-	OperationalResourceAction struct {
-		Step       knowledgebase.OperationalStep
-		CurrentIds []construct.ResourceId
+	operationalResourceAction struct {
+		Step          knowledgebase.OperationalStep
+		CurrentIds    []construct.ResourceId
+		PropertyEdges []construct.Edge
 	}
 )
 
-func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.OperationalStep) ([]*construct.Resource, error) {
+func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.OperationalStep) (Result, error) {
 	// Default to 1 resource needed
 	if step.NumNeeded == 0 {
 		step.NumNeeded = 1
@@ -33,44 +34,45 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 		var err error
 		resourceId, err = ctx.ConfigCtx.ExecuteDecodeAsResourceId(step.Resource, ctx.Data)
 		if err != nil {
-			return nil, err
+			return Result{}, err
 		}
 	}
 	resource, err := ctx.Solution.RawView().Vertex(resourceId)
 	if err != nil {
-		return nil, fmt.Errorf("resource %s not found: %w", resourceId, err)
+		return Result{}, fmt.Errorf("resource %s not found: %w", resourceId, err)
 	}
 
 	replace, err := ctx.shouldReplace(step)
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
 
 	// If we are replacing we want to remove all dependencies and clear the property
 	// otherwise we want to add dependencies from the property and gather the resources which satisfy the step
 	var ids []construct.ResourceId
+	var edges []construct.Edge
 	if ctx.Property != nil {
 		if replace {
 			err := ctx.clearProperty(step, resource, ctx.Property.Path)
 			if err != nil {
-				return nil, err
+				return Result{}, err
 			}
 		}
 		var err error
-		ids, err = ctx.addDependenciesFromProperty(step, resource, ctx.Property.Path)
+		ids, edges, err = ctx.addDependenciesFromProperty(step, resource, ctx.Property.Path)
 		if err != nil {
-			return nil, err
+			return Result{}, err
 		}
 	} else { // an edge rule won't have a Property
 		ids, err = ctx.getResourcesForStep(step, resource.ID)
 		if err != nil {
-			return nil, err
+			return Result{}, err
 		}
 		if replace {
 			for _, id := range ids {
 				err := ctx.Solution.RawView().RemoveEdge(id, resource.ID)
 				if err != nil {
-					return nil, err
+					return Result{}, err
 				}
 			}
 		}
@@ -79,7 +81,7 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 
 	explicitResources, _, err := step.ExtractResourcesAndTypes(ctx.ConfigCtx, ctx.Data)
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
 	allExplicitResourcesSatisfied := true
 	for _, id := range explicitResources {
@@ -90,36 +92,39 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 	}
 
 	if len(ids) > step.NumNeeded && allExplicitResourcesSatisfied {
-		return nil, nil
+		return Result{}, nil
 	}
 
 	if step.FailIfMissing {
-		return nil, fmt.Errorf("operational resource error for %s", resource.ID)
+		return Result{}, fmt.Errorf("operational resource '%s' missing when required", resource.ID)
 	}
 
-	action := OperationalResourceAction{
-		Step:       step,
-		CurrentIds: ids,
+	action := operationalResourceAction{
+		Step:          step,
+		CurrentIds:    ids,
+		PropertyEdges: edges,
 	}
 	return ctx.handleOperationalResourceAction(resource, action)
 }
 
 func (ctx OperationalRuleContext) handleOperationalResourceAction(
 	resource *construct.Resource,
-	action OperationalResourceAction,
-) ([]*construct.Resource, error) {
+	action operationalResourceAction,
+) (Result, error) {
 	numNeeded := action.Step.NumNeeded - len(action.CurrentIds)
 	if numNeeded <= 0 {
 		// should already be checked in [HandleOperationalStep] but double check to be defensive
-		return nil, nil
+		return Result{}, nil
 	}
 
 	explicitResources, resourceTypes, err := action.Step.ExtractResourcesAndTypes(ctx.ConfigCtx, ctx.Data)
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
 
-	var createdResources []*construct.Resource
+	result := Result{
+		AddedDependencies: action.PropertyEdges,
+	}
 	var errs error
 
 	createResource := func(id construct.ResourceId) *construct.Resource {
@@ -130,19 +135,22 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(
 			errs = errors.Join(errs, err)
 			return newRes
 		}
-		err = ctx.addDependencyForDirection(action.Step, resource, newRes)
+		var edge construct.Edge
+		edge, err = ctx.addDependencyForDirection(action.Step, resource, newRes)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			return newRes
 		}
-		createdResources = append(createdResources, newRes)
+		result.CreatedResources = append(result.CreatedResources, newRes)
+		result.AddedDependencies = append(result.AddedDependencies, edge)
+
 		return newRes
 	}
 
 	// Add explicitly named resources first
 	for _, explicitResource := range explicitResources {
 		if numNeeded <= 0 {
-			return nil, nil
+			return Result{}, nil
 		}
 		_, err := ctx.Solution.RawView().Vertex(explicitResource)
 		switch {
@@ -154,10 +162,10 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(
 		}
 	}
 	if errs != nil {
-		return nil, errs
+		return Result{}, errs
 	}
 	if numNeeded <= 0 {
-		return createdResources, nil
+		return result, nil
 	}
 
 	// If the rule contains classifications, we are going to get the resource types which satisfy those and put it onto the list of applicable resource types
@@ -167,7 +175,7 @@ func (ctx OperationalRuleContext) handleOperationalResourceAction(
 
 	// If there are no resource types, we can't do anything since we dont understand what resources will satisfy the rule
 	if len(resourceTypes) == 0 {
-		return nil, fmt.Errorf("no resources found that can satisfy the operational resource error")
+		return result, fmt.Errorf("no resources found that can satisfy the operational resource error")
 	}
 
 	if action.Step.Unique {
@@ -232,16 +240,17 @@ typeLoop:
 			if numNeeded <= 0 {
 				break
 			}
-			err := ctx.addDependencyForDirection(action.Step, resource, res)
+			edge, err := ctx.addDependencyForDirection(action.Step, resource, res)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue typeLoop
 			}
+			result.AddedDependencies = append(result.AddedDependencies, edge)
 			numNeeded--
 		}
 	}
 	if errs != nil {
-		return nil, errs
+		return Result{}, errs
 	}
 
 	for numNeeded > 0 {
@@ -249,10 +258,10 @@ typeLoop:
 		createResource(ctx.addResourceName(typeToCreate))
 	}
 	if errs != nil {
-		return nil, errs
+		return Result{}, errs
 	}
 
-	return createdResources, nil
+	return result, nil
 }
 
 func (ctx OperationalRuleContext) findResourcesWhichSatisfyStepClassifications(
@@ -332,30 +341,38 @@ func (ctx OperationalRuleContext) getResourcesForStep(step knowledgebase.Operati
 	return resourcesOfType, nil
 }
 
-func (ctx OperationalRuleContext) addDependenciesFromProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) ([]construct.ResourceId, error) {
+func (ctx OperationalRuleContext) addDependenciesFromProperty(
+	step knowledgebase.OperationalStep,
+	resource *construct.Resource,
+	propertyName string,
+) ([]construct.ResourceId, []construct.Edge, error) {
 	val, err := resource.GetProperty(propertyName)
 	if err != nil {
-		return nil, fmt.Errorf("error getting property %s on resource %s: %w", propertyName, resource.ID, err)
+		return nil, nil, fmt.Errorf("error getting property %s on resource %s: %w", propertyName, resource.ID, err)
 	}
+
+	var edges []construct.Edge
 
 	addDep := func(id construct.ResourceId) error {
 		dep, err := ctx.Solution.RawView().Vertex(id)
 		if err != nil {
 			return err
 		}
-		return ctx.addDependencyForDirection(step, resource, dep)
+		edge, err := ctx.addDependencyForDirection(step, resource, dep)
+		edges = append(edges, edge)
+		return err
 	}
 
 	switch val := val.(type) {
 	case construct.ResourceId:
-		return []construct.ResourceId{val}, addDep(val)
+		return []construct.ResourceId{val}, edges, addDep(val)
 
 	case []construct.ResourceId:
 		var errs error
 		for _, id := range val {
 			errs = errors.Join(errs, addDep(id))
 		}
-		return val, errs
+		return val, edges, errs
 
 	case []any:
 		var errs error
@@ -366,9 +383,9 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(step knowledgebase
 				errs = errors.Join(errs, addDep(id))
 			}
 		}
-		return ids, errs
+		return ids, edges, errs
 	}
-	return nil, nil
+	return nil, nil, nil
 }
 
 func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) error {
@@ -410,19 +427,21 @@ func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalSt
 	return nil
 }
 
-func (ctx OperationalRuleContext) addDependencyForDirection(step knowledgebase.OperationalStep, resource, dependentResource *construct.Resource) error {
+func (ctx OperationalRuleContext) addDependencyForDirection(
+	step knowledgebase.OperationalStep,
+	resource, dependentResource *construct.Resource,
+) (construct.Edge, error) {
+	var edge construct.Edge
 	if step.Direction == knowledgebase.DirectionUpstream {
-		err := ctx.Solution.RawView().AddEdge(dependentResource.ID, resource.ID)
-		if err != nil {
-			return err
-		}
+		edge = construct.Edge{Source: dependentResource.ID, Target: resource.ID}
 	} else {
-		err := ctx.Solution.RawView().AddEdge(resource.ID, dependentResource.ID)
-		if err != nil {
-			return err
-		}
+		edge = construct.Edge{Source: resource.ID, Target: dependentResource.ID}
 	}
-	return ctx.setField(resource, dependentResource, step)
+	err := ctx.Solution.RawView().AddEdge(edge.Source, edge.Target)
+	if err != nil {
+		return edge, err
+	}
+	return edge, ctx.setField(resource, dependentResource, step)
 }
 
 func (ctx OperationalRuleContext) removeDependencyForDirection(direction knowledgebase.Direction, resource, dependentResource construct.ResourceId) error {

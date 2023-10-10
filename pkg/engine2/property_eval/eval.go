@@ -12,11 +12,17 @@ import (
 )
 
 func SetupResources(solCtx solution_context.SolutionContext, resources []*construct.Resource) error {
-	if len(resources) == 0 {
-		return nil
-	}
+	return setupInner(solCtx, newGraph(), resources, nil)
+}
 
-	g, err := InitGraph(solCtx, resources)
+// setupInner is a recursive function that resolves properties in the graph.
+func setupInner(
+	solCtx solution_context.SolutionContext,
+	g Graph,
+	resources []*construct.Resource,
+	edges []construct.Edge,
+) error {
+	err := AddResources(g, solCtx, resources)
 	if err != nil {
 		return err
 	}
@@ -27,7 +33,7 @@ func SetupResources(solCtx solution_context.SolutionContext, resources []*constr
 			return err
 		}
 		if prop == nil {
-			return nil
+			break
 		}
 		ctx := solCtx.With("resource", prop.Ref.Resource).With("property", prop.Ref)
 		dyn := solution_context.DynamicCtx(ctx)
@@ -63,21 +69,40 @@ func SetupResources(solCtx solution_context.SolutionContext, resources []*constr
 			ConfigCtx: dyn,
 			Data:      cfgData,
 		}
-		toAdd, err := opCtx.HandleOperationalRule(*prop.Template.OperationalRule)
+		result, err := opCtx.HandleOperationalRule(*prop.Template.OperationalRule)
 		if err != nil {
 			return fmt.Errorf("could not handle operational rule for %s: %w", prop.Ref, err)
 		}
 
-		err = AddResources(g, ctx, toAdd)
+		err = AddResources(g, ctx, result.CreatedResources)
 		if err != nil {
 			return fmt.Errorf("could not add operational resources for %s: %w", prop.Ref, err)
 		}
+		edges = append(edges, result.AddedDependencies...)
 	}
+	if len(edges) == 0 {
+		return nil
+	}
+
+	var nextResources []*construct.Resource
+	var nextEdges []construct.Edge
+	var errs error
+	for _, edge := range edges {
+		addRes, addDep, err := solCtx.OperationalView().MakeEdgeOperational(edge.Source, edge.Target)
+		errs = errors.Join(errs, err)
+		nextResources = append(nextResources, addRes...)
+		nextEdges = append(nextEdges, addDep...)
+	}
+	if errs != nil {
+		return errs
+	}
+
+	return setupInner(solCtx, g, nextResources, nextEdges)
 }
 
 func popProperty(g Graph) (*PropertyVertex, error) {
 	// Use adjacency map so we can easily find properties with no dependencies.
-	// This is effectively the same as a reverse topological sort.
+	// This is effectively the same as a reverse topological sort (through sequential calls to [popProperty]).
 	adj, err := g.AdjacencyMap()
 	if err != nil {
 		return nil, err

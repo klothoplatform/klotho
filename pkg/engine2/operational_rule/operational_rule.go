@@ -17,30 +17,36 @@ type (
 		ConfigCtx knowledgebase.DynamicValueContext
 		Data      knowledgebase.DynamicValueData
 	}
+
+	Result struct {
+		CreatedResources  []*construct.Resource
+		AddedDependencies []construct.Edge
+	}
 )
 
-func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) ([]*construct.Resource, error) {
+func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) (Result, error) {
 	if rule.If != "" {
 		result := false
 		err := ctx.ConfigCtx.ExecuteDecode(rule.If, ctx.Data, &result)
 		if err != nil {
-			return nil, err
+			return Result{}, err
 		}
 		if !result {
 			zap.S().Debugf("rule did not match if condition, skipping")
-			return nil, nil
+			return Result{}, nil
 		}
 	}
 
-	var createdResources []*construct.Resource
+	var result Result
+
 	var errs error
 	for i, operationalStep := range rule.Steps {
-		resources, err := ctx.HandleOperationalStep(operationalStep)
+		stepResult, err := ctx.HandleOperationalStep(operationalStep)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf("could not apply step %d: %w", i, err))
 			continue
 		}
-		createdResources = append(createdResources, resources...)
+		result.Append(stepResult)
 	}
 
 	for i, operationalConfig := range rule.ConfigurationRules {
@@ -50,5 +56,10 @@ func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.Opera
 		}
 	}
 
-	return createdResources, errs
+	return result, errs
+}
+
+func (r *Result) Append(other Result) {
+	r.CreatedResources = append(r.CreatedResources, other.CreatedResources...)
+	r.AddedDependencies = append(r.AddedDependencies, other.AddedDependencies...)
 }

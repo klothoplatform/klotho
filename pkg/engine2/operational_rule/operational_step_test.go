@@ -17,13 +17,13 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 		name        string
 		mocks       []mock.Call
 		resource    *construct.Resource
-		action      OperationalResourceAction
+		action      operationalResourceAction
 		wantCreated []string
 	}{
 		{
 			name:     "upstream exact resource that exists in the graph",
 			resource: kbtesting.MockResource1("test1"),
-			action: OperationalResourceAction{
+			action: operationalResourceAction{
 				Step: &knowledgebase.OperationalStep{
 					Direction: knowledgebase.DirectionDownstream,
 					Resources: []string{"mock:resource4:test"},
@@ -47,7 +47,7 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 		{
 			name:     "upstream unique resources from types",
 			resource: kbtesting.MockResource1("test1"),
-			action: OperationalResourceAction{
+			action: operationalResourceAction{
 				Step: &knowledgebase.OperationalStep{
 					Direction: knowledgebase.DirectionDownstream,
 					Resources: []string{"mock:resource4"},
@@ -101,7 +101,7 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 		{
 			name:     "upstream resources from types, choose from available",
 			resource: kbtesting.MockResource1("test1"),
-			action: OperationalResourceAction{
+			action: operationalResourceAction{
 				Step: &knowledgebase.OperationalStep{
 					Direction: knowledgebase.DirectionDownstream,
 					Resources: []string{"mock:resource4"},
@@ -134,7 +134,7 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 		{
 			name:     "upstream resources from types, none available, will create",
 			resource: kbtesting.MockResource1("test1"),
-			action: OperationalResourceAction{
+			action: operationalResourceAction{
 				Step: &knowledgebase.OperationalStep{
 					Direction: knowledgebase.DirectionDownstream,
 					Resources: []string{"mock:resource4"},

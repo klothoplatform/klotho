@@ -21,11 +21,17 @@ type (
 		// OperationalView returns a graph that makes any resources or edges added operational as part of the operation.
 		// Read operations come from the Dataflow graph.
 		// Write operations will update both the Dataflow and Deployment graphs.
-		OperationalView() construct.Graph
+		OperationalView() OperationalView
 		// RawView returns a graph that makes no changes beyond explicitly requested operations.
 		// Read operations come from the Dataflow graph.
 		// Write operations will update both the Dataflow and Deployment graphs.
 		RawView() construct.Graph
+	}
+
+	OperationalView interface {
+		construct.Graph
+
+		MakeEdgeOperational(source, target construct.ResourceId) ([]*construct.Resource, []construct.Edge, error)
 	}
 )
 

@@ -71,7 +71,7 @@ func (ctx solutionContext) RawView() construct.Graph {
 	return RawAccessView(ctx)
 }
 
-func (ctx solutionContext) OperationalView() construct.Graph {
+func (ctx solutionContext) OperationalView() solution_context.OperationalView {
 	return MakeOperationalView(ctx)
 }
 

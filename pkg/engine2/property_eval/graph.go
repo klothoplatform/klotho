@@ -25,17 +25,13 @@ type (
 	Graph = graph.Graph[construct.PropertyRef, *PropertyVertex]
 )
 
-func InitGraph(ctx solution_context.SolutionContext, resources []*construct.Resource) (Graph, error) {
-	g := graph.New(
+func newGraph() Graph {
+	return graph.New(
 		func(p *PropertyVertex) construct.PropertyRef { return p.Ref },
 		graph.Directed(),
 		graph.Acyclic(),
 		graph.PreventCycles(),
 	)
-
-	err := AddResources(g, ctx, resources)
-
-	return g, err
 }
 
 func AddResources(
