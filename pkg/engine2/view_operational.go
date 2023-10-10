@@ -25,7 +25,7 @@ func (view MakeOperationalView) AddVertex(value *construct.Resource, options ...
 	if err != nil {
 		return err
 	}
-	return property_eval.SetupResources(solutionContext(view), []*construct.Resource{value})
+	return view.MakeResourcesOperational([]*construct.Resource{value})
 }
 
 func (view MakeOperationalView) AddVerticesFrom(g construct.Graph) error {
@@ -55,6 +55,10 @@ func (view MakeOperationalView) AddVerticesFrom(g construct.Graph) error {
 		return errs
 	}
 
+	return view.MakeResourcesOperational(resources)
+}
+
+func (view MakeOperationalView) MakeResourcesOperational(resources []*construct.Resource) error {
 	return property_eval.SetupResources(solutionContext(view), resources)
 }
 

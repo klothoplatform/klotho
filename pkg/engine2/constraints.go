@@ -7,12 +7,12 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
-	"github.com/klothoplatform/klotho/pkg/engine2/property_eval"
 	"github.com/klothoplatform/klotho/pkg/engine2/reconciler"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 )
 
 func ApplyConstraints(ctx solution_context.SolutionContext) error {
+	op := ctx.OperationalView()
 
 	var resources []*construct.Resource
 	var errs error
@@ -26,7 +26,7 @@ func ApplyConstraints(ctx solution_context.SolutionContext) error {
 	if errs != nil {
 		return errs
 	}
-	if err := property_eval.SetupResources(ctx, resources); err != nil {
+	if err := op.MakeResourcesOperational(resources); err != nil {
 		return err
 	}
 
@@ -47,7 +47,7 @@ func ApplyConstraints(ctx solution_context.SolutionContext) error {
 		resources = append(resources, res)
 	}
 
-	return property_eval.SetupResources(ctx, resources)
+	return op.MakeResourcesOperational(resources)
 }
 
 // applyApplicationConstraint returns a resource to be made operational, if needed. Otherwise, it returns nil.
@@ -119,7 +119,7 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 		case err != nil:
 			return fmt.Errorf("could not get target resource %s: %w", constraint.Target.Target, err)
 		}
-		if err := property_eval.SetupResources(ctx, resources); err != nil {
+		if err := ctx.OperationalView().MakeResourcesOperational(resources); err != nil {
 			return err
 		}
 
