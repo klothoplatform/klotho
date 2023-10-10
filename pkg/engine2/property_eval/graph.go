@@ -60,9 +60,7 @@ func AddResources(
 	}
 
 	for source, targets := range deps {
-		fmt.Println(source)
 		for _, target := range targets {
-			fmt.Printf("  -> %s\n", target)
 			errs = errors.Join(errs, construct.IgnoreExists(g.AddEdge(source, target)))
 		}
 	}
