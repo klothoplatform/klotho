@@ -13,6 +13,7 @@ func CreateTestKB(t *testing.T) *knowledgebase.KnowledgeBase {
 			t.Fatal(err)
 		}
 	}
+
 	must(testKB.AddResourceTemplate(resource1))
 	must(testKB.AddResourceTemplate(resource2))
 	must(testKB.AddResourceTemplate(resource3))

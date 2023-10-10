@@ -42,7 +42,10 @@ func (m *MockKB) AllPaths(from, to construct.ResourceId) ([][]*knowledgebase.Res
 	args := m.Called(from, to)
 	return args.Get(0).([][]*knowledgebase.ResourceTemplate), args.Error(1)
 }
-func (m *MockKB) GetAllowedNamespacedResourceIds(ctx knowledgebase.DynamicValueContext, resourceId construct.ResourceId) ([]construct.ResourceId, error) {
+func (m *MockKB) GetAllowedNamespacedResourceIds(
+	ctx knowledgebase.DynamicValueContext,
+	resourceId construct.ResourceId,
+) ([]construct.ResourceId, error) {
 	args := m.Called(ctx, resourceId)
 	return args.Get(0).([]construct.ResourceId), args.Error(1)
 }
@@ -54,15 +57,11 @@ func (m *MockKB) GetClassification(id construct.ResourceId) knowledgebase.Classi
 	args := m.Called(id)
 	return args.Get(0).(knowledgebase.Classification)
 }
-func (m *MockKB) GetResourcesNamespaceResource(resource *construct.Resource) *construct.Resource {
+func (m *MockKB) GetResourcesNamespaceResource(resource *construct.Resource) construct.ResourceId {
 	args := m.Called(resource)
-	return args.Get(0).(*construct.Resource)
+	return args.Get(0).(construct.ResourceId)
 }
-func (m *MockKB) GetResourcePropertyType(resource *construct.Resource, propertyName string) string {
+func (m *MockKB) GetResourcePropertyType(resource construct.ResourceId, propertyName string) string {
 	args := m.Called(resource, propertyName)
 	return args.String(0)
-}
-func (m *MockKB) TransformToPropertyValue(resource *construct.Resource, propertyName string, value interface{}, ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (interface{}, error) {
-	args := m.Called(resource, propertyName, value, ctx, data)
-	return args.Get(0), args.Error(1)
 }
