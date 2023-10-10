@@ -139,13 +139,13 @@ func depsForProp(cfgCtx knowledgebase.DynamicValueContext, prop *PropertyVertex)
 		return nil, fmt.Errorf("could not execute template for %s: %w", prop.Ref, err)
 	}
 
-	if prop.Template.OperationalRule != nil {
+	if opRule := prop.Template.OperationalRule; opRule != nil {
 		var errs error
-		errs = errors.Join(errs, propCtx.Execute(prop.Template.OperationalRule.If, prop.Ref))
-		for _, rule := range prop.Template.OperationalRule.ConfigurationRules {
+		errs = errors.Join(errs, propCtx.Execute(opRule.If, prop.Ref))
+		for _, rule := range opRule.ConfigurationRules {
 			errs = errors.Join(errs, propCtx.Execute(rule.Config.Value, prop.Ref))
 		}
-		for _, step := range prop.Template.OperationalRule.Steps {
+		for _, step := range opRule.Steps {
 			for _, stepRes := range step.Resources {
 				errs = errors.Join(errs, propCtx.Execute(stepRes, prop.Ref))
 			}
