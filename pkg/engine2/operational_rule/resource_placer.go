@@ -46,7 +46,9 @@ func (p *SpreadPlacer) PlaceResources(resource *construct.Resource, step knowled
 		// If there is only one resource available, do not place in that resource and instead create a new one
 		return result, nil
 	}
-
+	if *numNeeded == 0 {
+		return result, nil
+	}
 	mapOfConnections, err := p.ctx.findNumConnectionsToTypeForAvailableResources(step, availableResources, resource.ID)
 	if err != nil {
 		return result, err
@@ -181,10 +183,10 @@ func (ctx OperationalRuleContext) findNumConnectionsToTypeForAvailableResources(
 		var err error
 		var connections []construct.ResourceId
 		if step.Direction == knowledgebase.DirectionDownstream {
-			connections, err = solution_context.Downstream(ctx.Solution, availableResource.ID,
+			connections, err = solution_context.Upstream(ctx.Solution, availableResource.ID,
 				knowledgebase.FirstFunctionalLayer)
 		} else {
-			connections, err = solution_context.Upstream(ctx.Solution, availableResource.ID,
+			connections, err = solution_context.Downstream(ctx.Solution, availableResource.ID,
 				knowledgebase.FirstFunctionalLayer)
 		}
 		var connectionsOfType []construct.ResourceId

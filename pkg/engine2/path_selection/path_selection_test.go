@@ -272,7 +272,9 @@ func Test_PathSelection(t *testing.T) {
 			for _, call := range tt.kb {
 				mockKB.On(call.Method, call.Arguments...).Return(call.ReturnArguments...)
 			}
-			got, err := SelectPath(tt.dep, tt.edgeData, &mockKB)
+			ms := &enginetesting.MockSolution{}
+			ms.On("KnowledgeBase").Return(&mockKB)
+			got, err := SelectPath(ms, tt.dep, tt.edgeData)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -286,16 +288,16 @@ func Test_PathSelection(t *testing.T) {
 func Test_addResourcesToTempGraph(t *testing.T) {
 	tests := []struct {
 		name     string
-		dep      construct.Edge
+		dep      construct.ResourceEdge
 		edgeData EdgeData
 		kb       []mock.Call
 		want     []construct.ResourceId
 	}{
 		{
 			name: "can add source and destination to graph",
-			dep: construct.Edge{
-				Source: construct.ResourceId{Name: "test"},
-				Target: construct.ResourceId{Name: "test2"},
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Name: "test"}),
+				Target: construct.CreateResource(construct.ResourceId{Name: "test2"}),
 			},
 			edgeData: EdgeData{},
 			kb: []mock.Call{
@@ -313,17 +315,15 @@ func Test_addResourcesToTempGraph(t *testing.T) {
 		},
 		{
 			name: "can add nodes that must exist to graph",
-			dep: construct.Edge{
-				Source: construct.ResourceId{Name: "test"},
-				Target: construct.ResourceId{Name: "test2"},
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Name: "test"}),
+				Target: construct.CreateResource(construct.ResourceId{Name: "test2"}),
 			},
 			edgeData: EdgeData{
 				Constraint: EdgeConstraint{
-					NodeMustExist: []construct.Resource{
+					NodeMustExist: []construct.ResourceId{
 						{
-							ID: construct.ResourceId{
-								Name: "test3",
-							},
+							Name: "test3",
 						},
 					},
 				},
@@ -344,9 +344,9 @@ func Test_addResourcesToTempGraph(t *testing.T) {
 		},
 		{
 			name: "can add allowable kb nodes to graph",
-			dep: construct.Edge{
-				Source: construct.ResourceId{Name: "test"},
-				Target: construct.ResourceId{Name: "test2"},
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Name: "test"}),
+				Target: construct.CreateResource(construct.ResourceId{Name: "test2"}),
 			},
 			edgeData: EdgeData{},
 			kb: []mock.Call{
@@ -369,18 +369,16 @@ func Test_addResourcesToTempGraph(t *testing.T) {
 		},
 		{
 			name: "rejects must not exist resources",
-			dep: construct.Edge{
-				Source: construct.ResourceId{Name: "test"},
-				Target: construct.ResourceId{Name: "test2"},
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Name: "test"}),
+				Target: construct.CreateResource(construct.ResourceId{Name: "test2"}),
 			},
 			edgeData: EdgeData{
 				Constraint: EdgeConstraint{
-					NodeMustNotExist: []construct.Resource{
+					NodeMustNotExist: []construct.ResourceId{
 						{
-							ID: construct.ResourceId{
-								Provider: "mock",
-								Type:     "test3",
-							},
+							Provider: "mock",
+							Type:     "test3",
 						},
 					},
 				},
@@ -404,9 +402,9 @@ func Test_addResourcesToTempGraph(t *testing.T) {
 		},
 		{
 			name: "rejects resources which do not satisfy attributes",
-			dep: construct.Edge{
-				Source: construct.ResourceId{Name: "test"},
-				Target: construct.ResourceId{Name: "test2"},
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Name: "test"}),
+				Target: construct.CreateResource(construct.ResourceId{Name: "test2"}),
 			},
 			edgeData: EdgeData{
 				Attributes: map[string]any{
@@ -484,7 +482,7 @@ func Test_addResourcesToTempGraph(t *testing.T) {
 func Test_addEdgesToTempGraph(t *testing.T) {
 	tests := []struct {
 		name         string
-		dep          construct.Edge
+		dep          construct.ResourceEdge
 		initialState []construct.ResourceId
 		edgeData     EdgeData
 		kb           []mock.Call
@@ -492,9 +490,9 @@ func Test_addEdgesToTempGraph(t *testing.T) {
 	}{
 		{
 			name: "can add edges to graph",
-			dep: construct.Edge{
-				Source: construct.ResourceId{Provider: "mock", Type: "test", Name: "test"},
-				Target: construct.ResourceId{Provider: "mock", Type: "test2", Name: "test2"},
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test", Name: "test"}),
+				Target: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test2", Name: "test2"}),
 			},
 			initialState: []construct.ResourceId{
 				{Provider: "mock", Type: "test", Name: "test"},
@@ -538,9 +536,9 @@ func Test_addEdgesToTempGraph(t *testing.T) {
 		},
 		{
 			name: "adds weight for functionality",
-			dep: construct.Edge{
-				Source: construct.ResourceId{Provider: "mock", Type: "test", Name: "test"},
-				Target: construct.ResourceId{Provider: "mock", Type: "test2", Name: "test2"},
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test", Name: "test"}),
+				Target: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test2", Name: "test2"}),
 			},
 			initialState: []construct.ResourceId{
 				{Provider: "mock", Type: "test", Name: "test"},
@@ -585,9 +583,9 @@ func Test_addEdgesToTempGraph(t *testing.T) {
 		},
 		{
 			name: "adds weight for direct edge only",
-			dep: construct.Edge{
-				Source: construct.ResourceId{Provider: "mock", Type: "test", Name: "test"},
-				Target: construct.ResourceId{Provider: "mock", Type: "test2", Name: "test2"},
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test", Name: "test"}),
+				Target: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test2", Name: "test2"}),
 			},
 			initialState: []construct.ResourceId{
 				{Provider: "mock", Type: "test", Name: "test"},
@@ -633,9 +631,9 @@ func Test_addEdgesToTempGraph(t *testing.T) {
 		},
 		{
 			name: "adds negative weight for constraints",
-			dep: construct.Edge{
-				Source: construct.ResourceId{Provider: "mock", Type: "test", Name: "test"},
-				Target: construct.ResourceId{Provider: "mock", Type: "test", Name: "test2"},
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test", Name: "test"}),
+				Target: construct.CreateResource(construct.ResourceId{Provider: "mock", Type: "test", Name: "test2"}),
 			},
 			initialState: []construct.ResourceId{
 				{Provider: "mock", Type: "test", Name: "test"},
@@ -644,10 +642,8 @@ func Test_addEdgesToTempGraph(t *testing.T) {
 			},
 			edgeData: EdgeData{
 				Constraint: EdgeConstraint{
-					NodeMustExist: []construct.Resource{
-						{
-							ID: construct.ResourceId{Provider: "mock", Type: "test", Name: "test3"},
-						},
+					NodeMustExist: []construct.ResourceId{
+						{Provider: "mock", Type: "test", Name: "test3"},
 					},
 				},
 			},
@@ -670,8 +666,8 @@ func Test_addEdgesToTempGraph(t *testing.T) {
 				{
 					Method: "GetEdgeTemplate",
 					Arguments: mock.Arguments{
-						construct.ResourceId{Provider: "mock", Type: "test"},
-						construct.ResourceId{Provider: "mock", Type: "test"},
+						mock.Anything,
+						mock.Anything,
 					},
 					ReturnArguments: mock.Arguments{
 						&knowledgebase.EdgeTemplate{},
@@ -738,7 +734,7 @@ func Test_addEdgesToTempGraph(t *testing.T) {
 func Test_containsUnneccessaryHopsInPath(t *testing.T) {
 	tests := []struct {
 		name      string
-		dep       construct.Edge
+		dep       construct.ResourceEdge
 		path      []construct.ResourceId
 		templates map[string]*knowledgebase.ResourceTemplate
 		edgeData  EdgeData
@@ -746,9 +742,9 @@ func Test_containsUnneccessaryHopsInPath(t *testing.T) {
 	}{
 		{
 			name: "Path does not contain unnecessary hops",
-			dep: construct.Edge{
-				Source: construct.ResourceId{Type: "source"},
-				Target: construct.ResourceId{Type: "target"},
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Type: "source"}),
+				Target: construct.CreateResource(construct.ResourceId{Type: "target"}),
 			},
 			path: []construct.ResourceId{
 				{Type: "source"},
@@ -764,10 +760,9 @@ func Test_containsUnneccessaryHopsInPath(t *testing.T) {
 		},
 		{
 			name: "Path contains unnecessary hops",
-			dep: construct.Edge{
-
-				Source: construct.ResourceId{Type: "source"},
-				Target: construct.ResourceId{Type: "target"},
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Type: "source"}),
+				Target: construct.CreateResource(construct.ResourceId{Type: "target"}),
 			},
 			path: []construct.ResourceId{
 				{Type: "source"},
@@ -783,9 +778,9 @@ func Test_containsUnneccessaryHopsInPath(t *testing.T) {
 		},
 		{
 			name: "Path contains unnecessary hops due to constraint",
-			dep: construct.Edge{
-				Source: construct.ResourceId{Type: "source"},
-				Target: construct.ResourceId{Type: "target"},
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Type: "source"}),
+				Target: construct.CreateResource(construct.ResourceId{Type: "target"}),
 			},
 			path: []construct.ResourceId{
 				{Type: "source"},
@@ -794,7 +789,7 @@ func Test_containsUnneccessaryHopsInPath(t *testing.T) {
 			},
 			edgeData: EdgeData{
 				Constraint: EdgeConstraint{
-					NodeMustExist: []construct.Resource{{ID: construct.ResourceId{Type: "middle"}}},
+					NodeMustExist: []construct.ResourceId{{Type: "middle"}},
 				},
 			},
 			templates: map[string]*knowledgebase.ResourceTemplate{
@@ -806,9 +801,9 @@ func Test_containsUnneccessaryHopsInPath(t *testing.T) {
 		},
 		{
 			name: "Path contains unnecessary hops due duplicate compute in middle",
-			dep: construct.Edge{
-				Source: construct.ResourceId{Type: "source"},
-				Target: construct.ResourceId{Type: "target"},
+			dep: construct.ResourceEdge{
+				Source: construct.CreateResource(construct.ResourceId{Type: "source"}),
+				Target: construct.CreateResource(construct.ResourceId{Type: "target"}),
 			},
 			path: []construct.ResourceId{
 				{Type: "source"},

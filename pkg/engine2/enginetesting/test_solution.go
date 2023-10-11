@@ -20,13 +20,16 @@ type TestSolution struct {
 	dataflow, deployment construct.Graph
 }
 
-func NewTestSolution(t *testing.T, initGraph ...any) *TestSolution {
+func NewTestSolution() *TestSolution {
 	sol := &TestSolution{
 		dataflow:   construct.NewGraph(),
 		deployment: construct.NewAcyclicGraph(),
 	}
-	graphtest.MakeGraph(t, sol.RawView(), initGraph...)
 	return sol
+}
+
+func (sol *TestSolution) LoadState(t *testing.T, initGraph ...any) {
+	graphtest.MakeGraph(t, sol.RawView(), initGraph...)
 }
 
 func (sol *TestSolution) With(key string, value interface{}) solution_context.SolutionContext {

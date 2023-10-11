@@ -181,7 +181,8 @@ func addEdgesToTempGraph(tempGraph graph.Graph[construct.ResourceId, construct.R
 		// and add edges for all of the above to build a complete graph
 		if edge.Source.Id().Matches(dep.Source.ID) {
 			srcId = dep.Source.ID
-		} else if edge.Target.Id().Matches(dep.Target.ID) {
+		}
+		if edge.Target.Id().Matches(dep.Target.ID) {
 			dstId = dep.Target.ID
 		}
 		for _, mustExist := range edgeData.Constraint.NodeMustExist {
