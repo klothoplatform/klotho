@@ -1,6 +1,8 @@
 package operational_rule
 
 import (
+	"errors"
+	"math"
 	"sort"
 
 	"github.com/dominikbraun/graph"
@@ -111,11 +113,13 @@ func (p ClosestPlacer) PlaceResources(resource *construct.Resource, step knowled
 	// if we get the closest operator our logic goes as follows:
 	// find the closest available resource in terms of functional distance and use that
 	result := Result{}
+	if *numNeeded == 0 {
+		return result, nil
+	}
 	lengthMap := map[int][]*construct.Resource{}
 	for _, availableResource := range availableResources {
 		var path []construct.ResourceId
 		var err error
-		var length int
 		undirectedGraph, err := p.buildUndirectedGraph()
 		if err != nil {
 			return result, err
@@ -125,12 +129,20 @@ func (p ClosestPlacer) PlaceResources(resource *construct.Resource, step knowled
 		} else {
 			path, err = graph.ShortestPath(undirectedGraph, availableResource.ID, resource.ID)
 		}
-		if err != nil {
+		if err != nil && !errors.Is(err, graph.ErrTargetNotReachable) {
 			return result, err
 		}
-		for _, resource := range path {
+		length := len(path)
+		// If the target isnt reachable then we want to make it so that it is the longest possible path
+		if path == nil {
+			length = math.MaxInt
+		}
+		for i, resource := range path {
+			if i == 0 || i == len(path)-1 {
+				continue
+			}
 			if p.ctx.Solution.KnowledgeBase().GetFunctionality(resource) != knowledgebase.Unknown {
-				length++
+				length += 100
 			}
 		}
 		lengthMap[length] = append(lengthMap[length], availableResource)

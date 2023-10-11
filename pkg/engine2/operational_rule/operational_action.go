@@ -186,7 +186,7 @@ func (action *operationalResourceAction) doesResourceSatisfyNamespace(stepResour
 		return true, nil
 	}
 
-	// Get all the functional resources which exist downstream of the
+	// Get all the functional resources which exist downstream of the step resource
 	var namespaceResourcesForResource []construct.ResourceId
 	for _, namespacedId := range namespacedIds {
 		// If theres no functional path from one resource to the other, then we dont care about that namespacedId
@@ -221,11 +221,11 @@ func (action *operationalResourceAction) doesResourceSatisfyNamespace(stepResour
 		}
 
 		// needed resource is not namespaced or resource doesnt have any namespace types downstream or the namespaced resource is using the right namespace
-		if collectionutil.Contains(namespaceResourcesForResource, namespaceResource.ID) {
-			return true, nil
+		if !collectionutil.Contains(namespaceResourcesForResource, namespaceResource.ID) {
+			return false, nil
 		}
 	}
-	return false, nil
+	return true, nil
 }
 
 func (action *operationalResourceAction) getPriorityResourceType() (
