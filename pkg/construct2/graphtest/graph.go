@@ -27,6 +27,28 @@ func AssertGraphEqual(t *testing.T, expect, actual construct2.Graph) {
 	assert.Equal(eStr, aStr)
 }
 
+func AssertGraphContains(t *testing.T, expect, actual construct2.Graph) {
+	assert := assert.New(t)
+	must := func(v any, err error) any {
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+
+	expectVs := must(construct2.ToplogicalSort(expect)).([]construct2.ResourceId)
+	for _, expectV := range expectVs {
+		_, err := actual.Vertex(expectV)
+		assert.NoError(err)
+	}
+
+	expectEs := must(expect.Edges()).([]construct2.Edge)
+	for _, expectE := range expectEs {
+		_, err := actual.Edge(expectE.Source, expectE.Target)
+		assert.NoError(err)
+	}
+}
+
 // MakeGraph is a utility function for creating a graph from a list of elements which can be of types:
 // - ResourceId : adds an empty resource with the given ID
 // - Resource, *Resource : adds the given resource
