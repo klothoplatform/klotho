@@ -1,6 +1,10 @@
 qualified_type_name: aws:dynamodb_table
 
 properties:
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
   Attributes:
     type: list
     required: true
@@ -15,12 +19,6 @@ properties:
   BillingMode:
     type: string
     default_value: PAY_PER_REQUEST
-  HashKey:
-    type: string
-    default_value: id
-    required: true
-  RangeKey:
-    type: string
   DynamoTableStreamArn:
     type: string
     configuration_disabled: true
@@ -37,6 +35,16 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
+  Name:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  HashKey:
+    type: string
+    default_value: id
+    required: true
+  RangeKey:
+    type: string
 
 classification:
   is:

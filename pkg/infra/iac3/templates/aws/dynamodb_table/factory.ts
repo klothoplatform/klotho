@@ -29,9 +29,11 @@ function create(args: Args): aws.dynamodb.Table {
 
 function properties(object: aws.dynamodb.Table, args: Args) {
     return {
+        Arn: object.arn,
         DynamoTableStreamArn: pulumi.interpolate`${object.arn}/stream/*`,
         DynamoTableBackupArn: pulumi.interpolate`${object.arn}/backup/*`,
         DynamoTableExportArn: pulumi.interpolate`${object.arn}/export/*`,
         DynamoTableIndexArn: pulumi.interpolate`${object.arn}/index/*`,
+        Name: object.name,
     }
 }

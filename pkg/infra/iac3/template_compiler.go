@@ -25,6 +25,8 @@ var globalVariables = map[string]struct{}{
 	"awsProfile": {},
 	"accountId":  {},
 	"region":     {},
+	"aws":        {},
+	"pulumi":     {},
 }
 
 func (tc TemplatesCompiler) PackageJSON() (*javascript.NodePackageJson, error) {

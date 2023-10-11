@@ -14,6 +14,7 @@ operational_rules:
                       - dynamodb:*
                     Effect: Allow
                     Resource:
+                      - '{{ .Destination }}#Arn'
                       - '{{ .Destination }}#DynamoTableStreamArn'
                       - '{{ .Destination }}#DynamoTableBackupArn'
                       - '{{ .Destination }}#DynamoTableExportArn'
