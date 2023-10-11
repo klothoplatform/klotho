@@ -78,3 +78,20 @@ func (view testOperationalView) MakeEdgeOperational(
 	args := view.Mock.Called(source, target)
 	return args.Get(0).([]*construct.Resource), args.Get(1).([]construct.Edge), args.Error(2)
 }
+
+type ExpectedGraphs struct {
+	Dataflow, Deployment []any
+}
+
+func (expect ExpectedGraphs) AssertEqual(t *testing.T, sol solution_context.SolutionContext) {
+	graphtest.AssertGraphEqual(t,
+		graphtest.MakeGraph(t, construct.NewGraph(), expect.Dataflow...),
+		sol.DataflowGraph(),
+		"Dataflow",
+	)
+	graphtest.AssertGraphEqual(t,
+		graphtest.MakeGraph(t, construct.NewGraph(), expect.Deployment...),
+		sol.DeploymentGraph(),
+		"Deployment",
+	)
+}
