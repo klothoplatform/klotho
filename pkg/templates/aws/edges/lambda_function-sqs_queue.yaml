@@ -1,0 +1,8 @@
+source: aws:lambda_function
+target: aws:sqs_queue
+operational_rules:
+  - steps:
+      - resource: '{{ fieldValue "ExecutionRole" .Source}}'
+        direction: downstream
+        resources:
+          -  '{{ .Destination }}'

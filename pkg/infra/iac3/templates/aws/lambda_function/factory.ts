@@ -1,12 +1,13 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 import * as docker from '@pulumi/docker'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
     Image: docker.Image
     ExecutionRole: aws.iam.Role
-    EnvironmentVariables: Record<string, pulumi.Output<string>>
+    EnvironmentVariables: ModelCaseWrapper<Record<string, pulumi.Output<string>>>
     Subnets: aws.ec2.Subnet[]
     SecurityGroups: aws.ec2.SecurityGroup[]
     MemorySize: pulumi.Input<number>

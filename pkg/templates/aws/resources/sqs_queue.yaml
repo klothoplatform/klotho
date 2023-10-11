@@ -1,0 +1,26 @@
+qualified_type_name: aws:sqs_queue
+
+properties:
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  FifoQueue:
+    type: bool
+  DelaySeconds:
+    type: int
+  MaxMessageSize:
+    type: int
+  VisibilityTimeout:
+    type: int
+  Tags:
+    type: map(string,string)
+
+classification:
+  is:
+    - queue
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: big
