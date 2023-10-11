@@ -64,9 +64,9 @@ type testOperationalView struct {
 	Mock *mock.Mock
 }
 
-func (view testOperationalView) MakeResourcesOperational(resources []*construct.Resource) error {
+func (view testOperationalView) MakeResourcesOperational(resources []*construct.Resource) (construct.ResourceIdChangeResults, error) {
 	args := view.Mock.Called(resources)
-	return args.Error(0)
+	return args.Get(0).(construct.ResourceIdChangeResults), args.Error(1)
 }
 
 func (view testOperationalView) MakeEdgeOperational(
