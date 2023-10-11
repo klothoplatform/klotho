@@ -110,7 +110,7 @@ edges:
 				return
 			}
 
-			AssertGraphEqual(t, tt.g, got.Graph)
+			AssertGraphEqual(t, tt.g, got.Graph, "")
 		})
 	}
 }

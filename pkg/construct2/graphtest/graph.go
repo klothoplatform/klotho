@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func AssertGraphEqual(t *testing.T, expect, actual construct2.Graph) {
+func AssertGraphEqual(t *testing.T, expect, actual construct2.Graph, message string, args ...any) {
 	assert := assert.New(t)
 	must := func(v any, err error) any {
 		if err != nil {
@@ -18,13 +18,20 @@ func AssertGraphEqual(t *testing.T, expect, actual construct2.Graph) {
 		return v
 	}
 
-	assert.Equal(must(expect.Order()), must(actual.Order()), "order (# of nodes) mismatch")
-	assert.Equal(must(expect.Size()), must(actual.Size()), "size (# of edges) mismatch")
+	msg := func(subMessage string) []any {
+		if message == "" {
+			return []any{subMessage}
+		}
+		return append([]any{message + ": " + subMessage}, args...)
+	}
+
+	assert.Equal(must(expect.Order()), must(actual.Order()), msg("order (# of nodes) mismatch")...)
+	assert.Equal(must(expect.Size()), must(actual.Size()), msg("size (# of edges) mismatch")...)
 
 	// Use the string representation to compare the graphs so that the diffs are nicer
 	eStr := must(construct2.String(expect))
 	aStr := must(construct2.String(actual))
-	assert.Equal(eStr, aStr)
+	assert.Equal(eStr, aStr, msg("graph mismatch")...)
 }
 
 func AssertGraphContains(t *testing.T, expect, actual construct2.Graph) {
