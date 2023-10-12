@@ -12,6 +12,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
@@ -24,16 +25,22 @@ type (
 		Resource   *construct.Resource
 	}
 
-	Graph = graph.Graph[construct.PropertyRef, *PropertyVertex]
+	Graph struct {
+		graph.Graph[construct.PropertyRef, *PropertyVertex]
+		done set.Set[construct.PropertyRef]
+	}
 )
 
 func newGraph() Graph {
-	return graph.New(
-		func(p *PropertyVertex) construct.PropertyRef { return p.Ref },
-		graph.Directed(),
-		graph.Acyclic(),
-		graph.PreventCycles(),
-	)
+	return Graph{
+		Graph: graph.New(
+			func(p *PropertyVertex) construct.PropertyRef { return p.Ref },
+			graph.Directed(),
+			graph.Acyclic(),
+			graph.PreventCycles(),
+		),
+		done: make(set.Set[construct.PropertyRef]),
+	}
 }
 
 func AddResources(
@@ -62,7 +69,11 @@ func AddResources(
 	}
 
 	for source, targets := range deps {
+		zap.S().Debug(source)
 		for _, target := range targets {
+			if g.done.Contains(target) {
+				continue
+			}
 
 			if _, err := g.Vertex(target); errors.Is(err, graph.ErrVertexNotFound) {
 				tmpl, err := ctx.KnowledgeBase().GetResourceTemplate(target.Resource)
