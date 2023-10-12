@@ -11,6 +11,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
+	"github.com/klothoplatform/klotho/pkg/graph_store"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
@@ -33,8 +34,9 @@ type (
 
 func newGraph() Graph {
 	return Graph{
-		Graph: graph.New(
+		Graph: graph.NewWithStore(
 			func(p *PropertyVertex) construct.PropertyRef { return p.Ref },
+			graph_store.NewMemoryStore[construct.PropertyRef, *PropertyVertex](),
 			graph.Directed(),
 			graph.Acyclic(),
 			graph.PreventCycles(),

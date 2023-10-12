@@ -149,6 +149,9 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting property %s on resource %s: %w", propertyName, resource.ID, err)
 	}
+	if val == nil {
+		return nil, nil, nil
+	}
 
 	var edges []construct.Edge
 
