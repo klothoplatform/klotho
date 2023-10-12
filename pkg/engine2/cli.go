@@ -3,6 +3,7 @@ package engine2
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/analytics"
@@ -180,21 +181,27 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	// if architectureEngineCfg.inputGraph != "" {
-	// 	yamlGraph := construct2.YamlGraph{}
-
-	// 	yamlGraph.UnmarshalYAML()
-	// 	if err != nil {
-	// 		return errors.Errorf("failed to load construct graph: %s", err.Error())
-	// 	}
-	// }
+	var input construct.YamlGraph
+	if architectureEngineCfg.inputGraph != "" {
+		inputF, err := os.Open(architectureEngineCfg.inputGraph)
+		if err != nil {
+			return err
+		}
+		defer inputF.Close()
+		err = yaml.NewDecoder(inputF).Decode(&input)
+		if err != nil {
+			return err
+		}
+	} else {
+		input.Graph = construct.NewGraph()
+	}
 
 	runConstraints, err := constraints.LoadConstraintsFromFile(architectureEngineCfg.constraints)
 	if err != nil {
 		return errors.Errorf("failed to load constraints: %s", err.Error())
 	}
 	context := &EngineContext{
-		InitialState: construct.NewGraph(),
+		InitialState: input.Graph,
 		Constraints:  runConstraints,
 	}
 
@@ -204,10 +211,10 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 		return errors.Errorf("failed to run engine: %s", err.Error())
 	}
 	var files []io.File
-	// files, err := em.Engine.VisualizeViews(context.Solutions[0])
-	// if err != nil {
-	// 	return errors.Errorf("failed to generate views %s", err.Error())
-	// }
+	files, err = em.Engine.VisualizeViews(context.Solutions[0])
+	if err != nil {
+		return errors.Errorf("failed to generate views %s", err.Error())
+	}
 	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].DataflowGraph()})
 	if err != nil {
 		return errors.Errorf("failed to marshal graph: %s", err.Error())
