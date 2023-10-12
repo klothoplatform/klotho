@@ -21,9 +21,12 @@ func Test_reconnectFunctionalResources(t *testing.T) {
 		want         enginetesting.ExpectedGraphs
 	}{
 		{
-			name:         "reconnectFunctionalResources reconnects functional resources ",
-			resource:     "mock:resource2:test",
-			initialstate: []any{"mock:resource1:test", "mock:resource2:test", "mock:resource3:test", "mock:resource1:test -> mock:resource2:test", "mock:resource2:test -> mock:resource3:test"},
+			name:     "reconnectFunctionalResources reconnects functional resources ",
+			resource: "mock:resource2:test",
+			initialstate: []any{
+				"mock:resource1:test -> mock:resource2:test",
+				"mock:resource2:test -> mock:resource3:test",
+			},
 			mocks: []mock.Call{
 				{
 					Method:          "GetFunctionality",
@@ -50,14 +53,23 @@ func Test_reconnectFunctionalResources(t *testing.T) {
 					Arguments:       mock.Arguments{mock.Anything},
 					ReturnArguments: mock.Arguments{&knowledgebase.ResourceTemplate{}, nil},
 				},
+				{
+					Method:          "GetEdgeTemplate",
+					Arguments:       mock.Arguments{mock.Anything, mock.Anything},
+					ReturnArguments: mock.Arguments{&knowledgebase.EdgeTemplate{}, nil},
+				},
 			},
 			want: enginetesting.ExpectedGraphs{
-				Dataflow: []any{"mock:resource1:test", "mock:resource2:test", "mock:resource3:test",
-					"mock:resource1:test -> mock:resource2:test", "mock:resource2:test -> mock:resource3:test",
-					"mock:resource1:test -> mock:resource3:test"},
-				Deployment: []any{"mock:resource1:test", "mock:resource2:test", "mock:resource3:test",
-					"mock:resource1:test -> mock:resource2:test", "mock:resource2:test -> mock:resource3:test",
-					"mock:resource1:test -> mock:resource3:test"},
+				Dataflow: []any{
+					"mock:resource1:test -> mock:resource2:test",
+					"mock:resource2:test -> mock:resource3:test",
+					"mock:resource1:test -> mock:resource3:test", // adds this edge
+				},
+				Deployment: []any{
+					"mock:resource1:test -> mock:resource2:test",
+					"mock:resource2:test -> mock:resource3:test",
+					"mock:resource1:test -> mock:resource3:test", // adds this edge
+				},
 			},
 		},
 	}
@@ -65,10 +77,11 @@ func Test_reconnectFunctionalResources(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			ctx := enginetesting.NewTestSolution(t, tt.initialstate...)
+			ctx := enginetesting.NewTestSolution()
 			for _, m := range tt.mocks {
 				ctx.KB.On(m.Method, m.Arguments...).Return(m.ReturnArguments...)
 			}
+			ctx.LoadState(t, tt.initialstate...)
 
 			resource := graphtest.ParseId(t, tt.resource)
 			err := reconnectFunctionalResources(ctx, resource)

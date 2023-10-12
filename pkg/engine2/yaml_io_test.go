@@ -64,7 +64,7 @@ edges:
 				return
 			}
 			assert.Equal(tt.file.Constraints, got.Constraints)
-			graphtest.AssertGraphEqual(t, tt.file.Graph, got.Graph)
+			graphtest.AssertGraphEqual(t, tt.file.Graph, got.Graph, "")
 		})
 	}
 }
