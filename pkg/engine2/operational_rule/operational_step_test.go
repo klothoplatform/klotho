@@ -7,7 +7,6 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/construct2/graphtest"
 	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
-	kbtesting "github.com/klothoplatform/klotho/pkg/engine2/enginetesting/test_kb"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -22,7 +21,7 @@ func Test_getResourcesForStep(t *testing.T) {
 	}{
 		{
 			name:     "upstream resource types",
-			resource: kbtesting.MockResource1("test1"),
+			resource: MockResource1("test1"),
 			step: knowledgebase.OperationalStep{
 				Direction: knowledgebase.DirectionUpstream,
 				Resources: []knowledgebase.ResourceSelector{{Selector: "mock:resource4"}},
@@ -34,7 +33,7 @@ func Test_getResourcesForStep(t *testing.T) {
 		},
 		{
 			name:     "downstream resource types",
-			resource: kbtesting.MockResource1("test1"),
+			resource: MockResource1("test1"),
 			step: knowledgebase.OperationalStep{
 				Direction: knowledgebase.DirectionDownstream,
 				Resources: []knowledgebase.ResourceSelector{{Selector: "mock:resource4"}},
@@ -46,7 +45,7 @@ func Test_getResourcesForStep(t *testing.T) {
 		},
 		{
 			name:     "downstream classifications",
-			resource: kbtesting.MockResource1("test1"),
+			resource: MockResource1("test1"),
 			step: knowledgebase.OperationalStep{
 				Direction: knowledgebase.DirectionDownstream,
 				Resources: []knowledgebase.ResourceSelector{{Classifications: []string{"role"}}},
@@ -58,7 +57,7 @@ func Test_getResourcesForStep(t *testing.T) {
 		},
 		{
 			name:     "upstream classifications",
-			resource: kbtesting.MockResource1("test1"),
+			resource: MockResource1("test1"),
 			step: knowledgebase.OperationalStep{
 				Direction: knowledgebase.DirectionUpstream,
 				Resources: []knowledgebase.ResourceSelector{{Classifications: []string{"role"}}},
@@ -80,9 +79,9 @@ func Test_getResourcesForStep(t *testing.T) {
 			testSol.KB.On("GetResourceTemplate", graphtest.ParseId(t, "mock:resource4")).Return(resource4, nil)
 			testSol.KB.On("ListResources").Return([]*knowledgebase.ResourceTemplate{resource1, resource2, resource3, resource4}, nil)
 			testResources := []*construct.Resource{
-				kbtesting.MockResource4("test"),
-				kbtesting.MockResource4("test2"),
-				kbtesting.MockResource3("test3"),
+				MockResource4("test"),
+				MockResource4("test2"),
+				MockResource3("test3"),
 			}
 			testSol.RawView().AddVertex(tt.resource)
 			for _, res := range testResources {
@@ -122,7 +121,7 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 			resource: &construct.Resource{
 				ID: graphtest.ParseId(t, "a:a:a"),
 				Properties: map[string]interface{}{
-					"Res4": kbtesting.MockResource4("test").ID,
+					"Res4": MockResource4("test").ID,
 				}},
 			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
 			propertyName: "Res4",
@@ -143,7 +142,7 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 			resource: &construct.Resource{
 				ID: graphtest.ParseId(t, "a:a:a"),
 				Properties: map[string]interface{}{
-					"Res4": kbtesting.MockResource4("test").ID,
+					"Res4": MockResource4("test").ID,
 				}},
 			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 			propertyName: "Res4",
@@ -164,7 +163,7 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 			resource: &construct.Resource{
 				ID: graphtest.ParseId(t, "a:a:a"),
 				Properties: map[string]interface{}{
-					"Res2s": []construct.ResourceId{kbtesting.MockResource2("test").ID, kbtesting.MockResource2("test2").ID},
+					"Res2s": []construct.ResourceId{MockResource2("test").ID, MockResource2("test2").ID},
 				}},
 			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
 			propertyName: "Res2s",
@@ -187,7 +186,7 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 			resource: &construct.Resource{
 				ID: graphtest.ParseId(t, "a:a:a"),
 				Properties: map[string]interface{}{
-					"Res2s": []construct.ResourceId{kbtesting.MockResource2("test").ID, kbtesting.MockResource2("test2").ID},
+					"Res2s": []construct.ResourceId{MockResource2("test").ID, MockResource2("test2").ID},
 				}},
 			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
 			propertyName: "Res2s",
@@ -240,7 +239,7 @@ func Test_clearProperty(t *testing.T) {
 			resource: &construct.Resource{
 				ID: graphtest.ParseId(t, "a:a:a"),
 				Properties: map[string]interface{}{
-					"Res4": kbtesting.MockResource4("test").ID,
+					"Res4": MockResource4("test").ID,
 				},
 			},
 			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
@@ -256,7 +255,7 @@ func Test_clearProperty(t *testing.T) {
 			resource: &construct.Resource{
 				ID: graphtest.ParseId(t, "a:a:a"),
 				Properties: map[string]interface{}{
-					"Res4": kbtesting.MockResource4("test").ID,
+					"Res4": MockResource4("test").ID,
 				},
 			},
 			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
@@ -272,7 +271,7 @@ func Test_clearProperty(t *testing.T) {
 			resource: &construct.Resource{
 				ID: graphtest.ParseId(t, "a:a:a"),
 				Properties: map[string]interface{}{
-					"Res2s": []construct.ResourceId{kbtesting.MockResource2("test").ID, kbtesting.MockResource2("test2").ID},
+					"Res2s": []construct.ResourceId{MockResource2("test").ID, MockResource2("test2").ID},
 				},
 			},
 			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
@@ -320,8 +319,8 @@ func Test_addDependencyForDirection(t *testing.T) {
 	}{
 		{
 			name: "upstream",
-			to:   kbtesting.MockResource1("test1"),
-			from: kbtesting.MockResource4(""),
+			to:   MockResource1("test1"),
+			from: MockResource4(""),
 			step: knowledgebase.OperationalStep{
 				Direction: knowledgebase.DirectionUpstream,
 			},
@@ -335,8 +334,8 @@ func Test_addDependencyForDirection(t *testing.T) {
 		},
 		{
 			name: "downstream",
-			to:   kbtesting.MockResource1("test1"),
-			from: kbtesting.MockResource4(""),
+			to:   MockResource1("test1"),
+			from: MockResource4(""),
 			step: knowledgebase.OperationalStep{
 				Direction: knowledgebase.DirectionDownstream,
 			},
@@ -379,15 +378,15 @@ func Test_removeDependencyForDirection(t *testing.T) {
 	}{
 		{
 			name:         "upstream",
-			to:           kbtesting.MockResource1("test1"),
-			from:         kbtesting.MockResource4(""),
+			to:           MockResource1("test1"),
+			from:         MockResource4(""),
 			direction:    knowledgebase.DirectionUpstream,
 			initialState: []any{"mock:resource1:test1", "mock:resource4:", "mock:resource4: -> mock:resource1:test1"},
 		},
 		{
 			name:         "downstream",
-			to:           kbtesting.MockResource1("test1"),
-			from:         kbtesting.MockResource4(""),
+			to:           MockResource1("test1"),
+			from:         MockResource4(""),
 			direction:    knowledgebase.DirectionDownstream,
 			initialState: []any{"mock:resource1:test1", "mock:resource4:", "mock:resource1:test1 -> mock:resource4:"},
 		},
@@ -416,8 +415,8 @@ func Test_removeDependencyForDirection(t *testing.T) {
 }
 
 func Test_setField(t *testing.T) {
-	res4ToReplace := kbtesting.MockResource4("thisWillBeReplaced")
-	res4 := kbtesting.MockResource4("test4")
+	res4ToReplace := MockResource4("thisWillBeReplaced")
+	res4 := MockResource4("test4")
 	tests := []struct {
 		name          string
 		resource      *construct.Resource
@@ -480,14 +479,14 @@ func Test_setField(t *testing.T) {
 				ID:         construct.ResourceId{Provider: "mock", Type: "resource1", Name: "test1"},
 				Properties: make(map[string]interface{}),
 			},
-			resourceToSet: kbtesting.MockResource4("test4"),
+			resourceToSet: MockResource4("test4"),
 			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4"},
 			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 			initialState:  []any{"mock:resource1:test1", "mock:resource4:test4", "mock:resource4:test4 -> mock:resource1:test1"},
 			wantResource: &construct.Resource{
 				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Namespace: res4.ID.Name, Name: "test1"},
 				Properties: map[string]interface{}{
-					"Res4": kbtesting.MockResource4("test4").ID,
+					"Res4": MockResource4("test4").ID,
 				},
 			},
 			wantGraph: enginetesting.ExpectedGraphs{
@@ -523,17 +522,17 @@ func Test_setField(t *testing.T) {
 			resource: &construct.Resource{
 				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Name: "test1"},
 				Properties: map[string]interface{}{
-					"Res2s": []construct.ResourceId{kbtesting.MockResource2("test").ID},
+					"Res2s": []construct.ResourceId{MockResource2("test").ID},
 				},
 			},
-			resourceToSet: kbtesting.MockResource2("test2"),
+			resourceToSet: MockResource2("test2"),
 			property:      &knowledgebase.Property{Name: "Res2s", Type: "list(resource)", Path: "Res2s"},
 			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 			initialState:  []any{"mock:resource2:test", "mock:resource1:test1", "mock:resource2:test -> mock:resource1:test1"},
 			wantResource: &construct.Resource{
 				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Name: "test1"},
 				Properties: map[string]interface{}{
-					"Res2s": []construct.ResourceId{kbtesting.MockResource2("test").ID, kbtesting.MockResource2("test2").ID},
+					"Res2s": []construct.ResourceId{MockResource2("test").ID, MockResource2("test2").ID},
 				},
 			},
 			wantGraph: enginetesting.ExpectedGraphs{

@@ -11,9 +11,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
-	"github.com/klothoplatform/klotho/pkg/graph_store"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
-	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
@@ -26,23 +24,16 @@ type (
 		Resource   *construct.Resource
 	}
 
-	Graph struct {
-		graph.Graph[construct.PropertyRef, *PropertyVertex]
-
-		done set.Set[construct.PropertyRef]
-	}
+	Graph = graph.Graph[construct.PropertyRef, *PropertyVertex]
 )
 
 func newGraph() Graph {
-	return Graph{
-		Graph: graph.NewWithStore(
-			func(p *PropertyVertex) construct.PropertyRef { return p.Ref },
-			graph_store.NewMemoryStore[construct.PropertyRef, *PropertyVertex](),
-			graph.Directed(),
-			graph.PreventCycles(),
-		),
-		done: make(set.Set[construct.PropertyRef]),
-	}
+	return graph.New(
+		func(p *PropertyVertex) construct.PropertyRef { return p.Ref },
+		graph.Directed(),
+		graph.Acyclic(),
+		graph.PreventCycles(),
+	)
 }
 
 func AddResources(
@@ -71,11 +62,7 @@ func AddResources(
 	}
 
 	for source, targets := range deps {
-		zap.S().Debugf("%s", source)
 		for _, target := range targets {
-			if target.String() == "aws:api_resource:test_api:test_api_lambda_test_app#PathPart" {
-				zap.S().Debugf("configuring %s", target)
-			}
 
 			if _, err := g.Vertex(target); errors.Is(err, graph.ErrVertexNotFound) {
 				tmpl, err := ctx.KnowledgeBase().GetResourceTemplate(target.Resource)
@@ -89,9 +76,7 @@ func AddResources(
 			}
 
 			zap.S().Debugf("  -> %s", target)
-			if !g.done.Contains(target) {
-				errs = errors.Join(errs, g.AddEdge(source, target))
-			}
+			errs = errors.Join(errs, g.AddEdge(source, target))
 		}
 	}
 	if errs != nil {
@@ -147,7 +132,7 @@ func addResource(
 					break
 				}
 			}
-			errs = errors.Join(errs, construct.IgnoreExists(g.AddVertex(vertex)))
+			errs = errors.Join(errs, g.AddVertex(vertex))
 			if prop.Properties != nil && !strings.HasPrefix(prop.Type, "list") {
 				// Because lists will start as empty, do not recurse into their sub-properties
 				queue = append(queue, prop.Properties)
