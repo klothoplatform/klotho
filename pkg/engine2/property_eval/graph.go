@@ -82,7 +82,14 @@ func AddResources(
 				if err != nil {
 					return err
 				}
-				_, err = addResource(g, ctx, &construct.Resource{ID: target.Resource}, tmpl)
+				res, err := ctx.RawView().Vertex(target.Resource)
+				if err != nil {
+					return err
+				}
+				if res == nil {
+					res = construct.CreateResource(target.Resource)
+				}
+				_, err = addResource(g, ctx, res, tmpl)
 				if err != nil {
 					return err
 				}
