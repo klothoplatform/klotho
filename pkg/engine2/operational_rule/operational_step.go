@@ -201,6 +201,9 @@ func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalSt
 	if err != nil {
 		return err
 	}
+	if val == nil {
+		return nil
+	}
 
 	switch val := val.(type) {
 	case construct.ResourceId:
