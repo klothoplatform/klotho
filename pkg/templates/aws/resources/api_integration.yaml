@@ -13,12 +13,12 @@ properties:
     type: resource
     operational_rule:
       if: | # Need to replace the resource if the path parts is not the same as the route
-        {{ $route := fieldValue "Route" .Self }} 
+        {{ $route := (fieldValue "Route" .Self) }} 
         {{ $path := longestPath (upstream "aws:rest_api" .Self) .Self }}
         {{ $resourceRoute := "" }}
         {{ range $index, $element := $path }}
           {{ if eq $element.QualifiedTypeName "aws:api_resource" }}
-            {{ $resourcePath := fieldValue "PathPart" $element }}
+            {{ $resourcePath := (fieldValue "PathPart" $element) }}
             {{ $resourceRoute = (print $resourceRoute "/" $resourcePath) }}
           {{ end }}
         {{ end }}
@@ -32,12 +32,12 @@ properties:
           replacement_condition: true
           resources:
             - |
-              {{ $route := fieldValue "Route" .Self }} 
+              {{ $route := (fieldValue "Route" .Self) }} 
               {{ $path := longestPath (upstream "aws:rest_api" .Self) .Self }}
               {{ $resourceRoute := "" }}
               {{ range $index, $element := $path }}
                 {{ if eq $element.QualifiedTypeName "aws:api_resource" }}
-                  {{ $resourcePath := fieldValue "PathPart" $element }}
+                  {{ $resourcePath := (fieldValue "PathPart" $element) }}
                   {{ $resourceRoute = (print $resourceRoute "/" $resourcePath) }}
                 {{ end }}
               {{ end }}

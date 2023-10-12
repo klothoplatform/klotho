@@ -157,9 +157,15 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(
 		if err != nil {
 			return err
 		}
+		if _, err := ctx.Solution.RawView().Edge(resource.ID, dep.ID); err == nil {
+			return nil
+		}
 		edge, err := ctx.addDependencyForDirection(step, resource, dep)
+		if err != nil {
+			return err
+		}
 		edges = append(edges, edge)
-		return err
+		return nil
 	}
 
 	switch val := val.(type) {
@@ -184,7 +190,7 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(
 		}
 		return ids, edges, errs
 	}
-	return nil, nil, nil
+	return nil, nil, fmt.Errorf("cannot add dependencies from property %s on resource %s", propertyName, resource.ID)
 }
 
 func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) error {
@@ -223,7 +229,7 @@ func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalSt
 		}
 		return resource.RemoveProperty(propertyName, nil)
 	}
-	return nil
+	return fmt.Errorf("cannot clear property %s on resource %s", propertyName, resource.ID)
 }
 
 func (ctx OperationalRuleContext) addDependencyForDirection(

@@ -73,6 +73,21 @@ func AddResources(
 	for source, targets := range deps {
 		zap.S().Debugf("%s", source)
 		for _, target := range targets {
+			if target.String() == "aws:api_resource:test_api:test_api_lambda_test_app#PathPart" {
+				zap.S().Debugf("configuring %s", target)
+			}
+
+			if _, err := g.Vertex(target); errors.Is(err, graph.ErrVertexNotFound) {
+				tmpl, err := ctx.KnowledgeBase().GetResourceTemplate(target.Resource)
+				if err != nil {
+					return err
+				}
+				_, err = addResource(g, ctx, &construct.Resource{ID: target.Resource}, tmpl)
+				if err != nil {
+					return err
+				}
+			}
+
 			zap.S().Debugf("  -> %s", target)
 			if !g.done.Contains(target) {
 				errs = errors.Join(errs, g.AddEdge(source, target))
@@ -80,7 +95,7 @@ func AddResources(
 		}
 	}
 	if errs != nil {
-		return errs
+		return fmt.Errorf("could not add edges to property eval graph: %w", errs)
 	}
 	return nil
 }
@@ -108,14 +123,18 @@ func addResource(
 		props, queue = queue[0], queue[1:]
 
 		for _, prop := range props {
-			vertex := &PropertyVertex{
-				Ref:      construct.PropertyRef{Resource: res.ID, Property: prop.Path},
-				Template: prop,
-				Resource: res,
+			ref := construct.PropertyRef{Resource: res.ID, Property: prop.Path}
+			vertex, err := g.Vertex(ref)
+			if errors.Is(err, graph.ErrVertexNotFound) {
+				vertex = &PropertyVertex{
+					Ref:      construct.PropertyRef{Resource: res.ID, Property: prop.Path},
+					Template: prop,
+					Resource: res,
+				}
+			} else if err != nil {
+				return nil, fmt.Errorf("could not get vertex for %s: %w", ref, err)
 			}
-			if _, err := g.Vertex(vertex.Ref); err == nil {
-				continue
-			}
+
 			path, err := res.PropertyPath(prop.Path)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("could not get property path %s: %w", prop.Path, err))
@@ -128,7 +147,7 @@ func addResource(
 					break
 				}
 			}
-			errs = errors.Join(errs, g.AddVertex(vertex))
+			errs = errors.Join(errs, construct.IgnoreExists(g.AddVertex(vertex)))
 			if prop.Properties != nil && !strings.HasPrefix(prop.Type, "list") {
 				// Because lists will start as empty, do not recurse into their sub-properties
 				queue = append(queue, prop.Properties)

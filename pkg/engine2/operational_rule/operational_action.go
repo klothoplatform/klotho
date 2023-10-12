@@ -51,7 +51,7 @@ func (action *operationalResourceAction) handleOperationalResourceAction(resourc
 	for action.numNeeded > 0 {
 		priorityType, selector, err := action.getPriorityResourceType()
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot create resources to satisfy operational step: no resource types found for step: %w", err)
 		}
 		err = action.createResource(priorityType, selector, resource)
 		if err != nil {
@@ -89,6 +89,7 @@ func (action *operationalResourceAction) handleExplicitResources(resource *const
 				if err != nil {
 					return err
 				}
+				action.CurrentIds = append(action.CurrentIds, res.ID)
 			}
 		}
 	}
@@ -239,7 +240,7 @@ func (action *operationalResourceAction) getPriorityResourceType() (
 			return construct.ResourceId{}, resourceSelector, err
 		}
 		for _, id := range ids {
-			if id.IsZero() {
+			if id.IsZero() || id.Name != "" {
 				continue
 			}
 			return construct.ResourceId{Provider: id.Provider, Type: id.Type}, resourceSelector, nil
