@@ -13,3 +13,15 @@ func ParseId(t *testing.T, str string) (id construct.ResourceId) {
 	}
 	return
 }
+
+func ParseEdge(t *testing.T, str string) construct.Edge {
+	var io construct.IoEdge
+	err := io.UnmarshalText([]byte(str))
+	if err != nil {
+		t.Fatalf("failed to parse edge %q: %v", str, err)
+	}
+	return construct.Edge{
+		Source: io.Source,
+		Target: io.Target,
+	}
+}

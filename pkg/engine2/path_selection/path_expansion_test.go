@@ -1,381 +1,122 @@
 package path_selection
 
 import (
+	"strings"
 	"testing"
 
-	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/construct2/graphtest"
 	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
-func Test_ExpandEdge(t *testing.T) {
+func parsePath(t *testing.T, str string) []construct.ResourceId {
+	parts := strings.Split(str, "->")
+	path := make([]construct.ResourceId, len(parts))
+	for i, part := range parts {
+		path[i] = graphtest.ParseId(t, strings.TrimSpace(part))
+	}
+	return path
+}
+
+func TestExpandEdge(t *testing.T) {
 	tests := []struct {
-		name       string
-		edge       graph.Edge[*construct.Resource]
-		validPath  Path
-		expected   []graph.Edge[*construct.Resource]
-		edgeData   EdgeData
-		mocks      []mock.Call
-		graphMocks []mock.Call
+		name         string
+		init         []any
+		dep          string
+		selectedPath string
+		unique       map[string]knowledgebase.Unique
+		want         string
+		wantErr      bool
 	}{
 		{
-			name: "Expand edge with direct connection",
-			edge: graph.Edge[*construct.Resource]{
-				Source: &construct.Resource{
-					ID:         construct.ResourceId{Name: "source"},
-					Properties: construct.Properties{"testKey": "testValue"},
-				},
-				Target: &construct.Resource{
-					ID:         construct.ResourceId{Name: "destination"},
-					Properties: construct.Properties{"dest": "dest"},
-				},
-			},
-			mocks: []mock.Call{
-				{
-					Method: "GetEdgeTemplate",
-					Arguments: mock.Arguments{
-						construct.ResourceId{Name: "source"},
-						construct.ResourceId{Name: "destination"},
-					},
-					ReturnArguments: mock.Arguments{
-						&knowledgebase.EdgeTemplate{},
-					},
-				},
-				{
-					Method: "Downstream",
-					Arguments: mock.Arguments{
-						mock.MatchedBy(func(resource *construct.Resource) bool { return resource.ID.String() == "source" }),
-						4,
-					},
-					ReturnArguments: mock.Arguments{
-						[]*construct.Resource{},
-						nil,
-					},
-				},
-			},
-			validPath: Path{
-				Nodes: []construct.ResourceId{
-					{Name: "source"},
-					{Name: "destination"},
-				},
-			},
-			expected: []graph.Edge[*construct.Resource]{
-				{
-					Source: &construct.Resource{
-						ID:         construct.ResourceId{Name: "source"},
-						Properties: construct.Properties{"testKey": "testValue"},
-					},
-					Target: &construct.Resource{
-						ID:         construct.ResourceId{Name: "destination"},
-						Properties: construct.Properties{"dest": "dest"},
-					},
-				},
-			},
+			name:         "path length 2",
+			dep:          "p:t:A -> p:t:B",
+			selectedPath: "p:t -> p:t",
+			want:         "p:t:A -> p:t:B",
 		},
 		{
-			name: "Expand edge creates single resource in the middle, no matching constraint",
-			edge: graph.Edge[*construct.Resource]{
-				Source: &construct.Resource{
-					ID:         construct.ResourceId{Name: "source"},
-					Properties: construct.Properties{"testKey": "testValue"},
-				},
-				Target: &construct.Resource{
-					ID:         construct.ResourceId{Name: "destination"},
-					Properties: construct.Properties{"dest": "dest"},
-				},
-			},
-			validPath: Path{
-				Nodes: []construct.ResourceId{
-					{Name: "source"},
-					{Type: "middle"},
-					{Name: "destination"},
-				},
-			},
-			edgeData: EdgeData{
-				Constraint: EdgeConstraint{
-					NodeMustExist: []construct.Resource{
-						{ID: construct.ResourceId{Provider: "p", Type: "t", Name: "middle"}},
-					},
-				},
-			},
-			mocks: []mock.Call{
-				{
-					Method: "GetEdgeTemplate",
-					Arguments: mock.Arguments{
-						construct.ResourceId{Name: "source"},
-						construct.ResourceId{Type: "middle"},
-					},
-					ReturnArguments: mock.Arguments{
-						&knowledgebase.EdgeTemplate{},
-					},
-				},
-				{
-					Method: "GetEdgeTemplate",
-					Arguments: mock.Arguments{
-						construct.ResourceId{Type: "middle", Name: "middle_source_destination"},
-						construct.ResourceId{Name: "destination"},
-					},
-					ReturnArguments: mock.Arguments{
-						&knowledgebase.EdgeTemplate{},
-					},
-				},
-			},
-			expected: []graph.Edge[*construct.Resource]{
-				{
-					Source: &construct.Resource{
-						ID:         construct.ResourceId{Name: "source"},
-						Properties: construct.Properties{"testKey": "testValue"},
-					},
-					Target: &construct.Resource{
-						ID:         construct.ResourceId{Type: "middle", Name: "middle_source_destination"},
-						Properties: construct.Properties{},
-					},
-				},
-				{
-					Source: &construct.Resource{
-						ID:         construct.ResourceId{Type: "middle", Name: "middle_source_destination"},
-						Properties: construct.Properties{},
-					},
-					Target: &construct.Resource{
-						ID:         construct.ResourceId{Name: "destination"},
-						Properties: construct.Properties{"dest": "dest"},
-					},
-				},
-			},
+			name:         "add new middle",
+			dep:          "p:a:A -> p:c:C",
+			selectedPath: "p:a -> p:b -> p:c",
+			want:         "p:a:A -> p:b:A_C -> p:c:C",
 		},
 		{
-			name: "Expand edge creates constraint node for node must exist",
-			edge: graph.Edge[*construct.Resource]{
-				Source: &construct.Resource{
-					ID:         construct.ResourceId{Name: "source"},
-					Properties: construct.Properties{"testKey": "testValue"},
-				},
-				Target: &construct.Resource{
-					ID:         construct.ResourceId{Name: "destination"},
-					Properties: construct.Properties{"dest": "dest"},
-				},
-			},
-			validPath: Path{
-				Nodes: []construct.ResourceId{
-					{Name: "source"},
-					{Provider: "p", Type: "t"},
-					{Name: "destination"},
-				},
-			},
-			mocks: []mock.Call{
-				{
-					Method: "GetEdgeTemplate",
-					Arguments: mock.Arguments{
-						construct.ResourceId{Name: "source"},
-						construct.ResourceId{Provider: "p", Type: "t"},
-					},
-					ReturnArguments: mock.Arguments{
-						&knowledgebase.EdgeTemplate{},
-					},
-				},
-				{
-					Method: "GetEdgeTemplate",
-					Arguments: mock.Arguments{
-						construct.ResourceId{Provider: "p", Type: "t", Name: "middle"},
-						construct.ResourceId{Name: "destination"},
-					},
-					ReturnArguments: mock.Arguments{
-						&knowledgebase.EdgeTemplate{},
-					},
-				},
-			},
-			edgeData: EdgeData{
-				Constraint: EdgeConstraint{
-					NodeMustExist: []construct.Resource{
-						{ID: construct.ResourceId{Provider: "p", Type: "t", Name: "middle"}, Properties: construct.Properties{"test": "test"}},
-					},
-				},
-			},
-			expected: []graph.Edge[*construct.Resource]{
-				{
-					Source: &construct.Resource{
-						ID:         construct.ResourceId{Name: "source"},
-						Properties: construct.Properties{"testKey": "testValue"},
-					},
-					Target: &construct.Resource{
-						ID: construct.ResourceId{Provider: "p", Type: "t", Name: "middle"}, Properties: construct.Properties{"test": "test"},
-					},
-				},
-				{
-					Source: &construct.Resource{
-						ID: construct.ResourceId{Provider: "p", Type: "t", Name: "middle"}, Properties: construct.Properties{"test": "test"},
-					},
-					Target: &construct.Resource{
-						ID:         construct.ResourceId{Name: "destination"},
-						Properties: construct.Properties{"dest": "dest"},
-					},
-				},
-			},
+			name:         "reuse middle nonunique",
+			init:         []any{"p:a:A", "p:b:B -> p:c:C"},
+			dep:          "p:a:A -> p:c:C",
+			selectedPath: "p:a -> p:b -> p:c",
+			want:         "p:a:A -> p:b:B -> p:c:C",
 		},
 		{
-			name: "Expand edge can reuse upstream",
-			edge: graph.Edge[*construct.Resource]{
-				Source: &construct.Resource{
-					ID: construct.ResourceId{Name: "source"},
-				},
-				Target: &construct.Resource{
-					ID: construct.ResourceId{Name: "destination"},
-				},
-			},
-			validPath: Path{
-				Nodes: []construct.ResourceId{
-					{Name: "source"},
-					{Provider: "p", Type: "t"},
-					{Name: "destination"},
-				},
-			},
-			mocks: []mock.Call{
-				{
-					Method: "GetEdgeTemplate",
-					Arguments: mock.Arguments{
-						construct.ResourceId{Name: "source"},
-						construct.ResourceId{Provider: "p", Type: "t"},
-					},
-					ReturnArguments: mock.Arguments{
-						&knowledgebase.EdgeTemplate{},
-					},
-				},
-			},
-			graphMocks: []mock.Call{
-				{
-					Method: "Downstream",
-					Arguments: mock.Arguments{
-						&construct.Resource{
-							ID: construct.ResourceId{Name: "source"},
-						},
-						3,
-					},
-					ReturnArguments: mock.Arguments{
-						[]*construct.Resource{
-							{
-								ID:         construct.ResourceId{Provider: "p", Type: "t", Name: "reused"},
-								Properties: construct.Properties{"test": "test2"},
-							},
-						},
-						nil,
-					},
-				},
-			},
-			expected: []graph.Edge[*construct.Resource]{
-				{
-
-					Source: &construct.Resource{
-						ID: construct.ResourceId{Provider: "p", Type: "t", Name: "reused"}, Properties: construct.Properties{"test": "test2"},
-					},
-					Target: &construct.Resource{
-						ID: construct.ResourceId{Name: "destination"},
-					},
-				},
-			},
+			name:         "new middle unique src",
+			init:         []any{"p:a:A", "p:b:B -> p:c:X"},
+			dep:          "p:a:A -> p:c:C",
+			selectedPath: "p:a -> p:b -> p:c",
+			unique:       map[string]knowledgebase.Unique{"p:a -> p:b": {Source: true}},
+			want:         "p:a:A -> p:b:A_C -> p:c:C",
 		},
 		{
-			name: "Expand edge can reuse downstream",
-			edge: graph.Edge[*construct.Resource]{
-				Source: &construct.Resource{
-					ID: construct.ResourceId{Name: "source"},
-				},
-				Target: &construct.Resource{
-					ID: construct.ResourceId{Name: "destination"},
-				},
-			},
-			validPath: Path{
-				Nodes: []construct.ResourceId{
-					{Name: "source"},
-					{Provider: "p", Type: "t"},
-					{Name: "destination"},
-				},
-			},
-			mocks: []mock.Call{
-				{
-					Method: "GetEdgeTemplate",
-					Arguments: mock.Arguments{
-						construct.ResourceId{Name: "source"},
-						construct.ResourceId{Provider: "p", Type: "t"},
-					},
-					ReturnArguments: mock.Arguments{
-						&knowledgebase.EdgeTemplate{},
-					},
-				},
-				{
-					Method: "GetEdgeTemplate",
-					Arguments: mock.Arguments{
-						construct.ResourceId{Provider: "p", Type: "t", Name: "t_source_destination"},
-						construct.ResourceId{Name: "destination"},
-					},
-					ReturnArguments: mock.Arguments{
-						&knowledgebase.EdgeTemplate{},
-					},
-				},
-			},
-			graphMocks: []mock.Call{
-				{
-					Method: "Upstream",
-					Arguments: mock.Arguments{
-						&construct.Resource{
-							ID: construct.ResourceId{Name: "destination"},
-						},
-						3,
-					},
-					ReturnArguments: mock.Arguments{
-						[]*construct.Resource{
-							{
-								ID:         construct.ResourceId{Provider: "p", Type: "t", Name: "reused"},
-								Properties: construct.Properties{"test": "test2"},
-							},
-						},
-						nil,
-					},
-				},
-			},
-			expected: []graph.Edge[*construct.Resource]{
-				{
-					Source: &construct.Resource{
-						ID: construct.ResourceId{Name: "source"},
-					},
-					Target: &construct.Resource{
-						ID: construct.ResourceId{Provider: "p", Type: "t", Name: "reused"}, Properties: construct.Properties{"test": "test2"},
-					},
-				},
-			},
+			name:         "reuse middle unique src",
+			init:         []any{"p:a:A", "p:b:B -> p:c:C"},
+			dep:          "p:a:A -> p:c:C",
+			selectedPath: "p:a -> p:b -> p:c",
+			unique:       map[string]knowledgebase.Unique{"p:a -> p:b": {Source: true}},
+			want:         "p:a:A -> p:b:B -> p:c:C",
+		},
+		{
+			name:         "new middle unique trg",
+			init:         []any{"p:a:A", "p:a:X -> p:b:B", "p:c:C"},
+			dep:          "p:a:A -> p:c:C",
+			selectedPath: "p:a -> p:b -> p:c",
+			unique:       map[string]knowledgebase.Unique{"p:a -> p:b": {Target: true}},
+			want:         "p:a:A -> p:b:A_C -> p:c:C",
+		},
+		{
+			name:         "reuse middle unique trg",
+			init:         []any{"p:a:A", "p:b:B -> p:c:C"},
+			dep:          "p:a:A -> p:c:C",
+			selectedPath: "p:a -> p:b -> p:c",
+			unique:       map[string]knowledgebase.Unique{"p:a -> p:b": {Target: true}},
+			want:         "p:a:A -> p:b:B -> p:c:C",
 		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assert := assert.New(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert, require := assert.New(t), require.New(t)
 
-			kb := &enginetesting.MockKB{}
+			depIDs := graphtest.ParseEdge(t, tt.dep)
 
-			for _, mock := range test.mocks {
-				kb.On(mock.Method, mock.Arguments...).Return(mock.ReturnArguments...).Once()
+			dep := construct.ResourceEdge{
+				Source: construct.CreateResource(depIDs.Source),
+				Target: construct.CreateResource(depIDs.Target),
 			}
 
-			graph := &enginetesting.MockGraph{}
+			ctx := enginetesting.NewTestSolution()
+			ctx.KB.On("GetResourceTemplate", mock.Anything).Return(nil, nil)
+			for edgeStr, unique := range tt.unique {
+				edge := graphtest.ParseEdge(t, edgeStr)
+				ctx.KB.On("GetEdgeTemplate", edge.Source, edge.Target).Return(&knowledgebase.EdgeTemplate{
+					Unique: unique,
+				})
+			}
+			ctx.KB.On("GetEdgeTemplate", mock.Anything, mock.Anything).Return(&knowledgebase.EdgeTemplate{
+				Unique: knowledgebase.Unique{},
+			})
+			ctx.LoadState(t, tt.init...)
 
-			for _, mock := range test.graphMocks {
-				graph.On(mock.Method, mock.Arguments...).Return(mock.ReturnArguments...).Once()
+			got, err := ExpandEdge(ctx, dep, parsePath(t, tt.selectedPath))
+			if tt.wantErr {
+				require.Error(err)
+				return
 			}
-			ctx := PathSelectionContext{
-				KB:    kb,
-				Graph: graph,
-			}
-			result, err := ctx.ExpandEdge(test.edge, test.validPath, test.edgeData)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(result) != len(test.expected) {
-				t.Fatalf("Expected %d edges, got %d", len(test.expected), len(result))
-			}
-			assert.ElementsMatch(test.expected, result, "Expected expanded edges to equal expected")
-			kb.AssertExpectations(t)
-			graph.AssertExpectations(t)
+			require.NoError(err)
+
+			want := parsePath(t, tt.want)
+			assert.Equal(want, got)
 		})
 	}
 }

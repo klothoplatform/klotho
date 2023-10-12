@@ -118,7 +118,7 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 	if err != nil {
 		return err
 	}
-	path, err := path_selection.ExpandEdge(solutionContext(view), dep, validPath, data)
+	path, err := path_selection.ExpandEdge(solutionContext(view), dep, validPath)
 	if err != nil {
 		return err
 	}

@@ -12,15 +12,14 @@ import (
 	"go.uber.org/zap"
 )
 
-// ExpandEdges
+// ExpandEdge
 func ExpandEdge(
 	ctx solution_context.SolutionContext,
 	dep construct.ResourceEdge,
-	validPath []construct.ResourceId,
-	edgeData EdgeData,
+	selectedPath []construct.ResourceId,
 ) ([]construct.ResourceId, error) {
-	if len(validPath) == 2 {
-		return validPath, nil
+	if len(selectedPath) == 2 {
+		return []construct.ResourceId{dep.Source.ID, dep.Target.ID}, nil
 	}
 	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source, dep.Target)
 
@@ -31,7 +30,7 @@ func ExpandEdge(
 	errs = errors.Join(errs, g.AddVertex(dep.Source))
 	errs = errors.Join(errs, g.AddVertex(dep.Target))
 
-	nonBoundaryResources := validPath[1 : len(validPath)-1]
+	nonBoundaryResources := selectedPath[1 : len(selectedPath)-1]
 
 	// candidates maps the nonboundary index to the set of resources that could satisfy it
 	// this is a helper to make adding all the edges to the graph easier.
@@ -121,15 +120,19 @@ func ExpandEdge(
 	addEdge := func(source, target construct.ResourceId) {
 		newSource := newResources.Contains(source)
 		newTarget := newResources.Contains(target)
+		weight := graph.EdgeWeight(1)
+		if newTarget {
+			weight = graph.EdgeWeight(2)
+		}
 		if newSource && newTarget {
 			// new edges get double weight to encourage using existing resources
-			errs = errors.Join(errs, g.AddEdge(source, target, graph.EdgeWeight(2)))
+			errs = errors.Join(errs, g.AddEdge(source, target, weight))
 			return
 		}
 
 		if !newSource && !newTarget {
 			// edge already exists in the graph, just add it
-			errs = errors.Join(errs, g.AddEdge(source, target, graph.EdgeWeight(1)))
+			errs = errors.Join(errs, g.AddEdge(source, target, weight))
 			return
 		}
 
@@ -154,7 +157,7 @@ func ExpandEdge(
 				}
 			}
 		}
-		errs = errors.Join(errs, g.AddEdge(source, target, graph.EdgeWeight(1)))
+		errs = errors.Join(errs, g.AddEdge(source, target, weight))
 	}
 
 	for i, resCandidates := range candidates {
