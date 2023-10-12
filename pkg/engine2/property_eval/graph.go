@@ -83,11 +83,11 @@ func AddResources(
 					return err
 				}
 				res, err := ctx.RawView().Vertex(target.Resource)
-				if err != nil {
-					return err
-				}
-				if res == nil {
+				switch {
+				case errors.Is(err, graph.ErrVertexNotFound):
 					res = construct.CreateResource(target.Resource)
+				case err != nil:
+					return err
 				}
 				_, err = addResource(g, ctx, res, tmpl)
 				if err != nil {
