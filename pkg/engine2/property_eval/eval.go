@@ -53,6 +53,7 @@ func setupInnerRecurse(
 			break
 		}
 		zap.S().Debugf("configuring %s", prop.Ref)
+		g.done.Add(prop.Ref)
 		ctx := solCtx.With("resource", prop.Ref.Resource).With("property", prop.Ref)
 		cfgData := knowledgebase.DynamicValueData{Resource: prop.Ref.Resource}
 		res, err := ctx.RawView().Vertex(prop.Ref.Resource)

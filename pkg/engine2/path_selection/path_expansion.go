@@ -80,7 +80,7 @@ func ExpandEdge(
 			errs = errors.Join(errs, err)
 			continue
 		}
-		errs = errors.Join(errs, construct.IgnoreExists(g.AddVertex(down)))
+		errs = errors.Join(errs, g.AddVertex(down))
 		candidates[matchIdx].Add(downId)
 	}
 	upstreams, err := solution_context.Upstream(ctx, dep.Target.ID, knowledgebase.AllDepsLayer)
@@ -97,7 +97,7 @@ func ExpandEdge(
 			errs = errors.Join(errs, err)
 			continue
 		}
-		errs = errors.Join(errs, construct.IgnoreExists(g.AddVertex(up)))
+		errs = errors.Join(errs, g.AddVertex(up))
 		candidates[matchIdx].Add(upId)
 	}
 	if errs != nil {

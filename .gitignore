@@ -31,3 +31,6 @@ keyvalue.js.tmpl
 node_modules/
 /*.yaml
 /_samples/
+
+go.work
+go.work.sum

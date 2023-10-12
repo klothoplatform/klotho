@@ -74,7 +74,7 @@ func (action *operationalResourceAction) handleExplicitResources(resource *const
 		}
 		if decodedId.Name != "" {
 			res, err := action.ruleCtx.Solution.RawView().Vertex(decodedId)
-			if err != nil && err != graph.ErrVertexNotFound {
+			if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
 				return err
 			}
 			if res == nil {

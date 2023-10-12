@@ -14,21 +14,15 @@ import (
 func Test_reconnectFunctionalResources(t *testing.T) {
 	tests := []struct {
 		name         string
-		resource     *construct.Resource
+		resource     string
 		explicit     bool
 		initialstate []any
 		mocks        []mock.Call
-		want         result
+		want         enginetesting.ExpectedGraphs
 	}{
 		{
-			name: "reconnectFunctionalResources reconnects functional resources ",
-			resource: &construct.Resource{
-				ID: construct.ResourceId{
-					Provider: "mock",
-					Type:     "resource2",
-					Name:     "test",
-				},
-			},
+			name:         "reconnectFunctionalResources reconnects functional resources ",
+			resource:     "mock:resource2:test",
 			initialstate: []any{"mock:resource1:test", "mock:resource2:test", "mock:resource3:test", "mock:resource1:test -> mock:resource2:test", "mock:resource2:test -> mock:resource3:test"},
 			mocks: []mock.Call{
 				{
@@ -57,32 +51,33 @@ func Test_reconnectFunctionalResources(t *testing.T) {
 					ReturnArguments: mock.Arguments{&knowledgebase.ResourceTemplate{}, nil},
 				},
 			},
-			want: result{
-				dataflow: []any{"mock:resource1:test", "mock:resource2:test", "mock:resource3:test",
+			want: enginetesting.ExpectedGraphs{
+				Dataflow: []any{"mock:resource1:test", "mock:resource2:test", "mock:resource3:test",
 					"mock:resource1:test -> mock:resource2:test", "mock:resource2:test -> mock:resource3:test",
 					"mock:resource1:test -> mock:resource3:test"},
-				deployment: []any{"mock:resource1:test", "mock:resource2:test", "mock:resource3:test",
+				Deployment: []any{"mock:resource1:test", "mock:resource2:test", "mock:resource3:test",
 					"mock:resource1:test -> mock:resource2:test", "mock:resource2:test -> mock:resource3:test",
 					"mock:resource1:test -> mock:resource3:test"},
 			},
 		},
 	}
 	for _, tt := range tests {
-		assert := assert.New(t)
-		mockKB := &enginetesting.MockKB{}
-		for _, m := range tt.mocks {
-			mockKB.On(m.Method, m.Arguments...).Return(m.ReturnArguments...)
-		}
-		ctx := NewSolutionContext(mockKB)
-		ctx.DataflowGraph = graphtest.MakeGraph(t, construct.NewGraph(), tt.initialstate...)
-		ctx.DeploymentGraph = graphtest.MakeGraph(t, construct.NewGraph(), tt.initialstate...)
-		err := ctx.reconnectFunctionalResources(tt.resource)
-		if !assert.NoError(err) {
-			return
-		}
-		graphtest.AssertGraphEqual(t, graphtest.MakeGraph(t, construct.NewGraph(), tt.want.dataflow...), ctx.DataflowGraph)
-		graphtest.AssertGraphEqual(t, graphtest.MakeGraph(t, construct.NewGraph(), tt.want.deployment...), ctx.DeploymentGraph)
-		mockKB.AssertExpectations(t)
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			ctx := enginetesting.NewTestSolution(t, tt.initialstate...)
+			for _, m := range tt.mocks {
+				ctx.KB.On(m.Method, m.Arguments...).Return(m.ReturnArguments...)
+			}
+
+			resource := graphtest.ParseId(t, tt.resource)
+			err := reconnectFunctionalResources(ctx, resource)
+			if !assert.NoError(err) {
+				return
+			}
+
+			tt.want.AssertEqual(t, ctx)
+		})
 	}
 
 }

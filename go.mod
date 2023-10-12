@@ -14,6 +14,7 @@ require (
 	github.com/gojek/heimdall/v7 v7.0.2
 	github.com/golang-jwt/jwt/v4 v4.4.3
 	github.com/google/uuid v1.3.0
+	github.com/iancoleman/strcase v0.3.0
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/kopoli/go-terminal-size v0.0.0-20170219200355-5c97524c8b54
 	github.com/lithammer/dedent v1.1.0
@@ -41,7 +42,6 @@ require (
 require (
 	github.com/dprotaso/go-yit v0.0.0-20191028211022-135eb7262960 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
-	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
@@ -52,6 +52,7 @@ require (
 )
 
 replace (
+	github.com/dominikbraun/graph => github.com/klothoplatform/graph v0.24.1
 	github.com/smacker/go-tree-sitter => github.com/klothoplatform/go-tree-sitter v0.1.1
 
 	// yaml fork is the same (as of 2023/07/28) except with the PR merged:
@@ -168,7 +169,7 @@ require (
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230109183929-3758b55a6596 // indirect
 	k8s.io/kubectl v0.26.0 // indirect
-	k8s.io/utils v0.0.0-20230115233650-391b47cb4029
+	k8s.io/utils v0.0.0-20230115233650-391b47cb4029 // indirect
 	oras.land/oras-go v1.2.2 // indirect
 	sigs.k8s.io/controller-runtime v0.12.3 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect

@@ -4,7 +4,9 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
+	"github.com/klothoplatform/klotho/pkg/graph_store"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"go.uber.org/zap"
 )
 
 type (
@@ -22,8 +24,12 @@ type (
 
 func NewSolutionContext(kb knowledgebase.TemplateKB) solutionContext {
 	return solutionContext{
-		KB:              kb,
-		Dataflow:        construct.NewGraph(),
+		KB: kb,
+		Dataflow: graph_store.LoggingGraph[construct.ResourceId, *construct.Resource]{
+			Log:   zap.S(),
+			Graph: construct.NewGraph(),
+			Hash:  func(r *construct.Resource) construct.ResourceId { return r.ID },
+		},
 		Deployment:      construct.NewAcyclicGraph(),
 		decisions:       &solution_context.MemoryRecord{},
 		mappedResources: make(map[construct.ResourceId]construct.ResourceId),

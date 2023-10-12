@@ -2,13 +2,13 @@ package construct2
 
 import (
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"io"
 	"sort"
 	"strings"
 
 	"github.com/dominikbraun/graph"
+	"github.com/klothoplatform/klotho/pkg/graph_store"
 )
 
 type (
@@ -18,25 +18,19 @@ type (
 )
 
 func NewGraph(options ...func(*graph.Traits)) Graph {
-	return Graph(graph.New(
+	return Graph(graph.NewWithStore(
 		func(r *Resource) ResourceId {
 			return r.ID
 		},
-		append(options, graph.Directed())...,
+		graph_store.NewMemoryStore[ResourceId, *Resource](),
+		append(options,
+			graph.Directed(),
+		)...,
 	))
 }
 
 func NewAcyclicGraph(options ...func(*graph.Traits)) Graph {
-	return Graph(graph.New(
-		func(r *Resource) ResourceId {
-			return r.ID
-		},
-		append(options,
-			graph.Directed(),
-			graph.Acyclic(),
-			graph.PreventCycles(),
-		)...,
-	))
+	return NewGraph(graph.PreventCycles())
 }
 
 func Hash(g Graph) ([]byte, error) {
@@ -115,11 +109,4 @@ func ResolveIds(g Graph, ids []ResourceId) ([]*Resource, error) {
 		return resources, errs
 	}
 	return resources, nil
-}
-
-func IgnoreExists(err error) error {
-	if errors.Is(err, graph.ErrVertexAlreadyExists) || errors.Is(err, graph.ErrEdgeAlreadyExists) {
-		return nil
-	}
-	return err
 }

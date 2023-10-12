@@ -11,7 +11,9 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
+	"github.com/klothoplatform/klotho/pkg/graph_store"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
@@ -24,16 +26,23 @@ type (
 		Resource   *construct.Resource
 	}
 
-	Graph = graph.Graph[construct.PropertyRef, *PropertyVertex]
+	Graph struct {
+		graph.Graph[construct.PropertyRef, *PropertyVertex]
+
+		done set.Set[construct.PropertyRef]
+	}
 )
 
 func newGraph() Graph {
-	return graph.New(
-		func(p *PropertyVertex) construct.PropertyRef { return p.Ref },
-		graph.Directed(),
-		graph.Acyclic(),
-		graph.PreventCycles(),
-	)
+	return Graph{
+		Graph: graph.NewWithStore(
+			func(p *PropertyVertex) construct.PropertyRef { return p.Ref },
+			graph_store.NewMemoryStore[construct.PropertyRef, *PropertyVertex](),
+			graph.Directed(),
+			graph.PreventCycles(),
+		),
+		done: make(set.Set[construct.PropertyRef]),
+	}
 }
 
 func AddResources(
@@ -62,9 +71,12 @@ func AddResources(
 	}
 
 	for source, targets := range deps {
+		zap.S().Debugf("%s", source)
 		for _, target := range targets {
 			zap.S().Debugf("  -> %s", target)
-			errs = errors.Join(errs, construct.IgnoreExists(g.AddEdge(source, target)))
+			if !g.done.Contains(target) {
+				errs = errors.Join(errs, g.AddEdge(source, target))
+			}
 		}
 	}
 	if errs != nil {
@@ -82,7 +94,7 @@ func addResource(
 	res *construct.Resource,
 	tmpl *knowledgebase.ResourceTemplate,
 ) (map[construct.PropertyRef][]construct.PropertyRef, error) {
-	err := construct.IgnoreExists(ctx.RawView().AddVertex(res))
+	err := ctx.RawView().AddVertex(res)
 	if err != nil {
 		return nil, fmt.Errorf("could not add resource %s to graph: %w", res.ID, err)
 	}
