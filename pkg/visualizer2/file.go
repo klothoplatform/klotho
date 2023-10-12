@@ -11,7 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const indent = "    "
+const indent = "  "
 
 type (
 	File struct {
@@ -33,9 +33,8 @@ func (f *File) Clone() klotho_io.File {
 func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 	wh := ioutil.NewWriteToHelper(w, &n, &err)
 
-	wh.Writef("%s:\n", f.AppName)
-	wh.Writef("  provider: %s\n", f.Provider)
-	wh.Write("  resources:\n")
+	wh.Writef("provider: %s\n", f.Provider)
+	wh.Write("resources:\n")
 
 	resourceIds, err := construct.ReverseTopologicalSort(f.DAG)
 	if err != nil {
