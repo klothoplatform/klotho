@@ -1,4 +1,5 @@
 qualified_type_name: aws:s3_object
+display_name: S3 Object
 
 properties:
   Bucket:

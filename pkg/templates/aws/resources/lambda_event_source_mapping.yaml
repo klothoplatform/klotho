@@ -1,4 +1,5 @@
 qualified_type_name: aws:lambda_event_source_mapping
+display_name: Lambda Event Source Mapping
 
 properties:
   Function:

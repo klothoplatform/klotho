@@ -1,4 +1,5 @@
 qualified_type_name: aws:internet_gateway
+display_name: Internet Gateway
 
 properties:
   Vpc:

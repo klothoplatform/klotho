@@ -1,4 +1,6 @@
 qualified_type_name: aws:ecr_image
+display_name: ECR Image
+
 properties:
   ImageName:
     type: string

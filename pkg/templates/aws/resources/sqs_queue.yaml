@@ -1,4 +1,5 @@
 qualified_type_name: aws:sqs_queue
+display_name: SQS Queue
 
 properties:
   Arn:

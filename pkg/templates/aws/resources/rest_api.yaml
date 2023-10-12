@@ -1,4 +1,5 @@
 qualified_type_name: aws:rest_api
+display_name: REST API
 
 properties:
   BinaryMediaTypes:

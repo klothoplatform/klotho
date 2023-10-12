@@ -1,4 +1,5 @@
 qualified_type_name: aws:nat_gateway
+display_name: NAT Gateway
 
 properties:
   ElasticIp:

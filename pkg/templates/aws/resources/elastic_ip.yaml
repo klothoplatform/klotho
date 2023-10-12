@@ -1,4 +1,5 @@
 qualified_type_name: aws:elastic_ip
+display_name: Elastic IP
 
 classification:
   is:

@@ -1,4 +1,5 @@
 qualified_type_name: aws:route_table
+display_name: Route Table
 
 properties:
   Vpc:

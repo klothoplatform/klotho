@@ -1,4 +1,5 @@
 qualified_type_name: aws:cloudfront_distribution
+display_name: CloudFront Distribution
 
 properties:
   Origins:

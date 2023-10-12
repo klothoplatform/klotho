@@ -1,4 +1,5 @@
 qualified_type_name: aws:log_group
+display_name: CloudWatch Log Group
 
 properties:
   LogGroupName:

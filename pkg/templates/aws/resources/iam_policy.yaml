@@ -1,4 +1,5 @@
 qualified_type_name: aws:iam_policy
+display_name: IAM Policy
 
 properties:
   Policy:

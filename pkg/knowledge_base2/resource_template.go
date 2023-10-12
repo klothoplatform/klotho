@@ -13,6 +13,8 @@ type (
 	ResourceTemplate struct {
 		QualifiedTypeName string `json:"qualified_type_name" yaml:"qualified_type_name"`
 
+		DisplayName string `json:"display_name" yaml:"display_name"`
+
 		Properties Properties `json:"properties" yaml:"properties"`
 
 		Classification Classification `json:"classification" yaml:"classification"`

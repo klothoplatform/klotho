@@ -1,4 +1,5 @@
 qualified_type_name: aws:route_table_association
+display_name: Route Table Association
 
 properties:
   RouteTable:

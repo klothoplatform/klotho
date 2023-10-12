@@ -1,4 +1,6 @@
 qualified_type_name: aws:ecr_repo
+display_name: ECR Repository
+
 properties:
   ForceDelete:
     type: bool

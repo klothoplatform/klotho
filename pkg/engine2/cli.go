@@ -128,15 +128,23 @@ func (em *EngineMain) AddEngine() error {
 	return nil
 }
 
+type resourceInfo struct {
+	Classifications []string `json:"classifications"`
+	DisplayName     string   `json:"displayName"`
+}
+
 func (em *EngineMain) ListResourceTypes(cmd *cobra.Command, args []string) error {
 	err := em.AddEngine()
 	if err != nil {
 		return err
 	}
 	resourceTypes := em.Engine.Kb.ListResources()
-	typeAndClassifications := map[string][]string{}
+	typeAndClassifications := map[string]resourceInfo{}
 	for _, resourceType := range resourceTypes {
-		typeAndClassifications[resourceType.QualifiedTypeName] = resourceType.Classification.Is
+		typeAndClassifications[resourceType.QualifiedTypeName] = resourceInfo{
+			Classifications: resourceType.Classification.Is,
+			DisplayName:     resourceType.DisplayName,
+		}
 	}
 	b, err := json.Marshal(typeAndClassifications)
 	if err != nil {

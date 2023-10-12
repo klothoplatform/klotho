@@ -1,4 +1,5 @@
 qualified_type_name: aws:cloudfront_origin_access_identity
+display_name: CloudFront Origin Access Identity
 
 properties:
   Comment:

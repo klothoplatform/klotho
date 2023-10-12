@@ -1,4 +1,5 @@
 qualified_type_name: aws:dynamodb_table
+display_name: DynamoDB Table
 
 properties:
   Arn:

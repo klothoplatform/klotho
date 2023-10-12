@@ -1,4 +1,5 @@
 qualified_type_name: aws:vpc
+display_name: VPC
 
 properties:
   CidrBlock:

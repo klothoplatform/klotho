@@ -1,4 +1,5 @@
 qualified_type_name: aws:subnet
+display_name: Subnet
 
 properties:
   Vpc:

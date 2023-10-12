@@ -1,4 +1,5 @@
 qualified_type_name: aws:ses_email_identity
+display_name: SES Email Identity
 
 properties:
   EmailIdentity:

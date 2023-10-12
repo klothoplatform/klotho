@@ -1,4 +1,5 @@
 qualified_type_name: aws:lambda_permission
+display_name: Lambda Permission
 
 properties:
   Function:

@@ -1,4 +1,5 @@
 qualified_type_name: aws:s3_bucket_policy
+display_name: S3 Bucket Policy
 
 properties:
   Bucket:

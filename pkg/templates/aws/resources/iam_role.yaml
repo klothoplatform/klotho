@@ -1,4 +1,6 @@
 qualified_type_name: aws:iam_role
+display_name: IAM Role
+
 properties:
   AssumeRolePolicyDoc:
     type: map

@@ -1,4 +1,5 @@
 qualified_type_name: aws:api_integration
+display_name: API Integration
 
 properties:
   RestApi:

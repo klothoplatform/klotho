@@ -1,4 +1,5 @@
 qualified_type_name: aws:iam_role_policy_attachment
+display_name: IAM Role Policy Attachment
 
 properties:
   Policy:

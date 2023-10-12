@@ -1,4 +1,5 @@
 qualified_type_name: aws:availability_zone
+display_name: Availability Zone
 
 properties:
   Index:

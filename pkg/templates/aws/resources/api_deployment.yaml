@@ -1,4 +1,6 @@
 qualified_type_name: aws:api_deployment
+display_name: API Deployment
+
 properties:
   RestApi:
     type: resource

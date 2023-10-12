@@ -1,4 +1,5 @@
 qualified_type_name: aws:private_dns_namespace
+display_name: Private DNS Namespace
 
 properties:
   Vpc:
