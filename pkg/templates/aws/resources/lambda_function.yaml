@@ -20,15 +20,15 @@ properties:
           unique: true
   EnvironmentVariables:
     type: map(string,string)
-#  SecurityGroups:
-#    type: list(resource)
-#    operational_rule:
-#      if: |
-#        {{ hasDownstream "aws:vpc" .Self }}
-#      steps:
-#        - direction: downstream
-#          resources:
-#            - aws:security_group
+  SecurityGroups:
+    type: list(resource)
+    operational_rule:
+      if: |
+        {{ hasDownstream "aws:vpc" .Self }}
+      steps:
+        - direction: downstream
+          resources:
+            - aws:security_group
   Subnets:
     type: list(resource)
     operational_rule:

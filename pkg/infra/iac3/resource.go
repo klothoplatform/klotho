@@ -13,6 +13,7 @@ import (
 
 	"github.com/iancoleman/strcase"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/set"
 )
 
 type templateInputArgs map[string]any
@@ -105,6 +106,11 @@ func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) 
 				TsMap.SetKey(keyResult, output)
 			}
 			return TsMap, nil
+		case reflect.Struct:
+			if hashset, ok := val.Interface().(set.HashedSet[string, any]); ok {
+				return tc.convertArg(hashset.ToSlice(), templateArg)
+			}
+			fallthrough
 		default:
 			return jsonValue{Raw: arg}, nil
 		}
