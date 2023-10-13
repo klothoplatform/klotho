@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/set"
 	"github.com/klothoplatform/klotho/pkg/yaml_util"
 )
 
@@ -34,6 +35,9 @@ func (r *Resource) GetProperty(pathStr string) (any, error) {
 
 // AppendProperty is a wrapper around [PropertyPath.Append] for convenience.
 func (r *Resource) AppendProperty(pathStr string, value any) error {
+	if pathStr == "ManagedPolicies" {
+		fmt.Println("a")
+	}
 	path, err := r.PropertyPath(pathStr)
 	if err != nil {
 		return err
@@ -288,12 +292,6 @@ func appendValue(appendTo reflect.Value, value reflect.Value) (reflect.Value, er
 		aType := a.Type()
 		valType := value.Type()
 
-		// if valType.Kind() == reflect.Array || valType.Kind() == reflect.Slice {
-		// 	for i := 0; i < value.Len(); i++ {
-		// 		appendValue(a, value.Index(i))
-		// 	}
-		// }
-
 		if valType.Kind() != reflect.Map {
 			return a, fmt.Errorf("expected map value for append, got %s", valType)
 		}
@@ -307,8 +305,21 @@ func appendValue(appendTo reflect.Value, value reflect.Value) (reflect.Value, er
 			a.SetMapIndex(key, value.MapIndex(key))
 		}
 		return a, nil
+	case reflect.Struct:
+		val := value.Interface()
+		original := a.Interface()
+		current, ok := original.(set.HashedSet[string, any])
+		if !ok {
+			break
+		}
+		additional, ok := val.(set.HashedSet[string, any])
+		if !ok {
+			break
+		}
+		current.Add(additional.ToSlice()...)
+		return reflect.ValueOf(current), nil
 	}
-	return a, fmt.Errorf("expected array or map destination for append, got %s", a.Kind())
+	return a, fmt.Errorf("expected array, hashedset, or map destination for append, got %s", a.Kind())
 }
 
 func (i *mapValuePathItem) Append(value any) (err error) {

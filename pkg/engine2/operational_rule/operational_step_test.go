@@ -436,7 +436,7 @@ func Test_setField(t *testing.T) {
 				},
 			},
 			resourceToSet: res4,
-			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4"},
+			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4", Type: "resource"},
 			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
 			initialState:  []any{"mock:resource4:test4", "mock:resource1:test1", "mock:resource1:test1 -> mock:resource4:thisWillBeReplaced"},
 			wantResource: &construct.Resource{
@@ -459,7 +459,7 @@ func Test_setField(t *testing.T) {
 				},
 			},
 			resourceToSet: res4,
-			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4"},
+			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4", Type: "resource"},
 			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 			initialState:  []any{"mock:resource4:test4", "mock:resource1:test1", "mock:resource4:thisWillBeReplaced -> mock:resource1:test1"},
 			wantResource: &construct.Resource{
@@ -480,7 +480,7 @@ func Test_setField(t *testing.T) {
 				Properties: make(map[string]interface{}),
 			},
 			resourceToSet: MockResource4("test4"),
-			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4"},
+			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4", Type: "resource"},
 			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 			initialState:  []any{"mock:resource1:test1", "mock:resource4:test4", "mock:resource4:test4 -> mock:resource1:test1"},
 			wantResource: &construct.Resource{
@@ -504,7 +504,7 @@ func Test_setField(t *testing.T) {
 			},
 			initialState:  []any{"mock:resource4:test4", "mock:resource1:test1", "mock:resource4:test4 -> mock:resource1:test1"},
 			resourceToSet: res4,
-			property:      &knowledgebase.Property{Name: "Res4", Path: "Res4"},
+			property:      &knowledgebase.Property{Name: "Res4", Path: "Res4", Type: "resource"},
 			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 			wantResource: &construct.Resource{
 				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Name: "test1"},

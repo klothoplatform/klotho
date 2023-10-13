@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/set"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,6 +50,15 @@ func Test_getPropertyType(t *testing.T) {
 			expected: &ResourcePropertyType{},
 		},
 		{
+			name: "Get resource property type with resource value",
+			property: Property{
+				Type: "resource(test:type)",
+			},
+			expected: &ResourcePropertyType{
+				Value: construct.ResourceId{Provider: "test", Type: "type"},
+			},
+		},
+		{
 			name: "Get map with sub fields property type",
 			property: Property{
 				Type: "map",
@@ -85,6 +95,19 @@ func Test_getPropertyType(t *testing.T) {
 			},
 		},
 		{
+			name: "Get map property type with nested value",
+			property: Property{
+				Type: "map(string,list(string))",
+			},
+			expected: &MapPropertyType{
+				Key:   "string",
+				Value: "list(string)",
+				Property: Property{
+					Type: "map(string,list(string))",
+				},
+			},
+		},
+		{
 			name: "Get list with sub fields property type",
 			property: Property{
 				Type: "list",
@@ -116,6 +139,30 @@ func Test_getPropertyType(t *testing.T) {
 				Value: "string",
 				Property: Property{
 					Type: "list(string)",
+				},
+			},
+		},
+		{
+			name: "Get list property type nested value",
+			property: Property{
+				Type: "list(map(string,list(string)))",
+			},
+			expected: &ListPropertyType{
+				Value: "map(string,list(string))",
+				Property: Property{
+					Type: "list(map(string,list(string)))",
+				},
+			},
+		},
+		{
+			name: "Get list property type with nested value",
+			property: Property{
+				Type: "list(map(string, string))",
+			},
+			expected: &ListPropertyType{
+				Value: "map(string, string)",
+				Property: Property{
+					Type: "list(map(string, string))",
 				},
 			},
 		},
@@ -189,22 +236,6 @@ func Test_parsePropertyValue(t *testing.T) {
 			expected: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
 		},
 		{
-			name:     "Parse resource id property value as map",
-			property: &ResourcePropertyType{},
-			value: map[string]interface{}{
-				"provider": "test",
-				"type":     "resource",
-				"name":     "a",
-			},
-			expected: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
-		},
-		{
-			name:     "Parse resource id property value as resourceId",
-			property: &ResourcePropertyType{},
-			value:    construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
-			expected: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
-		},
-		{
 			name:     "Parse property ref property value",
 			property: &PropertyRefPropertyType{},
 			value:    "test:resource:a#HOSTNAME",
@@ -229,6 +260,62 @@ func Test_parsePropertyValue(t *testing.T) {
 			name:        "Parse invalid property value",
 			property:    &FloatPropertyType{},
 			value:       "test",
+			expectedErr: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert := assert.New(t)
+			ctx := DynamicValueContext{}
+			actual, err := test.property.Parse(test.value, ctx, DynamicValueData{})
+			if test.expectedErr {
+				assert.Error(err)
+				return
+			}
+			assert.NoError(err, "Expected no error, but got: %v", err)
+			assert.Equal(actual, test.expected, "expected %v, got %v", test.expected, actual)
+		})
+	}
+}
+
+func Test_parseResourcePropertyValue(t *testing.T) {
+	tests := []struct {
+		name        string
+		property    PropertyType
+		value       any
+		expected    any
+		expectedErr bool
+	}{
+		{
+			name:     "Parse resource id property value as map",
+			property: &ResourcePropertyType{},
+			value: map[string]interface{}{
+				"provider": "test",
+				"type":     "resource",
+				"name":     "a",
+			},
+			expected: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
+		},
+		{
+			name:     "Parse resource id property value as resourceId",
+			property: &ResourcePropertyType{},
+			value:    construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
+			expected: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
+		},
+		{
+			name: "Parse resource id correct type",
+			property: &ResourcePropertyType{
+				Value: construct.ResourceId{Provider: "test", Type: "resource"},
+			},
+			value:    construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
+			expected: construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
+		},
+		{
+			name: "Parse resource id invalid type excpet err",
+			property: &ResourcePropertyType{
+				Value: construct.ResourceId{Provider: "test", Type: "r"},
+			},
+			value:       construct.ResourceId{Provider: "test", Type: "resource", Name: "a"},
 			expectedErr: true,
 		},
 	}
@@ -292,10 +379,28 @@ func Test_MapParse(t *testing.T) {
 			},
 		},
 		{
+			name: "Parse map property value with nested type",
+			property: MapPropertyType{
+				Key:   "string",
+				Value: "list(string)",
+				Property: Property{
+					Type: "map(string,list(string))",
+				},
+			},
+			value: map[string]interface{}{
+				"key":   []any{"test"},
+				"value": []any{"test"},
+			},
+			expected: map[string]interface{}{
+				"key":   []any{"test"},
+				"value": []any{"test"},
+			},
+		},
+		{
 			name: "Parse map property with sub properties",
 			property: MapPropertyType{
 				Property: Property{
-					Type: "object",
+					Type: "map",
 					Properties: map[string]Property{
 						"nested": {
 							Name: "nested",
@@ -318,14 +423,42 @@ func Test_MapParse(t *testing.T) {
 			},
 		},
 		{
+
+			name: "Parse map property with sub properties and default values",
+			property: MapPropertyType{
+				Property: Property{
+					Type: "map",
+					Properties: map[string]Property{
+						"nested": {
+							Name:         "nested",
+							Type:         "string",
+							DefaultValue: "test",
+						},
+						"second": {
+							Name:         "second",
+							Type:         "bool",
+							DefaultValue: true,
+						},
+					},
+				},
+			},
+			value: map[string]interface{}{
+				"nested": "notTest",
+			},
+			expected: map[string]interface{}{
+				"nested": "notTest",
+				"second": true,
+			},
+		},
+		{
 			name: "Parse map property with sub properties incorrect, should error",
 			property: MapPropertyType{
 				Property: Property{
-					Type: "object",
+					Type: "map",
 					Properties: map[string]Property{
 						"nested": {
 							Name: "nested",
-							Type: "string",
+							Type: "object",
 						},
 					},
 				},
@@ -397,6 +530,25 @@ func Test_ListParse(t *testing.T) {
 			},
 		},
 		{
+			name: "Parse list property value with nested fields",
+			property: ListPropertyType{
+				Value: "map(string,list(string))",
+				Property: Property{
+					Type: "list(map(string,list(string)))",
+				},
+			},
+			value: []interface{}{
+				map[string]interface{}{
+					"test": []any{"v"},
+				},
+			},
+			expected: []any{
+				map[string]any{
+					"test": []any{"v"},
+				},
+			},
+		},
+		{
 			name: "Parse list property with sub properties",
 			property: ListPropertyType{
 				Property: Property{
@@ -447,6 +599,120 @@ func Test_ListParse(t *testing.T) {
 			assert.NoError(err, "Expected no error, but got: %v", err)
 			// Because it can be int64, int, etc just equals on the map can fail
 			assert.Equal(actual, test.expected, "expected %v, got %v", test.expected, actual)
+		})
+	}
+}
+
+func Test_SetParse(t *testing.T) {
+	tests := []struct {
+		name     string
+		property SetPropertyType
+		value    any
+		expected any
+		wantErr  bool
+	}{
+		{
+			name: "Parse set property value",
+			property: SetPropertyType{
+				Value: "string",
+				Property: Property{
+					Type: "list(string)",
+				},
+			},
+			value: []interface{}{
+				"test",
+				"test",
+			},
+			expected: []any{
+				"test",
+			},
+		},
+		{
+			name: "Parse list property value with template",
+			property: SetPropertyType{
+				Value: "string",
+				Property: Property{
+					Type: "list(string)",
+				},
+			},
+			value: []interface{}{
+				"{{ \"test\" }}",
+				"{{ \"test\" }}",
+			},
+			expected: []any{
+				"test",
+			},
+		},
+		{
+			name: "Parse list property value with nested fields",
+			property: SetPropertyType{
+				Value: "map(string,list(string))",
+				Property: Property{
+					Type: "list(map(string,list(string)))",
+				},
+			},
+			value: []interface{}{
+				map[string]interface{}{
+					"test": []any{"v"},
+				},
+			},
+			expected: []any{
+				map[string]any{
+					"test": []any{"v"},
+				},
+			},
+		},
+		{
+			name: "Parse list property with sub properties",
+			property: SetPropertyType{
+				Property: Property{
+					Type: "object",
+					Properties: map[string]Property{
+						"nested": {
+							Name: "nested",
+							Type: "string",
+						},
+						"second": {
+							Name: "second",
+							Type: "bool",
+						},
+					},
+				},
+			},
+			value: []interface{}{
+				map[string]interface{}{
+					"nested": "test",
+					"second": true,
+				},
+				map[string]interface{}{
+					"nested": "test",
+					"second": true,
+				},
+			},
+			expected: []any{
+				map[string]any{
+					"nested": "test",
+					"second": true,
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert := assert.New(t)
+			ctx := DynamicValueContext{}
+			actual, err := test.property.Parse(test.value, ctx, DynamicValueData{})
+			if test.wantErr {
+				assert.Error(err)
+				return
+			}
+			hashedSet, ok := actual.(set.HashedSet[string, any])
+			if !ok {
+				assert.Fail("Expected set.HashedSet[string, any]")
+			}
+			assert.NoError(err, "Expected no error, but got: %v", err)
+			// Because it can be int64, int, etc just equals on the map can fail
+			assert.Equal(hashedSet.ToSlice(), test.expected, "expected %v, got %v", test.expected, actual)
 		})
 	}
 }

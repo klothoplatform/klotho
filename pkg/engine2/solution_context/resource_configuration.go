@@ -24,7 +24,6 @@ func ConfigureResource(
 	if err != nil {
 		return err
 	}
-
 	val, err := knowledgebase.TransformToPropertyValue(resource, field, configuration.Value, configCtx, data)
 	if err != nil {
 		return err

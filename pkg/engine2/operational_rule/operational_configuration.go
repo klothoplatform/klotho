@@ -2,7 +2,7 @@ package operational_rule
 
 import (
 	"fmt"
-	"reflect"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
@@ -21,7 +21,12 @@ func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.C
 	val, err := resource.GetProperty(config.Config.Field)
 	action := "set"
 	if err == nil && val != nil {
-		if reflect.ValueOf(val).Kind() == reflect.Slice || reflect.ValueOf(val).Kind() == reflect.Array || reflect.ValueOf(val).Kind() == reflect.Map {
+		resTempalte, err := ctx.Solution.KnowledgeBase().GetResourceTemplate(resource.ID)
+		if err != nil {
+			return err
+		}
+		prop := resTempalte.GetProperty(config.Config.Field)
+		if prop != nil && (strings.Contains(prop.Type, "list") || strings.Contains(prop.Type, "set") || strings.Contains(prop.Type, "map")) {
 			action = "add"
 		}
 	}

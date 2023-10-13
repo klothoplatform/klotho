@@ -36,7 +36,7 @@ properties:
               Null:
                 type: map(string,string)
   ManagedPolicies:
-    type: list(string)
+    type: set(string)
   InlinePolicies:
     type: list
     properties:
@@ -52,6 +52,7 @@ properties:
             properties:
               Effect:
                 type: string
+                default_value: Allow
               Action:
                 type: list(string)
               Resource:
