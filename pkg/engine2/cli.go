@@ -130,8 +130,22 @@ func (em *EngineMain) AddEngine() error {
 }
 
 type resourceInfo struct {
-	Classifications []string `json:"classifications"`
-	DisplayName     string   `json:"displayName"`
+	Classifications []string       `json:"classifications"`
+	DisplayName     string         `json:"displayName"`
+	Properties      map[string]any `json:"properties"`
+}
+
+func addSubProperties(properties map[string]any, subProperties map[string]knowledgebase.Property) {
+	for _, subProperty := range subProperties {
+		properties[subProperty.Name] = map[string]any{
+			"type": subProperty.Type,
+		}
+		if subProperty.Properties != nil {
+			properties[subProperty.Name].(map[string]any)["properties"] = map[string]any{}
+			addSubProperties(properties[subProperty.Name].(map[string]any)["properties"].(map[string]any), subProperty.Properties)
+		}
+	}
+
 }
 
 func (em *EngineMain) ListResourceTypes(cmd *cobra.Command, args []string) error {
@@ -141,9 +155,21 @@ func (em *EngineMain) ListResourceTypes(cmd *cobra.Command, args []string) error
 	}
 	resourceTypes := em.Engine.Kb.ListResources()
 	typeAndClassifications := map[string]resourceInfo{}
+
 	for _, resourceType := range resourceTypes {
+		properties := map[string]any{}
+		for _, property := range resourceType.Properties {
+			properties[property.Name] = map[string]any{
+				"type": property.Type,
+			}
+			if property.Properties != nil {
+				properties[property.Name].(map[string]any)["properties"] = map[string]any{}
+				addSubProperties(properties[property.Name].(map[string]any)["properties"].(map[string]any), property.Properties)
+			}
+		}
 		typeAndClassifications[resourceType.QualifiedTypeName] = resourceInfo{
 			Classifications: resourceType.Classification.Is,
+			Properties:      properties,
 			DisplayName:     resourceType.DisplayName,
 		}
 	}
