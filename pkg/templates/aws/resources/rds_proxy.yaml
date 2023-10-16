@@ -1,0 +1,60 @@
+qualified_type_name: aws:rds_proxy
+display_name: RDS Proxy
+
+properties:
+  DebugLogging:
+    type: bool
+    default_value: false
+  EngineFamily:
+    type: string
+    default_value: POSTGRESQL
+  IdleClientTimeout:
+    type: int
+    default_value: 1800
+  RequireTls:
+    type: bool
+    default_value: true
+  Role:
+    type: resource(aws:iam_role)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:iam_role
+  SecurityGroups:
+    type: list(resource(aws:security_group))
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:security_group
+  Subnets:
+    type: list(resource(aws:subnet))
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - selector: aws:subnet
+              properties:
+                Type: private
+            - aws:subnet
+  Auths:
+    type: set(map)
+    properties:
+      AuthScheme:
+        type: string
+      IamAuth:
+        type: string
+      Secret:
+        type: resource(aws:secret)
+
+classification:
+  is:
+    - proxy
+  gives:
+    - reliability:storage
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: big

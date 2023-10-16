@@ -9,7 +9,7 @@ properties:
         - direction: downstream
           resources:
             - aws:lambda_function
-#          fail_if_missing: true
+  #          fail_if_missing: true
   EventSource:
     type: resource
     operational_rule:
@@ -17,7 +17,7 @@ properties:
         - direction: upstream
           resources:
             - aws:sqs_queue
-#          fail_if_missing: true
+  #          fail_if_missing: true
 
   FilterCriteria:
     type: list
@@ -37,4 +37,3 @@ properties:
     properties:
       MaximumConcurrency:
         type: int
-

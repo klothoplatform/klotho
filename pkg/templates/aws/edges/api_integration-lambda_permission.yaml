@@ -6,7 +6,7 @@ operational_rules:
         configuration:
           field: Uri
           value: |
-            {{ downstream "aws:lambda_function" .Destination }}#LambdaIntegrationUri
+            {{ downstream "aws:lambda_function" .Target }}#LambdaIntegrationUri
       - resource: '{{ .Source }}'
         configuration:
           field: IntegrationHttpMethod
@@ -15,16 +15,16 @@ operational_rules:
         configuration:
           field: Type
           value: AWS_PROXY
-      - resource: '{{ .Destination }}'
+      - resource: '{{ .Target }}'
         configuration:
           field: Source
           value: |
             {{ fieldValue "RestApi" .Source }}#ChildResources
-      - resource: '{{ .Destination }}'
+      - resource: '{{ .Target }}'
         configuration:
           field: Principal
           value: apigateway.amazonaws.com
-      - resource: '{{ .Destination }}'
+      - resource: '{{ .Target }}'
         configuration:
           field: Action
           value: lambda:InvokeFunction

@@ -1,0 +1,66 @@
+qualified_type_name: aws:rds_instance
+display_name: RDS Instance
+
+properties:
+  SubnetGroup:
+    type: resource(aws:rds_subnet_group)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:rds_subnet_group
+  SecurityGroups:
+    type: list(resource(aws:security_group))
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:security_group
+  DatabaseName:
+    type: string
+    default_value: '{{ .Self.Name }}'
+  IamDatabaseAuthenticationEnabled:
+    type: bool
+    default_value: true
+  Username:
+    type: string
+    configuration_disabled: true
+  Password:
+    type: string
+    configuration_disabled: true
+  Engine:
+    type: string
+    default_value: postgres
+  EngineVersion:
+    type: string
+    default_value: '13.7'
+  InstanceClass:
+    type: string
+    default_value: db.t3.micro
+  SkipFinalSnapshot:
+    type: bool
+    default_value: true
+  AllocatedStorage:
+    type: int
+    default_value: 20
+  CredentialsSecretValue:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  RdsConnectionArn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+classification:
+  is:
+    - storage
+    - sql
+    - database
+    - relational
+
+delete_context:
+  requires_no_upstream: true
+  requires_explicit_delete: true
+views:
+  dataflow: big

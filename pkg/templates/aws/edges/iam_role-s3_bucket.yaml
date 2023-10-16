@@ -6,7 +6,7 @@ operational_rules:
         configuration:
           field: InlinePolicies
           value:
-            - Name: '{{ .Destination.Name }}-policy'
+            - Name: '{{ .Target.Name }}-policy'
               Policy:
                 Version: '2012-10-17'
                 Statement:
@@ -14,5 +14,5 @@ operational_rules:
                       - s3:*
                     Effect: Allow
                     Resource:
-                      - '{{ .Destination  }}#Arn'
-                      - '{{ .Destination }}#AllBucketDirectory'
+                      - '{{ .Target  }}#Arn'
+                      - '{{ .Target }}#AllBucketDirectory'

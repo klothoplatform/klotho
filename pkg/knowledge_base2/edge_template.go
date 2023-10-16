@@ -41,9 +41,9 @@ type (
 	//   (for examples, RDS Proxy -> Proxy Target Group)
 	Unique struct {
 		// Source indicates whether the source must only have a single edge of this type.
-		Source bool
+		Source bool `yaml:"source"`
 		// Target indicates whether the target must only have a single edge of this type.
-		Target bool
+		Target bool `yaml:"target"`
 	}
 )
 

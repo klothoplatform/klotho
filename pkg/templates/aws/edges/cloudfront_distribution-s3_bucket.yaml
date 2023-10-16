@@ -15,31 +15,31 @@ operational_rules:
                 OriginAccessIdentity: |
                   {{ $oai := downstream "aws:cloudfront_origin_access_identity" .Source }}
                   {{ $oai }}#CloudfrontAccessIdentityPath
-              DomainName: '{{ .Destination }}#BucketRegionalDomainName'
-              OriginId: '{{ .Destination.Name }}'
+              DomainName: '{{ .Target }}#BucketRegionalDomainName'
+              OriginId: '{{ .Target.Name }}'
       - resource: '{{ .Source }}'
         configuration:
           field: DefaultCacheBehavior.TargetOriginId
-          value: '{{ .Destination.Name }}'
-  - if: '{{ hasField "IndexDocument" .Destination}}'
+          value: '{{ .Target.Name }}'
+  - if: '{{ hasField "IndexDocument" .Target}}'
     configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
           field: DefaultRootObject
-          value: '{{ fieldValue "IndexDocument" .Destination }}'
-  - if: '{{ hasUpstream "aws:s3_bucket_policy" .Destination}}'
+          value: '{{ fieldValue "IndexDocument" .Target }}'
+  - if: '{{ hasUpstream "aws:s3_bucket_policy" .Target}}'
     steps:
-      - resource: '{{ upstream "aws:s3_bucket_policy" .Destination}}'
+      - resource: '{{ upstream "aws:s3_bucket_policy" .Target}}'
         direction: downstream
         resources:
           - '{{ downstream "aws:cloudfront_origin_access_identity" .Source }}'
-  - if: '{{ not (hasUpstream "aws:s3_bucket_policy" .Destination) }}'
+  - if: '{{ not (hasUpstream "aws:s3_bucket_policy" .Target) }}'
     steps:
-      - resource: '{{ .Destination }}'
+      - resource: '{{ .Target }}'
         direction: upstream
         resources:
           - aws:s3_bucket_policy
-      - resource: '{{ upstream "aws:s3_bucket_policy" .Destination}}'
+      - resource: '{{ upstream "aws:s3_bucket_policy" .Target}}'
         direction: downstream
         resources:
           - '{{ downstream "aws:cloudfront_origin_access_identity" .Source }}'

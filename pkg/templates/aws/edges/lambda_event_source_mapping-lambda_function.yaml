@@ -1,3 +1,2 @@
 source: aws:lambda_event_source_mapping
 target: aws:lambda_function
-

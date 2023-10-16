@@ -4,5 +4,5 @@ operational_rules:
   - configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
-          field: Triggers.{{ .Destination.Name }}
-          value: '{{ .Destination.Name }}'
+          field: Triggers.{{ .Target.Name }}
+          value: '{{ .Target.Name }}'

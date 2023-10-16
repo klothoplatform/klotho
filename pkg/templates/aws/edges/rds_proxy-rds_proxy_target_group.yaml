@@ -1,0 +1,35 @@
+source: aws:rds_proxy
+target: aws:rds_proxy_target_group
+deployment_order_reversed: true
+operational_rules:
+  - steps:
+      - resource: '{{ fieldValue "Role" .Source }}'
+        direction: downstream
+        resources: # attach the proxy's role to the instance
+          - '{{ fieldValue "RdsInstance" .Target }}'
+  - if: | # if the instance does not have a secret version upstream
+      {{ not (hasUpstream "aws:secret_version" (fieldValue "RdsInstance" .Target)) }}
+    steps:
+      - resource: '{{ fieldValue "RdsInstance" .Target }}'
+        direction: upstream
+        resources:
+          - aws:secret_version:{{(fieldValue "RdsInstance" .Target).Name}}-credentials
+      - resource: aws:secret_version:{{(fieldValue "RdsInstance" .Target).Name}}-credentials
+        direction: upstream
+        resources:
+          - aws:iam_policy:{{(fieldValue "RdsInstance" .Target).Name}}-secret-policy
+      - resource: aws:iam_policy:{{(fieldValue "RdsInstance" .Target).Name}}-secret-policy
+        direction: downstream
+        resources:
+          - aws:secret_version:{{(fieldValue "RdsInstance" .Target).Name}}-credentials
+  - if: | # if the proxy does not have the instances secret version downstream
+      {{ not (hasDownstream (upstream "aws:secret_version" (fieldValue "RdsInstance" .Target)) .Source) }}
+    steps:
+      - resource: '{{ .Source }}'
+        direction: downstream
+        resources: #attach the secret versions secret to the proxy
+          - '{{ upstream "aws:secret_version" (fieldValue "RdsInstance" .Target) }}'
+      - resource: '{{ fieldValue "Role" .Source }}'
+        direction: downstream
+        resources: # attach the secret version policy to the proxies role
+          - '{{ upstream "aws:iam_policy" (upstream "aws:secret_version" (fieldValue "RdsInstance" .Target)) }}'

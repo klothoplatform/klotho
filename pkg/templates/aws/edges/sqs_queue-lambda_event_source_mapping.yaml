@@ -5,7 +5,7 @@ deployment_order_reversed: true
 
 operational_rules:
   - steps:
-      - resource: '{{ fieldValue "ExecutionRole" (downstream "aws:lambda_function" .Destination) }}'
+      - resource: '{{ fieldValue "ExecutionRole" (downstream "aws:lambda_function" .Target) }}'
         direction: downstream
         resources:
           - '{{ .Source }}'

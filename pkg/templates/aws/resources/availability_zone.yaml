@@ -6,14 +6,14 @@ properties:
     type: int
     default_value: |
       {{ $region := (fieldValue "Region" .Self) }} 
-      {{ sub (len (allUpstream "aws:availability_zone" $region)) 1 }}   
+      {{ sub (len (allUpstream "aws:availability_zone" $region)) 1 }}
   Region:
     type: resource
     namespace: true
     operational_rule:
       steps:
         - direction: downstream
-          resources: 
+          resources:
             - aws:region
 
 delete_context:

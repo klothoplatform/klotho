@@ -20,6 +20,6 @@ operational_rules:
                   - TLSv1
                   - SSLv3
                   - TLSv1.1
-              DomainName: '{{ .Destination }}#StageInvokeUrl'
-              OriginId: '{{ .Destination.Name }}'
-              OriginPath: '{{ fieldValue "StageName" .Destination }}'
+              DomainName: '{{ .Target }}#StageInvokeUrl'
+              OriginId: '{{ .Target.Name }}'
+              OriginPath: '{{ fieldValue "StageName" .Target }}'

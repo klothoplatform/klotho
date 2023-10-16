@@ -12,3 +12,9 @@ function create(args: Args): aws.iam.Policy {
         policy: args.Policy,
     })
 }
+
+function properties(object: aws.iam.Policy, args: Args) {
+    return {
+        Arn: object.arn,
+    }
+}

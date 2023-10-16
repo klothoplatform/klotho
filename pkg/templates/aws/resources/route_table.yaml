@@ -16,7 +16,7 @@ properties:
         type: string
       NatGateway:
         type: resource
-      Gateway: 
+      Gateway:
         type: resource
 
 delete_context:

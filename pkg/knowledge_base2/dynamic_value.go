@@ -27,7 +27,7 @@ type (
 
 	// DynamicValueData provides the resource or edge to the templates as
 	// `{{ .Self }}` for resources
-	// `{{ .Source }}` and `{{ .Destination }}` for edges
+	// `{{ .Source }}` and `{{ .Target }}` for edges
 	DynamicValueData struct {
 		Resource construct.ResourceId
 		Edge     *construct.Edge
@@ -202,9 +202,9 @@ func (data DynamicValueData) Source() (construct.ResourceId, error) {
 	return data.Edge.Source, nil
 }
 
-func (data DynamicValueData) Destination() (construct.ResourceId, error) {
+func (data DynamicValueData) Target() (construct.ResourceId, error) {
 	if data.Edge.Target.IsZero() {
-		return construct.ResourceId{}, fmt.Errorf("no .Destination is set")
+		return construct.ResourceId{}, fmt.Errorf("no .Target is set")
 	}
 	return data.Edge.Target, nil
 }

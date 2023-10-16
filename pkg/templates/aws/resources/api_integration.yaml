@@ -46,7 +46,7 @@ properties:
                 {{ upstream "aws:api_resource" .Self }}
               {{- else }}
                 aws:api_resource:{{ fieldValue "Route" .Self | replace "\\{([^}+]+)\\+?\\}" "$1" | replace "^/" "" | replace "/" "-" }}
-              {{- end }}    
+              {{- end }}
   Method:
     type: resource
     operational_rule:

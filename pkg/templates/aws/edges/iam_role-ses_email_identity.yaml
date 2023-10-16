@@ -6,7 +6,7 @@ operational_rules:
         configuration:
           field: InlinePolicies
           value:
-            - Name: '{{ .Destination.Name }}-policy'
+            - Name: '{{ .Target.Name }}-policy'
               Policy:
                 Version: '2012-10-17'
                 Statement:
@@ -15,4 +15,4 @@ operational_rules:
                       - ses:SendRawEmail
                     Effect: Allow
                     Resource:
-                      - '{{ .Destination  }}#Arn'
+                      - '{{ .Target  }}#Arn'

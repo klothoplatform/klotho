@@ -7,4 +7,4 @@ operational_rules:
           field: Routes
           value:
             - CidrBlock: 0.0.0.0/0
-              Gateway: '{{ .Destination }}'
+              Gateway: '{{ .Target }}'

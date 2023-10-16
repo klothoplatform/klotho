@@ -1,9 +1,10 @@
 source: aws:lambda_function
 target: aws:iam_role
+direct_edge_only: true
 operational_rules:
   - configuration_rules:
       - resource: |
-          {{ .Destination }}
+          {{ .Target }}
         configuration:
           field: AssumeRolePolicyDoc
           value:
@@ -16,7 +17,7 @@ operational_rules:
                   Service:
                     - lambda.amazonaws.com
       - resource: |
-          {{ .Destination }}
+          {{ .Target }}
         configuration:
           field: ManagedPolicies
           value:

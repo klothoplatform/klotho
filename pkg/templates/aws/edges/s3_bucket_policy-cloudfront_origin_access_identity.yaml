@@ -2,7 +2,7 @@ source: aws:s3_bucket_policy
 target: aws:cloudfront_origin_access_identity
 operational_rules:
   - configuration_rules:
-      - resource: '{{ .Destination }}'
+      - resource: '{{ .Target }}'
         configuration:
           field: Comment
           value: this is needed to set up S3 polices so that the S3 bucket is not public
@@ -15,7 +15,7 @@ operational_rules:
               - Effect: Allow
                 Principal:
                   AWS:
-                    - '{{ .Destination }}#IamArn'
+                    - '{{ .Target }}#IamArn'
                 Action:
                   - s3:GetObject
                 Resource:

@@ -1,0 +1,29 @@
+source: aws:lambda_function
+target: aws:rds_instance
+operational_rules:
+  - if: |
+      {{- if (hasDownstream "aws:vpc" .Source) }}
+        {{ $lambdaVpc := (downstream "aws:vpc" .Source) }}
+        {{ $ecVpc := (downstream "aws:vpc" .Target) }}
+        {{- if (ne $lambdaVpc $ecVpc) }}
+          true
+        {{ else }}
+          false
+        {{- end }}
+      {{ end }}
+    steps:
+      - resource: '{{ downstream "aws:vpc" .Source }}'
+        direction: downstream
+        resources:
+          - '{{downstream "aws:vpc" .Target}}'
+  - if: |
+      {{- if not (hasDownstream "aws:vpc" .Source) }}
+        true
+      {{ else }} 
+        false 
+      {{- end }}
+    steps:
+      - resource: '{{ .Source }}'
+        direction: downstream
+        resources:
+          - '{{downstream "aws:vpc" .Target}}'

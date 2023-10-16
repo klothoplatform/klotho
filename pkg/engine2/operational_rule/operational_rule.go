@@ -29,7 +29,7 @@ func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.Opera
 		dyn := solution_context.DynamicCtx(ctx.Solution)
 		err := dyn.ExecuteDecode(rule.If, ctx.Data, &result)
 		if err != nil {
-			return Result{}, err
+			return Result{}, fmt.Errorf("could not evaluate if condition for rule: %w", err)
 		}
 		if !result {
 			zap.S().Debugf("rule did not match if condition, skipping")

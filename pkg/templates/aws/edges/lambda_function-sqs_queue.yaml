@@ -5,4 +5,4 @@ operational_rules:
       - resource: '{{ fieldValue "ExecutionRole" .Source}}'
         direction: downstream
         resources:
-          -  '{{ .Destination }}'
+          - '{{ .Target }}'

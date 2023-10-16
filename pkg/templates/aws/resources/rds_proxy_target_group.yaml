@@ -1,0 +1,35 @@
+qualified_type_name: aws:rds_proxy_target_group
+display_name: RDS Proxy Target Group
+
+properties:
+  RdsInstance:
+    type: resource(aws:rds_instance)
+    default_value: '{{ downstream "aws:rds_instance" .Self }}'
+  RdsProxy:
+    type: resource(aws:rds_proxy)
+    default_value: '{{ upstream "aws:rds_proxy" .Self }}'
+  TargetGroupName:
+    type: string
+    default_value: default
+  ConnectionPoolConfigurationInfo:
+    type: map
+    properties:
+      ConnectionBorrowTimeout:
+        type: int
+        default_value: 120
+      InitQuery:
+        type: string
+      MaxConnectionsPercent:
+        type: int
+        default_value: 100
+      MaxIdleConnectionsPercent:
+        type: int
+        default_value: 50
+      SessionPinningFilters:
+        type: list(string)
+
+classification:
+  is:
+    - proxy
+  gives:
+    - reliability:storage

@@ -224,7 +224,6 @@ func (view MakeOperationalView) MakeEdgeOperational(
 		err = view.AddEdge(source, target)
 		return nil, nil, err
 	}
-
 	edge := construct.Edge{Source: source, Target: target}
 	view.stack = append(view.stack, solution_context.KV{Key: "edge", Value: edge})
 

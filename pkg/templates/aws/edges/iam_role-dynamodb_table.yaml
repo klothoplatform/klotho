@@ -6,7 +6,7 @@ operational_rules:
         configuration:
           field: InlinePolicies
           value:
-            - Name: '{{ .Destination.Name }}-policy'
+            - Name: '{{ .Target.Name }}-policy'
               Policy:
                 Version: '2012-10-17'
                 Statement:
@@ -14,8 +14,8 @@ operational_rules:
                       - dynamodb:*
                     Effect: Allow
                     Resource:
-                      - '{{ .Destination }}#Arn'
-                      - '{{ .Destination }}#DynamoTableStreamArn'
-                      - '{{ .Destination }}#DynamoTableBackupArn'
-                      - '{{ .Destination }}#DynamoTableExportArn'
-                      - '{{ .Destination }}#DynamoTableIndexArn'
+                      - '{{ .Target }}#Arn'
+                      - '{{ .Target }}#DynamoTableStreamArn'
+                      - '{{ .Target }}#DynamoTableBackupArn'
+                      - '{{ .Target }}#DynamoTableExportArn'
+                      - '{{ .Target }}#DynamoTableIndexArn'

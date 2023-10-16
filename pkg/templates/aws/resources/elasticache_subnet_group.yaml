@@ -1,0 +1,20 @@
+qualified_type_name: aws:elasticache_subnet_group
+display_name: ElastiCache Subnet Group
+
+properties:
+  Subnets:
+    type: list(resource(aws:subnet))
+    operational_rule:
+      steps:
+        - direction: downstream
+          num_needed: 2
+          resources:
+            - selector: aws:subnet
+              properties:
+                Type: private
+            - aws:subnet
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

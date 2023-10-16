@@ -1,0 +1,6 @@
+{
+    "name": "rds_proxy_target_group",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

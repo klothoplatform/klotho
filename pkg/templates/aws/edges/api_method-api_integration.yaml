@@ -8,7 +8,7 @@ operational_rules:
           field: RequestParameters
           value: |
             {{
-                split (fieldValue "Route" .Destination) "/" |
+                split (fieldValue "Route" .Target) "/" |
                 filterMatch "^:\\w+$" |
                 mapString ":(.*)" "method.request.path.$1" |
                 keysToMapWithDefault true |

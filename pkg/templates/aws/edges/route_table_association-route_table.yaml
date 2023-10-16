@@ -3,14 +3,14 @@ target: aws:route_table
 operational_rules:
   - if: '{{ eq (fieldValue "Type" (upstream "aws:subnet" .Source)) "private" }}'
     steps:
-      - resource: '{{ .Destination }}'
+      - resource: '{{ .Target }}'
         direction: downstream
         resources:
           - aws:nat_gateway
         unique: true
   - if: '{{ eq (fieldValue "Type" (upstream "aws:subnet" .Source)) "public" }}'
     steps:
-      - resource: '{{ .Destination }}'
+      - resource: '{{ .Target }}'
         direction: downstream
         resources:
           - aws:internet_gateway
