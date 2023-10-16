@@ -141,7 +141,10 @@ type resourceInfo struct {
 func addSubProperties(properties map[string]any, subProperties map[string]*knowledgebase.Property) {
 	for _, subProperty := range subProperties {
 		properties[subProperty.Name] = map[string]any{
-			"type": subProperty.Type,
+			"type":                  subProperty.Type,
+			"deployTime":            subProperty.DeployTime,
+			"configurationDisabled": subProperty.ConfigurationDisabled,
+			"required":              subProperty.Required,
 		}
 		if subProperty.Properties != nil {
 			properties[subProperty.Name].(map[string]any)["properties"] = map[string]any{}
@@ -163,7 +166,10 @@ func (em *EngineMain) ListResourceTypes(cmd *cobra.Command, args []string) error
 		properties := map[string]any{}
 		for _, property := range resourceType.Properties {
 			properties[property.Name] = map[string]any{
-				"type": property.Type,
+				"type":                  property.Type,
+				"deployTime":            property.DeployTime,
+				"configurationDisabled": property.ConfigurationDisabled,
+				"required":              property.Required,
 			}
 			if property.Properties != nil {
 				properties[property.Name].(map[string]any)["properties"] = map[string]any{}
