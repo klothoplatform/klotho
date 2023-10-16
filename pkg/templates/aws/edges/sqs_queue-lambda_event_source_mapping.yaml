@@ -1,6 +1,9 @@
 source: aws:sqs_queue
 target: aws:lambda_event_source_mapping
 
+unique:
+  Source: true
+
 deployment_order_reversed: true
 
 operational_rules:
