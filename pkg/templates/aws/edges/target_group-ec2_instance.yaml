@@ -9,5 +9,5 @@ operational_rules:
       - resource: '{{ .Source }}'
         configuration:
           field: Targets
-          value: 
+          value:
             - Id: '{{ .Target }}#Id'

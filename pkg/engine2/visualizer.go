@@ -110,7 +110,7 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 		case NoRenderTag:
 			continue
 		default:
-			errs = errors.Join(errs, fmt.Errorf("Unknown tag %s, for resource %s", tag, src))
+			errs = errors.Join(errs, fmt.Errorf("unknown tag %s, for resource %s", tag, src))
 			continue
 		}
 		for _, dst := range resources {
@@ -159,7 +159,7 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 			case NoRenderTag:
 				continue
 			default:
-				errs = errors.Join(errs, fmt.Errorf("Unknown tag %s, for resource %s", dstTag, dst))
+				errs = errors.Join(errs, fmt.Errorf("unknown tag %s, for resource %s", dstTag, dst))
 			}
 		}
 	}

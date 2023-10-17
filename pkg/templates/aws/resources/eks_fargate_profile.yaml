@@ -1,0 +1,50 @@
+qualified_type_name: aws:eks_fargate_profile
+display_name: EKS Fargate Profile
+
+properties:
+  Cluster:
+    type: resource(aws:eks_cluster)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:eks_cluster
+  PodExecutionRole:
+    type: resource(aws:iam_role)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:iam_role
+          unique: true
+  Subnets:
+    type: list(resource(aws:subnet))
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - selector: aws:subnet
+              properties:
+                Type: private
+            - aws:subnet
+          num_needed: 2
+  Selectors:
+    type: list
+    properties:
+      Namespace:
+        type: string
+      Labels:
+        type: map(string)
+
+classifications:
+  is:
+    - nodes
+    - serverless
+    - kubernetes
+  gives:
+    - serverless:compute
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

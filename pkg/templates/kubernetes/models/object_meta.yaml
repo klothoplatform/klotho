@@ -1,0 +1,10 @@
+name: kubernetes:ObjectMeta
+properties:
+  Name:
+    type: string
+  Namespace:
+    type: resource(kubernetes:Namespace)
+  Labels:
+    type: map(string,string)
+  Annotations:
+    type: map(string,string)

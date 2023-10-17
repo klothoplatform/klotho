@@ -121,7 +121,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 }
 
 func (em *EngineMain) AddEngine() error {
-	kb, err := knowledgebase.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates)
+	kb, err := knowledgebase.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates, templates.Models)
 	if err != nil {
 		return err
 	}

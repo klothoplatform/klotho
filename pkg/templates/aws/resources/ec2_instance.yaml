@@ -17,7 +17,7 @@ properties:
           resources:
             - aws:security_group
   Subnet:
-    type: resource(aws:ec2_subnet)
+    type: resource(aws:subnet)
     operational_rule:
       steps:
         - direction: downstream
@@ -27,12 +27,12 @@ properties:
                 Type: private
             - aws:subnet
   AMI:
-    type: resource(aws:ec2_ami)
+    type: resource(aws:ami)
     operational_rule:
       steps:
         - direction: downstream
           resources:
-            - aws:ec2_ami
+            - aws:ami
   InstanceType:
     type: string
     default: t3.medium

@@ -10,9 +10,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func NewKBFromFs(resources, edges fs.FS) (*KnowledgeBase, error) {
+func NewKBFromFs(resources, edges, models fs.FS) (*KnowledgeBase, error) {
 	kb := NewKB()
-	templates, err := TemplatesFromFs(resources)
+	templates, err := TemplatesFromFs(resources, models)
 	if err != nil {
 		return nil, err
 	}
@@ -42,10 +42,44 @@ func NewKBFromFs(resources, edges fs.FS) (*KnowledgeBase, error) {
 	return kb, errs
 }
 
-func TemplatesFromFs(dir fs.FS) (map[construct.ResourceId]*ResourceTemplate, error) {
-	templates := map[construct.ResourceId]*ResourceTemplate{}
+func ModelsFromFS(dir fs.FS) (map[string]*Model, error) {
+	models := map[string]*Model{}
 	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
-		fmt.Println(d.Name())
+		zap.S().Debug("Loading model: ", path)
+		if d.IsDir() {
+			return nil
+		}
+		f, err := dir.Open(path)
+		if err != nil {
+			return errors.Join(nerr, fmt.Errorf("error opening model file: %w", err))
+		}
+
+		model := &Model{}
+		err = yaml.NewDecoder(f).Decode(model)
+		if err != nil {
+			return errors.Join(nerr, fmt.Errorf("error decoding model file: %w", err))
+		}
+		models[model.Name] = model
+		return nil
+	})
+
+	for _, model := range models {
+		uerr := updateModels(model.Properties, models)
+		if uerr != nil {
+			err = errors.Join(err, uerr)
+		}
+	}
+	return models, err
+}
+
+func TemplatesFromFs(dir, modelDir fs.FS) (map[construct.ResourceId]*ResourceTemplate, error) {
+	templates := map[construct.ResourceId]*ResourceTemplate{}
+	models, err := ModelsFromFS(modelDir)
+	if err != nil {
+		return nil, err
+	}
+	terr := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
+		zap.S().Debug("Loading resource template: ", path)
 		if d.IsDir() {
 			return nil
 		}
@@ -59,7 +93,10 @@ func TemplatesFromFs(dir fs.FS) (map[construct.ResourceId]*ResourceTemplate, err
 		if err != nil {
 			return errors.Join(nerr, err)
 		}
-
+		err = updateModels(resTemplate.Properties, models)
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
 		id := construct.ResourceId{}
 		err = id.UnmarshalText([]byte(resTemplate.QualifiedTypeName))
 		if err != nil {
@@ -71,13 +108,14 @@ func TemplatesFromFs(dir fs.FS) (map[construct.ResourceId]*ResourceTemplate, err
 		templates[id] = resTemplate
 		return nil
 	})
+	err = errors.Join(err, terr)
 	return templates, err
 }
 
 func EdgeTemplatesFromFs(dir fs.FS) (map[string]*EdgeTemplate, error) {
 	templates := map[string]*EdgeTemplate{}
 	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
-		fmt.Println(d.Name())
+		zap.S().Debug("Loading edge template: ", path)
 		if d.IsDir() {
 			return nil
 		}

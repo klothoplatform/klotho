@@ -1,0 +1,2 @@
+source: kubernetes:manifest
+target: kubernetes:config_map

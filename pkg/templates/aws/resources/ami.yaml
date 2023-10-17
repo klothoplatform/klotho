@@ -4,7 +4,7 @@ display_name: AMI
 classification:
   is:
     - machine_image
-    
+
 delete_context:
   require_no_upstream: true
 views:

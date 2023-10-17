@@ -1,0 +1,54 @@
+qualified_type_name: aws:eks_cluster
+display_name: EKS Cluster
+
+properties:
+  ClusterRole:
+    type: resource(aws:iam_role)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:iam_role:ClusterRole-{{ .Self.Name }}
+          unique: true
+  Vpc:
+    type: resource(aws:vpc)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:vpc
+  Subnets:
+    type: list(resource(aws:subnet))
+    operational_rule:
+      steps:
+        - direction: downstream
+          num_needed: 2
+          resources:
+            - selector: aws:subnet
+              properties:
+                Type: private
+        - direction: downstream
+          num_needed: 2
+          resources:
+            - selector: aws:subnet
+              properties:
+                Type: public
+  SecurityGroups:
+    type: list(resource(aws:security_group))
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:security_group
+  KubeConfig:
+    type: model(kubernetes:KubeConfig)
+
+classification:
+  is:
+    - cluster
+    - kubernetes
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: parent

@@ -46,7 +46,7 @@ func GenerateIac(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	kb, err := knowledgebase.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates)
+	kb, err := knowledgebase.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates, templates.Models)
 	if err != nil {
 		return err
 	}

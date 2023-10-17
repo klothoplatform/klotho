@@ -1,0 +1,30 @@
+qualified_type_name: kubernetes:config_map
+display_name: ConfigMap
+
+properties:
+  Cluster:
+    type: resource
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+  Object:
+    type: map
+    properties:
+      kubernetes:TypeMeta:
+        type: model
+      kubernetes:ObjectMeta:
+        type: model
+      Immutable:
+        type: bool
+      Data:
+        type: map(string,string)
+
+delete_context:
+  requires_no_downstream: true
+views:
+  dataflow: small

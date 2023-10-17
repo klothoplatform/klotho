@@ -63,11 +63,12 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 		properties := props.Attributes
 
 		for key, val := range properties {
-			if _, ok := properties[key]; !ok {
+			if _, ok := properties[key]; ok {
 				id := construct.ResourceId{}
 				err := id.UnmarshalText([]byte(val))
 				if err != nil {
-					return n, err
+					properties[key] = val
+					continue
 				}
 				valRes, err := f.DAG.Vertex(id)
 				if err != nil {
@@ -119,10 +120,14 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 func (f *File) KeyFor(res *construct.Resource) string {
 	resId := res.ID
 	var providerInfo string
+	var namespaceInfo string
 	if resId.Provider != f.Provider {
 		providerInfo = resId.Provider + `:`
 	}
-	return strings.ToLower(fmt.Sprintf("%s%s/%s", providerInfo, res.ID.Type, resId.Name))
+	if resId.Namespace != "" {
+		namespaceInfo = ":" + resId.Namespace
+	}
+	return strings.ToLower(fmt.Sprintf("%s%s%s/%s", providerInfo, res.ID.Type, namespaceInfo, resId.Name))
 }
 
 func writeYaml(e any, indentCount int, out ioutil.WriteToHelper) {

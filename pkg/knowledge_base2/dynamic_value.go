@@ -61,6 +61,10 @@ func (ctx DynamicValueContext) TemplateFunctions() template.FuncMap {
 		"zipToMap":             zipToMap,
 		"keysToMapWithDefault": keysToMapWithDefault,
 		"replace":              replaceRegex,
+		"hasSuffix": func(s, suffix string) bool {
+			return strings.HasSuffix(s, suffix)
+		},
+		"toLower": strings.ToLower,
 
 		"add": add,
 		"sub": sub,

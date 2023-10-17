@@ -33,5 +33,5 @@ function create(args: Args): aws.secretsmanager.SecretVersion {
             parent: args.Secret,
             protect: args.protect,
         }
-    )   
+    )
 }

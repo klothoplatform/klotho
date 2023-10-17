@@ -1,0 +1,16 @@
+qualified_type_name: aws:eks_add_on
+display_name: EKS AddOn
+
+properties:
+  AddOnName:
+    type: string
+  Cluster:
+    type: resource(aws:eks_cluster)
+    default_value: '{{ downstream "aws:eks_cluster" .Self }}'
+  Role:
+    type: resource(aws:iam_role)
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

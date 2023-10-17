@@ -1,0 +1,27 @@
+qualified_type_name: aws:iam_oidc_provider
+display_name: IAM OIDC Provider
+
+properties:
+  ClientIdLists:
+    type: list(string)
+  Cluster:
+    type: resource(aws:eks_cluster)
+    default_value: '{{ downstream "aws:eks_cluster" .Self }}'
+  Region:
+    type: resource(aws:region)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:region
+
+classification:
+  is:
+    - authorization
+  gives:
+    - iam_access
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

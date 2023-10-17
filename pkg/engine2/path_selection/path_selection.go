@@ -46,7 +46,7 @@ func SelectPath(ctx solution_context.SolutionContext, dep construct.ResourceEdge
 
 	path, err := graph.ShortestPath(tempGraph, dep.Source.ID, dep.Target.ID)
 	if err != nil || len(path) == 0 {
-		return nil, fmt.Errorf("could not find path for edge %s -> %s, err: %s", dep.Source, dep.Target, err.Error())
+		return nil, fmt.Errorf("could not find path for edge %s -> %s, err: %s", dep.Source.ID, dep.Target.ID, err.Error())
 	}
 	if containsUnneccessaryHopsInPath(dep, path, edgeData, kb) {
 		return nil, fmt.Errorf("path for edge %s -> %s contains unnecessary hops", dep.Source, dep.Target)

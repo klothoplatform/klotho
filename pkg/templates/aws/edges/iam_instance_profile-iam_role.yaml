@@ -1,0 +1,28 @@
+source: aws:iam_instance_profile
+target: aws:iam_role
+direct_edge_only: true
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Target }}'
+        configuration:
+          field: InlinePolicies
+          value:
+            - Name: '{{ .Source.Name }}-instanceProfilePolicy'
+              Policy:
+                Statement:
+                  - Effect: Allow
+                    Action:
+                      - iam:ListInstanceProfiles
+                      - ec2:Describe*
+                      - ec2:Search*
+                      - ec2:Get*
+                    Resource: 
+                      - "*"
+                  - Effect: Allow
+                    Action:
+                      - iam:PassRole
+                    Resource:
+                      - "*"
+                    Condition:
+                      StringEquals:
+                        iam:PassedToService: ec2.amazonaws.com

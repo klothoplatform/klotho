@@ -1,0 +1,2 @@
+source: aws:eks_fargate_profile
+target: aws:subnet

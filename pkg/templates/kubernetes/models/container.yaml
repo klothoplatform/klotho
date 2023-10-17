@@ -1,0 +1,20 @@
+name: kubernetes:Container
+properties:
+  Name:
+    type: string
+  Image:
+    type: string
+  Command:
+    type: list(string)
+  Args:
+    type: list(string)
+  WorkingDir:
+    type: string
+  Ports:
+    type: list(model(kubernetes:ContainerPort))
+  Env:
+    type: list(model(kubernetes:EnvVar))
+  Resources:
+    type: model(kubernetes:ResourceRequirements)
+  VolumeMounts:
+      type: list(model(kubernetes:VolumeMount))

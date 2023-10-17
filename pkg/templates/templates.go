@@ -2,8 +2,11 @@ package templates
 
 import "embed"
 
-//go:embed aws/resources/*.yaml
+//go:embed */resources/*.yaml
 var ResourceTemplates embed.FS
 
-//go:embed aws/edges/*.yaml
+//go:embed */edges/*.yaml
 var EdgeTemplates embed.FS
+
+//go:embed */models/*.yaml  
+var Models embed.FS

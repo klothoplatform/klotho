@@ -83,6 +83,22 @@ func (p Property) IsPropertyTypeScalar() bool {
 	return !collectionutil.Contains([]string{"map", "list", "set"}, strings.Split(p.Type, "(")[0])
 }
 
+func (p Property) ModelType() *string {
+	typeString := strings.TrimSuffix(strings.TrimPrefix(p.Type, "list("), ")")
+	parts := strings.Split(typeString, "(")
+	if parts[0] != "model" {
+		return nil
+	}
+	if len(parts) == 1 {
+		return &p.Name
+	}
+	if len(parts) != 2 {
+		return nil
+	}
+	modelType := strings.TrimSuffix(parts[1], ")")
+	return &modelType
+}
+
 func (p Property) PropertyType() (PropertyType, error) {
 	if p.Type == "" {
 		return nil, fmt.Errorf("property %s does not have a type", p.Name)

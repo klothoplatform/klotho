@@ -21,7 +21,6 @@ properties:
   EnvironmentVariables:
     type: map(string,string)
 
-
 classification:
   is:
     - compute

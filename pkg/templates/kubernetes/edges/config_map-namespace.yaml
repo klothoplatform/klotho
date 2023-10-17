@@ -1,0 +1,2 @@
+source: kubernetes:config_map
+target: kubernetes:namespace

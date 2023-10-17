@@ -1,0 +1,2 @@
+source: kubernetes:namespace
+target: aws:eks_cluster

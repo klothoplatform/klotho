@@ -21,6 +21,6 @@ function create(args: Args): aws.ec2.Instance {
 
 function properties(object: aws.ec2.Instance, args: Args) {
     return {
-        Id: object.id
+        Id: object.id,
     }
 }

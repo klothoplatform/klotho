@@ -1,0 +1,2 @@
+source: aws:eks_cluster
+target: aws:vpc

@@ -1,0 +1,174 @@
+source: aws:eks_node_group
+target: aws:eks_cluster
+
+operational_rules:
+  - if: | # check if metrics server is already installed on the cluster
+      {{ $needsCreation := true}}
+      {{ $charts := allUpstream "kubernetes:helm_chart" .Target }}
+      {{ range $index, $chart := $charts }}
+        {{- if eq (fieldValue "Repo" $chart) "https://kubernetes-sigs.github.io/metrics-server/" }}
+          {{ $needsCreation = false }}
+          {{break}}
+        {{- end }}
+      {{ end }}
+      {{ $needsCreation }}
+    steps:
+      - resource: '{{ .Source }}'
+        direction: upstream
+        resources:
+          - kubernetes:helm_chart:metrics_server
+    configuration_rules:
+      - resource: kubernetes:helm_chart:metrics_server
+        configuration:
+          field: Chart
+          value: metrics-server
+      - resource: kubernetes:helm_chart:metrics_server
+        configuration:
+          field: Cluster
+          value: '{{ .Target }}'
+      - resource: kubernetes:helm_chart:metrics_server
+        configuration:
+          field: Repo
+          value: https://kubernetes-sigs.github.io/metrics-server/
+      - resource: kubernetes:helm_chart:metrics_server
+        configuration:
+          field: Internal
+          value: true
+
+  - if: | # check if there is an aws-cloudwatch namespace so we can install fluent bit in there
+      {{ $needsCreation := true}}
+      {{ $namespaces := allUpstream "kubernetes:namespace" .Target }}
+      {{ range $index, $ns := $namespaces }}
+        {{- if eq (fieldValue "ObjectMeta.Name" $ns) "amazon-cloudwatch" }}
+          {{ $needsCreation = false}}
+          {{break}}
+        {{- end }}
+      {{ end }}
+      {{ $needsCreation }}
+    steps:
+      - resource: '{{ .Target }}'
+        direction: upstream
+        resources:
+          - kubernetes:namespace:amazon-cloudwatch
+    configuration_rules:
+      - resource: kubernetes:namespace:amazon-cloudwatch
+        configuration:
+          field: Cluster
+          value: '{{ .Target }}'
+      - resource: kubernetes:namespace:amazon-cloudwatch
+        configuration:
+          field: Object
+          value:
+            ApiVersion: v1
+            Kind: Namespace
+            Metadata:
+              Name: amazon-cloudwatch
+              Labels:
+                name: aamazon-cloudwatch    
+
+  - if: | # check if there is an fluent bit config map
+      {{ $needsCreation := true}}
+      {{ $cms := allUpstream "kubernetes:config_map" .Target }}
+      {{ range $index, $cm := $cms }}
+        {{- if eq  (fieldValue "ObjectMeta.Name" $cm) "fluent-bit-cluster-info" }}
+          {{ $needsCreation = false }}
+          {{break}}
+        {{- end }}
+      {{ end }}
+      {{ $needsCreation }}
+    steps:
+      - resource: '{{ .Target }}'
+        direction: upstream
+        resources:
+          - kubernetes:config_map:fluent-bit-cluster-info
+      - resource: kubernetes:config_map:fluent-bit-cluster-info
+        direction: downstream
+        resources:
+          - selector: kubernetes:namespace
+            properties:
+              ObjectMeta:
+                Name: amazon-cloudwatch
+    configuration_rules:
+      - resource: kubernetes:config_map:fluent-bit-cluster-info
+        configuration:
+          field: Cluster
+          value: '{{ .Target }}'
+      - resource: kubernetes:config_map:fluent-bit-cluster-info
+        configuration:
+          field: Object
+          value:
+            ApiVersion: v1
+            Kind: ConfigMap
+            Metadata:
+              Name: fluent-bit-cluster-info
+              Namespace: amazon-cloudwatch
+              Labels:
+                k8s-app: fluent-bit
+            Data:
+              cluster.name: '{{ .Target }}#ClusterName'
+              logs.region: '{{ downstream "aws:region" .Target }}#Name'
+              http.server: 'On'
+              http.port: '2020'
+              read.head: 'Off'
+              read.tail: 'On'
+
+  - if: | # check if there is an aws-cloudwatch namespace so we can install fluent bit in there
+      {{ $needsCreation := true}}
+      {{ $manifests := allUpstream "kubernetes:manifest" .Target }}
+      {{ range $index, $manifest := $manifests }}
+        {{- if eq (fieldValue "FilePath" $manifest) "https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/fluent-bit/fluent-bit.yaml" }}
+          {{ $needsCreation = false }}
+          {{break}}
+        {{- end }}
+      {{ end }}
+      {{ $needsCreation }}
+    steps:
+      - resource: '{{ .Target }}'
+        direction: upstream
+        resources:
+          - kubernetes:manifest:fluent-bit
+      - resource: kubernetes:manifest:fluent-bit
+        direction: downstream
+        resources:
+          - selector: kubernetes:config_map
+            properties:
+              Metadata:
+                Name: fluent-bit-cluster-info
+    configuration_rules:
+      - resource: kubernetes:manifest:fluent-bit
+        configuration:
+          field: Cluster
+          value: '{{ .Target }}'
+      - resource: kubernetes:manifest:fluent-bit
+        configuration:
+          field: FilePath
+          value: https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/fluent-bit/fluent-bit.yaml
+
+  - if: | #Check if the ami type is gpu and if so install nvidia plugin
+      {{ $needsCreation := true}}
+      {{- if not (hasSuffix (toLower (fieldValue "AmiType" .Source)) "_gpu") }}
+        {{ $needsCreation = false }}
+      {{- else}}
+        {{ $manifests := allUpstream "kubernetes:manifest" .Target }}
+        {{ range $index, $manifest := $manifests }}
+          {{- if eq (fieldValue "FilePath" $manifest) "https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.10/nvidia-device-plugin.yml" }}
+            {{ $needsCreation = false }}
+            {{break}}
+          {{- end }}
+        {{ end }}
+      {{- end}}
+      {{ $needsCreation }}
+    steps:
+      - resource: '{{ .Source }}'
+        direction: upstream
+        resources:
+          - kubernetes:manifest:nvidia-device-plugin
+    configuration_rules:
+      - resource: kubernetes:manifest:nvidia-device-plugin
+        configuration:
+          field: Cluster
+          value: '{{ .Target }}'
+      - resource: kubernetes:manifest:nvidia-device-plugin
+        configuration:
+          field: FilePath
+          value: https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.10/nvidia-device-plugin.yml

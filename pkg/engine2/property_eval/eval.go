@@ -52,9 +52,6 @@ func setupInnerRecurse(
 		if prop == nil {
 			break
 		}
-		if prop.Ref.String() == "aws:vpc_link:api_ecs#Target" {
-			fmt.Println("A")
-		}
 		zap.S().Debugf("configuring %s", prop.Ref)
 		g.done.Add(prop.Ref)
 		ctx := solCtx.With("resource", prop.Ref.Resource).With("property", prop.Ref)
