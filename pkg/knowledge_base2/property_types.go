@@ -13,22 +13,22 @@ import (
 type (
 	PropertyType interface {
 		Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error)
-		SetProperty(property Property)
+		SetProperty(property *Property)
 		ZeroValue() any
 	}
 
 	MapPropertyType struct {
-		Property Property
+		Property *Property
 		Key      string
 		Value    string
 	}
 
 	ListPropertyType struct {
-		Property Property
+		Property *Property
 		Value    string
 	}
 	SetPropertyType struct {
-		Property Property
+		Property *Property
 		Value    string
 	}
 
@@ -42,12 +42,12 @@ type (
 	PropertyRefPropertyType struct{}
 )
 
-var PropertyTypeMap = map[string]func(val string, property Property) (PropertyType, error){
-	"string": func(val string, property Property) (PropertyType, error) { return &StringPropertyType{}, nil },
-	"int":    func(val string, property Property) (PropertyType, error) { return &IntPropertyType{}, nil },
-	"float":  func(val string, property Property) (PropertyType, error) { return &FloatPropertyType{}, nil },
-	"bool":   func(val string, property Property) (PropertyType, error) { return &BoolPropertyType{}, nil },
-	"resource": func(val string, property Property) (PropertyType, error) {
+var PropertyTypeMap = map[string]func(val string, property *Property) (PropertyType, error){
+	"string": func(val string, property *Property) (PropertyType, error) { return &StringPropertyType{}, nil },
+	"int":    func(val string, property *Property) (PropertyType, error) { return &IntPropertyType{}, nil },
+	"float":  func(val string, property *Property) (PropertyType, error) { return &FloatPropertyType{}, nil },
+	"bool":   func(val string, property *Property) (PropertyType, error) { return &BoolPropertyType{}, nil },
+	"resource": func(val string, property *Property) (PropertyType, error) {
 		id := construct.ResourceId{}
 		err := id.UnmarshalText([]byte(val))
 		if err != nil {
@@ -55,7 +55,7 @@ var PropertyTypeMap = map[string]func(val string, property Property) (PropertyTy
 		}
 		return &ResourcePropertyType{Value: id}, nil
 	},
-	"map": func(val string, property Property) (PropertyType, error) {
+	"map": func(val string, property *Property) (PropertyType, error) {
 		args := strings.Split(val, ",")
 		if property.Properties != nil {
 			return &MapPropertyType{Property: property}, nil
@@ -65,13 +65,13 @@ var PropertyTypeMap = map[string]func(val string, property Property) (PropertyTy
 		}
 		return &MapPropertyType{Key: args[0], Value: args[1], Property: property}, nil
 	},
-	"list": func(val string, p Property) (PropertyType, error) {
+	"list": func(val string, p *Property) (PropertyType, error) {
 		if p.Properties != nil {
 			return &ListPropertyType{Property: p}, nil
 		}
 		return &ListPropertyType{Value: val, Property: p}, nil
 	},
-	"set": func(val string, p Property) (PropertyType, error) {
+	"set": func(val string, p *Property) (PropertyType, error) {
 		if p.Properties != nil {
 			return &SetPropertyType{Property: p}, nil
 		}
@@ -99,7 +99,7 @@ func (p Property) ModelType() *string {
 	return &modelType
 }
 
-func (p Property) PropertyType() (PropertyType, error) {
+func (p *Property) PropertyType() (PropertyType, error) {
 	if p.Type == "" {
 		return nil, fmt.Errorf("property %s does not have a type", p.Name)
 	}
@@ -276,7 +276,8 @@ func (list *ListPropertyType) Parse(value any, ctx DynamicValueContext, data Dyn
 			}
 			result = append(result, val)
 		} else {
-			parser, err := Property{Type: list.Value}.PropertyType()
+			tempProp := &Property{Type: list.Value}
+			parser, err := tempProp.PropertyType()
 			if err != nil {
 				return nil, fmt.Errorf("invalid value type for list property type %s", list.Value)
 			}
@@ -316,7 +317,9 @@ func (s *SetPropertyType) Parse(value any, ctx DynamicValueContext, data Dynamic
 			}
 			result.Add(val)
 		} else {
-			parser, err := Property{Type: s.Value}.PropertyType()
+			tempProp := &Property{Type: s.Value}
+
+			parser, err := tempProp.PropertyType()
 			if err != nil {
 				return nil, fmt.Errorf("invalid value type for list property type %s", s.Value)
 			}
@@ -380,7 +383,8 @@ func (m *MapPropertyType) Parse(value any, ctx DynamicValueContext, data Dynamic
 	for key, v := range mapVal {
 		keyType := m.Key
 		valType := m.Value
-		parser, err := Property{Type: keyType}.PropertyType()
+		tempProp := &Property{Type: keyType}
+		parser, err := tempProp.PropertyType()
 		if err != nil {
 			return nil, fmt.Errorf("invalid key type for map property type %s", keyType)
 		}
@@ -388,7 +392,8 @@ func (m *MapPropertyType) Parse(value any, ctx DynamicValueContext, data Dynamic
 		if err != nil {
 			return nil, err
 		}
-		parser, err = Property{Type: valType}.PropertyType()
+		tempProp = &Property{Type: valType}
+		parser, err = tempProp.PropertyType()
 		if err != nil {
 			return nil, fmt.Errorf("invalid value type for map property type %s", valType)
 		}
@@ -401,42 +406,44 @@ func (m *MapPropertyType) Parse(value any, ctx DynamicValueContext, data Dynamic
 	return result, nil
 }
 
-func (m *MapPropertyType) SetProperty(property Property) {
+func (m *MapPropertyType) SetProperty(property *Property) {
 	m.Property = property
 }
 
-func (l *ListPropertyType) SetProperty(property Property) {
+func (l *ListPropertyType) SetProperty(property *Property) {
 	l.Property = property
 }
 
-func (s *SetPropertyType) SetProperty(property Property) {
+func (s *SetPropertyType) SetProperty(property *Property) {
 	s.Property = property
 }
 
-func (s *StringPropertyType) SetProperty(property Property) {
+func (s *StringPropertyType) SetProperty(property *Property) {
 }
 
-func (i *IntPropertyType) SetProperty(property Property) {
+func (i *IntPropertyType) SetProperty(property *Property) {
 }
 
-func (f *FloatPropertyType) SetProperty(property Property) {
+func (f *FloatPropertyType) SetProperty(property *Property) {
 }
 
-func (b *BoolPropertyType) SetProperty(property Property) {
+func (b *BoolPropertyType) SetProperty(property *Property) {
 }
 
-func (r *ResourcePropertyType) SetProperty(property Property) {
+func (r *ResourcePropertyType) SetProperty(property *Property) {
 }
 
-func (p *PropertyRefPropertyType) SetProperty(property Property) {
+func (p *PropertyRefPropertyType) SetProperty(property *Property) {
 }
 
 func (m *MapPropertyType) ZeroValue() any {
-	keyType, err := Property{Type: m.Key}.PropertyType()
+	tempProp := &Property{Type: m.Key}
+	keyType, err := tempProp.PropertyType()
 	if err != nil {
 		return nil
 	}
-	valType, err := Property{Type: m.Value}.PropertyType()
+	tempProp = &Property{Type: m.Value}
+	valType, err := tempProp.PropertyType()
 	if err != nil {
 		return nil
 	}
@@ -448,7 +455,8 @@ func (m *MapPropertyType) ZeroValue() any {
 }
 
 func (l *ListPropertyType) ZeroValue() any {
-	pType, err := Property{Type: l.Value}.PropertyType()
+	tempProp := &Property{Type: l.Value}
+	pType, err := tempProp.PropertyType()
 	if err != nil {
 		return nil
 	}
@@ -457,7 +465,8 @@ func (l *ListPropertyType) ZeroValue() any {
 }
 
 func (s *SetPropertyType) ZeroValue() any {
-	pType, err := Property{Type: s.Value}.PropertyType()
+	tempProp := &Property{Type: s.Value}
+	pType, err := tempProp.PropertyType()
 	if err != nil {
 		return nil
 	}

@@ -16,8 +16,8 @@ properties:
     properties:
       kubernetes:TypeMeta:
         type: model
-      kubernetes:ObjectMeta:
-        type: model
+      Metadata:
+        type: model(kubernetes:ObjectMeta)
 
 delete_context:
   requires_no_downstream: true

@@ -30,6 +30,12 @@ func updateModels(properties Properties, models map[string]*Model) error {
 				}
 			} else {
 				p.Properties = models[*modelType].Properties
+				modelString := fmt.Sprintf("model(%s)", *modelType)
+				if p.Type == modelString {
+					p.Type = "map"
+				} else if p.Type == fmt.Sprintf("list(%s)", modelString) {
+					p.Type = "list"
+				}
 			}
 		} else {
 			updateModels(p.Properties, models)

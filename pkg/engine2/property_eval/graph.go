@@ -133,7 +133,7 @@ func addResource(
 			if errors.Is(err, graph.ErrVertexNotFound) {
 				vertex = &PropertyVertex{
 					Ref:      construct.PropertyRef{Resource: res.ID, Property: prop.Path},
-					Template: prop,
+					Template: *prop,
 					Resource: res,
 				}
 			} else if err != nil {

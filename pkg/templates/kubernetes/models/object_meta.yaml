@@ -3,7 +3,7 @@ properties:
   Name:
     type: string
   Namespace:
-    type: resource(kubernetes:Namespace)
+    type: resource(kubernetes:namespace)
   Labels:
     type: map(string,string)
   Annotations:

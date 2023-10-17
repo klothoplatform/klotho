@@ -25,7 +25,7 @@ type (
 		Views map[string]string `json:"views" yaml:"views"`
 	}
 
-	Properties map[string]Property
+	Properties map[string]*Property
 
 	Property struct {
 		Name string `json:"name" yaml:"name"`
@@ -44,7 +44,7 @@ type (
 
 		OperationalRule *OperationalRule `json:"operational_rule" yaml:"operational_rule"`
 
-		Properties map[string]Property `json:"properties" yaml:"properties"`
+		Properties map[string]*Property `json:"properties" yaml:"properties"`
 
 		Path string `json:"-" yaml:"-"`
 	}
@@ -91,7 +91,7 @@ func (p *Properties) UnmarshalYAML(n *yaml.Node) error {
 	for name, property := range p2 {
 		property.Name = name
 		property.Path = name
-		setChildPaths(&property, name)
+		setChildPaths(property, name)
 		p2[name] = property
 	}
 	*p = Properties(p2)
@@ -103,7 +103,7 @@ func setChildPaths(property *Property, currPath string) {
 		child.Name = name
 		path := currPath + "." + name
 		child.Path = path
-		setChildPaths(&child, path)
+		setChildPaths(child, path)
 		property.Properties[name] = child
 	}
 }
@@ -199,7 +199,7 @@ func (template ResourceTemplate) ResourceContainsClassifications(needs []string)
 func (template ResourceTemplate) GetNamespacedProperty() *Property {
 	for _, property := range template.Properties {
 		if property.Namespace {
-			return &property
+			return property
 		}
 	}
 	return nil
@@ -217,7 +217,7 @@ func (template ResourceTemplate) GetProperty(name string) *Property {
 			}
 			found = true
 			if len(fields) == i+1 {
-				return &property
+				return property
 			} else {
 				pType, err := property.PropertyType()
 				if err != nil {

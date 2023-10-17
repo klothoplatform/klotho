@@ -62,7 +62,7 @@ func Test_getPropertyType(t *testing.T) {
 			name: "Get map with sub fields property type",
 			property: Property{
 				Type: "map",
-				Properties: map[string]Property{
+				Properties: map[string]*Property{
 					"nested": {
 						Name: "nested",
 						Type: "string",
@@ -70,9 +70,9 @@ func Test_getPropertyType(t *testing.T) {
 				},
 			},
 			expected: &MapPropertyType{
-				Property: Property{
+				Property: &Property{
 					Type: "map",
-					Properties: map[string]Property{
+					Properties: map[string]*Property{
 						"nested": {
 							Name: "nested",
 							Type: "string",
@@ -89,7 +89,7 @@ func Test_getPropertyType(t *testing.T) {
 			expected: &MapPropertyType{
 				Key:   "string",
 				Value: "string",
-				Property: Property{
+				Property: &Property{
 					Type: "map(string,string)",
 				},
 			},
@@ -102,7 +102,7 @@ func Test_getPropertyType(t *testing.T) {
 			expected: &MapPropertyType{
 				Key:   "string",
 				Value: "list(string)",
-				Property: Property{
+				Property: &Property{
 					Type: "map(string,list(string))",
 				},
 			},
@@ -111,7 +111,7 @@ func Test_getPropertyType(t *testing.T) {
 			name: "Get list with sub fields property type",
 			property: Property{
 				Type: "list",
-				Properties: map[string]Property{
+				Properties: map[string]*Property{
 					"nested": {
 						Name: "nested",
 						Type: "string",
@@ -119,9 +119,9 @@ func Test_getPropertyType(t *testing.T) {
 				},
 			},
 			expected: &ListPropertyType{
-				Property: Property{
+				Property: &Property{
 					Type: "list",
-					Properties: map[string]Property{
+					Properties: map[string]*Property{
 						"nested": {
 							Name: "nested",
 							Type: "string",
@@ -137,7 +137,7 @@ func Test_getPropertyType(t *testing.T) {
 			},
 			expected: &ListPropertyType{
 				Value: "string",
-				Property: Property{
+				Property: &Property{
 					Type: "list(string)",
 				},
 			},
@@ -149,7 +149,7 @@ func Test_getPropertyType(t *testing.T) {
 			},
 			expected: &ListPropertyType{
 				Value: "map(string,list(string))",
-				Property: Property{
+				Property: &Property{
 					Type: "list(map(string,list(string)))",
 				},
 			},
@@ -161,7 +161,7 @@ func Test_getPropertyType(t *testing.T) {
 			},
 			expected: &ListPropertyType{
 				Value: "map(string, string)",
-				Property: Property{
+				Property: &Property{
 					Type: "list(map(string, string))",
 				},
 			},
@@ -347,7 +347,7 @@ func Test_MapParse(t *testing.T) {
 			property: MapPropertyType{
 				Key:   "string",
 				Value: "string",
-				Property: Property{
+				Property: &Property{
 					Type: "map(string,string)",
 				},
 			},
@@ -365,7 +365,7 @@ func Test_MapParse(t *testing.T) {
 			property: MapPropertyType{
 				Key:   "string",
 				Value: "string",
-				Property: Property{
+				Property: &Property{
 					Type: "map(string,string)",
 				},
 			},
@@ -383,7 +383,7 @@ func Test_MapParse(t *testing.T) {
 			property: MapPropertyType{
 				Key:   "string",
 				Value: "list(string)",
-				Property: Property{
+				Property: &Property{
 					Type: "map(string,list(string))",
 				},
 			},
@@ -399,9 +399,9 @@ func Test_MapParse(t *testing.T) {
 		{
 			name: "Parse map property with sub properties",
 			property: MapPropertyType{
-				Property: Property{
+				Property: &Property{
 					Type: "map",
-					Properties: map[string]Property{
+					Properties: map[string]*Property{
 						"nested": {
 							Name: "nested",
 							Type: "string",
@@ -426,9 +426,9 @@ func Test_MapParse(t *testing.T) {
 
 			name: "Parse map property with sub properties and default values",
 			property: MapPropertyType{
-				Property: Property{
+				Property: &Property{
 					Type: "map",
-					Properties: map[string]Property{
+					Properties: map[string]*Property{
 						"nested": {
 							Name:         "nested",
 							Type:         "string",
@@ -453,9 +453,9 @@ func Test_MapParse(t *testing.T) {
 		{
 			name: "Parse map property with sub properties incorrect, should error",
 			property: MapPropertyType{
-				Property: Property{
+				Property: &Property{
 					Type: "map",
-					Properties: map[string]Property{
+					Properties: map[string]*Property{
 						"nested": {
 							Name: "nested",
 							Type: "object",
@@ -499,7 +499,7 @@ func Test_ListParse(t *testing.T) {
 			name: "Parse list property value",
 			property: ListPropertyType{
 				Value: "string",
-				Property: Property{
+				Property: &Property{
 					Type: "list(string)",
 				},
 			},
@@ -516,7 +516,7 @@ func Test_ListParse(t *testing.T) {
 			name: "Parse list property value with template",
 			property: ListPropertyType{
 				Value: "string",
-				Property: Property{
+				Property: &Property{
 					Type: "list(string)",
 				},
 			},
@@ -533,7 +533,7 @@ func Test_ListParse(t *testing.T) {
 			name: "Parse list property value with nested fields",
 			property: ListPropertyType{
 				Value: "map(string,list(string))",
-				Property: Property{
+				Property: &Property{
 					Type: "list(map(string,list(string)))",
 				},
 			},
@@ -551,9 +551,9 @@ func Test_ListParse(t *testing.T) {
 		{
 			name: "Parse list property with sub properties",
 			property: ListPropertyType{
-				Property: Property{
+				Property: &Property{
 					Type: "object",
-					Properties: map[string]Property{
+					Properties: map[string]*Property{
 						"nested": {
 							Name: "nested",
 							Type: "string",
@@ -615,7 +615,7 @@ func Test_SetParse(t *testing.T) {
 			name: "Parse set property value",
 			property: SetPropertyType{
 				Value: "string",
-				Property: Property{
+				Property: &Property{
 					Type: "list(string)",
 				},
 			},
@@ -631,7 +631,7 @@ func Test_SetParse(t *testing.T) {
 			name: "Parse list property value with template",
 			property: SetPropertyType{
 				Value: "string",
-				Property: Property{
+				Property: &Property{
 					Type: "list(string)",
 				},
 			},
@@ -647,7 +647,7 @@ func Test_SetParse(t *testing.T) {
 			name: "Parse list property value with nested fields",
 			property: SetPropertyType{
 				Value: "map(string,list(string))",
-				Property: Property{
+				Property: &Property{
 					Type: "list(map(string,list(string)))",
 				},
 			},
@@ -665,9 +665,9 @@ func Test_SetParse(t *testing.T) {
 		{
 			name: "Parse list property with sub properties",
 			property: SetPropertyType{
-				Property: Property{
+				Property: &Property{
 					Type: "object",
-					Properties: map[string]Property{
+					Properties: map[string]*Property{
 						"nested": {
 							Name: "nested",
 							Type: "string",

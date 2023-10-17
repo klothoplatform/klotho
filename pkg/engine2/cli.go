@@ -135,7 +135,7 @@ type resourceInfo struct {
 	Properties      map[string]any `json:"properties"`
 }
 
-func addSubProperties(properties map[string]any, subProperties map[string]knowledgebase.Property) {
+func addSubProperties(properties map[string]any, subProperties map[string]*knowledgebase.Property) {
 	for _, subProperty := range subProperties {
 		properties[subProperty.Name] = map[string]any{
 			"type": subProperty.Type,

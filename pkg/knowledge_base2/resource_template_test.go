@@ -8,11 +8,11 @@ import (
 )
 
 var testTemplate = ResourceTemplate{
-	Properties: map[string]Property{
+	Properties: map[string]*Property{
 		"name": {
 			Name: "name",
 			Type: "list",
-			Properties: map[string]Property{
+			Properties: map[string]*Property{
 				"nested": {
 					Name: "nested",
 					Type: "string",
@@ -36,12 +36,12 @@ name:
   properties:
     nested:
       type: string`,
-			expected: map[string]Property{
+			expected: map[string]*Property{
 				"name": {
 					Name: "name",
 					Path: "name",
 					Type: "string",
-					Properties: map[string]Property{
+					Properties: map[string]*Property{
 						"nested": {
 							Name: "nested",
 							Path: "name.nested",
@@ -129,17 +129,17 @@ func Test_GetNamespacedProperty(t *testing.T) {
 	}{
 		{
 			name:     "Get namespaced property",
-			template: ResourceTemplate{Properties: map[string]Property{"name": {Name: "name", Namespace: true}}},
+			template: ResourceTemplate{Properties: map[string]*Property{"name": {Name: "name", Namespace: true}}},
 			expected: &Property{Name: "name", Namespace: true},
 		},
 		{
 			name:     "Get namespaced property with nested properties only looks top level",
-			template: ResourceTemplate{Properties: map[string]Property{"name": {Name: "name", Properties: map[string]Property{"nested": {Name: "nested", Namespace: true}}}}},
+			template: ResourceTemplate{Properties: map[string]*Property{"name": {Name: "name", Properties: map[string]*Property{"nested": {Name: "nested", Namespace: true}}}}},
 			expected: nil,
 		},
 		{
 			name:     "Get non namespaced property",
-			template: ResourceTemplate{Properties: map[string]Property{"name": {Name: "name"}}},
+			template: ResourceTemplate{Properties: map[string]*Property{"name": {Name: "name"}}},
 			expected: nil,
 		},
 	}

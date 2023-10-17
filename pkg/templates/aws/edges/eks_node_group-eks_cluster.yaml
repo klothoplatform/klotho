@@ -39,7 +39,7 @@ operational_rules:
       {{ $needsCreation := true}}
       {{ $namespaces := allUpstream "kubernetes:namespace" .Target }}
       {{ range $index, $ns := $namespaces }}
-        {{- if eq (fieldValue "ObjectMeta.Name" $ns) "amazon-cloudwatch" }}
+        {{- if eq (fieldValue "Object.Metadata.Name" $ns) "amazon-cloudwatch" }}
           {{ $needsCreation = false}}
           {{break}}
         {{- end }}
@@ -70,7 +70,7 @@ operational_rules:
       {{ $needsCreation := true}}
       {{ $cms := allUpstream "kubernetes:config_map" .Target }}
       {{ range $index, $cm := $cms }}
-        {{- if eq  (fieldValue "ObjectMeta.Name" $cm) "fluent-bit-cluster-info" }}
+        {{- if eq  (fieldValue "Object.Metadata.Name" $cm) "fluent-bit-cluster-info" }}
           {{ $needsCreation = false }}
           {{break}}
         {{- end }}
@@ -86,8 +86,7 @@ operational_rules:
         resources:
           - selector: kubernetes:namespace
             properties:
-              ObjectMeta:
-                Name: amazon-cloudwatch
+              Object.Metadata.Name: amazon-cloudwatch
     configuration_rules:
       - resource: kubernetes:config_map:fluent-bit-cluster-info
         configuration:
@@ -101,7 +100,8 @@ operational_rules:
             Kind: ConfigMap
             Metadata:
               Name: fluent-bit-cluster-info
-              Namespace: amazon-cloudwatch
+              Namespace: |
+                {{ downstream "kubernetes:namespace" (upstream "kubernetes:config_map:fluent-bit-cluster-info" .Target) }}
               Labels:
                 k8s-app: fluent-bit
             Data:
