@@ -1,0 +1,16 @@
+source: aws:target_group
+target: aws:ecs_service
+deployment_order_reversed: true
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Target }}'
+        configuration:
+          field: LoadBalancers
+          value:
+            - TargetGroup: '{{ .Source }}'
+              ContainerName: '{{ .Target.Name }}'
+              ContainerPort: '{{ fieldValue "PortMappings[0].ContainerPort" (fieldValue "TaskDefinition" .Target)}}'
+      - resource: '{{ .Source }}'
+        configuration:
+          field: TargetType
+          value: ip

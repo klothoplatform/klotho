@@ -1,0 +1,36 @@
+qualified_type_name: aws:vpc_endpoint
+display_name: VPC Endpoint
+
+properties:
+  Vpc:
+    type: resource(aws:vpc)
+    namespace: true
+    default_value: '{{ downstream "aws:vpc" .Self }}'
+  Region:
+    type: string
+    operational_rule:
+    steps:
+      - direction: downstream
+        resources:
+          - aws:region
+  ServiceName:
+    type: string
+  VpcEndpointType:
+    type: string
+  Subnets:
+    type: list(resource(aws:subnet))
+  RouteTables:
+    type: list(resource(aws:route_table))
+  SecurityGroups:
+    type: list(resource(aws:security_group))
+
+classification:
+  is:
+    - service_endpoint
+  gives:
+    - private_network
+
+delete_context:
+  require_no_upstream: true
+views:
+  dataflow: small

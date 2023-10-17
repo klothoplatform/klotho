@@ -1,0 +1,14 @@
+source: aws:load_balancer_listener
+target: aws:target_group
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Protocol
+          value: '{{ fieldValue "Protocol" .Target }}'
+      - resource: '{{ .Source }}'
+        configuration:
+          field: DefaultActions
+          value:
+            - TargetGroup: '{{ .Target }}'
+              Type: forward

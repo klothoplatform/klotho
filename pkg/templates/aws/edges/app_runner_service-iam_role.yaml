@@ -1,0 +1,29 @@
+source: aws:app_runner_service
+target: aws:iam_role
+operational_rules:
+  - configuration_rules:
+      - resource: |
+          {{ .Target }}
+        configuration:
+          field: AssumeRolePolicyDoc
+          value:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - sts:AssumeRole
+                Effect: Allow
+                Principal:
+                  Service:
+                    - build.apprunner.amazonaws.com
+              - Action:
+                  - sts:AssumeRole
+                Effect: Allow
+                Principal:
+                  Service:
+                    - tasks.apprunner.amazonaws.com
+      - resource: |
+          {{ .Target }}
+        configuration:
+          field: ManagedPolicies
+          value:
+            - arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess

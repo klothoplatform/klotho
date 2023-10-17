@@ -1,0 +1,6 @@
+{
+    "name": "ami",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

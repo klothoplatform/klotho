@@ -1,0 +1,12 @@
+qualified_type_name: aws:iam_instance_profile
+display_name: IAM Instance Profile
+
+properties:
+  Role:
+    type: resource(aws:iam_role)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:iam_role
+          unique: true

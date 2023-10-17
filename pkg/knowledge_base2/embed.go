@@ -45,6 +45,7 @@ func NewKBFromFs(resources, edges fs.FS) (*KnowledgeBase, error) {
 func TemplatesFromFs(dir fs.FS) (map[construct.ResourceId]*ResourceTemplate, error) {
 	templates := map[construct.ResourceId]*ResourceTemplate{}
 	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
+		fmt.Println(d.Name())
 		if d.IsDir() {
 			return nil
 		}
@@ -76,6 +77,7 @@ func TemplatesFromFs(dir fs.FS) (map[construct.ResourceId]*ResourceTemplate, err
 func EdgeTemplatesFromFs(dir fs.FS) (map[string]*EdgeTemplate, error) {
 	templates := map[string]*EdgeTemplate{}
 	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
+		fmt.Println(d.Name())
 		if d.IsDir() {
 			return nil
 		}

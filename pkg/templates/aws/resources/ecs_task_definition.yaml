@@ -1,0 +1,86 @@
+qualified_type_name: aws:ecs_task_definition
+display_name: ECS Task Definition
+
+properties:
+  Image:
+    type: resource(aws:ecr_image)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:ecr_image:{{ .Self.Name }}-image
+          unique: true
+  EnvironmentVariables:
+    type: map(string,string)
+  Cpu:
+    type: string
+    default_value: '256'
+  Memory:
+    type: string
+    default_value: '512'
+  LogGroup:
+    type: resource(aws:log_group)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:log_group:{{ .Self.Name }}-log-group
+          unique: true
+  ExecutionRole:
+    type: resource(aws:iam_role)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:iam_role:{{ .Self.Name }}-execution-role
+          unique: true
+  Region:
+    type: resource(aws:region)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:region
+  NetworkMode:
+    type: string
+    default_value: awsvpc
+  PortMappings:
+    type: list
+    default_value:
+      - ContainerPort: 80
+        HostPort: 80
+        Protocol: tcp
+    properties:
+      ContainerPort:
+        type: int
+      HostPort:
+        type: int
+      Protocol:
+        type: string
+  RequiresCompatibilities:
+    type: list(string)
+    default_value:
+      - FARGATE
+  EfsVolumes:
+    type: list
+    properties:
+      FileSystemId:
+        type: string
+      RootDirectory:
+        type: string
+      TransitEncryption:
+        type: string
+      TransitEncryptionPort:
+        type: int
+      AuthorizationConfig:
+        type: map
+        properties:
+          AccessPoint:
+            type: resource(aws:efs_access_point)
+          Iam:
+            type: string
+
+delete_context:
+  require_no_upstream: true
+views:
+  dataflow: small

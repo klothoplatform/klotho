@@ -3,6 +3,7 @@ qualified_type_name: aws:security_group
 properties:
   Vpc:
     type: resource(aws:vpc)
+    namespace: true
     operational_rule:
       steps:
         - direction: downstream

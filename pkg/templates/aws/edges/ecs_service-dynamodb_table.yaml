@@ -1,0 +1,8 @@
+source: aws:ecs_service
+target: aws:dynamodb_table
+operational_rules:
+  - steps:
+      - resource: '{{ .Target }}'
+        direction: upstream
+        resources:
+          - '{{ fieldValue "ExecutionRole" (fieldValue "TaskDefinition" .Source)}}'

@@ -1,0 +1,28 @@
+qualified_type_name: aws:target_group
+display_name: Target Group
+
+properties:
+  Port:
+    type: int
+    default_value: 80
+  Protocol:
+    type: string
+    default_value: tcp
+  Vpc:
+    type: resource(aws:vpc)
+    default_value: '{{ downstream "aws:vpc" .Self }}'
+  TargetType:
+    type: string
+  Targets:
+    type: list
+    properties:
+      Id:
+        type: string
+      Port:
+        type: int
+        default_value: 80
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

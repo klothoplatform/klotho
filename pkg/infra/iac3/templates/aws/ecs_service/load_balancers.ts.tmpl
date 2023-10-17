@@ -1,0 +1,10 @@
+[
+{{- range $index, $lb := . }}
+    {
+        containerPort: {{ $lb.ContainerPort}},
+        targetGroupArn: {{ getVar $lb.TargetGroup}}.arn,
+        containerName: "{{ $lb.ContainerName}}",
+    },
+{{- end}}
+]
+

@@ -1,0 +1,2 @@
+source: aws:ec2_instance
+target: aws:security_group

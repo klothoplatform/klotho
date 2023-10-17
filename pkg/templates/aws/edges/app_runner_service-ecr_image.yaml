@@ -1,0 +1,2 @@
+source: aws:app_runner_service
+target: aws:ecr_image

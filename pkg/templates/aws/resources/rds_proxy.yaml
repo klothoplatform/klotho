@@ -21,6 +21,7 @@ properties:
         - direction: downstream
           resources:
             - aws:iam_role
+          unique: true
   SecurityGroups:
     type: list(resource(aws:security_group))
     operational_rule:

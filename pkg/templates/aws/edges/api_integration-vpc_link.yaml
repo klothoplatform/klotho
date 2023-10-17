@@ -1,0 +1,26 @@
+source: aws:api_integration
+target: aws:vpc_link
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: VpcLink
+          value: aws:vpc_link
+      - resource: '{{ .Source }}'
+        configuration:
+          field: ConnectionType
+          value: VPC_LINK
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Type
+          value: HTTP_PROXY
+  - if: |
+      {{- if not (hasDownstream "aws:load_balancer" .Target)}}'
+        false
+      {{- end}}
+      {{ eq (fieldValue "Type" (downstream "aws:load_balancer" .Target)) "network"}}
+    configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Uri
+          value: '{{ fieldRef "NlbUri" (downstream "aws:load_balancer" .Target)}}'

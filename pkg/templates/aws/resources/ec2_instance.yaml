@@ -1,0 +1,55 @@
+qualified_type_name: aws:ec2_instance
+display_name: EC2 Instance
+
+properties:
+  InstanceProfile:
+    type: resource(aws:iam_instance_profile)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:iam_instance_profile:{{ .Self.Name }}
+  SecurityGroup:
+    type: list(resource(aws:security_group))
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:security_group
+  Subnet:
+    type: resource(aws:ec2_subnet)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - selector: aws:subnet
+              properties:
+                Type: private
+            - aws:subnet
+  AMI:
+    type: resource(aws:ec2_ami)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:ec2_ami
+  InstanceType:
+    type: string
+    default: t3.medium
+  Id:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+classification:
+  is:
+    - compute
+    - long_running
+    - server
+    - linux
+
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+views:
+  dataflow: big

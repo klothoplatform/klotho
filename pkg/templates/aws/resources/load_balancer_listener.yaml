@@ -1,0 +1,25 @@
+qualified_type_name: aws:load_balancer_listener
+display_name: Load Balancer Listener
+
+properties:
+  Port:
+    type: int
+    default_value: 80
+  Protocol:
+    type: string
+    default_value: tcp
+  LoadBalancer:
+    type: resource(aws:load_balancer)
+    default_value: '{{ upstream "aws:load_balancer" .Self }}'
+  DefaultActions:
+    type: list
+    properties:
+      TargetGroup:
+        type: resource(aws:target_group)
+      Type:
+        type: string
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

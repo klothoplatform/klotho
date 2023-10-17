@@ -1,0 +1,2 @@
+source: aws:load_balancer
+target: aws:subnet

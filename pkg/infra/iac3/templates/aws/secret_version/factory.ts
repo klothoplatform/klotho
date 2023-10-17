@@ -1,5 +1,5 @@
 import * as aws from '@pulumi/aws'
-import {kloConfig} from '../../globals'
+import { kloConfig } from '../../globals'
 
 interface Args {
     Name: string

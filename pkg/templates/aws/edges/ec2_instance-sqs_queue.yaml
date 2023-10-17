@@ -1,0 +1,8 @@
+source: aws:ec2_instance
+target: aws:sqs_queue
+operational_rules:
+  - steps:
+      - resource: '{{ .Target }}'
+        direction: upstream
+        resources:
+          - '{{ fieldValue "Role" ( fieldValue "InstanceProfile" .Source)}}'

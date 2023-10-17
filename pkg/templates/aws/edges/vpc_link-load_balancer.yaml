@@ -1,0 +1,8 @@
+source: aws:vpc_link
+target: aws:load_balancer
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Target
+          value: '{{ .Target }}'
