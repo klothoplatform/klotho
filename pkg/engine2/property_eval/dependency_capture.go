@@ -1,0 +1,133 @@
+package property_eval
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"strings"
+	"text/template"
+
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/set"
+	"go.uber.org/zap"
+)
+
+// fauxConfigContext acts like a [knowledgebase.DynamicValueContext] but replaces the [FieldValue] function
+// with one that just returns the zero value of the property type and records the property reference.
+type fauxConfigContext struct {
+	propRef construct.PropertyRef
+	inner   knowledgebase.DynamicValueContext
+	refs    set.Set[construct.PropertyRef]
+}
+
+func (ctx *fauxConfigContext) DAG() construct.Graph {
+	return ctx.inner.DAG()
+}
+
+func (ctx *fauxConfigContext) KB() knowledgebase.TemplateKB {
+	return ctx.inner.KB()
+}
+
+func (ctx *fauxConfigContext) ExecuteDecode(tmpl string, data knowledgebase.DynamicValueData, value interface{}) error {
+	t, err := template.New("config").Funcs(ctx.TemplateFunctions()).Parse(tmpl)
+	if err != nil {
+		return fmt.Errorf("could not parse template: %w", err)
+	}
+	return ctx.inner.ExecuteTemplateDecode(t, data, value)
+}
+
+func (ctx *fauxConfigContext) ExecuteValue(v any, data knowledgebase.DynamicValueData) error {
+	if ctx.refs == nil {
+		ctx.refs = make(set.Set[construct.PropertyRef])
+	}
+	_, err := knowledgebase.TransformToPropertyValue(ctx.propRef.Resource, ctx.propRef.Property, v, ctx, data)
+	if err != nil {
+		zap.S().Debugf("ignoring error from TransformToPropertyValue during deps calculation on %s: %s", ctx.propRef, err)
+	}
+
+	return nil
+}
+
+func (ctx *fauxConfigContext) Execute(v any, data knowledgebase.DynamicValueData) error {
+	if ctx.refs == nil {
+		ctx.refs = make(set.Set[construct.PropertyRef])
+	}
+
+	if ref, ok := v.(construct.PropertyRef); ok {
+		ctx.refs.Add(ref)
+		return nil
+	}
+	vStr, ok := v.(string)
+	if !ok || !strings.Contains(vStr, "fieldValue") {
+		return nil
+	}
+	tmpl, err := template.New(ctx.propRef.String()).Funcs(ctx.TemplateFunctions()).Parse(vStr)
+	if err != nil {
+		return fmt.Errorf("could not parse template %w", err)
+	}
+
+	// Ignore execution errors for when the zero value is invalid due to other assumptions
+	// if there is an error with the template, this will be caught later when actually processing it.
+	err = tmpl.Execute(
+		io.Discard, // we don't care about the results, just the side effect of appending to propCtx.refs
+		data,
+	)
+	if err != nil {
+		zap.S().Debugf("ignoring error from template execution during deps calculation: %s", err)
+	}
+	return nil
+}
+
+func (ctx *fauxConfigContext) ExecuteOpRule(
+	data knowledgebase.DynamicValueData,
+	opRule knowledgebase.OperationalRule,
+) error {
+	var errs error
+	errs = errors.Join(errs, ctx.Execute(opRule.If, data))
+	for _, rule := range opRule.ConfigurationRules {
+		errs = errors.Join(errs, ctx.Execute(rule.Config.Value, data))
+	}
+	for _, step := range opRule.Steps {
+		for _, stepRes := range step.Resources {
+			errs = errors.Join(errs, ctx.Execute(stepRes.Selector, data))
+		}
+	}
+	return errs
+}
+
+func (ctx *fauxConfigContext) TemplateFunctions() template.FuncMap {
+	funcs := ctx.inner.TemplateFunctions()
+	funcs["fieldValue"] = ctx.FieldValue
+	return funcs
+}
+
+func (ctx *fauxConfigContext) FieldValue(field string, resource any) (any, error) {
+	resId, err := knowledgebase.TemplateArgToRID(resource)
+	if err != nil {
+		return "", err
+	}
+	ctx.refs.Add(construct.PropertyRef{Resource: resId, Property: field})
+
+	tmpl, err := ctx.inner.KB().GetResourceTemplate(resId)
+	if err != nil {
+		return "", err
+	}
+
+	return emptyValue(tmpl, field)
+}
+
+func emptyValue(tmpl *knowledgebase.ResourceTemplate, property string) (any, error) {
+	prop := tmpl.GetProperty(property)
+	if prop == nil {
+		return nil, fmt.Errorf("could not find property %s on template %s", property, tmpl.Id())
+	}
+	ptype, err := prop.PropertyType()
+	if err != nil {
+		return nil, fmt.Errorf(
+			"could not get property type for property %s on template %s: %w",
+			property, tmpl.Id(), err,
+		)
+	}
+	return ptype.ZeroValue(), nil
+}

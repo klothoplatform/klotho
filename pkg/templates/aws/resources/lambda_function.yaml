@@ -58,11 +58,6 @@ properties:
           resources:
             - aws:log_group:{{ .Self.Name }}-log-group
           unique: true
-      configuration_rules:
-        - resource: aws:log_group:{{ .Self.Name }}-log-group
-          configuration:
-            field: LogGroupName
-            value: /aws/lambda/{{ .Self.Name }}
   LambdaIntegrationUri:
     type: string
     configuration_disabled: true

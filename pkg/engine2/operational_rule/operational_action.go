@@ -17,7 +17,6 @@ type (
 		CurrentIds []construct.ResourceId
 		ruleCtx    OperationalRuleContext
 		numNeeded  int
-		result     Result
 	}
 )
 
@@ -68,20 +67,30 @@ func (action *operationalResourceAction) handleExplicitResources(resource *const
 		if resourceSelector.Selector == "" {
 			continue
 		}
-		decodedId, err := configCtx.ExecuteDecodeAsResourceId(resourceSelector.Selector, action.ruleCtx.Data)
+		var decodedIds construct.ResourceList
+		err := configCtx.ExecuteDecode(
+			resourceSelector.Selector,
+			action.ruleCtx.Data,
+			&decodedIds,
+		)
 		if err != nil {
 			return fmt.Errorf("error during operational resource action while decoding resource selector: %w", err)
 		}
-		if decodedId.Name != "" {
+
+		for _, decodedId := range decodedIds {
+			if decodedId.Name == "" {
+				continue
+			}
+
 			res, err := action.ruleCtx.Solution.RawView().Vertex(decodedId)
 			if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
-				return err
+				return fmt.Errorf("could not get resource for selector %+v: %w", resourceSelector, err)
 			}
 			if res == nil {
 				res = construct.CreateResource(decodedId)
 				err = action.addSelectorProperties(resourceSelector.Properties, res)
 				if err != nil {
-					return err
+					return fmt.Errorf("could not add selector properties to %s: %w", decodedId, err)
 				}
 			}
 			if resourceSelector.IsMatch(configCtx, action.ruleCtx.Data, res) {
@@ -157,8 +166,7 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 			}
 		}
 	}
-	result, err := action.placeResources(resource, availableResources)
-	action.result.Append(result)
+	err := action.placeResources(resource, availableResources)
 	if err != nil {
 		return fmt.Errorf("error during operational resource action while placing resources: %w", err)
 	}
@@ -166,10 +174,10 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 }
 
 func (action *operationalResourceAction) placeResources(resource *construct.Resource,
-	availableResources []*construct.Resource) (Result, error) {
+	availableResources []*construct.Resource) error {
 	placerGen, ok := placerMap[action.Step.SelectionOperator]
 	if !ok {
-		return Result{}, fmt.Errorf("unknown selection operator %s", action.Step.SelectionOperator)
+		return fmt.Errorf("unknown selection operator %s", action.Step.SelectionOperator)
 	}
 	placer := placerGen()
 	placer.SetCtx(action.ruleCtx)
@@ -284,15 +292,10 @@ func (action *operationalResourceAction) createAndAddDependency(res, stepResourc
 	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 		return err
 	}
-	if err == nil {
-		action.result.CreatedResources = append(action.result.CreatedResources, res)
-	}
-	var edge construct.Edge
-	edge, err = action.ruleCtx.addDependencyForDirection(action.Step, stepResource, res)
+	err = action.ruleCtx.addDependencyForDirection(action.Step, stepResource, res)
 	if err != nil {
 		return err
 	}
-	action.result.AddedDependencies = append(action.result.AddedDependencies, edge)
 	action.numNeeded--
 	return nil
 }

@@ -103,7 +103,7 @@ func (p ResourceSelector) IsMatch(ctx DynamicValueContext, data DynamicValueData
 		if property != v {
 			return false
 		}
-		template, err := ctx.KB.GetResourceTemplate(res.ID)
+		template, err := ctx.KB().GetResourceTemplate(res.ID)
 		if err != nil || template == nil {
 			return false
 		}
@@ -134,7 +134,7 @@ func (p *ResourceSelector) UnmarshalYAML(n *yaml.Node) error {
 func (p ResourceSelector) ExtractResourceIds(ctx DynamicValueContext, data DynamicValueData) (ids construct.ResourceList, errs error) {
 	var selectors construct.ResourceList
 	if p.Selector != "" {
-		selector, err := ctx.ExecuteDecodeAsResourceId(p.Selector, data)
+		selector, err := ExecuteDecodeAsResourceId(ctx, p.Selector, data)
 		if err != nil {
 			// The output of the decode may be a list of resources, so attempt to parse to that
 			err = ctx.ExecuteDecode(p.Selector, data, &selectors)
@@ -148,13 +148,13 @@ func (p ResourceSelector) ExtractResourceIds(ctx DynamicValueContext, data Dynam
 			selectors = append(selectors, selector)
 		}
 	} else {
-		for _, res := range ctx.KB.ListResources() {
+		for _, res := range ctx.KB().ListResources() {
 			selectors = append(selectors, res.Id())
 		}
 	}
 
 	for _, id := range selectors {
-		resTmpl, err := ctx.KB.GetResourceTemplate(id)
+		resTmpl, err := ctx.KB().GetResourceTemplate(id)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue

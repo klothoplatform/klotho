@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/dominikbraun/graph"
-	"github.com/klothoplatform/klotho/pkg/set"
+	"github.com/klothoplatform/klotho/pkg/graph_addons"
 )
 
 func CopyVertexProps(p graph.VertexProperties) func(*graph.VertexProperties) {
@@ -23,86 +23,37 @@ func CopyEdgeProps(p graph.EdgeProperties) func(*graph.EdgeProperties) {
 // references (as [ResourceId] or [PropertyRef]) of the old ID to the new ID in any resource that depends on or is
 // depended on by the resource.
 func ReplaceResource(g Graph, oldId ResourceId, newRes *Resource) error {
-	r, props, err := g.VertexWithProperties(oldId)
+	err := graph_addons.ReplaceVertex(g, oldId, newRes, ResourceHasher)
 	if err != nil {
-		return err
-	}
-
-	err = g.AddVertex(r, CopyVertexProps(props))
-	if err != nil {
-		return err
-	}
-
-	neighbors := make(set.Set[ResourceId])
-	adj, err := g.AdjacencyMap()
-	if err != nil {
-		return err
-	}
-	for _, edge := range adj[oldId] {
-		err = errors.Join(
-			err,
-			g.AddEdge(r.ID, edge.Target, CopyEdgeProps(edge.Properties)),
-			g.RemoveEdge(edge.Source, edge.Target),
-		)
-		neighbors.Add(edge.Target)
-	}
-	if err != nil {
-		return err
-	}
-
-	pred, err := g.PredecessorMap()
-	if err != nil {
-		return err
-	}
-	for _, edge := range pred[oldId] {
-		err = errors.Join(
-			err,
-			g.AddEdge(edge.Source, r.ID, CopyEdgeProps(edge.Properties)),
-			g.RemoveEdge(edge.Source, edge.Target),
-		)
-		neighbors.Add(edge.Source)
-	}
-	if err != nil {
-		return err
-	}
-
-	if err := g.RemoveVertex(oldId); err != nil {
 		return err
 	}
 
 	updateId := func(path PropertyPathItem) error {
 		itemVal := path.Get()
-		itemId, ok := itemVal.(ResourceId)
-		if ok && itemId == oldId {
-			return path.Set(r.ID)
+
+		if itemId, ok := itemVal.(ResourceId); ok && itemId == oldId {
+			return path.Set(newRes.ID)
 		}
-		itemRef, ok := itemVal.(PropertyRef)
-		if ok && itemRef.Resource == oldId {
-			itemRef.Resource = r.ID
+
+		if itemRef, ok := itemVal.(PropertyRef); ok && itemRef.Resource == oldId {
+			itemRef.Resource = newRes.ID
 			return path.Set(itemRef)
 		}
 		return nil
 	}
 
-	for neighborId := range neighbors {
-		neighbor, err := g.Vertex(neighborId)
-		if err != nil {
-			return err
-		}
-		err = neighbor.WalkProperties(func(path PropertyPath, err error) error {
+	return WalkGraph(g, func(id ResourceId, resource *Resource, nerr error) error {
+		err = resource.WalkProperties(func(path PropertyPath, err error) error {
 			err = errors.Join(err, updateId(path))
-			kv, ok := path.Last().(PropertyKVItem)
-			if !ok {
-				return err
+
+			if kv, ok := path.Last().(PropertyKVItem); ok {
+				err = errors.Join(err, updateId(kv.Key()))
 			}
-			err = errors.Join(err, updateId(kv.Key()))
+
 			return err
 		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+		return errors.Join(nerr, err)
+	})
 }
 
 // UpdateResourceId is used when a resource's ID changes. It updates the graph in-place, using the resource

@@ -1,4 +1,4 @@
-package graph_store
+package graph_addons
 
 import (
 	"fmt"
@@ -47,6 +47,10 @@ func vertexPropsEqual(a, b graph.VertexProperties) bool {
 func (s *MemoryStore[K, T]) AddVertex(k K, t T, p graph.VertexProperties) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	if p.Attributes == nil {
+		p.Attributes = make(map[string]string)
+	}
 
 	if existing, ok := s.vertices[k]; ok {
 		if existing == t && vertexPropsEqual(s.vertexProperties[k], p) {

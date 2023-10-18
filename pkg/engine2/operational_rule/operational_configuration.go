@@ -10,7 +10,7 @@ import (
 
 func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.ConfigurationRule) error {
 	dyn := solution_context.DynamicCtx(ctx.Solution)
-	res, err := dyn.ExecuteDecodeAsResourceId(config.Resource, ctx.Data)
+	res, err := knowledgebase.ExecuteDecodeAsResourceId(dyn, config.Resource, ctx.Data)
 	if err != nil {
 		return err
 	}

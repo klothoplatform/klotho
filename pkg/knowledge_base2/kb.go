@@ -180,7 +180,7 @@ func (kb *KnowledgeBase) GetAllowedNamespacedResourceIds(ctx DynamicValueContext
 		if step.Resources != nil {
 			for _, resource := range step.Resources {
 				if resource.Selector != "" {
-					id, err := ctx.ExecuteDecodeAsResourceId(resource.Selector, DynamicValueData{Resource: resourceId})
+					id, err := ExecuteDecodeAsResourceId(ctx, resource.Selector, DynamicValueData{Resource: resourceId})
 					if err != nil {
 						return nil, err
 					}
@@ -255,40 +255,49 @@ func (kb *KnowledgeBase) GetResourcePropertyType(resource construct.ResourceId, 
 // TransformToPropertyValue transforms a value to the correct type for a given property
 // This is used for transforming values from the config template (and any interface value we want to set on a resource) to the correct type for the resource
 func TransformToPropertyValue(
-	resource *construct.Resource,
+	resource construct.ResourceId,
 	propertyName string,
 	value interface{},
-	ctx DynamicValueContext,
+	ctx DynamicContext,
 	data DynamicValueData,
 ) (interface{}, error) {
-	template, err := ctx.KB.GetResourceTemplate(resource.ID)
+	template, err := ctx.KB().GetResourceTemplate(resource)
 	if err != nil {
 		return nil, err
 	}
 	property := template.GetProperty(propertyName)
 	if property == nil {
-		return nil, fmt.Errorf("could not find property %s on resource %s", propertyName, resource.ID)
+		return nil, fmt.Errorf(
+			"could not find property %s on resource %s",
+			propertyName, resource,
+		)
 	}
 	propertyType, err := property.PropertyType()
 	if err != nil {
-		return nil, fmt.Errorf("could not find property type %s on resource %s for property %s", property.Type, resource.ID, property.Name)
+		return nil, fmt.Errorf(
+			"could not find property type %s on resource %s for property %s",
+			property.Type, resource, property.Name,
+		)
 	}
 	if value == nil {
 		return propertyType.ZeroValue(), nil
 	}
 	val, err := propertyType.Parse(value, ctx, data)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse value %v for property %s on resource %s: %w", value, property.Name, resource.ID, err)
+		return nil, fmt.Errorf(
+			"could not parse value %v for property %s on resource %s: %w",
+			value, property.Name, resource, err,
+		)
 	}
 	return val, nil
 }
 
 func TransformAllPropertyValues(ctx DynamicValueContext) error {
-	ids, err := construct.ToplogicalSort(ctx.DAG)
+	ids, err := construct.ToplogicalSort(ctx.DAG())
 	if err != nil {
 		return err
 	}
-	resources, err := construct.ResolveIds(ctx.DAG, ids)
+	resources, err := construct.ResolveIds(ctx.DAG(), ids)
 	if err != nil {
 		return err
 	}
@@ -297,7 +306,7 @@ func TransformAllPropertyValues(ctx DynamicValueContext) error {
 
 resourceLoop:
 	for _, resource := range resources {
-		tmpl, err := ctx.KB.GetResourceTemplate(resource.ID)
+		tmpl, err := ctx.KB().GetResourceTemplate(resource.ID)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
@@ -314,7 +323,7 @@ resourceLoop:
 			if preXform == nil {
 				continue
 			}
-			val, err := TransformToPropertyValue(resource, prop.Name, preXform, ctx, data)
+			val, err := TransformToPropertyValue(resource.ID, prop.Name, preXform, ctx, data)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("error transforming %s#%s: %w", resource.ID, prop.Name, err))
 				continue resourceLoop

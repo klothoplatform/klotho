@@ -1,4 +1,4 @@
-package graph_store
+package graph_addons
 
 import (
 	"github.com/dominikbraun/graph"

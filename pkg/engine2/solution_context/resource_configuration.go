@@ -18,13 +18,18 @@ func ConfigureResource(
 	if resource == nil {
 		return fmt.Errorf("resource does not exist")
 	}
-	configCtx := knowledgebase.DynamicValueContext{DAG: ctx.DataflowGraph(), KB: ctx.KnowledgeBase()}
-	var field string
-	err := configCtx.ExecuteDecode(configuration.Field, data, &field)
-	if err != nil {
-		return err
+	if data.Resource != resource.ID {
+		return fmt.Errorf("data resource (%s) does not match configuring resource (%s)", data.Resource, resource.ID)
 	}
-	val, err := knowledgebase.TransformToPropertyValue(resource, field, configuration.Value, configCtx, data)
+	field := configuration.Field
+
+	val, err := knowledgebase.TransformToPropertyValue(
+		resource.ID,
+		field,
+		configuration.Value,
+		DynamicCtx(ctx),
+		data,
+	)
 	if err != nil {
 		return err
 	}
@@ -56,20 +61,15 @@ func ConfigureResource(
 	return nil
 }
 
-func ApplyConfigureConstraint(ctx SolutionContext, res *construct.Resource, rc constraints.ResourceConstraint) error {
-	ctx = ctx.With("constraint", rc)
-	configuration := knowledgebase.Configuration{
-		Field: rc.Property,
-		Value: rc.Value,
-	}
-	switch rc.Operator {
+func ConstraintOperatorToAction(op constraints.ConstraintOperator) (string, error) {
+	switch op {
 	case constraints.AddConstraintOperator:
-		return ConfigureResource(ctx, res, configuration, knowledgebase.DynamicValueData{Resource: res.ID}, "add")
+		return "add", nil
 	case constraints.RemoveConstraintOperator:
-		return ConfigureResource(ctx, res, configuration, knowledgebase.DynamicValueData{Resource: res.ID}, "remove")
+		return "remove", nil
 	case constraints.EqualsConstraintOperator:
-		return ConfigureResource(ctx, res, configuration, knowledgebase.DynamicValueData{Resource: res.ID}, "set")
+		return "set", nil
 	default:
-		return fmt.Errorf("invalid operator %s", rc.Operator)
+		return "", fmt.Errorf("invalid operator %s", op)
 	}
 }

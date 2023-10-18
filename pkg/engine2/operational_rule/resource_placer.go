@@ -13,8 +13,13 @@ import (
 
 type (
 	ResourcePlacer interface {
-		PlaceResources(resource *construct.Resource, step knowledgebase.OperationalStep,
-			availableResources []*construct.Resource, numNeeded *int) (Result, error)
+		PlaceResources(
+			resource *construct.Resource,
+			step knowledgebase.OperationalStep,
+			availableResources []*construct.Resource,
+			numNeeded *int,
+		) error
+
 		SetCtx(ctx OperationalRuleContext)
 	}
 
@@ -37,40 +42,42 @@ var placerMap = map[knowledgebase.SelectionOperator]func() ResourcePlacer{
 	knowledgebase.ClosestSelectionOperator: func() ResourcePlacer { return &ClosestPlacer{} },
 }
 
-func (p *SpreadPlacer) PlaceResources(resource *construct.Resource, step knowledgebase.OperationalStep,
-	availableResources []*construct.Resource, numNeeded *int) (Result, error) {
+func (p *SpreadPlacer) PlaceResources(
+	resource *construct.Resource,
+	step knowledgebase.OperationalStep,
+	availableResources []*construct.Resource,
+	numNeeded *int,
+) error {
 	// if we get the spread operator our logic goes as follows:
 	// If there is only one resource available, do not place in that resource and instead create a new one
 	// If there are multiple available, find the one with the least connections to the same resource in question and use that
 
-	result := Result{}
 	if len(availableResources) <= 1 {
 		// If there is only one resource available, do not place in that resource and instead create a new one
-		return result, nil
+		return nil
 	}
 	if *numNeeded == 0 {
-		return result, nil
+		return nil
 	}
 	mapOfConnections, err := p.ctx.findNumConnectionsToTypeForAvailableResources(step, availableResources, resource.ID)
 	if err != nil {
-		return result, err
+		return err
 	}
 	numConnectionsArray := sortNumConnectionsMap(mapOfConnections)
 
 	for _, numConnections := range numConnectionsArray {
 		for _, availableResource := range mapOfConnections[numConnections] {
-			edge, err := p.ctx.addDependencyForDirection(step, resource, availableResource)
+			err := p.ctx.addDependencyForDirection(step, resource, availableResource)
 			if err != nil {
-				return result, err
+				return err
 			}
-			result.AddedDependencies = append(result.AddedDependencies, edge)
 			*numNeeded--
 			if *numNeeded == 0 {
-				return result, nil
+				return nil
 			}
 		}
 	}
-	return result, nil
+	return nil
 }
 
 func (p *SpreadPlacer) SetCtx(ctx OperationalRuleContext) {
@@ -78,30 +85,28 @@ func (p *SpreadPlacer) SetCtx(ctx OperationalRuleContext) {
 }
 
 func (p *ClusterPlacer) PlaceResources(resource *construct.Resource, step knowledgebase.OperationalStep,
-	availableResources []*construct.Resource, numNeeded *int) (Result, error) {
+	availableResources []*construct.Resource, numNeeded *int) error {
 	// if we get the cluster operator our logic goes as follows:
 	// Place in the resource which has the most connections to the same resource in question
-	result := Result{}
 	mapOfConnections, err := p.ctx.findNumConnectionsToTypeForAvailableResources(step, availableResources, resource.ID)
 	if err != nil {
-		return result, err
+		return err
 	}
 	numConnectionsArray := sortNumConnectionsMap(mapOfConnections)
 	sort.Sort(sort.Reverse(sort.IntSlice(numConnectionsArray)))
 	for _, numConnections := range numConnectionsArray {
 		for _, availableResource := range mapOfConnections[numConnections] {
-			edge, err := p.ctx.addDependencyForDirection(step, resource, availableResource)
+			err := p.ctx.addDependencyForDirection(step, resource, availableResource)
 			if err != nil {
-				return result, err
+				return err
 			}
-			result.AddedDependencies = append(result.AddedDependencies, edge)
 			*numNeeded--
 			if *numNeeded == 0 {
-				return result, nil
+				return nil
 			}
 		}
 	}
-	return result, nil
+	return nil
 }
 
 func (p *ClusterPlacer) SetCtx(ctx OperationalRuleContext) {
@@ -109,12 +114,11 @@ func (p *ClusterPlacer) SetCtx(ctx OperationalRuleContext) {
 }
 
 func (p ClosestPlacer) PlaceResources(resource *construct.Resource, step knowledgebase.OperationalStep,
-	availableResources []*construct.Resource, numNeeded *int) (Result, error) {
+	availableResources []*construct.Resource, numNeeded *int) error {
 	// if we get the closest operator our logic goes as follows:
 	// find the closest available resource in terms of functional distance and use that
-	result := Result{}
 	if *numNeeded == 0 {
-		return result, nil
+		return nil
 	}
 	lengthMap := map[int][]*construct.Resource{}
 	for _, availableResource := range availableResources {
@@ -122,7 +126,7 @@ func (p ClosestPlacer) PlaceResources(resource *construct.Resource, step knowled
 		var err error
 		undirectedGraph, err := p.buildUndirectedGraph()
 		if err != nil {
-			return result, err
+			return err
 		}
 		if step.Direction == knowledgebase.DirectionDownstream {
 			path, err = graph.ShortestPath(undirectedGraph, resource.ID, availableResource.ID)
@@ -130,7 +134,7 @@ func (p ClosestPlacer) PlaceResources(resource *construct.Resource, step knowled
 			path, err = graph.ShortestPath(undirectedGraph, availableResource.ID, resource.ID)
 		}
 		if err != nil && !errors.Is(err, graph.ErrTargetNotReachable) {
-			return result, err
+			return err
 		}
 		length := len(path)
 		// If the target isnt reachable then we want to make it so that it is the longest possible path
@@ -150,18 +154,17 @@ func (p ClosestPlacer) PlaceResources(resource *construct.Resource, step knowled
 	sortedLengthList := sortNumConnectionsMap(lengthMap)
 	for _, length := range sortedLengthList {
 		for _, availableResource := range lengthMap[length] {
-			edge, err := p.ctx.addDependencyForDirection(step, resource, availableResource)
+			err := p.ctx.addDependencyForDirection(step, resource, availableResource)
 			if err != nil {
-				return result, err
+				return err
 			}
-			result.AddedDependencies = append(result.AddedDependencies, edge)
 			*numNeeded--
 			if *numNeeded == 0 {
-				return result, nil
+				return nil
 			}
 		}
 	}
-	return result, nil
+	return nil
 }
 
 func (p *ClosestPlacer) SetCtx(ctx OperationalRuleContext) {
@@ -169,11 +172,7 @@ func (p *ClosestPlacer) SetCtx(ctx OperationalRuleContext) {
 }
 
 func (p *ClosestPlacer) buildUndirectedGraph() (construct.Graph, error) {
-	undirected := graph.New(
-		func(r *construct.Resource) construct.ResourceId {
-			return r.ID
-		},
-	)
+	undirected := graph.New(construct.ResourceHasher)
 	err := undirected.AddVerticesFrom(p.ctx.Solution.RawView())
 	if err != nil {
 		return nil, err

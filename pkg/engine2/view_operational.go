@@ -8,11 +8,8 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
-	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
-	property_eval "github.com/klothoplatform/klotho/pkg/engine2/property_eval"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"go.uber.org/zap"
 )
 
@@ -27,8 +24,7 @@ func (view MakeOperationalView) AddVertex(value *construct.Resource, options ...
 	if err != nil {
 		return err
 	}
-	_, err = view.MakeResourcesOperational([]*construct.Resource{value})
-	return err
+	return view.MakeResourcesOperational([]*construct.Resource{value})
 }
 
 func (view MakeOperationalView) AddVerticesFrom(g construct.Graph) error {
@@ -57,19 +53,15 @@ func (view MakeOperationalView) AddVerticesFrom(g construct.Graph) error {
 	if errs != nil {
 		return errs
 	}
-	_, err = view.MakeResourcesOperational(resources)
-	return err
+	return view.MakeResourcesOperational(resources)
 }
 
 func (view MakeOperationalView) raw() solution_context.RawAccessView {
 	return solution_context.NewRawView(solutionContext(view))
 }
 
-func (view MakeOperationalView) MakeResourcesOperational(resources []*construct.Resource) (
-	construct.ResourceIdChangeResults,
-	error,
-) {
-	return property_eval.SetupResources(solutionContext(view), resources)
+func (view MakeOperationalView) MakeResourcesOperational(resources []*construct.Resource) error {
+	return view.propertyEval.AddResources(resources...)
 }
 
 func (view MakeOperationalView) Vertex(hash construct.ResourceId) (*construct.Resource, error) {
@@ -81,7 +73,10 @@ func (view MakeOperationalView) VertexWithProperties(hash construct.ResourceId) 
 }
 
 func (view MakeOperationalView) RemoveVertex(hash construct.ResourceId) error {
-	return view.raw().RemoveVertex(hash)
+	return errors.Join(
+		view.raw().RemoveVertex(hash),
+		view.propertyEval.RemoveResource(hash),
+	)
 }
 
 func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, options ...func(*graph.EdgeProperties)) (err error) {
@@ -141,105 +136,33 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 	}
 
 	// After all the resources, then add all the dependencies
-	if len(path) == 2 {
-		zap.S().Infof("Adding edge %s -> %s (for %s -> %s)", path[0], path[1], source, target)
-		errs = view.raw().AddEdge(path[0], path[1], options...)
-	} else {
-		pstr := make([]string, len(path))
-		for i, pathId := range path {
-			pstr[i] = pathId.String()
-			if i == 0 {
-				continue
-			}
-			errs = errors.Join(errs, view.raw().AddEdge(path[i-1], pathId))
-		}
-		zap.S().Infof("Expanded %s -> %s to %s", source, target, strings.Join(pstr, " -> "))
-	}
-	if errs != nil {
-		return errs
-	}
-	// After the graph is set up, first make all the resources operational
-	idChangeResult, err := property_eval.SetupResources(solutionContext(view), resources)
-	if err != nil {
-		return err
-	}
-
-	// Finally, after the graph and resources are operational, make all the edges operational
-	var result operational_rule.Result
-	for i, _ := range path {
-		// because the id may have changed during setup, due to namespacing, we need to get the current id returned to us
-		// check to see if there are any id changes in the path at the spot of the index
-		if res, found := idChangeResult[path[i]]; found {
-			path[i] = res
-		}
+	pstr := make([]string, len(path))
+	edges := make([]construct.Edge, len(path)-1)
+	for i, pathId := range path {
+		pstr[i] = pathId.String()
 		if i == 0 {
 			continue
 		}
-		addRes, addDep, err := view.MakeEdgeOperational(path[i-1], path[i])
-		errs = errors.Join(errs, err)
-		result.CreatedResources = append(result.CreatedResources, addRes...)
-		result.AddedDependencies = append(result.AddedDependencies, addDep...)
+		edge := construct.Edge{Source: path[i-1], Target: pathId}
+		errs = errors.Join(errs, view.raw().AddEdge(edge.Source, edge.Target))
+		edges[i-1] = edge
+	}
+	if len(pstr) > 2 {
+		zap.S().Debug("Expanded %s -> %s to %s", source, target, strings.Join(pstr, " -> "))
 	}
 	if errs != nil {
 		return errs
 	}
 
-	for len(result.CreatedResources) > 0 || len(result.AddedDependencies) > 0 {
-		idChangeResult, err = property_eval.SetupResources(solutionContext(view), result.CreatedResources)
-		if err != nil {
-			return err
-		}
-		var nextResult operational_rule.Result
-		for _, edge := range result.AddedDependencies {
-			// check to see if there are any id changes in the edge
-			if srcRes, found := idChangeResult[edge.Source]; found {
-				edge.Source = srcRes
-			}
-			if dstRes, found := idChangeResult[edge.Target]; found {
-				edge.Target = dstRes
-			}
-			addRes, addDep, err := view.MakeEdgeOperational(edge.Source, edge.Target)
-			errs = errors.Join(errs, err)
-			nextResult.CreatedResources = append(nextResult.CreatedResources, addRes...)
-			nextResult.AddedDependencies = append(nextResult.AddedDependencies, addDep...)
-		}
-		if errs != nil {
-			return errs
-		}
-		result = nextResult
+	if err := view.MakeResourcesOperational(resources); err != nil {
+		return err
 	}
 
-	return nil
+	return view.MakeEdgesOperational(edges)
 }
 
-func (view MakeOperationalView) MakeEdgeOperational(
-	source, target construct.ResourceId,
-) ([]*construct.Resource, []construct.Edge, error) {
-	tmpl := view.KB.GetEdgeTemplate(source, target)
-	if tmpl == nil {
-		err := view.RemoveEdge(source, target)
-		if err != nil {
-			return nil, nil, err
-		}
-		err = view.AddEdge(source, target)
-		return nil, nil, err
-	}
-	edge := construct.Edge{Source: source, Target: target}
-	view.stack = append(view.stack, solution_context.KV{Key: "edge", Value: edge})
-
-	opCtx := operational_rule.OperationalRuleContext{
-		Data:     knowledgebase.DynamicValueData{Edge: &edge},
-		Solution: solutionContext(view),
-	}
-
-	var result operational_rule.Result
-	var errs error
-	for _, rule := range tmpl.OperationalRules {
-		ruleResult, err := opCtx.HandleOperationalRule(rule)
-		errs = errors.Join(errs, err)
-		result.Append(ruleResult)
-	}
-	return result.CreatedResources, result.AddedDependencies, errs
+func (view MakeOperationalView) MakeEdgesOperational(edges []construct.Edge) error {
+	return view.propertyEval.AddEdges(edges...)
 }
 
 func (view MakeOperationalView) AddEdgesFrom(g construct.Graph) error {
@@ -279,11 +202,7 @@ func (view MakeOperationalView) PredecessorMap() (map[construct.ResourceId]map[c
 }
 
 func (view MakeOperationalView) Clone() (construct.Graph, error) {
-	clone, err := solutionContext(view).Clone(true)
-	if err != nil {
-		return nil, err
-	}
-	return MakeOperationalView(clone), nil
+	return nil, errors.New("cannot clone an operational view")
 }
 
 func (view MakeOperationalView) Order() (int, error) {

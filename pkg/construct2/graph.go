@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/dominikbraun/graph"
-	"github.com/klothoplatform/klotho/pkg/graph_store"
+	"github.com/klothoplatform/klotho/pkg/graph_addons"
 )
 
 type (
@@ -19,10 +19,8 @@ type (
 
 func NewGraph(options ...func(*graph.Traits)) Graph {
 	return Graph(graph.NewWithStore(
-		func(r *Resource) ResourceId {
-			return r.ID
-		},
-		graph_store.NewMemoryStore[ResourceId, *Resource](),
+		ResourceHasher,
+		graph_addons.NewMemoryStore[ResourceId, *Resource](),
 		append(options,
 			graph.Directed(),
 		)...,
@@ -31,6 +29,10 @@ func NewGraph(options ...func(*graph.Traits)) Graph {
 
 func NewAcyclicGraph(options ...func(*graph.Traits)) Graph {
 	return NewGraph(graph.PreventCycles())
+}
+
+func ResourceHasher(r *Resource) ResourceId {
+	return r.ID
 }
 
 func Hash(g Graph) ([]byte, error) {

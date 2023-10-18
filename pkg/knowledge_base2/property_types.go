@@ -1,8 +1,8 @@
 package knowledgebase2
 
 import (
+	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
@@ -12,7 +12,7 @@ import (
 
 type (
 	PropertyType interface {
-		Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error)
+		Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error)
 		SetProperty(property *Property)
 		ZeroValue() any
 	}
@@ -117,7 +117,7 @@ func (p *Property) PropertyType() (PropertyType, error) {
 	return newPtype, nil
 }
 
-func (str *StringPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
+func (str *StringPropertyType) Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error) {
 	// Here we have to try to parse to a property ref first, since a string representation of a property ref would match string parsing
 	refPType := &PropertyRefPropertyType{}
 	val, err := refPType.Parse(value, ctx, data)
@@ -132,7 +132,7 @@ func (str *StringPropertyType) Parse(value any, ctx DynamicValueContext, data Dy
 	return nil, fmt.Errorf("invalid string value %v", value)
 }
 
-func (i *IntPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
+func (i *IntPropertyType) Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error) {
 	if val, ok := value.(string); ok {
 		var result int
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -149,7 +149,7 @@ func (i *IntPropertyType) Parse(value any, ctx DynamicValueContext, data Dynamic
 	return nil, fmt.Errorf("invalid int value %v", value)
 }
 
-func (f *FloatPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
+func (f *FloatPropertyType) Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error) {
 	if val, ok := value.(string); ok {
 		var result float32
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -172,7 +172,7 @@ func (f *FloatPropertyType) Parse(value any, ctx DynamicValueContext, data Dynam
 	return nil, fmt.Errorf("invalid float value %v", value)
 }
 
-func (b *BoolPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
+func (b *BoolPropertyType) Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error) {
 	if val, ok := value.(string); ok {
 		var result bool
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -189,9 +189,9 @@ func (b *BoolPropertyType) Parse(value any, ctx DynamicValueContext, data Dynami
 	return nil, fmt.Errorf("invalid bool value %v", value)
 }
 
-func (r *ResourcePropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
+func (r *ResourcePropertyType) Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error) {
 	if val, ok := value.(string); ok {
-		id, err := ctx.ExecuteDecodeAsResourceId(val, data)
+		id, err := ExecuteDecodeAsResourceId(ctx, val, data)
 		if !id.IsZero() && !r.Value.Matches(id) {
 			return nil, fmt.Errorf("resource value %v does not match type %s", value, r.Value)
 		}
@@ -230,7 +230,7 @@ func (r *ResourcePropertyType) Parse(value any, ctx DynamicValueContext, data Dy
 	return nil, fmt.Errorf("invalid resource value %v", value)
 }
 
-func (p *PropertyRefPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
+func (p *PropertyRefPropertyType) Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error) {
 	if val, ok := value.(string); ok {
 		result := construct.PropertyRef{}
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -253,7 +253,7 @@ func (p *PropertyRefPropertyType) Parse(value any, ctx DynamicValueContext, data
 	return nil, fmt.Errorf("invalid property reference value %v", value)
 }
 
-func (list *ListPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
+func (list *ListPropertyType) Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error) {
 
 	var result []any
 	val, ok := value.([]any)
@@ -291,7 +291,7 @@ func (list *ListPropertyType) Parse(value any, ctx DynamicValueContext, data Dyn
 	return result, nil
 }
 
-func (s *SetPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
+func (s *SetPropertyType) Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error) {
 	var result = set.HashedSet[string, any]{
 		Hasher: func(s any) string {
 			return fmt.Sprintf("%v", s)
@@ -333,7 +333,7 @@ func (s *SetPropertyType) Parse(value any, ctx DynamicValueContext, data Dynamic
 	return result, nil
 }
 
-func (m *MapPropertyType) Parse(value any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
+func (m *MapPropertyType) Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error) {
 
 	result := map[string]any{}
 
@@ -355,6 +355,7 @@ func (m *MapPropertyType) Parse(value any, ctx DynamicValueContext, data Dynamic
 			return nil, fmt.Errorf("invalid map property type %s", m.Property.Name)
 		}
 
+		var errs error
 		for key, prop := range m.Property.Properties {
 
 			if _, found := mapVal[key]; !found && prop.DefaultValue != nil {
@@ -371,7 +372,8 @@ func (m *MapPropertyType) Parse(value any, ctx DynamicValueContext, data Dynamic
 				propertyType.SetProperty(m.Property.Properties[key])
 				val, err := propertyType.Parse(mapVal[key], ctx, data)
 				if err != nil {
-					return nil, err
+					errs = errors.Join(errs, fmt.Errorf("unable to parse value for sub property %s: %w", key, err))
+					continue
 				}
 				result[key] = val
 			}
@@ -437,41 +439,15 @@ func (p *PropertyRefPropertyType) SetProperty(property *Property) {
 }
 
 func (m *MapPropertyType) ZeroValue() any {
-	tempProp := &Property{Type: m.Key}
-	keyType, err := tempProp.PropertyType()
-	if err != nil {
-		return nil
-	}
-	tempProp = &Property{Type: m.Value}
-	valType, err := tempProp.PropertyType()
-	if err != nil {
-		return nil
-	}
-	keyZero := keyType.ZeroValue()
-	valZero := valType.ZeroValue()
-	return reflect.MakeMap(
-		reflect.MapOf(reflect.TypeOf(keyZero), reflect.TypeOf(valZero))).
-		Interface()
+	return nil
 }
 
 func (l *ListPropertyType) ZeroValue() any {
-	tempProp := &Property{Type: l.Value}
-	pType, err := tempProp.PropertyType()
-	if err != nil {
-		return nil
-	}
-	elemZero := pType.ZeroValue()
-	return reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf(elemZero)), 0, 0).Interface()
+	return nil
 }
 
 func (s *SetPropertyType) ZeroValue() any {
-	tempProp := &Property{Type: s.Value}
-	pType, err := tempProp.PropertyType()
-	if err != nil {
-		return nil
-	}
-	elemZero := pType.ZeroValue()
-	return reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf(elemZero)), 0, 0).Interface()
+	return nil
 }
 
 func (s *StringPropertyType) ZeroValue() any {

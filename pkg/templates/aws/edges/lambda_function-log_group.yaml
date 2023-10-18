@@ -1,2 +1,8 @@
 source: aws:lambda_function
 target: aws:log_group
+operational_rules:
+  - configuration_rules:
+      - resource: aws:log_group:{{ .Source.Name }}-log-group
+        configuration:
+          field: LogGroupName
+          value: /aws/lambda/{{ .Source.Name }}

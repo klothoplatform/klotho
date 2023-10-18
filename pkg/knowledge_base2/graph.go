@@ -185,7 +185,7 @@ func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, si
 		return false
 	}
 
-	dynCtx := DynamicValueContext{DAG: dag, KB: kb}
+	dynCtx := DynamicValueContext{Graph: dag, KnowledgeBase: kb}
 	for _, property := range template.Properties {
 		ruleSatisfied := false
 		if property.OperationalRule == nil {

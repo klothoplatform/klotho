@@ -26,11 +26,11 @@ func Test_depsForProp(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		constraint *constraints.ResourceConstraint
-		value      string
-		want       []string
-		wantErr    bool
+		name        string
+		constraints []constraints.ResourceConstraint
+		value       string
+		want        []string
+		wantErr     bool
 	}{
 		{
 			name:  "no deps",
@@ -70,7 +70,7 @@ func Test_depsForProp(t *testing.T) {
 			path, err := res.PropertyPath(ref.Property)
 			require.NoError(err)
 
-			v := &PropertyVertex{
+			v := &propertyVertex{
 				Ref:  ref,
 				Path: path,
 				Template: knowledgebase.Property{
@@ -78,10 +78,10 @@ func Test_depsForProp(t *testing.T) {
 					DefaultValue: tt.value,
 					// rest of fields don't matter for this test
 				},
-				Constraint: tt.constraint,
+				Constraints: tt.constraints,
 			}
 
-			deps, err := depsForProp(cfgCtx, v)
+			deps, err := v.depsForProp(cfgCtx)
 			if tt.wantErr {
 				require.Error(err)
 				return

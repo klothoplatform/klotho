@@ -12,80 +12,51 @@ import (
 )
 
 func ApplyConstraints(ctx solution_context.SolutionContext) error {
-	op := ctx.OperationalView()
-
-	var resources []*construct.Resource
 	var errs error
 	for _, constraint := range ctx.Constraints().Application {
-		res, err := applyApplicationConstraint(ctx, constraint)
-		errs = errors.Join(errs, err)
-		if res != nil {
-			resources = append(resources, res)
-		}
+		errs = errors.Join(errs, applyApplicationConstraint(ctx, constraint))
 	}
 	if errs != nil {
 		return errs
 	}
-	idChangeResult, err := op.MakeResourcesOperational(resources)
-	if err != nil {
-		return err
-	}
 
 	for _, constraint := range ctx.Constraints().Edges {
-		if src, found := idChangeResult[constraint.Target.Source]; found {
-			constraint.Target.Source = src
-		}
-		if tgt, found := idChangeResult[constraint.Target.Target]; found {
-			constraint.Target.Target = tgt
-		}
 		errs = errors.Join(errs, applyEdgeConstraint(ctx, constraint))
 	}
 	if errs != nil {
 		return errs
 	}
 
-	resources = resources[:0]
-	for _, constraint := range ctx.Constraints().Resources {
-		res, err := ctx.RawView().Vertex(constraint.Target)
-		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf("could not find resource %s: %w", constraint.Target, err))
-			continue
-		}
-		resources = append(resources, res)
-	}
-
-	_, err = op.MakeResourcesOperational(resources)
-	return err
+	return nil
 }
 
 // applyApplicationConstraint returns a resource to be made operational, if needed. Otherwise, it returns nil.
-func applyApplicationConstraint(ctx solution_context.SolutionContext, constraint constraints.ApplicationConstraint) (*construct.Resource, error) {
+func applyApplicationConstraint(ctx solution_context.SolutionContext, constraint constraints.ApplicationConstraint) error {
 	ctx = ctx.With("constraint", constraint)
 
 	switch constraint.Operator {
 	case constraints.AddConstraintOperator:
 		res := construct.CreateResource(constraint.Node)
-		err := ctx.RawView().AddVertex(res)
-		return res, err
+		return ctx.OperationalView().AddVertex(res)
 
 	case constraints.RemoveConstraintOperator:
-		return nil, construct.RemoveResource(ctx.RawView(), constraint.Node)
+		return construct.RemoveResource(ctx.OperationalView(), constraint.Node)
 
 	case constraints.ReplaceConstraintOperator:
 		node, err := ctx.RawView().Vertex(constraint.Node)
 		if err != nil {
-			return nil, fmt.Errorf("could not find resource for %s: %w", constraint.Node, err)
+			return fmt.Errorf("could not find resource for %s: %w", constraint.Node, err)
 		}
 		if node.ID.QualifiedTypeName() == constraint.ReplacementNode.QualifiedTypeName() {
 			node.ID = constraint.ReplacementNode
-			return nil, construct.PropagateUpdatedId(ctx.RawView(), constraint.Node)
+			return construct.PropagateUpdatedId(ctx.OperationalView(), constraint.Node)
 		} else {
 			replacement := construct.CreateResource(constraint.ReplacementNode)
-			return replacement, construct.ReplaceResource(ctx.RawView(), constraint.Node, replacement)
+			return construct.ReplaceResource(ctx.OperationalView(), constraint.Node, replacement)
 		}
 
 	default:
-		return nil, fmt.Errorf("unknown operator %s", constraint.Operator)
+		return fmt.Errorf("unknown operator %s", constraint.Operator)
 	}
 }
 
@@ -102,10 +73,12 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 	ctx = ctx.With("constraint", constraint)
 
 	addPath := func() error {
-		var resources []*construct.Resource
 		switch _, err := ctx.RawView().Vertex(constraint.Target.Source); {
 		case errors.Is(err, graph.ErrVertexNotFound):
-			resources = append(resources, construct.CreateResource(constraint.Target.Source))
+			err := ctx.OperationalView().AddVertex(construct.CreateResource(constraint.Target.Source))
+			if err != nil {
+				return fmt.Errorf("could not add source resource %s: %w", constraint.Target.Source, err)
+			}
 
 		case err != nil:
 			return fmt.Errorf("could not get source resource %s: %w", constraint.Target.Source, err)
@@ -113,21 +86,15 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 
 		switch _, err := ctx.RawView().Vertex(constraint.Target.Target); {
 		case errors.Is(err, graph.ErrVertexNotFound):
-			resources = append(resources, construct.CreateResource(constraint.Target.Target))
+			err := ctx.OperationalView().AddVertex(construct.CreateResource(constraint.Target.Target))
+			if err != nil {
+				return fmt.Errorf("could not add target resource %s: %w", constraint.Target.Target, err)
+			}
 
 		case err != nil:
 			return fmt.Errorf("could not get target resource %s: %w", constraint.Target.Target, err)
 		}
-		idChangeResult, err := ctx.OperationalView().MakeResourcesOperational(resources)
-		if err != nil {
-			return err
-		}
-		if src, found := idChangeResult[constraint.Target.Source]; found {
-			constraint.Target.Source = src
-		}
-		if tgt, found := idChangeResult[constraint.Target.Target]; found {
-			constraint.Target.Target = tgt
-		}
+
 		return ctx.OperationalView().AddEdge(constraint.Target.Source, constraint.Target.Target)
 	}
 
@@ -148,7 +115,7 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 				if i == 0 {
 					continue
 				}
-				errs = errors.Join(errs, ctx.RawView().RemoveEdge(path[i-1], res))
+				errs = errors.Join(errs, ctx.OperationalView().RemoveEdge(path[i-1], res))
 			}
 		}
 		if errs != nil {

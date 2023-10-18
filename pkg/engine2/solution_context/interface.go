@@ -31,11 +31,11 @@ type (
 	OperationalView interface {
 		construct.Graph
 
-		MakeResourcesOperational(resources []*construct.Resource) (construct.ResourceIdChangeResults, error)
-		MakeEdgeOperational(source, target construct.ResourceId) ([]*construct.Resource, []construct.Edge, error)
+		MakeResourcesOperational(resources []*construct.Resource) error
+		MakeEdgesOperational(edges []construct.Edge) error
 	}
 )
 
 func DynamicCtx(sol SolutionContext) knowledgebase.DynamicValueContext {
-	return knowledgebase.DynamicValueContext{DAG: sol.DataflowGraph(), KB: sol.KnowledgeBase()}
+	return knowledgebase.DynamicValueContext{Graph: sol.DataflowGraph(), KnowledgeBase: sol.KnowledgeBase()}
 }

@@ -8,6 +8,12 @@ func (s Set[T]) Add(vs ...T) {
 	}
 }
 
+func (s Set[T]) AddFrom(other Set[T]) {
+	for k := range other {
+		s[k] = struct{}{}
+	}
+}
+
 func (s Set[T]) Remove(v T) bool {
 	_, ok := s[v]
 	delete(s, v)

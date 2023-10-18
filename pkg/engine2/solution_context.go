@@ -3,8 +3,9 @@ package engine2
 import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
+	property_eval "github.com/klothoplatform/klotho/pkg/engine2/property_eval"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
-	"github.com/klothoplatform/klotho/pkg/graph_store"
+	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"go.uber.org/zap"
 )
@@ -19,14 +20,15 @@ type (
 		stack           []solution_context.KV
 		mappedResources map[construct.ResourceId]construct.ResourceId
 		constraints     constraints.Constraints
+		propertyEval    *property_eval.PropertyEval
 	}
 )
 
 func NewSolutionContext(kb knowledgebase.TemplateKB) solutionContext {
-	return solutionContext{
+	ctx := solutionContext{
 		KB: kb,
-		Dataflow: graph_store.LoggingGraph[construct.ResourceId, *construct.Resource]{
-			Log:   zap.S(),
+		Dataflow: graph_addons.LoggingGraph[construct.ResourceId, *construct.Resource]{
+			Log:   zap.L().With(zap.String("graph", "dataflow")).Sugar(),
 			Graph: construct.NewGraph(),
 			Hash:  func(r *construct.Resource) construct.ResourceId { return r.ID },
 		},
@@ -34,30 +36,14 @@ func NewSolutionContext(kb knowledgebase.TemplateKB) solutionContext {
 		decisions:       &solution_context.MemoryRecord{},
 		mappedResources: make(map[construct.ResourceId]construct.ResourceId),
 	}
+	// Pass a reference otherwise the SolutionContext that the PropertyEval has will be a copy of the one above,
+	// which does not have a reference to the PropertyEval.
+	ctx.propertyEval = property_eval.NewPropertyEval(&ctx)
+	return ctx
 }
-func (c solutionContext) Clone(keepStack bool) (solutionContext, error) {
-	dfClone, err := c.Dataflow.Clone()
-	if err != nil {
-		return solutionContext{}, err
-	}
-	deployClone, err := c.Deployment.Clone()
-	if err != nil {
-		return solutionContext{}, err
-	}
-	newCtx := solutionContext{
-		KB:              c.KB,
-		Dataflow:        dfClone,
-		Deployment:      deployClone,
-		decisions:       c.decisions,
-		mappedResources: make(map[construct.ResourceId]construct.ResourceId),
-	}
-	for k, v := range c.mappedResources {
-		newCtx.mappedResources[k] = v
-	}
-	if keepStack {
-		newCtx.stack = c.stack
-	}
-	return newCtx, nil
+
+func (s solutionContext) Solve() error {
+	return s.propertyEval.Evaluate()
 }
 
 func (s solutionContext) With(key string, value any) solution_context.SolutionContext {
@@ -68,6 +54,7 @@ func (s solutionContext) With(key string, value any) solution_context.SolutionCo
 		KB:              s.KB,
 		mappedResources: s.mappedResources,
 		constraints:     s.constraints,
+		propertyEval:    s.propertyEval,
 
 		stack: append(s.stack, solution_context.KV{Key: key, Value: value}),
 	}
@@ -100,7 +87,7 @@ func (ctx solutionContext) Constraints() *constraints.Constraints {
 func (ctx solutionContext) LoadGraph(graph construct.Graph) error {
 	// Since often the input `graph` is loaded from a yaml file, we need to transform all the property values
 	// to make sure they are of the correct type (eg, a string to ResourceId).
-	err := knowledgebase.TransformAllPropertyValues(knowledgebase.DynamicValueContext{DAG: graph, KB: ctx.KB})
+	err := knowledgebase.TransformAllPropertyValues(solution_context.DynamicCtx(ctx))
 	if err != nil {
 		return err
 	}

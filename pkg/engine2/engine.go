@@ -36,6 +36,10 @@ func (e *Engine) Run(context *EngineContext) error {
 	}
 	solutionCtx.constraints = context.Constraints
 	err = ApplyConstraints(solutionCtx)
+	if err != nil {
+		return err
+	}
+	err = solutionCtx.Solve()
 	context.Solutions = append(context.Solutions, solutionCtx)
 	return err
 }

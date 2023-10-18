@@ -18,11 +18,17 @@ import (
 )
 
 type (
-	// DynamicValueContext is used to scope the DAG into the template functions
+	// DynamicValueContext is used to scope the Graph into the template functions
 	DynamicValueContext struct {
-		DAG        construct.Graph
-		KB         TemplateKB
-		resultJson bool
+		Graph         construct.Graph
+		KnowledgeBase TemplateKB
+		resultJson    bool
+	}
+
+	DynamicContext interface {
+		DAG() construct.Graph
+		KB() TemplateKB
+		ExecuteDecode(tmpl string, data DynamicValueData, value interface{}) error
 	}
 
 	// DynamicValueData provides the resource or edge to the templates as
@@ -33,6 +39,14 @@ type (
 		Edge     *construct.Edge
 	}
 )
+
+func (ctx DynamicValueContext) DAG() construct.Graph {
+	return ctx.Graph
+}
+
+func (ctx DynamicValueContext) KB() TemplateKB {
+	return ctx.KnowledgeBase
+}
 
 func (ctx DynamicValueContext) TemplateFunctions() template.FuncMap {
 	return template.FuncMap{
@@ -76,7 +90,7 @@ func (ctx DynamicValueContext) Parse(tmpl string) (*template.Template, error) {
 	return t, err
 }
 
-func (ctx DynamicValueContext) ExecuteDecodeAsResourceId(tmpl string, data DynamicValueData) (construct.ResourceId, error) {
+func ExecuteDecodeAsResourceId(ctx DynamicContext, tmpl string, data DynamicValueData) (construct.ResourceId, error) {
 	var selector construct.ResourceId
 	err := ctx.ExecuteDecode(tmpl, data, &selector)
 	if err != nil {
@@ -90,12 +104,20 @@ func (ctx DynamicValueContext) ExecuteDecodeAsResourceId(tmpl string, data Dynam
 	return selector, nil
 }
 
-// ExecuteDecode executes the template `tmpl` using `data` and decodes the value into `value`
 func (ctx DynamicValueContext) ExecuteDecode(tmpl string, data DynamicValueData, value interface{}) error {
 	t, err := ctx.Parse(tmpl)
 	if err != nil {
 		return err
 	}
+	return ctx.ExecuteTemplateDecode(t, data, value)
+}
+
+// ExecuteDecode executes the template `tmpl` using `data` and decodes the value into `value`
+func (ctx DynamicValueContext) ExecuteTemplateDecode(
+	t *template.Template,
+	data DynamicValueData,
+	value interface{},
+) error {
 	buf := new(bytes.Buffer)
 	if err := t.Execute(buf, data); err != nil {
 		return err
@@ -160,7 +182,7 @@ func (ctx DynamicValueContext) ExecuteDecode(tmpl string, data DynamicValueData,
 		return nil
 	}
 
-	err = json.Unmarshal([]byte(bstr), value)
+	err := json.Unmarshal([]byte(bstr), value)
 	if err == nil {
 		return nil
 	}
@@ -170,7 +192,7 @@ func (ctx DynamicValueContext) ExecuteDecode(tmpl string, data DynamicValueData,
 
 func (ctx DynamicValueContext) ResolveConfig(config Configuration, data DynamicValueData) (Configuration, error) {
 	if cfgVal, ok := config.Value.(string); ok {
-		res, err := ctx.DAG.Vertex(data.Resource)
+		res, err := ctx.Graph.Vertex(data.Resource)
 		if err != nil {
 			return config, err
 		}
@@ -261,7 +283,7 @@ func (ctx DynamicValueContext) upstream(selector any, resource construct.Resourc
 		return construct.ResourceId{}, err
 	}
 
-	upstream, err := Upstream(ctx.DAG, ctx.KB, resource, FirstFunctionalLayer)
+	upstream, err := Upstream(ctx.Graph, ctx.KnowledgeBase, resource, FirstFunctionalLayer)
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
@@ -301,7 +323,7 @@ func (ctx DynamicValueContext) AllUpstream(selector any, resource construct.Reso
 	if err != nil {
 		return nil, err
 	}
-	upstreams, err := Upstream(ctx.DAG, ctx.KB, resource, AllDepsLayer)
+	upstreams, err := Upstream(ctx.Graph, ctx.KnowledgeBase, resource, AllDepsLayer)
 	if err != nil {
 		return []construct.ResourceId{}, err
 	}
@@ -320,7 +342,7 @@ func (ctx DynamicValueContext) downstream(selector any, resource construct.Resou
 		return construct.ResourceId{}, err
 	}
 
-	downstream, err := Downstream(ctx.DAG, ctx.KB, resource, FirstFunctionalLayer)
+	downstream, err := Downstream(ctx.Graph, ctx.KnowledgeBase, resource, FirstFunctionalLayer)
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
@@ -362,7 +384,7 @@ func (ctx DynamicValueContext) AllDownstream(selector any, resource construct.Re
 	if err != nil {
 		return nil, err
 	}
-	downstreams, err := Downstream(ctx.DAG, ctx.KB, resource, AllDepsLayer)
+	downstreams, err := Downstream(ctx.Graph, ctx.KnowledgeBase, resource, AllDepsLayer)
 	if err != nil {
 		return []construct.ResourceId{}, err
 	}
@@ -385,7 +407,7 @@ func (ctx DynamicValueContext) ShortestPath(source, destination any) (construct.
 	if err != nil {
 		return nil, err
 	}
-	return graph.ShortestPath(ctx.DAG, srcId, dstId)
+	return graph.ShortestPath(ctx.Graph, srcId, dstId)
 }
 
 // LongestPath returns all the resource IDs on the longest path from source to destination
@@ -398,7 +420,7 @@ func (ctx DynamicValueContext) LongestPath(source, destination any) ([]construct
 	if err != nil {
 		return nil, err
 	}
-	paths, err := graph.AllPathsBetween(ctx.DAG, srcId, dstId)
+	paths, err := graph.AllPathsBetween(ctx.Graph, srcId, dstId)
 	if err != nil {
 		return nil, err
 	}
@@ -418,7 +440,7 @@ func (ctx DynamicValueContext) FieldValue(field string, resource any) (any, erro
 		return "", err
 	}
 
-	r, err := ctx.DAG.Vertex(resId)
+	r, err := ctx.Graph.Vertex(resId)
 	if r == nil || err != nil {
 		return nil, fmt.Errorf("resource '%s' not found", resId)
 	}
@@ -435,7 +457,7 @@ func (ctx DynamicValueContext) HasField(field string, resource any) (bool, error
 		return false, err
 	}
 
-	r, err := ctx.DAG.Vertex(resId)
+	r, err := ctx.Graph.Vertex(resId)
 	if r == nil || err != nil {
 		return false, fmt.Errorf("resource '%s' not found", resId)
 	}

@@ -18,6 +18,7 @@ type ResourceId struct {
 	Name      string `yaml:"name" toml:"name"`
 }
 
+// ResourceIdChangeResults is a map of old ResourceIds to new ResourceIds
 type ResourceIdChangeResults map[ResourceId]ResourceId
 
 type ResourceList []ResourceId
@@ -31,12 +32,39 @@ func (m *ResourceIdChangeResults) Merge(other ResourceIdChangeResults) {
 	}
 }
 
+func (m ResourceIdChangeResults) RemoveNoop() {
+	for k, v := range m {
+		if k == v {
+			delete(m, k)
+		}
+	}
+}
+
 func (l ResourceList) String() string {
+	if len(l) == 1 {
+		return l[0].String()
+	}
 	b, err := json.Marshal(l)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("could not marshal resource list: %w", err))
 	}
 	return string(b)
+}
+
+func (l *ResourceList) UnmarshalText(b []byte) error {
+	var id ResourceId
+	if id.UnmarshalText(b) == nil {
+		*l = []ResourceId{id}
+		return nil
+	}
+
+	var ids []ResourceId
+	if err := json.Unmarshal(b, &ids); err == nil {
+		*l = ids
+		return nil
+	}
+
+	return fmt.Errorf("could not unmarshal resource list: %s", string(b))
 }
 
 var zeroId = ResourceId{}

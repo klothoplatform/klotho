@@ -179,7 +179,7 @@ func (view RawAccessView) PredecessorMap() (map[construct.ResourceId]map[constru
 }
 
 func (view RawAccessView) Clone() (construct.Graph, error) {
-	return nil, errors.New("cannot clone a view")
+	return nil, errors.New("cannot clone a raw view")
 }
 
 func (view RawAccessView) Order() (int, error) {

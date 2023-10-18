@@ -3,260 +3,211 @@ package property_eval
 import (
 	"errors"
 	"fmt"
-	"html/template"
-	"io"
 	"strings"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
-	"github.com/klothoplatform/klotho/pkg/graph_store"
+	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
-	"github.com/klothoplatform/klotho/pkg/set"
-	"go.uber.org/zap"
 )
 
-type (
-	PropertyVertex struct {
-		Ref        construct.PropertyRef
-		Path       construct.PropertyPath
-		Template   knowledgebase.Property
-		Constraint *constraints.ResourceConstraint
-		Resource   *construct.Resource
-	}
-
-	Graph struct {
-		graph.Graph[construct.PropertyRef, *PropertyVertex]
-		done set.Set[construct.PropertyRef]
-	}
-)
+type Graph graph.Graph[EvaluationKey, EvaluationVertex]
 
 func newGraph() Graph {
-	return Graph{
-		Graph: graph.NewWithStore(
-			func(p *PropertyVertex) construct.PropertyRef { return p.Ref },
-			graph_store.NewMemoryStore[construct.PropertyRef, *PropertyVertex](),
-			graph.Directed(),
-			graph.Acyclic(),
-			graph.PreventCycles(),
-		),
-		done: make(set.Set[construct.PropertyRef]),
-	}
+	return graph.NewWithStore(
+		EvaluationVertex.Key,
+		graph_addons.NewMemoryStore[EvaluationKey, EvaluationVertex](),
+		graph.Directed(),
+		graph.PreventCycles(),
+	)
 }
 
-func AddResources(
-	g Graph,
-	ctx solution_context.SolutionContext,
-	resources []*construct.Resource,
-) error {
-	deps := make(map[construct.PropertyRef][]construct.PropertyRef)
+func (eval *PropertyEval) AddResources(rs ...*construct.Resource) error {
+	vs := make(verticesAndDeps)
 	var errs error
-	for _, res := range resources {
-		tmpl, err := ctx.KnowledgeBase().GetResourceTemplate(res.ID)
-		if err != nil {
-			return err
-		}
-		rdeps, err := addResource(g, ctx, res, tmpl)
+	for _, res := range rs {
+		tmpl, err := eval.Solution.KnowledgeBase().GetResourceTemplate(res.ID)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		for k, v := range rdeps {
-			deps[k] = v
+		rvs, err := eval.resourceVertices(res, tmpl)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
 		}
+		vs.AddAll(rvs)
 	}
 	if errs != nil {
 		return errs
 	}
+	return eval.enqueue(vs)
+}
 
-	for source, targets := range deps {
-		zap.S().Debug(source)
-		for _, target := range targets {
-			if g.done.Contains(target) {
-				continue
-			}
-
-			if _, err := g.Vertex(target); errors.Is(err, graph.ErrVertexNotFound) {
-				tmpl, err := ctx.KnowledgeBase().GetResourceTemplate(target.Resource)
-				if err != nil {
-					return err
-				}
-				res, err := ctx.RawView().Vertex(target.Resource)
-				switch {
-				case errors.Is(err, graph.ErrVertexNotFound):
-					res = construct.CreateResource(target.Resource)
-				case err != nil:
-					return err
-				}
-				_, err = addResource(g, ctx, res, tmpl)
-				if err != nil {
-					return err
-				}
-			}
-
-			zap.S().Debugf("  -> %s", target)
-			errs = errors.Join(errs, g.AddEdge(source, target))
-		}
-	}
-	if errs != nil {
-		return fmt.Errorf("could not add edges to property eval graph: %w", errs)
-	}
+func (eval *PropertyEval) RemoveResource(res construct.ResourceId) error {
+	// TODO
 	return nil
 }
 
-// addResource adds the resources' properties to the graph, returning all the dependencies. The caller must
-// add the edges to the graph when they are ready - this is so that in [InitGraph], we can add all the
-// resources to the graph before adding the edges.
-func addResource(
-	g Graph,
-	ctx solution_context.SolutionContext,
+func (eval *PropertyEval) AddEdges(es ...construct.Edge) error {
+	vs := make(verticesAndDeps)
+	var errs error
+	for _, e := range es {
+		tmpl := eval.Solution.KnowledgeBase().GetEdgeTemplate(e.Source, e.Target)
+		if tmpl == nil {
+			continue
+		}
+		evs, err := eval.edgeVertices(e, tmpl)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		vs.AddAll(evs)
+	}
+	if errs != nil {
+		return errs
+	}
+	return eval.enqueue(vs)
+}
+
+func (e ResourceEdge) WithIdUpdate(oldId, newId construct.ResourceId) ResourceEdge {
+	switch {
+	case e.Source == oldId:
+		e.Source = newId
+	case e.Target == oldId:
+		e.Target = newId
+	}
+	return e
+}
+
+func (eval *PropertyEval) resourceVertices(
 	res *construct.Resource,
 	tmpl *knowledgebase.ResourceTemplate,
-) (map[construct.PropertyRef][]construct.PropertyRef, error) {
-	err := ctx.RawView().AddVertex(res)
-	if err != nil {
-		return nil, fmt.Errorf("could not add resource %s to graph: %w", res.ID, err)
-	}
+) (verticesAndDeps, error) {
+	vs := make(verticesAndDeps)
+	var errs error
 
-	cfgCtx := solution_context.DynamicCtx(ctx)
+	cfgCtx := solution_context.DynamicCtx(eval.Solution)
+
 	queue := []knowledgebase.Properties{tmpl.Properties}
 	var props knowledgebase.Properties
-	var errs error
-	deps := make(map[construct.PropertyRef][]construct.PropertyRef)
 	for len(queue) > 0 {
 		props, queue = queue[0], queue[1:]
 
 		for _, prop := range props {
-			ref := construct.PropertyRef{Resource: res.ID, Property: prop.Path}
-			vertex, err := g.Vertex(ref)
-			if errors.Is(err, graph.ErrVertexNotFound) {
-				vertex = &PropertyVertex{
-					Ref:      construct.PropertyRef{Resource: res.ID, Property: prop.Path},
-					Template: *prop,
-					Resource: res,
-				}
-			} else if err != nil {
-				return nil, fmt.Errorf("could not get vertex for %s: %w", ref, err)
+			vertex := &propertyVertex{
+				Ref:       construct.PropertyRef{Resource: res.ID, Property: prop.Path},
+				Template:  prop,
+				EdgeRules: make(map[ResourceEdge][]knowledgebase.OperationalRule),
 			}
 
-			path, err := res.PropertyPath(prop.Path)
-			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("could not get property path %s: %w", prop.Path, err))
-				continue
-			}
-			vertex.Path = path
-			for _, constr := range ctx.Constraints().Resources {
+			for _, constr := range eval.Solution.Constraints().Resources {
 				if constr.Target == res.ID && constr.Property == prop.Path {
-					vertex.Constraint = &constr
-					break
+					vertex.Constraints = append(vertex.Constraints, constr)
 				}
 			}
-			errs = errors.Join(errs, g.AddVertex(vertex))
+
 			if prop.Properties != nil && !strings.HasPrefix(prop.Type, "list") {
 				// Because lists will start as empty, do not recurse into their sub-properties
 				queue = append(queue, prop.Properties)
 			}
-			vdeps, err := depsForProp(cfgCtx, vertex)
+			vdeps, err := vertex.dependencies(cfgCtx)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
 			}
-			deps[vertex.Ref] = vdeps
+			vs.Add(vertex, vdeps)
 		}
 	}
-	return deps, errs
+	return vs, errs
 }
 
-func depsForProp(cfgCtx knowledgebase.DynamicValueContext, prop *PropertyVertex) ([]construct.PropertyRef, error) {
-	if prop.Constraint != nil {
-		// for now, constraints can't be templated so won't have dependencies
-		return nil, nil
-	}
-	propCtx := &fauxConfigContext{inner: cfgCtx}
+func (eval *PropertyEval) edgeVertices(
+	edge construct.Edge,
+	tmpl *knowledgebase.EdgeTemplate,
+) (verticesAndDeps, error) {
+	vs := make(verticesAndDeps)
+	var errs error
 
-	if err := propCtx.Execute(prop.Template.DefaultValue, prop.Ref); err != nil {
-		return nil, fmt.Errorf("could not execute template for %s: %w", prop.Ref, err)
-	}
+	cfgCtx := solution_context.DynamicCtx(eval.Solution)
+	data := knowledgebase.DynamicValueData{Edge: &edge}
+	resEdge := ResourceEdge{Source: edge.Source, Target: edge.Target}
 
-	if opRule := prop.Template.OperationalRule; opRule != nil {
-		var errs error
-		errs = errors.Join(errs, propCtx.Execute(opRule.If, prop.Ref))
-		for _, rule := range opRule.ConfigurationRules {
-			errs = errors.Join(errs, propCtx.Execute(rule.Config.Value, prop.Ref))
+	opVertex := &edgeVertex{Edge: resEdge}
+
+	vertices := make(map[construct.PropertyRef]*propertyVertex)
+	for i, rule := range tmpl.OperationalRules {
+		if len(rule.Steps) > 0 {
+			opVertex.Rules = append(opVertex.Rules, knowledgebase.OperationalRule{
+				// Split out only the steps, the configuration goes to the property it references
+				If: rule.If, Steps: rule.Steps,
+			})
 		}
-		for _, step := range opRule.Steps {
-			for _, stepRes := range step.Resources {
-				errs = errors.Join(errs, propCtx.Execute(stepRes, prop.Ref))
+
+		for j, config := range rule.ConfigurationRules {
+			var ref construct.PropertyRef
+			err := cfgCtx.ExecuteDecode(config.Resource, data, &ref.Resource)
+			if err != nil {
+				errs = errors.Join(errs,
+					fmt.Errorf("could not execute resource template for edge rule [%d][%d]: %w", i, j, err),
+				)
 			}
+			err = cfgCtx.ExecuteDecode(config.Config.Field, data, &ref.Property)
+			if err != nil {
+				errs = errors.Join(errs,
+					fmt.Errorf("could not execute config.field template for edge rule [%d][%d]: %w", i, j, err),
+				)
+			}
+
+			vertex, ok := vertices[ref]
+			if !ok {
+				existing, err := eval.graph.Vertex(EvaluationKey{Ref: ref})
+				switch {
+				case errors.Is(err, graph.ErrVertexNotFound):
+					vertex = &propertyVertex{Ref: ref, EdgeRules: make(map[ResourceEdge][]knowledgebase.OperationalRule)}
+				case err != nil:
+					errs = errors.Join(errs, fmt.Errorf("could not attempt to get existing vertex for %s: %w", ref, err))
+					continue
+				default:
+					if v, ok := existing.(*propertyVertex); ok {
+						vertex = v
+					} else {
+						errs = errors.Join(errs, fmt.Errorf("existing vertex for %s is not a property vertex", ref))
+						continue
+					}
+				}
+				vertices[ref] = vertex
+			}
+
+			vertex.EdgeRules[resEdge] = append(vertex.EdgeRules[resEdge], knowledgebase.OperationalRule{
+				If:                 rule.If,
+				ConfigurationRules: []knowledgebase.ConfigurationRule{config},
+			})
 		}
-		if errs != nil {
-			return nil, fmt.Errorf("could not execute templates for %s: %w", prop.Ref, errs)
+	}
+	if errs != nil {
+		return nil, errs
+	}
+
+	if len(opVertex.Rules) > 0 {
+		vdeps, err := opVertex.dependencies(cfgCtx)
+		if err != nil {
+			return nil, err
 		}
+		vs.Add(opVertex, vdeps)
 	}
 
-	return propCtx.refs, nil
-}
-
-// fauxConfigContext acts like a [knowledgebase.DynamicValueContext] but replaces the [FieldValue] function
-// with one that just returns the zero value of the property type and records the property reference.
-type fauxConfigContext struct {
-	inner knowledgebase.DynamicValueContext
-	refs  []construct.PropertyRef
-}
-
-func (ctx *fauxConfigContext) Execute(v any, ref construct.PropertyRef) error {
-	if ref, ok := v.(construct.PropertyRef); ok {
-		ctx.refs = append(ctx.refs, ref)
-	}
-	vStr, ok := v.(string)
-	if !ok || !strings.Contains(vStr, "fieldValue") {
-		return nil
-	}
-	tmpl, err := template.New(ref.String()).Funcs(ctx.TemplateFunctions()).Parse(vStr)
-	if err != nil {
-		return fmt.Errorf("could not parse template %w", err)
+	// do this in a second pass so that edges config that reference the same property (rare, but possible)
+	// will get batched before calling [depsForProp].
+	for _, vertex := range vertices {
+		vdeps, err := vertex.dependencies(cfgCtx)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		vs.Add(vertex, vdeps)
 	}
 
-	// Ignore execution errors for when the zero value is invalid due to other assumptions
-	// if there is an error with the template, this will be caught later when actually processing it.
-	_ = tmpl.Execute(
-		io.Discard, // we don't care about the results, just the side effect of appending to propCtx.refs
-		knowledgebase.DynamicValueData{Resource: ref.Resource},
-	)
-
-	return nil
-}
-
-func (ctx *fauxConfigContext) TemplateFunctions() template.FuncMap {
-	funcs := ctx.inner.TemplateFunctions()
-	funcs["fieldValue"] = ctx.FieldValue
-	return funcs
-}
-
-func (ctx *fauxConfigContext) FieldValue(field string, resource any) (any, error) {
-	resId, err := knowledgebase.TemplateArgToRID(resource)
-	if err != nil {
-		return "", err
-	}
-	ctx.refs = append(ctx.refs, construct.PropertyRef{Resource: resId, Property: field})
-
-	tmpl, err := ctx.inner.KB.GetResourceTemplate(resId)
-	if err != nil {
-		return "", err
-	}
-
-	return emptyValue(tmpl, field)
-}
-
-func emptyValue(tmpl *knowledgebase.ResourceTemplate, property string) (any, error) {
-	prop := tmpl.GetProperty(property)
-	if prop == nil {
-		return nil, fmt.Errorf("could not find property %s on template %s", property, tmpl.Id())
-	}
-	ptype, err := prop.PropertyType()
-	if err != nil {
-		return nil, fmt.Errorf("could not get property type for property %s on template %s: %w", property, tmpl.Id(), err)
-	}
-	return ptype.ZeroValue(), nil
+	return vs, errs
 }

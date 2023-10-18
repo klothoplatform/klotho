@@ -42,6 +42,10 @@ func (s sortedIds) Swap(i, j int) {
 // This is a modified implementation of graph.StableTopologicalSort with the primary difference
 // being any uses of the internal function `enqueueArbitrary`.
 func ToplogicalSort(g Graph) ([]ResourceId, error) {
+	return toplogicalSort(g, false)
+}
+
+func toplogicalSort(g Graph, invertLess bool) ([]ResourceId, error) {
 	if !g.Traits().IsDirected {
 		return nil, fmt.Errorf("topological sort cannot be computed on undirected graph")
 	}
@@ -82,10 +86,17 @@ func ToplogicalSort(g Graph) ([]ResourceId, error) {
 			iPcount := len(predecessorMap[remainingIds[i]])
 			jPcount := len(predecessorMap[remainingIds[j]])
 			if iPcount != jPcount {
-				return iPcount < jPcount
+				if invertLess {
+					return iPcount >= jPcount
+				} else {
+					return iPcount < jPcount
+				}
 			}
 
 			// Tie-break on the ID contents themselves
+			if invertLess {
+				return !sortedIds(remainingIds).Less(i, j)
+			}
 			return sortedIds(remainingIds).Less(i, j)
 		})
 		enqueue(remainingIds[0])
@@ -128,7 +139,11 @@ func ToplogicalSort(g Graph) ([]ResourceId, error) {
 			frontier = append(frontier, vertex)
 		}
 
-		sort.Sort(sortedIds(frontier))
+		if invertLess {
+			sort.Sort(sort.Reverse(sortedIds(frontier)))
+		} else {
+			sort.Sort(sortedIds(frontier))
+		}
 
 		enqueue(frontier...)
 
@@ -149,7 +164,7 @@ func reverseInplace[E any](a []E) {
 // ReverseTopologicalSort is like TopologicalSort, but returns the reverse order. This is primarily useful for
 // IaC graphs to determine the order in which resources should be created.
 func ReverseTopologicalSort(g Graph) ([]ResourceId, error) {
-	topo, err := ToplogicalSort(g)
+	topo, err := toplogicalSort(g, true)
 	if err != nil {
 		return nil, err
 	}
