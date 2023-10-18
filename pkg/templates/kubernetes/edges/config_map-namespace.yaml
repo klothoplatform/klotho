@@ -1,2 +1,8 @@
 source: kubernetes:config_map
 target: kubernetes:namespace
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Object.Metadata.Namespace
+          value: '{{ .Target }}'

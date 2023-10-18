@@ -33,16 +33,17 @@ properties:
     default_value: |
       {{ $type := (fieldValue "Type" .Self) }}
       {{ $az :=  (fieldValue "AvailabilityZone" .Self) }}
+      {{ $index := (fieldValue "Index" $az) }}
       {{- if eq $type "public" }}
-        {{- if eq (fieldValue "Index" $az) 0 }}
+        {{- if eq $index 0 }}
           10.0.0.0/18
-        {{- else if eq (fieldValue "Index" $az) 1 }}
+        {{- else if eq $index 1 }}
           10.0.64.0/18
         {{- end}}
       {{- else if eq $type "private" }}
-        {{- if eq (fieldValue "Index" $az) 0 }}
+        {{- if eq $index 0 }}
           10.0.128.0/18
-        {{- else if eq (fieldValue "Index" $az) 1 }}
+        {{- else if eq $index 1 }}
           10.0.192.0/18
         {{- end}}
       {{- end}}

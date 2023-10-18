@@ -1,0 +1,2 @@
+source: kubernetes:horizontal_pod_autoscaler
+target: aws:eks_node_group

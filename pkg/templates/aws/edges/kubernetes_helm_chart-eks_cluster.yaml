@@ -1,2 +1,2 @@
 source: kubernetes:helm_chart
-target: aws:eks_node_group
+target: aws:eks_cluster

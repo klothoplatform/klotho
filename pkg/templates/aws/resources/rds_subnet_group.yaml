@@ -7,6 +7,7 @@ properties:
     operational_rule:
       steps:
         - direction: downstream
+          num_needed: 2
           resources:
             - selector: aws:subnet
               properties:

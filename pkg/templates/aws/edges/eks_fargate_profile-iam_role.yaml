@@ -36,4 +36,4 @@ operational_rules:
                     - logs:PutLogEvents
                     - logs:CreateLogGroup
                     - logs:PutLogEvents
-                  Resource: "*"
+                  Resource: '*'

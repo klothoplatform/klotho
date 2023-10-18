@@ -64,7 +64,7 @@ func ModelsFromFS(dir fs.FS) (map[string]*Model, error) {
 	})
 
 	for _, model := range models {
-		uerr := updateModels(model.Properties, models)
+		uerr := updateModels(nil, model.Properties, models)
 		if uerr != nil {
 			err = errors.Join(err, uerr)
 		}
@@ -93,7 +93,7 @@ func TemplatesFromFs(dir, modelDir fs.FS) (map[construct.ResourceId]*ResourceTem
 		if err != nil {
 			return errors.Join(nerr, err)
 		}
-		err = updateModels(resTemplate.Properties, models)
+		err = updateModels(nil, resTemplate.Properties, models)
 		if err != nil {
 			return errors.Join(nerr, err)
 		}

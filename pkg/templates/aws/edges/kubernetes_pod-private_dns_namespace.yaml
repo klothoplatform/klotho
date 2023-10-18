@@ -1,0 +1,8 @@
+source: kubernetes:pod
+target: aws:private_dns_namespace
+operational_rules:
+  - steps:
+      - resource: '{{ downstream "aws:iam_role" .Source }}'
+        direction: downstream
+        resources:
+          - '{{ .Target }}'

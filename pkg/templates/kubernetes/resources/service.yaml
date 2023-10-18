@@ -1,0 +1,49 @@
+qualified_type_name: kubernetes:service
+display_name: Service
+
+properties:
+  Cluster:
+    type: resource
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+  Object:
+    type: map
+    properties:
+      kubernetes:TypeMeta:
+        type: model
+      Metadata:
+        type: model(kubernetes:ObjectMeta)
+      Spec:
+        type: map
+        properties:
+          Ports:
+            type: list
+            properties:
+              Name:
+                type: string
+              Protocol:
+                type: string
+                default_value: TCP
+              Port:
+                type: int
+              TargetPort:
+                type: int
+              NodePort:
+                type: int
+          Selector:
+            type: map(string,string)
+          ServiceType:
+            type: string
+            default_value: ClusterIP
+          SessionAffinity:
+            type: string
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

@@ -1,0 +1,17 @@
+source: aws:target_group
+target: kubernetes:target_group_binding
+deployment_order_reversed: true
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: TargetType
+          value: ip
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Port
+          value: '{{ fieldValue "Object.Spec.Ports[0].Port" (upstream "kubernetes:service" .Target)}}'
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Protocol
+          value: '{{ fieldValue "Object.Spec.Ports[0].Protocol" (upstream "kubernetes:service" .Target)}}'

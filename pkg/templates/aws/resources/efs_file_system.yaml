@@ -1,0 +1,45 @@
+qualified_type_name: aws:efs_file_system
+display_name: EFS File System
+
+properties:
+  PerformanceMode: 
+    type: string
+    default_value: generalPurpose
+  ThroughputMode: 
+    type: string
+    default_value: bursting
+  ProvisionedThroughputInMibps: 
+    type: int
+  Encrypted: 
+    type: bool
+    default_value: true
+  KmsKey:
+    type: resource(aws:kms_key)
+  LifecyclePolicies:
+    type: map
+    properties:
+      TransitionToIA:
+        type: string
+      TransitionToPrimaryStorageClass:
+        type: string
+  AvailabilityZone:
+    type: resource(aws:availability_zone)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:availability_zone
+  CreationToken: 
+    type: string
+
+classifications:
+  is:
+    - file_system
+    - scalable
+    - elastic
+    - storage
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+views:
+  dataflow: big

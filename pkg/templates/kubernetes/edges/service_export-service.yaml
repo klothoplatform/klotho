@@ -1,0 +1,2 @@
+source: kubernetes:service_export
+target: kubernetes:service

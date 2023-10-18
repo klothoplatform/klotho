@@ -1,0 +1,9 @@
+source: kubernetes:deployment
+target: aws:dynamodb_table
+
+operational_rules:
+  - steps:
+      - resource: '{{ downstream "aws:iam_role" .Source }}'
+        direction: downstream
+        resources:
+          - '{{ .Target }}'

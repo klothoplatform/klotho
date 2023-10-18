@@ -3,7 +3,7 @@ properties:
   Name:
     type: string
   ReadOnly:
-    type: boolean
+    type: bool
   MountPath:
     type: string
   SubPath:

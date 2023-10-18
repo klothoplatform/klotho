@@ -2,8 +2,16 @@ name: kubernetes:Container
 properties:
   Name:
     type: string
+    required: true
   Image:
-    type: string
+    type: resource
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - image
+    required: true
   Command:
     type: list(string)
   Args:
@@ -17,4 +25,4 @@ properties:
   Resources:
     type: model(kubernetes:ResourceRequirements)
   VolumeMounts:
-      type: list(model(kubernetes:VolumeMount))
+    type: list(model(kubernetes:VolumeMount))

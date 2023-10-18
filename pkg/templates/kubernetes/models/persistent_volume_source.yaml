@@ -1,0 +1,4 @@
+name: kubernetes:PersistentVolumeSource
+properties:
+  CSI:
+    type: model(kubernetes:CSIPersistentVolumeSource)

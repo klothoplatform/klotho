@@ -2,9 +2,12 @@ name: kubernetes:ObjectMeta
 properties:
   Name:
     type: string
+    default_value: '{{ .Self.Name}}'
   Namespace:
     type: resource(kubernetes:namespace)
   Labels:
     type: map(string,string)
+    default_value:
+      KLOTHO_ID_LABEL: '{{ .Self }}'
   Annotations:
     type: map(string,string)

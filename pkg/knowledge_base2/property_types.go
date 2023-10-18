@@ -40,6 +40,7 @@ type (
 		Value construct.ResourceId
 	}
 	PropertyRefPropertyType struct{}
+	AnyPropertyType         struct{}
 )
 
 var PropertyTypeMap = map[string]func(val string, property *Property) (PropertyType, error){
@@ -77,6 +78,33 @@ var PropertyTypeMap = map[string]func(val string, property *Property) (PropertyT
 		}
 		return &SetPropertyType{Value: val, Property: p}, nil
 	},
+	"any": func(val string, property *Property) (PropertyType, error) { return &AnyPropertyType{}, nil },
+}
+
+func (p Properties) Clone() Properties {
+	newProps := make(Properties, len(p))
+	for k, v := range p {
+		newProps[k] = v.Clone()
+	}
+	return newProps
+}
+
+func (p *Property) Clone() *Property {
+	newProps := make(map[string]*Property, len(p.Properties))
+	for k, v := range p.Properties {
+		newProps[k] = v.Clone()
+	}
+	return &Property{
+		Name:                  p.Name,
+		Path:                  p.Path,
+		Type:                  p.Type,
+		DefaultValue:          p.DefaultValue,
+		Properties:            newProps,
+		Namespace:             p.Namespace,
+		Required:              p.Required,
+		ConfigurationDisabled: p.ConfigurationDisabled,
+		OperationalRule:       p.OperationalRule,
+	}
 }
 
 func (p Property) IsPropertyTypeScalar() bool {
@@ -403,9 +431,24 @@ func (m *MapPropertyType) Parse(value any, ctx DynamicContext, data DynamicValue
 		if err != nil {
 			return nil, err
 		}
-		result[keyVal.(string)] = val
+		switch keyVal := keyVal.(type) {
+		case string:
+			result[keyVal] = val
+		case construct.ResourceId:
+			result[keyVal.String()] = val
+		case construct.PropertyRef:
+			result[keyVal.String()] = val
+		default:
+			return nil, fmt.Errorf("invalid key type for map property type %s", keyType)
+		}
 	}
 	return result, nil
+}
+
+func (a *AnyPropertyType) Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error) {
+	return value, nil
+}
+func (s *AnyPropertyType) SetProperty(property *Property) {
 }
 
 func (m *MapPropertyType) SetProperty(property *Property) {
@@ -464,6 +507,10 @@ func (f *FloatPropertyType) ZeroValue() any {
 
 func (b *BoolPropertyType) ZeroValue() any {
 	return false
+}
+
+func (b *AnyPropertyType) ZeroValue() any {
+	return nil
 }
 
 func (r *ResourcePropertyType) ZeroValue() any {

@@ -1,0 +1,35 @@
+qualified_type_name: aws:efs_mount_target
+display_name: EFS Mount Target
+
+properties:
+  FileSystem:
+    type: resource(aws:efs_file_system)
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:efs_file_system
+  Subnet:
+    type: resource(aws:subnet)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - selector: aws:subnet
+              properties:
+                Type: private
+            - aws:subnet
+  SecurityGroups:
+    type: list(resource(aws:security_group))
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:security_group
+  IpAddress:
+    type: string
+
+
+views:
+  dataflow: small

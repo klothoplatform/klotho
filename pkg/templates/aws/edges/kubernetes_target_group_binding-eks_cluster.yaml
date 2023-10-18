@@ -1,0 +1,71 @@
+source: kubernetes:target_group_binding
+target: aws:eks_cluster
+
+operational_rules:
+  - if: |
+      {{ $needsCreation := true}}
+      {{ $charts := allUpstream "kubernetes:helm_chart" .Target }}
+      {{ range $index, $chart := $charts }}
+        {{- if and (eq (fieldValue "Repo" $chart) "https://aws.github.io/eks-charts") (eq (fieldValue "Chart" $chart) "aws-load-balancer-controller") }}
+          {{ $needsCreation = false }}
+          {{break}}
+        {{- end }}
+      {{ end }}
+      {{ $needsCreation }}
+
+    steps:
+      - resource: '{{ .Target }}'
+        direction: upstream
+        resources:
+          - kubernetes:service_account:aws-load-balancer-controller
+      - resource: '{{ .Target }}'
+        direction: upstream
+        resources:
+          - kubernetes:helm_chart:aws-load-balancer-controller
+      - resource: kubernetes:helm_chart:aws-load-balancer-controller
+        direction: downstream
+        resources:
+          - kubernetes:service_account:aws-load-balancer-controller
+      - resource: kubernetes:helm_chart:aws-load-balancer-controller
+        direction: downstream
+        resources:
+          - aws:region
+
+    configuration_rules:
+      - resource: kubernetes:helm_chart:aws-load-balancer-controller
+        configuration:
+          field: Chart
+          value: aws-load-balancer-controller
+
+      - resource: kubernetes:helm_chart:aws-load-balancer-controller
+        configuration:
+          field: Repo
+          value: https://aws.github.io/eks-charts
+
+      - resource: kubernetes:helm_chart:aws-load-balancer-controller
+        configuration:
+          field: Version
+          value: 1.5.5
+
+      - resource: kubernetes:helm_chart:aws-load-balancer-controller
+        configuration:
+          field: Internal
+          value: true
+
+      - resource: kubernetes:helm_chart:aws-load-balancer-controller
+        configuration:
+          field: Values
+          value:
+            clusterName: '{{ .Target }}#ClusterName'
+            serviceAccount:
+              create: false
+              name: kubernetes:service_account:aws-load-balancer-controller#ServiceAccountName
+            region: '{{ downstream "aws:region" .Target }}#Name'
+            vpcId: '{{ downstream "aws:vpc" .Target }}#Id'
+            objectSelector:
+              matchLabels:
+                elbv2.k8s.aws/pod-readiness-gate-inject: 'enabled'
+            webhookNamespaceSelectors:
+            podLabels:
+              KLOTHO_ID_LABEL: kubernetes:helm_chart:aws-load-balancer-controller
+              app: aws-lb-controller

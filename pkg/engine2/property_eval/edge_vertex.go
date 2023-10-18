@@ -33,8 +33,9 @@ func (ev *edgeVertex) Dependencies(cfgCtx knowledgebase.DynamicValueContext) (se
 
 	var errs error
 	for _, rule := range ev.Rules {
-		errs = errors.Join(errs, propCtx.ExecuteOpRule(data, rule))
+		err := errors.Join(errs, propCtx.ExecuteOpRule(data, rule))
 		if errs != nil {
+			errs = errors.Join(errs, err)
 		}
 	}
 	if errs != nil {

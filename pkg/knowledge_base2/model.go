@@ -11,7 +11,7 @@ type (
 	}
 )
 
-func updateModels(properties Properties, models map[string]*Model) error {
+func updateModels(property *Property, properties Properties, models map[string]*Model) error {
 	for name, p := range properties {
 		modelType := p.ModelType()
 		if modelType != nil {
@@ -26,19 +26,37 @@ func updateModels(properties Properties, models map[string]*Model) error {
 			if p.Name == *modelType {
 				delete(properties, name)
 				for name, prop := range model.Properties {
-					properties[name] = prop
+					// since properties are pointers and models can be reused, we need to clone the property from the model itself
+					newProp := prop.Clone()
+					newProp.Path = fmt.Sprintf("%s.%s", name, prop.Path)
+					properties[name] = newProp
+				}
+				if property != nil {
+					updateModelPaths(property)
 				}
 			} else {
-				p.Properties = models[*modelType].Properties
+				p.Properties = models[*modelType].Properties.Clone()
 				modelString := fmt.Sprintf("model(%s)", *modelType)
 				if p.Type == modelString {
 					p.Type = "map"
 				} else if p.Type == fmt.Sprintf("list(%s)", modelString) {
 					p.Type = "list"
 				}
+				updateModelPaths(p)
 			}
 		} else {
-			updateModels(p.Properties, models)
+			updateModels(p, p.Properties, models)
+		}
+	}
+	return nil
+}
+
+func updateModelPaths(p *Property) error {
+	for _, prop := range p.Properties {
+		prop.Path = fmt.Sprintf("%s.%s", p.Path, prop.Name)
+		err := updateModelPaths(prop)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

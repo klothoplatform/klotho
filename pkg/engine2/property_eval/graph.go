@@ -94,7 +94,6 @@ func (eval *PropertyEval) resourceVertices(
 	var props knowledgebase.Properties
 	for len(queue) > 0 {
 		props, queue = queue[0], queue[1:]
-
 		for _, prop := range props {
 			vertex := &propertyVertex{
 				Ref:       construct.PropertyRef{Resource: res.ID, Property: prop.Path},

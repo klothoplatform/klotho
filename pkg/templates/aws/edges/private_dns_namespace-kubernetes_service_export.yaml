@@ -1,0 +1,3 @@
+source: aws:private_dns_namespace
+target: kubernetes:service_export
+deployment_order_reversed: true

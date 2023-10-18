@@ -1,0 +1,2 @@
+source: kubernetes:kustomize_directory
+target: aws:eks_cluster

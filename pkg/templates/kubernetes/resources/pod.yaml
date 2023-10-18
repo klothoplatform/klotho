@@ -1,0 +1,32 @@
+qualified_type_name: kubernetes:pod
+display_name: Pod
+
+properties:
+  Cluster:
+    type: resource
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+  Object:
+    type: map
+    properties:
+      kubernetes:TypeMeta:
+        type: model
+      Metadata:
+        type: model(kubernetes:ObjectMeta)
+      Spec:
+        type: model(kubernetes:PodSpec)
+
+classification:
+  is:
+    - compute
+    - container
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: big

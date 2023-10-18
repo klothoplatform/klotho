@@ -1,0 +1,45 @@
+qualified_type_name: kubernetes:persistent_volume
+display_name: Persistent Volume
+
+properties:
+  Cluster:
+    type: resource
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+  Object:
+    type: map
+    properties:
+      kubernetes:TypeMeta:
+        type: model
+      Metadata:
+        type: model(kubernetes:ObjectMeta)
+      Spec:
+        type: map
+        properties:
+          Capacity:
+            type: map(string,string)
+          kubernetes:PersistentVolumeSource:
+            type: model
+          AccessModes:
+            type: list(string)
+          MountOptions:
+            type: list(string)
+          StorageClassName:
+            type: resource(kubernetes:storage_class)
+            operational_rule:
+              steps:
+                - direction: upstream
+                  resources:
+                    - kubernetes:storage_class
+          VolumeMode:
+            type: string
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

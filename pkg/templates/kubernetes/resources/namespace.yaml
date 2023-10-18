@@ -9,8 +9,8 @@ properties:
         - direction: downstream
           resources:
             - classifications:
-              - cluster
-              - kubernetes
+                - cluster
+                - kubernetes
   Object:
     type: map
     properties:

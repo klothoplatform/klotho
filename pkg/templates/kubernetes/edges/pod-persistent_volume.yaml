@@ -1,0 +1,16 @@
+source: kubernetes:pod
+target: kubernetes:persistent_volume
+operational_rules:
+  - if: '{{ hasDownstream "kubernetes:persistent_volume_claim" .Target }}'
+    configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          fields:
+            - |
+              {{ range $index, $container := (fieldValue "Object.Spec.Containers" .Source) }}
+                Object.Spec.Containers[{{ $index }}].Volumes
+              {{ end }}
+          value:
+            Name: '{{ fieldValue "object.Metadata.Name" .Target }}'
+            PersistentVolumeClaim:
+              ClaimName: '{{ fieldValue "Object.Metadata.Name" (downstream "kubernetes:persistent_volume_claim" .Target) }}'

@@ -64,7 +64,7 @@ operational_rules:
             Metadata:
               Name: amazon-cloudwatch
               Labels:
-                name: aamazon-cloudwatch    
+                name: aamazon-cloudwatch
 
   - if: | # check if there is an fluent bit config map
       {{ $needsCreation := true}}

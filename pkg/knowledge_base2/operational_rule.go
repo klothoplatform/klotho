@@ -41,8 +41,10 @@ type (
 
 	// Configuration defines how to act on any intrinsic values of a resource to make it operational
 	Configuration struct {
-		// Fields defines a field that should be set on the resource
+		// Field defines a field that should be set on the resource
 		Field string `json:"field" yaml:"field"`
+		// Fields defines a set of field that should be set on the resource
+		Fields []string `json:"fields" yaml:"fields"`
 		// Value defines the value that should be set on the resource
 		Value any `json:"value" yaml:"value"`
 	}

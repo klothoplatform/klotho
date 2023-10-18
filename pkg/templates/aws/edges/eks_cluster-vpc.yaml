@@ -1,2 +1,30 @@
 source: aws:eks_cluster
 target: aws:vpc
+operational_rules:
+  - if: |
+      {{ $needsCreation := true}}
+      {{ $addOns := allUpstream "kubernetes:eks_add_on" .Source }}
+      {{ range $index, $addOn := $addOns }}
+        {{- if eq (fieldValue "AddOnName" $addOn) "vpc-cni" }}
+          {{ $needsCreation = false }}
+          {{break}}
+        {{- end }}
+      {{ end }}
+      {{ $needsCreation }}
+    steps:
+      - resource: '{{ .Source }}'
+        direction: upstream
+        resources:
+          - aws:eks_add_on:vpc-cni
+    configuration_rules:
+      - resource: |
+          {{ $addOns := allUpstream "kubernetes:eks_add_on" .Source }}
+          {{ range $index, $addOn := $addOns }}
+            {{- if eq (fieldValue "AddOnName" $addOn) "vpc-cni" }}
+              {{ $addOn }}
+            {{break}}
+          {{- end }}
+          {{ end }}
+        configuration:
+          field: AddOnName
+          value: vpc-cni

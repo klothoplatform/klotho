@@ -1,0 +1,22 @@
+source: kubernetes:pod
+target: aws:rds_proxy
+
+operational_rules:
+  - steps:
+      - resource: '{{ downstream "aws:iam_role" .Source }}'
+        direction: downstream
+        resources:
+          - '{{ downstream "aws:rds_instance" .Target }}'
+  - if: |
+      {{ $eksVpc := (downstream "aws:vpc" .Source) }}
+      {{ $ecVpc := (downstream "aws:vpc" .Target) }}
+      {{- if (ne $eksVpc $ecVpc) }}
+        true
+      {{ else }}
+        false
+      {{- end }}
+    steps:
+      - resource: '{{ downstream "aws:vpc" .Source }}'
+        direction: downstream
+        resources:
+          - '{{downstream "aws:vpc" .Target}}'

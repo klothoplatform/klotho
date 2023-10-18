@@ -1,0 +1,2 @@
+source: kubernetes:pod
+target: aws:eks_cluster

@@ -1,0 +1,2 @@
+source: kubernetes:pod
+target: kubernetes:horizontal_pod_autoscaler

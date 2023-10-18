@@ -1,0 +1,64 @@
+source: kubernetes:service_export
+target: aws:eks_cluster
+
+operational_rules:
+  - if: |
+      {{ $needsCreation := true}}
+      {{ $charts := allUpstream "kubernetes:kustomize_directory" .Target }}
+      {{ range $index, $chart := $charts }}
+        {{- if eq (fieldValue "Directory" $chart) "https://github.com/aws/aws-cloud-map-mcs-controller-for-k8s/config/controller_install_release" }}
+          {{ $needsCreation = false }}
+          {{break}}
+        {{- end }}
+      {{ end }}
+      {{ $needsCreation }}
+
+    steps:
+      - resource: '{{ .Source }}'
+        direction: downstream
+        resources:
+          - kubernetes:cluster_set:cluster-set
+
+      - resource: '{{ .Target }}'
+        direction: upstream
+        resources:
+          - kubernetes:kustomize_directory:aws-cloud-map-mcs-controller
+      - resource: kubernetes:cluster_set:cluster-set
+        direction: downstream
+        resources:
+          - kubernetes:kustomize_directory:aws-cloud-map-mcs-controller
+
+      - resource: '{{ .Source }}'
+        direction: downstream
+        resources:
+          - kubernetes:cluster_set:{{ .Target.Name }}
+      - resource: kubernetes:cluster_set:{{ .Target.Name }}
+        direction: downstream
+        resources:
+          - kubernetes:kustomize_directory:aws-cloud-map-mcs-controller
+
+    configuration_rules:
+      - resource: kubernetes:kustomize_directory:aws-cloud-map-mcs-controller
+        configuration:
+          field: Directory
+          value: 'https://github.com/aws/aws-cloud-map-mcs-controller-for-k8s/config/controller_install_release'
+
+      - resource: kubernetes:cluster_set:cluster-set
+        configuration:
+          field: Object.Metadata.Name
+          value: clusterset.k8s.io
+
+      - resource: kubernetes:cluster_set:cluster-set
+        configuration:
+          field: Object.Spec.Value
+          value: my-clusterset
+
+      - resource: kubernetes:cluster_set:{{ .Target.Name }}
+        configuration:
+          field: Object.Metadata.Name
+          value: cluster.clusterset.k8s.io
+
+      - resource: kubernetes:cluster_set:{{ .Target.Name }}
+        configuration:
+          field: Object.Spec.Value
+          value: '{{ .Target }}#ClusterName'
