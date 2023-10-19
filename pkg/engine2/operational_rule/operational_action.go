@@ -220,7 +220,10 @@ func (action *operationalResourceAction) doesResourceSatisfyNamespace(stepResour
 
 	// for the resource we are checking if its available based on if it is namespaced
 	// if it is namespaced we will ensure that it is namespaced into one of the resources downstream of the step resource
-	namespaceResourceId := kb.GetResourcesNamespaceResource(resource)
+	namespaceResourceId, err := kb.GetResourcesNamespaceResource(resource)
+	if err != nil {
+		return false, fmt.Errorf("error during operational resource action while getting namespace resource: %w", err)
+	}
 	var namespaceResource *construct.Resource
 	if !namespaceResourceId.IsZero() {
 		var err error
@@ -262,12 +265,17 @@ func (action *operationalResourceAction) addSelectorProperties(properties map[st
 	if err != nil {
 		return err
 	}
+	configCtx := solution_context.DynamicCtx(action.ruleCtx.Solution)
 	for key, value := range properties {
 		property := template.GetProperty(key)
 		if property == nil {
 			return fmt.Errorf("property %s not found in template %s", key, template.Id())
 		}
-		err := resource.SetProperty(key, value)
+		selectorPropertyVal, err := knowledgebase.TransformToPropertyValue(resource.ID, key, value, configCtx, action.ruleCtx.Data)
+		if err != nil {
+			return err
+		}
+		err = resource.SetProperty(key, selectorPropertyVal)
 		if err != nil {
 			return err
 		}

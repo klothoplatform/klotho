@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -102,7 +103,12 @@ func (p ResourceSelector) IsMatch(ctx DynamicValueContext, data DynamicValueData
 		if err != nil {
 			return false
 		}
-		if property != v {
+		selectorPropertyVal, err := TransformToPropertyValue(res.ID, k, v, ctx, data)
+		if err != nil {
+			zap.S().Errorf("error transforming property value in resource selector: %s", err)
+			return false
+		}
+		if property != selectorPropertyVal {
 			return false
 		}
 		template, err := ctx.KB().GetResourceTemplate(res.ID)

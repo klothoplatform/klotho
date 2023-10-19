@@ -161,7 +161,7 @@ func addEdgesToTempGraph(tempGraph graph.Graph[construct.ResourceId, construct.R
 	}
 	for _, edge := range edges {
 
-		// edgeTemplate := kb.GetEdgeTemplate(edge.Source.Id(), edge.Target.Id())
+		edgeTemplate := kb.GetEdgeTemplate(edge.Source.Id(), edge.Target.Id())
 		weight := 0
 
 		if edge.Source.GetFunctionality() != knowledgebase.Unknown {
@@ -171,9 +171,9 @@ func addEdgesToTempGraph(tempGraph graph.Graph[construct.ResourceId, construct.R
 			weight++
 		}
 		// TODO: Evaluate if we need direct edge only flag
-		// if edgeTemplate.DirectEdgeOnly {
-		// 	weight += 100
-		// }
+		if edgeTemplate.DirectEdgeOnly {
+			weight += 100
+		}
 
 		srcId := edge.Source.Id()
 		dstId := edge.Target.Id()

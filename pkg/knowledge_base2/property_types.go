@@ -58,7 +58,7 @@ var PropertyTypeMap = map[string]func(val string, property *Property) (PropertyT
 	},
 	"map": func(val string, property *Property) (PropertyType, error) {
 		args := strings.Split(val, ",")
-		if property.Properties != nil {
+		if len(property.Properties) != 0 {
 			return &MapPropertyType{Property: property}, nil
 		}
 		if len(args) != 2 {
@@ -67,7 +67,7 @@ var PropertyTypeMap = map[string]func(val string, property *Property) (PropertyT
 		return &MapPropertyType{Key: args[0], Value: args[1], Property: property}, nil
 	},
 	"list": func(val string, p *Property) (PropertyType, error) {
-		if p.Properties != nil {
+		if len(p.Properties) != 0 {
 			return &ListPropertyType{Property: p}, nil
 		}
 		return &ListPropertyType{Value: val, Property: p}, nil
@@ -296,7 +296,7 @@ func (list *ListPropertyType) Parse(value any, ctx DynamicContext, data DynamicV
 	}
 
 	for _, v := range val {
-		if list.Property.Properties != nil {
+		if len(list.Property.Properties) != 0 {
 			m := MapPropertyType{Property: list.Property}
 			val, err := m.Parse(v, ctx, data)
 			if err != nil {
@@ -337,7 +337,7 @@ func (s *SetPropertyType) Parse(value any, ctx DynamicContext, data DynamicValue
 	}
 
 	for _, v := range val {
-		if s.Property.Properties != nil {
+		if len(s.Property.Properties) != 0 {
 			m := MapPropertyType{Property: s.Property}
 			val, err := m.Parse(v, ctx, data)
 			if err != nil {
@@ -349,7 +349,7 @@ func (s *SetPropertyType) Parse(value any, ctx DynamicContext, data DynamicValue
 
 			parser, err := tempProp.PropertyType()
 			if err != nil {
-				return nil, fmt.Errorf("invalid value type for list property type %s", s.Value)
+				return nil, fmt.Errorf("invalid value type for set property type %s", s.Value)
 			}
 			val, err := parser.Parse(v, ctx, data)
 			if err != nil {
@@ -378,7 +378,7 @@ func (m *MapPropertyType) Parse(value any, ctx DynamicContext, data DynamicValue
 		}
 	}
 	// If we are an object with sub properties then we know that we need to get the type of our sub properties to determine how we are parsed into a value
-	if m.Property.Properties != nil {
+	if len(m.Property.Properties) != 0 {
 		if m.Key != "" || m.Value != "" {
 			return nil, fmt.Errorf("invalid map property type %s", m.Property.Name)
 		}

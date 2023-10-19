@@ -12,10 +12,11 @@ type (
 )
 
 func updateModels(property *Property, properties Properties, models map[string]*Model) error {
+
 	for name, p := range properties {
 		modelType := p.ModelType()
 		if modelType != nil {
-			if p.Properties != nil {
+			if len(p.Properties) != 0 {
 				return fmt.Errorf("property %s has properties but is labeled as a model", name)
 			}
 			model := models[*modelType]
@@ -44,8 +45,10 @@ func updateModels(property *Property, properties Properties, models map[string]*
 				}
 				updateModelPaths(p)
 			}
-		} else {
-			updateModels(p, p.Properties, models)
+		}
+		err := updateModels(p, p.Properties, models)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

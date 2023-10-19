@@ -10,8 +10,8 @@ operational_rules:
       - resource: '{{ .Source }}'
         configuration:
           field: Port
-          value: '{{ fieldValue "Object.Spec.Ports[0].Port" (upstream "kubernetes:service" .Target)}}'
+          value: '{{ fieldValue "Object.Spec.Ports[0].Port" (downstream "kubernetes:service" .Target)}}'
       - resource: '{{ .Source }}'
         configuration:
           field: Protocol
-          value: '{{ fieldValue "Object.Spec.Ports[0].Protocol" (upstream "kubernetes:service" .Target)}}'
+          value: '{{ fieldValue "Object.Spec.Ports[0].Protocol" (downstream "kubernetes:service" .Target)}}'

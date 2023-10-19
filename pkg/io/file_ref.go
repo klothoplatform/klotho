@@ -1,6 +1,7 @@
 package io
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -61,7 +62,10 @@ func OutputTo(files []File, dest string) error {
 			}
 			_, err = f.WriteTo(file)
 			file.Close()
-			errs <- err
+			if err != nil {
+				errs <- fmt.Errorf("could not write file %s: %w", f.Path(), err)
+			}
+			errs <- nil
 		}(files[idx])
 	}
 

@@ -24,7 +24,7 @@ type (
 		GetAllowedNamespacedResourceIds(ctx DynamicValueContext, resourceId construct.ResourceId) ([]construct.ResourceId, error)
 		GetFunctionality(id construct.ResourceId) Functionality
 		GetClassification(id construct.ResourceId) Classification
-		GetResourcesNamespaceResource(resource *construct.Resource) construct.ResourceId
+		GetResourcesNamespaceResource(resource *construct.Resource) (construct.ResourceId, error)
 		GetResourcePropertyType(resource construct.ResourceId, propertyName string) string
 	}
 
@@ -223,20 +223,26 @@ func (kb *KnowledgeBase) GetClassification(id construct.ResourceId) Classificati
 	return template.Classification
 }
 
-func (kb *KnowledgeBase) GetResourcesNamespaceResource(resource *construct.Resource) construct.ResourceId {
+func (kb *KnowledgeBase) GetResourcesNamespaceResource(resource *construct.Resource) (construct.ResourceId, error) {
 	template, err := kb.GetResourceTemplate(resource.ID)
 	if err != nil {
-		return construct.ResourceId{}
+		return construct.ResourceId{}, err
 	}
 	namespaceProperty := template.GetNamespacedProperty()
 	if namespaceProperty != nil {
 		ns, err := resource.GetProperty(namespaceProperty.Name)
-		if err != nil || ns == nil {
-			return construct.ResourceId{}
+		if err != nil {
+			return construct.ResourceId{}, err
 		}
-		return ns.(construct.ResourceId)
+		if ns == nil {
+			return construct.ResourceId{}, nil
+		}
+		if _, ok := ns.(construct.ResourceId); !ok {
+			return construct.ResourceId{}, fmt.Errorf("namespace property does not contain a ResourceId, got %s", ns)
+		}
+		return ns.(construct.ResourceId), nil
 	}
-	return construct.ResourceId{}
+	return construct.ResourceId{}, nil
 }
 
 func (kb *KnowledgeBase) GetResourcePropertyType(resource construct.ResourceId, propertyName string) string {

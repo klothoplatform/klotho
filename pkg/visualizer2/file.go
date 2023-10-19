@@ -49,7 +49,7 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 		resources = append(resources, res)
 	}
 	for _, resource := range resources {
-		key := f.KeyFor(resource)
+		key := f.KeyFor(resource.ID)
 		if key == "" {
 			continue
 		}
@@ -70,15 +70,7 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 					properties[key] = val
 					continue
 				}
-				valRes, err := f.DAG.Vertex(id)
-				if err != nil {
-					return n, err
-				}
-				if valRes != nil {
-					properties[key] = f.KeyFor(valRes)
-				} else {
-					properties[key] = val
-				}
+				properties[key] = f.KeyFor(id)
 			}
 		}
 
@@ -98,8 +90,8 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 			}
 		}
 		for _, res := range downstreamResources {
-			src := f.KeyFor(resource)
-			dst := f.KeyFor(res)
+			src := f.KeyFor(resource.ID)
+			dst := f.KeyFor(res.ID)
 			if src != "" && dst != "" {
 				wh.Writef(indent+"%s -> %s:\n", src, dst)
 			}
@@ -117,8 +109,8 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-func (f *File) KeyFor(res *construct.Resource) string {
-	resId := res.ID
+func (f *File) KeyFor(res construct.ResourceId) string {
+	resId := res
 	var providerInfo string
 	var namespaceInfo string
 	if resId.Provider != f.Provider {
@@ -127,7 +119,7 @@ func (f *File) KeyFor(res *construct.Resource) string {
 	if resId.Namespace != "" {
 		namespaceInfo = ":" + resId.Namespace
 	}
-	return strings.ToLower(fmt.Sprintf("%s%s%s/%s", providerInfo, res.ID.Type, namespaceInfo, resId.Name))
+	return strings.ToLower(fmt.Sprintf("%s%s%s/%s", providerInfo, res.Type, namespaceInfo, resId.Name))
 }
 
 func writeYaml(e any, indentCount int, out ioutil.WriteToHelper) {

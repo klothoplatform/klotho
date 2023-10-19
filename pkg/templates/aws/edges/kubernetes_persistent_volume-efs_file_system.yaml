@@ -6,14 +6,14 @@ operational_rules:
       - resource: '{{ .Source }}'
         direction: downstream
         num_needed: 2
-        resources: |
-          {{ $subnets := (allDownstream "aws:subnet" .Source) }}
-          {{ range $index, $subnet := $subnets }}
-          - selector: aws:efs_mount_target:{{ .Target }}
-            properties:
-              Subnet: {{ $subnet}}
-          {{ $az }}
-          {{ end}}
+        resources:
+          - |
+            {{ $subnets := (allDownstream "aws:subnet" .Source) }}
+            {{ range $index, $subnet := $subnets }}
+            - selector: aws:efs_mount_target:{{ .Target }}
+              properties:
+                Subnet: {{ $subnet}}
+            {{ end}}
       - resource: '{{ .Source }}'
         direction: downstream
         resources:

@@ -20,6 +20,11 @@ properties:
     type: string
   Ports:
     type: list(model(kubernetes:ContainerPort))
+    default_value:
+      - Name: default-tcp
+        ContainerPort: 80
+        HostPort: 80
+        Protocol: TCP
   Env:
     type: list(model(kubernetes:EnvVar))
   Resources:

@@ -1,2 +1,2 @@
 source: aws:efs_mount_target
-destination: aws:subnet
+target: aws:subnet

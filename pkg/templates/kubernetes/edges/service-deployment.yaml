@@ -1,7 +1,9 @@
 source: kubernetes:service
 target: kubernetes:deployment
 operational_rules:
-  - configuration_rules:
+  - if : |
+      {{ ne (len (fieldValue "Object.Spec.Template.Labels" .Target))  0 }}
+    configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
           field: Object.Spec.Selector
@@ -9,6 +11,10 @@ operational_rules:
             {{ range $index, $label := (fieldValue "Object.Spec.Template.Labels" .Target) }}
               {{ $label.Name }}: {{ $label.Value }}
             {{ end }}
+
+  - if : |
+      {{ ne (len (fieldValue "Object.Spec.Template.Spec.Containers" .Target))  0 }}
+    configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
           field: Object.Spec.Ports
