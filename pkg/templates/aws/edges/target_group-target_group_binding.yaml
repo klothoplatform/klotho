@@ -7,6 +7,11 @@ operational_rules:
         configuration:
           field: TargetType
           value: ip
+  - if: |
+      {{-if not (hasDownstream "kubernetes:service" .Target) }}
+        false
+      {{end}}
+      {{ ne (len (fieldValue "Object.Spec.Ports" .Target))  0 }}
       - resource: '{{ .Source }}'
         configuration:
           field: Port
