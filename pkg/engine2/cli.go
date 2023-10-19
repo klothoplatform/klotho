@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime/pprof"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/analytics"
@@ -30,6 +31,7 @@ var engineCfg struct {
 	provider   string
 	guardrails string
 	jsonLog    bool
+	profileTo  string
 }
 
 var architectureEngineCfg struct {
@@ -113,6 +115,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 	flags.StringVarP(&architectureEngineCfg.outputDir, "output-dir", "o", "", "Output directory")
 	flags.BoolVarP(&architectureEngineCfg.verbose, "verbose", "v", false, "Verbose flag")
 	flags.BoolVar(&engineCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
+	flags.StringVar(&engineCfg.profileTo, "profiling", "", "Profile to file")
 
 	root.AddGroup(engineGroup)
 	root.AddCommand(listResourceTypesCmd)
@@ -192,6 +195,17 @@ func (em *EngineMain) ListAttributes(cmd *cobra.Command, args []string) error {
 }
 
 func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
+	if engineCfg.profileTo != "" {
+		profileF, err := os.OpenFile(engineCfg.profileTo, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to open profile file: %w", err)
+		}
+		defer func() {
+			pprof.StopCPUProfile()
+			profileF.Close()
+		}()
+		pprof.StartCPUProfile(profileF)
+	}
 
 	// Set up analytics, and hook them up to the logs
 	analyticsClient := analytics.NewClient()

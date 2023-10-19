@@ -8,6 +8,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 	"github.com/dominikbraun/graph/draw"
+	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
@@ -37,28 +38,63 @@ func (eval *PropertyEval) writeGraph(filename string) {
 	}
 
 	var extraStatements []string
+	evaluated := make(set.Set[EvaluationKey])
 	for rank, keys := range eval.evaluatedOrder {
 		sb := new(strings.Builder)
 		sb.WriteString("{rank = same; ")
 		for _, key := range keys {
 			sb.WriteString(fmt.Sprintf(`"%s"; `, key))
+			evaluated.Add(key)
 
-			_, props, err := eval.graph.VertexWithProperties(key)
+			v, props, err := eval.graph.VertexWithProperties(key)
 			if err != nil {
 				zap.S().Errorf("could not get vertex with properties: %v", err)
 				continue
 			}
 			if key.Ref.Resource.IsZero() {
-				props.Attributes["label"] = fmt.Sprintf(`%s\n→ %s`, key.Edge.Source, key.Edge.Target)
+				props.Attributes["label"] = fmt.Sprintf(`(%d) %s\n→ %s`, rank, key.Edge.Source, key.Edge.Target)
 				props.Attributes["shape"] = "parallelogram"
 			} else {
-				props.Attributes["label"] = fmt.Sprintf(`%s\n%s`, key.Ref.Resource, key.Ref.Property)
+				props.Attributes["label"] = fmt.Sprintf(`(%d) %s\n%s`, rank, key.Ref.Resource, key.Ref.Property)
 				props.Attributes["shape"] = "box"
+			}
+			if v.HasGraphOps() {
+				props.Attributes["label"] += " *"
 			}
 			props.Attributes["group"] = fmt.Sprintf("rank%d", rank)
 		}
 		sb.WriteString("}")
 		extraStatements = append(extraStatements, sb.String())
+	}
+
+	topo, err := graph.TopologicalSort(eval.graph)
+	if err != nil {
+		zap.S().Errorf("could not get topological sort: %v", err)
+		return
+	}
+	for _, key := range topo {
+		if evaluated.Contains(key) {
+			continue
+		}
+		v, props, err := eval.graph.VertexWithProperties(key)
+		if err != nil {
+			zap.S().Errorf("could not get vertex with properties: %v", err)
+			continue
+		}
+
+		if key.Ref.Resource.IsZero() {
+			props.Attributes["label"] = fmt.Sprintf(`(_) %s\n→ %s`, key.Edge.Source, key.Edge.Target)
+			props.Attributes["shape"] = "parallelogram"
+		} else {
+			props.Attributes["label"] = fmt.Sprintf(`(_) %s\n%s`, key.Ref.Resource, key.Ref.Property)
+			props.Attributes["shape"] = "box"
+		}
+		if v.HasGraphOps() {
+			props.Attributes["label"] += " *"
+		}
+		props.Attributes["style"] = "filled"
+		props.Attributes["fillcolor"] = "#e87b7b"
+		props.Attributes["group"] = "unevaluated"
 	}
 
 	err = draw.DOT(eval.graph, f, func(d *draw.Description) {

@@ -20,6 +20,7 @@ type (
 		Template    *knowledgebase.Property
 		Constraints []constraints.ResourceConstraint
 		EdgeRules   map[ResourceEdge][]knowledgebase.OperationalRule
+		hasGraphOps bool
 	}
 )
 
@@ -27,10 +28,15 @@ func (prop propertyVertex) Key() EvaluationKey {
 	return EvaluationKey{Ref: prop.Ref}
 }
 
-func (prop propertyVertex) dependencies(cfgCtx knowledgebase.DynamicValueContext) (set.Set[construct.PropertyRef], error) {
+func (prop propertyVertex) HasGraphOps() bool {
+	return prop.hasGraphOps
+}
+
+func (prop *propertyVertex) Dependencies(cfgCtx knowledgebase.DynamicValueContext) (set.Set[construct.PropertyRef], error) {
 	propCtx := &fauxConfigContext{
-		inner: cfgCtx,
-		refs:  make(set.Set[construct.PropertyRef]),
+		propRef: prop.Ref,
+		inner:   cfgCtx,
+		refs:    make(set.Set[construct.PropertyRef]),
 	}
 
 	resData := knowledgebase.DynamicValueData{Resource: prop.Ref.Resource}
@@ -61,6 +67,8 @@ func (prop propertyVertex) dependencies(cfgCtx knowledgebase.DynamicValueContext
 			return nil, fmt.Errorf("could not execute %s for edge %s -> %s: %w", prop.Ref, edge.Source, edge.Target, errs)
 		}
 	}
+
+	prop.hasGraphOps = propCtx.hasGraphOps
 
 	return propCtx.refs, nil
 }

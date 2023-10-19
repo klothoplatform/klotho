@@ -148,7 +148,7 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 		edges[i-1] = edge
 	}
 	if len(pstr) > 2 {
-		zap.S().Debug("Expanded %s -> %s to %s", source, target, strings.Join(pstr, " -> "))
+		zap.S().Debugf("Expanded %s -> %s to %s", source, target, strings.Join(pstr, " -> "))
 	}
 	if errs != nil {
 		return errs

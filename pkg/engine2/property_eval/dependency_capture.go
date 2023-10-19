@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"text/template"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -16,9 +15,10 @@ import (
 // fauxConfigContext acts like a [knowledgebase.DynamicValueContext] but replaces the [FieldValue] function
 // with one that just returns the zero value of the property type and records the property reference.
 type fauxConfigContext struct {
-	propRef construct.PropertyRef
-	inner   knowledgebase.DynamicValueContext
-	refs    set.Set[construct.PropertyRef]
+	propRef     construct.PropertyRef
+	inner       knowledgebase.DynamicValueContext
+	refs        set.Set[construct.PropertyRef]
+	hasGraphOps bool
 }
 
 func (ctx *fauxConfigContext) DAG() construct.Graph {
@@ -38,9 +38,6 @@ func (ctx *fauxConfigContext) ExecuteDecode(tmpl string, data knowledgebase.Dyna
 }
 
 func (ctx *fauxConfigContext) ExecuteValue(v any, data knowledgebase.DynamicValueData) error {
-	if ctx.refs == nil {
-		ctx.refs = make(set.Set[construct.PropertyRef])
-	}
 	_, err := knowledgebase.TransformToPropertyValue(ctx.propRef.Resource, ctx.propRef.Property, v, ctx, data)
 	if err != nil {
 		zap.S().Debugf("ignoring error from TransformToPropertyValue during deps calculation on %s: %s", ctx.propRef, err)
@@ -53,13 +50,12 @@ func (ctx *fauxConfigContext) Execute(v any, data knowledgebase.DynamicValueData
 	if ctx.refs == nil {
 		ctx.refs = make(set.Set[construct.PropertyRef])
 	}
-
 	if ref, ok := v.(construct.PropertyRef); ok {
 		ctx.refs.Add(ref)
 		return nil
 	}
 	vStr, ok := v.(string)
-	if !ok || !strings.Contains(vStr, "fieldValue") {
+	if !ok {
 		return nil
 	}
 	tmpl, err := template.New(ctx.propRef.String()).Funcs(ctx.TemplateFunctions()).Parse(vStr)
@@ -99,6 +95,12 @@ func (ctx *fauxConfigContext) ExecuteOpRule(
 func (ctx *fauxConfigContext) TemplateFunctions() template.FuncMap {
 	funcs := ctx.inner.TemplateFunctions()
 	funcs["fieldValue"] = ctx.FieldValue
+	funcs["hasUpstream"] = ctx.HasUpstream
+	funcs["upstream"] = ctx.Upstream
+	funcs["allUpstream"] = ctx.AllUpstream
+	funcs["hasDownstream"] = ctx.HasDownstream
+	funcs["downstream"] = ctx.Downstream
+	funcs["allDownstream"] = ctx.AllDownstream
 	return funcs
 }
 
@@ -107,7 +109,21 @@ func (ctx *fauxConfigContext) FieldValue(field string, resource any) (any, error
 	if err != nil {
 		return "", err
 	}
+	if resId.IsZero() {
+		return nil, nil
+	}
+	if ctx.refs == nil {
+		ctx.refs = make(set.Set[construct.PropertyRef])
+	}
 	ctx.refs.Add(construct.PropertyRef{Resource: resId, Property: field})
+
+	value, err := ctx.inner.FieldValue(field, resId)
+	if err != nil {
+		return nil, err
+	}
+	if value != nil {
+		return value, nil
+	}
 
 	tmpl, err := ctx.inner.KB().GetResourceTemplate(resId)
 	if err != nil {
@@ -130,4 +146,34 @@ func emptyValue(tmpl *knowledgebase.ResourceTemplate, property string) (any, err
 		)
 	}
 	return ptype.ZeroValue(), nil
+}
+
+func (ctx *fauxConfigContext) HasUpstream(selector any, resource construct.ResourceId) (bool, error) {
+	ctx.hasGraphOps = true
+	return ctx.inner.HasUpstream(selector, resource)
+}
+
+func (ctx *fauxConfigContext) Upstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
+	ctx.hasGraphOps = true
+	return ctx.inner.Upstream(selector, resource)
+}
+
+func (ctx *fauxConfigContext) AllUpstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {
+	ctx.hasGraphOps = true
+	return ctx.inner.AllUpstream(selector, resource)
+}
+
+func (ctx *fauxConfigContext) HasDownstream(selector any, resource construct.ResourceId) (bool, error) {
+	ctx.hasGraphOps = true
+	return ctx.inner.HasDownstream(selector, resource)
+}
+
+func (ctx *fauxConfigContext) Downstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
+	ctx.hasGraphOps = true
+	return ctx.inner.Downstream(selector, resource)
+}
+
+func (ctx *fauxConfigContext) AllDownstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {
+	ctx.hasGraphOps = true
+	return ctx.inner.AllDownstream(selector, resource)
 }

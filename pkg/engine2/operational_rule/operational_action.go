@@ -281,9 +281,15 @@ func (action *operationalResourceAction) createResource(
 	stepResource *construct.Resource,
 ) error {
 	newRes := construct.CreateResource(resourceType)
-	action.addSelectorProperties(selector.Properties, newRes)
-	action.generateResourceName(&newRes.ID, stepResource.ID)
-	action.createAndAddDependency(newRes, stepResource)
+	if err := action.addSelectorProperties(selector.Properties, newRes); err != nil {
+		return err
+	}
+	if err := action.generateResourceName(&newRes.ID, stepResource.ID); err != nil {
+		return err
+	}
+	if err := action.createAndAddDependency(newRes, stepResource); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -300,11 +306,11 @@ func (action *operationalResourceAction) createAndAddDependency(res, stepResourc
 	return nil
 }
 
-func (action *operationalResourceAction) generateResourceName(resourceToSet *construct.ResourceId, resource construct.ResourceId) {
+func (action *operationalResourceAction) generateResourceName(resourceToSet *construct.ResourceId, resource construct.ResourceId) error {
 	numResources := 0
 	ids, err := construct.ToplogicalSort(action.ruleCtx.Solution.DataflowGraph())
 	if err != nil {
-		return
+		return err
 	}
 	for _, id := range ids {
 		if id.Type == resourceToSet.Type {
@@ -316,4 +322,5 @@ func (action *operationalResourceAction) generateResourceName(resourceToSet *con
 	} else {
 		resourceToSet.Name = fmt.Sprintf("%s-%d", resourceToSet.Type, numResources)
 	}
+	return nil
 }

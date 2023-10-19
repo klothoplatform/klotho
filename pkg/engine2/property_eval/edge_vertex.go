@@ -14,14 +14,19 @@ import (
 type edgeVertex struct {
 	Edge ResourceEdge
 
-	Rules []knowledgebase.OperationalRule
+	Rules       []knowledgebase.OperationalRule
+	hasGraphOps bool
 }
 
 func (ev edgeVertex) Key() EvaluationKey {
 	return EvaluationKey{Edge: ev.Edge}
 }
 
-func (ev edgeVertex) dependencies(cfgCtx knowledgebase.DynamicValueContext) (set.Set[construct.PropertyRef], error) {
+func (ev edgeVertex) HasGraphOps() bool {
+	return ev.hasGraphOps
+}
+
+func (ev *edgeVertex) Dependencies(cfgCtx knowledgebase.DynamicValueContext) (set.Set[construct.PropertyRef], error) {
 	propCtx := &fauxConfigContext{inner: cfgCtx, refs: make(set.Set[construct.PropertyRef])}
 
 	data := knowledgebase.DynamicValueData{Edge: &construct.Edge{Source: ev.Edge.Source, Target: ev.Edge.Target}}
@@ -38,6 +43,8 @@ func (ev edgeVertex) dependencies(cfgCtx knowledgebase.DynamicValueContext) (set
 			ev.Edge.Source, ev.Edge.Target, errs,
 		)
 	}
+
+	ev.hasGraphOps = propCtx.hasGraphOps
 
 	return propCtx.refs, nil
 }

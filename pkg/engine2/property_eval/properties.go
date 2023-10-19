@@ -8,6 +8,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
@@ -37,6 +38,11 @@ type (
 		Key() EvaluationKey
 		Evaluate(eval *PropertyEval) error
 		UpdateFrom(other EvaluationVertex)
+		// HasGraphOps returns true if the vertex has any graph reads in its templates.
+		// It's a bit of a hacky way to deprioritize these items until the resource graph has settled.
+		// There's got to be a better way to do this in a way that's represented in the property graph.
+		HasGraphOps() bool
+		Dependencies(cfgCtx knowledgebase.DynamicValueContext) (set.Set[construct.PropertyRef], error)
 	}
 
 	verticesAndDeps map[EvaluationVertex]set.Set[construct.PropertyRef]
@@ -63,7 +69,7 @@ func (e ResourceEdge) String() string {
 
 func (eval *PropertyEval) enqueue(vs verticesAndDeps) error {
 	var errs error
-	for v := range vs {
+	for v, deps := range vs {
 		_, err := eval.graph.Vertex(v.Key())
 		switch {
 		case errors.Is(err, graph.ErrVertexNotFound):
@@ -72,7 +78,7 @@ func (eval *PropertyEval) enqueue(vs verticesAndDeps) error {
 				errs = errors.Join(errs, err)
 				continue
 			}
-			zap.S().With("op", "enqueue").Debugf("Enqueued %s", v.Key())
+			zap.S().With("op", "enqueue").Debugf("Enqueued %s (%d deps)", v.Key(), len(deps))
 			if err := eval.unevaluated.AddVertex(v); err != nil {
 				errs = errors.Join(errs, err)
 			}
@@ -83,8 +89,10 @@ func (eval *PropertyEval) enqueue(vs verticesAndDeps) error {
 				errs = errors.Join(errs, err)
 				continue
 			}
-			zap.S().With("op", "enqueue").Debugf("Updating %s", v.Key())
-			existing.UpdateFrom(v)
+			if v != existing {
+				zap.S().With("op", "enqueue").Debugf("Updating %s (%d deps)", v.Key(), len(deps))
+				existing.UpdateFrom(v)
+			}
 
 		case err != nil:
 			errs = errors.Join(errs, err)
@@ -100,7 +108,7 @@ func (eval *PropertyEval) enqueue(vs verticesAndDeps) error {
 			err := eval.graph.AddEdge(source.Key(), targetKey)
 			if err != nil {
 				// NOTE(gg): If this fails with target not in graph, then we might need to add the target in with a
-				// new vertex type of "overwrite me".
+				// new vertex type of "overwrite me later".
 				errs = errors.Join(errs, err)
 			}
 			_, err = eval.unevaluated.Vertex(targetKey)
@@ -108,6 +116,7 @@ func (eval *PropertyEval) enqueue(vs verticesAndDeps) error {
 			case errors.Is(err, graph.ErrVertexNotFound):
 				// the 'graph.AddEdge' succeeded, thus the target exists in the total graph
 				// which means that the target vertex is done, so don't add the edge
+				zap.S().With("op", "deps").Debugf("  -> %s (done)", target)
 
 			case err != nil:
 				errs = errors.Join(errs, err)
@@ -177,7 +186,7 @@ func (eval *PropertyEval) UpdateId(oldId, newId construct.ResourceId) error {
 		return err
 	}
 	v.ID = newId
-	err = graph_addons.ReplaceVertex(eval.Solution.RawView(), oldId, v, construct.ResourceHasher)
+	err = construct.PropagateUpdatedId(eval.Solution.RawView(), oldId)
 	if err != nil {
 		return err
 	}

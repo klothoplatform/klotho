@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dominikbraun/graph"
+	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	"go.uber.org/zap"
 )
@@ -25,7 +27,6 @@ func (eval *PropertyEval) Evaluate() error {
 		if len(ready) == 0 {
 			return fmt.Errorf("possible circular dependency detected in properties graph: %d remaining", size)
 		}
-		zap.S().With("op", "dequeue").Debugf("Dequeued %d properties", len(ready))
 
 		evaluated := make([]EvaluationKey, len(ready))
 		for i, v := range ready {
@@ -40,6 +41,10 @@ func (eval *PropertyEval) Evaluate() error {
 		}
 		if errs != nil {
 			return errs
+		}
+
+		if err := eval.RecalculateUnevaluated(); err != nil {
+			return err
 		}
 	}
 }
@@ -58,17 +63,73 @@ func (eval *PropertyEval) popReady() ([]EvaluationVertex, error) {
 		}
 	}
 
-	ready := make([]EvaluationVertex, len(readyKeys))
+	ready := make([]EvaluationVertex, 0, len(readyKeys))
+	graphOps := make([]EvaluationVertex, 0, len(readyKeys))
 	var errs error
-	for i, key := range readyKeys {
+	for _, key := range readyKeys {
 		v, err := eval.unevaluated.Vertex(key)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		ready[i] = v
-		errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, key))
+		if v.HasGraphOps() {
+			graphOps = append(graphOps, v)
+		} else {
+			ready = append(ready, v)
+		}
+	}
+	if errs != nil {
+		return nil, errs
+	}
+
+	if len(ready) == 0 {
+		ready = graphOps
+		zap.S().With("op", "dequeue").Debugf("Only graph ops left, dequeued %d", len(ready))
+	} else {
+		zap.S().With("op", "dequeue").Debugf("Dequeued %d, graph ops left: %d", len(ready), len(graphOps))
+	}
+
+	for _, v := range ready {
+		errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, v.Key()))
+		zap.S().With("op", "dequeue").Debugf(" - %s", v.Key())
 	}
 
 	return ready, errs
+}
+
+// RecalculateUnevaluated is used to recalculate the dependencies of all the unevaluated vertices in case
+// some parts have "opened up" due to the evaluation of other vertices via template `{{ if }}` conditions or
+// chained dependencies (eg `{{ fieldValue "X" (fieldValue "SomeRef" .Self) }}`, the dependency of X won't be
+// able to be resolved until SomeRef is evaluated).
+// There is likely a way to determine which vertices need to be recalculated, but the runtime impact of just
+// recalculating them all isn't large at the size of graphs we're currently running with.
+// Running on a medium sized input, this accounted for 0.18s of the total 0.69s, or ~26% of the runtime.
+func (eval *PropertyEval) RecalculateUnevaluated() error {
+	zap.S().Debug("Recalculating unevaluated graph for updated dependencies")
+	topo, err := graph.TopologicalSort(eval.unevaluated)
+	if err != nil {
+		return err
+	}
+
+	dyn := solution_context.DynamicCtx(eval.Solution)
+
+	vs := make(verticesAndDeps)
+	var errs error
+	for _, key := range topo {
+		vertex, err := eval.unevaluated.Vertex(key)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		deps, err := vertex.Dependencies(dyn)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		vs.Add(vertex, deps)
+	}
+	if errs != nil {
+		return errs
+	}
+	return eval.enqueue(vs)
 }

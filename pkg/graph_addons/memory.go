@@ -114,18 +114,25 @@ func (s *MemoryStore[K, T]) RemoveVertex(k K) error {
 		return &graph.VertexNotFoundError[K]{Key: k}
 	}
 
+	count := 0
 	if edges, ok := s.inEdges[k]; ok {
-		if count := len(edges); count > 0 {
-			return &graph.VertexHasEdgesError[K]{Key: k, Count: count}
+		inCount := len(edges)
+		count += inCount
+		if inCount == 0 {
+			delete(s.inEdges, k)
 		}
-		delete(s.inEdges, k)
 	}
 
 	if edges, ok := s.outEdges[k]; ok {
-		if count := len(edges); count > 0 {
-			return &graph.VertexHasEdgesError[K]{Key: k, Count: count}
+		outCount := len(edges)
+		count += outCount
+		if outCount == 0 {
+			delete(s.outEdges, k)
 		}
-		delete(s.outEdges, k)
+	}
+
+	if count > 0 {
+		return &graph.VertexHasEdgesError[K]{Key: k, Count: count}
 	}
 
 	delete(s.vertices, k)
