@@ -380,8 +380,8 @@ github.com/klauspost/compress v1.15.14 h1:i7WCKDToww0wA+9qrUZ1xOjp218vfFo3nTU6UH
 github.com/klauspost/compress v1.15.14/go.mod h1:QPwzmACJjUTFsnSHH934V6woptycfrDDJnH7hvFVbGM=
 github.com/klothoplatform/go-tree-sitter v0.1.1 h1:UO9bDCP6jJfKHUPv0P+8wLM6FJ4tCRNu3Hj2EQE51wk=
 github.com/klothoplatform/go-tree-sitter v0.1.1/go.mod h1:q99oHDsbP0xRwmn7Vmob8gbSMNyvJ83OauXPSuHQuKE=
-github.com/klothoplatform/graph v0.24.1 h1:Mv+dIszxP7Y9lsQxy3KZDUd5KaoGv91rdM8CdovOGwo=
-github.com/klothoplatform/graph v0.24.1/go.mod h1:yOjYyogZLY1LSG9E33JWZJiq5k83Qy2C6POAuiViluc=
+github.com/klothoplatform/graph v0.24.2 h1:+NZOuLhh7NoWRY4u/1qAMmgeq+gC5WR6NURkJDuNupc=
+github.com/klothoplatform/graph v0.24.2/go.mod h1:yOjYyogZLY1LSG9E33JWZJiq5k83Qy2C6POAuiViluc=
 github.com/klothoplatform/yaml/v3 v3.0.1 h1:9POX/TEuMqoXsMJ6ypU2FdaRtnt47bxx+klOQ0PSuys=
 github.com/klothoplatform/yaml/v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=

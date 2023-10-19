@@ -52,7 +52,7 @@ require (
 )
 
 replace (
-	github.com/dominikbraun/graph => github.com/klothoplatform/graph v0.24.1
+	github.com/dominikbraun/graph => github.com/klothoplatform/graph v0.24.2
 	github.com/smacker/go-tree-sitter => github.com/klothoplatform/go-tree-sitter v0.1.1
 
 	// yaml fork is the same (as of 2023/07/28) except with the PR merged:
