@@ -37,27 +37,30 @@ func walk[K comparable, T any](
 	deps map[K]map[K]graph.Edge[K],
 ) error {
 	visited := make(set.Set[K])
-	var stack []K
 
+	var stack []K
 	for d := range deps[start] {
 		stack = append(stack, d)
 	}
 	visited.Add(start)
+	if len(stack) == 0 {
+		return nil
+	}
 
-	var err error
+	var nerr error
 	var current K
 	for len(stack) > 0 {
 		current, stack = stack[0], stack[1:]
 		visited.Add(current)
 
-		nerr := f(current, err)
-		if errors.Is(nerr, StopWalk) {
-			return err
+		err := f(current, nerr)
+		if errors.Is(err, StopWalk) {
+			return nerr
 		}
-		if errors.Is(nerr, SkipPath) {
+		if errors.Is(err, SkipPath) {
 			continue
 		}
-		err = nerr
+		nerr = err
 
 		for d := range deps[current] {
 			if visited.Contains(d) {
@@ -66,5 +69,5 @@ func walk[K comparable, T any](
 			stack = append(stack, d)
 		}
 	}
-	return err
+	return nerr
 }

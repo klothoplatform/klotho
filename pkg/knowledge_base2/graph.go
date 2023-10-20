@@ -49,9 +49,7 @@ func resourceLocal(
 }
 
 func resourceGlue(
-	dag construct.Graph,
 	kb TemplateKB,
-	rid construct.ResourceId,
 	ids *[]construct.ResourceId,
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
 	return func(id construct.ResourceId, nerr error) error {
@@ -64,9 +62,7 @@ func resourceGlue(
 }
 
 func firstFunctional(
-	dag construct.Graph,
 	kb TemplateKB,
-	rid construct.ResourceId,
 	ids *[]construct.ResourceId,
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
 	return func(id construct.ResourceId, nerr error) error {
@@ -79,9 +75,6 @@ func firstFunctional(
 }
 
 func allDeps(
-	dag construct.Graph,
-	kb TemplateKB,
-	rid construct.ResourceId,
 	ids *[]construct.ResourceId,
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
 	return func(id construct.ResourceId, nerr error) error {
@@ -97,11 +90,11 @@ func Downstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, la
 	case ResourceLocalLayer:
 		f = resourceLocal(dag, kb, rid, &result)
 	case ResourceGlueLayer:
-		f = resourceGlue(dag, kb, rid, &result)
+		f = resourceGlue(kb, &result)
 	case FirstFunctionalLayer:
-		f = firstFunctional(dag, kb, rid, &result)
+		f = firstFunctional(kb, &result)
 	case AllDepsLayer:
-		f = allDeps(dag, kb, rid, &result)
+		f = allDeps(&result)
 	default:
 		return nil, fmt.Errorf("unknown layer %d", layer)
 	}
@@ -128,11 +121,11 @@ func Upstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, laye
 	case ResourceLocalLayer:
 		f = resourceLocal(dag, kb, rid, &result)
 	case ResourceGlueLayer:
-		f = resourceGlue(dag, kb, rid, &result)
+		f = resourceGlue(kb, &result)
 	case FirstFunctionalLayer:
-		f = firstFunctional(dag, kb, rid, &result)
+		f = firstFunctional(kb, &result)
 	case AllDepsLayer:
-		f = allDeps(dag, kb, rid, &result)
+		f = allDeps(&result)
 	default:
 		return nil, fmt.Errorf("unknown layer %d", layer)
 	}
