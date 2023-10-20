@@ -155,6 +155,21 @@ func (v *propertyVertex) evaluateConstraints(eval *PropertyEval, res *construct.
 			return fmt.Errorf("could not set default value for %s: %w", v.Ref, err)
 		}
 	} else if setConstraint != nil {
+		kb := eval.Solution.KnowledgeBase()
+		resTemplate, err := kb.GetResourceTemplate(res.ID)
+		if err != nil {
+			return fmt.Errorf("could not get resource template for %s: %w", res.ID, err)
+		}
+		property := resTemplate.GetProperty(v.Ref.Property)
+		if property == nil {
+			return fmt.Errorf("could not get property %s from resource %s", v.Ref.Property, res.ID)
+		}
+		switch setConstraint.Operator {
+		case constraints.AddConstraintOperator, constraints.RemoveConstraintOperator:
+			if property.IsPropertyTypeScalar() {
+				return fmt.Errorf("cannot add/remove to scalar property %s", v.Ref)
+			}
+		}
 		err = solution_context.ConfigureResource(
 			eval.Solution,
 			res,

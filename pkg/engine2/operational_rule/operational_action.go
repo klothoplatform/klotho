@@ -26,14 +26,8 @@ func (action *operationalResourceAction) handleOperationalResourceAction(resourc
 		return nil
 	}
 
-	// First we will loop through and attempt to create all explicit resources
-	err := action.handleExplicitResources(resource)
-	if err != nil {
-		return fmt.Errorf("error during operational resource action while handling explicit resources: %w", err)
-	}
-
 	if action.Step.Unique && action.numNeeded > 0 {
-		err = action.createUniqueResources(resource)
+		err := action.createUniqueResources(resource)
 		if err != nil {
 			return fmt.Errorf("error during operational resource action while creating unique resources: %w", err)
 		}
@@ -41,7 +35,7 @@ func (action *operationalResourceAction) handleOperationalResourceAction(resourc
 	}
 
 	if action.numNeeded > 0 {
-		err = action.useAvailableResources(resource)
+		err := action.useAvailableResources(resource)
 		if err != nil {
 			return fmt.Errorf("error during operational resource action while using available resources: %w", err)
 		}
@@ -58,50 +52,6 @@ func (action *operationalResourceAction) handleOperationalResourceAction(resourc
 		}
 	}
 
-	return nil
-}
-
-func (action *operationalResourceAction) handleExplicitResources(resource *construct.Resource) error {
-	configCtx := solution_context.DynamicCtx(action.ruleCtx.Solution)
-	for _, resourceSelector := range action.Step.Resources {
-		if resourceSelector.Selector == "" {
-			continue
-		}
-		var decodedIds construct.ResourceList
-		err := configCtx.ExecuteDecode(
-			resourceSelector.Selector,
-			action.ruleCtx.Data,
-			&decodedIds,
-		)
-		if err != nil {
-			return fmt.Errorf("error during operational resource action while decoding resource selector: %w", err)
-		}
-
-		for _, decodedId := range decodedIds {
-			if decodedId.Name == "" {
-				continue
-			}
-
-			res, err := action.ruleCtx.Solution.RawView().Vertex(decodedId)
-			if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
-				return fmt.Errorf("could not get resource for selector %+v: %w", resourceSelector, err)
-			}
-			if res == nil {
-				res = construct.CreateResource(decodedId)
-				err = action.addSelectorProperties(resourceSelector.Properties, res)
-				if err != nil {
-					return fmt.Errorf("could not add selector properties to %s: %w", decodedId, err)
-				}
-			}
-			if resourceSelector.IsMatch(configCtx, action.ruleCtx.Data, res) {
-				err := action.createAndAddDependency(res, resource)
-				if err != nil {
-					return err
-				}
-				action.CurrentIds = append(action.CurrentIds, res.ID)
-			}
-		}
-	}
 	return nil
 }
 
@@ -251,10 +201,14 @@ func (action *operationalResourceAction) getPriorityResourceType() (
 			return construct.ResourceId{}, resourceSelector, err
 		}
 		for _, id := range ids {
-			if id.IsZero() || id.Name != "" {
+			res, err := action.ruleCtx.Solution.RawView().Vertex(id)
+			if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
+				return construct.ResourceId{}, resourceSelector, err
+			}
+			if id.IsZero() || res != nil {
 				continue
 			}
-			return construct.ResourceId{Provider: id.Provider, Type: id.Type}, resourceSelector, nil
+			return construct.ResourceId{Provider: id.Provider, Type: id.Type, Namespace: id.Namespace, Name: id.Name}, resourceSelector, nil
 		}
 	}
 	return construct.ResourceId{}, knowledgebase.ResourceSelector{}, fmt.Errorf("no resource types found for step")
@@ -315,20 +269,23 @@ func (action *operationalResourceAction) createAndAddDependency(res, stepResourc
 }
 
 func (action *operationalResourceAction) generateResourceName(resourceToSet *construct.ResourceId, resource construct.ResourceId) error {
-	numResources := 0
-	ids, err := construct.ToplogicalSort(action.ruleCtx.Solution.DataflowGraph())
-	if err != nil {
-		return err
-	}
-	for _, id := range ids {
-		if id.Type == resourceToSet.Type {
-			numResources++
+
+	if resourceToSet.Name == "" {
+		numResources := 0
+		ids, err := construct.ToplogicalSort(action.ruleCtx.Solution.DataflowGraph())
+		if err != nil {
+			return err
 		}
-	}
-	if action.Step.Unique {
-		resourceToSet.Name = fmt.Sprintf("%s-%s-%d", resourceToSet.Type, resource.Name, numResources)
-	} else {
-		resourceToSet.Name = fmt.Sprintf("%s-%d", resourceToSet.Type, numResources)
+		for _, id := range ids {
+			if id.Type == resourceToSet.Type {
+				numResources++
+			}
+		}
+		if action.Step.Unique {
+			resourceToSet.Name = fmt.Sprintf("%s-%s-%d", resourceToSet.Type, resource.Name, numResources)
+		} else {
+			resourceToSet.Name = fmt.Sprintf("%s-%d", resourceToSet.Type, numResources)
+		}
 	}
 	return nil
 }
