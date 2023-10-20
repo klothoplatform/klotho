@@ -42,6 +42,6 @@ operational_rules:
     configuration_rules:
       - resource: '{{ .Target }}'
         configuration:
-          field: Object.Labels
+          field: Object.Metadata.Labels
           value:
             elbv2.k8s.aws/pod-readiness-gate-inject: enabled
