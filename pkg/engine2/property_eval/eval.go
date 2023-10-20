@@ -3,8 +3,10 @@ package property_eval
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/dominikbraun/graph"
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	"go.uber.org/zap"
@@ -97,6 +99,20 @@ func (eval *PropertyEval) popReady() ([]EvaluationVertex, error) {
 	} else {
 		zap.S().With("op", "dequeue").Debugf("Dequeued %d, graph ops left: %d", len(ready), len(graphOps))
 	}
+
+	sort.SliceStable(ready, func(i, j int) bool {
+		a, b := ready[i].Key(), ready[j].Key()
+		if a.Ref.Resource.IsZero() != b.Ref.Resource.IsZero() {
+			return a.Ref.Resource.IsZero()
+		}
+		if a.GraphState != b.GraphState {
+			return a.GraphState < b.GraphState
+		}
+		if a.Edge.Source != b.Edge.Source {
+			return construct.ResourceIdLess(a.Edge.Source, b.Edge.Source)
+		}
+		return construct.ResourceIdLess(a.Edge.Target, b.Edge.Target)
+	})
 
 	for _, v := range ready {
 		errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, v.Key()))
