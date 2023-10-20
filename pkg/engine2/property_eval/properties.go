@@ -26,8 +26,9 @@ type (
 	}
 
 	EvaluationKey struct {
-		Ref  construct.PropertyRef
-		Edge ResourceEdge
+		Ref        construct.PropertyRef
+		Edge       ResourceEdge
+		GraphState string
 	}
 
 	ResourceEdge struct {
@@ -38,14 +39,12 @@ type (
 		Key() EvaluationKey
 		Evaluate(eval *PropertyEval) error
 		UpdateFrom(other EvaluationVertex)
-		// HasGraphOps returns true if the vertex has any graph reads in its templates.
-		// It's a bit of a hacky way to deprioritize these items until the resource graph has settled.
-		// There's got to be a better way to do this in a way that's represented in the property graph.
-		HasGraphOps() bool
-		Dependencies(cfgCtx knowledgebase.DynamicValueContext) (set.Set[construct.PropertyRef], error)
+		Dependencies(cfgCtx knowledgebase.DynamicValueContext) (set.Set[construct.PropertyRef], graphStates, error)
 	}
 
-	verticesAndDeps map[EvaluationVertex]set.Set[construct.PropertyRef]
+	verticesAndDeps map[EvaluationVertex]set.Set[EvaluationKey]
+
+	graphStates map[string]func(construct.Graph) (bool, error)
 )
 
 func NewPropertyEval(ctx solution_context.SolutionContext) *PropertyEval {
@@ -57,10 +56,13 @@ func NewPropertyEval(ctx solution_context.SolutionContext) *PropertyEval {
 }
 
 func (key EvaluationKey) String() string {
-	if key.Ref.Resource.IsZero() {
-		return key.Edge.String()
+	if !key.Ref.Resource.IsZero() {
+		return key.Ref.String()
 	}
-	return key.Ref.String()
+	if key.GraphState != "" {
+		return key.GraphState
+	}
+	return key.Edge.String()
 }
 
 func (e ResourceEdge) String() string {
@@ -70,7 +72,8 @@ func (e ResourceEdge) String() string {
 func (eval *PropertyEval) enqueue(vs verticesAndDeps) error {
 	var errs error
 	for v, deps := range vs {
-		_, err := eval.graph.Vertex(v.Key())
+		key := v.Key()
+		_, err := eval.graph.Vertex(key)
 		switch {
 		case errors.Is(err, graph.ErrVertexNotFound):
 			err := eval.graph.AddVertex(v)
@@ -104,14 +107,13 @@ func (eval *PropertyEval) enqueue(vs verticesAndDeps) error {
 	for source, targets := range vs {
 		zap.S().With("op", "deps").Debug(source.Key())
 		for target := range targets {
-			targetKey := EvaluationKey{Ref: target}
-			err := eval.graph.AddEdge(source.Key(), targetKey)
+			err := eval.graph.AddEdge(source.Key(), target)
 			if err != nil {
 				// NOTE(gg): If this fails with target not in graph, then we might need to add the target in with a
 				// new vertex type of "overwrite me later".
 				errs = errors.Join(errs, err)
 			}
-			_, err = eval.unevaluated.Vertex(targetKey)
+			_, err = eval.unevaluated.Vertex(target)
 			switch {
 			case errors.Is(err, graph.ErrVertexNotFound):
 				// the 'graph.AddEdge' succeeded, thus the target exists in the total graph
@@ -123,7 +125,7 @@ func (eval *PropertyEval) enqueue(vs verticesAndDeps) error {
 
 			default:
 				zap.S().With("op", "deps").Debugf("  -> %s", target)
-				errs = errors.Join(errs, eval.unevaluated.AddEdge(source.Key(), targetKey))
+				errs = errors.Join(errs, eval.unevaluated.AddEdge(source.Key(), target))
 			}
 		}
 	}
@@ -139,20 +141,40 @@ func (vs *verticesAndDeps) AddAll(other verticesAndDeps) {
 	}
 	for v, deps := range other {
 		if (*vs)[v] == nil {
-			(*vs)[v] = make(set.Set[construct.PropertyRef])
+			(*vs)[v] = make(set.Set[EvaluationKey])
 		}
 		(*vs)[v].AddFrom(deps)
 	}
 }
 
-func (vs *verticesAndDeps) Add(k EvaluationVertex, deps set.Set[construct.PropertyRef]) {
+func (vs *verticesAndDeps) AddRefs(k EvaluationVertex, deps set.Set[construct.PropertyRef]) {
 	if *vs == nil {
 		*vs = make(verticesAndDeps)
 	}
 	if (*vs)[k] == nil {
-		(*vs)[k] = make(set.Set[construct.PropertyRef])
+		(*vs)[k] = make(set.Set[EvaluationKey])
 	}
-	(*vs)[k].AddFrom(deps)
+	for dep := range deps {
+		(*vs)[k].Add(EvaluationKey{Ref: dep})
+	}
+}
+
+func (vs *verticesAndDeps) AddGraphStates(k EvaluationVertex, states graphStates) {
+	if *vs == nil {
+		*vs = make(verticesAndDeps)
+	}
+	for repr, test := range states {
+		v := &graphStateVertex{repr: repr, Test: test}
+		(*vs)[v] = make(set.Set[EvaluationKey])
+		(*vs)[k].Add(v.Key())
+	}
+}
+
+func (vs *verticesAndDeps) AddDependencies(cfgCtx knowledgebase.DynamicValueContext, v EvaluationVertex) error {
+	deps, gs, err := v.Dependencies(cfgCtx)
+	vs.AddRefs(v, deps)
+	vs.AddGraphStates(v, gs)
+	return err
 }
 
 func VertexLess(a, b EvaluationKey) bool {

@@ -107,12 +107,11 @@ func (eval *PropertyEval) resourceVertices(
 				}
 			}
 
-			vdeps, err := vertex.Dependencies(cfgCtx)
+			err := vs.AddDependencies(cfgCtx, vertex)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
 			}
-			vs.Add(vertex, vdeps)
 
 			if strings.HasPrefix(prop.Type, "list") || strings.HasPrefix(prop.Type, "set") {
 				// Because lists/sets will start as empty, do not recurse into their sub-properties
@@ -194,22 +193,13 @@ func (eval *PropertyEval) edgeVertices(
 	}
 
 	if len(opVertex.Rules) > 0 {
-		vdeps, err := opVertex.Dependencies(cfgCtx)
-		if err != nil {
-			return nil, err
-		}
-		vs.Add(opVertex, vdeps)
+		errs = errors.Join(errs, vs.AddDependencies(cfgCtx, opVertex))
 	}
 
 	// do this in a second pass so that edges config that reference the same property (rare, but possible)
 	// will get batched before calling [depsForProp].
 	for _, vertex := range vertices {
-		vdeps, err := vertex.Dependencies(cfgCtx)
-		if err != nil {
-			errs = errors.Join(errs, err)
-			continue
-		}
-		vs.Add(vertex, vdeps)
+		errs = errors.Join(errs, vs.AddDependencies(cfgCtx, vertex))
 	}
 
 	return vs, errs

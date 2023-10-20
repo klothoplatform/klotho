@@ -20,7 +20,6 @@ type (
 		Template    *knowledgebase.Property
 		Constraints []constraints.ResourceConstraint
 		EdgeRules   map[ResourceEdge][]knowledgebase.OperationalRule
-		hasGraphOps bool
 	}
 )
 
@@ -28,15 +27,14 @@ func (prop propertyVertex) Key() EvaluationKey {
 	return EvaluationKey{Ref: prop.Ref}
 }
 
-func (prop propertyVertex) HasGraphOps() bool {
-	return prop.hasGraphOps
-}
-
-func (prop *propertyVertex) Dependencies(cfgCtx knowledgebase.DynamicValueContext) (set.Set[construct.PropertyRef], error) {
+func (prop *propertyVertex) Dependencies(
+	cfgCtx knowledgebase.DynamicValueContext,
+) (set.Set[construct.PropertyRef], graphStates, error) {
 	propCtx := &fauxConfigContext{
-		propRef: prop.Ref,
-		inner:   cfgCtx,
-		refs:    make(set.Set[construct.PropertyRef]),
+		propRef:    prop.Ref,
+		inner:      cfgCtx,
+		refs:       make(set.Set[construct.PropertyRef]),
+		graphState: make(graphStates),
 	}
 
 	resData := knowledgebase.DynamicValueData{Resource: prop.Ref.Resource}
@@ -44,12 +42,12 @@ func (prop *propertyVertex) Dependencies(cfgCtx knowledgebase.DynamicValueContex
 	// Template can be nil when checking for dependencies from a propertyVertex when adding an edge template
 	if prop.Template != nil {
 		if err := propCtx.ExecuteValue(prop.Template.DefaultValue, resData); err != nil {
-			return nil, fmt.Errorf("could not execute default value template for %s: %w", prop.Ref, err)
+			return nil, nil, fmt.Errorf("could not execute default value template for %s: %w", prop.Ref, err)
 		}
 
 		if opRule := prop.Template.OperationalRule; opRule != nil {
 			if err := propCtx.ExecuteOpRule(resData, *opRule); err != nil {
-				return nil, fmt.Errorf("could not execute resource operational rule for %s: %w", prop.Ref, err)
+				return nil, nil, fmt.Errorf("could not execute resource operational rule for %s: %w", prop.Ref, err)
 			}
 		}
 	}
@@ -64,13 +62,11 @@ func (prop *propertyVertex) Dependencies(cfgCtx knowledgebase.DynamicValueContex
 			errs = errors.Join(errs, propCtx.ExecuteOpRule(edgeData, rule))
 		}
 		if errs != nil {
-			return nil, fmt.Errorf("could not execute %s for edge %s -> %s: %w", prop.Ref, edge.Source, edge.Target, errs)
+			return nil, nil, fmt.Errorf("could not execute %s for edge %s -> %s: %w", prop.Ref, edge.Source, edge.Target, errs)
 		}
 	}
 
-	prop.hasGraphOps = propCtx.hasGraphOps
-
-	return propCtx.refs, nil
+	return propCtx.refs, propCtx.graphState, nil
 }
 
 func (prop *propertyVertex) UpdateFrom(otherV EvaluationVertex) {
@@ -104,20 +100,22 @@ func (prop *propertyVertex) UpdateFrom(otherV EvaluationVertex) {
 func (v *propertyVertex) Evaluate(eval *PropertyEval) error {
 	zap.S().With("op", "eval").Debugf("Evaluating %s", v.Ref)
 
-	res, err := eval.Solution.RawView().Vertex(v.Ref.Resource)
+	sol := eval.Solution.With("resource", v.Ref.Resource).With("property", v.Ref.Property)
+
+	res, err := sol.RawView().Vertex(v.Ref.Resource)
 	if err != nil {
 		return fmt.Errorf("could not get resource to evaluate %s: %w", v.Ref, err)
 	}
 
-	if err := v.evaluateConstraints(eval, res); err != nil {
+	if err := v.evaluateConstraints(sol, res); err != nil {
 		return err
 	}
 
-	if err := v.evaluateResourceOperational(eval, res); err != nil {
+	if err := v.evaluateResourceOperational(sol, res); err != nil {
 		return err
 	}
 
-	if err := v.evaluateEdgeOperational(eval, res); err != nil {
+	if err := v.evaluateEdgeOperational(sol, res); err != nil {
 		return err
 	}
 
@@ -128,7 +126,7 @@ func (v *propertyVertex) Evaluate(eval *PropertyEval) error {
 	return nil
 }
 
-func (v *propertyVertex) evaluateConstraints(eval *PropertyEval, res *construct.Resource) error {
+func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContext, res *construct.Resource) error {
 	dynData := knowledgebase.DynamicValueData{Resource: res.ID}
 
 	var setConstraint *constraints.ResourceConstraint
@@ -145,7 +143,7 @@ func (v *propertyVertex) evaluateConstraints(eval *PropertyEval, res *construct.
 
 	if currentValue == nil && setConstraint == nil && v.Template != nil && v.Template.DefaultValue != nil {
 		err = solution_context.ConfigureResource(
-			eval.Solution,
+			sol,
 			res,
 			knowledgebase.Configuration{Field: v.Ref.Property, Value: v.Template.DefaultValue},
 			dynData,
@@ -155,7 +153,7 @@ func (v *propertyVertex) evaluateConstraints(eval *PropertyEval, res *construct.
 			return fmt.Errorf("could not set default value for %s: %w", v.Ref, err)
 		}
 	} else if setConstraint != nil {
-		kb := eval.Solution.KnowledgeBase()
+		kb := sol.KnowledgeBase()
 		resTemplate, err := kb.GetResourceTemplate(res.ID)
 		if err != nil {
 			return fmt.Errorf("could not get resource template for %s: %w", res.ID, err)
@@ -171,7 +169,7 @@ func (v *propertyVertex) evaluateConstraints(eval *PropertyEval, res *construct.
 			}
 		}
 		err = solution_context.ConfigureResource(
-			eval.Solution,
+			sol,
 			res,
 			knowledgebase.Configuration{Field: v.Ref.Property, Value: setConstraint.Value},
 			dynData,
@@ -194,7 +192,7 @@ func (v *propertyVertex) evaluateConstraints(eval *PropertyEval, res *construct.
 			continue
 		}
 		errs = errors.Join(errs, solution_context.ConfigureResource(
-			eval.Solution,
+			sol,
 			res,
 			knowledgebase.Configuration{Field: v.Ref.Property, Value: c.Value},
 			dynData,
@@ -209,13 +207,13 @@ func (v *propertyVertex) evaluateConstraints(eval *PropertyEval, res *construct.
 	return nil
 }
 
-func (v *propertyVertex) evaluateResourceOperational(eval *PropertyEval, res *construct.Resource) error {
+func (v *propertyVertex) evaluateResourceOperational(sol solution_context.SolutionContext, res *construct.Resource) error {
 	if v.Template == nil || v.Template.OperationalRule == nil {
 		return nil
 	}
 
 	opCtx := operational_rule.OperationalRuleContext{
-		Solution: eval.Solution,
+		Solution: sol,
 		Property: v.Template,
 		Data:     knowledgebase.DynamicValueData{Resource: res.ID},
 	}
@@ -228,11 +226,11 @@ func (v *propertyVertex) evaluateResourceOperational(eval *PropertyEval, res *co
 	return nil
 }
 
-func (v *propertyVertex) evaluateEdgeOperational(eval *PropertyEval, res *construct.Resource) error {
+func (v *propertyVertex) evaluateEdgeOperational(sol solution_context.SolutionContext, res *construct.Resource) error {
 	oldId := v.Ref.Resource
 
 	opCtx := operational_rule.OperationalRuleContext{
-		Solution: eval.Solution,
+		Solution: sol,
 		Property: v.Template,
 		Data:     knowledgebase.DynamicValueData{Resource: res.ID},
 	}

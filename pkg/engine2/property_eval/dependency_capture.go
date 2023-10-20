@@ -15,10 +15,10 @@ import (
 // fauxConfigContext acts like a [knowledgebase.DynamicValueContext] but replaces the [FieldValue] function
 // with one that just returns the zero value of the property type and records the property reference.
 type fauxConfigContext struct {
-	propRef     construct.PropertyRef
-	inner       knowledgebase.DynamicValueContext
-	refs        set.Set[construct.PropertyRef]
-	hasGraphOps bool
+	propRef    construct.PropertyRef
+	inner      knowledgebase.DynamicValueContext
+	refs       set.Set[construct.PropertyRef]
+	graphState graphStates
 }
 
 func (ctx *fauxConfigContext) DAG() construct.Graph {
@@ -149,31 +149,145 @@ func emptyValue(tmpl *knowledgebase.ResourceTemplate, property string) (any, err
 }
 
 func (ctx *fauxConfigContext) HasUpstream(selector any, resource construct.ResourceId) (bool, error) {
-	ctx.hasGraphOps = true
-	return ctx.inner.HasUpstream(selector, resource)
+	has, innerErr := ctx.inner.HasUpstream(selector, resource)
+	if innerErr == nil && has {
+		return true, nil
+	}
+
+	selId, err := knowledgebase.TemplateArgToRID(selector)
+	if err != nil {
+		return false, err
+	}
+
+	if ctx.graphState == nil {
+		ctx.graphState = make(graphStates)
+	}
+	ctx.graphState[fmt.Sprintf("hasUpstream(%s, %s)", selId, resource)] = func(g construct.Graph) (bool, error) {
+		upstream, err := knowledgebase.Upstream(g, ctx.KB(), resource, knowledgebase.FirstFunctionalLayer)
+		if err != nil {
+			return false, err
+		}
+		for _, up := range upstream {
+			if selId.Matches(up) {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+
+	return has, innerErr
 }
 
 func (ctx *fauxConfigContext) Upstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
-	ctx.hasGraphOps = true
-	return ctx.inner.Upstream(selector, resource)
+	up, innerErr := ctx.inner.Upstream(selector, resource)
+	if innerErr == nil && !up.IsZero() {
+		return up, nil
+	}
+
+	selId, err := knowledgebase.TemplateArgToRID(selector)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
+
+	if ctx.graphState == nil {
+		ctx.graphState = make(graphStates)
+	}
+	ctx.graphState[fmt.Sprintf("Upstream(%s, %s)", selId, resource)] = func(g construct.Graph) (bool, error) {
+		upstream, err := knowledgebase.Upstream(g, ctx.KB(), resource, knowledgebase.FirstFunctionalLayer)
+		if err != nil {
+			return false, err
+		}
+		for _, up := range upstream {
+			if selId.Matches(up) {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+
+	return up, innerErr
 }
 
 func (ctx *fauxConfigContext) AllUpstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {
-	ctx.hasGraphOps = true
+	if ctx.graphState == nil {
+		ctx.graphState = make(graphStates)
+	}
+	ctx.graphState[fmt.Sprintf("AllUpstream(%s, %s)", selector, resource)] = func(g construct.Graph) (bool, error) {
+		// Can never say that [AllUpstream] is ready until it must be evaluated due to being one of the final ones
+		return false, nil
+	}
+
 	return ctx.inner.AllUpstream(selector, resource)
 }
 
 func (ctx *fauxConfigContext) HasDownstream(selector any, resource construct.ResourceId) (bool, error) {
-	ctx.hasGraphOps = true
-	return ctx.inner.HasDownstream(selector, resource)
+	has, innerErr := ctx.inner.HasDownstream(selector, resource)
+	if innerErr == nil && has {
+		return true, nil
+	}
+
+	selId, err := knowledgebase.TemplateArgToRID(selector)
+	if err != nil {
+		return false, err
+	}
+
+	if ctx.graphState == nil {
+		ctx.graphState = make(graphStates)
+	}
+	ctx.graphState[fmt.Sprintf("hasDownstream(%s, %s)", selId, resource)] = func(g construct.Graph) (bool, error) {
+		downstream, err := knowledgebase.Downstream(g, ctx.KB(), resource, knowledgebase.FirstFunctionalLayer)
+		if err != nil {
+			return false, err
+		}
+		for _, down := range downstream {
+			if selId.Matches(down) {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+
+	return has, innerErr
 }
 
 func (ctx *fauxConfigContext) Downstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
-	ctx.hasGraphOps = true
-	return ctx.inner.Downstream(selector, resource)
+	down, innerErr := ctx.inner.Downstream(selector, resource)
+	if innerErr == nil && !down.IsZero() {
+		return down, nil
+	}
+
+	selId, err := knowledgebase.TemplateArgToRID(selector)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
+
+	if ctx.graphState == nil {
+		ctx.graphState = make(graphStates)
+	}
+	ctx.graphState[fmt.Sprintf("downstream(%s, %s)", selId, resource)] = func(g construct.Graph) (bool, error) {
+		downstream, err := knowledgebase.Downstream(g, ctx.KB(), resource, knowledgebase.FirstFunctionalLayer)
+		if err != nil {
+			return false, err
+		}
+		for _, down := range downstream {
+			if selId.Matches(down) {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+
+	return down, innerErr
 }
 
 func (ctx *fauxConfigContext) AllDownstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {
-	ctx.hasGraphOps = true
+	if ctx.graphState == nil {
+		ctx.graphState = make(graphStates)
+	}
+	ctx.graphState[fmt.Sprintf("allDownstream(%s, %s)", selector, resource)] = func(g construct.Graph) (bool, error) {
+		// Can never say that [AllDownstream] is ready until it must be evaluated due to being one of the final ones
+		return false, nil
+	}
+
 	return ctx.inner.AllDownstream(selector, resource)
 }

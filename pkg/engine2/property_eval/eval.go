@@ -72,8 +72,17 @@ func (eval *PropertyEval) popReady() ([]EvaluationVertex, error) {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		if v.HasGraphOps() {
-			graphOps = append(graphOps, v)
+		if state, ok := v.(*graphStateVertex); ok {
+			stateReady, err := state.Test(eval.Solution.DataflowGraph())
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+			if stateReady {
+				ready = append(ready, state)
+			} else {
+				graphOps = append(graphOps, state)
+			}
 		} else {
 			ready = append(ready, v)
 		}
@@ -121,12 +130,7 @@ func (eval *PropertyEval) RecalculateUnevaluated() error {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		deps, err := vertex.Dependencies(dyn)
-		if err != nil {
-			errs = errors.Join(errs, err)
-			continue
-		}
-		vs.Add(vertex, deps)
+		errs = errors.Join(errs, vs.AddDependencies(dyn, vertex))
 	}
 	if errs != nil {
 		return errs

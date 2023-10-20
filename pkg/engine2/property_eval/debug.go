@@ -37,31 +37,45 @@ func (eval *PropertyEval) writeGraph(filename string) {
 		zap.S().Errorf("could not create file %s: %v", filename, err)
 	}
 
+	setAttributes := func(key EvaluationKey, attribs map[string]string, rank int) {
+		if !key.Ref.Resource.IsZero() {
+			attribs["label"] = fmt.Sprintf(`(%d) %s\n%s`, rank, key.Ref.Resource, key.Ref.Property)
+			attribs["shape"] = "box"
+		} else if key.GraphState != "" {
+			attribs["label"] = fmt.Sprintf(`(%d) %s`, rank, key.GraphState)
+			attribs["shape"] = "box"
+			attribs["style"] = "dashed"
+		} else {
+			attribs["label"] = fmt.Sprintf(`(%d) %s\n→ %s`, rank, key.Edge.Source, key.Edge.Target)
+			attribs["shape"] = "parallelogram"
+		}
+		// attribs["group"] = fmt.Sprintf("rank%d", rank)
+	}
+
 	var extraStatements []string
 	evaluated := make(set.Set[EvaluationKey])
 	for rank, keys := range eval.evaluatedOrder {
+		extraStatements = append(extraStatements,
+			fmt.Sprintf(`"eval%d" [style="invis"]`, rank),
+		)
+		if rank > 0 {
+			extraStatements = append(extraStatements,
+				fmt.Sprintf(`"eval%d" -> "eval%d" [style="invis"]`, rank, rank-1),
+			)
+		}
 		sb := new(strings.Builder)
 		sb.WriteString("{rank = same; ")
+		fmt.Fprintf(sb, `"eval%d"; `, rank)
 		for _, key := range keys {
 			sb.WriteString(fmt.Sprintf(`"%s"; `, key))
 			evaluated.Add(key)
 
-			v, props, err := eval.graph.VertexWithProperties(key)
+			_, props, err := eval.graph.VertexWithProperties(key)
 			if err != nil {
 				zap.S().Errorf("could not get vertex with properties: %v", err)
 				continue
 			}
-			if key.Ref.Resource.IsZero() {
-				props.Attributes["label"] = fmt.Sprintf(`(%d) %s\n→ %s`, rank, key.Edge.Source, key.Edge.Target)
-				props.Attributes["shape"] = "parallelogram"
-			} else {
-				props.Attributes["label"] = fmt.Sprintf(`(%d) %s\n%s`, rank, key.Ref.Resource, key.Ref.Property)
-				props.Attributes["shape"] = "box"
-			}
-			if v.HasGraphOps() {
-				props.Attributes["label"] += " *"
-			}
-			props.Attributes["group"] = fmt.Sprintf("rank%d", rank)
+			setAttributes(key, props.Attributes, rank)
 		}
 		sb.WriteString("}")
 		extraStatements = append(extraStatements, sb.String())
@@ -76,29 +90,21 @@ func (eval *PropertyEval) writeGraph(filename string) {
 		if evaluated.Contains(key) {
 			continue
 		}
-		v, props, err := eval.graph.VertexWithProperties(key)
+		_, props, err := eval.graph.VertexWithProperties(key)
 		if err != nil {
 			zap.S().Errorf("could not get vertex with properties: %v", err)
 			continue
 		}
 
-		if key.Ref.Resource.IsZero() {
-			props.Attributes["label"] = fmt.Sprintf(`(_) %s\n→ %s`, key.Edge.Source, key.Edge.Target)
-			props.Attributes["shape"] = "parallelogram"
-		} else {
-			props.Attributes["label"] = fmt.Sprintf(`(_) %s\n%s`, key.Ref.Resource, key.Ref.Property)
-			props.Attributes["shape"] = "box"
-		}
-		if v.HasGraphOps() {
-			props.Attributes["label"] += " *"
-		}
+		setAttributes(key, props.Attributes, 999)
 		props.Attributes["style"] = "filled"
 		props.Attributes["fillcolor"] = "#e87b7b"
-		props.Attributes["group"] = "unevaluated"
+		// props.Attributes["group"] = "unevaluated"
 	}
 
 	err = draw.DOT(eval.graph, f, func(d *draw.Description) {
 		d.Attributes["rankdir"] = "BT"
+		d.Attributes["ranksep"] = "1"
 		d.ExtraStatements = extraStatements
 	})
 	if err != nil {

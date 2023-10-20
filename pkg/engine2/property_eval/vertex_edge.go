@@ -14,19 +14,16 @@ import (
 type edgeVertex struct {
 	Edge ResourceEdge
 
-	Rules       []knowledgebase.OperationalRule
-	hasGraphOps bool
+	Rules []knowledgebase.OperationalRule
 }
 
 func (ev edgeVertex) Key() EvaluationKey {
 	return EvaluationKey{Edge: ev.Edge}
 }
 
-func (ev edgeVertex) HasGraphOps() bool {
-	return ev.hasGraphOps
-}
-
-func (ev *edgeVertex) Dependencies(cfgCtx knowledgebase.DynamicValueContext) (set.Set[construct.PropertyRef], error) {
+func (ev *edgeVertex) Dependencies(
+	cfgCtx knowledgebase.DynamicValueContext,
+) (set.Set[construct.PropertyRef], graphStates, error) {
 	propCtx := &fauxConfigContext{inner: cfgCtx, refs: make(set.Set[construct.PropertyRef])}
 
 	data := knowledgebase.DynamicValueData{Edge: &construct.Edge{Source: ev.Edge.Source, Target: ev.Edge.Target}}
@@ -39,15 +36,13 @@ func (ev *edgeVertex) Dependencies(cfgCtx knowledgebase.DynamicValueContext) (se
 		}
 	}
 	if errs != nil {
-		return nil, fmt.Errorf(
+		return nil, nil, fmt.Errorf(
 			"could not execute dependencies for edge %s -> %s: %w",
 			ev.Edge.Source, ev.Edge.Target, errs,
 		)
 	}
 
-	ev.hasGraphOps = propCtx.hasGraphOps
-
-	return propCtx.refs, nil
+	return propCtx.refs, propCtx.graphState, nil
 }
 
 func (ev *edgeVertex) UpdateFrom(other EvaluationVertex) {
@@ -67,10 +62,12 @@ func (ev *edgeVertex) UpdateFrom(other EvaluationVertex) {
 func (ev *edgeVertex) Evaluate(eval *PropertyEval) error {
 	zap.S().With("op", "eval").Debugf("Evaluating %s", ev.Edge)
 
+	edge := &construct.Edge{Source: ev.Edge.Source, Target: ev.Edge.Target}
+
 	opCtx := operational_rule.OperationalRuleContext{
-		Solution: eval.Solution,
+		Solution: eval.Solution.With("edge", edge),
 		Data: knowledgebase.DynamicValueData{
-			Edge: &construct.Edge{Source: ev.Edge.Source, Target: ev.Edge.Target},
+			Edge: edge,
 		},
 	}
 
