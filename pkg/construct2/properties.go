@@ -35,6 +35,9 @@ func (r *Resource) GetProperty(pathStr string) (any, error) {
 
 // AppendProperty is a wrapper around [PropertyPath.Append] for convenience.
 func (r *Resource) AppendProperty(pathStr string, value any) error {
+	if pathStr == "ManagedPolicies" {
+		fmt.Println("a")
+	}
 	path, err := r.PropertyPath(pathStr)
 	if err != nil {
 		return err

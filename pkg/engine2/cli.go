@@ -233,10 +233,6 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		err = input.FixStrings()
-		if err != nil {
-			return err
-		}
 	} else {
 		input.Graph = construct.NewGraph()
 	}

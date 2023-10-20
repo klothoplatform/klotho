@@ -161,38 +161,3 @@ func (e *IoEdge) UnmarshalText(data []byte) error {
 	tgtErr := e.Target.UnmarshalText([]byte(target))
 	return errors.Join(srcErr, tgtErr)
 }
-
-func (g YamlGraph) FixStrings() error {
-	updateId := func(path PropertyPathItem) error {
-		itemVal := path.Get()
-
-		itemStr, ok := itemVal.(string)
-		if !ok {
-			return nil
-		}
-		id := ResourceId{}
-		err := id.UnmarshalText([]byte(itemStr))
-		if err == nil {
-			return path.Set(id)
-		}
-		propertyRef := PropertyRef{}
-		err = propertyRef.UnmarshalText([]byte(itemStr))
-		if err == nil {
-			return path.Set(propertyRef)
-		}
-		return nil
-	}
-
-	return WalkGraph(g.Graph, func(id ResourceId, resource *Resource, nerr error) error {
-		err := resource.WalkProperties(func(path PropertyPath, err error) error {
-			err = errors.Join(err, updateId(path))
-
-			if kv, ok := path.Last().(PropertyKVItem); ok {
-				err = errors.Join(err, updateId(kv.Key()))
-			}
-
-			return err
-		})
-		return errors.Join(nerr, err)
-	})
-}

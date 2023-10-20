@@ -78,7 +78,10 @@ func (ctx solutionContext) Constraints() *constraints.Constraints {
 func (ctx solutionContext) LoadGraph(graph construct.Graph) error {
 	// Since often the input `graph` is loaded from a yaml file, we need to transform all the property values
 	// to make sure they are of the correct type (eg, a string to ResourceId).
-	err := knowledgebase.TransformAllPropertyValues(solution_context.DynamicCtx(ctx))
+	err := knowledgebase.TransformAllPropertyValues(knowledgebase.DynamicValueContext{
+		Graph:         graph,
+		KnowledgeBase: ctx.KB,
+	})
 	if err != nil {
 		return err
 	}
