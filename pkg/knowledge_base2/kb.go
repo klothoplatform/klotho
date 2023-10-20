@@ -34,6 +34,12 @@ type (
 	}
 )
 
+const (
+	glueEdgeWeight               = 0
+	defaultEdgeWeight            = 1
+	functionalBoundaryEdgeWeight = 10000
+)
+
 func NewKB() *KnowledgeBase {
 	return &KnowledgeBase{
 		underlying: graph.New[string, *ResourceTemplate](func(t *ResourceTemplate) string {
@@ -94,7 +100,28 @@ func (kb *KnowledgeBase) AddResourceTemplate(template *ResourceTemplate) error {
 }
 
 func (kb *KnowledgeBase) AddEdgeTemplate(template *EdgeTemplate) error {
-	return kb.underlying.AddEdge(template.Source.QualifiedTypeName(), template.Target.QualifiedTypeName(), graph.EdgeData(template))
+	sourceTmpl, err := kb.underlying.Vertex(template.Source.QualifiedTypeName())
+	if err != nil {
+		return fmt.Errorf("could not find source template: %w", err)
+	}
+	targetTmpl, err := kb.underlying.Vertex(template.Target.QualifiedTypeName())
+	if err != nil {
+		return fmt.Errorf("could not find target template: %w", err)
+	}
+	weight := defaultEdgeWeight
+	if sourceTmpl.GetFunctionality() == Unknown {
+		if targetTmpl.GetFunctionality() == Unknown {
+			weight = glueEdgeWeight
+		} else {
+			weight = functionalBoundaryEdgeWeight
+		}
+	}
+	return kb.underlying.AddEdge(
+		template.Source.QualifiedTypeName(),
+		template.Target.QualifiedTypeName(),
+		graph.EdgeData(template),
+		graph.EdgeWeight(weight),
+	)
 }
 
 func (kb *KnowledgeBase) GetResourceTemplate(id construct.ResourceId) (*ResourceTemplate, error) {
@@ -123,27 +150,24 @@ func (kb *KnowledgeBase) HasDirectPath(from, to construct.ResourceId) bool {
 }
 
 func (kb *KnowledgeBase) HasFunctionalPath(from, to construct.ResourceId) bool {
-	paths, err := graph.AllPathsBetween(kb.underlying, from.QualifiedTypeName(), to.QualifiedTypeName())
+	path, err := graph.ShortestPath(kb.underlying, from.QualifiedTypeName(), to.QualifiedTypeName())
+	if errors.Is(err, graph.ErrTargetNotReachable) {
+		return false
+	}
 	if err != nil {
-		zap.S().Errorf("error in finding paths from %s to %s: %v", from.QualifiedTypeName(), to.QualifiedTypeName(), err)
+		zap.S().Errorf("error in finding shortes path from %s to %s: %v", from.QualifiedTypeName(), to.QualifiedTypeName(), err)
+		return false
 	}
-PATHS:
-	for _, path := range paths {
-		for i, id := range path {
-			if i == len(path)-1 || i == 0 {
-				continue
-			}
-			template, err := kb.underlying.Vertex(id)
-			if err != nil {
-				panic(err)
-			}
-			if template.GetFunctionality() != Unknown {
-				continue PATHS
-			}
+	for _, id := range path[1 : len(path)-1] {
+		template, err := kb.underlying.Vertex(id)
+		if err != nil {
+			panic(err)
 		}
-		return true
+		if template.GetFunctionality() != Unknown {
+			return false
+		}
 	}
-	return false
+	return true
 }
 
 func (kb *KnowledgeBase) AllPaths(from, to construct.ResourceId) ([][]*ResourceTemplate, error) {

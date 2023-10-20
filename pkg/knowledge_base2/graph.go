@@ -1,10 +1,12 @@
 package knowledgebase2
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/graph_addons"
 )
 
 type (
@@ -31,150 +33,123 @@ const (
 	AllDepsLayer
 )
 
-func Downstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, layer DependencyLayer) ([]construct.ResourceId, error) {
-	ids, err := construct.AllDownstreamDependencies(dag, rid)
-	if err != nil {
-		return nil, err
+func resourceLocal(
+	dag construct.Graph,
+	kb TemplateKB,
+	rid construct.ResourceId,
+	ids *[]construct.ResourceId,
+) graph_addons.WalkGraphFunc[construct.ResourceId] {
+	return func(id construct.ResourceId, nerr error) error {
+		if IsOperationalResourceSideEffect(dag, kb, rid, id) {
+			(*ids) = append(*ids, id)
+			return nil
+		}
+		return graph_addons.SkipPath
 	}
-	result := make([]construct.ResourceId, 0, len(ids))
+}
+
+func resourceGlue(
+	dag construct.Graph,
+	kb TemplateKB,
+	rid construct.ResourceId,
+	ids *[]construct.ResourceId,
+) graph_addons.WalkGraphFunc[construct.ResourceId] {
+	return func(id construct.ResourceId, nerr error) error {
+		if kb.GetFunctionality(id) == Unknown {
+			(*ids) = append(*ids, id)
+			return nil
+		}
+		return construct.SkipPath
+	}
+}
+
+func firstFunctional(
+	dag construct.Graph,
+	kb TemplateKB,
+	rid construct.ResourceId,
+	ids *[]construct.ResourceId,
+) graph_addons.WalkGraphFunc[construct.ResourceId] {
+	return func(id construct.ResourceId, nerr error) error {
+		(*ids) = append(*ids, id)
+		if kb.GetFunctionality(id) == Unknown {
+			return nil
+		}
+		return construct.SkipPath
+	}
+}
+
+func allDeps(
+	dag construct.Graph,
+	kb TemplateKB,
+	rid construct.ResourceId,
+	ids *[]construct.ResourceId,
+) graph_addons.WalkGraphFunc[construct.ResourceId] {
+	return func(id construct.ResourceId, nerr error) error {
+		(*ids) = append(*ids, id)
+		return nil
+	}
+}
+
+func Downstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, layer DependencyLayer) ([]construct.ResourceId, error) {
+	var result []construct.ResourceId
+	var f graph_addons.WalkGraphFunc[construct.ResourceId]
 	switch layer {
 	case ResourceLocalLayer:
-		for _, id := range ids {
-			_, err := dag.Edge(rid, id)
-			if err != nil {
-				continue
-			}
-			if IsOperationalResourceSideEffect(dag, kb, rid, id) {
-				result = append(result, id)
-			}
-			return result, nil
-		}
+		f = resourceLocal(dag, kb, rid, &result)
 	case ResourceGlueLayer:
-		for _, res := range ids {
-			if kb.GetFunctionality(res) == Unknown && isDownstreamWithinFunctionalBoundary(dag, kb, rid, res) {
-				result = append(result, res)
-			}
-		}
-		return result, nil
+		f = resourceGlue(dag, kb, rid, &result)
 	case FirstFunctionalLayer:
-		for _, res := range ids {
-			if isDownstreamWithinFunctionalBoundary(dag, kb, rid, res) {
-				result = append(result, res)
-			}
-		}
-		return result, nil
+		f = firstFunctional(dag, kb, rid, &result)
 	case AllDepsLayer:
-		return ids, nil
+		f = allDeps(dag, kb, rid, &result)
+	default:
+		return nil, fmt.Errorf("unknown layer %d", layer)
 	}
-	return nil, nil
+	err := graph_addons.WalkDown(dag, rid, f)
+	return result, err
 }
 
 func DownstreamFunctional(dag construct.Graph, kb TemplateKB, resource construct.ResourceId) ([]construct.ResourceId, error) {
-	resources, err := Downstream(dag, kb, resource, FirstFunctionalLayer)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]construct.ResourceId, 0, len(resources))
-	for _, res := range resources {
-		if kb.GetFunctionality(res) != Unknown {
-			result = append(result, res)
-		}
-	}
-	return result, nil
-}
-
-func isAllWithinFunctionalBoundary(dag construct.Graph, kb TemplateKB, ids []construct.ResourceId) bool {
-	for _, id := range ids {
+	var result []construct.ResourceId
+	err := graph_addons.WalkDown(dag, resource, func(id construct.ResourceId, nerr error) error {
 		if kb.GetFunctionality(id) != Unknown {
-			return false
+			result = append(result, id)
+			return graph_addons.SkipPath
 		}
-	}
-	return true
+		return nil
+	})
+	return result, err
 }
 
-func isDownstreamWithinFunctionalBoundary(dag construct.Graph, kb TemplateKB, resource, downstream construct.ResourceId) bool {
-	if resource == downstream {
-		return true
-	}
-	paths, err := graph.AllPathsBetween(dag, resource, downstream)
-	if err != nil {
-		return false
-	}
-	for _, path := range paths {
-		if isAllWithinFunctionalBoundary(dag, kb, path[1:len(path)-1]) {
-			return true
-		}
-	}
-	return true
-}
-
-func isUpstreamWithinFunctionalBoundary(dag construct.Graph, kb TemplateKB, resource, upstream construct.ResourceId) bool {
-	if resource == upstream {
-		return true
-	}
-	paths, err := graph.AllPathsBetween(dag, upstream, resource)
-	if err != nil {
-		return false
-	}
-	for _, path := range paths {
-		if isAllWithinFunctionalBoundary(dag, kb, path[1:len(path)-1]) {
-			return true
-		}
-	}
-	return true
-}
-
-func Upstream(dag construct.Graph, kb TemplateKB, resource construct.ResourceId, layer DependencyLayer) ([]construct.ResourceId, error) {
-	ids, err := construct.AllUpstreamDependencies(dag, resource)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]construct.ResourceId, 0, len(ids))
+func Upstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, layer DependencyLayer) ([]construct.ResourceId, error) {
+	var result []construct.ResourceId
+	var f graph_addons.WalkGraphFunc[construct.ResourceId]
 	switch layer {
 	case ResourceLocalLayer:
-		for _, res := range ids {
-			_, err := dag.Edge(res, resource)
-			if err != nil {
-				continue
-			}
-			if IsOperationalResourceSideEffect(dag, kb, resource, res) {
-				result = append(result, res)
-			}
-			return result, nil
-		}
+		f = resourceLocal(dag, kb, rid, &result)
 	case ResourceGlueLayer:
-		for _, res := range ids {
-			if kb.GetFunctionality(res) == Unknown && isUpstreamWithinFunctionalBoundary(dag, kb, resource, res) {
-				result = append(result, res)
-			}
-		}
-		return result, nil
+		f = resourceGlue(dag, kb, rid, &result)
 	case FirstFunctionalLayer:
-		for _, res := range ids {
-			if isUpstreamWithinFunctionalBoundary(dag, kb, resource, res) {
-				result = append(result, res)
-			}
-		}
-		return result, nil
+		f = firstFunctional(dag, kb, rid, &result)
 	case AllDepsLayer:
-		return ids, nil
+		f = allDeps(dag, kb, rid, &result)
+	default:
+		return nil, fmt.Errorf("unknown layer %d", layer)
 	}
-	return nil, nil
+	err := graph_addons.WalkUp(dag, rid, f)
+	return result, err
 }
 
 func UpstreamFunctional(dag construct.Graph, kb TemplateKB, resource construct.ResourceId) ([]construct.ResourceId, error) {
-	resources, err := Upstream(dag, kb, resource, FirstFunctionalLayer)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]construct.ResourceId, 0, len(resources))
-	for _, res := range resources {
-		functionality := kb.GetFunctionality(res)
-		if functionality != Unknown {
-			result = append(result, res)
+	var result []construct.ResourceId
+	err := graph_addons.WalkUp(dag, resource, func(id construct.ResourceId, nerr error) error {
+		if kb.GetFunctionality(id) != Unknown {
+			result = append(result, id)
+			return graph_addons.SkipPath
 		}
-	}
-	return result, nil
+		return nil
+	})
+	return result, err
 }
 
 func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, sideEffect construct.ResourceId) bool {
