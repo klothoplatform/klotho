@@ -3,7 +3,7 @@ display_name: S3 Object
 
 properties:
   Bucket:
-    type: resource
+    type: resource(aws:s3_bucket)
     default_value: '{{ downstream "aws:s3_bucket" .Self }}'
   Key:
     type: string

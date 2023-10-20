@@ -3,7 +3,7 @@ display_name: API Integration
 
 properties:
   RestApi:
-    type: resource
+    type: resource(aws:rest_api)
     namespace: true
     operational_rule:
       steps:
@@ -11,7 +11,7 @@ properties:
           resources:
             - aws:rest_api
   Resource:
-    type: resource
+    type: resource(aws:api_resource)
     operational_rule:
       if: | # Need to replace the resource if the path parts is not the same as the route
         {{ $route := (fieldValue "Route" .Self) }} 
@@ -48,7 +48,7 @@ properties:
                 aws:api_resource:{{ fieldValue "Route" .Self | replace "\\{([^}+]+)\\+?\\}" "$1" | replace "^/" "" | replace "/" "-" }}
               {{- end }}
   Method:
-    type: resource
+    type: resource(aws:api_method)
     operational_rule:
       steps:
         - direction: upstream
@@ -76,7 +76,7 @@ properties:
   ConnectionType:
     type: string
   VpcLink:
-    type: resource
+    type: resource(aws:vpc_link)
   Uri:
     type: string
   Route:

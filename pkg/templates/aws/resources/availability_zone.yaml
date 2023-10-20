@@ -8,7 +8,7 @@ properties:
       {{ $region := (fieldValue "Region" .Self) }} 
       {{ sub (len (allUpstream "aws:availability_zone" $region)) 1 }}
   Region:
-    type: resource
+    type: resource(aws:region)
     namespace: true
     operational_rule:
       steps:

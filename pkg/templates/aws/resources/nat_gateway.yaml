@@ -3,7 +3,7 @@ display_name: NAT Gateway
 
 properties:
   ElasticIp:
-    type: resource
+    type: resource(aws:elastic_ip)
     required: true
     operational_rule:
       steps:
@@ -12,7 +12,7 @@ properties:
             - aws:elastic_ip
           unique: true
   Subnet:
-    type: resource
+    type: resource(aws:subnet)
     required: true
     namespace: true
     operational_rule:

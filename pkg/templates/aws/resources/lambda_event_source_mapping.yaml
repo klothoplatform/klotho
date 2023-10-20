@@ -3,7 +3,7 @@ display_name: Lambda Event Source Mapping
 
 properties:
   Function:
-    type: resource
+    type: resource(aws:lambda_function)
     operational_rule:
       steps:
         - direction: downstream

@@ -3,7 +3,7 @@ display_name: Route Table
 
 properties:
   Vpc:
-    type: resource
+    type: resource(aws:vpc)
     operational_rule:
       steps:
         - direction: downstream
@@ -15,9 +15,9 @@ properties:
       CidrBlock:
         type: string
       NatGateway:
-        type: resource
+        type: resource(aws:nat_gateway)
       Gateway:
-        type: resource
+        type: resource(aws:internet_gateway)
 
 delete_context:
   requires_no_upstream: true

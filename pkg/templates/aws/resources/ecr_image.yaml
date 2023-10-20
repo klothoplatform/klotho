@@ -10,7 +10,7 @@ properties:
   Tag:
     type: string
   Repo:
-    type: resource
+    type: resource(aws:ecr_repo)
     operational_rule:
       steps:
         - direction: downstream

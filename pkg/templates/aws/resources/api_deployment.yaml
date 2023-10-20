@@ -3,7 +3,7 @@ display_name: API Deployment
 
 properties:
   RestApi:
-    type: resource
+    type: resource(aws:rest_api)
     namespace: true
     operational_rule:
       steps:

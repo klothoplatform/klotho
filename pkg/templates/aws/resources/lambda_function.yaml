@@ -11,7 +11,7 @@ properties:
             - aws:iam_role:{{ .Self.Name }}-ExecutionRole
           unique: true
   Image:
-    type: resource
+    type: resource(aws:ecr_image)
     operational_rule:
       steps:
         - direction: downstream
@@ -21,7 +21,7 @@ properties:
   EnvironmentVariables:
     type: map(string,string)
   SecurityGroups:
-    type: list(resource)
+    type: list(resource(aws:security_group))
     operational_rule:
       if: |
         {{ hasDownstream "aws:vpc" .Self }}
@@ -30,7 +30,7 @@ properties:
           resources:
             - aws:security_group
   Subnets:
-    type: list(resource)
+    type: list(resource(aws:subnet))
     operational_rule:
       if: |
         {{ hasDownstream "aws:vpc" .Self }}
@@ -49,9 +49,9 @@ properties:
     type: int
     default_value: 512
   EfsAccessPoint:
-    type: resource
+    type: resource(aws:efs_access_point)
   LogGroup:
-    type: resource
+    type: resource(aws:log_group)
     operational_rule:
       steps:
         - direction: downstream

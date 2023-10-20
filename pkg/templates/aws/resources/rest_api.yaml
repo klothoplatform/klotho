@@ -8,7 +8,7 @@ properties:
       - application/octet-stream
       - image/*
   Stages:
-    type: list(resource)
+    type: list(resource(aws:api_stage))
     operational_rule:
       steps:
         - direction: upstream

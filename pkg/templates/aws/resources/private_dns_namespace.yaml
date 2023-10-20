@@ -3,7 +3,7 @@ display_name: Private DNS Namespace
 
 properties:
   Vpc:
-    type: resource
+    type: resource(aws:vpc)
     default_value: '{{ downstream "aws:vpc" .Self }}'
 
 classification:

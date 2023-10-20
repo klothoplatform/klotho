@@ -3,7 +3,7 @@ display_name: Internet Gateway
 
 properties:
   Vpc:
-    type: resource
+    type: resource(aws:vpc)
     namespace: true
     required: true
     operational_rule:

@@ -3,7 +3,7 @@ display_name: API Method
 
 properties:
   RestApi:
-    type: resource
+    type: resource(aws:rest_api)
     namespace: true
     operational_rule:
       steps:
@@ -11,7 +11,7 @@ properties:
           resources:
             - aws:rest_api
   Resource:
-    type: resource
+    type: resource(aws:api_resource)
     operational_rule:
       steps:
         - direction: upstream

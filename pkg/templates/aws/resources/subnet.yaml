@@ -3,7 +3,7 @@ display_name: Subnet
 
 properties:
   Vpc:
-    type: resource
+    type: resource(aws:vpc)
     required: true
     namespace: true
     operational_rule:
@@ -12,7 +12,7 @@ properties:
           resources:
             - aws:vpc
   AvailabilityZone:
-    type: resource
+    type: resource(aws:availability_zone)
     required: true
     operational_rule:
       steps:
@@ -21,7 +21,7 @@ properties:
             - aws:availability_zone
           selection_operator: spread
   RouteTable:
-    type: resource
+    type: resource(aws:route_table)
     operational_rule:
       steps:
         - direction: downstream
