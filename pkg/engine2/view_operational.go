@@ -124,6 +124,7 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 		switch {
 		case errors.Is(err, graph.ErrVertexNotFound):
 			res = construct.CreateResource(pathId)
+			// add the resource to the raw view because we want to wait until after the edges are added to make it operational
 			errs = errors.Join(errs, view.raw().AddVertex(res))
 
 		case err != nil:

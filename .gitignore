@@ -42,3 +42,5 @@ go.work.sum
 
 *.gv
 *.gv.svg
+
+*.log

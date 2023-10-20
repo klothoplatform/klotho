@@ -12,7 +12,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// ExpandEdge
+// ExpandEdge takes a given `selectedPath` and resolves it to a path of resourceIds that can be used
+// for creating resources, or existing resources.
 func ExpandEdge(
 	ctx solution_context.SolutionContext,
 	dep construct.ResourceEdge,
@@ -43,17 +44,26 @@ func ExpandEdge(
 		if node.Name == "" {
 			node.Name = name
 		}
-		errs = errors.Join(errs, g.AddVertex(construct.CreateResource(node)))
-		newResources.Add(node)
 		candidates[i] = make(set.Set[construct.ResourceId])
-		candidates[i].Add(node)
+		_, err := ctx.RawView().Vertex(node)
+
+		// If this path has already been expanded (either from a previous engine run, or an overlapping edge constraint)
+		// then make sure we don't create a new one again. Because the generated name is specific to this edge,
+		// it's safe to assume it will be added later and that it can be used and no new resource is required.
+		if errors.Is(err, graph.ErrVertexNotFound) {
+			errs = errors.Join(errs, g.AddVertex(construct.CreateResource(node)))
+			newResources.Add(node)
+			candidates[i].Add(node)
+		} else if err != nil {
+			errs = errors.Join(errs, err)
+		}
 	}
 	if errs != nil {
 		return nil, errs
 	}
 
-	// NOTE: if for some reason the path could contain a duplicated selector
-	// this would just add the resource to the first match. I (gordon) don't
+	// NOTE(gg): if for some reason the path could contain a duplicated selector
+	// this would just add the resource to the first match. I don't
 	// think this should happen for a call into [ExpandEdge], but noting it just in case.
 	matchesNonBoundary := func(id construct.ResourceId) int {
 		for i, node := range nonBoundaryResources {

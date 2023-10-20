@@ -47,17 +47,8 @@ func (s solutionContext) Solve() error {
 }
 
 func (s solutionContext) With(key string, value any) solution_context.SolutionContext {
-	return solutionContext{
-		Dataflow:        s.Dataflow,
-		Deployment:      s.Deployment,
-		decisions:       s.decisions,
-		KB:              s.KB,
-		mappedResources: s.mappedResources,
-		constraints:     s.constraints,
-		propertyEval:    s.propertyEval,
-
-		stack: append(s.stack, solution_context.KV{Key: key, Value: value}),
-	}
+	s.stack = append(s.stack, solution_context.KV{Key: key, Value: value})
+	return s
 }
 
 func (ctx solutionContext) RawView() construct.Graph {
@@ -91,11 +82,11 @@ func (ctx solutionContext) LoadGraph(graph construct.Graph) error {
 	if err != nil {
 		return err
 	}
-	raw := ctx.RawView()
-	if err := raw.AddVerticesFrom(graph); err != nil {
+	op := ctx.OperationalView()
+	if err := op.AddVerticesFrom(graph); err != nil {
 		return err
 	}
-	return raw.AddEdgesFrom(graph)
+	return op.AddEdgesFrom(graph)
 }
 
 func (c solutionContext) GetDecisions() solution_context.DecisionRecords {

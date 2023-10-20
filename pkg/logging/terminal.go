@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 
 	tsize "github.com/kopoli/go-terminal-size"
@@ -30,6 +31,11 @@ func init() {
 		termSize = tsize.Size{
 			Width:  80,
 			Height: 60,
+		}
+
+		columnsStr := os.Getenv("COLUMNS")
+		if columns, err := strconv.ParseInt(columnsStr, 10, 64); err == nil {
+			termSize.Width = int(columns)
 		}
 
 	case err != nil, termSize.Width == 0 && termSize.Height == 0:

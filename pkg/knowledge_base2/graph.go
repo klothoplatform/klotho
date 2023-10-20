@@ -93,6 +93,9 @@ func isAllWithinFunctionalBoundary(dag construct.Graph, kb TemplateKB, ids []con
 }
 
 func isDownstreamWithinFunctionalBoundary(dag construct.Graph, kb TemplateKB, resource, downstream construct.ResourceId) bool {
+	if resource == downstream {
+		return true
+	}
 	paths, err := graph.AllPathsBetween(dag, resource, downstream)
 	if err != nil {
 		return false
@@ -105,8 +108,11 @@ func isDownstreamWithinFunctionalBoundary(dag construct.Graph, kb TemplateKB, re
 	return true
 }
 
-func isUpstreamWithinFunctionalBoundary(dag construct.Graph, kb TemplateKB, resource, downstream construct.ResourceId) bool {
-	paths, err := graph.AllPathsBetween(dag, downstream, resource)
+func isUpstreamWithinFunctionalBoundary(dag construct.Graph, kb TemplateKB, resource, upstream construct.ResourceId) bool {
+	if resource == upstream {
+		return true
+	}
+	paths, err := graph.AllPathsBetween(dag, upstream, resource)
 	if err != nil {
 		return false
 	}
