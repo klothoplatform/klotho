@@ -13,11 +13,6 @@ properties:
           resources:
             - aws:log_group
           unique: true
-      configuration_rules:
-        - resource: '{{ downstream "aws:log_group" .Self }}'
-          configuration:
-            field: LogGroupName
-            value: '/aws/elasticache/{{ .Self.Name }}'
   SubnetGroup:
     type: resource(aws:elasticache_subnet_group)
     operational_rule:

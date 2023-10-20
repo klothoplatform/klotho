@@ -269,7 +269,6 @@ func (action *operationalResourceAction) createAndAddDependency(res, stepResourc
 }
 
 func (action *operationalResourceAction) generateResourceName(resourceToSet *construct.ResourceId, resource construct.ResourceId) error {
-
 	if resourceToSet.Name == "" {
 		numResources := 0
 		ids, err := construct.ToplogicalSort(action.ruleCtx.Solution.DataflowGraph())

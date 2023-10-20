@@ -3,6 +3,6 @@ target: aws:ec2_instance
 operational_rules:
   - steps:
       - resource: '{{ fieldValue "Role" ( fieldValue "InstanceProfile" .Target)}}'
-        direction: downstream
+        direction: upstream
         resources:
           - '{{ .Source }}'
