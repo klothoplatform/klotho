@@ -59,7 +59,7 @@ func resourceGlue(
 			(*ids) = append(*ids, id)
 			return nil
 		}
-		return construct.SkipPath
+		return graph_addons.SkipPath
 	}
 }
 
@@ -74,7 +74,7 @@ func firstFunctional(
 		if kb.GetFunctionality(id) == Unknown {
 			return nil
 		}
-		return construct.SkipPath
+		return graph_addons.SkipPath
 	}
 }
 
