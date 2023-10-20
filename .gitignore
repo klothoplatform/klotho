@@ -34,3 +34,11 @@ node_modules/
 
 go.work
 go.work.sum
+
+
+/engine
+/iac
+/klotho
+
+*.gv
+*.gv.svg
