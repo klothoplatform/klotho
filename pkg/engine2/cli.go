@@ -223,6 +223,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	}
 	var input construct.YamlGraph
 	if architectureEngineCfg.inputGraph != "" {
+		zap.S().Info("Loading input graph")
 		inputF, err := os.Open(architectureEngineCfg.inputGraph)
 		if err != nil {
 			return err
@@ -239,6 +240,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	} else {
 		input.Graph = construct.NewGraph()
 	}
+	zap.S().Info("Loading constraints")
 
 	runConstraints, err := constraints.LoadConstraintsFromFile(architectureEngineCfg.constraints)
 	if err != nil {
@@ -249,16 +251,18 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 		Constraints:  runConstraints,
 	}
 
+	zap.S().Info("Running engine")
 	err = em.Engine.Run(context)
 	if err != nil {
-		fmt.Println(err)
 		return errors.Errorf("failed to run engine: %s", err.Error())
 	}
+	zap.S().Info("Engine finished running... Generating views")
 	var files []io.File
 	files, err = em.Engine.VisualizeViews(context.Solutions[0])
 	if err != nil {
 		return errors.Errorf("failed to generate views %s", err.Error())
 	}
+	zap.S().Info("Generating resources.yaml")
 	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].DataflowGraph()})
 	if err != nil {
 		return errors.Errorf("failed to marshal graph: %s", err.Error())

@@ -174,10 +174,10 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 		}
 		properties := map[string]string{}
 		if len(node.Children) > 0 {
-			properties["children"] = strings.Join(childrenIds, ",")
+			properties[string(visualizer.ChildrenKey)] = strings.Join(childrenIds, ",")
 		}
 		if !node.Parent.IsZero() {
-			properties["parent"] = node.Parent.String()
+			properties[string(visualizer.ParentKey)] = node.Parent.String()
 		}
 		res, err := df.Vertex(node.Resource)
 		if err != nil {

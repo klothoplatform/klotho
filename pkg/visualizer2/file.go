@@ -20,6 +20,13 @@ type (
 		Provider       string
 		DAG            construct.Graph
 	}
+
+	VizKey string
+)
+
+const (
+	ParentKey   VizKey = "parent"
+	ChildrenKey VizKey = "children"
 )
 
 func (f *File) Path() string {
@@ -64,6 +71,10 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 
 		for key, val := range properties {
 			if _, ok := properties[key]; ok {
+				if key == string(ChildrenKey) {
+					properties[key] = val
+					continue
+				}
 				id := construct.ResourceId{}
 				err := id.UnmarshalText([]byte(val))
 				if err != nil {

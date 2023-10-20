@@ -18,6 +18,7 @@ type (
 )
 
 func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) error {
+
 	if rule.If != "" {
 		result := false
 		dyn := solution_context.DynamicCtx(ctx.Solution)

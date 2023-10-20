@@ -50,19 +50,17 @@ func (ctx DynamicValueContext) KB() TemplateKB {
 
 func (ctx DynamicValueContext) TemplateFunctions() template.FuncMap {
 	return template.FuncMap{
-		"hasUpstream":           ctx.HasUpstream,
-		"upstream":              ctx.Upstream,
-		"hasDorectlyUpstream":   ctx.HasDirectlyUpstream,
-		"allUpstream":           ctx.AllUpstream,
-		"hasDownstream":         ctx.HasDownstream,
-		"hasDirectlyDownstream": ctx.HasDirectlyDownstream,
-		"downstream":            ctx.Downstream,
-		"allDownstream":         ctx.AllDownstream,
-		"shortestPath":          ctx.ShortestPath,
-		"longestPath":           ctx.LongestPath,
-		"fieldValue":            ctx.FieldValue,
-		"hasField":              ctx.HasField,
-		"fieldRef":              ctx.FieldRef,
+		"hasUpstream":   ctx.HasUpstream,
+		"upstream":      ctx.Upstream,
+		"allUpstream":   ctx.AllUpstream,
+		"hasDownstream": ctx.HasDownstream,
+		"downstream":    ctx.Downstream,
+		"allDownstream": ctx.AllDownstream,
+		"shortestPath":  ctx.ShortestPath,
+		"longestPath":   ctx.LongestPath,
+		"fieldValue":    ctx.FieldValue,
+		"hasField":      ctx.HasField,
+		"fieldRef":      ctx.FieldRef,
 
 		"toJson": ctx.toJson,
 
@@ -306,25 +304,6 @@ func (ctx DynamicValueContext) HasUpstream(selector any, resource construct.Reso
 	return !up.IsZero(), nil
 }
 
-// HasDirectlyUpstream returns true if there is a resource that matches `selector` which is direct;y upstream of `resource`
-func (ctx DynamicValueContext) HasDirectlyUpstream(selector any, resource construct.ResourceId) (bool, error) {
-	selId, err := TemplateArgToRID(selector)
-	if err != nil {
-		return false, err
-	}
-
-	upstream, err := Upstream(ctx.Graph, ctx.KnowledgeBase, resource, ResourceLocalLayer)
-	if err != nil {
-		return false, err
-	}
-	for _, up := range upstream {
-		if selId.Matches(up) {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
 // Upstream returns the first resource that matches `selector` which is upstream of `resource`
 func (ctx DynamicValueContext) Upstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
 	up, err := ctx.upstream(selector, resource)
@@ -396,25 +375,6 @@ func (ctx DynamicValueContext) Downstream(selector any, resource construct.Resou
 		return down, fmt.Errorf("no downstream resource of '%s' found matching selector '%s'", resource, selector)
 	}
 	return down, nil
-}
-
-// HasDirectlyDownstream returns true if there is a resource that matches `selector` which is directly downstream of `resource`
-func (ctx DynamicValueContext) HasDirectlyDownstream(selector any, resource construct.ResourceId) (bool, error) {
-	selId, err := TemplateArgToRID(selector)
-	if err != nil {
-		return false, err
-	}
-
-	downstream, err := Downstream(ctx.Graph, ctx.KnowledgeBase, resource, ResourceLocalLayer)
-	if err != nil {
-		return false, err
-	}
-	for _, down := range downstream {
-		if selId.Matches(down) {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 // AllDownstream is like Downstream but returns all transitive downstream resources.

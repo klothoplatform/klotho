@@ -611,6 +611,9 @@ func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 }
 
 func (p Properties) MarshalYAML() (interface{}, error) {
+	if len(p) == 0 {
+		return nil, nil
+	}
 	// Is there a way to get the sorting for nested maps to work? This only does top-level.
 	return yaml_util.MarshalMap(p, func(a, b string) bool { return a < b })
 }
