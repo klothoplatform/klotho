@@ -142,18 +142,12 @@ func (p *ResourceSelector) UnmarshalYAML(n *yaml.Node) error {
 func (p ResourceSelector) ExtractResourceIds(ctx DynamicValueContext, data DynamicValueData) (ids construct.ResourceList, errs error) {
 	var selectors construct.ResourceList
 	if p.Selector != "" {
-		selector, err := ExecuteDecodeAsResourceId(ctx, p.Selector, data)
+		err := ctx.ExecuteDecode(p.Selector, data, &selectors)
 		if err != nil {
-			// The output of the decode may be a list of resources, so attempt to parse to that
-			err = ctx.ExecuteDecode(p.Selector, data, &selectors)
-			if err != nil {
-				errs = errors.Join(errs, err)
-				if errs != nil {
-					return nil, errs
-				}
+			errs = errors.Join(errs, err)
+			if errs != nil {
+				return nil, errs
 			}
-		} else {
-			selectors = append(selectors, selector)
 		}
 	} else {
 		for _, res := range ctx.KB().ListResources() {

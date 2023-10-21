@@ -355,7 +355,6 @@ func (ctx DynamicValueContext) downstream(selector any, resource construct.Resou
 }
 
 // Downstream returns the first resource that matches `selector` which is downstream of `resource`
-// nolint: lll
 func (ctx DynamicValueContext) HasDownstream(selector any, resource construct.ResourceId) (bool, error) {
 	down, err := ctx.downstream(selector, resource)
 	if err != nil {
@@ -487,7 +486,6 @@ func (ctx DynamicValueContext) toJson(value any) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	ctx.resultJson = true
 	return string(j), nil
 }
 

@@ -51,13 +51,13 @@ func ModelsFromFS(dir fs.FS) (map[string]*Model, error) {
 		}
 		f, err := dir.Open(path)
 		if err != nil {
-			return errors.Join(nerr, fmt.Errorf("error opening model file: %w", err))
+			return errors.Join(nerr, fmt.Errorf("error opening model file %s: %w", path, err))
 		}
 
 		model := &Model{}
 		err = yaml.NewDecoder(f).Decode(model)
 		if err != nil {
-			return errors.Join(nerr, fmt.Errorf("error decoding model file: %w", err))
+			return errors.Join(nerr, fmt.Errorf("error decoding model file %s: %w", path, err))
 		}
 		models[model.Name] = model
 		return nil
@@ -91,19 +91,19 @@ func TemplatesFromFs(dir, modelDir fs.FS) (map[construct.ResourceId]*ResourceTem
 		resTemplate := &ResourceTemplate{}
 		err = yaml.NewDecoder(f).Decode(resTemplate)
 		if err != nil {
-			return errors.Join(nerr, err)
+			return errors.Join(nerr, fmt.Errorf("error decoding resource template %s: %w", path, err))
 		}
 		err = updateModels(nil, resTemplate.Properties, models)
 		if err != nil {
-			return errors.Join(nerr, err)
+			return errors.Join(nerr, fmt.Errorf("error updating models for resource template %s: %w", path, err))
 		}
 		id := construct.ResourceId{}
 		err = id.UnmarshalText([]byte(resTemplate.QualifiedTypeName))
 		if err != nil {
-			return errors.Join(nerr, err)
+			return errors.Join(nerr, fmt.Errorf("error unmarshalling resource template id for %s: %w", path, err))
 		}
 		if templates[id] != nil {
-			return errors.Join(nerr, fmt.Errorf("duplicate template for %s", id))
+			return errors.Join(nerr, fmt.Errorf("duplicate template for %s in %s", id, path))
 		}
 		templates[id] = resTemplate
 		return nil
@@ -121,24 +121,18 @@ func EdgeTemplatesFromFs(dir fs.FS) (map[string]*EdgeTemplate, error) {
 		}
 		f, err := dir.Open(path)
 		if err != nil {
-			zap.S().Errorf("Error opening edge template: %s", err)
-			return errors.Join(nerr, err)
+			return errors.Join(nerr, fmt.Errorf("error opening edge template %s: %w", path, err))
 		}
 
 		edgeTemplate := &EdgeTemplate{}
 		err = yaml.NewDecoder(f).Decode(edgeTemplate)
 		if err != nil {
-			zap.S().Errorf("Error decoding edge template: %s", err)
-			return errors.Join(nerr, err)
+			return errors.Join(nerr, fmt.Errorf("error decoding edge template %s: %w", path, err))
 		}
 
 		id := edgeTemplate.Source.QualifiedTypeName() + "->" + edgeTemplate.Target.QualifiedTypeName()
-		if err != nil {
-			zap.S().Errorf("Error unmarshalling edge template id: %s", err)
-			return errors.Join(nerr, err)
-		}
 		if templates[id] != nil {
-			return errors.Join(nerr, fmt.Errorf("duplicate template for %s", id))
+			return errors.Join(nerr, fmt.Errorf("duplicate template for %s in %s", id, path))
 		}
 		templates[id] = edgeTemplate
 		return nil

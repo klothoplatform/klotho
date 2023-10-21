@@ -2,14 +2,12 @@ source: aws:lambda_function
 target: aws:rds_instance
 operational_rules:
   - if: |
-      {{- if (hasDownstream "aws:vpc" .Source) }}
+      {{ if (hasDownstream "aws:vpc" .Source) }}
         {{ $lambdaVpc := (downstream "aws:vpc" .Source) }}
         {{ $ecVpc := (downstream "aws:vpc" .Target) }}
-        {{- if (ne $lambdaVpc $ecVpc) }}
-          true
-        {{ else }}
-          false
-        {{- end }}
+        {{ (ne $lambdaVpc $ecVpc) }}
+      {{ else }}
+      false
       {{ end }}
     steps:
       - resource: '{{ downstream "aws:vpc" .Source }}'
@@ -17,11 +15,7 @@ operational_rules:
         resources:
           - '{{downstream "aws:vpc" .Target}}'
   - if: |
-      {{- if not (hasDownstream "aws:vpc" .Source) }}
-        true
-      {{ else }} 
-        false 
-      {{- end }}
+      {{ not (hasDownstream "aws:vpc" .Source) }}
     steps:
       - resource: '{{ .Source }}'
         direction: downstream

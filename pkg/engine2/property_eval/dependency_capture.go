@@ -94,6 +94,7 @@ func (ctx *fauxConfigContext) ExecuteOpRule(
 
 func (ctx *fauxConfigContext) TemplateFunctions() template.FuncMap {
 	funcs := ctx.inner.TemplateFunctions()
+	funcs["hasField"] = ctx.HasField
 	funcs["fieldValue"] = ctx.FieldValue
 	funcs["hasUpstream"] = ctx.HasUpstream
 	funcs["upstream"] = ctx.Upstream
@@ -102,6 +103,22 @@ func (ctx *fauxConfigContext) TemplateFunctions() template.FuncMap {
 	funcs["downstream"] = ctx.Downstream
 	funcs["allDownstream"] = ctx.AllDownstream
 	return funcs
+}
+
+func (ctx *fauxConfigContext) HasField(field string, resource any) (bool, error) {
+	resId, err := knowledgebase.TemplateArgToRID(resource)
+	if err != nil {
+		return false, err
+	}
+	if resId.IsZero() {
+		return false, nil
+	}
+	if ctx.refs == nil {
+		ctx.refs = make(set.Set[construct.PropertyRef])
+	}
+	ctx.refs.Add(construct.PropertyRef{Resource: resId, Property: field})
+
+	return ctx.inner.HasField(field, resId)
 }
 
 func (ctx *fauxConfigContext) FieldValue(field string, resource any) (any, error) {

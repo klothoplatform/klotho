@@ -15,7 +15,7 @@ properties:
     operational_rule:
       if: | # Need to replace the resource if the path parts is not the same as the route
         {{ $route := (fieldValue "Route" .Self) }} 
-        {{ $path := longestPath (upstream "aws:rest_api" .Self) .Self }}
+        {{ $path := longestPath (fieldValue "RestApi" .Self) .Self }}
         {{ $resourceRoute := "" }}
         {{ range $index, $element := $path }}
           {{ if eq $element.QualifiedTypeName "aws:api_resource" }}
@@ -23,18 +23,14 @@ properties:
             {{ $resourceRoute = (print $resourceRoute "/" $resourcePath) }}
           {{ end }}
         {{ end }}
-        {{- if ne $resourceRoute $route }}
-          true
-        {{- else }}
-          {{ hasField "Resource" .Self | not }}
-        {{- end }}
+        {{ ne $resourceRoute $route }}
       steps:
         - direction: upstream
           replacement_condition: true
           resources:
             - |
               {{ $route := (fieldValue "Route" .Self) }} 
-              {{ $path := longestPath (upstream "aws:rest_api" .Self) .Self }}
+              {{ $path := longestPath (fieldValue "RestApi" .Self) .Self }}
               {{ $resourceRoute := "" }}
               {{ range $index, $element := $path }}
                 {{ if eq $element.QualifiedTypeName "aws:api_resource" }}
@@ -53,7 +49,7 @@ properties:
       steps:
         - direction: upstream
           resources:
-            - '{{ longestPath (upstream "aws:rest_api" .Self) .Self | firstId "aws:api_method" }}'
+            - '{{ longestPath (fieldValue "RestApi" .Self) .Self | firstId "aws:api_method" }}'
   RequestParameters:
     type: map(string,string)
     operational_rule:
