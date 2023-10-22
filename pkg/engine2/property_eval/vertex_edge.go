@@ -12,7 +12,7 @@ import (
 )
 
 type edgeVertex struct {
-	Edge ResourceEdge
+	Edge construct.SimpleEdge
 
 	Rules []knowledgebase.OperationalRule
 }

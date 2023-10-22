@@ -71,7 +71,7 @@ func (eval *PropertyEval) AddEdges(es ...construct.Edge) error {
 	return eval.enqueue(vs)
 }
 
-func (e ResourceEdge) WithIdUpdate(oldId, newId construct.ResourceId) ResourceEdge {
+func UpdateEdgeId(e construct.SimpleEdge, oldId, newId construct.ResourceId) construct.SimpleEdge {
 	switch {
 	case e.Source == oldId:
 		e.Source = newId
@@ -98,7 +98,7 @@ func (eval *PropertyEval) resourceVertices(
 			vertex := &propertyVertex{
 				Ref:       construct.PropertyRef{Resource: res.ID, Property: prop.Path},
 				Template:  prop,
-				EdgeRules: make(map[ResourceEdge][]knowledgebase.OperationalRule),
+				EdgeRules: make(map[construct.SimpleEdge][]knowledgebase.OperationalRule),
 			}
 
 			for _, constr := range eval.Solution.Constraints().Resources {
@@ -134,7 +134,7 @@ func (eval *PropertyEval) edgeVertices(
 
 	cfgCtx := solution_context.DynamicCtx(eval.Solution)
 	data := knowledgebase.DynamicValueData{Edge: &edge}
-	resEdge := ResourceEdge{Source: edge.Source, Target: edge.Target}
+	resEdge := construct.SimpleEdge{Source: edge.Source, Target: edge.Target}
 
 	opVertex := &edgeVertex{Edge: resEdge}
 
@@ -167,7 +167,7 @@ func (eval *PropertyEval) edgeVertices(
 				existing, err := eval.graph.Vertex(EvaluationKey{Ref: ref})
 				switch {
 				case errors.Is(err, graph.ErrVertexNotFound):
-					vertex = &propertyVertex{Ref: ref, EdgeRules: make(map[ResourceEdge][]knowledgebase.OperationalRule)}
+					vertex = &propertyVertex{Ref: ref, EdgeRules: make(map[construct.SimpleEdge][]knowledgebase.OperationalRule)}
 				case err != nil:
 					errs = errors.Join(errs, fmt.Errorf("could not attempt to get existing vertex for %s: %w", ref, err))
 					continue

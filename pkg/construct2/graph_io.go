@@ -107,7 +107,7 @@ func (g YamlGraph) MarshalYAML() (interface{}, error) {
 func (g *YamlGraph) UnmarshalYAML(n *yaml.Node) error {
 	type graph struct {
 		Resouces map[ResourceId]Properties `yaml:"resources"`
-		Edges    map[IoEdge]struct{}       `yaml:"edges"`
+		Edges    map[SimpleEdge]struct{}   `yaml:"edges"`
 	}
 	var y graph
 	if err := n.Decode(&y); err != nil {
@@ -133,20 +133,20 @@ func (g *YamlGraph) UnmarshalYAML(n *yaml.Node) error {
 	return errs
 }
 
-type IoEdge struct {
+type SimpleEdge struct {
 	Source ResourceId
 	Target ResourceId
 }
 
-func (e IoEdge) String() string {
+func (e SimpleEdge) String() string {
 	return fmt.Sprintf("%s -> %s", e.Source, e.Target)
 }
 
-func (e IoEdge) MarshalText() (string, error) {
+func (e SimpleEdge) MarshalText() (string, error) {
 	return e.String(), nil
 }
 
-func (e *IoEdge) UnmarshalText(data []byte) error {
+func (e *SimpleEdge) UnmarshalText(data []byte) error {
 	s := string(data)
 
 	source, target, found := strings.Cut(s, " -> ")

@@ -3,6 +3,7 @@ package engine2
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/dominikbraun/graph"
@@ -10,7 +11,9 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/set"
 	visualizer "github.com/klothoplatform/klotho/pkg/visualizer2"
+	"go.uber.org/zap"
 )
 
 type (
@@ -30,20 +33,14 @@ const (
 
 type (
 	TopologyNode struct {
-		Resource construct.ResourceId   `yaml:"id"`
-		Parent   construct.ResourceId   `yaml:"parent,omitempty"`
-		Children []construct.ResourceId `yaml:"children,omitempty"`
-	}
-
-	TopologyEdge struct {
-		Source construct.ResourceId   `yaml:"source"`
-		Target construct.ResourceId   `yaml:"target"`
-		Path   []construct.ResourceId `yaml:"path"`
+		Resource construct.ResourceId
+		Parent   construct.ResourceId
+		Children set.Set[construct.ResourceId]
 	}
 )
 type Topology struct {
-	Nodes map[string]*TopologyNode `yaml:"nodes"`
-	Edges []TopologyEdge           `yaml:"edges"`
+	Nodes map[string]*TopologyNode
+	Edges map[construct.SimpleEdge]construct.Path
 }
 
 func (e *Engine) VisualizeViews(ctx solution_context.SolutionContext) ([]klotho_io.File, error) {
@@ -74,7 +71,7 @@ func (e *Engine) GetResourceVizTag(view string, resource construct.ResourceId) T
 	return Tag(tag)
 }
 
-func (e *Engine) RenderConnection(path []construct.ResourceId) bool {
+func (e *Engine) RenderConnection(path construct.Path) bool {
 	for _, res := range path[1 : len(path)-1] {
 		tag := e.GetResourceVizTag(string(DataflowView), res)
 		if tag == BigIconTag || tag == ParentIconTag {
@@ -85,7 +82,10 @@ func (e *Engine) RenderConnection(path []construct.ResourceId) bool {
 }
 
 func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (construct.Graph, error) {
-	topo := Topology{Nodes: map[string]*TopologyNode{}}
+	topo := Topology{
+		Nodes: make(map[string]*TopologyNode),
+		Edges: make(map[construct.SimpleEdge]construct.Path),
+	}
 	viewDag := construct.NewGraph()
 	df := ctx.DataflowGraph()
 
@@ -95,71 +95,64 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 	}
 	var errs error
 	for _, src := range resources {
+		node := &TopologyNode{
+			Resource: src,
+			Children: make(set.Set[construct.ResourceId]),
+		}
 		tag := e.GetResourceVizTag(string(DataflowView), src)
 		switch tag {
-		case ParentIconTag:
-			topo.Nodes[src.String()] = &TopologyNode{
-				Resource: src,
-			}
-		case BigIconTag:
-			topo.Nodes[src.String()] = &TopologyNode{
-				Resource: src,
-			}
-		case SmallIconTag:
-			continue
-		case NoRenderTag:
+		case ParentIconTag, BigIconTag:
+			topo.Nodes[src.String()] = node
+		case SmallIconTag, NoRenderTag:
 			continue
 		default:
 			errs = errors.Join(errs, fmt.Errorf("unknown tag %s, for resource %s", tag, src))
 			continue
 		}
-		for _, dst := range resources {
-			if src == dst {
-				continue
-			}
-			path, err := graph.ShortestPath(df, src, dst)
-			switch {
-			case errors.Is(err, graph.ErrTargetNotReachable):
-				continue
 
-			case err != nil:
-				errs = errors.Join(errs, err)
-				continue
-			}
-
-			dstTag := e.GetResourceVizTag(string(DataflowView), dst)
-			switch dstTag {
-			case ParentIconTag:
-				if e.RenderConnection(path) {
-					topoNode := topo.Nodes[src.String()]
-					if !topoNode.Parent.IsZero() {
-						currpath, err := graph.ShortestPath(df, src, topoNode.Parent)
-						if err != nil {
-							panic("Error getting shortest path")
-						}
-						if len(path) > len(currpath) {
-							continue
-						}
+		deps, err := construct.DownstreamDependencies(
+			df,
+			src,
+			knowledgebase.DependenciesSkipEdgeLayer(df, e.Kb, src, knowledgebase.FirstFunctionalLayer),
+		)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		zap.S().Debugf("%s paths: %d", src, len(deps.Paths))
+		sort.Slice(deps.Paths, func(i, j int) bool {
+			return len(deps.Paths[i]) < len(deps.Paths[j])
+		})
+		seenSmall := make(set.Set[construct.ResourceId])
+		for _, path := range deps.Paths {
+			for i, dst := range path[1:] {
+				dstTag := e.GetResourceVizTag(string(DataflowView), dst)
+				switch dstTag {
+				case ParentIconTag:
+					if node.Parent.IsZero() && e.RenderConnection(path[:i+2]) {
+						node.Parent = dst
 					}
-					topoNode.Parent = dst
+				case BigIconTag:
+					if e.RenderConnection(path) {
+						edge := construct.SimpleEdge{
+							Source: src,
+							Target: dst,
+						}
+						topo.Edges[edge] = path[1 : len(path)-1]
+					}
+				case SmallIconTag:
+					if seenSmall.Contains(dst) {
+						continue
+					}
+					seenSmall.Add(dst)
+					if knowledgebase.IsOperationalResourceSideEffect(df, ctx.KnowledgeBase(), src, dst) {
+						node.Children.Add(dst)
+					}
+				case NoRenderTag:
+					continue
+				default:
+					errs = errors.Join(errs, fmt.Errorf("unknown tag %s, for resource %s", dstTag, dst))
 				}
-			case BigIconTag:
-				if e.RenderConnection(path) {
-					topo.Edges = append(topo.Edges, TopologyEdge{
-						Source: src,
-						Target: dst,
-						Path:   path[1 : len(path)-1],
-					})
-				}
-			case SmallIconTag:
-				if knowledgebase.IsOperationalResourceSideEffect(df, ctx.KnowledgeBase(), src, dst) {
-					topoNode := topo.Nodes[src.String()]
-					topoNode.Children = append(topoNode.Children, dst)
-				}
-			case NoRenderTag:
-				continue
-			default:
-				errs = errors.Join(errs, fmt.Errorf("unknown tag %s, for resource %s", dstTag, dst))
 			}
 		}
 	}
@@ -169,7 +162,11 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 
 	for _, node := range topo.Nodes {
 		childrenIds := make([]string, len(node.Children))
-		for i, child := range node.Children {
+		children := node.Children.ToSlice()
+		sort.Slice(children, func(i, j int) bool {
+			return construct.ResourceIdLess(children[i], children[j])
+		})
+		for i, child := range children {
 			childrenIds[i] = child.String()
 		}
 		properties := map[string]string{}
@@ -190,13 +187,13 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 		return nil, errs
 	}
 
-	for _, edge := range topo.Edges {
-		pathStrings := make([]string, len(edge.Path))
-		for i, res := range edge.Path {
+	for edge, path := range topo.Edges {
+		pathStrings := make([]string, len(path))
+		for i, res := range path {
 			pathStrings[i] = res.String()
 		}
 		data := map[string]interface{}{}
-		if len(edge.Path) > 0 {
+		if len(path) > 0 {
 			data["path"] = strings.Join(pathStrings, ",")
 		}
 		errs = errors.Join(errs, viewDag.AddEdge(edge.Source, edge.Target, graph.EdgeData(data)))

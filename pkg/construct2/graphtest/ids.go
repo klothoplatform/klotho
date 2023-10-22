@@ -15,7 +15,7 @@ func ParseId(t *testing.T, str string) (id construct.ResourceId) {
 }
 
 func ParseEdge(t *testing.T, str string) construct.Edge {
-	var io construct.IoEdge
+	var io construct.SimpleEdge
 	err := io.UnmarshalText([]byte(str))
 	if err != nil {
 		t.Fatalf("failed to parse edge %q: %v", str, err)

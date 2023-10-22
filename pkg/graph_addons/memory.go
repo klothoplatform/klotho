@@ -2,6 +2,7 @@ package graph_addons
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 
 	"github.com/dominikbraun/graph"
@@ -146,9 +147,6 @@ func edgesEqual[K comparable](a, b graph.Edge[K]) bool {
 		return false
 	}
 	// Do all that fast/easy comparisons first so failures are quick
-	if a.Properties.Data != b.Properties.Data {
-		return false
-	}
 	if a.Properties.Weight != b.Properties.Weight {
 		return false
 	}
@@ -160,7 +158,14 @@ func edgesEqual[K comparable](a, b graph.Edge[K]) bool {
 			return false
 		}
 	}
-	return true
+	if a.Properties.Data == nil || b.Properties.Data == nil {
+		// Can only safely check `==` if one is nil because a map cannot `==` anything else
+		return a.Properties.Data == b.Properties.Data
+	} else {
+		// Do the reflection last, since that is slow. We need to use reflection unlike for attributes
+		// because we don't know what type the data is.
+		return reflect.DeepEqual(a.Properties.Data, b.Properties.Data)
+	}
 }
 
 func (s *MemoryStore[K, T]) AddEdge(sourceHash, targetHash K, edge graph.Edge[K]) error {

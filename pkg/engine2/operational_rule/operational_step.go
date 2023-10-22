@@ -106,15 +106,13 @@ func (ctx OperationalRuleContext) getResourcesForStep(step knowledgebase.Operati
 	var err error
 	if step.Direction == knowledgebase.DirectionUpstream {
 		ids, err = solution_context.Upstream(ctx.Solution, resource, knowledgebase.FirstFunctionalLayer)
-		if err != nil {
-			return nil, err
-		}
 	} else {
 		ids, err = solution_context.Downstream(ctx.Solution, resource, knowledgebase.FirstFunctionalLayer)
-		if err != nil {
-			return nil, err
-		}
 	}
+	if err != nil {
+		return nil, err
+	}
+
 	resources, err := construct.ResolveIds(ctx.Solution.RawView(), ids)
 	if err != nil {
 		return nil, fmt.Errorf("could not resolve ids for 'getResourcesForStep': %w", err)

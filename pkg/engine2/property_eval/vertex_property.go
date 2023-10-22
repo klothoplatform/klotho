@@ -19,7 +19,7 @@ type (
 
 		Template    *knowledgebase.Property
 		Constraints []constraints.ResourceConstraint
-		EdgeRules   map[ResourceEdge][]knowledgebase.OperationalRule
+		EdgeRules   map[construct.SimpleEdge][]knowledgebase.OperationalRule
 	}
 )
 
@@ -85,7 +85,7 @@ func (prop *propertyVertex) UpdateFrom(otherV EvaluationVertex) {
 		prop.Template = other.Template
 	}
 	if prop.EdgeRules == nil {
-		prop.EdgeRules = make(map[ResourceEdge][]knowledgebase.OperationalRule)
+		prop.EdgeRules = make(map[construct.SimpleEdge][]knowledgebase.OperationalRule)
 	}
 
 	for edge, rules := range other.EdgeRules {
@@ -239,7 +239,7 @@ func (v *propertyVertex) evaluateEdgeOperational(sol solution_context.SolutionCo
 	for edge, rules := range v.EdgeRules {
 		for _, rule := range rules {
 			// In case one of the previous rules changed the ID, update it
-			edge = edge.WithIdUpdate(oldId, res.ID)
+			edge = UpdateEdgeId(edge, oldId, res.ID)
 
 			opCtx.Data.Edge = &construct.Edge{
 				Source: edge.Source,

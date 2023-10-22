@@ -2,7 +2,6 @@ package property_eval
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -27,12 +26,8 @@ type (
 
 	EvaluationKey struct {
 		Ref        construct.PropertyRef
-		Edge       ResourceEdge
+		Edge       construct.SimpleEdge
 		GraphState string
-	}
-
-	ResourceEdge struct {
-		Source, Target construct.ResourceId
 	}
 
 	EvaluationVertex interface {
@@ -63,10 +58,6 @@ func (key EvaluationKey) String() string {
 		return key.GraphState
 	}
 	return key.Edge.String()
-}
-
-func (e ResourceEdge) String() string {
-	return fmt.Sprintf("%s -> %s", e.Source, e.Target)
 }
 
 func (eval *PropertyEval) enqueue(vs verticesAndDeps) error {
@@ -250,13 +241,13 @@ func (eval *PropertyEval) UpdateId(oldId, newId construct.ResourceId) error {
 			for edge, rules := range vertex.EdgeRules {
 				if edge.Source == oldId || edge.Target == oldId {
 					delete(vertex.EdgeRules, edge)
-					vertex.EdgeRules[edge.WithIdUpdate(oldId, newId)] = rules
+					vertex.EdgeRules[UpdateEdgeId(edge, oldId, newId)] = rules
 				}
 			}
 
 		case *edgeVertex:
 			if key.Edge.Source == oldId || key.Edge.Target == oldId {
-				vertex.Edge = vertex.Edge.WithIdUpdate(oldId, newId)
+				vertex.Edge = UpdateEdgeId(vertex.Edge, oldId, newId)
 				replaceVertex(key, vertex)
 			}
 		}
@@ -270,7 +261,7 @@ func (eval *PropertyEval) UpdateId(oldId, newId construct.ResourceId) error {
 			if key.Ref.Resource == oldId {
 				key.Ref.Resource = newId
 			}
-			key.Edge = key.Edge.WithIdUpdate(oldId, newId)
+			key.Edge = UpdateEdgeId(key.Edge, oldId, newId)
 			eval.evaluatedOrder[i][j] = key
 		}
 	}

@@ -95,7 +95,7 @@ func MakeGraph(t *testing.T, g construct2.Graph, elements ...any) construct2.Gra
 				must(g.AddVertex(&construct2.Resource{ID: id}))
 				continue
 			}
-			var edge construct2.IoEdge
+			var edge construct2.SimpleEdge
 			edgeErr := edge.UnmarshalText([]byte(e))
 			if edgeErr == nil {
 				if _, getErr := g.Vertex(edge.Source); errors.Is(getErr, graph.ErrVertexNotFound) {

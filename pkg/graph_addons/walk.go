@@ -14,6 +14,7 @@ var (
 	SkipPath = errors.New("skip path")
 )
 
+// WalkUp walks up through the graph starting at `start` in BFS order.
 func WalkUp[K comparable, T any](g graph.Graph[K, T], start K, f WalkGraphFunc[K]) error {
 	pred, err := g.PredecessorMap()
 	if err != nil {
@@ -22,6 +23,7 @@ func WalkUp[K comparable, T any](g graph.Graph[K, T], start K, f WalkGraphFunc[K
 	return walk(g, start, f, pred)
 }
 
+// WalkDown walks down through the graph starting at `start` in BFS order.
 func WalkDown[K comparable, T any](g graph.Graph[K, T], start K, f WalkGraphFunc[K]) error {
 	adj, err := g.AdjacencyMap()
 	if err != nil {
@@ -37,37 +39,34 @@ func walk[K comparable, T any](
 	deps map[K]map[K]graph.Edge[K],
 ) error {
 	visited := make(set.Set[K])
+	var queue []K
 
-	var stack []K
 	for d := range deps[start] {
-		stack = append(stack, d)
+		queue = append(queue, d)
 	}
 	visited.Add(start)
-	if len(stack) == 0 {
-		return nil
-	}
 
-	var nerr error
+	var err error
 	var current K
-	for len(stack) > 0 {
-		current, stack = stack[0], stack[1:]
+	for len(queue) > 0 {
+		current, queue = queue[0], queue[1:]
 		visited.Add(current)
 
-		err := f(current, nerr)
-		if errors.Is(err, StopWalk) {
-			return nerr
+		nerr := f(current, err)
+		if errors.Is(nerr, StopWalk) {
+			return err
 		}
-		if errors.Is(err, SkipPath) {
+		if errors.Is(nerr, SkipPath) {
 			continue
 		}
-		nerr = err
+		err = nerr
 
 		for d := range deps[current] {
 			if visited.Contains(d) {
 				continue
 			}
-			stack = append(stack, d)
+			queue = append(queue, d)
 		}
 	}
-	return nerr
+	return err
 }

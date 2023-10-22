@@ -83,6 +83,46 @@ func allDeps(
 	}
 }
 
+// DependenciesSkipEdgeLayer returns a function which can be used in calls to
+// [construct.DownstreamDependencies] and [construct.UpstreamDependencies].
+func DependenciesSkipEdgeLayer(
+	dag construct.Graph,
+	kb TemplateKB,
+	rid construct.ResourceId,
+	layer DependencyLayer,
+) func(construct.Edge) bool {
+	switch layer {
+	case ResourceLocalLayer:
+		return func(e construct.Edge) bool {
+			return !IsOperationalResourceSideEffect(dag, kb, rid, e.Target)
+		}
+
+	case ResourceGlueLayer:
+		return func(e construct.Edge) bool {
+			return kb.GetFunctionality(e.Target) != Unknown
+		}
+
+	case FirstFunctionalLayer:
+		return func(e construct.Edge) bool {
+			// Keep the source -> X edges, since source likely is != Unknown
+			if e.Source == rid {
+				return false
+			}
+			// Unknown -> X edges are not interesting, keep those
+			if kb.GetFunctionality(e.Source) == Unknown {
+				return false
+			}
+			// Since source is now != Unknown, only keep edges w/ target == Unknown
+			return kb.GetFunctionality(e.Target) != Unknown
+		}
+
+	default:
+		fallthrough
+	case AllDepsLayer:
+		return func(e construct.Edge) bool { return false }
+	}
+}
+
 func Downstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, layer DependencyLayer) ([]construct.ResourceId, error) {
 	var result []construct.ResourceId
 	var f graph_addons.WalkGraphFunc[construct.ResourceId]
