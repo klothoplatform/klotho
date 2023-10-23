@@ -20,14 +20,16 @@ func AllDownstreamDependencies(g Graph, r ResourceId) ([]ResourceId, error) {
 // DirectDownstreamDependencies returns the direct downstream dependencies of the given resource.
 // Direct means that for A -> B -> C -> D the direct downstream dependencies of B are [C].
 func DirectDownstreamDependencies(g Graph, r ResourceId) ([]ResourceId, error) {
-	adj, err := g.AdjacencyMap()
+	edges, err := g.Edges()
 	if err != nil {
 		return nil, err
 	}
 
 	var ids []ResourceId
-	for d := range adj[r] {
-		ids = append(ids, d)
+	for _, e := range edges {
+		if e.Source == r {
+			ids = append(ids, e.Target)
+		}
 	}
 	sort.Sort(sortedIds(ids))
 
@@ -48,14 +50,16 @@ func AllUpstreamDependencies(g Graph, r ResourceId) ([]ResourceId, error) {
 // DirectUpstreamDependencies returns the direct upstream dependencies of the given resource.
 // Direct means that for A -> B -> C -> D the direct upstream dependencies of C are [B].
 func DirectUpstreamDependencies(g Graph, r ResourceId) ([]ResourceId, error) {
-	adj, err := g.PredecessorMap()
+	edges, err := g.Edges()
 	if err != nil {
 		return nil, err
 	}
 
 	var ids []ResourceId
-	for d := range adj[r] {
-		ids = append(ids, d)
+	for _, e := range edges {
+		if e.Target == r {
+			ids = append(ids, e.Source)
+		}
 	}
 	sort.Sort(sortedIds(ids))
 

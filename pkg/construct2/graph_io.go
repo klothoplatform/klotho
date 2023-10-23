@@ -161,3 +161,10 @@ func (e *SimpleEdge) UnmarshalText(data []byte) error {
 	tgtErr := e.Target.UnmarshalText([]byte(target))
 	return errors.Join(srcErr, tgtErr)
 }
+
+func (e SimpleEdge) ToEdge() Edge {
+	return Edge{
+		Source: e.Source,
+		Target: e.Target,
+	}
+}

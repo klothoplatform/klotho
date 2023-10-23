@@ -62,13 +62,18 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 		}
 		if replace {
 			for _, id := range ids {
-				err := ctx.Solution.OperationalView().RemoveEdge(id, resource.ID)
+				edge := step.Direction.Edge(resource.ID, id)
+				err := ctx.Solution.OperationalView().RemoveEdge(edge.Source, edge.Target)
 				if err != nil {
-					return fmt.Errorf("could not remove edge %s -> %s for replacement", id, resource.ID)
+					return fmt.Errorf("could not remove edge %s for replacement", edge)
+				}
+				err = reconciler.RemoveResource(ctx.Solution, id, false)
+				if err != nil {
+					return fmt.Errorf("could not remove resource %s for replacement", id)
 				}
 			}
+			ids = []construct.ResourceId{}
 		}
-		ids = []construct.ResourceId{}
 	}
 
 	if len(ids) >= step.NumNeeded {
@@ -124,7 +129,6 @@ func (ctx OperationalRuleContext) getResourcesForStep(step knowledgebase.Operati
 		for _, resourceSelector := range step.Resources {
 			if resourceSelector.IsMatch(dyn, ctx.Data, dep) {
 				resourcesOfType = append(resourcesOfType, dep.ID)
-
 			}
 		}
 	}

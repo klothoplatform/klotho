@@ -72,6 +72,13 @@ const (
 	ClosestSelectionOperator SelectionOperator = ""
 )
 
+func (d Direction) Edge(resource, dep construct.ResourceId) construct.SimpleEdge {
+	if d == DirectionUpstream {
+		return construct.SimpleEdge{Source: dep, Target: resource}
+	}
+	return construct.SimpleEdge{Source: resource, Target: dep}
+}
+
 // IsMatch checks if the resource selector is a match for the given resource
 func (p ResourceSelector) IsMatch(ctx DynamicValueContext, data DynamicValueData, res *construct.Resource) bool {
 	ids, err := p.ExtractResourceIds(ctx, data)
