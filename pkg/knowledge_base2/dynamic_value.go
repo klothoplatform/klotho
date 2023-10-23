@@ -14,6 +14,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	"go.uber.org/zap"
 )
 
@@ -50,17 +51,18 @@ func (ctx DynamicValueContext) KB() TemplateKB {
 
 func (ctx DynamicValueContext) TemplateFunctions() template.FuncMap {
 	return template.FuncMap{
-		"hasUpstream":   ctx.HasUpstream,
-		"upstream":      ctx.Upstream,
-		"allUpstream":   ctx.AllUpstream,
-		"hasDownstream": ctx.HasDownstream,
-		"downstream":    ctx.Downstream,
-		"allDownstream": ctx.AllDownstream,
-		"shortestPath":  ctx.ShortestPath,
-		"longestPath":   ctx.LongestPath,
-		"fieldValue":    ctx.FieldValue,
-		"hasField":      ctx.HasField,
-		"fieldRef":      ctx.FieldRef,
+		"hasUpstream":       ctx.HasUpstream,
+		"upstream":          ctx.Upstream,
+		"allUpstream":       ctx.AllUpstream,
+		"hasDownstream":     ctx.HasDownstream,
+		"downstream":        ctx.Downstream,
+		"closestDownstream": ctx.ClosestDownstream,
+		"allDownstream":     ctx.AllDownstream,
+		"shortestPath":      ctx.ShortestPath,
+		"longestPath":       ctx.LongestPath,
+		"fieldValue":        ctx.FieldValue,
+		"hasField":          ctx.HasField,
+		"fieldRef":          ctx.FieldRef,
 
 		"toJson": ctx.toJson,
 
@@ -283,16 +285,19 @@ func (ctx DynamicValueContext) upstream(selector any, resource construct.Resourc
 		return construct.ResourceId{}, err
 	}
 
-	upstream, err := Upstream(ctx.Graph, ctx.KnowledgeBase, resource, FirstFunctionalLayer)
-	if err != nil {
-		return construct.ResourceId{}, err
-	}
-	for _, up := range upstream {
-		if selId.Matches(up) {
-			return up, nil
+	var match construct.ResourceId
+	err = graph_addons.WalkUp(ctx.Graph, resource, func(id construct.ResourceId, nerr error) error {
+		if selId.Matches(id) {
+			match = id
+			return graph_addons.StopWalk
 		}
-	}
-	return construct.ResourceId{}, nil
+		if ctx.KB().GetFunctionality(id) != Unknown {
+			return graph_addons.SkipPath
+		}
+		return nil
+	})
+
+	return match, err
 }
 
 // Upstream returns the first resource that matches `selector` which is upstream of `resource`
@@ -342,16 +347,19 @@ func (ctx DynamicValueContext) downstream(selector any, resource construct.Resou
 		return construct.ResourceId{}, err
 	}
 
-	downstream, err := Downstream(ctx.Graph, ctx.KnowledgeBase, resource, FirstFunctionalLayer)
-	if err != nil {
-		return construct.ResourceId{}, err
-	}
-	for _, down := range downstream {
-		if selId.Matches(down) {
-			return down, nil
+	var match construct.ResourceId
+	err = graph_addons.WalkDown(ctx.Graph, resource, func(id construct.ResourceId, nerr error) error {
+		if selId.Matches(id) {
+			match = id
+			return graph_addons.StopWalk
 		}
-	}
-	return construct.ResourceId{}, nil
+		if ctx.KB().GetFunctionality(id) != Unknown {
+			return graph_addons.SkipPath
+		}
+		return nil
+	})
+
+	return match, err
 }
 
 // Downstream returns the first resource that matches `selector` which is downstream of `resource`
@@ -374,6 +382,23 @@ func (ctx DynamicValueContext) Downstream(selector any, resource construct.Resou
 		return down, fmt.Errorf("no downstream resource of '%s' found matching selector '%s'", resource, selector)
 	}
 	return down, nil
+}
+
+func (ctx DynamicValueContext) ClosestDownstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
+	selId, err := TemplateArgToRID(selector)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
+
+	var match construct.ResourceId
+	err = graph.BFS(ctx.Graph, resource, func(id construct.ResourceId) bool {
+		if selId.Matches(id) {
+			match = id
+			return true
+		}
+		return false
+	})
+	return match, err
 }
 
 // AllDownstream is like Downstream but returns all transitive downstream resources.

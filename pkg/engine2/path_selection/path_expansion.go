@@ -9,7 +9,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
-	"go.uber.org/zap"
 )
 
 // ExpandEdge takes a given `selectedPath` and resolves it to a path of resourceIds that can be used
@@ -22,7 +21,6 @@ func ExpandEdge(
 	if len(selectedPath) == 2 {
 		return []construct.ResourceId{dep.Source.ID, dep.Target.ID}, nil
 	}
-	zap.S().Debugf("Expanding Edge for %s -> %s", dep.Source, dep.Target)
 
 	g := construct.NewAcyclicGraph(graph.Weighted())
 	var errs error

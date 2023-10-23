@@ -85,6 +85,22 @@ func DownstreamDependencies(g Graph, start ResourceId, skipEdge func(Edge) bool)
 	return newDependencies(g, start, skipEdge, adj)
 }
 
+type ShortestPather interface {
+	ShortestPath(target ResourceId) (Path, error)
+}
+
+func ShortestPaths(
+	g Graph,
+	source ResourceId,
+	skipEdge func(Edge) bool,
+) (ShortestPather, error) {
+	return bellmanFord(g, source, skipEdge)
+}
+
+func DontSkipEdges(_ Edge) bool {
+	return false
+}
+
 type bellmanFordResult struct {
 	source ResourceId
 	prev   map[ResourceId]ResourceId

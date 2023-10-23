@@ -10,7 +10,7 @@ properties:
     default_value: tcp
   Vpc:
     type: resource(aws:vpc)
-    default_value: '{{ downstream "aws:vpc" .Self }}'
+    default_value: '{{ closestDownstream "aws:vpc" .Self }}'
   TargetType:
     type: string
   Targets:

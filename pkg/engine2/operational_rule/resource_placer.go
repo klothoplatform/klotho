@@ -8,6 +8,7 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
+	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
@@ -84,8 +85,12 @@ func (p *SpreadPlacer) SetCtx(ctx OperationalRuleContext) {
 	p.ctx = ctx
 }
 
-func (p *ClusterPlacer) PlaceResources(resource *construct.Resource, step knowledgebase.OperationalStep,
-	availableResources []*construct.Resource, numNeeded *int) error {
+func (p *ClusterPlacer) PlaceResources(
+	resource *construct.Resource,
+	step knowledgebase.OperationalStep,
+	availableResources []*construct.Resource,
+	numNeeded *int,
+) error {
 	// if we get the cluster operator our logic goes as follows:
 	// Place in the resource which has the most connections to the same resource in question
 	mapOfConnections, err := p.ctx.findNumConnectionsToTypeForAvailableResources(step, availableResources, resource.ID)
@@ -113,57 +118,57 @@ func (p *ClusterPlacer) SetCtx(ctx OperationalRuleContext) {
 	p.ctx = ctx
 }
 
-func (p ClosestPlacer) PlaceResources(resource *construct.Resource, step knowledgebase.OperationalStep,
-	availableResources []*construct.Resource, numNeeded *int) error {
+func (p ClosestPlacer) PlaceResources(
+	resource *construct.Resource,
+	step knowledgebase.OperationalStep,
+	availableResources []*construct.Resource,
+	numNeeded *int,
+) error {
 	// if we get the closest operator our logic goes as follows:
 	// find the closest available resource in terms of functional distance and use that
 	if *numNeeded == 0 {
 		return nil
 	}
-	lengthMap := map[int][]*construct.Resource{}
+	resourceDepths := make(map[construct.ResourceId]int)
+	undirectedGraph, err := p.buildUndirectedGraph()
+	if err != nil {
+		return err
+	}
+	pather, err := construct.ShortestPaths(undirectedGraph, resource.ID, construct.DontSkipEdges)
 	for _, availableResource := range availableResources {
-		var path []construct.ResourceId
-		var err error
-		undirectedGraph, err := p.buildUndirectedGraph()
-		if err != nil {
-			return err
-		}
-		if step.Direction == knowledgebase.DirectionDownstream {
-			path, err = graph.ShortestPath(undirectedGraph, resource.ID, availableResource.ID)
-		} else {
-			path, err = graph.ShortestPath(undirectedGraph, availableResource.ID, resource.ID)
-		}
+		path, err := pather.ShortestPath(availableResource.ID)
 		if err != nil && !errors.Is(err, graph.ErrTargetNotReachable) {
 			return err
 		}
-		length := len(path)
 		// If the target isnt reachable then we want to make it so that it is the longest possible path
 		if path == nil {
-			length = math.MaxInt
+			resourceDepths[availableResource.ID] = math.MaxInt64
+			continue
 		}
-		for i, resource := range path {
-			if i == 0 || i == len(path)-1 {
+		length := 0
+		for i := range path {
+			if i == 0 {
 				continue
 			}
-			if p.ctx.Solution.KnowledgeBase().GetFunctionality(resource) != knowledgebase.Unknown {
-				length += 100
-			}
+			edge, _ := undirectedGraph.Edge(path[i-1], path[i])
+			length += edge.Properties.Weight
 		}
-		lengthMap[length] = append(lengthMap[length], availableResource)
+		resourceDepths[availableResource.ID] = length
 	}
-	sortedLengthList := sortNumConnectionsMap(lengthMap)
-	for _, length := range sortedLengthList {
-		for _, availableResource := range lengthMap[length] {
-			err := p.ctx.addDependencyForDirection(step, resource, availableResource)
-			if err != nil {
-				return err
-			}
-			*numNeeded--
-			if *numNeeded == 0 {
-				return nil
-			}
+	sort.SliceStable(availableResources, func(i, j int) bool {
+		return resourceDepths[availableResources[i].ID] < resourceDepths[availableResources[j].ID]
+	})
+	num := *numNeeded
+	if num > len(availableResources) {
+		num = len(availableResources)
+	}
+	for _, availableResource := range availableResources[:num] {
+		err := p.ctx.addDependencyForDirection(step, resource, availableResource)
+		if err != nil {
+			return err
 		}
 	}
+	*numNeeded -= num
 	return nil
 }
 
@@ -172,21 +177,39 @@ func (p *ClosestPlacer) SetCtx(ctx OperationalRuleContext) {
 }
 
 func (p *ClosestPlacer) buildUndirectedGraph() (construct.Graph, error) {
-	undirected := graph.New(construct.ResourceHasher)
+	undirected := graph.NewWithStore(
+		construct.ResourceHasher,
+		graph_addons.NewMemoryStore[construct.ResourceId, *construct.Resource](),
+	)
 	err := undirected.AddVerticesFrom(p.ctx.Solution.RawView())
 	if err != nil {
 		return nil, err
 	}
-	err = undirected.AddEdgesFrom(p.ctx.Solution.RawView())
+	edges, err := p.ctx.Solution.RawView().Edges()
 	if err != nil {
 		return nil, err
+	}
+	for _, e := range edges {
+		weight := 1
+		// increase weights for edges that are connected to a functional resource
+		if p.ctx.Solution.KnowledgeBase().GetFunctionality(e.Source) != knowledgebase.Unknown {
+			weight = 1000
+		} else if p.ctx.Solution.KnowledgeBase().GetFunctionality(e.Target) != knowledgebase.Unknown {
+			weight = 1000
+		}
+		err := undirected.AddEdge(e.Source, e.Target, graph.EdgeWeight(weight))
+		if err != nil {
+			return nil, err
+		}
 	}
 	return undirected, nil
 }
 
 func (ctx OperationalRuleContext) findNumConnectionsToTypeForAvailableResources(
-	step knowledgebase.OperationalStep, availableResources []*construct.Resource,
-	resource construct.ResourceId) (map[int][]*construct.Resource, error) {
+	step knowledgebase.OperationalStep,
+	availableResources []*construct.Resource,
+	resource construct.ResourceId,
+) (map[int][]*construct.Resource, error) {
 
 	mapOfConnections := map[int][]*construct.Resource{}
 	// If there are multiple available, find the one with the least connections to the same resource in question and use that

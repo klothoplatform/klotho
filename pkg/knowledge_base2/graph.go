@@ -119,7 +119,7 @@ func DependenciesSkipEdgeLayer(
 	default:
 		fallthrough
 	case AllDepsLayer:
-		return func(e construct.Edge) bool { return false }
+		return construct.DontSkipEdges
 	}
 }
 

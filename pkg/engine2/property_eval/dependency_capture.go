@@ -101,6 +101,7 @@ func (ctx *fauxConfigContext) TemplateFunctions() template.FuncMap {
 	funcs["allUpstream"] = ctx.AllUpstream
 	funcs["hasDownstream"] = ctx.HasDownstream
 	funcs["downstream"] = ctx.Downstream
+	funcs["closestDownstream"] = ctx.ClosestDownstream
 	funcs["allDownstream"] = ctx.AllDownstream
 	return funcs
 }
@@ -295,6 +296,18 @@ func (ctx *fauxConfigContext) Downstream(selector any, resource construct.Resour
 	}
 
 	return down, innerErr
+}
+
+func (ctx *fauxConfigContext) ClosestDownstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
+	if ctx.graphState == nil {
+		ctx.graphState = make(graphStates)
+	}
+	ctx.graphState[fmt.Sprintf("closestDownstream(%s, %s)", selector, resource)] = func(g construct.Graph) (bool, error) {
+		// Can never say that [ClosestDownstream] is ready because something closer could always be added
+		return false, nil
+	}
+
+	return ctx.inner.ClosestDownstream(selector, resource)
 }
 
 func (ctx *fauxConfigContext) AllDownstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {

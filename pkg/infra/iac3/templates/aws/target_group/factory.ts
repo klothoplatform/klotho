@@ -7,6 +7,7 @@ interface Args {
     Vpc: aws.ec2.Vpc
     TargetType: string
     Tags: Record<string, string>
+    Targets: { Id: string; Port: number }[]
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -22,8 +23,8 @@ function create(args: Args): aws.lb.TargetGroup {
             //TMPL {{- end }}
         })
 
-        //TMPL {{- if .TargetGroup.Targets }}
-        for (const target of args.TargetGroup.Targets) {
+        //TMPL {{- if .Targets }}
+        for (const target of args.Targets) {
             new aws.lb.TargetGroupAttachment(target.Id, {
                 port: target.Port,
                 targetGroupArn: tg.arn,
