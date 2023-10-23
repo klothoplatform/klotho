@@ -286,7 +286,21 @@ func appendValue(appendTo reflect.Value, value reflect.Value) (reflect.Value, er
 		} else {
 			return a, fmt.Errorf("expected %s or []%[1]s value for append, got %s", a.Type().Elem(), value.Type())
 		}
-		return reflect.Append(a, values...), nil
+		// NOTE(gg): If we ever need to allow for duplicates in a list, we'll likely need that behaviour
+		// specified in a template, which means this logic will need to be promoted out of here and into
+		// somewhere that has access to the templates.
+		toAdd := make([]reflect.Value, 0, len(values))
+	valuesLoop:
+		for _, v := range values {
+			for i := 0; i < a.Len(); i++ {
+				existing := a.Index(i)
+				if reflect.DeepEqual(existing.Interface(), v.Interface()) {
+					continue valuesLoop
+				}
+			}
+			toAdd = append(toAdd, v)
+		}
+		return reflect.Append(a, toAdd...), nil
 
 	case reflect.Map:
 		aType := a.Type()
@@ -310,11 +324,11 @@ func appendValue(appendTo reflect.Value, value reflect.Value) (reflect.Value, er
 		original := a.Interface()
 		current, ok := original.(set.HashedSet[string, any])
 		if !ok {
-			break
+			return a, fmt.Errorf("expected HashedSet as original struct, got %T", original)
 		}
 		additional, ok := val.(set.HashedSet[string, any])
 		if !ok {
-			break
+			return a, fmt.Errorf("expected HashedSet as additional struct, got %T", val)
 		}
 		current.Add(additional.ToSlice()...)
 		return reflect.ValueOf(current), nil
