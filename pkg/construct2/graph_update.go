@@ -75,7 +75,6 @@ func PropagateUpdatedId(g Graph, old ResourceId) error {
 // RemoveResource removes all edges from the resource. any property references (as [ResourceId] or [PropertyRef])
 // to the resource, and finally the resource itself.
 func RemoveResource(g Graph, id ResourceId) error {
-	neighbors := make(map[ResourceId]struct{})
 	adj, err := g.AdjacencyMap()
 	if err != nil {
 		return err
@@ -89,7 +88,6 @@ func RemoveResource(g Graph, id ResourceId) error {
 			err,
 			g.RemoveEdge(edge.Source, edge.Target),
 		)
-		neighbors[edge.Target] = struct{}{}
 	}
 	if err != nil {
 		return err
@@ -104,7 +102,6 @@ func RemoveResource(g Graph, id ResourceId) error {
 			err,
 			g.RemoveEdge(edge.Source, edge.Target),
 		)
-		neighbors[edge.Source] = struct{}{}
 	}
 	if err != nil {
 		return err
@@ -123,7 +120,7 @@ func RemoveResource(g Graph, id ResourceId) error {
 		return nil
 	}
 
-	for neighborId := range neighbors {
+	for neighborId := range adj {
 		neighbor, err := g.Vertex(neighborId)
 		if err != nil {
 			return err

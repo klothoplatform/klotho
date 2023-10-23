@@ -30,11 +30,11 @@ func NewEngine(kb knowledgebase.TemplateKB) *Engine {
 
 func (e *Engine) Run(context *EngineContext) error {
 	solutionCtx := NewSolutionContext(e.Kb)
+	solutionCtx.constraints = context.Constraints
 	err := solutionCtx.LoadGraph(context.InitialState)
 	if err != nil {
 		return err
 	}
-	solutionCtx.constraints = context.Constraints
 	err = ApplyConstraints(solutionCtx)
 	if err != nil {
 		return err

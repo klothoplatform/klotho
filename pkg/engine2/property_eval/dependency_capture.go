@@ -123,6 +123,7 @@ func (ctx *fauxConfigContext) HasField(field string, resource any) (bool, error)
 }
 
 func (ctx *fauxConfigContext) FieldValue(field string, resource any) (any, error) {
+
 	resId, err := knowledgebase.TemplateArgToRID(resource)
 	if err != nil {
 		return "", err

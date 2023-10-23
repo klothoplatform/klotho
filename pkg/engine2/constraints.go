@@ -40,7 +40,7 @@ func applyApplicationConstraint(ctx solution_context.SolutionContext, constraint
 		return ctx.OperationalView().AddVertex(res)
 
 	case constraints.RemoveConstraintOperator:
-		return construct.RemoveResource(ctx.OperationalView(), constraint.Node)
+		return reconciler.RemoveResource(ctx, constraint.Node, true)
 
 	case constraints.ReplaceConstraintOperator:
 		node, err := ctx.RawView().Vertex(constraint.Node)

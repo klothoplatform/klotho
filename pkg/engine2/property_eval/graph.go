@@ -45,11 +45,6 @@ func (eval *PropertyEval) AddResources(rs ...*construct.Resource) error {
 	return eval.enqueue(vs)
 }
 
-func (eval *PropertyEval) RemoveResource(res construct.ResourceId) error {
-	// TODO
-	return nil
-}
-
 func (eval *PropertyEval) AddEdges(es ...construct.Edge) error {
 	vs := make(verticesAndDeps)
 	var errs error
@@ -161,7 +156,6 @@ func (eval *PropertyEval) edgeVertices(
 					fmt.Errorf("could not execute config.field template for edge rule [%d][%d]: %w", i, j, err),
 				)
 			}
-
 			vertex, ok := vertices[ref]
 			if !ok {
 				existing, err := eval.graph.Vertex(EvaluationKey{Ref: ref})
@@ -203,4 +197,185 @@ func (eval *PropertyEval) edgeVertices(
 	}
 
 	return vs, errs
+}
+
+func (eval *PropertyEval) RemoveEdge(source, target construct.ResourceId) error {
+
+	g := eval.graph
+
+	key := EvaluationKey{Edge: construct.SimpleEdge{Source: source, Target: target}}
+
+	v, _ := g.Vertex(key)
+	if v == nil {
+		return nil
+	}
+	adj, err := g.AdjacencyMap()
+	if err != nil {
+		return err
+	}
+
+	pred, err := g.PredecessorMap()
+	if err != nil {
+		return err
+	}
+
+	for _, edge := range pred[key] {
+		err = errors.Join(
+			err,
+			g.RemoveEdge(edge.Source, edge.Target),
+		)
+		err = errors.Join(
+			err,
+			eval.unevaluated.RemoveEdge(edge.Source, edge.Target),
+		)
+	}
+	for _, edge := range adj[key] {
+		err = errors.Join(
+			err,
+			g.RemoveEdge(edge.Source, edge.Target),
+		)
+		err = errors.Join(
+			err,
+			eval.unevaluated.RemoveEdge(edge.Source, edge.Target),
+		)
+	}
+	err = errors.Join(err, g.RemoveVertex(key))
+	err = errors.Join(err, eval.unevaluated.RemoveVertex(key))
+
+	if err != nil {
+		return fmt.Errorf("could not remove edge %s -> %s: %w", source, target, err)
+	}
+
+	adj, err = g.AdjacencyMap()
+	if err != nil {
+		return err
+	}
+
+	pred, err = g.PredecessorMap()
+	if err != nil {
+		return err
+	}
+
+	for key := range adj {
+		var v EvaluationVertex
+		v, err = g.Vertex(key)
+		if err != nil {
+			err = errors.Join(err, fmt.Errorf("could not get vertex for %s: %w", key, err))
+		}
+		stateVertex, ok := v.(*graphStateVertex)
+		if ok {
+			if len(adj[stateVertex.Key()]) == 0 && len(pred[stateVertex.Key()]) == 0 {
+				err = errors.Join(err, g.RemoveVertex(stateVertex.Key()))
+				err = errors.Join(err, eval.unevaluated.RemoveVertex(stateVertex.Key()))
+			}
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("could not remove edge %s -> %s: %w", source, target, err)
+	}
+	return nil
+}
+
+// RemoveResource removes all edges from the resource. any property references (as [ResourceId] or [PropertyRef])
+// to the resource, and finally the resource itself.
+func (eval *PropertyEval) RemoveResource(id construct.ResourceId) error {
+	g := eval.graph
+	adj, err := g.AdjacencyMap()
+	if err != nil {
+		return err
+	}
+
+	pred, err := g.PredecessorMap()
+	if err != nil {
+		return err
+	}
+
+	for key, edgeMap := range pred {
+		if key.Ref.Resource == id {
+			for _, edge := range edgeMap {
+				err = errors.Join(
+					err,
+					g.RemoveEdge(edge.Source, edge.Target),
+				)
+				err = errors.Join(
+					err,
+					eval.unevaluated.RemoveEdge(edge.Source, edge.Target),
+				)
+			}
+			for _, edge := range adj[key] {
+				err = errors.Join(
+					err,
+					g.RemoveEdge(edge.Source, edge.Target),
+				)
+				err = errors.Join(
+					err,
+					eval.unevaluated.RemoveEdge(edge.Source, edge.Target),
+				)
+			}
+			err = errors.Join(err, g.RemoveVertex(key))
+			err = errors.Join(err, eval.unevaluated.RemoveVertex(key))
+		}
+	}
+
+	if err != nil {
+		return fmt.Errorf("could not remove resource %s: %w", id, err)
+	}
+	adj, err = g.AdjacencyMap()
+	if err != nil {
+		return err
+	}
+
+	pred, err = g.PredecessorMap()
+	if err != nil {
+		return err
+	}
+
+	for key := range adj {
+		var v EvaluationVertex
+		v, err = g.Vertex(key)
+		if err != nil {
+			err = errors.Join(err, fmt.Errorf("could not get vertex for %s: %w", key, err))
+		}
+		pvertex, ok := v.(*propertyVertex)
+		if ok {
+			for edge := range pvertex.EdgeRules {
+				if edge.Source == id || edge.Target == id {
+					delete(pvertex.EdgeRules, edge)
+				}
+			}
+		}
+		evertex, ok := v.(*edgeVertex)
+		if ok {
+			if evertex.Edge.Source == id || evertex.Edge.Target == id {
+				for _, edges := range adj[evertex.Key()] {
+					err = errors.Join(err, eval.graph.RemoveEdge(edges.Source, edges.Target))
+					err = errors.Join(
+						err,
+						eval.unevaluated.RemoveEdge(edges.Source, edges.Target),
+					)
+				}
+				for _, edges := range pred[evertex.Key()] {
+					err = errors.Join(err, eval.graph.RemoveEdge(edges.Source, edges.Target))
+					err = errors.Join(
+						err,
+						eval.unevaluated.RemoveEdge(edges.Source, edges.Target),
+					)
+				}
+				err = errors.Join(err, g.RemoveVertex(evertex.Key()))
+				err = errors.Join(err, eval.unevaluated.RemoveVertex(evertex.Key()))
+			}
+		}
+		stateVertex, ok := v.(*graphStateVertex)
+		if ok {
+			if len(adj[stateVertex.Key()]) == 0 && len(pred[stateVertex.Key()]) == 0 {
+				err = errors.Join(err, g.RemoveVertex(stateVertex.Key()))
+				err = errors.Join(err, eval.unevaluated.RemoveVertex(stateVertex.Key()))
+			}
+		}
+	}
+
+	if err != nil {
+		return fmt.Errorf("could not remove resource %s: %w", id, err)
+	}
+	return nil
 }

@@ -191,7 +191,10 @@ func (view MakeOperationalView) UpdateEdge(source, target construct.ResourceId, 
 }
 
 func (view MakeOperationalView) RemoveEdge(source, target construct.ResourceId) error {
-	return view.raw().RemoveEdge(source, target)
+	return errors.Join(
+		view.raw().RemoveEdge(source, target),
+		view.propertyEval.RemoveEdge(source, target),
+	)
 }
 
 func (view MakeOperationalView) AdjacencyMap() (map[construct.ResourceId]map[construct.ResourceId]construct.Edge, error) {

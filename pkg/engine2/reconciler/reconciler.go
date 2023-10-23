@@ -39,21 +39,21 @@ func RemoveResource(c solution_context.SolutionContext, resource construct.Resou
 		}
 	}
 
-	raw := c.RawView()
+	op := c.OperationalView()
 
 	var errs error
 	// We must remove all edges before removing the vertex
 	for res := range upstreams {
-		errs = errors.Join(errs, raw.RemoveEdge(res, resource))
+		errs = errors.Join(errs, op.RemoveEdge(res, resource))
 	}
 	for res := range downstreams {
-		errs = errors.Join(errs, raw.RemoveEdge(resource, res))
+		errs = errors.Join(errs, op.RemoveEdge(resource, res))
 	}
 	if errs != nil {
 		return errs
 	}
 
-	err = c.RawView().RemoveVertex(resource)
+	err = construct.RemoveResource(op, resource)
 	if err != nil {
 		return err
 	}

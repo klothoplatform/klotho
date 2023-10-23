@@ -135,6 +135,9 @@ func (p ClosestPlacer) PlaceResources(
 		return err
 	}
 	pather, err := construct.ShortestPaths(undirectedGraph, resource.ID, construct.DontSkipEdges)
+	if err != nil {
+		return err
+	}
 	for _, availableResource := range availableResources {
 		path, err := pather.ShortestPath(availableResource.ID)
 		if err != nil && !errors.Is(err, graph.ErrTargetNotReachable) {

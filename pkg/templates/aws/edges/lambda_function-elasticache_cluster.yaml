@@ -10,6 +10,8 @@ operational_rules:
         {{ else }}
           false
         {{- end }}
+      {{ else }}
+        false
       {{ end }}
     steps:
       - resource: '{{ downstream "aws:vpc" .Source }}'

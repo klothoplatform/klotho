@@ -24,8 +24,8 @@ type (
 	}
 )
 
-func NewSolutionContext(kb knowledgebase.TemplateKB) solutionContext {
-	ctx := solutionContext{
+func NewSolutionContext(kb knowledgebase.TemplateKB) *solutionContext {
+	ctx := &solutionContext{
 		KB: kb,
 		Dataflow: graph_addons.LoggingGraph[construct.ResourceId, *construct.Resource]{
 			Log:   zap.L().With(zap.String("graph", "dataflow")).Sugar(),
@@ -36,9 +36,7 @@ func NewSolutionContext(kb knowledgebase.TemplateKB) solutionContext {
 		decisions:       &solution_context.MemoryRecord{},
 		mappedResources: make(map[construct.ResourceId]construct.ResourceId),
 	}
-	// Pass a reference otherwise the SolutionContext that the PropertyEval has will be a copy of the one above,
-	// which does not have a reference to the PropertyEval.
-	ctx.propertyEval = property_eval.NewPropertyEval(&ctx)
+	ctx.propertyEval = property_eval.NewPropertyEval(ctx)
 	return ctx
 }
 
